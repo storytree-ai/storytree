@@ -1,0 +1,684 @@
+/**
+ * Capability 8 · Code survey (ADR-0804 D3, D4): a story's code files, each with its lines of code, the
+ * capability it belongs to, and the relative imports between them.
+ *
+ * - A test titled "N.M …" pins capability N of its story. A test file reaches the source files it imports,
+ *   every file those import in turn, through any number of ordinary imports (ADR-0838 D2), and through a
+ *   re-export (`export … from`) the files the names it takes come from, so a test of the package's index
+ *   reaches what it takes from there. A file belongs to the capability whose numbered tests reach it
+ *   nearest (fewest ordinary imports away), then most; a tie goes to the lower number. So a test's own
+ *   subject stays its own, and a file reached only through others goes to the capability nearest it.
+ * - A CommonJS `require("…")` of a relative file or the package's own exported subpath is an ordinary import (8.12).
+ * - A `#name` its package.json's imports field maps literally to a file of the package is an ordinary import of it (8.28).
+ * - A test's esbuild entry point, a literal `new URL("./x", import.meta.url)` under an `entryPoints` key, is an ordinary import of it (8.34).
+ * - A test file that runs an imported behaviour suite (a file it reaches by value that imports node:test
+ *   itself) carries the numbered titles the suite registers, for its proofs and its reach (8.14).
+ * - A package-prefixed title proves that package's numbered contracts (ADR-0845). A foreign prefix
+ *   never assigns the importing package's code to a same-numbered local capability.
+ * - Where no import leads, because a test runs the code in a process it starts, the package's coverage
+ *   map (ADR-0838 D3, written by the dev loop's `pnpm survey:coverage`) says which numbered tests
+ *   executed it. Executed ranks after a direct import and before a further one: a file a test imports
+ *   is its subject, and code a test ran is nearer to it than code only imported along the way.
+ * - A file reached only through type imports (a file of types) goes, after every other reach, to the
+ *   capability whose tests reach it so nearest (ADR-0838 D4). A literal `import("./x.js")` is an import.
+ * - A source file whose opening comment begins "Capability N · <title>" (after a shebang) declares capability N
+ *   (ADR-0925 D1). A declaration N's numbered tests or coverage map reach puts the file in N whatever the
+ *   ranking says (ADR-0925 D3); one they do not reach is reported, with the numbers that do reach it, for the
+ *   allocation rule to fail, and the file is allocated by inference meanwhile (8.15).
+ * - A file nothing reaches is Unclaimed: no capability. Its folder's name allocates nothing, since name
+ *   matching is brittle (ADR-0838 D3 retired the fallback).
+ * - Lines are a file's non-blank lines. Test files, and test helpers under a testing/ folder, are read for
+ *   their titles and imports, never counted. They remain as tagged tests in the survey (ADR-0864).
+ * Capability records gain no file list: ownership is derived here, each time.
+ */
+import { parse } from "@babel/parser";
+
+import type { CodeEdge, EdgeFile, StorySurvey, SurveyedFile, SurveyedTest } from "@storytree/library";
+
+import { ALSO_OWNED, packageOf, packagesOf } from "./package-of.js";
+
+export { ALSO_OWNED, packageOf, packagesOf };
+
+/** Whether a test title's package prefix, when it has one, names one of `own`: the story's packages, or its one. */
+const ownPrefix = (named: string | undefined, own: string | readonly string[] | undefined): boolean =>
+  named === undefined || (typeof own === "string" ? named === own : own?.includes(named) === true);
+
+/** A file of a story's package; the disk reader tags helpers outside src as test support. */
+export type SourceFile = { readonly path: string; readonly text: string; readonly testSupport?: boolean };
+
+/** A package's literal exports, in the same coordinates as its source files. */
+export type SurveyPackage = { readonly root: string; readonly name: string; readonly exports: Readonly<Record<string, string>>; readonly imports?: Readonly<Record<string, string>> };
+
+/** A capability as the survey needs it: its id and its numbered title ("3 · Claims"). */
+export type SurveyCapability = { readonly id: string; readonly title: string };
+
+/** A package's coverage map: for each source file, how many numbered tests of each capability number executed it. */
+export type CoverageMap = Readonly<Record<string, Readonly<Record<string, number>>>>;
+
+/** Where executed code ranks among import depths: after a direct import (0), before a further one (1). */
+const EXECUTED = 0.5;
+
+const TEST_FILE = /\.(?:test|spec)\.[cm]?[jt]sx?$/;
+/** A test file, or a test helper under a testing/ folder: never counted as source, though a test reaches through a helper. */
+const TEST_SUPPORT = /(?:^|\/)testing\//;
+const isTestCode = (file: SourceFile): boolean => file.testSupport === true || TEST_FILE.test(file.path) || TEST_SUPPORT.test(file.path);
+const CODE_FILE = /\.[cm]?[jt]sx?$/;
+const DECLARATION = /\.d\.[cm]?ts$/;
+const NUMBERED_TITLE = /^(?:([a-z][a-z0-9-]*)\s+)?(\d+)\.\d+\b/;
+/** Static imports, re-exports and literal dynamic imports: kind, names, specifier. */
+const IMPORT = /\b(import|export)\s+(type\s+)?([^;'"`]*?)\s*\bfrom\s*["']([^"']+)["']|\bimport\s*\(?\s*["']([^"']+)["']/g;
+
+/** Where a reach by types alone ranks: after every reach by a value or by running (ADR-0838 D4). */
+const BY_TYPES = 1000;
+
+/** The capability number a numbered title starts with ("3 · Claims" is 3). */
+const numberOf = (title: string): number | undefined => {
+  const match = /^\s*(\d+)\s*·/.exec(title);
+  return match === null ? undefined : Number(match[1]);
+};
+
+/** First-argument title strings, including helpers and local constants, without reading comments or quoted examples as calls. */
+function calledTitles(file: SourceFile): readonly string[] {
+  let text = file.text;
+  // Regex quotes and call-looking text are inert; keep offsets for the existing title scan.
+  for (const token of syntaxOf(file, true)?.tokens ?? []) {
+    if (typeof token.type === "string" || token.type.label !== "regexp") continue;
+    text = text.slice(0, token.start) + text.slice(token.start, token.end).replace(/[^\r\n]/g, " ") + text.slice(token.end);
+  }
+  const strings: { at: number; quote: string; value: string }[] = [];
+  const code = text.replace(/\/\/[^\r\n]*|\/\*[\s\S]*?\*\/|(["'`])(?:\\.|(?!\1)[^\\])*\1/g, (token: string, quote: string | undefined, at: number) => {
+    if (quote !== undefined) strings.push({ at, quote, value: token.slice(1, -1) });
+    return token.replace(/[^\r\n]/g, " ");
+  });
+  const constants = new Map<string, string>();
+  for (const { at, value } of strings) {
+    const name = /\bconst\s+([A-Za-z_$][\w$]*)\s*=\s*$/.exec(code.slice(0, at))?.[1];
+    if (name !== undefined) constants.set(name, value);
+  }
+  const titles: { at: number; title: string }[] = [];
+  for (const { at, quote, value } of strings) {
+    if (!/[\w$.]\s*\(\s*$/.test(code.slice(0, at))) continue;
+    const template = quote === "`" ? /^\$\{\s*([A-Za-z_$][\w$]*)\s*\}([\s\S]*)$/.exec(value) : null;
+    const prefix = template === null ? undefined : constants.get(template[1]!);
+    const title = template === null ? value : prefix === undefined ? undefined : prefix + template[2];
+    if (title !== undefined) titles.push({ at, title });
+  }
+  for (const call of code.matchAll(/[\w$.]\s*\(\s*([A-Za-z_$][\w$]*)\s*[,)]/g)) {
+    const title = constants.get(call[1]!);
+    if (title !== undefined) titles.push({ at: call.index, title });
+  }
+  return titles.sort((a, b) => a.at - b.at).map(({ title }) => title);
+}
+
+// 8.10: generous for contract lists (the repository's existing ranges span at most six), but finite
+// before allocation. Charge repeated/overlapping entries too: deduplication cannot budget loop work.
+const TITLE_PROOF_BUDGET = 256;
+const FILE_PROOF_BUDGET = 4096;
+
+/** ADR-0845 proof identities, bounded per title and surveyed file, including inherited suite titles. */
+function proofTitles(titles: readonly string[]): SurveyedTest["titles"] {
+  let remaining = FILE_PROOF_BUDGET;
+  return titles.flatMap(title => {
+    const lead = /^(?:([a-z][a-z0-9-]*)\s+)?(\d+\.\d+(?:–\d+\.\d+)?(?:(?:\s*[,/]\s*|\s+and\s+)\d+\.\d+(?:–\d+\.\d+)?)*):?(?=\s|$)/.exec(title!);
+    if (!lead) return [];
+    const ranges: { first: string; capability: string; start: number; width: number }[] = [];
+    let count = 0;
+    for (const [, first, last] of lead[2]!.matchAll(/(\d+\.\d+)(?:–(\d+\.\d+))?/g)) {
+      const [capability, start] = first!.split(".");
+      const [endCapability, end] = (last ?? first!).split(".");
+      if (capability !== endCapability || !Number.isSafeInteger(Number(capability)) || !Number.isSafeInteger(Number(start)) || !Number.isSafeInteger(Number(end)) || Number(end) < Number(start)) return [];
+      const width = Number(end) - Number(start) + 1;
+      count += width;
+      if (count > TITLE_PROOF_BUDGET || count > remaining) return [];
+      ranges.push({ first: first!, capability: capability!, start: Number(start), width });
+    }
+    // Validate the complete list first: a bad suffix must not expand even a valid prefix.
+    remaining -= count;
+    const numbers = new Set<string>();
+    for (const { first, capability, start, width } of ranges) {
+      numbers.add(first);
+      for (let offset = 1; offset < width; offset++) numbers.add(`${capability}.${start + offset}`);
+    }
+    return [...numbers].map(number => ({ number, title: title!, ...(lead[1] === undefined ? {} : { package: lead[1] }) }));
+  });
+}
+
+/** The opening comment's "Capability N · …", after a shebang: a comment that begins with it, before any code. */
+const DECLARED = /^(?:#![^\n]*\n)?\s*(?:\/\*+|\/\/)[\s*]*Capability\s+(\d+)\s*·[ \t]*([^\n]*)/;
+
+/** The capability number a source file declares in its opening comment (ADR-0925 D1), if any. */
+export const declarationOf = (text: string): number | undefined => {
+  const match = DECLARED.exec(text);
+  return match === null ? undefined : Number(match[1]);
+};
+
+/**
+ * Whether a source file's opening "Capability N · …" names `title` (a capability's "N · <title>"): its words after
+ * the dot begin with the title's, in any case. A file moved from another story keeps the header naming that story's
+ * capability, whose number here names another (8.29).
+ */
+export const declaresTitle = (text: string, title: string): boolean => {
+  const named = DECLARED.exec(text)?.[2]?.toLowerCase();
+  const own = title.replace(/^\s*\d+\s*·\s*/, "").toLowerCase();
+  return named !== undefined && named.startsWith(own);
+};
+
+/**
+ * The capability number a file declares itself (ADR-0925 D1, D4): a test file, the one number its own
+ * numbered titles carry (none when they carry several); a source file, its opening comment's. Not code, none.
+ */
+export function declaredNumberOf(file: SourceFile, ownPackage?: string | readonly string[]): number | undefined {
+  if (!CODE_FILE.test(file.path) || DECLARATION.test(file.path)) return undefined;
+  if (!TEST_FILE.test(file.path)) return declarationOf(file.text);
+  const numbers = new Set(calledTitles(file).flatMap((title) => {
+    const named = NUMBERED_TITLE.exec(title);
+    return named === null || !ownPrefix(named[1], ownPackage) ? [] : [Number(named[2])];
+  }));
+  return numbers.size === 1 ? [...numbers][0] : undefined;
+}
+
+const linesOf = (text: string): number => text.split("\n").filter((line) => line.trim() !== "").length;
+
+/**
+ * One relative import or re-export a file makes: the file it names, and the names it takes, each as that
+ * file exports it (`names`) and as this file offers it on (`as`); "all" for `*` or a bare import.
+ */
+type Edge = { readonly to: string; readonly reexport: boolean; readonly typeOnly: boolean; readonly names: readonly (readonly [name: string, as: string])[] | "all" };
+
+/** Resolve a relative specifier against the importing file, to a file the package holds. */
+function resolve(from: string, specifier: string, paths: ReadonlySet<string>, packages: readonly SurveyPackage[]): string | undefined {
+  if (!/^\.{1,2}\//.test(specifier)) {
+    const own = packages.find(pkg => from.startsWith(pkg.root));
+    if (own === undefined) return undefined;
+    const subpath = specifier === own.name ? "." : specifier.startsWith(own.name + "/") ? "." + specifier.slice(own.name.length) : undefined;
+    const target = specifier.startsWith("#") ? own.imports?.[specifier] : subpath === undefined ? undefined : own.exports[subpath];
+    if (target === undefined) return undefined;
+    return resolve(own.root + "package.json", target, paths, []);
+  }
+  const parts = from.split("/").slice(0, -1);
+  for (const part of specifier.split("/")) {
+    if (part === ".." && parts.length > 0 && parts.at(-1) !== "..") parts.pop();
+    else if (part !== ".") parts.push(part);
+  }
+  const target = parts.join("/");
+  const stem = target.replace(/\.[cm]?jsx?$/, "");
+  return [target, `${stem}.ts`, `${stem}.tsx`, `${stem}.js`, `${stem}.mjs`, `${target}/index.ts`, `${target}/index.tsx`, `${target}/index.js`].find((candidate) => paths.has(candidate));
+}
+
+/** The names an import or export clause takes; "all" for `*` or no clause. */
+function namesOf(clause: string): Edge["names"] {
+  if (clause.includes("*") || clause.trim() === "") return "all";
+  const braces = /\{([^}]*)\}/.exec(clause);
+  if (braces === null) return [["default", "default"]];
+  return braces[1]!.split(",").map((part) => part.trim().replace(/^type\s+/, "")).filter((part) => part !== "").map((part) => {
+    const [name, as] = part.split(/\s+as\s+/);
+    return [name!.trim(), (as ?? name!).trim()] as const;
+  });
+}
+
+/** Parse each unchanged source once; the ownership walk can visit it from many tests. */
+const importSyntax = new WeakMap<SourceFile, readonly RegExpExecArray[]>();
+
+/** Keep the parseable prefix while a file is being edited; never fall back to raw-text edges. */
+function syntaxOf(file: SourceFile, tokens = false): ReturnType<typeof parse> | undefined {
+  let text = file.text;
+  for (;;) {
+    try {
+      return parse(text, {
+        sourceType: "unambiguous", errorRecovery: true, allowUndeclaredExports: true,
+        createImportExpressions: true, attachComment: false, tokens,
+        plugins: ["decorators-legacy", ...(/\.[cm]?tsx?$/.test(file.path) ? ["typescript" as const] : []), ...(/\.[jt]sx$/.test(file.path) ? ["jsx" as const] : [])],
+      });
+    } catch (error) {
+      if (!(error instanceof SyntaxError)) throw error;
+      const at = (error as SyntaxError & { pos?: number }).pos ?? text.length;
+      const end = Math.max(text.lastIndexOf("\n", at - 1), text.lastIndexOf(";", at - 1));
+      if (end < 0) return undefined;
+      text = text.slice(0, end);
+    }
+  }
+}
+
+/** Only syntax nodes can start an edge. Strings, comments, regexes and template text cannot. */
+function importsOf(file: SourceFile): readonly RegExpExecArray[] {
+  const cached = importSyntax.get(file);
+  if (cached !== undefined) return cached;
+  const syntax = syntaxOf(file);
+  const starts: number[] = [];
+  const visit = (value: unknown): void => {
+    if (Array.isArray(value)) { value.forEach(visit); return; }
+    if (value === null || typeof value !== "object" || !("type" in value)) return;
+    const node = value as { type: string; start?: number; source?: unknown };
+    if (node.start !== undefined && (node.type === "ImportDeclaration" || node.type === "ImportExpression" || node.type === "TSImportType"
+      || ((node.type === "ExportNamedDeclaration" || node.type === "ExportAllDeclaration") && node.source))) starts.push(node.start);
+    Object.values(value).forEach(visit);
+  };
+  visit(syntax?.program);
+  let text = file.text;
+  for (const comment of [...syntax?.comments ?? []].reverse()) {
+    text = text.slice(0, comment.start) + text.slice(comment.start, comment.end).replace(/[^\r\n]/g, " ") + text.slice(comment.end);
+  }
+  const pattern = new RegExp(IMPORT.source, "y");
+  const imports = starts.sort((a, b) => a - b).flatMap(at => {
+    pattern.lastIndex = at;
+    const match = pattern.exec(text);
+    return match === null ? [] : [match];
+  });
+  importSyntax.set(file, imports);
+  return imports;
+}
+
+/** Parse each unchanged source once for the CommonJS requires it makes. */
+const requireSyntax = new WeakMap<SourceFile, readonly string[]>();
+
+/** What a file requires the CommonJS way: each `require("…")` call's string, read from syntax, so a comment or a string is none. */
+function requiresOf(file: SourceFile): readonly string[] {
+  const cached = requireSyntax.get(file);
+  if (cached !== undefined) return cached;
+  const specifiers: string[] = [];
+  if (/\brequire\s*\(/.test(file.text)) {
+    const visit = (value: unknown): void => {
+      if (Array.isArray(value)) { value.forEach(visit); return; }
+      if (value === null || typeof value !== "object" || !("type" in value)) return;
+      const node = value as { type: string; callee?: { type: string; name?: string }; arguments?: { type: string; value?: unknown }[] };
+      const [first] = node.arguments ?? [];
+      if (node.type === "CallExpression" && node.callee?.type === "Identifier" && node.callee.name === "require" && node.arguments?.length === 1
+        && first?.type === "StringLiteral" && typeof first.value === "string") specifiers.push(first.value);
+      Object.values(value).forEach(visit);
+    };
+    visit(syntaxOf(file)?.program);
+  }
+  requireSyntax.set(file, specifiers);
+  return specifiers;
+}
+
+/** Parse each unchanged test file once for the esbuild entry points it names. */
+const entrySyntax = new WeakMap<SourceFile, readonly string[]>();
+
+/**
+ * The modules a test file bundles by path (8.34): each literal `new URL("./x", import.meta.url)` under an
+ * `entryPoints` key, read from syntax. A URL anywhere else (a script spawned, a fixture read) names none.
+ */
+function entryPointsOf(file: SourceFile): readonly string[] {
+  const cached = entrySyntax.get(file);
+  if (cached !== undefined) return cached;
+  const specifiers: string[] = [];
+  type Node = { type: string; key?: Node; name?: string; value?: unknown; callee?: Node; arguments?: Node[]; object?: Node; property?: Node; meta?: Node };
+  const urlOf = (node: Node): string | undefined => {
+    const [first, base] = node.arguments ?? [];
+    return node.type === "NewExpression" && node.callee?.type === "Identifier" && node.callee.name === "URL" && first?.type === "StringLiteral"
+      && typeof first.value === "string" && /^\.{1,2}\//.test(first.value) && base?.type === "MemberExpression" && base.object?.type === "MetaProperty"
+      && base.property?.name === "url" ? first.value : undefined;
+  };
+  const visit = (value: unknown, entry: boolean): void => {
+    if (Array.isArray(value)) { value.forEach((one) => visit(one, entry)); return; }
+    if (value === null || typeof value !== "object" || !("type" in value)) return;
+    const node = value as Node;
+    const url = entry ? urlOf(node) : undefined;
+    if (url !== undefined) specifiers.push(url);
+    const opens = node.type === "ObjectProperty" && (node.key?.name === "entryPoints" || node.key?.value === "entryPoints");
+    for (const [key, child] of Object.entries(value)) visit(child, entry || (opens && key === "value"));
+  };
+  if (TEST_FILE.test(file.path) && file.text.includes("entryPoints")) visit(syntaxOf(file)?.program, false);
+  entrySyntax.set(file, specifiers);
+  return specifiers;
+}
+
+/** Every specifier a file imports, re-exports or requires, read from syntax, so a comment or a string is none; unresolved. */
+export function specifiersOf(file: SourceFile): string[] {
+  return [...importsOf(file).map((match) => match[4] ?? match[5]!), ...requiresOf(file)];
+}
+
+function edgesOf(file: SourceFile, paths: ReadonlySet<string>, packages: readonly SurveyPackage[]): Edge[] {
+  const imports = importsOf(file).flatMap((match): Edge[] => {
+    const to = resolve(file.path, match[4] ?? match[5]!, paths, packages);
+    if (to === undefined) return [];
+    return [{ to, reexport: match[1] === "export", typeOnly: match[2] !== undefined, names: match[5] !== undefined ? "all" : namesOf(match[3] ?? "") }];
+  });
+  // A CommonJS require runs the whole file it names, as a bare import does (8.12).
+  const requires = requiresOf(file).flatMap((specifier): Edge[] => {
+    const to = resolve(file.path, specifier, paths, packages);
+    return to === undefined ? [] : [{ to, reexport: false, typeOnly: false, names: "all" }];
+  });
+  // A test's esbuild entry point runs the whole file it names, bundled (8.34).
+  const entries = entryPointsOf(file).flatMap((specifier): Edge[] => {
+    const to = resolve(file.path, specifier, paths, packages);
+    return to === undefined ? [] : [{ to, reexport: false, typeOnly: false, names: "all" }];
+  });
+  return [...imports, ...requires, ...entries];
+}
+
+/** Dependencies to load from disk, using the same syntax and resolution as the survey's reach. */
+export function dependenciesOf(file: SourceFile, paths: ReadonlySet<string>, packages: readonly SurveyPackage[]): string[] {
+  return edgesOf(file, paths, packages).map(edge => edge.to);
+}
+
+/** A behaviour suite: a file that registers tests itself, by a value import or require of node:test. */
+const registersTests = (file: SourceFile): boolean =>
+  importsOf(file).some((match) => match[2] === undefined && (match[4] ?? match[5]) === "node:test") || requiresOf(file).includes("node:test");
+
+/**
+ * The source files a test file reaches, each with how near: what it imports (0), and through a re-export
+ * the file the names it takes come from (as near as the file re-exporting them), and every file those
+ * import in turn through any number of ordinary imports (one further for each).
+ */
+function reached(test: SourceFile, byPath: ReadonlyMap<string, SourceFile>, paths: ReadonlySet<string>, packages: readonly SurveyPackage[]): Map<string, number> {
+  type Step = { readonly path: string; readonly wanted: readonly string[] | "all"; readonly depth: number };
+  /** Each reached file: how near, and the names re-exports were followed for ("all" once every name was). */
+  const taken = new Map<string, { readonly depth: number; names: Set<string> | "all" }>();
+  // Nearest first: a re-export keeps its depth (to the front), an ordinary import is one further (to the back).
+  const queue: Step[] = edgesOf(test, paths, packages).filter((edge) => !edge.typeOnly && !edge.reexport).map((edge) => ({ path: edge.to, wanted: edge.names === "all" ? "all" : edge.names.map(([name]) => name), depth: 0 }));
+  for (let step = queue.shift(); step !== undefined; step = queue.shift()) {
+    const file = byPath.get(step.path);
+    if (file === undefined || TEST_FILE.test(step.path)) continue;
+    const before = taken.get(step.path);
+    if (before?.names === "all") continue;
+    const fresh = step.wanted === "all" ? "all" : step.wanted.filter((name) => before === undefined || !(before.names as Set<string>).has(name));
+    if (before !== undefined && fresh !== "all" && fresh.length === 0) continue;
+    if (before === undefined) taken.set(step.path, { depth: step.depth, names: fresh === "all" ? "all" : new Set(fresh) });
+    else before.names = fresh === "all" ? "all" : new Set([...before.names, ...fresh]);
+    for (const edge of edgesOf(file, paths, packages)) {
+      if (edge.typeOnly) continue;
+      // A file that runs runs its own imports, once; a re-export carries only the names asked of it.
+      if (!edge.reexport) {
+        if (before === undefined) queue.push({ path: edge.to, wanted: edge.names === "all" ? "all" : edge.names.map(([name]) => name), depth: step.depth + 1 });
+        continue;
+      }
+      const onward = edge.names === "all" ? fresh : edge.names.filter(([, as]) => fresh === "all" || fresh.includes(as)).map(([name]) => name);
+      if (onward === "all" || onward.length > 0) queue.unshift({ path: edge.to, wanted: onward, depth: step.depth });
+    }
+  }
+  // Then what is reached only by types: through any import, type ones included, from what was reached.
+  const typed = new Map<string, number>();
+  const frontier: [string, number][] = [[test.path, 0], ...[...taken].map(([path, { depth }]) => [path, depth] as [string, number])];
+  for (let next = frontier.shift(); next !== undefined; next = frontier.shift()) {
+    const [path, depth] = next;
+    for (const edge of edgesOf(byPath.get(path)!, paths, packages)) {
+      if (taken.has(edge.to) || typed.has(edge.to) || TEST_FILE.test(edge.to)) continue;
+      typed.set(edge.to, BY_TYPES + depth);
+      frontier.push([edge.to, depth + 1]);
+    }
+  }
+  return new Map([...[...taken].map(([path, { depth }]) => [path, depth] as const), ...typed]);
+}
+
+/** Survey one story's packages: source files, ownership and imports. `ownPackage` (or each of a story's several) also accepts its own prefixed proofs. */
+export function surveyStory(tree: readonly SourceFile[], capabilities: readonly SurveyCapability[], coverage: CoverageMap = {}, ownPackage?: string | readonly string[], packages: readonly SurveyPackage[] = []): StorySurvey {
+  const code = tree.filter((file) => CODE_FILE.test(file.path) && !DECLARATION.test(file.path));
+  const paths = new Set(code.map((file) => file.path));
+  const byPath = new Map(code.map((file) => [file.path, file]));
+  const reaches = new Map(code.filter((file) => TEST_FILE.test(file.path)).map((file) => [file.path, reached(file, byPath, paths, packages)]));
+  // A test file's titles are its own, then those of each behaviour suite it runs.
+  const calls = new Map(code.filter(isTestCode).map((file) => [file.path, [...calledTitles(file),
+    ...[...reaches.get(file.path) ?? []].filter(([path, depth]) => depth < BY_TYPES && registersTests(byPath.get(path)!)).flatMap(([path]) => calledTitles(byPath.get(path)!))]]));
+  const byNumber = new Map(capabilities.flatMap((capability) => {
+    const number = numberOf(capability.title);
+    return number === undefined ? [] : [[number, capability.id] as const];
+  }));
+
+  /** For each source file and capability number, how near that capability's numbered tests reach it, and how many reach it that near. */
+  const reach = new Map<string, Map<number, { depth: number; count: number }>>();
+  for (const test of code.filter((file) => TEST_FILE.test(file.path))) {
+    const counts = new Map<number, number>();
+    for (const title of calls.get(test.path) ?? []) {
+      const named = NUMBERED_TITLE.exec(title);
+      if (named === null || !ownPrefix(named[1], ownPackage)) continue;
+      const number = Number(named[2]);
+      if (byNumber.has(number)) counts.set(number, (counts.get(number) ?? 0) + 1);
+    }
+    if (counts.size === 0) continue;
+    for (const [path, depth] of reaches.get(test.path)!) {
+      const tally = reach.get(path) ?? new Map<number, { depth: number; count: number }>();
+      for (const [number, count] of counts) {
+        const was = tally.get(number);
+        if (was === undefined || depth < was.depth) tally.set(number, { depth, count });
+        else if (depth === was.depth) was.count += count;
+      }
+      reach.set(path, tally);
+    }
+  }
+
+  for (const [path, counts] of Object.entries(coverage)) {
+    if (!byPath.has(path)) continue;
+    const tally = reach.get(path) ?? new Map<number, { depth: number; count: number }>();
+    for (const [number, count] of Object.entries(counts)) {
+      const was = tally.get(Number(number));
+      if (!byNumber.has(Number(number))) continue;
+      if (was === undefined || EXECUTED < was.depth) tally.set(Number(number), { depth: EXECUTED, count });
+      else if (was.depth === EXECUTED) was.count += count;
+    }
+    reach.set(path, tally);
+  }
+
+  const sources = code.filter((file) => !isTestCode(file));
+  const files = sources.map((file): SurveyedFile => {
+    const tally = [...(reach.get(file.path) ?? [])].sort(([a, near], [b, far]) => near.depth - far.depth || far.count - near.count || a - b);
+    const declared = declarationOf(file.text);
+    const reachedBy = tally.map(([number]) => number).sort((a, b) => a - b);
+    const owner = declared !== undefined && reachedBy.includes(declared) ? declared : tally[0]?.[0];
+    const capability = owner === undefined ? undefined : byNumber.get(owner);
+    return {
+      path: file.path, lines: linesOf(file.text),
+      ...(capability === undefined ? {} : { capability }),
+      ...(declared === undefined ? {} : { declared, reachedBy }),
+    };
+  });
+  const imports = sources.flatMap((file) => edgesOf(file, paths, packages).filter((edge) => !isTestCode(byPath.get(edge.to)!)).map((edge) => ({ from: file.path, to: edge.to })));
+  const tests = code.filter(isTestCode).map((file): SurveyedTest => ({
+    kind: "test",
+    path: file.path,
+    titles: proofTitles(calls.get(file.path) ?? []),
+    imports: edgesOf(file, paths, packages).map((edge) => ({ from: file.path, to: edge.to })),
+  }));
+  return { files, imports, tests };
+}
+
+/**
+ * One import of another package a file makes (ADR-0991 D1): its specifier, and the names it takes with
+ * whether each is a type; "all" for a namespace, a bare, a dynamic or a CommonJS import, which take the file.
+ */
+type PackageImport = { readonly specifier: string; readonly names: readonly (readonly [name: string, typeOnly: boolean])[] | { readonly all: boolean } };
+
+/** What a file offers: names it defines, names it passes on from elsewhere, and the files it passes everything on from. */
+type Offers = {
+  readonly local: ReadonlySet<string>;
+  readonly from: ReadonlyMap<string, { readonly specifier: string; readonly name: string | undefined }>;
+  readonly star: readonly string[];
+};
+
+type Node = { readonly type: string; readonly [key: string]: unknown };
+const nameOf = (node: unknown): string => {
+  const named = node as { name?: string; value?: string };
+  return named.name ?? named.value ?? "";
+};
+const nodes = (value: unknown): Node[] => (Array.isArray(value) ? value : []) as Node[];
+const literal = (node: unknown): string | undefined => {
+  const found = node as { type?: string; value?: unknown; literal?: unknown } | null;
+  if (found?.type === "StringLiteral" && typeof found.value === "string") return found.value;
+  return found?.type === "TSLiteralType" ? literal(found.literal) : undefined;
+};
+
+/** What a file offers, what it imports of other packages, and whether it does anything but import and pass names on. */
+type Reading = { readonly offers: Offers; readonly imports: readonly PackageImport[]; readonly ownCode: boolean };
+
+/** Parse each unchanged file once for what it offers and what it imports of other packages. */
+const reading = new WeakMap<SourceFile, Reading>();
+
+function readingOf(file: SourceFile): Reading {
+  const cached = reading.get(file);
+  if (cached !== undefined) return cached;
+  const program = syntaxOf(file)?.program;
+  const local = new Set<string>();
+  const from = new Map<string, { specifier: string; name: string | undefined }>();
+  const star: string[] = [];
+  const imported = new Map<string, { specifier: string; name: string | undefined }>();
+  const imports: PackageImport[] = [];
+  let ownCode = program === undefined;
+  const bound = (pattern: unknown): string[] => {
+    const node = pattern as Node | null;
+    if (node === null) return [];
+    if (node.type === "Identifier") return [nameOf(node)];
+    if (node.type === "ObjectPattern") return nodes(node.properties).flatMap((property) => bound(property.type === "RestElement" ? property.argument : property.value));
+    if (node.type === "ArrayPattern") return nodes(node.elements).flatMap((element) => bound(element?.type === "RestElement" ? element.argument : element));
+    return node.type === "AssignmentPattern" ? bound(node.left) : [];
+  };
+  for (const statement of nodes(program?.body)) {
+    const source = literal(statement.source);
+    const typeOnly = statement.importKind === "type" || statement.exportKind === "type";
+    if (!(statement.type === "ImportDeclaration" || (statement.type === "ExportNamedDeclaration" && !statement.declaration) || statement.type === "ExportAllDeclaration")) ownCode = true;
+    if (statement.type === "ImportDeclaration" && source !== undefined) {
+      const specifiers = nodes(statement.specifiers);
+      for (const specifier of specifiers) imported.set(nameOf(specifier.local), { specifier: source, name: specifier.type === "ImportSpecifier" ? nameOf(specifier.imported) : specifier.type === "ImportDefaultSpecifier" ? "default" : undefined });
+      imports.push({ specifier: source, names: specifiers.length === 0 || specifiers.some((one) => one.type === "ImportNamespaceSpecifier") ? { all: typeOnly } : specifiers.map((one) =>
+        [one.type === "ImportDefaultSpecifier" ? "default" : nameOf(one.imported), typeOnly || one.importKind === "type"] as const) });
+    } else if (statement.type === "ExportNamedDeclaration") {
+      const specifiers = nodes(statement.specifiers);
+      for (const specifier of specifiers) {
+        const as = nameOf(specifier.exported);
+        if (source !== undefined) from.set(as, { specifier: source, name: specifier.type === "ExportNamespaceSpecifier" ? undefined : nameOf(specifier.local) });
+        else if (imported.has(nameOf(specifier.local))) from.set(as, imported.get(nameOf(specifier.local))!);
+        else {
+          local.add(as);
+          ownCode = true;
+        }
+      }
+      if (source !== undefined) imports.push({ specifier: source, names: specifiers.some((one) => one.type === "ExportNamespaceSpecifier") ? { all: typeOnly } : specifiers.map((one) => [nameOf(one.local), typeOnly || one.exportKind === "type"] as const) });
+      const declaration = statement.declaration as Node | null;
+      if (declaration?.type === "VariableDeclaration") for (const declarator of nodes(declaration.declarations)) bound(declarator.id).forEach((name) => local.add(name));
+      else if (declaration !== null && declaration !== undefined) local.add(nameOf(declaration.id));
+    } else if (statement.type === "ExportDefaultDeclaration") local.add("default");
+    else if (statement.type === "ExportAllDeclaration" && source !== undefined) {
+      if (statement.exported) from.set(nameOf(statement.exported), { specifier: source, name: undefined });
+      else star.push(source);
+      imports.push({ specifier: source, names: { all: typeOnly } });
+    }
+  }
+  // Imports inside the code: a literal dynamic import runs its file; `import("…").T` in a type only names it.
+  const visit = (value: unknown): void => {
+    if (Array.isArray(value)) { value.forEach(visit); return; }
+    if (value === null || typeof value !== "object" || !("type" in value)) return;
+    const node = value as Node;
+    const source = node.type === "ImportExpression" ? literal(node.source) : node.type === "TSImportType" ? literal(node.argument) : undefined;
+    if (source !== undefined) imports.push({ specifier: source, names: { all: node.type === "TSImportType" } });
+    Object.values(value).forEach(visit);
+  };
+  visit(program?.body);
+  for (const specifier of requiresOf(file)) imports.push({ specifier, names: { all: false } });
+  const read = { offers: { local, from, star }, imports, ownCode };
+  reading.set(file, read);
+  return read;
+}
+
+/** A story's code as the edges between stories need it: its files, its package manifests, and each source file's capability. */
+export type EdgeStory = {
+  readonly id: string;
+  /** Its code files, tests included, in repository coordinates. */
+  readonly files: readonly SourceFile[];
+  readonly packages: readonly SurveyPackage[];
+  /** Each source file's capability, by path; a file absent has none. */
+  readonly owners: ReadonlyMap<string, string>;
+};
+
+/**
+ * Each story's edges to other stories, from the imports its source files (never its tests or test helpers)
+ * make of another story's package: each name taken leads, through that package's exports and re-exports,
+ * to the file that defines it; a name taken whole leads to the file its specifier names. Paths stay in the
+ * coordinates `files` gave.
+ */
+export function storyEdges(stories: readonly EdgeStory[]): Map<string, CodeEdge[]> {
+  const byName = new Map(stories.flatMap((story) => story.packages.map((pkg) => [pkg.name, { story, pkg }] as const)));
+  const lookups = new Map(stories.map((story) => {
+    const code = story.files.filter((file) => CODE_FILE.test(file.path) && !DECLARATION.test(file.path));
+    return [story.id, { byPath: new Map(code.map((file) => [file.path, file])), paths: new Set(code.map((file) => file.path)) }] as const;
+  }));
+
+  /** The file of `story` that defines `name`, starting from `path` and following what it passes on; undefined where nothing does. */
+  const definer = (story: EdgeStory, path: string, name: string, seen: Set<string>): string | undefined => {
+    const { byPath, paths } = lookups.get(story.id)!;
+    const file = byPath.get(path);
+    if (file === undefined || seen.has(path)) return undefined;
+    seen.add(path);
+    const { offers } = readingOf(file);
+    if (offers.local.has(name)) return path;
+    const passed = offers.from.get(name);
+    if (passed !== undefined) {
+      const next = resolve(path, passed.specifier, paths, story.packages);
+      // A name passed on from outside the package is defined, as far as the package goes, where it is passed on.
+      if (next === undefined) return path;
+      return passed.name === undefined ? next : definer(story, next, passed.name, seen) ?? next;
+    }
+    for (const specifier of offers.star) {
+      const next = resolve(path, specifier, paths, story.packages);
+      const found = next === undefined ? undefined : definer(story, next, name, seen);
+      if (found !== undefined) return found;
+    }
+    return undefined;
+  };
+
+  /** The story and package a specifier names, the longest package name first; undefined when it names none of theirs. */
+  const packageNamed = (specifier: string) => [...byName].filter(([name]) => specifier === name || specifier.startsWith(name + "/")).sort(([a], [b]) => b.length - a.length)[0]?.[1];
+
+  const edges = new Map<string, CodeEdge[]>();
+  for (const story of stories) {
+    const grouped = new Map<string, { story: string; from?: string; to?: string; files: Map<string, EdgeFile> }>();
+    for (const file of story.files) {
+      if (isTestCode(file) || !CODE_FILE.test(file.path) || DECLARATION.test(file.path)) continue;
+      const { imports, ownCode } = readingOf(file);
+      // A forwarder (8.31): nothing of its own, and every name it takes is passed on from one other story's package.
+      const sources = new Set(imports.map(({ specifier }) => packageNamed(specifier)?.story.id));
+      const forwarder = !ownCode && imports.length > 0 && sources.size === 1 && !sources.has(undefined) && !sources.has(story.id);
+      for (const { specifier, names } of imports) {
+        const named = packageNamed(specifier);
+        if (named === undefined || named.story.id === story.id) continue;
+        const { paths } = lookups.get(named.story.id)!;
+        const subpath = specifier === named.pkg.name ? "." : "." + specifier.slice(named.pkg.name.length);
+        const target = named.pkg.exports[subpath];
+        const start = target === undefined ? undefined : resolve(named.pkg.root + "package.json", target, paths, []);
+        const taken = "all" in names ? [[undefined, names.all] as const] : names;
+        for (const [name, typeOnly] of taken) {
+          const to = start === undefined || name === undefined ? start : definer(named.story, start, name, new Set()) ?? start;
+          const fromCapability = story.owners.get(file.path);
+          const toCapability = to === undefined ? undefined : named.story.owners.get(to);
+          const key = JSON.stringify([named.story.id, fromCapability ?? null, toCapability ?? null]);
+          const group = grouped.get(key) ?? { story: named.story.id, ...(fromCapability === undefined ? {} : { from: fromCapability }), ...(toCapability === undefined ? {} : { to: toCapability }), files: new Map() };
+          grouped.set(key, group);
+          const pair = JSON.stringify([file.path, to ?? null]);
+          const before = group.files.get(pair);
+          group.files.set(pair, { from: file.path, ...(to === undefined ? {} : { to }), typeOnly: typeOnly && (before?.typeOnly ?? true), ...(forwarder ? { forwarder: true as const } : {}) });
+        }
+      }
+    }
+    edges.set(story.id, [...grouped].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)).map(([, { files, ...edge }]) => {
+      const behind = [...files.values()];
+      return { ...edge, typeOnly: behind.every((one) => one.typeOnly), files: behind };
+    }));
+  }
+  return edges;
+}
+
+/** Its first section of the habits card (ADR-1021, the guidance kind): where code goes so the map can draw it. */
+const CODE_LAYOUT_GUIDANCE = [
+  "Code the map can draw.",
+  "- storytree draws a story's code on its island from the story's own package, packages/<story>/src, where <story> is the story's title in lower case with hyphens, without a leading \"The\" (\"Shopping cart\" is packages/shopping-cart). It reads JavaScript and TypeScript files (.js, .mjs, .jsx, .ts, .tsx and the like). A package.json dependency on another story's package draws the road between the two stories.",
+  "- Start each test's title with the number of the contract it proves (\"2.3 the cart keeps its items after a reload\"): the files that test reaches are drawn inside that capability.",
+  "- Lay a new project's code out this way. In an existing project, ask the user before moving code.",
+].join("\n");
+
+/**
+ * How to build beside mapped code (contract 7.9, ADR-0993 D4, D8 to D11, as ADR-1015 narrows D4 and D10 and ADR-1020 narrows D9 and D10): the
+ * card carries it whole, so the setup check can hand a project with imports the same words.
+ */
+export const MAPPED_CODE_GUIDANCE = [
+  "Build beside mapped code.",
+  "- A mapped story is code imported from a project that was here before storytree: assume it works.",
+  "- Before changing or deleting anything in the imported project, stop and ask the user, even when an increment names the change. Say what would change there and what it costs, and offer the ways on: change it there, bring that part into this project, retire it, or leave it and build on top. Do what the user says.",
+  "- The imported project and this one are separate after the import: do not watch the old project for changes, and import it again only when the user asks.",
+  "- Build new stories on top in their own packages, each depending on the mapped package by a link: to its folder under its own name (file: under npm, which has no link:). It declares no exports, so import its files by path; match its module type and path aliases, and link its single copy of its framework and type packages.",
+  "- Old code never imports new code. Wiring the old project to import a package here is the user's own business: storytree does not draw or watch it, so say that plainly before you do it on their yes.",
+  "- Bringing in a part of an app's screens means bringing in what serves the screens whole: a package here that serves every page and imports what it does not touch from the imported folder. Offer that, or changing it at source. For Next.js: copy the route folder unchanged, less what the old code imports back, with public/, the middleware or proxy, instrumentation and .env files; a next.config that spreads the old one and sets turbopack.root to the folder holding both; a tsconfig whose path aliases point at the imported folder; and its node_modules a link to the old project's, one copy of the framework.",
+  "- Test the interface your package has with the old code.",
+  "- Before asking about a part in its middle, give `focus` the part's folders as its crossing: it counts the files that import it and the files it imports. Bring those numbers to the user, and say so when the part is too large to move.",
+].join("\n");
+
+/** Its sections of the habits card (ADR-1021, the guidance kind). */
+export const codeGuidance: readonly string[] = [CODE_LAYOUT_GUIDANCE, MAPPED_CODE_GUIDANCE];

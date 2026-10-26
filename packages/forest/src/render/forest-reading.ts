@@ -1,0 +1,180 @@
+/**
+ * Capability 7 · Running sessions. The forest's reading: the arc surface's live reading, with the project's tree read again when the
+ * library changed (and once at the start), handed on with the news that came with it, and the survey
+ * of its code (capability 8), when the host can read the code. The tree never waits for the survey:
+ * it is drawn with the last survey, and drawn again when a newer one lands (ADR-0836 D2).
+ */
+import { ASK_EVERY_MS, pageReading, type LiveReading, type LiveReads, type News, type PageReading, type Timers } from "@storytree/arc-surface";
+import type { AnnotatedTree } from "@storytree/library";
+
+import type { StorySurvey } from "@storytree/library";
+
+import type { ForestBridge } from "./page.js";
+
+/** The live reading's two reads and the project's tree: `window.storytree`'s. */
+export interface ForestReads extends LiveReads {
+  projectTree(project: string): Promise<AnnotatedTree>;
+  /** A host that cannot read the code has no code survey, and the islands have no territories. */
+  codeSurvey?: ForestBridge["codeSurvey"];
+}
+
+export interface ForestReadingOptions {
+  project: string;
+  reads: ForestReads;
+  /** Called with the tree, the news it was read for and the code's survey; a failure here is retried like a failed read. */
+  onTree(tree: AnnotatedTree, news: News, survey: Readonly<Record<string, StorySurvey>>): unknown;
+  /** Called when a read fails; the next ask tries again. */
+  onError(error: unknown): void;
+  /** Called once a minute with the time. */
+  onClock?(now: number): void;
+  /**
+   * Called once, when the start is settled: the fresh tree drawn and the start's first survey drawn, equal to the one on show, or
+   * failed, or at once with the tree when the host cannot read the code.
+   */
+  onSettled?(): void;
+  timers?: Timers;
+  /** The page's one live reading, which the forest hears; without it the forest reads for itself. */
+  reading?: PageReading;
+  /** The survey kept from the last start: the tree is drawn with it until a fresh one lands, and one equal to it draws nothing again. */
+  survey?: Readonly<Record<string, StorySurvey>>;
+}
+
+/** How often, at most, the code is surveyed again: the land may lag the checkout by this much (ADR-0836 D2). */
+export const SURVEY_EVERY_MS = 10_000;
+
+type Survey = Readonly<Record<string, StorySurvey>>;
+
+/**
+ * The survey's pacing: `want` asks for a survey; one runs at a time, at most every SURVEY_EVERY_MS, and
+ * an ask in between runs once that time has passed, so the land converges on the checkout. A survey
+ * that fails is asked again. `again` asks for one more without waiting out that time: it runs as soon as the
+ * one running ends.
+ */
+function surveyPacing(read: () => Promise<Survey>, landed: (survey: Survey) => unknown, failed: () => void, timers: Timers): { want(): void; again(): void; stop(): void } {
+  let wanted = false;
+  let running = false;
+  let last = -Infinity;
+  const run = (): void => {
+    if (!wanted || running || timers.now() - last < SURVEY_EVERY_MS) return;
+    wanted = false;
+    running = true;
+    last = timers.now();
+    read().then(landed, () => { wanted = true; failed(); }).finally(() => { running = false; run(); });
+  };
+  const stop = timers.every(ASK_EVERY_MS, run);
+  return { want() { wanted = true; run(); }, again() { wanted = true; last = -Infinity; run(); }, stop };
+}
+
+const pageTimers: Timers = {
+  now: () => Date.now(),
+  every(ms, run) {
+    const handle = setInterval(run, ms);
+    return () => clearInterval(handle);
+  },
+};
+
+/** The record types a project's tree is read from (the library's projectTree and its health): a change to any other leaves it as it was. */
+const TREE_TYPES: ReadonlySet<string> = new Set(["story", "capability", "contract", "arc", "health"]);
+
+/** A change as the page passes one on: its record's fields are read only for health. */
+type TreeNewsChange = { readonly type: string; readonly action?: string; readonly record?: { readonly fields?: unknown } };
+
+/**
+ * Whether `news` changes the tree: a change to one of its records (7.24), except a health record that re-records the
+ * state `last` already shows for its contract's column (7.27). Agents' test runs re-record health every few seconds,
+ * mostly unchanged; skipping those leaves only an entry's time and author stale (ADR-0836: stale before slow).
+ */
+function changesTree(news: { readonly changes: readonly TreeNewsChange[] }, last: AnnotatedTree): boolean {
+  let shown: Map<string, string> | undefined;
+  const unchangedHealth = (change: TreeNewsChange): boolean => {
+    if (change.type !== "health" || change.action === "retired") return false;
+    const { node, column, state } = (change.record?.fields ?? {}) as { node?: string; column?: string; state?: string };
+    shown ??= new Map(last.stories.flatMap((story) => story.capabilities.flatMap((capability) => capability.contracts.flatMap((contract) =>
+      Object.entries(contract.health ?? {}).map(([name, entry]) => [`${contract.id} ${name}`, (entry as { state?: string }).state ?? ""] as const)))));
+    return state !== undefined && shown.get(`${node} ${column}`) === state;
+  };
+  return news.changes.some((change) => TREE_TYPES.has(change.type) && !unchangedHealth(change));
+}
+
+/** Landed work can change the code without changing the plan (7.25). */
+function landsCode(news: News): boolean {
+  return news.lines.some((line) => line.kind === "merged" || (line.kind === "closed" && line.disposition === "landed"))
+    || news.changes.some((change) => {
+      if (change.type !== "increment" || change.action === "retired") return false;
+      const fields = change.record.fields as { status?: string; outcome?: { disposition?: string } };
+      return fields.status === "closed" && fields.outcome?.disposition === "landed";
+    });
+}
+
+/**
+ * The tree after `news`: read again only when a change touches its records, or when there is none
+ * yet, so a note's or the work's change costs no tree read (7.24). The sessions list's and the
+ * forest's rule alike.
+ */
+export async function treeAfter(reads: Pick<ForestReads, "projectTree">, project: string,
+  news: { readonly changes: readonly TreeNewsChange[] }, last: AnnotatedTree | undefined): Promise<AnnotatedTree> {
+  return last !== undefined && !changesTree(news, last) ? last : reads.projectTree(project);
+}
+
+/**
+ * Start reading project `project`'s forest live. A failed read, of the news or of the tree, is
+ * reported and asked again from the same place at the next ask, so a first read that fails is drawn
+ * once the library answers. The live reading takes one news at a time, in order, so a slow tree read
+ * never draws over a newer one.
+ */
+export function forestReading({ project, reads, onTree, onError, onClock = () => {}, onSettled = () => {}, timers = pageTimers, reading: page, survey: kept = {} }: ForestReadingOptions): LiveReading {
+  let tree: AnnotatedTree | undefined;
+  let survey: Survey = kept;
+  let stopped = false;
+  // The start settles once the fresh tree is drawn and the start's first survey is done with (3.49, 7.31).
+  const start = { drawn: false, surveyed: reads.codeSurvey === undefined, settled: false };
+  const settleStart = (): void => {
+    if (stopped || start.settled || !start.drawn || !start.surveyed) return;
+    start.settled = true;
+    onSettled();
+  };
+  const surveyed = (): void => {
+    start.surveyed = true;
+    settleStart();
+  };
+  // A survey that lands draws the last tree again, unless it changes nothing on show (ADR-0836 D1). The start's first
+  // may answer from the main fetched before the start, so the page asks once more at once for what its fetch brought (7.32).
+  let askedAgain = false;
+  const pacing = surveyPacing(() => reads.codeSurvey!(project), async (next) => {
+    if (stopped) return;
+    if (JSON.stringify(next) !== JSON.stringify(survey)) {
+      survey = next;
+      if (tree !== undefined) await Promise.resolve(onTree(tree, { changes: [], lines: [] }, survey)).catch(onError);
+    }
+    surveyed();
+    if (!askedAgain) {
+      askedAgain = true;
+      pacing.again();
+    }
+  }, surveyed, timers);
+  const own = page === undefined ? pageReading({ project, reads, timers }) : undefined;
+  const stopHearing = (page ?? own!).subscribe({
+    onNews: async (news) => {
+      let refreshSurvey = landsCode(news);
+      if (tree === undefined || changesTree(news, tree)) {
+        tree = await reads.projectTree(project);
+        refreshSurvey = true;
+      }
+      if (stopped) return;
+      if (reads.codeSurvey !== undefined && refreshSurvey) pacing.want();
+      await onTree(tree, news, survey);
+      start.drawn = true;
+      settleStart();
+    },
+    onClock,
+    onError,
+  });
+  return {
+    stop() {
+      stopped = true;
+      pacing.stop();
+      stopHearing();
+      own?.stop();
+    },
+  };
+}

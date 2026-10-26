@@ -1,0 +1,94 @@
+{
+ "src/bins/shutdown.ts": {
+  "6": 7
+ },
+ "src/bins/storytree-mcp.ts": {
+  "6": 1
+ },
+ "src/instructions/habits.ts": {
+  "2": 1,
+  "6": 43,
+  "7": 1
+ },
+ "src/testing/agent.ts": {
+  "2": 10,
+  "6": 350,
+  "7": 7
+ },
+ "src/testing/tool-world.ts": {
+  "2": 2,
+  "6": 99
+ },
+ "src/tools/answers.ts": {
+  "2": 7,
+  "6": 290,
+  "7": 6
+ },
+ "src/tools/claim-tools.ts": {
+  "2": 19,
+  "6": 485,
+  "7": 1
+ },
+ "src/tools/connections.ts": {
+  "2": 9,
+  "6": 422,
+  "7": 9
+ },
+ "src/tools/context-tools.ts": {
+  "2": 1,
+  "6": 66,
+  "7": 1
+ },
+ "src/tools/map-tools.ts": {
+  "2": 2,
+  "6": 55,
+  "7": 1
+ },
+ "src/tools/mount.ts": {
+  "2": 5,
+  "6": 384,
+  "7": 3
+ },
+ "src/tools/own-tools.ts": {
+  "2": 2,
+  "6": 86,
+  "7": 2
+ },
+ "src/tools/pipeline-tools.ts": {
+  "2": 8,
+  "6": 127,
+  "7": 1
+ },
+ "src/tools/plan-tools.ts": {
+  "2": 38,
+  "6": 1158,
+  "7": 2
+ },
+ "src/tools/server.ts": {
+  "2": 17,
+  "6": 661,
+  "7": 13
+ },
+ "src/tools/setup-tools.ts": {
+  "2": 2,
+  "6": 251,
+  "7": 18
+ },
+ "src/tools/text.ts": {
+  "2": 1,
+  "6": 37,
+  "7": 1
+ },
+ "src/tools/tool-input.ts": {
+  "2": 2,
+  "6": 101
+ },
+ "src/tools/work-tools.ts": {
+  "2": 5,
+  "6": 350,
+  "7": 2
+ },
+ "src/usage/tool-use.ts": {
+  "8": 54
+ }
+}

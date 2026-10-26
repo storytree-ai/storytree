@@ -1,0 +1,231 @@
+/**
+ * Helpers for the command line's tests: the real, built `storytree` command run as a person's shell
+ * runs it, in a throwaway folder and storytree home, against the Postgres `pnpm test` provides.
+ *
+ * `pnpm test` (packages/dev-loop/src/test.mjs) starts a throwaway local server through @storytree/local-postgres
+ * and hands it to the tests as STORYTREE_TEST_PG_URL, with its data directory as
+ * STORYTREE_TEST_PG_DATA. "Storytree running" is that server: a throwaway storytree home holds a
+ * copy of its owner record (and its sign-in handoff, when it asks for a password), where the app's would be. A Postgres test must never skip silently, so
+ * asking for either variable when it is missing throws.
+ *
+ * Session management keeps its test helpers inside its package, so the few these tests need are
+ * restated here, as it restates the library's.
+ */
+import assert from "node:assert/strict";
+import { spawn, spawnSync } from "node:child_process";
+import { randomBytes } from "node:crypto";
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
+
+import { setUpProject } from "@storytree/app-setup/project";
+import { connect, type Library } from "@storytree/library";
+import { dropTestDatabases } from "@storytree/local-postgres/testing";
+import { removeTemp } from "@storytree/test-waits";
+
+import { buildCommand } from "../bins/build.js";
+
+/** The server the tests run against. Throws when there is none. */
+export function testServerUrl(): string {
+  return required(
+    "STORYTREE_TEST_PG_URL",
+    "run the tests via `pnpm test`, which starts a local Postgres, or set STORYTREE_TEST_PG_URL to a server the tests may create and drop databases on",
+  );
+}
+
+/** The test server's data directory, beside which its owner record is kept. Throws when there is none. */
+export function testServerDataDir(): string {
+  return required("STORYTREE_TEST_PG_DATA", "run the tests via `pnpm test`, which starts the test Postgres through @storytree/local-postgres");
+}
+
+/**
+ * Make `dataDir` look like the test server's, as a fake storytree home's `pgdata` does: a copy of
+ * its owner record at `<dataDir>.owner.json` and, when the server asks for a password, of its
+ * private sign-in handoff at `<dataDir>.auth/connection.json` (ADR-0941), private as discovery
+ * checks it. A passwordless server has no handoff: only the record is copied. Restated from the
+ * Session management's test helper.
+ */
+export function placeTestServer(dataDir: string): void {
+  writeFileSync(`${dataDir}.owner.json`, readFileSync(`${testServerDataDir()}.owner.json`));
+  placeHandoff(dataDir);
+}
+
+/** Only the sign-in handoff of placeTestServer(), for a home whose owner record a stand-in app writes. */
+export function placeHandoff(dataDir: string): void {
+  const handoff = path.join(`${testServerDataDir()}.auth`, "connection.json");
+  if (!existsSync(handoff)) return;
+  const directory = `${dataDir}.auth`;
+  const file = path.join(directory, "connection.json");
+  mkdirSync(directory, { recursive: true, mode: 0o700 });
+  privatePath(directory, true);
+  writeFileSync(file, readFileSync(handoff), { mode: 0o600 });
+  privatePath(file, false);
+}
+
+let currentSid: string | undefined;
+
+/** Owned by this user and readable by it alone: 0700/0600 on POSIX, a protected access list granting only this user on Windows. */
+function privatePath(file: string, directory: boolean): void {
+  if (process.platform !== "win32") return chmodSync(file, directory ? 0o700 : 0o600);
+  const run = (command: string, args: string[]) => {
+    const ran = spawnSync(path.join(process.env.SystemRoot ?? "C:\\Windows", "System32", command), args, { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], timeout: 10_000, windowsHide: true });
+    if (ran.error !== undefined || ran.status !== 0) throw new Error(`${command} ${args.join(" ")} failed: ${ran.error?.message ?? ran.stderr}`);
+    return ran.stdout;
+  };
+  // The numeric SID only, never localized account names, resolved once per process.
+  const sid = currentSid ??= run("whoami.exe", ["/user", "/fo", "csv", "/nh"]).match(/,"(S-1-\d+(?:-\d+)+)"\s*$/)?.[1];
+  if (sid === undefined) throw new Error("whoami did not return the current user's SID");
+  run("icacls.exe", [file, "/setowner", `*${sid}`]);
+  // Reset first: a file made in a folder with nothing to inherit takes the creating token's default
+  // entries (SYSTEM, a logon session), which removing inheritance alone would leave in place.
+  run("icacls.exe", [file, "/reset"]);
+  run("icacls.exe", [file, "/inheritance:r", "/grant:r", `*${sid}:F`]);
+}
+
+/** A project name no other test, and no earlier run, is using: `t-` and 8 random hex digits. */
+export function uniqueProjectName(): string {
+  return `t-${randomBytes(4).toString("hex")}`;
+}
+
+/**
+ * Drop the libraries of these test projects, ending any connection still open to them. Only names
+ * carrying a uniqueProjectName() token are accepted, so a mistake in a test can never drop
+ * somebody's real database on a shared server. The database name is the library's rule, restated.
+ */
+export async function dropTestProjects(projects: Iterable<string>): Promise<void> {
+  await dropTestDatabases([...projects].map((name) => `storytree_${name}`));
+}
+
+/** The built command, once per test file: build it in `before`, remove it in `after`. */
+export class BuiltCommand {
+  #dir: string | undefined;
+  #script: string | undefined;
+
+  async build(builder: (dir: string) => Promise<string> = buildCommand): Promise<void> {
+    this.#dir = mkdtempSync(path.join(tmpdir(), "storytree-cli-bin-"));
+    this.#script = await builder(this.#dir);
+  }
+
+  remove(): void {
+    if (this.#dir !== undefined) rmSync(this.#dir, { recursive: true, force: true });
+  }
+
+  get script(): string {
+    if (this.#script === undefined) throw new Error("build the command first");
+    return this.#script;
+  }
+
+  /** The folder it is built in. */
+  get dir(): string {
+    return path.dirname(this.script);
+  }
+}
+
+/** What one run of the command did. */
+export interface Ran {
+  code: number | null;
+  stdout: string;
+  stderr: string;
+  /** How long it took, from starting Node to its exit, in milliseconds. */
+  ms: number;
+}
+
+/** Assert the command's exit status, retaining its output when it fails. */
+export function assertExitCode(ran: Pick<Ran, "code" | "stdout" | "stderr">, expected: number, context = "built command"): void {
+  assert.equal(ran.code, expected, `${context}\nstderr:\n${ran.stderr}\nstdout:\n${ran.stdout}`);
+}
+
+export interface RunOptions {
+  /** The folder it runs in. */
+  readonly cwd: string;
+  /** The storytree home it is given, as STORYTREE_HOME. */
+  readonly home: string;
+  /** More of the environment, over the test's own. */
+  readonly env?: Readonly<Record<string, string>>;
+  /** What it reads on standard input; none when not given. */
+  readonly input?: string;
+}
+
+/** Run the built command as a shell runs it: directly, no shell, in `cwd`, with the storytree home given. */
+export function storytree(script: string, args: readonly string[], options: RunOptions): Promise<Ran> {
+  return new Promise((resolve, reject) => {
+    const started = performance.now();
+    // A variable given replaces the test's own of the same name in any case (Windows spells PATH `Path`).
+    // The shell running the tests may itself belong to an agent; each world starts as a person.
+    const given = { CLAUDE_CODE_SESSION_ID: "", CODEX_THREAD_ID: "", ...options.env, STORYTREE_HOME: options.home };
+    const env: Record<string, string | undefined> = { ...process.env };
+    for (const name of Object.keys(given)) for (const own of Object.keys(env)) if (own.toLowerCase() === name.toLowerCase()) delete env[own];
+    const child = spawn(process.execPath, [script, ...args], {
+      cwd: options.cwd,
+      env: { ...env, ...given },
+      stdio: [options.input === undefined ? "ignore" : "pipe", "pipe", "pipe"],
+      shell: false,
+    });
+    if (options.input !== undefined) child.stdin!.end(options.input);
+    let stdout = "";
+    let stderr = "";
+    child.stdout!.on("data", (chunk: Buffer) => (stdout += chunk.toString()));
+    child.stderr!.on("data", (chunk: Buffer) => (stderr += chunk.toString()));
+    child.on("error", reject);
+    child.on("close", (code) => resolve({ code, stdout, stderr, ms: performance.now() - started }));
+  });
+}
+
+/** One test's world: a project folder, a folder that is none, and a storytree home, all thrown away after. */
+export interface World {
+  /** The project's name. */
+  readonly project: string;
+  /** A folder set up as the project. */
+  readonly folder: string;
+  /** A folder nobody has set up. */
+  readonly elsewhere: string;
+  /** A storytree home where storytree is running (the test server). */
+  readonly home: string;
+  /** A storytree home where it is not. */
+  readonly stoppedHome: string;
+  /** Run the command in the project folder, storytree running. */
+  run(args: readonly string[], env?: Readonly<Record<string, string>>): Promise<Ran>;
+  /** The project's library, opened directly, as the test's own view of it. */
+  library(): Promise<Library>;
+}
+
+/** Run `body` in a fresh world for `command`, and throw it all away afterwards, pass or fail. */
+export async function inWorld(command: BuiltCommand, body: (world: World) => Promise<void>): Promise<void> {
+  const dir = realpathSync.native(mkdtempSync(path.join(tmpdir(), "storytree-cli-")));
+  const project = uniqueProjectName();
+  const storytreeServer = await connect({ url: testServerUrl() });
+  try {
+    const folder = path.join(dir, "site");
+    const elsewhere = path.join(dir, "elsewhere");
+    const home = path.join(dir, "home");
+    const stoppedHome = path.join(dir, "stopped-home");
+    for (const made of [folder, elsewhere, home, stoppedHome]) mkdirSync(made, { recursive: true });
+    placeTestServer(path.join(home, "pgdata"));
+    // The folder names a project that is set up: a folder never makes its project by being opened.
+    const opened: Promise<Library> = storytreeServer.openProject(project);
+    await opened;
+    // And it is the project's approved checkout on this home's machine, as joining makes it (ADR-0942 D1).
+    await setUpProject({ folder, project, storytree: storytreeServer, storytreeHome: home, join: true });
+    // Joining also makes it the app's shown project; the world starts with none chosen.
+    rmSync(path.join(home, "project-choice.json"), { force: true });
+    await body({
+      project,
+      folder,
+      elsewhere,
+      home,
+      stoppedHome,
+      run: (args, env) => storytree(command.script, args, { cwd: folder, home, ...(env === undefined ? {} : { env }) }),
+      library: () => opened,
+    });
+  } finally {
+    await storytreeServer.close();
+    await dropTestProjects([project]);
+    await removeTemp(dir);
+  }
+}
+
+function required(name: string, how: string): string {
+  const value = process.env[name];
+  if (value === undefined || value === "") throw new Error(`${name} is not set: ${how}.`);
+  return value;
+}

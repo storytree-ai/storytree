@@ -1,0 +1,224 @@
+import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
+import { mkdtemp, mkdir, rename, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import { test, type TestContext } from "node:test";
+
+import { removeTemp } from "@storytree/test-waits";
+
+import type { AnnotatedTree, HealthWorkItem, Library } from "@storytree/library";
+import { changedOnMain, focusProject, healthWorklistAt, mapCommand } from "./read.js";
+
+async function repository(t: TestContext) {
+  const folder = await mkdtemp(path.join(tmpdir(), "map-affected-"));
+  t.after(() => removeTemp(folder));
+  const git = (...args: string[]) => execFileSync("git", args, { cwd: folder, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], windowsHide: true }).trim();
+  const write = async (name: string, text: string) => { await mkdir(path.dirname(path.join(folder, name)), { recursive: true }); await writeFile(path.join(folder, name), text); };
+  const health = { reported: { state: "not-checked" }, verified: { state: "passing" } };
+  const names = ["core", "importer", "downstream", "unrelated"];
+  const plan = { arcs: [], stories: [{ id: "shop", title: "Shop", health, capabilities: names.map((name, i) => ({ id: name, title: `${i + 1} · ${name}`, health, dependsOn: name === "downstream" ? ["importer"] : [], contracts: [{ id: `${name}-promise`, title: `${i + 1}.1 ${name} works`, health }] })) }] } as unknown as AnnotatedTree;
+  await write("packages/shop/package.json", '{"name":"@example/shop"}');
+  for (const [i, name] of names.entries()) {
+    await write(`packages/shop/src/${name}.ts`, name === "importer" ? 'import { core } from "./core.js";\nexport const importer = core;\n' : `export const ${name} = 1;\n`);
+    await write(`packages/shop/src/${name}.test.ts`, `import { ${name} } from "./${name}.js";\ntest("${i + 1}.1 ${name} works", () => ${name});\n`);
+  }
+  git("init"); git("add", ".");
+  const commit = (message: string) => git("-c", "user.name=Map test", "-c", "user.email=map@example.test", "-c", "commit.gpgsign=false", "commit", "-m", message);
+  commit("baseline");
+  const base = git("rev-parse", "HEAD");
+  git("update-ref", "refs/remotes/origin/main", base);
+  let reads = 0;
+  const library = { projectTree: async () => { reads++; return plan; } };
+  return { folder, git, write, commit, base, library, reads: () => reads };
+}
+
+test("4.1 working changes reach reverse importers, owners, promises and dependents while counts stay bounded", async t => {
+  const repo = await repository(t);
+  await repo.write("packages/shop/src/core.ts", "export const core = 2;\n");
+  await repo.write("packages/shop/src/unclaimed.ts", "export const unclaimed = 1;\n");
+  await repo.write("notes/new file.md", "An unsurveyed change.\n");
+  const options = { select: "diff:origin/main", mode: "show" as const };
+  const shown = await focusProject(repo.library, path.join(repo.folder, "packages/shop/src"), options);
+  assert.equal(repo.reads(), 1, "both code readings use one current plan");
+  const ids = shown.rows!.map(row => row.id);
+  for (const id of ["core", "core-promise", "importer", "importer-promise", "downstream", "downstream-promise", "file:packages/shop/src/importer.ts", "test:packages/shop/src/downstream.test.ts"]) assert.ok(ids.includes(id), id);
+  assert.ok(!ids.includes("unrelated"));
+  assert.ok(!shown.rows!.some(row => row.kind === "story"));
+  assert.equal(shown.rows!.find(row => row.id === "file:notes/new file.md")?.unresolved !== undefined, true);
+  assert.equal(shown.rows!.find(row => row.id === "file:packages/shop/src/unclaimed.ts")?.unresolved !== undefined, true);
+  assert.deepEqual(shown.selected, ["diff:origin/main"]);
+  assert.equal(shown.diff?.changedPaths, 3);
+  assert.equal(shown.diff?.unresolved, 2);
+  assert.equal(shown.diff?.statuses.untracked, 2);
+  assert.equal(shown.rows!.find(row => row.id === "core")?.snapshot, "both");
+  for (const mode of ["counts", "dry_run"] as const) {
+    const answer = await focusProject(repo.library, repo.folder, { ...options, mode });
+    assert.equal(answer.rows, undefined);
+    assert.equal(answer.rowCount, shown.rowCount);
+    assert.equal(answer.estimatedTokens, shown.estimatedTokens);
+  }
+  const filtered = await focusProject(repo.library, repo.folder, { ...options, kind: ["capability"] });
+  assert.deepEqual(filtered.rows!.map(row => row.id).sort(), ["core", "downstream", "importer"]);
+  const shallow = await focusProject(repo.library, repo.folder, { ...options, down: 1 });
+  assert.ok(shallow.rows!.some(row => row.id === "core"));
+  assert.ok(!shallow.rows!.some(row => row.id === "importer"));
+  const upstream = await focusProject(repo.library, repo.folder, { ...options, up: 1 });
+  assert.ok(!upstream.rows!.some(row => row.id === "file:packages/shop/src/importer.ts"));
+  assert.ok(upstream.rows!.some(row => row.id === "shop"), "explicit up follows ordinary dependency edges, including the containing story");
+  assert.match(await mapCommand(repo.library, repo.folder, options), /untracked.*unresolved|unresolved.*untracked/);
+});
+
+test("4.1 historical ranges retain deleted and renamed proof, ignore dirty state, and reject bad refs", async t => {
+  const repo = await repository(t);
+  await rename(path.join(repo.folder, "packages/shop/src/core.ts"), path.join(repo.folder, "packages/shop/src/moved.ts"));
+  await rm(path.join(repo.folder, "packages/shop/src/importer.test.ts"));
+  repo.git("add", "-A"); repo.commit("rename and remove proof");
+  const target = repo.git("rev-parse", "HEAD");
+  await repo.write("packages/shop/src/unrelated.ts", "export const unrelated = 99;\n");
+  await repo.write("not part of history.md", "dirty\n");
+  for (const delimiter of ["..", "..."]) {
+    const answer = await focusProject(repo.library, repo.folder, { select: `diff:${repo.base}${delimiter}${target}`, mode: "show" });
+    assert.equal(answer.diff?.renames, 1);
+    assert.equal(answer.diff?.changedPaths, 3);
+    assert.ok(answer.rows!.some(row => row.id === "importer-promise"));
+    assert.ok(!answer.rows!.some(row => row.id.includes("unrelated") || row.path === "not part of history.md"));
+    assert.deepEqual(answer.rows!.find(row => row.path === "packages/shop/src/core.ts")?.changes, ["renamed-from"]);
+    assert.equal(answer.rows!.find(row => row.path === "packages/shop/src/core.ts")?.snapshot, "base");
+    assert.deepEqual(answer.rows!.find(row => row.path === "packages/shop/src/moved.ts")?.changes, ["renamed-to"]);
+    assert.equal(answer.rows!.find(row => row.path === "packages/shop/src/moved.ts")?.snapshot, "target");
+    assert.deepEqual(answer.rows!.find(row => row.path === "packages/shop/src/importer.test.ts")?.changes, ["deleted"]);
+  }
+  await assert.rejects(focusProject(repo.library, repo.folder, { select: "diff:no-such-ref" }), /ref|revision/i);
+  const worktree = path.join(repo.folder, "linked");
+  repo.git("worktree", "add", "--detach", worktree, "HEAD");
+  await writeFile(path.join(worktree, "linked note.md"), "new\n");
+  const linked = await focusProject(repo.library, path.join(worktree, "packages/shop"), { select: "diff:HEAD", mode: "show" });
+  assert.deepEqual(linked.rows!.map(row => row.path), ["linked note.md"]);
+});
+
+test("4.1 unsurveyed paths share the show ceiling and do not expand counts metadata", async t => {
+  const repo = await repository(t);
+  await Promise.all(Array.from({ length: 205 }, (_, i) => repo.write(`notes/${i}.md`, "new\n")));
+  const answer = await focusProject(repo.library, repo.folder, { select: "diff:", mode: "show" });
+  assert.equal(answer.refused, true);
+  assert.equal(answer.rows, undefined);
+  assert.equal(answer.rowCount, 205);
+  assert.equal(answer.diff?.unresolved, 205);
+  assert.deepEqual(answer.selected, ["diff:origin/main"]);
+  assert.ok(JSON.stringify(answer).length < 2000, "counts metadata does not list every changed path");
+});
+
+test("4.1 diverged refs distinguish two-dot endpoints from merge-base and current-worktree comparisons", async t => {
+  const repo = await repository(t);
+  repo.git("checkout", "-b", "side");
+  await repo.write("packages/shop/src/unrelated.ts", "export const unrelated = 7;\n");
+  repo.git("add", "-A"); repo.commit("side changes unrelated");
+  repo.git("checkout", "--detach", repo.base);
+  await repo.write("packages/shop/src/core.ts", "export const core = 7;\n");
+  repo.git("add", "-A"); repo.commit("head changes core");
+  await repo.write("dirty.md", "working only\n");
+  const endpoints = await focusProject(repo.library, repo.folder, { select: "diff:side..HEAD", mode: "show" });
+  assert.ok(endpoints.rows!.some(row => row.id === "unrelated"));
+  assert.equal(endpoints.diff?.changedPaths, 2);
+  const branch = await focusProject(repo.library, repo.folder, { select: "diff:side...HEAD", mode: "show" });
+  assert.equal(branch.diff?.base, repo.base);
+  assert.equal(branch.diff?.changedPaths, 1);
+  assert.ok(!branch.rows!.some(row => row.id === "unrelated" || row.path === "dirty.md"));
+  const current = await focusProject(repo.library, repo.folder, { select: "diff:side", mode: "show" });
+  assert.equal(current.diff?.base, repo.base);
+  assert.equal(current.diff?.changedPaths, 2);
+  assert.ok(current.rows!.some(row => row.path === "dirty.md"));
+});
+
+test("4.4 with no range given in a repository with no origin/main, the branch is read against its local default branch", async t => {
+  const repo = await repository(t);
+  repo.git("update-ref", "-d", "refs/remotes/origin/main");
+  repo.git("branch", "-M", "trunk");
+  repo.git("config", "init.defaultBranch", "trunk");
+  repo.git("checkout", "-q", "-b", "feature");
+  await repo.write("packages/shop/src/core.ts", "export const core = 2;\n");
+  repo.git("add", ".");
+  repo.commit("change core");
+  const answer = await focusProject(repo.library, repo.folder, { select: "diff:", mode: "show" });
+  assert.equal(answer.diff?.range, "trunk");
+  assert.equal(answer.diff?.base, repo.base);
+  assert.equal(answer.diff?.changedPaths, 1, "the branch's commit is the change");
+  assert.ok(answer.rows!.some(row => row.id === "core-promise"));
+});
+
+test("4.2 each story whose package origin/main changed within the time asked has its newest such commit and when; the rest are absent, and with no origin/main there are none", async t => {
+  const repo = await repository(t);
+  const at = (when: Date, message: string) => execFileSync("git", ["-c", "user.name=Map test", "-c", "user.email=map@example.test", "-c", "commit.gpgsign=false", "commit", "-m", message], { cwd: repo.folder, env: { ...process.env, GIT_COMMITTER_DATE: when.toISOString(), GIT_AUTHOR_DATE: when.toISOString() }, stdio: "ignore" });
+  const now = new Date();
+  const ago = (minutes: number) => new Date(now.getTime() - minutes * 60 * 1000);
+  await repo.write("packages/pantry/src/shelf.ts", "export const shelf = 1;\n");
+  repo.git("add", "-A"); at(ago(3 * 24 * 60), "pantry, long ago");
+  await repo.write("packages/shop/src/core.ts", "export const core = 2;\n");
+  repo.git("add", "-A"); at(ago(50), "shop, earlier");
+  const shop = repo.git("rev-parse", "HEAD");
+  await repo.write("packages/till/src/drawer.ts", "export const drawer = 1;\n");
+  repo.git("add", "-A"); at(ago(20), "till");
+  const till = repo.git("rev-parse", "HEAD");
+  await repo.write("notes/readme.md", "notes\n");
+  repo.git("add", "-A"); at(ago(10), "no package");
+  repo.git("update-ref", "refs/remotes/origin/main", "HEAD");
+  await repo.write("packages/pantry/src/shelf.ts", "export const shelf = 2;\n");
+  repo.git("add", "-A"); at(ago(5), "pantry, on this branch only");
+  const stories = [{ id: "shop", title: "Shop" }, { id: "till", title: "The till" }, { id: "pantry", title: "Pantry" }];
+
+  const changed = await changedOnMain(stories, repo.folder, { within: 24 * 60 * 60 * 1000, now });
+  assert.deepEqual([...changed.keys()].sort(), ["shop", "till"], "a story its package's commits on main left untouched in the time, or touched only off main, is absent");
+  assert.equal(changed.get("shop")!.commit, shop);
+  assert.equal(Date.parse(changed.get("shop")!.at), Math.floor(ago(50).getTime() / 1000) * 1000);
+  assert.equal(changed.get("till")!.commit, till);
+  assert.deepEqual([...(await changedOnMain(stories, repo.folder, { within: 30 * 60 * 1000, now })).keys()], ["till"], "only commits within the time asked count");
+
+  repo.git("update-ref", "-d", "refs/remotes/origin/main");
+  assert.equal((await changedOnMain(stories, repo.folder, { within: 24 * 60 * 60 * 1000, now })).size, 0, "no origin/main: none");
+});
+
+test("4.3 the health worklist read at a checkout names to the library each contract carrying \"no test names it\" that a numbered test in its story's package on fetched origin/main names, with main's commit; a test only off main names nothing, and with no origin/main none is named", async t => {
+  const folder = await mkdtemp(path.join(tmpdir(), "map-named-"));
+  t.after(() => removeTemp(folder));
+  const checkout = path.join(folder, "checkout");
+  const git = (cwd: string, ...args: string[]) => execFileSync("git", args, { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], windowsHide: true }).trim();
+  const write = async (name: string, text: string) => { await mkdir(path.dirname(path.join(checkout, name)), { recursive: true }); await writeFile(path.join(checkout, name), text); };
+  const commit = (message: string) => git(checkout, "-c", "user.name=Map test", "-c", "user.email=map@example.test", "-c", "commit.gpgsign=false", "commit", "-m", message);
+  await write("packages/shop/package.json", '{"name":"@example/shop"}');
+  await write("packages/shop/src/cart.ts", "export const cart = 1;\n");
+  await write("packages/shop/src/cart.test.ts", 'import { cart } from "./cart.js";\ntest("1.1 · adds an item", () => cart);\n');
+  await mkdir(checkout, { recursive: true });
+  git(checkout, "init", "-b", "main"); git(checkout, "add", "."); commit("cart on main");
+  const origin = path.join(folder, "origin.git");
+  git(folder, "init", "--bare", origin);
+  git(checkout, "remote", "add", "origin", origin);
+  git(checkout, "push", "-q", "origin", "main");
+  const main = git(checkout, "rev-parse", "HEAD");
+  await write("packages/shop/src/cart.test.ts", 'import { cart } from "./cart.js";\ntest("1.1 · adds an item", () => cart);\ntest("1.2 · removes an item", () => cart);\n');
+  git(checkout, "add", "."); commit("1.2 on this branch only");
+  const health = { reported: { state: "not-checked" }, verified: { state: "not-checked" } };
+  const contract = (id: string, title: string) => ({ id, title, health });
+  const plan = { arcs: [], stories: [{ id: "shop", title: "Shop", health, capabilities: [
+    { id: "cart", title: "1 · Cart", health, dependsOn: [], contracts: [contract("adds", "1.1 · Adds an item"), contract("removes", "1.2 · Removes an item")] },
+    { id: "till", title: "2 · Till", health, dependsOn: [], contracts: [contract("pays", "2.1 · Takes payment")] },
+  ] }] } as unknown as AnnotatedTree;
+  const asked: Parameters<Library["healthWorklist"]>[0][] = [];
+  const item = (capability: string, contracts: string[]) => ({ capability, title: capability, story: "shop", status: "untested", since: "", why: { reason: "no test names it", mover: "agent", contracts } }) as HealthWorkItem;
+  const library = {
+    projectTree: async () => plan,
+    healthWorklist: async (options?: Parameters<Library["healthWorklist"]>[0]) => { asked.push(options); return [item("cart", ["adds", "removes"]), item("till", ["pays"])]; },
+  };
+
+  await healthWorklistAt(library, checkout);
+  const named = asked.at(-1)?.named;
+  assert.deepEqual(named?.contracts, ["adds"], "1.1's test is on main; 1.2's only on this branch, and 2.1 has none");
+  assert.equal(named?.commit, main, "main's commit");
+  assert.equal(Date.parse(named!.at), Date.parse(git(checkout, "log", "-1", "--format=%cI", main)));
+
+  asked.length = 0;
+  git(checkout, "remote", "remove", "origin");
+  git(checkout, "update-ref", "-d", "refs/remotes/origin/main");
+  await healthWorklistAt(library, checkout);
+  assert.ok(asked.every(options => options?.named === undefined), "no origin/main: nothing named");
+});

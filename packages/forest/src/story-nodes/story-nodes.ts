@@ -1,0 +1,128 @@
+/**
+ * Capability 1 · Story nodes (the forest story): the forest keeps one story node for every story
+ * in the project: where the story sits in the forest, with its title and its overall health. Nodes
+ * follow the library, so a new story appears as a new node and a retired story's node goes, with
+ * nothing arranged by hand.
+ *
+ * A node's place is a row and a slot in it, by dependency depth (the rows decision, superseding the
+ * creation-order places of ADR-0646, ported from 0.2's ranking): a story depending on nothing is in the
+ * bottom row, and every other story is one row above the deepest story it depends on, where a story
+ * depends on another when one of its capabilities depends on one of the other's. The bottom row is
+ * ordered with the story most depended on (directly or not) in the middle and the rest outward; a
+ * higher row by where the stories it depends on sit in theirs. Ties go by the order the stories were
+ * created in, and a loop in the dependencies is broken where it is found, so it never stops the layout.
+ * Where the code survey derives a story's edges from its source files' imports of other stories'
+ * packages, the stories they reach are its dependencies too, with or without a capability at either
+ * end (ADR-0991 D2): a code edge the plan never recorded still places the island, and a dependency
+ * only its package.json or its tests name ranks nothing. A recorded dependsOn stays, for what no
+ * import shows (ADR-0991 D3). A mapped story is ranked by the roads the survey reads among mapped
+ * islands, so it sits below the mapped islands that import it (ADR-0993), and a built story whose
+ * package depends on a mapped story's sits above it, since no derived edge can reach an island with
+ * no capabilities.
+ *
+ * Everything here is a pure function of what the library hands the forest, so it is tested
+ * without a database.
+ */
+import type { AnnotatedTree, Change, HealthState, StorySurvey } from "@storytree/library";
+
+import { placeInRow } from "../planet-places/planet-places.js";
+
+/** A point on the forest's ground, in place-widths from its centre. */
+export interface Point {
+  x: number;
+  y: number;
+}
+
+/** One story, as the forest keeps it. */
+export interface StoryNode {
+  /** The story's id in the library. */
+  id: string;
+  title: string;
+  /**
+   * The story's overall health as its agent reports it: the library's reported column, rolled up
+   * from its contracts. It is the agent's word, and is always labelled so (ADR-0630).
+   */
+  reported: HealthState;
+  /** Its place: its row and its slot in that row (planet-places' placeInRow). */
+  place: number;
+  /** Where its place is on flat ground: its slot across the row from the row's middle, and its row northward (−y). */
+  at: Point;
+  /** The stories its row is ranked above: those its code's edges reach, the mapped ones its package depends on, and those its capabilities record depending on. */
+  dependsOn: string[];
+}
+
+/**
+ * The story nodes of a project: one for each story in `tree` (the library's projectTree()), in the
+ * tree's order. `history` is the project's changes from the start, as changesSince(0) hands them
+ * out; the order the stories were created in, which breaks ties in a row, is read from it. A story
+ * the history does not show being created comes after every story it does show. `survey` is the
+ * project's code survey: the stories a story's derived edges reach rank it as well.
+ */
+export function storyNodes(tree: AnnotatedTree, history: readonly Pick<Change, "type" | "action" | "recordId">[], survey: Readonly<Record<string, Pick<StorySurvey, "edges" | "dependsOn" | "mapped">>> = {}): StoryNode[] {
+  const created = history.filter(({ type, action }) => type === "story" && action === "created").map(({ recordId }) => recordId);
+  const order = [...new Set([...created, ...tree.stories.map(({ id }) => id)])].filter((id) => tree.stories.some((story) => story.id === id));
+  const rows = storyRows(tree, order, survey);
+  return tree.stories.map((story) => {
+    const { row, slot, width, dependsOn } = rows.get(story.id)!;
+    return { id: story.id, title: story.title, reported: story.health.reported.state, place: placeInRow(row, slot), at: { x: slot - (width - 1) / 2, y: -row }, dependsOn };
+  });
+}
+
+/** Each story's row, its slot in the row from the west, how many the row holds, and the stories it was ranked above; `order` is the stories in creation order. */
+function storyRows(tree: AnnotatedTree, order: readonly string[], survey: Readonly<Record<string, Pick<StorySurvey, "edges" | "dependsOn" | "mapped">>>): Map<string, { row: number; slot: number; width: number; dependsOn: string[] }> {
+  const owner = new Map(tree.stories.flatMap((story) => story.capabilities.map(({ id }) => [id, story.id] as const)));
+  const known = new Set(order);
+  const mapped = new Set(tree.stories.filter((story) => story.mapped !== undefined).map(({ id }) => id));
+  const dependsOn = new Map(tree.stories.map((story) => [story.id, [...new Set([
+    ...(survey[story.id]?.edges ?? []).map((edge) => edge.story),
+    // A mapped island has no capabilities, so no derived edge reaches it: a package dependency on one is read instead.
+    ...(survey[story.id]?.dependsOn ?? []).filter((other) => survey[story.id]?.mapped !== undefined || mapped.has(other)),
+    ...story.capabilities.flatMap(({ dependsOn: on }) => on.flatMap((capability) => owner.get(capability) ?? [])),
+  ])].filter((other) => known.has(other) && other !== story.id)]));
+  const dependents = new Map(order.map((id) => [id, order.filter((other) => dependsOn.get(other)!.includes(id))]));
+
+  // Longest path from the bottom: one above the deepest dependency; a dependency still being visited closes a loop and counts as none.
+  const rank = new Map<string, number>();
+  const visiting = new Set<string>();
+  const rankOf = (id: string): number => {
+    const known = rank.get(id);
+    if (known !== undefined) return known;
+    if (visiting.has(id)) return -1;
+    visiting.add(id);
+    const row = Math.max(0, ...dependsOn.get(id)!.map((other) => rankOf(other) + 1));
+    visiting.delete(id);
+    rank.set(id, row);
+    return row;
+  };
+  order.forEach(rankOf);
+
+  // How many stories rest on each, directly or not.
+  const holds = new Map(order.map((id) => {
+    const seen = new Set<string>();
+    for (const stack = [...dependents.get(id)!]; stack.length > 0;) {
+      const next = stack.pop()!;
+      if (!seen.has(next) && next !== id) { seen.add(next); stack.push(...dependents.get(next)!); }
+    }
+    return [id, seen.size];
+  }));
+
+  const placed = new Map<string, { row: number; slot: number; width: number; dependsOn: string[] }>();
+  const across = (id: string) => { const at = placed.get(id)!; return at.slot - (at.width - 1) / 2; };
+  const under = (id: string) => {
+    const below = dependsOn.get(id)!.filter((other) => placed.has(other));
+    return below.length === 0 ? 0 : below.reduce((sum, other) => sum + across(other), 0) / below.length;
+  };
+  for (let row = 0, rows = Math.max(0, ...rank.values()) + 1; row < rows; row++) {
+    const members = order.filter((id) => rank.get(id) === row);
+    let line: string[];
+    if (row === 0) {
+      // Most held up in the middle, the rest alternately to either side.
+      line = [];
+      [...members].sort((a, b) => holds.get(b)! - holds.get(a)!).forEach((id, k) => (k % 2 === 0 ? line.push(id) : line.unshift(id)));
+    } else {
+      line = [...members].sort((a, b) => under(a) - under(b));
+    }
+    line.forEach((id, slot) => placed.set(id, { row, slot, width: line.length, dependsOn: dependsOn.get(id)! }));
+  }
+  return placed;
+}

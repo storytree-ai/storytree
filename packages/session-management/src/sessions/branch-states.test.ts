@@ -1,0 +1,448 @@
+/**
+ * Capability 4 · Sessions, contract 4.10: whether each branch a session worked on still holds open
+ * work (ADR-0754 D4), found by asking GitHub (a stand-in here) and this machine's git, and written
+ * to the real activity log on the Postgres `pnpm test` provides.
+ */
+import assert from "node:assert/strict";
+import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import path from "node:path";
+import { mock, test } from "node:test";
+
+import { openActivityLog } from "../activity/index.js";
+import type { Line } from "@storytree/library";
+import { git, withTempDir } from "@storytree/project-and-caller/testing/folders";
+import { testServerUrl, uniqueProjectName } from "@storytree/project-and-caller/testing/pg";
+import { learn } from "../hooks/learned-limits.js";
+import { BRANCH_GIT_STEP, gitRunner, type GitRunner } from "./branch-states.js";
+import { lookAsApp, projectFolder, resolveBranches, sessionsFrom } from "./index.js";
+
+test("4.10 each branch a session worked on is marked resolved once its pull request merged (any machine), or, on the machine it was worked on, once it has nothing ahead of main or is deleted; one still ahead stays open, and one that gains work after it resolved is open again; a state is written only when it changes", async () => {
+  const log = await openActivityLog(testServerUrl());
+  const project = uniqueProjectName();
+  try {
+    await withTempDir(async (dir) => {
+      const repo = path.join(dir, "site");
+      git(dir, "init", "-q", "-b", "main", repo);
+      writeFileSync(path.join(repo, "a.txt"), "a\n");
+      git(repo, "add", "a.txt");
+      git(repo, "commit", "-q", "-m", "first");
+      git(repo, "branch", "claude/not-ahead");
+      git(repo, "switch", "-q", "-c", "claude/ahead");
+      writeFileSync(path.join(repo, "b.txt"), "b\n");
+      git(repo, "add", "b.txt");
+      git(repo, "commit", "-q", "-m", "work");
+      git(repo, "switch", "-q", "main");
+
+      const here = { session: "worker", harness: "claude-code", source: "hook", machine: "here" } as const;
+      const worked = (branch: string, folder = repo) => log.append(project, { ...here, folder, branch, kind: "file-edited", files: ["x.ts"] });
+      await worked("claude/not-ahead");
+      await worked("claude/ahead");
+      await worked("claude/gone", path.join(repo, ".claude", "worktrees", "gone"));
+      const elsewhere = { session: "laptop", harness: "claude-code", source: "hook", machine: "elsewhere", folder: "C:\\site" } as const;
+      await log.append(project, { ...elsewhere, branch: "claude/merged", kind: "file-edited", files: ["y.ts"] });
+      await log.append(project, { ...elsewhere, branch: "claude/laptop-only", kind: "file-edited", files: ["z.ts"] });
+
+      const allMergedPulls = async () => new Map([["claude/merged", [{ number: 12, mergedAt: new Date(Date.now() + 1_000).toISOString() }]]]);
+      const allOpenPulls = async () => new Map<string, never>();
+      const watcher = { log, project, folder: repo, session: "observer", harness: "claude-code", source: "hook" } as const;
+      const watch = { allMergedPulls, allOpenPulls, everyMs: 0, budgetMs: 60_000, machine: "here" };
+      const states = (lines: readonly Line[]) => lines.flatMap((line) => (line.kind === "branch-state" ? [[line.of, line.open, line.how, line.pr, line.session]] : [])).sort();
+
+      assert.deepEqual(states(await resolveBranches(watcher, watch)), [
+        ["claude/gone", false, "deleted", undefined, "observer"],
+        ["claude/merged", false, "merged", 12, "observer"],
+        ["claude/not-ahead", false, "not-ahead", undefined, "observer"],
+      ]);
+      assert.deepEqual(await resolveBranches(watcher, watch), [], "nothing changed, nothing written");
+
+      git(repo, "switch", "-q", "claude/not-ahead");
+      writeFileSync(path.join(repo, "c.txt"), "c\n");
+      git(repo, "add", "c.txt");
+      git(repo, "commit", "-q", "-m", "more");
+      await worked("claude/not-ahead");
+      assert.deepEqual(states(await resolveBranches(watcher, watch)), [["claude/not-ahead", true, "ahead", undefined, "observer"]]);
+    });
+  } finally {
+    await log.close();
+  }
+});
+
+test("4.10 a session whose branches merged, or exist nowhere this machine can see (not on origin, no branch here) and were worked on elsewhere, holds no open work after one look; one pushed to origin stays open; the machine that worked on it opens it again if it is still there", async () => {
+  const log = await openActivityLog(testServerUrl());
+  const project = uniqueProjectName();
+  try {
+    await withTempDir(async (dir) => {
+      const origin = path.join(dir, "origin.git");
+      git(dir, "init", "-q", "--bare", "-b", "main", origin);
+      const clone = (name: string) => {
+        const repo = path.join(dir, name);
+        git(dir, "clone", "-q", origin, repo);
+        return repo;
+      };
+      const site = clone("site");
+      writeFileSync(path.join(site, "a.txt"), "a\n");
+      git(site, "add", "a.txt");
+      git(site, "commit", "-q", "-m", "first");
+      git(site, "push", "-q", "origin", "HEAD:main");
+      git(site, "push", "-q", "origin", "HEAD:claude/pushed");
+      const laptop = clone("laptop");
+      git(laptop, "switch", "-q", "-c", "claude/never-pushed");
+      writeFileSync(path.join(laptop, "b.txt"), "b\n");
+      git(laptop, "add", "b.txt");
+      git(laptop, "commit", "-q", "-m", "work");
+      git(laptop, "switch", "-q", "main");
+
+      const elsewhere = { harness: "claude-code", source: "hook", machine: "elsewhere", folder: laptop } as const;
+      for (const branch of ["claude/merged", "claude/never-pushed"]) await log.append(project, { ...elsewhere, session: "finished", branch, kind: "file-edited", files: ["x.ts"] });
+      await log.append(project, { ...elsewhere, machine: "third", session: "lane", branch: "claude/pushed", kind: "file-edited", files: ["y.ts"] });
+
+      const allMergedPulls = async () => new Map([["claude/merged", [{ number: 12, mergedAt: new Date(Date.now() + 1_000).toISOString() }]]]);
+      const allOpenPulls = async () => new Map<string, never>();
+      const watcher = (folder: string) => ({ log, project, folder, session: "observer", harness: "claude-code", source: "hook" }) as const;
+      const openWork = async () => sessionsFrom((await log.since(project, 0)).lines).map((session) => [session.session, session.openWork]);
+
+      await resolveBranches(watcher(site), { allMergedPulls, allOpenPulls, everyMs: 0, budgetMs: 60_000, machine: "here" });
+      assert.deepEqual(await openWork(), [["finished", []], ["lane", ["claude/pushed"]]]);
+
+      await resolveBranches(watcher(laptop), { allMergedPulls, allOpenPulls, everyMs: 0, budgetMs: 60_000, machine: "elsewhere" });
+      assert.deepEqual(await openWork(), [["finished", ["claude/never-pushed"]], ["lane", ["claude/pushed"]]]);
+      await resolveBranches(watcher(site), { allMergedPulls, allOpenPulls, everyMs: 0, budgetMs: 60_000, machine: "here" });
+      assert.deepEqual(await openWork(), [["finished", ["claude/never-pushed"]], ["lane", ["claude/pushed"]]], "a branch its own machine found is not guessed away again");
+    });
+  } finally {
+    await log.close();
+  }
+});
+
+test("4.10 a branch another machine took for deleted while it was only on its own machine is open again once it has an open pull request, or once its own machine finds it ahead, however long GitHub takes to answer (regression: a handed-over session read verified 36 minutes before its merge, 2026-10-11)", async () => {
+  const log = await openActivityLog(testServerUrl());
+  const project = uniqueProjectName();
+  try {
+    await withTempDir(async (dir) => {
+      const origin = path.join(dir, "origin.git");
+      git(dir, "init", "-q", "--bare", "-b", "main", origin);
+      const clone = (name: string) => {
+        const repo = path.join(dir, name);
+        git(dir, "clone", "-q", origin, repo);
+        return repo;
+      };
+      const site = clone("site");
+      writeFileSync(path.join(site, "a.txt"), "a\n");
+      git(site, "add", "a.txt");
+      git(site, "commit", "-q", "-m", "first");
+      git(site, "push", "-q", "origin", "HEAD:main");
+      const laptop = clone("laptop");
+      for (const branch of ["claude/handed", "claude/unpushed"]) {
+        git(laptop, "switch", "-q", "-c", branch, "origin/main");
+        writeFileSync(path.join(laptop, `${branch.slice("claude/".length)}.txt`), "work\n");
+        git(laptop, "add", ".");
+        git(laptop, "commit", "-q", "-m", "work");
+      }
+      git(laptop, "switch", "-q", "--detach", "origin/main");
+
+      const work = (branch: string) => log.append(project, { session: "lane", harness: "claude-code", source: "hook", machine: "laptop", folder: laptop, branch, kind: "file-edited", files: ["x.ts"] });
+      for (const branch of ["claude/handed", "claude/unpushed"]) await work(branch);
+
+      const watcher = (folder: string) => ({ log, project, folder, session: "observer", harness: "claude-code", source: "hook" }) as const;
+      const noPulls = { allMergedPulls: async () => new Map(), allOpenPulls: async () => new Map(), everyMs: 0, budgetMs: 60_000 };
+      const openWork = async () => sessionsFrom((await log.since(project, 0)).lines).map((session) => [session.session, session.openWork]);
+
+      // The box looks while both exist only on the laptop: it takes them for deleted.
+      await resolveBranches(watcher(site), { ...noPulls, machine: "box" });
+      assert.deepEqual(await openWork(), [["lane", []]]);
+
+      // The lane works on, pushes one and opens its pull request; the box looks again.
+      for (const branch of ["claude/handed", "claude/unpushed"]) await work(branch);
+      git(laptop, "push", "-q", "origin", "claude/handed");
+      const opened = async () => new Map([["claude/handed", { number: 7, draft: false, checks: "passing" as const, queued: false }]]);
+      await resolveBranches(watcher(site), { ...noPulls, allOpenPulls: opened, machine: "box" });
+      assert.deepEqual(await openWork(), [["lane", ["claude/handed"]]], "an open pull request from a branch taken for deleted opens it again");
+
+      // The laptop looks, with GitHub slower than the whole look's budget: its git is still asked.
+      mock.timers.enable({ apis: ["Date"], now: Date.now() });
+      try {
+        const slow = async () => {
+          mock.timers.tick(200);
+          return new Map();
+        };
+        await resolveBranches(watcher(laptop), { ...noPulls, allMergedPulls: slow, allOpenPulls: opened, budgetMs: 100, machine: "laptop" });
+      } finally {
+        mock.timers.reset();
+      }
+      assert.deepEqual(await openWork(), [["lane", ["claude/handed", "claude/unpushed"]]], "its own machine finds the unpushed branch ahead");
+    });
+  } finally {
+    await log.close();
+  }
+});
+
+test("4.10 a git that does not answer whether a branch exists leaves it unresolved, never deleted; once git answers, the next look resolves it", async () => {
+  const log = await openActivityLog(testServerUrl());
+  const project = uniqueProjectName();
+  try {
+    await withTempDir(async (dir) => {
+      const repo = path.join(dir, "site");
+      git(dir, "init", "-q", "-b", "main", repo);
+      writeFileSync(path.join(repo, "a.txt"), "a\n");
+      git(repo, "add", "a.txt");
+      git(repo, "commit", "-q", "-m", "first");
+      await log.append(project, { session: "worker", harness: "claude-code", source: "hook", machine: "here", folder: repo, branch: "claude/gone", kind: "file-edited", files: ["x.ts"] });
+
+      const watcher = { log, project, folder: repo, session: "observer", harness: "claude-code", source: "hook" } as const;
+      const watch = { allMergedPulls: async () => new Map(), allOpenPulls: async () => new Map(), everyMs: 0, budgetMs: 60_000, machine: "here" };
+      // A loaded machine: git answers everything but one question, which outlasts its wait.
+      const slow = (question: string): GitRunner => async (cwd, timeout, args) => (args.includes(question) ? { answered: false } : gitRunner(cwd, timeout, args));
+      for (const question of ["--verify", "symbolic-ref"]) assert.deepEqual(await resolveBranches(watcher, { ...watch, home: path.join(dir, "home"), git: slow(question) }), [], `a slow ${question} is not absence`);
+
+      const found = await resolveBranches(watcher, watch);
+      assert.deepEqual(found.flatMap((line) => (line.kind === "branch-state" ? [[line.of, line.open, line.how]] : [])), [["claude/gone", false, "deleted"]]);
+    });
+  } finally {
+    await log.close();
+  }
+});
+
+test("4.39 the look's git calls get the time this machine learned: 2 s on a new machine, three times a slow machine's slowest call, and no more than 5 s once its calls keep giving up", async () => {
+  const log = await openActivityLog(testServerUrl());
+  const project = uniqueProjectName();
+  try {
+    await withTempDir(async (dir) => {
+      const repo = path.join(dir, "site");
+      git(dir, "init", "-q", "-b", "main", repo);
+      await log.append(project, { session: "worker", harness: "claude-code", source: "hook", machine: "here", folder: repo, branch: "claude/work", kind: "file-edited", files: ["x.ts"] });
+      const watcher = { log, project, folder: repo, session: "observer", harness: "claude-code", source: "hook" } as const;
+      // A git that never answers: the branch stays unresolved, so every look asks again, and gives up at its limit.
+      const given: number[] = [];
+      const silent: GitRunner = async (_cwd, timeout) => {
+        given.push(timeout);
+        return { answered: false };
+      };
+      const look = async (home: string) => {
+        given.length = 0;
+        await resolveBranches(watcher, { allMergedPulls: async () => new Map(), allOpenPulls: async () => new Map(), everyMs: 0, budgetMs: 60_000, machine: "here", home, git: silent });
+        return [...new Set(given)];
+      };
+
+      const fresh = path.join(dir, "fresh");
+      assert.deepEqual(await look(fresh), [BRANCH_GIT_STEP.floorMs], "a new machine's calls get the 2 s they always had");
+      await look(fresh);
+      await look(fresh);
+      assert.deepEqual(await look(fresh), [BRANCH_GIT_STEP.ceilingMs], "three looks that gave up widen it, to the ceiling and no further");
+
+      const slow = path.join(dir, "slow");
+      for (let i = 0; i < 3; i++) learn(slow, BRANCH_GIT_STEP, 1_200);
+      assert.deepEqual(await look(slow), [3_600], "a machine whose calls took 1.2 s gets three times that");
+    });
+  } finally {
+    await log.close();
+  }
+});
+
+test("4.10 a branch a claim's merge names holds no open work before any look has written its state; a later look that finds it ahead opens it again (regression: finished sessions counted as at work, 2026-09-30)", async () => {
+  const log = await openActivityLog(testServerUrl());
+  const project = uniqueProjectName();
+  try {
+    const at = { harness: "claude-code", machine: "laptop", folder: "C:\\site" } as const;
+    await log.append(project, { ...at, source: "hook", session: "finished", branch: "claude/fix", kind: "file-edited", files: ["x.ts"] });
+    await log.append(project, { ...at, source: "hook", session: "observer", kind: "merged", increment: "increment_1", holder: "finished", branch: "claude/fix", pr: 7 });
+    const openWork = async () => Object.fromEntries(sessionsFrom((await log.since(project, 0)).lines).map((session) => [session.session, session.openWork]));
+    assert.deepEqual((await openWork()).finished, [], "the merged line resolves the branch");
+
+    await log.append(project, { ...at, source: "hook", session: "observer", kind: "branch-state", of: "claude/fix", open: true, how: "ahead" });
+    assert.deepEqual((await openWork()).finished, ["claude/fix"], "a later look that found it ahead opens it again");
+  } finally {
+    await log.close();
+  }
+});
+
+test("4.21 the app looks for itself: a branch a session on this machine worked on is resolved, asked from a folder this machine has, under the app's name, which lists as no session", async () => {
+  const log = await openActivityLog(testServerUrl());
+  const project = uniqueProjectName();
+  try {
+    await withTempDir(async (site) => {
+      const worked = await log.append(project, { session: "lane", harness: "claude-code", source: "hook", machine: "here", folder: site, branch: "claude/landed", kind: "file-edited", files: ["x.ts"] });
+      const allMergedPulls = async () => new Map([["claude/landed", [{ number: 21, mergedAt: new Date(Date.parse(worked.at) + 1_000).toISOString() }]]]);
+
+      const written = await lookAsApp(log, project, { allMergedPulls, everyMs: 0, machine: "here" });
+      assert.deepEqual(written.map((line) => [line.kind, line.session]), [["branch-state", "app:here"]]);
+      const sessions = sessionsFrom((await log.since(project, 0)).lines);
+      assert.deepEqual(sessions.map((session) => [session.session, session.openWork]), [["lane", []]]);
+    });
+  } finally {
+    await log.close();
+  }
+});
+
+test("4.33 a project with no git repository whose sessions last worked in a subfolder is answered by its marker's folder, so the survey reads the whole project; a subfolder whose nearest marker names another project is answered as recorded (regression: the live import run's road drawn minutes late, 2026-10-12)", async () => {
+  const log = await openActivityLog(testServerUrl());
+  const project = uniqueProjectName();
+  try {
+    await withTempDir(async (site) => {
+      writeFileSync(path.join(site, ".storytree.json"), JSON.stringify({ project }));
+      const sub = path.join(site, "packages", "report");
+      mkdirSync(sub, { recursive: true });
+      await log.append(project, { session: "agent", harness: "claude-code", source: "hook", machine: "here", folder: sub, kind: "command-run", command: "npm test" });
+      assert.equal(await projectFolder(log, project, "here"), site);
+
+      const other = path.join(site, "vendor");
+      mkdirSync(other);
+      writeFileSync(path.join(other, ".storytree.json"), JSON.stringify({ project: `${project}-other` }));
+      await log.append(project, { session: "agent", harness: "claude-code", source: "hook", machine: "here", folder: other, kind: "command-run", command: "npm test" });
+      assert.equal(await projectFolder(log, project, "here"), other);
+    });
+  } finally {
+    await log.close();
+  }
+});
+
+test("4.24 the same look reads each open branch's pull request from GitHub in one call: its number, whether it is a draft, its checks (pending, passing or failing) and whether it waits in the merge queue; a change is written, nothing else is; GitHub not answering erases nothing; the Session reading carries it on each open branch", async () => {
+  const log = await openActivityLog(testServerUrl());
+  const project = uniqueProjectName();
+  try {
+    await withTempDir(async (dir) => {
+      const repo = path.join(dir, "site");
+      git(dir, "init", "-q", "-b", "main", repo);
+      writeFileSync(path.join(repo, "a.txt"), "a\n");
+      git(repo, "add", "a.txt");
+      git(repo, "commit", "-q", "-m", "first");
+      git(repo, "switch", "-q", "-c", "claude/ahead");
+      writeFileSync(path.join(repo, "b.txt"), "b\n");
+      git(repo, "add", "b.txt");
+      git(repo, "commit", "-q", "-m", "work");
+      git(repo, "switch", "-q", "main");
+
+      await log.append(project, { session: "worker", harness: "claude-code", source: "hook", machine: "here", folder: repo, branch: "claude/ahead", kind: "file-edited", files: ["x.ts"] });
+      await log.append(project, { session: "laptop", harness: "claude-code", source: "hook", machine: "elsewhere", folder: "C:\site", branch: "claude/laptop", kind: "file-edited", files: ["y.ts"] });
+
+      type Pulls = Map<string, { number: number; draft: boolean; checks?: "pending" | "passing" | "failing"; queued: boolean }>;
+      let answer: Pulls | undefined = new Map([
+        ["claude/ahead", { number: 40, draft: false, checks: "pending", queued: false }],
+        ["claude/laptop", { number: 41, draft: true, queued: false }],
+      ]);
+      const watcher = { log, project, folder: repo, session: "observer", harness: "claude-code", source: "hook" } as const;
+      const watch = { allMergedPulls: async () => new Map(), allOpenPulls: async () => answer, everyMs: 0, machine: "here" };
+      const pulls = (lines: readonly Line[]) => lines.flatMap((line) => (line.kind === "branch-state" ? [[line.of, line.open, line.pr, line.draft, line.checks, line.queued]] : [])).sort();
+
+      assert.deepEqual(pulls(await resolveBranches(watcher, watch)), [
+        ["claude/ahead", true, 40, undefined, "pending", undefined],
+        ["claude/laptop", true, 41, true, undefined, undefined],
+      ]);
+      assert.deepEqual(await resolveBranches(watcher, watch), [], "nothing changed, nothing written");
+
+      answer = new Map([["claude/ahead", { number: 40, draft: false, checks: "passing", queued: true }], ["claude/laptop", { number: 41, draft: true, queued: false }]]);
+      assert.deepEqual(pulls(await resolveBranches(watcher, watch)), [["claude/ahead", true, 40, undefined, "passing", true]]);
+
+      answer = undefined;
+      assert.deepEqual(await resolveBranches(watcher, { ...watch, allOpenPulls: async () => { throw new Error("gh is signed out"); } }), [], "GitHub not answering learns nothing");
+      assert.deepEqual(await resolveBranches(watcher, watch), [], "nor does an answer that says nothing");
+
+      const [worker] = sessionsFrom((await log.since(project, 0)).lines).filter((session) => session.session === "worker");
+      assert.deepEqual(worker?.branchesByFolder, [{ folder: repo, branch: "claude/ahead", open: true, pr: { number: 40, draft: false, checks: "passing", queued: true } }]);
+
+      answer = new Map([["claude/laptop", { number: 41, draft: true, queued: false }]]);
+      assert.deepEqual(pulls(await resolveBranches(watcher, watch)), [["claude/ahead", true, undefined, undefined, undefined, undefined]], "a pull request closed unmerged leaves the branch open, with none");
+    });
+  } finally {
+    await log.close();
+  }
+});
+
+test("4.21 the look never stalls its process: while git takes its time asking origin, a timer due meanwhile still fires promptly (ADR-0836 D3: the app's minute look runs on its main process)", async () => {
+  const log = await openActivityLog(testServerUrl());
+  const project = uniqueProjectName();
+  try {
+    await withTempDir(async (dir) => {
+      const repo = path.join(dir, "site");
+      git(dir, "init", "-q", "-b", "main", repo);
+      // Origin answers slowly: the stand-in for a network round trip is an ssh command that waits 3 s.
+      // A look that blocked its process would hold a timer for that whole wait; a loaded runner's own
+      // stalls are shorter (865 ms seen on Windows CI), so the bound is half the wait, not a fixed budget.
+      const roundTripMs = 3_000;
+      git(repo, "remote", "add", "origin", "ssh://origin.invalid/site.git");
+      git(repo, "config", "core.sshCommand", `node -e "setTimeout(() => {}, ${roundTripMs})"`);
+      await log.append(project, { session: "laptop", harness: "claude-code", source: "hook", machine: "elsewhere", folder: "C:\\site", branch: "claude/laptop", kind: "file-edited", files: ["x.ts"] });
+
+      const watcher = { log, project, folder: repo, session: "observer", harness: "claude-code", source: "hook" } as const;
+      let last = performance.now();
+      let worst = 0;
+      const ticking = setInterval(() => {
+        const now = performance.now();
+        worst = Math.max(worst, now - last);
+        last = now;
+      }, 10);
+      const started = performance.now();
+      try {
+        await resolveBranches(watcher, { allMergedPulls: async () => new Map(), allOpenPulls: async () => undefined, everyMs: 0, machine: "here" });
+        // One more turn of the timers, so a stall at the look's very end is seen too.
+        await new Promise((done) => setTimeout(done, 30));
+      } finally {
+        clearInterval(ticking);
+      }
+      assert.ok(performance.now() - started >= roundTripMs, "the look waited on the slow origin");
+      assert.ok(worst < roundTripMs / 2, `a timer waited ${Math.round(worst)} ms behind the look`);
+    });
+  } finally {
+    await log.close();
+  }
+});
+
+test("4.27 the same look reads, on this machine, each folder a session edited files in on the main line: whether its main holds uncommitted changes and whether its repository has no commit yet, written as a main-state line only when that changes", async () => {
+  const log = await openActivityLog(testServerUrl());
+  const project = uniqueProjectName();
+  try {
+    await withTempDir(async (dir) => {
+      // Conduit's start: git init -b main, its first files staged, no commit yet.
+      const repo = path.join(dir, "conduit");
+      git(dir, "init", "-q", "-b", "main", repo);
+      writeFileSync(path.join(repo, "ci.yml"), "on: push\n");
+      git(repo, "add", "ci.yml");
+      const builder = { session: "builder", harness: "codex", source: "hook", folder: repo, branch: "main", machine: "here" } as const;
+      await log.append(project, { ...builder, kind: "file-edited", files: [path.join(repo, "ci.yml")] });
+      // Work on main on another machine is that machine's to look at.
+      await log.append(project, { ...builder, session: "laptop", machine: "elsewhere", folder: "C:\\conduit", kind: "file-edited", files: ["C:\\conduit\\a.ts"] });
+
+      const watcher = { log, project, folder: repo, session: "observer", harness: "claude-code", source: "hook" } as const;
+      const watch = { allMergedPulls: async () => new Map(), allOpenPulls: async () => new Map(), everyMs: 0, machine: "here" };
+      const states = (lines: readonly Line[]) => lines.flatMap((line) => (line.kind === "main-state" ? [[line.of, line.dirty, line.unborn, line.session]] : []));
+
+      assert.deepEqual(states(await resolveBranches(watcher, watch)), [[repo, true, true, "observer"]]);
+      assert.deepEqual(await resolveBranches(watcher, watch), [], "nothing changed, nothing written");
+
+      git(repo, "commit", "-q", "-m", "first");
+      assert.deepEqual(states(await resolveBranches(watcher, watch)), [[repo, false, undefined, "observer"]]);
+
+      writeFileSync(path.join(repo, "more.ts"), "x\n");
+      assert.deepEqual(await resolveBranches(watcher, watch), [], "a folder found clean is looked at again only once someone works there again");
+      await log.append(project, { ...builder, kind: "file-edited", files: ["more.ts"] });
+      assert.deepEqual(states(await resolveBranches(watcher, watch)), [[repo, true, undefined, "observer"]], "an untracked file is uncommitted work too");
+
+      git(repo, "switch", "-q", "-c", "claude/fix");
+      assert.deepEqual(states(await resolveBranches(watcher, watch)), [[repo, false, undefined, "observer"]], "off the main line, the folder holds no work on main");
+    });
+  } finally {
+    await log.close();
+  }
+});
+
+test("3.46 the branch look the hooks hand on runs git with the repository's own commands off: neither its file-system monitor nor its hooks start", async () => {
+  await withTempDir(async (dir) => {
+    const repo = path.join(dir, "site");
+    git(dir, "init", "-q", "-b", "main", repo);
+    writeFileSync(path.join(repo, "a.txt"), "a\n");
+    git(repo, "add", "a.txt");
+    git(repo, "commit", "-q", "-m", "first");
+    const marker = path.join(dir, "ran").replace(/\\/g, "/");
+    const hooks = path.join(dir, "repo-hooks");
+    mkdirSync(hooks);
+    writeFileSync(path.join(hooks, "post-index-change"), `#!/bin/sh\necho post-index-change >> '${marker}'\n`);
+    chmodSync(path.join(hooks, "post-index-change"), 0o755);
+    git(repo, "config", "core.hooksPath", hooks);
+    git(repo, "config", "core.fsmonitor", `echo fsmonitor >> '${marker}'`);
+    // A file touched since it was staged makes git look at the working tree and refresh its index.
+    writeFileSync(path.join(repo, "a.txt"), "a\n");
+
+    const answer = await gitRunner(repo, 60_000, ["status", "--porcelain"]);
+    assert.deepEqual(answer, { answered: true, code: 0, out: "" });
+    assert.equal(existsSync(marker), false, existsSync(marker) ? readFileSync(marker, "utf8") : "");
+  });
+});

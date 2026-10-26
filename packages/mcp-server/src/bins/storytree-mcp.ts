@@ -1,0 +1,53 @@
+/**
+ * Capability 6 · Agent tools (the MCP server). `storytree-mcp`: the storytree tool server (capability 6 · Agent tools, the MCP server story),
+ * which Claude Code or Codex starts for each session and talks to over stdin and stdout. It works
+ * in the session's folder: Claude Code names it in CLAUDE_PROJECT_DIR, and both harnesses start
+ * the server there. Nothing but the protocol is ever written to stdout.
+ *
+ * Each start is a session start, so it runs the setup check (capability 8) beside serving: it opens
+ * storytree if it is closed and registers the hooks if they are missing, with the hook script that
+ * was built beside this one (`storytree-hook.mjs`). The agent's part comes through check_setup.
+ * Run from a checkout's source, with no hook script beside it, it registers a build of that
+ * checkout's commit when the commit is origin/main's (contract 8.15), so a machine without the
+ * desktop app's updater still runs main's hooks.
+ *
+ * Its friction_drain runs the doors learner after the drain, as `storytree friction drain` does (ADR-1045 D7): through the
+ * command line built beside it (`storytree.mjs`), or from a checkout's source, that checkout's.
+ */
+import { existsSync } from "node:fs";
+import { homedir } from "node:os";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+import { StdioServerTransport } from "@modelcontextprotocol/server/stdio";
+import { createJourneyRuntime, journeyVersion } from "@storytree/app-setup/journey-events/runtime";
+
+import { builtFromMain, runSetupCheck, type HookCommand } from "@storytree/app-setup/setup";
+import { commandStep, createAgentTools } from "../tools/index.js";
+import { shutdownOnce } from "./shutdown.js";
+
+const folder = process.env.CLAUDE_PROJECT_DIR || process.cwd();
+const script = fileURLToPath(new URL("./storytree-hook.mjs", import.meta.url));
+const checkout = fileURLToPath(new URL("../../../../", import.meta.url));
+const hook: HookCommand | undefined = existsSync(script)
+  ? { node: process.execPath, script }
+  : await builtFromMain({ checkout }).catch(() => undefined);
+// The `storytree` command goes on the user's own path, beside the hooks (ADR-0643 D1, 8).
+const command = { path: process.env.PATH ?? process.env.Path ?? "", home: homedir() };
+declare const STORYTREE_RELEASE: string | undefined;
+const journey = createJourneyRuntime({ appVersion: journeyVersion(typeof STORYTREE_RELEASE === "string" ? STORYTREE_RELEASE : undefined) });
+const cli = fileURLToPath(new URL("./storytree.mjs", import.meta.url));
+const drain = commandStep(existsSync(cli)
+  ? [process.execPath, cli]
+  : [process.execPath, "--import", import.meta.resolve("tsx"), path.join(checkout, "packages", "cli", "src", "bins", "storytree.ts")], process.env);
+const tools = createAgentTools({ folder, env: process.env, setup: hook === undefined ? {} : { hook, command }, journey, drain });
+journey.start();
+
+const stop = shutdownOnce({ input: process.stdin, work: () => [tools.close(), journey.finish()] });
+process.stdin.on("close", stop);
+for (const signal of ["SIGINT", "SIGTERM"] as const) process.on(signal, stop);
+
+await tools.server.connect(new StdioServerTransport());
+void runSetupCheck({ folder, ...(hook === undefined ? {} : { hook, command }) }).catch(() => {
+  // The setup check at start is best effort: check_setup says what is wrong when the agent asks.
+});

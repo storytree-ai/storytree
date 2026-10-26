@@ -1,0 +1,25 @@
+{
+  "enabledMcpjsonServers": [
+    "storytree"
+  ],
+  "permissions": {
+    "allow": [
+      "mcp__storytree",
+      "Bash(pnpm storytree:*)",
+      "Bash(pnpm -s storytree:*)"
+    ]
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node packages/dev-loop/src/provision-worktree.mjs --hook",
+            "timeout": 300
+          }
+        ]
+      }
+    ]
+  }
+}

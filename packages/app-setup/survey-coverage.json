@@ -1,0 +1,199 @@
+{
+ "src/bins/build.ts": {
+  "8": 217
+ },
+ "src/bins/storytree-hook.ts": {
+  "8": 4
+ },
+ "src/bins/storytree-setup.ts": {
+  "8": 31
+ },
+ "src/connect/codex-agents.ts": {
+  "1": 46,
+  "2": 100
+ },
+ "src/connect/dev-database.ts": {
+  "2": 5
+ },
+ "src/connect/dev-home.ts": {
+  "2": 142
+ },
+ "src/connect/harness.ts": {
+  "1": 258,
+  "2": 533
+ },
+ "src/connect/index.ts": {
+  "1": 186,
+  "2": 357
+ },
+ "src/connect/installed.ts": {
+  "2": 46
+ },
+ "src/connect/verbs.ts": {
+  "2": 20
+ },
+ "src/deliver/command.ts": {
+  "1": 28,
+  "2": 27
+ },
+ "src/deliver/delivery.ts": {
+  "1": 42
+ },
+ "src/deliver/payload.ts": {
+  "1": 120
+ },
+ "src/deliver/runtime.ts": {
+  "1": 40
+ },
+ "src/deliver/uninstall.ts": {
+  "1": 104
+ },
+ "src/help/actions.ts": {
+  "3": 9
+ },
+ "src/help/license.ts": {
+  "4": 1
+ },
+ "src/journey-events/deletion.ts": {
+  "16": 12
+ },
+ "src/journey-events/feedback.ts": {
+  "3": 8,
+  "5": 20
+ },
+ "src/journey-events/index.ts": {
+  "13": 48,
+  "14": 72,
+  "15": 76,
+  "16": 19
+ },
+ "src/journey-events/posthog.ts": {
+  "13": 10,
+  "14": 80,
+  "15": 30
+ },
+ "src/journey-events/release.ts": {
+  "13": 1,
+  "14": 3,
+  "15": 3
+ },
+ "src/journey-events/runtime.ts": {
+  "13": 18,
+  "14": 54,
+  "15": 57
+ },
+ "src/journey-events/verbs.ts": {
+  "8": 31,
+  "15": 5
+ },
+ "src/journey-events/view.ts": {
+  "15": 56,
+  "16": 14
+ },
+ "src/pipeline/pipeline.ts": {
+  "11": 12
+ },
+ "src/project/factory-move.ts": {
+  "6": 4
+ },
+ "src/project/importing.ts": {
+  "1": 15,
+  "3": 18,
+  "12": 140
+ },
+ "src/project/index.ts": {
+  "1": 22,
+  "3": 171,
+  "12": 1
+ },
+ "src/project/making.ts": {
+  "1": 14,
+  "2": 23,
+  "3": 85,
+  "6": 213,
+  "8": 434,
+  "12": 32
+ },
+ "src/project/starter-pack.ts": {
+  "1": 115,
+  "2": 150,
+  "3": 85,
+  "6": 229,
+  "8": 310,
+  "12": 25
+ },
+ "src/project/verbs.ts": {
+  "3": 7,
+  "12": 7
+ },
+ "src/setup/built-from-main.ts": {
+  "8": 310
+ },
+ "src/setup/command.ts": {
+  "1": 126,
+  "2": 231,
+  "3": 1,
+  "8": 1178
+ },
+ "src/setup/diagnostics.ts": {
+  "2": 322,
+  "3": 9,
+  "8": 496
+ },
+ "src/setup/hooks-config.ts": {
+  "1": 364,
+  "2": 943,
+  "3": 16,
+  "8": 1426
+ },
+ "src/setup/hooks-release.ts": {
+  "2": 69,
+  "3": 3,
+  "8": 217
+ },
+ "src/setup/machine.ts": {
+  "1": 48,
+  "2": 138,
+  "3": 6,
+  "8": 310
+ },
+ "src/setup/open-storytree.ts": {
+  "2": 46,
+  "3": 2,
+  "8": 217
+ },
+ "src/setup/pi-extension.ts": {
+  "2": 46,
+  "8": 62
+ },
+ "src/setup/setup.ts": {
+  "2": 345,
+  "3": 13,
+  "8": 527
+ },
+ "src/setup/verbs.ts": {
+  "8": 4
+ },
+ "src/setup/verify.ts": {
+  "2": 46,
+  "8": 124
+ },
+ "src/view/add-project.ts": {
+  "3": 24,
+  "5": 12
+ },
+ "src/view/delete-project.ts": {
+  "3": 1
+ },
+ "src/view/first-run.ts": {
+  "3": 10,
+  "5": 4
+ },
+ "src/view/mount.ts": {
+  "3": 96,
+  "5": 48
+ },
+ "src/view/remove-project.ts": {
+  "3": 1
+ }
+}

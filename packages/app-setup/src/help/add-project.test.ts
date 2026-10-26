@@ -1,0 +1,90 @@
+import assert from "node:assert/strict";
+import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import { test } from "node:test";
+import { randomBytes } from "node:crypto";
+import { connect } from "@storytree/library";
+import { dropTestDatabases } from "@storytree/local-postgres/testing";
+import { projectsOnThisComputer } from "../project/index.js";
+import { setupHelpActions } from "./actions.js";
+
+test("3.4 Add project: the picked folder becomes a project under its own name (kept apart from an existing one of that name) and is shown; a folder already a project is simply selected, and a removed project's folder brings that project back; cancelling does nothing", async (t) => {
+  const dir = realpathSync.native(mkdtempSync(path.join(tmpdir(), "storytree-app-add-project-")));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const home = path.join(dir, "home");
+  const token = `t-${randomBytes(4).toString("hex")}`;
+  const [blog, site] = [`blog-posts-${token}`, `site-${token}`];
+  const url = process.env.STORYTREE_TEST_PG_URL;
+  if (url === undefined) throw new Error("run the tests via `pnpm test`, which starts a local Postgres");
+  // The app's own open library: used, never closed by adding a project.
+  const library = await connect({ url });
+  t.after(async () => {
+    await library.close();
+    await dropTestDatabases([blog, site, `${site}-2`].map((name) => `storytree_${name}`));
+  });
+  await (await library.openProject(site)).close();
+  let picked: string | undefined;
+  const actions = setupHelpActions({
+    licenseFile: "", storytreeHome: home, chooseFolder: async () => picked,
+    openExternal: async () => {}, copyText: async () => {}, library: () => library,
+  });
+
+  assert.equal(await actions.addProject(), null, "cancelling the picker adds nothing");
+
+  picked = path.join(dir, `Blog Posts ${token}`);
+  mkdirSync(picked);
+  assert.deepEqual(await actions.addProject(), { status: "set up", project: blog, folder: picked });
+  assert.equal(JSON.parse(readFileSync(path.join(picked, ".storytree.json"), "utf8")).project, blog);
+  assert.equal(JSON.parse(readFileSync(path.join(home, "project-choice.json"), "utf8")).current, blog, "the new project is the one shown");
+
+  picked = path.join(dir, "other", site);
+  mkdirSync(picked, { recursive: true });
+  assert.deepEqual(await actions.addProject(), { status: "set up", project: `${site}-2`, folder: picked }, "a second folder named like an existing project gets its own project");
+
+  writeFileSync(path.join(home, "project-choice.json"), JSON.stringify({ current: `${site}-2` }));
+  picked = path.join(dir, `Blog Posts ${token}`);
+  assert.deepEqual(await actions.addProject(), { status: "already a project", project: blog, folder: picked });
+  // Only this test's projects: sibling tests add and drop their own on the same server.
+  const ours = (names: readonly string[]) => [blog, site, `${site}-2`].filter((name) => names.includes(name));
+  const projects = ours(await library.listProjects());
+  assert.equal(projects.length, 3, "an existing project creates nothing");
+  assert.deepEqual(ours(await library.listProjects()), projects, "the app's library stays open");
+
+  assert.deepEqual(await actions.removeProject(blog), { status: "removed", project: blog, freed: picked });
+  assert.equal(projectsOnThisComputer(await library.projectIdentities(), home).includes(blog), false, "a removed project leaves this computer's list");
+  await assert.rejects(actions.removeProject(`nothing-${token}`), /no project called/);
+
+  assert.deepEqual(await actions.addProject(), { status: "brought back", project: blog, folder: picked }, "adding a removed project's folder again brings that project back, never a second one");
+  assert.equal(JSON.parse(readFileSync(path.join(picked, ".storytree.json"), "utf8")).project, blog);
+  assert.ok(projectsOnThisComputer(await library.projectIdentities(), home).includes(blog), "it is back on this computer's list");
+  assert.equal((await library.listProjects()).includes(`${blog}-2`), false);
+});
+
+test("3.6 the project the app shows when none was chosen, the first on this computer's list, is never offered for deletion and never deleted", async (t) => {
+  const dir = realpathSync.native(mkdtempSync(path.join(tmpdir(), "storytree-app-delete-shown-")));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const home = path.join(dir, "home");
+  const token = `t-${randomBytes(4).toString("hex")}`;
+  // Named to sort first on the shared test server, so the picker's fallback is this test's own project.
+  const [first, second] = [`0-first-${token}`, `0-second-${token}`];
+  const url = process.env.STORYTREE_TEST_PG_URL;
+  if (url === undefined) throw new Error("run the tests via `pnpm test`, which starts a local Postgres");
+  const library = await connect({ url });
+  t.after(async () => {
+    await library.close();
+    await dropTestDatabases([first, second].map((name) => `storytree_${name}`));
+  });
+  for (const name of [first, second]) await (await library.openProject(name)).close();
+  const actions = setupHelpActions({
+    licenseFile: "", storytreeHome: home, chooseFolder: async () => undefined,
+    openExternal: async () => {}, copyText: async () => {}, library: () => library,
+  });
+  assert.equal(projectsOnThisComputer(await library.projectIdentities(), home)[0], first, "with no choice recorded, the picker shows the first");
+
+  const offered = (await actions.deletableProjects()).map(({ project }) => project);
+  assert.equal(offered.includes(first), false, "the project on show is not offered");
+  assert.ok(offered.includes(second));
+  await assert.rejects(actions.deleteProject(first, first, false), /in use/);
+  assert.ok((await library.listProjects()).includes(first), "and it is not deleted");
+});

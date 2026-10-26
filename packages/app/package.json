@@ -1,0 +1,88 @@
+{
+  "name": "@storytree/app",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./lifecycle/bridge": "./src/lifecycle/bridge.ts",
+    "./lifecycle/restart-limit": "./src/lifecycle/restart-limit.ts",
+    "./lifecycle/verbs": "./src/lifecycle/verbs.ts",
+    "./lag": "./src/lag/index.ts",
+    "./lag/bridge": "./src/lag/bridge.ts",
+    "./lag/runtime": "./src/lag/runtime.ts",
+    "./lag/verbs": "./src/lag/verbs.ts",
+    "./lag/view": "./src/lag/view.ts",
+    "./projects": "./src/projects/follow.ts",
+    "./projects/bridge": "./src/projects/bridge.ts",
+    "./surfaces": "./src/surfaces/bridge.ts",
+    "./surfaces/verbs": "./src/surfaces/verbs.ts",
+    "./updates/bridge": "./src/updates/bridge.ts",
+    "./updates/release-carry": "./src/updates/release-carry.ts",
+    "./updates/verbs": "./src/updates/verbs.ts",
+    "./version": "./src/updates/version.ts",
+    "./view": "./src/view/index.ts",
+    "./surfaces/named": "./src/surfaces/named.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p ."
+  },
+  "dependencies": {
+    "@storytree/mark": "workspace:*",
+    "@storytree/session-management": "workspace:*",
+    "@storytree/library": "workspace:*",
+    "electron-updater": "6.8.9",
+    "pg": "^8.23.0",
+    "@storytree/project-and-caller": "workspace:*",
+    "@storytree/forest": "workspace:*",
+    "@storytree/plugin-loader": "workspace:*"
+  },
+  "devDependencies": {
+    "@storytree/local-postgres": "workspace:*",
+    "@storytree/test-waits": "workspace:*",
+    "@types/node": "^24.13.6",
+    "@types/pg": "^8.23.1",
+    "builder-util": "26.15.3",
+    "happy-dom": "catalog:",
+    "tsx": "^4.23.15",
+    "typescript": "~7.0.2",
+    "@storytree/app-setup": "workspace:*"
+  },
+  "storytree": {
+    "verbs": [
+      {
+        "from": "./lifecycle/verbs",
+        "export": "APP_FAMILIES"
+      },
+      {
+        "from": "./surfaces/verbs",
+        "export": "SETTINGS_FAMILIES"
+      },
+      {
+        "from": "./updates/verbs",
+        "export": "RELEASE_FAMILIES"
+      },
+      {
+        "from": "./lag/verbs",
+        "export": "LAG_FAMILIES"
+      }
+    ],
+    "pageChannels": [
+      {
+        "from": "./lag/bridge",
+        "export": "lagPageChannels"
+      }
+    ],
+    "pageAnswers": [
+      {
+        "from": "./lag/runtime",
+        "export": "lagPageAnswers"
+      }
+    ],
+    "namedSurfaces": [
+      {
+        "from": "./surfaces/named",
+        "export": "appNamedSurfaces"
+      }
+    ]
+  }
+}

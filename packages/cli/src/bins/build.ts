@@ -1,0 +1,50 @@
+/**
+ * Capability 1 · Front door. The `storytree` command, built into one plain Node script: what a person's shell runs, with no
+ * tsx and only its staged native dependencies beside it. esbuild bundles it with everything it imports (the library,
+ * Session management, pg and zod included).
+ *
+ * `pnpm --filter @storytree/cli build` writes it to packages/cli/dist/; tests build it into a
+ * directory of their own with buildCommand().
+ */
+import path from "node:path";
+import { buildLauncher, LAUNCHER_PROGRAM, stageNativeProbes } from "@storytree/app-setup/bins";
+import { fileURLToPath, pathToFileURL } from "node:url";
+
+import { build } from "esbuild";
+import { partsPlugin } from "@storytree/plugin-loader";
+
+const here = path.dirname(fileURLToPath(import.meta.url));
+
+/** Build the `storytree` command into `outdir`, and return the path of its script. */
+export async function buildCommand(outdir: string): Promise<string> {
+  await build({
+    entryPoints: { storytree: path.join(here, "storytree.ts") },
+    outdir,
+    outExtension: { ".js": ".mjs" },
+    bundle: true,
+    platform: "node",
+    format: "esm",
+    // What a verb needs only sometimes goes into chunks of its own, loaded when first used, so an
+    // answer that needs no database ("storytree isn't running", the help) comes back quickly.
+    splitting: true,
+    chunkNames: "chunks/[name]-[hash]",
+    target: "node24",
+    logLevel: "warning",
+    // Under a coverage run (`pnpm survey:coverage`), the code survey traces the bundle back to its files.
+    sourcemap: process.env.NODE_V8_COVERAGE !== undefined,
+    // pg is CommonJS and requires Node's own modules; an ES module has no `require` of its own.
+    banner: { js: 'import { createRequire as __storytreeRequire } from "node:module"; const require = __storytreeRequire(import.meta.url);' },
+    external: ["koffi", "pg-native", "pg-cloudflare", "cloudflare:sockets", "@huggingface/transformers"],
+    // The parts storytree's own story packages name in their manifests, composed in for each host package it holds (ADR-1021).
+    plugins: [partsPlugin()],
+  });
+  await stageNativeProbes(outdir);
+  // On Windows the command a setup check puts on the path is a program built beside this script (ADR-0854).
+  if (process.platform === "win32") buildLauncher(path.join(outdir, LAUNCHER_PROGRAM), process.arch === "arm64" ? "arm64" : "x64");
+  return path.join(outdir, "storytree.mjs");
+}
+
+if (process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  const built = await buildCommand(path.resolve(here, "..", "..", "dist"));
+  console.log(`built ${path.relative(process.cwd(), built)}`);
+}

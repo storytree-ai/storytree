@@ -1,0 +1,368 @@
+/**
+ * Capability 9 · Context readings: contracts 9.1-9.3 and 9.5-9.7 in Session management
+ * story. The transcripts are written line by line in the shapes Claude Code 2.1.283 and Codex 0.155
+ * write them (a Claude Code assistant line's `message.usage` under its `requestId`; a Codex
+ * `event_msg` of type `token_count`); the lines naming each session's transcript go to the real
+ * agent activity log on the Postgres `pnpm test` provides.
+ */
+import assert from "node:assert/strict";
+import { appendFileSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import path from "node:path";
+import { test } from "node:test";
+
+import { openActivityLog, type ActivityLog } from "../activity/index.js";
+import { MARKER_FILE } from "@storytree/project-and-caller";
+import { setSetting } from "@storytree/project-and-caller";
+import { withTempDir } from "@storytree/project-and-caller/testing/folders";
+import { approveCheckout, testServerDataDir, testServerUrl, uniqueProjectName } from "@storytree/project-and-caller/testing/pg";
+import { claudeCodeTokens, codexTokens, contextCommand, contextReading, readContext, reportedUsageOf, sessionWindow } from "./index.js";
+import type { Line } from "@storytree/library";
+import { transcriptLines } from "./context.js";
+import { CONTEXT_READING } from "./verbs.js";
+
+/** One Claude Code assistant line: a request's usage, as the harness records it. */
+function claudeLine(requestId: string, usage: { input: number; read: number; created: number }, extra: Record<string, unknown> = {}): string {
+  return JSON.stringify({
+    type: "assistant",
+    requestId,
+    isSidechain: false,
+    timestamp: "2026-09-28T01:00:00.000Z",
+    message: {
+      model: "claude-opus-5-5",
+      role: "assistant",
+      usage: { input_tokens: usage.input, cache_read_input_tokens: usage.read, cache_creation_input_tokens: usage.created, output_tokens: 40 },
+    },
+    ...extra,
+  });
+}
+
+/** One Codex token count, as its rollout records it. */
+function codexLine(input: number): string {
+  return JSON.stringify({
+    type: "event_msg",
+    payload: { type: "token_count", info: { last_token_usage: { input_tokens: input, cached_input_tokens: Math.floor(input / 2), output_tokens: 42 }, model_context_window: 258_400 } },
+  });
+}
+
+const jsonl = (...lines: string[]): string => `${lines.join("\n")}\n`;
+
+test("9.1 a Claude Code transcript reads the session's own latest request: input + cache-read + cache-creation, one count per requestId, and a later subagent or synthetic line does not change it", () => {
+  const text = jsonl(
+    JSON.stringify({ type: "user", message: { role: "user", content: "go" } }),
+    claudeLine("req_1", { input: 10, read: 1_000, created: 200 }),
+    claudeLine("req_2", { input: 12_000, read: 300_000, created: 5_000 }),
+    // One request, written across several lines (one per content block): counted once.
+    claudeLine("req_2", { input: 12_000, read: 300_000, created: 5_000 }),
+    claudeLine("req_3", { input: 1, read: 900_000, created: 0 }, { isSidechain: true }),
+    JSON.stringify({ type: "assistant", message: { model: "<synthetic>", role: "assistant", usage: { input_tokens: 0, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 } } }),
+  );
+  assert.deepEqual(claudeCodeTokens(text), { tokens: 317_000 });
+});
+
+test("9.2 a transcript that is empty, unreadable, or holds only subagent or synthetic requests reads as an absence naming which, never as 0 tokens", () => {
+  assert.deepEqual(claudeCodeTokens(""), { absent: "the transcript is empty" });
+  assert.deepEqual(claudeCodeTokens("{ not json\n[1, 2\n"), { absent: "the transcript holds no line storytree can read" });
+  assert.deepEqual(
+    claudeCodeTokens(jsonl(claudeLine("req_1", { input: 5, read: 5, created: 5 }, { isSidechain: true }), claudeLine("req_2", { input: 0, read: 0, created: 0 }, { message: { model: "<synthetic>", usage: { input_tokens: 0 } } }))),
+    { absent: "the transcript holds only subagent or synthetic requests" },
+  );
+  assert.deepEqual(codexTokens(jsonl(JSON.stringify({ type: "session_meta", payload: { id: "t" } }))), { absent: "the rollout holds no token count" });
+});
+
+test("9.3 a Codex rollout reads its last token count's input tokens as tokens used", () => {
+  const text = jsonl(JSON.stringify({ type: "session_meta", payload: { id: "thread-1" } }), codexLine(12_348), JSON.stringify({ type: "response_item", payload: {} }), codexLine(40_210));
+  assert.deepEqual(codexTokens(text), { tokens: 40_210 });
+});
+
+/** One Pi message line, as Pi 1.1.0 writes its session file: an assistant message carries its request's usage. */
+function piLine(role: string, extra: Record<string, unknown> = {}): string {
+  return JSON.stringify({ type: "message", id: `m${Math.random()}`, timestamp: "2026-10-11T23:47:32.749Z", message: { role, content: [], ...extra } });
+}
+const piUsage = (input: number, output: number, cacheRead: number, cacheWrite: number, totalTokens?: number) => ({ input, output, cacheRead, cacheWrite, ...(totalTokens === undefined ? {} : { totalTokens }) });
+
+test("9.16 a Pi session's reading is its last own assistant message's total tokens, as Pi counts its context: an aborted or errored message, or one with no usage, does not change it, and what it is made of is reported absent", async () => {
+  const text = jsonl(
+    JSON.stringify({ type: "session", version: 3, id: "s-1", cwd: "/work/site" }),
+    piLine("user"),
+    piLine("assistant", { usage: piUsage(2_042, 15, 0, 2_042, 4_099), stopReason: "toolUse" }),
+    piLine("toolResult"),
+    // No totalTokens: the four parts, summed.
+    piLine("assistant", { usage: piUsage(64, 1, 2_042, 65), stopReason: "stop" }),
+    piLine("assistant", { usage: piUsage(90_000, 0, 0, 0, 90_000), stopReason: "aborted" }),
+    piLine("assistant", { usage: piUsage(0, 0, 0, 0, 0), stopReason: "stop" }),
+  );
+  const lines = [{ session: "s-1", harness: "pi", transcript: "/home/dev/.pi/agent/sessions/s-1.jsonl" }] as unknown as Parameters<typeof contextReading>[0];
+  const reading = await contextReading(lines, "s-1", { read: async () => text }) as Record<string, unknown>;
+  assert.equal(reading.tokens, 2_172);
+  assert.deepEqual(reading.composition, { absent: "storytree does not yet sort what a Pi session's context is made of" });
+  const none = await contextReading(lines, "s-1", { read: async () => jsonl(JSON.stringify({ type: "session", version: 3, id: "s-1" }), piLine("user")) });
+  assert.deepEqual("absent" in none ? none.absent : none, "the session file holds no assistant message's usage");
+});
+
+/** Run `body` with the log open on the test server, a fresh project to write in, and a throwaway folder. */
+async function withProject(body: (log: ActivityLog, project: string, dir: string) => Promise<void>): Promise<void> {
+  const log = await openActivityLog(testServerUrl());
+  try {
+    await withTempDir((dir) => body(log, uniqueProjectName(), dir));
+  } finally {
+    await log.close();
+  }
+}
+
+test("9.5 a session's reading is worked out when asked, from the transcript last recorded for it, read at that moment; another session's transcript is never read, and one with no transcript recorded is an absence", async () => {
+  await withProject(async (log, project, dir) => {
+    const mine = path.join(dir, "mine.jsonl");
+    const theirs = path.join(dir, "theirs.jsonl");
+    writeFileSync(mine, jsonl(claudeLine("req_1", { input: 100, read: 1_000, created: 0 })));
+    writeFileSync(theirs, jsonl(claudeLine("req_9", { input: 1, read: 800_000, created: 0 })));
+    const common = { harness: "claude-code", source: "hook", folder: dir } as const;
+    await log.append(project, { ...common, session: "S", kind: "session-started", transcript: mine });
+    await log.append(project, { ...common, session: "T", kind: "session-started", transcript: theirs });
+
+    const first = await readContext(log, project, "S", { now: new Date("2026-09-28T02:00:00.000Z"), home: dir });
+    assert.deepEqual(first, { session: "S", harness: "claude-code", tokens: 1_100,
+      // No record before its one request: all 1,100 tokens are the system prompt and tool list (9.8).
+      composition: { injected: 1_100, grounding: 0, implementation: 0, other: 0, unsorted: [], charsPerToken: 3.8 },
+      guidance: { value: 600_000, source: "default", position: "under" },
+      at: "2026-09-28T02:00:00.000Z", source: mine });
+
+    // The transcript grew with no turn ended and no hook fired: the next ask sees it.
+    appendFileSync(mine, jsonl(claudeLine("req_2", { input: 200, read: 50_000, created: 800 })));
+    const grown = await readContext(log, project, "S");
+    assert.equal("tokens" in grown && grown.tokens, 51_000);
+
+    // Nothing recorded for a session: an absence, and no other session's transcript stands in.
+    const none = await readContext(log, project, "U", { now: new Date("2026-09-28T02:00:00.000Z") });
+    assert.deepEqual(none, { session: "U", absent: "no hook has named this session's transcript", at: "2026-09-28T02:00:00.000Z" });
+  });
+});
+
+test("9.17 a Claude Code subagent's reading comes from its own transcript beside its parent's, every record of it counted, and its parent's reading still leaves it out", async () => {
+  await withProject(async (log, project, dir) => {
+    const parent = path.join(dir, "P.jsonl");
+    const own = path.join(dir, "P", "subagents", "agent-a1.jsonl");
+    writeFileSync(parent, jsonl(claudeLine("req_1", { input: 100, read: 1_000, created: 0 }), claudeLine("req_s", { input: 1, read: 900_000, created: 0 }, { isSidechain: true })));
+    mkdirSync(path.dirname(own), { recursive: true });
+    // Every record of a subagent's own file is a sidechain record, as Claude Code 2.1.284 writes it.
+    writeFileSync(own, jsonl(
+      JSON.stringify({ type: "user", isSidechain: true, agentId: "a1", message: { role: "user", content: "Find the reader" } }),
+      claudeLine("req_a", { input: 2, read: 37_000, created: 1_300 }, { isSidechain: true, agentId: "a1", message: { model: "claude-sonnet-5-5", role: "assistant", content: [{ type: "tool_use", id: "t1", name: "Read", input: { file_path: "context.ts" } }], usage: { input_tokens: 2, cache_read_input_tokens: 37_000, cache_creation_input_tokens: 1_300 } } }),
+      JSON.stringify({ type: "user", isSidechain: true, agentId: "a1", message: { role: "user", content: [{ type: "tool_result", tool_use_id: "t1", content: "export function transcriptOf" }] } }),
+    ));
+    const common = { harness: "claude-code", source: "hook", folder: dir, transcript: parent } as const;
+    await log.append(project, { ...common, session: "P", kind: "session-started" });
+    await log.append(project, { ...common, session: "P", kind: "subagent-started", subagent: "a1", type: "explorer", task: "Find the reader" });
+
+    const sub = await readContext(log, project, "a1", { home: dir });
+    assert.ok("tokens" in sub, `the subagent has a figure: ${JSON.stringify(sub)}`);
+    assert.equal(sub.tokens, 38_302);
+    assert.equal(sub.source, own);
+    assert.deepEqual(sub.composition, { injected: 38_297, grounding: 22, implementation: 21, other: 4, unsorted: [], charsPerToken: 3.8 }, "its composition sorts its own records");
+
+    const parentReading = await readContext(log, project, "P", { home: dir });
+    assert.equal("tokens" in parentReading && parentReading.tokens, 1_100, "the parent's figure still leaves its subagents out");
+
+    const window = await sessionWindow(await transcriptLines(log, project, "a1"), "a1");
+    assert.deepEqual("inView" in window && window.inView.map((piece) => piece.tool), ["Read"], "its window holds its own reads");
+  });
+});
+
+test("9.19 · A reading takes its tokens, window and percentage from the session's latest reported usage, the transcript kept as the fallback when there is none or it carries no figure", async () => {
+  await withProject(async (log, project, dir) => {
+    const transcript = path.join(dir, "s.jsonl");
+    writeFileSync(transcript, jsonl(claudeLine("req_1", { input: 100, read: 1_000, created: 0 })));
+    const common = { harness: "claude-code", source: "hook", folder: dir } as const;
+    await log.append(project, { ...common, session: "S", kind: "session-started", transcript });
+    const now = new Date("2026-10-17T10:00:00.000Z");
+
+    // The mod's figure, newer than the transcript's: its tokens, window and percent; what they are made of, still the transcript's.
+    await log.append(project, { ...common, session: "S", kind: "usage-measured", context: { tokens: 50_000, window: 200_000, percent: 25 }, rateLimits: [] });
+    const live = await readContext(log, project, "S", { now, home: dir });
+    assert.ok("tokens" in live);
+    assert.deepEqual([live.tokens, live.window, live.percent, live.source], [50_000, 200_000, 25, transcript]);
+    assert.ok(!("absent" in live.composition), "the composition is the transcript's");
+    assert.deepEqual(live.guidance, { value: 600_000, source: "default", position: "under" }, "judged on the mod's tokens");
+
+    // Before a response reported the fill: the transcript's tokens, as a share of the window the mod named.
+    await log.append(project, { ...common, session: "S", kind: "usage-measured", context: { window: 200_000 }, rateLimits: [] });
+    const windowOnly = await readContext(log, project, "S", { now, home: dir });
+    assert.ok("tokens" in windowOnly);
+    assert.deepEqual([windowOnly.tokens, windowOnly.window, windowOnly.percent], [1_100, 200_000, 1]);
+
+    // A session no mod reported for reads as before: no window, no percent (9.5).
+    await log.append(project, { ...common, session: "T", kind: "session-started", transcript });
+    const plain = await readContext(log, project, "T", { now, home: dir });
+    assert.ok("tokens" in plain && plain.tokens === 1_100 && !("window" in plain) && !("percent" in plain));
+
+    // A mod that stopped reporting: its last figure, older than the transcript's latest line by more than two report periods, gives way.
+    const at = (iso: string, line: Record<string, unknown>, seq: number) => ({ ...common, ...line, session: "U", project, seq, at: iso }) as unknown as Line;
+    const stale = [
+      at("2026-10-17T09:00:00.000Z", { kind: "usage-measured", context: { tokens: 90_000, window: 200_000, percent: 45 }, rateLimits: [] }, 1),
+      at("2026-10-17T09:30:00.000Z", { kind: "command-run", command: "ls", transcript }, 2),
+    ];
+    const fallen = await contextReading(stale, "U", { now, home: dir });
+    assert.ok("tokens" in fallen && fallen.tokens === 1_100 && !("window" in fallen));
+    // While current, it stands even with no transcript to read.
+    const unread = await contextReading([stale[0]!], "U", { now, home: dir });
+    assert.ok("tokens" in unread);
+    assert.deepEqual([unread.tokens, unread.percent, unread.composition], [90_000, 45, { absent: "no hook has named this session's transcript" }]);
+  });
+});
+
+test("9.20 · Each session's latest reported usage and latest failed turn are read together, for a lane's runner and the pool; a session with neither is left out", async () => {
+  await withProject(async (log, project, dir) => {
+    const common = { harness: "claude-code", source: "hook", folder: dir } as const;
+    const window = (percentUsed: number) => ({ context: { window: 200_000 }, rateLimits: [{ kind: "five_hour", percentUsed }] });
+    await log.append(project, { ...common, session: "A", kind: "usage-measured", ...window(40) });
+    await log.append(project, { ...common, session: "A", kind: "turn-failed", reason: "error", limits: ["five_hour"] });
+    await log.append(project, { ...common, session: "A", kind: "usage-measured", ...window(100) });
+    await log.append(project, { ...common, session: "B", kind: "usage-measured", ...window(5) });
+    await log.append(project, { ...common, session: "C", kind: "session-started" });
+
+    const read = await reportedUsageOf(log, project, ["A", "B", "C"]);
+    assert.deepEqual([...read.keys()].sort(), ["A", "B"]);
+    assert.equal(read.get("A")?.usage?.rateLimits[0]?.percentUsed, 100, "the latest usage");
+    assert.deepEqual([read.get("A")?.failed?.reason, read.get("A")?.failed?.limits], ["error", ["five_hour"]]);
+    assert.equal(read.get("B")?.failed, undefined);
+    assert.equal((await reportedUsageOf(log, project, [])).size, 0);
+  });
+});
+
+test("9.6 `storytree context` prints this session's tokens used, worked out at that moment, and --json the record; it exits 0 whatever the figure, and with no reading it says so and prints no number", async () => {
+  await withProject(async (log, project, dir) => {
+    const folder = path.join(dir, "site");
+    mkdirSync(folder);
+    writeFileSync(path.join(folder, MARKER_FILE), `${JSON.stringify({ project })}\n`);
+    await approveCheckout(folder, project, dir);
+    const transcript = path.join(dir, "S.jsonl");
+    writeFileSync(transcript, jsonl(claudeLine("req_1", { input: 2_000, read: 480_000, created: 12_345 })));
+    await log.append(project, { session: "S", harness: "claude-code", source: "hook", folder, kind: "session-started", transcript });
+    const locate = { dataDir: testServerDataDir(), home: dir };
+
+    const plain = await contextCommand({ folder, env: { CLAUDE_CODE_SESSION_ID: "S" }, locate });
+    assert.equal(plain.code, 0);
+    assert.match(plain.text, /494,345 tokens/);
+    assert.doesNotMatch(plain.text, /%/);
+
+    const json = await contextCommand({ folder, env: { CLAUDE_CODE_SESSION_ID: "S" }, json: true, locate });
+    assert.equal(json.code, 0);
+    assert.deepEqual({ ...JSON.parse(json.text), at: "-" }, { session: "S", harness: "claude-code", tokens: 494_345,
+      guidance: { value: 600_000, source: "default", position: "under" },
+      composition: { injected: 494_345, grounding: 0, implementation: 0, other: 0, unsorted: [], charsPerToken: 3.8 }, at: "-", source: transcript });
+
+    const nothing = await contextCommand({ folder, env: { CLAUDE_CODE_SESSION_ID: "nobody" }, locate });
+    assert.equal(nothing.code, 0);
+    assert.doesNotMatch(nothing.text, /\d/);
+    assert.match(nothing.text, /no hook has named this session's transcript/);
+
+    const noSession = await contextCommand({ folder, env: {}, locate });
+    assert.equal(noSession.code, 0);
+    assert.doesNotMatch(noSession.text, /\d/);
+  });
+});
+
+test("9.6 · `storytree context` is a verb that needs no caller: a door hands it only its folder, and outside a project it says there is no reading, with no number, opening nothing", async () => {
+  assert.equal(CONTEXT_READING.callerless, true);
+  await withTempDir(async (folder) => {
+    const words = { door: "command", say: (step: { command?: string }) => `storytree ${step.command}` } as const;
+    const { text } = await CONTEXT_READING.act({ json: false }, { folder }, words);
+    assert.match(text, /^(No context reading|This shell names no agent session)/);
+    assert.doesNotMatch(text, /\d/);
+  });
+});
+
+test("9.15 `storytree context` reads the session STORYTREE_SESSION_ID names and tells a shell naming none how to name one; a transcript of a harness storytree has no reader for is never read as Claude Code's", async () => {
+  await withProject(async (log, project, dir) => {
+    const folder = path.join(dir, "site");
+    mkdirSync(folder);
+    writeFileSync(path.join(folder, MARKER_FILE), `${JSON.stringify({ project })}\n`);
+    await approveCheckout(folder, project, dir);
+    // A Claude-shaped transcript, named by a harness storytree does not know: it has no figure.
+    const transcript = path.join(dir, "cursor.jsonl");
+    writeFileSync(transcript, jsonl(claudeLine("req_1", { input: 2_000, read: 0, created: 0 })));
+    await log.append(project, { session: "C", harness: "cursor", source: "hook", folder, kind: "session-started", transcript });
+    const locate = { dataDir: testServerDataDir(), home: dir };
+
+    const named = JSON.parse((await contextCommand({ folder, env: { STORYTREE_SESSION_ID: "C" }, json: true, locate })).text) as Record<string, unknown>;
+    assert.equal(named.session, "C", "the session STORYTREE_SESSION_ID names is read");
+    assert.equal(named.tokens, undefined);
+    assert.equal(named.absent, "storytree reads no transcript of Cursor");
+
+    const none = await contextCommand({ folder, env: {}, locate });
+    assert.equal(none.code, 0);
+    assert.match(none.text, /STORYTREE_SESSION_ID/);
+  });
+});
+
+test("9.7 a reading states fresh default or set guidance, including under, at and past it; unusable settings keep the tokens and explain the missing guidance", async () => {
+  await withTempDir(async (home) => {
+    const transcript = path.join(home, "S.jsonl");
+    const lines = [{ seq: 1, at: "2026-09-28T02:00:00.000Z", project: "test", session: "S", source: "hook", harness: "codex", kind: "session-started", transcript }] as const;
+    const read = async (tokens: number) => {
+      writeFileSync(transcript, jsonl(codexLine(tokens)));
+      const reading = await contextReading(lines, "S", { home });
+      assert.ok("tokens" in reading);
+      assert.equal(reading.tokens, tokens);
+      return reading;
+    };
+    const first = await read(317_000);
+    assert.deepEqual(first.guidance, { value: 600_000, source: "default", position: "under" });
+    // Nothing recorded before its one token count: all of it is the unrecorded tool list and world state (9.8).
+    assert.deepEqual("composition" in first && first.composition, { injected: 317_000, grounding: 0, implementation: 0, other: 0, unsorted: [], charsPerToken: 3.8 });
+    setSetting("context-guidance", "400000", home);
+    for (const [tokens, position] of [[317_000, "under"], [400_000, "at"], [450_000, "past"]] as const) {
+      assert.deepEqual((await read(tokens)).guidance, { value: 400_000, source: "set", position });
+    }
+    // A running session sees a settings change on its next reading.
+    setSetting("context-guidance", "500000", home);
+    assert.deepEqual((await read(450_000)).guidance, { value: 500_000, source: "set", position: "under" });
+    const file = path.join(home, "settings.json");
+    for (const [contents, reason] of [["{", /JSON/], ['{"context-guidance":0}', /positive whole number/]] as const) {
+      writeFileSync(file, contents);
+      const { guidance } = await read(450_000);
+      assert.ok("absent" in guidance);
+      assert.ok(guidance.absent.includes(file));
+      assert.match(guidance.absent, /Invalid settings file/);
+      assert.match(guidance.absent, reason);
+    }
+    rmSync(file);
+    mkdirSync(file);
+    const { guidance } = await read(450_000);
+    assert.ok("absent" in guidance);
+    assert.match(guidance.absent, /Cannot read settings file/);
+    assert.ok(guidance.absent.includes(file));
+  });
+});
+
+test("9.7 the context command states guidance and its source, exits 0 under and past it, and includes it in JSON", async () => {
+  await withProject(async (log, project, home) => {
+    writeFileSync(path.join(home, MARKER_FILE), JSON.stringify({ project }));
+    await approveCheckout(home, project, home);
+    const transcript = path.join(home, "S.jsonl");
+    await log.append(project, { session: "S", harness: "claude-code", source: "hook", folder: home, kind: "session-started", transcript });
+    const options = { folder: home, env: { CLAUDE_CODE_SESSION_ID: "S" }, locate: { dataDir: testServerDataDir(), home } };
+    writeFileSync(transcript, jsonl(claudeLine("req_1", { input: 317_000, read: 0, created: 0 })));
+    const defaults = await contextCommand(options);
+    assert.equal(defaults.code, 0);
+    assert.match(defaults.text, /under.*600,000.*default/i);
+    setSetting("context-guidance", "400000", home);
+    for (const [tokens, position] of [[317_000, "under"], [450_000, "past"]] as const) {
+      writeFileSync(transcript, jsonl(claudeLine("req_2", { input: tokens, read: 0, created: 0 })));
+      const plain = await contextCommand(options);
+      assert.equal(plain.code, 0);
+      assert.ok(plain.text.includes(`${tokens.toLocaleString("en-US")} tokens`));
+      assert.match(plain.text, new RegExp(`${position}.*400,000.*set`, "i"));
+      const json = await contextCommand({ ...options, json: true });
+      assert.equal(json.code, 0);
+      assert.deepEqual(JSON.parse(json.text).guidance, { value: 400_000, source: "set", position });
+    }
+
+    // A settings file whose guidance is unusable still routes (routing reads only the library
+    // setting), so the command gives the tokens and says why the guidance could not be read.
+    writeFileSync(path.join(home, "settings.json"), '{"context-guidance":"four hundred"}');
+    const damaged = await contextCommand(options);
+    assert.equal(damaged.code, 0);
+    assert.ok(damaged.text.includes("450,000 tokens"), damaged.text);
+    assert.match(damaged.text, /guidance/i);
+  });
+});

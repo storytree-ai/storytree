@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' storytree-plugin:; style-src 'self'; img-src 'self' data: blob:; connect-src blob: data:" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="storytree-road-worker" content="road-worker.js" />
+    <title>storytree 0.3</title>
+    <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="arc-surface.css" />
+    <link rel="stylesheet" href="app-setup.css" />
+    <link rel="stylesheet" href="forest.css" />
+  </head>
+  <body data-state="loading" data-start="settling">
+    <div id="start-progress" role="progressbar" aria-label="Opening the forest"></div>
+    <div id="app-menu-host"></div>
+    <main id="content" class="forest-workspace">
+      <p class="loading">Opening the library…</p>
+    </main>
+    <script src="renderer.js"></script>
+  </body>
+</html>

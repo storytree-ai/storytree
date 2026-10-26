@@ -1,0 +1,97 @@
+/**
+ * The frame mounting the arc surface (capability 3 · Arc surface, the arc-surface story): the app's
+ * Surfaces menu lists and switches it, and its live board reads the app's database through the
+ * app's page reads. These need both the frame and the story, so they live here, where both meet;
+ * the board's own behaviour is tested in packages/arc-surface without the frame (ADR-0847).
+ */
+import assert from "node:assert/strict";
+import { randomBytes } from "node:crypto";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import { test } from "node:test";
+import { fileURLToPath, pathToFileURL } from "node:url";
+
+import { build } from "esbuild";
+
+import { openActivityLog } from "@storytree/session-management";
+import { pageReads, readSurfaces, setSurface, surfaceOn } from "@storytree/app";
+import { arcSmokeProblems, boardView, watchBoard, type BoardState } from "@storytree/arc-surface";
+import { arcSurfaces } from "@storytree/arc-surface/surfaces";
+import { forestSurfaces } from "@storytree/forest/surfaces";
+import { connect, type DayWindow } from "@storytree/library";
+import { partsPlugin } from "@storytree/plugin-loader";
+import { waitUntil } from "@storytree/test-waits";
+
+import unbundled from "./parts/surfaces.js";
+
+test("3.8 the app's Surfaces menu lists the arc surface as Arcs, with no settings, on until the user switches it off; switched off, it is saved and reads off at the next launch", (t) => {
+  const home = mkdtempSync(path.join(tmpdir(), "storytree-arc-surfaces-"));
+  t.after(() => rmSync(home, { recursive: true, force: true }));
+
+  const [arcs] = readSurfaces(arcSurfaces, home);
+  assert.deepEqual({ id: arcs!.id, name: arcs!.name, on: arcs!.on, switchable: arcs!.switchable, settings: arcs!.settings }, { id: "arcs", name: "Arcs", on: true, switchable: true, settings: [] });
+
+  setSurface(arcSurfaces, ["arcs", "off"], home);
+  assert.equal(surfaceOn(readSurfaces(arcSurfaces, home), "arcs"), false, "a fresh read, as the next launch makes, finds it off");
+});
+
+test("3.12 the desktop app's Surfaces menu lists the surfaces its story packages' manifests name, composed into its bundle by the plugin loader, and the same run unbundled: the forest's, then the arc surface's", async (t) => {
+  const desktop = fileURLToPath(new URL("../..", import.meta.url));
+  const out = mkdtempSync(path.join(tmpdir(), "storytree-desktop-parts-"));
+  t.after(() => rmSync(out, { recursive: true, force: true }));
+  const outfile = path.join(out, "surfaces.mjs");
+  await build({ stdin: { contents: `export { default } from "#parts/surfaces";`, resolveDir: desktop }, outfile, bundle: true, format: "esm", platform: "node", logLevel: "silent", plugins: [partsPlugin()] });
+  const { default: mounted } = await import(pathToFileURL(outfile).href) as { default: { parts: unknown } };
+  assert.deepEqual(mounted.parts, [...forestSurfaces, ...arcSurfaces]);
+  assert.equal(import.meta.resolve("#parts/surfaces"), new URL("./parts/surfaces.ts", import.meta.url).href, "the app's #parts/surfaces is its composing module");
+  assert.deepEqual(unbundled.parts, [...forestSurfaces, ...arcSurfaces]);
+});
+
+test("3.1, 3.4–3.6 the open overlay reads the app's database, retries a failed read, sees a claim on its next poll, ages without new lines and reports what it drew", async () => {
+  const url = process.env.STORYTREE_TEST_PG_URL;
+  assert.ok(url, "run through pnpm test, which supplies Postgres");
+  const project = `t-${randomBytes(4).toString("hex")}`;
+  const store = await connect({ url });
+  const log = await openActivityLog(url);
+  const reads = pageReads({ storytree: store });
+  let stop = () => {};
+  try {
+    const library = await store.openProject(project);
+    const arc = await library.createArc({ title: "Ship the board", intent: "See the work", endState: "Board shipped" });
+    const increment = await library.addIncrement({ arc: arc.id, title: "Draw lanes", objective: "Draw", body: "Draw" });
+    let now = Date.now();
+    let state: BoardState | undefined;
+    let fail = true;
+    const ticks = new Map<number, () => void>();
+    const watcher = watchBoard({ project, reads: { ...reads, idleAfterMs: async () => 30 * 60_000, boardArcs: async (p: string, closed: DayWindow) => { if (fail) throw new Error("read unavailable"); return reads.boardArcs(p, closed); } },
+      timers: { now: () => now, every: (ms, tick) => { ticks.set(ms, tick); return () => { ticks.delete(ms); }; } }, onState: (next) => { state = next; } });
+    stop = watcher.stop;
+    assert.equal(state?.status, "loading");
+    await waitUntil(() => state?.status === "error", 10_000, "the board to show the failed read");
+    assert.match(state?.error ?? "", /read unavailable/);
+    fail = false;
+    ticks.get(2_000)!();
+    await waitUntil(() => state?.status === "ready", 10_000, "the board to be ready");
+    const history = await library.history();
+    await log.append(project, { kind: "session-started", source: "hook", harness: "codex", session: "s" });
+    await log.append(project, { kind: "claimed", source: "tool", harness: "codex", session: "s", increment: increment.id, reason: "draw the lanes" });
+    ticks.get(2_000)!();
+    await waitUntil(() => state?.board?.lanes[0]?.agents.length === 1, 10_000, "the board to show the agent");
+    now += 42 * 60_000;
+    ticks.get(60_000)!();
+    assert.equal(state?.board?.lanes[0]?.state, "idle");
+    const board = state!.board!;
+    const drawn = { arcs: [arc.id], increments: [increment.id], holders: [{ work: increment.id, session: "s", label: "Codex" }] };
+    assert.deepEqual(arcSmokeProblems(board, drawn), []);
+    assert.ok(arcSmokeProblems(board, { ...drawn, holders: [] }).length > 0, "the smoke check requires the held agent");
+    assert.ok(arcSmokeProblems(board, { ...drawn, increments: [] }).length > 0, "the smoke check requires every increment");
+    assert.deepEqual(await library.history(), history, "all overlay actions left the library unchanged");
+    stop();
+    assert.equal(ticks.size, 0, "closing stops both timers");
+    assert.equal(boardView({ arcs: [], waits: {}, heldOn: {} }, [], new Date()).lanes.length, 0);
+  } finally {
+    stop(); await reads.close(); await log.close();
+    try { await store.dropProject(project); } finally { await store.close(); }
+  }
+});

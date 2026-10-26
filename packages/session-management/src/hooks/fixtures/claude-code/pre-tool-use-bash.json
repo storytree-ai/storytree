@@ -1,0 +1,14 @@
+{
+  "session_id": "b4f8eff5-05ab-4ef2-b070-78375e2a5deb",
+  "transcript_path": "C:\\Users\\dev\\.claude\\projects\\C--Users-dev-projects-site\\b4f8eff5-05ab-4ef2-b070-78375e2a5deb.jsonl",
+  "cwd": "C:\\Users\\dev\\projects\\site",
+  "prompt_id": "82778869-b8de-4d8a-a030-74b61dd2107c",
+  "permission_mode": "default",
+  "hook_event_name": "PreToolUse",
+  "tool_name": "Bash",
+  "tool_input": {
+    "command": "echo probe-start\nexit 3",
+    "description": "Run probe commands as requested"
+  },
+  "tool_use_id": "toolu_01Kjexd4yP2myMhXEATFdm25"
+}

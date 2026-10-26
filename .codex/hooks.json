@@ -1,0 +1,16 @@
+{
+  "description": "0.3's own development: install a fresh or stale worktree's dependencies at session start.",
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node packages/dev-loop/src/provision-worktree.mjs --hook",
+            "timeout": 300
+          }
+        ]
+      }
+    ]
+  }
+}

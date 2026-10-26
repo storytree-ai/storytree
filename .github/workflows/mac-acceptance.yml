@@ -1,0 +1,71 @@
+name: Mac acceptance run
+
+# Check (b) of decision_b0a98e971a05 D4 (increment_dcaf0f58fcf0): the published one-liner on a fresh Apple Silicon
+# runner, first open, Gatekeeper, local Postgres, the setup check, hooks and a small project, recorded by
+# packages/app-setup/testing/mac-acceptance/run.sh and kept as an artifact. A push to a mac-acceptance/
+# branch runs it before the workflow reaches main. The release workflow calls it after every publish (check (a),
+# increment_4bc9955ff232), and harness/judge.sh fails the job when the app, its database or the setup check does not
+# come up. The evidence stays an artifact, never a commit. The repository is public: no secret is used or printed.
+on:
+  workflow_call:
+    inputs:
+      channel:
+        description: Release channel to install (stable or alpha)
+        type: string
+        default: alpha
+      version:
+        description: The version the one-liner must install (the release just published)
+        type: string
+        default: ""
+      hold:
+        type: boolean
+        default: false
+  workflow_dispatch:
+    inputs:
+      channel:
+        description: Release channel to install (stable or alpha)
+        default: alpha
+      version:
+        description: On stable, a 0.3.<n> build to install as a stable user would get it, before the pin moves to it; empty takes the pin
+        default: ""
+      hold:
+        description: Hold the runner open afterwards for a remote session only the dispatcher's GitHub keys can open
+        type: boolean
+        default: false
+  push:
+    branches: ["mac-acceptance/**"]
+
+permissions:
+  contents: read
+
+jobs:
+  run:
+    runs-on: macos-latest
+    # Held open only by hand; otherwise a stuck run must not keep the next release waiting for hours.
+    timeout-minutes: ${{ inputs.hold && 360 || 60 }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+          sparse-checkout: packages/app-setup/testing/mac-acceptance
+      - name: Install with the one-liner and record what a first user sees
+        # On alpha the version is only judged (the release just published is latest); on stable it is installed.
+        env:
+          CHANNEL: ${{ inputs.channel || 'alpha' }}
+          VERSION: ${{ inputs.version }}
+        run: bash packages/app-setup/testing/mac-acceptance/run.sh "$RUNNER_TEMP/mac-acceptance" "$CHANNEL" "$VERSION"
+      - name: Fail unless the app, its database and the setup check came up
+        env:
+          VERSION: ${{ inputs.version }}
+        run: bash packages/app-setup/testing/mac-acceptance/judge.sh "$RUNNER_TEMP/mac-acceptance" "$VERSION"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: mac-acceptance
+          path: ${{ runner.temp }}/mac-acceptance
+          retention-days: 14
+      - name: Hold the runner open
+        if: always() && inputs.hold
+        uses: mxschmitt/action-tmate@35b54afac29c97fb54faba5b513f8fbd1882f113 # v3.24
+        with:
+          limit-access-to-actor: true

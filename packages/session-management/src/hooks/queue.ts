@@ -1,0 +1,84 @@
+/**
+ * Capability 3 · Hooks. Lines a hook could not deliver (ADR-0749's consequence: losing a line matters once everything reads
+ * from the shared log). While storytree cannot be reached (the app stopped, the machine offline, the
+ * store restarting), a hook writes its lines here, under the storytree home, each with the time and
+ * machine it was written at. The next hook that reaches the log uploads every waiting line before
+ * its own, oldest first, at its own time; an upload tried twice, by two hooks at once or after a
+ * crash, adds each line once (ActivityLog.append's `once`).
+ *
+ * Each hook's lines are one file, written whole and then renamed into place, so a reader never sees
+ * half of one; the file name starts with the time, so the files sort oldest first.
+ */
+import { randomBytes } from "node:crypto";
+import { mkdirSync, readdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import { hostname } from "node:os";
+import path from "node:path";
+
+import type { ActivityLog, DeliveredEvent } from "../activity/index.js";
+import type { NewLine } from "@storytree/library";
+
+/** One waiting line: the project it is for, when it was written, and the hook event it records, so it is kept once whichever way that event came (ADR-1056 D2). */
+interface Queued {
+  readonly project: string;
+  readonly at: string;
+  readonly line: NewLine;
+  readonly event?: DeliveredEvent;
+}
+
+/** Where lines wait, under the storytree home `home`. */
+export function queueFolder(home: string): string {
+  return path.join(home, "queued-lines");
+}
+
+/** Keep `lines` for `project`, written now on this machine and recording `event`, until a hook reaches the log. */
+export function enqueue(home: string, project: string, lines: readonly NewLine[], event?: DeliveredEvent): void {
+  if (lines.length === 0) return;
+  const folder = queueFolder(home);
+  mkdirSync(folder, { recursive: true });
+  const at = new Date();
+  const machine = hostname().trim() || undefined;
+  const text = lines.map((line): string => JSON.stringify({ project, at: at.toISOString(),
+    line: line.machine !== undefined || machine === undefined ? line : { ...line, machine }, ...(event === undefined ? {} : { event }) } satisfies Queued)).join("\n");
+  const name = `${String(at.getTime()).padStart(15, "0")}-${process.pid}-${randomBytes(4).toString("hex")}`;
+  writeFileSync(path.join(folder, `${name}.part`), `${text}\n`);
+  renameSync(path.join(folder, `${name}.part`), path.join(folder, `${name}.jsonl`));
+}
+
+/**
+ * Upload every waiting line to `log`, oldest first, each once, and forget each file once all its
+ * lines are in. A file that cannot be read as lines is set aside (renamed `.unreadable`), never
+ * retried for ever. Stops at the first failure, leaving the rest for the next hook. A line waits
+ * only while storytree is out of reach, before its folder's approval could be asked, so it is
+ * uploaded only if `admits` its project and folder now (ADR-0942 D1); one it does not is dropped.
+ */
+export async function uploadQueued(home: string, log: ActivityLog, admits: (project: string, folder: string) => Promise<boolean>): Promise<void> {
+  const answers = new Map<string, Promise<boolean>>();
+  const admitted = (project: string, folder: string | undefined): Promise<boolean> => {
+    if (folder === undefined) return Promise.resolve(false);
+    const asked = JSON.stringify([project, folder]);
+    let answer = answers.get(asked);
+    if (answer === undefined) answers.set(asked, (answer = admits(project, folder)));
+    return answer;
+  };
+  const folder = queueFolder(home);
+  let names: string[];
+  try {
+    names = readdirSync(folder).filter((name) => name.endsWith(".jsonl")).sort();
+  } catch {
+    return;
+  }
+  for (const name of names) {
+    const file = path.join(folder, name);
+    let waiting: Queued[];
+    try {
+      waiting = readFileSync(file, "utf8").split("\n").filter((text) => text.trim() !== "").map((text) => JSON.parse(text) as Queued);
+    } catch (error) {
+      // Another hook uploaded and removed it first: nothing is lost.
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") continue;
+      renameSync(file, `${file}.unreadable`);
+      continue;
+    }
+    for (const { project, at, line, event } of waiting) if (await admitted(project, line.folder)) await log.append(project, line, { at, once: true, ...(event === undefined ? {} : { event }) });
+    rmSync(file, { force: true });
+  }
+}

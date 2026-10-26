@@ -1,0 +1,194 @@
+{
+  "name": "@storytree/desktop",
+  "private": true,
+  "version": "0.3.0",
+  "releaseCountOffset": 1986,
+  "description": "storytree 0.3 desktop app: a project's stories and their health, read from the local library",
+  "type": "module",
+  "main": "dist/main.cjs",
+  "imports": {
+    "#parts/namedSurfaces": "./src/main/parts/named-surfaces.ts",
+    "#parts/pageAnswers": "./src/main/parts/page-answers.ts",
+    "#parts/pageChannels": "./src/parts/page-channels.ts",
+    "#parts/projectRecords": "./src/main/parts/project-records.ts",
+    "#parts/surfaces": "./src/main/parts/surfaces.ts"
+  },
+  "scripts": {
+    "build": "node --import tsx build.mjs",
+    "start": "node --import tsx build.mjs && electron .",
+    "smoke": "node --import tsx build.mjs && electron . --smoke --screenshot smoke.png",
+    "typecheck": "tsc -p .",
+    "dist": "node --import tsx build.mjs && node --import tsx dist.mjs"
+  },
+  "devDependencies": {
+    "@electron/asar": "3.4.1",
+    "@electron/fuses": "1.8.0",
+    "@storytree/local-postgres": "workspace:*",
+    "@storytree/test-waits": "workspace:*",
+    "@storytree/mark": "workspace:*",
+    "@google-cloud/cloud-sql-connector": "^1.11.1",
+    "@huggingface/transformers": "^4.3.0",
+    "@storytree/session-management": "workspace:*",
+    "@storytree/app": "workspace:*",
+    "@storytree/app-setup": "workspace:*",
+    "@storytree/arc-surface": "workspace:^",
+    "@storytree/forest": "workspace:^",
+    "@storytree/knowledge-core": "workspace:*",
+    "@storytree/website": "workspace:*",
+    "@storytree/library": "workspace:*",
+    "@storytree/map": "workspace:*",
+    "@types/node": "^24.13.6",
+    "@workos-inc/node": "^10.4.0",
+    "@workos/authkit-electron": "0.1.2",
+    "@workos/authkit-session": "0.6.0",
+    "electron": "44.9.3",
+    "electron-builder": "26.15.3",
+    "esbuild": "^0.28.2",
+    "google-auth-library": "^10.6.2",
+    "playwright-core": "1.60.0",
+    "typescript": "~7.0.2",
+    "@storytree/plugin-loader": "workspace:*",
+    "@storytree/project-and-caller": "workspace:*",
+    "@storytree/surface-feedback": "workspace:*",
+    "@storytree/quality-assurance": "workspace:*"
+  },
+  "optionalDependencies": {
+    "@embedded-postgres/darwin-arm64": "17.10.0-beta.17",
+    "@embedded-postgres/linux-x64": "17.10.0-beta.17",
+    "@embedded-postgres/windows-x64": "17.10.0-beta.17"
+  },
+  "build": {
+    "appId": "ai.storytree.desktop-0-3",
+    "productName": "storytree-0.3",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "!dist/LICENSE",
+      "!dist/**/*.map",
+      "!dist/agent-tools/**/*",
+      "package.json",
+      "!node_modules/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "dist/LICENSE",
+        "to": "LICENSE"
+      },
+      {
+        "from": "dist/agent-tools/${arch}",
+        "to": "agent-tools"
+      },
+      {
+        "from": "dist/agent-tools/${arch}/node_modules",
+        "to": "agent-tools/node_modules"
+      }
+    ],
+    "npmRebuild": false,
+    "electronFuses": {
+      "runAsNode": false,
+      "enableNodeOptionsEnvironmentVariable": false,
+      "enableNodeCliInspectArguments": false,
+      "enableEmbeddedAsarIntegrityValidation": true,
+      "onlyLoadAppFromAsar": true,
+      "grantFileProtocolExtraPrivileges": false
+    },
+    "protocols": [
+      {
+        "name": "storytree sign-in",
+        "schemes": [
+          "storytree-auth"
+        ]
+      }
+    ],
+    "publish": {
+      "provider": "github",
+      "owner": "storytree-ai",
+      "repo": "storytree",
+      "releaseType": "release"
+    },
+    "win": {
+      "icon": "../../packages/mark/icons/day/mark.ico",
+      "extraResources": [
+        {
+          "from": "node_modules/@embedded-postgres/windows-x64/native",
+          "to": "postgres"
+        }
+      ],
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "arm64"
+          ]
+        }
+      ]
+    },
+    "mac": {
+      "target": [
+        {
+          "target": "zip",
+          "arch": [
+            "arm64"
+          ]
+        }
+      ],
+      "icon": "../../packages/mark/icons/day/mark.icns",
+      "category": "public.app-category.developer-tools",
+      "hardenedRuntime": true,
+      "entitlements": "entitlements.mac.plist",
+      "entitlementsInherit": "entitlements.mac.plist",
+      "signIgnore": [
+        "/Contents/Resources/agent-tools/"
+      ],
+      "extraResources": [
+        {
+          "from": "node_modules/@embedded-postgres/darwin-arm64/native",
+          "to": "postgres"
+        }
+      ],
+      "artifactName": "storytree-0.3-${version}-mac-${arch}.${ext}"
+    },
+    "linux": {
+      "target": [
+        {
+          "target": "AppImage",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "executableName": "storytree-0.3",
+      "executableArgs": [],
+      "icon": "../../packages/mark/icons/day/512.png",
+      "category": "Development",
+      "extraResources": [
+        {
+          "from": "node_modules/@embedded-postgres/linux-x64/native",
+          "to": "postgres"
+        }
+      ],
+      "artifactName": "storytree-0.3-${version}-linux-x86_64.${ext}"
+    },
+    "nsis": {
+      "buildUniversalInstaller": false,
+      "artifactName": "storytree-0.3-${version}-windows-${arch}-setup.${ext}",
+      "oneClick": true,
+      "installerIcon": "../../packages/mark/icons/day/mark.ico",
+      "uninstallerIcon": "../../packages/mark/icons/day/mark.ico",
+      "perMachine": false,
+      "include": "installer.nsh"
+    },
+    "portable": {
+      "artifactName": "storytree-0.3-${version}-portable-${arch}.${ext}"
+    }
+  }
+}

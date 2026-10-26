@@ -1,0 +1,17 @@
+{
+  "frames": [
+    { "story": "app", "dirs": ["packages/app"] },
+    { "story": "app", "dirs": ["apps/desktop"], "compositionRoot": true },
+    { "story": "cli", "dirs": ["packages/cli"], "frontDoor": true },
+    { "story": "mcp-server", "dirs": ["packages/mcp-server"], "frontDoor": true },
+    { "story": "voice", "dirs": ["packages/voice"], "frontDoor": true }
+  ],
+  "edges": [],
+  "placement": {
+    "threshold": 2,
+    "plumbing": [
+      { "from": "packages/app-setup/src/bins/build.ts", "to": "plugin-loader", "kind": "build step", "said": "ADR-1085 D3 (decision_daed4099168f), the owner's call", "on": "2026-10-19" },
+      { "from": "packages/app-setup/src/project/index.ts", "to": "quality-assurance", "kind": "cleanup", "said": "ADR-1085 D3 (decision_daed4099168f), the owner's call", "on": "2026-10-19" }
+    ]
+  }
+}

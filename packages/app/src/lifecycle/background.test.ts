@@ -1,0 +1,147 @@
+/**
+ * Capability 1 · Lifecycle: the app keeps running in the background, contract 1.7 in
+ * the app story (ADR-0636 D3). It is plain logic, apart from Electron, so it is tested without it;
+ * apps/desktop wires it to the window's close, the tray's menu and a second start of the app.
+ */
+import assert from "node:assert/strict";
+import { test } from "node:test";
+
+import { background, thisBuild, TRAY_MENU } from "./background.js";
+import { followProjects } from "../projects/follow.js";
+
+test("1.7 smoke teardown stops page polling before closing the library, without logging a closed-library error", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  const logged: unknown[] = [];
+  t.mock.method(console, "error", (error: unknown) => logged.push(error));
+  let libraryOpen = true;
+  let reads = 0;
+  const following = followProjects({
+    read: async () => {
+      reads++;
+      if (!libraryOpen) throw new Error("the library is not open");
+      return { projects: ["storytree"], current: "storytree" };
+    },
+    onChange: () => {},
+    onError: (error) => console.error(error),
+  });
+  t.after(() => following.stop());
+  await following.refresh();
+  assert.equal(reads, 1, "the page is polling before teardown");
+
+  let exitCode: number | undefined;
+  const app = background({
+    stopPages: () => following.stop(),
+    stopDatabase: async () => {
+      libraryOpen = false;
+      // Postgres may take longer to stop than the page's next poll.
+      t.mock.timers.tick(3000);
+      await following.refresh();
+    },
+    exit: (code) => { exitCode = code; },
+  });
+  await app.quit();
+  assert.deepEqual(logged, [], "successful smoke teardown must not log a closed-library error");
+  assert.equal(reads, 1, "no page read starts after the library closes");
+  assert.equal(exitCode, 0);
+});
+
+test("1.7 closing the window leaves the app and its database running, and the tray's Quit is the one way to stop them", async () => {
+  const done: string[] = [];
+  let finishStopping = (): void => {};
+  const app = background({
+    stopDatabase: () => {
+      done.push("database stopping");
+      return new Promise<void>((resolve) => (finishStopping = resolve));
+    },
+    exit: (code) => done.push(`exit ${code}`),
+  });
+
+  assert.equal(app.windowClosed(), "keep-running", "closing the window keeps the app running");
+  assert.deepEqual(done, [], "and nothing is stopped");
+
+  assert.deepEqual(
+    TRAY_MENU.filter((item) => item.stops),
+    [{ id: "quit", label: "Quit storytree 0.3", stops: true }],
+    "the tray's menu has one item that stops the app: Quit",
+  );
+  assert.ok(TRAY_MENU.some((item) => item.id === "show" && !item.stops), "and one that shows the window again");
+
+  const quitting = app.quit();
+  const again = app.quit();
+  assert.deepEqual(done, ["database stopping"], "Quit stops the database once, however often it is asked");
+  finishStopping();
+  await Promise.all([quitting, again]);
+  assert.deepEqual(done, ["database stopping", "exit 0"], "and the app exits only after the database has stopped");
+});
+
+test("1.7 a start that arrives while the app is quitting is not lost: once the database has stopped, the app opens again with its window", async () => {
+  const done: string[] = [];
+  let finishStopping = (): void => {};
+  const app = background({
+    stopDatabase: () => new Promise<void>((resolve) => (finishStopping = resolve)),
+    exit: (code) => done.push(`exit ${code}`),
+    relaunch: (target, inBackground) => done.push(`relaunch ${target === undefined ? "itself" : target.args.join(" ")}${inBackground ? " in the background" : " with its window"}`),
+  });
+
+  assert.equal(app.secondStart(), "show", "while it runs, a second start shows the window");
+  const quitting = app.quit();
+  assert.equal(app.secondStart(), "reopen", "while it is quitting, a second start is held for later");
+  finishStopping();
+  await quitting;
+  assert.deepEqual(done, ["relaunch itself with its window", "exit 0"], "and the app opens again, with its window, once it has stopped");
+});
+
+test("1.7 restarting into an update stops the database once, and the new build shows its window only if it was showing or the app was started again meanwhile", async () => {
+  const runs = async (showing: boolean, startedAgain: boolean): Promise<string[]> => {
+    const done: string[] = [];
+    let finishStopping = (): void => {};
+    const app = background({
+      stopDatabase: () => {
+        done.push("database stopping");
+        return new Promise<void>((resolve) => (finishStopping = resolve));
+      },
+      exit: (code) => done.push(`exit ${code}`),
+      relaunch: (target, inBackground) => done.push(`relaunch ${target?.args.join(" ")}${inBackground ? " in the background" : " with its window"}`),
+    });
+    const restarting = app.restart({ execPath: "b/electron", args: ["b/app"] }, showing);
+    if (startedAgain) assert.equal(app.secondStart(), "reopen");
+    finishStopping();
+    await restarting;
+    return done;
+  };
+  assert.deepEqual(await runs(false, false), ["database stopping", "relaunch b/app in the background", "exit 0"]);
+  assert.deepEqual(await runs(true, false), ["database stopping", "relaunch b/app with its window", "exit 0"]);
+  assert.deepEqual(await runs(false, true), ["database stopping", "relaunch b/app with its window", "exit 0"], "a start during the restart is not swallowed");
+});
+
+test("1.7 asking the app to quit from outside stops it as the tray's Quit does: the database once, then exit, and it does not open again", async () => {
+  const done: string[] = [];
+  let finishStopping = (): void => {};
+  const app = background({
+    stopDatabase: () => {
+      done.push("database stopping");
+      return new Promise<void>((resolve) => (finishStopping = resolve));
+    },
+    exit: (code) => done.push(`exit ${code}`),
+    relaunch: () => done.push("relaunch"),
+  });
+  assert.equal(app.secondStart({ quit: true }), "quit", "a start asking it to quit quits it");
+  assert.equal(app.secondStart({ quit: true }), "quit", "asking again waits for the same quit");
+  finishStopping();
+  await app.quit();
+  assert.deepEqual(done, ["database stopping", "exit 0"], "the database is stopped once, the app exits, and nothing is started again");
+});
+
+test("1.7 a self-restart inside an AppImage starts the AppImage file, not the mount it vanishes from", () => {
+  const argv = ["/tmp/.mount_storyt3x/storytree", "--no-sandbox", "--background"];
+  assert.deepEqual(
+    thisBuild({ execPath: argv[0]!, argv, appImage: "/home/u/Applications/storytree.AppImage" }),
+    { execPath: "/home/u/Applications/storytree.AppImage", args: ["--no-sandbox"] },
+    "the AppImage file outlives this run; its mount does not",
+  );
+  assert.deepEqual(
+    thisBuild({ execPath: "/opt/electron", argv: ["/opt/electron", "/repo/apps/desktop", "--background"] }),
+    { execPath: "/opt/electron", args: ["/repo/apps/desktop"] },
+    "outside an AppImage, the same program starts again with its own arguments",
+  );
+});

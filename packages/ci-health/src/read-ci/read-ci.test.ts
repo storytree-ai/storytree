@@ -1,0 +1,408 @@
+import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
+import { randomBytes } from "node:crypto";
+import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import { test } from "node:test";
+
+import { removeTemp } from "@storytree/test-waits";
+
+import { connect, type Library } from "@storytree/library";
+import { ghApi, gitIn, readProjectCi, VERIFIED_BY_PROJECT_CI, type GitHub } from "../index.js";
+
+/** A project in the test Postgres `pnpm test` starts, dropped afterwards: one story, its agent reporting every contract passing. */
+async function shopLibrary(t: { after(fn: () => Promise<void>): void }): Promise<{ library: Library; capability: string; contracts: string[] }> {
+  const url = process.env.STORYTREE_TEST_PG_URL;
+  if (url === undefined) throw new Error("run the tests via `pnpm test`, which starts a local Postgres");
+  const storytree = await connect({ url });
+  const name = `t-${randomBytes(4).toString("hex")}`;
+  const library = await storytree.openProject(name);
+  t.after(async () => {
+    try {
+      await storytree.dropProject(name);
+    } finally {
+      await storytree.close();
+    }
+  });
+  const story = await library.addStory({ title: "Check out" });
+  const capability = await library.addCapability({ title: "1 · Checkout pages", story: story.id, proposed: false });
+  const contracts = [];
+  for (const title of ["1.1 · Your information page shows the form", "1.2 · Missing details show the error"]) {
+    const contract = await library.addContract({ title, capability: capability.id });
+    await library.reportHealth(contract.id, "passing", { by: "an agent" });
+    contracts.push(contract.id);
+  }
+  return { library, capability: capability.id, contracts };
+}
+
+/** The project's folder: a git repository whose one commit holds the story's tests (in its package's `tests`, `src` by default), with a GitHub origin unless told otherwise. */
+function projectFolder(t: { after(fn: () => void): void }, origin: string | null = "https://github.com/acme/shop.git", tests = "src"): { folder: string; commit: string } {
+  const folder = mkdtempSync(path.join(tmpdir(), "ci-health-"));
+  t.after(() => removeTemp(folder));
+  const git = (...args: string[]) => execFileSync("git", ["-C", folder, "-c", "user.name=t", "-c", "user.email=t@t", ...args], { encoding: "utf8" }).trim();
+  git("init", "-q");
+  mkdirSync(path.join(folder, "packages/check-out", tests), { recursive: true });
+  writeFileSync(path.join(folder, "packages/check-out", tests, "checkout.test.js"), [
+    `import { test } from "node:test";`,
+    `test("1.1 your information page shows the form", () => {});`,
+    `test("1.2 missing details show the error", () => {});`,
+  ].join("\n"));
+  git("add", ".");
+  git("commit", "-q", "-m", "checkout");
+  if (origin !== null) git("remote", "add", "origin", origin);
+  return { folder, commit: git("rev-parse", "HEAD") };
+}
+
+/** GitHub as the Actions API answers: the repository, its runs for the query asked, a run's jobs and their logs. */
+function github(runs: (query: URLSearchParams) => object[], log: string, jobs: { id: number; conclusion: string; name?: string; labels?: string[] }[] = [{ id: 70, conclusion: "success" }, { id: 71, conclusion: "skipped" }]): GitHub & { asked: string[] } {
+  const asked: string[] = [];
+  return {
+    asked,
+    async json(route) {
+      asked.push(route);
+      const [where, query = ""] = route.split("?");
+      if (where === "repos/acme/shop") return { default_branch: "trunk" };
+      if (where === "repos/acme/shop/actions/runs") return { workflow_runs: runs(new URLSearchParams(query)) };
+      if (where === "repos/acme/shop/actions/runs/7/jobs") return { jobs };
+      throw new Error(`no such route: ${route}`);
+    },
+    async text(route) {
+      asked.push(route);
+      if (route === "repos/acme/shop/actions/jobs/70/logs") return log;
+      // A skipped job ran nothing, so it has no log (storytree's own automerge job, 2026-10-04).
+      if (route === "repos/acme/shop/actions/jobs/71/logs") throw new Error(`gh api ${route}: HTTP 404`);
+      throw new Error(`no such route: ${route}`);
+    },
+  };
+}
+
+const tap = (second: "ok" | "not ok") => [
+  "2026-10-03T20:20:26.1100000Z TAP version 13",
+  "2026-10-03T20:20:26.1300000Z ok 1 - 1.1 your information page shows the form",
+  `2026-10-03T20:20:26.1700000Z ${second} 2 - 1.2 missing details show the error`,
+].join("\n");
+
+/** Only a finished push run on the default branch answers; any other query finds nothing. */
+const pushRunsOnTrunk = (commit: string) => (query: URLSearchParams) =>
+  query.get("branch") === "trunk" && query.get("event") === "push" && query.get("status") === "completed"
+    ? [{ id: 7, head_sha: commit, html_url: "https://github.com/acme/shop/actions/runs/7" }]
+    : [];
+
+test("3.1 reading a project's CI writes each contract's verified column from the newest finished push run on the default branch, by the project's CI with its tally, commit and run; the agent's reported column is never written, so CI alone turns the capability unhealthy or healthy", async (t) => {
+  const { library, capability, contracts } = await shopLibrary(t);
+  const { folder, commit } = projectFolder(t);
+  const word = async () => (await library.projectTree()).stories[0]!.capabilities.find(({ id }) => id === capability)!.status;
+
+  const failing = github(pushRunsOnTrunk(commit), tap("not ok"));
+  const read = await readProjectCi({ library, git: gitIn(folder), github: failing });
+  assert.equal(read.written, true, read.written ? "" : read.why);
+  assert.equal(await word(), "unhealthy", "the agent reports both passing; CI failed one");
+  const [first, second] = await Promise.all(contracts.map((id) => library.health(id)));
+  assert.equal(first!.verified.state, "passing");
+  assert.equal(second!.verified.state, "failing");
+  assert.equal(second!.verified.by, VERIFIED_BY_PROJECT_CI);
+  assert.match(second!.verified.note ?? "", new RegExp(`0/1 tests passed, at commit ${commit.slice(0, 12)}, run https://github\\.com/acme/shop/actions/runs/7`));
+  assert.equal(second!.reported.state, "passing", "the agent's word stays the agent's");
+  assert.equal(second!.reported.by, "an agent");
+
+  await readProjectCi({ library, git: gitIn(folder), github: github(pushRunsOnTrunk(commit), tap("ok")) });
+  assert.equal(await word(), "healthy", "CI passed both");
+});
+
+test("3.2 a project with no GitHub origin, or with no finished push run on its default branch, writes nothing and says why; its contracts keep reading not checked", async (t) => {
+  const { library, contracts } = await shopLibrary(t);
+  const noOrigin = projectFolder(t, null);
+  const unasked = github(() => [], "");
+  const withoutOrigin = await readProjectCi({ library, git: gitIn(noOrigin.folder), github: unasked });
+  assert.equal(withoutOrigin.written, false);
+  assert.match(withoutOrigin.written ? "" : withoutOrigin.why, /GitHub/);
+  assert.deepEqual(unasked.asked, [], "GitHub is not asked about a project that is not on it");
+
+  const onGitHub = projectFolder(t);
+  const noRuns = await readProjectCi({ library, git: gitIn(onGitHub.folder), github: github(() => [], tap("ok")) });
+  assert.equal(noRuns.written, false);
+  assert.match(noRuns.written ? "" : noRuns.why, /no finished push run on trunk/);
+
+  for (const id of contracts) assert.equal((await library.health(id)).verified.state, "not-checked");
+  assert.equal((await library.projectTree()).unverified, true, "nothing verifies the project's health");
+});
+
+test("3.3 a job log holding terminal escape sequences is read all the same, from a gh that refuses to print one unless allowed (gh 2.102) as from one that prints it as it is", async (t) => {
+  const folder = mkdtempSync(path.join(tmpdir(), "ci-health-gh-"));
+  t.after(() => removeTemp(folder));
+  const log = "test\tRun npm test\t\u001b[32mok 1 - 1.1 · Your information page shows the form\u001b[0m\n";
+  // Like gh 2.102: it refuses a response holding escape sequences until --allow-escape-sequences is passed.
+  const strict = path.join(folder, "gh-strict.mjs");
+  writeFileSync(strict, `if (!process.argv.includes("--allow-escape-sequences")) { process.stderr.write("the response contains terminal escape sequences; pass --allow-escape-sequences to output it anyway\\n"); process.exit(1); }\nprocess.stdout.write(${JSON.stringify(log)});\n`);
+  // Like gh 2.75: it prints the log as it is, and knows no such flag.
+  const plain = path.join(folder, "gh-plain.mjs");
+  writeFileSync(plain, `if (process.argv.includes("--allow-escape-sequences")) { process.stderr.write("unknown flag: --allow-escape-sequences\\n"); process.exit(1); }\nprocess.stdout.write(${JSON.stringify(log)});\n`);
+  for (const gh of [strict, plain]) assert.equal(await ghApi(process.execPath, [gh]).text("repos/acme/shop/actions/jobs/1/logs"), log, path.basename(gh));
+});
+
+test("3.4 a story whose tests live in its package's own test folder, outside src, is verified from its CI as one with them under src is", async (t) => {
+  const { library, capability } = await shopLibrary(t);
+  const { folder, commit } = projectFolder(t, "https://github.com/acme/shop.git", "test");
+  const read = await readProjectCi({ library, git: gitIn(folder), github: github(pushRunsOnTrunk(commit), tap("ok")) });
+  assert.equal(read.written, true, read.written ? "" : read.why);
+  assert.equal((await library.projectTree()).stories[0]!.capabilities.find(({ id }) => id === capability)!.status, "healthy", "both contracts verified passing from packages/check-out/test");
+});
+
+test("3.5 a job the run skipped, which has no log, is passed over: the run's other jobs are read all the same", async (t) => {
+  const { library, capability } = await shopLibrary(t);
+  const { folder, commit } = projectFolder(t);
+  const asked = github(pushRunsOnTrunk(commit), tap("ok"));
+  const read = await readProjectCi({ library, git: gitIn(folder), github: asked });
+  assert.equal(read.written, true, read.written ? "" : read.why);
+  assert.equal(read.written && read.tests, 2, "the job that ran is read");
+  assert.equal(asked.asked.includes("repos/acme/shop/actions/jobs/71/logs"), false, "the skipped job's log is not asked for");
+  assert.equal((await library.projectTree()).stories[0]!.capabilities.find(({ id }) => id === capability)!.status, "healthy");
+});
+
+test("3.6 a cancelled job without a log leaves available results readable and contracts without evidence not checked", async (t) => {
+  const { library, contracts } = await shopLibrary(t);
+  const { folder, commit } = projectFolder(t);
+  const asked = github(pushRunsOnTrunk(commit), "ok 1 - 1.1 your information page shows the form", [
+    { id: 70, conclusion: "success" }, { id: 71, conclusion: "cancelled" },
+  ]);
+  const read = await readProjectCi({ library, git: gitIn(folder), github: asked });
+  assert.equal(read.written, true, read.written ? "" : read.why);
+  assert.equal(read.written && read.tests, 1);
+  assert.equal(read.written && read.passing, 1);
+  assert.equal((await library.health(contracts[0]!)).verified.state, "passing");
+  assert.equal((await library.health(contracts[1]!)).verified.state, "not-checked", "no result must not become a pass");
+});
+
+test("3.6 available test results in a cancelled job beside a whole one still count, including failures", async (t) => {
+  const { library, contracts } = await shopLibrary(t);
+  const { folder, commit } = projectFolder(t);
+  const asked = github(pushRunsOnTrunk(commit), tap("not ok"), [{ id: 70, conclusion: "cancelled" }, { id: 72, conclusion: "success" }]);
+  const readLog = asked.text;
+  asked.text = async (route) => (route.endsWith("/72/logs") ? "ok 1 - 1.1 your information page shows the form" : readLog(route));
+  const read = await readProjectCi({ library, git: gitIn(folder), github: asked });
+  assert.equal(read.written && read.tests, 3);
+  assert.equal((await library.health(contracts[0]!)).verified.state, "passing");
+  assert.equal((await library.health(contracts[1]!)).verified.state, "failing");
+});
+
+test("3.6 authentication and unrelated log errors remain visible without writing partial verdicts", async (t) => {
+  const { library, contracts } = await shopLibrary(t);
+  const { folder, commit } = projectFolder(t);
+  for (const [conclusion, message] of [
+    ["cancelled", "HTTP 401"], ["cancelled", "HTTP 403"], ["cancelled", "HTTP 500"],
+    ["cancelled", "connection reset"], ["success", "HTTP 404"], ["failure", "HTTP 404"],
+  ]) {
+    const asked = github(pushRunsOnTrunk(commit), tap("ok"), [{ id: 70, conclusion: "success" }, { id: 71, conclusion: conclusion! }]);
+    const readLog = asked.text;
+    const error = Object.assign(new Error("gh failed"), { stderr: `gh: ${message}` });
+    asked.text = async (route) => {
+      if (route.endsWith("/71/logs")) throw error;
+      return readLog(route);
+    };
+    await assert.rejects(readProjectCi({ library, git: gitIn(folder), github: asked }), (caught) => caught === error, `${conclusion}: ${message}`);
+    for (const id of contracts) assert.equal((await library.health(id)).verified.state, "not-checked");
+  }
+});
+
+test("3.7 each job's results are read as its platform's: a test skipped on Windows for a platform reason and passed on the Linux and macOS jobs verifies passing, and a contract a skip leaves not checked records the skip's kind", async (t) => {
+  const { library, contracts } = await shopLibrary(t);
+  const { folder, commit } = projectFolder(t);
+  const posixSkip = "ok 1 - 1.1 your information page shows the form # SKIP platform:posix: a stand-in gh on PATH must be an .exe on Windows";
+  const logs: Record<number, string> = {
+    70: [posixSkip, "ok 2 - 1.2 missing details show the error # SKIP owner: needs a signed-in account"].join("\n"),
+    71: ["ok 1 - 1.1 your information page shows the form", "ok 2 - 1.2 missing details show the error # SKIP owner: needs a signed-in account"].join("\n"),
+    72: ["ok 1 - 1.1 your information page shows the form", "ok 2 - 1.2 missing details show the error # SKIP owner: needs a signed-in account"].join("\n"),
+  };
+  const asked = github(pushRunsOnTrunk(commit), "", [
+    { id: 70, conclusion: "success", name: "verify on Windows", labels: ["windows-latest"] },
+    { id: 71, conclusion: "success", name: "verify on Linux", labels: ["ubuntu-latest"] },
+    { id: 72, conclusion: "success", name: "verify on macOS", labels: ["macos-latest"] },
+  ]);
+  asked.text = async (route) => logs[Number(/jobs\/(\d+)\/logs$/.exec(route)?.[1])] ?? "";
+  const read = await readProjectCi({ library, git: gitIn(folder), github: asked });
+  assert.equal(read.written, true, read.written ? "" : read.why);
+  const [first, second] = await Promise.all(contracts.map((id) => library.health(id)));
+  assert.equal(first!.verified.state, "passing", "Linux and macOS, the platforms it needs, passed it");
+  assert.equal(second!.verified.state, "not-checked");
+  assert.equal(second!.verified.skip, "owner", "the skip's kind is recorded, so the worklist says who moves it");
+});
+
+test("3.8 a cancelled push run, superseded before its slowest job finished, is passed over: the newest finished push run that ran to its end is read, and a branch whose every finished run was cancelled writes nothing and says why", async (t) => {
+  const { library, contracts } = await shopLibrary(t);
+  const { folder, commit } = projectFolder(t);
+  const runs = (conclusions: string[]) => (query: URLSearchParams) =>
+    pushRunsOnTrunk(commit)(query).length === 0 ? [] : conclusions.map((conclusion, at) => ({ id: at === conclusions.length - 1 ? 7 : 90 + at, conclusion, head_sha: commit, html_url: `https://github.com/acme/shop/actions/runs/${at === conclusions.length - 1 ? 7 : 90 + at}` }));
+  const asked = github(runs(["cancelled", "cancelled", "success"]), tap("ok"));
+  const read = await readProjectCi({ library, git: gitIn(folder), github: asked });
+  assert.equal(read.written, true, read.written ? "" : read.why);
+  assert.equal(read.written && read.run, "https://github.com/acme/shop/actions/runs/7", "the run that ran to its end is read");
+  assert.equal(asked.asked.some((route) => /runs\/9\d\/jobs/.test(route)), false, "no cancelled run's jobs are asked for");
+  for (const id of contracts) assert.equal((await library.health(id)).verified.state, "passing");
+
+  const { library: other, contracts: untouched } = await shopLibrary(t);
+  const none = await readProjectCi({ library: other, git: gitIn(folder), github: github(runs(["cancelled", "cancelled"]), tap("ok")) });
+  assert.equal(none.written, false);
+  assert.match(none.written ? "" : none.why, /cancelled/);
+  for (const id of untouched) assert.equal((await other.health(id)).verified.state, "not-checked");
+});
+
+test("3.8 a push run that concludes failure only because a newer push cancelled the jobs that ran its tests is passed over like a cancelled run: the next run back is read, while a run with one whole test job beside a cancelled one is read", async (t) => {
+  const { library, contracts } = await shopLibrary(t);
+  const { folder, commit } = projectFolder(t);
+  // storytree's own CI (run 37794283051): every platform job cancelled mid-tests, the aggregate verify job failed on that.
+  const jobsOf: Record<number, { id: number; conclusion: string; name: string }[]> = {
+    91: [{ id: 80, conclusion: "cancelled", name: "verify on Linux" }, { id: 81, conclusion: "cancelled", name: "verify on Windows" }, { id: 82, conclusion: "failure", name: "verify" }],
+    7: [{ id: 70, conclusion: "success", name: "verify on Linux" }, { id: 72, conclusion: "success", name: "verify" }],
+  };
+  const logs: Record<number, string> = { 80: tap("not ok").split("\n").slice(0, 2).join("\n"), 81: "", 82: "verify on Linux: cancelled", 70: tap("ok"), 72: "all platforms passed" };
+  const run = (id: number, conclusion: string) => ({ id, conclusion, head_sha: commit, html_url: `https://github.com/acme/shop/actions/runs/${id}` });
+  const fake = (runs: object[]) => {
+    const asked = github((query) => (pushRunsOnTrunk(commit)(query).length === 0 ? [] : runs), "");
+    const json = asked.json;
+    asked.json = async (route) => {
+      const id = /actions\/runs\/(\d+)\/jobs$/.exec(route)?.[1];
+      return id === undefined ? json(route) : { jobs: jobsOf[Number(id)] ?? [] };
+    };
+    asked.text = async (route) => logs[Number(/jobs\/(\d+)\/logs$/.exec(route)?.[1])] ?? "";
+    return asked;
+  };
+
+  const read = await readProjectCi({ library, git: gitIn(folder), github: fake([run(91, "failure"), run(7, "success")]) });
+  assert.equal(read.written, true, read.written ? "" : read.why);
+  assert.equal(read.written && read.run, "https://github.com/acme/shop/actions/runs/7", "the run whose test jobs were cancelled is passed over");
+  for (const id of contracts) assert.equal((await library.health(id)).verified.state, "passing");
+
+  // One platform's job ran whole beside a cancelled one: that run is read.
+  jobsOf[92] = [{ id: 70, conclusion: "success", name: "verify on Linux" }, { id: 81, conclusion: "cancelled", name: "verify on Windows" }, { id: 82, conclusion: "failure", name: "verify" }];
+  const partly = await readProjectCi({ library, git: gitIn(folder), github: fake([run(92, "failure"), run(7, "success")]) });
+  assert.equal(partly.written && partly.run, "https://github.com/acme/shop/actions/runs/92");
+
+  const { library: other, contracts: untouched } = await shopLibrary(t);
+  const none = await readProjectCi({ library: other, git: gitIn(folder), github: fake([run(91, "failure")]) });
+  assert.equal(none.written, false);
+  assert.match(none.written ? "" : none.why, /cancelled/);
+  for (const id of untouched) assert.equal((await other.health(id)).verified.state, "not-checked");
+});
+
+test("3.10 on a branch that merges through GitHub's merge queue, whose push runs are cancelled by the next merge, the queue's finished run of a commit the default branch holds is read in its push run's place; a queue run of a commit that never reached the default branch, or of another branch's queue, is not", async (t) => {
+  const { library, contracts } = await shopLibrary(t);
+  const { folder, commit } = projectFolder(t);
+  const other = "f".repeat(40);
+  const queue = (id: number, sha: string, branch = "trunk") => ({ id, conclusion: "success", head_sha: sha, head_branch: `gh-readonly-queue/${branch}/pr-${id}-${"0".repeat(40)}`, html_url: `https://github.com/acme/shop/actions/runs/${id}` });
+  const asked = github((query) => {
+    if (query.get("status") !== "completed") return [];
+    if (query.get("event") === "push" && query.get("branch") === "trunk") return [{ id: 95, conclusion: "cancelled", head_sha: commit, html_url: "https://github.com/acme/shop/actions/runs/95" }];
+    if (query.get("event") === "merge_group") return [queue(97, other), queue(96, commit, "main"), queue(7, commit)];
+    return [];
+  }, tap("ok"));
+  const read = await readProjectCi({ library, git: gitIn(folder), github: asked });
+  assert.equal(read.written, true, read.written ? "" : read.why);
+  assert.equal(read.written && read.run, "https://github.com/acme/shop/actions/runs/7", "the queue's run of the default branch's commit is read");
+  assert.equal(read.written && read.commit, commit);
+  assert.equal(asked.asked.some((route) => /runs\/9\d\/jobs/.test(route)), false, "neither the cancelled push run nor a queue run of another commit or branch is read");
+  for (const id of contracts) assert.equal((await library.health(id)).verified.state, "passing");
+});
+
+test("3.11 of the merge queue's runs of a commit, only the one of the push run's own workflow is read: a newer queue run of another workflow, which uploads no test results, is passed over", async (t) => {
+  const { library, contracts } = await shopLibrary(t);
+  const { folder, commit } = projectFolder(t);
+  const queue = (id: number, workflow_id: number) => ({ id, workflow_id, conclusion: "success", head_sha: commit, head_branch: `gh-readonly-queue/trunk/pr-${id}-${"0".repeat(40)}`, html_url: `https://github.com/acme/shop/actions/runs/${id}` });
+  const asked = github((query) => {
+    if (query.get("status") !== "completed") return [];
+    if (query.get("event") === "push" && query.get("branch") === "trunk") return [{ id: 95, workflow_id: 1, conclusion: "cancelled", head_sha: commit, html_url: "https://github.com/acme/shop/actions/runs/95" }];
+    if (query.get("event") === "merge_group") return [queue(98, 2), queue(7, 1)];
+    return [];
+  }, tap("ok"));
+  const read = await readProjectCi({ library, git: gitIn(folder), github: asked });
+  assert.equal(read.written, true, read.written ? "" : read.why);
+  assert.equal(read.written && read.run, "https://github.com/acme/shop/actions/runs/7", "the CI workflow's queue run is read");
+  assert.equal(asked.asked.some((route) => route.includes("runs/98/")), false, "the other workflow's queue run is never read");
+  for (const id of contracts) assert.equal((await library.health(id)).verified.state, "passing");
+});
+
+test("3.15 a push run that ran no tests, because it stands on the merge queue's run of its commit, is passed over: the queue's run is read and judges every story, rather than the empty push run ending the looking", async (t) => {
+  const { library, contracts } = await shopLibrary(t);
+  const { folder, commit } = projectFolder(t);
+  // storytree's own CI (push run 40058943919, 2026-10-24): main's push run skips its test jobs and stands on queue run 40057942541.
+  const run = (id: number, extra: object = {}) => ({ id, workflow_id: 1, conclusion: "success", head_sha: commit, html_url: `https://github.com/acme/shop/actions/runs/${id}`, ...extra });
+  const logs: Record<number, string> = { 80: "The merge queue's run passed verify on this commit; this push stands on it.", 70: tap("ok") };
+  const asked = github((query) => {
+    if (query.get("status") !== "completed") return [];
+    if (query.get("event") === "push" && query.get("branch") === "trunk") return [run(8)];
+    if (query.get("event") === "merge_group") return [run(7, { head_branch: `gh-readonly-queue/trunk/pr-7-${"0".repeat(40)}` })];
+    return [];
+  }, "");
+  const json = asked.json;
+  asked.json = async (route) => {
+    const id = /actions\/runs\/(\d+)\/jobs$/.exec(route)?.[1];
+    return id === undefined ? json(route) : { jobs: [{ id: Number(id) * 10, conclusion: "success", name: "verify on Linux" }, { id: Number(id) * 10 + 1, conclusion: "skipped" }] };
+  };
+  asked.text = async (route) => logs[Number(/jobs\/(\d+)\/logs$/.exec(route)?.[1])] ?? "";
+  const read = await readProjectCi({ library, git: gitIn(folder), github: asked });
+  assert.equal(read.written, true, read.written ? "" : read.why);
+  assert.equal(read.written && read.run, "https://github.com/acme/shop/actions/runs/7", "the queue's run, which ran the tests, is the reading's");
+  assert.equal(read.written && read.tests, 2);
+  for (const id of contracts) assert.equal((await library.health(id)).verified.state, "passing");
+});
+
+test("3.13 each run is scoped by the 'scope:' line its log opens with: a contract whose package the newest run left out is verified from the newest run that scoped it in, and a run that scoped every package in ends the looking", async (t) => {
+  const { library, contracts } = await shopLibrary(t);
+  const { folder, commit } = projectFolder(t);
+  const at = "2026-10-10T08:35:05.2765737Z";
+  const affected = (...dirs: string[]) => `${at} scope: affected — ${dirs.join(", ") || "nothing"} — changed: ${dirs[0] ?? "nothing"}`;
+  // storytree's own CI (merge_group run 38038330733): the newest run scoped in packages/arc-surface alone, so the
+  // check-out package's tests, which merged a run earlier, did not run in it.
+  const logs: Record<number, string> = {
+    70: affected("packages/arc-surface"),
+    60: [affected("packages/check-out", "packages/web"), tap("ok")].join("\n"),
+    50: [`${at} scope: full — everything — a root file changed`, tap("not ok")].join("\n"),
+  };
+  const run = (id: number) => ({ id, conclusion: "success", head_sha: commit, html_url: `https://github.com/acme/shop/actions/runs/${id}` });
+  const fake = (runs: object[]) => {
+    const asked = github((query) => (pushRunsOnTrunk(commit)(query).length === 0 ? [] : runs), "");
+    const json = asked.json;
+    asked.json = async (route) => {
+      const id = /actions\/runs\/(\d+)\/jobs$/.exec(route)?.[1];
+      return id === undefined ? json(route) : { jobs: [{ id: Number(id) * 10, conclusion: "success", name: "verify on Linux" }] };
+    };
+    asked.text = async (route) => logs[Number(/jobs\/(\d+)\/logs$/.exec(route)?.[1])] ?? "";
+    return asked;
+  };
+
+  const asked = fake([run(7), run(6), run(5)]);
+  const read = await readProjectCi({ library, git: gitIn(folder), github: asked });
+  assert.equal(read.written, true, read.written ? "" : read.why);
+  assert.equal(read.written && read.run, "https://github.com/acme/shop/actions/runs/7", "the newest run is the reading's");
+  for (const id of contracts) {
+    const { verified } = await library.health(id);
+    assert.equal(verified.state, "passing", "the newest run that scoped check-out in passed both");
+    assert.match(verified.note ?? "", /run https:\/\/github\.com\/acme\/shop\/actions\/runs\/6$/, "the verdict names the run it came from");
+  }
+  assert.equal(asked.asked.some((route) => route.includes("runs/5/")), false, "once every package is scoped in, no older run is read");
+
+  // The newest run scoped everything in: it alone is read, as a run whose log names no scope is.
+  const whole = fake([run(5), run(6)]);
+  await readProjectCi({ library, git: gitIn(folder), github: whole });
+  assert.equal((await library.health(contracts[1]!)).verified.state, "failing");
+  assert.equal(whole.asked.some((route) => route.includes("runs/6/")), false);
+});
+
+test("4.2 a CI reading writes a skip as a test run does: a verdict the newest run skipped is marked not re-run at its commit and run, carrying that verdict, and the same mark is not written again", async (t) => {
+  const { library, contracts } = await shopLibrary(t);
+  const { folder, commit } = projectFolder(t);
+  await readProjectCi({ library, git: gitIn(folder), github: github(pushRunsOnTrunk(commit), tap("ok")) });
+  const passed = (await library.health(contracts[1]!)).verified;
+  assert.equal(passed.state, "passing");
+
+  const skipped = [tap("ok").split("\n")[1]!, "ok 2 - 1.2 missing details show the error # SKIP owner: needs a signed-in account"].join("\n");
+  await readProjectCi({ library, git: gitIn(folder), github: github(pushRunsOnTrunk(commit), skipped) });
+  const marked = (await library.health(contracts[1]!)).verified;
+  assert.equal(marked.state, "not-checked");
+  assert.equal(marked.skip, "owner");
+  assert.deepEqual(marked.was, { state: "passing", at: passed.at }, "the verdict it did not reproduce is carried");
+  assert.match(marked.note ?? "", new RegExp(`^not re-run at commit ${commit.slice(0, 12)}, run https://github\\.com/acme/shop/actions/runs/7: 1 of 1 tests skipped`));
+
+  await readProjectCi({ library, git: gitIn(folder), github: github(pushRunsOnTrunk(commit), skipped) });
+  assert.equal((await library.healthHistory(contracts[1]!)).filter(({ column }) => column === "verified").length, 2, "an entry already saying the same is not written again");
+});

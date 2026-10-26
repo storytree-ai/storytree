@@ -1,0 +1,90 @@
+{
+  "name": "@storytree/app-setup",
+  "private": true,
+  "type": "module",
+  "imports": {
+    "#parts/hooks": "./src/bins/parts/hooks.ts"
+  },
+  "exports": {
+    ".": "./src/index.ts",
+    "./bridge": "./src/help/bridge.ts",
+    "./view": "./src/view/index.ts",
+    "./view/styles.css": "./src/view/styles.css",
+    "./deliver": "./src/deliver/index.ts",
+    "./connect": "./src/connect/index.ts",
+    "./project": "./src/project/index.ts",
+    "./setup": "./src/setup/index.ts",
+    "./pipeline": "./src/pipeline/pipeline.ts",
+    "./bins": "./src/bins/build.ts",
+    "./verbs": "./src/verbs.ts",
+    "./journey-events": "./src/journey-events/index.ts",
+    "./journey-events/view": "./src/journey-events/view.ts",
+    "./journey-events/bridge": "./src/journey-events/bridge.ts",
+    "./journey-events/runtime": "./src/journey-events/runtime.ts",
+    "./journey-events/deletion": "./src/journey-events/deletion.ts",
+    "./journey-events/release": "./src/journey-events/release.ts",
+    "./journey-events/verbs": "./src/journey-events/verbs.ts",
+    "./journey-events/feedback": "./src/journey-events/feedback.ts",
+    "./tools": "./src/tools.ts",
+    "./journey-events/named": "./src/journey-events/named.ts",
+    "./testing/shop/record-library": "./testing/shop/record-library.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p .",
+    "dev-home": "node --import tsx src/connect/dev-home.ts",
+    "build": "tsx src/bins/build.ts"
+  },
+  "dependencies": {
+    "posthog-node": "5.55.0",
+    "@storytree/local-postgres": "workspace:*",
+    "@storytree/session-management": "workspace:*",
+    "@storytree/library": "workspace:*",
+    "@storytree/map": "workspace:*",
+    "@storytree/project-and-caller": "workspace:*",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@types/node": "^24.13.6",
+    "@types/pg": "^8.23.1",
+    "esbuild": "^0.28.2",
+    "happy-dom": "catalog:",
+    "pg": "^8.23.0",
+    "tsx": "^4.23.15",
+    "typescript": "~7.0.2",
+    "@storytree/plugin-loader": "workspace:*",
+    "@storytree/test-waits": "workspace:*",
+    "@storytree/quality-assurance": "workspace:*"
+  },
+  "storytree": {
+    "tools": [
+      {
+        "from": "./tools",
+        "export": "setupToolParts",
+        "order": 6
+      }
+    ],
+    "verbs": [
+      {
+        "from": "./verbs",
+        "export": "SETUP_FAMILIES"
+      },
+      {
+        "from": "./journey-events/verbs",
+        "export": "JOURNEY_FAMILIES"
+      }
+    ],
+    "guidance": [
+      {
+        "from": "./setup",
+        "export": "setupGuidance",
+        "order": 10
+      }
+    ],
+    "namedSurfaces": [
+      {
+        "from": "./journey-events/named",
+        "export": "journeyNamedSurfaces"
+      }
+    ]
+  }
+}

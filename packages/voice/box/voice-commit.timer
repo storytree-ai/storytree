@@ -1,0 +1,12 @@
+# Runs the voice door's committer every 15 minutes (voice-commit.service): a fallback for a notification
+# voice-listen.service missed, which starts each confirmed run within seconds.
+[Unit]
+Description=storytree voice: carry out due voice drafts every 15 minutes, as a fallback
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=15min
+AccuracySec=30s
+
+[Install]
+WantedBy=timers.target

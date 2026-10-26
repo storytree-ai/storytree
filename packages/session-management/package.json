@@ -1,0 +1,110 @@
+{
+  "name": "@storytree/session-management",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./readings": "./src/readings.ts",
+    "./claim-mark": "./src/claims/claim-mark.ts",
+    "./machines": "./src/machines/machines.ts",
+    "./verbs": "./src/sessions/verbs.ts",
+    "./workspace-verbs": "./src/claims/verbs.ts",
+    "./tools": "./src/tools.ts",
+    "./hook-command": "./src/bins/storytree-hook.ts",
+    "./hook-start": "./src/hooks/at-once.ts",
+    "./processes": "./src/processes/index.ts",
+    "./processes/process": "./src/processes/process/index.ts",
+    "./processes/listing": "./src/processes/listing/index.ts",
+    "./processes/stopping": "./src/processes/stopping/index.ts",
+    "./processes/closing": "./src/processes/closing/index.ts",
+    "./processes/testing": "./src/processes/testing/child.ts",
+    "./processes/verbs": "./src/processes/verbs.ts",
+    "./friction": "./src/friction/index.ts",
+    "./friction/verbs": "./src/friction/verbs.ts",
+    "./schedules/verbs": "./src/schedules/verbs.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p ."
+  },
+  "dependencies": {
+    "@storytree/library": "workspace:*",
+    "pg": "^8.23.0",
+    "zod": "^4.6.5",
+    "@storytree/project-and-caller": "workspace:*",
+    "koffi": "^3.3.2"
+  },
+  "devDependencies": {
+    "@storytree/local-postgres": "workspace:*",
+    "@storytree/test-waits": "workspace:*",
+    "@types/node": "^24.13.6",
+    "@types/pg": "^8.23.1",
+    "esbuild": "^0.28.2",
+    "happy-dom": "catalog:",
+    "tsx": "^4.23.15",
+    "typescript": "~7.0.2"
+  },
+  "storytree": {
+    "hooks": [
+      {
+        "from": "./hook-command",
+        "export": "HOOK_COMMANDS"
+      }
+    ],
+    "tools": [
+      {
+        "from": ".",
+        "export": "hookToolParts",
+        "order": 3
+      },
+      {
+        "from": "./tools",
+        "export": "sessionToolParts",
+        "order": 4
+      }
+    ],
+    "verbs": [
+      {
+        "from": "./verbs",
+        "export": "SESSION_FAMILIES"
+      },
+      {
+        "from": "./workspace-verbs",
+        "export": "WORKSPACE_FAMILIES"
+      },
+      {
+        "from": "./processes/verbs",
+        "export": "PROCESSES_FAMILIES"
+      },
+      {
+        "from": "./friction/verbs",
+        "export": "FRICTION_FAMILIES"
+      },
+      {
+        "from": "./schedules/verbs",
+        "export": "SCHEDULE_FAMILIES"
+      }
+    ],
+    "guidance": [
+      {
+        "from": ".",
+        "export": "claimsGuidance",
+        "order": 40
+      },
+      {
+        "from": "./friction/verbs",
+        "export": "frictionGuidance",
+        "order": 85
+      },
+      {
+        "from": "./processes/listing",
+        "export": "runsGuidance",
+        "order": 90
+      },
+      {
+        "from": "./schedules/verbs",
+        "export": "scheduleGuidance",
+        "order": 95
+      }
+    ]
+  }
+}

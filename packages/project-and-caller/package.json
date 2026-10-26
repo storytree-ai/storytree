@@ -1,0 +1,69 @@
+{
+  "name": "@storytree/project-and-caller",
+  "private": true,
+  "type": "module",
+  "description": "The Context story (story_6def59292b78, ADR-1025, ADR-1071 D3): which project a folder is, what the user set on this computer, which session is calling, and who is signed in (Identity, in src/identity).",
+  "exports": {
+    ".": "./src/index.ts",
+    "./bridge": "./src/settings/bridge.ts",
+    "./routing": "./src/routing/index.ts",
+    "./caller": "./src/caller/index.ts",
+    "./settings": "./src/settings/panel.ts",
+    "./view": "./src/view/index.ts",
+    "./testing/pg": "./src/testing/pg.ts",
+    "./testing/folders": "./src/testing/folders.ts",
+    "./testing/egress": "./src/testing/egress.ts",
+    "./identity": "./src/identity/index.ts",
+    "./identity/client": "./src/identity/client.ts",
+    "./identity/session-store": "./src/identity/session-store.ts",
+    "./identity/command": "./src/identity/command.ts",
+    "./identity/desktop": "./src/identity/desktop.ts",
+    "./identity/verbs": "./src/identity/verbs.ts"
+  },
+  "storytree": {
+    "pageChannels": [
+      {
+        "from": "./bridge",
+        "export": "settingsPageChannels"
+      }
+    ],
+    "pageAnswers": [
+      {
+        "from": "./settings",
+        "export": "settingsPageAnswers"
+      }
+    ],
+    "guidance": [
+      {
+        "from": ".",
+        "export": "decisionRightsGuidance",
+        "order": 30
+      }
+    ],
+    "verbs": [
+      {
+        "from": "./identity/verbs",
+        "export": "IDENTITY_FAMILIES"
+      }
+    ]
+  },
+  "scripts": {
+    "typecheck": "tsc -p ."
+  },
+  "dependencies": {
+    "@storytree/library": "workspace:*",
+    "jose": "6.2.12",
+    "koffi": "^3.3.2",
+    "pg": "^8.23.0"
+  },
+  "devDependencies": {
+    "@storytree/local-postgres": "workspace:*",
+    "@storytree/test-waits": "workspace:*",
+    "@types/node": "^24.13.6",
+    "@types/pg": "^8.23.1",
+    "esbuild": "^0.28.2",
+    "happy-dom": "catalog:",
+    "tsx": "^4.23.15",
+    "typescript": "~7.0.2"
+  }
+}

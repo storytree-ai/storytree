@@ -1,0 +1,315 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+import { type LandedIncrement, mergedPullRequests, moveStableBack, pinCoverage, type PinCandidate, pinStable, type PinPorts, type PlatformFeed, type StableManifest } from "./stable-pin.js";
+import { formerPin, publishStable, releaseFeed, sweptBy, type GithubRequest } from "./stable-github.js";
+
+type PinCandidateFeeds = PinCandidate["feeds"];
+const RELEASES = "https://github.com/storytree-ai/storytree/releases/download";
+function platformFeeds(version: string): { mac: PlatformFeed; linux: PlatformFeed } {
+  const file = (name: string) => ({ url: `${RELEASES}/v${version}/storytree-0.3-${version}-${name}`, sha512: Buffer.alloc(64, 2).toString("base64"), size: 64 });
+  return { mac: { version, files: [file("mac-arm64.zip"), file("arm64.dmg")] }, linux: { version, files: [{ ...file("linux-x86_64.AppImage"), blockMapSize: 8 }] } };
+}
+
+/** A release's Windows installers: one per architecture, or, before they were split, one for both. */
+function installers(version: string, combined = false): PinCandidate["installers"] {
+  const installer = (name: string) => ({ url: `${RELEASES}/v${version}/storytree-0.3-${version}-${name}`, sha256: "a".repeat(64), sha512: Buffer.alloc(64, 1).toString("base64"), size: 128 });
+  return combined ? [installer("setup.exe")] : [installer("windows-x64-setup.exe"), installer("windows-arm64-setup.exe")];
+}
+
+function fixture() {
+  let current: { ref: string; manifest: StableManifest } | undefined;
+  const state = {
+    candidate: { version: "0.3.2", commit: "a".repeat(40), channelSchema: 1, draft: false, prerelease: false, installers: installers("0.3.2"), bootstrap: { ps1: "published bootstrap" }, feeds: platformFeeds("0.3.2") as PinCandidateFeeds },
+    increments: [
+      { id: "one", fields: { title: "Choose update timing", status: "closed", outcome: { disposition: "landed", pr: "531", note: "Quiet hours and manual installs." } } },
+      { id: "future", fields: { title: "Unreleased work", status: "closed", outcome: { disposition: "landed", pr: "600" } } },
+      { id: "open", fields: { title: "Not landed", status: "active", outcome: undefined } },
+    ] as LandedIncrement[],
+    published: [] as StableManifest[],
+    race: false,
+    swept: "question_pin: passed" as string | undefined,
+  };
+  const ports: PinPorts = {
+    previous: async () => current,
+    formerPin: async version => state.published.findLast(manifest => manifest.version === version),
+    candidate: async () => state.candidate,
+    pullRequests: async () => new Set(["531", "532"]),
+    increments: async () => state.increments,
+    swept: async () => state.swept,
+    publish: async (manifest, bootstrap, expected) => {
+      assert.deepEqual(bootstrap, { ps1: "published bootstrap" });
+      if (state.race || expected !== current?.ref) throw new Error("Stable pin moved; retry from the new pin");
+      state.published.push(manifest);
+      current = { ref: String(state.published.length), manifest };
+    },
+    now: () => "2026-10-02T12:00:00.000Z",
+  };
+  return { state, ports };
+}
+
+test("4.16 a PR mentioned by another merge is not recorded as shipped", () => {
+  assert.deepEqual([...mergedPullRequests("Merge pull request #531 from storytree-ai/update\nMention (#600) and Merge pull request #601\nMerge pull request #532 from storytree-ai/pin")], ["531", "532"]);
+});
+
+test("4.16 a pin reuses the released installer and records only newly landed increments; late closure records survive the boundary", async () => {
+  const { state, ports } = fixture();
+  const first = await pinStable("0.3.2", ports);
+  // The Windows feed names both architectures' installers; each installed app's updater takes its own.
+  assert.deepEqual(first.files, state.candidate.installers.map(({ url, sha512, size }) => ({ url, sha512, size })));
+  assert.deepEqual(first.pin.increments.map(i => i.id), ["one"]);
+  assert.match(first.releaseNotes, /Choose update timing.*#531/);
+  state.candidate = { ...state.candidate, feeds: {}, version: "0.3.3", commit: "b".repeat(40), installers: installers("0.3.3") };
+  state.increments.push({ id: "late", fields: { title: "A late close of shipped work", status: "closed", outcome: { disposition: "landed", pr: "531" } } });
+  state.increments.push({ id: "two", fields: { title: "Stable updates", status: "closed", outcome: { disposition: "landed", pr: "532" } } });
+  const next = await pinStable("0.3.3", ports);
+  assert.equal(next.pin.previous, "0.3.2");
+  assert.deepEqual(next.pin.increments.map(i => i.id), ["late", "two"]);
+  assert.deepEqual(next.pin.includedIncrements, ["one", "late", "two"]);
+  assert.equal(state.published.length, 2);
+  // A release built before the installers were split still pins, its one installer serving both architectures.
+  state.candidate = { ...state.candidate, version: "0.3.4", commit: "c".repeat(40), installers: installers("0.3.4", true) };
+  assert.deepEqual((await pinStable("0.3.4", ports)).files.map(f => f.url), [`${RELEASES}/v0.3.4/storytree-0.3-0.3.4-setup.exe`]);
+});
+
+test("4.16 preview publishes nothing; invalid, old or channel-unaware builds and overlapping pins cannot change stable", async () => {
+  const { state, ports } = fixture();
+  await pinStable("0.3.2", ports, true);
+  assert.equal(state.published.length, 0);
+  for (const change of [{ draft: true }, { prerelease: true }, { channelSchema: 0 }, { version: "0.3.99" },
+    { installers: [{ ...installers("0.3.2")[0]!, sha512: "bad" }, installers("0.3.2")[1]!] }, { installers: installers("0.3.2").slice(0, 1) },
+    { installers: [installers("0.3.2")[0]!, ...installers("0.3.2", true)] }]) {
+    const original = state.candidate;
+    state.candidate = { ...original, ...change };
+    await assert.rejects(pinStable("0.3.2", ports));
+    state.candidate = original;
+  }
+  await pinStable("0.3.2", ports);
+  state.candidate = { ...state.candidate, feeds: {}, version: "0.3.1", installers: installers("0.3.1") };
+  await assert.rejects(pinStable("0.3.1", ports), /older/i);
+  state.candidate = { ...state.candidate, feeds: {}, version: "0.3.3", installers: installers("0.3.3") };
+  state.race = true;
+  await assert.rejects(pinStable("0.3.3", ports), /pin moved/i);
+  assert.equal(state.published.length, 1);
+});
+
+test("4.16 competing publishers expose one complete feed and bootstrap, with the losing pin refused", async () => {
+  const { ports } = fixture();
+  const manifest = await pinStable("0.3.2", ports, true);
+  let head = "base";
+  const trees = new Map<string, { tree: { path: string; content: string }[] }>();
+  const commits = new Map<string, { tree: string; parents: string[] }>();
+  const api: GithubRequest = async (endpoint, method, body) => {
+    if (endpoint === "git/trees") {
+      const sha = `tree-${trees.size}`;
+      trees.set(sha, body as never);
+      return { sha };
+    }
+    if (endpoint === "git/commits") {
+      const sha = `commit-${commits.size}`;
+      commits.set(sha, body as never);
+      return { sha };
+    }
+    assert.equal(method, "PATCH");
+    const update = body as { sha: string; force: boolean };
+    if (!update.force && commits.get(update.sha)?.parents[0] !== head) throw new Error("Reference update is not a fast forward");
+    head = update.sha;
+    return {};
+  };
+  const results = await Promise.allSettled([
+    publishStable(manifest, { ps1: "the published bootstrap", sh: "the Mac's bootstrap" }, "base", api),
+    publishStable({ ...manifest, version: "0.3.3" }, { ps1: "the published bootstrap" }, "base", api),
+  ]);
+  assert.equal(results.filter(r => r.status === "fulfilled").length, 1);
+  assert.equal(results.filter(r => r.status === "rejected").length, 1);
+  const tree = trees.get(commits.get(head)!.tree)!.tree;
+  assert.deepEqual(JSON.parse(tree.find(f => f.path === "latest.yml")!.content), manifest);
+  assert.equal(tree.find(f => f.path === "install-storytree.ps1")!.content, "the published bootstrap");
+  // A release that carries the Mac's one-liner pins it beside the Windows one; one that does not, pins none.
+  const mac = tree.find(f => f.path === "install-storytree.sh")?.content;
+  assert.equal(mac, results[0]!.status === "fulfilled" ? "the Mac's bootstrap" : undefined);
+});
+
+function release(state: ReturnType<typeof fixture>["state"], version: string, feeds: PinCandidateFeeds) {
+  state.candidate = { ...state.candidate, version, commit: version.slice(-1).repeat(40), feeds,
+    installers: installers(version) };
+}
+
+test("4.16 a pin writes a feed for each platform the release carries; a Windows-only release moves Windows and leaves Mac and Linux on their pinned build", async () => {
+  const { state, ports } = fixture();
+  const first = await pinStable("0.3.2", ports);
+  assert.deepEqual(first.pin.covers, ["windows", "mac", "linux"]);
+  assert.deepEqual(first.feeds, platformFeeds("0.3.2"));
+  release(state, "0.3.3", {});
+  const next = await pinStable("0.3.3", ports);
+  assert.deepEqual(next.files.map(f => f.url), [`${RELEASES}/v0.3.3/storytree-0.3-0.3.3-windows-x64-setup.exe`, `${RELEASES}/v0.3.3/storytree-0.3-0.3.3-windows-arm64-setup.exe`]);
+  assert.deepEqual(next.pin.covers, ["windows"]);
+  assert.deepEqual(next.feeds, platformFeeds("0.3.2"));
+  assert.match(pinCoverage(next), /Mac stays on 0\.3\.2/);
+  assert.match(pinCoverage(next), /Linux stays on 0\.3\.2/);
+  // The stable branch carries each platform's feed beside latest.yml, pointing at the original release's files.
+  const trees: { path: string; content: string }[][] = [];
+  const api: GithubRequest = async (endpoint, _method, body) => {
+    if (endpoint === "git/trees") trees.push((body as { tree: { path: string; content: string }[] }).tree);
+    return { sha: "sha" };
+  };
+  await publishStable(next, { ps1: "published bootstrap" }, "base", api);
+  const tree = trees[0]!;
+  assert.deepEqual(JSON.parse(tree.find(f => f.path === "latest-mac.yml")!.content), platformFeeds("0.3.2").mac);
+  assert.deepEqual(JSON.parse(tree.find(f => f.path === "latest-linux.yml")!.content), platformFeeds("0.3.2").linux);
+  assert.match(tree.find(f => f.path === "README.md")!.content, /Mac stays on 0\.3\.2/);
+  // A first pin of a release without a platform writes no feed for it, and says so.
+  const fresh = fixture();
+  release(fresh.state, "0.3.4", { mac: platformFeeds("0.3.4").mac });
+  const macOnly = await pinStable("0.3.4", fresh.ports, true);
+  assert.deepEqual(Object.keys(macOnly.feeds ?? {}), ["mac"]);
+  assert.match(pinCoverage(macOnly), /Linux has no stable build/);
+});
+
+test("4.16 a platform feed that is not its own release's complete build is refused, and the preview names the platforms it moves", async () => {
+  const { state, ports } = fixture();
+  const good = platformFeeds("0.3.2");
+  for (const feeds of [
+    { mac: { ...good.mac, version: "0.3.1" } },
+    { mac: { ...good.mac, files: [{ ...good.mac.files[0]!, url: good.mac.files[0]!.url.replace("v0.3.2", "v0.3.1") }] } },
+    { mac: { ...good.mac, files: [good.mac.files[1]!] } },
+    { linux: { ...good.linux, files: [{ ...good.linux.files[0]!, sha512: "bad" }] } },
+    { linux: { ...good.linux, files: [] } },
+  ]) {
+    state.candidate = { ...state.candidate, feeds: feeds as PinCandidateFeeds };
+    await assert.rejects(pinStable("0.3.2", ports, true), /Mac|Linux/);
+  }
+  assert.equal(state.published.length, 0);
+  state.candidate = { ...state.candidate, feeds: good };
+  assert.match(pinCoverage(await pinStable("0.3.2", ports, true)), /^Windows, Mac and Linux take 0\.3\.2\.$/);
+});
+
+test("4.16 the pin moves back only to a build pinned before, restoring that pin's feeds and increments; any other older build is refused", async () => {
+  const { state, ports } = fixture();
+  const good = state.candidate;
+  const first = await pinStable("0.3.2", ports);
+  state.increments.push({ id: "two", fields: { title: "Stable updates", status: "closed", outcome: { disposition: "landed", pr: "532" } } });
+  release(state, "0.3.3", {});
+  const bad = await pinStable("0.3.3", ports);
+  assert.deepEqual(bad.pin.includedIncrements, ["one", "two"]);
+  // Pinning forward to an older build stays refused, and says how to stop a bad pin instead.
+  release(state, "0.3.2", {});
+  await assert.rejects(pinStable("0.3.2", ports), /older.*--back/s);
+  // Back to a build never pinned, or to one that is not older, is refused.
+  release(state, "0.3.1", {});
+  await assert.rejects(moveStableBack("0.3.1", ports), /never pinned/);
+  release(state, "0.3.3", {});
+  await assert.rejects(moveStableBack("0.3.3", ports), /older/);
+  // The release behind a former pin must still be that pin's build.
+  release(state, "0.3.2", platformFeeds("0.3.2"));
+  await assert.rejects(moveStableBack("0.3.2", ports), /identity/);
+  assert.equal(state.published.length, 2);
+  state.candidate = good;
+  const preview = await moveStableBack("0.3.2", ports, true);
+  assert.equal(state.published.length, 2);
+  const back = await moveStableBack("0.3.2", ports);
+  assert.deepEqual(back, preview);
+  assert.equal(state.published.length, 3);
+  assert.equal(back.version, "0.3.2");
+  assert.deepEqual(back.files, first.files);
+  assert.deepEqual(back.feeds, first.feeds);
+  assert.equal(back.pin.previous, "0.3.3");
+  assert.equal(back.pin.movedBackFrom, "0.3.3");
+  assert.match(back.releaseNotes, /moved back from 0\.3\.3/i);
+  // Stable users on the restored build never had the bad pin's increments, so the next pin lists them again.
+  assert.deepEqual(back.pin.includedIncrements, ["one"]);
+  release(state, "0.3.4", {});
+  const next = await pinStable("0.3.4", ports);
+  assert.deepEqual(next.pin.increments.map(i => i.id), ["two"]);
+});
+
+test("4.16 an expedited pin says in its notes that it skipped the soak, and why, above what it carries", async () => {
+  const { ports } = fixture();
+  const pinned = await pinStable("0.3.2", ports, true, "The forest drew nothing on 0.3.1");
+  assert.match(pinned.releaseNotes, /^# storytree 0\.3\.2\n\nExpedited without the 24-hour soak: The forest drew nothing on 0\.3\.1\n\n- Choose update timing/);
+  assert.equal(pinned.pin.expedited, "The forest drew nothing on 0.3.1");
+  assert.equal((await pinStable("0.3.2", ports, true)).pin.expedited, undefined);
+});
+
+test("4.25 a build is pinned only once its fresh-install sweep passed; a preview, a move back or an expedited fix does not wait", async () => {
+  const { state, ports } = fixture();
+  state.swept = undefined;
+  await assert.rejects(pinStable("0.3.2", ports), /0\.3\.2 has not passed its fresh-install sweep/);
+  assert.equal(state.published.length, 0);
+  assert.equal((await pinStable("0.3.2", ports, true)).version, "0.3.2");
+  assert.equal((await pinStable("0.3.2", ports, false, "The forest drew nothing on 0.3.1")).pin.swept, undefined);
+  const expeditedBuild = state.candidate;
+  state.candidate = { ...state.candidate, version: "0.3.3", commit: "b".repeat(40), installers: installers("0.3.3"), feeds: platformFeeds("0.3.3") };
+  state.swept = "question_pin: passed";
+  assert.equal((await pinStable("0.3.3", ports)).pin.swept, "question_pin: passed");
+  assert.equal(state.published.length, 2);
+  state.swept = undefined;
+  state.candidate = expeditedBuild;
+  assert.equal((await moveStableBack("0.3.2", ports)).version, "0.3.2");
+});
+
+test("4.25 the sweep's pass is the routine's own pin question for that exact build, never a retired one or another build's", () => {
+  const question = (id: string, title: string, lifecycle: string) => ({ id, fields: { title, lifecycle } });
+  assert.equal(sweptBy([question("question_a", "Pin 0.3.21 as stable?", "open"), question("question_b", "Pin 0.3.2 as stable?", "retired")], "0.3.2"), undefined);
+  assert.match(sweptBy([question("question_c", "Pin 0.3.2 as stable?", "settled")], "0.3.2") ?? "", /^question_c\b/);
+});
+
+test("4.16 a former pin is read from the stable branch's history, a move back included, and a build only mentioned there is not one", async () => {
+  const { ports } = fixture();
+  const pinned = await pinStable("0.3.2", ports, true);
+  const history = [
+    { sha: "c3", commit: { message: "Move stable back to storytree 0.3.2 from 0.3.3" } },
+    { sha: "c2", commit: { message: "Pin storytree 0.3.3 as stable" } },
+    { sha: "c0", commit: { message: "Notes about storytree 0.3.1" } },
+    { sha: "c1", commit: { message: "Pin storytree 0.3.2 as stable" } },
+  ];
+  const read: string[] = [];
+  const api: GithubRequest = async endpoint => {
+    if (endpoint.startsWith("commits?")) return endpoint.includes("page=1") ? history : [];
+    read.push(endpoint);
+    return { encoding: "base64", content: Buffer.from(JSON.stringify(pinned)).toString("base64") };
+  };
+  assert.deepEqual(await formerPin("0.3.2", api), pinned);
+  assert.deepEqual(read, ["contents/latest.yml?ref=c3"]);
+  assert.equal(await formerPin("0.3.1", api), undefined);
+  // A move back is written to the branch under its own message.
+  const messages: string[] = [];
+  await publishStable({ ...pinned, pin: { ...pinned.pin, movedBackFrom: "0.3.3" } }, { ps1: "b" }, "base", async (endpoint, _m, body) => {
+    if (endpoint === "git/commits") messages.push((body as { message: string }).message);
+    return { sha: "sha" };
+  });
+  assert.deepEqual(messages, ["Move stable back to storytree 0.3.2 from 0.3.3"]);
+});
+
+test("4.16 a release's own Mac feed is read with each file at its absolute URL on that release, and a size that differs from the asset is refused", () => {
+  const sha = (n: number) => Buffer.alloc(64, n).toString("base64");
+  const text = [
+    "version: 0.3.5", "files:",
+    "  - url: storytree-0.3-0.3.5-mac-arm64.zip", `    sha512: ${sha(3)}`, "    size: 30",
+    "  - url: storytree-0.3-0.3.5-arm64.dmg", `    sha512: ${sha(4)}`, "    size: 40", "    blockMapSize: 5",
+    "path: storytree-0.3-0.3.5-mac-arm64.zip", `sha512: ${sha(3)}`, "releaseDate: '2026-10-15T14:40:03.903Z'", "",
+  ].join("\n");
+  const assets: Record<string, number> = { "storytree-0.3-0.3.5-mac-arm64.zip": 30, "storytree-0.3-0.3.5-arm64.dmg": 40 };
+  const resolve = (name: string) => ({ url: `${RELEASES}/v0.3.5/${name}`, size: assets[name]! });
+  assert.deepEqual(releaseFeed(text, resolve, "0.3.5"), { version: "0.3.5", files: [
+    { url: `${RELEASES}/v0.3.5/storytree-0.3-0.3.5-mac-arm64.zip`, sha512: sha(3), size: 30 },
+    { url: `${RELEASES}/v0.3.5/storytree-0.3-0.3.5-arm64.dmg`, sha512: sha(4), size: 40, blockMapSize: 5 },
+  ] });
+  assets["storytree-0.3-0.3.5-arm64.dmg"] = 41;
+  assert.throws(() => releaseFeed(text, resolve, "0.3.5"), /size/);
+  assert.throws(() => releaseFeed(text.replace("    size: 30", "    unknown: 30"), resolve, "0.3.5"), /Cannot read/);
+  // A later release without a new Mac build carries this feed (4.6): it is no Mac build of that release, so a pin of it keeps the Mac where it was.
+  assert.equal(releaseFeed(text.replaceAll("url: storytree", "url: ../v0.3.5/storytree"), resolve, "0.3.6"), undefined);
+});
+
+test("4.26 after a repository cut-over, the notes leave out work closed before it, whose number is the old repository's though this build's history merged one like it, and link work closed after it to the new repository", async () => {
+  const { state, ports } = fixture();
+  state.increments = [
+    { id: "old", fields: { title: "Old work", status: "closed", outcome: { date: "2026-10-20", disposition: "landed", pr: "#531" } } },
+    { id: "new", fields: { title: "New work", status: "closed", outcome: { date: "2026-11-03", disposition: "landed", pr: "#532" } } },
+  ];
+  ports.cutover = async () => ({ at: "2026-11-02T09:00:00.000Z", repository: "storytree-ai/storytree", before: "storytree-ai/storytree-history" });
+  const pinned = await pinStable("0.3.2", ports);
+  assert.deepEqual(pinned.pin.increments.map(i => i.id), ["new"]);
+  assert.match(pinned.releaseNotes, /New work \(\[#532\]\(https:\/\/github\.com\/storytree-ai\/storytree\/pull\/532\)\)/);
+  assert.doesNotMatch(pinned.releaseNotes, /Old work/);
+});

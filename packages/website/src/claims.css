@@ -1,0 +1,28 @@
+/* The claims below the framed map (ADR-1091 D1 (3), D4): plain sections the visitor scrolls through, each a single-line promise
+   in the owner's words (ADR-1104 D1); each carries its short once it is made (claims.ts). */
+#claims { --soft:#c3cbc1; --dim:#8d9893; padding:40px 24px 96px; background:#101418; }
+#claims > * { width:min(1240px, 100%); margin-inline:auto; }
+#claims h2 { margin-top:0; margin-bottom:0; color:var(--dim); font:600 13px/1.5 system-ui, sans-serif; letter-spacing:.08em; text-transform:uppercase; }
+.claim { padding:56px 0 64px; border-top:1px solid #2c363a; }
+#claims h2 + .claim { margin-top:18px; }
+.claim-fix { margin:0; max-width:22ch; font-size:clamp(34px, 4.2vw, 58px); font-weight:500; line-height:1.06; letter-spacing:-.045em; text-wrap:balance; }
+.claim-short { margin:40px 0 0; max-width:calc(60svh * 16 / 9); }
+.claim-short video { display:block; width:100%; height:auto; aspect-ratio:16 / 9; border:1px solid #2c363a; border-radius:12px; background:#0d1114; }
+
+/* At desktop width each claim's hook sits on the left and its short on the right (owner's voice note, 2026-10-21). The short takes
+   at most 720 px, and never more than 55% of the screen's height, so it reads well larger than a phone's short (about 390 px) yet
+   leaves the hook and some page around it; narrower, they stack. */
+@media (min-width:960px) {
+  .claim { display:grid; grid-template-columns:minmax(0, 1fr) min(720px, 62%, calc(55svh * 16 / 9)); column-gap:clamp(32px, 4vw, 64px); align-items:center; }
+  .claim-short { margin:0; max-width:none; }
+}
+
+@media (max-width:600px) {
+  #claims { padding:28px 12px 64px; }
+  .claim { padding:40px 0 44px; }
+  /* Shrinks below 214 px wide (a 390 px phone at 200% zoom) so no word outruns the column (ADR-0879 D6). */
+  .claim-fix { font-size:min(32px, 15vw); overflow-wrap:break-word; }
+  /* Edge to edge, so the film's two halves and their "without" and "with" labels read at a phone's width. */
+  .claim-short { margin:28px -12px 0; max-width:none; }
+  .claim-short video { border-inline:0; border-radius:0; }
+}

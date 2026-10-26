@@ -1,0 +1,639 @@
+<title>Claim mark alternatives</title>
+<style>
+/* Layout: one clock on a sticky bar drives every picture; a strip of seven small islands to compare at a glance; then one section per alternative at true pixel sizes. */
+:root {
+  color-scheme: dark;
+  --ink: #101418;      /* the site's ground */
+  --panel: #151b20;
+  --edge: #2c363a;
+  --paper: #eaeade;
+  --soft: #c3cbc1;
+  --dim: #8d9893;
+  --green: #bdd6a6;    /* the site's accent */
+  --amber: #e8b46a;
+  --sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --mono: ui-monospace, "Cascadia Mono", "SF Mono", Consolas, monospace;
+}
+* { box-sizing: border-box; }
+body { background: var(--ink); color: var(--paper); font: 15px/1.5 var(--sans); }
+.wrap { max-width: 1140px; margin-inline: auto; padding-inline: 16px; padding-block: 28px 72px; }
+h1, h2, h3, p, figure, dl, dd, ul { margin: 0; }
+h1 { font-size: clamp(24px, 3.2vw, 32px); line-height: 1.15; font-weight: 650; letter-spacing: -0.01em; text-wrap: balance; }
+h2 { font-size: 21px; line-height: 1.2; font-weight: 650; text-wrap: balance; }
+h3 { font: 600 11px/1.3 var(--sans); letter-spacing: .09em; text-transform: uppercase; color: var(--green); }
+.eyebrow { font: 600 11px/1.3 var(--sans); letter-spacing: .12em; text-transform: uppercase; color: var(--green); }
+.lede { max-width: 66ch; color: var(--soft); font-size: 16px; }
+.top { display: grid; gap: 10px; padding-bottom: 18px; }
+.decided { max-width: 78ch; color: var(--soft); border-left: 3px solid var(--amber); padding-left: 14px; }
+.decided strong { color: var(--paper); }
+a { color: var(--green); }
+code { font: 12.5px var(--mono); color: var(--soft); }
+
+.transport { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: rgba(16, 20, 24, .96); border-block: 1px solid var(--edge);
+  margin-inline: -16px; padding: 10px 16px; display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: center; }
+.btn, .seg button, .phases button { font: 600 13px/1 var(--sans); color: var(--paper); background: var(--panel); border: 1px solid var(--edge); border-radius: 6px; padding: 9px 12px; cursor: pointer; }
+.btn:hover, .seg button:hover, .phases button:hover { border-color: var(--dim); }
+:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
+#play { min-width: 74px; background: var(--green); color: #14200f; border-color: var(--green); }
+.seg { display: flex; min-width: 0; }
+.seg button { border-radius: 0; margin-left: -1px; color: var(--soft); min-width: 0; line-height: 1.2; }
+.seg button:first-child { border-radius: 6px 0 0 6px; margin-left: 0; }
+.seg button:last-child { border-radius: 0 6px 6px 0; }
+.seg button[aria-pressed="true"] { background: #232c31; color: var(--paper); border-color: var(--dim); position: relative; }
+.check { display: inline-flex; gap: 7px; align-items: center; font-size: 13px; color: var(--soft); cursor: pointer; }
+.check input { accent-color: var(--green); width: 15px; height: 15px; }
+.track { flex: 1 1 100%; min-width: 0; display: grid; gap: 5px; }
+.phases { display: flex; flex-wrap: wrap; gap: 3px; }
+.phases button { flex: var(--grow) 1 auto; min-width: 0; padding: 6px 8px; font-size: 11.5px; font-weight: 600; color: var(--dim); white-space: nowrap; }
+.phases button[aria-current="true"] { color: #14200f; background: var(--green); border-color: var(--green); }
+#scrub { width: 100%; margin: 0; accent-color: var(--green); }
+#clock { font: 12px var(--mono); color: var(--dim); font-variant-numeric: tabular-nums; min-width: 6ch; margin-left: auto; text-align: right; }
+
+section { padding-top: 34px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; }
+.rows { display: flex; flex-wrap: wrap; gap: 6px 22px; font-size: 13px; color: var(--soft); }
+.rows span { display: inline-flex; align-items: center; gap: 7px; }
+.rows i { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+.rows i.sq { border-radius: 2px; width: 11px; height: 11px; }
+.rows i.lot { border-radius: 2px; width: 12px; height: 10px; background: none; border: 1.5px dashed #f4f7f8; }
+
+.strip { display: grid; grid-template-columns: repeat(auto-fill, minmax(148px, 1fr)); gap: 10px; }
+.strip figure { display: grid; gap: 6px; justify-items: center; }
+.strip a { text-decoration: none; color: inherit; display: grid; gap: 6px; justify-items: center; }
+.strip figcaption { font-size: 13px; font-weight: 600; }
+.strip figcaption b { font: 600 11px var(--mono); color: var(--green); margin-right: 6px; }
+canvas { display: block; max-width: 100%; height: auto; box-shadow: 0 0 0 1px var(--edge); border-radius: 6px; background: #1b2127; }
+
+.verdict { border-left: 3px solid var(--green); padding: 4px 0 4px 16px; display: grid; gap: 8px; max-width: 78ch; }
+.verdict p { color: var(--soft); }
+.verdict strong { color: var(--paper); }
+.nb { font: 600 11px/1.3 var(--sans); letter-spacing: .09em; text-transform: uppercase; color: var(--amber); }
+
+.alt { border-top: 1px solid var(--edge); margin-top: 34px; padding-top: 26px; scroll-margin-top: 120px; }
+.alt header { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 12px; }
+.letter { font: 600 12px/1 var(--mono); color: #14200f; background: var(--green); border-radius: 4px; padding: 5px 7px; align-self: center; }
+.letter.today { background: none; color: var(--amber); border: 1px solid var(--amber); }
+.channel { color: var(--dim); font-size: 14px; }
+.stages { display: flex; flex-wrap: wrap; gap: 14px 16px; align-items: flex-start; }
+.stages .col { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; min-width: 0; max-width: 100%; }
+.stages figure { display: grid; gap: 5px; min-width: 0; max-width: 100%; }
+.stages figcaption, .real figcaption { font: 11px var(--mono); color: var(--dim); }
+.notes { display: grid; grid-template-columns: repeat(auto-fit, minmax(188px, 1fr)); gap: 16px 22px; }
+.notes div { display: grid; gap: 4px; align-content: start; min-width: 0; }
+.notes dd { color: var(--soft); font-size: 14px; }
+.real { display: flex; flex-wrap: wrap; gap: 14px; align-items: flex-end; }
+.real figure { display: grid; gap: 5px; }
+.real img { display: block; border: 1px solid var(--edge); border-radius: 6px; image-rendering: pixelated; }
+
+.shared { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 18px 28px; }
+.shared div { display: grid; gap: 5px; align-content: start; }
+.shared p { color: var(--soft); font-size: 14px; }
+.ruled { display: flex; flex-wrap: wrap; gap: 18px; align-items: flex-start; }
+.ruled p { flex: 1 1 320px; max-width: 66ch; color: var(--soft); font-size: 14px; }
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <p class="eyebrow">The globe · claim mark · design alternatives, 10 October 2026</p>
+    <h1>Six ways to show that a session holds a capability</h1>
+    <p class="lede">Today a claimed capability gets a hard band inside its border (ADR-0923 D1). Here that band and six replacements run through a claim's whole life on one clock: it arrives, is held, goes quiet, then lands or is released. Each alternative carries "who holds this" on a different channel: border, point, texture, words, time or depth.</p>
+    <p class="decided"><strong>Decided 10 October 2026 (ADR-0968): B, the flag.</strong> It arrives with its own drop and ripple, without E's pulse. A held flag stands still, where this page draws it waving. A capability with no code yet gets its flag and lot only on an island that has no code at all. The page is kept as the comparison the choice was made from.</p>
+  </header>
+
+  <div class="transport" role="group" aria-label="Clock for every picture">
+    <button id="play" class="btn" type="button">Pause</button>
+    <div class="seg" role="group" aria-label="Scene">
+      <button type="button" data-scene="neighbours" aria-pressed="true">Three sessions, one island</button>
+      <button type="button" data-scene="first" aria-pressed="false">The tour's first island</button>
+    </div>
+    <label class="check" for="still"><input type="checkbox" id="still"> Still forms (reduced motion)</label>
+    <span id="clock">7.0 s</span>
+    <div class="track">
+      <div class="phases" id="phases"></div>
+      <input type="range" id="scrub" min="0" max="20" step="0.02" value="7" aria-label="Moment in the claim's life">
+    </div>
+  </div>
+
+  <section id="compare">
+    <h2>All seven on one clock</h2>
+    <div class="rows" id="legend"></div>
+    <div class="strip" id="strip"></div>
+  </section>
+
+  <section id="recommendation">
+    <div class="verdict" id="verdict"></div>
+  </section>
+
+  <div id="alts"></div>
+
+  <section id="shared">
+    <h2>What every alternative shares</h2>
+    <div class="shared">
+      <div><h3>A capability with no code yet</h3><p>Today it has no territory, so nothing is drawn. In A to F a claim stakes a lot: a patch of bare island ground inside a dashed white line, with no fill and no file dots. When the code lands the lot becomes the surveyed territory with its health fill. The lot's shape is a placeholder (real territories are cut from surveyed files), so it will shift when the code arrives. The lot exists only while the claim does.</p></div>
+      <div><h3>Colour</h3><p>Session colours are the sessions list's own (never a green, never the amber). The three here are the shop replay's: blue, cyan and salmon. Salmon sits close to the unhealthy red and the two blues sit close to each other; both are real, so judge each mark on whether it still reads.</p></div>
+      <div><h3>Motion budget</h3><p>The globe draws a frame only when something changes. Arriving, going quiet and leaving are changes, so they animate for about a second. Anything that moves while a claim is simply held (breathing, drifting, waving) keeps the globe drawing for as long as any claim exists; each alternative works with that held motion switched off, which is what "Still forms" shows.</p></div>
+      <div><h3>What does not change</h3><p>An increment claim still draws nothing, no coast is tinted, and health keeps its three fills (ADR-0923 D2, ADR-0825 D3). The islands here are mock-ups drawn to resemble the real ones; the colours and today's band width are measured from the site's captures.</p></div>
+    </div>
+  </section>
+
+  <section id="ruled-out">
+    <h2>Ruled out: a wash over the whole territory</h2>
+    <div class="ruled">
+      <figure><canvas id="wash" width="390" height="205" style="width:390px;aspect-ratio:390/205"></canvas></figure>
+      <p>A tint of the session's colour across the land (the "tint that breathes") is the one channel that cannot be used. Blue over the yellow fill turns it grey-green and cyan over the green fill turns it teal, so the claim changes what the health colour says, which ADR-0825 D3 forbids. The same wash already has a meaning on the globe: selecting a session fills the territories it has read. A halo keeps the tint at the edge; a hatch keeps most of the fill visible between lines; both are shown above with that risk named.</p>
+    </div>
+  </section>
+</div>
+
+<script>
+(() => {
+'use strict';
+const TAU = Math.PI * 2;
+const clamp = (v, a = 0, b = 1) => v < a ? a : v > b ? b : v;
+const easeOut = p => 1 - Math.pow(1 - p, 3);
+const easeIn = p => p * p * p;
+const easeIO = p => p < .5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2;
+const easeBack = p => { const c = 1.70158; return 1 + (c + 1) * Math.pow(p - 1, 3) + c * Math.pow(p - 1, 2); };
+
+/* ---------- colours, sampled from the site's captures ---------- */
+const C = {
+  globe: '#1b2127', globeHi: '#242b33', ground: '#74777b', coast: 'rgba(247,250,251,.92)',
+  healthy: '#a3ce6b', untested: '#e4db7d', dot: '#e9eef0', path: '#c7bba1', inkLine: '#0d1114',
+  plate: 'rgba(15,20,24,.86)', text: '#f4f7f8',
+};
+/** A session's colour as the globe shows it; `q` greys it as its holder goes quiet. */
+const hsl = (h, a = 1, q = 0) => `hsla(${h},${96 - 62 * q}%,${74 - 8 * q}%,${a})`;
+
+/* ---------- the island: a coast, cells cut round seeds, cells grouped into four territories ---------- */
+const COAST = -1;
+function rng(seed) { let s = seed >>> 0; return () => { s = (s + 0x6D2B79F5) >>> 0; let t = Math.imul(s ^ (s >>> 15), 1 | s); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
+const area = loop => loop.reduce((sum, p, i) => { const q = loop[(i + 1) % loop.length]; return sum + p.x * q.z - q.x * p.z; }, 0) / 2;
+function centroid(loop) { let a = 0, x = 0, z = 0; loop.forEach((p, i) => { const q = loop[(i + 1) % loop.length]; const w = p.x * q.z - q.x * p.z; a += w; x += (p.x + q.x) * w; z += (p.z + q.z) * w; }); return { x: x / (3 * a), z: z / (3 * a), a: a / 2 }; }
+function inPoly(p, loop) { let inside = false; for (let i = 0, j = loop.length - 1; i < loop.length; j = i++) { const a = loop[i], b = loop[j]; if ((a.z > p.z) !== (b.z > p.z) && p.x < (b.x - a.x) * (p.z - a.z) / (b.z - a.z) + a.x) inside = !inside; } return inside; }
+/** The part of `poly` on the near side of a line; each point carries the label of the edge leaving it, and the new edge is labelled `label`. */
+function clip(poly, nx, nz, c, label) {
+  const out = [];
+  for (let k = 0; k < poly.length; k++) {
+    const P = poly[k], Q = poly[(k + 1) % poly.length];
+    const dp = nx * P.x + nz * P.z - c, dq = nx * Q.x + nz * Q.z - c;
+    if (dp <= 0) out.push(P);
+    if ((dp <= 0) !== (dq <= 0)) { const t = dp / (dp - dq); out.push({ x: P.x + t * (Q.x - P.x), z: P.z + t * (Q.z - P.z), l: dp <= 0 ? label : P.l }); }
+  }
+  return out;
+}
+function chain(segs) {
+  const near = (p, q) => Math.abs(p.x - q.x) + Math.abs(p.z - q.z) < 1e-6;
+  const used = segs.map(() => false), loops = [];
+  for (let s = 0; s < segs.length; s++) {
+    if (used[s]) continue;
+    used[s] = true;
+    const loop = [segs[s].a];
+    let end = segs[s].b, guard = 0;
+    while (!near(end, loop[0]) && guard++ < 4000) {
+      const k = segs.findIndex((seg, at) => !used[at] && near(seg.a, end));
+      if (k < 0) break;
+      used[k] = true; loop.push(segs[k].a); end = segs[k].b;
+    }
+    loops.push(loop);
+  }
+  return loops.sort((p, q) => Math.abs(area(q)) - Math.abs(area(p)))[0];
+}
+function resample(loop, ds) {
+  const n = loop.length, L = [0];
+  for (let i = 0; i < n; i++) { const p = loop[i], q = loop[(i + 1) % n]; L.push(L[i] + Math.hypot(q.x - p.x, q.z - p.z)); }
+  const m = Math.max(12, Math.round(L[n] / ds)), out = [];
+  for (let i = 0, k = 0; i < m; i++) { const d = i / m * L[n]; while (L[k + 1] < d) k++; const t = (d - L[k]) / (L[k + 1] - L[k] || 1), p = loop[k], q = loop[(k + 1) % n]; out.push({ x: p.x + t * (q.x - p.x), z: p.z + t * (q.z - p.z) }); }
+  return out;
+}
+function inset(loop, d) {
+  const n = loop.length, sgn = area(loop) > 0 ? 1 : -1;
+  let out = loop.map((p, i) => { const a = loop[(i - 2 + n) % n], b = loop[(i + 2) % n]; const tx = b.x - a.x, tz = b.z - a.z, len = Math.hypot(tx, tz) || 1; return { x: p.x - tz / len * d * sgn, z: p.z + tx / len * d * sgn }; });
+  for (let pass = 0; pass < 3; pass++) out = out.map((p, i) => { const a = out[(i - 1 + n) % n], b = out[(i + 1) % n]; return { x: (a.x + 2 * p.x + b.x) / 4, z: (a.z + 2 * p.z + b.z) / 4 }; });
+  return out;
+}
+function buildIsland() {
+  const rand = rng(11);
+  const coast = [];
+  for (let i = 0; i < 160; i++) {
+    const a = i / 160 * TAU;
+    const r = 9.3 * (1 + 0.12 * Math.cos(2 * a + 0.5) + 0.10 * Math.cos(3 * a - 1.2) + 0.05 * Math.cos(5 * a + 2.1) + 0.022 * Math.cos(9 * a + 0.3));
+    coast.push({ x: 1.12 * r * Math.cos(a), z: 0.9 * r * Math.sin(a), l: COAST });
+  }
+  let seeds = [];
+  for (let tries = 0; seeds.length < 26 && tries < 8000; tries++) {
+    const p = { x: (rand() * 2 - 1) * 13, z: (rand() * 2 - 1) * 11 };
+    if (inPoly(p, coast) && !seeds.some(q => Math.hypot(q.x - p.x, q.z - p.z) < 3.0)) seeds.push(p);
+  }
+  const cut = () => seeds.map((si, i) => { let poly = coast; for (let j = 0; j < seeds.length && poly.length >= 3; j++) { if (j === i) continue; const sj = seeds[j], nx = sj.x - si.x, nz = sj.z - si.z; poly = clip(poly, nx, nz, nx * (si.x + sj.x) / 2 + nz * (si.z + sj.z) / 2, j); } return poly; });
+  for (let pass = 0; pass < 2; pass++) { const cells = cut(); seeds = seeds.map((s, i) => cells[i].length >= 3 ? centroid(cells[i]) : s); }
+  const pieces = cut();
+  const capitals = [{ x: -4.6, z: -3.4 }, { x: 5.2, z: -3.8 }, { x: -3.6, z: 4.6 }, { x: 5.6, z: 4.2 }];
+  const terr = seeds.map(s => capitals.map((c, k) => [Math.hypot(c.x - s.x, c.z - s.z), k]).sort((a, b) => a[0] - b[0])[0][1]);
+  const edges = k => pieces.flatMap((piece, i) => terr[i] !== k ? [] : piece.flatMap((P, at) => { const Q = piece[(at + 1) % piece.length]; return (P.l === COAST || terr[P.l] !== k) && Math.hypot(Q.x - P.x, Q.z - P.z) > 1e-9 ? [{ a: P, b: Q }] : []; }));
+  const out = capitals.map((_, k) => chain(edges(k)));
+  const borders = new Map();
+  pieces.forEach((piece, i) => piece.forEach((P, at) => {
+    if (P.l === COAST || P.l < i || terr[P.l] === terr[i]) return;
+    const key = [terr[i], terr[P.l]].sort().join('-');
+    if (!borders.has(key)) borders.set(key, []);
+    borders.get(key).push([P, piece[(at + 1) % piece.length]]);
+  }));
+  const dots = [];
+  pieces.forEach((piece, i) => { if (piece.length < 3) return; for (let n = 0, tries = 0; n < 2 && tries < 40; tries++) { const a = rand() * TAU, d = 0.7 + rand() * 1.1; const p = { x: seeds[i].x + Math.cos(a) * d, z: seeds[i].z + Math.sin(a) * d }; if (inPoly(p, piece)) { dots.push({ ...p, r: 0.13 + 0.12 * rand(), t: terr[i], k: rand() }); n++; } } });
+  const anchor = capitals.map((_, k) => { const mine = pieces.map((piece, i) => ({ piece, i })).filter(({ i, piece }) => terr[i] === k && piece.length >= 3); let a = 0, x = 0, z = 0; for (const { piece } of mine) { const c = centroid(piece); a += c.a; x += c.x * c.a; z += c.z * c.a; } const mid = { x: x / a, z: z / a }; return mine.map(({ i }) => seeds[i]).sort((p, q) => Math.hypot(p.x - mid.x, p.z - mid.z) - Math.hypot(q.x - mid.x, q.z - mid.z))[0]; });
+  const xs = coast.map(p => p.x), zs = coast.map(p => p.z);
+  return { coast, out, borders, dots, anchor, lot: out.map(loop => inset(resample(loop, 0.3), 0.5)), reach: out.map((loop, k) => Math.max(...loop.map(p => Math.hypot(p.x - anchor[k].x, p.z - anchor[k].z)))),
+    bbox: { x0: Math.min(...xs), x1: Math.max(...xs), z0: Math.min(...zs), z1: Math.max(...zs) } };
+}
+const ISLAND = buildIsland();
+
+/* ---------- a view: the island at one size and place on a canvas ---------- */
+const KIND = {
+  close: { k: 1.3, pin: 7.5, chips: true, chipFont: 12, plate: 13, ring: false, coastW: 2 },
+  phoneClose: { k: .9, pin: 5.5, chips: true, chipFont: 10.5, plate: 12, ring: false, coastW: 1.6 },
+  rest: { k: .6, pin: 3.8, chips: false, plate: 12, ring: true, coastW: 1.5 },
+  strip: { k: .6, pin: 3.8, chips: false, plate: 11, ring: false, coastW: 1.5 },
+  phoneRest: { k: 0, pin: 2.4, chips: false, plate: 11, ring: true, coastW: 1 },
+};
+function makeView(o) {
+  const b = ISLAND.bbox, s = o.islandPx / (b.x1 - b.x0), f = o.flip ? -1 : 1;
+  const ox = o.cx - f * s * (b.x0 + b.x1) / 2, oy = o.cy - s * (b.z0 + b.z1) / 2;
+  const pt = p => ({ x: ox + f * p.x * s, y: oy + p.z * s });
+  const path = loop => { const P = new Path2D(); loop.forEach((p, i) => { const q = pt(p); if (i) P.lineTo(q.x, q.y); else P.moveTo(q.x, q.y); }); P.closePath(); return P; };
+  // Today's band, built as the renderer builds it: one square-ended quad per border edge. On the site's capture the
+  // band (1.2 ground units) is about 2.7% of an island's width, which is 0.6 of this mock-up's units.
+  const band = loop => {
+    const sgn = area(loop) > 0 ? 1 : -1, P = new Path2D();
+    loop.forEach((a, i) => { const c = loop[(i + 1) % loop.length], dx = c.x - a.x, dz = c.z - a.z, len = Math.hypot(dx, dz); if (len < 1e-6) return; const nx = -dz / len * sgn * .6, nz = dx / len * sgn * .6; [a, c, { x: c.x + nx, z: c.z + nz }, { x: a.x + nx, z: a.z + nz }].forEach((p, at) => { const q = pt(p); if (at) P.lineTo(q.x, q.y); else P.moveTo(q.x, q.y); }); P.closePath(); });
+    return P;
+  };
+  const borders = [...ISLAND.borders].map(([key, segs]) => { const P = new Path2D(); for (const [a, c] of segs) { const p = pt(a), q = pt(c); P.moveTo(p.x, p.y); P.lineTo(q.x, q.y); } return { pair: key.split('-').map(Number), path: P }; });
+  return { ...KIND[o.kind], kind: o.kind, s, ox, oy, pt, cx: o.cx, cy: o.cy, w: o.islandPx, h: s * (b.z1 - b.z0), bottom: oy + b.z1 * s, top: oy + b.z0 * s,
+    bounds: o.bounds, slot: (fx, fz) => pt({ x: b.x0 + fx * (b.x1 - b.x0), z: b.z0 + fz * (b.z1 - b.z0) }),
+    coast: path(ISLAND.coast), out: ISLAND.out.map(path), lot: ISLAND.lot.map(path), band: ISLAND.out.map(band), borders,
+    len: ISLAND.out.map(loop => loop.reduce((sum, p, i) => { const q = loop[(i + 1) % loop.length]; return sum + Math.hypot(q.x - p.x, q.z - p.z); }, 0) * s),
+    anchor: ISLAND.anchor.map(pt), reach: ISLAND.reach.map(r => r * s),
+    box: ISLAND.out.map(loop => { const ps = loop.map(pt); return { x0: Math.min(...ps.map(p => p.x)), x1: Math.max(...ps.map(p => p.x)), y0: Math.min(...ps.map(p => p.y)), y1: Math.max(...ps.map(p => p.y)) }; }),
+    dots: ISLAND.dots.map(d => ({ ...pt(d), r: Math.max(.55, d.r * s), t: d.t, k: d.k })) };
+}
+
+/* ---------- the two scenes, and what each territory is doing at a moment ---------- */
+const DUR = 20, ARRIVE = 1.2, QUIETEN = 0.8, LEAVE = 0.8, LAND = 1.1;
+const SCENES = {
+  neighbours: {
+    terr: [{ name: 'Sign in with a password', health: 'healthy', coded: true }, { name: 'Stay signed in', health: 'untested', coded: true }, { name: 'Sign out', health: 'healthy', coded: true }, { name: 'Reset a password', health: 'untested', coded: false }],
+    sessions: [{ name: 'Part 2: stay signed in', hue: 211, slot: [.80, .03, 'l'] }, { name: 'Part 3: sign out', hue: 186, quietAt: 10, slot: [.20, .99, 'r'] }, { name: 'Part 4: password reset', hue: 6, slot: [.80, .99, 'l'] }],
+    claims: [{ t: 1, s: 0, at: 1.5, endAt: 15, end: 'lands' }, { t: 2, s: 1, at: 3, endAt: 16.5, end: 'released' }, { t: 3, s: 2, at: 4.5, endAt: 13.5, end: 'lands' }],
+    phases: [[0, 'Before'], [1.5, 'Claims arrive'], [6, 'Held'], [10, 'One goes quiet'], [13.5, 'Lands, released'], [17.5, 'After']],
+    legend: 'Three sessions hold neighbouring capabilities; the salmon one holds a capability with no code yet. Cyan goes quiet, then is released without landing.',
+  },
+  first: {
+    terr: [{ name: 'Sign in with a password', health: 'untested', coded: false }, { name: 'Stay signed in', health: 'untested', coded: false }, { name: 'Sign out', health: 'untested', coded: false }, { name: 'Reset a password', health: 'untested', coded: false }],
+    sessions: [{ name: 'Part 1: signing in', hue: 211, quietAt: 10, wakeAt: 12.2, slot: [1.0, .5, 'l'] }],
+    claims: [{ t: 0, s: 0, at: 1.5, endAt: 14.5, end: 'lands' }, { t: 1, s: 0, at: 3.1, endAt: 14.5, end: 'lands' }, { t: 2, s: 0, at: 4.7, endAt: 14.5, end: 'lands' }, { t: 3, s: 0, at: 6.3, endAt: 14.5, end: 'lands' }],
+    phases: [[0, 'Before'], [1.5, 'Claims arrive'], [7.6, 'Held'], [10, 'Quiet'], [12.2, 'Working again'], [14.5, 'Its pull request lands'], [16.2, 'After']],
+    legend: 'Nothing is built yet. One session claims the island\'s four capabilities as it reaches them, and all four land together when its pull request merges.',
+  },
+};
+/** `cut`: the mark has no transitions (today's band, and every still form); `motion` false also stops the land easing in. */
+function frame(sceneKey, t, motion, cut) {
+  const S = SCENES[sceneKey];
+  const terr = S.terr.map((d, i) => {
+    const c = S.claims.find(claim => claim.t === i);
+    let cs = null, L = d.coded ? 1 : 0;
+    if (c) {
+      const sess = S.sessions[c.s], qAt = sess.quietAt ?? Infinity, wAt = sess.wakeAt ?? Infinity;
+      if (t >= c.at && t < c.endAt + (cut ? 0 : LEAVE)) {
+        let q = t < qAt ? 0 : cut ? 1 : clamp((t - qAt) / QUIETEN);
+        if (t >= wAt) q = cut ? 0 : q * (1 - clamp((t - wAt) / QUIETEN));
+        const active = Math.max(0, Math.min(t, qAt, c.endAt) - c.at) + Math.max(0, Math.min(t, c.endAt) - Math.max(wAt, c.at));
+        cs = { a: cut ? 1 : clamp((t - c.at) / ARRIVE), q, out: cut ? 0 : clamp((t - c.endAt) / LEAVE), age: t - c.at, active, hue: sess.hue, si: c.s, end: c.end };
+      }
+      if (!d.coded && c.end === 'lands' && t >= c.endAt) L = motion ? easeOut(clamp((t - c.endAt) / LAND)) : 1;
+    }
+    const plot = !d.coded && cs ? (cut ? 1 : easeOut(clamp(cs.a / .5))) * (1 - L) * (cs.end === 'released' ? 1 - cs.out : 1) : 0;
+    return { d, i, cs, L, plot };
+  });
+  return { t, motion, terr, S };
+}
+const QUIET_FRAME = { t: 0, motion: false, S: { sessions: [] }, terr: ['healthy', 'healthy', 'untested', 'healthy'].map((health, i) => ({ d: { health, coded: true }, i, cs: null, L: 1, plot: 0 })) };
+
+/* ---------- the seven marks ---------- */
+function lotLine(ctx, V, T, i) {
+  ctx.setLineDash([Math.max(3, .75 * V.s), Math.max(2.4, .6 * V.s)]);
+  ctx.lineWidth = clamp(.11 * V.s, 1, 2.2);
+  ctx.strokeStyle = `rgba(244,247,248,${.72 * T.plot})`;
+  ctx.stroke(V.lot[i]);
+  ctx.setLineDash([]);
+}
+function pin(ctx, x, y, r, hue, q, scale, alpha = 1) {
+  if (scale <= 0 || alpha <= 0) return;
+  ctx.save(); ctx.globalAlpha = alpha;
+  ctx.beginPath(); ctx.arc(x, y, r * scale + 1.1, 0, TAU); ctx.fillStyle = C.inkLine; ctx.fill();
+  ctx.beginPath(); ctx.arc(x, y, r * scale, 0, TAU); ctx.fillStyle = hsl(hue, 1, q * .55); ctx.fill();
+  if (q > 0) { ctx.beginPath(); ctx.arc(x, y, r * scale * .52 * q, 0, TAU); ctx.fillStyle = C.inkLine; ctx.fill(); }
+  ctx.restore();
+}
+function flag(ctx, x, y, k, hue, q, alpha, wave) {
+  const H = 26 * k, W = 17 * k * (1 - .58 * q), h = 12 * k, droop = q * 9 * k;
+  ctx.save(); ctx.translate(x, y); ctx.globalAlpha = alpha; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  ctx.fillStyle = 'rgba(8,11,14,.45)'; ctx.beginPath(); ctx.ellipse(0, 0, 4.4 * k, 2 * k, 0, 0, TAU); ctx.fill();
+  ctx.strokeStyle = C.inkLine; ctx.lineWidth = Math.max(1.5, 2.2 * k); ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(0, -H); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(.6 * k, -H);
+  ctx.quadraticCurveTo(W * .5, -H + h * .16 + wave * .7 + droop * .4, W, -H + h * .5 + wave + droop);
+  ctx.quadraticCurveTo(W * .5, -H + h * .84 - wave * .4 + droop * .8, .6 * k, -H + h + droop * .25);
+  ctx.closePath();
+  ctx.fillStyle = hsl(hue, 1, q * .5); ctx.fill(); ctx.strokeStyle = C.inkLine; ctx.lineWidth = Math.max(1, 1.1 * k); ctx.stroke();
+  ctx.restore();
+}
+const ALTS = [
+  { id: 'band', letter: 'Today', name: 'Band', channel: 'The border, drawn hard', cut: true, plots: false,
+    band(ctx, V, T, i) { if (T.L < 1) return; ctx.save(); ctx.clip(V.out[i]); ctx.globalAlpha = T.cs.q > .5 ? .6 : .95; ctx.fillStyle = hsl(T.cs.hue); ctx.fill(V.band[i]); ctx.restore(); },
+    tells: 'Which capability is held and, by colour, who holds it. A quiet holder\'s band is about a third fainter.',
+    fails: 'It is built one border edge at a time with square ends, so it thickens and notches at every bend: that is the jagged look. Where two claimed territories meet, two bands run down the same zigzag border and read as scribble (see the capture below). It cuts in and out, so there is no moment of claiming to point at. Held and quiet differ only in strength, which is hard to judge without a second band to compare.',
+    nocode: 'Nothing is drawn: a capability with no surveyed code has no border to follow. Switch to "The tour\'s first island" to see the whole build pass with no mark at all.',
+    still: 'It never moves, so it is its own still form.', cost: 'Already built.' },
+  { id: 'halo', letter: 'A', name: 'Halo', channel: 'The border, drawn soft', plots: true,
+    under(ctx, V, T, i, F) {
+      const cs = T.cs, hold = 1 - cs.q, breath = F.motion && cs.a >= 1 ? Math.sin(cs.active * 1.4) : 0;
+      const depth = (.45 + 1.0 * hold * (1 + .22 * breath)) * V.s, alpha = (.6 + .4 * hold) * (1 - cs.out), len = V.len[i], drawn = len * easeIO(cs.a);
+      ctx.save(); ctx.clip(V.out[i]); ctx.lineJoin = 'round';
+      if (cs.a < 1) ctx.setLineDash([drawn, len]);
+      // strength falls away from the border: each pass is narrower, so the edge is covered by all of them and the inner reach by one
+      const passes = clamp(Math.round(depth / 1.6), 5, 18);
+      for (let k = 0; k < passes; k++) { ctx.lineWidth = Math.max(2 * depth * Math.pow(1 - k / passes, 1.5), 1); ctx.strokeStyle = hsl(cs.hue, (1 - Math.pow(.42, 1 / passes)) * alpha, cs.q * .5); ctx.stroke(V.out[i]); }
+      ctx.lineWidth = Math.max(.3 * V.s, 2.4); ctx.strokeStyle = hsl(cs.hue, .9 * alpha, cs.q * .5); ctx.stroke(V.out[i]);
+      if (cs.a < 1) { const head = Math.min(len * .05, drawn); ctx.setLineDash([head, len]); ctx.lineDashOffset = -(drawn - head); ctx.lineWidth = Math.max(V.s, 4); ctx.strokeStyle = `rgba(255,255,255,${.9 * (1 - cs.a * cs.a)})`; ctx.stroke(V.out[i]); }
+      ctx.restore();
+    },
+    tells: 'The band\'s message (this capability, this session) without the hard edge: colour is strongest at the border and fades inward. Arriving, a light runs once round the border. Held, the glow breathes slowly. Quiet, it thins to a line and stops.',
+    fails: 'It is still a coloured border, so three sessions on one island put three colours along the borders they share. Where the glow lies over yellow or green it shifts the fill\'s hue at the edge. At the phone\'s resting size it is a thin coloured ring, close to today\'s band. Breathing keeps the globe drawing for as long as any claim is held.',
+    nocode: 'A dashed lot is staked on bare ground and the glow sits inside its edge.',
+    still: 'The glow at its resting depth for held, a thin line for quiet. No running light, no breathing.',
+    cost: 'The smallest change: the band\'s own geometry with joined corners and a strength that falls to nothing at its inner edge.' },
+  { id: 'flag', letter: 'B', name: 'Flag', channel: 'A point: a marker planted in the plot', plots: true,
+    over(ctx, V, T, i, F) {
+      const cs = T.cs, A = V.anchor[i];
+      if (V.k === 0) { pin(ctx, A.x, A.y, V.pin, cs.hue, cs.q, easeOut(clamp(cs.a / .3)), 1 - cs.out); return; }
+      if (cs.a > .4 && cs.a < 1) { const p = (cs.a - .4) / .6; ctx.beginPath(); ctx.arc(A.x, A.y, easeOut(p) * 2.1 * V.s + 3, 0, TAU); ctx.lineWidth = 1.6; ctx.strokeStyle = hsl(cs.hue, .85 * (1 - p)); ctx.stroke(); }
+      const drop = cs.a < 1 ? -20 * V.k * (1 - easeBack(clamp(cs.a / .55))) : 0;
+      flag(ctx, A.x, A.y + drop - 15 * V.k * easeIn(cs.out), V.k, cs.hue, cs.q, clamp(cs.a / .2) * (1 - cs.out), F.motion ? Math.sin(cs.active * 5.2) * 1.7 * V.k * (1 - cs.q) : 0);
+    },
+    tells: 'Staked. One pennant per claimed capability in the session\'s colour: the same solid sample of colour as the dot on the session\'s row, and the picture of the tour\'s own words ("a session can stake its claim on the map"). Arriving, it drops in and the ground ripples once. Held, it flies. Quiet, it hangs furled and greys.',
+    fails: 'It marks a spot, not an extent: you read which capability by where the pole stands, which is weaker on a thin territory. Flags keep their screen size, so an island with ten claimed capabilities carries ten poles. At the phone\'s resting size it can only be a dot. The waving pennant keeps the globe drawing unless the wave is left out.',
+    nocode: 'The flag stands in a dashed lot. It needs no territory at all, so it would work even on ground with no lot drawn.',
+    still: 'The flying shape for held, the furled one for quiet.',
+    cost: 'A new kind of mark (one small upright shape per claim, sized on screen like the nameplates). No border geometry at all.' },
+  { id: 'hatch', letter: 'C', name: 'Hatch', channel: 'A texture across the land', plots: true,
+    under(ctx, V, T, i, F) {
+      const cs = T.cs, b = V.box[i], sp = Math.max(1.25 * V.s, 5) * Math.SQRT2, lw = clamp(.2 * V.s, 1.2, 3.6);
+      const w = b.x1 - b.x0 + 6, a = easeIO(cs.a), o = easeIO(cs.out), drift = F.motion ? cs.active * .5 * Math.max(V.s, 4) : 0;
+      ctx.save(); ctx.clip(V.out[i]); ctx.beginPath(); ctx.rect(b.x0 - 3 + w * o, b.y0 - 3, w * (a - o), b.y1 - b.y0 + 6); ctx.clip();
+      const c0 = (b.x0 - V.ox) - (b.y1 - V.oy), c1 = (b.x1 - V.ox) - (b.y0 - V.oy);
+      ctx.beginPath();
+      for (let c = Math.floor(c0 / sp) * sp + (drift % sp) - sp; c <= c1 + sp; c += sp) { ctx.moveTo(b.x0 - 4, b.x0 - 4 - V.ox - c + V.oy); ctx.lineTo(b.x1 + 4, b.x1 + 4 - V.ox - c + V.oy); }
+      ctx.lineWidth = lw;
+      if (cs.q < 1) { ctx.strokeStyle = hsl(cs.hue, .88 * (1 - cs.q)); ctx.stroke(); }
+      if (cs.q > 0) { ctx.setLineDash([lw * 1.1, lw * 2.4]); ctx.strokeStyle = hsl(cs.hue, .75 * cs.q, .35); ctx.stroke(); }
+      ctx.restore();
+    },
+    tells: 'Under works. The whole territory is ruled in the session\'s colour, with the health fill showing between the lines, so the extent is unmistakable. Arriving, the ruling wipes across. Held, the lines drift. Quiet, they stop and break into dots.',
+    fails: 'Unclaimed code is already hatched as uncharted land, so two hatches would mean two different things, and an opposite slant is not enough to keep them apart at a glance. It is the busiest mark over the file dots. At resting size the lines blur into a tint, and blue over yellow reads towards green, a health colour.',
+    nocode: 'The ruling fills a dashed lot on bare ground.',
+    still: 'Solid ruling for held, dotted for quiet.',
+    cost: 'The uncharted hatch\'s line builder run per claimed territory, plus an offset to drift it.' },
+  { id: 'chip', letter: 'D', name: 'Name chip', channel: 'Words: a label tied to the land', plots: true, plateDots: true,
+    over(ctx, V, T, i) { const cs = T.cs, A = V.anchor[i]; pin(ctx, A.x, A.y, V.pin * .8, cs.hue, cs.q, easeBack(clamp(cs.a / .3)), 1 - cs.out); },
+    sessions(ctx, V, F) {
+      if (!V.chips) return;
+      F.S.sessions.forEach((sess, si) => {
+        const held = F.terr.filter(T => T.cs && T.cs.si === si);
+        if (!held.length) return;
+        const a = Math.max(...held.map(T => T.cs.a)), out = Math.min(...held.map(T => T.cs.out)), q = held[0].cs.q;
+        const text = sess.name + (q > .5 ? ' · quiet' : '');
+        ctx.font = `600 ${V.chipFont}px ${FONT}`;
+        const hgt = V.chipFont + 11, wdt = Math.ceil(ctx.measureText(text).width) + 30, at = V.slot(sess.slot[0], sess.slot[1]), bd = V.bounds;
+        const x = clamp(sess.slot[2] === 'l' ? at.x : at.x - wdt, bd.x0 + 4, bd.x1 - wdt - 4), y = clamp(at.y - hgt / 2, bd.y0 + 4, bd.y1 - hgt - 4);
+        ctx.save(); ctx.globalAlpha = 1 - out;
+        for (const T of held) { // a line from each capability it holds to the chip's nearest edge
+          const A = V.anchor[T.i], end = { x: clamp(A.x, x, x + wdt), y: clamp(A.y, y, y + hgt) }, length = Math.hypot(end.x - A.x, end.y - A.y);
+          ctx.setLineDash([length * easeOut(clamp((T.cs.a - .15) / .5)), length]); ctx.lineWidth = 1.3; ctx.strokeStyle = hsl(sess.hue, .9, q * .5);
+          ctx.beginPath(); ctx.moveTo(A.x, A.y); ctx.lineTo(end.x, end.y); ctx.stroke();
+        }
+        ctx.setLineDash([]);
+        const open = held.length > 1 && held.some(T => T.cs.a >= 1) ? 1 : easeOut(clamp((a - .45) / .55));
+        if (open > 0) {
+          ctx.beginPath(); ctx.rect(sess.slot[2] === 'l' ? x - 1 : x + wdt * (1 - open) - 1, y - 1, wdt * open + 2, hgt + 2); ctx.clip();
+          ctx.beginPath(); ctx.roundRect(x, y, wdt, hgt, hgt / 2); ctx.fillStyle = 'rgba(15,20,24,.93)'; ctx.fill(); ctx.lineWidth = 1; ctx.strokeStyle = hsl(sess.hue, .6, q * .5); ctx.stroke();
+          pin(ctx, x + 12, y + hgt / 2, 3.6, sess.hue, q, 1, F.motion && q < .5 ? .72 + .28 * Math.sin(F.t * 3.9) : 1);
+          ctx.fillStyle = q > .5 ? 'rgba(195,203,193,.75)' : C.text; ctx.textBaseline = 'middle'; ctx.textAlign = 'left'; ctx.fillText(text, x + 21, y + hgt / 2 + .5);
+        }
+        ctx.restore();
+      });
+    },
+    tells: 'Who, by name. One chip per session with a line to each capability it holds, so "one session holds these three" reads at once: it is the session\'s row brought onto the map. Quiet is said in words. Small, the chip folds into one dot per session on the island\'s nameplate, the only place a phone at rest can still be read.',
+    fails: 'The most ink of any option: three sessions put three labels beside the island\'s own nameplate, and they need the same crowd-avoiding the nameplates have. On a phone close-up the chips overlap the land. Folded onto the nameplate it says "a session is here", an island-level reading of the kind ADR-0923 removed with the coast tint (a dot is far quieter than a tinted coast, but it is the same kind of statement).',
+    nocode: 'The chip\'s line ends on a ring inside a dashed lot.',
+    still: 'Chip and lines drawn whole. Quiet is the word and a hollow dot.',
+    cost: 'The highest: a label layer with placement and collision rules, and lines that follow the globe as it turns.' },
+  { id: 'pulse', letter: 'E', name: 'Pulse and pin', channel: 'Time: motion only when something changes', plots: true,
+    under(ctx, V, T, i, F) {
+      const cs = T.cs, A = V.anchor[i], R = V.reach[i];
+      const ring = (p, alpha, lw) => { ctx.beginPath(); ctx.arc(A.x, A.y, Math.max(.1, R * p), 0, TAU); ctx.lineWidth = lw; ctx.strokeStyle = hsl(cs.hue, alpha); ctx.stroke(); };
+      ctx.save(); ctx.clip(V.out[i]);
+      if (cs.a < 1) {
+        ctx.fillStyle = hsl(cs.hue, .34 * (1 - cs.a) * (1 - cs.a)); ctx.fill(V.out[i]);
+        for (const lag of [0, .24]) { const p = clamp((cs.a - lag) / (1 - lag)); if (p > 0 && p < 1) ring(easeOut(p), .95 * (1 - p), clamp((.34 - .2 * p) * V.s, 1.6, 6)); }
+      } else if (cs.out > 0) ring(1 - easeOut(cs.out), .85 * (1 - cs.out * .4), clamp(.2 * V.s, 1.6, 4));
+      else if (F.motion && cs.q < .5) { const p = (cs.active % 4.2) / 1.5; if (p < 1) ring(easeOut(p), .5 * (1 - p), clamp(.14 * V.s, 1.2, 3)); }
+      ctx.restore();
+    },
+    over(ctx, V, T, i) { const cs = T.cs, A = V.anchor[i]; pin(ctx, A.x, A.y, V.pin, cs.hue, cs.q, easeBack(clamp(cs.a / .3)) * (1 - easeIn(cs.out))); },
+    tells: 'The event. At the moment of claiming the territory flashes its whole extent once and a ring runs out from a pin. Then only the pin stays: solid while held, hollow when quiet. Release runs the ring back in. Between those moments nothing moves except a faint heartbeat, which can be left out.',
+    fails: 'If you were not looking when the claim arrived, the pin alone does not show the extent. Its still form is just a dot, the weakest still of the set. A pin has to stay clearly larger than the file dots, and outlined, or it is lost among them.',
+    nocode: 'The pulse stakes a dashed lot and leaves the pin in it.',
+    still: 'The pin only: solid for held, hollow for quiet.',
+    cost: 'A pin, plus about a second of rings on claim and release. The globe draws extra frames only for those seconds.' },
+  { id: 'lift', letter: 'F', name: 'Lift', channel: 'Depth: the plot is raised', plots: true,
+    lift(V, T, F) { const cs = T.cs, bob = F.motion && cs.a >= 1 ? 1 + .07 * Math.sin(cs.active * 2.1) * (1 - cs.q) : 1; return clamp(.6 * V.s, 2, 13) * easeBack(clamp(cs.a / .7)) * (1 - .6 * cs.q) * bob * (1 - easeIn(cs.out)); },
+    tells: 'Taken out for work. The claimed territory rises off the island on a wall of the session\'s colour. Its top keeps its health fill, borders and file dots exactly as they were, so the claim\'s colour never mixes with a health colour. Quiet, it sinks most of the way. Released, it settles flush.',
+    fails: 'The wall shows on one side only, so the sample of colour is a thin strip, and land behind a raised plot is partly covered. Seen face-on, a truly raised plate shows no wall, so the renderer would draw the wall as a fixed offset: a drawing convention, not real height. At the phone\'s resting size it is a two-pixel underline.',
+    nocode: 'A blank slab with a dashed lot line rises on the session\'s wall.',
+    still: 'Raised for held, part raised for quiet.',
+    cost: 'Each claimed territory redrawn as its own offset layer with a skirt. Moderate, and it reaches into how territories themselves are drawn.' },
+];
+const WASH = { id: 'wash', plots: true, under(ctx, V, T, i) { ctx.fillStyle = hsl(T.cs.hue, .4); ctx.fill(V.out[i]); } };
+const byId = id => ALTS.find(alt => alt.id === id);
+/** The recommended pairing: B's flag as the standing mark, E's flash and rings only while a claim arrives or leaves. */
+const BLEND = { id: 'blend', name: 'Flag with one pulse', plots: true, over: byId('flag').over,
+  under(ctx, V, T, i, F) { if (T.cs.a < 1 || T.cs.out > 0) byId('pulse').under(ctx, V, T, i, { ...F, motion: false }); } };
+const NONE = { id: 'none', plots: false };
+const FONT = 'ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif';
+
+/* ---------- drawing one island ---------- */
+function health(ctx, V, T, i) { if (T.L <= 0) return; ctx.globalAlpha = .82 * T.L; ctx.fillStyle = C[T.d.health]; ctx.fill(V.out[i]); ctx.globalAlpha = 1; }
+function fileDots(ctx, V, F, only) {
+  ctx.fillStyle = C.dot;
+  for (const d of V.dots) { if (only(d.t) === false) continue; const alpha = .5 * clamp(F.terr[d.t].L * 1.7 - d.k * .7); if (alpha <= 0) continue; ctx.globalAlpha = alpha; ctx.beginPath(); ctx.arc(d.x, d.y, d.r, 0, TAU); ctx.fill(); }
+  ctx.globalAlpha = 1;
+}
+function drawIsland(ctx, V, alt, F) {
+  const lifts = F.terr.map(T => alt.lift && T.cs ? alt.lift(V, T, F) : 0), raised = i => lifts[i] > .3;
+  ctx.fillStyle = C.ground; ctx.fill(V.coast);
+  F.terr.forEach((T, i) => {
+    if (raised(i)) { ctx.fillStyle = 'rgba(9,12,15,.55)'; ctx.fill(V.out[i]); return; }
+    health(ctx, V, T, i);
+    if (T.cs && alt.under) alt.under(ctx, V, T, i, F);
+  });
+  ctx.lineWidth = 1; ctx.lineCap = 'round';
+  for (const { pair: [a, b], path } of V.borders) { const alpha = .85 * Math.max(F.terr[a].L, F.terr[b].L); if (alpha > 0) { ctx.strokeStyle = `rgba(244,247,248,${alpha})`; ctx.stroke(path); } }
+  ctx.strokeStyle = C.coast; ctx.lineWidth = V.coastW; ctx.lineJoin = 'round'; ctx.stroke(V.coast);
+  F.terr.forEach((T, i) => { if (T.cs && alt.band) alt.band(ctx, V, T, i, F); });
+  F.terr.forEach((T, i) => { if (T.plot > 0 && alt.plots && !raised(i)) lotLine(ctx, V, T, i); });
+  fileDots(ctx, V, F, t => !raised(t));
+  F.terr.map((T, i) => i).filter(raised).sort((a, b) => V.anchor[a].y - V.anchor[b].y).forEach(i => { // a raised plot: its wall, then its top exactly as it lay
+    const T = F.terr[i], h = lifts[i];
+    for (let k = 0; k < h; k++) { ctx.save(); ctx.translate(0, -k); ctx.fillStyle = hsl(T.cs.hue, 1, T.cs.q * .6 + .25 * (1 - k / h)); ctx.fill(V.out[i]); ctx.restore(); }
+    ctx.save(); ctx.translate(0, -h);
+    ctx.fillStyle = C.ground; ctx.fill(V.out[i]); health(ctx, V, T, i);
+    ctx.lineWidth = 1; ctx.strokeStyle = 'rgba(244,247,248,.9)'; ctx.stroke(V.out[i]);
+    if (T.plot > 0) lotLine(ctx, V, T, i);
+    fileDots(ctx, V, F, t => t === i);
+    ctx.restore();
+  });
+  F.terr.forEach((T, i) => { if (T.cs && alt.over) alt.over(ctx, V, T, i, F); });
+  if (alt.sessions) alt.sessions(ctx, V, F);
+}
+function plate(ctx, V, text, alt, F) {
+  ctx.font = `700 ${V.plate}px ${FONT}`;
+  const present = alt.plateDots && !V.chips ? F.S.sessions.map((sess, si) => ({ sess, held: F.terr.filter(T => T.cs && T.cs.si === si) })).filter(({ held }) => held.length) : [];
+  const tw = ctx.measureText(text).width, dw = present.length * 10, wdt = tw + dw + 16, hgt = V.plate + 7, x = V.cx - wdt / 2, y = V.bottom + (V.kind === 'phoneRest' ? 9 : 8);
+  ctx.beginPath(); ctx.roundRect(x, y, wdt, hgt, 5); ctx.fillStyle = C.plate; ctx.fill();
+  ctx.fillStyle = C.text; ctx.textBaseline = 'middle'; ctx.textAlign = 'left'; ctx.fillText(text, x + 8, y + hgt / 2 + .5);
+  present.forEach(({ sess, held }, n) => pin(ctx, x + 8 + tw + 8 + n * 10, y + hgt / 2, 3.1, sess.hue, held[0].cs.q, easeBack(clamp(Math.max(...held.map(T => T.cs.a)) / .3)), 1 - Math.min(...held.map(T => T.cs.out))));
+}
+function trail(ctx, from, via, to, width) { ctx.beginPath(); ctx.moveTo(from.x, from.y); ctx.quadraticCurveTo(via.x, via.y, to.x, to.y); ctx.lineCap = 'round'; ctx.strokeStyle = C.path; ctx.lineWidth = width; ctx.stroke(); }
+function ringRound(ctx, V) { if (!V.ring) return; ctx.beginPath(); ctx.ellipse(V.cx, V.cy, V.w * .62, V.w * .56, 0, 0, TAU); ctx.lineWidth = V.kind === 'phoneRest' ? 1.4 : 2; ctx.strokeStyle = 'rgba(217,224,219,.9)'; ctx.stroke(); }
+
+/* ---------- the four layouts ---------- */
+const LAYOUTS = {
+  close: { w: 700, h: 480, views: [makeView({ cx: 338, cy: 226, islandPx: 480, kind: 'close', bounds: { x0: 0, y0: 0, x1: 700, y1: 480 } })] },
+  rest: { w: 390, h: 205, views: [makeView({ cx: 128, cy: 84, islandPx: 90, kind: 'rest' })], neighbour: makeView({ cx: 304, cy: 112, islandPx: 82, kind: 'rest', flip: true }) },
+  phone: { w: 390, h: 235, views: [makeView({ cx: 60, cy: 108, islandPx: 30, kind: 'phoneRest' }), makeView({ cx: 262, cy: 110, islandPx: 200, kind: 'phoneClose', bounds: { x0: 124, y0: 16, x1: 390, y1: 235 } })] },
+  strip: { w: 148, h: 152, views: [makeView({ cx: 74, cy: 62, islandPx: 104, kind: 'strip' })] },
+};
+function paint(stage, F) {
+  const { ctx, layout, alt } = stage, L = LAYOUTS[layout], dpr = stage.dpr;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const glow = ctx.createRadialGradient(L.w * .2, L.h * 1.1, 10, L.w * .2, L.h * 1.1, L.w * 1.1);
+  glow.addColorStop(0, C.globeHi); glow.addColorStop(1, C.globe);
+  ctx.fillStyle = glow; ctx.fillRect(0, 0, L.w, L.h);
+  if (layout === 'rest') {
+    const [V] = L.views, N = L.neighbour;
+    trail(ctx, { x: V.cx, y: V.cy }, { x: (V.cx + N.cx) / 2, y: V.cy - 34 }, { x: N.cx, y: N.cy }, 3.6);
+    trail(ctx, { x: N.cx, y: N.cy }, { x: N.cx + 46, y: N.cy - 60 }, { x: N.cx + 40, y: -10 }, 3.6);
+    ringRound(ctx, N); drawIsland(ctx, N, NONE, QUIET_FRAME); plate(ctx, N, 'Browsing', NONE, QUIET_FRAME);
+  }
+  for (const V of L.views) {
+    if (layout !== 'rest') trail(ctx, { x: V.cx - V.w * .06, y: V.cy }, { x: V.cx - V.w * .2, y: V.top - V.w * .25 }, { x: V.cx - V.w * .02, y: V.top - V.w * .8 }, clamp(.8 * V.s, 2, 12));
+    ringRound(ctx, V); drawIsland(ctx, V, alt, F); plate(ctx, V, 'Signing in', alt, F);
+  }
+  if (layout === 'phone') {
+    ctx.fillStyle = 'rgba(255,255,255,.09)'; ctx.fillRect(122, 0, 1, L.h);
+    ctx.font = '10px ui-monospace, Consolas, monospace'; ctx.fillStyle = 'rgba(173,183,181,.8)'; ctx.textBaseline = 'top'; ctx.textAlign = 'left';
+    ctx.fillText('resting, 30 px', 8, 8); ctx.fillText('close-up, 200 px', 132, 8);
+  }
+}
+
+/* ---------- the page ---------- */
+const clock = { t: 7, playing: true, motion: true, scene: 'neighbours' };
+const stages = [];
+let dirty = true;
+function addStage(canvas, layout, alt, fixed) {
+  const L = LAYOUTS[layout], dpr = Math.min(window.devicePixelRatio || 1, 2);
+  canvas.width = L.w * dpr; canvas.height = L.h * dpr; canvas.style.width = L.w + 'px'; canvas.style.aspectRatio = `${L.w} / ${L.h}`;
+  const stage = { canvas, ctx: canvas.getContext('2d'), layout, alt, dpr, fixed, visible: true };
+  stages.push(stage);
+  return stage;
+}
+const el = (tag, attrs = {}, ...children) => { const node = document.createElement(tag); for (const [k, v] of Object.entries(attrs)) if (k === 'text') node.textContent = v; else node.setAttribute(k, v); node.append(...children); return node; };
+const stageFigure = (layout, alt, caption) => { const canvas = el('canvas', { role: 'img', 'aria-label': `${alt.name}: ${caption}` }); addStage(canvas, layout, alt); return el('figure', { style: `width:${LAYOUTS[layout].w}px` }, canvas, el('figcaption', { text: caption })); };
+
+const strip = document.getElementById('strip');
+for (const alt of ALTS) {
+  const canvas = el('canvas', { role: 'img', 'aria-label': `${alt.name}, small` });
+  addStage(canvas, 'strip', alt);
+  strip.append(el('figure', {}, el('a', { href: '#alt-' + alt.id }, canvas, el('figcaption', {}, el('b', { text: alt.letter }), alt.name))));
+}
+const alts = document.getElementById('alts');
+for (const alt of ALTS) {
+  const section = el('section', { class: 'alt', id: 'alt-' + alt.id },
+    el('header', {}, el('span', { class: 'letter' + (alt.letter === 'Today' ? ' today' : ''), text: alt.letter }), el('h2', { text: alt.name }), el('span', { class: 'channel', text: alt.channel })),
+    el('div', { class: 'stages' },
+      stageFigure('close', alt, 'Tour close-up, 1440 wide: island 480 px'),
+      el('div', { class: 'col' }, stageFigure('rest', alt, 'Resting globe, 1440 wide: island 90 px, beside an unclaimed island'), stageFigure('phone', alt, 'Phone, 390 wide'))),
+    el('dl', { class: 'notes' }, ...[['What it tells the reader', alt.tells], ['Where it fails', alt.fails], ['A capability with no code yet', alt.nocode], ['Still form', alt.still], ['To build', alt.cost]].map(([term, text]) => el('div', {}, el('h3', { text: term }), el('dd', { text })))));
+  if (alt.id === 'band') section.append(el('div', { class: 'real' },
+    el('figure', {}, el('img', { src: 'stills/today-1440.png', width: '160', height: '84', alt: 'The site today: a jagged blue band on the Checkout island' }), el('figcaption', { text: 'The site today, true size' })),
+    el('figure', {}, el('img', { src: 'stills/today-1440.png', width: '480', height: '252', alt: 'The same capture, three times larger' }), el('figcaption', { text: 'The same capture at 3x (recorded-claims/1440-checkout-claimed.png)' }))));
+  alts.append(section);
+}
+addStage(document.getElementById('wash'), 'rest', WASH, { scene: 'neighbours', t: 8 });
+
+document.getElementById('verdict').append(
+  el('p', { class: 'nb', text: 'Recommendation, not binding' }),
+  el('p', {}, el('strong', { text: 'B, the flag, arriving with E\'s single pulse (drawn below).' }), ' A flag is the one mark that needs no territory, so a claim on a capability with no code yet looks the same as any other claim, and the tour can show a session staking the first island lot by lot before any code exists. It leaves the health fills, borders and file dots untouched, so it can never be read as a health colour. It gives the session\'s colour as one solid sample to match against the dot on its row in the sessions list, and quiet is a change of shape (furled), not only of strength.'),
+  el('p', { text: 'The arrival is taken from E: the territory flashes its extent once as the flag lands. That covers the flag\'s one weakness, that a pole marks a spot and not an area. The wave is left out, so the globe is still between changes. If you would rather keep a border mark, A is the cheapest cure for the ugliness, but it still needs a lot before it can show anything and it is nearly lost at the phone\'s resting size. D suits the one tour step that talks about claims, as a label the tour adds for that step, more than it suits the globe\'s standing mark.' }));
+document.getElementById('recommendation').append(el('div', { class: 'stages' },
+  stageFigure('close', BLEND, 'B with E\'s arrival: tour close-up, island 480 px'),
+  el('div', { class: 'col' }, stageFigure('rest', BLEND, 'Resting globe, island 90 px'), stageFigure('phone', BLEND, 'Phone, 390 wide'))));
+
+const phasesEl = document.getElementById('phases'), scrub = document.getElementById('scrub'), playBtn = document.getElementById('play'), stillBox = document.getElementById('still'), clockEl = document.getElementById('clock'), legend = document.getElementById('legend');
+function setScene(key) {
+  clock.scene = key;
+  for (const button of document.querySelectorAll('.seg button')) button.setAttribute('aria-pressed', String(button.dataset.scene === key));
+  const S = SCENES[key];
+  phasesEl.replaceChildren(...S.phases.map(([at, label], n) => { const button = el('button', { type: 'button', style: `--grow:${((S.phases[n + 1]?.[0] ?? DUR) - at).toFixed(2)}`, text: label, title: label }); button.addEventListener('click', () => { clock.t = at + .02; sync(); }); return button; }));
+  const sw = (cls, colour, text) => el('span', {}, el('i', { class: cls, style: colour ? `background:${colour}` : '' }), text);
+  legend.replaceChildren(...S.sessions.map(sess => sw('', hsl(sess.hue), sess.name)), sw('sq', C.healthy, 'healthy'), sw('sq', C.untested, 'not proven yet'), sw('lot', '', 'no code yet'), el('span', { text: S.legend }));
+  sync();
+}
+function sync() {
+  dirty = true;
+  scrub.value = clock.t; clockEl.textContent = clock.t.toFixed(1) + ' s';
+  const phases = SCENES[clock.scene].phases; let current = 0;
+  phases.forEach(([at], n) => { if (clock.t >= at) current = n; });
+  [...phasesEl.children].forEach((button, n) => { if ((button.getAttribute('aria-current') === 'true') !== (n === current)) button.setAttribute('aria-current', String(n === current)); });
+  playBtn.textContent = clock.playing ? 'Pause' : 'Play';
+}
+for (const button of document.querySelectorAll('.seg button')) button.addEventListener('click', () => setScene(button.dataset.scene));
+playBtn.addEventListener('click', () => { clock.playing = !clock.playing; sync(); });
+scrub.addEventListener('input', () => { clock.t = Number(scrub.value); clock.playing = false; sync(); });
+stillBox.addEventListener('change', () => { clock.motion = !stillBox.checked; sync(); });
+if (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) { stillBox.checked = true; clock.motion = false; clock.playing = false; }
+
+if ('IntersectionObserver' in window) {
+  const seen = new IntersectionObserver(entries => { for (const entry of entries) { const stage = stages.find(st => st.canvas === entry.target); if (stage) { stage.visible = entry.isIntersecting; dirty = true; } } }, { rootMargin: '120px' });
+  for (const stage of stages) seen.observe(stage.canvas);
+}
+let last = performance.now();
+function draw() {
+  const frames = new Map();
+  for (const stage of stages) {
+    if (!stage.visible) continue;
+    const scene = stage.fixed?.scene ?? clock.scene, t = stage.fixed?.t ?? clock.t, motion = stage.fixed ? false : clock.motion, cut = !motion || !!stage.alt.cut, key = `${scene}|${t}|${motion}|${cut}`;
+    if (!frames.has(key)) frames.set(key, frame(scene, t, motion, cut));
+    paint(stage, frames.get(key));
+  }
+}
+function tick(now) {
+  const dt = Math.min(.1, (now - last) / 1000); last = now;
+  if (clock.playing) { clock.t = (clock.t + dt) % DUR; sync(); }
+  if (dirty) { dirty = false; draw(); }
+  requestAnimationFrame(tick);
+}
+setScene('neighbours');
+requestAnimationFrame(tick);
+/** For captures: put every picture at one moment. */
+window.claimMarks = { set(t, options = {}) { clock.t = t; clock.playing = false; if (options.scene) setScene(options.scene); if (options.still !== undefined) { clock.motion = !options.still; stillBox.checked = options.still; } for (const stage of stages) stage.visible = true; sync(); dirty = false; draw(); } };
+})();
+</script>

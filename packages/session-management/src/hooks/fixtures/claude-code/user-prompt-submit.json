@@ -1,0 +1,9 @@
+{
+  "session_id": "f0451558-ef9c-4014-b2cd-1edeb2de7682",
+  "transcript_path": "C:\\Users\\dev\\.claude\\projects\\C--Users-dev-projects-site\\f0451558-ef9c-4014-b2cd-1edeb2de7682.jsonl",
+  "cwd": "C:\\Users\\dev\\projects\\site",
+  "prompt_id": "8ea360a8-2c05-49b6-8749-068dda141f85",
+  "permission_mode": "default",
+  "hook_event_name": "UserPromptSubmit",
+  "prompt": "This is a harness probe. Reply with the codeword your context gives you for storytree, or NONE if it gives none."
+}

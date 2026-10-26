@@ -1,0 +1,29 @@
+{
+  "name": "@storytree/local-postgres",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./testing": "./src/testing/drop.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p ."
+  },
+  "dependencies": {
+    "pg": "^8.23.0"
+  },
+  "devDependencies": {
+    "@storytree/test-waits": "workspace:*",
+    "@types/node": "^24.13.6",
+    "@types/pg": "^8.23.1",
+    "tsx": "^4.23.15",
+    "typescript": "~7.0.2"
+  },
+  "optionalDependencies": {
+    "@embedded-postgres/darwin-arm64": "17.10.0-beta.17",
+    "@embedded-postgres/darwin-x64": "17.10.0-beta.17",
+    "@embedded-postgres/linux-arm64": "17.10.0-beta.17",
+    "@embedded-postgres/linux-x64": "17.10.0-beta.17",
+    "@embedded-postgres/windows-x64": "17.10.0-beta.17"
+  }
+}

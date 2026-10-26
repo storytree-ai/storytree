@@ -1,0 +1,174 @@
+/**
+ * The capture kit's promises to a renderer evidence capture: a fake bridge that fails naming the
+ * method it cannot answer, a launch that finds Playwright on any machine, and seeded work states
+ * the arc surface and the forest read.
+ */
+import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
+import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import { createRequire } from "node:module";
+import { runInNewContext } from "node:vm";
+import { test } from "node:test";
+import type { Page } from "playwright-core";
+
+import type { Line, NewLine } from "@storytree/library";
+import { workStates } from "@storytree/arc-surface";
+
+import { buildCapture, buildFolder, fakeBridge, launchPlan, outputFolder, seedWorkStates, visibleGlobeTargets, zoomGlobe } from "./index.js";
+
+const checkout = path.resolve(import.meta.dirname, "../../../..");
+
+test("a capture finds front-facing dots and islands in canvas coordinates, excluding hidden and off-screen targets", async () => {
+  const { Scene, Group, Object3D, OrthographicCamera } = createRequire(path.join(checkout, "packages/forest/package.json"))("three");
+  const scene = new Scene(), globe = new Group();
+  globe.name = "globe";
+  scene.add(globe);
+  const camera = new OrthographicCamera(-5, 5, 5, -5, 0.1, 100);
+  camera.position.z = 20;
+  camera.updateMatrixWorld();
+  const target = (name: string, x: number, z: number, parent = globe) => {
+    const object = new Object3D();
+    object.name = name;
+    object.userData.id = name.split(":")[1];
+    object.position.set(x, 0, z);
+    parent.add(object);
+    return object;
+  };
+  target("knowledge-point:front", 1, 2);
+  target("knowledge-point:back", 0, -2);
+  target("knowledge-point:offscreen", 8, 2);
+  target("planet:island", -2, 3);
+  const hidden = new Group();
+  hidden.visible = false;
+  globe.add(hidden);
+  target("knowledge-point:hidden", 0, 2, hidden);
+  scene.updateMatrixWorld(true);
+  const state = { scene, camera, gl: { domElement: { getBoundingClientRect: () => ({ left: 100, top: 50, width: 800, height: 600 }) } } };
+  const page = { evaluate: async (source: string) => runInNewContext(source, { globalThis: { __globe: state } }) } as unknown as Page;
+  const found = await visibleGlobeTargets(page);
+  assert.deepEqual(JSON.parse(JSON.stringify(found)), {
+    zoom: 1,
+    dots: [{ id: "front", x: 580, y: 350 }],
+    islands: [{ id: "island", x: 340, y: 350 }],
+  });
+  assert.equal((await visibleGlobeTargets(page, { x: 0.1, y: 0.6 })).dots.length, 0);
+  globe.rotation.y = Math.PI;
+  scene.updateMatrixWorld(true);
+  assert.deepEqual(Array.from((await visibleGlobeTargets(page)).dots, dot => dot.id), ["back"]);
+  await assert.rejects(visibleGlobeTargets({ evaluate: async (source: string) => runInNewContext(source, { globalThis: {} }) } as unknown as Page), /capture.*globe/i);
+});
+
+test("a capture zooms by wheel to a target scale and back, and refuses an unreachable scale", async () => {
+  const camera = { zoom: 2, isOrthographicCamera: true };
+  const state = { camera, controls: { minZoom: 0.1, maxZoom: 30 }, gl: { domElement: { getBoundingClientRect: () => ({ left: 100, top: 50, width: 800, height: 600 }) } } };
+  const evaluate = async (source: string) => runInNewContext(source, { globalThis: { __globe: state } });
+  const moves: number[][] = [], wheels: number[] = [];
+  const page = { evaluate,
+    mouse: { move: async (x: number, y: number) => { moves.push([x, y]); }, wheel: async (_x: number, y: number) => { wheels.push(y); camera.zoom *= y < 0 ? 1 / 0.95 : 0.95; } },
+    waitForFunction: async (source: string) => { assert.ok(await evaluate(source), "wait until the wheel changed the camera"); },
+  } as unknown as Page;
+  const close = 2 / 0.95 ** 8;
+  assert.ok(Math.abs(await zoomGlobe(page, close) - close) < 1e-12);
+  assert.equal(wheels.length, 8);
+  assert.deepEqual(moves[0], [500, 350]);
+  assert.ok(Math.abs(await zoomGlobe(page, 2, { x: 580, y: 350 }) - 2) < 1e-12);
+  assert.equal(wheels.length, 16);
+  await assert.rejects(zoomGlobe(page, 31), /outside.*0\.1.*30/);
+  await assert.rejects(zoomGlobe(page, Number.NaN), /positive.*finite/);
+  assert.equal(wheels.length, 16, "bad targets never send a wheel event");
+  page.waitForFunction = async () => { throw new Error("wheel blocked by an overlay"); };
+  await assert.rejects(zoomGlobe(page, close), /wheel did not change zoom.*canvas receives the pointer/);
+});
+
+test("a call the fake bridge cannot answer fails at once, naming the method", async () => {
+  const bridge = fakeBridge({ listProjects: async () => ["storytree"] });
+  assert.deepEqual(await bridge.call("listProjects", []), ["storytree"]);
+  await assert.rejects(bridge.call("heldOnQuestion", []), /heldOnQuestion/);
+  await assert.rejects(bridge.unanswered, /the fake bridge does not answer heldOnQuestion/);
+});
+
+test("a bridge method the capture left unanswered gets a safe answer, and the fake records the page asked for it", async () => {
+  const bridge = fakeBridge({ listProjects: async () => ["storytree"] });
+  await bridge.call("listProjects", []);
+  assert.deepEqual(await bridge.call("readSignIn", []), { available: false, on: false });
+  const [window] = await bridge.call("windowReadings", ["storytree", ["s1"]]) as { session: string; absent?: string }[];
+  assert.equal(window?.session, "s1");
+  assert.ok(window?.absent);
+  assert.deepEqual(bridge.defaulted, ["readSignIn", "windowReadings"]);
+});
+
+test("on Windows, launch finds Playwright and Chromium from the checkout, with no /home path", () => {
+  const plan = launchPlan({ env: {}, platform: "win32" });
+  assert.equal(plan.module, "playwright-core");
+  assert.equal(plan.options.executablePath, undefined);
+  assert.doesNotMatch(JSON.stringify(plan), /\/home\//);
+});
+
+test("on Windows, a Playwright named by path is imported by its file URL", () => {
+  const plan = launchPlan({ env: { CAPTURE_PLAYWRIGHT: "C:\\tools\\playwright-core\\index.mjs", CAPTURE_CHROMIUM: "C:\\tools\\chrome.exe" }, platform: "win32" });
+  assert.equal(plan.module, "file:///C:/tools/playwright-core/index.mjs");
+  assert.equal(plan.options.executablePath, "C:\\tools\\chrome.exe");
+});
+
+test("a capture launches an installed browser channel when one is named, and a Chromium named by path wins over it", () => {
+  assert.equal(launchPlan({ env: { CAPTURE_CHANNEL: "chrome" }, platform: "linux" }).options.channel, "chrome");
+  assert.equal(launchPlan({ env: {}, platform: "linux" }).options.channel, undefined);
+  const named = launchPlan({ env: { CAPTURE_CHANNEL: "chrome", CAPTURE_CHROMIUM: "/opt/chromium" }, platform: "linux" }).options;
+  assert.equal(named.executablePath, "/opt/chromium");
+  assert.equal(named.channel, undefined);
+});
+
+// Under 3-CPU contention like macOS CI's, a separate GPU process stretched live-road frame gaps to 10 s;
+// in the browser process they stayed under 0.6 s (increment_65eec6275207).
+test("a software-GL capture keeps GPU work in the browser process, and a hardware capture leaves it to Chromium", () => {
+  assert.ok(launchPlan({ env: {}, platform: "darwin" }).options.args?.includes("--in-process-gpu"));
+  assert.ok(!launchPlan({ env: {}, platform: "darwin" }, { softwareGL: false }).options.args?.includes("--in-process-gpu"));
+});
+
+test("seeding a capability landed makes the work states read it landed", async () => {
+  const lines: Line[] = [];
+  const log = { append: async (project: string, line: NewLine) => { const kept = { ...line, project, seq: lines.length + 1, at: new Date().toISOString() } as Line; lines.push(kept); return kept; } };
+  await seedWorkStates(log, "storytree", { capability_a: "landed", capability_b: "in-progress", capability_c: "planned" });
+  const states = workStates(lines);
+  assert.equal(states.part("capability_a"), "landed");
+  assert.equal(states.part("capability_b"), "in-progress");
+  assert.equal(states.part("capability_c"), "planned");
+});
+
+test("a capture run to check it writes to a scratch folder, and re-takes into its own folder only when named", () => {
+  const folder = path.join(checkout, "packages", "forest", "evidence", "sessions-list");
+  const scratch = outputFolder(folder, { argv: ["node", "capture.mjs"], tmp: "/scratch" });
+  assert.notEqual(scratch, folder);
+  assert.ok(scratch.startsWith(path.join("/scratch", "")), scratch);
+  assert.notEqual(outputFolder(path.join(checkout, "packages", "forest", "evidence", "wisps"), { argv: [], tmp: "/scratch" }), scratch, "two evidence folders get two scratch folders");
+  assert.equal(outputFolder(folder, { argv: ["node", "capture.mjs", "--retake"], tmp: "/scratch" }), folder);
+});
+
+test("2.18 an evidence build writes its bundle to the checkout's ignored build folder, leaving nothing new beside the evidence it serves", () => {
+  const files = (folder: string) => readdirSync(folder, { recursive: true }).map(String).sort();
+  for (const [name, args, build] of [["sessions-list", [], "production"], ["view/pathway-repair", [checkout, "2-18-check"], "2-18-check"]] as const) {
+    const folder = path.join(checkout, "packages", "forest", "testing", name);
+    const before = files(folder);
+    execFileSync(process.execPath, ["--import", "tsx", path.join(folder, "build.mjs"), ...args], { cwd: checkout, stdio: "pipe" });
+    try {
+      assert.deepEqual(files(folder), before, `${name}'s build left files beside its evidence`);
+      const built = buildFolder(folder, build);
+      assert.ok(files(built).includes("renderer.js"), `${name}'s bundle is in ${built}`);
+      assert.ok(path.relative(path.join(checkout, "packages"), built).startsWith(".."), "the build folder is outside every package");
+      execFileSync("git", ["check-ignore", "-q", built], { cwd: checkout });
+    } finally { rmSync(buildFolder(folder, build), { recursive: true, force: true }); }
+  }
+  assert.notEqual(buildFolder(path.join(checkout, "packages", "forest", "evidence", "a")), buildFolder(path.join(checkout, "packages", "forest-world", "evidence", "a")), "two evidence folders get two build folders");
+});
+
+test("2.19 · the capture kit's build holds every file its page names, the road worker's script included", { timeout: 120_000 }, async t => {
+  const dist = mkdtempSync(path.join(tmpdir(), "storytree-capture-build-"));
+  t.after(() => rmSync(dist, { recursive: true, force: true }));
+  await buildCapture({ dist });
+  const page = readFileSync(path.join(dist, "index.html"), "utf8");
+  const named = [...page.matchAll(/(?:src|href)="([^"]+)"|name="storytree-road-worker" content="([^"]+)"/g)].map(m => m[1] ?? m[2] ?? "");
+  assert.ok(named.includes("road-worker.js"), "the page names its road worker");
+  assert.deepEqual(named.filter(file => !existsSync(path.join(dist, file))), [], "every file the page names is built beside it");
+});

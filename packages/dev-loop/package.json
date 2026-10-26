@@ -1,0 +1,36 @@
+{
+  "name": "@storytree/dev-loop",
+  "private": true,
+  "type": "module",
+  "description": "Mick's dev loop (story_95ed402f9bd3, ADR-0805 D3, ADR-1170 D3): the personal half of the dev loop, around the base dev loop's gate runner (packages/base-dev-loop): the test runner and its scoping, storytree's gate (its lock, worktree install and seven contributed checks), worktree provisioning, the guidance build, the library's export, restore and server, the recording of a test run (moved from CI health, which keeps the verdict rules and the verified-column writer it reaches), configured for storytree as its own health (ADR-1066 D2 G), and storytree's declarations for the Guardrails story's package and allocation checks. The root package.json's commands and CI run them from here.",
+  "dependencies": {
+    "@storytree/forest": "workspace:*",
+    "@storytree/local-postgres": "workspace:*",
+    "@storytree/session-management": "workspace:*",
+    "@storytree/guardrails": "workspace:*",
+    "@storytree/library": "workspace:*",
+    "@storytree/map": "workspace:*",
+    "pg": "^8.23.0",
+    "playwright-core": "1.60.0",
+    "tsx": "^4.23.15",
+    "@storytree/project-and-caller": "workspace:*",
+    "@storytree/ci-health": "workspace:*",
+    "@storytree/plugin-loader": "workspace:*",
+    "@storytree/base-dev-loop": "workspace:*"
+  },
+  "devDependencies": {
+    "@storytree/test-waits": "workspace:*"
+  },
+  "exports": {
+    "./browser-coverage": "./src/browser-coverage.mjs",
+    "./gate-steps": "./src/gate-steps.mjs"
+  },
+  "storytree": {
+    "gateSteps": [
+      {
+        "from": "./gate-steps",
+        "export": "gateSteps"
+      }
+    ]
+  }
+}

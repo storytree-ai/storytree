@@ -1,0 +1,45 @@
+{
+  "name": "@storytree/website",
+  "private": true,
+  "type": "module",
+  "license": "Apache-2.0",
+  "exports": {
+    "./overlays": "./src/overlays/index.ts",
+    "./overlays/view": "./src/overlays/view/index.ts"
+  },
+  "scripts": {
+    "build": "node --import tsx src/build.ts",
+    "typecheck": "tsc -p ."
+  },
+  "dependencies": {
+    "@storytree/arc-surface": "workspace:*",
+    "@storytree/ci-health": "workspace:*",
+    "@storytree/forest": "workspace:*",
+    "@storytree/forest-world": "workspace:*",
+    "@storytree/knowledge-core": "workspace:*",
+    "@storytree/library": "workspace:*",
+    "@storytree/mark": "workspace:*",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1",
+    "@react-three/fiber": "^9.6.1",
+    "@storytree/project-and-caller": "workspace:*",
+    "@storytree/session-management": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^24.13.6",
+    "@types/react": "^19.1.8",
+    "esbuild": "^0.28.2",
+    "playwright-core": "1.60.0",
+    "tsx": "^4.23.15",
+    "typescript": "~7.0.2",
+    "@types/react-dom": "^19.1.6",
+    "@types/pg": "^8.23.1",
+    "pg": "^8.23.0",
+    "@storytree/app-setup": "workspace:*",
+    "@remotion/bundler": "4.0.535",
+    "@remotion/renderer": "4.0.535",
+    "remotion": "4.0.535",
+    "happy-dom": "catalog:",
+    "@storytree/test-waits": "workspace:*"
+  }
+}

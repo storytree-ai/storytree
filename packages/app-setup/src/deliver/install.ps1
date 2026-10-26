@@ -1,0 +1,331 @@
+# Windows PowerShell 5.1 and PowerShell 7. No Node/npm or checkout prerequisite.
+param([switch]$LibraryOnly, [ValidateSet('stable', 'alpha', 'development')][string]$Channel)
+$ErrorActionPreference = 'Stop'
+
+# Choose the channel without writing it: a record written before anything installed would refuse a retry.
+# Alpha's old name, development, is read as alpha wherever it appears (ADR-1121).
+function Resolve-StorytreeChannel([string]$HomeDir, [string]$InstallDir, [string]$Requested) {
+  if ($Requested -and $Requested -cnotin @('stable', 'alpha', 'development')) { throw 'Choose a valid release channel: stable or alpha.' }
+  if ($Requested -ceq 'development') { $Requested = 'alpha' }
+  $file = Join-Path $HomeDir 'release-channel.json'
+  $markerFile = Join-Path $InstallDir 'resources/storytree-installed'
+  $installed = (Test-Path -LiteralPath $markerFile) -or (Test-Path -LiteralPath (Join-Path $InstallDir 'storytree-0.3.exe'))
+  $existing = $null
+  if (Test-Path -LiteralPath $file) {
+    try {
+      $saved = Get-Content -LiteralPath $file -Raw | ConvertFrom-Json
+      if ($saved.schema -ne 1 -or $saved.channel -cnotin @('stable', 'alpha', 'development')) { throw 'invalid schema or channel' }
+      $existing = if ($saved.channel -ceq 'stable') { 'stable' } else { 'alpha' }
+    } catch { throw "The saved release channel could not be read: $($_.Exception.Message). Keep $file for diagnosis; delivery will not replace it." }
+    # With no app installed, the record is what a failed delivery left behind; an explicit choice replaces it.
+    if (-not $installed -and $Requested) { $existing = $null }
+  } elseif (Test-Path -LiteralPath $markerFile) {
+    $marker = (Get-Content -LiteralPath $markerFile -Raw).Trim()
+    if ($marker -ceq 'nsis') { $existing = 'alpha' }
+    elseif ($marker -ceq 'nsis-stable') { $existing = 'stable' }
+    else { throw 'The installed app has an unknown release channel marker. Check it before retrying delivery.' }
+  }
+  if ($existing -and $Requested -and $existing -cne $Requested) { throw "This installation already uses $existing. Delivery cannot change its release channel to $Requested." }
+  if ($existing) { return $existing } elseif ($Requested) { return $Requested } else { return 'stable' }
+}
+
+# The installer may launch the app itself: delivery saves the channel after the download and before starting NSIS.
+function Save-StorytreeChannel([string]$HomeDir, [string]$Selected) {
+  $file = Join-Path $HomeDir 'release-channel.json'
+  New-Item -ItemType Directory -Path $HomeDir -Force | Out-Null
+  [IO.File]::WriteAllBytes($file, [Text.Encoding]::UTF8.GetBytes((@{ schema = 1; channel = $Selected } | ConvertTo-Json -Compress)))
+}
+
+# An acceptance run names the build to install as stable, before the pin moves to it, in STORYTREE_ACCEPTANCE_VERSION;
+# the published one-liner never sets it.
+function Get-StorytreeRelease([string]$SelectedChannel, [scriptblock]$Fetch, [string]$AcceptanceVersion) {
+  $api = 'https://api.github.com/repos/storytree-ai/storytree/releases'
+  if ($AcceptanceVersion) {
+    if ($SelectedChannel -cne 'stable') { throw 'An acceptance version installs as stable; this installation uses alpha.' }
+    if ($AcceptanceVersion -cnotmatch '^0\.3\.(0|[1-9]\d*)$') { throw 'STORYTREE_ACCEPTANCE_VERSION must name a 0.3.<n> release.' }
+    $version = $AcceptanceVersion
+  } else {
+    if ($SelectedChannel -ceq 'alpha') { return (& $Fetch "$api/latest") }
+    if ($SelectedChannel -cne 'stable') { throw 'Unknown release channel.' }
+    $pin = & $Fetch 'https://raw.githubusercontent.com/storytree-ai/storytree/release-channel-stable/latest.yml'
+    if ($pin.schema -ne 1 -or $pin.channel -cne 'stable' -or $pin.version -cnotmatch '^0\.3\.(0|[1-9]\d*)$') { throw 'The stable release pin is invalid. No alpha release was selected; retry after the stable pin is repaired.' }
+    $version = $pin.version
+  }
+  $release = & $Fetch "$api/tags/v$version"
+  if ($release.tag_name -cne "v$version") { throw "The stable release does not match $version." }
+  return $release
+}
+
+function Get-StorytreeArchitecture([string]$ProcessArchitecture, [string]$NativeArchitecture) {
+  $native = if ($NativeArchitecture) { $NativeArchitecture } else { $ProcessArchitecture }
+  switch ($native.ToUpperInvariant()) {
+    'AMD64' { return 'x64' }
+    'ARM64' { return 'arm64' }
+    default { throw "unsupported Windows architecture '$native'; storytree requires Windows x64 or arm64" }
+  }
+}
+
+function Add-StorytreePath([string]$Current, [string]$Entry) {
+  foreach ($part in ($Current -split ';')) {
+    if ($part.Trim().TrimEnd('\') -ieq $Entry.TrimEnd('\')) { return $Current }
+  }
+  if (-not $Current) { return $Entry }
+  return $Current.TrimEnd(';') + ';' + $Entry
+}
+
+# What the one-liner says once the app is open. It asks nothing (ADR-1162 D1): connecting agents and adding a project are
+# the app's first run. Its first suggestion is opening storytree, with the command that does it (D2).
+function Get-StorytreeOpenedLines([string]$InstallDir, $Report) {
+  $app = (Join-Path $InstallDir 'storytree-0.3.exe').Replace("'", "''")
+  $lines = @("storytree is installed, and its app is open. To open it again, use the Start menu, or run: & '$app'")
+  $lines += 'In the app, connect your coding agents and, when you want one, add a project.'
+  if ($Report.command.status -eq 'conflict') {
+    $lines += "An existing storytree command was preserved: $($Report.command.conflict)"
+    $lines += "Run this installation explicitly: & '$($Report.tools.node)' '$($Report.tools.cli)'"
+  } else {
+    $lines += 'The storytree command is available in a fresh Windows terminal.'
+    foreach ($older in @($Report.command.replaced)) {
+      if ($older) { $lines += "An older storytree command now runs this installation: $older" }
+    }
+  }
+  return $lines
+}
+
+function Invoke-StorytreeDelivery([string]$InstallDir, [string]$Architecture, [hashtable]$Operations) {
+  $step = 'inspect'
+  try {
+    if (-not (& $Operations.Probe $InstallDir $Architecture)) {
+      $step = 'download'; & $Operations.Stage $step
+      $installer = & $Operations.Download $Architecture
+      & $Operations.Persist
+      $step = 'install'; & $Operations.Stage $step
+      & $Operations.Install $installer $InstallDir
+      $step = 'verify'; & $Operations.Stage $step
+      if (-not (& $Operations.Probe $InstallDir $Architecture)) { throw 'the installed app or its tool payload is incomplete' }
+    } else { & $Operations.Persist }
+    $step = 'finish'; & $Operations.Stage $step
+    $report = & $Operations.Finish $InstallDir $Architecture
+    $step = 'path'; & $Operations.Stage $step
+    & $Operations.Path $report
+    return @{ state = 'ready'; report = $report }
+  } catch {
+    throw "storytree delivery failed at ${step}: $($_.Exception.Message). Retry: run the same delivery command again. Your projects and agent settings have not been replaced."
+  }
+}
+
+function Get-StorytreeAsset($Release, [string]$Name) {
+  $assets = @($Release.assets | Where-Object { $_.name -ceq $Name })
+  if ($assets.Count -ne 1) { throw "release is missing a unique $Name asset" }
+  $url = [string]$assets[0].browser_download_url
+  $prefix = "https://github.com/storytree-ai/storytree/releases/download/$($Release.tag_name)/"
+  if (-not $url.StartsWith($prefix, [StringComparison]::Ordinal)) { throw 'unexpected release asset location' }
+  return $url
+}
+
+# Each architecture has its own installer; a release from before the split names one that carries both.
+function Get-StorytreeWindowsEntry($Manifest, [string]$Architecture) {
+  if ($Manifest.installers) { return $Manifest.installers.$Architecture }
+  return $Manifest.installer
+}
+
+# A release whose Windows build failed names the last good installers, with that build's version (4.6). Its own release,
+# which built them, is read instead, once: that release names its installers as its own.
+function Get-StorytreeWindowsBuild($Release, $Manifest, [string]$Architecture, [scriptblock]$Fetch, [scriptblock]$ReadManifest) {
+  $carried = [string](Get-StorytreeWindowsEntry $Manifest $Architecture).version
+  if (-not $carried -or "v$carried" -ceq $Release.tag_name) { return @{ release = $Release; manifest = $Manifest } }
+  if ($carried -cnotmatch '^0\.3\.(0|[1-9]\d*)$') { throw 'release manifest names no valid Windows build' }
+  $earlier = & $Fetch "https://api.github.com/repos/storytree-ai/storytree/releases/tags/v$carried"
+  if ($earlier.tag_name -cne "v$carried") { throw "the Windows build $carried was not found" }
+  $earlierManifest = & $ReadManifest (Get-StorytreeAsset $earlier 'storytree-delivery.json')
+  $again = [string](Get-StorytreeWindowsEntry $earlierManifest $Architecture).version
+  if ($again -and $again -cne $carried) { throw "release $carried does not name its own Windows build" }
+  return @{ release = $earlier; manifest = $earlierManifest }
+}
+
+function Select-StorytreeInstaller($Release, $Manifest, [string]$Architecture, [string]$SelectedChannel = 'alpha') {
+  if ($Release.draft -or $Release.prerelease -or $Release.tag_name -notmatch '^v\d+\.\d+\.\d+$') { throw 'release is not a stable storytree version' }
+  $version = $Release.tag_name.Substring(1)
+  if ($Manifest.schema -ne 1 -or $Manifest.version -cne $version -or $Architecture -notin $Manifest.architectures) { throw 'release manifest version or architecture does not match' }
+  if ($SelectedChannel -ceq 'stable' -and $Manifest.channelSchema -ne 1) { throw 'The pinned installer cannot preserve the stable release channel. Pin a channel-aware build before installing.' }
+  $entry = Get-StorytreeWindowsEntry $Manifest $Architecture
+  $name = if ($Manifest.installers) { "storytree-0.3-$version-windows-$Architecture-setup.exe" } else { "storytree-0.3-$version-setup.exe" }
+  if (-not $entry -or $entry.name -cne $name -or $entry.sha256 -notmatch '^[a-fA-F0-9]{64}$') { throw "release manifest has no valid installer checksum for Windows $Architecture" }
+  return @{ url = (Get-StorytreeAsset $Release $name); sha256 = $entry.sha256; name = $name }
+}
+
+function Assert-StorytreeDownload([string]$File, [string]$Expected) {
+  if ((Get-FileHash -LiteralPath $File -Algorithm SHA256).Hash -ine $Expected) { throw 'download checksum does not match the release; the installer was not run' }
+}
+
+$StorytreeStages = @{
+  download = 'Finding the storytree release for this installation channel.'
+  install = 'Installing the app silently. This may take a few minutes; a timer shows it is still working.'
+  verify = 'Checking the installed app and its bundled tools.'
+  finish = 'Opening the app and starting its database.'
+  path = 'Adding the storytree command to your PATH.'
+}
+
+function Get-StorytreeProgress([long]$Done, [long]$Total, [double]$Seconds) {
+  $rate = if ($Seconds -gt 0) { $Done / $Seconds } else { 0 }
+  $speed = '{0:N1} MB/s' -f ($rate / 1MB)
+  if ($Total -le 0) { return @{ percent = -1; status = ('{0:N1} MB, {1}' -f ($Done / 1MB), $speed) } }
+  $left = if ($rate -gt 0 -and $Seconds -ge 1) { [TimeSpan]::FromSeconds([math]::Ceiling(($Total - $Done) / $rate)) } else { $null }
+  $eta = if ($null -eq $left) { 'estimating time left' } elseif ($left.TotalMinutes -ge 1) { "about $([int][math]::Floor($left.TotalMinutes)) min $($left.Seconds) s left" } else { "about $($left.Seconds) s left" }
+  return @{ percent = [int][math]::Floor(100 * $Done / $Total); status = ('{0:N1} MB of {1:N1} MB, {2}, {3}' -f ($Done / 1MB), ($Total / 1MB), $speed, $eta) }
+}
+
+# Invoke-WebRequest's own progress bar slows Windows PowerShell 5.1's download many times over, so copy by hand
+# and report at most four times a second.
+function Copy-StorytreeStream([IO.Stream]$Source, [IO.Stream]$Target, [long]$Total, [scriptblock]$Report) {
+  $buffer = New-Object byte[] 262144
+  $clock = [Diagnostics.Stopwatch]::StartNew()
+  $done = [long]0
+  $shown = [long]-250
+  while (($read = $Source.Read($buffer, 0, $buffer.Length)) -gt 0) {
+    $Target.Write($buffer, 0, $read)
+    $done += $read
+    if ($clock.ElapsedMilliseconds - $shown -ge 250) { $shown = $clock.ElapsedMilliseconds; & $Report (Get-StorytreeProgress $done $Total $clock.Elapsed.TotalSeconds) }
+  }
+  & $Report (Get-StorytreeProgress $done $Total $clock.Elapsed.TotalSeconds)
+  if ($Total -gt 0 -and $done -ne $Total) { throw "the download ended early at $done of $Total bytes" }
+  return $clock.Elapsed
+}
+
+function Save-StorytreeFile([string]$Url, [string]$File) {
+  $request = [Net.HttpWebRequest]::Create($Url)
+  $request.UserAgent = 'storytree-delivery'
+  $response = $request.GetResponse()
+  try {
+    $source = $response.GetResponseStream()
+    $target = [IO.File]::Create($File)
+    try {
+      $took = Copy-StorytreeStream $source $target $response.ContentLength {
+        param($Progress)
+        Write-Progress -Activity 'Downloading storytree' -Status $Progress.status -PercentComplete $Progress.percent
+      }
+    } finally { $target.Dispose(); $source.Dispose() }
+  } finally { $response.Dispose(); Write-Progress -Activity 'Downloading storytree' -Completed }
+  Write-Host ('Downloaded {0:N1} MB in {1:N0} s.' -f ((Get-Item -LiteralPath $File).Length / 1MB), $took.TotalSeconds)
+}
+
+function Wait-StorytreeProcess([Diagnostics.Process]$Process, [scriptblock]$Report) {
+  $clock = [Diagnostics.Stopwatch]::StartNew()
+  while (-not $Process.WaitForExit(1000)) { & $Report $clock.Elapsed }
+  $Process.WaitForExit()
+  return $clock.Elapsed
+}
+
+if ($LibraryOnly) { return }
+
+$downloadDir = $null
+try {
+  if ($env:OS -ne 'Windows_NT') { throw 'This command delivers the Windows app. Use a Windows x64 or arm64 terminal.' }
+  $architecture = Get-StorytreeArchitecture $env:PROCESSOR_ARCHITECTURE $env:PROCESSOR_ARCHITEW6432
+  $storytreeHome = if ($env:STORYTREE_HOME) { [IO.Path]::GetFullPath($env:STORYTREE_HOME) } else { Join-Path $env:USERPROFILE '.storytree\0.3' }
+  $installDir = Join-Path $env:LOCALAPPDATA 'Programs\storytree-0.3'
+  $recordFile = Join-Path $storytreeHome 'delivery.json'
+  if (Test-Path -LiteralPath $recordFile) {
+    # Only our record selects a custom installation; app.json may belong to a developer checkout.
+    $record = Get-Content -LiteralPath $recordFile -Raw | ConvertFrom-Json
+    if ($record.schema -ne 1 -or -not [IO.Path]::IsPathRooted($record.installDir)) { throw 'Invalid delivery record. Keep it for diagnosis and check the installed app before retrying.' }
+    $installDir = $record.installDir
+  }
+  $selectedChannel = Resolve-StorytreeChannel $storytreeHome $installDir $Channel
+  # Expand environment variables without rewriting their original registry text.
+  $userPath = [Environment]::GetEnvironmentVariable('Path', 'User')
+  $machinePath = [Environment]::GetEnvironmentVariable('Path', 'Machine')
+  $env:Path = [Environment]::ExpandEnvironmentVariables("$($env:Path);$machinePath;$userPath")
+  $operations = @{
+    Stage = { param($Step) Write-Host $StorytreeStages[$Step] }
+    Probe = {
+      param($Dir, $Arch)
+      $node = Join-Path $Dir 'resources\agent-tools\node.exe'
+      $helper = Join-Path $Dir 'resources\agent-tools\storytree-deliver.mjs'
+      if (-not (Test-Path -LiteralPath $node) -or -not (Test-Path -LiteralPath $helper)) {
+        if (Test-Path -LiteralPath (Join-Path $Dir 'storytree-0.3.exe')) {
+          throw "The app at '$Dir' has no complete bundled tools. Open it and let its ordinary release update finish, or repair it with its downloaded NSIS installer, then retry. Delivery will not overwrite the existing app."
+        }
+        return $false
+      }
+      & $node $helper inspect $Dir $Arch 2>$null | Out-Null
+      if ($LASTEXITCODE -ne 0) {
+        # An existing payload that no longer verifies is not permission to replace it silently.
+        throw "The existing installation at '$Dir' failed verification. Open it to check its error or run its downloaded NSIS installer to repair it, then retry."
+      }
+      return $true
+    }
+    Download = {
+      param($Arch)
+      [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
+      $headers = @{ 'User-Agent' = 'storytree-delivery'; 'Accept' = 'application/vnd.github+json' }
+      $release = Get-StorytreeRelease $selectedChannel { param($Url) Invoke-RestMethod $Url -Headers $headers } $env:STORYTREE_ACCEPTANCE_VERSION
+      $manifestUrl = Get-StorytreeAsset $release 'storytree-delivery.json'
+      $manifest = Invoke-RestMethod $manifestUrl
+      $build = Get-StorytreeWindowsBuild $release $manifest $Arch { param($Url) Invoke-RestMethod $Url -Headers $headers } { param($Url) Invoke-RestMethod $Url }
+      $asset = Select-StorytreeInstaller $build.release $build.manifest $Arch $selectedChannel
+      $script:downloadDir = Join-Path ([IO.Path]::GetTempPath()) ('storytree-delivery-' + [Guid]::NewGuid().ToString('N'))
+      New-Item -ItemType Directory -Path $script:downloadDir | Out-Null
+      $file = Join-Path $script:downloadDir $asset.name
+      Write-Host "Downloading storytree for Windows $Arch. The installer is unsigned; Windows may ask whether to run it."
+      Save-StorytreeFile $asset.url "$file.download"
+      Assert-StorytreeDownload "$file.download" $asset.sha256
+      Move-Item -LiteralPath "$file.download" -Destination $file
+      return $file
+    }
+    Persist = { Save-StorytreeChannel $storytreeHome $selectedChannel }
+    Install = {
+      param($Installer, $Dir)
+      # NSIS /D must be last and unquoted, even when it contains spaces.
+      $process = Start-Process -FilePath $Installer -ArgumentList "/S /D=$Dir" -PassThru
+      $null = $process.Handle # Windows PowerShell 5.1 loses the exit code unless the handle is held from the start.
+      $took = Wait-StorytreeProcess $process {
+        param($Elapsed)
+        Write-Progress -Activity 'Installing storytree' -Status ('Still installing: {0:mm\:ss} so far. This may take a few minutes.' -f $Elapsed)
+      }
+      Write-Progress -Activity 'Installing storytree' -Completed
+      if ($process.ExitCode -ne 0) { throw "NSIS installer exited with code $($process.ExitCode)" }
+      Write-Host ('Installed in {0:N0} s.' -f $took.TotalSeconds)
+    }
+    Finish = {
+      param($Dir, $Arch)
+      $node = Join-Path $Dir 'resources\agent-tools\node.exe'
+      $helper = Join-Path $Dir 'resources\agent-tools\storytree-deliver.mjs'
+      $result = & $node $helper finish $Dir $Arch
+      if ($LASTEXITCODE -ne 0) { throw 'The app could not be opened or its database did not become ready. Read the app error above.' }
+      return ($result | ConvertFrom-Json)
+    }
+    Path = {
+      param($Report)
+      if ($Report.command.status -eq 'conflict') { return }
+      $entry = [string]$Report.command.pathEntry
+      $current = [Environment]::GetEnvironmentVariable('Path', 'User')
+      $next = Add-StorytreePath $current $entry
+      if ($next -cne $current) {
+        [Environment]::SetEnvironmentVariable('Path', $next, 'User')
+        # Notify Explorer so a newly opened terminal inherits the persisted PATH.
+        if (-not ('StorytreeDelivery.Environment' -as [type])) {
+          Add-Type -TypeDefinition @'
+using System;
+using System.Runtime.InteropServices;
+namespace StorytreeDelivery {
+  public static class Environment {
+    [DllImport("user32.dll", CharSet = CharSet.Auto, SetLastError = true)]
+    public static extern IntPtr SendMessageTimeout(IntPtr hwnd, uint msg, UIntPtr wparam, string lparam, uint flags, uint timeout, out UIntPtr result);
+  }
+}
+'@
+        }
+        $result = [UIntPtr]::Zero
+        [StorytreeDelivery.Environment]::SendMessageTimeout([IntPtr]0xffff, 0x1a, [UIntPtr]::Zero, 'Environment', 2, 5000, [ref]$result) | Out-Null
+      }
+      $env:Path = Add-StorytreePath $env:Path $entry
+    }
+  }
+  $answer = Invoke-StorytreeDelivery $installDir $architecture $operations
+  foreach ($line in (Get-StorytreeOpenedLines $installDir $answer.report)) { Write-Host $line }
+} catch {
+  Write-Error "$_ Retry: run the same delivery command again after resolving the named step."
+  exit 1
+} finally {
+  if ($script:downloadDir -and (Test-Path -LiteralPath $script:downloadDir)) { Remove-Item -LiteralPath $script:downloadDir -Recurse -Force }
+}

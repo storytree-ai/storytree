@@ -1,0 +1,27 @@
+{
+  "name": "@storytree/agent-pool",
+  "private": true,
+  "type": "module",
+  "description": "Agent runner (story_b2051c0f7372, ADR-1071 D3), once the dev loop's agent pool (ADR-1066 D2 G): the lane runner and its engine, the dispatcher, the watcher that lands handed-over pull requests, configured by agent-pool.json at the repo root, and the Claude Code mod in src/claude-code-mod (ADR-1076 D5), the plugin the runner gives its Claude lanes.",
+  "dependencies": {
+    "@storytree/library": "workspace:*",
+    "@storytree/project-and-caller": "workspace:*",
+    "@storytree/session-management": "workspace:*"
+  },
+  "exports": {
+    "./claude-code-mod": "./src/claude-code-mod/index.mjs",
+    "./feed": "./src/feed.mjs",
+    "./launch": "./src/launch.mjs",
+    "./runner": "./src/runner.mjs",
+    "./watch": "./src/watch.mjs"
+  },
+  "scripts": {
+    "typecheck": "tsc -p ."
+  },
+  "devDependencies": {
+    "@storytree/test-waits": "workspace:*",
+    "@types/node": "^24.13.6",
+    "tsx": "^4.23.15",
+    "typescript": "~7.0.2"
+  }
+}

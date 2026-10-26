@@ -1,0 +1,12 @@
+{
+  "session_id": "b4f8eff5-05ab-4ef2-b070-78375e2a5deb",
+  "transcript_path": "C:\\Users\\dev\\.claude\\projects\\C--Users-dev-projects-site\\b4f8eff5-05ab-4ef2-b070-78375e2a5deb.jsonl",
+  "cwd": "C:\\Users\\dev\\projects\\site",
+  "prompt_id": "82778869-b8de-4d8a-a030-74b61dd2107c",
+  "permission_mode": "default",
+  "hook_event_name": "Stop",
+  "stop_hook_active": false,
+  "last_assistant_message": "done",
+  "background_tasks": [],
+  "session_crons": []
+}

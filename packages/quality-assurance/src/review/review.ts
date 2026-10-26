@@ -1,0 +1,875 @@
+/**
+ * Capability 2 · Change review and capability 4 · Review loop bound (ADR-0956 D1, D7, ADR-1120). What the
+ * change-reviewer reads, the brief, and what it returns, taken into the QA ledger; and the loop of reviews of
+ * one change, bounded at three.
+ *
+ * - A change is one increment's branch, named by the increment. Each review of it is one iteration: a brief
+ *   issued, then the reviewer's return taken. A brief not yet taken is replaced by the next one issued.
+ * - The brief holds the branch's diff against origin/main, its uncommitted work included (2.6), or in a repository with no
+ *   origin/main against its local default branch, which the brief names (2.7), read from the worktree on the branch the increment
+ *   was claimed on wherever the brief runs, and refused when no worktree is on it (2.8), every contract of the capabilities the increment
+ *   names, and every live check; never the increment's body or the implementer's reasoning (contract 2.1).
+ *   Each contract is listed under its story and capability, and every capability named is listed even with no
+ *   contracts, so two stories' contracts sharing a number both appear, each with its story (2.5).
+ *   A contract the increment changes pending its merge (ADR-0966 D1) is briefed as the change leaves it: in
+ *   its pending text, marked pending, and one it retires listed as retired with the reason, not answered; either is listed
+ *   once, its plan change not again among the pending plan changes (2.4).
+ *   Every change the increment makes to the plan pending its merge is listed too, so a plan-only change, whose diff touches no file,
+ *   is briefed with those changes as the thing under review, in the package `plan`, where a hit names the record as its file;
+ *   with neither a diff nor a pending change the brief is refused (2.10).
+ *   From the second review on it also holds each earlier hit with the implementer's answer, and the
+ *   rejections the reviewer must judge (4.2). A brief read from the change's worktree then holds only the diff since the last
+ *   review taken, naming it, unless that review's commit has left the branch's history or the branch has taken in its default
+ *   branch since, when it holds the whole diff again (4.5, ADR-1120 D2).
+ * - A return is taken whole or not at all: it answers every check and contract in its brief, and judges every
+ *   rejection, and nothing else (2.2, 4.2), and names the review it answers, so a return left from an earlier
+ *   review, as one read from another folder's /tmp may be, is refused (2.9).
+ * - A finding stands while it is unanswered, or rejected for a reason no later review accepted (4.1). With
+ *   one standing after the third review, the fourth brief is refused, naming the arc for the session's
+ *   question (4.3, ADR-1120 D1); the refusal itself writes nothing. The three are the branch's: a brief read from a worktree
+ *   does not count a review whose commit its default branch has taken in, an earlier merged pull request's of the same increment (4.6).
+ * - Capability 5 · Graduation (ADR-0956 D5): a check graduated whole leaves the brief, and one graduated in part stays in the brief with the part Architecture checks
+ *   now enforces named (5.2), and what Architecture checks' graduated checks find on the change is taken with the return,
+ *   recorded as theirs under the check each graduated from (5.3).
+ * - Review depth follows the change's own risk tier (ADR-1144 D1), read from its whole diff and the package graph of its
+ *   worktree, or, for a diff given by hand, from the increment's written risk line: a low-tier change gets a light pass,
+ *   judged from the diff alone; medium and high, or a change whose tier was not read, the full brief (2.11).
+ * - The brief lists each guardrail a change sets off (trigger `change`, question_4cec0ba23052) of the capabilities the increment
+ *   names and of their stories, each story's once, as the increment's pending plan changes leave them; the return answers each
+ *   passed or failed, with its pictures, and a failed one stands until a later review passes it (2.12, ADR-1148).
+ * - The return says of each contract it finds met whether the change touches it, and one the change adds or rewords pending its merge is
+ *   touched; a touched contract answered met names the test covering the changed behaviour, or the changed line no test
+ *   covers, which is taken as a hit asking for one (2.13, ADR-1153 D2).
+ * - A brief read from a worktree lists each test the diff it reviews adds, and whether the worktree's saved red runs
+ *   (.pgtest/red-runs.jsonl, which `pnpm test` keeps: packages/dev-loop/src/red-runs.mjs) name it failing, by its name or its
+ *   file failing to load; taking the return records a hit at each one none names, asking for its red, and re-runs nothing (2.14, ADR-1153 D3).
+ *   A red run any worktree of the same clone saved counts too when it was saved at a commit the worktree's HEAD carries: `pnpm test`
+ *   also keeps each in the clone's shared copy, so a lane resuming a pushed branch in a fresh worktree keeps its reds (2.15).
+ */
+import { execFileSync } from "node:child_process";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
+import type { Library, PendingChange, Storytree } from "@storytree/library";
+
+import { checks as liveChecks, type Graduated } from "../checks/checks.js";
+import type { GraduatedFindings } from "../graduation/graduation.js";
+import { HIT_COLUMNS, hitRow, inTransaction, ledgerDatabase, writeReview, type HitRecord, type HitRow } from "../ledger/ledger.js";
+import { PackageGraph, readChange, readPackages, riskLineText, type ChangeReading } from "../risk/risk.js";
+
+/** The reviews of one change that may run while a finding still stands (ADR-1120 D1, replacing ADR-0956 D7's ten). */
+export const REVIEW_LIMIT = 3;
+
+/** The check a hit is recorded under when a contract the change touches is answered met with no test covering the changed behaviour (contract 2.13, ADR-1153 D2). */
+export const COVERING_TEST = "covering-test";
+
+/** The check a hit is recorded under when a test the change adds has no saved red run naming it failing (contract 2.14, ADR-1153 D3). */
+export const RED_RUN = "red-run";
+
+/** One review's brief: everything the change-reviewer reads. */
+export interface Brief {
+  readonly project: string;
+  /** The change: the increment whose branch it is. */
+  readonly change: string;
+  readonly iteration: number;
+  /** The branch's diff against origin/main, or, from the second review on, only what changed since the review `since` names (contract 4.5). */
+  readonly diff: string;
+  /** The commits a brief read from a worktree read: the branch's, and where it parted from its default branch (contract 4.5). */
+  readonly mark?: Mark;
+  /** The earlier review whose commit the diff is read since, when it is not the whole change (contract 4.5). */
+  readonly since?: { readonly review: number; readonly head: string };
+  /** The branch the diff was read against, when it was read from a worktree: `local` when the repository has no origin/main (contract 2.7). */
+  readonly base?: Base;
+  /** The change's risk line, read from its whole diff, or the increment's written one for a diff given by hand; absent when neither was read (contract 2.11). */
+  readonly risk?: ChangeReading;
+  /** How deep the review reads: `light` at low tier, judged from the diff alone, else `full` (contract 2.11). Absent from briefs issued before 2.11. */
+  readonly pass?: "light" | "full";
+  /** The packages the diff touches (`root` for files outside any package), and `plan` when the increment changes the plan pending its merge (contract 2.10). */
+  readonly packages: readonly string[];
+  /** Each capability the increment names, with its story, in story then capability order (contract 2.5). Absent from briefs issued before 2.5. */
+  readonly capabilities?: readonly { readonly id: string; readonly title: string; readonly story: { readonly id: string; readonly title: string } }[];
+  /**
+   * Each contract to judge, in its pending text when the increment changes it pending its merge (`pending`, contract 2.4),
+   * and the capability it belongs to (contract 2.5; absent from briefs issued before it).
+   */
+  readonly contracts: readonly { readonly id: string; readonly title: string; readonly description?: string; readonly pending?: true; readonly capability?: string }[];
+  /** The contracts the increment retires pending its merge, with the reason: not judged (contract 2.4). Absent from briefs issued before 2.4. */
+  readonly retired?: readonly { readonly id: string; readonly title: string; readonly reason: string }[];
+  /**
+   * Each change the increment makes to the plan pending its merge, by the record's live title: the fields it sets, or its retirement
+   * with the reason (contract 2.10). Absent when it makes none, and from briefs issued before 2.10.
+   */
+  readonly plan?: readonly PlanEntry[];
+  /** Each live check not graduated whole; one graduated in part names the parts Architecture checks now enforces, which the reviewer does not judge (contract 5.2). */
+  readonly checks: readonly { readonly id: string; readonly title: string; readonly question: string; readonly graduated?: readonly Graduated[] }[];
+  /**
+   * Each guardrail the change sets off, of a capability the increment names or of its story, named `<record>#<n>`, its place in
+   * that record's list: the reviewer runs each and answers it passed or failed with pictures (contract 2.12). Absent when none.
+   */
+  readonly guardrails?: readonly BriefGuardrail[];
+  /**
+   * Each test the reviewed diff adds, at its line, and whether a saved red run of the worktree names it failing (contract 2.14).
+   * Absent when the diff was given by hand, which has no worktree's red runs to read, and from briefs issued before 2.14.
+   */
+  readonly reds?: readonly BriefRed[];
+  /** Each hit earlier reviews of this change made, with the implementer's answer. */
+  readonly earlier: readonly HitRow[];
+  /** The earlier hits rejected for a reason no review has accepted yet: the return judges each. */
+  readonly judge: readonly number[];
+}
+
+/** One test the change adds, as the brief lists it: its file and line, its title, and whether a saved red run names it failing (contract 2.14). */
+export interface BriefRed {
+  readonly file: string;
+  readonly line: number;
+  readonly test: string;
+  readonly red: boolean;
+}
+
+/** One guardrail as the brief lists it: its name, the story or capability that carries it, and the check to run (contract 2.12). */
+export interface BriefGuardrail {
+  readonly id: string;
+  readonly on: { readonly id: string; readonly title: string };
+  readonly check: string;
+}
+
+/** One pending plan change as the brief lists it. */
+export type PlanEntry =
+  | { readonly record: string; readonly type: string; readonly title: string; readonly after: Readonly<Record<string, unknown>> }
+  | { readonly record: string; readonly type: string; readonly title: string; readonly retire: string };
+
+/** The branch a change's diff is read against; `local` when it is the repository's own default branch, for want of an origin/main. */
+export interface Base {
+  readonly ref: string;
+  readonly local?: true;
+}
+
+/** Where a change stood when a brief read it: the branch's commit, and the commit it parted from its default branch at. */
+export interface Mark {
+  readonly head: string;
+  readonly from: string;
+}
+
+/** A change read from its worktree: its whole diff, the branch it was read against and its mark, and how to read what changed since an earlier mark. */
+export interface WorktreeChange {
+  readonly diff: string;
+  readonly base?: Base;
+  readonly mark?: Mark;
+  /** The worktree's folder, whose package graph the change's risk tier is read against (contract 2.11). */
+  readonly root?: string;
+  /** The diff from `mark`'s commit to the worktree, or undefined when that commit is not in the branch's history. */
+  since(mark: Mark): string | undefined;
+  /** Whether `mark`'s commit is in the default branch's history, short of where this branch parted from it: an earlier, merged pull request's (contract 4.6). */
+  landed(mark: Mark): boolean;
+}
+
+/** What the change-reviewer returns for one brief. */
+export interface ReviewReturn {
+  /** The review it answers: its brief's number, so a return left from an earlier review is never taken for this one (contract 2.9). */
+  readonly review: number;
+  readonly checks: readonly { readonly check: string; readonly tripped: boolean; readonly hits?: readonly { readonly file: string; readonly line: number; readonly found: string }[] }[];
+  /**
+   * Each contract: met or not, why not, and whether the change touches it; a touched one answered met names its covering test
+   * (`<file> › <title>`), or `at`, the changed line no test covers, which is taken as a hit asking for one (contract 2.13).
+   */
+  readonly contracts: readonly { readonly contract: string; readonly met: boolean; readonly why?: string; readonly touched?: boolean; readonly test?: string; readonly at?: { readonly file: string; readonly line: number } }[];
+  readonly rejections?: readonly { readonly hit: number; readonly accepted: boolean; readonly why?: string }[];
+  /** Each guardrail in the brief, run: passed or failed, with why when failed, and the pictures it took (contract 2.12). */
+  readonly guardrails?: readonly { readonly guardrail: string; readonly passed: boolean; readonly why?: string; readonly pictures: readonly string[] }[];
+}
+
+/** A contract a review found not met, with why. */
+export interface Unmet {
+  readonly contract: string;
+  readonly why: string;
+}
+
+/** A guardrail a review found failed, with why (contract 2.12). */
+export interface Failed {
+  readonly guardrail: string;
+  readonly why: string;
+}
+
+/** A return taken: the review's name in the ledger, its hits, the contracts it found unmet, and what stands now. */
+export interface Taken {
+  readonly review: string;
+  readonly hits: readonly HitRow[];
+  readonly unmet: readonly Unmet[];
+  /** The guardrails it found failed (contract 2.12). */
+  readonly failed: readonly Failed[];
+  readonly standing: readonly HitRow[];
+  /** Why Architecture checks' graduated checks did not run on the change, when they did not: none of their findings is recorded. */
+  readonly graduatedNotRun?: string;
+}
+
+/** The review loop on one Postgres server, in the QA ledger's database. */
+export interface Reviews {
+  /**
+   * Issue the next brief for `change` (an increment of `library`'s project), its diff given, with the branch it was read against
+   * when known, or read from its worktree, when from the second review on only what changed since the last review taken is
+   * briefed (contract 4.5); refused after the third with a finding standing.
+   */
+  brief(library: Library, change: string, diff: string | WorktreeChange, base?: Base): Promise<Brief>;
+  /**
+   * Take the reviewer's return on `change`'s brief awaiting one, or refuse it naming what it gets wrong, writing nothing.
+   * What Architecture checks' graduated checks found on the change, when given, is recorded with it as theirs (contract 5.3).
+   */
+  take(project: string, change: string, review: ReviewReturn, graduated?: GraduatedFindings): Promise<Taken>;
+  /** `change`'s standing findings, oldest first: none, with no contract `unmet`, means it is ready for the gate. */
+  standing(project: string, change: string): Promise<HitRow[]>;
+  /** The contracts the latest review taken on `change` found not met: each stands until a later review finds it met. */
+  unmet(project: string, change: string): Promise<Unmet[]>;
+  /** The guardrails the latest review taken on `change` found failed: each stands until a later review passes it (contract 2.12). */
+  failed(project: string, change: string): Promise<Failed[]>;
+}
+
+/** Open the review loop on `server`'s connection. */
+export async function openReviews(server: Pick<Storytree, "ownDatabase">): Promise<Reviews> {
+  return new PgReviews(await ledgerDatabase(server));
+}
+
+/** The package a review of an increment's pending plan changes runs in: a hit on one names its record as the file (contract 2.10). */
+const PLAN_PACKAGE = "plan";
+
+/** The package a hit in `brief`'s change is in: `plan` for a record the change edits or retires pending its merge, else the file's. */
+function hitPackage(brief: Brief, file: string): string {
+  return (brief.plan ?? []).some(({ record }) => record === file) ? PLAN_PACKAGE : packageOf(file);
+}
+
+/**
+ * The package a repository path belongs to: `packages/<name>/…` and `apps/<name>/…` name theirs, as `plugins/<name>/…` does in
+ * a factory checkout (contract 2.16); anything else is `root`.
+ */
+export function packageOf(file: string): string {
+  const match = /^(?:packages|apps|plugins)\/([^/]+)\//.exec(file.replace(/\\/g, "/"));
+  return match?.[1] ?? "root";
+}
+
+/** The packages a unified diff touches, in name order. */
+export function diffPackages(diff: string): string[] {
+  const files = [...diff.matchAll(/^diff --git a\/\S+ b\/(\S+)$/gm)].map((match) => match[1]!);
+  return [...new Set(files.map(packageOf))].sort();
+}
+
+const STANDING = "(answer IS NULL OR (answer = 'rejected' AND NOT accepted))";
+
+type Pool = Awaited<ReturnType<typeof ledgerDatabase>>;
+
+class PgReviews implements Reviews {
+  readonly #pool: Pool;
+
+  constructor(pool: Pool) {
+    this.#pool = pool;
+  }
+
+  async brief(library: Library, change: string, read: string | WorktreeChange, given?: Base): Promise<Brief> {
+    const diff = typeof read === "string" ? read : read.diff;
+    const base = typeof read === "string" ? given : read.base;
+    const increment = await library.get(change);
+    if (increment === null || increment.type !== "increment") throw new Error(`${change} is not an increment in project "${library.name}": a change is reviewed by its increment.`);
+    const pendingChanges = (increment.fields as { pending?: PendingChange[] }).pending ?? [];
+    const packages = [...diffPackages(diff), ...(pendingChanges.length === 0 ? [] : [PLAN_PACKAGE])].sort();
+    if (packages.length === 0) throw new Error("The diff touches no file and the increment changes nothing in the plan: commit the change, then review it.");
+    const project = library.name;
+    const { all, taken } = await this.#taken(project, change, typeof read === "string" ? undefined : read);
+    const earlier = await this.#hits(project, change, "TRUE");
+    const standing = earlier.filter((hit) => hit.answer === "unanswered" || (hit.answer === "rejected" && !hit.accepted));
+    const unmet = await this.unmet(project, change);
+    const failed = await this.failed(project, change);
+    const count = standing.length + unmet.length + failed.length;
+    if (taken >= REVIEW_LIMIT && count > 0) {
+      const arc = (increment.fields as { arc: string }).arc;
+      throw new Error([
+        `${taken} reviews of ${change}${typeof read === "string" ? "" : "'s branch"} have run and ${count} finding${count === 1 ? "" : "s"} still stand${count === 1 ? "s" : ""}, so no further review runs (ADR-1120 D1).`,
+        ...standing.map((hit) => `  hit ${hit.id}  ${hit.check}  ${hit.file}:${hit.line}  ${hit.answer === "rejected" ? `rejected: ${hit.reason}` : "unanswered"}`),
+        ...unmet.map(({ contract, why }) => `  contract ${contract} not met: ${why}`),
+        ...failed.map(({ guardrail, why }) => `  guardrail ${guardrail} failed: ${why}`),
+        `Raise an open question on arc ${arc} holding ${change}, in ADR-0944 D4's order: land what is green, push the rest and name its branch in the residue, raise the question, release the claims.`,
+      ].join("\n"));
+    }
+    const capabilities = new Set((increment.fields as { capabilities?: string[] }).capabilities ?? []);
+    const pending = new Map(pendingChanges.map((change) => [change.record, change]));
+    const byTitle = (a: { id: string; title: string }, b: { id: string; title: string }): number => a.title.localeCompare(b.title, "en", { numeric: true }) || a.id.localeCompare(b.id);
+    const named = (await library.list("contract"))
+      .map((contract) => ({ contract, change: pending.get(contract.id) }))
+      .map(({ contract, change }) => ({ contract, change, fields: { ...contract.fields, ...(change !== undefined && "after" in change ? change.after : {}) } as Record<string, unknown> }))
+      .filter(({ fields }) => capabilities.has(fields["capability"] as string));
+    const title = (record: Awaited<ReturnType<Library["get"]>>): string | undefined => (record?.fields as { title?: string } | undefined)?.title;
+    const listed = await Promise.all([...capabilities].map(async (id) => {
+      const capability = await library.get(id);
+      const storyId = (capability?.fields as { story?: string } | undefined)?.story ?? "";
+      const story = storyId === "" ? null : await library.get(storyId);
+      return { id, title: title(capability) ?? id, story: { id: storyId, title: title(story) ?? (storyId || "no story") } };
+    }));
+    listed.sort((a, b) => byTitle(a.story, b.story) || byTitle(a, b));
+    // Each story's guardrails once, then each capability's own, as the increment's pending plan changes leave them (contract 2.12).
+    const carriers = [...new Map(listed.flatMap(({ id, title, story }) => [[story.id, story.title], [id, title]] as const).filter(([id]) => id !== "")).entries()];
+    const guardrails = (await Promise.all(carriers.map(async ([id, carrierTitle]) => {
+      const change = pending.get(id);
+      const fields = { ...((await library.get(id))?.fields ?? {}), ...(change !== undefined && "after" in change ? change.after : {}) } as { guardrails?: { check: string; trigger: string }[] };
+      return (fields.guardrails ?? []).flatMap(({ check, trigger }, index) => (trigger === "change" ? [{ id: `${id}#${index + 1}`, on: { id, title: carrierTitle }, check }] : []));
+    }))).flat();
+    const order = new Map(listed.map(({ id }, index) => [id, index]));
+    const contracts = named
+      .filter(({ change }) => change === undefined || !("retire" in change))
+      .map(({ contract, change, fields }) => ({
+        id: contract.id, title: fields["title"] as string,
+        ...(typeof fields["description"] === "string" ? { description: fields["description"] } : {}),
+        ...(change === undefined ? {} : { pending: true as const }),
+        capability: fields["capability"] as string,
+      }))
+      .sort((a, b) => order.get(a.capability)! - order.get(b.capability)! || byTitle(a, b));
+    const retired = named
+      .flatMap(({ contract, change }) => (change !== undefined && "retire" in change ? [{ id: contract.id, title: contract.fields.title, reason: change.retire }] : []))
+      .sort(byTitle);
+    const plan = await Promise.all(pendingChanges.map(async (change): Promise<PlanEntry> => {
+      const head = { record: change.record, type: change.type, title: title(await library.get(change.record)) ?? change.record };
+      return "retire" in change ? { ...head, retire: change.retire } : { ...head, after: change.after };
+    }));
+    // From the second review on, only what changed since the last review taken, while its commit is in the branch's history and
+    // the branch has taken in nothing of its default branch since (contract 4.5).
+    const mark = typeof read === "string" ? undefined : read.mark;
+    const last = mark === undefined || taken === 0 ? undefined : await this.#lastTaken(project, change);
+    const newer = last?.mark === undefined || last.mark.from !== mark!.from ? undefined : (read as WorktreeChange).since(last.mark);
+    const since = newer === undefined ? undefined : { review: last!.iteration, head: last!.mark!.head };
+    // The tier is read on the whole change, whatever part of it this review reads (contract 2.11).
+    const risk = await changeRisk(library, increment, diff, typeof read === "string" ? undefined : read.root);
+    // The tests this review's diff adds, so a test checked in an earlier review is not asked for again (contract 2.14).
+    const reds = typeof read === "string" || read.root === undefined ? undefined : redsOf(newer ?? diff, read.root);
+    const brief: Brief = {
+      project, change, iteration: all + 1, diff: newer ?? diff, ...(base === undefined ? {} : { base }),
+      ...(mark === undefined ? {} : { mark }), ...(since === undefined ? {} : { since }),
+      ...(risk === undefined ? {} : { risk }), pass: risk?.tier === "low" ? "light" : "full", packages, capabilities: listed, contracts, retired,
+      ...(plan.length === 0 ? {} : { plan }),
+      ...(guardrails.length === 0 ? {} : { guardrails }),
+      ...(reds === undefined ? {} : { reds }),
+      checks: (await liveChecks(library)).filter(({ graduated }) => !(graduated ?? []).some(({ whole }) => whole)).map(({ id, title, question, graduated }) => ({ id, title, question, ...(graduated === undefined ? {} : { graduated }) })),
+      earlier,
+      judge: earlier.filter((hit) => hit.answer === "rejected" && !hit.accepted).map((hit) => hit.id),
+    };
+    await this.#pool.query(
+      `INSERT INTO quality_briefs (project, change, iteration, brief) VALUES ($1, $2, $3, $4)
+       ON CONFLICT (project, change, iteration) DO UPDATE SET brief = EXCLUDED.brief, at = now()`,
+      [project, change, brief.iteration, JSON.stringify(brief)],
+    );
+    return brief;
+  }
+
+  async take(project: string, change: string, review: ReviewReturn, graduated?: GraduatedFindings): Promise<Taken> {
+    const { rows } = await this.#pool.query<{ brief: Brief }>(
+      "SELECT brief FROM quality_briefs WHERE project = $1 AND change = $2 AND taken_at IS NULL ORDER BY iteration DESC LIMIT 1",
+      [project, change],
+    );
+    const brief = rows[0]?.brief;
+    if (brief === undefined) throw new Error(`There is no brief for ${change} awaiting a review's return: issue one first.`);
+    const problems = refusals(brief, review);
+    if (problems.length > 0) throw new Error(`The review's return for ${change} is refused and nothing is recorded:\n${problems.map((problem) => `  ${problem}`).join("\n")}`);
+    const name = `${change}#${brief.iteration}`;
+    const hits = await inTransaction(this.#pool, async (client) => {
+      const written = await writeReview(client, {
+        project, review: name, change, packages: brief.packages,
+        ran: [
+          ...review.checks.map(({ check, hits }) => ({ check, hits: (hits ?? []).map(({ file, line, found }) => ({ package: hitPackage(brief, file), file, line, found })) })),
+          ...coverage(brief, review),
+          ...redRuns(brief),
+          // A graduated check's trip outside the packages the brief's diff touches is not part of the change reviewed.
+          ...(graduated?.ran ? graduated.checks : []).map(({ check, hits }) => ({
+            check, foundBy: "graduated" as const,
+            hits: hits.map(({ file, line, found }) => ({ package: packageOf(file), file, line, found })).filter((hit) => brief.packages.includes(hit.package)),
+          })),
+        ],
+      });
+      for (const { hit } of (review.rejections ?? []).filter(({ accepted }) => accepted)) {
+        await client.query("UPDATE quality_hits SET accepted = true WHERE project = $1 AND id = $2", [project, hit]);
+      }
+      await client.query("UPDATE quality_briefs SET taken = $4, taken_at = now() WHERE project = $1 AND change = $2 AND iteration = $3", [project, change, brief.iteration, JSON.stringify(review)]);
+      return written;
+    });
+    return {
+      review: name,
+      hits,
+      unmet: unmetIn(review),
+      failed: failedIn(review),
+      standing: await this.standing(project, change),
+      ...(graduated !== undefined && !graduated.ran ? { graduatedNotRun: graduated.reason } : {}),
+    };
+  }
+
+  standing(project: string, change: string): Promise<HitRow[]> {
+    return this.#hits(project, change, STANDING);
+  }
+
+  async unmet(project: string, change: string): Promise<Unmet[]> {
+    const { rows } = await this.#pool.query<{ taken: ReviewReturn }>(
+      "SELECT taken FROM quality_briefs WHERE project = $1 AND change = $2 AND taken_at IS NOT NULL ORDER BY iteration DESC LIMIT 1",
+      [project, change],
+    );
+    return rows[0] === undefined ? [] : unmetIn(rows[0].taken);
+  }
+
+  async failed(project: string, change: string): Promise<Failed[]> {
+    const { rows } = await this.#pool.query<{ taken: ReviewReturn }>(
+      "SELECT taken FROM quality_briefs WHERE project = $1 AND change = $2 AND taken_at IS NOT NULL ORDER BY iteration DESC LIMIT 1",
+      [project, change],
+    );
+    return rows[0] === undefined ? [] : failedIn(rows[0].taken);
+  }
+
+  /**
+   * The reviews of `change` taken, all of them, and those of its branch: read from a worktree, not those whose commit its default
+   * branch has taken in (contract 4.6).
+   */
+  async #taken(project: string, change: string, read: WorktreeChange | undefined): Promise<{ all: number; taken: number }> {
+    const { rows } = await this.#pool.query<{ mark: Mark | null }>("SELECT brief->'mark' AS mark FROM quality_briefs WHERE project = $1 AND change = $2 AND taken_at IS NOT NULL", [project, change]);
+    return { all: rows.length, taken: rows.filter(({ mark }) => read === undefined || mark === null || !read.landed(mark)).length };
+  }
+
+  /** The latest brief of `change` whose return was taken. */
+  async #lastTaken(project: string, change: string): Promise<Brief | undefined> {
+    const { rows } = await this.#pool.query<{ brief: Brief }>(
+      "SELECT brief FROM quality_briefs WHERE project = $1 AND change = $2 AND taken_at IS NOT NULL ORDER BY iteration DESC LIMIT 1",
+      [project, change],
+    );
+    return rows[0]?.brief;
+  }
+
+  async #hits(project: string, change: string, where: string): Promise<HitRow[]> {
+    const { rows } = await this.#pool.query<HitRecord>(`SELECT ${HIT_COLUMNS} FROM quality_hits WHERE project = $1 AND change = $2 AND ${where} ORDER BY id`, [project, change]);
+    return rows.map(hitRow);
+  }
+}
+
+/**
+ * A change's risk line (ADR-1144 D1): read from its whole diff against the package graph of the worktree at `root`, or, with
+ * no worktree, the one written on the increment; undefined when neither is there to read.
+ */
+async function changeRisk(library: Library, increment: { readonly fields: unknown }, diff: string, root: string | undefined): Promise<ChangeReading | undefined> {
+  if (root === undefined) {
+    const written = (increment.fields as { risk?: ChangeReading }).risk;
+    return written?.tier === undefined ? undefined : written;
+  }
+  const stories = (await library.list("story")).filter((story) => story.fields.mapped === undefined).map((story) => ({ id: story.id, title: story.fields.title }));
+  return readChange(diff, new PackageGraph(readPackages(root)), stories, new Date().toISOString().slice(0, 10));
+}
+
+/**
+ * The covering-test check as a review ran it (contract 2.13): when the return says the change touches any contract, a hit at the
+ * changed line of each touched one answered met with no covering test named, asking for one; else not run.
+ */
+function coverage(brief: Brief, review: ReviewReturn): { check: string; hits: { package: string; file: string; line: number; found: string }[] }[] {
+  const touched = (review.contracts ?? []).filter(({ touched }) => touched === true);
+  if (touched.length === 0) return [];
+  const titles = new Map(brief.contracts.map(({ id, title }) => [id, title]));
+  return [{
+    check: COVERING_TEST,
+    hits: touched.filter(({ met, test }) => met && !named(test)).map(({ contract, at }) => ({
+      package: hitPackage(brief, at!.file), file: at!.file, line: at!.line,
+      found: `contract ${contract} (${titles.get(contract) ?? contract}): the change touches it and no test covers the changed behaviour; add one`,
+    })),
+  }];
+}
+
+/** The red-run check as a review ran it (contract 2.14): a hit at each test the change adds that no saved red run names; not run when it adds none. */
+function redRuns(brief: Brief): { check: string; hits: { package: string; file: string; line: number; found: string }[] }[] {
+  if ((brief.reds ?? []).length === 0) return [];
+  return [{
+    check: RED_RUN,
+    hits: brief.reds!.filter(({ red }) => !red).map(({ file, line, test }) => ({
+      package: hitPackage(brief, file), file, line,
+      found: `new test ${test}: no saved red run names it failing; run it red against the code without the change, or say why it could not fail first`,
+    })),
+  }];
+}
+
+/** A test file, by the name node:test and the dev loop give one. */
+const TEST_FILE = /\.test\.[cm]?[jt]sx?$/;
+/** A string literal or a comment: the scan of a test file blanks them, so a test written inside a fixture's text is no call. */
+const INERT = /\/\/[^\r\n]*|\/\*[\s\S]*?\*\/|(["'`])(?:\\.|(?!\1)[^\\])*\1/g;
+/** Code ending in a test or `it` call about to take its title; `.skip` and `.todo` ones run nothing, so are not read. */
+const CALLED = /\b(?:test|it)(?:\.only)?\s*\(\s*$/;
+
+/**
+ * Each test `diff` adds, in a test file, at its line, and whether the red runs saved in the worktree at `root` name it failing:
+ * by its full name ending in its title, or by its file failing to load. A test is a test or `it` call in the file's code, read from
+ * the worktree, whose literal title opens on a line the diff adds; one written inside a string (a fixture's file) is not. A title the
+ * diff also removes from the same file is a moved or reworded test, not a new one, and is left out.
+ */
+export function redsOf(diff: string, root: string): BriefRed[] {
+  const added = new Map<string, Set<number>>();
+  const removed = new Set<string>();
+  let file: string | undefined;
+  let line = 0;
+  for (const text of diff.split("\n")) {
+    const header = /^diff --git a\/\S+ b\/(\S+)$/.exec(text);
+    if (header !== null) {
+      file = TEST_FILE.test(header[1]!) ? header[1] : undefined;
+      continue;
+    }
+    if (file === undefined) continue;
+    const hunk = /^@@ -\d+(?:,\d+)? \+(\d+)(?:,\d+)? @@/.exec(text);
+    if (hunk !== null) {
+      line = Number(hunk[1]);
+      continue;
+    }
+    if (text.startsWith("+++") || text.startsWith("---")) continue;
+    if (text.startsWith("+")) {
+      added.set(file, (added.get(file) ?? new Set()).add(line));
+      line += 1;
+    } else if (text.startsWith("-")) {
+      for (const title of titlesIn(text.slice(1))) removed.add(`${file}\0${title.test}`);
+    } else if (text.startsWith(" ")) line += 1;
+  }
+  const saved = savedReds(root, new Set(added.keys()));
+  return [...added].flatMap(([file, lines]) => {
+    let text: string;
+    try {
+      text = readFileSync(join(root, file), "utf8");
+    } catch {
+      return []; // deleted by the change
+    }
+    return titlesIn(text).filter(({ line, test }) => lines.has(line) && !removed.has(`${file}\0${test}`)).map(({ line, test }) => ({
+      file, line, test,
+      red: saved.some((row) => row.file === file && (row.test === null || row.test === test || row.test.endsWith(` › ${test}`))),
+    }));
+  });
+}
+
+/** Each test or `it` call in `text`'s code with a literal title, by the line its title opens on. */
+function titlesIn(text: string): { line: number; test: string }[] {
+  const strings: { at: number; value: string; template: boolean }[] = [];
+  const code = text.replace(INERT, (token: string, quote: string | undefined, at: number) => {
+    if (quote !== undefined) strings.push({ at, value: token.slice(1, -1), template: quote === "`" });
+    return token.replace(/[^\r\n]/g, " ");
+  });
+  return strings
+    .filter(({ at, value, template }) => CALLED.test(code.slice(Math.max(0, at - 40), at)) && !(template && value.includes("${")))
+    .map(({ at, value }) => ({ line: text.slice(0, at).split("\n").length, test: value }));
+}
+
+/**
+ * The red runs `pnpm test` saved for test files among `files` (packages/dev-loop/src/red-runs.mjs): every one the worktree at `root`
+ * saved, and each one any worktree of its clone saved, in the clone's shared copy, at a commit `root`'s HEAD carries, so a
+ * worktree resuming a pushed branch keeps the reds that branch already showed (contract 2.15).
+ */
+function savedReds(root: string, files: ReadonlySet<string>): { file: string; test: string | null }[] {
+  const git = (...args: string[]): string | undefined => {
+    try {
+      return execFileSync("git", args, { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"], windowsHide: true }).trim();
+    } catch {
+      return undefined;
+    }
+  };
+  const local = redRows(join(root, ".pgtest", "red-runs.jsonl"), files);
+  const common = files.size === 0 ? undefined : git("rev-parse", "--path-format=absolute", "--git-common-dir");
+  if (common === undefined) return local;
+  const carried = new Map<string, boolean>();
+  const shared = redRows(join(common, "storytree", "red-runs.jsonl"), files).filter(({ head }) => {
+    if (head === "") return false;
+    if (!carried.has(head)) carried.set(head, git("merge-base", "--is-ancestor", head, "HEAD") !== undefined);
+    return carried.get(head);
+  });
+  return [...local, ...shared];
+}
+
+/** The red runs in the record at `path` for test files among `files`, or none. */
+function redRows(path: string, files: ReadonlySet<string>): { head: string; file: string; test: string | null }[] {
+  let text: string;
+  try {
+    text = readFileSync(path, "utf8");
+  } catch {
+    return [];
+  }
+  return text.split("\n").flatMap((one) => {
+    try {
+      const row = JSON.parse(one) as { head?: unknown; file?: unknown; test?: unknown };
+      return typeof row.file === "string" && files.has(row.file) && (row.test === null || typeof row.test === "string")
+        ? [{ head: typeof row.head === "string" ? row.head : "", file: row.file, test: row.test }]
+        : [];
+    } catch {
+      return []; // a blank line, or one cut short by a run that died mid-write
+    }
+  });
+}
+
+/** Whether a return names a covering test. */
+function named(test: string | undefined): boolean {
+  return typeof test === "string" && test.trim() !== "";
+}
+
+/** The contracts a return found not met, with why. */
+function unmetIn(review: ReviewReturn): Unmet[] {
+  return (review.contracts ?? []).filter(({ met }) => !met).map(({ contract, why }) => ({ contract, why: why ?? "" }));
+}
+
+/** The guardrails a return found failed, with why. */
+function failedIn(review: ReviewReturn): Failed[] {
+  return (review.guardrails ?? []).filter(({ passed }) => !passed).map(({ guardrail, why }) => ({ guardrail, why: why ?? "" }));
+}
+
+/** What a return gets wrong against its brief, each naming the check, contract or hit; none means it is taken. */
+function refusals(brief: Brief, review: ReviewReturn): string[] {
+  const problems: string[] = [];
+  if (review.review !== brief.iteration) {
+    problems.push(`${review.review === undefined ? "the return names no review" : `the return is for review ${review.review}`}, and the brief awaiting one is review ${brief.iteration}: write this review's return, with "review": ${brief.iteration}`);
+  }
+  const answered = (what: string, wanted: readonly (string | number)[], given: readonly (string | number)[]): void => {
+    for (const id of wanted) {
+      const times = given.filter((one) => one === id).length;
+      if (times === 0) problems.push(`${what} ${id} is in the brief and the return does not answer it`);
+      if (times > 1) problems.push(`${what} ${id} is answered ${times} times`);
+    }
+    for (const id of new Set(given)) if (!wanted.includes(id)) problems.push(`${what} ${id} is not in the brief`);
+  };
+  answered("check", brief.checks.map(({ id }) => id), (review.checks ?? []).map(({ check }) => check));
+  answered("contract", brief.contracts.map(({ id }) => id), (review.contracts ?? []).map(({ contract }) => contract));
+  answered("rejected hit", brief.judge, (review.rejections ?? []).map(({ hit }) => hit));
+  answered("guardrail", (brief.guardrails ?? []).map(({ id }) => id), (review.guardrails ?? []).map(({ guardrail }) => guardrail));
+  for (const { guardrail, passed, why, pictures } of review.guardrails ?? []) {
+    if (!Array.isArray(pictures) || !pictures.some((picture) => typeof picture === "string" && picture.trim() !== "")) problems.push(`guardrail ${guardrail} names no picture: save at least one of what you saw`);
+    if (!passed && (why ?? "").trim() === "") problems.push(`guardrail ${guardrail} failed and the return does not say why`);
+  }
+  for (const { check, tripped, hits = [] } of review.checks ?? []) {
+    if (tripped && hits.length === 0) problems.push(`check ${check} is tripped and names no file and line`);
+    if (!tripped && hits.length > 0) problems.push(`check ${check} is not tripped and names hits`);
+    for (const { file, line, found } of hits) {
+      if (typeof file !== "string" || file.trim() === "") problems.push(`check ${check} has a hit with no file`);
+      if (!Number.isInteger(line) || line < 1) problems.push(`check ${check}'s hit in ${file} has line ${line}: a line is a whole number from 1`);
+      if (typeof found !== "string" || found.trim() === "") problems.push(`check ${check}'s hit at ${file}:${line} does not say what was found`);
+      if (typeof file === "string" && !brief.packages.includes(hitPackage(brief, file))) problems.push(`check ${check}'s hit at ${file}:${line} is in package ${hitPackage(brief, file)}, which the diff does not touch`);
+    }
+  }
+  const pending = new Set(brief.contracts.filter(({ pending }) => pending).map(({ id }) => id));
+  for (const { contract, met, why, touched, test, at } of review.contracts ?? []) {
+    if (!met && (why ?? "").trim() === "") problems.push(`contract ${contract} is not met and the return does not say why`);
+    // Contract 2.13: "met" alone is no answer for a contract the change touches.
+    if (met && typeof touched !== "boolean") problems.push(`contract ${contract} is met and does not say whether the change touches it: give "touched": true or false`);
+    if (touched === false && pending.has(contract)) problems.push(`contract ${contract} is reworded by this change, so the change touches it: answer "touched": true`);
+    if (touched === true && met && !named(test)) {
+      if (at === undefined) problems.push(`contract ${contract} is touched by the change and met, and names no covering test: give "test" (<file> › <title>), or "at" (the changed line's file and line) where no test covers it`);
+      else if (typeof at.file !== "string" || at.file.trim() === "" || !Number.isInteger(at.line) || at.line < 1) problems.push(`contract ${contract}'s "at" needs a file and a line, a whole number from 1`);
+      else if (!brief.packages.includes(hitPackage(brief, at.file))) problems.push(`contract ${contract}'s changed line ${at.file}:${at.line} is in package ${hitPackage(brief, at.file)}, which the diff does not touch`);
+    }
+  }
+  return problems;
+}
+
+/**
+ * The diff of the branch checked out in `cwd` against `base` (from where they parted), as `git diff` gives it:
+ * by default the branch origin names as its default (a user's project may call it master), else origin/main,
+ * else, in a repository with no origin/main, its local default branch.
+ */
+export function branchDiff(cwd: string, base = branchBase(cwd)?.ref): string {
+  const git = (...args: string[]) => execFileSync("git", args, { cwd, encoding: "utf8", maxBuffer: 256 * 1024 * 1024, stdio: ["ignore", "pipe", "pipe"], windowsHide: true });
+  // A folder with no default branch, as an imported one may be, is read against its own commit.
+  let from = "HEAD";
+  try {
+    if (base !== undefined) from = git("merge-base", base, "HEAD").trim();
+  } catch {
+    // No default branch to compare to.
+  }
+  const untracked = git("ls-files", "--others", "--exclude-standard", "-z").split("\0").filter((file) => file !== "");
+  return [git("diff", from), ...untracked.map((file) => newFileDiff(cwd, file))].join("");
+}
+
+/**
+ * The change checked out in `cwd`: its whole diff against its default branch (`branchDiff`), that branch, and its mark, from
+ * which a later brief reads only what changed since (contract 4.5): the diff from the marked commit to the worktree, its
+ * uncommitted and untracked work included, or undefined once that commit has left the branch's history.
+ */
+export function worktreeChange(cwd: string): WorktreeChange {
+  const git = (...args: string[]) => execFileSync("git", args, { cwd, encoding: "utf8", maxBuffer: 256 * 1024 * 1024, stdio: ["ignore", "pipe", "pipe"], windowsHide: true });
+  const base = branchBase(cwd);
+  let mark: Mark | undefined;
+  try {
+    const head = git("rev-parse", "HEAD").trim();
+    let from = head;
+    try {
+      if (base !== undefined) from = git("merge-base", base.ref, "HEAD").trim();
+    } catch {
+      // No default branch to compare to: the branch is marked against its own commit.
+    }
+    mark = { head, from };
+  } catch {
+    // A folder with no commit has no mark, so every brief reads it whole.
+  }
+  return {
+    diff: branchDiff(cwd, base?.ref),
+    ...(base === undefined ? {} : { base }),
+    ...(mark === undefined ? {} : { mark }),
+    root: cwd,
+    since(earlier) {
+      try {
+        git("merge-base", "--is-ancestor", earlier.head, "HEAD");
+      } catch {
+        return undefined;
+      }
+      const untracked = git("ls-files", "--others", "--exclude-standard", "-z").split("\0").filter((file) => file !== "");
+      return [git("diff", earlier.head), ...untracked.map((file) => newFileDiff(cwd, file))].join("");
+    },
+    landed(earlier) {
+      if (mark === undefined || earlier.head === mark.from) return false;
+      try {
+        git("merge-base", "--is-ancestor", earlier.head, mark.from);
+        return true;
+      } catch {
+        return false;
+      }
+    },
+  };
+}
+
+/**
+ * The folder to read an increment's change from (contract 2.8): `cwd` when it is on `branch`, the branch the increment was claimed
+ * on, or on another branch whose name carries the same increment (a second pull request's), else the worktree of `cwd`'s repository
+ * checked out on that branch, so a brief run from another checkout never reviews that checkout's work instead. Refused, naming the
+ * branch, when no worktree is on it; with no branch known, `cwd`.
+ */
+export function changeFolder(cwd: string, branch: string | undefined): string {
+  if (branch === undefined) return cwd;
+  const git = (...args: string[]): string => {
+    try {
+      return execFileSync("git", args, { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"], windowsHide: true });
+    } catch {
+      return "";
+    }
+  };
+  const current = git("symbolic-ref", "--quiet", "--short", "HEAD").trim();
+  if (current === branch) return cwd;
+  const increment = incrementOfBranch(branch);
+  if (increment !== undefined && incrementOfBranch(current) === increment) return cwd;
+  for (const entry of git("worktree", "list", "--porcelain").split(/\n\n+/)) {
+    const lines = entry.split("\n");
+    const folder = lines.find((line) => line.startsWith("worktree "))?.slice("worktree ".length);
+    if (folder !== undefined && lines.includes(`branch refs/heads/${branch}`)) return folder;
+  }
+  throw new Error(`The increment's change is on branch ${branch}, and no worktree of ${cwd}'s repository is on it: run the brief from the increment's worktree, or give its diff.`);
+}
+
+/** The increment a branch's name carries (claude/increment-<id>-<suffix>), as the gate's capability-list check reads it. */
+function incrementOfBranch(branch: string): string | undefined {
+  const named = /(?:^|[/_-])increment[-_]([0-9a-f]{12})(?![0-9a-f])/i.exec(branch);
+  return named === null ? undefined : named[1]!.toLowerCase();
+}
+
+/** A file Git does not track yet, as a diff that adds it. */
+function newFileDiff(cwd: string, file: string): string {
+  try {
+    return execFileSync("git", ["diff", "--no-index", "--", "/dev/null", file], { cwd, encoding: "utf8", maxBuffer: 256 * 1024 * 1024, stdio: ["ignore", "pipe", "ignore"], windowsHide: true });
+  } catch (error) {
+    // `git diff --no-index` exits 1 when the two differ, which a new file always does.
+    const { status, stdout } = error as { status?: number; stdout?: string };
+    if (status === 1 && typeof stdout === "string") return stdout;
+    throw error;
+  }
+}
+
+/**
+ * The branch the checkout in `cwd` is reviewed against: the one origin names as its default, as the checkout last heard,
+ * else origin/main; with neither, its local default branch: init.defaultBranch, else main, else master (contract 2.7).
+ * Undefined when it has none of these.
+ */
+export function branchBase(cwd: string): Base | undefined {
+  const git = (...args: string[]): string | undefined => {
+    try {
+      return execFileSync("git", args, { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"], windowsHide: true }).trim() || undefined;
+    } catch {
+      return undefined;
+    }
+  };
+  const exists = (ref: string) => git("rev-parse", "--verify", "--quiet", `${ref}^{commit}`) !== undefined;
+  const named = git("symbolic-ref", "--quiet", "--short", "refs/remotes/origin/HEAD");
+  if (named !== undefined && exists(named)) return { ref: named };
+  if (exists("refs/remotes/origin/main")) return { ref: "origin/main" };
+  const local = [git("config", "--get", "init.defaultBranch"), "main", "master"].find((branch) => branch !== undefined && exists(`refs/heads/${branch}`));
+  return local === undefined ? undefined : { ref: local, local: true };
+}
+
+/** One contract of the brief as a line, with its description beneath, at `indent`. */
+function contractLine(contract: Brief["contracts"][number], indent: string): string {
+  return `${indent}${contract.id}  ${contract.title}${contract.pending ? "  (as this change rewords it, pending its merge)" : ""}${contract.description === undefined ? "" : `\n${indent}  ${contract.description}`}`;
+}
+
+/** The brief as the plain text the change-reviewer reads. */
+export function briefText(brief: Brief): string {
+  // A contract the change rewords or retires is listed once, above, so its plan change is not listed again (contract 2.4).
+  const listed = new Set([...brief.contracts.filter(({ pending }) => pending).map(({ id }) => id), ...(brief.retired ?? []).map(({ id }) => id)]);
+  const plan = (brief.plan ?? []).filter(({ record }) => !listed.has(record));
+  return [
+    `Review ${brief.iteration} of change ${brief.change} (project ${brief.project}); packages it touches: ${brief.packages.join(", ")}.`,
+    `Your return names this review, "review": ${brief.iteration}, or it is refused as another review's.`,
+    brief.pass === "light"
+      ? `Light pass: this change reads ${riskLineText(brief.risk!)}, so judge every check and contract from the diff below alone, without reading around a hunk, opening other files or running anything${(brief.guardrails ?? []).length === 0 ? "" : " but the guardrails below"}.`
+      : brief.risk === undefined
+        ? "Full review: no risk line was read for this change. Read the lines around a hunk in the files the diff touches wherever the hunk alone is not enough."
+        : `Full review: this change reads ${riskLineText(brief.risk)}. Read the lines around a hunk in the files the diff touches wherever the hunk alone is not enough.`,
+    "",
+    `Checks (${brief.checks.length}): for each, say whether the change trips it, and where (file, line, what you found).`,
+    ...brief.checks.map((check) => [
+      `  ${check.id}  ${check.title}\n    ${check.question}`,
+      ...(check.graduated ?? []).map((part) => `    Not yours to judge: Architecture checks' ${part.enforcedBy} checks ${part.part}.`),
+    ].join("\n")),
+    "",
+    `Contracts (${brief.contracts.length}): for each, say whether the change does what it says, and why not, and whether the change touches it ("touched"): it adds or rewords the contract, or changes code under it. For each one it touches, find the contract's existing tests (its number in its story's package's test titles) and name, as "test", the one that covers the changed behaviour (<file> › <title>); where none does, give "at", the changed line's file and line, and it is taken as a hit asking for one. "Met" alone is no answer for a touched contract.`,
+    ...(brief.capabilities === undefined
+      ? brief.contracts.map((contract) => contractLine(contract, "  "))
+      : brief.capabilities.map((capability) => {
+        const under = brief.contracts.filter((contract) => contract.capability === capability.id);
+        return [
+          `  ${capability.story.title} › ${capability.title}  (${capability.id})`,
+          ...(under.length === 0 ? ["    no contracts"] : under.map((contract) => contractLine(contract, "    "))),
+        ].join("\n");
+      })),
+    ...((brief.retired ?? []).length === 0 ? [] : [
+      `Retired contracts (${brief.retired!.length}): not yours to judge, and not answered in the return.`,
+      ...brief.retired!.map((contract) => `  ${contract.id}  ${contract.title}\n    retired by this change, pending its merge: ${contract.reason}`),
+    ]),
+    ...(plan.length === 0 ? [] : [
+      "",
+      `Pending plan changes (${plan.length}): what this change does to the plan on its merge, besides the contracts above it rewords or retires; judge them with the checks and contracts above; a hit on one names its record as the file, at line 1.`,
+      ...plan.map((entry) => `  ${entry.record}  ${entry.type}  ${entry.title}\n    ${"retire" in entry ? `retired: ${entry.retire}` : `becomes: ${JSON.stringify(entry.after)}`}`),
+    ]),
+    ...((brief.guardrails ?? []).length === 0 ? [] : [
+      "",
+      `Guardrails (${brief.guardrails!.length}): this change sets each off. Start the real app, or the built website, from seeded fixtures at the state nearest the change, click through only that part against the contracts above and the on-screen done-criteria, and save pictures of what you saw; answer each passed or failed, with its pictures, and why when failed.`,
+      ...brief.guardrails!.map((guardrail) => `  ${guardrail.id}  ${guardrail.on.title}\n    ${guardrail.check}`),
+    ]),
+    ...((brief.reds ?? []).length === 0 ? [] : [
+      "",
+      `New tests (${brief.reds!.length}): each test the diff adds, and whether a red run \`pnpm test\` saved in the worktree names it failing. One with no saved red run is taken as a hit at its line when your return is taken: you need not raise it.`,
+      ...brief.reds!.map(({ file, line, test, red }) => `  ${file}:${line}  ${test}  ${red ? "red run saved" : "no saved red run"}`),
+    ]),
+    ...(brief.earlier.length === 0 ? [] : [
+      "",
+      `Earlier hits (${brief.earlier.length}), with the implementer's answer:`,
+      ...brief.earlier.map((hit) => `  hit ${hit.id}  ${hit.check}  ${hit.file}:${hit.line}  ${hit.found ?? ""}\n    ${hit.answer === "rejected" ? `rejected: ${hit.reason}${hit.accepted ? " (accepted)" : ""}` : hit.answer}`),
+      `Judge each of these rejections, accepting its reason or not: ${brief.judge.length === 0 ? "none" : brief.judge.map((id) => `hit ${id}`).join(", ")}.`,
+    ]),
+    "",
+    brief.since !== undefined
+      ? `${brief.diff === "" ? "Nothing changed" : "The diff of what changed"} since review ${brief.since.review} (commit ${brief.since.head.slice(0, 12)}), which read the whole change: judge the checks and contracts on what changed, the whole change being in its worktree, and raise no finding the earlier hits already hold.`
+      : diffPackages(brief.diff).length === 0 ? "The diff touches no file: the change under review is its pending plan changes." : brief.base?.local ? `The diff against ${brief.base.ref}, this repository's own default branch: it has no origin/main.` : `The diff against ${brief.base?.ref ?? "origin/main"}:`,
+    brief.diff,
+  ].join("\n");
+}
+
+/** A taken return as plain text: the review's hits with their ids, contracts unmet, and whether the change is ready for the gate. */
+export function takenText(taken: Taken): string {
+  return [
+    `Recorded review ${taken.review}: ${taken.hits.length === 0 ? "no hits" : `${taken.hits.length} hit${taken.hits.length === 1 ? "" : "s"}`}.`,
+    ...taken.hits.map((hit) => `  hit ${hit.id}  ${hit.check}  ${hit.file}:${hit.line}  ${hit.found ?? ""}`),
+    ...(taken.graduatedNotRun === undefined ? [] : [`  Architecture checks' graduated checks did not run, so nothing of theirs is recorded: ${taken.graduatedNotRun}`]),
+    standingText(taken.standing, taken.unmet, taken.failed),
+  ].join("\n");
+}
+
+/** The standing findings, unmet contracts and failed guardrails as plain text, or that the change is ready for the gate. */
+export function standingText(standing: readonly HitRow[], unmet: readonly Unmet[] = [], failed: readonly Failed[] = []): string {
+  const count = standing.length + unmet.length + failed.length;
+  if (count === 0) return "No finding stands: the change is ready for the gate.";
+  return [
+    `${count} finding${count === 1 ? "" : "s"} stand${count === 1 ? "s" : ""}; answer each hit, fixed or rejected with a reason, fix each contract not met or put it to the owner, fix each guardrail failed, then review again:`,
+    ...standing.map((hit) => `  hit ${hit.id}  ${hit.check}  ${hit.file}:${hit.line}  ${hit.answer === "rejected" ? `rejected, not accepted: ${hit.reason}` : "unanswered"}`),
+    ...unmet.map(({ contract, why }) => `  contract ${contract} not met: ${why}`),
+    ...failed.map(({ guardrail, why }) => `  guardrail ${guardrail} failed: ${why}`),
+  ].join("\n");
+}

@@ -1,0 +1,40 @@
+{
+  "name": "@storytree/plugin-loader",
+  "private": true,
+  "type": "module",
+  "description": "Plugin loader (ADR-1021): reads the `storytree` manifests of the story packages a host depends on and composes their parts into the host's bundle.",
+  "exports": {
+    ".": "./src/index.ts",
+    "./factory": "./src/factory/factory.ts",
+    "./switch": "./src/switch/switch.ts",
+    "./verbs": "./src/factory/verbs.ts"
+  },
+  "storytree": {
+    "verbs": [
+      {
+        "from": "./verbs",
+        "export": "PLUGIN_FAMILIES"
+      }
+    ],
+    "guidance": [
+      {
+        "from": "./verbs",
+        "export": "pluginGuidance",
+        "order": 12
+      }
+    ]
+  },
+  "scripts": {
+    "typecheck": "tsc -p ."
+  },
+  "devDependencies": {
+    "@types/node": "^24.13.6",
+    "esbuild": "^0.28.2",
+    "tsx": "^4.23.15",
+    "typescript": "~7.0.2"
+  },
+  "dependencies": {
+    "@storytree/library": "workspace:*",
+    "@storytree/project-and-caller": "workspace:*"
+  }
+}

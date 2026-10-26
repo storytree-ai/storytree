@@ -1,0 +1,393 @@
+{
+ "src/activity/activity-log.ts": {
+  "2": 142,
+  "3": 915,
+  "4": 1057,
+  "5": 1435,
+  "9": 228,
+  "11": 84
+ },
+ "src/activity/bounded.ts": {
+  "2": 28,
+  "3": 150,
+  "4": 157,
+  "5": 136,
+  "9": 42,
+  "11": 8
+ },
+ "src/activity/branch.ts": {
+  "3": 81,
+  "4": 9,
+  "5": 58,
+  "9": 3
+ },
+ "src/activity/lines-cache.ts": {
+  "2": 21
+ },
+ "src/activity/text.ts": {
+  "2": 10,
+  "5": 116
+ },
+ "src/activity/transcript-records.ts": {
+  "2": 23,
+  "3": 303,
+  "4": 156,
+  "5": 208,
+  "9": 93,
+  "11": 12
+ },
+ "src/bins/storytree-hook.ts": {
+  "3": 275,
+  "4": 33,
+  "9": 11
+ },
+ "src/capture/capture.ts": {
+  "2": 2,
+  "5": 29
+ },
+ "src/claims/claim-mark.ts": {
+  "5": 16
+ },
+ "src/claims/claims.ts": {
+  "3": 450,
+  "4": 229,
+  "5": 1557,
+  "9": 18
+ },
+ "src/claims/edit-gate.ts": {
+  "3": 1200,
+  "4": 144,
+  "5": 246,
+  "9": 48
+ },
+ "src/claims/endings.ts": {
+  "2": 9,
+  "3": 86,
+  "4": 91,
+  "5": 243,
+  "9": 23,
+  "11": 4
+ },
+ "src/claims/merges.ts": {
+  "3": 175,
+  "4": 99,
+  "5": 733,
+  "9": 7,
+  "11": 8
+ },
+ "src/claims/presenting.ts": {
+  "5": 12
+ },
+ "src/claims/stale-claims.ts": {
+  "5": 203
+ },
+ "src/claims/workspace.ts": {
+  "4": 27,
+  "5": 405
+ },
+ "src/context/command.ts": {
+  "2": 2,
+  "3": 25,
+  "4": 3,
+  "5": 29,
+  "9": 90
+ },
+ "src/context/composition.ts": {
+  "3": 325,
+  "4": 39,
+  "9": 325
+ },
+ "src/context/context.ts": {
+  "2": 2,
+  "3": 386,
+  "4": 45,
+  "5": 29,
+  "9": 231
+ },
+ "src/context/guidance.ts": {
+  "3": 25,
+  "4": 3,
+  "9": 22
+ },
+ "src/context/transcript.ts": {
+  "3": 50,
+  "4": 6,
+  "9": 59
+ },
+ "src/context/window.ts": {
+  "9": 164
+ },
+ "src/friction/drain/drain.ts": {
+  "17": 199
+ },
+ "src/friction/filing/capture.ts": {
+  "17": 95
+ },
+ "src/friction/testing/pg.ts": {
+  "17": 38
+ },
+ "src/friction/verbs.ts": {
+  "17": 133
+ },
+ "src/hooks/antigravity.ts": {
+  "3": 18
+ },
+ "src/hooks/claude-code.ts": {
+  "3": 212,
+  "4": 24,
+  "5": 145,
+  "9": 8
+ },
+ "src/hooks/close-out-reminder.ts": {
+  "3": 5,
+  "4": 7,
+  "5": 30
+ },
+ "src/hooks/codex-trust.ts": {
+  "3": 108,
+  "4": 12,
+  "9": 4
+ },
+ "src/hooks/codex.ts": {
+  "3": 241,
+  "4": 27,
+  "9": 9
+ },
+ "src/hooks/context-nudge.ts": {
+  "3": 25,
+  "4": 3,
+  "9": 1
+ },
+ "src/hooks/cursor.ts": {
+  "3": 21
+ },
+ "src/hooks/deadlines.ts": {
+  "3": 25,
+  "4": 3,
+  "5": 29,
+  "9": 1
+ },
+ "src/hooks/definitions.ts": {
+  "3": 450,
+  "4": 54,
+  "9": 18
+ },
+ "src/hooks/edit-gate.ts": {
+  "3": 460,
+  "4": 51,
+  "5": 323,
+  "9": 17
+ },
+ "src/hooks/failures.ts": {
+  "3": 200,
+  "4": 24,
+  "9": 8
+ },
+ "src/hooks/given-once.ts": {
+  "3": 105,
+  "4": 40,
+  "5": 120,
+  "9": 4
+ },
+ "src/hooks/hooks.ts": {
+  "3": 724,
+  "4": 81,
+  "5": 609,
+  "9": 27
+ },
+ "src/hooks/pi.ts": {
+  "3": 14
+ },
+ "src/hooks/queue.ts": {
+  "3": 200,
+  "4": 24,
+  "5": 58,
+  "9": 8
+ },
+ "src/hooks/registered.ts": {
+  "3": 150,
+  "4": 18,
+  "9": 6
+ },
+ "src/hooks/requests.ts": {
+  "3": 54,
+  "4": 6,
+  "9": 2
+ },
+ "src/hooks/self-named.ts": {
+  "3": 42,
+  "4": 3,
+  "5": 29,
+  "9": 1
+ },
+ "src/hooks/shell-edits.ts": {
+  "3": 629,
+  "4": 63,
+  "9": 21
+ },
+ "src/hooks/shell-guard.ts": {
+  "3": 700,
+  "4": 84,
+  "5": 58,
+  "9": 28
+ },
+ "src/hooks/status-line.ts": {
+  "3": 550,
+  "4": 66,
+  "9": 22
+ },
+ "src/machines/machines.ts": {
+  "11": 56
+ },
+ "src/machines/verbs.ts": {
+  "11": 40
+ },
+ "src/processes/closing/index.ts": {
+  "16": 198
+ },
+ "src/processes/launch/launch.ts": {
+  "12": 20,
+  "13": 4,
+  "14": 12,
+  "15": 30
+ },
+ "src/processes/ledger/files.ts": {
+  "12": 45,
+  "13": 9,
+  "14": 48,
+  "15": 80,
+  "16": 63
+ },
+ "src/processes/ledger/records.ts": {
+  "12": 15,
+  "13": 3,
+  "14": 12,
+  "15": 20,
+  "16": 18
+ },
+ "src/processes/listing/index.ts": {
+  "14": 72,
+  "16": 99
+ },
+ "src/processes/observation/observe.ts": {
+  "12": 30,
+  "13": 6,
+  "14": 24,
+  "16": 18
+ },
+ "src/processes/process/index.ts": {
+  "12": 10,
+  "13": 12,
+  "14": 12,
+  "15": 20,
+  "16": 18
+ },
+ "src/processes/process/linux.ts": {
+  "12": 20,
+  "13": 24,
+  "14": 24,
+  "15": 40,
+  "16": 36
+ },
+ "src/processes/stopping/linux.ts": {
+  "15": 10
+ },
+ "src/processes/stopping/signal.ts": {
+  "15": 20
+ },
+ "src/processes/stopping/stop.ts": {
+  "14": 114,
+  "15": 190,
+  "16": 27
+ },
+ "src/readings.ts": {
+  "2": 20,
+  "3": 973,
+  "4": 1283,
+  "5": 2034,
+  "9": 92,
+  "11": 64
+ },
+ "src/sessions/app-records.ts": {
+  "3": 275,
+  "4": 55,
+  "5": 348,
+  "9": 11
+ },
+ "src/sessions/ask.ts": {
+  "3": 150,
+  "4": 134,
+  "5": 293,
+  "9": 6
+ },
+ "src/sessions/branch-states.ts": {
+  "3": 375,
+  "4": 519,
+  "5": 348,
+  "9": 15,
+  "11": 16
+ },
+ "src/sessions/close-out.ts": {
+  "3": 3,
+  "4": 25,
+  "5": 90
+ },
+ "src/sessions/listing.ts": {
+  "4": 20,
+  "11": 12
+ },
+ "src/sessions/machine-start.ts": {
+  "3": 50,
+  "4": 8,
+  "5": 58,
+  "9": 2
+ },
+ "src/sessions/name.ts": {
+  "4": 2
+ },
+ "src/sessions/sessions.ts": {
+  "3": 50,
+  "4": 62,
+  "5": 46,
+  "9": 2,
+  "11": 4
+ },
+ "src/sessions/verbs.ts": {
+  "4": 4,
+  "11": 12
+ },
+ "src/sessions/worktree-reaper.ts": {
+  "3": 200,
+  "4": 70,
+  "5": 58,
+  "9": 8
+ },
+ "src/testing/declared.ts": {
+  "3": 75,
+  "4": 9,
+  "5": 12,
+  "9": 3
+ },
+ "src/testing/hook-bin.ts": {
+  "3": 25,
+  "4": 3,
+  "9": 1
+ },
+ "src/transcripts/scrub.ts": {
+  "3": 50,
+  "4": 10,
+  "5": 58,
+  "9": 8
+ },
+ "src/transcripts/ship.ts": {
+  "3": 150,
+  "4": 18,
+  "5": 145,
+  "9": 18
+ },
+ "src/transcripts/stored.ts": {
+  "2": 2,
+  "5": 29,
+  "9": 48
+ }
+}

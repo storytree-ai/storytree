@@ -1,0 +1,545 @@
+name: CI
+
+# Every change reaches main through a pull request. On each pull request into main, `platforms`
+# installs, typechecks and runs the tests on Linux, macOS and Windows, against the merge of the
+# branch with main; beside them, a change that reaches the desktop app builds and checks the Windows
+# installer (`installer`). `verify` passes once all three systems, and that installer, have. Then
+# `automerge` lands the pull request. Branch protection on main requires `verify`, so nothing merges unless the tests passed on
+# every system.
+#
+# main merges through GitHub's merge queue (ADR-0796): `automerge` hands a green pull request to
+# the queue, and the queue runs this workflow again (`merge_group`) on the merge of main, every pull
+# request ahead of it, and this one; it merges only if `verify` passes there too, so two pull
+# requests that each passed alone cannot together leave main red. While no queue is required on
+# main, `automerge` merges directly, as before the queue. A pull request the queue takes out because
+# its queue run failed, while its own `verify` passed, goes back in once (requeue.yml).
+# A `platforms` job GitHub cancelled before any hosted runner took it is rerun once (rerun-unrun.yml).
+#
+# The product ships for Windows first, on x64 and arm64; the Windows run here is x64. The macOS run
+# keeps the code working on a Mac from the day each line is written, so that Mac support later is
+# packaging rather than porting (ADR-0625 D7, in storytree 0.2's decision log).
+#
+# A draft is never merged: open a pull request as a draft, or convert it to one, to hold it, and
+# `gh pr ready` releases it (`verify` runs again, and the pull request merges when it passes). The
+# `hold` label holds one too, and taking it off releases it: hold-release.yml lands a head that
+# `verify` already passed, and a run still going lands it when its `verify` passes. Whether it is
+# held is read when `automerge` runs (land.yml), not from the event that started its run: a ready
+# issued seconds after a push can have its own run cancelled by the push's, which began while the
+# pull request was still a draft (PR #281), and a `hold` taken off after a run began is still in
+# that run's event (PR #704); that run must still merge it. A pull request from a fork is checked,
+# never merged automatically.
+#
+# `verify` also runs on each push to main. The queue's merge is such a push, so it starts this
+# workflow, then release.yml and own-health.yml after it completes. That push is the commit the
+# queue's run has just tested on all three systems, so `queue-verdict` finds that run and `verify`
+# stands on it, and `platforms` runs no tests again (22% of runner time, increment_08dac5c25a06);
+# with no passing queue run of the same commit (a direct merge, a batch whose head differs) the push
+# tests in full, as before. The queue's passing run keeps the Windows and macOS evidence own health
+# credits (packages/dev-loop/src/test-run/main-commit.mjs) and the timing history `timings` saves
+# for main. A direct merge that
+# `automerge` makes starts none of them: GitHub starts no workflow from a push made with a
+# workflow's own token. So then `automerge` starts own-health.yml on main itself, which records
+# each contract's verified health (ADR-0744 D3), and release.yml follows the pull request's run.
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review]
+  merge_group:
+    types: [checks_requested]
+  push:
+    branches: [main]
+
+# What reaches the installer: a change to any of these builds and checks it (the `installer` job on Windows, the
+# macOS test job's last steps). Of the workflows, only those that build or ship the desktop app: most workflow edits
+# build no installer.
+env:
+  INSTALLER_PATHS: >-
+    apps/desktop packages/app pnpm-lock.yaml package.json
+    .github/workflows/ci.yml .github/workflows/release.yml .github/workflows/release-package.yml
+    .github/workflows/release-rehearsal.yml .github/workflows/staging-desktop.yml
+
+# A newer push to the same pull request, or to main, cancels the run it supersedes.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  # On a push to main, whether the merge queue's run of this exact commit passed `verify`
+  # (packages/dev-loop/src/queue-verdict.mjs). Its run id is empty when none did, or when the API
+  # could not be read, and then `platforms` tests the push in full.
+  queue-verdict:
+    name: queue verdict
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      actions: read
+      contents: read
+    outputs:
+      run-id: ${{ steps.verdict.outputs.run-id }}
+      attempt: ${{ steps.verdict.outputs.attempt }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          sparse-checkout: packages/dev-loop/src/queue-verdict.mjs
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+      - name: Find the merge queue's passing run of this commit
+        id: verdict
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
+        with:
+          script: |
+            const { queueVerdict } = await import(`${process.env.GITHUB_WORKSPACE}/packages/dev-loop/src/queue-verdict.mjs`);
+            const { run, reason } = await queueVerdict({ github, repo: context.repo, sha: context.sha });
+            core.notice(reason);
+            if (run === undefined) return;
+            core.setOutput('run-id', run.id);
+            core.setOutput('attempt', run.attempt);
+
+  # Which of main's saved timing histories the two Windows shards restore, picked once for both:
+  # each shard restoring the latest by prefix itself could take a different save when main saved one
+  # between their restores, and then the shards split the units differently and the merge queue took
+  # a green pull request out (PR #1696, twice; friction_b2668a6ffc8b). For each shard, its own latest
+  # save, else the latest Windows save of any kind. Unreadable, it picks none for either, and both
+  # shards start from no history, still alike.
+  shard-timings:
+    name: pick the Windows shards' timing history
+    needs: queue-verdict
+    if: ${{ !cancelled() && needs.queue-verdict.outputs.run-id == '' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      actions: read
+    outputs:
+      shard-1: ${{ steps.pick.outputs.shard-1 }}
+      shard-2: ${{ steps.pick.outputs.shard-2 }}
+    steps:
+      - name: Pick main's latest saves for both shards
+        id: pick
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
+        with:
+          script: |
+            const latest = async (key) => {
+              const { data } = await github.rest.actions.getActionsCacheList({
+                ...context.repo, key, ref: 'refs/heads/main', sort: 'created_at', direction: 'desc', per_page: 1,
+              });
+              return data.actions_caches[0]?.key ?? '';
+            };
+            try {
+              const any = await latest('test-timings-Windows-');
+              for (const n of [1, 2]) {
+                const key = (await latest(`test-timings-Windows-shard-${n}-`)) || any;
+                core.notice(`shard ${n}'s timing history: ${key || 'none'}`);
+                core.setOutput(`shard-${n}`, key);
+              }
+            } catch (error) {
+              core.warning(`could not read main's caches, so neither shard restores a history: ${error.message}`);
+            }
+
+  # One run per system, each installing, typechecking and testing. A failure on one system leaves
+  # the others running (fail-fast: false), so a failure on one alone shows as that system's.
+  # Windows, every run's slowest, is two jobs, each testing half the units by recent pass time
+  # (`pnpm test --shard`, increment_6163234e706b): its test step is paced by the sum of its units'
+  # times, not its slowest (median 16.6 min). Raising its units at once instead trades minutes for
+  # reds on a loaded runner.
+  platforms:
+    name: verify on ${{ matrix.system }}${{ matrix.shard && format(' {0}/2', matrix.shard) || '' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - system: Linux
+            runner: ubuntu-latest
+          - system: macOS
+            runner: macos-latest
+          - system: Windows
+            runner: windows-latest
+            shard: 1
+          - system: Windows
+            runner: windows-latest
+            shard: 2
+    runs-on: ${{ matrix.runner }}
+    # Skipped on a push the merge queue's run already verified; on a pull request or the queue's
+    # own run, `queue-verdict` is skipped and this runs.
+    needs: [queue-verdict, shard-timings]
+    if: ${{ !cancelled() && needs.queue-verdict.outputs.run-id == '' }}
+    # The merge queue runs on loaded runners, where a full Windows test step that takes 13 minutes
+    # unloaded ran past the old 21-minute deadline and ejected a green pull request
+    # (friction_214807bf5d9d, increment_3bd2b051ab67). A run that passes takes no longer for it.
+    timeout-minutes: 35
+    steps:
+      # `pnpm test` ends itself by 31 minutes into the job (its deadline) and prints its table, or
+      # past that names where it stalled: a job the 35-minute limit cancels can lose its whole log,
+      # so nobody can name what hung (increment_7f43f74526ab). Taken here, since checkout alone has
+      # taken 12 minutes.
+      - name: Set the test run's deadline
+        shell: bash
+        run: echo "STORYTREE_TEST_DEADLINE=$(( $(date +%s) + 31 * 60 ))" >> "$GITHUB_ENV"
+      # The whole history, origin/main included: `pnpm test` runs only what the change can reach,
+      # measured from merge-base(origin/main, HEAD), and runs everything if origin/main is missing.
+      # On a push to main that merge-base is HEAD itself, so main's own runs are always full.
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      # pnpm 10.34.7, from package.json's packageManager field.
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      # A type-only import ends only at the library (ADR-1017 D2); it reads only the code, in about 5 s.
+      - run: pnpm check:type-imports
+      # A seed or snapshot file the branch adds or changes holds only what the forest's seed sanitiser keeps.
+      - run: pnpm check:seed-records
+      # No file the branch adds or changes gains a personal path, name, address or link (leak-scan.mjs).
+      - run: pnpm check:leaks
+      # packages/dev-loop/src/test.mjs starts a throwaway Postgres from this machine's @embedded-postgres package
+      # (linux-x64, darwin-arm64 or windows-x64). The live Cloud SQL proof (contract 8.1) is
+      # skipped, visibly: CI holds no Google identity. Its first line is the `scope:` decision
+      # (packages/dev-loop/src/test-scope.mjs, the same one a local run takes, ADR-0649 D4) and its last the
+      # PASS / FAIL table per package.
+      # A fresh runner has no timing history, so every unit would get the fixed 3 minutes; on main
+      # Windows agent-link passed in 171.3 s and macOS forest in 170.0 s (run 37839884329), and
+      # loaded queue runners killed them. ADR-0785's own rule, twice the slowest pass, gives 6 min.
+      # Units drifted past that (Windows cli and session-management, killed at 360 s on pull requests
+      # that never touched them: friction_21e0e923a222, friction_9a48639c761e), so each runner now
+      # carries the timing history of main's latest run on its system, and a unit with five passes
+      # there gets twice its slowest, never under 6 min: a pull request's kills are never carried back.
+      # The same file holds each slow test's passes and timeouts, which learn its per-test limit (ADR-1152).
+      - name: Restore main's test timing history
+        if: ${{ !matrix.shard }}
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.storytree/0.3/test-timings.jsonl
+          key: test-timings-${{ runner.os }}-${{ github.run_id }}
+          restore-keys: test-timings-${{ runner.os }}-
+      # A Windows shard saves only its own units' new times, so each shard restores both shards'
+      # latest saves (else the unsharded one before them) and merges them: every row begins with its
+      # `at`, so sorting orders them in time as well. Both restore the exact saves `shard-timings`
+      # picked, so both plan from one input; `verify` still checks that their plans match.
+      - name: Restore main's test timing history, shard 1's
+        if: ${{ matrix.shard && needs.shard-timings.outputs.shard-1 != '' }}
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.storytree/0.3/test-timings.jsonl
+          key: ${{ needs.shard-timings.outputs.shard-1 }}
+      - if: ${{ matrix.shard }}
+        shell: bash
+        run: mv ~/.storytree/0.3/test-timings.jsonl ~/.storytree/0.3/shard-1-timings.jsonl 2>/dev/null || true
+      - name: Restore main's test timing history, shard 2's
+        if: ${{ matrix.shard && needs.shard-timings.outputs.shard-2 != '' }}
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.storytree/0.3/test-timings.jsonl
+          key: ${{ needs.shard-timings.outputs.shard-2 }}
+      - name: Merge the shards' timing histories
+        if: ${{ matrix.shard }}
+        shell: bash
+        run: |
+          cd ~/.storytree/0.3 2>/dev/null || exit 0
+          touch test-timings.jsonl shard-1-timings.jsonl
+          LC_ALL=C sort -u shard-1-timings.jsonl test-timings.jsonl > merged.jsonl
+          mv merged.jsonl test-timings.jsonl
+          rm shard-1-timings.jsonl
+          echo "$(wc -l < test-timings.jsonl) timing rows"
+      # Until main's history holds a Windows pass of its two drifted units, each keeps its hand-set limit,
+      # twice its slowest pass (346 s and 357 s): without one, PR #1627's own run killed cli at 360 s, and
+      # PR #1628's did too, under a history saved by a cancelled main run that held no pass of cli.
+      - if: matrix.system == 'Windows'
+        shell: bash
+        run: |
+          passed() { grep -qs "\"platform\":\"win32\".*\"unit\":\"packages/$1\".*\"result\":\"pass\"" ~/.storytree/0.3/test-timings.jsonl; }
+          passed cli || pnpm run test --set-limit=cli=720 --reason="no Windows pass in main's history yet; Windows CI passes took up to 346 s, friction_21e0e923a222"
+          passed session-management || pnpm run test --set-limit=session-management=720 --reason="no Windows pass in main's history yet; Windows CI passes took up to 357 s, PR 1625"
+      - run: pnpm run test ${{ matrix.shard && format('--shard={0}/2', matrix.shard) || '' }}
+        env:
+          STORYTREE_UNIT_LIMIT_MS: 360000
+          STORYTREE_TEST_EVIDENCE: ${{ matrix.system == 'Windows' && '.pgtest/windows-evidence' || matrix.system == 'macOS' && '.pgtest/macos-evidence' || '' }}
+      # Only main's own runs carry their times forward, a failed or cut one too: its kills grow the
+      # next run's deadline for that unit.
+      - name: Keep this run's test timing history for the next
+        if: always() && github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.storytree/0.3/test-timings.jsonl
+          key: test-timings-${{ runner.os }}-${{ matrix.shard && format('shard-{0}-', matrix.shard) || '' }}${{ github.run_id }}-${{ github.run_attempt }}
+      # The merge queue's passing run tested main's next commit, but a cache it saved would be kept
+      # for its own queue branch, out of every later run's reach: it leaves its history for the
+      # push run's `timings` to save for main. A failed queue run carries nothing back.
+      - name: Leave the queue run's test timing history for main
+        if: success() && github.event_name == 'merge_group'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: test-timings-${{ runner.os }}-${{ matrix.shard && format('shard-{0}-', matrix.shard) || '' }}${{ github.run_attempt }}
+          path: ~/.storytree/0.3/test-timings.jsonl
+          include-hidden-files: true
+          if-no-files-found: warn
+          retention-days: 2
+      # The real app, started on Linux under a virtual display on a throwaway library, for a change that reaches it
+      # (the owner's option A on question_c34fd1a7f98b): `--smoke --stress 3` draws the project, closes and reopens its
+      # window at awkward moments and quits during a load, and goes red on any main-process error, one raised while it
+      # quits included (lifecycle 1.30). It adds the desktop build and well under a minute, on the leg CI already runs.
+      - name: Does this change reach the desktop app?
+        if: matrix.system == 'Linux'
+        id: desktop
+        shell: bash
+        run: |
+          if ! git diff --quiet origin/main...HEAD -- apps/desktop packages/app .github/workflows/ci.yml; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+      - if: matrix.system == 'Linux' && steps.desktop.outputs.changed == 'true'
+        run: pnpm --filter @storytree/desktop build
+      - name: Run the real app
+        if: matrix.system == 'Linux' && steps.desktop.outputs.changed == 'true'
+        run: xvfb-run -a node --import tsx apps/desktop/check-app-linux.mjs
+        env:
+          STORYTREE_SMOKE_SCREENSHOT: .pgtest/app-smoke/smoke.png
+      - name: Keep the real app's screenshot
+        if: failure() && matrix.system == 'Linux' && steps.desktop.outputs.changed == 'true'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: app-smoke-${{ github.run_attempt }}
+          path: .pgtest/app-smoke
+          include-hidden-files: true
+          if-no-files-found: warn
+          retention-days: 14
+      # Exercise the distributable before merging packaging/updater changes. A source build
+      # passing tests alone does not prove that the signed Apple Silicon .app starts and runs its own
+      # Postgres and Node. The Windows installer builds in its own job beside the tests (`installer`);
+      # the macOS one stays here, after the tests: it adds about 1.8 min, and a job of its own would
+      # take a second macOS runner of the free plan's five, where macOS jobs already queue 5 to 6 min
+      # at p90 (increment_941fc3fe1d63).
+      - name: Does this change reach the installer?
+        if: matrix.system == 'macOS'
+        id: installer
+        shell: bash
+        run: |
+          if ! git diff --quiet origin/main...HEAD -- $INSTALLER_PATHS; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+      - if: matrix.system == 'macOS' && steps.installer.outputs.changed == 'true'
+        run: pnpm desktop:dist
+      - if: matrix.system == 'macOS' && steps.installer.outputs.changed == 'true'
+        run: node --import tsx apps/desktop/check-install-mac.mjs
+      # Reuse this Windows execution for own health. Each attempt keeps its own immutable
+      # artifact. A failed job uploads too (always()), so its own run can be diagnosed; own health
+      # downloads only from a passing run, so a failed attempt's evidence earns no credit. A job
+      # that failed before its tests wrote any only warns about the missing folder, as does a shard
+      # given no units. Each shard keeps its own; own health downloads both into one folder.
+      - name: Does this shard test anything?
+        id: shard
+        if: always() && matrix.shard
+        shell: bash
+        run: |
+          grep -qx "shard ${{ matrix.shard }}/2: none" .pgtest/shard-plan.txt 2>/dev/null || echo "units=true" >> "$GITHUB_OUTPUT"
+      - name: Preserve Windows test evidence
+        if: always() && matrix.system == 'Windows'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: windows-test-evidence-${{ github.run_attempt }}-shard-${{ matrix.shard }}
+          path: .pgtest/windows-evidence
+          include-hidden-files: true
+          if-no-files-found: ${{ job.status == 'success' && steps.shard.outputs.units == 'true' && 'error' || 'warn' }}
+          retention-days: 14
+      - name: Preserve this shard's plan
+        if: always() && matrix.shard
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: test-shard-plan-${{ matrix.shard }}-${{ github.run_attempt }}
+          path: .pgtest/shard-plan.txt
+          include-hidden-files: true
+          if-no-files-found: warn
+          retention-days: 1
+      # The same for macOS: own health credits a platform:darwin skip only from this run (contract 1.11).
+      - name: Preserve macOS test evidence
+        if: always() && matrix.system == 'macOS'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: macos-test-evidence-${{ github.run_attempt }}
+          path: .pgtest/macos-evidence
+          include-hidden-files: true
+          if-no-files-found: ${{ job.status == 'success' && 'error' || 'warn' }}
+          retention-days: 14
+
+  # On a push that stands on the merge queue's verdict, each system saves the timing history that
+  # queue run left (above) as main's, so the next run's unit deadlines still grow from main's tested
+  # commits. A save that fails warns and fails nothing: it is not a test verdict.
+  timings:
+    name: keep main's timing history on ${{ matrix.system }}${{ matrix.shard && format(' {0}/2', matrix.shard) || '' }}
+    needs: queue-verdict
+    if: needs.queue-verdict.outputs.run-id != ''
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - system: Linux
+            runner: ubuntu-latest
+          - system: macOS
+            runner: macos-latest
+          - system: Windows
+            runner: windows-latest
+            shard: 1
+          - system: Windows
+            runner: windows-latest
+            shard: 2
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 10
+    continue-on-error: true
+    permissions:
+      actions: read
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: test-timings-${{ runner.os }}-${{ matrix.shard && format('shard-{0}-', matrix.shard) || '' }}${{ needs.queue-verdict.outputs.attempt }}
+          path: ~/.storytree/0.3
+          run-id: ${{ needs.queue-verdict.outputs.run-id }}
+          github-token: ${{ github.token }}
+      - uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.storytree/0.3/test-timings.jsonl
+          key: test-timings-${{ runner.os }}-${{ matrix.shard && format('shard-{0}-', matrix.shard) || '' }}${{ github.run_id }}-${{ github.run_attempt }}
+
+  # Whether the change reaches the Windows installer, decided on a Linux runner in seconds, so the
+  # Windows installer job starts beside the tests only when it has something to build.
+  installer-scope:
+    name: does this change reach the installer?
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      changed: ${{ steps.diff.outputs.changed }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - id: diff
+        shell: bash
+        run: |
+          if ! git diff --quiet origin/main...HEAD -- $INSTALLER_PATHS; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  # What a pull request adds to what installs: each external package new to pnpm-lock.yaml, and each dependency newly
+  # allowed to run its install script, in the run's summary (contract 7.18). Read from git before anything installs;
+  # a report for the reviewer, which refuses nothing and is not one of verify's needs.
+  lockfile-additions:
+    name: lockfile additions
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: 24
+      - run: node packages/dev-loop/src/lockfile-additions.mjs
+
+  # The Windows installer, built and checked beside the tests rather than after them: in about 30% of
+  # runs it added 7 min (desktop:dist 5.7, check-install 1.4) to Windows's 16.6-min tests, its
+  # 26-28 min p90 (increment_08dac5c25a06). A source build passing tests alone does not prove NSIS
+  # can unpack the app and its database binaries.
+  installer:
+    name: installer on Windows
+    needs: installer-scope
+    if: needs.installer-scope.outputs.changed == 'true'
+    runs-on: windows-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm desktop:dist
+      - run: node apps/desktop/check-install.mjs
+
+  # The check branch protection on main requires, and the one `automerge` waits for; it reports on
+  # the merge queue's runs too, so the queue can merge on it. It passes only
+  # if every run in `platforms` passed, and the Windows installer passed or, for a change that does
+  # not reach it, was skipped; or, on a push to main, if the merge queue's run of the same commit
+  # passed it (`queue-verdict`). It runs whatever they did (always()), so a run that failed
+  # or was cancelled fails it: were it skipped instead, GitHub would count the skipped check as
+  # passed.
+  verify:
+    name: verify
+    needs: [queue-verdict, platforms, installer-scope, installer]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Every system passed
+        env:
+          RESULT: ${{ needs.platforms.result }}
+          QUEUE_RUN: ${{ needs.queue-verdict.outputs.run-id }}
+          SCOPE: ${{ needs.installer-scope.result }}
+          INSTALLER: ${{ needs.installer.result }}
+          CHANGED: ${{ needs.installer-scope.outputs.changed }}
+        run: |
+          if [ -n "$QUEUE_RUN" ]; then
+            echo "The merge queue's run $QUEUE_RUN passed verify on this commit."
+            exit 0
+          fi
+          echo "platforms: $RESULT"
+          echo "installer scope: $SCOPE (reaches the installer: ${CHANGED:-false})"
+          echo "installer: $INSTALLER"
+          test "$RESULT" = success
+          test "$SCOPE" = success
+          if [ "$CHANGED" = true ]; then test "$INSTALLER" = success; else test "$INSTALLER" = skipped; fi
+      # A push the merge queue's run verified ran no shards here: that run already compared them.
+      - if: needs.queue-verdict.outputs.run-id == ''
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: test-shard-plan-*
+          path: shard-plans
+      # Both Windows shards split the units alike, so none fell between them. Each shard's latest
+      # attempt is the one that passed: rerunning only a failed job leaves the other's earlier plan.
+      - name: The Windows shards split the units alike
+        if: needs.queue-verdict.outputs.run-id == ''
+        run: |
+          latest() { ls -d shard-plans/test-shard-plan-"$1"-* 2>/dev/null | sort -V | tail -n 1; }
+          one="$(latest 1)" two="$(latest 2)"
+          test -n "$one" && test -n "$two" || { echo "a Windows shard left no plan"; exit 1; }
+          cat "$one/shard-plan.txt" "$two/shard-plan.txt"
+          cmp "$one/shard-plan.txt" "$two/shard-plan.txt"
+
+  # Lands the pull request once `verify` passed, through land.yml, which reads whether it is held
+  # (a draft, or the `hold` label) when it runs, not from this run's event (see the header).
+  # `always()` keeps GitHub from adding its implicit `success()`, which also reads the jobs before
+  # `verify`: on a pull request `queue verdict` and often `installer` are skipped, which would skip
+  # this job though `verify` passed, so it reads `verify`'s own result instead. A Dependabot pull
+  # request is never landed here: it opens with the `hold` label (.github/dependabot.yml) and waits
+  # for the owner, whose taking the label off lands it (hold-release.yml).
+  automerge:
+    name: automerge
+    needs: verify
+    if: >-
+      always() &&
+      needs.verify.result == 'success' &&
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.user.login != 'dependabot[bot]'
+    permissions:
+      actions: write # to start the own-health workflow on main once merged
+      contents: write
+      pull-requests: write
+    uses: ./.github/workflows/land.yml
+    with:
+      pr: ${{ github.event.pull_request.number }}
+      pr-id: ${{ github.event.pull_request.node_id }}
+      sha: ${{ github.event.pull_request.head.sha }}
+    secrets:
+      MERGE_QUEUE_TOKEN: ${{ secrets.MERGE_QUEUE_TOKEN }}

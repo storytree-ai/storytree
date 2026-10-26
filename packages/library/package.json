@@ -1,0 +1,66 @@
+{
+  "name": "@storytree/library",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./verbs": "./src/verbs/verb.ts",
+    "./commands": "./src/commands/index.ts",
+    "./whole-words": "./src/knowledge/whole-words.ts",
+    "./librarian": "./src/librarian/index.ts",
+    "./pr-cutover": "./src/work/pr-cutover.ts",
+    "./connection-error": "./src/project/connection-error.ts",
+    "./printable": "./src/api/printable.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p ."
+  },
+  "dependencies": {
+    "@google-cloud/cloud-sql-connector": "^1.11.1",
+    "@huggingface/transformers": "^4.3.0",
+    "@neondatabase/serverless": "^1.2.0",
+    "@storytree/keys": "workspace:*",
+    "google-auth-library": "^10.6.2",
+    "https-proxy-agent": "^9.1.0",
+    "pg": "^8.23.0",
+    "ws": "^8.22.0",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@storytree/local-postgres": "workspace:*",
+    "@storytree/test-waits": "workspace:*",
+    "@types/node": "^24.13.6",
+    "@types/pg": "^8.23.1",
+    "@types/ws": "^8.18.2",
+    "electron": "44.9.3",
+    "tsx": "^4.23.15",
+    "typescript": "~7.0.2"
+  },
+  "storytree": {
+    "guidance": [
+      {
+        "from": ".",
+        "export": "planGuidance",
+        "order": 20
+      },
+      {
+        "from": ".",
+        "export": "knowledgeGuidance",
+        "order": 80
+      }
+    ],
+    "verbs": [
+      {
+        "from": "./commands",
+        "export": "LIBRARY_FAMILIES"
+      }
+    ],
+    "tools": [
+      {
+        "from": "./librarian",
+        "export": "librarianToolParts",
+        "order": 1
+      }
+    ]
+  }
+}

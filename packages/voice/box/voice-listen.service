@@ -1,0 +1,17 @@
+# The voice door's listener (capabilities 4 and 5): waits on the door's database for voice_run, sent when a manager run
+# is confirmed, and runs one committer tick each time, as the owner's account, so the run starts within seconds. It also
+# ticks when a run's end mark appears, so the reply comes back at once. voice-commit.timer stays as a slow fallback.
+# When the checkout moves to another commit it exits instead of ticking, and Restart=always starts it on the new code.
+# Install as the owner (README.md, "Voice writes").
+[Unit]
+Description=storytree voice: start confirmed voice runs at once
+
+[Service]
+Type=simple
+WorkingDirectory=%h/code/storytree03
+ExecStart=/bin/bash -c 'command -v node >/dev/null || PATH="$$(ls -d "$$HOME"/.nvm/versions/node/*/bin | sort -V | tail -n1):$$PATH"; exec node --import ./node_modules/tsx/dist/loader.mjs packages/voice/src/bins/voice-listen.ts'
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=default.target

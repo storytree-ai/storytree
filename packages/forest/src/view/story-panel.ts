@@ -1,0 +1,233 @@
+/**
+ * Capability 4 · Drill-down. The drill-down's panel (the forest story, capability 4): @storytree/forest's drillDown, as HTML.
+ * It explains the story in plain words and draws its capability tree, which opens in its own space
+ * (ADR-0743). Each of the story's own capabilities is a card you can click; the one selected shows
+ * below the tree, with its health as the agent reports it and its contracts on request (ADR-0659).
+ * Every word from the library is written as text, never as HTML.
+ */
+import { CARD, layoutTree, OUTSIDE_CARD, type CapabilityLine, type Card, type StoryPanel, type WhyLine } from "@storytree/forest";
+import type { HealthState } from "@storytree/library";
+
+const HEALTH: Readonly<Record<HealthState, string>> = { passing: "passing", failing: "failing", "not-checked": "not checked" };
+
+/**
+ * The panel's HTML, with `selected` shown below the diagram, if it is one of the story's capabilities.
+ * With the capability tree switched off (ADR-0750) it is the story's sentences alone: a capability is
+ * picked only in the tree, so its details go with it.
+ */
+// Its head, on show exactly while the panel is, names the panel as the Story panel's canvas (Surface feedback).
+export function renderStoryPanel(panel: StoryPanel, selected: string | undefined, { tree = true }: { tree?: boolean } = {}): string {
+  const shown = tree ? panel.capabilities.find(({ id }) => id === selected) : undefined;
+  return `
+    <header class="panel-head" data-surface-id="story-panel" data-surface-layer="panel">
+      <h2>${text(panel.title)}</h2>
+      <button type="button" class="panel-close" aria-label="Close">×</button>
+    </header>
+    <p class="panel-sentences">${text(panel.description)}</p>
+    ${panel.risk === undefined ? "" : risk(panel.risk)}
+    ${panel.mapped === undefined ? "" : mapped(panel.mapped)}
+    ${!tree || panel.capabilities.length === 0 ? "" : diagram(panel, shown?.id)}
+    ${shown === undefined ? "" : capability(shown)}`;
+}
+
+/** What a mapped story is (ADR-0993 D3), in place of a health it does not carry, with its counts once surveyed. */
+function mapped({ files, lines }: NonNullable<StoryPanel["mapped"]>): string {
+  const counts = files === undefined || lines === undefined ? "" : ` ${files.toLocaleString("en-GB")} file${files === 1 ? "" : "s"}, ${lines.toLocaleString("en-GB")} line${lines === 1 ? "" : "s"}.`;
+  return `<p class="panel-mapped"><strong>Mapped:</strong> here before storytree, and assumed to be working.${counts}</p>`;
+}
+
+type RiskBar = NonNullable<StoryPanel["risk"]>;
+
+/** Who a fault could reach, when no count of its users is measured yet. */
+const REACHES: Readonly<Record<NonNullable<RiskBar["audience"]>, string>> = { owner: "you alone", invited: "the invited users (not counted yet)", public: "the public (not counted yet)" };
+
+const TRIGGER: Readonly<Record<RiskBar["checks"][number]["trigger"], string>> = { change: "on every change", release: "before each formal release" };
+
+/**
+ * The risk bar (question_1740edf77e9e): three plain lines, no graph. Its rating out of ten, the users
+ * it could reach, and the extra checks only this story carries; the standard tests are not listed.
+ */
+function risk({ rating, audience, users, checks }: RiskBar): string {
+  const reach = users !== undefined ? users.toLocaleString("en-GB") : audience === undefined ? "not read yet" : REACHES[audience];
+  const listed = checks.length === 0
+    ? " none beyond the standard tests."
+    : `<ul class="panel-risk-checks">${checks
+        .map(({ check, trigger, capability }) => `<li>${text(check)}${capability === undefined ? "" : ` <span class="panel-muted">(${text(capability)})</span>`}, ${TRIGGER[trigger]}</li>`)
+        .join("")}</ul>`;
+  return `
+    <section class="panel-risk" aria-label="Risk">
+      <p><span class="panel-risk-label">Risk rating</span> ${rating === undefined ? "not read yet" : `<strong>${rating}</strong> of 10`}</p>
+      <p><span class="panel-risk-label">Users potentially impacted</span> ${text(reach)}</p>
+      <div><span class="panel-risk-label">Extra checks</span>${listed}</div>
+    </section>`;
+}
+
+function capability(line: CapabilityLine): string {
+  const contracts = line.contracts.length === 0
+    ? `<p class="panel-muted">No contracts yet.</p>`
+    : `<ul class="panel-contracts">${line.contracts
+        .map(
+          (contract) => `
+            <li data-contract-id="${attribute(contract.id)}">
+              <span>${text(contract.title)}</span>
+              <span class="panel-health">
+                ${badge("the agent reports", contract.reported)}
+                <span class="panel-trail">${text(contract.trail)}</span>
+                ${contract.verified === undefined ? "" : badge("storytree saw", contract.verified)}
+                ${contract.lastSeen === undefined ? "" : `<span class="panel-last-seen">last seen ${contract.lastSeen.state === "passing" ? "passing" : "failing"} ${day(contract.lastSeen.at)}, not re-run since</span>`}
+              </span>
+            </li>`,
+        )
+        .join("")}</ul>`;
+  return `
+    <section class="panel-detail" data-capability-id="${attribute(line.id)}">
+      <h3>${text(line.title)} <span class="panel-state status-${line.status}">${line.reportOnly ? `the agent reports ${HEALTH[line.reported]}` : line.status}</span></h3>
+      ${line.why === undefined ? "" : why(line.why)}
+      ${line.reportOnly ? `<p class="panel-why report-only">${text(NOT_VERIFIED)}.</p>` : ""}
+      ${line.parkedOn === undefined ? "" : parked(line.parkedOn)}
+      <p>${text(line.description)}</p>
+      <p class="panel-health">
+        ${badge("the agent reports", line.reported)}
+        ${line.verified === undefined ? "" : badge("storytree saw", line.verified)}
+      </p>
+      <details><summary>${line.contracts.length} contract${line.contracts.length === 1 ? "" : "s"}</summary>${contracts}</details>
+    </section>`;
+}
+
+/** What a report-only capability says in place of a reason (ADR-0630); the library's words, kept here as the panel's. */
+const NOT_VERIFIED = "storytree does not check this project's tests yet";
+
+/** The reason in the owner's words, by what carries it. */
+const REASON: Readonly<Record<WhyLine["reason"], (named: string) => string>> = {
+  "not built": () => "it is not built yet",
+  failing: (named) => `${named} ${/ and |, /.test(named) ? "are" : "is"} failing`,
+  "not re-run": (named) => `${named} ${/ and |, /.test(named) ? "were" : "was"} not re-run`,
+  "no test names it": (named) => `no test names ${named}`,
+  "out of CI's reach": (named) => `${named} can only run on another platform`,
+  "needs owner": (named) => `${named} needs something only you can give`,
+};
+
+/** Under its word: why it is not green and who moves it (ADR-0825 D1). Everything the library says is text. */
+function why({ reason, mover, contracts, since }: WhyLine): string {
+  const named = contracts.length < 2 ? (contracts[0] ?? "it") : `${contracts.slice(0, -1).join(", ")} and ${contracts.at(-1)}`;
+  const sentence = REASON[reason](reason === "not built" ? "" : named);
+  return `<p class="panel-why mover-${mover}"><strong>Why not green:</strong> ${text(sentence)}${since === undefined || reason === "not re-run" ? "" : `, since ${day(since)}`}. <span class="panel-mover">${mover === "owner" ? "You move this one." : "The agent moves this one."}</span></p>`;
+}
+
+/** Why a grey territory is grey (ADR-0992 D6): the arcs that park it, by title. */
+function parked(arcs: NonNullable<CapabilityLine["parkedOn"]>): string {
+  const titles = arcs.map(({ title }) => title);
+  const named = titles.length < 2 ? (titles[0] ?? "") : `${titles.slice(0, -1).join(", ")} and ${titles.at(-1)}`;
+  return `<p class="panel-parked">Parked on ${text(named)}: shelved on purpose.</p>`;
+}
+
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+/** A time as the day it fell on, in UTC so every reader sees the same: "27 Sep". */
+function day(at: string): string {
+  const when = new Date(at);
+  return `${when.getUTCDate()} ${MONTHS[when.getUTCMonth()]}`;
+}
+
+function badge(who: string, state: HealthState): string {
+  return `<span class="panel-badge badge-${state}">${text(who)}: ${HEALTH[state]}</span>`;
+}
+
+/**
+ * The diagram: the capability tree as 0.2 drew it (ADR-0743), laid out by `layoutTree`: one card
+ * per capability, what it builds on below it, each card with a strip across its top saying its word
+ * (proposed, healthy, unhealthy or untested, ADR-0744) in 0.2's colours, and the agent's report and
+ * storytree's as labelled marks (ADR-0630). In the panel it has its own framed space, where it is drawn at a
+ * readable size and pans and zooms (`attachPanZoom`); a pop-out icon in the frame's corner, outside
+ * the frame so pressing it starts no drag, opens the same tree in a larger window (`mountTreeSpace`).
+ * The story's own cards are buttons, and `selected` is marked; another story's card is muted, names
+ * its story, and is not a button (ADR-0659 D3, D5).
+ */
+function diagram(panel: StoryPanel, selected: string | undefined): string {
+  return `
+    <div class="panel-tree">
+      <div class="panel-tree-frame">
+        <div class="panel-tree-surface">
+          ${renderTree(panel, selected, "panel-diagram")}
+        </div>
+      </div>
+      <button type="button" class="panel-tree-pop-out" data-open-tree aria-label="${POP_OUT}" title="${POP_OUT}">
+        <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M9.5 2.5h4v4M13.5 2.5 9 7M6.5 13.5h-4v-4M2.5 13.5 7 9" /></svg>
+      </button>
+    </div>`;
+}
+
+const POP_OUT = "Open in a larger window";
+
+/** The capability tree of `panel` as an SVG of class `kind`, at its natural size: 1 unit is 1 pixel. */
+export function renderTree(panel: StoryPanel, selected: string | undefined, kind: string): string {
+  const layout = layoutTree(panel);
+  const head = `${kind}-head`;
+  const cards = layout.cards.map((card) => cardOf(card, card.id === selected));
+  const links = layout.links.map(({ d }) => `<path class="arrow" d="${d}" marker-end="url(#${head})" />`);
+  return `
+    <svg class="${kind}" viewBox="0 0 ${layout.width} ${layout.height}" width="${layout.width}" height="${layout.height}" role="img" aria-label="How the capabilities connect">
+      <defs><marker id="${head}" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L8,4 L0,8 z" /></marker></defs>
+      ${links.join("")}
+      ${cards.join("")}
+    </svg>`;
+}
+
+/** One card: a strip saying its word, its title (and story, if another's), and its health marks. */
+function cardOf(card: Card, selected: boolean): string {
+  const { width: W, height: H } = card;
+  const S = card.own ? CARD.strip : OUTSIDE_CARD.strip;
+  const title = card.own ? card.title : `${card.story ?? ""} · ${card.title}`;
+  const classes = ["box", `status-${card.status}`, ...(card.own ? [] : ["elsewhere"]), ...(selected ? ["selected"] : [])];
+  const pressable = card.own ? ` data-capability-id="${attribute(card.id)}" role="button" tabindex="0" aria-pressed="${selected}"` : "";
+  const lines = [...(card.own ? [] : [{ words: card.story ?? "", kind: "card-story" }]), ...wrap(card.title, card.own ? 28 : 24, card.own ? 2 : 1).map((words) => ({ words, kind: "card-title" }))];
+  const marks = [
+    ...(card.reported === undefined ? [] : [mark("the agent reports", card.reported)]),
+    ...(card.verified === undefined ? [] : [mark("storytree saw", card.verified)]),
+  ];
+  return `<g class="${classes.join(" ")}"${pressable} transform="translate(${card.x.toFixed(1)} ${card.y.toFixed(1)})">
+      <title>${text(title)}</title>
+      <rect class="card-bg" width="${W}" height="${H}" rx="7" />
+      <path class="card-strip" d="M 0 ${S} L 0 7 Q 0 0 7 0 L ${W - 7} 0 Q ${W} 0 ${W} 7 L ${W} ${S} Z" />
+      <text class="card-status" x="8" y="${S - 5}">${card.agentSays === undefined ? card.status : `agent: ${HEALTH[card.agentSays]}`}</text>
+      ${lines.map(({ words, kind }, index) => `<text class="${kind}" x="${W / 2}" y="${S + (card.own ? 17 : 15) + index * 15}">${text(words)}</text>`).join("")}
+      ${marks.map((each, index) => each.replace("<text ", `<text x="8" y="${H - 8 - (marks.length - 1 - index) * 14}" `)).join("")}
+    </g>`;
+}
+
+const SIGN: Readonly<Record<HealthState, string>> = { passing: "✓", failing: "✗", "not-checked": "–" };
+
+function mark(who: string, state: HealthState): string {
+  return `<text class="card-mark mark-${state}">${SIGN[state]} ${text(who)}: ${HEALTH[state]}</text>`;
+}
+
+/** `words` in at most `most` lines of about `width` characters, the last cut short with an ellipsis. */
+function wrap(words: string, width: number, most: number): string[] {
+  const lines: string[] = [];
+  let rest = words.trim();
+  while (rest.length > 0 && lines.length < most) {
+    if (rest.length <= width) {
+      lines.push(rest);
+      rest = "";
+      break;
+    }
+    const cut = rest.lastIndexOf(" ", width);
+    const at = cut < width * 0.4 ? width : cut;
+    lines.push(rest.slice(0, at).trim());
+    rest = rest.slice(at).trim();
+  }
+  if (rest.length > 0 && lines.length > 0) lines[lines.length - 1] = shorten(`${lines.at(-1)} ${rest}`, width);
+  return lines;
+}
+
+function shorten(words: string, most: number): string {
+  return words.length <= most ? words : `${words.slice(0, most - 1)}…`;
+}
+
+function text(value: string): string {
+  return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+function attribute(value: string): string {
+  return text(value).replace(/"/g, "&quot;");
+}

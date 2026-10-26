@@ -1,0 +1,116 @@
+/**
+ * Contract 9.10 · a session's window, read from its transcript (ADR-0746 D1): what is in it now, the
+ * call that brought each piece, what it opened and whether that is still in view, and what it only
+ * glimpsed. Written in the shapes Claude Code 2.1.283 and Codex 0.155 write.
+ */
+import assert from "node:assert/strict";
+import { test } from "node:test";
+
+import { claudeCodeWindow, codexWindow, sessionWindow } from "./index.js";
+
+const jsonl = (...records: unknown[]): string => `${records.map((record) => JSON.stringify(record)).join("\n")}\n`;
+let uuid = 0;
+const line = (record: Record<string, unknown>) => ({ uuid: `u${++uuid}`, isSidechain: false, ...record });
+const calls = (...blocks: unknown[]) => line({ type: "assistant", message: { role: "assistant", content: blocks } });
+const call = (id: string, name: string, input: Record<string, unknown>) => ({ type: "tool_use", id, name, input });
+const results = (...blocks: unknown[]) => line({ type: "user", message: { role: "user", content: blocks } });
+const result = (id: string, content: unknown) => ({ type: "tool_result", tool_use_id: id, content });
+
+test("9.10 a Claude Code window holds what came after the last compaction and its kept segment, leaves out side chains, joins each result to its call, and says whether each opened note or file is still in it", () => {
+  const kept = results(result("kept", "a note kept through the compaction"));
+  const text = jsonl(
+    calls(call("gone", "mcp__storytree__search_notes", { query: "claims" })),
+    results(result("gone", "decision_000000000001 Claims by write-ownership")),
+    calls(call("kept", "Read", { file_path: "/repo/notes.md" })),
+    kept,
+    line({ type: "system", subtype: "compact_boundary", compactMetadata: { preservedSegment: { headUuid: kept.uuid, tailUuid: kept.uuid } } }),
+    calls(call("search", "mcp__storytree__search_notes", { query: "claims" })),
+    results(result("search", [{ type: "text", text: "decision_000000000002 Release on merge\ndecision_000000000001 Claims" }])),
+    calls(call("open-2", "mcp__storytree__open", { id: "decision_000000000002" })),
+    results(result("open-2", "Release on merge. Links to decision_000000000001 and src/claims/merges.ts")),
+    // A subagent's window is another window's: its calls and results are never this one's.
+    { ...calls(call("side", "Read", { file_path: "src/claims/merges.ts" })), isSidechain: true },
+    { ...results(result("side", "decision_000000000003")), isSidechain: true },
+    calls(call("open-1", "Bash", { command: "pnpm storytree library read decision_000000000001 | head -40" }), call("file", "Read", { file_path: "src/claims/merges.ts" })),
+    results(result("open-1", "Claims by write-ownership"), result("file", "export function merges() {}")),
+  );
+
+  const window = claudeCodeWindow(text);
+  assert.deepEqual(window.inView.map(({ call }) => call), ["kept", "search", "open-2", "open-1", "file"]);
+  assert.deepEqual(window.inView.find(({ call }) => call === "open-2"), { call: "open-2", tool: "mcp__storytree__open", opened: [{ kind: "note", id: "decision_000000000002" }] });
+  assert.equal(window.compactions, 1);
+  assert.deepEqual(window.opens.map(({ kind, id, call, resident }) => ({ kind, id, call, resident })), [
+    { kind: "file", id: "/repo/notes.md", call: "kept", resident: true },
+    { kind: "note", id: "decision_000000000002", call: "open-2", resident: true },
+    { kind: "note", id: "decision_000000000001", call: "open-1", resident: true },
+    { kind: "file", id: "src/claims/merges.ts", call: "file", resident: true },
+  ]);
+});
+
+test("9.10 a Codex window drops what a compaction replaced, joins outputs by call id, and reads opens from shell commands and exec cells", () => {
+  const item = (payload: Record<string, unknown>) => ({ type: "response_item", payload });
+  const text = jsonl(
+    item({ type: "function_call", call_id: "old", name: "exec_command", arguments: JSON.stringify({ cmd: "storytree library search claims" }) }),
+    item({ type: "function_call_output", call_id: "old", output: "decision_000000000001" }),
+    { type: "compacted", payload: { message: "", replacement_history: [] } },
+    item({ type: "function_call", call_id: "find", name: "exec_command", arguments: JSON.stringify({ cmd: "storytree library search claims" }) }),
+    item({ type: "function_call_output", call_id: "find", output: "decision_000000000001 Claims" }),
+    item({ type: "custom_tool_call", call_id: "cell", name: "exec", input: 'text(await tools.exec_command({cmd:"pnpm storytree library read decision_000000000001"}))' }),
+    item({ type: "custom_tool_call_output", call_id: "cell", output: "Claims by write-ownership" }),
+  );
+
+  const window = codexWindow(text);
+  assert.deepEqual(window.inView.map(({ call }) => call), ["find", "cell"]);
+  assert.equal(window.compactions, 1);
+  assert.deepEqual(window.opens, [
+    { kind: "note", id: "decision_000000000001", call: "cell", tool: "exec", resident: true },
+  ]);
+});
+
+test("9.10 a note named in a result still in the window but never opened is glimpsed, once, in the order first named; an opened note and one named only in a compacted result are not", () => {
+  const text = jsonl(
+    calls(call("old", "mcp__storytree__search_notes", { query: "claims" })),
+    results(result("old", "decision_000000000009 Gone with the compaction")),
+    line({ type: "system", subtype: "compact_boundary" }),
+    calls(call("find", "mcp__storytree__search_notes", { query: "claims" })),
+    results(result("find", "decision_000000000002 Release\ndecision_000000000001 Claims\ndecision_000000000002 again")),
+    calls(call("open", "mcp__storytree__open", { id: "decision_000000000001" })),
+    results(result("open", "Claims. Links to principle_000000000003")),
+  );
+
+  assert.deepEqual(claudeCodeWindow(text).glimpses, ["decision_000000000002", "principle_000000000003"]);
+});
+
+test("9.10 a shell call opens the files its own cat, head, tail or sed -n names, and never a word inside quoted text, a heredoc or another command's arguments", () => {
+  const shell = (id: string, command: string) => calls(call(id, "Bash", { command }));
+  const window = claudeCodeWindow(jsonl(
+    shell("echo", 'echo "read more carefully before the next step"'),
+    shell("single", "git commit -m 'tail end of the head of the plan'"),
+    shell("heredoc", "git commit -F - <<'EOF'\nThe gate writes its tail /tmp/cimerge-gate.log and fails, saying so; don't\nmore to say\nEOF"),
+    shell("bare", "echo read more carefully"),
+    shell("head", "head -5 packages/x/src/a.ts\ngit status"),
+    shell("piped", 'grep -n "cat walks" packages/x/src/b.ts | tail -3'),
+    shell("written", "cat <<'EOF' > packages/x/notes.md\nhead of the notes\nEOF\ncd x && cat packages/x/src/c.ts"),
+  ));
+  assert.deepEqual(window.opens.map(({ id, call }) => ({ id, call })), [
+    { id: "packages/x/src/a.ts", call: "head" },
+    { id: "packages/x/src/c.ts", call: "written" },
+  ]);
+});
+
+test("9.10 a window is read only from a transcript storytree has a reader for: Pi's and Cursor's are never read as Claude Code's", async () => {
+  const text = jsonl(calls(call("open", "mcp__storytree__open", { id: "decision_000000000001" })), results(result("open", "Claims")));
+  const now = new Date("2026-10-12T03:00:00.000Z");
+  const windowOf = (harness: string) => sessionWindow(
+    [{ seq: 1, at: now.toISOString(), project: "test", session: "S", source: "hook", harness, kind: "session-started", transcript: "S.jsonl" }],
+    "S", { now, read: async () => text },
+  );
+  for (const harness of ["pi", "cursor"]) {
+    const window = await windowOf(harness);
+    assert.ok("absent" in window && !("opens" in window), `${harness}'s transcript is not read as Claude Code's`);
+    assert.match(window.absent, new RegExp(`^storytree reads no transcript of ${harness}$`, "i"));
+  }
+  const claude = await windowOf("claude-code");
+  assert.ok("opens" in claude);
+  assert.deepEqual(claude.opens.map(({ id }) => id), ["decision_000000000001"]);
+});

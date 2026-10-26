@@ -1,0 +1,42 @@
+{
+  "name": "@storytree/arc-surface",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./board-states": "./src/work-states/board-states.ts",
+    "./surfaces": "./src/surfaces/surfaces.ts",
+    "./view": "./src/view/index.ts",
+    "./view/styles.css": "./src/view/styles.css",
+    "./verbs": "./src/verbs/index.ts"
+  },
+  "storytree": {
+    "surfaces": [
+      {
+        "from": "./surfaces",
+        "export": "arcSurfaces",
+        "order": 2
+      }
+    ],
+    "verbs": [
+      {
+        "from": "./verbs",
+        "export": "ARC_FAMILIES"
+      }
+    ]
+  },
+  "scripts": {
+    "typecheck": "tsc -p ."
+  },
+  "dependencies": {
+    "@storytree/library": "workspace:*",
+    "@storytree/session-management": "workspace:*"
+  },
+  "devDependencies": {
+    "@storytree/test-waits": "workspace:*",
+    "@types/node": "^24.13.6",
+    "happy-dom": "catalog:",
+    "tsx": "^4.23.15",
+    "typescript": "~7.0.2"
+  }
+}

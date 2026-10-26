@@ -1,0 +1,337 @@
+name: Package the installed app
+
+# Each platform's build and install check (ADR-1032 D3), the Mac build's Developer ID signing and notarisation, and each
+# platform's delivery. The jobs that hold a signing secret (mac-mode, sign-mac) or a token that can write a release
+# (deliver) install nothing: only node's built-ins, the repository's own scripts and Apple's tools run there. release.yml calls it for a real release, whose delivery uploads each platform's assets into the
+# draft; release-rehearsal.yml calls it with rehearsal: true on a branch, which stops before anything reaches a release
+# (release.mjs refuses it, 4.22) and keeps the set's names and Apple's answer as this run's artifacts. A workflow_run always reads its file from main, so this split is what lets a
+# pull request's change to the packaging steps run before a real release does.
+#
+# Secrets come from the signing jobs' environment, `release` or `rehearsal`, and fall back to the repository's secret of the
+# same name while one is not set there (the caller passes those five by name, and no other secret). A new or changed secret goes into
+# `rehearsal` first; a rehearsal proves it; then the same value goes into `release` ("Changing a release secret").
+# Permissions are the caller's: a real release grants contents: write, a rehearsal only contents: read.
+on:
+  workflow_call:
+    inputs:
+      sha:
+        description: The verified commit a real release builds; empty in a rehearsal, which builds its own checkout
+        type: string
+        default: ""
+      version:
+        description: The real release's version; empty in a rehearsal, which builds apps/desktop/package.json's
+        type: string
+        default: ""
+      rehearsal:
+        description: Build, sign and check, but never draft, upload or publish
+        type: boolean
+        default: false
+    # The signing secrets, and nothing else: the caller names each, so no other secret reaches these jobs.
+    secrets:
+      CSC_LINK:
+        required: false
+      CSC_KEY_PASSWORD:
+        required: false
+      APPLE_API_KEY:
+        required: false
+      APPLE_API_KEY_ID:
+        required: false
+      APPLE_API_ISSUER:
+        required: false
+
+jobs:
+  # Which mode the signing secrets give the Mac build, ad-hoc or developer-id (a certificate without Apple's key is
+  # refused here, contract 4.20), read where the secrets are so that the package job, which holds none, can record it
+  # in the app's archive: no later step can change that archive (its hash is sealed into the app).
+  mac-mode:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.rehearsal && 'rehearsal' || 'release' }}
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    outputs:
+      mode: ${{ steps.mode.outputs.mode }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+          ref: ${{ inputs.sha }}
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: 24
+      - id: mode
+        run: node apps/desktop/mac-signing.mjs mode
+        env:
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+
+  # Each platform builds on its own runner, holding no secret and a read-only token whatever the caller grants: the job
+  # that installs dependencies can sign nothing and write no release. Windows and Linux prove their build installs and
+  # starts here; the Mac's ad-hoc build goes, with its .app, to sign-mac. It runs when mac-mode failed too, so one
+  # platform's failure holds only its own (contract 4.6): the Mac leg then refuses the missing mode.
+  package:
+    needs: mac-mode
+    if: ${{ !cancelled() }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - system: Windows
+            runner: windows-latest
+            check: node apps/desktop/check-install.mjs
+          - system: macOS
+            runner: macos-latest
+          - system: Linux
+            runner: ubuntu-latest
+            check: node --import tsx apps/desktop/check-install-linux.mjs
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 25
+    permissions:
+      contents: read
+    env:
+      RELEASE_SHA: ${{ inputs.sha }}
+      STORYTREE_REHEARSAL: ${{ inputs.rehearsal }}
+      # PostHog's public project token (a repository variable, not a secret: it is public by design).
+      # The private personal key never enters a build; it stays in Secret Manager for deletions.
+      STORYTREE_JOURNEY_KEY: ${{ vars.POSTHOG_PROJECT_TOKEN }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+          ref: ${{ inputs.sha }}
+          fetch-depth: 0
+      # Set only when given: an empty version would be refused by dist.mjs, and without one the build and its
+      # checks use apps/desktop/package.json's. Only a plain <major>.<minor>.<patch>, dist.mjs's own rule, is written.
+      - name: Name the release version
+        if: inputs.version != ''
+        shell: bash
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then echo "::error::Invalid release version"; exit 1; fi
+          echo "STORYTREE_RELEASE_VERSION=$VERSION" >> "$GITHUB_ENV"
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # desktop:dist also stages each platform's bootstrap, one-liners and checksum manifest (on macOS and Linux its
+      # entry, merged on publish) beside the installers; they upload with them, so first-run delivery
+      # never meets a partial release. The Mac app is built ad-hoc and records the mode sign-mac will sign it in.
+      - run: pnpm desktop:dist
+        env:
+          STORYTREE_MAC_SIGNING: ${{ matrix.system == 'macOS' && (needs.mac-mode.outputs.mode || 'missing') || '' }}
+      - if: matrix.check
+        run: ${{ matrix.check }}
+      # Every file `deliver` may upload or check (release-assets.mjs picks this platform's set).
+      # A rehearsal started by hand keeps it for a day, so one of its installers can be tried.
+      - name: Keep this platform's build for delivery
+        if: matrix.system != 'macOS'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-${{ matrix.system }}
+          path: |
+            apps/desktop/release/*.exe
+            apps/desktop/release/*.AppImage
+            apps/desktop/release/*.blockmap
+            apps/desktop/release/*.yml
+            apps/desktop/release/*.ps1
+            apps/desktop/release/*.sh
+            apps/desktop/release/*.txt
+            apps/desktop/release/*.json
+          if-no-files-found: error
+          retention-days: 1
+      # The .app goes as a tar, so its frameworks' links and its files' modes survive the artifact.
+      - name: Put the Mac app in a tar
+        if: matrix.system == 'macOS'
+        run: tar -cf apps/desktop/release/mac-arm64.tar -C apps/desktop/release mac-arm64
+      - name: Keep the unsigned Mac build for signing
+        if: matrix.system == 'macOS'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: unsigned-macOS
+          path: |
+            apps/desktop/release/mac-arm64.tar
+            apps/desktop/release/*.zip
+            apps/desktop/release/*.yml
+            apps/desktop/release/*.sh
+            apps/desktop/release/*.txt
+            apps/desktop/release/*.json
+          if-no-files-found: error
+          retention-days: 1
+
+  # The Mac build's signing, with the Developer ID certificate and Apple's key from the environment, on the package
+  # job's unsigned build alone: nothing is installed here. With the secrets it re-signs the app inside-out, submits it
+  # to Apple, whose answer it waits for only ten minutes so the job never reaches its limit on Apple's queue (contract
+  # 4.20), staples an accepted ticket, zips it again and rewrites its update feed and delivery entry; without them it
+  # re-signs ad-hoc, the same steps with no keychain and no Apple. A build Apple has not accepted within the wait ships
+  # signed but not notarised, and the upload's note says so.
+  sign-mac:
+    needs: [mac-mode, package]
+    if: ${{ !cancelled() && needs.mac-mode.result == 'success' }}
+    runs-on: macos-latest
+    environment: ${{ inputs.rehearsal && 'rehearsal' || 'release' }}
+    timeout-minutes: 25
+    permissions:
+      contents: read
+    env:
+      STORYTREE_MAC_SIGNING: ${{ needs.mac-mode.outputs.mode }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+          ref: ${{ inputs.sha }}
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: 24
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: unsigned-macOS
+          path: apps/desktop/release
+      - name: Take the Mac app out of its tar
+        run: tar -xf apps/desktop/release/mac-arm64.tar -C apps/desktop/release && rm apps/desktop/release/mac-arm64.tar
+      # Puts the certificate in a temporary keychain, Apple's key in a file and the identity in STORYTREE_MAC_IDENTITY;
+      # without the certificate it does nothing.
+      - name: Prepare the Mac signing keychain
+        run: node apps/desktop/mac-signing.mjs prepare
+        env:
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+      # APPLE_API_KEY is not set here: prepare exported it as the key file's path, which notarisation reads.
+      - name: Sign, notarise and zip the Mac app
+        run: node apps/desktop/mac-signing.mjs sign
+        env:
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+      - name: Keep the signed Mac build
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: signed-macOS
+          path: |
+            apps/desktop/release/*.zip
+            apps/desktop/release/*.yml
+            apps/desktop/release/*.sh
+            apps/desktop/release/*.txt
+            apps/desktop/release/*.json
+          if-no-files-found: error
+          retention-days: 1
+      # A pull request's rehearsal keeps Apple's answer on its own, beside the set's names `deliver` keeps.
+      - name: Keep Apple's answer
+        if: always() && inputs.rehearsal
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: rehearsal-macOS
+          path: apps/desktop/release/mac-notarisation.json
+          if-no-files-found: ignore
+          retention-days: 5
+      - name: Delete the Mac signing keychain and Apple's key file
+        if: always()
+        run: node apps/desktop/mac-signing.mjs cleanup
+
+  # The Mac install check, on the app the signed zip carries, and the zip's blockmap, in a job with the install and no
+  # secret: an app that cannot start, or whose signature is not what its archive records, never ships.
+  check-mac:
+    needs: sign-mac
+    if: ${{ !cancelled() && needs.sign-mac.result == 'success' }}
+    runs-on: macos-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    env:
+      STORYTREE_RELEASE_VERSION: ${{ inputs.version }}
+      STORYTREE_REHEARSAL: ${{ inputs.rehearsal }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+          ref: ${{ inputs.sha }}
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: signed-macOS
+          path: apps/desktop/release
+      # ditto keeps the bundle's signature and links, as install.sh unpacks it.
+      - name: Unpack the app the zip carries
+        run: ditto -x -k apps/desktop/release/storytree-0.3-*-mac-arm64.zip apps/desktop/release/mac-arm64
+      - run: node apps/desktop/mac-signing.mjs blockmap
+      - run: node --import tsx apps/desktop/check-install-mac.mjs
+      - name: Keep this platform's build for delivery
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-macOS
+          path: |
+            apps/desktop/release/*.zip
+            apps/desktop/release/*.blockmap
+            apps/desktop/release/*.yml
+            apps/desktop/release/*.sh
+            apps/desktop/release/*.txt
+            apps/desktop/release/*.json
+          if-no-files-found: error
+          retention-days: 1
+
+  # Each platform's upload into the draft, or in a rehearsal the check that its set is complete, from the build's
+  # artifact alone: no dependency is installed here, and only this job holds the caller's token, contents: write in a
+  # real release. It runs for each platform whose build passed even when another's failed (contract 4.6); a platform
+  # whose build failed has no artifact, so its delivery fails too, and rerunning the failed jobs reruns both.
+  deliver:
+    needs: [package, check-mac]
+    if: ${{ !cancelled() }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - system: Windows
+            runner: windows-latest
+          - system: macOS
+            runner: macos-latest
+          - system: Linux
+            runner: ubuntu-latest
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 15
+    env:
+      RELEASE_SHA: ${{ inputs.sha }}
+      STORYTREE_RELEASE_VERSION: ${{ inputs.version }}
+      STORYTREE_REHEARSAL: ${{ inputs.rehearsal }}
+    steps:
+      # release.mjs and the files it imports run on node alone; the history is for its check that the commit is on main.
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+          ref: ${{ inputs.sha }}
+          fetch-depth: 0
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: 24
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: release-${{ matrix.system }}
+          path: apps/desktop/release
+      - name: Upload this platform's assets to the draft
+        if: ${{ !inputs.rehearsal }}
+        run: node apps/desktop/release.mjs upload
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - name: Check this platform's assets are complete, publishing nothing
+        if: inputs.rehearsal
+        run: node apps/desktop/release.mjs rehearse
+      # The set's names and delivery file, small, for the rehearsal's last job to say what publishing would do.
+      - name: Keep what this platform would publish
+        if: inputs.rehearsal
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: rehearsal-set-${{ matrix.system }}
+          path: |
+            apps/desktop/release/*.names
+            apps/desktop/release/storytree-delivery*.json
+          retention-days: 5

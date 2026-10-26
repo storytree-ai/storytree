@@ -1,0 +1,1243 @@
+/**
+ * Capability 8 · Setup check: one test per contract 8.1-8.5 and 8.7 in the app setup story (Session management's until ADR-0969 D3). Contract 8.6,
+ * the live check with a real Claude Code and a real Codex, is subscription-billed, and is run once
+ * by hand as the story's final proof rather than here.
+ *
+ * Each test works in a throwaway home: its own Claude Code config folder and Codex home, holding
+ * settings of the user's own that the setup check must leave alone, and a storytree home that says
+ * where storytree listens (a copy of the test Postgres's owner record) or how to open it.
+ */
+import assert from "node:assert/strict";
+import { spawn, spawnSync } from "node:child_process";
+import { chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs";
+import { connect as connectTo, createServer, type AddressInfo } from "node:net";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import { after, before, test } from "node:test";
+import { fileURLToPath, pathToFileURL } from "node:url";
+
+import { connect, type Line } from "@storytree/library";
+
+import { AFTER_TOOL, BACKGROUND, noteCodexHookRan, registeredHookScripts, SHELL_GUARD } from "@storytree/session-management";
+import { locateStorytree, MARKER_FILE } from "@storytree/project-and-caller";
+import { withTempDir } from "@storytree/project-and-caller/testing/folders";
+import { dropTestProjects, placeTestServer, testServerRecordedUrl, testServerUrl, uniqueProjectName } from "@storytree/project-and-caller/testing/pg";
+import { waitUntil } from "@storytree/test-waits";
+
+import { buildBins } from "../bins/build.js";
+import { makeRepository, setUpProject } from "../project/making.js";
+import { runSetupCheck } from "./index.js";
+import { builtFromMain, FIX_SENTENCES, ghState, launcherFile, machineState, putCommandOnPath, registerHooks, removeCommand, removeHooks, verifyHooks, type HookCommand, type Homes } from "./index.js";
+
+/** The stub app and the harness payload fixtures stay with Session management, whose hooks they feed. */
+const AGENT_LINK_SRC = path.dirname(fileURLToPath(import.meta.resolve("@storytree/session-management")));
+const STUB_APP = path.join(AGENT_LINK_SRC, "testing", "stub-app.mjs");
+const FIXTURES = path.join(AGENT_LINK_SRC, "hooks", "fixtures") + path.sep;
+
+/** A hook command as the setup check registers it: registering never runs it. */
+const HOOK: HookCommand = { node: process.execPath, script: path.join(tmpdir(), "storytree", "dist", "storytree-hook.mjs") };
+
+let bins: string;
+let hookScript: string;
+
+before(async () => {
+  bins = mkdtempSync(path.join(tmpdir(), "storytree-link-bins-"));
+  hookScript = (await buildBins(bins))["storytree-hook"]!;
+});
+
+after(() => {
+  rmSync(bins, { recursive: true, force: true });
+});
+
+/**
+ * What gh and the machine answer, for tests about something else: asking this machine's own gh,
+ * Claude Code and Codex is slow, differs between machines, and once hung the suite (2026-09-28).
+ */
+const ANSWERED = {
+  gh: async () => "signed in" as const,
+  machine: async () => ({ claude: "signed in", codex: "signed in", git: "present", node: { state: "ok", version: "v24.1.0" }, waitMs: 5_000 }) as const,
+};
+
+/** The user's own settings, which the setup check must leave as they are. */
+const CLAUDE_SETTINGS = {
+  permissions: { allow: ["Bash(npm test:*)"] },
+  model: "opus",
+  hooks: { PreToolUse: [{ matcher: "Bash", hooks: [{ type: "command", command: "echo mine" }] }] },
+};
+const CODEX_CONFIG = 'model = "gpt-5"\n\n[mcp_servers.storytree]\ncommand = "node"\nargs = ["storytree-mcp.mjs"]\n';
+
+interface Home {
+  homes: Required<Pick<Homes, "claude" | "codex">>;
+  claudeSettings: string;
+  codexConfig: string;
+  codexHooks: string;
+  /** A storytree home whose owner record says storytree listens where the test Postgres does. */
+  storytreeHome: string;
+}
+
+/** A throwaway home with only the storytree tool server installed, and storytree running. */
+function throwawayHome(dir: string): Home {
+  const claude = path.join(dir, ".claude");
+  const codexHome = path.join(dir, ".codex");
+  const storytreeHome = path.join(dir, ".storytree", "0.3");
+  for (const folder of [claude, codexHome, storytreeHome]) mkdirSync(folder, { recursive: true });
+  writeFileSync(path.join(claude, "settings.json"), `${JSON.stringify(CLAUDE_SETTINGS, null, 2)}\n`);
+  writeFileSync(path.join(codexHome, "config.toml"), CODEX_CONFIG);
+  placeTestServer(path.join(storytreeHome, "pgdata"));
+  return {
+    homes: { claude, codex: codexHome },
+    claudeSettings: path.join(claude, "settings.json"),
+    codexConfig: path.join(codexHome, "config.toml"),
+    codexHooks: path.join(codexHome, "hooks.json"),
+    storytreeHome,
+  };
+}
+
+function readJson(file: string): Record<string, unknown> {
+  return JSON.parse(readFileSync(file, "utf8")) as Record<string, unknown>;
+}
+
+interface HookEntry {
+  matcher?: string;
+  hooks: { type: string; command: string; args?: string[]; async?: boolean }[];
+}
+
+/** One of storytree's hook entries: its matcher, and whether the harness is left to go on without waiting for it. */
+interface Registered {
+  matcher: string;
+  background: boolean;
+  guard: boolean;
+}
+
+/**
+ * The events for which `settings` runs storytree's hook `script` for `harness`, each with its
+ * entries: Claude Code runs it as a command with arguments (in the background when `async`), Codex
+ * as one command line (handing its work to the background when it passes `--background`).
+ */
+function storytreeHooks(settings: Record<string, unknown>, script: string, harness: string): Record<string, Registered[]> {
+  const events = (settings.hooks ?? {}) as Record<string, HookEntry[]>;
+  const found: Record<string, Registered[]> = {};
+  for (const [event, entries] of Object.entries(events)) {
+    for (const entry of entries) {
+      const ours = entry.hooks.find((hook) =>
+        hook.args !== undefined ? hook.args[0] === script && hook.args.includes(harness) : hook.command.includes(script) && hook.command.includes(harness),
+      );
+      if (ours === undefined) continue;
+      const background = ours.async === true || (ours.args ?? ours.command.split(" ")).includes("--background");
+      (found[event] ??= []).push({ matcher: entry.matcher ?? "", background, guard: (ours.args ?? ours.command.split(" ")).includes(SHELL_GUARD) });
+    }
+  }
+  return found;
+}
+
+/** Whether `tool` is one `entry` runs for. Claude Code anchors a matcher of names; Codex's are regular expressions as written. */
+function runsFor(entry: Registered | undefined, tool: string, anchored: boolean): boolean {
+  return entry !== undefined && new RegExp(anchored ? `^(${entry.matcher})$` : entry.matcher).test(tool);
+}
+
+test("8.1 in a throwaway home with only the tool server installed, the first session start registers the hooks for Claude Code and for Codex without touching any other setting", async () => {
+  await withTempDir(async (dir) => {
+    const home = throwawayHome(dir);
+    const report = await runSetupCheck({ ...ANSWERED, folder: dir, hook: HOOK, homes: home.homes, storytreeHome: home.storytreeHome });
+    assert.deepEqual(report.hooks, { "claude-code": "registered", codex: "registered", cursor: "not here", pi: "not here", antigravity: "not here", statusLine: "installed" });
+
+    const claude = readJson(home.claudeSettings);
+    assert.deepEqual({ ...claude, hooks: undefined, statusLine: undefined }, { ...CLAUDE_SETTINGS, hooks: undefined, statusLine: undefined }, "Claude Code's other settings are as they were");
+    // The user has no status line of their own, so storytree's is installed: the hook script, run for the status line.
+    const statusLine = claude.statusLine as { type: string; command: string };
+    assert.equal(statusLine.type, "command");
+    assert.ok(statusLine.command.includes(HOOK.script) && statusLine.command.endsWith(" statusline"), statusLine.command);
+    const claudeHooks = claude.hooks as Record<string, HookEntry[]>;
+    assert.deepEqual(claudeHooks.PreToolUse?.[0], CLAUDE_SETTINGS.hooks.PreToolUse[0], "and so is the user's own hook, still first");
+
+    for (const [harness, events, anchored] of [
+      ["claude-code", storytreeHooks(claude, HOOK.script, "claude-code"), true],
+      ["codex", storytreeHooks(readJson(home.codexHooks), HOOK.script, "codex"), false],
+    ] as const) {
+      const failure = harness === "claude-code" ? ["PostToolUseFailure"] : [];
+      assert.deepEqual(Object.keys(events).sort(), ["PostToolUse", ...failure, "PreToolUse", "SessionEnd", "SessionStart", "Stop", "UserPromptSubmit"].sort(), harness);
+      const edits = harness === "claude-code" ? ["Write", "Edit", "MultiEdit", "NotebookEdit", "Bash", "Agent", "Task"] : ["apply_patch", "Bash", "spawn_agent"];
+      for (const tool of edits) assert.ok(runsFor(events.PostToolUse?.[0], tool, anchored), `${harness}: after ${tool}`);
+      if (harness === "claude-code") assert.ok(runsFor(events.PostToolUseFailure?.[0], "Bash", anchored), "after a shell command that failed");
+      // Without Git for Windows, Claude Code runs commands with its PowerShell tool instead of Bash.
+      if (harness === "claude-code") {
+        const shellBefore = (events.PreToolUse ?? []).find((entry) => entry.background);
+        for (const [entry, when] of [[shellBefore, "before"], [events.PostToolUse?.[0], "after"], [events.PostToolUseFailure?.[0], "after a failed"]] as const)
+          assert.ok(runsFor(entry, "PowerShell", anchored), `claude-code: ${when} a PowerShell command`);
+      }
+
+      // The harness waits for the hook before a storytree tool, so its line is written before the
+      // call reaches the tool server; the one before a shell command never makes the agent wait; and it
+      // waits for the one before a file edit, whose answer may refuse the edit (ADR-0949 D3).
+      const before = events.PreToolUse ?? [];
+      assert.equal(before.length, 3, `${harness}: three hooks before a tool`);
+      const [tools, shell, edit] = [before[0], before.find((entry) => entry.background), before[2]];
+      const edited = harness === "claude-code" ? ["Write", "Edit", "MultiEdit", "NotebookEdit"] : ["apply_patch"];
+      assert.ok(edit?.background === false && edited.every((tool) => runsFor(edit, tool, anchored)) && !runsFor(edit, "Bash", anchored), `${harness}: in the foreground before a file edit, and no other`);
+      assert.ok(runsFor(tools, "mcp__storytree__open", anchored) && !runsFor(tools, "Bash", anchored), `${harness}: in the foreground before a storytree tool, and no other`);
+      assert.ok(runsFor(shell, "Bash", anchored) && !runsFor(shell, "mcp__storytree__open", anchored), `${harness}: in the background before a shell command, and no other`);
+      assert.equal(events.Stop?.[0]?.background, true, `${harness}: in the background at the end of a turn`);
+      // A second, in the foreground, may ask the agent to close out (ADR-0758 D4): the harness reads what it prints.
+      assert.equal(events.Stop?.[1]?.background, false, `${harness}: and in the foreground at the end of a turn`);
+      // The one at each prompt adds the project's definitions for the agent, so the harness waits for it.
+      assert.equal(events.UserPromptSubmit?.[0]?.background, false, `${harness}: in the foreground at each prompt`);
+      // After a shell command, finished or failed, it waits for a guard that tells the agent of its changes to imported code (ADR-1015).
+      for (const event of harness === "claude-code" ? ["PostToolUse", "PostToolUseFailure"] : ["PostToolUse"]) {
+        const guards = (events[event] ?? []).filter((entry) => entry.guard);
+        const shells = harness === "claude-code" ? ["Bash", "PowerShell"] : ["Bash"];
+        assert.ok(guards.length === 1 && !guards[0]!.background && shells.every((tool) => runsFor(guards[0], tool, anchored)) && !runsFor(guards[0], edited[0]!, anchored), `${harness}: in the foreground after a shell command (${event}), and no other`);
+      }
+    }
+    assert.equal(readFileSync(home.codexConfig, "utf8"), CODEX_CONFIG, "Codex's config is untouched");
+  });
+});
+
+test("8.2 a second start changes nothing, and removing storytree takes out exactly what it added", async () => {
+  await withTempDir(async (dir) => {
+    const home = throwawayHome(dir);
+    await runSetupCheck({ ...ANSWERED, folder: dir, hook: HOOK, homes: home.homes, storytreeHome: home.storytreeHome });
+    const first = { claude: readFileSync(home.claudeSettings, "utf8"), codex: readFileSync(home.codexHooks, "utf8") };
+
+    const again = await runSetupCheck({ ...ANSWERED, folder: dir, hook: HOOK, homes: home.homes, storytreeHome: home.storytreeHome });
+    assert.deepEqual(again.hooks, { "claude-code": "already registered", codex: "already registered", cursor: "not here", pi: "not here", antigravity: "not here", statusLine: "already installed" });
+    assert.deepEqual({ claude: readFileSync(home.claudeSettings, "utf8"), codex: readFileSync(home.codexHooks, "utf8") }, first, "not a byte changed");
+
+    assert.deepEqual(removeHooks(home.homes), { "claude-code": "removed", codex: "removed", cursor: "none", pi: "none", antigravity: "none", statusLine: "removed" });
+    assert.deepEqual(readJson(home.claudeSettings), CLAUDE_SETTINGS, "Claude Code's settings are as they were before storytree");
+    assert.equal(existsSync(home.codexHooks), false, "the hooks file storytree made is gone");
+    assert.equal(readFileSync(home.codexConfig, "utf8"), CODEX_CONFIG);
+    assert.deepEqual(removeHooks(home.homes), { "claude-code": "none", codex: "none", cursor: "none", pi: "none", antigravity: "none", statusLine: "none" }, "and removing again finds nothing");
+
+    // An install from before the PowerShell tool was matched gets the new matchers at its next setup check.
+    registerHooks(home.homes, HOOK);
+    const older = readJson(home.claudeSettings);
+    const olderHooks = older.hooks as Record<string, HookEntry[]>;
+    for (const entry of Object.values(olderHooks).flat()) if (entry.matcher !== undefined) entry.matcher = entry.matcher.replace("|PowerShell", "");
+    writeFileSync(home.claudeSettings, `${JSON.stringify(older, null, 2)}\n`);
+    const upgraded = await runSetupCheck({ ...ANSWERED, folder: dir, hook: HOOK, homes: home.homes, storytreeHome: home.storytreeHome });
+    assert.equal(upgraded.hooks?.["claude-code"], "registered");
+    assert.ok(runsFor(storytreeHooks(readJson(home.claudeSettings), HOOK.script, "claude-code").PostToolUseFailure?.[0], "PowerShell", true), "the older install now hears PowerShell");
+    removeHooks(home.homes);
+
+    // A registration from an older install, at another path, is replaced rather than doubled, and the check names the path it replaced.
+    const old = path.join(dir, "old", "storytree-hook.mjs");
+    registerHooks(home.homes, { ...HOOK, script: old });
+    const moved = await runSetupCheck({ ...ANSWERED, folder: dir, hook: HOOK, homes: home.homes, storytreeHome: home.storytreeHome });
+    assert.deepEqual(moved.hooks?.replaced, { "claude-code": [old], codex: [old] });
+    assert.ok(moved.lines.find((line) => line.check === "hooks")?.message.includes(old), JSON.stringify(moved.lines));
+    assert.deepEqual(Object.keys(storytreeHooks(readJson(home.claudeSettings), path.join(dir, "old", "storytree-hook.mjs"), "claude-code")), []);
+    assert.equal(Object.keys(storytreeHooks(readJson(home.claudeSettings), HOOK.script, "claude-code")).length, 7);
+  });
+});
+
+test("8.2 the built storytree-setup install registers storytree's hooks, and remove takes out exactly what it added", async () => {
+  await withTempDir(async (dir) => {
+    const home = throwawayHome(dir);
+    const bin = path.join(dir, ".local", "bin");
+    mkdirSync(bin, { recursive: true });
+    // Every home it could reach is inside the throwaway folder, never the real one.
+    const env = { PATH: bin, Path: bin, SystemRoot: process.env.SystemRoot ?? "", HOME: dir, USERPROFILE: dir, CLAUDE_CONFIG_DIR: home.homes.claude, CODEX_HOME: home.homes.codex, STORYTREE_HOME: home.storytreeHome };
+    const setup = (command: string) => spawnSync(process.execPath, [path.join(bins, "storytree-setup.mjs"), command], { env, encoding: "utf8", timeout: 60_000 });
+
+    const installed = setup("install");
+    assert.equal(installed.status, 0, installed.stderr);
+    assert.match(installed.stdout, /^Claude Code: registered$/m, installed.stdout);
+    assert.match(installed.stdout, /^Codex: registered/m, installed.stdout);
+    // The command names its own hook by its real path (on macOS the temporary folder is a link into /private).
+    assert.equal(Object.keys(storytreeHooks(readJson(home.claudeSettings), realpathSync(hookScript), "claude-code")).length, 7, "the hook built beside it is registered");
+
+    const removed = setup("remove");
+    assert.equal(removed.status, 0, removed.stderr);
+    assert.match(removed.stdout, /^Claude Code: storytree's hooks removed$/m, removed.stdout);
+    assert.deepEqual(readJson(home.claudeSettings), CLAUDE_SETTINGS, "Claude Code's settings are as they were before storytree");
+    assert.equal(existsSync(home.codexHooks), false, "the hooks file storytree made is gone");
+    assert.equal(readFileSync(home.codexConfig, "utf8"), CODEX_CONFIG);
+  });
+});
+
+/** Run one of storytree's registered hooks as `harness` runs it: Claude Code a program with arguments, Codex a line through this machine's shell. */
+function runRegistered(harness: "claude-code" | "codex", hook: HookEntry["hooks"][number], input: string, storytreeHome: string): string {
+  const env = { ...process.env, STORYTREE_HOME: storytreeHome };
+  const [command, args] =
+    harness === "claude-code" ? [hook.command, hook.args ?? []] : process.platform === "win32" ? ["powershell", ["-NoProfile", "-Command", hook.command]] : ["sh", ["-c", hook.command]];
+  // A cold Windows PowerShell and Node can take most of 10 s on CI; a hang still fails.
+  const ran = spawnSync(command, args, { input, env, encoding: "utf8", timeout: 60_000 });
+  assert.equal(ran.status, 0, `${harness}: ${ran.stderr}`);
+  return ran.stdout;
+}
+
+test("8.36 on Linux and macOS, the hook settings files and extension storytree creates in each harness's empty home are its owner's alone (0600), and one already there keeps its mode", {
+  skip: process.platform === "win32" && "platform:posix: Windows has no owner-only file mode",
+}, async () => {
+  await withTempDir(async (dir) => {
+    const homes = { claude: path.join(dir, ".claude"), codex: path.join(dir, ".codex"), cursor: path.join(dir, ".cursor"), pi: path.join(dir, ".pi", "agent"), antigravity: path.join(dir, ".gemini") };
+    for (const folder of Object.values(homes)) mkdirSync(folder, { recursive: true });
+    const kept = path.join(homes.claude, "settings.json");
+    writeFileSync(kept, `${JSON.stringify(CLAUDE_SETTINGS, null, 2)}\n`);
+    chmodSync(kept, 0o644);
+    registerHooks(homes, HOOK);
+    const made = Object.values(homes).flatMap((home) => readdirSync(home, { recursive: true, withFileTypes: true }).filter((entry) => entry.isFile()).map((entry) => path.join(entry.parentPath, entry.name)));
+    assert.ok(made.length >= 5, made.join("\n"));
+    for (const file of made) assert.equal(statSync(file).mode & 0o777, file === kept ? 0o644 : 0o600, file);
+  });
+});
+
+test("8.12 at the start of a session in a folder that isn't a storytree project, no hook adds anything for the agent (ADR-0752 D3), an older install's asking hook included; nothing is set up", async () => {
+  await withTempDir(async (dir) => {
+    const home = throwawayHome(dir);
+    registerHooks(home.homes, { node: process.execPath, script: hookScript });
+    const stopped = path.join(dir, "stopped-home");
+    mkdirSync(stopped);
+    const fresh = path.join(dir, "new-site");
+    mkdirSync(fresh);
+    // An install from before ADR-0752 registered a second Claude Code start hook, which the harness waits for.
+    const older = { type: "command", command: process.execPath, args: [hookScript, "claude-code", "--ask-setup"] };
+    for (const [harness, settings] of [["claude-code", home.claudeSettings], ["codex", home.codexHooks]] as const) {
+      const starts = [...((readJson(settings).hooks as Record<string, HookEntry[]>).SessionStart ?? []).flatMap((entry) => entry.hooks), ...(harness === "claude-code" ? [older] : [])];
+      const input = JSON.stringify({ ...readJson(path.join(FIXTURES, harness, "session-start-startup.json")), cwd: fresh });
+      for (const hook of starts) assert.equal(runRegistered(harness, hook, input, stopped), "", `${harness}: ${JSON.stringify(hook.args ?? hook.command)} says nothing`);
+    }
+    assert.equal(existsSync(path.join(fresh, MARKER_FILE)), false, "the folder is not set up");
+  });
+});
+
+test("8.3 with storytree closed, a session start opens it", async () => {
+  await withTempDir(async (dir) => {
+    const storytreeHome = path.join(dir, "storytree-home");
+    mkdirSync(storytreeHome);
+    const dataDir = path.join(storytreeHome, "pgdata");
+    // How to open storytree, as the app records it: here, a stand-in that says where the test Postgres listens,
+    // handing over its sign-in as the app does (the handoff waits beside a record the stand-in writes).
+    const { port, token, auth } = placeTestServer(dataDir);
+    rmSync(`${dataDir}.owner.json`);
+    writeFileSync(path.join(storytreeHome, "app.json"), JSON.stringify({ command: process.execPath, args: [STUB_APP, dataDir, String(port), JSON.stringify({ token, auth })] }));
+    assert.equal(locateStorytree({ dataDir }).running, false, "closed to begin with");
+    try {
+      const report = await runSetupCheck({ ...ANSWERED, folder: dir, homes: {}, storytreeHome, openWaitMs: 20_000 });
+      assert.deepEqual(report.storytree, { state: "opened", library: { url: testServerRecordedUrl() } });
+      assert.deepEqual(locateStorytree({ dataDir }), { running: true, url: testServerRecordedUrl() });
+    } finally {
+      const record = `${dataDir}.owner.json`;
+      const { pid } = existsSync(record) ? (readJson(record) as { pid?: number }) : {};
+      if (pid !== undefined) await stop(pid);
+    }
+
+    // With nothing saying how to open it, it says so rather than waiting.
+    const unopenable = path.join(dir, "no-app");
+    mkdirSync(unopenable);
+    const report = await runSetupCheck({ ...ANSWERED, folder: dir, homes: {}, storytreeHome: unopenable, openWaitMs: 20_000 });
+    assert.equal(report.storytree.state, "not running");
+  });
+});
+
+test("opening storytree waits until it accepts connections, not only until it has said where it will listen (regression: the agent link's live check, 2026-09-26)", async () => {
+  await withTempDir(async (dir) => {
+    const storytreeHome = path.join(dir, "storytree-home");
+    mkdirSync(storytreeHome);
+    const dataDir = path.join(storytreeHome, "pgdata");
+    const port = await freePort();
+    // The stand-in says where it listens at once, and starts listening only 1.5 s later, handing over its sign-in as the app does.
+    const { token, auth } = placeTestServer(dataDir, { port });
+    rmSync(`${dataDir}.owner.json`);
+    writeFileSync(path.join(storytreeHome, "app.json"), JSON.stringify({ command: process.execPath, args: [STUB_APP, dataDir, String(port), "1500", JSON.stringify({ token, auth })] }));
+    try {
+      const report = await runSetupCheck({ ...ANSWERED, folder: dir, homes: {}, storytreeHome, openWaitMs: 20_000 });
+      assert.equal(report.storytree.state, "opened");
+      assert.equal(await accepts(port), true, "it accepts a connection the moment it is reported opened");
+    } finally {
+      const record = `${dataDir}.owner.json`;
+      const { pid } = existsSync(record) ? (readJson(record) as { pid?: number }) : {};
+      if (pid !== undefined) await stop(pid);
+    }
+  });
+});
+
+test("8.10 a terminal runs the shared setup check with diagnostic lines and fixes, creating a project only on request", async () => {
+  await withTempDir(async (dir) => {
+    const home = throwawayHome(dir);
+    const name = uniqueProjectName();
+    const folder = path.join(dir, name);
+    mkdirSync(folder);
+    const options = { ...ANSWERED, folder, hook: HOOK, homes: home.homes, storytreeHome: home.storytreeHome, gh: async () => "signed out" as const };
+    const storytree = await connect({ url: testServerUrl() });
+    try {
+      const report = await runSetupCheck(options);
+      assert.equal(report.lines.find((line) => line.check === "storytree")?.state, "ok");
+      assert.equal(report.lines.find((line) => line.check === "hooks")?.state, "fixed");
+      assert.match(report.lines.find((line) => line.check === "transcripts")?.message ?? "", /secrets.*scrubbed.*best-effort.*180 days/is,
+        "the check says transcripts leave the machine, and that the scrub is best-effort (ADR-0749 D4)");
+      assert.deepEqual(noteOf(report.lines, "gh"), { state: "note", fix: undefined }, "gh is never a fix (owner, question_bb3efa1e3191)");
+      assert.match(report.lines.find((line) => line.check === "project")?.fix ?? "", /only.*yes/i);
+      assert.equal(existsSync(path.join(folder, MARKER_FILE)), false);
+      assert.equal((await storytree.listProjects()).includes(name), false);
+
+      await setUpProject({ folder, project: name, storytree, storytreeHome: home.storytreeHome }); // the terminal's explicit yes
+      const ready = await runSetupCheck({ ...options, gh: async () => "signed in" as const });
+      assert.deepEqual(ready.project, { status: "set up", name });
+      assert.equal(ready.lines.find((line) => line.check === "project")?.state, "ok");
+      assert.equal(ready.lines.find((line) => line.check === "gh")?.fix, undefined);
+
+      const stopped = await runSetupCheck({ ...options, storytreeHome: path.join(dir, "not-running") });
+      assert.match(stopped.lines.find((line) => line.check === "storytree")?.fix ?? "", /open the storytree app/i);
+      assert.deepEqual(noteOf(stopped.lines, "gh"), { state: "note", fix: undefined });
+    } finally {
+      await storytree.close();
+      await dropTestProjects([name]);
+    }
+  });
+});
+
+test("8.31 in a project with no git repository, or a repository with no origin remote, the check says review, landing and verified health need one, and proposes a GitHub remote for the user to make, never making it; with origin there, it says nothing of it", async () => {
+  await withTempDir(async (dir) => {
+    const home = throwawayHome(dir);
+    const name = uniqueProjectName();
+    const folder = path.join(dir, name);
+    mkdirSync(folder);
+    const options = { ...ANSWERED, folder, homes: home.homes, storytreeHome: home.storytreeHome };
+    const storytree = await connect({ url: testServerUrl() });
+    const git = (...args: string[]) => spawnSync("git", ["-c", "user.name=t", "-c", "user.email=t@t", ...args], { cwd: folder, encoding: "utf8" });
+    try {
+      assert.equal((await runSetupCheck(options)).lines.find((line) => line.check === "repository"), undefined, "a folder that is no project is asked nothing of its repository");
+      await setUpProject({ folder, project: name, storytree, storytreeHome: home.storytreeHome });
+
+      const none = (await runSetupCheck(options)).lines.find((line) => line.check === "repository");
+      assert.equal(none?.state, "needs-attention");
+      assert.match(none?.message ?? "", /no git repository/);
+      assert.match(none?.message ?? "", /review.*land.*health/s);
+      assert.match(none?.fix ?? "", /git init/);
+      assert.match(none?.fix ?? "", /only if they say yes/);
+
+      git("init", "-q");
+      git("add", MARKER_FILE);
+      git("commit", "-q", "-m", "first");
+      const local = (await runSetupCheck(options)).lines.find((line) => line.check === "repository");
+      assert.equal(local?.state, "needs-attention");
+      assert.match(local?.message ?? "", /no origin remote/);
+      assert.match(local?.fix ?? "", /GitHub/);
+      assert.match(local?.fix ?? "", /only if they say yes/);
+      assert.equal(git("remote").stdout.trim(), "", "the check makes no remote");
+
+      git("remote", "add", "origin", "https://github.com/someone/somewhere.git");
+      assert.equal((await runSetupCheck(options)).lines.find((line) => line.check === "repository"), undefined);
+    } finally {
+      await storytree.close();
+      await dropTestProjects([name]);
+    }
+  });
+});
+
+test("8.31 a project's repository begun with no git identity, its marker staged, gets its first commit from the check once git has one; until then the check asks the user for a name and email", async () => {
+  await withTempDir(async (dir) => {
+    const home = throwawayHome(dir);
+    const name = uniqueProjectName();
+    const folder = path.join(dir, name);
+    mkdirSync(folder);
+    const options = { ...ANSWERED, folder, homes: home.homes, storytreeHome: home.storytreeHome };
+    const storytree = await connect({ url: testServerUrl() });
+    // Git reads no config of this machine's: the test chooses the identity, or none.
+    const noConfig = path.join(dir, "no-gitconfig");
+    writeFileSync(noConfig, "");
+    const keys = ["GIT_CONFIG_GLOBAL", "GIT_CONFIG_NOSYSTEM", "GIT_AUTHOR_NAME", "GIT_AUTHOR_EMAIL", "GIT_COMMITTER_NAME", "GIT_COMMITTER_EMAIL", "EMAIL"];
+    const saved = Object.fromEntries(keys.map((key) => [key, process.env[key]]));
+    for (const key of keys) delete process.env[key];
+    Object.assign(process.env, { GIT_CONFIG_GLOBAL: noConfig, GIT_CONFIG_NOSYSTEM: "1" });
+    const git = (...args: string[]) => spawnSync("git", args, { cwd: folder, encoding: "utf8" });
+    try {
+      await setUpProject({ folder, project: name, storytree, storytreeHome: home.storytreeHome });
+      assert.equal(makeRepository(folder).state, "no identity");
+
+      const waiting = (await runSetupCheck(options)).lines.filter((line) => line.check === "repository");
+      assert.equal(waiting[0]?.state, "needs-attention");
+      assert.match(waiting[0]?.message ?? "", /waiting for its first commit/);
+      assert.match(waiting[0]?.fix ?? "", /ask the user for the name and email/i);
+      assert.match(waiting[0]?.fix ?? "", /git config --global user\.name "<name>"/);
+      assert.match(waiting[1]?.message ?? "", /no origin remote/, "the remote is still proposed");
+      assert.equal(git("rev-list", "--all", "--count").stdout.trim(), "0");
+
+      git("config", "user.name", "A User");
+      git("config", "user.email", "user@example.invalid");
+      const made = (await runSetupCheck(options)).lines.filter((line) => line.check === "repository");
+      assert.equal(made[0]?.state, "fixed");
+      assert.match(made[0]?.message ?? "", /first commit/);
+      assert.equal(git("log", "--format=%an <%ae>").stdout.trim(), "A User <user@example.invalid>");
+      assert.equal(git("show", "--name-only", "--format=", "HEAD").stdout.trim(), MARKER_FILE);
+
+      const after = (await runSetupCheck(options)).lines.filter((line) => line.check === "repository");
+      assert.deepEqual(after.map((line) => line.state), ["needs-attention"], "made once: then only the remote is left");
+      assert.equal(git("rev-list", "--all", "--count").stdout.trim(), "1");
+    } finally {
+      for (const [key, value] of Object.entries(saved)) {
+        if (value === undefined) delete process.env[key];
+        else process.env[key] = value;
+      }
+      await storytree.close();
+      await dropTestProjects([name]);
+    }
+  });
+});
+
+/** A port nothing on 127.0.0.1 listens on just now. */
+function freePort(): Promise<number> {
+  return new Promise((resolve, reject) => {
+    const server = createServer();
+    server.on("error", reject);
+    server.listen(0, "127.0.0.1", () => {
+      const { port } = server.address() as AddressInfo;
+      server.close(() => resolve(port));
+    });
+  });
+}
+
+/** Whether something on 127.0.0.1:`port` accepts a connection within half a second. */
+function accepts(port: number): Promise<boolean> {
+  return new Promise((resolve) => {
+    const socket = connectTo({ port, host: "127.0.0.1", timeout: 500 });
+    socket.once("connect", () => {
+      socket.destroy();
+      resolve(true);
+    });
+    socket.once("timeout", () => {
+      socket.destroy();
+      resolve(false);
+    });
+    socket.once("error", () => resolve(false));
+  });
+}
+
+/** Kill process `pid`, and wait until it has gone. */
+async function stop(pid: number): Promise<void> {
+  try {
+    process.kill(pid);
+  } catch {
+    return; // already gone
+  }
+  await waitUntil(() => {
+    try {
+      process.kill(pid, 0);
+      return false;
+    } catch {
+      return true;
+    }
+  }, 5_000, `process ${pid} to exit once killed`);
+}
+
+test("8.7 a status line of the user's own is kept: storytree's is installed only where there is none, and removing storytree leaves theirs", async () => {
+  await withTempDir(async (dir) => {
+    const home = throwawayHome(dir);
+    const theirs = { type: "command", command: "echo my own line" };
+    writeFileSync(home.claudeSettings, `${JSON.stringify({ ...CLAUDE_SETTINGS, statusLine: theirs }, null, 2)}\n`);
+    const report = await runSetupCheck({ ...ANSWERED, folder: dir, hook: HOOK, homes: home.homes, storytreeHome: home.storytreeHome });
+    assert.equal(report.hooks?.statusLine, "the user's own kept");
+    assert.deepEqual(readJson(home.claudeSettings).statusLine, theirs, "theirs, untouched");
+    assert.equal(removeHooks(home.homes).statusLine, "none");
+    assert.deepEqual(readJson(home.claudeSettings), { ...CLAUDE_SETTINGS, statusLine: theirs }, "and still theirs once storytree is removed");
+  });
+});
+
+test("8.9 in a throwaway home, the first start puts a storytree command on the path, a second changes nothing, and removing storytree takes it out", async () => {
+  await withTempDir(async (dir) => {
+    const home = throwawayHome(dir);
+    const bin = path.join(dir, ".local", "bin");
+    mkdirSync(bin, { recursive: true });
+    const command = { path: bin, home: dir };
+    const hook: HookCommand = { node: process.execPath, script: hookScript };
+    const start = () => runSetupCheck({ ...ANSWERED, folder: dir, hook, homes: home.homes, storytreeHome: home.storytreeHome, command });
+    const file = path.join(bin, launcherFile());
+
+    assert.equal((await start()).command, "installed");
+    // It runs as the user would run it: by its name, through their shell, found on the path.
+    const ran = spawnSync("storytree", [], { shell: true, encoding: "utf8", env: { ...process.env, PATH: bin, Path: bin } });
+    assert.match(`${ran.stdout}${ran.stderr}`, /storytree: read and change your project's records/, `it is storytree's command: ${ran.stdout}${ran.stderr}`);
+    const first = readFileSync(file);
+
+    assert.equal((await start()).command, "already installed");
+    assert.deepEqual(readFileSync(file), first, "not a byte changed");
+
+    assert.equal(removeCommand(command), "removed");
+    assert.equal(existsSync(file), false);
+    assert.equal(removeCommand(command), "none", "and removing again finds nothing");
+
+    writeFileSync(file, "a storytree of the user's own\n");
+    assert.equal((await start()).command, "another storytree kept");
+    assert.equal(removeCommand(command), "none");
+    assert.equal(readFileSync(file, "utf8"), "a storytree of the user's own\n", "theirs, untouched");
+  });
+});
+
+test("8.9 storytree's own command in a folder outside the home is never touched: the command goes into the home's folder, and removing takes out only that one (regression: launcher.test rewrote developers' real command, 2026-09-29)", async () => {
+  await withTempDir(async (dir) => {
+    const home = path.join(dir, "home");
+    const bin = path.join(home, ".local", "bin");
+    const elsewhere = path.join(dir, "elsewhere", "bin");
+    for (const folder of [bin, elsewhere]) mkdirSync(folder, { recursive: true });
+    const name = launcherFile();
+    // Another home's install of storytree, left by the setup check under a different HOME.
+    const theirs = path.join(elsewhere, name);
+    const hook: HookCommand = { node: process.execPath, script: hookScript };
+    putCommandOnPath({ path: elsewhere, home: path.dirname(elsewhere) }, hook.node, path.join(path.dirname(hookScript), "an older storytree.mjs"));
+    const before = readFileSync(theirs);
+    const command = { path: [bin, elsewhere].join(path.delimiter), home };
+
+    assert.equal(putCommandOnPath(command, hook.node, path.join(path.dirname(hookScript), "storytree.mjs")), "installed");
+    assert.ok(existsSync(path.join(bin, name)), "put in the home's folder");
+    assert.deepEqual(readFileSync(theirs), before, "the one outside the home, untouched");
+
+    assert.equal(removeCommand(command), "removed");
+    assert.equal(existsSync(path.join(bin, name)), false);
+    assert.deepEqual(readFileSync(theirs), before, "and still there after removing");
+  });
+});
+
+test("8.9 an older storytree launcher in the home that runs another build is repointed, and the check names it and what it ran before", async () => {
+  await withTempDir(async (dir) => {
+    const bin = path.join(dir, ".local", "bin");
+    mkdirSync(bin, { recursive: true });
+    const command = { path: bin, home: dir };
+    const older = path.join(dir, "an older storytree.mjs");
+    // On Windows an older install's launcher is the batch file storytree wrote before ADR-0854.
+    const file = path.join(bin, process.platform === "win32" ? "storytree.cmd" : "storytree");
+    if (process.platform === "win32") {
+      writeFileSync(file, `@echo off\r\nrem storytree 0.3's command (put here by its setup check)\r\ngoto #_storytree_handoff_# 2>nul || "${process.execPath}" "${older}" %*\r\n`);
+    } else {
+      putCommandOnPath(command, process.execPath, older);
+    }
+
+    const said = putCommandOnPath(command, process.execPath, path.join(path.dirname(hookScript), "storytree.mjs"));
+    assert.equal(said, `installed (replaced ${file}, which ran ${older})`);
+    assert.deepEqual(readdirSync(bin), [launcherFile()], "the launcher takes the older one's place in its folder");
+  });
+});
+
+test("8.9 setup remove exits cleanly through the Windows launcher it removes: the launcher is off the path when the command returns, and deleted once it has exited (regression: storytree#83; ADR-0854)", {
+  skip: process.platform !== "win32" && "platform:win32: only Windows refuses to delete the running program that setup remove runs through",
+}, async () => {
+  await withTempDir(async (dir) => {
+    const profile = path.join(dir, "user home");
+    const home = throwawayHome(profile);
+    const bin = path.join(profile, "bin");
+    mkdirSync(bin);
+    const env = {
+      ...process.env,
+      USERPROFILE: profile,
+      CLAUDE_CONFIG_DIR: home.homes.claude,
+      CODEX_HOME: home.homes.codex,
+      STORYTREE_HOME: home.storytreeHome,
+      PATH: bin,
+      Path: bin,
+    };
+    const installed = spawnSync(process.execPath, [path.join(bins, "storytree.mjs"), "setup", "install"], { env, encoding: "utf8" });
+    assert.equal(installed.status, 0, `${installed.stdout}${installed.stderr}`);
+    const launcher = path.join(bin, "storytree.exe");
+    assert.ok(existsSync(launcher), "the real launcher is installed on the path");
+
+    const invalid = spawnSync("storytree setup invalid", { shell: true, env, cwd: profile, encoding: "utf8" });
+    assert.equal(invalid.status, 2, "the launcher preserves a failing command's exit code");
+    const removed = spawnSync("storytree setup remove", { shell: true, env, cwd: profile, encoding: "utf8" });
+    assert.equal(removed.status, 0, `${removed.stdout}${removed.stderr}`);
+    assert.equal(existsSync(launcher), false, "the launcher is off the path when the command returns");
+    await waitUntil(() => readdirSync(bin).length === 0, 10_000, "the launcher to be deleted once it has exited");
+    assert.deepEqual(readdirSync(bin), [], "and deleted once it has exited");
+    assert.deepEqual(readJson(home.claudeSettings), CLAUDE_SETTINGS);
+    assert.equal(existsSync(home.codexHooks), false);
+    assert.equal(readFileSync(home.codexConfig, "utf8"), CODEX_CONFIG);
+  });
+});
+
+test("8.11 a Codex installed only as its desktop app, off the PATH, is found where the app keeps it or where Codex's config names it (regression: the owner's Windows laptop, 2026-09-29)", async () => {
+  await withTempDir(async (dir) => {
+    const bin = path.join(dir, "bin");
+    const codexHome = path.join(dir, ".codex");
+    for (const folder of [bin, codexHome]) mkdirSync(folder, { recursive: true });
+    // Codex's CLI stand-in is a Node: `--version` answers, and `login status` fails as a signed-out Codex does.
+    const desktopCodex = (file: string): string => {
+      mkdirSync(path.dirname(file), { recursive: true });
+      if (process.platform === "win32") copyFileSync(process.execPath, file);
+      else symlinkSync(process.execPath, file);
+      return file;
+    };
+    assert.equal((await machineState({ path: bin, waitMs: 10_000, codexHome, localAppData: path.join(dir, "Local") })).codex, "missing");
+
+    // Where the desktop app installs its CLI: %LOCALAPPDATA%\OpenAI\Codex\bin\<hash>\codex.exe.
+    const localAppData = path.join(dir, "AppData", "Local");
+    desktopCodex(path.join(localAppData, "OpenAI", "Codex", "bin", "3f2a9c", "codex.exe"));
+    assert.equal((await machineState({ path: bin, waitMs: 10_000, codexHome, localAppData })).codex, "signed out");
+
+    // Where Codex's config.toml names it.
+    const named = desktopCodex(path.join(dir, "Programs", "codex.exe"));
+    writeFileSync(path.join(codexHome, "config.toml"), `model = "gpt-5"\n\n[shell_environment_policy.set]\nCODEX_CLI_PATH = ${JSON.stringify(named)}\n`);
+    assert.equal((await machineState({ path: bin, waitMs: 10_000, codexHome, localAppData: path.join(dir, "Local") })).codex, "signed out");
+  });
+});
+
+test("8.11 on a Mac, a Codex installed only as its desktop app is found inside the Codex or ChatGPT app bundle, in each layout the app has shipped (increment_ebe913930972)", {
+  skip: process.platform === "win32" && "platform:posix: the bundle's CLI is a bare `codex`, which Windows runs only as an .exe",
+}, async () => {
+  await withTempDir(async (dir) => {
+    const bin = path.join(dir, "bin");
+    const codexHome = path.join(dir, ".codex");
+    for (const folder of [bin, codexHome]) mkdirSync(folder, { recursive: true });
+    const options = { path: bin, waitMs: 10_000, codexHome, localAppData: path.join(dir, "Local") };
+    const layouts = [
+      ["Codex.app", "Contents", "Resources", "codex"],
+      ["ChatGPT.app", "Contents", "Resources", "codex-cli", "bin", "codex"],
+      ["ChatGPT.app", "Contents", "Resources", "codex-cli", "CodexCLI.app", "Contents", "MacOS", "codex"],
+    ];
+    for (const [index, layout] of layouts.entries()) {
+      const applications = path.join(dir, `Applications-${index}`);
+      assert.equal((await machineState({ ...options, applications: [applications] })).codex, "missing", layout.join("/"));
+      const file = path.join(applications, ...layout);
+      mkdirSync(path.dirname(file), { recursive: true });
+      symlinkSync(process.execPath, file);
+      assert.equal((await machineState({ ...options, applications: [path.join(dir, "elsewhere"), applications] })).codex, "signed out", layout.join("/"));
+    }
+  });
+});
+
+test("8.23 the check's codex-server line judges the tool server a Codex session in this folder starts: missing where none is named, ok from the project's own .codex/config.toml, and not ok where Codex's entry names a removed install (regression: the owner's Windows laptop and the Mint box, 2026-09-29 and 2026-10-05)", async () => {
+  await withTempDir(async (dir) => {
+    const home = throwawayHome(dir);
+    const options = { ...ANSWERED, folder: dir, hook: HOOK, homes: home.homes, storytreeHome: home.storytreeHome };
+    const codexServer = async (folder = dir) => (await runSetupCheck({ ...options, folder })).lines.find((line) => line.check === "codex-server");
+    assert.equal((await codexServer())?.state, "ok");
+
+    writeFileSync(home.codexConfig, 'model = "gpt-5"\n');
+    const missing = await codexServer();
+    assert.equal(missing?.state, "needs-attention");
+    assert.match(missing?.fix ?? "", /storytree setup connect --codex/);
+
+    // A 0.3 worktree: Codex reads the repository's own .codex/config.toml, from its root down to the session's folder, over its own.
+    const repo = path.join(dir, "repo");
+    const folder = path.join(repo, "packages", "app");
+    for (const made of [path.join(repo, ".git"), path.join(repo, ".codex"), folder]) mkdirSync(made, { recursive: true });
+    const projectConfig = path.join(repo, ".codex", "config.toml");
+    writeFileSync(projectConfig, '[mcp_servers.storytree]\ncommand = "node"\nargs = ["packages/dev-loop/src/provision-worktree.mjs", "--serve"]\n');
+    const served = await codexServer(folder);
+    assert.equal(served?.state, "ok");
+    assert.ok(served?.message.includes(projectConfig), served?.message);
+
+    // A removed install: Codex would start a command, or a server file, that is not there.
+    const gone = path.join(dir, "Programs", "storytree-0.3", "resources", "agent-tools");
+    for (const [command, server] of [[path.join(gone, "node.exe"), path.join(gone, "storytree-mcp.mjs")], [process.execPath, path.join(gone, "storytree-mcp.mjs")]] as const) {
+      writeFileSync(home.codexConfig, `model = "gpt-5"\n\n[mcp_servers.storytree]\ncommand = ${JSON.stringify(command)}\nargs = [${JSON.stringify(server)}]\n\n[projects.'c:\\code']\ntrust_level = "trusted"\n`);
+      const broken = await codexServer();
+      assert.equal(broken?.state, "needs-attention");
+      assert.ok(broken?.message.includes(command === process.execPath ? server : command), broken?.message);
+      assert.match(broken?.fix ?? "", /\[mcp_servers\.storytree\]/);
+    }
+  });
+});
+
+test("8.16 until one of Codex's hooks has run, the check says Codex is waiting for the user to trust them, with the one step in plain words, also where it registers no hooks (the app's folder check); once one has run, it says they run", async () => {
+  await withTempDir(async (dir) => {
+    const home = throwawayHome(dir);
+    const options = { ...ANSWERED, folder: dir, homes: home.homes, storytreeHome: home.storytreeHome };
+    assert.equal((await runSetupCheck(options)).lines.find((line) => line.check === "codex-hooks"), undefined, "no line where Codex has none of storytree's hooks");
+
+    await runSetupCheck({ ...options, hook: HOOK });
+    for (const check of [{ ...options, hook: HOOK }, options]) {
+      const line = (await runSetupCheck(check)).lines.find((each) => each.check === "codex-hooks");
+      assert.equal(line?.state, "needs-attention");
+      assert.match(line?.fix ?? "", /type \/hooks/);
+      assert.match(line?.fix ?? "", /Hooks need review/);
+    }
+
+    noteCodexHookRan({ storytreeHome: home.storytreeHome, codexHome: home.homes.codex });
+    const line = (await runSetupCheck({ ...options, hook: HOOK })).lines.find((each) => each.check === "codex-hooks");
+    assert.equal(line?.state, "ok");
+    assert.equal(line?.fix, undefined);
+  });
+});
+
+test("8.17 from an administrator (elevated) terminal with Codex here, the check says Codex cannot run commands there and to open a normal terminal, and a Codex session missing only its command hook is told that instead of the command test; Claude Code alone, or a normal terminal, hears nothing of it", async () => {
+  await withTempDir(async (dir) => {
+    const home = throwawayHome(dir);
+    const machine = (elevated: boolean, codex: "signed in" | "missing") => async () => ({ ...(await ANSWERED.machine()), codex, elevated });
+    const check = (elevated: boolean, codex: "signed in" | "missing" = "signed in") => runSetupCheck({ ...ANSWERED, machine: machine(elevated, codex), folder: dir, homes: home.homes, storytreeHome: home.storytreeHome });
+    const line = (await check(true)).lines.find((each) => each.check === "elevated");
+    assert.equal(line?.state, "needs-attention");
+    assert.match(line?.message ?? "", /administrator/);
+    assert.match(line?.message ?? "", /Codex cannot run commands/);
+    assert.match(line?.fix ?? "", /normal/);
+    assert.equal((await check(false)).lines.find((each) => each.check === "elevated"), undefined);
+    assert.equal((await check(true, "missing")).lines.find((each) => each.check === "elevated"), undefined, "Claude Code runs commands elevated; only Codex cannot");
+
+    const hooked = ["session-started", "tool-requested", "file-edited"].map((kind) => ({ session: "s1", source: "hook", kind }) as Line);
+    assert.deepEqual(verifyHooks(hooked, "s1", "codex", { elevated: true }).fixes, ["codex-elevated"]);
+    assert.match(FIX_SENTENCES["codex-elevated"], /administrator/);
+    assert.deepEqual(verifyHooks(hooked, "s1", "codex").fixes, ["run-check-command"]);
+    assert.deepEqual(verifyHooks(hooked, "s1", "claude-code", { elevated: true }).fixes, ["run-check-command"]);
+  });
+});
+
+test("8.17 an elevated process is recognised by its high integrity label", { skip: process.platform !== "win32" && "platform:win32: administrator elevation is Windows' own" }, async () => {
+  await withTempDir(async (dir) => {
+    const bin = path.join(dir, "bin");
+    mkdirSync(bin);
+    fakeTool(bin, "whoami", { "/groups /fo csv": { out: '"Mandatory Label\\High Mandatory Level","Label","S-1-16-12288",""', code: 0 } });
+    assert.equal((await machineState({ path: bin, waitMs: 5_000 })).elevated, true);
+    fakeTool(bin, "whoami", { "/groups /fo csv": { out: '"Mandatory Label\\Medium Mandatory Level","Label","S-1-16-8192",""', code: 0 } });
+    assert.equal((await machineState({ path: bin, waitMs: 5_000 })).elevated, false);
+  });
+});
+
+/** A line's state and fix, to pin that an optional tool is a note and never a fix. */
+function noteOf(lines: readonly { check: string; state: string; fix?: string }[], check: string) {
+  const line = lines.find((each) => each.check === check);
+  return { state: line?.state, fix: line?.fix };
+}
+
+/**
+ * A command named `name` in `bin` that answers each argument line in `answers` with its output and
+ * exit code, and waits without end for any other: a shell script on macOS and Linux, a batch file on
+ * Windows, run by name as the check runs the user's own tools. It answers after `delaySeconds`, as a
+ * tool does on a loaded machine.
+ */
+function fakeTool(bin: string, name: string, answers: Record<string, { out?: string; code: number }>, delaySeconds = 0): void {
+  if (process.platform === "win32") {
+    const cases = Object.entries(answers).map(([args, { out, code }]) => `if "%*"=="${args}" (${out === undefined ? "" : `echo ${out}& `}exit /b ${code})`);
+    const delay = delaySeconds > 0 ? `"%SystemRoot%\\System32\\PING.EXE" -n ${delaySeconds + 1} 127.0.0.1 >nul\r\n` : "";
+    writeFileSync(path.join(bin, `${name}.cmd`), `@echo off\r\n${delay}${cases.join("\r\n")}\r\n"%SystemRoot%\\System32\\PING.EXE" -n 60 127.0.0.1 >nul\r\n`);
+  } else {
+    const cases = Object.entries(answers).map(([args, { out, code }]) => `if [ "$*" = "${args}" ]; then ${out === undefined ? "" : `echo '${out}'; `}exit ${code}; fi`);
+    const delay = delaySeconds > 0 ? `/bin/sleep ${delaySeconds}\n` : "";
+    writeFileSync(path.join(bin, name), `#!/bin/sh\n${delay}${cases.join("\n")}\nexec /bin/sleep 60\n`);
+    chmodSync(path.join(bin, name), 0o755);
+  }
+}
+
+test("8.11 the check says whether Claude Code or Codex is installed and signed in, naming its fix, and notes a missing git or Node without making either a fix; a tool that does not answer is never waited on", async () => {
+  await withTempDir(async (dir) => {
+    const home = throwawayHome(dir);
+    const bin = path.join(dir, "bin");
+    mkdirSync(bin);
+    // Claude Code is installed and signed out, Codex never answers, Node is too old, and git is not there.
+    fakeTool(bin, "claude", { "--version": { out: "2.0.0 (Claude Code)", code: 0 }, "auth status": { code: 1 } });
+    fakeTool(bin, "codex", {});
+    fakeTool(bin, "node", { "--version": { out: "v20.11.0", code: 0 } });
+    const check = (waitMs: number) => runSetupCheck({ folder: dir, homes: home.homes, storytreeHome: home.storytreeHome, gh: async () => "signed in" as const, machine: () => machineState({ path: bin, waitMs }) });
+
+    const started = Date.now();
+    const report = await check(2_000);
+    assert.ok(Date.now() - started < 15_000, `a tool that never answers is not waited on: ${Date.now() - started}ms`);
+    const line = (name: string) => report.lines.find((each) => each.check === name);
+    assert.equal(line("agent-cli")?.state, "needs-attention");
+    assert.match(line("agent-cli")?.message ?? "", /Claude Code is installed and not signed in/);
+    assert.match(line("agent-cli")?.message ?? "", /Codex did not answer/);
+    assert.match(line("agent-cli")?.fix ?? "", /claude auth login/);
+    // Owner, 2026-09-29 (question_bb3efa1e3191): "dont list them as fixes". storytree runs on its own Node.
+    assert.deepEqual(noteOf(report.lines, "git"), { state: "note", fix: undefined });
+    assert.deepEqual(noteOf(report.lines, "node"), { state: "note", fix: undefined });
+
+    // Claude Code signed in, git and Node 24 there: nothing to fix, and Codex is not needed as well.
+    // Claude Code answers slower than the short bound above, as it does on a loaded machine starting
+    // it, so this half waits as long as a busy machine needs; with no Codex there is nothing silent to wait on.
+    fakeTool(bin, "claude", { "--version": { out: "2.0.0 (Claude Code)", code: 0 }, "auth status": { code: 0 } }, 3);
+    fakeTool(bin, "git", { "--version": { out: "git version 2.50.0", code: 0 } });
+    fakeTool(bin, "node", { "--version": { out: "v24.1.0", code: 0 } });
+    rmSync(path.join(bin, process.platform === "win32" ? "codex.cmd" : "codex"));
+    const ready = await check(15_000);
+    for (const name of ["agent-cli", "git", "node"]) {
+      assert.equal(ready.lines.find((each) => each.check === name)?.state, "ok", `${name}: ${JSON.stringify(ready.lines)}`);
+    }
+  });
+});
+
+test("8.28 the setup check registers storytree's hooks for Cursor where Cursor's home is, without touching any other setting, and says whether Cursor is installed; it never says Cursor is signed in, since Cursor's command line reports a lapsed sign-in as logged in", async () => {
+  await withTempDir(async (dir) => {
+    const home = throwawayHome(dir);
+    const cursor = path.join(dir, ".cursor");
+    const bin = path.join(dir, "bin");
+    for (const folder of [cursor, bin]) mkdirSync(folder);
+    const servers = '{"mcpServers":{"other":{"command":"npx"}}}';
+    const own = { version: 1, hooks: { stop: [{ command: "./mine.sh" }] } };
+    writeFileSync(path.join(cursor, "mcp.json"), servers);
+    writeFileSync(path.join(cursor, "hooks.json"), JSON.stringify(own));
+    // Cursor's command line, as measured on the owner's laptop (2026-10-12): it says it is logged in whether or not it is.
+    fakeTool(bin, "cursor-agent", { "--version": { out: "2026.07.09", code: 0 }, status: { out: "Logged in", code: 0 } });
+    const check = () => runSetupCheck({
+      folder: dir, hook: HOOK, homes: { ...home.homes, cursor }, storytreeHome: home.storytreeHome, gh: async () => "signed in" as const,
+      machine: () => machineState({ path: bin, waitMs: 15_000, codexHome: home.homes.codex, localAppData: dir, applications: [] }),
+    });
+
+    const report = await check();
+    assert.equal(report.hooks?.cursor, "registered");
+    const registered = readJson(path.join(cursor, "hooks.json")) as { version: number; hooks: Record<string, { command: string; matcher?: string }[]> };
+    assert.equal(registered.version, 1);
+    assert.deepEqual(registered.hooks.stop?.[0], own.hooks.stop[0], "the user's own hook is kept, still first");
+    assert.equal(readFileSync(path.join(cursor, "mcp.json"), "utf8"), servers, "Cursor's tool servers are untouched");
+    const ours = (event: string) => (registered.hooks[event] ?? []).filter((entry) => entry.command.includes(HOOK.script) && entry.command.split(" ").includes("cursor"));
+    for (const event of ["sessionStart", "sessionEnd", "beforeSubmitPrompt", "beforeMCPExecution", "preToolUse", "postToolUse", "postToolUseFailure", "afterFileEdit", "subagentStart", "stop"]) {
+      assert.ok(ours(event).length > 0, `Cursor: at ${event}`);
+    }
+    // Cursor waits for every hook: the one before a shell command hands its work on, the one before a file edit answers.
+    const [shell, edit] = ours("preToolUse");
+    assert.ok(new RegExp(shell!.matcher!).test("Shell") && shell!.command.endsWith(" --background"), "in the background before a shell command");
+    assert.ok(new RegExp(edit!.matcher!).test("Write") && !new RegExp(edit!.matcher!).test("Shell") && !edit!.command.includes("--background"), "in the foreground before a file edit, and no other");
+
+    const said = report.lines.find((each) => each.check === "agent-cli");
+    assert.equal(said?.state, "ok", "Cursor alone is a harness storytree watches");
+    assert.match(said?.message ?? "", /Cursor is installed/);
+    assert.doesNotMatch(said?.message ?? "", /Cursor is (installed and )?(not )?signed in/);
+    assert.match(report.lines.find((each) => each.check === "hooks")?.message ?? "", /Cursor/);
+
+    rmSync(path.join(bin, process.platform === "win32" ? "cursor-agent.cmd" : "cursor-agent"));
+    const without = await check();
+    assert.equal(without.hooks?.cursor, "already registered", "its hooks stay where its home is");
+    assert.match(without.lines.find((each) => each.check === "agent-cli")?.message ?? "", /Cursor is not installed/);
+  });
+});
+
+test("8.30 the setup check registers storytree's named hook in Antigravity CLI's hooks.json where its home is, keeping every other, says whether agy is installed but never that it is signed in, and verifies an Antigravity session's start by its first hook line, since Antigravity sends no start", async () => {
+  await withTempDir(async (dir) => {
+    const home = throwawayHome(dir);
+    const gemini = path.join(dir, ".gemini");
+    const bin = path.join(dir, "bin");
+    for (const folder of [gemini, bin]) mkdirSync(folder);
+    // Antigravity CLI's command line, as measured on the Mint box (2026-10-12): it answers its version signed in or not.
+    fakeTool(bin, "agy", { "--version": { out: "1.3.3", code: 0 } });
+    const check = () => runSetupCheck({
+      folder: dir, hook: HOOK, homes: { ...home.homes, antigravity: gemini }, storytreeHome: home.storytreeHome, gh: async () => "signed in" as const,
+      machine: () => machineState({ path: bin, waitMs: 15_000, codexHome: home.homes.codex, localAppData: dir, applications: [] }),
+    });
+
+    const report = await check();
+    assert.equal(report.hooks?.antigravity, "registered", "its config folder is made where its home is");
+    const hooksFile = path.join(gemini, "config", "hooks.json");
+    const own = { reminder: { PreInvocation: [{ type: "command", command: "./remind.sh" }] } };
+    writeFileSync(hooksFile, JSON.stringify({ ...own, ...(readJson(hooksFile) as object) }));
+    assert.equal((await check()).hooks?.antigravity, "already registered");
+    const registered = readJson(hooksFile) as Record<string, Record<string, unknown[]>>;
+    assert.deepEqual(registered.reminder, own.reminder, "another named hook is kept");
+    assert.deepEqual(Object.keys(registered.storytree!).sort(), ["PostToolUse", "PreToolUse", "Stop"]);
+
+    const said = report.lines.find((each) => each.check === "agent-cli");
+    assert.equal(said?.state, "ok", "Antigravity CLI alone is a harness storytree watches");
+    assert.match(said?.message ?? "", /Antigravity CLI is installed/);
+    assert.doesNotMatch(said?.message ?? "", /Antigravity CLI is (installed and )?(not )?signed in/);
+
+    const line = (kind: Line["kind"]) => ({ kind, session: "c1", harness: "antigravity", source: "hook" }) as unknown as Line;
+    assert.deepEqual(verifyHooks([], "c1", "antigravity").missing, ["session start", "storytree tool call", "file edit", "command"], "nothing heard proves nothing");
+    assert.deepEqual(verifyHooks([line("tool-requested")], "c1", "antigravity").missing, ["file edit", "command"], "its first line opens the session");
+    assert.deepEqual(verifyHooks([line("tool-requested")], "c1", "claude-code").missing, ["session start", "file edit", "command"], "a harness with a start still needs it");
+
+    assert.equal(removeHooks({ antigravity: gemini }).antigravity, "removed");
+    assert.deepEqual(readJson(hooksFile), own, "removing storytree takes out its named hook alone");
+  });
+});
+
+test("8.29 the setup check installs storytree's Pi extension where Pi's agent folder is and says whether Pi is installed; the extension, loaded as Pi loads it, forwards Pi's events to the hook script and hands Pi back its refusal and its close-out request; removing storytree deletes it", async () => {
+  await withTempDir(async (dir) => {
+    const home = throwawayHome(dir);
+    const pi = path.join(dir, ".pi", "agent");
+    const bin = path.join(dir, "bin");
+    for (const folder of [pi, bin]) mkdirSync(folder, { recursive: true });
+    const servers = '{"mcpServers":{"other":{"command":"npx"}}}';
+    writeFileSync(path.join(pi, "mcp.json"), servers);
+    mkdirSync(path.join(pi, "extensions"));
+    writeFileSync(path.join(pi, "extensions", "mine.ts"), "export default function () {}\n");
+    // A hook script standing in for storytree's: it notes each run, refuses every edit it is asked about, and asks every settling run to close out.
+    const heard = path.join(dir, "heard.jsonl");
+    const script = path.join(dir, "tools", "storytree-hook.mjs");
+    mkdirSync(path.dirname(script));
+    writeFileSync(script, `import { appendFileSync, readFileSync } from "node:fs";
+const input = JSON.parse(readFileSync(0, "utf8"));
+appendFileSync(${JSON.stringify(heard)}, JSON.stringify({ args: process.argv.slice(2), input }) + "\\n");
+if (process.argv.includes("--edit-gate")) process.stdout.write(JSON.stringify({ block: true, reason: "held by another session" }));
+if (process.argv.includes("--close-out-reminder")) process.stdout.write(JSON.stringify({ entries: [{ type: "custom_message", customType: "storytree-close-out", content: "close out", display: true }], continue: true }));
+`);
+    const hook = { node: process.execPath, script };
+    fakeTool(bin, "pi", { "--version": { out: "1.1.0", code: 0 } });
+    const check = () => runSetupCheck({
+      folder: dir, hook, homes: { ...home.homes, pi }, storytreeHome: home.storytreeHome, gh: async () => "signed in" as const,
+      machine: () => machineState({ path: bin, waitMs: 15_000, codexHome: home.homes.codex, localAppData: dir, applications: [] }),
+    });
+
+    const report = await check();
+    assert.equal(report.hooks?.pi, "registered");
+    const extension = path.join(pi, "extensions", "storytree.ts");
+    assert.ok(existsSync(extension));
+    assert.equal(readFileSync(path.join(pi, "mcp.json"), "utf8"), servers, "Pi's tool servers are untouched by the check");
+    assert.ok(existsSync(path.join(pi, "extensions", "mine.ts")), "the user's own extension is kept");
+    assert.match(report.lines.find((each) => each.check === "agent-cli")?.message ?? "", /Pi is installed/);
+    assert.match(report.lines.find((each) => each.check === "hooks")?.message ?? "", /Pi/);
+    assert.deepEqual(registeredHookScripts({ pi }), [script], "the worktree reaper keeps the build Pi runs");
+    const written = readFileSync(extension, "utf8");
+    assert.equal((await check()).hooks?.pi, "already registered");
+    assert.equal(readFileSync(extension, "utf8"), written, "not a byte changed");
+
+    // The extension as Pi loads it: a default export given Pi's API, whose handlers Pi calls with each event and its context.
+    const handlers: [string, (event: Record<string, unknown>, ctx: unknown) => Promise<unknown>][] = [];
+    const { default: load } = (await import(pathToFileURL(extension).href)) as { default: (pi: unknown) => void };
+    load({ on: (event: string, handler: (event: Record<string, unknown>, ctx: unknown) => Promise<unknown>) => void handlers.push([event, handler]) });
+    const ctx = { cwd: dir, sessionManager: { getSessionId: () => "pi-session-1", getSessionFile: () => path.join(pi, "sessions", "s.jsonl") } };
+    const fire = async (event: Record<string, unknown> & { type: string }) => (await Promise.all(handlers.filter(([name]) => name === event.type).map(([, handler]) => handler(event, ctx)))).filter((answer) => answer !== undefined);
+    const heardLines = () => existsSync(heard) ? readFileSync(heard, "utf8").trim().split("\n").map((line) => JSON.parse(line) as { args: string[]; input: Record<string, unknown> }) : [];
+
+    assert.deepEqual(await fire({ type: "tool_call", toolName: "write", toolCallId: "call_w", input: { path: "a.ts", content: "x" } }), [{ block: true, reason: "held by another session" }], "a write is refused as the hook said");
+    const [gate] = heardLines();
+    assert.deepEqual(gate?.args, ["pi", "--edit-gate"]);
+    assert.deepEqual(gate?.input, { type: "tool_call", toolName: "write", toolCallId: "call_w", input: { path: "a.ts", content: "x" }, hook_event_name: "tool_call", session_id: "pi-session-1", cwd: dir, transcript_path: path.join(pi, "sessions", "s.jsonl") });
+    assert.deepEqual(await fire({ type: "tool_call", toolName: "read", toolCallId: "call_r", input: { path: "a.ts" } }), [], "a tool storytree does not hear runs no hook");
+    assert.deepEqual(await fire({ type: "before_agent_start", prompt: "hi", systemPrompt: "Pi's whole system prompt", systemPromptOptions: { tools: [] } }), [], "a prompt with nothing to add answers nothing");
+    assert.deepEqual(heardLines()[1], { args: ["pi"], input: { type: "before_agent_start", prompt: "hi", hook_event_name: "before_agent_start", session_id: "pi-session-1", cwd: dir, transcript_path: path.join(pi, "sessions", "s.jsonl") } }, "the prompt is heard without the system prompt the hook does not read");
+    const others = { type: "custom_message", customType: "another-extension", content: "kept", display: false };
+    const asked = { type: "custom_message", customType: "storytree-close-out", content: "close out", display: true };
+    assert.deepEqual(await fire({ type: "agent_before_settle", outcome: "completed", entries: [others], continue: false, context: { messages: ["the whole run"] } }), [{ entries: [others, asked], continue: true }], "a settling run is asked to close out, its entries added to the ones it came with");
+    assert.deepEqual(heardLines()[2], { args: ["pi", "--close-out-reminder"], input: { type: "agent_before_settle", outcome: "completed", continue: false, hook_event_name: "agent_before_settle", session_id: "pi-session-1", cwd: dir, transcript_path: path.join(pi, "sessions", "s.jsonl") } }, "heard without the run's context and entries");
+
+    assert.equal(removeHooks({ ...home.homes, pi }).pi, "removed");
+    assert.equal(existsSync(extension), false);
+    assert.ok(existsSync(path.join(pi, "extensions", "mine.ts")));
+    assert.equal(removeHooks({ ...home.homes, pi }).pi, "none");
+  });
+});
+
+test("8.27 with neither Claude Code nor Codex ready, the agent-cli line's fix gives storytree's stdio server entry, in the mcpServers JSON shape, for any other harness with an MCP client to add by hand", async () => {
+  await withTempDir(async (dir) => {
+    const home = throwawayHome(dir);
+    const missing = async () => ({ claude: "missing", codex: "missing", git: "present", node: { state: "ok", version: "v24.1.0" }, waitMs: 5_000 }) as const;
+    const report = await runSetupCheck({ folder: dir, hook: HOOK, homes: home.homes, storytreeHome: home.storytreeHome, gh: async () => "signed in" as const, machine: missing });
+    const line = report.lines.find((each) => each.check === "agent-cli");
+    assert.equal(line?.state, "needs-attention");
+    const entry = /(\{[\s\S]*\})/.exec(line?.fix ?? "")?.[1];
+    assert.ok(entry !== undefined, `an entry in the fix: ${line?.fix}`);
+    assert.deepEqual(JSON.parse(entry), { mcpServers: { storytree: { type: "stdio", command: HOOK.node, args: [path.join(tmpdir(), "storytree", "dist", "storytree-mcp.mjs")] } } });
+    assert.match(line?.fix ?? "", /Claude Code/, "installing a watched harness stays offered");
+  });
+});
+
+test("8.11 a tool that exits while something it started still holds its output is not waited on (regression: gh auth status's tzutil, 2026-09-28)", { timeout: 30_000 }, async () => {
+  await withTempDir(async (dir) => {
+    const bin = path.join(dir, "bin");
+    mkdirSync(bin);
+    // `gh auth status` answers signed in, leaving behind a process that keeps its output open for 20s.
+    if (process.platform === "win32") {
+      writeFileSync(path.join(bin, "gh.cmd"), `@echo off\r\nstart "" /b "%SystemRoot%\\System32\\PING.EXE" -n 20 127.0.0.1\r\nexit /b 0\r\n`);
+    } else {
+      writeFileSync(path.join(bin, "gh"), "#!/bin/sh\n/bin/sleep 20 &\nexit 0\n");
+      chmodSync(path.join(bin, "gh"), 0o755);
+    }
+
+    const started = Date.now();
+    assert.equal(await ghState({ path: bin, waitMs: 10_000 }), "signed in");
+    assert.ok(Date.now() - started < 10_000, `answered when gh exited, not at the deadline: ${Date.now() - started}ms`);
+  });
+});
+
+test("8.13 the check says whether storytree can read which sessions the Claude desktop app and Codex keep and have archived; where it cannot, it says sessions here leave the list after the leave-after time instead, and never makes that a fix (ADR-0754 D4)", async () => {
+  await withTempDir(async (dir) => {
+    const home = throwawayHome(dir);
+    const options = { ...ANSWERED, folder: dir, homes: home.homes, storytreeHome: home.storytreeHome, gh: async () => "signed in" as const };
+    const absent = await runSetupCheck({ ...options, appPlaces: { claudeSessions: path.join(dir, "no-claude"), codexState: path.join(dir, "no-codex", "state_5.sqlite") } });
+    const line = absent.lines.find((each) => each.check === "archives");
+    assert.deepEqual({ state: line?.state, fix: line?.fix }, { state: "note", fix: undefined });
+    assert.match(line?.message ?? "", /leave-after/);
+
+    const sessions = path.join(dir, "Claude", "claude-code-sessions", "account", "org");
+    mkdirSync(sessions, { recursive: true });
+    writeFileSync(path.join(sessions, "local_1.json"), JSON.stringify({ cliSessionId: "one", isArchived: true }));
+    const read = await runSetupCheck({ ...options, appPlaces: { claudeSessions: path.dirname(path.dirname(sessions)), codexState: path.join(dir, "no-codex", "state_5.sqlite") } });
+    const readLine = read.lines.find((each) => each.check === "archives");
+    assert.equal(readLine?.state, "ok");
+    assert.match(readLine?.message ?? "", /Claude desktop app.*1 session/);
+  });
+});
+
+/** A git checkout with one commit, which `origin/main` names too: a fresh worktree of main. */
+function checkoutOfMain(dir: string): { folder: string; commit: string } {
+  const folder = path.join(dir, "checkout");
+  mkdirSync(folder);
+  const git = (...args: string[]) => spawnSync("git", ["-c", "user.name=t", "-c", "user.email=t@t", ...args], { cwd: folder, encoding: "utf8" }).stdout.trim();
+  git("init", "-q");
+  git("commit", "-q", "--allow-empty", "-m", "main");
+  git("update-ref", "refs/remotes/origin/main", "HEAD");
+  return { folder, commit: git("rev-parse", "HEAD") };
+}
+
+test("8.15 with no desktop app, a session whose tool server runs from a checkout at origin/main registers the hooks from a build of that commit kept in the storytree home; a checkout off main, or hooks the app installed, are left as they are (regression: the Mint box's hooks ran a build from 746caf1, 2026-09-30)", async () => {
+  await withTempDir(async (dir) => {
+    const home = throwawayHome(dir);
+    const { folder, commit } = checkoutOfMain(dir);
+    const build = async (outdir: string) => {
+      mkdirSync(outdir, { recursive: true });
+      writeFileSync(path.join(outdir, "storytree-hook.mjs"), "");
+    };
+    const options = { checkout: folder, storytreeHome: home.storytreeHome, homes: home.homes, build };
+
+    const hook = await builtFromMain(options);
+    assert.ok(hook !== undefined, "a checkout at origin/main gives a hook to register");
+    assert.equal(path.dirname(hook.script), path.join(home.storytreeHome, "agent-tools", commit), "built from main's commit, in the storytree home");
+    assert.ok(existsSync(hook.script));
+    await runSetupCheck({ ...ANSWERED, folder: dir, hook, homes: home.homes, storytreeHome: home.storytreeHome });
+    assert.ok(Object.keys(storytreeHooks(readJson(home.claudeSettings), hook.script, "claude-code")).length > 0, "Claude Code runs that build");
+
+    // A branch with work on it is not main: its hooks are not what every session on the machine should run.
+    spawnSync("git", ["-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "--allow-empty", "-m", "branch work"], { cwd: folder });
+    assert.equal(await builtFromMain(options), undefined, "a checkout off main registers nothing");
+
+    // Where the desktop app installed the hooks, its updater keeps them current: they stay the app's.
+    spawnSync("git", ["reset", "-q", "--hard", commit], { cwd: folder });
+    const app: HookCommand = { node: process.execPath, script: path.join(dir, "Programs", "storytree-0.3", "resources", "agent-tools", "storytree-hook.mjs") };
+    registerHooks(home.homes, app);
+    assert.equal(await builtFromMain(options), undefined, "hooks the app installed are kept");
+  });
+});
+
+test("8.15 a build of main, run from outside the checkout, loads the embedding runtime its library search ranks by meaning with (regression: the Mint box's installed tools ranked by words, 2026-10-02)", { timeout: 120_000 }, async () => {
+  await withTempDir(async (dir) => {
+    const { folder } = checkoutOfMain(dir);
+    const hook = await builtFromMain({ checkout: folder, storytreeHome: path.join(dir, ".storytree", "0.3"), homes: { claude: path.join(dir, ".claude") } });
+    assert.ok(hook !== undefined);
+    const probe = path.join(path.dirname(hook.script), "embedding-probe.mjs");
+    writeFileSync(probe, 'const { pipeline } = await import("@huggingface/transformers"); console.log(typeof pipeline);');
+    const run = spawnSync(process.execPath, [probe], { cwd: dir, encoding: "utf8", timeout: 60_000 });
+    assert.equal(run.stdout.trim(), "function", run.stderr);
+  });
+});
+
+test("8.18 the check says when the hooks run an older release than the latest, since the app updates them only while it runs, and says nothing is wrong when they run the latest (regression: the laptop's hooks ran v0.3.309 with v0.3.333 out, 2026-09-30)", async () => {
+  await withTempDir(async (dir) => {
+    const home = throwawayHome(dir);
+    const tools = path.join(dir, "Programs", "storytree-0.3", "resources", "agent-tools");
+    mkdirSync(tools, { recursive: true });
+    const hook: HookCommand = { node: process.execPath, script: path.join(tools, "storytree-hook.mjs") };
+    writeFileSync(hook.script, "");
+    const hooksLine = async (running: string) => {
+      writeFileSync(path.join(tools, "release.json"), JSON.stringify({ version: running, commit: "abc1234" }));
+      const report = await runSetupCheck({ ...ANSWERED, latestRelease: async () => "0.3.333", folder: dir, hook, homes: home.homes, storytreeHome: home.storytreeHome, openWaitMs: 0 });
+      return report.lines.find((line) => line.check === "hooks-release");
+    };
+
+    const behind = await hooksLine("0.3.309");
+    assert.equal(behind?.state, "needs-attention");
+    assert.match(behind?.message ?? "", /0\.3\.309.*0\.3\.333/);
+    assert.match(behind?.fix ?? "", /open the storytree app/i);
+    assert.equal((await hooksLine("0.3.333"))?.state, "ok");
+  });
+});
+
+
+test("8.32 with a Codex that runs tool handlers (0.148 or later), each event the tool server takes is handed to it by a handler carrying that event's fields, beside the command hook, now in the background and standing down when the tool recorded it; an older Codex, or one whose version cannot be read, keeps the command hooks alone; removing storytree takes out both and leaves a tool handler of the user's own (ADR-1056 D2)", async () => {
+  await withTempDir(async (dir) => {
+    type Hook = { type: string; command?: string; async?: boolean; server?: string; tool?: string; input?: { harness: string; input: Record<string, string> } };
+    type Group = { matcher?: string; hooks: Hook[] };
+    const registered = async (codexVersion: string | undefined) => {
+      const home = throwawayHome(path.join(dir, codexVersion ?? "unknown"));
+      await runSetupCheck({ ...ANSWERED, folder: dir, hook: HOOK, homes: home.homes, storytreeHome: home.storytreeHome, ...(codexVersion === undefined ? {} : { codexVersion }) });
+      return { home, events: (readJson(home.codexHooks).hooks ?? {}) as Record<string, Group[]> };
+    };
+    const handlers = (events: Record<string, Group[]>) => Object.values(events).flat().flatMap((group) => group.hooks).filter((hook) => hook.type === "mcp_tool");
+
+    for (const version of ["0.147.2", undefined]) {
+      const { events } = await registered(version);
+      assert.deepEqual(handlers(events), [], `${version}: no tool handler`);
+      assert.ok(events.Stop?.[0]?.hooks[0]?.command?.endsWith(` codex ${BACKGROUND}`), `${version}: the turn's hook hands its work to a copy of itself`);
+    }
+
+    const { home, events } = await registered("0.153.4");
+    const tool = (group: Group | undefined) => group?.hooks.find((hook) => hook.type === "mcp_tool");
+    const delivered = { SessionStart: events.SessionStart?.[0], PreToolUse: events.PreToolUse?.find((group) => group.matcher === "^Bash$"), PostToolUse: events.PostToolUse?.[0], Stop: events.Stop?.[0] };
+    // Only fields every input of the event carries (Codex 0.155's recorded inputs, Session management's fixtures): a missing one fails the handler.
+    const common = ["session_id", "cwd", "hook_event_name", "transcript_path"];
+    const fields: Record<string, string[]> = {
+      SessionStart: [...common, "source"],
+      PreToolUse: [...common, "tool_name", "tool_input", "tool_use_id"],
+      PostToolUse: [...common, "tool_name", "tool_input", "tool_response", "tool_use_id"],
+      Stop: common,
+    };
+    for (const [event, group] of Object.entries(delivered)) {
+      const handler = tool(group);
+      assert.deepEqual([handler?.server, handler?.tool, handler?.input?.harness], ["storytree", "hook_event", "codex"], event);
+      assert.deepEqual(handler?.input?.input, Object.fromEntries(fields[event]!.map((field) => [field, "${" + field + "}"])), `${event}: each field it carries, as Codex fills a template`);
+      const command = group?.hooks.find((hook) => hook.type === "command");
+      assert.ok(command?.async === true && command.command?.endsWith(` codex ${AFTER_TOOL}`), `${event}: the command hook beside it, in the background, standing down when the tool recorded the event`);
+    }
+    // Codex runs no tool handler at a session's end; before a storytree tool, only a subagent's input names its agent; the prompt hook reaches the library anyway.
+    for (const event of ["SessionEnd", "UserPromptSubmit"]) assert.equal(tool(events[event]?.[0]), undefined, event);
+    assert.equal(tool(events.PreToolUse?.[0]), undefined, "before a storytree tool");
+    // The hooks the agent waits for, for their answers, are as they were.
+    assert.ok(!events.Stop?.[1]?.hooks[0]?.async && !events.PostToolUse?.[1]?.hooks[0]?.async, "the close-out reminder and the shell guard stay in the foreground");
+
+    // A tool handler of the user's own, in a group of storytree's, stays when storytree's hooks go.
+    const own = { type: "mcp_tool", server: "mine", tool: "note", input: {} };
+    const file = readJson(home.codexHooks) as { hooks: Record<string, Group[]> };
+    file.hooks.Stop![0]!.hooks.push(own as Hook);
+    writeFileSync(home.codexHooks, `${JSON.stringify(file, null, 2)}\n`);
+    assert.equal(removeHooks(home.homes, { harness: "codex", hook: HOOK }).codex, "removed");
+    assert.deepEqual(readJson(home.codexHooks), { hooks: { Stop: [{ hooks: [own] }] } });
+  });
+});
+
+test("8.33 Claude Code's registration leaves the mod's own tool calls (hook_event, heartbeat) out of the storytree-tools hook, and its background hooks wait for the tool's note (--after-tool), so a session with the Claude Code mod spawns no recording hook for its own deliveries", async () => {
+  await withTempDir(async (dir) => {
+    const home = throwawayHome(dir);
+    await runSetupCheck({ ...ANSWERED, folder: dir, hook: HOOK, homes: home.homes, storytreeHome: home.storytreeHome });
+    const groups = (readJson(home.claudeSettings).hooks ?? {}) as Record<string, HookEntry[]>;
+    const ours = (event: string) => (groups[event] ?? []).flatMap((group) => group.hooks.filter((hook) => hook.args?.[0] === HOOK.script).map((hook) => ({ matcher: group.matcher ?? "", hook })));
+    // Claude Code matches a tool's name against the whole matcher, as a regular expression.
+    const runs = (matcher: string, tool: string) => new RegExp(`^(?:${matcher})$`).test(tool);
+    const [tools] = ours("PreToolUse").filter(({ matcher }) => runs(matcher, "mcp__storytree__open"));
+    assert.ok(tools, "a hook before a storytree tool");
+    assert.ok(runs(tools.matcher, "mcp__storytree__claim") && !runs(tools.matcher, "mcp__storytree__hook_event"), "before every storytree tool but hook_event");
+    assert.ok(runs(tools.matcher, "mcp__storytree__check_setup") && !runs(tools.matcher, "mcp__storytree__heartbeat"), "nor before the mod's heartbeat");
+    assert.ok(runs(tools.matcher, "mcp__storytree__hook_events"), "a tool whose name only starts like it is still one");
+    // Every background hook that records a line stands down when the tool recorded its event; the foreground ones look for the note at once.
+    const background = Object.keys(groups).flatMap((event) => ours(event).map((one) => ({ event, ...one }))).filter(({ hook }) => hook.async === true);
+    assert.deepEqual([...new Set(background.map(({ event }) => event))].sort(), ["PostToolUse", "PostToolUseFailure", "PreToolUse", "SessionStart", "Stop"], "the background hooks");
+    for (const { hook } of background) assert.ok(hook.args?.includes(AFTER_TOOL), hook.args?.join(" "));
+    for (const { hook } of Object.keys(groups).flatMap(ours).filter(({ hook }) => hook.async !== true)) assert.ok(!hook.args?.includes(AFTER_TOOL), hook.args?.join(" "));
+  });
+});
+
+test("8.37 a look (the doctor without --repair) writes no file: each harness, the status line and the command say what registering would change, and the check's lines name --repair", async () => {
+  await withTempDir(async (dir) => {
+    const home = throwawayHome(dir);
+    const homes = { ...home.homes, cursor: path.join(dir, ".cursor"), pi: path.join(dir, ".pi", "agent"), antigravity: path.join(dir, ".gemini") };
+    for (const folder of [homes.cursor, homes.pi, homes.antigravity]) mkdirSync(folder, { recursive: true });
+    // Cursor's hooks run another build's script, as an older install left them.
+    const other = path.join(dir, "older", "storytree-hook.mjs");
+    writeFileSync(path.join(homes.cursor, "hooks.json"), `${JSON.stringify({ version: 1, hooks: { sessionStart: [{ command: `node ${other} cursor` }] } }, null, 2)}\n`);
+    const bin = path.join(dir, ".local", "bin");
+    mkdirSync(bin, { recursive: true });
+    const hook: HookCommand = { node: process.execPath, script: hookScript };
+    const check = (look: boolean) => runSetupCheck({ ...ANSWERED, folder: dir, hook, homes, storytreeHome: home.storytreeHome, command: { path: bin, home: dir }, look });
+    const files = () => Object.fromEntries([homes.claude, homes.codex, homes.cursor, homes.pi, homes.antigravity, bin]
+      .flatMap((folder) => readdirSync(folder, { recursive: true, withFileTypes: true }).filter((entry) => entry.isFile()).map((entry) => path.join(entry.parentPath, entry.name)))
+      .map((file) => [file, readFileSync(file, "utf8")]));
+    const before = files();
+
+    const looked = await check(true);
+
+    assert.deepEqual(files(), before, "a look changes no file");
+    assert.deepEqual(looked.hooks, {
+      "claude-code": "would register", codex: "would register", cursor: "would register", pi: "would register", antigravity: "would register",
+      statusLine: "would install", replaced: { cursor: [other] },
+    });
+    assert.equal(looked.command, "would install");
+    const line = (report: typeof looked, check: string) => report.lines.find((each) => each.check === check);
+    for (const check of ["hooks", "status-line", "command"]) {
+      assert.equal(line(looked, check)?.state, "needs-attention", check);
+      assert.match(line(looked, check)?.fix ?? "", /storytree doctor --repair/, check);
+    }
+    assert.ok(line(looked, "hooks")?.message.includes(other), line(looked, "hooks")?.message);
+
+    const repaired = await check(false);
+
+    assert.equal(repaired.hooks?.cursor, "registered");
+    assert.equal(line(repaired, "hooks")?.state, "fixed");
+    assert.ok(line(repaired, "hooks")?.message.includes(`replacing another build's hooks, which ran ${other}`), line(repaired, "hooks")?.message);
+    assert.equal(line(repaired, "status-line")?.state, "fixed");
+    assert.equal(repaired.command, "installed");
+
+    // storytree's command on the path, running another build: a look names it and leaves it.
+    // Beside the built scripts, where a Windows launcher finds the program it is made from.
+    const older = path.join(path.dirname(hookScript), "an older storytree.mjs");
+    rmSync(path.join(bin, launcherFile()));
+    putCommandOnPath({ path: bin, home: dir }, process.execPath, older);
+    const launcher = readFileSync(path.join(bin, launcherFile()));
+    const relooked = await check(true);
+    assert.equal(relooked.command, `would replace ${path.join(bin, launcherFile())}, which runs ${older}`);
+    assert.deepEqual(readFileSync(path.join(bin, launcherFile())), launcher, "the older launcher, untouched");
+    assert.match(line(relooked, "command")?.fix ?? "", /storytree doctor --repair/);
+  });
+});

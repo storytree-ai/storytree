@@ -1,0 +1,17 @@
+{
+  "session_id": "cf0453e9-0036-435f-9ea6-2a11f2ea0946",
+  "transcript_path": "C:\\Users\\dev\\.claude\\projects\\C--Users-dev-projects-site\\cf0453e9-0036-435f-9ea6-2a11f2ea0946.jsonl",
+  "cwd": "C:\\Users\\dev\\projects\\site",
+  "prompt_id": "51d3c4da-78be-4a50-bc12-1ae0cd178838",
+  "permission_mode": "default",
+  "hook_event_name": "PreToolUse",
+  "tool_name": "mcp__storytree__open",
+  "tool_input": {
+    "id": "decision_2f6c1e0a9b3d"
+  },
+  "tool_use_id": "toolu_018cKhhRDozwv48NrNJx8p4z",
+  "mcp_server": {
+    "name": "storytree",
+    "source": "dynamic"
+  }
+}

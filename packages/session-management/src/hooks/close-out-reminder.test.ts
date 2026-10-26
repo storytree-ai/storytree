@@ -1,0 +1,90 @@
+/**
+ * Capability 3 · Hooks, contract 3.17 (ADR-0758 D4): when a Claude Code or Codex turn, or a Pi run, ends in
+ * a storytree project on a branch whose work has reached main, and the session has not closed out, the
+ * Stop hook (Pi's agent_before_settle) asks it to, once. Real git in a throwaway repository with an origin beside it; the close-out
+ * is written to the real log on the Postgres `pnpm test` provides.
+ */
+import assert from "node:assert/strict";
+import { randomUUID } from "node:crypto";
+import { mkdirSync, writeFileSync } from "node:fs";
+import path from "node:path";
+import { test } from "node:test";
+
+import { openActivityLog } from "../activity/index.js";
+import { closeOut } from "../sessions/index.js";
+import { git, withTempDir } from "@storytree/project-and-caller/testing/folders";
+import { approveCheckout, dropTestProjects, testServerUrl, uniqueProjectName } from "@storytree/project-and-caller/testing/pg";
+import { CLOSE_OUT_REMINDER, runHook } from "./index.js";
+
+test("3.17 a turn (or a Pi run) that ends with its branch merged and no close-out is asked, once, to close out; a fresh branch with no commits of its own (made by checkout or as a workspace), a branch still ahead, main, a stop the reminder caused, or a session that closed out is not", async () => {
+  const project = uniqueProjectName();
+  const was = process.env.STORYTREE_HOME;
+  try {
+    await withTempDir(async (dir) => {
+      const origin = path.join(dir, "origin.git");
+      const site = path.join(dir, "site");
+      git(dir, "init", "--bare", "-b", "main", origin);
+      git(dir, "init", "-b", "main", site);
+      writeFileSync(path.join(site, ".storytree.json"), `${JSON.stringify({ project })}\n`);
+      // The checkout approved on this machine, as a setup leaves it: the reminder runs git in no other (3.46).
+      const home = path.join(dir, "storytree-home");
+      mkdirSync(home);
+      process.env.STORYTREE_HOME = home;
+      await approveCheckout(site, project, home);
+      git(site, "add", ".");
+      git(site, "commit", "-m", "first");
+      git(site, "remote", "add", "origin", origin);
+      git(site, "push", "-q", "origin", "main");
+      const stop = (session: string, extra: Record<string, unknown> = {}, harness = "claude-code") =>
+        runHook({ argv: [harness, CLOSE_OUT_REMINDER], input: JSON.stringify({ hook_event_name: "Stop", session_id: session, cwd: site, ...extra }) });
+      const [asked, again, caused, done] = [randomUUID(), randomUUID(), randomUUID(), randomUUID()];
+
+      assert.equal(await stop(asked), undefined, "on main: nothing to close out");
+      // The way `storytree workspace` cuts one: a linked worktree on a new branch from origin/main (friction_ec191ac911de).
+      const workspace = path.join(dir, "workspace");
+      git(site, "fetch", "-q", "origin");
+      git(site, "worktree", "add", "-q", "-b", "claude/increment-x", workspace, "refs/remotes/origin/main");
+      assert.equal(await stop(asked, { cwd: workspace }), undefined, "a fresh workspace branch at main has no work of its own to have merged");
+      git(site, "checkout", "-q", "-b", "fix-login");
+      assert.equal(await stop(asked), undefined, "a fresh branch at main has no work of its own to have merged");
+      git(site, "commit", "-q", "--allow-empty", "-m", "fix");
+      assert.equal(await stop(asked), undefined, "its branch is still ahead of main");
+
+      git(site, "push", "-q", "origin", "fix-login:main");
+      git(site, "fetch", "-q", "origin");
+      const reminder = JSON.parse((await stop(asked)) ?? "{}") as { decision?: string; reason?: string };
+      assert.equal(reminder.decision, "block");
+      assert.match(reminder.reason ?? "", /fix-login/);
+      assert.match(reminder.reason ?? "", /storytree session close-out --safe yes\|no --why/);
+      assert.equal(await stop(asked), undefined, "asked once per session");
+      const codex = JSON.parse((await stop(randomUUID(), {}, "codex")) ?? "{}") as { decision?: string };
+      assert.equal(codex.decision, "block", "a Codex session is asked the same way");
+      // Pi's run settling, as its extension forwards agent_before_settle: asked by an entry in the model's context and one continuation.
+      const settle = (session: string, extra: Record<string, unknown> = {}) =>
+        runHook({ argv: ["pi", CLOSE_OUT_REMINDER], input: JSON.stringify({ type: "agent_before_settle", hook_event_name: "agent_before_settle", session_id: session, cwd: site, outcome: "completed", continue: false, ...extra }) });
+      const piSession = randomUUID();
+      assert.equal(await settle(piSession, { outcome: "aborted" }), undefined, "a run the user stopped is not asked");
+      assert.equal(await settle(piSession, { continue: true }), undefined, "a run something else continues settles again later");
+      const pi = JSON.parse((await settle(piSession)) ?? "{}") as { continue?: boolean; entries?: { type?: string; customType?: string; content?: string; display?: boolean }[] };
+      assert.equal(pi.continue, true);
+      assert.equal(pi.entries?.length, 1);
+      assert.equal(pi.entries?.[0]?.type, "custom_message");
+      assert.equal(pi.entries?.[0]?.display, true);
+      assert.match(pi.entries?.[0]?.content ?? "", /storytree session close-out --safe yes\|no --why/);
+      assert.equal(await settle(piSession), undefined, "a Pi session is asked once too");
+      assert.equal(await stop(again, { stop_hook_active: true }), undefined, "never again for the turn the reminder itself caused");
+
+      const log = await openActivityLog(testServerUrl());
+      try {
+        await closeOut({ log, project: uniqueProjectName(), session: done, harness: "claude-code", folder: site }, { safe: true, why: "merged" });
+      } finally {
+        await log.close();
+      }
+      assert.equal(await stop(done), undefined, "a session that closed out here is not asked");
+    });
+  } finally {
+    if (was === undefined) delete process.env.STORYTREE_HOME;
+    else process.env.STORYTREE_HOME = was;
+    await dropTestProjects([project]);
+  }
+});

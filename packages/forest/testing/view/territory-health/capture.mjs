@@ -1,0 +1,263 @@
+// Seeded, repeatable capture of the actual desktop page (ADR-0825 D3, territory health): the knowledge-under-islands
+// snapshot with each capability given a word (below), the session-tints agent log at the fixed clock NOW, the same
+// 1440 x 960 viewport and the same programmatic turns; nothing is hand-panned. Run `node build.mjs`, then this, under
+// `node "<checkout>/packages/dev-loop/src/heavy-lock.mjs" --`. Measures what can be counted before anyone looks, and writes measurements.json.
+// --smoke uses the same scene and measures its fills and claims.
+// Only full captures tour the four close-up pictures; smoke waits for the marks it actually asserts.
+import assert from 'node:assert/strict';
+import { readFileSync, writeFileSync } from 'node:fs';
+import path from 'node:path';
+import { buildFolder, fakeBridge, withCapture } from '../../../../../apps/desktop/src/capture/index.ts'; // run with node --import tsx
+import { fileURLToPath } from 'node:url';
+
+const here = path.dirname(fileURLToPath(import.meta.url));
+// Pictures and measurements go to the package's evidence set of this name (a scratch folder unless --retake); nothing here reads them.
+const evidence = path.join(here, '../../../src/view/evidence', 'territory-health');
+const smoke = process.argv.includes('--smoke');
+const started = performance.now();
+const phase = message => console.error(`[territory health +${Math.round(performance.now() - started)}ms] ${message}`);
+const seed = JSON.parse(readFileSync(path.join(here, '../knowledge-under-islands/seed.json'), 'utf8'));
+// survey.json is readCodeSurvey(<this checkout>, seed.tree), precomputed by `tsx survey.mjs`.
+const survey = JSON.parse(readFileSync(path.join(here, '../session-tints/survey.json'), 'utf8'));
+// The snapshot predates ADR-0744's word, so each capability is given one: its verified column's (passing reads
+// healthy, anything else untested), with these seeded so every word shows. Cloud connection is the real library's
+// one red card on 2026-10-01; Hooks is red so a failure sits beside a claim on The agent link.
+const WORDS = { capability_2417a0fb5578: 'unhealthy', capability_f3c4cf342304: 'unhealthy', capability_b59e959e0da8: 'proposed', capability_cd33386156ad: 'proposed' };
+// ADR-0992: two not proven are parked on purpose, so they are filled grey: Arc surface (untested) beside its island's
+// yellow Agents on the board and Briefing and green Work states, and The app's Storytree projects (proposed).
+const PARKED = { capability_60a15402b053: 'Board redesign', capability_b59e959e0da8: 'Identity' };
+for (const story of seed.tree.stories) for (const capability of story.capabilities) {
+  capability.status = WORDS[capability.id] ?? (capability.health.verified.state === 'passing' ? 'healthy' : 'untested');
+  capability.proposed = capability.status === 'proposed';
+  if (capability.status === 'unhealthy') capability.health = { ...capability.health, verified: { state: 'failing' } };
+  if (PARKED[capability.id]) capability.parkedOn = [{ arc: `arc-${PARKED[capability.id]}`, title: PARKED[capability.id] }];
+}
+phase('launch browser');
+await withCapture({ folder: evidence, dist: buildFolder(here, ...(smoke ? ['smoke'] : [])) }, async ({ browser, origin, out, settle }) => {
+phase('browser ready');
+const settleView = page => settle(page, smoke ? 2 : 12);
+const picture = (page, name) => smoke ? undefined : page.screenshot({ path: path.join(out, name), timeout: 180000 });
+
+
+
+// The agent log the stand-in bridge hands the page, at the fixed clock NOW. Real capability ids from the seed tree.
+const NOW = Date.parse('2026-10-01T12:00:00.000Z');
+// Session ids whose hashed hues sit well apart (207, 301, 248), as in ../session-tints.
+const SESSIONS = { A: '3b229329-6239-408a-a88c-2669d839ca45', B: '6f840d71-eb64-48f6-a176-c7f28c62e1e0', C: 'f0697f0c-0b04-458c-a539-c36eab0d0743' };
+const CAP = { agentTools: 'capability_4da153322012', claims: 'capability_05ff7e9f0f99', libraryTransactions: 'capability_75abfdd699c0', storyNodeRender: 'capability_9f02379a2e1a' };
+const lines = [];
+const add = (minutesAgo, session, line) => lines.push({ ...line, session, harness: 'claude-code', project: 'storytree', seq: lines.length + 1, at: new Date(NOW - minutesAgo * 60_000).toISOString() });
+const claim = (id, reason) => ({ kind: 'claimed', source: 'tool', capability: id, reason });
+// A: live; holds Agent tools (The agent link) and Library transactions (The library); a turn in progress, last line a minute ago.
+add(50, SESSIONS.A, { kind: 'session-started', source: 'hook' });
+add(49, SESSIONS.A, { kind: 'prompt-submitted', source: 'hook' });
+add(40, SESSIONS.A, claim(CAP.agentTools, 'tool call arguments'));
+add(38, SESSIONS.A, claim(CAP.libraryTransactions, 'transaction retries'));
+add(1, SESSIONS.A, { kind: 'file-edited', source: 'hook', files: ['packages/agent-link/src/tools.ts'] });
+// B: live; holds Claims (The agent link, beside A's Agent tools); last line 30 seconds ago.
+add(30, SESSIONS.B, { kind: 'session-started', source: 'hook' });
+add(29, SESSIONS.B, { kind: 'prompt-submitted', source: 'hook' });
+add(20, SESSIONS.B, claim(CAP.claims, 'takeover of an idle claim'));
+add(0.5, SESSIONS.B, { kind: 'file-edited', source: 'hook', files: ['packages/agent-link/src/claims.ts'] });
+// C: quiet past the 30-minute quiet time (last line 45 minutes ago) but not yet the 1-hour leave time; holds Story node render (The forest).
+add(80, SESSIONS.C, { kind: 'session-started', source: 'hook' });
+add(79, SESSIONS.C, { kind: 'prompt-submitted', source: 'hook' });
+add(60, SESSIONS.C, claim(CAP.storyNodeRender, 'territory colours'));
+add(45, SESSIONS.C, { kind: 'turn-ended', source: 'hook' });
+const log = { lines, cursor: lines.length };
+
+/** What the land drew, counted from the scene and the page: each territory's word and fill, each claim's flag, and the rim markers. */
+function measure(page) {
+  return page.evaluate(() => {
+    const { scene, camera } = window.__globe;
+    scene.updateMatrixWorld(true);
+    const islands = [];
+    scene.traverse(object => {
+      if (!object.name.startsWith('planet:story_')) return;
+      const territories = [], outlines = [], hatches = [];
+      object.traverse(child => {
+        if (child.name.startsWith('territory:')) {
+          const hsl = child.material.color.getHSL({ h: 0, s: 0, l: 0 });
+          territories.push({ capability: child.userData.capability ?? null, title: child.userData.title ?? 'Unclaimed code', word: child.userData.word ?? null, parked: child.userData.parked === true,
+            fill: '#' + child.material.color.getHexString(), opacity: child.material.opacity, saturation: Math.round(hsl.s * 100) / 100, claimedBy: child.userData.claimedBy ?? null });
+        }
+        if (child.name.startsWith('territory-hatch:')) hatches.push({ colour: '#' + child.material.color.getHexString(), opacity: child.material.opacity, segments: child.geometry.attributes.position.count / 2, renderOrder: child.renderOrder });
+        if (child.name.startsWith('territory-claim:')) {
+          const pennant = child.getObjectByName('flag-pennant');
+          outlines.push({ capability: child.userData.capability, colour: child.userData.colour, drawn: pennant ? '#' + pennant.material.color.getHexString() : null,
+            faded: child.userData.faded, triangles: pennant ? pennant.geometry.attributes.position.count / 3 : 0 });
+        }
+      });
+      islands.push({ story: object.name.slice(7), territories, claimOutlines: outlines, hatches });
+    });
+    const filled = islands.flatMap(i => i.territories).filter(t => t.opacity > 0 && t.capability !== null);
+    const uncharted = islands.flatMap(i => i.territories.filter(t => t.capability === null).map(t => ({ story: i.story, fill: t.fill, opacity: t.opacity, saturation: t.saturation, hatches: i.hatches })));
+    const markers = [...document.querySelectorAll('.planet-edge-marker')].map(m => ({ story: m.dataset.failingStory, title: m.title, label: m.getAttribute('aria-label') }));
+    // Grey is parked's alone (ADR-0992): greyFills counts a grey territory that is not parked.
+    return { zoom: camera.zoom, fills: [...new Set(filled.map(t => `${t.word}${t.parked ? ' parked' : ''} ${t.fill} ${t.opacity}`))].sort(), greyFills: filled.filter(t => t.saturation < 0.3 && !t.parked).length,
+      parked: filled.filter(t => t.parked).map(t => t.capability).sort(), uncharted, markers, islands };
+  });
+}
+
+  const page = await browser.newPage({ viewport: smoke ? { width: 640, height: 480 } : { width: 1440, height: 960 }, deviceScaleFactor: 1, colorScheme: 'dark' });
+  const errors = [], warnings = [], failed = [];
+  page.on('response', r => { if (r.status() >= 400) failed.push(r.url()); });
+  page.on('pageerror', error => errors.push(String(error)));
+  page.on('console', message => {
+    if (!['error', 'warning'].includes(message.type())) return;
+    (message.type() === 'warning' ? warnings : errors).push(message.text());
+  });
+  const failedWait = async (stage, error) => {
+    // A ready page need not have mounted every seeded island. Read the actual scene, without
+    // invalidating it, and bound this extra read so a stuck renderer preserves the original error.
+    let timer;
+    const scene = await Promise.race([
+      page.evaluate(ids => {
+        const state = window.__globe;
+        const targets = ids.map(id => {
+          const planet = state?.scene.getObjectByName(`planet:${id}`);
+          return { id, planet: !!planet, ground: !!planet?.getObjectByName('island-ground'),
+            children: planet?.children.map(child => child.name || child.type) ?? [] };
+        });
+        const planets = [];
+        let objects = 0, grounds = 0, files = 0, outlines = 0;
+        state?.scene.traverse(object => {
+          objects++;
+          if (object.name.startsWith('planet:')) planets.push(object.name);
+          if (object.name === 'island-ground') grounds++;
+          if (object.name.startsWith('file:')) files++;
+          if (object.name.startsWith('territory-claim:')) outlines++;
+        });
+        const canvas = state?.gl.domElement;
+        const rect = canvas?.getBoundingClientRect();
+        return { state: document.body.dataset.state, empty: document.querySelector('.empty')?.innerText ?? '',
+          at: performance.now(), lastReadinessPollAt: window.__territoryHealthPollAt ?? null,
+          visibility: document.visibilityState, globe: !!state, navigation: !!window.__nav,
+          missingPlanets: targets.filter(target => !target.planet).map(target => target.id),
+          missingGround: targets.filter(target => target.planet && !target.ground).map(target => target.id),
+          targets, planets, objects, grounds, files, outlines,
+          frameloop: state?.frameloop, active: state?.internal.active, pendingFrames: state?.internal.frames,
+          contextLost: state?.gl.getContext().isContextLost(),
+          canvas: rect && { width: rect.width, height: rect.height, bufferWidth: canvas.width, bufferHeight: canvas.height } };
+      }, seed.tree.stories.map(story => story.id)).catch(readError => ({ readError: String(readError) })),
+      new Promise(resolve => { timer = setTimeout(() => resolve({ readTimedOut: true }), 3000); }),
+    ]);
+    clearTimeout(timer);
+    console.error(`territory-health failure: ${JSON.stringify({ stage, error: String(error), scene, errors, urls: failed, warnings: warnings.slice(0, 5) })}`);
+    throw error;
+  };
+  // The shared stand-in bridge answers whatever the page asks beyond the answers below.
+  const bridge = fakeBridge({});
+  await bridge.install(page);
+  await page.addInitScript(({ data, survey, log, now }) => {
+    // The page's clock stands still at the capture's NOW, so the quiet times judge the same on every run.
+    const RealDate = Date;
+    class FixedDate extends RealDate {
+      constructor(...args) { if (args.length === 0) super(now); else super(...args); }
+      static now() { return now; }
+    }
+    globalThis.Date = FixedDate;
+    const copy = value => structuredClone(value);
+    let current = data.projects.includes('storytree') ? 'storytree' : data.projects[0];
+    window.storytreeAnswers = {
+      projectSelection: async () => copy({ projects: data.projects, current }),
+      chooseProject: async name => { current = name; return copy({ projects: data.projects, current }); },
+      listProjects: async () => copy(data.projects), projectTree: async () => copy(data.tree),
+      changesSince: async (_, cursor) => cursor === 0 ? copy(data.changes) : { changes: [], cursor: data.changes.cursor },
+      linesSince: async (_, cursor) => cursor === 0 ? copy(log) : { lines: [], cursor: log.cursor },
+      frontCovers: async (_, id) => copy(data.covers[id] ?? []), relatedNotes: async () => [], readSurfaces: async () => undefined,
+      codeSurvey: async () => copy(survey),
+    };
+  }, { data: seed, survey, log, now: NOW });
+  phase('navigate desktop');
+  await page.goto(`${origin}/index.html`, { timeout: 180000, waitUntil: 'domcontentloaded' });
+  phase('wait for island meshes');
+  await page.waitForFunction(ids => {
+    window.__territoryHealthPollAt = performance.now();
+    const state = window.__globe;
+    if (document.body.dataset.state !== 'ready' || !state || !window.__nav) return false;
+    return ids.every(id => !!state.scene.getObjectByName(`planet:${id}`)?.getObjectByName('island-ground'));
+  }, seed.tree.stories.map(s => s.id), { timeout: 60000, polling: 100 }).catch(error => failedWait('seeded islands', error));
+  phase('wait for territory and claim meshes');
+  // Territories arrive with the survey, and the claim flags with the first read of the log: wait until both are drawn.
+  await page.waitForFunction(() => { let outlines = 0, files = 0; window.__globe.scene.traverse(o => { if (o.name.startsWith('territory-claim:')) outlines++; if (o.name.startsWith('file:')) files++; }); return outlines > 0 && files > 0; }, undefined, { timeout: 30000, polling: 100 }).catch(error => failedWait('claim flags and file circles', error));
+  phase('wait for the land to finish drawing on');
+  // Territories that arrive after the globe opens draw on (3.46): borders trace, then fills ease in. Measure them whole:
+  // every border drawn in full and every territory's opacity unchanged across three polls.
+  await page.waitForFunction(() => {
+    let full = true; const opacities = [];
+    window.__globe.scene.traverse(o => {
+      if (o.name === 'territory-borders' && o.geometry.drawRange.count !== Infinity) full = false;
+      if (o.name.startsWith('territory:')) opacities.push(o.material.opacity);
+    });
+    const key = full ? opacities.join() : '';
+    window.__territoryDrawn = key !== '' && key === window.__territoryDrawnKey ? (window.__territoryDrawn ?? 0) + 1 : 0;
+    window.__territoryDrawnKey = key;
+    return window.__territoryDrawn >= 2;
+  }, undefined, { timeout: 30000, polling: 200 }).catch(error => failedWait('territories drawn on', error));
+  await page.evaluate(() => { for (const menu of document.querySelectorAll('[popover]')) if (menu.matches(':popover-open')) menu.hidePopover(); });
+  await settleView(page);
+  const results = { now: new Date(NOW).toISOString(), sessions: SESSIONS, capabilities: CAP, logLines: lines.length };
+  // The rows the page's sessions list drew (it keeps them in page storage), as sessionRows made them.
+  results.sessionRows = await page.evaluate(() => {
+    const key = Object.keys(localStorage).find(k => k.startsWith('storytree.forest.sessions.v1:'));
+    const kept = key === undefined ? null : JSON.parse(localStorage.getItem(key));
+    const rows = kept?.rows ?? kept;
+    return { key: key ?? null, rows: Array.isArray(rows) ? rows.map(r => ({ id: r.id, label: r.label, agent: r.agent, state: r.state, idle: r.idle, stories: r.stories })) : kept };
+  });
+  results.front = await measure(page);
+  await picture(page, 'front.png');
+
+  const AGENT_LINK = 'story_05e45963ca9f', FOREST = 'story_be32e99ed54f', LIBRARY = 'story_eb7d623fb9c8';
+  const faceIt = async story => {
+    await page.evaluate(id => {
+      const { scene, camera } = window.__globe, { rotation, onRotate } = window.__nav;
+      const V = camera.position.constructor;
+      const at = scene.getObjectByName(`planet:${id}`).getWorldPosition(new V()).normalize();
+      const eye = camera.position.clone().normalize();
+      const Q = camera.quaternion.constructor;
+      onRotate(new Q().setFromUnitVectors(at, eye).multiply(rotation));
+    }, story);
+    await settleView(page);
+  };
+  const zoomed = async () => { await page.evaluate(() => { const { camera, invalidate } = window.__globe; camera.zoom *= 2.6; camera.updateProjectionMatrix(); invalidate(); }); await settleView(page); };
+  const unzoom = async () => { await page.evaluate(() => { const { camera, invalidate } = window.__globe; camera.zoom /= 2.6; camera.updateProjectionMatrix(); invalidate(); }); await settleView(page); };
+  // Close-ups serve pictures only; the smoke already measures all territories and claims.
+  if (!smoke) for (const [name, story] of [['agent-link', AGENT_LINK], ['forest', FOREST], ['library', LIBRARY], ['command-line', 'story_20549f1d48af'], ['arc-surface', 'story_78b33d16d0b6']]) {
+    await faceIt(story);
+    await zoomed();
+    results[`closeUp-${name}`] = await measure(page);
+    await picture(page, `close-up-${name}.png`);
+    await unzoom();
+  }
+  // The forest lies on the glass sheet (ADR-1043), where no island is behind another: a failing island past the window's
+  // edge gets its marker on the sheet with increment_4c9d90ab6f5d; the globe's rim markers are proved by planet-view's 3.11 tests.
+
+  phase('read completed observation');
+  results.browser = await browser.version(); results.errors = errors; results.warnings = [...new Set(warnings)];
+  results.seed = seed.stats;
+  writeFileSync(path.join(out, 'measurements.json'), JSON.stringify(results, null, 2) + '\n');
+  // Page errors are recorded, not asserted: the stand-in bridge answers nothing for panels newer than it (sign-in and
+  // the like), which throw on the missing answer. The land's own marks are asserted from the scene below.
+  assert.equal(results.front.greyFills, 0);
+  console.log(JSON.stringify({ browser: results.browser, fills: results.front.fills, greyFills: results.front.greyFills, parked: results.front.parked,
+    flags: results.front.islands.flatMap(i => i.claimOutlines.map(o => [i.story, o.capability, o.colour, o.faded, o.triangles])), errors }));
+  // Observation is complete. Stop redraws, then let page closure release the WebGL context.
+  // Explicit dispose/forceContextLoss can itself stall the macOS software-GL driver.
+  phase('stop redraws after observation');
+  let cleanupTimer;
+  try {
+    await Promise.race([
+      page.evaluate(() => {
+        const state = window.__globe;
+        state.internal.frames = 0;
+        state.setFrameloop('never');
+      }),
+      new Promise((_, reject) => { cleanupTimer = setTimeout(() => reject(new Error('renderer cleanup exceeded 10 seconds')), 10000); }),
+    ]);
+  } finally { clearTimeout(cleanupTimer); }
+  phase('close page');
+  await page.close();
+  phase('close browser and capture server');
+});
+phase('capture browser and server closed');

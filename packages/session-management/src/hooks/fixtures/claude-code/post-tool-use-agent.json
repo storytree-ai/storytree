@@ -1,0 +1,26 @@
+{
+  "session_id": "cf0453e9-0036-435f-9ea6-2a11f2ea0946",
+  "transcript_path": "C:\\Users\\dev\\.claude\\projects\\C--Users-dev-projects-site\\cf0453e9-0036-435f-9ea6-2a11f2ea0946.jsonl",
+  "cwd": "C:\\Users\\dev\\projects\\site",
+  "prompt_id": "51d3c4da-78be-4a50-bc12-1ae0cd178838",
+  "permission_mode": "default",
+  "hook_event_name": "PostToolUse",
+  "tool_name": "Agent",
+  "tool_input": {
+    "description": "probe read alpha",
+    "prompt": "Call mcp__storytree__open with id decision_2f6c1e0a9b3d.",
+    "subagent_type": "probe-reader"
+  },
+  "tool_response": {
+    "isAsync": true,
+    "status": "async_launched",
+    "agentId": "a5b107a7efcabea1e",
+    "description": "probe read alpha",
+    "resolvedModel": "claude-haiku-4-5-20251001",
+    "prompt": "Call mcp__storytree__open with id decision_2f6c1e0a9b3d.",
+    "outputFile": "C:\\Users\\dev\\AppData\\Local\\Temp\\claude\\C--Users-dev-projects-site\\cf0453e9-0036-435f-9ea6-2a11f2ea0946\\tasks\\a5b107a7efcabea1e.output",
+    "canReadOutputFile": true
+  },
+  "tool_use_id": "toolu_017r7yWD4UtSoDmTK2sAZgSt",
+  "duration_ms": 8
+}

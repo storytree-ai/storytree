@@ -1,0 +1,59 @@
+name: Linux self-update run
+
+# The update over the previous stable on Linux (increment_9184e6e6e3fe), the twin of mac-self-update.yml: on a fresh
+# ubuntu-latest runner under a virtual display, the stable one-liner's install, with a project and an arc made on it,
+# takes the newest release by its own AppImage update, keeping the arc, with the setup check passing before and after.
+# Recorded by packages/app-setup/testing/linux-acceptance/self-update.sh and kept as an artifact; a push to a
+# linux-self-update/ branch runs it before the workflow reaches main. Two legs: stable's, which may fall back to the
+# newest one-liner run over the install while stable (0.3.1482) predates the AppImage self-update and says which it
+# proved; and a named later build, which must update itself. From 0.3.1496 it does not yet: the replaced AppImage
+# restarts without the menu entry's --no-sandbox and never starts on the runner, whose kernel blocks the sandbox as
+# stock Ubuntu 24.04's does (PR #1487 fixes it); start it from a release that carries that fix. It is not called by
+# every release: its ten minutes' settle and three-minute checks would hold each release about half an hour. The
+# repository is public: no secret is used.
+on:
+  workflow_dispatch:
+    inputs:
+      from:
+        description: The 0.3.<n> release the self-update leg installs first; it must update itself to the newest
+        default: "0.3.1496"
+  push:
+    branches: ["linux-self-update/**"]
+
+permissions:
+  contents: read
+
+jobs:
+  run:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - leg: stable
+            from: ""
+            require: either
+          - leg: self-update
+            from: ${{ inputs.from || '0.3.1496' }}
+            require: self-update
+    runs-on: ubuntu-latest
+    # Ten minutes' settle after the launch, three-minute checks, a forty-minute wait and the fallback fit inside.
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+          sparse-checkout: packages/app-setup/testing/linux-acceptance
+      - name: Install the starting build, make an arc, and leave it idle until it updates itself
+        env:
+          FROM: ${{ matrix.from }}
+        run: bash packages/app-setup/testing/linux-acceptance/self-update.sh "$RUNNER_TEMP/linux-self-update" "$FROM"
+      - name: Fail unless it took a newer release with its arc kept and the setup check passing
+        env:
+          REQUIRE: ${{ matrix.require }}
+        run: bash packages/app-setup/testing/linux-acceptance/judge-self-update.sh "$RUNNER_TEMP/linux-self-update" "$REQUIRE"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: linux-self-update-${{ matrix.leg }}
+          path: ${{ runner.temp }}/linux-self-update
+          retention-days: 14

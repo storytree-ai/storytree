@@ -1,0 +1,242 @@
+/** Capability 8 · Setup check. The setup check's lines and fixes, shared by the terminal and the agent's check_setup tool. */
+import { NODE_FLOOR, type AgentCliState, type MachineState, type ToolState } from "./machine.js";
+import { CODEX_TRUST_STEP } from "./verify.js";
+import type { ServerEntry, SetupReport } from "./setup.js";
+import type { AppReading } from "@storytree/session-management";
+import { HARNESS_IDS, watchedHarness, type Harness } from "@storytree/project-and-caller/caller";
+import { MARKER_FILE } from "@storytree/project-and-caller";
+import { compareVersions } from "./hooks-release.js";
+import { IDENTITY_FIX } from "../project/making.js";
+
+export interface SetupLine {
+  readonly check: "storytree" | "hooks" | "hooks-release" | "codex-server" | "codex-hooks" | "elevated" | "transcripts" | "status-line" | "command" | "gh" | "agent-cli" | "git" | "node" | "archives" | "project" | "repository";
+  /** A `note` names an optional tool that is missing: never a fix, so no agent is asked to install it (question_bb3efa1e3191). */
+  readonly state: "ok" | "fixed" | "needs-attention" | "skipped" | "note";
+  readonly message: string;
+  readonly fix?: string;
+}
+
+export function setupLines(report: Omit<SetupReport, "lines">): SetupLine[] {
+  const { storytree, hooks, codexServer, codexHooks, command, gh, machine, project } = report;
+  const lines: SetupLine[] = [storytree.state === "not running"
+    ? { check: "storytree", state: "needs-attention", message: storytree.message, fix: "Open the storytree app and run the setup check again." }
+    : { check: "storytree", state: storytree.state === "opened" ? "fixed" : "ok", message: storytree.state === "opened" ? "storytree was closed, so it has been opened." : "storytree is running." }];
+
+  if (hooks === undefined) {
+    lines.push({ check: "hooks", state: "skipped", message: "This check has no installed storytree hook command to register.", fix: "Run the check from an installed storytree." });
+  } else {
+    const names = (harnesses: readonly Harness[]) => {
+      const labels = harnesses.map((harness) => watchedHarness(harness)?.label ?? harness);
+      return labels.length < 3 ? labels.join(" and ") : `${labels.slice(0, -1).join(", ")} and ${labels.at(-1)}`;
+    };
+    const registered = HARNESS_IDS.filter((harness) => hooks[harness] === "registered");
+    // Name only the harnesses whose hooks are in place: not one that is not on this machine or was disconnected.
+    const present = HARNESS_IDS.filter((harness) => hooks[harness] === "registered" || hooks[harness] === "already registered");
+    const replaced = [...new Set(Object.values(hooks.replaced ?? {}).flat())];
+    // A look writes nothing: it names what registering would change, and the run that does it (the doctor's --repair).
+    const wanting = HARNESS_IDS.filter((harness) => hooks[harness] === "would register");
+    if (wanting.length > 0) lines.push({
+      check: "hooks",
+      state: "needs-attention",
+      message: `storytree's hooks are not registered for ${names(wanting)}${replaced.length > 0 ? `: theirs run another build's, ${replaced.join(" and ")}` : ""}. This check changed none of their files.`,
+      fix: "Run `storytree doctor --repair` to register them.",
+    });
+    else lines.push({ check: "hooks", state: registered.length > 0 ? "fixed" : "ok", message: registered.length > 0
+      ? `storytree's hooks were registered for ${names(registered)}${replaced.length > 0 ? `, replacing another build's hooks, which ran ${replaced.join(" and ")}` : ""}.`
+      : present.length > 0
+        ? `storytree's hooks are registered for ${names(present)}; receiving them is verified inside a session.`
+        : `No harness here has storytree's hooks: none of ${names(HARNESS_IDS)} is on this machine and connected.` });
+    if (present.length > 0) {
+      // Said plainly, so neither the user nor an agent's own reviewer takes this check for what sends the transcript.
+      lines.push({ check: "transcripts", state: "ok", message: "This check sends nothing of the session. storytree's hooks send each session's transcript into the library's shared log as the session works, so every machine's app can read it" +
+        `${codexHooks === "waiting" ? "; in Codex they send nothing until the user trusts them" : ""}. ` +
+        "Obvious secrets (API keys, bearer and OAuth tokens, private keys, connection-string passwords) are scrubbed before they leave this machine; " +
+        "the scrub is best-effort, not a guarantee, so a secret in another shape can still reach the log. Raw transcript records are kept 180 days." });
+    }
+    if (hooks.statusLine === "would install") lines.push({ check: "status-line", state: "needs-attention", message: "storytree's status line is not installed in Claude Code. This check changed nothing.", fix: "Run `storytree doctor --repair` to install it." });
+    else lines.push({ check: "status-line", state: hooks.statusLine === "installed" ? "fixed" : "ok", message: hooks.statusLine === "installed"
+      ? "storytree's status line was installed in Claude Code: it shows from the next session."
+      : hooks.statusLine === "the user's own kept"
+        ? "The user has a Claude Code status line of their own, so storytree's was not installed: storytree never replaces it."
+        : "storytree's status line is installed in Claude Code." });
+  }
+
+  // The app updates the hooks it installed only while it runs: say when they run an older release (contract 8.18).
+  const { running, latest } = report.hooksRelease;
+  if (running !== undefined && latest !== undefined) lines.push(compareVersions(running, latest) < 0
+    ? {
+        check: "hooks-release",
+        state: "needs-attention",
+        message: `storytree's hooks run v${running}, but v${latest} is out: fixes since have not reached them, because the desktop app updates its hooks only while it runs.`,
+        fix: "Open the storytree app and leave it running until it has updated.",
+      }
+    : { check: "hooks-release", state: "ok", message: `storytree's hooks run v${running}, the latest release.` });
+
+  if (codexServer !== undefined) lines.push(codexServer.state === "registered"
+    ? { check: "codex-server", state: "ok", message: `Codex has storytree's tool server here, from ${codexServer.config}.` }
+    : codexServer.state === "broken"
+      ? {
+          check: "codex-server",
+          state: "needs-attention",
+          message: `Codex's storytree tool server ([mcp_servers.storytree] in ${codexServer.config}) starts ${codexServer.missing}, which is not there (a removed install), so Codex sessions here get no storytree tools.`,
+          fix: `Take the [mcp_servers.storytree] table out of ${codexServer.config}; then, where storytree is installed, run \`storytree setup connect --codex\` and start a new Codex session.`,
+        }
+      : {
+          check: "codex-server",
+          state: "needs-attention",
+          message: `Codex has no storytree tool server ([mcp_servers.storytree] in ${codexServer.config}), so Codex sessions get no storytree tools.`,
+          fix: "Run `storytree setup connect --codex`, then start a new Codex session.",
+        });
+
+  if (report.codexHooks !== undefined) lines.push(report.codexHooks === "running"
+    ? { check: "codex-hooks", state: "ok", message: "Codex runs storytree's hooks: one has reached storytree since they were registered." }
+    : {
+        check: "codex-hooks",
+        state: "needs-attention",
+        message: "Codex has storytree's hooks but has not run one yet: Codex runs them only once you have trusted them, so until then storytree cannot see Codex's work.",
+        fix: CODEX_TRUST_STEP,
+      });
+
+  // Codex's own limit, not storytree's: from an administrator terminal its sandbox runs no command (8.17).
+  if (machine.elevated === true && machine.codex !== "missing") lines.push({
+    check: "elevated",
+    state: "needs-attention",
+    message: "This runs in an administrator (elevated) terminal, and Codex cannot run commands from one: its Windows sandbox times out on every command, so storytree never sees them.",
+    fix: "Close this terminal, open a normal one (not \"Run as administrator\"), and start Codex from there.",
+  });
+
+  switch (command) {
+    case "installed":
+      lines.push({ check: "command", state: "fixed", message: "storytree put its storytree command on the user's path." });
+      break;
+    case "already installed":
+      lines.push({ check: "command", state: "ok", message: "The storytree command is on the user's path." });
+      break;
+    case "another storytree kept":
+      lines.push({ check: "command", state: "needs-attention", message: "There is already a storytree command of the user's own on their path, so storytree did not put its own there.", fix: "Choose which storytree command to keep before running the setup check again." });
+      break;
+    case "no folder of the user's on the path":
+      lines.push({ check: "command", state: "needs-attention", message: "storytree found no writable folder of the user's own on their PATH.", fix: "Add a writable folder inside your home to PATH (such as ~/.local/bin), then run the setup check again." });
+      break;
+    case "would install":
+      lines.push({ check: "command", state: "needs-attention", message: "The storytree command is not on the user's path. This check put nothing there.", fix: "Run `storytree doctor --repair` to put it there." });
+      break;
+    case undefined:
+      lines.push({ check: "command", state: "skipped", message: "No command installation was requested." });
+      break;
+    default:
+      if (command.startsWith("would replace ")) {
+        lines.push({ check: "command", state: "needs-attention", message: `storytree's command on the user's path runs another build: it ${command}. This check changed nothing.`, fix: "Run `storytree doctor --repair` to repoint it." });
+        break;
+      }
+      // An older storytree launcher, repointed at this build: say which file changed and what it ran.
+      lines.push({ check: "command", state: "fixed", message: `storytree put its storytree command on the user's path: ${command}.` });
+  }
+
+  const ghNow = gh === "not answering" ? "did not answer whether it is signed in" : gh === "missing" ? "is not installed" : "is not signed in";
+  lines.push(gh === "signed in"
+    ? { check: "gh", state: "ok", message: "GitHub's gh command is signed in." }
+    : { check: "gh", state: "note", message: `GitHub's gh command ${ghNow}. storytree works without it: only a claim ending by itself when its pull request merges needs it.` });
+  lines.push(...machineLines(machine, report.serverEntry, report.connected));
+  lines.push(archivesLine(report.archives));
+  lines.push(project.status === "set up"
+    ? { check: "project", state: "ok", message: `This folder is storytree project ${JSON.stringify(project.name)}.` }
+    : { check: "project", state: "needs-attention", message: "This folder isn't a storytree project yet.", fix: `Only after the user says yes, set up project ${JSON.stringify(project.suggestion)} or a name they choose (lower-case letters, digits and hyphens).` });
+  if (report.firstCommit !== undefined) lines.push(firstCommitLine(report.firstCommit));
+  if (report.repository !== undefined) lines.push(repositoryLine(report.repository));
+  return lines;
+}
+
+/** What a project lacking a repository or its origin remote is told (8.31): what cannot work without it, and the remote proposed, never made. */
+function repositoryLine(lack: "no repository" | "no origin"): SetupLine {
+  const why = "storytree cannot review this project's changes, land them or verify its health: those compare its work with its origin remote's default branch.";
+  const remote = "propose a GitHub repository as its origin remote to the user (gh repo create, then git push), and make one only if they say yes: it publishes their code.";
+  return lack === "no repository"
+    ? { check: "repository", state: "needs-attention", message: `This project's folder is in no git repository, so ${why}`, fix: `Make it one with a first commit (git init, then commit ${MARKER_FILE}); then ${remote}` }
+    : { check: "repository", state: "needs-attention", message: `This project's git repository has no origin remote, so ${why}`, fix: `Once its work is committed, ${remote}` };
+}
+
+/** What a repository set_up_project began with no git identity is told (8.31): its first commit made, or the identity it waits for. */
+function firstCommitLine(first: "made" | "no identity"): SetupLine {
+  return first === "made"
+    ? { check: "repository", state: "fixed", message: `storytree made this project's repository's first commit, holding ${MARKER_FILE}, now that git has an identity to make it with.` }
+    : { check: "repository", state: "needs-attention", message: `This project's git repository is waiting for its first commit, holding ${MARKER_FILE}: git has no identity to make it with (user.name and user.email), so storytree cannot review or land its work yet.`, fix: `${IDENTITY_FIX.charAt(0).toUpperCase()}${IDENTITY_FIX.slice(1)}.` };
+}
+
+/**
+ * Whether the Claude desktop app's and Codex's session records could be read (ADR-0754 D4): a
+ * session one of them keeps stays listed, shown done, until it is archived there. Without either,
+ * sessions leave after the leave-after time instead: a note, never a fix.
+ */
+function archivesLine(archives: readonly AppReading[]): SetupLine {
+  const name = (app: AppReading["app"]) => (app === "claude-desktop" ? "the Claude desktop app" : "Codex");
+  const said = archives.map((reading) => reading.state === "read" ? `${name(reading.app)} keeps ${reading.sessions.size} session${reading.sessions.size === 1 ? "" : "s"}`
+    : reading.state === "absent" ? `${name(reading.app)} keeps no session record on this machine`
+      : `${name(reading.app)}'s session record could not be read (${reading.problem ?? "unknown reason"})`);
+  const summary = said.join("; ");
+  const capital = summary.charAt(0).toUpperCase() + summary.slice(1);
+  return archives.some((reading) => reading.state === "read")
+    ? { check: "archives", state: "ok", message: `${capital}. storytree reads which are archived there, and an archived session leaves the running-sessions list.` }
+    : { check: "archives", state: "note", message: `${capital}. Sessions here leave the running-sessions list after the leave-after time instead of when archived.` };
+}
+
+/**
+ * How any other harness with an MCP client connects (8.27): storytree's server entry in the common
+ * `mcpServers` shape, to add by hand, or where to get one when this check knows of no installed server.
+ */
+export function connectedPath(entry: ServerEntry | undefined): string {
+  if (entry === undefined) return "Any other harness with an MCP client can connect to storytree by adding its tool server, from an installed storytree, by hand.";
+  const shape = { mcpServers: { storytree: { type: "stdio", command: entry.command, args: entry.args } } };
+  return `Any other harness with an MCP client can connect to storytree: add this server entry to its MCP settings by hand, then start a new session there and call check_setup: ${JSON.stringify(shape)}`;
+}
+
+/** The agent CLI, git and Node lines: what a first run needs on the machine (ADR-0716). */
+function machineLines(machine: MachineState, entry: ServerEntry | undefined, connected: string | undefined): SetupLine[] {
+  const seconds = `${Math.round(machine.waitMs / 1000)} seconds`;
+  const cli = (name: string, state: AgentCliState): string =>
+    state === "signed in" ? `${name} is installed and signed in`
+      : state === "signed out" ? `${name} is installed and not signed in`
+        : state === "missing" ? `${name} is not installed`
+          : `${name} did not answer within ${seconds}`;
+  // Cursor and Pi are only ever there or not: Cursor's command line reports a lapsed sign-in as logged in (8.28),
+  // and Pi signs in to each model provider on its own, with nothing to ask (8.29).
+  const there = (name: string, state: ToolState | undefined): string => state === undefined ? "" : `; ${state === "present" ? `${name} is installed` : state === "missing" ? `${name} is not installed` : `${name} did not answer within ${seconds}`}`;
+  const clis = `${cli("Claude Code", machine.claude)}; ${cli("Codex", machine.codex)}${there("Cursor", machine.cursor)}${there("Pi", machine.pi)}${there("Antigravity CLI", machine.antigravity)}`;
+  const agentReady = machine.claude === "signed in" || machine.codex === "signed in";
+  const signIns = [machine.claude === "signed out" ? "run `claude auth login`" : undefined, machine.codex === "signed out" ? "run `codex login`" : undefined].filter((fix) => fix !== undefined);
+  const lines: SetupLine[] = [agentReady
+    ? { check: "agent-cli", state: "ok", message: `${clis}.` }
+    // Cursor or Pi alone is a harness storytree watches: there, though no answer of it says it is signed in.
+    : machine.cursor === "present"
+      ? { check: "agent-cli", state: "ok", message: `${clis}, and storytree cannot tell whether it is signed in: Cursor's command line says it is logged in when its sign-in has lapsed.` }
+    : machine.pi === "present"
+      ? { check: "agent-cli", state: "ok", message: `${clis}, and storytree cannot tell whether it can reach a model: Pi signs in to each model provider on its own.` }
+    : machine.antigravity === "present"
+      ? { check: "agent-cli", state: "ok", message: `${clis}, and storytree cannot tell whether it is signed in: agy has no command that says so, and asks for a Google sign-in at its first prompt.` }
+    // A session already connected through another MCP client needs neither (6.64).
+    : connected !== undefined
+      ? { check: "agent-cli", state: "ok", message: `This session is connected through ${connected}, an MCP client storytree has no hooks for; ${clis}.` }
+    : {
+        check: "agent-cli",
+        state: "needs-attention",
+        message: `storytree watches sessions in Claude Code, Codex, Cursor, Pi or Antigravity CLI, and none is ready: ${clis}.`,
+        fix: `${signIns.length > 0
+          ? `To sign in, ${signIns.join(", or ")}, then run the setup check again.`
+          : "Install Claude Code (https://claude.com/claude-code), Codex (https://developers.openai.com/codex) , Cursor (https://cursor.com), Pi (https://github.com/earendil-works/pi) or Antigravity CLI (https://antigravity.google/cli), sign in, then run the setup check again."} ${connectedPath(entry)}`,
+      }];
+
+  // git and Node are optional for a user: a note, never a fix (owner, 2026-09-29, question_bb3efa1e3191).
+  lines.push(machine.git === "present"
+    ? { check: "git", state: "ok", message: "git is installed." }
+    : { check: "git", state: "note", message: `${machine.git === "missing" ? "git is not installed" : `git did not answer within ${seconds}`}. storytree works without it: only workspaces need it.` });
+
+  const { node } = machine;
+  lines.push(node.state === "ok"
+    ? { check: "node", state: "ok", message: `Node ${node.version} is installed.` }
+    : {
+        check: "node",
+        state: "note",
+        message: `${node.state === "old" ? `The Node on the path, ${node.version}, is older than ${NODE_FLOOR}` : node.state === "missing" ? "There is no Node on the path" : `Node did not answer within ${seconds}`}. storytree runs on its own Node, so it does not need one.`,
+      });
+  return lines;
+}

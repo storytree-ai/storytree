@@ -1,0 +1,267 @@
+/**
+ * Capability 17 · The library's commands: contract 17.1, the `library` family the library declares for the command
+ * line, and 17.2, the artifact tools it declares for the MCP server, run with a caller on a fresh project's library on
+ * the real Postgres `pnpm test` provides.
+ */
+import assert from "node:assert/strict";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import { test } from "node:test";
+
+import { connect } from "../index.js";
+import { testServerUrl, uniqueProjectName } from "../testing/pg.js";
+import { mounted, VerbRefusal, type DoorWords, type Verb, type VerbInputs } from "../verbs/verb.js";
+import { LIBRARY_FAMILIES, NOTE_TOOLS, type HeldClaim, type LibraryVerbContext, type NoteRead, type NoteToolContext } from "./index.js";
+
+const WORDS: DoorWords = { door: "command", say: (step) => `storytree ${step.command}` };
+
+test("17.1 · The library declares the library family first among storytree's families, its eleven verbs as commands, then capability 27's three, and none as a tool; a verb reads a phrase from @file in the caller's folder, refile rewrites an artifact as another kind under its id, and edit run by a session holding an increment holds a planned record's change on it", async (t) => {
+  const storytree = await connect({ url: testServerUrl() });
+  const project = uniqueProjectName();
+  const folder = mkdtempSync(path.join(tmpdir(), "storytree-library-verbs-"));
+  t.after(async () => {
+    rmSync(folder, { recursive: true, force: true });
+    try {
+      await storytree.dropProject(project);
+    } finally {
+      await storytree.close();
+    }
+  });
+  const library = await storytree.openProject(project);
+
+  const family = LIBRARY_FAMILIES.find((one) => one.name === "library");
+  assert.equal(family!.order, 1);
+  const names = family!.verbs.map((one) => mounted(one.command) ? one.command.name : undefined);
+  assert.deepEqual(names.slice(0, 11), ["search", "phrase", "links", "related", "new", "read", "edit", "refile", "retire", "list", "history"], "its own eleven first, capability 27's after them");
+  assert.ok(family!.verbs.every((one) => !mounted(one.tool)), "no verb is a tool");
+  const verbOf = (name: string): Verb<VerbInputs, LibraryVerbContext> => family!.verbs[names.indexOf(name)]!;
+
+  const arc = await library.createArc({ title: "Launch", intent: "Ship sign-up", endState: "Visitors sign up" });
+  const story = await library.addStory({ title: "Sign up" });
+  const form = await library.addCapability({ story: story.id, title: "Form" });
+  const increment = await library.addIncrement({ arc: arc.id, title: "Address form", objective: "Rename it", body: "Red then green" });
+  await library.advanceIncrement(increment.id, "active"); // as claiming it does
+  const claims: HeldClaim[] = [{ session: "lane", increment: increment.id, since: "2026-10-15T00:00:00.000Z" }];
+  const contextOf = (session: string): LibraryVerbContext => ({
+    library, project, session, folder, writer: { actor: `session:${session}` },
+    claims: async () => claims,
+    testedNumbers: async () => ({ tested: [], untested: [] }),
+  });
+
+  const phrase = "  Exact phrase  ";
+  const held = await library.defineTerm({ term: "Held", meaning: phrase });
+  await library.defineTerm({ term: "Trimmed", meaning: phrase.trim() });
+  writeFileSync(path.join(folder, "phrase.txt"), `﻿${phrase}`);
+  const page = await verbOf("phrase").act({ phrase: ["@phrase.txt"], kind: [], field: ["meaning"], limit: undefined, after: undefined }, contextOf("lane"), WORDS);
+  assert.deepEqual(JSON.parse(page.text).records.map((record: { id: string }) => record.id), [held.id], "the file's phrase, its spaces kept, is the one searched for");
+
+  const refiled = await verbOf("refile").act({ "<id>": held.id, "<kind>": "research", "<fields>": { title: "Analytics", description: "Services compared", researched: "2026-10-02", findings: "Plausible counts pages without cookies" } }, contextOf("person:owner"), WORDS);
+  assert.equal(refiled.text, `Refiled ${held.id} as research.`);
+  assert.deepEqual(await library.get(held.id).then((record) => [record?.type, (record?.fields as { findings?: string } | undefined)?.findings]), ["research", "Plausible counts pages without cookies"], "it reads as research under the same id");
+  await assert.rejects(verbOf("refile").act({ "<id>": held.id, "<kind>": "friction", "<fields>": {} }, contextOf("person:owner"), WORDS), VerbRefusal, "a friction report is not refiled into");
+
+  const pended = await verbOf("edit").act({ "<id>": form.id, "<fields>": { description: "Where they type it" } }, contextOf("lane"), WORDS);
+  assert.match(pended.text, new RegExp(`pending on increment ${increment.id}`));
+  assert.equal(((await library.get(form.id))?.fields as { description?: string } | undefined)?.description, undefined, "the live record is left alone");
+
+  const live = await verbOf("edit").act({ "<id>": form.id, "<fields>": { description: "Typed here" } }, contextOf("person:owner"), WORDS);
+  assert.equal(live.text, `Edited capability ${form.id}: description.`, "a session holding no increment edits the live record");
+  assert.equal(((await library.get(form.id))?.fields as { description?: string } | undefined)?.description, "Typed here");
+});
+
+test("17.3 · library edit project-anchor --what … --audience … writes the project's anchor, making it on its first write and refusing any other field with nothing written, and library read reads it back; a story takes no audience (ADR-1085 D1, ADR-1096)", async (t) => {
+  const storytree = await connect({ url: testServerUrl() });
+  const project = uniqueProjectName();
+  t.after(async () => {
+    try {
+      await storytree.dropProject(project);
+    } finally {
+      await storytree.close();
+    }
+  });
+  const library = await storytree.openProject(project);
+  const family = LIBRARY_FAMILIES.find((one) => one.name === "library")!;
+  const verbOf = (name: string): Verb<VerbInputs, LibraryVerbContext> => family.verbs.find((one) => mounted(one.command) && one.command.name === name)!;
+  const context: LibraryVerbContext = { library, project, session: "person:owner", folder: tmpdir(), writer: { actor: "person:owner" }, claims: async () => [], testedNumbers: async () => ({ tested: [], untested: [] }) };
+  const edit = (id: string, fields: Record<string, string>) => verbOf("edit").act({ "<id>": id, "<fields>": fields }, context, WORDS);
+
+  await assert.rejects(edit("project-anchor", { what: "a shop builder", title: "Shop" }), VerbRefusal);
+  assert.deepEqual(await library.history({ id: "project-anchor" }), [], "nothing was written");
+  await edit("project-anchor", { what: "a shop builder" });
+  await edit("project-anchor", { audience: "small shops" });
+  assert.deepEqual(await library.anchor(), { what: "a shop builder", audience: "small shops" });
+  const read = await verbOf("read").act({ ids: ["project-anchor"], linked: false, field: undefined } as never, context, WORDS);
+  assert.match(read.text, /what: a shop builder/);
+  assert.match(read.text, /audience: small shops/);
+
+  const stories = await library.list("story");
+  await assert.rejects(verbOf("new").act({ "<kind>": "story", "<fields>": { title: "Owner sees orders", audience: "shop owners" } } as never, context, WORDS));
+  assert.deepEqual(await library.list("story"), stories, "no story was written");
+});
+
+test("17.5 · library edit pr-cutover --at … --repository … writes the repository cut-over, the old repository by default the name's -history and none when it was deleted; it is refused without both, or with another field, with nothing written (increment_7f7599b35fe4)", async (t) => {
+  const storytree = await connect({ url: testServerUrl() });
+  const project = uniqueProjectName();
+  t.after(async () => {
+    try {
+      await storytree.dropProject(project);
+    } finally {
+      await storytree.close();
+    }
+  });
+  const library = await storytree.openProject(project);
+  const family = LIBRARY_FAMILIES.find((one) => one.name === "library")!;
+  const verbOf = (name: string): Verb<VerbInputs, LibraryVerbContext> => family.verbs.find((one) => mounted(one.command) && one.command.name === name)!;
+  const context: LibraryVerbContext = { library, project, session: "person:owner", folder: tmpdir(), writer: { actor: "person:owner" }, claims: async () => [], testedNumbers: async () => ({ tested: [], untested: [] }) };
+  const edit = (fields: Record<string, string>) => verbOf("edit").act({ "<id>": "pr-cutover", "<fields>": fields }, context, WORDS);
+
+  await assert.rejects(edit({ at: "2026-11-02T09:00:00Z" }), VerbRefusal, "no repository");
+  await assert.rejects(edit({ at: "2026-11-02T09:00:00Z", repository: "storytree-ai/storytree", title: "Flip" }), VerbRefusal, "no such field");
+  assert.deepEqual(await library.history({ id: "pr-cutover" }), [], "nothing was written");
+  const made = await edit({ at: "2026-11-02T09:00:00Z", repository: "storytree-ai/storytree" });
+  assert.match(made.text, /before 2026-11-02T09:00:00Z are storytree-ai\/storytree-history's; later ones are storytree-ai\/storytree's/);
+  assert.deepEqual(await library.prCutover(), { at: "2026-11-02T09:00:00Z", repository: "storytree-ai/storytree", before: "storytree-ai/storytree-history" });
+  await edit({ before: "none" });
+  assert.deepEqual(await library.prCutover(), { at: "2026-11-02T09:00:00Z", repository: "storytree-ai/storytree", before: null }, "a deleted old repository");
+});
+
+test("17.2 · The library declares search_notes, open, write_note and correct_note as tools and none as a command; each artifact they show is handed to the door as a read, found as the session last saw it, and an artifact written with no place goes onto the shelf of the capability the session claimed last, inside the cover it opened last", async (t) => {
+  const storytree = await connect({ url: testServerUrl() });
+  const project = uniqueProjectName();
+  t.after(async () => {
+    try {
+      await storytree.dropProject(project);
+    } finally {
+      await storytree.close();
+    }
+  });
+  const library = await storytree.openProject(project);
+
+  const tools = NOTE_TOOLS.map((one) => mounted(one.tool) ? one.tool.name : undefined);
+  assert.deepEqual(tools, ["search_notes", "open", "write_note", "correct_note"]);
+  assert.ok(NOTE_TOOLS.every((one) => !mounted(one.command)), "no tool is a command");
+  const toolOf = (name: string): Verb<VerbInputs, NoteToolContext> => NOTE_TOOLS[tools.indexOf(name)]!;
+
+  const story = await library.addStory({ title: "Sign up" });
+  const form = await library.addCapability({ story: story.id, title: "Form" });
+  const cover = await library.recordDecision({ status: "accepted", title: "Ask for the address once", text: "One field.", frontCoverOf: form.id });
+  const reads: NoteRead[] = [];
+  const claims: HeldClaim[] = [{ session: "lane", capability: form.id, since: "2026-10-15T00:00:00.000Z" }];
+  const context: NoteToolContext = {
+    library, project, session: "lane", folder: process.cwd(), writer: { actor: "session:lane" },
+    claims: async () => claims,
+    notesRead: async () => reads,
+    recordReads: async (more) => void reads.push(...more),
+    presenterOf: async () => undefined,
+  };
+  const WORDS: DoorWords = { door: "tool", say: (step) => step.tool ?? `storytree ${step.command}` };
+
+  await toolOf("open").act({ id: form.id }, context, WORDS);
+  assert.deepEqual(reads, [{ note: cover.id, found: "shelf", read: "peek" }], "a shelf's covers are peeks");
+  const opened = await toolOf("open").act({ id: cover.id }, context, WORDS);
+  assert.match(opened.text, /^Decision "Ask for the address once"/);
+  assert.deepEqual(reads.at(-1), { note: cover.id, found: "shelf", read: "whole" }, "opened whole, found where it was last shown");
+
+  const decided = await toolOf("write_note").act({ kind: "decision", fields: {}, title: "Check the postcode", text: "Before sending.", links: [], term: undefined, meaning: undefined, front_cover_of: undefined }, context, WORDS);
+  assert.match(decided.text, new RegExp(`as a front cover of ${form.id}, the capability you hold`));
+  const defined = await toolOf("write_note").act({ kind: "definition", fields: {}, term: "Postcode", meaning: "Where the post goes.", links: [], title: undefined, text: undefined, front_cover_of: undefined }, context, WORDS);
+  const term = (defined.data as { id: string }).id;
+  assert.deepEqual(((await library.get(term))?.fields as { links?: string[] } | undefined)?.links, [cover.id], "a definition links inside the cover opened last");
+
+  await assert.rejects(toolOf("write_note").act({ kind: "memory", fields: {}, links: [], title: undefined, text: undefined, term: undefined, meaning: undefined, front_cover_of: undefined }, context, WORDS), VerbRefusal);
+});
+
+test("17.4 · One field round-trips byte for byte: library read --field and the open tool's field give a record's stored value exactly, and library edit @file writes it back unchanged", async (t) => {
+  const storytree = await connect({ url: testServerUrl() });
+  const project = uniqueProjectName();
+  const folder = mkdtempSync(path.join(tmpdir(), "storytree-library-field-"));
+  t.after(async () => {
+    rmSync(folder, { recursive: true, force: true });
+    try {
+      await storytree.dropProject(project);
+    } finally {
+      await storytree.close();
+    }
+  });
+  const library = await storytree.openProject(project);
+  const family = LIBRARY_FAMILIES.find((one) => one.name === "library")!;
+  const verbOf = (name: string): Verb<VerbInputs, LibraryVerbContext> => family.verbs.find((one) => mounted(one.command) && one.command.name === name)!;
+  const toolOf = (name: string): Verb<VerbInputs, NoteToolContext> => NOTE_TOOLS.find((one) => mounted(one.tool) && one.tool.name === name)!;
+  const base = { library, project, session: "curator", folder, writer: { actor: "session:curator" }, claims: async () => [] };
+  const context: LibraryVerbContext = { ...base, testedNumbers: async () => ({ tested: [], untested: [] }) };
+  const reads: NoteRead[] = [];
+  const tools: NoteToolContext = { ...base, notesRead: async () => reads, recordReads: async (more) => void reads.push(...more), presenterOf: async () => undefined };
+
+  const text = "  D1. The owner's call: it isn’t ‘settled’ yet.\r\n\n\tIndented, with \"quotes\" and a trailing space \n\n";
+  const decision = await library.recordDecision({ status: "accepted", title: "Exact words", text });
+  const read = await verbOf("read").act({ ids: [decision.id], linked: false, field: "text" }, context, WORDS);
+  assert.deepEqual([read.text, read.raw], [text, true], "the command line prints the stored value raw");
+  const opened = await toolOf("open").act({ id: decision.id, field: "text" }, tools, WORDS);
+  assert.equal(opened.text, text, "the open tool gives the same value");
+  assert.deepEqual(reads.at(-1), { note: decision.id, found: "id", read: "whole" }, "reading a field reads the artifact");
+
+  const file = path.join(folder, "text.txt");
+  writeFileSync(file, read.text);
+  const edited = readFileSync(file, "utf8").replace("isn’t", "is not");
+  writeFileSync(file, edited);
+  await verbOf("edit").act({ "<id>": decision.id, "<fields>": { text: readFileSync(file, "utf8") } }, context, WORDS); // as the door reads `--text @text.txt`
+  const back = await verbOf("read").act({ ids: [decision.id], linked: false, field: "text" }, context, WORDS);
+  assert.equal(back.text, edited, "the edited file comes back byte for byte");
+
+  await assert.rejects(toolOf("open").act({ id: decision.id, field: "answer" }, tools, WORDS), (error: unknown) => error instanceof VerbRefusal && /"answer".*\btext\b/.test(error.message));
+});
+
+test("17.6 · library read says a record of a plugin's kind no mounted plugin declares is dormant, and reads it as stored; with the plugin mounted it reads as any other record (ADR-1178 D3)", async (t) => {
+  const storytree = await connect({ url: testServerUrl() });
+  const project = uniqueProjectName();
+  t.after(async () => {
+    try {
+      await storytree.dropProject(project);
+    } finally {
+      await storytree.close();
+    }
+  });
+  const note = { kind: "voice.note", version: 1, fields: { type: "object", properties: { words: { type: "string" } }, required: ["words"] }, writers: ["storytree_voice"] };
+  const withPlugin = await storytree.openProject(project, { kinds: [note] });
+  const written = await withPlugin.createPluginRecord("voice.note", { words: "park the globe idea" });
+  const family = LIBRARY_FAMILIES.find((one) => one.name === "library")!;
+  const read = family.verbs.find((one) => mounted(one.command) && one.command.name === "read")! as Verb<VerbInputs, LibraryVerbContext>;
+  const readIn = async (library: typeof withPlugin) => (await read.act({ ids: [written.id], linked: false, field: undefined } as never, {
+    library, project, session: "curator", folder: tmpdir(), writer: { actor: "session:curator" }, claims: async () => [], testedNumbers: async () => ({ tested: [], untested: [] }),
+  }, WORDS)).text;
+
+  const live = await readIn(withPlugin);
+  assert.match(live, /words: park the globe idea/);
+  assert.doesNotMatch(live, /dormant/);
+  const dormant = await readIn(await storytree.openProject(project));
+  assert.match(dormant.split("\n")[0]!, /\[voice\.note\]  schema 1  dormant: its plugin is not mounted on this computer$/);
+  assert.match(dormant, /words: park the globe idea/, "read as stored");
+});
+
+test("17.7 · The open tool opens a record of a plugin's kind whole, as library read does, said dormant when no mounted plugin declares it (ADR-1178 D3)", async (t) => {
+  const storytree = await connect({ url: testServerUrl() });
+  const project = uniqueProjectName();
+  t.after(async () => {
+    try {
+      await storytree.dropProject(project);
+    } finally {
+      await storytree.close();
+    }
+  });
+  const note = { kind: "voice.note", version: 1, fields: { type: "object", properties: { words: { type: "string" } }, required: ["words"] }, writers: ["storytree_voice"] };
+  const withPlugin = await storytree.openProject(project, { kinds: [note] });
+  const written = await withPlugin.createPluginRecord("voice.note", { words: "park the globe idea" });
+  const open = NOTE_TOOLS.find((one) => mounted(one.tool) && one.tool.name === "open")! as Verb<VerbInputs, NoteToolContext>;
+  const openIn = async (library: typeof withPlugin) => (await open.act({ id: written.id, field: undefined } as never, {
+    library, project, session: "curator", folder: tmpdir(), writer: { actor: "session:curator" }, claims: async () => [],
+    notesRead: async () => [], recordReads: async () => {}, presenterOf: async () => undefined,
+  }, WORDS)).text;
+
+  const live = await openIn(withPlugin);
+  assert.match(live.split("\n")[0]!, /\[voice\.note\]  schema 1$/);
+  assert.match(live, /words: park the globe idea/);
+  const dormant = await openIn(await storytree.openProject(project));
+  assert.match(dormant.split("\n")[0]!, /\[voice\.note\]  schema 1  dormant: its plugin is not mounted on this computer$/);
+  assert.match(dormant, /words: park the globe idea/, "read as stored");
+});

@@ -1,0 +1,285 @@
+/**
+ * Capability 11 · Waits (ADR-0640): one test per contract 11.1-11.6, 11.8 and 11.9 in the library story, each run
+ * on BOTH backends: a WorkModel and a WorkInFlight over a fresh MemoryTransactions, and the `work`
+ * and `flight` of a fresh Postgres project, dropped afterwards, pass or fail.
+ *
+ * Whether anything was written is judged one layer down: an unchanged history means nothing was.
+ */
+import assert from "node:assert/strict";
+import { test } from "node:test";
+
+import { connect } from "../project/index.js";
+import { MissingReferenceError } from "../references.js";
+import { SchemaRecords } from "../schema/index.js";
+import { dropTestDatabases, testServerUrl, uniqueProjectName } from "../testing/pg.js";
+import { MemoryTransactions, type Transactions } from "../transactions/index.js";
+import { WaitLoopError, WorkInFlight, WorkModel } from "./index.js";
+
+interface Library {
+  readonly work: WorkModel;
+  readonly flight: WorkInFlight;
+  readonly records: SchemaRecords;
+  readonly transactions: Transactions;
+  cleanup(): Promise<void>;
+}
+
+interface Backend {
+  readonly label: string;
+  open(): Promise<Library>;
+}
+
+const memory: Backend = {
+  label: "memory",
+  async open() {
+    const transactions = new MemoryTransactions();
+    const records = new SchemaRecords(transactions);
+    return { work: new WorkModel(records), flight: new WorkInFlight(records), records, transactions, cleanup: async () => {} };
+  },
+};
+
+const postgres: Backend = {
+  label: "postgres",
+  async open() {
+    const name = uniqueProjectName();
+    const storytree = await connect({ url: testServerUrl() });
+    const cleanup = async (): Promise<void> => {
+      try {
+        await storytree.close();
+      } finally {
+        await dropTestDatabases([`storytree_${name}`]);
+      }
+    };
+    try {
+      const project = await storytree.openProject(name);
+      return { work: project.work, flight: project.flight, records: project.records, transactions: project.transactions, cleanup };
+    } catch (error) {
+      await cleanup();
+      throw error;
+    }
+  },
+};
+
+const ARC = { intent: "An intent", endState: "An end state" };
+const WORK = { objective: "Do it", body: "The steps." };
+
+for (const backend of [memory, postgres]) {
+  const contract = (number: string, title: string, body: (library: Library) => Promise<void>): void => {
+    test(`${number} [${backend.label}] ${title}`, async () => {
+      const library = await backend.open();
+      try {
+        await body(library);
+      } finally {
+        await library.cleanup();
+      }
+    });
+  };
+
+  contract("11.1", "an increment wait holds until the blocker closes as landed; a failed, withdrawn or missing blocker holds for good", async ({ work, flight, records }) => {
+    const arc = await work.createArc({ title: "Sign-up", ...ARC });
+    const other = await work.createArc({ title: "Mail", ...ARC });
+    const waiter = await flight.addIncrement({ arc: arc.id, title: "Welcome email", ...WORK });
+    const blockers = await Promise.all(
+      ["Mailer", "Templates", "Bounces", "Domain"].map((title) => flight.addIncrement({ arc: other.id, title, ...WORK })),
+    );
+    const [mailer, templates, bounces, domain] = blockers.map(({ id }) => id) as [string, string, string, string];
+    for (const [blocker, reason] of [[mailer, "sends through it"], [templates, "uses them"], [bounces, "handles them"], [domain, "sends from it"]]) {
+      await flight.addWait(waiter.id, blocker!, reason!);
+    }
+    assert.deepEqual(await flight.waitHolds(waiter.id), [
+      { on: mailer, reason: "sends through it", forGood: false },
+      { on: templates, reason: "uses them", forGood: false },
+      { on: bounces, reason: "handles them", forGood: false },
+      { on: domain, reason: "sends from it", forGood: false },
+    ]);
+
+    await flight.advanceIncrement(mailer, "active");
+    await flight.closeIncrement(mailer, { pr: "#1", disposition: "landed" });
+    await flight.closeIncrement(templates, { pr: "#2", disposition: "failed" });
+    await flight.closeIncrement(bounces, { note: "Not needed", disposition: "withdrawn" });
+    await records.retire(domain, "Moved to another project");
+    assert.deepEqual(await flight.waitHolds(waiter.id), [
+      { on: templates, reason: "uses them", forGood: true },
+      { on: bounces, reason: "handles them", forGood: true },
+      { on: domain, reason: "sends from it", forGood: true },
+    ], "the landed blocker released it; the rest never will");
+
+    // A blocker must be live when the wait is written, and an increment waits on an increment.
+    await assert.rejects(flight.addWait(waiter.id, "increment_000000000000", "?"), MissingReferenceError);
+    await assert.rejects(flight.addWait(waiter.id, other.id, "?"), MissingReferenceError);
+    await flight.removeWait(waiter.id, templates);
+    assert.deepEqual((await flight.waitHolds(waiter.id)).map(({ on }) => on), [bounces, domain]);
+  });
+
+  contract("11.2", "an arc wait holds until that arc closes", async ({ work, flight }) => {
+    const launch = await work.createArc({ title: "Launch", ...ARC });
+    const mail = await work.createArc({ title: "Mail", ...ARC });
+    await flight.addWait(launch.id, mail.id, "launch needs mail");
+    assert.deepEqual(await flight.waitHolds(launch.id), [{ on: mail.id, reason: "launch needs mail", forGood: false }], "an arc with no increments is active");
+
+    const mailer = await flight.addIncrement({ arc: mail.id, title: "Mailer", ...WORK });
+    // The arc's wait holds each of its increments too: its work cannot start.
+    const first = await flight.addIncrement({ arc: launch.id, title: "Landing page", ...WORK });
+    assert.deepEqual(await flight.waitHolds(first.id), [{ on: mail.id, reason: "launch needs mail", forGood: false }]);
+
+    await flight.closeIncrement(mailer.id, { note: "Tried and dropped", disposition: "failed" });
+    assert.deepEqual(await flight.waitHolds(launch.id), [], "the arc closed, however its last increment closed");
+    assert.deepEqual(await flight.waitHolds(first.id), []);
+
+    await flight.addIncrement({ arc: mail.id, title: "Mailer, again", ...WORK });
+    assert.deepEqual(await flight.waitHolds(launch.id), [], "the closing cleared the wait (11.8), so reopening the arc does not bring it back");
+    await assert.rejects(flight.addWait(launch.id, first.id, "?"), WaitLoopError, "an arc may not wait on its own work");
+  });
+
+  contract("11.9", "an arc waits on an increment of another arc: the wait holds the arc and its open work until that increment lands, and is cleared when it does", async ({ work, flight, records }) => {
+    const learner = await work.createArc({ title: "Learner", ...ARC });
+    const prune = await work.createArc({ title: "Prune", ...ARC });
+    const learn = await flight.addIncrement({ arc: learner.id, title: "The learner", ...WORK });
+    await flight.addWait(prune.id, learn.id, "the learner says what to prune");
+    assert.deepEqual(await flight.waitHolds(prune.id), [{ on: learn.id, reason: "the learner says what to prune", forGood: false }], "an arc with no increments waits on it");
+    assert.deepEqual((await flight.holds()).waits[prune.id], [{ on: learn.id, reason: "the learner says what to prune", forGood: false }]);
+    const cut = await flight.addIncrement({ arc: prune.id, title: "Cut a door", ...WORK });
+    assert.deepEqual(await flight.waitHolds(cut.id), [{ on: learn.id, reason: "the learner says what to prune", forGood: false }], "its open work waits too");
+
+    await flight.closeIncrement(learn.id, { pr: "#1", disposition: "landed" });
+    assert.deepEqual(await flight.waitHolds(prune.id), []);
+    assert.deepEqual(await flight.waitHolds(cut.id), []);
+    assert.equal(((await records.get(prune.id))?.fields as { waits?: unknown }).waits, undefined, "the landing cleared the arc's stored wait (11.8)");
+
+    const again = await flight.addIncrement({ arc: learner.id, title: "The learner, again", ...WORK });
+    await flight.addWait(prune.id, again.id, "the second pass");
+    await flight.closeIncrement(again.id, { note: "Dropped", disposition: "withdrawn" });
+    assert.deepEqual(await flight.waitHolds(prune.id), [{ on: again.id, reason: "the second pass", forGood: true }], "a withdrawn blocker holds for good");
+  });
+
+  contract("11.3", "a wait that would close a loop across arcs and increments is refused, naming the loop, and nothing is written", async ({ work, flight, transactions }) => {
+    const a = await work.createArc({ title: "A", ...ARC });
+    const b = await work.createArc({ title: "B", ...ARC });
+    const a1 = await flight.addIncrement({ arc: a.id, title: "a1", ...WORK });
+    const b1 = await flight.addIncrement({ arc: b.id, title: "b1", ...WORK });
+
+    const refused = async (waiter: string, blocker: string, loop: readonly string[]): Promise<void> => {
+      const history = await transactions.history();
+      await assert.rejects(
+        flight.addWait(waiter, blocker, "?"),
+        (error: unknown) => error instanceof WaitLoopError && JSON.stringify(error.path) === JSON.stringify(loop) && error.message.includes(loop.join(" → ")),
+        `${waiter} waiting on ${blocker} closes ${loop.join(" → ")}`,
+      );
+      assert.deepEqual(await transactions.history(), history, "nothing was written");
+    };
+
+    await refused(a1.id, a1.id, [a1.id, a1.id]);
+    await refused(a.id, a.id, [a.id, a.id]);
+    // Increments alone: a1 waits on b1, so b1 cannot wait on a1.
+    await flight.addWait(a1.id, b1.id, "needs b1");
+    await refused(b1.id, a1.id, [b1.id, a1.id, b1.id]);
+    // Across the kinds: arc B cannot wait on arc A, since B's b1 would wait for A to close, which
+    // waits for a1, which waits on b1.
+    await refused(b.id, a.id, [b1.id, a.id, a1.id, b1.id]);
+    // Arcs alone.
+    const c = await work.createArc({ title: "C", ...ARC });
+    await flight.addWait(c.id, a.id, "after A");
+    await refused(a.id, c.id, [a.id, c.id, a.id]);
+  });
+
+  contract("11.4", "waitHolds(id) returns the blockers still holding, each with its reason", async ({ work, flight }) => {
+    const arc = await work.createArc({ title: "Sign-up", ...ARC });
+    const waiter = await flight.addIncrement({ arc: arc.id, title: "Form", ...WORK });
+    assert.deepEqual(await flight.waitHolds(waiter.id), [], "no waits, nothing holds");
+    const blocker = await flight.addIncrement({ arc: arc.id, title: "Design", ...WORK });
+    await flight.addWait(waiter.id, blocker.id, "needs the design");
+    await flight.addWait(waiter.id, blocker.id, "needs the final design");
+    assert.deepEqual(await flight.waitHolds(waiter.id), [{ on: blocker.id, reason: "needs the final design", forGood: false }], "one wait per blocker, its reason the latest");
+    await flight.closeIncrement(blocker.id, { pr: "#9", disposition: "landed" });
+    assert.deepEqual(await flight.waitHolds(waiter.id), []);
+    assert.deepEqual(await flight.waitHolds("increment_000000000000"), [], "nothing holds what does not exist");
+  });
+
+  contract("11.5", "holds() answers every arc's and open increment's holds in one reading, as waitHolds and heldOnQuestion do", async ({ work, flight }) => {
+    const mail = await work.createArc({ title: "Mail", ...ARC });
+    const launch = await work.createArc({ title: "Launch", ...ARC });
+    await flight.addWait(launch.id, mail.id, "launch needs mail");
+    const question = await flight.raiseQuestion({ arc: launch.id, title: "Copy?", stakes: "Blocks the form", statement: "Which words?", context: "None yet", options: "Short or long" });
+    const mailer = await flight.addIncrement({ arc: mail.id, title: "Mailer", ...WORK });
+    const form = await flight.addIncrement({ arc: launch.id, title: "Form", ...WORK, heldOn: [question.id] });
+    await flight.addWait(form.id, mailer.id, "sends through it");
+    const done = await flight.addIncrement({ arc: mail.id, title: "Templates", ...WORK });
+    await flight.closeIncrement(done.id, { pr: "#1", disposition: "landed" });
+
+    const ids = [mail.id, launch.id, mailer.id, form.id];
+    const one = await flight.holds();
+    assert.deepEqual(one.waits, Object.fromEntries(await Promise.all(ids.map(async (id) => [id, await flight.waitHolds(id)]))));
+    assert.deepEqual(one.heldOn, Object.fromEntries(await Promise.all([mailer.id, form.id].map(async (id) => [id, await flight.heldOnQuestion(id)]))));
+    assert.deepEqual(one.waits[form.id]?.map(({ on }) => on), [mailer.id, mail.id], "its own wait, then its arc's");
+    assert.deepEqual(one.heldOn[form.id], [question.id]);
+    assert.equal(one.waits[done.id], undefined, "closed increments are omitted");
+    assert.deepEqual(await flight.waitHolds(done.id), []);
+  });
+
+  contract("11.8", "a wait is cleared from the record that stores it as its blocker lands (an increment) or closes (an arc), with the reason in its history; a failed or withdrawn blocker's wait stays", async ({ work, flight, records }) => {
+    const mail = await work.createArc({ title: "Mail", ...ARC });
+    const launch = await work.createArc({ title: "Launch", ...ARC });
+    await flight.addWait(launch.id, mail.id, "launch needs mail");
+    const mailer = await flight.addIncrement({ arc: mail.id, title: "Mailer", ...WORK });
+    const templates = await flight.addIncrement({ arc: mail.id, title: "Templates", ...WORK });
+    const form = await flight.addIncrement({ arc: launch.id, title: "Form", ...WORK });
+    await flight.addWait(form.id, mailer.id, "sends through it");
+    await flight.addWait(form.id, templates.id, "uses them");
+    const stored = async (id: string): Promise<string[] | undefined> => ((await records.get(id))?.fields as { waits?: { on: string }[] }).waits?.map(({ on }) => on);
+
+    await flight.closeIncrement(mailer.id, { pr: "#1", disposition: "landed" });
+    assert.deepEqual(await stored(form.id), [templates.id], "the landed blocker's wait is gone from the record");
+    const [cleared] = await records.history({ id: form.id }).then((entries) => entries.slice(-1));
+    assert.ok(cleared?.reason?.includes(mailer.id) && /landed/.test(cleared.reason), `its history says why: ${JSON.stringify(cleared)}`);
+
+    await flight.closeIncrement(templates.id, { note: "Not needed", disposition: "withdrawn" });
+    assert.deepEqual(await stored(form.id), [templates.id], "a withdrawn blocker's wait stays, holding for good");
+    assert.deepEqual(await stored(launch.id), undefined, "its arc closed with its last increment, and the arc wait on it is gone");
+
+    // An arc closed by settling its last open question clears the waits on it too.
+    const copy = await work.createArc({ title: "Copy", ...ARC });
+    await flight.addWait(launch.id, copy.id, "needs the words");
+    const question = await flight.raiseQuestion({ arc: copy.id, title: "Tone?", stakes: "The words", statement: "Which tone?", context: "None yet", options: "Warm or plain" });
+    await flight.closeIncrement((await flight.addIncrement({ arc: copy.id, title: "Draft", ...WORK })).id, { pr: "#2", disposition: "landed" });
+    assert.deepEqual(await stored(launch.id), [copy.id], "an open question keeps the arc open");
+    await flight.settleQuestion(question.id, { answer: "Plain" });
+    assert.deepEqual(await stored(launch.id), undefined);
+
+    // A withdrawn blocker corrected to landed clears its wait; moving an arc's last open work away closes it and clears the waits on it.
+    await flight.correctIncrementClosure(templates.id, { pr: "#3", disposition: "landed" }, "it did land, in #3");
+    assert.deepEqual(await stored(form.id), undefined);
+    const site = await work.createArc({ title: "Site", ...ARC });
+    const page = await flight.addIncrement({ arc: site.id, title: "Page", ...WORK });
+    await flight.addIncrement({ arc: site.id, title: "Sketch", outcome: { pr: "#4", disposition: "landed" }, ...WORK });
+    await flight.addWait(launch.id, site.id, "needs a page");
+    await flight.moveIncrement(page.id, launch.id, "belongs to the launch");
+    assert.deepEqual(await stored(launch.id), undefined);
+  });
+
+  contract("11.6", "an increment waits for the owner or an outside event with a note: an owner wait holds until cleared, an event wait until its check-back day, then reads passed", async ({ work, flight, transactions }) => {
+    const arc = await work.createArc({ title: "Installer", ...ARC });
+    const install = await flight.addIncrement({ arc: arc.id, title: "Real install", ...WORK });
+    const day = (offset: number): string => new Date(Date.now() + offset * 86_400_000).toISOString().slice(0, 10);
+    const before = await transactions.history();
+    await assert.rejects(flight.addWaitFor(install.id, { releaser: "event", note: "the next failed-checks removal" }), /check-back day/, "no event wait without a day");
+    await assert.rejects(flight.addWaitFor(install.id, { releaser: "owner", note: "run it", checkBack: day(1) }), /owner/, "an owner wait takes no day");
+    await assert.rejects(flight.addWaitFor(install.id, { releaser: "event", note: "it happens", checkBack: day(-1) }), /before today/);
+    assert.deepEqual(await transactions.history(), before, "nothing written");
+
+    await flight.addWaitFor(install.id, { releaser: "owner", note: "power on the old laptop" });
+    await flight.addWaitFor(install.id, { releaser: "owner", note: "run the NSIS install on the old laptop" });
+    await flight.addWaitFor(install.id, { releaser: "event", note: "the next release build", checkBack: day(1) });
+    const owner = { releaser: "owner", note: "run the NSIS install on the old laptop", holds: true };
+    const event = { releaser: "event", note: "the next release build", checkBack: day(1) };
+    assert.deepEqual(await flight.waitsFor(install.id), [owner, { ...event, holds: true }], "one note per releaser, the latest");
+    assert.deepEqual((await flight.holds()).waitsFor?.[install.id], [owner, { ...event, holds: true }]);
+    const later = new Date(`${day(2)}T00:00:00Z`);
+    assert.deepEqual(await flight.waitsFor(install.id, later), [owner, { ...event, holds: false }], "from its check-back day an event wait no longer holds");
+    assert.deepEqual((await flight.holds(later)).waitsFor?.[install.id], [owner, { ...event, holds: false }]);
+
+    await flight.removeWaitFor(install.id, "owner");
+    assert.deepEqual(await flight.waitsFor(install.id), [{ ...event, holds: true }]);
+    await flight.closeIncrement(install.id, { pr: "#3", disposition: "landed" });
+    assert.deepEqual(await flight.waitsFor(install.id), [], "a closed increment waits for nothing");
+    assert.equal((await flight.holds()).waitsFor?.[install.id], undefined);
+  });
+}

@@ -1,0 +1,28 @@
+{
+  "name": "@storytree/voice",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc -p .",
+    "start": "node --import tsx src/bins/voice.ts"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/server": "^2.1.0",
+    "@storytree/cli": "workspace:*",
+    "@storytree/project-and-caller": "workspace:*",
+    "jose": "6.2.12",
+    "pg": "^8.23.0",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@modelcontextprotocol/client": "^2.1.0",
+    "@storytree/app-setup": "workspace:*",
+    "@storytree/library": "workspace:*",
+    "@storytree/local-postgres": "workspace:*",
+    "@storytree/test-waits": "workspace:*",
+    "@types/node": "^24.13.6",
+    "@types/pg": "^8.23.1",
+    "tsx": "^4.23.15",
+    "typescript": "~7.0.2"
+  }
+}

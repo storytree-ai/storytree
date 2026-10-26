@@ -1,0 +1,51 @@
+{
+  "name": "@storytree/map",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./code-survey": "./src/code-survey/read-survey.ts",
+    "./code-survey/worker": "./src/code-survey/survey-worker.ts",
+    "./package-of": "./src/code-survey/package-of.ts",
+    "./read": "./src/read.ts",
+    "./tools": "./src/tools.ts",
+    "./verbs": "./src/verbs.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p ."
+  },
+  "dependencies": {
+    "@babel/parser": "^7.29.9",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@storytree/library": "workspace:*",
+    "@storytree/project-and-caller": "workspace:*",
+    "@storytree/test-waits": "workspace:*",
+    "@types/node": "^24.13.6",
+    "tsx": "^4.23.15",
+    "typescript": "~7.0.2"
+  },
+  "storytree": {
+    "tools": [
+      {
+        "from": "./tools",
+        "export": "mapToolParts",
+        "order": 5
+      }
+    ],
+    "guidance": [
+      {
+        "from": ".",
+        "export": "codeGuidance",
+        "order": 50
+      }
+    ],
+    "verbs": [
+      {
+        "from": "./verbs",
+        "export": "MAP_FAMILIES"
+      }
+    ]
+  }
+}

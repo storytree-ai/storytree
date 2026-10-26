@@ -1,0 +1,132 @@
+/**
+ * Capability 3 · Hooks. The status line (ADR-0636 D1, b3; 0.2's `presence-hook.sh statusline`, ported by behaviour): one
+ * line in a Claude Code window saying what storytree sees of this session. Claude Code runs it as a
+ * command, with the session's id and folder on stdin, and shows what it prints.
+ *
+ * It reads: `storytree · holds Email form · 2 other agents working · ⚠ src/signup.ts is being edited
+ * by Codex too`.
+ * - What this session holds: its claims, by capability title (capability 5).
+ * - How many other agents are working: the project's other live sessions (capability 4).
+ * - The warning: a file this session edited within the quiet time that another live session has
+ *   edited within it too. 0.2 warned when two sessions claimed one unit; in 0.3 a capability has one
+ *   holder, so two agents meet in a file instead.
+ * - `storytree isn't running` in a project while it is stopped, and nothing at all outside a project,
+ *   since Claude Code shows the same status line in every folder.
+ *
+ * Claude Code has room for one status line, so the setup check installs this one only where the
+ * user has none of their own (hooks-config.ts). Codex's status line shows only its own items.
+ *
+ * Claude Code runs it after every message, so it reads only what it shows (contract 2.7): the claims
+ * standing, the state alone of the sessions that wrote in the last LONGEST_COMMAND_MS, the recent
+ * edits of this session and of those working, and the titles of what this session holds.
+ */
+import path from "node:path";
+
+import type { ConnectOptions, Line } from "@storytree/library";
+import { printable } from "@storytree/library/printable";
+
+import { openNamedProject, requireApproval, route } from "@storytree/project-and-caller";
+import { idleAfterMs } from "@storytree/project-and-caller";
+import { withDeadline } from "./deadlines.js";
+
+/** How long the status line waits for storytree before showing nothing. */
+const WAIT_MS = 2_000;
+
+/** The status line for a Claude Code status line input, or "" to show nothing. Never throws. */
+export async function statusLine(input: string): Promise<string> {
+  try {
+    const { session, folder } = sessionIn(JSON.parse(input));
+    if (session === undefined || folder === undefined) return "";
+    const where = route(folder);
+    if (where.status === "not-a-project") return "";
+    if (where.status === "not-running") return "storytree isn't running";
+    // Titles and file names come from the library and the log: none may act on the terminal (contract 3.48).
+    return printable((await withinTime(lineFor(where.library, where.project, session, folder, where.identity, where.folder))) ?? "");
+  } catch {
+    return "";
+  }
+}
+
+function sessionIn(input: unknown): { session?: string; folder?: string } {
+  if (typeof input !== "object" || input === null) return {};
+  const { session_id: session, cwd, workspace } = input as Record<string, unknown>;
+  const current = typeof workspace === "object" && workspace !== null ? (workspace as Record<string, unknown>).current_dir : undefined;
+  const folder = typeof current === "string" && current !== "" ? current : typeof cwd === "string" && cwd !== "" ? cwd : undefined;
+  return { ...(typeof session === "string" && session !== "" ? { session } : {}), ...(folder === undefined ? {} : { folder }) };
+}
+
+async function lineFor(where: ConnectOptions, project: string, session: string, folder: string, identity: string | undefined, checkout: string): Promise<string> {
+  const [{ openActivityLog }, { connect }, { readClaims }, { readSessionStates }] = await Promise.all([
+    import("../activity/index.js"),
+    import("@storytree/library"),
+    import("../claims/index.js"),
+    import("../sessions/index.js"),
+  ]);
+  const storytree = await connect(withDeadline(where, WAIT_MS));
+  // An unapproved checkout reads nothing of the project its marker names (ADR-0942 D1): the refusal shows nothing.
+  await requireApproval(storytree, project, checkout).catch(async (error: unknown) => {
+    await storytree.close();
+    throw error;
+  });
+  const log = await openActivityLog(storytree, { connectTimeoutMs: WAIT_MS });
+  try {
+    const now = Date.now();
+    const quietMs = idleAfterMs();
+    const [claims, states] = await Promise.all([readClaims(log, project, { now: new Date(now), quietMs }), readSessionStates(log, project, { now: new Date(now), quietMs })]);
+    const held = claims.filter((claim) => claim.session === session);
+    const others = states.filter((other) => other.session !== session && other.state === "working");
+    // Only what this session holds is looked up, by its id: never the whole plan.
+    const titles = new Map<string, string>();
+    if (held.length > 0) {
+      const library = await openNamedProject(storytree, project, identity);
+      for (const id of held.map((claim) => claim.capability ?? claim.increment)) {
+        const fields = (await library.get(id))?.fields as { title?: unknown } | undefined;
+        if (typeof fields?.title === "string") titles.set(id, fields.title);
+      }
+    }
+    const parts = [
+      "storytree",
+      held.length === 0 ? "holds nothing" : `holds ${held.map((claim) => titles.get(claim.capability ?? claim.increment) ?? claim.capability ?? claim.increment).join(", ")}`,
+      others.length === 0 ? "no other agents working" : `${others.length} other agent${others.length === 1 ? "" : "s"} working`,
+    ];
+    const edits = others.length === 0 ? [] : await log.lines(project, {
+      kinds: ["file-edited"], sessions: [session, ...others.map((other) => other.session)], since: new Date(now - quietMs).toISOString(), omit: ["transcript"],
+    });
+    const shared = sharedFile(edits, session, new Set(others.map((other) => other.session)), now - quietMs);
+    if (shared !== undefined) parts.push(`⚠ ${shown(shared.file, folder)} is being edited by ${shared.label} too`);
+    return parts.join(" · ");
+  } finally {
+    await Promise.allSettled([log.close(), storytree.close()]);
+  }
+}
+
+/** A file `session` edited since `since` that one of the `others` edited since then too, with who. */
+function sharedFile(lines: readonly Line[], session: string, others: ReadonlySet<string>, since: number): { file: string; label: string } | undefined {
+  const recent = lines.filter((line): line is Extract<Line, { kind: "file-edited" }> => line.kind === "file-edited" && Date.parse(line.at) >= since);
+  const mine = new Set(recent.filter((line) => line.session === session).flatMap((line) => line.files.map((file) => key(file, line.folder))));
+  for (const line of recent) {
+    if (!others.has(line.session)) continue;
+    const one = line.files.find((named) => mine.has(key(named, line.folder)));
+    const file = one === undefined ? undefined : line.folder === undefined ? path.resolve(one) : path.resolve(line.folder, one);
+    if (file !== undefined) return { file, label: line.harness === "codex" ? "Codex" : line.harness === "claude-code" ? "Claude Code" : "another agent" };
+  }
+  return undefined;
+}
+
+/** A file as one path whoever named it: absolute, and in one case on Windows, whose paths ignore case. */
+function key(file: string, folder: string | undefined): string {
+  const absolute = folder === undefined ? path.resolve(file) : path.resolve(folder, file);
+  return process.platform === "win32" ? absolute.toLowerCase() : absolute;
+}
+
+/** A file as the status line shows it: relative to the session's folder when inside it, with `/`. */
+function shown(file: string, folder: string): string {
+  const relative = path.relative(path.resolve(folder), file);
+  return (relative.startsWith("..") || path.isAbsolute(relative) ? file : relative).split(path.sep).join("/");
+}
+
+function withinTime<T>(work: Promise<T>): Promise<T | undefined> {
+  let timer: NodeJS.Timeout | undefined;
+  const late = new Promise<undefined>((resolve) => (timer = setTimeout(() => resolve(undefined), WAIT_MS)));
+  return Promise.race([work.catch(() => undefined), late]).finally(() => clearTimeout(timer));
+}

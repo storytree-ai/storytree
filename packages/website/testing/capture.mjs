@@ -1,0 +1,204 @@
+// Build first, then: node --import tsx packages/website/testing/capture.mjs [evidence subfolder] [--verify-… journeys] [--retake]
+// A --verify-… run is a check and writes to a scratch folder (it says which); --retake writes into the evidence subfolder.
+import assert from "node:assert/strict";
+import { createServer } from "node:http";
+import { captureOutput, capturePath } from "../testing/capture-path.mjs";
+import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { chromium } from "playwright-core";
+import { verifyOpening, verifyOpeningFrames } from "./opening.mjs";
+import { verifyForest } from "./forest.mjs";
+import { withBrowserCoverage } from "./browser-coverage.mjs";
+
+const here = path.dirname(fileURLToPath(import.meta.url));
+// Pictures go to the package's evidence folder (a scratch folder for a --verify-… check); nothing here reads them.
+const output = captureOutput(path.join(here, "..", "evidence"), process.argv, tmpdir());
+const dist = path.resolve(process.env.WEBSITE_DIST ?? path.resolve(here, "../dist"));
+const verifyOpeningRequested = process.argv.includes("--verify-opening");
+const verifyOpeningFramesRequested = process.argv.includes("--verify-opening-frames");
+const verifyEnlarged = process.argv.includes("--verify-enlarged");
+const verifyControls = process.argv.includes("--verify-controls") || verifyEnlarged;
+const verifyHome = process.argv.includes("--verify-home") || verifyControls;
+const allocation = process.argv.includes("--allocation");
+const journey = (proof, run, using = browser) => allocation ? withBrowserCoverage(using, { proof, dist, output }, run) : run(using);
+await mkdir(output, { recursive: true });
+console.error(`writing to ${output}`);
+let openingCommit;
+if (verifyOpeningRequested) {
+  await rm(path.join(output, "opening-observations.json"), { force: true });
+  openingCommit = (await readFile(path.join(dist, "version.txt"), "utf8")).trim();
+  assert.match(openingCommit, /^[0-9a-f]{40}$/, "Opening acceptance needs the locally built website's full commit in dist/version.txt");
+}
+const types = { ".html": "text/html", ".css": "text/css", ".js": "text/javascript", ".png": "image/png", ".webp": "image/webp", ".svg": "image/svg+xml", ".json": "application/json" };
+const server = createServer(async (req, res) => {
+  const { file, status } = capturePath(dist, req.url);
+  if (status) { res.writeHead(status).end(); return; }
+  try {
+    res.setHeader("Content-Type", types[path.extname(file)] ?? "application/octet-stream");
+    res.end(await readFile(file));
+  } catch {
+    res.writeHead(404, { "Content-Type": "text/html" });
+    res.end(await readFile(path.join(dist, "404.html")));
+  }
+});
+await new Promise(resolve => server.listen(0, "127.0.0.1", resolve));
+let browser;
+try {
+  browser = await chromium.launch({ headless: true, args: ["--no-sandbox", ...(verifyOpeningFramesRequested ? ["--enable-unsafe-swiftshader", "--use-angle=swiftshader"] : [])] });
+  const url = `http://127.0.0.1:${server.address().port}/`;
+  if (verifyOpeningFramesRequested) {
+    // One journey checks both contracts; a failure fails the contract its assertion names, leaving the other not observed.
+    const checks = [
+      { contract: "1.9", name: "Act 1's turn hands over to Act 2 in about the time it is drawn to take, drawing frames throughout", observed: "not-observed" },
+      { contract: "2.10", name: "The map loads and draws nothing while the intro plays; it sets up once the intro hands the screen to the page", observed: "not-observed" },
+    ];
+    try { await verifyOpeningFrames(browser, url, output); for (const check of checks) check.observed = "pass"; }
+    catch (error) {
+      const check = checks.find(({ contract }) => error.message.includes(`website ${contract}:`));
+      if (check) { check.observed = "fail"; check.detail = error.message; }
+      throw error;
+    }
+    finally {
+      await writeFile(path.join(output, "opening-frames-observations.json"), JSON.stringify({
+        story: "story_769e230c466d", commit: (await readFile(path.join(dist, "version.txt"), "utf8")).trim(),
+        evidence: path.relative(path.resolve(here, "../../.."), output).split(path.sep).join("/"),
+        note: "Locally built website served from packages/website/dist, SwiftShader", checks,
+      }, null, 2) + "\n");
+    }
+  }
+  else {
+  if (process.argv.includes("--verify-forest")) {
+    const checks = [];
+    const forestBrowser = await chromium.launch({ headless: true, args: ["--no-sandbox", "--enable-unsafe-swiftshader", "--use-angle=swiftshader"] });
+    try {
+      await journey("website 2.1 live forest, deferred loading and still fallbacks", async measured => {
+        await verifyForest(measured, url, output, async (contract, name, run) => {
+          const [passed, detail] = await run();
+          checks.push({ contract, name, observed: passed ? "pass" : "fail", detail });
+          assert.ok(passed, `website ${contract}: ${name}: ${detail}`);
+        }, (target, file, options = {}) => target.screenshot({ path: path.join(output, file), ...options }));
+      }, forestBrowser);
+    } finally {
+      await forestBrowser.close();
+      await writeFile(path.join(output, "forest-observations.json"), JSON.stringify({
+        story: "story_769e230c466d", commit: (await readFile(path.join(dist, "version.txt"), "utf8")).trim(),
+        evidence: path.relative(path.resolve(here, "../../.."), output).split(path.sep).join("/"),
+        note: "Locally built website served from packages/website/dist", checks,
+      }, null, 2) + "\n");
+    }
+  }
+  if (verifyOpeningRequested) {
+    const check = {
+      contract: "1.8",
+      name: "Chapter 1 playback, exits, sound, storage and static fallbacks",
+      observed: "not-observed",
+    };
+    try {
+      await journey("website 1.8 Chapter 1 playback, restart and exits", measured => verifyOpening(measured, url, output));
+      check.observed = "pass";
+    } catch (error) {
+      check.observed = "fail";
+      check.detail = error.message;
+      throw error;
+    } finally {
+      await writeFile(path.join(output, "opening-observations.json"), JSON.stringify({
+        story: "story_769e230c466d",
+        commit: openingCommit,
+        evidence: path.relative(path.resolve(here, "../../.."), output).split(path.sep).join("/"),
+        note: "Locally built website served from packages/website/dist",
+        checks: [check],
+      }, null, 2) + "\n");
+    }
+  }
+  if (verifyHome) {
+    const noScript = await browser.newPage({ javaScriptEnabled: false, viewport: { width: 390, height: 844 } });
+    await noScript.addInitScript(() => localStorage.setItem("storytree-opening-seen", "yes"));
+    await noScript.goto(url);
+    for (const href of ["https://github.com/storytree-ai/storytree", "https://github.com/storytree-ai/storytree/blob/main/LICENSE"]) {
+      assert.ok(await noScript.locator(`a[href="${href}"]`).first().isVisible());
+    }
+    const missing = await noScript.goto(url + "a-path-that-does-not-exist");
+    assert.equal(missing.status(), 404);
+    await noScript.locator('main a[href="/"]').first().click();
+    assert.equal(new URL(noScript.url()).pathname, "/");
+    await noScript.close();
+  }
+  if (verifyEnlarged) {
+    // Contract 1.7: injected text enlargement, not native browser zoom.
+    const enlarged = [];
+    const problems = [];
+    for (const width of [320, 390, 1280]) for (const route of ["404"]) {
+      const page = await browser.newPage({ viewport: { width, height: 900 } });
+      await page.addInitScript(() => localStorage.setItem("storytree-opening-seen", "yes"));
+      await page.goto(url + "missing-page");
+      await page.evaluate(() => {
+        const sizes = [...document.querySelectorAll("body, body *")].map(element => [element, parseFloat(getComputedStyle(element).fontSize)]);
+        for (const [element, size] of sizes) element.style.setProperty("font-size", `${size * 2}px`, "important");
+      });
+      const measured = await page.evaluate(() => {
+        const textRects = element => {
+          const range = document.createRange();
+          range.selectNodeContents(element);
+          return [...range.getClientRects()].map(rect => rect.toJSON());
+        };
+        const header = [...document.querySelectorAll(".site-header a")].map(element => ({ text: element.textContent.trim(), rects: textRects(element) }));
+        const issues = [];
+        for (let i = 0; i < header.length; i++) for (let j = i + 1; j < header.length; j++) {
+          if (header[i].rects.some(a => header[j].rects.some(b => Math.min(a.right, b.right) - Math.max(a.left, b.left) > 1 && Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top) > 1))) issues.push(`${header[i].text} overlaps ${header[j].text}`);
+        }
+        const headings = [...document.querySelectorAll("h1")].map(element => ({ text: element.textContent.trim(), rects: textRects(element) }));
+        for (const element of [...header, ...headings]) if (element.rects.some(rect => rect.left < 0 || rect.right > innerWidth + 1)) issues.push(`${element.text} extends beyond the viewport`);
+        if (document.documentElement.scrollWidth > innerWidth) issues.push("Page overflows horizontally");
+        return { viewport: innerWidth, document: document.documentElement.scrollWidth, header, headings, issues };
+      });
+      enlarged.push({ route, ...measured });
+      problems.push(...measured.issues.map(issue => `${route} at ${width}px: ${issue}`));
+      const prefix = `${route}-text200-${width}`;
+      await page.locator(".site-header").screenshot({ path: path.join(output, `${prefix}-header.png`) });
+      await page.locator("h1").screenshot({ path: path.join(output, `${prefix}-heading.png`) });
+      if (measured.issues.length === 0) {
+        await page.locator(".site-header nav a").first().focus();
+        await page.keyboard.press("Enter");
+        await page.waitForURL(url);
+      }
+      await page.close();
+    }
+    await writeFile(path.join(output, "enlarged-measurements.json"), JSON.stringify(enlarged, null, 2) + "\n");
+    assert.deepEqual(problems, [], "Enlarged text remains readable and usable");
+  }
+  const measures = [];
+  for (const viewport of [{ width: 1440, height: 1000 }, { width: 390, height: 844 }, ...(verifyControls ? [{ width: 320, height: 720 }] : [])]) {
+    const page = await browser.newPage({ viewport, deviceScaleFactor: 1, reducedMotion: "reduce" });
+    await page.addInitScript(() => localStorage.setItem("storytree-opening-seen", "yes"));
+    const errors = [];
+    page.on("pageerror", error => errors.push(error.message));
+    await page.goto(url + "missing-page", { waitUntil: "networkidle" });
+    const measured = await page.evaluate(() => ({
+      viewport: innerWidth,
+      document: document.documentElement.scrollWidth,
+      headings: document.querySelectorAll("h1").length,
+      mount: document.querySelector("#website-forest")?.getBoundingClientRect().toJSON() ?? null,
+      assets: performance.getEntriesByType("resource").map(entry => ({ name: new URL(entry.name).pathname, bytes: entry.encodedBodySize })),
+    }));
+    assert.equal(measured.document, measured.viewport, "No horizontal page overflow");
+    assert.equal(measured.headings, 1);
+    assert.deepEqual(errors, []);
+    await page.screenshot({ path: path.join(output, `${viewport.width}.png`), fullPage: true });
+    if (verifyControls) {
+      measured.controls = await page.locator(".site-header a, .site-footer a, .text-link").evaluateAll(controls => controls.map(control => ({
+        name: control.textContent.trim(), width: control.getBoundingClientRect().width, height: control.getBoundingClientRect().height,
+      })));
+      for (const control of measured.controls) assert.ok(control.height >= 44, `${control.name} needs a 44 px target height`);
+    }
+    measures.push(measured);
+    await page.close();
+  }
+  await writeFile(path.join(output, "measurements.json"), JSON.stringify(measures, null, 2) + "\n");
+  console.log(JSON.stringify(measures));
+  }
+} finally {
+  await browser?.close();
+  await new Promise(resolve => server.close(resolve));
+}

@@ -1,0 +1,102 @@
+.arc-surface-mount { color: var(--text, #eee); }
+/* Reserve the arc bar below the app's bar; the drawer and forest share this edge. */
+:root :has(> .arc-surface-mount) { margin-top: calc(var(--app-bar-height, 0px) + 48px); }
+.arc-handle { position: fixed; top: var(--app-bar-height, 0px); left: 0; right: 0; z-index: 6; display: flex; align-items: center; gap: 14px; width: 100%; height: 48px; padding: 0 20px; border: 0; border-bottom: 1px solid #485159; border-radius: 0; background: #101418; color: #eceae3; font: 14px/1.5 "Segoe UI", system-ui, sans-serif; text-align: left; cursor: pointer; }
+.arc-handle:hover { background: #262a2f; }
+.arc-surface-mount .arc-handle:focus-visible { outline: 2px solid #a9b0ba; outline-offset: -3px; }
+.arc-handle-label { flex: 0 0 auto; font-weight: 600; }
+.arc-handle-caret { margin-left: auto; color: #a9b0ba; }
+.arc-overlay { position: fixed; inset: calc(var(--app-bar-height, 0px) + 48px) 0 auto; z-index: 5; height: 50dvh; min-height: min(260px, 70dvh); max-height: calc(100dvh - var(--app-bar-height, 0px) - 48px); display: flex; flex-direction: column; background: var(--surface, #202622); border-bottom: 1px solid var(--line, #43504d); box-shadow: 0 12px 28px #0004; }
+/* 3.10: expanded, the drawer fills the window below the two bars, over all the forest pane stacks (its tree space is 60). */
+.arc-overlay[data-expanded=true] { height: calc(100dvh - var(--app-bar-height, 0px) - 48px); z-index: 61; }
+.arc-overlay[hidden], .arc-handle[hidden] { display: none; }
+.arc-overlay button:not(.arc-handle) { font: inherit; color: inherit; cursor: pointer; }
+/* The size control sits at the drawer's top right, on the row the scopes start. */
+.arc-overlay button.arc-size { position: absolute; top: 5px; right: 18px; z-index: 1; border: 0; border-radius: 4px; padding: 2px 10px; background: transparent; color: var(--muted, #adb8b2); }
+.arc-overlay button.arc-size:hover { background: var(--row-hover, #2c3630); color: inherit; }
+.arc-surface-mount button:focus-visible, .arc-overlay summary:focus-visible { outline: 2px solid #7dbdab; outline-offset: -2px; }
+.arc-status:not(:empty) { padding: 6px 96px 6px 18px; font-size: .8rem; color: #b57719; background: #c5922420; }
+.arc-body { min-height: 0; flex: 1; display: flex; flex-direction: column; animation: arc-pull-down 180ms ease-out; }
+@keyframes arc-pull-down { from { transform: translateY(-12px); opacity: .4; } to { transform: translateY(0); opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .arc-body { animation: none; } }
+.arc-scopes { display: flex; gap: 4px; padding: 5px 18px; border-bottom: 1px solid var(--line, #43504d); }
+.arc-scopes button { border: 0; border-radius: 4px; padding: 2px 10px; background: transparent; font-size: .75rem; }
+.arc-scopes button[aria-pressed=true] { background: var(--row-hover, #34443b); color: #78b396; }
+.arc-closed-range { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; padding: 4px 18px 6px; font-size: .72rem; color: var(--muted, #adb8b2); border-bottom: 1px solid var(--line, #43504d); }
+.arc-closed-range button { border: 1px solid var(--line, #43504d); border-radius: 4px; padding: 2px 8px; background: transparent; font-size: .72rem; }
+.arc-closed-range button[aria-pressed=true] { background: var(--row-hover, #34443b); color: #78b396; border-color: #79af95; }
+.arc-closed-range label { display: inline-flex; align-items: center; gap: 4px; margin-left: 6px; }
+.arc-closed-range input { font: inherit; color: #d9dedb; background: #12181b99; border: 1px solid var(--line, #43504d); border-radius: 3px; padding: 1px 4px; color-scheme: dark; }
+.arc-panes { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); min-height: 0; flex: 1; }
+.arc-lanes, .arc-briefing { overflow: auto; overscroll-behavior: contain; }
+.arc-lanes { padding: 4px 0; border-right: 1px solid var(--line, #43504d); }
+.arc-lane-line { display: flex; align-items: stretch; }
+.arc-caret-slot { width: 18px; flex: 0 0 18px; display: flex; align-items: center; justify-content: center; }
+.arc-caret { width: 18px; min-height: 30px; padding: 0; border: 0; background: transparent; font-size: .8rem !important; color: var(--muted, #adb8b2) !important; }
+.arc-lane { min-width: 0; flex: 1; padding: 7px 14px 7px 7px; border: 0; border-left: 2px solid transparent; background: transparent; text-align: left; }
+.arc-lane:hover, .arc-queue-chip:hover { background: var(--row-hover, #2c3630); }
+.arc-lane[aria-pressed=true] { background: var(--row-hover, #2c3630); border-left-color: #79af95; }
+.arc-lane-head { display: flex; align-items: center; gap: 8px; }
+.arc-title { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: .84rem; font-weight: 500; }
+.arc-chip { flex: 0 0 auto; font-size: .62rem; line-height: 1.4; white-space: nowrap; padding: 0 5px; border: 1px solid var(--line, #43504d); border-radius: 4px; color: var(--muted, #adb8b2); }
+.arc-state-waiting, .arc-state-blocked, .arc-state-queued { color: #a66a0a; background: #dfb34924; border-color: #b7893b; }
+.arc-marks { display: flex; flex: 0 0 auto; gap: 8px; margin-left: auto; }
+.arc-mark { display: inline-flex; align-items: center; gap: 2px; font-size: .68rem; line-height: 1; color: #a66a0a; }
+.arc-mark-icon { flex: 0 0 auto; font-weight: 700; }
+.arc-state-in-progress { color: #287858; background: #55a47720; border-color: #638b73; }
+/* Ovals sit close under the title; a lane with a flag adds only the headroom a flag needs, its top about 2 px under the title row. */
+.arc-track { display: block; margin-top: 3px; }
+.arc-track.arc-flagged { padding-top: 10px; }
+.arc-bars { display: flex; flex-wrap: wrap; gap: 3px; align-items: center; }
+.arc-flagged .arc-bars { row-gap: 12px; }
+.arc-bar { position: relative; flex: 0 0 16px; width: 16px; height: 8px; border-radius: 50%; }
+.arc-green { background: #5b9975; } .arc-red { background: #be6463; } .arc-yellow { background: #d3a84c; } .arc-grey { background: #8d9498; }
+.arc-check-back { outline: 1px solid #d3a84c; outline-offset: 1px; }
+/* A holder's flag: its foot at the oval's middle, a little left of centre, so the pennant flies over the oval. An increment has one holder, so one flag. */
+.arc-agent-mark { position: absolute; left: 3px; top: -11px; overflow: visible; pointer-events: none; }
+.arc-other-waits { color: var(--muted, #adb8b2); font-size: .68rem; }
+.arc-queue { display: flex; align-items: center; flex-wrap: wrap; gap: 5px; padding: 2px 14px 7px 27px; color: var(--muted, #adb8b2); font-size: .75rem; }
+.arc-queue-chip { display: inline-flex; align-items: center; gap: 4px; max-width: 30ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .72rem !important; background: transparent; border: 1px solid var(--line, #43504d); border-radius: 4px; padding: 1px 6px; }
+.arc-queue-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.arc-queue-more { flex: 0 0 auto; }
+.arc-queue-chip[aria-pressed=true] { border-color: #79af95; background: var(--row-hover, #2c3630); }
+.arc-briefing { padding: 12px 20px 20px; font-size: .84rem; }
+.arc-briefing h3 { font-size: 1rem; margin: 0 0 10px; font-weight: 600; }
+.arc-copy { margin-left: 8px; padding: 2px 6px; vertical-align: middle; font-size: .7rem; font-weight: 400; line-height: 1; color: inherit; background: transparent; border: 1px solid currentColor; border-radius: 4px; opacity: .65; cursor: pointer; }
+.arc-copy:hover, .arc-copy:focus-visible { opacity: 1; }
+.arc-briefing h4 { font-size: .75rem; margin: 15px 0 5px; }
+.arc-prose, .arc-answer p { white-space: pre-wrap; overflow-wrap: anywhere; margin: 4px 0 12px; }
+.arc-intent { color: var(--muted, #adb8b2); }
+.arc-intent-fold > summary, .arc-landed-fold > summary { padding: 5px 0; font-size: .75rem; }
+.arc-intent-fold .arc-intent { margin-top: 2px; }
+.arc-parked-note { font-weight: 400; color: var(--muted, #adb8b2); font-size: .7rem; }
+.arc-table { border-top: 1px solid var(--line, #43504d); }
+.arc-row-button, .arc-increment > summary { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 30px; padding: 4px 6px; border: 0; border-bottom: 1px solid var(--line, #43504d); background: transparent; text-align: left; cursor: pointer; list-style: none; }
+.arc-increment > summary::-webkit-details-marker { display: none; }
+.arc-row-button:hover, .arc-increment > summary:hover { background: var(--row-hover, #2c3630); }
+.arc-row-title, .arc-increment-title { min-width: 0; flex: 1; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.arc-swatch { flex: 0 0 8px; width: 8px; height: 10px; border-radius: 2px; }
+.arc-increment-cell { display: flex; flex: 0 1 auto; gap: 4px; min-width: 0; overflow: hidden; }
+.arc-status-chip { flex: 0 0 auto; font-size: .66rem; line-height: 1.5; white-space: nowrap; padding: 0 6px; border: 1px solid var(--line, #43504d); border-radius: 4px; color: var(--muted, #adb8b2); }
+.arc-status-open, .arc-wait-you, .arc-wait-work, .arc-wait-event, .arc-wait-blocked { color: #a66a0a; background: #dfb34924; border-color: #b7893b; }
+.arc-wait-check-back { border-style: dashed; border-color: #d3a84c; }
+.arc-wait-agent { color: #287858; background: #55a47720; border-color: #638b73; }
+.arc-wait-not-completed { color: #be6463; border-color: #be6463; }
+.arc-increment[open] > summary { background: var(--row-hover, #2c3630); }
+.arc-increment-detail { margin: 0; padding: 6px 8px 10px 22px; border-bottom: 1px solid var(--line, #43504d); font-size: .78rem; }
+.arc-increment-detail dt { margin-top: 6px; font-size: .68rem; color: var(--muted, #adb8b2); }
+.arc-increment-detail dd { margin: 2px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.arc-landed-fold { margin: 0; }
+.arc-landed-fold > summary { padding-left: 6px; color: var(--muted, #adb8b2); border-bottom: 1px solid var(--line, #43504d); }
+.arc-reading-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.arc-reading-head small { font-size: .7rem; color: var(--muted, #adb8b2); }
+.arc-reading-head button { padding: 2px 0; border: 0; background: transparent; color: #62997e; font-size: .75rem; }
+.arc-reading-head { margin-bottom: 12px; }
+.arc-diagram { white-space: pre-wrap; overflow-wrap: anywhere; padding: 8px; background: var(--code-bg, #17221c); font-size: .76rem; }
+.arc-option { padding: 3px 12px; border-left: 2px solid #728c7b; margin: 10px 0; }
+.arc-option p { white-space: pre-wrap; margin: 3px 0; } .arc-option dl { margin: 6px 0; font-size: .78rem; } .arc-option dt { font-weight: 600; } .arc-option dd { margin: 2px 0 8px; white-space: pre-wrap; }
+.arc-fold { margin-top: 10px; font-size: .8rem; } .arc-fold summary { cursor: pointer; color: var(--muted, #adb8b2); }
+.arc-answer { border-left: 3px solid #6c9b80; margin: 0 0 10px; padding: 5px 10px; background: #6c9b8012; }
+.arc-empty { color: var(--muted, #adb8b2); padding: 0 18px; }
+@media (prefers-color-scheme: dark) { .arc-state-waiting, .arc-state-blocked, .arc-state-queued { color: #e7c77d; } .arc-state-in-progress { color: #a8d6ba; } .arc-mark, .arc-status-open, .arc-wait-you, .arc-wait-work, .arc-wait-event, .arc-wait-blocked { color: #e7c77d; } .arc-wait-agent { color: #a8d6ba; } .arc-wait-not-completed { color: #e39a99; } }
+@media (max-width: 700px) { .arc-panes { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } .arc-briefing { padding: 10px; } .arc-title { font-size: .75rem; } .arc-lane-head { gap: 4px; } }

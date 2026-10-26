@@ -1,0 +1,58 @@
+{
+  "name": "@storytree/quality-assurance",
+  "private": true,
+  "type": "module",
+  "description": "Quality assurance (ADR-0956): the quality control checks a change-reviewer applies, read as one list from the library, and later the QA ledger of what each check finds.",
+  "exports": {
+    ".": "./src/index.ts",
+    "./verbs": "./src/checks/verbs.ts",
+    "./project-records": "./src/ledger/project-records.ts"
+  },
+  "storytree": {
+    "tools": [
+      {
+        "from": ".",
+        "export": "qualityToolParts",
+        "order": 2
+      }
+    ],
+    "verbs": [
+      {
+        "from": "./verbs",
+        "export": "QUALITY_FAMILIES"
+      }
+    ],
+    "guidance": [
+      {
+        "from": ".",
+        "export": "qualityGuidance",
+        "order": 70
+      }
+    ],
+    "projectRecords": [
+      {
+        "from": "./project-records",
+        "export": "projectRecords"
+      }
+    ]
+  },
+  "scripts": {
+    "typecheck": "tsc -p ."
+  },
+  "dependencies": {
+    "@babel/parser": "^7.29.9",
+    "@storytree/guardrails": "workspace:*",
+    "@storytree/library": "workspace:*",
+    "@storytree/local-postgres": "workspace:*",
+    "@storytree/map": "workspace:*",
+    "@storytree/project-and-caller": "workspace:*",
+    "@storytree/session-management": "workspace:*",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@storytree/test-waits": "workspace:*",
+    "@types/node": "^24.13.6",
+    "tsx": "^4.23.15",
+    "typescript": "~7.0.2"
+  }
+}

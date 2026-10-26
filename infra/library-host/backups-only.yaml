@@ -1,0 +1,3 @@
+title: backups-only
+description: storytree-mint creates, reads and lists only objects under backups/
+expression: resource.name.startsWith("projects/_/buckets/<project>-library-backups/objects/backups/") || api.getAttribute("storage.googleapis.com/objectListPrefix", "").startsWith("backups/")

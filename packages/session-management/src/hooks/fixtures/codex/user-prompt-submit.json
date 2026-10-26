@@ -1,0 +1,10 @@
+{
+  "session_id": "01a0de50-e5be-7731-8e02-d411fd8845fe",
+  "turn_id": "01a0de50-e646-7fd3-ac55-8a2c5c0fd67d",
+  "transcript_path": "C:\\Users\\dev\\.codex\\sessions\\2026\\09\\27\\rollout-2026-09-27T01-23-58-01a0de50-e5be-7731-8e02-d411fd8845fe.jsonl",
+  "cwd": "C:\\Users\\dev\\projects\\site",
+  "hook_event_name": "UserPromptSubmit",
+  "model": "gpt-5.6-luna",
+  "permission_mode": "bypassPermissions",
+  "prompt": "This is a harness probe. Using your shell tool, run exactly one command: `echo probe-start`. Then reply with the codeword your context gives you for storytree, or NONE if it gives none."
+}

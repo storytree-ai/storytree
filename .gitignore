@@ -1,0 +1,22 @@
+node_modules/
+dist/
+.env
+.env.*
+!.env.example
+*.log
+.DS_Store
+.pgtest/
+
+# the desktop app: its packaged builds and the smoke check's screenshots
+apps/desktop/release/
+apps/desktop/smoke*.png
+
+# `pnpm library:export`: the library printed as read-only story and decision files
+library-export/
+
+# Session worktrees (storytree workspace, and Codex lanes'); never part of a commit.
+.claude/worktrees/
+.worktrees/
+
+# Evidence captures' build output (buildFolder in apps/desktop/src/capture/output.ts), outside every source tree.
+.evidence-builds/

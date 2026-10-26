@@ -1,0 +1,16 @@
+{
+  "session_id": "01a0dd1c-74c7-77d1-8248-f5e13dbe46c4",
+  "turn_id": "01a0dd1c-b038-7172-81db-50b88039a993",
+  "agent_id": "01a0dd1c-afd2-7062-8f09-8152ad44d7ff",
+  "agent_type": "explorer",
+  "transcript_path": "C:\\Users\\dev\\.codex\\sessions\\2026\\09\\26\\rollout-2026-09-26T19-47-19-01a0dd1c-afd2-7062-8f09-8152ad44d7ff.jsonl",
+  "cwd": "C:\\Users\\dev\\projects\\site",
+  "hook_event_name": "PreToolUse",
+  "model": "gpt-5.6-luna",
+  "permission_mode": "bypassPermissions",
+  "tool_name": "mcp__storytree__open",
+  "tool_input": {
+    "id": "decision_2f6c1e0a9b3d"
+  },
+  "tool_use_id": "exec-1ec1f51c-a4ca-4717-970e-c9e495cc6693"
+}

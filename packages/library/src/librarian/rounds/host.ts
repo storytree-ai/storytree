@@ -1,0 +1,62 @@
+/**
+ * Capability 26 · Rounds. The MCP server's extension point (its ToolExtension, ADR-0643 D6, ADR-0969 D1), as far as
+ * the librarian's tools use it. Restated rather than imported: the MCP server depends on this package to serve
+ * these tools, and no story may depend on the MCP server (ADR-0969 D1). The MCP server checks the two still
+ * fit where it mounts its tool parts (its test 6.75); where the verb's own types live is ADR-0969 D2's work.
+ */
+import type { Library, WriteOptions } from "../../index.js";
+import type { z } from "zod";
+
+/** One line of the agent activity log, as far as a session's start is read from it. */
+interface ActivityLine {
+  readonly kind: string;
+  readonly session: string;
+  readonly harness?: string | undefined;
+  readonly at: string;
+}
+
+/** What the librarian asks of the log: the lines a bounded read names (Session management's contract 2.7), never the whole log. */
+interface LineAsk {
+  readonly kinds?: readonly "session-started"[];
+  readonly sessions?: readonly string[];
+  readonly where?: Readonly<Record<string, string | null>>;
+  readonly oldest?: number;
+  readonly omit?: readonly string[];
+}
+
+/** What a tool has to work with for one call. */
+export interface ToolCall {
+  readonly library: Library;
+  readonly log: { lines(project: string, filter: LineAsk): Promise<readonly ActivityLine[]> };
+  readonly project: string;
+  readonly caller: { readonly session: string; readonly harness?: string };
+  readonly writer: WriteOptions;
+  readonly folder: string;
+  /** Names the phase a slow tool is in; rejects once the client has cancelled, so no further phase starts. */
+  readonly progress?: (message: string) => Promise<void>;
+  /** The kinds the factory plugins mounted on the serving host declare, each `<plugin>.<kind>` (ADR-1178 D3); none when not given. */
+  readonly pluginKinds?: readonly string[];
+}
+
+/** What a tool answers. */
+export interface ToolAnswer {
+  readonly text: string;
+  readonly data?: Record<string, unknown>;
+  readonly refused?: boolean;
+}
+
+/** Registers one tool: its name, what it is for, its arguments, what it does with them, and who calls it (ADR-1045 D1). */
+export type DefineTool = <S extends z.ZodObject>(name: string, description: string, input: S, act: (args: z.output<S>, call: ToolCall) => Promise<ToolAnswer>, options?: { readonly consumers?: readonly ("agent" | "user")[] }) => void;
+
+/** The librarian's contribution to Session management's one tool server. */
+export interface ToolExtension {
+  readonly registerTools?: (define: DefineTool) => void;
+  readonly instructions?: string;
+  readonly landNext?: (capability: string, call: ToolCall) => Promise<string | undefined> | string | undefined;
+}
+
+/** What the server gives a story's tool part (its manifest's `tools`, ADR-1021): the project it serves and the tools it serves. */
+export interface ToolHost {
+  readonly project: string | undefined;
+  readonly tools: () => readonly string[];
+}

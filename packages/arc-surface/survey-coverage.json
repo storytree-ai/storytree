@@ -1,0 +1,48 @@
+{
+ "src/agents/agents.ts": {
+  "2": 16,
+  "3": 36
+ },
+ "src/board/board.ts": {
+  "3": 119
+ },
+ "src/board/live-board.ts": {
+  "3": 6
+ },
+ "src/board/reads.ts": {
+  "3": 1
+ },
+ "src/board/smoke.ts": {
+  "3": 2
+ },
+ "src/briefing/briefing.ts": {
+  "3": 29,
+  "5": 28
+ },
+ "src/live-reading/live-reading.ts": {
+  "3": 5
+ },
+ "src/live-reading/page-reading.ts": {
+  "3": 17
+ },
+ "src/testing/records.ts": {
+  "3": 5
+ },
+ "src/view/preferences.ts": {
+  "3": 4
+ },
+ "src/view/render.ts": {
+  "3": 80
+ },
+ "src/waits/waits.ts": {
+  "3": 104,
+  "4": 112
+ },
+ "src/work-states/board-states.ts": {
+  "1": 24,
+  "3": 29
+ },
+ "src/work-states/work-states.ts": {
+  "1": 21
+ }
+}

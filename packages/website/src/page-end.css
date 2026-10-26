@@ -1,0 +1,27 @@
+/* The page's end (ADR-1091 D1 (4), (5)): the harness line with its marks, then the call to follow the build as the last thing on the page
+   (page-end.ts). Plain sections, like the claims above them. */
+.page-end { --soft:#c3cbc1; --dim:#8d9893; padding:64px 24px; background:#101418; }
+.page-end > * { width:min(1240px, 100%); margin-inline:auto; }
+.page-end h2 { margin-top:0; margin-bottom:18px; color:var(--dim); font:600 13px/1.5 system-ui, sans-serif; letter-spacing:.08em; text-transform:uppercase; }
+#harness { padding-top:0; }
+#harness h2 { padding-top:56px; border-top:1px solid #2c363a; }
+.harness-claim { margin:0 auto; padding-right:max(0px, calc(min(1240px, 100%) - 13em)); font-size:clamp(34px, 4.2vw, 58px); font-weight:500; line-height:1.06; letter-spacing:-.045em; text-wrap:balance; }
+.harness-why { margin:18px auto 0; padding-right:max(0px, calc(100% - 40rem)); color:var(--soft); font-size:clamp(17px, 1.5vw, 20px); line-height:1.5; text-wrap:pretty; }
+.harness-marks { display:flex; flex-wrap:wrap; gap:14px 32px; margin:36px auto 0; padding:0; list-style:none; }
+.harness-marks li { display:flex; align-items:center; gap:12px; color:#e1e8e1; font-size:17px; font-weight:500; }
+.harness-marks img { display:block; width:40px; height:40px; object-fit:contain; }
+.harness-note { margin:18px auto 0; color:var(--dim); font-size:15px; }
+.call { padding-top:0; padding-bottom:120px; }
+#call h2 { margin-bottom:0; padding-top:56px; border-top:1px solid #2c363a; color:inherit; font-family:inherit; font-size:clamp(34px, 4.2vw, 58px); font-weight:500; line-height:1.06; letter-spacing:-.045em; text-transform:none; }
+.call-line { margin:18px auto 0; color:var(--soft); font-size:clamp(20px, 1.9vw, 26px); line-height:1.4; letter-spacing:-.01em; }
+.call-do { margin:28px auto 0; }
+.call-action { display:inline-flex; align-items:center; gap:14px; min-height:48px; padding:12px 20px; border-radius:6px; background:var(--green); color:var(--ink); font-size:15px; font-weight:600; text-decoration:none; }
+.call-action:hover { background:#d0e3be; }
+
+@media (max-width:600px) {
+  .page-end { padding:44px 12px; }
+  #harness h2, #call h2 { padding-top:40px; }
+  #call h2 { font-size:32px; }
+  .harness-claim { font-size:32px; }
+  .call { padding-bottom:80px; }
+}

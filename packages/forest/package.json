@@ -1,0 +1,65 @@
+{
+  "name": "@storytree/forest",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./surfaces": "./src/surfaces/surfaces.ts",
+    "./actions": "./src/actions/catalogue.ts",
+    "./view": "./src/view/index.ts",
+    "./view/styles.css": "./src/view/styles.css",
+    "./code-survey": "./src/code-survey/read-survey.ts",
+    "./page": "./src/render/page.ts",
+    "./snapshot": "./src/snapshot/forest-snapshot.ts",
+    "./evidence-seed": "./src/snapshot/evidence-seed.ts"
+  },
+  "storytree": {
+    "surfaces": [
+      {
+        "from": "./surfaces",
+        "export": "forestSurfaces",
+        "order": 1
+      }
+    ],
+    "pageChannels": [
+      {
+        "from": "./page",
+        "export": "forestPageChannels"
+      }
+    ],
+    "pageAnswers": [
+      {
+        "from": "./code-survey",
+        "export": "forestPageAnswers"
+      }
+    ]
+  },
+  "scripts": {
+    "typecheck": "tsc -p ."
+  },
+  "dependencies": {
+    "@storytree/library": "workspace:*",
+    "@storytree/arc-surface": "workspace:*",
+    "@storytree/session-management": "workspace:*",
+    "@storytree/knowledge-core": "workspace:*",
+    "@dagrejs/dagre": "^1.1.4",
+    "@react-three/drei": "^10.7.7",
+    "@react-three/fiber": "^9.6.1",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1",
+    "three": "^0.185.1",
+    "@storytree/map": "workspace:*",
+    "@storytree/project-and-caller": "workspace:*",
+    "@storytree/forest-world": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^24.13.6",
+    "@types/react": "^19.1.8",
+    "@types/react-dom": "^19.1.6",
+    "@types/three": "^0.185.0",
+    "esbuild": "^0.28.2",
+    "tsx": "^4.23.15",
+    "typescript": "~7.0.2",
+    "playwright-core": "1.60.0"
+  }
+}

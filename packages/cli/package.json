@@ -1,0 +1,50 @@
+{
+  "name": "@storytree/cli",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "imports": {
+    "#parts/surfaces": "./src/parts/surfaces.ts",
+    "#parts/verbs": "./src/parts/verbs.ts",
+    "#parts/projectRecords": "./src/parts/project-records.ts",
+    "#parts/armChecks": "./src/parts/arm-checks.ts"
+  },
+  "bin": {
+    "storytree": "./dist/storytree.mjs"
+  },
+  "scripts": {
+    "typecheck": "tsc -p .",
+    "build": "tsx src/bins/build.ts"
+  },
+  "dependencies": {
+    "@storytree/session-management": "workspace:*",
+    "@storytree/app": "workspace:*",
+    "@storytree/app-setup": "workspace:*",
+    "@storytree/arc-surface": "workspace:*",
+    "@storytree/ci-health": "workspace:*",
+    "@storytree/forest": "workspace:*",
+    "@storytree/guardrails": "workspace:*",
+    "@storytree/keys": "workspace:*",
+    "@storytree/library": "workspace:*",
+    "@storytree/map": "workspace:*",
+    "@storytree/quality-assurance": "workspace:*",
+    "@storytree/mcp-server": "workspace:*",
+    "@storytree/project-and-caller": "workspace:*",
+    "@storytree/experiments": "workspace:*",
+    "@storytree/surface-feedback": "workspace:*"
+  },
+  "devDependencies": {
+    "@storytree/local-postgres": "workspace:*",
+    "@storytree/test-waits": "workspace:*",
+    "@types/node": "^24.13.6",
+    "esbuild": "^0.28.2",
+    "pg": "^8.23.0",
+    "@types/pg": "^8.23.1",
+    "tsx": "^4.23.15",
+    "typescript": "~7.0.2",
+    "electron-builder": "26.15.3",
+    "@storytree/plugin-loader": "workspace:*"
+  }
+}

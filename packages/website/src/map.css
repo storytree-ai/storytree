@@ -1,0 +1,105 @@
+@import "@storytree/forest/view/styles.css";
+@import "@storytree/arc-surface/view/styles.css";
+
+/* The top of the page (ADR-1091 D1 (2)): storytree's own map in free play, in a frame, with the owner's lines round it. The
+   page scrolls past it; the frame never takes the scroll (map-frame.ts). Only website placement lives here: the desktop owns
+   the panels' look. */
+#chapter2 { --edge:#2c363a; --soft:#c3cbc1; --dim:#8d9893; padding:22px 24px 56px; background:#101418; }
+#chapter2 > * { width:min(1240px, 100%); margin-inline:auto; }
+.map-heading { display:flex; align-items:center; gap:14px; }
+.map-heading h1 { margin:0; font-size:24px; letter-spacing:-.05em; line-height:1.2; font-weight:600; }
+.map-heading h1 span { color:var(--green); }
+.map-heading button { min-height:44px; padding:6px 10px; background:transparent; border:0; color:#a5b1ad; font:12px/1.5 system-ui, sans-serif; cursor:pointer; }
+.map-heading button:hover { color:#e1e8e1; }
+#chapter2 .map-lead { margin:34px auto 22px; font-size:clamp(28px, 3.4vw, 46px); font-weight:500; line-height:1.1; letter-spacing:-.04em; text-wrap:balance; }
+#chapter2 .map-note { margin:10px auto 0; color:var(--dim); font:12px/1.5 system-ui, sans-serif; }
+#chapter2 .map-after { margin:34px auto 0; color:var(--soft); font-size:clamp(18px, 1.6vw, 22px); line-height:1.5; letter-spacing:-.01em; text-wrap:pretty; }
+#chapter2 .map-after { padding-right:max(0px, calc(100% - 46rem)); }
+
+/* The hero (owner's voice note, 2026-10-21): at desktop width the hook line and its paragraph sit on the left and the framed map
+   on the right, as a product page shows its app; narrower, they stack in reading order. */
+@media (min-width:960px) {
+  #chapter2 { display:grid; grid-template-columns:minmax(17rem, 25rem) minmax(0, 1fr); grid-template-rows:auto 1fr auto auto 1fr auto;
+    grid-template-areas:"heading heading" ". frame" "lead frame" "after frame" ". frame" ". note"; column-gap:clamp(32px, 4vw, 64px);
+    padding-inline:max(24px, calc((100% - 1440px) / 2)); }
+  #chapter2 > * { width:auto; margin-inline:0; }
+  .map-heading { grid-area:heading; }
+  #chapter2 .map-lead { grid-area:lead; margin:0 0 22px; }
+  #chapter2 .map-after { grid-area:after; margin:0; padding-right:0; }
+  #chapter2 .map-frame { grid-area:frame; margin-top:22px; }
+  #chapter2 .map-note { grid-area:note; }
+}
+
+/* The intro hands over to the top of this section: no leftover scroll padding above it. */
+html:has(> body.immersive-home) { scroll-padding-top:0; }
+
+/* The frame: a bounded window onto the map, its panels inside it. */
+.map-frame { position:relative; isolation:isolate; overflow:hidden; height:min(74vh, 760px); min-height:440px; border:1px solid var(--edge); border-radius:16px; background:#0d1114; }
+.map-frame #website-forest { position:absolute; inset:0; z-index:0; height:auto; min-height:0; }
+.map-frame :is(.forest-still, .forest-canvas, .forest-drawing) { position:absolute; inset:0; }
+.map-frame .forest-still { inset:60px 6% calc(var(--map-sessions, 0px) + 16px); }
+.map-frame .forest-still::after { display:none; }
+.map-frame:has(.map-session-surface .sessions-list) .forest-drawing { bottom:var(--map-sessions, 0px); }
+.map-frame .forest-unavailable { display:none; }
+.map-frame:has(#website-forest[data-forest-state="still"] .forest-canvas) .forest-unavailable { display:block; position:absolute; z-index:6; left:16px; right:16px; bottom:16px; margin:0; padding:10px 14px; border-radius:10px; background:#151b1f; color:var(--soft); font:13px/1.5 system-ui, sans-serif; }
+.map-session-surface, .map-arc-surface, .map-sessions, .map-arcs { display:contents; }
+
+/* The map's own controls: its layers and Find top left under the arcs bar, zoom on the right. */
+.map-frame .forest-views { top:60px; left:14px; }
+.map-frame .forest-views button { min-height:36px; font:13px/1.5 system-ui, sans-serif; }
+.map-frame .forest-views button[aria-pressed="true"] { background:var(--green); font-weight:600; }
+.map-frame .sheet-compass { top:54px; right:10px; }
+.map-browse-toggle { position:absolute; top:61px; left:190px; z-index:8; min-height:40px; padding:8px 12px; border:1px solid #485159; border-radius:8px; color:#eee; background:#101418; font:13px/1.5 system-ui, sans-serif; cursor:pointer; }
+.map-zoom { position:absolute; z-index:8; right:14px; bottom:calc(var(--map-sessions, 0px) + 14px); display:flex; flex-direction:column; overflow:hidden; border:1px solid #485159; border-radius:10px; background:#101418; }
+/* Zoom has nothing to zoom until the map is live. */
+#website-forest:not([data-forest-state="live"]) ~ .map-zoom { display:none; }
+.map-zoom button { width:44px; height:44px; border:0; background:none; color:#e7e8ea; font:500 22px/1 system-ui, sans-serif; cursor:pointer; }
+.map-zoom button + button { border-top:1px solid #485159; }
+.map-zoom button:hover { background:#1f262b; }
+.map-record-browser { position:absolute; z-index:20; top:110px; left:12px; width:min(360px, calc(100% - 24px)); max-height:calc(100% - 130px); overflow:auto; padding:18px; border:1px solid var(--line, #485159); border-radius:10px; background:var(--surface, #1e2125); color:var(--text, #e7e8ea); box-shadow:0 8px 30px #0006; }
+.map-record-browser header { display:flex; align-items:center; justify-content:space-between; }
+.map-record-browser h2 { margin:0; font-size:18px; letter-spacing:0; }
+.map-record-browser header button { min-width:44px; min-height:44px; background:none; border:0; color:inherit; font-size:24px; cursor:pointer; }
+.map-recorded-label { font-size:11px; color:var(--muted); margin:8px 0 18px; }
+.map-record-browser label { display:block; font-size:12px; margin:14px 0 5px; color:var(--muted); }
+.map-record-browser :is(input, select) { width:100%; min-height:44px; font:14px/1.5 system-ui; padding:6px; border:1px solid var(--line, #485159); border-radius:5px; background:var(--bg, #17191c); color:var(--text, #e7e8ea); }
+/* The app's panels, inside the frame rather than the window. */
+.map-frame .story-panel { top:60px; bottom:12px; }
+.map-frame .sessions-list { bottom:0; max-height:30%; }
+.map-frame:has(.story-panel) .sessions-list { right:calc(min(30rem, 100% - 1.5rem) + 1.5rem); }
+.map-frame .arc-handle { position:absolute; top:0; height:48px; }
+.map-frame .arc-overlay { position:absolute; top:48px; z-index:60; bottom:0; height:auto; max-height:none; }
+.map-frame .arc-overlay .arc-handle { top:-48px; }
+
+/* On touch the map is still until tapped (ADR-1091 D2): a layer over it takes the tap, and lets a thumb scroll the page. */
+.map-tap { position:absolute; inset:0; z-index:70; display:flex; align-items:center; justify-content:center; padding:0; border:0; background:linear-gradient(#0d111400, #0d111455); color:#f0f0e7; touch-action:pan-y pinch-zoom; cursor:pointer; }
+.map-tap span { padding:12px 20px; border:1px solid #5b666b; border-radius:999px; background:#101418e6; font:600 15px/1.4 system-ui, sans-serif; box-shadow:0 8px 24px #0008; }
+.map-exit { position:absolute; z-index:70; left:50%; bottom:calc(var(--map-sessions, 0px) + 14px); translate:-50% 0; min-height:44px; padding:10px 18px; border:1px solid #5b666b; border-radius:999px; background:#101418; color:#f0f0e7; font:600 14px/1.4 system-ui, sans-serif; cursor:pointer; box-shadow:0 8px 24px #0008; }
+.map-frame[data-hand="page"] .forest-drawing { pointer-events:none; }
+
+@media (max-width:600px) {
+  #chapter2 { padding:14px 12px 40px; }
+  .map-heading { gap:8px; }
+  .map-heading h1 { font-size:21px; }
+  #chapter2 .map-lead { margin:22px auto 16px; font-size:27px; }
+  .map-frame { height:min(72svh, 620px); min-height:420px; border-radius:12px; }
+  .map-frame .forest-views { top:58px; left:10px; }
+  .map-frame .forest-views button, .map-browse-toggle { min-height:44px; }
+  .map-browse-toggle { top:58px; left:172px; }
+  .map-frame .sheet-compass { top:52px; right:4px; }
+  .map-frame .sheet-compass svg { width:72px; height:72px; }
+  .map-frame .story-panel { top:110px; bottom:8px; width:calc(100% - 24px); }
+  .map-frame:has(.story-panel) .sessions-list { right:0; visibility:hidden; }
+  .map-frame .sessions-list .session-legend { display:none; }
+  .map-frame .sessions-list { max-height:26%; }
+  .map-frame .arc-panes { grid-template-columns:minmax(0,1fr); grid-template-rows:1fr 1fr; }
+  .map-zoom { display:none; }
+  .map-frame[data-hand="map"] .map-zoom { display:flex; }
+}
+
+/* An open panel keeps the frame's right side to itself (the owner's screenshot, 2026-10-22): the compass, which sat on its close
+   button, and zoom step off it until it closes, and on touch Done exploring takes a row the panel leaves under itself. After the
+   phone rules, so it wins over zoom shown in hand. */
+.map-frame:has(.story-panel) .sheet-compass, .map-frame:has(.story-panel) .map-zoom { display:none; }
+.map-frame:has(.story-panel):has(> .map-exit:not([hidden])) .story-panel { bottom:68px; }
+.map-frame:has(.story-panel) .map-exit { left:auto; right:12px; bottom:14px; translate:none; }

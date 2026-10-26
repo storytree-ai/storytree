@@ -1,0 +1,13 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "allowJs": true
+  },
+  "include": [
+    "src/claude-code-mod"
+  ],
+  "exclude": [
+    "src/claude-code-mod/plugin/.claude-plugin",
+    "src/claude-code-mod/plugin/tsconfig.json"
+  ]
+}

@@ -1,0 +1,28 @@
+packages:
+  - "packages/*"
+  - "apps/*"
+
+catalog:
+  happy-dom: 20.14.5
+
+# Only these dependencies run their install scripts; any other's is left unrun. Add a package only when
+# a test proves it needs its script. onnxruntime-node's download is skipped (ONNXRUNTIME_NODE_INSTALL).
+onlyBuiltDependencies:
+  - "@embedded-postgres/darwin-arm64"
+  - "@embedded-postgres/darwin-x64"
+  - "@embedded-postgres/linux-arm64"
+  - "@embedded-postgres/linux-x64"
+  - "@embedded-postgres/windows-x64"
+  - electron
+  - esbuild
+  - koffi
+ignoredBuiltDependencies:
+  - electron-winstaller
+  - onnxruntime-node
+  - protobufjs
+
+# A version is installed only once it has been published for 3 days (in minutes).
+minimumReleaseAge: 4320
+
+overrides:
+  brace-expansion@2: ^2.1.7

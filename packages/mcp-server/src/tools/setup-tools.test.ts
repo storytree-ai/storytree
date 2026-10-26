@@ -1,0 +1,706 @@
+/**
+ * The setup check's two tools, check_setup and set_up_project, as an agent calls them through the MCP
+ * server: the setup contracts 8.4-8.24, numbered as the agent link had them, that only a call through the server shows, and 7.7, the
+ * habits card in their answers. The setup work itself is the app setup's, and its own tests stay there.
+ *
+ * Each test works in a throwaway home: its own Claude Code config folder and Codex home, holding
+ * settings of the user's own that the setup check must leave alone, and a storytree home that says
+ * where storytree listens (a copy of the test Postgres's owner record) or how to open it.
+ */
+import assert from "node:assert/strict";
+import { execFileSync, spawn } from "node:child_process";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import { after, before, test } from "node:test";
+import { fileURLToPath } from "node:url";
+
+import { noteCodexHookRan, noteHookFailure, type Homes } from "@storytree/session-management";
+import { MARKER_FILE } from "@storytree/project-and-caller";
+import { CHECK_FILE, registerHooks, type GhState, type HookCommand } from "@storytree/app-setup/setup";
+import { buildBins } from "@storytree/app-setup/bins";
+import { STARTER_PACK_VERSION } from "@storytree/app-setup/project";
+import { withTempDir } from "@storytree/project-and-caller/testing/folders";
+import { approveCheckout, dropTestProjects, placeTestServer, testServerUrl, uniqueProjectName } from "@storytree/project-and-caller/testing/pg";
+import { connect } from "@storytree/library";
+
+import { habitsCard } from "../instructions/habits.js";
+import { claudeCode, codex, withAgent } from "../testing/agent.js";
+
+/** The hook fixtures Session management's own hook tests run on: a harness's input, as it sends it. */
+const FIXTURES = path.join(path.dirname(fileURLToPath(import.meta.resolve("@storytree/session-management"))), "hooks", "fixtures");
+
+/** A hook command as the setup check registers it: registering never runs it. */
+const HOOK: HookCommand = { node: process.execPath, script: path.join(tmpdir(), "storytree", "dist", "storytree-hook.mjs") };
+
+let bins: string;
+let hookScript: string;
+
+before(async () => {
+  bins = mkdtempSync(path.join(tmpdir(), "storytree-link-bins-"));
+  hookScript = (await buildBins(bins))["storytree-hook"]!;
+});
+
+after(() => {
+  rmSync(bins, { recursive: true, force: true });
+});
+
+/**
+ * What gh and the machine answer, for tests about something else: asking this machine's own gh,
+ * Claude Code and Codex is slow, differs between machines, and once hung the suite (2026-09-28).
+ */
+const ANSWERED = {
+  gh: async () => "signed in" as const,
+  machine: async () => ({ claude: "signed in", codex: "signed in", git: "present", node: { state: "ok", version: "v24.1.0" }, waitMs: 5_000 }) as const,
+};
+
+/** The user's own settings, which the setup check must leave as they are. */
+const CLAUDE_SETTINGS = {
+  permissions: { allow: ["Bash(npm test:*)"] },
+  model: "opus",
+  hooks: { PreToolUse: [{ matcher: "Bash", hooks: [{ type: "command", command: "echo mine" }] }] },
+};
+const CODEX_CONFIG = 'model = "gpt-5"\n\n[mcp_servers.storytree]\ncommand = "node"\nargs = ["storytree-mcp.mjs"]\n';
+
+interface Home {
+  homes: Required<Pick<Homes, "claude" | "codex">>;
+  claudeSettings: string;
+  codexConfig: string;
+  codexHooks: string;
+  /** A storytree home whose owner record says storytree listens where the test Postgres does. */
+  storytreeHome: string;
+}
+
+/** A throwaway home with only the storytree tool server installed, and storytree running. */
+function throwawayHome(dir: string): Home {
+  const claude = path.join(dir, ".claude");
+  const codexHome = path.join(dir, ".codex");
+  const storytreeHome = path.join(dir, ".storytree", "0.3");
+  for (const folder of [claude, codexHome, storytreeHome]) mkdirSync(folder, { recursive: true });
+  writeFileSync(path.join(claude, "settings.json"), `${JSON.stringify(CLAUDE_SETTINGS, null, 2)}\n`);
+  writeFileSync(path.join(codexHome, "config.toml"), CODEX_CONFIG);
+  placeTestServer(path.join(storytreeHome, "pgdata"));
+  return {
+    homes: { claude, codex: codexHome },
+    claudeSettings: path.join(claude, "settings.json"),
+    codexConfig: path.join(codexHome, "config.toml"),
+    codexHooks: path.join(codexHome, "hooks.json"),
+    storytreeHome,
+  };
+}
+
+function readJson(file: string): Record<string, unknown> {
+  return JSON.parse(readFileSync(file, "utf8")) as Record<string, unknown>;
+}
+
+test("app-setup 8.4 setup records the chosen project only after a successful yes, never on an existing-project check", async () => {
+  await withTempDir(async (dir) => {
+    const home = throwawayHome(dir);
+    const [name, factory] = [uniqueProjectName(), uniqueProjectName()];
+    const folder = path.join(dir, name);
+    mkdirSync(folder);
+    const storytree = await connect({ url: testServerUrl() });
+    try {
+      const choice = path.join(home.storytreeHome, "project-choice.json");
+      await withAgent(folder, claudeCode("claude-1", { dataDir: path.join(home.storytreeHome, "pgdata"), setup: { homes: home.homes, storytreeHome: home.storytreeHome, factory } }), async (agent) => {
+        const checked = await agent.call("check_setup");
+        assert.equal(checked.isError, false, checked.text);
+        assert.deepEqual(checked.data.project, { status: "ask", suggestion: name });
+        assert.match(checked.text, /not a storytree project/);
+        assert.match(checked.text, /Add project/);
+        assert.match(checked.text, /storytree doctor --set-up/);
+        assert.doesNotMatch(checked.text, /[Aa]sk the user|set_up_project/, "the agent is not told to offer setup (ADR-0752 D3)");
+        assert.equal(existsSync(path.join(folder, MARKER_FILE)), false, "no marker before a yes");
+        assert.equal((await storytree.listProjects()).includes(name), false, "no project before a yes");
+        assert.equal(existsSync(choice), false, "no choice before a yes");
+        const refused = await agent.call("set_up_project", { name: "Invalid Name" });
+        assert.equal(refused.isError, true);
+        assert.equal(existsSync(choice), false, "a refused setup records no choice");
+
+        mkdirSync(choice); // an unwritable choice destination, on every supported OS
+        const unsaved = await agent.call("set_up_project", { name });
+        assert.equal(unsaved.isError, true, "setup cannot report success without saving the choice");
+        assert.equal(existsSync(path.join(folder, MARKER_FILE)), false, "a failed choice write leaves setup retryable");
+        rmSync(choice, { recursive: true });
+
+        const yes = await agent.call("set_up_project", { name });
+        assert.equal(yes.isError, false, yes.text);
+        assert.equal(readJson(path.join(folder, MARKER_FILE)).project, name);
+        assert.ok((await storytree.listProjects()).includes(name), "the project, once the user said yes");
+        assert.equal(readJson(choice).current, name, "yes records the choice in the app's home");
+        writeFileSync(choice, JSON.stringify({ current: "another-project" }));
+        assert.deepEqual((await agent.call("check_setup")).data.project, { status: "set up", name });
+        await agent.call("set_up_project", { name });
+        assert.equal(readJson(choice).current, "another-project", "neither an existing-project check nor a repeated tool call chooses it");
+      });
+      await withAgent(folder, claudeCode("claude-2", { dataDir: path.join(home.storytreeHome, "pgdata"), setup: { homes: home.homes, storytreeHome: home.storytreeHome } }), async (agent) => {
+        await agent.call("check_setup");
+        assert.equal(readJson(choice).current, "another-project", "an ordinary new agent session records no choice");
+      });
+    } finally {
+      await storytree.close();
+      await dropTestProjects([name, factory]);
+    }
+  });
+});
+
+test("app-setup 8.5 the agent fires a test of each hook, and the connection shows as verified only when storytree has received every one; until then it names the missing hook and the fix", async () => {
+  const project = uniqueProjectName();
+  await withTempDir(async (dir) => {
+    const home = throwawayHome(dir);
+    const folder = path.join(dir, "site");
+    mkdirSync(folder);
+    writeFileSync(path.join(folder, MARKER_FILE), `${JSON.stringify({ project })}\n`);
+    await approveCheckout(folder, project, home.storytreeHome);
+    const setup = {
+      dataDir: path.join(home.storytreeHome, "pgdata"),
+      setup: { ...ANSWERED, homes: home.homes, storytreeHome: home.storytreeHome },
+    };
+    try {
+      const server = await connect({ url: testServerUrl() });
+      await (await server.openProject(project)).close().finally(() => server.close()); // set up, as a marked folder's project is
+      await withAgent(folder, claudeCode("claude-1", setup), async (agent) => {
+        const check = async () => {
+          const { verified, missing, fixes } = (await agent.call("check_setup")).data as { verified: boolean; missing: string[]; fixes: string[] };
+          return { verified, missing, fixes };
+        };
+        assert.deepEqual(await check(), {
+          verified: false,
+          missing: ["session start", "storytree tool call", "file edit", "command"],
+          fixes: ["new-session", "edit-check-file", "run-check-command"],
+        });
+
+        // The hooks fire, as Claude Code runs them for this session in this folder.
+        await fireHook(home.storytreeHome, "claude-code", "session-start-startup", folder, "claude-1");
+        assert.deepEqual((await check()).missing, ["storytree tool call", "file edit", "command"]);
+        // The hook before each storytree tool call: calling check_setup fires it.
+        await fireHook(home.storytreeHome, "claude-code", "pre-tool-use-storytree", folder, "claude-1");
+        assert.deepEqual((await check()).missing, ["file edit", "command"]);
+        await fireHook(home.storytreeHome, "claude-code", "post-tool-use-write", folder, "claude-1");
+        assert.deepEqual((await check()).missing, ["command"]);
+        await fireHook(home.storytreeHome, "claude-code", "post-tool-use-bash", folder, "claude-1");
+        assert.deepEqual(await check(), { verified: true, missing: [], fixes: [] });
+      });
+
+      // A Codex session whose hooks have not run is told only the fix that is Codex's own, its one-time
+      // approval: an edit or a command could not reach storytree before it, and would leave a check file behind.
+      await withAgent(folder, codex("codex-1", setup), async (agent) => {
+        const answer = await agent.call("check_setup");
+        const { verified, missing, fixes } = answer.data as { verified: boolean; missing: string[]; fixes: string[] };
+        assert.deepEqual({ verified, missing, fixes }, { verified: false, missing: ["session start", "storytree tool call", "file edit", "command"], fixes: ["codex-approval"] });
+        assert.doesNotMatch(answer.text, /storytree-check/);
+      });
+    } finally {
+      await dropTestProjects([project]);
+    }
+  });
+});
+
+test("6.64 check_setup from an MCP client storytree has no hooks for passes as connected, says what storytree does not do for it and names the session id for its shells; a watched harness whose hooks are missing still needs attention", async () => {
+  const project = uniqueProjectName();
+  await withTempDir(async (dir) => {
+    const home = throwawayHome(dir);
+    const folder = path.join(dir, "site");
+    mkdirSync(folder);
+    writeFileSync(path.join(folder, MARKER_FILE), `${JSON.stringify({ project })}\n`);
+    // A repository with its origin, so the check has nothing to say of it (8.31).
+    for (const args of [["init", "-q"], ["remote", "add", "origin", "https://github.com/someone/site.git"]]) execFileSync("git", args, { cwd: folder, stdio: "ignore" });
+    await approveCheckout(folder, project, home.storytreeHome);
+    // Neither watched harness is on this machine: the session is connected through another client.
+    const missing = async () => ({ claude: "missing", codex: "missing", git: "present", node: { state: "ok", version: "v24.1.0" }, waitMs: 5_000 }) as const;
+    const setup = { dataDir: path.join(home.storytreeHome, "pgdata"), setup: { ...ANSWERED, machine: missing, homes: home.homes, storytreeHome: home.storytreeHome } };
+    try {
+      const server = await connect({ url: testServerUrl() });
+      await (await server.openProject(project)).close().finally(() => server.close());
+      await withAgent(folder, { client: "zed", env: { STORYTREE_SESSION_ID: "zed-chat-1" }, ...setup }, async (agent) => {
+        const answer = await agent.call("check_setup");
+        assert.equal(answer.isError, false, answer.text);
+        assert.equal(answer.data.tier, "connected");
+        assert.equal(answer.data.passed, true);
+        assert.deepEqual(answer.data.fixes, []);
+        assert.equal((answer.data.lines as { state: string }[]).some((line) => line.state === "needs-attention"), false, JSON.stringify(answer.data.lines));
+        for (const unseen of [/edits/, /commands/, /refuse an edit/, /context reading/, /transcript/]) assert.match(answer.text, unseen);
+        assert.match(answer.text, /STORYTREE_SESSION_ID=zed-chat-1/);
+        assert.doesNotMatch(answer.text, /Not verified yet/);
+      });
+      await withAgent(folder, claudeCode("claude-1", setup), async (agent) => {
+        const answer = await agent.call("check_setup");
+        assert.equal(answer.data.tier, "watched");
+        assert.equal(answer.data.passed, false);
+        assert.match(answer.text, /Not verified yet/);
+      });
+    } finally {
+      await dropTestProjects([project]);
+    }
+  });
+});
+
+test("app-setup 13.5: the hooks-verified milestone is reported only once check_setup verifies all four of the current session's hooks; incomplete evidence, or another session's, reports none", async () => {
+  const project = uniqueProjectName();
+  await withTempDir(async (dir) => {
+    const home = throwawayHome(dir);
+    const folder = path.join(dir, "site");
+    mkdirSync(folder);
+    writeFileSync(path.join(folder, MARKER_FILE), `${JSON.stringify({ project })}\n`);
+    await approveCheckout(folder, project, home.storytreeHome);
+    let milestones = 0;
+    const setup = {
+      dataDir: path.join(home.storytreeHome, "pgdata"),
+      setup: { ...ANSWERED, homes: home.homes, storytreeHome: home.storytreeHome },
+      journey: { hooksVerified: () => { milestones++; } },
+    };
+    try {
+      const server = await connect({ url: testServerUrl() });
+      await (await server.openProject(project)).close().finally(() => server.close());
+      await withAgent(folder, claudeCode("claude-1", setup), async (agent) => {
+        await fireHook(home.storytreeHome, "claude-code", "session-start-startup", folder, "claude-1");
+        await fireHook(home.storytreeHome, "claude-code", "pre-tool-use-storytree", folder, "claude-1");
+        await fireHook(home.storytreeHome, "claude-code", "post-tool-use-write", folder, "claude-1");
+        await agent.call("check_setup");
+        assert.equal(milestones, 0, "three of four hooks report nothing");
+        await fireHook(home.storytreeHome, "claude-code", "post-tool-use-bash", folder, "claude-1");
+        await agent.call("check_setup");
+        assert.equal(milestones, 1);
+      });
+      // Another session in the same folder: claude-1's hooks are not its evidence.
+      await withAgent(folder, claudeCode("claude-2", setup), async (agent) => {
+        assert.equal(((await agent.call("check_setup")).data as { verified: boolean }).verified, false);
+        assert.equal(milestones, 1, "another session's evidence reports nothing");
+      });
+    } finally {
+      await dropTestProjects([project]);
+    }
+  });
+});
+
+test("app-setup 8.21 a Codex session that set its project up during the session, while Codex's hooks are known to run, is told what Claude Code is told: start a new session here and check again; never the trust step, which stays for a Codex whose hooks have never run (regression: Conduit 1 on the reset laptop, 2026-10-01)", async () => {
+  const project = uniqueProjectName();
+  await withTempDir(async (dir) => {
+    const home = throwawayHome(dir);
+    const folder = path.join(dir, "site");
+    mkdirSync(folder);
+    writeFileSync(path.join(folder, MARKER_FILE), `${JSON.stringify({ project })}\n`);
+    await approveCheckout(folder, project, home.storytreeHome);
+    const setup = { dataDir: path.join(home.storytreeHome, "pgdata"), setup: { ...ANSWERED, homes: home.homes, storytreeHome: home.storytreeHome } };
+    try {
+      const server = await connect({ url: testServerUrl() });
+      await (await server.openProject(project)).close().finally(() => server.close());
+      // storytree's hooks are registered for Codex and one of them has run on this machine: Codex trusts them.
+      registerHooks(home.homes, HOOK);
+      noteCodexHookRan({ storytreeHome: home.storytreeHome, codexHome: home.homes.codex });
+      // This session started before its folder was a project, so storytree heard none of its hooks.
+      await withAgent(folder, codex("codex-1", setup), async (agent) => {
+        const answer = await agent.call("check_setup");
+        assert.deepEqual((answer.data as { fixes: string[] }).fixes, ["new-session", "edit-check-file", "run-check-command"]);
+        assert.match(answer.text, /start a new session here/);
+        assert.doesNotMatch(answer.text, /type \/hooks/);
+      });
+    } finally {
+      await dropTestProjects([project]);
+    }
+  });
+});
+
+test("7.7 set_up_project's answer and check_setup's in a project carry the whole habits card, so an agent whose harness keeps only the start of the server's instructions still gets all of it (regression: Claude Code kept 2,048 characters in the shop's first session, 2026-10-04)", async () => {
+  const [name, factory] = [uniqueProjectName(), uniqueProjectName()];
+  await withTempDir(async (dir) => {
+    const home = throwawayHome(dir);
+    const folder = path.join(dir, name);
+    mkdirSync(folder);
+    try {
+      await withAgent(folder, claudeCode(`claude-${name}`, { dataDir: path.join(home.storytreeHome, "pgdata"), setup: { ...ANSWERED, homes: home.homes, storytreeHome: home.storytreeHome, factory } }), async (agent) => {
+        const setUp = await agent.call("set_up_project", { name });
+        assert.ok(setUp.text.includes(habitsCard()), "set_up_project's answer lacks the card");
+        const checked = await agent.call("check_setup");
+        assert.ok(checked.text.includes(habitsCard()), "check_setup's answer lacks the card");
+      });
+    } finally {
+      await dropTestProjects([name, factory]);
+    }
+  });
+});
+
+test("app-setup 8.22 a session that sets its project up finishes the setup in that answer: the starter roles and a new session to verify its hooks, or Codex's trust step, never a second check_setup in this session (regression: Codex's approval review refused the second check, 2026-10-01)", async () => {
+  const [claudes, codexes, waiting, factory] = [uniqueProjectName(), uniqueProjectName(), uniqueProjectName(), uniqueProjectName()];
+  await withTempDir(async (dir) => {
+    const home = throwawayHome(dir);
+    const setup = { dataDir: path.join(home.storytreeHome, "pgdata"), setup: { ...ANSWERED, homes: home.homes, storytreeHome: home.storytreeHome, factory } };
+    const setUp = async (name: string, agentFor: typeof claudeCode) => {
+      const folder = path.join(dir, name);
+      mkdirSync(folder);
+      let answer: { isError: boolean; text: string; data: Record<string, unknown> } | undefined;
+      await withAgent(folder, agentFor(`agent-${name}`, setup), async (agent) => {
+        answer = await agent.call("set_up_project", { name });
+      });
+      return answer!;
+    };
+    try {
+      registerHooks(home.homes, HOOK);
+      // Codex has storytree's hooks but none has run: the user has not trusted them yet.
+      const untrusted = await setUp(waiting, codex);
+      assert.equal(untrusted.isError, false, untrusted.text);
+      assert.deepEqual(untrusted.data.fixes, ["codex-approval"]);
+      assert.match(untrusted.text, /type \/hooks/);
+
+      noteCodexHookRan({ storytreeHome: home.storytreeHome, codexHome: home.homes.codex });
+      for (const [name, agentFor] of [[claudes, claudeCode], [codexes, codex]] as const) {
+        const answer = await setUp(name, agentFor);
+        assert.equal(answer.isError, false, answer.text);
+        assert.deepEqual(answer.data.starterRoles, [], "the bare bones hold no role (ADR-1094 D1)");
+        assert.deepEqual(answer.data.fixes, ["new-session"], "no edit or command test, which only a session started in the project could complete");
+        assert.match(answer.text, /new session/);
+        assert.doesNotMatch(answer.text, /type \/hooks/);
+      }
+    } finally {
+      await dropTestProjects([claudes, codexes, waiting, factory]);
+    }
+  });
+});
+
+
+/** Run the built hook as `harness` runs it, with a recorded input moved to `folder` and `session`. */
+function fireHook(storytreeHome: string, harness: string, fixture: string, folder: string, session: string, changed: Record<string, unknown> = {}): Promise<void> {
+  const input = { ...(readJson(path.join(FIXTURES, harness, `${fixture}.json`)) as object), cwd: folder, session_id: session, ...changed };
+  return new Promise((resolve, reject) => {
+    const child = spawn(process.execPath, [hookScript, harness], { env: { ...process.env, STORYTREE_HOME: storytreeHome }, stdio: ["pipe", "ignore", "ignore"] });
+    child.on("error", reject);
+    child.on("exit", () => resolve());
+    child.stdin.end(JSON.stringify(input));
+  });
+}
+
+test("app-setup 8.8 with gh missing, signed out or signed in, the agent is never asked to install or sign in to it, in check_setup's text or its data", async () => {
+  await withTempDir(async (dir) => {
+    const home = throwawayHome(dir);
+    const said = async (gh: GhState): Promise<string> => {
+      let text = "";
+      const setup = { ...ANSWERED, homes: home.homes, storytreeHome: home.storytreeHome, gh: async () => gh };
+      await withAgent(dir, claudeCode("claude-1", { dataDir: path.join(home.storytreeHome, "pgdata"), setup }), async (agent) => {
+        const checked = await agent.call("check_setup");
+        // The data too: an agent reads it as closely as the text (Claude Code repeated a note from it, PR #263).
+        text = `${checked.text} ${JSON.stringify(checked.data)}`;
+      });
+      return text;
+    };
+    // Owner, 2026-09-29 (question_bb3efa1e3191): "dont list them as fixes".
+    for (const gh of ["missing", "signed out", "signed in"] as const) {
+      const text = await said(gh);
+      assert.doesNotMatch(text, /\bgh\b/, `${gh}: ${text}`);
+    }
+  });
+});
+
+test("app-setup 8.11 a Claude Code or Codex session calling check_setup is signed in to its own harness, though the tool server's ask says signed out (a CLAUDE_CODE_OAUTH_TOKEN sign-in it never sees)", async () => {
+  await withTempDir(async (dir) => {
+    const home = throwawayHome(dir);
+    const agentLine = async (agent: typeof claudeCode, signedOut: "claude" | "codex") => {
+      const other = signedOut === "claude" ? "codex" : "claude";
+      const machine = async () => ({ ...(await ANSWERED.machine()), [signedOut]: "signed out", [other]: "missing" }) as const;
+      const setup = { ...ANSWERED, machine, homes: home.homes, storytreeHome: home.storytreeHome };
+      let line: unknown;
+      await withAgent(dir, agent(`${signedOut}-1`, { dataDir: path.join(home.storytreeHome, "pgdata"), setup }), async (session) => {
+        const checked = await session.call("check_setup");
+        line = (checked.data.lines as { check: string }[]).find((each) => each.check === "agent-cli");
+      });
+      return line as { state: string; message: string };
+    };
+    const claudeLine = await agentLine(claudeCode, "claude");
+    assert.equal(claudeLine.state, "ok", JSON.stringify(claudeLine));
+    assert.match(claudeLine.message, /Claude Code is installed and signed in/);
+    const codexLine = await agentLine(codex, "codex");
+    assert.equal(codexLine.state, "ok", JSON.stringify(codexLine));
+    assert.match(codexLine.message, /Codex is installed and signed in/);
+  });
+});
+
+test("app-setup 8.19 in a project whose library holds the starter roles, the check names them for the agent to open; a project without them, a new one on the bare bones included, is told of none", async () => {
+  await withTempDir(async (dir) => {
+    const home = throwawayHome(dir);
+    const [seeded, older, factory] = [uniqueProjectName(), uniqueProjectName(), uniqueProjectName()];
+    const storytree = await connect({ url: testServerUrl() });
+    try {
+      const agentIn = (folder: string) => claudeCode(`claude-${path.basename(folder)}`, { dataDir: path.join(home.storytreeHome, "pgdata"), setup: { homes: home.homes, storytreeHome: home.storytreeHome, factory } });
+      const newFolder = path.join(dir, seeded);
+      mkdirSync(newFolder);
+      await withAgent(newFolder, agentIn(newFolder), async (agent) => {
+        assert.equal((await agent.call("set_up_project", { name: seeded })).isError, false);
+        assert.deepEqual((await agent.call("check_setup")).data.starterRoles, [], "the bare bones hold no role");
+        // The user asks for three roles back (ADR-1094 D2), taken into this test's own factory.
+        const took = await agent.call("take_starter_pack", { include: ["change-reviewer", "orchestrator", "librarian"] });
+        assert.equal(took.isError, false, took.text);
+        const checked = await agent.call("check_setup");
+        assert.deepEqual(checked.data.starterRoles, ["orchestrator", "librarian", "change-reviewer"]);
+        assert.match(checked.text, /holds the orchestrator, librarian and change-reviewer roles/);
+        const refused = await agent.call("take_starter_pack", { include: ["tester"] });
+        assert.equal(refused.isError, true);
+        assert.match(refused.text, /"tester" is no part of the starter pack/);
+      });
+      // A project set up before the starter pack: its library has no roles to name.
+      const oldFolder = path.join(dir, older);
+      mkdirSync(oldFolder);
+      await (await storytree.openProject(older)).close();
+      writeFileSync(path.join(oldFolder, MARKER_FILE), `${JSON.stringify({ project: older })}\n`);
+      await approveCheckout(oldFolder, older, home.storytreeHome);
+      await withAgent(oldFolder, agentIn(oldFolder), async (agent) => {
+        const checked = await agent.call("check_setup");
+        assert.deepEqual(checked.data.starterRoles, []);
+        assert.doesNotMatch(checked.text, /orchestrator|librarian/);
+      });
+    } finally {
+      await storytree.close();
+      await dropTestProjects([seeded, older, factory]);
+    }
+  });
+});
+
+test("app-setup 8.26 in a project an earlier starter pack seeded, or a product project whose factory it seeded, the check names the seeded and current versions and offers take_starter_pack while it would add or replace something and the server serves it, taken into the factory for the product; once taken, or in a project never seeded, it offers nothing", async () => {
+  await withTempDir(async (dir) => {
+    const home = throwawayHome(dir);
+    const [earlier, never, factory, product] = [uniqueProjectName(), uniqueProjectName(), uniqueProjectName(), uniqueProjectName()];
+    const storytree = await connect({ url: testServerUrl() });
+    try {
+      const agentIn = (folder: string) => claudeCode(`claude-${path.basename(folder)}`, { dataDir: path.join(home.storytreeHome, "pgdata"), setup: { ...ANSWERED, homes: home.homes, storytreeHome: home.storytreeHome } });
+      const projectFolder = async (project: string) => {
+        const folder = path.join(dir, project);
+        mkdirSync(folder);
+        writeFileSync(path.join(folder, MARKER_FILE), `${JSON.stringify({ project })}\n`);
+        await approveCheckout(folder, project, home.storytreeHome);
+        return folder;
+      };
+      // The check's own answer, before the habits card that follows it and names every tool.
+      const answered = (text: string) => text.split("\n\nHow to work with storytree")[0]!;
+      // Version 1 of the pack seeded this one: a principle whose statement the pack has since changed.
+      const library = await storytree.openProject(earlier);
+      const v1 = { title: "Minimum to green", description: "Build only what the next failing test needs.", statement: "Write the least code that passes.", why: "Less to fix.", howToApply: "Name the behaviour first." };
+      await library.writeKnowledge("principle", v1, { actor: "storytree setup (starter pack v1)" });
+      await library.close();
+      await (await storytree.openProject(never)).close();
+      // A product holding no copy, reading its pack from a factory version 1 seeded.
+      const made = await storytree.openProject(factory);
+      await made.markFactory();
+      await made.writeKnowledge("principle", v1, { actor: "storytree setup (starter pack v1)" });
+      await made.close();
+      const built = await storytree.openProject(product);
+      await built.recordFactory(factory);
+      await built.close();
+
+      const earlierFolder = await projectFolder(earlier);
+      // With App setup switched off take_starter_pack is not served, so the check offers it not (ADR-1095).
+      writeFileSync(path.join(home.storytreeHome, "settings.json"), JSON.stringify({ "parts-off": ["app-setup"] }));
+      await withAgent(earlierFolder, agentIn(path.join(dir, earlier)), async (agent) => {
+        const checked = await agent.call("check_setup");
+        assert.deepEqual(checked.data.starterPack, { seeded: 1, current: STARTER_PACK_VERSION, offered: true });
+        assert.doesNotMatch(answered(checked.text), /take_starter_pack/);
+      });
+      rmSync(path.join(home.storytreeHome, "settings.json"));
+      await withAgent(earlierFolder, agentIn(path.join(dir, earlier)), async (agent) => {
+        const offered = await agent.call("check_setup");
+        assert.deepEqual(offered.data.starterPack, { seeded: 1, current: STARTER_PACK_VERSION, offered: true });
+        assert.match(offered.text, new RegExp(`starter pack v1\\b.*v${STARTER_PACK_VERSION}\\b`));
+        assert.match(answered(offered.text), /take_starter_pack/);
+        const took = await agent.call("take_starter_pack");
+        assert.equal(took.isError, false, took.text);
+        assert.deepEqual((took.data.replaced as { title: string }[]).map(({ title }) => title), ["Minimum to green"]);
+        const taken = await agent.call("check_setup");
+        assert.deepEqual(taken.data.starterPack, { seeded: STARTER_PACK_VERSION, current: STARTER_PACK_VERSION, offered: false });
+        assert.doesNotMatch(answered(taken.text), /take_starter_pack/);
+      });
+      await withAgent(await projectFolder(never), agentIn(path.join(dir, never)), async (agent) => {
+        const checked = await agent.call("check_setup");
+        assert.deepEqual(checked.data.starterPack, { seeded: null, current: STARTER_PACK_VERSION, offered: false });
+        assert.doesNotMatch(answered(checked.text), /take_starter_pack/);
+      });
+      await withAgent(await projectFolder(product), agentIn(path.join(dir, product)), async (agent) => {
+        const offered = await agent.call("check_setup");
+        assert.deepEqual(offered.data.starterPack, { seeded: 1, current: STARTER_PACK_VERSION, offered: true, factory });
+        assert.match(answered(offered.text), new RegExp(`factory "${factory}".*starter pack v1\\b.*take_starter_pack`));
+        const took = await agent.call("take_starter_pack");
+        assert.equal(took.isError, false, took.text);
+        assert.equal(took.data.factory, factory);
+        assert.match(took.text, new RegExp(`into the factory "${factory}"`));
+        assert.deepEqual((took.data.replaced as { title: string }[]).map(({ title }) => title), ["Minimum to green"]);
+        const taken = await agent.call("check_setup");
+        assert.deepEqual(taken.data.starterPack, { seeded: STARTER_PACK_VERSION, current: STARTER_PACK_VERSION, offered: false, factory });
+      });
+    } finally {
+      await storytree.close();
+      await dropTestProjects([earlier, never, factory, product]);
+    }
+  });
+});
+
+test("app-setup 6.12 move_onto_factory, on the user's yes, drops the project's unedited copies its factory holds and keeps the ones the user edited, naming each", async () => {
+  await withTempDir(async (dir) => {
+    const home = throwawayHome(dir);
+    const [project, factory] = [uniqueProjectName(), uniqueProjectName()];
+    const storytree = await connect({ url: testServerUrl() });
+    try {
+      const principle = (title: string, statement: string) => ({ title, description: "Build only what the next failing test needs.", statement, why: "Less to fix.", howToApply: "Name the behaviour first." });
+      const made = await storytree.openProject(factory);
+      await made.markFactory();
+      const theirs = await made.writeKnowledge("principle", principle("Minimum to green", "The factory's statement."), { actor: "storytree setup (starter pack v5)" });
+      await made.writeKnowledge("principle", principle("Edit before adding", "The factory's statement."), { actor: "storytree setup (starter pack v5)" });
+      await made.close();
+      // A product made before it stopped holding copies: one copy unedited, one its user edited.
+      const library = await storytree.openProject(project);
+      await library.recordFactory(factory);
+      const copy = await library.writeKnowledge("principle", principle("Minimum to green", "The copy's statement."), { actor: "storytree setup (starter pack v5)" });
+      const edited = await library.writeKnowledge("principle", principle("Edit before adding", "The copy's statement."), { actor: "storytree setup (starter pack v5)" });
+      await library.editNote(edited.id, { why: "Our own reason." }, { actor: "session:the-user" });
+      await library.close();
+
+      const folder = path.join(dir, project);
+      mkdirSync(folder);
+      writeFileSync(path.join(folder, MARKER_FILE), `${JSON.stringify({ project })}\n`);
+      await approveCheckout(folder, project, home.storytreeHome);
+      await withAgent(folder, claudeCode(`claude-${project}`, { dataDir: path.join(home.storytreeHome, "pgdata"), setup: { ...ANSWERED, homes: home.homes, storytreeHome: home.storytreeHome } }), async (agent) => {
+        const moved = await agent.call("move_onto_factory");
+        assert.equal(moved.isError, false, moved.text);
+        assert.deepEqual({ factory: moved.data.factory, dropped: moved.data.dropped, kept: moved.data.kept }, {
+          factory,
+          dropped: [{ kind: "principle", title: "Minimum to green", id: copy.id }],
+          kept: [{ kind: "principle", title: "Edit before adding", id: edited.id, why: "own" }],
+        });
+        assert.match(moved.text, new RegExp(`builds with the factory "${factory}": dropped 1 unedited copy.*Kept as this project's own: the principle "Edit before adding"\\.$`));
+      });
+      const after = await storytree.openProject(project, { create: false });
+      assert.equal((await after.get(copy.id))?.id, theirs.id, "the dropped copy reads as the factory's");
+      await after.close();
+    } finally {
+      await storytree.close();
+      await dropTestProjects([project, factory]);
+    }
+  });
+});
+
+test("app-setup 8.20 once storytree has received the session's edit of the check file, the check deletes the file where the agent wrote it, in a worktree whose tool server runs in the project's folder and while the other hooks are still missing (regression: the laptop's worktree sessions, 2026-10-02)", async () => {
+  const project = uniqueProjectName();
+  await withTempDir(async (dir) => {
+    const home = throwawayHome(dir);
+    const folder = path.join(dir, "site");
+    const worktree = path.join(folder, ".claude", "worktrees", "a-worktree");
+    mkdirSync(worktree, { recursive: true });
+    writeFileSync(path.join(folder, MARKER_FILE), `${JSON.stringify({ project })}\n`);
+    await approveCheckout(folder, project, home.storytreeHome);
+    const setup = { dataDir: path.join(home.storytreeHome, "pgdata"), setup: { ...ANSWERED, homes: home.homes, storytreeHome: home.storytreeHome } };
+    try {
+      const server = await connect({ url: testServerUrl() });
+      await (await server.openProject(project)).close().finally(() => server.close());
+      // The agent writes the check file in its worktree with its own edit tool, and the edit hook reports it.
+      const checkFile = path.join(worktree, CHECK_FILE);
+      writeFileSync(checkFile, "check");
+      await fireHook(home.storytreeHome, "claude-code", "post-tool-use-write", worktree, "claude-1", { tool_input: { file_path: checkFile, content: "check" } });
+      await withAgent(folder, claudeCode("claude-1", setup), async (agent) => {
+        const { missing } = (await agent.call("check_setup")).data as { missing: string[] };
+        assert.deepEqual(missing, ["session start", "storytree tool call", "command"]);
+        assert.equal(existsSync(checkFile), false);
+      });
+    } finally {
+      await dropTestProjects([project]);
+    }
+  });
+});
+
+test("app-setup 8.24 the check tells a session the hook failures this machine traced for it (how many, and the latest's event, stage and error), so a session whose lines went missing can capture why; a session with none is told nothing of them", async () => {
+  const project = uniqueProjectName();
+  await withTempDir(async (dir) => {
+    const home = throwawayHome(dir);
+    const folder = path.join(dir, "site");
+    mkdirSync(folder);
+    writeFileSync(path.join(folder, MARKER_FILE), `${JSON.stringify({ project })}\n`);
+    await approveCheckout(folder, project, home.storytreeHome);
+    const setup = { dataDir: path.join(home.storytreeHome, "pgdata"), setup: { ...ANSWERED, homes: home.homes, storytreeHome: home.storytreeHome } };
+    try {
+      const server = await connect({ url: testServerUrl() });
+      await (await server.openProject(project)).close().finally(() => server.close());
+      const who = { harness: "claude-code", event: "PreToolUse", session: "claude-1", toolUseId: "toolu_1" };
+      noteHookFailure(() => home.storytreeHome, who, "reach", new Error("timeout expired"));
+      noteHookFailure(() => home.storytreeHome, { ...who, toolUseId: "toolu_2" }, "write", Object.assign(new Error("EACCES: permission denied"), { code: "EACCES" }));
+      await withAgent(folder, claudeCode("claude-1", setup), async (agent) => {
+        const answer = await agent.call("check_setup");
+        const failures = (answer.data.hookFailures as { toolUseId: string; stage: string }[]).map(({ toolUseId, stage }) => ({ toolUseId, stage }));
+        assert.deepEqual(failures, [{ toolUseId: "toolu_1", stage: "reach" }, { toolUseId: "toolu_2", stage: "write" }]);
+        assert.match(answer.text, /2 hook failures/);
+        assert.match(answer.text, /EACCES: permission denied/);
+      });
+      await withAgent(folder, claudeCode("claude-2", setup), async (agent) => {
+        const answer = await agent.call("check_setup");
+        assert.deepEqual(answer.data.hookFailures, []);
+        assert.doesNotMatch(answer.text, /hook failure/);
+      });
+    } finally {
+      await dropTestProjects([project]);
+    }
+  });
+});
+
+test("6.70 set_up_project in a folder in no git repository makes one whose first commit holds the marker, and says so, or with no git identity makes it with the marker staged and asks the user for a name and email; a folder already in one is left as it is, and joining makes none", async () => {
+  const [fresh, inRepo, nameless, factory] = [uniqueProjectName(), uniqueProjectName(), uniqueProjectName(), uniqueProjectName()];
+  // The identity a user's git would have; CI's runners have none of their own.
+  const identity = { GIT_AUTHOR_NAME: "A User", GIT_AUTHOR_EMAIL: "user@example.invalid", GIT_COMMITTER_NAME: "A User", GIT_COMMITTER_EMAIL: "user@example.invalid" };
+  const before = Object.fromEntries([...Object.keys(identity), "GIT_CONFIG_GLOBAL", "GIT_CONFIG_NOSYSTEM"].map((key) => [key, process.env[key]]));
+  Object.assign(process.env, identity);
+  const git = (cwd: string, ...args: string[]) => execFileSync("git", args, { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();
+  await withTempDir(async (dir) => {
+    const home = throwawayHome(dir);
+    const setup = { dataDir: path.join(home.storytreeHome, "pgdata"), setup: { ...ANSWERED, homes: home.homes, storytreeHome: home.storytreeHome, factory } };
+    try {
+      const empty = path.join(dir, fresh);
+      mkdirSync(empty);
+      await withAgent(empty, claudeCode(`claude-${fresh}`, setup), async (agent) => {
+        const setUp = await agent.call("set_up_project", { name: fresh });
+        assert.equal(setUp.isError, false, setUp.text);
+        assert.match(setUp.text, /made it a git repository/);
+        assert.deepEqual(setUp.data.repository, { state: "made" });
+      });
+      assert.equal(path.resolve(git(empty, "rev-parse", "--show-toplevel")), empty, "git prints / on Windows too");
+      assert.equal(git(empty, "show", "--name-only", "--format=", "HEAD"), MARKER_FILE);
+
+      const repo = path.join(dir, `${inRepo}-repo`);
+      const inside = path.join(repo, inRepo);
+      mkdirSync(inside, { recursive: true });
+      git(repo, "init", "-q");
+      await withAgent(inside, claudeCode(`claude-${inRepo}`, setup), async (agent) => {
+        const setUp = await agent.call("set_up_project", { name: inRepo });
+        assert.equal(setUp.isError, false, setUp.text);
+        assert.deepEqual(setUp.data.repository, { state: "already", root: repo });
+        assert.doesNotMatch(setUp.text, /git repository/);
+      });
+      assert.equal(existsSync(path.join(inside, ".git")), false);
+      assert.equal(git(repo, "rev-list", "--all", "--count"), "0", "storytree commits nothing in the user's own repository");
+
+      // Joining from the folder its marker names, after the repository is gone: no repository is made for a join.
+      rmSync(path.join(empty, ".git"), { recursive: true, force: true });
+      await withAgent(empty, claudeCode(`claude-${fresh}-join`, setup), async (agent) => {
+        const joined = await agent.call("set_up_project", { name: fresh, join: true });
+        assert.equal(joined.isError, false, joined.text);
+        assert.equal(joined.data.repository, undefined);
+      });
+      assert.equal(existsSync(path.join(empty, ".git")), false, "joining makes no repository");
+
+      // With no git identity, the repository is made with its marker staged, and the user is asked for a name and email.
+      for (const key of Object.keys(identity)) delete process.env[key];
+      const noConfig = path.join(dir, "no-gitconfig");
+      writeFileSync(noConfig, "");
+      Object.assign(process.env, { GIT_CONFIG_GLOBAL: noConfig, GIT_CONFIG_NOSYSTEM: "1" });
+      const anonymous = path.join(dir, nameless);
+      mkdirSync(anonymous);
+      await withAgent(anonymous, claudeCode(`claude-${nameless}`, setup), async (agent) => {
+        const setUp = await agent.call("set_up_project", { name: nameless });
+        assert.equal(setUp.isError, false, setUp.text);
+        assert.equal((setUp.data.repository as { state: string }).state, "no identity");
+        assert.match(setUp.text, /made it one with \.storytree\.json staged/);
+        assert.match(setUp.text, /ask the user for the name and email/);
+        assert.match(setUp.text, /check_setup then makes the first commit/);
+      });
+      assert.equal(path.resolve(git(anonymous, "rev-parse", "--show-toplevel")), anonymous);
+      assert.equal(git(anonymous, "ls-files"), MARKER_FILE);
+    } finally {
+      for (const [key, value] of Object.entries(before)) {
+        if (value === undefined) delete process.env[key];
+        else process.env[key] = value;
+      }
+      await dropTestProjects([fresh, inRepo, nameless, factory]);
+    }
+  });
+});

@@ -1,0 +1,127 @@
+name: Publish website
+
+# CI's GITHUB_TOKEN merge starts no push workflow. Follow completed CI, then verify the merge.
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  source:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      sha: ${{ steps.source.outputs.sha }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+          ref: main
+          fetch-depth: 0
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: 24
+      - id: source
+        run: node packages/website/publish-ci.mjs source
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+  # Installs, checks and builds with a read-only token and no publishing identity; the job that signs in to Google and
+  # publishes only downloads what this one built, and never installs a dependency.
+  build:
+    needs: source
+    if: needs.source.outputs.sha != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+          ref: ${{ needs.source.outputs.sha }}
+          fetch-depth: 0
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @storytree/website typecheck
+      - run: pnpm run test --only=website
+      # The live build at the root and the preview build under /staging/, unlisted (contract 4.6).
+      - run: pnpm --filter @storytree/website build
+        env:
+          WEBSITE_SITE: "1"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: website-dist
+          path: packages/website/dist/
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 1
+
+  publish:
+    needs: [source, build]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # Its own environment, so its token names it; the sign-in route checks the repository and the
+    # ref, never the token's subject, so this changes nothing about who may sign in.
+    environment: website
+    permissions:
+      contents: read
+      id-token: write # GitHub's OIDC token, for the keyless sign-in that fetches the here.now key
+    # Only eligible website runs enter this queue; an unrelated merge cannot displace one.
+    concurrency:
+      group: website-herenow
+      cancel-in-progress: false
+    env:
+      WEBSITE_SHA: ${{ needs.source.outputs.sha }}
+      # The website's publishing identity (infra/website-publish). Until both are set the publish
+      # step says so and skips; nothing else here needs them.
+      WEBSITE_WIF_PROVIDER: ${{ vars.WEBSITE_WIF_PROVIDER }}
+      WEBSITE_SERVICE_ACCOUNT: ${{ vars.WEBSITE_SERVICE_ACCOUNT }}
+    steps:
+      # The selected merge's history, for publish-ci.mjs to check main has no newer website inputs; no dependencies.
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+          ref: ${{ needs.source.outputs.sha }}
+          fetch-depth: 0
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: 24
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: website-dist
+          path: packages/website/dist
+      - name: Sign in to Google as the website's publishing identity
+        if: env.WEBSITE_WIF_PROVIDER != '' && env.WEBSITE_SERVICE_ACCOUNT != ''
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3.0.0
+        with:
+          workload_identity_provider: ${{ vars.WEBSITE_WIF_PROVIDER }}
+          service_account: ${{ vars.WEBSITE_SERVICE_ACCOUNT }}
+      # The key goes from Secret Manager into this one step's environment, masked before anything
+      # else reads it. Without the identity, publish-ci.mjs logs the skip and names the variables.
+      - name: Publish, or clearly skip without a publishing identity
+        run: |
+          if [ -n "$WEBSITE_WIF_PROVIDER" ] && [ -n "$WEBSITE_SERVICE_ACCOUNT" ]; then
+            # The secret is in the publishing account's own project, named in its address (name@project.iam.…).
+            PROJECT="${WEBSITE_SERVICE_ACCOUNT#*@}"
+            HERENOW_TOKEN="$(gcloud secrets versions access latest --secret heredotnow_api_key --project "${PROJECT%%.*}")"
+            echo "::add-mask::$HERENOW_TOKEN"
+            if [ -z "$HERENOW_TOKEN" ]; then
+              echo "::error::The latest version of the secret heredotnow_api_key is empty."
+              exit 1
+            fi
+            export HERENOW_TOKEN
+          fi
+          node packages/website/publish-ci.mjs publish

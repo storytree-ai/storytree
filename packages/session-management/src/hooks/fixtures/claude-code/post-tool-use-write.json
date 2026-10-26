@@ -1,0 +1,23 @@
+{
+  "session_id": "b2ef2128-23c1-4a1e-b126-4fa79b2c2a97",
+  "transcript_path": "C:\\Users\\dev\\.claude\\projects\\C--Users-dev-projects-site\\b2ef2128-23c1-4a1e-b126-4fa79b2c2a97.jsonl",
+  "cwd": "C:\\Users\\dev\\projects\\site",
+  "prompt_id": "1c8b0c58-1c10-4386-adf2-44862b20e02d",
+  "permission_mode": "default",
+  "hook_event_name": "PostToolUse",
+  "tool_name": "Write",
+  "tool_input": {
+    "file_path": "C:\\Users\\dev\\projects\\site\\hello.txt",
+    "content": "hi"
+  },
+  "tool_response": {
+    "type": "create",
+    "filePath": "C:\\Users\\dev\\projects\\site\\hello.txt",
+    "content": "hi",
+    "structuredPatch": [],
+    "originalFile": null,
+    "userModified": false
+  },
+  "tool_use_id": "toolu_01Cxrh5zb5Y8xKuVQq58q4kx",
+  "duration_ms": 5
+}

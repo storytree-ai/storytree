@@ -1,0 +1,47 @@
+{
+  "name": "@storytree/experiments",
+  "private": true,
+  "type": "module",
+  "description": "The Experiments story (story_c2dbcf855db2, ADR-1064): an experiment written down before it runs, its arms run in isolation, and its curves read.",
+  "exports": {
+    ".": "./src/index.ts",
+    "./verbs": "./src/record/verbs.ts",
+    "./record": "./src/record/record.ts",
+    "./points": "./src/points/points.ts",
+    "./arm-checks": "./src/arm-checks.ts"
+  },
+  "storytree": {
+    "verbs": [
+      {
+        "from": "./verbs",
+        "export": "EXPERIMENT_FAMILIES"
+      }
+    ],
+    "armChecks": [
+      {
+        "from": "./arm-checks",
+        "export": "armChecks"
+      }
+    ]
+  },
+  "scripts": {
+    "typecheck": "tsc -p ."
+  },
+  "dependencies": {
+    "@storytree/agent-pool": "workspace:*",
+    "@storytree/keys": "workspace:*",
+    "@storytree/library": "workspace:*",
+    "@storytree/map": "workspace:*",
+    "@storytree/project-and-caller": "workspace:*",
+    "@storytree/session-management": "workspace:*",
+    "pg": "^8.23.0"
+  },
+  "devDependencies": {
+    "@storytree/local-postgres": "workspace:*",
+    "@storytree/test-waits": "workspace:*",
+    "@types/node": "^24.13.6",
+    "@types/pg": "^8.23.1",
+    "tsx": "^4.23.15",
+    "typescript": "~7.0.2"
+  }
+}

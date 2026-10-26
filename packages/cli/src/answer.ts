@@ -1,0 +1,65 @@
+/**
+ * Capability 1 · Front door. What a command answers: a short plain sentence or listing, then what you might run next
+ * (capability 1). 0.2's envelope, as behaviour: the body, a blank line, and `next:` with one
+ * command per line and why you would run it. A hint opens a record the answer just named or
+ * listed, never a stock step (ADR-0786 D2).
+ */
+
+/** A command you might run next, and why. */
+export interface Next {
+  readonly command: string;
+  readonly why: string;
+}
+
+export interface Answer {
+  readonly text: string;
+  readonly next?: readonly Next[];
+  /** Print `text` exactly as it is, with no next steps and nothing trimmed or added: a value to pipe or save. */
+  readonly raw?: boolean;
+}
+
+/**
+ * The door's own "no": a command it does not know, or cannot run here. It is printed like an
+ * answer, on stderr, and the command exits with `code`: 2 for a command used wrongly, 1 otherwise.
+ */
+export class Refusal extends Error {
+  readonly next: readonly Next[];
+  readonly code: number;
+
+  constructor(message: string, options: { next?: readonly Next[]; code?: number } = {}) {
+    super(message);
+    this.name = "Refusal";
+    this.next = options.next ?? [];
+    this.code = options.code ?? 1;
+  }
+}
+
+/** The door's answer to a word it does not have: the word typed, and the command the refusal named, when it named one. */
+export class UnknownCommand extends Refusal {
+  readonly word: string;
+  readonly named: string | undefined;
+
+  constructor(message: string, word: string, named: string | undefined, options: { next?: readonly Next[]; code?: number } = {}) {
+    super(message, options);
+    this.word = word;
+    this.named = named;
+  }
+}
+
+/** An answer as the terminal shows it. */
+export function render(answer: Answer): string {
+  if (answer.raw === true) return answer.text;
+  const text = answer.text.replace(/\s+$/, "");
+  const next = answer.next ?? [];
+  if (next.length === 0) return `${text}\n`;
+  const width = Math.max(...next.map((step) => step.command.length));
+  const lines = next.map((step) => `  - ${step.command.padEnd(width)}   (${step.why})`);
+  return `${text}\n\nnext:\n${lines.join("\n")}\n`;
+}
+
+/** A record's one-line label: its title, definition term, or the first line of its text. */
+export function labelOf(fields: Readonly<Record<string, unknown>>): string {
+  const title = typeof fields.title === "string" ? fields.title : typeof fields.term === "string" ? fields.term : typeof fields.text === "string" ? fields.text : "";
+  const line = title.split(/\r?\n/, 1)[0] ?? "";
+  return line.length > 100 ? `${line.slice(0, 99)}…` : line;
+}

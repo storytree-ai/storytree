@@ -1,0 +1,82 @@
+# Desktop capture kit
+
+A new look supplies a seed and views to `runCapture`; the runner owns the static
+server, workspace Playwright/Chromium launch, typed stand-in bridge, ready wait,
+frame settling, pictures, measurements and cleanup. See the working
+[rows capture](../../../../packages/forest/src/view/evidence/rows/capture.mjs).
+
+```js
+const dist = buildFolder(folder); // or buildFolder(folder, 'after') for one of several builds
+await buildCapture({ dist });
+await runCapture({
+  folder, dist, seed, survey,
+  prepare: async ({ page }) => {
+    // Wait for this look's scene.
+  },
+  views: [
+    { name: 'opening' },
+    {
+      name: 'detail',
+      prepare: async ({ page }) => { /* select the view */ },
+      measure: async ({ page }) => page.evaluate(() => document.body.dataset.state),
+      expect: state => assert.equal(state, 'ready'),
+    },
+  ],
+});
+```
+
+Run scripts with `node --import tsx`. The seed holds `projects`, `tree`, `changes`,
+`lines` and `covers`; `survey` is optional. A typed `answers` object can override
+bridge reads. The page opens with the first-run guide already seen, on the globe;
+a capture of the guide itself passes `guide: 'unseen'` (also `fakeBridge(answers,
+{ guide: 'unseen' })`). Every teaching card is hidden as it appears, so none
+intercepts a capture's clicks; a capture of the cards themselves passes `teaching: 'shown'`. Unseeded known reads receive the bridge's quiet defaults; an unknown
+method fails with its name. A view writes `<name>.png` and, when measured,
+`<name>.json`; `picture: false` omits the picture and `measurement` changes the JSON
+filename. The return value is the array of measured values.
+
+Shared seeds: `captureSeed('code-rows')` returns storytree's own library snapshot
+and its code survey; `captureSeed('forest')` returns the eight-story forest
+snapshot. Each call is a fresh copy. Refresh one with the script beside it:
+`seed.mts` in `code-rows`, `export.mjs` in `library-dots-clickable` (both in packages/forest/testing/view). Name a
+story's file with `seedFile(seed, 'The agent link', 'src/readings.ts')`, never a
+hand-written `packages/<name>/…`. The path follows the seed's own story title, as
+the globe keys its files, so renaming the live package cannot desync it. A story
+the seed lacks fails, and the error names the stories the seed has.
+
+Globe captures built with `buildCapture` can call `visibleGlobeTargets(page)` once
+the globe is ready. It returns the camera's `zoom` and sorted `dots` and `islands`,
+each with an `id` and page coordinates `x`, `y`. It conservatively chooses centres
+nearer the eye than the globe's centre, excluding hidden objects and centres
+outside the canvas. Pass `{ x: 0.5, y: 0.6 }` to choose
+only the middle half-width and 60% half-height. This is a scene observation, so an
+HTML panel may still cover a target; dismiss panels before using its coordinates.
+
+`await zoomGlobe(page, opening.zoom * 1.5)` sends real wheel events over the canvas
+until the orthographic zoom is within 3% of the target (the wheel moves in notches),
+and returns the attained zoom. Pass a target's coordinates as a third argument to
+place the pointer there. `zoomGlobe(page, opening.zoom)` returns to the opening
+scale. It refuses targets outside the controls' range and fails if the wheel does
+not change the camera. See the [reach-sized dots capture](../../../../packages/knowledge-core/evidence/reach-sized-dots/capture.mjs)
+for choosing visible notes, seeding their reads, then framing both full and close
+views in one invocation.
+
+Existing interaction journeys and performance probes use `withCapture` with a
+callback receiving `{ browser, origin, out, settle }`. They keep their local
+expectations while sharing server/browser lifetime; this form does not create a
+page or settle automatically during a timed measurement. Omit `dist` for
+`setContent` previews, and use `softwareGL: false` for pure HTML/SVG: ANGLE flags
+can prevent those previews from taking screenshots. Forest captures use software
+GL by default. Electron captures use `loadPlaywright` for their existing CDP flow.
+
+Close a browser with `closeBrowser(browser)`, not `browser.close()`: once the
+browser has disconnected, a close that has not returned within five seconds is
+abandoned and the browser's process killed, so a slow shutdown on a loaded runner
+cannot hold the run open. `withCapture` closes its own browser this way.
+
+Outputs go through `captureOutput`: scratch by default, the evidence folder only
+with `--retake`. A capture's bundled page goes to `buildFolder(folder, …)`, under the
+checkout's ignored `.evidence-builds/`, never to a `dist/` beside the evidence, so a
+build leaves nothing untracked in a package's source or evidence folders. `CAPTURE_PLAYWRIGHT` and `CAPTURE_CHROMIUM` override the workspace
+module and installed browser; older `PLANET_*` and `STORYTREE_PLAYWRIGHT` names are
+retained. No script needs a home-directory path or another server/launcher copy.

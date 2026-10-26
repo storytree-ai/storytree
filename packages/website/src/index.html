@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Your coding agent builds the software. Storytree shows your project’s plan and the health your agents report.">
+    <meta name="theme-color" content="#101418">
+    <title>storytree — Software you can watch grow.</title>
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="storytree">
+    <meta property="og:title" content="storytree — Software you can watch grow.">
+    <meta property="og:description" content="Your coding agent builds the software. Storytree shows your project’s plan and the health your agents report.">
+    <meta property="og:url" content="https://storytree.dev/">
+    <meta property="og:image" content="https://storytree.dev/share.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="The storytree mark, a dark disc with pale islands round a tree of dots, beside the name storytree.">
+    <meta name="twitter:card" content="summary_large_image">
+    <link rel="canonical" href="https://storytree.dev/">
+    <!-- MARK LINKS -->
+    <link rel="stylesheet" href="/assets/styles.css">
+    <script type="module" src="/assets/main.js"></script>
+    <script type="module" src="/assets/forest.js"></script>
+  </head>
+  <body class="immersive-home">
+    <a class="skip-link" href="#main">Skip to content</a>
+    <!-- OPENING -->
+    <main id="main">
+      <section id="chapter2" class="map-section" aria-labelledby="forest-title">
+        <div class="map-heading"><h1 id="forest-title"><!-- MARK -->storytree<span aria-hidden="true">.</span></h1><button id="opening-replay" type="button" hidden>Replay the intro</button></div>
+        <p class="map-lead">A living map of your project, for you and your agents.</p>
+        <div id="map-frame" class="map-frame forest-workspace" data-theme="dark">
+          <div id="website-forest" data-forest-state="still" aria-label="Storytree’s project map">
+            <picture class="forest-still storytree-still">
+              <source media="(max-width: 600px)" srcset="/forest-phone.png">
+              <img src="/forest-desktop.png" width="1238" height="516" loading="lazy" alt="A saved map of storytree’s project: its story islands, named, and the roads between them on a tilted glass sheet.">
+            </picture>
+          </div>
+          <p class="forest-unavailable" role="note"><strong>The map can’t draw in this browser: it needs WebGL.</strong> This is a saved picture of it instead.</p>
+          <div class="map-zoom" role="group" aria-label="Zoom the map"><button type="button" data-zoom="in" aria-label="Zoom in">+</button><button type="button" data-zoom="out" aria-label="Zoom out">−</button></div>
+          <button class="map-tap" type="button" data-map-tap hidden><span>Tap to explore</span></button>
+          <button class="map-exit" type="button" data-map-exit hidden>Done exploring</button>
+        </div>
+        <p id="map-note" class="map-note">Storytree’s own project · saved {saved} · read only</p>
+        <p class="map-after">Storytree builds a map of your project and glues it to your code. It grows as your agents work, and says what needs you and what doesn’t.</p>
+      </section>
+      <!-- CLAIMS -->
+      <!-- PAGE END -->
+    </main>
+    <footer class="site-footer shell">
+      <p>Open source · <a href="https://github.com/storytree-ai/storytree/blob/main/LICENSE">Apache License 2.0</a> · <a href="https://github.com/storytree-ai/storytree/blob/main/SECURITY.md">Security</a></p>
+      <a href="https://github.com/storytree-ai/storytree">Source on GitHub <span aria-hidden="true">↗</span></a>
+    </footer>
+  </body>
+</html>

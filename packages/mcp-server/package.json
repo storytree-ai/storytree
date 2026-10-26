@@ -1,0 +1,42 @@
+{
+  "name": "@storytree/mcp-server",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./tool-input": "./src/tools/tool-input.ts"
+  },
+  "imports": {
+    "#parts/tools": "./src/parts/tools.ts",
+    "#parts/guidance": "./src/parts/guidance.ts",
+    "#parts/verbs": "./src/parts/verbs.ts",
+    "#parts/claimChecks": "./src/parts/claim-checks.ts",
+    "#parts/armChecks": "./src/parts/arm-checks.ts",
+    "#parts/pipelineJobs": "./src/parts/pipeline-jobs.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p ."
+  },
+  "dependencies": {
+    "@modelcontextprotocol/server": "^2.1.0",
+    "@storytree/session-management": "workspace:*",
+    "@storytree/guardrails": "workspace:*",
+    "@storytree/library": "workspace:*",
+    "@storytree/map": "workspace:*",
+    "@storytree/quality-assurance": "workspace:*",
+    "@storytree/app-setup": "workspace:*",
+    "zod": "^4.6.5",
+    "@storytree/plugin-loader": "workspace:*",
+    "@storytree/project-and-caller": "workspace:*",
+    "@storytree/experiments": "workspace:*"
+  },
+  "devDependencies": {
+    "@modelcontextprotocol/client": "^2.1.0",
+    "@types/node": "^24.13.6",
+    "pg": "^8.23.0",
+    "@types/pg": "^8.23.1",
+    "@storytree/test-waits": "workspace:*",
+    "tsx": "^4.23.15",
+    "typescript": "~7.0.2"
+  }
+}

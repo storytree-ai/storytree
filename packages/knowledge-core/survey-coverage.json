@@ -1,0 +1,39 @@
+{
+ "src/ghosts/ghosts.ts": {
+  "1": 80,
+  "2": 60,
+  "4": 235
+ },
+ "src/look-inside/look-inside.ts": {
+  "4": 1564
+ },
+ "src/reads/reads.ts": {
+  "1": 5,
+  "3": 90,
+  "4": 166
+ },
+ "src/shelves/positions.ts": {
+  "1": 80,
+  "4": 66
+ },
+ "src/shelves/shelves.ts": {
+  "1": 112
+ },
+ "src/shelves/story-text.ts": {
+  "1": 10
+ },
+ "src/testing/changes.ts": {
+  "1": 84,
+  "2": 40,
+  "4": 230
+ },
+ "src/view/drawing.tsx": {
+  "4": 2
+ },
+ "src/view/globe-points.tsx": {
+  "5": 1
+ },
+ "src/view/surface.tsx": {
+  "4": 48
+ }
+}

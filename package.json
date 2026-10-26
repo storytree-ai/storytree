@@ -1,0 +1,59 @@
+{
+  "name": "storytree",
+  "private": true,
+  "license": "Apache-2.0",
+  "type": "module",
+  "packageManager": "pnpm@10.34.7+sha512.ba98abc585539933375b5971f4bc6d6c73a1b4b7edc4a879e7d102fe5423d1e02309d67c60a11f04955093a96e521ad9c3b138cdd654ca5be563f378b3ae48bd",
+  "engines": {
+    "node": ">=24.20.0"
+  },
+  "scripts": {
+    "storytree": "node packages/dev-loop/src/provision-worktree.mjs --check && node --import tsx packages/cli/src/bins/storytree.ts",
+    "test": "node packages/dev-loop/src/provision-worktree.mjs --check && node --import tsx packages/dev-loop/src/test.mjs",
+    "gate": "node packages/dev-loop/src/gate.mjs",
+    "typecheck": "pnpm -r typecheck",
+    "test-ratio": "node packages/dev-loop/src/test-ratio.mjs",
+    "lag:reads": "node --import tsx packages/dev-loop/src/read-latency.mjs",
+    "lag:desktop": "node --import tsx packages/dev-loop/src/desktop-lag.mjs",
+    "lag:box": "node --import tsx packages/dev-loop/src/lag-box.mjs",
+    "survey:coverage": "node --import tsx packages/dev-loop/src/survey-coverage.mjs",
+    "check:own-health": "node --import tsx packages/dev-loop/src/check-own-health.mjs",
+    "check:factory-health": "node --import tsx packages/dev-loop/src/check-own-health.mjs --factory",
+    "record:acceptance": "node --import tsx packages/dev-loop/src/record-acceptance.mjs",
+    "evidence:sweep": "node --import tsx packages/dev-loop/src/evidence-sweep.mjs",
+    "library:export": "node --import tsx packages/dev-loop/src/export-library.mjs",
+    "library:restore": "node --import tsx packages/dev-loop/src/restore-library.mjs",
+    "desktop": "pnpm --filter @storytree/desktop start",
+    "desktop:smoke": "pnpm --filter @storytree/desktop smoke",
+    "desktop:dist": "pnpm --filter @storytree/desktop dist",
+    "build:guidance": "node --import tsx packages/dev-loop/src/build-guidance.mjs",
+    "check:guidance": "node --import tsx packages/dev-loop/src/build-guidance.mjs --check",
+    "check:plan-edges": "node --import tsx packages/dev-loop/src/plan-edges.mjs",
+    "check:type-imports": "node --import tsx packages/dev-loop/src/type-imports.mjs",
+    "check:seed-records": "node --import tsx packages/dev-loop/src/seed-records.mjs",
+    "check:leaks": "node --import tsx packages/dev-loop/src/leak-scan.mjs",
+    "scrub:evidence": "node --import tsx packages/dev-loop/src/seed-records.mjs --scrub"
+  },
+  "devDependencies": {
+    "@storytree/local-postgres": "workspace:*",
+    "@storytree/session-management": "workspace:*",
+    "@storytree/dev-loop": "workspace:*",
+    "@storytree/library": "workspace:*",
+    "esbuild": "^0.28.2",
+    "pg": "^8.23.0",
+    "tsx": "^4.23.15"
+  },
+  "pnpm": {
+    "supportedArchitectures": {
+      "os": [
+        "current",
+        "win32"
+      ],
+      "cpu": [
+        "current",
+        "x64",
+        "arm64"
+      ]
+    }
+  }
+}

@@ -1,0 +1,12 @@
+# Looks every 30 minutes whether the factory has moved past the last commit recorded (factory-health.service). The
+# voice committer pulls it every 15 minutes, so a new factory commit is recorded within the hour.
+[Unit]
+Description=storytree: look every 30 minutes for a factory commit not yet recorded
+
+[Timer]
+OnBootSec=10min
+OnUnitActiveSec=30min
+AccuracySec=1min
+
+[Install]
+WantedBy=timers.target

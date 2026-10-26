@@ -1,0 +1,284 @@
+/**
+ * Capability 10 · Plan view: one test per contract 10.1-10.11 in the command line story, each running the
+ * real, built `storytree` command.
+ */
+import assert from "node:assert/strict";
+import { after, before, test } from "node:test";
+import { waitUntil } from "@storytree/test-waits";
+
+import { BuiltCommand, inWorld } from "./testing/cli.js";
+
+const command = new BuiltCommand();
+
+before(() => command.build());
+after(() => command.remove());
+
+test("10.1 a story with capabilities and a contract prints in order with stored titles and \"agent says passing\"", async () => {
+  await inWorld(command, async (world) => {
+    const library = await world.library();
+    const story = await library.addStory({ title: "Visitor can sign up" });
+    const capability = await library.addCapability({ title: "4 · Email form", story: story.id });
+    const earlierNumber = await library.addCapability({ title: "1 · Visitor details", story: story.id });
+    const thankYou = await library.addCapability({ title: "Thank-you page", story: story.id });
+    const unnumbered = await library.editCapability(thankYou.id, { title: "Thank-you page" });
+    assert.ok(unnumbered);
+    const contract = await library.addContract({ title: "Rejects an email with no @", capability: capability.id });
+    await library.reportHealth(contract.id, "passing", { by: "agent" });
+
+    const ran = await world.run(["tree"]);
+
+    assert.equal(ran.code, 0, ran.stderr);
+    const lines = ran.stdout.split(/\r?\n/);
+    const at = (text: string): number => lines.findIndex((line) => line.includes(text));
+    assert.ok(at("Visitor can sign up") >= 0, ran.stdout);
+    assert.ok(at("Visitor can sign up") < at("Email form"), ran.stdout);
+    assert.ok(at("Email form") < at("Rejects an email with no @"), ran.stdout);
+    assert.match(lines[at("Rejects an email with no @")]!, /agent says passing/);
+    for (const each of [capability, earlierNumber, unnumbered]) {
+      const line = lines.find((line) => line.includes(`[${each.id}]`));
+      assert.equal(line?.split(`[${each.id}]`)[0], `  ${each.fields.title}  `, ran.stdout);
+    }
+  });
+});
+
+test("10.2 an unknown story says so", async () => {
+  await inWorld(command, async (world) => {
+    await (await world.library()).addStory({ title: "Visitor can sign up" });
+
+    const ran = await world.run(["tree", "story_nosuchstory"]);
+
+    assert.equal(ran.code, 1);
+    assert.match(ran.stderr, /no story "story_nosuchstory"/);
+  });
+});
+
+test("10.3 `capability built` switches a capability's proposed flag off, `capability proposed` back on, each with its writer; an unknown capability says so", async () => {
+  await inWorld(command, async (world) => {
+    const library = await world.library();
+    const story = await library.addStory({ title: "Visitor can sign up" });
+    const capability = await library.addCapability({ title: "Email form", story: story.id });
+
+    const built = await world.run(["capability", "built", capability.id]);
+    assert.equal(built.code, 0, built.stderr);
+    assert.match(built.stdout, /no longer proposed/);
+    assert.equal(((await library.get(capability.id))?.fields as { proposed?: boolean } | undefined)?.proposed, false);
+    assert.match((await library.history({ id: capability.id })).at(-1)?.actor ?? "", /^person:/, "the switch carries its writer");
+
+    const again = await world.run(["capability", "proposed", capability.id]);
+    assert.equal(again.code, 0, again.stderr);
+    assert.equal(((await library.get(capability.id))?.fields as { proposed?: boolean } | undefined)?.proposed, true);
+
+    const unknown = await world.run(["capability", "built", "capability_000000000000"]);
+    assert.equal(unknown.code, 1);
+    assert.match(unknown.stderr, /no capability "capability_000000000000"/);
+  });
+});
+
+test("10.4 each capability's line gives its word, and for one not healthy its reason, who moves it and the contracts carrying it", async () => {
+  await inWorld(command, async (world) => {
+    const library = await world.library();
+    const story = await library.addStory({ title: "Visitor can sign up" });
+    const proposed = await library.addCapability({ title: "Password rules", story: story.id });
+    const form = await library.addCapability({ title: "Email form", story: story.id });
+    const good = await library.addContract({ title: "1.1 · Rejects an email with no @", capability: form.id });
+    await library.addContract({ title: "1.2 · Accepts a plus address", capability: form.id });
+    const owner = await library.addContract({ title: "1.3 · Sends through the real mail service", capability: form.id });
+    const done = await library.addCapability({ title: "Thank-you page", story: story.id });
+    const shown = await library.addContract({ title: "2.1 · Says thank you", capability: done.id });
+    for (const built of [form, done]) await library.setProposed(built.id, false);
+    await library.recordVerified(good.id, "passing");
+    await library.recordVerified(owner.id, "not-checked", { skip: "owner" });
+    await library.recordVerified(shown.id, "passing");
+
+    const ran = await world.run(["tree"]);
+
+    assert.equal(ran.code, 0, ran.stderr);
+    const line = (text: string): string => ran.stdout.split(/\r?\n/).find((each) => each.includes(`[`) && each.includes(text) && !each.trimStart().startsWith("-")) ?? "";
+    assert.match(line("Password rules"), /proposed — not built, the agent's to move/);
+    assert.match(line("Email form"), /untested — no test names it, the agent's to move: 1\.2$/);
+    assert.match(line("Thank-you page"), /healthy$/);
+  });
+});
+
+test("10.6 in a project whose health nothing verifies, each part gives the agent's report alone, and a built capability says storytree does not check this project's tests yet", async () => {
+  await inWorld(command, async (world) => {
+    const library = await world.library();
+    const story = await library.addStory({ title: "Visitor can sign up" });
+    const form = await library.addCapability({ title: "Email form", story: story.id });
+    const check = await library.addContract({ title: "1.1 · Rejects an email with no @", capability: form.id });
+    await library.setProposed(form.id, false);
+    await library.reportHealth(check.id, "passing", { by: "agent" });
+
+    const ran = await world.run(["tree"]);
+
+    assert.equal(ran.code, 0, ran.stderr);
+    const lines = ran.stdout.split(/\r?\n/);
+    const line = (text: string): string => lines.find((each) => each.includes(text)) ?? "";
+    assert.match(line("Visitor can sign up"), /agent says passing$/);
+    assert.match(line("Email form"), /agent says passing; storytree does not check this project's tests yet$/);
+    assert.match(line("Rejects an email"), /agent says passing$/);
+    assert.doesNotMatch(ran.stdout, /untested|no test names it|to move|verified/);
+  });
+});
+
+test("10.8 a mapped story's line says it is mapped, here before storytree and assumed to be working, with no health of its own; a capability planned on it keeps its own", async () => {
+  await inWorld(command, async (world) => {
+    const library = await world.library();
+    const { added: [shop] } = await library.mapStories("/code/shop", [{ package: ".", title: "shop", folders: ["."] }]);
+    const capability = await library.addCapability({ title: "Checkout", story: shop!.id, covers: ["checkout"] });
+
+    const ran = await world.run(["tree"]);
+
+    assert.equal(ran.code, 0, ran.stderr);
+    const lines = ran.stdout.split(/\r?\n/);
+    const line = (id: string): string => lines.find((each) => each.includes(`[${id}]`)) ?? "";
+    assert.match(line(shop!.id), /\]  mapped: here before storytree, and assumed to be working$/, ran.stdout);
+    assert.doesNotMatch(line(shop!.id), /agent says|verified/);
+    assert.match(line(capability.id), /agent says not checked/, ran.stdout);
+  });
+});
+
+test("10.5 `storytree health worklist` prints the oldest three capabilities on the health worklist, each with its word, reason, who moves it, the contracts carrying it and since when, and how many more wait; with none it says nothing waits; one a test run in progress will record is held back and counted", async () => {
+  await inWorld(command, async (world) => {
+    const library = await world.library();
+    const none = await world.run(["health", "worklist"]);
+    assert.equal(none.code, 0, none.stderr);
+    assert.match(none.stdout, /nothing waits/i);
+
+    const story = await library.addStory({ title: "Visitor can sign up" });
+    const form = await library.addCapability({ title: "Email form", story: story.id });
+    const check = await library.addContract({ title: "1.1 · Rejects an email with no @", capability: form.id });
+    await library.setProposed(form.id, false);
+    await library.recordVerified(check.id, "failing");
+    let previous = form.createdAt;
+    for (const title of ["Password rules", "Thank-you page", "Welcome email"]) {
+      await waitUntil(() => Date.now() > Date.parse(previous), 5_000, `the clock to pass ${previous}`);
+      previous = (await library.addCapability({ title, story: story.id })).createdAt;
+    }
+
+    const ran = await world.run(["health", "worklist"]);
+
+    assert.equal(ran.code, 0, ran.stderr);
+    const lines = ran.stdout.split(/\r?\n/);
+    const at = (text: string): number => lines.findIndex((line) => line.includes(text));
+    assert.match(lines[at("Email form")]!, new RegExp(`unhealthy — failing, the agent's to move: ${check.id}.*since \\d{4}-\\d{2}-\\d{2}`));
+    assert.ok(at("Email form") < at("Password rules") && at("Password rules") < at("Thank-you page"), ran.stdout);
+    assert.match(lines[at("Password rules")]!, /proposed — not built, the agent's to move/);
+    assert.equal(at("Welcome email"), -1, ran.stdout);
+    assert.match(ran.stdout, /1 more wait/);
+
+    await library.markVerifiedPending(check.id, { by: "storytree test run on CI", note: "a test run at commit abc123 is recording it" });
+    const held = await world.run(["health", "worklist"]);
+    assert.equal(held.code, 0, held.stderr);
+    assert.ok(!held.stdout.includes(form.id), held.stdout);
+    assert.match(held.stdout, /Welcome email/, "the slot it left is filled");
+    assert.match(held.stdout, /1 held back.*a test run at commit abc123 is recording it/);
+    assert.doesNotMatch(held.stdout, /more wait/);
+  });
+});
+
+test("10.7 `storytree health worklist` says on a proposed capability's line when its tests already pass and only its proposed flag is left, and then offers `storytree capability built <capability>` as the next step", async () => {
+  await inWorld(command, async (world) => {
+    const library = await world.library();
+    const story = await library.addStory({ title: "Visitor can sign up" });
+    const form = await library.addCapability({ title: "Email form", story: story.id });
+    const check = await library.addContract({ title: "1.1 · Rejects an email with no @", capability: form.id });
+
+    const unbuilt = await world.run(["health", "worklist"]);
+    assert.equal(unbuilt.code, 0, unbuilt.stderr);
+    assert.doesNotMatch(unbuilt.stdout, /already pass|capability built/);
+    assert.match(unbuilt.stdout, new RegExp(`storytree library read ${form.id}`));
+
+    await library.recordVerified(check.id, "passing");
+    const ran = await world.run(["health", "worklist"]);
+    assert.equal(ran.code, 0, ran.stderr);
+    const line = ran.stdout.split(/\r?\n/).find((one) => one.includes("Email form"))!;
+    assert.match(line, /proposed — not built, the agent's to move.*its tests already pass on main; only its proposed flag is left/);
+    assert.match(ran.stdout, new RegExp(`storytree capability built ${form.id}`));
+  });
+});
+
+test("10.9 `storytree plan` prints what the show_plan tool answers: each story, capability and contract with its health, and the arcs; a window it cannot read is refused as the tool refuses it", async () => {
+  await inWorld(command, async (world) => {
+    const library = await world.library();
+    const story = await library.addStory({ title: "Visitor can sign up" });
+    const form = await library.addCapability({ title: "Email form", story: story.id });
+    const check = await library.addContract({ title: "1.1 · Rejects an email with no @", capability: form.id });
+    await library.reportHealth(check.id, "passing", { by: "agent" });
+    const arc = await library.createArc({ title: "Sign-up works", intent: "Visitors can sign up", endState: "The form sends its email" });
+
+    const ran = await world.run(["plan"]);
+
+    assert.equal(ran.code, 0, ran.stderr);
+    assert.deepEqual(ran.stdout.trimEnd().split(/\r?\n/), [
+      "The project has no anchor yet (project-anchor): say what it is and who it is for with edit_plan.",
+      `Story "Visitor can sign up" (${story.id}): reported passing, verified not checked`,
+      `  Capability "${form.fields.title}" (${form.id}): reported passing, verified not checked; proposed — not built, the agent's to move; nobody holds it`,
+      `    Contract "1.1 · Rejects an email with no @" (${check.id}): reported passing, verified not checked`,
+      `Arc "Sign-up works" (${arc.id}) grows no stories yet`,
+      "No sessions yet.",
+    ]);
+
+    const wrong = await world.run(["plan", "--closed", "week", "--from", "2026-10-01"]);
+    assert.equal(wrong.code, 1, wrong.stdout);
+    assert.match(wrong.stderr, /Give closed, or from and to, not both\./);
+  });
+});
+
+test("10.10 `storytree show`, the word agents reach for by the show_plan tool, prints the plan as `storytree plan` does; given a record's id it names `storytree library read <id>` and `storytree arc show <arc>`", async () => {
+  await inWorld(command, async (world) => {
+    const library = await world.library();
+    await library.createArc({ title: "Sign-up works", intent: "Visitors can sign up", endState: "The form sends its email" });
+
+    const shown = await world.run(["show"]);
+    const planned = await world.run(["plan"]);
+    assert.equal(shown.code, 0, shown.stderr);
+    assert.equal(shown.stdout, planned.stdout);
+
+    const one = await world.run(["show", "contract_6cb815863354"]);
+    assert.equal(one.code, 2, one.stdout);
+    assert.match(one.stderr, /storytree library read contract_6cb815863354/);
+    assert.match(one.stderr, /storytree arc show <arc>/);
+  });
+});
+
+test("10.11 `storytree contract show <contract>` prints one contract with its reported and verified health, each with who wrote it, when and its note; `contract health` and `contract new` run the commands for those jobs; an id naming no contract says so", async () => {
+  await inWorld(command, async (world) => {
+    const library = await world.library();
+    const story = await library.addStory({ title: "Visitor can sign up" });
+    const capability = await library.addCapability({ title: "4 · Email form", story: story.id });
+    const contract = await library.addContract({ title: "4.1 · Rejects an email with no @", capability: capability.id, description: "A typed address with no @ is refused before it is sent." });
+    await library.reportHealth(contract.id, "passing", { by: "agent", note: "ran it here" });
+    await library.recordVerified(contract.id, "failing", { by: "storytree", note: "CI run 12" });
+
+    const shown = await world.run(["contract", "show", contract.id]);
+    assert.equal(shown.code, 0, shown.stderr);
+    const lines = shown.stdout.split(/\r?\n/);
+    assert.match(lines[0]!, new RegExp(`^4\\.1 · Rejects an email with no @  \\[${contract.id}\\]`), shown.stdout);
+    assert.ok(lines.some((line) => line.includes(`4 · Email form  [${capability.id}]`)), shown.stdout);
+    assert.ok(lines.some((line) => line.includes("A typed address with no @ is refused before it is sent.")), shown.stdout);
+    assert.match(shown.stdout, /reported: passing, by agent, \d{4}-\d\d-\d\dT[^ ]+: ran it here/);
+    assert.match(shown.stdout, /verified: failing, by storytree, \d{4}-\d\d-\d\dT[^ ]+: CI run 12/);
+
+    const health = await world.run(["contract", "health", contract.id]);
+    assert.equal(health.code, 0, health.stderr);
+    assert.match(health.stdout, /^storytree contract health is storytree contract show\n/);
+    assert.match(health.stdout, /verified: failing/);
+
+    const planned = await world.run(["contract", "new", "--capability", capability.id, "--title", "4.2 · Accepts a plus address"]);
+    assert.equal(planned.code, 0, planned.stderr);
+    assert.match(planned.stdout, /^storytree contract new is storytree library new contract\n/);
+    const made = (await library.list("contract")).find((each) => each.fields.title === "4.2 · Accepts a plus address");
+    assert.equal(made?.fields.capability, capability.id);
+
+    const unchecked = await world.run(["contract", "show", made!.id]);
+    assert.match(unchecked.stdout, /reported: not checked/);
+    assert.match(unchecked.stdout, /verified: not checked/);
+
+    for (const id of ["contract_000000000000", capability.id]) {
+      const unknown = await world.run(["contract", "show", id]);
+      assert.equal(unknown.code, 1);
+      assert.match(unknown.stderr, new RegExp(`no contract "${id}" in this project`));
+    }
+  });
+});

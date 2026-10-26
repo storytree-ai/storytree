@@ -1,0 +1,61 @@
+{
+  "renderedAt": "2026-10-21T14:56:09.850Z",
+  "composition": {
+    "id": "memory-that-lives-where-your-code-lives",
+    "fps": 30,
+    "frames": 1620
+  },
+  "seconds": {
+    "bundle": 2.748,
+    "poster": 7.209,
+    "mp4": 166.834
+  },
+  "bytes": {
+    "memory-that-lives-where-your-code-lives-poster.png": 25398,
+    "memory-that-lives-where-your-code-lives-1080p.mp4": 797446
+  },
+  "stills": [
+    {
+      "beat": "the-job",
+      "seconds": 9,
+      "file": "still-the-job.png",
+      "brokenBlocks": 0
+    },
+    {
+      "beat": "tidied-away",
+      "seconds": 17,
+      "file": "still-tidied-away.png",
+      "brokenBlocks": 0
+    },
+    {
+      "beat": "code-and-memory",
+      "seconds": 24,
+      "file": "still-code-and-memory.png",
+      "brokenBlocks": 0
+    },
+    {
+      "beat": "no-answer",
+      "seconds": 32,
+      "file": "still-no-answer.png",
+      "brokenBlocks": 0
+    },
+    {
+      "beat": "memory-file",
+      "seconds": 40,
+      "file": "still-memory-file.png",
+      "brokenBlocks": 0
+    },
+    {
+      "beat": "bug-is-back",
+      "seconds": 48,
+      "file": "still-bug-is-back.png",
+      "brokenBlocks": 0
+    },
+    {
+      "beat": "end-card",
+      "seconds": 51,
+      "file": "still-end-card.png",
+      "brokenBlocks": 0
+    }
+  ]
+}

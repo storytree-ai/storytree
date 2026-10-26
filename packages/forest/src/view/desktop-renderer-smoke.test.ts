@@ -1,0 +1,100 @@
+// Keep these real-browser proofs together: Node runs top-level tests in one file sequentially.
+// The shared heavy-run lock serializes test runs, while separate files can launch competing
+// SwiftShader browsers within the same forest unit.
+import assert from "node:assert/strict";
+import { execFile, type ExecFileOptions } from "node:child_process";
+import path from "node:path";
+import { test } from "node:test";
+import { fileURLToPath } from "node:url";
+import { promisify } from "node:util";
+
+const territoryFolder = fileURLToPath(new URL("../../testing/view/territory-health", import.meta.url));
+const pathwaysFolder = fileURLToPath(new URL("../../testing/view/pathway-repair/", import.meta.url));
+const rowDetailFolder = fileURLToPath(new URL("../../testing/row-detail", import.meta.url));
+const libraryLookFolder = fileURLToPath(new URL("../../testing/view/glass-library-look", import.meta.url));
+const checkout = path.resolve(pathwaysFolder, "../../../../..");
+const exec = promisify(execFile);
+const run = (file: string, args: string[], options: ExecFileOptions) => {
+  const result = exec(file, args, { ...options, encoding: "utf8" });
+  // A package deadline can kill this test before execFile rejects. Stream the capture's
+  // phase diagnostics now, while still retaining stdout for its behavior assertions.
+  result.child.stderr?.pipe(process.stderr, { end: false });
+  return result;
+};
+
+test("3.20 · in a real browser, each territory is filled by its word, grey only when parked, and claims plant their flags", { timeout: 200_000 }, async () => {
+  await run(process.execPath, [path.join(territoryFolder, "build.mjs"), "smoke"], { cwd: checkout, timeout: 60_000 });
+  // Chrome is installed on CI's three runner images, so the smoke downloads no browser.
+  const { stdout } = await run(process.execPath, ["--import", "tsx", path.join(territoryFolder, "capture.mjs"), "--smoke"],
+    { cwd: checkout, timeout: 180_000, env: { ...process.env, CAPTURE_CHANNEL: process.env.CAPTURE_CHANNEL ?? "chrome" } });
+  const summary = JSON.parse(stdout.trim().split("\n").at(-1)!);
+  assert.deepEqual(summary.fills, ["healthy #97c459 0.8", "proposed #f2d16b 0.8", "proposed parked #86939d 0.8", "unhealthy #e24b4a 0.85", "untested #f2d16b 0.8", "untested parked #86939d 0.8"]);
+  assert.equal(summary.greyFills, 0);
+  assert.deepEqual(summary.parked, ["capability_60a15402b053", "capability_b59e959e0da8"]);
+  // Three sessions claim four capabilities, each with a pennant; the quiet one's is furled.
+  assert.deepEqual(summary.flags.map(([story, capability, , faded, triangles]: [string, string, string, boolean, number]) => [story, capability, faded, triangles > 0]).sort((a: unknown[], b: unknown[]) => `${a[0]}${a[1]}`.localeCompare(`${b[0]}${b[1]}`)), [
+    ["story_05e45963ca9f", "capability_05ff7e9f0f99", false, true],
+    ["story_05e45963ca9f", "capability_4da153322012", false, true],
+    ["story_be32e99ed54f", "capability_9f02379a2e1a", true, true],
+    ["story_eb7d623fb9c8", "capability_75abfdd699c0", false, true],
+  ]);
+});
+
+// The territory smoke above omits its picture-only tour: on macOS that tour consumed
+// 131s of the shared 180s package deadline before these two pages even started.
+// Both captures stream phases, including cleanup, before a package timeout can hide them.
+// The capture waits while frames keep coming (a loaded runner draws one every few seconds) and
+// fails on a stall, so its budget leaves room for slow growth (increment_b613c12a4aeb).
+test('3.35 · live desktop roads grow on first display and on a polled dependency, preserving shared roads and reduced motion', { timeout: 280_000 }, async () => {
+  if (!process.env.PATHWAY_CAPTURE_DIST) await run(process.execPath, ['--import', 'tsx', path.join(pathwaysFolder, 'build.mjs'), checkout, 'live-smoke'], { cwd: checkout, timeout: 30_000 });
+  const { stdout } = await run(process.execPath, ['--import', 'tsx', path.join(pathwaysFolder, 'live-capture.mjs'), '--smoke'], {
+    cwd: checkout, timeout: 240_000, maxBuffer: 1024 * 1024,
+    env: { ...process.env, CAPTURE_CHANNEL: process.env.CAPTURE_CHANNEL ?? 'chrome' },
+  });
+  const summary = JSON.parse(stdout.trim().split('\n').at(-1)!);
+  assert.ok(summary.normal.firstNewOnlyFractions.every((fraction: number) => fraction === 0),
+    `new-only beige spans begin undrawn; observed ${JSON.stringify(summary.normal.firstNewOnlyFractions)}`);
+  assert.ok(summary.normal.partialFrames > 0, 'the real normal-motion renderer submits an advancing front');
+  assert.equal(summary.normal.dependencyToDependent, true, 'partial fronts advance from the dependency end');
+  assert.ok(summary.normal.initialFirstRoadFractions.length > 0 && summary.normal.initialFirstRoadFractions.every((fraction: number) => fraction === 0),
+    'the first normal desktop road frame is undrawn');
+  assert.ok(summary.normal.initialPartialFrames > 0, 'initial roads advance through real partial frames');
+  assert.ok(summary.reduced.initialFirstRoadFractions.every((fraction: number) => fraction === 1), 'reduced motion makes initial roads complete immediately');
+  for (const [motion, reading] of [['normal', summary.normal], ['reduced', summary.reduced]] as const) {
+    assert.equal(reading.initialCompletedWithoutCaptureInvalidation, true);
+    // The seed's 131 links, 37 of them between stories: only those have roads (ADR-0951 D3); the restored one is among them.
+    assert.equal(reading.initialLinkCount, 36);
+    assert.equal(reading.finalLinkCount, 37);
+    assert.equal(reading.finalLinkIdentitiesPreserved, true);
+    assert.ok(reading.newOnlyCrossSpans > 0);
+    assert.equal(reading.oldSharedRoadsAlwaysWhole, true, `${motion}: an old road drew partial after the restore; ${JSON.stringify({
+      partial: reading.oldSharedPartial, linkCounts: reading.restoredLinkCounts, hidden: reading.roadsHiddenFrames })}`);
+    assert.equal(reading.completedWithoutCaptureInvalidation, true);
+    assert.equal(reading.unrelatedUpdateKeepsRoadsWhole, true,
+      `${motion}: the consumed description preserves every intervening road frame; ${JSON.stringify({
+        frames: reading.unrelatedFrameCount, consumed: reading.unrelatedDescriptionFrames, progress: reading.unrelatedFrameProgress,
+      })}`);
+    assert.equal(reading.colouredLanes, 0);
+    assert.equal(reading.pageErrors, 0);
+  }
+  assert.ok(summary.reduced.firstNewOnlyFractions.every((fraction: number) => fraction === 1), 'reduced motion completes new roads immediately');
+});
+
+// The row-detail capture run in a real browser, so a session-row control it waits for that the strip no longer draws fails here,
+// on the changing branch, rather than at the next retake.
+test("7.8 · in a real browser, every session row starts collapsed, and its expander shows its worktrees and its window's files, the compacted one muted", { timeout: 200_000 }, async () => {
+  const { stdout } = await run(process.execPath, ["--import", "tsx", path.join(rowDetailFolder, "capture.mjs"), "--smoke"],
+    { cwd: checkout, timeout: 180_000, env: { ...process.env, CAPTURE_CHANNEL: process.env.CAPTURE_CHANNEL ?? "chrome" } });
+  const summary = JSON.parse(stdout.trim().split("\n").findLast(line => line.startsWith("{"))!);
+  // Two rows at work; the builder's subagent is folded under its "+1".
+  assert.deepEqual(summary, { collapsed: 2, worktrees: 3, files: 5, muted: 1 });
+});
+
+test("3.55 · in a real browser, pressing Library or Stories leaves the eye and the sheet exactly where the user tilted them, from above, side on and from below; the look follows the button, never the tilt", { timeout: 200_000 }, async () => {
+  const { stdout } = await run(process.execPath, ["--import", "tsx", path.join(libraryLookFolder, "capture.mjs"), "--smoke"],
+    { cwd: checkout, timeout: 180_000, env: { ...process.env, CAPTURE_CHANNEL: process.env.CAPTURE_CHANNEL ?? "chrome" } });
+  const summary = JSON.parse(stdout.trim().split("\n").findLast(line => line.startsWith("{"))!);
+  // At each tilt: Stories draws solid islands, Library outlines only, and neither press moved the eye.
+  const both = { stories: true, library: true };
+  assert.deepEqual(summary, { unmoved: ["above", "side-on", "below"], looks: { above: both, "side-on": both, below: both } });
+});

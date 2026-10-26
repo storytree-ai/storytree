@@ -1,0 +1,199 @@
+/**
+ * Capability 8 · Setup check. What a first run needs on the machine (ADR-0716, ported from 0.2's doctor): Claude Code or Codex
+ * installed and signed in, or Cursor or Pi installed, git, and a Node of at least {@link NODE_FLOOR}. Each is asked of the
+ * user's own command by name, as their shell would find it (Codex also where its desktop app keeps it), and only its exit code is read for a
+ * sign-in: nothing a tool prints about the account is kept. Cursor is asked only whether it is there: its
+ * `cursor-agent status` said "Logged in" and exited 0 on the owner's laptop (2026-10-12) while every real
+ * call answered "Authentication required", so no answer of it says Cursor is signed in.
+ *
+ * A tool that does not answer within `waitMs` is reported as not answering and left behind, so the
+ * check never hangs on one (a sign-in prompt, a stuck update, a network wait).
+ */
+import { spawnSync } from "node:child_process";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { homedir } from "node:os";
+import path from "node:path";
+
+import { ask, pathEnv, type Answer } from "@storytree/session-management";
+
+export { ask, pathEnv, type Answer };
+
+/** The Node major storytree's workspace declares (package.json `engines.node`). */
+export const NODE_FLOOR = 24;
+
+/** An agent CLI, as its `--version` and its sign-in status answer. */
+export type AgentCliState = "signed in" | "signed out" | "missing" | "not answering";
+export type ToolState = "present" | "missing" | "not answering";
+
+export interface MachineState {
+  readonly claude: AgentCliState;
+  readonly codex: AgentCliState;
+  /** Cursor's command line, there or not: never whether it is signed in, which it does not tell truly. Absent where the machine was not asked. */
+  readonly cursor?: ToolState;
+  /** Pi's command line, there or not: Pi signs in to each model provider on its own. Absent where the machine was not asked. */
+  readonly pi?: ToolState;
+  /** Antigravity CLI's command line (`agy`), there or not: it has no command that says whether it is signed in (1.3.3). Absent where the machine was not asked. */
+  readonly antigravity?: ToolState;
+  readonly git: ToolState;
+  /** The Node on the path, with the version it gave. */
+  readonly node: { readonly state: "ok" | "old" | "missing" | "not answering"; readonly version?: string };
+  /** How long each tool was given to answer. */
+  readonly waitMs: number;
+  /**
+   * Whether this runs as a Windows administrator (an elevated terminal, or a session started from one):
+   * Codex's Windows sandbox cannot run commands there (8.17). Never so elsewhere.
+   */
+  readonly elevated?: boolean;
+}
+
+export interface MachineOptions {
+  /** The PATH to find the tools on; by default, this process's. */
+  readonly path?: string;
+  /** How long to give each tool to answer. */
+  readonly waitMs?: number;
+  /** Codex's home, whose config.toml may name where its CLI is (CODEX_CLI_PATH). By default, CODEX_HOME or ~/.codex. */
+  readonly codexHome?: string;
+  /** Where Windows keeps a user's apps (%LOCALAPPDATA%), under which the Codex desktop app installs its CLI. By default, LOCALAPPDATA. */
+  readonly localAppData?: string;
+  /** Where macOS keeps apps, in which the Codex or ChatGPT app bundles its CLI. By default, /Applications and ~/Applications on a Mac, none elsewhere. */
+  readonly applications?: readonly string[];
+}
+
+
+async function agentCli(command: string, signIn: readonly string[], env: NodeJS.ProcessEnv, waitMs: number, shell?: boolean): Promise<AgentCliState> {
+  const how = shell === undefined ? {} : { shell };
+  const version = await ask(command, ["--version"], env, waitMs, how);
+  if (!version.answered) return "not answering";
+  if (version.code !== 0) return "missing";
+  const status = await ask(command, signIn, env, waitMs, how);
+  if (!status.answered) return "not answering";
+  return status.code === 0 ? "signed in" : "signed out";
+}
+
+/**
+ * Where a Codex off the PATH may be: the Codex desktop app puts its CLI at
+ * %LOCALAPPDATA%\OpenAI\Codex\bin\<hash>\codex.exe and names it as CODEX_CLI_PATH in Codex's
+ * config.toml, and puts neither on the PATH (increment_820b7d460eb9). On a Mac the Codex app, or the
+ * ChatGPT app it merged into, bundles it in one of {@link BUNDLED_CODEX}'s places (increment_ebe913930972).
+ */
+function desktopCodex(codexHome: string, localAppData: string | undefined, applications: readonly string[]): string[] {
+  const found: string[] = [];
+  try {
+    const named = /^\s*CODEX_CLI_PATH\s*=\s*("(?:[^"\\]|\\.)*"|'[^']*')/m.exec(readFileSync(path.join(codexHome, "config.toml"), "utf8"))?.[1];
+    if (named !== undefined) found.push(named.startsWith("'") ? named.slice(1, -1) : (JSON.parse(named) as string));
+  } catch {
+    // No config, or no path in it that reads.
+  }
+  if (localAppData !== undefined) {
+    const bin = path.join(localAppData, "OpenAI", "Codex", "bin");
+    try {
+      for (const hash of readdirSync(bin)) found.push(path.join(bin, hash, "codex.exe"));
+    } catch {
+      // No desktop app here.
+    }
+  }
+  for (const folder of applications) {
+    for (const app of ["Codex.app", "ChatGPT.app"]) {
+      for (const layout of BUNDLED_CODEX) {
+        const file = path.join(folder, app, "Contents", "Resources", ...layout);
+        if (existsSync(file)) found.push(file);
+      }
+    }
+  }
+  return found;
+}
+
+/**
+ * Where a Mac app bundle has kept Codex's CLI under Contents/Resources, newest first: codex-cli's
+ * bin/codex and CodexCLI.app since app 26.924 moved it (openai/codex#48214), a bare codex before.
+ */
+const BUNDLED_CODEX: readonly (readonly string[])[] = [
+  ["codex-cli", "bin", "codex"],
+  ["codex-cli", "CodexCLI.app", "Contents", "MacOS", "codex"],
+  ["codex"],
+];
+
+/**
+ * The version Codex says it is (`codex --version`), on the PATH or else where its desktop app keeps it; undefined where
+ * none answers within `waitMs`. Asked while hooks are registered, which is synchronous: the shape of Codex's hooks
+ * depends on it (hooks-config.ts).
+ */
+export function installedCodexVersion(options: MachineOptions = {}): string | undefined {
+  const waitMs = options.waitMs ?? 3_000;
+  const env = options.path === undefined ? process.env : { ...process.env, PATH: options.path, Path: options.path };
+  // The npm install of Codex is a .cmd on Windows, which only a shell runs; the desktop app's is an .exe, run with none.
+  // A shell is handed one command line, never arguments beside it, which Node deprecates (DEP0190).
+  const asked = (command: string, shell: boolean) => shell
+    ? spawnSync(`${command} --version`, { env, timeout: waitMs, encoding: "utf8", shell, windowsHide: true })
+    : spawnSync(command, ["--version"], { env, timeout: waitMs, encoding: "utf8", windowsHide: true });
+  const desktop = desktopCodex(options.codexHome ?? (process.env.CODEX_HOME || path.join(homedir(), ".codex")), options.localAppData ?? process.env.LOCALAPPDATA, options.applications ?? macApplications());
+  for (const [command, shell] of [["codex", process.platform === "win32"] as const, ...desktop.map((file) => [file, false] as const)]) {
+    const answer = asked(command, shell);
+    const version = answer.status === 0 ? /\d+\.\d+\.\d+/.exec(answer.stdout)?.[0] : undefined;
+    if (version !== undefined) return version;
+  }
+  return undefined;
+}
+
+/** Codex on the PATH, else the desktop app's own CLI, asked with no shell (its path may hold spaces). */
+async function codexCli(env: NodeJS.ProcessEnv, waitMs: number, options: MachineOptions): Promise<AgentCliState> {
+  const onPath = await agentCli("codex", ["login", "status"], env, waitMs);
+  if (onPath !== "missing") return onPath;
+  for (const file of desktopCodex(options.codexHome ?? (process.env.CODEX_HOME || path.join(homedir(), ".codex")), options.localAppData ?? process.env.LOCALAPPDATA, options.applications ?? macApplications())) {
+    const state = await agentCli(file, ["login", "status"], env, waitMs, false);
+    if (state !== "missing") return state;
+  }
+  return "missing";
+}
+
+function macApplications(): string[] {
+  return process.platform === "darwin" ? ["/Applications", path.join(homedir(), "Applications")] : [];
+}
+
+/** Whether the tool `command` names is there, by its `--version`. */
+async function tool(command: string, env: NodeJS.ProcessEnv, waitMs: number): Promise<ToolState> {
+  const answer = await ask(command, ["--version"], env, waitMs);
+  return !answer.answered ? "not answering" : answer.code === 0 ? "present" : "missing";
+}
+
+async function node(env: NodeJS.ProcessEnv, waitMs: number): Promise<MachineState["node"]> {
+  const answer = await ask("node", ["--version"], env, waitMs);
+  if (!answer.answered) return { state: "not answering" };
+  const version = answer.out.trim();
+  const major = /^v?(\d+)\./.exec(version)?.[1];
+  if (answer.code !== 0 || major === undefined) return { state: "missing" };
+  return { state: Number(major) >= NODE_FLOOR ? "ok" : "old", version };
+}
+
+/** Ask the machine for each tool at once. */
+export async function machineState(options: MachineOptions = {}): Promise<MachineState> {
+  const waitMs = options.waitMs ?? 5_000;
+  const env = pathEnv(options.path);
+  const [claude, codex, cursor, pi, antigravity, gitState, nodeState, elevatedState] = await Promise.all([
+    agentCli("claude", ["auth", "status"], env, waitMs),
+    codexCli(env, waitMs, options),
+    tool("cursor-agent", env, waitMs),
+    tool("pi", env, waitMs),
+    tool("agy", env, waitMs),
+    tool("git", env, waitMs),
+    node(env, waitMs),
+    elevated(env, waitMs),
+  ]);
+  return { claude, codex, cursor, pi, antigravity, git: gitState, node: nodeState, waitMs, elevated: elevatedState };
+}
+
+/**
+ * Whether this process runs elevated, read from its integrity label: an administrator's elevated token
+ * is labelled high (S-1-16-12288) or system (S-1-16-16384), a normal desktop session medium. Measured on
+ * the owner's laptop, 2026-09-30: an SSH login as an administrator is high, the desktop session medium.
+ */
+/** Whether this process runs as a Windows administrator (8.17), asked alone: for the installer's connect step. */
+export function runsElevated(options: { readonly path?: string; readonly waitMs?: number } = {}): Promise<boolean> {
+  return elevated(pathEnv(options.path), options.waitMs ?? 5_000);
+}
+
+async function elevated(env: NodeJS.ProcessEnv, waitMs: number): Promise<boolean> {
+  if (process.platform !== "win32") return false;
+  const answer = await ask("whoami", ["/groups", "/fo", "csv"], env, waitMs);
+  return answer.answered && answer.code === 0 && /S-1-16-(12288|16384)\b/.test(answer.out);
+}

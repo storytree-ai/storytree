@@ -1,0 +1,201 @@
+/**
+ * Capability 9 · Transcripts in the shared log (ADR-0749 D3, D4): what is stored of a session's
+ * transcript, scrubbed of obvious secrets, and what is kept once its raw records expire. Records
+ * are written to the real activity log on the Postgres `pnpm test` provides.
+ */
+import assert from "node:assert/strict";
+import { appendFileSync, chmodSync, mkdirSync, readdirSync, statSync, writeFileSync } from "node:fs";
+import path from "node:path";
+import { test } from "node:test";
+
+import pg from "pg";
+
+import { ACTIVITY_DATABASE, openActivityLog } from "../activity/index.js";
+import { withTempDir } from "@storytree/project-and-caller/testing/folders";
+import { testServerUrl, uniqueProjectName } from "@storytree/project-and-caller/testing/pg";
+import { contextReading, readingLines } from "../context/index.js";
+import { pruneTranscripts, scrub, shipTranscript, storedContextReading, storedSessionWindow, TranscriptCache } from "./index.js";
+
+// Fakes built at run time, so no scanner mistakes this file for a leak.
+const fake = (...parts: string[]) => parts.join("");
+
+test("9.12 obvious secrets are replaced by a marker naming what was removed, and the record still parses", () => {
+  const planted: [string, string, string][] = [
+    [fake("sk-", "ant-api03-", "a".repeat(40)), "[scrubbed: API key]", "Anthropic"],
+    [fake("sk-", "proj-", "b".repeat(40)), "[scrubbed: API key]", "OpenAI"],
+    [fake("ghp", "_", "c".repeat(36)), "[scrubbed: API key]", "GitHub token"],
+    [fake("AKIA", "ABCDEFGHIJKLMNOP"), "[scrubbed: API key]", "AWS key id"],
+    [fake("AIza", "d".repeat(35)), "[scrubbed: API key]", "Google API key"],
+    [fake("ya29", ".", "e".repeat(40)), "[scrubbed: OAuth token]", "Google OAuth token"],
+    [fake("Bearer ", "f".repeat(30)), "Bearer [scrubbed: bearer token]", "bearer header"],
+    [fake("-----BEGIN RSA PRIVATE KEY-----\nMIIEow", "g".repeat(60), "\n-----END RSA PRIVATE KEY-----"), "[scrubbed: private key]", "private key"],
+    [fake("postgres://owner:", "hunter2", "@db.example.com:5432/app"), "postgres://owner:[scrubbed: password]@db.example.com:5432/app", "connection string"],
+  ];
+  for (const [secret, marker, kind] of planted) {
+    const record = JSON.stringify({ type: "user", message: { content: `before ${secret} after` } });
+    const scrubbed = scrub(record);
+    assert.equal((JSON.parse(scrubbed) as { message: { content: string } }).message.content, `before ${marker} after`, kind);
+  }
+  const plain = JSON.stringify({ message: { content: "sk-short, a sha 3f2a9c1, https://example.com/a:b@c" } });
+  assert.equal(scrub(plain), plain, "ordinary text passes untouched");
+});
+
+test("9.13 raw records older than 180 days are deleted by the retention pass, and the reading worked out from them is kept", async () => {
+  const project = uniqueProjectName();
+  const log = await openActivityLog(testServerUrl());
+  try {
+    await withTempDir(async (dir) => {
+      const transcript = path.join(dir, "old.jsonl");
+      writeFileSync(transcript, `${JSON.stringify({ type: "assistant", requestId: "r1", message: { model: "claude-opus-5-5", usage: { input_tokens: 4_000 } } })}\n`);
+      const line = await log.append(project, { session: "old", harness: "claude-code", source: "hook", kind: "session-started", transcript });
+      await shipTranscript(log, project, "old", transcript);
+      const fresh = path.join(dir, "fresh.jsonl");
+      writeFileSync(fresh, `${JSON.stringify({ type: "user", message: { content: "still fresh" } })}\n`);
+      await shipTranscript(log, project, "fresh", fresh);
+      // The pass runs at the real time over the log every test shares, so the old record is made
+      // old rather than the pass run in the future, which would expire other tests' fresh records too.
+      await storeAgo(project, "old", 181 * 24 * 60 * 60 * 1000);
+      await pruneTranscripts(log);
+      assert.equal(await log.transcripts.text(project, "old"), undefined, "its raw records are gone");
+      assert.notEqual(await log.transcripts.text(project, "fresh"), undefined, "a record stored within the limit stays");
+      const reading = await storedContextReading(log, project, [line], "old");
+      assert.equal("tokens" in reading && reading.tokens, 4_000, "its reading remains");
+      const window = await storedSessionWindow(log, project, [line], "old");
+      assert.equal("absent" in window, false, "and so does its window");
+    });
+  } finally {
+    await log.close();
+  }
+});
+
+test("9.14 a reading asked again over a grown transcript parses only the records stored since, and reads as the whole does", async () => {
+  const project = uniqueProjectName();
+  const log = await openActivityLog(testServerUrl());
+  try {
+    await withTempDir(async (dir) => {
+      const asked = new Date("2026-10-08T00:00:00Z");
+      const claude = [
+        { type: "user", message: { content: "Read the file" } },
+        { type: "assistant", requestId: "r1", message: { model: "claude-opus-5-5", usage: { input_tokens: 9_000 }, content: [{ type: "tool_use", id: "t1", name: "Read", input: { file_path: "a.ts" } }] } },
+        { type: "user", message: { content: [{ type: "tool_result", tool_use_id: "t1", content: "r".repeat(4_000) }] } },
+        { type: "assistant", requestId: "r2", message: { model: "claude-opus-5-5", usage: { input_tokens: 12_000, cache_read_input_tokens: 3_000 }, content: [{ type: "text", text: "Done." }] } },
+      ];
+      // The user's prompt and the event naming it as the user's own land in different asks.
+      const codex = [
+        { type: "session_meta", payload: { id: "c", base_instructions: { text: "b".repeat(800) } } },
+        { type: "response_item", payload: { type: "message", role: "user", content: [{ type: "input_text", text: "Split the bars" }] } },
+        { type: "event_msg", payload: { type: "item_completed", item: { type: "UserMessage", content: [{ type: "text", text: "Split the bars" }] } } },
+        { type: "event_msg", payload: { type: "token_count", info: { last_token_usage: { input_tokens: 7_000 } } } },
+      ];
+      const sessions = [{ session: "claude", harness: "claude-code", records: claude }, { session: "codex", harness: "codex", records: codex }];
+      const cache = new TranscriptCache();
+      for (const { session, harness, records } of sessions) {
+        const transcript = path.join(dir, `${session}.jsonl`);
+        writeFileSync(transcript, records.slice(0, 2).map((record) => `${JSON.stringify(record)}\n`).join(""));
+        const line = await log.append(project, { session, harness, source: "hook", kind: "session-started", transcript });
+        await shipTranscript(log, project, session, transcript);
+        await storedContextReading(log, project, [line], session, { now: asked, cache });
+        assert.equal(cache.parsed(project, session), 2, `${session}: the first ask parses what is stored`);
+
+        appendFileSync(transcript, records.slice(2).map((record) => `${JSON.stringify(record)}\n`).join(""));
+        await shipTranscript(log, project, session, transcript);
+        const grown = await storedContextReading(log, project, [line], session, { now: asked, cache });
+        assert.equal(cache.parsed(project, session), 4, `${session}: a later ask parses only the records stored since`);
+        assert.deepEqual(grown, await storedContextReading(log, project, [line], session, { now: asked }), `${session}: and reads as the whole does`);
+
+        await storedContextReading(log, project, [line], session, { now: asked, cache });
+        assert.equal(cache.parsed(project, session), 4, `${session}: an ask with nothing new parses nothing`);
+      }
+    });
+  } finally {
+    await log.close();
+  }
+});
+
+test("9.17 a subagent's reading on another machine comes from its records stored under its parent, as its file reads, and a grown one parses only what was stored since", async () => {
+  const project = uniqueProjectName();
+  const log = await openActivityLog(testServerUrl());
+  try {
+    await withTempDir(async (dir) => {
+      const asked = new Date("2026-10-16T00:00:00Z");
+      const parent = path.join(dir, "P.jsonl");
+      const own = path.join(dir, "P", "subagents", "agent-a1.jsonl");
+      const record = (requestId: string, cached: number) => JSON.stringify({ type: "assistant", isSidechain: true, agentId: "a1", requestId,
+        message: { model: "claude-sonnet-5-5", usage: { input_tokens: 2, cache_read_input_tokens: cached }, content: [{ type: "text", text: "Looking." }] } });
+      writeFileSync(parent, `${JSON.stringify({ type: "assistant", requestId: "p1", message: { model: "claude-opus-5-5", usage: { input_tokens: 500 } } })}\n`);
+      mkdirSync(path.dirname(own), { recursive: true });
+      writeFileSync(own, `${JSON.stringify({ type: "user", isSidechain: true, agentId: "a1", message: { content: "Find it" } })}\n${record("r1", 30_000)}\n`);
+      const common = { session: "P", harness: "claude-code", source: "hook", transcript: parent } as const;
+      await log.append(project, { ...common, kind: "session-started" });
+      await log.append(project, { ...common, kind: "subagent-started", subagent: "a1" });
+      await shipTranscript(log, project, "P", parent);
+
+      const lines = await readingLines(log, project, ["P", "a1"]);
+      const cache = new TranscriptCache();
+      const first = await storedContextReading(log, project, lines, "a1", { now: asked, cache });
+      assert.equal("tokens" in first && first.tokens, 30_002);
+      assert.equal(first.source, own);
+      assert.equal(cache.parsed(project, "P", "a1"), 2);
+
+      appendFileSync(own, `${record("r2", 41_000)}\n`);
+      await shipTranscript(log, project, "P", parent);
+      const grown = await storedContextReading(log, project, lines, "a1", { now: asked, cache });
+      assert.equal("tokens" in grown && grown.tokens, 41_002);
+      assert.equal(cache.parsed(project, "P", "a1"), 3, "a later ask parses only the subagent's records stored since");
+      assert.deepEqual(grown, await storedContextReading(log, project, lines, "a1", { now: asked }), "and reads as the whole does");
+      assert.deepEqual(grown, await contextReading(lines, "a1", { now: asked }), "and as its own file does");
+
+      const parentReading = await storedContextReading(log, project, lines, "P", { now: asked, cache });
+      assert.equal("tokens" in parentReading && parentReading.tokens, 500, "the parent reads its own records only");
+    });
+  } finally {
+    await log.close();
+  }
+});
+
+test("9.21 transcript records a cache keeps on disk are readable only by the user who runs it", { skip: process.platform === "win32" && "platform:posix: Windows has no POSIX file modes" }, async () => {
+  const project = uniqueProjectName();
+  const log = await openActivityLog(testServerUrl());
+  try {
+    await withTempDir(async (dir) => {
+      const transcript = path.join(dir, "S.jsonl");
+      const record = (n: number) => JSON.stringify({ type: "user", message: { content: `ask ${n}` } });
+      writeFileSync(transcript, `${record(1)}\n`);
+      await shipTranscript(log, project, "S", transcript);
+      const folder = path.join(dir, "cache", "project");
+      const modes = () => [statSync(folder).mode & 0o777, ...readdirSync(folder).map((name) => statSync(path.join(folder, name)).mode & 0o777)];
+
+      await new TranscriptCache(folder).read(log, project, "S");
+      assert.deepEqual(modes(), [0o700, 0o600], "a new folder and checkpoint are the user's alone");
+
+      chmodSync(folder, 0o755);
+      for (const name of readdirSync(folder)) chmodSync(path.join(folder, name), 0o644);
+      appendFileSync(transcript, `${record(2)}\n`);
+      await shipTranscript(log, project, "S", transcript);
+      await new TranscriptCache(folder).read(log, project, "S");
+      assert.deepEqual(modes(), [0o700, 0o600], "an appended checkpoint left wider by an earlier version is narrowed");
+
+      for (const name of readdirSync(folder)) {
+        chmodSync(path.join(folder, name), 0o644);
+        appendFileSync(path.join(folder, name), "torn\n");
+      }
+      await new TranscriptCache(folder).read(log, project, "S");
+      assert.deepEqual(modes(), [0o700, 0o600], "a checkpoint written afresh is the user's alone");
+    });
+  } finally {
+    await log.close();
+  }
+});
+
+/** Move `session`'s stored records `ms` into the past, as if they had been stored then. */
+async function storeAgo(project: string, session: string, ms: number): Promise<void> {
+  const url = new URL(testServerUrl());
+  url.pathname = `/${ACTIVITY_DATABASE}`;
+  const client = new pg.Client({ connectionString: url.href });
+  await client.connect();
+  try {
+    await client.query("UPDATE transcript_records SET at = at - $3 * interval '1 millisecond' WHERE project = $1 AND session = $2", [project, session, ms]);
+  } finally {
+    await client.end();
+  }
+}

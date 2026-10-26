@@ -1,0 +1,220 @@
+name: Own health
+
+# After CI completes for a change to main, run storytree 0.3's own stories' tests and record each
+# contract's VERIFIED health in the library (ADR-0744 D3-D4): `pnpm check:own-health`,
+# the same rules a hand run uses (packages/dev-loop/src/test-run), written as "storytree test run on CI"
+# with the commit in each note. Windows-only and macOS-only contracts need the passing Windows or
+# macOS evidence from that exact commit and CI attempt: the merge queue's passing run of it, which is where it is
+# tested now that the push run stands on that run's verdict (ci.yml's `queue-verdict`), else main's push run of it
+# (packages/dev-loop/src/test-run/main-commit.mjs). Never from a pull request's run: only main's own commits are recorded.
+#
+# The merge queue's merge (ADR-0796) is a push to main and starts CI, whose completion starts this.
+# A direct merge by CI is made
+# with the workflow's own token, and GitHub starts no push workflow from those, so then ci.yml's
+# `automerge` dispatches this workflow on main once its merge has happened. It can also be run by
+# hand (Actions > Own health > Run workflow) to record main as it is now. A manual run looks for
+# successful CI at its exact checkout; without that evidence it grants no Windows or macOS credit.
+# Run by hand with preflight ticked (gh workflow run own-health.yml -f preflight=true), it only
+# checks that the tailnet sign-in variables and database password below are not empty, and records nothing.
+#
+# Where it records (ADR-0928 D4): the library on the Mint box, at the repository variable
+# HEALTH_PG_ADDRESS (a postgres:// address without a password). The job joins the tailnet as
+# an ephemeral tag:ci node using GitHub's OIDC token and the repository variables TS_WIF_CLIENT_ID
+# and TS_WIF_AUDIENCE. The tailnet policy lets it reach only the box's port 5432, and it
+# connects by that address as CI's health role, its password the secret HEALTH_PG_PASSWORD. The job
+# runs in the environment own-health, deployable only from main, so that environment's copy of the
+# password is available only to main (ADR-0939).
+# The address trusts the box's certificate from this checkout's infra/library-host/mint-library.crt:
+# the run step adds it as sslrootcert, so the variable itself names no file (ADR-0997 D1).
+# While HEALTH_PG_ADDRESS is unset, the job says so and passes without recording anything.
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      preflight:
+        description: Only check that the tailnet sign-in variables and database password are set; record nothing
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  # A secret set by name can still reach a job empty (a paste that sent nothing), and GitHub shows no
+  # value to check, so this names each empty setting before the run needs it. It runs before every
+  # recording, and alone when dispatched with preflight, which checks the
+  # Mint box's variables and password whether or not HEALTH_PG_ADDRESS is set yet.
+  # Only whether each setting is empty enters the step, never its value.
+  secrets:
+    name: check required settings
+    if: >-
+      (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'workflow_run' && github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_branch == 'main' &&
+      github.event.workflow_run.head_repository.full_name == github.repository)
+    runs-on: ubuntu-latest
+    environment: own-health
+    timeout-minutes: 5
+    permissions: {}
+    steps:
+      - name: Check that the variables and password this run needs are set
+        env:
+          NEEDED: ${{ (vars.HEALTH_PG_ADDRESS != '' || inputs.preflight == true) && 'yes' || 'no' }}
+          SET_TS_WIF_CLIENT_ID: ${{ vars.TS_WIF_CLIENT_ID != '' }}
+          SET_TS_WIF_AUDIENCE: ${{ vars.TS_WIF_AUDIENCE != '' }}
+          SET_HEALTH_PG_PASSWORD: ${{ secrets.HEALTH_PG_PASSWORD != '' }}
+        run: |
+          if [ "$NEEDED" != yes ]; then
+            echo "HEALTH_PG_ADDRESS is unset, so this run records nothing and needs no secrets."
+            exit 0
+          fi
+          empty=0
+          for name in TS_WIF_CLIENT_ID TS_WIF_AUDIENCE HEALTH_PG_PASSWORD; do
+            set_var="SET_$name"
+            where="--repo $GITHUB_REPOSITORY"
+            kind=variable
+            if [ "$name" = HEALTH_PG_PASSWORD ]; then
+              kind=secret
+              where="$where --env own-health"
+            fi
+            if [ "${!set_var}" = true ]; then
+              echo "$name is set."
+            else
+              echo "::error title=$name is empty::The $kind $name is empty or missing. Set it again with: gh $kind set $name $where (paste the value into the prompt), then rerun Own health with preflight ticked."
+              empty=1
+            fi
+          done
+          if [ "$empty" = 1 ]; then exit 1; fi
+          echo "Every setting the library on the Mint box needs is set. (This checks only that each is not empty, not that it is right.)"
+
+  record:
+    name: record own health
+    needs: secrets
+    # One recording at a time. A run in progress finishes; a newer one waits, replacing any older one
+    # still waiting. A delayed CI completion for an older commit must not overwrite newer health:
+    # after acquiring this slot, a job whose commit is no longer main records main's newest passing
+    # commit instead, and nothing when that is not at or after its own.
+    # The group is on this job, not the workflow, so a preflight run never waits or is replaced.
+    concurrency:
+      group: own-health
+      cancel-in-progress: false
+    if: >-
+      !inputs.preflight && (
+      (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'workflow_run' && github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_branch == 'main' &&
+      github.event.workflow_run.head_repository.full_name == github.repository))
+    runs-on: ubuntu-latest
+    environment: own-health
+    # Recording runs every story's tests in turn: about 43 minutes in October 2026, and growing. At 45
+    # minutes most runs timed out unrecorded (increment_f3274849cc7e), so this leaves room to grow.
+    timeout-minutes: 90
+    permissions:
+      actions: read # download Windows and macOS evidence from the exact CI run
+      contents: read
+      id-token: write # GitHub's OIDC token, for joining the tailnet
+    env:
+      HEALTH_PG_ADDRESS: ${{ vars.HEALTH_PG_ADDRESS }}
+    steps:
+      # A run waits behind the one recording, so by the time it starts main has often moved on
+      # (friction_b8a4b8fcd80d). It then records main's newest commit whose push CI passed, with that
+      # run's Windows and macOS evidence, rather than nothing; only if that commit is not at or after its own does
+      # it stand down, so newer health is never overwritten by older.
+      # The commit whose CI finished, for the rules that choose what to record
+      # (packages/dev-loop/src/test-run/main-commit.mjs); the commit chosen is checked out below.
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+      - name: Select the main commit to record and its Windows and macOS evidence
+        id: evidence
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
+        with:
+          script: |
+            const { chooseRecording } = await import(`${process.env.GITHUB_WORKSPACE}/packages/dev-loop/src/test-run/main-commit.mjs`);
+            // workflow_run's GITHUB_SHA is the current default branch, not the triggering commit.
+            const own = context.payload.workflow_run?.head_sha ?? context.sha;
+            const { data: main } = await github.rest.git.getRef({ ...context.repo, ref: 'heads/main' });
+            const { sha, run, notices } = await chooseRecording({
+              github, repo: context.repo, own, mainHead: main.object.sha,
+              triggering: context.eventName === 'workflow_run' ? context.payload.workflow_run : undefined,
+            });
+            for (const notice of notices) core.notice(notice);
+            if (sha === undefined) return;
+            core.setOutput('current', 'true');
+            core.setOutput('sha', sha);
+            if (run === undefined) return;
+            core.setOutput('run-id', run.id);
+            core.setOutput('attempt', run.run_attempt);
+            core.setOutput('run-url', `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${run.id}/attempts/${run.run_attempt}`);
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        if: steps.evidence.outputs.current == 'true'
+        with:
+          persist-credentials: false
+          ref: ${{ steps.evidence.outputs.sha }}
+      - name: Download this CI attempt's Windows evidence
+        id: windows
+        if: steps.evidence.outputs.run-id != ''
+        continue-on-error: true
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          # One artifact per Windows test shard; each unit's evidence is its own `unit-*` folder,
+          # so both merge into one without colliding.
+          pattern: windows-test-evidence-${{ steps.evidence.outputs.attempt }}-shard-*
+          merge-multiple: true
+          path: .pgtest/windows-evidence
+          run-id: ${{ steps.evidence.outputs.run-id }}
+          github-token: ${{ github.token }}
+      - name: Download this CI attempt's macOS evidence
+        id: macos
+        if: steps.evidence.outputs.run-id != ''
+        continue-on-error: true
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: macos-test-evidence-${{ steps.evidence.outputs.attempt }}
+          path: .pgtest/macos-evidence
+          run-id: ${{ steps.evidence.outputs.run-id }}
+          github-token: ${{ github.token }}
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+        if: steps.evidence.outputs.current == 'true'
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        if: steps.evidence.outputs.current == 'true'
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+        if: steps.evidence.outputs.current == 'true'
+      # The library on the Mint box: join the tailnet as an ephemeral tag:ci node, left at the job's end.
+      # The box's tailnet address is the host of HEALTH_PG_ADDRESS, so it is written in no file.
+      - name: Find the Mint box
+        id: box
+        if: steps.evidence.outputs.current == 'true' && env.HEALTH_PG_ADDRESS != ''
+        run: node -e 'console.log(`host=${new URL(process.env.HEALTH_PG_ADDRESS).hostname}`)' >> "$GITHUB_OUTPUT"
+      - name: Join the tailnet as CI
+        if: steps.evidence.outputs.current == 'true' && env.HEALTH_PG_ADDRESS != ''
+        uses: tailscale/github-action@99a8333667fff04fdd6cffb46dfd409f8329a7bf # v4.3.0
+        with:
+          oauth-client-id: ${{ vars.TS_WIF_CLIENT_ID }}
+          audience: ${{ vars.TS_WIF_AUDIENCE }}
+          tags: tag:ci
+          # Wait until the box answers: a new node's peers see it only after a few seconds.
+          ping: ${{ steps.box.outputs.host }}
+      - name: Record own health
+        if: steps.evidence.outputs.current == 'true'
+        run: |
+          if [ -n "$HEALTH_PG_ADDRESS" ]; then
+            case "$HEALTH_PG_ADDRESS" in *\?*) sep='&' ;; *) sep='?' ;; esac
+            export HEALTH_PG_ADDRESS="${HEALTH_PG_ADDRESS}${sep}sslrootcert=$GITHUB_WORKSPACE/infra/library-host/mint-library.crt"
+          fi
+          pnpm check:own-health
+        env:
+          STORYTREE_WINDOWS_EVIDENCE: ${{ steps.windows.outcome == 'success' && '.pgtest/windows-evidence' || '' }}
+          STORYTREE_WINDOWS_RUN: ${{ steps.windows.outcome == 'success' && steps.evidence.outputs.run-url || '' }}
+          STORYTREE_MACOS_EVIDENCE: ${{ steps.macos.outcome == 'success' && '.pgtest/macos-evidence' || '' }}
+          STORYTREE_MACOS_RUN: ${{ steps.macos.outcome == 'success' && steps.evidence.outputs.run-url || '' }}
+          # The health role's password, read only when connecting by address.
+          PGPASSWORD: ${{ env.HEALTH_PG_ADDRESS != '' && secrets.HEALTH_PG_PASSWORD || '' }}

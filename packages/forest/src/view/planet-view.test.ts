@@ -1,0 +1,503 @@
+/** The page's planet joins: permanent places, mesh picking, and failure markers after orbiting. */
+import assert from "node:assert/strict";
+import { test } from "node:test";
+import { Color, DoubleSide, Euler, Group, LineBasicMaterial, LineSegments, Mesh, MeshBasicMaterial, OrthographicCamera, PlaneGeometry, Quaternion, Raycaster, SphereGeometry, SRGBColorSpace, Vector2, Vector3 } from "three";
+import { workStates } from "@storytree/arc-surface";
+import { forestDrawn, forestScene, MAPPED_ISLAND_CAP, MIN_ISLAND_AREA, storyNodes } from "@storytree/forest";
+import type { AnnotatedTree, Change } from "@storytree/library";
+import { globeFraming, globeHover, isGlobeDrag, markerSpot, pickGlobe, pickIsland, pointedFile } from "./planet-navigation.js";
+import { sheetLayout, sheetMarkers } from "./sheet-navigation.js";
+import { sheetPoint } from "@storytree/forest-world/planet";
+import { codePathKey } from "@storytree/knowledge-core";
+import { circleStops, fileCircleMarks, lightFileCircles } from "./file-circles.js";
+import { lightTerritories, territoryLand } from "./territory-land.js";
+import { ClaimMarks } from "./claim-flag.js";
+import { territories } from "../territories/territories.js";
+
+test("3.12 hovering an eligible artifact shows its title and pointer in either mode; empty space clears both", () => {
+  const world = new Group();
+  const note = new Group();
+  note.name = "knowledge-point:note";
+  note.userData.title = "The artifact title";
+  world.add(note);
+  const camera = new OrthographicCamera(-10, 10, 10, -10, 0.1, 100);
+  camera.position.z = 40;
+  const box = { left: 20, top: 30, width: 400, height: 400 };
+  for (const mode of ["forest", "library"] as const) {
+    assert.deepEqual(globeHover(world, camera, box, { x: 220, y: 230 }, mode), { cursor: "pointer", title: "The artifact title" });
+    assert.deepEqual(globeHover(world, camera, box, { x: 240, y: 230 }, mode), { cursor: "", title: undefined });
+  }
+});
+
+test("3.12 movement of five CSS pixels is a drag, including diagonal movement", () => {
+  const from = { x: 100, y: 100 };
+  assert.equal(isGlobeDrag(from, { x: 104.9, y: 100 }), false);
+  assert.equal(isGlobeDrag(from, { x: 105, y: 100 }), true);
+  assert.equal(isGlobeDrag(from, { x: 103, y: 104 }), true);
+  assert.equal(isGlobeDrag(from, { x: 100, y: 94 }), true);
+});
+
+test("1.2 the sheet opens every story in the library with its grove at its place in the rows, a retired story with none, readable by the smoke check", () => {
+  const health = { reported: { state: "not-checked" as const }, verified: { state: "not-checked" as const } };
+  const tree: AnnotatedTree = { arcs: [], stories: [
+    { id: "new", title: "A new story", health, capabilities: [] },
+    { id: "kept", title: "An older story", health, capabilities: [
+      { id: "cap", title: "Its capability", dependsOn: [], proposed: true, status: "proposed" as const, contracts: [], health },
+    ] },
+  ] };
+  const history = ["retired", "kept", "new"].map((id, index): Change => ({
+    seq: index + 1, recordId: id, type: "story", action: "created",
+    record: { id, type: "story", version: 1, fields: { title: id }, createdAt: new Date(index).toISOString(), updatedAt: new Date(index).toISOString() },
+  }));
+  const scene = forestScene(tree, history, workStates([]));
+  const places = new Map(storyNodes(tree, history).map(node => [node.id, node.place]));
+  const layout = sheetLayout(scene, places);
+  assert.deepEqual([...layout.spots.keys()], ["new", "kept"]);
+  assert.equal(sheetPoint(layout.spots.get("new")!).x, sheetPoint(layout.spots.get("kept")!).x, "neither depends on anything: one depth, one column");
+  assert.deepEqual(layout.scene.islands.map(i => i.trees.map(t => t.capability)), [[undefined], ["cap"]]);
+  const drawn = forestDrawn(layout.scene);
+  assert.deepEqual([drawn.stories, drawn.capabilities], [["new", "kept"], ["cap"]], "what the page drew names every story and capability");
+});
+
+test("3.3 a click picks the turned island mesh, and empty space picks none", () => {
+  const world = new Group();
+  const globe = new Group();
+  globe.rotation.y = Math.PI / 2;
+  world.add(globe);
+  const plate = new Group();
+  plate.name = "planet:story";
+  plate.position.x = -11;
+  plate.rotation.y = -Math.PI / 2;
+  plate.add(new Mesh(new PlaneGeometry(4, 4), new MeshBasicMaterial({ side: DoubleSide })));
+  globe.add(plate);
+  const camera = new OrthographicCamera(-15, 15, 15, -15, 0.1, 100);
+  camera.position.z = 40;
+  camera.updateMatrixWorld();
+  const ray = new Raycaster();
+  ray.setFromCamera(new Vector2(0, 0), camera);
+  world.updateMatrixWorld(true);
+  assert.equal(pickIsland(ray, world), "story");
+  ray.setFromCamera(new Vector2(0.95, 0.95), camera);
+  assert.equal(pickIsland(ray, world), undefined, "empty space clears selection too");
+});
+
+test("3.11 the edge marker reads storytree's verified word, never the agent's report alone", () => {
+  const health = (reported: "passing" | "failing" | "not-checked", verified: "passing" | "failing" | "not-checked") => ({ reported: { state: reported }, verified: { state: verified } });
+  const capability = (id: string, status: "healthy" | "unhealthy" | "untested", reported: "passing" | "failing" | "not-checked") =>
+    ({ id, title: id, dependsOn: [], proposed: false, status, contracts: [], health: health(reported, status === "unhealthy" ? "failing" : "not-checked") });
+  const tree: AnnotatedTree = { arcs: [], stories: [
+    { id: "verified", title: "Verified failing", health: health("not-checked", "failing"), capabilities: [capability("cap-v", "unhealthy", "not-checked")] },
+    { id: "reported", title: "Reported failing", health: health("failing", "not-checked"), capabilities: [capability("cap-r", "untested", "failing")] },
+  ] };
+  const scene = forestScene(tree, [], workStates([]));
+  const layout = sheetLayout(scene, new Map([["verified", 1], ["reported", 2]]));
+  // Both islands drawn past the window's right edge.
+  const pastTheEdge = () => ({ left: 2000, top: 400 });
+  assert.deepEqual(sheetMarkers(layout.islands, pastTheEdge, { width: 1440, height: 900 }).map(m => m.story), ["verified"]);
+});
+
+test("3.11 an edge marker keeps clear above what is docked over the canvas's bottom edge, so the Sessions strip never covers it", () => {
+  const size = { width: 1440, height: 920 };
+  const strip = { left: 0, right: 1440, top: 884, bottom: 920 };
+  assert.deepEqual(markerSpot({ left: 720, top: 930 }, size, []), { left: 720, top: 900 }, "with nothing docked it stays 20px inside the canvas");
+  assert.deepEqual(markerSpot({ left: 720, top: 930 }, size, [strip]), { left: 720, top: 864 }, "it sits 20px above the strip");
+  assert.deepEqual(markerSpot({ left: 720, top: 400 }, size, [strip]), { left: 720, top: 400 }, "a marker clear of the strip does not move");
+  const panel = { left: 0, right: 600, top: 884, bottom: 920 };
+  assert.deepEqual(markerSpot({ left: 900, top: 930 }, size, [panel]), { left: 900, top: 900 }, "a strip that does not reach under the marker leaves it");
+  assert.deepEqual(markerSpot({ left: -5, top: 930 }, size, [{ left: 0, right: 1440, top: 400, bottom: 600 }]), { left: 20, top: 900 }, "only what reaches the bottom edge counts");
+});
+
+test("3.66 the zoom a stop at the whole map frames it at: 1.18 radii across half the short side by default; close up fills more, room around less (ADR-0750)", () => {
+  const fills = (choice: Parameters<typeof globeFraming>[0]) => 1 / globeFraming(choice);
+  assert.equal(globeFraming("whole-planet"), 1.18, "today's framing: half the short side is 1.18 radii");
+  assert.ok(fills("close") > 1, "close up: the planet runs past the short side");
+  assert.ok(fills("far") < 0.7, "room around: the planet stands well inside the window");
+});
+
+test("3.15 a click on a capability's territory picks its story with that capability; Unclaimed land picks the story alone", () => {
+  const land = {
+    radius: 2,
+    territories: [{ capability: "cap-a" }, {}],
+    cells: [
+      { polygon: [{ x: -2, z: -2 }, { x: 0, z: -2 }, { x: 0, z: 2 }, { x: -2, z: 2 }], territory: 0 },
+      { polygon: [{ x: 0, z: -2 }, { x: 2, z: -2 }, { x: 2, z: 2 }, { x: 0, z: 2 }], territory: 1 },
+    ],
+    borders: [{ from: { x: 0, z: -2 }, to: { x: 0, z: 2 } }],
+  };
+  const world = new Group();
+  const plate = new Group();
+  plate.name = "planet:story";
+  plate.rotation.x = Math.PI / 2;
+  plate.add(territoryLand(land, (p) => new Vector3(p.x, 0, p.z)));
+  world.add(plate);
+  world.updateMatrixWorld(true);
+  const camera = new OrthographicCamera(-4, 4, 4, -4, 0.1, 100);
+  camera.position.z = 40;
+  camera.updateMatrixWorld();
+  const box = { left: 0, top: 0, width: 800, height: 800 };
+  assert.deepEqual(pickGlobe(world, camera, box, { x: 300, y: 400 }, "forest"), { kind: "story", id: "story", capability: "cap-a" });
+  assert.deepEqual(pickGlobe(world, camera, box, { x: 500, y: 400 }, "forest"), { kind: "story", id: "story" });
+  assert.equal(world.getObjectByName("territory-borders")?.userData.borders, 1);
+});
+
+test("3.32 pointing at a capability's territory shows its full name, without its number, and its description's first paragraph; a file there names the capability the same way", () => {
+  const land = {
+    radius: 2,
+    territories: [{ capability: "cap-a", title: "6 · Agent tools (the MCP server)", description: "The tools an agent calls to read and write the plan.\r\n\r\nAs built: notes for the agents who build it." }, { capability: "cap-b", title: "7 · Instructions" }],
+    cells: [
+      { polygon: [{ x: -2, z: -2 }, { x: 0, z: -2 }, { x: 0, z: 2 }, { x: -2, z: 2 }], territory: 0 },
+      { polygon: [{ x: 0, z: -2 }, { x: 2, z: -2 }, { x: 2, z: 2 }, { x: 0, z: 2 }], territory: 1 },
+    ],
+    borders: [{ from: { x: 0, z: -2 }, to: { x: 0, z: 2 } }],
+  };
+  const world = new Group();
+  const plate = new Group();
+  plate.name = "planet:story";
+  plate.rotation.x = Math.PI / 2;
+  plate.add(territoryLand(land, (p) => new Vector3(p.x, 0, p.z)));
+  const file = new Mesh(new PlaneGeometry(0.5, 0.5));
+  file.name = "file:src/tools.ts";
+  file.userData = { file: "src/tools.ts", lines: 120, capability: "cap-a" };
+  // Lying on the land of cap-a's territory, just above it, at the screen's (300, 500).
+  file.rotation.x = -Math.PI / 2;
+  file.position.set(-1, 0.01, 1);
+  plate.add(file);
+  world.add(plate);
+  world.updateMatrixWorld(true);
+  const camera = new OrthographicCamera(-4, 4, 4, -4, 0.1, 100);
+  camera.position.z = 40;
+  camera.updateMatrixWorld();
+  const box = { left: 0, top: 0, width: 800, height: 800 };
+  assert.deepEqual(globeHover(world, camera, box, { x: 300, y: 300 }, "forest"),
+    { cursor: "pointer", title: "Agent tools (the MCP server)", detail: "The tools an agent calls to read and write the plan." });
+  assert.deepEqual(globeHover(world, camera, box, { x: 500, y: 400 }, "forest"), { cursor: "pointer", title: "Instructions" }, "no description: the name alone");
+  assert.deepEqual(globeHover(world, camera, box, { x: 300, y: 500 }, "forest"), { cursor: "pointer", title: "src/tools.ts · 120 lines · Agent tools (the MCP server)" });
+});
+
+test("3.14 a territory's land and borders stop at its island's coast", () => {
+  const land = {
+    radius: 2,
+    territories: [{ capability: "cap-a" }, {}],
+    cells: [
+      { polygon: [{ x: -2, z: -2 }, { x: 0, z: -2 }, { x: 0, z: 2 }, { x: -2, z: 2 }], territory: 0 },
+      { polygon: [{ x: 0, z: -2 }, { x: 2, z: -2 }, { x: 2, z: 2 }, { x: 0, z: 2 }], territory: 1 },
+    ],
+    borders: [{ from: { x: 0, z: -2 }, to: { x: 0, z: 2 } }],
+  };
+  // A diamond coast inside the square cells, reaching 1 from the middle.
+  const coast = [[{ x: 1, z: 0 }, { x: 0, z: 1 }, { x: -1, z: 0 }, { x: 0, z: -1 }]];
+  const drawn = territoryLand(land, (p) => new Vector3(p.x, 0, p.z), coast);
+  const onLand = (x: number, z: number) => Math.abs(x) + Math.abs(z) <= 1 + 1e-6;
+  drawn.traverse((object) => {
+    const position = (object as Mesh).geometry?.getAttribute("position");
+    for (let at = 0; position !== undefined && at < position.count; at++) assert.ok(onLand(position.getX(at), position.getZ(at)), `${object.name} stays on the land`);
+  });
+  const area = (mesh: Mesh) => { const p = mesh.geometry.getAttribute("position"); let sum = 0; for (let at = 0; at < p.count; at += 3) sum += Math.abs((p.getX(at + 1) - p.getX(at)) * (p.getZ(at + 2) - p.getZ(at)) - (p.getX(at + 2) - p.getX(at)) * (p.getZ(at + 1) - p.getZ(at))) / 2; return sum; };
+  assert.ok(Math.abs(area(drawn.getObjectByName("territory:cap-a") as Mesh) - 1) < 1e-6, "the half of the diamond west of the border");
+  // A bay cut into the land: a concave coast is followed too.
+  const bay = [[{ x: -2, z: -2 }, { x: 2, z: -2 }, { x: 2, z: 2 }, { x: -2, z: 2 }, { x: -2, z: 1 }, { x: 1, z: 1 }, { x: 1, z: -1 }, { x: -2, z: -1 }]];
+  const inBay = (x: number, z: number) => x < 1 - 1e-6 && z > -1 + 1e-6 && z < 1 - 1e-6;
+  const cut = territoryLand(land, (p) => new Vector3(p.x, 0, p.z), bay);
+  const west = cut.getObjectByName("territory:cap-a") as Mesh;
+  const p = west.geometry.getAttribute("position");
+  for (let at = 0; at < p.count; at += 3) {
+    const [x, z] = [(p.getX(at) + p.getX(at + 1) + p.getX(at + 2)) / 3, (p.getZ(at) + p.getZ(at + 1) + p.getZ(at + 2)) / 3];
+    assert.ok(!inBay(x, z), "no land is drawn in the bay");
+  }
+  assert.ok(Math.abs(area(west) - 4) < 1e-6, "the western half less the bay's western part");
+});
+
+test("3.16, 3.17 a file circle lies flat on the island's surface; pointing at it names the file, its lines and its capability", () => {
+  const onSurface = (p: { x: number; z: number }) => new Vector3(p.x, -(p.x * p.x + p.z * p.z) / 40, p.z);
+  const normalAt = (p: { x: number; z: number }) => new Vector3(p.x / 20, 1, p.z / 20).normalize();
+  const circles = fileCircleMarks([{ path: "src/a/one.ts", lines: 120, capability: "cap-a", x: 3, z: -2, radius: 0.5 }], onSurface, normalAt);
+  const mark = circles.getObjectByName("file:src/a/one.ts")!;
+  assert.deepEqual(mark.userData, { file: "src/a/one.ts", lines: 120, capability: "cap-a" });
+  const up = new Vector3(0, 0, 1).applyQuaternion(mark.quaternion);
+  assert.ok(up.angleTo(normalAt({ x: 3, z: -2 })) < 1e-6, "the circle's face turns to the surface's normal");
+  assert.ok(mark.position.distanceTo(onSurface({ x: 3, z: -2 })) <= 0.2, "the circle rests just on the surface");
+
+  const world = new Group();
+  const plate = new Group();
+  plate.name = "planet:story";
+  plate.add(fileCircleMarks([{ path: "src/a/one.ts", lines: 120, capability: "cap-a", x: 0, z: 0, radius: 1 }], (p) => new Vector3(p.x, 0, p.z), () => new Vector3(0, 1, 0)));
+  world.add(plate);
+  world.updateMatrixWorld(true);
+  const camera = new OrthographicCamera(-4, 4, 4, -4, 0.1, 100);
+  camera.position.y = 40;
+  camera.lookAt(0, 0, 0);
+  camera.updateMatrixWorld();
+  assert.deepEqual(pointedFile(world, camera, { left: 0, top: 0, width: 800, height: 800 }, { x: 400, y: 400 }), { file: "src/a/one.ts", lines: 120, capability: "cap-a" });
+  assert.equal(pointedFile(world, camera, { left: 0, top: 0, width: 800, height: 800 }, { x: 700, y: 700 }), undefined);
+});
+
+const flat = { onSurface: (p: { x: number; z: number }) => new Vector3(p.x, 0, p.z), normalAt: () => new Vector3(0, 1, 0) };
+const circlesOf = () => fileCircleMarks([
+  { path: "src/a.ts", lines: 40, capability: "cap-a", x: -3, z: 0, radius: 1 },
+  { path: "src/b.ts", lines: 90, capability: "cap-a", x: 3, z: 0, radius: 1.5 },
+], flat.onSurface, flat.normalAt);
+const mark = (group: Group, path: string) => group.getObjectByName(`file:${path}`) as Mesh;
+const colourOf = (object: Mesh) => (object.material as MeshBasicMaterial).color.getHexString();
+
+test("3.18 the forest hands the core each circle's place on the globe: where it lies once its island is set on the sphere, keyed by its package and path", () => {
+  const circles = circlesOf();
+  const plate = new Group();
+  plate.position.set(4, -7, 9);
+  plate.quaternion.setFromEuler(new Euler(0.4, -1.1, 0.7));
+  plate.add(circles);
+  plate.updateMatrixWorld(true);
+  const stops = circleStops(circles, "session-management", { position: plate.position, quaternion: plate.quaternion });
+  assert.deepEqual([...stops.keys()], [codePathKey("session-management", "src/a.ts"), codePathKey("session-management", "src/b.ts")]);
+  assert.equal(codePathKey("session-management", "src/a.ts"), "packages/session-management/src/a.ts");
+  for (const path of ["src/a.ts", "src/b.ts"]) {
+    const world = mark(circles, path).getWorldPosition(new Vector3());
+    assert.ok(new Vector3().copy(stops.get(codePathKey("session-management", path))!).distanceTo(world) < 1e-9, path);
+  }
+});
+
+test("3.18 a file circle the selected session opened is lit in its colour with the in-view ring, a compacted one lighter with none, and letting go restores it", () => {
+  const circles = circlesOf();
+  const [a, b] = [mark(circles, "src/a.ts"), mark(circles, "src/b.ts")];
+  const resting = [a.material, b.material];
+  lightFileCircles(circles, new Map([[codePathKey("story", "src/a.ts"), "in-window" as const], [codePathKey("story", "src/b.ts"), "faded" as const]]), "#e69f00", "story");
+  const [litA, litB] = [a.getObjectByName("file-lit:src/a.ts") as Mesh, b.getObjectByName("file-lit:src/b.ts") as Mesh];
+  assert.equal(colourOf(litA), "e69f00");
+  assert.ok(new Color(`#${colourOf(litB)}`).getHSL({ h: 0, s: 0, l: 0 }).l > new Color("#e69f00").getHSL({ h: 0, s: 0, l: 0 }).l, "lighter, as a compacted note is");
+  assert.ok((litB.material as MeshBasicMaterial).opacity < (litA.material as MeshBasicMaterial).opacity);
+  assert.equal(a.userData.window, "in-window");
+  assert.equal(b.userData.window, "faded");
+  assert.ok(a.getObjectByName("file-ring:src/a.ts"), "the in-view ring");
+  assert.equal(b.getObjectByName("file-ring:src/b.ts"), undefined, "a compacted read has no ring");
+  assert.deepEqual([a.material, b.material], resting, "the circles themselves are not swapped for anything, so nothing that dims or restores them can undo the lighting");
+  assert.equal(litA.userData.traversal, true, "and the lighting is marked, for the session emphasis to leave alone");
+  assert.deepEqual({ file: a.userData.file, lines: a.userData.lines }, { file: "src/a.ts", lines: 40 }, "pointing still names it");
+  lightFileCircles(circles, new Map(), "#e69f00", "story");
+  assert.equal(a.userData.window, undefined);
+  assert.deepEqual([a.getObjectByName("file-lit:src/a.ts"), a.getObjectByName("file-ring:src/a.ts"), b.getObjectByName("file-lit:src/b.ts")], [undefined, undefined, undefined]);
+});
+
+test("3.18 a capability the selected session opened fills its territory in the session's colour, faintly lighter when compacted, and letting go restores its tint", () => {
+  const land = {
+    radius: 2,
+    territories: [{ capability: "cap-a" }, { capability: "cap-b" }],
+    cells: [
+      { polygon: [{ x: -2, z: -2 }, { x: 0, z: -2 }, { x: 0, z: 2 }, { x: -2, z: 2 }], territory: 0 },
+      { polygon: [{ x: 0, z: -2 }, { x: 2, z: -2 }, { x: 2, z: 2 }, { x: 0, z: 2 }], territory: 1 },
+    ],
+    borders: [],
+  };
+  const drawn = territoryLand(land, (p) => new Vector3(p.x, 0, p.z));
+  const [a, b] = ["cap-a", "cap-b"].map((id) => drawn.getObjectByName(`territory:${id}`) as Mesh);
+  const resting = [colourOf(a!), (a!.material as MeshBasicMaterial).opacity];
+  lightTerritories(drawn, new Map([["cap-a", "in-window" as const], ["cap-b", "faded" as const]]), "#e69f00");
+  const [litA, litB] = [a!.getObjectByName("territory-lit:cap-a") as Mesh, b!.getObjectByName("territory-lit:cap-b") as Mesh];
+  assert.equal(colourOf(litA), "e69f00");
+  assert.ok((litB.material as MeshBasicMaterial).opacity < (litA.material as MeshBasicMaterial).opacity, "a compacted read is fainter");
+  assert.ok(new Color(`#${colourOf(litB)}`).getHSL({ h: 0, s: 0, l: 0 }).l > new Color("#e69f00").getHSL({ h: 0, s: 0, l: 0 }).l, "and lighter");
+  assert.equal(a!.userData.window, "in-window");
+  assert.equal(b!.userData.window, "faded");
+  assert.equal(litA.userData.traversal, true);
+  assert.equal(a!.userData.capability, "cap-a", "picking still names it");
+  assert.deepEqual([colourOf(a!), (a!.material as MeshBasicMaterial).opacity], resting, "the tint itself is untouched");
+  lightTerritories(drawn, new Map(), "#e69f00");
+  assert.deepEqual([a!.getObjectByName("territory-lit:cap-a"), b!.getObjectByName("territory-lit:cap-b"), a!.userData.window], [undefined, undefined, undefined]);
+});
+
+test("3.14, 3.20 an unsurveyed user project's land shows verified health, updates with it, and gains code when surveyed", () => {
+  const words = ["healthy", "unhealthy", "untested"] as const;
+  const health = { reported: { state: "passing" as const }, verified: { state: "not-checked" as const } };
+  const tree: AnnotatedTree = { arcs: [], stories: [{ id: "shop", title: "Browsing", health, capabilities: words.map((status, at) =>
+    ({ id: `cap-${at}`, title: `${at + 1} · ${status}`, description: `Browse ${at}`, dependsOn: [], proposed: false, status, contracts: [], health })) }] };
+  const unverified: AnnotatedTree = { ...tree, unverified: true, stories: tree.stories.map(story => ({ ...story,
+    capabilities: story.capabilities.map(capability => ({ ...capability, status: "untested", reportOnly: true })) })) };
+  const beforeCI = forestScene(unverified, [], workStates([])).islands[0]!;
+  assert.equal(beforeCI.land, undefined, "before any verification or code survey, the existing bare land remains");
+  const read = (survey = {}) => forestScene(tree, [], workStates([]), survey).islands[0]!;
+  const island = read();
+  assert.ok(island.land, "health has land to colour before a code survey is available");
+  assert.notEqual(island.key, beforeCI.key, "the first CI health creates the territories without a reload");
+  assert.deepEqual(island.land.files, [], "no files are invented");
+  assert.equal(island.land.package, undefined, "no package is inferred without a survey");
+  assert.deepEqual(read({ shop: { files: [], imports: [] } }).land, island.land, "an empty survey still draws health");
+  const map = territories(island.land.territories, 20);
+  const drawn = territoryLand(map, p => new Vector3(p.x, 0, p.z));
+  assert.deepEqual(words.map((_, at) => {
+    const mesh = drawn.getObjectByName(`territory:cap-${at}`) as Mesh;
+    assert.ok(mesh.geometry.attributes.position!.count > 0, "each capability has visible land");
+    assert.equal(mesh.userData.title, `${at + 1} · ${words[at]}`);
+    assert.equal(mesh.userData.description, `Browse ${at}`);
+    return (mesh.material as MeshBasicMaterial).color.getHexString();
+  }), ["97c459", "e24b4a", "f2d16b"], "the verified word wins over a passing agent report");
+  assert.deepEqual([0, 1, 2].map(at => map.cells.filter(cell => cell.territory === at).length), [40, 40, 40], "unsurveyed capabilities share the land equally");
+
+  tree.stories[0]!.capabilities[0]!.status = "unhealthy";
+  const changed = read();
+  assert.notEqual(changed.key, island.key, "fresh verified health redraws the island");
+  assert.equal(changed.land!.territories[0]!.status, "unhealthy");
+  const surveyed = read({ shop: { files: [{ path: "src/browse.ts", lines: 100, capability: "cap-0" }], imports: [] } });
+  assert.notEqual(surveyed.key, changed.key);
+  assert.deepEqual(surveyed.land!.territories.map(({ capability, lines }) => [capability, lines]), [["cap-0", 100]], "real code replaces equal shares");
+  assert.equal(surveyed.land!.files.length, 1);
+});
+
+test("3.20 each territory is filled by its capability's word, green, red or yellow, or slate grey when it is not proven and parked, and a claim leaves the fill alone", () => {
+  const words = ["healthy", "unhealthy", "proposed", "untested"] as const;
+  const health = { reported: { state: "not-checked" as const }, verified: { state: "not-checked" as const } };
+  const tree: AnnotatedTree = { arcs: [], stories: [{ id: "story", title: "The shop", health, capabilities: [...words.map((status, at) =>
+    ({ id: `cap-${status}`, title: `${at + 1} · ${status}`, dependsOn: [], proposed: status === "proposed", status, contracts: [], health })),
+    { id: "cap-parked", title: "5 · parked", dependsOn: [], proposed: true, status: "proposed" as const, contracts: [], health, parkedOn: [{ arc: "arc-1", title: "Identity" }] }] }] };
+  const survey = { story: { files: [...[...words, "parked"].map((status) => ({ path: `src/${status}.ts`, lines: 10, capability: `cap-${status}` })), { path: "src/loose.ts", lines: 10 }], imports: [] } };
+  const land = forestScene(tree, [], workStates([]), survey).islands[0]!.land!;
+  assert.deepEqual(land.territories.map(({ status }) => status), [...words, "proposed", undefined], "the scene carries each capability's word to its territory");
+  assert.deepEqual(land.territories.map(({ parked }) => parked), [undefined, undefined, undefined, undefined, true, undefined], "and whether it is parked");
+
+  const cells = land.territories.map((_, territory) => ({ polygon: [{ x: 2 * territory, z: 0 }, { x: 2 * territory + 2, z: 0 }, { x: 2 * territory + 2, z: 2 }, { x: 2 * territory, z: 2 }], territory }));
+  const flat = (p: { x: number; z: number }) => new Vector3(p.x, 0, p.z);
+  const fill = (group: Group, name: string) => (group.getObjectByName(name) as Mesh).material as MeshBasicMaterial;
+  const drawn = territoryLand({ territories: land.territories, cells, borders: [] }, flat);
+  const expected = { healthy: "#97c459", unhealthy: "#e24b4a", proposed: "#f2d16b", untested: "#f2d16b" };
+  for (const word of words) {
+    assert.equal(`#${fill(drawn, `territory:cap-${word}`).color.getHexString()}`, expected[word], `${word} fills its territory`);
+    assert.equal(drawn.getObjectByName(`territory:cap-${word}`)!.userData.word, word);
+  }
+  // ADR-0992 D4: parked is mid slate grey, at the other fills' opacity, and keeps its word.
+  const parked = fill(drawn, "territory:cap-parked");
+  assert.equal(`#${parked.color.getHexString()}`, "#86939d", "a parked capability is filled slate grey, not yellow");
+  assert.equal(parked.opacity, fill(drawn, "territory:cap-proposed").opacity);
+  assert.equal(drawn.getObjectByName("territory:cap-parked")!.userData.word, "proposed", "its word is unchanged");
+  assert.equal(drawn.getObjectByName("territory:cap-parked")!.userData.parked, true, "and it says it is parked");
+  assert.equal("parked" in drawn.getObjectByName("territory:cap-proposed")!.userData, false);
+  const ground = new Color("#edf3f5");
+  assert.ok(ground.getHSL({ h: 0, s: 0, l: 0 }).l - parked.color.getHSL({ h: 0, s: 0, l: 0 }).l > 0.3, "dark enough to read as a territory on the island's ground");
+  drawn.traverse((object) => {
+    const material = (object as Mesh).material as MeshBasicMaterial | undefined;
+    if (!(object instanceof Mesh) || material === undefined || object.name === "territory:unclaimed" || object.name === "territory:cap-parked") return;
+    const hsl = material.color.getHSL({ h: 0, s: 0, l: 0 });
+    assert.ok(hsl.s > 0.3, `${object.name} is drawn in a colour, not grey`);
+  });
+  // Unclaimed code is uncharted land: a night-dark fill that hides the grey ground, hatched, never a hue (no-data convention).
+  const uncharted = fill(drawn, "territory:unclaimed");
+  const unchartedHsl = uncharted.color.getHSL({ h: 0, s: 0, l: 0 });
+  assert.ok(uncharted.opacity > 0.5, "Unclaimed code's land is drawn, so the island's grey ground does not show through");
+  assert.ok(!(unchartedHsl.s < 0.1 && unchartedHsl.l > 0.3 && unchartedHsl.l < 0.75), "and its fill is not a mid grey");
+  assert.ok(unchartedHsl.l < parked.color.getHSL({ h: 0, s: 0, l: 0 }).l - 0.2, "uncharted land stays far darker than parked grey");
+  for (const word of words) assert.ok(!uncharted.color.equals(fill(drawn, `territory:cap-${word}`).color), `nor ${word}'s colour`);
+  assert.deepEqual(drawn.getObjectByName("territory:unclaimed")!.userData, { territory: true }, "it stays pickable as land");
+  const hatch = drawn.getObjectByName("territory-hatch:unclaimed") as LineSegments;
+  const at = hatch.geometry.attributes.position!;
+  const ends = Array.from({ length: at.count }, (_, i) => ({ x: at.getX(i), z: at.getZ(i) }));
+  assert.ok(ends.length >= 4, "a hatch lies across Unclaimed code's land");
+  assert.ok(ends.every(({ x, z }) => x >= 10 - 1e-6 && x <= 12 + 1e-6 && z >= -1e-6 && z <= 2 + 1e-6), "every hatch line stays inside that territory's cell");
+  assert.ok(ends.some((p, i) => i % 2 === 0 && Math.abs((ends[i + 1]!.x - p.x) * (ends[i + 1]!.z - p.z)) > 1e-6), "the hatch runs diagonally");
+  assert.equal((hatch.material as LineBasicMaterial).opacity < 0.85 && hatch.renderOrder > 1 && hatch.renderOrder < 2, true, "fainter than the white borders, between fill and borders");
+  assert.equal(drawn.getObjectByName("territory-hatch:cap-healthy"), undefined, "only land no contract has surveyed is hatched");
+
+  const claimed = territoryLand({ territories: land.territories, cells, borders: [] }, flat, undefined, new Map([["cap-healthy", { colour: "hsl(200, 80%, 68%)", faded: false }]]));
+  assert.ok(fill(claimed, "territory:cap-healthy").color.equals(fill(drawn, "territory:cap-healthy").color), "a claim never changes the fill");
+  assert.equal(fill(claimed, "territory:cap-healthy").opacity, fill(drawn, "territory:cap-healthy").opacity);
+});
+
+test("3.39 a mapped story is one brown island, whole: no territories, file circles or hatch; its land follows its lines up to a cap; with no survey it is still brown land", () => {
+  const health = { reported: { state: "not-checked" as const }, verified: { state: "not-checked" as const } };
+  const tree: AnnotatedTree = { arcs: [], stories: [
+    { id: "cart", title: "cart", health, capabilities: [], mapped: { from: "/code/shop", package: "packages/cart", folders: ["packages/cart"] } },
+    { id: "shop", title: "The shop", health, capabilities: [{ id: "cap", title: "1 · Browse", dependsOn: [], proposed: true, status: "proposed" as const, contracts: [], health }] },
+  ] };
+  const files = (lines: number) => [{ path: "packages/cart/src/a.ts", lines: lines / 2 }, { path: "packages/cart/src/b.ts", lines: lines / 2 }];
+  const survey = (lines: number) => ({ cart: { files: files(lines), imports: [], mapped: { folder: "/code/shop" } }, shop: { files: [{ path: "src/browse.ts", lines: 400, capability: "cap" }], imports: [] } });
+  const scene = (lines?: number, read: AnnotatedTree = tree) => forestScene(read, [], workStates([]), lines === undefined ? {} : survey(lines));
+  const cart = scene(2_000).islands[0]!;
+  assert.deepEqual(cart.land, { territories: [{ mapped: true, lines: 2_000 }], files: [] }, "one mapped territory, and no file circles");
+  assert.equal(cart.area, 3_000, "a small mapped island's land follows its lines as a built island's does: 1.5 ground units² a line");
+  const huge = scene(200_000).islands;
+  assert.equal(huge[0]!.area, MAPPED_ISLAND_CAP, "a very large one is capped");
+  assert.ok(MAPPED_ISLAND_CAP < 300_000, "below the 300,000 ground units² 200,000 lines would have uncapped");
+  assert.equal(huge[1]!.area, scene(2_000).islands[1]!.area, "and its built neighbour keeps its own land");
+  assert.notEqual(huge[0]!.key, cart.key, "a mapped island redraws when its code grows");
+  // A project whose only stories are mapped, before any survey or verification, opens on brown land.
+  const unsurveyed = scene(undefined, { ...tree, unverified: true }).islands[0]!;
+  assert.deepEqual(unsurveyed.land, { territories: [{ mapped: true, lines: 1 }], files: [] });
+  assert.equal(unsurveyed.area, MIN_ISLAND_AREA);
+
+  const map = territories(cart.land!.territories, 20);
+  const drawn = territoryLand(map, (p) => new Vector3(p.x, 0, p.z));
+  const mesh = drawn.getObjectByName("territory:mapped") as Mesh;
+  const at = mesh.geometry.attributes.position!;
+  const brownArea = Array.from({ length: at.count / 3 }, (_, t) => {
+    const [a, b, c] = [0, 1, 2].map(k => ({ x: at.getX(3 * t + k), z: at.getZ(3 * t + k) }));
+    return Math.abs((b!.x - a!.x) * (c!.z - a!.z) - (c!.x - a!.x) * (b!.z - a!.z)) / 2;
+  }).reduce((sum, area) => sum + area, 0);
+  const landArea = map.cells.reduce((sum, { polygon }) => sum + Math.abs(polygon.reduce((twice, p, i) => { const q = polygon[(i + 1) % polygon.length]!; return twice + p.x * q.z - q.x * p.z; }, 0)) / 2, 0);
+  assert.ok(landArea > 0 && Math.abs(brownArea - landArea) < landArea * 1e-6, "the whole island is brown land: the brown covers every cell");
+  assert.deepEqual(mesh.userData, { territory: true, mapped: true }, "picked as land, with no capability and no word");
+  assert.equal(drawn.getObjectByName("territory:unclaimed"), undefined, "never the uncharted look");
+  assert.equal(drawn.getObjectByName("territory-hatch:unclaimed"), undefined, "and never hatched");
+  const brown = (mesh.material as MeshBasicMaterial).color.getHSL({ h: 0, s: 0, l: 0 }, SRGBColorSpace);
+  assert.ok(brown.h > 15 / 360 && brown.h < 45 / 360 && brown.s > 0.25 && brown.l > 0.25 && brown.l < 0.6, "brown: an earthy orange, muted and mid-dark");
+  const parked = new Color("#86939d").getHSL({ h: 0, s: 0, l: 0 }, SRGBColorSpace);
+  assert.ok(Math.abs(brown.h - parked.h) > 0.3 && brown.s - parked.s > 0.1, "warm and plainly apart from parked's cool slate grey");
+});
+
+test("3.50 a mapped island draws each explored capability as a brown territory of its own, side by side with one for the unexplored rest, none over another; each is picked by its capability", () => {
+  const health = { reported: { state: "not-checked" as const }, verified: { state: "not-checked" as const } };
+  const explored = (id: string, title: string, covers: string[]) => ({ id, title, description: `${title}, explored`, dependsOn: [], proposed: true, status: "proposed" as const, contracts: [], health, covers });
+  const tree: AnnotatedTree = { arcs: [], stories: [{ id: "app", title: "app", health, mapped: { from: "/code/app", package: ".", folders: ["."] },
+    capabilities: [explored("stats", "1 · Stats page", ["app/stats", "lib/stats.ts"]), explored("empty", "2 · Not found yet", ["app/gone"])] }] };
+  const files = [{ path: "app/stats/page.tsx", lines: 300, capability: "stats" }, { path: "lib/stats.ts", lines: 100, capability: "stats" }, { path: "app/home.tsx", lines: 1_600 }];
+  const island = forestScene(tree, [], workStates([]), { app: { files, imports: [], mapped: { folder: "/code/app" } } }).islands[0]!;
+  assert.deepEqual(island.land, { territories: [
+    { capability: "stats", title: "1 · Stats page", description: "1 · Stats page, explored", mapped: true, lines: 400 },
+    { mapped: true, lines: 1_600 },
+  ], files: [] }, "a territory per explored capability with code, then the unexplored rest, all mapped, and no file circles");
+  assert.equal(island.area, 3_000, "the island's land still follows all its lines");
+  const whole = forestScene({ ...tree, stories: [{ ...tree.stories[0]!, capabilities: [] }] }, [], workStates([]), { app: { files: files.map(({ path, lines }) => ({ path, lines })), imports: [], mapped: { folder: "/code/app" } } }).islands[0]!;
+  assert.notEqual(whole.key, island.key, "exploring redraws the island");
+
+  const map = territories(island.land!.territories, 20);
+  const drawn = territoryLand(map, (p) => new Vector3(p.x, 0, p.z));
+  const stats = drawn.getObjectByName("territory:stats") as Mesh;
+  const rest = drawn.getObjectByName("territory:mapped") as Mesh;
+  assert.deepEqual(stats.userData, { territory: true, mapped: true, capability: "stats", title: "1 · Stats page", description: "1 · Stats page, explored" }, "picked by its capability, with no word: it carries no health");
+  assert.ok((stats.material as MeshBasicMaterial).color.equals((rest.material as MeshBasicMaterial).color), "brown, as the rest of the island");
+  const cellsOf = (at: number) => map.cells.filter(({ territory }) => territory === at).length;
+  assert.ok(cellsOf(0) > 0 && cellsOf(1) > 0, "each has its own land");
+  assert.ok(map.cells.every(({ territory }) => territory === 0 || territory === 1), "and every cell is one territory's: none drawn over another");
+  assert.ok(map.borders.length > 0, "a border runs between them");
+  assert.equal(drawn.getObjectByName("territory-hatch:unclaimed"), undefined, "never hatched");
+});
+
+/**
+ * Three draws a see-through, double-sided material in two passes, back faces then front, re-versioning it
+ * before each (WebGLRenderer's renderObject), so every frame re-derives its shader program twice (ADR-0836 D1).
+ */
+const programsEveryFrame = (root: Group): string[] => {
+  const found: string[] = [];
+  root.traverse(object => {
+    for (const material of [(object as Mesh).material ?? []].flat()) if (material.transparent && material.side === DoubleSide && !material.forceSinglePass) found.push(object.name);
+  });
+  return found;
+};
+
+test("5.4 an animating globe redraws a session-lit island's land, circles, tints and claim flags without re-deriving a shader program", () => {
+  const land = {
+    radius: 2,
+    territories: [{ capability: "cap-a", status: "healthy" as const }, { capability: "cap-b" }],
+    cells: [
+      { polygon: [{ x: -2, z: -2 }, { x: 0, z: -2 }, { x: 0, z: 2 }, { x: -2, z: 2 }], territory: 0 },
+      { polygon: [{ x: 0, z: -2 }, { x: 2, z: -2 }, { x: 2, z: 2 }, { x: 0, z: 2 }], territory: 1 },
+    ],
+    borders: [],
+  };
+  const plate = new Group();
+  const drawn = territoryLand(land, flat.onSurface, undefined, new Map([["cap-a", { colour: "#e69f00", faded: false }]]));
+  const marks = new ClaimMarks();
+  marks.setLand(territories([{ capability: "cap-a", lines: 1 }, { capability: "cap-b", lines: 1 }], 2), flat.onSurface, flat.normalAt, true);
+  marks.claims(new Map([["cap-a", { colour: "#e69f00", faded: false }]]), 0, { standing: false, reduced: false });
+  marks.frame(0.7, { zoom: 20, eye: new Quaternion(), reduced: false });
+  lightTerritories(drawn, new Map([["cap-a", "in-window" as const], ["cap-b", "faded" as const]]), "#e69f00");
+  const circles = circlesOf();
+  lightFileCircles(circles, new Map([[codePathKey("story", "src/a.ts"), "in-window" as const], [codePathKey("story", "src/b.ts"), "faded" as const]]), "#e69f00", "story");
+  plate.add(drawn, circles, marks.root);
+  assert.ok(plate.getObjectByName("territory-claim:cap-a") && plate.getObjectByName("claim-lot:cap-a") && plate.getObjectByName("file-ring:src/a.ts"), "the fixture draws every kind of mark");
+  assert.deepEqual(programsEveryFrame(plate), []);
+});

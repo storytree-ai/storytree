@@ -1,0 +1,676 @@
+// The rules of recording a test run (test-run.mjs, record-run.mjs; storytree's own `pnpm check:own-health` among them): how a test run's results become
+// each contract's verified health, and how a story's contracts and its package are read from 0.3's
+// own library. The parsing and judging tests are pure; the library tests run against the Postgres
+// `pnpm test` provides (STORYTREE_TEST_PG_URL), each in a project of its own that is dropped
+// afterwards.
+import assert from "node:assert/strict";
+import { randomBytes } from "node:crypto";
+import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import { test } from "node:test";
+
+import { connect } from "@storytree/library";
+import { dropTestDatabases } from "@storytree/local-postgres/testing";
+import { removeTemp } from "@storytree/test-waits";
+
+import { checkStory } from "./record-run.mjs";
+import { contractsCoveredBy, contractsOf, judge, markPending, packageOf, parseJunit, readCiEvidence, recordHealth, recordingTarget } from "./test-run.mjs";
+
+test("12.1 · parseJunit reads each test's name, the suites around it, its file, and whether it passed, failed or was skipped", () => {
+  const results = parseJunit(JUNIT);
+  assert.deepEqual(results, [
+    { name: "packages\\library\\src\\transactions\\pg.test.ts", suites: [], file: "C:\\repo\\packages\\library\\src\\transactions\\pg.test.ts", status: "failed", message: "test failed" },
+    { name: "1.1 openProject creates the project's database and its tables", suites: [], file: "C:\\repo\\a.test.ts", status: "passed" },
+    { name: '2.3 [memory] a "quoted" <name> & more', suites: [], file: "C:\\repo\\a.test.ts", status: "passed" },
+    { name: "8.1 live proof", suites: [], file: "C:\\repo\\a.test.ts", status: "skipped", message: "owner-gated" },
+    { name: "3.1 fails", suites: [], file: "C:\\repo\\a.test.ts", status: "failed", message: "boom" },
+    { name: "2.1 [cloud-sql] inside", suites: ["8.1 capability 2's suite"], file: "C:\\repo\\a.test.ts", status: "passed" },
+    { name: "4.4 todo", suites: [], file: "C:\\repo\\a.test.ts", status: "skipped", message: "later" },
+  ]);
+});
+
+test("12.1 judge: a contract passes only if every test it has passed; any failure fails it; a skipped test, or none, leaves it not checked", () => {
+  const result = (name, status, extra = {}) => ({ name, suites: [], file: "C:\\repo\\a.test.ts", status, ...extra });
+  const { verdicts, unmapped } = judge({
+    contracts: ["1.1", "1.2", "1.3", "2.1", "2.2", "8.1", "8.2"],
+    results: [
+      result("1.1 [memory] one", "passed"),
+      result("1.1 [postgres] one", "passed"),
+      result("1.2 [memory] two", "passed"),
+      result("1.2 [postgres] two", "failed", { message: "boom" }),
+      result("2.1 [memory] some", "passed"),
+      result("2.1 [postgres] some", "skipped", { message: "no server" }),
+      result("8.1 live proof", "skipped", { message: "owner-gated" }),
+      // Nested under 8.1, a test named for 2.2 counts for 8.1, the outermost numbered name.
+      { name: "2.2 [cloud-sql] inside", suites: ["8.2 around it"], file: "C:\\repo\\a.test.ts", status: "passed" },
+      result("robustness [memory] no number", "passed"),
+      result("9.9 a contract the story does not have", "passed"),
+    ],
+    coverage: () => new Set(),
+  });
+  const brief = (number) => {
+    const { state, note } = verdicts.get(number);
+    return note === undefined ? { state } : { state, note };
+  };
+  assert.deepEqual(brief("1.1"), { state: "passing", note: "2/2 tests passed" });
+  assert.deepEqual(brief("1.2"), { state: "failing", note: "1/2 tests passed" });
+  assert.deepEqual(brief("1.3"), { state: "not-checked" }, "no tests");
+  assert.deepEqual(brief("2.1"), { state: "not-checked" }, "a skipped test is not a pass");
+  assert.deepEqual(brief("2.2"), { state: "not-checked" }, "its only test counts for 8.2");
+  assert.deepEqual(brief("8.1"), { state: "not-checked" }, "all skipped");
+  assert.deepEqual(brief("8.2"), { state: "passing", note: "1/1 tests passed" });
+  assert.match(verdicts.get("2.1").reason, /1 of 2 tests skipped/);
+  assert.match(verdicts.get("8.1").reason, /skipped.*owner-gated/);
+  assert.match(verdicts.get("1.3").reason, /no test ran/);
+  assert.deepEqual(unmapped.map(({ name }) => name), ["robustness [memory] no number", "9.9 a contract the story does not have"]);
+});
+
+test("12.1 judge: a test file that produced no results leaves the contracts it holds not checked, never failing, and names the file", () => {
+  const crashed = "C:\\repo\\packages\\library\\src\\transactions\\pg.test.ts";
+  const { verdicts, crashedFiles } = judge({
+    contracts: ["2.1", "2.2", "3.1"],
+    results: [
+      { name: "packages\\library\\src\\transactions\\pg.test.ts", suites: [], file: crashed, status: "failed", message: "test failed" },
+      { name: "2.1 [memory] save", suites: [], file: "C:\\repo\\memory.test.ts", status: "passed" },
+      { name: "2.2 [memory] edit", suites: [], file: "C:\\repo\\memory.test.ts", status: "failed", message: "boom" },
+      { name: "3.1 [memory] schema", suites: [], file: "C:\\repo\\schema.test.ts", status: "passed" },
+    ],
+    coverage: (file) => (file === crashed ? new Set(["2.1", "2.2"]) : new Set()),
+  });
+  assert.equal(verdicts.get("2.1").state, "not-checked", "its memory half passed, but its postgres half never ran");
+  assert.match(verdicts.get("2.1").reason, /pg\.test\.ts produced no results/);
+  assert.equal(verdicts.get("2.1").crashed, true, "5.6: marked as a run that could not reproduce its verdict");
+  assert.equal(verdicts.get("2.2").state, "failing", "a failure seen is still a failure");
+  assert.equal(verdicts.get("3.1").state, "passing");
+  assert.deepEqual(crashedFiles, [{ file: crashed, contracts: ["2.1", "2.2"] }]);
+});
+
+test("12.1 · judge: every contract in a leading list shares the test's result, once each", async (t) => {
+  for (const [title, numbers] of [
+    ["2.2, 2.4 · choosing a project mentions 9.9 in prose", ["2.2", "2.4"]],
+    ["2.2, 2.3 recovery", ["2.2", "2.3"]],
+    ["4.1 and 4.3 queued arcs", ["4.1", "4.3"]],
+    ["2.10 / 7.6 [memory] writer history", ["2.10", "7.6"]],
+    ["2.1–2.4 the board names each window", ["2.1", "2.2", "2.3", "2.4"]],
+    ["3.1, 3.4–3.6 the open overlay", ["3.1", "3.4", "3.5", "3.6"]],
+    ["2.2, 2.2–2.4 / 2.4 and 2.3", ["2.2", "2.3", "2.4"]],
+    ["3.6: delete a project", ["3.6"]],
+    ["1.4, 1.6: deliver writes the hooks", ["1.4", "1.6"]],
+  ]) {
+    await t.test(title, () => {
+      for (const [status, state] of [["passed", "passing"], ["failed", "failing"], ["skipped", "not-checked"]]) {
+        const { verdicts, unmapped } = judge({
+          contracts: [...numbers, "9.9"],
+          results: [{ name: title, suites: [], file: "a.test.ts", status }],
+          coverage: () => new Set(),
+        });
+        for (const number of numbers) {
+          assert.equal(verdicts.get(number).state, state, `${number}: ${status}`);
+          assert.equal(verdicts.get(number).total, 1, `${number} counts the test once`);
+          assert.equal(verdicts.get(number)[status], 1);
+        }
+        assert.equal(verdicts.get("9.9").total, 0, "a number in prose gets no credit");
+        assert.deepEqual(unmapped, []);
+      }
+    });
+  }
+});
+
+test("12.1 · judge: only the outermost numbered prefix gives credit, ignoring unknown numbers and later prose", () => {
+  const result = (name, suites = []) => ({ name, suites, file: "a.test.ts", status: "passed" });
+  const unknown = result("9.8, 9.9 · unknown contracts", ["unnumbered suite"]);
+  const prose = result("mentions 2.2, 2.4 in prose");
+  const { verdicts, unmapped } = judge({
+    contracts: ["2.2", "2.4", "8.1", "8.2"],
+    results: [
+      result("2.2, 2.4 · inside", ["unnumbered suite", "8.1, 8.2 · outer", "2.2 · inner"]),
+      result("9.9, 2.4 · includes a known contract"),
+      result("2.2"),
+      result("2.2 checks version 8.1 and 8.2, then 2.4"),
+      result("2.2 8.1 is prose without a list separator"),
+      unknown,
+      prose,
+      result("2.4 · inside an unknown numbered suite", ["9.8, 9.9 · outer"]),
+    ],
+    coverage: () => new Set(),
+  });
+  assert.deepEqual([...verdicts].map(([number, { total }]) => [number, total]), [
+    ["2.2", 3], ["2.4", 1], ["8.1", 1], ["8.2", 1],
+  ]);
+  assert.deepEqual(unmapped.map(({ name }) => name), [unknown.name, prose.name, "2.4 · inside an unknown numbered suite"]);
+});
+
+test("12.1 · contractsCoveredBy: a crashed multi-contract file leaves every named contract not checked", (t) => {
+  const directory = mkdtempSync(path.join(tmpdir(), "own-health-"));
+  t.after(() => removeTemp(directory));
+  const file = path.join(directory, "planted.test.ts");
+  writeFileSync(file, 'test("2.2, 2.4–2.6 / 7.6 and 8.1 · mentions 9.9 in prose", () => {});');
+  const numbers = ["2.2", "2.4", "2.5", "2.6", "7.6", "8.1"];
+  const coverage = (source) => contractsCoveredBy(source, { root: directory });
+  assert.deepEqual([...coverage(file)], numbers);
+  const { verdicts, crashedFiles } = judge({
+    contracts: [...numbers, "9.9"],
+    results: [
+      ...numbers.map((number) => ({ name: `${number} · another test`, suites: [], file: "other.test.ts", status: "passed" })),
+      { name: file, suites: [], file, status: "failed" },
+    ],
+    coverage,
+  });
+  assert.deepEqual(crashedFiles, [{ file, contracts: numbers }]);
+  for (const number of numbers) {
+    assert.equal(verdicts.get(number).state, "not-checked");
+    assert.match(verdicts.get(number).reason, /produced no results/);
+  }
+});
+
+test("12.1 a leading range too wide to be real, or with an unsafe end, credits nothing instead of crashing; one up to 256 numbers wide still credits", (t) => {
+  const directory = mkdtempSync(path.join(tmpdir(), "own-health-"));
+  t.after(() => removeTemp(directory));
+  const file = path.join(directory, "planted.test.ts");
+  const oversized = ["3.1–3.9007199254740991 oversized", "3.1–3.257 too wide", "3.1–3.128, 3.129–3.257 too wide together", "3.1–3.9007199254740993 unsafe"];
+  writeFileSync(file, [...oversized, "3.1–3.256 wide"].map((title) => `test(${JSON.stringify(title)}, () => {});`).join("\n"));
+  assert.equal(contractsCoveredBy(file, { root: directory }).size, 256);
+  const { verdicts, unmapped } = judge({
+    contracts: ["3.1", "3.2"],
+    results: oversized.map((name) => ({ name, suites: [], file: "a.test.ts", status: "failed" })),
+    coverage: () => new Set(),
+  });
+  assert.equal(verdicts.get("3.1").state, "not-checked");
+  assert.deepEqual(unmapped.map(({ name }) => name), oversized);
+});
+
+test("12.1 · contractsCoveredBy reads only test titles: a comment or a fixture string naming a contract covers nothing", (t) => {
+  const directory = mkdtempSync(path.join(tmpdir(), "own-health-"));
+  t.after(() => removeTemp(directory));
+  const file = path.join(directory, "planted.test.ts");
+  writeFileSync(
+    file,
+    [
+      "/** Health as `1.2 · a doc comment` describes it. */",
+      'const fixture = { name: "1.3 · a fixture string" };',
+      'const TITLE = "1.4 · titled through a constant";',
+      'test("1.1 · a test", () => {});',
+      "test(TITLE, () => {});",
+      'const SHARED = "1.6 · titled through a template";',
+      "test(`${SHARED} (one way)`, () => {});",
+      'contract(\n  "1.5", "titled through a helper", () => {});',
+    ].join("\n"),
+  );
+  assert.deepEqual([...contractsCoveredBy(file, { root: directory })].sort(), ["1.1", "1.4", "1.5", "1.6"]);
+});
+
+test("12.1 · contractsCoveredBy finds the contract numbers a test file names, in itself and in the modules it imports", (t) => {
+  const directory = mkdtempSync(path.join(tmpdir(), "own-health-"));
+  t.after(() => removeTemp(directory));
+  const src = path.join(directory, "src");
+  mkdirSync(path.join(src, "transactions"), { recursive: true });
+  const plant = (file, lines) => writeFileSync(path.join(src, file), lines.join("\n"));
+  plant("transactions/pg.test.ts", ['import { suite } from "./behaviour-suite.js";', 'import { helper } from "../helper.js";', "suite();"]);
+  plant("transactions/behaviour-suite.ts", ['import { more } from "./more";', 'export function suite() { test("2.1 · commits", () => {}); test("2.3 · rolls back", () => {}); }']);
+  plant("transactions/more.ts", ['import { suite } from "./behaviour-suite.js";', 'test("2.2 · nests", () => {});']);
+  plant("helper.ts", ['test("4.1 · helps", () => {});']);
+  plant("named.test.ts", ['import "./transactions/more.js";', 'test("1.1 · opens", () => {});', 'test("1.13, 1.2 · closes", () => {});']);
+  writeFileSync(path.join(directory, "outside.ts"), 'test("9.9 · beyond the root", () => {});');
+  plant("reaches-out.test.ts", ['import "../outside.js";', 'test("3.1 · inside", () => {});']);
+  const covered = (file) => [...contractsCoveredBy(path.join(src, file), { root: src })].sort();
+  // pg.test.ts names no contract itself: it covers what the modules it imports name, transitively and through a cycle.
+  assert.deepEqual(covered("transactions/pg.test.ts"), ["2.1", "2.2", "2.3", "4.1"]);
+  assert.deepEqual(covered("named.test.ts"), ["1.1", "1.13", "1.2", "2.1", "2.2", "2.3"], "its own titles and an import's");
+  assert.deepEqual(covered("reaches-out.test.ts"), ["3.1"], "a module outside the root covers nothing");
+});
+
+/** A story in `lib` with one capability and four contracts, as `projectTree()` hands it back. */
+async function kettle(lib) {
+  const story = await lib.addStory({ title: "The cli" });
+  const capability = await lib.addCapability({ story: story.id, title: "1 · Front door" });
+  for (const [number, words] of [[1, "a"], [2, "b"], [3, "c"], [4, "d"]]) {
+    await lib.addContract({ capability: capability.id, title: `1.${number} · It does ${words}` });
+  }
+  return (await lib.projectTree()).stories[0];
+}
+
+test("12.1 · own health reads a story's contracts from the library, each number from its title, and its package from its title", async () => {
+  await withLibrary(async (lib) => {
+    const story = await kettle(lib);
+    const { numbers, contractIds } = contractsOf(story);
+    assert.deepEqual(numbers, ["1.1", "1.2", "1.3", "1.4"]);
+    assert.deepEqual([...contractIds.values()], story.capabilities[0].contracts.map(({ id }) => id));
+  });
+  assert.equal(packageOf({ id: "story-a", title: "Session management" }), "session-management");
+  assert.equal(packageOf({ id: "story-b", title: "The arc surface" }), "arc-surface");
+  assert.equal(packageOf({ id: "story-c", title: "The library" }), "library");
+  assert.equal(packageOf({ id: "story_f9fb5136c28f", title: "The command line" }), "cli", "a package named otherwise");
+});
+
+test("12.1 checking a story runs its own package's tests and records each contract's verified health from them; a run with no report, or a story with no package, records nothing", async (t) => {
+  const root = mkdtempSync(path.join(tmpdir(), "own-health-check-"));
+  t.after(() => removeTemp(root));
+  await withLibrary(async (lib) => {
+    const story = await kettle(lib);
+    const { contractIds } = contractsOf(story);
+    const ran = [];
+    const quiet = { log: () => {}, error: () => {} };
+    const result = (name, status) => ({ name, suites: [], file: path.join(root, "packages/cli/src/kettle.test.mjs"), status });
+    const run = async (globs) => {
+      ran.push(...globs);
+      return { code: 1, results: [result("1.1 it does a", "passed"), result("1.2 it does b", "failed")] };
+    };
+
+    assert.equal(await checkStory(lib, story, { by: "storytree test run" }, { root, runTests: run, ...quiet }), true);
+    assert.deepEqual(ran, [], "a story with no package runs no tests");
+    assert.deepEqual(await lib.healthHistory(contractIds.get("1.1")), []);
+
+    mkdirSync(path.join(root, "packages/cli/src"), { recursive: true });
+    assert.equal(await checkStory(lib, story, { by: "storytree test run" }, { root, runTests: async () => ({ code: 1, results: undefined }), ...quiet }), false);
+    assert.deepEqual(await lib.healthHistory(contractIds.get("1.1")), [], "a run with no report records nothing");
+
+    assert.equal(await checkStory(lib, story, { by: "storytree test run" }, { root, runTests: run, ...quiet }), true);
+    assert.deepEqual(ran, ["packages/cli/src/**/*.test.ts", "packages/cli/src/**/*.test.mjs"]);
+    assert.equal((await lib.health(contractIds.get("1.1"))).verified.state, "passing");
+    assert.equal((await lib.health(contractIds.get("1.2"))).verified.state, "failing");
+    assert.deepEqual(await lib.healthHistory(contractIds.get("1.3")), [], "a contract with no test is left not checked");
+  });
+});
+
+test("12.4 a range wider than 256 contracts names none for the pending marks, so a fixture's oversized title stops no run", (t) => {
+  const directory = mkdtempSync(path.join(tmpdir(), "own-health-"));
+  t.after(() => removeTemp(directory));
+  const file = path.join(directory, "fixture.test.ts");
+  writeFileSync(file, ['test("3.1–3.9007199254740991 oversized", () => {});', 'test("3.1–3.257 one past the cap", () => {});', 'test("4.1–4.256 at the cap", () => {});'].join("\n"));
+  assert.deepEqual([...contractsCoveredBy(file, { root: directory })], Array.from({ length: 256 }, (_, n) => `4.${n + 1}`));
+});
+
+test("12.1 a test whose title's range is wider than 256 contracts credits none and is reported unmapped", () => {
+  const oversized = { name: "3.1–3.9007199254740991 oversized", suites: [], file: "a.test.ts", status: "passed" };
+  const { verdicts, unmapped } = judge({ contracts: ["3.1"], results: [oversized], coverage: () => new Set() });
+  assert.equal(verdicts.get("3.1").total, 0);
+  assert.deepEqual(unmapped, [oversized]);
+});
+
+test("12.4 before its tests run, own health marks pending each contract a numbered test at its commit names, its own or a dependant's, that is not verified passing or skipped, so the worklist holds its capability back until the run records it", async (t) => {
+  const root = mkdtempSync(path.join(tmpdir(), "own-health-pending-"));
+  t.after(() => removeTemp(root));
+  mkdirSync(path.join(root, "packages/cli/src"), { recursive: true });
+  mkdirSync(path.join(root, "packages/app/src"), { recursive: true });
+  writeFileSync(path.join(root, "packages/cli/src/kettle.test.mjs"), 'test("1.1 it does a", () => {});\ntest("1.2 it does b", () => {});\ntest("1.3 it does c", () => {});\n');
+  writeFileSync(path.join(root, "packages/app/src/door.test.mjs"), 'test("cli 1.4 it does d through the app", () => {});\n');
+  await withLibrary(async (lib) => {
+    const planned = await kettle(lib);
+    await lib.setProposed(planned.capabilities[0].id, false);
+    const { contractIds } = contractsOf(planned);
+    await lib.recordVerified(contractIds.get("1.1"), "passing");
+    await lib.recordVerified(contractIds.get("1.2"), "failing");
+    await lib.recordVerified(contractIds.get("1.3"), "not-checked", { skip: "owner" });
+    const writer = { by: "storytree test run on CI", commit: "abc123" };
+
+    const marked = await markPending(lib, (await lib.projectTree()).stories[0], writer, { root });
+    assert.deepEqual(marked, ["1.2", "1.4"], "a passing or skipped contract is left as it is");
+    assert.equal((await lib.health(contractIds.get("1.2"))).verified.state, "failing", "a pending mark is no verdict");
+    const [held] = await lib.healthWorklist();
+    assert.deepEqual(held.why.contracts, [contractIds.get("1.2")]);
+    assert.equal(held.waits?.by, writer.by);
+    assert.match(held.waits?.note ?? "", /abc123/);
+
+    const result = (name, file, status) => ({ name, suites: [], file: path.join(root, file), status });
+    const run = async () => ({ code: 1, results: [result("1.1 it does a", "packages/cli/src/kettle.test.mjs", "passed"), result("1.2 it does b", "packages/cli/src/kettle.test.mjs", "failed"), result("cli 1.4 it does d through the app", "packages/app/src/door.test.mjs", "passed")] });
+    await checkStory(lib, (await lib.projectTree()).stories[0], writer, { root, runTests: run, log: () => {}, error: () => {} });
+    const [offered] = await lib.healthWorklist();
+    assert.equal(offered.waits, undefined, "recorded, it is offered by what the run found");
+    assert.equal(offered.why.reason, "failing");
+  });
+});
+
+test("12.1 checking a story also runs a dependant's test titled with the story's package and a contract, like cli 1.3, crediting only those titles", async (t) => {
+  const root = mkdtempSync(path.join(tmpdir(), "own-health-dependant-"));
+  t.after(() => removeTemp(root));
+  mkdirSync(path.join(root, "packages/cli/src"), { recursive: true });
+  mkdirSync(path.join(root, "packages/session-management/src/tools"), { recursive: true });
+  mkdirSync(path.join(root, "packages/library/src"), { recursive: true });
+  const own = path.join(root, "packages/cli/src/kettle.test.mjs");
+  const dependant = path.join(root, "packages/session-management/src/tools/door.test.ts");
+  writeFileSync(own, 'test("1.1 it does a", () => {});\n');
+  const prefixed = ["cli", "1.3: the tool does what the command does"].join(" ");
+  writeFileSync(dependant, `test(${JSON.stringify(prefixed)}, () => {});\ntest("1.4 Session management's own 1.4", () => {});\n`);
+  writeFileSync(path.join(root, "packages/library/src/other.test.ts"), 'test("1.3 the library\'s own 1.3", () => {});\n');
+  await withLibrary(async (lib) => {
+    const story = await kettle(lib);
+    const { contractIds } = contractsOf(story);
+    const ran = [];
+    const run = async (globs) => {
+      ran.push(...globs);
+      return {
+        code: 1,
+        results: [
+          { name: "1.1 it does a", suites: [], file: own, status: "passed" },
+          { name: prefixed, suites: [], file: dependant, status: "passed" },
+          { name: "1.4 Session management's own 1.4", suites: [], file: dependant, status: "failed" },
+        ],
+      };
+    };
+    assert.equal(await checkStory(lib, story, { by: "storytree test run" }, { root, runTests: run, log: () => {}, error: () => {} }), true);
+    assert.deepEqual(ran, ["packages/cli/src/**/*.test.ts", "packages/cli/src/**/*.test.mjs", "packages/session-management/src/tools/door.test.ts"]);
+    assert.equal((await lib.health(contractIds.get("1.3"))).verified.state, "passing", "the dependant's prefixed title proves 1.3");
+    assert.deepEqual(await lib.healthHistory(contractIds.get("1.4")), [], "a dependant's own unprefixed 1.4 is not the story's");
+  });
+});
+
+test("12.5 a dependant's test titled with the story's package and a number the story lacks is named with the story it points at, and credits nothing", async (t) => {
+  const root = mkdtempSync(path.join(tmpdir(), "own-health-stray-"));
+  t.after(() => removeTemp(root));
+  mkdirSync(path.join(root, "packages/cli/src"), { recursive: true });
+  mkdirSync(path.join(root, "packages/app-setup/src"), { recursive: true });
+  const dependant = path.join(root, "packages/app-setup/src/setup.test.ts");
+  const stray = ["cli", "8.4 the setup check names what is missing"].join(" ");
+  const proving = ["cli", "1.3 the tool does what the command does"].join(" ");
+  writeFileSync(dependant, `test(${JSON.stringify(stray)}, () => {});\ntest(${JSON.stringify(proving)}, () => {});\n`);
+  await withLibrary(async (lib) => {
+    const story = await kettle(lib);
+    const { contractIds } = contractsOf(story);
+    const run = async () => ({
+      code: 0,
+      results: [
+        { name: stray, suites: [], file: dependant, status: "passed" },
+        { name: proving, suites: [], file: dependant, status: "passed" },
+      ],
+    });
+    const lines = [];
+    assert.equal(await checkStory(lib, story, { by: "storytree test run" }, { root, runTests: run, log: (line) => lines.push(line), error: () => {} }), true);
+    const output = lines.join("\n");
+    assert.match(output, /8\.4/, "the stray number is named");
+    assert.ok(output.includes(stray), "the stray title is named");
+    assert.ok(output.includes("The cli"), "the story it points at is named");
+    assert.ok(output.includes("packages/app-setup/src/setup.test.ts"), "its file is named");
+    assert.ok(!output.includes(proving), "a title the story has is not named");
+    assert.equal((await lib.health(contractIds.get("1.3"))).verified.state, "passing");
+  });
+});
+
+test("12.6 own health's log names each failing test, with the suites around it, its file and its assertion message, and no test that passed", async (t) => {
+  const root = mkdtempSync(path.join(tmpdir(), "own-health-failing-"));
+  t.after(() => removeTemp(root));
+  mkdirSync(path.join(root, "packages/cli/src"), { recursive: true });
+  const file = path.join(root, "packages/cli/src/kettle.test.mjs");
+  await withLibrary(async (lib) => {
+    const story = await kettle(lib);
+    const run = async () => ({
+      code: 1,
+      results: [
+        { name: "1.1 it does a", suites: [], file, status: "passed" },
+        { name: "it boils twice", suites: ["1.2 it does b"], file, status: "failed", message: "the count matches\n\n1 !== 2" },
+      ],
+    });
+    const lines = [];
+    assert.equal(await checkStory(lib, story, { by: "storytree test run" }, { root, runTests: run, log: (line) => lines.push(line), error: (line) => lines.push(line) }), true);
+    const output = lines.join("\n");
+    assert.ok(output.includes("1.2 it does b > it boils twice"), "the failing test is named within its suite");
+    assert.ok(output.includes("packages/cli/src/kettle.test.mjs"), "its file is named");
+    assert.ok(output.includes("the count matches") && output.includes("1 !== 2"), "its assertion message is shown");
+    assert.ok(!output.includes("1.1 it does a"), "a test that passed is not named");
+  });
+});
+
+test("12.7 a contract retired between a run's checkout and its record is skipped with a logged line naming it, and the run records the rest and passes", async (t) => {
+  const root = mkdtempSync(path.join(tmpdir(), "own-health-retired-"));
+  t.after(() => removeTemp(root));
+  mkdirSync(path.join(root, "packages/cli/src"), { recursive: true });
+  const file = path.join(root, "packages/cli/src/kettle.test.mjs");
+  await withLibrary(async (lib) => {
+    const story = await kettle(lib);
+    const { contractIds } = contractsOf(story);
+    const run = async () => {
+      // Retired on the library while the tests run, after the story was read.
+      await lib.retire(contractIds.get("1.2"), "Overtaken");
+      await lib.retire(contractIds.get("1.3"), "Overtaken");
+      return {
+        code: 0,
+        results: [
+          { name: "1.1 it does a", suites: [], file, status: "passed" },
+          { name: "1.2 it does b", suites: [], file, status: "passed" },
+          { name: "1.3 it does c", suites: [], file, status: "skipped", message: "owner: needs a sign-in" },
+        ],
+      };
+    };
+    const lines = [];
+    assert.equal(await checkStory(lib, story, { by: "storytree test run" }, { root, runTests: run, log: (line) => lines.push(line), error: (line) => lines.push(line) }), true);
+    assert.equal((await lib.health(contractIds.get("1.1"))).verified.state, "passing", "the rest of the run is recorded");
+    const output = lines.join("\n");
+    assert.ok(output.includes(`1.2 (${contractIds.get("1.2")})`), "the retired passing contract is named in the log");
+    assert.ok(output.includes(`1.3 (${contractIds.get("1.3")})`), "so is the retired skipped one");
+    const unknown = new Map([["9.9", { number: "9.9", state: "passing", note: "1/1 tests passed" }]]);
+    await assert.rejects(recordHealth(lib, contractIds, unknown, { by: "storytree test run" }), /there is no contract 9\.9/, "a verdict naming no contract the run read is still refused, not skipped as retired");
+  });
+});
+
+test("12.1 checking the app story also runs the desktop app's tests as its own, crediting their numbered titles", async (t) => {
+  const root = mkdtempSync(path.join(tmpdir(), "own-health-frame-"));
+  t.after(() => removeTemp(root));
+  mkdirSync(path.join(root, "packages/app/src"), { recursive: true });
+  mkdirSync(path.join(root, "apps/desktop/src/main"), { recursive: true });
+  const own = path.join(root, "packages/app/src/projects.test.ts");
+  const frame = path.join(root, "apps/desktop/src/main/start-check.test.ts");
+  writeFileSync(own, 'test("1.1 it lists the projects", () => {});\n');
+  writeFileSync(frame, 'test("1.2 a start that fails ends the app", () => {});\n');
+  await withLibrary(async (lib) => {
+    const added = await lib.addStory({ title: "The app" });
+    const capability = await lib.addCapability({ story: added.id, title: "1 · Lifecycle" });
+    for (const number of [1, 2]) await lib.addContract({ capability: capability.id, title: `1.${number} · It does ${number}` });
+    const story = (await lib.projectTree()).stories[0];
+    const { contractIds } = contractsOf(story);
+    const ran = [];
+    const run = async (globs) => {
+      ran.push(...globs);
+      return {
+        code: 0,
+        results: [
+          { name: "1.1 it lists the projects", suites: [], file: own, status: "passed" },
+          { name: "1.2 a start that fails ends the app", suites: [], file: frame, status: "passed" },
+        ],
+      };
+    };
+    assert.equal(await checkStory(lib, story, { by: "storytree test run" }, { root, runTests: run, log: () => {}, error: () => {} }), true);
+    assert.deepEqual(ran, ["packages/app/src/**/*.test.ts", "packages/app/src/**/*.test.mjs", "apps/desktop/src/**/*.test.ts", "apps/desktop/src/**/*.test.mjs"]);
+    assert.equal((await lib.health(contractIds.get("1.2"))).verified.state, "passing", "the desktop app's unprefixed 1.2 is the app story's");
+  });
+});
+
+test("12.1 Windows CI at the same commit verifies Get storytree 1.9 and Front door 1.12, naming its run; unavailable or unrelated evidence gives no credit, and a run that saw no Windows leaves that pass standing", async (t) => {
+  const root = mkdtempSync(path.join(tmpdir(), "own-health-windows-"));
+  t.after(() => removeTemp(root));
+  const commit = "a".repeat(40);
+  const windowsRun = "https://github.com/storytree-ai/storytree/actions/runs/123/attempts/1";
+  const quiet = { log: () => {}, error: () => {} };
+  for (const [title, pkg, number, file] of [
+    ["The app setup", "app-setup", "1.9", "deliver/delivery.test.ts"],
+    ["The cli", "cli", "1.12", "launched.test.ts"],
+  ]) {
+    mkdirSync(path.join(root, "packages", pkg, "src"), { recursive: true });
+    await withLibrary(async (lib) => {
+      const story = await lib.addStory({ title });
+      const capability = await lib.addCapability({ story: story.id, title: "1 · Install and run" });
+      const contract = await lib.addContract({ capability: capability.id, title: `${number} · Windows command preserves words` });
+      const planned = (await lib.projectTree()).stories[0];
+      const test = { name: `${number} Windows command preserves words`, suites: [], file: `packages/${pkg}/src/${file}` };
+      const skipped = { ...test, file: path.join(root, test.file), status: "skipped", message: "platform:win32: needs the Windows command" };
+      const evidence = { platform: "win32", commit, run: windowsRun, unit: pkg, code: 0, results: [{ ...test, status: "passed" }] };
+      const directory = path.join(root, "evidence");
+      const record = async (windows, results = [skipped]) => {
+        await removeTemp(directory);
+        if (windows !== undefined) {
+          mkdirSync(path.join(directory, "unit-1"), { recursive: true });
+          writeFileSync(path.join(directory, "unit-1", "result.json"), JSON.stringify(windows));
+        }
+        await checkStory(lib, planned, { by: "storytree test run on CI", commit }, {
+          root, ...quiet, evidence: [readCiEvidence(directory, { commit, run: windowsRun, platform: "win32" })], runTests: async () => ({ code: 0, results }),
+        });
+        return (await lib.health(contract.id)).verified;
+      };
+      for (const windows of [undefined, { ...evidence, commit: "b".repeat(40) }, { ...evidence, platform: "linux" },
+        { ...evidence, run: windowsRun.replace("attempts/1", "attempts/2") }, { ...evidence, code: 1 }, { ...evidence, code: undefined },
+        { ...evidence, results: [] }, { ...evidence, results: [{ ...test, status: "failed" }] },
+        { ...evidence, results: [{ ...test, status: "skipped" }] },
+        { ...evidence, results: [{ ...test, file: "packages/other/src/launched.test.ts", status: "passed" }] },
+        { ...evidence, results: [{ ...test, suites: ["different suite"], status: "passed" }] },
+        { ...evidence, results: [{ ...test, name: "different test", status: "passed" }] },
+        { ...evidence, results: [{ ...test, status: "passed" }, { ...test, status: "failed" }] },
+      ]) assert.equal((await record(windows)).state, "not-checked");
+      assert.equal((await record(evidence, [{ ...skipped, message: "owner: needs a real install" }])).state, "not-checked");
+      assert.equal((await record(evidence, [skipped, { ...skipped, name: `${number} another Windows proof` }])).state, "not-checked", "every skipped test needs its own proof");
+      assert.equal((await record(evidence, [skipped, { ...skipped, name: `${number} local failure`, status: "failed" }])).state, "failing", "Windows cannot erase a local failure");
+      const verified = await record(evidence);
+      assert.equal(verified.state, "passing");
+      assert.equal(verified.skip, undefined);
+      assert.match(verified.note, /1\/1 tests passed/);
+      assert.ok(verified.note.includes(commit));
+      assert.ok(verified.note.includes(windowsRun), "names the actual Windows run");
+      assert.equal((await record(undefined)).state, "passing", "a run without Windows evidence cannot re-run it, so the Windows pass stands");
+      assert.equal((await record({ ...evidence, results: [{ ...test, status: "failed" }] })).state, "not-checked", "Windows evidence that does not prove it takes the pass away");
+      await record(evidence);
+      const outOfScope = { ...evidence, results: [{ ...test, file: "packages/other/src/launched.test.ts", status: "passed" }] };
+      assert.equal((await record(outOfScope)).state, "passing", "a scoped Windows run that never ran the test's file cannot re-run it, so the Windows pass stands");
+      assert.equal((await record({ ...evidence, results: [{ ...test, name: "different test", status: "passed" }] })).state, "not-checked", "a Windows run of the test's file without the test takes the pass away");
+      mkdirSync(path.join(directory, "unit-2"));
+      writeFileSync(path.join(directory, "unit-2", "result.json"), JSON.stringify({ ...evidence, unit: "other", results: [{ ...test, file: "packages/other/src/test.ts", status: "passed" }] }));
+      assert.equal(readCiEvidence(directory, { commit, run: windowsRun, platform: "win32" }).results.length, 2, "reads every unit, not only the last");
+      writeFileSync(path.join(directory, "unit-2", "result.json"), "{incomplete");
+      assert.equal(readCiEvidence(directory, { commit, run: windowsRun, platform: "win32" }), undefined, "incomplete evidence grants no credit");
+    });
+  }
+});
+
+test("12.1 macOS CI at the same commit verifies Get storytree 1.11's Apple Silicon test, naming its run; Windows evidence cannot credit it, macOS evidence cannot credit a Windows skip, and a run that saw no macOS leaves that pass standing", async (t) => {
+  const root = mkdtempSync(path.join(tmpdir(), "own-health-macos-"));
+  t.after(() => removeTemp(root));
+  const commit = "c".repeat(40);
+  const ciRun = "https://github.com/storytree-ai/storytree/actions/runs/456/attempts/1";
+  const quiet = { log: () => {}, error: () => {} };
+  mkdirSync(path.join(root, "packages", "app-setup", "src"), { recursive: true });
+  await withLibrary(async (lib) => {
+    const story = await lib.addStory({ title: "The app setup" });
+    const capability = await lib.addCapability({ story: story.id, title: "1 · Get storytree" });
+    const contract = await lib.addContract({ capability: capability.id, title: "1.11 · Apple Silicon payload" });
+    const planned = (await lib.projectTree()).stories[0];
+    const test = { name: "1.11: the pinned darwin-arm64 runtime runs on an Apple Silicon Mac", suites: [], file: "packages/app-setup/src/deliver/runtime.test.ts" };
+    const skipped = { ...test, file: path.join(root, test.file), status: "skipped", message: "platform:darwin-arm64: only an Apple Silicon Mac can run Node's darwin-arm64 build" };
+    const passedHere = { ...test, name: "1.11: a Mac runtime is staged from Node's pinned darwin-arm64 archive", file: path.join(root, test.file), status: "passed" };
+    const mac = { platform: "darwin", commit, run: ciRun, unit: "app-setup", code: 0, results: [{ ...test, status: "passed" }] };
+    const directories = { darwin: path.join(root, "macos-evidence"), win32: path.join(root, "windows-evidence") };
+    const record = async (reports, results = [skipped, passedHere]) => {
+      for (const directory of Object.values(directories)) await removeTemp(directory);
+      for (const report of reports) {
+        mkdirSync(path.join(directories[report.platform] ?? directories.darwin, "unit-1"), { recursive: true });
+        writeFileSync(path.join(directories[report.platform] ?? directories.darwin, "unit-1", "result.json"), JSON.stringify(report));
+      }
+      const evidence = Object.entries(directories).map(([platform, directory]) => readCiEvidence(directory, { commit, run: ciRun, platform }));
+      await checkStory(lib, planned, { by: "storytree test run on CI", commit }, { root, ...quiet, evidence, runTests: async () => ({ code: 0, results }) });
+      return (await lib.health(contract.id)).verified;
+    };
+    for (const reports of [[], [{ ...mac, platform: "win32" }], [{ ...mac, platform: "linux" }], [{ ...mac, results: [{ ...test, status: "skipped" }] }], [{ ...mac, commit: "d".repeat(40) }]]) {
+      const verified = await record(reports);
+      assert.equal(verified.state, "not-checked", JSON.stringify(reports));
+      assert.equal(verified.skip, "platform:darwin");
+    }
+    assert.equal((await record([mac], [{ ...skipped, message: "platform:win32: needs Windows" }])).state, "not-checked", "macOS evidence cannot credit a Windows skip");
+    const verified = await record([mac]);
+    assert.equal(verified.state, "passing");
+    assert.match(verified.note, /2\/2 tests passed; macOS: /);
+    assert.ok(verified.note.includes(ciRun), "names the actual macOS run");
+    assert.equal((await record([])).state, "passing", "a run without macOS evidence cannot re-run it, so the macOS pass stands");
+    assert.equal((await record([{ ...mac, platform: "win32", results: [{ ...test, status: "passed" }] }])).state, "passing", "Windows evidence alone does not take a macOS pass away");
+    assert.equal((await record([{ ...mac, results: [{ ...test, status: "failed" }] }])).state, "not-checked", "macOS evidence that does not prove it takes the pass away");
+  });
+});
+
+test("12.2 judge reads a skipped contract's skip kind from its skip reason's first word: owner, platform:<os>, or other", () => {
+  const result = (name, status, extra = {}) => ({ name, suites: [], file: "a.test.ts", status, ...extra });
+  const { verdicts } = judge({
+    contracts: ["1.1", "1.2", "1.3", "1.4"],
+    results: [
+      result("1.1 live proof", "skipped", { message: "owner: live Cloud SQL proof needs a sign-in" }),
+      result("1.2 cmd.exe", "skipped", { message: "platform:win32: only Windows reads the .cmd again" }),
+      result("1.3 later", "skipped", { message: "no server here" }),
+      result("1.4 runs", "passed"),
+    ],
+    coverage: () => new Set(),
+  });
+  assert.deepEqual(["1.1", "1.2", "1.3", "1.4"].map((number) => verdicts.get(number).skip), ["owner", "platform:win32", "other", undefined]);
+});
+
+const CI = { GITHUB_ACTIONS: "true", GITHUB_SHA: "9f3734a0c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f6" };
+
+test("12.3 on CI with HEALTH_PG_ADDRESS set, own health is recorded in the library at that address, by a test run on CI", () => {
+  const address = "postgres://storytree-ci-health%40my-project.iam@library-box:5432/postgres";
+  assert.deepEqual(recordingTarget({ env: { ...CI, HEALTH_PG_ADDRESS: address }, setting: { location: "local" } }), {
+    record: true,
+    library: { address },
+    writer: { by: "storytree test run on CI", commit: CI.GITHUB_SHA },
+  });
+});
+
+test("12.3 on CI with no HEALTH_PG_ADDRESS, nothing is recorded, and it says the variable is unset", () => {
+  for (const env of [CI, { ...CI, HEALTH_PG_ADDRESS: "" }]) {
+    const target = recordingTarget({ env, setting: { location: "local" } });
+    assert.equal(target.record, false);
+    assert.match(target.why, /HEALTH_PG_ADDRESS is unset/);
+  }
+});
+
+test("12.3 · run by hand, own health is recorded in the library the setting names: the Cloud SQL instance, a Postgres address, or the app's own", () => {
+  const cloud = { location: "cloudsql", instance: "my-project:australia-southeast1:my-instance", user: "you@my-project.iam" };
+  assert.deepEqual(recordingTarget({ env: {}, setting: cloud }), {
+    record: true,
+    library: { cloudSql: { instance: cloud.instance, user: cloud.user } },
+    writer: { by: "storytree test run" },
+  });
+  assert.deepEqual(recordingTarget({ env: {}, setting: { location: "local" } }), { record: true, library: "app", writer: { by: "storytree test run" } });
+  const address = "postgres://me@library-box:5432/postgres";
+  assert.deepEqual(recordingTarget({ env: {}, setting: { location: "postgres", address } }), { record: true, library: { address }, writer: { by: "storytree test run" } });
+});
+
+const JUNIT = `<?xml version="1.0" encoding="utf-8"?>
+<testsuites>
+	<testcase name="packages\\library\\src\\transactions\\pg.test.ts" time="0.08" classname="test" file="C:\\repo\\packages\\library\\src\\transactions\\pg.test.ts" failure="test failed">
+		<failure type="testCodeFailure" message="test failed">
+[Error: test failed] { code: 'ERR_TEST_FAILURE', failureType: 'testCodeFailure', cause: 'test failed', exitCode: 1, signal: null }
+		</failure>
+	</testcase>
+	<testcase name="1.1 openProject creates the project's database and its tables" time="1.3" classname="test" file="C:\\repo\\a.test.ts"/>
+	<testcase name="2.3 [memory] a &amp;quot;quoted&amp;quot; &lt;name> &amp; more" time="0.1" classname="test" file="C:\\repo\\a.test.ts"/>
+	<testcase name="8.1 live proof" time="0.001" classname="test" file="C:\\repo\\a.test.ts">
+		<skipped type="skipped" message="owner-gated"/>
+	</testcase>
+	<testcase name="3.1 fails" time="0.001" classname="test" file="C:\\repo\\a.test.ts" failure="boom">
+		<failure type="testCodeFailure" message="boom">
+Error: boom &lt;&amp;> at TestContext.&lt;anonymous>
+		</failure>
+	</testcase>
+	<testsuite name="8.1 capability 2's suite" time="0.0002" disabled="0" errors="0" tests="1" failures="0" skipped="0" hostname="box">
+		<testcase name="2.1 [cloud-sql] inside" time="0.0001" classname="test" file="C:\\repo\\a.test.ts"/>
+	</testsuite>
+	<testcase name="4.4 todo" time="0.00006" classname="test" file="C:\\repo\\a.test.ts">
+		<skipped type="todo" message="later"/>
+	</testcase>
+	<!-- tests 7 -->
+</testsuites>
+`;
+
+/** A story file with three capabilities, their dependencies and their contracts, for syncStory to load and reload. */
+
+/** Run `body` with a library for a fresh project on the test server, dropped afterwards, pass or fail. */
+async function withLibrary(body) {
+  const url = process.env.STORYTREE_TEST_PG_URL;
+  assert.ok(url, "STORYTREE_TEST_PG_URL is not set: run these tests through `pnpm test`, which starts a local Postgres");
+  const name = `t-${randomBytes(4).toString("hex")}`;
+  const storytree = await connect({ url });
+  try {
+    const lib = await storytree.openProject(name);
+    try {
+      await body(lib);
+    } finally {
+      await lib.close();
+    }
+  } finally {
+    await storytree.close();
+    await dropTestDatabases([`storytree_${name}`]);
+  }
+}

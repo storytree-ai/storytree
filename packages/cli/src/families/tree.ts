@@ -1,0 +1,68 @@
+/**
+ * Capability 10 · Plan view (the command line story): `storytree tree` prints the plan as an indented
+ * tree: stories, capabilities and contracts, each with the health its agent reported (labelled as
+ * the agent's) and any claim on it, and each capability's word with why it is not healthy (ADR-0825 D1). Name a story to see only that story.
+ *
+ * One reading of the library's projectTree, whose health is already rolled up by the library, and
+ * one of Session management's claims. A story is named by its id or its title.
+ */
+import type { NodeHealth } from "@storytree/library";
+
+import { Refusal } from "../answer.js";
+import type { Family, Verb } from "../door.js";
+
+/**
+ * A node's health as the tree shows it: the agent's report, labelled as the agent's, then what
+ * storytree verified; the report alone in a project nothing verifies (ADR-0630).
+ */
+function healthOf(health: NodeHealth, unverified: boolean): string {
+  const words = (state: string): string => state.replace("-", " ");
+  const reported = `agent says ${words(health.reported.state)}`;
+  return unverified ? reported : `${reported} · storytree verified ${words(health.verified.state)}`;
+}
+
+/** A claim as the tree marks it: its own copy of the fields it reads (ADR-1017 D2). */
+type Claim = { readonly label: string; readonly holder: "live" | "idle"; readonly reason: string; readonly increment?: string | undefined; readonly capability?: string | undefined };
+
+/** Who holds `id`, if anyone. */
+function claimOn(claims: readonly Claim[], id: string): string {
+  const claim = claims.find((held) => held.capability === id || held.increment === id);
+  return claim === undefined ? "" : `  ⟵ ${claim.label} (${claim.holder}): ${claim.reason}`;
+}
+
+const view: Verb = {
+  name: "tree",
+  usage: "tree [<story>]",
+  summary: "stories, capabilities and contracts, with the agent's reported health and any claim",
+  async act(args, context) {
+    const named = args.words[0];
+    const plan = await (await context.library()).projectTree();
+    const stories = named === undefined ? plan.stories : plan.stories.filter((story) => story.id === named || story.title.toLowerCase() === named.toLowerCase());
+    if (named !== undefined && stories.length === 0) {
+      throw new Refusal(`no story "${named}" in this project`, { next: [{ command: "storytree tree", why: "every story" }] });
+    }
+    if (stories.length === 0) return { text: "No stories yet.", next: [{ command: "storytree library new story --title <title>", why: "add one" }] };
+    const claims = await context.claims();
+    const { NOT_VERIFIED, wordAndWhy } = await import("@storytree/library");
+    const lines: string[] = [];
+    const unverified = plan.unverified === true;
+    for (const story of stories) {
+      // A mapped story carries no health of its own (ADR-0993 D3): it says what it is instead.
+      lines.push(`${story.title}  [${story.id}]  ${story.mapped === undefined ? healthOf(story.health, unverified) : "mapped: here before storytree, and assumed to be working"}`);
+      story.capabilities.forEach((capability) => {
+        lines.push(`  ${capability.title}  [${capability.id}]  ${healthOf(capability.health, unverified)}; ${capability.reportOnly ? NOT_VERIFIED : wordAndWhy(capability)}${claimOn(claims, capability.id)}`);
+        for (const contract of capability.contracts) {
+          lines.push(`      - ${contract.title}  [${contract.id}]  ${healthOf(contract.health, unverified)}`);
+        }
+      });
+    }
+    return { text: lines.join("\n") };
+  },
+};
+
+export const tree: Family = {
+  name: "tree",
+  summary: "the plan as a tree, with each part's reported health",
+  verbs: [],
+  bare: view,
+};

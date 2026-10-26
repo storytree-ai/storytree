@@ -1,0 +1,448 @@
+#!/bin/sh
+# storytree 0.3's one-line install on an Apple Silicon Mac or x64 Linux, the twin of install.ps1:
+#   curl -fsSL https://raw.githubusercontent.com/storytree-ai/storytree/release-channel-stable/install-storytree.sh | sh
+# POSIX sh, also run under bash and zsh. Needs no Node, Homebrew, jq or checkout. Every step is a function and the
+# last line runs them, so a download cut short runs nothing. Choose alpha with: | sh -s -- --channel alpha
+# It is laid out by system and chip: Linux is a branch of it, not a second script.
+
+ST_REPO=storytree-ai/storytree
+ST_MARKER="# storytree 0.3's command: added by its installer, taken out by storytree setup uninstall"
+
+# A step that fails says why in ST_ERROR and returns 1; the caller adds where it failed and how to retry.
+st_fail() { ST_ERROR=$1; return 1; }
+
+# st_platform SYSTEM CHIP: sets ST_SYSTEM and ST_ARCH, or says plainly why this machine is not one storytree installs on.
+st_platform() {
+  case "$1" in
+    Darwin)
+      case "$2" in
+        arm64 | aarch64) ST_SYSTEM=darwin; ST_ARCH=arm64 ;;
+        *) st_fail "storytree needs a Mac with Apple Silicon (M1 or later); this Mac has an $2 chip, which storytree does not support" ;;
+      esac ;;
+    Linux)
+      case "$2" in
+        x86_64 | amd64) ST_SYSTEM=linux; ST_ARCH=x64 ;;
+        *) st_fail "storytree on Linux needs an x64 (x86_64) computer; this one is $2, which storytree does not support" ;;
+      esac ;;
+    *) st_fail "This command installs storytree on an Apple Silicon Mac or x64 Linux; this system is $1. On Windows, run the PowerShell command from storytree's release page" ;;
+  esac
+}
+
+# st_fuse LIBRARIES: the AppImage runs through libfuse2. Its absence is named with the one command that adds it;
+# storytree never runs sudo itself.
+st_fuse() {
+  case "$1" in *libfuse.so.2*) return 0 ;; esac
+  st_fail "storytree's Linux app needs libfuse2, which this computer does not have. Add it with: sudo apt install libfuse2t64 (on Ubuntu before 24.04: sudo apt install libfuse2), then run this command again. Nothing was installed"
+}
+
+# st_json KEY < JSON: prints the value at a dotted key (array elements by index), or fails when it is absent.
+st_json() {
+  awk -v want="$1" '
+    function emit(value,   d, at) {
+      at = ""
+      for (d = 1; d <= depth; d++) at = at (d > 1 ? "." : "") (kind[d] == "{" ? key[d] : index_[d])
+      if (at == want && !found) { printf "%s", value; found = 1 }
+    }
+    { text = text $0 "\n" }
+    END {
+      n = length(text); i = 1; depth = 0; found = 0
+      while (i <= n) {
+        c = substr(text, i, 1)
+        if (c == "{" || c == "[") { depth++; kind[depth] = c; index_[depth] = 0; expecting = (c == "{"); i++ }
+        else if (c == "}" || c == "]") { depth--; i++ }
+        else if (c == ",") { if (kind[depth] == "[") index_[depth]++; else expecting = 1; i++ }
+        else if (c == ":") { expecting = 0; i++ }
+        else if (c == "\"") {
+          s = ""; i++
+          while (i <= n) {
+            c = substr(text, i, 1)
+            if (c == "\\") {
+              e = substr(text, i + 1, 1)
+              s = s (e == "n" ? "\n" : e == "t" ? "\t" : e == "r" ? "\r" : e == "u" ? "\\u" : e); i += 2
+            } else if (c == "\"") { i++; break }
+            else { s = s c; i++ }
+          }
+          if (kind[depth] == "{" && expecting) key[depth] = s; else emit(s)
+        }
+        else if (c ~ /[ \t\r\n]/) i++
+        else { j = i; while (j <= n && substr(text, j, 1) !~ /[],} \t\r\n]/) j++; emit(substr(text, i, j - i)); i = j }
+      }
+      exit !found
+    }'
+}
+
+st_sha256() {
+  if command -v shasum >/dev/null 2>&1; then shasum -a 256 "$1" | cut -d ' ' -f 1; else sha256sum "$1" | cut -d ' ' -f 1; fi
+}
+
+st_verify() {
+  [ "$(st_sha256 "$1" | tr 'A-F' 'a-f')" = "$(printf '%s' "$2" | tr 'A-F' 'a-f')" ] || st_fail 'the download checksum does not match the release; nothing was installed'
+}
+
+# st_install_dir HOME USERHOME: ~/Applications on a Mac and ~/.local/share on Linux, unless this installation's own
+# record names another folder.
+st_install_dir() {
+  if [ "$ST_SYSTEM" = linux ]; then ST_DIR="$2/.local/share/storytree-0.3"; else ST_DIR="$2/Applications/storytree-0.3.app"; fi
+  [ -f "$1/delivery.json" ] || return 0
+  st_record=$(st_json installDir < "$1/delivery.json")
+  case "$(st_json schema < "$1/delivery.json")/$st_record" in
+    1//*) ST_DIR=$st_record ;;
+    *) st_fail 'Invalid delivery record. Keep it for diagnosis and check the installed app before retrying' ;;
+  esac
+}
+
+# st_channel HOME INSTALLDIR REQUESTED: chooses the release channel without writing it, so a failed download can be retried.
+# Alpha's old name, development, is read as alpha wherever it appears (ADR-1121).
+st_channel() {
+  st_wanted=$3
+  case "$st_wanted" in "" | stable | alpha) ;; development) st_wanted=alpha ;; *) st_fail 'Choose a valid release channel: stable or alpha'; return ;; esac
+  st_existing=
+  if [ -f "$1/release-channel.json" ]; then
+    st_existing=$(st_json channel < "$1/release-channel.json")
+    case "$(st_json schema < "$1/release-channel.json")/$st_existing" in
+      1/stable | 1/alpha) ;;
+      1/development) st_existing=alpha ;;
+      *) st_fail "The saved release channel could not be read. Keep $1/release-channel.json for diagnosis; delivery will not replace it"; return ;;
+    esac
+    # With no app installed, the record is what a failed delivery left behind; an explicit choice replaces it.
+    if [ ! -e "$2" ] && [ -n "$st_wanted" ]; then st_existing=; fi
+  fi
+  if [ -n "$st_existing" ] && [ -n "$st_wanted" ] && [ "$st_existing" != "$st_wanted" ]; then
+    st_fail "This installation already uses $st_existing. Delivery cannot change its release channel to $st_wanted"; return
+  fi
+  ST_CHANNEL=${st_existing:-${st_wanted:-stable}}
+}
+
+# st_save_channel HOME CHANNEL: storytree's home and the record in it are the user's alone.
+st_save_channel() {
+  (umask 077 && mkdir -p -m 700 "$1" && printf '{"schema":1,"channel":"%s"}' "$2" > "$1/release-channel.json")
+}
+
+st_fetch() {
+  curl --fail --silent --show-error --location --proto '=https' --tlsv1.2 --user-agent storytree-delivery --output "$2" "$1"
+}
+
+st_download() {
+  curl --fail --location --proto '=https' --tlsv1.2 --user-agent storytree-delivery --progress-bar --output "$2" "$1"
+}
+
+# st_release CHANNEL ARCH FILE: reads the channel's delivery manifest into FILE and sets ST_PAYLOAD_URL, _SHA and _NAME
+# for this system's app: the Mac's zip, or Linux's AppImage. An acceptance run names the build to install as stable,
+# before the pin moves to it, in STORYTREE_ACCEPTANCE_VERSION; the published one-liner never sets it.
+st_release() {
+  st_pinned=
+  if [ -n "${STORYTREE_ACCEPTANCE_VERSION:-}" ]; then
+    [ "$1" = stable ] || { st_fail 'An acceptance version installs as stable; this installation uses alpha'; return; }
+    st_pinned=$STORYTREE_ACCEPTANCE_VERSION
+    st_bad='STORYTREE_ACCEPTANCE_VERSION must name a 0.3.<n> release'
+  elif [ "$1" = stable ]; then
+    st_fetch "https://raw.githubusercontent.com/$ST_REPO/release-channel-stable/latest.yml" "$3" || { st_fail 'the stable release pin could not be read'; return; }
+    st_pinned=$(st_json version < "$3")
+    st_bad='The stable release pin is invalid. No alpha release was selected; retry after the stable pin is repaired'
+    case "$(st_json schema < "$3")/$(st_json channel < "$3")" in 1/stable) ;; *) st_fail "$st_bad"; return ;; esac
+  fi
+  if [ "$1" = stable ]; then
+    case "$st_pinned" in 0.3.*) ;; *) st_fail "$st_bad"; return ;; esac
+    case "${st_pinned#0.3.}" in 0 | [1-9] | [1-9]*[0-9]) ;; *) st_fail "$st_bad"; return ;; esac
+    case "${st_pinned#0.3.}" in *[!0-9]*) st_fail "$st_bad"; return ;; esac
+    st_manifest="https://github.com/$ST_REPO/releases/download/v$st_pinned/storytree-delivery.json"
+  else
+    st_manifest="https://github.com/$ST_REPO/releases/latest/download/storytree-delivery.json"
+  fi
+  st_fetch "$st_manifest" "$3" || { st_fail 'the release manifest could not be read'; return; }
+  st_version=$(st_json version < "$3")
+  case "$st_version" in [0-9]*.[0-9]*.[0-9]*) ;; *) st_fail 'the release manifest has no valid version'; return ;; esac
+  if [ "$(st_json schema < "$3")" != 1 ] || { [ -n "$st_pinned" ] && [ "$st_version" != "$st_pinned" ]; }; then
+    st_fail 'the release manifest version does not match the release'; return
+  fi
+  if [ "$1" = stable ] && [ "$(st_json channelSchema < "$3")" != 1 ]; then
+    st_fail 'The pinned release cannot preserve the stable release channel'; return
+  fi
+  if [ "$ST_SYSTEM" = linux ]; then st_key=linux; st_label='Linux app'; else st_key=macos; st_label='Mac app'; fi
+  # A release without this system's new build names the last good one, with that build's version and release (4.6).
+  st_build=$(st_json "$st_key.$2.version" < "$3") || st_build=$st_version
+  case "$st_build" in 0.3.0 | 0.3.[1-9] | 0.3.[1-9]*[0-9]) ;; *) st_fail "the release manifest names no valid $st_label build"; return ;; esac
+  case "${st_build#0.3.}" in *[!0-9]*) st_fail "the release manifest names no valid $st_label build"; return ;; esac
+  if [ "$ST_SYSTEM" = linux ]; then st_expected="storytree-0.3-$st_build-linux-x86_64.AppImage"
+  else st_expected="storytree-0.3-$st_build-mac-$2.zip"; fi
+  ST_PAYLOAD_NAME=$(st_json "$st_key.$2.name" < "$3")
+  ST_PAYLOAD_SHA=$(st_json "$st_key.$2.sha256" < "$3")
+  if [ "$ST_PAYLOAD_NAME" != "$st_expected" ]; then
+    st_fail "release $st_version has no $st_label for $2"; return
+  fi
+  case "$ST_PAYLOAD_SHA" in
+    *[!0-9a-fA-F]*) st_fail "the release manifest has no valid checksum for the $st_label"; return ;;
+  esac
+  [ "${#ST_PAYLOAD_SHA}" -eq 64 ] || { st_fail "the release manifest has no valid checksum for the $st_label"; return; }
+  ST_PAYLOAD_URL="https://github.com/$ST_REPO/releases/download/v$st_build/$ST_PAYLOAD_NAME"
+}
+
+# st_profile_add FILE ENTRY: one marked PATH line for a login shell, written once; an older line of ours is replaced.
+st_profile_add() {
+  st_quoted=$(printf '%s' "$2" | sed 's/[\\"$`]/\\&/g')
+  st_line="export PATH=\"$st_quoted:\$PATH\" $ST_MARKER"
+  if [ -f "$1" ] && grep -qxF "$st_line" "$1"; then return 0; fi
+  st_kept="$1.storytree-$$"
+  if [ -f "$1" ]; then grep -vF "$ST_MARKER" "$1" > "$st_kept"; else : > "$st_kept"; fi
+  printf '%s\n' "$st_line" >> "$st_kept" && cat "$st_kept" > "$1" && rm -f "$st_kept"
+}
+
+# st_newer INSTALLED RELEASE: succeeds when the release's version is newer, part by part; an unreadable one never is.
+st_newer() {
+  awk -v a="$1" -v b="$2" 'BEGIN {
+    if (a !~ /^[0-9]+\.[0-9]+\.[0-9]+$/ || b !~ /^[0-9]+\.[0-9]+\.[0-9]+$/) exit 1
+    split(a, x, "."); split(b, y, ".")
+    for (i = 1; i <= 3; i++) { if (y[i] + 0 > x[i] + 0) exit 0; if (y[i] + 0 < x[i] + 0) exit 1 }
+    exit 1
+  }'
+}
+
+# st_plist_version APP: the version the installed app bundle says it is, from its Info.plist.
+st_plist_version() {
+  st_plist="$1/Contents/Info.plist"
+  [ -f "$st_plist" ] || return 1
+  { if command -v plutil >/dev/null 2>&1; then plutil -convert xml1 -o - "$st_plist"; else cat "$st_plist"; fi; } 2>/dev/null |
+    awk '/<key>CFBundleShortVersionString<\/key>/ { want = 1; next }
+      want { sub(/.*<string>/, ""); sub(/<\/string>.*/, ""); print; exit }'
+}
+
+# st_desktop_version ENTRY: the version an AppImage's own desktop entry says it is; it stays true after a self-update.
+st_desktop_version() {
+  st_said=$(sed -n 's/^X-AppImage-Version=//p' "$1" 2>/dev/null | head -n 1)
+  [ -n "$st_said" ] && printf '%s' "$st_said"
+}
+
+# st_appimage_version APPIMAGE: reads the AppImage's desktop entry without mounting it, so FUSE is not needed.
+st_appimage_version() {
+  st_look="$ST_TMP/version"
+  rm -rf "$st_look" && mkdir -p "$st_look" || return 1
+  (cd "$st_look" && "$1" --appimage-extract storytree-0.3.desktop) >/dev/null 2>&1 || return 1
+  st_desktop_version "$st_look/squashfs-root/storytree-0.3.desktop"
+}
+
+# st_userns_blocked: the kernel blocks the unprivileged user namespaces Chromium's sandbox needs (stock Ubuntu 24.04
+# and later); the setting is world-readable, and a kernel without it allows them (ADR-1034).
+st_userns_blocked() { [ "$(cat "${ST_USERNS:-/proc/sys/kernel/apparmor_restrict_unprivileged_userns}" 2>/dev/null)" = 1 ]; }
+
+# st_desktop_entry ENTRY APP ICON: the AppImage's own entry, started from the installed AppImage with the installed icon.
+# Exec keeps the arguments the release packaged after its AppRun, and turns the sandbox off only where the kernel blocks it.
+st_desktop_entry() {
+  if st_userns_blocked; then st_sandbox=' --no-sandbox'; else st_sandbox=; fi
+  ST_ENTRY_EXEC=$(printf '%s' "$2" | sed 's/[\\"`$]/\\&/g; s/\\/\\\\/g') ST_ENTRY_ICON=$3 ST_ENTRY_ARGS=$st_sandbox awk '
+    /^Exec=/ { rest = substr($0, 6); n = index(rest, " "); print "Exec=\"" ENVIRON["ST_ENTRY_EXEC"] "\"" ENVIRON["ST_ENTRY_ARGS"] (n ? substr(rest, n) : ""); next }
+    /^Icon=/ { print "Icon=" ENVIRON["ST_ENTRY_ICON"]; next }
+    { print }' "$1"
+}
+
+# st_place NEW DEST: puts the new app where DEST is, moving an old one aside first so the new one never lands inside it;
+# a failed move puts the old one back. The old app goes once the new one is in place; the data is under ~/.storytree.
+st_place() {
+  st_old=
+  if [ -e "$2" ]; then
+    st_old="$2.storytree-old-$$"
+    mv "$2" "$st_old" || { st_fail "the installed app at $2 could not be moved aside"; return; }
+  fi
+  if mv "$1" "$2" 2>/dev/null; then [ -z "$st_old" ] || rm -rf "$st_old"; return 0; fi
+  [ -z "$st_old" ] || mv "$st_old" "$2"
+  st_fail "the app could not be moved to $2"
+}
+
+st_delivery_steps() {
+  ST_STEP=inspect
+  st_op_probe "$1" "$2" || return
+  ST_UPDATE=
+  if [ "$ST_PRESENT" = yes ]; then
+    # A repeat run updates an app older than the channel's release; one that cannot read the release opens what is there.
+    st_op_version "$1"
+    if st_op_release "$2"; then
+      if st_newer "$ST_INSTALLED" "$st_version"; then ST_UPDATE=yes; echo "Updating storytree $ST_INSTALLED to $st_version."; fi
+    else
+      echo "Could not check for a newer storytree ($ST_ERROR); opening the installed ${ST_INSTALLED:-app}."
+    fi
+  fi
+  if [ "$ST_PRESENT" = no ] || [ -n "$ST_UPDATE" ]; then
+    ST_STEP=download
+    if [ -z "$ST_UPDATE" ]; then st_op_stage download; st_op_release "$2" || return; fi
+    st_op_download "$2" || return
+    st_op_persist || return
+    if [ -n "$ST_UPDATE" ]; then ST_STEP=quit; st_op_stage quit; st_op_quit "$1" || return; fi
+    ST_STEP=install; st_op_stage install; st_op_install "$ST_ARCHIVE" "$1" || return
+    ST_STEP=verify; st_op_stage verify; st_op_probe "$1" "$2" || return
+    [ "$ST_PRESENT" = yes ] || { st_fail 'the installed app or its tool payload is incomplete'; return; }
+  else
+    st_op_persist || return
+  fi
+  ST_STEP=finish; st_op_stage finish; st_op_finish "$1" "$2" || return
+  ST_STEP=path; st_op_stage path; st_op_path
+}
+
+# st_delivery INSTALLDIR ARCH: install when nothing usable or only an older app is there, then open the app and put the command on PATH.
+st_delivery() {
+  st_delivery_steps "$1" "$2" || st_fail "storytree delivery failed at $ST_STEP: $ST_ERROR. Retry: run the same command again. Your projects and agent settings have not been replaced"
+}
+
+# st_opened DIR: what the one-liner says once the app is open. It asks nothing (ADR-1162 D1): connecting agents and adding
+# a project are the app's first run. Its first suggestion is opening storytree, with the command that does it (D2).
+st_opened() {
+  if [ "$ST_SYSTEM" = linux ]; then st_target="$1/storytree-0.3"; else st_target=$1; fi
+  st_quoted="'$(printf '%s' "$st_target" | sed "s/'/'\\\\''/g")'"
+  if [ "$ST_SYSTEM" = linux ]; then
+    if st_userns_blocked; then st_quoted="$st_quoted --no-sandbox"; fi
+    echo "storytree is installed, and its app is open. To open it again, use your app menu, or run: $st_quoted"
+  else
+    echo "storytree is installed, and its app is open. To open it again, use Applications, or run: open $st_quoted"
+  fi
+  echo 'In the app, connect your coding agents and, when you want one, add a project.'
+  if [ "$(printf '%s' "$ST_REPORT" | st_json command.status)" = conflict ]; then
+    echo "An existing storytree command was preserved: $(printf '%s' "$ST_REPORT" | st_json command.conflict)"
+    echo "Run this installation explicitly: '$(printf '%s' "$ST_REPORT" | st_json tools.node)' '$(printf '%s' "$ST_REPORT" | st_json tools.cli)'"
+  else
+    echo 'The storytree command is available in a new terminal window.'
+  fi
+}
+
+# st_install_appimage APPIMAGE DEST: on Linux the installation is a folder holding the AppImage, its agent tools
+# extracted beside it (the hooks and MCP server need a Node whose path stays put; a running AppImage's mount moves) and
+# its icon; the menu entry goes to ~/.local/share/applications. Extracting needs no FUSE.
+st_install_appimage() {
+  case "$1" in /*) ;; *) set -- "$PWD/$1" "$2" ;; esac
+  chmod +x "$1" || { st_fail 'the downloaded app could not be made runnable'; return; }
+  st_unpack="$ST_TMP/app"
+  mkdir -p "$st_unpack" || return
+  (cd "$st_unpack" && "$1" --appimage-extract 'resources/agent-tools/*' && "$1" --appimage-extract storytree-0.3.desktop &&
+    "$1" --appimage-extract storytree-0.3.png) >/dev/null 2>&1 || { st_fail 'the downloaded app could not be unpacked'; return; }
+  st_root="$st_unpack/squashfs-root"
+  # The icon at the AppImage's root is a link into its icon theme; that file is taken too.
+  if [ -L "$st_root/storytree-0.3.png" ]; then
+    (cd "$st_unpack" && "$1" --appimage-extract "$(readlink "$st_root/storytree-0.3.png")") >/dev/null 2>&1
+  fi
+  [ -f "$st_root/resources/agent-tools/payload.json" ] && [ -f "$st_root/storytree-0.3.desktop" ] ||
+    { st_fail 'the download holds no storytree app and agent tools'; return; }
+  st_new="$st_unpack/storytree-0.3"
+  mkdir -p "$st_new/resources" && mv "$st_root/resources/agent-tools" "$st_new/resources/agent-tools" && mv "$1" "$st_new/storytree-0.3" ||
+    { st_fail 'the downloaded app could not be unpacked'; return; }
+  cp -L "$st_root/storytree-0.3.png" "$st_new/storytree-0.3.png" 2>/dev/null || :
+  mkdir -p "$(dirname "$2")" || { st_fail "the folder for $2 could not be made"; return; }
+  st_place "$st_new" "$2" || return
+  st_apps="$HOME/.local/share/applications"
+  mkdir -p "$st_apps" && st_desktop_entry "$st_root/storytree-0.3.desktop" "$2/storytree-0.3" "$2/storytree-0.3.png" > "$st_apps/storytree-0.3.desktop.tmp" &&
+    mv "$st_apps/storytree-0.3.desktop.tmp" "$st_apps/storytree-0.3.desktop" || { st_fail "the menu entry could not be written in $st_apps"; return; }
+  # The entry names the scheme sign-in returns through; the menu's cache learns it when the tool is there.
+  if command -v update-desktop-database >/dev/null 2>&1; then update-desktop-database "$st_apps" >/dev/null 2>&1 || :; fi
+}
+
+# st_profile_file: the login shell's profile the PATH line goes in: zsh's on a Mac, ~/.profile on Linux.
+st_profile_file() { if [ "$ST_SYSTEM" = linux ]; then printf '%s' "$HOME/.profile"; else printf '%s' "${ZDOTDIR:-$HOME}/.zprofile"; fi; }
+
+# The operations the steps above take on the real machine; the tests replace them.
+st_tools() {
+  if [ "$ST_SYSTEM" = linux ]; then st_res="$1/resources/agent-tools"; else st_res="$1/Contents/Resources/agent-tools"; fi
+  ST_NODE="$st_res/node"; ST_HELPER="$st_res/storytree-deliver.mjs"
+}
+
+st_op_fuse() { st_fuse "$({ ldconfig -p || /sbin/ldconfig -p; ls /lib*/*/libfuse.so.2* /usr/lib*/*/libfuse.so.2* /lib*/libfuse.so.2* /usr/lib*/libfuse.so.2*; } 2>/dev/null)"; }
+
+st_op_stage() {
+  case "$1" in
+    download) echo 'Finding the storytree release for this installation channel.' ;;
+    quit) echo 'Quitting the open storytree app so it can be replaced; its database stops first.' ;;
+    install) if [ "$ST_SYSTEM" = linux ]; then echo 'Installing the app into ~/.local/share in your home folder, with a menu entry.'
+      else echo 'Installing the app into Applications in your home folder.'; fi ;;
+    verify) echo 'Checking the installed app and its bundled tools.' ;;
+    finish) echo 'Opening the app and starting its database.' ;;
+    path) echo 'Adding the storytree command to your PATH.' ;;
+  esac
+}
+
+st_op_probe() {
+  st_tools "$1"
+  if [ ! -f "$ST_NODE" ] || [ ! -f "$ST_HELPER" ]; then
+    if [ -e "$1" ]; then
+      st_fail "The app at '$1' has no complete bundled tools. Delivery will not overwrite it: move it to the Bin (your projects and library are kept elsewhere), then retry"; return
+    fi
+    ST_PRESENT=no; return 0
+  fi
+  # An existing payload that no longer verifies is not permission to replace it silently.
+  "$ST_NODE" "$ST_HELPER" inspect "$1" "$2" >/dev/null 2>&1 || {
+    st_fail "The existing installation at '$1' failed verification. Open it to read its error, or move it to the Bin, then retry"; return
+  }
+  ST_PRESENT=yes
+}
+
+st_op_version() {
+  if [ "$ST_SYSTEM" = linux ]; then ST_INSTALLED=$(st_appimage_version "$1/storytree-0.3") || ST_INSTALLED=
+  else ST_INSTALLED=$(st_plist_version "$1") || ST_INSTALLED=; fi
+}
+
+st_op_release() { st_release "$ST_CHANNEL" "$1" "$ST_TMP/storytree-delivery.json"; }
+
+st_op_download() {
+  if [ "$ST_SYSTEM" = linux ]; then echo "Downloading storytree $st_version for x64 Linux."; else echo "Downloading storytree $st_version for an Apple Silicon Mac."; fi
+  st_download "$ST_PAYLOAD_URL" "$ST_TMP/$ST_PAYLOAD_NAME" || { st_fail 'the download did not finish'; return; }
+  st_verify "$ST_TMP/$ST_PAYLOAD_NAME" "$ST_PAYLOAD_SHA" || return
+  ST_ARCHIVE="$ST_TMP/$ST_PAYLOAD_NAME"
+}
+
+st_op_persist() { st_save_channel "$ST_HOME" "$ST_CHANNEL" || st_fail "the release channel could not be saved in $ST_HOME"; }
+
+# The app's own --quit asks the running one to quit, which waits for its database to stop; a closed app starts nothing.
+st_op_quit() {
+  st_tools "$1"
+  if [ "$ST_SYSTEM" = linux ]; then st_exe="$1/storytree-0.3"; else st_exe="$1/Contents/MacOS/storytree-0.3"; fi
+  pgrep -f "$st_exe" >/dev/null 2>&1 || return 0
+  "$st_exe" --quit >/dev/null 2>&1
+  st_waited=0
+  while pgrep -f "$st_exe" >/dev/null 2>&1; do
+    [ "$st_waited" -lt 90 ] || { st_fail 'the open storytree app did not quit. Quit it from its menu, then retry'; return; }
+    sleep 1; st_waited=$((st_waited + 1))
+  done
+}
+
+st_op_install() {
+  if [ "$ST_SYSTEM" = linux ]; then st_install_appimage "$1" "$2"; return; fi
+  mkdir -p "$ST_TMP/app" || return
+  # ditto keeps the bundle's signature and links as the release built them.
+  if command -v ditto >/dev/null 2>&1; then ditto -x -k "$1" "$ST_TMP/app"; else unzip -q "$1" -d "$ST_TMP/app"; fi || { st_fail 'the downloaded app could not be unpacked'; return; }
+  [ -d "$ST_TMP/app/storytree-0.3.app" ] || { st_fail 'the download holds no storytree-0.3.app'; return; }
+  mkdir -p "$(dirname "$2")" || { st_fail "the folder for $2 could not be made"; return; }
+  st_place "$ST_TMP/app/storytree-0.3.app" "$2"
+}
+
+st_op_finish() {
+  st_tools "$1"
+  ST_REPORT=$("$ST_NODE" "$ST_HELPER" finish "$1" "$2") || st_fail 'The app could not be opened or its database did not become ready. Read the app error above'
+}
+
+st_op_path() {
+  [ "$(printf '%s' "$ST_REPORT" | st_json command.status)" != conflict ] || return 0
+  st_profile_add "$(st_profile_file)" "$(printf '%s' "$ST_REPORT" | st_json command.pathEntry)" || st_fail "the storytree command could not be added to $(st_profile_file)"
+}
+
+st_main() {
+  st_requested=
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --channel) st_requested=${2:-}; shift ;;
+      --channel=*) st_requested=${1#--channel=} ;;
+      *) st_fail "unknown option $1; the only option is --channel stable|alpha"; return ;;
+    esac
+    shift
+  done
+  st_system=$(uname -s); st_chip=$(uname -m)
+  # A terminal running under Rosetta reports an Intel chip on an Apple Silicon Mac.
+  if [ "$st_system" = Darwin ] && [ "$st_chip" = x86_64 ] && [ "$(sysctl -n sysctl.proc_translated 2>/dev/null)" = 1 ]; then st_chip=arm64; fi
+  st_platform "$st_system" "$st_chip" || return
+  if [ "$ST_SYSTEM" = linux ]; then st_op_fuse || return; fi
+  ST_HOME=${STORYTREE_HOME:-$HOME/.storytree/0.3}
+  st_install_dir "$ST_HOME" "$HOME" || return
+  st_channel "$ST_HOME" "$ST_DIR" "$st_requested" || return
+  ST_TMP=$(mktemp -d "${TMPDIR:-/tmp}/storytree-delivery.XXXXXX") || { st_fail 'no temporary folder could be made'; return; }
+  trap 'rm -rf "$ST_TMP"' EXIT
+  trap 'exit 130' INT TERM
+  st_delivery "$ST_DIR" "$ST_ARCH" || return
+  st_opened "$ST_DIR"
+}
+
+if [ "${STORYTREE_INSTALL_LIBRARY:-}" != 1 ]; then
+  st_main "$@" || { printf '%s.\n' "$ST_ERROR" >&2; exit 1; }
+fi

@@ -1,0 +1,47 @@
+{
+ "src/caller/caller.ts": {
+  "3": 32
+ },
+ "src/caller/harnesses.ts": {
+  "3": 24
+ },
+ "src/routing/local-handoff.ts": {
+  "1": 179,
+  "2": 24
+ },
+ "src/routing/routing.ts": {
+  "1": 268,
+  "2": 17
+ },
+ "src/routing/trunks.ts": {
+  "1": 269,
+  "2": 45
+ },
+ "src/settings/decision-rights.ts": {
+  "2": 1
+ },
+ "src/settings/panel.ts": {
+  "2": 21
+ },
+ "src/settings/settings.ts": {
+  "1": 155,
+  "2": 217
+ },
+ "src/testing/folders.ts": {
+  "1": 48,
+  "2": 41
+ },
+ "src/testing/pg.ts": {
+  "1": 90,
+  "2": 9
+ },
+ "src/view/decision-rights.ts": {
+  "2": 5
+ },
+ "src/view/index.ts": {
+  "2": 28
+ },
+ "src/view/render.ts": {
+  "2": 41
+ }
+}

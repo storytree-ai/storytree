@@ -1,0 +1,103 @@
+/**
+ * Capability 1 · Front door. A thin front door onto the keys story (ADR-0843): save, list and remove the keys storytree keeps.
+ * Each is a person's own (ADR-1045 D1): a key is given at a terminal, never by an agent. `auth connection` hands a hand
+ * script's psql the routed library, signed in with its key, and stores nothing; an agent or a person may run it.
+ */
+import { Refusal } from "../answer.js";
+import type { Family } from "../door.js";
+
+const USER = ["user"] as const;
+
+export const auth: Family = {
+  name: "auth",
+  summary: "save, list or remove a key you give storytree",
+  verbs: [{
+    name: "set",
+    usage: "auth set <name>   (the key, or !<command> that prints it, on standard input)",
+    summary: "save a key, read from standard input and never echoed",
+    consumers: USER,
+    async act(args) {
+      if (args.words.length !== 1 || args.names.length) {
+        throw new Refusal("usage: storytree auth set <name>, with the key on standard input (never as an argument, which shells keep in their history)", { code: 2 });
+      }
+      const name = args.word(0, "a key name", "auth set <name>");
+      const { authFile, saveKey } = await import("@storytree/keys");
+      saveKey(name, (await readSecret(`Key for ${name}: `)).trim());
+      return { text: `Saved key ${name} in ${authFile()}.`, next: [{ command: "storytree auth list", why: "the keys storytree has" }] };
+    },
+  }, {
+    name: "list",
+    usage: "auth list",
+    summary: "name each key and where it resolves from, never its value",
+    consumers: USER,
+    async act(args) {
+      if (args.words.length || args.names.length) throw new Refusal("usage: storytree auth list", { code: 2 });
+      const { listKeys } = await import("@storytree/keys");
+      const keys = listKeys();
+      if (!keys.length) return { text: "No keys saved.", next: [{ command: "storytree auth set <name>", why: "save one" }] };
+      const said = { file: "from the file", command: "from its command, run when needed", environment: "from the environment" } as const;
+      return { text: keys.map((key) => `${key.name}: ${said[key.from]}${key.variable === undefined ? "" : ` (${key.variable})`}`).join("\n") };
+    },
+  }, {
+    name: "connection",
+    usage: "auth connection [--database <name>]   (psql \"$(storytree auth connection --database storytree-activity)\")",
+    summary: "print the routed library's postgres:// connection, signed in, for psql; stores nothing",
+    async act(args) {
+      if (args.words.length || args.names.some((name) => name !== "database")) throw new Refusal("usage: storytree auth connection [--database <name>]", { code: 2 });
+      const [{ locateLibrary }, { connectionString, ConnectionError }] = await Promise.all([import("@storytree/project-and-caller/routing"), import("@storytree/library")]);
+      const library = locateLibrary();
+      if (!library.found) throw new Refusal(library.message);
+      try {
+        return { text: connectionString(library.connect, args.text("database")) };
+      } catch (error) {
+        throw error instanceof ConnectionError ? new Refusal(error.message) : error;
+      }
+    },
+  }, {
+    name: "remove",
+    usage: "auth remove <name>",
+    summary: "delete a saved key",
+    consumers: USER,
+    async act(args) {
+      if (args.words.length !== 1 || args.names.length) throw new Refusal("usage: storytree auth remove <name>", { code: 2 });
+      const name = args.word(0, "a key name", "auth remove <name>");
+      const { removeKey } = await import("@storytree/keys");
+      if (!removeKey(name)) throw new Refusal(`No key ${name} is saved.`, { next: [{ command: "storytree auth list", why: "the keys storytree has" }] });
+      return { text: `Removed key ${name}.` };
+    },
+  }],
+};
+
+/** Standard input whole, or one line typed at a terminal with nothing shown. */
+async function readSecret(prompt: string): Promise<string> {
+  const input = process.stdin;
+  if (!input.isTTY) {
+    let text = "";
+    for await (const chunk of input) text += String(chunk);
+    return text;
+  }
+  process.stderr.write(prompt);
+  input.setRawMode(true);
+  input.setEncoding("utf8");
+  try {
+    return await new Promise<string>((resolve, reject) => {
+      let typed = "";
+      const onData = (chunk: string): void => {
+        for (const char of chunk) {
+          if (char === "\r" || char === "\n" || char === "\u0004") return done(() => resolve(typed));
+          if (char === "\u0003") return done(() => reject(new Refusal("Cancelled: no key saved.")));
+          typed = char === "\u007f" || char === "\b" ? typed.slice(0, -1) : typed + char;
+        }
+      };
+      const done = (finish: () => void): void => {
+        input.off("data", onData);
+        process.stderr.write("\n");
+        finish();
+      };
+      input.on("data", onData);
+    });
+  } finally {
+    input.setRawMode(false);
+    input.pause();
+  }
+}

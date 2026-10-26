@@ -1,0 +1,108 @@
+// Build the desktop app into dist/: esbuild bundles the main process and the preload script
+// (CommonJS, for Electron) and the page's script (for the browser), and the page's HTML and CSS
+// are copied beside it. Everything the app runs is in dist/, so a packaged app needs no
+// node_modules: the library, local-postgres and pg are bundled into main.cjs.
+import { cpSync, mkdirSync, rmSync } from "node:fs";
+import { createRequire } from "node:module";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+import { build } from "esbuild";
+import { PATH_ONLY } from "@storytree/app-setup/bins";
+import { journeyDefine } from "@storytree/app-setup/journey-events/release";
+import { partsPlugin } from "@storytree/plugin-loader";
+import { roadWorkerBuild } from "./src/renderer/road-worker.ts";
+
+const here = path.dirname(fileURLToPath(import.meta.url));
+const dist = path.join(here, "dist");
+const src = path.join(here, "src");
+
+rmSync(dist, { recursive: true, force: true });
+mkdirSync(path.join(dist, "renderer"), { recursive: true });
+
+const common = { bundle: true, logLevel: "warning", sourcemap: "linked", absWorkingDir: here };
+/** A public setting from the build's environment, as an esbuild define: its value, or undefined when it is not set. */
+const stamped = (name) => (process.env[name] ? JSON.stringify(process.env[name]) : "undefined");
+
+await build({
+  ...common,
+  entryPoints: [path.join(src, "main", "main.ts")],
+  outfile: path.join(dist, "main.cjs"),
+  platform: "node",
+  format: "cjs",
+  target: "node22",
+  // On Windows its bare-named programs (git, gh) are found on PATH only, never in the folder it was started in;
+  // after the bundle's own "use strict", which only the first statement can be.
+  banner: { js: `"use strict";\n${PATH_ONLY}` },
+  // local-postgres finds its binaries from its own location (import.meta.url) only when not told
+  // where they are; the app always tells it (main.ts: postgresBinaries), so that path is never taken.
+  logOverride: { "empty-import-meta": "silent" },
+  // The parts storytree's own story packages name in their manifests, composed in from this app's dependencies (ADR-1021).
+  plugins: [partsPlugin()],
+  // A release build stamps in PostHog's public project token (never a private key); others share nothing.
+  // A build offering sign-in for feedback (the staging build) stamps in WorkOS's public client ID (app setup contract 5.6);
+  // the app checks its token itself and offers no sign-in without the ID. It is not a secret.
+  define: {
+    ...journeyDefine(),
+    STORYTREE_WORKOS_CLIENT_ID: stamped("STORYTREE_WORKOS_CLIENT_ID"),
+  },
+  external: [
+    "electron",
+    // Optional parts of pg that the app never uses: its native client and its Cloudflare sockets.
+    "pg-native",
+    "pg-cloudflare",
+    "cloudflare:sockets",
+    // The library's Cloud SQL path (capability 8) loads these lazily, from node_modules, when the
+    // library setting names a Cloud SQL instance (ADR-0734). Google's auth library stays outside the
+    // bundle too: the connector accepts only its own copy's GoogleAuth.
+    "@google-cloud/cloud-sql-connector",
+    "google-auth-library",
+    // Ranked search loads the embedding model runtime lazily, from node_modules (native ONNX Runtime).
+    "@huggingface/transformers",
+  ],
+});
+
+// The code survey's worker thread (map 8.16), resolved through the forest package the app mounts it from.
+const surveyWorker = createRequire(fileURLToPath(import.meta.resolve("@storytree/forest/code-survey"))).resolve("@storytree/map/code-survey/worker");
+await build({
+  ...common,
+  entryPoints: [surveyWorker],
+  outfile: path.join(dist, "survey-worker.cjs"),
+  platform: "node",
+  format: "cjs",
+  target: "node22",
+});
+
+await build({
+  ...common,
+  entryPoints: [path.join(src, "preload", "preload.ts")],
+  outfile: path.join(dist, "preload.cjs"),
+  platform: "node",
+  format: "cjs",
+  target: "node22",
+  external: ["electron"],
+  // The page channels the story packages' manifests name, composed in as data (ADR-1021).
+  plugins: [partsPlugin()],
+});
+
+await build({
+  ...common,
+  entryPoints: [path.join(src, "renderer", "renderer.ts")],
+  outfile: path.join(dist, "renderer", "renderer.js"),
+  platform: "browser",
+  format: "iife",
+  target: "es2023",
+});
+
+// The map's roads are routed in this worker, off the page's main thread (contract 3.18).
+await build({ ...common, ...roadWorkerBuild(path.join(dist, "renderer")) });
+
+cpSync(fileURLToPath(import.meta.resolve("@storytree/arc-surface/view/styles.css")), path.join(dist, "renderer", "arc-surface.css"));
+cpSync(fileURLToPath(import.meta.resolve("@storytree/app-setup/view/styles.css")), path.join(dist, "renderer", "app-setup.css"));
+cpSync(fileURLToPath(import.meta.resolve("@storytree/forest/view/styles.css")), path.join(dist, "renderer", "forest.css"));
+cpSync(path.join(here, "..", "..", "LICENSE"), path.join(dist, "LICENSE"));
+
+for (const file of ["index.html", "styles.css"]) {
+  cpSync(path.join(src, "renderer", file), path.join(dist, "renderer", file));
+}
+console.log(`built ${path.relative(process.cwd(), dist) || "dist"}`);

@@ -569,6 +569,8 @@ for (const backend of [memory, postgres]) {
     const mapped = { from: "/code/shop", package: ".", folders: ["."] };
     await assert.rejects(work.addStory({ title: "Shop", mapped } as never), schemaError("story", ["mapped"]));
     await assert.rejects(work.editStory(story.id, { mapped } as never), schemaError("story", ["mapped"]));
+    await assert.rejects(work.addStory({ title: "Voice", plugin: "voice" } as never), schemaError("story", ["plugin"]), "nor is a story made a plugin's but by importing its plan");
+    await assert.rejects(work.editStory(story.id, { plugin: "voice" } as never), schemaError("story", ["plugin"]));
     assert.deepEqual(await transactions.history(), before, "nothing was written");
     assert.deepEqual((await records.get(story.id))?.fields, { title: "Visitor can sign up" });
   });
@@ -748,7 +750,7 @@ for (const backend of [memory, postgres]) {
     assert.deepEqual(new Set(again.edited), new Set([address.id, notFound.id]));
     assert.deepEqual(new Set(again.retired), new Set([first.added[0], speech.id, spoken.id]), "what the plan no longer holds is retired, a capability's contracts with it");
     assert.equal(((await records.get(notFound.id)) as SchemaRecord<"contract">).fields.title, "1.1 · A wrong path is answered 404, with no body", "a contract keeps its id across an edit");
-    assert.deepEqual((await work.projectTree()).stories.map(({ id, plugin }) => [id, plugin]), [[voice.id, "voice"], [other.id, undefined]], "the plan's tree says whose plan a story is");
+    assert.deepEqual(new Map((await work.projectTree()).stories.map(({ id, plugin }) => [id, plugin])), new Map([[voice.id, "voice"], [other.id, undefined]]), "the plan's tree says whose plan a story is");
 
     const fresh = await work.importPluginPlan("notes", { story: { title: "Notes" }, capabilities: [{ title: "1 · Taking a note", contracts: [{ title: "1.1 · A note is kept" }] }] });
     const made = (await records.get(fresh.story)) as SchemaRecord<"story">;

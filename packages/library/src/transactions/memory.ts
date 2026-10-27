@@ -102,9 +102,10 @@ export class MemoryTransactions implements Transactions {
     input.signal?.throwIfAborted();
     const ids = new Set(this.#history.filter((entry) => entry.actor === input.of).map((entry) => entry.recordId));
     const written = writtenBy(input.of, this.#history.filter((entry) => ids.has(entry.recordId)));
-    const writes = writesReverted(input, written, (id) => this.#records.get(id), now());
+    const at = now();
+    const writes = writesReverted(input, written, (id) => this.#records.get(id), at);
     for (const { reverted, record, reason } of writes) {
-      this.#append(reverted.action, record, reverted.action === "retired" ? now() : record.updatedAt, input.actor, reason);
+      this.#append(reverted.action, record, at, input.actor, reason);
       if (reverted.action === "retired") this.#records.delete(record.id);
       else this.#records.set(record.id, record);
     }

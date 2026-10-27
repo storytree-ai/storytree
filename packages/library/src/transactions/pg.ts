@@ -186,9 +186,10 @@ export class PgTransactions implements Transactions {
         const live = await lockCurrent(client, id);
         if (live !== undefined) current.set(id, live);
       }
-      const writes = writesReverted(input, written, (id) => current.get(id), now());
+      const at = now();
+      const writes = writesReverted(input, written, (id) => current.get(id), at);
       for (const { reverted, record, reason } of writes) {
-        await appendEvent(client, reverted.action, record, reverted.action === "retired" ? now() : record.updatedAt, input.actor, reason);
+        await appendEvent(client, reverted.action, record, at, input.actor, reason);
         if (reverted.action === "retired") await client.query("DELETE FROM record WHERE id = $1", [record.id]);
         else await putRecord(client, record);
       }

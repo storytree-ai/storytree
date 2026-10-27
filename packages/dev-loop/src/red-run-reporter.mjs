@@ -55,10 +55,11 @@ function checkout(dir) {
   }
 }
 
-/** A path by its real path, as macOS names a temporary folder one way for its tests and another (under /private) for itself. */
+/** A path by its real path, as macOS names a temporary folder one way for its tests and another (under /private) for itself, and
+ * Windows by a short name (`RUNNER~1`) where Git gives the long one: only the native call expands a short name. */
 function real(file) {
   try {
-    return realpathSync(file);
+    return realpathSync.native(file);
   } catch {
     return file;
   }

@@ -167,6 +167,18 @@ export function pluginLibrarian(folder: string | undefined, plugin: string): Out
 }
 
 /**
+ * Every grant plugin `plugin` of `folder` declares, as storytree fences them in a project's library: each role its kinds
+ * name as a writer, fenced to add the kinds it writes and change none (ADR-1178 D1), then its librarian, as
+ * pluginLibrarian reads it. None for a plugin that declares no kinds; one whose manifest cannot be read is refused with why.
+ */
+export function pluginFences(folder: string | undefined, plugin: string): OutsideWriter[] {
+  const writes = new Map<string, string[]>();
+  for (const { kind, writers } of pluginRecordKinds(folder, plugin)) for (const role of writers) writes.set(role, [...(writes.get(role) ?? []), kind]);
+  const librarian = pluginLibrarian(folder, plugin);
+  return [...[...writes].map(([role, kinds]) => ({ role, kinds })), ...(librarian === undefined ? [] : [librarian])];
+}
+
+/**
  * The kinds of record the factory plugins a host mounts declare: each stand-in `standIns` names whose part `off`
  * switches off, in `graph`, or names off itself though `graph` lacks it (a plugin's kinds are the library's, not one
  * host's: no host's graph holds a part that has left the base, such as voice). A plugin whose part is on declares none,

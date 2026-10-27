@@ -1,5 +1,5 @@
 /**
- * Capability 5 · Factory plugins, contract 5.10 (ADR-1178 D5, question_0700cb2e567c: option A): a plugin's manifest
+ * Capability 5 · Factory plugins, contracts 5.10 and 5.11 (ADR-1178 D5, question_0700cb2e567c: option A): a plugin's manifest
  * names its own librarian's database role and update right, storytree fences that role from it to the plugin's kinds,
  * and the database refuses that librarian a core kind. Run as 1.24 runs: a role that owns the project's database, the
  * owner's account fencing the writer the manifest gives, and the librarian's own account writing as storytree writes.
@@ -104,5 +104,72 @@ test("5.10 · A plugin's manifest names its librarian's own database role and up
     await Promise.allSettled(opened.map((each) => each.close()));
     await dropTestDatabases([database]);
     await dropTestRoles([librarian, owner, creator]);
+  }
+});
+
+test("5.11 · `plugin fence` fences, in the project's library, the roles each plugin this computer mounts declares: its kinds' writers to add only, and its librarian as its manifest says, saying what each was granted; `plugin check` names the librarian's role, and a role the server lacks is refused saying it is made apart", async (t) => {
+  const home = mkdtempSync(path.join(tmpdir(), "storytree-home-"));
+  const saved = { home: process.env.STORYTREE_HOME, password: process.env.PGPASSWORD };
+  process.env.STORYTREE_HOME = home;
+  t.after(() => {
+    for (const [name, value] of [["STORYTREE_HOME", saved.home], ["PGPASSWORD", saved.password]] as const) {
+      if (value === undefined) delete process.env[name];
+      else process.env[name] = value;
+    }
+    rmSync(home, { recursive: true, force: true });
+  });
+  const run = uniqueProjectName();
+  const [owner, door, librarian, creator] = [`${run}-owner`, `${run}-door`, `${run}-librarian`, `${run}-creator`];
+  const database = `storytree_${run}`;
+  const plugin = path.join(home, "your-factory", "plugins", "voice");
+  mkdirSync(plugin, { recursive: true });
+  writeFileSync(path.join(plugin, "package.json"), JSON.stringify({
+    name: "voice",
+    storytree: { interface: PLUGIN_INTERFACE, recordKinds: [note([door]), { ...note([door]), kind: "voice.tag" }], librarian: { role: librarian, update: true } },
+  }));
+  const { setLibrary, setPartOff } = await import("@storytree/project-and-caller");
+  const { PLUGIN_FAMILIES } = await import("./verbs.js");
+  const verb = (name: string) => PLUGIN_FAMILIES[0]!.verbs.find((each) => "name" in each.command && each.command.name === name)!;
+  const words = { door: "command" as const, say: (step: { command?: string }) => `storytree ${step.command}` };
+  const fence = () => verb("fence").act({} as never, { folder: home, project: run } as never, words);
+
+  assert.match((await fence()).text, /mounts no factory plugin/);
+  setPartOff("ci-health", true, home, "voice");
+  const checked = await verb("check").act({ plugin: "voice" } as never, { folder: home } as never, words);
+  assert.match(checked.text, new RegExp(`Its librarian, librarian-voice, connects as the database role ${librarian}, which adds and changes voice\\.note, voice\\.tag\\.`));
+  assert.ok(checked.next?.some((step) => step.command === "plugin fence"), "it names the step that fences it");
+
+  const opened: { close(): Promise<void> }[] = [];
+  try {
+    await createTestRole(owner, { createdb: false });
+    await createTestRole(creator, { createdb: true, login: false });
+    await withTestClient((client) => client.query(`GRANT "${creator}" TO "${owner}"`));
+    const storytree = await connect({ url: testRoleUrl(owner) });
+    opened.push(storytree);
+    await storytree.openProject(run);
+    const address = new URL(testRoleUrl(owner));
+    process.env.PGPASSWORD = decodeURIComponent(address.password);
+    address.password = "";
+    setLibrary(["postgres", address.href], home);
+
+    await assert.rejects(fence(), new RegExp(`${door} was not fenced: ${door} is no role on this server: make it first, with LOGIN and its password, apart from storytree`));
+    await createTestRole(door, { createdb: false });
+    await createTestRole(librarian, { createdb: false });
+    const fenced = await fence();
+    assert.equal(fenced.text, [
+      `voice, fenced in ${run}'s library:`,
+      `  ${door} adds voice.note, voice.tag`,
+      `  ${librarian} adds and changes voice.note, voice.tag (librarian-voice connects as it)`,
+    ].join("\n"));
+    assert.equal((verb("fence").tool as { name?: string }).name, "fence_plugin", "an agent reaches it as a tool");
+
+    await withTestClientAs(door, (client) => put(client, "note-1", "voice.note"), database);
+    await assert.rejects(withTestClientAs(door, (client) => put(client, "note-1", "voice.note", "updated"), database), /row-level security/, "the door adds and changes nothing");
+    await withTestClientAs(librarian, (client) => put(client, "note-1", "voice.note", "updated"), database);
+    await assert.rejects(withTestClientAs(librarian, (client) => put(client, "story-1", "story"), database), /row-level security/, "the librarian keeps only voice's kinds");
+  } finally {
+    await Promise.allSettled(opened.map((each) => each.close()));
+    await dropTestDatabases([database]);
+    await dropTestRoles([door, librarian, owner, creator]);
   }
 });

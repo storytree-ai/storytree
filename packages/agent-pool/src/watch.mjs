@@ -23,6 +23,7 @@ import { promisify } from "node:util";
 
 import { poolConfig, readCap } from "./pool-config.mjs";
 import { codeVersion, countEngines, holdRunner } from "./queue.mjs";
+import { EXEMPTIONS_EVERY_MS, exemptionChanges, watchExemptions } from "./exemptions-watch.mjs";
 import { attempted, failedJob, FOLLOWERS, isSecurityCheck, judgeReleases, recordFix, RELEASE_ARC, RELEASE_EVERY_MS, RUNNER_ATTEMPTS, runnerFault, runnerReruns, securityJobs, watchReleases } from "./release-watch.mjs";
 
 /**
@@ -31,7 +32,7 @@ import { attempted, failedJob, FOLLOWERS, isSecurityCheck, judgeReleases, record
  * change anywhere else in the dev loop leaves it looking. When one of these files comes to import another file, name
  * that file here; the pool's configuration, read once at start, is here too.
  */
-export const WATCH_CODE = [...["watch.mjs", "release-watch.mjs", "queue.mjs", "runner.mjs", "engine.mjs", "pool-config.mjs"]
+export const WATCH_CODE = [...["watch.mjs", "release-watch.mjs", "exemptions-watch.mjs", "queue.mjs", "runner.mjs", "engine.mjs", "pool-config.mjs"]
   .map((name) => `packages/agent-pool/src/${name}`), "agent-pool.json"];
 
 const run = promisify(execFile);
@@ -905,6 +906,11 @@ function boxDefaults({ home = homedir(), env = process.env } = {}) {
     sleep: (ms) => wait(ms),
     // Only the box's watcher reads releases; a watcher a test starts under another home never reruns or alarms.
     readReleases: onBox ? () => releasesOnGitHub({ repo }) : undefined,
+    // Main's changes to the owner's secret-check exemptions list, each told as an FYI once (4.42).
+    readExemptions: onBox ? () => exemptionChanges({ repo,
+      openerOf: async (pr) => (await run("gh", ["pr", "view", pr, "--json", "author", "--jq", ".author.login"], { cwd: repo })).stdout.trim() }) : undefined,
+    exemptionRecorded: async (about) => !/^No fyi records match/.test(await storytree(["library", "list", "fyi", "--where", `about=${about}`])),
+    recordExemption: (fyi) => storytree(["fyi", "new", "--by", "watcher", ...Object.entries(fyi).flatMap(([field, text]) => [`--${field}`, text])]),
     // At the head it read as green, as land.yml enqueues, with the box's signed-in token, so the queue's own run starts (4.31).
     enqueue: (id, head) => run("gh", ["api", "graphql", "-f", `id=${id}`, "-f", `sha=${head}`, "-f",
       "query=mutation($id: ID!, $sha: GitObjectID!) { enqueuePullRequest(input: {pullRequestId: $id, expectedHeadOid: $sha}) { mergeQueueEntry { position } } }"], { cwd: repo }),
@@ -944,6 +950,8 @@ export async function main(args, box = {}) {
   // The box's releases are its own folder's: a loop given another folder (a test on the box) would keep its stop
   // there, forget it each run and start the box a real fix session every time, unless it brings its own reader.
   if (!box.readReleases && b.dir !== defaults.dir) b.readReleases = undefined;
+  // Likewise its FYIs: a loop given another folder would tell the real library about main's changes.
+  if (!box.readExemptions && b.dir !== defaults.dir) b.readExemptions = undefined;
   const out = b.out ?? console.log;
   const keepOpen = args.includes("--keep-open"), refused = args.includes("--refused");
   if (args[0] === "handover" && /^\d+$/.test(args[1] ?? "") && /^increment_\w+$/.test(args[2] ?? "")) {
@@ -1033,7 +1041,7 @@ export async function main(args, box = {}) {
   const version = () => Promise.resolve().then(b.codeVersion).catch(() => undefined);
   const began = await version();
   if (began) await writeFile(versionPath(b.dir), `${b.pid ?? process.pid} ${began}\n`);
-  let releasesAt = 0;
+  let releasesAt = 0, exemptionsAt = 0;
   for (;;) {
     // Between looks, never in one: a fix session it started runs on, and its hand-off on disk keeps the count.
     const current = began && await version();
@@ -1046,6 +1054,11 @@ export async function main(args, box = {}) {
       releasesAt = b.now();
       try { await watchReleases({ ...b, startFix: b.startReleaseFix, say }); }
       catch (error) { dated(`release look failed: ${error.message.split("\n")[0]}`); }
+    }
+    if (b.readExemptions && b.now() - exemptionsAt >= EXEMPTIONS_EVERY_MS) {
+      exemptionsAt = b.now();
+      try { await watchExemptions({ readExemptions: b.readExemptions, recorded: b.exemptionRecorded, record: b.recordExemption, say: dated }); }
+      catch (error) { dated(`exemptions look failed: ${error.message.split("\n")[0]}`); }
     }
     await b.sleep(b.intervalMs);
   }

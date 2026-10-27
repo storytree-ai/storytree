@@ -12,6 +12,7 @@ import path from "node:path";
 const git = (dir: string, ...args: string[]): string =>
   execFileSync("git", ["-C", dir, ...args], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim();
 
+// realpathSync.native, not the JS one: on Windows it expands 8.3 short names (RUNNER~1) to the long form git prints.
 /** The folders of `hostDir` and the workspace packages it depends on, walked through its installed links, inside `top`. */
 function ownFolders(hostDir: string, top: string): string[] {
   const seen = new Set<string>();
@@ -22,7 +23,7 @@ function ownFolders(hostDir: string, top: string): string[] {
     for (const name of Object.keys(pkg.dependencies ?? {})) {
       let found: string;
       try {
-        found = realpathSync(path.join(dir, "node_modules", name));
+        found = realpathSync.native(path.join(dir, "node_modules", name));
       } catch {
         continue;
       }
@@ -32,14 +33,14 @@ function ownFolders(hostDir: string, top: string): string[] {
       visit(found);
     }
   };
-  visit(realpathSync(hostDir));
+  visit(realpathSync.native(hostDir));
   return [...seen].map((dir) => path.relative(top, dir).split(path.sep).join("/")).sort();
 }
 
 /** The version of the host's own code at `hostDir`'s checkout HEAD, or none when it is not in a git checkout. */
 export function ownCodeVersion(hostDir: string): string | undefined {
   try {
-    const top = realpathSync(git(hostDir, "rev-parse", "--show-toplevel"));
+    const top = realpathSync.native(git(hostDir, "rev-parse", "--show-toplevel"));
     const listed = git(top, "ls-tree", "HEAD", "--", "pnpm-lock.yaml", ...ownFolders(hostDir, top));
     return listed === "" ? undefined : createHash("sha1").update(listed).digest("hex").slice(0, 12);
   } catch {

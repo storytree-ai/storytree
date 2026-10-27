@@ -19,12 +19,17 @@ test("4.4 · the host's own code is its package and the workspace packages it st
   };
   write(".gitignore", "node_modules/\n");
   write("pnpm-lock.yaml", "lockfileVersion: '9.0'\n");
-  write("packages/host/package.json", JSON.stringify({ name: "host", dependencies: { "@x/dep": "workspace:*" } }));
+  write("packages/host/package.json", JSON.stringify({ name: "host", dependencies: { "@x/dep": "workspace:*", outside: "^1" } }));
   write("packages/dep/package.json", JSON.stringify({ name: "@x/dep" }));
   write("packages/dep/index.js", "export const one = 1;\n");
   write("packages/unrelated/index.js", "export const two = 2;\n");
   mkdirSync(path.join(top, "packages/host/node_modules/@x"), { recursive: true });
   symlinkSync(path.join(top, "packages/dep"), path.join(top, "packages/host/node_modules/@x/dep"), "junction");
+  // A package installed from outside the checkout is not the host's code.
+  const outside = realpathSync(mkdtempSync(path.join(tmpdir(), "storytree-own-code-outside-")));
+  t.after(() => removeTemp(outside));
+  writeFileSync(path.join(outside, "package.json"), JSON.stringify({ name: "outside" }));
+  symlinkSync(outside, path.join(top, "packages/host/node_modules/outside"), "junction");
   git(top, "init", "-q", "-b", "main");
   const commit = () => { git(top, "add", "-A"); git(top, "commit", "-q", "-m", "a change"); };
   commit();

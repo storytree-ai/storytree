@@ -318,6 +318,18 @@ test("2.19 · work whose machine field names another machine is left out, with t
   assert.deepEqual(pickPool({ ...work, here: undefined }, { max: 4, now }).skipped.map((skip) => skip.id), ["laptop", "mint"], "an unnamed machine takes no work that names one");
 });
 
+test("2.29 · a machine-only survey picks only work whose machine field names this machine: untagged work is the Mint pool's, and another machine's is that machine's (ADR-1179 D2)", () => {
+  const work = survey([
+    increment("laptop", "Build it in packages/app.", { machine: "laptop" }),
+    increment("any", "Build it in packages/app.", { parked: "2026-10-06T00:00:01Z" }),
+    increment("mint", "Build it in packages/app.", { machine: "mint", parked: "2026-10-06T00:00:02Z" }),
+  ], { here: "laptop" });
+  const { picks, skipped } = pickPool(work, { max: 3, now, machineOnly: true });
+  assert.deepEqual(picks.map((one) => one.id), ["laptop"]);
+  assert.deepEqual(skipped, [{ id: "any", why: "untagged: the Mint pool's" }, { id: "mint", why: "needs mint" }]);
+  assert.deepEqual(pickPool(work, { max: 3, now }).picks.map((one) => one.id), ["laptop", "any"], "without the setting, untagged work is picked as before");
+});
+
 test("2.23 · of two ready increments listing one capability, only the older starts in a round; the other is skipped naming the capability and the pick, and work with disjoint needs starts beside it (ADR-1079 D1)", () => {
   const work = survey([
     increment("older", "x", { arc: "arc_a", parked: "2026-10-01T00:00:00Z", capabilities: ["capability_shared"] }),

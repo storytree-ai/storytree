@@ -5,9 +5,10 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
+import { setTimeout as latency } from "node:timers/promises";
 import { promisify } from "node:util";
 
-import { removeTemp, waitUntil } from "@storytree/test-waits";
+import { quietFor, removeTemp, waitUntil } from "@storytree/test-waits";
 
 import { bothAnswer, main, runLane } from "./runner.mjs";
 
@@ -491,13 +492,12 @@ test("1.20 · A lane cut off by a lost connection is held until the library and 
 
   await reset();
   Object.assign(options.env, { FIRST: "linger" });
-  // The engine ends while a slow reachability check is in flight: the watch looks no more once it has.
+  // The engine ends while a slow reachability check (400 ms to answer) is in flight: the watch looks no more once it has.
   let probes = 0;
-  options.reachable = async () => { probes++; await new Promise((done) => setTimeout(done, 400)); return true; };
+  options.reachable = async () => { probes++; await latency(400); return true; };
   assert.equal(await runLane(options), 0);
   const seen = probes;
-  await new Promise((done) => setTimeout(done, 900));
-  assert.equal(probes, seen, "no look after the engine ended");
+  await quietFor(() => probes !== seen, 900, "a reachability look after the engine ended");
   options.reachable = async () => answers.shift() ?? true;
 
   await reset();

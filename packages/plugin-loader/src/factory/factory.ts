@@ -19,7 +19,8 @@ import { createRequire } from "node:module";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
-import { pluginSchema, type OutsideWriter, type PluginRecordKind } from "@storytree/library";
+import { pluginSchema, type PluginRecordKind } from "@storytree/library";
+import type { OutsideWriter } from "@storytree/library/outside-writer";
 
 import { CORE, switchedOff, type Composition, type PartsGraph } from "../switch/switch.js";
 

@@ -10,7 +10,8 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { test, type TestContext } from "node:test";
 
-import { connect, fenceOutsideWriter } from "@storytree/library";
+import { connect } from "@storytree/library";
+import { fenceOutsideWriter } from "@storytree/library/outside-writer";
 import { createTestRole, dropTestDatabases, dropTestRoles, testRoleUrl, uniqueProjectName, withTestClient, withTestClientAs } from "@storytree/library/testing/pg";
 
 import { checkPlugin } from "./contract.js";

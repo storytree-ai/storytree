@@ -11,6 +11,7 @@
     "./pr-cutover": "./src/work/pr-cutover.ts",
     "./connection-error": "./src/project/connection-error.ts",
     "./printable": "./src/api/printable.ts",
+    "./outside-writer": "./src/project/outside-writer.ts",
     "./testing/pg": "./src/testing/pg.ts"
   },
   "scripts": {

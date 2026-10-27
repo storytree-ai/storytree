@@ -321,6 +321,19 @@ test("3.11 · with free slots and nothing ready, one planning session starts for
   assert.ok(b.briefs[0].includes(await planRules()) && /never build/i.test(b.briefs[0]));
 });
 
+test("3.25 · a dispatcher configured machineOnly starts only work tagged to its machine and never a planning lane, even with an arc to plan (ADR-1179 D2)", async (t) => {
+  const arcs = [{ id: "arc_old", state: "active", title: "Old", created: "2026-10-01T00:00:00Z", openQuestions: 0 }];
+  const work = poolWork(["any", "mine"]);
+  work.increments[1].machine = "laptop";
+  const b = await box(t, { survey: async () => ({ ...work, here: "laptop", arcs }), count: async () => 0, maxLanes: async () => 2 });
+  b.env = { AGENT_POOL_CONFIG: join(b.lanesDir, "agent-pool.json") };
+  await writeFile(b.env.AGENT_POOL_CONFIG, JSON.stringify({ machineOnly: true }));
+  let looks = 0;
+  b.sleep = async () => { await new Promise((go) => setImmediate(go)); if (++looks === 3) await writeFile(join(b.lanesDir, "pool-stop"), ""); };
+  assert.equal(await main(["pool"], b), 0);
+  assert.deepEqual(b.briefs.map((brief) => brief.split("\n")[0]), ["# Pool lane: mine"], "the laptop's own work, and no planning lane for the arc");
+});
+
 test("3.14 · an arc it planned in a state it remembers is not planned again after a restart, and is once that state changes", async (t) => {
   const arc = { id: "arc_owner", state: "active", title: "Owner", created: "2026-10-01T00:00:00Z", openQuestions: 0 };
   const waiting = (ids) => ({ ...poolWork(ids), increments: poolWork(ids).increments.map((one) => ({ ...one, arc: arc.id })), arcs: [arc], holds: { waits: {}, heldOn: {}, waitsFor: Object.fromEntries(ids.map((id) => [id, [{ releaser: "event", note: "Apple renews the certificate", holds: true }]])) } });

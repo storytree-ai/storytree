@@ -171,7 +171,7 @@ export interface ArcView {
 }
 
 /** The increment fields the arc board draws (10.22): never its planning body, links, remedies or pending changes. */
-export const BOARD_INCREMENT_FIELDS = ["arc", "title", "objective", "status", "parked", "capabilities", "waits", "waitsFor", "heldOn", "outcome"] as const;
+export const BOARD_INCREMENT_FIELDS = ["arc", "title", "objective", "status", "parked", "capabilities", "waits", "waitsFor", "heldOn", "outcome", "machine"] as const;
 
 /** An increment as the arc board reads it: its record with only the fields the board draws. */
 export type BoardIncrement = Omit<SchemaRecord<"increment">, "fields"> & { fields: Pick<FieldsOf<"increment">, (typeof BOARD_INCREMENT_FIELDS)[number]> };

@@ -10,6 +10,7 @@ import { check, listFilter, editedRecord, historyEntry, historyFilter, now, numb
 import type {
   EditInput,
   HistoryEntry,
+  OutsideRead,
   HistoryFilter,
   ListFilter,
   RecordEnvelope,
@@ -49,6 +50,24 @@ export async function takeWriteLock(client: PoolClient, pool: Pool): Promise<voi
   }
 }
 
+/**
+ * Whether the project's history has its column for the outside-text mark (2.20). A shared library takes schema changes
+ * only from merged code opened with its owner's rights, so code that knows the mark can meet a history without it: there
+ * it writes and reads as before, the mark left off (2.21).
+ */
+export async function marksOutsideRead(on: Pool | PoolClient): Promise<boolean> {
+  const { rows } = await on.query<{ marks: boolean }>(
+    `SELECT EXISTS (SELECT 1 FROM information_schema.columns
+       WHERE table_schema = current_schema() AND table_name = 'record_event' AND column_name = 'outside_read') AS marks`,
+  );
+  return rows[0]?.marks === true;
+}
+
+/** The history's columns, as `marks` says it has the mark's or not. */
+function eventColumns(marks: boolean): string {
+  return `seq, record_id, type, action, record, reason, actor, ${marks ? "outside_read" : "NULL::jsonb AS outside_read"}, at`;
+}
+
 interface RecordRow {
   id: string;
   type: string;
@@ -72,6 +91,8 @@ interface EventRow {
 
 export class PgTransactions implements Transactions {
   readonly #pool: Pool;
+  /** Whether the history has the mark's column: looked up once, at the first write or history read. */
+  #marks: Promise<boolean> | undefined;
 
   constructor(pool: Pool) {
     this.#pool = pool;
@@ -86,7 +107,7 @@ export class PgTransactions implements Transactions {
       const current = await lockCurrent(client, input.id);
       const record = savedRecord(await numberedIn(client, input), current, now());
       check(record, input.validate);
-      await appendEvent(client, current === undefined ? "created" : "updated", record, record.updatedAt, input.actor, undefined, outsideReadOf(input.outsideRead, record.type));
+      await appendEvent(client, current === undefined ? "created" : "updated", record, record.updatedAt, input.actor, undefined, await this.#mark(input.outsideRead, record.type));
       await putRecord(client, record);
       return record;
     }, input.signal);
@@ -141,7 +162,7 @@ export class PgTransactions implements Transactions {
         record.fields = (await numberedIn(client, { ...record, sequence: input.sequence, sequenceNeverHeld: input.sequenceNeverHeld === true })).fields;
       }
       check(record, input.validate);
-      await appendEvent(client, "updated", record, record.updatedAt, input.actor, input.reason, outsideReadOf(input.outsideRead, record.type));
+      await appendEvent(client, "updated", record, record.updatedAt, input.actor, input.reason, await this.#mark(input.outsideRead, record.type));
       await putRecord(client, record);
       return record;
     }, input.signal);
@@ -151,7 +172,7 @@ export class PgTransactions implements Transactions {
     return this.#write(async (client) => {
       const current = await lockCurrent(client, input.id);
       if (current === undefined) return;
-      await appendEvent(client, "retired", current, now(), input.actor, input.reason, outsideReadOf(input.outsideRead, current.type));
+      await appendEvent(client, "retired", current, now(), input.actor, input.reason, await this.#mark(input.outsideRead, current.type));
       await client.query("DELETE FROM record WHERE id = $1", [input.id]);
     }, input.signal);
   }
@@ -168,7 +189,7 @@ export class PgTransactions implements Transactions {
       const target = rows[0];
       const record = revertedRecord(input, target, target === undefined ? undefined : Number(target.newest), current, now());
       check(record, input.validate);
-      await appendEvent(client, "updated", record, record.updatedAt, input.actor, revertReason(input), outsideReadOf(input.outsideRead, record.type));
+      await appendEvent(client, "updated", record, record.updatedAt, input.actor, revertReason(input), await this.#mark(input.outsideRead, record.type));
       await putRecord(client, record);
       return record;
     }, input.signal);
@@ -177,7 +198,7 @@ export class PgTransactions implements Transactions {
   revertWrites(input: RevertWritesInput): Promise<RevertedWrite[]> {
     return this.#write(async (client) => {
       const { rows } = await client.query<EventRow>(
-        `SELECT seq, record_id, type, action, record, reason, actor, outside_read, at FROM record_event
+        `SELECT ${eventColumns(await this.#marksIt())} FROM record_event
          WHERE record_id IN (SELECT record_id FROM record_event WHERE actor = $1 AND type <> 'health') ORDER BY seq`,
         [input.of],
       );
@@ -212,7 +233,7 @@ export class PgTransactions implements Transactions {
     if (filter.from !== undefined) narrow((param) => `at >= ${param}::timestamptz`, filter.from);
     if (filter.types !== undefined) narrow((param) => `type = ANY(${param}::text[])`, filter.types);
     const where = conditions.length === 0 ? "" : `WHERE ${conditions.join(" AND ")}`;
-    const columns = "seq, record_id, type, action, record, reason, actor, outside_read, at";
+    const columns = eventColumns(await this.#marksIt());
     // Only the changes kept leave the server: a limit is applied there, the newest read backwards and turned round.
     if (filter.oldest !== undefined) params.push(filter.oldest);
     if (filter.newest !== undefined) params.push(filter.newest);
@@ -222,6 +243,20 @@ export class PgTransactions implements Transactions {
       : `SELECT ${columns} FROM record_event ${where} ORDER BY seq`;
     const { rows } = await this.#pool.query<EventRow>(query, params);
     return rows.map(entryOf);
+  }
+
+  /** Whether the history has the mark's column, looked up once. */
+  #marksIt(): Promise<boolean> {
+    return (this.#marks ??= marksOutsideRead(this.#pool).catch((error: unknown) => {
+      this.#marks = undefined;
+      throw error;
+    }));
+  }
+
+  /** The mark a write's entry keeps: none where the history has no place for it yet (2.21). */
+  async #mark(outsideRead: OutsideRead | undefined, type: string): Promise<string[] | undefined> {
+    const mark = outsideReadOf(outsideRead, type);
+    return mark === undefined || !(await this.#marksIt()) ? undefined : mark;
   }
 
   /**
@@ -313,10 +348,12 @@ async function appendEvent(
   reason?: string,
   outsideRead?: string[],
 ): Promise<void> {
+  // The mark's column is named only for a marked write, which the caller makes only where the history has it (2.21).
+  const marked = outsideRead === undefined ? [] : [JSON.stringify(outsideRead)];
   await client.query(
-    `INSERT INTO record_event (record_id, type, action, record, reason, actor, at, outside_read)
-     VALUES ($1, $2, $3, $4::jsonb, $5, $6, $7, $8::jsonb)`,
-    [record.id, record.type, action, JSON.stringify(record), reason ?? null, actor ?? null, at, outsideRead === undefined ? null : JSON.stringify(outsideRead)],
+    `INSERT INTO record_event (record_id, type, action, record, reason, actor, at${marked.length === 0 ? "" : ", outside_read"})
+     VALUES ($1, $2, $3, $4::jsonb, $5, $6, $7${marked.length === 0 ? "" : ", $8::jsonb"})`,
+    [record.id, record.type, action, JSON.stringify(record), reason ?? null, actor ?? null, at, ...marked],
   );
 }
 

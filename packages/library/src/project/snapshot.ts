@@ -4,7 +4,7 @@
  */
 import type { Pool } from "pg";
 
-import { takeWriteLock } from "../transactions/pg.js";
+import { marksOutsideRead, takeWriteLock } from "../transactions/pg.js";
 
 /** A record as it is now: a row of the project's `record` table. */
 export interface SnapshotRecord {
@@ -90,8 +90,10 @@ export async function readSnapshot(pool: Pool, project: string): Promise<Project
                 to_json(created_at) #>> '{}' AS created_at, to_json(updated_at) #>> '{}' AS updated_at
            FROM record ORDER BY id COLLATE "C"`,
       );
+      // A history from before the outside-text mark has no column for it (2.21).
+      const outsideRead = (await marksOutsideRead(client)) ? "outside_read" : "NULL::jsonb AS outside_read";
       const events = await client.query<EventRow>(
-        `SELECT seq, record_id, type, action, record, reason, actor, outside_read, to_json(at) #>> '{}' AS at
+        `SELECT seq, record_id, type, action, record, reason, actor, ${outsideRead}, to_json(at) #>> '{}' AS at
            FROM record_event ORDER BY seq`,
       );
       return {

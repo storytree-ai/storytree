@@ -3,7 +3,7 @@
  * exactly: the record a save or an edit would leave, the check on it, and the shape of a history
  * entry. Each backend only decides where these go and how a write stays atomic.
  */
-import type { HistoryEntry, HistoryFilter, ListFilter, RecordEnvelope, SaveInput, Upgrade, Validate } from "./types.js";
+import type { HistoryEntry, HistoryFilter, ListFilter, RecordEnvelope, RevertInput, SaveInput, Upgrade, Validate } from "./types.js";
 
 /** The time now, as records carry it: an ISO 8601 UTC timestamp. */
 export function now(): string {
@@ -92,6 +92,39 @@ export function editedRecord(
     else merged.set(key, value);
   }
   return { ...current, fields: jsonCopy(Object.fromEntries(merged)), updatedAt: at };
+}
+
+/** Refuse a revert whose entry numbers are not history's, the same way on both backends, before a read. */
+export function revertInput(input: RevertInput): RevertInput {
+  for (const [name, seq] of [["to", input.to], ["read", input.read]] as const) {
+    if (!(Number.isSafeInteger(seq) && seq > 0)) throw new RangeError(`revert's ${name} is a history entry's seq, a whole number above 0, not ${String(seq)}`);
+  }
+  return input;
+}
+
+/**
+ * The record a revert writes back: `target`, the record's own entry numbered `input.to` (if it has one), as it was
+ * stored, upgraded by the writer, created when the record now live (or else the entry's record) was. Refused as
+ * RevertInput says: no such entry of the record's, a retirement, or `newest`, its newest entry, not the one read.
+ */
+export function revertedRecord(
+  input: RevertInput,
+  target: Pick<HistoryEntry, "action" | "record"> | undefined,
+  newest: number | undefined,
+  current: RecordEnvelope | undefined,
+  at: string,
+): RecordEnvelope {
+  if (target === undefined) throw new RangeError(`${input.id} has no history entry ${input.to}`);
+  if (target.action === "retired") throw new RangeError(`entry ${input.to} is ${input.id}'s retirement, not a state to revert to; pick an entry before it`);
+  if (newest !== input.read) throw new StaleRevertError(input.id, input.read, newest ?? 0);
+  const stored = jsonCopy(target.record);
+  const record = input.upgrade === undefined ? stored : input.upgrade(stored);
+  return { ...record, id: input.id, createdAt: current?.createdAt ?? stored.createdAt, updatedAt: at };
+}
+
+/** The reason a revert's history entry carries: the entry it reverts to, then the writer's own reason. */
+export function revertReason(input: RevertInput): string {
+  return `reverted to ${input.to}${input.reason === undefined ? "" : `: ${input.reason}`}`;
 }
 
 /** Run the writer's check on a copy of the would-be record. If it throws, the write aborts. */

@@ -101,10 +101,10 @@ export function qualityTools(): ToolExtension {
       }, AGENT);
       define("quality_standing", "The findings that still stand on an increment's change, or that it is ready for the gate.", z.object({
         increment: z.string().min(1).describe("The increment whose change is reviewed"),
-      }), async ({ increment }, { storytree, project }) => {
+      }), async ({ increment }, { library, storytree, project }) => {
         const reviews = await openReviews(storytree);
         const standing = await reviews.standing(project, increment);
-        const unmet = await reviews.unmet(project, increment);
+        const unmet = await reviews.unmet(library, increment);
         const failed = await reviews.failed(project, increment);
         return { text: standingText(standing, unmet, failed), data: { standing, unmet, failed } };
       }, AGENT);

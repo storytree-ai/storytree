@@ -386,6 +386,22 @@ test("4.10 · a watcher whose code changes between two looks ends with the resta
   assert.equal(looks, 2, "the test runner changed: it looked again; then its own code changed: it restarted");
 });
 
+test("4.42 · the look loop reads main's changes to the secret-check exemptions list once an hour, not on every look", async (t) => {
+  const b = await box(t);
+  let version = "tree-a", laps = 0;
+  const read = [], told = [];
+  const watching = { ...b.options, loopPidFile: join(b.dir, "watch-loop.pid"), pid: 7, argsOf: async () => "",
+    codeVersion: async () => version,
+    readExemptions: async () => { read.push(b.options.now()); return [{ sha: "a1", at: "2026-10-27T00:00:00Z", pr: "7", by: "someone", added: ["x.test.ts"], removed: [] }]; },
+    exemptionRecorded: async (about) => told.some((fyi) => fyi.about === about),
+    recordExemption: async (fyi) => { told.push(fyi); },
+    // Twenty minutes a lap, six laps, then the checkout moves on and the loop restarts.
+    sleep: async () => { b.tick(20 * 60_000); if (++laps === 6) version = "tree-b"; } };
+  assert.equal(await main(["watch"], watching), RESTART);
+  assert.deepEqual(read.map((when) => (when - at) / 60_000), [0, 60], "read at its first look and an hour later");
+  assert.equal(told.length, 1, "the change is told once");
+});
+
 test("4.11 · a pull request handed over to keep its increment open is watched and fixed, and on MERGED leaves the increment open", async (t) => {
   const b = await box(t);
   await hand({ ...b.options, pr: 41, increment: "increment_one", session: SESSION, keepOpen: true, startWatcher: async () => {} });

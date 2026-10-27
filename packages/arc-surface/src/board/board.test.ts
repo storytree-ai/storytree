@@ -179,3 +179,15 @@ test("3.3 lanes sort by the arc's priority first, 1 first and unranked last, kee
   assert.match(html, /<span class="arc-chip arc-priority" title="Priority 1">P1<\/span><span class="arc-title" title="first-new">/);
   assert.equal(html.match(/arc-priority/g)?.length, 4, "an unranked lane shows no priority");
 });
+
+test("3.3 a ready lane's chip counts untagged work to take and names work tagged to one machine by that machine, both when mixed (decision_5b03e773d46b D6)", () => {
+  const tagged = (id: string, arcId: string, machine?: string) => record(id, "increment", { arc: arcId, title: `Build ${id}`, objective: id, body: id, status: "proposal", ...(machine ? { machine } : {}) }, "2026-09-20");
+  const laptop = arc("laptop"); laptop.increments.push(tagged("l1", "laptop", "laptop"), tagged("l2", "laptop", "laptop"));
+  const mixed = arc("mixed"); mixed.increments.push(tagged("m1", "mixed"), tagged("m2", "mixed", "laptop"), tagged("m3", "mixed", "desk"), tagged("m4", "mixed"));
+  const held = arc("held"); held.increments.push(tagged("h1", "held"), tagged("h2", "held", "laptop"));
+  const board = boardView({ arcs: [laptop, mixed, held], heldOn: {}, waits: {}, waitsFor: { h1: [ownerWait] } }, [], new Date());
+  const chip = (id: string) => board.lanes.find((lane) => lane.id === id)!.chip;
+  assert.equal(chip("laptop"), "ready · on laptop");
+  assert.equal(chip("mixed"), "ready · 2 to take · on desk · on laptop");
+  assert.equal(chip("held"), "ready · on laptop", "work held by a wait is not to take, here or anywhere");
+});

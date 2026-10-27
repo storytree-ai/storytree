@@ -21,8 +21,9 @@
 -- A read the check gains needs its grant here: contract 7.7 runs the check's reads as a role granted
 -- exactly this file.
 --
--- ROW-LEVEL SECURITY is ENABLED on record and record_event, not FORCED, as grants.sql leaves it: the
--- owner's accounts are unaffected, and an account with no policy sees no rows at all.
+-- ROW-LEVEL SECURITY is ENABLED on record and record_event by grants.sql and FORCED by storytree's schema:
+-- the owner's accounts pass through the owner's own policies (library contract 1.28), and an account with
+-- no policy sees no rows at all.
 
 DO $$
 DECLARE
@@ -59,7 +60,8 @@ CREATE POLICY ci_plan_read ON record_event FOR SELECT TO ci_plan_read
 RESET ROLE;
 
 -- Check: the role's rights, as the database sees them. Expect: may_connect and reads true; writes,
--- may_act_as_owner and may_create false; rls on both tables true, forced false.
+-- may_act_as_owner and may_create false; rls on both tables true; forced true once storytree
+-- has opened the project with its current schema.
 SELECT has_database_privilege('ci_plan_read', 'storytree_storytree', 'CONNECT') AS may_connect,
        has_table_privilege('ci_plan_read', 'record', 'SELECT')
          AND has_table_privilege('ci_plan_read', 'record_event', 'SELECT')

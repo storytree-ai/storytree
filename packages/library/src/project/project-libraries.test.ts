@@ -816,7 +816,7 @@ test("1.26 a project opened with a plugin's kinds writes and reads them, its sys
   });
 });
 
-test("1.28 · a change to the history goes only through the logged repair switch, for the owner too, and the owner's ordinary writes pass when row-level security is forced", async () => {
+test("1.28 · a change to the history goes only through the logged repair switch, for the owner too, and the owner's ordinary writes pass under the row-level security the project forces", async () => {
   const name = uniqueProjectName();
   const owner = `${name}-owner`;
   const database = databaseOf(name);
@@ -827,9 +827,13 @@ test("1.28 · a change to the history goes only through the logged repair switch
     opened = await connect({ url: as(owner) });
     const project = await opened.openProject(name);
     await project.transactions.save({ id: "kept", type: "decision", fields: { title: "Kept", text: "Before row security." } });
-    // As the library host's grants leave it: row-level security on, and forced, so the owner meets the policies too.
+    const forced = await withTestClient(async (client) => (await client.query<{ relname: string; relforcerowsecurity: boolean }>(
+      "SELECT relname, relforcerowsecurity FROM pg_class WHERE relname IN ('record', 'record_event') AND relkind = 'r' ORDER BY relname",
+    )).rows.map((row) => [row.relname, row.relforcerowsecurity]), database);
+    assert.deepEqual(forced, [["record", true], ["record_event", true]], "the opened project forces row-level security on its owner");
+    // As the library host's grants leave it: row-level security switched on, so the owner meets the policies too.
     await withTestClient((client) => client.query(
-      "ALTER TABLE record ENABLE ROW LEVEL SECURITY, FORCE ROW LEVEL SECURITY; ALTER TABLE record_event ENABLE ROW LEVEL SECURITY, FORCE ROW LEVEL SECURITY",
+      "ALTER TABLE record ENABLE ROW LEVEL SECURITY; ALTER TABLE record_event ENABLE ROW LEVEL SECURITY",
     ), database);
 
     await project.transactions.save({ id: "later", type: "decision", fields: { title: "Later", text: "After." } });

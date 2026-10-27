@@ -11,6 +11,11 @@ import path from "node:path";
 import { recordReds } from "./red-runs.mjs";
 
 export default async function* redRuns(source) {
+  await keepReds(source, process.cwd());
+}
+
+/** Keep the reds of a run's reporter events `source` in the red runs of the checkout `dir` is in. */
+export async function keepReds(source, dir) {
   const names = new Map(); // each test's name and parent, by file and id, for its full name
   const tests = [];
   const files = new Map(); // each file's own end: whether it passed
@@ -32,8 +37,8 @@ export default async function* redRuns(source) {
       tests.push({ file, name: chain.join(" › "), result: failed ? "fail" : "pass" });
     }
   }
-  const root = checkout(process.cwd());
-  const from = (file) => path.relative(root, real(path.resolve(file))).replaceAll("\\", "/");
+  const root = checkout(dir);
+  const from = (file) => path.relative(root, real(path.resolve(dir, file))).replaceAll("\\", "/");
   const ran = new Set(tests.map(({ file }) => file));
   recordReds(root, {
     tests: tests.map((test) => ({ ...test, file: from(test.file) })),

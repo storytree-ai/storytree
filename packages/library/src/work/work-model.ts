@@ -217,8 +217,10 @@ export class WorkModel {
    * records of those types (MissingReferenceError otherwise). A new capability cannot close a
    * dependency loop, since nothing can depend on it yet. It is born proposed unless told otherwise.
    * A title given without a number gets the story's next free one, after the highest its live
-   * capabilities carry, so the contracts planned on it are numbered from the start. A mapped story's
-   * capability is an explored one, and says what it covers, as #covered checks it.
+   * capabilities carry, so the contracts planned on it are numbered from the start; a number another
+   * live capability of the story carries is refused with a SchemaError on `title` naming that one and
+   * the next free number, nothing written, since numbered tests map to a capability by its number. A
+   * mapped story's capability is an explored one, and says what it covers, as #covered checks it.
    */
   addCapability(capability: NewCapability, options?: WriteOptions): Promise<SchemaRecord<"capability">> {
     return this.#serially(async () => {
@@ -235,8 +237,9 @@ export class WorkModel {
    * dependencies are checked as addCapability checks them, and new dependencies are also checked
    * against the dependency graph as it would be after the edit: one that would make the capability
    * depend on itself, directly or through others, is refused with a DependencyLoopError naming the
-   * loop. A new story or new covers are checked, together, as addCapability checks them. Returns
-   * null, and writes nothing, if `id` is not a live capability.
+   * loop. A new story or new covers are checked, together, as addCapability checks them, and a new
+   * title or story that would leave its number carried by another live capability of the story is
+   * refused as addCapability refuses it. Returns null, and writes nothing, if `id` is not a live capability.
    */
   editCapability(id: string, fields: CapabilityEdit, options?: WriteOptions): Promise<SchemaRecord<"capability"> | null> {
     return this.#serially(async () => {
@@ -245,6 +248,7 @@ export class WorkModel {
       await checkReference(this.#records, "story", fields.story, "story");
       await checkReferences(this.#records, "dependsOn", fields.dependsOn, "capability");
       if (Array.isArray(fields.dependsOn)) await this.#refuseLoop(id, fields.dependsOn);
+      if (fields.title !== undefined || fields.story !== undefined) await this.#refuseTakenCapabilityNumber(fields.title ?? stored.fields.title, fields.story ?? stored.fields.story, id);
       let edit = fields;
       if ("story" in fields || "covers" in fields) {
         const covers = await this.#covered(fields.story ?? stored.fields.story, "covers" in fields ? fields.covers : stored.fields.covers, id);
@@ -432,14 +436,29 @@ export class WorkModel {
     return `${prefix}.${Math.max(0, ...planned, ...own(tested)) + 1} · ${title}`;
   }
 
-  /** `title` as a new capability of `story` carries it: given the story's next free number when it has none. */
+  /** `title` as a new capability of `story` carries it: refused if its number is taken there, and given the story's next free number when it has none. */
   async #capabilityNumbered(title: string, story: string): Promise<string> {
-    if (typeof title !== "string" || capabilityNumber(title) !== undefined) return title; // the schema refuses a non-string in the write
-    const taken = (await this.#records.list("capability")).flatMap((capability) => {
-      const number = capability.fields.story === story ? capabilityNumber(capability.fields.title) : undefined;
-      return number === undefined ? [] : [number];
-    });
-    return `${Math.max(0, ...taken) + 1} · ${title}`;
+    if (typeof title !== "string") return title; // the schema refuses it in the write
+    if (capabilityNumber(title) !== undefined) {
+      await this.#refuseTakenCapabilityNumber(title, story);
+      return title;
+    }
+    return `${nextFree(await this.#capabilitiesOf(story))} · ${title}`;
+  }
+
+  /** Refuse `title` on `story` when another live capability there (not `self`) carries its number, naming it and the next free number. */
+  async #refuseTakenCapabilityNumber(title: unknown, story: unknown, self?: string): Promise<void> {
+    const number = capabilityNumber(title);
+    if (number === undefined || typeof story !== "string") return;
+    const theirs = await this.#capabilitiesOf(story);
+    const holder = theirs.find((capability) => capability.id !== self && capabilityNumber(capability.fields.title) === number);
+    if (holder !== undefined) {
+      throw new SchemaError("capability", [{ field: "title", problem: `capability number ${number} is taken: ${holder.id} (${holder.fields.title}) carries it in this story; the next free number is ${nextFree(theirs)}` }]);
+    }
+  }
+
+  async #capabilitiesOf(story: string): Promise<SchemaRecord<"capability">[]> {
+    return (await this.#records.list("capability")).filter((capability) => capability.fields.story === story);
   }
 
   /**
@@ -591,6 +610,11 @@ function loopThrough(start: string, graph: ReadonlyMap<string, readonly unknown[
 function capabilityNumber(title: unknown): number | undefined {
   const number = typeof title === "string" ? /^(\d+) · /.exec(title)?.[1] : undefined;
   return number === undefined ? undefined : Number(number);
+}
+
+/** The number after the highest that `capabilities` carry. */
+function nextFree(capabilities: readonly SchemaRecord<"capability">[]): number {
+  return Math.max(0, ...capabilities.flatMap((capability) => capabilityNumber(capability.fields.title) ?? [])) + 1;
 }
 
 /** `title` with its contract number followed by " · ", as every reader of contract numbers expects: "5.38 Text" becomes "5.38 · Text". */

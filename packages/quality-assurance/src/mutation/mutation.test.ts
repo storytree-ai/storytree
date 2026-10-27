@@ -256,6 +256,50 @@ test("7.2 · a break in code a test runs only in a child process, which the pack
 });
 
 /**
+ * A node:test reporter no test imports: a test runs `node --test` with it as the reporter, named by its package's name, and
+ * checks what it prints. A node --test run writes no coverage from the process its reporters run in, so no map credits it.
+ */
+const REPORTED: Record<string, string> = {
+  "packages/tool/package.json": JSON.stringify({ name: "@t/tool", type: "module", exports: { "./reporter": "./src/reporter.mjs" } }),
+  "packages/tool/src/reporter.mjs": [
+    "export default async function* passes(source) {",
+    "  let passed = 0;",
+    "  for await (const event of source) if (event.type === \"test:pass\") passed += 1;",
+    "  yield passed === 1 ? \"one\" : \"other\";",
+    "}",
+  ].join("\n") + "\n",
+  "packages/tool/src/fixture/one.mjs": "import { test } from \"node:test\";\ntest(\"one\", () => {});\n",
+  "packages/tool/src/reporter.test.mjs": [
+    "import assert from \"node:assert/strict\";",
+    "import { execFileSync } from \"node:child_process\";",
+    "import path from \"node:path\";",
+    "import { test } from \"node:test\";",
+    "const { NODE_TEST_CONTEXT: _parent, ...env } = process.env;",
+    "test(\"reports\", () => {",
+    "  const out = execFileSync(process.execPath, [\"--test\", \"--test-reporter=@t/tool/reporter\", \"--test-reporter-destination=stdout\", \"src/fixture/one.mjs\"],",
+    "    { cwd: path.join(import.meta.dirname, \"..\"), env, encoding: \"utf8\" });",
+    "  assert.equal(out, \"one\");",
+    "});",
+  ].join("\n") + "\n",
+};
+
+test("7.2 · a break in a node:test reporter a test runs only as its `node --test` child's --test-reporter, named by its package's name, runs against that test and is caught, not reached by no test", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "qa-reported-"));
+  try {
+    write(dir, REPORTED);
+    assert.deepEqual(readReach(dir, ["packages/tool"]).tests("packages/tool/src/reporter.mjs"), ["packages/tool/src/reporter.test.mjs"]);
+    const report = await mutationReport(dir, adding({ "packages/tool/src/reporter.mjs": REPORTED["packages/tool/src/reporter.mjs"]! }));
+    assert.equal(report.ran, true);
+    if (!report.ran) return;
+    assert.equal(report.planted, 2);
+    assert.equal(report.caught, 2);
+    assert.deepEqual(report.survivors, []);
+  } finally {
+    await removeTemp(dir);
+  }
+});
+
+/**
  * A package whose `rule` is reached by more of its own tests than the downstream cap, all beside it and none noticing its
  * branch, and by one test in a sibling folder, reached through another file, that does.
  */

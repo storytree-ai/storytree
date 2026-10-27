@@ -289,19 +289,25 @@ export function readReach(root: string, folders: readonly string[]): Reach {
   const paths = new Set(files.map((file) => file.path));
   const byName = new Map(packages.map((pkg) => [pkg.name, pkg]));
   const dependents = new Map<string, Set<string>>();
+  // The file a package specifier names through its package's exports, and that package's root.
+  const exported = (specifier: string): { root: string; to: string | undefined } | undefined => {
+    const name = specifier.startsWith("@") ? specifier.split("/").slice(0, 2).join("/") : specifier.split("/")[0]!;
+    const pkg = byName.get(name);
+    if (pkg === undefined) return undefined;
+    const target = pkg.exports[specifier === name ? "." : `.${specifier.slice(name.length)}`];
+    return { root: pkg.root, to: target === undefined ? undefined : located(path.posix.normalize(pkg.root + target), paths) };
+  };
   for (const file of files) {
     const targets = [...dependenciesOf(file, paths, packages)];
     // An import of another package by its name reaches the file its exports name.
     for (const specifier of specifiersOf(file)) {
-      const name = specifier.startsWith("@") ? specifier.split("/").slice(0, 2).join("/") : specifier.split("/")[0]!;
-      const pkg = byName.get(name);
-      if (pkg === undefined || file.path.startsWith(pkg.root)) continue;
-      const target = pkg.exports[specifier === name ? "." : `.${specifier.slice(name.length)}`];
-      const to = target === undefined ? undefined : located(path.posix.normalize(pkg.root + target), paths);
-      if (to !== undefined) targets.push(to);
+      const found = exported(specifier);
+      if (found?.to !== undefined && !file.path.startsWith(found.root)) targets.push(found.to);
     }
     // A file an esbuild build bundles by its path is reached by the file naming it, as the capture kit bundles the desktop page.
     targets.push(...bundledBy(file, paths));
+    // A reporter a `node --test` run loads is reached by the file naming it: that run writes no coverage from its reporters' process.
+    targets.push(...reportedBy(file, exported));
     for (const to of targets) dependents.set(to, (dependents.get(to) ?? new Set()).add(file.path));
   }
   // A file a test runs only in a process it starts is reached by no import: its package's coverage map credits it to the
@@ -384,6 +390,19 @@ function bundledBy(file: SourceFile, paths: ReadonlySet<string>): string[] {
     for (const [key, child] of Object.entries(value)) if (key !== "loc" && key !== "leadingComments" && key !== "trailingComments") visit(child, entry || (opens && key === "value"));
   };
   visit(program, false);
+  return [...found];
+}
+
+/**
+ * The code files a file names as a node:test reporter by a package specifier, through that package's exports (its own package's
+ * included): each `--test-reporter=<spec>` or `"--test-reporter", "<spec>"` in its text. A built-in reporter names none.
+ */
+function reportedBy(file: SourceFile, exported: (specifier: string) => { to: string | undefined } | undefined): string[] {
+  const found = new Set<string>();
+  for (const [, spec] of file.text.matchAll(/--test-reporter(?:=|["'`]\s*,\s*["'`])([^"'`\s,]+)/g)) {
+    const to = exported(spec!)?.to;
+    if (to !== undefined && to !== file.path) found.add(to);
+  }
   return [...found];
 }
 

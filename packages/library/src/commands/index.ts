@@ -7,7 +7,7 @@
  * writer. Long text can come from a file; refusals are the library's own messages. No verb is a tool: an agent searches,
  * opens, writes and corrects artifacts with the tools the library declares beside them (notes.ts), which record its reads.
  * Capability 27's fixed data questions (`count`, `changes`, `find`) join the family from data/commands.ts, and `read`
- * takes a decision's number in place of its id. Beside it the list mounts capability 13's `adr` family (adr.ts, ADR-1077 D2).
+ * takes a decision's number in place of its id. Beside it the list mounts capability 13's `adr` family (adr.ts, ADR-1077 D2) and the `fyi` family (fyi.ts, ADR-1184 D3).
  *
  * - `new` hands the fields to the one library function that writes that kind, and the library
  *   judges them. A new contract skips the numbers its story package's tests carry, and one whose title runs past
@@ -33,6 +33,7 @@ import { PR_CUTOVER_ID } from "../work/index.js";
 import { fieldValue, verb, VerbRefusal, type VerbContext, type VerbFamily } from "../verbs/verb.js";
 import { changes, count, decisionNamed, find } from "../data/commands.js";
 import { ADR_FAMILY } from "./adr.js";
+import { FYI_FAMILY } from "./fyi.js";
 import { LaterWriterError, StaleRevertError } from "../transactions/index.js";
 
 /** A claim as the door reads it: the session holding it, the increment or capability it is for, and since when. */
@@ -593,4 +594,4 @@ export const LIBRARY_FAMILIES: readonly VerbFamily<LibraryVerbContext>[] = [{
   order: 1,
   guesses: { show: "library read <id>", get: "library read <id>", open: "library read <id>", view: "library read <id>", pull: "library read <id>", artifact: "library read <id>" },
   verbs: [search, phrase, links, related, create, read, edit, refile, retire, list, history, revert, undo, count, changes, find],
-}, ADR_FAMILY];
+}, ADR_FAMILY, FYI_FAMILY];

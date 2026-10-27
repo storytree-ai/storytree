@@ -131,6 +131,9 @@ const LIBRARY_API = [
   "sendFeedback",
   "feedbackScreenshot",
   "routeFeedback",
+  "recordFyi",
+  "unheardFyis",
+  "markFyisHeard",
   "createPluginRecord",
   "pluginRecords",
   "removePluginRecords",
@@ -628,6 +631,31 @@ test("7.19 routeFeedback marks a new feedback record routed with its route, targ
     const closed = await lib.routeFeedback(other.id, { route: "closed", routeReason: "Covered by increment_000000000002" });
     assert.equal(closed?.fields.status, "routed");
     assert.equal(closed?.fields.routedTo, undefined);
+  });
+});
+
+test("7.23 recordFyi keeps what the owner should know with its title, what happened, when, what it is about and who noticed it; unheardFyis lists those he has not heard, oldest first; markFyisHeard marks them heard, so they are listed no more but stay in history, and refuses an id that is no FYI with nothing written (ADR-1184 D3)", async () => {
+  const name = uniqueProjectName();
+  await withStorytree([name], async (storytree) => {
+    const lib = await storytree.openProject(name);
+    const later = await lib.recordFyi({ title: "The exemptions list changed", what: "Two paths were added to the secret check's exemptions", about: "PR #31", by: "session:lane", at: "2026-10-27T09:00:00.000Z" }, { actor: "session:lane" });
+    const earlier = await lib.recordFyi({ title: "A routine was paused", what: "The nightly sweep was switched off", about: "process_000000000001", by: "routine:sweep", at: "2026-10-26T09:00:00.000Z" });
+    assert.deepEqual(later.fields, { title: "The exemptions list changed", what: "Two paths were added to the secret check's exemptions", about: "PR #31", by: "session:lane", at: "2026-10-27T09:00:00.000Z" });
+    assert.equal((await lib.history({ id: later.id })).at(-1)!.actor, "session:lane");
+    assert.deepEqual((await lib.unheardFyis()).map(({ id }) => id), [earlier.id, later.id], "oldest first");
+
+    await assert.rejects(lib.markFyisHeard([earlier.id, "fyi_000000000000"]), /fyi_000000000000/);
+    assert.deepEqual((await lib.unheardFyis()).map(({ id }) => id), [earlier.id, later.id], "a refused mark writes nothing");
+
+    assert.deepEqual(await lib.markFyisHeard([earlier.id], { actor: "person:owner" }), [earlier.id]);
+    assert.deepEqual((await lib.unheardFyis()).map(({ id }) => id), [later.id]);
+    const heard = await lib.get(earlier.id);
+    assert.match((heard!.fields as { heardAt?: string }).heardAt ?? "", /^\d{4}-\d{2}-\d{2}T/, "a heard FYI stays, with when it was heard");
+    assert.deepEqual(await lib.markFyisHeard([earlier.id]), [], "one already heard is left as it was");
+
+    await assert.rejects(lib.recordFyi(untyped({ title: "", what: "x", about: "y", by: "z" })), (error: Error) => error.name === "SchemaError");
+    const now = await lib.recordFyi({ title: "No time given", what: "It is stamped now", about: "packages/library", by: "watcher" });
+    assert.match(now.fields.at, /^\d{4}-\d{2}-\d{2}T/);
   });
 });
 

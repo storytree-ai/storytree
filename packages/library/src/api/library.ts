@@ -176,6 +176,19 @@ export interface Library
    */
   routeFeedback(id: string, route: FeedbackRoute, options?: WriteOptions): Promise<SchemaRecord<"feedback"> | null>;
   /**
+   * Keep an FYI (ADR-1184 D3): something the owner should know after the fact, as a new `fyi` record still to tell him.
+   * Left out, `at` is now. Fields that do not fit the type are refused (SchemaError) and nothing is written.
+   */
+  recordFyi(fyi: FyiNote, options?: WriteOptions): Promise<SchemaRecord<"fyi">>;
+  /** The FYIs the owner has not heard yet, oldest first (by `at`, then id). */
+  unheardFyis(): Promise<SchemaRecord<"fyi">[]>;
+  /**
+   * Mark the FYIs `ids` names heard, now, so unheardFyis offers them no more; they stay in every other read and in history.
+   * The ids it marked, in the order given; one already heard is left as it was. An id that is no live FYI is refused,
+   * naming it, with nothing written.
+   */
+  markFyisHeard(ids: readonly string[], options?: WriteOptions): Promise<string[]>;
+  /**
    * Save a new record of a plugin's own kind (`<plugin>.<kind>`, ADR-1178 D3), as the plugin's work hands it: only a kind
    * the project was opened with is written (OpenOptions' `kinds`), and fields that do not fit its declared shape are
    * refused (SchemaError). A core kind is refused, since each has its own write; so is a kind no mounted plugin declares
@@ -206,6 +219,8 @@ export interface PluginRecords {
 
 /** A feedback note as the corner sends it: its record's fields but those the library sets. */
 export type FeedbackNote = Omit<FieldsOf<"feedback">, "status" | "screenshot" | "crop" | keyof FeedbackRoute>;
+/** An FYI as its writer hands it: its record's fields but `heardAt`, and `at` now when left out. */
+export type FyiNote = Omit<FieldsOf<"fyi">, "at" | "heardAt"> & { readonly at?: string | undefined };
 /** Where a feedback note was routed, and why. */
 export interface FeedbackRoute {
   readonly route: NonNullable<FieldsOf<"feedback">["route"]>;
@@ -383,6 +398,26 @@ function libraryOf(project: Project): Library {
         },
       });
       return routed as SchemaRecord<"feedback"> | null;
+    },
+    async recordFyi({ at, ...fyi }, options = {}) {
+      return project.records.create("fyi", { ...fyi, at: at ?? new Date().toISOString() }, options);
+    },
+    async unheardFyis() {
+      const unheard = (await project.records.list("fyi")).filter(({ fields }) => fields.heardAt === undefined);
+      return unheard.sort((one, other) => one.fields.at.localeCompare(other.fields.at) || one.id.localeCompare(other.id));
+    },
+    async markFyisHeard(ids, options = {}) {
+      const found = await Promise.all(ids.map(async (id) => (couldBeId(id) ? await project.records.get(id) : null)));
+      const missing = ids.filter((_, at) => found[at]?.type !== "fyi");
+      if (missing.length > 0) throw new Error(`no FYI ${missing.join(", ")}; nothing was marked heard`);
+      const heardAt = new Date().toISOString();
+      const marked: string[] = [];
+      for (const record of found) {
+        if ((record!.fields as FieldsOf<"fyi">).heardAt !== undefined || marked.includes(record!.id)) continue;
+        await project.records.edit(record!.id, { heardAt }, options);
+        marked.push(record!.id);
+      }
+      return marked;
     },
     pluginRecords: (plugin) => pluginRecordsOf(project.pool, plugin),
     async removePluginRecords(listed, reason, options) {

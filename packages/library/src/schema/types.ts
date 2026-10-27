@@ -32,7 +32,8 @@ export type RecordType =
   | KnowledgeKind
   | "increment"
   | "question"
-  | "feedback";
+  | "feedback"
+  | "fyi";
 
 /**
  * Capability 6's kinds beyond decisions and definitions: ADR-0640's eight, each with 0.2's fields
@@ -738,6 +739,12 @@ export const RECORD_SCHEMAS = {
         }
       }
     }),
+  /**
+   * Something the owner should know after the fact (ADR-1184 D3): a short `title` in plain words, `what` happened, `at`
+   * when (an ISO 8601 timestamp), what it is `about` (a record's id, a file path or a pull request) and `by` whoever
+   * noticed it (a session, a scheduled routine, the watcher). `heardAt` is when he heard it: absent, it is still to tell him.
+   */
+  fyi: z.object({ title: nonEmpty, what: nonEmpty, at: nonEmpty, about: nonEmpty, by: nonEmpty, heardAt: nonEmpty.optional() }).strict(),
 } as const satisfies Record<RecordType, z.ZodType>;
 
 /** The schema version of each type: every record of the type is written on it. */
@@ -766,6 +773,7 @@ export const SCHEMA_VERSIONS: Readonly<Record<RecordType, number>> = {
   increment: 3,
   question: 1,
   feedback: 1,
+  fyi: 1,
 };
 
 /** The fields of a record of type `T`, as its schema declares them. */

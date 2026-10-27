@@ -105,9 +105,15 @@ const IMPORTS = `CREATE TABLE IF NOT EXISTS imports (
   PRIMARY KEY (project, machine, folder)
 )`;
 
-/** The trunks database, set up by the library with the table's definitions (ADR-0973), and any more tables kept beside them (Machines' names). */
-export function trunksPool(storytree: Pick<Storytree, "ownDatabase">, more: readonly string[] = []): Promise<Pool> {
-  return storytree.ownDatabase(TRUNKS_DATABASE, { tables: [SCHEMA, APPROVAL, IMPORTS, ...more] });
+/**
+ * The trunks database, set up by the library with the table's definitions (ADR-0973), and any more tables kept beside
+ * them (Machines' names), each set naming the file that declares it, which a shared library reads for being merged.
+ */
+export function trunksPool(storytree: Pick<Storytree, "ownDatabase">, more?: { readonly tables: readonly string[]; readonly declaredIn: string }): Promise<Pool> {
+  return storytree.ownDatabase(TRUNKS_DATABASE, {
+    tables: [SCHEMA, APPROVAL, IMPORTS, ...(more?.tables ?? [])],
+    declaredIn: [import.meta.url, ...(more === undefined ? [] : [more.declaredIn])],
+  });
 }
 
 /** Record that `project` imports `imported.folder` on its machine, approved by the import; importing it again updates its repository and commit. */

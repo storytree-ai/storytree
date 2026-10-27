@@ -118,7 +118,7 @@ export interface ArmOfExperiment {
 }
 
 function database(server: Server) {
-  return server.ownDatabase(POINTS_DATABASE, { tables: SCHEMA });
+  return server.ownDatabase(POINTS_DATABASE, { tables: SCHEMA, declaredIn: import.meta.url });
 }
 
 /** The counts the `hidden-tests` job prints; its last such line, since the log also carries the step's own text. */

@@ -6,6 +6,9 @@
  */
 import type { Pool } from "pg";
 
+/** The file declaring TRANSCRIPT_SCHEMA, which a shared library reads for being merged before it takes the tables. */
+export const TRANSCRIPT_SCHEMA_FILE = import.meta.url;
+
 /** The tables, appended to the activity log's schema. */
 export const TRANSCRIPT_SCHEMA: readonly string[] = [
   // `part` is '' for the session's own transcript, or a subagent's id for that subagent's; `start` and

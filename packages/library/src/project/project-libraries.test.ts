@@ -6,6 +6,7 @@
  * can share one server, and run beside other test files, without seeing each other's projects.
  */
 import assert from "node:assert/strict";
+import path from "node:path";
 import { test } from "node:test";
 
 import type { Client } from "pg";
@@ -930,6 +931,67 @@ test("1.29 · a shared library gets schema statements only from merged code: a b
   } finally {
     await shared?.close();
     await dropTestDatabases([database]);
+  }
+});
+
+test("1.29 · a shared library gets an own database's table statements only from merged code: a branch-only statement is not applied there, and is applied to a throwaway one", async (t) => {
+  const own = `storytree-own-${uniqueProjectName()}`;
+  const fresh = `storytree-own-${uniqueProjectName()}`;
+  const declaredIn = "/checkout/packages/caller/src/tables.ts";
+  const merged = { "/checkout/packages/caller/src/tables.ts": true };
+  const asked: string[] = [];
+  const probe = (file: string) => {
+    asked.push(file);
+    return file in merged && merged[file as keyof typeof merged] ? { merged: true as const } : { merged: false as const, why: `${path.basename(file)}'s last change is a test branch's` };
+  };
+  const first = "CREATE TABLE IF NOT EXISTS entries (id serial PRIMARY KEY)";
+  const branch = "CREATE TABLE IF NOT EXISTS branch_only (id serial PRIMARY KEY)";
+  const has = (database: string, table: string) => withTestClient(async (client) => (await client.query("SELECT to_regclass($1) AS t", [table])).rows[0]?.t !== null, database);
+  const opened: Storytree[] = [];
+  const open = async (seams: Parameters<typeof connect>[1]) => {
+    const storytree = await connect({ url: testServerUrl() }, seams);
+    opened.push(storytree);
+    return storytree;
+  };
+  try {
+    // Merged code sets the shared library's own database up, the probe reading the file its caller names.
+    await (await open({ sharedLibrary: true, schemaMerged: probe })).ownDatabase(own, { tables: [first], declaredIn });
+    assert.deepEqual(asked, [declaredIn], "the probe reads the file that declares the tables");
+    assert.equal(await has(own, "entries"), true);
+
+    // A branch adds a statement in a file not on main: the shared library opens as it stands, warning once.
+    const warn = t.mock.method(console, "warn", () => undefined);
+    const branchFile = "/checkout/packages/caller/src/branch-tables.ts";
+    const shared = await open({ sharedLibrary: true, schemaMerged: probe });
+    const pool = await shared.ownDatabase(own, { tables: [first, branch], declaredIn: [declaredIn, `file://${branchFile}`] });
+    await pool.query("INSERT INTO entries DEFAULT VALUES");
+    await (await open({ sharedLibrary: true, schemaMerged: probe })).ownDatabase(own, { tables: [first, branch], declaredIn: branchFile });
+    const warnings = warn.mock.calls.map((call) => String(call.arguments[0])).filter((text) => text.includes(own));
+    warn.mock.restore();
+    assert.equal(await has(own, "branch_only"), false, "the branch's statement is not applied to the shared library");
+    assert.equal(warnings.length, 1, `one warning over two connections, not ${JSON.stringify(warnings)}`);
+    assert.match(warnings[0]!, /not merged.*branch-tables\.ts's last change is a test branch's/s, "saying why");
+
+    // Statements naming no declaring file count as unmerged on a shared library.
+    const quiet = t.mock.method(console, "warn", () => undefined);
+    await (await open({ sharedLibrary: true, schemaMerged: probe })).ownDatabase(own, { tables: [first, branch] });
+    quiet.mock.restore();
+    assert.equal(await has(own, "branch_only"), false, "statements naming no declaring file are not applied");
+
+    // An own database a branch would make from nothing on the shared library is refused, its tables unmade.
+    await assert.rejects((await open({ sharedLibrary: true, schemaMerged: probe })).ownDatabase(fresh, { tables: [branch], declaredIn: branchFile }), (error: unknown) => {
+      assert.ok(error instanceof ConnectionError, `a ConnectionError, not ${String(error)}`);
+      assert.match(error.message, /not merged.*test branch's/s);
+      return true;
+    });
+    assert.equal(await has(fresh, "branch_only"), false, "no table was made");
+
+    // A throwaway library takes the branch's statement.
+    await (await open({ schemaMerged: probe })).ownDatabase(own, { tables: [first, branch], declaredIn: branchFile });
+    assert.equal(await has(own, "branch_only"), true, "a throwaway library takes the branch's tables");
+  } finally {
+    await Promise.all(opened.map((storytree) => storytree.close()));
+    await dropTestDatabases([own, fresh]);
   }
 });
 

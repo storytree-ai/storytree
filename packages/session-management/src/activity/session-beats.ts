@@ -7,6 +7,9 @@ import type { Pool } from "pg";
 
 import type { Beat } from "../readings.js";
 
+/** The file declaring BEATS_SCHEMA, which a shared library reads for being merged before it takes the table. */
+export const BEATS_SCHEMA_FILE = import.meta.url;
+
 /** The table, appended to the activity log's schema. */
 export const BEATS_SCHEMA: readonly string[] = [
   `CREATE TABLE IF NOT EXISTS session_beats (

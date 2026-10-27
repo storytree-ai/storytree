@@ -120,6 +120,11 @@ export interface OpenOptions {
 export interface OwnDatabaseOptions {
   /** Its table definitions, each idempotent (CREATE TABLE IF NOT EXISTS and the like), run in order. */
   readonly tables?: readonly string[];
+  /**
+   * The source files that declare `tables`, each a path or a file URL (a caller's `import.meta.url`): a shared library
+   * takes them only when every one is merged (contract 1.29), and tables naming none count as unmerged there.
+   */
+  readonly declaredIn?: string | readonly string[];
 }
 
 /** A connection to one Postgres server and the storytree projects on it. */
@@ -227,11 +232,12 @@ function onTestServer(address: string): boolean {
 /** The project schema's source file beside this one, read for whether it is merged; none in a bundle. */
 const SCHEMA_FILE = import.meta.url === undefined ? undefined : path.join(path.dirname(fileURLToPath(import.meta.url)), "schema.ts");
 
-/** Whether this process's project schema is merged, read once, and only when a shared library's tables are behind it. */
-let mergedOnce: SchemaMerged | undefined;
-function schemaMergedOnce(): SchemaMerged {
-  mergedOnce ??= SCHEMA_FILE === undefined ? { merged: true } : schemaMerged(SCHEMA_FILE);
-  return mergedOnce;
+/** Whether each file declaring tables is merged, read once per process, and only when a shared library's tables are behind it. */
+const mergedOnce = new Map<string, SchemaMerged>();
+function schemaMergedOnce(file: string): SchemaMerged {
+  let standing = mergedOnce.get(file);
+  if (standing === undefined) mergedOnce.set(file, (standing = schemaMerged(file)));
+  return standing;
 }
 
 /** What tests may hand connect() in place of the real thing: the Cloud SQL connector, and the embedder. */
@@ -241,8 +247,8 @@ export type ProjectSeams = CloudSqlSeams & {
   readonly vectorCache?: string | null;
   /** Whether the library is shared, so takes schema statements only from merged code: by default, one reached by address (off the test run's server) or by Google's Cloud SQL connector. */
   readonly sharedLibrary?: boolean;
-  /** Whether this code's project schema is merged; by default read from its checkout. */
-  readonly schemaMerged?: () => SchemaMerged;
+  /** Whether a file declaring tables (the project schema's, or an own database's) is merged; by default read from its checkout. */
+  readonly schemaMerged?: (file: string) => SchemaMerged;
 };
 
 class ServerConnection implements Storytree {
@@ -255,8 +261,8 @@ class ServerConnection implements Storytree {
   readonly #embedder: EmbedderSource | undefined;
   readonly #vectorCache: string | null;
   readonly #cloudInstance: string | undefined;
-  /** For a shared library, whether this code's schema is merged; undefined for a throwaway one, which takes any. */
-  readonly #merged: (() => SchemaMerged) | undefined;
+  /** For a shared library, whether a file declaring tables is merged; undefined for a throwaway one, which takes any. */
+  readonly #merged: ((file: string) => SchemaMerged) | undefined;
   #closing: Promise<void> | undefined;
 
   constructor(server: ServerAccess, seams: ProjectSeams, cloudInstance?: string) {
@@ -319,7 +325,8 @@ class ServerConnection implements Storytree {
   async #openFound(name: string, database: string, identity: string, options: OpenOptions & { readonly inherit?: boolean }): Promise<Project> {
     const pool = this.#server.pool(database, await this.#owningRole(database));
     try {
-      await openTables(pool, name, this.#merged);
+      const merged = this.#merged;
+      await openTables(pool, name, merged && (() => (SCHEMA_FILE === undefined ? { merged: true } : merged(SCHEMA_FILE))));
     } catch (error) {
       await pool.end();
       throw error;
@@ -367,10 +374,16 @@ class ServerConnection implements Storytree {
     }
     if (options.tables === undefined || options.tables.length === 0) return pool;
     const tables = options.tables;
-    const key = `${name}\0${tables.join("\0")}`;
+    const declaredIn = [options.declaredIn ?? []].flat().map((file) => (file.startsWith("file:") ? fileURLToPath(file) : file));
+    const merged = this.#merged;
+    const standing = merged && ((): SchemaMerged =>
+      declaredIn.length === 0
+        ? { merged: false, why: "its caller names no file declaring its tables" }
+        : (declaredIn.map((file) => merged(file)).find((one) => !one.merged) ?? { merged: true }));
+    const key = `${name}\0${declaredIn.join("\0")}\0${tables.join("\0")}`;
     let setUp = this.#ownSetUp.get(key);
     if (setUp === undefined) {
-      setUp = pool.then((opened) => setUpOwnDatabase(opened, name, tables).catch((error: unknown) => Promise.reject(this.#server.explain(error))));
+      setUp = pool.then((opened) => setUpOwnDatabase(opened, name, tables, standing).catch((error: unknown) => Promise.reject(this.#server.explain(error))));
       // A failed set-up is forgotten, so the next ask tries again.
       setUp.catch(() => this.#ownSetUp.delete(key));
       this.#ownSetUp.set(key, setUp);
@@ -630,6 +643,8 @@ async function openTables(pool: Pool, name: string, merged: (() => SchemaMerged)
 
 /** The projects this process has warned are opened behind, by an account that may not change their tables: each is said once. */
 const behindWarned = new Set<string>();
+/** The own databases this process has warned are opened behind, their declaring file unmerged: each is said once. */
+const ownBehindWarned = new Set<string>();
 
 /** The tables the project schema makes, by name. */
 const SCHEMA_TABLES = PROJECT_SCHEMA.flatMap((statement) => /CREATE TABLE IF NOT EXISTS (\w+)/.exec(statement)?.[1] ?? []);
@@ -689,10 +704,23 @@ async function tablesCurrent(pool: Pool, name: string): Promise<boolean> {
  * wait behind another process's open write, and could deadlock it (friction_c0a718e8bf16). Callers
  * setting the same database up can race (the app, an agent and the CLI on a new server), and two
  * concurrent CREATE TABLE IF NOT EXISTS can collide on the table's type, so they take turns on the
- * database's lock and look again once they hold it.
+ * database's lock and look again once they hold it. A shared library (`merged` given) takes them only from merged code
+ * (contract 1.29): when the file declaring them is not merged it applies none, and one set up before opens as it stands,
+ * warning once per process, while one never set up is refused, each saying why.
  */
-async function setUpOwnDatabase(pool: Pool, name: string, tables: readonly string[]): Promise<void> {
+async function setUpOwnDatabase(pool: Pool, name: string, tables: readonly string[], merged: (() => SchemaMerged) | undefined): Promise<void> {
   if ((await unappliedStatements(pool, tables)).length === 0) return;
+  const standing = merged?.();
+  if (standing !== undefined && !standing.merged) {
+    const setUp = await pool.query<{ setUp: boolean }>("SELECT to_regclass('public.storytree_setup') IS NOT NULL AS \"setUp\"");
+    const why = `the file declaring its tables is not merged (${standing.why}), and a shared library takes table changes only from merged code`;
+    if (setUp.rows[0]?.setUp !== true) throw new ConnectionError("project-owner", `Database "${name}" is not set up, and ${why}. Set it up from code on origin/main.`);
+    if (!ownBehindWarned.has(name)) {
+      ownBehindWarned.add(name);
+      console.warn(`Database "${name}"'s tables are behind this storytree's, and ${why}, so it opens them as they stand.`);
+    }
+    return;
+  }
   const client = await pool.connect();
   let failed = false;
   try {

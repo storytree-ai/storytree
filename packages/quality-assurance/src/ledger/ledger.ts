@@ -180,7 +180,7 @@ export async function openLedger(server: Pick<Storytree, "ownDatabase">): Promis
 
 /** The ledger's own database on `server`'s connection, set up with its tables; for this package's own modules. */
 export function ledgerDatabase(server: Pick<Storytree, "ownDatabase">): Promise<Pool> {
-  return server.ownDatabase(LEDGER_DATABASE, { tables: SCHEMA });
+  return server.ownDatabase(LEDGER_DATABASE, { tables: SCHEMA, declaredIn: import.meta.url });
 }
 
 /** A client of the ledger's database, taken from its pool (the promise form of pg's overloaded connect). */

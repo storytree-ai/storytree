@@ -857,11 +857,11 @@ test("1.28 · a change to the history goes only through the logged repair switch
     assert.equal(repaired, 1, "through the switch, the owner's repair reaches the entry");
     await assert.rejects(asOwner((client) => client.query("DELETE FROM record_event")), /append-only/, "the switch lasted only for its transaction");
 
-    const log = await withTestClient(async (client) => (await client.query<{ operation: string; reason: string; recorded_by: string; recorded_at: Date | null }>(
-      "SELECT operation, reason, recorded_by, recorded_at FROM history_repair ORDER BY seq",
+    const log = await withTestClient(async (client) => (await client.query<{ operation: string; reason: string; recorded_by: string; recorded_at: Date; now: Date }>(
+      "SELECT operation, reason, recorded_by, recorded_at, now() AS now FROM history_repair ORDER BY seq",
     )).rows, database);
     assert.deepEqual(log.map((row) => [row.operation, row.reason, row.recorded_by]), [["UPDATE", "contract 13.5: a number the import got wrong", owner]], "the use is recorded");
-    assert.ok(log[0]!.recorded_at !== null);
+    assert.ok(Math.abs(log[0]!.recorded_at.getTime() - log[0]!.now.getTime()) < 60_000, `with the server's time, not ${String(log[0]!.recorded_at)}`);
     await assert.rejects(asOwner((client) => client.query("DELETE FROM history_repair")), /append-only/, "and its record stays");
   } finally {
     await opened?.close();

@@ -127,6 +127,12 @@ export function restoreCommand(server, name, file) {
     args: ['--no-password', '--exit-on-error', '--single-transaction', '--no-owner', '--no-acl', '-d', name, file],
     env: pgEnv(server, name) };
 }
+// The account a dump of `database` acts as: none for a superuser, else the owner, refused when it may not act as it.
+export function dumpRole(database, { name, may, superuser }) {
+  if (superuser) return undefined;
+  if (!may) throw new Error(`Cannot act as ${name}, the owner of ${database}; refused before dumping`);
+  return name;
+}
 // `role` is the account the dump acts as, or none to dump as the account that connected.
 export function dumpCommand(server, database, snapshot, role, file) {
   return { command: path.posix.join(PG_BIN, 'pg_dump'),
@@ -206,8 +212,7 @@ async function dump(server, database, directory) {
       (SELECT rolsuper FROM pg_roles WHERE rolname = session_user) AS superuser
       FROM pg_database WHERE datname=current_database()`)).rows[0];
     const owner = ownership.name;
-    const role = ownership.superuser ? undefined : owner;
-    if (role && !ownership.may) throw new Error(`Cannot act as ${owner}, the owner of ${database}; refused before dumping`);
+    const role = dumpRole(database, ownership);
     if (role) await client.query(`SET ROLE ${q(role)}`);
     // An error, never silently filtered rows, if row security would apply.
     await client.query('SET row_security = off');

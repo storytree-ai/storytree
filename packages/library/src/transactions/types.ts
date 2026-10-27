@@ -100,6 +100,22 @@ export interface RetireInput {
   readonly actor?: string;
 }
 
+export interface RevertInput {
+  /** Abort before the write starts; ignored after it takes the write lock. */
+  readonly signal?: AbortSignal;
+  readonly id: string;
+  /** The seq of one of the record's own history entries, not a retirement: the state it goes back to. */
+  readonly to: number;
+  /** The seq of the record's newest history entry when the writer read it. Anything written to it since refuses the revert. */
+  readonly read: number;
+  readonly actor?: string;
+  /** Why, kept after the entry it reverts to in the history entry's reason. */
+  readonly reason?: string;
+  /** As edit's: the entry's stored record, given, returns the record to write back (an older schema version upgraded). */
+  readonly upgrade?: Upgrade;
+  readonly validate?: Validate;
+}
+
 export interface HistoryFilter {
   /** Only this record's changes. */
   readonly id?: string;
@@ -133,7 +149,7 @@ export interface ListFilter {
   readonly projection?: { readonly version: number; readonly fields: readonly string[] };
 }
 
-/** A project's records. These six verbs are the only data actions the library allows. */
+/** A project's records. These seven verbs are the only data actions the library allows. */
 export interface Transactions {
   /** Create the record, or replace it whole if the id exists. Appends one history entry. */
   save(input: SaveInput): Promise<RecordEnvelope>;
@@ -148,6 +164,14 @@ export interface Transactions {
   edit(input: EditInput): Promise<RecordEnvelope | null>;
   /** Retire the record: gone from `get` and `list`, kept in history. A no-op if it is missing or already retired. */
   retire(input: RetireInput): Promise<void>;
+  /**
+   * Write the record back to the state one of its own history entries kept, whole, under its id: a field added
+   * since is gone. A retired record comes back live, created when it first was. The write is one more `updated`
+   * entry, whose reason names the entry (`reverted to <seq>`), so nothing in history is rewritten. Refused, writing
+   * nothing: an entry that is not the record's or is a retirement (RangeError), and a record written to since `read`
+   * (StaleRevertError).
+   */
+  revert(input: RevertInput): Promise<RecordEnvelope>;
   /** The history, oldest first. */
   history(filter?: HistoryFilter): Promise<HistoryEntry[]>;
 }

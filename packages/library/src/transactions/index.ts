@@ -1,6 +1,6 @@
 /** Capability 2 · Library transactions. */
 export { MemoryTransactions } from "./memory.js";
-export { NumberTakenError } from "./records.js";
+export { NumberTakenError, StaleRevertError } from "./records.js";
 export { PgTransactions } from "./pg.js";
 export type {
   EditInput,
@@ -9,6 +9,7 @@ export type {
   ListFilter,
   RecordEnvelope,
   RetireInput,
+  RevertInput,
   SaveInput,
   Transactions,
   Upgrade,

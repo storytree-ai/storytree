@@ -16,7 +16,7 @@ import { LIBRARY_FAMILIES, NOTE_TOOLS, type HeldClaim, type LibraryVerbContext, 
 
 const WORDS: DoorWords = { door: "command", say: (step) => `storytree ${step.command}` };
 
-test("17.1 · The library declares the library family first among storytree's families, its eleven verbs as commands, then capability 27's three, and none as a tool; a verb reads a phrase from @file in the caller's folder, refile rewrites an artifact as another kind under its id, and edit run by a session holding an increment holds a planned record's change on it", async (t) => {
+test("17.1 · The library declares the library family first among storytree's families, its twelve verbs as commands, then capability 27's three, and none as a tool; a verb reads a phrase from @file in the caller's folder, refile rewrites an artifact as another kind under its id, and edit run by a session holding an increment holds a planned record's change on it", async (t) => {
   const storytree = await connect({ url: testServerUrl() });
   const project = uniqueProjectName();
   const folder = mkdtempSync(path.join(tmpdir(), "storytree-library-verbs-"));
@@ -33,7 +33,7 @@ test("17.1 · The library declares the library family first among storytree's fa
   const family = LIBRARY_FAMILIES.find((one) => one.name === "library");
   assert.equal(family!.order, 1);
   const names = family!.verbs.map((one) => mounted(one.command) ? one.command.name : undefined);
-  assert.deepEqual(names.slice(0, 11), ["search", "phrase", "links", "related", "new", "read", "edit", "refile", "retire", "list", "history"], "its own eleven first, capability 27's after them");
+  assert.deepEqual(names.slice(0, 12), ["search", "phrase", "links", "related", "new", "read", "edit", "refile", "retire", "list", "history", "revert"], "its own twelve first, capability 27's after them");
   assert.ok(family!.verbs.every((one) => !mounted(one.tool)), "no verb is a tool");
   const verbOf = (name: string): Verb<VerbInputs, LibraryVerbContext> => family!.verbs[names.indexOf(name)]!;
 
@@ -68,6 +68,13 @@ test("17.1 · The library declares the library family first among storytree's fa
   const live = await verbOf("edit").act({ "<id>": form.id, "<fields>": { description: "Typed here" } }, contextOf("person:owner"), WORDS);
   assert.equal(live.text, `Edited capability ${form.id}: description.`, "a session holding no increment edits the live record");
   assert.equal(((await library.get(form.id))?.fields as { description?: string } | undefined)?.description, "Typed here");
+  const formSeqs = (await library.history({ id: form.id })).map((entry) => entry.seq);
+  await assert.rejects(
+    verbOf("revert").act({ id: form.id, to: String(formSeqs[0]), read: String(formSeqs.at(-1)), reason: undefined }, contextOf("lane"), WORDS),
+    (error: unknown) => error instanceof VerbRefusal && error.message.includes(increment.id),
+    "a revert of a planned record cannot wait on the increment, so the session holding one is refused",
+  );
+  assert.equal(((await library.get(form.id))?.fields as { description?: string } | undefined)?.description, "Typed here", "the live record is left alone");
 });
 
 test("17.3 · library edit project-anchor --what … --audience … writes the project's anchor, making it on its first write and refusing any other field with nothing written, and library read reads it back; a story takes no audience (ADR-1085 D1, ADR-1096)", async (t) => {
@@ -264,4 +271,46 @@ test("17.7 · The open tool opens a record of a plugin's kind whole, as library 
   const dormant = await openIn(await storytree.openProject(project));
   assert.match(dormant.split("\n")[0]!, /\[voice\.note\]  schema 1  dormant: its plugin is not mounted on this computer$/);
   assert.match(dormant, /words: park the globe idea/, "read as stored");
+});
+
+test("17.8 · library revert writes a record back to an entry library history shows, whole and under its id, bringing a retired one back; the entry names what it reverted to and who, and a revert read before a later write is refused with nothing written", async (t) => {
+  const storytree = await connect({ url: testServerUrl() });
+  const project = uniqueProjectName();
+  t.after(async () => {
+    try {
+      await storytree.dropProject(project);
+    } finally {
+      await storytree.close();
+    }
+  });
+  const library = await storytree.openProject(project);
+  const family = LIBRARY_FAMILIES.find((one) => one.name === "library")!;
+  const verbOf = (name: string): Verb<VerbInputs, LibraryVerbContext> => family.verbs.find((one) => mounted(one.command) && one.command.name === name)!;
+  const context: LibraryVerbContext = { library, project, session: "curator", folder: tmpdir(), writer: { actor: "session:curator" }, claims: async () => [], testedNumbers: async () => ({ tested: [], untested: [] }) };
+  const seqs = async (id: string): Promise<number[]> => (await library.history({ id })).map((entry) => entry.seq);
+
+  const decision = await library.recordDecision({ status: "accepted", title: "Kept words", text: "D1. The first wording." });
+  await verbOf("edit").act({ "<id>": decision.id, "<fields>": { text: "D1. A bad rewrite." } }, context, WORDS);
+  await verbOf("retire").act({ id: decision.id, reason: "thought overtaken" }, context, WORDS);
+  const [first, , retired] = await seqs(decision.id);
+  const shown = await verbOf("history").act({ id: decision.id, fields: false }, context, WORDS);
+  assert.match(shown.text, new RegExp(`\\b${first}\\b.*created`), "history shows the entry to revert to");
+
+  assert.equal(verbOf("revert").writes, true, "a door runs it as a write, handing it the session as writer");
+  const done = await verbOf("revert").act({ id: decision.id, to: String(first), read: String(retired), reason: "the retirement was a mistake" }, context, WORDS);
+  assert.match(done.text, new RegExp(`${decision.id}.*${first}`));
+  const back = await library.get(decision.id);
+  assert.deepEqual(back?.fields, decision.fields, "live again under its id, as first written");
+  const last = (await library.history({ id: decision.id })).at(-1)!;
+  assert.deepEqual([last.action, last.actor, last.reason], ["updated", "session:curator", `reverted to ${first}: the retirement was a mistake`]);
+
+  await library.recordDecision({ status: "accepted", title: "Another", text: "D1. Unrelated." });
+  const before = await library.history();
+  await assert.rejects(
+    verbOf("revert").act({ id: decision.id, to: String(first), read: String(retired), reason: undefined }, context, WORDS),
+    (error: unknown) => error instanceof VerbRefusal && error.message.includes(String(last.seq)),
+    "a curator who read before the revert is refused, told the newest entry",
+  );
+  await assert.rejects(verbOf("revert").act({ id: decision.id, to: "first", read: String(last.seq), reason: undefined }, context, WORDS), VerbRefusal);
+  assert.deepEqual(await library.history(), before, "nothing was written");
 });

@@ -2,7 +2,7 @@
  * Capability 1 · Running services, contracts 1.2 to 1.4 (ADR-1180 D4). The supervisor keeps each service the host runs
  * going by its rules: an always service that ends is started again after 10 seconds, the wait doubling with each end up
  * to 5 minutes (back to 10 seconds once a run outlasts 10 minutes); five ends within 10 minutes mark it failed, and it is
- * not started again until it is restarted by name (a restart on its code moving is the factory pull's, increment_f2f43091c355). An every service is started on its cadence, never while its last run
+ * not started again until it is restarted, by name or because its code moved (the factory pull's, capability 4). An every service is started on its cadence, never while its last run
  * still goes. Stopping sends each child the stop signal, then kills one still running 30 seconds later. Its clock and
  * how it starts a child are handed in, so its timing is the same on a test's hand-turned clock as on the real one.
  */
@@ -66,7 +66,7 @@ export const KILL_AFTER_MS = 30_000;
 const cadence = (run: ServiceRun): number => (run === "always" ? 0 : Number.parseInt(run.every, 10) * 60_000);
 
 interface Entry {
-  readonly service: Service;
+  service: Service;
   child: Child | undefined;
   cancel: (() => void) | undefined;
   ends: number[];
@@ -128,8 +128,11 @@ export class Supervisor {
     this.#changed();
   }
 
-  /** Start `id` again, its ends and wait cleared: at once when it is not running, or once its stopped child ends. False when no service is called that. */
-  restart(id: string): boolean {
+  /**
+   * Start `id` again, its ends and wait cleared: at once when it is not running, or once its stopped child ends; `run`,
+   * when given, is how it runs from now on, and `because` is said in the log. False when no service is called that.
+   */
+  restart(id: string, { run, because = "restarted by name" }: { readonly run?: ServiceRun; readonly because?: string } = {}): boolean {
     const entry = this.#entries.get(id);
     if (entry === undefined || this.#stopped) return false;
     entry.failed = false;
@@ -138,7 +141,8 @@ export class Supervisor {
     entry.cancel?.();
     entry.cancel = undefined;
     entry.nextAt = undefined;
-    this.#log(`${id}: restarted by name`);
+    if (run !== undefined) entry.service = { id, run };
+    this.#log(`${id}: ${because}`);
     if (entry.child === undefined) this.#launch(entry);
     else {
       entry.relaunch = true;

@@ -119,8 +119,10 @@ async function endMergedOn(context: MergeContext, watch: MergeWatch, asked: (bra
       if (claim.increment !== undefined && context.library !== undefined) {
         const increment = claim.increment;
         const reach = context.library;
+        // Written by the session that saw the merge, so history names who applied it (contract 5.37).
+        const actor = context.session.startsWith("person:") ? context.session : `session:${context.session}`;
         await Promise.resolve(typeof reach === "function" ? reach() : reach)
-          .then((library) => library.applyPending(increment, `#${pull.number}`))
+          .then((library) => library.applyPending(increment, `#${pull.number}`, { actor }))
           .catch(() => undefined);
       }
       const ender = { session: context.session, ...(context.harness === undefined ? {} : { harness: context.harness }), source: context.source, folder: context.folder };

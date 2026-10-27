@@ -806,12 +806,14 @@ test("4.9 once the checkout the listener was loaded from moves to another commit
   const voice = await writesDoor(t);
   const scratch = committerScratch(t);
   const lines: string[] = [];
-  let head = "a".repeat(40);
+  // Loaded on aaaa…, the checkout is on bbbb… by its first tick: a tick that began before the move may finish on the
+  // code that was current when it began, so moving the head under a running tick races it (Windows CI, PR #22).
+  let reads = 0;
   let exits = 0;
   const env = { ...scratch.env, VOICE_DRAFTS_URL: voice.asOwner };
   const listener = startListener(env, (line) => lines.push(line), {
     retryMs: 100,
-    head: () => head,
+    head: () => (reads++ === 0 ? "a" : "b").repeat(40),
     moved: (self) => {
       exits += 1;
       void self.close();
@@ -819,12 +821,10 @@ test("4.9 once the checkout the listener was loaded from moves to another commit
   });
   voice.closing.push(() => listener.close());
   await listener.ready;
-  await waitUntil(() => lines.includes("listening on voice_run"), 5_000, "it to listen");
+  await waitUntil(() => exits === 1, 5_000, "it to exit").catch((error: Error) => assert.fail(`${error.message}: ${lines.join("; ")}`));
 
-  head = "b".repeat(40);
   await voice.call("start_manager_run", { request: "after the pull" });
   await voice.call("confirm", {});
-  await waitUntil(() => exits === 1, 5_000, "it to exit").catch((error: Error) => assert.fail(`${error.message}: ${lines.join("; ")}`));
   assert.ok(lines.includes("the checkout moved from aaaaaaaa to bbbbbbbb: exiting to restart on the current code"), lines.join("; "));
   await listener.close();
   assert.equal(exits, 1);

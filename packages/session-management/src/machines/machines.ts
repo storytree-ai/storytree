@@ -52,7 +52,7 @@ export class MachineNameError extends Error {
 }
 
 function pool(server: Server) {
-  return trunksPool(server, [SCHEMA]);
+  return trunksPool(server, { tables: [SCHEMA], declaredIn: [import.meta.url] });
 }
 
 /** This computer's hostname, as activity lines are stamped with it. */

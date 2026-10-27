@@ -1,7 +1,7 @@
 /** Capability 1 · Project libraries: whether this code's project schema is merged, read from its checkout. */
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
@@ -10,7 +10,7 @@ import { removeTemp } from "@storytree/test-waits";
 
 import { schemaMerged } from "./schema-merged.js";
 
-test("1.29 · the schema counts as merged outside a checkout, or when its last change is on origin/main with nothing uncommitted", async () => {
+test("1.29 · the schema counts as merged outside a checkout or in a bundle, or when its last change is on origin/main with nothing uncommitted", async () => {
   const folder = mkdtempSync(path.join(tmpdir(), "schema-merged-"));
   const git = (...args: string[]) => execFileSync("git", ["-C", folder, ...args], { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();
   const file = path.join(folder, "schema.ts");
@@ -31,6 +31,10 @@ test("1.29 · the schema counts as merged outside a checkout, or when its last c
 
     git("init", "-q", "-b", "work");
     notMerged(/not committed/);
+    writeFileSync(path.join(folder, ".gitignore"), "dist/\n");
+    mkdirSync(path.join(folder, "dist"));
+    writeFileSync(path.join(folder, "dist", "main.mjs"), "a");
+    assert.deepEqual(schemaMerged(path.join(folder, "dist", "main.mjs")), { merged: true }, "a bundle built into a folder its checkout ignores");
     commit("a");
     notMerged(/origin\/main cannot be read/);
     git("update-ref", "refs/remotes/origin/main", "HEAD");

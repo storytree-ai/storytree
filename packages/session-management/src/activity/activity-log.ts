@@ -25,8 +25,8 @@ import { readExperiment } from "@storytree/project-and-caller";
 
 import { BRANCH_FACTS, countValues, FOLD_LINES, foldValues, inViewValues, MAIN_WORK, selectLines, SESSION_COUNT, SESSIONS_IN_VIEW, STANDING_CLAIMS, STATE_LINES, stateValues, type LineFilter } from "./bounded.js";
 import type { Beat } from "../readings.js";
-import { BEATS_SCHEMA, beatsOf, PgSessionBeats, type SessionBeats } from "./session-beats.js";
-import { PgTranscriptRecords, TRANSCRIPT_SCHEMA, type TranscriptRecords } from "./transcript-records.js";
+import { BEATS_SCHEMA, BEATS_SCHEMA_FILE, beatsOf, PgSessionBeats, type SessionBeats } from "./session-beats.js";
+import { PgTranscriptRecords, TRANSCRIPT_SCHEMA, TRANSCRIPT_SCHEMA_FILE, type TranscriptRecords } from "./transcript-records.js";
 
 /** The database the log lives in, on the same server as the projects' libraries. */
 export const ACTIVITY_DATABASE = "storytree-activity";
@@ -212,7 +212,7 @@ export async function openActivityLog(server: string | Storytree, options: OpenO
 
 /** The log's database, which the library creates and sets up with the log's tables. */
 function activityPool(server: Storytree): Promise<Pool> {
-  return server.ownDatabase(ACTIVITY_DATABASE, { tables: SCHEMA });
+  return server.ownDatabase(ACTIVITY_DATABASE, { tables: SCHEMA, declaredIn: [import.meta.url, TRANSCRIPT_SCHEMA_FILE, BEATS_SCHEMA_FILE] });
 }
 
 /**

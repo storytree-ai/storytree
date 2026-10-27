@@ -110,7 +110,7 @@ export function mainErrorRecords({ build, log, now = () => new Date(), hold = 50
     },
     async open(server) {
       try {
-        pool = await server.ownDatabase(database, { tables: SCHEMA });
+        pool = await server.ownDatabase(database, { tables: SCHEMA, declaredIn: [import.meta.url] });
       } catch (error) {
         log(`main process errors will not be recorded in the library: ${described(error)}`);
         return;

@@ -158,3 +158,18 @@ export function numbered(input: SaveInput, highest: number, taken: (number: numb
   if (typeof given === "number" && taken(given)) throw new NumberTakenError(input.type, field, given);
   return input;
 }
+
+/** A revert whose writer read the record before its newest change: another writer's work would be overwritten. */
+export class StaleRevertError extends Error {
+  readonly id: string;
+  readonly read: number;
+  readonly newest: number;
+
+  constructor(id: string, read: number, newest: number) {
+    super(`${id} changed since it was read: its newest history entry is ${newest}, not ${read}. Read its history again before reverting it`);
+    this.name = "StaleRevertError";
+    this.id = id;
+    this.read = read;
+    this.newest = newest;
+  }
+}

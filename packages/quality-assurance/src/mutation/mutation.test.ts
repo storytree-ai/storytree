@@ -256,6 +256,34 @@ test("7.2 · a break in code a test runs only in a child process, which the pack
 });
 
 /**
+ * A package whose `rule` is reached by more of its own tests than the downstream cap, all beside it and none noticing its
+ * branch, and by one test in a sibling folder, reached through another file, that does.
+ */
+const CROWDED: Record<string, string> = {
+  "packages/crowd/package.json": JSON.stringify({ name: "@t/crowd", type: "module" }),
+  "packages/crowd/src/core/rule.mjs": "export const rule = (n) => (n > 5 ? \"many\" : \"few\");\n",
+  ...Object.fromEntries(Array.from({ length: 21 }, (_, index) => [`packages/crowd/src/core/near${index}.test.mjs`,
+    "import assert from \"node:assert/strict\";\nimport { test } from \"node:test\";\nimport { rule } from \"./rule.mjs\";\ntest(\"is a function\", () => { assert.equal(typeof rule, \"function\"); });\n"])),
+  "packages/crowd/src/side/count.mjs": "import { rule } from \"../core/rule.mjs\";\nexport const count = (n) => rule(n);\n",
+  "packages/crowd/src/side/count.test.mjs": "import assert from \"node:assert/strict\";\nimport { test } from \"node:test\";\nimport { count } from \"./count.mjs\";\ntest(\"counts\", () => { assert.equal(count(9), \"many\"); assert.equal(count(1), \"few\"); });\n",
+};
+
+test("7.2 · a break runs against every test of its own package that reaches its file, however many, so one whose only killing test sits in a sibling folder beyond the nearest is caught, not a survivor", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "qa-crowded-"));
+  try {
+    write(dir, CROWDED);
+    const report = await mutationReport(dir, adding({ "packages/crowd/src/core/rule.mjs": CROWDED["packages/crowd/src/core/rule.mjs"]! }));
+    assert.equal(report.ran, true);
+    if (!report.ran) return;
+    assert.equal(report.planted, 1);
+    assert.deepEqual(report.survivors, []);
+    assert.equal(report.caught, 1);
+  } finally {
+    await removeTemp(dir);
+  }
+});
+
+/**
  * A package whose own test misses a branch that the test of a package downstream of it, importing it by name, takes; that test
  * also imports a package linked from outside the checkout.
  */

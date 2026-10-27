@@ -11,7 +11,7 @@
  *   unit `pnpm test` runs though no package), a file an esbuild build names under `entryPoints` counting as imported by the file
  *   naming it (the capture kit's bundle of the desktop page, 7.2), with the test files numbered for the capabilities its package's
  *   coverage map credits it to, the map that follows the processes a test starts (a hook or a command run as a child, 7.2),
- *   or, when none there does, in the packages downstream of it, nearest first and
+ *   every one of them however many, or, when none there does, in the packages downstream of it, nearest first and
  *   at most {@link TEST_CAP}. A break is caught when a test that passed with nothing broken
  *   no longer passes with it planted, so a test that fails unbroken is left out and its file's other tests still count (7.6); a break with
  *   no test left that passes unbroken is not run and says why; a file no test reaches at all survives untried (7.2). A break its own package's tests miss, or cannot
@@ -43,7 +43,7 @@ import { folderOf, PackageGraph, readPackages } from "../risk/risk.js";
 /** The most breaks one change gets (ADR-1153 D1: "about 15"). */
 export const BREAK_CAP = 15;
 
-/** The most test files one changed file's breaks run against, nearest first. */
+/** The most test files downstream of its package one changed file's breaks run against, nearest first; its own package's are not capped. */
 export const TEST_CAP = 20;
 
 /** The check a survivor is recorded under in the QA ledger. */
@@ -256,7 +256,7 @@ export function changeBreaks(root: string, diff: string, arid: readonly AridLine
 
 /** Who imports whom among the code files of some packages: each file's dependents. */
 export interface Reach {
-  /** The test files that reach `file`, nearest first, at most `cap`. */
+  /** The test files that reach `file`, nearest first: every one in its own package, or, when none there does, at most `cap` downstream. */
   tests(file: string, cap?: number): string[];
   /** The test files in other packages than `file`'s that reach it, nearest first, at most `cap`. */
   downstream(file: string, cap?: number): string[];
@@ -345,11 +345,12 @@ export function readReach(root: string, folders: readonly string[]): Reach {
     return order;
   };
   return {
-    // Its own package's tests, nearest first; those downstream only when its own package has none that reach it.
+    // Every test of its own package that reaches it, nearest first, however many (a killing test may sit past the nearest in a
+    // sibling folder); those downstream, capped, only when its own package has none that reach it.
     tests: (file, cap = TEST_CAP) => {
       const reached = closure(file).filter((one) => TEST.test(one));
       const own = [...new Set([...reached.filter((one) => unitOf(one) === unitOf(file)), ...measured(file)])];
-      return (own.length > 0 ? own : reached).slice(0, cap);
+      return own.length > 0 ? own : reached.slice(0, cap);
     },
     downstream: (file, cap = TEST_CAP) => closure(file).filter((one) => TEST.test(one) && unitOf(one) !== unitOf(file)).slice(0, cap),
     damage: (file) => closure(file).filter((one) => !TEST.test(one) && !TEST_SUPPORT.test(one)).length,

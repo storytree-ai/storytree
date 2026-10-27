@@ -3,7 +3,7 @@
  * exactly: the record a save or an edit would leave, the check on it, and the shape of a history
  * entry. Each backend only decides where these go and how a write stays atomic.
  */
-import type { HistoryEntry, HistoryFilter, ListFilter, RecordEnvelope, RevertInput, SaveInput, Upgrade, Validate } from "./types.js";
+import type { HistoryEntry, HistoryFilter, ListFilter, RecordEnvelope, RevertedWrite, RevertInput, RevertWritesInput, SaveInput, Upgrade, Validate } from "./types.js";
 
 /** The time now, as records carry it: an ISO 8601 UTC timestamp. */
 export function now(): string {
@@ -117,9 +117,78 @@ export function revertedRecord(
   if (target === undefined) throw new RangeError(`${input.id} has no history entry ${input.to}`);
   if (target.action === "retired") throw new RangeError(`entry ${input.to} is ${input.id}'s retirement, not a state to revert to; pick an entry before it`);
   if (newest !== input.read) throw new StaleRevertError(input.id, input.read, newest ?? 0);
-  const stored = jsonCopy(target.record);
-  const record = input.upgrade === undefined ? stored : input.upgrade(stored);
-  return { ...record, id: input.id, createdAt: current?.createdAt ?? stored.createdAt, updatedAt: at };
+  return restoredRecord(input.id, target.record, current, at, input.upgrade);
+}
+
+/** `kept`, a record as a history entry stored it, upgraded by the writer, to be written back under `id` at `at`. */
+function restoredRecord(id: string, kept: RecordEnvelope, current: RecordEnvelope | undefined, at: string, upgrade: Upgrade | undefined): RecordEnvelope {
+  const stored = jsonCopy(kept);
+  const record = upgrade === undefined ? stored : upgrade(stored);
+  return { ...record, id, createdAt: current?.createdAt ?? stored.createdAt, updatedAt: at };
+}
+
+/** One record a writer wrote, as its history shows it. */
+export interface WrittenRecord {
+  readonly id: string;
+  readonly type: string;
+  /** Its newest entry before the writer's first write to it; none when the writer's first write made it. */
+  readonly before?: HistoryEntry;
+  /** The writer's own entries on it, oldest first. */
+  readonly own: readonly HistoryEntry[];
+  /** Entries other writers made to it after the writer's first, oldest first. */
+  readonly others: readonly HistoryEntry[];
+}
+
+/**
+ * Every record `of` wrote, health left out, by id, from `entries`: the history of those records (it may hold others,
+ * and comes in any order). What both backends revert and what a per-writer diff reads.
+ */
+export function writtenBy(of: string, entries: readonly HistoryEntry[]): WrittenRecord[] {
+  const byRecord = new Map<string, HistoryEntry[]>();
+  for (const entry of [...entries].sort((one, other) => one.seq - other.seq)) {
+    if (entry.type === "health") continue;
+    byRecord.set(entry.recordId, [...(byRecord.get(entry.recordId) ?? []), entry]);
+  }
+  const written: WrittenRecord[] = [];
+  for (const [id, history] of byRecord) {
+    const first = history.findIndex((entry) => entry.actor === of);
+    if (first === -1) continue;
+    const after = history.slice(first);
+    written.push({
+      id,
+      type: history[first]!.type,
+      ...(first === 0 ? {} : { before: history[first - 1]! }),
+      own: after.filter((entry) => entry.actor === of),
+      others: after.filter((entry) => entry.actor !== of),
+    });
+  }
+  return written.sort((one, other) => compareCodePoints(one.id, other.id));
+}
+
+/** What a revert of `input.of`'s writes does to each record, refused (LaterWriterError) where another writer wrote since. */
+export function writesReverted(
+  input: RevertWritesInput,
+  written: readonly WrittenRecord[],
+  current: (id: string) => RecordEnvelope | undefined,
+  at: string,
+): { readonly reverted: RevertedWrite; readonly record: RecordEnvelope; readonly reason: string }[] {
+  const later = written.filter((one) => one.others.length > 0).map(({ id, others: [first] }) => ({ id, seq: first!.seq, ...(first!.actor === undefined ? {} : { actor: first!.actor }) }));
+  if (later.length > 0) throw new LaterWriterError(input.of, later);
+  const why = input.reason === undefined ? "" : `: ${input.reason}`;
+  return written.flatMap(({ id, before }) => {
+    const live = current(id);
+    if (before === undefined || before.action === "retired") {
+      return live === undefined ? [] : [{ reverted: { id, action: "retired" as const }, record: live, reason: `reverted ${input.of}'s writes, which created it${why}` }];
+    }
+    const record = restoredRecord(id, before.record, live, at, input.upgrade);
+    check(record, input.validate);
+    return [{ reverted: { id, action: "updated" as const, to: before.seq }, record, reason: `reverted ${input.of}'s writes, to ${before.seq}${why}` }];
+  });
+}
+
+/** Code-point order, which is UTF-8 byte order and Postgres's C collation: how ids are ordered everywhere. */
+function compareCodePoints(a: string, b: string): number {
+  return Buffer.compare(Buffer.from(a, "utf8"), Buffer.from(b, "utf8"));
 }
 
 /** The reason a revert's history entry carries: the entry it reverts to, then the writer's own reason. */

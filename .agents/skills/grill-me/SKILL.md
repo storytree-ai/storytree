@@ -7,9 +7,8 @@ description: "Grill me: walk the owner through storytree's open questions one at
 
 # Grill me: walk the owner through his open questions
 
-The owner answers storytree's open questions in bursts, often after time away and jumping between sessions. Make each answer cheap: check the question still deserves him, re-onboard him just enough, give him a clean choice with your recommendation, record what he says exactly, and turn it into moving work before you show him the next one. Find facts yourself; ask him only for decisions. He sets the pace.
+The owner answers storytree's open questions in bursts, often after time away and jumping between sessions. Make each answer cheap: check the question still deserves him, re-onboard him just enough, lead with what it is about, why it needs him and the one option you recommend, record what he says exactly, and turn it into moving work before you show him the next one. Find facts yourself; ask him only for decisions. He sets the pace.
 
-Written from 22 rounds he ran between 2026-08-22 and 2026-10-01 and the corrections that recurred in them (the evidence is on increment_10685cb18bc4). The name and a few techniques (facts found rather than asked, questions taken in dependency order, checks run in the background, a stated end) come from Matt Pocock's grill-me skill (github.com/mattpocock/skills), whose rounds stress-test a plan the user brings; this one works the questions already waiting in the library.
 
 ## When to use
 
@@ -41,15 +40,17 @@ Skip a part only when it truly adds nothing.
 
 - **Heading:** `Question n of N: <the decision in plain words>`.
 - **Where it stands, only when the arc changes:** 3 to 6 bullets: what has landed, what is parked, what this answer unblocks. Same arc: say "same arc, no re-orientation".
-- **The problem, stakes first:** what broke or is blocked, with the date or incident that raised it; then what is already true or fixed, so he decides only what is left.
+Lead with what and why, then the one option you recommend (ADR-1184 D1):
+
+- **What:** the part of the system it is about, in plain words.
+- **Why, stakes first:** what breaks or is blocked, with the date or incident that raised it; then what is already true or fixed, so he decides only what is left.
 - **Terms:** gloss only the machine vocabulary he lacks (tool names, lifecycle states, decision numbers), naming each thing by what it does, id in parentheses at most. He set the project: never re-explain it.
 - **Diagram** when the subject is a structure, a flow or a before/after: a small ASCII block in a code fence. Offer it unasked; being asked for one is the failure signal. An HTML mock or artifact only for the most complex cases.
 - **Analogy**, one line, then **Where it breaks:** one line.
-- **Options**, lettered (coded per question, `N1`/`N2`, when questions share a message): what happens, *For*, *Against*; a table for three or more, or after a reframe. Before sending, challenge your own framing (8 corrections came from here): is an obvious option missing ("the system already does this", "a session does it itself", "both", "the simplest version first")? Are the options really exclusive? Is one overbuilt for what he asked? "Leave it as is" is a valid answer, recorded as decided.
-- **My recommendation (non-binding):** the pick, one sentence why, and what would flip it.
-- **The ask, last line, bold:** "**A, B or C?**". Coded options let him answer "A for 2, NO for 4".
+- **Recommended:** the one option you recommend, what happens, and one sentence why. Before sending, challenge your own framing (8 corrections came from here): is an obvious option missing ("the system already does this", "a session does it itself", "both", "the simplest version first")? Is the recommendation overbuilt for what he asked? "Leave it as is" is a valid recommendation.
+- **The ask, last line, bold:** "**Go with that?**". Add one line saying how many other options the record holds ("two others if you want them"), never their content.
 
-Keep every option's description in the same message as the ask. When a question is reframed, split by a digression or followed by status updates, re-post all its options in one place before asking again. The available choice picker is fine for a quick pick after the full text, never as the only place the options live; his free text always wins, and if he dismisses the picker, record nothing he did not say.
+Hold the other options back until he asks for them or turns the recommendation down; then give them lettered (coded per question, `N1`/`N2`, when questions share a message): what happens, *For*, *Against*, a table for three or more, and end on "**A, B or C?**". The record keeps every option in full: never cut the question's options to match what you said. A question whose record has no recommendation gets one from you, marked as yours, or says plainly why there is none. When a question is reframed, split by a digression or followed by status updates, restate the recommendation and the ask in one place before asking again. The available choice picker is fine for a quick pick after the full text, never as the only place the recommendation lives; his free text always wins, and if he dismisses the picker, record nothing he did not say.
 
 ### 3. Pace
 
@@ -57,7 +58,7 @@ Keep every option's description in the same message as the ask. When a question 
 - He drives: "next", "next arc", "next Q". After each answer do the writes (step 4), give a 2 to 4 line receipt (what was recorded, what started), then the next question in the same message.
 - When he asks back ("still not following", "what do you mean by…"), answer that first from a new angle: a concrete example, another analogy, a diagram. If his "why is this a question?" is right, say so, decide or retire it, and move on.
 - When he proposes his own direction, check it honestly against the facts (measurements, landed work) before agreeing, leading with any fact that changes it. If he directed it, record it without asking again; if he is thinking aloud, confirm in one line ("Go ahead, or anything to change first?").
-- Interruptions (status checks, lane crashes, credentials) get short answers, a table for lane status, and end with **"Still with you: Qn, A/B/C?"**
+- Interruptions (status checks, lane crashes, credentials) get short answers, a table for lane status, and end with **"Still with you: Qn, go with that?"** (or its letters, once he has the options)
 - Re-run `storytree question list` immediately before you show him any table or list of questions (the overview, a recap, what is left), at each arc boundary, and before you say "that's all": sessions file and settle questions during the round, and a list minutes old once offered him a question another session had just settled (7 corrections came from a stale list). Leave out any that are settled or that another session is presenting.
 
 ### 4. After each answer, before the next question
@@ -67,7 +68,7 @@ Library edits need no worktree.
 1. **Settle with his exact words:** `storytree question settle <q> --answer @answer.txt [--decision <decision>]`, verbatim, with the date. Your interpretation goes in the increment body, not the answer. A question on a parked arc he says to skip is retired, not settled.
 2. **Rewrite the held increment's body** (`storytree arc increment edit <inc> --body @body.md`): lead with `OWNER'S ANSWER <date> (<question id>): "<his words>"`, then what it means for the build, so the lane that picks it up needs nothing from this chat. Clear `--held-on` if it still names the question. Close increments his answer made moot (`--disposition withdrawn` with the reason) and park the new ones it creates.
 3. **Write the decision** when the answer sets a rule future sessions must follow or narrows a standing one (step 5), with an in-place note in any decision it narrows, in the same pass.
-4. **Record a re-steer** (`storytree resteer new … --evidence "<his words>" --disposition defect|taste --judged-by owner`) when he picked neither option, reframed the question, or said it should not have reached him. Your own account goes in `--self-report`.
+4. **Record a re-steer** (`storytree resteer new … --evidence "<his words>" --disposition defect|taste --judged-by owner`) when he took neither the recommendation nor another option, reframed the question, or said it should not have reached him. Your own account goes in `--self-report`.
 5. **Retire what should not exist** (`storytree question retire <q> --reason …`), keeping its substance on the arc. Never retire an answered question: settle it.
 6. **Dispatch** (step 6). Message any session that was blocked on what he just fixed, once the fix is proven to work.
 

@@ -66,7 +66,8 @@ export function instructionsFor(tools: readonly string[]): string {
   const rules = [
     "You are Mick's voice link to his storytree project; he owns it and knows it well, so skip padding.",
     "Start every session with catch_up. Tell him what needs his action first, one item at a time, then his open questions, one question at a time: " +
-      "the ask in a sentence, the stakes, and both sides of each option; then stop, let him poke holes, and move on only when he says so.",
+      "what part of the system it is about, why it needs him, then the recommended option with its reason and the ask (\"go with that?\"); " +
+      "other options only when he asks for them or turns the recommendation down. Then stop, let him poke holes, and move on only when he says so.",
     "tell_me reads one thing whole by what he calls it (a question, a decision by number, a pull request, catch_up's number two); find looks something up; " +
       "what_changed says what landed; count gives tallies; search_code and read_code read the committed code. " +
       "list_work lists an arc's open increments, numbered a page at a time; tell_me with that arc reads \"number three\" (or the next one) whole.",
@@ -547,11 +548,25 @@ async function tellMe(read: Reads, said: string, page: number, since: string, ar
     ? await read.storytree(["question", "show", id], { maxBytes: 400_000 })
     : await read.storytree(["library", "read", id], { maxBytes: 400_000 });
   if (!record.ok) return failure(record.text);
-  const text = id.startsWith("question_") ? unspoken(record.text.replace(/^(.*?)\s+\[question_[0-9a-f]{12}\]/, "Question: $1")) : spokenRecord(record.text);
+  const text = id.startsWith("question_") ? unspoken(recommendationFirst(record.text.replace(/^(.*?)\s+\[question_[0-9a-f]{12}\]/, "Question: $1"))) : spokenRecord(record.text);
   const cut = pages(text);
   if (page > cut.length) throw new Refusal(`that has only ${cut.length} page${cut.length === 1 ? "" : "s"}`);
   const footer = cut.length === 1 ? "(that is all of it)" : page < cut.length ? `(page ${page} of ${cut.length}; say more: tell_me with page ${page + 1})` : `(page ${page} of ${cut.length}, the last)`;
   return success(`${cut[page - 1]}\n${footer} — ${id}`);
+}
+
+/**
+ * `question show` with its Recommendation moved up to follow the Stakes, so a question is read as what, why, then the
+ * recommended option, with the options after it (ADR-1184 D1). The record's fields come in a fixed order (`question show`'s
+ * SHOWN_FIELDS); only Answer and Holding can follow the Recommendation.
+ */
+export function recommendationFirst(text: string): string {
+  const recommendation = /\n\nRecommendation:\n[\s\S]*?(?=\n\n(?:Answer:\n|Holding: )|\n*$)/.exec(text);
+  if (recommendation === null) return text;
+  const rest = text.slice(0, recommendation.index) + text.slice(recommendation.index + recommendation[0].length);
+  const after = /\n\n(?:Statement|Context|Options|Analogy|Diagram):\n/.exec(rest);
+  if (after === null) return text;
+  return rest.slice(0, after.index) + recommendation[0] + rest.slice(after.index);
 }
 
 /** An open question's id and title, or null when `question list` does not hold it; for save_note's answers. */
@@ -617,7 +632,7 @@ export function makeServer(children: Children, hangup: AbortSignal | undefined, 
     {
       title: "Tell me about one thing",
       description:
-        "One thing whole, by what the owner calls it: a question (its stakes and both sides of each option), a decision by number " +
+        "One thing whole, by what the owner calls it: a question (its stakes, its recommendation, then its options), a decision by number " +
         "(\"decision eleven-oh-three\", \"ADR 1103\"), a pull request (\"pull request seventeen twenty-three\"), catch_up's numbered item " +
         "(\"number two\"), or title words across open questions, active arcs, recent work and terms. Pass his words as he said them. " +
         `Two or more matches answer "which one?" with at most ${SPEECH.whichOne} names and read none; ask him, then call again with the id. ` +

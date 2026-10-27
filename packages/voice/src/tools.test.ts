@@ -135,7 +135,12 @@ test("2.2 catch_up refuses a since it cannot pass on, before any child runs", as
 
 test("2.19 · the instructions a client gets on connect lead with catch_up and name no tool tools/list does not offer", async () => {
   await namesOnlyListedTools(client);
-  assert.match(client.getInstructions() ?? "", /Nothing here changes/);
+  const instructions = client.getInstructions() ?? "";
+  assert.match(instructions, /Nothing here changes/);
+  // ADR-1184 D1: each question as what part of the system, why it needs him, then the recommended option alone.
+  assert.match(instructions, /what part of the system it is about, why it needs him, then the recommended option with its reason and the ask/);
+  assert.match(instructions, /other options only when he asks for them or turns the recommendation down/);
+  assert.doesNotMatch(instructions, /both sides of each option/);
 });
 
 test("2.6 find returns at most 5 records closest in meaning, one line each with kind, title and record id", async () => {
@@ -149,12 +154,14 @@ test("2.7 find passes its query as words only, and refuses an empty, over-long o
   await refusedWithoutChild("find", [{ query: "" }, { query: "   " }, { query: "x".repeat(501) }, { query: "a\u0000b" }]);
 });
 
-test("2.15 · tell_me reads one thing whole: a question with its stakes and options, a decision by number, an arc, a pull request's work, a term", async () => {
+test("2.15 · tell_me reads one thing whole: a question with its stakes, recommendation and options, a decision by number, an arc, a pull request's work, a term", async () => {
   const question = textOf(await call("tell_me", { handle: "question_0000000000c1" }));
   assert.match(question, /^Question: Newest: keep the secret address alone\?/);
   assert.match(question, /Stakes:/);
   const options = textOf(await call("tell_me", { handle: "question_0000000000c1", page: 2 }));
   assert.match(options, /\(a\) Keep it\. Good: nothing to do\. Bad: anyone with the address\.\n\(b\) Sign in\. Good: tied to you\. Bad: setup\./);
+  // ADR-1184 D1: the recommendation is read straight after the stakes, before the options.
+  assert.match(`${question}\n${options}`, /Stakes:[\s\S]*\nRecommendation:\n\(b\): the address alone[\s\S]*\nOptions:\n/);
   const decision = textOf(await call("tell_me", { handle: "ADR 3" }));
   assert.match(decision, /^decision: The decision numbered 3\n/);
   assert.match(decision, /^text: Open questions are mirrored to Drive\.$/m);

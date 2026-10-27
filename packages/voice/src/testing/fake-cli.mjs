@@ -130,7 +130,7 @@ function answer() {
   }
   if (family === "question" && verb === "show" && argv[2] === "question_0000000000c1") {
     const filler = Array.from({ length: 250 }, (_, at) => `Sentence ${at + 1} of the stakes, naming arc_0000000000b1 and the cost.`).join(" ");
-    return `Newest: keep the secret address alone?  [question_0000000000c1]\nOn arc_0000000000b1, open.\n\nStakes:\n${filler}\n\nOptions:\n(a) Keep it. Good: nothing to do. Bad: anyone with the address.\n(b) Sign in. Good: tied to you. Bad: setup.${NEXT}`;
+    return `Newest: keep the secret address alone?  [question_0000000000c1]\nOn arc_0000000000b1, open.\n\nStakes:\n${filler}\n\nOptions:\n(a) Keep it. Good: nothing to do. Bad: anyone with the address.\n(b) Sign in. Good: tied to you. Bad: setup.\n\nRecommendation:\n(b): the address alone is a password anyone can forward.${NEXT}`;
   }
   if (family === "library" && verb === "read" && argv[2] === "decision_000000000003") {
     return (

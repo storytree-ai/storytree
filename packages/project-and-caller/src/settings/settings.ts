@@ -172,6 +172,7 @@ interface Stored {
   "system-off"?: readonly string[];
   "system-on"?: readonly string[];
   "setup-approvals"?: Readonly<Record<string, SetupApproval>>;
+  "services-on"?: readonly string[];
 }
 
 /**
@@ -451,6 +452,24 @@ export function setPartOff(part: string, off: boolean, home: string = storytreeH
   return parts;
 }
 
+/**
+ * The services turned on on this computer (ADR-1180 D2), each `<part>/<service>`, sorted; none when it names none, since
+ * every service is off until it is turned on. The service host reads it as it runs; a damaged value is reported naming the file.
+ */
+export function readServicesOn(home: string = storytreeHome()): readonly string[] {
+  return readStored(home)[SERVICES_ON] ?? [];
+}
+
+/** Turn the service `service` (`<part>/<service>`) on or off for this computer, and return the services now on. */
+export function setServiceOn(service: string, on: boolean, home: string = storytreeHome()): readonly string[] {
+  checkedServicesOn([service]);
+  const stored = readStored(home);
+  const rest = (stored[SERVICES_ON] ?? []).filter((one) => one !== service);
+  const services = on ? [...rest, service].sort() : rest;
+  write(home, { ...stored, [SERVICES_ON]: services });
+  return services;
+}
+
 /** The user's approval of a project's checked-in worktree setup: its commands' fingerprint, and when it was given (capability 19, 19.6). */
 export interface SetupApproval {
   readonly fingerprint: string;
@@ -710,6 +729,18 @@ function checkedSetupApprovals(value: unknown): Readonly<Record<string, SetupApp
   return value as Readonly<Record<string, SetupApproval>>;
 }
 
+const SERVICES_ON = "services-on";
+
+/** A service's name on this computer: its part, then the service's own name, each in lower-case letters, digits and dashes. */
+export const SERVICE_NAME = /^[a-z0-9][a-z0-9-]*\/[a-z0-9][a-z0-9-]*$/;
+
+function checkedServicesOn(value: unknown): readonly string[] {
+  if (!Array.isArray(value) || !value.every((one) => typeof one === "string" && SERVICE_NAME.test(one))) {
+    refuse(`${SERVICES_ON} must list the services turned on, each named <part>/<service>, such as ["voice/listen"].`);
+  }
+  return [...new Set(value as string[])].sort();
+}
+
 const SYSTEM_OFF = "system-off";
 const SYSTEM_ON = "system-on";
 
@@ -792,6 +823,10 @@ function readStored(home: string): Stored {
       }
       if (name === SETUP_APPROVALS) {
         settings[SETUP_APPROVALS] = checkedSetupApprovals(value);
+        continue;
+      }
+      if (name === SERVICES_ON) {
+        settings[SERVICES_ON] = checkedServicesOn(value);
         continue;
       }
       if (name === SYSTEM_OFF || name === SYSTEM_ON) {

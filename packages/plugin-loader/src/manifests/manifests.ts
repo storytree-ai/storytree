@@ -2,7 +2,9 @@
  * Capability 1 · Manifests. The parts a host's story packages add, read from the `storytree` key of each package's
  * package.json (ADR-1021): per kind, a list of `{ from, export, order? }`, where `from` is one of the package's own
  * export subpaths and `export` the name its module exports the part's declarations under. The packages read are
- * those the host's package.json depends on: storytree's own, never one a user's or project's configuration names.
+ * those the host's package.json depends on: storytree's own, never one a user's or project's configuration names. A
+ * package's long-running `services` (ADR-1180 D1) are entries of their own shape, `{ name, from, export, run }`, read by
+ * storyServices for the service host.
  */
 import { existsSync, readFileSync, realpathSync } from "node:fs";
 import path from "node:path";
@@ -96,4 +98,43 @@ export function storyParts(host: string, kind: string): StoryPart[] {
   }
   // Names are already sorted, and the sort is stable, so ties keep package name then manifest position.
   return found.sort((a, b) => (a.order === b.order ? 0 : a.order - b.order)).map(({ part }) => part);
+}
+
+/** How a service runs: started again whenever it ends, or started every n minutes, never while the last run still goes. */
+export type ServiceRun = "always" | { readonly every: `${number}m` };
+
+/** Whether `run` is how a service runs: "always", or { every: "<n>m" } with n a whole number above 0. */
+export const isServiceRun = (run: unknown): run is ServiceRun =>
+  run === "always" || (typeof run === "object" && run !== null && Object.keys(run).length === 1 && typeof (run as { every?: unknown }).every === "string" && /^[1-9][0-9]*m$/.test((run as { every: string }).every));
+
+/** One long-running service a story package declares (ADR-1180 D1): its name, how it runs, and the module and export a service host starts. */
+export interface StoryService extends StoryPart {
+  readonly name: string;
+  readonly run: ServiceRun;
+}
+
+/**
+ * The services the story packages `host` depends on declare in their manifests' `services`, by package name then
+ * manifest position: each named in lower-case letters, digits and dashes, running "always" or { every: "<n>m" }, from
+ * one of its package's export subpaths. One that is not is refused, naming the package.
+ */
+export function storyServices(host: string): StoryService[] {
+  const found: StoryService[] = [];
+  for (const { name, pkg } of dependencies(host)) {
+    const manifest = pkg?.storytree;
+    if (typeof manifest !== "object" || manifest === null) continue;
+    const entries = (manifest as Record<string, unknown>).services;
+    if (entries === undefined) continue;
+    if (!Array.isArray(entries)) throw new Error(`${name}'s storytree manifest names services with no list.`);
+    entries.forEach((entry: { name?: unknown; from?: unknown; export?: unknown; run?: unknown }, at) => {
+      const service = entry?.name;
+      if (typeof service !== "string" || !/^[a-z0-9][a-z0-9-]*$/.test(service)) throw new Error(`${name}'s service ${at + 1} has no name (lower-case letters, digits and dashes).`);
+      if (!isServiceRun(entry.run)) throw new Error(`${name}'s service ${service} runs ${JSON.stringify(entry.run)}, not "always" or { every: "<n>m" }.`);
+      const from = String(entry.from);
+      if (!exported(pkg!.exports, from)) throw new Error(`${name}'s storytree manifest names ${JSON.stringify(from)} for its service ${service}, which the package does not export.`);
+      if (typeof entry.export !== "string" || entry.export === "") throw new Error(`${name}'s storytree manifest names ${JSON.stringify(from)} for its service ${service} with no export name.`);
+      found.push({ package: name, name: service, run: entry.run, module: path.posix.join(name, from), export: entry.export });
+    });
+  }
+  return found;
 }

@@ -20,6 +20,7 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 
 import { pluginSchema, type PluginRecordKind } from "@storytree/library";
+import type { OutsideWriter } from "@storytree/library/outside-writer";
 
 import { CORE, switchedOff, type Composition, type PartsGraph } from "../switch/switch.js";
 
@@ -143,6 +144,26 @@ export function pluginRecordKinds(folder: string | undefined, plugin: string): P
     throw new Error(`${plugin}'s ${(error as Error).message.replace(/^the /, "")}`);
   }
   return kinds;
+}
+
+/**
+ * The grant plugin `plugin` of `folder` declares for its own librarian (ADR-1178 D5, question_0700cb2e567c: option A), as
+ * its manifest's `librarian`, `{ "role": "<database role>", "update"?: true }`: the role librarian-<plugin> connects as,
+ * fenced to every kind the plugin declares, and whether it may change their records, not only add them. None when it
+ * names none. Its role is its own, never one of its kinds' writers, so a door that adds records never gains the right to
+ * change them; a librarian with no kinds to keep, or of another shape, is refused with why.
+ */
+export function pluginLibrarian(folder: string | undefined, plugin: string): OutsideWriter | undefined {
+  const declared = pluginManifest(folder, plugin).manifest.librarian;
+  if (declared === undefined) return undefined;
+  const { role, update } = (typeof declared === "object" && declared !== null ? declared : {}) as { role?: unknown; update?: unknown };
+  if (typeof role !== "string" || role === "") throw new Error(`${plugin}'s librarian names no role (the database role librarian-${plugin} connects as)`);
+  if (update !== undefined && typeof update !== "boolean") throw new Error(`${plugin}'s librarian's update is ${JSON.stringify(update)}, not true or false`);
+  const kinds = pluginRecordKinds(folder, plugin);
+  if (kinds.length === 0) throw new Error(`${plugin}'s librarian has no kinds to keep: its manifest declares no recordKinds`);
+  const door = kinds.find((kind) => kind.writers.includes(role));
+  if (door !== undefined) throw new Error(`${plugin}'s librarian's role ${role} also writes ${door.kind}: give the librarian a role of its own, so the door that adds records never changes them`);
+  return { role, kinds: kinds.map((kind) => kind.kind), ...(update === true ? { update } : {}) };
 }
 
 /**

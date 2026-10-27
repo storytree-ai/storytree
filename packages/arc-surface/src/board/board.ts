@@ -69,6 +69,13 @@ const rank: Record<ArcState, number> = { waiting: 0, blocked: 1, queued: 1, "in-
 const time = (at: string) => Date.parse(at) || 0;
 const withBlocker = (holder: string | undefined) => (holder === undefined ? {} : { blockedBy: holder });
 
+/** A ready lane's chip: untagged open work is to take, work tagged to one machine is named by it (decision_5b03e773d46b D6). */
+function readyChip(machines: readonly (string | undefined)[]): string {
+  const untagged = machines.filter((machine) => machine === undefined).length;
+  const tagged = [...new Set(machines.filter((machine) => machine !== undefined))].sort();
+  return ["ready", ...(untagged ? [`${untagged} to take`] : []), ...tagged.map((machine) => `on ${machine}`)].join(" · ");
+}
+
 /** The log is the lines themselves, or a reading that holds its claims folded and keeps its claim lines. */
 export function boardView(snapshot: BoardSnapshot, log: readonly Line[] | LogReading, now: Date, scope: BoardScope = "active", quietMs?: number): BoardView {
   const reading = logReading(log);
@@ -119,7 +126,7 @@ export function boardView(snapshot: BoardSnapshot, log: readonly Line[] | LogRea
     const idleChip = (agents: readonly BoardAgent[]) => `in progress · idle ${Math.min(...agents.map(({ quietMinutes }) => quietMinutes))} min`;
     const idleHolders = holders.filter(({ holder }) => holder === "idle");
     const chip = state === "idle" ? idleChip(holders)
-      : state === "ready" ? `ready · ${bars.filter(({ reading }) => reading.state === "open").length} to take` : state.replaceAll("-", " ");
+      : state === "ready" ? readyChip(ordered.filter((_, index) => bars[index]!.reading.state === "open").map(({ fields }) => fields.machine)) : state.replaceAll("-", " ");
     // A queued lane names what its increments wait on, once per blocker (ADR-0760 D1; counted in its hourglass mark, ADR-0980).
     const laneWaits = state !== "queued" ? waits.on(arc.id)
       : [...new Map(bars.flatMap((bar) => bar.waits).map((wait) => [wait.id, wait])).values()];

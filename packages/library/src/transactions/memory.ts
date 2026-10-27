@@ -2,7 +2,7 @@
  * Capability 2 · Library transactions. MemoryTransactions: the in-memory twin of PgTransactions. The behaviour suite runs unchanged on
  * both, so later stories can test against this one without a database.
  */
-import { check, fieldAt, listFilter, pickFields, editedRecord, historyEntry, historyFilter, jsonCopy, now, numbered, revertedRecord, revertInput, revertReason, savedRecord } from "./records.js";
+import { check, fieldAt, listFilter, pickFields, editedRecord, historyEntry, historyFilter, jsonCopy, now, numbered, revertedRecord, revertInput, revertReason, savedRecord, writesReverted, writtenBy } from "./records.js";
 import type {
   EditInput,
   HistoryEntry,
@@ -10,7 +10,9 @@ import type {
   ListFilter,
   RecordEnvelope,
   RetireInput,
+  RevertedWrite,
   RevertInput,
+  RevertWritesInput,
   SaveInput,
   Transactions,
 } from "./types.js";
@@ -96,10 +98,24 @@ export class MemoryTransactions implements Transactions {
     return jsonCopy(record);
   }
 
+  async revertWrites(input: RevertWritesInput): Promise<RevertedWrite[]> {
+    input.signal?.throwIfAborted();
+    const ids = new Set(this.#history.filter((entry) => entry.actor === input.of).map((entry) => entry.recordId));
+    const written = writtenBy(input.of, this.#history.filter((entry) => ids.has(entry.recordId)));
+    const at = now();
+    const writes = writesReverted(input, written, (id) => this.#records.get(id), at);
+    for (const { reverted, record, reason } of writes) {
+      this.#append(reverted.action, record, at, input.actor, reason);
+      if (reverted.action === "retired") this.#records.delete(record.id);
+      else this.#records.set(record.id, record);
+    }
+    return writes.map(({ reverted }) => reverted);
+  }
+
   async history(given: HistoryFilter = {}): Promise<HistoryEntry[]> {
-    const { id, since, from, types, oldest, newest } = historyFilter(given);
+    const { id, since, actor, from, types, oldest, newest } = historyFilter(given);
     const kept = this.#history.filter((entry) =>
-      (id === undefined || entry.recordId === id) && (since === undefined || entry.seq > since)
+      (id === undefined || entry.recordId === id) && (since === undefined || entry.seq > since) && (actor === undefined || entry.actor === actor)
       && (from === undefined || entry.at >= from) && (types === undefined || types.includes(entry.type)));
     const limited = oldest !== undefined ? kept.slice(0, oldest) : newest !== undefined ? kept.slice(-newest) : kept;
     return limited.map((entry) => jsonCopy(entry));

@@ -1,5 +1,5 @@
 /**
- * Capability 27 · Fixed data questions: the `library count`, `changes` and `find` commands, mounted in the library
+ * Capability 27 · Fixed data questions: the `library count`, `changes` (the latest, or one writer's as a diff) and `find` commands, mounted in the library
  * family beside capability 17's (commands/index.ts). Each asks one of data-questions.ts's fixed questions and answers
  * in plain text, at most ANSWER_ROWS rows, each value cut to one short line. None is a tool: the voice door mounts the
  * questions it needs itself.
@@ -39,10 +39,22 @@ export const count = verb({
 });
 
 export const changes = verb({
-  command: { family: "library", name: "changes", summary: `the latest changes, newest first, health left out (${ANSWER_ROWS} unless --limit asks for fewer)`, usage: "library changes [--limit <n>]" },
+  command: {
+    family: "library",
+    name: "changes",
+    summary: `the latest changes, newest first, health left out (${ANSWER_ROWS} unless --limit asks for fewer); with --actor, every record one writer wrote, each field from before its first write to after its last`,
+    usage: "library changes [--limit <n> | --actor <writer>]",
+  },
   tool: NOT_A_TOOL,
-  inputs: { limit: { kind: "text", optional: true, describe: `how many to show, ${ANSWER_ROWS} at most` } },
-  async act({ limit }, context: VerbContext) {
+  inputs: {
+    limit: { kind: "text", optional: true, describe: `how many to show, ${ANSWER_ROWS} at most` },
+    actor: { kind: "text", optional: true, describe: "a writer, as history names them (session:<id> or person:<name>): every record they wrote, as one diff" },
+  },
+  async act({ limit, actor }, context: VerbContext) {
+    if (actor !== undefined) {
+      if (limit !== undefined) throw new VerbRefusal("--actor shows every record the writer wrote, so it takes no --limit", { misuse: true });
+      return writerDiff(actor, context.library);
+    }
     if (limit !== undefined && !(/^[1-9]\d*$/.test(limit) && Number(limit) <= ANSWER_ROWS)) {
       throw new VerbRefusal(`--limit is how many to show, a whole number from 1 to ${ANSWER_ROWS}; got "${limit}"`, { misuse: true });
     }
@@ -52,6 +64,27 @@ export const changes = verb({
     return { text: ["Latest changes, newest first:", ...lines].join("\n"), next: [{ command: "library read <id>", why: "read one whole" }] };
   },
 });
+
+/** Every record `actor` wrote, by id, with each field that differs from before their first write to after their last, whole. */
+async function writerDiff(actor: string, library: Library): Promise<{ text: string; next?: { command: string; why: string }[] }> {
+  const written = await library.writtenBy(actor);
+  if (written.length === 0) return { text: `${actor} wrote nothing (health left out).` };
+  const said = (value: unknown): string => (value === null || value === undefined ? "(none)" : typeof value === "string" ? value : JSON.stringify(value));
+  const lines = written.flatMap(({ id, type, writes, before, after, retired, later }) => {
+    const what = after === null ? `retired${retired === undefined ? "" : `: ${retired}`}` : before === null ? "created" : `updated by ${writes} write${writes === 1 ? "" : "s"}`;
+    const was = (before?.fields ?? {}) as Record<string, unknown>;
+    const now = (after?.fields ?? {}) as Record<string, unknown>;
+    const fields = after === null ? [] : [...new Set([...Object.keys(was), ...Object.keys(now)])]
+      .filter((field) => JSON.stringify(was[field]) !== JSON.stringify(now[field]))
+      .map((field) => `    ${field}: ${said(was[field])} -> ${said(now[field])}`);
+    const since = later === undefined ? [] : [`    written since by ${later.actor ?? "a writer who gave no name"} at entry ${later.seq}: library undo refuses while it stands`];
+    return [`  ${id}  [${type}]  ${what}`, ...fields, ...since];
+  });
+  return {
+    text: [`${actor} wrote ${written.length} record${written.length === 1 ? "" : "s"} (health left out), each from before its first write to after its last:`, ...lines].join("\n"),
+    next: [{ command: `library undo ${actor}`, why: "revert them all" }, { command: "library history <id>", why: "see one record's every entry" }],
+  };
+}
 
 export const find = verb({
   command: { family: "library", name: "find", summary: `the records whose title holds every word, any case, ${ANSWER_ROWS} at most; a decision by its number (1103 or ADR-1103)`, usage: "library find <title words…|decision number>" },

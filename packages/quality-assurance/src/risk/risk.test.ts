@@ -100,7 +100,7 @@ test("6.2 · Each story's standing risk reading is read from its package's code 
   assert.equal(readStory({ id: "story_x", title: "Elsewhere" }, graph, source, "d"), undefined);
 });
 
-test("6.3 · `quality risk` writes an increment's risk line, and `quality story-risks` every story's reading, from the checkout's package graph", async () => {
+test("6.3 · `quality risk` writes an increment's risk line, and `quality story-risks` every story's reading, from the checkout's package graph, each run as a write so its history names the writer", async () => {
   const root = mkdtempSync(join(tmpdir(), "risk-"));
   try {
     for (const node of NODES) {
@@ -117,6 +117,7 @@ test("6.3 · `quality risk` writes an increment's risk line, and `quality story-
       const increment = await library.addIncrement({ arc: arc.id, title: "Notes", objective: "Write notes", body: "b", capabilities: [] });
       const context = { folder: root, library, project: library.name, session: "person:test" } as unknown as SessionVerbContext;
       const verbs = new Map(QUALITY_FAMILIES[0]!.verbs.map((one) => [(one.command as { name: string }).name, one]));
+      assert.deepEqual([verbs.get("risk")!.writes, verbs.get("story-risks")!.writes], [true, true], "a door runs each as a write, handing it the session as writer");
 
       const wrote = await verbs.get("risk")!.act({ increment: increment.id, diff: diff(["packages/library/src/l.ts", "+await sql`DELETE FROM notes`;"]) }, context, WORDS);
       assert.match(wrote.text, /medium 7 · depth 2 · radius 3 · flags record writes/);

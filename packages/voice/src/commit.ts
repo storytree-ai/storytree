@@ -27,6 +27,8 @@ export interface Committer {
   readonly env: NodeJS.ProcessEnv;
   readonly log: (line: string) => void;
   readonly now?: () => Date;
+  /** How long one `storytree fyi heard` may run, in milliseconds; a minute unless set. */
+  readonly carryMs?: number;
   /** When set, each run starts as its own unit, voice-run-<id>, rather than as a detached child of the tick. */
   readonly units?: RunUnits;
 }
@@ -47,6 +49,8 @@ const SYSTEMD_OWN = new Set(["INVOCATION_ID", "JOURNAL_STREAM", "SYSTEMD_EXEC_PI
 export const DROPPED = "dropped: voice writes were locked";
 const REPLY_CHARS = 4000;
 const FAILURE_CHARS = 300;
+/** How long one `storytree fyi heard` may run before it is stopped and its mark left for the next tick. */
+const CARRY_MS = 60_000;
 
 /** Every harness's session variable: a run the committer starts never records as the timer's own session. */
 const SESSION_NAMES = [SESSION_ENV, ...(WATCHED_HARNESSES as readonly WatchedHarness[]).flatMap((harness) => (harness.shellSession ? [harness.shellSession] : []))];
@@ -70,7 +74,7 @@ const flat = (text: string, max: number) => {
 };
 
 /** Run argv to its end, for its exit code and output. */
-function ran(argv: readonly string[], options: { cwd?: string; env?: NodeJS.ProcessEnv } = {}): Promise<{ code: number | null; stdout: string; stderr: string }> {
+function ran(argv: readonly string[], options: { cwd?: string; env?: NodeJS.ProcessEnv; timeout?: number } = {}): Promise<{ code: number | null; stdout: string; stderr: string }> {
   return new Promise((resolve, reject) => {
     const [command = "", ...args] = argv;
     const child = spawn(command, args, { ...options, stdio: ["ignore", "pipe", "pipe"] });
@@ -137,9 +141,9 @@ async function carryFyis(drafts: Drafts, committer: Committer): Promise<void> {
   for (const fyi of await drafts.heardFyis()) {
     let said: { code: number | null; stdout: string; stderr: string };
     try {
-      said = await ran([...committer.storytree, "fyi", "heard", fyi], { cwd: committer.repoDir, env: childEnv(committer.env) });
+      said = await ran([...committer.storytree, "fyi", "heard", fyi], { cwd: committer.repoDir, env: childEnv(committer.env), timeout: committer.carryMs ?? CARRY_MS });
     } catch (error) {
-      said = { code: null, stdout: "", stderr: (error as Error | undefined)?.message ?? String(error) };
+      said = { code: null, stdout: "", stderr: String(error) };
     }
     if (said.code !== 0) {
       committer.log(`${fyi} not yet marked heard in the library: ${flat(said.stderr || said.stdout, FAILURE_CHARS) || `exit ${said.code}`}`);
@@ -154,8 +158,6 @@ async function carryFyis(drafts: Drafts, committer: Committer): Promise<void> {
 export async function commitDue(drafts: Drafts, committer: Committer): Promise<void> {
   const now = committer.now ?? (() => new Date());
   const pool = drafts.pool;
-  // A mark not carried waits for the next tick; it never stops the drafts below.
-  await carryFyis(drafts, committer).catch((error: unknown) => committer.log(`FYI heard marks not carried: ${flat((error as Error | undefined)?.message ?? String(error), FAILURE_CHARS)}`));
   const lock = await drafts.locked();
   if (lock !== null) {
     const dropped = await pool.query(
@@ -227,4 +229,7 @@ export async function commitDue(drafts: Drafts, committer: Committer): Promise<v
       committer.log(`draft ${runDraft.id} run: no end seen within ${RUN_HOURS} hours`);
     }
   }
+
+  // Last, so a mark not carried never holds up a draft above; it waits for the next tick.
+  await carryFyis(drafts, committer).catch((error: unknown) => committer.log(`FYI heard marks not carried: ${flat(String(error), FAILURE_CHARS)}`));
 }

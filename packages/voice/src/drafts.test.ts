@@ -757,6 +757,16 @@ test("5.15 · an FYI catch_up reads after Replies ready is marked heard by voice
     await assert.rejects(client.query("INSERT INTO voice_fyi_heard (fyi) VALUES ('question_0000000000c1')"), /check constraint/);
   });
 
+  // A storytree that hangs is stopped at its limit, and its mark waits for the next tick.
+  await onDatabase(voice.asRole, (client) => client.query("INSERT INTO voice_fyi_heard (fyi) VALUES ('fyi_0000000000f2')"));
+  const drafts = Drafts.open(voice.asOwner);
+  voice.closing.push(() => drafts.close());
+  const began = Date.now();
+  await commitDue(drafts, { ...committerFrom(scratch.env, (line) => lines.push(line)), storytree: [...FAKE_CLI, "sleep:20000"], carryMs: 300 });
+  assert.ok(Date.now() - began < 10_000, "the tick waited out the hung storytree");
+  assert.deepEqual((await fyiRows()).filter((row) => row.carried_at === null).map((row) => row.fyi), ["fyi_000000000000", "fyi_0000000000f2"]);
+  assert.ok(lines.some((line) => line.startsWith("fyi_0000000000f2 not yet marked heard in the library")), lines.join("; "));
+
   // A door database made before the marks, until door-database.sql runs again: catch_up still reads every FYI, a mark is
   // refused saying why, and the committer's tick goes on.
   await onDatabase(voice.asOwner, (client) => client.query("DROP TABLE voice_fyi_heard"));

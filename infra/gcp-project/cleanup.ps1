@@ -40,7 +40,10 @@ $KeepApis = @(
   'bigquerymigration.googleapis.com', 'bigqueryreservation.googleapis.com',
   'billingbudgets.googleapis.com', 'logging.googleapis.com', 'monitoring.googleapis.com',
   'pubsub.googleapis.com',
-  'cloudresourcemanager.googleapis.com', 'serviceusage.googleapis.com', 'servicemanagement.googleapis.com'
+  'cloudresourcemanager.googleapis.com', 'serviceusage.googleapis.com', 'servicemanagement.googleapis.com',
+  # The Google Cloud APIs bundle (cloudapis) depends on these three, so Google will not turn them off
+  # while it is on; the owner chose on 2026-10-26 to leave them on.
+  'dataform.googleapis.com', 'dataplex.googleapis.com', 'datastore.googleapis.com'
 )
 # storytree-dist: release downloads. library-backups: the library's backups and the archive/
 # export of 0.2's database. tfstate: Terraform state of infra/ci-health and infra/website-publish.
@@ -78,8 +81,7 @@ $MapsApis = @(
 ) | ForEach-Object { "$_.googleapis.com" }
 $OtherApis = @(
   'generativelanguage', 'cloudaicompanion', 'geminicloudassist', 'cloudbuild', 'run',
-  'cloudfunctions', 'cloudscheduler', 'artifactregistry', 'containerregistry', 'dataform',
-  'dataplex', 'datastore', 'sqladmin'
+  'cloudfunctions', 'cloudscheduler', 'artifactregistry', 'containerregistry', 'sqladmin'
 ) | ForEach-Object { "$_.googleapis.com" }
 $DisableApis = @($MapsApis) + @($OtherApis)
 

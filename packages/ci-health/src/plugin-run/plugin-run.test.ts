@@ -3,7 +3,7 @@
 // project of the Postgres `pnpm test` provides (STORYTREE_TEST_PG_URL), dropped afterwards.
 import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
-import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test, type TestContext } from "node:test";
@@ -55,11 +55,20 @@ test("4.1 · `health plugin <plugin>` runs a freshly made plugin's own numbered 
   const story = await library.addStory({ title: "my-health" });
   const capability = await library.addCapability({ story: story.id, title: "1 · Hello" });
   const contract = await library.addContract({ capability: capability.id, title: "1.1 · my-health's hello says it is mounted" });
+  const nested = await library.addContract({ capability: capability.id, title: "1.2 · my-health's hello names the folder it is called in" });
+  // A test in a folder of the plugin's own counts as one beside its verbs does.
+  mkdirSync(path.join(factory, "plugins", "my-health", "test"));
+  writeFileSync(
+    path.join(factory, "plugins", "my-health", "test", "folder.test.js"),
+    `import assert from "node:assert/strict";\nimport { test } from "node:test";\nimport { PLUGIN_FAMILIES } from "../verbs.js";\n` +
+      `test("1.2 · my-health's hello names the folder it is called in", async () => {\n  assert.match((await PLUGIN_FAMILIES[0].verbs[0].act({}, { folder: "/here" })).text, /\\/here/);\n});\n`,
+  );
 
   const record = verbOf(HEALTH_FAMILIES, "plugin");
   const place = { library, project: name, session: "test", folder: factory };
   const passing = await record.act({ plugin: "my-health" } as never, place as never, WORDS);
-  assert.match(passing.text, /1 contracts? verified passing, 0 failing/);
+  assert.match(passing.text, /2 contracts verified passing, 0 failing, 0 not checked/);
+  assert.equal((await library.health(nested.id)).verified.state, "passing");
   const verified = (await library.health(contract.id)).verified;
   assert.equal(verified.state, "passing");
   assert.equal(verified.by, "factory plugin's tests");
@@ -67,7 +76,7 @@ test("4.1 · `health plugin <plugin>` runs a freshly made plugin's own numbered 
   const tests = path.join(factory, "plugins", "my-health", "verbs.test.js");
   writeFileSync(tests, readFileSync(tests, "utf8").replace(/is mounted/g, "is not mounted"));
   const failing = await record.act({ plugin: "my-health" } as never, place as never, WORDS);
-  assert.match(failing.text, /0 contracts? verified passing, 1 failing/);
+  assert.match(failing.text, /1 contracts verified passing, 1 failing, 0 not checked/);
   assert.equal((await library.health(contract.id)).verified.state, "failing");
 
   await start("stray");
@@ -77,4 +86,5 @@ test("4.1 · `health plugin <plugin>` runs a freshly made plugin's own numbered 
   writeFileSync(manifest, JSON.stringify(bare));
   assert.match((await record.act({ plugin: "stray" } as never, place as never, WORDS)).text, /no test command/);
   assert.equal((await library.healthHistory(contract.id)).length, 2, "nothing more was written");
+  assert.equal((await library.healthHistory(nested.id)).length, 2);
 });

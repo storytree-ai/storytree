@@ -56,7 +56,6 @@ const plugin = verb({
     description: "Run a plugin in this computer's factory folder by its own test command (the \"test\" script in its package.json) and record each numbered test's verdict as the verified health of the promises of the story whose package that plugin is (a story titled after the plugin), in this project. A plugin with no test command, or no story, writes nothing and says why.",
   },
   inputs: { plugin: { kind: "text", word: 0, describe: "the plugin's name: its folder in the factory's plugins folder" } },
-  writes: true,
   async act({ plugin: name }, { library }) {
     const [{ factoryFolder }, { recordPluginTests }] = await Promise.all([import("@storytree/project-and-caller"), import("./plugin-run/plugin-run.js")]);
     const read = await recordPluginTests({ library, factory: factoryFolder().folder, plugin: name });

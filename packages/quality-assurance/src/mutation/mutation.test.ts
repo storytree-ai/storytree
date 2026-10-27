@@ -276,9 +276,10 @@ test("7.5 · a break its own package's tests miss, or cannot judge because they 
     write(dir, DOWNSTREAM);
     write(outside, { "package.json": JSON.stringify({ name: "outside", type: "module", exports: "./index.mjs" }), "index.mjs": "export const twice = (n) => n * 2;\n" });
     // The downstream package's tests resolve @t/pick as pnpm links it, and a package whose folder is outside the checkout.
+    // Junctions, as pnpm links on Windows, where a directory symlink needs Developer Mode; POSIX ignores the type.
     mkdirSync(join(dir, "packages/use/node_modules/@t"), { recursive: true });
-    symlinkSync(join(dir, "packages/pick"), join(dir, "packages/use/node_modules/@t/pick"), "dir");
-    symlinkSync(outside, join(dir, "packages/use/node_modules/outside"), "dir");
+    symlinkSync(join(dir, "packages/pick"), join(dir, "packages/use/node_modules/@t/pick"), "junction");
+    symlinkSync(outside, join(dir, "packages/use/node_modules/outside"), "junction");
     const diff = adding({ "packages/pick/src/pick.mjs": DOWNSTREAM["packages/pick/src/pick.mjs"]! });
     const report = await mutationReport(dir, diff, [], { scratch });
     assert.equal(report.ran, true);

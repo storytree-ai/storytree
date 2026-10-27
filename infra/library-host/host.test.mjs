@@ -89,8 +89,9 @@ test('the backup timer runs on a PATH of /usr/bin and /bin alone, from a runtime
     assert.deepEqual(await readdir(runtime), ['host.mjs']);
     const env = { PATH: '/usr/bin:/bin', HOME: runtime };
     // Reached through a symlink, as macOS's /var is /private/var: it still runs as the entry point.
+    // A junction on Windows, where a directory symlink needs Developer Mode; POSIX ignores the type.
     const link = `${runtime}-link`;
-    await symlink(runtime, link);
+    await symlink(runtime, link, 'junction');
     const { stdout } = await promisify(execFile)(process.execPath, [path.join(link, 'host.mjs'), 'backup', '--dry-run'], { cwd: runtime, env });
     assert.match(stdout, /DRY RUN backup/);
   } finally { await rm(runtime, { recursive: true, force: true }); await rm(`${runtime}-link`, { force: true }); }

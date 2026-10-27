@@ -146,6 +146,32 @@ refused "could not be moved" "a missing new app" st_place "$root/Missing.app" "$
 check "$(cat "$root/Kept.app/mark")" kept "a failed move puts the old app back"
 rm -rf "$root/Old.app" "$root/Kept.app"
 
+# Signature: the Mac app is installed only when its signature is intact, its team is storytree's and Gatekeeper accepts
+# it; any other app is refused and nothing is placed. macOS's tools are replaced by functions.
+ditto() { mkdir -p "$4/storytree-0.3.app" && printf unpacked > "$4/storytree-0.3.app/mark"; }
+codesign() {
+  case "$1" in
+    --verify) [ "$intact" = yes ] ;;
+    -dv) printf 'Executable=%s\nTeamIdentifier=%s\n' "$2" "$team" >&2 ;;
+  esac
+}
+spctl() { [ "$accepted" = yes ]; }
+signed_install() { # signed_install INTACT TEAM ACCEPTED: runs the Mac install of a downloaded zip into a fresh folder
+  intact=$1; team=$2; accepted=$3
+  rm -rf "$root/tmp" "$root/Signed.app"; mkdir -p "$root/tmp"
+  ST_SYSTEM=darwin; ST_TMP="$root/tmp"
+  st_op_install "$root/app.zip" "$root/Signed.app"
+}
+signed_install yes YTUG339DCT yes || check "$ST_ERROR" installed "an app signed by storytree's team is installed"
+check "$(cat "$root/Signed.app/mark" 2>/dev/null)" unpacked "and is placed"
+refused "not signed by storytree" "an app signed by another team" signed_install yes ABCDE12345 yes
+check "$(ls -A "$root" | grep -c Signed.app)" 0 "another team's app is not placed"
+refused "not signed by storytree" "an app whose signature is broken" signed_install no YTUG339DCT yes
+refused "nothing was installed" "an app Gatekeeper refuses" signed_install yes YTUG339DCT no
+check "$(ls -A "$root" | grep -c Signed.app)" 0 "a refused app is not placed"
+unset -f ditto codesign spctl
+rm -rf "$root/tmp"
+
 # Delivery steps: download, install and verify only when nothing usable is there or the channel has a newer
 # release; a failure names its step.
 steps=

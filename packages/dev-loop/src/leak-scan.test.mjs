@@ -9,7 +9,7 @@ import { deflateRawSync, gzipSync } from "node:zlib";
 
 import { removeTemp } from "@storytree/test-waits";
 
-import { addedLeaks, checkLeaks, fileCounts, leakReport, nameWords, scanTree } from "./leak-scan.mjs";
+import { addedLeaks, checkLeaks, checkSecrets, credentialCounts, fileCounts, leakReport, nameWords, scanTree, SECRET_EXEMPTIONS } from "./leak-scan.mjs";
 
 // Each leak is put together at run time, so this file holds none of them for the scan to find.
 const join = (...parts) => parts.join("");
@@ -162,4 +162,67 @@ test("7.16 · check:leaks reads a branch holding an untracked folder, catching a
   writeFileSync(path.join(root, "drafts", "new.md"), "Zorbo was here\n");
   assert.equal(await checkLeaks({ root, readWords: named, ...capture }), 1);
   assert.match(lines.at(-1), /drafts\/new\.md adds 1 more × a private name/);
+});
+
+// Each stand-in credential is put together at run time too, so this file holds no credential's shape.
+const CREDENTIALS = {
+  "a private key": join("-----BEGIN ", "OPENSSH PRIVATE", " KEY-----\nb3Blbn\n-----END ", "OPENSSH PRIVATE", " KEY-----"),
+  "a bearer token": join("Authorization: Bear", "er ", "q".repeat(32)),
+  "an OAuth token": join("ya", "29.", "a".repeat(40)),
+  "an Anthropic or OpenAI key": join("sk-", "ant-", "api03-", "b".repeat(40)),
+  "a GitHub token": join("gh", "p_", "c".repeat(36)),
+  "a Google API key": join("AI", "za", "d".repeat(35)),
+  "a Google OAuth client secret": join("GOC", "SPX-", "e".repeat(28)),
+  "an AWS access key": join("AK", "IA", "F".repeat(16)),
+  "a Slack token": join("xo", "xb-", "1".repeat(12)),
+  "a GitLab token": join("gl", "pat-", "g".repeat(20)),
+  "a Tailscale key": join("ts", "key-", "auth-", "h".repeat(24)),
+  "a password in a link": join("postgres", "://ci:", "Zx9", "qPw", "@db.internal:5432/x"),
+};
+const FINE_GRAINED = join("github", "_pat_", "i".repeat(60));
+const STAND_INS = `${join("postgres", "://u:", "${password}", "@h")} ${join("postgres", "://u:", "<password>", "@h")} ${join("postgres", "://u:", "password", "@h")} Bearer \${token} ${join("sk-", "short")}\n`;
+
+test("7.19 · the secret scan finds each credential's shape in a plain, gzipped or UTF-16 file, or inside a zip or tar archive, by its kind, and passes a link's placeholder password", () => {
+  for (const [what, credential] of Object.entries(CREDENTIALS)) {
+    const json = Buffer.from(JSON.stringify({ env: credential }));
+    for (const [form, bytes] of Object.entries({ plain: Buffer.from(`x ${credential} y\n`), gzip: gzipSync(`x ${credential} y\n`), utf16: utf16(`x ${credential} y\n`), "utf16 unmarked": Buffer.from(`x ${credential} y\n`, "utf16le"), zip: zip("a.json", json), "tar.gz": gzipSync(tar(["a.json", json])) })) {
+      assert.deepEqual(fileCounts(bytes, [], credentialCounts), { [what]: 1 }, `${what} as ${form}`);
+    }
+  }
+  assert.deepEqual(credentialCounts(FINE_GRAINED), { "a GitHub token": 1 });
+  assert.deepEqual(credentialCounts(STAND_INS), {});
+  assert.deepEqual(fileCounts(Buffer.from(CREDENTIALS["a GitHub token"])), {}, "the leak scan's own count holds no credential, so check:leaks never fails on one");
+});
+
+test("7.20 · check:secrets refuses a branch that adds a credential, even inside gzip or UTF-16 evidence, naming the file and kind but never the value, passes a file on the owner's exemptions list, and passes a clean branch", (t) => {
+  const root = mkdtempSync(path.join(tmpdir(), "secret-check-"));
+  t.after(() => removeTemp(root));
+  const git = (...args) => execFileSync("git", args, { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
+  git("init", "-q");
+  git("config", "user.name", "t");
+  git("config", "user.email", "t@example.com");
+  writeFileSync(path.join(root, "old.md"), `${CREDENTIALS["a Tailscale key"]}\n`);
+  git("add", ".");
+  git("commit", "-q", "-m", "main");
+  git("update-ref", "refs/remotes/origin/main", "HEAD");
+  const lines = [];
+  const capture = { log: (line) => lines.push(line), error: (line) => lines.push(line) };
+  writeFileSync(path.join(root, "old.md"), `${CREDENTIALS["a Tailscale key"]}\nmore words ${STAND_INS}`);
+  assert.equal(checkSecrets({ root, ...capture }), 0, "a credential already on main is not the branch's");
+  assert.match(lines.at(-1), /1 changed file, none adding a credential/);
+  mkdirSync(path.join(root, "evidence"));
+  writeFileSync(path.join(root, "evidence", "run.json.gz"), gzipSync(JSON.stringify({ env: CREDENTIALS["a Google API key"] })));
+  writeFileSync(path.join(root, "evidence", "log.txt"), utf16(`token ${CREDENTIALS["an Anthropic or OpenAI key"]}\n`));
+  assert.equal(checkSecrets({ root, ...capture }), 1);
+  const said = lines.at(-1);
+  assert.match(said, /evidence\/run\.json\.gz adds 1 more × a Google API key/);
+  assert.match(said, /evidence\/log\.txt adds 1 more × an Anthropic or OpenAI key/);
+  for (const credential of Object.values(CREDENTIALS)) assert.ok(!said.includes(credential) && !said.includes(credential.slice(4, 16)), "the refusal never quotes a value");
+  mkdirSync(path.join(root, ".github"));
+  writeFileSync(path.join(root, SECRET_EXEMPTIONS), "# stand-in keys a test reads\nevidence/run.json.gz\n  evidence/log.txt  # a captured stand-in\n");
+  assert.equal(checkSecrets({ root, ...capture }), 0, lines.at(-1));
+  assert.match(lines.at(-1), /2 on the owner's exemptions list passed over/);
+  git("update-ref", "-d", "refs/remotes/origin/main");
+  assert.equal(checkSecrets({ root, ...capture }), 1, "a branch whose changes cannot be read fails");
+  assert.match(lines.at(-1), /check:secrets: the changes against origin\/main could not be read/);
 });

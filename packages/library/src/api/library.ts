@@ -77,7 +77,7 @@ export interface Storytree {
  * it here is all it takes to put it on the face. What the face adds of its own is written out in
  * Library below.
  */
-const FROM_RECORDS = ["get", "history", "revert"] as const satisfies readonly (keyof Project["records"])[];
+const FROM_RECORDS = ["get", "history", "revert", "revertWrites", "writtenBy"] as const satisfies readonly (keyof Project["records"])[];
 const FROM_WORK = [
   "addStory", "editStory", "mapStories", "createArc", "editArc", "addCapability", "editCapability", "setProposed", "addContract", "editContract", "arcsFor", "anchor", "setAnchor", "prCutover", "setPrCutover",
 ] as const satisfies readonly (keyof Project["work"])[];

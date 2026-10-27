@@ -6,7 +6,7 @@ import type { Pool, PoolClient } from "pg";
 
 import { sqlState } from "../project/connection-error.js";
 import { seconds, waitsOf } from "../project/server.js";
-import { check, listFilter, editedRecord, historyEntry, historyFilter, now, numbered, revertedRecord, revertInput, revertReason, savedRecord } from "./records.js";
+import { check, listFilter, editedRecord, historyEntry, historyFilter, now, numbered, revertedRecord, revertInput, revertReason, savedRecord, writesReverted, writtenBy } from "./records.js";
 import type {
   EditInput,
   HistoryEntry,
@@ -14,7 +14,9 @@ import type {
   ListFilter,
   RecordEnvelope,
   RetireInput,
+  RevertedWrite,
   RevertInput,
+  RevertWritesInput,
   SaveInput,
   Transactions,
 } from "./types.js";
@@ -171,6 +173,30 @@ export class PgTransactions implements Transactions {
     }, input.signal);
   }
 
+  revertWrites(input: RevertWritesInput): Promise<RevertedWrite[]> {
+    return this.#write(async (client) => {
+      const { rows } = await client.query<EventRow>(
+        `SELECT seq, record_id, type, action, record, reason, actor, at FROM record_event
+         WHERE record_id IN (SELECT record_id FROM record_event WHERE actor = $1 AND type <> 'health') ORDER BY seq`,
+        [input.of],
+      );
+      const written = writtenBy(input.of, rows.map(entryOf));
+      const current = new Map<string, RecordEnvelope>();
+      for (const { id } of written) {
+        const live = await lockCurrent(client, id);
+        if (live !== undefined) current.set(id, live);
+      }
+      const at = now();
+      const writes = writesReverted(input, written, (id) => current.get(id), at);
+      for (const { reverted, record, reason } of writes) {
+        await appendEvent(client, reverted.action, record, at, input.actor, reason);
+        if (reverted.action === "retired") await client.query("DELETE FROM record WHERE id = $1", [record.id]);
+        else await putRecord(client, record);
+      }
+      return writes.map(({ reverted }) => reverted);
+    }, input.signal);
+  }
+
   async history(given: HistoryFilter = {}): Promise<HistoryEntry[]> {
     const filter = historyFilter(given);
     const conditions: string[] = [];
@@ -181,6 +207,7 @@ export class PgTransactions implements Transactions {
     };
     if (filter.id !== undefined) narrow((param) => `record_id = ${param}`, filter.id);
     if (filter.since !== undefined) narrow((param) => `seq > ${param}`, filter.since);
+    if (filter.actor !== undefined) narrow((param) => `actor = ${param}`, filter.actor);
     if (filter.from !== undefined) narrow((param) => `at >= ${param}::timestamptz`, filter.from);
     if (filter.types !== undefined) narrow((param) => `type = ANY(${param}::text[])`, filter.types);
     const where = conditions.length === 0 ? "" : `WHERE ${conditions.join(" AND ")}`;
@@ -193,18 +220,7 @@ export class PgTransactions implements Transactions {
       : filter.newest !== undefined ? `SELECT * FROM (SELECT ${columns} FROM record_event ${where} ORDER BY seq DESC LIMIT $${params.length}) AS newest ORDER BY seq`
       : `SELECT ${columns} FROM record_event ${where} ORDER BY seq`;
     const { rows } = await this.#pool.query<EventRow>(query, params);
-    return rows.map((row) =>
-      historyEntry({
-        seq: Number(row.seq),
-        recordId: row.record_id,
-        type: row.type,
-        action: row.action,
-        record: row.record,
-        reason: row.reason,
-        actor: row.actor,
-        at: row.at.toISOString(),
-      }),
-    );
+    return rows.map(entryOf);
   }
 
   /**
@@ -310,6 +326,19 @@ async function putRecord(client: PoolClient, record: RecordEnvelope): Promise<vo
        created_at = excluded.created_at, updated_at = excluded.updated_at`,
     [record.id, record.type, record.version, JSON.stringify(record.fields), record.createdAt, record.updatedAt],
   );
+}
+
+function entryOf(row: EventRow): HistoryEntry {
+  return historyEntry({
+    seq: Number(row.seq),
+    recordId: row.record_id,
+    type: row.type,
+    action: row.action,
+    record: row.record,
+    reason: row.reason,
+    actor: row.actor,
+    at: row.at.toISOString(),
+  });
 }
 
 function recordOf(row: RecordRow): RecordEnvelope {

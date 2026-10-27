@@ -11,6 +11,7 @@ import { build } from "esbuild";
 import { pluginSchema, type PluginRecords } from "@storytree/library";
 
 import { checkPlugin } from "./factory/contract.js";
+import { pluginServices, type ServiceHost } from "./factory/factory.js";
 import { composeParts, mount, offSaid, partsPlugin, PLUGIN_INTERFACE, pluginExport, recordKinds, standIn, storyParts } from "./index.js";
 
 /** The loader's own entry, as a fixture host's composing module imports it (the fixture installs no loader of its own). */
@@ -283,7 +284,7 @@ test("5.7 `plugin contract`, on the command line and as a tool, says what a plug
   const { act, tool } = await pluginVerb(t, "contract");
   const { text } = await act({});
   assert.match(text, /"interface": 1\b/);
-  for (const kind of ["verbs", "tools", "claimChecks", "pipelineJobs", "projectRecords", "surfaces"]) assert.match(text, new RegExp(`^  ${kind} \\(mounted by`, "m"));
+  for (const kind of ["verbs", "tools", "claimChecks", "pipelineJobs", "projectRecords", "surfaces", "services"]) assert.match(text, new RegExp(`^  ${kind} \\(mounted by`, "m"));
   assert.match(text, /"recordKinds": \[\{ "kind": "<plugin>\.<kind>", "version": 1, "fields": <a JSON Schema of type "object">, "writers"/, "and a plugin's own kinds of record");
   assert.match(text, /"librarian": \{ "role": "<database role>", "update"\?: true \}/, "and its own librarian's role and update right");
   assert.equal((tool as { name?: string }).name, "plugin_contract", "an agent reaches it as a tool");
@@ -369,4 +370,48 @@ test("5.9 `plugin remove-records <plugin>` refuses a plugin switched on, removin
   assert.deepEqual(removed.map(({ listed }) => listed), [all], "it removes exactly what it listed");
   assert.match((await act({ plugin: "voice", yes: true }, { library })).text, /voice has no records in this project/);
   assert.equal((tool as { name?: string }).name, "remove_plugin_records", "an agent reaches it as a tool");
+});
+
+test("5.12 · a plugin's manifest declares its long-running services, each { name, from, export, run } with run \"always\" or { every: \"<n>m\" } and the export { start(host) }: `plugin check` loads one declaring only services, saying how many, and refuses a malformed one with why", async (t) => {
+  const services = (entries: unknown, module = "export const listen = { async start(host) { await new Promise((ended) => host.stopping.addEventListener(\"abort\", ended)); host.log(`stopped in ${host.folder}`); } };\nexport const commit = { start() {} };\n") => ({
+    exports: { "./services": "./services.js" },
+    manifest: { interface: PLUGIN_INTERFACE, services: entries },
+    files: { "services.js": module },
+  });
+  const listen = { name: "listen", from: "./services", export: "listen", run: "always" };
+  const commit = { name: "commit", from: "./services", export: "commit", run: { every: "15m" } };
+  const folder = factory(t, {
+    voice: services([listen, commit]),
+    unnamed: services([{ ...listen, name: "" }]),
+    hourly: services([{ ...listen, run: "hourly" }]),
+    "no-unit": services([{ ...commit, run: { every: "15" } }]),
+    twice: services([listen, { ...commit, name: "listen" }]),
+    "no-start": services([listen], "export const listen = { run() {} };\n"),
+    unexported: services([{ ...listen, from: "./listen" }]),
+    "no-list": services(listen),
+  });
+  assert.deepEqual(checkPlugin(folder, "voice"), { loads: true, adds: { services: 2 }, problems: [] }, "a plugin declaring only services is a plugin");
+  const declared = pluginServices(folder, "voice");
+  assert.deepEqual(declared.map(({ name, run }) => ({ name, run })), [{ name: "listen", run: "always" }, { name: "commit", run: { every: "15m" } }]);
+  const stopping = new AbortController();
+  const said: string[] = [];
+  const host: ServiceHost = { folder: path.join(folder, "plugins", "voice"), settings: {} as ServiceHost["settings"], log: (line) => said.push(line), stopping: stopping.signal };
+  const running = declared[0]!.start(host);
+  stopping.abort();
+  await running;
+  assert.deepEqual(said, [`stopped in ${host.folder}`], "the declared start runs, handed the host, until its stop signal fires");
+
+  for (const [plugin, why] of [
+    ["unnamed", /unnamed's service 1 has no name/],
+    ["hourly", /hourly's service listen runs "hourly", not "always" or \{ every: "<n>m" \}/],
+    ["no-unit", /no-unit's service commit runs \{"every":"15"\}, not "always" or \{ every: "<n>m" \}/],
+    ["twice", /twice declares the service listen twice/],
+    ["no-start", /no-start's service listen: services\.js exports no \{ start\(host\) \} called listen/],
+    ["unexported", /unexported's service listen names "\.\/listen", which it does not export/],
+    ["no-list", /no-list's storytree manifest names services with no list/],
+  ] as const) {
+    const checked = checkPlugin(folder, plugin);
+    assert.equal(checked.loads, false, plugin);
+    assert.match(checked.problems.join("\n"), why);
+  }
 });

@@ -1,5 +1,5 @@
 /**
- * Capability 2 · Library transactions: ONE behaviour suite, one test per contract 2.1-2.9, 2.12 and 2.14-2.16 in
+ * Capability 2 · Library transactions: ONE behaviour suite, one test per contract 2.1-2.9, 2.12 and 2.14-2.19 in
  * the library story. Each backend registers it (memory.test.ts, pg.test.ts) and it must pass
  * unchanged on every one. Parity is the point: later stories test against the in-memory twin, so
  * the twin has to behave exactly as Postgres does.
@@ -11,7 +11,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { setTimeout as sleep } from "node:timers/promises";
 
-import { StaleRevertError } from "./records.js";
+import { LaterWriterError, StaleRevertError } from "./records.js";
 import type { HistoryEntry, RecordEnvelope, Transactions } from "./types.js";
 
 /** A fresh, empty store, and how to dispose of it. */
@@ -603,6 +603,82 @@ export function transactionsBehaviourSuite(label: string, makeStore: () => Promi
     );
     assert.deepEqual(await store.history(), before.history, "no history entry was written");
     assert.deepEqual(await store.get("s-1"), before.record);
+  });
+
+  contract("2.17", "history narrows to one writer's changes, on the server", async (store) => {
+    await store.save({ id: "a-1", type: "note", fields: { v: 1 }, actor: "session:one" });
+    await store.save({ id: "a-2", type: "note", fields: { v: 1 } });
+    await store.edit({ id: "a-2", fields: { v: 2 }, actor: "session:one" });
+    await store.edit({ id: "a-1", fields: { v: 2 }, actor: "session:two" });
+
+    const own = await store.history({ actor: "session:one" });
+    assert.deepEqual(own.map((entry) => [entry.recordId, entry.record.fields.v]), [["a-1", 1], ["a-2", 2]]);
+    assert.deepEqual((await store.history({ actor: "session:one", id: "a-1" })).length, 1, "combined with the other filters");
+    assert.deepEqual(await store.history({ actor: "nobody" }), []);
+  });
+
+  contract("2.18", "revertWrites writes every record one writer wrote back to its state before that writer's first write, in one write", async (store) => {
+    const kept = await store.save({ id: "w-kept", type: "note", fields: { title: "Kept", body: "good" }, actor: "ann" });
+    const gone = await store.save({ id: "w-gone", type: "note", fields: { title: "Gone" }, actor: "ann" });
+    await store.save({ id: "w-health", type: "health", fields: { state: "red" }, actor: "ann" });
+    const [keptFirst] = await store.history({ id: "w-kept" });
+    const [goneFirst] = await store.history({ id: "w-gone" });
+    await store.edit({ id: "w-kept", fields: { title: "Bad", body: undefined }, actor: "bob" });
+    await store.edit({ id: "w-kept", fields: { junk: "added" }, actor: "bob" });
+    await store.retire({ id: "w-gone", reason: "thought a duplicate", actor: "bob" });
+    await store.save({ id: "w-new", type: "note", fields: { title: "Bob's" }, actor: "bob" });
+    await store.edit({ id: "w-health", fields: { state: "green" }, actor: "bob" });
+    await store.edit({ id: "w-health", fields: { state: "amber" }, actor: "cat" });
+    await store.save({ id: "w-own", type: "note", fields: { title: "Bob's, retired" }, actor: "bob" });
+    await store.retire({ id: "w-own", reason: "done with it", actor: "bob" });
+
+    const reverted = await store.revertWrites({ of: "bob", actor: "cat", reason: "bob was misled" });
+    assert.deepEqual(
+      reverted,
+      [{ id: "w-gone", action: "updated", to: goneFirst!.seq }, { id: "w-kept", action: "updated", to: keptFirst!.seq }, { id: "w-new", action: "retired" }],
+      "each record bob wrote, by id; one bob made and retired himself is already as it was, and health is left out",
+    );
+    const back = await store.get("w-kept");
+    assert.deepEqual(back, { ...kept, updatedAt: back!.updatedAt }, "the whole state from before bob's first write");
+    const live = await store.get("w-gone");
+    assert.deepEqual(live, { ...gone, updatedAt: live!.updatedAt }, "a record bob retired is live again");
+    assert.equal(await store.get("w-new"), null, "a record bob created is retired");
+    assert.equal(await store.get("w-own"), null);
+    assert.equal((await store.get("w-health"))?.fields.state, "amber", "health is not a writer's work to undo");
+    const entries = changesOf((await store.history()).slice(-3));
+    assert.deepEqual(
+      entries.map(({ recordId, action, reason, actor }) => ({ recordId, action, reason, actor })),
+      [
+        { recordId: "w-gone", action: "updated", reason: `reverted bob's writes, to ${goneFirst!.seq}: bob was misled`, actor: "cat" },
+        { recordId: "w-kept", action: "updated", reason: `reverted bob's writes, to ${keptFirst!.seq}: bob was misled`, actor: "cat" },
+        { recordId: "w-new", action: "retired", reason: "reverted bob's writes, which created it: bob was misled", actor: "cat" },
+      ],
+    );
+    assert.deepEqual(await store.revertWrites({ of: "nobody" }), [], "a writer who wrote nothing reverts nothing");
+  });
+
+  contract("2.19", "revertWrites is refused, writing nothing, naming each record another writer wrote to after that writer's first write", async (store) => {
+    await store.save({ id: "x-1", type: "note", fields: { v: 1 } });
+    await store.save({ id: "x-2", type: "note", fields: { v: 1 } });
+    await store.save({ id: "x-3", type: "note", fields: { v: 1 } });
+    await store.edit({ id: "x-1", fields: { v: 2 }, actor: "bob" });
+    await store.edit({ id: "x-2", fields: { v: 2 }, actor: "bob" });
+    await store.edit({ id: "x-3", fields: { v: 2 }, actor: "bob" });
+    await store.edit({ id: "x-1", fields: { v: 3 }, actor: "cat" });
+    await store.edit({ id: "x-3", fields: { v: 3 } });
+    await store.edit({ id: "x-3", fields: { v: 4 }, actor: "bob" });
+    const before = { history: await store.history(), records: await store.list("note") };
+    const [catSeq, unsignedSeq] = before.history.slice(-3, -1).map((entry) => entry.seq);
+
+    await assert.rejects(store.revertWrites({ of: "bob", actor: "ann" }), (error: unknown) => {
+      assert.ok(error instanceof LaterWriterError);
+      assert.deepEqual(error.records, [{ id: "x-1", seq: catSeq, actor: "cat" }, { id: "x-3", seq: unsignedSeq }], "one written after, one between bob's writes, by a writer who gave no name");
+      assert.match(error.message, /x-1.*x-3/s);
+      return true;
+    });
+    await assert.rejects(store.revertWrites({ of: "cat", validate: () => { throw new Error("refused by the check"); } }), /refused by the check/);
+    assert.deepEqual(await store.history(), before.history, "no history entry was written");
+    assert.deepEqual(await store.list("note"), before.records);
   });
 
 }

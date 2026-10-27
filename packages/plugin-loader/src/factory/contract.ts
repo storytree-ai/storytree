@@ -8,7 +8,7 @@
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
-import { PLUGIN_INTERFACE, pluginLibrarian, pluginParts, pluginRecordKinds } from "./factory.js";
+import { PLUGIN_INTERFACE, pluginLibrarian, pluginParts, pluginRecordKinds, pluginServices } from "./factory.js";
 
 /** Each kind a factory plugin may stand in for a part with: the hosts that mount it, and what one declaration is. */
 export const STAND_IN_KINDS: Readonly<Record<string, { readonly hosts: string; readonly shape: string }>> = {
@@ -23,6 +23,7 @@ export const STAND_IN_KINDS: Readonly<Record<string, { readonly hosts: string; r
   surfaces: { hosts: "the desktop app", shape: "{ id, name, description, switchable, within?, follows?, settings: [] }: a surface of the window" },
   pageAnswers: { hosts: "the desktop app", shape: "an answer the window's page asks the app for, by channel" },
   pageChannels: { hosts: "the desktop app", shape: "a channel the window's page may ask the app on" },
+  services: { hosts: "the service host of each machine whose settings turn the service on", shape: "{ start(host) }, running until host.stopping fires, named by an entry { name, from, export, run } rather than a list" },
 };
 
 /** The verbs module a new plugin starts with: one family, with one verb that needs no project and answers with text. */
@@ -115,6 +116,7 @@ export function checkPlugin(folder: string | undefined, plugin: string): PluginC
   const adds: Record<string, number> = {};
   const problems: string[] = [];
   for (const kind of Object.keys(STAND_IN_KINDS)) {
+    if (kind === "services") continue;
     let declared: unknown[];
     try {
       declared = pluginParts(folder, plugin, kind);
@@ -133,6 +135,13 @@ export function checkPlugin(folder: string | undefined, plugin: string): PluginC
     if (kinds.length > 0) adds.recordKinds = kinds.length;
   } catch (error) {
     // A plugin, package or manifest that cannot be read is said once, above.
+    const message = (error as Error).message;
+    if (!problems.includes(message)) problems.push(message);
+  }
+  try {
+    const services = pluginServices(folder, plugin);
+    if (services.length > 0) adds.services = services.length;
+  } catch (error) {
     const message = (error as Error).message;
     if (!problems.includes(message)) problems.push(message);
   }
@@ -163,6 +172,11 @@ export function contractSaid(): string {
     "",
     "The kinds a part can be stood in with, and one declaration of each:",
     ...kinds,
+    "",
+    "Its long-running services, which the service host of each machine whose settings turn one on runs:",
+    "  \"services\": [{ \"name\": \"<service>\", \"from\": \"./services\", \"export\": \"listen\", \"run\": \"always\" | { \"every\": \"<n>m\" } }]:",
+    "    always starts it again whenever it ends; every starts it on that cadence, never while the last run still goes;",
+    "    the export is { start(host) }, handed host { folder, settings, log(line), stopping, context? }, and running until host.stopping fires.",
     "",
     "Its own kinds of record, which the library keeps while the plugin is mounted and keeps dormant, hidden but intact, while it is not:",
     "  \"recordKinds\": [{ \"kind\": \"<plugin>.<kind>\", \"version\": 1, \"fields\": <a JSON Schema of type \"object\">, \"writers\": [\"<database role>\", …],",

@@ -296,6 +296,7 @@ test("17.8 · library revert writes a record back to an entry library history sh
   const shown = await verbOf("history").act({ id: decision.id, fields: false }, context, WORDS);
   assert.match(shown.text, new RegExp(`\\b${first}\\b.*created`), "history shows the entry to revert to");
 
+  assert.equal(verbOf("revert").writes, true, "a door runs it as a write, handing it the session as writer");
   const done = await verbOf("revert").act({ id: decision.id, to: String(first), read: String(retired), reason: "the retirement was a mistake" }, context, WORDS);
   assert.match(done.text, new RegExp(`${decision.id}.*${first}`));
   const back = await library.get(decision.id);

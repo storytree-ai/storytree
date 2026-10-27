@@ -16,7 +16,7 @@ export type { CloudSqlConfig, ConnectionProblem, ConnectOptions, FactoryLink, Op
 export { CONNECT_TIMEOUT_MS, ConnectionError, connectionString, explainConnectTimeout, ProjectGoneError, ProjectNameError, RestoreRefusedError, SEED_CONNECTION } from "./project/index.js";
 export { knowledgeGuidance, LinkLoopError, SupersessionLoopError } from "./knowledge/index.js";
 export { DependencyLoopError, MissingReferenceError } from "./references.js";
-export { NumberTakenError, StaleRevertError } from "./transactions/index.js";
+export { NumberTakenError } from "./transactions/index.js";
 export type { Counts, KindCount, RecentChange, TitleHit } from "./data/data-questions.js";
 export { ANCHOR_ID, anchorGaps, beforeCutover, CONTRACT_DEFINITION, LifecycleError, LONG_CONTRACT_TITLE, planGuidance, pullSaid, RetireRefusedError, WaitLoopError } from "./work/index.js";
 export { MissingUpgradeError, NewerSchemaError, NEW_LINE, OWNER_TIME_ZONE, parseSchedule, pluginSchema, SchemaError, UnknownTypeError } from "./schema/index.js";

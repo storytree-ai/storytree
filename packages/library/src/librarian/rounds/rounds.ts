@@ -12,7 +12,7 @@
  */
 import type { Library, Related, SchemaRecord } from "../../index.js";
 
-import { newNotes, type NewNote } from "../catalogue/index.js";
+import { markedWrites, newNotes, type MarkedWrite, type NewNote } from "../catalogue/index.js";
 import { brokenEdges, type BrokenEdge } from "../decision-log/index.js";
 import { memoryWorklist, processGaps, type MemoryItem, type ProcessGaps } from "../graduation/index.js";
 import { relatedUnlinked, unrestedDecisions } from "../links/index.js";
@@ -70,6 +70,8 @@ export interface Worklist {
     readonly health: BrokenEdge[];
     /** Catalogue (3): notes written new since the session started, with what might already cover them; unread with no start. */
     readonly catalogue?: NewNote[];
+    /** Catalogue (3): writes to agent roles and principles since the session started made after their session read outside text; unread with no start. */
+    readonly marked?: MarkedWrite[];
     /** Why a list was left unread: with no session start, which notes it wrote is unknown. */
     readonly unread?: string;
     /** Graduation (4): processes and tools that match nothing, when the tools served are known. */
@@ -150,6 +152,7 @@ export async function worklist(library: Library, options: WorklistOptions): Prom
   const health = await brokenEdges(library, notes);
   if (since !== undefined) await phase("catalogue");
   const catalogue = since === undefined ? undefined : await newNotes(library, since, notes);
+  const marked = since === undefined ? undefined : await markedWrites(library, since);
   if (options.tools !== undefined) await phase("processes");
   const processes = options.tools === undefined ? undefined : await processGaps(library, options.tools, notes);
   await phase("questions");
@@ -161,7 +164,7 @@ export async function worklist(library: Library, options: WorklistOptions): Prom
       links,
       ...(related === undefined || catalogue === undefined
         ? { unread: "No session start is recorded, so the notes this session wrote are unknown: the catalogue and related lists were not gathered. Search for each note you wrote, and read its related notes, by hand." }
-        : { related, catalogue }),
+        : { related, catalogue, ...(marked === undefined ? {} : { marked }) }),
       health,
       ...(processes === undefined ? {} : { processes }),
       questions,
@@ -191,11 +194,13 @@ export interface WorklistView {
     readonly related?: { source: string; hits: (NoteRef & { readonly linked: boolean })[] }[];
     readonly health: BrokenEdge[];
     readonly catalogue?: { note: NoteRef; lookalikes: NoteRef[] }[];
+    /** Marked writes to roles and principles: the note as the write left it, which write, by whom, and what its session had read. */
+    readonly marked?: { note: NoteRef; seq: number; action: MarkedWrite["action"]; actor?: string; outsideRead: readonly string[] }[];
     readonly unread?: string;
     readonly processes?: { processes: NoteRef[]; tools: string[] };
     readonly questions: NoteRef[];
     /** How many each list holds, of which the first few are shown. */
-    readonly counts: { links: number; related?: number; health: number; catalogue?: number; processes?: number; questions: number };
+    readonly counts: { links: number; related?: number; health: number; catalogue?: number; marked?: number; processes?: number; questions: number };
   };
   /** Each due plugin's guidance, named, after the core lists. */
   readonly plugins?: { plugin: string; kinds: readonly string[]; guidance: NoteRef[]; framing: string }[];
@@ -217,6 +222,8 @@ export function worklistView(full: Worklist): WorklistView {
       ...(rest.related === undefined ? {} : { related: shown(rest.related).map(({ source, hits }) => ({ source, hits: shown(hits).map((hit) => ({ id: hit.id, type: hit.type, title: hit.title, linked: hit.linked })) })) }),
       health: shown(rest.health),
       ...(rest.catalogue === undefined ? {} : { catalogue: shown(rest.catalogue).map(({ note, lookalikes }) => ({ note: ref(note), lookalikes: shown(lookalikes).map(ref) })) }),
+      ...(rest.marked === undefined ? {} : { marked: shown(rest.marked).map(({ id, type, fields, seq, action, actor, outsideRead }) =>
+        ({ note: ref({ id, type, fields }), seq, action, ...(actor === undefined ? {} : { actor }), outsideRead })) }),
       ...(rest.unread === undefined ? {} : { unread: rest.unread }),
       ...(rest.processes === undefined ? {} : { processes: { processes: shown(rest.processes.processes).map(ref), tools: rest.processes.tools } }),
       questions: shown(rest.questions).map(ref),
@@ -225,6 +232,7 @@ export function worklistView(full: Worklist): WorklistView {
         ...(rest.related === undefined ? {} : { related: rest.related.length }),
         health: rest.health.length,
         ...(rest.catalogue === undefined ? {} : { catalogue: rest.catalogue.length }),
+        ...(rest.marked === undefined ? {} : { marked: rest.marked.length }),
         ...(rest.processes === undefined ? {} : { processes: rest.processes.processes.length }),
         questions: rest.questions.length,
       },

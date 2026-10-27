@@ -410,3 +410,28 @@ test("17.10 · The library declares the fyi family: fyi new records an FYI, by t
   assert.match(after, /A routine was paused/);
   await assert.rejects(verbOf("heard").act({ ids: ["fyi_000000000000"] }, context, WORDS), VerbRefusal);
 });
+
+test("17.11 · library history shows, under each write made after its session read outside text, what was read", async (t) => {
+  const storytree = await connect({ url: testServerUrl() });
+  const project = uniqueProjectName();
+  t.after(async () => {
+    try {
+      await storytree.dropProject(project);
+    } finally {
+      await storytree.close();
+    }
+  });
+  const library = await storytree.openProject(project);
+  const family = LIBRARY_FAMILIES.find((one) => one.name === "library")!;
+  const history = family.verbs.find((one) => mounted(one.command) && one.command.name === "history")!;
+  const context: LibraryVerbContext = { library, project, session: "curator", folder: tmpdir(), writer: { actor: "session:curator" }, claims: async () => [], testedNumbers: async () => ({ tested: [], untested: [] }) };
+
+  const decision = await library.recordDecision({ status: "accepted", title: "Kept words", text: "D1. The first wording." },
+    { actor: "session:lane", outsideRead: async () => ["gh pr view 12", "WebFetch https://example.com/post"] });
+  await library.editNote(decision.id, { text: "D1. Reworded by a session that read nothing outside." }, { actor: "session:other" });
+
+  const shown = (await history.act({ id: decision.id, fields: false }, context, WORDS)).text.split("\n");
+  const created = shown.findIndex((line) => line.includes("created"));
+  assert.match(shown[created + 1]!, /read outside text first: gh pr view 12; WebFetch https:\/\/example\.com\/post/, "under the marked write, what its session had read");
+  assert.equal(shown.filter((line) => line.includes("read outside text")).length, 1, "the unmarked edit shows none");
+});

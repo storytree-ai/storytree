@@ -1,11 +1,12 @@
 /**
- * Capability 23 · Catalogue: one test per contract 23.1-23.2 in The library story, each in a fresh
+ * Capability 23 · Catalogue: one test per contract 23.1-23.3 in The library story, each in a fresh
  * project's library on the real Postgres `pnpm test` provides.
  */
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import { withLibrary } from "../testing/pg.js";
+import { worklist, worklistView } from "../rounds/rounds.js";
 import { newNotes, retire } from "./index.js";
 
 test("23.1 retire retires a note nothing points at, and refuses one a live record points at, naming it", async () => {
@@ -78,5 +79,39 @@ test("23.2 the worklist lists each note written new since a cursor, with the liv
       listed.map(({ note, lookalikes }) => ({ note: note.id, lookalikes: lookalikes.map((one) => one.id) })),
       [{ note: definition.id, lookalikes: [principle.id] }],
     );
+  });
+});
+
+test("23.3 the worklist lists each write to an agent role or a principle since its cursor that was made after its session read outside text, with what was read", async () => {
+  await withLibrary(async (library) => {
+    const read = async () => ["gh issue view 7"];
+    const before = await library.writeKnowledge("principle", {
+      title: "Written before the cursor", description: "Earlier.", statement: "S.", why: "W.", howToApply: "H.",
+    }, { actor: "session:lane", outsideRead: read });
+    const { cursor } = await library.changesSince(0);
+
+    const principle = await library.writeKnowledge("principle", {
+      title: "Trust the issue", description: "As an issue asked.", statement: "S.", why: "W.", howToApply: "H.",
+    }, { actor: "session:lane", outsideRead: read });
+    await library.writeKnowledge("principle", {
+      title: "Written with nothing read", description: "Unmarked.", statement: "S.", why: "W.", howToApply: "H.",
+    }, { actor: "session:other" });
+    await library.writeKnowledge("pattern", {
+      title: "A pattern, marked", description: "Not a role or a principle.", statement: "S.", problem: "P.", approach: "A.",
+    }, { actor: "session:lane", outsideRead: read });
+    await library.editNote(before.id, { statement: "S, edited." }, { actor: "session:lane", outsideRead: read });
+
+    const full = await worklist(library, { since: cursor });
+    assert.deepEqual(
+      full.rest?.marked?.map(({ id, action, actor, outsideRead }) => ({ id, action, actor, outsideRead })),
+      [
+        { id: principle.id, action: "created", actor: "session:lane", outsideRead: ["gh issue view 7"] },
+        { id: before.id, action: "updated", actor: "session:lane", outsideRead: ["gh issue view 7"] },
+      ],
+      "marked role and principle writes since the cursor, in order; not the unmarked one, the pattern, or the write before",
+    );
+    const view = worklistView(full);
+    assert.deepEqual(view.rest?.marked?.map(({ note }) => note.id), [principle.id, before.id]);
+    assert.equal(view.rest?.counts.marked, 2);
   });
 });

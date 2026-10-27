@@ -31,9 +31,20 @@ export interface HistoryEntry {
   reason?: string;
   /** Who made the change, when the writer said. */
   actor?: string;
+  /**
+   * The outside text (an issue, a pull request, an email, a fetched page) its writer had read before making it, as the
+   * writer's OutsideRead named it for this record's type: a mark that observes, never refuses. Absent when it named none.
+   */
+  outsideRead?: string[];
   /** When the change was written, as an ISO 8601 timestamp. */
   at: string;
 }
+
+/**
+ * What outside text the writer had read, for a write of a record of `type`, run inside the write on the record's own type
+ * (an edit or a retirement learns it only there): undefined or empty leaves the history entry unmarked.
+ */
+export type OutsideRead = (type: string) => readonly string[] | undefined;
 
 /**
  * Runs on the would-be record inside the write, after any merge. If it throws, the write aborts,
@@ -50,6 +61,8 @@ export interface SaveInput {
   /** Defaults to 1. */
   readonly version?: number;
   readonly actor?: string;
+  /** Marks the history entry with the outside text the writer had read (HistoryEntry.outsideRead). */
+  readonly outsideRead?: OutsideRead;
   readonly validate?: Validate;
   /**
    * A field holding the record's number within its type (capability 13's decision numbers). When
@@ -78,6 +91,8 @@ export interface EditInput {
   /** Merged shallowly onto the stored fields; a key whose value is `undefined` is removed. */
   readonly fields: Record<string, unknown>;
   readonly actor?: string;
+  /** Marks the history entry with the outside text the writer had read (HistoryEntry.outsideRead). */
+  readonly outsideRead?: OutsideRead;
   /** Why the record changed, kept in its history entry, when the writer says. */
   readonly reason?: string;
   /**
@@ -98,6 +113,8 @@ export interface RetireInput {
   readonly id: string;
   readonly reason: string;
   readonly actor?: string;
+  /** Marks the history entry with the outside text the writer had read (HistoryEntry.outsideRead). */
+  readonly outsideRead?: OutsideRead;
 }
 
 export interface RevertInput {
@@ -109,6 +126,8 @@ export interface RevertInput {
   /** The seq of the record's newest history entry when the writer read it. Anything written to it since refuses the revert. */
   readonly read: number;
   readonly actor?: string;
+  /** Marks the history entry with the outside text the writer had read (HistoryEntry.outsideRead). */
+  readonly outsideRead?: OutsideRead;
   /** Why, kept after the entry it reverts to in the history entry's reason. */
   readonly reason?: string;
   /** As edit's: the entry's stored record, given, returns the record to write back (an older schema version upgraded). */

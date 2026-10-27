@@ -25,6 +25,8 @@ export interface SnapshotEvent {
   record: unknown;
   reason?: string;
   actor?: string;
+  /** The outside text its writer had read (capability 2's HistoryEntry.outsideRead); absent when unmarked. */
+  outsideRead?: string[];
   at: string;
 }
 
@@ -69,6 +71,7 @@ interface EventRow {
   record: unknown;
   reason: string | null;
   actor: string | null;
+  outside_read: string[] | null;
   at: string;
 }
 
@@ -88,7 +91,7 @@ export async function readSnapshot(pool: Pool, project: string): Promise<Project
            FROM record ORDER BY id COLLATE "C"`,
       );
       const events = await client.query<EventRow>(
-        `SELECT seq, record_id, type, action, record, reason, actor, to_json(at) #>> '{}' AS at
+        `SELECT seq, record_id, type, action, record, reason, actor, outside_read, to_json(at) #>> '{}' AS at
            FROM record_event ORDER BY seq`,
       );
       return {
@@ -112,6 +115,7 @@ export async function readSnapshot(pool: Pool, project: string): Promise<Project
           record: row.record,
           ...(row.reason === null ? {} : { reason: row.reason }),
           ...(row.actor === null ? {} : { actor: row.actor }),
+          ...(row.outside_read === null ? {} : { outsideRead: row.outside_read }),
           at: row.at,
         })),
       };
@@ -157,13 +161,13 @@ export async function writeSnapshot(pool: Pool, project: string, snapshot: Proje
     }
     for (const batch of batches(snapshot.history)) {
       await client.query(
-        `INSERT INTO record_event (seq, record_id, type, action, record, reason, actor, at)
-         SELECT seq, record_id, type, action, record, reason, actor, at
+        `INSERT INTO record_event (seq, record_id, type, action, record, reason, actor, outside_read, at)
+         SELECT seq, record_id, type, action, record, reason, actor, outside_read, at
            FROM jsonb_to_recordset($1::jsonb)
-             AS e(seq bigint, record_id text, type text, action text, record jsonb, reason text, actor text, at timestamptz)`,
+             AS e(seq bigint, record_id text, type text, action text, record jsonb, reason text, actor text, outside_read jsonb, at timestamptz)`,
         [JSON.stringify(batch.map((event) => ({
           seq: event.seq, record_id: event.recordId, type: event.type, action: event.action, record: event.record,
-          reason: event.reason ?? null, actor: event.actor ?? null, at: event.at,
+          reason: event.reason ?? null, actor: event.actor ?? null, outside_read: event.outsideRead ?? null, at: event.at,
         })))],
       );
     }

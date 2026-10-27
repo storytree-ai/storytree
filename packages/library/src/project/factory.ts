@@ -216,7 +216,11 @@ export class InheritedRecords extends SchemaRecords {
   }
 }
 
-/** Who is writing and the abort signal, from an edit's options, for a write that is not an edit. */
+/** Who is writing, the abort signal and what outside text it read, from an edit's options, for a write that is not an edit. */
 function writerOf(options: WriteOptions): WriteOptions {
-  return { ...(options.actor === undefined ? {} : { actor: options.actor }), ...(options.signal === undefined ? {} : { signal: options.signal }) };
+  return {
+    ...(options.actor === undefined ? {} : { actor: options.actor }),
+    ...(options.signal === undefined ? {} : { signal: options.signal }),
+    ...(options.outsideRead === undefined ? {} : { outsideRead: options.outsideRead }),
+  };
 }

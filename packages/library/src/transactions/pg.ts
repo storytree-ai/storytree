@@ -6,7 +6,7 @@ import type { Pool, PoolClient } from "pg";
 
 import { sqlState } from "../project/connection-error.js";
 import { seconds, waitsOf } from "../project/server.js";
-import { check, listFilter, editedRecord, historyEntry, historyFilter, now, numbered, revertedRecord, revertInput, revertReason, savedRecord, writesReverted, writtenBy } from "./records.js";
+import { check, listFilter, editedRecord, historyEntry, historyFilter, now, numbered, outsideReadOf, revertedRecord, revertInput, revertReason, savedRecord, writesReverted, writtenBy } from "./records.js";
 import type {
   EditInput,
   HistoryEntry,
@@ -66,6 +66,7 @@ interface EventRow {
   record: RecordEnvelope;
   reason: string | null;
   actor: string | null;
+  outside_read: string[] | null;
   at: Date;
 }
 
@@ -85,7 +86,7 @@ export class PgTransactions implements Transactions {
       const current = await lockCurrent(client, input.id);
       const record = savedRecord(await numberedIn(client, input), current, now());
       check(record, input.validate);
-      await appendEvent(client, current === undefined ? "created" : "updated", record, record.updatedAt, input.actor);
+      await appendEvent(client, current === undefined ? "created" : "updated", record, record.updatedAt, input.actor, undefined, outsideReadOf(input.outsideRead, record.type));
       await putRecord(client, record);
       return record;
     }, input.signal);
@@ -140,7 +141,7 @@ export class PgTransactions implements Transactions {
         record.fields = (await numberedIn(client, { ...record, sequence: input.sequence, sequenceNeverHeld: input.sequenceNeverHeld === true })).fields;
       }
       check(record, input.validate);
-      await appendEvent(client, "updated", record, record.updatedAt, input.actor, input.reason);
+      await appendEvent(client, "updated", record, record.updatedAt, input.actor, input.reason, outsideReadOf(input.outsideRead, record.type));
       await putRecord(client, record);
       return record;
     }, input.signal);
@@ -150,7 +151,7 @@ export class PgTransactions implements Transactions {
     return this.#write(async (client) => {
       const current = await lockCurrent(client, input.id);
       if (current === undefined) return;
-      await appendEvent(client, "retired", current, now(), input.actor, input.reason);
+      await appendEvent(client, "retired", current, now(), input.actor, input.reason, outsideReadOf(input.outsideRead, current.type));
       await client.query("DELETE FROM record WHERE id = $1", [input.id]);
     }, input.signal);
   }
@@ -167,7 +168,7 @@ export class PgTransactions implements Transactions {
       const target = rows[0];
       const record = revertedRecord(input, target, target === undefined ? undefined : Number(target.newest), current, now());
       check(record, input.validate);
-      await appendEvent(client, "updated", record, record.updatedAt, input.actor, revertReason(input));
+      await appendEvent(client, "updated", record, record.updatedAt, input.actor, revertReason(input), outsideReadOf(input.outsideRead, record.type));
       await putRecord(client, record);
       return record;
     }, input.signal);
@@ -176,7 +177,7 @@ export class PgTransactions implements Transactions {
   revertWrites(input: RevertWritesInput): Promise<RevertedWrite[]> {
     return this.#write(async (client) => {
       const { rows } = await client.query<EventRow>(
-        `SELECT seq, record_id, type, action, record, reason, actor, at FROM record_event
+        `SELECT seq, record_id, type, action, record, reason, actor, outside_read, at FROM record_event
          WHERE record_id IN (SELECT record_id FROM record_event WHERE actor = $1 AND type <> 'health') ORDER BY seq`,
         [input.of],
       );
@@ -211,7 +212,7 @@ export class PgTransactions implements Transactions {
     if (filter.from !== undefined) narrow((param) => `at >= ${param}::timestamptz`, filter.from);
     if (filter.types !== undefined) narrow((param) => `type = ANY(${param}::text[])`, filter.types);
     const where = conditions.length === 0 ? "" : `WHERE ${conditions.join(" AND ")}`;
-    const columns = "seq, record_id, type, action, record, reason, actor, at";
+    const columns = "seq, record_id, type, action, record, reason, actor, outside_read, at";
     // Only the changes kept leave the server: a limit is applied there, the newest read backwards and turned round.
     if (filter.oldest !== undefined) params.push(filter.oldest);
     if (filter.newest !== undefined) params.push(filter.newest);
@@ -310,11 +311,12 @@ async function appendEvent(
   at: string,
   actor: string | undefined,
   reason?: string,
+  outsideRead?: string[],
 ): Promise<void> {
   await client.query(
-    `INSERT INTO record_event (record_id, type, action, record, reason, actor, at)
-     VALUES ($1, $2, $3, $4::jsonb, $5, $6, $7)`,
-    [record.id, record.type, action, JSON.stringify(record), reason ?? null, actor ?? null, at],
+    `INSERT INTO record_event (record_id, type, action, record, reason, actor, at, outside_read)
+     VALUES ($1, $2, $3, $4::jsonb, $5, $6, $7, $8::jsonb)`,
+    [record.id, record.type, action, JSON.stringify(record), reason ?? null, actor ?? null, at, outsideRead === undefined ? null : JSON.stringify(outsideRead)],
   );
 }
 
@@ -337,6 +339,7 @@ function entryOf(row: EventRow): HistoryEntry {
     record: row.record,
     reason: row.reason,
     actor: row.actor,
+    outsideRead: row.outside_read,
     at: row.at.toISOString(),
   });
 }

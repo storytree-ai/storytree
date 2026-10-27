@@ -726,6 +726,30 @@ for (const backend of [memory, postgres]) {
     assert.deepEqual(await again.get(note.id), note);
     assert.deepEqual(await again.list(plugin("voice.note")), [note]);
   });
+
+  contract("3.19", "a write to a principle, guardrail, pattern, process, agent role or decision carries the mark of the outside text its writer had read; a write of any other kind carries none", async ({ records, transactions }) => {
+    const read = ["gh issue view 7"];
+    let asked = 0;
+    const writer = { actor: "session:one", outsideRead: async () => { asked += 1; return read; } };
+    const head = { title: "Read before you write", description: "One line." };
+    const principle = await records.create("principle", { ...head, statement: "S.", why: "W.", howToApply: "H." }, writer);
+    const story = await records.create("story", { title: "The kettle" }, writer);
+    assert.equal(asked, 1, "a new record of an unmarked kind never asks what was read");
+    await records.edit(principle.id, { statement: "S, edited." }, writer);
+    await records.edit(story.id, { title: "The kettle, edited" }, writer);
+    await records.edit(principle.id, { statement: "S, by a writer who read nothing outside." }, { actor: "session:two", outsideRead: async () => [] });
+    await records.retire(principle.id, "overtaken", writer);
+
+    const marks = (await transactions.history()).map((entry) => [entry.type, entry.action, entry.outsideRead]);
+    assert.deepEqual(marks, [
+      ["principle", "created", read],
+      ["story", "created", undefined],
+      ["principle", "updated", read],
+      ["story", "updated", undefined],
+      ["principle", "updated", undefined],
+      ["principle", "retired", read],
+    ]);
+  });
 }
 
 /** Tomorrow's schema: a story's `title` is renamed `name`, and its optional `description` becomes a required `summary`. */

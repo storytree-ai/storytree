@@ -23,12 +23,13 @@ async function withServer(projects: readonly string[], body: (storytree: Storytr
   }
 }
 
-/** A small project: a story with a capability and a contract, a decision, a memory note, an edit, a retirement and an actor. */
+/** A small project: a story with a capability and a contract, a decision written after reading outside text, a memory note, an edit, a retirement and an actor. */
 async function fill(library: Library): Promise<void> {
   const story = await library.addStory({ title: "The kettle", description: "It boils water." }, { actor: "tester" });
   const capability = await library.addCapability({ story: story.id, title: "1 · Heating" });
   await library.addContract({ capability: capability.id, title: "1.1 · It reaches the boil" });
-  const decision = await library.recordDecision({ title: "One element", text: "It heats with one element.", status: "accepted", frontCoverOf: capability.id });
+  const decision = await library.recordDecision({ title: "One element", text: "It heats with one element.", status: "accepted", frontCoverOf: capability.id },
+    { actor: "tester", outsideRead: async () => ["WebFetch https://example.com/kettles"] });
   const note = await library.defineTerm({ term: "Delivery", meaning: "The relay clicks.", links: [decision.id] });
   await library.editNote(note.id, { meaning: "The relay clicks twice." });
   const gone = await library.defineTerm({ term: "Delivery", meaning: "A whistle, left out.", links: [decision.id] });
@@ -73,7 +74,8 @@ test("1.7 restore into an empty project gives back the same records and history,
     const restored = await storytree.openProject(copy);
     const again = await storytree.snapshot(copy);
     assert.deepEqual(again.records, snapshot.records, "the same records");
-    assert.deepEqual(again.history, snapshot.history, "the same history: sequence numbers, actors, reasons and times");
+    assert.deepEqual(again.history, snapshot.history, "the same history: sequence numbers, actors, reasons, marks of outside text read and times");
+    assert.ok(again.history.some(({ outsideRead }) => outsideRead?.[0] === "WebFetch https://example.com/kettles"), "the mark of outside text read is restored");
     assert.deepEqual(await restored.projectTree(), await library.projectTree());
     const last = snapshot.history.at(-1)?.seq ?? 0;
     const next = await restored.defineTerm({ term: "Delivery", meaning: "After the restore." });

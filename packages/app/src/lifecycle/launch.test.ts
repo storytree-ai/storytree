@@ -52,8 +52,13 @@ test("1.6 the app says which build it is: its version when packaged, else the de
   const checkout = mkdtempSync(path.join(tmpdir(), "storytree-checkout-"));
   t.after(() => rmSync(checkout, { recursive: true, force: true }));
   // A commit with a fixed author, date and message is always the same commit, whatever machine makes it.
-  const env = { ...process.env, GIT_AUTHOR_DATE: "2026-01-01T00:00:00Z", GIT_COMMITTER_DATE: "2026-01-01T00:00:00Z" };
-  const git = (...args: string[]) => execFileSync("git", ["-C", checkout, "-c", "user.name=t", "-c", "user.email=t@t", "-c", "commit.gpgsign=false", ...args], { encoding: "utf8", env });
+  // The identity is set in the environment, which outranks git's config, so a shell's own GIT_AUTHOR_* cannot change it.
+  const env = {
+    ...process.env,
+    GIT_AUTHOR_NAME: "t", GIT_AUTHOR_EMAIL: "t@t", GIT_AUTHOR_DATE: "2026-01-01T00:00:00Z",
+    GIT_COMMITTER_NAME: "t", GIT_COMMITTER_EMAIL: "t@t", GIT_COMMITTER_DATE: "2026-01-01T00:00:00Z",
+  };
+  const git = (...args: string[]) => execFileSync("git", ["-C", checkout, "-c", "commit.gpgsign=false", ...args], { encoding: "utf8", env });
   git("init", "--quiet", "--object-format=sha1");
   git("commit", "--quiet", "--allow-empty", "-m", "a commit");
   assert.equal(

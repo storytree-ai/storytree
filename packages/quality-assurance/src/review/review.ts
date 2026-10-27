@@ -24,7 +24,8 @@
  * - A return is taken whole or not at all: it answers every check and contract in its brief, and judges every
  *   rejection, and nothing else (2.2, 4.2), and names the review it answers, so a return left from an earlier
  *   review, as one read from another folder's /tmp may be, is refused (2.9).
- * - A finding stands while it is unanswered, or rejected for a reason no later review accepted (4.1). With
+ * - A finding stands while it is unanswered, or rejected for a reason no later review accepted (4.1); a contract found not met stands
+ *   only while the increment still names it, so narrowing its capabilities list clears the rest (4.7). With
  *   one standing after the third review, the fourth brief is refused, naming the arc for the session's
  *   question (4.3, ADR-1120 D1); the refusal itself writes nothing. The three are the branch's: a brief read from a worktree
  *   does not count a review whose commit its default branch has taken in, an earlier merged pull request's of the same increment,
@@ -221,8 +222,11 @@ export interface Reviews {
   take(project: string, change: string, review: ReviewReturn, graduated?: GraduatedFindings): Promise<Taken>;
   /** `change`'s standing findings, oldest first: none, with no contract `unmet`, means it is ready for the gate. */
   standing(project: string, change: string): Promise<HitRow[]>;
-  /** The contracts the latest review taken on `change` found not met: each stands until a later review finds it met. */
-  unmet(project: string, change: string): Promise<Unmet[]>;
+  /**
+   * The contracts the latest review taken on `change` found not met: each stands until a later review finds it met, or until the
+   * increment no longer names it, its capability gone from its list or the contract retired pending its merge (contract 4.7).
+   */
+  unmet(library: Library, change: string): Promise<Unmet[]>;
   /** The guardrails the latest review taken on `change` found failed: each stands until a later review passes it (contract 2.12). */
   failed(project: string, change: string): Promise<Failed[]>;
 }
@@ -278,7 +282,7 @@ class PgReviews implements Reviews {
     const { all, taken } = await this.#taken(project, change, typeof read === "string" ? undefined : read);
     const earlier = await this.#hits(project, change, "TRUE");
     const standing = earlier.filter((hit) => hit.answer === "unanswered" || (hit.answer === "rejected" && !hit.accepted));
-    const unmet = await this.unmet(project, change);
+    const unmet = await this.unmet(library, change);
     const failed = await this.failed(project, change);
     const count = standing.length + unmet.length + failed.length;
     if (taken >= REVIEW_LIMIT && count > 0) {
@@ -294,10 +298,7 @@ class PgReviews implements Reviews {
     const capabilities = new Set((increment.fields as { capabilities?: string[] }).capabilities ?? []);
     const pending = new Map(pendingChanges.map((change) => [change.record, change]));
     const byTitle = (a: { id: string; title: string }, b: { id: string; title: string }): number => a.title.localeCompare(b.title, "en", { numeric: true }) || a.id.localeCompare(b.id);
-    const named = (await library.list("contract"))
-      .map((contract) => ({ contract, change: pending.get(contract.id) }))
-      .map(({ contract, change }) => ({ contract, change, fields: { ...contract.fields, ...(change !== undefined && "after" in change ? change.after : {}) } as Record<string, unknown> }))
-      .filter(({ fields }) => capabilities.has(fields["capability"] as string));
+    const named = await namedContracts(library, increment.fields);
     const title = (record: Awaited<ReturnType<Library["get"]>>): string | undefined => (record?.fields as { title?: string } | undefined)?.title;
     const listed = await Promise.all([...capabilities].map(async (id) => {
       const capability = await library.get(id);
@@ -403,12 +404,18 @@ class PgReviews implements Reviews {
     return this.#hits(project, change, STANDING);
   }
 
-  async unmet(project: string, change: string): Promise<Unmet[]> {
+  async unmet(library: Library, change: string): Promise<Unmet[]> {
     const { rows } = await this.#pool.query<{ taken: ReviewReturn }>(
       "SELECT taken FROM quality_briefs WHERE project = $1 AND change = $2 AND taken_at IS NOT NULL ORDER BY iteration DESC LIMIT 1",
-      [project, change],
+      [library.name, change],
     );
-    return rows[0] === undefined ? [] : unmetIn(rows[0].taken);
+    if (rows[0] === undefined) return [];
+    const found = unmetIn(rows[0].taken);
+    if (found.length === 0) return [];
+    const increment = await library.get(change);
+    if (increment === null || increment.type !== "increment") return found;
+    const named = new Set((await namedContracts(library, increment.fields)).filter(({ change }) => change === undefined || !("retire" in change)).map(({ contract }) => contract.id));
+    return found.filter(({ contract }) => named.has(contract));
   }
 
   async failed(project: string, change: string): Promise<Failed[]> {
@@ -441,6 +448,17 @@ class PgReviews implements Reviews {
     const { rows } = await this.#pool.query<HitRecord>(`SELECT ${HIT_COLUMNS} FROM quality_hits WHERE project = $1 AND change = $2 AND ${where} ORDER BY id`, [project, change]);
     return rows.map(hitRow);
   }
+}
+
+/** Every contract of the capabilities an increment names, with its pending change and its fields as that change leaves them. */
+async function namedContracts(library: Library, fields: unknown) {
+  const { capabilities = [], pending = [] } = fields as { capabilities?: string[]; pending?: PendingChange[] };
+  const listed = new Set(capabilities);
+  const changes = new Map(pending.map((change) => [change.record, change]));
+  return (await library.list("contract"))
+    .map((contract) => ({ contract, change: changes.get(contract.id) }))
+    .map(({ contract, change }) => ({ contract, change, fields: { ...contract.fields, ...(change !== undefined && "after" in change ? change.after : {}) } as Record<string, unknown> }))
+    .filter(({ fields }) => listed.has(fields["capability"] as string));
 }
 
 /**

@@ -2,7 +2,8 @@
  * Quality assurance's contracts 1.2 and 3.4, at this front door: the real, built `storytree quality checks`
  * and `storytree quality ledger` print the checks and ledger readings through quality assurance's public API,
  * the same readings its tools on the MCP server give. Its contracts 2.1, 2.2 and 4.1 at this front door: the
- * change-reviewer's loop, `quality brief`, `take`, `answer` and `standing`, run through the same API; and its 5.1:
+ * change-reviewer's loop, `quality brief`, `take`, `answer` and `standing`, run through the same API, and its 4.7: `standing` drops a contract the
+ * increment no longer names; and its 5.1:
  * `quality graduate`. Its 2.8: `quality brief` run outside the increment's worktree reads the branch it was claimed on; its 2.16:
  * `quality brief` and `take` with --checkout review a change in a checkout outside the project, as the owner's factory repo is.
  */
@@ -93,6 +94,32 @@ test("quality-assurance 2.1, 2.2 and 4.1 · `quality brief`, `take`, `answer` an
     } finally {
       await storytree.close();
     }
+  });
+});
+
+test("quality-assurance 4.7 · `quality standing` lists a contract found not met while the increment names it, and reads ready once the increment's list no longer does", async () => {
+  await inWorld(command, async (world) => {
+    const library = await world.library();
+    const story = await library.addStory({ title: "Visitor can sign up" });
+    const capability = await library.addCapability({ title: "1 · Email form", story: story.id });
+    const moved = await library.addCapability({ title: "2 · Welcome page", story: story.id });
+    const contract = await library.addContract({ capability: capability.id, title: "1.1 · A bad email is refused" });
+    const arc = await library.createArc({ title: "Launch sign-up", intent: "Ship sign-up", endState: "Visitors sign up", stories: [story.id] });
+    const increment = await library.addIncrement({ arc: arc.id, title: "Email form", objective: "Build the email form", body: "Red then green", capabilities: [capability.id] });
+    writeFileSync(path.join(world.folder, "change.diff"), "diff --git a/packages/forms/src/email.ts b/packages/forms/src/email.ts\n+export const valid = 1;\n");
+    assert.equal((await world.run(["quality", "brief", increment.id, "--diff", "@change.diff"])).code, 0);
+    writeFileSync(path.join(world.folder, "return.json"), JSON.stringify({ review: 1, checks: [], contracts: [{ contract: contract.id, met: false, why: "a bad email is kept" }] }));
+    const taken = await world.run(["quality", "take", increment.id, "--return", "@return.json"]);
+    assert.equal(taken.code, 0, taken.stderr);
+
+    const unmet = await world.run(["quality", "standing", increment.id]);
+    assert.equal(unmet.code, 0, unmet.stderr);
+    assert.match(unmet.stdout, new RegExp(`contract ${contract.id} not met: a bad email is kept`));
+
+    await library.editIncrement(increment.id, { capabilities: [moved.id] });
+    const narrowed = await world.run(["quality", "standing", increment.id]);
+    assert.equal(narrowed.code, 0, narrowed.stderr);
+    assert.ok(narrowed.stdout.startsWith("No finding stands: the change is ready for the gate."), narrowed.stdout);
   });
 });
 

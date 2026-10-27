@@ -1,5 +1,5 @@
 /**
- * Capability 2 · Change review and capability 4 · Review loop bound: contracts 2.1 to 2.3 and 4.1 to 4.5 on the
+ * Capability 2 · Change review and capability 4 · Review loop bound: contracts 2.1 to 2.3 and 4.1 to 4.7 on the
  * real Postgres `pnpm test` provides, through the package's public entry, against a library holding an
  * increment, the contracts of the capabilities it names, and live checks. Contract 4.4 is also proved at the
  * two front doors, beside the command line's tests and the MCP server's, because this package cannot depend
@@ -208,11 +208,11 @@ test("2.9 · a return names the review it answers, and take refuses one naming a
     const { review: _unnamed, ...unnamed } = clean(checks, contracts, {}, 2);
     await assert.rejects(reviews.take(library.name, increment, unnamed as ReviewReturn), /names no review.*review 2/);
     assert.deepEqual(await ledger.rows(library.name), before);
-    assert.deepEqual(await reviews.unmet(library.name, increment), [{ contract: contracts[0], why: "a bad email is kept" }]);
+    assert.deepEqual(await reviews.unmet(library, increment), [{ contract: contracts[0], why: "a bad email is kept" }]);
 
     const taken = await reviews.take(library.name, increment, clean(checks, contracts, { [checks[0]!]: [{ file, line: 2, found: "a" }] }, 2));
     assert.equal(taken.review, `${increment}#2`);
-    assert.deepEqual(await reviews.unmet(library.name, increment), []);
+    assert.deepEqual(await reviews.unmet(library, increment), []);
   });
 });
 
@@ -433,14 +433,34 @@ test("4.1 · a contract the latest review found not met stands, and take and sta
 
     assert.deepEqual(taken.standing, []);
     assert.doesNotMatch(takenText(taken), /ready for the gate/);
-    assert.deepEqual(await reviews.unmet(library.name, increment), [{ contract: contracts[0], why: "a bad email is kept" }]);
-    assert.doesNotMatch(standingText(await reviews.standing(library.name, increment), await reviews.unmet(library.name, increment)), /ready for the gate/);
-    assert.match(standingText([], await reviews.unmet(library.name, increment)), new RegExp(`contract ${contracts[0]} not met: a bad email is kept`));
+    assert.deepEqual(await reviews.unmet(library, increment), [{ contract: contracts[0], why: "a bad email is kept" }]);
+    assert.doesNotMatch(standingText(await reviews.standing(library.name, increment), await reviews.unmet(library, increment)), /ready for the gate/);
+    assert.match(standingText([], await reviews.unmet(library, increment)), new RegExp(`contract ${contracts[0]} not met: a bad email is kept`));
 
     await reviews.brief(library, increment, DIFF);
     const met = await reviews.take(library.name, increment, clean(checks, contracts, {}, 2));
-    assert.deepEqual(await reviews.unmet(library.name, increment), []);
+    assert.deepEqual(await reviews.unmet(library, increment), []);
     assert.match(takenText(met), /ready for the gate/);
+  });
+});
+
+test("4.7 · a contract found not met stops standing, and stops counting toward the review limit, once the increment no longer names its capability", async () => {
+  await withLibrary(async (library, storytree) => {
+    const { increment, capability, contracts, checks } = await plan(library);
+    const reviews = await openReviews(storytree);
+    for (let iteration = 1; iteration <= REVIEW_LIMIT; iteration += 1) {
+      await reviews.brief(library, increment, DIFF);
+      await reviews.take(library.name, increment, { ...clean(checks, contracts, {}, iteration), contracts: [{ contract: contracts[0]!, met: false, why: "a bad email is kept" }, { contract: contracts[1]!, met: true, touched: false }] });
+    }
+    assert.deepEqual(await reviews.unmet(library, increment), [{ contract: contracts[0], why: "a bad email is kept" }]);
+    await assert.rejects(reviews.brief(library, increment, DIFF), new RegExp(`contract ${contracts[0]} not met`));
+
+    const story = (await library.get(capability))!.fields as { story: string };
+    const kept = await library.addCapability({ title: "3 · Welcome page", story: story.story });
+    await library.editIncrement(increment, { capabilities: [kept.id] });
+    assert.deepEqual(await reviews.unmet(library, increment), []);
+    assert.match(standingText(await reviews.standing(library.name, increment), await reviews.unmet(library, increment)), /ready for the gate/);
+    assert.equal((await reviews.brief(library, increment, DIFF)).iteration, REVIEW_LIMIT + 1);
   });
 });
 
@@ -605,9 +625,9 @@ test("4.4 · the tools this package registers record the same answer to a hit an
     const file = "packages/forest-world/src/camera.test.ts";
     const { hits: [byTool, byApi] } = await reviews.take(library.name, increment, clean(checks, contracts, { [checks[0]!]: [{ file, line: 2, found: "a" }, { file, line: 3, found: "b" }] }));
 
-    const tools: Record<string, (args: object, call: { storytree: typeof storytree; project: string }) => Promise<{ text: string; data?: Record<string, unknown> }>> = {};
+    const tools: Record<string, (args: object, call: { library: Library; storytree: typeof storytree; project: string }) => Promise<{ text: string; data?: Record<string, unknown> }>> = {};
     qualityTools().registerTools!((name, _description, _input, act) => { tools[name] = act as never; });
-    const call = { storytree, project: library.name };
+    const call = { library, storytree, project: library.name };
 
     await assert.rejects(tools.quality_answer!({ hit: byTool!.id, answer: "rejected" }, call), /reason/);
     assert.deepEqual((await reviews.standing(library.name, increment)).map(({ id }) => id), [byTool!.id, byApi!.id]);

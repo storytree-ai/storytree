@@ -2,7 +2,7 @@
  * Capability 2 · Listing and restarting services (ADR-1180 D4). The `services` verbs, declared here (ADR-0969 D2) and
  * named under `verbs` in the package's manifest (ADR-1033), so the command line mounts them as its `services` family:
  * `storytree services` lists every service the parts mounted here declare, on or off, and how each the host runs
- * stands, with the factory commit it last ran; `services restart <part>/<service>` asks the host to start one again;
+ * stands, with the factory commit it last ran, and says when a part switch has not taken in the running host; `services restart <part>/<service>` asks the host to start one again;
  * `services run` runs the host in the foreground until it is stopped; `services install` and `services uninstall` write and
  * remove the entry point that keeps it running (capability 3, ADR-1180 D5). Each is callerless: none needs a project. None
  * is a tool: they are this machine's, read and run from its terminal.
@@ -14,6 +14,9 @@ import type { Mounted } from "../running/declared.js";
 import type { Status } from "./status.js";
 
 const runSaid = (run: Service["run"]): string => (run === "always" ? "always" : `every ${run.every}`);
+
+/** How a part switch the running host has not taken is taken: it mounts the parts' services only as it starts (contract 1.1). */
+const RESTART_HOST = "restart the service host: `systemctl --user restart storytree-host` where `storytree services install` keeps it, or stop `storytree services run` and run it again";
 
 /**
  * Every service `mounted` declares, as the status `status` the host last wrote says it stands: off, on and running, waiting
@@ -29,7 +32,10 @@ export function servicesSaid(mounted: Mounted, status: Status | undefined, alive
       if (!service.on) return [`${name}: off`];
       if (running === undefined) return [`${name}: on, but no service host runs here`];
       const stands = running.services.find((one) => one.id === service.id);
-      if (stands === undefined) return [`${name}: on; the host starts it within seconds`];
+      if (stands === undefined) {
+        if (running.declared !== undefined && !running.declared.includes(service.id)) return [`${name}: on, but its part was switched after the service host started, so it starts at the host's next start; ${RESTART_HOST}`];
+        return [`${name}: on; the host starts it within seconds`];
+      }
       const exit = stands.lastExit === undefined ? "" : ` (${stands.lastExit.signal === null ? `exit ${stands.lastExit.code}` : `signal ${stands.lastExit.signal}`})`;
       if (stands.state === "running") return [`${name}: running${stands.pid === undefined ? "" : `, process ${stands.pid}`}, since ${stands.since}`];
       if (stands.state === "waiting") return [`${name}: waiting${exit}${stands.nextAt === undefined ? "" : `, next start at ${stands.nextAt}`}`];
@@ -38,11 +44,14 @@ export function servicesSaid(mounted: Mounted, status: Status | undefined, alive
         ...stands.lastLines.map((line) => `      ${line}`),
       ];
     });
+  const ids = new Set(mounted.services.map((service) => service.id));
+  const unmounted = running === undefined ? [] : running.services.filter((one) => !ids.has(one.id)).map((one) => one.id).sort()
+    .map((id) => `  ${id}: still run by the service host, though its part was switched off after the host started; it stops at the host's next start; ${RESTART_HOST}`);
   const off = mounted.off.filter((part) => part.failed !== undefined).map((part) => `  ${part.part} hosts no services: ${part.failed}`);
   const host = running === undefined
     ? "No service host is running on this computer: start one with `storytree services run`."
     : `The service host (process ${running.pid}, since ${running.startedAt}) last ran the factory ${running.factory.folder}${running.factory.commit === undefined ? ", which is not a git checkout" : ` at commit ${running.factory.commit}`}.`;
-  return [head, ...lines, ...off, host].join("\n");
+  return [head, ...lines, ...unmounted, ...off, host].join("\n");
 }
 
 const list = verb({

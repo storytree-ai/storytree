@@ -6,6 +6,8 @@
 # It is laid out by system and chip: Linux is a branch of it, not a second script.
 
 ST_REPO=storytree-ai/storytree
+# The Apple team that signs storytree's Mac app; the one-liner installs no app signed by any other.
+ST_TEAM=YTUG339DCT
 ST_MARKER="# storytree 0.3's command: added by its installer, taken out by storytree setup uninstall"
 
 # A step that fails says why in ST_ERROR and returns 1; the caller adds where it failed and how to retry.
@@ -234,6 +236,16 @@ st_desktop_entry() {
     { print }' "$1"
 }
 
+# st_signed APP: the unpacked Mac app keeps an intact signature, is signed by storytree's own Apple team, and macOS's
+# Gatekeeper would open it. A zip whose checksum matches but whose app fails any of these is not storytree's.
+st_signed() {
+  st_unsigned="the downloaded app is not signed by storytree's Apple developer account, so it was not opened; nothing was installed"
+  codesign --verify --deep --strict "$1" >/dev/null 2>&1 || { st_fail "$st_unsigned"; return; }
+  [ "$(codesign -dv "$1" 2>&1 | sed -n 's/^TeamIdentifier=//p')" = "$ST_TEAM" ] || { st_fail "$st_unsigned"; return; }
+  spctl --assess --type execute "$1" >/dev/null 2>&1 ||
+    st_fail "macOS does not yet accept the downloaded app (Apple may still be checking a new release); nothing was installed. Retry in an hour"
+}
+
 # st_place NEW DEST: puts the new app where DEST is, moving an old one aside first so the new one never lands inside it;
 # a failed move puts the old one back. The old app goes once the new one is in place; the data is under ~/.storytree.
 st_place() {
@@ -404,6 +416,7 @@ st_op_install() {
   # ditto keeps the bundle's signature and links as the release built them.
   if command -v ditto >/dev/null 2>&1; then ditto -x -k "$1" "$ST_TMP/app"; else unzip -q "$1" -d "$ST_TMP/app"; fi || { st_fail 'the downloaded app could not be unpacked'; return; }
   [ -d "$ST_TMP/app/storytree-0.3.app" ] || { st_fail 'the download holds no storytree-0.3.app'; return; }
+  st_signed "$ST_TMP/app/storytree-0.3.app" || return
   mkdir -p "$(dirname "$2")" || { st_fail "the folder for $2 could not be made"; return; }
   st_place "$ST_TMP/app/storytree-0.3.app" "$2"
 }

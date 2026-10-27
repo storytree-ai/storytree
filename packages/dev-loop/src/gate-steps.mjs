@@ -12,6 +12,8 @@
 // sanitiser drops (a work record, a withheld arc, a redaction pattern); it reads only files, so CI runs it too.
 // check:leaks refuses a file the branch adds or changes that gains a personal path, name, address or link
 // (leak-scan.mjs, the tree-wide scan the new repo's starting commit passes); CI runs it too, without the private names.
+// check:secrets refuses a file the branch adds or changes that gains a credential's shape (leak-scan.mjs), by pattern
+// only; CI runs it as its own secret-check job, whose failure the watcher takes to the owner.
 // check:owner-applies fails a branch that changes a folder the owner applies by hand (owner-applies.mjs) unless an
 // owner wait names it; it reads the library's waits, so it runs only here, and is NOT RUN when no such folder changed.
 // check:capability-list (ADR-0949 D3) fails a branch that changes a capability its increment does not list; a
@@ -66,6 +68,7 @@ export const gateSteps = [
   { name: "check:type-imports", command: () => node("packages/dev-loop/src/type-imports.mjs") },
   { name: "check:seed-records", command: () => node("packages/dev-loop/src/seed-records.mjs") },
   { name: "check:leaks", command: () => node("packages/dev-loop/src/leak-scan.mjs") },
+  { name: "check:secrets", command: () => node("packages/dev-loop/src/leak-scan.mjs", "--secrets") },
   { name: "check:owner-applies", when: ({ root }) => ownerAppliesFor(root), command: () => node("packages/dev-loop/src/owner-applies.mjs") },
   { name: "check:capability-list", when: listed, command: () => node("packages/dev-loop/src/capability-list.mjs") },
   { name: "check:risk", when: listed, command: ({ root }) => node("packages/cli/src/bins/storytree.ts", "quality", "risk", incrementOfBranch(currentBranch(root, {}))) },

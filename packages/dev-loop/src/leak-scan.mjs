@@ -9,6 +9,12 @@
 // `pnpm check:leaks` (the gate's check:leaks, and CI) refuses a branch that adds a leak: a file whose count of any
 // pattern rises against the merge base, so nothing new brings back what the flip to the new repo removes.
 // `pnpm check:leaks --tree <folder>` reports a whole tree's leaks by folder and its 20 worst files.
+// The credentials are a pattern family of their own, read the same way (CREDENTIALS: the transcript scrub's shapes
+// and the keys this project's services issue). `pnpm check:secrets` (the gate's check:secrets, and CI's
+// secret-check job, which verify requires) refuses a branch whose file gains one against the merge base, naming the
+// file and the kind, never the value. It matches shapes only, never a real value, so a branch's own scanner holds
+// nothing worth reading. A file the owner's list (SECRET_EXEMPTIONS) names is passed over. Its failure is a separate
+// check so the watcher can take it to the owner rather than to a fix session (isSecurityCheck).
 import { execFileSync, spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { existsSync, readFileSync, statSync } from "node:fs";
@@ -126,12 +132,43 @@ export function textsOf(bytes) {
   return [new TextDecoder("utf-8").decode(bytes)];
 }
 
+/** What a credential looks like, by kind: the transcript scrub's shapes, and the keys this project's services issue. */
+export const CREDENTIALS = [
+  ["a private key", /-----BEGIN [A-Z ]*PRIVATE KEY-----/g],
+  ["a bearer token", /\bBearer\s+[A-Za-z0-9\-._~+/]{20,}=*/g],
+  ["an OAuth token", /\b(?:ya29\.[A-Za-z0-9_-]{20,}|gho_[A-Za-z0-9]{36,})/g],
+  ["an Anthropic or OpenAI key", /\bsk-(?:ant-)?[A-Za-z0-9_-]{20,}/g],
+  ["a GitHub token", /\b(?:gh[psur]_[A-Za-z0-9]{36,}|github_pat_[A-Za-z0-9_]{40,})/g],
+  ["a Google API key", /\bAIza[0-9A-Za-z_-]{35}/g],
+  ["a Google OAuth client secret", /\bGOCSPX-[A-Za-z0-9_-]{20,}/g],
+  ["an AWS access key", /\bAKIA[0-9A-Z]{16}\b/g],
+  ["a Slack token", /\bxox[abprs]-[A-Za-z0-9-]{10,}/g],
+  ["a GitLab token", /\bglpat-[A-Za-z0-9_-]{20,}/g],
+  ["a Tailscale key", /\btskey-[A-Za-z0-9-]{16,}/g],
+  ["a password in a link", /\b[a-z][a-z0-9+.-]*:\/\/[^\s:/@"'\\]+:([^\s@"'\\/]+)@/gi],
+];
+
+/** A link's password that is a template or a stand-in (`${password}`, `<password>`), not a value. */
+const PLACEHOLDER_PASSWORD = /^(?:[$<{*%[].*|password|pass|pw|secret|x+|\.+)$/i;
+
+/** Each credential kind's count in `text`; a link's placeholder password is not counted. */
+export function credentialCounts(text) {
+  const counts = {};
+  for (const [what, shape] of CREDENTIALS) {
+    for (const match of text.matchAll(shape)) {
+      if (what === "a password in a link" && PLACEHOLDER_PASSWORD.test(match[1])) continue;
+      counts[what] = (counts[what] ?? 0) + 1;
+    }
+  }
+  return counts;
+}
+
 const sum = (counts) => Object.values(counts).reduce((a, b) => a + b, 0);
 
-/** A file's counts, every text it holds together. */
-export function fileCounts(bytes, words = OWNER_WORDS) {
+/** A file's counts, every text it holds together; `count` reads one text (the leaks, or credentialCounts). */
+export function fileCounts(bytes, words = OWNER_WORDS, count = leakCounts) {
   const counts = {};
-  for (const text of textsOf(bytes)) for (const [what, n] of Object.entries(leakCounts(text, words))) counts[what] = (counts[what] ?? 0) + n;
+  for (const text of textsOf(bytes)) for (const [what, n] of Object.entries(count(text, words))) counts[what] = (counts[what] ?? 0) + n;
   return counts;
 }
 
@@ -173,13 +210,13 @@ export function leakReport(found, { worst = 20 } = {}) {
  * Each file the branch changes whose count of a pattern rises against `base`, one sentence each; `before` reads a file
  * at the base. A folder is passed over: git lists an untracked nested repository as one folder, whose files it never adds.
  */
-export function addedLeaks(root, files, { before, words = OWNER_WORDS }) {
+export function addedLeaks(root, files, { before, words = OWNER_WORDS, count = leakCounts }) {
   const problems = [];
   for (const file of files) {
     if (isThirdParty(file) || !statSync(path.join(root, file), { throwIfNoEntry: false })?.isFile()) continue;
-    const after = fileCounts(readFileSync(path.join(root, file)), words);
+    const after = fileCounts(readFileSync(path.join(root, file)), words, count);
     const prior = before(file);
-    const was = prior === undefined ? {} : fileCounts(prior, words);
+    const was = prior === undefined ? {} : fileCounts(prior, words, count);
     const rose = Object.entries(after).filter(([what, n]) => n > (was[what] ?? 0)).map(([what, n]) => `${n - (was[what] ?? 0)} more × ${what}`);
     if (rose.length > 0) problems.push(`${file} adds ${rose.join(", ")}`);
   }
@@ -211,6 +248,53 @@ export function trackedFiles(root) {
   return git(root, ["ls-files", "-z"]).split("\0").filter(Boolean).filter((file) => existsSync(path.join(root, file)));
 }
 
+/** The files the branch at `root` changes against origin/main and a reader of each at the merge base, or undefined (said through `error`). */
+function branchChanges(root, check, error) {
+  let files;
+  let base;
+  try {
+    files = changedFiles(root);
+    base = git(root, ["merge-base", "origin/main", "HEAD"]).trim();
+  } catch (failure) {
+    error(`${check}: the changes against origin/main could not be read (${String(failure.stderr ?? failure.message).trim().split("\n")[0]})`);
+    return undefined;
+  }
+  const before = (file) => {
+    try {
+      return git(root, ["show", `${base}:${file}`], "buffer");
+    } catch {
+      return undefined; // the file is new on this branch
+    }
+  };
+  return { files, before };
+}
+
+/** The owner's list of files check:secrets passes over (a test's stand-in key), one path a line; `#` starts a comment. */
+export const SECRET_EXEMPTIONS = ".github/secret-check-exemptions.txt";
+
+/** The paths the owner's list exempts at `root`; none when there is no list. */
+export function secretExemptions(root) {
+  const file = path.join(root, SECRET_EXEMPTIONS);
+  if (!existsSync(file)) return new Set();
+  return new Set(readFileSync(file, "utf8").split(/\r?\n/).map((line) => line.replace(/#.*/, "").trim()).filter(Boolean));
+}
+
+/** The secret check: each file the branch at `root` changes against origin/main, failing on one that gains a credential's shape. */
+export function checkSecrets({ root, log = console.log, error = console.error }) {
+  const changes = branchChanges(root, "check:secrets", error);
+  if (changes === undefined) return 1;
+  const exempt = secretExemptions(root);
+  const files = changes.files.filter((file) => !exempt.has(file));
+  const problems = addedLeaks(root, files, { before: changes.before, words: [], count: credentialCounts });
+  if (problems.length > 0) {
+    error(`The branch adds what looks like a credential (the value is not shown). Take it out of the branch's history, and revoke it if it is real:\n${problems.map((problem) => `  ${problem}`).join("\n")}`);
+    return 1;
+  }
+  const passed = changes.files.length - files.length;
+  log(`${files.length} changed file${files.length === 1 ? "" : "s"}, none adding a credential${passed > 0 ? ` (${passed} on the owner's exemptions list passed over)` : ""}`);
+  return 0;
+}
+
 /**
  * The check: with `tree`, that tree's report, failing on any leak; otherwise each file the branch at `root` changes
  * against origin/main, failing on one that adds a leak. The private names come from `readWords`, when it can read them.
@@ -224,22 +308,9 @@ export async function checkLeaks({ root, tree, readWords = libraryWords, log = c
     log(leakReport(found));
     return found.length > 0 ? 1 : 0;
   }
-  let files;
-  let base;
-  try {
-    files = changedFiles(root);
-    base = git(root, ["merge-base", "origin/main", "HEAD"]).trim();
-  } catch (failure) {
-    error(`check:leaks: the changes against origin/main could not be read (${String(failure.stderr ?? failure.message).trim().split("\n")[0]})`);
-    return 1;
-  }
-  const before = (file) => {
-    try {
-      return git(root, ["show", `${base}:${file}`], "buffer");
-    } catch {
-      return undefined; // the file is new on this branch
-    }
-  };
+  const changes = branchChanges(root, "check:leaks", error);
+  if (changes === undefined) return 1;
+  const { files, before } = changes;
   const problems = addedLeaks(root, files, { before, words });
   if (problems.length > 0) {
     error(`The branch adds personal paths, names, addresses or links a public repository must not hold:\n${problems.map((problem) => `  ${problem}`).join("\n")}`);
@@ -252,5 +323,5 @@ export async function checkLeaks({ root, tree, readWords = libraryWords, log = c
 if (process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const args = process.argv.slice(2).filter((arg) => arg !== "--");
   const root = fileURLToPath(new URL("../../..", import.meta.url));
-  process.exitCode = await checkLeaks({ root, tree: args[0] === "--tree" ? path.resolve(args[1] ?? root) : undefined });
+  process.exitCode = args[0] === "--secrets" ? checkSecrets({ root }) : await checkLeaks({ root, tree: args[0] === "--tree" ? path.resolve(args[1] ?? root) : undefined });
 }

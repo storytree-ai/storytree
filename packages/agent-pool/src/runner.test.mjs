@@ -427,7 +427,7 @@ test("1.20 · A lane cut off by a lost connection is held until the library and 
   options.commands.claude = command(`const fs=require('node:fs'); fs.appendFileSync(${JSON.stringify(runs)}, JSON.stringify(process.argv.slice(1))+'\\n');`
     + ` const n=fs.readFileSync(${JSON.stringify(runs)},'utf8').trim().split('\\n').length; const what=n===1?process.env.FIRST:n===2?process.env.LATER:n===3&&process.env.THIRD||'report';`
     + ` if (n===1) console.log(JSON.stringify({type:'system',subtype:'init',session_id:${JSON.stringify(session)}}));`
-    + ` if (what==='cut') { ${cutOff} } else if (what==='quiet') setTimeout(()=>{}, 60_000); else if (what==='pause') setTimeout(()=>fs.writeFileSync(${JSON.stringify(report)}, 'done'), 100); else if (what==='report') fs.writeFileSync(${JSON.stringify(report)}, 'done');`);
+    + ` if (what==='cut') { ${cutOff} } else if (what==='quiet') setTimeout(()=>{}, 60_000); else if (what==='chatty') { let k=0; const t=setInterval(()=>{ console.log('working '+k); if (++k===7) { clearInterval(t); fs.writeFileSync(${JSON.stringify(report)}, 'done'); } }, 100); } else if (what==='linger') setTimeout(()=>fs.writeFileSync(${JSON.stringify(report)}, 'done'), 600); else if (what==='report') fs.writeFileSync(${JSON.stringify(report)}, 'done');`);
   await writeFile(join(options.lanesDir, "engine-override"), "claude");
   options.increment = "increment_abc";
   options.heads = async () => ({});
@@ -484,10 +484,21 @@ test("1.20 · A lane cut off by a lost connection is held until the library and 
   assert.ok(options.lines.some((line) => /log stopped growing while the library and GitHub did not answer/.test(line)));
 
   await reset();
-  Object.assign(options.env, { FIRST: "pause", LATER: "report" });
+  Object.assign(options.env, { FIRST: "chatty", LATER: "report" });
   answers = Array(100).fill(false);
-  assert.equal(await runLane(options), 0, "a log quiet for less than the quiet time is not stopped, even offline");
+  assert.equal(await runLane(options), 0, "a log that keeps growing for longer than the quiet time is not stopped, even offline");
   assert.equal((await calls()).length, 1);
+
+  await reset();
+  Object.assign(options.env, { FIRST: "linger" });
+  // The engine ends while a slow reachability check is in flight: the watch looks no more once it has.
+  let probes = 0;
+  options.reachable = async () => { probes++; await new Promise((done) => setTimeout(done, 400)); return true; };
+  assert.equal(await runLane(options), 0);
+  const seen = probes;
+  await new Promise((done) => setTimeout(done, 900));
+  assert.equal(probes, seen, "no look after the engine ended");
+  options.reachable = async () => answers.shift() ?? true;
 
   await reset();
   Object.assign(options.env, { FIRST: "cut", LATER: "cut", THIRD: "report" });

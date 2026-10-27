@@ -12,7 +12,7 @@ import { pluginSchema, type PluginRecords } from "@storytree/library";
 
 import { checkPlugin } from "./factory/contract.js";
 import { pluginServices, type ServiceHost } from "./factory/factory.js";
-import { composeParts, mount, offSaid, partsPlugin, PLUGIN_INTERFACE, pluginExport, recordKinds, standIn, storyParts } from "./index.js";
+import { composeParts, mount, offSaid, partsPlugin, PLUGIN_INTERFACE, pluginExport, recordKinds, standIn, storyParts, storyServices } from "./index.js";
 
 /** The loader's own entry, as a fixture host's composing module imports it (the fixture installs no loader of its own). */
 const LOADER = JSON.stringify(new URL("./index.ts", import.meta.url).href);
@@ -56,6 +56,20 @@ test("1.2 a manifest part naming a subpath its package does not export, or no ex
   assert.throws(() => storyParts(unexported, "surfaces"), /@s\/forest.*"\.\/surfaces".*does not export/);
   const unnamed = host(t, [{ name: "@s/forest", exports: { "./surfaces": "./surfaces.js" }, manifest: { surfaces: [{ from: "./surfaces" }] } }]);
   assert.throws(() => storyParts(unnamed, "surfaces"), /@s\/forest.*"\.\/surfaces".*export name/);
+});
+
+test("1.4 · storyServices names each service the manifests of the host's story packages declare, with its name and how it runs; one with no name, a run but \"always\" or { every: \"<n>m\" }, or an unexported from is refused, naming the package", (t) => {
+  const services = (entries: unknown): Story => ({ name: "@s/voice", exports: { "./services": "./services.js" }, manifest: { services: entries } });
+  const dir = host(t, [services([{ name: "listen", from: "./services", export: "listen", run: "always" }, { name: "commit", from: "./services", export: "commit", run: { every: "15m" } }]), surfaces("@s/forest", "forestSurfaces", ["globe"])]);
+  assert.deepEqual(storyServices(dir), [
+    { package: "@s/voice", name: "listen", run: "always", module: "@s/voice/services", export: "listen" },
+    { package: "@s/voice", name: "commit", run: { every: "15m" }, module: "@s/voice/services", export: "commit" },
+  ]);
+  for (const [entries, refusal] of [
+    [[{ from: "./services", export: "listen", run: "always" }], /@s\/voice.*service 1 has no name/],
+    [[{ name: "listen", from: "./services", export: "listen", run: "sometimes" }], /@s\/voice.*listen runs "sometimes"/],
+    [[{ name: "listen", from: "./elsewhere", export: "listen", run: "always" }], /@s\/voice.*"\.\/elsewhere".*does not export/],
+  ] as const) assert.throws(() => storyServices(host(t, [services(entries)])), refusal);
 });
 
 test("1.3 storyParts orders parts by their manifest's order, unordered last, ties by package name then manifest position, whatever order the host lists them in", (t) => {

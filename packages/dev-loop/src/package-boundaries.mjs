@@ -18,7 +18,7 @@ import { readFileSync } from "node:fs";
 import { packageProblems } from "@storytree/guardrails";
 
 /** 0.3's own stories, each by the id its one package has (packages/<id>): a story owns exactly one package (ADR-1078 rule 4). */
-export const STORIES = ["agent-pool", "app", "app-setup", "arc-surface", "base-dev-loop", "ci-health", "cli", "dev-loop", "experiments", "forest", "forest-world", "guardrails", "keys", "knowledge-core", "library", "local-postgres", "map", "mark", "mcp-server", "plugin-loader", "project-and-caller", "quality-assurance", "session-management", "surface-feedback", "test-waits", "voice", "website"];
+export const STORIES = ["agent-pool", "app", "app-setup", "arc-surface", "base-dev-loop", "ci-health", "cli", "dev-loop", "experiments", "forest", "forest-world", "guardrails", "keys", "knowledge-core", "library", "local-postgres", "map", "mark", "mcp-server", "plugin-loader", "project-and-caller", "quality-assurance", "service-host", "session-management", "surface-feedback", "test-waits", "voice", "website"];
 // agent-pool: story_b2051c0f7372 (Agent runner, ADR-1071 D3), which holds the Claude Code mod in src/claude-code-mod (ADR-1076 D5).
 // app-setup: story_b91056a06337 (Setup), which holds Journey events in src/journey-events (ADR-1076 D3).
 // app: story_a93c6fb1a257 (Desktop app), which holds Lag in real use in src/lag (ADR-1071 D3).
@@ -40,6 +40,7 @@ export const STORIES = ["agent-pool", "app", "app-setup", "arc-surface", "base-d
 // mark: story_08790ee19bbf (Marketing artifacts, ADR-1071 D3), out of Website again.
 // voice: story_28e1eb40e8c1 (Voice, ADR-1132), a front door: claude.ai's voice mode reaching storytree read-only.
 // surface-feedback: story_6c75e0587cc6 (Surface feedback): the feedback corner, mounted by the frame.
+// service-host: story_44a8cd58a7cf (Service host, ADR-1180 D2): one host per machine runs the mounted parts' declared services.
 // test-waits: story_9299f25282ad (Test waits, ADR-1156): every package's tests import it, so it depends on no workspace package.
 
 /**

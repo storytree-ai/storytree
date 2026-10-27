@@ -7,7 +7,8 @@ export type { ImportedFolder, LocateOptions, Machine, ProjectLookup, Route, Stor
 export { keepOnThisComputer, projectOnShow, readProjectChoice, recordProjectChoice, recordRemovedProjects, removedProjects, type HiddenProject } from "./routing/project-choice.js";
 export { partsSaid, switchedSaid, switchPart, type PartsSwitched, type StandInsNamed } from "./settings/parts.js";
 export { switchSystem, systemSaid } from "./settings/system.js";
-export { idleAfterMs, leaveAfterMs, readExperiment, readLibrary, readPartsOff, readSettings, factoryFolder, makeFactoryFolder, readStandIns, readSetupApproval, readSurfaceChoices, readSystemSwitches, setFactory, setSetupApproval, type SetupApproval, type ChosenFactory, type FactorySwitched, type FactorySwitcher, type StandInSwitchedBack, setLibrary, setPartOff, setSetting, setSurfaceChoice, setSystemSwitch, type SystemSwitches } from "./settings/settings.js";
+export { servicesSaid, switchService } from "./settings/services.js";
+export { idleAfterMs, leaveAfterMs, readExperiment, readLibrary, readPartsOff, readServicesOn, readSettings, SERVICE_NAME, factoryFolder, makeFactoryFolder, readStandIns, readSetupApproval, readSurfaceChoices, readSystemSwitches, setFactory, setSetupApproval, type SetupApproval, type ChosenFactory, type FactorySwitched, type FactorySwitcher, type StandInSwitchedBack, setLibrary, setPartOff, setServiceOn, setSetting, setSurfaceChoice, setSystemSwitch, type SystemSwitches } from "./settings/settings.js";
 export type { ExperimentArm, LibraryLocation, LibraryReading, SettingGroup, SettingReading, SettingsReading, SurfaceChoices } from "./settings/settings.js";
 export { decisionRights, decisionRightsGuidance } from "./settings/decision-rights.js";
 export type { DecisionRights } from "./settings/decision-rights.js";

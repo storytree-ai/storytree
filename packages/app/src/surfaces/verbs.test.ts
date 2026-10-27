@@ -104,3 +104,12 @@ test("3.19 `settings show`'s factory line names where a plugin's contract is rea
   const shown = await named("show").act({}, { folder: dir, surfaces: async () => declared, parts: async () => graph }, words);
   assert.match(shown.text, /^factory: [^]*`storytree plugin contract`[^]*`storytree plugin new <plugin> --for <part>`[^]*`storytree plugin check <plugin>`/m);
 });
+
+test("project-and-caller 2.25 `settings set service <part>/<service> on|off` turns a service on or off for this computer and says what is on, and `settings show` lists the services turned on", async (t) => {
+  const dir = home(t);
+  const place: SettingsPlace = { folder: dir, surfaces: async () => declared, parts: async () => graph };
+  assert.match((await named("set").act({ words: ["service", "voice/listen", "on"] }, place, words)).text, /^Turned on on this computer: voice\/listen\./);
+  assert.deepEqual(JSON.parse(readFileSync(path.join(dir, "settings.json"), "utf8"))["services-on"], ["voice/listen"]);
+  assert.match((await named("show").act({}, place, words)).text, /^Turned on on this computer: voice\/listen\./m);
+  assert.match((await named("set").act({ words: ["service", "voice/listen", "off"] }, place, words)).text, /^No service is turned on on this computer\./);
+});

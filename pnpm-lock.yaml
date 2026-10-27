@@ -381,6 +381,9 @@ importers:
       '@storytree/quality-assurance':
         specifier: workspace:*
         version: link:../quality-assurance
+      '@storytree/service-host':
+        specifier: workspace:*
+        version: link:../service-host
       '@storytree/session-management':
         specifier: workspace:*
         version: link:../session-management
@@ -981,6 +984,31 @@ importers:
       tsx:
         specifier: ^4.23.15
         version: 4.23.15
+      typescript:
+        specifier: ~7.0.2
+        version: 7.0.2
+
+  packages/service-host:
+    dependencies:
+      '@storytree/library':
+        specifier: workspace:*
+        version: link:../library
+      '@storytree/plugin-loader':
+        specifier: workspace:*
+        version: link:../plugin-loader
+      '@storytree/project-and-caller':
+        specifier: workspace:*
+        version: link:../project-and-caller
+      tsx:
+        specifier: ^4.23.15
+        version: 4.23.15
+    devDependencies:
+      '@storytree/test-waits':
+        specifier: workspace:*
+        version: link:../test-waits
+      '@types/node':
+        specifier: ^24.13.6
+        version: 24.13.6
       typescript:
         specifier: ~7.0.2
         version: 7.0.2

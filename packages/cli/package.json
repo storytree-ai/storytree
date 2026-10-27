@@ -24,6 +24,7 @@
     "@storytree/app-setup": "workspace:*",
     "@storytree/arc-surface": "workspace:*",
     "@storytree/ci-health": "workspace:*",
+    "@storytree/service-host": "workspace:*",
     "@storytree/forest": "workspace:*",
     "@storytree/guardrails": "workspace:*",
     "@storytree/keys": "workspace:*",

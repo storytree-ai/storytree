@@ -1,0 +1,31 @@
+{
+  "name": "@storytree/service-host",
+  "private": true,
+  "type": "module",
+  "description": "Service host (ADR-1180 D2, D4): one long-running process per machine runs the long-running services the mounted parts declare.",
+  "exports": {
+    "./verbs": "./src/listing/verbs.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p ."
+  },
+  "dependencies": {
+    "@storytree/library": "workspace:*",
+    "@storytree/plugin-loader": "workspace:*",
+    "@storytree/project-and-caller": "workspace:*",
+    "tsx": "^4.23.15"
+  },
+  "devDependencies": {
+    "@storytree/test-waits": "workspace:*",
+    "@types/node": "^24.13.6",
+    "typescript": "~7.0.2"
+  },
+  "storytree": {
+    "verbs": [
+      {
+        "from": "./verbs",
+        "export": "SERVICES_FAMILIES"
+      }
+    ]
+  }
+}

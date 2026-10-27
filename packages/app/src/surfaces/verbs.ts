@@ -4,6 +4,7 @@
  * surfaces are the host's, composed from its story packages' manifests (ADR-0750, ADR-1021), so the door hands them on its
  * place. So are its parts (ADR-1095): `settings set part` switches one off or on for this computer, which every host reads
  * as it starts, or off with a plugin in this computer's factory folder (`settings set factory`) standing in for it, and `settings set system` switches roles, checks and notes off or on for what agents read (ADR-1092 D2).
+ * `settings set service <part>/<service>` turns a part's declared service on or off for this computer (ADR-1180 D2).
  * The command line mounts them as its `settings` family (SETTINGS_FAMILIES); they have no tool. `switch_factory` is the
  * one tool among them: an agent switches the factory folder when asked, with no approval (question_0b0b82eb8fbc).
  */
@@ -30,7 +31,7 @@ const show = verb({
   inputs: {},
   callerless: true,
   async act(_input, { surfaces, parts }: SettingsPlace) {
-    const { factoryFolder, partsSaid, readPartsOff, readSettings, readStandIns, readSystemSwitches, systemSaid } = await import("@storytree/project-and-caller");
+    const { factoryFolder, partsSaid, readPartsOff, readServicesOn, readSettings, readStandIns, readSystemSwitches, servicesSaid, systemSaid } = await import("@storytree/project-and-caller");
     const { readSurfaces } = await import("./switches.js");
     const read = readSettings();
     const graph = await parts();
@@ -38,7 +39,7 @@ const show = verb({
     const settings = Object.values(read).map((reading) => reading.name === "library" ? librarySaid(reading) : settingSaid(reading)).join("\n\n");
     const switched = switchedHere(graph, readPartsOff());
     const listed = [...new Set([...Object.keys(graph), ...switched.keys()])];
-    return { text: `${settings}\n\n${surfacesSaid(readSurfaces(await surfaces()))}\n\n${factorySaid(factoryFolder())}\n\n${partsSaid(listed, switched, standIns.plugins, standIns.switched, standIns.history)}\n\n${systemSaid(readSystemSwitches())}` };
+    return { text: `${settings}\n\n${surfacesSaid(readSurfaces(await surfaces()))}\n\n${factorySaid(factoryFolder())}\n\n${partsSaid(listed, switched, standIns.plugins, standIns.switched, standIns.history)}\n\n${systemSaid(readSystemSwitches())}\n\n${servicesSaid(readServicesOn())}` };
   },
 });
 
@@ -58,13 +59,13 @@ const set = verb({
     family: "settings",
     name: "set",
     summary: "save a setting for your user account",
-    usage: "settings set <name> <value> | settings set library <local | cloudsql <instance> <user> | postgres <address>> | settings set surface <surface> <on | off | <setting> <choice>> | settings set factory <folder> | settings set part <part> <on | off | plugin <plugin>> | settings set system <all | roles | checks | notes | <title or id>> <on | off>",
+    usage: "settings set <name> <value> | settings set library <local | cloudsql <instance> <user> | postgres <address>> | settings set surface <surface> <on | off | <setting> <choice>> | settings set factory <folder> | settings set part <part> <on | off | plugin <plugin>> | settings set system <all | roles | checks | notes | <title or id>> <on | off> | settings set service <part>/<service> <on | off>",
   },
   tool: { absent: "the user's settings are the person's own, set from a terminal" },
   inputs: { words: { kind: "text", word: 0, many: true, describe: "the setting's name and its value" } },
   callerless: true,
   async act({ words }, { surfaces, parts, session }: SettingsPlace) {
-    const { readStandIns, setFactory, setLibrary, setSetting, switchedSaid, switchPart, switchSystem, systemSaid } = await import("@storytree/project-and-caller");
+    const { readStandIns, servicesSaid, setFactory, setLibrary, setSetting, switchedSaid, switchPart, switchService, switchSystem, systemSaid } = await import("@storytree/project-and-caller");
     if (words[0] === "library" && words.length >= 2) return { text: librarySaid(setLibrary(words.slice(1))), next: NEXT };
     if (words[0] === "factory" && words.length === 2) {
       const chosen = setFactory(words[1]!, undefined, { through: "command line", ...(session === undefined ? {} : { session }) });
@@ -76,6 +77,7 @@ const set = verb({
       return { text: switchedSaid(switchedHere(graph, off), readStandIns().plugins), next: NEXT };
     }
     if (words[0] === "system" && words.length === 3) return { text: systemSaid(switchSystem(words[1]!, words[2]!)), next: NEXT };
+    if (words[0] === "service" && words.length === 3) return { text: servicesSaid(switchService(words[1]!, words[2]!)), next: NEXT };
     if (words[0] === "surface" && words.length >= 3) {
       const { setSurface } = await import("./switches.js");
       const surface = setSurface(await surfaces(), words.slice(1)).find((each) => each.id === words[1])!;

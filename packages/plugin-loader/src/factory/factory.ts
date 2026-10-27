@@ -24,7 +24,10 @@ import type { OutsideWriter } from "@storytree/library/outside-writer";
 import type { VerbContext } from "@storytree/library/verbs";
 import type { SettingsReading } from "@storytree/project-and-caller";
 
+import { isServiceRun, type ServiceRun } from "../manifests/manifests.js";
 import { CORE, switchedOff, type Composition, type PartsGraph } from "../switch/switch.js";
+
+export type { ServiceRun };
 
 /** This computer's factory folder, when one is chosen, and the plugin named to stand in for each switched-off part. */
 export interface StandIns {
@@ -214,18 +217,12 @@ export interface ServiceHost {
   readonly context?: VerbContext;
 }
 
-/** How a service runs: started again whenever it ends, or started every n minutes, never while the last run still goes. */
-export type ServiceRun = "always" | { readonly every: `${number}m` };
-
 /** A long-running service a plugin declares: its name, how it runs, and its start, which runs until the host's stop signal fires. */
 export interface PluginService {
   readonly name: string;
   readonly run: ServiceRun;
   start(host: ServiceHost): Promise<void> | void;
 }
-
-const runs = (run: unknown): run is ServiceRun =>
-  run === "always" || (typeof run === "object" && run !== null && Object.keys(run).length === 1 && typeof (run as { every?: unknown }).every === "string" && /^[1-9][0-9]*m$/.test((run as { every: string }).every));
 
 /**
  * The services plugin `plugin` of `folder` declares in its manifest's `services`, each { name, from, export, run }, none
@@ -243,7 +240,7 @@ export function pluginServices(folder: string | undefined, plugin: string): Plug
     if (typeof name !== "string" || !/^[a-z0-9][a-z0-9-]*$/.test(name)) throw new Error(`${plugin}'s service ${at + 1} has no name (lower-case letters, digits and dashes)`);
     if (named.has(name)) throw new Error(`${plugin} declares the service ${name} twice`);
     named.add(name);
-    if (!runs(run)) throw new Error(`${plugin}'s service ${name} runs ${JSON.stringify(run)}, not "always" or { every: "<n>m" }`);
+    if (!isServiceRun(run)) throw new Error(`${plugin}'s service ${name} runs ${JSON.stringify(run)}, not "always" or { every: "<n>m" }`);
     const from = String(entry.from);
     let file: string;
     try {

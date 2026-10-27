@@ -2,7 +2,8 @@
  * Capability 2 · Listing and restarting services, contracts 2.1 and 2.2 (ADR-1180 D4). The host writes how each service
  * stands to `service-host/status.json` in this machine's storytree home, and the command line reads it there. A restart
  * by name is a file the command line leaves in `service-host/restart`, which the host takes on its next tick, so the
- * command line never signals another process.
+ * command line never signals another process. The status names the services the host mounted, so the listing can say when a
+ * part switch has not taken in it (contract 2.4).
  */
 import { mkdirSync, readdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
@@ -29,6 +30,8 @@ export interface Status {
   readonly updatedAt: string;
   readonly stopped?: true;
   readonly factory: { readonly folder: string; readonly commit?: string };
+  /** Every service the parts the host mounted declare, as `<part>/<service>`: what it can run until its next start. A host from before this was written leaves it out. */
+  readonly declared?: readonly string[];
   readonly services: readonly StatusService[];
 }
 

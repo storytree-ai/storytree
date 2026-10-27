@@ -87,6 +87,7 @@ export function startHost({
       updatedAt: new Date().toISOString(),
       ...(stopped ? { stopped: true as const } : {}),
       factory: { folder: factoryFolder, ...(commit === undefined ? {} : { commit }) },
+      declared: [...declared.keys()].sort(),
       services: supervisor.states().map(({ since, nextAt, ...state }) => ({ ...state, since: new Date(since).toISOString(), ...(nextAt === undefined ? {} : { nextAt: new Date(nextAt).toISOString() }) })),
     };
     writeStatus(home, status);

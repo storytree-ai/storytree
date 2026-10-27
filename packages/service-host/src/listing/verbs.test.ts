@@ -4,7 +4,7 @@ import path from "node:path";
 import { test, type TestContext } from "node:test";
 
 import type { DoorWords, Verb, VerbInputs, VerbPlace } from "@storytree/library/verbs";
-import { setServiceOn } from "@storytree/project-and-caller";
+import { setPartOff, setServiceOn } from "@storytree/project-and-caller";
 import { waitUntil } from "@storytree/test-waits";
 
 import { HOST_DIR, startHost } from "../running/host.js";
@@ -125,5 +125,43 @@ test("2.3 · storytree services run runs the service host in the foreground unti
     const stopped = readStatus(home)!;
     assert.equal(stopped.stopped, true);
     assert.deepEqual(stopped.services.map(({ id, state, lastExit }) => ({ id, state, lastExit })), [{ id: "voice/listen", state: "waiting", lastExit: { code: 0, signal: null } }], `the listener ended at its stop signal (process ${pid})`);
+  }
+});
+
+test("2.4 · storytree services says when a part switch has not taken in the running host: a service turned on that the host did not mount at its start, or one it still runs whose part is now off, takes at the host's next start, and it names the restart", async (t) => {
+  const { home } = fixtureHome(t);
+  homeIs(t, home);
+  setServiceOn("voice/listen", true, home);
+  setPartOff("voice", false, home);
+  const restart = /restart the service host: `systemctl --user restart storytree-host` where `storytree services install` keeps it, or stop `storytree services run` and run it again/;
+
+  const clock = handClock();
+  const kids = children();
+  const first = startHost({ home, clock, log: () => {}, start: (service) => kids.start(service) });
+  try {
+    await clock.move(2_000);
+    setPartOff("voice", true, home, "my-voice");
+    await clock.move(2_000);
+    const listed = (await list.act({}, { folder: home }, words)).text;
+    assert.match(listed, /^  voice\/listen \(always\): on, but its part was switched after the service host started, so it starts at the host's next start; /m);
+    assert.match(listed, restart);
+    assert.doesNotMatch(listed, /within seconds/);
+    assert.deepEqual(kids.starts, [], "the running host does not take the part switch");
+  } finally {
+    await first.stop();
+  }
+
+  setServiceOn("voice/commit", true, home);
+  const second = startHost({ home, clock, log: () => {}, start: (service) => kids.start(service) });
+  try {
+    await clock.move(2_000);
+    assert.ok(kids.starts.includes("voice/commit"), "a host started after the switch mounts the switched services");
+    setPartOff("voice", false, home);
+    await clock.move(2_000);
+    const listed = (await list.act({}, { folder: home }, words)).text;
+    assert.match(listed, /^  voice\/commit: still run by the service host, though its part was switched off after the host started; it stops at the host's next start; /m);
+    assert.match(listed, restart);
+  } finally {
+    await second.stop();
   }
 });

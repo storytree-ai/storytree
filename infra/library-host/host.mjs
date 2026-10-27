@@ -127,9 +127,16 @@ export function restoreCommand(server, name, file) {
     args: ['--no-password', '--exit-on-error', '--single-transaction', '--no-owner', '--no-acl', '-d', name, file],
     env: pgEnv(server, name) };
 }
-export function dumpCommand(server, database, snapshot, owner, file) {
+// The account a dump of `database` acts as: none for a superuser, else the owner, refused when it may not act as it.
+export function dumpRole(database, { name, may, superuser }) {
+  if (superuser) return undefined;
+  if (!may) throw new Error(`Cannot act as ${name}, the owner of ${database}; refused before dumping`);
+  return name;
+}
+// `role` is the account the dump acts as, or none to dump as the account that connected.
+export function dumpCommand(server, database, snapshot, role, file) {
   return { command: path.posix.join(PG_BIN, 'pg_dump'),
-    args: ['-Fc', '--no-password', `--snapshot=${snapshot}`, `--role=${owner}`, '-f', file], env: pgEnv(server, database) };
+    args: ['-Fc', '--no-password', `--snapshot=${snapshot}`, ...(role ? [`--role=${role}`] : []), '-f', file], env: pgEnv(server, database) };
 }
 
 async function exclusive(file, content) {
@@ -198,18 +205,21 @@ async function dump(server, database, directory) {
   const client = await connect(server, database);
   const file = `${database}.dump`;
   try {
-    // Act as the table owner to bypass CI-only RLS, just like contract 8.3.
+    // A superuser (the box's own account) dumps as itself: it passes row-level security even where it is forced on
+    // the owner (library contract 1.28). Any other account acts as the table owner to pass CI-only RLS, as contract 8.3.
     const ownership = (await client.query(`SELECT pg_get_userbyid(datdba) AS name,
-      pg_has_role(session_user, datdba, 'SET') AS may FROM pg_database WHERE datname=current_database()`)).rows[0];
+      pg_has_role(session_user, datdba, 'SET') AS may,
+      (SELECT rolsuper FROM pg_roles WHERE rolname = session_user) AS superuser
+      FROM pg_database WHERE datname=current_database()`)).rows[0];
     const owner = ownership.name;
-    if (!ownership.may) throw new Error(`Cannot act as ${owner}, the owner of ${database}; refused before dumping`);
-    await client.query(`SET ROLE ${q(owner)}`);
+    const role = dumpRole(database, ownership);
+    if (role) await client.query(`SET ROLE ${q(role)}`);
     // An error, never silently filtered rows, if row security would apply.
     await client.query('SET row_security = off');
     await client.query('BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY');
     const version = (await client.query('SHOW server_version')).rows[0].server_version;
     const snapshot = (await client.query('SELECT pg_export_snapshot() AS id')).rows[0].id;
-    const { command, args, env } = dumpCommand(server, database, snapshot, owner, path.join(directory, file));
+    const { command, args, env } = dumpCommand(server, database, snapshot, role, path.join(directory, file));
     await run(command, args, { env });
     const rows = await counts(client);
     await client.query('COMMIT');

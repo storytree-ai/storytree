@@ -72,7 +72,8 @@ export const PROJECT_SCHEMA: readonly string[] = [
   END $$`,
   `DROP TRIGGER IF EXISTS record_event_recorded ON record_event`,
   `CREATE TRIGGER record_event_recorded BEFORE INSERT ON record_event FOR EACH ROW EXECUTE FUNCTION record_event_recorded()`,
-  // The history is append-only: only the table's owner (or a role holding its rights) may change or remove an entry.
+  // The history is append-only: only the table's owner (or a role holding its rights) may change or remove an entry
+  // (until 1.28 below, which fences the owner too).
   `CREATE OR REPLACE FUNCTION record_event_append_only() RETURNS trigger LANGUAGE plpgsql AS $$
   BEGIN
     IF NOT pg_has_role(current_user, (SELECT relowner FROM pg_class WHERE oid = TG_RELID), 'MEMBER') THEN
@@ -82,4 +83,61 @@ export const PROJECT_SCHEMA: readonly string[] = [
   END $$`,
   `DROP TRIGGER IF EXISTS record_event_append_only ON record_event`,
   `CREATE TRIGGER record_event_append_only BEFORE UPDATE OR DELETE OR TRUNCATE ON record_event FOR EACH STATEMENT EXECUTE FUNCTION record_event_append_only()`,
+
+  // Capability 1 · Project libraries (1.28). The owner is fenced too: the history changes only through the repair
+  // switch, record_event_repair(reason), which lasts for its transaction, and each statement it lets through is
+  // written to history_repair, itself append-only. The owner can still drop a trigger; the switch makes a repair a
+  // deliberate, recorded step rather than an ordinary write.
+  `CREATE TABLE IF NOT EXISTS history_repair (
+    seq         bigserial PRIMARY KEY,
+    operation   text NOT NULL,
+    reason      text NOT NULL,
+    recorded_by text NOT NULL DEFAULT session_user,
+    acting_as   text NOT NULL DEFAULT current_user,
+    recorded_at timestamptz NOT NULL DEFAULT now()
+  )`,
+  `CREATE OR REPLACE FUNCTION history_repair_append_only() RETURNS trigger LANGUAGE plpgsql AS $$
+  BEGIN
+    RAISE EXCEPTION 'history_repair is append-only: % refused for %', TG_OP, current_user USING ERRCODE = 'insufficient_privilege';
+  END $$`,
+  `DROP TRIGGER IF EXISTS history_repair_append_only ON history_repair`,
+  `CREATE TRIGGER history_repair_append_only BEFORE UPDATE OR DELETE OR TRUNCATE ON history_repair FOR EACH STATEMENT EXECUTE FUNCTION history_repair_append_only()`,
+  `CREATE OR REPLACE FUNCTION record_event_repair(reason text) RETURNS void LANGUAGE plpgsql AS $$
+  BEGIN
+    IF coalesce(btrim(reason), '') = '' THEN
+      RAISE EXCEPTION 'record_event_repair needs a reason: why the history must change' USING ERRCODE = 'invalid_parameter_value';
+    END IF;
+    IF NOT pg_has_role(current_user, (SELECT relowner FROM pg_class WHERE oid = 'record_event'::regclass), 'MEMBER') THEN
+      RAISE EXCEPTION 'record_event_repair refused for %: only the history''s owner may repair it', current_user USING ERRCODE = 'insufficient_privilege';
+    END IF;
+    PERFORM set_config('storytree.history_repair', reason, true);
+  END $$`,
+  `CREATE OR REPLACE FUNCTION record_event_append_only() RETURNS trigger LANGUAGE plpgsql AS $$
+  DECLARE
+    repair text := nullif(current_setting('storytree.history_repair', true), '');
+  BEGIN
+    IF repair IS NULL OR NOT pg_has_role(current_user, (SELECT relowner FROM pg_class WHERE oid = TG_RELID), 'MEMBER') THEN
+      RAISE EXCEPTION 'record_event is append-only: % refused for % (a repair goes through record_event_repair)', TG_OP, current_user USING ERRCODE = 'insufficient_privilege';
+    END IF;
+    INSERT INTO history_repair (operation, reason) VALUES (TG_OP, repair);
+    RETURN NULL;
+  END $$`,
+  // Policies for the tables' owner, so that where row-level security is forced the owner meets them: it reads and
+  // writes records and adds history, and reaches a history entry to change it only while the repair switch is on.
+  `DO $$
+  DECLARE
+    owner text := (SELECT pg_get_userbyid(relowner) FROM pg_class WHERE oid = 'record_event'::regclass);
+    repairing text := $repairing$coalesce(current_setting('storytree.history_repair', true), '') <> ''$repairing$;
+  BEGIN
+    DROP POLICY IF EXISTS storytree_owner ON record;
+    EXECUTE format('CREATE POLICY storytree_owner ON record TO %I USING (true) WITH CHECK (true)', owner);
+    DROP POLICY IF EXISTS storytree_owner_read ON record_event;
+    EXECUTE format('CREATE POLICY storytree_owner_read ON record_event FOR SELECT TO %I USING (true)', owner);
+    DROP POLICY IF EXISTS storytree_owner_add ON record_event;
+    EXECUTE format('CREATE POLICY storytree_owner_add ON record_event FOR INSERT TO %I WITH CHECK (true)', owner);
+    DROP POLICY IF EXISTS storytree_owner_repair ON record_event;
+    EXECUTE format('CREATE POLICY storytree_owner_repair ON record_event FOR UPDATE TO %I USING (%s) WITH CHECK (true)', owner, repairing);
+    DROP POLICY IF EXISTS storytree_owner_remove ON record_event;
+    EXECUTE format('CREATE POLICY storytree_owner_remove ON record_event FOR DELETE TO %I USING (%s)', owner, repairing);
+  END $$`,
 ];

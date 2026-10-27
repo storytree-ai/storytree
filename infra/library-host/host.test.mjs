@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
 import { promisify } from 'node:util';
-import { bundleRuntime, checkedCounts, checkedManifest, checkedPrefix, dumpCommand, lastDigest, mintProject, nextDigest, restoreCommand, restorer, saveDigest, timerUnits } from './host.mjs';
+import { bundleRuntime, checkedCounts, checkedManifest, checkedPrefix, dumpCommand, dumpRole, lastDigest, mintProject, nextDigest, restoreCommand, restorer, saveDigest, timerUnits } from './host.mjs';
 
 test('a backup is refused when a restore loses rows, adds tables, or omits tables', () => {
   const source = { 'public.record': '17', 'public.record_event': '43' };
@@ -48,6 +48,16 @@ test('a restore runs PostgreSQL 16 pg_restore as storytree_library over 127.0.0.
 test('a backup dumps with PostgreSQL 16 pg_dump by its absolute path', () => {
   const { command } = dumpCommand({ host: '/var/run/postgresql', port: 5432, user: 'operator' }, 'storytree-lag', 'snap', 'storytree_library', '/d/storytree-lag.dump');
   assert.equal(command, '/usr/lib/postgresql/16/bin/pg_dump');
+});
+
+test('a backup acts as the owner unless it connected as a superuser, and is refused when it may not act as the owner', () => {
+  assert.equal(dumpRole('storytree_storytree', { name: 'storytree_library', may: true, superuser: true }), undefined);
+  assert.equal(dumpRole('storytree_storytree', { name: 'storytree_library', may: false, superuser: true }), undefined, 'a superuser needs no owner rights');
+  assert.equal(dumpRole('storytree_storytree', { name: 'storytree_library', may: true, superuser: false }), 'storytree_library');
+  assert.throws(() => dumpRole('storytree_storytree', { name: 'storytree_library', may: false, superuser: false }), /Cannot act as storytree_library/);
+  const server = { host: '/var/run/postgresql', port: 5432, user: 'operator' };
+  assert.ok(dumpCommand(server, 'storytree-lag', 'snap', 'storytree_library', '/d/x.dump').args.includes('--role=storytree_library'));
+  assert.ok(!dumpCommand(server, 'storytree-lag', 'snap', undefined, '/d/x.dump').args.some(arg => arg.startsWith('--role')));
 });
 
 test('a backup\'s cloud project is read from the Mint service account\'s own credentials, and other credentials or a malformed project are refused', () => {

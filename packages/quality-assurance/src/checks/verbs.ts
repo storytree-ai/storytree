@@ -6,6 +6,7 @@
  * the same work on the MCP server, with the inputs a tool takes.
  */
 import { resolve } from "node:path";
+import { isDeepStrictEqual } from "node:util";
 
 import { verb, VerbRefusal, type VerbContext, type VerbFamily } from "@storytree/library/verbs";
 
@@ -191,16 +192,24 @@ const storyRisksVerb = verb({
     const source = checkoutSource(context.folder);
     const read = today();
     const lines: string[] = [];
+    let unchanged = 0;
     for (const story of await context.library.list("story")) {
       if (story.fields.mapped !== undefined) continue;
       const reading = readStory({ id: story.id, title: story.fields.title }, graph, source, read);
       if (reading === undefined) continue;
-      await context.library.editStory(story.id, { risk: reading }, context.writer);
+      // A reading the same as the stored one in all but its day is not written again, so history keeps only real changes.
+      if (story.fields.risk !== undefined && isDeepStrictEqual(undated(story.fields.risk), undated(reading))) unchanged++;
+      else await context.library.editStory(story.id, { risk: reading }, context.writer);
       lines.push(`  ${story.id}  ${story.fields.title}: ${2 * reading.depth.value + reading.radius.value} · depth ${reading.depth.value} (${reading.depth.reason}) · radius ${reading.radius.value} (${reading.radius.reason})`);
     }
-    return { text: lines.length === 0 ? "No story has a package in this checkout to read." : [`Wrote ${lines.length} stories' risk readings:`, ...lines].join("\n") };
+    return { text: lines.length === 0 ? "No story has a package in this checkout to read." : [`Wrote ${lines.length - unchanged} stories' risk readings${unchanged === 0 ? "" : `, ${unchanged} unchanged`}:`, ...lines].join("\n") };
   },
 });
+
+/** A story's risk reading as stored, without the days it was read, to compare two readings by what they say. */
+function undated(reading: { readonly depth: object; readonly radius: object }): unknown {
+  return JSON.parse(JSON.stringify({ depth: { ...reading.depth, read: undefined }, radius: { ...reading.radius, read: undefined } }));
+}
 
 /** Today, as a reading's day (YYYY-MM-DD). */
 function today(): string {

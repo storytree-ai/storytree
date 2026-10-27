@@ -28,7 +28,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { isDeepStrictEqual } from "node:util";
 
-import { ANCHOR_ID, CONTRACT_DEFINITION, LONG_CONTRACT_TITLE, SchemaError, type KnowledgeKind, type Library, type PendingChange, type PhraseKind, type PlanChange, type RecordType, type WriteOptions } from "../index.js";
+import { ANCHOR_ID, CONTRACT_DEFINITION, LONG_CONTRACT_TITLE, SchemaError, StaleRevertError, type KnowledgeKind, type Library, type PendingChange, type PhraseKind, type PlanChange, type RecordType, type WriteOptions } from "../index.js";
 import { PR_CUTOVER_ID } from "../work/index.js";
 import { fieldValue, verb, VerbRefusal, type VerbContext, type VerbFamily } from "../verbs/verb.js";
 import { changes, count, decisionNamed, find } from "../data/commands.js";
@@ -327,14 +327,19 @@ const PLAN_TYPES: ReadonlySet<string> = new Set(["story", "capability", "contrac
  * the change is made live. Of several, the one it claimed last.
  */
 async function heldOnIncrement(context: LibraryVerbContext, change: PlanChange): Promise<string | undefined> {
-  const increment = (await context.claims())
-    .filter((claim) => claim.session === context.session && claim.increment !== undefined)
-    .sort((one, other) => one.since.localeCompare(other.since))
-    .at(-1)?.increment;
+  const increment = heldIncrement(await context.claims(), context.session);
   if (increment === undefined) return undefined;
   const pended = await context.library.pendChange(increment, change, context.writer!);
   if (pended === null || !("pending" in pended)) return undefined;
   return `pending on increment ${increment} until its branch merges; the live plan is unchanged.`;
+}
+
+/** The increment `session` claimed last of those it holds, if any. */
+function heldIncrement(claims: Awaited<ReturnType<LibraryVerbContext["claims"]>>, session: string): string | undefined {
+  return claims
+    .filter((claim) => claim.session === session && claim.increment !== undefined)
+    .sort((one, other) => one.since.localeCompare(other.since))
+    .at(-1)?.increment;
 }
 
 /** An increment's pending changes (ADR-0966 D3): each record, then each field as before -> after, or its retirement. */
@@ -518,6 +523,38 @@ const history = verb({
   },
 });
 
+const revert = verb({
+  command: { family: "library", name: "revert", summary: "write a record back, whole and under its id, to the state one of its history entries kept; a retired one comes back", usage: "library revert <id> --to <seq> --read <seq> [--reason <why>]" },
+  tool: NOT_A_TOOL,
+  writes: true,
+  inputs: {
+    id: { kind: "text", word: 0, optional: true, describe: "the record's id" },
+    to: { kind: "text", optional: true, describe: "the seq of the history entry to go back to" },
+    read: { kind: "text", optional: true, describe: "the seq of its newest history entry when you read it" },
+    reason: { kind: "text", optional: true, describe: "why" },
+  },
+  async act({ id: given, to: toGiven, read: readGiven, reason }, context: LibraryVerbContext) {
+    const id = needed(given, "the record's id");
+    const [to, read] = ([["--to", toGiven], ["--read", readGiven]] as const).map(([name, value]) => {
+      const seq = Number(needed(value, name));
+      if (!(Number.isSafeInteger(seq) && seq > 0)) throw new VerbRefusal(`${name} is a history entry's seq, as library history ${id} shows it, not ${JSON.stringify(value)}`, { misuse: true });
+      return seq;
+    }) as [number, number];
+    const type = (await context.library.history({ id, newest: 1 })).at(0)?.type;
+    const increment = PLAN_TYPES.has(type ?? "") ? heldIncrement(await context.claims(), context.session) : undefined;
+    if (increment !== undefined) {
+      throw new VerbRefusal(`${id} is a planned ${type}, and a revert cannot wait on increment ${increment} as an edit does: edit its fields to hold the change there, or revert it from a session holding no increment`);
+    }
+    try {
+      await context.library.revert(id, to, read, { ...context.writer!, ...(reason === undefined ? {} : { reason }) });
+    } catch (error) {
+      if (error instanceof RangeError || error instanceof StaleRevertError) throw new VerbRefusal(error.message);
+      throw error;
+    }
+    return { text: `Reverted ${id} to history entry ${to}.`, next: [{ command: `library read ${id}`, why: "read it back" }, { command: `library history ${id}`, why: "see the revert in its history" }] };
+  },
+});
+
 export { NOTE_TOOLS, type Found, type NoteRead, type NoteToolContext, type Presenter } from "./notes.js";
 
 /** The library's command family, which the package's manifest names under `verbs` (ADR-1033), first among `storytree`'s. */
@@ -526,5 +563,5 @@ export const LIBRARY_FAMILIES: readonly VerbFamily<LibraryVerbContext>[] = [{
   summary: "read, search and write the project's records",
   order: 1,
   guesses: { show: "library read <id>", get: "library read <id>", open: "library read <id>", view: "library read <id>", pull: "library read <id>", artifact: "library read <id>" },
-  verbs: [search, phrase, links, related, create, read, edit, refile, retire, list, history, count, changes, find],
+  verbs: [search, phrase, links, related, create, read, edit, refile, retire, list, history, revert, count, changes, find],
 }, ADR_FAMILY];

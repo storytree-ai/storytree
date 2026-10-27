@@ -7,7 +7,7 @@ import path from "node:path";
 import { realpathSync, statSync } from "node:fs";
 import { pathToFileURL } from "node:url";
 import { localhostAllowedHostnames } from "@modelcontextprotocol/server";
-import { SESSION_ENV, WATCHED_HARNESSES, type WatchedHarness } from "@storytree/project-and-caller/caller";
+import { SESSION_ENV } from "@storytree/project-and-caller/caller";
 import { draftsUrlFrom } from "./drafts.js";
 
 export interface VoiceConfig {
@@ -18,7 +18,7 @@ export interface VoiceConfig {
   /** The storytree command line as an argument array; STORYTREE_CLI replaces it in tests. */
   readonly cli: readonly string[];
   readonly allowedHosts: readonly string[];
-  /** Caller ranges the X-Forwarded-For first hop must fall in, or null when none are configured. */
+  /** Caller ranges the X-Forwarded-For last hop must fall in, or null when none are configured. */
   readonly cidrs: net.BlockList | null;
   readonly cidrText: string;
   /** The environment every child starts from, before its voice session id is added. */
@@ -47,17 +47,12 @@ export interface SignInConfig {
 /** A setting the door cannot start with; its message names what to fix and never holds the secret. */
 export class ConfigError extends Error {}
 
-/** The door's own settings and its secret: none of them reaches a child. */
-const DOOR_SETTINGS = [
-  "VOICE_TOKEN", "VOICE_SPIKE_TOKEN", "PORT", "REPO_DIR", "ALLOWED_HOSTS", "ALLOWED_CIDRS", "STORYTREE_CLI",
-  "VOICE_SIGNIN_ISSUER", "VOICE_PUBLIC_URL", "VOICE_OWNER_ID", "VOICE_SIGNIN_JWKS", "VOICE_SIGNIN_EVERY_CALL",
-  "VOICE_WRITES", "VOICE_DRAFTS_URL",
-];
-
-/** Every harness's session variable, and storytree's own: a child names the voice session and no other (1.13). */
-const SESSION_NAMES = [SESSION_ENV, ...(WATCHED_HARNESSES as readonly WatchedHarness[]).flatMap((harness) => (harness.shellSession ? [harness.shellSession] : []))];
-
-const SCRUBBED = new Set([...DOOR_SETTINGS, ...SESSION_NAMES].map((name) => name.toUpperCase()));
+/**
+ * The only variables a child inherits (contract 1.12): where to find programs and the storytree home, the locale and
+ * time zone, the temp folder, and what Node needs on Windows. The door's secret, its settings, every other harness's
+ * session id (1.13) and anything else in its environment stay with the door.
+ */
+const INHERITED = new Set(["PATH", "HOME", "LANG", "TZ", "STORYTREE_HOME", "TMPDIR", "TMP", "TEMP", "SYSTEMROOT", "WINDIR", "PATHEXT", "USERPROFILE"]);
 
 export function loadConfig(env: NodeJS.ProcessEnv): VoiceConfig {
   // VOICE_TOKEN, or the spike's VOICE_SPIKE_TOKEN, so the spike's env file and the owner's connector keep working.
@@ -174,13 +169,11 @@ function list(value: string | undefined): string[] {
   return (value ?? "").split(",").map((part) => part.trim()).filter((part) => part !== "");
 }
 
-/** The door's environment less its secret, its settings, every session id and pnpm's variables. */
+/** The door's environment cut to the inherited names, matched without regard to case as Windows names them. */
 function inheritable(env: NodeJS.ProcessEnv): Record<string, string> {
   const out: Record<string, string> = {};
   for (const [name, value] of Object.entries(env)) {
-    const upper = name.toUpperCase();
-    if (value === undefined || SCRUBBED.has(upper) || upper.startsWith("NPM_") || upper.startsWith("PNPM_")) continue;
-    out[name] = value;
+    if (value !== undefined && INHERITED.has(name.toUpperCase())) out[name] = value;
   }
   return out;
 }

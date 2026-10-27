@@ -582,7 +582,8 @@ export function makeServer(children: Children, hangup: AbortSignal | undefined, 
   };
   const reads = (ctx: unknown) => new Reads(children, signalFor(ctx));
   const limits = children.limits;
-  const server = new McpServer({ name: "storytree-voice", version: "0.1.0" }, { instructions: instructionsFor([...TOOL_NAMES, ...more]) });
+  // No tool takes more than a handful of words and ids, so a call holding over 100 is refused before it runs (contract 1.21).
+  const server = new McpServer({ name: "storytree-voice", version: "0.1.0" }, { instructions: instructionsFor([...TOOL_NAMES, ...more]), maxToolInputElements: 100 });
   // Each tool as registered, so an old name can be served by the same schema and handler.
   const registered = new Map<string, Parameters<McpServer["registerTool"]>>();
   const registerTool = ((...tool: Parameters<McpServer["registerTool"]>) => {

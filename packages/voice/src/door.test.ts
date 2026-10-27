@@ -53,18 +53,20 @@ test("1.2 on the secret route every method but POST is answered 405 with Allow: 
   }
 });
 
-test("1.3 with caller ranges set, a missing, malformed or outside X-Forwarded-For first hop is 403 and runs no tool; one inside is served", async () => {
+test("1.3 with caller ranges set, a missing, malformed or outside X-Forwarded-For last hop is 403 and runs no tool; one inside is served, whatever the caller wrote before it", async () => {
   const door = await testDoor(repo.dir, { ALLOWED_CIDRS: "160.79.104.0/21" });
   try {
-    for (const forwarded of [undefined, "not-an-ip", "8.8.8.8", "8.8.8.8, 160.79.106.37"]) {
+    for (const forwarded of [undefined, "not-an-ip", "8.8.8.8", "160.79.106.37, 8.8.8.8", "160.79.106.37, not-an-ip"]) {
       const headers: Record<string, string> = { ...LEGACY_HEADERS, ...(forwarded === undefined ? {} : { "x-forwarded-for": forwarded }) };
       const answer = await raw(door.port, { urlPath: door.route, headers, body: toolCall(1, "find", { query: "anything" }) });
       assert.equal(answer.status, 403, `x-forwarded-for: ${forwarded}`);
     }
     await quietFor(() => childrenIn(door.cliLog).started > 0, 200, "a child starting for a refused caller");
-    const inside = await raw(door.port, { urlPath: door.route, headers: { ...LEGACY_HEADERS, "x-forwarded-for": "160.79.106.37" }, body: toolCall(2, "find", { query: "anything" }) });
-    assert.equal(inside.status, 200);
-    assert.equal(seen(messagesOf(inside.body)[0]!.result!).argv.at(-1), "anything");
+    for (const [id, forwarded] of [[2, "160.79.106.37"], [3, "8.8.8.8, 160.79.106.37"]] as const) {
+      const inside = await raw(door.port, { urlPath: door.route, headers: { ...LEGACY_HEADERS, "x-forwarded-for": forwarded }, body: toolCall(id, "find", { query: "anything" }) });
+      assert.equal(inside.status, 200, `x-forwarded-for: ${forwarded}`);
+      assert.equal(seen(messagesOf(inside.body)[0]!.result!).argv.at(-1), "anything");
+    }
   } finally {
     await door.close();
   }
@@ -84,13 +86,34 @@ test("1.4 a Host that is neither localhost nor configured is refused before any 
   }
 });
 
-test("1.5 a body over 1 MB is answered 413, declared or found while reading, and the client sees 413 rather than a reset", async () => {
+test("1.5 a body over 64 KB is answered 413, declared or found while reading, and the client sees 413 rather than a reset", async () => {
   const door = await testDoor(repo.dir);
   try {
-    const declared = await raw(door.port, { urlPath: door.route, headers: MCP_HEADERS, body: "x".repeat(1_500_000) });
+    const declared = await raw(door.port, { urlPath: door.route, headers: MCP_HEADERS, body: "x".repeat(70_000) });
     assert.equal(declared.status, 413);
-    const chunked = await raw(door.port, { urlPath: door.route, headers: MCP_HEADERS, body: Array.from({ length: 6 }, () => "x".repeat(250_000)) });
+    const chunked = await raw(door.port, { urlPath: door.route, headers: MCP_HEADERS, body: Array.from({ length: 6 }, () => "x".repeat(12_000)) });
     assert.equal(chunked.status, 413);
+    const under = await raw(door.port, { urlPath: door.route, headers: LEGACY_HEADERS, body: toolCall(1, "find", { query: "q".repeat(60_000) }) });
+    assert.equal(under.status, 200, "a body under 64 KB is served");
+  } finally {
+    await door.close();
+  }
+});
+
+test("1.21 a tool call whose arguments hold more than 100 elements is refused and starts no child, and a subscription stream is refused at once rather than held open", async () => {
+  const door = await testDoor(repo.dir);
+  try {
+    const big = await raw(door.port, { urlPath: door.route, headers: LEGACY_HEADERS, body: toolCall(1, "find", { query: "anything", more: Array.from({ length: 150 }, (_, at) => at) }) });
+    const answer = messagesOf(big.body)[0];
+    assert.ok(answer?.error !== undefined || answer?.result?.isError === true, `a 150-element call was served: ${big.body.slice(0, 200)}`);
+    await quietFor(() => childrenIn(door.cliLog).started > 0, 200, "a child starting for an oversized call");
+    const small = await raw(door.port, { urlPath: door.route, headers: LEGACY_HEADERS, body: toolCall(2, "find", { query: "anything" }) });
+    assert.equal(seen(messagesOf(small.body)[0]!.result!).argv.at(-1), "anything", "a call inside the limit is served");
+
+    const meta = { "io.modelcontextprotocol/protocolVersion": "2026-07-28", "io.modelcontextprotocol/clientInfo": { name: "raw", version: "0" }, "io.modelcontextprotocol/clientCapabilities": {} };
+    const listen = JSON.stringify({ jsonrpc: "2.0", id: 3, method: "subscriptions/listen", params: { notifications: { toolsListChanged: true }, _meta: meta } });
+    const subscribed = await raw(door.port, { urlPath: door.route, headers: { ...MCP_HEADERS, "mcp-protocol-version": "2026-07-28", "mcp-method": "subscriptions/listen" }, body: listen });
+    assert.equal(messagesOf(subscribed.body)[0]?.error?.code, -32603, subscribed.body.slice(0, 200));
   } finally {
     await door.close();
   }
@@ -293,16 +316,19 @@ test("1.11 the door refuses to start, with one plain line and exit 1, on a bad s
   }
 });
 
-test("1.12 a child gets an argument array with no shell, runs in the door's repository and inherits none of its secret or settings", async () => {
-  const door = await testDoor(repo.dir, { VOICE_SPIKE_TOKEN: newToken(), ALLOWED_CIDRS: "127.0.0.1/32" });
+test("1.12 a child gets an argument array with no shell, runs in the door's repository and inherits only PATH, HOME, LANG, TZ, STORYTREE_HOME and the system's temp and Windows basics", async () => {
+  const door = await testDoor(repo.dir, {
+    VOICE_SPIKE_TOKEN: newToken(), ALLOWED_CIDRS: "127.0.0.1/32", SOME_DEPLOY_KEY: "a-door-variable", NODE_OPTIONS: "--inspect", LANG: "en_GB.UTF-8", TZ: "Europe/London", STORYTREE_HOME: "/a/storytree/home",
+  });
   try {
     const hostile = "a $(whoami) `id` ; rm -rf x $HOME";
     const answer = await raw(door.port, { urlPath: door.route, headers: { ...LEGACY_HEADERS, "x-forwarded-for": "127.0.0.1" }, body: toolCall(1, "find", { query: hostile }) });
     const child = seen(messagesOf(answer.body)[0]!.result!);
     assert.deepEqual(child.argv, ["library", "search", "--limit", "5", "--", hostile]);
     assert.equal(realpathSync.native(child.cwd).toLowerCase(), realpathSync.native(repo.dir).toLowerCase());
-    const leaked = Object.keys(child.env).filter((name) => /^(VOICE_TOKEN|VOICE_SPIKE_TOKEN|PORT|REPO_DIR|ALLOWED_HOSTS|ALLOWED_CIDRS|STORYTREE_CLI)$/i.test(name));
-    assert.deepEqual(leaked, []);
+    const allowed = /^(PATH|HOME|LANG|TZ|STORYTREE_HOME|STORYTREE_SESSION_ID|TMPDIR|TMP|TEMP|SYSTEMROOT|WINDIR|PATHEXT|USERPROFILE)$/i;
+    assert.deepEqual(child.names.filter((name) => !allowed.test(name)), [], "a child inherits only the named variables");
+    for (const name of ["LANG", "TZ", "STORYTREE_HOME", "PATH"]) assert.ok(child.names.includes(name), `${name} reaches the child`);
   } finally {
     await door.close();
   }

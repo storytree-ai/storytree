@@ -31,12 +31,15 @@ export interface Door {
 
 const digest = (text: string) => crypto.createHash("sha256").update(text).digest();
 
-/** First X-Forwarded-For hop, if it is an IP address (Tailscale Funnel sets it to the public caller's address). */
+/**
+ * Last X-Forwarded-For hop, if it is an IP address: Tailscale Funnel appends the public caller's address, so only the
+ * last entry is the proxy's; anything before it is whatever the caller sent.
+ */
 function forwardedFor(req: http.IncomingMessage): string | undefined {
   const header = req.headers["x-forwarded-for"];
   if (header === undefined) return undefined;
-  const first = String(Array.isArray(header) ? header[0] : header).split(",")[0]!.trim();
-  return net.isIP(first) ? first : "invalid";
+  const last = String(Array.isArray(header) ? header.at(-1) : header).split(",").at(-1)!.trim();
+  return net.isIP(last) ? last : "invalid";
 }
 
 /** The JSON-RPC method (and a called tool's name) in a body, for the log only; never the arguments. */
@@ -189,6 +192,8 @@ export function startDoor(config: VoiceConfig, options: DoorOptions = {}): Promi
     // 2025-era clients: one fresh server per request, answered as a short SSE stream; 2026-07-28 clients: one JSON body.
     legacy: "stateless",
     maxRequestBodySize: limits.bodyBytes,
+    // No tool takes a subscription, so none is ever held open (contract 1.21).
+    maxSubscriptions: 0,
     onerror: (error: unknown) => log(`mcp: ${String((error as Error | undefined)?.message ?? error).slice(0, 200)}`),
   });
   const route = digest(`/mcp/${config.token}`);

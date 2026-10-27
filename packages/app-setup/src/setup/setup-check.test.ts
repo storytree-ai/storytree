@@ -156,8 +156,12 @@ test("8.1 in a throwaway home with only the tool server installed, the first ses
     ] as const) {
       const failure = harness === "claude-code" ? ["PostToolUseFailure"] : [];
       assert.deepEqual(Object.keys(events).sort(), ["PostToolUse", ...failure, "PreToolUse", "SessionEnd", "SessionStart", "Stop", "UserPromptSubmit"].sort(), harness);
-      const edits = harness === "claude-code" ? ["Write", "Edit", "MultiEdit", "NotebookEdit", "Bash", "Agent", "Task"] : ["apply_patch", "Bash", "spawn_agent"];
+      // And after each tool that reads outside text, whose line marks the session's later knowledge writes (3.49).
+      const edits = harness === "claude-code"
+        ? ["Write", "Edit", "MultiEdit", "NotebookEdit", "Bash", "Agent", "Task", "WebFetch", "WebSearch", "mcp__github__get_issue", "mcp__claude_ai_Gmail__read_thread"]
+        : ["apply_patch", "Bash", "spawn_agent"];
       for (const tool of edits) assert.ok(runsFor(events.PostToolUse?.[0], tool, anchored), `${harness}: after ${tool}`);
+      assert.ok(!runsFor(events.PostToolUse?.[0], "mcp__storytree__open", anchored), `${harness}: not after a storytree tool`);
       if (harness === "claude-code") assert.ok(runsFor(events.PostToolUseFailure?.[0], "Bash", anchored), "after a shell command that failed");
       // Without Git for Windows, Claude Code runs commands with its PowerShell tool instead of Bash.
       if (harness === "claude-code") {

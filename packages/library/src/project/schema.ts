@@ -144,4 +144,8 @@ export const PROJECT_SCHEMA: readonly string[] = [
   // own sessions meet the policies above rather than passing them.
   `ALTER TABLE record FORCE ROW LEVEL SECURITY`,
   `ALTER TABLE record_event FORCE ROW LEVEL SECURITY`,
+
+  // Capability 2 · Library transactions (2.20). The outside text a write's session had read before it wrote, as a JSON list
+  // of what it read: a mark that observes, never refuses (increment_572ffca14851). Null on an unmarked write.
+  `ALTER TABLE record_event ADD COLUMN IF NOT EXISTS outside_read jsonb`,
 ];

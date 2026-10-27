@@ -1,5 +1,5 @@
 /**
- * Capability 2 · Library transactions: ONE behaviour suite, one test per contract 2.1-2.9, 2.12 and 2.14-2.19 in
+ * Capability 2 · Library transactions: ONE behaviour suite, one test per contract 2.1-2.9, 2.12 and 2.14-2.20 in
  * the library story. Each backend registers it (memory.test.ts, pg.test.ts) and it must pass
  * unchanged on every one. Parity is the point: later stories test against the in-memory twin, so
  * the twin has to behave exactly as Postgres does.
@@ -679,6 +679,33 @@ export function transactionsBehaviourSuite(label: string, makeStore: () => Promi
     await assert.rejects(store.revertWrites({ of: "cat", validate: () => { throw new Error("refused by the check"); } }), /refused by the check/);
     assert.deepEqual(await store.history(), before.history, "no history entry was written");
     assert.deepEqual(await store.list("note"), before.records);
+  });
+
+  contract("2.20", "a write made for a writer who had read outside text keeps what it read in its history entry; a write without one carries no mark", async (store) => {
+    const read = ["WebFetch https://example.com/issue", "gh pr view 12"];
+    // The writer names what it read for the types it marks; this one marks only principles.
+    const outsideRead = (type: string) => (type === "principle" ? read : undefined);
+    await store.save({ id: "p-1", type: "principle", fields: { v: 1 }, actor: "session:one", outsideRead });
+    await store.save({ id: "n-1", type: "note", fields: { v: 1 }, actor: "session:one", outsideRead });
+    await store.edit({ id: "p-1", fields: { v: 2 }, actor: "session:one", outsideRead });
+    await store.edit({ id: "p-1", fields: { v: 3 }, actor: "session:two" });
+    const [first] = await store.history({ id: "p-1" });
+    await store.revert({ id: "p-1", to: first!.seq, read: (await store.history({ id: "p-1" })).at(-1)!.seq, actor: "session:one", outsideRead });
+    await store.save({ id: "p-2", type: "principle", fields: { v: 1 }, actor: "session:one", outsideRead: () => [] });
+    await store.retire({ id: "p-1", reason: "overtaken", actor: "session:one", outsideRead });
+
+    const marks = (await store.history()).map((entry) => [entry.recordId, entry.action, entry.outsideRead]);
+    assert.deepEqual(marks, [
+      ["p-1", "created", read],
+      ["n-1", "created", undefined],
+      ["p-1", "updated", read],
+      ["p-1", "updated", undefined],
+      ["p-1", "updated", read],
+      ["p-2", "created", undefined],
+      ["p-1", "retired", read],
+    ], "marked where the writer named reads for the record's type, and nowhere else: no other type, no other writer, no empty list");
+    assert.equal((await store.history({ id: "n-1" }))[0]!.outsideRead, undefined);
+    assert.ok(!("outsideRead" in (await store.history({ id: "p-2" }))[0]!), "an unmarked entry has no mark at all");
   });
 
 }

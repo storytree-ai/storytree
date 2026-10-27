@@ -237,7 +237,11 @@ function claudeEntries({ node, script }: HookCommand): Record<string, HookEntry[
       { matcher: "Write|Edit|MultiEdit|NotebookEdit", hooks: [{ type: "command", command: node, args: [script, "claude-code", EDIT_GATE] }] },
     ],
     // After each shell command, finished or failed, also in the foreground: its changes to imported code are told to the agent (ADR-1015).
-    PostToolUse: [{ matcher: "Write|Edit|MultiEdit|NotebookEdit|Bash|PowerShell|Agent|Task", hooks: [run(true)] }, { matcher: "Bash|PowerShell", hooks: [guard] }],
+    // After a tool that reads outside text too: its line marks the session's later knowledge writes (Hooks 3.49).
+    PostToolUse: [
+      { matcher: "Write|Edit|MultiEdit|NotebookEdit|Bash|PowerShell|Agent|Task|WebFetch|WebSearch|mcp__.*([Gg]it[Hh]ub|[Gg]mail).*", hooks: [run(true)] },
+      { matcher: "Bash|PowerShell", hooks: [guard] },
+    ],
     PostToolUseFailure: [{ matcher: "Bash|PowerShell", hooks: [run(true)] }, { matcher: "Bash|PowerShell", hooks: [guard] }],
     // The turn's line in the background; then, in the foreground, a check that may ask the agent to close out (ADR-0758 D4).
     Stop: [{ hooks: [run(true)] }, { hooks: [{ type: "command", command: node, args: [script, "claude-code", CLOSE_OUT_REMINDER] }] }],

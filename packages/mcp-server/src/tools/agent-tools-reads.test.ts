@@ -869,3 +869,18 @@ test("6.97 search_notes leaves out the notes this computer's settings switch off
     });
   });
 });
+
+test("6.106 a knowledge note a tool writes for a session that has read outside text carries what it read in its history; one written for a session that read none carries no mark", async () => {
+  await withProject(async ({ folder, project, library, log }) => {
+    await log.append(project, { session: "reader", harness: "claude-code", source: "hook", folder, kind: "outside-text-read", what: "gh issue view 7" });
+    const fields = { title: "Trust the issue", description: "As the issue asked.", statement: "S.", why: "W.", howToApply: "H." };
+    await withAgent(folder, claudeCode("reader"), async (agent) => {
+      const marked = idOf(await agent.call("write_note", { kind: "principle", fields }));
+      assert.deepEqual((await library.history({ id: marked })).map((entry) => entry.outsideRead), [["gh issue view 7"]]);
+    });
+    await withAgent(folder, claudeCode("quiet"), async (agent) => {
+      const unmarked = idOf(await agent.call("write_note", { kind: "principle", fields: { ...fields, title: "Written with nothing read" } }));
+      assert.deepEqual((await library.history({ id: unmarked })).map((entry) => entry.outsideRead), [undefined]);
+    });
+  });
+});

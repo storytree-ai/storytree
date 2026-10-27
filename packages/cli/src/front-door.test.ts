@@ -1,5 +1,5 @@
 /**
- * Capability 1 · Front door: one test per contract 1.1-1.5, 1.15, 1.17-1.19, 1.21, 1.33, 1.35 and 1.36 in the command line story, each running the
+ * Capability 1 · Front door: one test per contract 1.1-1.5, 1.15, 1.17-1.19, 1.21, 1.33, 1.35, 1.36 and 1.45 in the command line story, each running the
  * real, built `storytree` command in a throwaway folder and storytree home.
  */
 import assert from "node:assert/strict";
@@ -467,5 +467,24 @@ test("1.43 · a title holding a terminal escape prints without its escape byte, 
     const refused = await world.run(["library", "read", "definition_\u001b[2Jnone"]);
     assert.notEqual(refused.code, 0);
     assert.doesNotMatch(refused.stderr, /\u001b/);
+  });
+});
+
+test("1.45 a knowledge note a command writes from a session's shell carries what that session had read from outside in its history; from a shell whose session read none, no mark", async () => {
+  await inWorld(command, async (world) => {
+    const log = await openActivityLog(testServerUrl());
+    try {
+      await log.append(world.project, { session: "reader-1", harness: "claude-code", source: "hook", kind: "outside-text-read", what: "gh pr view 12" });
+    } finally {
+      await log.close();
+    }
+    const library = await world.library();
+    const principle = ["library", "new", "principle", "--description", "As the pull request asked.", "--statement", "S.", "--why", "W.", "--howToApply", "H."];
+    for (const [session, title, mark] of [["reader-1", "Trust the pull request", [["gh pr view 12"]]], ["quiet-1", "Written with nothing read", [undefined]]] as const) {
+      const ran = await world.run([...principle, "--title", title], { CLAUDE_CODE_SESSION_ID: session });
+      assert.equal(ran.code, 0, ran.stderr);
+      const [written] = (await library.list("principle")).filter((record) => record.fields.title === title);
+      assert.deepEqual((await library.history({ id: written!.id })).map((entry) => entry.outsideRead), mark, session);
+    }
   });
 });

@@ -671,8 +671,9 @@ test("1.18 an edit through a product of a system record it reads from its factor
     await before.close();
 
     const built = await storytree.openProject(product);
-    const copy = await built.knowledge.editNote(edited.id, { statement: "The product's edit." });
+    const copy = await built.knowledge.editNote(edited.id, { statement: "The product's edit." }, { actor: "session:lane", outsideRead: async () => ["gh issue view 7"] });
     assert.equal(copy?.id, edited.id, "the copy keeps the factory's id, so links to it read the edit");
+    assert.deepEqual((await built.records.history({ id: edited.id })).map((entry) => entry.outsideRead), [["gh issue view 7"]], "the copy is marked as its writer's edit would be (2.20)");
     assert.equal((copy?.fields as { why?: string } | undefined)?.why, "It helps.", "fields the edit leaves are the factory's");
     assert.equal(((await built.records.get(edited.id))?.fields as { statement?: string } | undefined)?.statement, "The product's edit.");
     await built.knowledge.editNote(edited.id, { statement: "The product's second edit." });

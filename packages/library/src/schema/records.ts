@@ -18,7 +18,7 @@ import { randomUUID } from "node:crypto";
 
 import type { z } from "zod";
 
-import type { HistoryEntry, HistoryFilter, ListFilter, RecordEnvelope, RevertedWrite, Transactions } from "../transactions/types.js";
+import type { HistoryEntry, HistoryFilter, ListFilter, OutsideRead, RecordEnvelope, RevertedWrite, Transactions } from "../transactions/types.js";
 import { pickFields, writtenBy } from "../transactions/records.js";
 import { MissingUpgradeError, NewerSchemaError, SchemaError, UnknownTypeError, type FieldProblem } from "./errors.js";
 import type { FieldsOf, LibrarySchema, RecordType } from "./types.js";
@@ -50,7 +50,16 @@ export interface WriteOptions {
   readonly actor?: string;
   /** Abort a write still waiting to start; once it has the write lock, it completes normally. */
   readonly signal?: AbortSignal;
+  /**
+   * The outside text the writer's session has read since it started (an issue, a pull request, an email, a fetched
+   * page), asked for only when the write is to a record of a kind MARKED_BY_OUTSIDE_READ names, and kept on that write's
+   * history entry: a mark that observes, never refuses (increment_572ffca14851).
+   */
+  readonly outsideRead?: () => Promise<readonly string[]>;
 }
+
+/** The knowledge kinds whose writes carry the mark of the outside text their session had read: what shapes how agents work. */
+export const MARKED_BY_OUTSIDE_READ: readonly string[] = ["principle", "guardrail", "pattern", "process", "agent", "decision"];
 
 /** One record a writer wrote, as SchemaRecords.writtenBy reads it. */
 export interface WriterChange {
@@ -93,6 +102,7 @@ export class SchemaRecords {
       version: this.#version(type),
       validate: this.#check,
       ...writeOptionsOf(options),
+      ...(await outsideReadFor(options, type)),
       ...(options.sequence === undefined ? {} : { sequence: options.sequence }),
       ...(options.sequenceFloor === undefined ? {} : { sequenceFloor: options.sequenceFloor }),
       ...(options.sequenceNeverHeld === undefined ? {} : { sequenceNeverHeld: options.sequenceNeverHeld }),
@@ -159,6 +169,7 @@ export class SchemaRecords {
       ...(options.reason === undefined ? {} : { reason: options.reason }),
       validate: this.#check,
       ...writeOptionsOf(options),
+      ...(await outsideReadFor(options)),
     });
     return record as SchemaRecord | null;
   }
@@ -170,7 +181,7 @@ export class SchemaRecords {
 
   /** Retire the record, keeping the reason in its history: capability 2's retire, unchanged. */
   async retire(id: string, reason: string, options: WriteOptions = {}): Promise<void> {
-    await this.#transactions.retire({ id, reason, ...writeOptionsOf(options) });
+    await this.#transactions.retire({ id, reason, ...writeOptionsOf(options), ...(await outsideReadFor(options)) });
   }
 
   /**
@@ -189,6 +200,7 @@ export class SchemaRecords {
       validate: this.#check,
       ...(options.reason === undefined ? {} : { reason: options.reason }),
       ...writeOptionsOf(options),
+      ...(await outsideReadFor(options)),
     });
     return record as SchemaRecord;
   }
@@ -302,8 +314,19 @@ function newId(type: RecordType): string {
   return `${type}_${randomUUID().replaceAll("-", "").slice(0, 12)}`;
 }
 
+/**
+ * The mark capability 2 keeps for a write, when the writer can say what outside text it read: asked for once, before the
+ * write, and only when the record may be of a marked kind (`type`, when the writer knows it; an edit's learns it only in
+ * the write, where the mark is kept only for a marked kind).
+ */
+async function outsideReadFor(options: WriteOptions, type?: string): Promise<{ outsideRead?: OutsideRead }> {
+  if (options.outsideRead === undefined || (type !== undefined && !MARKED_BY_OUTSIDE_READ.includes(type))) return {};
+  const read = await options.outsideRead();
+  return read.length === 0 ? {} : { outsideRead: (stored) => (MARKED_BY_OUTSIDE_READ.includes(stored) ? read : undefined) };
+}
+
 /** Carry attribution and cancellation to capability 2 without passing other caller options. */
-function writeOptionsOf(options: WriteOptions): WriteOptions {
+function writeOptionsOf(options: WriteOptions): Omit<WriteOptions, "outsideRead"> {
   return {
     ...(options.actor === undefined ? {} : { actor: options.actor }),
     ...(options.signal === undefined ? {} : { signal: options.signal }),

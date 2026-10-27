@@ -1,10 +1,10 @@
 // A stand-in for the storytree command line, for the voice door's tests only. By default it prints, as JSON, the argv
 // it received, its working folder and the environment names the door must strip or set, so a test sees exactly what
-// reached the child. A few command shapes answer as the real command line does (arc waits, question list, arc recent,
+// reached the child. A few command shapes answer as the real command line does (arc waits, question list, arc recent, fyi list,
 // library history, library list decision, library read of several ids, arc show of the parked arc …b4, library search for "seven hits"), so the tools'
 // shaping of real output is exercised.
 //
-// An argv naming question_000000000000 plays a refusal (exit 1); "unusable" plays exit 2; "crash" exits 3 with a stack;
+// An argv naming question_000000000000 or fyi_000000000000 plays a refusal (exit 1); "unusable" plays exit 2; "crash" exits 3 with a stack;
 // "colour" answers with colour codes and a "next:" block. "sleep:<ms>" waits that long before answering, and
 // "sleep:<ms>:stubborn" also ignores SIGTERM. Given a first argument --fake-log=<file> (an argument, because the door
 // passes a child only a few named variables), it appends "start <pid> <epoch ms>" and "end <pid> <epoch ms>" lines there,
@@ -22,6 +22,7 @@ const STACK = "    at fakeRefusal (fake-cli.mjs:6:1)\n    at node:internal/main/
 note("start");
 const refusal = [
   [argv.includes("question_000000000000"), 1, 'no question "question_000000000000" in this project'],
+  [argv.includes("fyi_000000000000"), 1, "fyi_000000000000 is not an FYI"],
   [argv.includes("unusable"), 2, "unknown flag --unusable"],
   [argv.includes("crash"), 3, "TypeError: Cannot read properties of undefined (reading 'id')"],
 ].find(([when]) => when);
@@ -54,6 +55,16 @@ function answer() {
       "  - question_0000000000c2  [arc_0000000000b2]  Middle: count renderer builds as tests?\n" +
       "  - question_0000000000c3  [arc_0000000000b3]  Oldest: a per-change mutation report?\n" +
       "1 more waits on a parked arc until it is unparked: arc_0000000000b9 (storytree question list --arc <arc> names them)." +
+      NEXT
+    );
+  }
+  if (family === "fyi" && verb === "list") {
+    return (
+      "FYIs waiting to be heard, oldest first (2):\n" +
+      "  2026-10-26 09:00  fyi_0000000000f1  The secret-check exemptions list changed\n" +
+      "      Two paths were added to the exemptions. (about PR #1801, by session:abc)\n" +
+      "  2026-10-27 06:00  fyi_0000000000f2  The box restarted overnight\n" +
+      "      Postgres came back on its own. (about the Mint box, by watcher)" +
       NEXT
     );
   }

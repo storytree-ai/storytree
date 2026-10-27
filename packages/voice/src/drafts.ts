@@ -46,6 +46,9 @@ export const REPLIES = 5;
 /** The owner's words in a draft, at most. */
 export const WORDS_CHARS = 2000;
 
+/** Postgres's code for a table that does not exist. */
+const UNDEFINED_TABLE = "42P01";
+
 /** A refusal the database gave a draft (its trigger's message), said to the caller as it is. */
 export class DraftRefusal extends Error {}
 
@@ -188,6 +191,29 @@ export class Drafts {
   /** What the ended runs came to that the owner has not heard yet, newest first. */
   async replies(): Promise<Draft[]> {
     return this.#query<Draft>(`SELECT * FROM voice_draft WHERE kind = 'manager_run' AND run_ended_at IS NOT NULL AND heard_at IS NULL ORDER BY id DESC LIMIT ${REPLIES}`);
+  }
+
+  /**
+   * The FYIs he marked heard by voice that the box has not yet marked heard in the library; none on a door database made
+   * before the marks, until door-database.sql is run again.
+   */
+  async heardFyis(): Promise<string[]> {
+    try {
+      return (await this.#query<{ fyi: string }>("SELECT fyi FROM voice_fyi_heard WHERE carried_at IS NULL ORDER BY heard_at, fyi")).map((row) => row.fyi);
+    } catch (error) {
+      if ((error as { code?: string }).code === UNDEFINED_TABLE) return [];
+      throw error;
+    }
+  }
+
+  /** Mark these FYIs heard by voice (contract 5.15); one already marked keeps its first mark. */
+  async hearFyis(ids: readonly string[]): Promise<void> {
+    try {
+      await this.#query("INSERT INTO voice_fyi_heard (fyi) SELECT unnest($1::text[]) ON CONFLICT (fyi) DO NOTHING", [ids]);
+    } catch (error) {
+      if ((error as { code?: string }).code !== UNDEFINED_TABLE) throw error;
+      throw new DraftRefusal("FYIs cannot be marked heard by voice until the box's door database is brought up to date (door-database.sql)");
+    }
   }
 
   /** Mark these runs' replies heard, so catch_up offers them no more; the database refuses one with no reply or already heard. */

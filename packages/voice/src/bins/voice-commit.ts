@@ -7,15 +7,15 @@
 import os from "node:os";
 import path from "node:path";
 import { realpathSync } from "node:fs";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { commitDue, type Committer } from "../commit.js";
 import { Drafts } from "../drafts.js";
 
-function argv(value: string | undefined, fallback: string[]): string[] {
+function argv(value: string | undefined, fallback: string[], name = "VOICE_RUN_LANE"): string[] {
   if (!value) return fallback;
   const parsed: unknown = JSON.parse(value);
   if (!Array.isArray(parsed) || parsed.length === 0 || !parsed.every((part) => typeof part === "string" && part !== "")) {
-    throw new Error("VOICE_RUN_LANE must be a non-empty JSON array of strings");
+    throw new Error(`${name} must be a non-empty JSON array of strings`);
   }
   return parsed as string[];
 }
@@ -32,9 +32,13 @@ function startedBySystemd(env: NodeJS.ProcessEnv): boolean {
 export function committerFrom(env: NodeJS.ProcessEnv, log: (line: string) => void): Committer {
   const home = env.HOME || os.homedir();
   const lanes = path.join(home, "storytree-lanes");
+  const repoDir = env.REPO_DIR || path.join(home, "code", "storytree03");
+  // The command line run directly, as the door runs it (config.ts).
+  const cli = [process.execPath, "--import", pathToFileURL(path.join(repoDir, "node_modules", "tsx", "dist", "loader.mjs")).href, path.join(repoDir, "packages", "cli", "src", "bins", "storytree.ts")];
   return {
-    repoDir: env.REPO_DIR || path.join(home, "code", "storytree03"),
+    repoDir,
     runLane: argv(env.VOICE_RUN_LANE, ["bash", path.join(lanes, "run-lane.sh")]),
+    storytree: argv(env.VOICE_STORYTREE, cli, "VOICE_STORYTREE"),
     runsDir: env.VOICE_RUNS_DIR || path.join(lanes, "voice-runs"),
     env,
     log,

@@ -5,8 +5,8 @@
  * run is started through run-lane.sh, its brief carrying every note not yet swept, which it marks swept by that run; a run
  * that fails to start ends as failed, its reply saying so, and leaves its notes for the next run. On the box each run is its
  * own systemd unit (contract 5.13), so it outlives the tick that launched it, and one whose unit stopped with no end mark is
- * recorded ended. The
- * confined door can do neither (it may not mark a note swept or reach ~/storytree-lanes), which is why this is separate.
+ * recorded ended. It also marks heard in the library each FYI the owner marked heard by voice (contract 5.15). The
+ * confined door can do none of these (it may not mark a note swept or reach ~/storytree-lanes), which is why this is separate.
  */
 import { spawn } from "node:child_process";
 import { once } from "node:events";
@@ -20,11 +20,15 @@ export interface Committer {
   readonly repoDir: string;
   /** run-lane.sh as an argument array, before its brief, log and error files. */
   readonly runLane: readonly string[];
+  /** The storytree command line as an argument array, run in the checkout as the owner's account. */
+  readonly storytree: readonly string[];
   /** Where each run's brief, logs, reply and end mark go. */
   readonly runsDir: string;
   readonly env: NodeJS.ProcessEnv;
   readonly log: (line: string) => void;
   readonly now?: () => Date;
+  /** How long one `storytree fyi heard` may run, in milliseconds; a minute unless set. */
+  readonly carryMs?: number;
   /** When set, each run starts as its own unit, voice-run-<id>, rather than as a detached child of the tick. */
   readonly units?: RunUnits;
 }
@@ -45,6 +49,8 @@ const SYSTEMD_OWN = new Set(["INVOCATION_ID", "JOURNAL_STREAM", "SYSTEMD_EXEC_PI
 export const DROPPED = "dropped: voice writes were locked";
 const REPLY_CHARS = 4000;
 const FAILURE_CHARS = 300;
+/** How long one `storytree fyi heard` may run before it is stopped and its mark left for the next tick. */
+const CARRY_MS = 60_000;
 
 /** Every harness's session variable: a run the committer starts never records as the timer's own session. */
 const SESSION_NAMES = [SESSION_ENV, ...(WATCHED_HARNESSES as readonly WatchedHarness[]).flatMap((harness) => (harness.shellSession ? [harness.shellSession] : []))];
@@ -68,7 +74,7 @@ const flat = (text: string, max: number) => {
 };
 
 /** Run argv to its end, for its exit code and output. */
-function ran(argv: readonly string[], options: { cwd?: string; env?: NodeJS.ProcessEnv } = {}): Promise<{ code: number | null; stdout: string; stderr: string }> {
+function ran(argv: readonly string[], options: { cwd?: string; env?: NodeJS.ProcessEnv; timeout?: number } = {}): Promise<{ code: number | null; stdout: string; stderr: string }> {
   return new Promise((resolve, reject) => {
     const [command = "", ...args] = argv;
     const child = spawn(command, args, { ...options, stdio: ["ignore", "pipe", "pipe"] });
@@ -127,7 +133,28 @@ async function launch(draft: Draft, drafts: Drafts, committer: Committer): Promi
   });
 }
 
-/** One tick: drop what a lock stopped, carry out each due draft once, and record the replies of runs that ended. */
+/**
+ * Mark heard in the library, one at a time, each FYI he marked heard by voice that is not yet carried; one storytree refuses
+ * stays for the next tick. Heard marks are not voice writes a lock stops: mark_heard works while locked too.
+ */
+async function carryFyis(drafts: Drafts, committer: Committer): Promise<void> {
+  for (const fyi of await drafts.heardFyis()) {
+    let said: { code: number | null; stdout: string; stderr: string };
+    try {
+      said = await ran([...committer.storytree, "fyi", "heard", fyi], { cwd: committer.repoDir, env: childEnv(committer.env), timeout: committer.carryMs ?? CARRY_MS });
+    } catch (error) {
+      said = { code: null, stdout: "", stderr: String(error) };
+    }
+    if (said.code !== 0) {
+      committer.log(`${fyi} not yet marked heard in the library: ${flat(said.stderr || said.stdout, FAILURE_CHARS) || `exit ${said.code}`}`);
+      continue;
+    }
+    await drafts.pool.query("UPDATE voice_fyi_heard SET carried_at = now() WHERE fyi = $1", [fyi]);
+    committer.log(`${fyi} marked heard in the library`);
+  }
+}
+
+/** One tick: drop what a lock stopped, carry out each due draft once, record the replies of runs that ended, and carry FYI heard marks. */
 export async function commitDue(drafts: Drafts, committer: Committer): Promise<void> {
   const now = committer.now ?? (() => new Date());
   const pool = drafts.pool;
@@ -202,4 +229,7 @@ export async function commitDue(drafts: Drafts, committer: Committer): Promise<v
       committer.log(`draft ${runDraft.id} run: no end seen within ${RUN_HOURS} hours`);
     }
   }
+
+  // Last, so a mark not carried never holds up a draft above; it waits for the next tick.
+  await carryFyis(drafts, committer).catch((error: unknown) => committer.log(`FYI heard marks not carried: ${flat(String(error), FAILURE_CHARS)}`));
 }

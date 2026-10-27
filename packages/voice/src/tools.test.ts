@@ -112,10 +112,15 @@ test("2.18 · each of the spike's old tool names answers what its new tool answe
   for (const [old, now] of Object.entries(OLD_NAMES)) assert.match(tools.find((tool) => tool.name === old)?.description ?? "", new RegExp(`old name for ${now}`), old);
 });
 
-test("2.2 catch_up gives what needs the owner's action, then his open questions oldest first, then what landed, numbered, each id at the line's end; its action list closes with how many waits for him it left out on parked arcs", async () => {
+test("2.2 catch_up gives what needs the owner's action, then his open questions oldest first, then what landed, numbered, each id at the line's end, then the FYIs he has not heard; its action list closes with how many waits for him it left out on parked arcs", async () => {
   const text = textOf(await call("catch_up", { since: "2h" }));
-  const heads = ["Needs your action:", "Needs your decision (oldest first):", "Landed since 2026-10-22 10:00 UTC:"].map((head) => text.indexOf(head));
-  assert.ok(heads.every((at) => at >= 0) && heads[0]! < heads[1]! && heads[1]! < heads[2]!, text);
+  const heads = ["Needs your action:", "Needs your decision (oldest first):", "Landed since 2026-10-22 10:00 UTC:", "FYIs, until you have heard them:"].map((head) => text.indexOf(head));
+  assert.ok(heads.every((at) => at >= 0) && heads[0]! < heads[1]! && heads[1]! < heads[2]! && heads[2]! < heads[3]!, text);
+  // Unnumbered, oldest first, each with when, what happened and its id at the line's end.
+  assert.deepEqual(text.slice(heads[3]).split("\n").slice(1), [
+    "The secret-check exemptions list changed (2026-10-26 09:00): Two paths were added to the exemptions. (about PR #1801, by session:abc) — fyi_0000000000f1",
+    "The box restarted overnight (2026-10-27 06:00): Postgres came back on its own. (about the Mint box, by watcher) — fyi_0000000000f2",
+  ]);
   const numbered = text.split("\n").filter((line) => /^\d+\. /.test(line));
   assert.deepEqual(numbered.map((line) => Number(/^(\d+)\./.exec(line)![1])), numbered.map((_, at) => at + 1));
   for (const line of numbered) assert.match(line, / — [a-z]+_[0-9a-f]{12}$/);

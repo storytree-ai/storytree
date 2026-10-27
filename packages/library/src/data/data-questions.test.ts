@@ -1,5 +1,5 @@
 /**
- * Capability 27 · Fixed data questions: contracts 27.1 to 27.4, the `library count`, `changes` and `find` commands and
+ * Capability 27 · Fixed data questions: contracts 27.1 to 27.5, the `library count`, `changes` (all of them or one writer's) and `find` commands and
  * `library read` by a decision's number, run through the library family on a fresh project's library on the real
  * Postgres `pnpm test` provides.
  */
@@ -113,4 +113,32 @@ test("27.4 · library read takes a decision's number, 1103 or ADR-1103, in place
     assert.match(read, /text: D1\. Short answers\./);
   }
   await assert.rejects(run("read", { ids: [String(number + 50)], linked: false, field: undefined }), (error: unknown) => error instanceof VerbRefusal && new RegExp(`${number + 50}`).test(error.message));
+});
+
+test("27.5 · library changes --actor lists each record one writer wrote, health left out, with each field from before its first write to after its last, and names a later writer", async (t) => {
+  const { library, run } = await world(t);
+  const bob = { actor: "session:bob" };
+  const kept = await library.defineTerm({ term: "Kept", meaning: "First meaning." });
+  const touched = await library.defineTerm({ term: "Touched", meaning: "Before." });
+  const story = await library.addStory({ title: "Sign up" });
+  const form = await library.addCapability({ story: story.id, title: "Form" });
+  const contract = await library.addContract({ capability: form.id, title: "It sends" });
+  await library.editNote(kept.id, { meaning: "A bad rewrite." }, bob);
+  await library.editNote(kept.id, { meaning: "A worse rewrite." }, bob);
+  const made = await library.defineTerm({ term: "Bob's", meaning: "New." }, bob);
+  await library.retire(touched.id, "thought overtaken", bob);
+  await library.reportHealth(contract.id, "passing", { by: "test-runner", ...bob });
+  await library.defineTerm({ term: "Someone else's", meaning: "Not bob's." });
+
+  const said = await run("changes", { limit: undefined, actor: "session:bob" });
+  assert.match(said, /session:bob wrote 3 records/);
+  assert.match(said, new RegExp(`${kept.id}\\s+\\[definition\\]\\s+updated by 2 writes\\n\\s+meaning: First meaning\\. -> A worse rewrite\\.`), "the field from before the first write to after the last");
+  assert.match(said, new RegExp(`${made.id}\\s+\\[definition\\]\\s+created\\n\\s+term: \\(none\\) -> Bob's\\n\\s+meaning: \\(none\\) -> New\\.`));
+  assert.match(said, new RegExp(`${touched.id}\\s+\\[definition\\]\\s+retired: thought overtaken`));
+  assert.doesNotMatch(said, /health|Someone else's|test-runner/);
+
+  await library.editNote(kept.id, { meaning: "Mended." }, { actor: "session:cat" });
+  assert.match(await run("changes", { limit: undefined, actor: "session:bob" }), new RegExp(`${kept.id}[^]*written since by session:cat at entry \\d+`), "a later writer is named");
+  assert.match(await run("changes", { limit: undefined, actor: "session:nobody" }), /session:nobody wrote nothing/);
+  await assert.rejects(run("changes", { limit: "2", actor: "session:bob" }), VerbRefusal, "a writer's records are all shown, so --limit does not go with --actor");
 });

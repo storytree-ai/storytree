@@ -241,6 +241,29 @@ test("1.40 · with a factory folder chosen and `settings set part ci-health plug
   assert.notEqual((await invoke(["health", "check"])).code, 0, "and the plugin's verb is gone with it");
 });
 
+test("plugin-loader 5.13 · a fresh `plugin new my-extra`, with no --for, is added with `settings set part my-extra plugin my-extra`: the command line lists and runs its verb, `settings show` says the plugin adds it, and `settings set part my-extra on` takes it away again", async (t) => {
+  const dir = realpathSync(mkdtempSync(path.join(tmpdir(), "storytree-added-")));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const home = path.join(dir, "home");
+  const invoke = (args: string[]) => storytree(command.script, args, { cwd: dir, home });
+
+  const made = await invoke(["plugin", "new", "my-extra"]);
+  assert.equal(made.code, 0, made.stderr);
+  const added = await invoke(["settings", "set", "part", "my-extra", "plugin", "my-extra"]);
+  assert.equal(added.code, 0, added.stderr);
+  assert.match(added.stdout, /^Added on this computer: my-extra \(by the factory plugin my-extra\)\./m);
+
+  assert.match((await invoke([])).stdout, /^  my-extra\s+what my-extra adds$/m);
+  const ran = await invoke(["my-extra", "hello"]);
+  assert.equal(ran.code, 0, ran.stderr);
+  assert.equal(ran.stdout.trim().split("\n")[0], `my-extra is mounted, called in ${dir}`);
+  assert.match((await invoke(["settings", "show"])).stdout, /^  my-extra: added by the factory plugin my-extra \(switched /m);
+
+  assert.equal((await invoke(["settings", "set", "part", "my-extra", "on"])).code, 0);
+  assert.doesNotMatch((await invoke([])).stdout, /what my-extra adds/);
+  assert.notEqual((await invoke(["my-extra", "hello"])).code, 0, "and its verb is gone with it");
+});
+
 test("1.44 · a factory plugin mounted in a switched-off part's place writes its own kind of record through the command line, which opens the project with the kinds the plugin declares, and library read reads it live; with the part switched on again it reads dormant (ADR-1178 D3)", async () => {
   await inWorld(command, async (world) => {
     const folder = path.join(world.elsewhere, "factory");

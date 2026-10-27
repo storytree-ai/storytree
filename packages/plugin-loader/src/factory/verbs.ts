@@ -30,11 +30,11 @@ const create = verb({
   command: { family: "plugin", name: "new", summary: "start a plugin in this computer's factory folder that this storytree loads" },
   tool: {
     name: "new_plugin",
-    description: "Start a factory plugin in this computer's factory folder: a package.json with storytree's manifest and a verbs module this storytree loads, to edit into a stand-in for one of storytree's parts. Then check_plugin, and switch it in with `storytree settings set part <part> plugin <plugin>`.",
+    description: "Start a factory plugin in this computer's factory folder: a package.json with storytree's manifest and a verbs module this storytree loads, to edit into a stand-in for one of storytree's parts, or a plugin that adds one. Then check_plugin, and switch it in with `storytree settings set part <part> plugin <plugin>`, or add it under its own name with `storytree settings set part <plugin> plugin <plugin>`.",
   },
   inputs: {
     plugin: { kind: "text", word: 0, describe: "the plugin's name: its folder in the factory's plugins folder, in lower-case letters, digits and dashes" },
-    for: { kind: "text", optional: true, describe: "the part it will stand in for, as `storytree settings show` names it" },
+    for: { kind: "text", optional: true, describe: "the part it will stand in for, as `storytree settings show` names it; none for a plugin that adds a part of its own" },
   },
   callerless: true,
   async act({ plugin, for: part }) {
@@ -47,7 +47,9 @@ const create = verb({
     }
     const next = [
       { command: `plugin check ${plugin}`, tool: "check_plugin", why: "check this storytree would load it, after each edit" },
-      ...(part === undefined ? [] : [{ command: `settings set part ${part} plugin ${plugin}`, why: `switch ${part} off with ${plugin} in its place` }]),
+      part === undefined
+        ? { command: `settings set part ${plugin} plugin ${plugin}`, why: `add ${plugin}, standing in for no part, under its own name` }
+        : { command: `settings set part ${part} plugin ${plugin}`, why: `switch ${part} off with ${plugin} in its place` },
       { command: "plugin contract", tool: "plugin_contract", why: "what a plugin may contain" },
     ];
     return { text: `Started ${plugin} in ${made.dir}: ${made.files.join(", ")}. Its verbs module adds a \`${plugin}\` family with one verb; make it the stand-in you need.`, next };
@@ -76,6 +78,7 @@ const check = verb({
       text: `${plugin} would load: it adds ${adds}.${keeps}`,
       next: [
         { command: `settings set part <part> plugin ${plugin}`, why: "switch a part off with it in its place" },
+        { command: `settings set part ${plugin} plugin ${plugin}`, why: "or add it under its own name, standing in for no part" },
         ...(checked.adds.recordKinds === undefined ? [] : [{ command: "plugin fence", tool: "fence_plugin", why: "fence its roles in this project's library, as the database's owner" }]),
       ],
     };

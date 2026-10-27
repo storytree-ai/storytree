@@ -90,13 +90,13 @@ test("project-and-caller 2.23 `settings set part <part> plugin <plugin>` records
   assert.deepEqual(JSON.parse(readFileSync(path.join(dir, "settings.json"), "utf8"))["stand-ins-switched"], {});
 });
 
-test("project-and-caller 2.20 A part that has left the base, in none of the host's parts, is switched to a factory plugin by `settings set part`, which says so, as `settings show` does, and switched back", async (t) => {
+test("project-and-caller 2.20 · 2.26 · A part in none of the host's parts, one that has left the base or one a factory plugin adds, is switched to a factory plugin of its own name by `settings set part`, which says the plugin adds it, as `settings show` does, and switched back", async (t) => {
   const dir = home(t);
   const place: SettingsPlace = { folder: dir, surfaces: async () => declared, parts: async () => graph };
-  assert.match((await named("set").act({ words: ["part", "voice", "plugin", "voice"] }, place, words)).text, /^Switched off on this computer: voice \(voice stands in for it\)\./);
-  assert.match((await named("show").act({}, place, words)).text, /^  voice: off, voice stands in for it \(switched from the command line, /m);
+  assert.match((await named("set").act({ words: ["part", "voice", "plugin", "voice"] }, place, words)).text, /^Added on this computer: voice \(by the factory plugin voice\)\.\nNo part is switched off on this computer\./);
+  assert.match((await named("show").act({}, place, words)).text, /^  voice: added by the factory plugin voice \(switched from the command line, /m);
   assert.match((await named("set").act({ words: ["part", "voice", "on"] }, place, words)).text, /^No part is switched off on this computer\./);
-  assert.doesNotMatch((await named("show").act({}, place, words)).text, /^  voice: off/m);
+  assert.doesNotMatch((await named("show").act({}, place, words)).text, /^  voice: /m);
 });
 
 test("3.19 `settings show`'s factory line names where a plugin's contract is read, and how to start and check one", async (t) => {

@@ -39,13 +39,13 @@ const show = verb({
     const settings = Object.values(read).map((reading) => reading.name === "library" ? librarySaid(reading) : settingSaid(reading)).join("\n\n");
     const switched = switchedHere(graph, readPartsOff());
     const listed = [...new Set([...Object.keys(graph), ...switched.keys()])];
-    return { text: `${settings}\n\n${surfacesSaid(readSurfaces(await surfaces()))}\n\n${factorySaid(factoryFolder())}\n\n${partsSaid(listed, switched, standIns.plugins, standIns.switched, standIns.history)}\n\n${systemSaid(readSystemSwitches())}\n\n${servicesSaid(readServicesOn())}` };
+    return { text: `${settings}\n\n${surfacesSaid(readSurfaces(await surfaces()))}\n\n${factorySaid(factoryFolder())}\n\n${partsSaid(listed, switched, standIns.plugins, standIns.switched, standIns.history, Object.keys(graph))}\n\n${systemSaid(readSystemSwitches())}\n\n${servicesSaid(readServicesOn())}` };
   },
 });
 
 /**
  * The parts `off` switches off in `graph`, each with the part it is off because of, and each part `off` names that
- * `graph` lacks: one that has left the base, such as voice, which a factory plugin stands in for in no host's parts.
+ * `graph` lacks: one that has left the base, such as voice, or one a factory plugin adds, in no host's parts.
  */
 function switchedHere(graph: PartsGraph, off: readonly string[]): ReadonlyMap<string, string> {
   const switched = new Map(switchedOff(graph, off));
@@ -74,7 +74,7 @@ const set = verb({
     if (words[0] === "part" && (words.length === 3 || (words.length === 4 && words[2] === "plugin"))) {
       const graph = await parts();
       const off = switchPart(words[1]!, words[2]!, Object.keys(graph), undefined, words[3], { through: "command line", ...(session === undefined ? {} : { session }) });
-      return { text: switchedSaid(switchedHere(graph, off), readStandIns().plugins), next: NEXT };
+      return { text: switchedSaid(switchedHere(graph, off), readStandIns().plugins, Object.keys(graph)), next: NEXT };
     }
     if (words[0] === "system" && words.length === 3) return { text: systemSaid(switchSystem(words[1]!, words[2]!)), next: NEXT };
     if (words[0] === "service" && words.length === 3) return { text: servicesSaid(switchService(words[1]!, words[2]!)), next: NEXT };

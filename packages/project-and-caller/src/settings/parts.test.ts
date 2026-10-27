@@ -77,6 +77,22 @@ test("2.20 `settings set factory <folder>` chooses this computer's factory folde
   });
 });
 
+test("2.26 · `settings set part <plugin> plugin <plugin>` adds a factory plugin that stands in for no part under its own name, and `settings set part` and `settings show` say it is added by that plugin, not that a part is switched off; a part no host has and no setting names, switched to a plugin of another name, is refused naming both forms, saving nothing", async () => {
+  await withTempDir((home) => {
+    const file = path.join(home, "settings.json");
+    assert.throws(() => switchPart("forrest", "plugin", parts, home, "my-forest"), (error: unknown) => error instanceof VerbRefusal
+      && /no part called forrest here\. Parts: arc-surface, forest\./.test(error.message) && /settings set part my-forest plugin my-forest/.test(error.message));
+    assert.equal(existsSync(file), false, "a refused switch saves nothing");
+
+    assert.deepEqual(switchPart("my-extra", "plugin", parts, home, "my-extra"), ["my-extra"]);
+    const standIns = readStandIns(home).plugins;
+    const switched = new Map([["my-extra", "my-extra"]]);
+    assert.match(switchedSaid(switched, standIns, parts), /^Added on this computer: my-extra \(by the factory plugin my-extra\)\.\nNo part is switched off on this computer\./);
+    assert.match(partsSaid([...parts, "my-extra"], switched, standIns, {}, {}, parts), /^  my-extra: added by the factory plugin my-extra$/m);
+    assert.deepEqual(switchPart("my-extra", "on", parts, home), [], "and dropped again");
+  });
+});
+
 test("2.21 With no factory setting, storytree makes and uses its own factory folder, your-factory, with the factory's shape and no setting saved: beside its versioned home (~/.storytree/your-factory), inside any other home", async () => {
   await withTempDir((dir) => {
     const home = path.join(dir, ".storytree", "0.3");

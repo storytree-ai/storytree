@@ -11,7 +11,7 @@ import { readFileSync } from "node:fs";
 import type { SurfaceDeclaration } from "@storytree/app";
 import type { PluginRecordKind } from "@storytree/library";
 import { pluginExport, recordKinds, standIn, type StandIns } from "@storytree/plugin-loader/factory";
-import { mount, offSaid, switchedOff, type Composition, type PartsGraph } from "@storytree/plugin-loader/switch";
+import { mount, offSaid, standInPlaces, switchedOff, type Composition, type PartsGraph } from "@storytree/plugin-loader/switch";
 
 import type { PageChannelMap, PagePart, PageStandIns } from "../page-operations.js";
 
@@ -40,7 +40,7 @@ export function windowKinds(graph: PartsGraph, standIns: StandIns, off: readonly
   return kinds;
 }
 
-/** What the window's scheme may serve: files of the factory's plugins standing in for a switched-off part. */
+/** What the window's scheme may serve: files of the factory's plugins standing in for a switched-off part, or adding one. */
 export interface Served {
   readonly folder?: string;
   readonly plugins: ReadonlySet<string>;
@@ -54,8 +54,8 @@ export function windowStandIns(parts: WindowParts, standIns: StandIns, off: read
   const surfaces = standIn(parts.surfaces, "surfaces", standIns);
   const pageAnswers = standIn(parts.pageAnswers, "pageAnswers", standIns);
   const pageChannels = standIn(parts.pageChannels, "pageChannels", standIns);
-  const switched = switchedOff(surfaces.graph, off);
-  const plugins = new Set(Object.entries(surfaces.standsIn ?? {}).filter(([, part]) => switched.has(part)).map(([plugin]) => plugin));
+  const places = standInPlaces(surfaces.graph, off);
+  const plugins = new Set(Object.entries(surfaces.standsIn ?? {}).filter(([, part]) => places.has(part)).map(([plugin]) => plugin));
   const views = standing(surfaces, off).flatMap(({ plugin, part }) =>
     part.view === undefined ? [] : [{ surface: part.id, url: `${PLUGIN_SCHEME}://factory/${encodeURIComponent(plugin)}/${part.view.replace(/^\.\//, "")}` }]);
   return {

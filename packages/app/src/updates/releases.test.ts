@@ -405,6 +405,24 @@ for (const platform of PLATFORMS) {
     updater.stop();
     assert.equal(await updater.check(), "stopped");
   });
+
+  test(`4.5 ${platform}: an update whose files are not in that version's own release on storytree's GitHub is refused before anything downloads`, hostRuns(platform), async (t) => {
+    const feed = await fixture(t, platform);
+    feed.version = "0.3.2";
+    let installed = 0;
+    const updater = feed.updater(async () => { installed++; }, async () => true);
+    const port = new URL(`http://${feed.host}`).port;
+    for (const elsewhere of [`http://127.0.0.1:${port}/`, "https://github.com/storytree-ai/storytree/releases/download/v0.3.1/", "https://github.com/someone/storytree/releases/download/v0.3.2/"]) {
+      feed.elsewhere = elsewhere;
+      await assert.rejects(updater.check(), /not served from storytree's releases/, elsewhere);
+      assert.equal(updater.request("status").phase, "failed");
+    }
+    assert.equal(feed.downloads, 0);
+    assert.equal(installed, 0);
+    feed.elsewhere = undefined;
+    assert.equal(await updater.check(), "restarting");
+    assert.equal(installed, 1);
+  });
 }
 
 test("4.24 a channel switch takes effect on the next check: the other channel's download is dropped and the running build is never downgraded", async (t) => {
@@ -453,7 +471,7 @@ test("4.27 a Windows update downloads only its changed blocks and verifies, even
     const build = named ? builds.get(named[1]!) : undefined;
     if (url === "/latest.yml") {
       const file = builds.get(feed.version)!;
-      response.end(JSON.stringify({ version: feed.version, files: [{ url: `storytree-${feed.version}-setup.exe`, size: file.length, sha512: createHash("sha512").update(file).digest("base64") }] }));
+      response.end(JSON.stringify({ version: feed.version, files: [{ url: `https://github.com/storytree-ai/storytree/releases/download/v${feed.version}/storytree-${feed.version}-setup.exe`, size: file.length, sha512: createHash("sha512").update(file).digest("base64") }] }));
     } else if (build === undefined) response.writeHead(404).end();
     else if (named![2]) response.end(blockmap(build));
     else {
@@ -466,8 +484,13 @@ test("4.27 a Windows update downloads only its changed blocks and verifies, even
   });
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
   t.after(() => { server.closeAllConnections(); server.close(); });
+  const port = (server.address() as { port: number }).port;
   const config = path.join(dir, "app-update.yml");
-  await writeFile(config, JSON.stringify({ provider: "generic", url: `http://127.0.0.1:${(server.address() as { port: number }).port}`, updaterCacheDirName: "updates", useMultipleRangeRequest: false }));
+  await writeFile(config, JSON.stringify({ provider: "generic", url: `http://127.0.0.1:${port}`, updaterCacheDirName: "updates", useMultipleRangeRequest: false }));
+  // A release's files, at github.com/<repo>/releases/download/v<version>/<name>, are served by name from the local server.
+  const transport = new NodeHttpExecutor();
+  const createRequest = (options: Parameters<typeof transport.createRequest>[0], callback: Parameters<typeof transport.createRequest>[1]) =>
+    transport.createRequest(options.hostname === "github.com" ? { ...options, protocol: "http:", hostname: "127.0.0.1", port, path: `/${String(options.path).split("/").at(-1)}` } : options, callback);
   // NSIS keeps the installer that installed the running build in the updater's cache, as the old file of the next update.
   await mkdir(path.join(dir, "updates"), { recursive: true });
   await writeFile(path.join(dir, "updates", "installer.exe"), builds.get("0.3.1")!);
@@ -479,7 +502,7 @@ test("4.27 a Windows update downloads only its changed blocks and verifies, even
     }, "win32");
     t.after(() => updater.stop());
     // Electron's network transport is replaced by Node's; a failed differential download throws in test mode rather than falling back.
-    Object.assign(updater.base, { httpExecutor: Object.assign(new ElectronHttpExecutor(), { createRequest: new NodeHttpExecutor().createRequest }), _testOnlyOptions: { platform: "win32", isUseDifferentialDownload: true } });
+    Object.assign(updater.base, { httpExecutor: Object.assign(new ElectronHttpExecutor(), { createRequest }), _testOnlyOptions: { platform: "win32", isUseDifferentialDownload: true } });
     updater.logger = null;
     return updater;
   };
@@ -512,8 +535,9 @@ async function fixture(t: test.TestContext, platform: Platform = "win32") {
     if (errors.length > 0) throw errors[0];
   });
   const installer = Buffer.from("fixture release payload — never executed");
-  const state = { version: "0.3.1", running: "0.3.1", stable: undefined as string | undefined, stableBranch: undefined as Map<string, string> | undefined, fetched: [] as string[], offline: false, corrupt: false, checks: 0, downloads: 0, installer, squirrel: undefined as Squirrel | undefined, sandboxOff: false, recheck: undefined as number | undefined };
-  const files = (base = "") => ["setup.exe", "storytree-mac.zip", "storytree-linux.AppImage"].map(url => ({ url: `${base}${url}`, size: installer.length, sha512: createHash("sha512").update(installer).digest("base64") }));
+  const state = { version: "0.3.1", running: "0.3.1", stable: undefined as string | undefined, stableBranch: undefined as Map<string, string> | undefined, fetched: [] as string[], offline: false, corrupt: false, checks: 0, downloads: 0, installer, squirrel: undefined as Squirrel | undefined, sandboxOff: false, recheck: undefined as number | undefined, elsewhere: undefined as string | undefined };
+  // Each feed names its files in that version's own release, as a published one does, unless the test puts them elsewhere.
+  const files = (version: string) => ["setup.exe", "storytree-mac.zip", "storytree-linux.AppImage"].map(url => ({ url: `${state.elsewhere ?? `https://github.com/storytree-ai/storytree/releases/download/v${version}/`}${url}`, size: installer.length, sha512: createHash("sha512").update(installer).digest("base64") }));
   const server = createServer((request, response) => {
     if (state.offline) { response.writeHead(404).end(); return; }
     if (state.stableBranch && request.url?.startsWith("/stable/")) {
@@ -522,13 +546,14 @@ async function fixture(t: test.TestContext, platform: Platform = "win32") {
       else response.end(file);
     } else if (request.url?.startsWith("/release/")) {
       state.fetched.push(request.url);
-      response.end(installer);
+      state.downloads++;
+      response.end(state.corrupt ? Buffer.from("broken payload") : installer);
     } else if (request.url?.startsWith("/stable/latest.yml")) {
       if (!state.stable) { response.writeHead(404).end(); return; }
-      response.end(JSON.stringify({ version: state.stable, files: files(`http://127.0.0.1:${(server.address() as { port: number }).port}/`) }));
+      response.end(JSON.stringify({ version: state.stable, files: files(state.stable) }));
     } else if (/^\/latest(-mac|-linux)?\.yml/.test(request.url ?? "")) {
       state.checks++;
-      response.end(JSON.stringify({ version: state.version, files: files() }));
+      response.end(JSON.stringify({ version: state.version, files: files(state.version) }));
     } else if (request.url === "/setup.exe" || request.url === "/storytree-mac.zip" || request.url === "/storytree-linux.AppImage") {
       state.downloads++;
       response.end(state.corrupt ? Buffer.from("broken payload") : installer);
@@ -561,6 +586,7 @@ async function fixture(t: test.TestContext, platform: Platform = "win32") {
     } });
   };
   return Object.assign(state, {
+    host: `127.0.0.1:${address.port}`,
     holds: path.join(dir, "update-holds"),
     appImage,
     updater(restart: (target: Launch, showing: boolean) => Promise<void>, canRestart: () => Promise<boolean>, quiet = async () => true, channel?: "stable" | "alpha" | (() => "stable" | "alpha")) {

@@ -19,7 +19,8 @@ What stays, and why:
 - APIs: Cloud Storage, Secret Manager, IAM, IAM Credentials, Security Token Service (GitHub's
   sign-in, used by `infra/ci-health` and `infra/website-publish`), BigQuery, Billing Budgets,
   Logging, Monitoring, Pub/Sub, and the three gcloud needs to make changes (Resource Manager,
-  Service Usage, Service Management).
+  Service Usage, Service Management), and Dataform, Dataplex and Datastore, which the Google Cloud
+  APIs bundle depends on.
 - Buckets: `storytree-dist`, `<project>-library-backups` (the library's backups and 0.2's database
   export) and `<project>-tfstate` (Terraform state of `infra/ci-health` and `infra/website-publish`).
 

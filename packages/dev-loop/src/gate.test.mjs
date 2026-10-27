@@ -47,7 +47,7 @@ test("7.1 the gate runs typecheck and scoped tests, and explains guidance NOT RU
   const calls = [];
   const output = [];
   const code = await gate({ root, run: async (step) => { calls.push(step); return 0; }, log: (line) => output.push(line) });
-  assert.deepEqual(calls, ["typecheck", "test", "check:plan-edges", "check:type-imports", "check:seed-records", "check:leaks"]);
+  assert.deepEqual(calls, ["typecheck", "test", "check:plan-edges", "check:type-imports", "check:seed-records", "check:leaks", "check:secrets"]);
   assert.equal(code, 0);
   const table = output.at(-1);
   assert.match(table, /PASS\s+typecheck/);
@@ -61,7 +61,7 @@ test("7.5 the gate installs an uninstalled worktree before its first check, and 
   const { root } = checkout(t);
   const calls = [];
   const code = await gate({ root, provision: () => (calls.push("install"), 0), run: async (step) => (calls.push(step), 0), log: () => {} });
-  assert.deepEqual(calls, ["install", "typecheck", "test", "check:plan-edges", "check:type-imports", "check:seed-records", "check:leaks"]);
+  assert.deepEqual(calls, ["install", "typecheck", "test", "check:plan-edges", "check:type-imports", "check:seed-records", "check:leaks", "check:secrets"]);
   assert.equal(code, 0);
 
   const ran = [];
@@ -75,7 +75,7 @@ test("7.5 the gate installs an uninstalled worktree before its first check, and 
 
 test("library-only guidance edits can request every check, plan edges included (3.7), continuing past failure or launch error", async (t) => {
   const { root } = checkout(t);
-  for (const broken of ["typecheck", "test", "check:guidance", "check:plan-edges", "check:type-imports", "check:seed-records", "check:leaks"]) {
+  for (const broken of ["typecheck", "test", "check:guidance", "check:plan-edges", "check:type-imports", "check:seed-records", "check:leaks", "check:secrets"]) {
     const calls = [];
     const output = [];
     const code = await gate({ root, guidance: true, log: (line) => output.push(line), run: async (step) => {
@@ -83,7 +83,7 @@ test("library-only guidance edits can request every check, plan edges included (
       if (step === broken && step === "typecheck") throw new Error("cannot start typechecker");
       return step === broken ? 2 : 0;
     } });
-    assert.deepEqual(calls, ["typecheck", "test", "check:guidance", "check:plan-edges", "check:type-imports", "check:seed-records", "check:leaks"]);
+    assert.deepEqual(calls, ["typecheck", "test", "check:guidance", "check:plan-edges", "check:type-imports", "check:seed-records", "check:leaks", "check:secrets"]);
     assert.equal(code, 1);
     assert.ok(output.at(-1).includes(`FAIL    ${broken}`));
     assert.match(output.at(-1), /rerun: pnpm run gate --guidance/);
@@ -146,8 +146,8 @@ test("7.11 on an increment's branch the gate writes the change's risk line throu
   assert.deepEqual(risk.args.slice(-4), ["packages/cli/src/bins/storytree.ts", "quality", "risk", "increment_ca8ba53211b7"]);
 });
 
-test("7.1 storytree's checkout contributes its eight checks to the base dev loop's gate from dev-loop's manifest, in today's order", async () => {
+test("7.1 storytree's checkout contributes its nine checks to the base dev loop's gate from dev-loop's manifest, in today's order", async () => {
   const { parts, owners } = await contributedSteps(repoRoot);
-  assert.deepEqual(parts.map((step) => step.name), ["check:guidance", "check:plan-edges", "check:type-imports", "check:seed-records", "check:leaks", "check:owner-applies", "check:capability-list", "check:risk"]);
+  assert.deepEqual(parts.map((step) => step.name), ["check:guidance", "check:plan-edges", "check:type-imports", "check:seed-records", "check:leaks", "check:secrets", "check:owner-applies", "check:capability-list", "check:risk"]);
   assert.deepEqual([...new Set(owners)], ["dev-loop"]);
 });

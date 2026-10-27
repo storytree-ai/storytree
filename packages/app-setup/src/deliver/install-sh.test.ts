@@ -12,7 +12,7 @@ const script = fileURLToPath(new URL("./install.sh", import.meta.url));
 const steps = fileURLToPath(new URL("./install.test.sh", import.meta.url));
 const linuxSteps = fileURLToPath(new URL("./install-linux.test.sh", import.meta.url));
 for (const shell of ["sh", "bash", "zsh"]) {
-  test(`1.12 / 1.15 under ${shell}: the macOS one-liner refuses another system or chip, takes the channel's release and checks its checksum, writes one marked .zprofile line once, asks nothing once installed but says first how to open the app, and run again updates an older app`, {
+  test(`1.12 / 1.15 under ${shell}: the macOS one-liner refuses another system or chip, takes the channel's release, checks its checksum and installs only an app signed by storytree's Apple team that Gatekeeper accepts, writes one marked .zprofile line once, asks nothing once installed but says first how to open the app, and run again updates an older app`, {
     skip: process.platform === "win32" && "platform:posix: the Mac's one-liner runs under a POSIX shell, which Windows CI does not provide",
   }, (t) => {
     const found = spawnSync(shell, ["-c", "exit 0"]);

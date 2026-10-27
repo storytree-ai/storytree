@@ -12,8 +12,17 @@
  *
  * Row-level security is ENABLED on `record` and `record_event`, not FORCED, as grants.sql leaves it: the owner's
  * accounts are unaffected, and an account with no policy sees and writes no rows at all.
+ *
+ * fenceProject is that deliberate step on a live library: it reaches project `project`'s database as the library
+ * setting does, with the account that setting signs in as, and fences each writer it is handed in turn.
  */
 import type { ClientBase } from "pg";
+
+import { addressServer } from "./address.js";
+import { ConnectionError } from "./connection-error.js";
+import { projectDatabase } from "./names.js";
+import { localServer, type ServerAccess } from "./server.js";
+import type { ConnectOptions } from "./storytree.js";
 
 /** One outside writer's grant, read from its plugin's declared kinds. */
 export interface OutsideWriter {
@@ -46,6 +55,42 @@ export async function fenceOutsideWriter(client: ClientBase, writer: OutsideWrit
   } catch (error) {
     await client.query("ROLLBACK");
     throw error;
+  }
+}
+
+/**
+ * Fence each of `writers`, in order, in project `project`'s library on the server `options` reach, as the account they
+ * sign in as, which must be able to act as the project database's owner. Each is its own transaction, so a refusal
+ * leaves the ones before it fenced and says which they were. A role the server does not have is refused with what to do:
+ * the role, its LOGIN and its password are made apart from this. A Cloud SQL library is refused: it is reached by Google
+ * sign-in, as no owner.
+ */
+export async function fenceProject(options: ConnectOptions, project: string, writers: readonly OutsideWriter[]): Promise<void> {
+  if (options.cloudSql !== undefined) throw new ConnectionError("config", `The library is the Cloud SQL instance ${options.cloudSql.instance}: fence its writers as the owner through the Cloud SQL Auth Proxy instead.`);
+  const server: ServerAccess = options.address !== undefined ? addressServer(options.address, options.connectTimeoutMs) : localServer(new URL(options.url), options.connectTimeoutMs);
+  const pool = server.pool(projectDatabase(project));
+  const fenced: string[] = [];
+  try {
+    const client = await pool.connect().catch((error: unknown) => { throw server.explain(error); });
+    try {
+      for (const writer of writers) {
+        try {
+          await fenceOutsideWriter(client, writer);
+        } catch (error) {
+          const missing = (error as { code?: string }).code === "42704";
+          const why = missing
+            ? `${writer.role} is no role on this server: make it first, with LOGIN and its password, apart from storytree, then fence again`
+            : (error as Error).message;
+          throw new Error(`${writer.role} was not fenced: ${why}.${fenced.length === 0 ? "" : ` Already fenced: ${fenced.join(", ")}.`}`, { cause: error });
+        }
+        fenced.push(writer.role);
+      }
+    } finally {
+      client.release();
+    }
+  } finally {
+    await Promise.allSettled([pool.end(), server.admin.end()]);
+    server.close();
   }
 }
 

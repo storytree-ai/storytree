@@ -27,7 +27,8 @@
  * - A finding stands while it is unanswered, or rejected for a reason no later review accepted (4.1). With
  *   one standing after the third review, the fourth brief is refused, naming the arc for the session's
  *   question (4.3, ADR-1120 D1); the refusal itself writes nothing. The three are the branch's: a brief read from a worktree
- *   does not count a review whose commit its default branch has taken in, an earlier merged pull request's of the same increment (4.6).
+ *   does not count a review whose commit its default branch has taken in, an earlier merged pull request's of the same increment,
+ *   nor one whose commit the repository does not hold at all, another repository's (4.6).
  * - Capability 5 · Graduation (ADR-0956 D5): a check graduated whole leaves the brief, and one graduated in part stays in the brief with the part Architecture checks
  *   now enforces named (5.2), and what Architecture checks' graduated checks find on the change is taken with the return,
  *   recorded as theirs under the check each graduated from (5.3).
@@ -159,8 +160,11 @@ export interface WorktreeChange {
   readonly root?: string;
   /** The diff from `mark`'s commit to the worktree, or undefined when that commit is not in the branch's history. */
   since(mark: Mark): string | undefined;
-  /** Whether `mark`'s commit is in the default branch's history, short of where this branch parted from it: an earlier, merged pull request's (contract 4.6). */
-  landed(mark: Mark): boolean;
+  /**
+   * Whether `mark`'s commit is not this branch's (contract 4.6): in the default branch's history, short of where this branch parted
+   * from it (an earlier, merged pull request's), or not in the repository at all (another repository's).
+   */
+  foreign(mark: Mark): boolean;
 }
 
 /** What the change-reviewer returns for one brief. */
@@ -417,11 +421,11 @@ class PgReviews implements Reviews {
 
   /**
    * The reviews of `change` taken, all of them, and those of its branch: read from a worktree, not those whose commit its default
-   * branch has taken in (contract 4.6).
+   * branch has taken in or its repository does not hold (contract 4.6).
    */
   async #taken(project: string, change: string, read: WorktreeChange | undefined): Promise<{ all: number; taken: number }> {
     const { rows } = await this.#pool.query<{ mark: Mark | null }>("SELECT brief->'mark' AS mark FROM quality_briefs WHERE project = $1 AND change = $2 AND taken_at IS NOT NULL", [project, change]);
-    return { all: rows.length, taken: rows.filter(({ mark }) => read === undefined || mark === null || !read.landed(mark)).length };
+    return { all: rows.length, taken: rows.filter(({ mark }) => read === undefined || mark === null || !read.foreign(mark)).length };
   }
 
   /** The latest brief of `change` whose return was taken. */
@@ -706,8 +710,13 @@ export function worktreeChange(cwd: string): WorktreeChange {
       const untracked = git("ls-files", "--others", "--exclude-standard", "-z").split("\0").filter((file) => file !== "");
       return [git("diff", earlier.head), ...untracked.map((file) => newFileDiff(cwd, file))].join("");
     },
-    landed(earlier) {
+    foreign(earlier) {
       if (mark === undefined || earlier.head === mark.from) return false;
+      try {
+        git("cat-file", "-e", `${earlier.head}^{commit}`);
+      } catch {
+        return true;
+      }
       try {
         git("merge-base", "--is-ancestor", earlier.head, mark.from);
         return true;

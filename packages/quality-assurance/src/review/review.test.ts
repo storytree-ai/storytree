@@ -567,6 +567,35 @@ test("4.6 · reviews whose commit the default branch has taken in, an earlier me
   });
 });
 
+test("4.6 · reviews whose commit the repository does not hold at all, another repository's, do not count toward the branch's three", async () => {
+  await withLibrary(async (library, storytree) => {
+    const { increment, contracts, checks } = await plan(library);
+    const reviews = await openReviews(storytree);
+    const old = branchCheckout();
+    const dir = branchCheckout();
+    try {
+      const commit = (cwd: string, file: string, message: string) => {
+        const git = (...args: string[]) => execFileSync("git", ["-c", "user.name=t", "-c", "user.email=t@t", "-c", "commit.gpgsign=false", ...args], { cwd });
+        writeFileSync(join(cwd, "packages/library/src", file), `export const ${message} = 1;\n`);
+        git("add", ".");
+        git("commit", "-qm", message);
+      };
+      // Each repository's branch has a commit of its own, so their histories never share a commit by chance.
+      commit(old, "old.ts", "old");
+      for (let iteration = 1; iteration <= REVIEW_LIMIT; iteration += 1) {
+        await reviews.brief(library, increment, worktreeChange(old));
+        await reviews.take(library.name, increment, clean(checks, contracts, iteration === 1 ? { [checks[0]!]: [{ file: "packages/library/src/a.ts", line: 2, found: "a" }] } : {}, iteration));
+      }
+      // The branch is rebuilt in a fresh repository, whose history holds none of the old one's commits.
+      commit(dir, "fresh.ts", "fresh");
+      assert.equal((await reviews.brief(library, increment, worktreeChange(dir))).iteration, REVIEW_LIMIT + 1);
+    } finally {
+      await removeTemp(old);
+      await removeTemp(dir);
+    }
+  });
+});
+
 test("4.4 · the tools this package registers record the same answer to a hit and give the same standing findings as the package's API the command line calls", async () => {
   await withLibrary(async (library, storytree) => {
     const { increment, contracts, checks } = await plan(library);

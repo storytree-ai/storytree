@@ -10,6 +10,7 @@
  * checks every write.
  */
 import path from "node:path";
+import { isDeepStrictEqual } from "node:util";
 
 import { byCreation } from "../creation-order.js";
 import { checkReference, checkReferences, couldBeId, DependencyLoopError, liveRecord } from "../references.js";
@@ -27,8 +28,8 @@ export const CONTRACT_DEFINITION =
 /** A contract title past this many characters gets the advisory: about the longest eighth of 338 live contract titles, measured 2026-10-11. */
 export const LONG_CONTRACT_TITLE = 300;
 
-/** A new story's fields. A mapped story is mapStories' alone to make. */
-export type NewStory = Omit<FieldsOf<"story">, "mapped">;
+/** A new story's fields. A mapped story is mapStories' alone to make, and a plugin's story importPluginPlan's. */
+export type NewStory = Omit<FieldsOf<"story">, "mapped" | "plugin">;
 /** One package of an imported folder, as mapStories maps it to a story (ADR-0993 D2). */
 export interface MappedPackage {
   /** The package's folder relative to the imported folder ("." for the folder itself): what a later import matches on. */
@@ -45,6 +46,32 @@ export interface MappedStories {
   readonly kept: string[];
 }
 /**
+ * A factory plugin's plan of its own story (ADR-1187), as the plan file in its folder holds it: the one
+ * source of the story, its capabilities and its contracts. Every capability and contract is numbered, since a later
+ * import matches them by number; a capability's dependencies are capability ids.
+ */
+export interface PluginPlan {
+  readonly story: { readonly title: string; readonly description?: string; readonly text?: string };
+  readonly capabilities: readonly PluginPlanCapability[];
+}
+export interface PluginPlanCapability {
+  readonly title: string;
+  readonly description?: string;
+  readonly text?: string;
+  /** On until the plugin says it is built (ADR-0744 D2); proposed when not given. */
+  readonly proposed?: boolean;
+  readonly dependsOn?: string[];
+  readonly contracts: readonly { readonly title: string; readonly description?: string }[];
+}
+/** What one importPluginPlan did: the plugin's story, and the ids of the records it added, edited, retired and kept as they stood. */
+export interface ImportedPluginPlan {
+  readonly story: string;
+  readonly added: string[];
+  readonly edited: string[];
+  readonly retired: string[];
+  readonly kept: string[];
+}
+/**
  * A new arc's fields: its intent and end state (capability 10), and the stories it grows, when
  * given, each an existing story; an arc may list none. Parking is capability 10's parkArc.
  */
@@ -55,7 +82,7 @@ export type NewCapability = Omit<FieldsOf<"capability">, "proposed"> & { propose
 export type NewContract = FieldsOf<"contract">;
 /** An edit of a capability: some of its fields. A field set to undefined is removed. */
 export type CapabilityEdit = { [F in keyof FieldsOf<"capability">]?: FieldsOf<"capability">[F] | undefined };
-/** An edit of a story: some of its fields. A field set to undefined is removed. Mapped is mapStories' alone. */
+/** An edit of a story: some of its fields. A field set to undefined is removed. Mapped is mapStories' alone, and plugin importPluginPlan's. */
 export type StoryEdit = { [F in keyof NewStory]?: NewStory[F] | undefined };
 /** An edit of a contract: some of its fields. A field set to undefined is removed. */
 export type ContractEdit = { [F in keyof FieldsOf<"contract">]?: FieldsOf<"contract">[F] | undefined };
@@ -106,6 +133,8 @@ export interface StoryNode {
   description?: string;
   /** Where a mapped story's code is (ADR-0993 D2): its import, its package and the folders holding its code. */
   mapped?: { from: string; package: string; folders: string[] };
+  /** The factory plugin whose plan file it, its capabilities and contracts are read from (ADR-1187). */
+  plugin?: string;
   /** Its risk reading as stored (question_1740edf77e9e), when one was read. */
   risk?: NonNullable<FieldsOf<"story">["risk"]>;
   /** Its own guardrails as stored (question_4cec0ba23052): the extra checks only it carries. */
@@ -202,6 +231,109 @@ export class WorkModel {
   }
 
   /**
+   * Write factory plugin `plugin`'s story from its plan (ADR-1187), the only way a story becomes a plugin's:
+   * its live story is the one marked as `plugin`'s, or, the first time, the live story `adopt` names, else a new one.
+   * Its capabilities are matched by number and their contracts by theirs: what changed is edited, what is new added,
+   * and what the plan no longer holds retired, a capability's contracts with it, so a kept record keeps its id, links
+   * and health. Everything is checked first, and a plan with a capability or contract carrying no number or a number
+   * twice, a contract numbered under another capability, or an `adopt` that is mapped, another plugin's or not this
+   * plugin's own story, is refused (SchemaError) with nothing written.
+   */
+  importPluginPlan(plugin: string, plan: PluginPlan, options: WriteOptions & { adopt?: string } = {}): Promise<ImportedPluginPlan> {
+    return this.#serially(async () => {
+      const refuse = (field: string, problem: string): never => { throw new SchemaError("story", [{ field, problem }]); };
+      if (typeof plugin !== "string" || plugin === "") refuse("plugin", "a plugin's story names its plugin");
+      const stories = await this.#records.list("story");
+      const own = stories.find((story) => story.fields.plugin === plugin);
+      let story = own;
+      if (options.adopt !== undefined && options.adopt !== own?.id) {
+        if (own !== undefined) refuse("plugin", `${plugin}'s story is ${own.id}, not ${options.adopt}`);
+        story = stories.find((candidate) => candidate.id === options.adopt);
+        if (story === undefined) refuse("plugin", `${options.adopt} is not a live story to adopt`);
+        if (story!.fields.mapped !== undefined) refuse("plugin", `${story!.id} is mapped from ${story!.fields.mapped.from}, so it is that import's`);
+        if (story!.fields.plugin !== undefined) refuse("plugin", `${story!.id} is ${story!.fields.plugin}'s story`);
+      }
+      const capabilities = new Map<number, SchemaRecord<"capability">>();
+      for (const capability of story === undefined ? [] : await this.#capabilitiesOf(story.id)) {
+        const number = capabilityNumber(capability.fields.title);
+        if (number === undefined) refuse("plugin", `${capability.id} (${capability.fields.title}) carries no number for the plan to match it by`);
+        capabilities.set(number!, capability);
+      }
+      const planned = new Set<number>();
+      for (const capability of plan.capabilities) {
+        const number = capabilityNumber(capability.title);
+        if (number === undefined) refuse("plugin", `the plan's capability "${capability.title}" carries no number`);
+        if (planned.has(number!)) refuse("plugin", `the plan numbers two capabilities ${number}`);
+        planned.add(number!);
+        const contracts = new Set<string>();
+        for (const contract of capability.contracts) {
+          const own = contractNumber(contract.title);
+          if (own === undefined) refuse("plugin", `the plan's contract "${contract.title}" carries no number`);
+          if (!own!.startsWith(`${number}.`)) refuse("plugin", `the plan's contract ${own} is under capability ${number}`);
+          if (contracts.has(own!)) refuse("plugin", `the plan numbers two contracts ${own}`);
+          contracts.add(own!);
+          this.#records.check("contract", { ...contract, capability: "capability_000000000000" });
+        }
+        this.#records.check("capability", { ...withoutContracts(capability), proposed: capability.proposed ?? true, story: "story_000000000000" });
+        await checkReferences(this.#records, "dependsOn", capability.dependsOn, "capability");
+      }
+      const storyFields = { ...plan.story, plugin };
+      this.#records.check("story", storyFields);
+
+      const done: ImportedPluginPlan = { story: story?.id ?? "", added: [], edited: [], retired: [], kept: [] };
+      /** Write `fields` over `record` when they differ in any of `owned`, a field missing from `fields` being removed. */
+      const update = async (record: SchemaRecord, fields: Record<string, unknown>, owned: readonly string[]): Promise<void> => {
+        const edit = Object.fromEntries(owned.filter((field) => !isDeepStrictEqual(fields[field], (record.fields as Record<string, unknown>)[field])).map((field) => [field, fields[field]]));
+        if (Object.keys(edit).length === 0) {
+          done.kept.push(record.id);
+          return;
+        }
+        await this.#records.edit(record.id, edit, options);
+        done.edited.push(record.id);
+      };
+      if (story === undefined) {
+        story = await this.#records.create("story", storyFields, options);
+        done.added.push(story.id);
+      } else await update(story, storyFields, PLUGIN_STORY_FIELDS);
+      const storyId = story.id;
+      for (const capability of plan.capabilities) {
+        const fields = { ...withoutContracts(capability), proposed: capability.proposed ?? true, story: storyId };
+        let stored = capabilities.get(capabilityNumber(capability.title)!);
+        const contracts = new Map<string, SchemaRecord<"contract">>();
+        if (stored === undefined) {
+          stored = await this.#records.create("capability", fields, options);
+          done.added.push(stored.id);
+        } else {
+          await update(stored, fields, PLUGIN_CAPABILITY_FIELDS);
+          for (const contract of await this.#contractsOf(stored.id)) contracts.set(contractNumber(contract.fields.title) ?? contract.id, contract);
+        }
+        for (const contract of capability.contracts) {
+          const number = contractNumber(contract.title)!;
+          const fieldsOf = { ...contract, title: separated(contract.title), capability: stored.id };
+          const theirs = contracts.get(number);
+          contracts.delete(number);
+          if (theirs === undefined) done.added.push((await this.#records.create("contract", fieldsOf, options)).id);
+          else await update(theirs, fieldsOf, PLUGIN_CONTRACT_FIELDS);
+        }
+        for (const gone of contracts.values()) {
+          await this.#records.retire(gone.id, `${plugin}'s plan no longer holds it`, options);
+          done.retired.push(gone.id);
+        }
+      }
+      for (const [number, gone] of capabilities) {
+        if (planned.has(number)) continue;
+        for (const contract of await this.#contractsOf(gone.id)) {
+          await this.#records.retire(contract.id, `${plugin}'s plan no longer holds its capability`, options);
+          done.retired.push(contract.id);
+        }
+        await this.#records.retire(gone.id, `${plugin}'s plan no longer holds it`, options);
+        done.retired.push(gone.id);
+      }
+      return { ...done, story: storyId };
+    });
+  }
+
+  /**
    * Create an arc. Every story it lists must be a live story (MissingReferenceError otherwise,
    * naming the first one that is not); it may list none at all.
    */
@@ -224,6 +356,7 @@ export class WorkModel {
    */
   addCapability(capability: NewCapability, options?: WriteOptions): Promise<SchemaRecord<"capability">> {
     return this.#serially(async () => {
+      this.#refusePlugins("capability", "story", await this.#pluginOfStory(capability.story));
       await checkReference(this.#records, "story", capability.story, "story");
       await checkReferences(this.#records, "dependsOn", capability.dependsOn, "capability");
       const covers = await this.#covered(capability.story, capability.covers);
@@ -245,6 +378,8 @@ export class WorkModel {
     return this.#serially(async () => {
       const stored = (await liveRecord(this.#records, id, ["capability"])) as SchemaRecord<"capability"> | null;
       if (stored === null) return null;
+      if (PLUGIN_CAPABILITY_FIELDS.some((field) => field in fields)) this.#refusePlugins("capability", "story", await this.#pluginOfStory(stored.fields.story));
+      this.#refusePlugins("capability", "story", await this.#pluginOfStory(fields.story));
       await checkReference(this.#records, "story", fields.story, "story");
       await checkReferences(this.#records, "dependsOn", fields.dependsOn, "capability");
       if (Array.isArray(fields.dependsOn)) await this.#refuseLoop(id, fields.dependsOn);
@@ -282,6 +417,7 @@ export class WorkModel {
    */
   addContract(contract: NewContract, options?: ContractWriteOptions): Promise<SchemaRecord<"contract">> {
     return this.#serially(async () => {
+      this.#refusePlugins("contract", "capability", await this.#pluginOfCapability(contract.capability));
       await checkReference(this.#records, "capability", contract.capability, "capability");
       const title = await this.#numbered(contract.title, contract.capability, options?.testedNumbers ?? []);
       return this.#records.create("contract", { ...contract, title }, options);
@@ -296,7 +432,9 @@ export class WorkModel {
   editStory(id: string, fields: StoryEdit, options?: WriteOptions): Promise<SchemaRecord<"story"> | null> {
     return this.#serially(async () => {
       refuseMapped(fields);
-      if ((await liveRecord(this.#records, id, ["story"])) === null) return null;
+      const stored = (await liveRecord(this.#records, id, ["story"])) as SchemaRecord<"story"> | null;
+      if (stored === null) return null;
+      if (PLUGIN_STORY_FIELDS.some((field) => field in fields)) this.#refusePlugins("story", "title", stored.fields.plugin);
       return (await this.#records.edit(id, { audience: undefined, ...fields } as StoryEdit, options)) as SchemaRecord<"story"> | null;
     });
   }
@@ -309,7 +447,10 @@ export class WorkModel {
    */
   editContract(id: string, fields: ContractEdit, options?: WriteOptions): Promise<SchemaRecord<"contract"> | null> {
     return this.#serially(async () => {
-      if ((await liveRecord(this.#records, id, ["contract"])) === null) return null;
+      const own = (await liveRecord(this.#records, id, ["contract"])) as SchemaRecord<"contract"> | null;
+      if (own === null) return null;
+      this.#refusePlugins("contract", "capability", await this.#pluginOfCapability(own.fields.capability));
+      this.#refusePlugins("contract", "capability", await this.#pluginOfCapability(fields.capability));
       await checkReference(this.#records, "capability", fields.capability, "capability");
       if (fields.title !== undefined || fields.capability !== undefined) {
         const stored = (await this.#records.get(id)) as SchemaRecord<"contract">;
@@ -354,6 +495,7 @@ export class WorkModel {
       stories: stories.sort(byCreation).map((story) => ({
         ...nodeOf(story),
         ...(story.fields.mapped === undefined ? {} : { mapped: { ...story.fields.mapped, folders: [...story.fields.mapped.folders] } }),
+        ...(story.fields.plugin === undefined ? {} : { plugin: story.fields.plugin }),
         ...(story.fields.risk === undefined ? {} : { risk: structuredClone(story.fields.risk) }),
         ...guardrailsOf(story),
         capabilities: (capabilitiesOf.get(story.id) ?? []).map((capability) => ({
@@ -457,6 +599,23 @@ export class WorkModel {
     }
   }
 
+  /** Refuse a plan edit when `plugin` names whose plan it would change (ADR-1187). */
+  #refusePlugins(type: "story" | "capability" | "contract", field: string, plugin: string | undefined): void {
+    if (plugin !== undefined) throw pluginsOwn(type, field, plugin);
+  }
+
+  /** The plugin whose plan `story` is, when it names a stored plugin's story. */
+  async #pluginOfStory(story: unknown): Promise<string | undefined> {
+    const record = couldBeId(story) ? await this.#records.get(story) : null;
+    return record?.type === "story" ? (record as SchemaRecord<"story">).fields.plugin : undefined;
+  }
+
+  /** The plugin whose plan `capability` is part of, when it names a stored capability of a plugin's story. */
+  async #pluginOfCapability(capability: unknown): Promise<string | undefined> {
+    const record = couldBeId(capability) ? await this.#records.get(capability) : null;
+    return record?.type === "capability" ? this.#pluginOfStory((record as SchemaRecord<"capability">).fields.story) : undefined;
+  }
+
   async #capabilitiesOf(story: string): Promise<SchemaRecord<"capability">[]> {
     return (await this.#records.list("capability")).filter((capability) => capability.fields.story === story);
   }
@@ -549,9 +708,25 @@ function within(inner: string, outer: string): boolean {
   return outer === "." || inner === outer || inner.startsWith(`${outer}/`);
 }
 
-/** Refuse a `mapped` field: only mapStories makes a story mapped (ADR-0993 D2). */
+/** Refuse a `mapped` or `plugin` field: only mapStories makes a story mapped (ADR-0993 D2), and only importPluginPlan a plugin's. */
 function refuseMapped(fields: object): void {
   if ("mapped" in fields) throw new SchemaError("story", [{ field: "mapped", problem: "a story is made mapped only by importing a project" }]);
+  if ("plugin" in fields) throw new SchemaError("story", [{ field: "plugin", problem: "a story is made a plugin's only by importing its plan (storytree plugin import-plan)" }]);
+}
+
+/** The fields of a plugin's story, capabilities and contracts its plan holds: only importPluginPlan writes them. */
+const PLUGIN_STORY_FIELDS = ["title", "description", "text", "plugin"] as const;
+const PLUGIN_CAPABILITY_FIELDS = ["title", "description", "text", "proposed", "dependsOn", "story"] as const;
+const PLUGIN_CONTRACT_FIELDS = ["title", "description", "capability"] as const;
+
+/** A plan's capability as its record's fields hold it: everything but its contracts. */
+function withoutContracts({ contracts: _contracts, ...fields }: PluginPlanCapability): Omit<PluginPlanCapability, "contracts"> {
+  return fields;
+}
+
+/** The refusal of a plan edit to plugin `plugin`'s story, naming where it is edited instead. */
+function pluginsOwn(type: "story" | "capability" | "contract", field: string, plugin: string): SchemaError {
+  return new SchemaError(type, [{ field, problem: `this is ${plugin}'s plan: edit plugins/${plugin}'s plan file in the factory and import it (storytree plugin import-plan ${plugin})` }]);
 }
 
 /** What every node of the tree starts with. */

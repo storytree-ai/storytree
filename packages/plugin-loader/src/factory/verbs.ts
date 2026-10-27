@@ -6,7 +6,8 @@
  * The fourth removes a switched-off plugin's records from the project's library: a deliberate step, listed before it is
  * taken, which switching a plugin off never takes (ADR-1178 D4). The fifth fences, in the project's library, the database
  * roles each plugin this computer mounts declares (its kinds' writers, and its librarian): a deliberate step, run with an
- * account that may act as the project database's owner, which never makes a role (ADR-1178 D5).
+ * account that may act as the project database's owner, which never makes a role (ADR-1178 D5). The sixth writes a plugin's own
+ * story, capabilities and contracts into the project's plan from the plan file it carries (ADR-1187).
  */
 import { verb, VerbRefusal, type VerbContext, type VerbFamily, type VerbPlace } from "@storytree/library/verbs";
 
@@ -123,6 +124,34 @@ const removeRecords = verb({
   },
 });
 
+const importPlan = verb({
+  command: { family: "plugin", name: "import-plan", summary: "write a plugin's own story, capabilities and contracts into this project's plan from the plan file it carries" },
+  tool: {
+    name: "import_plugin_plan",
+    description: "Write a factory plugin's own story, its capabilities and contracts into this project's plan from the plan file its manifest names: the plugin's file is their one source, so they are then edited only there and imported again. Capabilities and contracts are matched by number: what changed is edited, what is new added, and what the file no longer holds retired, so a kept promise keeps its id and health. The first time, adopt names the live story it takes over, else a new story is made.",
+  },
+  inputs: {
+    plugin: { kind: "text", word: 0, describe: "the plugin's name: its folder in the factory's plugins folder" },
+    adopt: { kind: "text", optional: true, describe: "the first time only: the live story the plugin's plan takes over, keeping its id" },
+  },
+  writes: true,
+  async act({ plugin, adopt }, { library, writer }: VerbContext) {
+    const [{ factoryFolder }, { pluginPlan }] = await Promise.all([import("@storytree/project-and-caller"), import("./factory.js")]);
+    try {
+      const plan = pluginPlan(factoryFolder().folder, plugin);
+      if (plan === undefined) throw new Error(`${plugin}'s storytree manifest names no plan`);
+      const done = await library.importPluginPlan(plugin, plan, { ...writer, ...(adopt === undefined ? {} : { adopt }) });
+      return {
+        text: `Imported ${plugin}'s plan into ${done.story}: ${done.added.length} added, ${done.edited.length} edited, ${done.retired.length} retired, ${done.kept.length} kept.`,
+        data: { imported: done },
+        next: [{ command: `tree ${done.story}`, why: "the plan as imported, with each promise's health" }],
+      };
+    } catch (error) {
+      throw refused(error);
+    }
+  },
+});
+
 /** What `grant` lets its role do, in words: "adds voice.note", or "adds and changes voice.note, voice.tag". */
 function granted(grant: { readonly kinds: readonly string[]; readonly update?: boolean }): string {
   return `${grant.update === true ? "adds and changes" : "adds"} ${grant.kinds.join(", ")}`;
@@ -174,10 +203,10 @@ const fence = verb({
 
 /** The command line's `plugin` family, at its place after `settings`. */
 export const PLUGIN_FAMILIES: readonly VerbFamily<VerbPlace>[] = [
-  { name: "plugin", summary: "what a factory plugin must contain, start one, check this storytree would load it, fence its roles, or remove a switched-off one's records", order: 25.5, verbs: [contract, create, check, removeRecords as never, fence as never] },
+  { name: "plugin", summary: "what a factory plugin must contain, start one, check this storytree would load it, import its plan, fence its roles, or remove a switched-off one's records", order: 25.5, verbs: [contract, create, check, importPlan as never, removeRecords as never, fence as never] },
 ];
 
 /** What the MCP server's card says of these tools (ADR-1021: guidance travels with its part). */
 export const pluginGuidance: readonly string[] = [
-  "To make a plugin in the user's factory that stands in for one of storytree's parts, read `plugin_contract` first, start it with `new_plugin`, and call `check_plugin` after each edit: it says whether storytree would load it, and why not, before the part is switched to it. Switching a plugin off keeps its records; remove them with `remove_plugin_records` only when the user asked for the plugin removed, otherwise ask them first. `fence_plugin` fences a mounted plugin's database roles, when the user asks.",
+  "To make a plugin in the user's factory that stands in for one of storytree's parts, read `plugin_contract` first, start it with `new_plugin`, and call `check_plugin` after each edit: it says whether storytree would load it, and why not, before the part is switched to it. Switching a plugin off keeps its records; remove them with `remove_plugin_records` only when the user asked for the plugin removed, otherwise ask them first. `fence_plugin` fences a mounted plugin's database roles, when the user asks. A plugin that carries its own story's plan in a file its manifest names is the one source of that story, its capabilities and contracts: edit them in that file and bring them in with `import_plugin_plan`, never with the plan tools.",
 ];

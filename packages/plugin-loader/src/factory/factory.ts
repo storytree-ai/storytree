@@ -13,13 +13,14 @@
  * A mounted plugin may also declare its own kinds of record, as data in its manifest's `recordKinds` (ADR-1178 D3), each
  * named under the plugin's own name; a host opens the library with them, and while the plugin is not mounted its
  * records read dormant. It may declare long-running services (ADR-1180 D1), which a service host on each machine runs.
+ * It may carry its own story's plan, as a file its manifest's `plan` names (ADR-1187), imported from there.
  */
 import { existsSync, readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
-import { pluginSchema, type PluginRecordKind } from "@storytree/library";
+import { pluginSchema, type PluginPlan, type PluginRecordKind } from "@storytree/library";
 import type { OutsideWriter } from "@storytree/library/outside-writer";
 import type { VerbContext } from "@storytree/library/verbs";
 import type { SettingsReading } from "@storytree/project-and-caller";
@@ -148,6 +149,33 @@ export function pluginRecordKinds(folder: string | undefined, plugin: string): P
     throw new Error(`${plugin}'s ${(error as Error).message.replace(/^the /, "")}`);
   }
   return kinds;
+}
+
+/**
+ * The plan of its own story plugin `plugin` of `folder` carries (ADR-1187), from the JSON file its manifest's
+ * `plan` names inside its folder: the one source of that story, its capabilities and contracts, which `plugin import-plan`
+ * writes into a project's plan. None when it names none; a file outside its folder, missing, not JSON or of another
+ * shape is refused with why (the library checks the rest as it imports).
+ */
+export function pluginPlan(folder: string | undefined, plugin: string): PluginPlan | undefined {
+  const { dir, manifest } = pluginManifest(folder, plugin);
+  const named = manifest.plan;
+  if (named === undefined) return undefined;
+  if (typeof named !== "string" || named === "") throw new Error(`${plugin}'s storytree manifest names its plan as ${JSON.stringify(named)}, not a file in its folder`);
+  const file = path.resolve(dir, named);
+  const within = path.relative(dir, file);
+  if (within === "" || within.startsWith("..") || path.isAbsolute(within)) throw new Error(`${plugin}'s plan ${named} is outside its own folder`);
+  if (!existsSync(file)) throw new Error(`${plugin}'s plan ${named} is not there (no ${file})`);
+  let plan: unknown;
+  try {
+    plan = JSON.parse(readFileSync(file, "utf8"));
+  } catch (error) {
+    throw new Error(`${plugin}'s plan ${within} is not JSON: ${(error as Error).message}`);
+  }
+  const { story, capabilities } = (typeof plan === "object" && plan !== null ? plan : {}) as { story?: unknown; capabilities?: unknown };
+  const listed = Array.isArray(capabilities) && capabilities.every((capability: { contracts?: unknown } | null) => Array.isArray(capability?.contracts));
+  if (typeof story !== "object" || story === null || !listed) throw new Error(`${plugin}'s plan ${within} is not { story, capabilities: [{ …, contracts: […] }] }`);
+  return plan as PluginPlan;
 }
 
 /**

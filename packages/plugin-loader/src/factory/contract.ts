@@ -8,7 +8,7 @@
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
-import { PLUGIN_INTERFACE, pluginLibrarian, pluginParts, pluginRecordKinds, pluginServices } from "./factory.js";
+import { PLUGIN_INTERFACE, pluginLibrarian, pluginParts, pluginPlan, pluginRecordKinds, pluginServices } from "./factory.js";
 
 /** Each kind a factory plugin may stand in for a part with: the hosts that mount it, and what one declaration is. */
 export const STAND_IN_KINDS: Readonly<Record<string, { readonly hosts: string; readonly shape: string }>> = {
@@ -146,6 +146,13 @@ export function checkPlugin(folder: string | undefined, plugin: string): PluginC
     if (!problems.includes(message)) problems.push(message);
   }
   try {
+    const plan = pluginPlan(folder, plugin);
+    if (plan !== undefined) adds.plan = plan.capabilities.length;
+  } catch (error) {
+    const message = (error as Error).message;
+    if (!problems.includes(message)) problems.push(message);
+  }
+  try {
     if (pluginLibrarian(folder, plugin) !== undefined) adds.librarian = 1;
   } catch (error) {
     const message = (error as Error).message;
@@ -183,6 +190,9 @@ export function contractSaid(): string {
     "    \"upgrades\"?: [{ \"from\", \"name\", \"rename\"?: { old: new }, \"remove\"?: [field], \"set\"?: { field: value } }] }]",
     "Its own librarian, librarian-<plugin>, which keeps those records on its schedule as a database role storytree fences to the plugin's kinds:",
     "  \"librarian\": { \"role\": \"<database role>\", \"update\"?: true }: a role of its own, never one of its kinds' writers; update lets it change their records, not only add them",
+    "Its own story's plan, kept with its code as the one source of it, which `storytree plugin import-plan <plugin>` writes into a project's plan:",
+    "  \"plan\": \"./plan.json\": a file in its folder holding { story: { title, description?, text? }, capabilities: [{ title: \"1 · …\", description?, text?, proposed?, dependsOn?: [<capability id>], contracts: [{ title: \"1.1 · …\", description? }] }] };",
+    "    every capability and contract is numbered, since an import matches them by number; the story, capabilities and contracts are then edited only there",
     "",
     "A verb, in a family's verbs:",
     "  { command: { family, name, summary, usage? } | { absent: why },",

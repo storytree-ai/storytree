@@ -714,6 +714,91 @@ for (const backend of [memory, postgres]) {
     assert.ok(!("risk" in visitor!) && !("guardrails" in visitor!), "a story without them carries none");
     assert.ok(!("guardrails" in visitor!.capabilities.find(({ id }) => id === other.id)!), "nor does a capability");
   });
+
+  contract("4.25", "importPluginPlan writes a plugin's story, capabilities and contracts from its plan, adopting a live story the first time; a later import matches capabilities by number and contracts by theirs, edits what changed, adds what is new and retires what the plan no longer holds, keeping ids", async ({ work, records }) => {
+    const voice = await work.addStory({ title: "Voice", description: "old" });
+    const address = await work.addCapability({ title: "1 · The address", story: voice.id, proposed: false });
+    const notFound = await work.addContract({ title: "1.1 · A wrong path is answered 404", capability: address.id });
+    const speech = await work.addCapability({ title: "2 · Speech", story: voice.id });
+    const spoken = await work.addContract({ title: "2.1 · Speaks", capability: speech.id });
+    const other = await work.addStory({ title: "Desktop app" });
+
+    const first = await work.importPluginPlan("voice", {
+      story: { title: "Voice", description: "Talk to storytree by voice" },
+      capabilities: [
+        { title: "1 · The address", proposed: false, contracts: [{ title: "1.1 · A wrong path is answered 404" }, { title: "1.2 · A wrong method is answered 405" }] },
+        { title: "2 · Speech", proposed: true, contracts: [{ title: "2.1 · Speaks" }] },
+      ],
+    }, { adopt: voice.id });
+    assert.equal(first.story, voice.id, "the live story is adopted, keeping its id");
+    assert.equal(first.added.length, 1);
+    assert.deepEqual(first.edited, [voice.id], "only the story's description changed");
+    assert.deepEqual(first.retired, []);
+    assert.deepEqual(new Set(first.kept), new Set([address.id, notFound.id, speech.id, spoken.id]));
+    assert.deepEqual((await records.get(voice.id))?.fields, { title: "Voice", description: "Talk to storytree by voice", plugin: "voice" });
+    const added = (await records.get(first.added[0]!)) as SchemaRecord<"contract">;
+    assert.deepEqual(added.fields, { title: "1.2 · A wrong method is answered 405", capability: address.id });
+
+    const again = await work.importPluginPlan("voice", {
+      story: { title: "Voice", description: "Talk to storytree by voice" },
+      capabilities: [{ title: "1 · The address and its guards", proposed: false, contracts: [{ title: "1.1 · A wrong path is answered 404, with no body" }] }],
+    });
+    assert.equal(again.story, voice.id, "the plugin's story is found by its plugin");
+    assert.deepEqual(again.added, []);
+    assert.deepEqual(new Set(again.edited), new Set([address.id, notFound.id]));
+    assert.deepEqual(new Set(again.retired), new Set([first.added[0], speech.id, spoken.id]), "what the plan no longer holds is retired, a capability's contracts with it");
+    assert.equal(((await records.get(notFound.id)) as SchemaRecord<"contract">).fields.title, "1.1 · A wrong path is answered 404, with no body", "a contract keeps its id across an edit");
+    assert.deepEqual((await work.projectTree()).stories.map(({ id, plugin }) => [id, plugin]), [[voice.id, "voice"], [other.id, undefined]], "the plan's tree says whose plan a story is");
+
+    const fresh = await work.importPluginPlan("notes", { story: { title: "Notes" }, capabilities: [{ title: "1 · Taking a note", contracts: [{ title: "1.1 · A note is kept" }] }] });
+    const made = (await records.get(fresh.story)) as SchemaRecord<"story">;
+    assert.deepEqual(made.fields, { title: "Notes", plugin: "notes" }, "with no story to adopt, the plugin's story is made");
+    assert.equal(fresh.added.length, 3);
+  });
+
+  contract("4.26", "a plugin's story, its capabilities and its contracts are refused every plan edit (story, capability, proposed flag, contract), each naming the plugin's plan; nothing is written", async ({ work, transactions }) => {
+    const { story } = await work.importPluginPlan("voice", { story: { title: "Voice" }, capabilities: [{ title: "1 · The address", contracts: [{ title: "1.1 · A wrong path is answered 404" }] }] });
+    const { stories } = await work.projectTree();
+    const capability = stories.find(({ id }) => id === story)!.capabilities[0]!;
+    const promise = capability.contracts[0]!;
+    const before = await transactions.history();
+    const naming = (error: unknown) => {
+      assert.ok(error instanceof SchemaError, String(error));
+      assert.match(error.message, /voice's plan/);
+      return true;
+    };
+    await assert.rejects(work.editStory(story, { title: "Talk" }), naming);
+    await assert.rejects(work.addCapability({ title: "2 · Speech", story }), naming);
+    await assert.rejects(work.editCapability(capability.id, { title: "1 · An address" }), naming);
+    await assert.rejects(work.setProposed(capability.id, false), naming);
+    await assert.rejects(work.addContract({ title: "1.2 · A wrong method", capability: capability.id }), naming);
+    await assert.rejects(work.editContract(promise.id, { title: "1.1 · Not found" }), naming);
+    const elsewhere = await work.addStory({ title: "Desktop" });
+    const outside = await work.addCapability({ title: "1 · Window", story: elsewhere.id });
+    await assert.rejects(work.editCapability(outside.id, { story }), naming, "nor is a capability moved into it");
+    assert.deepEqual((await transactions.history()).slice(0, before.length), before);
+    assert.equal((await transactions.history()).length, before.length + 2, "only the two writes outside the plugin's story were made");
+  });
+
+  contract("4.27", "a plugin plan with a capability or contract carrying no number, a number twice, or a contract numbered under another capability is refused, as is adopting a mapped story or another plugin's, with nothing written", async ({ work, transactions }) => {
+    const mine = await work.addStory({ title: "Voice" });
+    const { added: [mapped] } = await work.mapStories("/code/shop", [{ package: ".", title: "shop", folders: ["."] }]);
+    const { story: theirs } = await work.importPluginPlan("notes", { story: { title: "Notes" }, capabilities: [] });
+    const before = await transactions.history();
+    const bad = [
+      [{ title: "The address", contracts: [] }],
+      [{ title: "1 · The address", contracts: [{ title: "A wrong path" }] }],
+      [{ title: "1 · The address", contracts: [] }, { title: "1 · Again", contracts: [] }],
+      [{ title: "1 · The address", contracts: [{ title: "1.1 · One" }, { title: "1.1 · Two" }] }],
+      [{ title: "1 · The address", contracts: [{ title: "2.1 · Elsewhere" }] }],
+    ];
+    for (const capabilities of bad) {
+      await assert.rejects(work.importPluginPlan("voice", { story: { title: "Voice" }, capabilities }, { adopt: mine.id }), SchemaError, JSON.stringify(capabilities));
+    }
+    await assert.rejects(work.importPluginPlan("voice", { story: { title: "Voice" }, capabilities: [] }, { adopt: mapped!.id }), SchemaError, "a mapped story is its import's");
+    await assert.rejects(work.importPluginPlan("voice", { story: { title: "Voice" }, capabilities: [] }, { adopt: theirs }), SchemaError, "another plugin's story is its own");
+    assert.deepEqual(await transactions.history(), before, "nothing was written");
+  });
 }
 
 /**

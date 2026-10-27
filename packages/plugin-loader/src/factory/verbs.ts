@@ -176,5 +176,5 @@ export const PLUGIN_FAMILIES: readonly VerbFamily<VerbPlace>[] = [
 
 /** What the MCP server's card says of these tools (ADR-1021: guidance travels with its part). */
 export const pluginGuidance: readonly string[] = [
-  "To make a plugin in the user's factory that stands in for one of storytree's parts, read `plugin_contract` first, start it with `new_plugin`, and call `check_plugin` after each edit: it says whether storytree would load it, and why not, before the part is switched to it. Switching a plugin off keeps its records; remove them with `remove_plugin_records` only when the user asked for the plugin removed, otherwise ask them first.",
+  "To make a plugin in the user's factory that stands in for one of storytree's parts, read `plugin_contract` first, start it with `new_plugin`, and call `check_plugin` after each edit: it says whether storytree would load it, and why not, before the part is switched to it. Switching a plugin off keeps its records; remove them with `remove_plugin_records` only when the user asked for the plugin removed, otherwise ask them first. `fence_plugin` fences a mounted plugin's database roles, when the user asks.",
 ];

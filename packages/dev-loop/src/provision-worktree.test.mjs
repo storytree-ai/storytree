@@ -4,8 +4,8 @@
 // install ever completed), STALE (pnpm-lock.yaml moved past the install, as after merging main) and
 // UNLINKED (an install reported success but linked no workspace package).
 import assert from "node:assert/strict";
-import { execFile } from "node:child_process";
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { execFile, execFileSync } from "node:child_process";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
@@ -53,6 +53,33 @@ test("2.1 a worktree that is installed and current is left alone", (t) => {
   assert.equal(calls, 0);
   assert.equal(result.ok, true);
   assert.equal(hookOutput(result, root), "", "a healthy session is told nothing");
+});
+
+test("2.7 a worktree gets the push check as the pre-push hook its repository's worktrees share, and a pre-push hook someone else installed is left as it was", (t) => {
+  const root = worktree(t, "current");
+  const git = (...args) => execFileSync("git", args, { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();
+  git("init", "-q");
+  git("-c", "user.name=t", "-c", "user.email=t@example.com", "commit", "-q", "--allow-empty", "-m", "start");
+  const hook = path.resolve(root, git("rev-parse", "--git-path", "hooks"), "pre-push");
+  const lines = [];
+  assert.equal(provision({ root, install: () => ({ ok: true }), log: (line) => lines.push(line) }).ok, true);
+  assert.match(readFileSync(hook, "utf8"), /push-check\.mjs/, "the hook runs the push check");
+  assert.ok(lines.some((line) => line.includes("push check installed")), lines.join("\n"));
+  const installed = readFileSync(hook, "utf8");
+  const said = lines.length;
+  provision({ root, install: () => ({ ok: true }), log: (line) => lines.push(line) });
+  assert.equal(lines.length, said, "a current hook is left alone, and nothing is said");
+  assert.equal(readFileSync(hook, "utf8"), installed);
+  const linked = `${root}-linked`;
+  t.after(() => removeTemp(linked));
+  git("worktree", "add", "-q", linked);
+  const shared = path.resolve(linked, execFileSync("git", ["rev-parse", "--git-path", "hooks"], { cwd: linked, encoding: "utf8" }).trim(), "pre-push");
+  assert.equal(realpathSync.native(shared), realpathSync.native(hook), "a linked worktree runs the same hook");
+  writeFileSync(hook, "#!/bin/sh\necho someone else's\n");
+  provision({ root, install: () => ({ ok: true }), log: (line) => lines.push(line) });
+  assert.equal(readFileSync(hook, "utf8"), "#!/bin/sh\necho someone else's\n");
+  assert.ok(lines.at(-1)?.includes("someone else's"), lines.join("\n"));
+  assert.ok(existsSync(hook));
 });
 
 test("2.2 a fresh, a stale and an unlinked worktree each get installed", (t) => {

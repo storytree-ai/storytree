@@ -23,7 +23,7 @@ export function startChild(service: Declared, home: string, log: (line: string) 
     if (last.length > LAST_LINES) last.shift();
     log(`${service.id}: ${line}`);
   };
-  const outputs = [child.stdout, child.stderr].map((stream) => new Promise<void>((done) => createInterface({ input: stream }).on("line", said).once("close", done)));
+  const outputs = [child.stdout!, child.stderr!].map((stream) => new Promise<void>((done) => createInterface({ input: stream }).on("line", said).once("close", done)));
   const ended = new Promise<Ended>((done) => {
     child.once("error", (error) => {
       said(`could not start: ${error.message}`);

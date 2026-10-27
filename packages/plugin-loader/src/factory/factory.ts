@@ -25,7 +25,7 @@ import type { VerbContext } from "@storytree/library/verbs";
 import type { SettingsReading } from "@storytree/project-and-caller";
 
 import { isServiceRun, type ServiceRun } from "../manifests/manifests.js";
-import { CORE, switchedOff, type Composition, type PartsGraph } from "../switch/switch.js";
+import { standInPlaces, type Composition, type PartsGraph } from "../switch/switch.js";
 
 export type { ServiceRun };
 
@@ -101,8 +101,8 @@ export function pluginParts(folder: string | undefined, plugin: string, kind: st
 
 /**
  * `composition` with each stand-in `standIns` names for one of its parts: the plugin's declarations of `kind`, placed
- * after the last of the part's (at the end when the part has none of this kind), owned by the plugin and standing in
- * for the part. A plugin that cannot be loaded adds nothing and is named, with why, against the part it stands in for.
+ * after the last of the part's (at the end when the part has none of this kind, or the host has no such part: a plugin
+ * that adds one), owned by the plugin and standing in for the part. A plugin that cannot be loaded adds nothing and is named, with why, against the part it stands in for.
  */
 export function standIn<Part>(composition: Composition<Part>, kind: string, standIns: StandIns): Composition<Part> {
   const parts = [...composition.parts];
@@ -110,7 +110,6 @@ export function standIn<Part>(composition: Composition<Part>, kind: string, stan
   const standsIn: Record<string, string> = { ...composition.standsIn };
   const failed: Record<string, string> = { ...composition.failed };
   for (const [part, plugin] of Object.entries(standIns.plugins)) {
-    if (!Object.hasOwn(composition.graph, part)) continue;
     let declared: unknown[];
     try {
       declared = pluginParts(standIns.folder, plugin, kind);
@@ -190,11 +189,11 @@ export function pluginFences(folder: string | undefined, plugin: string): Outsid
  * and one whose kinds cannot be read declares none, named, with why, against the part it stands in for.
  */
 export function recordKinds(graph: PartsGraph, standIns: StandIns, off: readonly string[]): { kinds: PluginRecordKind[]; failed: Record<string, string> } {
-  const switched = switchedOff(graph, off);
+  const places = standInPlaces(graph, off);
   const kinds: PluginRecordKind[] = [];
   const failed: Record<string, string> = {};
   for (const [part, plugin] of Object.entries(standIns.plugins)) {
-    if (!switched.has(part) && !(off.includes(part) && !CORE.includes(part))) continue;
+    if (!places.has(part)) continue;
     try {
       kinds.push(...pluginRecordKinds(standIns.folder, plugin));
     } catch (error) {

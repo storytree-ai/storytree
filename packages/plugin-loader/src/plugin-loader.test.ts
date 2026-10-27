@@ -264,6 +264,20 @@ test("5.5 `plugin new <plugin>` starts a plugin in this computer's factory folde
   await assert.rejects(act({ plugin: "../escape" }), /not a plugin's name/);
 });
 
+test("5.13 · a factory plugin that stands in for no part is added under its own name: `plugin new <plugin>` with no --for, and `plugin check`, name `settings set part <plugin> plugin <plugin>`, and every host mounts it, after its own parts, while the setting names it, and not once it no longer does", async (t) => {
+  const { act, factory } = await pluginVerb(t, "new");
+  const answer = await act({ plugin: "my-extra" });
+  assert.ok(answer.next!.some((step) => step.command === "settings set part my-extra plugin my-extra"), "it names the switch that adds it");
+  const { PLUGIN_FAMILIES } = await import("./factory/verbs.js");
+  const check = PLUGIN_FAMILIES[0]!.verbs.find((each) => "name" in each.command && each.command.name === "check")!;
+  const checked = await check.act({ plugin: "my-extra" } as never, { folder: factory } as never, { door: "command", say: (step) => step.command! });
+  assert.ok(checked.next!.some((step) => step.command === "settings set part my-extra plugin my-extra"), "check names it too");
+  const added = standIn<{ name: string }>(builtIn as never, "verbs", { folder: factory, plugins: { "my-extra": "my-extra" } });
+  assert.deepEqual(mount(added, ["my-extra"]).mounted.map((family) => family.name ?? family), ["health", "globe", "my-extra"]);
+  assert.deepEqual(mount(added, ["my-extra"]).off, [], "no part of the host is off for it");
+  assert.deepEqual(mount(added, []).mounted, ["health", "globe"], "dropped from the setting, it mounts no more");
+});
+
 test("5.6 `plugin check <plugin>` says whether this storytree would load a plugin, and why not, switching nothing: a manifest of another shape, a verbs module exporting a function, a family or verb missing what a door mounts are each refused with why; one that loads is named with what it adds", async (t) => {
   const { act, factory } = await pluginVerb(t, "check");
   const family = (verbs: string) => ({ ...verbsPlugin, files: { "verbs.js": `export const verbs = ${verbs};\n` } });

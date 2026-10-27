@@ -8,7 +8,8 @@
  */
 import composed from "#parts/verbs";
 import { readPartsOff, readStandIns } from "@storytree/project-and-caller";
-import { mount, standIn, switchedOff, type SwitchedOff } from "@storytree/plugin-loader";
+import { mount, standIn, type SwitchedOff } from "@storytree/plugin-loader";
+import { standInPlaces } from "@storytree/plugin-loader/switch";
 
 import type { Family } from "../door.js";
 import { family as mounted } from "../mount.js";
@@ -58,7 +59,8 @@ const KEPT: readonly Placed[] = [
 
 /**
  * The declared families this command mounts, each with its part: those of storytree's own parts, but a part a factory
- * plugin stands in for while it is off (its families giving way to the plugin's), and the stand-ins' own. A settings file
+ * plugin stands in for while it is off (its families giving way to the plugin's), and the stand-ins' own, a plugin that
+ * adds a part of its own among them while the setting names it. A settings file
  * that cannot be read mounts storytree's own alone, and the command that reads it next says why.
  */
 const declared = (() => {
@@ -71,9 +73,9 @@ const declared = (() => {
     return composed;
   }
   const loaded = standIn(composed, "verbs", standIns);
-  const switched = switchedOff(loaded.graph, off);
+  const places = standInPlaces(loaded.graph, off);
   const standsIn = loaded.standsIn ?? {};
-  const standing = new Set(loaded.owners.filter((owner) => Object.hasOwn(standsIn, owner) && switched.has(standsIn[owner]!)));
+  const standing = new Set(loaded.owners.filter((owner) => Object.hasOwn(standsIn, owner) && places.has(standsIn[owner]!)));
   const replaced = new Set([...standing].map((plugin) => standsIn[plugin]!));
   const keep = loaded.owners.map((owner) => Object.hasOwn(standsIn, owner) ? standing.has(owner) : !replaced.has(owner));
   return { ...loaded, parts: loaded.parts.filter((_, at) => keep[at]), owners: loaded.owners.filter((_, at) => keep[at]) };

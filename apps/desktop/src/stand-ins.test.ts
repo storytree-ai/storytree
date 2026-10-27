@@ -80,6 +80,18 @@ test("1.24 a factory plugin standing in for a switched-off part answers its page
   assert.deepEqual(builtInPage.pluginViews, []);
 });
 
+test("plugin-loader 5.13 · a factory plugin that adds a part, standing in for none, offers the page its surface's view while the setting names it, after the built-in surfaces, and the window's scheme serves it; with the setting dropped, neither", (t) => {
+  const folder = factory(t);
+  const standIns = { folder, plugins: { "my-lag": "my-lag" } };
+  const added = windowStandIns(builtIn, standIns, ["my-lag"]);
+  assert.deepEqual(added.page.views, [{ surface: "my-lag", url: "storytree-plugin://factory/my-lag/view" }]);
+  assert.deepEqual(added.surfaces.parts.map((surface) => surface.id), ["lag", "globe", "my-lag"]);
+  assert.deepEqual([...added.served.plugins], ["my-lag"]);
+  const dropped = windowStandIns(builtIn, standIns, []);
+  assert.deepEqual(dropped.page.views, []);
+  assert.deepEqual([...dropped.served.plugins], []);
+});
+
 test("1.24 the window's own scheme serves a view only from a mounted stand-in's exported files: a name it does not export, a path out of its folder, or a plugin standing in for no switched-off part is refused", async (t) => {
   const folder = factory(t);
   const composed = windowStandIns(builtIn, { folder, plugins: { lag: "my-lag" } }, ["lag"]);

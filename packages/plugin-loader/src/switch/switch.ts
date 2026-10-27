@@ -14,7 +14,7 @@ export interface Composition<Part> {
   readonly parts: readonly Part[];
   readonly owners: readonly string[];
   readonly graph: PartsGraph;
-  /** Each factory plugin among the owners, with the part it stands in for (capability 5): mounted only while that part is off. */
+  /** Each factory plugin among the owners, with the part it stands in for (capability 5): mounted only while that part is off, or, for a part the host has none of, while the setting names it. */
   readonly standsIn?: Readonly<Record<string, string>>;
   /** Each part whose named stand-in could not be loaded, with why. */
   readonly failed?: Readonly<Record<string, string>>;
@@ -57,17 +57,28 @@ export function switchedOff(graph: PartsGraph, off: readonly string[]): Readonly
 }
 
 /**
+ * The parts a factory plugin named for one is mounted for when `off` names parts off: each part of `graph` switched off,
+ * and each part `off` names that `graph` lacks (the core aside), one that has left the base, such as voice, or one a
+ * factory plugin adds, standing in for no part of storytree's (capability 5).
+ */
+export function standInPlaces(graph: PartsGraph, off: readonly string[]): ReadonlySet<string> {
+  return new Set([...switchedOff(graph, off).keys(), ...off.filter((part) => !Object.hasOwn(graph, part) && !CORE.includes(part))]);
+}
+
+/**
  * The declarations of `composition` a host mounts when `off` names parts off, and each part it left out with why: a
- * factory plugin's stand in for its part only while that part is off.
+ * factory plugin's stand in for its part only while that part is off, or while the setting names it off when no part of
+ * the host is called that.
  */
 export function mount<Part>(composition: Composition<Part>, off: readonly string[]): { mounted: Part[]; off: SwitchedOff[] } {
   const switched = switchedOff(composition.graph, off);
+  const places = standInPlaces(composition.graph, off);
   const standsIn = composition.standsIn ?? {};
   const failed = composition.failed ?? {};
   return {
     mounted: composition.parts.filter((_, index) => {
       const owner = composition.owners[index]!;
-      return Object.hasOwn(standsIn, owner) ? switched.has(standsIn[owner]!) : !switched.has(owner);
+      return Object.hasOwn(standsIn, owner) ? places.has(standsIn[owner]!) : !switched.has(owner);
     }),
     off: [...switched].map(([part, because]) => ({ part, because, ...(Object.hasOwn(failed, part) ? { failed: failed[part]! } : {}) }))
       .sort((a, b) => a.part.localeCompare(b.part)),

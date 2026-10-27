@@ -52,11 +52,14 @@
 // from the environment itself (PGPASSWORD, CF_ACCESS_CLIENT_ID, CF_ACCESS_CLIENT_SECRET), so nothing
 // secret is written. infra/library-host/README.md describes the route.
 //
+// Before anything else, it installs the push check (push-check.mjs, contract 2.7) as git's pre-push hook, in the
+// hooks folder the repository's worktrees share, unless someone else's pre-push hook is already there.
+//
 // It runs before node_modules exists, so it uses Node built-ins only. With --hook it always exits 0
 // (a failed install must never break the session) and writes to stdout only the heads-up for the
 // agent, as SessionStart additionalContext; pnpm's own output goes to stderr.
-import { spawn, spawnSync } from "node:child_process";
-import { existsSync, readdirSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
+import { execFileSync, spawn, spawnSync } from "node:child_process";
+import { chmodSync, existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import path from "node:path";
 import process from "node:process";
@@ -297,6 +300,51 @@ function fetchElectron(root, log) {
   }
 }
 
+/** The line that marks a pre-push hook as storytree's own, so it is updated in place and no other hook is touched. */
+const HOOK_MARK = "# storytree push check";
+
+/** The hook's text: the pushing checkout's own push check, else `fallback`'s (a checkout whose branch predates it). */
+function hookText(fallback) {
+  const slashed = fallback.replaceAll("\\", "/");
+  return [
+    "#!/bin/sh",
+    `${HOOK_MARK}, installed by packages/dev-loop/src/provision-worktree.mjs: refuses a push that adds a credential held on this machine.`,
+    'script="$(git rev-parse --show-toplevel)/packages/dev-loop/src/push-check.mjs"',
+    `[ -f "$script" ] || script='${slashed.replaceAll("'", "'\\''")}'`,
+    '[ -f "$script" ] || exit 0',
+    'exec node "$script" "$@"',
+    "",
+  ].join("\n");
+}
+
+/**
+ * Install the pre-push hook in the hooks folder git uses for `root` (one for a repository and all its worktrees, or
+ * core.hooksPath), leaving a hook someone else installed in place. Its fallback is the main checkout's push check,
+ * which outlives a worktree's, else this checkout's. Returns what happened, for the log.
+ */
+export function installPushHook({ root, fallback }) {
+  const git = (...args) => path.resolve(root, execFileSync("git", ["rev-parse", ...args], { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim());
+  let hooks;
+  try {
+    hooks = git("--git-path", "hooks");
+    const main = path.join(path.dirname(git("--git-common-dir")), "packages", "dev-loop", "src", "push-check.mjs");
+    fallback ??= existsSync(main) ? main : path.join(repoRoot, "packages", "dev-loop", "src", "push-check.mjs");
+  } catch {
+    return "not a git checkout: no push check installed";
+  }
+  const hook = path.join(hooks, "pre-push");
+  const text = hookText(fallback);
+  if (existsSync(hook)) {
+    const current = readFileSync(hook, "utf8");
+    if (!current.includes(HOOK_MARK)) return `a pre-push hook of someone else's is at ${hook}: the push check was not added`;
+    if (current === text) return "push check current";
+  }
+  mkdirSync(hooks, { recursive: true });
+  writeFileSync(hook, text);
+  chmodSync(hook, 0o755);
+  return `push check installed at ${hook}`;
+}
+
 /**
  * Install root's dependencies if it is fresh, stale, unlinked or behind, trying `retries` more times after a
  * failure (a failed install leaves the store warm, so the retry is quick).
@@ -308,6 +356,8 @@ export function provision({ root = repoRoot, install = pnpmInstall, retries = 1,
     log(message);
     return { ok: false, condition: "checkout", message, code: 1 };
   }
+  const hook = installPushHook({ root });
+  if (/installed|someone else's/.test(hook)) log(`provision-worktree: ${hook}`);
   const condition = conditionOf(root);
   if (condition === undefined) {
     fetchElectron(root, log);

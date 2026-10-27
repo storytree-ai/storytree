@@ -1,5 +1,5 @@
 /**
- * Capability 1 · Project libraries, contracts 1.23-1.25 (ADR-1178 D1 and D5): an outside writer's own database role,
+ * Capability 1 · Project libraries, contracts 1.23-1.25 and 1.27 (ADR-1178 D1 and D5): an outside writer's own database role,
  * fenced by fenceOutsideWriter as the project database's owner, inserts only its plugin's kinds, is refused everything
  * else, and its rows carry its role in `recorded_by`. Run as Cloud SQL and the Mint box run it: a role that owns the
  * project's database, an owner's account acting as it, and the writer's account with no role to take on. The writer
@@ -12,7 +12,7 @@ import { test } from "node:test";
 import type { Client } from "pg";
 
 import { connect } from "./index.js";
-import { fenceOutsideWriter, type OutsideWriter } from "./outside-writer.js";
+import { fenceOutsideWriter, fenceProject, type OutsideWriter } from "./outside-writer.js";
 import { createTestRole, dropTestDatabases, dropTestRoles, testRoleUrl as as, uniqueProjectName, withTestClient, withTestClientAs } from "../testing/pg.js";
 
 interface Fenced {
@@ -168,4 +168,36 @@ test("1.25 · An outside writer whose plugin declares updates may change its own
     await assert.rejects(asWriter((client) => put(client, "note-1", "voice.note", "updated")), /row-level security/);
     assert.deepEqual((await asWriter((client) => client.query("SELECT id FROM record ORDER BY id"))).rows.map((row) => row.id), ["note-1"]);
   });
+});
+
+test("1.27 · fenceProject fences each writer it is handed in a live project's library, reached as the library setting reaches it with an account that may act as the owner; a role the server lacks, or an account that may not act as the owner, is refused saying so, and what it fenced first stays fenced", async () => {
+  const run = uniqueProjectName();
+  const [owner, door, librarian, stranger, creator] = [`${run}-owner`, `${run}-door`, `${run}-librarian`, `${run}-stranger`, `${run}-creator`];
+  const database = `storytree_${run}`;
+  const opened: { close(): Promise<void> }[] = [];
+  try {
+    for (const role of [owner, door, librarian, stranger]) await createTestRole(role, { createdb: false });
+    await createTestRole(creator, { createdb: true, login: false });
+    await withTestClient((client) => client.query(`GRANT "${creator}" TO "${owner}"`));
+    const storytree = await connect({ url: as(owner) });
+    opened.push(storytree);
+    await (await storytree.openProject(run)).transactions.save({ id: "story-checkout", type: "story", fields: { title: "Checkout" } });
+
+    const missing = `${run}-missing`;
+    await assert.rejects(
+      fenceProject({ url: as(owner) }, run, [{ role: door, kinds: ["voice.note"] }, { role: missing, kinds: ["voice.note"] }]),
+      new RegExp(`${missing} was not fenced: ${missing} is no role on this server: make it first, with LOGIN and its password, apart from storytree, then fence again\\. Already fenced: ${door}\\.`),
+    );
+    await assert.rejects(fenceProject({ url: as(stranger) }, run, [{ role: librarian, kinds: ["voice.note"] }]), new RegExp(`${librarian} was not fenced: ${stranger} may not act as ${creator}, the role that owns`));
+
+    await fenceProject({ url: as(owner) }, run, [{ role: door, kinds: ["voice.note"] }, { role: librarian, kinds: ["voice.note"], update: true }]);
+    await withTestClientAs(door, (client) => put(client, "note-1", "voice.note"), database);
+    await assert.rejects(withTestClientAs(door, (client) => put(client, "note-1", "voice.note", "updated"), database), /row-level security/, "the door only adds");
+    await withTestClientAs(librarian, (client) => put(client, "note-1", "voice.note", "updated"), database);
+    await assert.rejects(withTestClientAs(librarian, (client) => put(client, "story-2", "story"), database), /row-level security/, "the librarian keeps only its plugin's kinds");
+  } finally {
+    await Promise.allSettled(opened.map((each) => each.close()));
+    await dropTestDatabases([database]);
+    await dropTestRoles([door, librarian, stranger, owner, creator]);
+  }
 });

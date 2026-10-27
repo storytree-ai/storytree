@@ -42,7 +42,8 @@ export function limitsWith(overrides: Partial<Limits> = {}): Limits {
  * deadline that its queue waits count against, so it fits too.
  */
 const DEFAULTS: Omit<Limits, "queueMs"> = {
-  bodyBytes: 1_000_000,
+  // A tool call's words are short; 64 KB leaves room for the longest note a write tool drafts.
+  bodyBytes: 64_000,
   outputChars: 12_000,
   childBytes: 256_000,
   cliMs: 25_000,

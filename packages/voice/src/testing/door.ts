@@ -44,9 +44,8 @@ export async function testDoor(repoDir: string, env: Record<string, string> = {}
     PORT: "0",
     REPO_DIR: repoDir,
     VOICE_TOKEN: token,
-    STORYTREE_CLI: JSON.stringify(FAKE_CLI),
+    STORYTREE_CLI: JSON.stringify([...FAKE_CLI, `--fake-log=${cliLog}`]),
     ALLOWED_HOSTS: TUNNEL_HOST,
-    FAKE_CLI_LOG: cliLog,
     ...env,
   });
   const lines: string[] = [];
@@ -107,7 +106,7 @@ export const toolCall = (id: number, name: string, args: Record<string, unknown>
 type Content = { content?: unknown; isError?: unknown };
 export const textOf = (result: Content | undefined): string => ((result?.content ?? []) as Array<{ text?: string }>).map((part) => part.text ?? "").join("\n");
 /** What the stand-in saw, from its JSON answer. */
-export const seen = (result: Content): { argv: string[]; cwd: string; pid: number; env: Record<string, string> } => JSON.parse(textOf(result));
+export const seen = (result: Content): { argv: string[]; cwd: string; pid: number; env: Record<string, string>; names: string[] } => JSON.parse(textOf(result));
 
 /** The JSON-RPC messages in an answer, whether one JSON body or an SSE stream of data: lines. */
 export function messagesOf(body: string): Array<{ result?: Content; error?: { code: number } }> {

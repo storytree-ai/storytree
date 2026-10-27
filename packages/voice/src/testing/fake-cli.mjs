@@ -6,13 +6,15 @@
 //
 // An argv naming question_000000000000 plays a refusal (exit 1); "unusable" plays exit 2; "crash" exits 3 with a stack;
 // "colour" answers with colour codes and a "next:" block. "sleep:<ms>" waits that long before answering, and
-// "sleep:<ms>:stubborn" also ignores SIGTERM. With FAKE_CLI_LOG set, it appends "start <pid> <epoch ms>" and
-// "end <pid> <epoch ms>" lines there, each with its argv as JSON, so a test can count the children running at once and see which were stopped.
+// "sleep:<ms>:stubborn" also ignores SIGTERM. Given a first argument --fake-log=<file> (an argument, because the door
+// passes a child only a few named variables), it appends "start <pid> <epoch ms>" and "end <pid> <epoch ms>" lines there,
+// each with its argv as JSON, so a test can count the children running at once and see which were stopped.
 import { appendFileSync } from "node:fs";
 
-const argv = process.argv.slice(2);
+const logFile = process.argv[2]?.startsWith("--fake-log=") ? process.argv[2].slice("--fake-log=".length) : undefined;
+const argv = process.argv.slice(logFile === undefined ? 2 : 3);
 const note = (word) => {
-  if (process.env.FAKE_CLI_LOG) appendFileSync(process.env.FAKE_CLI_LOG, `${word} ${process.pid} ${Date.now()} ${JSON.stringify(argv)}\n`);
+  if (logFile) appendFileSync(logFile, `${word} ${process.pid} ${Date.now()} ${JSON.stringify(argv)}\n`);
 };
 const NEXT = "\n\nnext:\n  - storytree library read <id>   (read one whole)\n";
 const STACK = "    at fakeRefusal (fake-cli.mjs:6:1)\n    at node:internal/main/run_main_module:28:49\n";
@@ -150,6 +152,7 @@ function answer() {
       cwd: process.cwd(),
       pid: process.pid,
       env: Object.fromEntries(Object.entries(env).filter(([name]) => watched.test(name))),
+      names: Object.keys(env).sort(),
     }) + NEXT
   );
 }

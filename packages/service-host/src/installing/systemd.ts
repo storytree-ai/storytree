@@ -45,9 +45,9 @@ export interface Systemd {
   readonly systemctl: (args: readonly string[]) => void;
 }
 
-/** This user's systemd: units under ~/.config/systemd/user, and the real systemctl --user. */
-export function userSystemd(): Systemd {
-  const config = process.env.XDG_CONFIG_HOME || path.join(homedir(), ".config");
+/** This user's systemd: units under ~/.config/systemd/user (or XDG_CONFIG_HOME's), and the real systemctl --user. */
+export function userSystemd(env: NodeJS.ProcessEnv = process.env, home = homedir()): Systemd {
+  const config = env.XDG_CONFIG_HOME || path.join(home, ".config");
   return {
     unitDir: path.join(config, "systemd", "user"),
     systemctl: (args) => { execFileSync("systemctl", ["--user", ...args], { stdio: ["ignore", "pipe", "pipe"] }); },

@@ -8,7 +8,7 @@ import { test, type TestContext } from "node:test";
 
 import { removeTemp } from "@storytree/test-waits";
 
-import { checkoutOf, hostUnit, installHost, uninstallHost, UNIT_NAME } from "./systemd.js";
+import { checkoutOf, hostUnit, installHost, uninstallHost, UNIT_NAME, userSystemd } from "./systemd.js";
 
 function tempDir(t: TestContext): string {
   const dir = realpathSync(mkdtempSync(path.join(tmpdir(), "storytree-host-unit-")));
@@ -23,7 +23,7 @@ function fakeNode(bin: string, said: string): void {
   chmodSync(path.join(bin, "node"), 0o755);
 }
 
-test("3.1 · The box's storytree-host.service runs node itself on `storytree services run` in storytree's checkout, found under nvm when the user manager's PATH has none, with Restart=always, and a stop reaches the host alone", { skip: process.platform !== "linux" && "a systemd user unit is the Linux entry point" }, (t) => {
+test("3.1 · The box's storytree-host.service runs node itself on `storytree services run` in storytree's checkout, found under nvm when the user manager's PATH has none, with Restart=always, and a stop reaches the host alone", { skip: process.platform !== "linux" && "platform: a systemd user unit is the Linux entry point" }, (t) => {
   const dir = tempDir(t);
   const checkout = path.join(dir, "storytree");
   mkdirSync(checkout);
@@ -58,14 +58,14 @@ test("3.2 · storytree services install writes, enables and starts the unit, aga
   const file = path.join(unitDir, UNIT_NAME);
 
   assert.match(installHost("/srv/storytree", { unitDir, systemctl }), /^Wrote .*storytree-host\.service.*started/);
-  assert.equal(readFileSync(file, "utf8"), hostUnit("/srv/storytree"));
+  assert.match(readFileSync(file, "utf8"), /^WorkingDirectory=\/srv\/storytree$/m);
   assert.deepEqual(calls.splice(0), ["daemon-reload", `enable ${UNIT_NAME}`, `restart ${UNIT_NAME}`]);
 
   assert.match(installHost("/srv/storytree", { unitDir, systemctl }), /already installed/);
   assert.deepEqual(calls.splice(0), [`enable ${UNIT_NAME}`, `start ${UNIT_NAME}`], "installing again rewrites nothing and leaves a running host running");
 
   installHost("/srv/storytree-moved", { unitDir, systemctl });
-  assert.equal(readFileSync(file, "utf8"), hostUnit("/srv/storytree-moved"));
+  assert.match(readFileSync(file, "utf8"), /^WorkingDirectory=\/srv\/storytree-moved$/m);
   assert.deepEqual(calls.splice(0), ["daemon-reload", `enable ${UNIT_NAME}`, `restart ${UNIT_NAME}`], "a changed unit is rewritten and the host restarted on it");
 
   assert.match(uninstallHost({ unitDir, systemctl }), /^Stopped and removed/);
@@ -73,6 +73,9 @@ test("3.2 · storytree services install writes, enables and starts the unit, aga
   assert.deepEqual(calls.splice(0), [`disable --now ${UNIT_NAME}`, "daemon-reload"]);
   assert.match(uninstallHost({ unitDir, systemctl }), /^No storytree-host\.service is installed/);
   assert.deepEqual(calls, [], "with none installed, uninstall touches nothing");
+
+  assert.equal(userSystemd({}, "/home/me").unitDir, path.join("/home/me", ".config", "systemd", "user"), "the user's units live under ~/.config");
+  assert.equal(userSystemd({ XDG_CONFIG_HOME: "/cfg" }, "/home/me").unitDir, path.join("/cfg", "systemd", "user"), "or under XDG_CONFIG_HOME, as systemd reads it");
 
   const checkout = path.join(dir, "checkout");
   mkdirSync(path.join(checkout, ".git"), { recursive: true });

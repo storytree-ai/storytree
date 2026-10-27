@@ -8,12 +8,12 @@ import { mkdirSync, readdirSync, readFileSync, renameSync, rmSync, writeFileSync
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 
-import type { ServiceRun } from "@storytree/plugin-loader";
+import type { Service } from "../running/supervise.js";
 
 /** How one service stood when the host last wrote, its times as ISO strings. */
 export interface StatusService {
   readonly id: string;
-  readonly run: ServiceRun;
+  readonly run: Service["run"];
   readonly state: "running" | "waiting" | "failed";
   readonly pid?: number;
   readonly since: string;

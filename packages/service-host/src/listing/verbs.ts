@@ -7,12 +7,12 @@
  * is a tool: they are this machine's, read and run from its terminal.
  */
 import { verb, VerbRefusal, type VerbFamily } from "@storytree/library/verbs";
-import type { ServiceRun } from "@storytree/plugin-loader";
+import type { Service } from "../running/supervise.js";
 
 import type { Mounted } from "../running/declared.js";
 import type { Status } from "./status.js";
 
-const runSaid = (run: ServiceRun): string => (run === "always" ? "always" : `every ${run.every}`);
+const runSaid = (run: Service["run"]): string => (run === "always" ? "always" : `every ${run.every}`);
 
 /**
  * Every service `mounted` declares, as the status `status` the host last wrote says it stands: off, on and running, waiting

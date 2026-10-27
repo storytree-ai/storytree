@@ -65,6 +65,11 @@ test("2.7 a worktree gets the push check as the pre-push hook its repository's w
   assert.equal(provision({ root, install: () => ({ ok: true }), log: (line) => lines.push(line) }).ok, true);
   assert.match(readFileSync(hook, "utf8"), /push-check\.mjs/, "the hook runs the push check");
   assert.ok(lines.some((line) => line.includes("push check installed")), lines.join("\n"));
+  const installed = readFileSync(hook, "utf8");
+  const said = lines.length;
+  provision({ root, install: () => ({ ok: true }), log: (line) => lines.push(line) });
+  assert.equal(lines.length, said, "a current hook is left alone, and nothing is said");
+  assert.equal(readFileSync(hook, "utf8"), installed);
   const linked = `${root}-linked`;
   t.after(() => removeTemp(linked));
   git("worktree", "add", "-q", linked);

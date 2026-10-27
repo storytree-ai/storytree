@@ -32,6 +32,8 @@ function machine(t) {
   writeFileSync(path.join(home, ".storytree", "secrets.json"), JSON.stringify({ LANE_LOGIN_TOKEN: lane, name: "not a secret value at all" }));
   mkdirSync(path.join(home, ".config", "gh"), { recursive: true });
   writeFileSync(path.join(home, ".config", "gh", "hosts.yml"), `github.com:\n    oauth_token: ${github}\n    git_protocol: https\n`);
+  const pg = randomBytes(16).toString("hex");
+  writeFileSync(path.join(home, ".pgpass"), `# host:port:database:user:a-comment-not-a-password\n\nbox:5432:library:me:${pg}\n`);
   const root = path.join(dir, "repo");
   const remote = path.join(dir, "remote.git");
   execFileSync("git", ["init", "-q", "--bare", remote]);
@@ -50,7 +52,7 @@ function machine(t) {
 
 test("7.21 · the push check refuses a push whose commits add a credential this machine holds, even inside gzip, UTF-16 or a damaged archive, naming the file and kind but no part of the value, and passes a push without one", (t) => {
   const { home, root, git, lane, github } = machine(t);
-  assert.deepEqual(machineSecrets({ home }).map(({ what }) => what).sort(), ["storytree's lane login (~/.storytree/secrets.json)", "the GitHub command line's token (~/.config/gh/hosts.yml)"]);
+  assert.deepEqual(machineSecrets({ home }).map(({ what }) => what).sort(), ["a Postgres password (~/.pgpass)", "storytree's lane login (~/.storytree/secrets.json)", "the GitHub command line's token (~/.config/gh/hosts.yml)"], "a .pgpass comment or blank line holds no password");
   git("checkout", "-q", "-b", "leaky");
   mkdirSync(path.join(root, "evidence"));
   writeFileSync(path.join(root, "evidence", "run.json.gz"), gzipSync(JSON.stringify({ env: { TOKEN: lane } })));

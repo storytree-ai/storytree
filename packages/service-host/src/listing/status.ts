@@ -82,7 +82,7 @@ export function takeRestarts(home: string): string[] {
     throw error;
   }
   return names.filter((name) => !name.endsWith(".tmp")).map((name) => {
-    rmSync(path.join(restarts(home), name), { force: true });
+    rmSync(path.join(restarts(home), name));
     return name.replace(".", "/");
   });
 }

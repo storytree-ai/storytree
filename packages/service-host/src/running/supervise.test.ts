@@ -2,36 +2,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
+import { handClock } from "../testing/clock.js";
 import { Supervisor, type Child, type Clock, type Ended } from "./supervise.js";
-
-/** A clock the test turns by hand: timers fire only when it is moved past them. */
-function handClock(): Clock & { move(ms: number): Promise<void> } {
-  let now = 0;
-  let timers: { at: number; fire: () => void }[] = [];
-  return {
-    now: () => now,
-    after(ms, fire) {
-      const timer = { at: now + ms, fire };
-      timers.push(timer);
-      return () => { timers = timers.filter((one) => one !== timer); };
-    },
-    async move(ms) {
-      const to = now + ms;
-      for (;;) {
-        await settle();
-        const next = timers.filter((one) => one.at <= to).sort((a, b) => a.at - b.at)[0];
-        if (next === undefined) break;
-        timers = timers.filter((one) => one !== next);
-        now = next.at;
-        next.fire();
-      }
-      now = to;
-      await settle();
-    },
-  };
-}
-
-const settle = () => new Promise<void>((done) => setImmediate(done));
 
 /** Stand-in children: each start is recorded, and the test ends one with an exit code, or it ends when signalled if told to. */
 function children() {

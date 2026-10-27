@@ -1,4 +1,4 @@
-/** Capability 2 · Listing and restarting services, contracts 2.1 and 2.2: `storytree services` and `services restart`, against a host run in a throwaway home. */
+/** Capability 2 · Listing and restarting services, contracts 2.1 to 2.3: `storytree services`, `services restart` and `services run`, against a host run in a throwaway home. */
 import assert from "node:assert/strict";
 import { test, type TestContext } from "node:test";
 
@@ -8,23 +8,16 @@ import { waitUntil } from "@storytree/test-waits";
 
 import { HOST_DIR, startHost } from "../running/host.js";
 import { mountedServices } from "../running/declared.js";
-import type { Child, Clock, Ended } from "../running/supervise.js";
+import type { Child, Ended } from "../running/supervise.js";
+import { handClock } from "../testing/clock.js";
 import { fixtureHome } from "../testing/fixture.js";
+import { readStatus } from "./status.js";
 import { servicesSaid, SERVICES_FAMILIES } from "./verbs.js";
 
 const words: DoorWords = { door: "command", say: (step) => step.command ?? step.tool! };
 const family = SERVICES_FAMILIES[0]!;
 const list = family.bare as Verb<VerbInputs, VerbPlace>;
-const restart = family.verbs.find((one) => "name" in one.command && one.command.name === "restart") as Verb<VerbInputs, VerbPlace>;
-
-/** A clock running ten thousand times fast past a second, so the back-off's seconds and minutes pass in milliseconds. */
-const fast: Clock = {
-  now: () => Date.now(),
-  after(ms, fire) {
-    const timer = setTimeout(fire, ms < 1000 ? ms : ms / 10_000);
-    return () => clearTimeout(timer);
-  },
-};
+const named = (name: string) => family.verbs.find((one) => "name" in one.command && one.command.name === name) as Verb<VerbInputs, VerbPlace>;
 
 /** Stand-in children: voice/listen fails at once saying why, every other one runs until it is signalled. */
 function children() {
@@ -33,18 +26,20 @@ function children() {
     starts.push(id);
     let finish!: (ended: Ended) => void;
     const ended = new Promise<Ended>((done) => { finish = done; });
-    if (id === "voice/listen") setImmediate(() => finish({ code: 1, signal: null }));
+    if (id === "voice/listen") finish({ code: 1, signal: null });
     return { pid: 4242, ended, signal: (name) => finish({ code: null, signal: name }), lastLines: () => [`${id}: no microphone`] };
   };
   return { starts, start };
 }
 
-/** Run `body` with STORYTREE_HOME set to `home`, as the command line's verbs read it. */
+/** STORYTREE_HOME set to `home` for the test, as the command line's verbs read it. */
 function homeIs(t: TestContext, home: string): void {
   const was = process.env.STORYTREE_HOME;
   process.env.STORYTREE_HOME = home;
   t.after(() => { if (was === undefined) delete process.env.STORYTREE_HOME; else process.env.STORYTREE_HOME = was; });
 }
+
+const escaped = (text: string) => text.replace(/[\\^$.*+?()[\]{}|/]/g, "\\$&");
 
 test("2.1 · storytree services lists every declared service on this machine: off, running, failed with its last lines, or waiting, and the factory commit the host last ran; with no host running it says so", async (t) => {
   const { home } = fixtureHome(t);
@@ -57,47 +52,77 @@ test("2.1 · storytree services lists every declared service on this machine: of
   assert.match(before, /^  voice\/listen \(always\): on, but no service host runs here$/m);
   assert.match(before, /^No service host is running on this computer: start one with `storytree services run`\.$/m);
 
+  const clock = handClock();
   const kids = children();
-  const host = startHost({ home, clock: fast, tickMs: 20, log: () => {}, start: (service) => kids.start(service) });
+  const host = startHost({ home, clock, log: () => {}, start: (service) => kids.start(service) });
   try {
-    const failed = await waitUntil(async () => {
-      const text = (await list.act({}, { folder: home }, words)).text;
-      return /voice\/listen \(always\): failed/.test(text) ? text : undefined;
-    }, 20_000, "the listener listed as failed");
-    assert.match(failed, /^  voice\/listen \(always\): failed \(exit 1\) since [^;]+; it starts again when its code moves, or with `storytree services restart voice\/listen`\. Its last lines:\n      voice\/listen: no microphone$/m);
-    assert.match(failed, /^  voice\/commit \(every 15m\): running, process 4242, since \S+$/m);
-    assert.match(failed, /^  voice\/idle \(always\): off$/m);
-    assert.match(failed, new RegExp(`^The service host \\(process ${process.pid}, since \\S+\\) last ran the factory ${home.replace(/[\\^$.*+?()[\]{}|/]/g, "\\$&")}/factory, which is not a git checkout\\.$`, "m"));
+    await clock.move(15_000);
+    assert.match((await list.act({}, { folder: home }, words)).text, /^  voice\/listen \(always\): waiting \(exit 1\), next start at \S+$/m);
+    await clock.move(10 * 60_000);
+    const listed = (await list.act({}, { folder: home }, words)).text;
+    assert.match(listed, /^  voice\/listen \(always\): failed \(exit 1\) since [^;]+; it stays failed until `storytree services restart voice\/listen`\. Its last lines:\n      voice\/listen: no microphone$/m);
+    assert.match(listed, /^  voice\/commit \(every 15m\): running, process 4242, since \S+$/m);
+    assert.match(listed, /^  voice\/idle \(always\): off$/m);
+    assert.match(listed, new RegExp(`^The service host \\(process ${process.pid}, since \\S+\\) last ran the factory ${escaped(home)}/factory, which is not a git checkout\\.$`, "m"));
   } finally {
     await host.stop();
   }
   assert.match((await list.act({}, { folder: home }, words)).text, /^No service host is running on this computer/m, "a stopped host is said so");
 
-  const waiting = servicesSaid(mountedServices(HOST_DIR, home), {
-    pid: 7, startedAt: "2026-10-27T00:00:00.000Z", updatedAt: "2026-10-27T00:01:00.000Z", factory: { folder: "/f", commit: "0123abcd" },
-    services: [{ id: "voice/listen", run: "always", state: "waiting", since: "2026-10-27T00:00:30.000Z", nextAt: "2026-10-27T00:00:40.000Z", lastExit: { code: 1, signal: null }, lastLines: [] }],
+  const committed = servicesSaid(mountedServices(HOST_DIR, home), {
+    pid: 7, startedAt: "2026-10-27T00:00:00.000Z", updatedAt: "2026-10-27T00:01:00.000Z", factory: { folder: "/f", commit: "0123abcd" }, services: [],
   }, () => true);
-  assert.match(waiting, /^  voice\/listen \(always\): waiting \(exit 1\), next start at 2026-10-27T00:00:40\.000Z$/m);
-  assert.match(waiting, /^The service host \(process 7, since 2026-10-27T00:00:00\.000Z\) last ran the factory \/f at commit 0123abcd\.$/m);
+  assert.match(committed, /^  voice\/listen \(always\): on; the host starts it within seconds$/m);
+  assert.match(committed, /^The service host \(process 7, since 2026-10-27T00:00:00\.000Z\) last ran the factory \/f at commit 0123abcd\.$/m);
 });
 
 test("2.2 · storytree services restart <part>/<service> has the host start a failed service again, its ends and back-off cleared", async (t) => {
   const { home } = fixtureHome(t);
   homeIs(t, home);
   setServiceOn("voice/listen", true, home);
+  const restart = named("restart");
   await assert.rejects(restart.act({ service: "voice/listen" }, { folder: home }, words), /no service host is running/);
 
+  const clock = handClock();
   const kids = children();
-  const host = startHost({ home, clock: fast, tickMs: 20, log: () => {}, start: (service) => kids.start(service) });
+  const lines: string[] = [];
+  const host = startHost({ home, clock, log: (line) => lines.push(line), start: (service) => kids.start(service) });
   try {
-    await waitUntil(() => host.supervisor.states()[0]?.state === "failed", 20_000, "the listener failed");
     const listens = () => kids.starts.filter((id) => id === "voice/listen").length;
+    await clock.move(10 * 60_000);
+    assert.equal(host.supervisor.states()[0]!.state, "failed");
     assert.equal(listens(), 5, "five ends within 10 minutes, and it is not started again");
     await assert.rejects(restart.act({ service: "voice/nothing" }, { folder: home }, words), /no mounted part declares a service called voice\/nothing/);
     await assert.rejects(restart.act({ service: "voice/idle" }, { folder: home }, words), /voice\/idle is off on this computer/);
     assert.match((await restart.act({ service: "voice/listen" }, { folder: home }, words)).text, /^Asked the service host to start voice\/listen again/);
-    await waitUntil(() => listens() === 10 && host.supervisor.states()[0]?.state === "failed", 20_000, "the listener started again, failing five more times before it is failed again");
+    await clock.move(2_000);
+    assert.equal(listens(), 6, "the host takes the restart on its next tick, and starts it at once");
+    await clock.move(10_000 - 1);
+    assert.equal(listens(), 6, "its back-off starts again at 10 seconds");
+    await clock.move(1);
+    assert.equal(listens(), 7);
+    await clock.move(10 * 60_000);
+    assert.equal(listens(), 10, "its ends were cleared: five more before it is failed again");
+    assert.equal(host.supervisor.states()[0]!.state, "failed");
+    assert.equal(readStatus(home)!.services.find((one) => one.id === "voice/listen")!.state, "failed");
+
+    assert.equal(host.supervisor.restart("voice/nothing"), false, "the host restarts only a service it runs");
   } finally {
     await host.stop();
+  }
+});
+
+test("2.3 · storytree services run runs the service host in the foreground until a stop signal (Ctrl-C or SIGTERM), then stops every service it ran and says so", async (t) => {
+  const { home } = fixtureHome(t);
+  homeIs(t, home);
+  setServiceOn("voice/listen", true, home);
+  for (const signal of ["SIGINT", "SIGTERM"] as const) {
+    const running = named("run").act({}, { folder: home }, words);
+    const pid = await waitUntil(() => readStatus(home)?.services.find((one) => one.id === "voice/listen" && one.state === "running" && one.lastLines.some((line) => line.startsWith("listening in ")))?.pid, 20_000, `the listener listening under services run, to stop with ${signal}`);
+    process.emit(signal, signal);
+    assert.match((await running).text, /^The service host stopped, and every service it ran with it\.$/);
+    const stopped = readStatus(home)!;
+    assert.equal(stopped.stopped, true);
+    assert.deepEqual(stopped.services.map(({ id, state, lastExit }) => ({ id, state, lastExit })), [{ id: "voice/listen", state: "waiting", lastExit: { code: 0, signal: null } }], `the listener ended at its stop signal (process ${pid})`);
   }
 });

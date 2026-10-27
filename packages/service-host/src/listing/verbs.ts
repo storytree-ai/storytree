@@ -33,7 +33,7 @@ export function servicesSaid(mounted: Mounted, status: Status | undefined, alive
       if (stands.state === "running") return [`${name}: running${stands.pid === undefined ? "" : `, process ${stands.pid}`}, since ${stands.since}`];
       if (stands.state === "waiting") return [`${name}: waiting${exit}${stands.nextAt === undefined ? "" : `, next start at ${stands.nextAt}`}`];
       return [
-        `${name}: failed${exit} since ${stands.since}; it starts again when its code moves, or with \`storytree services restart ${service.id}\`. Its last lines:`,
+        `${name}: failed${exit} since ${stands.since}; it stays failed until \`storytree services restart ${service.id}\`. Its last lines:`,
         ...stands.lastLines.map((line) => `      ${line}`),
       ];
     });

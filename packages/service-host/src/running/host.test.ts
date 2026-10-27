@@ -37,4 +37,11 @@ test("1.1 · the host runs each declared service of each mounted part that this 
 
   setPartOff("voice", false, home);
   assert.deepEqual(mountedServices(HOST_DIR, home).services, [], "a part not mounted runs no service");
+
+  setPartOff("voice", true, home, "no-such-plugin");
+  const said: string[] = [];
+  const broken = startHost({ home, log: (line) => said.push(line) });
+  await broken.stop();
+  assert.deepEqual(broken.supervisor.states(), [], "a stand-in whose services cannot be read runs none");
+  assert.match(said.join("\n"), /^service host: voice hosts no services: its stand-in no-such-plugin's services could not be read: the factory has no plugin called no-such-plugin/m);
 });

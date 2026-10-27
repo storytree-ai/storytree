@@ -7,7 +7,9 @@
  *
  * A plugin's own librarian (ADR-1178 D5) is an agent record titled `librarian-<plugin>`, and its trigger is a scheduled
  * process linked to it: `schedule due` lists that run as the plugin's librarian, to run as the plugin's own database
- * role, so row security holds it to the plugin's kinds. The core librarian, librarian-curator, is no plugin's.
+ * role, so row security holds it to the plugin's kinds. That role is the one the plugin's manifest names, which the plugin
+ * loader reads; session management does not import the loader, so the listing points the runner at `plugin check`, which
+ * says it. The core librarian, librarian-curator, is no plugin's.
  */
 import type { Line, SchemaRecord } from "@storytree/library";
 import { verb, VerbRefusal, type Verb, type VerbFamily, type VerbInputs } from "@storytree/library/verbs";
@@ -53,7 +55,7 @@ const due = verb({
   command: { family: "schedule", name: "due", summary: "the scheduled processes due now (or --at a time), each with how overdue, and the last runs that were not ok", usage: "schedule due [--at <time>]" },
   tool: {
     name: "schedule_due",
-    description: "The scheduled process records due now: each one's id, title and how overdue, its schedule having come round since its latest recorded run (or it never ran). Run each due one through a subagent (one listed with a librarian runs that plugin's librarian-<plugin>, connected as the plugin's own database role), then record it with schedule_ran. Also lists the scheduled processes whose latest run was a concern or a failure, with its note, for the report.",
+    description: "The scheduled process records due now: each one's id, title and how overdue, its schedule having come round since its latest recorded run (or it never ran). Run each due one through a subagent (one listed with a librarian runs that plugin's librarian-<plugin>, connected as the database role its manifest names, which check_plugin says), then record it with schedule_ran. Also lists the scheduled processes whose latest run was a concern or a failure, with its note, for the report.",
   },
   inputs: { at: { kind: "text", optional: true, describe: "the time to judge at, as ISO 8601; now unless given" } },
   async act({ at: given }, context: SessionVerbContext) {
@@ -75,12 +77,17 @@ const due = verb({
       const ran = last.get(one.id);
       return ran === undefined || ran.outcome === "ok" ? [] : [{ id: one.id, title: one.fields.title, outcome: ran.outcome, at: ran.at, ...(ran.note === undefined ? {} : { note: ran.note }) }];
     });
-    const head = listed.length === 0 ? ["No scheduled process is due."] : [`${listed.length} scheduled process${listed.length === 1 ? "" : "es"} due:`, ...listed.map((one) => `  ${one.id}  ${one.title}  (${one.how})${one.librarian === undefined ? "" : `: runs librarian-${one.librarian.plugin}, the ${one.librarian.plugin} plugin's own librarian, as the ${one.librarian.plugin} plugin's database role, never the core librarian's`}`)];
+    const head = listed.length === 0 ? ["No scheduled process is due."] : [`${listed.length} scheduled process${listed.length === 1 ? "" : "es"} due:`, ...listed.map((one) => `  ${one.id}  ${one.title}  (${one.how})${one.librarian === undefined ? "" : `: runs librarian-${one.librarian.plugin}, the ${one.librarian.plugin} plugin's own librarian, connected as the database role the ${one.librarian.plugin} plugin's manifest names for it (\`storytree plugin check ${one.librarian.plugin}\` says which), never the core librarian's`}`)];
     const tail = notOk.length === 0 ? [] : ["Last runs not ok:", ...notOk.map((one) => `  ${one.id}  ${one.title}  ${one.outcome} at ${one.at}${one.note === undefined ? "" : `: ${one.note}`}`)];
     return {
       text: [...head, ...tail].join("\n"),
       data: { due: listed.map(({ how: _how, ...one }) => one), notOk },
-      ...(listed.length === 0 ? {} : { next: [{ tool: "schedule_ran", command: "schedule ran <process> --outcome ok|concern|failed", why: "record each once it has run" }] }),
+      ...(listed.length === 0 ? {} : {
+        next: [
+          ...[...new Set(listed.flatMap((one) => one.librarian === undefined ? [] : [one.librarian.plugin]))].map((plugin) => ({ tool: "check_plugin", command: `plugin check ${plugin}`, why: `the database role librarian-${plugin} connects as` })),
+          { tool: "schedule_ran", command: "schedule ran <process> --outcome ok|concern|failed", why: "record each once it has run" },
+        ],
+      }),
     };
   },
 });

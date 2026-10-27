@@ -288,7 +288,7 @@ test("5.7 `plugin contract`, on the command line and as a tool, says what a plug
   assert.match(text, /"librarian": \{ "role": "<database role>", "update"\?: true \}/, "and its own librarian's role and update right");
   assert.equal((tool as { name?: string }).name, "plugin_contract", "an agent reaches it as a tool");
   const { PLUGIN_FAMILIES } = await import("./factory/verbs.js");
-  assert.deepEqual(PLUGIN_FAMILIES[0]!.verbs.map((each) => each.callerless), [true, true, true, undefined], "contract, new and check need no project; removing a plugin's records needs its library");
+  assert.deepEqual(PLUGIN_FAMILIES[0]!.verbs.map((each) => each.callerless), [true, true, true, undefined, undefined], "contract, new and check need no project; removing a plugin's records, or fencing its roles, needs its library");
 });
 
 test("5.8 a factory plugin mounted in a switched-off part's place declares its own kinds of record, named <plugin>.<kind> in its manifest's recordKinds, which the library then reads; with its part on it declares none, and a kind outside its name or of a shape the library cannot read is left out, said with why", (t) => {

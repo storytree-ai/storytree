@@ -627,6 +627,10 @@ test("8.35 the survey's Git runs no program its repository's settings name, and 
   };
   const ran = () => readFile(marker, "utf8").catch(() => "");
   const claimLines = async (reading: Promise<Record<string, StorySurvey>>) => (await reading)["story-shop"]?.files[0]?.lines;
+  // A fetch that runs past Git's deadline (as one can on a loaded Windows runner) leaves the main already fetched, so a
+  // fetch expected to land is waited for, each ask fetching again, rather than read once.
+  const fetched = (reader: ReturnType<typeof codeSurveyReader>, lines: number, what: string) =>
+    waitUntil(async () => await claimLines(reader.read(checkout, tree)) === lines, 15_000, what);
   try {
     // Each program the checkout's settings could start writes its name to the marker.
     const script = async (name: string, tail = "") => {
@@ -655,7 +659,7 @@ test("8.35 the survey's Git runs no program its repository's settings name, and 
     await land(2);
 
     const reader = codeSurveyReader();
-    assert.equal(await claimLines(reader.read(checkout, tree)), 2, "an ordinary origin is still fetched");
+    await fetched(reader, 2, "an ordinary origin still fetched");
     await importedSource(checkout, file => readFile(file, "utf8"));
     assert.equal(await ran(), "", "no hook nor file monitor ran");
 
@@ -674,7 +678,7 @@ test("8.35 the survey's Git runs no program its repository's settings name, and 
     assert.equal(await ran(), "", "nothing the settings name ran");
 
     git(checkout, "remote", "set-url", "origin", origin);
-    assert.equal(await claimLines(reader.read(checkout, tree)), lines, "with the settings gone the fetch resumes");
+    await fetched(reader, lines, "the fetch resumed with the settings gone");
     // With no main fetched before, the refusal says why the fetch was skipped.
     git(checkout, "update-ref", "-d", "refs/remotes/origin/main");
     await rm(marker); // This test's own update ran the checkout's hooks.

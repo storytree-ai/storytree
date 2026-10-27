@@ -103,7 +103,7 @@ test("18.2 · `schedule ran` records a scheduled process's run with its outcome,
   });
 });
 
-test("18.3 · `schedule due` lists a plugin librarian's run on its trigger: a scheduled process linked to an agent named librarian-<plugin> is listed due as that plugin's own librarian, to run as its plugin's database role; the core librarian-curator and any other agent are not", async () => {
+test("18.3 · `schedule due` lists a plugin librarian's run on its trigger: a scheduled process linked to an agent named librarian-<plugin> is listed due as that plugin's own librarian, to run as the database role its plugin's manifest names, pointing the runner at plugin check, which says it; the core librarian-curator and any other agent are not", async () => {
   await withRunner(async (context, library) => {
     const reading = await library.writeKnowledge("principle", { title: "Edit first", description: "Edit before writing new.", statement: "Edit first.", why: "No near-copies.", howToApply: "Search first." });
     const role = { oneLine: "Curates", role: "R", outcome: "O", context: [reading.id], tools: "T", workflow: "W" };
@@ -121,7 +121,8 @@ test("18.3 · `schedule due` lists a plugin librarian's run on its trigger: a sc
       { id: curate.id, title: "Curate the library", overdueMinutes: null },
       { id: review.id, title: "Review the week", overdueMinutes: null },
     ]));
-    assert.match(listed.text, new RegExp(`  ${tidy.id}  Tidy voice notes  \\(never run\\): runs librarian-voice, the voice plugin's own librarian, as the voice plugin's database role, never the core librarian's(\\n|$)`));
+    assert.match(listed.text, new RegExp(`  ${tidy.id}  Tidy voice notes  \\(never run\\): runs librarian-voice, the voice plugin's own librarian, connected as the database role the voice plugin's manifest names for it \\(\`storytree plugin check voice\` says which\\), never the core librarian's(\\n|$)`));
+    assert.deepEqual(listed.next?.map((step) => step.command), ["plugin check voice", "schedule ran <process> --outcome ok|concern|failed"], "it points the runner at where the role is said");
     assert.match(listed.text, new RegExp(`  ${curate.id}  Curate the library  \\(never run\\)(\\n|$)`));
 
     const done = await ran.act({ process: tidy.id, outcome: "ok" }, context, WORDS);

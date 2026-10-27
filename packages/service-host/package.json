@@ -4,7 +4,6 @@
   "type": "module",
   "description": "Service host (ADR-1180 D2, D4): one long-running process per machine runs the long-running services the mounted parts declare.",
   "exports": {
-    ".": "./src/index.ts",
     "./verbs": "./src/listing/verbs.ts"
   },
   "scripts": {

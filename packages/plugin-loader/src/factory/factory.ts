@@ -12,7 +12,7 @@
  * file on by itself (the desktop window serving a view to its page) finds it by the name the plugin exports, and only so.
  * A mounted plugin may also declare its own kinds of record, as data in its manifest's `recordKinds` (ADR-1178 D3), each
  * named under the plugin's own name; a host opens the library with them, and while the plugin is not mounted its
- * records read dormant.
+ * records read dormant. It may declare long-running services (ADR-1180 D1), which a service host on each machine runs.
  */
 import { existsSync, readFileSync } from "node:fs";
 import { createRequire } from "node:module";
@@ -21,6 +21,8 @@ import { pathToFileURL } from "node:url";
 
 import { pluginSchema, type PluginRecordKind } from "@storytree/library";
 import type { OutsideWriter } from "@storytree/library/outside-writer";
+import type { VerbContext } from "@storytree/library/verbs";
+import type { SettingsReading } from "@storytree/project-and-caller";
 
 import { CORE, switchedOff, type Composition, type PartsGraph } from "../switch/switch.js";
 
@@ -197,4 +199,61 @@ export function recordKinds(graph: PartsGraph, standIns: StandIns, off: readonly
     }
   }
   return { kinds, failed };
+}
+
+/**
+ * What a service's start is handed (ADR-1180 D1, ADR-1112 D2): its plugin's folder, this machine's settings, a logger, the
+ * signal that says stop, and, when the host has a project's library open, the library and caller a verb needing a
+ * project is handed. A service imports nothing of storytree's: this is all of storytree it reaches.
+ */
+export interface ServiceHost {
+  readonly folder: string;
+  readonly settings: SettingsReading;
+  log(line: string): void;
+  readonly stopping: AbortSignal;
+  readonly context?: VerbContext;
+}
+
+/** How a service runs: started again whenever it ends, or started every n minutes, never while the last run still goes. */
+export type ServiceRun = "always" | { readonly every: `${number}m` };
+
+/** A long-running service a plugin declares: its name, how it runs, and its start, which runs until the host's stop signal fires. */
+export interface PluginService {
+  readonly name: string;
+  readonly run: ServiceRun;
+  start(host: ServiceHost): Promise<void> | void;
+}
+
+const runs = (run: unknown): run is ServiceRun =>
+  run === "always" || (typeof run === "object" && run !== null && Object.keys(run).length === 1 && typeof (run as { every?: unknown }).every === "string" && /^[1-9][0-9]*m$/.test((run as { every: string }).every));
+
+/**
+ * The services plugin `plugin` of `folder` declares in its manifest's `services`, each { name, from, export, run }, none
+ * when it names none. Each is named once, in lower-case letters, digits and dashes, runs "always" or { every: "<n>m" },
+ * and names an exported module whose export is { start(host) }; a plugin with one that is not is refused with why.
+ */
+export function pluginServices(folder: string | undefined, plugin: string): PluginService[] {
+  const { dir, pkg, manifest } = pluginManifest(folder, plugin);
+  const declared = manifest.services;
+  if (declared === undefined) return [];
+  if (!Array.isArray(declared)) throw new Error(`${plugin}'s storytree manifest names services with no list`);
+  const named = new Set<string>();
+  return declared.map((entry: { name?: unknown; from?: unknown; export?: unknown; run?: unknown }, at) => {
+    const { name, run } = entry ?? {};
+    if (typeof name !== "string" || !/^[a-z0-9][a-z0-9-]*$/.test(name)) throw new Error(`${plugin}'s service ${at + 1} has no name (lower-case letters, digits and dashes)`);
+    if (named.has(name)) throw new Error(`${plugin} declares the service ${name} twice`);
+    named.add(name);
+    if (!runs(run)) throw new Error(`${plugin}'s service ${name} runs ${JSON.stringify(run)}, not "always" or { every: "<n>m" }`);
+    const from = String(entry.from);
+    let file: string;
+    try {
+      file = exported(dir, plugin, pkg, from);
+    } catch (error) {
+      throw new Error(`${plugin}'s service ${name} names ${JSON.stringify(from)}, which ${(error as Error).message.replace(`${plugin} `, "it ")}`);
+    }
+    const service = (load(file) as Record<string, unknown>)[String(entry.export)] as { start?: unknown } | undefined;
+    if (typeof service?.start !== "function") throw new Error(`${plugin}'s service ${name}: ${path.relative(dir, file)} exports no { start(host) } called ${String(entry.export)}`);
+    const start = service.start as PluginService["start"];
+    return { name, run, start: (host: ServiceHost) => start.call(service, host) };
+  });
 }

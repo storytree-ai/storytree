@@ -18,8 +18,8 @@ import { randomUUID } from "node:crypto";
 
 import type { z } from "zod";
 
-import type { HistoryEntry, HistoryFilter, ListFilter, RecordEnvelope, Transactions } from "../transactions/types.js";
-import { pickFields } from "../transactions/records.js";
+import type { HistoryEntry, HistoryFilter, ListFilter, RecordEnvelope, RevertedWrite, Transactions } from "../transactions/types.js";
+import { pickFields, writtenBy } from "../transactions/records.js";
 import { MissingUpgradeError, NewerSchemaError, SchemaError, UnknownTypeError, type FieldProblem } from "./errors.js";
 import type { FieldsOf, LibrarySchema, RecordType } from "./types.js";
 import { isPluginKind } from "./plugin-kinds.js";
@@ -50,6 +50,22 @@ export interface WriteOptions {
   readonly actor?: string;
   /** Abort a write still waiting to start; once it has the write lock, it completes normally. */
   readonly signal?: AbortSignal;
+}
+
+/** One record a writer wrote, as SchemaRecords.writtenBy reads it. */
+export interface WriterChange {
+  readonly id: string;
+  readonly type: string;
+  /** How many of its history entries the writer made. */
+  readonly writes: number;
+  /** Before the writer's first write: null when the writer made it (or brought it back). */
+  readonly before: SchemaRecord | null;
+  /** After the writer's last write: null when the writer retired it. */
+  readonly after: SchemaRecord | null;
+  /** The reason the writer gave for retiring it. */
+  readonly retired?: string;
+  /** The first entry another writer made to it after the writer's first. */
+  readonly later?: { readonly seq: number; readonly actor?: string };
 }
 
 export class SchemaRecords {
@@ -175,6 +191,42 @@ export class SchemaRecords {
       ...writeOptionsOf(options),
     });
     return record as SchemaRecord;
+  }
+
+  /**
+   * Write every record `of` wrote back to its state before `of`'s first write to it, in one write: capability 2's
+   * revertWrites, each record upgraded and checked as revert's is. Refused, writing nothing, where another writer wrote
+   * to one since (LaterWriterError names each).
+   */
+  async revertWrites(of: string, options: WriteOptions & { reason?: string } = {}): Promise<RevertedWrite[]> {
+    return this.#transactions.revertWrites({
+      of,
+      upgrade: this.current,
+      validate: this.#check,
+      ...(options.reason === undefined ? {} : { reason: options.reason }),
+      ...writeOptionsOf(options),
+    });
+  }
+
+  /**
+   * Every record `of` wrote, health left out, by id, as one diff: its state before `of`'s first write to it and after
+   * `of`'s last (null where there was none: `of` made it, or retired it), read as `current` reads them, how many
+   * writes `of` made to it, and the first entry another writer made to it since, if any: what revertWrites would undo,
+   * or where it would refuse.
+   */
+  async writtenBy(of: string): Promise<WriterChange[]> {
+    const ids = [...new Set((await this.#transactions.history({ actor: of })).filter((entry) => entry.type !== "health").map((entry) => entry.recordId))];
+    const entries = (await Promise.all(ids.map((id) => this.#transactions.history({ id })))).flat();
+    const state = (entry: HistoryEntry | undefined): SchemaRecord | null => (entry === undefined || entry.action === "retired" ? null : this.current(entry.record));
+    return writtenBy(of, entries).map(({ id, type, before, own, others: [later] }) => ({
+      id,
+      type,
+      writes: own.length,
+      before: state(before),
+      after: state(own.at(-1)),
+      ...(own.at(-1)!.action === "retired" && own.at(-1)!.reason !== undefined ? { retired: own.at(-1)!.reason! } : {}),
+      ...(later === undefined ? {} : { later: { seq: later.seq, ...(later.actor === undefined ? {} : { actor: later.actor }) } }),
+    }));
   }
 
   /**

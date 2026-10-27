@@ -33,7 +33,7 @@ import { PR_CUTOVER_ID } from "../work/index.js";
 import { fieldValue, verb, VerbRefusal, type VerbContext, type VerbFamily } from "../verbs/verb.js";
 import { changes, count, decisionNamed, find } from "../data/commands.js";
 import { ADR_FAMILY } from "./adr.js";
-import { StaleRevertError } from "../transactions/index.js";
+import { LaterWriterError, StaleRevertError } from "../transactions/index.js";
 
 /** A claim as the door reads it: the session holding it, the increment or capability it is for, and since when. */
 export interface HeldClaim {
@@ -556,6 +556,34 @@ const revert = verb({
   },
 });
 
+const undo = verb({
+  command: { family: "library", name: "undo", summary: "write every record one writer wrote back to before their first write to it, retiring what they made; refused, writing nothing, where another writer wrote since", usage: "library undo <writer> [--reason <why>]" },
+  tool: NOT_A_TOOL,
+  writes: true,
+  inputs: {
+    actor: { kind: "text", word: 0, optional: true, describe: "the writer, as library changes --actor names them (session:<id> or person:<name>)" },
+    reason: { kind: "text", optional: true, describe: "why" },
+  },
+  async act({ actor: given, reason }, context: LibraryVerbContext) {
+    const actor = needed(given, "the writer");
+    const increment = heldIncrement(await context.claims(), context.session);
+    const planned = increment === undefined ? undefined : (await context.library.writtenBy(actor)).find(({ type }) => PLAN_TYPES.has(type));
+    if (planned !== undefined) {
+      throw new VerbRefusal(`${actor} wrote ${planned.id}, a planned ${planned.type}, and an undo cannot wait on increment ${increment} as an edit does: undo from a session holding no increment`);
+    }
+    let reverted;
+    try {
+      reverted = await context.library.revertWrites(actor, { ...context.writer!, ...(reason === undefined ? {} : { reason }) });
+    } catch (error) {
+      if (error instanceof LaterWriterError) throw new VerbRefusal(error.message);
+      throw error;
+    }
+    if (reverted.length === 0) return { text: `${actor} wrote nothing to revert (health left out).` };
+    const lines = reverted.map(({ id, action, to }) => `  ${id}  ${action === "retired" ? "retired" : `back to history entry ${to}`}`);
+    return { text: [`Reverted ${reverted.length} record${reverted.length === 1 ? "" : "s"} ${actor} wrote:`, ...lines].join("\n"), next: [{ command: "library history <id>", why: "see the revert in a record's history" }] };
+  },
+});
+
 export { NOTE_TOOLS, type Found, type NoteRead, type NoteToolContext, type Presenter } from "./notes.js";
 
 /** The library's command family, which the package's manifest names under `verbs` (ADR-1033), first among `storytree`'s. */
@@ -564,5 +592,5 @@ export const LIBRARY_FAMILIES: readonly VerbFamily<LibraryVerbContext>[] = [{
   summary: "read, search and write the project's records",
   order: 1,
   guesses: { show: "library read <id>", get: "library read <id>", open: "library read <id>", view: "library read <id>", pull: "library read <id>", artifact: "library read <id>" },
-  verbs: [search, phrase, links, related, create, read, edit, refile, retire, list, history, revert, count, changes, find],
+  verbs: [search, phrase, links, related, create, read, edit, refile, retire, list, history, revert, undo, count, changes, find],
 }, ADR_FAMILY];

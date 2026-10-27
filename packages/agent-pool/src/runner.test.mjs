@@ -439,8 +439,14 @@ test("1.20 · A lane cut off by a lost connection is held until the library and 
   let clock = start, answers = [];
   options.now = () => clock;
   options.sleep = async (ms) => { clock += ms; };
-  options.reachable = async () => answers.shift() ?? true;
-  options.offline = { ceilingMs: 3_600_000, pollMs: 60_000, quietMs: 400, everyMs: 20 };
+  // The scripted answers are for the hold and the watch a scenario is about, never for a look the watch takes while the engine
+  // is still starting (seconds on a loaded Windows runner): until the engine has written to its log, the network answers.
+  const spoke = () => readFile(options.log, "utf8").then((text) => text.length > 0, () => false);
+  const scripted = async () => (await spoke()) ? answers.shift() ?? true : true;
+  options.reachable = scripted;
+  // Only the scenarios about a quiet log watch with a 400 ms quiet time; the rest never see one, so the watch takes none of their answers.
+  const quiet = (quietMs) => { options.offline = { ceilingMs: 3_600_000, pollMs: 60_000, quietMs, everyMs: 20 }; };
+  quiet(3_600_000);
   const calls = async () => (await readFile(runs, "utf8")).trim().split("\n").map((line) => JSON.parse(line));
   const reset = async () => { await rm(runs, { force: true }); await rm(report, { force: true }); told.length = 0; recorded.length = 0; options.lines.length = 0; };
 
@@ -479,6 +485,7 @@ test("1.20 · A lane cut off by a lost connection is held until the library and 
 
   await reset();
   Object.assign(options.env, { FIRST: "quiet", LATER: "report" });
+  quiet(400);
   answers = [true, false, true];
   assert.equal(await runLane(options), 0, "a log gone quiet while offline: stopped, held, resumed");
   assert.equal((await calls())[1][3], session);
@@ -498,7 +505,8 @@ test("1.20 · A lane cut off by a lost connection is held until the library and 
   assert.equal(await runLane(options), 0);
   const seen = probes;
   await quietFor(() => probes !== seen, 900, "a reachability look after the engine ended");
-  options.reachable = async () => answers.shift() ?? true;
+  options.reachable = scripted;
+  quiet(3_600_000);
 
   await reset();
   Object.assign(options.env, { FIRST: "cut", LATER: "cut", THIRD: "report" });

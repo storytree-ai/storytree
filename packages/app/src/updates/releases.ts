@@ -2,7 +2,7 @@
 import { rm } from "node:fs/promises";
 import path from "node:path";
 
-import { AppImageUpdater, MacUpdater, NsisUpdater, type Logger } from "electron-updater";
+import { AppImageUpdater, MacUpdater, NsisUpdater, type Logger, type UpdateInfo } from "electron-updater";
 
 import type { Launch } from "../lifecycle/background.js";
 import type { UpdateState } from "./update-state.js";
@@ -137,6 +137,22 @@ const OPEN_AFTER_SHIPIT = 'app=$1; shift; i=0; while pgrep -x ShipIt >/dev/null 
 
 type Release = NsisRelease | MacRelease | AppImageRelease;
 
+/** Where storytree publishes every release's files, each version under its own v<version>/ folder. */
+const RELEASES = "https://github.com/storytree-ai/storytree/releases/download/";
+
+/**
+ * Refuses an update unless every file its feed names resolves into that version's own release, so a feed that names
+ * files anywhere else downloads nothing (4.5). A carried build's ../v<build>/ resolves there too, since its feed keeps
+ * the build's own version. The download is checked against the feed's checksum as well; this checks where it comes from.
+ */
+function servedFromRelease(base: Release, info: UpdateInfo): void {
+  const { provider } = (base as unknown as { updateInfoAndProvider: { provider: { resolveFiles(info: UpdateInfo): readonly { url: URL }[] } } }).updateInfoAndProvider;
+  const release = `${RELEASES}v${info.version}/`;
+  for (const { url } of provider.resolveFiles(info)) {
+    if (!url.href.startsWith(release)) throw new Error(`The update to ${info.version} is not served from storytree's releases (${url.origin}), so it was not downloaded`);
+  }
+}
+
 /**
  * Each platform's base: Windows installs through NSIS, macOS through Squirrel.Mac, Linux by replacing
  * its AppImage. Elsewhere installed apps do not update.
@@ -233,6 +249,7 @@ export class ReleaseUpdater {
       const result = await this.base.checkForUpdates();
       if (this.stopped) return "stopped";
       if (!result?.isUpdateAvailable) { this.set("up-to-date"); return "current"; }
+      servedFromRelease(this.base, result.updateInfo);
       this.cancellation = result.cancellationToken;
       await this.base.downloadUpdate(result.cancellationToken);
       this.downloaded = true;

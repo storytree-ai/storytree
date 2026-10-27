@@ -10,8 +10,9 @@
  * plugin ships, which would hand the plugin the owner's reach (research_52f88d6d30d8, 2B). The role itself (LOGIN,
  * its password) is made apart from this.
  *
- * Row-level security is ENABLED on `record` and `record_event`, not FORCED, as grants.sql leaves it: the owner's
- * accounts are unaffected, and an account with no policy sees and writes no rows at all.
+ * Row-level security is ENABLED on `record` and `record_event`, as grants.sql leaves it, and FORCED by the project's
+ * schema: the owner's accounts pass through the owner's own policies (contract 1.28), and an account with no policy
+ * sees and writes no rows at all.
  *
  * fenceProject is that deliberate step on a live library: it reaches project `project`'s database as the library
  * setting does, with the account that setting signs in as, and fences each writer it is handed in turn.

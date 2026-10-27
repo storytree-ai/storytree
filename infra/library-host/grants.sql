@@ -34,11 +34,13 @@
 --   - `embedding` (ranked search's cache) is not granted: a health write never touches it, only a
 --     search fills it, and CI does not search.
 --
--- ROW-LEVEL SECURITY, and why the owner is unaffected. It is ENABLED on `record` and `record_event`,
--- not FORCED: Postgres skips it for the tables' owner, and every other account storytree uses (the
--- laptop, the Mint box, the app) connects acting as that owner (contract 8.3). So the policies bind
--- only accounts like CI's, which act as themselves. An account with no policy sees and writes no
--- rows at all.
+-- ROW-LEVEL SECURITY. This file ENABLES it on `record` and `record_event`; storytree's schema FORCES it
+-- there (library contract 1.28), so the tables' owner meets it too. Every other account storytree uses (the
+-- laptop, the Mint box, the app) connects acting as that owner (contract 8.3), and the schema gives the
+-- owner its own policies: it reads and writes records and adds history, but changes or removes a history
+-- entry only through the logged repair switch, record_event_repair(reason). CI's policies below bind
+-- accounts like CI's, which act as themselves. An account with no policy sees and writes no rows at all.
+-- A superuser (the box's own account, which the backups dump as) passes row-level security even forced.
 
 -- CI's role, named before anything is granted, so a run without it stops here.
 SELECT :'ci_role' AS ci_role;
@@ -112,7 +114,8 @@ CREATE POLICY ci_health_insert ON record_event FOR INSERT TO :"ci_role"
 RESET ROLE;
 
 -- Check: the account's rights, as the database sees them. Expect: may_connect, reads, writes_record,
--- writes_history, asks_kind all true; may_act_as_owner, may_create false; rls on both tables true, forced false.
+-- writes_history, asks_kind all true; may_act_as_owner, may_create false; rls on both tables true; forced true once storytree has
+-- opened the project with its current schema.
 SELECT has_database_privilege(:'ci_role', 'storytree_storytree', 'CONNECT') AS may_connect,
        has_table_privilege(:'ci_role', 'record', 'SELECT')
          AND has_table_privilege(:'ci_role', 'library_meta', 'SELECT') AS reads,

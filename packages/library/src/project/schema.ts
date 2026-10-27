@@ -140,4 +140,8 @@ export const PROJECT_SCHEMA: readonly string[] = [
     DROP POLICY IF EXISTS storytree_owner_remove ON record_event;
     EXECUTE format('CREATE POLICY storytree_owner_remove ON record_event FOR DELETE TO %I USING (%s)', owner, repairing);
   END $$`,
+  // Forced, so that wherever row-level security is switched on (the library host's grants switch it on) the owner's
+  // own sessions meet the policies above rather than passing them.
+  `ALTER TABLE record FORCE ROW LEVEL SECURITY`,
+  `ALTER TABLE record_event FORCE ROW LEVEL SECURITY`,
 ];

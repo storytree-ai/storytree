@@ -444,6 +444,27 @@ jobs:
           node-version: 24
       - run: node packages/dev-loop/src/lockfile-additions.mjs
 
+  # No file the branch adds or changes gains a credential's shape, even inside gzip, archive or UTF-16 evidence
+  # (`pnpm check:secrets`, leak-scan.mjs): shapes only, so no secret value is ever given to this job, and a hit names
+  # the file and its kind, never the value. Its own job, by this name, so the Mint watcher reads its failure as a
+  # security check and asks the owner rather than starting a fix session; verify requires it.
+  secret-check:
+    name: secret-check
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm check:secrets
+
   # The Windows installer, built and checked beside the tests rather than after them: in about 30% of
   # runs it added 7 min (desktop:dist 5.7, check-install 1.4) to Windows's 16.6-min tests, its
   # 26-28 min p90 (increment_08dac5c25a06). A source build passing tests alone does not prove NSIS
@@ -469,14 +490,14 @@ jobs:
 
   # The check branch protection on main requires, and the one `automerge` waits for; it reports on
   # the merge queue's runs too, so the queue can merge on it. It passes only
-  # if every run in `platforms` passed, and the Windows installer passed or, for a change that does
-  # not reach it, was skipped; or, on a push to main, if the merge queue's run of the same commit
+  # if every run in `platforms` passed, `secret-check` passed, and the Windows installer passed or, for a change that
+  # does not reach it, was skipped; or, on a push to main, if the merge queue's run of the same commit
   # passed it (`queue-verdict`). It runs whatever they did (always()), so a run that failed
   # or was cancelled fails it: were it skipped instead, GitHub would count the skipped check as
   # passed.
   verify:
     name: verify
-    needs: [queue-verdict, platforms, installer-scope, installer]
+    needs: [queue-verdict, platforms, secret-check, installer-scope, installer]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -484,6 +505,7 @@ jobs:
       - name: Every system passed
         env:
           RESULT: ${{ needs.platforms.result }}
+          SECRETS: ${{ needs.secret-check.result }}
           QUEUE_RUN: ${{ needs.queue-verdict.outputs.run-id }}
           SCOPE: ${{ needs.installer-scope.result }}
           INSTALLER: ${{ needs.installer.result }}
@@ -494,9 +516,11 @@ jobs:
             exit 0
           fi
           echo "platforms: $RESULT"
+          echo "secret-check: $SECRETS"
           echo "installer scope: $SCOPE (reaches the installer: ${CHANGED:-false})"
           echo "installer: $INSTALLER"
           test "$RESULT" = success
+          test "$SECRETS" = success
           test "$SCOPE" = success
           if [ "$CHANGED" = true ]; then test "$INSTALLER" = success; else test "$INSTALLER" = skipped; fi
       # A push the merge queue's run verified ran no shards here: that run already compared them.

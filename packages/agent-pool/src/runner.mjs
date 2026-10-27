@@ -2,7 +2,7 @@
 // node packages/agent-pool/src/runner.mjs status
 import { execFile, spawn } from "node:child_process";
 import { constants, homedir } from "node:os";
-import { open, readFile, rm, stat, writeFile } from "node:fs/promises";
+import { appendFile, open, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
@@ -96,8 +96,11 @@ function argumentsFor(engine, brief, addDirs, resume, model) {
     : ["-p", brief, ...models, "--permission-mode", "bypassPermissions", ...adds, "--output-format", "stream-json", "--verbose"];
 }
 
-/** Await the child and its output files; no shell, background launch or real engine in tests. */
-async function runEngine(command, args, { cwd, env, log, err }) {
+/**
+ * Await the child and its output files; no shell, background launch or real engine in tests. Given a watch, an engine whose log
+ * has not grown for quietMs while `online` says the library and GitHub do not answer is stopped as stalled (1.20).
+ */
+async function runEngine(command, args, { cwd, env, log, err, watch }) {
   const output = await open(log, "w");
   let errors;
   try {
@@ -108,12 +111,33 @@ async function runEngine(command, args, { cwd, env, log, err }) {
       const forward = (signal) => { interrupted = true; child.kill(signal); };
       const interrupt = () => forward("SIGINT"), terminate = () => forward("SIGTERM");
       process.on("SIGINT", interrupt); process.on("SIGTERM", terminate);
-      let failure;
+      let failure, stalled = false, closed = false, timer;
+      if (watch) {
+        // One look at a time: the next is scheduled only once this one (and its reachability probe) is done.
+        let size = -1, quietSince = performance.now();
+        const look = async () => {
+          const grown = await stat(log).then((found) => found.size, () => 0);
+          if (grown !== size) { size = grown; quietSince = performance.now(); }
+          else if (performance.now() - quietSince >= watch.quietMs) {
+            if (await watch.online()) quietSince = performance.now();
+            else if (!closed) {
+              stalled = true;
+              child.kill("SIGTERM");
+              setTimeout(() => child.kill("SIGKILL"), 30_000).unref();
+              return;
+            }
+          }
+          if (!closed) timer = setTimeout(look, watch.everyMs);
+        };
+        timer = setTimeout(look, watch.everyMs);
+      }
       child.on("error", (error) => { failure = error; });
       child.on("close", async (code, signal) => {
+        closed = true;
+        clearTimeout(timer);
         process.off("SIGINT", interrupt); process.off("SIGTERM", terminate);
         if (failure) await errors.write(`${failure.message}\n`);
-        done({ code: failure ? 127 : code ?? 128 + (constants.signals[signal] ?? 1), interrupted, signaled: signal !== null });
+        done({ code: failure ? 127 : code ?? 128 + (constants.signals[signal] ?? 1), interrupted, signaled: signal !== null, stalled });
       });
     });
   } finally { await output.close(); await errors?.close(); }
@@ -134,16 +158,30 @@ async function probeCodex(command, { cwd, env, log, model, timeoutMs = 180_000 }
   } finally { await output.close(); }
 }
 
+/** How a lane carrying another's work on finds what that one left, and takes over its claims. */
+const CARRY_ON = `Before anything else, find what it left: its worktree and branch for this increment (\`git worktree list\` in ~/code/storytree03),
+commits and any pull request on that branch whose head is on this repository (\`gh pr list --head <branch> --state all --json number,state,isCrossRepository\`,
+keeping only those with isCrossRepository false: a fork's pull request on a branch of the same name is never this lane's), and the last lines of its log.
+Carry on from that work rather than starting again. If a claim is refused as held by that session, it has stopped:
+a claim whose holder has gone idle is taken over by claiming it again, so retry once it reads idle; never build without the claim.`;
+
 function handoverBrief(log, original) {
   return `# Handover: Codex's weekly allowance ran out mid-lane
 
 A Codex lane on this box started the brief below and stopped when Codex's weekly allowance ran out (its log: ${log}).
 You are Claude Code, carrying the same lane on (owner, 2026-10-06: Mint lanes switch to Claude when Codex's allowance is used up).
-Before anything else, find what it left: its worktree and branch for this increment (\`git worktree list\` in ~/code/storytree03),
-commits and any pull request on that branch whose head is on this repository (\`gh pr list --head <branch> --state all --json number,state,isCrossRepository\`,
-keeping only those with isCrossRepository false: a fork's pull request on a branch of the same name is never this lane's), and the last lines of its log.
-Carry on from that work rather than starting again. If a claim is refused as held by that Codex session, it has stopped:
-a claim whose holder has gone idle is taken over by claiming it again, so retry once it reads idle; never build without the claim.
+${CARRY_ON}
+
+${original}`;
+}
+
+function reconnectBrief(logs, original) {
+  return `# Handover: a lane lost its connection and its session could not be resumed
+
+A lane on this machine started the brief below and lost its network connection; once the library and GitHub answered again,
+its own session was resumed and ended with the work unfinished (its logs: ${logs.join(", ")}).
+You are a fresh lane carrying the same work on (decision_5b03e773d46b D4).
+${CARRY_ON}
 
 ${original}`;
 }
@@ -221,10 +259,61 @@ async function laneFailed({ increment, why, logs, lane, started, failed, storytr
   dated(`residue written on ${increment}: the pool offers it no more`);
 }
 
+/** Claude's and Codex's own words for requests that never reached their server (read from each engine's build, 2026-10-27). */
+const CUT_OFF = /^API Error: (?:Unable to connect to API|Connection dropped|Connection refused|Can't reach the API server|No internet route|Request timed out)|stream disconnected before completion|error sending request for url/;
+
+/** Whether a failing engine was cut off by a lost connection: its log's last error event, or its err, says so in its own words. */
+async function lostConnection({ log, err }) {
+  const said = [];
+  for (const line of (await readOptional(log)).trimEnd().split("\n").slice(-20)) {
+    let event;
+    try { event = JSON.parse(line); } catch { continue; }
+    if (event.type === "result" && event.is_error) said.push(String(event.result ?? ""));
+    if (event.type === "error") said.push(String(event.message ?? ""));
+    if (event.type === "turn.failed") said.push(String(event.error?.message ?? ""));
+  }
+  said.push(...(await readOptional(err)).trimEnd().split("\n").slice(-5));
+  return said.some((text) => CUT_OFF.test(text.trim()));
+}
+
+/** Whether both the library and GitHub answer: a library read (any record proves it) and a GitHub API call, each within a minute. */
+export async function bothAnswer({ cwd, env, probe = (file, args) => run(file, args, { cwd, env, timeout: 60_000, maxBuffer: 16 * 1024 * 1024 }) }) {
+  const answers = (file, args) => Promise.resolve().then(() => probe(file, args)).then(() => true, () => false);
+  const [library, github] = await Promise.all([answers("pnpm", ["-s", "storytree", "library", "read", TOKEN_ARC, "--field", "title"]), answers("gh", ["api", "rate_limit"])]);
+  return library && github;
+}
+
+/** How long a lane is held for the network, how often it looks, and how long a quiet log means a stall while offline. */
+const OFFLINE = { ceilingMs: 12 * 3_600_000, pollMs: 60_000, quietMs: 15 * 60_000, everyMs: 60_000 };
+
+/** Append residue to an increment's body; a refusal is said, never thrown. */
+async function appendResidue({ increment, residue, storytree, dated }) {
+  const tell = (args) => storytree(args).catch((error) => { dated(`storytree ${args.slice(0, 3).join(" ")} refused: ${String(error.message).split("\n")[0]}`); return ""; });
+  const body = (await tell(["library", "read", increment, "--field", "body"])).trimEnd();
+  await tell(["arc", "increment", "edit", increment, "--body", body ? `${body}\n\n${residue}` : residue]);
+}
+
+/** Poll until the library and GitHub answer, or the ceiling passes (false); a signal to the runner ends the hold too ("interrupted"). */
+async function holdForNetwork({ reachable, sleep, now, offline }) {
+  const began = now();
+  let interrupted = false;
+  const stop = () => { interrupted = true; };
+  process.on("SIGINT", stop); process.on("SIGTERM", stop);
+  try {
+    for (;;) {
+      if (interrupted) return { interrupted };
+      if (await reachable()) return { back: true, waited: now() - began };
+      if (now() - began >= offline.ceilingMs) return { back: false };
+      await sleep(offline.pollMs);
+    }
+  } finally { process.off("SIGINT", stop); process.off("SIGTERM", stop); }
+}
+
 export async function runLane({ brief, log, err, addDirs = [], cwd = process.cwd(), home = homedir(), env = process.env,
   commands = { codex: ["codex"], claude: ["claude"] }, now = Date.now, say = console.log, increment,
   heads = (id) => remoteHeads(id, cwd), failed = (failure) => recordLaneFailure(failure),
-  storytree = async (args) => (await run("pnpm", ["-s", "storytree", ...args], { cwd, env, maxBuffer: 16 * 1024 * 1024 })).stdout }) {
+  storytree = async (args) => (await run("pnpm", ["-s", "storytree", ...args], { cwd, env, maxBuffer: 16 * 1024 * 1024 })).stdout,
+  reachable = () => bothAnswer({ cwd, env }), sleep = (ms) => new Promise((done) => setTimeout(done, ms)), offline: limits = {} }) {
   const original = await readFile(brief, "utf8");
   if (!original.trim()) throw new Error(`brief ${brief} is empty`);
   const settings = laneSettings({ home, env });
@@ -239,9 +328,11 @@ export async function runLane({ brief, log, err, addDirs = [], cwd = process.cwd
   const began = new Date(now()).toISOString();
   const day = began.slice(0, 10);
   const before = increment ? await traces({ increment, lanesDir: settings.lanesDir, heads }) : null;
+  const offline = { ...OFFLINE, ...limits };
+  const watch = { quietMs: offline.quietMs, everyMs: offline.everyMs, online: reachable };
   let last = { engine: picked.engine, log, err };
   let started = now();
-  let result = await runEngine(commands[picked.engine], argumentsFor(picked.engine, original, addDirs, undefined, settings.models[picked.engine]), { cwd, env: engineEnvironment(picked.engine, login, log), log, err });
+  let result = await runEngine(commands[picked.engine], argumentsFor(picked.engine, original, addDirs, undefined, settings.models[picked.engine]), { cwd, env: engineEnvironment(picked.engine, login, log), log, err, watch });
   dated(`engine ${picked.engine} exit ${result.code}`);
   // Read again: the just-finished Codex run can have spent the allowance since we picked it.
   if (picked.engine === "codex" && !result.interrupted && await detectLimitHit({ ...settings, log, err,
@@ -252,12 +343,65 @@ export async function runLane({ brief, log, err, addDirs = [], cwd = process.cwd
     dated(`engine claude (Codex stopped on its usage limit; handing over, log ${base}.claude.log)`);
     last = { engine: "claude", log: `${base}.claude.log`, err: `${base}.claude.err` };
     started = now();
-    result = await runEngine(commands.claude, argumentsFor("claude", handover, addDirs, undefined, settings.models.claude), { cwd, env: engineEnvironment("claude", login, last.log), log: last.log, err: last.err });
+    result = await runEngine(commands.claude, argumentsFor("claude", handover, addDirs, undefined, settings.models.claude), { cwd, env: engineEnvironment("claude", login, last.log), log: last.log, err: last.err, watch });
     dated(`engine claude exit ${result.code}`);
   }
   if (result.interrupted) {
     dated(`lane runner stopped by a signal: exit 75 so the runner keeps this lane queued`);
     return 75;
+  }
+  // A lane cut off by a lost connection is held, not failed: resumed in its own session once the network is back, else a fresh lane (1.20).
+  if (result.stalled || (result.code !== 0 && !result.signaled && await lostConnection(last))) {
+    const session = await sessionOf(last.log);
+    const base = last.log.replace(/\.log$/, "");
+    const logs = [last.log];
+    let why = result.stalled ? "its log stopped growing while the library and GitHub did not answer" : `it exited ${result.code} on a connection error`;
+    for (let n = 1; ; n++) {
+      const holding = `lane${increment ? ` on ${increment}` : ""} lost its connection (${why}): holding until the library and GitHub answer, for up to ${offline.ceilingMs / 3_600_000} h`;
+      dated(holding);
+      await appendFile(logs.at(-1), `\n${new Date(now()).toISOString()} lane runner: ${holding}\n`).catch(() => {});
+      const held = await holdForNetwork({ reachable, sleep, now, offline });
+      if (held.interrupted) {
+        dated(`lane runner stopped by a signal: exit 75 so the runner keeps this lane queued`);
+        return 75;
+      }
+      if (!held.back) {
+        dated(`the library and GitHub did not answer within ${offline.ceilingMs / 3_600_000} h: exit 75 so the runner keeps this lane queued`);
+        if (increment) await appendResidue({ increment, storytree, dated, residue: `Residue (lane runner, ${new Date(now()).toISOString().slice(0, 10)}): a pool lane lost its connection (${why}), and the library and GitHub did not answer within ${offline.ceilingMs / 3_600_000} h, so it was not resumed${session ? ` (its session ${session})` : ""}. Logs: ${logs.join(", ")}. Read the logs and any worktree it left before starting again.` });
+        return 75;
+      }
+      if (!session) break;
+      const resumed = { log: `${base}.reconnect${n > 1 ? `-${n}` : ""}.log`, err: `${base}.reconnect${n > 1 ? `-${n}` : ""}.err` };
+      logs.push(resumed.log);
+      dated(`connection back after ${Math.round(held.waited / 60_000)} min: resuming session ${session}, log ${resumed.log}`);
+      started = now();
+      result = await runEngine(commands[last.engine], argumentsFor(last.engine, CONTINUE, addDirs, session, settings.models[last.engine]), { cwd, env: engineEnvironment(last.engine, login, resumed.log), ...resumed, watch });
+      dated(`engine ${last.engine} exit ${result.code}`);
+      if (result.interrupted) {
+        dated(`lane runner stopped by a signal: exit 75 so the runner keeps this lane queued`);
+        return 75;
+      }
+      if (result.stalled || (result.code !== 0 && !result.signaled && await lostConnection(resumed))) {
+        why = result.stalled ? "its log stopped growing while the library and GitHub did not answer" : `it exited ${result.code} on a connection error`;
+        continue;
+      }
+      if (result.code === 0 && (!before || leftSomething(before, await traces({ increment, lanesDir: settings.lanesDir, heads })))) return 0;
+      break;
+    }
+    // The resume failed or left the work unfinished (or there was no session to resume): residue, and a fresh lane that starts from what it left.
+    if (increment) await appendResidue({ increment, storytree, dated, residue: `Residue (lane runner, ${new Date(now()).toISOString().slice(0, 10)}): a pool lane lost its connection; ${session ? `its session ${session} was resumed once the library and GitHub answered and ended with the work unfinished` : "its session id was not in its log, so it could not be resumed"}, so a fresh lane carries it on from its worktree, branch, pull request and logs (${logs.join(", ")}).` });
+    const fresh = { engine: last.engine, log: `${base}.fresh.log`, err: `${base}.fresh.err` };
+    const brief = reconnectBrief(logs, original);
+    await writeFile(`${base}.fresh-brief.md`, brief);
+    dated(`handing the lane to a fresh ${fresh.engine} session, log ${fresh.log}`);
+    last = fresh;
+    started = now();
+    result = await runEngine(commands[fresh.engine], argumentsFor(fresh.engine, brief, addDirs, undefined, settings.models[fresh.engine]), { cwd, env: engineEnvironment(fresh.engine, login, fresh.log), log: fresh.log, err: fresh.err, watch });
+    dated(`engine ${fresh.engine} exit ${result.code}`);
+    if (result.interrupted) {
+      dated(`lane runner stopped by a signal: exit 75 so the runner keeps this lane queued`);
+      return 75;
+    }
   }
   // An engine that exits 0 having left nothing ended its turn mid-work: resume its session once, then leave residue.
   if (before && result.code === 0 && !leftSomething(before, await traces({ increment, lanesDir: settings.lanesDir, heads }))) {

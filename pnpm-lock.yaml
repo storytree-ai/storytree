@@ -1090,55 +1090,6 @@ importers:
         specifier: ~7.0.2
         version: 7.0.2
 
-  packages/voice:
-    dependencies:
-      '@modelcontextprotocol/server':
-        specifier: ^2.4.0
-        version: 2.4.0
-      '@storytree/cli':
-        specifier: workspace:*
-        version: link:../cli
-      '@storytree/project-and-caller':
-        specifier: workspace:*
-        version: link:../project-and-caller
-      jose:
-        specifier: 6.2.12
-        version: 6.2.12
-      pg:
-        specifier: ^8.23.0
-        version: 8.23.0
-      zod:
-        specifier: ^4.6.5
-        version: 4.6.5
-    devDependencies:
-      '@modelcontextprotocol/client':
-        specifier: ^2.4.0
-        version: 2.4.0
-      '@storytree/app-setup':
-        specifier: workspace:*
-        version: link:../app-setup
-      '@storytree/library':
-        specifier: workspace:*
-        version: link:../library
-      '@storytree/local-postgres':
-        specifier: workspace:*
-        version: link:../local-postgres
-      '@storytree/test-waits':
-        specifier: workspace:*
-        version: link:../test-waits
-      '@types/node':
-        specifier: ^24.13.6
-        version: 24.13.6
-      '@types/pg':
-        specifier: ^8.23.1
-        version: 8.23.1
-      tsx:
-        specifier: ^4.23.15
-        version: 4.23.15
-      typescript:
-        specifier: ~7.0.2
-        version: 7.0.2
-
   packages/website:
     dependencies:
       '@react-three/fiber':
@@ -1995,24 +1946,12 @@ packages:
     resolution: {integrity: sha512-mDVhoy5WjDb0U+4dQPzLcciC2erSex/GRVQqnoZdiuMoE3YiTZdiS7ezNcFwX4XEOWOaj7jZr0kLYnILnL8orA==}
     engines: {node: '>=20'}
 
-  '@modelcontextprotocol/client@2.4.0':
-    resolution: {integrity: sha512-LgrD2OphHuG12vfKFKz6SOnq7bKHQmhGJIAYdD+MZBn2npHEyry6uD8zvktodtl5CQM85MO0anUyD9JwmUmxww==}
-    engines: {node: '>=20'}
-
   '@modelcontextprotocol/core@2.1.0':
     resolution: {integrity: sha512-YdFj5gMRHr0gYNAhTbQDgjLHiEJdIAUYxomhKseUNye7ZGlISQmUoLh2sveFFCiQ7j2YMffT1kgSND0FSfIFjQ==}
     engines: {node: '>=20'}
 
-  '@modelcontextprotocol/core@2.4.0':
-    resolution: {integrity: sha512-z8QBKqdfXLPzkLQuG4xp8hrVEMm1PZ1IgxMN2sMbJiFiAKOWXnAzogXn2W4aqIBlP1ea6U5yiqVquvUNM1Cj6Q==}
-    engines: {node: '>=20'}
-
   '@modelcontextprotocol/server@2.1.0':
     resolution: {integrity: sha512-FdvwZU5N03O77Suh35JqjAqq5R1ZTEPFtwu6N4BgBq28qrQtrCnpbLL5U2pwYCuE194jAw0xnlOVmIqhfoYuUQ==}
-    engines: {node: '>=20'}
-
-  '@modelcontextprotocol/server@2.4.0':
-    resolution: {integrity: sha512-rgR9yxSaAJ+bcsi/XroT/S2AfPiIWloXAnrdfYSCms9ivVju0ishu/wW0J21Ho6+ZOR1r7RyeRbjiRuF87ix5Q==}
     engines: {node: '>=20'}
 
   '@module-federation/error-codes@0.22.0':
@@ -5178,32 +5117,13 @@ snapshots:
       pkce-challenge: 5.0.1
       zod: 4.6.5
 
-  '@modelcontextprotocol/client@2.4.0':
-    dependencies:
-      '@modelcontextprotocol/core': 2.4.0
-      cross-spawn: 7.0.6
-      eventsource: 3.0.7
-      eventsource-parser: 3.1.1
-      jose: 6.2.12
-      pkce-challenge: 5.0.1
-      zod: 4.6.5
-
   '@modelcontextprotocol/core@2.1.0':
-    dependencies:
-      zod: 4.6.5
-
-  '@modelcontextprotocol/core@2.4.0':
     dependencies:
       zod: 4.6.5
 
   '@modelcontextprotocol/server@2.1.0':
     dependencies:
       '@modelcontextprotocol/core': 2.1.0
-      zod: 4.6.5
-
-  '@modelcontextprotocol/server@2.4.0':
-    dependencies:
-      '@modelcontextprotocol/core': 2.4.0
       zod: 4.6.5
 
   '@module-federation/error-codes@0.22.0': {}

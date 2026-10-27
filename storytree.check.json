@@ -3,8 +3,7 @@
     { "story": "app", "dirs": ["packages/app"] },
     { "story": "app", "dirs": ["apps/desktop"], "compositionRoot": true },
     { "story": "cli", "dirs": ["packages/cli"], "frontDoor": true },
-    { "story": "mcp-server", "dirs": ["packages/mcp-server"], "frontDoor": true },
-    { "story": "voice", "dirs": ["packages/voice"], "frontDoor": true }
+    { "story": "mcp-server", "dirs": ["packages/mcp-server"], "frontDoor": true }
   ],
   "edges": [],
   "placement": {

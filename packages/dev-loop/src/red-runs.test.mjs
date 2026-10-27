@@ -5,7 +5,7 @@ import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { removeTemp } from "@storytree/test-waits";
 
@@ -95,7 +95,7 @@ test("9.3 · its import is not built", () => notBuilt());`);
   delete env.NODE_TEST_CONTEXT; // a run of its own, not a child of this one
   const red = spawnSync(process.execPath, ["--test", "--test-reporter=spec", "--test-reporter-destination=stdout",
     "--test-reporter=@storytree/dev-loop/red-run-reporter", "--test-reporter-destination=stderr",
-    `--test-reporter=${path.join(dir, "events.mjs")}`, `--test-reporter-destination=${path.join(dir, "events.jsonl")}`,
+    `--test-reporter=${pathToFileURL(path.join(dir, "events.mjs")).href}`, `--test-reporter-destination=${path.join(dir, "events.jsonl")}`,
     path.join("plugins", "p", "failing.test.mjs"), path.join("plugins", "p", "unloadable.test.mjs")], { cwd: factory, env, encoding: "utf8" });
   assert.equal(red.status, 1, red.stdout + red.stderr);
   const saved = readFileSync(path.join(factory, ".pgtest", "red-runs.jsonl"), "utf8").trim().split("\n").map((line) => JSON.parse(line));

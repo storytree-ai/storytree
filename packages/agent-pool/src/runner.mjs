@@ -111,26 +111,30 @@ async function runEngine(command, args, { cwd, env, log, err, watch }) {
       const forward = (signal) => { interrupted = true; child.kill(signal); };
       const interrupt = () => forward("SIGINT"), terminate = () => forward("SIGTERM");
       process.on("SIGINT", interrupt); process.on("SIGTERM", terminate);
-      let failure, stalled = false, timer;
+      let failure, stalled = false, closed = false, timer;
       if (watch) {
-        let size = -1, quietSince = performance.now(), checking = false;
-        timer = setInterval(async () => {
-          if (checking || stalled) return;
-          checking = true;
-          try {
-            const grown = await stat(log).then((found) => found.size, () => 0);
-            if (grown !== size) { size = grown; quietSince = performance.now(); return; }
-            if (performance.now() - quietSince < watch.quietMs) return;
-            if (await watch.online()) { quietSince = performance.now(); return; }
-            stalled = true;
-            child.kill("SIGTERM");
-            setTimeout(() => child.kill("SIGKILL"), 30_000).unref();
-          } finally { checking = false; }
-        }, watch.everyMs);
+        // One look at a time: the next is scheduled only once this one (and its reachability probe) is done.
+        let size = -1, quietSince = performance.now();
+        const look = async () => {
+          const grown = await stat(log).then((found) => found.size, () => 0);
+          if (grown !== size) { size = grown; quietSince = performance.now(); }
+          else if (performance.now() - quietSince >= watch.quietMs) {
+            if (await watch.online()) quietSince = performance.now();
+            else if (!closed) {
+              stalled = true;
+              child.kill("SIGTERM");
+              setTimeout(() => child.kill("SIGKILL"), 30_000).unref();
+              return;
+            }
+          }
+          if (!closed) timer = setTimeout(look, watch.everyMs);
+        };
+        timer = setTimeout(look, watch.everyMs);
       }
       child.on("error", (error) => { failure = error; });
       child.on("close", async (code, signal) => {
-        clearInterval(timer);
+        closed = true;
+        clearTimeout(timer);
         process.off("SIGINT", interrupt); process.off("SIGTERM", terminate);
         if (failure) await errors.write(`${failure.message}\n`);
         done({ code: failure ? 127 : code ?? 128 + (constants.signals[signal] ?? 1), interrupted, signaled: signal !== null, stalled });
@@ -272,10 +276,10 @@ async function lostConnection({ log, err }) {
   return said.some((text) => CUT_OFF.test(text.trim()));
 }
 
-/** Whether both the library and GitHub answer: a library read and a GitHub API call, each within a minute. */
-async function bothAnswer({ increment, cwd, env }) {
-  const answers = (file, args) => run(file, args, { cwd, env, timeout: 60_000, maxBuffer: 16 * 1024 * 1024 }).then(() => true, () => false);
-  const [library, github] = await Promise.all([answers("pnpm", ["-s", "storytree", "library", "read", increment ?? TOKEN_ARC, "--field", "title"]), answers("gh", ["api", "rate_limit"])]);
+/** Whether both the library and GitHub answer: a library read (any record proves it) and a GitHub API call, each within a minute. */
+export async function bothAnswer({ cwd, env, probe = (file, args) => run(file, args, { cwd, env, timeout: 60_000, maxBuffer: 16 * 1024 * 1024 }) }) {
+  const answers = (file, args) => Promise.resolve().then(() => probe(file, args)).then(() => true, () => false);
+  const [library, github] = await Promise.all([answers("pnpm", ["-s", "storytree", "library", "read", TOKEN_ARC, "--field", "title"]), answers("gh", ["api", "rate_limit"])]);
   return library && github;
 }
 
@@ -309,7 +313,7 @@ export async function runLane({ brief, log, err, addDirs = [], cwd = process.cwd
   commands = { codex: ["codex"], claude: ["claude"] }, now = Date.now, say = console.log, increment,
   heads = (id) => remoteHeads(id, cwd), failed = (failure) => recordLaneFailure(failure),
   storytree = async (args) => (await run("pnpm", ["-s", "storytree", ...args], { cwd, env, maxBuffer: 16 * 1024 * 1024 })).stdout,
-  reachable = () => bothAnswer({ increment, cwd, env }), sleep = (ms) => new Promise((done) => setTimeout(done, ms)), offline: limits = {} }) {
+  reachable = () => bothAnswer({ cwd, env }), sleep = (ms) => new Promise((done) => setTimeout(done, ms)), offline: limits = {} }) {
   const original = await readFile(brief, "utf8");
   if (!original.trim()) throw new Error(`brief ${brief} is empty`);
   const settings = laneSettings({ home, env });
@@ -353,7 +357,7 @@ export async function runLane({ brief, log, err, addDirs = [], cwd = process.cwd
     const logs = [last.log];
     let why = result.stalled ? "its log stopped growing while the library and GitHub did not answer" : `it exited ${result.code} on a connection error`;
     for (let n = 1; ; n++) {
-      const holding = `lane on ${increment ?? "its brief"} lost its connection (${why}): holding until the library and GitHub answer, for up to ${offline.ceilingMs / 3_600_000} h`;
+      const holding = `lane${increment ? ` on ${increment}` : ""} lost its connection (${why}): holding until the library and GitHub answer, for up to ${offline.ceilingMs / 3_600_000} h`;
       dated(holding);
       await appendFile(logs.at(-1), `\n${new Date(now()).toISOString()} lane runner: ${holding}\n`).catch(() => {});
       const held = await holdForNetwork({ reachable, sleep, now, offline });

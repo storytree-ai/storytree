@@ -9,7 +9,7 @@ import { promisify } from "node:util";
 
 import { removeTemp, waitUntil } from "@storytree/test-waits";
 
-import { main, runLane } from "./runner.mjs";
+import { bothAnswer, main, runLane } from "./runner.mjs";
 
 const exec = promisify(execFile);
 const start = Date.parse("2026-10-06T00:00:00Z");
@@ -425,9 +425,9 @@ test("1.20 · A lane cut off by a lost connection is held until the library and 
   const cutOff = `console.log(JSON.stringify({type:'result',subtype:'success',is_error:true,terminal_reason:'api_error',api_error_status:null,result:"API Error: Can't reach the API server \\u2014 check your internet or DNS (ENOTFOUND)",session_id:${JSON.stringify(session)}})); process.exitCode=1;`;
   // The first run does what FIRST says, the second what LATER says (report: write the lane's report; empty: exit 0, leaving nothing), any after writes the report.
   options.commands.claude = command(`const fs=require('node:fs'); fs.appendFileSync(${JSON.stringify(runs)}, JSON.stringify(process.argv.slice(1))+'\\n');`
-    + ` const n=fs.readFileSync(${JSON.stringify(runs)},'utf8').trim().split('\\n').length; const what=n===1?process.env.FIRST:n===2?process.env.LATER:'report';`
+    + ` const n=fs.readFileSync(${JSON.stringify(runs)},'utf8').trim().split('\\n').length; const what=n===1?process.env.FIRST:n===2?process.env.LATER:n===3&&process.env.THIRD||'report';`
     + ` if (n===1) console.log(JSON.stringify({type:'system',subtype:'init',session_id:${JSON.stringify(session)}}));`
-    + ` if (what==='cut') { ${cutOff} } else if (what==='quiet') setTimeout(()=>{}, 60_000); else if (what==='report') fs.writeFileSync(${JSON.stringify(report)}, 'done');`);
+    + ` if (what==='cut') { ${cutOff} } else if (what==='quiet') setTimeout(()=>{}, 60_000); else if (what==='pause') setTimeout(()=>fs.writeFileSync(${JSON.stringify(report)}, 'done'), 100); else if (what==='report') fs.writeFileSync(${JSON.stringify(report)}, 'done');`);
   await writeFile(join(options.lanesDir, "engine-override"), "claude");
   options.increment = "increment_abc";
   options.heads = async () => ({});
@@ -439,7 +439,7 @@ test("1.20 · A lane cut off by a lost connection is held until the library and 
   options.now = () => clock;
   options.sleep = async (ms) => { clock += ms; };
   options.reachable = async () => answers.shift() ?? true;
-  options.offline = { ceilingMs: 3_600_000, pollMs: 60_000, quietMs: 300, everyMs: 50 };
+  options.offline = { ceilingMs: 3_600_000, pollMs: 60_000, quietMs: 400, everyMs: 20 };
   const calls = async () => (await readFile(runs, "utf8")).trim().split("\n").map((line) => JSON.parse(line));
   const reset = async () => { await rm(runs, { force: true }); await rm(report, { force: true }); told.length = 0; recorded.length = 0; options.lines.length = 0; };
 
@@ -449,7 +449,7 @@ test("1.20 · A lane cut off by a lost connection is held until the library and 
   const [, resumed] = await calls();
   assert.deepEqual(resumed.slice(0, 4), ["-p", resumed[1], "--resume", session]);
   assert.match(resumed[1], /ended your turn while your work was unfinished: continue/);
-  assert.ok(options.lines.some((line) => /lost its connection.*holding until the library and GitHub answer/.test(line)), "the pool status says it holds");
+  assert.ok(options.lines.some((line) => /lane on increment_abc lost its connection.*holding until the library and GitHub answer/.test(line)), "the pool status says which lane it holds");
   assert.ok(options.lines.some((line) => /connection back after 2 min.*resuming session/.test(line)));
   assert.match(await readFile(options.log, "utf8"), /holding until the library and GitHub answer/, "and so does the lane's log");
   assert.deepEqual(recorded, [], "a lost connection is no failure");
@@ -484,6 +484,32 @@ test("1.20 · A lane cut off by a lost connection is held until the library and 
   assert.ok(options.lines.some((line) => /log stopped growing while the library and GitHub did not answer/.test(line)));
 
   await reset();
+  Object.assign(options.env, { FIRST: "pause", LATER: "report" });
+  answers = Array(100).fill(false);
+  assert.equal(await runLane(options), 0, "a log quiet for less than the quiet time is not stopped, even offline");
+  assert.equal((await calls()).length, 1);
+
+  await reset();
+  Object.assign(options.env, { FIRST: "cut", LATER: "cut", THIRD: "report" });
+  answers = [];
+  assert.equal(await runLane(options), 0, "a resume cut off again is held and resumed again");
+  const thrice = await calls();
+  assert.equal(thrice.length, 3);
+  assert.equal(thrice[2][3], session, "in the same session");
+  delete options.env.THIRD;
+
+  await reset();
+  await writeFile(join(options.lanesDir, "engine-override"), "codex");
+  // Codex's own last word when its stream is cut (the words in its build, 2026-10-27).
+  options.commands.codex = command(`const fs=require('node:fs'); fs.appendFileSync(${JSON.stringify(runs)}, JSON.stringify(process.argv.slice(1))+'\\n');`
+    + ` if (process.argv.includes('resume')) fs.writeFileSync(${JSON.stringify(report)}, 'done');`
+    + ` else { console.log(JSON.stringify({type:'thread.started',thread_id:'codex-thread'})); console.log(JSON.stringify({type:'error',message:'stream disconnected before completion: error sending request for url (https://chatgpt.com/backend-api/codex/responses)'})); process.exitCode=1; }`);
+  answers = [false, true];
+  assert.equal(await runLane(options), 0, "a Codex lane cut off is held and resumed too");
+  assert.deepEqual((await calls())[1].slice(0, 3), ["exec", "resume", "codex-thread"]);
+  await writeFile(join(options.lanesDir, "engine-override"), "claude");
+
+  await reset();
   Object.assign(options.env, { FIRST: "fail" });
   options.commands.claude = command("console.error('Error: something else broke'); process.exitCode=3;");
   let slow = start;
@@ -491,4 +517,13 @@ test("1.20 · A lane cut off by a lost connection is held until the library and 
   assert.equal(await runLane(options), 3, "any other failure is not held");
   assert.ok(!options.lines.some((line) => /holding/.test(line)));
   assert.equal(recorded.length, 1);
+});
+
+test("1.20 · the network is back only when both the library and GitHub answer", async () => {
+  for (const [down, expected] of [[[], true], [["pnpm"], false], [["gh"], false]]) {
+    const asked = [];
+    const probe = async (file, args) => { asked.push([file, ...args].join(" ")); if (down.includes(file)) throw new Error("no answer"); };
+    assert.equal(await bothAnswer({ probe }), expected, `down: ${down.join(", ") || "none"}`);
+    assert.deepEqual(asked.map((line) => line.split(" ").slice(0, 4).join(" ")).sort(), ["gh api rate_limit", "pnpm -s storytree library"]);
+  }
 });

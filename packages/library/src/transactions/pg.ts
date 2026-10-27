@@ -6,7 +6,7 @@ import type { Pool, PoolClient } from "pg";
 
 import { sqlState } from "../project/connection-error.js";
 import { seconds, waitsOf } from "../project/server.js";
-import { check, listFilter, editedRecord, historyEntry, historyFilter, now, numbered, savedRecord } from "./records.js";
+import { check, listFilter, editedRecord, historyEntry, historyFilter, now, numbered, revertedRecord, revertInput, revertReason, savedRecord } from "./records.js";
 import type {
   EditInput,
   HistoryEntry,
@@ -14,6 +14,7 @@ import type {
   ListFilter,
   RecordEnvelope,
   RetireInput,
+  RevertInput,
   SaveInput,
   Transactions,
 } from "./types.js";
@@ -149,6 +150,24 @@ export class PgTransactions implements Transactions {
       if (current === undefined) return;
       await appendEvent(client, "retired", current, now(), input.actor, input.reason);
       await client.query("DELETE FROM record WHERE id = $1", [input.id]);
+    }, input.signal);
+  }
+
+  revert(given: RevertInput): Promise<RecordEnvelope> {
+    const input = revertInput(given);
+    return this.#write(async (client) => {
+      const current = await lockCurrent(client, input.id);
+      const { rows } = await client.query<{ action: HistoryEntry["action"]; record: RecordEnvelope; newest: string }>(
+        `SELECT action, record, (SELECT MAX(seq) FROM record_event WHERE record_id = $1) AS newest
+         FROM record_event WHERE record_id = $1 AND seq = $2`,
+        [input.id, input.to],
+      );
+      const target = rows[0];
+      const record = revertedRecord(input, target, target === undefined ? undefined : Number(target.newest), current, now());
+      check(record, input.validate);
+      await appendEvent(client, "updated", record, record.updatedAt, input.actor, revertReason(input));
+      await putRecord(client, record);
+      return record;
     }, input.signal);
   }
 

@@ -124,6 +124,7 @@ const LIBRARY_API = [
   "retire",
   "retireQuestion",
   "returnIncrement",
+  "revert",
   "changesSince",
   "sendFeedback",
   "feedbackScreenshot",

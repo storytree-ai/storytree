@@ -158,6 +158,26 @@ export class SchemaRecords {
   }
 
   /**
+   * Write the record back to the state its history entry `to` kept, whole and under its id, bringing a retired record
+   * back: capability 2's revert, the entry's record read upgraded, as `current` reads it, and checked as every write
+   * is, so it is stored on its type's current version. `read` is the seq of its newest entry when the writer read it;
+   * a later write refuses the revert (StaleRevertError), and so does an entry not its own or a retirement
+   * (RangeError), writing nothing.
+   */
+  async revert(id: string, to: number, read: number, options: WriteOptions & { reason?: string } = {}): Promise<SchemaRecord> {
+    const record = await this.#transactions.revert({
+      id,
+      to,
+      read,
+      upgrade: this.current,
+      validate: this.#check,
+      ...(options.reason === undefined ? {} : { reason: options.reason }),
+      ...writeOptionsOf(options),
+    });
+    return record as SchemaRecord;
+  }
+
+  /**
    * Every original write, oldest first, including retired records, with its optional actor and
    * retirement reason: capability 2's history, unchanged. Filter by record id and/or entries after a
    * sequence number. Records stay as written, on their original schema versions; reading history

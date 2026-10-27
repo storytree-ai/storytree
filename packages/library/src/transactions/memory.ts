@@ -2,7 +2,7 @@
  * Capability 2 · Library transactions. MemoryTransactions: the in-memory twin of PgTransactions. The behaviour suite runs unchanged on
  * both, so later stories can test against this one without a database.
  */
-import { check, fieldAt, listFilter, pickFields, editedRecord, historyEntry, historyFilter, jsonCopy, now, numbered, savedRecord } from "./records.js";
+import { check, fieldAt, listFilter, pickFields, editedRecord, historyEntry, historyFilter, jsonCopy, now, numbered, revertedRecord, revertInput, revertReason, savedRecord } from "./records.js";
 import type {
   EditInput,
   HistoryEntry,
@@ -10,6 +10,7 @@ import type {
   ListFilter,
   RecordEnvelope,
   RetireInput,
+  RevertInput,
   SaveInput,
   Transactions,
 } from "./types.js";
@@ -81,6 +82,18 @@ export class MemoryTransactions implements Transactions {
     if (current === undefined) return;
     this.#append("retired", current, now(), input.actor, input.reason);
     this.#records.delete(input.id);
+  }
+
+  async revert(given: RevertInput): Promise<RecordEnvelope> {
+    given.signal?.throwIfAborted();
+    const input = revertInput(given);
+    const own = this.#history.filter((entry) => entry.recordId === input.id);
+    const current = this.#records.get(input.id);
+    const record = revertedRecord(input, own.find((entry) => entry.seq === input.to), own.at(-1)?.seq, current, now());
+    check(record, input.validate);
+    this.#append("updated", record, record.updatedAt, input.actor, revertReason(input));
+    this.#records.set(record.id, record);
+    return jsonCopy(record);
   }
 
   async history(given: HistoryFilter = {}): Promise<HistoryEntry[]> {

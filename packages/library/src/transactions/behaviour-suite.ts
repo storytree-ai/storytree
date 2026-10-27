@@ -1,5 +1,5 @@
 /**
- * Capability 2 · Library transactions: ONE behaviour suite, one test per contract 2.1-2.9 and 2.12 in
+ * Capability 2 · Library transactions: ONE behaviour suite, one test per contract 2.1-2.9, 2.12 and 2.14-2.16 in
  * the library story. Each backend registers it (memory.test.ts, pg.test.ts) and it must pass
  * unchanged on every one. Parity is the point: later stories test against the in-memory twin, so
  * the twin has to behave exactly as Postgres does.
@@ -11,6 +11,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { setTimeout as sleep } from "node:timers/promises";
 
+import { StaleRevertError } from "./records.js";
 import type { HistoryEntry, RecordEnvelope, Transactions } from "./types.js";
 
 /** A fresh, empty store, and how to dispose of it. */
@@ -540,6 +541,70 @@ export function transactionsBehaviourSuite(label: string, makeStore: () => Promi
     assert.deepEqual(history.slice(0, -1), before.history);
     assert.deepEqual(changesOf(history.slice(-1)), [{ recordId: "v-1", type: "note", action: "updated", record: after }]);
   });
+  contract("2.14", "revert writes a record back to one of its own history entries whole, as a new update naming the entry and its writer", async (store) => {
+    const created = await store.save({ id: "r-1", type: "note", fields: { title: "Good", body: "kept" }, actor: "ann" });
+    const [first] = await store.history({ id: "r-1" });
+    const bad = await store.edit({ id: "r-1", fields: { title: "Bad", body: undefined, junk: "added" }, actor: "bob" });
+    assert.ok(bad);
+    const read = (await store.history({ id: "r-1" })).at(-1)!.seq;
+
+    const reverted = await store.revert({ id: "r-1", to: first!.seq, read, actor: "cat", reason: "bob's edit lost the body" });
+    assertTimestamp(reverted.updatedAt, "updatedAt");
+    assert.deepEqual(
+      reverted,
+      { ...created, updatedAt: reverted.updatedAt },
+      "the whole state comes back: changed fields restored, a removed field put back, an added field gone",
+    );
+    assert.deepEqual(await store.get("r-1"), reverted);
+    const history = await store.history({ id: "r-1" });
+    assert.equal(history.length, 3, "nothing in history is rewritten; the revert is one more entry");
+    assert.deepEqual(history.slice(0, 2).map((entry) => entry.record), [created, bad]);
+    assert.deepEqual(
+      changesOf(history.slice(-1)),
+      [{ recordId: "r-1", type: "note", action: "updated", record: reverted, reason: `reverted to ${first!.seq}: bob's edit lost the body`, actor: "cat" }],
+      "the entry names the entry it reverts to and who reverted",
+    );
+  });
+
+  contract("2.15", "revert brings a retired record back under its own id, from an entry before its retirement", async (store) => {
+    const created = await store.save({ id: "gone", type: "note", fields: { title: "Gone", links: ["other"] } });
+    await store.edit({ id: "gone", fields: { title: "Renamed" } });
+    await store.retire({ id: "gone", reason: "thought a duplicate", actor: "bob" });
+    const history = await store.history({ id: "gone" });
+    const retirement = history.at(-1)!;
+
+    await assert.rejects(store.revert({ id: "gone", to: retirement.seq, read: retirement.seq }), RangeError, "a retirement is not a state to revert to");
+    const back = await store.revert({ id: "gone", to: history[0]!.seq, read: retirement.seq, actor: "cat" });
+    assert.deepEqual(back, { ...created, updatedAt: back.updatedAt }, "live again under its id, as first written, created when it was");
+    assert.deepEqual(await store.get("gone"), back);
+    assert.deepEqual((await store.list("note")).map((record) => record.id), ["gone"]);
+    assert.deepEqual(
+      changesOf((await store.history({ id: "gone" })).slice(-1)),
+      [{ recordId: "gone", type: "note", action: "updated", record: back, reason: `reverted to ${history[0]!.seq}`, actor: "cat" }],
+    );
+  });
+
+  contract("2.16", "revert is refused, writing nothing, when the record changed since the writer read it or the entry is not its own", async (store) => {
+    await store.save({ id: "s-1", type: "note", fields: { v: 1 } });
+    await store.save({ id: "s-2", type: "note", fields: { v: 1 } });
+    const [first] = await store.history({ id: "s-1" });
+    await store.edit({ id: "s-1", fields: { v: 2 } });
+    const read = (await store.history({ id: "s-1" })).at(-1)!.seq;
+    await store.edit({ id: "s-1", fields: { v: 3 }, actor: "another curator" });
+    const before = { history: await store.history(), record: await store.get("s-1") };
+
+    await assert.rejects(store.revert({ id: "s-1", to: first!.seq, read }), StaleRevertError, "the curator read before another's write");
+    const other = (await store.history({ id: "s-2" }))[0]!;
+    await assert.rejects(store.revert({ id: "s-1", to: other.seq, read: before.history.at(-1)!.seq }), RangeError, "another record's entry");
+    await assert.rejects(store.revert({ id: "never", to: first!.seq, read: first!.seq }), RangeError, "no such record");
+    await assert.rejects(
+      store.revert({ id: "s-1", to: first!.seq, read: (await store.history({ id: "s-1" })).at(-1)!.seq, validate: () => { throw new Error("refused by the check"); } }),
+      /refused by the check/,
+    );
+    assert.deepEqual(await store.history(), before.history, "no history entry was written");
+    assert.deepEqual(await store.get("s-1"), before.record);
+  });
+
 }
 
 /** Assert that `value` is an ISO 8601 UTC timestamp, exactly as Date#toISOString writes one. */

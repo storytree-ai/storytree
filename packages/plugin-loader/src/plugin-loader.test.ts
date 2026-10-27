@@ -315,9 +315,10 @@ test("5.7 `plugin contract`, on the command line and as a tool, says what a plug
   for (const kind of ["verbs", "tools", "claimChecks", "pipelineJobs", "projectRecords", "surfaces", "services"]) assert.match(text, new RegExp(`^  ${kind} \\(mounted by`, "m"));
   assert.match(text, /"recordKinds": \[\{ "kind": "<plugin>\.<kind>", "version": 1, "fields": <a JSON Schema of type "object">, "writers"/, "and a plugin's own kinds of record");
   assert.match(text, /"librarian": \{ "role": "<database role>", "update"\?: true \}/, "and its own librarian's role and update right");
+  assert.match(text, /"plan": "\.\/plan\.json": a file in its folder holding \{ story: \{ title, description\?, text\? \}, capabilities: \[/, "and its own story's plan");
   assert.equal((tool as { name?: string }).name, "plugin_contract", "an agent reaches it as a tool");
   const { PLUGIN_FAMILIES } = await import("./factory/verbs.js");
-  assert.deepEqual(PLUGIN_FAMILIES[0]!.verbs.map((each) => each.callerless), [true, true, true, undefined, undefined], "contract, new and check need no project; removing a plugin's records, or fencing its roles, needs its library");
+  assert.deepEqual(PLUGIN_FAMILIES[0]!.verbs.map((each) => each.callerless), [true, true, true, undefined, undefined, undefined], "contract, new and check need no project; importing a plugin's plan, removing its records, or fencing its roles, needs its library");
 });
 
 test("5.8 a factory plugin mounted in a switched-off part's place declares its own kinds of record, named <plugin>.<kind> in its manifest's recordKinds, which the library then reads; with its part on it declares none, and a kind outside its name or of a shape the library cannot read is left out, said with why", (t) => {

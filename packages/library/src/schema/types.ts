@@ -235,6 +235,11 @@ export const RECORD_SCHEMAS = {
        */
       mapped: z.object({ from: nonEmpty, package: nonEmpty, folders: z.array(nonEmpty) }).strict().optional(),
       /**
+       * A plugin's story (ADR-1187): the factory plugin whose plan file is the one source of it, its
+       * capabilities and its contracts, written only by the work model's importPluginPlan. Optional, so no version bump.
+       */
+      plugin: nonEmpty.optional(),
+      /**
        * Its risk reading, set up front and read deterministically (question_1740edf77e9e): a blast depth
        * (1 to 3, how bad a fault in it is) and a blast radius (1 to 4, how far one reaches: the stories
        * downstream of it and the audience it serves, with the users that audience counts), each with the

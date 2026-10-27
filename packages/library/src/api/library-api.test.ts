@@ -46,6 +46,7 @@ const LIBRARY_API = [
   "history",
   "addStory",
   "mapStories",
+  "importPluginPlan",
   "createArc",
   "addCapability",
   "editStory",

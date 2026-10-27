@@ -1,7 +1,7 @@
 /**
  * Capability 1 · Running services, contract 1.1 (ADR-1180 D1, D2). One service's own child process: it loads the
  * service from its plugin or its package, hands its start what a service is handed (its folder, this machine's
- * settings, a logger to its output, and the stop signal, which the host's SIGTERM fires), and exits once start returns:
+ * settings, a logger to its output, and the stop signal, which the host's stop message or a SIGTERM fires), and exits once start returns:
  * 0 when it returned, 1 when it threw. Run as a file it is the child; imported, it gives the command that runs it.
  */
 import { createRequire } from "node:module";
@@ -20,6 +20,9 @@ export interface ChildSpec {
 }
 
 const ENTRY = fileURLToPath(import.meta.url);
+
+/** The message on the child's IPC channel that fires its service's stop signal. */
+export const STOP = "storytree:stop";
 
 /** The node arguments that run `spec`'s service in a child process of its own, loading TypeScript as this process does. */
 export function childArgs(spec: ChildSpec): string[] {
@@ -41,11 +44,14 @@ async function load(service: Declared): Promise<(host: ServiceHost) => Promise<v
   return (host) => start.call(exported, host);
 }
 
-/** Run `spec`'s service until its start returns, the stop signal handed to it firing on SIGTERM. */
+/** Run `spec`'s service until its start returns, the stop signal handed to it firing on the host's stop message or SIGTERM. */
 async function runChild(spec: ChildSpec): Promise<number> {
   const stop = new AbortController();
   process.once("SIGTERM", () => stop.abort());
   process.once("SIGINT", () => stop.abort());
+  process.on("message", (message) => { if (message === STOP) stop.abort(); });
+  // The IPC channel would otherwise keep the child alive after start returns; process.exit below ends it either way.
+  process.channel?.unref();
   // A service waiting only on its stop signal holds nothing open, and node would end it there: the child lives until start returns.
   const living = setInterval(() => {}, 2 ** 30);
   try {

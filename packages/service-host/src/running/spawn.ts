@@ -1,12 +1,13 @@
 /**
  * Capability 1 · Running services, contract 1.1 (ADR-1180 D2). A service started as its own child process: node running
  * the child entry, with this machine's storytree home, each line it prints written to the host's log after the
- * service's name, and its last lines kept for `storytree services` to show when it fails.
+ * service's name, and its last lines kept for `storytree services` to show when it fails. The stop signal goes to the
+ * child as a message on its IPC channel: on Windows a SIGTERM ends a process at once, before its service can stop.
  */
 import { spawn } from "node:child_process";
 import { createInterface } from "node:readline";
 
-import { childArgs } from "./child.js";
+import { childArgs, STOP } from "./child.js";
 import type { Declared } from "./declared.js";
 import type { Child, Ended } from "./supervise.js";
 
@@ -15,7 +16,7 @@ export const LAST_LINES = 20;
 
 /** Start `service` as a child process, its lines to `log` after its name. */
 export function startChild(service: Declared, home: string, log: (line: string) => void): Child {
-  const child = spawn(process.execPath, childArgs({ service, home }), { env: { ...process.env, STORYTREE_HOME: home }, stdio: ["ignore", "pipe", "pipe"] });
+  const child = spawn(process.execPath, childArgs({ service, home }), { env: { ...process.env, STORYTREE_HOME: home }, stdio: ["ignore", "pipe", "pipe", "ipc"] });
   const last: string[] = [];
   const said = (line: string) => {
     last.push(line);
@@ -33,7 +34,10 @@ export function startChild(service: Declared, home: string, log: (line: string) 
   return {
     ...(child.pid === undefined ? {} : { pid: child.pid }),
     ended,
-    signal: (name) => void child.kill(name),
+    signal: (name) => {
+      if (name === "SIGTERM" && child.connected) child.send(STOP, () => {});
+      else child.kill(name);
+    },
     lastLines: () => [...last],
   };
 }

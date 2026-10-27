@@ -1,5 +1,6 @@
 /** Capability 2 · Listing and restarting services, contracts 2.1 to 2.3: `storytree services`, `services restart` and `services run`, against a host run in a throwaway home. */
 import assert from "node:assert/strict";
+import path from "node:path";
 import { test, type TestContext } from "node:test";
 
 import type { DoorWords, Verb, VerbInputs, VerbPlace } from "@storytree/library/verbs";
@@ -63,7 +64,7 @@ test("2.1 · storytree services lists every declared service on this machine: of
     assert.match(listed, /^  voice\/listen \(always\): failed \(exit 1\) since [^;]+; it stays failed until `storytree services restart voice\/listen`\. Its last lines:\n      voice\/listen: no microphone$/m);
     assert.match(listed, /^  voice\/commit \(every 15m\): running, process 4242, since \S+$/m);
     assert.match(listed, /^  voice\/idle \(always\): off$/m);
-    assert.match(listed, new RegExp(`^The service host \\(process ${process.pid}, since \\S+\\) last ran the factory ${escaped(home)}/factory, which is not a git checkout\\.$`, "m"));
+    assert.match(listed, new RegExp(`^The service host \\(process ${process.pid}, since \\S+\\) last ran the factory ${escaped(path.join(home, "factory"))}, which is not a git checkout\\.$`, "m"));
   } finally {
     await host.stop();
   }

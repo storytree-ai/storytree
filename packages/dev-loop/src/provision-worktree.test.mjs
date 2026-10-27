@@ -5,7 +5,7 @@
 // UNLINKED (an install reported success but linked no workspace package).
 import assert from "node:assert/strict";
 import { execFile, execFileSync } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
@@ -74,7 +74,7 @@ test("2.7 a worktree gets the push check as the pre-push hook its repository's w
   t.after(() => removeTemp(linked));
   git("worktree", "add", "-q", linked);
   const shared = path.resolve(linked, execFileSync("git", ["rev-parse", "--git-path", "hooks"], { cwd: linked, encoding: "utf8" }).trim(), "pre-push");
-  assert.equal(shared, hook, "a linked worktree runs the same hook");
+  assert.equal(realpathSync.native(shared), realpathSync.native(hook), "a linked worktree runs the same hook");
   writeFileSync(hook, "#!/bin/sh\necho someone else's\n");
   provision({ root, install: () => ({ ok: true }), log: (line) => lines.push(line) });
   assert.equal(readFileSync(hook, "utf8"), "#!/bin/sh\necho someone else's\n");

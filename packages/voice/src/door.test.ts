@@ -330,7 +330,8 @@ test("1.12 a child gets an argument array with no shell, runs in the door's repo
     // What the system adds to any child's environment by itself (Windows' logon names, macOS's text encoding) is not inherited.
     const added = new Set<string>(JSON.parse(execFileSync(process.execPath, ["-e", "process.stdout.write(JSON.stringify(Object.keys(process.env)))"], { env: {} }).toString()));
     assert.deepEqual(child.names.filter((name) => !allowed.test(name) && !added.has(name)), [], "a child inherits only the named variables");
-    for (const name of ["LANG", "TZ", "STORYTREE_HOME", "PATH"]) assert.ok(child.names.includes(name), `${name} reaches the child`);
+    // Windows names PATH "Path", and the door keeps the name as the system spells it.
+    for (const name of ["LANG", "TZ", "STORYTREE_HOME", "PATH"]) assert.ok(child.names.some((seenName) => seenName.toUpperCase() === name), `${name} reaches the child`);
   } finally {
     await door.close();
   }

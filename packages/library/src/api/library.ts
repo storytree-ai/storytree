@@ -403,8 +403,9 @@ function libraryOf(project: Project): Library {
       return project.records.create("fyi", { ...fyi, at: at ?? new Date().toISOString() }, options);
     },
     async unheardFyis() {
+      // list gives id order and the sort is stable, so FYIs of the same moment stay in id order.
       const unheard = (await project.records.list("fyi")).filter(({ fields }) => fields.heardAt === undefined);
-      return unheard.sort((one, other) => one.fields.at.localeCompare(other.fields.at) || one.id.localeCompare(other.id));
+      return unheard.sort((one, other) => one.fields.at.localeCompare(other.fields.at));
     },
     async markFyisHeard(ids, options = {}) {
       const found = await Promise.all(ids.map(async (id) => (couldBeId(id) ? await project.records.get(id) : null)));

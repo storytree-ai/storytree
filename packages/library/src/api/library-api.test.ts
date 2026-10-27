@@ -648,6 +648,7 @@ test("7.23 recordFyi keeps what the owner should know with its title, what happe
     assert.deepEqual((await lib.unheardFyis()).map(({ id }) => id), [earlier.id, later.id], "a refused mark writes nothing");
 
     assert.deepEqual(await lib.markFyisHeard([earlier.id], { actor: "person:owner" }), [earlier.id]);
+    assert.equal((await lib.history({ id: earlier.id })).at(-1)!.actor, "person:owner");
     assert.deepEqual((await lib.unheardFyis()).map(({ id }) => id), [later.id]);
     const heard = await lib.get(earlier.id);
     assert.match((heard!.fields as { heardAt?: string }).heardAt ?? "", /^\d{4}-\d{2}-\d{2}T/, "a heard FYI stays, with when it was heard");
@@ -656,6 +657,10 @@ test("7.23 recordFyi keeps what the owner should know with its title, what happe
     await assert.rejects(lib.recordFyi(untyped({ title: "", what: "x", about: "y", by: "z" })), (error: Error) => error.name === "SchemaError");
     const now = await lib.recordFyi({ title: "No time given", what: "It is stamped now", about: "packages/library", by: "watcher" });
     assert.match(now.fields.at, /^\d{4}-\d{2}-\d{2}T/);
+
+    await lib.markFyisHeard([later.id, now.id]);
+    const tied = await Promise.all(["One", "Two", "Three"].map((title) => lib.recordFyi({ title, what: "At the same moment", about: "PR #32", by: "watcher", at: "2026-10-28T09:00:00.000Z" })));
+    assert.deepEqual((await lib.unheardFyis()).map(({ id }) => id), tied.map(({ id }) => id).sort(), "FYIs of the same moment are listed by id");
   });
 });
 

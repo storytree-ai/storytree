@@ -12,7 +12,7 @@ import { AsyncLocalStorage } from "node:async_hooks";
 import { createMcpHandler, hostHeaderValidationResponse } from "@modelcontextprotocol/server";
 import { Children, LIMITS, type Limits } from "./children.js";
 import type { VoiceConfig } from "./config.js";
-import { makeServer, openQuestion } from "./tools.js";
+import { makeServer, openQuestion, unheardFyiIds } from "./tools.js";
 import { Drafts } from "./drafts.js";
 import { WRITE_TOOL_NAMES, registerWriteTools, repliesSaid } from "./writes.js";
 import { SIGNED_TOOL_NAMES, SignInRefusal, registerSignedTools, signIn, type SignedCaller } from "./signin.js";
@@ -183,9 +183,9 @@ export function startDoor(config: VoiceConfig, options: DoorOptions = {}): Promi
   const calls = new AsyncLocalStorage<{ readonly signal: AbortSignal; readonly caller?: SignedCaller }>();
   const serverFor = () => {
     const call = calls.getStore();
-    const server = makeServer(children, call?.signal, log, drafts ? () => repliesSaid(drafts) : undefined, gate ? signedTools : []);
+    const server = makeServer(children, call?.signal, log, drafts ? { replies: () => repliesSaid(drafts), heardFyis: () => drafts.heardFyis() } : undefined, gate ? signedTools : []);
     if (gate) registerSignedTools(server, () => call?.caller);
-    if (drafts) registerWriteTools(server, drafts, (id) => openQuestion(children, call?.signal, id), log);
+    if (drafts) registerWriteTools(server, drafts, (id) => openQuestion(children, call?.signal, id), () => unheardFyiIds(children, call?.signal), log);
     return server;
   };
   const handler = createMcpHandler(serverFor, {

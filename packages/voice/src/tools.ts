@@ -25,6 +25,7 @@ export const READS = {
   catchUpAction: 5,
   catchUpDecision: 8,
   catchUpLanded: 8,
+  catchUpFyis: 8,
   reasonChars: 160,
   workPage: 8,
   workTitleChars: 120,
@@ -67,7 +68,8 @@ export function instructionsFor(tools: readonly string[]): string {
     "You are Mick's voice link to his storytree project; he owns it and knows it well, so skip padding.",
     "Start every session with catch_up. Tell him what needs his action first, one item at a time, then his open questions, one question at a time: " +
       "what part of the system it is about, why it needs him, then the recommended option with its reason and the ask (\"go with that?\"); " +
-      "other options only when he asks for them or turns the recommendation down. Then stop, let him poke holes, and move on only when he says so.",
+      "other options only when he asks for them or turns the recommendation down. Then stop, let him poke holes, and move on only when he says so. " +
+      `${writes ? "Then the replies of the runs he asked for, then" : "Then"} the FYIs, things he should know after the fact, each in plain words.`,
     "tell_me reads one thing whole by what he calls it (a question, a decision by number, a pull request, catch_up's number two); find looks something up; " +
       "what_changed says what landed; count gives tallies; search_code and read_code read the committed code. " +
       "list_work lists an arc's open increments, numbered a page at a time; tell_me with that arc reads \"number three\" (or the next one) whole.",
@@ -80,8 +82,8 @@ export function instructionsFor(tools: readonly string[]): string {
     // The door registers every write tool together (writes.ts), so save_note listed means all of them are.
     rules.push(
       "Save each answer he gives, and anything else he says that should be acted on, as a note with save_note, in his words as transcribed, never your summary; an answer names its question.",
-      "catch_up reads replies under Replies ready. When he says one is fine, or has nothing more to ask about it, mark it heard with mark_heard, so it is not offered again; " +
-        "a further question he raises on it is saved as a note.",
+      "catch_up reads replies under Replies ready and FYIs after them. When he says one is fine, or has nothing more to ask about it, mark it heard with mark_heard " +
+        "(a reply by its draft number, an FYI by its id), so it is not offered again; a further question he raises on it is saved as a note.",
       "When he wraps up, offer: \"send these to the manager?\" On his yes, call start_manager_run with his words, read its one line back as it is, and confirm only when he says yes; " +
         "cancel stops it before the run starts.",
       "If he says to stop all writes, lock_voice turns them off.",
@@ -262,6 +264,17 @@ export function openQuestions(text: string): Item[] {
   return items;
 }
 
+/** `fyi list` entries, oldest first: "  <when>  <fyi>  <title>" then an indented line of what happened (about what, by whom). */
+export function unheardFyis(text: string): Item[] {
+  const items: Item[] = [];
+  const lines = text.split("\n");
+  for (const [at, line] of lines.entries()) {
+    const match = /^\s{2}(\d{4}-\d{2}-\d{2} \d{2}:\d{2})\s+(fyi_[0-9a-f]{12})\s+(.*)$/.exec(line);
+    if (match) items.push({ text: `${clipLine(match[3]!, 120)} (${match[1]}): ${clipLine(lines[at + 1] ?? "", 240)}`, id: match[2]! });
+  }
+  return items;
+}
+
 /** `library read` of several records: each record's id and its Created time. */
 export function createdTimes(text: string): Map<string, string> {
   const times = new Map<string, string>();
@@ -292,12 +305,21 @@ export function landed(text: string): { heading: string; arcs: Array<{ title: st
   return { heading: lines[0]?.trim() ?? "", arcs };
 }
 
+/** What catch_up reads from the door's own database when voice writes are on. */
+export interface DoorReads {
+  /** What each carried-out write came to that he has not heard, as lines to say. */
+  readonly replies: () => Promise<string[]>;
+  /** The FYIs he has marked heard by voice that the box has not yet marked heard in the library. */
+  readonly heardFyis: () => Promise<string[]>;
+}
+
 /** catch_up's answer and its numbered items, in its fixed order, so "number two" names the same item a follow-up hears. */
-async function catchUp(read: Reads, back: string, replies?: () => Promise<string[]>): Promise<{ text: string; items: Item[] }> {
-  const [waits, questions, recent] = await Promise.all([
+async function catchUp(read: Reads, back: string, door?: DoorReads): Promise<{ text: string; items: Item[] }> {
+  const [waits, questions, recent, fyis] = await Promise.all([
     read.storytree(["arc", "waits"]),
     read.storytree(["question", "list"]),
     read.storytree(["arc", "recent", "--since", back]),
+    read.storytree(["fyi", "list"]),
   ]);
   let open = questions.ok ? openQuestions(questions.text) : [];
   if (open.length > 1) {
@@ -328,16 +350,26 @@ async function catchUp(read: Reads, back: string, replies?: () => Promise<string
   const items = went.arcs.flatMap((arc) => arc.increments.map((item) => ({ text: `${item.text}, on ${arc.title}`, id: item.id })));
   const from = /since (.*?), on/.exec(went.heading)?.[1] ?? (back === "1d" ? "the last 24 hours" : back);
   section(`Landed since ${from}:`, recent, items, READS.catchUpLanded, "what_changed lists them all");
-  if (replies) {
+  let heard = new Set<string>();
+  if (door) {
     // What his voice writes came to, until he hears them (contracts 5.6, 5.11): unnumbered, after the numbered items.
     let ready: string[];
     try {
-      ready = await replies();
+      ready = await door.replies();
     } catch {
       ready = ["(could not read this: the door's database did not answer)"];
     }
+    heard = new Set(await door.heardFyis().catch(() => []));
     out.push("Replies ready:", ...(ready.length === 0 ? ["(none)"] : ready));
   }
+  // What he should know after the fact, until he has heard it (ADR-1184 D3): unnumbered, last, each with its id for tell_me.
+  // One he marked heard by voice is left out at once, before the box carries the mark into the library (contract 5.15).
+  const told = fyis.ok ? unheardFyis(fyis.text).filter((item) => !heard.has(item.id)) : [];
+  out.push("FYIs, until you have heard them:");
+  if (!fyis.ok) out.push(`(could not read this: ${fyis.text})`);
+  else if (told.length === 0) out.push("(none)");
+  out.push(...told.slice(0, READS.catchUpFyis).map((item) => `${item.text} — ${item.id}`));
+  if (told.length > READS.catchUpFyis) out.push(`(${told.length - READS.catchUpFyis} more, told once these are heard)`);
   return { text: out.join("\n"), items: numbered };
 }
 
@@ -577,12 +609,19 @@ export async function openQuestion(children: Children, signal: AbortSignal | und
   return found ? { id, title: found.text } : null;
 }
 
+/** The ids of the FYIs `fyi list` gives as unheard; for mark_heard's FYIs. */
+export async function unheardFyiIds(children: Children, signal: AbortSignal | undefined): Promise<string[]> {
+  const said = await new Reads(children, signal).storytree(["fyi", "list"]);
+  if (!said.ok) throw new Refusal(said.text);
+  return unheardFyis(said.text).map((item) => item.id);
+}
+
 /**
  * The door's MCP server for one request; `hangup` aborts when the caller hangs up, stopping any child the request runs.
- * With voice writes on, `replies` gives catch_up what each carried-out write came to. `more` names the tools the door
- * registers on it after this, so its instructions can name them.
+ * With voice writes on, `door` gives catch_up what each carried-out write came to and the FYIs he marked heard. `more` names
+ * the tools the door registers on it after this, so its instructions can name them.
  */
-export function makeServer(children: Children, hangup: AbortSignal | undefined, log: (line: string) => void, replies?: () => Promise<string[]>, more: readonly string[] = []): McpServer {
+export function makeServer(children: Children, hangup: AbortSignal | undefined, log: (line: string) => void, door?: DoorReads, more: readonly string[] = []): McpServer {
   // Merged by hand, not with AbortSignal.any: each source holds the listener, so nothing here can be collected early.
   const signalFor = (ctx: unknown): AbortSignal | undefined => {
     const own = (ctx as { mcpReq?: { signal?: unknown } } | undefined)?.mcpReq?.signal;
@@ -612,7 +651,8 @@ export function makeServer(children: Children, hangup: AbortSignal | undefined, 
       title: "Catch up",
       description:
         "What needs the owner (Mick) now, in a fixed order: first what needs his action (work waiting on him), then his open questions, " +
-        "oldest first, then what landed since a time (the last 24 hours unless since is given). Plain text, every item numbered, with its " +
+        "oldest first, then what landed since a time (the last 24 hours unless since is given), each numbered; then, with writes on, the replies " +
+        "of runs he asked for; then the FYIs he has not heard (things he should know after the fact), unnumbered. Plain text, each item with its " +
         "record id at the line's end for follow-up calls (tell_me, what_changed).",
       inputSchema: z.object({
         since: z.string().max(40).optional().describe("how far back 'landed' reaches: 30m, 2h, 1d, 7d, or a UTC date or time such as 2026-10-22"),
@@ -623,7 +663,7 @@ export function makeServer(children: Children, hangup: AbortSignal | undefined, 
       guarded(log, async () => {
         const back = String(since ?? "").trim() || "1d";
         if (!SINCE.test(back)) throw new Refusal(SINCE_REFUSAL);
-        return success(clip((await catchUp(reads(ctx), back, replies)).text, limits.outputChars));
+        return success(clip((await catchUp(reads(ctx), back, door)).text, limits.outputChars));
       }),
   );
 

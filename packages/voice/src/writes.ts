@@ -18,11 +18,18 @@ export const WRITE_TOOL_NAMES = ["save_note", "start_manager_run", "confirm", "c
 /** An open question's id and title, or null when it is not open; read through the storytree command line. */
 export type OpenQuestion = (id: string) => Promise<{ id: string; title: string } | null>;
 
+/** The ids of the FYIs the library holds that he has not heard; read through the storytree command line. */
+export type UnheardFyis = () => Promise<string[]>;
+
+/** FYIs mark_heard takes at once, at most. */
+const FYIS = 20;
+
 type Result = { content: Array<{ type: "text"; text: string }>; isError?: true };
 const said = (text: string): Result => ({ content: [{ type: "text", text }] });
 const refused = (text: string): Result => ({ content: [{ type: "text", text }], isError: true });
 
 const QUESTION_ID = /^question_[0-9a-f]{12}$/;
+const FYI_ID = /^fyi_[0-9a-f]{12}$/;
 const WRITE = { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false };
 
 function words(text: unknown): string {
@@ -48,7 +55,7 @@ async function meant(drafts: Drafts, draft: number | undefined, which: (pending:
 }
 
 /** Register the write tools; the door has verified the owner's sign-in before any of them runs. */
-export function registerWriteTools(server: McpServer, drafts: Drafts, openQuestion: OpenQuestion, log: (line: string) => void): void {
+export function registerWriteTools(server: McpServer, drafts: Drafts, openQuestion: OpenQuestion, unheardFyis: UnheardFyis, log: (line: string) => void): void {
   const guarded = async (body: () => Promise<Result>, { lockFirst = true } = {}): Promise<Result> => {
     try {
       if (lockFirst) {
@@ -165,17 +172,37 @@ export function registerWriteTools(server: McpServer, drafts: Drafts, openQuesti
     {
       title: "Mark replies heard",
       description:
-        "Mark replies catch_up read under Replies ready as heard, once the owner says they are fine or has nothing more to ask about them, so catch_up " +
-        "offers them no more. Without drafts it marks every reply catch_up offers now. Works while writes are locked. Needs the owner's sign-in.",
-      inputSchema: z.object({ drafts: z.array(z.number().int().min(1)).min(1).max(REPLIES).optional().describe("the replies' draft numbers, as catch_up read them") }),
+        "Mark replies catch_up read under Replies ready, or FYIs it read after them, as heard, once the owner says they are fine or has nothing more " +
+        "to ask about them, so catch_up offers them no more; the box marks the FYIs heard in the library too. Without drafts or fyis it marks every " +
+        "reply catch_up offers now. Works while writes are locked. Needs the owner's sign-in.",
+      inputSchema: z.object({
+        drafts: z.array(z.number().int().min(1)).min(1).max(REPLIES).optional().describe("the replies' draft numbers, as catch_up read them"),
+        fyis: z.array(z.string().max(40)).min(1).max(FYIS).optional().describe("the FYIs' ids, as catch_up read them, for example fyi_3f2a9c0d1e4b"),
+      }),
       annotations: WRITE,
     },
-    async ({ drafts: named }) =>
+    async ({ drafts: named, fyis }) =>
       guarded(async () => {
-        const ids = named ? [...new Set(named)] : (await drafts.replies()).map((draft) => draft.id);
-        if (ids.length === 0) throw new DraftRefusal("there is no reply waiting to be heard");
-        const heard = await drafts.hear(ids);
-        return said(`Heard: ${heard.length === 1 ? `draft ${heard[0]}'s reply` : `the replies of drafts ${heard.join(", ")}`}; catch_up will not offer ${heard.length === 1 ? "it" : "them"} again.`);
+        // The FYIs are checked first and marked last, so a reply the database refuses leaves no FYI marked.
+        const fyiIds = fyis ? [...new Set(fyis.map((id) => id.trim().toLowerCase()))] : [];
+        if (fyiIds.length > 0) {
+          const waiting = new Set(await unheardFyis());
+          const wrong = fyiIds.filter((id) => !FYI_ID.test(id) || !waiting.has(id));
+          if (wrong.length > 0) throw new DraftRefusal(`${wrong.join(", ")} ${wrong.length === 1 ? "is not an FYI" : "are not FYIs"} waiting to be heard; give the ids catch_up read`);
+        }
+        const told: string[] = [];
+        if (named || !fyis) {
+          const ids = named ? [...new Set(named)] : (await drafts.replies()).map((draft) => draft.id);
+          if (ids.length === 0) throw new DraftRefusal("there is no reply waiting to be heard");
+          const heard = await drafts.hear(ids);
+          told.push(heard.length === 1 ? `draft ${heard[0]}'s reply` : `the replies of drafts ${heard.join(", ")}`);
+        }
+        if (fyiIds.length > 0) {
+          await drafts.hearFyis(fyiIds);
+          told.push(fyiIds.length === 1 ? "1 FYI" : `${fyiIds.length} FYIs`);
+        }
+        const one = told.length === 1 && (told[0]!.startsWith("draft ") || told[0] === "1 FYI");
+        return said(`Heard: ${told.join(" and ")}; catch_up will not offer ${one ? "it" : "them"} again.`);
       }, { lockFirst: false }),
   );
 

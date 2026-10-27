@@ -26,7 +26,7 @@ const root = fileURLToPath(new URL("../../../", import.meta.url));
  * which takes some seconds on Windows, so the test is given more than the default minute (37 s on Linux, past 60 on Windows). */
 const CLI = [process.execPath, "--import", pathToFileURL(path.join(root, "node_modules", "tsx", "dist", "loader.mjs")).href, path.join(root, "packages", "cli", "src", "bins", "storytree.ts")];
 
-test("2.2, 2.8, 2.9, 2.15-2.17, 3.2, 3.3, 1.13 against the real command line: catch_up's order, what landed, a record's history, tell_me, count, find, and the voice session its children record as", { timeout: 240_000 }, async () => {
+test("2.2, 2.8, 2.9, 2.15-2.17, 3.2, 3.3, 1.13 against the real command line: catch_up's order with an FYI until heard, what landed, a record's history, tell_me, count, find, and the voice session its children record as", { timeout: 240_000 }, async () => {
   const dir = realpathSync.native(mkdtempSync(path.join(tmpdir(), "storytree-voice-real-")));
   const project = `t-${randomBytes(4).toString("hex")}`;
   const server = await connectLibrary({ url: testServerUrl() });
@@ -47,6 +47,7 @@ test("2.2, 2.8, 2.9, 2.15-2.17, 3.2, 3.3, 1.13 against the real command line: ca
     const newer = await library.raiseQuestion({ arc: arc.id, title: "Keep the secret door address alone?", stakes: "s", statement: "s", context: "c", options: "a or b" });
     const done = await library.addIncrement({ arc: arc.id, title: "A tested read door", objective: "o", body: "b" });
     await library.closeIncrement(done.id, { disposition: "landed", pr: "#1721" });
+    const fyi = await library.recordFyi({ title: "The secret-check exemptions changed", what: "Two paths were added.", about: "PR #1801", by: "session:test", at: "2026-10-26T09:00:00.000Z" });
 
     const config = loadConfig({ ...process.env, STORYTREE_HOME: home, VOICE_TOKEN: newToken(), REPO_DIR: folder, STORYTREE_CLI: JSON.stringify(CLI), PORT: "0", CLAUDE_CODE_SESSION_ID: "the-owners-session" });
     const door = await startDoor(config, { log: () => {} });
@@ -57,6 +58,11 @@ test("2.2, 2.8, 2.9, 2.15-2.17, 3.2, 3.3, 1.13 against the real command line: ca
       assert.deepEqual(numbered.map((line) => / — (\S+)$/.exec(line)?.[1]), [waiting.id, older.id, newer.id, done.id], caught);
       assert.match(numbered[0]!, /^1\. Install the door on the box: Say when the phone call works\./);
       assert.match(numbered[3]!, /^4\. A tested read door \(#1721\), on Voice reaches storytree — /);
+      // The FYI he has not heard comes last, unnumbered, until it is marked heard.
+      const told = (text: string) => text.split("FYIs, until you have heard them:\n")[1]?.split("\n");
+      assert.deepEqual(told(caught), [`The secret-check exemptions changed (2026-10-26 09:00): Two paths were added. (about PR #1801, by session:test) — ${fyi.id}`], caught);
+      await library.markFyisHeard([fyi.id]);
+      assert.deepEqual(told(textOf((await client.callTool({ name: "catch_up", arguments: {} })) as never)), ["(none)"]);
 
       const changed = textOf((await client.callTool({ name: "what_changed", arguments: { span: "last hour" } })) as never);
       assert.match(changed, /^Voice reaches storytree:\n {2}1\. A tested read door \(#1721\) — increment_[0-9a-f]{12}$/m);

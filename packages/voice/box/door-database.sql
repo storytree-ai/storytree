@@ -176,6 +176,27 @@ CREATE TRIGGER voice_run_notify AFTER UPDATE OF confirmed_at ON voice_draft FOR 
   WHEN (NEW.kind = 'manager_run' AND OLD.confirmed_at IS NULL AND NEW.confirmed_at IS NOT NULL)
   EXECUTE FUNCTION voice_run_notify();
 
+-- FYIS HEARD (contract 5.15). The voice door cannot write the library (ADR-1155), so an FYI the owner
+-- has heard by voice is marked here: the door's role may add a row naming the FYI, never change or
+-- remove one, and the database sets its time. catch_up leaves a marked FYI out at once; the box's
+-- committer marks it heard in the library (`storytree fyi heard`) and sets carried_at, the box's
+-- account alone. Adding a mark notifies voice_run, so the listener carries it within seconds.
+CREATE TABLE IF NOT EXISTS voice_fyi_heard (
+  fyi text PRIMARY KEY CHECK (fyi ~ '^fyi_[0-9a-f]{12}$'),
+  heard_at timestamptz NOT NULL DEFAULT now(),
+  carried_at timestamptz
+);
+
+CREATE OR REPLACE FUNCTION voice_fyi_notify() RETURNS trigger LANGUAGE plpgsql AS $notify$
+BEGIN
+  PERFORM pg_notify('voice_run', 'fyi');
+  RETURN NULL;
+END
+$notify$;
+
+DROP TRIGGER IF EXISTS voice_fyi_notify ON voice_fyi_heard;
+CREATE TRIGGER voice_fyi_notify AFTER INSERT ON voice_fyi_heard FOR EACH STATEMENT EXECUTE FUNCTION voice_fyi_notify();
+
 REVOKE ALL ON DATABASE "storytree-voice" FROM PUBLIC;
 GRANT CONNECT ON DATABASE "storytree-voice" TO storytree_voice;
 GRANT USAGE ON SCHEMA public TO storytree_voice;
@@ -183,5 +204,6 @@ GRANT SELECT, INSERT ON voice_lock TO storytree_voice;
 GRANT SELECT ON voice_draft TO storytree_voice;
 GRANT INSERT (kind, note_kind, question, words, body, session) ON voice_draft TO storytree_voice;
 GRANT UPDATE (confirmed_at, cancelled_at, heard_at) ON voice_draft TO storytree_voice;
+GRANT SELECT, INSERT (fyi) ON voice_fyi_heard TO storytree_voice;
 
 RESET ROLE;

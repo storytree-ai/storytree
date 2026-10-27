@@ -25,7 +25,7 @@ import { DROPPED, commitDue, runFiles } from "./commit.js";
 import { Drafts } from "./drafts.js";
 import { serialTicks } from "./listen.js";
 import { WRITE_TOOL_NAMES } from "./writes.js";
-import { LEGACY_HEADERS, childrenIn, connect, gitRepo, namesOnlyListedTools, raw, testDoor, textOf, toolCall, type TestDoor } from "./testing/door.js";
+import { FAKE_CLI, LEGACY_HEADERS, childrenIn, connect, gitRepo, namesOnlyListedTools, raw, testDoor, textOf, toolCall, type TestDoor } from "./testing/door.js";
 
 const repo = gitRepo({ "README.md": "voice test repository\n" });
 const PUBLIC_URL = "https://voice-box.example-tailnet.ts.net";
@@ -133,10 +133,14 @@ function committerScratch(t: { after: (fn: () => void) => void }) {
   const dir = mkdtempSync(path.join(os.tmpdir(), "storytree-voice-commit-"));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   const laneLog = path.join(dir, "lane.log");
+  const storytreeLog = path.join(dir, "storytree.log");
+  writeFileSync(storytreeLog, "");
   return {
     dir,
     laneLog,
+    storytreeLog,
     env: {
+      VOICE_STORYTREE: JSON.stringify([...FAKE_CLI, `--fake-log=${storytreeLog}`]),
       HOME: dir,
       REPO_DIR: repo.dir,
       STORYTREE_SESSION_ID: "the-timers-own-session",
@@ -295,6 +299,7 @@ test("5.6 start_manager_run briefs a session manager run from the door's templat
   const committer = {
     repoDir: repo.dir,
     runLane: JSON.parse(scratch.env.VOICE_RUN_LANE) as string[],
+    storytree: JSON.parse(scratch.env.VOICE_STORYTREE) as string[],
     runsDir: scratch.env.VOICE_RUNS_DIR,
     env: scratch.env,
     log: () => {},
@@ -677,7 +682,7 @@ test("5.11 · a run's reply is offered by catch_up until the owner marks it hear
   await onDatabase(voice.asOwner, (client) => client.query("UPDATE voice_draft SET run_ended_at = now(), reply = 'Reply to ' || words WHERE id IN (1, 2)"));
   // Older than a day: still offered until heard.
   await backdate(voice.asOwner, 1, "run_ended_at = now() - interval '3 days'");
-  const replies = async () => (await voice.call("catch_up", {})).text.split("Replies ready:\n")[1]!.split("\n");
+  const replies = async () => (await voice.call("catch_up", {})).text.split("Replies ready:\n")[1]!.split("\nFYIs")[0]!.split("\n");
   assert.deepEqual(await replies(), ["Draft 2, the run you asked for: Reply to second", "Draft 1, the run you asked for: Reply to first"]);
 
   await voice.call("lock_voice", { reason: "heard marks work while locked" });
@@ -707,6 +712,59 @@ test("5.11 · a run's reply is offered by catch_up until the owner marks it hear
   await onDatabase(voice.asOwner, (client) => client.query("UPDATE voice_draft SET run_ended_at = now() WHERE id = 4"));
   await onDatabase(voice.asRole, (client) => client.query("UPDATE voice_draft SET heard_at = '2000-01-01' WHERE id = 4"));
   assert.ok((await rows(voice.asOwner))[3].heard_at.getFullYear() > 2000, "the role chose the heard time");
+});
+
+test("5.15 · an FYI catch_up reads after Replies ready is marked heard by voice (mark_heard, by its id): catch_up leaves it out at once and the box's committer marks it heard in the library; the door's role may add a mark, never change, clear or carry one", async (t) => {
+  const voice = await writesDoor(t);
+  const scratch = committerScratch(t);
+  const caught = async () => (await voice.call("catch_up", {})).text;
+  const fyis = async () => (await caught()).split("FYIs, until you have heard them:\n")[1]!.split("\n").map((line) => / — (\S+)$/.exec(line)?.[1] ?? line);
+  const first = await caught();
+  assert.ok(first.indexOf("Replies ready:") >= 0 && first.indexOf("Replies ready:") < first.indexOf("FYIs, until you have heard them:"), first);
+  assert.deepEqual(await fyis(), ["fyi_0000000000f1", "fyi_0000000000f2"]);
+
+  // Only an FYI the library lists as waiting to be heard; nothing is marked when one is wrong.
+  const wrong = await voice.call("mark_heard", { fyis: ["fyi_0000000000f1", "fyi_0000000000f9"] });
+  assert.equal(wrong.refused, true, wrong.text);
+  assert.match(wrong.text, /fyi_0000000000f9 is not an FYI waiting to be heard/);
+  assert.deepEqual(await fyis(), ["fyi_0000000000f1", "fyi_0000000000f2"]);
+
+  await voice.call("lock_voice", { reason: "heard marks work while locked" });
+  const heard = await voice.call("mark_heard", { fyis: ["fyi_0000000000f1"] });
+  assert.equal(heard.refused, false, heard.text);
+  assert.match(heard.text, /^Heard: 1 FYI; catch_up will not offer it again\./);
+  assert.deepEqual(await fyis(), ["fyi_0000000000f2"]);
+  const fyiRows = () => onDatabase(voice.asOwner, async (client) => (await client.query("SELECT * FROM voice_fyi_heard ORDER BY fyi")).rows);
+
+  // The committer's tick marks each heard in the library, in the order heard, once; one storytree refuses stays for the next tick.
+  await onDatabase(voice.asRole, (client) => client.query("INSERT INTO voice_fyi_heard (fyi) VALUES ('fyi_000000000000')"));
+  const lines: string[] = [];
+  const tick = () => commitTick({ ...scratch.env, VOICE_DRAFTS_URL: voice.asOwner }, (line) => lines.push(line));
+  await tick();
+  assert.deepEqual(childrenIn(scratch.storytreeLog).commands, [["fyi", "heard", "fyi_0000000000f1"], ["fyi", "heard", "fyi_000000000000"]]);
+  assert.deepEqual((await fyiRows()).map((row) => [row.fyi, row.carried_at !== null]), [["fyi_000000000000", false], ["fyi_0000000000f1", true]]);
+  assert.ok(lines.includes("fyi_0000000000f1 marked heard in the library"), lines.join("; "));
+  assert.ok(lines.some((line) => line.startsWith("fyi_000000000000 not yet marked heard in the library: fyi_000000000000 is not an FYI")), lines.join("; "));
+  await tick();
+  assert.equal(childrenIn(scratch.storytreeLog).commands.filter((argv) => argv.includes("fyi_0000000000f1")).length, 1, "carried twice");
+
+  // The door's role: its mark keeps the first time, and it may not choose a time, carry, clear or name a non-FYI.
+  await onDatabase(voice.asRole, async (client) => {
+    await client.query("INSERT INTO voice_fyi_heard (fyi) VALUES ('fyi_0000000000f1') ON CONFLICT DO NOTHING");
+    await assert.rejects(client.query("INSERT INTO voice_fyi_heard (fyi, heard_at) VALUES ('fyi_0000000000f3', '2000-01-01')"), /permission denied/);
+    await assert.rejects(client.query("UPDATE voice_fyi_heard SET carried_at = now()"), /permission denied/);
+    await assert.rejects(client.query("DELETE FROM voice_fyi_heard"), /permission denied/);
+    await assert.rejects(client.query("INSERT INTO voice_fyi_heard (fyi) VALUES ('question_0000000000c1')"), /check constraint/);
+  });
+
+  // A door database made before the marks, until door-database.sql runs again: catch_up still reads every FYI, a mark is
+  // refused saying why, and the committer's tick goes on.
+  await onDatabase(voice.asOwner, (client) => client.query("DROP TABLE voice_fyi_heard"));
+  assert.deepEqual(await fyis(), ["fyi_0000000000f1", "fyi_0000000000f2"]);
+  const early = await voice.call("mark_heard", { fyis: ["fyi_0000000000f2"] });
+  assert.equal(early.refused, true, early.text);
+  assert.match(early.text, /until the box's door database is brought up to date/);
+  await tick();
 });
 
 test("2.19 · with sign-in, and with writes, the instructions lead with catch_up, name no tool tools/list does not offer, and give the write rules only with writes on", async (t) => {

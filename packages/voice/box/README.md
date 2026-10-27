@@ -16,7 +16,7 @@ The script is the owner's to run, because sudo and database roles are his (ADR-0
 |---|---|
 | `role.sql` | Makes the role and the door's database. The role has a password and signs in over 127.0.0.1 only. |
 | `library-grants.sql`, `activity-grants.sql`, `trunks-grants.sql` | The role's reads, measured by running every command the door runs as a role granted exactly these (`src/role.test.ts`). |
-| `door-database.sql` | Makes the lock: the role may add a row and never remove one. Also the drafts and notes of voice writes (capability 5); safe to run again, and it brings a table an earlier copy made up to date. |
+| `door-database.sql` | Makes the lock: the role may add a row and never remove one. Also the drafts and notes of voice writes and the FYIs heard by voice (capability 5); safe to run again, and it brings a table an earlier copy made up to date. |
 | `trunk-approval.sql` | Approves the door's copy as a checkout. It is the trunk of its own machine id, so the owner's checkout stays the trunk on his. |
 
 Why a password and not the local socket: the storytree command line reaches a library only by a

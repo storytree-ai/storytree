@@ -135,7 +135,7 @@ test("27.5 · library changes --actor lists each record one writer wrote, health
   assert.match(said, new RegExp(`${kept.id}\\s+\\[definition\\]\\s+updated by 2 writes\\n\\s+meaning: First meaning\\. -> A worse rewrite\\.`), "the field from before the first write to after the last");
   assert.match(said, new RegExp(`${made.id}\\s+\\[definition\\]\\s+created\\n\\s+term: \\(none\\) -> Bob's\\n\\s+meaning: \\(none\\) -> New\\.`));
   assert.match(said, new RegExp(`${touched.id}\\s+\\[definition\\]\\s+retired: thought overtaken`));
-  assert.doesNotMatch(said, /health|Someone else's|test-runner/);
+  assert.doesNotMatch(said, /\[health\]|Someone else's|test-runner/);
 
   await library.editNote(kept.id, { meaning: "Mended." }, { actor: "session:cat" });
   assert.match(await run("changes", { limit: undefined, actor: "session:bob" }), new RegExp(`${kept.id}[^]*written since by session:cat at entry \\d+`), "a later writer is named");

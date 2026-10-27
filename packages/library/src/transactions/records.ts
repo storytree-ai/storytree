@@ -165,24 +165,31 @@ export function writtenBy(of: string, entries: readonly HistoryEntry[]): Written
   return written.sort((one, other) => compareCodePoints(one.id, other.id));
 }
 
+/** One record's part of a revert of a writer's writes: what it reports, the record its entry keeps, and the entry's reason. */
+export interface RevertWrite {
+  readonly reverted: RevertedWrite;
+  readonly record: RecordEnvelope;
+  readonly reason: string;
+}
+
 /** What a revert of `input.of`'s writes does to each record, refused (LaterWriterError) where another writer wrote since. */
 export function writesReverted(
   input: RevertWritesInput,
   written: readonly WrittenRecord[],
   current: (id: string) => RecordEnvelope | undefined,
   at: string,
-): { readonly reverted: RevertedWrite; readonly record: RecordEnvelope; readonly reason: string }[] {
+): RevertWrite[] {
   const later = written.filter((one) => one.others.length > 0).map(({ id, others: [first] }) => ({ id, seq: first!.seq, ...(first!.actor === undefined ? {} : { actor: first!.actor }) }));
   if (later.length > 0) throw new LaterWriterError(input.of, later);
   const why = input.reason === undefined ? "" : `: ${input.reason}`;
-  return written.flatMap(({ id, before }) => {
+  return written.flatMap(({ id, before }): RevertWrite[] => {
     const live = current(id);
     if (before === undefined || before.action === "retired") {
-      return live === undefined ? [] : [{ reverted: { id, action: "retired" as const }, record: live, reason: `reverted ${input.of}'s writes, which created it${why}` }];
+      return live === undefined ? [] : [{ reverted: { id, action: "retired" }, record: live, reason: `reverted ${input.of}'s writes, which created it${why}` }];
     }
     const record = restoredRecord(id, before.record, live, at, input.upgrade);
     check(record, input.validate);
-    return [{ reverted: { id, action: "updated" as const, to: before.seq }, record, reason: `reverted ${input.of}'s writes, to ${before.seq}${why}` }];
+    return [{ reverted: { id, action: "updated", to: before.seq }, record, reason: `reverted ${input.of}'s writes, to ${before.seq}${why}` }];
   });
 }
 

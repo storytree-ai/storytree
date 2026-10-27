@@ -8,7 +8,7 @@
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
-import { PLUGIN_INTERFACE, pluginParts, pluginRecordKinds } from "./factory.js";
+import { PLUGIN_INTERFACE, pluginLibrarian, pluginParts, pluginRecordKinds } from "./factory.js";
 
 /** Each kind a factory plugin may stand in for a part with: the hosts that mount it, and what one declaration is. */
 export const STAND_IN_KINDS: Readonly<Record<string, { readonly hosts: string; readonly shape: string }>> = {
@@ -136,6 +136,12 @@ export function checkPlugin(folder: string | undefined, plugin: string): PluginC
     const message = (error as Error).message;
     if (!problems.includes(message)) problems.push(message);
   }
+  try {
+    if (pluginLibrarian(folder, plugin) !== undefined) adds.librarian = 1;
+  } catch (error) {
+    const message = (error as Error).message;
+    if (!problems.includes(message)) problems.push(message);
+  }
   if (problems.length === 0 && Object.keys(adds).length === 0) problems.push(`${plugin}'s storytree manifest names none of the kinds a part can be stood in with (${Object.keys(STAND_IN_KINDS).join(", ")})`);
   return { loads: problems.length === 0, adds, problems };
 }
@@ -161,6 +167,8 @@ export function contractSaid(): string {
     "Its own kinds of record, which the library keeps while the plugin is mounted and keeps dormant, hidden but intact, while it is not:",
     "  \"recordKinds\": [{ \"kind\": \"<plugin>.<kind>\", \"version\": 1, \"fields\": <a JSON Schema of type \"object\">, \"writers\": [\"<database role>\", …],",
     "    \"upgrades\"?: [{ \"from\", \"name\", \"rename\"?: { old: new }, \"remove\"?: [field], \"set\"?: { field: value } }] }]",
+    "Its own librarian, librarian-<plugin>, which keeps those records on its schedule as a database role storytree fences to the plugin's kinds:",
+    "  \"librarian\": { \"role\": \"<database role>\", \"update\"?: true }: a role of its own, never one of its kinds' writers; update lets it change their records, not only add them",
     "",
     "A verb, in a family's verbs:",
     "  { command: { family, name, summary, usage? } | { absent: why },",

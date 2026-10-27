@@ -10,7 +10,8 @@
     "./librarian": "./src/librarian/index.ts",
     "./pr-cutover": "./src/work/pr-cutover.ts",
     "./connection-error": "./src/project/connection-error.ts",
-    "./printable": "./src/api/printable.ts"
+    "./printable": "./src/api/printable.ts",
+    "./testing/pg": "./src/testing/pg.ts"
   },
   "scripts": {
     "typecheck": "tsc -p ."

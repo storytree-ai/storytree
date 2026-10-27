@@ -1,7 +1,7 @@
 /** Capability 1 · The address and its guards, contracts 1.1-1.14: the door run in-process against a stand-in command line. */
 import assert from "node:assert/strict";
 import http from "node:http";
-import { spawn } from "node:child_process";
+import { execFileSync, spawn } from "node:child_process";
 import { mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -327,7 +327,9 @@ test("1.12 a child gets an argument array with no shell, runs in the door's repo
     assert.deepEqual(child.argv, ["library", "search", "--limit", "5", "--", hostile]);
     assert.equal(realpathSync.native(child.cwd).toLowerCase(), realpathSync.native(repo.dir).toLowerCase());
     const allowed = /^(PATH|HOME|LANG|TZ|STORYTREE_HOME|STORYTREE_SESSION_ID|TMPDIR|TMP|TEMP|SYSTEMROOT|WINDIR|PATHEXT|USERPROFILE)$/i;
-    assert.deepEqual(child.names.filter((name) => !allowed.test(name)), [], "a child inherits only the named variables");
+    // What the system adds to any child's environment by itself (Windows' logon names, macOS's text encoding) is not inherited.
+    const added = new Set<string>(JSON.parse(execFileSync(process.execPath, ["-e", "process.stdout.write(JSON.stringify(Object.keys(process.env)))"], { env: {} }).toString()));
+    assert.deepEqual(child.names.filter((name) => !allowed.test(name) && !added.has(name)), [], "a child inherits only the named variables");
     for (const name of ["LANG", "TZ", "STORYTREE_HOME", "PATH"]) assert.ok(child.names.includes(name), `${name} reaches the child`);
   } finally {
     await door.close();

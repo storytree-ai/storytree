@@ -135,3 +135,38 @@ test("6.3 · `quality risk` writes an increment's risk line, and `quality story-
     rmSync(root, { recursive: true, force: true });
   }
 });
+
+test("6.4 · `quality story-risks` writes no history for a story whose reading has not changed since its last run, whatever day it is read", async () => {
+  const root = mkdtempSync(join(tmpdir(), "risk-"));
+  try {
+    for (const node of NODES) {
+      mkdirSync(join(root, node.folder, "src"), { recursive: true });
+      writeFileSync(join(root, node.folder, "package.json"), JSON.stringify({ name: node.name, dependencies: Object.fromEntries(node.deps.map((dep) => [dep, "workspace:*"])) }));
+    }
+    writeFileSync(join(root, "packages/library/src/l.ts"), "await sql`INSERT INTO notes VALUES (1)`;\n");
+
+    await withLibrary(async (library) => {
+      const story = await library.addStory({ title: "The library" });
+      await library.createArc({ title: "Risk", intent: "Read risk", endState: "Read", stories: [story.id] });
+      const context = { folder: root, library, project: library.name, session: "person:test" } as unknown as SessionVerbContext;
+      const storyRisks = QUALITY_FAMILIES[0]!.verbs.find((one) => (one.command as { name: string }).name === "story-risks")!;
+      const first = await storyRisks.act({}, context, WORDS);
+      // A reading stored on another day, the same in all but its date, is unchanged too.
+      const stored = (await library.get(story.id))!.fields as { risk: { depth: object; radius: object } };
+      await library.editStory(story.id, { risk: { depth: { ...stored.risk.depth, read: "2026-01-01" }, radius: { ...stored.risk.radius, read: "2026-01-01" } } } as never, { actor: "person:test" });
+      const before = (await library.history({ id: story.id })).length;
+
+      const again = await storyRisks.act({}, context, WORDS);
+      assert.equal((await library.history({ id: story.id })).length, before, "an unchanged reading is not written again");
+      assert.match(again.text, /^Wrote 0 stories' risk readings, 1 unchanged:/);
+      assert.deepEqual(again.text.split("\n").slice(1), first.text.split("\n").slice(1), "every story's line is still said, as the watcher diffs them");
+
+      writeFileSync(join(root, "packages/library/src/m.ts"), "await sql`DROP TABLE notes`;\n");
+      const changed = await storyRisks.act({}, context, WORDS);
+      assert.match(changed.text, /^Wrote 1 stories' risk readings:/, `a changed reading is written: ${changed.text}`);
+      assert.equal((await library.history({ id: story.id })).length, before + 1);
+    });
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});

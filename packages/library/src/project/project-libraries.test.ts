@@ -8,6 +8,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
+import type { Client } from "pg";
+
 import { quietFor, waitUntil } from "@storytree/test-waits";
 
 import { createTestRole, dropTestDatabases, dropTestRoles, testRoleUrl as as, testServerUrl, uniqueProjectName, withTestClient, withTestClientAs } from "../testing/pg.js";
@@ -490,7 +492,7 @@ test("1.11 an account that may not change a project's tables opens it set up, be
       opened = undefined;
 
       // A project never set up is refused, and nothing is attempted.
-      await withTestClient((client) => client.query("DROP TABLE library_meta, record_event, record, feedback_screenshot CASCADE"), databaseOf(name));
+      await withTestClient((client) => client.query("DROP TABLE library_meta, record_event, record, feedback_screenshot, history_repair CASCADE"), databaseOf(name));
       opened = await connect({ url: as(reader) });
       await assert.rejects(opened.openProject(name), (error: unknown) => {
         assert.ok(error instanceof ConnectionError, `a ConnectionError, not ${String(error)}`);
@@ -814,7 +816,61 @@ test("1.26 a project opened with a plugin's kinds writes and reads them, its sys
   });
 });
 
-test("1.22 each history entry carries the server's own time and the account that wrote it, whatever the writer sends, and only the table's owner may change or remove an entry", async () => {
+test("1.28 · a change to the history goes only through the logged repair switch, for the owner too, and the owner's ordinary writes pass when row-level security is forced", async () => {
+  const name = uniqueProjectName();
+  const owner = `${name}-owner`;
+  const database = databaseOf(name);
+  const asOwner = <T>(fn: (client: Client) => Promise<T>) => withTestClientAs(owner, fn, database);
+  let opened: Storytree | undefined;
+  try {
+    await createTestRole(owner, { createdb: true });
+    opened = await connect({ url: as(owner) });
+    const project = await opened.openProject(name);
+    await project.transactions.save({ id: "kept", type: "decision", fields: { title: "Kept", text: "Before row security." } });
+    // As the library host's grants leave it: row-level security on, and forced, so the owner meets the policies too.
+    await withTestClient((client) => client.query(
+      "ALTER TABLE record ENABLE ROW LEVEL SECURITY, FORCE ROW LEVEL SECURITY; ALTER TABLE record_event ENABLE ROW LEVEL SECURITY, FORCE ROW LEVEL SECURITY",
+    ), database);
+
+    await project.transactions.save({ id: "later", type: "decision", fields: { title: "Later", text: "After." } });
+    await project.transactions.edit({ id: "kept", fields: { text: "Edited under forced row security." } });
+    await project.transactions.retire({ id: "later", reason: "done with it" });
+    assert.deepEqual((await project.transactions.list("decision")).map((record) => [record.id, record.fields.text]), [["kept", "Edited under forced row security."]]);
+    assert.equal((await project.transactions.history()).length, 4, "the owner reads and adds history");
+
+    const entries = () => withTestClient(async (client) => (await client.query<{ actor: string | null }>("SELECT actor FROM record_event ORDER BY seq")).rows.map((row) => row.actor), database);
+    const before = await entries();
+    for (const change of ["UPDATE record_event SET actor = 'rewritten'", "DELETE FROM record_event", "TRUNCATE record_event"]) {
+      await assert.rejects(asOwner((client) => client.query(change)), /append-only/, `the owner: ${change}`);
+      await assert.rejects(withTestClient((client) => client.query(change), database), /append-only/, `a superuser: ${change}`);
+    }
+    assert.deepEqual(await entries(), before, "nothing in the history changed");
+
+    await assert.rejects(asOwner((client) => client.query("SELECT record_event_repair('')")), /reason/, "the switch needs a reason");
+    const repaired = await asOwner(async (client) => {
+      await client.query("BEGIN");
+      await client.query("SELECT record_event_repair('contract 13.5: a number the import got wrong')");
+      const { rowCount } = await client.query("UPDATE record_event SET actor = 'repaired' WHERE record_id = 'kept' AND action = 'created'");
+      await client.query("COMMIT");
+      return rowCount;
+    });
+    assert.equal(repaired, 1, "through the switch, the owner's repair reaches the entry");
+    await assert.rejects(asOwner((client) => client.query("DELETE FROM record_event")), /append-only/, "the switch lasted only for its transaction");
+
+    const log = await withTestClient(async (client) => (await client.query<{ operation: string; reason: string; recorded_by: string; recorded_at: Date; now: Date }>(
+      "SELECT operation, reason, recorded_by, recorded_at, now() AS now FROM history_repair ORDER BY seq",
+    )).rows, database);
+    assert.deepEqual(log.map((row) => [row.operation, row.reason, row.recorded_by]), [["UPDATE", "contract 13.5: a number the import got wrong", owner]], "the use is recorded");
+    assert.ok(Math.abs(log[0]!.recorded_at.getTime() - log[0]!.now.getTime()) < 60_000, `with the server's time, not ${String(log[0]!.recorded_at)}`);
+    await assert.rejects(asOwner((client) => client.query("DELETE FROM history_repair")), /append-only/, "and its record stays");
+  } finally {
+    await opened?.close();
+    await dropTestDatabases([database]);
+    await dropTestRoles([owner]);
+  }
+});
+
+test("1.22 each history entry carries the server's own time and the account that wrote it, whatever the writer sends, and no writer may change or remove an entry", async () => {
   const name = uniqueProjectName();
   const writer = `${name}-writer`;
   const database = databaseOf(name);
@@ -852,8 +908,8 @@ test("1.22 each history entry carries the server's own time and the account that
       }
       assert.deepEqual((await history("true")).map((row) => row.actor), [null, "someone else"], "every entry is still there, unchanged");
 
-      await withTestClient((client) => client.query("DELETE FROM record_event WHERE record_id = 'older'"), database);
-      assert.deepEqual((await history("true")).map((row) => row.actor), ["someone else"], "the owner may still remove an entry");
+      await assert.rejects(withTestClient((client) => client.query("DELETE FROM record_event WHERE record_id = 'older'"), database), /append-only/, "nor may the owner");
+      assert.deepEqual((await history("true")).map((row) => row.actor), [null, "someone else"], "the owner removed nothing");
     });
   } finally {
     await dropTestRoles([writer]);

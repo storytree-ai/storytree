@@ -151,7 +151,10 @@ Passwords are generated on Mint, never supplied in argv or printed:
 Backups use `pg_dump -Fc`, not the library's project snapshot. The project
 snapshot covers records/history only; a server backup must also preserve
 activity, trunks, schemas, indexes, sequences and embedding caches. Each dump and
-its row counts share an exported repeatable-read snapshot. Restores use
+its row counts share an exported repeatable-read snapshot. The box's own account,
+a superuser, dumps as itself, so row-level security forced on the owner (library
+contract 1.28) cannot fail the dump; any other account acts as the owner, with
+`row_security` off so a policy that would hide rows is an error. Restores use
 `--no-owner --no-acl --role=…`, mapping ownership to the destination owner, and
 stop on the first SQL error.
 See [PostgreSQL's dump documentation](https://www.postgresql.org/docs/16/app-pgdump.html)

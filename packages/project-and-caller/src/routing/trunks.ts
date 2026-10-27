@@ -109,10 +109,10 @@ const IMPORTS = `CREATE TABLE IF NOT EXISTS imports (
  * The trunks database, set up by the library with the table's definitions (ADR-0973), and any more tables kept beside
  * them (Machines' names), each set naming the file that declares it, which a shared library reads for being merged.
  */
-export function trunksPool(storytree: Pick<Storytree, "ownDatabase">, more?: { readonly tables: readonly string[]; readonly declaredIn: string }): Promise<Pool> {
+export function trunksPool(storytree: Pick<Storytree, "ownDatabase">, more?: { readonly tables: readonly string[]; readonly declaredIn: readonly (string | undefined)[] }): Promise<Pool> {
   return storytree.ownDatabase(TRUNKS_DATABASE, {
     tables: [SCHEMA, APPROVAL, IMPORTS, ...(more?.tables ?? [])],
-    declaredIn: [import.meta.url, ...(more === undefined ? [] : [more.declaredIn])],
+    declaredIn: [import.meta.url, ...(more?.declaredIn ?? [])],
   });
 }
 

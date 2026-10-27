@@ -256,7 +256,7 @@ const SCHEMA = [
 
 /** The lag history of `project`, in its own database on `storytree`'s server: a project reads only its own runs. */
 export async function openHistory(storytree, project = PROJECT) {
-  const pool = await storytree.ownDatabase(LAG_DATABASE, { tables: SCHEMA, declaredIn: import.meta.url });
+  const pool = await storytree.ownDatabase(LAG_DATABASE, { tables: SCHEMA, declaredIn: [import.meta.url] });
   const json = (value) => (value === null || value === undefined ? null : JSON.stringify(value));
   return {
     async read() {

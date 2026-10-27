@@ -121,10 +121,11 @@ export interface OwnDatabaseOptions {
   /** Its table definitions, each idempotent (CREATE TABLE IF NOT EXISTS and the like), run in order. */
   readonly tables?: readonly string[];
   /**
-   * The source files that declare `tables`, each a path or a file URL (a caller's `import.meta.url`): a shared library
-   * takes them only when every one is merged (contract 1.29), and tables naming none count as unmerged there.
+   * The modules that declare `tables`, each a path or a file URL (its `import.meta.url`): a shared library takes them only
+   * when every one is merged (contract 1.29), and tables naming none count as unmerged there. An entry left undefined
+   * is a module bundled with no URL of its own, which reads as released code, as the project schema does in a bundle.
    */
-  readonly declaredIn?: string | readonly string[];
+  readonly declaredIn?: readonly (string | undefined)[];
 }
 
 /** A connection to one Postgres server and the storytree projects on it. */
@@ -374,12 +375,12 @@ class ServerConnection implements Storytree {
     }
     if (options.tables === undefined || options.tables.length === 0) return pool;
     const tables = options.tables;
-    const declaredIn = [options.declaredIn ?? []].flat().map((file) => (file.startsWith("file:") ? fileURLToPath(file) : file));
+    const declaredIn = (options.declaredIn ?? []).map((file) => (file?.startsWith("file:") ? fileURLToPath(file) : file));
     const merged = this.#merged;
     const standing = merged && ((): SchemaMerged =>
       declaredIn.length === 0
         ? { merged: false, why: "its caller names no file declaring its tables" }
-        : (declaredIn.map((file) => merged(file)).find((one) => !one.merged) ?? { merged: true }));
+        : (declaredIn.map((file): SchemaMerged => (file === undefined ? { merged: true } : merged(file))).find((one) => !one.merged) ?? { merged: true }));
     const key = `${name}\0${declaredIn.join("\0")}\0${tables.join("\0")}`;
     let setUp = this.#ownSetUp.get(key);
     if (setUp === undefined) {

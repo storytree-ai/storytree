@@ -955,8 +955,8 @@ test("1.29 · a shared library gets an own database's table statements only from
   };
   try {
     // Merged code sets the shared library's own database up, the probe reading the file its caller names.
-    await (await open({ sharedLibrary: true, schemaMerged: probe })).ownDatabase(own, { tables: [first], declaredIn });
-    assert.deepEqual(asked, [declaredIn], "the probe reads the file that declares the tables");
+    await (await open({ sharedLibrary: true, schemaMerged: probe })).ownDatabase(own, { tables: [first], declaredIn: [declaredIn, undefined] });
+    assert.deepEqual(asked, [declaredIn], "the probe reads the file that declares the tables, and a bundled one with no URL reads as released");
     assert.equal(await has(own, "entries"), true);
 
     // A branch adds a statement in a file not on main: the shared library opens as it stands, warning once.
@@ -965,7 +965,7 @@ test("1.29 · a shared library gets an own database's table statements only from
     const shared = await open({ sharedLibrary: true, schemaMerged: probe });
     const pool = await shared.ownDatabase(own, { tables: [first, branch], declaredIn: [declaredIn, `file://${branchFile}`] });
     await pool.query("INSERT INTO entries DEFAULT VALUES");
-    await (await open({ sharedLibrary: true, schemaMerged: probe })).ownDatabase(own, { tables: [first, branch], declaredIn: branchFile });
+    await (await open({ sharedLibrary: true, schemaMerged: probe })).ownDatabase(own, { tables: [first, branch], declaredIn: [branchFile] });
     const warnings = warn.mock.calls.map((call) => String(call.arguments[0])).filter((text) => text.includes(own));
     warn.mock.restore();
     assert.equal(await has(own, "branch_only"), false, "the branch's statement is not applied to the shared library");
@@ -979,7 +979,7 @@ test("1.29 · a shared library gets an own database's table statements only from
     assert.equal(await has(own, "branch_only"), false, "statements naming no declaring file are not applied");
 
     // An own database a branch would make from nothing on the shared library is refused, its tables unmade.
-    await assert.rejects((await open({ sharedLibrary: true, schemaMerged: probe })).ownDatabase(fresh, { tables: [branch], declaredIn: branchFile }), (error: unknown) => {
+    await assert.rejects((await open({ sharedLibrary: true, schemaMerged: probe })).ownDatabase(fresh, { tables: [branch], declaredIn: [branchFile] }), (error: unknown) => {
       assert.ok(error instanceof ConnectionError, `a ConnectionError, not ${String(error)}`);
       assert.match(error.message, /not merged.*test branch's/s);
       return true;
@@ -987,7 +987,7 @@ test("1.29 · a shared library gets an own database's table statements only from
     assert.equal(await has(fresh, "branch_only"), false, "no table was made");
 
     // A throwaway library takes the branch's statement.
-    await (await open({ schemaMerged: probe })).ownDatabase(own, { tables: [first, branch], declaredIn: branchFile });
+    await (await open({ schemaMerged: probe })).ownDatabase(own, { tables: [first, branch], declaredIn: [branchFile] });
     assert.equal(await has(own, "branch_only"), true, "a throwaway library takes the branch's tables");
   } finally {
     await Promise.all(opened.map((storytree) => storytree.close()));

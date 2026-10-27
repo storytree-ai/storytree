@@ -24,3 +24,4 @@ export { pruneTranscripts, RETAIN_MS, scrub, shipTranscript, storedContextReadin
 export { TranscriptCache } from "./transcripts/index.js";
 export type { Arrival, ContextCommandAnswer, ContextCommandOptions, ContextReading, SessionWindow, WindowOpen, WindowReading, WindowTarget } from "./context/index.js";
 export { hookToolParts } from "./hooks/tools.js";
+export { outsideTextReads } from "./hooks/outside-text.js";

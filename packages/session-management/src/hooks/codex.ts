@@ -22,6 +22,7 @@
  */
 import type { NewLine } from "@storytree/library";
 import type { HookLines } from "./hooks.js";
+import { outsideTextLine } from "./outside-text.js";
 import { toolRequestedLine } from "./requests.js";
 
 /** A line of a patch that names a file: the one it adds, updates or deletes, or where it moves one to. */
@@ -33,6 +34,10 @@ export function codexLines(input: Record<string, unknown>): HookLines | undefine
   // The transcript the harness named, on every line: where the session's context is read from (capability 9).
   const common = { session, harness: "codex", source: "hook", folder, ...(isText(input.transcript_path) ? { transcript: input.transcript_path } : {}) } as const;
   const line = (made: NewLine | undefined): HookLines | undefined => (made === undefined ? undefined : { folder, lines: [made] });
+  const lines = (...made: (NewLine | undefined)[]): HookLines | undefined => {
+    const kept = made.filter((one) => one !== undefined);
+    return kept.length === 0 ? undefined : { folder, lines: kept };
+  };
 
   switch (event) {
     case "SessionStart":
@@ -42,7 +47,9 @@ export function codexLines(input: Record<string, unknown>): HookLines | undefine
     case "PreToolUse":
       return line(toolRequestedLine(common, input) ?? commandStartedLine(common, input));
     case "PostToolUse":
-      return line(toolLine(common, input.tool_name, input.tool_input, input.tool_use_id) ?? subagentLine(common, input.tool_name, input.tool_input, input.tool_response));
+      // A command that read outside text says so on a line of its own, after the command's own (3.49).
+      return lines(toolLine(common, input.tool_name, input.tool_input, input.tool_use_id) ?? subagentLine(common, input.tool_name, input.tool_input, input.tool_response),
+        input.tool_name === "Bash" ? outsideTextLine(common, input.tool_name, input.tool_input) : undefined);
     case "UserPromptSubmit":
       return line({ ...common, kind: "prompt-submitted" });
     case "Stop":

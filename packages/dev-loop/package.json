@@ -23,7 +23,8 @@
   },
   "exports": {
     "./browser-coverage": "./src/browser-coverage.mjs",
-    "./gate-steps": "./src/gate-steps.mjs"
+    "./gate-steps": "./src/gate-steps.mjs",
+    "./red-run-reporter": "./src/red-run-reporter.mjs"
   },
   "storytree": {
     "gateSteps": [

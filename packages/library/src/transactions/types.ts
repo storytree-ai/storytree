@@ -116,11 +116,34 @@ export interface RevertInput {
   readonly validate?: Validate;
 }
 
+export interface RevertWritesInput {
+  /** Abort before the write starts; ignored after it takes the write lock. */
+  readonly signal?: AbortSignal;
+  /** The writer whose writes are reverted, as their entries name them (`actor`). */
+  readonly of: string;
+  /** Who reverts them. */
+  readonly actor?: string;
+  /** Why, kept after what each entry reverts in its reason. */
+  readonly reason?: string;
+  /** As revert's, for each record written back. */
+  readonly upgrade?: Upgrade;
+  readonly validate?: Validate;
+}
+
+/** One record a revert of a writer's writes changed: written back to entry `to`, or retired because the writer made it. */
+export interface RevertedWrite {
+  readonly id: string;
+  readonly action: "updated" | "retired";
+  readonly to?: number;
+}
+
 export interface HistoryFilter {
   /** Only this record's changes. */
   readonly id?: string;
   /** Only changes with a sequence number greater than this. */
   readonly since?: number;
+  /** Only changes this writer made, as they named themselves (`actor`). */
+  readonly actor?: string;
   /** Only changes made at or after this time (an ISO 8601 time, in any zone), to the millisecond. */
   readonly from?: string;
   /** Only changes to records of these types; none for an empty list. */
@@ -149,7 +172,7 @@ export interface ListFilter {
   readonly projection?: { readonly version: number; readonly fields: readonly string[] };
 }
 
-/** A project's records. These seven verbs are the only data actions the library allows. */
+/** A project's records. These eight verbs are the only data actions the library allows. */
 export interface Transactions {
   /** Create the record, or replace it whole if the id exists. Appends one history entry. */
   save(input: SaveInput): Promise<RecordEnvelope>;
@@ -172,6 +195,14 @@ export interface Transactions {
    * (StaleRevertError).
    */
   revert(input: RevertInput): Promise<RecordEnvelope>;
+  /**
+   * Write every record `of` wrote (health left out) back, in one write, to its state before `of`'s first write to it:
+   * to its entry before that, or retired when `of` made it. Each is one more entry naming the writer reverted and, for
+   * an update, the entry it goes back to. A record already as it was (made and retired by `of`) is left alone. Refused,
+   * writing nothing, when another writer wrote to any of them after `of`'s first write to it (LaterWriterError, naming
+   * each such record), or when a check throws. Returns what it changed, by id.
+   */
+  revertWrites(input: RevertWritesInput): Promise<RevertedWrite[]>;
   /** The history, oldest first. */
   history(filter?: HistoryFilter): Promise<HistoryEntry[]>;
 }

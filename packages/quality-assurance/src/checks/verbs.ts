@@ -160,6 +160,7 @@ const riskVerb = verb({
   consumers: ["agent"],
   command: { family: "quality", name: "risk", summary: "read an increment's change for its risk line (tier, rating, depth, radius, flags, stories) and write it on the increment", usage: "quality risk <increment> [--diff @file]" },
   tool: NO_TOOL,
+  writes: true,
   inputs: {
     increment: { kind: "text", word: 0, describe: "the increment whose change is read" },
     diff: { kind: "text", optional: true, describe: "the change's diff against its default branch, as git diff gives it" },
@@ -182,6 +183,7 @@ const storyRisksVerb = verb({
   consumers: ["agent"],
   command: { family: "quality", name: "story-risks", summary: "read every story's standing risk reading (blast depth and radius) from its package's code and the package graph, and write it on the story" },
   tool: NO_TOOL,
+  writes: true,
   inputs: {},
   async act(_input, context: QualityVerbContext) {
     const { checkoutSource, PackageGraph, readPackages, readStory } = await import("../index.js");

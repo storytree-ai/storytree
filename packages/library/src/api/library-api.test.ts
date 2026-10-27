@@ -125,6 +125,8 @@ const LIBRARY_API = [
   "retireQuestion",
   "returnIncrement",
   "revert",
+  "revertWrites",
+  "writtenBy",
   "changesSince",
   "sendFeedback",
   "feedbackScreenshot",

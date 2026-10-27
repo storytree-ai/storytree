@@ -26,8 +26,11 @@ async function commitList(repo, lines, message) {
 const mergePull = (repo, branch, pr) => git(["merge", "--quiet", "--no-ff", "-m", `Merge pull request #${pr} from storytree-ai/${branch}`, branch], repo);
 
 test("4.42 · each change to the secret-check exemptions list on main is told once as an FYI, with what it added and took away, its pull request and who opened it, and none again on a re-run", async (t) => {
-  const repo = await mkdtemp(join(tmpdir(), "exemptions-"));
-  t.after(() => removeTemp(repo));
+  // `repo` stands in for GitHub's main; the watcher reads its own clone, fetching main before each look.
+  const home = await mkdtemp(join(tmpdir(), "exemptions-"));
+  t.after(() => removeTemp(home));
+  const repo = join(home, "origin"), clone = join(home, "clone");
+  await mkdir(repo);
   await git(["init", "--quiet", "-b", "main"], repo);
   await mkdir(join(repo, ".github"));
   await commitList(repo, [], "Begin the list, empty"); // only comments: nothing exempted, nothing to tell
@@ -42,10 +45,11 @@ test("4.42 · each change to the secret-check exemptions list on main is told on
   await git(["checkout", "--quiet", "main"], repo);
   await mergePull(repo, "other", 8);
   await commitList(repo, ["packages/keys/src/stand-in.test.ts  # its comment edited"], "Reword a comment"); // the same entry: nothing to tell
+  await git(["clone", "--quiet", repo, clone], home);
 
   const fyis = [];
   const look = () => watchExemptions({
-    readExemptions: () => exemptionChanges({ repo, ref: "main", fetch: false, openerOf: async (pr) => `opener-of-${pr}` }),
+    readExemptions: () => exemptionChanges({ repo: clone, openerOf: async (pr) => `opener-of-${pr}` }),
     recorded: async (about) => fyis.some((fyi) => fyi.about === about),
     record: async (fyi) => { fyis.push(fyi); },
   });

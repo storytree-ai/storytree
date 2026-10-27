@@ -7,6 +7,7 @@
  */
 import assert from "node:assert/strict";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 import { test } from "node:test";
 
 import type { Client } from "pg";
@@ -961,9 +962,9 @@ test("1.29 · a shared library gets an own database's table statements only from
 
     // A branch adds a statement in a file not on main: the shared library opens as it stands, warning once.
     const warn = t.mock.method(console, "warn", () => undefined);
-    const branchFile = "/checkout/packages/caller/src/branch-tables.ts";
+    const branchFile = path.resolve("/checkout/packages/caller/src/branch-tables.ts");
     const shared = await open({ sharedLibrary: true, schemaMerged: probe });
-    const pool = await shared.ownDatabase(own, { tables: [first, branch], declaredIn: [declaredIn, `file://${branchFile}`] });
+    const pool = await shared.ownDatabase(own, { tables: [first, branch], declaredIn: [declaredIn, pathToFileURL(branchFile).href] });
     await pool.query("INSERT INTO entries DEFAULT VALUES");
     await (await open({ sharedLibrary: true, schemaMerged: probe })).ownDatabase(own, { tables: [first, branch], declaredIn: [branchFile] });
     const warnings = warn.mock.calls.map((call) => String(call.arguments[0])).filter((text) => text.includes(own));

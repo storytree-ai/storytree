@@ -12,6 +12,10 @@ import { FUNCTION_HOOKS, PLUGIN_FOLDER, SESSION_FILE } from "./claude-code-mod/i
 import { LANE_FAILURES, recordLaneFailure } from "./feed.mjs";
 import { assessAllowance, detectLimitHit, engineControls, iso, laneSettings, pickEngine, pickFresh, readLatestAllowance, readOptional } from "./engine.mjs";
 
+/** Who a lane's commits are by: the owner, as main's commits are authored. */
+const OWNER = { name: "Mick", email: "107184961+HuaMick@users.noreply.github.com" };
+const LANE_IDENTITY = { GIT_AUTHOR_NAME: OWNER.name, GIT_AUTHOR_EMAIL: OWNER.email, GIT_COMMITTER_NAME: OWNER.name, GIT_COMMITTER_EMAIL: OWNER.email };
+
 async function loginEnvironment(home, env) {
   const login = { ...env };
   const names = ["CLAUDE_CODE_OAUTH_TOKEN"];
@@ -27,6 +31,9 @@ async function loginEnvironment(home, env) {
   // both engines carry that, so a claude nested in a Codex lane does too (ADR-1175 D1).
   if (!login.CLAUDE_CODE_OAUTH_TOKEN.trim()) throw Object.assign(new Error("no lane token (CLAUDE_CODE_OAUTH_TOKEN, in the environment or ~/.storytree/secrets.json): the lane does not start"), { code: "lane-token" });
   login.ENABLE_CLAUDEAI_MCP_SERVERS = "false";
+  // The box's checkout has no git identity, and a re-clone would lose one set there: a lane commits as the owner,
+  // unless the runner's environment names someone else (1.21).
+  for (const [name, value] of Object.entries(LANE_IDENTITY)) login[name] ||= value;
   return login;
 }
 

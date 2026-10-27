@@ -538,3 +538,24 @@ test("1.20 · the network is back only when both the library and GitHub answer",
     assert.deepEqual(asked.map((line) => line.split(" ").slice(0, 4).join(" ")).sort(), ["gh api rate_limit", "pnpm -s storytree library"]);
   }
 });
+
+test("1.21 · A lane whose worktree has no git identity configured still commits, as the owner, on either engine; an identity the runner's environment sets is kept", async (t) => {
+  const options = await lane(t);
+  const empty = join(options.home, "empty.gitconfig");
+  await writeFile(empty, "");
+  for (const name of ["GIT_AUTHOR_NAME", "GIT_AUTHOR_EMAIL", "GIT_COMMITTER_NAME", "GIT_COMMITTER_EMAIL", "EMAIL"]) delete options.env[name];
+  Object.assign(options.env, { GIT_CONFIG_GLOBAL: empty, GIT_CONFIG_NOSYSTEM: "1" });
+  const commits = `const git=(...a)=>require('node:child_process').execFileSync('git',a,{encoding:'utf8'});git('init','-q');git('commit','-q','--allow-empty','-m','lane');console.log(git('log','-1','--format=%an <%ae> / %cn <%ce>').trim());`;
+  options.commands = { codex: command(commits), claude: command(commits) };
+  const owner = "Mick <107184961+HuaMick@users.noreply.github.com>";
+  for (const engine of ["codex", "claude"]) {
+    await rm(join(options.cwd, ".git"), { recursive: true, force: true });
+    await writeFile(join(options.lanesDir, "engine-override"), engine);
+    assert.equal(await runLane(options), 0, await readFile(options.err, "utf8"));
+    assert.equal((await readFile(options.log, "utf8")).trim(), `${owner} / ${owner}`, engine);
+  }
+  Object.assign(options.env, { GIT_AUTHOR_NAME: "Someone", GIT_AUTHOR_EMAIL: "someone@example.com", GIT_COMMITTER_NAME: "Someone", GIT_COMMITTER_EMAIL: "someone@example.com" });
+  await rm(join(options.cwd, ".git"), { recursive: true, force: true });
+  assert.equal(await runLane(options), 0);
+  assert.equal((await readFile(options.log, "utf8")).trim(), "Someone <someone@example.com> / Someone <someone@example.com>");
+});

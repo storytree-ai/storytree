@@ -206,3 +206,24 @@ export class StaleRevertError extends Error {
     this.newest = newest;
   }
 }
+
+/** A record one writer wrote, and the first entry another writer made to it after that writer's first. */
+export interface LaterWrite {
+  readonly id: string;
+  readonly seq: number;
+  readonly actor?: string;
+}
+
+/** A revert of one writer's writes where another writer has written to a record since: theirs would be lost too. */
+export class LaterWriterError extends Error {
+  readonly of: string;
+  readonly records: readonly LaterWrite[];
+
+  constructor(of: string, records: readonly LaterWrite[]) {
+    const named = records.map((one) => `${one.id} (entry ${one.seq}, by ${one.actor ?? "a writer who gave no name"})`);
+    super(`another writer has written to ${records.length === 1 ? "a record" : `${records.length} records`} ${of} wrote, so nothing was reverted: ${named.join(", ")}. Revert ${records.length === 1 ? "it" : "each"} by hand (library revert), or leave ${of}'s writes standing`);
+    this.name = "LaterWriterError";
+    this.of = of;
+    this.records = records;
+  }
+}

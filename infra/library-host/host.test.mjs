@@ -50,6 +50,12 @@ test('a backup dumps with PostgreSQL 16 pg_dump by its absolute path', () => {
   assert.equal(command, '/usr/lib/postgresql/16/bin/pg_dump');
 });
 
+test('a backup acts as the owner it is given, and as the account that connected when given none', () => {
+  const server = { host: '/var/run/postgresql', port: 5432, user: 'operator' };
+  assert.ok(dumpCommand(server, 'storytree-lag', 'snap', 'storytree_library', '/d/x.dump').args.includes('--role=storytree_library'));
+  assert.ok(!dumpCommand(server, 'storytree-lag', 'snap', undefined, '/d/x.dump').args.some(arg => arg.startsWith('--role')));
+});
+
 test('a backup\'s cloud project is read from the Mint service account\'s own credentials, and other credentials or a malformed project are refused', () => {
   const adc = { type: 'service_account', project_id: 'example-project', client_email: 'storytree-mint@example-project.iam.gserviceaccount.com' };
   assert.equal(mintProject(adc), 'example-project');

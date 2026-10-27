@@ -146,7 +146,7 @@ test("2.4 · storytree services says when a part switch has not taken in the run
     assert.match(listed, /^  voice\/listen \(always\): on, but its part was switched after the service host started, so it starts at the host's next start; /m);
     assert.match(listed, restart);
     assert.doesNotMatch(listed, /within seconds/);
-    assert.deepEqual(kids.starts, [], "the running host does not take the part switch");
+    assert.equal(kids.starts.length, 0, "the running host does not take the part switch");
   } finally {
     await first.stop();
   }

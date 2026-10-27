@@ -9,7 +9,7 @@ import { mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { test } from "node:test";
 
-import { connect, type Library, type NewLine } from "@storytree/library";
+import { connect, type Library, type NewLine, type WriteOptions } from "@storytree/library";
 import { waitUntil } from "@storytree/test-waits";
 
 import { ACTIVITY_DATABASE, openActivityLog, type ActivityLog, type LockedLog } from "../activity/index.js";
@@ -478,7 +478,7 @@ test("5.10 a claim taken on branch feature/signup ends with a merged line once G
   });
 });
 
-test("5.37 when a claim on an increment ends because its branch's pull request merged, that increment's pending plan changes are applied first, marked with the pull request", async () => {
+test("5.37 when a claim on an increment ends because its branch's pull request merged, that increment's pending plan changes are applied first, marked with the pull request and written by the session that saw the merge", async () => {
   await withWorld(async ({ log, library, project, emailForm, as }) => {
     const arc = await library.createArc({ title: "Sign-up", intent: "Ship sign-up", endState: "Visitors can sign up" });
     const increment = await library.addIncrement({ arc: arc.id, title: "Address form", objective: "Rename it", body: "Rename the email form." });
@@ -490,9 +490,9 @@ test("5.37 when a claim on an increment ends because its branch's pull request m
     const merges: MergeWatch = { mergedPulls: async (_folder, branch) => (branch === "feature/signup" ? [{ number: 7, mergedAt }] : []), everyMs: 0 };
     let applied: readonly string[] | undefined;
     const reach = async () => ({
-      applyPending: async (id: string, pr?: string) => {
+      applyPending: async (id: string, pr?: string, options?: WriteOptions) => {
         assert.deepEqual((await readClaims(log, project)).map(({ increment }) => increment), [increment.id], "applied before the claim ends");
-        const done = await library.applyPending(id, pr);
+        const done = await library.applyPending(id, pr, options);
         applied = done?.applied;
         return done;
       },
@@ -501,7 +501,9 @@ test("5.37 when a claim on an increment ends because its branch's pull request m
 
     assert.deepEqual(applied, [emailForm]);
     assert.equal(((await library.get(emailForm))?.fields as { title?: string } | undefined)?.title, "Address form");
-    assert.equal((await library.history({ id: emailForm, newest: 1 }))[0]?.reason, `applied at the merge of PR #7 (${increment.id})`);
+    const [entry] = await library.history({ id: emailForm, newest: 1 });
+    assert.equal(entry?.reason, `applied at the merge of PR #7 (${increment.id})`);
+    assert.equal(entry?.actor, "session:C", "the history names who applied it");
     assert.deepEqual(await readClaims(log, project), [], "and then the claim ended");
   });
 });

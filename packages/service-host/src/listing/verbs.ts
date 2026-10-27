@@ -3,7 +3,8 @@
  * named under `verbs` in the package's manifest (ADR-1033), so the command line mounts them as its `services` family:
  * `storytree services` lists every service the parts mounted here declare, on or off, and how each the host runs
  * stands, with the factory commit it last ran; `services restart <part>/<service>` asks the host to start one again;
- * `services run` runs the host in the foreground until it is stopped. Each is callerless: none needs a project. None
+ * `services run` runs the host in the foreground until it is stopped; `services install` and `services uninstall` write and
+ * remove the entry point that keeps it running (capability 3, ADR-1180 D5). Each is callerless: none needs a project. None
  * is a tool: they are this machine's, read and run from its terminal.
  */
 import { verb, VerbRefusal, type VerbFamily } from "@storytree/library/verbs";
@@ -100,7 +101,44 @@ const run = verb({
   },
 });
 
+/** Install and uninstall, on Linux only for now: the laptop's scheduled task is increment_b962bb8544d2. */
+async function systemd() {
+  if (process.platform !== "linux") throw new VerbRefusal(`storytree services install keeps the host running on Linux only, as a systemd user unit; on ${process.platform}, run \`storytree services run\` yourself.`);
+  return import("../installing/systemd.js");
+}
+
+const install = verb({
+  consumers: ["user"],
+  command: { family: "services", name: "install", summary: "keep the service host running on this computer: write, enable and start its systemd user unit, storytree-host.service; running it again is safe" },
+  tool: { absent: "a machine's entry point is installed from its terminal" },
+  inputs: {},
+  callerless: true,
+  async act() {
+    const { HOST_DIR } = await import("../running/host.js");
+    const { checkoutOf, installHost, userSystemd } = await systemd();
+    let checkout: string;
+    try {
+      checkout = checkoutOf(HOST_DIR);
+    } catch (error) {
+      throw new VerbRefusal((error as Error).message);
+    }
+    return { text: installHost(checkout, userSystemd()), next: [{ command: "services", why: "see the services and the host" }] };
+  },
+});
+
+const uninstall = verb({
+  consumers: ["user"],
+  command: { family: "services", name: "uninstall", summary: "stop the service host and remove the systemd user unit that keeps it running" },
+  tool: { absent: "a machine's entry point is removed from its terminal" },
+  inputs: {},
+  callerless: true,
+  async act() {
+    const { uninstallHost, userSystemd } = await systemd();
+    return { text: uninstallHost(userSystemd()) };
+  },
+});
+
 /** The command line's `services` family, beside `processes` among `storytree`'s families. */
 export const SERVICES_FAMILIES: readonly VerbFamily[] = [
-  { name: "services", summary: "the services the mounted parts declare: list them, restart one, or run the host", order: 24.2, bare: list, verbs: [restart, run] },
+  { name: "services", summary: "the services the mounted parts declare: list them, restart one, run the host, or install what keeps it running", order: 24.2, bare: list, verbs: [restart, run, install, uninstall] },
 ];

@@ -538,6 +538,31 @@ for (const backend of [memory, postgres]) {
     assert.equal((await work.addContract({ title: "Trims spaces", capability: form.id }, orphan)).fields.title, "3.4 · Trims spaces", "past the orphan test, not onto it");
     assert.equal((await work.addContract({ title: "3.3 · Lowercases the domain", capability: form.id }, orphan)).fields.title, "3.3 · Lowercases the domain", "the planner gives the orphan's number to take it");
   });
+  contract("4.24", "a capability planned or retitled with a number another live capability of its story carries is refused, naming that one and the story's next free number; nothing is written", async ({ work, records, transactions }) => {
+    const story = await work.addStory({ title: "Factory host" });
+    const running = await work.addCapability({ title: "3 · Keeping the host running", story: story.id });
+    const other = await work.addCapability({ title: "4 · Reading the logs", story: story.id });
+    const naming = (error: unknown) => {
+      assert.ok(error instanceof SchemaError && error.type === "capability", `expected a capability SchemaError, got: ${String(error)}`);
+      assert.match(error.message, new RegExp(`capability number 3 is taken: ${running.id}`), "it names the holder");
+      assert.match(error.message, /next free number is 5/, "it names the next free number");
+      return true;
+    };
+
+    const elsewhere = await work.addStory({ title: "Factory updates" });
+    const moved = await work.addCapability({ title: "3 · Keeping the factory current", story: elsewhere.id });
+
+    const before = await transactions.history();
+    await assert.rejects(work.addCapability({ title: "3 · Keeping the factory current", story: story.id }), naming);
+    await assert.rejects(work.editCapability(other.id, { title: "3 · Reading the logs" }), naming);
+    await assert.rejects(work.editCapability(moved.id, { story: story.id }), naming);
+    assert.deepEqual(await transactions.history(), before, "nothing was written");
+
+    assert.equal((await work.editCapability(running.id, { title: "3 · Keeping the host up" }))?.fields.title, "3 · Keeping the host up", "a capability keeps its own number");
+    await records.retire(running.id, "split");
+    assert.equal((await work.addCapability({ title: "3 · Keeping the factory current", story: story.id })).fields.title, "3 · Keeping the factory current", "only a live capability holds its number");
+  });
+
   contract("4.12", "only mapStories makes a story mapped: a mapped field given to addStory or editStory is refused and nothing is written", async ({ work, records, transactions }) => {
     const story = await work.addStory({ title: "Visitor can sign up" });
     const before = await transactions.history();

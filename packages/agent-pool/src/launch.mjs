@@ -106,10 +106,11 @@ export async function laneOnce({ increment, brief, log, err, addDirs, repo, maxL
  * it runs in the shared checkout, queue.mjs's POOL_CODE) differs from its start, each after its running sessions end; when a survey fails or
  * finds nothing and no session is starting, it first brings the checkout up to date (`refresh`) to see that change.
  * With free slots it reads the box's `pace` first (pace.mjs, ADR-1139): while the box is saturated it starts nothing.
+ * A `machineOnly` dispatcher takes only work tagged to its machine and starts no planning session (ADR-1179 D2).
  */
 export async function runPool({ survey, maxLanes, count, launch, stopFile, exists = async (path) => existsSync(path),
   plans = { load: async () => new Map(), save: async () => {} }, codeVersion = async () => undefined, refresh = async () => {}, pace = async () => undefined,
-  sleep = (ms, options) => wait(ms, undefined, options), intervalMs = 15 * 60_000, idleMs = 2 * 60_000, pollMs = 60_000, now = Date.now, say = console.log }) {
+  sleep = (ms, options) => wait(ms, undefined, options), intervalMs = 15 * 60_000, idleMs = 2 * 60_000, pollMs = 60_000, now = Date.now, say = console.log, machineOnly = false }) {
   const dated = (message) => say(`${stamp(now)} ${message}`);
   const attempts = new Map(), running = new Map(), starting = new Set(), refused = new Map();
   const planned = await plans.load();
@@ -182,12 +183,12 @@ export async function runPool({ survey, maxLanes, count, launch, stopFile, exist
       await pause(intervalMs);
       continue;
     }
-    const { picks, skipped } = pickPool(found, { attempts, running: [...running.keys()], max: free });
+    const { picks, skipped } = pickPool(found, { attempts, running: [...running.keys()], max: free, machineOnly });
     for (const [id, attempt] of attempts) {
       if (attempt.refusedBy && refused.get(id) !== attempt.refusedBy) { refused.set(id, attempt.refusedBy); dated(`refused ${id}: claimed by live session ${attempt.refusedBy}; retried once that claim clears`); }
     }
     if (!picks.length) {
-      const arc = planning ? undefined : pickPlan(found, { planned, now: now() });
+      const arc = planning || machineOnly ? undefined : pickPlan(found, { planned, now: now() });
       if (arc) {
         planned.set(arc.id, arc.state);
         try { await plans.save(planned); }
@@ -228,7 +229,7 @@ function boxDefaults({ home = homedir(), env = process.env } = {}) {
   const { lanesDir, checkout: repo, addDirs } = config;
   const { sessionsDir, stopAt } = laneSettings({ home, env, config });
   return {
-    lanesDir, repo, addDirs, sessionsDir, stopAt,
+    lanesDir, repo, addDirs, sessionsDir, stopAt, machineOnly: config.machineOnly,
     maxLanes: () => readCap({ lanesDir, sessions: config.sessions }),
     count: async () => countEngines((await run("ps", ["-eo", "pid=,ppid=,args="], { maxBuffer: 64 * 1024 * 1024 })).stdout),
     lock: (fn) => withFlock(join(lanesDir, "night-checkout.lock"), fn),
@@ -298,7 +299,7 @@ async function pool(b) {
   dated("dispatcher started");
   const survey = async () => withHandOffs(await b.survey(), await handedOff(join(L, "watch")));
   const code = await runPool({
-    survey, maxLanes: b.maxLanes, count: b.count, stopFile: join(L, "pool-stop"), plans: planFile(join(L, "pool-planned.json")), sleep: b.sleep, now: b.now, say,
+    survey, maxLanes: b.maxLanes, count: b.count, machineOnly: b.machineOnly, stopFile: join(L, "pool-stop"), plans: planFile(join(L, "pool-planned.json")), sleep: b.sleep, now: b.now, say,
     pace: b.pace ?? (() => readBoxPace()),
     codeVersion: b.codeVersion ?? (() => codeVersion({ repo: b.repo })),
     refresh: () => b.lock(b.prepare),

@@ -28,7 +28,7 @@ test("3.15 · the pool reads its machine, checkout, lanes, session cap, models a
     machine: "box", checkout: join("/home/u", "src/shop"), remoteCheckout: "~/src/shop", lanesDir: join("/home/u", "pool"),
     addDirs: [join("/home/u", "src/shop-wt"), "/srv/shared", join("/home/u", "pool")], sessions: 3,
     models: { codex: "codex-model", claude: "claude-model" }, switchAt: 80,
-    watcher: { fixesPerRed: 1, fixesPerPullRequest: 4, intervalMs: 30_000 },
+    watcher: { fixesPerRed: 1, fixesPerPullRequest: 4, intervalMs: 30_000 }, machineOnly: false,
   });
 
   // The environment the pool read before still overrides the file.
@@ -48,8 +48,15 @@ test("3.16 · with no configuration the pool runs on general defaults: this chec
   assert.deepEqual(poolConfig({ home: "/home/u", env: { AGENT_POOL_CONFIG: file } }), {
     machine: undefined, checkout: CHECKOUT, remoteCheckout: CHECKOUT, lanesDir: join("/home/u", ".storytree/agent-pool"),
     addDirs: [join("/home/u", ".storytree/agent-pool")], sessions: undefined, models: { codex: undefined, claude: undefined }, switchAt: 100,
-    watcher: { fixesPerRed: 2, fixesPerPullRequest: 6, intervalMs: 60_000 },
+    watcher: { fixesPerRed: 2, fixesPerPullRequest: 6, intervalMs: 60_000 }, machineOnly: false,
   });
+});
+
+test("3.24 · a pool configured machineOnly is read as machine-only; any other value, or none, is not (ADR-1179 D2)", async (t) => {
+  const file = await configFile(t, { machine: "laptop", machineOnly: true });
+  assert.equal(poolConfig({ home: "/home/u", env: { AGENT_POOL_CONFIG: file } }).machineOnly, true);
+  await writeFile(file, JSON.stringify({ machineOnly: "yes" }));
+  assert.equal(poolConfig({ home: "/home/u", env: { AGENT_POOL_CONFIG: file } }).machineOnly, false);
 });
 
 test("3.17 · with nothing pinning it, the cap is what the box's size allows: the smaller of its cores and its memory per lane, at least one", async () => {

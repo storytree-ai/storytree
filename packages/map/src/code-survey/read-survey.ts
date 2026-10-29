@@ -34,6 +34,7 @@ import { fileURLToPath } from "node:url";
 import { Worker } from "node:worker_threads";
 import { manifestFrom, SKIPPED, surveySourceReader, type SurveySource } from "./survey-source.js";
 import { mappedSurveyReader, type ImportedFolder } from "./mapped-survey.js";
+import { pytestTestedNumbers } from "./python-tests.js";
 
 import type { AnnotatedTree, StorySurvey } from "@storytree/library";
 
@@ -112,7 +113,9 @@ export async function testedNumbers(root: string, tree: AnnotatedTree, capabilit
   if (story === undefined) return [];
   const own = packagesOf(story, alsoOwned);
   const surveyed = await survey({ ...tree, stories: [story] });
-  return (surveyed[story.id]?.tests ?? []).flatMap((test) => test.titles.filter((title) => title.package === undefined || own.includes(title.package)).map((title) => title.number));
+  const numbered = (surveyed[story.id]?.tests ?? []).flatMap((test) => test.titles.filter((title) => title.package === undefined || own.includes(title.package)).map((title) => title.number));
+  // A Python project's pytest tests carry numbers too, for this check alone (ADR-1189).
+  return [...numbered, ...(await pytestTestedNumbers(root, tree, story.id))];
 }
 
 /**

@@ -871,6 +871,7 @@ test("4.26 `arc increment drop-pending <increment> <record> --reason …` drops 
     const dropped = await world.run(["arc", "increment", "drop-pending", increment.id, form.id, "--reason", "overtaken by the plugin's plan"]);
     assert.equal(dropped.code, 0, dropped.stderr);
     assert.match(dropped.stdout, new RegExp(`Dropped the pending change to ${form.id} from increment ${increment.id}; 1 left`));
+    assert.match(dropped.stdout, /Writer: /, "a write names its writer below the answer");
     assert.deepEqual(((await library.get(increment.id))?.fields as { pending?: { record: string }[] }).pending?.map(({ record }) => record), [promise.id]);
 
     const refused = await world.run(["arc", "increment", "drop-pending", increment.id, form.id, "--reason", "again"]);

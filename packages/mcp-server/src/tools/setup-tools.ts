@@ -211,11 +211,12 @@ function connectedSentence(caller: Caller): string {
 }
 
 /**
- * What set_up_project says of the repository it made, or could not make, in a folder in none (6.70): review and
- * landing also need an origin remote, which publishes the user's code, so it is proposed, never made.
+ * What set_up_project says of the repository it made, or could not make, in a folder in none (6.70): only verified
+ * health reads a remote, and storytree never proposes making or pushing one (whose code it would publish, or whose
+ * repository it would write to); it names the local route instead.
  */
 function repositorySentence(made: Exclude<RepositoryMade, { state: "already" }>): string {
-  const remote = "Review and landing also need an origin remote: propose a GitHub repository to the user (gh repo create, then git push), and make one only if they say yes.";
+  const remote = "It needs no remote: quality_brief reviews a change against the local main branch and land needs none; only verified health, which reads a remote's CI, is unavailable. Work locally: review each change on git diff, land it as a local commit, and close the increment with a note giving the commit's sha.";
   if (made.state === "made") return `The folder was in no git repository, so storytree made it a git repository, with a first commit holding ${MARKER_FILE}. ${remote}`;
   if (made.state === "no identity") return `The folder was in no git repository, so storytree made it one with ${MARKER_FILE} staged, but git has no identity to make its first commit with (user.name and user.email), so its work cannot be reviewed or landed yet: ${IDENTITY_FIX}. ${remote}`;
   return `The folder is in no git repository, and storytree could not make one (${made.reason}), so its work cannot be reviewed or landed yet: tell the user, and once git can commit here, make it one (git init, then commit ${MARKER_FILE}). ${remote}`;

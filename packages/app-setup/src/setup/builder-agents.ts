@@ -4,6 +4,8 @@
  * out with them. Each one's frontmatter runs the test guard (Session management's Hooks 3.50) before every file edit,
  * so the red agent can edit only test files and the green agent never one: the split is enforced, not only asked for.
  * A role in a project's library cannot carry a hook, which is why these are files of Claude Code's own.
+ * They are user-level on purpose: Claude Code 2.1.311 runs an agent's frontmatter hooks for an agent in the user's
+ * agents folder but not for one in a project's .claude/agents (tried both, 2026-10-29), so a project copy would be unfenced.
  *
  * A file is storytree's when it carries MARKER; a file of that name without it is the user's own and is never touched.
  */

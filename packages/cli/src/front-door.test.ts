@@ -36,7 +36,7 @@ import { PLUGIN_FAMILIES } from "@storytree/plugin-loader/verbs";
 import type { Reading } from "./usage/reading.js";
 
 import type { Family } from "./door.js";
-import { FAMILIES, inOrder } from "./families/index.js";
+import { familiesIn, inOrder } from "./families/index.js";
 import unbundled from "./parts/verbs.js";
 import armCheckParts from "./parts/arm-checks.js";
 import { BuiltCommand, inWorld, storytree, testServerUrl } from "./testing/cli.js";
@@ -426,7 +426,7 @@ test("1.21 · `storytree` mounts the families its story packages' manifests decl
     const listed = await world.run([]);
     assert.equal(listed.code, 0, listed.stderr);
     const names = [...listed.stdout.split("Families:")[1]!.split("next:")[0]!.matchAll(/^  ([\w-]+) /gm)].map((line) => line[1]);
-    assert.deepEqual(names, FAMILIES.map((family) => family.name), "the bundle lists the families in the order run unbundled");
+    assert.deepEqual(names, familiesIn(world.home).map((family) => family.name), "the bundle lists the families in the order run unbundled under the same factory");
     const declaredNames = new Set(DECLARED.map((family) => family.name));
     assert.deepEqual(names.filter((name) => declaredNames.has(name)), [...DECLARED].sort((a, b) => a.order - b.order).map((family) => family.name), "the declared families in ascending order of their places");
     const at = (name: string, order: number) => ({ order, family: { name } as Family });

@@ -69,6 +69,7 @@ const LIBRARY_API = [
   "pendChange",
   "stalePending",
   "applyPending",
+  "dropPending",
   "settleClosedPending",
   "parkArc",
   "unparkArc",

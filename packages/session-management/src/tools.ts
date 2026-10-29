@@ -299,6 +299,29 @@ function registerRunsTools(define: DefineForOwner, home: string | undefined): vo
     });
 }
 
+/** What a contract's test came to: red, written and failing, or green, passing. */
+export type ContractResult = "red" | "green";
+
+/**
+ * Record a contract's test red or green in its reported column, by the calling session and its harness: the work of the
+ * report tool and of `storytree contract report`, one write for both front doors (ADR-0793). The library refuses an id
+ * that names no live contract, a story's or a capability's included, and a refusal writes nothing.
+ */
+export async function reportContract(
+  library: Library,
+  { contract, result, note }: { readonly contract: string; readonly result: ContractResult; readonly note?: string },
+  caller: { readonly writer: WriteOptions; readonly session: string; readonly harness?: string },
+): Promise<{ text: string; data: { reported: "failing" | "passing" } }> {
+  await library.reportHealth(contract, result === "red" ? "failing" : "passing", {
+    ...caller.writer,
+    by: `${caller.harness ?? "agent"} ${caller.session}`,
+    ...(note === undefined ? {} : { note }),
+  });
+  return result === "red"
+    ? { text: `Reported ${contract} red. Now make it pass and report it green.`, data: { reported: "failing" } }
+    : { text: `Reported ${contract} green.`, data: { reported: "passing" } };
+}
+
 function registerLandingTools(define: Define, landing: Landing | undefined): void {
   define(
     "report",
@@ -308,16 +331,7 @@ function registerLandingTools(define: Define, landing: Landing | undefined): voi
       result: z.enum(["red", "green"]).describe("red: the test is written and fails; green: it passes"),
       note: z.string().min(1).optional().describe("Anything worth saying with it"),
     }),
-    async ({ contract, result, note }, call) => {
-      await call.library.reportHealth(contract, result === "red" ? "failing" : "passing", {
-        ...call.writer,
-        by: `${call.caller.harness ?? "agent"} ${call.caller.session}`,
-        ...(note === undefined ? {} : { note }),
-      });
-      return result === "red"
-        ? { text: `Reported ${contract} red. Now make it pass and report it green.`, data: { reported: "failing" } }
-        : { text: `Reported ${contract} green.`, data: { reported: "passing" } };
-    },
+    async ({ contract, result, note }, call) => reportContract(call.library, { contract, result, ...(note === undefined ? {} : { note }) }, { writer: call.writer, session: call.caller.session, ...(call.caller.harness === undefined ? {} : { harness: call.caller.harness }) }),
   );
 
   define(

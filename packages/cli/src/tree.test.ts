@@ -1,5 +1,5 @@
 /**
- * Capability 10 · Plan view: one test per contract 10.1-10.11 in the command line story, each running the
+ * Capability 10 · Plan view: one test per contract 10.1-10.12 in the command line story, each running the
  * real, built `storytree` command.
  */
 import assert from "node:assert/strict";
@@ -294,5 +294,47 @@ test("10.11 `storytree contract show <contract>` prints one contract with its re
       assert.equal(unknown.code, 1);
       assert.match(unknown.stderr, new RegExp(`no contract "${id}" in this project`));
     }
+  });
+});
+
+test("10.12 `storytree contract report <contract> --result red|green [--note <text|@file>]` records what the report tool records: the contract's reported health, failing or passing, by the shell's harness and session, with the note; the verified column is untouched; a story, a capability, an unknown id or a result other than red or green is refused and writes nothing; `contract --help` lists it", async () => {
+  await inWorld(command, async (world) => {
+    const library = await world.library();
+    const story = await library.addStory({ title: "Visitor can sign up" });
+    const capability = await library.addCapability({ title: "4 · Email form", story: story.id });
+    const contract = await library.addContract({ title: "4.1 · Rejects an email with no @", capability: capability.id });
+    const session = { CLAUDE_CODE_SESSION_ID: "claude-1" };
+
+    const red = await world.run(["contract", "report", contract.id, "--result", "red", "--note", "written, fails on the missing check"], session);
+    assert.equal(red.code, 0, red.stderr);
+    assert.ok(red.stdout.startsWith(`Reported ${contract.id} red.`), red.stdout);
+    let health = await library.health(contract.id);
+    assert.deepEqual([health.reported.state, health.reported.by, health.reported.note, health.verified.state], ["failing", "claude-code claude-1", "written, fails on the missing check", "not-checked"]);
+
+    const green = await world.run(["contract", "report", contract.id, "--result", "green"], session);
+    assert.equal(green.code, 0, green.stderr);
+    assert.ok(green.stdout.startsWith(`Reported ${contract.id} green.`), green.stdout);
+    health = await library.health(contract.id);
+    assert.deepEqual([health.reported.state, health.reported.by, health.reported.note, health.verified.state], ["passing", "claude-code claude-1", undefined, "not-checked"]);
+    const shown = await world.run(["contract", "show", contract.id]);
+    assert.match(shown.stdout, /reported: passing, by claude-code claude-1, /);
+    const history = await library.healthHistory(contract.id);
+    assert.equal(history.length, 2);
+
+    for (const [args, code, said] of [
+      [["contract", "report", capability.id, "--result", "green"], 1, /rolled up from its contracts/],
+      [["contract", "report", story.id, "--result", "green"], 1, /rolled up from its contracts/],
+      [["contract", "report", "contract_000000000000", "--result", "green"], 1, /contract_000000000000/],
+      [["contract", "report", contract.id, "--result", "amber"], 2, /red or green[\s\S]*usage: storytree contract report <contract> --result red\|green/],
+      [["contract", "report", contract.id], 2, /--result/],
+    ] as const) {
+      const refused = await world.run(args, session);
+      assert.equal(refused.code, code, `${args.join(" ")}: ${refused.stdout}${refused.stderr}`);
+      assert.match(refused.stderr, said);
+    }
+    assert.equal((await library.healthHistory(contract.id)).length, 2, "a refusal writes nothing");
+
+    const help = await world.run(["contract", "--help"]);
+    assert.match(help.stdout + help.stderr, /contract report <contract> --result red\|green/);
   });
 });

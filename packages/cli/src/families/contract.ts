@@ -11,6 +11,7 @@ import type { HealthColumn } from "@storytree/library";
 
 import { Refusal } from "../answer.js";
 import type { Family, Verb } from "../door.js";
+import { commandSession, person } from "../writer.js";
 import { healthOf } from "./tree.js";
 
 const list: Verb = {
@@ -58,6 +59,28 @@ const show: Verb = {
   },
 };
 
+/**
+ * `storytree contract report`, the report tool's twin (ADR-0793): a session whose agent link dropped records a contract's
+ * test red or green from its shell (friction_42f65edd6dcc). It reads its words and hands them to Session management's
+ * reportContract, the work the tool does, so both doors write the same entry and are refused the same way. The shell's
+ * harness session reports it, or else the person at the terminal.
+ */
+const report: Verb = {
+  name: "report",
+  usage: "contract report <contract> --result red|green [--note <text|@file>]",
+  summary: "record a contract's test red (written, and failing) or green (passing), as the report tool does",
+  async act(args, context) {
+    const contract = args.word(0, "the contract's id", this.usage);
+    const result = args.need("result", this.usage);
+    if (result !== "red" && result !== "green") throw new Refusal(`--result is red or green, not "${result}"\nusage: storytree ${this.usage}`, { code: 2 });
+    const note = args.text("note");
+    const [{ reportContract }, library] = await Promise.all([import("@storytree/session-management/tools"), context.library()]);
+    const caller = commandSession() ?? { session: person(), harness: "person" };
+    const answer = await reportContract(library, { contract, result, ...(note === undefined ? {} : { note }) }, { writer: context.writer(), ...caller });
+    return { text: answer.text, next: [{ command: `storytree contract show ${contract}`, why: "read its health back" }] };
+  },
+};
+
 /** One health column as a line: its state, then who wrote it, when and its note, each when it has one. */
 function said(column: HealthColumn): string {
   const state = column.state === "not-checked" ? "not checked" : column.state;
@@ -67,6 +90,6 @@ function said(column: HealthColumn): string {
 
 export const contracts: Family = {
   name: "contract",
-  summary: "list contracts, or read one with its health; storytree contract new runs storytree library new contract, and contract health runs contract show",
-  verbs: [list, show],
+  summary: "list contracts, read one with its health, or report its test red or green; storytree contract new runs storytree library new contract, and contract health runs contract show",
+  verbs: [list, show, report],
 };

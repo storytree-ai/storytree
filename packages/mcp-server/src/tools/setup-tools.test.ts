@@ -652,6 +652,8 @@ test("6.70 set_up_project in a folder in no git repository makes one whose first
         assert.equal(setUp.isError, false, setUp.text);
         assert.match(setUp.text, /made it a git repository/);
         assert.deepEqual(setUp.data.repository, { state: "made" });
+        assert.match(setUp.text, /git diff.*local commit/s, "the local route is named");
+        assert.doesNotMatch(setUp.text, /git push|gh repo create/, "a remote is never proposed");
       });
       assert.equal(path.resolve(git(empty, "rev-parse", "--show-toplevel")), empty, "git prints / on Windows too");
       assert.equal(git(empty, "show", "--name-only", "--format=", "HEAD"), MARKER_FILE);

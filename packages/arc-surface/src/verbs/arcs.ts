@@ -7,7 +7,8 @@
  * another arc keeping its id, and make an arc or increment wait on another with a reason, or an increment wait for the
  * owner or an outside event with a note (ADR-0938 D1), or clear the wait (the library clears one itself when its
  * blocker lands or closes, 11.8). Return active work nobody holds to proposal (`increment unstart`), and settle the
- * pending plan changes closed increments left behind (`increment settle-pending`). Closing an increment ends its claims
+ * pending plan changes closed increments left behind (`increment settle-pending`), or drop one an open increment holds
+ * that something else overtook (`increment drop-pending`). Closing an increment ends its claims
  * through Session management's `closed`, and is refused while another session holds it live (its `closeRefusal`). None is a tool: the MCP server's own show_plan, park_increment, edit_plan,
  * move_increment, close_increment, set_wait and clear_wait do these jobs.
  *
@@ -565,6 +566,30 @@ const incrementSettlePending = verb({
   },
 });
 
+const incrementDropPending = verb({
+  command: {
+    family: "arc increment",
+    name: "drop-pending",
+    summary: "drop one pending plan change, one something else overtook, from an open increment, with the reason (ADR-0966)",
+    usage: "arc increment drop-pending <increment> <record> --reason <why>",
+  },
+  tool: { absent: "an overtaken pending change is rare housekeeping, done from a terminal" },
+  inputs: {
+    increment: { kind: "text", word: 0, describe: "the increment's id" },
+    record: { kind: "text", word: 1, describe: "the story, capability or contract its pending change is to" },
+    reason: { kind: "text", describe: "why it is dropped" },
+  },
+  writes: true,
+  async act({ increment: id, record, reason }, context: ArcVerbContext) {
+    const dropped = await context.library.dropPending(id, record, reason, context.writer).catch((error: unknown) => {
+      throw error instanceof RangeError ? new VerbRefusal(error.message) : error;
+    });
+    if (dropped === null) throw new VerbRefusal(`no increment "${id}" in this project`);
+    const left = dropped.fields.pending?.length ?? 0;
+    return { text: `Dropped the pending change to ${record} from increment ${id}; ${left} left.`, next: [{ command: `library read ${id}`, why: "see the pending changes it still holds" }] };
+  },
+});
+
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
 
 /**
@@ -660,7 +685,7 @@ const waits = verb({
 const increment: VerbFamilies<ArcVerbContext> = {
   name: "increment",
   summary: "the increments of an arc's work",
-  verbs: [incrementNew, incrementAdd, incrementClose, incrementCorrectClosure, incrementEdit, incrementUnstart, incrementMove, incrementSettlePending, incrementWait, incrementUnwait],
+  verbs: [incrementNew, incrementAdd, incrementClose, incrementCorrectClosure, incrementEdit, incrementUnstart, incrementMove, incrementSettlePending, incrementDropPending, incrementWait, incrementUnwait],
   guesses: { show: "library read <id>", read: "library read <id>", get: "library read <id>", open: "library read <id>" },
   retired: {
     ready: { why: "ADR-0909 retired the increment's ready step, and claiming a proposal starts it.", instead: "workspace <increment> --reason …" },

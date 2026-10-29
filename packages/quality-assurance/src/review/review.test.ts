@@ -519,6 +519,16 @@ test("4.8 · a finding a later review returns again whose earlier rejection was 
     assert.deepEqual(again.hits, []);
     assert.deepEqual(await reviews.standing(library.name, increment), []);
     assert.equal((await reviews.brief(library, increment, DIFF)).iteration, REVIEW_LIMIT + 1);
+
+    // Another contract's covering-test hit, or the check's hit in other words, is a new finding and is taken.
+    const other = await reviews.take(library.name, increment, {
+      ...clean(checks, [], { [checks[0]!]: [{ file, line: 4, found: "BASE is computed as zoom computes it" }, { file, line: 4, found: "a test skips silently" }] }, REVIEW_LIMIT + 1),
+      contracts: [{ contract: contracts[0]!, met: true, touched: true, at: { file: "packages/library/src/a.ts", line: 4 } }, { contract: contracts[1]!, met: true, touched: true, at: { file: "packages/library/src/a.ts", line: 4 } }],
+    });
+    assert.deepEqual(other.hits.map(({ check, found }) => ({ check, found })).sort((a, b) => a.check.localeCompare(b.check)), [
+      { check: checks[0], found: "a test skips silently" },
+      { check: COVERING_TEST, found: `contract ${contracts[1]} (1.2 · A good email is kept): the change touches it and no test covers the changed behaviour; add one` },
+    ].sort((a, b) => a.check!.localeCompare(b.check!)));
   });
 });
 

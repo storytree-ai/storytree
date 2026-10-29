@@ -147,13 +147,15 @@ export function setupLines(report: Omit<SetupReport, "lines">): SetupLine[] {
   return lines;
 }
 
-/** What a project lacking a repository or its origin remote is told (8.31): what cannot work without it, and the remote proposed, never made. */
+/**
+ * What a project lacking a repository or its origin remote is told (8.31). No repository: make one locally. No origin: an ok
+ * setup that names what a remote would add and the local route; storytree never proposes making or pushing a remote.
+ */
 function repositoryLine(lack: "no repository" | "no origin"): SetupLine {
-  const why = "storytree cannot review this project's changes, land them or verify its health: those compare its work with its origin remote's default branch.";
-  const remote = "propose a GitHub repository as its origin remote to the user (gh repo create, then git push), and make one only if they say yes: it publishes their code.";
+  const local = "quality_brief reviews a change against the local main branch and land needs no remote, but verified health reads a remote's CI, so it is unavailable here; work locally: review each change on git diff, land it as a local commit, and close the increment with a note giving the commit's sha.";
   return lack === "no repository"
-    ? { check: "repository", state: "needs-attention", message: `This project's folder is in no git repository, so ${why}`, fix: `Make it one with a first commit (git init, then commit ${MARKER_FILE}); then ${remote}` }
-    : { check: "repository", state: "needs-attention", message: `This project's git repository has no origin remote, so ${why}`, fix: `Once its work is committed, ${remote}` };
+    ? { check: "repository", state: "needs-attention", message: "This project's folder is in no git repository, so storytree cannot review this project's changes, land them or verify its health.", fix: `Make it one with a first commit (git init, then commit ${MARKER_FILE}). It needs no remote: ${local}` }
+    : { check: "repository", state: "ok", message: `This project's git repository has no origin remote: ${local}` };
 }
 
 /** What a repository set_up_project began with no git identity is told (8.31): its first commit made, or the identity it waits for. */

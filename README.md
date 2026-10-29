@@ -158,7 +158,10 @@ its only copy (ADR-0641, in 0.2's decision log). Since 2026-10-08 that library i
 the Mint box (ADR-0928), shared by every machine that develops 0.3, and its project `storytree` holds 0.3's own
 stories, their capabilities and contracts, the notes filed behind their front covers, and the
 decisions made for them. Sessions plan and edit them through the storytree tools, as a user's agent
-does, and an edit is live when it is written. There are no story or decision files to edit.
+does, and an edit is live when it is written. There are no story or decision files to edit, with
+one exception: a factory plugin's story is written from the plan file the plugin carries, through
+`storytree plugin import-plan` (ADR-1187), so the library still holds one set of its capabilities
+and contracts, but their source is the plugin's file, and the plan edits refuse them.
 `pnpm storytree settings show` says which library a machine uses, and each script below uses that
 library (the app's local one, one on Cloud SQL, or one at a Postgres address) and says which.
 

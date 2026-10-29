@@ -856,6 +856,29 @@ test("4.20 `arc increment settle-pending` applies the leftover pending plan chan
   });
 });
 
+test("4.26 `arc increment drop-pending <increment> <record> --reason …` drops that one pending plan change from the open increment, saying which, and refuses a record the increment holds no change for", async () => {
+  await inWorld(command, async (world) => {
+    const library = await world.library();
+    const arc = await anArc(world);
+    const story = await library.addStory({ title: "Sign up" });
+    const form = await library.addCapability({ story: story.id, title: "Form" });
+    const promise = await library.addContract({ capability: form.id, title: "Accepts an address" });
+    const increment = await library.addIncrement({ arc, title: "Address form", objective: "Rename it", body: "Red then green" });
+    await library.advanceIncrement(increment.id, "active");
+    await library.pendChange(increment.id, { record: form.id, fields: { description: "Where they type it" } });
+    await library.pendChange(increment.id, { record: promise.id, retire: "overtaken" });
+
+    const dropped = await world.run(["arc", "increment", "drop-pending", increment.id, form.id, "--reason", "overtaken by the plugin's plan"]);
+    assert.equal(dropped.code, 0, dropped.stderr);
+    assert.match(dropped.stdout, new RegExp(`Dropped the pending change to ${form.id} from increment ${increment.id}; 1 left`));
+    assert.deepEqual(((await library.get(increment.id))?.fields as { pending?: { record: string }[] }).pending?.map(({ record }) => record), [promise.id]);
+
+    const refused = await world.run(["arc", "increment", "drop-pending", increment.id, form.id, "--reason", "again"]);
+    assert.notEqual(refused.code, 0);
+    assert.match(refused.stderr, new RegExp(`holds no pending change to "${form.id}"`));
+  });
+});
+
 /** The project's log as its claims and closes wrote it: without the door's own record of each command's answer (ADR-0983 D1). */
 async function logged(log: ActivityLog, project: string): Promise<{ lines: Line[] }> {
   return { lines: (await log.since(project, 0)).lines.filter((line) => line.kind !== "door-answered") };

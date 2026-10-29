@@ -493,6 +493,35 @@ test("4.2 · the second brief holds each earlier hit with its answer, and a retu
   });
 });
 
+test("4.8 · a finding a later review returns again whose earlier rejection was accepted, a covering-test hit for the same contract or a check's hit at the same file with the same words, is not taken as a new hit", async () => {
+  await withLibrary(async (library, storytree) => {
+    const { increment, contracts, checks } = await plan(library);
+    const reviews = await openReviews(storytree);
+    const ledger = await openLedger(storytree);
+    const file = "packages/forest-world/src/camera.test.ts";
+    const returned = (review: number, line: number, rejections?: ReviewReturn["rejections"]): ReviewReturn => ({
+      ...clean(checks, [], { [checks[0]!]: [{ file, line, found: "BASE is computed as zoom computes it" }] }, review),
+      contracts: [{ contract: contracts[0]!, met: true, touched: true, at: { file: "packages/library/src/a.ts", line } }, { contract: contracts[1]!, met: true, touched: false }],
+      ...(rejections === undefined ? {} : { rejections }),
+    });
+    await reviews.brief(library, increment, DIFF);
+    const first = await reviews.take(library.name, increment, returned(1, 1));
+    assert.deepEqual(first.hits.map(({ check }) => check).sort(), [checks[0], COVERING_TEST].sort());
+    for (const { id } of first.hits) await ledger.answer(library.name, id, { answer: "rejected", reason: "a root-only script: no test can reach it" });
+
+    const second = await reviews.brief(library, increment, DIFF);
+    const accepted = await reviews.take(library.name, increment, returned(2, 2, second.judge.map((hit) => ({ hit, accepted: true }))));
+    assert.deepEqual(accepted.hits, []);
+    assert.deepEqual(accepted.standing, []);
+
+    await reviews.brief(library, increment, DIFF);
+    const again = await reviews.take(library.name, increment, returned(3, 3));
+    assert.deepEqual(again.hits, []);
+    assert.deepEqual(await reviews.standing(library.name, increment), []);
+    assert.equal((await reviews.brief(library, increment, DIFF)).iteration, REVIEW_LIMIT + 1);
+  });
+});
+
 test("4.3 · with a finding standing after the third review a fourth brief is refused naming the arc and the findings; with none standing it is not", async () => {
   await withLibrary(async (library, storytree) => {
     const { arc, increment, contracts, checks } = await plan(library);

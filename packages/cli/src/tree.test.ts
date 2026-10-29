@@ -242,7 +242,7 @@ test("10.10 `storytree show`, the word agents reach for by the show_plan tool, p
   });
 });
 
-test("10.11 `storytree contract show <contract>` prints one contract with its reported and verified health, each with who wrote it, when and its note; `contract health` and `contract new` run the commands for those jobs; an id naming no contract says so", async () => {
+test("10.11 `storytree contract show <contract>` prints one contract with its reported and verified health, each with who wrote it, when and its note; `contract list` lists a story's or a capability's contracts under their capabilities; `contract health` and `contract new` run the commands for those jobs; an id naming no contract says so", async () => {
   await inWorld(command, async (world) => {
     const library = await world.library();
     const story = await library.addStory({ title: "Visitor can sign up" });
@@ -270,6 +270,20 @@ test("10.11 `storytree contract show <contract>` prints one contract with its re
     assert.match(planned.stdout, /^storytree contract new is storytree library new contract\n/);
     const made = (await library.list("contract")).find((each) => each.fields.title === "4.2 · Accepts a plus address");
     assert.equal(made?.fields.capability, capability.id);
+
+    const other = await library.addCapability({ title: "5 · Welcome page", story: story.id });
+    for (const named of [story.id, "Visitor can sign up", capability.id]) {
+      const listed = await world.run(["contract", "list", named]);
+      assert.equal(listed.code, 0, listed.stderr);
+      const rows = listed.stdout.split(/\r?\n/);
+      assert.equal(rows[0], `4 · Email form  [${capability.id}]`, listed.stdout);
+      assert.match(rows[1]!, new RegExp(`^  - 4\\.1 · Rejects an email with no @  \\[${contract.id}\\]  agent says passing · storytree verified failing$`));
+      assert.match(rows[2]!, new RegExp(`^  - 4\\.2 · Accepts a plus address  \\[${made!.id}\\]`));
+      assert.equal(listed.stdout.includes(other.id), named !== capability.id, listed.stdout);
+    }
+    const nowhere = await world.run(["contract", "list", "No such story"]);
+    assert.equal(nowhere.code, 1);
+    assert.match(nowhere.stderr, /no story or capability "No such story" in this project/);
 
     const unchecked = await world.run(["contract", "show", made!.id]);
     assert.match(unchecked.stdout, /reported: not checked/);

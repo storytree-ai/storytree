@@ -15,7 +15,7 @@ import type { Family, Verb } from "../door.js";
  * A node's health as the tree shows it: the agent's report, labelled as the agent's, then what
  * storytree verified; the report alone in a project nothing verifies (ADR-0630).
  */
-function healthOf(health: NodeHealth, unverified: boolean): string {
+export function healthOf(health: NodeHealth, unverified: boolean): string {
   const words = (state: string): string => state.replace("-", " ");
   const reported = `agent says ${words(health.reported.state)}`;
   return unverified ? reported : `${reported} · storytree verified ${words(health.verified.state)}`;

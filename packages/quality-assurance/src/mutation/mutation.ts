@@ -266,10 +266,11 @@ export interface Reach {
 
 /**
  * The test unit a repository path is in, as `pnpm test` scopes them: its package's folder, or its folder under infra/, which holds
- * tests but is no package (packages/dev-loop/src/test-scope.mjs).
+ * tests but is no package (packages/dev-loop/src/test-scope.mjs), or, in a user's factory checkout, its plugin's folder under
+ * plugins/, whose promises its own tests prove.
  */
 function unitOf(file: string): string | undefined {
-  return folderOf(file) ?? /^infra\/[^/]+(?=\/)/.exec(file.replace(/\\/g, "/"))?.[0];
+  return folderOf(file) ?? /^(?:infra|plugins)\/[^/]+(?=\/)/.exec(file.replace(/\\/g, "/"))?.[0];
 }
 
 /** The import graph of the packages under `folders` of the checkout at `root`, each file to the files importing it. */

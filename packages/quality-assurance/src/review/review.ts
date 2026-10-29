@@ -24,7 +24,8 @@
  * - A return is taken whole or not at all: it answers every check and contract in its brief, and judges every
  *   rejection, and nothing else (2.2, 4.2), and names the review it answers, so a return left from an earlier
  *   review, as one read from another folder's /tmp may be, is refused (2.9).
- * - A finding stands while it is unanswered, or rejected for a reason no later review accepted (4.1); a contract found not met stands
+ * - A finding stands while it is unanswered, or rejected for a reason no later review accepted (4.1), and one a later review returns
+ *   again after its rejection was accepted is not taken as a new hit (4.8); a contract found not met stands
  *   only while the increment still names it, so narrowing its capabilities list clears the rest (4.7). With
  *   one standing after the third review, the fourth brief is refused, naming the arc for the session's
  *   question (4.3, ADR-1120 D1); the refusal itself writes nothing. The three are the branch's: a brief read from a worktree
@@ -370,6 +371,10 @@ class PgReviews implements Reviews {
     const problems = refusals(brief, review);
     if (problems.length > 0) throw new Error(`The review's return for ${change} is refused and nothing is recorded:\n${problems.map((problem) => `  ${problem}`).join("\n")}`);
     const name = `${change}#${brief.iteration}`;
+    // A finding whose earlier hit was rejected, and the rejection accepted by an earlier review or by this one, is not taken again (contract 4.8).
+    const nowAccepted = new Set((review.rejections ?? []).filter(({ accepted }) => accepted).map(({ hit }) => hit));
+    const settled = brief.earlier.filter((hit) => hit.answer === "rejected" && (hit.accepted || nowAccepted.has(hit.id)));
+    const fresh = (check: string) => (hit: { file: string; found?: string }) => !settled.some((earlier) => sameFinding(earlier, { check, ...hit }));
     const hits = await inTransaction(this.#pool, async (client) => {
       const written = await writeReview(client, {
         project, review: name, change, packages: brief.packages,
@@ -382,7 +387,7 @@ class PgReviews implements Reviews {
             check, foundBy: "graduated" as const,
             hits: hits.map(({ file, line, found }) => ({ package: packageOf(file), file, line, found })).filter((hit) => brief.packages.includes(hit.package)),
           })),
-        ],
+        ].map((ran) => ({ ...ran, hits: ran.hits.filter(fresh(ran.check)) })),
       });
       for (const { hit } of (review.rejections ?? []).filter(({ accepted }) => accepted)) {
         await client.query("UPDATE quality_hits SET accepted = true WHERE project = $1 AND id = $2", [project, hit]);
@@ -489,6 +494,16 @@ function coverage(brief: Brief, review: ReviewReturn): { check: string; hits: { 
       found: `contract ${contract} (${titles.get(contract) ?? contract}): the change touches it and no test covers the changed behaviour; add one`,
     })),
   }];
+}
+
+/**
+ * Whether `hit` is the finding `earlier` was (contract 4.8): the same check at the same file, and for a covering-test hit the same
+ * contract, for any other the same words; its line may have moved.
+ */
+function sameFinding(earlier: Pick<HitRow, "check" | "file" | "found">, hit: { check: string; file: string; found?: string }): boolean {
+  if (earlier.check !== hit.check || earlier.file !== hit.file) return false;
+  const contract = (found: string | undefined) => /^contract (\S+) /.exec(found ?? "")?.[1];
+  return hit.check === COVERING_TEST ? contract(earlier.found) === contract(hit.found) : earlier.found === hit.found;
 }
 
 /** The red-run check as a review ran it (contract 2.14): a hit at each test the change adds that no saved red run names; not run when it adds none. */

@@ -86,7 +86,7 @@ function endTree(child: ChildProcess): Promise<void> {
   }
   return new Promise(resolve => execFile("taskkill", ["/pid", String(child.pid), "/T", "/F"], { windowsHide: true }, () => resolve()));
 }
-const gitText = async (folder: string, args: string[]) => (await git(folder, args)).toString("utf8").trim();
+export const gitText = async (folder: string, args: string[]) => (await git(folder, args)).toString("utf8").trim();
 
 function disk(root: string, read: (file: string) => Promise<string>): SurveySource {
   return {

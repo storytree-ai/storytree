@@ -75,6 +75,7 @@ import { isSelfNamed, selfNamedLines } from "./self-named.js";
 import { shellEdits } from "./shell-edits.js";
 import type { HookClock } from "./timing.js";
 import { rememberedImports, SHELL_GUARD, shellGuard, watchImports, watchWorktree } from "./shell-guard.js";
+import { TEST_GUARD, testGuard } from "./test-guard.js";
 
 /** What a hook is run with: the command's arguments (the harness first, then any flags) and its stdin. */
 export interface HookInput {
@@ -204,6 +205,8 @@ async function answerHook({ argv, input: given, handOff: handing, merges, locate
     // The turn-end hook that asks the agent to close out writes nothing: the other Stop hook writes the turn's line (ADR-0758 D4).
     if (flags.includes(CLOSE_OUT_REMINDER)) return closeOutReminder(harness, parsed, git);
     // The hook before each file-edit tool writes nothing: it answers whether the edit may happen (ADR-0949 D3).
+    // The guard storytree's red and green builder agents run before each edit writes nothing either (3.50).
+    if (flags.includes(TEST_GUARD)) return testGuard(harness, parsed, flags);
     if (flags.includes(EDIT_GATE)) return await editGate(harness, parsed, declaredCapabilities, locate, homeOf(locate), failed, guardMs);
     // The hook after each shell command that the harness waits for tells the agent of its changes to imported code (ADR-1015), and to capabilities its claims do not cover (ADR-0949 D3).
     if (flags.includes(SHELL_GUARD)) return await shellGuard(harness, parsed, hookLines(harness, parsed), locate, homeOf(locate), storytreeHome(), failed, declaredCapabilities, guardMs, git);

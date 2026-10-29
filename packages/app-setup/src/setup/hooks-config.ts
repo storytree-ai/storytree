@@ -51,6 +51,7 @@ import { AFTER_TOOL, ANTIGRAVITY_HOOKS, ASK_SETUP, BACKGROUND, CLOSE_OUT_REMINDE
 import { HARNESS_IDS } from "@storytree/project-and-caller/caller";
 
 import { read, save } from "../connect/harness.js";
+import { installBuilderAgents, removeBuilderAgents } from "./builder-agents.js";
 import { piExtension } from "./pi-extension.js";
 
 export { defaultHomes, registeredHookScripts, type Homes };
@@ -122,6 +123,8 @@ type Settings = Record<string, unknown> & { hooks?: Record<string, HookEntry[]> 
  */
 export function registerHooks(homes: Homes, hook: HookCommand, disconnected: ReadonlySet<Harness> = new Set(), codexVersion?: string, look = false): HooksReport {
   const claude = disconnected.has("claude-code") ? { registration: "disconnected" as const, replaced: [] } : register(homes.claude, "settings.json", claudeEntries(hook), hook.script, {}, look);
+  // storytree's red and green builder agents go with Claude Code's hooks (8.38).
+  if (!disconnected.has("claude-code")) installBuilderAgents(homes.claude, hook, look);
   const codex = disconnected.has("codex") ? { registration: "disconnected" as const, replaced: [] } : register(homes.codex, "hooks.json", codexEntries(hook, codexVersion), hook.script, {}, look);
   // Cursor's hooks file must name its version: a new file gets 1, and one the user wrote keeps its own.
   const cursor = disconnected.has("cursor") ? { registration: "disconnected" as const, replaced: [] } : register(homes.cursor, "hooks.json", cursorEntries(hook), hook.script, { version: 1 }, look);
@@ -173,6 +176,7 @@ export function markDisconnected(storytreeHome: string, harness: Harness, discon
 export function removeHooks(homes: Homes, scope?: { readonly harness: Harness; readonly hook: HookCommand }): RemovalReport {
   if (scope !== undefined) return removeHarnessHooks(homes, scope.harness, scope.hook);
   const statusLine = removeStatusLine(homes.claude);
+  removeBuilderAgents(homes.claude);
   return {
     "claude-code": remove(homes.claude, "settings.json"),
     codex: remove(homes.codex, "hooks.json"),
@@ -490,6 +494,7 @@ function removeHarnessHooks(homes: Homes, harness: Harness, hook: HookCommand): 
   const report: RemovalReport = { "claude-code": "none", codex: "none", cursor: "none", pi: "none", antigravity: "none", statusLine: "none" };
   if (harness === "pi") return { ...report, pi: removePi(homes.pi, hook.script) };
   if (harness === "antigravity") return { ...report, antigravity: removeAntigravity(homes.antigravity, hook.script) };
+  if (harness === "claude-code") removeBuilderAgents(homes.claude, hook.script);
   const home = harness === "claude-code" ? homes.claude : homes[harness];
   if (home === undefined) return report;
   const file = path.join(home, harness === "claude-code" ? "settings.json" : "hooks.json");

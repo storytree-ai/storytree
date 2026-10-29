@@ -98,7 +98,7 @@ function isStorytrees(file: string): boolean {
   }
 }
 
-/** Write storytree's builder agents into Claude Code's home, leaving a file of the user's own; a look writes nothing. */
+/** Write storytree's builder agents into Claude Code's home, leaving a file of the user's own; a look writes nothing. A new file is its owner's alone (0600). */
 export function installBuilderAgents(home: string | undefined, hook: HookCommand, look: boolean): void {
   if (home === undefined || look || !existsSync(home)) return;
   const folder = path.join(home, "agents");
@@ -108,7 +108,7 @@ export function installBuilderAgents(home: string | undefined, hook: HookCommand
     const wanted = agentFile(hook, mode);
     if (existsSync(file) && readFileSync(file, "utf8") === wanted) continue;
     mkdirSync(folder, { recursive: true });
-    writeFileSync(file, wanted);
+    writeFileSync(file, wanted, { mode: 0o600 });
   }
 }
 

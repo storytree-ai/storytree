@@ -126,14 +126,16 @@ export function qualityTools(): ToolExtension {
 /** Its section of the habits card (ADR-1021, the guidance kind): red, then green, then reviewed and landed. */
 export const qualityGuidance: readonly string[] = [
   [
-  "Red, then green, then landed.",
-  "- Write a contract's test first, run it, see it fail, and `report` it red.",
-  "- Make it pass, and `report` it green.",
-  "- Before a green change lands, have it reviewed in a fresh context, as the library's change-reviewer role says: `quality_brief` gives the review the change's diff, the contracts its increment names and every check `quality_checks` reads, and `quality_take` records what it found. Answer each hit with `quality_answer`, fixed or rejected with a reason, and review again while `quality_standing` lists one. `quality_ledger` counts the hits by check; `graduate_check` records a part of a check that a deterministic check now enforces.",
+  "Red, then green, then landed. The user approves three times: the plan, the failing tests before any production code, and the change before it is committed. Stop at each for their reply, unless their instructions file (AGENTS.md, CLAUDE.md) hands you these gates.",
+  "- Plan: read the code, plan the increment, show the user its contracts and wait.",
+  "- Red: write only tests for the increment's contracts, no production code. Run them with the project's test command; each must fail for the missing behaviour, not an import or collection error. `report` each contract red. Show the run's summary line and a table, one row per test: test, contract, why it is needed, quoted failure line, and whether it fails if the behaviour were removed (drop one that would not). Then STOP: write no production code until the user approves, drops or rewrites tests.",
+  "- Green: record each approved test file's hash (git hash-object), then write the least production code that passes them, never editing an approved test; if one looks wrong, stop and say why. Run the whole suite, `report` each contract green, and show the hashes unchanged and git diff --stat.",
+  "- Before a green change lands, have it reviewed in a fresh context (a subagent told only the increment and folder, or the library's change-reviewer role): `quality_brief` gives the review the change's diff, the contracts its increment names and every check `quality_checks` reads, and `quality_take` records what it found. Answer each hit with `quality_answer`, fixed or rejected with a reason, and review again while `quality_standing` lists one. `quality_ledger` counts the hits by check; `graduate_check` records a part of a check that a deterministic check now enforces.",
+  "- Then show the user the diff and STOP: commit nothing until they approve. With no remote, land by local commit.",
   "- When its contracts pass, `land` the capability: your claim on it ends. A landing that leaves a source file of the story's package reached by no numbered test is held, naming each file: place it, then land again. A landing also names each planned contract no numbered test proves: write its test, or retire the contract. If you stop before then, `release` it.",
   "- A capability is proposed until you `mark_built` it, once you consider it built. Its card then says healthy, unhealthy or untested from what storytree verified, never from your report.",
   "- At an increment boundary, `read_context` says how many tokens your context holds; judge whether to take on more.",
-  "- When the increment is done, `close_increment` with its outcome (landed, failed or withdrawn) and its pull request. Record work that landed without ever being parked with `park_increment` and its outcome.",
-  "- When your session's work is done, `close_out`: say whether it is safe to close (pull requests merged, tree clean, nothing of yours running) and why. The sessions list checks a yes; anything it cannot bear out stays listed for the owner.",
+  "- When the increment is done, `close_increment` with its outcome (landed, failed or withdrawn) and its pull request, or a note naming the local commit. Record work that landed without ever being parked with `park_increment` and its outcome.",
+  "- When your session's work is done, `close_out`: say whether it is safe to close (pull requests merged or commits made, tree clean, nothing of yours running) and why. The sessions list checks a yes; anything it cannot bear out stays listed for the owner.",
   ].join("\n"),
 ];

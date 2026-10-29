@@ -491,7 +491,13 @@ export const runTests: TestRun = (root, tests, limitMs, given = process.env) => 
       const [file, line, column, title] = JSON.parse(one) as [string, number | undefined, number | undefined, string];
       return testName(file === "" ? "" : path.relative(realRoot, real(file.startsWith("file:") ? fileURLToPath(file) : file)), line, column, title);
     }) : [];
-    rmSync(temp, { recursive: true, force: true });
+    // Best effort: on Windows a test process may still hold a file in it (ENOTEMPTY); the run's result never depends on
+    // this folder, so a leftover reporter folder in the temp folder is better than a brief that crashes.
+    try {
+      rmSync(temp, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
+    } catch {
+      // Left behind.
+    }
     resolve({ passed: code === 0 && !timedOut, ms: Date.now() - started, ...(timedOut ? { timedOut } : {}), passing });
   });
 });

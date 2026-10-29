@@ -58,17 +58,17 @@ const KEPT: readonly Placed[] = [
 ];
 
 /**
- * The declared families this command mounts, each with its part: those of storytree's own parts, but a part a factory
- * plugin stands in for while it is off (its families giving way to the plugin's), and the stand-ins' own, a plugin that
- * adds a part of its own among them while the setting names it. A settings file
- * that cannot be read mounts storytree's own alone, and the command that reads it next says why.
+ * The declared families this command mounts on the computer whose storytree home is `home`, each with its part: those of
+ * storytree's own parts, but a part a factory plugin stands in for while it is off (its families giving way to the
+ * plugin's), and the stand-ins' own, a plugin that adds a part of its own among them while the setting names it. A
+ * settings file that cannot be read mounts storytree's own alone, and the command that reads it next says why.
  */
-const declared = (() => {
+function declaredIn(home?: string) {
   let off: readonly string[];
   let standIns: ReturnType<typeof readStandIns>;
   try {
-    off = readPartsOff();
-    standIns = readStandIns();
+    off = readPartsOff(home);
+    standIns = readStandIns(home);
   } catch {
     return composed;
   }
@@ -79,9 +79,21 @@ const declared = (() => {
   const replaced = new Set([...standing].map((plugin) => standsIn[plugin]!));
   const keep = loaded.owners.map((owner) => Object.hasOwn(standsIn, owner) ? standing.has(owner) : !replaced.has(owner));
   return { ...loaded, parts: loaded.parts.filter((_, at) => keep[at]), owners: loaded.owners.filter((_, at) => keep[at]) };
-})();
+}
 
-export const FAMILIES: readonly Family[] = inOrder([...KEPT, ...declared.parts.map((family) => ({ order: family.order, family: learning(mounted(family), surfaces) }))]);
+/** The families `storytree` answers on the computer whose storytree home is `home`, in the order it lists them. */
+export function familiesIn(home?: string): readonly Family[] {
+  return familiesOf(home === undefined ? declared : declaredIn(home));
+}
+
+function familiesOf(mounting: ReturnType<typeof declaredIn>): Family[] {
+  return inOrder([...KEPT, ...mounting.parts.map((family) => ({ order: family.order, family: learning(mounted(family), surfaces) }))]);
+}
+
+/** The declared families this command mounts on this computer. */
+const declared = declaredIn();
+
+export const FAMILIES: readonly Family[] = familiesOf(declared);
 
 /** The family that switches a part back on, mounted whatever is off, so the way back is never switched off with its part. */
 const WAY_BACK = "settings";

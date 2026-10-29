@@ -166,6 +166,31 @@ test("7.2 · a break in a file of an infra/ folder runs against the tests that f
   }
 });
 
+/** A user's factory checkout: a plugin under plugins/, a workspace package of its own, whose own test imports its code. */
+const FACTORY: Record<string, string> = {
+  "package.json": JSON.stringify({ name: "storytree-factory", private: true, type: "module" }),
+  "pnpm-workspace.yaml": "packages:\n  - \"plugins/*\"\n",
+  "plugins/voice/package.json": JSON.stringify({ name: "voice", private: true, type: "module" }),
+  "plugins/voice/src/host.ts": "export const ready = (state: string): boolean => state === \"up\";\n",
+  "plugins/voice/src/host.test.ts": "import assert from \"node:assert/strict\";\nimport { test } from \"node:test\";\nimport { ready } from \"./host.js\";\ntest(\"4.10 · ready\", () => { assert.equal(ready(\"up\"), true); assert.equal(ready(\"down\"), false); });\n",
+};
+
+test("7.2 · a break in a factory plugin's file runs against the plugin's own tests and is caught, not reached by no test", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "qa-factory-"));
+  try {
+    write(dir, FACTORY);
+    assert.deepEqual(readReach(dir, ["plugins/voice"]).tests("plugins/voice/src/host.ts"), ["plugins/voice/src/host.test.ts"]);
+    const report = await mutationReport(dir, adding(FACTORY));
+    assert.equal(report.ran, true);
+    if (!report.ran) return;
+    assert.equal(report.planted, 1);
+    assert.equal(report.caught, 1);
+    assert.deepEqual(report.survivors, []);
+  } finally {
+    await removeTemp(dir);
+  }
+});
+
 /**
  * A desktop page no test imports: a capture kit bundles it by its path from the checkout's root, and a test imports the kit; a
  * second page a test bundles by its path beside the test; a third a test names only to check it is there.

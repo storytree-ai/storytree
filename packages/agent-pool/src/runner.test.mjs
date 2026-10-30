@@ -10,7 +10,7 @@ import { promisify } from "node:util";
 
 import { quietFor, removeTemp, waitUntil } from "@storytree/test-waits";
 
-import { bothAnswer, main, runLane } from "./runner.mjs";
+import { bothAnswer, main, runLane, storytreeCommand } from "./runner.mjs";
 
 const exec = promisify(execFile);
 const start = Date.parse("2026-10-06T00:00:00Z");
@@ -542,7 +542,7 @@ test("1.20 · the network is back only when both the library and GitHub answer",
   for (const [down, expected] of [[[], true], [["pnpm"], false], [["gh"], false]]) {
     const asked = [];
     const probe = async (file, args) => { asked.push([file, ...args].join(" ")); if (down.includes(file)) throw new Error("no answer"); };
-    assert.equal(await bothAnswer({ probe }), expected, `down: ${down.join(", ") || "none"}`);
+    assert.equal(await bothAnswer({ probe, platform: "linux" }), expected, `down: ${down.join(", ") || "none"}`);
     assert.deepEqual(asked.map((line) => line.split(" ").slice(0, 4).join(" ")).sort(), ["gh api rate_limit", "pnpm -s storytree library"]);
   }
 });
@@ -566,4 +566,23 @@ test("1.21 · A lane whose worktree has no git identity configured still commits
   await rm(join(options.cwd, ".git"), { recursive: true, force: true });
   assert.equal(await runLane(options), 0);
   assert.equal((await readFile(options.log, "utf8")).trim(), "Someone <someone@example.com> / Someone <someone@example.com>");
+});
+
+test("1.22 · on Windows the runner reaches storytree through node, not pnpm's .cmd, and its engine is not handed the dispatcher's pool configuration", async (t) => {
+  const node = [process.execPath, ["--import", "tsx", "packages/cli/src/bins/storytree.ts", "arc", "list"]];
+  assert.deepEqual(storytreeCommand(["arc", "list"], "win32"), node);
+  assert.deepEqual(storytreeCommand(["arc", "list"], "linux"), ["pnpm", ["-s", "storytree", "arc", "list"]]);
+  const probed = [];
+  assert.equal(await bothAnswer({ cwd: ".", env: {}, platform: "win32", probe: async (file, args) => { probed.push([file, ...args]); } }), true);
+  assert.deepEqual(probed.map((call) => call[0]).sort(), ["gh", process.execPath].sort());
+
+  const options = await lane(t);
+  options.env.AGENT_POOL_CONFIG = join(options.home, "laptop-pool.json");
+  await writeFile(options.env.AGENT_POOL_CONFIG, JSON.stringify({ lanes: options.lanesDir, engines: { claude: { model: "claude-laptop" } } }));
+  await writeFile(join(options.lanesDir, "engine-override"), "claude");
+  options.commands.claude = command("console.log(JSON.stringify({args:process.argv.slice(1),config:process.env.AGENT_POOL_CONFIG??null}));");
+  assert.equal(await runLane(options), 0);
+  const result = JSON.parse(await readFile(options.log, "utf8"));
+  assert.equal(result.config, null, "the lane's own tools (its hand-over) read the repository's configuration");
+  assert.ok(result.args.includes("claude-laptop"), "the runner itself read the dispatcher's configuration");
 });

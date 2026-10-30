@@ -8,7 +8,7 @@ import { promisify } from "node:util";
 
 import { removeTemp } from "@storytree/test-waits";
 
-import { main, planRules, poolRules, prepareCheckout, PUSH_URL, runPool } from "./launch.mjs";
+import { main, planRules, poolRules, prepareCheckout, PUSH_URL, runPool, startHold, withLockFile } from "./launch.mjs";
 import { codeVersion } from "./queue.mjs";
 
 const run = promisify(execFile);
@@ -27,7 +27,9 @@ async function box(t, extra = {}) {
     lanesDir, events, lines, briefs, repo: join(lanesDir, "repo"), addDirs: ["/wt", lanesDir], pid: 4242, now,
     say: (line) => lines.push(line), argsOf: async () => "", maxLanes: async () => 5,
     // A clear box: the real reading (/proc on a busy CI runner) would hold dispatch back (pace.mjs).
-    pace: async () => undefined,
+    pace: async () => undefined, briefPaths: undefined,
+    // Plugged in and online: the real readings (the power line, the library and GitHub) are the start rule's tests' own (3.27).
+    power: async () => "Online", online: async () => true,
     count: async () => { events.push("count"); return counts.length ? counts.shift() : 0; },
     lock: async (fn) => { events.push("lock"); await fn(); events.push("unlock"); },
     prepare: async () => { events.push("prepare"); },
@@ -451,4 +453,72 @@ test("3.21 · `ready --drained` also lists, after the arcs it would plan, every 
     { id: "arc_drained", title: "Drained", state: "[0,[]]" },
   ]);
   assert.deepEqual(await plans(["ready", "x-twin-map-reads-on"]), [{ id: "arc_active", title: "Active", state: "[0,[]]" }]);
+});
+
+test("3.26 · on Windows the checkout lock is a lock file: a second holder waits for the first, a dead holder's file does not block, and a failing holder lets it go", async (t) => {
+  const path = join(await folder(t), "night-checkout.lock");
+  const order = [], alive = new Set([1, 2]);
+  let release, entered;
+  const inside = new Promise((go) => { entered = go; });
+  const first = withLockFile(path, () => new Promise((go) => { order.push("first"); release = go; entered(); }), { pid: 1, alive: (pid) => alive.has(pid) });
+  await inside;
+  assert.equal((await readFile(path, "utf8")).trim(), "1", "the lock file names its holder");
+  await withLockFile(path, async () => { order.push("second"); }, { pid: 2, alive: (pid) => alive.has(pid),
+    sleep: async () => { order.push("wait"); release(); await first; } });
+  assert.deepEqual(order, ["first", "wait", "second"]);
+  await assert.rejects(readFile(path, "utf8"), { code: "ENOENT" }, "the last holder removed it");
+  await writeFile(path, "77\n");
+  assert.equal(await withLockFile(path, async () => "ran", { pid: 3, alive: (pid) => pid !== 77, sleep: async () => assert.fail("a dead holder's lock blocked") }), "ran");
+  await assert.rejects(withLockFile(path, async () => { throw new Error("prepare failed"); }, { pid: 3, alive: () => true }), /prepare failed/);
+  await assert.rejects(readFile(path, "utf8"), { code: "ENOENT" }, "a failing holder lets it go");
+});
+
+test("3.27 · the start rule holds a lane back on battery and while the library or GitHub does not answer; a machine with no battery is plugged in", async () => {
+  const online = async () => true, offline = async () => false;
+  assert.equal((await startHold({ power: async () => "Offline", online })).reason, "on battery: a lane starts only while the machine is plugged in");
+  assert.equal((await startHold({ power: async () => "Online", online: offline })).reason, "offline: the library or GitHub does not answer");
+  for (const line of ["Online", "Unknown", ""]) assert.equal(await startHold({ power: async () => line, online }), undefined, `power line ${line || "unread"}`);
+  assert.equal(await startHold({ power: async () => { throw new Error("no powershell"); }, online }), undefined, "an unread power line holds nothing back");
+  assert.equal((await startHold({ power: async () => "Offline", online: () => assert.fail("read online while on battery") })).windows[0], "power");
+});
+
+test("3.27 · a machine-only dispatcher on battery or offline starts nothing and says why once, then starts once plugged in and online; any other dispatcher never reads them", async (t) => {
+  const work = poolWork(["mine"]);
+  work.increments[0].machine = "laptop";
+  let power = "Offline", online = false, looks = 0;
+  const b = await box(t, { survey: async () => ({ ...work, here: "laptop" }), count: async () => 0, maxLanes: async () => 1,
+    power: async () => power, online: async () => online });
+  b.env = { AGENT_POOL_CONFIG: join(b.lanesDir, "agent-pool.json") };
+  await writeFile(b.env.AGENT_POOL_CONFIG, JSON.stringify({ machineOnly: true }));
+  b.sleep = async () => {
+    await new Promise((go) => setImmediate(go));
+    looks += 1;
+    if (looks === 2) power = "Online";
+    if (looks === 3) online = true;
+    if (b.briefs.length) await writeFile(join(b.lanesDir, "pool-stop"), "");
+  };
+  assert.equal(await main(["pool"], b), 0);
+  assert.deepEqual(b.briefs.map((brief) => brief.split("\n")[0]), ["# Pool lane: mine"]);
+  const holds = b.lines.filter((line) => /holding back dispatch/.test(line)).map((line) => line.replace(/^\S+ /, ""));
+  assert.deepEqual(holds, ["holding back dispatch: on battery: a lane starts only while the machine is plugged in",
+    "holding back dispatch: offline: the library or GitHub does not answer"], "each said once, though on battery for two looks");
+  assert.ok(b.lines.findIndex((line) => /offline/.test(line)) < b.lines.findIndex((line) => /start mine/.test(line)));
+
+  const mint = await box(t, { survey: async () => poolWork(["any"]), count: async () => 0, maxLanes: async () => 1,
+    power: () => assert.fail("the Mint pool read the power line"), online: () => assert.fail("the Mint pool probed the network") });
+  mint.sleep = async () => { await new Promise((go) => setImmediate(go)); if (mint.briefs.length) await writeFile(join(mint.lanesDir, "pool-stop"), ""); };
+  assert.equal(await main(["pool"], mint), 0);
+  assert.equal(mint.briefs.length, 1);
+});
+
+test("3.28 · a dispatcher configured with its own checkout and lanes folder briefs its lanes with those folders, not the Mint box's", async (t) => {
+  const b = await box(t, { survey: async () => poolWork(["one"]), count: async () => 0,
+    rules: async () => "Work from ~/code/storytree03, never ~/code/storytree03-wt. Your report goes to ~/storytree-lanes/pool-<increment>.report.md.\n" });
+  b.home = b.lanesDir;
+  b.env = { AGENT_POOL_CONFIG: join(b.lanesDir, "agent-pool.json") };
+  await writeFile(b.env.AGENT_POOL_CONFIG, JSON.stringify({ checkout: "C:/code/storytree03", lanes: "~/.storytree/agent-pool" }));
+  delete b.briefPaths;
+  b.sleep = async () => { await new Promise((go) => setImmediate(go)); if (b.briefs.length) await writeFile(join(b.lanesDir, "pool-stop"), ""); };
+  assert.equal(await main(["pool"], b), 0);
+  assert.ok(b.briefs[0].endsWith(`Work from C:/code/storytree03, never ~/code/storytree03-wt. Your report goes to ${join(b.lanesDir, ".storytree", "agent-pool")}/pool-<increment>.report.md.\n`), b.briefs[0]);
 });

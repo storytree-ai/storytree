@@ -149,7 +149,7 @@ async function reapLeftovers({ group, mark, dated, reap = REAP }) {
   const stubborn = await until(graceMs);
   signal(stubborn.map((one) => one.pid), "SIGKILL");
   const killed = new Set(stubborn.map((one) => one.pid));
-  for (const { pid, command } of [...survivors, ...stubborn.filter((one) => !survivors.some((first) => first.pid === one.pid))]) {
+  for (const { pid, command } of new Map([...survivors, ...stubborn].map((one) => [one.pid, one])).values()) {
     dated(`left running by the engine, stopped${killed.has(pid) ? " by SIGKILL" : ""}: pid ${pid} (${command})`);
   }
 }

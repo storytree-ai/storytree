@@ -240,7 +240,7 @@ test("4.6 a skill carries a linked pattern whole where its steps say {{include <
   const unlinked = { ...skill, fields: { ...skill.fields, links: [] } };
   assert.throws(() => expectedFiles({ root: undefined, others: [], skills: [unlinked], titles: new Map(), notes: new Map([["pattern_5ab3b3241c67", pattern("a")]]) }, CLAUDE_MD), /includes pattern_5ab3b3241c67, which it does not link/);
   const principle = { id: "pattern_5ab3b3241c67", type: "principle", fields: { title: "Not a pattern" } };
-  assert.throws(() => expectedFiles({ root: undefined, others: [], skills: [skill], titles: new Map(), notes: new Map([[principle.id, principle]]) }, CLAUDE_MD), /includes pattern_5ab3b3241c67, which is not a live pattern/);
+  assert.throws(() => expectedFiles({ root: undefined, others: [], skills: [skill], titles: new Map([[principle.id, "Not a pattern"]]), notes: new Map([[principle.id, principle]]) }, CLAUDE_MD), /includes pattern_5ab3b3241c67, which is not a live pattern/);
 });
 
 test("4.4 a skill whose description is over 1,024 characters is refused, since Codex would not load it", () => {

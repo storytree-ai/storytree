@@ -18,7 +18,7 @@ import { HEALTH_FAMILIES } from "../verbs.js";
 
 const WORDS: DoorWords = { door: "command", say: (step) => `storytree ${step.command}` };
 
-test("5.1 · `health local`, on the command line only (no tool), runs a project's own numbered tests by its test command in a folder with no git repository and records them on its story's promises as a local test run: passing, then failing once a test fails; a project with no test command, or whose CI storytree reads, writes nothing and says why", async (t) => {
+test("5.1, 3.17 · `health local`, on the command line only (no tool), runs a project's own numbered tests by its test command in a folder with no git repository and records them on its story's promises as a local test run: passing, then failing once a test fails; a project with no test command, or whose CI storytree reads, writes nothing and says why", async (t) => {
   const url = process.env.STORYTREE_TEST_PG_URL;
   if (url === undefined) throw new Error("run the tests via `pnpm test`, which starts a local Postgres");
   const storytree = await connect({ url });
@@ -52,6 +52,7 @@ test("5.1 · `health local`, on the command line only (no tool), runs a project'
   const verified = (await library.health(contract.id)).verified;
   assert.equal(verified.state, "passing");
   assert.equal(verified.by, "a local test run");
+  assert.equal(verified.source, "local", "verified locally");
 
   writeFileSync(tests, readFileSync(tests, "utf8").replace(`"hello, world");`, `"goodbye");`));
   const failing = await local.act({} as never, place as never, WORDS);

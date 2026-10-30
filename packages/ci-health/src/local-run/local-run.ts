@@ -49,7 +49,7 @@ export async function recordLocalTests({ library, folder, run = runTests }: { li
   const { verdicts, unmatched } = judgeRun(proofs, results);
   const commit = await commitOf(folder);
   const tested = new Map<string, Verdict>([...verdicts].filter(([, { total }]) => total > 0));
-  const written = await recordHealth(library, new Map([...tested.keys()].map((id) => [id, id])), tested, { by: VERIFIED_BY_LOCAL_RUN, ...(commit === undefined ? {} : { commit: commit.slice(0, 12) }) });
+  const written = await recordHealth(library, new Map([...tested.keys()].map((id) => [id, id])), tested, { by: VERIFIED_BY_LOCAL_RUN, source: "local", ...(commit === undefined ? {} : { commit: commit.slice(0, 12) }) });
   const notChecked = [...tested.values()].filter(({ state }) => state === "not-checked").length;
   return { written: true, ...(commit === undefined ? {} : { commit }), tests: results.length, unmatched: unmatched.length, passing: written.passing, failing: written.failing, notChecked };
 }

@@ -87,7 +87,7 @@ export function recordAcceptance(library, contractIds, verdicts, { commit, evide
   const withEvidence = new Map(
     [...verdicts].map(([number, verdict]) => [number, verdict.note === undefined ? verdict : { ...verdict, note: `${verdict.note}${said}, evidence ${evidence}` }]),
   );
-  return recordHealth(library, contractIds, withEvidence, { by: ACCEPTED_BY, commit });
+  return recordHealth(library, contractIds, withEvidence, { by: ACCEPTED_BY, source: "local", commit });
 }
 
 /**

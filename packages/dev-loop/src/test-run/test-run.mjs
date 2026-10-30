@@ -474,7 +474,7 @@ export async function markPending(library, story, writer, { root }) {
  */
 export function recordingTarget({ env, setting }) {
   if (env.GITHUB_ACTIONS === "true") {
-    const writer = { by: VERIFIED_BY_CI, ...optional("commit", env.GITHUB_SHA) };
+    const writer = { by: VERIFIED_BY_CI, source: "ci", ...optional("commit", env.GITHUB_SHA) };
     if ((env.HEALTH_PG_ADDRESS ?? "") !== "") return { record: true, library: { address: env.HEALTH_PG_ADDRESS }, writer };
     return {
       record: false,
@@ -483,9 +483,9 @@ export function recordingTarget({ env, setting }) {
         "(infra/library-host/README.md says how CI reaches the Mint box). Nothing was recorded.",
     };
   }
-  if (setting.location === "postgres") return { record: true, library: { address: setting.address }, writer: { by: VERIFIED_BY } };
+  if (setting.location === "postgres") return { record: true, library: { address: setting.address }, writer: { by: VERIFIED_BY, source: "local" } };
   if (setting.location === "cloudsql") {
-    return { record: true, library: { cloudSql: { instance: setting.instance, user: setting.user } }, writer: { by: VERIFIED_BY } };
+    return { record: true, library: { cloudSql: { instance: setting.instance, user: setting.user } }, writer: { by: VERIFIED_BY, source: "local" } };
   }
-  return { record: true, library: "app", writer: { by: VERIFIED_BY } };
+  return { record: true, library: "app", writer: { by: VERIFIED_BY, source: "local" } };
 }

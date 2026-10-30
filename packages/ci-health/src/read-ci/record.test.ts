@@ -39,7 +39,7 @@ test("3.1 · recordHealth writes each passing or failing verdict to the verified
     ["1.2", { state: "failing", note: "1/2 tests passed" }],
     ["1.3", { state: "not-checked", reason: "no tests" }],
   ]);
-  const written = await recordHealth(lib, contractIds, verdicts, { by: "storytree test run" });
+  const written = await recordHealth(lib, contractIds, verdicts, { by: "storytree test run", source: "local" });
   assert.deepEqual(written, { passing: 1, failing: 1, notChecked: 1, marked: 0 });
 
   const passing = await lib.health(contractIds.get("1.1")!);
@@ -55,7 +55,7 @@ test("3.1 · recordHealth writes each passing or failing verdict to the verified
 test("3.1 · recordHealth writes as the writer it is given: a run on CI says so, with its commit in the note", async (t) => {
   const { lib, contractIds } = await kettle(t);
   const verdicts = new Map<string, RecordedVerdict>([["1.1", { state: "passing", note: "2/2 tests passed" }]]);
-  await recordHealth(lib, contractIds, verdicts, { by: "storytree test run on CI", commit: "9f3734a0c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f6" });
+  await recordHealth(lib, contractIds, verdicts, { by: "storytree test run on CI", source: "ci", commit: "9f3734a0c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f6" });
   const { verified } = await lib.health(contractIds.get("1.1")!);
   assert.equal(verified.by, "storytree test run on CI");
   assert.equal(verified.note, "2/2 tests passed, at commit 9f3734a0c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f6");
@@ -67,7 +67,7 @@ test("3.16 · recordHealth records a skip's kind, marks a verdict the run did no
   const failed = await lib.recordVerified(id("1.1"), "failing", { by: "storytree test run", note: "11/13 tests passed" });
   const passed = await lib.recordVerified(id("1.3"), "passing", { by: "storytree test run" });
   await lib.recordVerified(id("1.4"), "passing", { by: "acceptance run", note: "3/3 checks passed" });
-  const writer = { by: "storytree test run on CI", commit: "abc123" };
+  const writer = { by: "storytree test run on CI", source: "ci" as const, commit: "abc123" };
   const verdicts = new Map<string, RecordedVerdict>([
     ["1.1", { state: "not-checked", skip: "owner", reason: "1 of 1 tests skipped (owner: needs a sign-in)" }],
     ["1.2", { state: "not-checked", skip: "platform:win32", reason: "1 of 1 tests skipped" }],
@@ -92,4 +92,19 @@ test("3.16 · recordHealth records a skip's kind, marks a verdict the run did no
   await recordHealth(lib, contractIds, verdicts, { ...writer, commit: "def456" });
   assert.equal((await lib.healthHistory(id("1.1"))).length, 2, "the same mark is not written again");
   assert.match((await verified("1.1")).note ?? "", /abc123/, "it still says since when");
+});
+
+test("3.17 · recordHealth writes its writer's source on every entry it writes, a not re-run mark too", async (t) => {
+  const { lib, contractIds } = await kettle(t);
+  const id = (number: string) => contractIds.get(number)!;
+  await lib.recordVerified(id("1.2"), "passing", { by: "storytree test run" });
+  const verdicts = new Map<string, RecordedVerdict>([
+    ["1.1", { state: "passing", note: "2/2 tests passed" }],
+    ["1.2", { state: "not-checked", skip: "other", reason: "1 of 1 tests skipped" }],
+  ]);
+  await recordHealth(lib, contractIds, verdicts, { by: "storytree test run on CI", source: "ci", commit: "abc123" });
+  assert.equal((await lib.health(id("1.1"))).verified.source, "ci");
+  assert.equal((await lib.health(id("1.2"))).verified.source, "ci", "the not re-run mark says its source too");
+  await recordHealth(lib, contractIds, new Map([["1.1", { state: "failing", note: "1/2 tests passed" }]]), { by: "a local test run", source: "local" });
+  assert.equal((await lib.health(id("1.1"))).verified.source, "local");
 });

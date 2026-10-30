@@ -33,7 +33,7 @@ function fakeNode(bin: string, said: string): string {
   return file;
 }
 
-test("3.3 · The laptop's storytree-host task runs node itself on `storytree services run` in storytree's checkout at the user's logon, windowless and with no time limit, starting it again after any end but a clean one", { skip: process.platform !== "win32" && "platform: a scheduled task is the Windows entry point" }, (t) => {
+test("3.3 · The laptop's storytree-host task runs node itself on `storytree services run` in storytree's checkout at the user's logon, windowless and with no time limit, starting it again after any end but a clean one", { skip: process.platform !== "win32" && "platform:win32: a scheduled task is the Windows entry point" }, (t) => {
   const dir = tempDir(t);
   const checkout = path.join(dir, "storytree");
   mkdirSync(checkout);

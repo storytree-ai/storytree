@@ -23,7 +23,7 @@ function fakeNode(bin: string, said: string): void {
   chmodSync(path.join(bin, "node"), 0o755);
 }
 
-test("3.1 · The box's storytree-host.service runs node itself on `storytree services run` in storytree's checkout, found under nvm when the user manager's PATH has none, with Restart=always, and a stop reaches the host alone", { skip: process.platform !== "linux" && "platform: a systemd user unit is the Linux entry point" }, (t) => {
+test("3.1 · The box's storytree-host.service runs node itself on `storytree services run` in storytree's checkout, found under nvm when the user manager's PATH has none, with Restart=always, and a stop reaches the host alone", { skip: process.platform !== "linux" && "platform:linux: a systemd user unit is the Linux entry point" }, (t) => {
   const dir = tempDir(t);
   const checkout = path.join(dir, "storytree");
   mkdirSync(checkout);

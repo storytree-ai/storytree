@@ -25,5 +25,5 @@ test("3.23 · the page the app's build makes runs React's production build", { t
   const [bundle] = (await built).outputFiles;
   // esbuild names each bundled module in a comment, so the build React's entry chose is named in the bundle.
   assert.ok(bundle?.text.includes("react-dom.production"), "the page carries React DOM's production build");
-  assert.ok(!bundle.text.includes("react-dom.development"), "and not its development build");
+  assert.ok(!bundle?.text.includes("react-dom.development"), "and not its development build");
 });

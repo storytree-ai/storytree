@@ -3,7 +3,7 @@
  * exactly: the record a save or an edit would leave, the check on it, and the shape of a history
  * entry. Each backend only decides where these go and how a write stays atomic.
  */
-import type { HistoryEntry, HistoryFilter, ListFilter, RecordEnvelope, RevertedWrite, RevertInput, RevertWritesInput, SaveInput, Upgrade, Validate } from "./types.js";
+import type { HistoryEntry, HistoryFilter, ListFilter, OutsideRead, RecordEnvelope, RevertedWrite, RevertInput, RevertWritesInput, SaveInput, Upgrade, Validate } from "./types.js";
 
 /** The time now, as records carry it: an ISO 8601 UTC timestamp. */
 export function now(): string {
@@ -217,14 +217,22 @@ export function historyEntry(entry: {
   record: RecordEnvelope;
   reason: string | null | undefined;
   actor: string | null | undefined;
+  outsideRead?: readonly string[] | null | undefined;
   at: string;
 }): HistoryEntry {
-  const { reason, actor, ...rest } = entry;
+  const { reason, actor, outsideRead, ...rest } = entry;
   return {
     ...rest,
     ...(reason === null || reason === undefined ? {} : { reason }),
     ...(actor === null || actor === undefined ? {} : { actor }),
+    ...(outsideRead === null || outsideRead === undefined || outsideRead.length === 0 ? {} : { outsideRead: [...outsideRead] }),
   };
+}
+
+/** What the writer's `outsideRead` names for a record of `type`: the mark its history entry keeps, or undefined for none. */
+export function outsideReadOf(outsideRead: OutsideRead | undefined, type: string): string[] | undefined {
+  const read = outsideRead?.(type);
+  return read === undefined || read.length === 0 ? undefined : [...read];
 }
 
 /**

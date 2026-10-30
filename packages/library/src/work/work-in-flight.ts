@@ -483,6 +483,27 @@ export class WorkInFlight {
   }
 
   /**
+   * Drop open increment `id`'s one pending change to `record`, with a reason, its history entry saying
+   * which and why: for a change something else overtook, such as a plugin's own plan (ADR-0966 D6 drops
+   * them all only at a close that does not land). The live plan is left as it was. Refused, with nothing
+   * written: a closed increment, and a record it holds no pending change for (RangeError). Null if `id`
+   * is not a live increment.
+   */
+  dropPending(id: string, record: string, reason: string, options?: WriteOptions): Promise<SchemaRecord<"increment"> | null> {
+    return this.#serially(async () => {
+      const increment = await liveRecord(this.#records, id, ["increment"]);
+      if (increment === null) return null;
+      if (increment.fields.status === "closed") throw new RangeError(`increment ${JSON.stringify(id)} is closed: its pending changes were applied or dropped when it closed`);
+      const pending = increment.fields.pending ?? [];
+      const change = pending.find((entry) => entry.record === record);
+      if (change === undefined) throw new RangeError(`increment ${JSON.stringify(id)} holds no pending change to ${JSON.stringify(record)}`);
+      const rest = pending.filter((entry) => entry !== change);
+      const why = `dropped the pending change to ${change.type} ${record}: ${reason}`;
+      return (await this.#records.edit(id, { pending: rest.length === 0 ? undefined : rest }, { ...options, reason: why })) as SchemaRecord<"increment"> | null;
+    });
+  }
+
+  /**
    * Settle every closed increment's leftover pending changes, those of increments closed before
    * closing applied or dropped them: each that landed has them applied, as applyPending applies them
    * with its pull request; each that did not has them dropped. Oldest first; empty when none is left.

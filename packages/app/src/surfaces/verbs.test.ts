@@ -37,7 +37,7 @@ function home(t: TestContext): string {
 const named = (name: string): Verb<VerbInputs, SettingsPlace> =>
   SETTINGS_FAMILIES[0]!.verbs.find((each) => "name" in each.command && each.command.name === name)!;
 
-test("3.7 the declared `settings show` lists the surfaces its place hands, and `settings set surface` switches one off in the settings file", async (t) => {
+test("3.7 the declared `settings show` lists the surfaces its place hands, and `settings set surface` switches one off in the settings file, offering no `settings show` after it, since what it says is the setting set (ADR-1090)", async (t) => {
   const dir = home(t);
   const place: SettingsPlace = { folder: dir, surfaces: async () => declared, parts: async () => graph };
 
@@ -48,7 +48,7 @@ test("3.7 the declared `settings show` lists the surfaces its place hands, and `
   const off = await named("set").act({ words: ["surface", "sessions", "off"] }, place, words);
   assert.match(off.text, /^Sessions \(sessions\): off \(set\)/);
   assert.deepEqual(JSON.parse(readFileSync(path.join(dir, "settings.json"), "utf8")), { surfaces: { sessions: { on: false } } });
-  assert.deepEqual(off.next, [{ command: "settings show", why: "read your settings" }]);
+  assert.equal(off.next, undefined);
 });
 
 test("3.7 the declared `settings set` given a name without a value is refused as a misuse, saving nothing", async (t) => {
@@ -66,6 +66,7 @@ test("3.16 An agent switches this computer's factory folder with the declared sw
   mkdirSync(path.join(dir, "mine"));
   const switched = await tool.act({ folder: "mine" }, { folder: dir, session: "s-7", harness: "claude-code", surfaces: async () => declared, parts: async () => graph }, words);
   assert.match(switched.text, /set up as your factory/i);
+  assert.equal(switched.next, undefined, "it offers no `settings show`: its answer names the folder switched to");
   const stored = JSON.parse(readFileSync(path.join(dir, "settings.json"), "utf8"));
   assert.equal(stored.factory, path.join(dir, "mine"), "a folder is read from where the agent works");
   assert.deepEqual({ ...stored["factory-switched"], at: undefined }, { through: "agent tool", session: "s-7", at: undefined });

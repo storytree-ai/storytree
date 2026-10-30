@@ -1,3 +1,3 @@
 /** Capability 23 · Catalogue. */
-export { newNotes, retire } from "./catalogue.js";
-export type { NewNote } from "./catalogue.js";
+export { markedWrites, newNotes, retire } from "./catalogue.js";
+export type { MarkedWrite, NewNote } from "./catalogue.js";

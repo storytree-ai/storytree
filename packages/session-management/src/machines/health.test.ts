@@ -73,12 +73,13 @@ test("11.6 · On Windows, machine health reads the boot time, the memory availab
   assert.deepEqual(concernsOf(windowsReadings(windows(10, "Access denied", 50)), LIMITS), ['unread processor queue: PowerShell said "Access denied", not a number']);
 });
 
-test("11.7 · `storytree machine health` reads the machine against the limits in settings: concerns come first and refuse, so the command exits 1, and a healthy machine answers with each reading", async () => {
+test("11.7 · `storytree machine health` reads the machine against the limits in settings: concerns come first and refuse, so the command exits 1, offering no next step, and a healthy machine answers with each reading", async () => {
   await withTempDir(async (home) => {
     const strained = linuxReadings(linux(4, 3, 40));
     const refused = await healthVerb(() => strained).act({}, { folder: home, home }, WORDS).then(() => undefined, (error: unknown) => error);
     assert.ok(refused instanceof VerbRefusal, "a concern refuses");
     assert.equal(refused.misuse, false);
+    assert.deepEqual(refused.next, [], "it offers no `settings show`: each concern names its limit (ADR-1090)");
     assert.match(refused.message, /^1 concern on [^\n]+:\n {2}- memory: 4\.0 GB available, under 6 GB\n\nLinux, up since 2026-10-19 12:00 UTC\nmemory: 4\.0 GB available of 32\.0 GB\nload: 15-minute load 3\ndisk: \/ 40% full, 60\.0 GB free of 100\.0 GB$/);
 
     setSetting("health-memory", "3", home);

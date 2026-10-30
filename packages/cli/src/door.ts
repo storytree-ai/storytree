@@ -173,7 +173,7 @@ export async function run(argv: readonly string[], given: Io): Promise<number> {
       claims: () => opened.claims(),
       activityContext: () => opened.activityContext(),
       claimContext: () => opened.claimContext(),
-      writer: () => (writer ??= commandWriter()),
+      writer: () => (writer ??= { ...commandWriter(), ...opened.outsideRead() }),
       journey: () => (journey ??= import("@storytree/app-setup/journey-events/runtime").then(({ createJourneyRuntime }) =>
         createJourneyRuntime({ appVersion: sourceVersion()?.version ?? "0.3.0" }))),
     };
@@ -583,6 +583,21 @@ class Opened {
     } catch {
       return undefined;
     }
+  }
+
+  /**
+   * What the shell's session has read from outside, as its hooks recorded it, for the writer to hand the library (1.45):
+   * asked for only by a write to a marked knowledge kind. A person's own terminal has no session, so no mark.
+   */
+  outsideRead(): Pick<WriteOptions, "outsideRead"> {
+    const caller = commandSession();
+    if (caller === undefined) return {};
+    return {
+      outsideRead: async () => {
+        const { outsideTextReads } = await import("@storytree/session-management");
+        return outsideTextReads(await this.#activityLog(), this.#routed().project, caller.session);
+      },
+    };
   }
 
   async activityContext(): Promise<ClaimContext & { readonly server: Storytree }> {

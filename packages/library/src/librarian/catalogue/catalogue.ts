@@ -50,6 +50,41 @@ export async function newNotes(library: Library, cursor: number, read: Promise<r
   });
 }
 
+/** A write to an agent role or a principle made after its session had read outside text (capability 2's 2.20), for review. */
+export interface MarkedWrite {
+  readonly id: string;
+  readonly type: string;
+  readonly seq: number;
+  readonly action: "created" | "updated" | "retired";
+  readonly at: string;
+  readonly actor?: string;
+  /** What its session had read: an issue, a pull request, an email, a fetched page. */
+  readonly outsideRead: readonly string[];
+  /** The record as the write left it (its last state, for a retirement). */
+  readonly fields: object;
+}
+
+/** The kinds whose marked writes the round lists: what tells an agent how to work. */
+const REVIEWED: readonly string[] = ["agent", "principle"];
+
+/**
+ * The worklist's marked writes: each write to an agent role or a principle after `cursor`, in the order written, that
+ * was made after its session had read outside text, with what it read. The memory-poisoning attacks write memory while
+ * untrusted text is in the agent's context; this lists such writes for a reader, and refuses none.
+ */
+export async function markedWrites(library: Library, cursor: number): Promise<MarkedWrite[]> {
+  return (await library.history({ since: cursor, types: REVIEWED })).flatMap((entry) => entry.outsideRead === undefined ? [] : [{
+    id: entry.recordId,
+    type: entry.type,
+    seq: entry.seq,
+    action: entry.action,
+    at: entry.at,
+    ...(entry.actor === undefined ? {} : { actor: entry.actor }),
+    outsideRead: entry.outsideRead,
+    fields: entry.record.fields,
+  }]);
+}
+
 /** Every reference a live record makes to a note: the notes' own, increments' remedies, and questions' settling decisions. */
 async function pointersTo(library: Library): Promise<Reference[]> {
   const [notes, views] = await Promise.all([allNotes(library), library.arcViews()]);

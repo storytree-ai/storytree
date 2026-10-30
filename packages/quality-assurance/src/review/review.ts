@@ -24,7 +24,9 @@
  * - A return is taken whole or not at all: it answers every check and contract in its brief, and judges every
  *   rejection, and nothing else (2.2, 4.2), and names the review it answers, so a return left from an earlier
  *   review, as one read from another folder's /tmp may be, is refused (2.9).
- * - A finding stands while it is unanswered, or rejected for a reason no later review accepted (4.1). With
+ * - A finding stands while it is unanswered, or rejected for a reason no later review accepted (4.1), and one a later review returns
+ *   again after its rejection was accepted is not taken as a new hit (4.8); a contract found not met stands
+ *   only while the increment still names it, so narrowing its capabilities list clears the rest (4.7). With
  *   one standing after the third review, the fourth brief is refused, naming the arc for the session's
  *   question (4.3, ADR-1120 D1); the refusal itself writes nothing. The three are the branch's: a brief read from a worktree
  *   does not count a review whose commit its default branch has taken in, an earlier merged pull request's of the same increment,
@@ -221,8 +223,11 @@ export interface Reviews {
   take(project: string, change: string, review: ReviewReturn, graduated?: GraduatedFindings): Promise<Taken>;
   /** `change`'s standing findings, oldest first: none, with no contract `unmet`, means it is ready for the gate. */
   standing(project: string, change: string): Promise<HitRow[]>;
-  /** The contracts the latest review taken on `change` found not met: each stands until a later review finds it met. */
-  unmet(project: string, change: string): Promise<Unmet[]>;
+  /**
+   * The contracts the latest review taken on `change` found not met: each stands until a later review finds it met, or until the
+   * increment no longer names it, its capability gone from its list or the contract retired pending its merge (contract 4.7).
+   */
+  unmet(library: Library, change: string): Promise<Unmet[]>;
   /** The guardrails the latest review taken on `change` found failed: each stands until a later review passes it (contract 2.12). */
   failed(project: string, change: string): Promise<Failed[]>;
 }
@@ -278,7 +283,7 @@ class PgReviews implements Reviews {
     const { all, taken } = await this.#taken(project, change, typeof read === "string" ? undefined : read);
     const earlier = await this.#hits(project, change, "TRUE");
     const standing = earlier.filter((hit) => hit.answer === "unanswered" || (hit.answer === "rejected" && !hit.accepted));
-    const unmet = await this.unmet(project, change);
+    const unmet = await this.unmet(library, change);
     const failed = await this.failed(project, change);
     const count = standing.length + unmet.length + failed.length;
     if (taken >= REVIEW_LIMIT && count > 0) {
@@ -294,10 +299,7 @@ class PgReviews implements Reviews {
     const capabilities = new Set((increment.fields as { capabilities?: string[] }).capabilities ?? []);
     const pending = new Map(pendingChanges.map((change) => [change.record, change]));
     const byTitle = (a: { id: string; title: string }, b: { id: string; title: string }): number => a.title.localeCompare(b.title, "en", { numeric: true }) || a.id.localeCompare(b.id);
-    const named = (await library.list("contract"))
-      .map((contract) => ({ contract, change: pending.get(contract.id) }))
-      .map(({ contract, change }) => ({ contract, change, fields: { ...contract.fields, ...(change !== undefined && "after" in change ? change.after : {}) } as Record<string, unknown> }))
-      .filter(({ fields }) => capabilities.has(fields["capability"] as string));
+    const named = await namedContracts(library, increment.fields);
     const title = (record: Awaited<ReturnType<Library["get"]>>): string | undefined => (record?.fields as { title?: string } | undefined)?.title;
     const listed = await Promise.all([...capabilities].map(async (id) => {
       const capability = await library.get(id);
@@ -347,7 +349,9 @@ class PgReviews implements Reviews {
       ...(plan.length === 0 ? {} : { plan }),
       ...(guardrails.length === 0 ? {} : { guardrails }),
       ...(reds === undefined ? {} : { reds }),
-      checks: (await liveChecks(library)).filter(({ graduated }) => !(graduated ?? []).some(({ whole }) => whole)).map(({ id, title, question, graduated }) => ({ id, title, question, ...(graduated === undefined ? {} : { graduated }) })),
+      // A check graduated whole is asked by Architecture checks instead, and one naming its projects only in those (contract 2.17).
+      checks: (await liveChecks(library))
+        .filter(({ graduated, projects }) => !(graduated ?? []).some(({ whole }) => whole) && (projects === undefined || projects.includes(project))).map(({ id, title, question, graduated }) => ({ id, title, question, ...(graduated === undefined ? {} : { graduated }) })),
       earlier,
       judge: earlier.filter((hit) => hit.answer === "rejected" && !hit.accepted).map((hit) => hit.id),
     };
@@ -369,6 +373,10 @@ class PgReviews implements Reviews {
     const problems = refusals(brief, review);
     if (problems.length > 0) throw new Error(`The review's return for ${change} is refused and nothing is recorded:\n${problems.map((problem) => `  ${problem}`).join("\n")}`);
     const name = `${change}#${brief.iteration}`;
+    // A finding whose earlier hit was rejected, and the rejection accepted by an earlier review or by this one, is not taken again (contract 4.8).
+    const nowAccepted = new Set((review.rejections ?? []).filter(({ accepted }) => accepted).map(({ hit }) => hit));
+    const settled = brief.earlier.filter((hit) => hit.answer === "rejected" && (hit.accepted || nowAccepted.has(hit.id)));
+    const fresh = (check: string) => (hit: { file: string; found?: string }) => !settled.some((earlier) => sameFinding(earlier, { check, ...hit }));
     const hits = await inTransaction(this.#pool, async (client) => {
       const written = await writeReview(client, {
         project, review: name, change, packages: brief.packages,
@@ -381,7 +389,7 @@ class PgReviews implements Reviews {
             check, foundBy: "graduated" as const,
             hits: hits.map(({ file, line, found }) => ({ package: packageOf(file), file, line, found })).filter((hit) => brief.packages.includes(hit.package)),
           })),
-        ],
+        ].map((ran) => ({ ...ran, hits: ran.hits.filter(fresh(ran.check)) })),
       });
       for (const { hit } of (review.rejections ?? []).filter(({ accepted }) => accepted)) {
         await client.query("UPDATE quality_hits SET accepted = true WHERE project = $1 AND id = $2", [project, hit]);
@@ -403,12 +411,18 @@ class PgReviews implements Reviews {
     return this.#hits(project, change, STANDING);
   }
 
-  async unmet(project: string, change: string): Promise<Unmet[]> {
+  async unmet(library: Library, change: string): Promise<Unmet[]> {
     const { rows } = await this.#pool.query<{ taken: ReviewReturn }>(
       "SELECT taken FROM quality_briefs WHERE project = $1 AND change = $2 AND taken_at IS NOT NULL ORDER BY iteration DESC LIMIT 1",
-      [project, change],
+      [library.name, change],
     );
-    return rows[0] === undefined ? [] : unmetIn(rows[0].taken);
+    if (rows[0] === undefined) return [];
+    const found = unmetIn(rows[0].taken);
+    if (found.length === 0) return [];
+    const increment = await library.get(change);
+    if (increment === null || increment.type !== "increment") return found;
+    const named = new Set((await namedContracts(library, increment.fields)).filter(({ change }) => change === undefined || !("retire" in change)).map(({ contract }) => contract.id));
+    return found.filter(({ contract }) => named.has(contract));
   }
 
   async failed(project: string, change: string): Promise<Failed[]> {
@@ -443,6 +457,17 @@ class PgReviews implements Reviews {
   }
 }
 
+/** Every contract of the capabilities an increment names, with its pending change and its fields as that change leaves them. */
+async function namedContracts(library: Library, fields: unknown) {
+  const { capabilities = [], pending = [] } = fields as { capabilities?: string[]; pending?: PendingChange[] };
+  const listed = new Set(capabilities);
+  const changes = new Map(pending.map((change) => [change.record, change]));
+  return (await library.list("contract"))
+    .map((contract) => ({ contract, change: changes.get(contract.id) }))
+    .map(({ contract, change }) => ({ contract, change, fields: { ...contract.fields, ...(change !== undefined && "after" in change ? change.after : {}) } as Record<string, unknown> }))
+    .filter(({ fields }) => listed.has(fields["capability"] as string));
+}
+
 /**
  * A change's risk line (ADR-1144 D1): read from its whole diff against the package graph of the worktree at `root`, or, with
  * no worktree, the one written on the increment; undefined when neither is there to read.
@@ -471,6 +496,16 @@ function coverage(brief: Brief, review: ReviewReturn): { check: string; hits: { 
       found: `contract ${contract} (${titles.get(contract) ?? contract}): the change touches it and no test covers the changed behaviour; add one`,
     })),
   }];
+}
+
+/**
+ * Whether `hit` is the finding `earlier` was (contract 4.8): the same check at the same file, and for a covering-test hit the same
+ * contract, for any other the same words; its line may have moved.
+ */
+function sameFinding(earlier: Pick<HitRow, "check" | "file" | "found">, hit: { check: string; file: string; found?: string }): boolean {
+  if (earlier.check !== hit.check || earlier.file !== hit.file) return false;
+  const contract = (found: string | undefined) => /^contract (\S+) /.exec(found ?? "")?.[1];
+  return hit.check === COVERING_TEST ? contract(earlier.found) === contract(hit.found) : earlier.found === hit.found;
 }
 
 /** The red-run check as a review ran it (contract 2.14): a hit at each test the change adds that no saved red run names; not run when it adds none. */

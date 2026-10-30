@@ -38,7 +38,7 @@ import { existsSync } from "node:fs";
 import path from "node:path";
 
 import { McpServer, type CallToolResult, type ServerContext } from "@modelcontextprotocol/server";
-import { callLines, endMergedClaims, type ActivityLog, type MergeWatch } from "@storytree/session-management";
+import { callLines, endMergedClaims, outsideTextReads, type ActivityLog, type MergeWatch } from "@storytree/session-management";
 import { agentOf, harnessOfClient, SESSION_ENV, lineOf, requestOf, seenCaller, type Caller } from "@storytree/project-and-caller/caller";
 import { findProject, idleAfterMs, importsOf, machineOf, readPartsOff, readStandIns, route, storytreeHome, type ImportedFolder, type LocateOptions, type Route } from "@storytree/project-and-caller";
 import { mount, offSaid, recordKinds, standIn, switchedOff } from "@storytree/plugin-loader";
@@ -347,7 +347,8 @@ export function createAgentTools(options: AgentToolOptions): AgentTools {
         await endMergedClaims({ log, project: where.project, folder, ...lineOf(caller), source: "tool", library: async () => library }, options.merges).catch(() => []);
         const answered = await act(args as never, {
           library, log, storytree, project: where.project, caller,
-          writer: { actor: `session:${caller.session}`, signal: context.mcpReq.signal },
+          // What the session's hooks saw it read from outside, asked for only by a write to a marked knowledge kind (6.106).
+          writer: { actor: `session:${caller.session}`, signal: context.mcpReq.signal, outsideRead: () => outsideTextReads(log, where.project, caller.session) },
           folder,
           // Read once for this call, only if it needs liveness. Independent context readings
           // still return tokens and explain unusable settings (9.7), as routing's readLibrary does.

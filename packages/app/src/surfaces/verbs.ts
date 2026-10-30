@@ -22,8 +22,6 @@ export interface SettingsPlace extends VerbPlace {
   parts(): Promise<PartsGraph>;
 }
 
-const NEXT = [{ command: "settings show", why: "read your settings" }] as const;
-
 const show = verb({
   consumers: ["user"],
   command: { family: "settings", name: "show", summary: "show each setting's value, type, default and meaning" },
@@ -66,25 +64,25 @@ const set = verb({
   callerless: true,
   async act({ words }, { surfaces, parts, session }: SettingsPlace) {
     const { readStandIns, servicesSaid, setFactory, setLibrary, setSetting, switchedSaid, switchPart, switchService, switchSystem, systemSaid } = await import("@storytree/project-and-caller");
-    if (words[0] === "library" && words.length >= 2) return { text: librarySaid(setLibrary(words.slice(1))), next: NEXT };
+    if (words[0] === "library" && words.length >= 2) return { text: librarySaid(setLibrary(words.slice(1))) };
     if (words[0] === "factory" && words.length === 2) {
       const chosen = setFactory(words[1]!, undefined, { through: "command line", ...(session === undefined ? {} : { session }) });
-      return { text: chosenSaid(chosen), next: NEXT };
+      return { text: chosenSaid(chosen) };
     }
     if (words[0] === "part" && (words.length === 3 || (words.length === 4 && words[2] === "plugin"))) {
       const graph = await parts();
       const off = switchPart(words[1]!, words[2]!, Object.keys(graph), undefined, words[3], { through: "command line", ...(session === undefined ? {} : { session }) });
-      return { text: switchedSaid(switchedHere(graph, off), readStandIns().plugins, Object.keys(graph)), next: NEXT };
+      return { text: switchedSaid(switchedHere(graph, off), readStandIns().plugins, Object.keys(graph)) };
     }
-    if (words[0] === "system" && words.length === 3) return { text: systemSaid(switchSystem(words[1]!, words[2]!)), next: NEXT };
-    if (words[0] === "service" && words.length === 3) return { text: servicesSaid(switchService(words[1]!, words[2]!)), next: NEXT };
+    if (words[0] === "system" && words.length === 3) return { text: systemSaid(switchSystem(words[1]!, words[2]!)) };
+    if (words[0] === "service" && words.length === 3) return { text: servicesSaid(switchService(words[1]!, words[2]!)) };
     if (words[0] === "surface" && words.length >= 3) {
       const { setSurface } = await import("./switches.js");
       const surface = setSurface(await surfaces(), words.slice(1)).find((each) => each.id === words[1])!;
-      return { text: surfaceSaid(surface, ""), next: NEXT };
+      return { text: surfaceSaid(surface, "") };
     }
     if (words.length !== 2) throw new VerbRefusal(`this takes a setting's name and its value, and was given ${words.length} word${words.length === 1 ? "" : "s"}`, { misuse: true });
-    return { text: settingSaid(setSetting(words[0]!, words[1]!)), next: NEXT };
+    return { text: settingSaid(setSetting(words[0]!, words[1]!)) };
   },
 });
 
@@ -101,7 +99,7 @@ const switchFactory = verb({
   async act({ folder }, { folder: where, session }: VerbPlace) {
     const { setFactory } = await import("@storytree/project-and-caller");
     try {
-      return { text: chosenSaid(setFactory(path.resolve(where, folder), undefined, { through: "agent tool", ...(session === undefined ? {} : { session }) })), next: NEXT };
+      return { text: chosenSaid(setFactory(path.resolve(where, folder), undefined, { through: "agent tool", ...(session === undefined ? {} : { session }) })) };
     } catch (error) {
       throw new VerbRefusal(error instanceof Error ? error.message : String(error));
     }

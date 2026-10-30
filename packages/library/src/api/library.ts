@@ -79,10 +79,10 @@ export interface Storytree {
  */
 const FROM_RECORDS = ["get", "history", "revert", "revertWrites", "writtenBy"] as const satisfies readonly (keyof Project["records"])[];
 const FROM_WORK = [
-  "addStory", "editStory", "mapStories", "createArc", "editArc", "addCapability", "editCapability", "setProposed", "addContract", "editContract", "arcsFor", "anchor", "setAnchor", "prCutover", "setPrCutover",
+  "addStory", "editStory", "mapStories", "importPluginPlan", "createArc", "editArc", "addCapability", "editCapability", "setProposed", "addContract", "editContract", "arcsFor", "anchor", "setAnchor", "prCutover", "setPrCutover",
 ] as const satisfies readonly (keyof Project["work"])[];
 const FROM_FLIGHT = [
-  "addIncrement", "advanceIncrement", "returnIncrement", "closeIncrement", "correctIncrementClosure", "moveIncrement", "editIncrement", "pendChange", "stalePending", "applyPending", "settleClosedPending",
+  "addIncrement", "advanceIncrement", "returnIncrement", "closeIncrement", "correctIncrementClosure", "moveIncrement", "editIncrement", "pendChange", "stalePending", "applyPending", "dropPending", "settleClosedPending",
   "parkArc", "unparkArc", "arcView", "arcViews", "boardArcs", "closedArcs",
   "addWait", "removeWait", "waitHolds", "addWaitFor", "removeWaitFor", "waitsFor", "holds",
   "raiseQuestion", "settleQuestion", "questions", "heldOnQuestion", "checkQuestion", "renewQuestion", "editQuestion", "moveQuestion", "lapsedQuestions",

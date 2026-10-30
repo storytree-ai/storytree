@@ -18,7 +18,7 @@ import { readFileSync } from "node:fs";
 import { packageProblems } from "@storytree/guardrails";
 
 /** 0.3's own stories, each by the id its one package has (packages/<id>): a story owns exactly one package (ADR-1078 rule 4). */
-export const STORIES = ["agent-pool", "app", "app-setup", "arc-surface", "base-dev-loop", "ci-health", "cli", "dev-loop", "experiments", "forest", "forest-world", "guardrails", "keys", "knowledge-core", "library", "local-postgres", "map", "mark", "mcp-server", "plugin-loader", "project-and-caller", "quality-assurance", "service-host", "session-management", "surface-feedback", "test-waits", "voice", "website"];
+export const STORIES = ["agent-pool", "app", "app-setup", "arc-surface", "base-dev-loop", "ci-health", "cli", "dev-loop", "experiments", "forest", "forest-world", "guardrails", "keys", "knowledge-core", "library", "local-postgres", "map", "mark", "mcp-server", "plugin-loader", "project-and-caller", "quality-assurance", "service-host", "session-management", "surface-feedback", "test-waits", "website"];
 // agent-pool: story_b2051c0f7372 (Agent runner, ADR-1071 D3), which holds the Claude Code mod in src/claude-code-mod (ADR-1076 D5).
 // app-setup: story_b91056a06337 (Setup), which holds Journey events in src/journey-events (ADR-1076 D3).
 // app: story_a93c6fb1a257 (Desktop app), which holds Lag in real use in src/lag (ADR-1071 D3).
@@ -38,7 +38,6 @@ export const STORIES = ["agent-pool", "app", "app-setup", "arc-surface", "base-d
 // website: story_769e230c466d (Website), which holds Onboarding overlays in src/overlays (ADR-1076 D4).
 // experiments: story_c2dbcf855db2 (Experiments, ADR-1064 D1).
 // mark: story_08790ee19bbf (Marketing artifacts, ADR-1071 D3), out of Website again.
-// voice: story_28e1eb40e8c1 (Voice, ADR-1132), a front door: claude.ai's voice mode reaching storytree read-only.
 // surface-feedback: story_6c75e0587cc6 (Surface feedback): the feedback corner, mounted by the frame.
 // service-host: story_44a8cd58a7cf (Service host, ADR-1180 D2): one host per machine runs the mounted parts' declared services.
 // test-waits: story_9299f25282ad (Test waits, ADR-1156): every package's tests import it, so it depends on no workspace package.
@@ -51,9 +50,9 @@ export const STORIES = ["agent-pool", "app", "app-setup", "arc-surface", "base-d
 export const NOT_YET_MOVED = [];
 
 /**
- * The frame and the three front doors, which mount and front the stories and hold none of their code: the
- * command line, the MCP server an agent's harness starts (ADR-0969 D1), and the voice door claude.ai calls
- * (ADR-1132 D2), on which no story may depend either.
+ * The frame and the two front doors, which mount and front the stories and hold none of their code: the
+ * command line and the MCP server an agent's harness starts (ADR-0969 D1), on which no story may depend either.
+ * The voice door (ADR-1132 D2) is a plugin in the owner's factory now (ADR-1174), not in this repo.
  * They are declared in the repo's storytree.check.json, which `storytree check` reads too, so the two agree.
  */
 const DECLARED = JSON.parse(readFileSync(new URL("../../../storytree.check.json", import.meta.url), "utf8"));

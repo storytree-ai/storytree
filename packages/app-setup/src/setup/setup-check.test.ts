@@ -156,8 +156,12 @@ test("8.1 in a throwaway home with only the tool server installed, the first ses
     ] as const) {
       const failure = harness === "claude-code" ? ["PostToolUseFailure"] : [];
       assert.deepEqual(Object.keys(events).sort(), ["PostToolUse", ...failure, "PreToolUse", "SessionEnd", "SessionStart", "Stop", "UserPromptSubmit"].sort(), harness);
-      const edits = harness === "claude-code" ? ["Write", "Edit", "MultiEdit", "NotebookEdit", "Bash", "Agent", "Task"] : ["apply_patch", "Bash", "spawn_agent"];
+      // And after each tool that reads outside text, whose line marks the session's later knowledge writes (3.49).
+      const edits = harness === "claude-code"
+        ? ["Write", "Edit", "MultiEdit", "NotebookEdit", "Bash", "Agent", "Task", "WebFetch", "WebSearch", "mcp__github__get_issue", "mcp__claude_ai_Gmail__read_thread"]
+        : ["apply_patch", "Bash", "spawn_agent"];
       for (const tool of edits) assert.ok(runsFor(events.PostToolUse?.[0], tool, anchored), `${harness}: after ${tool}`);
+      assert.ok(!runsFor(events.PostToolUse?.[0], "mcp__storytree__open", anchored), `${harness}: not after a storytree tool`);
       if (harness === "claude-code") assert.ok(runsFor(events.PostToolUseFailure?.[0], "Bash", anchored), "after a shell command that failed");
       // Without Git for Windows, Claude Code runs commands with its PowerShell tool instead of Bash.
       if (harness === "claude-code") {
@@ -387,7 +391,7 @@ test("8.10 a terminal runs the shared setup check with diagnostic lines and fixe
   });
 });
 
-test("8.31 in a project with no git repository, or a repository with no origin remote, the check says review, landing and verified health need one, and proposes a GitHub remote for the user to make, never making it; with origin there, it says nothing of it", async () => {
+test("8.31 in a project with no git repository the check asks for one, made locally; with no origin remote it is ok: it names the steps that need one and the local route, and never proposes making or pushing a remote; with origin there, it says nothing of it", async () => {
   await withTempDir(async (dir) => {
     const home = throwawayHome(dir);
     const name = uniqueProjectName();
@@ -405,16 +409,20 @@ test("8.31 in a project with no git repository, or a repository with no origin r
       assert.match(none?.message ?? "", /no git repository/);
       assert.match(none?.message ?? "", /review.*land.*health/s);
       assert.match(none?.fix ?? "", /git init/);
-      assert.match(none?.fix ?? "", /only if they say yes/);
+      assert.doesNotMatch(none?.fix ?? "", /push|gh repo create/, "a remote is never proposed");
 
       git("init", "-q");
       git("add", MARKER_FILE);
       git("commit", "-q", "-m", "first");
       const local = (await runSetupCheck(options)).lines.find((line) => line.check === "repository");
-      assert.equal(local?.state, "needs-attention");
+      assert.equal(local?.state, "ok", "a project with no origin is a working setup, not one needing attention");
+      assert.equal(local?.fix, undefined);
       assert.match(local?.message ?? "", /no origin remote/);
-      assert.match(local?.fix ?? "", /GitHub/);
-      assert.match(local?.fix ?? "", /only if they say yes/);
+      assert.match(local?.message ?? "", /quality_brief.*land.*health/s, "it names the steps that need a remote");
+      assert.match(local?.message ?? "", /git diff/, "review goes on the local diff");
+      assert.match(local?.message ?? "", /local commit/);
+      assert.match(local?.message ?? "", /close the increment with a note/i);
+      assert.doesNotMatch(local?.message ?? "", /push|gh repo create|propose/, "a remote is never proposed");
       assert.equal(git("remote").stdout.trim(), "", "the check makes no remote");
 
       git("remote", "add", "origin", "https://github.com/someone/somewhere.git");
@@ -451,7 +459,7 @@ test("8.31 a project's repository begun with no git identity, its marker staged,
       assert.match(waiting[0]?.message ?? "", /waiting for its first commit/);
       assert.match(waiting[0]?.fix ?? "", /ask the user for the name and email/i);
       assert.match(waiting[0]?.fix ?? "", /git config --global user\.name "<name>"/);
-      assert.match(waiting[1]?.message ?? "", /no origin remote/, "the remote is still proposed");
+      assert.match(waiting[1]?.message ?? "", /no origin remote/, "the local route is still named");
       assert.equal(git("rev-list", "--all", "--count").stdout.trim(), "0");
 
       git("config", "user.name", "A User");
@@ -463,7 +471,7 @@ test("8.31 a project's repository begun with no git identity, its marker staged,
       assert.equal(git("show", "--name-only", "--format=", "HEAD").stdout.trim(), MARKER_FILE);
 
       const after = (await runSetupCheck(options)).lines.filter((line) => line.check === "repository");
-      assert.deepEqual(after.map((line) => line.state), ["needs-attention"], "made once: then only the remote is left");
+      assert.deepEqual(after.map((line) => line.state), ["ok"], "made once: then only the local route is left");
       assert.equal(git("rev-list", "--all", "--count").stdout.trim(), "1");
     } finally {
       for (const [key, value] of Object.entries(saved)) {

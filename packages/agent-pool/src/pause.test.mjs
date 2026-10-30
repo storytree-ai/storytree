@@ -74,6 +74,16 @@ test("3.23 · resume lets the pool take work again, starting the dispatcher's lo
   assert.equal(existsSync(stopFile), false);
   assert.deepEqual(started, [1], "an ended loop is started");
   assert.match(lines.at(-1), /started the dispatcher's loop \(pid 4242\)/);
+
+  // One ssh command that checks ps for the loop and then resumes: its shell and its grep hold the text, and are no loop.
+  const caller = `
+  10 1 sshd: owner@notty
+  11 10 bash -c ps -eo args | grep -c "launch-pool.sh run"; node packages/agent-pool/src/pause.mjs resume
+  12 11 grep -c launch-pool.sh run
+  13 11 node packages/agent-pool/src/pause.mjs resume
+`;
+  assert.equal(loopRunning(caller), false, "the caller's command line is not the loop");
+  assert.equal(loopRunning(`${caller}  20 1 bash /srv/lanes/launch-pool.sh run\n`), true);
 });
 
 test("3.23 · status says whether the pool is paused, what runs beside it, the merge queue and what is still open", async (t) => {

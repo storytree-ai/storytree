@@ -33,8 +33,12 @@ export function lanesBeside(table, self = String(process.pid)) {
     .map(({ pid, args }) => ({ pid, args: args.slice(0, 120) }));
 }
 
-/** Whether the box's dispatcher loop (launch-pool.sh run) is alive in `table`. */
-export const loopRunning = (table) => rowsOf(table).some((row) => /launch-pool\.sh run\b/.test(row.args));
+/**
+ * Whether the box's dispatcher loop is alive in `table`: a shell running launch-pool.sh run itself, so a caller whose
+ * command line only holds the text (`bash -c '… grep "launch-pool.sh run"; … resume'`, or that grep) is no loop. A lane
+ * runs beneath the loop, so the caller's own ancestors are not left out.
+ */
+export const loopRunning = (table) => rowsOf(table).some((row) => /^(?:\S*\/)?(?:ba)?sh\s+(?:\S*\/)?launch-pool\.sh\s+run\b/.test(row.args));
 
 /** The pull requests in `repo`'s merge queue for main, as GitHub lists them. */
 export async function mergeQueue(repo) {

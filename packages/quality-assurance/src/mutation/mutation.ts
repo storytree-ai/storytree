@@ -266,10 +266,11 @@ export interface Reach {
 
 /**
  * The test unit a repository path is in, as `pnpm test` scopes them: its package's folder, or its folder under infra/, which holds
- * tests but is no package (packages/dev-loop/src/test-scope.mjs).
+ * tests but is no package (packages/dev-loop/src/test-scope.mjs), or, in a user's factory checkout, its plugin's folder under
+ * plugins/, whose promises its own tests prove.
  */
 function unitOf(file: string): string | undefined {
-  return folderOf(file) ?? /^infra\/[^/]+(?=\/)/.exec(file.replace(/\\/g, "/"))?.[0];
+  return folderOf(file) ?? /^(?:infra|plugins)\/[^/]+(?=\/)/.exec(file.replace(/\\/g, "/"))?.[0];
 }
 
 /** The import graph of the packages under `folders` of the checkout at `root`, each file to the files importing it. */
@@ -490,7 +491,13 @@ export const runTests: TestRun = (root, tests, limitMs, given = process.env) => 
       const [file, line, column, title] = JSON.parse(one) as [string, number | undefined, number | undefined, string];
       return testName(file === "" ? "" : path.relative(realRoot, real(file.startsWith("file:") ? fileURLToPath(file) : file)), line, column, title);
     }) : [];
-    rmSync(temp, { recursive: true, force: true });
+    // Best effort: on Windows a test process may still hold a file in it (ENOTEMPTY); the run's result never depends on
+    // this folder, so a leftover reporter folder in the temp folder is better than a brief that crashes.
+    try {
+      rmSync(temp, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
+    } catch {
+      // Left behind.
+    }
     resolve({ passed: code === 0 && !timedOut, ms: Date.now() - started, ...(timedOut ? { timedOut } : {}), passing });
   });
 });

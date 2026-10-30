@@ -9,8 +9,9 @@
  *   `file_path`, NotebookEdit as `notebook_path`; Bash gives its `command`, and so does PowerShell,
  *   the shell tool Claude Code has on Windows without Git for Windows (seen in 2.1.283). The Agent tool (Task
  *   before it was renamed) starts a subagent: its `tool_input` gives the type (`subagent_type`) and
- *   the task (`description`), its `tool_response` the subagent's id (`agentId`). Other tools make no
- *   line.
+ *   the task (`description`), its `tool_response` the subagent's id (`agentId`). A call that read outside text
+ *   (WebFetch's `url`, WebSearch's `query`, a GitHub or Gmail MCP tool, or a command reading an issue, pull request or
+ *   web page) adds a line saying what it read (outside-text.ts). Other tools make no line.
  * - PreToolUse, registered for storytree's own tools, names the agent asking (requests.ts). Also
  *   registered, in the background, for Bash and PowerShell: its line says the command started,
  *   under the call's `tool_use_id`, which the line after it carries too (ADR-0636 D2).
@@ -25,6 +26,7 @@
  */
 import type { NewLine } from "@storytree/library";
 import type { HookLines } from "./hooks.js";
+import { outsideTextLine } from "./outside-text.js";
 import { toolRequestedLine } from "./requests.js";
 
 const EDITS_FILE = new Set(["Write", "Edit", "MultiEdit"]);
@@ -38,6 +40,10 @@ export function claudeCodeLines(input: Record<string, unknown>): HookLines | und
   // The transcript the harness named, on every line: where the session's context is read from (capability 9).
   const common = { session, harness: "claude-code", source: "hook", folder, ...(isText(input.transcript_path) ? { transcript: input.transcript_path } : {}) } as const;
   const line = (made: NewLine | undefined): HookLines | undefined => (made === undefined ? undefined : { folder, lines: [made] });
+  const lines = (...made: (NewLine | undefined)[]): HookLines | undefined => {
+    const kept = made.filter((one) => one !== undefined);
+    return kept.length === 0 ? undefined : { folder, lines: kept };
+  };
 
   switch (event) {
     case "SessionStart":
@@ -47,7 +53,8 @@ export function claudeCodeLines(input: Record<string, unknown>): HookLines | und
     case "PreToolUse":
       return line(toolRequestedLine(common, input) ?? commandStartedLine(common, input));
     case "PostToolUse":
-      return line(toolLine(common, input) ?? subagentLine(common, input.tool_name, input.tool_input, input.tool_response));
+      // A call that read outside text says so on a line of its own, after the call's own (3.49).
+      return lines(toolLine(common, input) ?? subagentLine(common, input.tool_name, input.tool_input, input.tool_response), outsideTextLine(common, input.tool_name, input.tool_input));
     case "PostToolUseFailure":
       return line(isText(input.tool_name) && RUNS_COMMAND.has(input.tool_name) ? toolLine(common, input) : undefined);
     case "UserPromptSubmit":

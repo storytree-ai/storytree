@@ -520,6 +520,8 @@ const history = verb({
     if (entries.length === 0) return { text: `No history for ${id}.` };
     return { text: [`History of ${id}:`, ...entries.flatMap((entry) => [
       `  ${entry.seq}  ${entry.at}  ${entry.action}  ${entry.actor ?? "writer not recorded"}${entry.reason === undefined ? "" : `  ${entry.reason}`}`,
+      // The mark a write carries when its session had read outside text before it (capability 2's 2.20): observed, never refused.
+      ...(entry.outsideRead === undefined ? [] : [`    read outside text first: ${entry.outsideRead.join("; ")}`]),
       ...(fields ? [`    fields: ${JSON.stringify(entry.record.fields)}`] : []),
     ])].join("\n") };
   },

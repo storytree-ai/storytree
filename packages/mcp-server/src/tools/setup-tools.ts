@@ -14,7 +14,7 @@ import { hookFailures, type HookFailure } from "@storytree/session-management";
 import { MARKER_FILE } from "@storytree/project-and-caller";
 import { findProject, storytreeHome } from "@storytree/project-and-caller";
 import { IDENTITY_FIX, makeRepository, notAProjectYet, setUpProject, starterPackStatus, starterRolesIn, suggestProjectName, type RepositoryMade, type StarterPackStatus } from "@storytree/app-setup/project";
-import { checkFilesWritten, codexHooksState, FIX_SENTENCES, HOOK_TESTS, openStorytree, runSetupCheck, verifyHooks, type Fix, type SetupOptions } from "@storytree/app-setup/setup";
+import { checkFile, checkFilesWritten, codexHooksState, FIX_SENTENCES, fixSentence, HOOK_TESTS, openStorytree, runSetupCheck, verifyHooks, type Fix, type SetupOptions } from "@storytree/app-setup/setup";
 import { isUnreachable, NOT_RUNNING_ANSWER, refusalOf, result } from "./answers.js";
 import type { Connections } from "./connections.js";
 import { callLines, labelOf } from "@storytree/session-management";
@@ -108,12 +108,12 @@ export function registerSetupTools({ server, folder, setup, connections, callerO
           said.push("The connection is verified: storytree has received this session's start, a storytree tool call, a file edit and a command from its hooks.");
         } else {
           said.push(`Not verified yet: storytree has not received this session's ${verification.missing.join(", ")} from its hooks.`);
-          said.push(...verification.fixes.map((fix) => FIX_SENTENCES[fix]), "Then call check_setup again.");
+          said.push(...verification.fixes.map((fix) => fixSentence(fix, caller.session)), "Then call check_setup again.");
         }
         // What this machine's hooks traced of their failures for this session (contract 3.23), so a gap in its lines can be read.
         const failures = hookFailures(setup.storytreeHome ?? storytreeHome(), caller.session);
         if (failures.length > 0) said.push(failuresSentence(failures));
-        return result({ text: withCard(said.join(" ")), data: { ...data, starterRoles, starterPack, ...verification, passed: verification.verified, hookFailures: failures } });
+        return result({ text: withCard(said.join(" ")), data: { ...data, starterRoles, starterPack, ...verification, ...(verification.fixes.includes("edit-check-file") ? { checkFile: checkFile(caller.session) } : {}), passed: verification.verified, hookFailures: failures } });
       } catch (error) {
         if (isUnreachable(error)) {
           await connections.close();
@@ -211,11 +211,12 @@ function connectedSentence(caller: Caller): string {
 }
 
 /**
- * What set_up_project says of the repository it made, or could not make, in a folder in none (6.70): review and
- * landing also need an origin remote, which publishes the user's code, so it is proposed, never made.
+ * What set_up_project says of the repository it made, or could not make, in a folder in none (6.70): only verified
+ * health reads a remote, and storytree never proposes making or pushing one (whose code it would publish, or whose
+ * repository it would write to); it names the local route instead.
  */
 function repositorySentence(made: Exclude<RepositoryMade, { state: "already" }>): string {
-  const remote = "Review and landing also need an origin remote: propose a GitHub repository to the user (gh repo create, then git push), and make one only if they say yes.";
+  const remote = "It needs no remote: quality_brief reviews a change against the local main branch and land needs none; only verified health, which reads a remote's CI, is unavailable. Work locally: review each change on git diff, land it as a local commit, and close the increment with a note giving the commit's sha.";
   if (made.state === "made") return `The folder was in no git repository, so storytree made it a git repository, with a first commit holding ${MARKER_FILE}. ${remote}`;
   if (made.state === "no identity") return `The folder was in no git repository, so storytree made it one with ${MARKER_FILE} staged, but git has no identity to make its first commit with (user.name and user.email), so its work cannot be reviewed or landed yet: ${IDENTITY_FIX}. ${remote}`;
   return `The folder is in no git repository, and storytree could not make one (${made.reason}), so its work cannot be reviewed or landed yet: tell the user, and once git can commit here, make it one (git init, then commit ${MARKER_FILE}). ${remote}`;

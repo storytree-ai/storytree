@@ -31,7 +31,6 @@ const PACKAGE_NAMED_OTHERWISE: Readonly<Record<string, string>> = {
   story_b91056a06337: "app-setup", // Setup
   story_b2051c0f7372: "agent-pool", // Agent runner (ADR-1071 D3): the package kept its name, so the box's live paths did not move.
   story_08790ee19bbf: "mark", // Marketing artifacts (ADR-1071 D3): The mark renamed, its package kept.
-  story_28e1eb40e8c1: "voice", // Talk to storytree by voice: its code lives in packages/voice.
   story_95ed402f9bd3: "dev-loop", // Mick's dev loop (ADR-1170 D3): The dev loop renamed, its package kept.
 };
 

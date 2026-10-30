@@ -94,7 +94,7 @@ export function healthVerb(read?: () => MachineReadings): Verb<VerbInputs, Healt
       const readings = (read ?? thisMachine)();
       const concerns = concernsOf(readings, { memoryGB: settings["health-memory"].value, load: settings["health-load"].value, diskPercent: settings["health-disk"].value });
       const text = healthSaid(readings, concerns);
-      if (concerns.length > 0) throw new VerbRefusal(text, { next: [{ command: "settings show", why: "the limits are health-memory, health-load and health-disk" }] });
+      if (concerns.length > 0) throw new VerbRefusal(text);
       return { text, data: { ...readings, concerns } };
     },
   });

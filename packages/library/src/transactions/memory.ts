@@ -2,7 +2,7 @@
  * Capability 2 · Library transactions. MemoryTransactions: the in-memory twin of PgTransactions. The behaviour suite runs unchanged on
  * both, so later stories can test against this one without a database.
  */
-import { check, fieldAt, listFilter, pickFields, editedRecord, historyEntry, historyFilter, jsonCopy, now, numbered, revertedRecord, revertInput, revertReason, savedRecord, writesReverted, writtenBy } from "./records.js";
+import { check, fieldAt, listFilter, pickFields, editedRecord, historyEntry, historyFilter, jsonCopy, now, numbered, outsideReadOf, revertedRecord, revertInput, revertReason, savedRecord, writesReverted, writtenBy } from "./records.js";
 import type {
   EditInput,
   HistoryEntry,
@@ -37,7 +37,7 @@ export class MemoryTransactions implements Transactions {
     const current = this.#records.get(input.id);
     const record = savedRecord(this.#numbered(input), current, now());
     check(record, input.validate);
-    this.#append(current === undefined ? "created" : "updated", record, record.updatedAt, input.actor);
+    this.#append(current === undefined ? "created" : "updated", record, record.updatedAt, input.actor, undefined, outsideReadOf(input.outsideRead, record.type));
     this.#records.set(record.id, record);
     return jsonCopy(record);
   }
@@ -73,7 +73,7 @@ export class MemoryTransactions implements Transactions {
       record.fields = (this.#numbered({ ...record, sequence: input.sequence, sequenceNeverHeld: input.sequenceNeverHeld === true })).fields;
     }
     check(record, input.validate);
-    this.#append("updated", record, record.updatedAt, input.actor, input.reason);
+    this.#append("updated", record, record.updatedAt, input.actor, input.reason, outsideReadOf(input.outsideRead, record.type));
     this.#records.set(record.id, record);
     return jsonCopy(record);
   }
@@ -82,7 +82,7 @@ export class MemoryTransactions implements Transactions {
     input.signal?.throwIfAborted();
     const current = this.#records.get(input.id);
     if (current === undefined) return;
-    this.#append("retired", current, now(), input.actor, input.reason);
+    this.#append("retired", current, now(), input.actor, input.reason, outsideReadOf(input.outsideRead, current.type));
     this.#records.delete(input.id);
   }
 
@@ -93,7 +93,7 @@ export class MemoryTransactions implements Transactions {
     const current = this.#records.get(input.id);
     const record = revertedRecord(input, own.find((entry) => entry.seq === input.to), own.at(-1)?.seq, current, now());
     check(record, input.validate);
-    this.#append("updated", record, record.updatedAt, input.actor, revertReason(input));
+    this.#append("updated", record, record.updatedAt, input.actor, revertReason(input), outsideReadOf(input.outsideRead, record.type));
     this.#records.set(record.id, record);
     return jsonCopy(record);
   }
@@ -139,10 +139,11 @@ export class MemoryTransactions implements Transactions {
     at: string,
     actor: string | undefined,
     reason?: string,
+    outsideRead?: string[],
   ): void {
     this.#lastSeq += 1;
     this.#history.push(
-      historyEntry({ seq: this.#lastSeq, recordId: record.id, type: record.type, action, record, reason, actor, at }),
+      historyEntry({ seq: this.#lastSeq, recordId: record.id, type: record.type, action, record, reason, actor, outsideRead, at }),
     );
   }
 }

@@ -35,6 +35,7 @@ export const TOOLS = [
   "health_worklist",
   "heartbeat",
   "hook_event",
+  "import_plugin_plan",
   "import_project",
   "land",
   "list_all_runs",

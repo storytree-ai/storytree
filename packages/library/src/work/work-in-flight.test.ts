@@ -416,6 +416,34 @@ for (const backend of [memory, postgres]) {
     }
   });
 
+  contract("10.26", "an open increment drops one pending change by its record, with a reason, its history saying so and the live plan left as it was; a record it holds no change for, or a closed increment, is refused with nothing written", async ({ work, flight, records, transactions }) => {
+    const arc = await work.createArc(ARC);
+    const story = await work.addStory({ title: "Visitor can sign up" });
+    const form = await work.addCapability({ title: "Email form", story: story.id });
+    const link = await work.addCapability({ title: "Confirmation link", story: story.id });
+    const increment = await flight.addIncrement({ arc: arc.id, ...WORK });
+    await flight.advanceIncrement(increment.id, "active");
+    await flight.pendChange(increment.id, { record: form.id, fields: { title: "Address form" } });
+    await flight.pendChange(increment.id, { record: link.id, retire: "unwanted" });
+
+    const dropped = await flight.dropPending(increment.id, form.id, "overtaken by the plugin's own plan");
+    assert.deepEqual(dropped?.fields.pending?.map(({ record }) => record), [link.id], "only that one is dropped");
+    assert.match((await transactions.history({ id: increment.id, newest: 1 }))[0]!.reason ?? "", new RegExp(`dropped the pending change to capability ${form.id}: overtaken by the plugin's own plan`));
+    assert.deepEqual(await records.get(form.id), form, "the live plan is left as it was");
+
+    const before = await transactions.history();
+    await assert.rejects(flight.dropPending(increment.id, form.id, "again"), (error: unknown) => error instanceof RangeError && error.message.includes(form.id), "no change left for it");
+    await flight.dropPending(increment.id, link.id, "unwanted after all");
+    assert.equal(((await records.get(increment.id)) as SchemaRecord<"increment">).fields.pending, undefined, "the last one leaves none");
+    await flight.pendChange(increment.id, { record: link.id, retire: "unwanted" });
+    await flight.closeIncrement(increment.id, { note: "landed elsewhere", disposition: "withdrawn" });
+    const closed = await transactions.history();
+    await assert.rejects(flight.dropPending(increment.id, link.id, "late"), RangeError, "a closed increment");
+    assert.deepEqual(await transactions.history(), closed, "nothing was written");
+    assert.ok(before.length < closed.length);
+    assert.equal(await flight.dropPending("increment_000000000000", form.id, "x"), null);
+  });
+
   contract("10.17", "settling closed increments' leftover pending changes applies those of each that landed and drops those of each that did not, and finds nothing the second time", async ({ work, flight, records, transactions }) => {
     const arc = await work.createArc(ARC);
     const story = await work.addStory({ title: "Visitor can sign up" });

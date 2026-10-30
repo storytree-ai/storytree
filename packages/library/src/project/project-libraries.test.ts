@@ -6,6 +6,8 @@
  * can share one server, and run beside other test files, without seeing each other's projects.
  */
 import assert from "node:assert/strict";
+import path from "node:path";
+import { pathToFileURL } from "node:url";
 import { test } from "node:test";
 
 import type { Client } from "pg";
@@ -15,6 +17,7 @@ import { quietFor, waitUntil } from "@storytree/test-waits";
 import { createTestRole, dropTestDatabases, dropTestRoles, testRoleUrl as as, testServerUrl, uniqueProjectName, withTestClient, withTestClientAs } from "../testing/pg.js";
 import { ConnectionError, ProjectGoneError, connect, type Project, type Storytree } from "./index.js";
 import type { InheritedRecords } from "./factory.js";
+import { PROJECT_SCHEMA } from "./schema.js";
 import type { FieldsOf, RecordType } from "../schema/index.js";
 
 /** The spec's naming, restated here rather than taken from the code: project `x` is database `storytree_x`. */
@@ -668,8 +671,9 @@ test("1.18 an edit through a product of a system record it reads from its factor
     await before.close();
 
     const built = await storytree.openProject(product);
-    const copy = await built.knowledge.editNote(edited.id, { statement: "The product's edit." });
+    const copy = await built.knowledge.editNote(edited.id, { statement: "The product's edit." }, { actor: "session:lane", outsideRead: async () => ["gh issue view 7"] });
     assert.equal(copy?.id, edited.id, "the copy keeps the factory's id, so links to it read the edit");
+    assert.deepEqual((await built.records.history({ id: edited.id })).map((entry) => entry.outsideRead), [["gh issue view 7"]], "the copy is marked as its writer's edit would be (2.20)");
     assert.equal((copy?.fields as { why?: string } | undefined)?.why, "It helps.", "fields the edit leaves are the factory's");
     assert.equal(((await built.records.get(edited.id))?.fields as { statement?: string } | undefined)?.statement, "The product's edit.");
     await built.knowledge.editNote(edited.id, { statement: "The product's second edit." });
@@ -871,6 +875,125 @@ test("1.28 · a change to the history goes only through the logged repair switch
     await opened?.close();
     await dropTestDatabases([database]);
     await dropTestRoles([owner]);
+  }
+});
+
+test("1.29 · a shared library gets schema statements only from merged code: a branch-only statement is not applied there, and is applied to a throwaway library", async (t) => {
+  const name = uniqueProjectName();
+  const database = databaseOf(name);
+  const unmerged = { sharedLibrary: true, schemaMerged: () => ({ merged: false as const, why: "schema.ts's last change is a test branch's" }) };
+  const standing = () => withTestClient(async (client) => {
+    const version = (await client.query<{ value: string }>("SELECT value FROM library_meta WHERE key = 'schema'")).rows[0]?.value;
+    const forced = (await client.query<{ forced: boolean }>("SELECT relforcerowsecurity AS forced FROM pg_class WHERE oid = 'record_event'::regclass")).rows[0]?.forced;
+    return { version, forced };
+  }, database);
+  const full = String(PROJECT_SCHEMA.length);
+  let shared: Storytree | undefined;
+  try {
+    // A shared library never set up is refused, and nothing is made.
+    shared = await connect({ url: testServerUrl() }, unmerged);
+    await assert.rejects(shared.openProject(name), (error: unknown) => {
+      assert.ok(error instanceof ConnectionError, `a ConnectionError, not ${String(error)}`);
+      assert.match(error.message, /not merged.*test branch's/s);
+      return true;
+    });
+    assert.equal(await withTestClient(async (client) => (await client.query("SELECT to_regclass('public.library_meta') AS t")).rows[0]?.t, database), null, "no table was made");
+    await shared.close();
+    shared = undefined;
+
+    await withStorytree([database], async (storytree) => {
+      await (await storytree.openProject(name)).close();
+      // As the library stands before a branch adds its last statement: one short, that statement's effect absent.
+      await withTestClient((client) => client.query(`UPDATE library_meta SET value = '${PROJECT_SCHEMA.length - 1}' WHERE key = 'schema'; ALTER TABLE record_event NO FORCE ROW LEVEL SECURITY`), database);
+
+      const warn = t.mock.method(console, "warn", () => undefined);
+      shared = await connect({ url: testServerUrl() }, unmerged);
+      await (await shared.openProject(name)).close();
+      await (await shared.openProject(name)).close();
+      const warnings = warn.mock.calls.map((call) => String(call.arguments[0])).filter((text) => text.includes(name));
+      warn.mock.restore();
+      assert.deepEqual(await standing(), { version: String(PROJECT_SCHEMA.length - 1), forced: false }, "the shared library is left as it stood");
+      assert.equal(warnings.length, 1, `one warning over two opens, not ${JSON.stringify(warnings)}`);
+      assert.match(warnings[0]!, /not merged.*test branch's/s, "saying why");
+      await shared.close();
+      shared = undefined;
+
+      shared = await connect({ url: testServerUrl() }, { sharedLibrary: true, schemaMerged: () => ({ merged: true }) });
+      await (await shared.openProject(name)).close();
+      assert.deepEqual(await standing(), { version: full, forced: true }, "merged code brings the shared library up to date");
+      await shared.close();
+      shared = undefined;
+
+      await withTestClient((client) => client.query(`UPDATE library_meta SET value = '${PROJECT_SCHEMA.length - 1}' WHERE key = 'schema'; ALTER TABLE record_event NO FORCE ROW LEVEL SECURITY`), database);
+      const throwaway = await connect({ url: testServerUrl() }, { schemaMerged: unmerged.schemaMerged });
+      await (await throwaway.openProject(name)).close();
+      await throwaway.close();
+      assert.deepEqual(await standing(), { version: full, forced: true }, "a throwaway library takes the branch's schema");
+    });
+  } finally {
+    await shared?.close();
+    await dropTestDatabases([database]);
+  }
+});
+
+test("1.29 · a shared library gets an own database's table statements only from merged code: a branch-only statement is not applied there, and is applied to a throwaway one", async (t) => {
+  const own = `storytree-own-${uniqueProjectName()}`;
+  const fresh = `storytree-own-${uniqueProjectName()}`;
+  const declaredIn = "/checkout/packages/caller/src/tables.ts";
+  const merged = { "/checkout/packages/caller/src/tables.ts": true };
+  const asked: string[] = [];
+  const probe = (file: string) => {
+    asked.push(file);
+    return file in merged && merged[file as keyof typeof merged] ? { merged: true as const } : { merged: false as const, why: `${path.basename(file)}'s last change is a test branch's` };
+  };
+  const first = "CREATE TABLE IF NOT EXISTS entries (id serial PRIMARY KEY)";
+  const branch = "CREATE TABLE IF NOT EXISTS branch_only (id serial PRIMARY KEY)";
+  const has = (database: string, table: string) => withTestClient(async (client) => (await client.query("SELECT to_regclass($1) AS t", [table])).rows[0]?.t !== null, database);
+  const opened: Storytree[] = [];
+  const open = async (seams: Parameters<typeof connect>[1]) => {
+    const storytree = await connect({ url: testServerUrl() }, seams);
+    opened.push(storytree);
+    return storytree;
+  };
+  try {
+    // Merged code sets the shared library's own database up, the probe reading the file its caller names.
+    await (await open({ sharedLibrary: true, schemaMerged: probe })).ownDatabase(own, { tables: [first], declaredIn: [declaredIn, undefined] });
+    assert.deepEqual(asked, [declaredIn], "the probe reads the file that declares the tables, and a bundled one with no URL reads as released");
+    assert.equal(await has(own, "entries"), true);
+
+    // A branch adds a statement in a file not on main: the shared library opens as it stands, warning once.
+    const warn = t.mock.method(console, "warn", () => undefined);
+    const branchFile = path.resolve("/checkout/packages/caller/src/branch-tables.ts");
+    const shared = await open({ sharedLibrary: true, schemaMerged: probe });
+    const pool = await shared.ownDatabase(own, { tables: [first, branch], declaredIn: [declaredIn, pathToFileURL(branchFile).href] });
+    await pool.query("INSERT INTO entries DEFAULT VALUES");
+    await (await open({ sharedLibrary: true, schemaMerged: probe })).ownDatabase(own, { tables: [first, branch], declaredIn: [branchFile] });
+    const warnings = warn.mock.calls.map((call) => String(call.arguments[0])).filter((text) => text.includes(own));
+    warn.mock.restore();
+    assert.equal(await has(own, "branch_only"), false, "the branch's statement is not applied to the shared library");
+    assert.equal(warnings.length, 1, `one warning over two connections, not ${JSON.stringify(warnings)}`);
+    assert.match(warnings[0]!, /not merged.*branch-tables\.ts's last change is a test branch's/s, "saying why");
+
+    // Statements naming no declaring file count as unmerged on a shared library.
+    const quiet = t.mock.method(console, "warn", () => undefined);
+    await (await open({ sharedLibrary: true, schemaMerged: probe })).ownDatabase(own, { tables: [first, branch] });
+    quiet.mock.restore();
+    assert.equal(await has(own, "branch_only"), false, "statements naming no declaring file are not applied");
+
+    // An own database a branch would make from nothing on the shared library is refused, its tables unmade.
+    await assert.rejects((await open({ sharedLibrary: true, schemaMerged: probe })).ownDatabase(fresh, { tables: [branch], declaredIn: [branchFile] }), (error: unknown) => {
+      assert.ok(error instanceof ConnectionError, `a ConnectionError, not ${String(error)}`);
+      assert.match(error.message, /not merged.*test branch's/s);
+      return true;
+    });
+    assert.equal(await has(fresh, "branch_only"), false, "no table was made");
+
+    // A throwaway library takes the branch's statement.
+    await (await open({ schemaMerged: probe })).ownDatabase(own, { tables: [first, branch], declaredIn: [branchFile] });
+    assert.equal(await has(own, "branch_only"), true, "a throwaway library takes the branch's tables");
+  } finally {
+    await Promise.all(opened.map((storytree) => storytree.close()));
+    await dropTestDatabases([own, fresh]);
   }
 });
 

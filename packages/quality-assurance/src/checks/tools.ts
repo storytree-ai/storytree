@@ -101,10 +101,10 @@ export function qualityTools(): ToolExtension {
       }, AGENT);
       define("quality_standing", "The findings that still stand on an increment's change, or that it is ready for the gate.", z.object({
         increment: z.string().min(1).describe("The increment whose change is reviewed"),
-      }), async ({ increment }, { storytree, project }) => {
+      }), async ({ increment }, { library, storytree, project }) => {
         const reviews = await openReviews(storytree);
         const standing = await reviews.standing(project, increment);
-        const unmet = await reviews.unmet(project, increment);
+        const unmet = await reviews.unmet(library, increment);
         const failed = await reviews.failed(project, increment);
         return { text: standingText(standing, unmet, failed), data: { standing, unmet, failed } };
       }, AGENT);
@@ -126,14 +126,17 @@ export function qualityTools(): ToolExtension {
 /** Its section of the habits card (ADR-1021, the guidance kind): red, then green, then reviewed and landed. */
 export const qualityGuidance: readonly string[] = [
   [
-  "Red, then green, then landed.",
-  "- Write a contract's test first, run it, see it fail, and `report` it red.",
-  "- Make it pass, and `report` it green.",
-  "- Before a green change lands, have it reviewed in a fresh context, as the library's change-reviewer role says: `quality_brief` gives the review the change's diff, the contracts its increment names and every check `quality_checks` reads, and `quality_take` records what it found. Answer each hit with `quality_answer`, fixed or rejected with a reason, and review again while `quality_standing` lists one. `quality_ledger` counts the hits by check; `graduate_check` records a part of a check that a deterministic check now enforces.",
-  "- When its contracts pass, `land` the capability: your claim on it ends. A landing that leaves a source file of the story's package reached by no numbered test is held, naming each file: place it, then land again. A landing also names each planned contract no numbered test proves: write its test, or retire the contract. If you stop before then, `release` it.",
-  "- A capability is proposed until you `mark_built` it, once you consider it built. Its card then says healthy, unhealthy or untested from what storytree verified, never from your report.",
-  "- At an increment boundary, `read_context` says how many tokens your context holds; judge whether to take on more.",
-  "- When the increment is done, `close_increment` with its outcome (landed, failed or withdrawn) and its pull request. Record work that landed without ever being parked with `park_increment` and its outcome.",
-  "- When your session's work is done, `close_out`: say whether it is safe to close (pull requests merged, tree clean, nothing of yours running) and why. The sessions list checks a yes; anything it cannot bear out stays listed for the owner.",
+  "Red, then green, then landed. Stop for the user's approval of the plan, the failing tests and the diff, unless their instructions file hands you these gates.",
+  "- Plan: in the user's folder, never a worktree, show the increment's contracts and wait; then git switch -c <increment> before red.",
+  "- In someone else's repository (an origin not the user's): follow its layout, naming and test style (no contract numbers in test names); plan only the change asked for (one story, its capabilities, a few contracts, what you left out), no `import_project`; never `wire_pipeline`, add CI or config, create a remote or push; put .storytree.json in .git/info/exclude.",
+  "- Red (in Claude Code, spawn the storytree-red agent if present): only tests, for the increment's contracts. Run them; each must fail for the missing behaviour, not an import error. `report` each red. Show the run's summary and a table per test: test, contract, why needed, quoted failure line, would it fail without the behaviour (drop it if not). STOP until the user approves, drops or rewrites tests.",
+  "- Green (the storytree-green agent if present): hash the approved test files (git hash-object), write the least code that passes them, never editing one (stop and say why if one looks wrong); run the whole suite, `report` green, show the hashes unchanged and git diff --stat.",
+  "- Before landing, have a fresh-context subagent, told only the increment and folder, review it: `quality_brief` gives the review the diff, contracts and checks (`quality_checks` lists them); `quality_take` records it. Answer each hit with `quality_answer`, fixed or rejected with a reason, and review again while `quality_standing` lists one. `quality_ledger` counts hits by check; `graduate_check` records a check's part now enforced deterministically.",
+  "- Show the user the diff and STOP until they approve. Then commit on the branch and merge it to main locally; or, if the user asked for a pull request or the remote is theirs, push the branch, open one and stop, never merging it.",
+  "- When its contracts pass, `land` the capability, ending your claim; it is held while a source file of the story's package is reached by no numbered test, and names each planned contract no numbered test proves (write its test, or retire it). Stopping before then, `release` it.",
+  "- `mark_built` a capability once you consider it built; its card then shows the health storytree verified, never your report.",
+  "- Between increments, `read_context` gives your context's size: judge whether to take on more.",
+  "- When the increment is done, `close_increment` with its outcome (landed, failed, withdrawn) and pull request, or a note naming the local commit. Record unparked work that landed with `park_increment` and its outcome.",
+  "- When your session's work is done, `close_out`: say whether it is safe to close (pull requests merged or commits made, tree clean, nothing of yours running) and why. The sessions list checks a yes and keeps what it cannot bear out listed for the owner.",
   ].join("\n"),
 ];

@@ -3,12 +3,37 @@
  * capability and description, with its two health columns, what the agent reported and what storytree verified, each
  * with who wrote it, when and its note. Agents typed `storytree contract` most often on their way to plan one or to read
  * one's health (friction_896be858baa5), so `contract new` and `contract health` are pointed to the commands for those
- * jobs (./index.ts's POINTERS), and the family's help names both.
+ * jobs (./index.ts's POINTERS), and the family's help names both. `storytree contract list [<story|capability>]` lists
+ * contracts under their capabilities, every story's or one story's or capability's, by id or title, since agents typed
+ * it on their way to a story's contracts (friction_2d5163d338d3).
  */
 import type { HealthColumn } from "@storytree/library";
 
 import { Refusal } from "../answer.js";
 import type { Family, Verb } from "../door.js";
+import { commandSession, person } from "../writer.js";
+import { healthOf } from "./tree.js";
+
+const list: Verb = {
+  name: "list",
+  usage: "contract list [<story|capability>]",
+  summary: "contracts under their capabilities, with each one's reported and verified health",
+  async act(args, context) {
+    const named = args.words[0];
+    const plan = await (await context.library()).projectTree();
+    const matches = (part: { id: string; title: string }): boolean => named === undefined || part.id === named || part.title.toLowerCase() === named.toLowerCase();
+    const capabilities = plan.stories.flatMap((story) => (matches(story) ? story.capabilities : story.capabilities.filter(matches)));
+    if (named !== undefined && capabilities.length === 0) {
+      throw new Refusal(`no story or capability "${named}" in this project`, { next: [{ command: "storytree tree", why: "every story and capability" }] });
+    }
+    const lines = capabilities.flatMap((capability) => [
+      `${capability.title}  [${capability.id}]`,
+      ...capability.contracts.map((contract) => `  - ${contract.title}  [${contract.id}]  ${healthOf(contract.health, plan.unverified === true)}`),
+    ]);
+    if (!capabilities.some((capability) => capability.contracts.length > 0)) return { text: [...lines, "No contracts yet."].join("\n"), next: [{ command: "storytree library new contract --capability <capability> --title <title>", why: "plan one" }] };
+    return { text: lines.join("\n"), next: [{ command: "storytree contract show <contract>", why: "one contract's health in full" }] };
+  },
+};
 
 const show: Verb = {
   name: "show",
@@ -34,6 +59,28 @@ const show: Verb = {
   },
 };
 
+/**
+ * `storytree contract report`, the report tool's twin (ADR-0793): a session whose agent link dropped records a contract's
+ * test red or green from its shell (friction_42f65edd6dcc). It reads its words and hands them to Session management's
+ * reportContract, the work the tool does, so both doors write the same entry and are refused the same way. The shell's
+ * harness session reports it, or else the person at the terminal.
+ */
+const report: Verb = {
+  name: "report",
+  usage: "contract report <contract> --result red|green [--note <text|@file>]",
+  summary: "record a contract's test red (written, and failing) or green (passing), as the report tool does",
+  async act(args, context) {
+    const contract = args.word(0, "the contract's id", this.usage);
+    const result = args.need("result", this.usage);
+    if (result !== "red" && result !== "green") throw new Refusal(`--result is red or green, not "${result}"\nusage: storytree ${this.usage}`, { code: 2 });
+    const note = args.text("note");
+    const [{ reportContract }, library] = await Promise.all([import("@storytree/session-management/tools"), context.library()]);
+    const caller = commandSession() ?? { session: person(), harness: "person" };
+    const answer = await reportContract(library, { contract, result, ...(note === undefined ? {} : { note }) }, { writer: context.writer(), ...caller });
+    return { text: answer.text, next: [{ command: `storytree contract show ${contract}`, why: "read its health back" }] };
+  },
+};
+
 /** One health column as a line: its state, then who wrote it, when and its note, each when it has one. */
 function said(column: HealthColumn): string {
   const state = column.state === "not-checked" ? "not checked" : column.state;
@@ -43,6 +90,6 @@ function said(column: HealthColumn): string {
 
 export const contracts: Family = {
   name: "contract",
-  summary: "read one contract with its health; storytree contract new runs storytree library new contract, and contract health runs contract show",
-  verbs: [show],
+  summary: "list contracts, read one with its health, or report its test red or green; storytree contract new runs storytree library new contract, and contract health runs contract show",
+  verbs: [list, show, report],
 };

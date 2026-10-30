@@ -136,7 +136,7 @@ const standingVerb = verb({
     const { openReviews, standingText } = await import("../index.js");
     const reviews = await openReviews(server(context));
     const project = context.library.name;
-    return { text: standingText(await reviews.standing(project, increment), await reviews.unmet(project, increment), await reviews.failed(project, increment)) };
+    return { text: standingText(await reviews.standing(project, increment), await reviews.unmet(context.library, increment), await reviews.failed(project, increment)) };
   },
 });
 

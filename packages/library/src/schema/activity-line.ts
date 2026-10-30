@@ -144,6 +144,12 @@ export const NEW_LINE = z.discriminatedUnion("kind", [
   z.object({ ...common, kind: z.literal("process-ran"), process: z.string().min(1), outcome: z.enum(["ok", "concern", "failed"]), note: z.string().min(1).optional() }).strict(),
   z.object({ ...common, kind: z.literal("note-read"), ...noteRead }).strict(),
   /**
+   * The session read outside text (increment_572ffca14851): a fetched page, a web search, a GitHub or Gmail tool, or a
+   * command reading an issue, a pull request or a web page, `what` naming it as the tool or command did. Written by the
+   * hook after the call; a later knowledge write by the session carries these as its mark (capability 2's 2.20).
+   */
+  z.object({ ...common, kind: z.literal("outside-text-read"), what: z.string().min(1).max(300) }).strict(),
+  /**
    * A claim taken, on the git branch its session's folder was on, when it was on one (ADR-0643 D3).
    * One storytree took because the session edited a file of the capability names that `file`, from
    * the checkout's root (ADR-0924 D1). A capability claim names the increment its session held

@@ -10,7 +10,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 
-import { removeTemp } from "@storytree/test-waits";
+import { removeTemp, waitUntil } from "@storytree/test-waits";
 
 import { testRunToolParts } from "./test-run.js";
 
@@ -121,13 +121,12 @@ test("8.2 · an edit of the same size made in the second the index was written i
     // Git compares a file to its index entry by whole seconds here, so an edit within the index's own second is
     // caught only by its racily-clean check, which reads the index file's time; the call comes a second later.
     const second = () => Math.floor(Date.now() / 1000);
-    const start = second();
-    while (second() === start) await new Promise((resolve) => setTimeout(resolve, 5));
+    const nextSecond = (from: number) => waitUntil(() => second() !== from, 2_000, "the next second");
+    await nextSecond(second());
     writeFileSync(join(dir, "app.txt"), "one\n"); // its committed text, staged again so the index is written now
     git("add", "-A");
     writeFileSync(join(dir, "app.txt"), "two\n");
-    const edited = second();
-    while (second() === edited) await new Promise((resolve) => setTimeout(resolve, 20));
+    await nextSecond(second());
     const answer = await run({ command: "node suite.mjs" }, { folder: dir, caller: GREEN });
     assert.equal(runs(), 1);
     git("commit", "-qam", "green");

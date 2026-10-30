@@ -622,9 +622,14 @@ test("app-setup 8.39 check_setup asks for the check file outside the project's f
         assert.doesNotMatch(asked.text, /\.storytree-check in this folder/);
         writeFileSync(checkFile, "check");
         await fireHook(home.storytreeHome, "claude-code", "post-tool-use-write", folder, "claude-1", { tool_input: { file_path: checkFile, content: "check" } });
+        // The user's own file the session edited too is never the check's to delete.
+        const theirs = path.join(folder, "notes.md");
+        writeFileSync(theirs, "the user's");
+        await fireHook(home.storytreeHome, "claude-code", "post-tool-use-write", folder, "claude-1", { tool_input: { file_path: theirs, content: "the user's" } });
         const { missing } = (await agent.call("check_setup")).data as { missing: string[] };
         assert.ok(!missing.includes("file edit"));
         assert.equal(existsSync(checkFile), false);
+        assert.equal(existsSync(theirs), true);
       });
     } finally {
       await dropTestProjects([project]);

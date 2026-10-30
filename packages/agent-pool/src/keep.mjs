@@ -6,7 +6,7 @@
 // node packages/agent-pool/src/keep.mjs install   (add its crontab line, once; run again, it changes nothing)
 // The loop is left stopped while pool-stop is there, or when the dispatcher's last run ended on exit 75 (an engine
 // failing at once): pool health and the session manager read that for the owner, and say it once in pool.status.
-import { execFile, spawn } from "node:child_process";
+import { execFile, execFileSync, spawn } from "node:child_process";
 import { existsSync, openSync } from "node:fs";
 import { appendFile, readFile } from "node:fs/promises";
 import { homedir } from "node:os";
@@ -108,12 +108,7 @@ function boxDefaults({ home = homedir(), env = process.env } = {}) {
       spawn: async () => detached(process.execPath, [join(checkout, "packages", "agent-pool", "src", "watch.mjs"), "run"], join(lanesDir, "watch.runner.log")) }),
     crontab: {
       read: async () => (await run("crontab", ["-l"]).catch(() => ({ stdout: "" }))).stdout,
-      write: (table) => new Promise((done, failed) => {
-        const child = spawn("crontab", ["-"], { stdio: ["pipe", "inherit", "inherit"] });
-        child.on("error", failed);
-        child.on("close", (code) => (code === 0 ? done() : failed(new Error(`crontab exited ${code}`))));
-        child.stdin.end(table);
-      }),
+      write: async (table) => { execFileSync("crontab", ["-"], { input: table, stdio: ["pipe", "inherit", "inherit"] }); },
     },
   };
 }

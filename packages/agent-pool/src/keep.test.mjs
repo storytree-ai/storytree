@@ -83,4 +83,6 @@ test("3.29 · the keeper's crontab line is added once, beside the user's own lin
   assert.equal(env.PATH, "/n/bin:/home/me/.local/bin:/usr/bin:/bin", "cron's bare PATH has no claude (~/.local/bin) and no node");
   assert.equal(env.XDG_RUNTIME_DIR, "/run/user/1000");
   assert.equal(env.CLAUDE_CODE_SESSION_ID, undefined, "what it starts belongs to no agent session");
+  assert.equal(env.HOME, "/home/me", "a HOME cron leaves unset is the user's");
+  assert.equal(laneEnv({ HOME: "/h" }, { home: "/home/me", nodeBin: "/n/bin" }).HOME, "/h");
 });

@@ -36,17 +36,19 @@ test("5.1 · `health local`, on the command line only (no tool), runs a project'
   const story = await library.addStory({ title: "Greeting" });
   const capability = await library.addCapability({ story: story.id, title: "1 · Hello" });
   const contract = await library.addContract({ capability: capability.id, title: "1.1 · hello greets the world" });
+  await library.addContract({ capability: capability.id, title: "1.2 · hello greets by name" });
   writeFileSync(path.join(folder, "package.json"), JSON.stringify({ name: "scratch", type: "module", scripts: { test: "node --test" } }));
   mkdirSync(path.join(folder, "packages", "greeting"), { recursive: true });
   const tests = path.join(folder, "packages", "greeting", "hello.test.js");
-  writeFileSync(tests, `import assert from "node:assert/strict";\nimport { test } from "node:test";\ntest("1.1 · hello greets the world", () => {\n  assert.equal("hello, world", "hello, world");\n});\n`);
+  writeFileSync(tests, `import assert from "node:assert/strict";\nimport { test } from "node:test";\ntest("1.1 · hello greets the world", () => {\n  assert.equal("hello, world", "hello, world");\n});\n` +
+    `test("1.2 · hello greets by name", { skip: "not yet" }, () => {});\ntest("1.9 · hello's promise no story makes", () => {});\n`);
   assert.ok(!existsSync(path.join(folder, ".git")));
 
   const local = HEALTH_FAMILIES[0]!.verbs.find((one) => "name" in one.command && one.command.name === "local")!;
   assert.ok(!mounted(local.tool), "the MCP server offers no tool for it: it runs the user's test command, through the agent's shell");
   const place = { library, project: name, session: "test", folder };
   const passing = await local.act({} as never, place as never, WORDS);
-  assert.match(passing.text, /1 contracts verified passing, 0 failing/);
+  assert.match(passing.text, /1 contracts verified passing, 0 failing, 1 not checked; 1 results named no contract of one story\./);
   const verified = (await library.health(contract.id)).verified;
   assert.equal(verified.state, "passing");
   assert.equal(verified.by, "a local test run");

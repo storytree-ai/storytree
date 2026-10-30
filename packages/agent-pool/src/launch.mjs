@@ -4,7 +4,7 @@
 // node --import tsx packages/agent-pool/src/launch.mjs ready [project] [--drained] (as JSON: engines running, the cap, the lanes folder and the work the pool would start now)
 import { execFile, spawn } from "node:child_process";
 import { appendFileSync, existsSync } from "node:fs";
-import { readFile, writeFile } from "node:fs/promises";
+import { readFile, rm, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join, resolve } from "node:path";
 import { setTimeout as wait } from "node:timers/promises";
@@ -13,8 +13,8 @@ import { promisify } from "node:util";
 
 import { laneSettings } from "./engine.mjs";
 import { blind, pickPlan, pickPool, planState, readOnly, surveyLibrary } from "./feed.mjs";
-import { codeVersion, composeBrief, countEngines, holdRunner, waitForSlot } from "./queue.mjs";
-import { runLane as runEngineLane } from "./runner.mjs";
+import { codeVersion, composeBrief, countEngines, holdRunner, processTable, waitForSlot, WINDOWS_PROCESSES } from "./queue.mjs";
+import { bothAnswer, runLane as runEngineLane } from "./runner.mjs";
 import { readBoxPace } from "./pace.mjs";
 import { poolConfig, readCap } from "./pool-config.mjs";
 import { handedOff } from "./watch.mjs";
@@ -47,13 +47,70 @@ const SSH_PUSH = /^git@github\.com(-[\w.-]+)?:storytree-ai\/storytree(\.git)?$/;
  * Bring the shared checkout to origin/main, point its pushes at SSH unless they already go there over SSH (the owner's
  * deploy-key URL is kept), and install from its lockfile unchanged; every lane's worktree is cut from it.
  */
-export async function prepareCheckout({ repo, exec = (command, args, options) => run(command, args, options) }) {
+export async function prepareCheckout({ repo, platform = process.platform, exec = (command, args, options) => run(command, args, options) }) {
   await exec("git", ["fetch", "-q", "origin"], { cwd: repo });
   await exec("git", ["merge", "-q", "--ff-only", "origin/main"], { cwd: repo });
   // git config --get exits 1 when no push URL is set.
   const pushUrl = await exec("git", ["config", "--get", "remote.origin.pushurl"], { cwd: repo }).then(({ stdout }) => String(stdout).trim(), () => "");
   if (!SSH_PUSH.test(pushUrl)) await exec("git", ["config", "remote.origin.pushurl", PUSH_URL], { cwd: repo });
-  await exec("pnpm", ["install", "--frozen-lockfile", "--silent"], { cwd: repo, maxBuffer: 64 * 1024 * 1024 });
+  // pnpm is a .cmd on Windows, which only a shell runs; these words need no quoting.
+  await exec("pnpm", ["install", "--frozen-lockfile", "--silent"], { cwd: repo, maxBuffer: 64 * 1024 * 1024, ...(platform === "win32" ? { shell: true } : {}) });
+}
+
+/** Whether process `pid` is alive: signal 0 tests it on Linux and Windows alike; a process we may not signal is alive. */
+const isAlive = (pid) => {
+  try { process.kill(pid, 0); return true; }
+  catch (error) { return error.code === "EPERM"; }
+};
+
+/**
+ * Hold the lock file `path` while `fn` runs, where flock(1) is absent (Windows, ADR-1179 D1): it is created exclusively with the
+ * holder's pid, waited on a second at a time while a live process holds it, taken over from a dead holder, and removed after.
+ */
+export async function withLockFile(path, fn, { pid = process.pid, alive = isAlive, sleep = (ms) => wait(ms) } = {}) {
+  for (;;) {
+    try { await writeFile(path, `${pid}\n`, { flag: "wx" }); break; }
+    catch (error) { if (error.code !== "EEXIST") throw error; }
+    const holder = Number((await readFile(path, "utf8").catch(() => "")).trim());
+    if (holder && !alive(holder)) { await rm(path, { force: true }); continue; }
+    await sleep(1000);
+  }
+  try { return await fn(); }
+  finally { await rm(path, { force: true }); }
+}
+
+/** The checkout lock: flock(1), shared with the box's shell launchers, on Linux; a lock file elsewhere. */
+export const checkoutLock = (path, platform = process.platform) => (fn) => (platform === "win32" ? withLockFile(path, fn) : withFlock(path, fn));
+
+/**
+ * The start rule of a machine-only dispatcher (ADR-1179 D3): a hold while `power` (the power line: Online, Offline or Unknown)
+ * says the machine runs on battery, or while `online` says the library or GitHub does not answer; else undefined. An unread
+ * power line, or a machine with no battery, is plugged in.
+ */
+export async function startHold({ power, online }) {
+  const line = await Promise.resolve().then(power).catch(() => "");
+  if (String(line).trim() === "Offline") return { hold: "pause", windows: ["power"], reason: "on battery: a lane starts only while the machine is plugged in" };
+  if (!await online()) return { hold: "pause", windows: ["network"], reason: "offline: the library or GitHub does not answer" };
+  return undefined;
+}
+
+/** The power line on Windows (GetSystemPowerStatus, through .NET): Online, Offline or Unknown; elsewhere none is read, so it is plugged in. */
+export async function readPowerLine({ platform = process.platform, exec = (command, args, options) => run(command, args, options) } = {}) {
+  if (platform !== "win32") return "";
+  const { stdout } = await exec("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command",
+    "Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.SystemInformation]::PowerStatus.PowerLineStatus"], { timeout: 30_000 });
+  return String(stdout).trim();
+}
+
+/**
+ * The pool's rules name the Mint box's folders (~/code/storytree03, ~/storytree-lanes); a dispatcher configured with its own
+ * checkout and lanes folder (the laptop's) briefs its lanes with those, so a lane works and reports where its runner looks.
+ */
+export function localBrief(text, { checkout, lanes } = {}) {
+  let local = text;
+  if (checkout) local = local.replace(/~\/code\/storytree03(?![\w-])/g, () => checkout);
+  if (lanes) local = local.replace(/~\/storytree-lanes(?![\w-])/g, () => lanes);
+  return local;
 }
 
 /** Hold an flock(1) lock on `path` while `fn` runs, so the box's shell launchers and these runners share it. */
@@ -219,7 +276,16 @@ export async function poolRules(body) {
   return readFile(new URL(`./${name}`, import.meta.url), "utf8");
 }
 
+const windows = process.platform === "win32";
+
+/** The process table, `pid ppid args` a line: ps on Linux, Win32_Process on Windows (queue.mjs's processTable). */
+async function processes() {
+  if (windows) return processTable((await run(...WINDOWS_PROCESSES, { maxBuffer: 64 * 1024 * 1024 })).stdout);
+  return (await run("ps", ["-eo", "pid=,ppid=,args="], { maxBuffer: 64 * 1024 * 1024 })).stdout;
+}
+
 async function argsOf(pid) {
+  if (windows) return (await processes().catch(() => "")).split("\n").find((row) => row.startsWith(`${pid} `))?.replace(/^\d+ \d+ /, "") ?? "";
   return (await readFile(`/proc/${pid}/cmdline`, "utf8").catch(() => "")).split("\0").join(" ").trim();
 }
 
@@ -229,10 +295,11 @@ function boxDefaults({ home = homedir(), env = process.env } = {}) {
   const { lanesDir, checkout: repo, addDirs } = config;
   const { sessionsDir, stopAt } = laneSettings({ home, env, config });
   return {
-    lanesDir, repo, addDirs, sessionsDir, stopAt, machineOnly: config.machineOnly,
+    lanesDir, repo, addDirs, sessionsDir, stopAt, machineOnly: config.machineOnly, briefPaths: { checkout: repo, lanes: lanesDir },
     maxLanes: () => readCap({ lanesDir, sessions: config.sessions }),
-    count: async () => countEngines((await run("ps", ["-eo", "pid=,ppid=,args="], { maxBuffer: 64 * 1024 * 1024 })).stdout),
-    lock: (fn) => withFlock(join(lanesDir, "night-checkout.lock"), fn),
+    count: async () => countEngines(await processes()),
+    power: () => readPowerLine(), online: () => bothAnswer({ cwd: repo, env }),
+    lock: checkoutLock(join(lanesDir, "night-checkout.lock")),
     prepare: () => prepareCheckout({ repo }),
     sleep: (ms, options) => wait(ms, undefined, options), argsOf, runLane: runEngineLane, survey: surveyLibrary, now: Date.now,
   };
@@ -300,7 +367,8 @@ async function pool(b) {
   const survey = async () => withHandOffs(await b.survey(), await handedOff(join(L, "watch")));
   const code = await runPool({
     survey, maxLanes: b.maxLanes, count: b.count, machineOnly: b.machineOnly, stopFile: join(L, "pool-stop"), plans: planFile(join(L, "pool-planned.json")), sleep: b.sleep, now: b.now, say,
-    pace: b.pace ?? (() => readBoxPace()),
+    // A machine-only dispatcher (the laptop's) first holds for its start rule, plugged in and online (ADR-1179 D3).
+    pace: async () => (b.machineOnly ? await startHold({ power: b.power, online: b.online }) : undefined) ?? (b.pace ?? readBoxPace)(),
     codeVersion: b.codeVersion ?? (() => codeVersion({ repo: b.repo })),
     refresh: () => b.lock(b.prepare),
     launch: async (one, { engineUp }) => {
@@ -316,7 +384,7 @@ async function pool(b) {
         ...(one.plan ? {} : { recheck: async () => whyNotStart(await survey(), one.id) }),
         say: (line) => { if (/^\S+ engine \w+ /.test(line) && !/ exit -?\d+$/.test(line)) engineUp(); say(line); },
         log: join(L, `pool-${one.id}-${at}.log`), err: join(L, `pool-${one.id}-${at}.err`),
-        brief: { path: join(L, `pool-${one.id}-brief.md`), text: composeBrief(brief) },
+        brief: { path: join(L, `pool-${one.id}-brief.md`), text: localBrief(composeBrief(brief), b.briefPaths) },
       });
     },
   });

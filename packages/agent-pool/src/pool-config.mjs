@@ -13,7 +13,9 @@
 // - watcher: { fixesPerRed, fixesPerPullRequest, intervalSeconds }: fix sessions per red, per pull request, and the
 //   seconds between looks; by default 2, 6 and 60.
 // - machineOnly: true, and the dispatcher takes only work whose machine field names this machine, and plans no arc,
-//   leaving untagged work to the Mint pool (ADR-1179 D2); by default false, as on the Mint box.
+//   leaving untagged work to the Mint pool (ADR-1179 D2), and starts a lane only while plugged in and while the library and
+//   GitHub answer (D3); by default false, as on the Mint box. The laptop's is ~/.storytree/agent-pool.json, which
+//   windows/register-laptop-pool.ps1 writes and its logon task names in AGENT_POOL_CONFIG.
 // `~` is the home folder of the machine reading the file. The environment variables the pool read before
 // (LANES_DIR, CODEX_STOP_AT, WATCH_BOX_HOST, WATCH_FIX_LIMIT, WATCH_FIX_CAP, WATCH_INTERVAL_S) still override it.
 import { readFileSync } from "node:fs";

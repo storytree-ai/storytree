@@ -369,6 +369,25 @@ export async function recordHookEvent(harness: string, input: unknown, reach: Re
   }
 }
 
+/** How this hook process leaves the lines it has made but not yet written waiting on this machine, while it is reaching or writing to the log. */
+let leaveWaiting: (() => void) | undefined;
+
+/**
+ * At the hook's deadline, just before the command exits: the lines it has not yet written wait on this machine, for the
+ * next hook to upload first (3.14), and why is traced. A hook cut off while it reached a busy store, or while its write
+ * waited, lost them (seen on a loaded laptop, 2026-10-29). A line whose write landed just before is kept once by its event.
+ * Never throws.
+ */
+export function atDeadline(): void {
+  const leave = leaveWaiting;
+  leaveWaiting = undefined;
+  try {
+    leave?.();
+  } catch {
+    // Nothing more can be done in the time left.
+  }
+}
+
 /** Write one hook's lines to the log of the project its folder belongs to, or leave them waiting on this machine; a failure is traced with `failed`. Never throws. */
 async function writeLines(harness: string, input: string, flags: readonly string[], made: HookLines, delivered: DeliveredEvent, handOff: HookInput["handOff"], merges: MergeWatch | undefined, locate: LocateOptions | undefined, failed: (stage: HookFailure["stage"], error: unknown) => void, guarded = false, clock?: HookClock, git: Git = runGit): Promise<void> {
   try {
@@ -402,7 +421,12 @@ async function writeLines(harness: string, input: string, flags: readonly string
       await handOff(harness, input);
       return undefined;
     }
-    // Only now, with lines to write and somewhere to write them, is the database reached.
+    // Only now, with lines to write and somewhere to write them, is the database reached; cut off from here, they wait.
+    const written = { count: 0 };
+    leaveWaiting = () => {
+      failed("write", new Error(`cut off at its deadline with ${made.lines.length - written.count} of its ${made.lines.length} lines unwritten`));
+      enqueue(home, where.project, made.lines.slice(written.count), delivered);
+    };
     const [{ openActivityLog, thisMachine, currentBranch }, { connect }] = await Promise.all([import("../activity/index.js"), import("@storytree/library")]);
     const machine = thisMachine();
     let opened;
@@ -419,6 +443,7 @@ async function writeLines(harness: string, input: string, flags: readonly string
       });
       opened = { storytree, log };
     } catch (error) {
+      leaveWaiting = undefined;
       if (error instanceof ProjectFolderError) return;
       failed("reach", error);
       enqueue(home, where.project, made.lines, delivered);
@@ -427,12 +452,11 @@ async function writeLines(harness: string, input: string, flags: readonly string
       clock?.add("connect", performance.now() - connecting);
     }
     const { storytree, log } = opened;
-    const written = { count: 0 };
     const writing = performance.now();
     const handing = clock?.spent("handoff") ?? 0;
     try {
       // A folder whose marker names a deleted project's database writes nothing, under its name or into a new project of it (ADR-0831).
-      if (where.identity !== undefined && (await storytree.projectIdentities())[where.project] !== where.identity) return;
+      if (where.identity !== undefined && (await storytree.projectIdentities())[where.project] !== where.identity) return void (leaveWaiting = undefined);
       // The folders the project imports here are remembered, and their baselines set, for the shell guard (shell-guard.ts).
       if (firstLine !== undefined) await watchImports(storytree, where.project, homeOf(locate), home, firstLine, failed, git);
       // Lines that waited go first, so the log keeps each session's lines in the order they happened; the guard's are in an imported folder.
@@ -444,6 +468,7 @@ async function writeLines(harness: string, input: string, flags: readonly string
         await recordMachineStart(home, log, where.project, { session: by.session, ...(by.harness === undefined ? {} : { harness: by.harness }) }).catch(() => undefined);
       }
       await appendEvent(log, where.project, made.lines, delivered, written);
+      leaveWaiting = undefined;
       // A claim whose pull request has merged ends now (ADR-0643 D3), except before a storytree tool
       // call or at a prompt, which the harness waits for; the tool call looks for itself.
       const [first] = made.lines;
@@ -468,6 +493,7 @@ async function writeLines(harness: string, input: string, flags: readonly string
       }
     } catch (error) {
       // The log went away mid-hook: what it did not take waits for the next hook.
+      leaveWaiting = undefined;
       failed("write", error);
       enqueue(home, where.project, made.lines.slice(written.count), delivered);
     } finally {

@@ -26,12 +26,33 @@ export async function codeVersion({ repo, paths = POOL_CODE, exec = promisify(ex
 
 const ENGINES = [["codex", "exec"], ["codex", "e"], ["claude", "-p"], ["claude", "--print"]];
 
-/** Whether a process's command line starts an engine: `codex exec …` or `claude -p …`, run directly or by node. */
+/** A command line's first words, a quoted word ("C:\Program Files\…\node.exe") read as one. */
+const leadingWords = (args, count) => [...args.trim().matchAll(/"([^"]*)"|(\S+)/g)].slice(0, count).map((word) => word[1] ?? word[2]);
+
+/** A program's name from its path, on either system: `/usr/bin/codex`, `C:\…\claude.exe` and `…\codex.js` are codex and claude. */
+const programName = (path = "") => posix.basename(path.replace(/\\/g, "/")).replace(/\.(exe|cmd|js)$/i, "");
+
+/** Whether a process's command line starts an engine: `codex exec …` or `claude -p …`, run directly or by node, on Linux or Windows. */
 export function isEngine(args) {
-  const words = args.trim().split(/\s+/);
-  const start = /^node\d*$/.test(posix.basename(words[0] ?? "")) ? 1 : 0;
-  const name = posix.basename(words[start] ?? ""), verb = words[start + 1];
+  const words = leadingWords(args, 3);
+  const start = /^node\d*$/i.test(programName(words[0])) ? 1 : 0;
+  const name = programName(words[start]), verb = words[start + 1];
   return ENGINES.some(([engine, flag]) => name === engine && verb === flag);
+}
+
+/** What lists Windows's processes as JSON (Win32_Process: ProcessId, ParentProcessId, CommandLine), for processTable. */
+export const WINDOWS_PROCESSES = ["powershell.exe", ["-NoProfile", "-NonInteractive", "-Command",
+  "Get-CimInstance Win32_Process | Select-Object ProcessId,ParentProcessId,CommandLine | ConvertTo-Json -Compress"]];
+
+/**
+ * Windows's process list (WINDOWS_PROCESSES's JSON) as the `pid ppid args` table `ps -eo pid=,ppid=,args=` prints on Linux,
+ * each command line on one line (a brief passed as an argument spans many), so countEngines and holdRunner read either.
+ */
+export function processTable(json) {
+  if (!json.trim()) return "";
+  const listed = JSON.parse(json);
+  return (Array.isArray(listed) ? listed : [listed]).filter((one) => one.CommandLine)
+    .map((one) => `${one.ProcessId} ${one.ParentProcessId} ${String(one.CommandLine).replace(/\s+/g, " ").trim()}`).join("\n");
 }
 
 /**

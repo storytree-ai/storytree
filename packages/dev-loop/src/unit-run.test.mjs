@@ -2,7 +2,7 @@
 // real `node --test` unit over a fixture file, with the limits cut to seconds.
 import assert from "node:assert/strict";
 import { execFileSync, spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
@@ -167,7 +167,7 @@ test("never ends", () => new Promise(() => { setInterval(() => {}, 1000); }));`,
   assert.match(out.text, /✖ never ends[\s\S]*timed out after 1000ms/, "node names the test and its limit");
 });
 
-test("6.1 a unit past its deadline keeps completed failure details and names the running test while killing its whole process tree", async (t) => {
+test("6.1 a unit past its deadline keeps completed failure details and names the running test while killing its whole process tree", { timeout: 180_000 }, async (t) => {
   // Detached, the wedged child leaves Windows' kill-on-close job and the Unix process group, as a
   // tool's own children may: only a kill that walks the process tree reaches it.
   const pidFile = path.join(tmpdir(), `unit-run-grandchild-${process.pid}.txt`);
@@ -177,24 +177,18 @@ test("6.1 a unit past its deadline keeps completed failure details and names the
     } catch {} // killed by the harness, as it should be
     rmSync(pidFile, { force: true });
   });
-  const root = fixture(t, {
-    "wedged.test.mjs": `import { test } from "node:test"; import { spawn } from "node:child_process"; import { writeFileSync } from "node:fs";
-test("finishes", () => {});
-test("waits on a wedged child", () => {
-  const child = spawn(process.execPath, ["-e", "setInterval(() => {}, 1000)"], { stdio: "ignore", detached: true });
-  writeFileSync(${JSON.stringify(pidFile)}, String(child.pid));
-  return new Promise(() => {});
-});`,
-    "z-failed.test.mjs": `import { test } from "node:test"; import assert from "node:assert/strict";
-test("completed failure", () => assert.equal("actual merge", "expected merge", "merged result differed"));`,
-  });
-  const started = Date.now();
-  const { out, closed, options } = captured();
-  const result = await runUnit({ root, files: ["wedged.test.mjs", "z-failed.test.mjs"], env: process.env, args: ["--test-concurrency=2"], testLimitMs: 60_000, unitLimitMs: 3_000, ...options });
-  await closed;
+  // On a loaded laptop the unit's start used up a 3 s limit before the wedged test began, so nothing was
+  // running to name (2026-10-29): as 6.1's run deadline does, the limit widens until the test starts with time to spare.
+  let started, result, out, root, unitLimitMs;
+  for (unitLimitMs of [3_000, 6_000, 12_000, 24_000]) {
+    rmSync(pidFile, { force: true });
+    started = Date.now();
+    ({ result, out, root } = await wedgedUnit(t, pidFile, unitLimitMs));
+    if (existsSync(pidFile) && statSync(pidFile).mtimeMs < started + unitLimitMs - 1_000) break;
+  }
   assert.equal(result.timedOut, true);
   assert.notEqual(result.code, 0);
-  assert.ok(Date.now() - started < 20_000, "it ended soon after its deadline");
+  assert.ok(Date.now() - started < unitLimitMs + 17_000, "it ended soon after its deadline");
   assert.deepEqual(result.running.map((entry) => entry.name), ["waits on a wedged child"]);
   assert.match(result.running[0].file, /wedged\.test\.mjs$/);
   assert.match(out.stderr, /completed failure/);
@@ -207,11 +201,30 @@ test("completed failure", () => assert.equal("actual merge", "expected merge", "
   const gone = () => { try { process.kill(grandchild, 0); return false; } catch { return true; } };
   await waitUntil(gone, 5_000, "the test's own child process to be killed too");
 
-  const reason = unitReason({ ...result, unitLimitMs: 3_000 }, root);
+  const reason = unitReason({ ...result, unitLimitMs }, root);
   assert.match(reason, /timed out/);
-  assert.match(reason, /limit 3(\.0)? s/);
+  assert.match(reason, new RegExp(`limit ${unitLimitMs / 1000}(\\.0)? s`));
   assert.match(reason, /wedged\.test\.mjs › waits on a wedged child/);
 });
+
+/** One unit over a test that finishes, a test wedged on a detached child of its own (its pid written to `pidFile` as it starts), and a file that fails. */
+async function wedgedUnit(t, pidFile, unitLimitMs) {
+  const root = fixture(t, {
+    "wedged.test.mjs": `import { test } from "node:test"; import { spawn } from "node:child_process"; import { writeFileSync } from "node:fs";
+test("finishes", () => {});
+test("waits on a wedged child", () => {
+  const child = spawn(process.execPath, ["-e", "setInterval(() => {}, 1000)"], { stdio: "ignore", detached: true });
+  writeFileSync(${JSON.stringify(pidFile)}, String(child.pid));
+  return new Promise(() => {});
+});`,
+    "z-failed.test.mjs": `import { test } from "node:test"; import assert from "node:assert/strict";
+test("completed failure", () => assert.equal("actual merge", "expected merge", "merged result differed"));`,
+  });
+  const { out, closed, options } = captured();
+  const result = await runUnit({ root, files: ["wedged.test.mjs", "z-failed.test.mjs"], env: process.env, args: ["--test-concurrency=2"], testLimitMs: 60_000, unitLimitMs, ...options });
+  await closed;
+  return { result, out, root };
+}
 
 // increment_67a3090c077c: a file whose tests have all ended but whose process never exits (a Node
 // exit deadlock seen on CI) fails within seconds, named, instead of waiting out the unit deadline.

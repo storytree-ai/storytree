@@ -15,7 +15,7 @@
  */
 import { z } from "zod";
 
-import { isTimeZone, parseSchedule } from "./schedule.js";
+import { isTimeZone, parseSchedule, PRECHECKS } from "./schedule.js";
 
 /** The declared record types. */
 export type RecordType =
@@ -410,10 +410,13 @@ export const RECORD_SCHEMAS = {
         .optional(),
       /** The IANA time zone the schedule's times are in; absent, the owner's (OWNER_TIME_ZONE). */
       timeZone: nonEmpty.refine(isTimeZone, 'field "timeZone" names no time zone this machine knows: it is an IANA name, such as Australia/Sydney').optional(),
+      /** The cheap check its runner makes before starting a subagent, from the fixed list PRECHECKS; nothing to do, the run is recorded skipped. */
+      precheck: z.enum(PRECHECKS).optional(),
     })
     .strict()
-    .superRefine(({ schedule, timeZone }, context) => {
+    .superRefine(({ schedule, timeZone, precheck }, context) => {
       if (timeZone !== undefined && schedule === undefined) context.addIssue({ code: "custom", path: ["timeZone"], message: 'field "timeZone" is for the times of a "schedule", and this process has none' });
+      if (precheck !== undefined && schedule === undefined) context.addIssue({ code: "custom", path: ["precheck"], message: 'field "precheck" is checked before a scheduled run, and this process has no "schedule"' });
     }),
   /** An agent role. Its required reading (`context`), rules and anti-patterns are links to artifacts (6-a). */
   agent: z

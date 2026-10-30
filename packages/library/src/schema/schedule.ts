@@ -8,11 +8,26 @@
  * - `every hour`, `every day`, `every N minutes`, `every N hours`, `every N days`: at most that often;
  * - `daily at 09:15`, `daily at 09:15 and 21:15` (more times joined by commas or `and`): at those times of day.
  *
+ * A daily schedule may end with a grace, `daily at 09:15, grace 2 hours` (`grace N minutes|hours|days`): a time missed by
+ * more than that (the runner's machine asleep) is recorded missed instead of run late. No other schedule takes one: an
+ * interval runs whenever it is next reached, and `every run` has no time to be late for.
+ *
  * A schedule's times are in its record's `timeZone`, an IANA name, or the owner's, OWNER_TIME_ZONE, when it has none.
  */
 
-/** A schedule read into a rule: every run, at most every so many minutes, or at the given times of day (HH:MM, in order). */
-export type ScheduleRule = { readonly kind: "every-run" } | { readonly kind: "interval"; readonly minutes: number } | { readonly kind: "daily"; readonly times: readonly string[] };
+/** A schedule read into a rule: every run, at most every so many minutes, or at the given times of day (HH:MM, in order) and its grace, if any. */
+export type ScheduleRule =
+  | { readonly kind: "every-run" }
+  | { readonly kind: "interval"; readonly minutes: number }
+  | { readonly kind: "daily"; readonly times: readonly string[]; readonly graceMinutes?: number };
+
+/**
+ * The cheap checks a process's `precheck` may name, which its runner makes before starting a subagent for it (no shell
+ * string, because voice sessions edit process records): `feedback-waiting` asks whether a feedback note waits to be routed.
+ */
+export const PRECHECKS = ["feedback-waiting"] as const;
+/** One of the checks a process's precheck may name. */
+export type Precheck = (typeof PRECHECKS)[number];
 
 /** The time zone a schedule's times are in when its record names none: the owner's. */
 export const OWNER_TIME_ZONE = "Australia/Sydney";
@@ -23,7 +38,21 @@ const SAID = 'a schedule is "every run", "every N minutes", "every N hours", "ev
 
 /** The rule the words say, or the reason they say none. */
 export function parseSchedule(text: string): { readonly rule: ScheduleRule } | { readonly refused: string } {
-  const words = text.trim().toLowerCase().replace(/\s+/g, " ");
+  const said = text.trim().toLowerCase().replace(/\s+/g, " ");
+  const graced = /^(.+?),? grace (.+)$/.exec(said);
+  if (graced === null) return parseRule(said);
+  const [, words = "", grace = ""] = graced;
+  const read = parseRule(words);
+  if ("refused" in read) return read;
+  if (read.rule.kind !== "daily") return { refused: `a grace is for a daily schedule's times, such as "daily at 09:15, grace 2 hours"; "${words}" has no time to be late for` };
+  const length = /^(\d+) (minute|hour|day)s?$/.exec(grace);
+  const graceMinutes = length === null ? 0 : Number(length[1]) * (UNIT_MINUTES[length[2] ?? ""] ?? 0);
+  if (graceMinutes < 1) return { refused: `"grace ${grace}" is no grace: a grace is N minutes, hours or days, at least one minute` };
+  return { rule: { ...read.rule, graceMinutes } };
+}
+
+/** The rule the words say, before any grace. */
+function parseRule(words: string): { readonly rule: ScheduleRule } | { readonly refused: string } {
   if (words === "every run") return { rule: { kind: "every-run" } };
   const every = /^every (?:(\d+) )?(minute|hour|day)(s?)$/.exec(words);
   if (every !== null) {

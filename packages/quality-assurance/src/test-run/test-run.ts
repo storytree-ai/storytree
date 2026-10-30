@@ -163,5 +163,5 @@ export const testRunToolParts = [(): ToolExtension => testRunTools()];
 
 /** Its section of the habits card (ADR-1021, the guidance kind). */
 export const testRunGuidance: readonly string[] = [
-  "Run the project's tests with `run_tests`, with the same command each time: storytree records each run against your folder's files, so the next role reads it instead of re-running the suite; an edit runs it anew.",
+  "Test with `run_tests`: unchanged files reuse its recorded run.",
 ];

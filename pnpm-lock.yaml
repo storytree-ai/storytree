@@ -553,6 +553,9 @@ importers:
         specifier: ^0.185.1
         version: 0.185.1
     devDependencies:
+      '@storytree/test-waits':
+        specifier: workspace:*
+        version: link:../test-waits
       '@types/node':
         specifier: ^24.13.6
         version: 24.13.6

@@ -14,7 +14,7 @@ import { quietFor, removeTemp, waitUntil } from "@storytree/test-waits";
 
 import type { AnnotatedTree, StorySurvey } from "@storytree/library";
 
-import { capabilitiesOfFiles, codeSurveyReader, offThreadSurveyReader, readCodeSurvey, testedNumbers, untestedContracts } from "./read-survey.js";
+import { capabilitiesOfFiles, codeSurveyReader, noMergedMain, offThreadSurveyReader, readCodeSurvey, testedNumbers, untestedContracts } from "./read-survey.js";
 import { focusProject } from "../read.js";
 import { importedSource } from "./survey-source.js";
 // 8.16 runs this module on a worker thread; imported here, with no parent port, it answers nothing.
@@ -604,6 +604,33 @@ test("8.11 an unreachable origin with no fetched main fails instead of presentin
     git("init", "-b", "main");
     git("remote", "add", "origin", path.join(folder, "missing.git"));
     await assert.rejects(codeSurveyReader().read(folder, tree), /merged.*origin\/main/i);
+  } finally {
+    await removeTemp(folder);
+  }
+});
+
+test("8.11 an origin with no fetchable main is refused in words naming why, whether the origin has no main or cannot be read, and the refusal is told apart by its message alone", async () => {
+  const folder = await mkdtemp(path.join(tmpdir(), "code-survey-no-main-"));
+  const git = (cwd: string, ...args: string[]) => execFileSync("git", args, { cwd, stdio: "pipe", windowsHide: true });
+  try {
+    const origin = path.join(folder, "origin.git");
+    const checkout = path.join(folder, "checkout");
+    git(folder, "init", "--quiet", "--bare", "-b", "master", origin);
+    git(folder, "init", "--quiet", "-b", "master", checkout);
+    git(checkout, "-c", "user.name=Survey test", "-c", "user.email=survey@example.test", "-c", "commit.gpgsign=false", "commit", "--quiet", "--allow-empty", "-m", "fixture");
+    git(checkout, "remote", "add", "origin", origin);
+    git(checkout, "push", "--quiet", "origin", "master");
+    const refused = async (why: RegExp) => {
+      const error = await codeSurveyReader().read(checkout, tree).then(() => undefined, (failed: Error) => failed);
+      assert.ok(error instanceof Error, "the survey is refused, not read from the workspace");
+      // Only its message crosses from the survey's worker thread, so the message alone tells the refusal apart.
+      assert.equal(noMergedMain(new Error(error.message)), true);
+      assert.match(error.message, why);
+    };
+    await refused(/remote ref.*main/i);
+    git(checkout, "remote", "set-url", "origin", path.join(folder, "missing.git"));
+    await refused(/missing\.git/);
+    assert.equal(noMergedMain(new Error("Git returned an incomplete survey blob.")), false);
   } finally {
     await removeTemp(folder);
   }

@@ -17,6 +17,7 @@ import { HEALTH_FAMILIES } from "@storytree/ci-health/verbs";
 import { IDENTITY_FAMILIES } from "@storytree/project-and-caller/identity/verbs";
 import { CHECK_FAMILIES } from "@storytree/guardrails/verbs";
 import { QUALITY_FAMILIES } from "@storytree/quality-assurance/verbs";
+import { TEST_RUN_FAMILIES } from "@storytree/quality-assurance/test-run/verbs";
 import { JOURNEY_FAMILIES } from "@storytree/app-setup/journey-events/verbs";
 import { EXPERIMENT_FAMILIES } from "@storytree/experiments/verbs";
 import { armChecks } from "@storytree/experiments/arm-checks";
@@ -42,7 +43,7 @@ import armCheckParts from "./parts/arm-checks.js";
 import { BuiltCommand, inWorld, storytree, testServerUrl } from "./testing/cli.js";
 
 const command = new BuiltCommand();
-const DECLARED = [...LIBRARY_FAMILIES, ...APP_FAMILIES, ...SETTINGS_FAMILIES, ...RELEASE_FAMILIES, ...IDENTITY_FAMILIES, ...CHECK_FAMILIES, ...QUALITY_FAMILIES, ...HEALTH_FAMILIES, ...ARC_FAMILIES, ...FRICTION_FAMILIES, ...SETUP_FAMILIES, ...PROCESSES_FAMILIES, ...SERVICES_FAMILIES, ...SCHEDULE_FAMILIES, ...SESSION_FAMILIES, ...WORKSPACE_FAMILIES, ...LAG_FAMILIES, ...JOURNEY_FAMILIES, ...EXPERIMENT_FAMILIES, ...MAP_FAMILIES, ...FEEDBACK_FAMILIES, ...PLUGIN_FAMILIES];
+const DECLARED = [...LIBRARY_FAMILIES, ...APP_FAMILIES, ...SETTINGS_FAMILIES, ...RELEASE_FAMILIES, ...IDENTITY_FAMILIES, ...CHECK_FAMILIES, ...QUALITY_FAMILIES, ...TEST_RUN_FAMILIES, ...HEALTH_FAMILIES, ...ARC_FAMILIES, ...FRICTION_FAMILIES, ...SETUP_FAMILIES, ...PROCESSES_FAMILIES, ...SERVICES_FAMILIES, ...SCHEDULE_FAMILIES, ...SESSION_FAMILIES, ...WORKSPACE_FAMILIES, ...LAG_FAMILIES, ...JOURNEY_FAMILIES, ...EXPERIMENT_FAMILIES, ...MAP_FAMILIES, ...FEEDBACK_FAMILIES, ...PLUGIN_FAMILIES];
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 before(() => command.build());

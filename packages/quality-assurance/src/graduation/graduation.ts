@@ -31,14 +31,20 @@ export type GraduatedFindings =
   | { readonly ran: false; readonly reason: string };
 
 /**
- * Run Architecture checks' graduated checks on the change in `checkout` (its branch against origin/main) and put each trip
- * under the live checks of `library` that graduated to the check in Architecture checks that tripped (contract 5.3): each such
- * check ran, with a hit for each trip, saying which part it enforces. A trip of a check in Architecture checks no live check
- * graduated to is not any check's, so it is not kept.
+ * Run Architecture checks' graduated checks on the change in `checkout` (its branch against origin/main), and in each of `also`,
+ * the change's other halves in checkouts outside the project (contract 2.19), and put each trip under the live checks of
+ * `library` that graduated to the check in Architecture checks that tripped (contract 5.3): each such check ran, with a hit for
+ * each trip, saying which part it enforces. A trip of a check in Architecture checks no live check graduated to is not any
+ * check's, so it is not kept. Where they did not run in one of the checkouts, none is taken as run, and the reason names it.
  */
-export async function graduatedFindings(library: Library, checkout: string): Promise<GraduatedFindings> {
-  const report = graduatedChecks(checkout);
-  if (!report.ran) return report;
+export async function graduatedFindings(library: Library, checkout: string, also: readonly string[] = []): Promise<GraduatedFindings> {
+  const trips: Extract<ReturnType<typeof graduatedChecks>, { ran: true }>["trips"][number][] = [];
+  for (const folder of [checkout, ...also]) {
+    const report = graduatedChecks(folder);
+    if (!report.ran) return also.length === 0 ? report : { ran: false, reason: `in ${folder}: ${report.reason}` };
+    trips.push(...report.trips);
+  }
+  const report = { trips };
   const found: { check: string; hits: { file: string; line: number; found: string }[] }[] = [];
   for (const check of await checks(library)) {
     if (check.graduated === undefined) continue;

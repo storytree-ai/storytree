@@ -10,7 +10,7 @@
  * written into the user's tree. A run is trusted because storytree ran it; what an agent says stays the report tool's.
  */
 import { execFileSync, spawn } from "node:child_process";
-import { appendFileSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { appendFileSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, utimesSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
@@ -70,7 +70,13 @@ function filesTree(folder: string): string {
   try {
     const index = path.join(scratch, "index");
     const real = git(folder, ["rev-parse", "--path-format=absolute", "--git-path", "index"]);
-    if (existsSync(real)) copyFileSync(real, index);
+    if (existsSync(real)) {
+      copyFileSync(real, index);
+      // The copy keeps the index's time: Git re-reads a file changed within the index's own second only while the
+      // index file is no newer than it, and a fresh copy's time would hide a same-sized edit made in that second.
+      const { atime, mtime } = statSync(real);
+      utimesSync(index, atime, mtime);
+    }
     const env = { ...process.env, GIT_INDEX_FILE: index };
     git(folder, ["add", "-A", ":/"], env);
     return git(folder, ["write-tree"], env);

@@ -115,6 +115,27 @@ test("8.2 · run_tests at the same files and command answers from the record, co
   });
 });
 
+test("8.2 · an edit of the same size made in the second the index was written is seen however much later run_tests is called (regression: PR #78's Linux CI, 2026-10-30)", async () => {
+  const run = runTool();
+  await withCheckout(async ({ dir, runs, git }) => {
+    // Git compares a file to its index entry by whole seconds here, so an edit within the index's own second is
+    // caught only by its racily-clean check, which reads the index file's time; the call comes a second later.
+    const second = () => Math.floor(Date.now() / 1000);
+    const start = second();
+    while (second() === start) await new Promise((resolve) => setTimeout(resolve, 5));
+    writeFileSync(join(dir, "app.txt"), "one\n"); // its committed text, staged again so the index is written now
+    git("add", "-A");
+    writeFileSync(join(dir, "app.txt"), "two\n");
+    const edited = second();
+    while (second() === edited) await new Promise((resolve) => setTimeout(resolve, 20));
+    const answer = await run({ command: "node suite.mjs" }, { folder: dir, caller: GREEN });
+    assert.equal(runs(), 1);
+    git("commit", "-qam", "green");
+    const tree = execFileSync("git", ["rev-parse", "HEAD^{tree}"], { cwd: dir, encoding: "utf8" }).trim();
+    assert.equal((answer.data?.run as { tree: string }).tree, tree, "the run is recorded against the edited file, not the committed one");
+  });
+});
+
 test("8.3 · run_tests in a folder outside any Git repository is refused, saying why, with nothing run", async () => {
   const run = runTool();
   const dir = mkdtempSync(join(tmpdir(), "qa-test-run-bare-"));

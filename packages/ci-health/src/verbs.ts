@@ -6,7 +6,9 @@
  * Neither is a tool: the MCP server's own `health_worklist` gives the worklist, and reading CI is a terminal step.
  * `health plugin <plugin>` (capability 4) runs a factory plugin's own tests into the verified health of its story's
  * promises, on the command line only (ADR-1186 D1): it runs the user's own test command, so it goes through the agent's
- * shell, where its permission prompt applies (ADR-0630), and there is no `record_plugin_health` tool.
+ * shell, where its permission prompt applies (ADR-0630), and there is no `record_plugin_health` tool. `health local`
+ * (capability 5) runs the project's own tests the same way into its verified health, as a local test run, with no
+ * repository needed (ADR-1193 D1, D2: the health ladder's local rung), on the command line only for the same reason.
  */
 import { verb, type VerbFamily } from "@storytree/library/verbs";
 
@@ -66,7 +68,23 @@ const plugin = verb({
   },
 });
 
+const local = verb({
+  command: { family: "health", name: "local", summary: "run this project's own tests by its test command and record them as its verified health, as a local test run" },
+  tool: { absent: "it runs the project's own test command, so it goes through the agent's shell, where its permission prompt applies (ADR-0630, ADR-1193 D2)" },
+  inputs: {},
+  async act(_input, { library, folder }) {
+    const { recordLocalTests } = await import("./local-run/local-run.js");
+    const read = await recordLocalTests({ library, folder });
+    if (!read.written) return { text: read.why };
+    return {
+      text: `Ran this project's ${read.tests} tests locally${read.commit === undefined ? "" : ` (commit ${read.commit.slice(0, 12)})`}: ${read.passing} contracts verified passing, ${read.failing} failing, ${read.notChecked} not checked` +
+        `${read.unmatched === 0 ? "." : `; ${read.unmatched} results named no contract of one story.`}`,
+      next: [{ command: "tree", why: "see each contract's verified health beside the agent's report" }],
+    };
+  },
+});
+
 /** The command line's `health` family, 18th among `storytree`'s families. */
 export const HEALTH_FAMILIES: readonly VerbFamily[] = [
-  { name: "health", summary: "the health worklist, and reading a project's CI, or a factory plugin's own tests, into its verified health", order: 18, verbs: [worklist, ci, plugin] },
+  { name: "health", summary: "the health worklist, and reading a project's CI, a local run of its own tests, or a factory plugin's own tests, into its verified health", order: 18, verbs: [worklist, ci, local, plugin] },
 ];

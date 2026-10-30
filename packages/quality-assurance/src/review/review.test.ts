@@ -76,6 +76,18 @@ test("2.1 · the first brief holds the branch's diff, every contract of the capa
   });
 });
 
+test("2.17 · a check naming the projects it applies to is briefed only in those projects; one naming none is briefed in every project", async () => {
+  await withLibrary(async (library, storytree) => {
+    const { increment, checks } = await plan(library);
+    const principle = (await library.list("principle"))[0]!.id;
+    const ours = await library.writeKnowledge("check", { title: "Here only", description: "Ours.", question: "Ours?", enforces: [principle], projects: [library.name] });
+    await library.writeKnowledge("check", { title: "Elsewhere only", description: "Theirs.", question: "Theirs?", enforces: [principle], projects: [`not-${library.name}`] });
+    const brief = await (await openReviews(storytree)).brief(library, increment, DIFF);
+
+    assert.deepEqual(brief.checks.map(({ id }) => id), [...checks, ours.id].sort());
+  });
+});
+
 test("2.1 · the branch's diff is read against the default branch origin names, as in a user's project whose origin calls it master", async () => {
   const dir = branchCheckout("master");
   try {

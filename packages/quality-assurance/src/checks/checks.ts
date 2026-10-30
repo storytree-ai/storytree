@@ -20,6 +20,8 @@ export interface Check {
   readonly enforces: readonly Enforced[];
   /** Each part graduated to a deterministic check in Architecture checks, with that check's name (ADR-0956 D5); absent when none has. */
   readonly graduated?: readonly Graduated[];
+  /** The projects whose reviews ask it, when it applies in only those; absent when every project's do. */
+  readonly projects?: readonly string[];
 }
 
 /** A part of a check that graduated, and the check in Architecture checks that now enforces it; `whole` when the part is all of the check. */
@@ -46,6 +48,7 @@ export async function checks(library: Library): Promise<Check[]> {
       return { id, kind: note.type, title: fields.title ?? fields.term ?? id };
     }),
     ...(check.fields.graduated === undefined ? {} : { graduated: check.fields.graduated }),
+    ...(check.fields.projects === undefined ? {} : { projects: check.fields.projects }),
   }));
 }
 

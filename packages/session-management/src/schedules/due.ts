@@ -1,27 +1,33 @@
 /**
  * Capability 18 · Scheduled processes: when a process is due (ADR-1105, decision_8e018888b69e). A process is due once
  * its schedule has come round since its latest run, or it has never run; nothing else is stored, so this reads the
- * schedule's words through the library's one parser against the latest `process-ran` line.
+ * schedule's words through the library's one parser against the latest `process-ran` line. A daily time that came round
+ * longer ago than its schedule's grace is missed: the runner records it so, and never runs it late.
  */
 import { OWNER_TIME_ZONE, parseSchedule, type ScheduleRule } from "@storytree/library";
 
 const MINUTE = 60_000;
 
-/** Whether a process is due at `at`, and since when: `since` is absent when it never ran or runs every run. */
-export type Due = { readonly due: false } | { readonly due: true; readonly since?: Date };
+/**
+ * Whether a process is due at `at`, and since when: `since` is absent when it never ran or runs every run (a schedule with
+ * a grace reads its latest time even when it never ran). `missed` is the grace its time is past, which says not to run it.
+ */
+export type Due = { readonly due: false } | { readonly due: true; readonly since?: Date; readonly missed?: { readonly graceMinutes: number } };
 
 /** When a process with `schedule` (in `timeZone`, or the owner's) is due at `at`, its latest run at `last`. */
 export function dueAt(schedule: string, timeZone: string | undefined, last: Date | undefined, at: Date): Due {
   const read = parseSchedule(schedule);
   if ("refused" in read) return { due: false };
   const rule: ScheduleRule = read.rule;
-  if (rule.kind === "every-run" || last === undefined) return { due: true };
+  if (rule.kind === "every-run" || (last === undefined && (rule.kind === "interval" || rule.graceMinutes === undefined))) return { due: true };
   if (rule.kind === "interval") {
-    const since = new Date(last.getTime() + rule.minutes * MINUTE);
+    const since = new Date(last!.getTime() + rule.minutes * MINUTE);
     return since <= at ? { due: true, since } : { due: false };
   }
   const since = latestTimeOfDay(rule.times, timeZone ?? OWNER_TIME_ZONE, at);
-  return since !== undefined && since > last ? { due: true, since } : { due: false };
+  if (since === undefined || (last !== undefined && since <= last)) return { due: false };
+  const { graceMinutes } = rule;
+  return graceMinutes !== undefined && at.getTime() - since.getTime() > graceMinutes * MINUTE ? { due: true, since, missed: { graceMinutes } } : { due: true, since };
 }
 
 /** The latest of `times` (HH:MM in `timeZone`) at or before `at`, looking back two days. */

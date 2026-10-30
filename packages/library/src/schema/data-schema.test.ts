@@ -577,14 +577,15 @@ for (const backend of [memory, postgres]) {
     assert.equal(await textOf("story-old"), "Added later.");
   });
 
-  contract("3.12", "a process's schedule and time zone are validated: good words are kept, bad words, an unknown time zone, or a time zone with no schedule are refused and named", async ({ records, transactions }) => {
+  contract("3.12", "a process's schedule, time zone and precheck are validated: good words (a daily schedule's grace among them) are kept, bad words, a grace on any but a daily schedule, an unknown time zone, a precheck not on the fixed list, or a time zone or precheck with no schedule are refused and named", async ({ records, transactions }) => {
     const process = { title: "Read the spend", description: "Daily spend reading", statement: "S", trigger: "T", steps: "1. Read", surfaces: "GCP", failureModes: "None" };
-    const good = ["every run", "every hour", "every 2 hours", "Every 30 minutes", "every 1 day", "daily at 09:15", "daily at 09:15 and 21:15", "daily at 06:00, 12:00 and 18:00"];
+    const good = ["every run", "every hour", "every 2 hours", "Every 30 minutes", "every 1 day", "daily at 09:15", "daily at 09:15 and 21:15", "daily at 06:00, 12:00 and 18:00", "daily at 09:15, grace 2 hours", "daily at 06:00, 18:00, grace 90 minutes"];
     for (const [index, schedule] of good.entries()) {
       const saved = await records.create("process", { ...process, schedule }, { id: `process-${index}` });
       assert.equal((saved.fields as { schedule?: string }).schedule, schedule, `"${schedule}" is kept as written`);
     }
     await records.create("process", { ...process, schedule: "daily at 09:15", timeZone: "Europe/London" }, { id: "process-zoned" });
+    await records.create("process", { ...process, schedule: "every run", precheck: "feedback-waiting" }, { id: "process-checked" });
 
     const before = await transactions.history();
     const refused: [fields: Record<string, unknown>, field: string][] = [
@@ -597,6 +598,12 @@ for (const backend of [memory, postgres]) {
       [{ schedule: "daily at 24:00" }, "schedule"],
       [{ schedule: "daily at 09:15 and noon" }, "schedule"],
       [{ schedule: "" }, "schedule"],
+      [{ schedule: "every run, grace 2 hours" }, "schedule"],
+      [{ schedule: "every 2 hours, grace 1 hour" }, "schedule"],
+      [{ schedule: "daily at 09:15, grace 0 minutes" }, "schedule"],
+      [{ schedule: "daily at 09:15, grace a while" }, "schedule"],
+      [{ schedule: "every run", precheck: "echo nothing to do" }, "precheck"],
+      [{ precheck: "feedback-waiting" }, "precheck"],
       [{ schedule: "every run", timeZone: "Mars/Olympus_Mons" }, "timeZone"],
       [{ timeZone: "Australia/Sydney" }, "timeZone"],
     ];
@@ -611,7 +618,7 @@ for (const backend of [memory, postgres]) {
     assert.deepEqual(await records.get("process-0").then((record) => record?.fields), { ...process, schedule: "every 4 hours", timeZone: "Australia/Perth" });
   });
 
-  contract("3.13", "a process's schedule reads back as written and as its rule, its times in its own time zone or the owner's; one with no schedule reads as before", async ({ records }) => {
+  contract("3.13", "a process's schedule reads back as written and as its rule, a daily schedule's grace in minutes, its times in its own time zone or the owner's, and its precheck as written; one with no schedule reads as before", async ({ records }) => {
     const process = { title: "Check the backups", description: "Backup check", statement: "S", trigger: "When the box starts", steps: "1. Look", surfaces: "Drive", failureModes: "None" };
     await records.create("process", process, { id: "process-plain" });
     await records.create("process", { ...process, schedule: "daily at 21:15 and 09:15" }, { id: "process-daily" });
@@ -627,6 +634,9 @@ for (const backend of [memory, postgres]) {
     assert.deepEqual(parseSchedule(zoned?.schedule ?? ""), { rule: { kind: "interval", minutes: 120 } });
     assert.equal(zoned?.timeZone, "Europe/London");
     assert.deepEqual(parseSchedule("every run"), { rule: { kind: "every-run" } });
+    assert.deepEqual(parseSchedule("Daily at 21:15 and 09:15, grace 2 hours"), { rule: { kind: "daily", times: ["09:15", "21:15"], graceMinutes: 120 } });
+    await records.create("process", { ...process, schedule: "every run", precheck: "feedback-waiting" }, { id: "process-checked" });
+    assert.equal(((await records.get("process-checked"))?.fields as { precheck?: string } | undefined)?.precheck, "feedback-waiting");
   });
 
   contract("3.14", "a story carries a risk reading, a blast depth and a blast radius each with the day read and a reason, and a story or capability its own guardrails, each a check and the change or release that triggers it; values out of range are refused and named, and one written without them reads as before", async ({ records, transactions }) => {

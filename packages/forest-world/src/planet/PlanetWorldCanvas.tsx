@@ -1,5 +1,5 @@
 /** Capability 4 · The planet. */
-import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode, type Ref } from 'react';
 import { Canvas, useFrame, useThree, type RootState } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
 import { Vector3, type Group, type PerspectiveCamera } from 'three';
@@ -46,6 +46,9 @@ export interface PlanetWorldCanvasProps {
   radius: number;
   /** A host turns the big sphere, sliding the sheet under the eye, without rebuilding the plates. */
   rotation?: [number, number, number, number];
+  /** The big sphere's group: a host that turns it often sets its quaternion and position here and asks for a frame,
+   * rendering nothing, and passes the same pose as `rotation` and `offset` whenever it does render. */
+  globe?: Ref<Group> | undefined;
   /** Where the big sphere's centre stands, at the origin by default: tilting the glass sheet moves it (ADR-1043 D3). */
   offset?: [number, number, number] | undefined;
   /** Names, selection and claim markers mount in each plate's local ground coordinates. */
@@ -183,7 +186,7 @@ const CAPTURE_SEAM = '__storytreeCaptureGlobe';
 
 /** The map: one Canvas, the glass sheet, and each story's island as a raised plate with a coast (ADR-0804 D1, ADR-1059 D2).
  * A lamp shades the islands' sides and the glass's edge, and the land's top keeps its exact colour (ADR-1062 D1). */
-export function PlanetWorldCanvas({ scene, spots, radius, rotation = [0, 0, 0, 1], offset, plateChildren, children, surface = true, surfaces, inside, framing = 1.18, sideOffset = 0, lanes = NO_LANES, laneWays, growth, liveRoads = false, sheet, hollow = false }: PlanetWorldCanvasProps) {
+export function PlanetWorldCanvas({ scene, spots, radius, rotation = [0, 0, 0, 1], offset, globe, plateChildren, children, surface = true, surfaces, inside, framing = 1.18, sideOffset = 0, lanes = NO_LANES, laneWays, growth, liveRoads = false, sheet, hollow = false }: PlanetWorldCanvasProps) {
   const drawing = useRoadsWhenRouted(scene, spots, radius);
   const inland = useMemo((): InlandWay | undefined => laneWays && ((dock, capability) => {
     const way = laneWays(dock.story, capability, dock.local), spot = spots.get(dock.story);
@@ -205,7 +208,7 @@ export function PlanetWorldCanvas({ scene, spots, radius, rotation = [0, 0, 0, 1
     <color attach="background" args={['#101418']} />
     <Framing radius={radius} framing={framing} sideOffset={sideOffset} sheet={sheet} />
     <GrowthProvider growth={growth}>
-    <group name="globe" quaternion={rotation} position={offset ?? ORIGIN}>
+    <group ref={globe} name="globe" quaternion={rotation} position={offset ?? ORIGIN}>
       <SheetGlass extent={sheet} clear={hollow} />
       {scene.islands.map(island => {
         const spot = spots.get(island.story);

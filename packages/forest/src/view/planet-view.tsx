@@ -83,10 +83,16 @@ export function PlanetView({ core, scene, places, wisps: live, selected, highlig
   // 3.28: while a change of layout plays, only the plates travel, with no roads; the rest is drawn once, at the new layout.
   const moving = useMovingSpots(layout.spots, easeMoves), travelling = moving !== layout.spots;
   const roadless = useMemo(() => ({ ...layout.scene, links: [] }), [layout.scene]);
-  const [rotation, setRotation] = useState(() => new Quaternion());
-  // The big sphere's centre stands off the origin, the sheet tilted and turned about the middle of the view (ADR-1043 D3, ADR-1059 D1).
-  const [centre, setCentre] = useState<[number, number, number]>();
-  const onRotate = useCallback((next: Quaternion, at?: [number, number, number]) => { setRotation(next); setCentre(at); }, []);
+  // The big sphere's turn, and its centre standing off the origin as the sheet is tilted and turned about the middle of the
+  // view (ADR-1043 D3, ADR-1059 D1): set on the globe's group, never in state, so a turning drag renders no view (3.71).
+  const globe = useRef<Group>(null);
+  const turned = useRef<{ rotation: Quaternion; centre?: [number, number, number] | undefined }>({ rotation: new Quaternion() });
+  const onRotate = useCallback((next: Quaternion, at?: [number, number, number]) => {
+    turned.current.rotation.copy(next);
+    turned.current.centre = at;
+    globe.current?.quaternion.copy(next);
+    globe.current?.position.set(...(at ?? [0, 0, 0]));
+  }, []);
   // 5.7: replaying a growth with its recorded sessions, the wisps are the replay's, swapped as it passes each stage.
   const [replayed, setReplayed] = useState<readonly SessionWisp[]>();
   const wisps = growth !== undefined && recordedSessions !== undefined ? replayed ?? [] : live;
@@ -130,13 +136,15 @@ export function PlanetView({ core, scene, places, wisps: live, selected, highlig
       <SelectionRing island={island.story === selected ? local : undefined} descriptors={descriptors} onGlobe />
     </>;
   }, [wisps, claimed, selected, highlighted, layout.spots, layout.radius, lighting, reportStops, shownSurfaces]);
+  const titles = useMemo(() => new Map(scene.islands.map(i => [i.story, i.title])), [scene]);
+  const inside = useMemo(() => library && <UnderTheGlass clear={outlines}><GrowingCore core={core} spots={layout.spots} radius={layout.radius} places={codePlaces} sheet={underSheet} growing={growth !== undefined} /></UnderTheGlass>,
+    [library, outlines, core, layout.spots, layout.radius, codePlaces, underSheet, growth]);
   return <PlanetWorldCanvas scene={travelling ? roadless : layout.scene} spots={moving} radius={layout.radius}
     surface surfaces={shownSurfaces} framing={cameraFraming} sideOffset={cameraOffset} sheet={layout.extent} hollow={outlines}
-    offset={centre}
-    inside={library && <UnderTheGlass clear={outlines}><GrowingCore core={core} spots={layout.spots} radius={layout.radius} places={codePlaces} sheet={underSheet} growing={growth !== undefined} /></UnderTheGlass>}
-    rotation={rotation.toArray()} plateChildren={overlays} lanes={lanes} laneWays={ways} growth={growth} liveRoads={liveRoads}>
-    <Navigation islands={layout.islands} radius={layout.radius} titles={new Map(scene.islands.map(i => [i.story, i.title]))}
-      rotation={rotation} onRotate={onRotate} onPose={setPose} onControls={onControls} onPick={onPick} onNote={onNote} mode={mode} sheet={layout.extent}
+    globe={globe} offset={turned.current.centre} inside={inside}
+    rotation={turned.current.rotation.toArray()} plateChildren={overlays} lanes={lanes} laneWays={ways} growth={growth} liveRoads={liveRoads}>
+    <Navigation islands={layout.islands} radius={layout.radius} titles={titles}
+      rotation={turned.current.rotation} onRotate={onRotate} onPose={setPose} onControls={onControls} onPick={onPick} onNote={onNote} mode={mode} sheet={layout.extent}
       sideOffset={sideOffset ?? 0} aside={aside}
       showFailures={shownSurfaces.grounds || shownSurfaces.territories !== false || shownSurfaces.fileCircles || shownSurfaces.nameplates || shownSurfaces.roads} />
     <NameplateCrowd selected={selected} />
@@ -314,7 +322,9 @@ function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onCon
   onNote: (note: string) => void;
 }) {
   const { camera, gl, scene, size, invalidate } = useThree();
-  (globalThis as { [NAVIGATION_SEAM]?: (navigation: CapturedNavigation) => void })[NAVIGATION_SEAM]?.({ rotation, onRotate });
+  // The host sets the turn on the globe's group, so it is drawn on the next frame asked for.
+  const rotate = useCallback((next: Quaternion, at?: [number, number, number]) => { onRotate(next, at); invalidate(); }, [onRotate, invalidate]);
+  (globalThis as { [NAVIGATION_SEAM]?: (navigation: CapturedNavigation) => void })[NAVIGATION_SEAM]?.({ rotation, onRotate: rotate });
   const opening = { framing: sheetOpening(sheet, size).framing, sideOffset };
   const [hover, setHover] = useState<{ title: string; detail?: string; x: number; y: number }>();
   const opened = useRef(false);
@@ -332,12 +342,13 @@ function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onCon
   modeNow.current = mode;
   // How far the glass sheet is spun about its upright axis from its starting heading (ADR-1060 D2), and the compass's reading of it.
   const heading = useRef(0);
-  const [compass, setCompass] = useState(0);
+  // Read to a tenth of a degree; the compass alone renders as it turns, never the view around it (3.71).
+  const compass = useRef<{ reading: number; follow?: ((reading: number) => void) | undefined }>({ reading: 0 });
   const turnTo = useCallback((next: GlobeTurn) => {
     turn.current = next;
     const turned = sheetTilted(focusRotation(next, camera.quaternion), camera.quaternion, tilt.current, heading.current);
-    onRotate(turned.quaternion, turned.position.toArray());
-  }, [camera, onRotate]);
+    rotate(turned.quaternion, turned.position.toArray());
+  }, [camera, rotate]);
   // The sheet's group as `turnTo` poses it now, for finding the place under the pointer before the host has drawn the pose.
   const posed = (): Object3D => {
     const group = new Group(), turned = sheetTilted(focusRotation(turn.current, camera.quaternion), camera.quaternion, tilt.current, heading.current);
@@ -533,7 +544,7 @@ function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onCon
     }, size, mode);
     // The compass turns with the sheet, read to a tenth of a degree.
     const reading = Math.round(compassNorth(heading.current, seesUnderside(tilt.current)) * 1800 / Math.PI);
-    if (reading !== compass) setCompass(reading);
+    if (reading !== compass.current.reading) { compass.current.reading = reading; compass.current.follow?.(reading); }
     // The Sessions strip is docked over the pane's bottom edge; a marker sits clear above it (3.11).
     const box = gl.domElement.getBoundingClientRect();
     const docked = hidden.length === 0 ? [] : [...gl.domElement.ownerDocument.querySelectorAll(".sessions-list")].map(strip => {
@@ -672,12 +683,19 @@ function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onCon
         // The guide's stop pans the island into view at the zoom the user chose.
         if (!controls.current!.stop({ target: { kind: "story", story: marker.story } })) turnTo(marker.turn);
       }}>!</button>)}
-    <SheetCompass north={compass * Math.PI / 1800} aside={aside} onHome={() => goHome.current!()} />
+    <SheetCompass compass={compass.current} aside={aside} onHome={() => goHome.current!()} />
   </Overlay>;
 }
 
 /** ADR-1060 D3: the sheet's compass, its needle pointing to the starting north on the window; a click spins and pans it home. */
-function SheetCompass({ north, aside, onHome }: { north: number; aside: number; onHome: () => void }) {
+function SheetCompass({ compass, aside, onHome }: { compass: { reading: number; follow?: ((reading: number) => void) | undefined }; aside: number; onHome: () => void }) {
+  const [reading, setReading] = useState(compass.reading);
+  useLayoutEffect(() => {
+    compass.follow = setReading;
+    setReading(compass.reading);
+    return () => { compass.follow = undefined; };
+  }, [compass]);
+  const north = reading * Math.PI / 1800;
   const c = 32, r = 26, needle = 20, x = Math.cos(north), y = -Math.sin(north);
   const tip = { x: c + x * needle, y: c + y * needle }, tail = { x: c - x * needle * 0.7, y: c - y * needle * 0.7 };
   const side = { x: -y * 5, y: x * 5 };

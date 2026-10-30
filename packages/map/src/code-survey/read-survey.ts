@@ -32,7 +32,7 @@ import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { Worker } from "node:worker_threads";
-import { manifestFrom, SKIPPED, surveySourceReader, type SurveySource } from "./survey-source.js";
+import { manifestFrom, noMergedMain, SKIPPED, surveySourceReader, type SurveySource } from "./survey-source.js";
 import { mappedSurveyReader, type ImportedFolder } from "./mapped-survey.js";
 import { pytestTestedNumbers } from "./python-tests.js";
 
@@ -48,7 +48,7 @@ const TEST_FILE = /\.(?:test|spec)\.[cm]?[jt]sx?$/;
 /** The file beside a package's src that holds its coverage map (written by the dev loop's `pnpm survey:coverage`). */
 const COVERAGE_MAP = "survey-coverage.json";
 
-export { declaredNumberOf, packageOf, packagesOf };
+export { declaredNumberOf, noMergedMain, packageOf, packagesOf };
 
 /** The packages stories own beyond their own, by their own package's folder name (ADR-1066 D3). */
 type AlsoOwned = Readonly<Record<string, readonly string[]>>;

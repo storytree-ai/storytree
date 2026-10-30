@@ -17,16 +17,16 @@ import { parseJunit, packageOf } from "./test-run.mjs";
 export const VERIFIED_BY_FACTORY = "factory test run";
 
 /**
- * The stories of `stories` whose code is a plugin in `factory`: each one whose package (packageOf) is a folder under its
- * plugins/ holding a package.json, with that folder relative to the factory.
- * @template {{ id: string, title: string }} S
+ * The stories of `stories` whose code is a plugin in `factory`: each one whose plugin (a plugin's own story, ADR-1187),
+ * else whose package (packageOf), is a folder under its plugins/ holding a package.json, with that folder relative to the factory.
+ * @template {{ id: string, title: string, plugin?: string }} S
  * @param {readonly S[]} stories
  * @param {string} factory
  * @returns {{ story: S, folder: string }[]}
  */
 export function factoryPlugins(stories, factory) {
   return stories
-    .map((story) => ({ story, folder: `plugins/${packageOf(story)}` }))
+    .map((story) => ({ story, folder: `plugins/${story.plugin ?? packageOf(story)}` }))
     .filter(({ folder }) => existsSync(path.join(factory, folder, "package.json")));
 }
 

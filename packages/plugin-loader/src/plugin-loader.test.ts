@@ -1,5 +1,6 @@
 /** The plugin loader: the manifests a host's story packages carry, and the parts composed from them into its bundle. */
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -251,15 +252,21 @@ async function pluginVerb(t: TestContext, name: string): Promise<{ act: (input: 
   return { act: (input, context = {}) => found.act(input as never, { folder: home, ...context } as never, words), tool: found.tool, factory: path.join(home, "your-factory"), home };
 }
 
-test("5.5 `plugin new <plugin>` starts a plugin in this computer's factory folder that this storytree loads: standing in for a part, its family mounts and its verb answers; a name taken, or one that is not one folder's, is refused, writing nothing", async (t) => {
+test("5.5 `plugin new <plugin>` starts a plugin in this computer's factory folder that this storytree loads: standing in for a part, its family mounts and its verb answers, and its own test command passes its numbered test; a name taken, or one that is not one folder's, is refused, writing nothing", async (t) => {
   const { act, factory } = await pluginVerb(t, "new");
   const answer = await act({ plugin: "my-health", for: "ci-health" });
   assert.match(answer.text, /my-health/);
   assert.ok(answer.next!.some((step) => step.command === "settings set part ci-health plugin my-health"), "it names the switch that mounts it");
+  const record = answer.next!.find((step) => step.command === "health plugin my-health");
+  assert.ok(record !== undefined && record.tool === undefined, "it names the command that records its tests, which has no tool");
   const { mounted } = mount(standIn<{ name: string; verbs: { act: (input: object, place: object) => Promise<{ text: string }> }[] }>(builtIn as never, "verbs", { folder: factory, plugins: { "ci-health": "my-health" } }), ["ci-health"]);
   const family = mounted[0]!;
   assert.equal(family.name, "my-health");
   assert.match((await family.verbs[0]!.act({}, { folder: "/somewhere" })).text, /my-health is mounted/);
+  const { NODE_TEST_CONTEXT: _, ...env } = process.env;
+  const own = spawnSync(process.execPath, ["--test"], { cwd: path.join(factory, "plugins", "my-health"), env, encoding: "utf8" });
+  assert.equal(own.status, 0, `its own test command passes its numbered test:\n${own.stdout}${own.stderr}`);
+  assert.match(own.stdout, /1\.1 · my-health's hello says it is mounted/);
   await assert.rejects(act({ plugin: "my-health" }), /already/);
   await assert.rejects(act({ plugin: "../escape" }), /not a plugin's name/);
 });

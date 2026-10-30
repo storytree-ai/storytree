@@ -33,7 +33,7 @@ test("3.14 CI health declares the `health` verbs the command line mounts: `healt
   execFileSync("git", ["-C", folder, "init", "-q"]);
 
   const [health] = HEALTH_FAMILIES;
-  assert.deepEqual(health!.verbs.map((one) => "family" in one.command ? one.command.name : undefined), ["worklist", "ci"]);
+  assert.deepEqual(health!.verbs.map((one) => "family" in one.command ? one.command.name : undefined), ["worklist", "ci", "plugin"]);
   const ci = health!.verbs.find((one) => "name" in one.command && one.command.name === "ci")!;
   const answer = await ci.act({}, { library, project: name, session: "test", folder }, WORDS);
   assert.match(answer.text, /no GitHub origin/);

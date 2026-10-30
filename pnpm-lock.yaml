@@ -326,7 +326,13 @@ importers:
       '@storytree/map':
         specifier: workspace:*
         version: link:../map
+      '@storytree/project-and-caller':
+        specifier: workspace:*
+        version: link:../project-and-caller
     devDependencies:
+      '@storytree/plugin-loader':
+        specifier: workspace:*
+        version: link:../plugin-loader
       '@storytree/test-waits':
         specifier: workspace:*
         version: link:../test-waits
@@ -553,6 +559,9 @@ importers:
         specifier: ^0.185.1
         version: 0.185.1
     devDependencies:
+      '@storytree/test-waits':
+        specifier: workspace:*
+        version: link:../test-waits
       '@types/node':
         specifier: ^24.13.6
         version: 24.13.6

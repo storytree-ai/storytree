@@ -9,6 +9,7 @@ import { setupToolParts } from "@storytree/app-setup/tools";
 import { librarianToolParts } from "@storytree/library/librarian";
 import { mapToolParts } from "@storytree/map/tools";
 import { qualityToolParts } from "@storytree/quality-assurance";
+import { testRunToolParts } from "@storytree/quality-assurance/test-run";
 import { hookToolParts } from "@storytree/session-management";
 import { sessionToolParts } from "@storytree/session-management/tools";
 import { removeTemp } from "@storytree/test-waits";
@@ -21,15 +22,15 @@ import { withProject } from "../testing/tool-world.js";
 import { createAgentTools, type ToolPart } from "./server.js";
 
 // The stories restate the server's extension point rather than import it (ADR-1017 D2); this is where the two are checked to fit.
-const declared: readonly ToolPart[] = [...librarianToolParts, ...qualityToolParts, ...hookToolParts, ...sessionToolParts, ...mapToolParts, ...setupToolParts];
+const declared: readonly ToolPart[] = [...librarianToolParts, ...qualityToolParts, ...testRunToolParts, ...hookToolParts, ...sessionToolParts, ...mapToolParts, ...setupToolParts];
 
-test("6.75 the tool server mounts the tool parts its story packages' manifests name: the librarian's, then quality assurance's, then Session management's hook event tool and its claim, landing, context and runs tools, then the map's, then App setup's, each given the project served and the server's tool names", () => {
+test("6.75 the tool server mounts the tool parts its story packages' manifests name: the librarian's, then quality assurance's review tools and its verified test run, then Session management's hook event tool and its claim, landing, context and runs tools, then the map's, then App setup's, each given the project served and the server's tool names", () => {
   assert.equal(import.meta.resolve("#parts/tools"), new URL("../parts/tools.ts", import.meta.url).href, "the package's #parts/tools is its composing module");
   assert.deepEqual(toolParts.parts, declared);
   const tools = () => ["check_setup"];
   const served = (project: string | undefined) => toolParts.parts.map((part) => part({ project, tools, imports: async () => [], heldBack: () => undefined, pipelineJobs: [] }) !== undefined);
-  assert.deepEqual(served("storytree"), [true, true, true, true, true, true], "storytree's own library gets the librarian's tools, quality assurance's, Session management's, the map's and App setup's");
-  assert.deepEqual(served("another-project"), [false, true, true, true, true, true], "another project gets all but the librarian's (ADR-0644 U1)");
+  assert.deepEqual(served("storytree"), [true, true, true, true, true, true, true], "storytree's own library gets the librarian's tools, quality assurance's, Session management's, the map's and App setup's");
+  assert.deepEqual(served("another-project"), [false, true, true, true, true, true, true], "another project gets all but the librarian's (ADR-0644 U1)");
 });
 
 test("6.95 the tool server serves no tool of a part this computer switches off, nor of one standing on it, and serves the rest", async (t) => {
@@ -85,7 +86,7 @@ test("6.103 with code review and architecture checks both switched off, the tool
   const all = await served([]);
   const off = await served(["quality-assurance", "guardrails"]);
   const gone = all.filter((tool) => !off.includes(tool));
-  assert.ok(gone.length > 0 && gone.every((tool) => tool.startsWith("quality_") || tool === "graduate_check"), `only code review's tools go: ${gone.join(", ")}`);
+  assert.ok(gone.length > 0 && gone.every((tool) => tool.startsWith("quality_") || tool === "graduate_check" || tool === "run_tests"), `only code review's tools go: ${gone.join(", ")}`);
   for (const tool of ["check_setup", "claim", "land", "make_workspace", "show_plan", "close_increment", "wire_pipeline"]) assert.ok(off.includes(tool), `${tool} is still served`);
   assert.deepEqual(off.filter((tool) => !all.includes(tool)), [], "nothing new is served in their place");
 });

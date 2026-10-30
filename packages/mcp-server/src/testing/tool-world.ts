@@ -73,6 +73,7 @@ export const TOOLS = [
   "retire_from_plan",
   "retire_question",
   "route",
+  "run_tests",
   "schedule_due",
   "schedule_ran",
   "search_notes",

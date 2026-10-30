@@ -219,6 +219,7 @@ test('6.4 a bad call gets a readable refusal rather than a crash, and with story
         ["quality_take", { increment: "increment_000000000000", return: { checks: [], contracts: [] } }],
         ["quality_answer", { hit: 1, answer: "fixed" }],
         ["quality_standing", { increment: "increment_000000000000" }],
+        ["run_tests", { command: "npm test" }],
         ["graduate_check", { check: "check_000000000000", part: "a constant asserted equal to itself", enforced_by: "self-equal-assertion" }],
         ["import_plugin_plan", { plugin: "voice" }],
         ["remove_plugin_records", { plugin: "voice" }],

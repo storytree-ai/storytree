@@ -1,8 +1,9 @@
 // Capability 1 · A Mint lane runs on the engine its allowance allows. node packages/agent-pool/src/runner.mjs run <brief-file> <log> <err> [add-dir ...]
 // node packages/agent-pool/src/runner.mjs status
 import { execFile, spawn } from "node:child_process";
+import { randomUUID } from "node:crypto";
 import { constants, homedir } from "node:os";
-import { appendFile, open, readFile, rm, stat, writeFile } from "node:fs/promises";
+import { appendFile, open, readdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
@@ -106,17 +107,67 @@ function argumentsFor(engine, brief, addDirs, resume, model) {
     : ["-p", brief, ...models, "--permission-mode", "bypassPermissions", ...adds, "--output-format", "stream-json", "--verbose"];
 }
 
+/** The variable every process an engine starts inherits, so the runner finds them after it exits; the watcher's `free` drops it. */
+export const LANE_RUN = "STORYTREE_LANE_RUN";
+const REAP = { settleMs: 60_000, graceMs: 10_000, everyMs: 1_000 };
+
+/** Linux: the live processes in the engine's group or carrying its run's marker, never the runner itself. */
+async function leftBehind({ group, mark }) {
+  const found = [];
+  for (const name of await readdir("/proc").catch(() => [])) {
+    if (!/^\d+$/.test(name) || Number(name) === process.pid) continue;
+    const status = await readFile(`/proc/${name}/stat`, "utf8").catch(() => "");
+    // After the command's closing parenthesis: state, parent, group.
+    const [state, , pgrp] = status.slice(status.lastIndexOf(")") + 2).split(" ");
+    if (!status || state === "Z") continue;
+    const environ = await readFile(`/proc/${name}/environ`, "utf8").catch(() => "");
+    if (Number(pgrp) !== group && !environ.split("\0").includes(`${LANE_RUN}=${mark}`)) continue;
+    const command = (await readFile(`/proc/${name}/cmdline`, "utf8").catch(() => "")).split("\0").filter(Boolean).join(" ");
+    found.push({ pid: Number(name), command });
+  }
+  return found;
+}
+
+/**
+ * What an exited engine left running (1.23): given settleMs to end on its own (a hook's hand-off), then SIGTERM, then SIGKILL
+ * after graceMs, each named with its command line. Linux only; elsewhere nothing is looked for.
+ */
+async function reapLeftovers({ group, mark, dated, reap = REAP }) {
+  if (process.platform !== "linux") return;
+  const { settleMs, graceMs, everyMs } = { ...REAP, ...reap };
+  const pause = () => new Promise((done) => setTimeout(done, everyMs));
+  const until = async (ms) => {
+    const end = performance.now() + ms;
+    let left = await leftBehind({ group, mark });
+    while (left.length && performance.now() < end) { await pause(); left = await leftBehind({ group, mark }); }
+    return left;
+  };
+  const signal = (pids, name) => { for (const pid of pids) try { process.kill(pid, name); } catch { /* already gone */ } };
+  const survivors = await until(settleMs);
+  if (!survivors.length) return;
+  signal(survivors.map((one) => one.pid), "SIGTERM");
+  const stubborn = await until(graceMs);
+  signal(stubborn.map((one) => one.pid), "SIGKILL");
+  const killed = new Set(stubborn.map((one) => one.pid));
+  for (const { pid, command } of [...survivors, ...stubborn.filter((one) => !survivors.some((first) => first.pid === one.pid))]) {
+    dated(`left running by the engine, stopped${killed.has(pid) ? " by SIGKILL" : ""}: pid ${pid} (${command})`);
+  }
+}
+
 /**
  * Await the child and its output files; no shell, background launch or real engine in tests. Given a watch, an engine whose log
- * has not grown for quietMs while `online` says the library and GitHub do not answer is stopped as stalled (1.20).
+ * has not grown for quietMs while `online` says the library and GitHub do not answer is stopped as stalled (1.20). On Linux the
+ * engine leads its own process group, and what it leaves running is stopped before the result is returned (1.23).
  */
-async function runEngine(command, args, { cwd, env, log, err, watch }) {
+async function runEngineOnce(command, args, { cwd, env, log, err, watch, dated = () => {}, reap }) {
   const output = await open(log, "w");
   let errors;
   try {
     errors = await open(err, "w");
+    const mark = `${process.pid}-${randomUUID()}`;
     return await new Promise((done) => {
-      const child = spawn(command[0], [...command.slice(1), ...args], { cwd, env, stdio: ["ignore", output.fd, errors.fd] });
+      const child = spawn(command[0], [...command.slice(1), ...args], { cwd, env: { ...env, [LANE_RUN]: mark },
+        detached: process.platform === "linux", stdio: ["ignore", output.fd, errors.fd] });
       let interrupted = false;
       const forward = (signal) => { interrupted = true; child.kill(signal); };
       const interrupt = () => forward("SIGINT"), terminate = () => forward("SIGTERM");
@@ -147,6 +198,7 @@ async function runEngine(command, args, { cwd, env, log, err, watch }) {
         clearTimeout(timer);
         process.off("SIGINT", interrupt); process.off("SIGTERM", terminate);
         if (failure) await errors.write(`${failure.message}\n`);
+        if (child.pid) await reapLeftovers({ group: child.pid, mark, dated, reap });
         done({ code: failure ? 127 : code ?? 128 + (constants.signals[signal] ?? 1), interrupted, signaled: signal !== null, stalled });
       });
     });
@@ -333,11 +385,12 @@ export async function runLane({ brief, log, err, addDirs = [], cwd = process.cwd
   commands = { codex: ["codex"], claude: ["claude"] }, now = Date.now, say = console.log, increment,
   heads = (id) => remoteHeads(id, cwd), failed = (failure) => recordLaneFailure(failure),
   storytree = async (args) => (await run(...storytreeCommand(args), { cwd, env, maxBuffer: 16 * 1024 * 1024 })).stdout,
-  reachable = () => bothAnswer({ cwd, env }), sleep = (ms) => new Promise((done) => setTimeout(done, ms)), offline: limits = {} }) {
+  reachable = () => bothAnswer({ cwd, env }), sleep = (ms) => new Promise((done) => setTimeout(done, ms)), offline: limits = {}, reap }) {
   const original = await readFile(brief, "utf8");
   if (!original.trim()) throw new Error(`brief ${brief} is empty`);
   const settings = laneSettings({ home, env });
   const dated = (message) => say(`${new Date(now()).toISOString().replace(/\.\d{3}Z$/, "Z")} ${message}`);
+  const runEngine = (command, args, options) => runEngineOnce(command, args, { ...options, dated, reap });
   const login = await loginEnvironment(home, env).catch(async (error) => {
     if (error.code === "lane-token") await askForToken({ lanesDir: settings.lanesDir, increment, storytree, dated });
     throw error;

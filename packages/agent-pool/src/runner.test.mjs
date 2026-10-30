@@ -586,3 +586,43 @@ test("1.22 · on Windows the runner reaches storytree through node, not pnpm's .
   assert.equal(result.config, null, "the lane's own tools (its hand-over) read the repository's configuration");
   assert.ok(result.args.includes("claude-laptop"), "the runner itself read the dispatcher's configuration");
 });
+
+test("1.23 · when its engine exits, the runner stops what the engine left running, a detached child or a shell's background job, and names each; one that ends on its own within the settling time is left be", { skip: process.platform !== "linux" && "reads /proc" }, async (t) => {
+  const options = await lane(t);
+  await writeFile(join(options.lanesDir, "engine-override"), "claude");
+  const pids = join(options.home, "pids");
+  // A detached server that never ends, a background job of a shell that has exited, and a short hand-off that ends by itself.
+  options.commands.claude = command(`const { spawn, execFileSync } = require("node:child_process"); const fs = require("node:fs");
+    const server = spawn(process.execPath, ["-e", "setInterval(() => {}, 1000)", "lane-server"], { detached: true, stdio: "ignore" }); server.unref();
+    const hook = spawn(process.execPath, ["-e", "setTimeout(() => {}, 300)", "lane-hook"], { detached: true, stdio: "ignore" }); hook.unref();
+    const job = execFileSync("sh", ["-c", "sleep 300 >/dev/null 2>&1 & echo $!"], { encoding: "utf8" }).trim();
+    fs.writeFileSync(${JSON.stringify(pids)}, JSON.stringify({ server: server.pid, hook: hook.pid, job: Number(job) }));`);
+  options.reap = { settleMs: 1_500, graceMs: 2_000, everyMs: 100 };
+  assert.equal(await runLane(options), 0, await readFile(options.err, "utf8"));
+  const { server, hook, job } = JSON.parse(await readFile(pids, "utf8"));
+  const alive = (pid) => { try { process.kill(pid, 0); return true; } catch { return false; } };
+  t.after(() => { for (const pid of [server, job]) if (alive(pid)) process.kill(pid, "SIGKILL"); });
+  assert.equal(alive(server), false, "the detached server is stopped");
+  assert.equal(alive(job), false, "the shell's background job is stopped");
+  const said = options.lines.join("\n");
+  assert.match(said, new RegExp(`left running by the engine, stopped: pid ${server} \\(.*lane-server\\)`));
+  assert.match(said, new RegExp(`left running by the engine, stopped: pid ${job} \\(sleep 300\\)`));
+  assert.doesNotMatch(said, new RegExp(`pid ${hook} `), "a hand-off that ended on its own is not named");
+  assert.equal(options.lines.at(-1), "2026-10-06T00:00:00Z engine claude exit 0");
+});
+
+test("4.43 · a watcher a lane starts by its hand-over outlives the lane: the runner does not stop it", { skip: process.platform !== "linux" && "reads /proc" }, async (t) => {
+  const options = await lane(t);
+  await writeFile(join(options.lanesDir, "engine-override"), "claude");
+  const pid = join(options.home, "watcher.pid");
+  const watch = new URL("./watch.mjs", import.meta.url).href;
+  options.commands.claude = command(`import(${JSON.stringify(watch)}).then(({ freeOf }) => {
+    const watcher = require("node:child_process").spawn(process.execPath, ["-e", "setInterval(() => {}, 1000)", "lane-watcher"], { env: freeOf(process.env), detached: true, stdio: "ignore" });
+    watcher.unref(); require("node:fs").writeFileSync(${JSON.stringify(pid)}, String(watcher.pid)); });`);
+  options.reap = { settleMs: 300, graceMs: 1_000, everyMs: 100 };
+  assert.equal(await runLane(options), 0, await readFile(options.err, "utf8"));
+  const watcher = Number(await readFile(pid, "utf8"));
+  t.after(() => { try { process.kill(watcher, "SIGKILL"); } catch { /* gone */ } });
+  assert.doesNotThrow(() => process.kill(watcher, 0), "the watcher is still running");
+  assert.doesNotMatch(options.lines.join("\n"), /left running by the engine/);
+});

@@ -357,14 +357,15 @@ function pendingSaid(pending: readonly PendingChange[]): string[] {
 }
 
 const edit = verb({
-  command: { family: "library", name: "edit", summary: "change only the named fields, through the kind's editor", usage: "library edit <id> --<field> <value|@file> …" },
+  command: { family: "library", name: "edit", summary: "change only the named fields, through the kind's editor", usage: "library edit <id> --<field> <value|@file> … [--remove <field>]…" },
   tool: NOT_A_TOOL,
   writes: true,
   inputs: {
     "<id>": { kind: "text", word: 0, optional: true, describe: "the record's id" },
     "<fields>": { kind: "fields", describe: "the fields to change" },
+    remove: { kind: "text", many: true, optional: true, describe: "an optional field to remove" },
   },
-  async act({ "<id>": given, "<fields>": values }, context: LibraryVerbContext) {
+  async act({ "<id>": given, "<fields>": values, remove = [] }, context: LibraryVerbContext) {
     const id = needed(given, "the record's id");
     const library = context.library;
     if (id === ANCHOR_ID) return editAnchor(fieldsOf(values), context);
@@ -374,7 +375,12 @@ const edit = verb({
     if (record.type === "question" && record.fields.lifecycle === "settled") {
       throw new VerbRefusal(`question ${id} is settled, so its wording cannot change: its answer stands`);
     }
-    const fields = fieldsOf(values);
+    const both = remove.find((field) => Object.hasOwn(values, field));
+    if (both !== undefined) throw new VerbRefusal(`--${both} and --remove ${both} are both given: change the field or remove it`, { misuse: true });
+    // A planned record's held change is stored as JSON, which would drop a removal, so it is refused (ADR-0966 D1).
+    if (remove.length > 0 && PLAN_TYPES.has(record.type)) throw new VerbRefusal(`a field of a ${record.type} is not removed with --remove: its edits can wait on an increment, which keeps no removal`);
+    // The store removes a field given as undefined, and the kind's schema refuses removing one it requires.
+    const fields: Fields = { ...fieldsOf(values), ...Object.fromEntries(remove.map((field) => [field, undefined])) };
     if (Object.keys(fields).length === 0) return { text: `No fields given: ${id} is unchanged.` };
     if (PLAN_TYPES.has(record.type)) {
       const held = await withIdLists(fields, (fields) => heldOnIncrement(context, { record: id, fields }));
@@ -393,7 +399,9 @@ const edit = verb({
       }
     });
     if (edited === null) throw new VerbRefusal(`no live ${record.type} "${id}" in this project`);
-    return { text: `Edited ${record.type} ${id}: ${Object.keys(fields).join(", ")}.`, next: [{ command: `library read ${id}`, why: "read it back" }] };
+    const changed = Object.keys(values).join(", ");
+    const removed = remove.length === 0 ? "" : `${changed === "" ? "" : ", "}removed ${remove.join(", ")}`;
+    return { text: `Edited ${record.type} ${id}: ${changed}${removed}.`, next: [{ command: `library read ${id}`, why: "read it back" }] };
   },
 });
 

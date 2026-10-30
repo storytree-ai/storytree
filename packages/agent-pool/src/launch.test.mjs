@@ -549,7 +549,7 @@ test("3.28 · a dispatcher configured with its own checkout and lanes folder bri
   assert.ok(b.briefs[0].endsWith(`Work from C:/code/storytree03, never ~/code/storytree03-wt. Your report goes to ${join(b.lanesDir, ".storytree", "agent-pool")}/pool-<increment>.report.md.\n`), b.briefs[0]);
 });
 
-test("3.29 · a lane stopped by a signal leaves the pool running and its increment surveyed and started again; a lane exiting 75 still ends the pool", async () => {
+test("3.8 · a lane stopped by a signal leaves the pool running and its increment surveyed and started again; a lane exiting 75 still ends the pool", async () => {
   const lines = [], started = [];
   let looks = 0, stop = false;
   const code = await runPool({

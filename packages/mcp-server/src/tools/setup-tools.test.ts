@@ -17,7 +17,7 @@ import { fileURLToPath } from "node:url";
 
 import { noteCodexHookRan, noteHookFailure, type Homes } from "@storytree/session-management";
 import { MARKER_FILE } from "@storytree/project-and-caller";
-import { CHECK_FILE, registerHooks, type GhState, type HookCommand } from "@storytree/app-setup/setup";
+import { registerHooks, type GhState, type HookCommand } from "@storytree/app-setup/setup";
 import { buildBins } from "@storytree/app-setup/bins";
 import { STARTER_PACK_VERSION } from "@storytree/app-setup/project";
 import { withTempDir } from "@storytree/project-and-caller/testing/folders";
@@ -586,13 +586,44 @@ test("app-setup 8.20 once storytree has received the session's edit of the check
     try {
       const server = await connect({ url: testServerUrl() });
       await (await server.openProject(project)).close().finally(() => server.close());
-      // The agent writes the check file in its worktree with its own edit tool, and the edit hook reports it.
-      const checkFile = path.join(worktree, CHECK_FILE);
+      // The agent writes the check file with its own edit tool from its worktree, and the edit hook reports it.
+      const checkFile = path.join(worktree, "storytree-check-claude-1");
       writeFileSync(checkFile, "check");
       await fireHook(home.storytreeHome, "claude-code", "post-tool-use-write", worktree, "claude-1", { tool_input: { file_path: checkFile, content: "check" } });
       await withAgent(folder, claudeCode("claude-1", setup), async (agent) => {
         const { missing } = (await agent.call("check_setup")).data as { missing: string[] };
         assert.deepEqual(missing, ["session start", "storytree tool call", "command"]);
+        assert.equal(existsSync(checkFile), false);
+      });
+    } finally {
+      await dropTestProjects([project]);
+    }
+  });
+});
+
+test("app-setup 8.39 check_setup asks for the check file outside the project's folder, under the session's name, and deletes it there once its edit arrives, so the user's repository never holds it (regression: the interview rehearsals' .storytree-check, 2026-10-29)", async () => {
+  const project = uniqueProjectName();
+  await withTempDir(async (dir) => {
+    const home = throwawayHome(dir);
+    const folder = path.join(dir, "site");
+    mkdirSync(folder);
+    writeFileSync(path.join(folder, MARKER_FILE), `${JSON.stringify({ project })}\n`);
+    await approveCheckout(folder, project, home.storytreeHome);
+    const setup = { dataDir: path.join(home.storytreeHome, "pgdata"), setup: { ...ANSWERED, homes: home.homes, storytreeHome: home.storytreeHome } };
+    try {
+      const server = await connect({ url: testServerUrl() });
+      await (await server.openProject(project)).close().finally(() => server.close());
+      await withAgent(folder, claudeCode("claude-1", setup), async (agent) => {
+        const asked = await agent.call("check_setup");
+        const { checkFile } = asked.data as { checkFile: string };
+        assert.ok(path.isAbsolute(checkFile) && path.relative(folder, checkFile).startsWith(".."), checkFile);
+        assert.match(path.basename(checkFile), /claude-1/);
+        assert.ok(asked.text.includes(checkFile), asked.text);
+        assert.doesNotMatch(asked.text, /\.storytree-check in this folder/);
+        writeFileSync(checkFile, "check");
+        await fireHook(home.storytreeHome, "claude-code", "post-tool-use-write", folder, "claude-1", { tool_input: { file_path: checkFile, content: "check" } });
+        const { missing } = (await agent.call("check_setup")).data as { missing: string[] };
+        assert.ok(!missing.includes("file edit"));
         assert.equal(existsSync(checkFile), false);
       });
     } finally {

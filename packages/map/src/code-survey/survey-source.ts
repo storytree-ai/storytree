@@ -132,10 +132,9 @@ export function noMergedMain(error: unknown): boolean {
   return error instanceof Error && error.message.startsWith(NO_MERGED_MAIN);
 }
 
-/** Why main was not fetched: Git's first fatal line (its later ones are boilerplate), or the skip's reason. */
+/** Why main was not fetched: Git's first line (its later ones are boilerplate), or the skip's reason. */
 function whyNotFetched(error: unknown): string {
-  const lines = (error as { stderr?: Buffer | string } | undefined)?.stderr?.toString().split("\n").map(line => line.trim()).filter(Boolean) ?? [];
-  const said = lines.find(line => line.startsWith("fatal:")) ?? lines[0];
+  const said = (error as { stderr?: Buffer | string } | undefined)?.stderr?.toString().trim().split("\n")[0];
   if (said) return said;
   return error instanceof Error ? error.message : "The fetch of main did not run.";
 }

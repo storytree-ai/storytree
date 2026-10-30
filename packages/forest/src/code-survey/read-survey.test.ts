@@ -1,13 +1,14 @@
 // Capability 1 · Story nodes. The desktop's answer to the page's code survey, run on the map's own survey worker.
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 
 import type { AnnotatedTree } from "@storytree/library";
+import { removeTemp } from "@storytree/test-waits";
 
 import { forestPageAnswers } from "./read-survey.js";
 
@@ -44,6 +45,6 @@ test("1.13 · a project whose origin has no fetchable main is answered with no c
     await answers.codeSurvey("project");
     assert.equal(said.length, 2, "a survey that keeps answering says nothing more");
   } finally {
-    await rm(folder, { recursive: true, force: true });
+    await removeTemp(folder);
   }
 });

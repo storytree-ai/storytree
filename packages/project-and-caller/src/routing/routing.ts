@@ -4,9 +4,10 @@
  * project. From then on everything an agent does anywhere in that folder is routed to that project. It never picks a project by itself, and when storytree isn't running
  * it says so at once.
  *
- * - The marker is `.storytree.json` in the project's folder: `{ "project": "<name>", "identity": "<its
- *   database's>" }`; one written before the identity was recorded names the project only. A folder
- *   belongs to the project of the nearest marker at or above it. A git worktree kept outside its
+ * - The marker is `.storytree/project.json` in the project's folder: `{ "project": "<name>", "identity": "<its
+ *   database's>" }`; one written before the identity was recorded names the project only. A root
+ *   `.storytree.json`, the marker before ADR-1191, is still read, and where a folder holds both the first
+ *   wins. A folder belongs to the project of the nearest marker at or above it. A git worktree kept outside its
  *   folder has no marker of its own unless the marker was committed, so a worktree is also looked
  *   up in the folder it is a worktree of.
  * - A marker is a claim, not a key (ADR-0942): a checkout reaches its project's hooks and tools only
@@ -41,7 +42,9 @@ import { approvedTrunk, machineOf, ProjectFolderError, remembered, rememberAppro
 export { storytreeHome };
 import { authenticatedLocalUrl, HANDOFF_UNAVAILABLE, HandoffPrivacyError, type LocalOwner } from "./local-handoff.js";
 
-/** The marker a folder set up as a storytree project holds. */
+/** The marker a folder set up as a storytree project holds, in its `.storytree` folder (ADR-1191 D1). */
+export const PROJECT_FILE = ".storytree/project.json";
+/** The marker at a project's root from before ADR-1191, still read while projects move (D4). */
 export const MARKER_FILE = ".storytree.json";
 /** What routing says of a folder nobody has set up. */
 export const NOT_A_PROJECT = "not a storytree project";
@@ -111,7 +114,7 @@ export async function openNamedProject(storytree: Pick<Storytree, "openProject">
 }
 
 function goneProject(project: string): ProjectFolderError {
-  return new ProjectFolderError(`This folder names project "${project}" in its ${MARKER_FILE}, but the library has no such project: it was deleted, perhaps from another computer. Delete ${MARKER_FILE} to free the folder; to start a project here, set it up again.`);
+  return new ProjectFolderError(`This folder names project "${project}" in its marker, but the library has no such project: it was deleted, perhaps from another computer. Delete its ${PROJECT_FILE} (or ${MARKER_FILE}, in a project set up before it moved there) to free the folder; to start a project here, set it up again.`);
 }
 
 /**
@@ -233,13 +236,14 @@ function within(folder: string, root: string): boolean {
 }
 
 /**
- * The nearest marker at or above `start`. A marker that cannot be read, or names no project, stops
+ * The nearest marker at or above `start`, `.storytree/project.json` or a root `.storytree.json`; a folder holding
+ * both is the first's (ADR-1191 D4). A marker that cannot be read, or names no project, stops
  * the search: the folder claims to be a project, and a guess at another would route it wrongly.
  */
 function markerAbove(start: string): ProjectLookup | undefined {
   for (let dir = start; ; dir = path.dirname(dir)) {
-    const marker = path.join(dir, MARKER_FILE);
-    if (isFile(marker)) {
+    const marker = [PROJECT_FILE, MARKER_FILE].map((file) => path.join(dir, file)).find(isFile);
+    if (marker !== undefined) {
       const named = projectIn(marker);
       return named === undefined ? { project: undefined, message: NOT_A_PROJECT } : { ...named, folder: canonical(dir) };
     }

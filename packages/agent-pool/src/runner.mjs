@@ -86,8 +86,11 @@ const MOD = ["--plugin-dir", PLUGIN_FOLDER];
 const MOD_VARIABLES = [...Object.keys(FUNCTION_HOOKS), "CLAUDE_CODE_PLUGIN_DIRS", SESSION_FILE];
 const sessionFile = (log) => `${log.replace(/\.log$/, "")}.session`;
 function engineEnvironment(engine, login, log) {
-  if (engine === "claude") return { ...login, ...FUNCTION_HOOKS, [SESSION_FILE]: sessionFile(log) };
-  const codex = { ...login };
+  // The pool configuration a dispatcher was started with (the laptop's, ADR-1179) is the runner's: the engine's own tools
+  // (its hand-over to the Mint box's watcher) read the repository's.
+  const { AGENT_POOL_CONFIG: _config, ...lane } = login;
+  if (engine === "claude") return { ...lane, ...FUNCTION_HOOKS, [SESSION_FILE]: sessionFile(log) };
+  const codex = { ...lane };
   for (const name of MOD_VARIABLES) delete codex[name];
   return codex;
 }
@@ -283,10 +286,20 @@ async function lostConnection({ log, err }) {
   return said.some((text) => CUT_OFF.test(text.trim()));
 }
 
+/**
+ * The command that runs storytree's `args` from the repository's root. pnpm is a .cmd on Windows, which execFile cannot start
+ * without a shell that would mangle the arguments (a residue's text), so there it runs storytree's command line through node.
+ */
+export function storytreeCommand(args, platform = process.platform) {
+  return platform === "win32"
+    ? [process.execPath, ["--import", "tsx", "packages/cli/src/bins/storytree.ts", ...args]]
+    : ["pnpm", ["-s", "storytree", ...args]];
+}
+
 /** Whether both the library and GitHub answer: a library read (any record proves it) and a GitHub API call, each within a minute. */
-export async function bothAnswer({ cwd, env, probe = (file, args) => run(file, args, { cwd, env, timeout: 60_000, maxBuffer: 16 * 1024 * 1024 }) }) {
+export async function bothAnswer({ cwd, env, platform = process.platform, probe = (file, args) => run(file, args, { cwd, env, timeout: 60_000, maxBuffer: 16 * 1024 * 1024 }) }) {
   const answers = (file, args) => Promise.resolve().then(() => probe(file, args)).then(() => true, () => false);
-  const [library, github] = await Promise.all([answers("pnpm", ["-s", "storytree", "library", "read", TOKEN_ARC, "--field", "title"]), answers("gh", ["api", "rate_limit"])]);
+  const [library, github] = await Promise.all([answers(...storytreeCommand(["library", "read", TOKEN_ARC, "--field", "title"], platform)), answers("gh", ["api", "rate_limit"])]);
   return library && github;
 }
 
@@ -319,7 +332,7 @@ async function holdForNetwork({ reachable, sleep, now, offline }) {
 export async function runLane({ brief, log, err, addDirs = [], cwd = process.cwd(), home = homedir(), env = process.env,
   commands = { codex: ["codex"], claude: ["claude"] }, now = Date.now, say = console.log, increment,
   heads = (id) => remoteHeads(id, cwd), failed = (failure) => recordLaneFailure(failure),
-  storytree = async (args) => (await run("pnpm", ["-s", "storytree", ...args], { cwd, env, maxBuffer: 16 * 1024 * 1024 })).stdout,
+  storytree = async (args) => (await run(...storytreeCommand(args), { cwd, env, maxBuffer: 16 * 1024 * 1024 })).stdout,
   reachable = () => bothAnswer({ cwd, env }), sleep = (ms) => new Promise((done) => setTimeout(done, ms)), offline: limits = {} }) {
   const original = await readFile(brief, "utf8");
   if (!original.trim()) throw new Error(`brief ${brief} is empty`);

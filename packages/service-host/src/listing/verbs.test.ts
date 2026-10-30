@@ -12,7 +12,7 @@ import { mountedServices } from "../running/declared.js";
 import type { Child, Ended } from "../running/supervise.js";
 import { handClock } from "../testing/clock.js";
 import { fixtureHome } from "../testing/fixture.js";
-import { readStatus } from "./status.js";
+import { readStatus, requestStop } from "./status.js";
 import { servicesSaid, SERVICES_FAMILIES } from "./verbs.js";
 
 const words: DoorWords = { door: "command", say: (step) => step.command ?? step.tool! };
@@ -113,14 +113,16 @@ test("2.2 · storytree services restart <part>/<service> has the host start a fa
   }
 });
 
-test("2.3 · storytree services run runs the service host in the foreground until a stop signal (Ctrl-C or SIGTERM), then stops every service it ran and says so", async (t) => {
+test("2.3 · storytree services run runs the service host in the foreground until a stop signal (Ctrl-C or SIGTERM) or a stop request (on Windows, where no signal is heard), then stops every service it ran and says so", { timeout: 60_000 }, async (t) => {
   const { home } = fixtureHome(t);
   homeIs(t, home);
   setServiceOn("voice/listen", true, home);
-  for (const signal of ["SIGINT", "SIGTERM"] as const) {
+  requestStop(home);
+  for (const signal of ["SIGINT", "SIGTERM", "request"] as const) {
     const running = named("run").act({}, { folder: home }, words);
     const pid = await waitUntil(() => readStatus(home)?.services.find((one) => one.id === "voice/listen" && one.state === "running" && one.lastLines.some((line) => line.startsWith("listening in ")))?.pid, 20_000, `the listener listening under services run, to stop with ${signal}`);
-    process.emit(signal, signal);
+    if (signal === "request") requestStop(home);
+    else process.emit(signal, signal);
     assert.match((await running).text, /^The service host stopped, and every service it ran with it\.$/);
     const stopped = readStatus(home)!;
     assert.equal(stopped.stopped, true);

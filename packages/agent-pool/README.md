@@ -14,3 +14,11 @@ whose engine started with any tool server other than storytree, and a stored cla
 
 The box's own `~/.claude/settings.json` also sets `"disableClaudeAiConnectors": true`. That is a setting of the box,
 never of this repository.
+
+## The laptop's dispatcher (ADR-1179)
+
+The owner's Windows laptop runs the same dispatcher (`launch.mjs pool`) for work tagged `machine=laptop` only, one lane at a
+time, starting a lane only while it is plugged in and the library and GitHub answer. `windows/register-laptop-pool.ps1`
+(read it, then run it once; `-DryRun` shows what it would do) writes its configuration to `~/.storytree/agent-pool.json`
+(`machineOnly`, `sessions: 1`, Claude), forces the Claude engine in its lanes folder, and registers a Task Scheduler entry that
+runs `windows/laptop-pool.ps1` at logon. Pause it with `pool-stop` in the lanes folder, as on the box; delete it to resume.

@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 
-import { countEngines, holdRunner, waitForSlot } from "./queue.mjs";
+import { countEngines, holdRunner, processTable, waitForSlot } from "./queue.mjs";
 
 async function folder(t) {
   const path = await mkdtemp(join(tmpdir(), "lane-queue-"));
@@ -65,4 +65,20 @@ test("3.3 · one dispatcher at a time: a live one refuses a second, and a dead o
   }
   await writeFile(pidFile, "20");
   assert.equal((await holdRunner({ pidFile, pid: 20, marks, argsOf: async () => processes[10] })).held, true, "its own pid is not another runner");
+});
+
+test("3.26 · on Windows each lane's engine counts once from the process list, its paths quoted and its brief over many lines", () => {
+  const listed = [
+    { ProcessId: 100, ParentProcessId: 1, CommandLine: String.raw`"C:\Program Files\nodejs\node.exe" --import tsx packages/agent-pool/src/launch.mjs pool` },
+    { ProcessId: 101, ParentProcessId: 100, CommandLine: String.raw`"C:\Users\m\.local\bin\claude.exe" -p "# Pool lane: a` + "\r\n\r\n" + `Your increment: a." --model claude-opus-5-5` },
+    { ProcessId: 102, ParentProcessId: 101, CommandLine: String.raw`"C:\Users\m\.local\bin\claude.exe" -p child of the same lane` },
+    { ProcessId: 200, ParentProcessId: 1, CommandLine: String.raw`C:\nvm\node.exe C:\npm\node_modules\@openai\codex\bin\codex.js exec brief` },
+    { ProcessId: 300, ParentProcessId: 1, CommandLine: 'powershell.exe -NoProfile -Command "claude -p"' },
+    { ProcessId: 4, ParentProcessId: 0, CommandLine: null },
+  ];
+  const table = processTable(JSON.stringify(listed));
+  assert.equal(countEngines(table), 2, "the Claude lane and the Codex lane, each once");
+  assert.match(table, /^100 1 .*launch\.mjs pool$/m, "a runner's command line reads on one line, as holdRunner matches it");
+  assert.equal(countEngines(processTable(JSON.stringify(listed[1]))), 1, "one process lists as one object, not a list");
+  assert.equal(processTable(""), "");
 });

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { appendFileSync, mkdirSync, mkdtempSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
+import { appendFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
@@ -53,6 +53,21 @@ test("4.20 the packaged app records the mode the signing job will sign it in, si
   for (const value of ["", "missing", "Developer ID"]) assert.throws(() => packagedSigning(value), /STORYTREE_MAC_SIGNING/);
 });
 
+// A macOS bundle holds relative symbolic links, which Linux and macOS always allow but Windows
+// lets an account make only with Developer Mode or admin rights: ask once whether this one can.
+const linksAllowed = (() => {
+  const dir = mkdtempSync(path.join(tmpdir(), "storytree-link-"));
+  try {
+    symlinkSync("A", path.join(dir, "Current"));
+    return true;
+  } catch {
+    return false;
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+})();
+const bundleLinks = { skip: linksAllowed ? false : "platform:posix: this account may not make symbolic links, which a macOS bundle holds and Linux and macOS always allow" };
+
 const machO = Buffer.from([0xcf, 0xfa, 0xed, 0xfe, 0, 0, 0, 0]);
 /** A small .app laid out as electron-builder's is: a framework with its version links, a helper app, libraries and a tool payload. */
 function fakeApp() {
@@ -82,7 +97,7 @@ function fakeApp() {
   return { root, app, digest };
 }
 
-test("4.20 the signing job signs inside-out: every nested binary, framework and helper app before the bundle holding it, the app last, and never a link or a file that is not code", async () => {
+test("4.20 the signing job signs inside-out: every nested binary, framework and helper app before the bundle holding it, the app last, and never a link or a file that is not code", bundleLinks, async () => {
   const { root, app } = fakeApp();
   try {
     const order = signingOrder(app).map((file: string) => path.relative(app, file).split(path.sep).join("/") || ".");
@@ -109,7 +124,7 @@ test("4.20 the signing job signs inside-out: every nested binary, framework and 
   }
 });
 
-test("4.20 each item is signed with the hardened runtime and the app's entitlements, a Developer ID one with a secure timestamp, and the tool payload's digests are rewritten before the app is sealed", async () => {
+test("4.20 each item is signed with the hardened runtime and the app's entitlements, a Developer ID one with a secure timestamp, and the tool payload's digests are rewritten before the app is sealed", bundleLinks, async () => {
   const { root, app, digest } = fakeApp();
   try {
     const calls: string[][] = [];
@@ -133,7 +148,7 @@ test("4.20 each item is signed with the hardened runtime and the app's entitleme
   }
 });
 
-test("4.20 a Developer ID signing run without the identity prepare names is refused before anything is signed", async () => {
+test("4.20 a Developer ID signing run without the identity prepare names is refused before anything is signed", bundleLinks, async () => {
   const { root } = fakeApp();
   try {
     const calls: string[][] = [];

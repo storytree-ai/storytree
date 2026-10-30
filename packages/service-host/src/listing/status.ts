@@ -2,7 +2,7 @@
  * Capability 2 · Listing and restarting services, contracts 2.1 and 2.2 (ADR-1180 D4). The host writes how each service
  * stands to `service-host/status.json` in this machine's storytree home, and the command line reads it there. A restart
  * by name is a file the command line leaves in `service-host/restart`, which the host takes on its next tick, so the
- * command line never signals another process. The status names the services the host mounted, so the listing can say when a
+ * command line never signals another process; a stop is `service-host/stop`, which `services run` takes (contract 3.4). The status names the services the host mounted, so the listing can say when a
  * part switch has not taken in it (contract 2.4).
  */
 import { mkdirSync, readdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
@@ -73,6 +73,25 @@ export function alive(pid: number): boolean {
 export function requestRestart(home: string, id: string): void {
   mkdirSync(restarts(home), { recursive: true });
   writeFileSync(path.join(restarts(home), requestFile(id)), new Date().toISOString());
+}
+
+const stopFile = (home: string) => path.join(folder(home), "stop");
+
+/** Ask the running host to stop every service and exit 0, as a stop signal would: on Windows no signal reaches it unheard. */
+export function requestStop(home: string): void {
+  mkdirSync(folder(home), { recursive: true });
+  writeFileSync(stopFile(home), new Date().toISOString());
+}
+
+/** Whether a stop was asked for since the last take; the request is removed as it is taken. */
+export function takeStop(home: string): boolean {
+  try {
+    rmSync(stopFile(home));
+    return true;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return false;
+    throw error;
+  }
 }
 
 /** The restarts asked for since the last take, each removed as it is taken. */

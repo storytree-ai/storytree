@@ -15,6 +15,7 @@ import type { Page } from "playwright-core";
 
 import type { Line, NewLine } from "@storytree/library";
 import { workStates } from "@storytree/arc-surface";
+import { removeTemp } from "@storytree/test-waits";
 
 import { buildCapture, buildFolder, fakeBridge, launchPlan, outputFolder, seedWorkStates, visibleGlobeTargets, zoomGlobe } from "./index.js";
 
@@ -175,7 +176,7 @@ test("2.19 · the capture kit's build holds every file its page names, the road 
 
 test("2.21 · the capture kit's page runs React's production build, as the shipped app's does", { timeout: 120_000 }, async t => {
   const dist = mkdtempSync(path.join(tmpdir(), "storytree-capture-build-"));
-  t.after(() => rmSync(dist, { recursive: true, force: true }));
+  t.after(() => removeTemp(dist));
   await buildCapture({ dist });
   // esbuild names each bundled module in a comment, so the build React's entry chose is named in the bundle.
   const bundle = readFileSync(path.join(dist, "renderer.js"), "utf8");

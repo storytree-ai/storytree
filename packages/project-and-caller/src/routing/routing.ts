@@ -45,7 +45,7 @@ import { authenticatedLocalUrl, HANDOFF_UNAVAILABLE, HandoffPrivacyError, type L
 /** The marker a folder set up as a storytree project holds, in its `.storytree` folder (ADR-1191 D1). */
 export const PROJECT_FILE = ".storytree/project.json";
 /** The marker at a project's root from before ADR-1191, still read while projects move (D4). */
-export const MARKER_FILE = ".storytree.json";
+export const ROOT_MARKER_FILE = ".storytree.json";
 /** What routing says of a folder nobody has set up. */
 export const NOT_A_PROJECT = "not a storytree project";
 /** What routing says while the app's database is not running. */
@@ -114,7 +114,7 @@ export async function openNamedProject(storytree: Pick<Storytree, "openProject">
 }
 
 function goneProject(project: string): ProjectFolderError {
-  return new ProjectFolderError(`This folder names project "${project}" in its marker, but the library has no such project: it was deleted, perhaps from another computer. Delete its ${PROJECT_FILE} (or ${MARKER_FILE}, in a project set up before it moved there) to free the folder; to start a project here, set it up again.`);
+  return new ProjectFolderError(`This folder names project "${project}" in its marker, but the library has no such project: it was deleted, perhaps from another computer. Delete its ${PROJECT_FILE} (or ${ROOT_MARKER_FILE}, in a project set up before it moved there) to free the folder; to start a project here, set it up again.`);
 }
 
 /**
@@ -242,13 +242,22 @@ function within(folder: string, root: string): boolean {
  */
 function markerAbove(start: string): ProjectLookup | undefined {
   for (let dir = start; ; dir = path.dirname(dir)) {
-    const marker = [PROJECT_FILE, MARKER_FILE].map((file) => path.join(dir, file)).find(isFile);
+    const marker = markerIn(dir);
     if (marker !== undefined) {
       const named = projectIn(marker);
       return named === undefined ? { project: undefined, message: NOT_A_PROJECT } : { ...named, folder: canonical(dir) };
     }
     if (path.dirname(dir) === dir) return undefined;
   }
+}
+
+/**
+ * The path of the marker `folder` itself holds: its `.storytree/project.json`, else a root `.storytree.json`
+ * (ADR-1191 D4); undefined when it holds neither.
+ */
+export function markerIn(folder: string): string | undefined {
+  const file = [PROJECT_FILE, ROOT_MARKER_FILE].find((each) => isFile(path.join(folder, each)));
+  return file === undefined ? undefined : path.join(folder, file);
 }
 
 function projectIn(marker: string): { project: string; identity?: string } | undefined {

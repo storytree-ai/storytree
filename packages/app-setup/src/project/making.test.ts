@@ -11,14 +11,17 @@ import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync 
 import path from "node:path";
 import { test } from "node:test";
 
-import { findProject, forgetTrunk, machineOf, MARKER_FILE, registerTrunk, requireApproval, type ProjectLookup } from "@storytree/project-and-caller";
-import { git, withTempDir } from "@storytree/project-and-caller/testing/folders";
+import { findProject, forgetTrunk, machineOf, PROJECT_FILE, registerTrunk, requireApproval, ROOT_MARKER_FILE, type ProjectLookup } from "@storytree/project-and-caller";
+import { git, withTempDir, writeMarker } from "@storytree/project-and-caller/testing/folders";
 import { dropTestProjects, testServerUrl, uniqueProjectName } from "@storytree/project-and-caller/testing/pg";
 import { connect, ProjectNameError, type Storytree } from "@storytree/library";
 import { openReviews } from "@storytree/quality-assurance";
 
 import { firstCommit, makeRepository, setUpProject, suggestProjectName, userFactory } from "./making.js";
 import { takeStarterPack } from "./starter-pack.js";
+
+/** What a project's first commit holds: its .storytree folder, with no machine-local file of it. */
+const STORYTREE_FILES = [".storytree/.gitignore", PROJECT_FILE];
 
 /** The project a lookup found and the folder holding its marker, leaving aside the database identity the marker records. */
 function named(lookup: ProjectLookup): { project: string; folder: string } | ProjectLookup {
@@ -57,9 +60,31 @@ test('6.8 setting a folder up as project "site" leaves a marker naming it and it
     await withStorytree([project], async (storytree) => {
       const setUp = await setUpProject({ folder, project, storytree, storytreeHome: path.join(dir, "app-home") });
       assert.equal(setUp.project, project);
-      assert.deepEqual(JSON.parse(readFileSync(path.join(folder, MARKER_FILE), "utf8")), { project, identity: (await storytree.projectIdentities())[project] }, "the marker names the project and its database");
+      assert.deepEqual(JSON.parse(readFileSync(path.join(folder, PROJECT_FILE), "utf8")), { project, identity: (await storytree.projectIdentities())[project] }, "the marker names the project and its database");
       assert.ok((await storytree.listProjects()).includes(project), "the project's library now exists");
       assert.deepEqual(named(findProject(folder)), { project, folder });
+    });
+  });
+});
+
+test("6.13 setting a folder up keeps its storytree files in a .storytree folder: the marker at .storytree/project.json and a .gitignore keeping *.local.json out of git, added to one the folder already has and never doubled", async () => {
+  const [fresh, kept] = [uniqueProjectName(), uniqueProjectName()];
+  await withTempDir(async (dir) => {
+    const home = path.join(dir, "app-home");
+    const [first, second] = [path.join(dir, "first"), path.join(dir, "second")];
+    mkdirSync(first);
+    mkdirSync(path.join(second, ".storytree"), { recursive: true });
+    writeFileSync(path.join(second, ".storytree", ".gitignore"), "scratch/");
+    await withStorytree([fresh, kept], async (storytree) => {
+      const made = await setUpProject({ folder: first, project: fresh, storytree, storytreeHome: home });
+      assert.equal(made.marker, path.join(first, PROJECT_FILE));
+      assert.equal(JSON.parse(readFileSync(path.join(first, PROJECT_FILE), "utf8")).project, fresh);
+      assert.equal(existsSync(path.join(first, ROOT_MARKER_FILE)), false, "no marker at the root");
+      assert.equal(readFileSync(path.join(first, ".storytree", ".gitignore"), "utf8"), "*.local.json\n");
+      await setUpProject({ folder: second, project: kept, storytree, storytreeHome: home });
+      assert.equal(readFileSync(path.join(second, ".storytree", ".gitignore"), "utf8"), "scratch/\n*.local.json\n", "the folder's own .gitignore kept, the line added");
+      await setUpProject({ folder: second, project: kept, storytree, storytreeHome: home, join: true });
+      assert.equal(readFileSync(path.join(second, ".storytree", ".gitignore"), "utf8"), "scratch/\n*.local.json\n", "a line it has is not added again");
     });
   });
 });
@@ -71,7 +96,7 @@ test("6.1 a project name the library would refuse is refused when setting a fold
       for (const name of refused) {
         await assert.rejects(setUpProject({ folder: dir, project: name, storytree, storytreeHome: path.join(dir, "app-home") }), ProjectNameError, `${JSON.stringify(name)} is refused`);
       }
-      assert.equal(existsSync(path.join(dir, MARKER_FILE)), false, "no marker was written");
+      assert.equal(existsSync(path.join(dir, PROJECT_FILE)), false, "no marker was written");
       const projects = await storytree.listProjects();
       for (const name of refused) assert.equal(projects.includes(name), false, `no project ${JSON.stringify(name)}`);
     });
@@ -91,12 +116,12 @@ test("6.2 a folder that is a project's trunk, inside one, a git worktree of one,
     await withStorytree([site, other], async (storytree) => {
       await setUpProject({ folder: trunk, project: site, storytree, storytreeHome: laptop });
       // The marker is gone (never committed, say): the library's record of the trunk still refuses.
-      rmSync(path.join(trunk, MARKER_FILE));
+      rmSync(path.join(trunk, PROJECT_FILE));
       const inside = path.join(trunk, "docs");
       mkdirSync(inside);
       for (const folder of [trunk, inside, worktree, path.dirname(trunk)]) {
         await assert.rejects(setUpProject({ folder, project: other, storytree, storytreeHome: laptop }), folderRefusal(site), `${folder} is refused`);
-        assert.equal(existsSync(path.join(folder, MARKER_FILE)), false, `no marker in ${folder}`);
+        assert.equal(existsSync(path.join(folder, PROJECT_FILE)), false, `no marker in ${folder}`);
       }
       assert.equal((await storytree.listProjects()).includes(other), false, "no library was made for the refused project");
     });
@@ -115,7 +140,7 @@ test("6.3 a second folder for a project already living on this machine is refuse
       for (const join of [false, true]) {
         await assert.rejects(setUpProject({ folder: second, project, storytree, storytreeHome: laptop, join }), folderRefusal(first, "worktree"));
       }
-      assert.equal(existsSync(path.join(second, MARKER_FILE)), false);
+      assert.equal(existsSync(path.join(second, PROJECT_FILE)), false);
       assert.deepEqual(named(findProject(first)), { project, folder: first });
     });
   });
@@ -133,7 +158,7 @@ test("6.4 a new folder named like an existing project is refused unless it joins
       assert.equal(await suggestProjectName(other, storytree), `${project}-2`, "the suggestion avoids every existing project");
       // On another machine too: a matching folder name is never taken as joining.
       await assert.rejects(setUpProject({ folder: other, project, storytree, storytreeHome: box }), folderRefusal(`${project}-2`));
-      assert.equal(existsSync(path.join(other, MARKER_FILE)), false);
+      assert.equal(existsSync(path.join(other, PROJECT_FILE)), false);
       await setUpProject({ folder: other, project: `${project}-2`, storytree, storytreeHome: box });
       assert.deepEqual(named(findProject(other)), { project: `${project}-2`, folder: other });
     });
@@ -335,7 +360,9 @@ test("6.10 a folder in no git repository gets one, whose first commit holds the 
     const project = (name: string) => {
       const folder = path.join(dir, name);
       mkdirSync(folder);
-      writeFileSync(path.join(folder, MARKER_FILE), "{}\n");
+      writeMarker(folder, "{}\n");
+      writeFileSync(path.join(folder, ".storytree", ".gitignore"), "*.local.json\n");
+      writeFileSync(path.join(folder, ".storytree", "worktree.local.json"), "{}\n");
       writeFileSync(path.join(folder, "notes.txt"), "the user's own\n");
       return folder;
     };
@@ -344,7 +371,7 @@ test("6.10 a folder in no git repository gets one, whose first commit holds the 
     assert.deepEqual(makeRepository(empty, { env: signed }), { state: "made" });
     assert.equal(path.resolve(git(empty, "rev-parse", "--show-toplevel").trim()), empty, "git prints / on Windows too");
     assert.equal(git(empty, "log", "--format=%an <%ae>").trim(), "A User <user@example.invalid>", "one commit, under the user's identity");
-    assert.deepEqual(git(empty, "show", "--name-only", "--format=", "HEAD").trim().split("\n"), [MARKER_FILE], "the first commit holds the marker alone");
+    assert.deepEqual(git(empty, "show", "--name-only", "--format=", "HEAD").trim().split("\n"), STORYTREE_FILES, "the first commit holds the .storytree folder alone");
 
     const inside = path.join(empty, "sub");
     mkdirSync(inside);
@@ -358,19 +385,29 @@ test("6.10 a folder in no git repository gets one, whose first commit holds the 
     assert.equal(unnamed.state, "no identity");
     assert.match(unnamed.state === "no identity" ? unnamed.reason : "", /identity|user\.name|user\.email/i);
     assert.equal(path.resolve(git(anonymous, "rev-parse", "--show-toplevel").trim()), anonymous, "with no identity the repository is kept");
-    assert.deepEqual(git(anonymous, "ls-files").trim().split("\n"), [MARKER_FILE], "its marker staged, alone, for the first commit");
+    assert.deepEqual(git(anonymous, "ls-files").trim().split("\n"), STORYTREE_FILES, "its .storytree folder staged, alone, for the first commit");
     assert.deepEqual(firstCommit(anonymous, { env: nobody })?.state, "no identity", "still no identity: still no commit");
     assert.deepEqual(firstCommit(anonymous, { env: signed }), { state: "made" }, "once git has an identity the first commit is made");
     assert.equal(git(anonymous, "log", "--format=%an <%ae>").trim(), "A User <user@example.invalid>");
-    assert.deepEqual(git(anonymous, "show", "--name-only", "--format=", "HEAD").trim().split("\n"), [MARKER_FILE]);
+    assert.deepEqual(git(anonymous, "show", "--name-only", "--format=", "HEAD").trim().split("\n"), STORYTREE_FILES);
     assert.equal(firstCommit(anonymous, { env: signed }), undefined, "a repository with a commit is no longer waiting for its first");
     assert.equal(firstCommit(empty, { env: signed }), undefined);
+
+    // A repository an older setup began, its root marker staged alone, still gets its first commit (ADR-1191 D4).
+    const older = path.join(dir, "older");
+    mkdirSync(older);
+    writeFileSync(path.join(older, ROOT_MARKER_FILE), "{}\n");
+    writeFileSync(path.join(older, "notes.txt"), "the user's own\n");
+    git(older, "init", "-q");
+    git(older, "add", "--", ROOT_MARKER_FILE);
+    assert.deepEqual(firstCommit(older, { env: signed }), { state: "made" });
+    assert.deepEqual(git(older, "show", "--name-only", "--format=", "HEAD").trim().split("\n"), [ROOT_MARKER_FILE]);
 
     // A repository the user began, with nothing or something else staged, is theirs: storytree commits nothing in it.
     const theirs = project("theirs");
     git(theirs, "init", "-q");
     assert.equal(firstCommit(theirs, { env: signed }), undefined);
-    git(theirs, "add", "--", MARKER_FILE, "notes.txt");
+    git(theirs, "add", "--", ".storytree", "notes.txt");
     assert.equal(firstCommit(theirs, { env: signed }), undefined);
     assert.equal(firstCommit(path.join(dir, "no-such-folder"), { env: signed }), undefined);
 

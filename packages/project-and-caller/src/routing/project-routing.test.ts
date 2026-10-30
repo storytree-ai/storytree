@@ -20,10 +20,10 @@ import { connect, type Storytree } from "@storytree/library";
 import pg from "pg";
 
 import { setLibrary } from "../settings/settings.js";
-import { git, withTempDir } from "../testing/folders.js";
+import { git, withTempDir, writeMarker } from "../testing/folders.js";
 import { dropTestProjects, markedProject, placeTestServer, testServerDataDir, testServerRecordedUrl, testServerUrl, uniqueProjectName } from "../testing/pg.js";
 import { approveTrunk, forgetTrunk, importsOf, machineOf, recordImport, registerTrunk, trunkedProjects } from "./trunks.js";
-import { findProject, locateStorytree, MARKER_FILE, NOT_A_PROJECT, NOT_RUNNING, PROJECT_FILE, requireApproval, route, type ProjectLookup } from "./index.js";
+import { findProject, locateStorytree, NOT_A_PROJECT, NOT_RUNNING, PROJECT_FILE, requireApproval, ROOT_MARKER_FILE, route, type ProjectLookup } from "./index.js";
 
 /** "Well under a second", as the tests hold it. */
 const QUICK_MS = 500;
@@ -51,7 +51,7 @@ async function withStorytree(projects: readonly string[], body: (storytree: Stor
 function markedFolder(dir: string, project: string): string {
   const folder = path.join(dir, project);
   mkdirSync(folder, { recursive: true });
-  writeFileSync(path.join(folder, MARKER_FILE), `${JSON.stringify({ project })}\n`);
+  writeMarker(folder, `${JSON.stringify({ project })}\n`);
   return folder;
 }
 
@@ -86,7 +86,7 @@ test('1.1 a folder whose marker names project "site" gives "site" asked from the
     const worktree = path.join(dir, "site-feature");
     git(folder, "worktree", "add", "-q", "-b", "feature", worktree);
     mkdirSync(path.join(worktree, "src"), { recursive: true });
-    assert.equal(existsSync(path.join(worktree, MARKER_FILE)), false, "the worktree holds no marker");
+    assert.equal(existsSync(path.join(worktree, PROJECT_FILE)), false, "the worktree holds no marker");
 
     for (const from of [folder, path.join(folder, "src", "components"), worktree, path.join(worktree, "src")]) {
       assert.deepEqual(named(findProject(from)), { project, folder }, `asked from ${from}`);
@@ -129,18 +129,18 @@ test("1.21 a folder's marker is .storytree/project.json and a root .storytree.js
 
     // A project set up before the move, with only the root marker, still routes.
     const old = path.join(dir, "old");
-    mark(old, MARKER_FILE, "old");
+    mark(old, ROOT_MARKER_FILE, "old");
     assert.deepEqual(named(findProject(old)), { project: "old", folder: old });
 
     // A folder holding both is the new marker's project.
     const both = path.join(dir, "both");
-    mark(both, MARKER_FILE, "before");
+    mark(both, ROOT_MARKER_FILE, "before");
     mark(both, PROJECT_FILE, "after");
     assert.deepEqual(named(findProject(both)), { project: "after", folder: both });
 
     // The nearest marker wins, whichever its spelling: an old one inside a new one's folder names its own project.
     const inner = path.join(site, "inner");
-    mark(inner, MARKER_FILE, "inner");
+    mark(inner, ROOT_MARKER_FILE, "inner");
     assert.deepEqual(named(findProject(inner)), { project: "inner", folder: inner });
   });
 });
@@ -281,9 +281,9 @@ test("1.12 a marker alone reaches no project: with or without the project's iden
   await withTempDir(async (dir) => {
     const { laptop } = machines(dir);
     const trunk = markedFolder(dir, "app");
-    writeFileSync(path.join(trunk, MARKER_FILE), `${JSON.stringify({ project })}\n`);
+    writeMarker(trunk, `${JSON.stringify({ project })}\n`);
     git(trunk, "init", "-q");
-    git(trunk, "add", MARKER_FILE);
+    git(trunk, "add", PROJECT_FILE);
     git(trunk, "commit", "-q", "-m", "first");
     const worktree = path.join(dir, "app-feature");
     git(trunk, "worktree", "add", "-q", "-b", "feature", worktree);
@@ -291,8 +291,8 @@ test("1.12 a marker alone reaches no project: with or without the project's iden
       const { identity } = await storytree.openProject(victim).then(async (library) => (await library.close(), library));
       // A downloaded folder naming someone's existing project, by name and by its real identity.
       const [bare, known] = [markedFolder(dir, "bare"), markedFolder(dir, "known")];
-      writeFileSync(path.join(bare, MARKER_FILE), JSON.stringify({ project: victim }));
-      writeFileSync(path.join(known, MARKER_FILE), JSON.stringify({ project: victim, identity }));
+      writeMarker(bare, JSON.stringify({ project: victim }));
+      writeMarker(known, JSON.stringify({ project: victim, identity }));
       for (const folder of [bare, known]) {
         assert.equal(route(folder).status !== "not-a-project", true, "the marker still names its project");
         await assert.rejects(requireApproval(storytree, victim, folder, laptop), folderRefusal(victim, "not approved", "--join"));
@@ -336,11 +336,11 @@ test("1.18 a forgotten trunk's approval is forgotten on this machine too: its fo
       // The project deleted, so its trunk forgotten on every machine; the checkout deleted and cloned again at the same place.
       await markedProject(storytree, trunk, project, laptop);
       await requireApproval(storytree, project, trunk, laptop);
-      const marker = readFileSync(path.join(trunk, MARKER_FILE));
+      const marker = readFileSync(path.join(trunk, PROJECT_FILE));
       await forgetTrunk(storytree, { project }, laptop);
       rmSync(trunk, { recursive: true });
       mkdirSync(trunk);
-      writeFileSync(path.join(trunk, MARKER_FILE), marker);
+      writeMarker(trunk, marker);
       await assert.rejects(requireApproval(storytree, project, trunk, laptop), folderRefusal(project, "not approved"));
     });
   });
@@ -418,7 +418,7 @@ test("1.17 only a git worktree its trunk's repository registered inherits the tr
       writeFileSync(path.join(fake, "commondir"), `${path.join(trunk, ".git")}\n`);
       writeFileSync(path.join(fake, "gitdir"), `${path.join(forged, ".git")}\n`);
       assert.deepEqual(findProject(forged), { project: undefined, message: NOT_A_PROJECT });
-      writeFileSync(path.join(forged, MARKER_FILE), JSON.stringify({ project }));
+      writeMarker(forged, JSON.stringify({ project }));
       await assert.rejects(requireApproval(storytree, project, forged, laptop), folderRefusal(project, "not approved"));
 
       // Pointing into the repository's own worktree records is no better: that record names another folder.

@@ -59,7 +59,7 @@
 // (a failed install must never break the session) and writes to stdout only the heads-up for the
 // agent, as SessionStart additionalContext; pnpm's own output goes to stderr.
 import { execFileSync, spawn, spawnSync } from "node:child_process";
-import { chmodSync, existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import path from "node:path";
 import process from "node:process";
@@ -215,9 +215,14 @@ export function connectCloud({
   log = () => {},
 } = {}) {
   if (!inCloud(env) || !env.CF_ACCESS_CLIENT_ID || librarySet(home)) return { ok: true, done: false };
-  // Joining rewrites the checkout's marker with the library's identity; the committed one is put back
-  // so a cloud session's tree stays clean (routing reads the project name either way).
-  const marker = path.join(root, ".storytree.json");
+  // Joining rewrites the checkout's marker with the library's identity, at .storytree/project.json (ADR-1191);
+  // the files it writes are put back as committed, or taken away, so a cloud session's tree stays clean
+  // (routing reads the project name either way).
+  const [projectFile, ignoreFile, rootMarker] = [".storytree/project.json", ".storytree/.gitignore", ".storytree.json"].map((file) => path.join(root, file));
+  const touched = [projectFile, ignoreFile, rootMarker];
+  const marker = [projectFile, rootMarker].find((file) => existsSync(file));
+  const before = new Map(touched.map((file) => [file, existsSync(file) ? readFileSync(file) : undefined]));
+  const madeFolder = !existsSync(path.join(root, ".storytree"));
   let project, committed;
   try {
     committed = readFileSync(marker);
@@ -231,7 +236,13 @@ export function connectCloud({
   for (const args of steps) {
     log(`provision-worktree: cloud container; storytree ${args.join(" ")}`);
     const result = run(args);
-    if (args[0] === "doctor" && committed !== undefined) writeFileSync(marker, committed);
+    if (args[0] === "doctor" && committed !== undefined) {
+      for (const [file, was] of before) {
+        if (was === undefined) rmSync(file, { force: true });
+        else writeFileSync(file, was);
+      }
+      if (madeFolder) rmSync(path.join(root, ".storytree"), { recursive: true, force: true });
+    }
     if (!result.ok) {
       log(`provision-worktree: storytree ${args.join(" ")} failed (exit ${result.code}); set it by hand (infra/library-host/README.md)`);
       return { ok: false, done: false };

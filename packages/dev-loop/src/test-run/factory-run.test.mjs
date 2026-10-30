@@ -47,6 +47,7 @@ test("12.8 · a story whose code is a factory plugin has that folder's tests run
   write("plugins/teapot/package.json", ['{ "name": "teapot" }']);
   write("plugins/kettle/package.json", ['{ "name": "kettle" }']);
   write("plugins/kettle/src/boil.test.mjs", ['import { test } from "node:test";', 'test("1.1 it boils", () => {});']);
+  write("plugins/whistle/package.json", ['{ "name": "whistle" }']);
   write("packages/door/src/door.test.mjs", ['import { test } from "node:test";', 'test("cli 1.3 it does c, through a door", () => {});']);
   execFileSync("git", ["init", "-q"], { cwd: factory });
   execFileSync("git", ["-c", "user.name=t", "-c", "user.email=t@example.com", "commit", "-q", "--allow-empty", "-m", "factory"], { cwd: factory });
@@ -63,10 +64,12 @@ test("12.8 · a story whose code is a factory plugin has that folder's tests run
     const kettle = await lib.addStory({ title: "The kettle" });
     const boils = await lib.addContract({ capability: (await lib.addCapability({ story: kettle.id, title: "1 · Boiling" })).id, title: "1.1 · It boils" });
     await lib.addStory({ title: "The teacup" });
+    // A plugin's own story (ADR-1187) is found by the plugin it names, whatever its title says.
+    await lib.importPluginPlan("whistle", { story: { title: "Hear the kettle whistle" }, capabilities: [] });
     const { stories } = await lib.projectTree();
     const quiet = { log: () => {}, error: () => {} };
 
-    assert.deepEqual(factoryPlugins(stories, factory).map(({ story: { title }, folder }) => [title, folder]), [["The cli", "plugins/cli"], ["The kettle", "plugins/kettle"]], "only a story whose package is a plugin folder");
+    assert.deepEqual(factoryPlugins(stories, factory).map(({ story: { title }, folder }) => [title, folder]), [["The cli", "plugins/cli"], ["The kettle", "plugins/kettle"], ["Hear the kettle whistle", "plugins/whistle"]], "only a story whose package or plugin is a plugin folder");
     const planned = stories.find(({ title }) => title === "The cli");
     assert.equal(await recordFactory(lib, [planned], linked, { ...quiet }), 0);
     assert.equal(await recordFactory(lib, stories, linked, { ...quiet }), 1, "a plugin whose run left no report fails the recording");

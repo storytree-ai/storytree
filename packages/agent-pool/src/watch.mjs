@@ -22,6 +22,7 @@ import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 
 import { poolConfig, readCap } from "./pool-config.mjs";
+import { LANE_RUN } from "./runner.mjs";
 import { codeVersion, countEngines, holdRunner } from "./queue.mjs";
 import { EXEMPTIONS_EVERY_MS, exemptionChanges, watchExemptions } from "./exemptions-watch.mjs";
 import { attempted, failedJob, FOLLOWERS, isSecurityCheck, judgeReleases, recordFix, RELEASE_ARC, RELEASE_EVERY_MS, RUNNER_ATTEMPTS, runnerFault, runnerReruns, securityJobs, watchReleases } from "./release-watch.mjs";
@@ -821,17 +822,25 @@ export async function projectOf({ cwd, repo, home }) {
   return { folder: here.folder, home };
 }
 
+/**
+ * The environment the watcher and its fix sessions start in: they belong to no agent session and outlive the one that
+ * handed over, so they carry neither its session's id nor its lane's run, which the lane runner stops at its end (4.43).
+ */
+export function freeOf(env) {
+  const free = { ...env };
+  for (const name of ["CLAUDE_CODE_SESSION_ID", "CODEX_THREAD_ID", LANE_RUN]) delete free[name];
+  return free;
+}
+
 /** The box's paths, limits and processes, from the pool's configuration (pool-config.mjs). */
 function boxDefaults({ home = homedir(), env = process.env } = {}) {
   const config = poolConfig({ home, env });
   const { lanesDir, checkout: repo } = config;
   const dir = join(lanesDir, "watch");
   const script = fileURLToPath(import.meta.url);
-  // The watcher and its fix sessions belong to no agent session: they outlive the one that handed over.
-  const free = { ...env };
+  const free = freeOf(env);
   const onBox = existsSync(join(lanesDir, "run-lane.sh"));
   const own = join(repo, "packages", "agent-pool", "src", "watch.mjs");
-  for (const name of ["CLAUDE_CODE_SESSION_ID", "CODEX_THREAD_ID"]) delete free[name];
   const detached = (args, log, cwd) => {
     const out = openSync(log, "a");
     const child = spawnChild(process.execPath, args, { cwd, env: free, detached: true, stdio: ["ignore", out, out] });

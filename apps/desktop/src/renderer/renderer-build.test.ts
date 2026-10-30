@@ -9,14 +9,21 @@ import { test } from "node:test";
 
 import { build } from "esbuild";
 
+import { pageBuild } from "./page-build.js";
+
+// One build serves both tests: the whole page takes a while to bundle.
+const built = build({ ...pageBuild(path.join(import.meta.dirname, "out")), write: false, logLevel: "silent" });
+
 test("3.17 · the whole desktop page, every story's surface mounted in it, bundles for the browser as the app's build bundles it", { timeout: 120_000 }, async () => {
-  const result = await build({
-    entryPoints: [path.join(import.meta.dirname, "renderer.ts")],
-    absWorkingDir: path.resolve(import.meta.dirname, "../.."),
-    bundle: true, write: false, outfile: "renderer.js", logLevel: "silent",
-    platform: "browser", format: "iife", target: "es2023",
-  });
+  const result = await built;
   assert.deepEqual(result.errors, []);
   const [bundle] = result.outputFiles;
   assert.ok(bundle?.text.includes("data-surface-id"), "the bundle carries the page's mounted surfaces");
+});
+
+test("3.23 · the page the app's build makes runs React's production build", { timeout: 120_000 }, async () => {
+  const [bundle] = (await built).outputFiles;
+  // esbuild names each bundled module in a comment, so the build React's entry chose is named in the bundle.
+  assert.ok(bundle?.text.includes("react-dom.production"), "the page carries React DOM's production build");
+  assert.ok(!bundle?.text.includes("react-dom.development"), "and not its development build");
 });

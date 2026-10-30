@@ -11,6 +11,7 @@ import { build } from "esbuild";
 import { PATH_ONLY } from "@storytree/app-setup/bins";
 import { journeyDefine } from "@storytree/app-setup/journey-events/release";
 import { partsPlugin } from "@storytree/plugin-loader";
+import { pageBuild } from "./src/renderer/page-build.ts";
 import { roadWorkerBuild } from "./src/renderer/road-worker.ts";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -85,14 +86,8 @@ await build({
   plugins: [partsPlugin()],
 });
 
-await build({
-  ...common,
-  entryPoints: [path.join(src, "renderer", "renderer.ts")],
-  outfile: path.join(dist, "renderer", "renderer.js"),
-  platform: "browser",
-  format: "iife",
-  target: "es2023",
-});
+// The page's script, built with React's production build (contract 3.23).
+await build({ ...common, ...pageBuild(path.join(dist, "renderer")) });
 
 // The map's roads are routed in this worker, off the page's main thread (contract 3.18).
 await build({ ...common, ...roadWorkerBuild(path.join(dist, "renderer")) });

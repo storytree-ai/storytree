@@ -11,9 +11,11 @@
   },
   "dependencies": {
     "@storytree/library": "workspace:*",
-    "@storytree/map": "workspace:*"
+    "@storytree/map": "workspace:*",
+    "@storytree/project-and-caller": "workspace:*"
   },
   "devDependencies": {
+    "@storytree/plugin-loader": "workspace:*",
     "@storytree/test-waits": "workspace:*",
     "@types/node": "^24.13.6",
     "tsx": "^4.23.15",

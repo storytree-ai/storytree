@@ -1,5 +1,5 @@
 /**
- * Capability 8 · Verified test run: contracts 8.1 to 8.3, through the run_tests tool as the MCP server mounts it. Each
+ * Capability 8 · Verified test run: contracts 8.1 to 8.3 through the run_tests tool as the MCP server mounts it, and 8.4 through the run-tests verb as the command line mounts it. Each
  * test makes a Git checkout in a temp folder whose test command counts its runs in a file outside the checkout, so a
  * run that was answered from the record, not run, is seen as one the count did not move for.
  */
@@ -146,5 +146,38 @@ test("8.3 · run_tests in a folder outside any Git repository is refused, saying
     assert.equal(existsSync(counter), false);
   } finally {
     await removeTemp(dir);
+  }
+});
+
+test("8.4 · storytree run-tests, handed only the folder and the shell's session, runs and records the same verified run as run_tests; either door answers the other's run without running it; outside Git it is refused", async () => {
+  const { TEST_RUN_FAMILIES } = await import("./verbs.js");
+  const { VerbRefusal } = await import("@storytree/library/verbs");
+  const [family] = TEST_RUN_FAMILIES;
+  const verb = family!.bare!;
+  assert.equal(verb.callerless, true, "it needs no project, library or MCP server");
+  const words = { door: "command" as const, say: (step: { command?: string }) => `storytree ${step.command}` };
+  const tool = runTool();
+  await withCheckout(async ({ dir, runs }) => {
+    const ran = await verb.act({ command: "node suite.mjs", fresh: false }, { folder: dir, session: "user-agent" }, words);
+    assert.equal(runs(), 1);
+    assert.match(ran.text, /^node suite\.mjs: passed in [\d.]+s, recorded against these files/);
+    assert.match(ran.text, /3 passed, 0 failed/);
+
+    const read = await tool({ command: "node suite.mjs" }, { folder: dir, caller: REVIEWER });
+    assert.equal(runs(), 1, "the tool reads the command line's run instead of running it");
+    assert.match(read.text, /verified at these files by user-agent/);
+
+    const fresh = await verb.act({ command: "node suite.mjs", fresh: true }, { folder: dir }, words);
+    assert.equal(runs(), 2, "fresh runs it again");
+    assert.match(fresh.text, /recorded against these files/);
+    const reread = await verb.act({ command: "node suite.mjs", fresh: false }, { folder: dir }, words);
+    assert.equal(runs(), 2);
+    assert.match(reread.text, /not re-run/);
+  });
+  const bare = mkdtempSync(join(tmpdir(), "qa-test-run-bare-"));
+  try {
+    await assert.rejects(verb.act({ command: "node -e 1", fresh: false }, { folder: bare }, words), (error: unknown) => error instanceof VerbRefusal && /not in a Git repository/.test(error.message));
+  } finally {
+    await removeTemp(bare);
   }
 });

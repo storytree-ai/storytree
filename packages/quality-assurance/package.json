@@ -7,7 +7,8 @@
     ".": "./src/index.ts",
     "./verbs": "./src/checks/verbs.ts",
     "./project-records": "./src/ledger/project-records.ts",
-    "./test-run": "./src/test-run/test-run.ts"
+    "./test-run": "./src/test-run/test-run.ts",
+    "./test-run/verbs": "./src/test-run/verbs.ts"
   },
   "storytree": {
     "tools": [
@@ -26,6 +27,10 @@
       {
         "from": "./verbs",
         "export": "QUALITY_FAMILIES"
+      },
+      {
+        "from": "./test-run/verbs",
+        "export": "TEST_RUN_FAMILIES"
       }
     ],
     "guidance": [

@@ -914,6 +914,10 @@ test("2.18 · a change to a factory plugin's story is briefed with the factory w
       const answered = clean(read.checks.map(({ id }) => id), [kept!]);
       await reviews.take(library.name, increment.id, { ...answered, contracts: [...answered.contracts, { contract: "voice:1.3", met: false, why: "no timeout is set" }] });
       assert.deepEqual(await reviews.unmet(library, increment.id), [{ contract: "voice:1.3", why: "no timeout is set" }], "a contract only the plan holds stands when found not met");
+
+      const own = await reviews.brief(library, increment.id, worktreeChange(worktree), undefined, factoryPlugins(factory, increment.id));
+      assert.match(own.diff, /\+export const timeout = 30;/);
+      assert.equal(own.factory?.diff, undefined, "the factory worktree read as the change itself is not briefed twice");
     });
   } finally {
     await removeTemp(factory);

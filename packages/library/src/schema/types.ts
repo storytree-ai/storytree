@@ -496,6 +496,8 @@ export const RECORD_SCHEMAS = {
    * change, and the principles or guardrails it `enforces`, at least one, which keep the reason for
    * the rule; optionally how to answer it and examples. What has `graduated` to deterministic
    * checking (ADR-0956 D5) is each part with where it is now enforced, `whole` when the part is the whole check.
+   * `projects` names the projects whose reviews ask it, when it applies in only those (a factory's check about its own
+   * code); absent, every project that reads it asks it. Optional, so no version bump.
    */
   check: z
     .object({
@@ -505,6 +507,7 @@ export const RECORD_SCHEMAS = {
       howToAnswer: nonEmpty.optional(),
       examples: nonEmpty.optional(),
       graduated: z.array(z.object({ part: nonEmpty, enforcedBy: nonEmpty, whole: z.literal(true).optional() }).strict()).optional(),
+      projects: z.array(nonEmpty).min(1).optional(),
     })
     .strict(),
   /**

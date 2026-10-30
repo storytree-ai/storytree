@@ -349,7 +349,9 @@ class PgReviews implements Reviews {
       ...(plan.length === 0 ? {} : { plan }),
       ...(guardrails.length === 0 ? {} : { guardrails }),
       ...(reds === undefined ? {} : { reds }),
-      checks: (await liveChecks(library)).filter(({ graduated }) => !(graduated ?? []).some(({ whole }) => whole)).map(({ id, title, question, graduated }) => ({ id, title, question, ...(graduated === undefined ? {} : { graduated }) })),
+      // A check graduated whole is asked by Architecture checks instead, and one naming its projects only in those (contract 2.17).
+      checks: (await liveChecks(library))
+        .filter(({ graduated, projects }) => !(graduated ?? []).some(({ whole }) => whole) && (projects === undefined || projects.includes(project))).map(({ id, title, question, graduated }) => ({ id, title, question, ...(graduated === undefined ? {} : { graduated }) })),
       earlier,
       judge: earlier.filter((hit) => hit.answer === "rejected" && !hit.accepted).map((hit) => hit.id),
     };

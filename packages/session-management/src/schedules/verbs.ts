@@ -168,7 +168,7 @@ const ran = verb({
 
 /** Its section of the habits card (ADR-1021, the guidance kind): what a factory's runner does with the two tools. */
 export const scheduleGuidance: readonly string[] = [
-  "Asked to run the factory's routines, `schedule_due` lists the scheduled processes due now: run each through a subagent, then record it with `schedule_ran` and its outcome. One it lists as missed or with nothing to do is never run: record it missed or skipped.",
+  "Asked to run the factory's routines, `schedule_due` lists the scheduled processes due now: run each through a subagent, then record it with `schedule_ran` and its outcome.",
 ];
 
 /** The schedule verbs, in the order the command line lists them. */

@@ -10,12 +10,15 @@ import { execFile, execFileSync, spawn } from "node:child_process";
 import { existsSync, openSync } from "node:fs";
 import { appendFile, readFile } from "node:fs/promises";
 import { homedir } from "node:os";
-import { delimiter, dirname, join, resolve } from "node:path";
+import { posix, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 
 import { poolConfig } from "./pool-config.mjs";
 import { ensureWatcher } from "./watch.mjs";
+
+// The keeper runs only on the box (cron, setsid, /proc), so its paths are POSIX on whatever host reads them.
+const { delimiter, dirname, join } = posix;
 
 const run = promisify(execFile);
 /** The crontab line's own mark, so install finds the line it wrote. */

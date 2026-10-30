@@ -92,7 +92,7 @@ test("2.1 / 2.4 / 2.5 / 2.6: installed connect chooses both, retries unchanged a
   assertExitCode(onlyCodex, 0);
   assert.doesNotMatch(onlyCodex.stdout, /Claude Code/);
   assert.equal(JSON.parse(readFileSync(u.settings, "utf8")).mcpServers.storytree, undefined);
-  assert.equal(existsSync(path.join(u.dir, ".storytree.json")), false);
+  assert.equal(existsSync(path.join(u.dir, ".storytree", "project.json")), false);
 });
 
 test("2.2 / 2.3: partial connection is nonzero, preserves a conflict and still connects the other agent", async (t) => {

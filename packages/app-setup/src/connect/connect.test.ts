@@ -307,7 +307,7 @@ test("2.2/2.6 the registered launch keeps the session folder and reaches its exi
     assert.equal(execFileSync(server.command, server.args, { cwd: folder, env, encoding: "utf8" }).trim(), realpathSync(folder));
     const report = await runSetupCheck({ folder, storytreeHome: path.join(f.home, "no running app"), openWaitMs: 0, gh: async () => "missing", machine: async () => ({ claude: "missing", codex: "missing", git: "missing", node: { state: "missing" }, waitMs: 0 }) });
     assert.equal(report.project.status, "ask");
-    assert.ok(!existsSync(path.join(folder, ".storytree.json")));
+    assert.ok(!existsSync(path.join(folder, ".storytree", "project.json")));
   }
   const verification = verifyHooks([], "session", "codex");
   assert.equal(verification.verified, false);

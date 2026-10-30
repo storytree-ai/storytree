@@ -225,6 +225,22 @@ test("4.4 a process note marked as a skill is written out as a Claude Code and a
   });
 });
 
+test("4.6 a skill carries a linked pattern whole where its steps say {{include <id>}}, so editing the pattern and rebuilding changes the skill", () => {
+  const pattern = (approach) => ({ id: "pattern_5ab3b3241c67", type: "pattern", fields: { title: "Briefing the owner", description: "d", statement: "Brief him one way.", problem: "They drifted.", approach, tradeoffs: "Voice saves notes." } });
+  const skill = { id: "process_1", type: "process", fields: { title: "Grill", description: "Grill him", statement: "s", trigger: "t", steps: "Before.\n\n{{include pattern_5ab3b3241c67}}\n\n1. After.", surfaces: "u", failureModes: "f", skill: "grill-me", links: ["pattern_5ab3b3241c67"] } };
+  const built = (note) => expectedFiles({ root: undefined, others: [], skills: [skill], titles: new Map([[note.id, note.fields.title]]), notes: new Map([[note.id, note]]) }, CLAUDE_MD).get(".claude/skills/grill-me/SKILL.md");
+
+  const before = built(pattern("1. OPENING. Open with his actions."));
+  assert.ok(!before.includes("{{include"), "the marker is replaced");
+  for (const text of ["Brief him one way.", "1. OPENING. Open with his actions.", "Voice saves notes."]) assert.ok(before.includes(text), `the skill holds "${text}"`);
+  assert.ok(before.indexOf("Before.") < before.indexOf("Brief him one way.") && before.indexOf("Voice saves notes.") < before.indexOf("1. After."), "in the marker's place");
+  const after = built(pattern("1. OPENING. Open with his actions, then wait."));
+  assert.ok(after.includes("Open with his actions, then wait.") && after !== before, "an edited pattern rebuilds a different skill");
+
+  const unlinked = { ...skill, fields: { ...skill.fields, links: [] } };
+  assert.throws(() => expectedFiles({ root: undefined, others: [], skills: [unlinked], titles: new Map(), notes: new Map([["pattern_5ab3b3241c67", pattern("a")]]) }, CLAUDE_MD), /includes pattern_5ab3b3241c67, which it does not link/);
+});
+
 test("4.4 a skill whose description is over 1,024 characters is refused, since Codex would not load it", () => {
   const skill = { id: "process_1", fields: { title: "Long", description: "x".repeat(1025), statement: "s", trigger: "t", steps: "1.", surfaces: "u", failureModes: "f", skill: "long" } };
   assert.throws(() => expectedFiles({ root: undefined, others: [], skills: [skill], titles: new Map() }, CLAUDE_MD), /"long".*1,025 characters.*1,024/);

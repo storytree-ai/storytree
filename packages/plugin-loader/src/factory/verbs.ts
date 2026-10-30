@@ -53,7 +53,10 @@ const create = verb({
         : { command: `settings set part ${part} plugin ${plugin}`, why: `switch ${part} off with ${plugin} in its place` },
       { command: "plugin contract", tool: "plugin_contract", why: "what a plugin may contain" },
     ];
-    return { text: `Started ${plugin} in ${made.dir}: ${made.files.join(", ")}. Its verbs module adds a \`${plugin}\` family with one verb; make it the stand-in you need.`, next };
+    return {
+      text: `Started ${plugin} in ${made.dir}: ${made.files.join(", ")}. Its verbs module adds a \`${plugin}\` family with one verb, and a numbered test its own test command (\`npm test\` in its folder) runs; make it the stand-in you need.`,
+      next,
+    };
   },
 });
 

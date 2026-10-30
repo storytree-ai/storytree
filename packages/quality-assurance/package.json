@@ -6,7 +6,8 @@
   "exports": {
     ".": "./src/index.ts",
     "./verbs": "./src/checks/verbs.ts",
-    "./project-records": "./src/ledger/project-records.ts"
+    "./project-records": "./src/ledger/project-records.ts",
+    "./test-run": "./src/test-run/test-run.ts"
   },
   "storytree": {
     "tools": [
@@ -14,6 +15,11 @@
         "from": ".",
         "export": "qualityToolParts",
         "order": 2
+      },
+      {
+        "from": "./test-run",
+        "export": "testRunToolParts",
+        "order": 3
       }
     ],
     "verbs": [
@@ -27,6 +33,11 @@
         "from": ".",
         "export": "qualityGuidance",
         "order": 70
+      },
+      {
+        "from": "./test-run",
+        "export": "testRunGuidance",
+        "order": 71
       }
     ],
     "projectRecords": [

@@ -3,6 +3,7 @@ import path from "node:path";
 import { test } from "node:test";
 import { build } from "esbuild";
 import { chromium } from "playwright-core";
+import { waitUntil } from "@storytree/test-waits";
 
 /** The real map view, bundled for the browser and mounted on a two-story plan: the capture seam counts its renders. */
 async function mapBundle(): Promise<string> {
@@ -39,8 +40,10 @@ test("3.71 · a drag that turns the glass sheet renders the map view a fixed few
     const { __globe: globe, __nav: nav } = window as unknown as { __globe?: { scene: { getObjectByName(name: string): unknown } }; __nav?: unknown };
     return nav !== undefined && globe?.scene.getObjectByName("planet:two") !== undefined;
   }, undefined, { timeout: 60_000 });
-  // Let the opening settle: the sheet opens framed, and the islands report their places once.
-  await page.waitForTimeout(1000);
+  const renders = () => page.evaluate(() => (window as unknown as { __renders: number }).__renders);
+  // The opening settles: the sheet opens framed and the islands report their places, then the view stops rendering.
+  let last = -1;
+  await waitUntil(async () => { const now = await renders(); const still = now === last; last = now; return still; }, 30_000, "the map view to stop rendering after it opens");
   const turn = () => page.evaluate(() => (window as unknown as { __globe: { scene: { getObjectByName(name: string): { quaternion: { toArray(): number[] } } } } })
     .__globe.scene.getObjectByName("globe").quaternion.toArray());
   const before = await turn();
@@ -56,9 +59,11 @@ test("3.71 · a drag that turns the glass sheet renders the map view a fixed few
   }
   await page.mouse.up();
   await page.keyboard.up("Control");
-  await page.waitForTimeout(300);
+  // The drag's last step is drawn on the frame after it.
+  await page.evaluate(() => new Promise(requestAnimationFrame));
+  await page.evaluate(() => new Promise(requestAnimationFrame));
 
-  const renders = await page.evaluate(() => (window as unknown as { __renders: number }).__renders);
-  assert.ok(renders <= 3, `a 60-step drag rendered the map view ${renders} times`);
+  const rendered = await renders();
+  assert.ok(rendered <= 3, `a 60-step drag rendered the map view ${rendered} times`);
   assert.notDeepEqual(await turn(), before, "the drag turned the sheet's group");
 });

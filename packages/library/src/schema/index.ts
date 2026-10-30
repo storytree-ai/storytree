@@ -8,8 +8,8 @@ export type { CreateOptions, FieldEdit, SchemaRecord, WriteOptions } from "./rec
 export { FRICTION_STATES, judgedState, RECORD_SCHEMAS, SCHEMA_VERSIONS } from "./types.js";
 export type { FieldsOf, FrictionState, KnowledgeKind, LibrarySchema, RecordType, UpgradeStep } from "./types.js";
 export { LIBRARY_SCHEMA, UPGRADES } from "./upgrades.js";
-export { isTimeZone, OWNER_TIME_ZONE, parseSchedule } from "./schedule.js";
-export type { ScheduleRule } from "./schedule.js";
+export { isTimeZone, OWNER_TIME_ZONE, parseSchedule, PRECHECKS } from "./schedule.js";
+export type { Precheck, ScheduleRule } from "./schedule.js";
 export { NEW_LINE } from "./activity-line.js";
 export type { Agent, Line, LineKind, LinesSince, NewLine } from "./activity-line.js";
 export type { CodeEdge, EdgeFile, FileImport, StorySurvey, SurveyedFile, SurveyedTest } from "./story-survey.js";

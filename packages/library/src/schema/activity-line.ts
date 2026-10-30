@@ -141,7 +141,7 @@ export const NEW_LINE = z.discriminatedUnion("kind", [
    * A scheduled process record (`process`, its id) the session's runner ran (ADR-1105 D3), with how it went and an optional
    * note: written by `schedule ran`. The latest line for a process is its last run, which `schedule due` reads its schedule against.
    */
-  z.object({ ...common, kind: z.literal("process-ran"), process: z.string().min(1), outcome: z.enum(["ok", "concern", "failed"]), note: z.string().min(1).optional() }).strict(),
+  z.object({ ...common, kind: z.literal("process-ran"), process: z.string().min(1), outcome: z.enum(["ok", "concern", "failed", "missed", "skipped"]), note: z.string().min(1).optional() }).strict(),
   z.object({ ...common, kind: z.literal("note-read"), ...noteRead }).strict(),
   /**
    * The session read outside text (increment_572ffca14851): a fetched page, a web search, a GitHub or Gmail tool, or a

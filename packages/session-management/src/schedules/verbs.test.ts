@@ -21,6 +21,7 @@ const verbNamed = (name: string): Verb<VerbInputs, SessionVerbContext> => SCHEDU
 const due = verbNamed("due");
 const ran = verbNamed("ran");
 
+const NOTE = { text: "The arcs drawer hides the island I clicked", surface: "arcs", version: "0.3.99", window: { width: 1440, height: 960 }, theme: "dark" as const, at: "2026-10-21T12:00:00.000Z" };
 const PROCESS = { description: "A routine", statement: "S", trigger: "When due", steps: "1. Do it", surfaces: "The box", failureModes: "None" };
 
 /** Run `body` with a context on a fresh library and the real log, as the runner session r. */
@@ -72,6 +73,25 @@ test("18.1 · `schedule due` lists each scheduled process due at the time given,
     await ran.act({ process: always.id, outcome: "ok" }, context, WORDS);
     assert.match((await due.act({}, context, WORDS)).text, new RegExp(`  ${always.id}  Route the notes  \\(every run\\)`), "every run is due right after it ran");
     await assert.rejects(due.act({ at: "soon" }, context, WORDS), (error: unknown) => error instanceof VerbRefusal && error.misuse);
+
+    const graced = await library.writeKnowledge("process", { ...PROCESS, title: "Check the backups in time", schedule: `daily at ${words}, grace 30 minutes`, timeZone: "UTC" });
+    await ran.act({ process: graced.id, outcome: "ok" }, context, WORDS);
+    const inGrace = await at(new Date(daily.getTime() + 29 * MINUTE));
+    assert.equal((inGrace.data?.due as { id: string }[]).some((one) => one.id === graced.id), true, "due while its slot is within its grace");
+    const pastGrace = await at(new Date(daily.getTime() + 31 * MINUTE));
+    assert.equal((pastGrace.data?.due as { id: string }[]).some((one) => one.id === graced.id), false, "a slot past its grace is not fired late");
+    assert.deepEqual(pastGrace.data?.missed, [{ id: graced.id, title: "Check the backups in time", overdueMinutes: 31, graceMinutes: 30 }]);
+    assert.match(pastGrace.text, new RegExp(`\\nMissed, past their grace \\(record each missed; never run it late\\):\\n  ${graced.id}  Check the backups in time  \\(slot 31m ago, grace 30m\\)(\\n|$)`));
+
+    const feedback = await library.writeKnowledge("process", { ...PROCESS, title: "Route the feedback", schedule: "every run", precheck: "feedback-waiting" });
+    const idle = await due.act({}, context, WORDS);
+    assert.equal((idle.data?.due as { id: string }[]).some((one) => one.id === feedback.id), false, "no subagent is started for a routine with nothing to do");
+    assert.deepEqual(idle.data?.skipped, [{ id: feedback.id, title: "Route the feedback", precheck: "feedback-waiting", found: "no feedback note waits to be routed" }]);
+    assert.match(idle.text, new RegExp(`\\nNothing to do, by their precheck \\(record each skipped; start no subagent\\):\\n  ${feedback.id}  Route the feedback  \\(no feedback note waits to be routed\\)(\\n|$)`));
+    await library.sendFeedback(NOTE);
+    const busy = await due.act({}, context, WORDS);
+    assert.equal((busy.data?.due as { id: string }[]).some((one) => one.id === feedback.id), true, "a feedback note waiting means there is work, so it runs");
+    assert.deepEqual(busy.data?.skipped, []);
   });
 });
 
@@ -100,6 +120,29 @@ test("18.2 · `schedule ran` records a scheduled process's run with its outcome,
     assert.match((await due.act({}, context, WORDS)).text, new RegExp(`  ${spend.id}  Read the spend  failed at [^:]+:\\d\\d:\\d\\d[^:]*$`), "the latest run is the one read back");
     await ran.act({ process: spend.id, outcome: "ok" }, context, WORDS);
     assert.equal((await due.act({}, context, WORDS)).text, "No scheduled process is due.");
+
+    for (const outcome of ["missed", "skipped"]) {
+      await assert.rejects(ran.act({ process: spend.id, outcome }, context, WORDS), VerbRefusal, `${outcome} only when schedule due says so`);
+    }
+    const slot = new Date(Math.floor((Date.now() - 5 * MINUTE) / MINUTE) * MINUTE);
+    const hhmm = `${String(slot.getUTCHours()).padStart(2, "0")}:${String(slot.getUTCMinutes()).padStart(2, "0")}`;
+    const inTime = await library.writeKnowledge("process", { ...PROCESS, title: "Read the backups", schedule: `daily at ${hhmm}, grace 2 hours`, timeZone: "UTC" });
+    await assert.rejects(ran.act({ process: inTime.id, outcome: "missed" }, context, WORDS), VerbRefusal, "a slot within its grace is not missed");
+    const late = await library.writeKnowledge("process", { ...PROCESS, title: "Read the morning spend", schedule: `daily at ${hhmm}, grace 1 minute`, timeZone: "UTC" });
+    assert.match((await ran.act({ process: late.id, outcome: "missed" }, context, WORDS)).text, /^Recorded a run of .+: missed\.$/);
+    const afterMissed = await due.act({}, context, WORDS);
+    const listedIds = [...(afterMissed.data?.due as { id: string }[]), ...(afterMissed.data?.missed as { id: string }[])].map((one) => one.id);
+    assert.equal(listedIds.includes(late.id), false, "a recorded miss is not due or missed again until its next slot");
+    assert.deepEqual((afterMissed.data?.notOk as { id: string; outcome: string }[]).map(({ id, outcome }) => ({ id, outcome })), [{ id: late.id, outcome: "missed" }], "a miss is reported, never hidden");
+
+    const feedback = await library.writeKnowledge("process", { ...PROCESS, title: "Route the feedback", schedule: "every run", precheck: "feedback-waiting" });
+    const note = await library.sendFeedback(NOTE);
+    await assert.rejects(ran.act({ process: feedback.id, outcome: "skipped" }, context, WORDS), VerbRefusal, "skipped is refused while its precheck finds work");
+    await library.routeFeedback(note.id, { route: "closed", routeReason: "covered" });
+    assert.match((await ran.act({ process: feedback.id, outcome: "skipped" }, context, WORDS)).text, /: skipped, no feedback note waits to be routed\.$/);
+    const [skippedLine] = await log.lines(context.project, { kinds: ["process-ran"], latestBy: ["process"] }).then((lines) => lines.filter((line) => line.kind === "process-ran" && line.process === feedback.id));
+    assert.equal(skippedLine?.kind === "process-ran" ? skippedLine.outcome : undefined, "skipped");
+    assert.equal(((await due.act({}, context, WORDS)).data?.notOk as { id: string }[]).some((one) => one.id === feedback.id), false, "a skip is no concern");
   });
 });
 

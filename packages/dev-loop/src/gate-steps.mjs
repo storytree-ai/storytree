@@ -20,9 +20,11 @@
 // branch whose name carries no increment is NOT RUN with that reason.
 // check:risk (ADR-1144 D1, D4) then reads the branch's change for its risk line (tier, rating, depth, radius, flags,
 // stories) from its diff and the package graph, and writes it on the branch's increment with `storytree quality risk`,
-// so each change's tier is read from the paths it changes at the gate; it is NOT RUN with the same reason.
+// so each change's tier is read from the paths it changes at the gate; it is NOT RUN with the same reason. Both read the
+// increment and its change from the branch checked out here: check:risk hands quality risk this checkout's diff, so a
+// branch renamed after review to name its increment is read where it is, not looked for under the name its claim recorded.
 import { execFileSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
 import { capabilityListFor, currentBranch, incrementOfBranch } from "./capability-list.mjs";
@@ -58,6 +60,28 @@ function generatedRegion(text) {
   return text.slice(start, end + REGION_END.length);
 }
 
+/**
+ * The change checked out at `root` as quality risk reads it: its diff from the merge base with origin/main, with each untracked
+ * file as a diff that adds it, written to a file in the checkout's own Git folder; the file's path, absolute.
+ */
+export function checkoutDiff(root) {
+  const git = (...args) => execFileSync("git", args, { cwd: root, encoding: "utf8", maxBuffer: 256 * 1024 * 1024, stdio: ["ignore", "pipe", "pipe"] });
+  const added = (file) => {
+    try {
+      return git("diff", "--no-index", "--", "/dev/null", file);
+    } catch (error) {
+      // `git diff --no-index` exits 1 when the two differ, which a new file always does.
+      if (error.status === 1 && typeof error.stdout === "string") return error.stdout;
+      throw error;
+    }
+  };
+  const untracked = git("ls-files", "--others", "--exclude-standard", "-z").split("\0").filter((file) => file !== "");
+  const diff = [git("diff", git("merge-base", "origin/main", "HEAD").trim()), ...untracked.map(added)].join("");
+  const file = path.resolve(root, git("rev-parse", "--git-path", "storytree-risk.diff").trim());
+  writeFileSync(file, diff);
+  return file;
+}
+
 const node = (...args) => ({ command: process.execPath, args: ["--import", "tsx", ...args], shell: false });
 // The gate runs in a checkout, whose branch Git knows; CI's own run of the check reads its pull request's.
 const listed = ({ root }) => capabilityListFor(root, {});
@@ -71,5 +95,5 @@ export const gateSteps = [
   { name: "check:secrets", command: () => node("packages/dev-loop/src/leak-scan.mjs", "--secrets") },
   { name: "check:owner-applies", when: ({ root }) => ownerAppliesFor(root), command: () => node("packages/dev-loop/src/owner-applies.mjs") },
   { name: "check:capability-list", when: listed, command: () => node("packages/dev-loop/src/capability-list.mjs") },
-  { name: "check:risk", when: listed, command: ({ root }) => node("packages/cli/src/bins/storytree.ts", "quality", "risk", incrementOfBranch(currentBranch(root, {}))) },
+  { name: "check:risk", when: listed, command: ({ root }) => node("packages/cli/src/bins/storytree.ts", "quality", "risk", incrementOfBranch(currentBranch(root, {})), "--diff", `@${checkoutDiff(root)}`) },
 ];

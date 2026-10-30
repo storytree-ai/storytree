@@ -2,7 +2,7 @@
 // scoped test runner and guidance when touched, continuing past failures with honest rows.
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -140,14 +140,36 @@ test("7.11 on an increment's branch the gate writes the change's risk line throu
   const named = await gateHere();
   assert.equal(named.code, 0);
   assert.deepEqual(named.steps.slice(-2), ["check:capability-list", "check:risk"]);
-  assert.deepEqual(named.calls.at(-1), ["check:risk", "increment_ca8ba53211b7"]);
+  assert.equal(named.calls.at(-1)[0], "check:risk");
   assert.match(named.table, /PASS\s+check:risk/);
   const risk = gateSteps.find((step) => step.name === "check:risk").command({ root });
-  assert.deepEqual(risk.args.slice(-4), ["packages/cli/src/bins/storytree.ts", "quality", "risk", "increment_ca8ba53211b7"]);
+  assert.deepEqual(risk.args.slice(-6, -2), ["packages/cli/src/bins/storytree.ts", "quality", "risk", "increment_ca8ba53211b7"]);
 });
 
 test("7.1 storytree's checkout contributes its nine checks to the base dev loop's gate from dev-loop's manifest, in today's order", async () => {
   const { parts, owners } = await contributedSteps(repoRoot);
   assert.deepEqual(parts.map((step) => step.name), ["check:guidance", "check:plan-edges", "check:type-imports", "check:seed-records", "check:leaks", "check:secrets", "check:owner-applies", "check:capability-list", "check:risk"]);
   assert.deepEqual([...new Set(owners)], ["dev-loop"]);
+});
+
+test("7.11 a branch renamed after review to name its increment runs check:capability-list, and check:risk reads that checkout's own change, not the branch its claim recorded", async (t) => {
+  const { root, git, write } = checkout(t);
+  git("checkout", "-q", "-b", "claude/frosty-northcutt-e52ff6");
+  write("packages/a/src/a.mjs", "export const a = 1;\n");
+  git("add", "-A");
+  git("commit", "-qm", "the increment's change");
+  git("branch", "-m", "claude/increment-b962bb8544d2-e52ff6");
+  write("packages/a/src/b.mjs", "export const b = 2;\n");
+
+  const calls = [];
+  const output = [];
+  await gate({ root, run: async (step) => { calls.push(step); return 0; }, log: (line) => output.push(line) });
+  assert.deepEqual(calls.slice(-2), ["check:capability-list", "check:risk"]);
+
+  const { args } = gateSteps.find((step) => step.name === "check:risk").command({ root });
+  assert.deepEqual(args.slice(-5, -2), ["quality", "risk", "increment_b962bb8544d2"]);
+  assert.equal(args.at(-2), "--diff");
+  const diff = readFileSync(args.at(-1).slice(1), "utf8");
+  assert.match(diff, /^\+export const a = 1;$/m, "the committed change is read from this checkout");
+  assert.match(diff, /^\+export const b = 2;$/m, "and so is a file not yet committed");
 });

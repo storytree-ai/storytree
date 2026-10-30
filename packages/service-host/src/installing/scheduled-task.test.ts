@@ -45,7 +45,7 @@ test("3.3 · The laptop's storytree-host task runs node itself on `storytree ser
   fakeNode(bin, said);
   const log = path.join(dir, "host.log");
   const script = path.join(dir, "storytree-host.cmd");
-  writeFileSync(script, hostScript({ checkout, node: path.join(dir, "nowhere", "node.exe"), log, restartSeconds: 1 }));
+  writeFileSync(script, hostScript({ checkout, node: path.join(dir, "nowhere", "node.exe"), log, restartSeconds: 0 }));
   run(script, `${bin};${system}`);
   const lines = readFileSync(said, "utf8").trim().split(/\r?\n/);
   const args = "--import tsx packages\\cli\\src\\bins\\storytree.ts services run";
@@ -55,7 +55,7 @@ test("3.3 · The laptop's storytree-host task runs node itself on `storytree ser
   const fallbackSaid = path.join(dir, "fallback-said");
   const fallback = fakeNode(path.join(dir, "fallback"), fallbackSaid);
   writeFileSync(fallbackSaid + ".ran", "ran");
-  writeFileSync(script, hostScript({ checkout, node: fallback, log, restartSeconds: 1 }));
+  writeFileSync(script, hostScript({ checkout, node: fallback, log, restartSeconds: 0 }));
   run(script, system);
   assert.deepEqual(readFileSync(fallbackSaid, "utf8").trim().split(/\r?\n/), [checkout, args], "with no node on PATH, the node that installed the task runs the host");
 

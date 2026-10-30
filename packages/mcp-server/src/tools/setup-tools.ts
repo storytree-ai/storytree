@@ -14,7 +14,7 @@ import { hookFailures, type HookFailure } from "@storytree/session-management";
 import { MARKER_FILE } from "@storytree/project-and-caller";
 import { findProject, storytreeHome } from "@storytree/project-and-caller";
 import { IDENTITY_FIX, makeRepository, notAProjectYet, setUpProject, starterPackStatus, starterRolesIn, suggestProjectName, type RepositoryMade, type StarterPackStatus } from "@storytree/app-setup/project";
-import { checkFilesWritten, codexHooksState, FIX_SENTENCES, HOOK_TESTS, openStorytree, runSetupCheck, verifyHooks, type Fix, type SetupOptions } from "@storytree/app-setup/setup";
+import { checkFile, checkFilesWritten, codexHooksState, FIX_SENTENCES, fixSentence, HOOK_TESTS, openStorytree, runSetupCheck, verifyHooks, type Fix, type SetupOptions } from "@storytree/app-setup/setup";
 import { isUnreachable, NOT_RUNNING_ANSWER, refusalOf, result } from "./answers.js";
 import type { Connections } from "./connections.js";
 import { callLines, labelOf } from "@storytree/session-management";
@@ -108,12 +108,12 @@ export function registerSetupTools({ server, folder, setup, connections, callerO
           said.push("The connection is verified: storytree has received this session's start, a storytree tool call, a file edit and a command from its hooks.");
         } else {
           said.push(`Not verified yet: storytree has not received this session's ${verification.missing.join(", ")} from its hooks.`);
-          said.push(...verification.fixes.map((fix) => FIX_SENTENCES[fix]), "Then call check_setup again.");
+          said.push(...verification.fixes.map((fix) => fixSentence(fix, caller.session)), "Then call check_setup again.");
         }
         // What this machine's hooks traced of their failures for this session (contract 3.23), so a gap in its lines can be read.
         const failures = hookFailures(setup.storytreeHome ?? storytreeHome(), caller.session);
         if (failures.length > 0) said.push(failuresSentence(failures));
-        return result({ text: withCard(said.join(" ")), data: { ...data, starterRoles, starterPack, ...verification, passed: verification.verified, hookFailures: failures } });
+        return result({ text: withCard(said.join(" ")), data: { ...data, starterRoles, starterPack, ...verification, ...(verification.fixes.includes("edit-check-file") ? { checkFile: checkFile(caller.session) } : {}), passed: verification.verified, hookFailures: failures } });
       } catch (error) {
         if (isUnreachable(error)) {
           await connections.close();

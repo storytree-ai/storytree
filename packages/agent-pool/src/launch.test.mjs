@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { execFile } from "node:child_process";
+import { execFile, spawn } from "node:child_process";
 import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -471,6 +471,31 @@ test("3.26 · on Windows the checkout lock is a lock file: a second holder waits
   assert.equal(await withLockFile(path, async () => "ran", { pid: 3, alive: (pid) => pid !== 77, sleep: async () => assert.fail("a dead holder's lock blocked") }), "ran");
   await assert.rejects(withLockFile(path, async () => { throw new Error("prepare failed"); }, { pid: 3, alive: () => true }), /prepare failed/);
   await assert.rejects(readFile(path, "utf8"), { code: "ENOENT" }, "a failing holder lets it go");
+});
+
+test("3.26 · the lock file's own liveness check: a live holder, or one it may not signal, is waited on; a gone one's file is taken over", async (t) => {
+  const path = join(await folder(t), "night-checkout.lock");
+  const gone = spawn(process.execPath, ["-e", ""]);
+  await new Promise((done) => gone.once("exit", done));
+  // A system process this user may not signal: the System process on Windows, init elsewhere.
+  for (const holder of [process.pid, process.platform === "win32" ? 4 : 1]) {
+    await writeFile(path, `${holder}\n`);
+    let waited = 0;
+    const holding = withLockFile(path, async () => "ran", { pid: 3, sleep: async () => { waited += 1; await rm(path, { force: true }); } });
+    assert.equal(await holding, "ran");
+    assert.equal(waited, 1, `holder ${holder} is waited on`);
+  }
+  await writeFile(path, `${gone.pid}\n`);
+  assert.equal(await withLockFile(path, async () => "ran", { pid: 3, sleep: async () => assert.fail("a gone holder's lock blocked") }), "ran");
+});
+
+test("3.26 · on Windows the checkout's pnpm install runs through a shell, since pnpm is a .cmd there; git never does, and on Linux nothing does", async () => {
+  for (const platform of ["win32", "linux"]) {
+    const calls = [];
+    await prepareCheckout({ repo: "/repo", platform, exec: async (command, args, options) => { calls.push({ command, shell: options.shell === true }); return { stdout: PUSH_URL }; } });
+    assert.deepEqual(calls.filter((call) => call.shell).map((call) => call.command), platform === "win32" ? ["pnpm"] : [], platform);
+    assert.ok(calls.some((call) => call.command === "pnpm"));
+  }
 });
 
 test("3.27 · the start rule holds a lane back on battery and while the library or GitHub does not answer; a machine with no battery is plugged in", async () => {

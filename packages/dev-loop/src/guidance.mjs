@@ -14,7 +14,10 @@
 //   Code reads from .claude/skills/<name>/ and Codex from .agents/skills/<name>/: a procedure run in
 //   the conversation with the owner, which a subagent role cannot be, since subagents cannot talk
 //   to him. Its description is what both harnesses match a request against, held to 1,024
-//   characters because Codex loads no skill with a longer one.
+//   characters because Codex loads no skill with a longer one. A line `{{include <id>}}` in its steps
+//   is replaced by that linked pattern's statement, approach and tradeoffs (4.6), so a note another
+//   channel is generated from too (voice's instructions, from pattern_5ab3b3241c67) is carried
+//   whole rather than cited, and editing it and rebuilding changes the skill.
 // - The check judges a branch only on its own drift (4.5): the library is shared, so a role another
 //   lane edited there before its pull request lands drifts every branch's committed files. A drifted
 //   file fails the branch when the branch changes it, when the session running the check wrote one
@@ -51,14 +54,14 @@ const REGENERATE = "Regenerate with `pnpm build:guidance`; `pnpm check:guidance`
 
 /**
  * @typedef {{ id: string, fields: Record<string, any> }} Role
- * @typedef {{ root: Role | undefined, others: Role[], skills?: Role[], titles: Map<string, string> }} Roles
+ * @typedef {{ root: Role | undefined, others: Role[], skills?: Role[], titles: Map<string, string>, notes?: Map<string, Role> }} Roles
  * @typedef {{ file: string, problem: "missing" | "stale" | "orphan" }} Drift
  */
 
 /**
  * The agent roles a library holds: the root role, the others in name order, the process notes marked
  * as skills in skill-name order, and the title of every live note, for printing the notes a role or
- * a skill links to.
+ * a skill links to, and every live note by id, for the patterns a skill includes.
  * @param {{ search(query: string): Promise<{ id: string, type: string, fields: Record<string, any> }[]> }} library
  * @returns {Promise<Roles>}
  */
@@ -74,6 +77,7 @@ export async function readRoles(library) {
       .filter((note) => note.type === "process" && note.fields.skill !== undefined)
       .sort((a, b) => a.fields.skill.localeCompare(b.fields.skill)),
     titles,
+    notes: new Map(notes.map((note) => [note.id, note])),
   };
 }
 
@@ -111,7 +115,7 @@ export function expectedFiles(roles, claudeMd) {
       throw new Error(`the skill "${name}" (${title}) has a description of ${description.length.toLocaleString("en")} characters; Codex loads none over ${SKILL_DESCRIPTION_MAX.toLocaleString("en")}`);
     }
     const marker = `<!-- GENERATED from the library's "${title}" process; do not edit by hand. ${REGENERATE} -->`;
-    const text = `---\nname: ${name}\ndescription: ${JSON.stringify(description)}\n---\n\n${marker}\n\n${skillOf(skill, roles.titles)}\n`;
+    const text = `---\nname: ${name}\ndescription: ${JSON.stringify(description)}\n---\n\n${marker}\n\n${skillOf(skill, roles.titles, roles.notes ?? new Map())}\n`;
     for (const dir of SKILL_DIRS) files.set(`${dir}/${name}/SKILL.md`, text);
   }
   return files;
@@ -248,7 +252,7 @@ function promptOf(role, titles) {
 }
 
 /** A skill's body: the process's own fields as sections, then the notes it links and hands on to. */
-function skillOf(skill, titles) {
+function skillOf(skill, titles, notes) {
   const { fields } = skill;
   const sections = [
     ["trigger", "When to use"],
@@ -265,9 +269,22 @@ function skillOf(skill, titles) {
   return [
     `# ${fields.title}`,
     fields.statement,
-    ...sections.map(([key, label]) => `## ${label}\n\n${fields[key]}`),
+    ...sections.map(([key, label]) => `## ${label}\n\n${key === "steps" ? withIncludes(skill, notes) : fields[key]}`),
     ...(links.length === 0 ? [] : [`## Stands on\n\nNotes in the library; find one by its title with the MCP server's \`search_notes\`.\n\n${links.join("\n")}`]),
   ].join("\n\n");
+}
+
+const INCLUDE = /^\{\{include ([a-z]+_[0-9a-f]{12})\}\}$/gm;
+
+/** A skill's steps with each `{{include <id>}}` line replaced by that linked pattern, whole (4.6). */
+function withIncludes(skill, notes) {
+  return skill.fields.steps.replace(INCLUDE, (_line, id) => {
+    const note = notes.get(id);
+    if (!(skill.fields.links ?? []).includes(id)) throw new Error(`the process "${skill.fields.title}" includes ${id}, which it does not link`);
+    if (note?.type !== "pattern") throw new Error(`the process "${skill.fields.title}" includes ${id}, which is not a live pattern`);
+    const { title, statement, approach, tradeoffs } = note.fields;
+    return [`**${title}** (${id}, carried whole from the library; change it there).`, statement, approach, ...(tradeoffs === undefined ? [] : [tradeoffs])].join("\n\n");
+  });
 }
 
 function paragraphs(fields, ...named) {

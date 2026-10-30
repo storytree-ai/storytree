@@ -5,12 +5,12 @@
  */
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, utimesSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 
-import { removeTemp, waitUntil } from "@storytree/test-waits";
+import { removeTemp } from "@storytree/test-waits";
 
 import { testRunToolParts } from "./test-run.js";
 
@@ -118,15 +118,17 @@ test("8.2 · run_tests at the same files and command answers from the record, co
 test("8.2 · an edit of the same size made in the second the index was written is seen however much later run_tests is called (regression: PR #78's Linux CI, 2026-10-30)", async () => {
   const run = runTool();
   await withCheckout(async ({ dir, runs, git }) => {
-    // Git compares a file to its index entry by whole seconds here, so an edit within the index's own second is
-    // caught only by its racily-clean check, which reads the index file's time; the call comes a second later.
-    const second = () => Math.floor(Date.now() / 1000);
-    const nextSecond = (from: number) => waitUntil(() => second() !== from, 2_000, "the next second");
-    await nextSecond(second());
-    writeFileSync(join(dir, "app.txt"), "one\n"); // its committed text, staged again so the index is written now
+    // Git sees a file whose size and times match its index entry as unchanged, unless the entry is as new as the index
+    // file itself. Here the file, its entry and the index all carry one past second, and ctime is not compared, so only
+    // that racily-clean check, read from the index file's time, can see the edit.
+    const app = join(dir, "app.txt");
+    const past = new Date("2026-01-01T00:00:00Z");
+    git("config", "core.trustctime", "false");
+    utimesSync(app, past, past);
     git("add", "-A");
-    writeFileSync(join(dir, "app.txt"), "two\n");
-    await nextSecond(second());
+    writeFileSync(app, "two\n");
+    utimesSync(app, past, past);
+    utimesSync(join(dir, ".git", "index"), past, past);
     const answer = await run({ command: "node suite.mjs" }, { folder: dir, caller: GREEN });
     assert.equal(runs(), 1);
     git("commit", "-qam", "green");

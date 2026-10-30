@@ -435,3 +435,38 @@ test("17.11 · library history shows, under each write made after its session re
   assert.match(shown[created + 1]!, /read outside text first: gh pr view 12; WebFetch https:\/\/example\.com\/post/, "under the marked write, what its session had read");
   assert.equal(shown.filter((line) => line.includes("read outside text")).length, 1, "the unmarked edit shows none");
 });
+
+test("17.12 · library edit --remove <field> removes an optional field, keeping the record and its other fields; a field the kind requires, one also given a value, or one on a story, capability or contract is refused with nothing written", async (t) => {
+  const storytree = await connect({ url: testServerUrl() });
+  const project = uniqueProjectName();
+  t.after(async () => {
+    try {
+      await storytree.dropProject(project);
+    } finally {
+      await storytree.close();
+    }
+  });
+  const library = await storytree.openProject(project);
+  const edit = LIBRARY_FAMILIES.find((one) => one.name === "library")!.verbs.find((one) => mounted(one.command) && one.command.name === "edit")!;
+  const context: LibraryVerbContext = { library, project, session: "lane", folder: tmpdir(), writer: { actor: "session:lane" }, claims: async () => [], testedNumbers: async () => ({ tested: [], untested: [] }) };
+  const fieldsOf = async (id: string) => (await library.get(id))?.fields as Record<string, unknown> | undefined;
+
+  const routine = { description: "A routine", statement: "S", trigger: "When due", steps: "1. Do it", surfaces: "The box", failureModes: "None" };
+  const check = await library.writeKnowledge("process", { ...routine, title: "Check the backups", schedule: "every day", timeZone: "UTC" });
+  const removed = await edit.act({ "<id>": check.id, "<fields>": { trigger: "When the owner asks" }, remove: ["schedule", "timeZone"] }, context, WORDS);
+  assert.equal(removed.text, `Edited process ${check.id}: trigger, removed schedule, timeZone.`);
+  const after = await fieldsOf(check.id);
+  assert.deepEqual([after?.schedule, after?.timeZone, after?.trigger, after?.title], [undefined, undefined, "When the owner asks", "Check the backups"], "its schedule is gone and the rest kept");
+  assert.ok(!Object.hasOwn(after ?? {}, "schedule"), "the field is removed, not blanked");
+
+  const refused = async (input: { fields?: Record<string, string>; remove: string[]; id?: string }, said: RegExp) => {
+    const id = input.id ?? check.id;
+    const before = (await library.history({ id })).length;
+    await assert.rejects(edit.act({ "<id>": id, "<fields>": input.fields ?? {}, remove: input.remove }, context, WORDS), (error: unknown) => error instanceof Error && said.test(error.message));
+    assert.equal((await library.history({ id })).length, before, "nothing is written");
+  };
+  await refused({ remove: ["title"] }, /title/);
+  await refused({ fields: { trigger: "Daily" }, remove: ["trigger"] }, /--trigger.*--remove trigger|both/);
+  const story = await library.addStory({ title: "Sign up", description: "Visitors sign up" });
+  await refused({ id: story.id, remove: ["description"] }, /story/);
+});

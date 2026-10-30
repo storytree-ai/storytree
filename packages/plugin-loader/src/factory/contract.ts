@@ -53,8 +53,29 @@ export const PLUGIN_FAMILIES = [
 }
 
 /**
- * Plugin `name` started in factory folder `folder`: a package.json naming the plugin interface this storytree honours,
- * and a verbs module this storytree loads. A name taken, or one that is not one folder's, is refused, writing nothing.
+ * The test a new plugin starts with, run by its test command and numbered 1.1, as a promise of a story titled after the
+ * plugin would be. It imports only the plugin's own module, as the plugin does nothing of storytree's (ADR-1112).
+ */
+function testModule(name: string): string {
+  return `// The plugin's own tests, run by its package's test command (node --test). A test titled with a promise's number
+// ("1.1 · …") names the promise it proves of the story titled after this plugin.
+import assert from "node:assert/strict";
+import { test } from "node:test";
+
+import { PLUGIN_FAMILIES } from "./verbs.js";
+
+test(${JSON.stringify(`1.1 · ${name}'s hello says it is mounted`)}, async () => {
+  const hello = PLUGIN_FAMILIES[0].verbs.find((verb) => verb.command.name === "hello");
+  const answer = await hello.act({}, { folder: "/somewhere" });
+  assert.ok(answer.text.includes(${JSON.stringify(`${name} is mounted`)}), answer.text);
+});
+`;
+}
+
+/**
+ * Plugin `name` started in factory folder `folder`: a package.json naming the plugin interface this storytree honours
+ * and its test command, a verbs module this storytree loads, and one numbered test of it. A name taken, or one that is
+ * not one folder's, is refused, writing nothing.
  */
 export function newPlugin(folder: string, name: string, part?: string): { readonly dir: string; readonly files: readonly string[] } {
   if (!/^[a-z0-9][a-z0-9-]*$/.test(name)) throw new Error(`${JSON.stringify(name)} is not a plugin's name: use lower-case letters, digits and dashes`);
@@ -65,12 +86,14 @@ export function newPlugin(folder: string, name: string, part?: string): { readon
     type: "module",
     description: part === undefined ? "A storytree factory plugin" : `A storytree factory plugin standing in for ${part}`,
     exports: { "./verbs": "./verbs.js" },
+    scripts: { test: "node --test" },
     storytree: { interface: PLUGIN_INTERFACE, verbs: [{ from: "./verbs", export: "PLUGIN_FAMILIES" }] },
   };
   mkdirSync(dir, { recursive: true });
   writeFileSync(path.join(dir, "package.json"), `${JSON.stringify(pkg, null, 2)}\n`);
   writeFileSync(path.join(dir, "verbs.js"), verbsModule(name));
-  return { dir, files: ["package.json", "verbs.js"] };
+  writeFileSync(path.join(dir, "verbs.test.js"), testModule(name));
+  return { dir, files: ["package.json", "verbs.js", "verbs.test.js"] };
 }
 
 const said = (value: unknown): boolean => typeof value === "string" && value !== "";

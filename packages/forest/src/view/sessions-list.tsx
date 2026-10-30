@@ -2,7 +2,7 @@
 import React, { useEffect, useState, type ReactNode } from "react";
 import { createRoot } from "react-dom/client";
 import type { AnnotatedTree, ArcView, Line } from "@storytree/library";
-import { saysUnreachable } from "@storytree/library/connection-error";
+import { outageSaidOnce, saysUnreachable, type OutageSaidOnce } from "@storytree/library/connection-error";
 import type { PrCutover } from "@storytree/library/pr-cutover";
 import { ON_MAIN_LABELS, type LogReading, type OnMain } from "@storytree/session-management/readings";
 import { pageKept, pageReading, type LiveReads, type PageReading } from "@storytree/arc-surface";
@@ -103,17 +103,24 @@ export function windowsReader(read: (sessions: readonly string[]) => Promise<rea
   };
 }
 
+/** The list's failed reads written to the console, so app.log: an unreachable library once per outage (8.11). */
+export function sessionsOutage(): OutageSaidOnce {
+  return outageSaidOnce((line, ...error) => console.error(`forest sessions list: ${line}`, ...error));
+}
+
 /**
  * Reads the list's idle-after and leave-after settings and `sessions`' context readings, each heard as it lands;
- * settles once all three have. A read that fails is logged, and what was read last stands until the next ask.
+ * settles once all three have. A read that fails is told to `outage`, and what was read last stands until the next ask.
  */
 export function readContext(reads: Pick<SessionsReads, "idleAfterMs" | "leaveAfterMs" | "contextReadings">, project: string, sessions: readonly string[],
-  heard: { idleAfterMs(ms: number): void; leaveAfterMs(ms: number): void; readings(answers: readonly ContextReading[]): void }): Promise<void> {
-  const failed = (what: string) => (error: unknown): void => { console.error(`forest sessions list: ${what} could not be read`, error); };
+  heard: { idleAfterMs(ms: number): void; leaveAfterMs(ms: number): void; readings(answers: readonly ContextReading[]): void },
+  outage: OutageSaidOnce = sessionsOutage()): Promise<void> {
+  const failed = (what: string) => (error: unknown): void => { outage.failed(`${what} could not be read`, error); };
+  const answered = <T,>(hear: (answer: T) => void) => (answer: T): void => { outage.answered(); hear(answer); };
   return Promise.all([
-    reads.idleAfterMs?.().then(ms => heard.idleAfterMs(ms), failed("the idle-after setting")),
-    reads.leaveAfterMs?.().then(ms => heard.leaveAfterMs(ms), failed("the leave-after setting")),
-    reads.contextReadings?.(project, sessions).then(answers => heard.readings(answers), failed("the context readings")),
+    reads.idleAfterMs?.().then(answered(ms => heard.idleAfterMs(ms)), failed("the idle-after setting")),
+    reads.leaveAfterMs?.().then(answered(ms => heard.leaveAfterMs(ms)), failed("the leave-after setting")),
+    reads.contextReadings?.(project, sessions).then(answered(answers => heard.readings(answers)), failed("the context readings")),
   ]).then(() => {});
 }
 
@@ -268,6 +275,7 @@ export function mountSessionsList(container: HTMLElement, options: {
   let titles: ReadonlyMap<string, string> = new Map();
   let stopped = false;
   const failures = refreshFailures(line => console.error(line));
+  const outage = sessionsOutage();
   // A failure's banner is redrawn away once it ages out, even when no news or clock comes meanwhile.
   const ageing = new Set<ReturnType<typeof setTimeout>>();
   const draw = (): void => {
@@ -314,7 +322,7 @@ export function mountSessionsList(container: HTMLElement, options: {
       idleAfterMs: ms => { quietMs = ms; },
       leaveAfterMs: ms => { leaveMs = ms; },
       readings: answers => { readings = new Map(answers.map(reading => [reading.session, detailsOf(reading)])); },
-    }).finally(() => {
+    }, outage).finally(() => {
       asking = false;
       if (!stopped) refresh(now(), false);
     });

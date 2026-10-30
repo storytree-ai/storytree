@@ -408,6 +408,7 @@ async function run(): Promise<void> {
     windowActiveAt: () => BrowserWindow.getAllWindows().some(window => window.isVisible() && !window.isMinimized())
       ? Date.now() - powerMonitor.getSystemIdleTime() * 1000 : undefined,
     agentActiveAt: async () => storytree === undefined ? undefined : await agentActiveAt(storytree),
+    log: (line) => console.error(line),
   });
   // The installed app opens at sign-in, in the tray, unless the user turned that off (lifecycle 1.12). An installed Mac app
   // (updates 4.21) does too, through its LaunchAgent; the journey's desktopStarted uses installedApp as Windows does.

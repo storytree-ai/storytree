@@ -80,6 +80,36 @@ export function saysUnreachable(error: unknown): boolean {
   return message.startsWith(LIBRARY_UNREACHABLE);
 }
 
+/** A failed read said once per outage: the unreachable ones, until the library answers again; any other, each time. */
+export interface OutageSaidOnce {
+  /** Say that `what` failed with `error`: in full, or, when the library cannot be reached, one line the first time only. */
+  failed(what: string, error: unknown): void;
+  /** A read answered: a recovery from an outage said is said once, and the next outage is said again. */
+  answered(): void;
+}
+
+/**
+ * Failed reads told to `say` once per outage (contract 8.11), for a surface that polls: a failure saying the library
+ * cannot be reached, as the main process or the page receives it, is said as one line with no stack, the first time
+ * only, and its recovery once; any other failure is said with its error each time.
+ */
+export function outageSaidOnce(say: (line: string, error?: unknown) => void): OutageSaidOnce {
+  let out = false;
+  return {
+    failed(what, error) {
+      if (!isUnreachable(error) && !saysUnreachable(error)) return say(what, error);
+      if (out) return;
+      out = true;
+      say(`${what}: ${error instanceof Error ? error.message : String(error)} Said once until it answers again.`);
+    },
+    answered() {
+      if (!out) return;
+      out = false;
+      say("the library answers again");
+    },
+  };
+}
+
 /**
  * The role the refusal below has the owner make: one that may create databases, which the server's
  * user then borrows. Any such role granted to the user serves; this is only the name suggested.

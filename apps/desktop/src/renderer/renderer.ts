@@ -21,6 +21,7 @@ import { mountJournal, mountTeaching } from "@storytree/website/overlays/view";
 import { mountLagRecorder } from "@storytree/app/lag/view";
 import { mountFeedbackCorner } from "@storytree/surface-feedback/view";
 import type { AnnotatedTree } from "@storytree/library";
+import { outageSaidOnce } from "@storytree/library/connection-error";
 
 import type { StorytreeBridge } from "../bridge.js";
 import { mountPluginViews } from "./plugin-views.js";
@@ -96,7 +97,8 @@ async function open(): Promise<void> {
   const problem = params.get("problem");
   if (problem !== null) return showMessage("error", "The library could not be opened", problem);
   following = followProjects({
-    read: () => window.storytree.projectSelection(),
+    // The projects poll every few seconds, so their answer is the page's word that the library answers again.
+    read: () => window.storytree.projectSelection().then((selection) => { outage.answered(); return selection; }),
     onChange: (selection) => show(selection),
     onError: (error) => {
       logFailure("the projects could not be read", error);
@@ -298,6 +300,7 @@ async function showForest(name: string): Promise<void> {
     ...(drawnWith === undefined ? {} : { survey: drawnWith.survey }),
     onTree: (read, news, survey) => {
       if (showing !== mine) return;
+      outage.answered();
       tree = read;
       surveyed = survey;
       states.add(news.lines);
@@ -471,9 +474,12 @@ function element(id: string): HTMLElement {
   return found;
 }
 
+/** The page's failures, an unreachable library said once per outage, however many polls fail meanwhile (8.11). */
+const outage = outageSaidOnce((line, ...error) => console.error(`desktop renderer: ${line}`, ...error));
+
 /** A failure the page caught, written to the console, which lifecycle 1.19 carries to app.log. */
 function logFailure(what: string, error: unknown): void {
-  console.error(`desktop renderer: ${what}`, error);
+  outage.failed(what, error);
 }
 
 function messageOf(error: unknown): string {

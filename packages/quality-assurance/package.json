@@ -56,6 +56,7 @@
     "@storytree/library": "workspace:*",
     "@storytree/local-postgres": "workspace:*",
     "@storytree/map": "workspace:*",
+    "@storytree/plugin-loader": "workspace:*",
     "@storytree/project-and-caller": "workspace:*",
     "@storytree/session-management": "workspace:*",
     "zod": "^4.6.5"

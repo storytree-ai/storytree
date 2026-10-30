@@ -14,6 +14,7 @@ import path from "node:path";
 import { after, before, test } from "node:test";
 
 import { connect } from "@storytree/library";
+import { PLUGIN_INTERFACE } from "@storytree/plugin-loader/factory";
 import { checks, checksText, ledgerText, openLedger, openReviews } from "@storytree/quality-assurance";
 
 import { BuiltCommand, inWorld, testServerUrl } from "./testing/cli.js";
@@ -198,6 +199,34 @@ test("quality-assurance 2.16 · `quality brief` and `take` with --checkout revie
     } finally {
       await storytree.close();
     }
+  });
+});
+
+test("quality-assurance 2.18 · `quality brief --checkout` on a factory checkout on the increment's branch briefs a plugin capability's contracts as the plugin's plan there numbers them", async () => {
+  await inWorld(command, async (world) => {
+    const git = (cwd: string, ...args: string[]) => execFileSync("git", ["-c", "user.name=t", "-c", "user.email=t@t", "-c", "commit.gpgsign=false", ...args], { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
+    const library = await world.library();
+    const factory = path.join(world.elsewhere, "factory");
+    const plan = (contracts: { title: string }[]) => ({ story: { title: "Talk by voice" }, capabilities: [{ title: "1 · Connector", proposed: false, contracts }] });
+    mkdirSync(path.join(factory, "plugins/voice"), { recursive: true });
+    writeFileSync(path.join(factory, "plugins/voice/package.json"), JSON.stringify({ name: "voice", storytree: { interface: PLUGIN_INTERFACE, plan: "./plan.json" } }));
+    writeFileSync(path.join(factory, "plugins/voice/plan.json"), JSON.stringify(plan([{ title: "1.1 · A wrong secret is answered 404" }])));
+    git(factory, "init", "-q", "-b", "main");
+    git(factory, "add", ".");
+    git(factory, "commit", "-qm", "first");
+    git(factory, "update-ref", "refs/remotes/origin/main", "HEAD");
+    const imported = await library.importPluginPlan("voice", plan([{ title: "1.1 · A wrong secret is answered 404" }]));
+    const capability = (await library.list("capability")).find(({ fields }) => fields.story === imported.story)!;
+    const arc = await library.createArc({ title: "Voice grows", intent: "Voice does more", endState: "Voice does more", stories: [imported.story] });
+    const increment = await library.addIncrement({ arc: arc.id, title: "Voice grows", objective: "Voice does more", body: "Red then green", capabilities: [capability.id] });
+    git(factory, "checkout", "-qb", `claude/increment-${increment.id.slice("increment_".length)}`);
+    writeFileSync(path.join(factory, "plugins/voice/plan.json"), JSON.stringify(plan([{ title: "1.1 · A wrong secret is answered 404" }, { title: "1.2 · A slow caller is timed out" }])));
+    git(factory, "commit", "-qam", "voice grows");
+
+    const brief = await world.run(["quality", "brief", increment.id, "--checkout", factory]);
+    assert.equal(brief.code, 0, brief.stderr);
+    assert.match(brief.stdout, /voice:1\.2  1\.2 · A slow caller is timed out/);
+    assert.doesNotMatch(brief.stdout, /was not read/);
   });
 });
 

@@ -48,12 +48,18 @@
  *   file failing to load; taking the return records a hit at each one none names, asking for its red, and re-runs nothing (2.14, ADR-1153 D3).
  *   A red run any worktree of the same clone saved counts too when it was saved at a commit the worktree's HEAD carries: `pnpm test`
  *   also keeps each in the clone's shared copy, so a lane resuming a pushed branch in a fresh worktree keeps its reds (2.15).
+ * - A capability the increment names whose story is a factory plugin's (ADR-1187) has its change read from the worktree of the factory
+ *   repo on a branch carrying the increment's id: the brief holds that worktree's diff, its files in the plugin's package, and the
+ *   capability's contracts as the plugin's plan file there numbers them, a contract only the plan holds briefed as `<plugin>:<number>`
+ *   and one it no longer holds listed as retired. With no such worktree the brief says the plugin's change was not read, and a return
+ *   answering any of those contracts met is refused (2.18, friction_cda9575aee9f).
  */
 import { execFileSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { readFileSync, realpathSync } from "node:fs";
 import { join } from "node:path";
 
-import type { Library, PendingChange, Storytree } from "@storytree/library";
+import type { Library, PendingChange, PluginPlan, Storytree } from "@storytree/library";
+import { pluginPlan } from "@storytree/plugin-loader/factory";
 
 import { checks as liveChecks, type Graduated } from "../checks/checks.js";
 import type { GraduatedFindings } from "../graduation/graduation.js";
@@ -95,7 +101,13 @@ export interface Brief {
    * Each contract to judge, in its pending text when the increment changes it pending its merge (`pending`, contract 2.4),
    * and the capability it belongs to (contract 2.5; absent from briefs issued before it).
    */
-  readonly contracts: readonly { readonly id: string; readonly title: string; readonly description?: string; readonly pending?: true; readonly capability?: string }[];
+  readonly contracts: readonly { readonly id: string; readonly title: string; readonly description?: string; readonly pending?: true; readonly capability?: string; readonly plugin?: string }[];
+  /**
+   * The factory plugins whose stories the increment's capabilities belong to, and their change: the factory worktree on the
+   * increment's branch and its diff (absent when it is the change's own folder, whose diff is above), or why it was not read,
+   * when none of those plugins' contracts may be answered met (contract 2.18). Absent when the increment names no plugin's capability.
+   */
+  readonly factory?: { readonly plugins: readonly string[]; readonly folder?: string; readonly diff?: string; readonly unread?: string };
   /** The contracts the increment retires pending its merge, with the reason: not judged (contract 2.4). Absent from briefs issued before 2.4. */
   readonly retired?: readonly { readonly id: string; readonly title: string; readonly reason: string }[];
   /**
@@ -169,6 +181,15 @@ export interface WorktreeChange {
   foreign(mark: Mark): boolean;
 }
 
+/**
+ * A factory plugin's change as a brief reads it (contract 2.18): the factory worktree on the increment's branch, its change, and the
+ * plugin's plan there; or why it could not be read.
+ */
+export type PluginRead = { readonly folder: string; readonly change: WorktreeChange; readonly plan?: PluginPlan } | { readonly unread: string };
+
+/** What a brief reads of each factory plugin whose story a capability the increment names belongs to. */
+export type PluginReader = (plugin: string) => PluginRead;
+
 /** What the change-reviewer returns for one brief. */
 export interface ReviewReturn {
   /** The review it answers: its brief's number, so a return left from an earlier review is never taken for this one (contract 2.9). */
@@ -215,7 +236,7 @@ export interface Reviews {
    * when known, or read from its worktree, when from the second review on only what changed since the last review taken is
    * briefed (contract 4.5); refused after the third with a finding standing.
    */
-  brief(library: Library, change: string, diff: string | WorktreeChange, base?: Base): Promise<Brief>;
+  brief(library: Library, change: string, diff: string | WorktreeChange, base?: Base, plugins?: PluginReader): Promise<Brief>;
   /**
    * Take the reviewer's return on `change`'s brief awaiting one, or refuse it naming what it gets wrong, writing nothing.
    * What Architecture checks' graduated checks found on the change, when given, is recorded with it as theirs (contract 5.3).
@@ -271,13 +292,16 @@ class PgReviews implements Reviews {
     this.#pool = pool;
   }
 
-  async brief(library: Library, change: string, read: string | WorktreeChange, given?: Base): Promise<Brief> {
+  async brief(library: Library, change: string, read: string | WorktreeChange, given?: Base, plugins?: PluginReader): Promise<Brief> {
     const diff = typeof read === "string" ? read : read.diff;
     const base = typeof read === "string" ? given : read.base;
     const increment = await library.get(change);
     if (increment === null || increment.type !== "increment") throw new Error(`${change} is not an increment in project "${library.name}": a change is reviewed by its increment.`);
     const pendingChanges = (increment.fields as { pending?: PendingChange[] }).pending ?? [];
-    const packages = [...diffPackages(diff), ...(pendingChanges.length === 0 ? [] : [PLAN_PACKAGE])].sort();
+    // A factory plugin's change is read from the factory's worktree on the increment's branch (contract 2.18).
+    const pluginOf = await pluginCapabilities(library, increment.fields);
+    const factory = factoryRead([...new Set([...pluginOf.values()].map(({ plugin }) => plugin))].sort(), plugins, typeof read === "string" ? undefined : read.root);
+    const packages = [...new Set([...diffPackages(diff), ...diffPackages(factory?.diff ?? ""), ...(pendingChanges.length === 0 ? [] : [PLAN_PACKAGE])])].sort();
     if (packages.length === 0) throw new Error("The diff touches no file and the increment changes nothing in the plan: commit the change, then review it.");
     const project = library.name;
     const { all, taken } = await this.#taken(project, change, typeof read === "string" ? undefined : read);
@@ -316,17 +340,19 @@ class PgReviews implements Reviews {
       return (fields.guardrails ?? []).flatMap(({ check, trigger }, index) => (trigger === "change" ? [{ id: `${id}#${index + 1}`, on: { id, title: carrierTitle }, check }] : []));
     }))).flat();
     const order = new Map(listed.map(({ id }, index) => [id, index]));
-    const contracts = named
-      .filter(({ change }) => change === undefined || !("retire" in change))
+    const planned = pluginContracts(named, pluginOf, factory?.plans ?? new Map());
+    const contracts = [...named
+      .filter(({ contract, change }) => !planned.covered.has(contract.fields.capability) && (change === undefined || !("retire" in change)))
       .map(({ contract, change, fields }) => ({
         id: contract.id, title: fields["title"] as string,
         ...(typeof fields["description"] === "string" ? { description: fields["description"] } : {}),
         ...(change === undefined ? {} : { pending: true as const }),
         capability: fields["capability"] as string,
-      }))
+        ...(pluginOf.has(fields["capability"] as string) ? { plugin: pluginOf.get(fields["capability"] as string)!.plugin } : {}),
+      })), ...planned.contracts]
       .sort((a, b) => order.get(a.capability)! - order.get(b.capability)! || byTitle(a, b));
-    const retired = named
-      .flatMap(({ contract, change }) => (change !== undefined && "retire" in change ? [{ id: contract.id, title: contract.fields.title, reason: change.retire }] : []))
+    const retired = [...named
+      .flatMap(({ contract, change }) => (!planned.covered.has(contract.fields.capability) && change !== undefined && "retire" in change ? [{ id: contract.id, title: contract.fields.title, reason: change.retire }] : [])), ...planned.retired]
       .sort(byTitle);
     const plan = await Promise.all(pendingChanges.map(async (change): Promise<PlanEntry> => {
       const head = { record: change.record, type: change.type, title: title(await library.get(change.record)) ?? change.record };
@@ -346,6 +372,7 @@ class PgReviews implements Reviews {
       project, change, iteration: all + 1, diff: newer ?? diff, ...(base === undefined ? {} : { base }),
       ...(mark === undefined ? {} : { mark }), ...(since === undefined ? {} : { since }),
       ...(risk === undefined ? {} : { risk }), pass: risk?.tier === "low" ? "light" : "full", packages, capabilities: listed, contracts, retired,
+      ...(factory === undefined ? {} : { factory: factory.brief }),
       ...(plan.length === 0 ? {} : { plan }),
       ...(guardrails.length === 0 ? {} : { guardrails }),
       ...(reds === undefined ? {} : { reds }),
@@ -422,7 +449,9 @@ class PgReviews implements Reviews {
     const increment = await library.get(change);
     if (increment === null || increment.type !== "increment") return found;
     const named = new Set((await namedContracts(library, increment.fields)).filter(({ change }) => change === undefined || !("retire" in change)).map(({ contract }) => contract.id));
-    return found.filter(({ contract }) => named.has(contract));
+    // A contract only a factory plugin's plan holds stands while the increment names a capability of that plugin's story (contract 2.18).
+    const plugins = new Set([...(await pluginCapabilities(library, increment.fields)).values()].map(({ plugin }) => plugin));
+    return found.filter(({ contract }) => named.has(contract) || plugins.has(contract.split(":")[0]!));
   }
 
   async failed(project: string, change: string): Promise<Failed[]> {
@@ -472,6 +501,79 @@ async function namedContracts(library: Library, fields: unknown) {
  * A change's risk line (ADR-1144 D1): read from its whole diff against the package graph of the worktree at `root`, or, with
  * no worktree, the one written on the increment; undefined when neither is there to read.
  */
+/**
+ * The factory plugin each capability the increment names belongs to, by its story's `plugin` (ADR-1187), with the capability's number;
+ * a capability of no plugin's story is absent.
+ */
+async function pluginCapabilities(library: Library, fields: unknown): Promise<Map<string, { plugin: string; number?: string }>> {
+  const found = new Map<string, { plugin: string; number?: string }>();
+  for (const id of (fields as { capabilities?: string[] }).capabilities ?? []) {
+    const capability = (await library.get(id))?.fields as { story?: string; title?: string } | undefined;
+    const plugin = capability?.story === undefined ? undefined : ((await library.get(capability.story))?.fields as { plugin?: string } | undefined)?.plugin;
+    const number = capabilityNumberOf(capability?.title ?? "");
+    if (plugin !== undefined) found.set(id, { plugin, ...(number === undefined ? {} : { number }) });
+  }
+  return found;
+}
+
+/**
+ * What a brief reads of the factory plugins `plugins` (contract 2.18): the worktree, its diff unless it is `root`, the change's own folder,
+ * and each plugin's plan there; or why it was not read. Undefined with no plugin to read.
+ */
+function factoryRead(plugins: readonly string[], reader: PluginReader | undefined, root: string | undefined): { brief: NonNullable<Brief["factory"]>; diff?: string; plans: Map<string, PluginPlan> } | undefined {
+  if (plugins.length === 0) return undefined;
+  const reads = plugins.map((plugin) => [plugin, reader?.(plugin) ?? { unread: "no factory was read for this brief" }] as const);
+  const unread = reads.find(([, read]) => "unread" in read);
+  if (unread !== undefined) return { brief: { plugins, unread: (unread[1] as { unread: string }).unread }, plans: new Map() };
+  const { folder, change } = reads[0]![1] as Extract<PluginRead, { folder: string }>;
+  const plans = new Map(reads.flatMap(([plugin, read]) => ("plan" in read && read.plan !== undefined ? [[plugin, read.plan] as const] : [])));
+  const own = root !== undefined && sameFolder(root, folder);
+  return { brief: { plugins, folder, ...(own ? {} : { diff: change.diff }) }, ...(own ? {} : { diff: change.diff }), plans };
+}
+
+function sameFolder(a: string, b: string): boolean {
+  try {
+    return realpathSync.native(a) === realpathSync.native(b);
+  } catch {
+    return a === b;
+  }
+}
+
+/**
+ * The contracts of the plugin capabilities whose plugin's plan was read, as the plan numbers them (contract 2.18): one the library holds
+ * under the same number keeps its id in the plan's text, one only the plan holds is `<plugin>:<number>`, and one the plan no longer holds
+ * is retired; `covered` names those capabilities, whose library contracts are briefed only so.
+ */
+function pluginContracts(named: Awaited<ReturnType<typeof namedContracts>>, pluginOf: ReadonlyMap<string, { plugin: string; number?: string }>, plans: ReadonlyMap<string, PluginPlan>) {
+  const contracts: (Brief["contracts"][number] & { capability: string })[] = [];
+  const retired: { id: string; title: string; reason: string }[] = [];
+  const covered = new Set<string>();
+  for (const [capability, { plugin, number }] of pluginOf) {
+    const planned = number === undefined ? undefined : plans.get(plugin)?.capabilities.find(({ title }) => capabilityNumberOf(title) === number);
+    if (planned === undefined) continue;
+    const held = named.filter(({ contract }) => contract.fields.capability === capability);
+    covered.add(capability);
+    const byNumber = new Map(held.map((entry) => [contractNumberOf(entry.contract.fields.title), entry]));
+    const kept = new Set<string>();
+    for (const { title, description } of planned.contracts) {
+      const own = contractNumberOf(title);
+      const library = own === undefined ? undefined : byNumber.get(own);
+      if (library !== undefined) kept.add(library.contract.id);
+      contracts.push({ id: library?.contract.id ?? `${plugin}:${own ?? title}`, title, ...(description === undefined ? {} : { description }), capability, plugin });
+    }
+    for (const { contract } of held) if (!kept.has(contract.id)) retired.push({ id: contract.id, title: contract.fields.title, reason: `${plugin}'s plan on the increment's branch no longer holds it` });
+  }
+  return { contracts, retired, covered };
+}
+
+function capabilityNumberOf(title: string): string | undefined {
+  return /^(\d+) · /.exec(title)?.[1];
+}
+
+function contractNumberOf(title: string): string | undefined {
+  return /^(\d+\.\d+)(?![\d.])/.exec(title)?.[1];
+}
+
 async function changeRisk(library: Library, increment: { readonly fields: unknown }, diff: string, root: string | undefined): Promise<ChangeReading | undefined> {
   if (root === undefined) {
     const written = (increment.fields as { risk?: ChangeReading }).risk;
@@ -678,7 +780,10 @@ function refusals(brief: Brief, review: ReviewReturn): string[] {
     }
   }
   const pending = new Set(brief.contracts.filter(({ pending }) => pending).map(({ id }) => id));
+  // A plugin's contract is never answered met on a review that could not read the plugin's change (contract 2.18).
+  const unread = new Map(brief.factory?.unread === undefined ? [] : brief.contracts.flatMap(({ id, plugin }) => (plugin === undefined ? [] : [[id, plugin] as const])));
   for (const { contract, met, why, touched, test, at } of review.contracts ?? []) {
+    if (met && unread.has(contract)) problems.push(`contract ${contract} is answered met, and ${unread.get(contract)}'s change was not read: ${brief.factory!.unread}; answer it not met, saying so`);
     if (!met && (why ?? "").trim() === "") problems.push(`contract ${contract} is not met and the return does not say why`);
     // Contract 2.13: "met" alone is no answer for a contract the change touches.
     if (met && typeof touched !== "boolean") problems.push(`contract ${contract} is met and does not say whether the change touches it: give "touched": true or false`);
@@ -789,6 +894,49 @@ export function changeFolder(cwd: string, branch: string | undefined): string {
   throw new Error(`The increment's change is on branch ${branch}, and no worktree of ${cwd}'s repository is on it: run the brief from the increment's worktree, or give its diff.`);
 }
 
+/**
+ * How a brief reads the factory plugins of `increment`'s capabilities from the factory repo at `factory` (contract 2.18): from the
+ * worktree of that repo on a branch whose name carries the increment's id, `factory` itself when it is on one, its change and each
+ * plugin's plan file there; with none, or no repository at `factory`, why not.
+ */
+export function factoryPlugins(factory: string, increment: string): PluginReader {
+  const id = increment.replace(/^increment_/, "");
+  let found: { folder: string; change?: WorktreeChange } | { unread: string } | undefined;
+  const folder = (): typeof found => {
+    const git = (...args: string[]): string | undefined => {
+      try {
+        return execFileSync("git", args, { cwd: factory, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"], windowsHide: true });
+      } catch {
+        return undefined;
+      }
+    };
+    const list = git("worktree", "list", "--porcelain");
+    if (list === undefined) return { unread: `the factory folder ${factory} is no git repository` };
+    const current = git("symbolic-ref", "--quiet", "--short", "HEAD")?.trim();
+    if (current !== undefined && incrementOfBranch(current) === id) return { folder: factory };
+    for (const entry of list.split(/\n\n+/)) {
+      const lines = entry.split("\n");
+      const at = lines.find((line) => line.startsWith("worktree "))?.slice("worktree ".length);
+      const branch = lines.find((line) => line.startsWith("branch refs/heads/"))?.slice("branch refs/heads/".length);
+      if (at !== undefined && branch !== undefined && incrementOfBranch(branch) === id) return { folder: at };
+    }
+    return { unread: `no worktree of the factory repo at ${factory} is on a branch carrying ${increment}'s id` };
+  };
+  return (plugin) => {
+    found ??= folder();
+    if ("unread" in found!) return found;
+    const read = found!;
+    read.change ??= worktreeChange(read.folder);
+    let plan: PluginPlan | undefined;
+    try {
+      plan = pluginPlan(read.folder, plugin);
+    } catch {
+      // A plugin whose plan cannot be read keeps the library's contracts.
+    }
+    return { folder: read.folder, change: read.change, ...(plan === undefined ? {} : { plan }) };
+  };
+}
+
 /** The increment a branch's name carries (claude/increment-<id>-<suffix>), as the gate's capability-list check reads it. */
 function incrementOfBranch(branch: string): string | undefined {
   const named = /(?:^|[/_-])increment[-_]([0-9a-f]{12})(?![0-9a-f])/i.exec(branch);
@@ -830,7 +978,7 @@ export function branchBase(cwd: string): Base | undefined {
 
 /** One contract of the brief as a line, with its description beneath, at `indent`. */
 function contractLine(contract: Brief["contracts"][number], indent: string): string {
-  return `${indent}${contract.id}  ${contract.title}${contract.pending ? "  (as this change rewords it, pending its merge)" : ""}${contract.description === undefined ? "" : `\n${indent}  ${contract.description}`}`;
+  return `${indent}${contract.id}  ${contract.title}${contract.pending ? "  (as this change rewords it, pending its merge)" : ""}${contract.plugin !== undefined && contract.id.startsWith(`${contract.plugin}:`) ? `  (only in ${contract.plugin}'s plan)` : ""}${contract.description === undefined ? "" : `\n${indent}  ${contract.description}`}`;
 }
 
 /** The brief as the plain text the change-reviewer reads. */
@@ -887,6 +1035,13 @@ export function briefText(brief: Brief): string {
       `Earlier hits (${brief.earlier.length}), with the implementer's answer:`,
       ...brief.earlier.map((hit) => `  hit ${hit.id}  ${hit.check}  ${hit.file}:${hit.line}  ${hit.found ?? ""}\n    ${hit.answer === "rejected" ? `rejected: ${hit.reason}${hit.accepted ? " (accepted)" : ""}` : hit.answer}`),
       `Judge each of these rejections, accepting its reason or not: ${brief.judge.length === 0 ? "none" : brief.judge.map((id) => `hit ${id}`).join(", ")}.`,
+    ]),
+    ...(brief.factory === undefined ? [] : [
+      "",
+      brief.factory.unread !== undefined
+        ? `Factory plugins (${brief.factory.plugins.join(", ")}): ${brief.factory.plugins.map((plugin) => `${plugin}'s change was not read`).join("; ")}: ${brief.factory.unread}. Answer each of their contracts not met, saying so: a return answering one met is refused.`
+        : `Factory plugins (${brief.factory.plugins.join(", ")}): their contracts above are as their plan files on the increment's branch number them; one marked as the plan's only is new in it. Their change is ${brief.factory.diff === undefined ? `the diff below, read from ${brief.factory.folder}` : `the factory worktree ${brief.factory.folder}'s diff against its default branch, judged with the checks and contracts like the diff below:`}`,
+      ...(brief.factory.diff === undefined ? [] : [brief.factory.diff]),
     ]),
     "",
     brief.since !== undefined

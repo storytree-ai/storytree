@@ -124,6 +124,22 @@ async function merged(common: string, root: string, startFromFetched: boolean): 
   return repository.reading;
 }
 
+/** The words a survey of main is refused with when origin/main cannot be fetched and none was fetched before (8.11). */
+const NO_MERGED_MAIN = "Cannot survey merged code: origin/main is unavailable and no fetched main is kept.";
+
+/** Whether `error` is that refusal, told by its message alone, since only the message crosses from a survey's worker thread. */
+export function noMergedMain(error: unknown): boolean {
+  return error instanceof Error && error.message.startsWith(NO_MERGED_MAIN);
+}
+
+/** Why main was not fetched: Git's first fatal line (its later ones are boilerplate), or the skip's reason. */
+function whyNotFetched(error: unknown): string {
+  const lines = (error as { stderr?: Buffer | string } | undefined)?.stderr?.toString().split("\n").map(line => line.trim()).filter(Boolean) ?? [];
+  const said = lines.find(line => line.startsWith("fatal:")) ?? lines[0];
+  if (said) return said;
+  return error instanceof Error ? error.message : "The fetch of main did not run.";
+}
+
 async function refresh(common: string, root: string, kept: Repository, startFromFetched: boolean): Promise<SurveySource | undefined> {
   const args = ["--git-dir", common];
   const origin = await gitText(common, [...args, "config", "--get", "remote.origin.url"]).catch((error: { code?: number }) => {
@@ -157,7 +173,7 @@ async function refresh(common: string, root: string, kept: Repository, startFrom
     fetchError = await fetch(await blocked());
   }
   const commit = already ?? await fetchedMain().catch(() => {
-    throw new Error("Cannot survey merged code: origin/main is unavailable and no fetched main is kept.", { cause: fetchError });
+    throw new Error(`${NO_MERGED_MAIN} ${whyNotFetched(fetchError)}`, { cause: fetchError });
   });
   if (kept.commit === commit) return kept.source!;
   const source = await snapshot(common, root, commit);

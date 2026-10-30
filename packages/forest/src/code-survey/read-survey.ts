@@ -2,7 +2,7 @@
 import path from "node:path";
 
 import type { AnnotatedTree } from "@storytree/library";
-import { offThreadSurveyReader, type CodeSurveyReader, type ImportedFolder } from "@storytree/map/code-survey";
+import { noMergedMain, offThreadSurveyReader, type CodeSurveyReader, type ImportedFolder, type ProjectSurvey } from "@storytree/map/code-survey";
 
 import { FOREST_CHANNELS, type ForestBridge } from "../render/page.js";
 
@@ -37,8 +37,25 @@ export const forestPageAnswers = [(frame: SurveyPageFrame) => {
       if (folder === undefined) return {};
       surveys ??= offThreadSurveyReader(frame.surveyWorker, { keptIn: path.join(frame.home, "code-survey"), startFromFetched: true });
       // The folders this machine imports, where the survey reads the project's mapped stories (ADR-0993 D2).
-      return surveys.read(folder, frame.treeRead(project) ?? await library.projectTree(project), await library.projectImports(project));
+      const reading = surveys.read(folder, frame.treeRead(project) ?? await library.projectTree(project), await library.projectImports(project));
+      return refusalSaidOnce(folder, reading);
     },
+  };
+  // A project whose origin has no fetchable main is refused its survey at every ask; a rejected answer would have Electron
+  // log a whole stack each time, so it is answered with no code, and the refusal is said once per folder and reason (1.13).
+  const refused = new Map<string, string>();
+  const refusalSaidOnce = async (folder: string, reading: Promise<ProjectSurvey>): Promise<ProjectSurvey> => {
+    try {
+      const survey = await reading;
+      if (refused.delete(folder)) console.error(`The code survey of ${folder} reads origin/main again.`);
+      return survey;
+    } catch (error) {
+      if (!noMergedMain(error)) throw error;
+      const message = (error as Error).message;
+      if (refused.get(folder) !== message) console.error(`${message} The forest shows ${folder} without its code until its main can be fetched.`);
+      refused.set(folder, message);
+      return {};
+    }
   };
   return { channels: FOREST_CHANNELS, answers };
 }];

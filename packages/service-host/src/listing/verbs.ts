@@ -4,7 +4,7 @@
  * `storytree services` lists every service the parts mounted here declare, on or off, and how each the host runs
  * stands, with the factory commit it last ran, and says when a part switch has not taken in the running host; `services restart <part>/<service>` asks the host to start one again;
  * `services run` runs the host in the foreground until it is stopped; `services install` and `services uninstall` write and
- * remove the entry point that keeps it running (capability 3, ADR-1180 D5). Each is callerless: none needs a project. None
+ * remove the entry point that keeps it running: a systemd user unit on Linux, a scheduled task on Windows (capability 3, ADR-1180 D5). Each is callerless: none needs a project. None
  * is a tool: they are this machine's, read and run from its terminal.
  */
 import { verb, VerbRefusal, type VerbFamily } from "@storytree/library/verbs";
@@ -99,51 +99,78 @@ const run = verb({
   inputs: {},
   callerless: true,
   async act() {
+    const { storytreeHome } = await import("@storytree/project-and-caller");
     const { startHost } = await import("../running/host.js");
-    const host = startHost();
+    const { takeStop } = await import("./status.js");
+    const home = storytreeHome();
+    takeStop(home);
+    const host = startHost({ home });
+    let asked: NodeJS.Timeout | undefined;
     await new Promise<void>((stopped) => {
       process.once("SIGTERM", () => stopped());
       process.once("SIGINT", () => stopped());
+      // On Windows no stop signal reaches the host heard: `services uninstall` and `services install` ask by file (contract 3.4).
+      asked = setInterval(() => { if (takeStop(home)) stopped(); }, 1_000);
     });
+    clearInterval(asked);
     await host.stop();
     return { text: "The service host stopped, and every service it ran with it." };
   },
 });
 
-/** Install and uninstall, on Linux only for now: the laptop's scheduled task is increment_b962bb8544d2. */
-async function systemd() {
-  if (process.platform !== "linux") throw new VerbRefusal(`storytree services install keeps the host running on Linux only, as a systemd user unit; on ${process.platform}, run \`storytree services run\` yourself.`);
-  return import("../installing/systemd.js");
+/** What keeps the host running here: the systemd user unit on Linux (contracts 3.1, 3.2), the scheduled task on Windows (3.3, 3.4). */
+async function entryPoint(): Promise<{ install: (checkout: string) => Promise<string>; uninstall: () => Promise<string> }> {
+  if (process.platform === "linux") {
+    const { installHost, uninstallHost, userSystemd } = await import("../installing/systemd.js");
+    return { install: async (checkout) => installHost(checkout, userSystemd()), uninstall: async () => uninstallHost(userSystemd()) };
+  }
+  if (process.platform === "win32") {
+    const path = await import("node:path");
+    const { setTimeout } = await import("node:timers/promises");
+    const { storytreeHome } = await import("@storytree/project-and-caller");
+    const { alive, readStatus, requestStop } = await import("./status.js");
+    const { endTree, installTask, uninstallTask, userTaskScheduler } = await import("../installing/scheduled-task.js");
+    const home = storytreeHome();
+    const scheduler = userTaskScheduler(path.join(home, "service-host"), {
+      pid: () => { const status = readStatus(home); return status === undefined || status.stopped === true ? undefined : status.pid; },
+      alive,
+      requestStop: () => requestStop(home),
+      wait: async (ms) => { await setTimeout(ms); },
+      end: endTree,
+    });
+    return { install: (checkout) => installTask(checkout, scheduler), uninstall: () => uninstallTask(scheduler) };
+  }
+  throw new VerbRefusal(`storytree services install keeps the host running on Linux, as a systemd user unit, and on Windows, as a scheduled task; on ${process.platform}, run \`storytree services run\` yourself.`);
 }
 
 const install = verb({
   consumers: ["user"],
-  command: { family: "services", name: "install", summary: "keep the service host running on this computer: write, enable and start its systemd user unit, storytree-host.service; running it again is safe" },
+  command: { family: "services", name: "install", summary: "keep the service host running on this computer: a systemd user unit, storytree-host.service, on Linux; a scheduled task at logon, storytree-host, on Windows; running it again is safe" },
   tool: { absent: "a machine's entry point is installed from its terminal" },
   inputs: {},
   callerless: true,
   async act() {
     const { HOST_DIR } = await import("../running/host.js");
-    const { checkoutOf, installHost, userSystemd } = await systemd();
+    const { checkoutOf } = await import("../installing/systemd.js");
+    const entry = await entryPoint();
     let checkout: string;
     try {
       checkout = checkoutOf(HOST_DIR);
     } catch (error) {
       throw new VerbRefusal((error as Error).message);
     }
-    return { text: installHost(checkout, userSystemd()), next: [{ command: "services", why: "see the services and the host" }] };
+    return { text: await entry.install(checkout), next: [{ command: "services", why: "see the services and the host" }] };
   },
 });
 
 const uninstall = verb({
   consumers: ["user"],
-  command: { family: "services", name: "uninstall", summary: "stop the service host and remove the systemd user unit that keeps it running" },
+  command: { family: "services", name: "uninstall", summary: "stop the service host and remove what keeps it running: its systemd user unit on Linux, its scheduled task on Windows" },
   tool: { absent: "a machine's entry point is removed from its terminal" },
   inputs: {},
   callerless: true,
   async act() {
-    const { uninstallHost, userSystemd } = await systemd();
-    return { text: uninstallHost(userSystemd()) };
+    return { text: await (await entryPoint()).uninstall() };
   },
 });
 

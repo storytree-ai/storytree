@@ -23,7 +23,7 @@ import { setLibrary } from "../settings/settings.js";
 import { git, withTempDir } from "../testing/folders.js";
 import { dropTestProjects, markedProject, placeTestServer, testServerDataDir, testServerRecordedUrl, testServerUrl, uniqueProjectName } from "../testing/pg.js";
 import { approveTrunk, forgetTrunk, importsOf, machineOf, recordImport, registerTrunk, trunkedProjects } from "./trunks.js";
-import { findProject, locateStorytree, MARKER_FILE, NOT_A_PROJECT, NOT_RUNNING, requireApproval, route, type ProjectLookup } from "./index.js";
+import { findProject, locateStorytree, MARKER_FILE, NOT_A_PROJECT, NOT_RUNNING, PROJECT_FILE, requireApproval, route, type ProjectLookup } from "./index.js";
 
 /** "Well under a second", as the tests hold it. */
 const QUICK_MS = 500;
@@ -113,6 +113,35 @@ test('1.2 a folder with no marker, in it or above it, gives "not a storytree pro
 
     // So routing sends nothing anywhere, whatever the state of storytree.
     assert.deepEqual(route(plain, { dataDir: testServerDataDir() }), { status: "not-a-project", message: NOT_A_PROJECT });
+  });
+});
+
+test("1.21 a folder's marker is .storytree/project.json and a root .storytree.json is still read: the nearest names the project, and a folder holding both is routed by .storytree/project.json", async () => {
+  await withTempDir((dir) => {
+    const mark = (folder: string, file: string, project: string) => {
+      mkdirSync(path.dirname(path.join(folder, file)), { recursive: true });
+      writeFileSync(path.join(folder, file), `${JSON.stringify({ project })}\n`);
+    };
+    const site = path.join(dir, "site");
+    mark(site, PROJECT_FILE, "site");
+    mkdirSync(path.join(site, "src"), { recursive: true });
+    assert.deepEqual(named(findProject(path.join(site, "src"))), { project: "site", folder: site });
+
+    // A project set up before the move, with only the root marker, still routes.
+    const old = path.join(dir, "old");
+    mark(old, MARKER_FILE, "old");
+    assert.deepEqual(named(findProject(old)), { project: "old", folder: old });
+
+    // A folder holding both is the new marker's project.
+    const both = path.join(dir, "both");
+    mark(both, MARKER_FILE, "before");
+    mark(both, PROJECT_FILE, "after");
+    assert.deepEqual(named(findProject(both)), { project: "after", folder: both });
+
+    // The nearest marker wins, whichever its spelling: an old one inside a new one's folder names its own project.
+    const inner = path.join(site, "inner");
+    mark(inner, MARKER_FILE, "inner");
+    assert.deepEqual(named(findProject(inner)), { project: "inner", folder: inner });
   });
 });
 

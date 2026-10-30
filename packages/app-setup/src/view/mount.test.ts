@@ -77,6 +77,7 @@ test("3.13 the guide's first run offers to connect each agent this computer runs
     await setImmediate();
     assert.equal(picked, 1);
     assert.match(document.querySelector("[data-guide-add-status]")!.textContent!, /\/work\/site is now project “site”/);
+    assert.match(document.querySelector("[data-guide-add-status]")!.textContent!, /Commit the \.storytree folder/, "it says to commit the folder");
   } finally { mounted.stop(); }
 });
 

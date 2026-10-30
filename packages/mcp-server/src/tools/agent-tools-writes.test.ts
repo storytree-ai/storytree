@@ -26,10 +26,9 @@ import { recordFriction, route } from "@storytree/session-management/friction";
 import type { ToolExtension } from "./index.js";
 import { CARD_WORD_BUDGET, cardWords } from "../instructions/habits.js";
 import { readClaims } from "@storytree/session-management";
-import { MARKER_FILE } from "@storytree/project-and-caller";
 import { claudeCode, codex, idOf, withAgent } from "../testing/agent.js";
 import { countingStore, longHistory } from "@storytree/project-and-caller/testing/egress";
-import { git, withTempDir } from "@storytree/project-and-caller/testing/folders";
+import { git, withTempDir, writeMarker } from "@storytree/project-and-caller/testing/folders";
 import { approveCheckout, placeTestServer, testServerUrl, uniqueProjectName } from "@storytree/project-and-caller/testing/pg";
 import { FOUNDED, planned, TOOLS, withProject } from "../testing/tool-world.js";
 
@@ -527,7 +526,7 @@ test("6.34 a call a hook saw works in the worktree that hook ran in, so a claim 
     git(folder, "worktree", "add", "-q", "-b", "claude/form", worktree);
     const elsewhere = path.join(path.dirname(folder), "other");
     mkdirSync(elsewhere);
-    writeFileSync(path.join(elsewhere, MARKER_FILE), `${JSON.stringify({ project: uniqueProjectName() })}\n`);
+    writeMarker(elsewhere, `${JSON.stringify({ project: uniqueProjectName() })}\n`);
     git(elsewhere, "init", "-b", "theirs");
     const hook = { session: "claude-1", harness: "claude-code", source: "hook", kind: "tool-requested", tool: "claim", agent: "orchestrator" } as const;
     await log.append(project, { ...hook, folder: worktree, call: "toolu_in_worktree" });

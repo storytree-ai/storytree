@@ -189,7 +189,8 @@ export const DOCTOR = verb({
         if (project !== undefined) {
           await setUp({ folder: context.folder, project, storytree, join: join !== undefined });
           if (join === undefined) await context.journey?.().then((journey) => journey.projectCreated()).catch(() => {});
-          said.push(join === undefined ? `This folder is set up as storytree project "${project}" now.` : `This folder is storytree project "${project}"'s checkout on this machine now.`);
+          const { COMMIT_STORYTREE } = await import("../project/storytree-folder.js");
+          said.push(join === undefined ? `This folder is set up as storytree project "${project}" now. ${COMMIT_STORYTREE}` : `This folder is storytree project "${project}"'s checkout on this machine now.`);
         } else {
           const { suggestProjectName } = await import("../project/making.js");
           said.push(`This folder is not a storytree project. Nothing was set up: storytree sets a folder up only when you tell it to.`);

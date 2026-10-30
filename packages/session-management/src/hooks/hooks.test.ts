@@ -32,7 +32,7 @@ import pg from "pg";
 import { openActivityLog } from "../activity/index.js";
 import { buildHook } from "../testing/hook-bin.js";
 import { readContext } from "../context/index.js";
-import { machineOf, MARKER_FILE, recordImport } from "@storytree/project-and-caller";
+import { machineOf, recordImport } from "@storytree/project-and-caller";
 import { claim, readClaims } from "../claims/index.js";
 import { EDIT_GATE } from "./edit-gate.js";
 import { DEADLINE_MS } from "./deadlines.js";
@@ -46,7 +46,7 @@ import { AFTER_TOOL, codexToolArguments } from "./codex-delivery.js";
 import { queueFolder } from "./queue.js";
 import { readSettings, setSetting } from "@storytree/project-and-caller";
 import { countingStore, longHistory } from "@storytree/project-and-caller/testing/egress";
-import { git, removeTempDir, withTempDir } from "@storytree/project-and-caller/testing/folders";
+import { git, removeTempDir, withTempDir, writeMarker } from "@storytree/project-and-caller/testing/folders";
 import { approveCheckout, dropTestProjects, markedProject, placeTestServer, testServerDataDir, testServerUrl, uniqueProjectName } from "@storytree/project-and-caller/testing/pg";
 
 const FIXTURES = fileURLToPath(new URL("./fixtures/", import.meta.url));
@@ -125,7 +125,7 @@ function storytreeHome(dir: string, running: boolean): string {
 async function projectFolder(dir: string, project: string, home: string = path.join(dir, "storytree-home")): Promise<string> {
   const folder = path.join(dir, "site");
   mkdirSync(folder, { recursive: true });
-  writeFileSync(path.join(folder, MARKER_FILE), `${JSON.stringify({ project })}\n`);
+  writeMarker(folder, `${JSON.stringify({ project })}\n`);
   await approveCheckout(folder, project, home);
   return folder;
 }
@@ -855,7 +855,7 @@ test("3.25 a hook in a checkout not approved for the project its marker names wr
       // A downloaded folder whose marker names the same project: a claim, not an approval.
       const download = path.join(dir, "download");
       mkdirSync(download);
-      writeFileSync(path.join(download, MARKER_FILE), JSON.stringify({ project }));
+      writeMarker(download, JSON.stringify({ project }));
       const hookRun = async (name: string, from: string, session: string) => {
         const ran = await runHook("claude-code", JSON.stringify({ ...JSON.parse(recorded("claude-code", name, from)), session_id: session }), home);
         assert.deepEqual({ code: ran.code, stdout: ran.stdout, stderr: ran.stderr }, { code: 0, stdout: "", stderr: "" }, name);
@@ -1805,7 +1805,7 @@ test("3.46 a hook runs no git in a downloaded folder whose marker names a projec
       // A downloaded folder whose marker names the same project: a claim, not an approval.
       const download = path.join(dir, "download");
       mkdirSync(download);
-      writeFileSync(path.join(download, MARKER_FILE), JSON.stringify({ project }));
+      writeMarker(download, JSON.stringify({ project }));
       for (const folder of [approved, download]) {
         git(folder, "init", "-q", "-b", "main");
         git(folder, "add", ".");

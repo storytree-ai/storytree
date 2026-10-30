@@ -1,5 +1,6 @@
 /** Capability 3 · First-run guide. */
 import type { AddedFolder, SetupHelpBridge } from "../help/bridge.js";
+import { COMMIT_STORYTREE } from "../project/storytree-folder.js";
 
 /** Said on the page the remove and delete views live on when a project leaves this computer's list, so a line naming it is cleared. */
 const PROJECT_GONE = "storytree:project-gone";
@@ -12,7 +13,7 @@ export function sayProjectGone(from: HTMLElement, project: string): void {
 
 /** What adding a folder made of it, in plain words. */
 export function addedSentence(added: AddedFolder, shown = ""): string {
-  if (added.status === "set up") return `${added.folder} is now project “${added.project}”${shown}.`;
+  if (added.status === "set up") return `${added.folder} is now project “${added.project}”${shown}. ${COMMIT_STORYTREE}`;
   if (added.status === "brought back") return `${added.folder} is project “${added.project}” again, with its records${shown}.`;
   return `${added.folder} is already project “${added.project}”.`;
 }

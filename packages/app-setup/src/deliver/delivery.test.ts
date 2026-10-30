@@ -81,7 +81,7 @@ test("1.2 / 1.3: first delivery and a repeat always launch the app visibly, wait
     assert.equal(readFileSync(path.join(f.home, "delivery.json"), "utf8"), record);
     assert.equal(readFileSync(old, "utf8"), "0.2 must survive");
     assert.equal(readFileSync(path.join(f.home, "project-choice.json"), "utf8"), "existing project choice");
-    assert.equal(existsSync(path.join(f.dir, ".storytree.json")), false);
+    assert.equal(existsSync(path.join(f.dir, ".storytree", "project.json")), false);
     // Ordinary release replacement keeps the registered paths while changing the tools together.
     writeFileSync(f.tools.cli, "new compatible release");
     writePayloadManifest(f.tools.dir, "arm64", "24.21.0");

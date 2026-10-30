@@ -40,10 +40,43 @@ export interface SheetHanging {
 /** A note's place under the sheet, and the shelves pulling it, strongest first: none for a note on the sea floor. */
 export interface SheetPoint extends GlobePoint { toward: string[] }
 
+/** The sheet as laid out: every drawn note's place, each stored link between two drawn notes, and the sea floor. */
+export interface SheetLayout { points: SheetPoint[]; links: [string, string][]; floor: Area & { z: number; notes: number } }
+
+/**
+ * A sheet that lays out again only when what it lays out changed (Live updates never freeze the globe): read again with the
+ * same notes, links, shelves and floor, however fresh the objects handed it, it returns its last layout without relaxing.
+ */
+export function sheetLayout(): (core: Core, hanging: SheetHanging, notes?: ReadonlyMap<string, RecordEnvelope>) => SheetLayout {
+  let last: { key: string; layout: SheetLayout } | undefined;
+  return (core, hanging, notes) => {
+    const key = layoutKey(core, hanging, notes);
+    if (last?.key !== key) last = { key, layout: sheetPoints(core, hanging, notes) };
+    return last.layout;
+  };
+}
+
+/** Everything sheetPoints reads, written out: each note's shelves and where they stand, its depth and links, and the floor. */
+function layoutKey(core: Core, { shelfAt, floor, depthStep }: SheetHanging, notes?: ReadonlyMap<string, RecordEnvelope>): string {
+  const ids = [...core.placed.keys(), ...core.outside].sort(compare);
+  const where = (shelf: string) => { const at = shelfAt(shelf); return at === undefined ? "-" : `${at.x},${at.y}`; };
+  const parts = ids.map(id => {
+    const placement = core.placed.get(id);
+    const record = notes?.get(id);
+    const shelves = placement === undefined ? "" : `${placement.depth}:${placement.entrances.map(shelf => `${shelf}@${where(shelf)}`).join(";")}`;
+    return `${id}|${shelves}|${record === undefined ? "" : storedLinks(record).join(";")}`;
+  });
+  return `${floor.x},${floor.y},${floor.width},${floor.height},${depthStep}\n${parts.join("\n")}`;
+}
+
+/** A note's stored links: its `links` and what it `supersedes`. */
+function storedLinks(record: RecordEnvelope): string[] {
+  const supersedes = Array.isArray(record.fields.supersedes) ? record.fields.supersedes.filter((v): v is string => typeof v === "string") : [];
+  return [...linksOf(record), ...supersedes];
+}
+
 /** Every drawn note's place under the sheet, the sea floor's plane and how many notes lie on it, and each stored link (a `links` or `supersedes`) between two drawn notes. */
-export function sheetPoints(core: Core, { shelfAt, floor, depthStep }: SheetHanging, notes?: ReadonlyMap<string, RecordEnvelope>): {
-  points: SheetPoint[]; links: [string, string][]; floor: Area & { z: number; notes: number };
-} {
+export function sheetPoints(core: Core, { shelfAt, floor, depthStep }: SheetHanging, notes?: ReadonlyMap<string, RecordEnvelope>): SheetLayout {
   const ids = [...core.placed.keys(), ...core.outside].sort(compare);
   const drawn = new Set(ids);
   const links: [string, string][] = [];
@@ -52,8 +85,7 @@ export function sheetPoints(core: Core, { shelfAt, floor, depthStep }: SheetHang
   for (const id of ids) {
     const record = notes?.get(id);
     if (record === undefined) continue;
-    const supersedes = Array.isArray(record.fields.supersedes) ? record.fields.supersedes.filter((v): v is string => typeof v === "string") : [];
-    for (const to of [...linksOf(record), ...supersedes]) {
+    for (const to of storedLinks(record)) {
       if (to === id || !drawn.has(to)) continue;
       // Links count both ways (D1), and each stored link once, however many times it is stored.
       const key = id < to ? `${id} ${to}` : `${to} ${id}`;

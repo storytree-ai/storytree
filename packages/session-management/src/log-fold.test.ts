@@ -125,3 +125,19 @@ test("a fold kept as a plain snapshot and restored, then fed the rest, reads the
     }
   }
 });
+
+test("4.40 · a burst of lines from one session judges only that session again: every other session reads back as the reading it was, and a read with nothing new and no threshold passed reads back the same", () => {
+  const lines = busyLog(7, 400);
+  const fold = new LogFold();
+  fold.add(lines);
+  const last = lines.at(-1)!;
+  const options = { now: new Date(Date.parse(last.at) + 60_000), quietMs: 20 * 60_000, leaveMs: 3_600_000 };
+  const before = fold.sessions(options);
+  assert.deepEqual(fold.sessions({ ...options, now: new Date(options.now) }).map((one, i) => one === before[i]), before.map(() => true), "nothing new");
+  const busy = before[0]!.session;
+  const at = new Date(Date.parse(last.at) + 30_000).toISOString();
+  fold.add([1, 2, 3].map((n) => ({ seq: last.seq + n, project: "p", at, session: busy, source: "hook", kind: "file-edited", files: ["/work/y.ts"] }) as Line));
+  const after = fold.sessions(options);
+  assert.deepEqual(after.map((one, i) => one === before[i]), before.map((one) => one.session !== busy), "only the busy session judged again");
+  assert.deepEqual(after, sessionsFrom([...lines, ...[1, 2, 3].map((n) => ({ seq: last.seq + n, project: "p", at, session: busy, source: "hook", kind: "file-edited", files: ["/work/y.ts"] }) as Line)], options));
+});

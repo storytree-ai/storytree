@@ -3,7 +3,7 @@ import { createElement } from "react";
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { renderToStaticMarkup } from "react-dom/server";
-import { arcsAfter, cutoverAfter, FAILURES_WINDOW_MS, isSessionRows, keptPanelOpen, keptStripFull, keptTab, NEWS_STEP, readContext, refreshFailures, SessionsList, StepFailed, windowsReader } from "./sessions-list.js";
+import { arcsAfter, cutoverAfter, FAILURES_WINDOW_MS, isSessionRows, keptPanelOpen, keptStripFull, keptTab, NEWS_STEP, readContext, refreshFailures, sessionsOutage, SessionsList, StepFailed, windowsReader } from "./sessions-list.js";
 import type { ArcView } from "@storytree/library";
 import { LIBRARY_UNREACHABLE } from "@storytree/library/connection-error";
 import type { SessionWindow } from "@storytree/session-management";
@@ -281,6 +281,19 @@ test("7.33 a failed read of the rows' context readings or of the idle-after and 
     ["forest sessions list: the context readings could not be read", "no readings"],
     ["forest sessions list: the idle-after setting could not be read", "no idle-after"],
     ["forest sessions list: the leave-after setting could not be read", "no leave-after"],
+  ]);
+});
+
+test("7.33 · a library outage across several polls of the context readings is written once, with no error, and its recovery once", async (t) => {
+  const logged = t.mock.method(console, "error", () => {});
+  const hear = { idleAfterMs: () => {}, leaveAfterMs: () => {}, readings: () => {} };
+  const unreachable = async (): Promise<never> => { throw new Error(`${LIBRARY_UNREACHABLE}: connect EHOSTUNREACH`); };
+  const outage = sessionsOutage();
+  for (let poll = 0; poll < 3; poll++) await readContext({ idleAfterMs: unreachable, leaveAfterMs: unreachable, contextReadings: unreachable }, "p", ["a"], hear, outage);
+  await readContext({ idleAfterMs: async () => 1, leaveAfterMs: async () => 2, contextReadings: async () => [] }, "p", ["a"], hear, outage);
+  assert.deepEqual(logged.mock.calls.map(call => call.arguments), [
+    [`forest sessions list: the idle-after setting could not be read: ${LIBRARY_UNREACHABLE}: connect EHOSTUNREACH Said once until it answers again.`],
+    ["forest sessions list: the library answers again"],
   ]);
 });
 

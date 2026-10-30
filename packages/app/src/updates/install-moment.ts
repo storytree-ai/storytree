@@ -2,6 +2,8 @@
  * Capability 4 · Updates, contract 4.4: when a downloaded release may restart the installed app.
  * Installing stops the app and its database for a minute or two, so it waits for a quiet moment.
  */
+import { isUnreachable, outageSaidOnce } from "@storytree/library/connection-error";
+
 import { insideHours, type InstallChoice } from "./install-choice.js";
 
 /** How long after a launch the app is left alone: its user, or an agent, has just opened it. */
@@ -42,13 +44,26 @@ export interface QuietMomentOptions {
   /** When someone last used the window; undefined while no window is showing. */
   readonly windowActiveAt: () => number | undefined;
   readonly agentActiveAt: () => Promise<number | undefined>;
+  /** Where a library that cannot be reached is said, once per outage, as one line (contract 1.40's promise for the main side). */
+  readonly log?: (line: string) => void;
 }
 
 /** Whether now is a moment to restart into an update unasked: one check, shared by releases and merged-main builds. */
 export function quietMoment(options: QuietMomentOptions): () => Promise<boolean> {
+  const outage = outageSaidOnce(line => options.log?.(`releases: ${line}`));
   return async () => {
     const clock = options.now?.() ?? new Date();
-    const windowActiveAt = options.windowActiveAt(), agentActiveAt = await options.agentActiveAt();
+    const windowActiveAt = options.windowActiveAt();
+    let agentActiveAt: number | undefined;
+    try {
+      agentActiveAt = await options.agentActiveAt();
+      outage.answered();
+    } catch (error) {
+      // An agent may be at work where the library cannot be read, so the moment is not quiet; any other failure is the caller's.
+      if (!isUnreachable(error)) throw error;
+      outage.failed("whether an agent is at work could not be read", error);
+      return false;
+    }
     return whenToInstall({
       now: clock.getTime(), launchedAt: options.launchedAt, choice: options.choice(),
       minuteOfDay: clock.getHours() * 60 + clock.getMinutes(),

@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { QUIET_MS, SETTLE_MS, whenToInstall } from "./install-moment.js";
+import { ConnectionError } from "@storytree/library/connection-error";
+
+import { QUIET_MS, quietMoment, SETTLE_MS, whenToInstall } from "./install-moment.js";
 
 // Capability 4 · Updates, contract 4.4: a
 // downloaded release never restarts the app out from under someone using it. Seen on a reset
@@ -50,4 +52,19 @@ test("4.13 quiet hours install only inside the window, which may cross midnight,
 
 test("4.13 with no choice made, a release installs at any quiet moment, as before", () => {
   assert.equal(whenToInstall({ ...quietLaunch, choice: { mode: "quiet" }, minuteOfDay: minute("14:00") }), "now");
+});
+
+test("4.4 the quiet check reads an unreachable library as no quiet moment and says so in one line, once per outage; another failure still rejects", async () => {
+  const said: unknown[][] = [];
+  let agents: () => Promise<number | undefined> = async () => { throw new ConnectionError("timeout", "The server did not answer in time."); };
+  const quiet = quietMoment({ launchedAt: 0, now: () => new Date(SETTLE_MS + QUIET_MS), choice: () => ({ mode: "quiet" }),
+    windowActiveAt: () => undefined, agentActiveAt: () => agents(), log: (...parts) => { said.push(parts); } });
+  assert.equal(await quiet(), false);
+  assert.equal(await quiet(), false);
+  assert.deepEqual(said, [["releases: whether an agent is at work could not be read: The server did not answer in time. Said once until it answers again."]]);
+  agents = async () => undefined;
+  assert.equal(await quiet(), true);
+  assert.deepEqual(said.slice(1), [["releases: the library answers again"]]);
+  agents = async () => { throw new Error("the activity log is malformed"); };
+  await assert.rejects(quiet(), /malformed/);
 });

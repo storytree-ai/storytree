@@ -208,7 +208,7 @@ export function PlanetWorldCanvas({ scene, spots, radius, rotation = [0, 0, 0, 1
     <color attach="background" args={['#101418']} />
     <Framing radius={radius} framing={framing} sideOffset={sideOffset} sheet={sheet} />
     <GrowthProvider growth={growth}>
-    <group ref={globe} name="globe" quaternion={rotation} position={offset ?? ORIGIN}>
+    <group ref={globe ?? null} name="globe" quaternion={rotation} position={offset ?? ORIGIN}>
       <SheetGlass extent={sheet} clear={hollow} />
       {scene.islands.map(island => {
         const spot = spots.get(island.story);

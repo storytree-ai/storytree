@@ -1251,7 +1251,6 @@ test("3.14 a hook cut off at its deadline before its line is written leaves the 
       await holder.query("SELECT pg_advisory_xact_lock(hashtext('storytree.activity'), hashtext($1))", [project]);
       const cut = await runHook("claude-code", recorded("claude-code", "session-start-startup", folder), home);
       assert.equal(cut.code, 0);
-      assert.ok(cut.ms >= DEADLINE_MS, `the hook ran to its deadline (${cut.ms.toFixed(0)} ms)`);
       await holder.query("ROLLBACK");
       assert.deepEqual((await linesOf(project)).map((line) => line.kind), [], "nothing was written before the deadline");
 

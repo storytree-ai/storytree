@@ -117,7 +117,7 @@ function said(run: VerifiedRun): string {
  * Run `command` in `folder` and record it, or, unless `fresh`, answer with the run already recorded for the same command
  * at the same files (contracts 8.1, 8.2). Refused outside a Git repository, with nothing run (8.3).
  */
-export async function verifiedRun(folder: string, command: string, by: string, fresh = false): Promise<{ run: VerifiedRun; reused: boolean }> {
+export async function verifiedRun(folder: string, command: string, by: string, fresh: boolean): Promise<{ run: VerifiedRun; reused: boolean }> {
   const file = path.join(commonDir(folder), "storytree", "test-runs.jsonl");
   const tree = filesTree(folder);
   const recorded = fresh ? undefined : readRuns(file).findLast((run) => run.tree === tree && run.command === command);

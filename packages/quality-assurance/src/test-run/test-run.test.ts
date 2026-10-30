@@ -74,9 +74,9 @@ test("8.1 · run_tests runs the command in the folder and records its exit code,
   });
   await withCheckout(async ({ dir }) => {
     const answer = await run({ command: "node suite.mjs" }, { folder: dir, caller: GREEN });
-    assert.match(answer.text, /failed \(exit code 1\)/);
-    assert.equal((answer.data?.run as { code: number }).code, 1);
-  }, 1);
+    assert.match(answer.text, /failed \(exit code 3\)/);
+    assert.equal((answer.data?.run as { code: number }).code, 3);
+  }, 3);
 });
 
 test("8.2 · run_tests at the same files and command answers from the record, committed or not; an edit, a new file, another command or fresh runs it again", async () => {

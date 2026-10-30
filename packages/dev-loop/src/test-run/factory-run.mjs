@@ -48,7 +48,8 @@ export function factoryArgument(args, chosen) {
 /**
  * Record each of `stories` whose code is a plugin in `factory` (factoryPlugins) from a run of its plugin's tests
  * (`runTests(folder)`, by default the factory's own test command with `env`), as a factory test run at the factory's
- * commit. Exit code 1 if any run produced no report, else 0. The factory is taken at its real path, since the report
+ * commit. Exit code 1 if no plugin is a story's package (the commit is left unrecorded, so the Mint box's timer never
+ * reports it recorded) or any run produced no report, else 0. The factory is taken at its real path, since the report
  * names each test file by it: one reached through a link (macOS's temp folder, /var under /private/var) would match none.
  * With `unrecorded`, a plugin whose story already holds a factory run's entry at that commit (recordedAt) is skipped,
  * so the Mint box's timer (packages/dev-loop/box/factory-health.sh) runs the tests once per factory commit.
@@ -61,7 +62,11 @@ export async function recordFactory(library, stories, linked, { unrecorded = fal
   const factory = realpathSync(linked);
   const writer = { by: VERIFIED_BY_FACTORY, commit: factoryCommit(factory) };
   const plugins = factoryPlugins(stories, factory);
-  log(`the factory at ${factory}, commit ${writer.commit}: ${plugins.map(({ folder }) => folder).join(", ") || "no plugin is a story's package"}`);
+  if (plugins.length === 0) {
+    error(`the factory at ${factory}, commit ${writer.commit}: no plugin is a story's package, so nothing is recorded and the commit stays unrecorded`);
+    return 1;
+  }
+  log(`the factory at ${factory}, commit ${writer.commit}: ${plugins.map(({ folder }) => folder).join(", ")}`);
   let code = 0;
   for (const { story, folder } of plugins) {
     if (unrecorded && recordedAt(story, writer.commit)) {

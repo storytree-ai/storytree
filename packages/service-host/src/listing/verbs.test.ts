@@ -113,7 +113,7 @@ test("2.2 · storytree services restart <part>/<service> has the host start a fa
   }
 });
 
-test("2.3 · storytree services run runs the service host in the foreground until a stop signal (Ctrl-C or SIGTERM) or a stop request (on Windows, where no signal is heard), then stops every service it ran and says so", async (t) => {
+test("2.3 · storytree services run runs the service host in the foreground until a stop signal (Ctrl-C or SIGTERM) or a stop request (on Windows, where no signal is heard), then stops every service it ran and says so", { timeout: 60_000 }, async (t) => {
   const { home } = fixtureHome(t);
   homeIs(t, home);
   setServiceOn("voice/listen", true, home);

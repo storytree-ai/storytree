@@ -43,19 +43,19 @@ export const runTests: RunTests = (command, folder) =>
     child.on("close", () => resolve(output));
   });
 
-/** Each code file in `folder`, outside node_modules, in the coordinates of package `plugin` (`packages/<plugin>/…`). */
-function filesOf(folder: string, plugin: string): { path: string; text: string }[] {
+/** Each code file in `folder`, outside node_modules and .git, by its path from `folder` with `/` between folders, after `prefix`. */
+export function filesIn(folder: string, prefix = ""): { path: string; text: string }[] {
   return readdirSync(folder, { recursive: true, withFileTypes: true })
     .filter((entry) => entry.isFile() && /\.[cm]?[jt]sx?$/.test(entry.name))
     .map((entry) => path.relative(folder, path.join(entry.parentPath, entry.name)))
-    .filter((file) => !file.split(path.sep).includes("node_modules"))
-    .map((file) => ({ path: `packages/${plugin}/${file.split(path.sep).join("/")}`, text: readFileSync(path.join(folder, file), "utf8") }));
+    .filter((file) => !file.split(path.sep).some((part) => part === "node_modules" || part === ".git"))
+    .map((file) => ({ path: `${prefix}${file.split(path.sep).join("/")}`, text: readFileSync(path.join(folder, file), "utf8") }));
 }
 
-/** The factory's checked-out commit, or undefined when it is not a git repository. */
-async function commitOf(factory: string): Promise<string | undefined> {
+/** The checked-out commit of `folder`, or undefined when it is not a git repository. */
+export async function commitOf(folder: string): Promise<string | undefined> {
   try {
-    return (await promisify(execFile)("git", ["-C", factory, "rev-parse", "HEAD"], { encoding: "utf8", windowsHide: true })).stdout.trim();
+    return (await promisify(execFile)("git", ["-C", folder, "rev-parse", "HEAD"], { encoding: "utf8", windowsHide: true })).stdout.trim();
   } catch {
     return undefined;
   }
@@ -70,7 +70,7 @@ export async function recordPluginTests({ library, factory, plugin, run = runTes
   const command: unknown = JSON.parse(readFileSync(manifest, "utf8")).scripts?.test;
   if (typeof command !== "string" || command.trim() === "") return { written: false, why: `${plugin} has no test command (a "test" script in its package.json), so storytree has no tests of it to run; nothing was written.` };
 
-  const files = filesOf(folder, plugin);
+  const files = filesIn(folder, `packages/${plugin}/`);
   const proofs = proofsAt(await library.projectTree(), files).filter(({ packages }) => packages.includes(plugin));
   if (proofs.length === 0) return { written: false, why: `No story in this project has ${plugin} as its package (a story titled ${JSON.stringify(plugin)}), so its tests prove no promise here; nothing was written.` };
 

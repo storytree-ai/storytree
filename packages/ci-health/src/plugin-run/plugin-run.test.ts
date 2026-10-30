@@ -56,19 +56,20 @@ test("4.1 · `health plugin <plugin>`, on the command line only (no record_plugi
   const capability = await library.addCapability({ story: story.id, title: "1 · Hello" });
   const contract = await library.addContract({ capability: capability.id, title: "1.1 · my-health's hello says it is mounted" });
   const nested = await library.addContract({ capability: capability.id, title: "1.2 · my-health's hello names the folder it is called in" });
-  // A test in a folder of the plugin's own counts as one beside its verbs does.
+  // A test in a folder of the plugin's own counts as one beside its verbs does; one numbered for no contract is counted apart.
   mkdirSync(path.join(factory, "plugins", "my-health", "test"));
   writeFileSync(
     path.join(factory, "plugins", "my-health", "test", "folder.test.js"),
     `import assert from "node:assert/strict";\nimport { test } from "node:test";\nimport { PLUGIN_FAMILIES } from "../verbs.js";\n` +
-      `test("1.2 · my-health's hello names the folder it is called in", async () => {\n  assert.match((await PLUGIN_FAMILIES[0].verbs[0].act({}, { folder: "/here" })).text, /\\/here/);\n});\n`,
+      `test("1.2 · my-health's hello names the folder it is called in", async () => {\n  assert.match((await PLUGIN_FAMILIES[0].verbs[0].act({}, { folder: "/here" })).text, /\\/here/);\n});\n` +
+      `test("1.9 · my-health's promise no story makes", () => {});\n`,
   );
 
   const record = verbOf(HEALTH_FAMILIES, "plugin");
   assert.ok(!mounted(record.tool), "the MCP server offers no tool for it: it runs the user's test command, through the agent's shell");
   const place = { library, project: name, session: "test", folder: factory };
   const passing = await record.act({ plugin: "my-health" } as never, place as never, WORDS);
-  assert.match(passing.text, /2 contracts verified passing, 0 failing, 0 not checked/);
+  assert.match(passing.text, /2 contracts verified passing, 0 failing, 0 not checked; 1 results named no contract of its story\./);
   assert.equal((await library.health(nested.id)).verified.state, "passing");
   const verified = (await library.health(contract.id)).verified;
   assert.equal(verified.state, "passing");

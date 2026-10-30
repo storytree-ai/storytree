@@ -257,6 +257,8 @@ test("5.5 `plugin new <plugin>` starts a plugin in this computer's factory folde
   const answer = await act({ plugin: "my-health", for: "ci-health" });
   assert.match(answer.text, /my-health/);
   assert.ok(answer.next!.some((step) => step.command === "settings set part ci-health plugin my-health"), "it names the switch that mounts it");
+  const record = answer.next!.find((step) => step.command === "health plugin my-health");
+  assert.ok(record !== undefined && record.tool === undefined, "it names the command that records its tests, which has no tool");
   const { mounted } = mount(standIn<{ name: string; verbs: { act: (input: object, place: object) => Promise<{ text: string }> }[] }>(builtIn as never, "verbs", { folder: factory, plugins: { "ci-health": "my-health" } }), ["ci-health"]);
   const family = mounted[0]!;
   assert.equal(family.name, "my-health");

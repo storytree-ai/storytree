@@ -152,7 +152,7 @@ test("7.1 storytree's checkout contributes its nine checks to the base dev loop'
   assert.deepEqual([...new Set(owners)], ["dev-loop"]);
 });
 
-test("7.12 a branch renamed after review to name its increment runs check:capability-list, and check:risk reads that checkout's own change, not the branch its claim recorded", async (t) => {
+test("7.11 a branch renamed after review to name its increment runs check:capability-list, and check:risk reads that checkout's own change, not the branch its claim recorded", async (t) => {
   const { root, git, write } = checkout(t);
   git("checkout", "-q", "-b", "claude/frosty-northcutt-e52ff6");
   write("packages/a/src/a.mjs", "export const a = 1;\n");

@@ -32,7 +32,7 @@ import type { DeclaredCapabilities } from "../claims/edit-gate.js";
 import { deafIfHandingOffAtOnce } from "../hooks/at-once.js";
 import { limitOf } from "../hooks/learned-limits.js";
 import { OBSERVE_STEP } from "../hooks/shell-edits.js";
-import { BACKGROUND, HANDED, HookClock, hookDeadline, recordHookTime, runHook, statusLine, UPKEEP, UPKEEP_DEADLINE_MS } from "../hooks/index.js";
+import { atDeadline, BACKGROUND, HANDED, HookClock, hookDeadline, recordHookTime, runHook, statusLine, UPKEEP, UPKEEP_DEADLINE_MS } from "../hooks/index.js";
 
 export type { DeclaredCapabilities };
 
@@ -41,7 +41,11 @@ export function hookCommand({ declaredCapabilities, guardMs }: { declaredCapabil
   const clock = new HookClock();
   if (process.argv[2] !== "statusline") process.on("exit", () => recordHookTime(storytreeHome(), clock.reading(process.argv[2] ?? "", process.argv.slice(3))));
   // A guard given longer than the hook may run (only a test gives one) is not cut off by the hook's own deadline.
-  setTimeout(() => process.exit(0), Math.max(process.argv.includes(UPKEEP) ? UPKEEP_DEADLINE_MS : hookDeadline(process.argv.slice(3), limitOf(storytreeHome(), OBSERVE_STEP)), guardMs ?? 0)).unref();
+  // At the deadline, what the hook has not yet written waits on this machine (3.14).
+  setTimeout(() => {
+    atDeadline();
+    process.exit(0);
+  }, Math.max(process.argv.includes(UPKEEP) ? UPKEEP_DEADLINE_MS : hookDeadline(process.argv.slice(3), limitOf(storytreeHome(), OBSERVE_STEP)), guardMs ?? 0)).unref();
   process.on("uncaughtException", () => process.exit(0));
   process.on("unhandledRejection", () => process.exit(0));
   const [harness = "", ...flags] = process.argv.slice(2);

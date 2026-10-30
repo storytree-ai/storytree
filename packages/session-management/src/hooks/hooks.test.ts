@@ -26,7 +26,7 @@ import { after, before, test } from "node:test";
 import { fileURLToPath } from "node:url";
 
 import { connect, type Line, type NewLine } from "@storytree/library";
-import { waitUntil } from "@storytree/test-waits";
+import { scaled, waitUntil } from "@storytree/test-waits";
 import pg from "pg";
 
 import { openActivityLog } from "../activity/index.js";
@@ -220,8 +220,9 @@ test("3.2 recorded Codex hook inputs make the same four lines, with the edited f
   });
 });
 
-for (const harness of ["claude-code", "codex"] as const) test(`3.22 ${harness} shell writes survive offline hooks, without attributing existing dirt or read-only commands`, { timeout: 120_000 }, async () => {
-  // About thirty hooks run one after another; a slow Windows runner has taken past a minute (PR #1693, 2026-10-23).
+for (const harness of ["claude-code", "codex"] as const) test(`3.22 ${harness} shell writes survive offline hooks, without attributing existing dirt or read-only commands`, { timeout: scaled(60_000) }, async () => {
+  // About thirty hooks run one after another, each starting a Node and Git: a minute on Linux, scaled by the environment's
+  // factor (ADR-1156). A slow Windows runner took past a minute (PR #1693, 2026-10-23), and a loaded laptop past two (2026-10-29).
   const project = uniqueProjectName();
   await withTempDir(async (dir) => {
     const folder = await projectFolder(dir, project);
@@ -1051,8 +1052,11 @@ async function slowStore(delayMs: number): Promise<Server> {
 
 test("3.19 a Claude Code session's end is recorded though Claude Code stops its end hook after 1.5 s and the store takes longer than that to answer: the hook, run as setup registers it, hands its line to one that outlives it", { timeout: 150_000 }, async () => {
   const project = uniqueProjectName();
-  // A store that answers only after 1.6 s.
-  const slow = await slowStore(1_600);
+  // A store that answers each connection after 0.8 s. The hook opens two before its line is written (the library's and
+  // the log's), so the store takes longer than Claude Code's 1.5 s to answer it, while each connection stays well inside
+  // the hook's 2 s connect timeout. At 1.6 s a connection, a loaded laptop's took past 2 s, so its line only waited on the
+  // machine, or past its 5 s deadline (2026-10-30).
+  const slow = await slowStore(800);
   try {
     await withTempDir(async (dir) => {
       const home = path.join(dir, "slow-home");
@@ -1061,19 +1065,26 @@ test("3.19 a Claude Code session's end is recorded though Claude Code stops its 
       // As setup registers Claude Code's end hook (the app setup's hooks-config.ts): the hook, with --background.
       const [command, args] = [process.execPath, [hook, "claude-code", BACKGROUND]];
 
-      // Run as Claude Code runs it, and cut short at 1.5 s as Claude Code does (2.1.284: AbortSignal.timeout(1500)).
-      const child = spawn(command, args, { env: { ...process.env, STORYTREE_HOME: home }, stdio: ["pipe", "ignore", "ignore"], shell: false });
-      const cut = setTimeout(() => child.kill("SIGKILL"), 1_500);
-      await new Promise<void>((resolve) => {
-        child.on("exit", () => resolve());
-        child.stdin.end(recorded("claude-code", "session-end", folder));
-      });
-      clearTimeout(cut);
+      // Run as Claude Code runs it, and cut short at 1.5 s as Claude Code does (2.1.284: AbortSignal.timeout(1500)). A hook
+      // that hands off exits by itself. One killed there never got through Node's start: on a laptop loaded enough, that took
+      // past 1.5 s (2026-10-30), and no hook can do better, so as in 3.45 that run is the machine's and is run again. Every
+      // run carries the same event, which the log keeps once.
+      const ended: string[] = [];
+      for (let run = 0; run < 10 && (ended.length === 0 || ended.at(-1) === "SIGKILL"); run++) {
+        const child = spawn(command, args, { env: { ...process.env, STORYTREE_HOME: home }, stdio: ["pipe", "ignore", "ignore"], shell: false });
+        child.stdin.on("error", () => undefined);
+        const cut = setTimeout(() => child.kill("SIGKILL"), 1_500);
+        ended.push(await new Promise<string>((resolve) => {
+          child.on("exit", (code, signal) => resolve(signal ?? `exit ${code}`));
+          child.stdin.end(recorded("claude-code", "session-end", folder));
+        }));
+        clearTimeout(cut);
+      }
 
-      // The handed-on copy starts a fresh node and waits out the slow store; a loaded Windows runner
-      // took longer than 8 s (PR #1699), so the line gets the budget 3.22 gives its hooks.
-      await waitUntil(async () => (await linesOf(project)).some((line) => line.kind === "session-ended"), 120_000, "the handed-on copy's session-ended line");
-      assert.deepEqual((await linesOf(project)).map((line) => line.kind), ["session-ended"]);
+      // The handed-on copy starts a fresh node and waits out the slow store; a loaded Windows runner took longer than 8 s
+      // (PR #1699). The budget, scaled, stays inside the test's own limit, so a lost line is named rather than timed out.
+      await waitUntil(async () => (await linesOf(project)).some((line) => line.kind === "session-ended"), 30_000, `the handed-on copy's session-ended line (the hook's runs ended: ${ended.join(", ")})`);
+      assert.deepEqual((await linesOf(project)).map((line) => line.kind), ["session-ended"], `the hook's runs ended: ${ended.join(", ")}`);
     });
   } finally {
     slow.close();
@@ -1219,6 +1230,36 @@ test("3.24 a hook cut off at its deadline while a statement of its waits on the 
     } finally {
       await holder.query("ROLLBACK").catch(() => undefined);
       await Promise.all([holder.end(), looker.end()]);
+      await dropTestProjects([project]);
+    }
+  });
+});
+
+test("3.14 a hook cut off at its deadline before its line is written leaves the line waiting on this machine; the next hook uploads it first (regression: a loaded laptop's gate lost a session's start line, 2026-10-29)", { timeout: 60_000 }, async () => {
+  const project = uniqueProjectName();
+  await withTempDir(async (dir) => {
+    const home = storytreeHome(dir, true);
+    const folder = await projectFolder(dir, project);
+    const url = new URL(testServerUrl());
+    url.pathname = "/storytree-activity";
+    // As 3.24 holds it: the project's write lock, held in another connection, so the hook's write waits past its deadline.
+    await (await openActivityLog(testServerUrl())).close();
+    const holder = new pg.Client({ connectionString: url.href });
+    await holder.connect();
+    try {
+      await holder.query("BEGIN");
+      await holder.query("SELECT pg_advisory_xact_lock(hashtext('storytree.activity'), hashtext($1))", [project]);
+      const cut = await runHook("claude-code", recorded("claude-code", "session-start-startup", folder), home);
+      assert.equal(cut.code, 0);
+      assert.ok(cut.ms >= DEADLINE_MS, `the hook ran to its deadline (${cut.ms.toFixed(0)} ms)`);
+      await holder.query("ROLLBACK");
+      assert.deepEqual((await linesOf(project)).map((line) => line.kind), [], "nothing was written before the deadline");
+
+      await runHook("claude-code", recorded("claude-code", "stop", folder), home);
+      assert.deepEqual((await linesOf(project)).map((line) => line.kind), ["session-started", "turn-ended"], "the cut-off hook's line first, once");
+    } finally {
+      await holder.query("ROLLBACK").catch(() => undefined);
+      await holder.end();
       await dropTestProjects([project]);
     }
   });

@@ -32,3 +32,19 @@ APIs are turned off without `--force`, so Google refuses to turn off one that an
 depends on, or one used in the last 30 days. Cloud SQL Admin was last used around 2026-10-15, so
 expect it to be `FAILED` until about 2026-11-15: run the script again then. A refusal never turns
 off anything else.
+
+## Billing read access for the Mint box
+
+`grant-billing-read.ps1` gives the box's service account (`storytree-mint`) what the twice-daily
+spend reading needs, and nothing else: `roles/bigquery.dataViewer` on the dataset `billing_export`
+only, and `roles/bigquery.jobUser` on the project, to run its one query. Run it from the checkout,
+after `git pull`, with your own `gcloud` sign-in (Windows PowerShell 5.1):
+
+```powershell
+powershell -ExecutionPolicy Bypass -File infra\gcp-project\grant-billing-read.ps1           # dry run: reads, changes nothing
+powershell -ExecutionPolicy Bypass -File infra\gcp-project\grant-billing-read.ps1 -Apply    # asks for the project id, then grants
+```
+
+Its lines read `WOULD`, `DONE`, `FAILED`, `SKIP` (already granted) and, after `-Apply`, `CHECK` (read
+back). Both grants only add: nothing already granted is removed. It exits 0 when both are in place
+(or, dry, would be made), 2 when a step was not done, and is safe to run again.

@@ -29,17 +29,18 @@
     "build:guidance": "node --import tsx packages/dev-loop/src/build-guidance.mjs",
     "check:guidance": "node --import tsx packages/dev-loop/src/build-guidance.mjs --check",
     "check:plan-edges": "node --import tsx packages/dev-loop/src/plan-edges.mjs",
-    "check:type-imports": "node --import tsx packages/dev-loop/src/type-imports.mjs",
-    "check:seed-records": "node --import tsx packages/dev-loop/src/seed-records.mjs",
-    "check:leaks": "node --import tsx packages/dev-loop/src/leak-scan.mjs",
-    "check:secrets": "node --import tsx packages/dev-loop/src/leak-scan.mjs --secrets",
-    "scrub:evidence": "node --import tsx packages/dev-loop/src/seed-records.mjs --scrub"
+    "check:type-imports": "node --import tsx packages/repo-checks/src/type-imports.mjs",
+    "check:seed-records": "node --import tsx packages/repo-checks/src/seed-records.mjs",
+    "check:leaks": "node --import tsx packages/repo-checks/src/leak-scan.mjs",
+    "check:secrets": "node --import tsx packages/repo-checks/src/leak-scan.mjs --secrets",
+    "scrub:evidence": "node --import tsx packages/repo-checks/src/seed-records.mjs --scrub"
   },
   "devDependencies": {
     "@storytree/base-dev-loop": "workspace:*",
     "@storytree/local-postgres": "workspace:*",
     "@storytree/session-management": "workspace:*",
     "@storytree/dev-loop": "workspace:*",
+    "@storytree/repo-checks": "workspace:*",
     "@storytree/library": "workspace:*",
     "esbuild": "^0.28.2",
     "pg": "^8.23.0",

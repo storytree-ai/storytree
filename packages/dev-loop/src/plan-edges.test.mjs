@@ -34,7 +34,7 @@ function plan(dependsOn) {
   return { stories: Object.entries(dependsOn).map(([title, on]) => ({ id: `story-${title}`, title, capabilities: [{ id: `cap-${title}`, title: `1 · ${title}'s part`, dependsOn: on.map((other) => `cap-${other}`) }] })) };
 }
 
-test("3.7 a capability depending on another story's against the code's direction is refused; with it, directly or not, it passes", (t) => {
+test("7.23 a capability depending on another story's against the code's direction is refused; with it, directly or not, it passes", (t) => {
   const root = plant(t);
   assert.deepEqual(planEdgeProblems(root, plan({ "The shop": ["The till", "The bank"], "The till": [], "The bank": [], "The app": ["The processes"], "The processes": [] })), []);
   const problems = planEdgeProblems(root, plan({ "The shop": [], "The till": [], "The bank": ["The shop"], "The app": [], "The processes": ["The app"] }));
@@ -44,7 +44,7 @@ test("3.7 a capability depending on another story's against the code's direction
 });
 
 // increment_dbe087a55e1b: another lane's plan edge, mid-way to its code, does not fail a branch that touches neither story.
-test("3.7 a branch fails only on edges between stories whose packages it changes; any other edge is a note naming it", (t) => {
+test("7.23 a branch fails only on edges between stories whose packages it changes; any other edge is a note naming it", (t) => {
   const root = plant(t);
   const tree = plan({ "The shop": [], "The till": [], "The bank": ["The shop"], "The app": [], "The processes": ["The app"] });
   const verdict = planEdgeVerdict(root, tree, ["packages/bank/src/vault.ts", "packages/shop/package.json", "README.md"]);

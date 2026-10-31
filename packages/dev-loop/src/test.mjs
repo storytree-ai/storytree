@@ -16,7 +16,7 @@ import { acquireHeavyLock } from "./heavy-lock.mjs";
  * is one: a story's code landing in the frame is a change to the frame alone. The code allocation guardrail
  * (ADR-0838 D5) is another: a file left unreached in one package is a change to that package alone.
  */
-export const ALWAYS_RUN = ["packages/dev-loop/src/package-boundaries.test.mjs", "packages/dev-loop/src/allocation.test.mjs"];
+export const ALWAYS_RUN = ["packages/repo-checks/src/package-boundaries.test.mjs", "packages/repo-checks/src/allocation.test.mjs"];
 
 /**
  * Test files that run as a unit of their own, after every other unit has ended and with nothing

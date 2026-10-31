@@ -1,4 +1,4 @@
-// Capability 7 · The gate. The push check: the exact-value half of the secret check, run only on this machine as
+// Capability 1 · Leak, secret and push scans. The push check: the exact-value half of the secret check, run only on this machine as
 // git's pre-push hook, which provision-worktree.mjs installs (installPushHook). It reads the credentials already held in
 // this machine's own files (MACHINE_CREDENTIALS: storytree's, the GitHub command line's, the coding agents' logins,
 // git's and Postgres's password files), and refuses a push whose commits add one to a file, read through leak-scan's

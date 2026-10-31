@@ -52,7 +52,7 @@
 // from the environment itself (PGPASSWORD, CF_ACCESS_CLIENT_ID, CF_ACCESS_CLIENT_SECRET), so nothing
 // secret is written. infra/library-host/README.md describes the route.
 //
-// Before anything else, it installs the push check (push-check.mjs, contract 3.7) as git's pre-push hook, in the
+// Before anything else, it installs the push check (packages/repo-checks/src/push-check.mjs, contract 3.7) as git's pre-push hook, in the
 // hooks folder the repository's worktrees share, unless someone else's pre-push hook is already there.
 //
 // It runs before node_modules exists, so it uses Node built-ins only. With --hook it always exits 0
@@ -320,7 +320,10 @@ function hookText(fallback) {
   return [
     "#!/bin/sh",
     `${HOOK_MARK}, installed by packages/base-dev-loop/src/provision-worktree.mjs: refuses a push that adds a credential held on this machine.`,
-    'script="$(git rev-parse --show-toplevel)/packages/dev-loop/src/push-check.mjs"',
+    'top="$(git rev-parse --show-toplevel)"',
+    'script="$top/packages/repo-checks/src/push-check.mjs"',
+    // A branch from before the push check moved to the repository's own checks package (increment_fc3a008fe1c6).
+    '[ -f "$script" ] || script="$top/packages/dev-loop/src/push-check.mjs"',
     `[ -f "$script" ] || script='${slashed.replaceAll("'", "'\\''")}'`,
     '[ -f "$script" ] || exit 0',
     'exec node "$script" "$@"',
@@ -338,8 +341,8 @@ export function installPushHook({ root, fallback }) {
   let hooks;
   try {
     hooks = git("--git-path", "hooks");
-    const main = path.join(path.dirname(git("--git-common-dir")), "packages", "dev-loop", "src", "push-check.mjs");
-    fallback ??= existsSync(main) ? main : path.join(repoRoot, "packages", "dev-loop", "src", "push-check.mjs");
+    const main = path.join(path.dirname(git("--git-common-dir")), "packages", "repo-checks", "src", "push-check.mjs");
+    fallback ??= existsSync(main) ? main : path.join(repoRoot, "packages", "repo-checks", "src", "push-check.mjs");
   } catch {
     return "not a git checkout: no push check installed";
   }

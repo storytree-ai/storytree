@@ -11,6 +11,6 @@ import { boundaryProblems } from "./package-boundaries.mjs";
 
 const root = fileURLToPath(new URL("../../..", import.meta.url));
 
-test("3.1 · this repo keeps every story in its own package, behind a thin frame and front door", () => {
+test("5.1 · this repo keeps every story in its own package, behind a thin frame and front door", () => {
   assert.deepEqual(boundaryProblems(root), []);
 });

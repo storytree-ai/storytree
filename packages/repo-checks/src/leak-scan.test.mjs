@@ -66,7 +66,7 @@ function tar(...entries) {
   return Buffer.concat([...parts, Buffer.alloc(1024)]);
 }
 
-test("7.14 · the leak scan finds each personal path, name, address and link in a plain, gzipped or UTF-16 file, or as JSON inside a zip or tar archive, and passes a clean file", () => {
+test("1.1 · the leak scan finds each personal path, name, address and link in a plain, gzipped or UTF-16 file, or as JSON inside a zip or tar archive, and passes a clean file", () => {
   for (const [what, leak] of Object.entries(LEAKS)) {
     const json = Buffer.from(JSON.stringify({ note: leak }));
     for (const [form, bytes] of Object.entries({ plain: Buffer.from(`x ${leak} y\n`), gzip: gzipSync(`x ${leak} y\n`), utf16: utf16(`x ${leak} y\n`), "utf16 unmarked": Buffer.from(`x ${leak} y\n`, "utf16le"), zip: zip("a.json", json), "tar.gz": gzipSync(tar(["readme.txt", Buffer.from("x".repeat(700))], ["a.json", json])) })) {
@@ -80,7 +80,7 @@ test("7.14 · the leak scan finds each personal path, name, address and link in 
   assert.deepEqual(fileCounts(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0, 0, 0, 0x0d, ...Buffer.from(LEAKS["a Linux home folder"])]), WORDS), {}, "a picture is not read as text");
 });
 
-test("7.15 · the leak scan reports a tree's leaks by folder and its worst files without the matched text, and the gate's check refuses only a file whose count of a pattern rises against the merge base", (t) => {
+test("1.2 · the leak scan reports a tree's leaks by folder and its worst files without the matched text, and the gate's check refuses only a file whose count of a pattern rises against the merge base", (t) => {
   const root = mkdtempSync(path.join(tmpdir(), "leak-scan-"));
   t.after(() => removeTemp(root));
   const files = {
@@ -105,7 +105,7 @@ test("7.15 · the leak scan reports a tree's leaks by folder and its worst files
   assert.deepEqual(problems, ["packages/a/src/more.ts adds 1 more × a Linux home folder, 1 more × a private name", "docs/new.md adds 1 more × a tailnet address"]);
 });
 
-test("7.16 · check:leaks refuses a branch that adds a leak or a private name to a file, against origin/main, says when the private names could not be read, and passes a clean branch", async (t) => {
+test("1.3 · check:leaks refuses a branch that adds a leak or a private name to a file, against origin/main, says when the private names could not be read, and passes a clean branch", async (t) => {
   const root = mkdtempSync(path.join(tmpdir(), "leak-check-"));
   t.after(() => removeTemp(root));
   const git = (...args) => execFileSync("git", args, { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
@@ -140,7 +140,7 @@ test("7.16 · check:leaks refuses a branch that adds a leak or a private name to
   assert.match(lines.at(-1), /no leaks/);
 });
 
-test("7.16 · check:leaks reads a branch holding an untracked folder, catching a leak in an ordinary folder's files and passing over a nested repository git lists as one folder", async (t) => {
+test("1.3 · check:leaks reads a branch holding an untracked folder, catching a leak in an ordinary folder's files and passing over a nested repository git lists as one folder", async (t) => {
   const root = mkdtempSync(path.join(tmpdir(), "leak-folder-"));
   t.after(() => removeTemp(root));
   const git = (cwd, ...args) => execFileSync("git", args, { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
@@ -182,7 +182,7 @@ const CREDENTIALS = {
 const FINE_GRAINED = join("github", "_pat_", "i".repeat(60));
 const STAND_INS = `${join("postgres", "://u:", "${password}", "@h")} ${join("postgres", "://u:", "<password>", "@h")} ${join("postgres", "://u:", "password", "@h")} Bearer \${token} ${join("sk-", "short")}\n`;
 
-test("7.19 · the secret scan finds each credential's shape in a plain, gzipped or UTF-16 file, or inside a zip or tar archive, by its kind, and passes a link's placeholder password", () => {
+test("1.4 · the secret scan finds each credential's shape in a plain, gzipped or UTF-16 file, or inside a zip or tar archive, by its kind, and passes a link's placeholder password", () => {
   for (const [what, credential] of Object.entries(CREDENTIALS)) {
     const json = Buffer.from(JSON.stringify({ env: credential }));
     for (const [form, bytes] of Object.entries({ plain: Buffer.from(`x ${credential} y\n`), gzip: gzipSync(`x ${credential} y\n`), utf16: utf16(`x ${credential} y\n`), "utf16 unmarked": Buffer.from(`x ${credential} y\n`, "utf16le"), zip: zip("a.json", json), "tar.gz": gzipSync(tar(["a.json", json])) })) {
@@ -194,7 +194,7 @@ test("7.19 · the secret scan finds each credential's shape in a plain, gzipped 
   assert.deepEqual(fileCounts(Buffer.from(CREDENTIALS["a GitHub token"])), {}, "the leak scan's own count holds no credential, so check:leaks never fails on one");
 });
 
-test("7.20 · check:secrets refuses a branch that adds a credential, even inside gzip or UTF-16 evidence, naming the file and kind but never the value, passes a file on the owner's exemptions list, and passes a clean branch", (t) => {
+test("1.5 · check:secrets refuses a branch that adds a credential, even inside gzip or UTF-16 evidence, naming the file and kind but never the value, passes a file on the owner's exemptions list, and passes a clean branch", (t) => {
   const root = mkdtempSync(path.join(tmpdir(), "secret-check-"));
   t.after(() => removeTemp(root));
   const git = (...args) => execFileSync("git", args, { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });

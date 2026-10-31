@@ -199,7 +199,7 @@ Each story keeps its code in its own package, `packages/<story>`. `packages/app`
 `apps/desktop` are the frame, and `packages/cli` is the front door; both stay thin. `pnpm test`
 fails a change that adds a story with no package, puts story code in the frame or the front door,
 or reaches into another story's package files, and no package belongs to no story. The rules and
-the declared stories are in [`packages/dev-loop/src/package-boundaries.mjs`](packages/dev-loop/src/package-boundaries.mjs)
+the declared stories are in [`packages/repo-checks/src/package-boundaries.mjs`](packages/repo-checks/src/package-boundaries.mjs)
 (ADR-0649 D1-D3, in 0.2's decision log, narrowed by ADR-0805: no shared engines).
 
 `pnpm test` runs only what a change can reach, locally and in CI alike: the packages holding a file

@@ -29,6 +29,9 @@ importers:
       '@storytree/local-postgres':
         specifier: workspace:*
         version: link:packages/local-postgres
+      '@storytree/repo-checks':
+        specifier: workspace:*
+        version: link:packages/repo-checks
       '@storytree/session-management':
         specifier: workspace:*
         version: link:packages/session-management
@@ -463,6 +466,9 @@ importers:
       '@storytree/project-and-caller':
         specifier: workspace:*
         version: link:../project-and-caller
+      '@storytree/repo-checks':
+        specifier: workspace:*
+        version: link:../repo-checks
       '@storytree/session-management':
         specifier: workspace:*
         version: link:../session-management
@@ -1005,6 +1011,40 @@ importers:
       typescript:
         specifier: ~7.0.2
         version: 7.0.2
+
+  packages/repo-checks:
+    dependencies:
+      '@storytree/base-dev-loop':
+        specifier: workspace:*
+        version: link:../base-dev-loop
+      '@storytree/forest':
+        specifier: workspace:*
+        version: link:../forest
+      '@storytree/guardrails':
+        specifier: workspace:*
+        version: link:../guardrails
+      '@storytree/library':
+        specifier: workspace:*
+        version: link:../library
+      '@storytree/local-postgres':
+        specifier: workspace:*
+        version: link:../local-postgres
+      '@storytree/map':
+        specifier: workspace:*
+        version: link:../map
+      '@storytree/project-and-caller':
+        specifier: workspace:*
+        version: link:../project-and-caller
+      tsx:
+        specifier: ^4.23.15
+        version: 4.23.15
+    devDependencies:
+      '@storytree/test-waits':
+        specifier: workspace:*
+        version: link:../test-waits
+      pg:
+        specifier: ^8.23.0
+        version: 8.23.0
 
   packages/service-host:
     dependencies:

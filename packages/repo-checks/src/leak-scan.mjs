@@ -1,4 +1,4 @@
-// Capability 7 · The gate. The tree-wide leak scan (arc_824a506f2125): every tracked file is read as text, a gzip,
+// Capability 1 · Leak, secret and push scans. The tree-wide leak scan (arc_824a506f2125): every tracked file is read as text, a gzip,
 // tar or zip archive through its entries, UTF-16 by its byte-order mark or its zero bytes, and searched for what a
 // public repository must not hold: what the forest's seed sanitiser redacts (claude.ai and Google Docs links,
 // personal email addresses, user@host, home folders, tailnet names and addresses, machine names, the cloud project

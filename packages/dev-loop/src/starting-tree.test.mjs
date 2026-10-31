@@ -7,7 +7,7 @@ import { test } from "node:test";
 
 import { removeTemp } from "@storytree/test-waits";
 
-import { scanTree, trackedFiles } from "./leak-scan.mjs";
+import { scanTree, trackedFiles } from "@storytree/repo-checks/leak-scan";
 import { buildStartingCommit } from "./starting-tree.mjs";
 
 const git = (cwd, ...args) => execFileSync("git", args, { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();

@@ -1,5 +1,5 @@
 // A branch changes only the capabilities its increment lists (ADR-0949 D3): the rules live in
-// packages/dev-loop/src/capability-list.mjs; `pnpm gate` runs them against the library as check:capability-list.
+// packages/repo-checks/src/capability-list.mjs; `pnpm gate` runs them against the library as check:capability-list.
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
@@ -14,7 +14,7 @@ import { dropTestDatabases } from "@storytree/local-postgres/testing";
 import pg from "pg";
 
 import { branchTree, branchVerdict, capabilitiesOf, capabilityListFor, importRewritesOnly, incrementOfBranch, staleProblems, unlistedCapabilities } from "./capability-list.mjs";
-import { runGate } from "./gate.mjs";
+import { runGate } from "@storytree/base-dev-loop";
 import { gateSteps } from "./gate-steps.mjs";
 
 /** A checkout holding the till's package: a declared source file, its test, and a file only the survey places. */
@@ -39,7 +39,7 @@ const tree = { stories: [{ id: "story-till", title: "The till", capabilities: [{
 /** The code survey's inference: the helper is reached nearest by the drawer's tests. */
 const survey = async () => ({ "story-till": { files: [{ path: "src/helper.ts", capability: "cap-drawer" }] } });
 
-test("7.4 a branch that changes a capability its increment does not list fails, naming the capability and its files", async (t) => {
+test("4.1 a branch that changes a capability its increment does not list fails, naming the capability and its files", async (t) => {
   const root = checkout(t);
   const changed = ["packages/till/src/receipt.ts", "packages/till/src/receipt.test.ts", "packages/till/src/helper.ts", "README.md"];
   const owners = await capabilitiesOf(root, changed, tree, { survey });
@@ -54,7 +54,7 @@ test("7.4 a branch that changes a capability its increment does not list fails, 
   assert.equal(unlistedCapabilities(owners, [], tree).length, 2, "an empty list holds every capability the branch changes");
 });
 
-test("7.4 a file whose only change rewrites an import of a package the branch renames changes no capability", (t) => {
+test("4.1 a file whose only change rewrites an import of a package the branch renames changes no capability", (t) => {
   const root = mkdtempSync(path.join(tmpdir(), "capability-list-rename-"));
   t.after(() => removeTemp(root));
   const git = (...args) => execFileSync("git", ["-c", "user.name=t", "-c", "user.email=t@example.com", ...args], { cwd: root, stdio: "pipe" });
@@ -89,7 +89,7 @@ test("7.4 a file whose only change rewrites an import of a package the branch re
     "a rewritten import of an unrenamed module, a rewrite with another change, and a new file each still change their capability");
 });
 
-test("7.4 a branch naming no increment leaves the check NOT RUN with its reason; the gate runs it on an increment's branch", async (t) => {
+test("4.1 a branch naming no increment leaves the check NOT RUN with its reason; the gate runs it on an increment's branch", async (t) => {
   assert.equal(incrementOfBranch("claude/increment-ca8ba53211b7-f8f424"), "increment_ca8ba53211b7");
   assert.equal(incrementOfBranch("claude/dazzling-jones-f96c61"), undefined);
   const root = mkdtempSync(path.join(tmpdir(), "capability-list-gate-"));
@@ -105,8 +105,8 @@ test("7.4 a branch naming no increment leaves the check NOT RUN with its reason;
   const gate = async () => {
     const calls = [];
     const output = [];
-    // The temporary checkout has no package.json to compose the gate's steps from, so it is handed dev-loop's.
-    const steps = async () => ({ parts: gateSteps, owners: gateSteps.map(() => "dev-loop"), graph: { "dev-loop": [] } });
+    // The temporary checkout has no package.json to compose the gate's steps from, so it is handed this package's.
+    const steps = async () => ({ parts: gateSteps, owners: gateSteps.map(() => "repo-checks"), graph: { "repo-checks": [] } });
     const code = await runGate({ root, steps, partsOff: () => [], run: async (step) => { calls.push(step); return step === "check:capability-list" ? 1 : 0; }, log: (line) => output.push(line) });
     return { code, calls, table: output.at(-1) };
   };
@@ -122,7 +122,7 @@ test("7.4 a branch naming no increment leaves the check NOT RUN with its reason;
   assert.match(named.table, /FAIL\s+check:capability-list/);
 });
 
-test("7.6 a branch's checks read the plan with its increment's pending changes laid over, and each pending change written against an older record is a problem naming both entries", async () => {
+test("4.2 a branch's checks read the plan with its increment's pending changes laid over, and each pending change written against an older record is a problem naming both entries", async () => {
   const asked = [];
   const library = { projectTree: async (options) => (asked.push(options), tree) };
   assert.equal(await branchTree(library, "claude/increment-ca8ba53211b7-f8f424"), tree);
@@ -151,7 +151,7 @@ async function query(url, sql, database) {
   }
 }
 
-test("7.7 CI's plan-read account, granted exactly infra/library-host/plan-read-grants.sql, reaches the check's verdict, stale pending changes included, as the owner does, and writes nothing", async (t) => {
+test("4.3 CI's plan-read account, granted exactly infra/library-host/plan-read-grants.sql, reaches the check's verdict, stale pending changes included, as the owner does, and writes nothing", async (t) => {
   const url = process.env.STORYTREE_TEST_PG_URL;
   assert.ok(url, "STORYTREE_TEST_PG_URL is not set: run these tests through `pnpm test`, which starts a local Postgres");
   const admin = process.env.STORYTREE_TEST_PG_ADMIN_URL || url;

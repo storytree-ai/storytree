@@ -14,7 +14,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
-import { isThirdParty, leakReport, libraryWords, OWNER_WORDS, scanTree, trackedFiles } from "./leak-scan.mjs";
+import { isThirdParty, leakReport, libraryWords, OWNER_WORDS, scanTree, trackedFiles } from "@storytree/repo-checks/leak-scan";
 
 const git = (cwd, args, input, env) => execFileSync("git", args, { cwd, encoding: "utf8", input, env, stdio: [input === undefined ? "ignore" : "pipe", "pipe", "pipe"], maxBuffer: 256 * 1024 * 1024 });
 

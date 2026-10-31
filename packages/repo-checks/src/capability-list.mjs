@@ -1,4 +1,4 @@
-// Capability 7 · The gate. Whether a branch changes only the capabilities its increment lists (ADR-0949 D3): each
+// Capability 4 · Capability-list check. Whether a branch changes only the capabilities its increment lists (ADR-0949 D3): each
 // changed file is mapped to its capability by the lookup edit claims share (ADR-0925 D4,
 // @storytree/map/code-survey's capabilitiesOfFiles): a file's own declaration (a source file's
 // opening "Capability N · <title>", a test file's one numbered capability), else the code survey's
@@ -8,12 +8,14 @@
 // checked. It reads the plan with that increment's pending changes laid over, and fails one written
 // against a record that has changed since (ADR-0966 D3, D5).
 // The library holds the list, so `pnpm gate` runs this as check:capability-list, and CI can
-// run it on its own (`node --import tsx packages/dev-loop/src/capability-list.mjs`) where it can reach the library.
+// run it on its own (`node --import tsx packages/repo-checks/src/capability-list.mjs`) where it can reach the library.
 
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+
+import { withLibrary } from "./library-reach.mjs";
 
 /** The increment a branch's name carries, as its library id; undefined when it names none. */
 export function incrementOfBranch(branch) {
@@ -167,14 +169,13 @@ if (process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.a
   else {
     const branch = currentBranch(root);
     const increment = incrementOfBranch(branch);
-    const { withLibrary } = await import("./build-guidance.mjs");
     const { changedFiles } = await import("@storytree/base-dev-loop/test-scope");
     const touched = changedFiles(root);
     const rewrites = importRewritesOnly(root, touched);
     const changed = touched.filter((file) => !rewrites.has(file));
     if (rewrites.size > 0) console.log(`${rewrites.size} file${rewrites.size === 1 ? "" : "s"} only rewrite an import of a package this branch renames, so change no capability`);
     const verdict = await withLibrary((library) => branchVerdict(library, root, branch, changed, { readText: textReader(root) }),
-      "node --import tsx packages/dev-loop/src/capability-list.mjs");
+      "node --import tsx packages/repo-checks/src/capability-list.mjs");
     if (verdict === undefined) process.exitCode = 1;
     else if (verdict.missing) {
       console.error(`This branch names ${increment}, which is not an increment in the library.`);

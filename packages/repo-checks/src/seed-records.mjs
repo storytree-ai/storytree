@@ -1,4 +1,4 @@
-// Capability 7 · The gate. A committed evidence seed or snapshot holds only what the forest's seed sanitiser keeps
+// Capability 2 · Seed and evidence records check. A committed evidence seed or snapshot holds only what the forest's seed sanitiser keeps
 // (packages/forest/src/snapshot/evidence-seed.ts): this check reads every seed or snapshot file the branch adds or
 // changes and refuses one that holds a work record, a writer named other than by role, a session id, a withheld arc
 // or a redaction pattern. When git cannot say what changed it reads every one in the checkout. The website's snapshot keeps the board's increments, so its rule is its

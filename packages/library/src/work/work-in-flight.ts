@@ -27,7 +27,7 @@ import * as questions from "./owner-questions.js";
 import { heldOnOpen, type NewQuestion, type QuestionEdit, type QuestionLease, type Settlement } from "./owner-questions.js";
 import * as waits from "./waits.js";
 import { WorkModel, type CapabilityNode, type ProjectTree, type StoryNode } from "./work-model.js";
-import { arcHold, checkedWaitFor, holdsOf, incrementHold, noteWaits, type Hold, type Holds, type NoteWait, type Wait, type WaitFor } from "./waits.js";
+import { arcHold, checkedWaitFor, holdsOf, incrementHold, noteWaits, type Hold, type Holds, type NoteWait, type Wait, type WaitFor, type WaitWrite } from "./waits.js";
 
 /** Where an increment is in its lifecycle. */
 export type IncrementStatus = (typeof INCREMENT_STATUSES)[number];
@@ -73,9 +73,10 @@ export interface NewIncrement {
   readonly waits?: Wait[];
   /**
    * What it is born waiting for outside the library, the owner or an event, one note per releaser
-   * (11.6), written in the parking's own write so it is never open work without the wait (10.25).
+   * (11.6), written in the parking's own write so it is never open work without the wait (10.25);
+   * an owner's with its why (11.10).
    */
-  readonly waitsFor?: WaitFor[];
+  readonly waitsFor?: (WaitWrite & { readonly note: string })[];
   readonly outcome?: CloseInput;
 }
 
@@ -548,7 +549,7 @@ export class WorkInFlight {
    * with no day or a day before today, an owner wait with a day, or a closed increment). Null if `id`
    * is not a live increment.
    */
-  addWaitFor(id: string, wait: WaitFor, options?: WriteOptions): Promise<SchemaRecord<"increment"> | null> {
+  addWaitFor(id: string, wait: WaitWrite, options?: WriteOptions): Promise<SchemaRecord<"increment"> | null> {
     return this.#serially(() => waits.addWaitFor(this.#records, id, wait, options));
   }
 

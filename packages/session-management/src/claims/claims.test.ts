@@ -1188,7 +1188,7 @@ test("5.57 a session clearing an owner wait to finish the increment itself claim
   await withWorld(async ({ log, project, library, as }) => {
     const { arc, park } = await arcOf(library);
     const install = await park("real install");
-    await library.addWaitFor(install, { releaser: "owner", note: "run the install on the old laptop" });
+    await library.addWaitFor(install, { releaser: "owner", note: "run the install on the old laptop", why: "it unblocks the work" });
 
     const cleared = await claimClearingOwnerWait(as("A"), install, "finishing the install");
     assert.ok(cleared.ok, JSON.stringify(cleared));
@@ -1203,7 +1203,7 @@ test("5.57 a session clearing an owner wait to finish the increment itself claim
     assert.equal(await readClaim(log, project, install), undefined, "the close ends the claim");
 
     const held = await park("held elsewhere");
-    await library.addWaitFor(held, { releaser: "owner", note: "sign in" });
+    await library.addWaitFor(held, { releaser: "owner", note: "sign in", why: "it unblocks the work" });
     const blocker = await park("blocker");
     await library.addWait(held, blocker, "it needs the blocker");
     const refused = await claimClearingOwnerWait(as("A"), held, "finishing it");

@@ -39,10 +39,13 @@ export function registerWorkTools(define: Define): void {
       held_on: z.array(z.string().min(1)).optional().describe("The ids of open questions it is born held on: it waits on the owner's answer until each is settled"),
       waits_on: z.array(z.object({ increment: id("increment"), reason: z.string().min(1).describe("Why it waits") })).optional().describe("The increments it is born waiting on: it is not ready until each closes as landed"),
       wait_for_owner: z.string().min(1).optional().describe("What the owner must do before it can start, in a line: it is born waiting for him until the wait is cleared (clear_wait)"),
+      wait_for_owner_why: z.string().min(1).optional().describe("With wait_for_owner, required: what his action protects or unblocks, in a line"),
+      wait_for_owner_rank: z.number().int().min(1).optional().describe("With wait_for_owner: where it ranks among his actions, 1 first"),
       machine: z.string().min(1).optional().describe("The one machine that can take it, by the short name Machines knows it by; leave it out when any machine can"),
       outcome: z.object({ disposition, pr, note }).optional().describe("Only for work that already landed without being parked: how it closed"),
     }),
-    async ({ arc, title, objective, body, capabilities, links, held_on, waits_on, wait_for_owner, machine, outcome }, { library, storytree, writer }) => {
+    async ({ arc, title, objective, body, capabilities, links, held_on, waits_on, wait_for_owner, wait_for_owner_why, wait_for_owner_rank, machine, outcome }, { library, storytree, writer }) => {
+      if (wait_for_owner === undefined && (wait_for_owner_why !== undefined || wait_for_owner_rank !== undefined)) return { text: "wait_for_owner_why and wait_for_owner_rank go with wait_for_owner.", refused: true };
       const named = machine === undefined ? { machine: undefined } : await machineChecked(storytree, machine);
       if ("refused" in named) return named.refused;
       const before = (await library.arcView(arc))?.state;
@@ -56,7 +59,7 @@ export function registerWorkTools(define: Define): void {
         ...(held_on === undefined ? {} : { heldOn: held_on }),
         ...(named.machine === undefined ? {} : { machine: named.machine }),
         ...(waits_on === undefined ? {} : { waits: waits_on.map(({ increment: on, reason }) => ({ on, reason })) }),
-        ...(wait_for_owner === undefined ? {} : { waitsFor: [{ releaser: "owner" as const, note: wait_for_owner }] }),
+        ...(wait_for_owner === undefined ? {} : { waitsFor: [{ releaser: "owner" as const, note: wait_for_owner, ...(wait_for_owner_why === undefined ? {} : { why: wait_for_owner_why }), ...(wait_for_owner_rank === undefined ? {} : { rank: wait_for_owner_rank }) }] }),
         ...(outcome === undefined ? {} : { outcome: defined(outcome) }),
       }, writer);
       const said = outcome === undefined ? `Parked ${quoted(title)} (${increment.id}) as a proposal. ${wait_for_owner === undefined ? "Claim it to start it." : `It waits for the owner: ${wait_for_owner}.`}` : `Recorded ${quoted(title)} (${increment.id}), ${outcome.disposition}.`;
@@ -131,24 +134,28 @@ export function registerWorkTools(define: Define): void {
 
   define(
     "set_wait",
-    "Make an increment wait on another increment, on any arc, or an arc on another arc, with the reason (`on`, `reason`). Or make an increment wait for something outside the plan, with a note (`for`, `note`): the owner, for an action only they can take that is not a decision (a decision is a question), or an outside event, with the day to check back, from which it reads ready again. Waiting work cannot be claimed or started until the wait releases; a wait for the owner releases your claims on the increment and the capabilities you took for it.",
+    "Make an increment wait on another increment, on any arc, or an arc on another arc, with the reason (`on`, `reason`). Or make an increment wait for something outside the plan, with a note (`for`, `note`): the owner, for an action only they can take that is not a decision (a decision is a question), with its `why` and any `rank`; or an outside event, with the day to check back, from which it reads ready again. Set again for the owner, a wait keeps the note, why and rank you leave out, and reads as read again today. Waiting work cannot be claimed or started until the wait releases; a wait for the owner releases your claims on the increment and the capabilities you took for it.",
     z.object({
       waiter: z.string().min(1).describe("The id of the increment or arc that waits"),
       on: z.string().min(1).optional().describe("The id of the increment or arc it waits on; or give `for` instead"),
       reason: z.string().min(1).optional().describe("With `on`: why it waits, in a line"),
       for: z.enum(["owner", "event"]).optional().describe("Instead of `on`, for an increment: what outside the plan it waits for: the owner, or an outside event"),
-      note: z.string().min(1).optional().describe("With `for`: what the owner must do, or what must happen, in a line"),
+      note: z.string().min(1).optional().describe("With `for`: what the owner must do, or what must happen, in a line; set again for the owner, left out it keeps the one it has"),
+      why: z.string().min(1).optional().describe("With `for: owner`, required the first time: what the action protects or unblocks, in a line"),
+      rank: z.number().int().min(1).optional().describe("With `for: owner`: where it ranks among the owner's actions, 1 first"),
       check_back: z.string().min(1).optional().describe("With `for: event`, required: the day to check back (YYYY-MM-DD), from which it reads ready again"),
     }),
-    async ({ waiter, on, reason, for: releaser, note, check_back }, call) => {
+    async ({ waiter, on, reason, for: releaser, note, why, rank, check_back }, call) => {
       const { library, writer } = call;
       if (releaser !== undefined && on === undefined) {
-        if (note === undefined) return { text: "A wait for the owner or an outside event needs a `note` saying what.", refused: true };
-        const done = await library.addWaitFor(waiter, { releaser, note, ...(check_back === undefined ? {} : { checkBack: check_back }) }, writer);
+        if (note === undefined && releaser === "event") return { text: "A wait for an outside event needs a `note` saying what.", refused: true };
+        const given = { ...(note === undefined ? {} : { note }), ...(why === undefined ? {} : { why }), ...(rank === undefined ? {} : { rank }), ...(check_back === undefined ? {} : { checkBack: check_back }) };
+        const done = await library.addWaitFor(waiter, { releaser, ...given }, writer);
         if (done === null) return { text: `There is no increment ${waiter} in this project's plan.`, refused: true };
+        const said = done.fields.waitsFor?.find((one) => one.releaser === releaser)?.note ?? note;
         // Waiting on the owner lets go of the work it holds (ADR-0944 D4); an outside event does not.
         const released = releaser === "owner" ? await releaseAsked(claimContext(call), waiter) : [];
-        return { text: `${waiter} now waits for ${releasedBy(releaser)}: ${note}${check_back === undefined ? "" : ` (check back ${check_back})`}.${releasedSaid(released)}`, data: { id: waiter, released } };
+        return { text: `${waiter} now waits for ${releasedBy(releaser)}: ${said}${check_back === undefined ? "" : ` (check back ${check_back})`}.${releasedSaid(released)}`, data: { id: waiter, released } };
       }
       if (on === undefined || releaser !== undefined || reason === undefined) return { text: "Give either `on` and `reason` (work it waits on) or `for` and `note` (the owner or an outside event it waits for).", refused: true };
       const done = await library.addWait(waiter, on, reason, writer);

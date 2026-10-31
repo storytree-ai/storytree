@@ -65,7 +65,7 @@ test("3.13 · `arc status` gives one line per active arc, moving ones first, eac
   await library.addWaitFor(domain.id, { releaser: "event", note: "DNS propagates", checkBack: "2099-01-01" });
   const store = await library.raiseQuestion({ arc: waiting.id, title: "Which store first?", stakes: "Launch waits.", statement: "Apple or Google?", context: "Both take a week.", options: "Apple or Google." });
   await library.editIncrement(listing.id, { heldOn: [store.id] });
-  await library.addWaitFor(testflight.id, { releaser: "owner", note: "Sign the Apple agreement" });
+  await library.addWaitFor(testflight.id, { releaser: "owner", note: "Sign the Apple agreement", why: "it unblocks the work" });
   await library.closeIncrement(outline.id, { disposition: "landed", pr: "#13" });
   await library.closeIncrement(schema.id, { disposition: "landed", pr: "#12" });
   assert.equal((await claim({ log, library, project, session: "codex-lane", harness: "codex" }, form.id, "building the form")).ok, true);

@@ -46,6 +46,13 @@ function priorityOf(value: string | undefined): { priority?: number | undefined 
   return { priority: Number(value) };
 }
 
+/** `--rank <n>` on a wait for the owner (11.10): where it ranks among his actions, a whole number of 1 or more; not given, nothing. */
+function actionRankOf(flag: string, value: string | undefined): { rank?: number } {
+  if (value === undefined) return {};
+  if (!/^[1-9]\d*$/.test(value) || !Number.isSafeInteger(Number(value))) throw new VerbRefusal(`--${flag} is a whole number of 1 or more (1 first); not "${value}"`, { misuse: true });
+  return { rank: Number(value) };
+}
+
 /** An arc's priority as said: 1 first, and an arc with none comes after every arc that has one (ADR-0963 D1). */
 const rankOf = (view: Pick<ArcView, "arc">): number => view.arc.fields.priority ?? Infinity;
 
@@ -247,7 +254,7 @@ const incrementWait = verb({
     family: "arc increment",
     name: "wait",
     summary: "make an increment wait on another, with a reason; or for you, or an outside event until a check-back day, with a note",
-    usage: "arc increment wait <increment> --on <increment> --reason <why>, or --for owner|event --note <text|@file> [--check-back YYYY-MM-DD]",
+    usage: "arc increment wait <increment> --on <increment> --reason <why>, or --for owner --note <text|@file> --why <text|@file> [--rank <n>], or --for event --note <text|@file> --check-back YYYY-MM-DD",
   },
   tool: { absent: NO_TOOL },
   inputs: {
@@ -255,16 +262,20 @@ const incrementWait = verb({
     on: { kind: "text", optional: true, describe: "the increment it waits on" },
     reason: { kind: "text", optional: true, describe: "why" },
     for: { kind: "text", optional: true, describe: "owner or event" },
-    note: { kind: "text", optional: true, describe: "what it waits for" },
+    note: { kind: "text", optional: true, describe: "what it waits for; written again for you, left out it keeps the one it has" },
+    why: { kind: "text", optional: true, describe: "with --for owner: what your action protects or unblocks, in a line; left out it keeps the one it has" },
+    rank: { kind: "text", optional: true, describe: "with --for owner: where it ranks among your actions, a whole number, 1 first" },
     "check-back": { kind: "text", optional: true, describe: "the day to check back, for an event" },
   },
   writes: true,
-  async act({ increment: id, on, reason, for: waitingFor, note, "check-back": checkBack }, context: ArcVerbContext) {
+  async act({ increment: id, on, reason, for: waitingFor, note, why, rank, "check-back": checkBack }, context: ArcVerbContext) {
     const releaser = releaserOf(on, waitingFor);
     if (releaser !== undefined) {
-      const said = needed(note, "note");
-      const done = await context.library.addWaitFor(id, { releaser, note: said, ...(checkBack === undefined ? {} : { checkBack }) }, context.writer);
+      if (releaser === "event") needed(note, "note");
+      // Written again for you, a wait keeps the note, why and rank it is not given, and reads as read again today (11.10).
+      const done = await context.library.addWaitFor(id, { releaser, ...fieldsOf({ note, why, checkBack }), ...actionRankOf("rank", rank) }, context.writer);
       if (done === null) throw new VerbRefusal(`no increment "${id}" in this project`);
+      const said = done.fields.waitsFor?.find((one) => one.releaser === releaser)?.note ?? note;
       // Waiting on the owner releases the caller's claims on it, as raising a question does (ADR-0944 D4); an event releases nothing.
       const released = releaser === "owner" ? await releasedAsking(context, id) : "";
       return { text: `${id} now waits for ${releasedBy(releaser)}: ${said}${checkBack === undefined ? "" : ` (check back ${checkBack})`}.${released}` };
@@ -386,7 +397,7 @@ function closeOf(given: { disposition?: string | undefined; pr?: string | undefi
 }
 
 const incrementNew = verb({
-  command: { family: "arc increment", name: "new", summary: "park an increment on an arc, as a proposal", usage: `arc increment new ${INCREMENT_USAGE} [--waits-on a,b --wait-reason <why>] [--wait-for owner --wait-note <text|@file>]` },
+  command: { family: "arc increment", name: "new", summary: "park an increment on an arc, as a proposal", usage: `arc increment new ${INCREMENT_USAGE} [--waits-on a,b --wait-reason <why>] [--wait-for owner --wait-note <text|@file> --wait-why <text|@file> [--wait-rank <n>]]` },
   tool: { absent: NO_TOOL },
   inputs: {
     ...PLAN_INPUTS,
@@ -394,9 +405,11 @@ const incrementNew = verb({
     "wait-reason": { kind: "text", optional: true, describe: "why it waits on them" },
     "wait-for": { kind: "text", optional: true, describe: "owner: it is born waiting for you" },
     "wait-note": { kind: "text", optional: true, describe: "with --wait-for owner: what you must do before it can start" },
+    "wait-why": { kind: "text", optional: true, describe: "with --wait-for owner: what your action protects or unblocks, in a line" },
+    "wait-rank": { kind: "text", optional: true, describe: "with --wait-for owner: where it ranks among your actions, a whole number, 1 first" },
   },
   writes: true,
-  async act({ "waits-on": waitsOn, "wait-reason": reason, "wait-for": waitFor, "wait-note": waitNote, ...given }, context: ArcVerbContext) {
+  async act({ "waits-on": waitsOn, "wait-reason": reason, "wait-for": waitFor, "wait-note": waitNote, "wait-why": waitWhy, "wait-rank": waitRank, ...given }, context: ArcVerbContext) {
     // `--waits-on a,b --wait-reason <why>`: the increments a new one is born waiting on, all for the one reason; neither given, none.
     const on = listOf(waitsOn, "waits-on");
     if ((on !== undefined || reason !== undefined) && (on === undefined || on.length === 0 || reason === undefined)) {
@@ -407,7 +420,9 @@ const incrementNew = verb({
     if ((waitFor !== undefined || waitNote !== undefined) && (waitFor !== "owner" || waitNote === undefined)) {
       throw new VerbRefusal("--wait-for owner and --wait-note go together: a new increment is born waiting only for you, with what you must do (an event wait is set after, with `arc increment wait`)", { misuse: true });
     }
-    const waitsFor = waitNote === undefined ? {} : { waitsFor: [{ releaser: "owner" as const, note: waitNote }] };
+    if (waitNote === undefined && (waitWhy !== undefined || waitRank !== undefined)) throw new VerbRefusal("--wait-why and --wait-rank go with --wait-for owner --wait-note", { misuse: true });
+    const owner = { releaser: "owner" as const, note: waitNote!, ...fieldsOf({ why: waitWhy }), ...actionRankOf("wait-rank", waitRank) };
+    const waitsFor = waitNote === undefined ? {} : { waitsFor: [owner] };
     const increment = await context.library.addIncrement({ ...incrementOf(given), ...waits, ...waitsFor, ...(await machineGiven(given.machine, context)) } as never, context.writer);
     return { text: `Parked increment ${increment.id} on ${increment.fields.arc}.`, next: [{ command: `arc show ${increment.fields.arc}`, why: "see the arc whole" }] };
   },
@@ -648,13 +663,25 @@ const list = verb({
   },
 });
 
+/** An owner action's rank as said: 1 first, and one with none after every ranked one (11.10). */
+const actionRank = (wait: NoteWait): number => wait.rank ?? Infinity;
+
+/** How long an owner action's why stands before a session must read it again (the audit's lease, as an open question's). */
+const REVIEW_DAYS = 7;
+
 const waits = verb({
-  command: { family: "arc", name: "waits", summary: "every open increment's waits for you or an outside event, across arcs: yours first, then events by check-back day" },
+  command: {
+    family: "arc",
+    name: "waits",
+    summary: "every open increment's waits for you or an outside event, across arcs: yours first by rank, each with its why, then events by check-back day; --audit lists your actions that need attention",
+    usage: "arc waits [--audit]",
+  },
   tool: { absent: "the MCP server's own show_plan names what waits" },
-  inputs: {},
-  async act(_input, { library }: ArcVerbContext) {
+  inputs: { audit: { kind: "switch", describe: "list instead the actions of yours that need attention, oldest first, each with why" } },
+  async act({ audit }, { library }: ArcVerbContext) {
     // Every hold in one ask and every arc in one more, never a read per increment (4.10).
     const [views, holds] = await Promise.all([library.arcViews(), library.holds()]);
+    if (audit) return auditOf(views, holds, new Date());
     const found = views.flatMap(({ arc, increments }) =>
       increments.flatMap((increment) => (holds.waitsFor?.[increment.id] ?? [])
         // A wait for you on work that still waits on open work is not yours yet: it is listed once that work lands.
@@ -669,18 +696,58 @@ const waits = verb({
       : [`${shelved.length} more for you ${shelved.length === 1 ? "waits" : "wait"} on a parked arc until it is unparked: ${holding.join(", ")} (storytree arc show <arc> names them).`];
     const listed = found.filter((one) => !shelved.includes(one));
     if (listed.length === 0) return { text: ["No waits for you or an outside event.", ...aside].join("\n") };
-    // An owner wait has no day, so it sorts before every event; the sort keeps arc order within a day.
-    listed.sort((one, other) => (one.wait.checkBack ?? "").localeCompare(other.wait.checkBack ?? ""));
+    // Yours first, by rank, the unranked after; then events by check-back day. The sort is stable, so arc order holds within a rank or a day.
+    listed.sort((one, other) => (one.wait.releaser === other.wait.releaser
+      ? actionRank(one.wait) - actionRank(other.wait) || (one.wait.checkBack ?? "").localeCompare(other.wait.checkBack ?? "")
+      : one.wait.releaser === "owner" ? -1 : 1));
     const lines = listed.map(({ wait, increment, arc }) => {
       const day = wait.releaser === "event" ? `; check back ${wait.checkBack}${wait.holds ? "" : ", overdue"}` : "";
-      return `  - ${wait.releaser === "owner" ? "you  " : "event"}  ${wait.note} — ${increment.id}  ${increment.fields.title}, on ${arc.id}  ${arc.fields.title}${day}`;
+      const rank = wait.rank === undefined ? "" : `#${wait.rank}  `;
+      const why = wait.why === undefined ? "" : ` (why: ${wait.why})`;
+      return `  - ${wait.releaser === "owner" ? "you  " : "event"}  ${rank}${wait.note}${why} — ${increment.id}  ${increment.fields.title}, on ${arc.id}  ${arc.fields.title}${day}`;
     });
     return {
       text: [`${listed.length} ${listed.length === 1 ? "wait" : "waits"} for you or an outside event:`, ...lines, ...aside].join("\n"),
-      next: [{ command: "arc show <arc>", why: "see a wait's arc whole" }],
+      next: [{ command: "arc show <arc>", why: "see a wait's arc whole" }, { command: "arc waits --audit", why: "your actions that need attention" }],
     };
   },
 });
+
+/**
+ * The owner's actions that need attention (11.10): every open increment's wait for him, on any arc, with each reason it does:
+ * its note says "not yet" while nothing holds it, or names an increment that has closed; it has no why, or no rank; its arc
+ * is parked or closed; or it has not been read again in REVIEW_DAYS days. Oldest read first, the never-read before them.
+ */
+function auditOf(views: readonly ArcView[], holds: Holds, at: Date): { text: string; next?: { command: string; why: string }[] } {
+  const closed = new Set(views.flatMap(({ increments }) => increments.flatMap((one) => (one.fields.status === "closed" ? [one.id] : []))));
+  const due = new Date(at.getTime() - REVIEW_DAYS * 86_400_000).toISOString().slice(0, 10);
+  const found = views.flatMap((view) => view.increments.flatMap((increment) => (holds.waitsFor?.[increment.id] ?? [])
+    .filter((wait) => wait.releaser === "owner")
+    .map((wait) => {
+      const held = (holds.waits[increment.id] ?? []).length > 0 || (holds.heldOn[increment.id] ?? []).length > 0;
+      const named = [...new Set(wait.note.match(/increment_[0-9a-f]{12}/g) ?? [])].filter((id) => closed.has(id));
+      const reasons = [
+        ...(/\bnot yet\b/i.test(wait.note) && !held ? ["its note says \"not yet\", but nothing holds it"] : []),
+        ...(named.length === 0 ? [] : [`its note names ${named.join(", ")}, which ${named.length === 1 ? "has" : "have"} closed`]),
+        ...(wait.why === undefined ? ["it has no why"] : []),
+        ...(wait.rank === undefined ? ["it has no rank"] : []),
+        ...(view.state === "parked" || view.state === "closed" ? [`its arc is ${view.state}`] : []),
+        ...(wait.reviewed === undefined ? ["it has never been read again"] : wait.reviewed < due ? [`it was last read again on ${wait.reviewed}`] : []),
+      ];
+      return { wait, increment, arc: view.arc, reasons };
+    })
+    .filter(({ reasons }) => reasons.length > 0)));
+  if (found.length === 0) return { text: "No action of yours needs attention." };
+  found.sort((one, other) => (one.wait.reviewed ?? "").localeCompare(other.wait.reviewed ?? ""));
+  const lines = found.flatMap(({ wait, increment, arc, reasons }) => [
+    `  - ${increment.id}  ${increment.fields.title}, on ${arc.id}  ${arc.fields.title}: ${reasons.join("; ")}`,
+    `      ${wait.rank === undefined ? "" : `#${wait.rank}  `}${wait.note}${wait.why === undefined ? "" : ` (why: ${wait.why})`}`,
+  ]);
+  return {
+    text: [`${found.length} ${found.length === 1 ? "action" : "actions"} of yours ${found.length === 1 ? "needs" : "need"} attention, oldest read first:`, ...lines].join("\n"),
+    next: [{ command: "arc increment wait <increment> --for owner [--note …] [--why …] [--rank <n>]", why: "rewrite its note, give it a why or a rank; written again, it reads as read again today" }],
+  };
+}
 
 const increment: VerbFamilies<ArcVerbContext> = {
   name: "increment",

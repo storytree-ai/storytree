@@ -12,7 +12,7 @@ import path from "node:path";
 
 import type { FactorySwitched } from "@storytree/project-and-caller";
 import { verb, VerbRefusal, type VerbFamily, type VerbPlace } from "@storytree/library/verbs";
-import { CORE, switchedOff, type Composition, type PartsGraph, type StandIns } from "@storytree/plugin-loader";
+import { CORE, switchedOff, type Composition, type PartsGraph } from "@storytree/plugin-loader";
 import type { ProvidingFamily } from "@storytree/plugin-loader/switch";
 
 import type { SurfaceDeclaration, SurfaceReading } from "./switches.js";
@@ -61,7 +61,7 @@ function switchedHere(graph: PartsGraph, off: readonly string[]): ReadonlyMap<st
  * part off because of it, itself first, with its command families, commands and tools, and those of the factory plugin
  * standing in for it (the stand-ins `standIns` name), added in its place (friction_9ff1eaa190a0).
  */
-async function takenSaid(part: string, graph: PartsGraph, off: readonly string[], standIns: StandIns, composed: Composition<ProvidingFamily>): Promise<string[]> {
+async function takenSaid(part: string, graph: PartsGraph, off: readonly string[], standIns: { readonly folder?: string; readonly plugins: Readonly<Record<string, string>> }, composed: Composition<ProvidingFamily>): Promise<string[]> {
   const [{ standIn }, { partProvides, providedSaid }] = await Promise.all([import("@storytree/plugin-loader"), import("@storytree/plugin-loader/switch")]);
   const gone = [...switchedOff(graph, off)].filter(([, because]) => because === part).map(([one]) => one).sort((a, b) => a === part ? -1 : b === part ? 1 : a.localeCompare(b));
   const lines = gone.map((one) => `${one === part ? one : `${one}, which stands on ${part},`} takes away ${providedSaid(partProvides(composed, one))}.`);

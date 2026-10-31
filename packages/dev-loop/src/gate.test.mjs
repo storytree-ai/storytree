@@ -115,6 +115,14 @@ test("guidance follows branch and working-tree role edits, including added and d
   assert.equal(guidanceFor(root).run, true);
 });
 
+test("7.22 a branch that changes a generated skill's SKILL.md runs the guidance check, naming the file", (t) => {
+  const { root, write } = checkout(t);
+  write(".agents/skills/grill-me/SKILL.md", "regenerated skill\n");
+  const decision = guidanceFor(root);
+  assert.equal(decision.run, true);
+  assert.match(decision.reason, /\.agents\/skills\/grill-me\/SKILL\.md/);
+});
+
 test("7.2 unreadable change scope requires guidance instead of guessing that nothing changed", (t) => {
   const { root, git } = checkout(t);
   git("update-ref", "-d", "refs/remotes/origin/main");

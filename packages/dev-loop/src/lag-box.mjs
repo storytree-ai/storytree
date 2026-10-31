@@ -19,7 +19,9 @@
 //   NOT RUN, its heavy-run lock released.
 // - A tick that fails before it can measure (no measuring checkout, main unreadable) is recorded NOT RUN as a tick of its own, one row
 //   for a failure however many ticks repeat it, so `pnpm lag:box` shows from any machine that the box has stopped measuring: it prints
-//   the last measuring run's age and the last failure. Only a library it cannot reach leaves a failure in tick.log alone.
+//   the last measuring run's age and the last failure. Only a library it cannot reach leaves a failure in tick.log alone. Two days
+//   after the last measuring run, such a tick also marks each budget contract not re-run, so health stops trusting a verdict the box
+//   no longer renews.
 // It is no GitHub workflow, nothing of it runs in CI, and no pull request's check reads it.
 //
 //   pnpm lag:box                                      each action's baseline, last runs and any standing slowdown
@@ -213,6 +215,21 @@ export function lagVerdicts({ history, actions, log: mainLog, owners, ran }) {
 export function recordLagVerdicts(library, verdicts, { commit, evidence }) {
   const withEvidence = new Map([...verdicts].map(([contract, verdict]) => [contract, verdict.note === undefined ? verdict : { ...verdict, note: `${verdict.note}, evidence ${evidence}` }]));
   return recordHealth(library, new Map([...verdicts.keys()].map((contract) => [contract, contract])), withEvidence, { by: LAG_RUN, source: "local", commit });
+}
+
+/** How long a lag verdict stands without a measuring run to renew it: past this, a tick that cannot measure marks it not re-run. */
+const STALE_MS = 2 * 86_400_000;
+
+/**
+ * The verdicts a tick that could not measure (`reason`) writes at `now`: once the last measuring run is older than STALE_MS, each
+ * contract `owners` names is not checked, over the verdict it can no longer renew; nothing before that, or with nothing measured yet.
+ */
+export function staleVerdicts({ history, owners, reason, now }) {
+  const measured = history.filter((run) => run.state === "done" && (run.purpose === "measure" || run.purpose === "confirm")).at(-1);
+  if (measured === undefined || now - Date.parse(measured.ended) < STALE_MS) return { verdicts: new Map() };
+  const why = `NOT RUN: not measured since ${when(measured.ended)} (${age(now - Date.parse(measured.ended))}): ${reason}`;
+  const verdicts = new Map([...new Set(Object.values(owners))].map((contract) => [contract, { number: contract, state: "not-checked", skip: "other", reason: why }]));
+  return { verdicts, commit: measured.head };
 }
 
 const when = (at) => String(at ?? "").slice(0, 16);
@@ -418,10 +435,11 @@ function option(args, name, fallback) {
 
 /**
  * What the timer runs: decide, run, record. A failure before it can measure is recorded NOT RUN in the history (when the library is
- * reachable) and thrown on, so tick.log says it too. `box`, `home`, `open` and `now` are the box's folder, its storytree home,
- * withHistory and the clock unless a caller gives its own.
+ * reachable) and thrown on, so tick.log says it too; two days after the last measuring run it also marks each budget contract not
+ * re-run (staleVerdicts). `box`, `home`, `open`, `now`, `project` and `owners` are the box's folder, its storytree home, withHistory,
+ * the clock, the library's project and the catalogue's budget contracts unless a caller gives its own.
  */
-export async function tick(args, { box = BOX, home = storytreeHome(), open = withHistory, log: say = log, now = () => new Date() } = {}) {
+export async function tick(args, { box = BOX, home = storytreeHome(), open = withHistory, log: say = log, now = () => new Date(), project = PROJECT, owners = OWNERS } = {}) {
   const release = takeRunLock(home);
   if (release === undefined) return say("lag:box: another tick is running");
   try {
@@ -434,7 +452,19 @@ export async function tick(args, { box = BOX, home = storytreeHome(), open = wit
         if (!existsSync(checkout)) throw new Error(`no measuring checkout at ${checkout}: run pnpm lag:box install`);
         ({ main, log: mainLog } = readMain(checkout));
       } catch (error) {
-        await history.failed(error.message.split("\n")[0], now());
+        const reason = error.message.split("\n")[0];
+        const at = now();
+        await history.failed(reason, at);
+        const { verdicts, commit } = staleVerdicts({ history: await history.read(), owners, reason, now: at });
+        if (verdicts.size > 0) {
+          const library = await storytree.openProject(project);
+          try {
+            const written = await recordLagVerdicts(library, verdicts, { commit, evidence: "pnpm lag:box" });
+            if (written.marked > 0) say(`lag:box: ${written.marked} lag verdict(s) not renewed for two days, marked not re-run`);
+          } finally {
+            await library.close();
+          }
+        }
         throw error;
       }
       const next = decide({ history: await history.read(), main, actions: ACTIONS, log: mainLog });
@@ -456,9 +486,9 @@ export async function tick(args, { box = BOX, home = storytreeHome(), open = wit
       if (next.comparisons.length === 0) return;
       const runs = await history.read();
       console.log(statusText({ history: runs, actions: ACTIONS, log: mainLog }));
-      const verdicts = lagVerdicts({ history: runs, actions: ACTIONS, log: mainLog, owners: OWNERS, ran });
+      const verdicts = lagVerdicts({ history: runs, actions: ACTIONS, log: mainLog, owners, ran });
       if (verdicts.size === 0) return;
-      const library = await storytree.openProject(PROJECT);
+      const library = await storytree.openProject(project);
       try {
         const written = await recordLagVerdicts(library, verdicts, { commit: main.commit, evidence: `pnpm lag:box, run ${ran.join(", ")}` });
         say(`lag:box: recorded as a lag run: ${written.passing} passing, ${written.failing} failing, ${written.marked} not re-run`);

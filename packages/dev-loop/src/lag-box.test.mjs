@@ -160,6 +160,48 @@ test("8.14 a lag-box tick that cannot measure records itself NOT RUN with its ca
   }
 });
 
+test("8.19 a lag-box tick that cannot measure, two days after the last measuring run, marks each budget contract it owns not re-run, once; within two days its verdict stands", async () => {
+  const url = process.env.STORYTREE_TEST_PG_URL;
+  if (!url) throw new Error("STORYTREE_TEST_PG_URL is not set; run through pnpm test");
+  const name = `t-${randomBytes(4).toString("hex")}`;
+  const box = mkdtempSync(path.join(tmpdir(), "lag-box-box-"));
+  const storytree = await connect({ url, connectTimeoutMs: 10_000 });
+  try {
+    const history = await openHistory(storytree, name);
+    const lib = await storytree.openProject(name);
+    try {
+      const story = await lib.addStory({ title: "The forest" });
+      const capability = await lib.addCapability({ story: story.id, title: "4 · Drill-down" });
+      await lib.setProposed(capability.id, false);
+      const contract = await lib.addContract({ capability: capability.id, title: "4.16 · Opening an island answers within 100 ms" });
+      await history.finish(await history.start({ purpose: "measure", head: "m8", against: "m7", actions: null }), { state: "done", rows: verdicts() });
+      await recordLagVerdicts(lib, new Map([[contract.id, { state: "passing", note: "open-largest-island within the margin of its baseline m7" }]]), { commit: "m8", evidence: "pnpm lag:box, run 1" });
+      const measured = Date.parse((await history.read())[0].ended);
+      const owners = Object.fromEntries(ACTIONS.map((action) => [action, contract.id]));
+      const failingAt = (ms) => assert.rejects(runTick([], { box, home: box, open: (use) => use(history, storytree), log: () => {}, now: () => new Date(measured + ms), project: name, owners }), /no measuring checkout at /);
+
+      await failingAt(86_400_000);
+      assert.equal((await lib.health(contract.id)).verified.state, "passing", "a tick that fails within two days of the last measuring run leaves its verdict standing");
+
+      await failingAt(2 * 86_400_000 + 3_600_000);
+      const stale = (await lib.health(contract.id)).verified;
+      assert.deepEqual({ state: stale.state, by: stale.by, was: stale.was?.state }, { state: "not-checked", by: "lag run", was: "passing" });
+      assert.match(stale.note, /not re-run at commit m8: NOT RUN: not measured since .* \(2 days\): no measuring checkout at /);
+      assert.equal((await lib.projectTree()).stories[0].capabilities[0].why?.reason, "not re-run", "the capability reaches the health worklist as not re-run");
+
+      await failingAt(3 * 86_400_000);
+      assert.equal((await lib.health(contract.id)).verified.at, stale.at, "a later failing tick does not write it again");
+    } finally {
+      await lib.close();
+    }
+    await history.forget();
+  } finally {
+    await storytree.close();
+    await removeTemp(box);
+    await dropTestDatabases([`storytree_${name}`]);
+  }
+});
+
 test("8.15 pnpm lag:box stops a run that passes its limit, records why, and leaves the heavy-run lock free", async () => {
   const home = mkdtempSync(path.join(tmpdir(), "lag-box-home-"));
   const heavyLock = fileURLToPath(new URL("./heavy-lock.mjs", import.meta.url));

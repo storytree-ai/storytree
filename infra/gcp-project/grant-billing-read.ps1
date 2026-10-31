@@ -14,12 +14,12 @@
   Then it reads both back. It is safe to run again: a grant already there is reported and skipped.
 
 .EXAMPLE
-  powershell -ExecutionPolicy Bypass -File infra\gcp-project\grant-billing-read.ps1
-  powershell -ExecutionPolicy Bypass -File infra\gcp-project\grant-billing-read.ps1 -Apply
+  powershell -ExecutionPolicy Bypass -File infra\gcp-project\grant-billing-read.ps1 -Project <project-id>
+  powershell -ExecutionPolicy Bypass -File infra\gcp-project\grant-billing-read.ps1 -Project <project-id> -Apply
 #>
 [CmdletBinding()]
 param(
-  [string]$Project = 'storytree-498613',
+  [Parameter(Mandatory = $true)][string]$Project,
   [switch]$Apply
 )
 

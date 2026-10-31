@@ -41,8 +41,8 @@ only, and `roles/bigquery.jobUser` on the project, to run its one query. Run it 
 after `git pull`, with your own `gcloud` sign-in (Windows PowerShell 5.1):
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File infra\gcp-project\grant-billing-read.ps1           # dry run: reads, changes nothing
-powershell -ExecutionPolicy Bypass -File infra\gcp-project\grant-billing-read.ps1 -Apply    # asks for the project id, then grants
+powershell -ExecutionPolicy Bypass -File infra\gcp-project\grant-billing-read.ps1 -Project <project-id>          # dry run: reads, changes nothing
+powershell -ExecutionPolicy Bypass -File infra\gcp-project\grant-billing-read.ps1 -Project <project-id> -Apply   # asks for the project id, then grants
 ```
 
 Its lines read `WOULD`, `DONE`, `FAILED`, `SKIP` (already granted) and, after `-Apply`, `CHECK` (read

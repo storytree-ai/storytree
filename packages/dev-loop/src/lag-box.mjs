@@ -146,22 +146,34 @@ function grouped(asked, everyAction) {
  * What the runner does next, given the history (oldest first), main's newest commit and its first parent, the catalogue's actions and
  * main's first-parent log (oldest first, with subjects): nothing while a run is going; else halve a slowdown not yet named; else give a
  * slower verdict its second run; else, once main has moved past the last commit measured, measure the newest main against each
- * action's baseline (main's parent for an action with none yet).
+ * action's baseline (main's parent for an action with none yet). An action whose baseline main's history does not hold (it left with
+ * an old history) is re-baselined on main's parent, the reason kept, and measured against it this tick whatever the rest does.
  */
 export function decide({ history, main, actions, log: mainLog }) {
-  if (history.some((run) => run.state === "running")) return { why: "a run is going", comparisons: [] };
+  if (history.some((run) => run.state === "running")) return { why: "a run is going", comparisons: [], rebaselines: [] };
   const states = actionStates({ history, actions, log: mainLog });
-  const halving = actions.filter((action) => states[action].slowdown?.between !== undefined).map((action) => {
+  const held = new Set(mainLog.map((entry) => entry.commit));
+  const rebaselines = actions.filter((action) => states[action].baseline !== undefined && !held.has(states[action].baseline))
+    .map((action) => ({ action, head: main.parent, reason: `its baseline ${short(states[action].baseline)} is not in main's history, so it cannot be measured against` }));
+  const lost = new Set(rebaselines.map(({ action }) => action));
+  const fresh = rebaselines.map(({ action }) => ({ purpose: "measure", head: main.commit, against: main.parent, action }));
+  const also = (why, asked, everyAction = []) => ({
+    why: lost.size === 0 ? why : `${why}; ${lost.size} action(s) re-baselined on ${short(main.parent)}`,
+    comparisons: grouped([...asked, ...fresh], everyAction),
+    rebaselines,
+  });
+  const own = actions.filter((action) => !lost.has(action));
+  const halving = own.filter((action) => states[action].slowdown?.between !== undefined).map((action) => {
     const { baseline, between } = states[action].slowdown;
     return { purpose: "bisect", head: between[Math.floor((between.length - 1) / 2)], against: baseline, action };
   });
-  if (halving.length > 0) return { why: "halving the merges behind a slowdown", comparisons: grouped(halving, []) };
-  const suspects = actions.filter((action) => states[action].suspect !== undefined).map((action) => ({ purpose: "confirm", head: main.commit, against: states[action].baseline, action }));
-  if (suspects.length > 0) return { why: "a slower verdict waits for a second run", comparisons: grouped(suspects, []) };
+  if (halving.length > 0) return also("halving the merges behind a slowdown", halving);
+  const suspects = own.filter((action) => states[action].suspect !== undefined).map((action) => ({ purpose: "confirm", head: main.commit, against: states[action].baseline, action }));
+  if (suspects.length > 0) return also("a slower verdict waits for a second run", suspects);
   const measured = history.filter((run) => run.purpose === "measure" || run.purpose === "confirm").at(-1);
-  if (measured?.head === main.commit) return { why: `main (${short(main.commit)}) is measured`, comparisons: [] };
-  const asked = actions.map((action) => ({ purpose: "measure", head: main.commit, against: states[action].baseline ?? main.parent, action }));
-  return { why: `main moved to ${short(main.commit)}`, comparisons: grouped(asked, actions) };
+  if (measured?.head === main.commit) return also(`main (${short(main.commit)}) is measured`, []);
+  const asked = own.map((action) => ({ purpose: "measure", head: main.commit, against: states[action].baseline ?? main.parent, action }));
+  return also(`main moved to ${short(main.commit)}`, asked, actions);
 }
 
 /** Who writes a budget contract's verified health: the box's lag run, from what it measured. */
@@ -469,6 +481,10 @@ export async function tick(args, { box = BOX, home = storytreeHome(), open = wit
       }
       const next = decide({ history: await history.read(), main, actions: ACTIONS, log: mainLog });
       say(`lag:box: ${next.why}`);
+      for (const rebaseline of next.rebaselines) {
+        await history.rebaseline(rebaseline);
+        say(`lag:box: ${rebaseline.action}: baseline ${short(rebaseline.head)}, because ${rebaseline.reason}`);
+      }
       const ran = [];
       for (const comparison of next.comparisons) {
         const seq = await history.start(comparison);

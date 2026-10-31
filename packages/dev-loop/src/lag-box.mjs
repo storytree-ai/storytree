@@ -288,13 +288,13 @@ export async function openHistory(storytree, project = PROJECT) {
       await pool.query("INSERT INTO lag_runs (project, purpose, head, actions, state, reason, ended_at) VALUES ($1, 'rebaseline', $2, $3, 'done', $4, now())", [project, head, json([action]), reason]);
     },
     /** A tick that failed before it could measure: NOT RUN with its reason, the last row's end moved on when it is the same failure. */
-    async failed(reason) {
+    async failed(reason, at = new Date()) {
       const { rows } = await pool.query("SELECT seq, purpose, state, reason FROM lag_runs WHERE project = $1 ORDER BY seq DESC LIMIT 1", [project]);
       const [latest] = rows;
       if (latest?.purpose === "tick" && latest.state === "not-run" && latest.reason === reason) {
-        await pool.query("UPDATE lag_runs SET ended_at = now() WHERE project = $1 AND seq = $2", [project, latest.seq]);
+        await pool.query("UPDATE lag_runs SET ended_at = $3 WHERE project = $1 AND seq = $2", [project, latest.seq, at]);
       } else {
-        await pool.query("INSERT INTO lag_runs (project, purpose, state, reason, ended_at) VALUES ($1, 'tick', 'not-run', $2, now())", [project, reason]);
+        await pool.query("INSERT INTO lag_runs (project, purpose, state, reason, started_at, ended_at) VALUES ($1, 'tick', 'not-run', $2, $3, $3)", [project, reason, at]);
       }
     },
     /** Runs left `running` by a tick that ended before it finished them: none is going while this one holds the box's run lock. */
@@ -418,10 +418,10 @@ function option(args, name, fallback) {
 
 /**
  * What the timer runs: decide, run, record. A failure before it can measure is recorded NOT RUN in the history (when the library is
- * reachable) and thrown on, so tick.log says it too. `box`, `home` and `open` are the box's folder, its storytree home and withHistory
- * unless a caller gives its own.
+ * reachable) and thrown on, so tick.log says it too. `box`, `home`, `open` and `now` are the box's folder, its storytree home,
+ * withHistory and the clock unless a caller gives its own.
  */
-export async function tick(args, { box = BOX, home = storytreeHome(), open = withHistory, log: say = log } = {}) {
+export async function tick(args, { box = BOX, home = storytreeHome(), open = withHistory, log: say = log, now = () => new Date() } = {}) {
   const release = takeRunLock(home);
   if (release === undefined) return say("lag:box: another tick is running");
   try {
@@ -434,7 +434,7 @@ export async function tick(args, { box = BOX, home = storytreeHome(), open = wit
         if (!existsSync(checkout)) throw new Error(`no measuring checkout at ${checkout}: run pnpm lag:box install`);
         ({ main, log: mainLog } = readMain(checkout));
       } catch (error) {
-        await history.failed(error.message.split("\n")[0]);
+        await history.failed(error.message.split("\n")[0], now());
         throw error;
       }
       const next = decide({ history: await history.read(), main, actions: ACTIONS, log: mainLog });

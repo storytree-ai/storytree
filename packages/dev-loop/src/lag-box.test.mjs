@@ -135,17 +135,15 @@ test("8.14 a lag-box tick that cannot measure records itself NOT RUN with its ca
     const history = await openHistory(storytree, project);
     await history.finish(await history.start({ purpose: "measure", head: "m8", against: "m7", actions: null }), { state: "done", rows: verdicts() });
     const open = (use) => use(history, storytree);
-    const failing = () => assert.rejects(runTick([], { box, home: box, open, log: () => {} }), /no measuring checkout at /, "the tick still fails, so tick.log keeps saying why");
+    let clock = Date.parse("2026-10-12T04:37:00.000Z");
+    const failing = () => assert.rejects(runTick([], { box, home: box, open, log: () => {}, now: () => new Date((clock += 15 * 60_000)) }), /no measuring checkout at /, "the tick still fails, so tick.log keeps saying why");
     await failing();
     const first = (await history.read()).at(-1);
-    for (let n = 0; n < 2; n += 1) {
-      await new Promise((resolve) => setTimeout(resolve, 5));
-      await failing();
-    }
+    for (let n = 0; n < 2; n += 1) await failing();
     const read = await history.read();
     assert.deepEqual(read.map((row) => [row.purpose, row.state]), [["measure", "done"], ["tick", "not-run"]], "one NOT RUN row for a failure however many ticks repeat it");
     assert.match(read[1].reason, /no measuring checkout at .*: run pnpm lag:box install/);
-    assert.ok(read[1].ended > first.ended, "the row's end moves to the latest tick that failed");
+    assert.deepEqual([first.started, read[1].ended], ["2026-10-12T04:52:00.000Z", "2026-10-12T05:22:00.000Z"], "the row's end moves to the latest tick that failed");
     assert.equal(read[1].started, first.started, "its start stays at the first");
     assert.deepEqual(decide({ history: read, main: main(9), actions: ACTIONS, log: LOG }).comparisons, [{ purpose: "measure", head: "m9", against: "m8", actions: null }], "a tick that did not measure does not stand in for a measuring run");
     const now = new Date(Date.parse(read[0].ended) + 3 * 86_400_000 + 3_600_000);

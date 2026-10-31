@@ -21,9 +21,9 @@ const run: RunHarness = async (executable, args, options) => {
   const file = path.join(options.env.CODEX_HOME!, "config.toml");
   let source = existsSync(file) ? readFileSync(file, "utf8") : "";
   if (source.includes("INVALID")) throw new Error("invalid TOML");
-  const block = /\n?\[mcp_servers\.storytree\]\ncommand = (.+)\nargs = (.+)\n(?:env = \{ CODEX_HOME = (.+) \}\n)?/.exec(source);
+  const block = /\n?\[mcp_servers\.storytree\]\ncommand = (.+)\nargs = (.+)\n(?:env = \{ CODEX_HOME = (.+) \}\n)?(?:tool_timeout_sec = (\d+)\n)?/.exec(source);
   const env = block?.[3] === undefined ? null : { CODEX_HOME: JSON.parse(block[3]) };
-  const server = block === null ? undefined : { name: "storytree", enabled: true, transport: { type: "stdio", command: JSON.parse(block[1]!), args: JSON.parse(block[2]!), env, env_vars: [], cwd: null }, enabled_tools: null, disabled_tools: [] };
+  const server = block === null ? undefined : { name: "storytree", enabled: true, transport: { type: "stdio", command: JSON.parse(block[1]!), args: JSON.parse(block[2]!), env, env_vars: [], cwd: null }, enabled_tools: null, disabled_tools: [], tool_timeout_sec: block[4] === undefined ? null : Number(block[4]) };
   if (args[1] === "list") return JSON.stringify(server === undefined ? [] : [server]);
   if (args[1] === "get") return JSON.stringify(server);
   if (args[1] === "add") {
@@ -337,6 +337,27 @@ test("2.2 a custom-home Codex registration storytree wrote before it handed over
   assert.ok(source.startsWith(legacy), source);
   assert.equal(source.split("[mcp_servers.storytree]").length, 2, source);
   assert.ok(source.includes(`\nenv = { CODEX_HOME = ${JSON.stringify(custom)} }\n`), source);
+});
+
+test("2.2 Codex's registration lets one tool call run for many minutes, so a long run_tests answers instead of being cut at Codex's one-minute default; one written without that is updated in place", async (t) => {
+  const f = fixture(t);
+  writeFileSync(f.codexFile, `${legacy}\n[mcp_servers.storytree]\ncommand = ${JSON.stringify(f.options.installed.command)}\nargs = ${JSON.stringify(f.options.installed.args)}\n`);
+  const [result] = await connectAgents({ ...f.options, harnesses: ["codex"] });
+  assert.equal(result!.tools, "connected", result!.next);
+  const source = readFileSync(f.codexFile, "utf8");
+  assert.ok(source.startsWith(legacy), source);
+  assert.equal(source.split("[mcp_servers.storytree]").length, 2, source);
+  const seconds = Number(/\ntool_timeout_sec = (\d+)\n/.exec(source)?.[1]);
+  assert.ok(seconds >= 600, source);
+  assert.deepEqual((await connectAgents({ ...f.options, harnesses: ["codex"] })).map((r) => r.tools), ["already connected"]);
+});
+
+test("2.5 disconnecting Codex removes a registration storytree wrote before it allowed long tool calls, as its own", async (t) => {
+  const f = fixture(t);
+  writeFileSync(f.codexFile, `${legacy}\n[mcp_servers.storytree]\ncommand = ${JSON.stringify(f.options.installed.command)}\nargs = ${JSON.stringify(f.options.installed.args)}\n`);
+  const report = await disconnectAgents({ ...f.options, harnesses: ["codex"] });
+  assert.deepEqual(report.harnesses.map((r) => r.tools), ["disconnected"]);
+  assert.doesNotMatch(readFileSync(f.codexFile, "utf8"), /mcp_servers\.storytree/);
 });
 
 test("2.5 disconnect one keeps the other and command; disconnect all removes only this installation's hooks and launcher", async (t) => {

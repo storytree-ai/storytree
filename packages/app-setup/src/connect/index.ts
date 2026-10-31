@@ -198,7 +198,8 @@ export async function disconnectAgents(options: ConnectionOptions): Promise<Disc
     let settings: Settings | undefined;
     try {
       settings = await openSettings(harness, options);
-      if (settings.current !== undefined && !settings.compatible(options.installed)) {
+      // An outdated registration is still this installation's, only older: it goes too.
+      if (settings.current !== undefined && !settings.compatible(options.installed) && !settings.outdated(options.installed)) {
         harnesses.push({ harness, tools: "kept", next: conflict(where.files[harness]) });
         continue;
       }
@@ -261,7 +262,7 @@ export async function removeConnections(options: Omit<ConnectionOptions, "harnes
       // Codex's own command line reads its TOML; without a storytree table there is nothing to ask it.
       if (harness === "codex" && !/mcp_servers\.["']?storytree\b/.test(read(where.files.codex) ?? "")) { results.push({ harness, tools: "none" }); continue; }
       settings = await openSettings(harness, { ...options, harnesses: [] });
-      const ours = settings.current !== undefined && settings.compatible(options.installed);
+      const ours = settings.current !== undefined && (settings.compatible(options.installed) || settings.outdated(options.installed));
       if (ours) await settings.remove();
       results.push({ harness, tools: ours ? "removed" : "none" });
     } catch {

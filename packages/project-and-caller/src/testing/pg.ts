@@ -19,8 +19,9 @@ import { dropTestDatabases } from "@storytree/local-postgres/testing";
 
 import pg from "pg";
 
-import { MARKER_FILE, requireApproval } from "../routing/routing.js";
+import { requireApproval } from "../routing/routing.js";
 import { approveTrunk, machineOf, registerTrunk } from "../routing/trunks.js";
+import { writeMarker } from "./folders.js";
 
 /** The server the tests run against. Throws when there is none. */
 export function testServerUrl(): string {
@@ -146,7 +147,7 @@ export async function markedProject(storytree: Storytree, folder: string, projec
   const { identity } = library;
   await library.close();
   mkdirSync(folder, { recursive: true });
-  writeFileSync(path.join(folder, MARKER_FILE), `${JSON.stringify({ project, identity }, null, 2)}\n`);
+  writeMarker(folder, `${JSON.stringify({ project, identity }, null, 2)}\n`);
   const machine = machineOf(home);
   const at = realpathSync.native(folder);
   if (!(await registerTrunk(storytree, { project, machine: machine.id, machineName: machine.name, folder: at }, "test"))) {

@@ -10,6 +10,6 @@ export type { AgentReplay, Jump, Lit, Replay } from "./reads/reads.js";
 export { codeKey, codePathKey, curvePoint, fileStop, hopPoint, IN_VIEW, stepPoint, traversalTrails, growthPlan, heldNotes, legend, lighting, trails, noteCard, noteTitle, windowView } from "./look-inside/look-inside.js";
 export type { Card, TraversalStep, LegendEntry, Point, RosterEntry, Trail, Lighting, WindowView, CodePlaces, WindowState } from "./look-inside/look-inside.js";
 export { globePoints, LOOSE_BALL_RADIUS, LOOSE_MIN_SEPARATION } from "./shelves/positions.js";
-export { selectedLinks, sheetLit, sheetPoints, type SheetHanging, type SheetPoint } from "./shelves/sheet.js";
+export { selectedLinks, sheetLayout, sheetLit, sheetPoints, type SheetHanging, type SheetLayout, type SheetPoint } from "./shelves/sheet.js";
 export { noteMoments, noteShown } from "./shelves/growing.js";
 export type { GlobePoint } from "./shelves/positions.js";

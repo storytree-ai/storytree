@@ -9,9 +9,8 @@ import path from "node:path";
 import { connect, type Library } from "@storytree/library";
 
 import { openActivityLog, type ActivityLog } from "@storytree/session-management";
-import { MARKER_FILE } from "@storytree/project-and-caller";
 import { idOf, type Agent } from "./agent.js";
-import { withTempDir } from "@storytree/project-and-caller/testing/folders";
+import { withTempDir, writeMarker } from "@storytree/project-and-caller/testing/folders";
 import { approveCheckout, dropTestProjects, testServerUrl, uniqueProjectName } from "@storytree/project-and-caller/testing/pg";
 
 /** The toolbox: every tool the server offers. */
@@ -104,7 +103,7 @@ export async function withProject(body: (world: World) => Promise<void>): Promis
   await withTempDir(async (dir) => {
     const folder = path.join(dir, "site");
     mkdirSync(folder);
-    writeFileSync(path.join(folder, MARKER_FILE), `${JSON.stringify({ project })}\n`);
+    writeMarker(folder, `${JSON.stringify({ project })}\n`);
     await approveCheckout(folder, project);
     const storytree = await connect({ url: testServerUrl() });
     const log = await openActivityLog(testServerUrl());

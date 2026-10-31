@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { finished } from "node:stream/promises";
 import { test } from "node:test";
 import asar from "@electron/asar";
 import fuses from "@electron/fuses";
@@ -14,7 +15,9 @@ test("4.28 the install checks read a packaged app's version from its archive, wi
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   mkdirSync(path.join(dir, "app"));
   writeFileSync(path.join(dir, "app", "package.json"), JSON.stringify({ name: "storytree-0.3", version: "0.3.912" }));
-  await asar.createPackage(path.join(dir, "app"), path.join(dir, "app.asar"));
+  // createPackage resolves once its write stream is ended, not flushed: reading at once can find the file's bytes not yet
+  // on disk (zeros where package.json should be), so wait for the stream to finish.
+  await finished(await asar.createPackage(path.join(dir, "app"), path.join(dir, "app.asar")));
   assert.equal(archiveVersion(path.join(dir, "app.asar")), "0.3.912");
 });
 

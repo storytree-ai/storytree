@@ -16,7 +16,7 @@ import { existsSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 
 import { codexHookTrust, readAppRecords, type AppPlaces, type AppReading } from "@storytree/session-management";
-import { findProject, storytreeHome } from "@storytree/project-and-caller";
+import { findProject, PROJECT_FILE, ROOT_MARKER_FILE, storytreeHome } from "@storytree/project-and-caller";
 
 import { firstCommit, suggestedName } from "../project/making.js";
 import { defaultHomes, disconnectedHarnesses, registeredHookScripts, registerHooks, type HookCommand, type Homes, type HooksReport } from "./hooks-config.js";
@@ -115,6 +115,19 @@ export interface SetupReport {
    * git has one, or still waiting for one. Undefined for every other folder.
    */
   readonly firstCommit?: "made" | "no identity";
+  /**
+   * A project folder's marker still at its root as `.storytree.json` (ADR-1191 D5): alone, or beside a
+   * `.storytree/project.json`, which wins; and whether git tracks it. Undefined for every other folder.
+   */
+  readonly rootMarker?: RootMarker;
+}
+
+/** A root `.storytree.json` the setup check found (ADR-1191 D5). */
+export interface RootMarker {
+  /** Whether the folder also holds `.storytree/project.json`, which routing reads instead. */
+  readonly both: boolean;
+  /** Whether git tracks it, so the move is a `git mv` (or the delete a `git rm`). */
+  readonly tracked: boolean;
 }
 
 /** A stdio server entry: the command and arguments an MCP client starts storytree's tool server with. */
@@ -151,7 +164,8 @@ export async function runSetupCheck(options: SetupOptions): Promise<SetupReport>
   const committed = found.project === undefined ? undefined : firstCommit(found.folder)?.state;
   const first = committed === "made" || committed === "no identity" ? committed : undefined;
   const repository = found.project === undefined ? undefined : repositoryLack(found.folder);
-  const report = { storytree, hooks, codexServer, codexHooks, project, command, gh, machine, archives, hooksRelease: released, serverEntry, ...(options.connected === undefined ? {} : { connected: options.connected }), ...(repository === undefined ? {} : { repository }), ...(first === undefined ? {} : { firstCommit: first }) };
+  const rootMarker = found.project === undefined ? undefined : rootMarkerIn(found.folder);
+  const report = { storytree, hooks, codexServer, codexHooks, project, command, gh, machine, archives, hooksRelease: released, serverEntry, ...(options.connected === undefined ? {} : { connected: options.connected }), ...(repository === undefined ? {} : { repository }), ...(first === undefined ? {} : { firstCommit: first }), ...(rootMarker === undefined ? {} : { rootMarker }) };
   return { ...report, lines: setupLines(report) };
 }
 
@@ -159,6 +173,18 @@ export async function runSetupCheck(options: SetupOptions): Promise<SetupReport>
 /** `machine`, with the asking session's own agent CLI signed in where its ask said signed out (8.11). */
 function signedInAsking(machine: MachineState, asking: SetupOptions["asking"]): MachineState {
   return asking !== undefined && machine[asking] === "signed out" ? { ...machine, [asking]: "signed in" } : machine;
+}
+
+/** The root `.storytree.json` a project's `folder` still holds (ADR-1191 D5), or undefined when it holds none. */
+function rootMarkerIn(folder: string): RootMarker | undefined {
+  if (!existsSync(path.join(folder, ROOT_MARKER_FILE))) return undefined;
+  let tracked = false;
+  try {
+    tracked = execFileSync("git", ["ls-files", "--", ROOT_MARKER_FILE], { cwd: folder, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"], windowsHide: true }).trim() !== "";
+  } catch {
+    // No git, or no repository: a plain move.
+  }
+  return { both: existsSync(path.join(folder, PROJECT_FILE)), tracked };
 }
 
 /**

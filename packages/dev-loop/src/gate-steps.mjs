@@ -29,7 +29,7 @@ import path from "node:path";
 
 import { capabilityListFor, currentBranch, incrementOfBranch } from "./capability-list.mjs";
 import { ownerAppliesFor } from "./owner-applies.mjs";
-import { REGION_START, REGION_END, ROLE_DIRS } from "./guidance.mjs";
+import { REGION_START, REGION_END, ROLE_DIRS, SKILL_DIRS } from "./guidance.mjs";
 import { changedFiles } from "./test-scope.mjs";
 
 /** Check generated roles automatically; require the check when Git cannot establish the changes. */
@@ -37,7 +37,7 @@ export function guidanceFor(root, requested = false) {
   if (requested) return { run: true, reason: "--guidance declares a role or note change in the library" };
   try {
     const files = changedFiles(root);
-    const role = files.find((file) => file === "AGENTS.md" || Object.keys(ROLE_DIRS).some((dir) => file.startsWith(`${dir}/`)));
+    const role = files.find((file) => file === "AGENTS.md" || [...Object.keys(ROLE_DIRS), ...SKILL_DIRS].some((dir) => file.startsWith(`${dir}/`)));
     if (role) return { run: true, reason: `${role} changed` };
     if (files.includes("CLAUDE.md")) {
       const git = (...args) => execFileSync("git", args, { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });

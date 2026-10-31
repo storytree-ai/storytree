@@ -15,7 +15,7 @@ import { removeTemp, waitUntil } from "@storytree/test-waits";
 import { connect } from "@storytree/library";
 import { dropTestDatabases } from "@storytree/local-postgres/testing";
 
-import { actionStates, decide, lagVerdicts, makeCheckouts, openHistory, recordLagVerdicts, runBounded, statusText, tick as runTick } from "./lag-box.mjs";
+import { actionStates, decide, lagVerdicts, makeCheckouts, openHistory, recordLagVerdicts, runBounded, runLimitMs, statusText, tick as runTick } from "./lag-box.mjs";
 
 const ACTIONS = ["open-smallest-island", "open-largest-island", "close-panel"];
 // main's first-parent history, oldest first: m0, then merges m1..m20, each of pull request 100 + n.
@@ -244,6 +244,11 @@ test("8.15 pnpm lag:box stops a run that passes its limit, records why, and leav
   } finally {
     await removeTemp(home);
   }
+});
+
+test("8.15 a lag-box tick bounds its run at 60 minutes unless --limit-minutes says otherwise, so a measure of the whole catalogue on both seeds fits", () => {
+  assert.equal(runLimitMs(["tick"]), 60 * 60_000);
+  assert.equal(runLimitMs(["--limit-minutes", "90"]), 90 * 60_000);
 });
 
 test("8.20 pnpm lag:box install makes each checkout locked, and locks one it finds there unlocked, so the session worktree reaper leaves it", async () => {

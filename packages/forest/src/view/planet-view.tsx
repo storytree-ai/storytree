@@ -148,8 +148,19 @@ export function PlanetView({ core, scene, places, wisps: live, selected, highlig
       sideOffset={sideOffset ?? 0} aside={aside}
       showFailures={shownSurfaces.grounds || shownSurfaces.territories !== false || shownSurfaces.fileCircles || shownSurfaces.nameplates || shownSurfaces.roads} />
     <NameplateCrowd selected={selected} />
+    <CompiledAtLoad />
     {growth !== undefined && recordedSessions !== undefined && <ReplaySessions recorded={recordedSessions} onWisps={setReplayed} />}
   </PlanetWorldCanvas>;
+}
+
+/** 3.73: once the map has drawn its first frame, every material on it is compiled, hidden ones too, so no turn that shows one stalls on its shader. */
+function CompiledAtLoad() {
+  const { gl, scene, camera } = useThree();
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => gl.compile(scene, camera));
+    return () => cancelAnimationFrame(frame);
+  }, [gl, scene, camera]);
+  return null;
 }
 
 /** Hands the host the sessions the replay shows now (5.7), only when the replay passes a stage. */
@@ -211,7 +222,7 @@ const TERRITORY_LIFT = 0.05;
  * all in the plate's own units. It says where the circles lie on the sheet (3.18), and lights the territories
  * and circles the selected session's window opened.
  */
-function Territories({ story, land, coast, claimed, radius, spot, lighting, surfaces, onStops }: {
+function Territories({ story, land: given, coast: givenCoast, claimed, radius, spot, lighting, surfaces, onStops }: {
   story: string;
   land: NonNullable<Island["land"]>;
   coast: readonly (readonly { x: number; z: number }[])[];
@@ -223,6 +234,9 @@ function Territories({ story, land, coast, claimed, radius, spot, lighting, surf
   onStops: (story: string, stops: ReadonlyMap<string, { x: number; y: number; z: number }> | undefined) => void;
 }) {
   const { invalidate, clock, camera, size } = useThree();
+  // 3.72: an update that redraws the island for anything else (its name, its trees) hands it new land and coast that read
+  // the same; the territories already cut for them stay.
+  const land = useKept(given, JSON.stringify), coast = useKept(givenCoast, JSON.stringify);
   // A claim on another island leaves this one's territories as they were.
   const tints = useKept(claimed, tints => claimsOn(tints, land));
   const drawn = useMemo(() => {

@@ -15,6 +15,15 @@ whose engine started with any tool server other than storytree, and a stored cla
 The box's own `~/.claude/settings.json` also sets `"disableClaudeAiConnectors": true`. That is a setting of the box,
 never of this repository.
 
+## The box's keeper (increment_89c736caa64a)
+
+On the Mint box the user's crontab runs `src/keep.mjs` once a minute (`node packages/agent-pool/src/keep.mjs install` adds the
+line, once). It starts the dispatcher's loop (`launch-pool.sh run`) and the watcher (`watch.mjs run`) when either is down.
+What cron starts lives in `cron.service`, not in a login session or the user manager, so the desktop logging out, or
+`user@1000` exiting as it did twice on 2026-10-31, no longer stops the pool, and it comes back after a reboot unattended.
+It leaves the loop stopped while `pool-stop` is there, or when the dispatcher's last run ended on exit 75, which it says
+once in `pool.status` for pool health and the session manager. Its own output is `keep.log` in the lanes folder.
+
 ## The laptop's dispatcher (ADR-1179)
 
 The owner's Windows laptop runs the same dispatcher (`launch.mjs pool`) for work tagged `machine=laptop` only, one lane at a

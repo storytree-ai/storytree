@@ -3,7 +3,7 @@
  * in the system's temp directory, removed afterwards, pass or fail.
  */
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, realpathSync } from "node:fs";
+import { mkdirSync, mkdtempSync, realpathSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
@@ -35,4 +35,10 @@ export function git(cwd: string, ...args: string[]): string {
     encoding: "utf8",
     stdio: ["ignore", "pipe", "pipe"],
   });
+}
+
+/** Leave `text` as `folder`'s project marker, `.storytree/project.json`, where setting a folder up leaves it (ADR-1191 D1). */
+export function writeMarker(folder: string, text: string | Uint8Array): void {
+  mkdirSync(path.join(folder, ".storytree"), { recursive: true });
+  writeFileSync(path.join(folder, ".storytree", "project.json"), text);
 }

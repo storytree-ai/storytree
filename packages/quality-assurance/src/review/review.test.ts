@@ -7,7 +7,7 @@
  */
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
@@ -15,10 +15,11 @@ import { test } from "node:test";
 import { removeTemp } from "@storytree/test-waits";
 
 import type { Library } from "@storytree/library";
+import { PLUGIN_INTERFACE } from "@storytree/plugin-loader/factory";
 
 import { withLibrary } from "../testing/pg.js";
 import { RED_RUN } from "./review.js";
-import { branchDiff, briefText, changeFolder, COVERING_TEST, openLedger, openReviews, qualityTools, REVIEW_LIMIT, standingText, takenText, worktreeChange, type ReviewReturn } from "../index.js";
+import { branchDiff, briefText, changeFolder, COVERING_TEST, factoryPlugins, openLedger, openReviews, qualityTools, REVIEW_LIMIT, standingText, takenText, worktreeChange, type ReviewReturn } from "../index.js";
 
 const DIFF = [
   "diff --git a/packages/forest-world/src/camera.test.ts b/packages/forest-world/src/camera.test.ts",
@@ -865,4 +866,61 @@ test("2.14 · a test the change adds that no saved red run names failing is take
       await removeTemp(dir);
     }
   });
+});
+
+test("2.18 · a change to a factory plugin's story is briefed with the factory worktree on the increment's branch, its diff and the plugin plan's contracts there; with no such worktree the brief says so and a return answering those contracts met is refused", async () => {
+  const factory = mkdtempSync(join(tmpdir(), "qa-factory-"));
+  const worktree = join(mkdtempSync(join(tmpdir(), "qa-factory-wt-")), "wt");
+  try {
+    const git = (cwd: string, ...args: string[]) => execFileSync("git", ["-c", "user.name=t", "-c", "user.email=t@t", "-c", "commit.gpgsign=false", ...args], { cwd });
+    const plan = (folder: string, contracts: { title: string }[]) => writeFileSync(join(folder, "plugins/voice/plan.json"), JSON.stringify({ story: { title: "Talk by voice" }, capabilities: [{ title: "1 · Connector", proposed: false, contracts }] }));
+    mkdirSync(join(factory, "plugins/voice"), { recursive: true });
+    writeFileSync(join(factory, "plugins/voice/package.json"), JSON.stringify({ name: "voice", storytree: { interface: PLUGIN_INTERFACE, plan: "./plan.json" } }));
+    plan(factory, [{ title: "1.1 · A wrong secret is answered 404" }, { title: "1.2 · A flood is cut off" }]);
+    git(factory, "init", "-q", "-b", "main");
+    git(factory, "add", ".");
+    git(factory, "commit", "-qm", "first");
+    git(factory, "update-ref", "refs/remotes/origin/main", "HEAD");
+    await withLibrary(async (library, storytree) => {
+      const imported = await library.importPluginPlan("voice", JSON.parse(readFileSync(join(factory, "plugins/voice/plan.json"), "utf8")));
+      const capability = (await library.list("capability")).find(({ fields }) => fields.story === imported.story)!;
+      const [kept, dropped] = (await library.list("contract")).filter(({ fields }) => fields.capability === capability.id).sort((a, b) => a.fields.title.localeCompare(b.fields.title)).map(({ id }) => id);
+      const arc = await library.createArc({ title: "Voice grows", intent: "Voice does more", endState: "Voice does more", stories: [imported.story] });
+      const increment = await library.addIncrement({ arc: arc.id, title: "Voice grows", objective: "Voice does more", body: "Red then green", capabilities: [capability.id] });
+      const principle = await library.writeKnowledge("principle", { title: "Test creation principles", description: "How a test earns its place.", statement: "A test fails if its behaviour is removed.", why: "A test that cannot fail protects nothing.", howToApply: "Delete the behaviour and watch the test fail." });
+      await library.writeKnowledge("check", { title: "Silent skip", description: "Tests that skip without saying so.", question: "Does any test skip silently?", enforces: [principle.id] });
+      const reviews = await openReviews(storytree);
+
+      const unread = await reviews.brief(library, increment.id, DIFF, undefined, factoryPlugins(factory, increment.id));
+      assert.match(unread.factory?.unread ?? "", /no worktree/);
+      assert.deepEqual(unread.contracts.map(({ id }) => id), [kept, dropped]);
+      assert.match(briefText(unread), /voice's change was not read/);
+      await assert.rejects(reviews.take(library.name, increment.id, clean(unread.checks.map(({ id }) => id), [kept!, dropped!])), /voice's change was not read/);
+
+      git(factory, "worktree", "add", "-q", "-b", `claude/increment-${increment.id.slice("increment_".length)}-a1b2c3`, worktree, "main");
+      plan(worktree, [{ title: "1.1 · A wrong secret is answered 404" }, { title: "1.3 · A slow caller is timed out" }]);
+      mkdirSync(join(worktree, "plugins/voice/src"));
+      writeFileSync(join(worktree, "plugins/voice/src/door.ts"), "export const timeout = 30;\n");
+      const read = await reviews.brief(library, increment.id, DIFF, undefined, factoryPlugins(factory, increment.id));
+      assert.equal(realpathSync.native(read.factory!.folder!), realpathSync.native(worktree));
+      assert.match(read.factory!.diff!, /\+export const timeout = 30;/);
+      assert.match(briefText(read), /\+export const timeout = 30;/);
+      assert.ok(read.packages.includes("voice"), read.packages.join(", "));
+      assert.deepEqual(read.contracts.map(({ id, title }) => ({ id, title })), [
+        { id: kept, title: "1.1 · A wrong secret is answered 404" },
+        { id: "voice:1.3", title: "1.3 · A slow caller is timed out" },
+      ]);
+      assert.deepEqual(read.retired?.map(({ id }) => id), [dropped]);
+      const answered = clean(read.checks.map(({ id }) => id), [kept!]);
+      await reviews.take(library.name, increment.id, { ...answered, contracts: [...answered.contracts, { contract: "voice:1.3", met: false, why: "no timeout is set" }] });
+      assert.deepEqual(await reviews.unmet(library, increment.id), [{ contract: "voice:1.3", why: "no timeout is set" }], "a contract only the plan holds stands when found not met");
+
+      const own = await reviews.brief(library, increment.id, worktreeChange(worktree), undefined, factoryPlugins(factory, increment.id));
+      assert.match(own.diff, /\+export const timeout = 30;/);
+      assert.equal(own.factory?.diff, undefined, "the factory worktree read as the change itself is not briefed twice");
+    });
+  } finally {
+    await removeTemp(factory);
+    await removeTemp(join(worktree, ".."));
+  }
 });

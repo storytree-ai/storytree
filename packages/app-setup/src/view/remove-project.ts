@@ -64,7 +64,7 @@ export function mountRemoveProject(host: HTMLElement, bridge: Pick<SetupHelpBrid
       close();
       if ("failed" in result) return say(result.failed, true);
       if (result.removed !== null) sayProjectGone(root, result.removed);
-      if (result.removed !== null && result.kept !== undefined) say(`“${result.removed}” is off this computer’s list. Its folder still names it in .storytree.json, which git tracks, so that file was left for you: delete it to free the folder.`);
+      if (result.removed !== null && result.kept !== undefined) say(`“${result.removed}” is off this computer’s list. Its folder still names it in its storytree marker (.storytree/project.json, or .storytree.json in an older project), which git tracks, so that file was left for you: delete it to free the folder.`);
       else if (result.removed !== null) say(`“${result.removed}” is off this computer’s list.`);
     }).finally(() => { yes.disabled = cancel.disabled = false; refresh(); });
   });

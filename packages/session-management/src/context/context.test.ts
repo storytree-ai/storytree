@@ -11,9 +11,8 @@ import path from "node:path";
 import { test } from "node:test";
 
 import { openActivityLog, type ActivityLog } from "../activity/index.js";
-import { MARKER_FILE } from "@storytree/project-and-caller";
 import { setSetting } from "@storytree/project-and-caller";
-import { withTempDir } from "@storytree/project-and-caller/testing/folders";
+import { withTempDir, writeMarker } from "@storytree/project-and-caller/testing/folders";
 import { approveCheckout, testServerDataDir, testServerUrl, uniqueProjectName } from "@storytree/project-and-caller/testing/pg";
 import { claudeCodeTokens, codexTokens, contextCommand, contextReading, readContext, reportedUsageOf, sessionWindow } from "./index.js";
 import type { Line } from "@storytree/library";
@@ -232,7 +231,7 @@ test("9.6 `storytree context` prints this session's tokens used, worked out at t
   await withProject(async (log, project, dir) => {
     const folder = path.join(dir, "site");
     mkdirSync(folder);
-    writeFileSync(path.join(folder, MARKER_FILE), `${JSON.stringify({ project })}\n`);
+    writeMarker(folder, `${JSON.stringify({ project })}\n`);
     await approveCheckout(folder, project, dir);
     const transcript = path.join(dir, "S.jsonl");
     writeFileSync(transcript, jsonl(claudeLine("req_1", { input: 2_000, read: 480_000, created: 12_345 })));
@@ -275,7 +274,7 @@ test("9.15 `storytree context` reads the session STORYTREE_SESSION_ID names and 
   await withProject(async (log, project, dir) => {
     const folder = path.join(dir, "site");
     mkdirSync(folder);
-    writeFileSync(path.join(folder, MARKER_FILE), `${JSON.stringify({ project })}\n`);
+    writeMarker(folder, `${JSON.stringify({ project })}\n`);
     await approveCheckout(folder, project, dir);
     // A Claude-shaped transcript, named by a harness storytree does not know: it has no figure.
     const transcript = path.join(dir, "cursor.jsonl");
@@ -336,7 +335,7 @@ test("9.7 a reading states fresh default or set guidance, including under, at an
 
 test("9.7 the context command states guidance and its source, exits 0 under and past it, and includes it in JSON", async () => {
   await withProject(async (log, project, home) => {
-    writeFileSync(path.join(home, MARKER_FILE), JSON.stringify({ project }));
+    writeMarker(home, JSON.stringify({ project }));
     await approveCheckout(home, project, home);
     const transcript = path.join(home, "S.jsonl");
     await log.append(project, { session: "S", harness: "claude-code", source: "hook", folder: home, kind: "session-started", transcript });

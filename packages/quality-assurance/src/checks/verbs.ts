@@ -63,7 +63,7 @@ const briefVerb = verb({
   },
   async act({ increment, diff, checkout }, context: QualityVerbContext) {
     if (diff !== undefined && checkout !== undefined) throw new VerbRefusal("give the change's diff or its checkout, not both", { misuse: true });
-    const { briefWithReport, changeFolder, openReviews, worktreeChange } = await import("../index.js");
+    const { briefWithReport, changeFolder, factoryPlugins, openReviews, worktreeChange } = await import("../index.js");
     const reviews = await openReviews(server(context));
     // The change is the branch the increment was claimed on, wherever this runs (contract 2.8), or the one in the checkout named (2.16).
     let folder = checkout === undefined ? context.folder : resolve(context.folder, checkout);
@@ -71,7 +71,9 @@ const briefVerb = verb({
       const { readClaims } = await import("@storytree/session-management");
       folder = changeFolder(context.folder, (await readClaims(context.log as Parameters<typeof readClaims>[0], context.project)).find((claim) => claim.increment === increment)?.branch);
     }
-    const brief = await reviews.brief(context.library, increment, diff ?? worktreeChange(folder));
+    // A factory plugin's change is read from the factory repo, the checkout named or this computer's factory folder (contract 2.18).
+    const factory = checkout === undefined ? (await import("@storytree/project-and-caller")).factoryFolder().folder : folder;
+    const brief = await reviews.brief(context.library, increment, diff ?? worktreeChange(folder), undefined, factoryPlugins(factory, increment));
     // The change's mutation report runs on its worktree, never on a diff given by hand (contract 7.3).
     const { text } = await briefWithReport(server(context), brief, diff === undefined ? folder : undefined);
     return {

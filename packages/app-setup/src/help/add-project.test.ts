@@ -35,7 +35,7 @@ test("3.4 Add project: the picked folder becomes a project under its own name (k
   picked = path.join(dir, `Blog Posts ${token}`);
   mkdirSync(picked);
   assert.deepEqual(await actions.addProject(), { status: "set up", project: blog, folder: picked });
-  assert.equal(JSON.parse(readFileSync(path.join(picked, ".storytree.json"), "utf8")).project, blog);
+  assert.equal(JSON.parse(readFileSync(path.join(picked, ".storytree", "project.json"), "utf8")).project, blog);
   assert.equal(JSON.parse(readFileSync(path.join(home, "project-choice.json"), "utf8")).current, blog, "the new project is the one shown");
 
   picked = path.join(dir, "other", site);
@@ -56,7 +56,7 @@ test("3.4 Add project: the picked folder becomes a project under its own name (k
   await assert.rejects(actions.removeProject(`nothing-${token}`), /no project called/);
 
   assert.deepEqual(await actions.addProject(), { status: "brought back", project: blog, folder: picked }, "adding a removed project's folder again brings that project back, never a second one");
-  assert.equal(JSON.parse(readFileSync(path.join(picked, ".storytree.json"), "utf8")).project, blog);
+  assert.equal(JSON.parse(readFileSync(path.join(picked, ".storytree", "project.json"), "utf8")).project, blog);
   assert.ok(projectsOnThisComputer(await library.projectIdentities(), home).includes(blog), "it is back on this computer's list");
   assert.equal((await library.listProjects()).includes(`${blog}-2`), false);
 });

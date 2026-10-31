@@ -10,8 +10,8 @@ import { findBinaries } from "@storytree/local-postgres";
 import pg from "pg";
 
 import { setLibrary } from "../settings/settings.js";
-import { withTempDir } from "../testing/folders.js";
-import { locateApp, locateLibrary, locateStorytree, MARKER_FILE, NOT_RUNNING, route } from "./index.js";
+import { withTempDir, writeMarker } from "../testing/folders.js";
+import { locateApp, locateLibrary, locateStorytree, NOT_RUNNING, route } from "./index.js";
 import { windowsSecurity } from "./windows-security.js";
 
 // Synthetic credentials only. Punctuation pins URL encoding through a real SCRAM handshake.
@@ -87,7 +87,7 @@ function fixture(home: string, port = 54321) {
     privatePath(file);
   };
   save();
-  writeFileSync(path.join(home, MARKER_FILE), JSON.stringify({ project: "synthetic" }));
+  writeMarker(home, JSON.stringify({ project: "synthetic" }));
   return { dataDir, directory, file, owner, credentials, save };
 }
 

@@ -16,11 +16,11 @@ import { after, before, test } from "node:test";
 import { fileURLToPath } from "node:url";
 
 import { noteCodexHookRan, noteHookFailure, type Homes } from "@storytree/session-management";
-import { MARKER_FILE } from "@storytree/project-and-caller";
+import { PROJECT_FILE } from "@storytree/project-and-caller";
 import { registerHooks, type GhState, type HookCommand } from "@storytree/app-setup/setup";
 import { buildBins } from "@storytree/app-setup/bins";
 import { STARTER_PACK_VERSION } from "@storytree/app-setup/project";
-import { withTempDir } from "@storytree/project-and-caller/testing/folders";
+import { withTempDir, writeMarker } from "@storytree/project-and-caller/testing/folders";
 import { approveCheckout, dropTestProjects, placeTestServer, testServerUrl, uniqueProjectName } from "@storytree/project-and-caller/testing/pg";
 import { connect } from "@storytree/library";
 
@@ -110,7 +110,7 @@ test("app-setup 8.4 setup records the chosen project only after a successful yes
         assert.match(checked.text, /Add project/);
         assert.match(checked.text, /storytree doctor --set-up/);
         assert.doesNotMatch(checked.text, /[Aa]sk the user|set_up_project/, "the agent is not told to offer setup (ADR-0752 D3)");
-        assert.equal(existsSync(path.join(folder, MARKER_FILE)), false, "no marker before a yes");
+        assert.equal(existsSync(path.join(folder, PROJECT_FILE)), false, "no marker before a yes");
         assert.equal((await storytree.listProjects()).includes(name), false, "no project before a yes");
         assert.equal(existsSync(choice), false, "no choice before a yes");
         const refused = await agent.call("set_up_project", { name: "Invalid Name" });
@@ -120,12 +120,12 @@ test("app-setup 8.4 setup records the chosen project only after a successful yes
         mkdirSync(choice); // an unwritable choice destination, on every supported OS
         const unsaved = await agent.call("set_up_project", { name });
         assert.equal(unsaved.isError, true, "setup cannot report success without saving the choice");
-        assert.equal(existsSync(path.join(folder, MARKER_FILE)), false, "a failed choice write leaves setup retryable");
+        assert.equal(existsSync(path.join(folder, PROJECT_FILE)), false, "a failed choice write leaves setup retryable");
         rmSync(choice, { recursive: true });
 
         const yes = await agent.call("set_up_project", { name });
         assert.equal(yes.isError, false, yes.text);
-        assert.equal(readJson(path.join(folder, MARKER_FILE)).project, name);
+        assert.equal(readJson(path.join(folder, PROJECT_FILE)).project, name);
         assert.ok((await storytree.listProjects()).includes(name), "the project, once the user said yes");
         assert.equal(readJson(choice).current, name, "yes records the choice in the app's home");
         writeFileSync(choice, JSON.stringify({ current: "another-project" }));
@@ -150,7 +150,7 @@ test("app-setup 8.5 the agent fires a test of each hook, and the connection show
     const home = throwawayHome(dir);
     const folder = path.join(dir, "site");
     mkdirSync(folder);
-    writeFileSync(path.join(folder, MARKER_FILE), `${JSON.stringify({ project })}\n`);
+    writeMarker(folder, `${JSON.stringify({ project })}\n`);
     await approveCheckout(folder, project, home.storytreeHome);
     const setup = {
       dataDir: path.join(home.storytreeHome, "pgdata"),
@@ -202,7 +202,7 @@ test("6.64 check_setup from an MCP client storytree has no hooks for passes as c
     const home = throwawayHome(dir);
     const folder = path.join(dir, "site");
     mkdirSync(folder);
-    writeFileSync(path.join(folder, MARKER_FILE), `${JSON.stringify({ project })}\n`);
+    writeMarker(folder, `${JSON.stringify({ project })}\n`);
     // A repository with its origin, so the check has nothing to say of it (8.31).
     for (const args of [["init", "-q"], ["remote", "add", "origin", "https://github.com/someone/site.git"]]) execFileSync("git", args, { cwd: folder, stdio: "ignore" });
     await approveCheckout(folder, project, home.storytreeHome);
@@ -241,7 +241,7 @@ test("app-setup 13.5: the hooks-verified milestone is reported only once check_s
     const home = throwawayHome(dir);
     const folder = path.join(dir, "site");
     mkdirSync(folder);
-    writeFileSync(path.join(folder, MARKER_FILE), `${JSON.stringify({ project })}\n`);
+    writeMarker(folder, `${JSON.stringify({ project })}\n`);
     await approveCheckout(folder, project, home.storytreeHome);
     let milestones = 0;
     const setup = {
@@ -279,7 +279,7 @@ test("app-setup 8.21 a Codex session that set its project up during the session,
     const home = throwawayHome(dir);
     const folder = path.join(dir, "site");
     mkdirSync(folder);
-    writeFileSync(path.join(folder, MARKER_FILE), `${JSON.stringify({ project })}\n`);
+    writeMarker(folder, `${JSON.stringify({ project })}\n`);
     await approveCheckout(folder, project, home.storytreeHome);
     const setup = { dataDir: path.join(home.storytreeHome, "pgdata"), setup: { ...ANSWERED, homes: home.homes, storytreeHome: home.storytreeHome } };
     try {
@@ -439,7 +439,7 @@ test("app-setup 8.19 in a project whose library holds the starter roles, the che
       const oldFolder = path.join(dir, older);
       mkdirSync(oldFolder);
       await (await storytree.openProject(older)).close();
-      writeFileSync(path.join(oldFolder, MARKER_FILE), `${JSON.stringify({ project: older })}\n`);
+      writeMarker(oldFolder, `${JSON.stringify({ project: older })}\n`);
       await approveCheckout(oldFolder, older, home.storytreeHome);
       await withAgent(oldFolder, agentIn(oldFolder), async (agent) => {
         const checked = await agent.call("check_setup");
@@ -463,7 +463,7 @@ test("app-setup 8.26 in a project an earlier starter pack seeded, or a product p
       const projectFolder = async (project: string) => {
         const folder = path.join(dir, project);
         mkdirSync(folder);
-        writeFileSync(path.join(folder, MARKER_FILE), `${JSON.stringify({ project })}\n`);
+        writeMarker(folder, `${JSON.stringify({ project })}\n`);
         await approveCheckout(folder, project, home.storytreeHome);
         return folder;
       };
@@ -551,7 +551,7 @@ test("app-setup 6.12 move_onto_factory, on the user's yes, drops the project's u
 
       const folder = path.join(dir, project);
       mkdirSync(folder);
-      writeFileSync(path.join(folder, MARKER_FILE), `${JSON.stringify({ project })}\n`);
+      writeMarker(folder, `${JSON.stringify({ project })}\n`);
       await approveCheckout(folder, project, home.storytreeHome);
       await withAgent(folder, claudeCode(`claude-${project}`, { dataDir: path.join(home.storytreeHome, "pgdata"), setup: { ...ANSWERED, homes: home.homes, storytreeHome: home.storytreeHome } }), async (agent) => {
         const moved = await agent.call("move_onto_factory");
@@ -580,7 +580,7 @@ test("app-setup 8.20 once storytree has received the session's edit of the check
     const folder = path.join(dir, "site");
     const worktree = path.join(folder, ".claude", "worktrees", "a-worktree");
     mkdirSync(worktree, { recursive: true });
-    writeFileSync(path.join(folder, MARKER_FILE), `${JSON.stringify({ project })}\n`);
+    writeMarker(folder, `${JSON.stringify({ project })}\n`);
     await approveCheckout(folder, project, home.storytreeHome);
     const setup = { dataDir: path.join(home.storytreeHome, "pgdata"), setup: { ...ANSWERED, homes: home.homes, storytreeHome: home.storytreeHome } };
     try {
@@ -607,7 +607,7 @@ test("app-setup 8.39 check_setup asks for the check file outside the project's f
     const home = throwawayHome(dir);
     const folder = path.join(dir, "site");
     mkdirSync(folder);
-    writeFileSync(path.join(folder, MARKER_FILE), `${JSON.stringify({ project })}\n`);
+    writeMarker(folder, `${JSON.stringify({ project })}\n`);
     await approveCheckout(folder, project, home.storytreeHome);
     const setup = { dataDir: path.join(home.storytreeHome, "pgdata"), setup: { ...ANSWERED, homes: home.homes, storytreeHome: home.storytreeHome } };
     try {
@@ -643,7 +643,7 @@ test("app-setup 8.24 the check tells a session the hook failures this machine tr
     const home = throwawayHome(dir);
     const folder = path.join(dir, "site");
     mkdirSync(folder);
-    writeFileSync(path.join(folder, MARKER_FILE), `${JSON.stringify({ project })}\n`);
+    writeMarker(folder, `${JSON.stringify({ project })}\n`);
     await approveCheckout(folder, project, home.storytreeHome);
     const setup = { dataDir: path.join(home.storytreeHome, "pgdata"), setup: { ...ANSWERED, homes: home.homes, storytreeHome: home.storytreeHome } };
     try {
@@ -670,7 +670,7 @@ test("app-setup 8.24 the check tells a session the hook failures this machine tr
   });
 });
 
-test("6.70 set_up_project in a folder in no git repository makes one whose first commit holds the marker, and says so, or with no git identity makes it with the marker staged and asks the user for a name and email; a folder already in one is left as it is, and joining makes none", async () => {
+test("6.70 set_up_project in a folder in no git repository makes one whose first commit holds the .storytree folder, and says so, or with no git identity makes it with that folder staged and asks the user for a name and email; a folder already in one is left as it is, and joining makes none", async () => {
   const [fresh, inRepo, nameless, factory] = [uniqueProjectName(), uniqueProjectName(), uniqueProjectName(), uniqueProjectName()];
   // The identity a user's git would have; CI's runners have none of their own.
   const identity = { GIT_AUTHOR_NAME: "A User", GIT_AUTHOR_EMAIL: "user@example.invalid", GIT_COMMITTER_NAME: "A User", GIT_COMMITTER_EMAIL: "user@example.invalid" };
@@ -692,7 +692,7 @@ test("6.70 set_up_project in a folder in no git repository makes one whose first
         assert.doesNotMatch(setUp.text, /git push|gh repo create/, "a remote is never proposed");
       });
       assert.equal(path.resolve(git(empty, "rev-parse", "--show-toplevel")), empty, "git prints / on Windows too");
-      assert.equal(git(empty, "show", "--name-only", "--format=", "HEAD"), MARKER_FILE);
+      assert.deepEqual(git(empty, "show", "--name-only", "--format=", "HEAD").split("\n"), [".storytree/.gitignore", PROJECT_FILE]);
 
       const repo = path.join(dir, `${inRepo}-repo`);
       const inside = path.join(repo, inRepo);
@@ -727,18 +727,52 @@ test("6.70 set_up_project in a folder in no git repository makes one whose first
         const setUp = await agent.call("set_up_project", { name: nameless });
         assert.equal(setUp.isError, false, setUp.text);
         assert.equal((setUp.data.repository as { state: string }).state, "no identity");
-        assert.match(setUp.text, /made it one with \.storytree\.json staged/);
+        assert.match(setUp.text, /made it one with its \.storytree folder staged/);
         assert.match(setUp.text, /ask the user for the name and email/);
         assert.match(setUp.text, /check_setup then makes the first commit/);
       });
       assert.equal(path.resolve(git(anonymous, "rev-parse", "--show-toplevel")), anonymous);
-      assert.equal(git(anonymous, "ls-files"), MARKER_FILE);
+      assert.deepEqual(git(anonymous, "ls-files").split("\n"), [".storytree/.gitignore", PROJECT_FILE]);
     } finally {
       for (const [key, value] of Object.entries(before)) {
         if (value === undefined) delete process.env[key];
         else process.env[key] = value;
       }
       await dropTestProjects([fresh, inRepo, nameless, factory]);
+    }
+  });
+});
+
+test("6.107 set_up_project tells the user in one line to commit the .storytree folder, and why, unless the first commit it made already holds it", async () => {
+  const [inRepo, fresh, factory] = [uniqueProjectName(), uniqueProjectName(), uniqueProjectName()];
+  const identity = { GIT_AUTHOR_NAME: "A User", GIT_AUTHOR_EMAIL: "user@example.invalid", GIT_COMMITTER_NAME: "A User", GIT_COMMITTER_EMAIL: "user@example.invalid" };
+  const before = Object.fromEntries(Object.keys(identity).map((key) => [key, process.env[key]]));
+  Object.assign(process.env, identity);
+  await withTempDir(async (dir) => {
+    const home = throwawayHome(dir);
+    const setup = { dataDir: path.join(home.storytreeHome, "pgdata"), setup: { ...ANSWERED, homes: home.homes, storytreeHome: home.storytreeHome, factory } };
+    try {
+      const repo = path.join(dir, inRepo);
+      mkdirSync(repo);
+      execFileSync("git", ["init", "-q"], { cwd: repo });
+      await withAgent(repo, claudeCode(`claude-${inRepo}`, setup), async (agent) => {
+        const setUp = await agent.call("set_up_project", { name: inRepo });
+        assert.equal(setUp.isError, false, setUp.text);
+        assert.match(setUp.text, /Commit the \.storytree folder: git worktrees and fresh clones of this repository find the project through it/);
+      });
+      const empty = path.join(dir, fresh);
+      mkdirSync(empty);
+      await withAgent(empty, claudeCode(`claude-${fresh}`, setup), async (agent) => {
+        const setUp = await agent.call("set_up_project", { name: fresh });
+        assert.deepEqual(setUp.data.repository, { state: "made" });
+        assert.doesNotMatch(setUp.text, /Commit the \.storytree folder/, "its first commit holds it already");
+      });
+    } finally {
+      for (const [key, value] of Object.entries(before)) {
+        if (value === undefined) delete process.env[key];
+        else process.env[key] = value;
+      }
+      await dropTestProjects([inRepo, fresh, factory]);
     }
   });
 });

@@ -457,14 +457,19 @@ test("2.6 a setting that cannot be made is logged and stops the rest, never fail
   assert.match(lines.join("\n"), /storytree settings set library .* failed \(exit 3\)/);
 });
 
-test("2.6 approving a cloud container's checkout leaves its committed .storytree.json as it was", (t) => {
+test("2.6 approving a cloud container's checkout leaves its committed .storytree.json as it was, and takes away the .storytree files joining wrote", (t) => {
   const { root, home } = cloud(t);
   const marker = path.join(root, ".storytree.json");
   const before = readFileSync(marker, "utf8");
   const run = (args) => {
-    if (args[0] === "doctor") writeFileSync(marker, JSON.stringify({ project: "storytree", identity: "604280" }, null, 2));
+    if (args[0] === "doctor") {
+      mkdirSync(path.join(root, ".storytree"), { recursive: true });
+      writeFileSync(path.join(root, ".storytree", "project.json"), JSON.stringify({ project: "storytree", identity: "604280" }, null, 2));
+      writeFileSync(path.join(root, ".storytree", ".gitignore"), "*.local.json\n");
+    }
     return { ok: true, code: 0 };
   };
   connectCloud({ root, home, env: { ...CLOUD }, run });
   assert.equal(readFileSync(marker, "utf8"), before);
+  assert.equal(existsSync(path.join(root, ".storytree")), false, "the folder joining made is gone");
 });

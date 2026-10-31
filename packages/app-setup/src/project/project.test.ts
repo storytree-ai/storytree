@@ -13,7 +13,7 @@ import { openLedger } from "@storytree/quality-assurance";
 import { projectRecords } from "@storytree/quality-assurance/project-records";
 
 import { setUpProject } from "./making.js";
-import { addProject, deleteProject, projectFolder, projectsOnThisComputer, removeProject } from "./index.js";
+import { addProject, deleteProject, markerNamed, projectFolder, projectsOnThisComputer, removeProject } from "./index.js";
 
 /** The test Postgres `pnpm test` starts; each project made here is dropped afterwards. */
 async function testLibrary(t: { after(fn: () => Promise<void>): void }, projects: string[]): Promise<Storytree> {
@@ -39,11 +39,11 @@ test("3.4: a chosen folder becomes a project (created if missing, suggested its 
 
   const refused = await addProject(folder, "Bad Name", { home, library });
   assert.equal(refused.status, "name refused");
-  assert.equal(existsSync(path.join(folder, ".storytree.json")), false, "a refused name sets nothing up");
+  assert.equal(existsSync(path.join(folder, ".storytree", "project.json")), false, "a refused name sets nothing up");
 
   const added = await addProject(folder, name, { home, library });
   assert.deepEqual(added, { status: "set up", folder, project: name });
-  assert.equal(JSON.parse(readFileSync(path.join(folder, ".storytree.json"), "utf8")).project, name);
+  assert.equal(JSON.parse(readFileSync(path.join(folder, ".storytree", "project.json"), "utf8")).project, name);
   assert.ok((await library.listProjects()).includes(name));
   assert.equal(JSON.parse(readFileSync(path.join(home, "project-choice.json"), "utf8")).current, name, "the new project is the one shown");
   assert.deepEqual(await projectFolder(folder, { library }), { folder, project: name });
@@ -51,7 +51,7 @@ test("3.4: a chosen folder becomes a project (created if missing, suggested its 
   writeFileSync(path.join(home, "project-choice.json"), JSON.stringify({ current: "other" }));
   const again = await addProject(folder, "another", { home, library });
   assert.deepEqual(again, { status: "already a project", folder, project: name });
-  assert.equal(JSON.parse(readFileSync(path.join(folder, ".storytree.json"), "utf8")).project, name);
+  assert.equal(JSON.parse(readFileSync(path.join(folder, ".storytree", "project.json"), "utf8")).project, name);
 
   const inside = path.join(folder, "src");
   mkdirSync(inside);
@@ -59,7 +59,7 @@ test("3.4: a chosen folder becomes a project (created if missing, suggested its 
 
   const holding = await addProject(dir, `other-${token}`, { home, library });
   assert.equal(holding.status, "folder refused", "a folder holding another project's folder is no project of its own");
-  assert.equal(existsSync(path.join(dir, ".storytree.json")), false);
+  assert.equal(existsSync(path.join(dir, ".storytree", "project.json")), false);
 });
 
 test("removing a project takes it off this computer's list, keeps its records and frees its folder here: set up afresh, or joined on purpose, which brings it back; an unknown name is refused", async (t) => {
@@ -76,7 +76,7 @@ test("removing a project takes it off this computer's list, keeps its records an
   assert.deepEqual(await removeProject(name, { home, library }), { status: "removed", project: name, freed: folder });
   assert.ok((await library.listProjects()).includes(name), "its records stay in the library");
   assert.equal(projectsOnThisComputer(await library.projectIdentities(), home).includes(name), false, "it leaves this computer's list");
-  assert.equal(existsSync(path.join(folder, ".storytree.json")), false, "its folder is no longer the project's");
+  assert.equal(existsSync(path.join(folder, ".storytree", "project.json")), false, "its folder is no longer the project's");
 
   const elsewhere = path.join(dir, "elsewhere");
   mkdirSync(elsewhere);
@@ -99,11 +99,16 @@ test("removing a project whose marker git tracks leaves the folder as it is and 
   assert.equal((await addProject(folder, name, { home, library })).status, "set up");
   const git = (...args: string[]) => execFileSync("git", ["-c", "user.name=t", "-c", "user.email=t@example.com", ...args], { cwd: folder, stdio: "ignore" });
   git("init", "-q");
-  git("add", ".storytree.json");
+  git("add", ".storytree");
   git("commit", "-qm", "marker");
 
   assert.deepEqual(await removeProject(name, { home, library }), { status: "removed", project: name, kept: folder });
-  assert.equal(JSON.parse(readFileSync(path.join(folder, ".storytree.json"), "utf8")).project, name, "a marker in git is not deleted");
+  assert.equal(JSON.parse(readFileSync(path.join(folder, ".storytree", "project.json"), "utf8")).project, name, "a marker in git is not deleted");
+  assert.equal(markerNamed(folder), ".storytree/project.json", "the kept marker is named as it is");
+  const older = path.join(dir, `older-${token}`);
+  mkdirSync(older);
+  writeFileSync(path.join(older, ".storytree.json"), JSON.stringify({ project: name }));
+  assert.equal(markerNamed(older), ".storytree.json", "an older project's root marker is named as it is");
   assert.equal(projectsOnThisComputer(await library.projectIdentities(), home).includes(name), false);
   assert.deepEqual(await addProject(folder, "anything", { home, library }), { status: "already a project", folder, project: name });
   assert.ok(projectsOnThisComputer(await library.projectIdentities(), home).includes(name), "adding its folder again brings it back");
@@ -159,7 +164,7 @@ test("3.6 deleting a project drops its records for every machine once its name i
   const deleted = await deleteProject(name, { home, library, snapshot: true, confirm: name });
   assert.equal(deleted.status, "deleted");
   assert.equal(await still(), false, "its database is gone from the library");
-  assert.equal(existsSync(path.join(folder, ".storytree.json")), false, "its folder here is no longer a project");
+  assert.equal(existsSync(path.join(folder, ".storytree", "project.json")), false, "its folder here is no longer a project");
   const backups = path.join(home, "backups", name);
   const [file] = readdirSync(backups);
   assert.equal("snapshot" in deleted ? deleted.snapshot : undefined, path.join(backups, file!));

@@ -155,6 +155,26 @@ test("12.9 · a factory run with --unrecorded skips each plugin whose story alre
   });
 });
 
+test("12.10 · a factory run that finds no story whose plugin folder is in the factory records nothing and fails, saying why", async (t) => {
+  const factory = mkdtempSync(path.join(tmpdir(), "factory-stray-"));
+  t.after(() => removeTemp(factory));
+  mkdirSync(path.join(factory, "plugins", "stray"), { recursive: true });
+  writeFileSync(path.join(factory, "plugins", "stray", "package.json"), '{ "name": "stray" }');
+  execFileSync("git", ["init", "-q"], { cwd: factory });
+  execFileSync("git", ["-c", "user.name=t", "-c", "user.email=t@example.com", "commit", "-q", "--allow-empty", "-m", "factory"], { cwd: factory });
+
+  await withLibrary(async (lib) => {
+    await lib.addStory({ title: "The cli" });
+    const { stories } = await lib.projectTree();
+    const errors = [];
+    const runs = [];
+    const code = await recordFactory(lib, stories, factory, { log: () => {}, error: (line) => errors.push(line), runTests: async (folder) => (runs.push(folder), { code: 0, results: [] }) });
+    assert.equal(code, 1, "a commit with no plugin story is not recorded");
+    assert.deepEqual(runs, [], "and nothing is run");
+    assert.match(errors.join("\n"), /no plugin is a story's package/, "the failure says why");
+  });
+});
+
 async function withLibrary(body) {
   const url = process.env.STORYTREE_TEST_PG_URL;
   assert.ok(url, "STORYTREE_TEST_PG_URL is not set: run these tests through `pnpm test`, which starts a local Postgres");

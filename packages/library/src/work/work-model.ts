@@ -90,6 +90,16 @@ export type ContractEdit = { [F in keyof FieldsOf<"contract">]?: FieldsOf<"contr
 export interface ContractWriteOptions extends WriteOptions {
   readonly testedNumbers?: readonly string[];
 }
+/** One pending plan change an increment holds (ADR-0966 D1). */
+type PendingPlanChange = NonNullable<FieldsOf<"increment">["pending"]>[number];
+/**
+ * How a capability is added: as any write, and judging its number against its story as `pending`, the pending
+ * changes of the increment the writer's branch drives, would leave it (ADR-0966 D3), so a number the branch's own
+ * move or retirement frees is free and one its move brings in is taken.
+ */
+export interface CapabilityWriteOptions extends WriteOptions {
+  readonly pending?: readonly PendingPlanChange[];
+}
 /** An edit of an arc: some of its fields. A field set to undefined is removed. */
 export type ArcEdit = { [F in keyof NewArc]?: NewArc[F] | undefined };
 /** The project's sentence (ADR-1085 D1): what it is, and who it is for. Either half may be missing. */
@@ -351,17 +361,18 @@ export class WorkModel {
    * A title given without a number gets the story's next free one, after the highest its live
    * capabilities carry, so the contracts planned on it are numbered from the start; a number another
    * live capability of the story carries is refused with a SchemaError on `title` naming that one and
-   * the next free number, nothing written, since numbered tests map to a capability by its number. A
-   * mapped story's capability is an explored one, and says what it covers, as #covered checks it.
+   * the next free number, nothing written, since numbered tests map to a capability by its number. Given
+   * `pending`, the story is judged as those pending changes would leave it. A mapped story's capability is an explored one, and says what it covers, as #covered checks it.
    */
-  addCapability(capability: NewCapability, options?: WriteOptions): Promise<SchemaRecord<"capability">> {
+  addCapability(capability: NewCapability, options?: CapabilityWriteOptions): Promise<SchemaRecord<"capability">> {
     return this.#serially(async () => {
       this.#refusePlugins("capability", "story", await this.#pluginOfStory(capability.story));
       await checkReference(this.#records, "story", capability.story, "story");
       await checkReferences(this.#records, "dependsOn", capability.dependsOn, "capability");
       const covers = await this.#covered(capability.story, capability.covers);
-      const title = await this.#capabilityNumbered(capability.title, capability.story);
-      return this.#records.create("capability", { ...capability, title, proposed: capability.proposed ?? true, ...(covers === undefined ? {} : { covers }) }, options);
+      const { pending = [], ...write } = options ?? {};
+      const title = await this.#capabilityNumbered(capability.title, capability.story, pending);
+      return this.#records.create("capability", { ...capability, title, proposed: capability.proposed ?? true, ...(covers === undefined ? {} : { covers }) }, write);
     });
   }
 
@@ -578,21 +589,27 @@ export class WorkModel {
     return `${prefix}.${Math.max(0, ...planned, ...own(tested)) + 1} · ${title}`;
   }
 
-  /** `title` as a new capability of `story` carries it: refused if its number is taken there, and given the story's next free number when it has none. */
-  async #capabilityNumbered(title: string, story: string): Promise<string> {
+  /**
+   * `title` as a new capability of `story` carries it: refused if its number is taken there, and given the story's
+   * next free number when it has none, the story read as `pending` would leave it.
+   */
+  async #capabilityNumbered(title: string, story: string, pending: readonly PendingPlanChange[]): Promise<string> {
     if (typeof title !== "string") return title; // the schema refuses it in the write
     if (capabilityNumber(title) !== undefined) {
-      await this.#refuseTakenCapabilityNumber(title, story);
+      await this.#refuseTakenCapabilityNumber(title, story, undefined, pending);
       return title;
     }
-    return `${nextFree(await this.#capabilitiesOf(story))} · ${title}`;
+    return `${nextFree(await this.#capabilitiesOf(story, pending))} · ${title}`;
   }
 
-  /** Refuse `title` on `story` when another live capability there (not `self`) carries its number, naming it and the next free number. */
-  async #refuseTakenCapabilityNumber(title: unknown, story: unknown, self?: string): Promise<void> {
+  /**
+   * Refuse `title` on `story` when another live capability there (not `self`) carries its number, naming it and the
+   * next free number, the story read as `pending` would leave it.
+   */
+  async #refuseTakenCapabilityNumber(title: unknown, story: unknown, self?: string, pending: readonly PendingPlanChange[] = []): Promise<void> {
     const number = capabilityNumber(title);
     if (number === undefined || typeof story !== "string") return;
-    const theirs = await this.#capabilitiesOf(story);
+    const theirs = await this.#capabilitiesOf(story, pending);
     const holder = theirs.find((capability) => capability.id !== self && capabilityNumber(capability.fields.title) === number);
     if (holder !== undefined) {
       throw new SchemaError("capability", [{ field: "title", problem: `capability number ${number} is taken: ${holder.id} (${holder.fields.title}) carries it in this story; the next free number is ${nextFree(theirs)}` }]);
@@ -616,8 +633,17 @@ export class WorkModel {
     return record?.type === "capability" ? this.#pluginOfStory((record as SchemaRecord<"capability">).fields.story) : undefined;
   }
 
-  async #capabilitiesOf(story: string): Promise<SchemaRecord<"capability">[]> {
-    return (await this.#records.list("capability")).filter((capability) => capability.fields.story === story);
+  /** The live capabilities of `story`, as `pending` would leave them: one it retires is gone, and one it edits carries its new title and story. */
+  async #capabilitiesOf(story: string, pending: readonly PendingPlanChange[] = []): Promise<SchemaRecord<"capability">[]> {
+    const retired = new Set(pending.flatMap((change) => ("retire" in change ? [change.record] : [])));
+    const after = new Map(pending.flatMap((change) => ("after" in change ? [[change.record, change.after] as const] : [])));
+    return (await this.#records.list("capability"))
+      .filter((capability) => !retired.has(capability.id))
+      .map((capability) => {
+        const fields = after.get(capability.id);
+        return fields === undefined ? capability : { ...capability, fields: { ...capability.fields, ...fields } as typeof capability.fields };
+      })
+      .filter((capability) => capability.fields.story === story);
   }
 
   /**

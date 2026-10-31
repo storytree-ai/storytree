@@ -517,6 +517,8 @@ for (const backend of [memory, postgres]) {
     assert.equal((await work.addContract({ title: "The read is delayed", capability: fresh.id })).fields.title, "6.1 · The read is delayed");
     const elsewhere = await work.addStory({ title: "Visitor can sign in" });
     assert.equal((await work.addCapability({ title: "Password form", story: elsewhere.id })).fields.title, "1 · Password form", "each story numbers its own");
+    const movedOut = [{ record: fresh.id, type: "capability" as const, base: 0, before: { story: story.id }, after: { story: elsewhere.id } }];
+    assert.equal((await work.addCapability({ title: "Rate limits", story: story.id }, { pending: movedOut })).fields.title, "6 · Rate limits", "read as a pending move would leave the story, the number it frees is next");
   });
 
   contract("4.10", "a contract planned without a number skips the numbers the capability's tests already carry; a number given is kept", async ({ work }) => {
@@ -561,6 +563,20 @@ for (const backend of [memory, postgres]) {
     assert.equal((await work.editCapability(running.id, { title: "3 · Keeping the host up" }))?.fields.title, "3 · Keeping the host up", "a capability keeps its own number");
     await records.retire(running.id, "split");
     assert.equal((await work.addCapability({ title: "3 · Keeping the factory current", story: story.id })).fields.title, "3 · Keeping the factory current", "only a live capability holds its number");
+
+    const pending = [
+      { record: other.id, type: "capability" as const, base: 0, before: { story: story.id, title: "4 · Reading the logs" }, after: { story: elsewhere.id, title: "9 · Reading the logs" } },
+      { record: moved.id, type: "capability" as const, base: 0, before: { story: elsewhere.id, title: "3 · Keeping the factory current" }, after: { story: story.id, title: "5 · Keeping the factory current" } },
+    ];
+    assert.equal((await work.addCapability({ title: "4 · Watching the host", story: story.id }, { pending })).fields.title, "4 · Watching the host", "a number a pending move frees is not taken");
+    const unwritten = await transactions.history();
+    await assert.rejects(work.addCapability({ title: "5 · Rotating the logs", story: story.id }, { pending }), (error: unknown) => {
+      assert.ok(error instanceof SchemaError, `expected a SchemaError, got: ${String(error)}`);
+      assert.match(error.message, new RegExp(`capability number 5 is taken: ${moved.id}`), "the one a pending move brings in holds it");
+      assert.match(error.message, /next free number is 6/);
+      return true;
+    });
+    assert.deepEqual(await transactions.history(), unwritten, "nothing was written");
   });
 
   contract("4.12", "only mapStories makes a story mapped: a mapped field given to addStory or editStory is refused and nothing is written", async ({ work, records, transactions }) => {

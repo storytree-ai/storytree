@@ -256,7 +256,8 @@ const create = verb({
     if (write === undefined) throw new VerbRefusal(`storytree library new writes ${Object.keys(WRITERS).join(", ")}; not "${kind}"`, { misuse: true });
     const fields = fieldsOf(values);
     const numbers = kind === "contract" && typeof fields.capability === "string" ? await context.testedNumbers(fields.capability) : undefined;
-    const options = numbers === undefined ? context.writer! : { ...context.writer!, testedNumbers: [...numbers.tested] };
+    const pending = kind === "capability" ? { pending: await heldPending(context) } : {};
+    const options = numbers === undefined ? { ...context.writer!, ...pending } : { ...context.writer!, testedNumbers: [...numbers.tested] };
     const written = await withIdLists(fields, (fields) => write(context.library, fields, options));
     const untested = numbers?.untested ?? [];
     const open = untested.length === 0 ? "" : `\nNo numbered test carries ${untested.length === 1 ? "this other contract" : `these ${untested.length} other contracts`} of the capability yet, perhaps planned by a lane that backed off; if this contract repeats one's promise, retire it and build that one:${untested.map((title) => `\n  - ${title}`).join("")}`;
@@ -334,6 +335,13 @@ async function heldOnIncrement(context: LibraryVerbContext, change: PlanChange):
   const pended = await context.library.pendChange(increment, change, context.writer!);
   if (pended === null || !("pending" in pended)) return undefined;
   return `pending on increment ${increment} until its branch merges; the live plan is unchanged.`;
+}
+
+/** The pending changes of the increment the calling session holds, which its branch's new capabilities are numbered against (ADR-0966 D3). */
+async function heldPending(context: LibraryVerbContext): Promise<readonly PendingChange[]> {
+  const increment = heldIncrement(await context.claims(), context.session);
+  const record = increment === undefined ? null : await context.library.get(increment);
+  return record?.type === "increment" ? ((record.fields as { pending?: PendingChange[] }).pending ?? []) : [];
 }
 
 /** The increment `session` claimed last of those it holds, if any. */

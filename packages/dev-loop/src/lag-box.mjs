@@ -17,6 +17,9 @@
 //   ADR-0825 D5), so a slowdown that reproduced makes the capability read not healthy and reaches the health worklist.
 // - A run is bounded (--limit-minutes, default 30, the heavy-run lock's queue included): one that passes it is stopped and recorded
 //   NOT RUN, its heavy-run lock released.
+// - A tick that fails before it can measure (no measuring checkout, main unreadable) is recorded NOT RUN as a tick of its own, one row
+//   for a failure however many ticks repeat it, so `pnpm lag:box` shows from any machine that the box has stopped measuring: it prints
+//   the last measuring run's age and the last failure. Only a library it cannot reach leaves a failure in tick.log alone.
 // It is no GitHub workflow, nothing of it runs in CI, and no pull request's check reads it.
 //
 //   pnpm lag:box                                      each action's baseline, last runs and any standing slowdown
@@ -212,8 +215,11 @@ export function recordLagVerdicts(library, verdicts, { commit, evidence }) {
   return recordHealth(library, new Map([...verdicts.keys()].map((contract) => [contract, contract])), withEvidence, { by: LAG_RUN, source: "local", commit });
 }
 
+const when = (at) => String(at ?? "").slice(0, 16);
+const age = (ms) => (ms >= 2 * 86_400_000 ? `${Math.floor(ms / 86_400_000)} days` : ms >= 2 * 3_600_000 ? `${Math.floor(ms / 3_600_000)} hours` : `${Math.max(0, Math.round(ms / 60_000))} min`);
+
 /** The printed reading: per action, its baseline and standing, then its last runs. */
-export function statusText({ history, actions, log: mainLog, last = 3 }) {
+export function statusText({ history, actions, log: mainLog, last = 3, now = new Date() }) {
   const states = actionStates({ history, actions, log: mainLog });
   const width = Math.max(...actions.map((action) => action.length));
   const lines = [];
@@ -232,7 +238,11 @@ export function statusText({ history, actions, log: mainLog, last = 3 }) {
     }
   }
   const notRun = history.filter((run) => run.state === "not-run").slice(-last);
-  for (const run of notRun) lines.push(`NOT RUN ${String(run.started ?? "").slice(0, 16)}  ${short(run.head)} against ${short(run.against)}: ${run.reason}`);
+  for (const run of notRun) lines.push(run.purpose === "tick" ? `NOT RUN ${when(run.started)} to ${when(run.ended)}  tick: ${run.reason}` : `NOT RUN ${when(run.started)}  ${short(run.head)} against ${short(run.against)}: ${run.reason}`);
+  const measured = history.filter((run) => run.state === "done" && run.purpose !== "rebaseline").at(-1);
+  lines.push(measured === undefined ? "last measured: never" : `last measured ${when(measured.ended)} (${age(now - Date.parse(measured.ended))} ago)`);
+  const failed = notRun.at(-1);
+  if (failed !== undefined) lines.push(`last failure ${when(failed.ended ?? failed.started)}: ${failed.purpose}: ${failed.reason}`);
   return lines.join("\n");
 }
 
@@ -252,6 +262,10 @@ const SCHEMA = [
     ended_at   timestamptz
   )`,
   `CREATE INDEX IF NOT EXISTS lag_runs_project_idx ON lag_runs (project, seq)`,
+  // A tick that could not measure is a row of its own, measuring no commit.
+  `ALTER TABLE lag_runs ALTER COLUMN head DROP NOT NULL`,
+  `ALTER TABLE lag_runs DROP CONSTRAINT IF EXISTS lag_runs_purpose_check`,
+  `ALTER TABLE lag_runs ADD CONSTRAINT lag_runs_purpose_check CHECK (purpose IN ('measure', 'confirm', 'bisect', 'rebaseline', 'tick'))`,
 ];
 
 /** The lag history of `project`, in its own database on `storytree`'s server: a project reads only its own runs. */
@@ -272,6 +286,16 @@ export async function openHistory(storytree, project = PROJECT) {
     },
     async rebaseline({ action, head, reason }) {
       await pool.query("INSERT INTO lag_runs (project, purpose, head, actions, state, reason, ended_at) VALUES ($1, 'rebaseline', $2, $3, 'done', $4, now())", [project, head, json([action]), reason]);
+    },
+    /** A tick that failed before it could measure: NOT RUN with its reason, the last row's end moved on when it is the same failure. */
+    async failed(reason, at = new Date()) {
+      const { rows } = await pool.query("SELECT seq, purpose, state, reason FROM lag_runs WHERE project = $1 ORDER BY seq DESC LIMIT 1", [project]);
+      const [latest] = rows;
+      if (latest?.purpose === "tick" && latest.state === "not-run" && latest.reason === reason) {
+        await pool.query("UPDATE lag_runs SET ended_at = $3 WHERE project = $1 AND seq = $2", [project, latest.seq, at]);
+      } else {
+        await pool.query("INSERT INTO lag_runs (project, purpose, state, reason, started_at, ended_at) VALUES ($1, 'tick', 'not-run', $2, $3, $3)", [project, reason, at]);
+      }
     },
     /** Runs left `running` by a tick that ended before it finished them: none is going while this one holds the box's run lock. */
     async abandon() {
@@ -330,8 +354,8 @@ function readMain(repo) {
 }
 
 /** The box's own run lock: only one tick decides and runs at a time, whoever started it. Undefined when another holds it. */
-function takeRunLock() {
-  const file = path.join(storytreeHome(), "lag-box.lock");
+function takeRunLock(home = storytreeHome()) {
+  const file = path.join(home, "lag-box.lock");
   mkdirSync(path.dirname(file), { recursive: true });
   for (let tries = 0; tries < 2; tries += 1) {
     try {
@@ -392,23 +416,34 @@ function option(args, name, fallback) {
   return at === -1 ? fallback : args[at + 1];
 }
 
-async function tick(args) {
-  const release = takeRunLock();
-  if (release === undefined) return log("lag:box: another tick is running");
+/**
+ * What the timer runs: decide, run, record. A failure before it can measure is recorded NOT RUN in the history (when the library is
+ * reachable) and thrown on, so tick.log says it too. `box`, `home`, `open` and `now` are the box's folder, its storytree home,
+ * withHistory and the clock unless a caller gives its own.
+ */
+export async function tick(args, { box = BOX, home = storytreeHome(), open = withHistory, log: say = log, now = () => new Date() } = {}) {
+  const release = takeRunLock(home);
+  if (release === undefined) return say("lag:box: another tick is running");
   try {
-    const checkout = path.join(BOX, "measure");
-    if (!existsSync(checkout)) throw new Error(`no measuring checkout at ${checkout}: run pnpm lag:box install`);
+    const checkout = path.join(box, "measure");
     const limitMs = Number(option(args, "limit-minutes", LIMIT_MINUTES)) * 60_000;
-    await withHistory(async (history, storytree) => {
+    await open(async (history, storytree) => {
       await history.abandon();
-      const { main, log: mainLog } = readMain(checkout);
+      let main, mainLog;
+      try {
+        if (!existsSync(checkout)) throw new Error(`no measuring checkout at ${checkout}: run pnpm lag:box install`);
+        ({ main, log: mainLog } = readMain(checkout));
+      } catch (error) {
+        await history.failed(error.message.split("\n")[0], now());
+        throw error;
+      }
       const next = decide({ history: await history.read(), main, actions: ACTIONS, log: mainLog });
-      log(`lag:box: ${next.why}`);
+      say(`lag:box: ${next.why}`);
       const ran = [];
       for (const comparison of next.comparisons) {
         const seq = await history.start(comparison);
         ran.push(seq);
-        log(`lag:box: ${comparison.purpose} ${short(comparison.head)} against ${short(comparison.against)}${comparison.actions === null ? "" : ` (${comparison.actions.join(", ")})`}`);
+        say(`lag:box: ${comparison.purpose} ${short(comparison.head)} against ${short(comparison.against)}${comparison.actions === null ? "" : ` (${comparison.actions.join(", ")})`}`);
         let result;
         try {
           result = await measure(comparison, { checkout, limitMs });
@@ -416,7 +451,7 @@ async function tick(args) {
           result = { state: "not-run", reason: error.message.split("\n")[0] };
         }
         await history.finish(seq, result);
-        log(`lag:box: ${result.state}${result.reason === undefined ? "" : `: ${result.reason}`}`);
+        say(`lag:box: ${result.state}${result.reason === undefined ? "" : `: ${result.reason}`}`);
       }
       if (next.comparisons.length === 0) return;
       const runs = await history.read();
@@ -426,7 +461,7 @@ async function tick(args) {
       const library = await storytree.openProject(PROJECT);
       try {
         const written = await recordLagVerdicts(library, verdicts, { commit: main.commit, evidence: `pnpm lag:box, run ${ran.join(", ")}` });
-        log(`lag:box: recorded as a lag run: ${written.passing} passing, ${written.failing} failing, ${written.marked} not re-run`);
+        say(`lag:box: recorded as a lag run: ${written.passing} passing, ${written.failing} failing, ${written.marked} not re-run`);
       } finally {
         await library.close();
       }

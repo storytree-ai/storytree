@@ -4,7 +4,9 @@
  */
 import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
+import { copyFileSync, linkSync, symlinkSync, writeFileSync } from "node:fs";
 import { userInfo } from "node:os";
+import path from "node:path";
 import { after, before, test } from "node:test";
 
 import pg from "pg";
@@ -938,6 +940,60 @@ test("4.26 `arc increment drop-pending <increment> <record> --reason …` drops 
     assert.match(refused.stderr, new RegExp(`holds no pending change to "${form.id}"`));
   });
 });
+
+test("4.28 `arc increment apply-pending <increment> --pr <n>` applies an open increment's pending plan changes under a merged pull request's mark, naming what it applied and what was stale, and refuses a pull request that has not merged, or a fork's, applying nothing", async () => {
+  await inWorld(command, async (world) => {
+    const library = await world.library();
+    const arc = await anArc(world);
+    const story = await library.addStory({ title: "Sign up" });
+    const form = await library.addCapability({ story: story.id, title: "Form" });
+    const promise = await library.addContract({ capability: form.id, title: "Accepts an address" });
+    const increment = await library.addIncrement({ arc, title: "Address form", objective: "Rename it", body: "Red then green" });
+    await library.advanceIncrement(increment.id, "active");
+    await library.pendChange(increment.id, { record: form.id, fields: { description: "Where they type it" } });
+    await library.pendChange(increment.id, { record: promise.id, fields: { title: "Accepts an email address" } });
+    // Edited since the change was pended: it is stale.
+    await library.editContract(promise.id, { title: "Accepts a postal address" });
+    // The fake gh answers `gh pr view <n>`: #151 merged, #152 still open, #153 a fork's merged pull request.
+    await withTempDir(async (ghFolder) => {
+      fakeGh(ghFolder);
+      writeFileSync(path.join(world.folder, "pr"), [
+        "const number = Number(process.argv[3]);",
+        "const pull = { 151: { state: 'MERGED', mergedAt: '2026-10-31T12:00:00Z', isCrossRepository: false }, 152: { state: 'OPEN', mergedAt: null, isCrossRepository: false }, 153: { state: 'MERGED', mergedAt: '2026-10-31T12:00:00Z', isCrossRepository: true } }[number];",
+        "process.stdout.write(JSON.stringify({ number, ...pull }));",
+      ].join("\n"));
+      const env = { PATH: [ghFolder, process.env.PATH ?? process.env.Path ?? ""].join(path.delimiter) };
+
+      for (const [pr, why] of [["152", /#152 has not merged/], ["#153", /#153 is from a fork/]] as const) {
+        const refused = await world.run(["arc", "increment", "apply-pending", increment.id, "--pr", pr], env);
+        assert.notEqual(refused.code, 0);
+        assert.match(refused.stderr, why);
+        assert.equal(((await library.get(increment.id))?.fields as { pending?: unknown[] }).pending?.length, 2, "nothing applied");
+      }
+
+      const applied = await world.run(["arc", "increment", "apply-pending", increment.id, "--pr", "151"], env);
+      assert.equal(applied.code, 0, applied.stderr);
+      assert.match(applied.stdout, new RegExp(`Applied 1 of increment ${increment.id}'s pending plan changes at the merge of PR #151: ${form.id}`));
+      assert.match(applied.stdout, new RegExp(`${promise.id}: stale`));
+      assert.equal(((await library.get(form.id))?.fields as { description?: string }).description, "Where they type it");
+      assert.equal(((await library.get(promise.id))?.fields as { title?: string }).title, "Accepts a postal address");
+      assert.equal(((await library.get(increment.id))?.fields as { pending?: unknown[] }).pending, undefined);
+      const [entry] = await library.history({ id: form.id, newest: 1 });
+      assert.match(entry?.reason ?? "", /applied at the merge of PR #151/);
+    });
+  });
+});
+
+/** Put a `gh` in `folder` that is Node itself, so `gh pr view …` runs the working folder's `pr` script. */
+function fakeGh(folder: string): void {
+  const gh = path.join(folder, process.platform === "win32" ? "gh.exe" : "gh");
+  if (process.platform !== "win32") return symlinkSync(process.execPath, gh);
+  try {
+    linkSync(process.execPath, gh);
+  } catch {
+    copyFileSync(process.execPath, gh);
+  }
+}
 
 /** The project's log as its claims and closes wrote it: without the door's own record of each command's answer (ADR-0983 D1). */
 async function logged(log: ActivityLog, project: string): Promise<{ lines: Line[] }> {

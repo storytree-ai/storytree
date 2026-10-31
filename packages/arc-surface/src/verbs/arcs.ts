@@ -7,9 +7,11 @@
  * another arc keeping its id, and make an arc or increment wait on another with a reason, or an increment wait for the
  * owner or an outside event with a note (ADR-0938 D1), or clear the wait (the library clears one itself when its
  * blocker lands or closes, 11.8). Return active work nobody holds to proposal (`increment unstart`), and settle the
- * pending plan changes closed increments left behind (`increment settle-pending`), or drop one an open increment holds
- * that something else overtook (`increment drop-pending`). Closing an increment ends its claims
- * through Session management's `closed`, and is refused while another session holds it live (its `closeRefusal`). None is a tool: the MCP server's own show_plan, park_increment, edit_plan,
+ * pending plan changes closed increments left behind (`increment settle-pending`), apply an open increment's leftovers
+ * under a merged pull request's mark, asking GitHub that it merged (`increment apply-pending`), or drop one an open
+ * increment holds that something else overtook (`increment drop-pending`). Closing an increment ends its claims
+ * through Session management's `closed`, and is refused while another session holds it live (its `closeRefusal`). Only
+ * apply-pending is a tool (apply_pending); for the rest, the MCP server's own show_plan, park_increment, edit_plan,
  * move_increment, close_increment, set_wait and clear_wait do these jobs.
  *
  * Every rule is the library's (its capabilities 10, 11 and 12): an arc's intent and end state, a close's note, the loop
@@ -602,6 +604,73 @@ const incrementDropPending = verb({
   },
 });
 
+/** How long `gh` may take to say whether a pull request merged. */
+const GH_TIMEOUT_MS = 10_000;
+
+/**
+ * Pull request `pr` (`#n` or `n`) as GitHub says it, asked through `gh pr view` in `folder` so it finds the project's
+ * repository: its number when it merged from this repository's own branch, and a refusal otherwise (open, closed
+ * unmerged, a fork's, or `gh` unable to say).
+ */
+async function mergedPull(folder: string, pr: string): Promise<number> {
+  const number = pr.replace(/^#/, "");
+  if (!/^[1-9]\d*$/.test(number)) throw new VerbRefusal(`--pr is a pull request's number, such as #151; not "${pr}"`, { misuse: true });
+  const { execFile } = await import("node:child_process");
+  const out = await new Promise<string>((resolve, reject) => {
+    // No shell: gh is an .exe on Windows, and the number is checked above.
+    execFile("gh", ["pr", "view", number, "--json", "number,state,mergedAt,isCrossRepository"], { cwd: folder, timeout: GH_TIMEOUT_MS, windowsHide: true }, (error, stdout, stderr) => {
+      if (error === null) resolve(stdout);
+      else reject(new VerbRefusal(`could not ask GitHub whether #${number} merged, so nothing was applied: ${(stderr.trim().split(/\r?\n/, 1)[0] || error.message)}`));
+    });
+  });
+  let pull: { state?: unknown; mergedAt?: unknown; isCrossRepository?: unknown };
+  try {
+    pull = JSON.parse(out) as typeof pull;
+  } catch {
+    throw new VerbRefusal(`GitHub's answer about #${number} could not be read, so nothing was applied`);
+  }
+  if (pull.isCrossRepository !== false) throw new VerbRefusal(`#${number} is from a fork, or GitHub did not say whose it is: only this repository's own pull requests mark a landing, so nothing was applied`);
+  if (pull.state !== "MERGED" || typeof pull.mergedAt !== "string") throw new VerbRefusal(`#${number} has not merged (GitHub says ${String(pull.state).toLowerCase()}), so nothing was applied: its pending changes apply when it merges`);
+  return Number(number);
+}
+
+const incrementApplyPending = verb({
+  command: {
+    family: "arc increment",
+    name: "apply-pending",
+    summary: "apply an open increment's leftover pending plan changes under a merged pull request's mark, saying what was applied and what was stale (ADR-0966)",
+    usage: "arc increment apply-pending <increment> --pr <n>",
+  },
+  tool: {
+    name: "apply_pending",
+    description: "Apply an open increment's leftover pending plan changes under the mark of a pull request that has merged: the ones its merge made true but nothing applied (a hook's apply cut short, or the watcher letting its claims go first). Refused, applying nothing, for a pull request that has not merged or is a fork's. It says which changes it applied, and which were stale or refused, parking those as one increment to redo by hand. A closed increment's leftovers are settle-pending's, from a terminal.",
+  },
+  inputs: {
+    increment: { kind: "text", word: 0, describe: "the open increment's id" },
+    pr: { kind: "text", describe: "the merged pull request whose mark they carry, such as #151" },
+  },
+  writes: true,
+  async act({ increment: id, pr }, context: ArcVerbContext) {
+    const increment = await context.library.get(id);
+    if (increment === null || increment.type !== "increment") throw new VerbRefusal(`no increment "${id}" in this project`);
+    const fields = increment.fields as { status?: string; pending?: readonly unknown[] };
+    if (fields.status === "closed") throw new VerbRefusal(`increment ${id} is closed: \`storytree arc increment settle-pending\` settles a closed increment's leftover pending changes`);
+    if ((fields.pending ?? []).length === 0) return { text: `Increment ${id} holds no pending plan changes; nothing to apply.` };
+    const number = await mergedPull(context.folder, pr);
+    const done = await context.library.applyPending(id, `#${number}`, context.writer);
+    if (done === null) throw new VerbRefusal(`no increment "${id}" in this project`);
+    const left = done.residue?.changes ?? [];
+    const lines = left.map((change) => change.why === "stale"
+      ? `  ${change.record}: stale, its ${change.type} moved since the change was made (history entry ${change.moved.seq}, ${change.moved.action}${change.moved.at === "" ? "" : ` ${change.moved.at}`})`
+      : `  ${change.record}: refused by its editor: ${change.refusal}`);
+    const head = `Applied ${done.applied.length} of increment ${id}'s pending plan changes at the merge of PR #${number}${done.applied.length === 0 ? "" : `: ${done.applied.join(", ")}`}.`;
+    return {
+      text: left.length === 0 ? head : [head, `Not applied (${left.length}), parked as ${done.residue!.increment} to redo by hand:`, ...lines].join("\n"),
+      next: done.residue === undefined ? [] : [{ command: `library read ${done.residue.increment}`, tool: "open", why: "redo or let go of each change it could not apply" }],
+    };
+  },
+});
+
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
 
 /**
@@ -749,7 +818,7 @@ function auditOf(views: readonly ArcView[], holds: Holds, at: Date): { text: str
 const increment: VerbFamilies<ArcVerbContext> = {
   name: "increment",
   summary: "the increments of an arc's work",
-  verbs: [incrementNew, incrementAdd, incrementClose, incrementCorrectClosure, incrementEdit, incrementUnstart, incrementMove, incrementSettlePending, incrementDropPending, incrementWait, incrementUnwait],
+  verbs: [incrementNew, incrementAdd, incrementClose, incrementCorrectClosure, incrementEdit, incrementUnstart, incrementMove, incrementSettlePending, incrementApplyPending, incrementDropPending, incrementWait, incrementUnwait],
   guesses: { show: "library read <id>", read: "library read <id>", get: "library read <id>", open: "library read <id>" },
   retired: {
     ready: { why: "ADR-0909 retired the increment's ready step, and claiming a proposal starts it.", instead: "workspace <increment> --reason …" },

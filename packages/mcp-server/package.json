@@ -19,6 +19,7 @@
   },
   "dependencies": {
     "@modelcontextprotocol/server": "^2.1.0",
+    "@storytree/arc-surface": "workspace:*",
     "@storytree/session-management": "workspace:*",
     "@storytree/guardrails": "workspace:*",
     "@storytree/library": "workspace:*",

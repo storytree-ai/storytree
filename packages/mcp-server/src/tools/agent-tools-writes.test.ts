@@ -11,7 +11,7 @@
  * What the tests check is read back through the library and the activity log themselves.
  */
 import assert from "node:assert/strict";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { copyFileSync, mkdirSync, symlinkSync, writeFileSync } from "node:fs";
 import { randomBytes } from "node:crypto";
 import { hostname } from "node:os";
 import path from "node:path";
@@ -1240,6 +1240,39 @@ test("6.94 show_plan says the project's anchor first (or that it has none), and 
       lines = plan.text.split("\n");
       assert.equal(lines[0], "Anchor (project-anchor): a shop builder, for small shops and their customers");
       assert.ok(!plan.text.includes("Plan health"), "nothing unsaid, nothing said about it");
+    });
+  });
+});
+
+test("6.109 apply_pending applies an open increment's pending plan changes under a merged pull request's mark, and refuses one that has not merged, applying nothing", async () => {
+  await withProject(async ({ folder, library }) => {
+    await withAgent(folder, claudeCode("lane"), async (agent) => {
+      const { arc, capability } = await planned(agent);
+      const increment = await library.addIncrement({ arc, title: "Sign-up form", objective: "Describe it", body: "Red then green" });
+      await library.advanceIncrement(increment.id, "active");
+      await library.pendChange(increment.id, { record: capability, fields: { description: "Where they type it" } });
+      // A `gh` that is Node itself runs the project folder's `pr` script: #151 merged, #152 still open.
+      writeFileSync(path.join(folder, "pr"), "const number = Number(process.argv[3]);\nprocess.stdout.write(JSON.stringify({ number, isCrossRepository: false, ...(number === 151 ? { state: 'MERGED', mergedAt: '2026-10-31T12:00:00Z' } : { state: 'OPEN', mergedAt: null }) }));\n");
+      await withTempDir(async (ghFolder) => {
+        const gh = path.join(ghFolder, process.platform === "win32" ? "gh.exe" : "gh");
+        if (process.platform === "win32") copyFileSync(process.execPath, gh);
+        else symlinkSync(process.execPath, gh);
+        const PATH = process.env.PATH;
+        process.env.PATH = [ghFolder, PATH ?? ""].join(path.delimiter);
+        try {
+          const refused = await agent.call("apply_pending", { increment: increment.id, pr: "#152" });
+          assert.equal(refused.isError, true);
+          assert.match(refused.text, /#152 has not merged/);
+          assert.equal(((await library.get(increment.id))?.fields as { pending?: unknown[] }).pending?.length, 1, "nothing applied");
+
+          const applied = await agent.call("apply_pending", { increment: increment.id, pr: "#151" });
+          assert.equal(applied.isError, false, applied.text);
+          assert.match(applied.text, new RegExp(`Applied 1 of increment ${increment.id}'s pending plan changes at the merge of PR #151: ${capability}`));
+          assert.equal(((await library.get(capability))?.fields as { description?: string }).description, "Where they type it");
+        } finally {
+          process.env.PATH = PATH;
+        }
+      });
     });
   });
 });

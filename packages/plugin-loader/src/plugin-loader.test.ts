@@ -452,6 +452,30 @@ test("5.12 · a plugin's manifest declares its long-running services, each { nam
   }
 });
 
+test("5.16 · a plugin's manifest declares gate steps, each { name, when?, command }, which the base dev loop's gate runs: `plugin check` loads one declaring only gateSteps, saying how many, and refuses a step with no name or no command with why; `plugin contract` describes a gate step", async (t) => {
+  const steps = (module: string) => ({
+    exports: { "./gate-steps": "./gate-steps.js" },
+    manifest: { interface: PLUGIN_INTERFACE, gateSteps: [{ from: "./gate-steps", export: "gateSteps" }] },
+    files: { "gate-steps.js": module },
+  });
+  const folder = factory(t, {
+    "my-loop": steps(`export const gateSteps = [{ name: "check:a", command: () => ({ command: "node", args: ["a.mjs"] }) }, { name: "check:b", when: () => ({ run: true }), command: () => ({ command: "node", args: ["b.mjs"] }) }];\n`),
+    unnamed: steps(`export const gateSteps = [{ command: () => ({ command: "node", args: [] }) }];\n`),
+    "no-command": steps(`export const gateSteps = [{ name: "check:a" }];\n`),
+  });
+  assert.deepEqual(checkPlugin(folder, "my-loop"), { loads: true, adds: { gateSteps: 2 }, problems: [] }, "a plugin declaring only gate steps is a plugin");
+  for (const [plugin, why] of [
+    ["unnamed", /gate step 1 has no name/],
+    ["no-command", /gate step check:a has no command\(\{ root \}\) function/],
+  ] as const) {
+    const checked = checkPlugin(folder, plugin);
+    assert.equal(checked.loads, false, plugin);
+    assert.match(checked.problems.join("\n"), why);
+  }
+  const { act } = await pluginVerb(t, "contract");
+  assert.match((await act({})).text, /^  gateSteps \(mounted by the base dev loop's gate\): \{ name, when\?, command \}/m);
+});
+
 test("5.15 · `plugin check` on a plugin made `--for <part>` lists what that part provides that the plugin does not: its commands and tools, as the host's door composes them", async (t) => {
   const { act: create, home } = await pluginVerb(t, "new");
   await create({ plugin: "my-health", for: "ci-health" });

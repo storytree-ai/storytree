@@ -19,7 +19,9 @@
  *   those cannot judge either, or the report's time runs out on there, is not run, never a survivor (7.5).
  * - The report runs with the brief read from a change's worktree and is kept with that review; taking the review's return
  *   records each survivor as a hit found by the mutation report (7.3). It never blocks: a report that cannot run says why and
- *   the brief goes on, and a rejected survivor needs no reviewer to accept it (7.4).
+ *   the brief goes on, and a rejected survivor needs no reviewer to accept it (7.4). Each outside checkout the brief reads, the
+ *   factory worktree or a checkout named as the change's other half, gets its own report on its diff, kept with the same review and
+ *   shown under its folder, its survivors recorded the same way, naming it (7.10).
  * - Breaks are never written into the checkout the report is given: its tests run in a throwaway copy of it in the temp
  *   folder, holding its own copy of each package a break or a test is in and links to the rest, so a reader of the checkout
  *   (a reviewer, or another report beside it) only ever sees its own files. A report killed outright leaves its copy, which
@@ -37,7 +39,7 @@ import { SESSION_ENV, WATCHED_HARNESSES } from "@storytree/project-and-caller/ca
 import type { Storytree } from "@storytree/library";
 
 import { inTransaction, ledgerDatabase, writeReview, type HitRow } from "../ledger/ledger.js";
-import { briefText, type Brief, type Reviews, type Taken } from "../review/review.js";
+import { briefText, outsideCheckouts, packageOf, type Brief, type Reviews, type Taken } from "../review/review.js";
 import { folderOf, PackageGraph, readPackages } from "../risk/risk.js";
 
 /** The most breaks one change gets (ADR-1153 D1: "about 15"). */
@@ -817,12 +819,13 @@ function sweepCopies(scratch: string): void {
   }
 }
 
-/** The report as the brief shows it. */
-export function mutationText(report: MutationReport): string {
-  if (!report.ran) return `Mutation report: not run (${report.reason}). Nothing of it is recorded, and nothing waits on it.`;
-  if (report.planted === 0) return "Mutation report: the change adds no line a break fits outside arid code, so none was planted.";
+/** The report as the brief shows it; one run on an outside checkout names it (7.10). */
+export function mutationText(report: MutationReport, folder?: string): string {
+  const name = folder === undefined ? "Mutation report" : `Mutation report on the checkout ${folder}`;
+  if (!report.ran) return `${name}: not run (${report.reason}). Nothing of it is recorded, and nothing waits on it.`;
+  if (report.planted === 0) return `${name}: the change adds no line a break fits outside arid code, so none was planted.`;
   return [
-    `Mutation report: ${report.planted} break${report.planted === 1 ? "" : "s"} planted on the change's lines${report.candidates > report.planted ? ` (spread from ${report.candidates})` : ""}, ${report.caught} caught by a test, ${report.survivors.length} survived${report.notRun.length === 0 ? "" : `, ${report.notRun.length} not run`}, in ${Math.round(report.ms / 1000)} s.`,
+    `${name}: ${report.planted} break${report.planted === 1 ? "" : "s"} planted on the change's lines${report.candidates > report.planted ? ` (spread from ${report.candidates})` : ""}, ${report.caught} caught by a test, ${report.survivors.length} survived${report.notRun.length === 0 ? "" : `, ${report.notRun.length} not run`}, in ${Math.round(report.ms / 1000)} s.`,
     ...(report.survivors.length === 0 ? [] : [
       "Each survivor is recorded as a hit with this review, for the implementer to answer: add or fix a test that notices it, or reject it with a reason, which puts its line on the arid list. Not yours to judge; most damaging first:",
       ...report.survivors.map((one) => `  ${one.file}:${one.line}  ${one.what}${one.untried ? ", untried: no test reaches the file" : ""}  (${one.damage} file${one.damage === 1 ? "" : "s"} depend on it)\n    ${one.source}`),
@@ -831,9 +834,9 @@ export function mutationText(report: MutationReport): string {
   ].join("\n");
 }
 
-/** What a survivor's hit says was found. */
-function survivorFound(one: Survivor): string {
-  return `mutation survivor: ${one.what} on \`${one.source}\` ${one.untried ? "is reached by no test" : "was noticed by no test reaching the file"} (${one.damage} file${one.damage === 1 ? "" : "s"} depend on it); add or fix a test that notices it, or reject it to put the line on the arid list`;
+/** What a survivor's hit says was found, naming the outside checkout it was found in (7.10). */
+function survivorFound(one: Survivor, folder?: string): string {
+  return `mutation survivor${folder === undefined ? "" : ` in the checkout ${folder}`}: ${one.what} on \`${one.source}\` ${one.untried ? "is reached by no test" : "was noticed by no test reaching the file"} (${one.damage} file${one.damage === 1 ? "" : "s"} depend on it); add or fix a test that notices it, or reject it to put the line on the arid list`;
 }
 
 type Pool = Awaited<ReturnType<typeof ledgerDatabase>>;
@@ -850,19 +853,36 @@ export async function aridList(server: Pick<Storytree, "ownDatabase">, project: 
  * that review (7.3); a report that cannot run is kept saying why, and never refuses the brief (7.4).
  */
 export async function reportForBrief(server: Pick<Storytree, "ownDatabase">, project: string, change: string, iteration: number, root: string, diff: string, options: Parameters<typeof mutationReport>[3] = {}): Promise<MutationReport> {
-  let report: MutationReport;
+  const report = await runReport(server, project, root, diff, options);
+  await keepReport(server, project, change, iteration, report);
+  return report;
+}
+
+/** A review's mutation reports as kept: the change's own, and each outside checkout's under its folder (7.10). */
+type KeptReport = MutationReport & { readonly outside?: readonly OutsideReport[] };
+
+/** The mutation report run on an outside checkout a brief read, the factory worktree or one of the change's other halves (7.10). */
+export interface OutsideReport {
+  readonly folder: string;
+  readonly report: MutationReport;
+}
+
+/** The mutation report on `diff` in the checkout at `root`, or, when it cannot run, why not (7.4). */
+async function runReport(server: Pick<Storytree, "ownDatabase">, project: string, root: string, diff: string, options: Parameters<typeof mutationReport>[3]): Promise<MutationReport> {
   try {
-    report = await mutationReport(root, diff, await aridList(server, project), options);
+    return await mutationReport(root, diff, await aridList(server, project), options);
   } catch (error) {
-    report = { ran: false, reason: (error as Error).message };
+    return { ran: false, reason: (error as Error).message };
   }
+}
+
+async function keepReport(server: Pick<Storytree, "ownDatabase">, project: string, change: string, iteration: number, report: KeptReport): Promise<void> {
   const pool: Pool = await ledgerDatabase(server);
   await pool.query(
     `INSERT INTO quality_mutations (project, change, iteration, report) VALUES ($1, $2, $3, $4)
      ON CONFLICT (project, change, iteration) DO UPDATE SET report = EXCLUDED.report, at = now()`,
     [project, change, iteration, JSON.stringify(report)],
   );
-  return report;
 }
 
 /**
@@ -873,18 +893,21 @@ export async function recordSurvivors(server: Pick<Storytree, "ownDatabase">, pr
   const pool: Pool = await ledgerDatabase(server);
   const review = `${change}#${iteration}`;
   return inTransaction(pool, async (client) => {
-    const { rows } = await client.query<{ report: MutationReport; recorded: boolean }>(
+    const { rows } = await client.query<{ report: KeptReport; recorded: boolean }>(
       "SELECT report, recorded FROM quality_mutations WHERE project = $1 AND change = $2 AND iteration = $3 FOR UPDATE",
       [project, change, iteration],
     );
     const kept = rows[0];
-    if (kept === undefined || kept.recorded || !kept.report.ran) return [];
-    const survivors = kept.report.survivors;
-    const packageOf = (file: string): string => /^(?:packages|apps)\/([^/]+)\//.exec(file)?.[1] ?? "root";
-    const packages = [...new Set(survivors.map(({ file }) => packageOf(file)))].sort();
+    if (kept === undefined || kept.recorded) return [];
+    // The change's own survivors, then each outside checkout's, naming it (7.10).
+    const survivors = [
+      ...(kept.report.ran ? kept.report.survivors.map((one) => ({ one, folder: undefined })) : []),
+      ...(kept.report.outside ?? []).flatMap(({ folder, report }) => (report.ran ? report.survivors.map((one) => ({ one, folder })) : [])),
+    ];
+    const packages = [...new Set(survivors.map(({ one }) => packageOf(one.file)))].sort();
     const hits = packages.length === 0 ? [] : await writeReview(client, {
       project, review, change, packages,
-      ran: [{ check: MUTATION_SURVIVOR, foundBy: "mutation", hits: survivors.map((one) => ({ package: packageOf(one.file), file: one.file, line: one.line, found: survivorFound(one), source: one.source })) }],
+      ran: [{ check: MUTATION_SURVIVOR, foundBy: "mutation", hits: survivors.map(({ one, folder }) => ({ package: packageOf(one.file), file: one.file, line: one.line, found: survivorFound(one, folder), source: one.source })) }],
     });
     await client.query("UPDATE quality_mutations SET recorded = true WHERE project = $1 AND change = $2 AND iteration = $3", [project, change, iteration]);
     return hits;
@@ -892,15 +915,28 @@ export async function recordSurvivors(server: Pick<Storytree, "ownDatabase">, pr
 }
 
 /**
- * The brief's text with its mutation report beneath (7.3): run on the brief's diff when it was read from the worktree at
- * `root`, and kept with its review; with no worktree, as for a diff given by hand, the brief alone.
+ * The brief's text with its mutation reports beneath (7.3): run on the brief's diff when it was read from the worktree at
+ * `root`, and on each outside checkout's diff the brief read (7.10), all kept with its review; with neither, as for a diff
+ * given by hand with no other half, the brief alone.
  */
-export async function briefWithReport(server: Pick<Storytree, "ownDatabase">, brief: Brief, root: string | undefined, options: Parameters<typeof mutationReport>[3] = {}): Promise<{ text: string; mutation?: MutationReport }> {
-  if (root === undefined) return { text: briefText(brief) };
-  const mutation = await reportForBrief(server, brief.project, brief.change, brief.iteration, root, brief.diff, options);
+export async function briefWithReport(server: Pick<Storytree, "ownDatabase">, brief: Brief, root: string | undefined, options: Parameters<typeof mutationReport>[3] = {}): Promise<{ text: string; mutation?: MutationReport; outside?: readonly OutsideReport[] }> {
+  const checkouts = outsideCheckouts(brief);
+  if (root === undefined && checkouts.length === 0) return { text: briefText(brief) };
+  const mutation = root === undefined ? undefined : await runReport(server, brief.project, root, brief.diff, options);
+  const outside: OutsideReport[] = [];
+  // One after another: each runs tests.
+  for (const { folder, diff } of checkouts) outside.push({ folder, report: await runReport(server, brief.project, folder, diff, options) });
+  await keepReport(server, brief.project, brief.change, brief.iteration, {
+    ...(mutation ?? { ran: false, reason: "the change's own diff was given by hand, with no worktree to run it in" }),
+    ...(outside.length === 0 ? {} : { outside }),
+  });
   // A change with no line a break fits, as a test-only or a docs change is, leaves the brief as it was.
-  if (mutation.ran && mutation.planted === 0) return { text: briefText(brief), mutation };
-  return { text: `${briefText(brief)}\n\n${mutationText(mutation)}`, mutation };
+  const shown = (report: MutationReport): boolean => !(report.ran && report.planted === 0);
+  const reports = [
+    ...(mutation !== undefined && shown(mutation) ? [mutationText(mutation)] : []),
+    ...outside.filter(({ report }) => shown(report)).map(({ folder, report }) => mutationText(report, folder)),
+  ];
+  return { text: [briefText(brief), ...reports].join("\n\n"), ...(mutation === undefined ? {} : { mutation }), ...(outside.length === 0 ? {} : { outside }) };
 }
 
 /** A return taken, with the survivors of its review's mutation report recorded beside its hits and what stands now (7.3). */

@@ -15,7 +15,7 @@ import { quietFor, removeTemp, waitUntil } from "@storytree/test-waits";
 import type { Library } from "@storytree/library";
 
 import { withLibrary } from "../testing/pg.js";
-import { aridList, briefWithReport, changeBreaks, fileBreaks, MUTATION_SURVIVOR, mutationReport, openLedger, openReviews, qualityTools, readReach, runTests, spread, type ReviewReturn, type TestRun } from "../index.js";
+import { aridList, briefWithReport, changeBreaks, fileBreaks, MUTATION_SURVIVOR, mutationReport, openLedger, openReviews, qualityTools, readReach, runTests, spread, worktreeChange, type ReviewReturn, type TestRun } from "../index.js";
 
 /** A diff adding every line of each file. */
 function adding(files: Record<string, string>): string {
@@ -620,6 +620,44 @@ test("7.3 · the brief read from a change's worktree carries its mutation report
     });
   } finally {
     await removeTemp(dir);
+  }
+});
+
+test("7.10 · the brief's mutation report runs on each outside checkout it reads too, its survivors named by their checkout and recorded as hits with the review; one that cannot run there says why under its name", async () => {
+  const own = mkdtempSync(join(tmpdir(), "qa-mutation-own-"));
+  const other = checkout();
+  try {
+    const git = (...args: string[]) => execFileSync("git", ["-c", "user.name=t", "-c", "user.email=t@t", "-c", "commit.gpgsign=false", ...args], { cwd: own });
+    git("init", "-q");
+    writeFileSync(join(own, "README.md"), "demo\n");
+    git("add", ".");
+    git("commit", "-qm", "base");
+    git("update-ref", "refs/remotes/origin/main", "HEAD");
+    writeFileSync(join(own, "README.md"), "demo, changed\n");
+    git("commit", "-qam", "change");
+    await withLibrary(async (library, storytree) => {
+      const increment = await plan(library);
+      const call = { library, storytree, project: library.name };
+      const brief = await tools().quality_brief!({ increment, worktree: own, also: [other] }, call);
+      assert.ok(brief.text.includes(`Mutation report on the checkout ${other}: 4 breaks planted on the change's lines, 1 caught by a test, 2 survived, 1 not run`), brief.text);
+
+      const taken = await tools().quality_take!({ increment, return: CLEAN, worktree: own, also: [other] }, call);
+      const hits = (taken.data["taken"] as { hits: { check: string; package: string; file: string; line: number; found: string }[] }).hits.filter(({ check }) => check === MUTATION_SURVIVOR);
+      assert.deepEqual(hits.map(({ package: pkg, file, line }) => ({ package: pkg, file, line })), [
+        { package: "demo", file: "packages/demo/src/grade.mjs", line: 2 },
+        { package: "demo", file: "packages/demo/src/loud.mjs", line: 2 },
+      ]);
+      assert.ok(hits.every(({ found }) => found.includes(other)), hits.map(({ found }) => found).join("\n"));
+
+      // A report that cannot run in the outside checkout says so under its name, and the brief goes on.
+      const reviews = await openReviews(storytree);
+      const again = await reviews.brief(library, increment, worktreeChange(own), undefined, undefined, [worktreeChange(other)]);
+      const { text } = await briefWithReport(storytree, again, own, { run: async () => { throw new Error("no node to run tests with"); } });
+      assert.ok(text.includes(`Mutation report on the checkout ${other}: not run (no node to run tests with)`), text);
+    });
+  } finally {
+    await removeTemp(own);
+    await removeTemp(other);
   }
 });
 

@@ -4,11 +4,11 @@
 // node --import tsx packages/agent-pool/src/launch.mjs ready [project] [--drained] (as JSON: engines running, the cap, the lanes folder and the work the pool would start now)
 // node --import tsx packages/agent-pool/src/launch.mjs probe [checkout]  (whether the library and GitHub answer from the checkout, naming each refusal; exit 1 on one)
 // node --import tsx packages/agent-pool/src/launch.mjs stop               (ends the dispatcher pool.pid names, if it is one)
-import { execFile, spawn } from "node:child_process";
+import { execFile, execFileSync, spawn } from "node:child_process";
 import { appendFileSync, existsSync } from "node:fs";
 import { readFile, rm, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
-import { join, resolve } from "node:path";
+import { basename, dirname, join, resolve } from "node:path";
 import { setTimeout as wait } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
@@ -296,13 +296,26 @@ async function argsOf(pid) {
   return (await readFile(`/proc/${pid}/cmdline`, "utf8").catch(() => "")).split("\0").join(" ").trim();
 }
 
+/**
+ * The main worktree of the repository `checkout` belongs to: `checkout` itself unless it is a linked worktree (the
+ * laptop's dispatcher checkout is one, and make_workspace refuses a linked worktree), or when git cannot say.
+ */
+export function mainCheckout(checkout) {
+  try {
+    const common = execFileSync("git", ["rev-parse", "--path-format=absolute", "--git-common-dir"], { cwd: checkout, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim();
+    return basename(common) === ".git" ? resolve(dirname(common)) : checkout;
+  } catch { return checkout; }
+}
+
 /** The box's paths, cap and processes, from the pool's configuration (pool-config.mjs). */
 function boxDefaults({ home = homedir(), env = process.env } = {}) {
   const config = poolConfig({ home, env });
   const { lanesDir, checkout: repo, addDirs } = config;
   const { sessionsDir, stopAt } = laneSettings({ home, env, config });
+  // Lanes work from the main worktree, where make_workspace cuts theirs; the dispatcher updates its own checkout.
+  const laneRepo = mainCheckout(repo);
   return {
-    lanesDir, repo, addDirs, sessionsDir, stopAt, machineOnly: config.machineOnly, briefPaths: { checkout: repo, lanes: lanesDir },
+    lanesDir, repo, laneRepo, addDirs, sessionsDir, stopAt, machineOnly: config.machineOnly, briefPaths: { checkout: laneRepo, lanes: lanesDir },
     maxLanes: () => readCap({ lanesDir, sessions: config.sessions }),
     count: async () => countEngines(await processes()),
     power: () => readPowerLine(), refusals: (cwd = repo) => refusals({ cwd, env }), kill: (pid) => process.kill(pid),
@@ -407,7 +420,7 @@ async function pool(b) {
         : { title: `Pool lane: ${one.id}`, intro: `Your increment: ${one.id}.${role}`,
           notes: await readFile(join(L, `pool-notes-${one.id}.md`), "utf8").catch(() => ""), common: await (b.rules ?? poolRules)(one.body) };
       return laneOnce({
-        increment: one.id, addDirs: b.addDirs, repo: b.repo, maxLanes: b.maxLanes, lock: b.lock, count: b.count, prepare: b.prepare,
+        increment: one.id, addDirs: b.addDirs, repo: b.laneRepo ?? b.repo, maxLanes: b.maxLanes, lock: b.lock, count: b.count, prepare: b.prepare,
         sleep: b.sleep, runLane: b.runLane, now: b.now, follow: !one.plan,
         ...(one.plan ? {} : { recheck: async () => whyNotStart(await survey(), one.id) }),
         say: (line) => { if (/^\S+ engine \w+ /.test(line) && !/ exit -?\d+$/.test(line)) engineUp(); say(line); },

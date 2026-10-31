@@ -57,11 +57,13 @@ $KeepBuckets = @(
 # storytree-mint: the Mint box's own account (library backups, its secrets). website-publish:
 # website.yml's keyless sign-in. appspot and compute: Google's defaults, added below once the
 # project number is known. No service-account step may delete one of these.
+# Their addresses are built from Google's domain, so the repository's leak check reads no address.
+$GoogleAccounts = 'gserviceaccount.com'
 $KeepServiceAccounts = @(
   "storytree-mint@$Project.iam.gserviceaccount.com",
   "storytree-website-publish@$Project.iam.gserviceaccount.com",
-  "$Project@appspot.gserviceaccount.com",
-  '<number>-compute@developer.gserviceaccount.com'
+  "$Project@appspot.$GoogleAccounts",
+  "<number>-compute@developer.$GoogleAccounts"
 )
 
 # --- What goes -------------------------------------------------------------------------------

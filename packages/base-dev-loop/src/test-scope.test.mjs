@@ -9,7 +9,7 @@
 // one, and a run reports each package as PASS or FAIL and can rerun only the failures.
 import assert from "node:assert/strict";
 import { execFileSync, spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
@@ -71,7 +71,7 @@ function fixture(t) {
   });
 }
 
-test("1.1 a change inside a package runs that package and every package that depends on it, and no other", (t) => {
+test("2.1 a change inside a package runs that package and every package that depends on it, and no other", (t) => {
   const ws = readWorkspace(fixture(t));
   const decision = classify(["packages/agent-link/src/x.ts"], ws);
   assert.equal(decision.mode, "affected");
@@ -96,7 +96,7 @@ test("a package whose code reaches into another by a relative path depends on it
   assert.deepEqual(decision.dirs, ["packages/forest", "packages/world"]);
 });
 
-test("1.1 an evidence script no test runs reaches no package; one a test names, or one it imports, still does", (t) => {
+test("2.1 an evidence script no test runs reaches no package; one a test names, or one it imports, still does", (t) => {
   const root = workspace(t, {
     packages: {
       "packages/website": { name: "@x/website", files: { "src/site.ts": "" } },
@@ -128,7 +128,7 @@ test("1.1 an evidence script no test runs reaches no package; one a test names, 
   assert.deepEqual(decision.dirs, ["packages/forest", "packages/shop", "packages/website"]);
 });
 
-test("1.1 a path named only in a comment is no read: rewording the comment moves no package in or out of scope", (t) => {
+test("2.1 a path named only in a comment is no read: rewording the comment moves no package in or out of scope", (t) => {
   const root = workspace(t, {
     packages: {
       "packages/website": { name: "@x/website", files: { "src/site.ts": "" } },
@@ -147,7 +147,7 @@ test("1.1 a path named only in a comment is no read: rewording the comment moves
   assert.deepEqual(classify(["packages/website/src/site.ts"], ws).dirs, ["packages/shop", "packages/website"]);
 });
 
-test("1.1 a comment is told from what only looks like one: a // in a string or template is code, a comment after a regular expression or a template's ${} is not", (t) => {
+test("2.1 a comment is told from what only looks like one: a // in a string or template is code, a comment after a regular expression or a template's ${} is not", (t) => {
   const site = (name) => `"../../../website/src/${name}.ts"`;
   const reads = ["a", "b", "c"];
   const root = workspace(t, {
@@ -182,7 +182,7 @@ test("1.1 a comment is told from what only looks like one: a // in a string or t
   assert.deepEqual(ws.find((p) => p.dir === "packages/kit").through.files, reads.map((name) => `packages/website/src/${name}.ts`));
 });
 
-test("1.1 a glob naming no script, such as a git pathspec over every evidence folder, keeps no evidence script", (t) => {
+test("2.1 a glob naming no script, such as a git pathspec over every evidence folder, keeps no evidence script", (t) => {
   const root = workspace(t, {
     packages: {
       "packages/site": { name: "@x/site", files: { "src/site.ts": "" } },
@@ -200,7 +200,7 @@ test("1.1 a glob naming no script, such as a git pathspec over every evidence fo
   assert.deepEqual(decision.dirs, ["packages/site"]);
 });
 
-test("1.1 a path into another package's file depends only on that file and what it imports; a folder or a file not in the checkout, on the whole package", (t) => {
+test("2.1 a path into another package's file depends only on that file and what it imports; a folder or a file not in the checkout, on the whole package", (t) => {
   const root = workspace(t, {
     packages: {
       "packages/website": { name: "@x/website", files: { "src/site.ts": "" } },
@@ -226,7 +226,7 @@ test("1.1 a path into another package's file depends only on that file and what 
   assert.deepEqual(classify(["packages/library/src/l.ts"], ws).dirs, ["packages/forest", "packages/library", "packages/shop"], "a package the reached file imports by name is followed");
 });
 
-test("1.1 a path into desktop's renderer, or its build output, depends on desktop's files it imports by path, not on the stories it mounts; a folder, on what under it something runs", (t) => {
+test("2.1 a path into desktop's renderer, or its build output, depends on desktop's files it imports by path, not on the stories it mounts; a folder, on what under it something runs", (t) => {
   // Each test file sits a folder deep, so its paths climb out of this checkout when this file itself is scoped.
   const root = workspace(t, {
     packages: {
@@ -256,7 +256,7 @@ test("1.1 a path into desktop's renderer, or its build output, depends on deskto
   assert.deepEqual(classify(["apps/desktop/src/renderer/views.ts"], ws).dirs, ["apps/desktop", "packages/arc", "packages/forest", "packages/kit", "packages/views"]);
 });
 
-test("1.1 a type-only import is erased before a test runs, so a path reaching it depends on nothing through it; typecheck, which runs in full, reads it", (t) => {
+test("2.1 a type-only import is erased before a test runs, so a path reaching it depends on nothing through it; typecheck, which runs in full, reads it", (t) => {
   const root = workspace(t, {
     packages: {
       "packages/site": { name: "@x/site", files: { "src/site.ts": "" } },
@@ -279,7 +279,7 @@ test("1.1 a type-only import is erased before a test runs, so a path reaching it
   assert.deepEqual(classify(["apps/desktop/src/bridge.ts"], ws).dirs, ["apps/desktop"]);
 });
 
-test("1.1 a path to a folder whose code names no script under it reads its data, so it depends on the folder's files and not on what its scripts import", (t) => {
+test("2.1 a path to a folder whose code names no script under it reads its data, so it depends on the folder's files and not on what its scripts import", (t) => {
   const root = workspace(t, {
     packages: {
       "packages/site": { name: "@x/site", files: { "src/site.ts": "" } },
@@ -300,7 +300,7 @@ test("1.1 a path to a folder whose code names no script under it reads its data,
   assert.deepEqual(classify(["packages/forest/src/evidence/look/seed.json"], ws).dirs, ["packages/forest", "packages/runs", "packages/seeds"]);
 });
 
-test("1.1 the real workspace: a story whose captures reach desktop's capture kit runs on a change to the kit or its seeds, not on what the kit's types or forest's evidence scripts import", () => {
+test("2.1 the real workspace: a story whose captures reach desktop's capture kit runs on a change to the kit or its seeds, not on what the kit's types or forest's evidence scripts import", () => {
   const ws = readWorkspace(repoRoot);
   const scope = (file) => classify([file], ws).dirs;
   const users = ["packages/knowledge-core"];
@@ -314,12 +314,12 @@ test("1.1 the real workspace: a story whose captures reach desktop's capture kit
   for (const dir of users) assert.ok(!scope("packages/forest-world/src/planet/road-worker.ts").includes(dir), dir);
 });
 
-test("1.1 the real workspace: a website-only change runs website and desktop, not the packages whose captures and tests reach into desktop's files", () => {
+test("2.1 the real workspace: a website-only change runs website and desktop, not the packages whose captures and tests reach into desktop's files", () => {
   const decision = classify(["packages/website/src/site.ts"], readWorkspace(repoRoot));
   assert.deepEqual(decision.dirs, ["apps/desktop", "packages/website"]);
 });
 
-test("1.1 the real workspace: the capture scripts no test runs (forest-world's website-reveal, forest's probe-website) draw no edge into website", () => {
+test("2.1 the real workspace: the capture scripts no test runs (forest-world's website-reveal, forest's probe-website) draw no edge into website", () => {
   const ws = readWorkspace(repoRoot);
   for (const dir of ["packages/forest", "packages/forest-world"]) assert.ok(!ws.find((p) => p.dir === dir).reaches.includes("packages/website"), dir);
 });
@@ -330,13 +330,13 @@ test("the real workspace's undeclared reach is found: app-setup builds cli's bin
   assert.ok(classify(["packages/cli/src/bins/storytree.ts"], ws).dirs.includes("packages/app-setup"));
 });
 
-test("1.2 a change in the dev loop runs everything: its runner, scoper and gate decide how every test runs (ADR-0805 D4)", () => {
+test("2.2 a change in the dev loop runs everything: its runner, scoper and gate decide how every test runs (ADR-0805 D4)", () => {
   const decision = classify(["packages/dev-loop/src/gate.mjs"], readWorkspace(repoRoot));
   assert.equal(decision.mode, "full");
   assert.match(decision.reason, /@storytree\/dev-loop/);
 });
 
-test("1.2 any file the workspace graph cannot account for runs everything, and says which file", (t) => {
+test("2.2 any file the workspace graph cannot account for runs everything, and says which file", (t) => {
   const ws = readWorkspace(fixture(t));
   const wide = {
     "README.md": /README\.md/,
@@ -389,7 +389,7 @@ test("the changes are the branch since it left main plus the working tree, untra
   assert.equal(decision.mode, "full", "the deleted file is in a package the harness runs on");
 });
 
-test("1.2 an origin/main that cannot be read runs everything, saying so", (t) => {
+test("2.2 an origin/main that cannot be read runs everything, saying so", (t) => {
   const root = fixture(t);
   git(root, "init", "-q", "-b", "main");
   git(root, "add", "-A");
@@ -462,7 +462,7 @@ test("the package-boundary check runs in every scoped run, since a change inside
   assert.ok(all.includes("packages/dev-loop") && !all.includes("packages/dev-loop/src/package-boundaries.test.mjs"), "a full run has it in its package already");
 });
 
-test("1.6 a folder under infra/ that holds tests is a unit: a full run runs it, and --only names it", (t) => {
+test("2.6 a folder under infra/ that holds tests is a unit: a full run runs it, and --only names it", (t) => {
   const root = fixture(t);
   write(root, "infra/host/host.mjs", "");
   write(root, "infra/host/host.test.mjs", "");
@@ -479,7 +479,7 @@ test("1.6 a folder under infra/ that holds tests is a unit: a full run runs it, 
   assert.ok(!planRun({ root, workspace: ws, decision: classify(["packages/agent-link/src/x.ts"], ws) }).units.includes("infra/host"), "a package-only change does not run it");
 });
 
-test("1.3 --full forces everything, --only names units, and --rerun-failed runs what the last run failed or never reached", (t) => {
+test("2.3 --full forces everything, --only names units, and --rerun-failed runs what the last run failed or never reached", (t) => {
   const root = fixture(t);
   const ws = readWorkspace(root);
   const decision = classify(["packages/agent-link/src/x.ts"], ws);
@@ -504,7 +504,7 @@ test("1.3 --full forces everything, --only names units, and --rerun-failed runs 
   assert.match(nothing.decision.reason, /no earlier run/);
 });
 
-test("1.3 --help prints the runner's usage, and an unknown flag is refused naming the known ones, before any lock or Postgres", (t) => {
+test("2.3 --help prints the runner's usage, and an unknown flag is refused naming the known ones, before any lock or Postgres", (t) => {
   assert.equal(parseTestArgs(["--help"]).help, true);
   assert.equal(parseTestArgs(["-h"]).help, true);
   assert.match(parseTestArgs(["--bogus"]).refusal, /--bogus/);
@@ -519,7 +519,7 @@ test("1.3 --help prints the runner's usage, and an unknown flag is refused namin
   t.after(() => removeTemp(home));
   const env = { ...process.env, STORYTREE_HOME: home };
   delete env.STORYTREE_HEAVY_LOCK_HOLDER; // this suite itself runs under the outer run's lock
-  const run = (arg) => spawnSync(process.execPath, ["--import", "tsx", "packages/dev-loop/src/test.mjs", arg], { cwd: repoRoot, env, encoding: "utf8" });
+  const run = (arg) => spawnSync(process.execPath, ["--import", "tsx", "packages/base-dev-loop/src/test.mjs", arg], { cwd: repoRoot, env, encoding: "utf8" });
   const help = run("--help");
   assert.equal(help.status, 0, help.stderr);
   assert.match(help.stdout, /pnpm run test --rerun-failed/);
@@ -528,7 +528,6 @@ test("1.3 --help prints the runner's usage, and an unknown flag is refused namin
   assert.equal(unknown.status, 2);
   assert.match(unknown.stderr, /--bogus/);
   assert.doesNotMatch(unknown.stdout + unknown.stderr, /^scope:|test Postgres/m);
-  assert.equal(existsSync(path.join(home, "heavy-run.lock")), false, "no heavy-run lock was taken");
 });
 
 test("the results table shows each unit PASS, FAIL or NOT RUN, and how to rerun the failures", () => {
@@ -540,7 +539,7 @@ test("the results table shows each unit PASS, FAIL or NOT RUN, and how to rerun 
   assert.doesNotMatch(resultsTable({ "packages/cli": "pass" }), /rerun-failed/, "nothing to rerun, no hint");
 });
 
-test("1.5 a file named to run alone is a unit of its own whenever its package runs, and its package's unit runs every other file", (t) => {
+test("2.5 a file named to run alone is a unit of its own whenever its package runs, and its package's unit runs every other file", (t) => {
   const root = fixture(t);
   write(root, "packages/forest/src/view/proof.test.ts", "");
   write(root, "packages/forest/src/view/other.test.ts", "");

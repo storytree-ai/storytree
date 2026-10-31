@@ -1,4 +1,4 @@
-// Capability 6 · Running the tests. `pnpm survey:coverage`: the coverage map the code survey reads where import tracing cannot reach
+// Capability 13 · Heavy runs, coverage and the test ratio. `pnpm survey:coverage`: the coverage map the code survey reads where import tracing cannot reach
 // (ADR-0838 D3). A command line's tests run the built command in a process they start, so no import
 // leads from a test to the code it runs; the code it ran says which capability it belongs to.
 //
@@ -23,7 +23,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
-import { runUnit } from "./unit-run.mjs";
+import { runUnit } from "@storytree/base-dev-loop/unit-run";
 
 const TEST_FILE = /\.(?:test|spec)\.[cm]?[jt]sx?$/;
 const CODE_FILE = /\.[cm]?[jt]sx?$/;

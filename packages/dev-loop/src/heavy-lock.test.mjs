@@ -11,7 +11,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { removeTemp, waitUntil } from "@storytree/test-waits";
 
 import { runHeavyCommand } from "./heavy-lock.mjs";
-import { killTree } from "./unit-run.mjs";
+import { killTree } from "@storytree/base-dev-loop/unit-run";
 
 const root = fileURLToPath(new URL("../../..", import.meta.url));
 
@@ -54,7 +54,7 @@ test("slow", async () => {
   return { home, harness, events, letGo: () => writeFileSync(release, "") };
 }
 
-test("6.2 a second test run on the machine waits for the first, naming who holds the lock", async (t) => {
+test("13.1 a second test run on the machine waits for the first, naming who holds the lock", async (t) => {
   const { harness, events, letGo } = machine(t);
   const first = harness("first");
   await waitUntil(() => events().some((event) => event.what === "start"), 20_000, "the first run to start");
@@ -69,7 +69,22 @@ test("6.2 a second test run on the machine waits for the first, naming who holds
   assert.match(b.output, new RegExp(`waiting for .*pid ${first.child.pid}`));
 });
 
-test("6.2 a lock whose holder has gone does not block the next run", async (t) => {
+test("13.1 asking the test run for its usage, or giving it an unknown flag, answers at once while another run holds the lock", (t) => {
+  const { home } = machine(t);
+  // A live holder (this process) that never lets go: a run that took the lock first would wait on it.
+  mkdirSync(home, { recursive: true });
+  writeFileSync(path.join(home, "heavy-run.lock"), JSON.stringify({ id: "held", pid: process.pid, branch: "another run", since: new Date().toISOString() }));
+  const env = { ...process.env, STORYTREE_HOME: home };
+  delete env.STORYTREE_HEAVY_LOCK_HOLDER; // this suite itself runs under the outer run's lock
+  const run = (arg) => spawnSync(process.execPath, ["--import", "tsx", "packages/dev-loop/src/test.mjs", arg], { cwd: root, env, encoding: "utf8", timeout: 20_000 });
+  for (const [arg, status] of [["--help", 0], ["--bogus", 2]]) {
+    const answered = run(arg);
+    assert.equal(answered.status, status, `${arg}: ${answered.stdout}${answered.stderr}`);
+    assert.doesNotMatch(answered.stdout + answered.stderr, /waiting for/, arg);
+  }
+});
+
+test("13.1 a lock whose holder has gone does not block the next run", async (t) => {
   const { home, harness } = machine(t);
   const gone = spawnSync(process.execPath, ["-e", ""]).pid;
   mkdirSync(home, { recursive: true });
@@ -113,7 +128,7 @@ function until(check) {
   return waitUntil(check, 20_000, `the command to reach ${check}`);
 }
 
-test("6.2 a browser evidence command waits behind the foreground gate, names its holder and starts after release", { timeout: 60_000 }, async (t) => {
+test("13.1 a browser evidence command waits behind the foreground gate, names its holder and starts after release", { timeout: 60_000 }, async (t) => {
   const { dir, start, wrapper } = commandMachine(t);
   // Hold the real gate in its typecheck step, without running another full test suite.
   const manager = path.join(dir, "manager.mjs");
@@ -143,7 +158,7 @@ test("6.2 a browser evidence command waits behind the foreground gate, names its
   assert.equal(existsSync(path.join(dir, "heavy-run.lock")), false);
 });
 
-test("6.2 a locked command preserves arguments, cwd and failure status, inherits its hold and takes over a stale holder", { timeout: 60_000 }, async (t) => {
+test("13.1 a locked command preserves arguments, cwd and failure status, inherits its hold and takes over a stale holder", { timeout: 60_000 }, async (t) => {
   const { dir, wrapper } = commandMachine(t);
   const gone = spawnSync(process.execPath, ["-e", ""]).pid;
   writeFileSync(path.join(dir, "heavy-run.lock"), JSON.stringify({ id: "gone", pid: gone, branch: "old-capture" }));
@@ -167,7 +182,7 @@ test("6.2 a locked command preserves arguments, cwd and failure status, inherits
   assert.equal(existsSync(path.join(dir, "heavy-run.lock")), false);
 });
 
-test("6.2 cancelling a waiting capture starts no command and leaves the current holder alone", { timeout: 60_000, skip: process.platform === "win32" && "platform:posix: Windows cannot send a catchable signal to another Node process" }, async (t) => {
+test("13.1 cancelling a waiting capture starts no command and leaves the current holder alone", { timeout: 60_000, skip: process.platform === "win32" && "platform:posix: Windows cannot send a catchable signal to another Node process" }, async (t) => {
   const { dir, start, wrapper } = commandMachine(t);
   const holder = start(["--input-type=module", "-e", `
     import { acquireHeavyLock } from ${JSON.stringify(new URL("./heavy-lock.mjs", import.meta.url).href)};
@@ -185,7 +200,7 @@ test("6.2 cancelling a waiting capture starts no command and leaves the current 
   assert.equal(readFileSync(path.join(dir, "heavy-run.lock"), "utf8"), before);
 });
 
-test("6.2 cancelling a running capture stops its child tree before releasing the hold", { timeout: 60_000 }, async (t) => {
+test("13.1 cancelling a running capture stops its child tree before releasing the hold", { timeout: 60_000 }, async (t) => {
   const { dir } = commandMachine(t);
   const previous = process.env.STORYTREE_HOME;
   const previousHolder = process.env.STORYTREE_HEAVY_LOCK_HOLDER;
@@ -255,7 +270,7 @@ function queueMachine(t) {
   return { dir, run, admitted, stop };
 }
 
-test("6.2 an older waiter takes the lock before a later arrival, however often the later one polls", { timeout: 60_000 }, async (t) => {
+test("13.1 an older waiter takes the lock before a later arrival, however often the later one polls", { timeout: 60_000 }, async (t) => {
   const { run, admitted, stop } = queueMachine(t);
   const holder = run("holder");
   await until(() => holder.output().includes("holding holder"));
@@ -274,7 +289,7 @@ test("6.2 an older waiter takes the lock before a later arrival, however often t
   for (const child of [holder, older, later]) assert.equal((await child.done).code, 0, child.output());
 });
 
-test("6.2 waiters that died or gave up do not hold back the runs that came after them", { timeout: 60_000 }, async (t) => {
+test("13.1 waiters that died or gave up do not hold back the runs that came after them", { timeout: 60_000 }, async (t) => {
   const { dir, run, admitted, stop } = queueMachine(t);
   const holder = run("holder");
   await until(() => holder.output().includes("holding holder"));

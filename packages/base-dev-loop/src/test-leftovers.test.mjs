@@ -101,7 +101,7 @@ async function untilRecord(root) {
   return JSON.parse(readFileSync(file, "utf8"));
 }
 
-test("6.20 · a unit's end stops every Postgres server running on a data folder in its temp folder, whether it passed, failed or was killed, before the folder is removed", { timeout: 180_000 }, async (t) => {
+test("4.20 · a unit's end stops every Postgres server running on a data folder in its temp folder, whether it passed, failed or was killed, before the folder is removed", { timeout: 180_000 }, async (t) => {
   const steps = cleanups(t);
   for (const [ending, kill] of [["", false], ["throw new Error('red');", false], ["await new Promise(() => {});", true]]) {
     const root = serverUnit(steps, ending);
@@ -117,7 +117,7 @@ test("6.20 · a unit's end stops every Postgres server running on a data folder 
   }
 });
 
-test("6.21 · a run's start stops any Postgres server in Temp left by a run that has gone, and removes that run's temp folders", { timeout: 180_000 }, async (t) => {
+test("4.21 · a run's start stops any Postgres server in Temp left by a run that has gone, and removes that run's temp folders", { timeout: 180_000 }, async (t) => {
   const steps = cleanups(t);
   const temp = folder(steps, "leftovers-temp-");
   const deadRun = path.join(temp, `st-unit-${deadPid()}-AbC123`);
@@ -141,7 +141,7 @@ test("6.21 · a run's start stops any Postgres server in Temp left by a run that
   assert.equal(existsSync(liveRun), true, "a live run's unit folder is left alone");
 });
 
-test("6.22 · a run's start removes storytree scratch folders in Temp older than three days, keeping a newer one and one a live server still uses", { timeout: 120_000 }, async (t) => {
+test("4.22 · a run's start removes storytree scratch folders in Temp older than three days, keeping a newer one and one a live server still uses", { timeout: 120_000 }, async (t) => {
   const steps = cleanups(t);
   const temp = folder(steps, "leftovers-temp-");
   const old = new Date(Date.now() - 4 * DAY);

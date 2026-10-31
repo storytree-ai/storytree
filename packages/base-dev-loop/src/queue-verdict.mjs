@@ -1,4 +1,4 @@
-// Capability 7 · The gate. Whether CI's run on a push to main may stand on the merge queue's verdict (ci.yml's
+// Capability 5 · The merge queue's CI scripts. Whether CI's run on a push to main may stand on the merge queue's verdict (ci.yml's
 // `queue-verdict` job calls this through actions/github-script, so `github` is its Octokit).
 //
 // Each merge reaches main through the merge queue (ADR-0796), whose `merge_group` run tests the very commit main is

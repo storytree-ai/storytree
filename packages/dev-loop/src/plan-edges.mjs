@@ -100,7 +100,7 @@ function edgeProblems(root, tree) {
 if (process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const root = fileURLToPath(new URL("../../..", import.meta.url));
   const { withLibrary } = await import("./build-guidance.mjs");
-  const { changedFiles } = await import("./test-scope.mjs");
+  const { changedFiles } = await import("@storytree/base-dev-loop/test-scope");
   const { branchTree, currentBranch } = await import("./capability-list.mjs");
   let changed;
   let branch;

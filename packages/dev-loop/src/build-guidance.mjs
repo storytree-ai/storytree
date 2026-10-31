@@ -29,7 +29,7 @@ import { DataDirInUseError, start } from "@storytree/local-postgres";
 
 import { appHome } from "../../../apps/desktop/src/home.ts";
 import { driftOf, expectedFiles, judgeDrift, overBudget, readRoles, REGION_END, REGION_START, ROLE_DIRS, SKILL_DIRS, sourcesOf } from "./guidance.mjs";
-import { changedFiles } from "./test-scope.mjs";
+import { changedFiles } from "@storytree/base-dev-loop/test-scope";
 
 const root = fileURLToPath(new URL("../../..", import.meta.url));
 const PROJECT = "storytree";

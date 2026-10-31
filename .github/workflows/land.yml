@@ -62,13 +62,16 @@ jobs:
           elif [ "$queued" = true ]; then held=true; echo "Already in the merge queue: nothing more to do."
           fi
           echo "held=$held" >> "$GITHUB_OUTPUT"
-      # The enqueue's retry rule (packages/dev-loop/src/land-enqueue.mjs), and nothing else, read from the default
-      # branch: the pull request's own copy never runs here.
+      # The enqueue's retry rule (packages/base-dev-loop/src/land-enqueue.mjs), and nothing else, read from the default
+      # branch: the pull request's own copy never runs here. Until the pull request moving it from packages/dev-loop
+      # lands (increment_fc3a008fe1c6), main holds it at its old path, so that one pull request reads it there.
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         if: steps.held.outputs.held == 'false'
         with:
           ref: ${{ github.event.repository.default_branch }}
-          sparse-checkout: packages/dev-loop/src/land-enqueue.mjs
+          sparse-checkout: |
+            packages/base-dev-loop/src/land-enqueue.mjs
+            packages/dev-loop/src/land-enqueue.mjs
           sparse-checkout-cone-mode: false
           persist-credentials: false
       # With a merge queue required on main, enqueue the pull request at the commit `verify` passed
@@ -101,10 +104,12 @@ jobs:
             # GitHub can refuse the enqueue after this run's `verify` passed on this very commit,
             # before it has taken the result in, naming required checks as not yet passed (`... is
             # queued`, `... is expected`, `... is in progress`, `... have not succeeded`). Whether a
-            # refusal is tried again, for how long, is packages/dev-loop/src/land-enqueue.mjs's call
+            # refusal is tried again, for how long, is packages/base-dev-loop/src/land-enqueue.mjs's call
             # (five minutes: PR #1684 was refused for 75 s and more). Every try is at expectedHeadOid,
             # and only while the pull request's head is still the commit `verify` passed: a newer
             # push has a run of its own.
+            rule=packages/base-dev-loop/src/land-enqueue.mjs
+            [ -f "$rule" ] || rule=packages/dev-loop/src/land-enqueue.mjs
             start=$SECONDS
             for attempt in $(seq 1 40); do
               if out=$(GH_TOKEN="$QUEUE_TOKEN" gh api graphql -f id="$PR_ID" -f sha="$SHA" \
@@ -114,7 +119,7 @@ jobs:
                 exit 0
               fi
               echo "$out"
-              if ! env -u QUEUE_TOKEN node packages/dev-loop/src/land-enqueue.mjs "$((SECONDS - start))" <<< "$out"; then exit 1; fi
+              if ! env -u QUEUE_TOKEN node "$rule" "$((SECONDS - start))" <<< "$out"; then exit 1; fi
               head=$(gh pr view "$PR" --repo "$GITHUB_REPOSITORY" --json headRefOid --jq .headRefOid)
               if [ "$head" != "$SHA" ]; then
                 echo "::error::The pull request's head moved to $head after verify passed $SHA, so this run does not enqueue it: the newer push's run does."

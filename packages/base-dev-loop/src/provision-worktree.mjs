@@ -1,4 +1,4 @@
-// Capability 2 · Worktree setup. The fresh-worktree install: run at every session start (.claude/settings.json and
+// Capability 3 · Worktree setup. The fresh-worktree install: run at every session start (.claude/settings.json and
 // .codex/hooks.json), it gives a 0.3 worktree that cannot run its own code a `pnpm install`, retried
 // once, and tells the agent plainly if it still cannot. Ported from storytree 0.2's
 // packages/cli/provision-worktree.mjs (ADR-0636 D1, b4 folded into b5; ADR-0633 D2).
@@ -19,7 +19,7 @@
 //     install: the lockfile can match and every package still has a node_modules, yet the first
 //     import of the new package fails, naming it, not the cause.
 // Anything else is left alone at no cost, so the hook is safe to run at every session start.
-// Once installed, an Electron package with no binary has it fetched (contract 2.5): Electron has no
+// Once installed, an Electron package with no binary has it fetched (contract 3.5): Electron has no
 // postinstall since 44, so pnpm install alone leaves tests run under Electron's runtime skipping.
 //
 // With --serve it is how 0.3's own sessions start the MCP server (.mcp.json and
@@ -41,7 +41,7 @@
 // Missing links take priority over STALE: a matching lockfile is not proof that the links exist,
 // and a different installed lockfile must not hide a link the command line needs.
 //
-// In a Claude Code cloud container (CLAUDE_CODE_REMOTE=true, contract 2.6, ADR-1093) every session
+// In a Claude Code cloud container (CLAUDE_CODE_REMOTE=true, contract 3.6, ADR-1093) every session
 // starts in a fresh container: no storytree settings, no approved checkout, and an install whose
 // onnxruntime download the agent proxy keeps cutting off (which also timed out the MCP server's start).
 // So there the install skips that download, and once installed, a container that holds the route's
@@ -52,7 +52,7 @@
 // from the environment itself (PGPASSWORD, CF_ACCESS_CLIENT_ID, CF_ACCESS_CLIENT_SECRET), so nothing
 // secret is written. infra/library-host/README.md describes the route.
 //
-// Before anything else, it installs the push check (push-check.mjs, contract 2.7) as git's pre-push hook, in the
+// Before anything else, it installs the push check (push-check.mjs, contract 3.7) as git's pre-push hook, in the
 // hooks folder the repository's worktrees share, unless someone else's pre-push hook is already there.
 //
 // It runs before node_modules exists, so it uses Node built-ins only. With --hook it always exits 0
@@ -204,7 +204,7 @@ function librarySet(home) {
 
 /**
  * In a fresh cloud container holding the route's Access token, give storytree the library's address
- * and approve root as its project's checkout (contract 2.6). Elsewhere, or once the library is set, nothing.
+ * and approve root as its project's checkout (contract 3.6). Elsewhere, or once the library is set, nothing.
  * @returns {{ ok: boolean, done: boolean }}
  */
 export function connectCloud({
@@ -319,7 +319,7 @@ function hookText(fallback) {
   const slashed = fallback.replaceAll("\\", "/");
   return [
     "#!/bin/sh",
-    `${HOOK_MARK}, installed by packages/dev-loop/src/provision-worktree.mjs: refuses a push that adds a credential held on this machine.`,
+    `${HOOK_MARK}, installed by packages/base-dev-loop/src/provision-worktree.mjs: refuses a push that adds a credential held on this machine.`,
     'script="$(git rev-parse --show-toplevel)/packages/dev-loop/src/push-check.mjs"',
     `[ -f "$script" ] || script='${slashed.replaceAll("'", "'\\''")}'`,
     '[ -f "$script" ] || exit 0',
@@ -439,7 +439,7 @@ export function checkOutput(root) {
       : `${condition.toUpperCase()}, not installed`;
   return (
     `storytree: this worktree (${root}) is ${state}, so the command line cannot start: ` +
-    "run `node packages/dev-loop/src/provision-worktree.mjs` in it, then run the command again."
+    "run `node packages/base-dev-loop/src/provision-worktree.mjs` in it, then run the command again."
   );
 }
 

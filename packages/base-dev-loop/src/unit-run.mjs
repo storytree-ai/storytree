@@ -1,4 +1,4 @@
-// Capability 6 · Running the tests. One test unit's `node --test` process, bounded so that `pnpm test` and the gate always end and
+// Capability 4 · Running the tests. One test unit's `node --test` process, bounded so that `pnpm test` and the gate always end and
 // name what hung (ADR-0731). Three layers:
 //   --test-force-exit   a file whose tests have finished exits even if a failed test left a handle
 //                       open (a connection, a held lock): it reports its real failure, not a hang;
@@ -31,7 +31,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { SESSION_ENV, WATCHED_HARNESSES } from "@storytree/project-and-caller/caller";
 
-import { parseJunit } from "./test-run/test-run.mjs";
+import { parseJunit } from "./junit.mjs";
 
 import { stopServersUnder, unitTempPrefix } from "./test-leftovers.mjs";
 

@@ -34,12 +34,12 @@ test("urls", () => console.log("URLS " + JSON.stringify([process.env.STORYTREE_T
   const run = { ...process.env, ...env, STORYTREE_HOME: path.join(dir, "home") };
   delete run.STORYTREE_HEAVY_LOCK_HOLDER; // this suite itself runs under the outer run's lock
   if (env.STORYTREE_TEST_PG_ADMIN_URL === undefined) delete run.STORYTREE_TEST_PG_ADMIN_URL;
-  const out = spawnSync(process.execPath, ["--import", "tsx", "packages/dev-loop/src/test.mjs", file], { cwd: root, env: run, encoding: "utf8" });
+  const out = spawnSync(process.execPath, ["--import", "tsx", "packages/base-dev-loop/src/test.mjs", file], { cwd: root, env: run, encoding: "utf8" });
   assert.equal(out.status, 0, out.stdout + out.stderr);
   return JSON.parse(/URLS (.*)/.exec(out.stdout)[1]);
 }
 
-test("6.9 · the tests connect as the ordinary role, and are handed the superuser's url for their setup", async () => {
+test("4.9 · the tests connect as the ordinary role, and are handed the superuser's url for their setup", async () => {
   const url = process.env.STORYTREE_TEST_PG_URL;
   const admin = process.env.STORYTREE_TEST_PG_ADMIN_URL;
   assert.ok(url, "run these tests through `pnpm test`");
@@ -49,14 +49,14 @@ test("6.9 · the tests connect as the ordinary role, and are handed the superuse
   assert.equal(await superuser(url), false, "the url they connect with is the ordinary role's");
 });
 
-test("6.18 · the urls a run hands its tests for the Postgres it started give a handshake 30 seconds, so a loaded machine's slow answer fails no test", () => {
+test("4.18 · the urls a run hands its tests for the Postgres it started give a handshake 30 seconds, so a loaded machine's slow answer fails no test", () => {
   for (const name of ["STORYTREE_TEST_PG_URL", "STORYTREE_TEST_PG_ADMIN_URL"]) {
     assert.ok(process.env[name], `run these tests through \`pnpm test\`, which hands ${name}`);
     assert.equal(new URL(process.env[name]).searchParams.get("connect_timeout"), "30", name);
   }
 });
 
-test("6.9 · a run given a server's url hands that url for setup too, unless it is given an admin url as well", (t) => {
+test("4.9 · a run given a server's url hands that url for setup too, unless it is given an admin url as well", (t) => {
   assert.deepEqual(handed(t, { STORYTREE_TEST_PG_URL: "postgres://client@127.0.0.1:1/postgres" }),
     ["postgres://client@127.0.0.1:1/postgres", "postgres://client@127.0.0.1:1/postgres"]);
   assert.deepEqual(handed(t, { STORYTREE_TEST_PG_URL: "postgres://client@127.0.0.1:1/postgres", STORYTREE_TEST_PG_ADMIN_URL: "postgres://admin@127.0.0.1:1/postgres" }),

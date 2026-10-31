@@ -17,6 +17,9 @@ importers:
 
   .:
     devDependencies:
+      '@storytree/base-dev-loop':
+        specifier: workspace:*
+        version: link:packages/base-dev-loop
       '@storytree/dev-loop':
         specifier: workspace:*
         version: link:packages/dev-loop
@@ -304,6 +307,9 @@ importers:
 
   packages/base-dev-loop:
     dependencies:
+      '@storytree/local-postgres':
+        specifier: workspace:*
+        version: link:../local-postgres
       '@storytree/plugin-loader':
         specifier: workspace:*
         version: link:../plugin-loader

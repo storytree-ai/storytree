@@ -168,7 +168,7 @@ if (process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.a
     const branch = currentBranch(root);
     const increment = incrementOfBranch(branch);
     const { withLibrary } = await import("./build-guidance.mjs");
-    const { changedFiles } = await import("./test-scope.mjs");
+    const { changedFiles } = await import("@storytree/base-dev-loop/test-scope");
     const touched = changedFiles(root);
     const rewrites = importRewritesOnly(root, touched);
     const changed = touched.filter((file) => !rewrites.has(file));

@@ -66,7 +66,7 @@ import { openActivityLog } from "@storytree/session-management";
 
 import { acquireHeavyLock } from "./heavy-lock.mjs";
 import { describeSize, seedLagProject, seedSize, SIZES } from "./lag-seed.mjs";
-import { provision } from "./provision-worktree.mjs";
+import { provision } from "@storytree/base-dev-loop/provision-worktree";
 
 const root = fileURLToPath(new URL("../../..", import.meta.url));
 const SETTINGS = ["settings.json", "machine.json", "project-choice.json", "auth.json"];

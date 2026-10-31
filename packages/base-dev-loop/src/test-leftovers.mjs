@@ -1,4 +1,4 @@
-// Capability 6 · Running the tests: what a test run leaves in Temp (increment_e72347bdd355). A test that
+// Capability 4 · Running the tests: what a test run leaves in Temp (increment_e72347bdd355). A test that
 // starts a Postgres starts it through pg_ctl, which detaches the server from the test's process tree, so
 // killing a unit never reached it: a server started under Temp on 2026-10-11 was still running twelve
 // days later, from a worktree that no longer existed. A unit's end stops every server on a data folder

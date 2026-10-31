@@ -6,7 +6,7 @@ import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpath
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { removeTemp, waitUntil } from "@storytree/test-waits";
 import { SESSION_ENV, WATCHED_HARNESSES } from "@storytree/project-and-caller/caller";
@@ -36,7 +36,7 @@ function captured() {
   } } };
 }
 
-test("6.8 CI evidence keeps each unit and repeated run separately, without leaking its destination to nested runs", async (t) => {
+test("4.8 CI evidence keeps each unit and repeated run separately, without leaking its destination to nested runs", async (t) => {
   const root = fixture(t, {
     "first.test.mjs": `import assert from "node:assert/strict"; import { test } from "node:test";
 test("1.9 words", () => assert.equal(process.env.STORYTREE_TEST_EVIDENCE, undefined));`,
@@ -69,7 +69,7 @@ test("1.12 words", { skip: "platform:win32: needs Windows" }, () => {});`,
 });
 
 // increment_74ca830203db: a full run left thousands of files and folders in a laptop's temp folder.
-test("6.14 · a unit's tests get a temp folder of their own, removed with what they left in it when the unit ends", async (t) => {
+test("4.14 · a unit's tests get a temp folder of their own, removed with what they left in it when the unit ends", async (t) => {
   const root = fixture(t, {
     "litters.test.mjs": `import { mkdtempSync, writeFileSync } from "node:fs"; import { tmpdir } from "node:os"; import path from "node:path"; import { test } from "node:test";
 test("leaves files behind", () => {
@@ -87,7 +87,7 @@ test("leaves files behind", () => {
 });
 
 // friction_fa050a39ba6f: tests an agent ran wrote their fixture words into the real project's door-answered lines, on its session.
-test("6.15 · a unit's tests start with no agent session: no watched harness's session variable and no STORYTREE_SESSION_ID", async (t) => {
+test("4.15 · a unit's tests start with no agent session: no watched harness's session variable and no STORYTREE_SESSION_ID", async (t) => {
   const root = fixture(t, {
     "session.test.mjs": `import { writeFileSync } from "node:fs"; import { test } from "node:test";
 test("records its environment", () => writeFileSync("RECORD", JSON.stringify(process.env)));`,
@@ -101,7 +101,7 @@ test("records its environment", () => writeFileSync("RECORD", JSON.stringify(pro
 });
 
 // increment_655d99c13fc3: a file dying before it reports any test must explain its failure.
-test("6.6 file failures name the file, exit status and its own stderr under concurrent execution", async (t) => {
+test("4.6 file failures name the file, exit status and its own stderr under concurrent execution", async (t) => {
   const files = {
     "exit.test.mjs": `import { writeSync } from "node:fs";
 writeSync(2, "loader stopped before tests\\n"); process.exit(7);`,
@@ -128,7 +128,7 @@ console.error("a different file's stderr"); test("healthy neighbor", () => {});`
 });
 
 // friction_d5da3da1aac6: `pnpm run test <file> --test-name-pattern=<p>` ran every test in the file.
-test("6.19 · node's --test-* options given after a named file still reach node --test, so a name-filtered run runs only the matching tests", async (t) => {
+test("4.19 · node's --test-* options given after a named file still reach node --test, so a name-filtered run runs only the matching tests", async (t) => {
   const root = fixture(t, {
     "named.test.mjs": `import { appendFileSync } from "node:fs";
 import { test } from "node:test";
@@ -141,7 +141,7 @@ test("unwanted", () => appendFileSync("RAN", "unwanted\\n"));`,
   assert.equal(readFileSync(path.join(root, "RAN"), "utf8"), "wanted\n");
 });
 
-test("6.1 a test that fails leaving a handle open ends its unit with that failure, not a hang", async (t) => {
+test("4.1 a test that fails leaving a handle open ends its unit with that failure, not a hang", async (t) => {
   const root = fixture(t, {
     "leak.test.mjs": `import { test } from "node:test"; import assert from "node:assert"; import net from "node:net";
 test("fails holding a server", () => { net.createServer().listen(0); assert.equal(1, 2); });`,
@@ -167,7 +167,7 @@ test("never ends", () => new Promise(() => { setInterval(() => {}, 1000); }));`,
   assert.match(out.text, /✖ never ends[\s\S]*timed out after 1000ms/, "node names the test and its limit");
 });
 
-test("6.1 a unit past its deadline keeps completed failure details and names the running test while killing its whole process tree", { timeout: 180_000 }, async (t) => {
+test("4.1 a unit past its deadline keeps completed failure details and names the running test while killing its whole process tree", { timeout: 180_000 }, async (t) => {
   // Detached, the wedged child leaves Windows' kill-on-close job and the Unix process group, as a
   // tool's own children may: only a kill that walks the process tree reaches it.
   const pidFile = path.join(tmpdir(), `unit-run-grandchild-${process.pid}.txt`);
@@ -228,7 +228,7 @@ test("completed failure", () => assert.equal("actual merge", "expected merge", "
 
 // increment_67a3090c077c: a file whose tests have all ended but whose process never exits (a Node
 // exit deadlock seen on CI) fails within seconds, named, instead of waiting out the unit deadline.
-test("6.1 a file whose tests ended but whose process does not exit fails fast, naming the file", async (t) => {
+test("4.1 a file whose tests ended but whose process does not exit fails fast, naming the file", async (t) => {
   const root = fixture(t, {
     "nested/exit-hang.test.mjs": `import { test } from "node:test";
 process.on("exit", () => { for (;;) {} });
@@ -247,7 +247,7 @@ test("passes too", () => {});`,
 
 // friction_e50f26922ba5: where a child's stdout is an async pipe (Windows), a test blocking its process in
 // a synchronous call never reports its start, so the exit watch sees the file idle and kills it.
-test("6.1 a file killed by the exit watch is named with both causes: a hung exit, or a test blocking its process in a synchronous call", () => {
+test("4.1 a file killed by the exit watch is named with both causes: a hung exit, or a test blocking its process in a synchronous call", () => {
   const root = path.resolve("unit-root");
   const reason = unitReason({ ms: 25_000, timedOut: false, exitHung: [path.join(root, "a", "blocked.test.mjs")], unitLimitMs: 60_000 }, root);
   assert.match(reason, /killed; a\/blocked\.test\.mjs: its last reported test ended, but its process did not exit/);
@@ -302,7 +302,7 @@ test("a unit with too little history takes the run's own default deadline when i
 
 // increment_d51b4f1d9fc8: CI carries each runner's history from main's runs, but a pull request's
 // kills are never carried back, so on CI a learned deadline may only raise the run's own default.
-test("6.16 · a run that gives its own default deadline never gives a unit a learned one under it", (t) => {
+test("4.16 · a run that gives its own default deadline never gives a unit a learned one under it", (t) => {
   const env = { STORYTREE_UNIT_LIMIT_MS: "360000" };
   const fast = history(t, passes("cli", 50_000, 50_000, 50_000, 50_000, 50_000));
   assert.deepEqual(unitLimit("cli", { home: fast, ...machine, env }), { ms: 360_000, source: "STORYTREE_UNIT_LIMIT_MS, above its learned 100 s" });
@@ -311,7 +311,7 @@ test("6.16 · a run that gives its own default deadline never gives a unit a lea
   assert.deepEqual(unitLimit("session-management", { home: drifting, ...machine, env }), { ms: 714_000, source: "learned" });
 });
 
-test("6.17 · the timing history keeps each unit's most recent rows on each machine, so a history carried from run to run stays small", (t) => {
+test("4.17 · the timing history keeps each unit's most recent rows on each machine, so a history carried from run to run stays small", (t) => {
   const home = history(t, [...Array.from({ length: TIMING_ROWS_KEPT + 5 }, (_, i) => ["cli", "pass", 1_000 + i]), ...passes("forest", 7_000)]);
   const rows = () => readFileSync(path.join(home, "test-timings.jsonl"), "utf8").trim().split("\n").map((line) => JSON.parse(line));
   const before = rows().length;
@@ -343,7 +343,7 @@ test("each kill since the unit last passed doubles its next deadline, up to the 
   assert.deepEqual(unitLimit("cli", { home: healed, ...machine }), { ms: 300_000, source: "learned" }, "a pass after the kill joins the history and the growth ends");
 });
 
-test("6.10 · a unit's deadline is learned only from runs that tested as many units at once, and each run records how many", (t) => {
+test("4.10 · a unit's deadline is learned only from runs that tested as many units at once, and each run records how many", (t) => {
   const home = history(t, passes("cli", 50_000, 50_000, 50_000, 50_000, 50_000));
   assert.deepEqual(unitLimit("cli", { home, ...machine }), { ms: 100_000, source: "learned" }, "rows from before jobs were recorded ran one at a time");
   assert.deepEqual(unitLimit("cli", { home, ...machine, jobs: 3 }), { ms: UNIT_LIMIT_MS, source: "default" }, "a unit alone is no measure of it beside others");
@@ -360,7 +360,7 @@ test("6.10 · a unit's deadline is learned only from runs that tested as many un
 
 // increment_3f535ac2dc4e: on the Surface Pro session-management takes 150 to 250 s alone, so under the
 // 180 s default it was killed, passed at the doubled deadline, and was killed again at the default.
-test("6.13 · a unit with too few passes at this concurrency is never given less than twice its slowest recent pass at any", (t) => {
+test("4.13 · a unit with too few passes at this concurrency is never given less than twice its slowest recent pass at any", (t) => {
   const slow = history(t, [["session-management", "fail", 180_000, true], ...passes("session-management", 233_000)]);
   assert.deepEqual(unitLimit("session-management", { home: slow, ...machine }), { ms: 466_000, source: "twice its slowest pass, too few to learn from" });
   const alone = history(t, passes("cli", 160_000, 226_000, 150_000, 140_000, 133_000));
@@ -368,7 +368,7 @@ test("6.13 · a unit with too few passes at this concurrency is never given less
   assert.deepEqual(unitLimit("cli", { home: alone, ...machine, jobs: 2, env: { STORYTREE_UNIT_LIMIT_MS: "600000" } }), { ms: 600_000, source: "STORYTREE_UNIT_LIMIT_MS" }, "the run's default when that is longer");
 });
 
-test("6.10 · a unit run beside others prints nothing and gives back its whole output, its last line included", async (t) => {
+test("4.10 · a unit run beside others prints nothing and gives back its whole output, its last line included", async (t) => {
   const root = fixture(t, {
     "talks.test.mjs": `import { test } from "node:test";
 test("speaks", () => { console.log("said on stdout"); console.error("said on stderr"); });
@@ -408,7 +408,7 @@ function testHistory(t, rows) {
 const real = "packages/voice/src/real.test.ts";
 const testPasses = (file, name, ...ms) => ms.map((each) => [file, name, "pass", each]);
 
-test("6.24 · a test's limit is three times its slowest recent pass on this machine, never under 60 s; with fewer than five passes it keeps 60 s", (t) => {
+test("4.24 · a test's limit is three times its slowest recent pass on this machine, never under 60 s; with fewer than five passes it keeps 60 s", (t) => {
   const home = testHistory(t, [...testPasses(real, "1.1 › answers", 36_000, 50_000, 41_000, 44_000, 39_000), ...testPasses(real, "1.2 · rings", 19_000, 20_000, 18_000, 19_000, 18_500), ...testPasses(real, "1.3 · new", 50_000, 50_000)]);
   assert.deepEqual(testLimit(real, "1.1 › answers", { home, ...machine }), { ms: 150_000, source: "learned" });
   assert.deepEqual(testLimit(real, "1.2 · rings", { home, ...machine }), { ms: TEST_LIMIT_MS, source: "learned" }, "never under 60 s");
@@ -417,7 +417,7 @@ test("6.24 · a test's limit is three times its slowest recent pass on this mach
   assert.equal(testLimit(real, "1.1 › answers", { home, platform: "linux", arch: "x64" }).ms, TEST_LIMIT_MS, "another machine's times are not this one's");
 });
 
-test("6.24 · each timeout at its limit since a test last passed doubles its next limit, up to the ceiling, and its next pass ends the growth", (t) => {
+test("4.24 · each timeout at its limit since a test last passed doubles its next limit, up to the ceiling, and its next pass ends the growth", (t) => {
   const timedOut = (ms) => [real, "1.1 › answers", "fail", ms, true];
   const home = testHistory(t, [...testPasses(real, "1.1 › answers", 50_000, 50_000, 50_000, 50_000, 50_000), timedOut(150_000)]);
   assert.deepEqual(testLimit(real, "1.1 › answers", { home, ...machine }), { ms: 300_000, source: "learned, grown after 1 timeout" });
@@ -429,14 +429,14 @@ test("6.24 · each timeout at its limit since a test last passed doubles its nex
   assert.deepEqual(testLimit(real, "1.1 › answers", { home: healed, ...machine }), { ms: 480_000, source: "learned" }, "the pass joins the history and the growth ends");
 });
 
-test("6.24 · a unit's tests run under the largest of its tests' limits, naming the test it came from; a unit with none learned keeps 60 s", (t) => {
+test("4.24 · a unit's tests run under the largest of its tests' limits, naming the test it came from; a unit with none learned keeps 60 s", (t) => {
   const home = testHistory(t, [...testPasses(real, "1.1 › answers", 50_000, 50_000, 50_000, 50_000, 50_000), ...testPasses("packages/voice/src/door.test.ts", "1.9 · hangs up", 30_000, 30_000, 30_000, 30_000, 30_000), ...testPasses("packages/voice-extra/src/a.test.ts", "slower", 90_000, 90_000, 90_000, 90_000, 90_000)]);
   assert.deepEqual(unitTestLimit("packages/voice", { home, ...machine }), { ms: 150_000, source: `learned for ${real} › 1.1 › answers` });
   assert.deepEqual(unitTestLimit("packages/cli", { home, ...machine }), { ms: TEST_LIMIT_MS, source: "default" });
   assert.deepEqual(unitTestLimit(real, { home, ...machine }), { ms: 150_000, source: `learned for ${real} › 1.1 › answers` }, "a file run alone is a unit of its own");
 });
 
-test("6.24 · a run records the tests that could need more than 60 s, and every run of a test it already holds, kept per test; units' own rows are unchanged", (t) => {
+test("4.24 · a run records the tests that could need more than 60 s, and every run of a test it already holds, kept per test; units' own rows are unchanged", (t) => {
   const home = mkdtempSync(path.join(tmpdir(), "unit-run-tests-"));
   t.after(() => removeTemp(home));
   const rows = () => readFileSync(path.join(home, "test-timings.jsonl"), "utf8").trim().split("\n").map((line) => JSON.parse(line));
@@ -462,7 +462,7 @@ test("6.24 · a run records the tests that could need more than 60 s, and every 
   assert.equal(rows().filter((row) => row.unit === "packages/cli").length, 1, "no unit's rows lost to the tests'");
 });
 
-test("6.24 · a unit gives back each test it ran, by its full name, with its time and whether it timed out at the limit; a test's own longer timeout still holds", { timeout: 60_000 }, async (t) => {
+test("4.24 · a unit gives back each test it ran, by its full name, with its time and whether it timed out at the limit; a test's own longer timeout still holds", { timeout: 60_000 }, async (t) => {
   const root = fixture(t, {
     "src/limits.test.mjs": `import { describe, it, test } from "node:test";
 describe("outer", () => { it("inner", () => {}); });
@@ -486,14 +486,14 @@ test.skip("skipped", () => {});`,
   }, "its own 10 s held over the run's 0.3 s, which a 0.6 s wait would cross");
 });
 
-test("6.24 · a unit whose test timed out at a learned limit names the test, the limit and where it came from", () => {
+test("4.24 · a unit whose test timed out at a learned limit names the test, the limit and where it came from", () => {
   const reason = unitReason({ ms: 160_000, timedOut: false, unitLimitMs: 360_000, limitSource: "learned", testLimitMs: 150_000, testLimitSource: `learned for ${real} › 1.1 › answers`, tests: [{ file: real, name: "1.1 › answers", result: "fail", ms: 150_010, timedOut: true }] }, "/");
   assert.equal(reason, `160.0 s (limit 360 s, learned); timed out at the per-test limit of 150 s (learned for ${real} › 1.1 › answers): ${real} › 1.1 › answers`);
   assert.equal(unitReason({ ms: 61_000, timedOut: false, unitLimitMs: 180_000, testLimitMs: 60_000, testLimitSource: "default", tests: [{ file: real, name: "x", result: "fail", ms: 60_001, timedOut: true }] }, "/"), `61.0 s; timed out at the per-test limit of 60 s (default): ${real} › x`);
 });
 
 // increment_88b282227250: a run of named files killed at its deadline says why it exited 1.
-test("6.1 a run of named files past its deadline says it was killed, naming the test still running", async (t) => {
+test("4.1 a run of named files past its deadline says it was killed, naming the test still running", async (t) => {
   const dir = fixture(t, {
     "hangs.test.mjs": `import { test } from "node:test";\ntest("never ends", () => new Promise(() => { setInterval(() => {}, 1000); }));`,
   });
@@ -501,7 +501,7 @@ test("6.1 a run of named files past its deadline says it was killed, naming the 
   const env = { ...process.env, STORYTREE_HOME: path.join(dir, "home"), STORYTREE_TEST_PG_URL: "postgres://unused", STORYTREE_UNIT_LIMIT_MS: "3000" };
   delete env.STORYTREE_HEAVY_LOCK_HOLDER; // this suite itself runs under the outer run's lock
   delete env.NODE_TEST_CONTEXT;
-  const run = spawnSync(process.execPath, ["--import", "tsx", "packages/dev-loop/src/test.mjs", path.join(dir, "hangs.test.mjs")], { cwd: repo, env, encoding: "utf8", timeout: 40_000 });
+  const run = spawnSync(process.execPath, ["--import", "tsx", "packages/base-dev-loop/src/test.mjs", path.join(dir, "hangs.test.mjs")], { cwd: repo, env, encoding: "utf8", timeout: 40_000 });
   const output = `${run.stdout}${run.stderr}`;
   assert.equal(run.status, 1, output);
   assert.match(output, /test harness: .*timed out after .*limit 3(\.0)? s.*killed; still running: .*hangs\.test\.mjs › never ends/);
@@ -509,18 +509,24 @@ test("6.1 a run of named files past its deadline says it was killed, naming the 
 
 // increment_7f43f74526ab: CI's job limit cancelled a macOS run and its whole log was lost, so nobody
 // could name what stalled. Given STORYTREE_TEST_DEADLINE, a run ends itself first and says where.
-function harnessRun(t, files, { deadline, home, timeout = 40_000 }) {
+function harnessRun(t, files, { deadline, home, hold, timeout = 40_000 }) {
   const dir = fixture(t, files);
+  // The runner as an entry hands it: with `hold`, an entry of its own passes that hold, as Mick's dev loop passes its lock.
+  let entry = "packages/base-dev-loop/src/test.mjs";
+  if (hold !== undefined) {
+    entry = path.join(dir, "entry.mjs");
+    writeFileSync(entry, `import { testCommand } from ${JSON.stringify(pathToFileURL(fileURLToPath(new URL("./test.mjs", import.meta.url))).href)};\ntestCommand({ hold: ${hold} });\n`);
+  }
   const repo = fileURLToPath(new URL("../../..", import.meta.url));
   const env = { ...process.env, STORYTREE_HOME: home ?? path.join(dir, "home"), STORYTREE_TEST_PG_URL: "postgres://unused", STORYTREE_TEST_DEADLINE: String(deadline) };
   delete env.STORYTREE_HEAVY_LOCK_HOLDER; // this suite itself runs under the outer run's lock
   delete env.NODE_TEST_CONTEXT;
   const files_ = Object.keys(files).map((name) => path.join(dir, name));
-  const run = spawnSync(process.execPath, ["--import", "tsx", "packages/dev-loop/src/test.mjs", ...files_], { cwd: repo, env, encoding: "utf8", timeout });
+  const run = spawnSync(process.execPath, ["--import", "tsx", entry, ...files_], { cwd: repo, env, encoding: "utf8", timeout });
   return { status: run.status, output: `${run.stdout}${run.stderr}` };
 }
 
-test("6.1 a run given a deadline cuts the unit it is running to the time left, naming the test still running", { timeout: 180_000 }, (t) => {
+test("4.1 a run given a deadline cuts the unit it is running to the time left, naming the test still running", { timeout: 180_000 }, (t) => {
   // On a loaded runner the child's start can use up a short budget before the test begins (friction_b0dddfa7a7ad),
   // so the hanging test marks when it started, and the budget widens until it starts with time to spare.
   const marks = mkdtempSync(path.join(tmpdir(), "unit-run-mark-"));
@@ -539,12 +545,9 @@ test("6.1 a run given a deadline cuts the unit it is running to the time left, n
   assert.match(run.output, /test harness: .*timed out after .*cut to the run's deadline\), killed; still running: .*hangs\.test\.mjs › never ends/);
 });
 
-test("6.1 a run stalled outside any unit past its deadline names where it stalled and ends", (t) => {
-  const home = mkdtempSync(path.join(tmpdir(), "unit-run-home-"));
-  t.after(() => removeTemp(home));
-  // A live holder (this process) that never lets go: the run waits on the lock until its deadline.
-  writeFileSync(path.join(home, "heavy-run.lock"), JSON.stringify({ id: "held", pid: process.pid, branch: "another run", since: new Date().toISOString() }));
-  const run = harnessRun(t, { "passes.test.mjs": `import { test } from "node:test";\ntest("passes", () => {});` }, { deadline: Math.floor((Date.now() - DEADLINE_GRACE_MS) / 1000) + 2, home });
+test("4.1 a run stalled outside any unit past its deadline names where it stalled and ends", (t) => {
+  // A hold that never lets go: the run waits on it until its deadline.
+  const run = harnessRun(t, { "passes.test.mjs": `import { test } from "node:test";\ntest("passes", () => {});` }, { deadline: Math.floor((Date.now() - DEADLINE_GRACE_MS) / 1000) + 2, hold: "() => new Promise(() => { setInterval(() => {}, 1000); })" });
   assert.equal(run.status, 1, run.output);
   assert.match(run.output, /test harness: past the run's deadline .* while waiting for the heavy-run lock; ending the run/);
 });

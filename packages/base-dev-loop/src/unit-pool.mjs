@@ -1,4 +1,4 @@
-// Capability 6 · Running the tests. Several units at once (increment_f465972caeaf): a full run on
+// Capability 4 · Running the tests. Several units at once (increment_f465972caeaf): a full run on
 // Windows CI was 21 units one after another, about 800 s of tests paced by their sum; run as a pool,
 // it is paced by its slowest unit. The units already share the one Postgres safely: within a unit
 // node --test runs files at once, so every test names its own databases and roles uniquely.

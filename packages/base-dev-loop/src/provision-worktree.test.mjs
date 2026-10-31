@@ -1,4 +1,4 @@
-// The fresh-worktree install (packages/dev-loop/src/provision-worktree.mjs): at session start, a 0.3 worktree that
+// The fresh-worktree install (packages/base-dev-loop/src/provision-worktree.mjs): at session start, a 0.3 worktree that
 // cannot run its own code gets `pnpm install`, retried once, and the agent is told plainly when it
 // still cannot. The three conditions are 0.2's (ADR-0636 D1, ported per ADR-0633 D2): FRESH (no
 // install ever completed), STALE (pnpm-lock.yaml moved past the install, as after merging main) and
@@ -46,7 +46,7 @@ function worktree(t, condition) {
   return root;
 }
 
-test("2.1 a worktree that is installed and current is left alone", (t) => {
+test("3.1 a worktree that is installed and current is left alone", (t) => {
   const root = worktree(t, "current");
   let calls = 0;
   const result = provision({ root, install: () => (calls++, { ok: true }) });
@@ -55,7 +55,7 @@ test("2.1 a worktree that is installed and current is left alone", (t) => {
   assert.equal(hookOutput(result, root), "", "a healthy session is told nothing");
 });
 
-test("2.7 a worktree gets the push check as the pre-push hook its repository's worktrees share, and a pre-push hook someone else installed is left as it was", (t) => {
+test("3.7 a worktree gets the push check as the pre-push hook its repository's worktrees share, and a pre-push hook someone else installed is left as it was", (t) => {
   const root = worktree(t, "current");
   const git = (...args) => execFileSync("git", args, { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();
   git("init", "-q");
@@ -82,7 +82,7 @@ test("2.7 a worktree gets the push check as the pre-push hook its repository's w
   assert.ok(existsSync(hook));
 });
 
-test("2.2 a fresh, a stale and an unlinked worktree each get installed", (t) => {
+test("3.2 a fresh, a stale and an unlinked worktree each get installed", (t) => {
   for (const condition of ["fresh", "stale", "unlinked"]) {
     const root = worktree(t, condition);
     const ran = [];
@@ -94,7 +94,7 @@ test("2.2 a fresh, a stale and an unlinked worktree each get installed", (t) => 
   }
 });
 
-test("2.3 a failed install is retried once, and if it still fails the agent is told which condition and where to run pnpm install", (t) => {
+test("3.3 a failed install is retried once, and if it still fails the agent is told which condition and where to run pnpm install", (t) => {
   for (const condition of ["fresh", "stale", "unlinked"]) {
     const root = worktree(t, condition);
     let calls = 0;
@@ -115,7 +115,7 @@ test("2.3 a failed install is retried once, and if it still fails the agent is t
   assert.equal(result.ok, true);
 });
 
-test("2.1 as a session-start hook it exits 0 and says nothing on a healthy worktree", async (t) => {
+test("3.1 as a session-start hook it exits 0 and says nothing on a healthy worktree", async (t) => {
   const root = worktree(t, "current");
   const hook = await run(process.execPath, [script, "--hook", "--root", root]);
   assert.equal(hook.status, 0, hook.stderr);
@@ -152,7 +152,7 @@ const runsOf = (dir) => {
   }
 };
 
-test("2.5 an installed worktree whose Electron has no binary gets it from Electron's installer, once", (t) => {
+test("3.5 an installed worktree whose Electron has no binary gets it from Electron's installer, once", (t) => {
   const root = worktree(t, "current");
   const electron = electronPackage(root);
   let installs = 0;
@@ -167,7 +167,7 @@ test("2.5 an installed worktree whose Electron has no binary gets it from Electr
   assert.equal(runsOf(electron), 1, "a binary already there is left alone");
 });
 
-test("2.5 a failed Electron fetch is named in the log but never fails the session", (t) => {
+test("3.5 a failed Electron fetch is named in the log but never fails the session", (t) => {
   const root = worktree(t, "current");
   const electron = electronPackage(root, { fails: true });
   const lines = [];
@@ -209,7 +209,7 @@ function addKeysDependency(root) {
   writeFileSync(path.join(root, "packages", "library", "package.json"), JSON.stringify(library));
 }
 
-test("2.2 before a storytree command, an uninstalled worktree is installed and the command runs", async (t) => {
+test("3.2 before a storytree command, an uninstalled worktree is installed and the command runs", async (t) => {
   for (const condition of ["fresh", "unlinked"]) {
     const root = worktree(t, condition);
     const ran = [];
@@ -221,14 +221,14 @@ test("2.2 before a storytree command, an uninstalled worktree is installed and t
   assert.equal(current.stdout + current.stderr, "", "an installed worktree runs the command with nothing said");
 });
 
-test("2.3 before a storytree command, a worktree its install cannot fix is refused in one line with the command that installs it", (t) => {
+test("3.3 before a storytree command, a worktree its install cannot fix is refused in one line with the command that installs it", (t) => {
   for (const condition of ["fresh", "unlinked"]) {
     const root = worktree(t, condition);
     const lines = [];
     assert.equal(check({ root, install: () => ({ ok: false, code: 1 }), log: (line) => lines.push(line) }), 1, condition);
     const refusal = lines.at(-1);
     assert.ok(refusal.includes(root), `${condition}: it names the worktree`);
-    assert.match(refusal, /node packages\/dev-loop\/src\/provision-worktree\.mjs/, `${condition}: it names the fix`);
+    assert.match(refusal, /node packages\/base-dev-loop\/src\/provision-worktree\.mjs/, `${condition}: it names the fix`);
     assert.equal(refusal.split("\n").length, 1, `${condition}: in one line`);
   }
   // An install that reports success but still links nothing is refused too, naming the missing link.
@@ -240,7 +240,7 @@ test("2.3 before a storytree command, a worktree its install cannot fix is refus
 });
 
 for (const condition of ["current", "stale"]) {
-  test(`2.2 before a storytree command, a ${condition} worktree missing a package's workspace link is reinstalled and the command runs`, (t) => {
+  test(`3.2 before a storytree command, a ${condition} worktree missing a package's workspace link is reinstalled and the command runs`, (t) => {
     const root = worktree(t, condition);
     addKeysDependency(root);
     const ran = [];
@@ -252,7 +252,7 @@ for (const condition of ["current", "stale"]) {
   });
 }
 
-test("2.2 missing root workspace links are reinstalled even after a package's missing link is repaired", async (t) => {
+test("3.2 missing root workspace links are reinstalled even after a package's missing link is repaired", async (t) => {
   const root = worktree(t, "current");
   writeFileSync(path.join(root, "package.json"), JSON.stringify({
     name: "storytree", devDependencies: { "@storytree/library": "workspace:*" },
@@ -317,7 +317,7 @@ async function repoPair(t) {
   return { root, remote };
 }
 
-test("2.4 a stale primary names the gap at session start and refuses to serve until updated", async (t) => {
+test("3.4 a stale primary names the gap at session start and refuses to serve until updated", async (t) => {
   const { root, remote } = await repoPair(t);
   await git(remote, "commit", "--allow-empty", "-m", "new record schema");
   await git(root, "fetch", "origin", "main");
@@ -342,7 +342,7 @@ test("2.4 a stale primary names the gap at session start and refuses to serve un
   assert.equal(await serve({ root, start: async () => 17 }), 17, "the updated server can start");
 });
 
-test("2.4 a stale dirty or diverged primary keeps its edits and names local commits to reconcile", async (t) => {
+test("3.4 a stale dirty or diverged primary keeps its edits and names local commits to reconcile", async (t) => {
   const { root, remote } = await repoPair(t);
   await git(root, "commit", "--allow-empty", "-m", "local work");
   writeFileSync(path.join(root, "version.txt"), "local edits\n");
@@ -359,7 +359,7 @@ test("2.4 a stale dirty or diverged primary keeps its edits and names local comm
   assert.equal(readFileSync(path.join(root, "version.txt"), "utf8"), "local edits\n");
 });
 
-test("2.4 a feature branch or linked worktree can serve while the primary is behind", async (t) => {
+test("3.4 a feature branch or linked worktree can serve while the primary is behind", async (t) => {
   const { root, remote } = await repoPair(t);
   await git(remote, "commit", "--allow-empty", "-m", "new record schema");
   await git(root, "fetch", "origin", "main");
@@ -391,14 +391,14 @@ function cloud(t) {
 
 const CLOUD = { CLAUDE_CODE_REMOTE: "true", CF_ACCESS_CLIENT_ID: "id" };
 
-test("2.6 pnpm install skips onnxruntime's download in every environment, unless the environment names its own choice", () => {
+test("3.6 pnpm install skips onnxruntime's download in every environment, unless the environment names its own choice", () => {
   assert.equal(installEnvironment({ ...CLOUD }).ONNXRUNTIME_NODE_INSTALL, "skip");
   assert.equal(installEnvironment({ PATH: "/bin" }).ONNXRUNTIME_NODE_INSTALL, "skip");
   assert.equal(installEnvironment({ ...CLOUD, ONNXRUNTIME_NODE_INSTALL: "force" }).ONNXRUNTIME_NODE_INSTALL, "force");
   assert.equal(installEnvironment({ PATH: "/bin", ONNXRUNTIME_NODE_INSTALL: "force" }).ONNXRUNTIME_NODE_INSTALL, "force");
 });
 
-test("2.2 the install is pnpm's, from the lockfile unchanged, falling back to corepack's pnpm where pnpm is not on PATH", () => {
+test("3.2 the install is pnpm's, from the lockfile unchanged, falling back to corepack's pnpm where pnpm is not on PATH", () => {
   for (const platform of ["linux", "win32"]) {
     const ran = [];
     const spawn = (command, args, options) => {
@@ -414,7 +414,7 @@ test("2.2 the install is pnpm's, from the lockfile unchanged, falling back to co
 
 const DEFAULT_ADDRESS = "wss://storytree_library@library.storytree.dev/postgres";
 
-test("2.6 a fresh cloud container is given the library's HTTPS address and approves its checkout, once", (t) => {
+test("3.6 a fresh cloud container is given the library's HTTPS address and approves its checkout, once", (t) => {
   const { root, home, calls, run } = cloud(t);
   connectCloud({ root, home, env: { ...CLOUD }, run });
   assert.deepEqual(calls, [
@@ -428,26 +428,26 @@ test("2.6 a fresh cloud container is given the library's HTTPS address and appro
   assert.deepEqual(calls, [], "a container whose library is already set is left alone");
 });
 
-test("2.6 the cloud environment's PGUSER, when set, is the user the library's address names", (t) => {
+test("3.6 the cloud environment's PGUSER, when set, is the user the library's address names", (t) => {
   const { root, home, calls, run } = cloud(t);
   connectCloud({ root, home, env: { ...CLOUD, PGUSER: "storytree_cloud" }, run });
   assert.deepEqual(calls[0], ["settings", "set", "library", "postgres", "wss://storytree_cloud@library.storytree.dev/postgres"]);
 });
 
-test("2.6 the cloud environment's STORYTREE_LIBRARY_ADDRESS, when set, is the address given", (t) => {
+test("3.6 the cloud environment's STORYTREE_LIBRARY_ADDRESS, when set, is the address given", (t) => {
   const { root, home, calls, run } = cloud(t);
   connectCloud({ root, home, env: { ...CLOUD, STORYTREE_LIBRARY_ADDRESS: "wss://someone@elsewhere.example/db" }, run });
   assert.deepEqual(calls[0], ["settings", "set", "library", "postgres", "wss://someone@elsewhere.example/db"]);
 });
 
-test("2.6 outside a cloud container, or in one without the route's Access token, no setting is touched", (t) => {
+test("3.6 outside a cloud container, or in one without the route's Access token, no setting is touched", (t) => {
   const { root, home, calls, run } = cloud(t);
   connectCloud({ root, home, env: { CF_ACCESS_CLIENT_ID: "id" }, run });
   connectCloud({ root, home, env: { CLAUDE_CODE_REMOTE: "true" }, run });
   assert.deepEqual(calls, []);
 });
 
-test("2.6 a setting that cannot be made is logged and stops the rest, never failing the session", (t) => {
+test("3.6 a setting that cannot be made is logged and stops the rest, never failing the session", (t) => {
   const { root, home } = cloud(t);
   const calls = [];
   const lines = [];
@@ -457,7 +457,7 @@ test("2.6 a setting that cannot be made is logged and stops the rest, never fail
   assert.match(lines.join("\n"), /storytree settings set library .* failed \(exit 3\)/);
 });
 
-test("2.6 approving a cloud container's checkout leaves its committed .storytree.json as it was, and takes away the .storytree files joining wrote", (t) => {
+test("3.6 approving a cloud container's checkout leaves its committed .storytree.json as it was, and takes away the .storytree files joining wrote", (t) => {
   const { root, home } = cloud(t);
   const marker = path.join(root, ".storytree.json");
   const before = readFileSync(marker, "utf8");

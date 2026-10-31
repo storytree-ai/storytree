@@ -5,7 +5,7 @@ import { test } from "node:test";
 
 import { ratioRows } from "./test-ratio.mjs";
 
-test("6.7 the report gives test and implementation code lines per package and overall, counting no blank or comment line and no // inside a string, template or regular expression", () => {
+test("13.3 the report gives test and implementation code lines per package and overall, counting no blank or comment line and no // inside a string, template or regular expression", () => {
   const rows = ratioRows([
     { path: "packages/kettle/src/boil.ts", text: '// heats\n\nconst url = "https://x";\nconst t = `a // ${url}`;\n/* off\n   still off */ const re = /\\/\\//;\n' },
     { path: "packages/kettle/src/boil.test.ts", text: 'import { test } from "node:test";\ntest("boils", () => {});\n' },

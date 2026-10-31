@@ -15,7 +15,7 @@ import { promisify } from "node:util";
 
 import { laneSettings } from "./engine.mjs";
 import { blind, pickPlan, pickPool, planState, readOnly, surveyLibrary } from "./feed.mjs";
-import { codeVersion, composeBrief, countEngines, holdRunner, processTable, waitForSlot, WINDOWS_PROCESSES } from "./queue.mjs";
+import { codeVersion, composeBrief, countEngines, ENGINE_SLOTS, holdRunner, processTable, reserveSlot, withLockFile, WINDOWS_PROCESSES } from "./queue.mjs";
 import { refusals, runLane as runEngineLane, SIGNALED } from "./runner.mjs";
 import { readBoxPace } from "./pace.mjs";
 import { poolConfig, readCap } from "./pool-config.mjs";
@@ -59,28 +59,6 @@ export async function prepareCheckout({ repo, platform = process.platform, exec 
   if (!SSH_PUSH.test(pushUrl)) await exec("git", ["config", "remote.origin.pushurl", PUSH_URL], { cwd: repo });
   // pnpm is a .cmd on Windows, which only a shell runs; these words need no quoting.
   await exec("pnpm", ["install", "--frozen-lockfile", "--silent"], { cwd: repo, maxBuffer: 64 * 1024 * 1024, ...(platform === "win32" ? { shell: true } : {}) });
-}
-
-/** Whether process `pid` is alive: signal 0 tests it on Linux and Windows alike; a process we may not signal is alive. */
-const isAlive = (pid) => {
-  try { process.kill(pid, 0); return true; }
-  catch (error) { return error.code === "EPERM"; }
-};
-
-/**
- * Hold the lock file `path` while `fn` runs, where flock(1) is absent (Windows, ADR-1179 D1): it is created exclusively with the
- * holder's pid, waited on a second at a time while a live process holds it, taken over from a dead holder, and removed after.
- */
-export async function withLockFile(path, fn, { pid = process.pid, alive = isAlive, sleep = (ms) => wait(ms) } = {}) {
-  for (;;) {
-    try { await writeFile(path, `${pid}\n`, { flag: "wx" }); break; }
-    catch (error) { if (error.code !== "EEXIST") throw error; }
-    const holder = Number((await readFile(path, "utf8").catch(() => "")).trim());
-    if (holder && !alive(holder)) { await rm(path, { force: true }); continue; }
-    await sleep(1000);
-  }
-  try { return await fn(); }
-  finally { await rm(path, { force: true }); }
 }
 
 /** The checkout lock: flock(1), shared with the box's shell launchers, on Linux; a lock file elsewhere. */
@@ -131,28 +109,31 @@ export async function withFlock(path, fn) {
 }
 
 /**
- * One lane: under the shared checkout lock, wait for a free engine slot and prepare the checkout; then write
- * the brief, and run it through the lane runner, which picks the engine. Status lines go to `say`. With `follow`,
+ * One lane: under the shared checkout lock, reserve a free engine slot in `slots` (queue.mjs reserveSlot, 3.32) and
+ * prepare the checkout; then write the brief, and run it through the lane runner, which picks the engine. Status lines go to `say`. With `follow`,
  * the runner checks the lane left a report or a push for its increment, and resumes it once if not. With `recheck`,
  * the increment is read again once the slot and checkout are ready, since that wait can outlast its survey by minutes:
- * a reason back (or an unread library) starts nothing and returns NOT_STARTED.
+ * a reason back (or an unread library) starts nothing and returns NOT_STARTED. The slot is held until the runner's engine is up, or the lane ends.
  */
-export async function laneOnce({ increment, brief, log, err, addDirs, repo, maxLanes, lock, count, prepare, sleep, runLane, recheck, follow = false, now = Date.now, say }) {
+export async function laneOnce({ increment, brief, log, err, addDirs, repo, maxLanes, lock, count, slots, prepare, sleep, runLane, recheck, follow, now = Date.now, say }) {
   const dated = (message) => say(`${stamp(now)} ${message}`);
+  let slot;
   await lock(async () => {
-    await waitForSlot({ max: maxLanes, count, sleep, onWait: (running) => dated(`waiting for a slot (${running} engines running) before ${increment}`) });
+    slot = await reserveSlot({ dir: slots, max: maxLanes, count, sleep, onWait: (running) => dated(`waiting for a slot (${running} engines running) before ${increment}`) });
     try { await prepare(); }
     catch (error) { dated(`checkout update failed before ${increment} (${error.message.split("\n")[0]}); the lane runs on the checkout as it is`); }
   });
-  const why = recheck && await Promise.resolve().then(recheck).catch((error) => `library unread before its start (${String(error.message).split("\n")[0]})`);
-  if (why) { dated(`not starting ${increment}: ${why}`); return NOT_STARTED; }
-  await writeFile(brief.path, brief.text);
-  dated(`start ${increment}`);
-  let code;
-  try { code = await runLane({ brief: brief.path, log, err, addDirs, cwd: repo, say, ...(follow ? { increment } : {}) }); }
-  catch (error) { dated(`lane runner: ${error.message}; exit 75, which stops the dispatcher`); code = 75; }
-  dated(`end ${increment} exit ${code}`);
-  return code;
+  try {
+    const why = recheck && await Promise.resolve().then(recheck).catch((error) => `library unread before its start (${String(error.message).split("\n")[0]})`);
+    if (why) { dated(`not starting ${increment}: ${why}`); return NOT_STARTED; }
+    await writeFile(brief.path, brief.text);
+    dated(`start ${increment}`);
+    let code;
+    try { code = await runLane({ brief: brief.path, log, err, addDirs, cwd: repo, say, onSpawn: slot.release, ...(follow ? { increment } : {}) }); }
+    catch (error) { dated(`lane runner: ${error.message}; exit 75, which stops the dispatcher`); code = 75; }
+    dated(`end ${increment} exit ${code}`);
+    return code;
+  } finally { await slot.release(); }
 }
 
 /**
@@ -420,7 +401,7 @@ async function pool(b) {
         : { title: `Pool lane: ${one.id}`, intro: `Your increment: ${one.id}.${role}`,
           notes: await readFile(join(L, `pool-notes-${one.id}.md`), "utf8").catch(() => ""), common: await (b.rules ?? poolRules)(one.body) };
       return laneOnce({
-        increment: one.id, addDirs: b.addDirs, repo: b.laneRepo ?? b.repo, maxLanes: b.maxLanes, lock: b.lock, count: b.count, prepare: b.prepare,
+        increment: one.id, addDirs: b.addDirs, repo: b.laneRepo ?? b.repo, maxLanes: b.maxLanes, lock: b.lock, count: b.count, slots: join(L, ENGINE_SLOTS), prepare: b.prepare,
         sleep: b.sleep, runLane: b.runLane, now: b.now, follow: !one.plan,
         ...(one.plan ? {} : { recheck: async () => whyNotStart(await survey(), one.id) }),
         say: (line) => { if (/^\S+ engine \w+ /.test(line) && !/ exit -?\d+$/.test(line)) engineUp(); say(line); },

@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 
-import { countEngines, holdRunner, processTable, waitForSlot } from "./queue.mjs";
+import { countEngines, holdRunner, processTable, reserveSlot, waitForSlot } from "./queue.mjs";
 
 async function folder(t) {
   const path = await mkdtemp(join(tmpdir(), "lane-queue-"));
@@ -81,4 +81,32 @@ test("3.26 · on Windows each lane's engine counts once from the process list, i
   assert.match(table, /^100 1 .*launch\.mjs pool$/m, "a runner's command line reads on one line, as holdRunner matches it");
   assert.equal(countEngines(processTable(JSON.stringify(listed[1]))), 1, "one process lists as one object, not a list");
   assert.equal(processTable(""), "");
+});
+
+test("3.32 · two engine starters racing for the last slot under the cap start one engine between them; a dead starter's reservation holds none", async (t) => {
+  const dir = join(await folder(t), "engine-slots");
+  // One engine runs under a cap of 2; a starter's engine shows in the process table only once it is up, a moment after its count.
+  let engines = 1;
+  const count = async () => { const seen = engines; await new Promise((go) => setTimeout(go, 20)); return seen; };
+  const started = [], waits = [];
+  const starter = (pid) => reserveSlot({ dir, max: 2, count, pid, alive: () => true, onWait: (running) => waits.push({ pid, running }),
+    sleep: async () => {
+      started.push("slept"); engines = 2; await winner.release(); engines = 1;
+      assert.deepEqual((await readdir(dir)).filter((name) => name.endsWith(".slot")), [], "release frees the winner's slot");
+    } })
+    .then((slot) => { started.push(pid); return slot; });
+  let winner;
+  const first = starter(11), second = starter(12);
+  winner = await Promise.race([first, second]);
+  const loser = await (winner === await first ? second : first);
+  assert.equal(started.length, 3, "the second starter took a slot only after waiting");
+  assert.equal(started[1], "slept", "one starter waited while the other held the last slot");
+  assert.deepEqual(waits.map((one) => one.running), [2], "the waiter counted the engine running and the other's reservation");
+  await loser.release();
+  assert.deepEqual(await readdir(dir), [], "each released slot, and the lock, are gone");
+  // A reservation whose starter died leaves its slot free, and is cleared.
+  await reserveSlot({ dir, max: 2, count: async () => 1, pid: 21, alive: () => true, onWait: () => {}, sleep: async () => {} });
+  const freed = await reserveSlot({ dir, max: 2, count: async () => 1, pid: 22, alive: (pid) => pid !== 21, onWait: () => assert.fail("a dead starter's reservation held the slot"), sleep: async () => {} });
+  assert.equal(freed.running, 1);
+  assert.deepEqual((await readdir(dir)).map((name) => name.split("-")[0]), ["22"], "only the live starter's reservation is left");
 });

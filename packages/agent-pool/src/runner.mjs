@@ -13,7 +13,7 @@ import { FUNCTION_HOOKS, PLUGIN_FOLDER, SESSION_FILE } from "./claude-code-mod/i
 import { LANE_FAILURES, recordLaneFailure } from "./feed.mjs";
 import { assessAllowance, detectLimitHit, engineControls, iso, laneSettings, pickEngine, pickFresh, readLatestAllowance, readOptional } from "./engine.mjs";
 import { poolConfig, readCap } from "./pool-config.mjs";
-import { countEngines, processTable, waitForSlot, WINDOWS_PROCESSES } from "./queue.mjs";
+import { countEngines, ENGINE_SLOTS, processTable, reserveSlot, WINDOWS_PROCESSES } from "./queue.mjs";
 
 /** Who a lane's commits are by: the owner, as main's commits are authored. */
 const OWNER = { name: "Mick", email: "107184961+HuaMick@users.noreply.github.com" };
@@ -166,7 +166,7 @@ async function reapLeftovers({ group, mark, dated, reap = REAP }) {
  * has not grown for quietMs while `online` says the library and GitHub do not answer is stopped as stalled (1.20). On Linux the
  * engine leads its own process group, and what it leaves running is stopped before the result is returned (1.23).
  */
-async function runEngineOnce(command, args, { cwd, env, log, err, watch, dated = () => {}, reap }) {
+async function runEngineOnce(command, args, { cwd, env, log, err, watch, dated = () => {}, reap, onSpawn }) {
   const output = await open(log, "w");
   let errors;
   try {
@@ -175,6 +175,7 @@ async function runEngineOnce(command, args, { cwd, env, log, err, watch, dated =
     return await new Promise((done) => {
       const child = spawn(command[0], [...command.slice(1), ...args], { cwd, env: { ...env, [LANE_RUN]: mark },
         detached: process.platform === "linux", stdio: ["ignore", output.fd, errors.fd] });
+      if (child.pid) onSpawn?.();
       let interrupted = false;
       const forward = (signal) => { interrupted = true; child.kill(signal); };
       const interrupt = () => forward("SIGINT"), terminate = () => forward("SIGTERM");
@@ -403,14 +404,15 @@ export async function runLane({ brief, log, err, addDirs = [], cwd = process.cwd
   commands = { codex: ["codex"], claude: ["claude"] }, now = Date.now, say = console.log, increment,
   heads = (id) => remoteHeads(id, cwd), failed = (failure) => recordLaneFailure(failure),
   storytree = async (args) => (await run(...storytreeCommand(args), { cwd, env, maxBuffer: 16 * 1024 * 1024 })).stdout,
-  reachable = () => bothAnswer({ cwd, env }), sleep = (ms) => new Promise((done) => setTimeout(done, ms)), offline: limits = {}, reap }) {
+  reachable = () => bothAnswer({ cwd, env }), sleep = (ms) => new Promise((done) => setTimeout(done, ms)), offline: limits = {}, reap, onSpawn }) {
   const original = await readFile(brief, "utf8");
   if (!original.trim()) throw new Error(`brief ${brief} is empty`);
   const settings = laneSettings({ home, env });
   const dated = (message) => say(`${new Date(now()).toISOString().replace(/\.\d{3}Z$/, "Z")} ${message}`);
   // Every way a signal to the runner ends a lane: its own code, so the dispatcher requeues it (75 means an engine failing at once).
   const signaled = () => { dated(`lane runner stopped by a signal: exit ${SIGNALED} so the runner keeps this lane queued`); return SIGNALED; };
-  const runEngine = (command, args, options) => runEngineOnce(command, args, { ...options, dated, reap });
+  // The first engine's start frees the slot its starter reserved (3.32): from then on the process table counts it.
+  const runEngine = (command, args, options) => runEngineOnce(command, args, { ...options, dated, reap, onSpawn });
   const login = await loginEnvironment(home, env).catch(async (error) => {
     if (error.code === "lane-token") await askForToken({ lanesDir: settings.lanesDir, increment, storytree, dated });
     throw error;
@@ -542,14 +544,15 @@ async function enginesRunning() {
 }
 
 /**
- * Wait for the box's cap before a lane started from the command line (the watcher's fix and review sessions, the session
- * manager's run-lane.sh) picks its engine, since a Codex probe is an engine too; the dispatcher calls runLane after its own wait.
+ * Reserve a slot under the box's cap (queue.mjs reserveSlot, 3.32) before a lane started from the command line (the watcher's
+ * fix and review sessions, the session manager's run-lane.sh) picks its engine, since a Codex probe is an engine too; the
+ * dispatcher calls runLane after its own reservation. The slot is released once the engine is up.
  */
-async function waitForCap({ home = homedir(), env = process.env, now = Date.now, say = console.log, count = enginesRunning,
+async function reserveCap({ home = homedir(), env = process.env, now = Date.now, say = console.log, count = enginesRunning,
   sleep = (ms) => new Promise((done) => setTimeout(done, ms)) }) {
   const config = poolConfig({ home, env });
   const max = () => readCap({ lanesDir: config.lanesDir, sessions: config.sessions });
-  await waitForSlot({ max, count, sleep, onWait: (running) => say(`${new Date(now()).toISOString().replace(/\.\d{3}Z$/, "Z")} waiting for a slot (${running} engines running) before starting an engine`) });
+  return reserveSlot({ dir: join(config.lanesDir, ENGINE_SLOTS), max, count, sleep, onWait: (running) => say(`${new Date(now()).toISOString().replace(/\.\d{3}Z$/, "Z")} waiting for a slot (${running} engines running) before starting an engine`) });
 }
 
 export async function main(args, options = {}) {
@@ -560,8 +563,9 @@ export async function main(args, options = {}) {
       complain("usage: runner.mjs run <brief-file> <log> <err> [add-dir ...] | status");
       return 2;
     }
-    await waitForCap(options);
-    return await runLane({ ...options, brief: args[1], log: args[2], err: args[3], addDirs: args.slice(4) });
+    const slot = await reserveCap(options);
+    try { return await runLane({ ...options, brief: args[1], log: args[2], err: args[3], addDirs: args.slice(4), onSpawn: slot.release }); }
+    finally { await slot.release(); }
   } catch (error) {
     // A lane that could not start (an empty brief, unreadable login settings, no lane token) stays queued: 75 stops its runner.
     complain(`lane runner: ${error.message}; exit 75 so the runner keeps this lane queued`);

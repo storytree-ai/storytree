@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
 import { readFileSync } from "node:fs";
-import { mkdtemp, mkdir, readFile, realpath, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, readdir, readFile, realpath, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
@@ -209,6 +209,18 @@ test("1.24 · a lane started from the command line waits while the box's engines
   assert.deepEqual(running, []);
   assert.equal(options.lines.filter((line) => /waiting for a slot \(2 engines running\)/.test(line)).length, 1, "said once");
   assert.equal(JSON.parse(await readFile(options.log, "utf8")).args[0], "exec", "the engine ran once a slot freed");
+  assert.deepEqual(await readdir(join(options.lanesDir, "engine-slots")), [], "no reservation is left once the lane ends");
+});
+
+test("3.32 · a lane started from the command line holds its reserved slot only until its engine is up, while the process table counts it", async (t) => {
+  const options = await lane(t);
+  await writeFile(join(options.lanesDir, "engine-override"), "codex");
+  // The engine reports the reservations left in the lanes folder once it has run a moment (up to 5 s for its starter to release).
+  const slots = JSON.stringify(join(options.lanesDir, "engine-slots"));
+  options.commands.codex = command(`const fs=require('node:fs');const left=()=>fs.readdirSync(${slots}).filter((n)=>n.endsWith('.slot')).length;
+    const until=Date.now()+5000;(function look(){if(left()&&Date.now()<until)return setTimeout(look,50);console.log(JSON.stringify({reserved:left()}));})();`);
+  assert.equal(await main(["run", options.brief, options.log, options.err], options), 0);
+  assert.equal(JSON.parse(await readFile(options.log, "utf8")).reserved, 0, "the slot was released while the engine ran");
 });
 
 test("1.10 · a lane whose newest reading is stale and spent runs one Codex probe for a fresh reading, then picks from it", async (t) => {

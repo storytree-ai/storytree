@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { execFile, spawn } from "node:child_process";
+import { realpathSync } from "node:fs";
 import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -28,7 +29,7 @@ async function box(t, extra = {}) {
     lanesDir, events, lines, briefs, repo: join(lanesDir, "repo"), addDirs: ["/wt", lanesDir], pid: 4242, now,
     say: (line) => lines.push(line), argsOf: async () => "", maxLanes: async () => 5,
     // A clear box: the real reading (/proc on a busy CI runner) would hold dispatch back (pace.mjs).
-    pace: async () => undefined, briefPaths: undefined,
+    pace: async () => undefined, briefPaths: undefined, laneRepo: undefined,
     // Plugged in and online: the real readings (the power line, the library and GitHub) are the start rule's tests' own (3.27).
     power: async () => "Online", refusals: async () => [],
     count: async () => { events.push("count"); return counts.length ? counts.shift() : 0; },
@@ -94,8 +95,9 @@ test("3.5 · the prepared checkout is at origin/main, installed from its lockfil
   assert.deepEqual(ran, ["git", "git", "git", "git", "pnpm"]);
   assert.deepEqual(install, ["install", "--frozen-lockfile", "--silent"]);
   assert.equal((await readFile(join(repo, "a.txt"), "utf8")).trim(), "two");
-  assert.equal((await git(repo, "remote", "get-url", "--push", "origin")).stdout.trim(), PUSH_URL);
-  assert.equal((await git(repo, "remote", "get-url", "origin")).stdout.trim(), origin);
+  // The configured URLs, not get-url's, which a machine's own insteadOf rewrite (the Mint box's deploy-key alias) would change.
+  assert.equal((await git(repo, "config", "--get", "remote.origin.pushurl")).stdout.trim(), PUSH_URL);
+  assert.equal((await git(repo, "config", "--get", "remote.origin.url")).stdout.trim(), origin);
 });
 
 test("3.5 · a checkout that already pushes to the repository over SSH, through the box's deploy key or the account's, keeps its push URL", async (t) => {
@@ -547,6 +549,26 @@ test("3.28 · a dispatcher configured with its own checkout and lanes folder bri
   b.sleep = async () => { await new Promise((go) => setImmediate(go)); if (b.briefs.length) await writeFile(join(b.lanesDir, "pool-stop"), ""); };
   assert.equal(await main(["pool"], b), 0);
   assert.ok(b.briefs[0].endsWith(`Work from C:/code/storytree03, never ~/code/storytree03-wt. Your report goes to ${join(b.lanesDir, ".storytree", "agent-pool")}/pool-<increment>.report.md.\n`), b.briefs[0]);
+});
+
+test("3.28 · a dispatcher whose checkout is a linked worktree runs and briefs its lanes from the repository's main worktree, where make_workspace accepts them", async (t) => {
+  const main_ = join(await folder(t), "main"), linked = join(await folder(t), "dispatcher");
+  const git = (...args) => run("git", args, { cwd: main_ });
+  await mkdir(main_);
+  await git("init", "-q");
+  await git("-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "--allow-empty", "-m", "start");
+  await git("worktree", "add", "-q", "-b", "laptop-dispatcher", linked);
+  const b = await box(t, { survey: async () => poolWork(["one"]), count: async () => 0, rules: async () => "Work from ~/code/storytree03.\n" });
+  b.home = b.lanesDir;
+  b.env = { AGENT_POOL_CONFIG: join(b.lanesDir, "agent-pool.json") };
+  await writeFile(b.env.AGENT_POOL_CONFIG, JSON.stringify({ checkout: linked, lanes: b.lanesDir }));
+  delete b.briefPaths; delete b.laneRepo;
+  const cwds = [];
+  b.runLane = async (options) => { cwds.push(options.cwd); b.briefs.push(await readFile(options.brief, "utf8")); return 0; };
+  b.sleep = async () => { await new Promise((go) => setImmediate(go)); if (b.briefs.length) await writeFile(join(b.lanesDir, "pool-stop"), ""); };
+  assert.equal(await main(["pool"], b), 0);
+  assert.equal(realpathSync.native(cwds[0]), realpathSync.native(main_));
+  assert.ok(b.briefs[0].endsWith(`Work from ${cwds[0]}.\n`), b.briefs[0]);
 });
 
 test("3.30 · `probe` names each of the library and GitHub that refuses from the checkout it is given (by default the folder it runs in) and exits 1; it exits 0 when both answer", async (t) => {

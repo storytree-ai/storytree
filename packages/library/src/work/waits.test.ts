@@ -299,16 +299,17 @@ for (const backend of [memory, postgres]) {
     assert.deepEqual(await transactions.history(), before, "nothing written");
 
     await flight.addWaitFor(rotate.id, { releaser: "owner", note: "rotate the GitHub token", why: "a leaked token can push as you", rank: 2 });
-    const stamped = { releaser: "owner", note: "rotate the GitHub token", why: "a leaked token can push as you", rank: 2, reviewed: today };
-    assert.deepEqual((await records.get(rotate.id))?.fields.waitsFor, [stamped]);
+    const stored = async () => ((await records.get(rotate.id))?.fields as { waitsFor?: unknown } | undefined)?.waitsFor;
+    const stamped = { releaser: "owner" as const, note: "rotate the GitHub token", why: "a leaked token can push as you", rank: 2, reviewed: today };
+    assert.deepEqual(await stored(), [stamped]);
     assert.deepEqual((await flight.holds()).waitsFor?.[rotate.id], [{ ...stamped, holds: true }]);
 
     await records.edit(rotate.id, { waitsFor: [{ ...stamped, reviewed: "2026-01-01" }] });
     await flight.addWaitFor(rotate.id, { releaser: "owner", rank: 1 });
-    assert.deepEqual((await records.get(rotate.id))?.fields.waitsFor, [{ ...stamped, rank: 1 }], "re-ranked: the note and why kept, read again today");
+    assert.deepEqual(await stored(), [{ ...stamped, rank: 1 }], "re-ranked: the note and why kept, read again today");
     await records.edit(rotate.id, { waitsFor: [{ ...stamped, rank: 1, reviewed: "2026-01-01" }] });
     await flight.addWaitFor(rotate.id, { releaser: "owner" });
-    assert.deepEqual((await records.get(rotate.id))?.fields.waitsFor, [{ ...stamped, rank: 1 }], "written again with nothing new, it is only read again");
+    assert.deepEqual(await stored(), [{ ...stamped, rank: 1 }], "written again with nothing new, it is only read again");
 
     const born = await flight.addIncrement({ arc: arc.id, title: "Sign in", ...WORK, waitsFor: [{ releaser: "owner", note: "sign in", why: "the box reads mail", rank: 3 }] });
     assert.deepEqual(born.fields.waitsFor, [{ releaser: "owner", note: "sign in", why: "the box reads mail", rank: 3, reviewed: today }]);

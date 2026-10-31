@@ -10,7 +10,7 @@ powershell -ExecutionPolicy Bypass -File infra\gcp-project\cleanup.ps1 -Project 
 ```
 
 Each line of output says what happens to one thing: `WOULD` (dry run), `DONE`, `FAILED`, `SKIP`
-(already gone), `WAIT` (date-gated), `REFUSE` (a guard stopped it), `KEEP`, or `LEAVE` (on
+(already gone), `WAIT` (date-gated), `ID` (a unique id, printed before a delete), `REFUSE` (a guard stopped it), `KEEP`, or `LEAVE` (on
 neither list, so untouched). It exits 0 when everything it tried worked and 2 when a step was not
 done. It is safe to run again.
 
@@ -27,6 +27,14 @@ What stays, and why:
 The two 0.2 deployer service accounts are deleted only from 2026-10-31 on, a week after they were
 disabled, and only while they are still disabled; before then the script says `WAIT`, so run it
 again after that date.
+
+It also deletes the eleven service accounts nothing uses (0.2's leftovers, the two AI Studio Gemini
+key accounts and two already disabled), named in the script. Before each it prints an `ID` line with
+the account's unique id: `gcloud iam service-accounts undelete <unique id>` brings it back within 30
+days. Deleting the Google account `storytree-ci-health` leaves the Mint box's Postgres role of that
+name alone. Service accounts kept, which no step may delete: `storytree-mint` (the box's own),
+`storytree-website-publish` (the website workflow's sign-in) and Google's App Engine and Compute
+defaults.
 
 APIs are turned off without `--force`, so Google refuses to turn off one that another enabled API
 depends on, or one used in the last 30 days. Cloud SQL Admin was last used around 2026-10-15, so

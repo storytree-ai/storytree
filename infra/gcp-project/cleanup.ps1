@@ -10,7 +10,9 @@
     1. delete the Artifact Registry repositories named below,
     2. delete the buckets named below, with everything in them,
     3. delete the two disabled 0.2 deployer service accounts (refused before 2026-10-31),
-    4. turn off the APIs named below, one at a time and without --force, so Google refuses any
+    4. delete the eleven unused service accounts named below, printing each one's unique id first
+       so it can be undeleted within 30 days,
+    5. turn off the APIs named below, one at a time and without --force, so Google refuses any
        API that something still enabled depends on, instead of turning that off too.
   Only names written out in this file are touched: nothing is chosen by pattern. Every list is
   checked against the keep-lists before anything runs. It is safe to run again: what is already
@@ -52,6 +54,17 @@ $KeepBuckets = @(
   "$Project-library-backups",
   "$Project-tfstate"
 )
+# storytree-mint: the Mint box's own account (library backups, its secrets). website-publish:
+# website.yml's keyless sign-in. appspot and compute: Google's defaults, added below once the
+# project number is known. No service-account step may delete one of these.
+# Their addresses are built from Google's domain, so the repository's leak check reads no address.
+$GoogleAccounts = 'gserviceaccount.com'
+$KeepServiceAccounts = @(
+  "storytree-mint@$Project.iam.gserviceaccount.com",
+  "storytree-website-publish@$Project.iam.gserviceaccount.com",
+  "$Project@appspot.$GoogleAccounts",
+  "<number>-compute@developer.$GoogleAccounts"
+)
 
 # --- What goes -------------------------------------------------------------------------------
 $DeleteRepos = @(
@@ -70,6 +83,17 @@ $DeleteServiceAccounts = @(
   "storytree-web-editor-deployer@$Project.iam.gserviceaccount.com"
 )
 $ServiceAccountsNotBefore = [datetime]'2026-10-31'
+# Unused, by the read-only survey of 2026-10-31 (no keys, no project roles; 0.2 leftovers, two
+# Gemini key accounts with no key left, and two already disabled). The owner chose to delete all
+# eleven. storytree-ci-health here is the Google account only: the Mint box's Postgres role of the
+# same name is not touched. AI Studio named its two accounts after the project number, not its id.
+$DeleteUnusedServiceAccounts = @(@(
+  'storytree-studio-host', 'storytree-web-editor-host', 'storytree-claude-harness',
+  'storytree-codex-harness', 'storytree-ci-presence', 'storytree-ci-webverdict', 'storytree-ci-health',
+  'storytree-remote-dev', 'storytree-cloud-lane'
+) | ForEach-Object { "$_@$Project.iam.gserviceaccount.com" }) + @(@(
+  'ais-gemini-key-384e6e08dda3456', 'ais-gemini-key-50b112f084974ee'
+) | ForEach-Object { "$_@<number>.iam.gserviceaccount.com" })
 
 $MapsApis = @(
   'addressvalidation', 'aerialview', 'airquality', 'areainsights', 'directions-backend',
@@ -107,6 +131,10 @@ $account = Invoke-Gcloud @('config', 'get-value', 'account')
 $number = Invoke-Gcloud @('projects', 'describe', $Project, '--format=value(projectNumber)')
 if ($LASTEXITCODE -ne 0 -or -not $number) { Stop-Run "could not read the project number of $Project (are you signed in, with access to it?)." }
 $DeleteBuckets = @($DeleteBuckets | ForEach-Object { $_.Replace('<number>', "$number".Trim()) })
+$KeepServiceAccounts = @($KeepServiceAccounts | ForEach-Object { $_.Replace('<number>', "$number".Trim()) })
+$DeleteUnusedServiceAccounts = @($DeleteUnusedServiceAccounts | ForEach-Object { $_.Replace('<number>', "$number".Trim()) })
+$clash = @(@($DeleteServiceAccounts) + @($DeleteUnusedServiceAccounts) | Where-Object { $KeepServiceAccounts -contains $_ })
+if ($clash.Count -gt 0) { Stop-Run "these service accounts are on both the keep-list and a delete list: $($clash -join ', ')" }
 Write-Output "Project: $Project    Signed in as: $account"
 if ($Apply) { Write-Output 'Mode: APPLY (changes will be made)' } else { Write-Output 'Mode: DRY RUN (nothing is changed; add -Apply to make the changes)' }
 
@@ -114,7 +142,7 @@ $enabled = @(Invoke-Gcloud @('services', 'list', '--enabled', '--project', $Proj
 if ($LASTEXITCODE -ne 0 -or $enabled.Count -eq 0) { Stop-Run "could not list the enabled APIs of $Project (are you signed in, with access to it?)." }
 $buckets = @(Invoke-Gcloud @('storage', 'buckets', 'list', '--project', $Project, '--format=value(name)'))
 if ($LASTEXITCODE -ne 0) { Stop-Run "could not list the buckets of $Project." }
-$accounts = @(Invoke-Gcloud @('iam', 'service-accounts', 'list', '--project', $Project, '--format=csv[no-heading](email,disabled)'))
+$accounts = @(Invoke-Gcloud @('iam', 'service-accounts', 'list', '--project', $Project, '--format=csv[no-heading](email,disabled,uniqueId)'))
 if ($LASTEXITCODE -ne 0) { Stop-Run "could not list the service accounts of $Project." }
 $repos = @()
 if ($enabled -contains 'artifactregistry.googleapis.com') {
@@ -173,14 +201,28 @@ Write-Output '3. 0.2 deployer service accounts'
 foreach ($email in $DeleteServiceAccounts) {
   $row = @($accounts | Where-Object { $_ -like "$email,*" })
   if ($row.Count -eq 0) { Write-Output "SKIP   ${email}: not there"; continue }
-  if ($row[0] -notlike '*,True') { Write-Output "REFUSE ${email}: it is not disabled, so something may still use it"; $failures.Add("delete $email"); continue }
+  if ($row[0] -notlike "$email,True,*") { Write-Output "REFUSE ${email}: it is not disabled, so something may still use it"; $failures.Add("delete $email"); continue }
   if ((Get-Date) -lt $ServiceAccountsNotBefore) { Write-Output "WAIT   ${email}: not before $($ServiceAccountsNotBefore.ToString('yyyy-MM-dd')); run this again then"; continue }
   Step "delete service account $email" @('iam', 'service-accounts', 'delete', $email, '--project', $Project)
 }
 
-# --- 4. APIs -----------------------------------------------------------------------------------
+# --- 4. Unused service accounts ----------------------------------------------------------------
 Write-Output ''
-Write-Output '4. APIs to turn off'
+Write-Output '4. Unused service accounts (undelete within 30 days: gcloud iam service-accounts undelete <unique id>)'
+foreach ($email in $DeleteUnusedServiceAccounts) {
+  # Checked again here, next to the delete, so no edit above can carry a kept account into it.
+  if ($KeepServiceAccounts -contains $email) { Write-Output "REFUSE ${email}: it is on the keep-list"; $failures.Add("delete $email"); continue }
+  $row = @($accounts | Where-Object { $_ -like "$email,*" })
+  if ($row.Count -eq 0) { Write-Output "SKIP   ${email}: not there"; continue }
+  $uniqueId = ($row[0] -split ',')[2]
+  if (-not $uniqueId) { Write-Output "REFUSE ${email}: its unique id could not be read, so it could not be undeleted"; $failures.Add("delete $email"); continue }
+  Write-Output "ID     ${email}: unique id $uniqueId"
+  Step "delete service account $email" @('iam', 'service-accounts', 'delete', $email, '--project', $Project)
+}
+
+# --- 5. APIs -----------------------------------------------------------------------------------
+Write-Output ''
+Write-Output '5. APIs to turn off'
 $toDisable = @($DisableApis | Where-Object { $enabled -contains $_ })
 foreach ($api in $DisableApis) { if ($enabled -notcontains $api) { Write-Output "SKIP   ${api}: already off" } }
 if ($reposLeft) {

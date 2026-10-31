@@ -13,7 +13,7 @@
  *
  * Everything here is a pure function of what the app hands the page, so it is tested without one.
  */
-import type { AnnotatedContract, AnnotatedStory, AnnotatedTree, CapabilityStatus, CapabilityWhy, Change, EarlierVerdict, HealthColumn, HealthState } from "@storytree/library";
+import type { AnnotatedContract, AnnotatedStory, AnnotatedTree, CapabilityStatus, CapabilityWhy, Change, EarlierVerdict, HealthColumn, HealthSource, HealthState } from "@storytree/library";
 
 
 import { grove, type PartState, type PartStates } from "../capability-tree/capability-tree.js";
@@ -28,6 +28,8 @@ export interface ContractLine {
   trail: string;
   /** Storytree's own column, only where something wrote it. */
   verified?: HealthState;
+  /** Where storytree saw it, verified locally or read from CI, when its entry says (ADR-1193 D3). */
+  source?: HealthSource;
   /** The verdict storytree last saw for it, when the latest run did not reproduce it: "not re-run" (ADR-0825 D2). */
   lastSeen?: EarlierVerdict;
 }
@@ -40,6 +42,8 @@ export interface WhyLine {
   contracts: string[];
   /** The earliest time one of them was recorded so, when a time was recorded. */
   since?: string;
+  /** Where storytree saw the contracts carrying it, local before CI, when their entries say. */
+  sources?: HealthSource[];
 }
 
 /** One capability, as the panel explains it. */
@@ -52,6 +56,8 @@ export interface CapabilityLine {
   reported: HealthState;
   /** Storytree's own column, only where something wrote it for one of its contracts. */
   verified?: HealthState;
+  /** Where storytree saw its contracts, local before CI, when their entries say (ADR-1193 D3). */
+  sources?: HealthSource[];
   /** Where it stands, by the arc surface's work states: for choosing which to show, not for its card. */
   state: PartState;
   /** Its word, as the library gives it: proposed, healthy, unhealthy or untested (ADR-0744). */
@@ -134,6 +140,7 @@ export function drillDown(tree: AnnotatedTree, story: string, states: PartStates
     if (capability === undefined) return [];
     const contracts = capability.contracts.map((contract) => contractLine(contract, trails.get(contract.id) ?? []));
     const seen = contracts.flatMap(({ verified }) => (verified === undefined ? [] : [verified]));
+    const sources = sourcesOf(contracts);
     return [
       {
         id: capability.id,
@@ -141,10 +148,11 @@ export function drillDown(tree: AnnotatedTree, story: string, states: PartStates
         description: sentences(capability.description),
         reported: capability.health.reported.state,
         ...(seen.length === 0 ? {} : { verified: capability.health.verified.state }),
+        ...(sources === undefined ? {} : { sources }),
         state,
         status: capability.status,
         contracts,
-        ...(capability.why === undefined ? {} : { why: whyLine(capability.why, capability.contracts) }),
+        ...(capability.why === undefined ? {} : { why: whyLine(capability.why, capability.contracts, contracts) }),
         ...(capability.reportOnly ? { reportOnly: true as const } : {}),
         ...(capability.parkedOn === undefined ? {} : { parkedOn: capability.parkedOn.map(({ arc, title }) => ({ arc, title })) }),
       },
@@ -192,16 +200,30 @@ function contractLine(contract: AnnotatedContract, trail: readonly HealthState[]
     reported: contract.health.reported.state,
     trail: trailWords(trail),
     ...(written(contract.health.verified) ? { verified: contract.health.verified.state } : {}),
+    ...(written(contract.health.verified) && contract.health.verified.source !== undefined ? { source: contract.health.verified.source } : {}),
     ...(contract.health.verified.was === undefined ? {} : { lastSeen: contract.health.verified.was }),
   };
 }
 
-/** `why` with its contract ids turned into what the owner reads: the number their title starts with ("8.1 · …"), else the title. */
-function whyLine({ reason, mover, contracts, since }: CapabilityWhy, all: readonly AnnotatedContract[]): WhyLine {
+/**
+ * `why` with its contract ids turned into what the owner reads: the number their title starts with ("8.1 · …"), else the title;
+ * with the sources of the contracts carrying it, from their lines.
+ */
+function whyLine({ reason, mover, contracts, since }: CapabilityWhy, all: readonly AnnotatedContract[], lines: readonly ContractLine[]): WhyLine {
   const titles = new Map(all.map(({ id, title }) => [id, title]));
   const named = contracts.map((id) => /^(\d+\.\d+) · /.exec(titles.get(id) ?? "")?.[1] ?? titles.get(id) ?? id);
-  return { reason, mover, contracts: named, ...(since === undefined ? {} : { since }) };
+  const sources = sourcesOf(lines.filter(({ id }) => contracts.includes(id)));
+  return { reason, mover, contracts: named, ...(since === undefined ? {} : { since }), ...(sources === undefined ? {} : { sources }) };
 }
+
+/** The sources some contract lines say, local before CI; undefined when none says one. */
+function sourcesOf(lines: readonly ContractLine[]): HealthSource[] | undefined {
+  const said = SOURCES.filter((source) => lines.some((line) => line.source === source));
+  return said.length === 0 ? undefined : said;
+}
+
+/** The sources, in the order they are said. */
+const SOURCES: readonly HealthSource[] = ["local", "ci"];
 
 /** Whether a column has an entry: a contract's column carries its time once something wrote it. */
 function written(column: HealthColumn): boolean {

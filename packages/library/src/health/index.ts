@@ -19,5 +19,6 @@ export type {
   ChangedOnMain,
   NamedOnMain,
   PendingRun,
+  HealthSource,
   SkipKind,
 } from "./health-record.js";

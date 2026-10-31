@@ -10,6 +10,7 @@ import { removeTemp } from "@storytree/test-waits";
 
 import { main, planRules, poolRules, prepareCheckout, PUSH_URL, runPool, startHold, withLockFile } from "./launch.mjs";
 import { codeVersion } from "./queue.mjs";
+import { SIGNALED } from "./runner.mjs";
 
 const run = promisify(execFile);
 const now = () => Date.parse("2026-10-08T04:00:00Z");
@@ -546,4 +547,26 @@ test("3.28 · a dispatcher configured with its own checkout and lanes folder bri
   b.sleep = async () => { await new Promise((go) => setImmediate(go)); if (b.briefs.length) await writeFile(join(b.lanesDir, "pool-stop"), ""); };
   assert.equal(await main(["pool"], b), 0);
   assert.ok(b.briefs[0].endsWith(`Work from C:/code/storytree03, never ~/code/storytree03-wt. Your report goes to ${join(b.lanesDir, ".storytree", "agent-pool")}/pool-<increment>.report.md.\n`), b.briefs[0]);
+});
+
+test("3.8 · a lane stopped by a signal leaves the pool running and its increment surveyed and started again; a lane exiting 75 still ends the pool", async () => {
+  const lines = [], started = [];
+  let looks = 0, stop = false;
+  const code = await runPool({
+    survey: async () => poolWork(["a"]), maxLanes: async () => 1, count: async () => 0,
+    stopFile: "/lanes/pool-stop", exists: async () => stop, now, say: (line) => lines.push(line),
+    launch: async (one) => { started.push(one.id); return started.length === 1 ? SIGNALED : 0; },
+    sleep: async () => { looks += 1; await new Promise((go) => setImmediate(go)); if (started.length === 2 || looks > 20) stop = true; },
+  });
+  assert.equal(code, 0, "the pool ran on until its stop file");
+  assert.deepEqual(started, ["a", "a"], "the signal-stopped increment was offered again at once, with no back-off");
+  assert.ok(lines.some((line) => /stopped by a signal: requeued a/.test(line)), lines.join("\n"));
+
+  const failing = await runPool({
+    survey: async () => poolWork(["a", "b"]), maxLanes: async () => 1, count: async () => 0,
+    stopFile: "/lanes/pool-stop", exists: async () => false, now, say: (line) => lines.push(line),
+    launch: async () => 75, sleep: async () => { await new Promise((go) => setImmediate(go)); },
+  });
+  assert.equal(failing, 75);
+  assert.match(lines.at(-1), /pool stopped: engine failing at once on a$/);
 });

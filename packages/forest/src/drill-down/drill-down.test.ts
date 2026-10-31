@@ -210,3 +210,25 @@ test("4.36 a story's panel carries its risk: the rating read from its depth and 
   assert.deepEqual(drillDown(tree, "site", workStates([]), [])?.risk, { rating: 8, audience: "public", users: 40, checks: [] }, "a counted audience carries its users");
   assert.equal("risk" in (drillDown(tree, "plain", workStates([]), []) ?? {}), false);
 });
+
+test("4.37 each contract storytree saw carries the source of its verdict, its capability the sources of its contracts', and its reason the sources of the contracts carrying it", () => {
+  const at = "2026-10-30T10:00:00.000Z";
+  const mixed = capability("mixed", [], [
+    numbered("c1", "1.1 · Local", { state: "passing", at, source: "local" }),
+    numbered("c2", "1.2 · On CI", { state: "failing", at, source: "ci" }),
+    numbered("c3", "1.3 · Before sources", { state: "passing", at }),
+  ], null, "unhealthy");
+  const local = capability("local", [], [numbered("c4", "2.1 · Local", { state: "passing", at, source: "local" })], null, "healthy");
+  const older = capability("older", [], [numbered("c5", "3.1 · Before sources", { state: "failing", at })], null, "unhealthy");
+  const tree: AnnotatedTree = {
+    stories: [story("s", { ...mixed, why: { reason: "failing", mover: "agent", contracts: ["c2"] } }, local, { ...older, why: { reason: "failing", mover: "agent", contracts: ["c5"] } })],
+    arcs: [],
+  };
+  const [first, second, third] = drillDown(tree, "s", workStates([]), [])?.capabilities ?? [];
+  assert.deepEqual(first?.contracts.map(({ id, source }) => [id, source]), [["c1", "local"], ["c2", "ci"], ["c3", undefined]], "an entry written before sources says none");
+  assert.deepEqual(first?.sources, ["local", "ci"]);
+  assert.deepEqual(first?.why?.sources, ["ci"], "the source of the contract carrying its reason");
+  assert.deepEqual(second?.sources, ["local"]);
+  assert.equal(third?.sources, undefined, "no contract with a source recorded: none");
+  assert.equal(third?.why?.sources, undefined);
+});

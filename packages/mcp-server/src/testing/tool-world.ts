@@ -28,6 +28,7 @@ export const TOOLS = [
   "correct_question",
   "edit_plan",
   "fence_plugin",
+  "file_owners",
   "focus",
   "friction_drain",
   "graduate_check",

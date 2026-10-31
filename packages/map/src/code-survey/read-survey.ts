@@ -27,12 +27,12 @@
  *   an imported folder can change without a commit.
  */
 import { createHash } from "node:crypto";
-import { readFileSync } from "node:fs";
+import { readFileSync, realpathSync } from "node:fs";
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { Worker } from "node:worker_threads";
-import { manifestFrom, noMergedMain, SKIPPED, surveySourceReader, type SurveySource } from "./survey-source.js";
+import { gitText, manifestFrom, noMergedMain, SKIPPED, surveySourceReader, type SurveySource } from "./survey-source.js";
 import { mappedSurveyReader, type ImportedFolder } from "./mapped-survey.js";
 import { pytestTestedNumbers } from "./python-tests.js";
 
@@ -75,7 +75,7 @@ export async function capabilitiesOfFiles(root: string, files: readonly string[]
   const undeclared: string[] = [];
   for (const raw of files) {
     const file = raw.replaceAll("\\", "/");
-    const story = tree.stories.find((candidate) => candidate.mapped === undefined && (packagesOf(candidate, alsoOwned).some((name) => file.startsWith(`packages/${name}/`)) || (packageOf(candidate) === "app" && file.startsWith("apps/desktop/"))));
+    const story = storyHolding(tree, file, alsoOwned)?.story;
     if (story === undefined) continue;
     let text: string | undefined;
     try {
@@ -98,6 +98,65 @@ export async function capabilitiesOfFiles(root: string, files: readonly string[]
   }
   for (const file of undeclared) if (inferred.has(file)) owners.set(file, { capability: inferred.get(file)!, inferred: true });
   return owners;
+}
+
+/** The story of `tree`'s, mapped from a folder of its own or not, whose package holds `file` (repo-relative, forward slashes), with that package's folder. */
+function storyHolding(tree: AnnotatedTree, file: string, alsoOwned: AlsoOwned): { story: AnnotatedTree["stories"][number]; folder: string } | undefined {
+  for (const story of tree.stories) {
+    if (story.mapped !== undefined) continue;
+    const name = packagesOf(story, alsoOwned).find((one) => file.startsWith(`packages/${one}/`));
+    if (name !== undefined) return { story, folder: `packages/${name}` };
+    if (packageOf(story) === "app" && file.startsWith("apps/desktop/")) return { story, folder: "apps/desktop" };
+  }
+  return undefined;
+}
+
+/** Where a file belongs: the path as given, repo-relative, and the story whose package holds it, that package, and its capability when it has one. */
+export interface FilePlace {
+  readonly file: string;
+  readonly path: string;
+  readonly story?: { readonly id: string; readonly title: string };
+  readonly package?: string;
+  readonly capability?: string;
+  readonly inferred?: boolean;
+}
+
+/**
+ * Each of `paths`, absolute or relative to `folder`, placed in the checkout `folder` is in, in order: the story whose
+ * package holds it and that package, whether the survey reads the file or not (an .mjs script outside src, a file not
+ * yet made), and its capability as {@link capabilitiesOfFiles} places it. A path in no story's package is placed nowhere.
+ */
+export async function placeFiles(folder: string, paths: readonly string[], tree: AnnotatedTree, options: Parameters<typeof capabilitiesOfFiles>[3] = {}): Promise<FilePlace[]> {
+  // Git names the top by its real path, so each path is read by its own.
+  const root = await checkoutTop(realOf(folder));
+  const relative = paths.map((given) => path.relative(root, realOf(path.resolve(folder, given))).split(path.sep).join("/"));
+  const owners = await capabilitiesOfFiles(root, relative, tree, options);
+  const alsoOwned = options.alsoOwned ?? ALSO_OWNED;
+  return paths.map((file, index) => {
+    const at = relative[index]!;
+    const holding = storyHolding(tree, at, alsoOwned);
+    const owner = owners.get(at);
+    return {
+      file, path: at,
+      ...(holding === undefined ? {} : { story: { id: holding.story.id, title: holding.story.title }, package: holding.folder }),
+      ...(owner === undefined ? {} : { capability: owner.capability, inferred: owner.inferred }),
+    };
+  });
+}
+
+/** `file`'s real path, through its nearest folder that exists: a file not yet made has none of its own. */
+function realOf(file: string): string {
+  try {
+    return realpathSync(file);
+  } catch {
+    const parent = path.dirname(file);
+    return parent === file ? file : path.join(realOf(parent), path.basename(file));
+  }
+}
+
+/** The top of the checkout `folder` is in, or `folder` itself when it is in none. */
+async function checkoutTop(folder: string): Promise<string> {
+  return gitText(folder, ["rev-parse", "--show-toplevel"]).catch(() => folder);
 }
 
 /**

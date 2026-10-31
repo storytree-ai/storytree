@@ -10,6 +10,7 @@
 import { z } from "zod";
 
 import type { Line } from "@storytree/library";
+import { placeFiles } from "@storytree/map/code-survey";
 import type { NoteRead, NoteToolContext } from "@storytree/library/commands";
 import { currentBranch, presentersOf, readClaims } from "@storytree/session-management";
 import { consumersOf, mounted, VerbRefusal, type DoorWords, type Verb, type VerbAnswer, type VerbFamilies, type VerbInput, type VerbInputs } from "@storytree/library/verbs";
@@ -92,6 +93,7 @@ export function mountTools(define: Define, verbs: readonly Verb<VerbInputs, Tool
           ...(home === undefined ? {} : { home }),
           ...(composed === undefined ? {} : { hostVerbs: async () => composed }),
           claims: () => readClaims(log, project, { quietMs: call.quietMs }),
+          placeFiles: async (paths) => placeFiles(folder, paths, await library.projectTree()),
           notesRead: () => notesRead(call),
           recordReads: (reads) => recordReads(call, reads),
           presenterOf: async (question) => (await presentersOf(log, project, [question])).get(question.id),

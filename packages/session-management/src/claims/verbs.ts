@@ -115,6 +115,30 @@ const claimOnly = verb({
   },
 });
 
+const owners = verb({
+  consumers: ["agent"],
+  command: {
+    family: "workspace",
+    name: "owners",
+    summary: "each file's capability and the session holding it, before you edit them, so you claim every free one in one call (ADR-1079 D2)",
+    usage: "workspace owners <path> [<path> ...]",
+  },
+  tool: {
+    name: "file_owners",
+    description: "Before editing several files, name them (paths, absolute or relative to your folder) to learn each one's capability and who holds it: another live session, by its own claim or on its increment's capabilities list, you, or nobody. A file no capability places is named by its story's package. The free capabilities are offered to claim in one call.",
+  },
+  inputs: { paths: { kind: "text", word: 0, many: true, describe: "the files you will edit, absolute or relative to your folder" } },
+  async act({ paths }, context: SessionVerbContext, words) {
+    if (context.placeFiles === undefined) throw new VerbRefusal("This door cannot place files: ask it through the file_owners tool or storytree workspace owners.");
+    if (paths.length === 0) throw new VerbRefusal("this needs the files' paths", { misuse: true });
+    const { fileOwners, ownerLine } = await import("./file-owners.js");
+    const found = await fileOwners(context, await context.placeFiles(paths));
+    const free = [...new Set(found.flatMap((one) => (one.capability !== undefined && one.holder === undefined && one.yours === undefined ? [one.capability] : [])))];
+    const offer = free.length === 0 ? [] : [`Claim the free ones in one call: ${words.say({ tool: "claim", command: `workspace claim ${free.join(" ")} --reason <text>` })}.`];
+    return { text: [...found.map(ownerLine), ...offer].join("\n"), data: { files: found, free } };
+  },
+});
+
 const releaseClaim = verb({
   consumers: ["agent"],
   command: {
@@ -320,7 +344,7 @@ export const WORKSPACE_FAMILIES: readonly VerbFamily<SessionVerbContext>[] = [{
   name: "workspace",
   summary: "prepare or attach a workspace, claim or release work for this agent session, list stale claims, allow an increment's changes to imported code, or approve a project's checked-in worktree setup",
   order: 23,
-  verbs: [attach, claimOnly, releaseClaim, stale, allow, approveSetup, holdForPr, letGoOfPr, redPr, rerunCi],
+  verbs: [attach, claimOnly, owners, releaseClaim, stale, allow, approveSetup, holdForPr, letGoOfPr, redPr, rerunCi],
   bare: make,
 }];
 

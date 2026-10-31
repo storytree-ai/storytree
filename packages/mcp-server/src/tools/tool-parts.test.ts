@@ -47,7 +47,7 @@ test("6.95 the tool server serves no tool of a part this computer switches off, 
   };
   const all = await served([]);
   assert.ok(all.includes("quality_brief") && all.includes("hook_event"), "both parts' tools are served with nothing off");
-  const declaredTools = ["record_friction", "friction_drain", "route", "name_session", "close_out"];
+  const declaredTools = ["record_friction", "friction_drain", "route", "name_session", "close_out", "file_owners"];
   for (const tool of declaredTools) assert.ok(all.includes(tool), `${tool}, declared on a verb, is served with nothing off`);
   const partTools = ["claim", "release", "make_workspace", "attach_workspace", "stale_claims", "read_context", "list_own_runs", "list_all_runs", "stop_own_run", "clear_own_runs", "report", "land", "present_question"];
   for (const tool of partTools) assert.ok(all.includes(tool), `${tool}, Session management's tool part, is served with nothing off`);

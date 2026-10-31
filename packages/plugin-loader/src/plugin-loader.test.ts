@@ -451,3 +451,25 @@ test("5.12 · a plugin's manifest declares its long-running services, each { nam
     assert.match(checked.problems.join("\n"), why);
   }
 });
+
+test("5.15 · `plugin check` on a plugin made `--for <part>` lists what that part provides that the plugin does not: its commands and tools, as the host's door composes them", async (t) => {
+  const { act: create, home } = await pluginVerb(t, "new");
+  await create({ plugin: "my-health", for: "ci-health" });
+  await create({ plugin: "my-extra" });
+  const { PLUGIN_FAMILIES } = await import("./factory/verbs.js");
+  const check = PLUGIN_FAMILIES[0]!.verbs.find((each) => "name" in each.command && each.command.name === "check")!;
+  const act = (input: object, context: object) => check.act(input as never, { folder: home, ...context } as never, { door: "command", say: (step) => step.command! });
+  const hostVerbs = async () => ({
+    parts: [
+      { name: "health", verbs: [{ command: { family: "health", name: "worklist" }, tool: { name: "health_worklist" } }, { command: { family: "health", name: "ci" }, tool: { absent: "a terminal step" } }] },
+      { name: "globe", verbs: [] },
+    ],
+    owners: ["ci-health", "forest"],
+    graph: builtIn.graph,
+  });
+  const checked = (await act({ plugin: "my-health" }, { hostVerbs })).text;
+  assert.match(checked, /my-health would load/);
+  assert.match(checked, /^my-health stands in for ci-health, which provides what my-health does not: the commands health worklist, health ci; and the tool health_worklist\.$/m);
+  assert.doesNotMatch((await act({ plugin: "my-extra" }, { hostVerbs })).text, /provides what/, "a plugin standing in for no part lacks nothing");
+  assert.match((await act({ plugin: "my-extra", for: "ci-health" }, { hostVerbs })).text, /^my-extra stands in for ci-health, which provides what my-extra does not: the commands health worklist, health ci/m, "--for names the part for a plugin made without one");
+});

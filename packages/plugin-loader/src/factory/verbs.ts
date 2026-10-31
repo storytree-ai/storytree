@@ -11,6 +11,13 @@
  */
 import { verb, VerbRefusal, type VerbContext, type VerbFamily, type VerbPlace } from "@storytree/library/verbs";
 
+import type { Composition, ProvidingFamily } from "../switch/switch.js";
+
+/** Where a plugin verb was called: the place, and, from a door that composes them, the host's command families, each with the part that declares it. */
+export interface PluginPlace extends VerbPlace {
+  hostVerbs?(): Promise<Composition<ProvidingFamily>>;
+}
+
 const refused = (error: unknown): VerbRefusal => new VerbRefusal(error instanceof Error ? error.message : String(error));
 
 const contract = verb({
@@ -65,11 +72,14 @@ const check = verb({
   command: { family: "plugin", name: "check", summary: "say whether this storytree would load a plugin in your factory, and why not, switching nothing" },
   tool: {
     name: "check_plugin",
-    description: "Say whether this storytree would load a plugin in this computer's factory folder in a part's place, and why not: it loads the plugin as a host does and reads its verb families as a door mounts them, switching nothing.",
+    description: "Say whether this storytree would load a plugin in this computer's factory folder in a part's place, and why not: it loads the plugin as a host does and reads its verb families as a door mounts them, switching nothing. For a plugin standing in for a part, it lists the commands and tools that part provides and the plugin does not.",
   },
-  inputs: { plugin: { kind: "text", word: 0, describe: "the plugin's name: its folder in the factory's plugins folder" } },
+  inputs: {
+    plugin: { kind: "text", word: 0, describe: "the plugin's name: its folder in the factory's plugins folder" },
+    for: { kind: "text", optional: true, describe: "the part it stands in for, when neither its manifest (`plugin new --for` writes it) nor this computer's setting names one" },
+  },
   callerless: true,
-  async act({ plugin }) {
+  async act({ plugin, for: named }, { hostVerbs }: PluginPlace) {
     const [{ factoryFolder }, { checkPlugin }] = await Promise.all([import("@storytree/project-and-caller"), import("./contract.js")]);
     const checked = checkPlugin(factoryFolder().folder, plugin);
     if (!checked.loads) {
@@ -79,8 +89,9 @@ const check = verb({
     const { pluginLibrarian } = await import("./factory.js");
     const librarian = checked.adds.librarian === undefined ? undefined : pluginLibrarian(factoryFolder().folder, plugin);
     const keeps = librarian === undefined ? "" : ` Its librarian, librarian-${plugin}, connects as the database role ${librarian.role}, which ${granted(librarian)}.`;
+    const lacks = hostVerbs === undefined ? undefined : await lackingLine(factoryFolder().folder, plugin, named, await hostVerbs());
     return {
-      text: `${plugin} would load: it adds ${adds}.${keeps}`,
+      text: `${plugin} would load: it adds ${adds}.${keeps}${lacks === undefined ? "" : `\n${lacks}`}`,
       next: [
         { command: `settings set part <part> plugin ${plugin}`, why: "switch a part off with it in its place" },
         { command: `settings set part ${plugin} plugin ${plugin}`, why: "or add it under its own name, standing in for no part" },
@@ -89,6 +100,19 @@ const check = verb({
     };
   },
 });
+
+/**
+ * What the part plugin `plugin` of `folder` stands in for provides of the host's command families `composed` that the
+ * plugin does not (friction_195e0c8067ff), said; the part is `named`, else the one its manifest names, else the one this
+ * computer's setting names it for, and none is said for a plugin standing in for no part of the host's.
+ */
+async function lackingLine(folder: string | undefined, plugin: string, named: string | undefined, composed: Composition<ProvidingFamily>): Promise<string | undefined> {
+  const [{ readStandIns }, { pluginFor, pluginParts }, { lackingSaid, partProvides, provided }] = await Promise.all([import("@storytree/project-and-caller"), import("./factory.js"), import("../switch/switch.js")]);
+  const part = named ?? pluginFor(folder, plugin) ?? Object.entries(readStandIns().plugins).find(([, one]) => one === plugin)?.[0];
+  if (part === undefined || part === plugin || !composed.owners.includes(part)) return undefined;
+  const lacking = lackingSaid(partProvides(composed, part), provided(pluginParts(folder, plugin, "verbs") as ProvidingFamily[]));
+  return lacking === undefined ? `${plugin} stands in for ${part} and provides every command and tool it does.` : `${plugin} stands in for ${part}, which provides what ${plugin} does not: ${lacking}.`;
+}
 
 const removeRecords = verb({
   command: { family: "plugin", name: "remove-records", summary: "list a switched-off plugin's records in this project, and with --yes remove exactly those" },

@@ -91,3 +91,65 @@ export function offSaid({ part, because, failed }: SwitchedOff): string {
   const standIn = failed === undefined ? "" : `, and ${failed}`;
   return `${part} is switched off on this computer${why}${standIn}. Switch it on with: storytree settings set part ${because} on`;
 }
+
+/** A declared verb, as far as what it provides: its command, with a name unless it is absent, and its tool, likewise. */
+export interface ProvidingVerb {
+  readonly command: object;
+  readonly tool: object;
+}
+
+/** A command's or tool's name, none when it is declared absent. */
+const nameOf = (face: object): string | undefined => "name" in face && typeof face.name === "string" ? face.name : undefined;
+
+/** A declared command family, as far as what it provides: its verbs, its bare verb and the families within it. */
+export interface ProvidingFamily {
+  readonly name: string;
+  readonly verbs: readonly ProvidingVerb[];
+  readonly bare?: ProvidingVerb;
+  readonly families?: readonly ProvidingFamily[];
+}
+
+/** What declared command families provide: the families, each command by the words after `storytree`, and each tool. */
+export interface Provided {
+  readonly families: readonly string[];
+  readonly commands: readonly string[];
+  readonly tools: readonly string[];
+}
+
+/** The commands and tools of `family`, whose words after `storytree` are `words`, its bare verb's and its nested families' included. */
+function faces(family: ProvidingFamily, words: string): { commands: string[]; tools: string[] } {
+  const verbs = [...(family.bare === undefined ? [] : [{ verb: family.bare, words }]), ...family.verbs.map((verb) => ({ verb, words: `${words} ${nameOf(verb.command)}` }))];
+  const nested = (family.families ?? []).map((within) => faces(within, `${words} ${within.name}`));
+  return {
+    commands: [...verbs.flatMap(({ verb, words: said }) => nameOf(verb.command) === undefined ? [] : [said]), ...nested.flatMap((one) => one.commands)],
+    tools: [...verbs.flatMap(({ verb }) => nameOf(verb.tool) ?? []), ...nested.flatMap((one) => one.tools)],
+  };
+}
+
+/** What `families` provide, in the order they declare it. */
+export function provided(families: readonly ProvidingFamily[]): Provided {
+  const each = families.map((family) => faces(family, family.name));
+  return { families: families.map((family) => family.name), commands: each.flatMap((one) => one.commands), tools: each.flatMap((one) => one.tools) };
+}
+
+/** What `part` provides of the command families `composition` composed: those it declares. */
+export function partProvides(composition: Composition<ProvidingFamily>, part: string): Provided {
+  return provided(composition.parts.filter((_, index) => composition.owners[index] === part));
+}
+
+const listed = (one: string, many: string, names: readonly string[]): string => `${names.length === 1 ? one : many} ${names.join(", ")}`;
+
+/** What `provides` names, in words: "the command family health: health worklist, health ci; and the tool health_worklist". */
+export function providedSaid({ families, commands, tools }: Provided): string {
+  if (families.length === 0) return "nothing of the command line or the MCP server's";
+  const family = `${listed("the command family", "the command families", families)}${commands.length === 0 ? "" : `: ${commands.join(", ")}`}`;
+  return tools.length === 0 ? family : `${family}; and ${listed("the tool", "the tools", tools)}`;
+}
+
+/** What a stand-in providing `has` lacks of what its part provides, `part`, in words, or undefined when it lacks nothing. */
+export function lackingSaid(part: Provided, has: Provided): string | undefined {
+  const commands = part.commands.filter((command) => !has.commands.includes(command));
+  const tools = part.tools.filter((tool) => !has.tools.includes(tool));
+  const said = [...(commands.length === 0 ? [] : [listed("the command", "the commands", commands)]), ...(tools.length === 0 ? [] : [listed("the tool", "the tools", tools)])];
+  return said.length === 0 ? undefined : said.join("; and ");
+}

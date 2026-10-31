@@ -451,7 +451,7 @@ export function createAgentTools(options: AgentToolOptions): AgentTools {
   // Every verb a mounted part's command families declare a tool for (Friction's, Session management's), from their
   // manifests: a part switched off takes its tools with it (ADR-1095).
   const verbs = mount(standIn(VERB_PARTS, "verbs", standIns), off).mounted.flatMap(verbsOf);
-  mountTools(define, options.drain === undefined ? verbs : drainedBy(verbs, options.drain), verbHome);
+  mountTools(define, options.drain === undefined ? verbs : drainedBy(verbs, options.drain), verbHome, VERB_PARTS);
   for (const extension of extensions) extension.registerTools?.(define);
   for (const extension of extensions) extension.registerOwnerTools?.(defineForOwner);
   for (const extension of extensions) extension.registerHarnessTools?.(defineForHarness);

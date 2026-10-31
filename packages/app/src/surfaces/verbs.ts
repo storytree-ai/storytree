@@ -12,14 +12,19 @@ import path from "node:path";
 
 import type { FactorySwitched } from "@storytree/project-and-caller";
 import { verb, VerbRefusal, type VerbFamily, type VerbPlace } from "@storytree/library/verbs";
-import { CORE, switchedOff, type PartsGraph } from "@storytree/plugin-loader";
+import { CORE, switchedOff, type Composition, type PartsGraph } from "@storytree/plugin-loader";
+import type { ProvidingFamily } from "@storytree/plugin-loader/switch";
 
 import type { SurfaceDeclaration, SurfaceReading } from "./switches.js";
 
-/** Where a settings verb was called: the place, the host's surfaces, in the order the Surfaces menu lists them, and its parts. */
+/**
+ * Where a settings verb was called: the place, the host's surfaces, in the order the Surfaces menu lists them, its parts,
+ * and, from a door that composes them, its command families, each with the part that declares it.
+ */
 export interface SettingsPlace extends VerbPlace {
   surfaces(): Promise<readonly SurfaceDeclaration[]>;
   parts(): Promise<PartsGraph>;
+  hostVerbs?(): Promise<Composition<ProvidingFamily>>;
 }
 
 const show = verb({
@@ -51,6 +56,20 @@ function switchedHere(graph: PartsGraph, off: readonly string[]): ReadonlyMap<st
   return switched;
 }
 
+/**
+ * What switching `part` off takes away, given the parts `off` names off and the host's command families `composed`: each
+ * part off because of it, itself first, with its command families, commands and tools, and those of the factory plugin
+ * standing in for it (the stand-ins `standIns` name), added in its place (friction_9ff1eaa190a0).
+ */
+async function takenSaid(part: string, graph: PartsGraph, off: readonly string[], standIns: { readonly folder?: string; readonly plugins: Readonly<Record<string, string>> }, composed: Composition<ProvidingFamily>): Promise<string[]> {
+  const [{ standIn }, { partProvides, providedSaid }] = await Promise.all([import("@storytree/plugin-loader"), import("@storytree/plugin-loader/switch")]);
+  const gone = [...switchedOff(graph, off)].filter(([, because]) => because === part).map(([one]) => one).sort((a, b) => a === part ? -1 : b === part ? 1 : a.localeCompare(b));
+  const lines = gone.map((one) => `${one === part ? one : `${one}, which stands on ${part},`} takes away ${providedSaid(partProvides(composed, one))}.`);
+  const plugin = standIns.plugins[part];
+  if (plugin === undefined || !Object.hasOwn(graph, part)) return lines;
+  return [...lines, `${plugin} adds in its place ${providedSaid(partProvides(standIn(composed, "verbs", standIns), plugin))}.`];
+}
+
 const set = verb({
   consumers: ["user"],
   command: {
@@ -62,7 +81,7 @@ const set = verb({
   tool: { absent: "the user's settings are the person's own, set from a terminal" },
   inputs: { words: { kind: "text", word: 0, many: true, describe: "the setting's name and its value" } },
   callerless: true,
-  async act({ words }, { surfaces, parts, session }: SettingsPlace) {
+  async act({ words }, { surfaces, parts, hostVerbs, session }: SettingsPlace) {
     const { readStandIns, servicesSaid, setFactory, setLibrary, setSetting, switchedSaid, switchPart, switchService, switchSystem, systemSaid } = await import("@storytree/project-and-caller");
     if (words[0] === "library" && words.length >= 2) return { text: librarySaid(setLibrary(words.slice(1))) };
     if (words[0] === "factory" && words.length === 2) {
@@ -72,7 +91,10 @@ const set = verb({
     if (words[0] === "part" && (words.length === 3 || (words.length === 4 && words[2] === "plugin"))) {
       const graph = await parts();
       const off = switchPart(words[1]!, words[2]!, Object.keys(graph), undefined, words[3], { through: "command line", ...(session === undefined ? {} : { session }) });
-      return { text: switchedSaid(switchedHere(graph, off), readStandIns().plugins, Object.keys(graph)) };
+      const standIns = readStandIns();
+      const said = switchedSaid(switchedHere(graph, off), standIns.plugins, Object.keys(graph));
+      if (words[2] === "on" || hostVerbs === undefined) return { text: said };
+      return { text: [said, ...await takenSaid(words[1]!, graph, off, standIns, await hostVerbs())].join("\n") };
     }
     if (words[0] === "system" && words.length === 3) return { text: systemSaid(switchSystem(words[1]!, words[2]!)) };
     if (words[0] === "service" && words.length === 3) return { text: servicesSaid(switchService(words[1]!, words[2]!)) };

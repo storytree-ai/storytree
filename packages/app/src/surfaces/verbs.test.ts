@@ -114,3 +114,35 @@ test("project-and-caller 2.25 `settings set service <part>/<service> on|off` tur
   assert.match((await named("show").act({}, place, words)).text, /^Turned on on this computer: voice\/listen\./m);
   assert.match((await named("set").act({ words: ["service", "voice/listen", "off"] }, place, words)).text, /^No service is turned on on this computer\./);
 });
+
+/** The host's command families, as `#parts/verbs` composes them: ci-health's `health`, and forest's `globe` with a tool. */
+const hostVerbs = {
+  parts: [
+    { name: "health", verbs: [{ command: { family: "health", name: "worklist" }, tool: { absent: "the MCP server's own" } }, { command: { family: "health", name: "ci" }, tool: { absent: "a terminal step" } }] },
+    { name: "globe", verbs: [{ command: { family: "globe", name: "spin" }, tool: { name: "spin_globe" } }] },
+  ],
+  owners: ["ci-health", "forest"],
+  graph: { ...graph, "ci-health": ["library"] },
+};
+
+test("plugin-loader 4.3 · `settings set part <part> off` or `plugin <plugin>` names the command families, commands and tools the parts it switches off take away, and those the plugin adds in their place", async (t) => {
+  const dir = home(t);
+  const place: SettingsPlace = { folder: dir, surfaces: async () => declared, parts: async () => hostVerbs.graph, hostVerbs: async () => hostVerbs };
+  const off = (await named("set").act({ words: ["part", "ci-health", "off"] }, place, words)).text;
+  assert.match(off, /^ci-health takes away the command family health: health worklist, health ci\.$/m);
+  const forest = (await named("set").act({ words: ["part", "forest", "off"] }, place, words)).text;
+  assert.match(forest, /^forest takes away the command family globe: globe spin; and the tool spin_globe\.$/m);
+  assert.match(forest, /^arc-surface, which stands on forest, takes away nothing of the command line or the MCP server's\.$/m);
+  assert.doesNotMatch(forest, /^ci-health takes away/m, "only what this switch takes away is said");
+
+  const { mkdirSync, writeFileSync } = await import("node:fs");
+  const plugin = path.join(dir, "factory", "plugins", "laptop-health");
+  mkdirSync(plugin, { recursive: true });
+  writeFileSync(path.join(plugin, "package.json"), JSON.stringify({ name: "laptop-health", type: "module", exports: { "./verbs": "./verbs.js" }, storytree: { interface: 1, verbs: [{ from: "./verbs", export: "verbs" }] } }));
+  writeFileSync(path.join(plugin, "verbs.js"), `export const verbs = [{ name: "laptop-health", summary: "s", order: 40, verbs: [{ command: { family: "laptop-health", name: "worklist", summary: "s" }, tool: { name: "laptop_worklist", description: "d" }, inputs: {}, async act() { return { text: "" }; } }] }];\n`);
+  await named("set").act({ words: ["factory", path.join(dir, "factory")] }, place, words);
+  const swapped = (await named("set").act({ words: ["part", "ci-health", "plugin", "laptop-health"] }, place, words)).text;
+  assert.match(swapped, /^ci-health takes away the command family health: health worklist, health ci\.$/m);
+  assert.match(swapped, /^laptop-health adds in its place the command family laptop-health: laptop-health worklist; and the tool laptop_worklist\.$/m);
+  assert.doesNotMatch((await named("set").act({ words: ["part", "ci-health", "on"] }, place, words)).text, /takes away/);
+});

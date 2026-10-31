@@ -162,3 +162,26 @@ export const families = [{ name: "health", summary: "my own health", order: 18, 
     }
   });
 });
+
+test("plugin-loader 5.15 · check_plugin, served by the tool server, is handed its command families: on a stand-in for experiments it lists the commands experiments provides that the plugin does not", async (t) => {
+  const home = mkdtempSync(path.join(tmpdir(), "stand-in-check-"));
+  const before = process.env.STORYTREE_HOME;
+  process.env.STORYTREE_HOME = home;
+  t.after(() => {
+    if (before === undefined) delete process.env.STORYTREE_HOME;
+    else process.env.STORYTREE_HOME = before;
+    return removeTemp(home);
+  });
+  const plugin = path.join(home, "factory", "plugins", "my-lab");
+  mkdirSync(plugin, { recursive: true });
+  writeFileSync(path.join(plugin, "package.json"), JSON.stringify({ name: "my-lab", type: "module", exports: { "./verbs": "./verbs.js" }, storytree: { interface: 1, for: "experiments", verbs: [{ from: "./verbs", export: "families" }] } }));
+  writeFileSync(path.join(plugin, "verbs.js"), `export const families = [{ name: "lab", summary: "my lab", order: 27, verbs: [{ command: { family: "lab", name: "run", summary: "s" }, tool: { absent: "no" }, inputs: {}, callerless: true, act: async () => ({ text: "ran" }) }] }];\n`);
+  writeFileSync(path.join(home, "settings.json"), JSON.stringify({ factory: path.join(home, "factory") }));
+  await withProject(async ({ folder }) => {
+    await withAgent(folder, {}, async (agent) => {
+      const checked = await agent.call("check_plugin", { plugin: "my-lab" });
+      assert.equal(checked.isError, false, checked.text);
+      assert.match(checked.text, /^my-lab stands in for experiments, which provides what my-lab does not: the commands experiment freeze, experiment curves\b/m);
+    });
+  });
+});

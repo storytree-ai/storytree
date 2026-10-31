@@ -79,6 +79,12 @@ function pluginManifest(folder: string | undefined, plugin: string): { dir: stri
   return { dir, pkg, manifest: manifest as Record<string, unknown> };
 }
 
+/** The part plugin `plugin` of `folder` was made to stand in for, as its manifest's `for` names it (`plugin new --for`), when it names one. */
+export function pluginFor(folder: string | undefined, plugin: string): string | undefined {
+  const named = pluginManifest(folder, plugin).manifest.for;
+  return typeof named === "string" && named !== "" ? named : undefined;
+}
+
 /** The declarations of `kind` plugin `plugin` of `folder` adds, none for a kind it does not name; a plugin that cannot be read is refused with why. */
 export function pluginParts(folder: string | undefined, plugin: string, kind: string): unknown[] {
   const { dir, pkg, manifest } = pluginManifest(folder, plugin);

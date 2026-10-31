@@ -74,8 +74,8 @@ test(${JSON.stringify(`1.1 · ${name}'s hello says it is mounted`)}, async () =>
 }
 
 /**
- * Plugin `name` started in factory folder `folder`: a package.json naming the plugin interface this storytree honours
- * and its test command, a verbs module this storytree loads, and one numbered test of it. A name taken, or one that is
+ * Plugin `name` started in factory folder `folder`: a package.json naming the plugin interface this storytree honours,
+ * the part it stands in for when one is given, and its test command, a verbs module this storytree loads, and one numbered test of it. A name taken, or one that is
  * not one folder's, is refused, writing nothing.
  */
 export function newPlugin(folder: string, name: string, part?: string): { readonly dir: string; readonly files: readonly string[] } {
@@ -88,7 +88,7 @@ export function newPlugin(folder: string, name: string, part?: string): { readon
     description: part === undefined ? "A storytree factory plugin" : `A storytree factory plugin standing in for ${part}`,
     exports: { "./verbs": "./verbs.js" },
     scripts: { test: "node --test" },
-    storytree: { interface: PLUGIN_INTERFACE, verbs: [{ from: "./verbs", export: "PLUGIN_FAMILIES" }] },
+    storytree: { interface: PLUGIN_INTERFACE, ...(part === undefined ? {} : { for: part }), verbs: [{ from: "./verbs", export: "PLUGIN_FAMILIES" }] },
   };
   mkdirSync(dir, { recursive: true });
   writeFileSync(path.join(dir, "package.json"), `${JSON.stringify(pkg, null, 2)}\n`);
@@ -197,6 +197,7 @@ export function contractSaid(): string {
     "  \"exports\": { \"./verbs\": \"./verbs.js\" }: each module the manifest names, by a subpath inside the plugin's folder;",
     `  "storytree": { "interface": ${PLUGIN_INTERFACE}, "<kind>": [{ "from": "./verbs", "export": "PLUGIN_FAMILIES" }] }:`,
     `    interface is the version of storytree's plugin interface it is written for: this storytree honours ${PLUGIN_INTERFACE}, and leaves a plugin naming another, or none, unmounted;`,
+    "    for, optional, names the part it stands in for, so `storytree plugin check` lists what that part provides that the plugin does not;",
     "    each kind lists { from, export }: an exported subpath, and the name that module exports a list of declarations under.",
     "",
     "Each module is ready-to-run JavaScript (an ES module with no top-level await) that imports nothing of storytree's: it exports plain declarations, and a host hands their work its context.",

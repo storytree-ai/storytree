@@ -216,6 +216,22 @@ export const families = [{ name: "health", summary: "my own health, from my fact
   return folder;
 }
 
+test("plugin-loader 4.3 · 5.15 · through the command line, `settings set part ci-health plugin my-health` names what ci-health takes away and what my-health adds in its place, and `plugin check my-health --for ci-health` lists ci-health's commands my-health lacks", async (t) => {
+  const dir = realpathSync(mkdtempSync(path.join(tmpdir(), "storytree-taken-")));
+  t.after(() => removeTemp(dir));
+  const home = path.join(dir, "home");
+  const invoke = (args: string[]) => storytree(command.script, args, { cwd: dir, home });
+  assert.equal((await invoke(["settings", "set", "factory", healthPlugin(dir)])).code, 0);
+
+  const switched = await invoke(["settings", "set", "part", "ci-health", "plugin", "my-health"]);
+  assert.equal(switched.code, 0, switched.stderr);
+  assert.match(switched.stdout, /^ci-health takes away the command family health: health worklist, health ci\b/m);
+  assert.match(switched.stdout, /^my-health adds in its place the command family health: health check; and the tool my_health_check\.$/m);
+  const checked = await invoke(["plugin", "check", "my-health", "--for", "ci-health"]);
+  assert.equal(checked.code, 0, checked.stderr);
+  assert.match(checked.stdout, /^my-health stands in for ci-health, which provides what my-health does not: the commands health worklist, health ci\b/m);
+});
+
 test("1.40 · with a factory folder chosen and `settings set part ci-health plugin my-health`, the command line lists and runs the factory plugin's family where ci-health's was, its verb handed the door's place; `settings set part ci-health on` mounts ci-health's own again", async (t) => {
   const dir = realpathSync(mkdtempSync(path.join(tmpdir(), "storytree-stand-in-")));
   t.after(() => rmSync(dir, { recursive: true, force: true }));

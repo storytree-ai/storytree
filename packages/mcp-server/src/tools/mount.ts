@@ -14,6 +14,8 @@ import type { NoteRead, NoteToolContext } from "@storytree/library/commands";
 import { currentBranch, presentersOf, readClaims } from "@storytree/session-management";
 import { consumersOf, mounted, VerbRefusal, type DoorWords, type Verb, type VerbAnswer, type VerbFamilies, type VerbInput, type VerbInputs } from "@storytree/library/verbs";
 import type { SessionVerbContext } from "@storytree/session-management/verbs";
+import type { Composition } from "@storytree/plugin-loader";
+import type { ProvidingFamily } from "@storytree/plugin-loader/switch";
 
 import { lineOf, type Answer, type Call, type Define } from "./server.js";
 import { toolInput } from "./tool-input.js";
@@ -48,7 +50,10 @@ function schemaOf(input: VerbInput): z.ZodType {
 }
 
 /** What this door hands a mounted verb: the caller's context with the activity log, and what the library's artifact tools read. */
-export type ToolContext = SessionVerbContext & NoteToolContext;
+export type ToolContext = SessionVerbContext & NoteToolContext & {
+  /** The server's command families, each with the part that declares it, which `check_plugin` reads a stand-in's part from. */
+  hostVerbs?(): Promise<Composition<ProvidingFamily>>;
+};
 
 /** The calling session's artifact reads, oldest first: its own note-read lines alone (contract 2.7). */
 async function notesRead({ log, project, caller }: Call): Promise<NoteRead[]> {
@@ -71,9 +76,9 @@ export function verbsOf(family: VerbFamilies<ToolContext>): Verb<VerbInputs, Too
 /**
  * Serve each of `verbs` that has a tool, handing it the caller's context with the activity log, the project's claims,
  * and the calling session's artifact reads. `home` is the storytree home its ledger and claims are kept under, when
- * not the usual one.
+ * not the usual one; `composed` is the server's command families, as `#parts/verbs` composed them, when it hands them on.
  */
-export function mountTools(define: Define, verbs: readonly Verb<VerbInputs, ToolContext>[], home?: string): void {
+export function mountTools(define: Define, verbs: readonly Verb<VerbInputs, ToolContext>[], home?: string, composed?: Composition<ProvidingFamily>): void {
   for (const declared of verbs) {
     if (!mounted(declared.tool)) continue;
     const input = z.object(Object.fromEntries(Object.entries(declared.inputs).map(([name, one]) => [name, schemaOf(one)])));
@@ -85,6 +90,7 @@ export function mountTools(define: Define, verbs: readonly Verb<VerbInputs, Tool
           log, library, project, ...lineOf(caller), folder, writer,
           ...(branch === undefined ? {} : { branch }),
           ...(home === undefined ? {} : { home }),
+          ...(composed === undefined ? {} : { hostVerbs: async () => composed }),
           claims: () => readClaims(log, project, { quietMs: call.quietMs }),
           notesRead: () => notesRead(call),
           recordReads: (reads) => recordReads(call, reads),

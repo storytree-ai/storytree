@@ -660,32 +660,61 @@ const CALLED = /\b(?:test|it)(?:\.only)?\s*\(\s*$/;
  * Each test `diff` adds, in a test file, at its line, and whether the red runs saved in the worktree at `root` name it failing:
  * by its full name ending in its title, or by its file failing to load. A test is a test or `it` call in the file's code, read from
  * the worktree, whose literal title opens on a line the diff adds; one written inside a string (a fixture's file) is not. A title the
- * diff also removes from the same file is a moved or reworded test, not a new one, and is left out.
+ * diff also removes from the same file is a moved or reworded test, not a new one, and is left out; so is one whose body, everything
+ * after its title, is that of a test whose title line the diff removes from any test file, read from that file's old blob: a test
+ * moved to another file or renumbered (contract 2.21).
  */
 export function redsOf(diff: string, root: string): BriefRed[] {
   const added = new Map<string, Set<number>>();
   const removed = new Set<string>();
+  const gone: { blob: string; lines: Set<number> }[] = [];
   let file: string | undefined;
+  let old: { blob: string; lines: Set<number> } | undefined;
+  let tested = false;
   let line = 0;
+  let oldLine = 0;
   for (const text of diff.split("\n")) {
-    const header = /^diff --git a\/\S+ b\/(\S+)$/.exec(text);
+    const header = /^diff --git a\/(\S+) b\/(\S+)$/.exec(text);
     if (header !== null) {
-      file = TEST_FILE.test(header[1]!) ? header[1] : undefined;
+      file = TEST_FILE.test(header[2]!) ? header[2] : undefined;
+      tested = TEST_FILE.test(header[1]!);
+      old = undefined;
       continue;
     }
-    if (file === undefined) continue;
-    const hunk = /^@@ -\d+(?:,\d+)? \+(\d+)(?:,\d+)? @@/.exec(text);
+    const index = /^index ([0-9a-f]+)\.\.[0-9a-f]+/.exec(text);
+    if (index !== null && tested && !/^0+$/.test(index[1]!)) {
+      gone.push(old = { blob: index[1]!, lines: new Set() });
+      continue;
+    }
+    if (file === undefined && old === undefined) continue;
+    const hunk = /^@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@/.exec(text);
     if (hunk !== null) {
-      line = Number(hunk[1]);
+      oldLine = Number(hunk[1]);
+      line = Number(hunk[2]);
       continue;
     }
     if (text.startsWith("+++") || text.startsWith("---")) continue;
     if (text.startsWith("+")) {
-      added.set(file, (added.get(file) ?? new Set()).add(line));
+      if (file !== undefined) added.set(file, (added.get(file) ?? new Set()).add(line));
       line += 1;
     } else if (text.startsWith("-")) {
-      for (const title of titlesIn(text.slice(1))) removed.add(`${file}\0${title.test}`);
-    } else if (text.startsWith(" ")) line += 1;
+      if (file !== undefined) for (const title of titlesIn(text.slice(1))) removed.add(`${file}\0${title.test}`);
+      old?.lines.add(oldLine);
+      oldLine += 1;
+    } else if (text.startsWith(" ")) {
+      line += 1;
+      oldLine += 1;
+    }
+  }
+  const moved = new Map<string, number>();
+  for (const { blob, lines } of gone) {
+    let text: string;
+    try {
+      text = execFileSync("git", ["cat-file", "blob", blob], { cwd: root, encoding: "utf8", maxBuffer: 256 * 1024 * 1024, stdio: ["ignore", "pipe", "ignore"], windowsHide: true });
+    } catch {
+      continue; // not in this clone's objects
+    }
+    for (const { line, body } of titlesIn(text)) if (lines.has(line)) moved.set(body, (moved.get(body) ?? 0) + 1);
   }
   const saved = savedReds(root, new Set(added.keys()));
   return [...added].flatMap(([file, lines]) => {
@@ -695,23 +724,43 @@ export function redsOf(diff: string, root: string): BriefRed[] {
     } catch {
       return []; // deleted by the change
     }
-    return titlesIn(text).filter(({ line, test }) => lines.has(line) && !removed.has(`${file}\0${test}`)).map(({ line, test }) => ({
+    return titlesIn(text).filter(({ line, test, body }) => {
+      if (!lines.has(line) || removed.has(`${file}\0${test}`)) return false;
+      const left = moved.get(body) ?? 0;
+      if (left === 0) return true;
+      moved.set(body, left - 1);
+      return false;
+    }).map(({ line, test }) => ({
       file, line, test,
       red: saved.some((row) => row.file === file && (row.test === null || row.test === test || row.test.endsWith(` › ${test}`))),
     }));
   });
 }
 
-/** Each test or `it` call in `text`'s code with a literal title, by the line its title opens on. */
-function titlesIn(text: string): { line: number; test: string }[] {
-  const strings: { at: number; value: string; template: boolean }[] = [];
+/**
+ * Each test or `it` call in `text`'s code with a literal title, by the line its title opens on, with its body: the text after its
+ * title to the call's closing bracket, whitespace collapsed.
+ */
+function titlesIn(text: string): { line: number; test: string; body: string }[] {
+  const strings: { at: number; end: number; value: string; template: boolean }[] = [];
   const code = text.replace(INERT, (token: string, quote: string | undefined, at: number) => {
-    if (quote !== undefined) strings.push({ at, value: token.slice(1, -1), template: quote === "`" });
+    if (quote !== undefined) strings.push({ at, end: at + token.length, value: token.slice(1, -1), template: quote === "`" });
     return token.replace(/[^\r\n]/g, " ");
   });
   return strings
     .filter(({ at, value, template }) => CALLED.test(code.slice(Math.max(0, at - 40), at)) && !(template && value.includes("${")))
-    .map(({ at, value }) => ({ line: text.slice(0, at).split("\n").length, test: value }));
+    .map(({ at, end, value }) => ({ line: text.slice(0, at).split("\n").length, test: value, body: text.slice(end, closeOf(code, end)).replace(/\s+/g, " ").trim() }));
+}
+
+/** Where the call whose title ends at `from` in `code` (strings and comments blanked) closes, or the code's end. */
+function closeOf(code: string, from: number): number {
+  let depth = 1;
+  for (let at = from; at < code.length; at += 1) {
+    const char = code[at];
+    if (char === "(" || char === "[" || char === "{") depth += 1;
+    else if ((char === ")" || char === "]" || char === "}") && --depth === 0) return at;
+  }
+  return code.length;
 }
 
 /**

@@ -908,6 +908,56 @@ test("2.14 · a test the change adds below a regex literal holding a quote or a 
   }
 });
 
+test("2.21 · a test moved to another file and renumbered with its body unchanged is not listed; one whose assertion changed, or a copy whose original stays, is", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "qa-moved-"));
+  try {
+    const git = (...args: string[]) => execFileSync("git", args, { cwd: dir, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] });
+    git("init", "-q", "-b", "main");
+    git("config", "user.email", "t@example.com");
+    git("config", "user.name", "t");
+    const before = "packages/dev-loop/src/a.test.ts";
+    const after = "packages/base-dev-loop/src/a.test.ts";
+    const kept = "packages/dev-loop/src/c.test.ts";
+    mkdirSync(join(dir, "packages/dev-loop/src"), { recursive: true });
+    writeFileSync(join(dir, before), [
+      'import assert from "node:assert/strict";',
+      'import { test } from "node:test";',
+      'test("3.1 · moves as it is", () => {',
+      '  assert.equal(add(1, "2)"), 3);',
+      "});",
+      'test("3.2 · moves and changes", () => {',
+      "  assert.equal(add(2, 2), 4);",
+      "});",
+      "",
+    ].join("\n"));
+    writeFileSync(join(dir, kept), 'import { test } from "node:test";\ntest("4.1 · copied", () => { check(1); });\n');
+    git("add", "-A");
+    git("commit", "-q", "-m", "before");
+
+    rmSync(join(dir, before));
+    mkdirSync(join(dir, "packages/base-dev-loop/src"), { recursive: true });
+    writeFileSync(join(dir, after), [
+      'import assert from "node:assert/strict";',
+      'import { test } from "node:test";',
+      'test("7.1 · moves as it is", () => {',
+      '  assert.equal(add(1, "2)"),   3);',
+      "});",
+      'test("7.2 · moves and changes", () => {',
+      "  assert.equal(add(2, 3), 5);",
+      "});",
+      'test("7.3 · copied", () => { check(1); });',
+      "",
+    ].join("\n"));
+    git("add", "-A");
+    assert.deepEqual(redsOf(branchDiff(dir, "main"), dir).map(({ file, line, test }) => ({ file, line, test })), [
+      { file: after, line: 6, test: "7.2 · moves and changes" },
+      { file: after, line: 9, test: "7.3 · copied" },
+    ]);
+  } finally {
+    await removeTemp(dir);
+  }
+});
+
 test("2.20 · a test an outside checkout's diff adds is listed under its checkout, with whether that checkout's saved red runs name it failing, and one none names is taken as a hit", async () => {
   await withLibrary(async (library, storytree) => {
     const { increment, contracts, checks } = await plan(library);

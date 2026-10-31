@@ -219,13 +219,15 @@ export function historyEntry(entry: {
   actor: string | null | undefined;
   outsideRead?: readonly string[] | null | undefined;
   at: string;
+  recordedBy?: string | null | undefined;
 }): HistoryEntry {
-  const { reason, actor, outsideRead, ...rest } = entry;
+  const { reason, actor, outsideRead, recordedBy, ...rest } = entry;
   return {
     ...rest,
     ...(reason === null || reason === undefined ? {} : { reason }),
     ...(actor === null || actor === undefined ? {} : { actor }),
     ...(outsideRead === null || outsideRead === undefined || outsideRead.length === 0 ? {} : { outsideRead: [...outsideRead] }),
+    ...(recordedBy === null || recordedBy === undefined ? {} : { recordedBy }),
   };
 }
 

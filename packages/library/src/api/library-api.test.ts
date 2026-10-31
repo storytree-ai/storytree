@@ -137,6 +137,7 @@ const LIBRARY_API = [
   "unheardFyis",
   "markFyisHeard",
   "createPluginRecord",
+  "editPluginRecord",
   "pluginRecords",
   "removePluginRecords",
   // Capability 27's fixed data questions.
@@ -851,5 +852,32 @@ test("7.21 createPluginRecord saves a record of a plugin's kind the project was 
     await assert.rejects(lib.createPluginRecord("chat.line", { words: "hello" }), { name: "UnknownTypeError" }, "a kind no mounted plugin declares");
     assert.deepEqual((await lib.history()).map((entry) => entry.recordId), [written.id], "nothing else was written");
     await lib.close();
+  });
+});
+
+test("7.24 editPluginRecord changes the named fields of a record of a plugin's kind the project was opened with, its writer on the history, and checkCurrent refuses an edit the record as it stands rules out; a core kind's record, a kind it was not opened with and fields outside the declared shape are refused with nothing written, and an id that is no live record is null", async () => {
+  const name = uniqueProjectName();
+  const note = { kind: "voice.note", version: 1, fields: { type: "object", properties: { words: { type: "string" }, takenBy: { type: "string" } }, required: ["words"], additionalProperties: false }, writers: ["storytree_voice"] };
+  await withStorytree([name], async (storytree) => {
+    const lib = await storytree.openProject(name, { kinds: [note] });
+    const written = await lib.createPluginRecord("voice.note", { words: "park the globe idea" });
+    const untaken = (current: { fields: Record<string, unknown> }) => {
+      if (current.fields.takenBy !== undefined) throw new Error(`already taken by ${String(current.fields.takenBy)}`);
+    };
+    const taken = await lib.editPluginRecord(written.id, { takenBy: "run 7" }, { actor: "owner", checkCurrent: untaken });
+    assert.deepEqual(taken?.fields, { words: "park the globe idea", takenBy: "run 7" });
+    assert.equal((await lib.history({ id: written.id })).at(-1)!.actor, "owner");
+    await assert.rejects(lib.editPluginRecord(written.id, { takenBy: "run 8" }, { checkCurrent: untaken }), /already taken by run 7/);
+    await assert.rejects(lib.editPluginRecord(written.id, { said: "no words" }), { name: "SchemaError" });
+    const story = await lib.addStory({ title: "Through the side door" });
+    await assert.rejects(lib.editPluginRecord(story.id, { title: "Edited from a plugin" }), { name: "UnknownTypeError" }, "a core kind has its own edit");
+    assert.equal(await lib.editPluginRecord("voice_note_000000000000", { takenBy: "run 9" }), null);
+    const before = (await lib.history()).length;
+    await lib.close();
+    const without = await storytree.openProject(name);
+    await assert.rejects(without.editPluginRecord(written.id, { takenBy: "run 9" }), { name: "UnknownTypeError" }, "a kind no mounted plugin declares");
+    assert.equal((await without.history()).length, before, "nothing else was written");
+    assert.deepEqual((await without.history({ id: written.id })).length, 2);
+    await without.close();
   });
 });

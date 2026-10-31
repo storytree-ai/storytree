@@ -65,7 +65,7 @@ export async function marksOutsideRead(on: Pool | PoolClient): Promise<boolean> 
 
 /** The history's columns, as `marks` says it has the mark's or not. */
 function eventColumns(marks: boolean): string {
-  return `seq, record_id, type, action, record, reason, actor, ${marks ? "outside_read" : "NULL::jsonb AS outside_read"}, at`;
+  return `seq, record_id, type, action, record, reason, actor, ${marks ? "outside_read" : "NULL::jsonb AS outside_read"}, at, recorded_by`;
 }
 
 interface RecordRow {
@@ -87,6 +87,7 @@ interface EventRow {
   actor: string | null;
   outside_read: string[] | null;
   at: Date;
+  recorded_by: string | null;
 }
 
 export class PgTransactions implements Transactions {
@@ -378,6 +379,7 @@ function entryOf(row: EventRow): HistoryEntry {
     actor: row.actor,
     outsideRead: row.outside_read,
     at: row.at.toISOString(),
+    recordedBy: row.recorded_by,
   });
 }
 

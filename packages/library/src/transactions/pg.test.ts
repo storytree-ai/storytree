@@ -59,3 +59,23 @@ test("2.21 [postgres] a library whose history has no place for the outside-text 
     }
   }
 });
+
+test("2.22 [postgres] each history entry read back names the account the server saw write it (recordedBy), whatever actor the writer gave", async () => {
+  const name = uniqueProjectName();
+  const storytree = await connect({ url: testServerUrl() });
+  try {
+    const project = await storytree.openProject(name);
+    const { rows } = await project.pool.query<{ account: string }>("SELECT session_user AS account");
+    const store = new PgTransactions(project.pool);
+    await store.save({ id: "p-1", type: "principle", fields: { v: 1 }, actor: "storytree_voice" });
+    await store.edit({ id: "p-1", fields: { v: 2 }, actor: "session:one" });
+    assert.deepEqual((await store.history({ id: "p-1" })).map((entry) => [entry.actor, entry.recordedBy]),
+      [["storytree_voice", rows[0]!.account], ["session:one", rows[0]!.account]]);
+  } finally {
+    try {
+      await storytree.close();
+    } finally {
+      await dropTestDatabases([`storytree_${name}`]);
+    }
+  }
+});

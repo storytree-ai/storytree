@@ -48,7 +48,7 @@
 // Access token but no library setting is given the library's HTTPS address (STORYTREE_LIBRARY_ADDRESS
 // when the environment sets it, else the route with PGUSER as its user, storytree_library when unset)
 // and approves this checkout as its project's, through storytree's own command line, putting the
-// checkout's committed .storytree.json back after the join. The password and the Access token come
+// checkout's committed marker (.storytree/project.json) back after the join. The password and the Access token come
 // from the environment itself (PGPASSWORD, CF_ACCESS_CLIENT_ID, CF_ACCESS_CLIENT_SECRET), so nothing
 // secret is written. infra/library-host/README.md describes the route.
 //

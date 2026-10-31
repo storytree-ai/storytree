@@ -178,7 +178,7 @@ A script that uses the app's local library joins the running app's database, or 
 app is not running, and waits its turn behind another script, so there is no need to quit the app.
 
 Since cutover (2026-09-27) the plan lives here too: 0.3's arcs, their increments and the owner's
-questions. `pnpm storytree …` is 0.3's command line run from this checkout, whose `.storytree.json`
+questions. `pnpm storytree …` is 0.3's command line run from this checkout, whose `.storytree/project.json`
 names the project `storytree`. It reaches the library the `library` setting names: one on Cloud SQL
 or at a Postgres address with no app needed, and the app's local library only through the running
 app, which it does not start. `pnpm storytree arc list` reads the plan, and `pnpm storytree

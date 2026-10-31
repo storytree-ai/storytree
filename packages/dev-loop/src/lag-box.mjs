@@ -501,26 +501,42 @@ export async function tick(args, { box = BOX, home = storytreeHome(), open = wit
   }
 }
 
-/** The box's two checkouts (runner: the timer's code, kept at main; measure: the commit being measured) and its systemd user timer. */
+const LOCK_REASON = "pnpm lag:box: the lag run's checkout, kept from the session worktree reaper (ADR-0790)";
+
+/**
+ * The box's two checkouts (runner: the timer's code, kept at main; measure: the commit being measured), each locked: the session
+ * worktree reaper (ADR-0790) removes a clean, unlocked worktree whose head is in main, which an idle measure checkout is. One found
+ * there unlocked is locked; one made is installed (`setUp`).
+ */
+export function makeCheckouts({ repo, box, dry = false, say = console.log, setUp = (tree) => execFileSync("pnpm", ["install", "--frozen-lockfile"], { cwd: tree, stdio: "inherit" }) }) {
+  for (const name of ["runner", "measure"]) {
+    const tree = path.join(box, name);
+    if (existsSync(tree)) {
+      say(`${tree} is there; git worktree lock`);
+      if (dry) continue;
+      try {
+        git(repo, "worktree", "lock", "--reason", LOCK_REASON, tree);
+      } catch (error) {
+        if (!/already locked/.test(String(error.stderr ?? error.message))) throw error;
+      }
+    } else {
+      say(`git worktree add --detach --lock ${tree} origin/main`);
+      if (dry) continue;
+      mkdirSync(box, { recursive: true });
+      git(repo, "fetch", "-q", "origin", "main");
+      git(repo, "worktree", "add", "--detach", "--lock", "--reason", LOCK_REASON, tree, "origin/main");
+      setUp(tree);
+    }
+  }
+}
+
+/** The box's two checkouts (makeCheckouts) and its systemd user timer. */
 function install(args) {
   const dry = args.includes("--dry-run");
   const say = (line) => console.log(dry ? `DRY RUN ${line}` : line);
   const linger = execFileSync("loginctl", ["show-user", userInfo().username, "-p", "Linger"], { encoding: "utf8" }).trim();
   if (linger !== "Linger=yes") throw new Error(`Linger is off, so a user timer stops at logout; the owner runs: sudo loginctl enable-linger ${userInfo().username}`);
-  const repo = path.join(homedir(), "code", "storytree03");
-  for (const name of ["runner", "measure"]) {
-    const tree = path.join(BOX, name);
-    if (existsSync(tree)) say(`${tree} is there`);
-    else {
-      say(`git worktree add --detach ${tree} origin/main`);
-      if (!dry) {
-        mkdirSync(BOX, { recursive: true });
-        git(repo, "fetch", "-q", "origin", "main");
-        git(repo, "worktree", "add", "--detach", tree, "origin/main");
-        execFileSync("pnpm", ["install", "--frozen-lockfile"], { cwd: tree, stdio: "inherit" });
-      }
-    }
-  }
+  makeCheckouts({ repo: path.join(homedir(), "code", "storytree03"), box: BOX, dry, say });
   const runner = path.join(BOX, "runner");
   const pnpm = execFileSync("which", ["pnpm"], { encoding: "utf8" }).trim();
   const service = [

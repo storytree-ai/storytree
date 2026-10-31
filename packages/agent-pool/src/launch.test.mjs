@@ -545,11 +545,11 @@ test("3.28 · a dispatcher configured with its own checkout and lanes folder bri
     rules: async () => "Work from ~/code/storytree03, never ~/code/storytree03-wt. Your report goes to ~/storytree-lanes/pool-<increment>.report.md.\n" });
   b.home = b.lanesDir;
   b.env = { AGENT_POOL_CONFIG: join(b.lanesDir, "agent-pool.json") };
-  await writeFile(b.env.AGENT_POOL_CONFIG, JSON.stringify({ checkout: "C:/code/storytree03", lanes: "~/.storytree/agent-pool" }));
+  await writeFile(b.env.AGENT_POOL_CONFIG, JSON.stringify({ checkout: "C:/no-such-folder/storytree03", lanes: "~/.storytree/agent-pool" }));
   delete b.briefPaths;
   b.sleep = async () => { await new Promise((go) => setImmediate(go)); if (b.briefs.length) await writeFile(join(b.lanesDir, "pool-stop"), ""); };
   assert.equal(await main(["pool"], b), 0);
-  assert.ok(b.briefs[0].endsWith(`Work from C:/code/storytree03, never ~/code/storytree03-wt. Your report goes to ${join(b.lanesDir, ".storytree", "agent-pool")}/pool-<increment>.report.md.\n`), b.briefs[0]);
+  assert.ok(b.briefs[0].endsWith(`Work from C:/no-such-folder/storytree03, never ~/code/storytree03-wt. Your report goes to ${join(b.lanesDir, ".storytree", "agent-pool")}/pool-<increment>.report.md.\n`), b.briefs[0]);
 });
 
 test("3.28 · a dispatcher whose checkout is a linked worktree runs and briefs its lanes from the repository's main worktree, where make_workspace accepts them", async (t) => {

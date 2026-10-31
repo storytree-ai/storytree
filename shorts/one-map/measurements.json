@@ -1,0 +1,67 @@
+{
+  "renderedAt": "2026-10-21T13:15:41.115Z",
+  "composition": {
+    "id": "one-map-for-you-and-your-agents",
+    "fps": 30,
+    "frames": 1740
+  },
+  "seconds": {
+    "bundle": 1.892,
+    "poster": 2.604,
+    "mp4": 165.391
+  },
+  "bytes": {
+    "one-map-for-you-and-your-agents-poster.png": 31394,
+    "one-map-for-you-and-your-agents-1080p.mp4": 913093
+  },
+  "stills": [
+    {
+      "beat": "two-jobs",
+      "seconds": 8,
+      "file": "still-two-jobs.png",
+      "brokenBlocks": 0
+    },
+    {
+      "beat": "claim-refused",
+      "seconds": 18,
+      "file": "still-claim-refused.png",
+      "brokenBlocks": 0
+    },
+    {
+      "beat": "claims-on-the-map",
+      "seconds": 24,
+      "file": "still-claims-on-the-map.png",
+      "brokenBlocks": 0
+    },
+    {
+      "beat": "changed-underneath",
+      "seconds": 29,
+      "file": "still-changed-underneath.png",
+      "brokenBlocks": 0
+    },
+    {
+      "beat": "who-changed-it",
+      "seconds": 36,
+      "file": "still-who-changed-it.png",
+      "brokenBlocks": 0
+    },
+    {
+      "beat": "claim-moved",
+      "seconds": 41,
+      "file": "still-claim-moved.png",
+      "brokenBlocks": 0
+    },
+    {
+      "beat": "small-review",
+      "seconds": 50,
+      "file": "still-small-review.png",
+      "brokenBlocks": 0
+    },
+    {
+      "beat": "end-card",
+      "seconds": 55,
+      "file": "still-end-card.png",
+      "brokenBlocks": 0
+    }
+  ]
+}

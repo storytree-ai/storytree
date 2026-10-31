@@ -1,0 +1,3 @@
+[submodule "storytree"]
+	path = storytree
+	url = https://github.com/storytree-ai/storytree.git

@@ -1,0 +1,128 @@
+{
+ "src/build.ts": {
+  "1": 24,
+  "2": 4,
+  "4": 4,
+  "5": 4
+ },
+ "src/escape-html.ts": {
+  "1": 6,
+  "2": 1,
+  "4": 1,
+  "5": 1
+ },
+ "src/forest-scene.tsx": {
+  "1": 31,
+  "2": 36
+ },
+ "src/forest.ts": {
+  "1": 14,
+  "2": 13
+ },
+ "src/main.ts": {
+  "1": 3,
+  "2": 3
+ },
+ "src/map-frame.ts": {
+  "1": 3,
+  "2": 40
+ },
+ "src/mark.ts": {
+  "1": 30,
+  "2": 5,
+  "4": 5,
+  "5": 5
+ },
+ "src/opening-audio.ts": {
+  "1": 7,
+  "2": 2
+ },
+ "src/opening-clock.ts": {
+  "1": 30,
+  "2": 5,
+  "4": 5,
+  "5": 5
+ },
+ "src/opening-lines.ts": {
+  "1": 14,
+  "2": 4,
+  "4": 2,
+  "5": 2
+ },
+ "src/opening-markup.ts": {
+  "1": 54,
+  "2": 9,
+  "4": 9,
+  "5": 9
+ },
+ "src/opening-seed.ts": {
+  "1": 14,
+  "2": 4,
+  "4": 2,
+  "5": 2
+ },
+ "src/opening.ts": {
+  "1": 78,
+  "2": 27
+ },
+ "src/publish-source.ts": {
+  "4": 48
+ },
+ "src/publish.ts": {
+  "4": 40
+ },
+ "src/refresh-forest.ts": {
+  "3": 1
+ },
+ "src/refresh-shop.ts": {
+  "3": 12
+ },
+ "src/saved-growth.ts": {
+  "3": 363
+ },
+ "src/shop-growth.ts": {
+  "3": 167
+ },
+ "src/shorts/cast.ts": {
+  "6": 63
+ },
+ "src/shorts/font.ts": {
+  "6": 48
+ },
+ "src/shorts/render.ts": {
+  "6": 54
+ },
+ "src/shorts/scene.ts": {
+  "6": 369
+ },
+ "src/shorts/script.ts": {
+  "6": 195
+ },
+ "src/shorts/short.tsx": {
+  "6": 12
+ },
+ "src/shorts/view.ts": {
+  "6": 297
+ },
+ "src/testing/pg.ts": {
+  "3": 2
+ },
+ "src/tour-copy.ts": {
+  "1": 6,
+  "2": 239,
+  "3": 12
+ },
+ "src/tour-counts.ts": {
+  "1": 60,
+  "2": 10,
+  "4": 10,
+  "5": 10
+ },
+ "src/tour-reading.ts": {
+  "1": 13,
+  "2": 28
+ },
+ "src/tour-snapshot.ts": {
+  "3": 245
+ }
+}

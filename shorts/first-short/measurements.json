@@ -1,0 +1,103 @@
+{
+  "renderedAt": "2026-10-21T22:35:29.443Z",
+  "composition": {
+    "id": "seeing-what-agents-built",
+    "fps": 30,
+    "frames": 1740
+  },
+  "seconds": {
+    "bundle": 1.975,
+    "poster": 3.747,
+    "socialMp4": 139.505
+  },
+  "bytes": {
+    "seeing-what-agents-built-poster.png": 23191,
+    "seeing-what-agents-built-1080p.mp4": 853783
+  },
+  "stills": [
+    {
+      "beat": "opening",
+      "seconds": 4.5,
+      "file": "still-opening.png",
+      "brokenBlocks": 0
+    },
+    {
+      "beat": "map-empty",
+      "seconds": 5.4,
+      "file": "still-map-empty.png",
+      "brokenBlocks": 0
+    },
+    {
+      "beat": "map-growing",
+      "seconds": 7,
+      "file": "still-map-growing.png",
+      "brokenBlocks": 0
+    },
+    {
+      "beat": "map-grown",
+      "seconds": 9.7,
+      "file": "still-map-grown.png",
+      "brokenBlocks": 0
+    },
+    {
+      "beat": "map-full-view",
+      "seconds": 12,
+      "file": "still-map-full-view.png",
+      "brokenBlocks": 0
+    },
+    {
+      "beat": "panel-open",
+      "seconds": 14,
+      "file": "still-panel-open.png",
+      "brokenBlocks": 0
+    },
+    {
+      "beat": "capability-graph",
+      "seconds": 17,
+      "file": "still-capability-graph.png",
+      "brokenBlocks": 0
+    },
+    {
+      "beat": "about-right",
+      "seconds": 20.5,
+      "file": "still-about-right.png",
+      "brokenBlocks": 0
+    },
+    {
+      "beat": "long-prompt",
+      "seconds": 27,
+      "file": "still-long-prompt.png",
+      "brokenBlocks": 0
+    },
+    {
+      "beat": "short-prompt",
+      "seconds": 32,
+      "file": "still-short-prompt.png",
+      "brokenBlocks": 0
+    },
+    {
+      "beat": "leaves-the-room",
+      "seconds": 41.6,
+      "file": "still-leaves-the-room.png",
+      "brokenBlocks": 0
+    },
+    {
+      "beat": "claude-asks",
+      "seconds": 44,
+      "file": "still-claude-asks.png",
+      "brokenBlocks": 0
+    },
+    {
+      "beat": "claude-works",
+      "seconds": 50,
+      "file": "still-claude-works.png",
+      "brokenBlocks": 0
+    },
+    {
+      "beat": "end-card",
+      "seconds": 54,
+      "file": "still-end-card.png",
+      "brokenBlocks": 0
+    }
+  ]
+}

@@ -1,0 +1,45 @@
+# The website is this repository's root package. storytree's rendering core comes from the submodule in
+# storytree/, pinned to a commit (ADR-1171 D2): the packages the site reaches, and the ones those reach.
+# The site imports only what their package.json `exports` declare (ADR-1112). Moving the pin is a commit.
+packages:
+  - storytree/packages/app-setup
+  - storytree/packages/arc-surface
+  - storytree/packages/base-dev-loop
+  - storytree/packages/ci-health
+  - storytree/packages/dev-loop
+  - storytree/packages/forest
+  - storytree/packages/forest-world
+  - storytree/packages/guardrails
+  - storytree/packages/keys
+  - storytree/packages/knowledge-core
+  - storytree/packages/library
+  - storytree/packages/local-postgres
+  - storytree/packages/map
+  - storytree/packages/mark
+  - storytree/packages/plugin-loader
+  - storytree/packages/project-and-caller
+  - storytree/packages/quality-assurance
+  - storytree/packages/session-management
+  - storytree/packages/test-waits
+
+# As storytree's pnpm-workspace.yaml has it, for the packages above.
+catalog:
+  happy-dom: 20.14.5
+
+onlyBuiltDependencies:
+  - "@embedded-postgres/darwin-arm64"
+  - "@embedded-postgres/darwin-x64"
+  - "@embedded-postgres/linux-arm64"
+  - "@embedded-postgres/linux-x64"
+  - "@embedded-postgres/windows-x64"
+  - esbuild
+
+# A version is installed only once it has been published for 3 days (in minutes).
+minimumReleaseAge: 4320
+
+overrides:
+  brace-expansion@2: ^2.1.7
+ignoredBuiltDependencies:
+  - koffi
+  - onnxruntime-node
+  - protobufjs

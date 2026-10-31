@@ -1,0 +1,50 @@
+{
+  "name": "@storytree/website",
+  "private": true,
+  "type": "module",
+  "license": "Apache-2.0",
+  "description": "storytree.dev, the website: built against storytree pinned as a git submodule in storytree/ (ADR-1171).",
+  "packageManager": "pnpm@10.34.7+sha512.ba98abc585539933375b5971f4bc6d6c73a1b4b7edc4a879e7d102fe5423d1e02309d67c60a11f04955093a96e521ad9c3b138cdd654ca5be563f378b3ae48bd",
+  "engines": {
+    "node": ">=24.20.0"
+  },
+  "scripts": {
+    "build": "node --import tsx src/build.ts",
+    "typecheck": "tsc -p .",
+    "test": "node --import tsx test.mjs",
+    "refresh:forest": "cd storytree && node --import tsx ../src/refresh-forest.ts"
+  },
+  "dependencies": {
+    "@react-three/fiber": "^9.6.1",
+    "@storytree/arc-surface": "workspace:*",
+    "@storytree/ci-health": "workspace:*",
+    "@storytree/forest": "workspace:*",
+    "@storytree/forest-world": "workspace:*",
+    "@storytree/knowledge-core": "workspace:*",
+    "@storytree/library": "workspace:*",
+    "@storytree/mark": "workspace:*",
+    "@storytree/project-and-caller": "workspace:*",
+    "@storytree/session-management": "workspace:*",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1"
+  },
+  "devDependencies": {
+    "@remotion/bundler": "4.0.535",
+    "@remotion/renderer": "4.0.535",
+    "@storytree/app-setup": "workspace:*",
+    "@storytree/dev-loop": "workspace:*",
+    "@storytree/local-postgres": "workspace:*",
+    "@storytree/test-waits": "workspace:*",
+    "@types/node": "^24.13.6",
+    "@types/pg": "^8.23.1",
+    "@types/react": "^19.1.8",
+    "@types/react-dom": "^19.1.6",
+    "esbuild": "^0.28.2",
+    "happy-dom": "catalog:",
+    "pg": "^8.23.0",
+    "playwright-core": "1.60.0",
+    "remotion": "4.0.535",
+    "tsx": "^4.23.15",
+    "typescript": "~7.0.2"
+  }
+}

@@ -89,10 +89,9 @@ $DeleteUnusedServiceAccounts = @(@(
   'storytree-studio-host', 'storytree-web-editor-host', 'storytree-claude-harness',
   'storytree-codex-harness', 'storytree-ci-presence', 'storytree-ci-webverdict', 'storytree-ci-health',
   'storytree-remote-dev', 'storytree-cloud-lane'
-) | ForEach-Object { "$_@$Project.iam.gserviceaccount.com" }) + @(
-  'ais-gemini-key-384e6e08dda3456@<number>.iam.gserviceaccount.com',
-  'ais-gemini-key-50b112f084974ee@<number>.iam.gserviceaccount.com'
-)
+) | ForEach-Object { "$_@$Project.iam.gserviceaccount.com" }) + @(@(
+  'ais-gemini-key-384e6e08dda3456', 'ais-gemini-key-50b112f084974ee'
+) | ForEach-Object { "$_@<number>.iam.gserviceaccount.com" })
 
 $MapsApis = @(
   'addressvalidation', 'aerialview', 'airquality', 'areainsights', 'directions-backend',

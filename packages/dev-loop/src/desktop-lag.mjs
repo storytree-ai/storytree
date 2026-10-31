@@ -160,11 +160,41 @@ const ON_START = `${OBSERVE};
 /** A round that could not be performed: it reads NOT RUN with `message`. */
 export class NotRun extends Error {}
 
+/** A round, or the run past state ready, that stopped hearing from the page: it reads NOT RUN, and nothing more runs on that page. */
+class Stalled extends NotRun {}
+
+/**
+ * `promise`, or a Stalled after `ms` naming what the run was then waiting for (`what()`), so a page that stops answering (a frame
+ * that never comes, an input that never returns) ends the wait instead of hanging the run.
+ */
+function within(promise, ms, what) {
+  let timer;
+  const stalled = new Promise((_, reject) => {
+    timer = setTimeout(() => reject(new Stalled(`nothing for ${ms} ms while waiting for ${what()}`)), ms);
+  });
+  return Promise.race([promise, stalled]).finally(() => clearTimeout(timer));
+}
+
+/**
+ * How long one round of `action` may take before it is called stalled: its every step and its settling at their own limit, its idle
+ * time, and a minute's slack, so only a page that stopped answering reaches it.
+ */
+const roundDeadline = (action) => action.limitMs * (action.setup.length + action.perform.length + 1)
+  + action.perform.reduce((sum, step) => sum + (step.kind === "idle" ? step.ms : 0), 0) + 60_000;
+
+/** How long the run past state ready, and each read it ends with, may wait on the page. */
+const PAGE_DEADLINE_MS = 60_000;
+
+/** What a step is, in a stall's message. */
+const stepName = (step) => [step.kind, step.key ?? step.selector].filter(Boolean).join(" ");
+
 /** Poll the page each frame until it shows `until` (for `island`), or NOT RUN after `limitMs`. Returns the readings taken. */
-async function waitFor(page, until, island, limitMs) {
+async function waitFor(page, until, island, limitMs, track = {}) {
   const readings = [];
   const end = Date.now() + limitMs;
+  const was = track.waiting;
   for (;;) {
+    track.waiting = `${was === undefined ? "" : `${was}: `}a frame of the page (requestAnimationFrame), to read whether it shows ${JSON.stringify(until)}`;
     const reading = await page.evaluate(READ_PAGE);
     readings.push(reading);
     if (isSettled(until, reading, island)) return readings;
@@ -208,7 +238,7 @@ async function canvasPoint(page, box) {
  * Get one step ready without measuring it (find its island or element, turn the globe to face it) and return the input that performs
  * it. `round.island` is set to the story an island step clicks, for its settled condition.
  */
-async function prepare(page, step, round, limitMs) {
+async function prepare(page, step, round, limitMs, track) {
   if (step.kind === "island") {
     const islands = await page.evaluate("window.storytreeGlobe?.islands() ?? null");
     if (islands === null) throw new NotRun("the page offers no island locator (window.storytreeGlobe)");
@@ -216,7 +246,7 @@ async function prepare(page, step, round, limitMs) {
     const named = typeof step.island === "object" ? `"${step.island.story}"` : `with the ${step.island} capabilities`;
     if (story === undefined) throw new NotRun(`no island ${named} on the globe`);
     await page.evaluate(`window.storytreeGlobe.face(${JSON.stringify({ kind: "story", story })})`);
-    await waitFor(page, { still: true }, undefined, limitMs);
+    await waitFor(page, { still: true }, undefined, limitMs, track);
     const at = await globePoint(page, (await page.evaluate("window.storytreeGlobe.islands()")).filter((island) => island.story === story), `the island ${named}`);
     round.island = story;
     return () => page.mouse.click(at.x, at.y);
@@ -263,7 +293,7 @@ async function prepare(page, step, round, limitMs) {
       if (JSON.stringify(await page.evaluate(PLACES)) === JSON.stringify(before)) throw new NotRun("the map did not turn: no island or note moved on screen");
     };
   }
-  if (step.kind === "wait") return () => waitFor(page, step.until, round.island, limitMs);
+  if (step.kind === "wait") return () => waitFor(page, step.until, round.island, limitMs, track);
   if (step.kind === "start") {
     // A start of the page, as opening the app is: the keys it names forgotten first, so the page starts without what they kept.
     return async () => {
@@ -288,26 +318,33 @@ async function prepare(page, step, round, limitMs) {
  * One round of `action`: its setup, unmeasured, then its steps through real input, read each frame until settled. Records the
  * response (the longest Event Timing from the first input), the frames over 50 ms until settled with the scripts each names, the
  * settled time, when a sign of progress showed and whether it stayed, and the IPC calls made, by channel. A start is timed on its
- * own document's clock, from its navigation, and makes no input.
+ * own document's clock, from its navigation, and makes no input. `track.waiting` says, as it goes, what the round is waiting for.
  */
-export async function performRound(page, action, ipc) {
+export async function performRound(page, action, ipc, track = {}) {
   const starts = action.perform.some((step) => step.kind === "start");
   const round = {};
-  for (const step of action.setup) await (await prepare(page, step, round, action.limitMs))();
+  for (const [at, step] of action.setup.entries()) {
+    track.waiting = `${action.name}'s setup step ${at + 1} (${stepName(step)})`;
+    await (await prepare(page, step, round, action.limitMs, track))();
+  }
   let before;
   let calls;
-  for (const step of action.perform) {
-    const act = await prepare(page, step, round, action.limitMs);
+  for (const [at, step] of action.perform.entries()) {
+    track.waiting = `${action.name}'s step ${at + 1} (${stepName(step)}), getting it ready`;
+    const act = await prepare(page, step, round, action.limitMs, track);
     // Counted from the first input on: turning an island to face, in prepare, is unmeasured.
     before ??= await page.evaluate(`({ t: performance.now(), inputs: ${INPUTS} })`);
     calls ??= await ipc.mark();
+    track.waiting = `${action.name}'s step ${at + 1} (${stepName(step)})`;
     await act();
   }
   const start = starts ? 0 : before.t;
-  const readings = await waitFor(page, action.settled, round.island, action.limitMs);
+  track.waiting = `${action.name} to settle`;
+  const readings = await waitFor(page, action.settled, round.island, action.limitMs, track);
   const settledAt = readings.at(-1).t;
   const settledCalls = await ipc.mark();
   // Event Timing reports after the paint: two frames more so the last input's entry has arrived.
+  track.waiting = `the two frames of the page (requestAnimationFrame) after ${action.name} settled`;
   await page.evaluate(READ_PAGE);
   const after = await page.evaluate(READ_PAGE);
   const { ev, loaf } = await page.evaluate(`({ ev: window.__ev.filter((e) => e.start >= ${start} && e.start <= ${settledAt}),
@@ -335,21 +372,38 @@ export async function performRound(page, action, ipc) {
 /**
  * Perform each of `actions` for `rounds` rounds on each of `sides` (a build's page: `perform(action)` one round, `mark(label)` its
  * timeline), in turn within each round, so two builds measured together take each round in the same minutes (A, B, A, B, ...:
- * ADR-1001 D3). An action's first round a side cannot perform ends that action, on every side, as NOT RUN on that side. Returns each
- * side's performed actions.
+ * ADR-1001 D3). An action's first round a side cannot perform ends that action, on every side, as NOT RUN on that side. A round past
+ * its deadline (`deadlineMs(action)`) is stalled: NOT RUN naming what the side was waiting for (`side.waiting()`), and every later
+ * action on that side, or every action on a side that stalled before its first (`side.stalled`), reads NOT RUN naming the stall, so a
+ * page that stops answering ends the run instead of hanging it. Returns each side's performed actions.
  */
-export async function alternate(actions, rounds, sides) {
+export async function alternate(actions, rounds, sides, { deadlineMs = roundDeadline } = {}) {
   const performed = sides.map(() => []);
+  const stalls = sides.map((side) => side.stalled);
+  const bounded = (at, run, ms, what = () => sides[at].waiting?.() ?? "the page") => within(run(), ms, what);
+  const stall = (at, action, error) => {
+    if (error instanceof Stalled) stalls[at] = `${action.name} stalled, ${error.message}`;
+  };
   for (const action of actions) {
-    for (const side of sides) await side.mark(action.name);
     const done = sides.map(() => ({ name: action.name, budget: action.budget, rounds: [] }));
+    for (const [at, side] of sides.entries()) {
+      if (stalls[at] !== undefined) continue;
+      try {
+        await bounded(at, () => side.mark(action.name), PAGE_DEADLINE_MS, () => `the page's clock, to mark where ${action.name} begins`);
+      } catch (error) {
+        if (!(error instanceof NotRun)) throw error;
+        stall(at, action, error);
+      }
+    }
+    for (const [at, stalled] of stalls.entries()) if (stalled !== undefined) done[at].notRun = `not performed: ${stalled}`;
     for (let n = 0; n < rounds && done.every((one) => one.notRun === undefined); n++) {
       for (const [at, side] of sides.entries()) {
         try {
-          done[at].rounds.push(await side.perform(action));
+          done[at].rounds.push(await bounded(at, () => side.perform(action), deadlineMs(action)));
         } catch (error) {
           if (!(error instanceof NotRun)) throw error;
-          done[at].notRun = error.message;
+          done[at].notRun = error instanceof Stalled ? `stalled: ${error.message}` : error.message;
+          stall(at, action, error);
           break;
         }
       }
@@ -357,37 +411,71 @@ export async function alternate(actions, rounds, sides) {
     log(action.name, done.map((one) => (one.notRun === undefined ? `${one.rounds.length} rounds` : `NOT RUN: ${one.notRun}`)).join(" | "));
     done.forEach((one, at) => performed[at].push(one));
   }
-  for (const side of sides) await side.mark("end");
+  for (const [at, side] of sides.entries()) if (stalls[at] === undefined) await bounded(at, () => side.mark("end"), PAGE_DEADLINE_MS, () => "the page's clock, to mark the end").catch(() => {});
   return performed;
 }
 
 /**
  * Start measuring a ready build's page (`session`: its page, IPC counter and what it read at start): watch its frames and inputs and
  * profile it. Returns the side `alternate` performs rounds on, and `finish(performed)`, which writes its result.json and
- * renderer.cpuprofile into `out`.
+ * renderer.cpuprofile into `out`. Each of these waits on the page at most `deadlineMs`: a start that stalls makes a side that
+ * performs nothing (`stalled` names the wait), and a read `finish` cannot get is left out, so result.json is written whatever the page does.
  */
-async function startMeasuring({ page, ipc, state, readyMs, extra }, { out, size }) {
-  await page.waitForTimeout(3000);
-  await page.evaluate(OBSERVE);
-  await page.addInitScript(ON_START);
+export async function startMeasuring({ page, ipc, state, readyMs, extra }, { out, size, deadlineMs = PAGE_DEADLINE_MS }) {
+  const track = {};
+  const bounded = (waiting, run) => {
+    track.waiting = waiting;
+    return within(run(), deadlineMs, () => track.waiting);
+  };
   const marks = [];
   const mark = async (label) => marks.push({ label, perf: await page.evaluate("performance.now()"), wall: Date.now() });
-  const cdp = await page.context().newCDPSession(page);
-  await cdp.send("Profiler.enable");
-  await cdp.send("Profiler.setSamplingInterval", { interval: 200 });
-  await cdp.send("Profiler.start");
+  let cdp;
+  let stalled;
+  try {
+    await bounded("the page to stand still for 3 s", () => page.waitForTimeout(3000));
+    await bounded("the page to start watching its frames and inputs", () => page.evaluate(OBSERVE));
+    await bounded("the page to take the script its starts run", () => page.addInitScript(ON_START));
+    cdp = await bounded("the renderer's profiler", () => page.context().newCDPSession(page));
+    await bounded("the renderer's profiler to start", async () => {
+      await cdp.send("Profiler.enable");
+      await cdp.send("Profiler.setSamplingInterval", { interval: 200 });
+      await cdp.send("Profiler.start");
+    });
+  } catch (error) {
+    if (!(error instanceof Stalled)) throw error;
+    stalled = `the run stalled past state ready, ${error.message}`;
+    log(stalled);
+  }
+  const read = (waiting, run) => bounded(waiting, run).catch((error) => {
+    if (!(error instanceof Stalled)) throw error;
+    log("result.json without", waiting, error.message);
+    return null;
+  });
   const finish = async (performed) => {
-    const { profile } = await cdp.send("Profiler.stop");
+    const stopped = cdp === undefined ? null : await read("the renderer's profile", () => cdp.send("Profiler.stop"));
     mkdirSync(out, { recursive: true });
-    writeFileSync(path.join(out, "renderer.cpuprofile"), JSON.stringify(profile));
-    const ev = await page.evaluate("window.__ev");
-    const loaf = await page.evaluate("window.__loaf");
-    const mem = await page.evaluate("({ heap: performance.memory?.usedJSHeapSize, nodes: document.getElementsByTagName('*').length })");
+    if (stopped !== null) writeFileSync(path.join(out, "renderer.cpuprofile"), JSON.stringify(stopped.profile));
+    const ev = (await read("the page's input timings", () => page.evaluate("window.__ev"))) ?? [];
+    const loaf = (await read("the page's long frames", () => page.evaluate("window.__loaf"))) ?? [];
+    const mem = await read("the page's memory", () => page.evaluate("({ heap: performance.memory?.usedJSHeapSize, nodes: document.getElementsByTagName('*').length })"));
     const actions = performed.map((action) => ({ ...action, size }));
-    writeFileSync(path.join(out, "result.json"), JSON.stringify({ state, readyMs, size, marks, actions, ev, loaf, ipc: await ipc.all(), mem, ...(await extra()) }, null, 1));
+    const ipcCalls = (await read("the app's IPC calls", () => ipc.all())) ?? [];
+    const more = (await read("the app's own readings", () => extra())) ?? {};
+    writeFileSync(path.join(out, "result.json"), JSON.stringify({ state, readyMs, size, marks, actions, ev, loaf, ipc: ipcCalls, mem, ...more, ...(stalled === undefined ? {} : { stalled }) }, null, 1));
     log("wrote", path.join(out, "result.json"));
   };
-  return { side: { mark, perform: (action) => performRound(page, action, ipc) }, finish };
+  const roundTrack = {};
+  return { side: { mark, perform: (action) => performRound(page, action, ipc, roundTrack), waiting: () => roundTrack.waiting, stalled }, finish };
+}
+
+/** Stop the app `app` started: closed, or its main process killed when closing has not returned within `ms`. */
+export async function closeApp(app, ms = PAGE_DEADLINE_MS) {
+  try {
+    await within(app.close(), ms, () => "the app to close");
+  } catch (error) {
+    log("killing the app:", error.message);
+    app.process().kill("SIGKILL");
+  }
 }
 
 /**
@@ -462,7 +550,7 @@ async function openElectron({ appDir, exe, extraArgs, home: reuse, homeFrom, see
     const ipc = { mark: async () => (await read()).length, since: async (from, to) => byChannel((await read()).slice(from, to)), all: read };
     await use({ page, ipc, state, readyMs, extra: async () => ({ lag: await app.evaluate(() => globalThis.__lag), recorder }) });
   } finally {
-    await app.close().catch(() => {});
+    await closeApp(app);
   }
 }
 

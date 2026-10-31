@@ -16,7 +16,7 @@ import { DataQuestions } from "../data/data-questions.js";
 import { couldBeId } from "../references.js";
 import { randomUUID } from "node:crypto";
 
-import { isPluginKind, UnknownTypeError, type FieldsOf, type RecordType, type SchemaRecord, type WriteOptions } from "../schema/index.js";
+import { isPluginKind, UnknownTypeError, type FieldEdit, type FieldsOf, type RecordType, type SchemaRecord, type WriteOptions } from "../schema/index.js";
 import type { HistoryEntry, RecordEnvelope } from "../transactions/index.js";
 
 /** A connection to one Postgres server and the storytree projects on it. */
@@ -196,6 +196,15 @@ export interface Library
    */
   createPluginRecord(kind: string, fields: Record<string, unknown>, options?: WriteOptions): Promise<SchemaRecord>;
   /**
+   * Change the named fields of a record of a plugin's own kind, merged onto what is stored now, as the plugin's work hands
+   * them. `checkCurrent` is handed the record as it stands inside the write and refuses the edit by throwing, so a mark
+   * that may be made only once is made once even when two writers race. A core kind's record is refused, since each has
+   * its own edit, and so is a kind the project was not opened with (UnknownTypeError); fields that leave it outside its
+   * declared shape are refused (SchemaError). Either way nothing is written. Null, with nothing written, when `id` is no
+   * live record.
+   */
+  editPluginRecord(id: string, fields: Record<string, unknown>, options?: WriteOptions & { readonly checkCurrent?: (record: SchemaRecord) => void }): Promise<SchemaRecord | null>;
+  /**
    * A plugin's records (ADR-1178 D4): every live record of a kind named under `plugin` (`<plugin>.<kind>`), by kind in
    * name order, each with how many and their ids in id order. What removePluginRecords is handed to remove them. A
    * name that is not a plugin's (lower-case letters, digits and dashes) is refused.
@@ -330,6 +339,17 @@ function libraryOf(project: Project): Library {
       if (!isPluginKind(kind)) throw new UnknownTypeError(kind);
       // A plugin's kind is no RecordType: the schema the project was opened with knows it, or refuses it.
       return project.records.create(kind as RecordType, fields as FieldsOf<RecordType>, options);
+    },
+    async editPluginRecord(id, fields, options = {}) {
+      if (!couldBeId(id)) return null;
+      const { checkCurrent, ...write } = options;
+      return project.records.edit(id, fields as FieldEdit, {
+        ...write,
+        checkCurrent: (current) => {
+          if (!isPluginKind(current.type)) throw new UnknownTypeError(current.type);
+          checkCurrent?.(current);
+        },
+      });
     },
     async retireQuestion(id, reason, options) {
       if (!couldBeId(id)) return null;

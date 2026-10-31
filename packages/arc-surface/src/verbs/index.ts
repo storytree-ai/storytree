@@ -18,5 +18,5 @@ export const ARC_FAMILIES: readonly VerbFamily<ArcVerbContext>[] = [
 
 /** Its section of the habits card: the arc verb an agent calls as a tool (apply-pending, ADR-0966). */
 export const arcGuidance: readonly string[] = [
-  "- `apply_pending` applies the pending plan changes an increment's merged pull request left unapplied, saying which were stale.",
+  "`apply_pending` applies pending plan changes a merged pull request left unapplied.",
 ];

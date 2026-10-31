@@ -190,6 +190,7 @@ test('6.4 a bad call gets a readable refusal rather than a crash, and with story
         ["move_increment", { increment: "increment_000000000000", to: "arc_000000000000", reason: "belongs there" }],
         ["move_question", { question: "question_000000000000", to: "arc_000000000000", reason: "belongs there" }],
         ["add_remedies", { increment: "increment_000000000000", frictions: ["friction_000000000000"] }],
+        ["apply_pending", { increment: "increment_000000000000", pr: "#1" }],
         ["park_arc", { arc: "arc_000000000000", parked: true }],
         ["mark_built", { capability: "capability_000000000000", built: true }],
         ["set_wait", { waiter: "increment_000000000000", on: "increment_000000000001", reason: "it comes first" }],

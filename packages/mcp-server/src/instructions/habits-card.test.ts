@@ -146,7 +146,7 @@ test("7.10 the card handed at session start is composed from the guidance each s
   const session = await sessionStart();
   try {
     const served = session.client.getInstructions() ?? "";
-    assert.ok(served.startsWith("storytree keeps the plan of this project"), "the server's own opening is not first");
+    assert.ok(served.startsWith("storytree keeps this project's plan"), "the server's own opening is not first");
     assert.ok(served.endsWith("If storytree says it isn't running, carry on without it."), "the server's own closing is not last");
     let after = 0;
     for (const part of parts) {

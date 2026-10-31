@@ -34,13 +34,13 @@ export function cardWords(card: string): number {
   return card.split(/\s+/).filter(Boolean).length;
 }
 
-const OPENING = "storytree keeps the plan of this project and records what you do, so the user can watch it grow. Work with it like this.";
+const OPENING = "storytree keeps this project's plan and records what you do, so the user can watch it grow.";
 
 /**
  * The setup check and making a project are the server's own tools, served in any folder whatever is switched off
  * (ADR-1099 D2), so the card teaches them itself: check_setup's answer is where the whole card reaches an agent.
  */
-const SETUP = "Start every session with `check_setup`, and do what it says. If this folder isn't a storytree project, carry on without storytree: never offer to set it up. Call `set_up_project` only when the user asks for storytree here, with a name no project has (a refusal suggests one); set its join only when they ask to add this computer's copy of a project they already have elsewhere.";
+const SETUP = "Start every session with `check_setup`, and do what it says. If this folder isn't a storytree project, carry on without storytree: never offer to set it up. Call `set_up_project` only when the user asks for storytree here, with a name no project has (a refusal suggests one); set its join only to add this computer's copy of a project they have elsewhere.";
 
 const CLOSING = "If storytree says it isn't running, carry on without it.";
 

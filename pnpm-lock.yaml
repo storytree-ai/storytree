@@ -854,6 +854,9 @@ importers:
       '@storytree/app-setup':
         specifier: workspace:*
         version: link:../app-setup
+      '@storytree/arc-surface':
+        specifier: workspace:*
+        version: link:../arc-surface
       '@storytree/experiments':
         specifier: workspace:*
         version: link:../experiments

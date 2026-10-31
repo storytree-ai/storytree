@@ -18,7 +18,7 @@ import type { Library } from "@storytree/library";
 import { PLUGIN_INTERFACE } from "@storytree/plugin-loader/factory";
 
 import { withLibrary } from "../testing/pg.js";
-import { RED_RUN } from "./review.js";
+import { RED_RUN, redsOf } from "./review.js";
 import { branchDiff, briefText, changeFolder, COVERING_TEST, factoryPlugins, openLedger, openReviews, qualityTools, REVIEW_LIMIT, standingText, takenText, worktreeChange, type ReviewReturn } from "../index.js";
 
 const DIFF = [
@@ -881,6 +881,31 @@ test("2.14 · a test the change adds that no saved red run names failing is take
       await removeTemp(dir);
     }
   });
+});
+
+test("2.14 · a test the change adds below a regex literal holding a quote or a backtick is still listed, and one written inside a regex is not", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "qa-regex-"));
+  try {
+    const file = "packages/library/src/a.test.ts";
+    const lines = [
+      'import assert from "node:assert/strict";',
+      'import { test } from "node:test";',
+      'test("1.1 · above", () => assert.match(text, /a lone "quote, a lone `tick and \\/ a slash/));',
+      "const odd = /[/'`]/g, half = 4 / 2 / 1;",
+      'test("1.2 · below", () => {});',
+      'const inside = /test\\("1.3 · inside a regex"/;',
+      "",
+    ];
+    mkdirSync(join(dir, "packages/library/src"), { recursive: true });
+    writeFileSync(join(dir, file), lines.join("\n"));
+    const diff = [`diff --git a/${file} b/${file}`, "--- /dev/null", `+++ b/${file}`, `@@ -0,0 +1,${lines.length - 1} @@`, ...lines.slice(0, -1).map((line) => `+${line}`)].join("\n");
+    assert.deepEqual(redsOf(diff, dir).map(({ line, test }) => ({ line, test })), [
+      { line: 3, test: "1.1 · above" },
+      { line: 5, test: "1.2 · below" },
+    ]);
+  } finally {
+    await removeTemp(dir);
+  }
 });
 
 test("2.20 · a test an outside checkout's diff adds is listed under its checkout, with whether that checkout's saved red runs name it failing, and one none names is taken as a hit", async () => {

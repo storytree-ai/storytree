@@ -647,8 +647,12 @@ function redRuns(brief: Brief): { check: string; hits: { package: string; file: 
 
 /** A test file, by the name node:test and the dev loop give one. */
 const TEST_FILE = /\.test\.[cm]?[jt]sx?$/;
-/** A string literal or a comment: the scan of a test file blanks them, so a test written inside a fixture's text is no call. */
-const INERT = /\/\/[^\r\n]*|\/\*[\s\S]*?\*\/|(["'`])(?:\\.|(?!\1)[^\\])*\1/g;
+/**
+ * A string literal, a comment or a regex literal: the scan of a test file blanks them, so a test written inside a fixture's text is no
+ * call, and a quote inside a regex opens no string. A slash opens a regex where an expression starts (after an operator, an opening
+ * bracket, a comma or `return`), never after a value, where it divides.
+ */
+const INERT = /\/\/[^\r\n]*|\/\*[\s\S]*?\*\/|(["'`])(?:\\.|(?!\1)[^\\])*\1|(?<=(?:^|[(,=:[!&|?{};+\-*%~^]|\breturn|\btypeof|\bcase)[ \t]*)\/(?:\\.|\[(?:\\.|[^\]\\\r\n])*\]|[^/\\\r\n[])+\/[a-z]*/gm;
 /** Code ending in a test or `it` call about to take its title; `.skip` and `.todo` ones run nothing, so are not read. */
 const CALLED = /\b(?:test|it)(?:\.only)?\s*\(\s*$/;
 

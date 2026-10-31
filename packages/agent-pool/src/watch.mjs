@@ -519,7 +519,8 @@ export async function watchOnce({ dir, look, storytree, cutover = async () => un
   // A step the library refuses (a wait already cleared, an increment closed by hand) is said, not retried forever.
   const tell = (args, project) => storytree(args, project).catch((error) => { dated(`storytree ${args.slice(0, 3).join(" ")} refused: ${error.message.split("\n")[0]}`); return ""; });
   // The claims held for a pull request end with its watch (ADR-1037 D1, D3).
-  const letGo = (pr, reason) => tell(["workspace", "let-go", String(pr), "--reason", reason]);
+  // On a merge, its increment's pending plan changes are applied before they end, keep-open or not (4.45).
+  const letGo = (pr, reason, merged = false) => tell(["workspace", "let-go", String(pr), "--reason", reason, ...(merged ? ["--merged"] : [])]);
   // A pull request given up goes back on its arc as ready work, its body naming the pull request and its branch, never to the owner (4.20, 4.23).
   const backOnArc = async (record, pull, why) => {
     const { pr, increment } = record;
@@ -604,7 +605,7 @@ export async function watchOnce({ dir, look, storytree, cutover = async () => un
       if (pull.state === "merged") {
         merged = true;
         if (!record.keepOpen && !record.closed) await tell(["arc", "increment", "close", increment, "--disposition", "landed", "--pr", String(pr)]);
-        await letGo(pr, `PR #${pr} merged; released by the watcher`);
+        await letGo(pr, `PR #${pr} merged; released by the watcher`, true);
         dated(record.closed ? `PR #${pr} merged: ${increment} had already closed`
           : record.keepOpen ? `PR #${pr} merged: ${increment} stays open for its next pull request` : `PR #${pr} merged: closed ${increment}`);
       } else {

@@ -28,7 +28,6 @@
     "desktop:dist": "pnpm --filter @storytree/desktop dist",
     "build:guidance": "node --import tsx packages/dev-loop/src/build-guidance.mjs",
     "check:guidance": "node --import tsx packages/dev-loop/src/build-guidance.mjs --check",
-    "check:plan-edges": "node --import tsx packages/dev-loop/src/plan-edges.mjs",
     "check:type-imports": "node --import tsx packages/repo-checks/src/type-imports.mjs",
     "check:seed-records": "node --import tsx packages/repo-checks/src/seed-records.mjs",
     "check:leaks": "node --import tsx packages/repo-checks/src/leak-scan.mjs",

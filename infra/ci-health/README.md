@@ -8,7 +8,7 @@ repository variable `HEALTH_PG_ADDRESS` as CI's health role, with the password `
 health job's Cloud SQL roles, its workload identity binding and its three repository variables went
 (increment_56b41c5dc9b8). **The owner applies this folder by hand.**
 The gate's check:owner-applies fails a branch that changes it (Markdown aside) unless an open increment
-waits on the owner with a note naming this folder (packages/dev-loop/src/owner-applies.mjs lists the folders).
+waits on the owner with a note naming this folder (the owner's factory plugin micks-dev-loop lists the folders, in src/owner-applies.mjs).
 
 | File | What it makes |
 | --- | --- |

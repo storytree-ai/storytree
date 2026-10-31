@@ -50,7 +50,7 @@ test("7.1 the gate runs typecheck and scoped tests, and explains guidance NOT RU
   const calls = [];
   const output = [];
   const code = await gate({ root, run: async (step) => { calls.push(step); return 0; }, log: (line) => output.push(line) });
-  assert.deepEqual(calls, ["typecheck", "test", "check:plan-edges", "check:type-imports", "check:seed-records", "check:leaks", "check:secrets"]);
+  assert.deepEqual(calls, ["typecheck", "test", "check:type-imports", "check:seed-records", "check:leaks", "check:secrets"]);
   assert.equal(code, 0);
   const table = output.at(-1);
   assert.match(table, /PASS\s+typecheck/);
@@ -64,7 +64,7 @@ test("7.5 the gate installs an uninstalled worktree before its first check, and 
   const { root } = checkout(t);
   const calls = [];
   const code = await gate({ root, provision: () => (calls.push("install"), 0), run: async (step) => (calls.push(step), 0), log: () => {} });
-  assert.deepEqual(calls, ["install", "typecheck", "test", "check:plan-edges", "check:type-imports", "check:seed-records", "check:leaks", "check:secrets"]);
+  assert.deepEqual(calls, ["install", "typecheck", "test", "check:type-imports", "check:seed-records", "check:leaks", "check:secrets"]);
   assert.equal(code, 0);
 
   const ran = [];
@@ -76,9 +76,9 @@ test("7.5 the gate installs an uninstalled worktree before its first check, and 
   assert.match(output.at(-1), /NOT RUN\s+test.*worktree not installed/);
 });
 
-test("library-only guidance edits can request every check, plan edges included, continuing past failure or launch error", async (t) => {
+test("7.1 library-only guidance edits can request every check, continuing past failure or launch error", async (t) => {
   const { root } = checkout(t);
-  for (const broken of ["typecheck", "test", "check:guidance", "check:plan-edges", "check:type-imports", "check:seed-records", "check:leaks", "check:secrets"]) {
+  for (const broken of ["typecheck", "test", "check:guidance", "check:type-imports", "check:seed-records", "check:leaks", "check:secrets"]) {
     const calls = [];
     const output = [];
     const code = await gate({ root, guidance: true, log: (line) => output.push(line), run: async (step) => {
@@ -86,7 +86,7 @@ test("library-only guidance edits can request every check, plan edges included, 
       if (step === broken && step === "typecheck") throw new Error("cannot start typechecker");
       return step === broken ? 2 : 0;
     } });
-    assert.deepEqual(calls, ["typecheck", "test", "check:guidance", "check:plan-edges", "check:type-imports", "check:seed-records", "check:leaks", "check:secrets"]);
+    assert.deepEqual(calls, ["typecheck", "test", "check:guidance", "check:type-imports", "check:seed-records", "check:leaks", "check:secrets"]);
     assert.equal(code, 1);
     assert.ok(output.at(-1).includes(`FAIL    ${broken}`));
     assert.match(output.at(-1), /rerun: pnpm run gate --guidance/);
@@ -134,55 +134,11 @@ test("7.2 unreadable change scope requires guidance instead of guessing that not
   assert.match(decision.reason, /could not.*read/);
 });
 
-test("7.11 on an increment's branch the gate writes the change's risk line through quality risk, beside the capability list; a branch naming none leaves it NOT RUN", async (t) => {
-  const { root, git } = checkout(t);
-  const gateHere = async () => {
-    const calls = [];
-    const output = [];
-    const code = await gate({ root, run: async (step, { command }) => { calls.push([step, command.args.at(-1)]); return 0; }, log: (line) => output.push(line) });
-    return { code, steps: calls.map(([step]) => step), calls, table: output.at(-1) };
-  };
-  git("checkout", "-q", "-b", "claude/dazzling-jones-f96c61");
-  const unnamed = await gateHere();
-  assert.ok(!unnamed.steps.includes("check:risk"));
-  assert.match(unnamed.table, /NOT RUN\s+check:risk.*names no increment/);
-
-  git("checkout", "-q", "-b", "claude/increment-ca8ba53211b7-f8f424");
-  const named = await gateHere();
-  assert.equal(named.code, 0);
-  assert.ok(named.steps.includes("check:capability-list") && named.steps.includes("check:risk"), named.steps.join(", "));
-  assert.match(named.table, /PASS\s+check:risk/);
-  const risk = gateSteps.find((step) => step.name === "check:risk").command({ root });
-  assert.deepEqual(risk.args.slice(-6, -2), ["packages/cli/src/bins/storytree.ts", "quality", "risk", "increment_ca8ba53211b7"]);
-});
-
-test("7.1 storytree's checkout contributes its nine checks to the base dev loop's gate, from Mick's dev loop's manifest and the repository checks'", async () => {
+test("7.1 storytree's checkout contributes its six checks to the base dev loop's gate, from Mick's dev loop's manifest and the repository checks'", async () => {
   const { parts, owners } = await contributedSteps(repoRoot);
   const by = Object.fromEntries(parts.map((step, index) => [step.name, owners[index]]));
   assert.deepEqual(by, {
-    "check:guidance": "dev-loop", "check:plan-edges": "dev-loop", "check:owner-applies": "dev-loop", "check:risk": "dev-loop",
+    "check:guidance": "dev-loop",
     "check:type-imports": "repo-checks", "check:seed-records": "repo-checks", "check:leaks": "repo-checks", "check:secrets": "repo-checks", "check:capability-list": "repo-checks",
   });
-});
-
-test("7.11 a branch renamed after review to name its increment runs check:capability-list, and check:risk reads that checkout's own change, not the branch its claim recorded", async (t) => {
-  const { root, git, write } = checkout(t);
-  git("checkout", "-q", "-b", "claude/frosty-northcutt-e52ff6");
-  write("packages/a/src/a.mjs", "export const a = 1;\n");
-  git("add", "-A");
-  git("commit", "-qm", "the increment's change");
-  git("branch", "-m", "claude/increment-b962bb8544d2-e52ff6");
-  write("packages/a/src/b.mjs", "export const b = 2;\n");
-
-  const calls = [];
-  const output = [];
-  await gate({ root, run: async (step) => { calls.push(step); return 0; }, log: (line) => output.push(line) });
-  assert.ok(calls.includes("check:capability-list") && calls.includes("check:risk"), calls.join(", "));
-
-  const { args } = gateSteps.find((step) => step.name === "check:risk").command({ root });
-  assert.deepEqual(args.slice(-5, -2), ["quality", "risk", "increment_b962bb8544d2"]);
-  assert.equal(args.at(-2), "--diff");
-  const diff = readFileSync(args.at(-1).slice(1), "utf8");
-  assert.match(diff, /^\+export const a = 1;$/m, "the committed change is read from this checkout");
-  assert.match(diff, /^\+export const b = 2;$/m, "and so is a file not yet committed");
 });

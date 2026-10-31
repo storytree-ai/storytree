@@ -908,7 +908,7 @@ test("2.14 · a test the change adds below a regex literal holding a quote or a 
   }
 });
 
-test("2.21 · a test moved to another file and renumbered with its body unchanged is not listed; one whose assertion changed, or a copy whose original stays, is", async () => {
+test("2.21 · a test moved to another file and renumbered with its body unchanged is not listed; one whose assertion changed, a copy whose original stays, or a second copy of a moved one, is", async () => {
   const dir = mkdtempSync(join(tmpdir(), "qa-moved-"));
   try {
     const git = (...args: string[]) => execFileSync("git", args, { cwd: dir, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] });
@@ -918,6 +918,7 @@ test("2.21 · a test moved to another file and renumbered with its body unchange
     const before = "packages/dev-loop/src/a.test.ts";
     const after = "packages/base-dev-loop/src/a.test.ts";
     const kept = "packages/dev-loop/src/c.test.ts";
+    const edited = "packages/dev-loop/src/d.test.ts";
     mkdirSync(join(dir, "packages/dev-loop/src"), { recursive: true });
     writeFileSync(join(dir, before), [
       'import assert from "node:assert/strict";',
@@ -931,6 +932,7 @@ test("2.21 · a test moved to another file and renumbered with its body unchange
       "",
     ].join("\n"));
     writeFileSync(join(dir, kept), 'import { test } from "node:test";\ntest("4.1 · copied", () => { check(1); });\n');
+    writeFileSync(join(dir, edited), 'import { test } from "node:test";\ntest("5.1 · edited in place", () => { edit(1); });\n');
     git("add", "-A");
     git("commit", "-q", "-m", "before");
 
@@ -946,12 +948,17 @@ test("2.21 · a test moved to another file and renumbered with its body unchange
       "  assert.equal(add(2, 3), 5);",
       "});",
       'test("7.3 · copied", () => { check(1); });',
+      'test("7.4 · moved twice", () => {',
+      '  assert.equal(add(1, "2)"), 3);',
+      "});",
       "",
     ].join("\n"));
+    writeFileSync(join(dir, edited), 'import { test } from "node:test";\ntest("5.1 · edited in place", () => { edit(2); });\n');
     git("add", "-A");
     assert.deepEqual(redsOf(branchDiff(dir, "main"), dir).map(({ file, line, test }) => ({ file, line, test })), [
       { file: after, line: 6, test: "7.2 · moves and changes" },
       { file: after, line: 9, test: "7.3 · copied" },
+      { file: after, line: 10, test: "7.4 · moved twice" },
     ]);
   } finally {
     await removeTemp(dir);

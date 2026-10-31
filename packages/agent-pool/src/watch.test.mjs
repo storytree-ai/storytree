@@ -1132,3 +1132,22 @@ test("4.41 · a release or main run read with its jobs names the security checks
   assert.equal(asRun(one).security, undefined);
   assert.equal(asRun(one).repo, "storytree-ai/storytree");
 });
+
+test("4.44 · a hand-over GitHub cannot be asked about names why, a missing shared checkout or gh's own error, never a fork's refusal", async (t) => {
+  const dir = await mkdtemp(join(tmpdir(), "lane-watch-"));
+  t.after(() => removeTemp(dir));
+  const file = join(dir, "agent-pool.json"), checkout = join(dir, "no-checkout");
+  await writeFile(file, JSON.stringify({ checkout }));
+  const lines = [];
+  const quiet = { out: (line) => lines.push(line), env: { AGENT_POOL_CONFIG: file, LANES_DIR: join(dir, "lanes") } };
+  assert.equal(await main(["hand", "93", "increment_one", "--session", SESSION], quiet), 1);
+  assert.equal(await main(["hand", "93", "increment_one", "--session", SESSION], { ...quiet,
+    viewOf: async () => { throw Object.assign(new Error("Command failed: gh pr view 93"), { stderr: "HTTP 502: Bad Gateway\n" }); } }), 1);
+  assert.equal(lines.length, 2);
+  assert.match(lines[0], /^not handed over: GitHub could not be asked about PR #93: the shared checkout .*no-checkout is not on this machine/);
+  assert.match(lines[1], /^not handed over: GitHub could not be asked about PR #93: HTTP 502: Bad Gateway/);
+  assert.ok(lines.every((line) => !/is not on storytree-ai\/storytree/.test(line)), "neither reads as a fork's pull request");
+  assert.deepEqual(await readdir(join(dir, "lanes", "watch")), [], "nothing is handed over");
+  assert.equal((await handOver({ pr: 93, increment: "increment_one", session: SESSION, onBox: true, local: async () => 1 })).code, 1,
+    "on the box, hand's refusal is the hand-over's");
+});

@@ -327,7 +327,8 @@ export async function handOver({ pr, increment, session, keepOpen = false, onBox
   const fallback = `Wait for the merge yourself: watch \`gh pr checks ${pr}\` for MERGED, then close ${increment} with --disposition landed --pr ${pr}.`;
   if (!session) return { code: 1, lines: ["no session id (CLAUDE_CODE_SESSION_ID or CODEX_THREAD_ID): the watcher could not release this session's claims, so it is not handed over.", fallback] };
   const args = ["hand", String(pr), increment, "--session", session, ...(keepOpen ? ["--keep-open"] : [])];
-  if (onBox) { await local(args); return { code: 0, lines: [] }; }
+  // On the box `hand` says its own words; its refusal is this hand-over's too (4.44).
+  if (onBox) return { code: await local(args) ?? 0, lines: [] };
   const last = (error) => error.message.trim().split("\n").at(-1);
   let unreached;
   try {
@@ -875,7 +876,11 @@ function boxDefaults({ home = homedir(), env = process.env } = {}) {
       return (await run(process.execPath, ["--import", import.meta.resolve("tsx"), join(repo, "packages", "cli", "src", "bins", "storytree.ts"), "quality", "story-risks"],
         { cwd: main, env: free, maxBuffer: 16 * 1024 * 1024 })).stdout;
     },
-    viewOf: async (pr) => JSON.parse((await run("gh", ["pr", "view", String(pr), ...VIEW], { cwd: repo })).stdout),
+    // Off the box the shared checkout may not exist, and gh would be started in no folder at all (4.44).
+    viewOf: async (pr) => {
+      if (!existsSync(repo)) throw new Error(`the shared checkout ${repo} is not on this machine; off the box, hand over with \`watch.mjs handover\``);
+      return JSON.parse((await run("gh", ["pr", "view", String(pr), ...VIEW], { cwd: repo })).stdout);
+    },
     // Off the box, where the shared checkout may not exist (a cloud container), the hand-over's library writes and its
     // branch are read from the folder it runs in: the pull request's branch from GitHub, else the folder's own (4.30).
     here: async (args) => (await run("pnpm", ["-s", "storytree", ...args], { maxBuffer: 16 * 1024 * 1024 })).stdout,
@@ -981,8 +986,13 @@ export async function main(args, box = {}) {
     const at = args.indexOf("--session");
     const session = at > 0 ? args[at + 1] ?? "" : b.session;
     const holder = args.includes("--holder") ? args[args.indexOf("--holder") + 1] : undefined;
-    let branch;
-    try { branch = ownBranch(args[1], await b.viewOf(Number(args[1])).catch(() => undefined)); } catch (error) { out(error.message); return 1; }
+    let view, branch;
+    // GitHub not answering is said as itself, so only a real fork's pull request reads as one (4.44).
+    try { view = await b.viewOf(Number(args[1])); } catch (error) {
+      out(`not handed over: GitHub could not be asked about PR #${args[1]}: ${(error.stderr?.trim() || error.message).split("\n").join("; ")}`);
+      return 1;
+    }
+    try { branch = ownBranch(args[1], view); } catch (error) { out(error.message); return 1; }
     const project = await b.project();
     const { closed, held } = await hand({ dir: b.dir, pr: Number(args[1]), increment: args[2], session, branch, keepOpen, refused, holder, project, storytree: b.storytree, now: b.now,
       startWatcher: () => ensureWatcher({ pidFile: b.pidFile, argsOf: b.argsOf, spawn: () => b.startWatcher(b.log) }) });

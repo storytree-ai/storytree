@@ -48,6 +48,8 @@
  *   file failing to load; taking the return records a hit at each one none names, asking for its red, and re-runs nothing (2.14, ADR-1153 D3).
  *   A red run any worktree of the same clone saved counts too when it was saved at a commit the worktree's HEAD carries: `pnpm test`
  *   also keeps each in the clone's shared copy, so a lane resuming a pushed branch in a fresh worktree keeps its reds (2.15).
+ *   Each outside checkout the brief reads, the factory worktree (2.18) or a checkout named as the change's other half (2.19),
+ *   has the tests its diff adds listed the same way under its folder, read against that checkout's saved red runs (2.20).
  * - A capability the increment names whose story is a factory plugin's (ADR-1187) has its change read from the worktree of the factory
  *   repo on a branch carrying the increment's id: the brief holds that worktree's diff, its files in the plugin's package, and the
  *   capability's contracts as the plugin's plan file there numbers them, a contract only the plan holds briefed as `<plugin>:<number>`
@@ -138,8 +140,12 @@ export interface Brief {
   readonly judge: readonly number[];
 }
 
-/** One test the change adds, as the brief lists it: its file and line, its title, and whether a saved red run names it failing (contract 2.14). */
+/**
+ * One test the change adds, as the brief lists it: its file and line, its title, and whether a saved red run names it failing (contract 2.14);
+ * with the folder of the outside checkout whose diff adds it, when it is not the change's own (contract 2.20).
+ */
 export interface BriefRed {
+  readonly folder?: string;
   readonly file: string;
   readonly line: number;
   readonly test: string;
@@ -374,7 +380,10 @@ class PgReviews implements Reviews {
     // The tier is read on the whole change, whatever part of it this review reads (contract 2.11).
     const risk = await changeRisk(library, increment, diff, typeof read === "string" ? undefined : read.root);
     // The tests this review's diff adds, so a test checked in an earlier review is not asked for again (contract 2.14).
-    const reds = typeof read === "string" || read.root === undefined ? undefined : redsOf(newer ?? diff, read.root);
+    const own = typeof read === "string" || read.root === undefined ? undefined : redsOf(newer ?? diff, read.root);
+    // An outside checkout's new tests are read against its own saved red runs, its whole diff each review (contract 2.20).
+    const outside = outsideCheckouts({ factory: factory?.brief, also: halves }).flatMap(({ folder, diff }) => redsOf(diff, folder).map((red) => ({ folder, ...red })));
+    const reds = own === undefined && outside.length === 0 ? undefined : [...(own ?? []), ...outside];
     const brief: Brief = {
       project, change, iteration: all + 1, diff: newer ?? diff, ...(base === undefined ? {} : { base }),
       ...(mark === undefined ? {} : { mark }), ...(since === undefined ? {} : { since }),
@@ -618,14 +627,20 @@ function sameFinding(earlier: Pick<HitRow, "check" | "file" | "found">, hit: { c
   return hit.check === COVERING_TEST ? contract(earlier.found) === contract(hit.found) : earlier.found === hit.found;
 }
 
+/** The checkouts outside the change's own folder a brief read, with their diffs: the factory worktree, then each other half (contracts 2.18, 2.19). */
+export function outsideCheckouts(brief: Pick<Brief, "factory" | "also">): { folder: string; diff: string }[] {
+  const factory = brief.factory?.folder !== undefined && brief.factory.diff !== undefined ? [{ folder: brief.factory.folder, diff: brief.factory.diff }] : [];
+  return [...factory, ...(brief.also ?? []).filter(({ folder }) => folder !== "")];
+}
+
 /** The red-run check as a review ran it (contract 2.14): a hit at each test the change adds that no saved red run names; not run when it adds none. */
 function redRuns(brief: Brief): { check: string; hits: { package: string; file: string; line: number; found: string }[] }[] {
   if ((brief.reds ?? []).length === 0) return [];
   return [{
     check: RED_RUN,
-    hits: brief.reds!.filter(({ red }) => !red).map(({ file, line, test }) => ({
+    hits: brief.reds!.filter(({ red }) => !red).map(({ folder, file, line, test }) => ({
       package: hitPackage(brief, file), file, line,
-      found: `new test ${test}: no saved red run names it failing; run it red against the code without the change, or say why it could not fail first`,
+      found: `new test ${test}${folder === undefined ? "" : ` in the checkout ${folder}`}: no saved red run names it failing; run it red against the code without the change, or say why it could not fail first`,
     })),
   }];
 }
@@ -1036,8 +1051,8 @@ export function briefText(brief: Brief): string {
     ]),
     ...((brief.reds ?? []).length === 0 ? [] : [
       "",
-      `New tests (${brief.reds!.length}): each test the diff adds, and whether a red run \`pnpm test\` saved in the worktree names it failing. One with no saved red run is taken as a hit at its line when your return is taken: you need not raise it.`,
-      ...brief.reds!.map(({ file, line, test, red }) => `  ${file}:${line}  ${test}  ${red ? "red run saved" : "no saved red run"}`),
+      `New tests (${brief.reds!.length}): each test the diff adds, an outside checkout's under its folder, and whether a red run \`pnpm test\` saved in its worktree names it failing. One with no saved red run is taken as a hit at its line when your return is taken: you need not raise it.`,
+      ...brief.reds!.map(({ folder, file, line, test, red }) => `  ${folder === undefined ? "" : `${folder}: `}${file}:${line}  ${test}  ${red ? "red run saved" : "no saved red run"}`),
     ]),
     ...(brief.earlier.length === 0 ? [] : [
       "",

@@ -883,6 +883,38 @@ test("2.14 · a test the change adds that no saved red run names failing is take
   });
 });
 
+test("2.20 · a test an outside checkout's diff adds is listed under its checkout, with whether that checkout's saved red runs name it failing, and one none names is taken as a hit", async () => {
+  await withLibrary(async (library, storytree) => {
+    const { increment, contracts, checks } = await plan(library);
+    const reviews = await openReviews(storytree);
+    const dir = branchCheckout();
+    const other = branchCheckout();
+    try {
+      writeFileSync(join(other, ".gitignore"), ".pgtest/\n");
+      mkdirSync(join(other, "plugins/voice/src"), { recursive: true });
+      writeFileSync(join(other, "plugins/voice/src/door.test.ts"), 'import { test } from "node:test";\ntest("1.1 · seen red there", () => {});\ntest("1.2 · never red there", () => {});\n');
+      mkdirSync(join(other, ".pgtest"));
+      writeFileSync(join(other, ".pgtest/red-runs.jsonl"), JSON.stringify({ at: "2026-10-31T10:00:00.000Z", head: "abc", file: "plugins/voice/src/door.test.ts", test: "1.1 · seen red there" }) + "\n");
+
+      const brief = await reviews.brief(library, increment, worktreeChange(dir), undefined, undefined, [worktreeChange(other)]);
+      assert.deepEqual(brief.reds, [
+        { folder: other, file: "plugins/voice/src/door.test.ts", line: 2, test: "1.1 · seen red there", red: true },
+        { folder: other, file: "plugins/voice/src/door.test.ts", line: 3, test: "1.2 · never red there", red: false },
+      ]);
+      assert.ok(briefText(brief).includes(`  ${other}: plugins/voice/src/door.test.ts:3  1.2 · never red there  no saved red run`));
+
+      const taken = await reviews.take(library.name, increment, clean(checks, contracts));
+      assert.deepEqual(taken.hits.map(({ check, package: pkg, file, line }) => ({ check, package: pkg, file, line })), [
+        { check: RED_RUN, package: "voice", file: "plugins/voice/src/door.test.ts", line: 3 },
+      ]);
+      assert.ok(taken.hits[0]!.found!.includes(other), taken.hits[0]!.found);
+    } finally {
+      await removeTemp(dir);
+      await removeTemp(other);
+    }
+  });
+});
+
 test("2.18 · a change to a factory plugin's story is briefed with the factory worktree on the increment's branch, its diff and the plugin plan's contracts there; with no such worktree the brief says so and a return answering those contracts met is refused", async () => {
   const factory = mkdtempSync(join(tmpdir(), "qa-factory-"));
   const worktree = join(mkdtempSync(join(tmpdir(), "qa-factory-wt-")), "wt");

@@ -17,7 +17,7 @@ const root = fileURLToPath(new URL("../../..", import.meta.url));
 test("13.5 storytree's pnpm test carries its package-boundary and allocation checks in every scoped run, and runs its browser proofs alone", (t) => {
   const workspace = readWorkspace(root);
   const { units } = planRun({ root, workspace, decision: classify(["packages/mark/src/x.ts"], workspace), alwaysRun: ALWAYS_RUN });
-  for (const check of ["packages/dev-loop/src/package-boundaries.test.mjs", "packages/dev-loop/src/allocation.test.mjs"]) assert.ok(units.includes(check), `${check}: ${units.join(", ")}`);
+  for (const check of ["packages/repo-checks/src/package-boundaries.test.mjs", "packages/repo-checks/src/allocation.test.mjs"]) assert.ok(units.includes(check), `${check}: ${units.join(", ")}`);
 
   const home = mkdtempSync(path.join(tmpdir(), "test-lists-"));
   t.after(() => removeTemp(home));

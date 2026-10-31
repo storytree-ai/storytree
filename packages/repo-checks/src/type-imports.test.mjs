@@ -21,7 +21,7 @@ function plant(files) {
 
 const manifest = (name) => ({ name, type: "module", exports: { ".": "./src/index.ts" } });
 
-test("3.8 a type-only import ending at a story other than the library is refused and named; one at the library, one by value and one in a test are not", async (t) => {
+test("5.2 a type-only import ending at a story other than the library is refused and named; one at the library, one by value and one in a test are not", async (t) => {
   const root = plant({
     "packages/library/package.json": manifest("@t/library"),
     "packages/library/src/index.ts": 'export type { Row } from "./row.js";\n',

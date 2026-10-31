@@ -2,7 +2,7 @@ name: Capability list
 
 # On every pull request into main, and in the merge queue, run the capability-list check (ADR-0949 D3):
 # a branch that changes a capability its increment does not list fails it, naming each one
-# (`node --import tsx packages/dev-loop/src/capability-list.mjs`). The check reads the pull request's
+# (`node --import tsx packages/repo-checks/src/capability-list.mjs`). The check reads the pull request's
 # branch from GITHUB_HEAD_REF and says "not checked" for one that names no increment, which a merge
 # queue's branch never does.
 #
@@ -11,7 +11,7 @@ name: Capability list
 # variables TS_WIF_CLIENT_ID and TS_WIF_AUDIENCE as the environment plan-read sets them (its own
 # federated credential, whose subject names that environment), and connects as ci_plan_read, which
 # may SELECT library_meta and the plan's story, capability, contract, arc and increment records and
-# their history, and nothing else: infra/library-host/plan-read-grants.sql, which contract 7.7 runs
+# their history, and nothing else: infra/library-host/plan-read-grants.sql, which the repository checks' contract 4.3 runs
 # the check's reads under. Its password is the secret PLAN_PG_PASSWORD in the environment plan-read. A pull
 # request from this repository or a merge queue run without that secret fails, saying so; a pull
 # request from a fork, which GitHub gives no secrets, says "not checked" and passes.
@@ -102,4 +102,4 @@ jobs:
           export STORYTREE_HOME="$RUNNER_TEMP/storytree-home"
           mkdir -p "$STORYTREE_HOME"
           echo "{\"library\":{\"location\":\"postgres\",\"address\":\"postgres://ci_plan_read@$BOX:5432/postgres?sslrootcert=$GITHUB_WORKSPACE/infra/library-host/mint-library.crt\"}}" > "$STORYTREE_HOME/settings.json"
-          node --import tsx packages/dev-loop/src/capability-list.mjs
+          node --import tsx packages/repo-checks/src/capability-list.mjs

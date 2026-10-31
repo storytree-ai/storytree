@@ -73,7 +73,7 @@ export async function checkOwnerApplies(root, withWaits, { log = console.log, er
 }
 
 if (process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  const { withLibrary } = await import("./build-guidance.mjs");
+  const { withLibrary } = await import("@storytree/repo-checks/library-reach");
   const withWaits = (read) => withLibrary(async (library) => read((await library.holds()).waitsFor), "pnpm gate");
   process.exitCode = await checkOwnerApplies(fileURLToPath(new URL("../../..", import.meta.url)), withWaits);
 }

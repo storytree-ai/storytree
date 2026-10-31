@@ -427,7 +427,7 @@ jobs:
           fi
 
   # What a pull request adds to what installs: each external package new to pnpm-lock.yaml, and each dependency newly
-  # allowed to run its install script, in the run's summary (contract 7.18). Read from git before anything installs;
+  # allowed to run its install script, in the run's summary (Storytree's own repository checks' contract 3.1). Read from git before anything installs;
   # a report for the reviewer, which refuses nothing and is not one of verify's needs.
   lockfile-additions:
     name: lockfile additions
@@ -442,7 +442,7 @@ jobs:
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
         with:
           node-version: 24
-      - run: node packages/dev-loop/src/lockfile-additions.mjs
+      - run: node packages/repo-checks/src/lockfile-additions.mjs
 
   # No file the branch adds or changes gains a credential's shape, even inside gzip, archive or UTF-16 evidence
   # (`pnpm check:secrets`, leak-scan.mjs): shapes only, so no secret value is ever given to this job, and a hit names

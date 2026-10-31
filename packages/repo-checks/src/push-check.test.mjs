@@ -1,4 +1,4 @@
-// The push check (packages/dev-loop/src/push-check.mjs): git's pre-push hook refuses a push that adds a credential
+// The push check (packages/repo-checks/src/push-check.mjs): git's pre-push hook refuses a push that adds a credential
 // this machine holds, read from a home folder's credential files, without ever saying the value.
 import assert from "node:assert/strict";
 import { execFile, execFileSync } from "node:child_process";
@@ -50,7 +50,7 @@ function machine(t) {
   return { dir, home, root, git, lane, github };
 }
 
-test("7.21 · the push check refuses a push whose commits add a credential this machine holds, even inside gzip, UTF-16 or a damaged archive, naming the file and kind but no part of the value, and passes a push without one", (t) => {
+test("1.6 · the push check refuses a push whose commits add a credential this machine holds, even inside gzip, UTF-16 or a damaged archive, naming the file and kind but no part of the value, and passes a push without one", (t) => {
   const { home, root, git, lane, github } = machine(t);
   assert.deepEqual(machineSecrets({ home }).map(({ what }) => what).sort(), ["a Postgres password (~/.pgpass)", "storytree's lane login (~/.storytree/secrets.json)", "the GitHub command line's token (~/.config/gh/hosts.yml)"], "a .pgpass comment or blank line holds no password");
   git("checkout", "-q", "-b", "leaky");
@@ -88,7 +88,7 @@ function push(root, home, ...args) {
   });
 }
 
-test("7.21 · a git push through the installed hook is refused when it adds a machine credential, without the value, and goes through when it adds none", async (t) => {
+test("1.6 · a git push through the installed hook is refused when it adds a machine credential, without the value, and goes through when it adds none", async (t) => {
   const { home, root, git, lane } = machine(t);
   assert.match(installPushHook({ root, fallback: script }), /push check installed/);
   git("checkout", "-q", "-b", "leaky");

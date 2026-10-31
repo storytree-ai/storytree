@@ -1,7 +1,7 @@
-// Capability 3 · Package boundaries. Which parts of this repo break the package boundaries of ADR-0649 D1-D3 (in storytree 0.2's
+// Capability 5 · Package boundaries. Which parts of this repo break the package boundaries of ADR-0649 D1-D3 (in storytree 0.2's
 // decision log). The rule's code is the Guardrails story's (packages/guardrails, ADR-0911 D2), the same
 // code a user's project runs as `storytree check`; this file holds only storytree's own declarations, and
-// packages/dev-loop/src/package-boundaries.test.mjs runs the rule over the repo with them in `pnpm test` and CI.
+// packages/repo-checks/src/package-boundaries.test.mjs runs the rule over the repo with them in `pnpm test` and CI.
 //
 // - The frame is the app story's `packages/app` and `apps/desktop` (startup, lifecycle, updates and
 //   mounting each story's surface); the front door is the cli story's `packages/cli` (command families
@@ -18,7 +18,7 @@ import { readFileSync } from "node:fs";
 import { packageProblems } from "@storytree/guardrails";
 
 /** 0.3's own stories, each by the id its one package has (packages/<id>): a story owns exactly one package (ADR-1078 rule 4). */
-export const STORIES = ["agent-pool", "app", "app-setup", "arc-surface", "base-dev-loop", "ci-health", "cli", "dev-loop", "experiments", "forest", "forest-world", "guardrails", "keys", "knowledge-core", "library", "local-postgres", "map", "mark", "mcp-server", "plugin-loader", "project-and-caller", "quality-assurance", "service-host", "session-management", "surface-feedback", "teaching-cards", "test-waits", "website"];
+export const STORIES = ["agent-pool", "app", "app-setup", "arc-surface", "base-dev-loop", "ci-health", "cli", "dev-loop", "experiments", "forest", "forest-world", "guardrails", "keys", "knowledge-core", "library", "local-postgres", "map", "mark", "mcp-server", "plugin-loader", "project-and-caller", "quality-assurance", "repo-checks", "service-host", "session-management", "surface-feedback", "teaching-cards", "test-waits", "website"];
 // agent-pool: story_b2051c0f7372 (Agent runner, ADR-1071 D3), which holds the Claude Code mod in src/claude-code-mod (ADR-1076 D5).
 // app-setup: story_b91056a06337 (Setup), which holds Journey events in src/journey-events (ADR-1076 D3).
 // app: story_a93c6fb1a257 (Desktop app), which holds Lag in real use in src/lag (ADR-1071 D3).
@@ -33,6 +33,7 @@ export const STORIES = ["agent-pool", "app", "app-setup", "arc-surface", "base-d
 // guardrails: Guardrails, ADR-0911 D2.
 // mcp-server: The MCP server, ADR-0969 D1, which reads its own tools' use (ADR-1071 D3).
 // quality-assurance: story_421e473f0a99 (Quality assurance, ADR-0956 D2).
+// repo-checks: story_c27bd2a8f61e (Storytree's own repository checks, ADR-1199): the checks this repository runs on every pull request, these declarations among them.
 // project-and-caller: story_6def59292b78 (Context, ADR-1025), which owns identity too (ADR-1066 D4).
 // plugin-loader: story_09e58d68f87c (Plugin loader, ADR-1021).
 // teaching-cards: story_4b5db00e51a0 (Teaching cards, ADR-1196 D1), out of Website again: no counted caller since the tour stopped using them.

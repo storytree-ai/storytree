@@ -11,15 +11,18 @@ import { test } from "node:test";
 import { removeTemp } from "@storytree/test-waits";
 
 import { contributedSteps } from "@storytree/base-dev-loop";
+import { gateSteps as repoSteps } from "@storytree/repo-checks/gate-steps";
 
 import { runGate } from "./gate.mjs";
 import { gateSteps, guidanceFor } from "./gate-steps.mjs";
 
 const repoRoot = fileURLToPath(new URL("../../..", import.meta.url));
 
-// The gate's own steps as the checkout's manifest contributes them, with nothing switched off: the temporary
-// checkouts below have no package.json to compose them from.
-const own = { steps: async () => ({ parts: gateSteps, owners: gateSteps.map(() => "dev-loop"), graph: { "dev-loop": [] } }), partsOff: () => [] };
+// The gate's own steps as the checkout's manifests contribute them (Mick's dev loop's, then the repository checks'), with
+// nothing switched off: the temporary checkouts below have no package.json to compose them from.
+const parts = [...gateSteps, ...repoSteps];
+const owners = [...gateSteps.map(() => "dev-loop"), ...repoSteps.map(() => "repo-checks")];
+const own = { steps: async () => ({ parts, owners, graph: { "dev-loop": ["repo-checks"], "repo-checks": [] } }), partsOff: () => [] };
 const gate = (options) => runGate({ ...own, ...options });
 
 function checkout(t) {
@@ -73,7 +76,7 @@ test("7.5 the gate installs an uninstalled worktree before its first check, and 
   assert.match(output.at(-1), /NOT RUN\s+test.*worktree not installed/);
 });
 
-test("library-only guidance edits can request every check, plan edges included (3.7), continuing past failure or launch error", async (t) => {
+test("library-only guidance edits can request every check, plan edges included, continuing past failure or launch error", async (t) => {
   const { root } = checkout(t);
   for (const broken of ["typecheck", "test", "check:guidance", "check:plan-edges", "check:type-imports", "check:seed-records", "check:leaks", "check:secrets"]) {
     const calls = [];
@@ -131,7 +134,7 @@ test("7.2 unreadable change scope requires guidance instead of guessing that not
   assert.match(decision.reason, /could not.*read/);
 });
 
-test("7.11 on an increment's branch the gate writes the change's risk line through quality risk, after the capability list; a branch naming none leaves it NOT RUN", async (t) => {
+test("7.11 on an increment's branch the gate writes the change's risk line through quality risk, beside the capability list; a branch naming none leaves it NOT RUN", async (t) => {
   const { root, git } = checkout(t);
   const gateHere = async () => {
     const calls = [];
@@ -147,17 +150,19 @@ test("7.11 on an increment's branch the gate writes the change's risk line throu
   git("checkout", "-q", "-b", "claude/increment-ca8ba53211b7-f8f424");
   const named = await gateHere();
   assert.equal(named.code, 0);
-  assert.deepEqual(named.steps.slice(-2), ["check:capability-list", "check:risk"]);
-  assert.equal(named.calls.at(-1)[0], "check:risk");
+  assert.ok(named.steps.includes("check:capability-list") && named.steps.includes("check:risk"), named.steps.join(", "));
   assert.match(named.table, /PASS\s+check:risk/);
   const risk = gateSteps.find((step) => step.name === "check:risk").command({ root });
   assert.deepEqual(risk.args.slice(-6, -2), ["packages/cli/src/bins/storytree.ts", "quality", "risk", "increment_ca8ba53211b7"]);
 });
 
-test("7.1 storytree's checkout contributes its nine checks to the base dev loop's gate from dev-loop's manifest, in today's order", async () => {
+test("7.1 storytree's checkout contributes its nine checks to the base dev loop's gate, from Mick's dev loop's manifest and the repository checks'", async () => {
   const { parts, owners } = await contributedSteps(repoRoot);
-  assert.deepEqual(parts.map((step) => step.name), ["check:guidance", "check:plan-edges", "check:type-imports", "check:seed-records", "check:leaks", "check:secrets", "check:owner-applies", "check:capability-list", "check:risk"]);
-  assert.deepEqual([...new Set(owners)], ["dev-loop"]);
+  const by = Object.fromEntries(parts.map((step, index) => [step.name, owners[index]]));
+  assert.deepEqual(by, {
+    "check:guidance": "dev-loop", "check:plan-edges": "dev-loop", "check:owner-applies": "dev-loop", "check:risk": "dev-loop",
+    "check:type-imports": "repo-checks", "check:seed-records": "repo-checks", "check:leaks": "repo-checks", "check:secrets": "repo-checks", "check:capability-list": "repo-checks",
+  });
 });
 
 test("7.11 a branch renamed after review to name its increment runs check:capability-list, and check:risk reads that checkout's own change, not the branch its claim recorded", async (t) => {
@@ -172,7 +177,7 @@ test("7.11 a branch renamed after review to name its increment runs check:capabi
   const calls = [];
   const output = [];
   await gate({ root, run: async (step) => { calls.push(step); return 0; }, log: (line) => output.push(line) });
-  assert.deepEqual(calls.slice(-2), ["check:capability-list", "check:risk"]);
+  assert.ok(calls.includes("check:capability-list") && calls.includes("check:risk"), calls.join(", "));
 
   const { args } = gateSteps.find((step) => step.name === "check:risk").command({ root });
   assert.deepEqual(args.slice(-5, -2), ["quality", "risk", "increment_b962bb8544d2"]);

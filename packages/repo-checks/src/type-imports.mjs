@@ -1,4 +1,4 @@
-// Capability 3 · Package boundaries. A type-only import ends only at the library (ADR-1017 D2): the library is the
+// Capability 5 · Package boundaries. A type-only import ends only at the library (ADR-1017 D2): the library is the
 // registry of the shapes stories share (D1), so a story's source file may import a name type-only from The
 // library's package and from no other story's. Imports by value between stories are not this check's business.
 //

@@ -1,8 +1,8 @@
 // Capability 7 · The gate. ADR-0716: one foreground command for the checks before landing. Tests keep their own
 // scoping, per-package table and rerun record in test.mjs. No second test runner lives here.
 // ADR-1170 D1: the runner is the base dev loop's (packages/base-dev-loop): typecheck and the project's tests, then
-// every step a part contributes. This is storytree's own `pnpm gate` around it: storytree's seven checks are this
-// package's contribution (gate-steps.mjs), and --guidance reaches the guidance step's `when`.
+// every step a part contributes. This is storytree's own `pnpm gate` around it: the checks Mick's dev loop adds are this
+// package's contribution (gate-steps.mjs), the repository's own checks add theirs (packages/repo-checks), and --guidance reaches the guidance step's `when`.
 // Flags go as `pnpm run gate --guidance`: Windows PowerShell 5.1 drops a bare `--` before pnpm
 // sees it, so `pnpm gate -- --guidance` fails there; `pnpm run` passes them on in every shell.
 // The gate holds the machine's heavy-run lock (packages/dev-loop/src/heavy-lock.mjs) for its whole run, so

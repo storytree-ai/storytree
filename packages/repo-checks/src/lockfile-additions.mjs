@@ -1,10 +1,10 @@
-// Capability 7 · The gate. CI's lockfile report (contract 7.18): what a branch adds to the code that installs, for the
+// Capability 3 · Lockfile report. CI's lockfile report (contract 3.1): what a branch adds to the code that installs, for the
 // reviewer to read. Against where the branch left main, merge-base(origin/main, HEAD), it lists each external package
 // pnpm-lock.yaml's `packages:` section gains, saying whether its name is new or another version of one already there,
 // and each dependency pnpm-workspace.yaml newly allows to run its install script (onlyBuiltDependencies: no other
 // dependency's script runs, and pnpm's v9 lockfile does not record which packages have one). It is a report, never a
 // gate: it prints and writes the run's summary, and refuses nothing. It reads only git and node's own modules, so CI
-// runs it before any install. `node packages/dev-loop/src/lockfile-additions.mjs`.
+// runs it before any install. `node packages/repo-checks/src/lockfile-additions.mjs`.
 import { execFileSync } from "node:child_process";
 import { appendFileSync } from "node:fs";
 import { fileURLToPath, pathToFileURL } from "node:url";

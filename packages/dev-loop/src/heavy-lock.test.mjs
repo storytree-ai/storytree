@@ -69,14 +69,19 @@ test("13.1 a second test run on the machine waits for the first, naming who hold
   assert.match(b.output, new RegExp(`waiting for .*pid ${first.child.pid}`));
 });
 
-test("13.1 asking the test run for its usage, or giving it an unknown flag, takes no heavy-run lock", (t) => {
+test("13.1 asking the test run for its usage, or giving it an unknown flag, answers at once while another run holds the lock", (t) => {
   const { home } = machine(t);
+  // A live holder (this process) that never lets go: a run that took the lock first would wait on it.
+  mkdirSync(home, { recursive: true });
+  writeFileSync(path.join(home, "heavy-run.lock"), JSON.stringify({ id: "held", pid: process.pid, branch: "another run", since: new Date().toISOString() }));
   const env = { ...process.env, STORYTREE_HOME: home };
   delete env.STORYTREE_HEAVY_LOCK_HOLDER; // this suite itself runs under the outer run's lock
-  const run = (arg) => spawnSync(process.execPath, ["--import", "tsx", "packages/dev-loop/src/test.mjs", arg], { cwd: root, env, encoding: "utf8" });
-  assert.equal(run("--help").status, 0);
-  assert.equal(run("--bogus").status, 2);
-  assert.equal(existsSync(path.join(home, "heavy-run.lock")), false, "no heavy-run lock was taken");
+  const run = (arg) => spawnSync(process.execPath, ["--import", "tsx", "packages/dev-loop/src/test.mjs", arg], { cwd: root, env, encoding: "utf8", timeout: 20_000 });
+  for (const [arg, status] of [["--help", 0], ["--bogus", 2]]) {
+    const answered = run(arg);
+    assert.equal(answered.status, status, `${arg}: ${answered.stdout}${answered.stderr}`);
+    assert.doesNotMatch(answered.stdout + answered.stderr, /waiting for/, arg);
+  }
 });
 
 test("13.1 a lock whose holder has gone does not block the next run", async (t) => {

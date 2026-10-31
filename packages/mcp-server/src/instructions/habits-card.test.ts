@@ -24,9 +24,10 @@ import { CONTRACT_DEFINITION, habitsCard } from "./habits.js";
 async function sessionStart(harness = "claude-code", off?: readonly string[]): Promise<{ client: Client; harnessTools: readonly string[]; close(): Promise<void> }> {
   // A user's folder, not this checkout: storytree's own project also serves the librarian's tools.
   const folder = mkdtempSync(path.join(tmpdir(), "habits-card-"));
-  // Parts switched off are named in a storytree home of the folder's own.
+  // The folder is its own storytree home, so no machine's settings (a part off, a plugin standing in) change the card;
+  // parts switched off are named there.
   if (off !== undefined) writeFileSync(path.join(folder, "settings.json"), JSON.stringify({ "parts-off": off }));
-  const tools = createAgentTools({ folder, env: {}, ...(off === undefined ? {} : { setup: { storytreeHome: folder } }) });
+  const tools = createAgentTools({ folder, env: {}, setup: { storytreeHome: folder } });
   const [serverSide, clientSide] = InMemoryTransport.createLinkedPair();
   await tools.server.connect(serverSide);
   const client = new Client({ name: harness, version: "test" });

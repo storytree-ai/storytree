@@ -22,7 +22,7 @@ import "./survey-worker.js";
 
 const tree = { arcs: [], stories: [{ id: "story-shop", title: "Shop", capabilities: [{ id: "cap-claims", title: "3 · Claims" }] }] } as unknown as AnnotatedTree;
 
-test("8.1, 8.5 Constructor stories survey alongside ordinary stories and storytree's package aliases, which a user's story of the same title does not take", async () => {
+test("8.1, 8.5 Constructor stories survey alongside ordinary stories and storytree's package aliases, which a user's story of the same title does not take, and a factory plugin's story is surveyed from its plugin's package whatever its title", async () => {
   const folder = await mkdtemp(path.join(tmpdir(), "code-survey-titles-"));
   const fixtures = [["story-shop", "Shop", "shop"], ["story_f9fb5136c28f", "The command line", "cli"],
     // ADR-1066 D4's developer-first names, whose packages kept their names: storytree's own stories, by id.
@@ -31,8 +31,10 @@ test("8.1, 8.5 Constructor stories survey alongside ordinary stories and storytr
     ["story_7722ddb5461e", "Work board", "arc-surface"], ["story_a93c6fb1a257", "Desktop app", "app"], ["story_b91056a06337", "Setup", "app-setup"],
     // A user's stories of the same titles keep the title rule.
     ["story-user-setup", "Setup", "setup"], ["story-user-context", "Context", "context"], ["story-user-command-line", "The command line", "command-line"],
+    // A factory plugin's story, titled for what it does: its package is the plugin's.
+    ["story-voice", "Talk to storytree by voice", "voice"],
     ["story-website", "Website", "website"], ["story-constructor", "Constructor", "constructor"]] as const;
-  const stories = fixtures.map(([id, title, name]) => ({ id, title, capabilities: [{ id: `cap-${name}`, title: "1 · Value" }] }));
+  const stories = fixtures.map(([id, title, name]) => ({ id, title, ...(id === "story-voice" ? { plugin: "voice" } : {}), capabilities: [{ id: `cap-${name}`, title: "1 · Value" }] }));
   const ordinary = { arcs: [], stories: stories.slice(0, -1) } as unknown as AnnotatedTree;
   const reader = codeSurveyReader();
   try {

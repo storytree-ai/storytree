@@ -72,7 +72,7 @@ export async function recordPluginTests({ library, factory, plugin, run = runTes
 
   const files = filesIn(folder, `packages/${plugin}/`);
   const proofs = proofsAt(await library.projectTree(), files).filter(({ packages }) => packages.includes(plugin));
-  if (proofs.length === 0) return { written: false, why: `No story in this project has ${plugin} as its package (a story titled ${JSON.stringify(plugin)}), so its tests prove no promise here; nothing was written.` };
+  if (proofs.length === 0) return { written: false, why: `No story in this project has ${plugin} as its package (a story of that plugin, or titled ${JSON.stringify(plugin)}), so its tests prove no promise here; nothing was written.` };
 
   const results = parseTestLog(await run(command, folder));
   if (results.length === 0) return { written: false, why: `${plugin}'s test command (${command}) reported no test results storytree can read (node --test's output); nothing was written.` };

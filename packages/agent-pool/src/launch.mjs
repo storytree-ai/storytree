@@ -115,7 +115,7 @@ export async function withFlock(path, fn) {
  * the increment is read again once the slot and checkout are ready, since that wait can outlast its survey by minutes:
  * a reason back (or an unread library) starts nothing and returns NOT_STARTED. The slot is held until the runner's engine is up, or the lane ends.
  */
-export async function laneOnce({ increment, brief, log, err, addDirs, repo, maxLanes, lock, count, slots, prepare, sleep, runLane, recheck, follow = false, now = Date.now, say }) {
+export async function laneOnce({ increment, brief, log, err, addDirs, repo, maxLanes, lock, count, slots, prepare, sleep, runLane, recheck, follow, now = Date.now, say }) {
   const dated = (message) => say(`${stamp(now)} ${message}`);
   let slot;
   await lock(async () => {

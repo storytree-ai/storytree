@@ -98,7 +98,8 @@ function dependencyNames(manifest) {
  * package bundling it (forest's browser build, the capture kit's) would be a dependent of every story; that the whole
  * renderer bundles is desktop's own test to prove (3.17), so a path into it depends on desktop's files it reaches by
  * relative path, and no further (`own`). So does the page's road worker, which the app's build and the capture kit's both
- * build beside the renderer from the drawing engine: that it builds is desktop's 3.18 and 2.19 to prove. The capture kit's
+ * build beside the renderer from the drawing engine: that it builds is desktop's 3.18 and 2.19 to prove. So do the page's
+ * build options, which both builds share and which name desktop's folder (3.23, 2.21). The capture kit's
  * build names the renderer by a repo path the reading cannot
  * see, so it is written here (`targets`), and a path into the renderer's build output stands for the renderer
  * (`builtAt`). Launch's computed import is Playwright's module, outside the workspace (`readable`). A file renamed away leaves its entry unread, and the real-workspace scope test goes red.
@@ -106,6 +107,7 @@ function dependencyNames(manifest) {
 const DESKTOP_ONLY = {
   "apps/desktop/src/renderer/renderer.ts": { own: "apps/desktop", builtAt: ["apps/desktop/dist/renderer"] },
   "apps/desktop/src/renderer/road-worker.ts": { own: "apps/desktop" },
+  "apps/desktop/src/renderer/page-build.ts": { own: "apps/desktop" },
   "apps/desktop/src/capture/build.ts": { targets: ["apps/desktop/src/renderer/renderer.ts"] },
   "apps/desktop/src/capture/launch.ts": { readable: true },
 };

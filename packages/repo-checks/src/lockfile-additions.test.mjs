@@ -12,7 +12,7 @@ import { reportLockfileAdditions } from "./lockfile-additions.mjs";
 const lock = (...keys) => ["lockfileVersion: '9.0'", "", "importers:", "", "  .:", "    devDependencies:", "      tsx:", "        specifier: ^4", "", "packages:", "", ...keys.flatMap((key) => [`  ${key}:`, "    resolution: {integrity: sha512-x}", ""]), "snapshots:", "", "  ignored@9.9.9: {}", ""].join("\n");
 const workspace = (...built) => ["packages:", '  - "packages/*"', "onlyBuiltDependencies:", ...built.map((name) => `  - ${name}`), "ignoredBuiltDependencies:", "  - protobufjs", ""].join("\n");
 
-test("7.18 · CI's lockfile report lists each external package a branch adds to pnpm-lock.yaml, saying whether its name is new, and each dependency newly allowed to run its install script, against origin/main", async (t) => {
+test("3.1 · CI's lockfile report lists each external package a branch adds to pnpm-lock.yaml, saying whether its name is new, and each dependency newly allowed to run its install script, against origin/main", async (t) => {
   const root = mkdtempSync(path.join(tmpdir(), "lockfile-additions-"));
   t.after(() => removeTemp(root));
   const git = (...args) => execFileSync("git", args, { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });

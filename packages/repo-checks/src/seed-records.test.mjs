@@ -24,7 +24,7 @@ function folder(t, files) {
   return root;
 }
 
-test("7.10 · the gate's seed check reads each seed or snapshot file the branch changes, gzipped or not, and refuses one holding a work record or a redaction pattern, naming the file", (t) => {
+test("2.1 · the gate's seed check reads each seed or snapshot file the branch changes, gzipped or not, and refuses one holding a work record or a redaction pattern, naming the file", (t) => {
   const dirty = JSON.stringify({ changes: { changes: [{ recordId: "increment_a", type: "increment", record: { id: "increment_a", type: "increment", fields: {} } }] } });
   const clean = JSON.stringify({ tree: { stories: [{ id: "story_a", title: "The library" }] } });
   const root = folder(t, {
@@ -45,7 +45,7 @@ test("7.10 · the gate's seed check reads each seed or snapshot file the branch 
   assert.deepEqual(seedRecordProblems(root, seedFilesFor(root, () => ["packages/forest/src/view/evidence/b/seed.json"])), []);
 });
 
-test("7.12 · the gate's seed check also reads each transcript, log, table or CPU profile under an evidence folder the branch changes, refusing one that is UTF-16 or carries a home folder, session id or connector, and the evidence scrub rewrites a folder's captures so the check passes", (t) => {
+test("2.2 · the gate's seed check also reads each transcript, log, table or CPU profile under an evidence folder the branch changes, refusing one that is UTF-16 or carries a home folder, session id or connector, and the evidence scrub rewrites a folder's captures so the check passes", (t) => {
   const transcript = `${JSON.stringify({ type: "system", cwd: "/home/someone/tipjar", session_id: "abc" })}\nclaude.ai Gmail: https://gmailmcp.googleapis.com/mcp/v1 - √ Connected\n`;
   const utf16 = Buffer.concat([Buffer.from([0xff, 0xfe]), Buffer.from("ran fine\n", "utf16le")]);
   const root = folder(t, {
@@ -75,7 +75,7 @@ test("7.12 · the gate's seed check also reads each transcript, log, table or CP
   assert.deepEqual(JSON.parse(readFileSync(path.join(root, "packages/app-setup/evidence/run/turn-1.jsonl"), "utf8").trim()), { type: "system", cwd: "<home>/tipjar" });
 });
 
-test("7.13 · the gate's seed check refuses a website snapshot holding an increment's objective, outcome or body, a question, a writer named other than by role, or a withheld arc, and passes one keeping titles and status", (t) => {
+test("2.3 · the gate's seed check refuses a website snapshot holding an increment's objective, outcome or body, a question, a writer named other than by role, or a withheld arc, and passes one keeping titles and status", (t) => {
   const record = (id, type, fields) => ({ id, type, version: 1, createdAt: "2026-10-25T00:00:00.000Z", updatedAt: "2026-10-25T00:00:00.000Z", fields });
   const snapshot = (increment, extra = {}) => JSON.stringify({ version: 1, arcs: [{ state: "active", arc: record("arc_open", "arc", { title: "Open", priority: 1 }),
     increments: [record("increment_a", "increment", increment)], questions: [], ...extra }], holds: { waits: {}, heldOn: {} }, recording: { lines: [{ seq: 1, kind: "landed", scribedBy: "owner", writer: "agent" }] } });
@@ -97,7 +97,7 @@ test("7.13 · the gate's seed check refuses a website snapshot holding an increm
   assert.deepEqual(seedRecordProblems(root, ["clean/forest-snapshot.json"]), []);
 });
 
-test("7.13 · the gate's seed check refuses a website snapshot keeping a wait's reason or a recorded line's reason, why or session name, and passes one with them blank", (t) => {
+test("2.3 · the gate's seed check refuses a website snapshot keeping a wait's reason or a recorded line's reason, why or session name, and passes one with them blank", (t) => {
   const snapshot = (reason, line) => JSON.stringify({ version: 1, arcs: [], holds: { waits: { increment_a: [{ on: "increment_b", reason, forGood: false }] }, heldOn: {} },
     recording: { lines: [{ seq: 1, kind: "claimed", increment: "increment_a", ...line }] } });
   const file = "packages/website/src/forest-snapshot.json";
@@ -112,7 +112,7 @@ test("7.13 · the gate's seed check refuses a website snapshot keeping a wait's 
   assert.deepEqual(seedRecordProblems(root, ["clean/forest-snapshot.json"]), []);
 });
 
-test("7.13 · the gate's seed check reads the website's shop snapshot too, refusing one that names a session by its harness id and passing it once sessions are numbered", (t) => {
+test("2.3 · the gate's seed check reads the website's shop snapshot too, refusing one that names a session by its harness id and passing it once sessions are numbered", (t) => {
   const shop = (session) => JSON.stringify({ version: 1, stages: [{ id: "building", wisps: [{ session, story: "story_a" }] }],
     reading: { recording: { lines: [{ seq: 1, kind: "landed", session, holder: session }] } } });
   const file = "packages/website/src/shop-snapshot.json";
@@ -122,7 +122,7 @@ test("7.13 · the gate's seed check reads the website's shop snapshot too, refus
   assert.deepEqual(seedRecordProblems(root, ["clean/shop-snapshot.json"]), []);
 });
 
-test("7.10 · the gate's seed check refuses a seed naming a writer other than by role or the published-copies arc, and passes it once it is sanitised", (t) => {
+test("2.1 · the gate's seed check refuses a seed naming a writer other than by role or the published-copies arc, and passes it once it is sanitised", (t) => {
   const dump = { changes: { changes: [
     { seq: 1, recordId: "story_a", type: "story", record: { id: "story_a", type: "story", scribedBy: "someone", fields: { title: "The library" } } },
     { seq: 2, recordId: "decision_a", type: "decision", record: { id: "decision_a", type: "decision", scribedBy: "owner", fields: { text: "see arc_824a506f2125" } } },

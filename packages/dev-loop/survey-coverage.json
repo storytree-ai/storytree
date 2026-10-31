@@ -5,11 +5,6 @@
  "src/build-guidance.mjs": {
   "4": 100
  },
- "src/capability-list.mjs": {
-  "7": 137,
-  "10": 3,
-  "13": 27
- },
  "src/check-own-health.mjs": {
   "1": 20,
   "5": 10
@@ -27,21 +22,21 @@
   "5": 48
  },
  "src/gate-steps.mjs": {
-  "7": 248,
-  "13": 54
+  "13": 54,
+  "7": 248
  },
  "src/gate.mjs": {
-  "7": 56,
-  "13": 36
+  "13": 36,
+  "7": 56
  },
  "src/guidance.mjs": {
   "4": 400
  },
  "src/heavy-lock.mjs": {
   "1": 16,
+  "13": 189,
   "5": 8,
-  "8": 134,
-  "13": 189
+  "8": 134
  },
  "src/lag-box.mjs": {
   "8": 448
@@ -49,31 +44,18 @@
  "src/lag-seed.mjs": {
   "8": 18
  },
- "src/leak-scan.mjs": {
-  "7": 294,
-  "11": 21
- },
  "src/library-export.mjs": {
   "5": 36
  },
  "src/library-server.mjs": {
   "5": 22
  },
- "src/lockfile-additions.mjs": {
-  "7": 11
- },
  "src/owner-applies.mjs": {
-  "7": 59,
-  "13": 27
- },
- "src/package-boundaries.mjs": {
-  "3": 1
+  "13": 27,
+  "7": 59
  },
  "src/plan-edges.mjs": {
   "3": 44
- },
- "src/push-check.mjs": {
-  "7": 46
  },
  "src/read-latency.mjs": {
   "8": 54
@@ -82,8 +64,8 @@
   "5": 30
  },
  "src/red-run-reporter.mjs": {
-  "9": 27,
-  "13": 9
+  "13": 9,
+  "9": 27
  },
  "src/release-copy.mjs": {
   "11": 11
@@ -94,15 +76,12 @@
  "src/restore-library.mjs": {
   "5": 16
  },
- "src/seed-records.mjs": {
-  "7": 78
- },
  "src/starting-tree.mjs": {
   "11": 16
  },
  "src/survey-coverage.mjs": {
-  "2": 26,
-  "13": 78
+  "13": 78,
+  "2": 26
  },
  "src/test-ratio.mjs": {
   "13": 6
@@ -116,27 +95,24 @@
  },
  "src/test-run/record-run.mjs": {
   "1": 128,
+  "12": 304,
   "2": 44,
   "3": 33,
   "4": 22,
-  "9": 11,
-  "12": 304
+  "9": 11
  },
  "src/test-run/test-run.mjs": {
   "1": 380,
+  "12": 1052,
   "2": 168,
   "3": 126,
   "4": 84,
   "5": 6,
-  "9": 42,
-  "12": 1052
+  "9": 42
  },
  "src/test.mjs": {
   "1": 4,
-  "5": 2,
-  "13": 9
- },
- "src/type-imports.mjs": {
-  "3": 4
+  "13": 9,
+  "5": 2
  }
 }

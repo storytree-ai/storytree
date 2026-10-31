@@ -34,14 +34,18 @@ export function ask(command: string, args: readonly string[], env: NodeJS.Proces
       : spawn(command, args, { env, ...cwd, windowsHide: true, stdio: ["ignore", "pipe", "ignore"] });
     let out = "";
     child.stdout.on("data", (chunk: Buffer) => { out += chunk.toString(); });
-    const timer = setTimeout(() => {
+    let exited = false;
+    // A deadline that comes due while the loop was blocked runs before the poll that would deliver an
+    // exit already waiting, so the check after that poll gives up only on a tool still running.
+    const timer = setTimeout(() => setImmediate(() => {
+      if (exited) return;
       done({ answered: false });
       if (process.platform === "win32" && child.pid !== undefined) {
         spawn("taskkill", ["/pid", String(child.pid), "/t", "/f"], { stdio: "ignore", windowsHide: true }).on("error", () => {});
       } else {
         child.kill("SIGKILL");
       }
-    }, waitMs);
+    }), waitMs);
     let settled = false;
     function done(answer: Answer): void {
       if (settled) return;
@@ -53,6 +57,7 @@ export function ask(command: string, args: readonly string[], env: NodeJS.Proces
     child.on("error", () => done({ answered: true, code: -1, out: "" }));
     child.on("close", (code) => done({ answered: true, code: code ?? -1, out }));
     child.on("exit", (code) => {
+      exited = true;
       setTimeout(() => done({ answered: true, code: code ?? -1, out }), TRAIL_MS).unref();
     });
   });

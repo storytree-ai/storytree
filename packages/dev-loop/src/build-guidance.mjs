@@ -22,24 +22,18 @@ import { userInfo } from "node:os";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
-import { locateLibrary, readLibrary } from "@storytree/project-and-caller";
 import { SESSION_ENV, WATCHED_HARNESSES } from "@storytree/project-and-caller/caller";
-import { connect } from "@storytree/library";
-import { DataDirInUseError, start } from "@storytree/local-postgres";
 
-import { appHome } from "../../../apps/desktop/src/home.ts";
+import { stopStartedLibrary, withLibrary } from "@storytree/repo-checks/library-reach";
 import { driftOf, expectedFiles, judgeDrift, overBudget, readRoles, REGION_END, REGION_START, ROLE_DIRS, SKILL_DIRS, sourcesOf } from "./guidance.mjs";
 import { changedFiles } from "@storytree/base-dev-loop/test-scope";
 
 const root = fileURLToPath(new URL("../../..", import.meta.url));
-const PROJECT = "storytree";
-
-let server; // the app's Postgres, when this started it
 
 if (process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href) {
   process.once("SIGINT", () => {
     console.error("\nguidance: interrupted");
-    void (server?.stop() ?? Promise.resolve()).finally(() => process.exit(130));
+    void stopStartedLibrary().finally(() => process.exit(130));
   });
   main(process.argv.includes("--check")).then(
     (code) => {
@@ -156,39 +150,6 @@ export function syncGuidance(expected, { root, check, judge = (drift) => ({ own:
   const over = overBudget(expected);
   for (const { file, bytes, budget } of over) error(`over budget: ${file} is ${bytes} bytes; its budget is ${budget}`);
   return (check && own.length > 0) || over.length > 0 ? 1 : 0;
-}
-
-/** Run `read` on the project's library, or say why the library could not be opened and return undefined. */
-export async function withLibrary(read, command) {
-  const home = path.dirname(appHome().pgdata);
-  const where = locateLibrary({ home, dataDir: appHome().pgdata });
-  let options = where.found ? where.connect : undefined;
-  if (options === undefined && readLibrary(home).location === "local") {
-    try {
-      server = await start({ dataDir: appHome().pgdata, owner: command });
-    } catch (error) {
-      if (!(error instanceof DataDirInUseError)) throw error;
-      console.error(`The app's library in ${appHome().pgdata} is in use by process ${error.pid}. When it has finished, run \`${command}\` again.`);
-      return undefined;
-    }
-    options = { url: server.url };
-  }
-  const storytree = await connect(options);
-  try {
-    if (!(await storytree.listProjects()).includes(PROJECT)) {
-      console.error(`The app's library has no project "${PROJECT}". Restore it from a snapshot with \`pnpm library:restore\`.`);
-      return undefined;
-    }
-    const library = await storytree.openProject(PROJECT);
-    try {
-      return await read(library);
-    } finally {
-      await library.close();
-    }
-  } finally {
-    await storytree.close();
-    await server?.stop();
-  }
 }
 
 /** The guidance files as they are under `root`. */

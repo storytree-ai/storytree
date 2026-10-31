@@ -1,4 +1,4 @@
-// Capability 3 · Package boundaries. Whether the plan's edges between stories follow the code (ADR-0840 D2): a capability of story X may
+// Capability 7 · The gate. Whether the plan's edges between stories follow the code (ADR-0840 D2): a capability of story X may
 // depend on a capability of story Y only when X's package depends on Y's, directly or through other
 // workspace dependencies (every field of package.json counts, as in package-boundaries.mjs). The
 // library holds the plan and CI cannot read it, so `pnpm gate` runs this as check:plan-edges.
@@ -99,9 +99,9 @@ function edgeProblems(root, tree) {
 
 if (process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const root = fileURLToPath(new URL("../../..", import.meta.url));
-  const { withLibrary } = await import("./build-guidance.mjs");
+  const { withLibrary } = await import("@storytree/repo-checks/library-reach");
   const { changedFiles } = await import("@storytree/base-dev-loop/test-scope");
-  const { branchTree, currentBranch } = await import("./capability-list.mjs");
+  const { branchTree, currentBranch } = await import("@storytree/repo-checks/capability-list");
   let changed;
   let branch;
   try {

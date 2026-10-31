@@ -19,7 +19,7 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
-import { incrementOfBranch } from "./capability-list.mjs";
+import { incrementOfBranch } from "@storytree/repo-checks/capability-list";
 
 /** Evidence: a clip, trace, coverage file or screenshot under a folder named evidence, never a seed a capture reads. */
 export function isEvidence(file) {
@@ -201,7 +201,7 @@ function repositoryOf(root) {
 if (process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const root = fileURLToPath(new URL("../../..", import.meta.url));
   const apply = process.argv.includes("--apply");
-  const { withLibrary } = await import("./build-guidance.mjs");
+  const { withLibrary } = await import("@storytree/repo-checks/library-reach");
   const arcs = await withLibrary((library) => library.arcViews(), "pnpm evidence:sweep");
   if (arcs === undefined) process.exit(1);
   const plan = sweepPlan(root, arcs);

@@ -497,6 +497,11 @@ async function provisionClient(installation: Installation, client: SignIn, port:
   const role = quoteIdentifier(client.user);
   const handOver: string[] = await withClient(connectionUrl(installation, port), async (admin) => {
     const exists = (await admin.query("SELECT 1 FROM pg_roles WHERE rolname = $1", [client.user])).rows.length > 0;
+    // A CREATE or DROP DATABASE cut short (a killed test run) leaves its database marked invalid,
+    // datconnlimit -2: nothing can connect to it, and dropping it is all Postgres allows.
+    const invalid = (await admin.query<{ datname: string }>("SELECT datname FROM pg_database WHERE datconnlimit = -2 ORDER BY datname")).rows.map((row) => row.datname);
+    if (invalid.length > 0) log(`dropping ${invalid.length === 1 ? "a database" : "databases"} an interrupted run left invalid: ${invalid.join(", ")}`);
+    for (const database of invalid) await admin.query(`DROP DATABASE IF EXISTS ${quoteIdentifier(database)}`);
     if (!exists) log(`making the role ${client.user}, which clients sign in as`);
     await admin.query(`${exists ? "ALTER" : "CREATE"} ROLE ${role} WITH LOGIN CREATEDB NOSUPERUSER NOCREATEROLE NOREPLICATION NOBYPASSRLS ` +
       `PASSWORD '${scramVerifier(client.password)}'`);

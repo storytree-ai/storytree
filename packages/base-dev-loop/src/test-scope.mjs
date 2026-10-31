@@ -43,14 +43,6 @@ const SPECIFIER = /["'`](@?[\w.-]+(?:\/[\w.-]+)*)["'`]/g;
 const TYPE_ONLY = /\b(?:import|export)\s+type\s+(?:\{[^}]*\}|\*(?:\s+as\s+\w+)?|\w+)\s+from\s*(["'])[^"'\r\n]*\1/g;
 
 /**
- * Checks that a change inside any one package can fail, so every scoped run carries them as units
- * of their own (a full run has them in their package already). The package-boundary check (ADR-0649 D3)
- * is one: a story's code landing in the frame is a change to the frame alone. The code allocation guardrail
- * (ADR-0838 D5) is another: a file left unreached in one package is a change to that package alone.
- */
-const ALWAYS_RUN = ["packages/dev-loop/src/package-boundaries.test.mjs", "packages/dev-loop/src/allocation.test.mjs"];
-
-/**
  * The workspace packages: each one's name, its dir (repo-relative, posix), the workspace packages
  * its package.json names, and the other packages' dirs its code reaches by a relative path. Also
  * which packages the root package.json depends on, as `rootDeps`.
@@ -480,33 +472,23 @@ export function parseTestArgs(argv) {
   return { flags, testArgs, help, refusal };
 }
 
-/**
- * The units a run executes, after the flags: `full` forces everything, `only` names packages (by
- * dir, dir name or package name), and `rerunFailed` takes the units the last recorded
- * run failed or never reached. Returns the decision as it now stands and the unit list.
- */
-/**
- * Test files that run as a unit of their own, after every other unit has ended and with nothing
- * beside them, whenever their package runs; their package's unit runs its other files. Forest's
- * browser proof: its software-GL frames starve when other units and files share a 3-CPU macOS
- * runner (load average 42 in run 38038938459; arc_2a8dbc47a5f9, increment_ba747f54277d), and its
- * 15 s no-new-frame wait is not widened instead. The world's road-reveal proof likewise: on macOS it
- * took 12-15 s in most merge queue runs, but 76 s in one and past its 80 s bound in another (runs 38092380077 and
- * 38032277103; increment_58dcb2d5c9a5). Knowledge-core's traversal proof too: beside other units on macOS it took 72 s in one
- * run and was killed past 180 s in four others (run 39187115227 among them; increment_724389f3f21d). The desktop's named-surfaces
- * proof drives the whole renderer's globe too: about 14 s alone, it pushed its package's unit past 60 s beside the
- * gate's other units on the Mint box (increment_2fd57d63cfae).
- */
-export const ALONE = ["packages/forest/src/view/desktop-renderer-smoke.test.ts", "packages/forest-world/src/planet/road-reveal.test.ts",
-  "packages/knowledge-core/src/traversal-smoke.test.ts", "apps/desktop/src/renderer/named-surfaces.test.ts"];
-
 /** The units with each file to run alone whose package is among them added after them as its own. */
 function withAlone(root, units, alone) {
   const own = alone.filter((file) => !units.includes(file) && units.some((unit) => file.startsWith(`${unit}/`)) && existsSync(path.join(root, file)));
   return [...units, ...own];
 }
 
-export function planRun({ root, workspace, decision, flags = {}, record, alone = ALONE }) {
+/**
+ * The units a run executes, after the flags: `full` forces everything, `only` names packages (by
+ * dir, dir name or package name), and `rerunFailed` takes the units the last recorded
+ * run failed or never reached. Returns the decision as it now stands and the unit list.
+ *
+ * `alone` names test files that run as a unit of their own, after every other unit has ended and with nothing beside them,
+ * whenever their package runs; their package's unit runs its other files. `alwaysRun` names checks that a change inside any
+ * one package can fail, so every scoped run carries each as a unit of its own (a full run has it in its package already).
+ * Both are the calling repository's own (storytree's are in packages/dev-loop/src/test.mjs): the base runner names none.
+ */
+export function planRun({ root, workspace, decision, flags = {}, record, alone = [], alwaysRun = [] }) {
   const infra = infraUnits(root);
   const all = [...workspace.filter((p) => hasTests(root, p.dir)).map((p) => p.dir), ...infra];
   if (flags.full) decision = full("--full asked for everything");
@@ -532,7 +514,7 @@ export function planRun({ root, workspace, decision, flags = {}, record, alone =
     return { decision: { mode: "rerun-failed", dirs, reason }, units: dirs };
   }
   if (decision.mode === "full") return { decision, units: withAlone(root, all, alone) };
-  const always = ALWAYS_RUN.filter((file) => existsSync(path.join(root, file)));
+  const always = alwaysRun.filter((file) => existsSync(path.join(root, file)));
   return { decision, units: withAlone(root, [...decision.dirs.filter((dir) => all.includes(dir)), ...always], alone) };
 }
 
@@ -540,7 +522,7 @@ export function planRun({ root, workspace, decision, flags = {}, record, alone =
  * The test files a unit runs, as the globs node --test is given: a unit may be one file. A package
  * holding a file to run alone names its other files instead, since a glob cannot leave one out.
  */
-export function unitGlobs(unit, { root, alone = ALONE } = {}) {
+export function unitGlobs(unit, { root, alone = [] } = {}) {
   if (/\.test\.m?[jt]s$/.test(unit)) return [unit];
   if (unit.startsWith(`${INFRA}/`)) return [`${unit}/**/*.test.ts`, `${unit}/**/*.test.mjs`];
   const globs = [`${unit}/src/**/*.test.ts`, `${unit}/src/**/*.test.mjs`];

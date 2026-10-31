@@ -8,14 +8,13 @@
 // that depends on them; everything whenever a change is one the workspace graph cannot account for
 // (a root file, a package.json, the lockfile, the dev loop, ...) or origin/main cannot be read. The
 // first line printed is the decision, `scope: ...`. Each package is one unit, its
-// `<dir>/src/**/*.test.{ts,mjs}`; the package-boundary check
-// (packages/dev-loop/src/package-boundaries.test.mjs) and the code allocation guardrail
-// (packages/dev-loop/src/allocation.test.mjs, ADR-0838 D5) are units of every run. Several units
+// `<dir>/src/**/*.test.{ts,mjs}`; the checks the caller names to carry (storytree's package-boundary check and code
+// allocation guardrail, packages/dev-loop/src/test.mjs) are units of every scoped run. Several units
 // run at once against the one Postgres (unit-pool.mjs: --jobs=<n>, else STORYTREE_TEST_JOBS, else 2 with a core left free,
 // or 1 where the Postgres runs under emulation, which the run says),
 // slowest first; each unit's output is held and printed whole under its name when it ends, and
 // `--jobs=1` runs them one after another with their output live. A file named to run alone
-// (test-scope.mjs ALONE: forest's and the world's browser proofs) is a unit of its own, run once every other unit has
+// (by the caller: storytree's browser proofs) is a unit of its own, run once every other unit has
 // ended, with nothing beside it. A failure never stops the rest:
 // the run ends with a PASS / FAIL / NOT RUN table, and exits non-zero if any unit did not pass.
 //
@@ -110,18 +109,15 @@ import { DataDirInUseError, start } from "@storytree/local-postgres";
 import { runtimeRefusal } from "./node-runtime.mjs";
 import { recordReds } from "./red-runs.mjs";
 import { keepPreviousServerLog } from "./server-log.mjs";
-import { parseTestArgs, planRun, readWorkspace, resultsTable, scopeFor, scopeLine, TEST_USAGE, unitGlobs, ALONE } from "./test-scope.mjs";
+import { parseTestArgs, planRun, readWorkspace, resultsTable, scopeFor, scopeLine, TEST_USAGE, unitGlobs } from "./test-scope.mjs";
 import { stopServersUnder, sweepLeftovers } from "./test-leftovers.mjs";
 import { runPool, shardPlan, shardUnits, slowestFirst, takeShard, testJobs } from "./unit-pool.mjs";
 import { clearUnitLimit, DEADLINE_GRACE_MS, defaultUnitLimit, killTree, recentPassTimes, recordTimings, runDeadline, runUnit, setUnitLimit, TEST_LIMIT_MS, unitLimit, unitReason, unitTestLimit, withinDeadline } from "./unit-run.mjs";
 
-const root = fileURLToPath(new URL("../../..", import.meta.url));
-const work = path.join(root, ".pgtest");
-const dataDir = path.join(work, "data");
-const serverLog = path.join(work, "pg.log");
-const toolLog = path.join(work, "tools.log");
-const recordFile = path.join(work, "last-run.json");
-const shardPlanFile = path.join(work, "shard-plan.txt");
+let root; // the repository the run tests, from testCommand's root
+let work, dataDir, serverLog, toolLog, recordFile, shardPlanFile; // the run's files, under root's .pgtest
+let alone; // test files run as units of their own, from testCommand
+let alwaysRun; // checks every scoped run carries, from testCommand
 
 let shard; // which of several shards this run is, from --shard
 let flags; // the run's own flags, parsed from its arguments
@@ -142,9 +138,20 @@ const holdNothing = async () => () => {};
 /**
  * Run `pnpm test` with `argv`, once per process. `hold({ root, what, stopped })` is taken past the scope decision
  * and released once the test Postgres has stopped: Mick's dev loop passes its heavy-run lock (packages/dev-loop/src/test.mjs).
+ * `root` is the repository tested, by default the checkout this file is in; a repository building against storytree
+ * (as a submodule) passes its own. `alone` and `alwaysRun` are its lists for planRun (test-scope.mjs), by default none.
  */
-export function testCommand({ argv: given = process.argv.slice(2), hold: takeHold = holdNothing } = {}) {
+export function testCommand({ argv: given = process.argv.slice(2), hold: takeHold = holdNothing, root: tested = fileURLToPath(new URL("../../..", import.meta.url)), alone: runAlone = [], alwaysRun: carried = [] } = {}) {
   hold = takeHold;
+  root = tested;
+  work = path.join(root, ".pgtest");
+  dataDir = path.join(work, "data");
+  serverLog = path.join(work, "pg.log");
+  toolLog = path.join(work, "tools.log");
+  recordFile = path.join(work, "last-run.json");
+  shardPlanFile = path.join(work, "shard-plan.txt");
+  alone = runAlone;
+  alwaysRun = carried;
   const taken = takeShard(given);
   shard = taken.shard;
   const parsed = parseTestArgs(taken.argv);
@@ -216,7 +223,7 @@ async function main() {
     const workspace = readWorkspace(root);
     let plan;
     try {
-      plan = planRun({ root, workspace, decision: scopeFor(root, workspace), flags, record: readRecord() });
+      plan = planRun({ root, workspace, decision: scopeFor(root, workspace), flags, record: readRecord(), alone, alwaysRun });
     } catch (error) {
       console.error(`test harness: ${error.message}`); // a flag naming no package: nothing ran
       return 1;
@@ -326,7 +333,7 @@ async function runTests(env, units) {
     running.add(unit);
     phase = `running ${[...running].join(", ")}`;
     console.log(jobs > 1 ? `started ${unit}` : `\n=== ${unit} ===`);
-    const run = await runNodeTest(env, unitGlobs(unit, { root }), unit);
+    const run = await runNodeTest(env, unitGlobs(unit, { root, alone }), unit);
     running.delete(unit);
     if (jobs > 1) process.stdout.write(`\n=== ${unit} ===\n${run.output}`);
     if (interrupted) return; // Ctrl-C cut it short: it stays NOT RUN
@@ -336,7 +343,7 @@ async function runTests(env, units) {
     tests.push(...run.tests);
     unitRuns.push(run);
     if (run.timedOut || run.exitHung.length > 0) console.log(`\ntest harness: ${unit} ${reasons[unit]}`);
-  }, { stopped: () => interrupted, alone: (unit) => ALONE.includes(unit) });
+  }, { stopped: () => interrupted, alone: (unit) => alone.includes(unit) });
   writeRecord(results);
   keepReds(unitRuns);
   try {
@@ -380,7 +387,7 @@ function changeLimit() {
   const [name, seconds] = flags.setLimit !== undefined ? flags.setLimit.split("=") : [flags.clearLimit];
   let unit;
   try {
-    [unit] = planRun({ root, workspace: readWorkspace(root), decision: { mode: "full" }, flags: { only: [name] } }).units;
+    [unit] = planRun({ root, workspace: readWorkspace(root), decision: { mode: "full" }, flags: { only: [name] }, alone }).units;
   } catch (error) {
     console.error(`test harness: ${error.message}`);
     return 1;

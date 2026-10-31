@@ -217,9 +217,9 @@ test("4.10 `arc waits` lists every open increment's waits for you or an outside 
     const gone = await library.addIncrement({ arc: launch, title: "Old plan", objective: "Dropped", body: "…" });
     await library.addWaitFor(release.id, { releaser: "event", note: "Apple reviews build 12", checkBack: "2099-01-01" });
     await library.addWaitFor(dns.id, { releaser: "event", note: "DNS has propagated", checkBack: today() });
-    await library.addWaitFor(sign.id, { releaser: "owner", note: "Sign the Apple developer agreement", why: "testers get builds", rank: 2 });
+    await library.addWaitFor(sign.id, { releaser: "owner", note: "Sign the Apple developer agreement", why: "testers get builds", rank: 1 });
     const rotate = await library.addIncrement({ arc: launch, title: "Rotate the key", objective: "A fresh key", body: "…" });
-    await library.addWaitFor(rotate.id, { releaser: "owner", note: "Rotate the deploy key", why: "a leaked key can deploy", rank: 1 });
+    await library.addWaitFor(rotate.id, { releaser: "owner", note: "Rotate the deploy key", why: "a leaked key can deploy", rank: 2 });
     await library.addWaitFor(gone.id, { releaser: "owner", note: "Never listed: its increment is closed", why: "it unblocks the work" });
     const build = await library.addIncrement({ arc: docs, title: "Build the pages", objective: "Pages", body: "…" });
     const behind = await library.addIncrement({ arc: docs, title: "Approve the launch", objective: "Go", body: "…" });
@@ -245,8 +245,8 @@ test("4.10 `arc waits` lists every open increment's waits for you or an outside 
 
     assert.deepEqual(answer.text.split("\n"), [
       "5 waits for you or an outside event:",
-      `  - you    #1  Rotate the deploy key (why: a leaked key can deploy) — ${rotate.id}  Rotate the key, on ${launch}  Launch v1`,
-      `  - you    #2  Sign the Apple developer agreement (why: testers get builds) — ${sign.id}  Ship to TestFlight, on ${docs}  Docs site`,
+      `  - you    #1  Sign the Apple developer agreement (why: testers get builds) — ${sign.id}  Ship to TestFlight, on ${docs}  Docs site`,
+      `  - you    #2  Rotate the deploy key (why: a leaked key can deploy) — ${rotate.id}  Rotate the key, on ${launch}  Launch v1`,
       `  - event  DNS has propagated — ${dns.id}  Point the domain, on ${docs}  Docs site; check back ${today()}, overdue`,
       `  - event  Apple reviews build 12 — ${release.id}  Release, on ${launch}  Launch v1; check back 2099-01-01`,
       `  - event  PR #9 merges — ${handed.id}  Handed over, on ${shelved}  Shelved; check back 2099-01-02`,

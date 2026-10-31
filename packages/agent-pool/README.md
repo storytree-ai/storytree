@@ -31,3 +31,6 @@ time, starting a lane only while it is plugged in and the library and GitHub ans
 (read it, then run it once; `-DryRun` shows what it would do) writes its configuration to `~/.storytree/agent-pool.json`
 (`machineOnly`, `sessions: 1`, Claude), forces the Claude engine in its lanes folder, and registers a Task Scheduler entry that
 runs `windows/laptop-pool.ps1` at logon. Pause it with `pool-stop` in the lanes folder, as on the box; delete it to resume.
+Its `checkout` is a folder of its own, never the owner's working checkout: a git worktree of that checkout (a second clone
+of a project is refused, one folder per project per machine), today `C:\code\storytree03-dispatcher`. Because it is a linked
+worktree, a lane makes its workspace from the main checkout (`pnpm storytree workspace <increment> --reason …` there).

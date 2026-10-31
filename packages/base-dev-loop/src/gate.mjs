@@ -1,7 +1,8 @@
 // Capability 1 · The gate runner. ADR-1170 D1, D2: the base dev loop's one foreground command for the checks before
 // landing. It runs its base steps (the project's typecheck and tests) and then every step a part contributes as
 // `gateSteps` in its storytree manifest, each in the same PASS / FAIL / NOT RUN table; a step whose part this computer
-// switches off is NOT RUN with why. A step is `{ name, when?, command }`: `when({ root, ...flags })` says whether it
+// switches off is NOT RUN with why, and a factory plugin this computer names for a part it switches off, or for a part
+// it adds, has its steps run in that part's place (one that cannot be loaded is NOT RUN with why). A step is `{ name, when?, command }`: `when({ root, ...flags })` says whether it
 // runs and the reason its row shows (absent, it always runs, with no reason), and `command({ root })` the process it
 // runs from the project's root. It runs in a user's project as in storytree's own, where the personal dev loop
 // (packages/dev-loop) wraps it with its lock and worktree install and contributes its checks.
@@ -17,7 +18,7 @@ function typescript() {
     const { register } = await import("tsx/esm/api");
     register();
     const [loader, settings] = await Promise.all([import("@storytree/plugin-loader"), import("@storytree/project-and-caller")]);
-    return { ...loader, readPartsOff: settings.readPartsOff };
+    return { ...loader, readPartsOff: settings.readPartsOff, readStandIns: settings.readStandIns };
   })();
 }
 
@@ -27,6 +28,7 @@ export async function contributedSteps(root) {
 }
 
 const readPartsOff = async () => (await typescript()).readPartsOff();
+const readStandIns = async () => (await typescript()).readStandIns();
 const BASE = ["typecheck", "test"];
 // The row that stands for the contributed steps when they could not be read.
 const CONTRIBUTED = "contributed steps";
@@ -36,7 +38,7 @@ const CONTRIBUTED = "contributed steps";
  * check as a pass. `prepare(log)` runs before the first check and returns why no check can run, or nothing when ready.
  * `flags` reach each contributed step's `when`; `rerunHint` is printed under a table that is not all PASS.
  */
-export async function runGate({ root = process.cwd(), flags = {}, rerunHint = null, signal, forceSignal, log = console.log, run = runCheck, prepare = () => null, steps = contributedSteps, partsOff = readPartsOff } = {}) {
+export async function runGate({ root = process.cwd(), flags = {}, rerunHint = null, signal, forceSignal, log = console.log, run = runCheck, prepare = () => null, steps = contributedSteps, partsOff = readPartsOff, standIns = readStandIns } = {}) {
   const unready = prepare(log);
   const results = Object.fromEntries(BASE.map((step) => [step, "not run"]));
   const reasons = {};
@@ -47,11 +49,23 @@ export async function runGate({ root = process.cwd(), flags = {}, rerunHint = nu
     planned.length = 0;
   } else {
     try {
-      const composition = await steps(root);
-      const { offSaid, switchedOff } = await import("@storytree/plugin-loader/switch");
-      const off = switchedOff(composition.graph, await partsOff());
+      const named = await standIns();
+      const { standIn } = await import("@storytree/plugin-loader");
+      const composition = standIn(await steps(root), "gateSteps", named);
+      const { offSaid, standInPlaces, switchedOff } = await import("@storytree/plugin-loader/switch");
+      const parts = await partsOff();
+      const off = switchedOff(composition.graph, parts);
+      const places = standInPlaces(composition.graph, parts);
+      const standsIn = composition.standsIn ?? {};
+      for (const [part, why] of Object.entries(composition.failed ?? {})) {
+        if (!places.has(part)) continue;
+        results[named.plugins[part]] = "not run";
+        reasons[named.plugins[part]] = why;
+      }
       composition.parts.forEach((step, index) => {
         const owner = composition.owners[index];
+        // A factory plugin's step runs only in the place this computer names for it: its part off, or a part it adds.
+        if (Object.hasOwn(standsIn, owner) && !places.has(standsIn[owner])) return;
         results[step.name] = "not run";
         if (off.has(owner)) return void (reasons[step.name] = offSaid({ part: owner, because: off.get(owner) }));
         const decision = step.when?.({ root, ...flags }) ?? { run: true };

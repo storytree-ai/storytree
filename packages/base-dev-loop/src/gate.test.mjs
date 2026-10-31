@@ -1,7 +1,7 @@
 // ADR-1170 D1, D2: the base dev loop's gate runs the project's typecheck and tests, then every step a part
 // contributes, in one PASS / FAIL / NOT RUN table, and an interrupted gate never reports a pass.
 import assert from "node:assert/strict";
-import { existsSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
@@ -13,7 +13,9 @@ import { runGate } from "./gate.mjs";
 const command = () => ({ command: process.execPath, args: [], shell: false });
 // Two contributed steps from one part, with nothing switched off.
 const composition = { parts: [{ name: "check:lint", command }, { name: "check:spelling", command }], owners: ["linter", "linter"], graph: { linter: [] } };
-const gate = (options) => runGate({ steps: async () => composition, partsOff: () => [], ...options });
+// No factory plugin named for a part, whatever this computer's own settings name.
+const noStandIns = () => ({ folder: undefined, plugins: {} });
+const gate = (options) => runGate({ steps: async () => composition, partsOff: () => [], standIns: noStandIns, ...options });
 
 function project(t) {
   const root = mkdtempSync(path.join(tmpdir(), "gate-"));
@@ -30,7 +32,7 @@ test("1.1 the gate runs its base steps, then each step a part contributes: a fai
   };
   const calls = [];
   const output = [];
-  const code = await runGate({ root, steps: async () => composition, partsOff: () => ["speller"], log: (line) => output.push(line), run: async (step) => (calls.push(step), step === "check:lint" ? 1 : 0) });
+  const code = await runGate({ root, steps: async () => composition, partsOff: () => ["speller"], standIns: noStandIns, log: (line) => output.push(line), run: async (step) => (calls.push(step), step === "check:lint" ? 1 : 0) });
   assert.deepEqual(calls, ["typecheck", "test", "check:lint"]);
   assert.equal(code, 1);
   const table = output.at(-1);
@@ -94,4 +96,38 @@ test("1.2 cancelling the foreground gate stops the typecheck process and its com
   assert.equal(await running, 130);
   const alive = (pid) => { try { process.kill(pid, 0); return true; } catch { return false; } };
   await waitUntil(() => !pids.some(alive), 10_000, `the typecheck children (${pids.join(", ")}) to exit after the gate completed`);
+});
+
+test("1.4 a factory plugin's gate steps run where this computer names it, in its part's place or as a part it adds, and one that cannot be loaded is NOT RUN with why", async (t) => {
+  const root = project(t);
+  const factory = project(t);
+  const plugin = (name, body) => {
+    const dir = path.join(factory, "plugins", name);
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(path.join(dir, "package.json"), JSON.stringify({ name, storytree: { interface: 1, gateSteps: [{ from: "./steps", export: "gateSteps" }] }, exports: { "./steps": "./steps.cjs" } }));
+    if (body) writeFileSync(path.join(dir, "steps.cjs"), body);
+  };
+  const step = (name) => `exports.gateSteps = [{ name: ${JSON.stringify(name)}, command: () => ({ command: process.execPath, args: [], shell: false }) }];`;
+  plugin("my-speller", step("check:my-spelling"));
+  plugin("my-extra", step("check:my-extra"));
+  plugin("my-broken");
+  const run = (standIns, partsOff) => {
+    const calls = [];
+    const output = [];
+    return runGate({ root, steps: async () => composition, partsOff: () => partsOff, standIns: () => ({ folder: factory, plugins: standIns }), log: (line) => output.push(line), run: async (name) => (calls.push(name), 0) })
+      .then((code) => ({ code, calls, table: output.at(-1) }));
+  };
+
+  const inPlace = await run({ linter: "my-speller", extra: "my-extra" }, ["linter", "extra"]);
+  assert.deepEqual(inPlace.calls, ["typecheck", "test", "check:my-spelling", "check:my-extra"]);
+  assert.equal(inPlace.code, 0);
+  assert.match(inPlace.table, /NOT RUN\s+check:lint — linter is switched off on this computer/);
+
+  const partOn = await run({ linter: "my-speller" }, []);
+  assert.deepEqual(partOn.calls, ["typecheck", "test", "check:lint", "check:spelling"]);
+  assert.doesNotMatch(partOn.table, /my-spelling/);
+
+  const broken = await run({ extra: "my-broken" }, ["extra"]);
+  assert.deepEqual(broken.calls, ["typecheck", "test", "check:lint", "check:spelling"]);
+  assert.match(broken.table, /NOT RUN\s+my-broken — its stand-in my-broken could not be loaded/);
 });

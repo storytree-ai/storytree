@@ -142,10 +142,14 @@ function grouped(asked, everyAction) {
   return [...groups.values()].map((group) => ({ ...group, actions: group.actions.length === everyAction.length ? null : group.actions }));
 }
 
+/** How many measures of one main in a row may end NOT RUN before the box stops retrying it and waits for main to move. */
+const NOT_RUN_TRIES = 3;
+
 /**
  * What the runner does next, given the history (oldest first), main's newest commit and its first parent, the catalogue's actions and
  * main's first-parent log (oldest first, with subjects): nothing while a run is going; else halve a slowdown not yet named; else give a
- * slower verdict its second run; else, once main has moved past the last commit measured, measure the newest main against each
+ * slower verdict its second run; else, once main has moved past the last commit measured (a measure that ended NOT RUN leaves main due
+ * again, up to NOT_RUN_TRIES in a row), measure the newest main against each
  * action's baseline (main's parent for an action with none yet). An action whose baseline main's history does not hold (it left with
  * an old history) is re-baselined on main's parent, the reason kept, and measured against it this tick whatever the rest does.
  */
@@ -170,8 +174,11 @@ export function decide({ history, main, actions, log: mainLog }) {
   if (halving.length > 0) return also("halving the merges behind a slowdown", halving);
   const suspects = own.filter((action) => states[action].suspect !== undefined).map((action) => ({ purpose: "confirm", head: main.commit, against: states[action].baseline, action }));
   if (suspects.length > 0) return also("a slower verdict waits for a second run", suspects);
-  const measured = history.filter((run) => run.purpose === "measure" || run.purpose === "confirm").at(-1);
-  if (measured?.head === main.commit) return also(`main (${short(main.commit)}) is measured`, []);
+  const measuring = history.filter((run) => run.purpose === "measure" || run.purpose === "confirm");
+  const measured = measuring.at(-1);
+  const unfinished = measuring.length - 1 - measuring.findLastIndex((run) => run.state === "done" || run.head !== main.commit);
+  if (measured?.head === main.commit && measured.state === "done") return also(`main (${short(main.commit)}) is measured`, []);
+  if (unfinished >= NOT_RUN_TRIES) return also(`main (${short(main.commit)}) ended NOT RUN ${unfinished} times in a row; waiting for main to move`, []);
   const asked = own.map((action) => ({ purpose: "measure", head: main.commit, against: states[action].baseline ?? main.parent, action }));
   return also(`main moved to ${short(main.commit)}`, asked, actions);
 }

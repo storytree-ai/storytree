@@ -1119,7 +1119,7 @@ test("5.61 letting go of a merged pull request applies each held increment's pen
     assert.deepEqual((await readClaims(log, project)).map(({ increment }) => increment), [work], "nothing ends while its changes are unapplied");
 
     // Through the command the watcher runs: `workspace let-go 12 --reason … --merged`.
-    const letGoVerb = WORKSPACE_FAMILIES[0]!.verbs.find((verb) => verb.command?.name === "let-go")!;
+    const letGoVerb = WORKSPACE_FAMILIES[0]!.verbs.find((verb) => (verb.command as { name?: string }).name === "let-go")!;
     const said = await letGoVerb.act({ pr: "12", reason: "PR #12 merged", merged: true }, as("C") as never, { door: "command", say: (step) => step.command ?? step.tool! });
     assert.match(said.text, new RegExp(`Released what PR #12 held: ${work}`));
     assert.equal(((await library.get(emailForm))?.fields as { title?: string } | undefined)?.title, "Address form");

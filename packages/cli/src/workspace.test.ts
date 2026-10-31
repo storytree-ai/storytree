@@ -366,7 +366,7 @@ test("11.10 work that waits for the owner or an outside event is refused naming 
     const library = await world.library();
     const arc = await library.createArc({ title: "Launch", intent: "Ship sign-up", endState: "Visitors sign up" });
     const increment = (await library.addIncrement({ arc: arc.id, title: "Ship to TestFlight", objective: "A build", body: "…" })).id;
-    await library.addWaitFor(increment, { releaser: "owner", note: "Sign the Apple developer agreement" });
+    await library.addWaitFor(increment, { releaser: "owner", note: "Sign the Apple developer agreement", why: "it unblocks the work" });
     await library.addWaitFor(increment, { releaser: "event", note: "Apple reviews build 12", checkBack: "2099-01-01" });
 
     const ran = await world.run(["workspace", "claim", increment, "--reason", "shipping it"], { CLAUDE_CODE_SESSION_ID: "claude-9" });

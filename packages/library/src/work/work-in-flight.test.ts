@@ -552,7 +552,7 @@ for (const backend of [memory, postgres]) {
     await flight.closeIncrement(free.id, { note: "Not needed", disposition: "withdrawn" });
     assert.equal((await view())?.state, "parked");
 
-    await flight.addWaitFor(later.id, { releaser: "owner", note: "sign in on the staging build" });
+    await flight.addWaitFor(later.id, { releaser: "owner", note: "sign in on the staging build", why: "it unblocks the work" });
     assert.equal((await view())?.state, "active", "an owner wait keeps it active");
     await flight.removeWaitFor(later.id, "owner");
     await flight.advanceIncrement(sooner.id, "active");
@@ -582,7 +582,7 @@ for (const backend of [memory, postgres]) {
     await flight.closeIncrement(now.id, { note: "Not needed", disposition: "withdrawn" });
     assert.deepEqual(Object.keys(await parked()).sort(), [form!.id, mail!.id].sort(), "a closed one names nothing");
 
-    await flight.addWaitFor(dated.id, { releaser: "owner", note: "sign in on the staging build" });
+    await flight.addWaitFor(dated.id, { releaser: "owner", note: "sign in on the staging build", why: "it unblocks the work" });
     assert.deepEqual(Object.keys(await parked()), [mail!.id], "an owner wait keeps it out");
     await flight.removeWaitFor(dated.id, "owner");
     const shelf = (await flight.arcView(shelved.id))!.increments[0]!;
@@ -710,18 +710,18 @@ for (const backend of [memory, postgres]) {
     const before = await transactions.history();
     const day = new Date(Date.now() + 86_400_000).toISOString().slice(0, 10);
     for (const waitsFor of [
-      [{ releaser: "owner" as const, note: "run it", checkBack: day }],
+      [{ releaser: "owner" as const, note: "run it", why: "it unblocks the work", checkBack: day }],
       [{ releaser: "event" as const, note: "the next release" }],
-      [{ releaser: "owner" as const, note: "one" }, { releaser: "owner" as const, note: "two" }],
+      [{ releaser: "owner" as const, note: "one", why: "it unblocks the work" }, { releaser: "owner" as const, note: "two", why: "it unblocks the work" }],
     ]) {
       await assert.rejects(flight.addIncrement({ arc: arc.id, ...WORK, waitsFor }), RangeError, JSON.stringify(waitsFor));
     }
-    await assert.rejects(flight.addIncrement({ arc: arc.id, ...WORK, waitsFor: [{ releaser: "owner", note: "run it" }], outcome: { pr: "#1", disposition: "landed" } }), RangeError, "a closed increment waits for nothing");
+    await assert.rejects(flight.addIncrement({ arc: arc.id, ...WORK, waitsFor: [{ releaser: "owner", note: "run it", why: "it unblocks the work" }], outcome: { pr: "#1", disposition: "landed" } }), RangeError, "a closed increment waits for nothing");
     assert.deepEqual(await transactions.history(), before, "nothing was written");
 
-    const install = await flight.addIncrement({ arc: arc.id, ...WORK, waitsFor: [{ releaser: "owner", note: "run the install on the old laptop" }] });
+    const install = await flight.addIncrement({ arc: arc.id, ...WORK, waitsFor: [{ releaser: "owner", note: "run the install on the old laptop", why: "it unblocks the work" }] });
     assert.equal((await transactions.history()).length, before.length + 1, "parked and waiting in one write");
-    const owner = { releaser: "owner", note: "run the install on the old laptop", holds: true };
+    const owner = { releaser: "owner", note: "run the install on the old laptop", why: "it unblocks the work", reviewed: new Date().toISOString().slice(0, 10), holds: true };
     assert.deepEqual(await flight.waitsFor(install.id), [owner]);
     assert.deepEqual((await flight.holds()).waitsFor?.[install.id], [owner], "the pool and the claim read it from the start");
     await flight.removeWaitFor(install.id, "owner");

@@ -114,7 +114,7 @@ test("6.10 it sets a wait with a reason, and a claim on the waiting increment is
   });
 });
 
-test("6.40 it sets a wait for the owner or an outside event with a note, and a claim on it is refused naming the note; an event wait needs a check-back day; it clears the wait, and the claim succeeds; clearing an owner wait with `claim` holds the increment before the wait is gone", async () => {
+test("6.40 it sets a wait for the owner, with its why and any rank, or an outside event, with a note, and a claim on it is refused naming the note; an event wait needs a check-back day; it clears the wait, and the claim succeeds; clearing an owner wait with `claim` holds the increment before the wait is gone", async () => {
   await withProject(async ({ folder, library, log, project }) => {
     await withAgent(folder, claudeCode("claude-1"), async (agent) => {
       const { arc } = await planned(agent);
@@ -124,7 +124,14 @@ test("6.40 it sets a wait for the owner or an outside event with a note, and a c
       const undated = await agent.call("set_wait", { waiter: install, for: "event", note: "the next release build" });
       assert.equal(undated.isError, true);
       assert.match(undated.text, /check-back day/);
-      assert.equal((await agent.call("set_wait", { waiter: install, for: "owner", note: "run the NSIS install on the old laptop" })).isError, false);
+      const unjustified = await agent.call("set_wait", { waiter: install, for: "owner", note: "run the NSIS install on the old laptop" });
+      assert.equal(unjustified.isError, true);
+      assert.match(unjustified.text, /needs a why/);
+      assert.equal((await agent.call("set_wait", { waiter: install, for: "owner", note: "run the NSIS install on the old laptop", why: "it unblocks the work" })).isError, false);
+      const ranked = await agent.call("set_wait", { waiter: install, for: "owner", rank: 2 });
+      assert.equal(ranked.isError, false, ranked.text);
+      assert.match(ranked.text, /waits for the owner: run the NSIS install on the old laptop\./, "re-ranked, it keeps its note");
+      assert.deepEqual((await library.waitsFor(install)).map(({ why, rank }) => ({ why, rank })), [{ why: "it unblocks the work", rank: 2 }]);
       assert.equal((await agent.call("set_wait", { waiter: install, for: "event", note: "the next release build", check_back: tomorrow })).isError, false);
       const refused = await agent.call("claim", { increment: install, reason: "driving it" });
       assert.equal(refused.isError, true);
@@ -136,7 +143,7 @@ test("6.40 it sets a wait for the owner or an outside event with a note, and a c
       assert.equal((await agent.call("claim", { increment: install, reason: "driving it" })).isError, false);
 
       const signIn = idOf(await agent.call("park_increment", { arc, title: "Sign in", objective: "Sign in to the store", body: "Once the owner has an account" }));
-      assert.equal((await agent.call("set_wait", { waiter: signIn, for: "owner", note: "make the store account" })).isError, false);
+      assert.equal((await agent.call("set_wait", { waiter: signIn, for: "owner", note: "make the store account", why: "it unblocks the work" })).isError, false);
       const finishing = await agent.call("clear_wait", { waiter: signIn, for: "owner", claim: "finishing the sign-in" });
       assert.equal(finishing.isError, false, finishing.text);
       assert.deepEqual(await library.waitsFor(signIn), []);
@@ -294,12 +301,16 @@ test("6.59 park_increment parks an increment born waiting on another increment, 
   });
 });
 
-test("6.101 park_increment parks an increment born waiting for the owner with its note, so a claim on it is refused until the wait is cleared", async () => {
+test("6.101 park_increment parks an increment born waiting for the owner with its note, why and any rank, so a claim on it is refused until the wait is cleared", async () => {
   await withProject(async ({ folder, library }) => {
     await withAgent(folder, claudeCode("claude-1"), async (agent) => {
       const { arc } = await planned(agent);
-      const install = idOf(await agent.call("park_increment", { arc, title: "Real install", objective: "Install it", body: "Run it on the old laptop", wait_for_owner: "power on the old laptop" }));
-      assert.deepEqual(await library.waitsFor(install), [{ releaser: "owner", note: "power on the old laptop", holds: true }]);
+      const install = idOf(await agent.call("park_increment", { arc, title: "Real install", objective: "Install it", body: "Run it on the old laptop", wait_for_owner: "power on the old laptop", wait_for_owner_why: "it unblocks the work", wait_for_owner_rank: 3 }));
+      const today = new Date().toISOString().slice(0, 10);
+      assert.deepEqual(await library.waitsFor(install), [{ releaser: "owner", note: "power on the old laptop", why: "it unblocks the work", rank: 3, reviewed: today, holds: true }]);
+      const unjustified = await agent.call("park_increment", { arc, title: "Sign in", objective: "Sign in", body: "Sign in", wait_for_owner: "sign in" });
+      assert.equal(unjustified.isError, true, "an owner action is parked with its why");
+      assert.match(unjustified.text, /needs a why/);
       const refused = await agent.call("claim", { increment: install, reason: "driving it" });
       assert.equal(refused.isError, true);
       assert.match(refused.text, /power on the old laptop/);
@@ -339,7 +350,7 @@ test("6.44 raising a question held on an increment the session holds, or a wait 
       const refused = await agent.call("claim", { increment: welcome, reason: "back to it" });
       assert.match(refused.text, /waiting on the owner/, "it reads held on the owner, with no claim");
 
-      const waited = await agent.call("set_wait", { waiter: install, for: "owner", note: "run the installer on the old laptop" });
+      const waited = await agent.call("set_wait", { waiter: install, for: "owner", note: "run the installer on the old laptop", why: "it unblocks the work" });
       assert.deepEqual(waited.data?.released, [install]);
       assert.match(waited.text, new RegExp(`Released your claims on ${install}`));
       assert.deepEqual(await held(), [other]);

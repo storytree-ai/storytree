@@ -115,20 +115,23 @@ test("4.9 `arc increment wait --for` makes an increment wait for you, or for an 
     const library = await world.library();
     const increment = (await library.addIncrement({ arc: await anArc(world), title: "Ship to TestFlight", objective: "A build testers install", body: "…" })).id;
 
-    const owner = await world.run(["arc", "increment", "wait", increment, "--for", "owner", "--note", "Sign the Apple developer agreement"]);
+    const owner = await world.run(["arc", "increment", "wait", increment, "--for", "owner", "--note", "Sign the Apple developer agreement", "--why", "it unblocks the work"]);
     assert.equal(owner.code, 0, owner.stderr);
     const event = await world.run(["arc", "increment", "wait", increment, "--for", "event", "--note", "Apple reviews build 12", "--check-back", "2099-01-01"]);
     assert.equal(event.code, 0, event.stderr);
-    assert.deepEqual(await library.waitsFor(increment), [
-      { releaser: "owner", note: "Sign the Apple developer agreement", holds: true },
-      { releaser: "event", note: "Apple reviews build 12", checkBack: "2099-01-01", holds: true },
-    ]);
+    const signed = { releaser: "owner", note: "Sign the Apple developer agreement", why: "it unblocks the work", reviewed: today(), holds: true };
+    assert.deepEqual(await library.waitsFor(increment), [signed, { releaser: "event", note: "Apple reviews build 12", checkBack: "2099-01-01", holds: true }]);
+    const ranked = await world.run(["arc", "increment", "wait", increment, "--for", "owner", "--rank", "2"]);
+    assert.equal(ranked.code, 0, ranked.stderr);
+    assert.match(ranked.stdout, /waits for the owner: Sign the Apple developer agreement\./, "re-ranked, it keeps its note");
+    assert.deepEqual((await library.waitsFor(increment))[0], { ...signed, rank: 2 });
 
     const before = (await library.changesSince(0)).cursor;
     for (const [words, code, said] of [
       [["--for", "event", "--note", "DNS has propagated"], 1, /check-back day/],
-      [["--for", "owner"], 2, /--note[\s\S]*--for owner\|event --note <text\|@file> \[--check-back YYYY-MM-DD\]/],
-      [["--for", "owner", "--note", "Pay it", "--on", increment, "--reason", "why"], 2, /--on[\s\S]*--for/],
+      [["--for", "event"], 2, /--note/],
+      [["--for", "owner", "--rank", "0"], 2, /--rank is a whole number/],
+      [["--for", "owner", "--note", "Pay it", "--why", "it unblocks the work", "--on", increment, "--reason", "why"], 2, /--on[\s\S]*--for/],
       [["--for", "someone", "--note", "Pay it"], 2, /owner or event/],
     ] as const) {
       const ran = await world.run(["arc", "increment", "wait", increment, ...words]);
@@ -162,7 +165,7 @@ test("4.14 `arc increment wait --for owner` releases the waiting session's claim
       assert.doesNotMatch(event.stdout, /Released/);
       assert.deepEqual((await held()).sort(), [other, increment, capability].sort());
 
-      const owner = await world.run(["arc", "increment", "wait", increment, "--for", "owner", "--note", "Sign the Apple developer agreement"], { CODEX_THREAD_ID: "codex-wait" });
+      const owner = await world.run(["arc", "increment", "wait", increment, "--for", "owner", "--note", "Sign the Apple developer agreement", "--why", "it unblocks the work"], { CODEX_THREAD_ID: "codex-wait" });
       assert.equal(owner.code, 0, owner.stderr);
       assert.match(owner.stdout, new RegExp(`Released your claims on ${increment}, ${capability}`));
       assert.deepEqual(await held(), [other]);
@@ -184,7 +187,7 @@ test("4.4 `arc show` names each wait for you or an outside event under its incre
     const library = await world.library();
     const arc = await anArc(world);
     const [sign, review, dns] = await Promise.all(["Ship to TestFlight", "Release", "Point the domain"].map((title) => library.addIncrement({ arc, title, objective: title, body: "…" })));
-    await library.addWaitFor(sign!.id, { releaser: "owner", note: "Sign the Apple developer agreement" });
+    await library.addWaitFor(sign!.id, { releaser: "owner", note: "Sign the Apple developer agreement", why: "it unblocks the work" });
     await library.addWaitFor(review!.id, { releaser: "event", note: "Apple reviews build 12", checkBack: "2099-01-01" });
     await library.addWaitFor(dns!.id, { releaser: "event", note: "DNS has propagated", checkBack: today() });
 
@@ -199,7 +202,7 @@ test("4.4 `arc show` names each wait for you or an outside event under its incre
   });
 });
 
-test("4.10 `arc waits` lists every open increment's waits for you or an outside event across arcs, yours first (leaving out a wait for you on an increment that still waits on open work, and counting those on a parked arc in one closing line), then events by check-back day with the overdue flagged, from one read of the holds and one of the arcs", async () => {
+test("4.10 `arc waits` lists every open increment's waits for you or an outside event across arcs, yours first by rank with each one's why, the unranked after (leaving out a wait for you on an increment that still waits on open work, and counting those on a parked arc in one closing line), then events by check-back day with the overdue flagged, from one read of the holds and one of the arcs", async () => {
   await inWorld(command, async (world) => {
     const library = await world.library();
     const verb = arcs.verbs.find((one) => one.name === "waits")!;
@@ -214,17 +217,19 @@ test("4.10 `arc waits` lists every open increment's waits for you or an outside 
     const gone = await library.addIncrement({ arc: launch, title: "Old plan", objective: "Dropped", body: "…" });
     await library.addWaitFor(release.id, { releaser: "event", note: "Apple reviews build 12", checkBack: "2099-01-01" });
     await library.addWaitFor(dns.id, { releaser: "event", note: "DNS has propagated", checkBack: today() });
-    await library.addWaitFor(sign.id, { releaser: "owner", note: "Sign the Apple developer agreement" });
-    await library.addWaitFor(gone.id, { releaser: "owner", note: "Never listed: its increment is closed" });
+    await library.addWaitFor(sign.id, { releaser: "owner", note: "Sign the Apple developer agreement", why: "testers get builds", rank: 1 });
+    const rotate = await library.addIncrement({ arc: launch, title: "Rotate the key", objective: "A fresh key", body: "…" });
+    await library.addWaitFor(rotate.id, { releaser: "owner", note: "Rotate the deploy key", why: "a leaked key can deploy", rank: 2 });
+    await library.addWaitFor(gone.id, { releaser: "owner", note: "Never listed: its increment is closed", why: "it unblocks the work" });
     const build = await library.addIncrement({ arc: docs, title: "Build the pages", objective: "Pages", body: "…" });
     const behind = await library.addIncrement({ arc: docs, title: "Approve the launch", objective: "Go", body: "…" });
     await library.addWait(behind.id, build.id, "needs the pages");
-    await library.addWaitFor(behind.id, { releaser: "owner", note: "Approve the launch once the pages are built" });
+    await library.addWaitFor(behind.id, { releaser: "owner", note: "Approve the launch once the pages are built", why: "it unblocks the work" });
     await library.closeIncrement(gone.id, { disposition: "withdrawn", note: "Folded in" });
     const shelved = (await library.createArc({ title: "Shelved", intent: "Later", endState: "Someday" })).id;
     const later = await library.addIncrement({ arc: shelved, title: "Tidy the org", objective: "Tidy", body: "…" });
     const handed = await library.addIncrement({ arc: shelved, title: "Handed over", objective: "Merge", body: "…" });
-    await library.addWaitFor(later.id, { releaser: "owner", note: "Tidy the GitHub organisation" });
+    await library.addWaitFor(later.id, { releaser: "owner", note: "Tidy the GitHub organisation", why: "it unblocks the work" });
     await library.addWaitFor(handed.id, { releaser: "event", note: "PR #9 merges", checkBack: "2099-01-02" });
     await library.parkArc(shelved);
     const asked = { arcView: 0, arcViews: 0, holds: 0, waitsFor: 0 };
@@ -239,8 +244,9 @@ test("4.10 `arc waits` lists every open increment's waits for you or an outside 
     const answer = await verb.act(parseArgs([], [], world.folder), { cwd: world.folder, activityContext: async () => ({ library: counted }) } as unknown as Context);
 
     assert.deepEqual(answer.text.split("\n"), [
-      "4 waits for you or an outside event:",
-      `  - you    Sign the Apple developer agreement — ${sign.id}  Ship to TestFlight, on ${docs}  Docs site`,
+      "5 waits for you or an outside event:",
+      `  - you    #1  Sign the Apple developer agreement (why: testers get builds) — ${sign.id}  Ship to TestFlight, on ${docs}  Docs site`,
+      `  - you    #2  Rotate the deploy key (why: a leaked key can deploy) — ${rotate.id}  Rotate the key, on ${launch}  Launch v1`,
       `  - event  DNS has propagated — ${dns.id}  Point the domain, on ${docs}  Docs site; check back ${today()}, overdue`,
       `  - event  Apple reviews build 12 — ${release.id}  Release, on ${launch}  Launch v1; check back 2099-01-01`,
       `  - event  PR #9 merges — ${handed.id}  Handed over, on ${shelved}  Shelved; check back 2099-01-02`,
@@ -251,7 +257,61 @@ test("4.10 `arc waits` lists every open increment's waits for you or an outside 
 
     await library.closeIncrement(build.id, { disposition: "landed", note: "Built" });
     const landed = await verb.act(parseArgs([], [], world.folder), { cwd: world.folder, activityContext: async () => ({ library }) } as unknown as Context);
-    assert.ok(landed.text.includes(`  - you    Approve the launch once the pages are built — ${behind.id}`), `once the work it waits on lands, it is listed:\n${landed.text}`);
+    const approve = `  - you    Approve the launch once the pages are built (why: it unblocks the work) — ${behind.id}  Approve the launch, on ${docs}  Docs site`;
+    assert.equal(landed.text.split("\n")[3], approve, `once the work it waits on lands, it is listed, unranked after the ranked:\n${landed.text}`);
+  });
+});
+
+test("4.27 `arc waits --audit` lists the owner actions that need attention, oldest read first, each with every reason: a note saying not yet while nothing holds it, a note naming a closed increment, no why, no rank, a parked arc, or not read again in seven days", async () => {
+  const day = (offset: number) => new Date(Date.now() + offset * 86_400_000).toISOString().slice(0, 10);
+  const increment = (id: string, title: string, status = "proposal") => ({ id, fields: { title, status } });
+  const owner = (note: string, more: Record<string, unknown> = { why: "it closes a live exposure", rank: 1, reviewed: day(0) }) => [{ releaser: "owner", note, holds: true, ...more }];
+  const closed = increment("increment_aaaaaaaaaaaa", "Keep the push URL", "closed");
+  const views = [
+    { arc: { id: "arc_security", fields: { title: "Security hygiene" } }, state: "active", questions: [], increments: [
+      increment("increment_000000000001", "Revoke the old token"),
+      increment("increment_000000000002", "Rotate the box key"),
+      increment("increment_000000000003", "Rotate the laptop key"),
+      increment("increment_000000000004", "Drop the old org"),
+      increment("increment_000000000005", "Re-read the push URL"),
+      increment("increment_000000000006", "Check the mirror"),
+      closed,
+    ] },
+    { arc: { id: "arc_later", fields: { title: "Later" } }, state: "parked", questions: [], increments: [increment("increment_000000000007", "Tidy the org")] },
+  ];
+  const holds = {
+    waits: { increment_000000000003: [{ on: "increment_000000000009", reason: "after the box", forGood: false }] },
+    heldOn: {},
+    waitsFor: {
+      increment_000000000001: owner("Revoke the token"),
+      increment_000000000002: owner("Not yet: this opens once the push URL lands"),
+      increment_000000000003: owner("Not yet: after the box key"),
+      increment_000000000004: owner("Drop the old organisation", {}),
+      increment_000000000005: owner(`Set the push URL once ${closed.id} lands`, { why: "pushes reach the right remote", rank: 2, reviewed: day(-8) }),
+      increment_000000000006: [{ releaser: "event", note: "the mirror syncs", checkBack: day(1), holds: true }],
+      increment_000000000007: owner("Tidy the GitHub organisation"),
+    },
+  };
+  const library = { arcViews: async () => views, holds: async () => holds };
+  await inWorld(command, async (world) => {
+    const verb = arcs.verbs.find((one) => one.name === "waits")!;
+    const answer = await verb.act(parseArgs(["--audit"], ["audit"], world.folder), { cwd: world.folder, activityContext: async () => ({ library }) } as unknown as Context);
+    assert.deepEqual(answer.text.split("\n"), [
+      "4 actions of yours need attention, oldest read first:",
+      "  - increment_000000000004  Drop the old org, on arc_security  Security hygiene: it has no why; it has no rank; it has never been read again",
+      "      Drop the old organisation",
+      `  - increment_000000000005  Re-read the push URL, on arc_security  Security hygiene: its note names ${closed.id}, which has closed; it was last read again on ${day(-8)}`,
+      `      #2  Set the push URL once ${closed.id} lands (why: pushes reach the right remote)`,
+      "  - increment_000000000002  Rotate the box key, on arc_security  Security hygiene: its note says \"not yet\", but nothing holds it",
+      "      #1  Not yet: this opens once the push URL lands (why: it closes a live exposure)",
+      "  - increment_000000000007  Tidy the org, on arc_later  Later: its arc is parked",
+      "      #1  Tidy the GitHub organisation (why: it closes a live exposure)",
+    ]);
+    assert.ok(answer.next?.some((step) => step.command.includes("arc increment wait <increment> --for owner")), JSON.stringify(answer.next));
+
+    const tidy = { arcViews: async () => views.slice(0, 1).map((view) => ({ ...view, increments: view.increments.slice(0, 1) })), holds: async () => holds };
+    const none = await verb.act(parseArgs(["--audit"], ["audit"], world.folder), { cwd: world.folder, activityContext: async () => ({ library: tidy }) } as unknown as Context);
+    assert.equal(none.text, "No action of yours needs attention.");
   });
 });
 
@@ -632,20 +692,20 @@ test("4.21 `arc increment new --waits-on --wait-reason` parks an increment born 
   });
 });
 
-test("4.25 `arc increment new --wait-for owner --wait-note <text|@file>` parks an increment born waiting for the owner with that note; one flag without the other, or a releaser other than the owner, is refused with nothing written", async () => {
+test("4.25 `arc increment new --wait-for owner --wait-note <text|@file> --wait-why <text|@file> [--wait-rank <n>]` parks an increment born waiting for the owner with that note, why and rank; one flag without the others it needs, a rank that is not a whole number from 1, or a releaser other than the owner, is refused with nothing written", async () => {
   await inWorld(command, async (world) => {
     const library = await world.library();
     const arc = await anArc(world);
-    const parked = await world.run(["arc", "increment", "new", "--arc", arc, "--title", "Real install", "--objective", "Install", "--body", "Run it", "--wait-for", "owner", "--wait-note", "power on the old laptop"]);
+    const parked = await world.run(["arc", "increment", "new", "--arc", arc, "--title", "Real install", "--objective", "Install", "--body", "Run it", "--wait-for", "owner", "--wait-note", "power on the old laptop", "--wait-why", "it unblocks the work"]);
     assert.equal(parked.code, 0, parked.stderr);
     const id = /increment_[0-9a-f]+/.exec(parked.stdout)![0];
-    assert.deepEqual(await library.waitsFor(id), [{ releaser: "owner", note: "power on the old laptop", holds: true }]);
+    assert.deepEqual(await library.waitsFor(id), [{ releaser: "owner", note: "power on the old laptop", why: "it unblocks the work", reviewed: today(), holds: true }]);
     const plain = await world.run(["arc", "increment", "new", "--arc", arc, "--title", "Docs", "--objective", "Write", "--body", "Write them"]);
     assert.equal(plain.code, 0, plain.stderr);
     assert.deepEqual(await library.waitsFor(/increment_[0-9a-f]+/.exec(plain.stdout)![0]), [], "without the flags it waits for nothing");
 
     const before = (await library.changesSince(0)).cursor;
-    for (const flags of [["--wait-for", "owner"], ["--wait-note", "why"], ["--wait-for", "event", "--wait-note", "the release"]]) {
+    for (const flags of [["--wait-for", "owner"], ["--wait-note", "why"], ["--wait-for", "event", "--wait-note", "the release"], ["--wait-why", "it unblocks the work"], ["--wait-for", "owner", "--wait-note", "sign in", "--wait-why", "it unblocks", "--wait-rank", "first"]]) {
       const refused = await world.run(["arc", "increment", "new", "--arc", arc, "--title", "Sign-in", "--objective", "Sign in", "--body", "Run it", ...flags]);
       assert.equal(refused.code, 2, `refused as a misuse: ${refused.stdout}${refused.stderr}`);
     }

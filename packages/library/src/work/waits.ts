@@ -28,6 +28,12 @@ export interface Hold {
 export type WaitFor = NonNullable<FieldsOf<"increment">["waitsFor"]>[number];
 
 /**
+ * A wait for the owner or an event as a writer gives it (11.10): the review day is the library's to
+ * stamp, and re-writing an owner wait may leave out its note, why or rank to keep the stored ones.
+ */
+export type WaitWrite = Omit<WaitFor, "note" | "reviewed"> & { readonly note?: string };
+
+/**
  * A wait for the owner or an outside event as read at one moment (11.6): an owner wait holds until
  * it is cleared; an event wait holds until UTC midnight of its check-back day, and from then no
  * longer holds, its check-back passed.
@@ -36,6 +42,10 @@ export interface NoteWait {
   readonly releaser: WaitFor["releaser"];
   readonly note: string;
   readonly checkBack?: string;
+  /** An owner wait's: what it protects or unblocks, its rank (1 first) and the day it was last read again (11.10). */
+  readonly why?: string;
+  readonly rank?: number;
+  readonly reviewed?: string;
   readonly holds: boolean;
 }
 
@@ -140,16 +150,21 @@ export async function clearWaitsOn(records: SchemaRecords, kind: "arc" | "increm
 
 /**
  * Make an open increment wait for the owner or an outside event, with a note (11.6, ADR-0938 D1).
- * Waiting again for the same releaser replaces it. An event wait needs a check-back day, not
- * before today (UTC); an owner wait takes none; a closed increment waits for nothing: each a
- * RangeError, with nothing written. Null, with nothing written, if `id` is not a live increment.
+ * Waiting again for the same releaser replaces it; an owner wait written again keeps the note, why
+ * and rank it is not given, and is stamped read again today (11.10). An event wait needs a check-back
+ * day, not before today (UTC); an owner wait takes none and needs a why; a closed increment waits
+ * for nothing: each a RangeError, with nothing written. Null, with nothing written, if `id` is not a
+ * live increment.
  */
-export async function addWaitFor(records: SchemaRecords, id: string, wait: WaitFor, options?: WriteOptions): Promise<SchemaRecord<"increment"> | null> {
+export async function addWaitFor(records: SchemaRecords, id: string, wait: WaitWrite, options?: WriteOptions): Promise<SchemaRecord<"increment"> | null> {
   const increment = await liveRecord(records, id, ["increment"]);
   if (increment === null) return null;
   if (increment.fields.status === "closed") throw new RangeError(`increment ${JSON.stringify(id)} is closed, and waits for nothing`);
-  const written = checkedWaitFor(wait);
   const stored = increment.fields.waitsFor ?? [];
+  const had = wait.releaser === "owner" ? stored.find((one) => one.releaser === "owner") : undefined;
+  const { note, why, rank } = { ...had, ...Object.fromEntries(Object.entries(wait).filter(([, value]) => value !== undefined)) } as WaitWrite;
+  if (note === undefined) throw new RangeError(`a wait for ${wait.releaser === "owner" ? "the owner" : "an event"} needs a note saying what`);
+  const written = checkedWaitFor({ releaser: wait.releaser, note, ...(wait.checkBack === undefined ? {} : { checkBack: wait.checkBack }), ...(why === undefined ? {} : { why }), ...(rank === undefined ? {} : { rank }) });
   const waitsFor = stored.some((one) => one.releaser === written.releaser)
     ? stored.map((one) => (one.releaser === written.releaser ? written : one))
     : [...stored, written];
@@ -158,13 +173,21 @@ export async function addWaitFor(records: SchemaRecords, id: string, wait: WaitF
 
 /**
  * A wait for the owner or an event as it may be written (RangeError otherwise): an event's with a
- * check-back day not before today, an owner's with none.
+ * check-back day not before today and no why or rank, an owner's with no day, a why (what it
+ * protects or unblocks) and any rank a whole number from 1, stamped read again today (11.10).
  */
-export function checkedWaitFor({ releaser, note, checkBack }: WaitFor): WaitFor {
+export function checkedWaitFor({ releaser, note, checkBack, why, rank }: WaitWrite & { readonly note: string }): WaitFor {
+  const today = new Date().toISOString().slice(0, 10);
   if (releaser === "event" && checkBack === undefined) throw new RangeError("an event wait needs a check-back day (YYYY-MM-DD)");
   if (releaser === "owner" && checkBack !== undefined) throw new RangeError("an owner wait takes no check-back day: it holds until it is cleared");
-  if (checkBack !== undefined && checkBack < new Date().toISOString().slice(0, 10)) throw new RangeError(`check-back day ${checkBack} is before today`);
-  return { releaser, note, ...(checkBack === undefined ? {} : { checkBack }) };
+  if (checkBack !== undefined && checkBack < today) throw new RangeError(`check-back day ${checkBack} is before today`);
+  if (releaser === "event") {
+    if (why !== undefined || rank !== undefined) throw new RangeError("only an owner wait carries a why or a rank");
+    return { releaser, note, checkBack: checkBack! };
+  }
+  if (why === undefined || why.trim() === "") throw new RangeError("an owner wait needs a why: what it protects or unblocks, in a line");
+  if (rank !== undefined && (!Number.isInteger(rank) || rank < 1)) throw new RangeError(`a rank is a whole number from 1 (1 first), not ${rank}`);
+  return { releaser, note, why, ...(rank === undefined ? {} : { rank }), reviewed: today };
 }
 
 /** Stop an increment waiting for `releaser`. Null, with nothing written, if `id` is not a live increment. */
@@ -186,10 +209,13 @@ export async function waitsFor(records: SchemaRecords, id: string, at: Date): Pr
 
 /** Each wait for the owner or an event, read at `at`: an event's no longer holds from UTC midnight of its check-back day (11.6). */
 export function noteWaits(waitsFor: readonly WaitFor[] | undefined, at: Date): NoteWait[] {
-  return (waitsFor ?? []).map(({ releaser, note, checkBack }) => ({
+  return (waitsFor ?? []).map(({ releaser, note, checkBack, why, rank, reviewed }) => ({
     releaser,
     note,
     ...(checkBack === undefined ? {} : { checkBack }),
+    ...(why === undefined ? {} : { why }),
+    ...(rank === undefined ? {} : { rank }),
+    ...(reviewed === undefined ? {} : { reviewed }),
     holds: checkBack === undefined || at.getTime() < Date.parse(`${checkBack}T00:00:00Z`),
   }));
 }

@@ -285,6 +285,42 @@ test("quality-assurance 2.18 · `quality brief --checkout` on a factory checkout
   });
 });
 
+test("quality-assurance 2.18 · `quality brief --also` reads a factory plugin's change from the factory worktree it names, whatever its branch is called, and lists that diff once", async () => {
+  await inWorld(command, async (world) => {
+    const git = (cwd: string, ...args: string[]) => execFileSync("git", ["-c", "user.name=t", "-c", "user.email=t@t", "-c", "commit.gpgsign=false", ...args], { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
+    const library = await world.library();
+    git(world.folder, "init", "-q", "-b", "main");
+    git(world.folder, "add", ".");
+    git(world.folder, "commit", "-qm", "first");
+    git(world.folder, "update-ref", "refs/remotes/origin/main", "HEAD");
+    // This computer's factory folder, as the world's home places it.
+    const factory = path.join(world.home, "your-factory");
+    const plan = (contracts: { title: string }[]) => ({ story: { title: "Talk by voice" }, capabilities: [{ title: "1 · Connector", proposed: false, contracts }] });
+    mkdirSync(path.join(factory, "plugins/voice"), { recursive: true });
+    writeFileSync(path.join(factory, "plugins/voice/package.json"), JSON.stringify({ name: "voice", storytree: { interface: PLUGIN_INTERFACE, plan: "./plan.json" } }));
+    writeFileSync(path.join(factory, "plugins/voice/plan.json"), JSON.stringify(plan([{ title: "1.1 · A wrong secret is answered 404" }])));
+    git(factory, "init", "-q", "-b", "main");
+    git(factory, "add", ".");
+    git(factory, "commit", "-qm", "first");
+    git(factory, "update-ref", "refs/remotes/origin/main", "HEAD");
+    const imported = await library.importPluginPlan("voice", plan([{ title: "1.1 · A wrong secret is answered 404" }]));
+    const capability = (await library.list("capability")).find(({ fields }) => fields.story === imported.story)!;
+    const arc = await library.createArc({ title: "Voice grows", intent: "Voice does more", endState: "Voice does more", stories: [imported.story] });
+    const increment = await library.addIncrement({ arc: arc.id, title: "Voice grows", objective: "Voice does more", body: "Red then green", capabilities: [capability.id] });
+    // The factory half is a worktree of the factory repo on a branch that does not carry the increment's id.
+    const half = path.join(world.elsewhere, "factory-half");
+    git(factory, "worktree", "add", "-q", "-b", "voice-grows", half, "main");
+    writeFileSync(path.join(half, "plugins/voice/plan.json"), JSON.stringify(plan([{ title: "1.1 · A wrong secret is answered 404" }, { title: "1.2 · A slow caller is timed out" }])));
+    git(half, "commit", "-qam", "voice grows");
+
+    const brief = await world.run(["quality", "brief", increment.id, "--also", half]);
+    assert.equal(brief.code, 0, brief.stderr);
+    assert.doesNotMatch(brief.stdout, /was not read/);
+    assert.match(brief.stdout, /voice:1\.2  1\.2 · A slow caller is timed out/);
+    assert.equal(brief.stdout.split("+{\"story\":").length - 1, 1, "the factory half's diff is listed once");
+  });
+});
+
 test("quality-assurance 5.1 · `quality graduate` writes the part and the check in Architecture checks that enforces it on the check, marked whole with --whole, and the checks reading shows both; an unknown check in Architecture checks is refused, writing nothing", async () => {
   await inWorld(command, async (world) => {
     const library = await world.library();

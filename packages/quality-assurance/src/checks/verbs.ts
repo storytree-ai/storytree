@@ -75,10 +75,11 @@ const briefVerb = verb({
     // A factory plugin's change is read from the factory repo, the checkout named or this computer's factory folder (contract 2.18).
     const factory = checkout === undefined ? (await import("@storytree/project-and-caller")).factoryFolder().folder : folder;
     // An increment landing in two repositories is reviewed whole: each other half's branch is listed beside the change (contract 2.19).
-    const halves = (also ?? []).map((other) => worktreeChange(resolve(context.folder, other)));
+    const named = (also ?? []).map((other) => resolve(context.folder, other));
+    const halves = named.map((other) => worktreeChange(other));
     // The library records the increment's claiming sessions wrote are part of the change (contract 2.22).
     const writers = context.log === undefined ? [] : await claimingWriters(context.log as Parameters<typeof claimingWriters>[0], context.project, increment);
-    const brief = await reviews.brief(context.library, increment, diff ?? worktreeChange(folder), undefined, factoryPlugins(factory, increment), halves, writers);
+    const brief = await reviews.brief(context.library, increment, diff ?? worktreeChange(folder), undefined, factoryPlugins(factory, increment, named), halves, writers);
     // The change's mutation report runs on its worktree, never on a diff given by hand (contract 7.3).
     const { text } = await briefWithReport(server(context), brief, diff === undefined ? folder : undefined);
     return {

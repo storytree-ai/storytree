@@ -1270,6 +1270,36 @@ test("3.14 a hook cut off at its deadline before its line is written leaves the 
   });
 });
 
+test("3.14 a hook cut off at its deadline while it still asks the library whether its checkout is approved leaves its line waiting on this machine; the next hook uploads it first", { timeout: 60_000 }, async () => {
+  const project = uniqueProjectName();
+  await withTempDir(async (dir) => {
+    const home = storytreeHome(dir, true);
+    const folder = await projectFolder(dir, project);
+    // Approved in the library but not yet seen here, so the hook asks the library before it may run git (3.46).
+    rmSync(path.join(home, "approved-trunks.json"));
+    const url = new URL(testServerUrl());
+    url.pathname = "/storytree-trunks";
+    // The approvals' table, locked in another connection, so the hook's ask waits past its deadline.
+    const holder = new pg.Client({ connectionString: url.href });
+    await holder.connect();
+    try {
+      await holder.query("BEGIN");
+      await holder.query("LOCK TABLE trunks IN ACCESS EXCLUSIVE MODE");
+      const cut = await runHook("claude-code", recorded("claude-code", "session-start-startup", folder), home);
+      assert.equal(cut.code, 0);
+      await holder.query("ROLLBACK");
+      assert.deepEqual((await linesOf(project)).map((line) => line.kind), [], "nothing was written before the deadline");
+
+      await runHook("claude-code", recorded("claude-code", "stop", folder), home);
+      assert.deepEqual((await linesOf(project)).map((line) => line.kind), ["session-started", "turn-ended"], "the cut-off hook's line first, once");
+    } finally {
+      await holder.query("ROLLBACK").catch(() => undefined);
+      await holder.end();
+      await dropTestProjects([project]);
+    }
+  });
+});
+
 test("3.26 the hook before a file-edit tool, run as setup registers it, refuses a Claude Code edit and a Codex patch to a capability another live session holds, with the reason the agent reads, and says nothing for a file that declares no capability (ADR-0949 D3)", async () => {
   await withTempDir(async (dir) => {
     const project = uniqueProjectName();

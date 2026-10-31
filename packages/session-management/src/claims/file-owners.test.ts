@@ -12,6 +12,7 @@ import { openActivityLog } from "../activity/index.js";
 import { dropTestProjects, testServerUrl, uniqueProjectName } from "@storytree/project-and-caller/testing/pg";
 import type { SessionVerbContext } from "../sessions/verbs.js";
 import { claim } from "./claims.js";
+import type { PlacedFile } from "./file-owners.js";
 import { WORKSPACE_FAMILIES } from "./verbs.js";
 
 const WORDS: DoorWords = { door: "command", say: (step) => step.command === undefined ? step.tool! : `storytree ${step.command}` };
@@ -23,7 +24,7 @@ test("5.60 the owners query names each file's capability and who holds it, by cl
   try {
     const library = await storytree.openProject(project);
     const story = await library.addStory({ title: "Visitor can sign up" });
-    const [form, reset, profile, terms, own] = await Promise.all(["1 · Email form", "2 · Password reset", "3 · Profile", "4 · Terms", "5 · Welcome"].map(async (title) => (await library.addCapability({ title, story: story.id })).id));
+    const [form, reset, profile, terms, own] = (await Promise.all(["1 · Email form", "2 · Password reset", "3 · Profile", "4 · Terms", "5 · Welcome"].map(async (title) => (await library.addCapability({ title, story: story.id })).id))) as [string, string, string, string, string];
     const arc = await library.createArc({ title: "Launch sign-up", intent: "Ship sign-up", endState: "Visitors sign up", stories: [story.id] });
     const theirs = (await library.addIncrement({ arc: arc.id, title: "reset", objective: "reset", body: "reset", capabilities: [reset] })).id;
     const as = (session: string): SessionVerbContext => ({ log, library, project, session, harness: "claude-code", folder: "/checkout" }) as unknown as SessionVerbContext;
@@ -32,7 +33,7 @@ test("5.60 the owners query names each file's capability and who holds it, by cl
     assert.equal((await claim(as("A"), own, "the welcome")).ok, true);
 
     const pkg = "packages/visitor-can-sign-up";
-    const placed = [
+    const placed: PlacedFile[] = [
       { file: `${pkg}/src/form.ts`, capability: form }, { file: `${pkg}/src/reset.ts`, capability: reset },
       { file: `${pkg}/src/profile.ts`, capability: profile, inferred: true }, { file: `${pkg}/src/terms.ts`, capability: terms },
       { file: `${pkg}/src/welcome.ts`, capability: own }, { file: `${pkg}/scripts/run.mjs` }, { file: "README.md" },

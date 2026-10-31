@@ -178,7 +178,9 @@ test("8.19 a lag-box tick that cannot measure, two days after the last measuring
       await recordLagVerdicts(lib, new Map([[contract.id, { state: "passing", note: "open-largest-island within the margin of its baseline m7" }]]), { commit: "m8", evidence: "pnpm lag:box, run 1" });
       const measured = Date.parse((await history.read())[0].ended);
       const owners = Object.fromEntries(ACTIONS.map((action) => [action, contract.id]));
-      const failingAt = (ms) => assert.rejects(runTick([], { box, home: box, open: (use) => use(history, storytree), log: () => {}, now: () => new Date(measured + ms), project: name, owners }), /no measuring checkout at /);
+      const said = [];
+      const failingAt = (ms) => assert.rejects(runTick([], { box, home: box, open: (use) => use(history, storytree), log: (line) => said.push(line), now: () => new Date(measured + ms), project: name, owners }), /no measuring checkout at /);
+      const marked = () => said.filter((line) => line.includes("marked not re-run"));
 
       await failingAt(86_400_000);
       assert.equal((await lib.health(contract.id)).verified.state, "passing", "a tick that fails within two days of the last measuring run leaves its verdict standing");
@@ -188,9 +190,11 @@ test("8.19 a lag-box tick that cannot measure, two days after the last measuring
       assert.deepEqual({ state: stale.state, by: stale.by, was: stale.was?.state }, { state: "not-checked", by: "lag run", was: "passing" });
       assert.match(stale.note, /not re-run at commit m8: NOT RUN: not measured since .* \(2 days\): no measuring checkout at /);
       assert.equal((await lib.projectTree()).stories[0].capabilities[0].why?.reason, "not re-run", "the capability reaches the health worklist as not re-run");
+      assert.deepEqual(marked(), ["lag:box: 1 lag verdict(s) not renewed for two days, marked not re-run"], "tick.log says what it marked");
 
       await failingAt(3 * 86_400_000);
       assert.equal((await lib.health(contract.id)).verified.at, stale.at, "a later failing tick does not write it again");
+      assert.equal(marked().length, 1, "nor says it again");
     } finally {
       await lib.close();
     }

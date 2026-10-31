@@ -883,7 +883,7 @@ test("2.14 · a test the change adds that no saved red run names failing is take
   });
 });
 
-test("2.14 · a test the change adds below a regex literal holding a quote or a backtick is still listed, and one written inside a regex is not", () => {
+test("2.14 · a test the change adds below a regex literal holding a quote or a backtick is still listed, and one written inside a regex is not", async () => {
   const dir = mkdtempSync(join(tmpdir(), "qa-regex-"));
   try {
     const file = "packages/library/src/a.test.ts";
@@ -904,7 +904,7 @@ test("2.14 · a test the change adds below a regex literal holding a quote or a 
       { line: 5, test: "1.2 · below" },
     ]);
   } finally {
-    rmSync(dir, { recursive: true, force: true });
+    await removeTemp(dir);
   }
 });
 

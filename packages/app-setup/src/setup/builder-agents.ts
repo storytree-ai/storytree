@@ -22,6 +22,15 @@ const MARKER = "<!-- storytree builder agent: written and removed by storytree's
 type Mode = "red" | "green";
 const MODES: readonly Mode[] = ["red", "green"];
 
+/** storytree's run_tests as Claude Code names it (setup registers the server as "storytree"): an agent's tools line shuts out every MCP tool it does not list. */
+const RUN_TESTS = "mcp__storytree__run_tests";
+
+/** Each agent's tools: the green one also runs the suite through run_tests, so the orchestrator's and reviewer's same call reads its recorded run. */
+const TOOLS: Record<Mode, string> = {
+  red: "Read, Grep, Glob, Edit, Write, Bash",
+  green: `Read, Grep, Glob, Edit, Write, Bash, ${RUN_TESTS}`,
+};
+
 /** The guard's command line, run by Claude Code through its shell: each path in double quotes. */
 function guardCommand({ node, script }: HookCommand, mode: Mode): string {
   return `"${node}" "${script}" claude-code ${TEST_GUARD} ${mode}`;
@@ -62,7 +71,7 @@ If a contract has nothing a test can observe, or needs a seam the code lacks, st
 Workflow:
 1. Run the approved tests once and quote that they fail as the red writer reported.
 2. Write only what a failing test demands, in the project's own style: no speculative abstraction, new dependency or refactor the tests do not reach, and never the literal a test expects in place of the behaviour.
-3. Run the tests until they pass, then the project's whole test command; name any failure that was there before you started.
+3. Run the tests until they pass, then the project's whole test command through storytree's \`run_tests\` tool, with the command exactly as the project gives it, so the next role's same call reads your recorded run instead of running the suite again; name any failure that was there before you started.
 4. If a test looks wrong, STOP and say which, where and why, with the change you would propose. Do not touch it.
 5. Return: GREEN or STOPPED, the quoted test summary, \`git diff --stat\`, and confirmation that no test file changed. Never commit: the user reviews the diff first.`,
   },
@@ -74,7 +83,7 @@ function agentFile(hook: HookCommand, mode: Mode): string {
     "---",
     `name: storytree-${mode}`,
     `description: ${JSON.stringify(description)}`,
-    "tools: Read, Grep, Glob, Edit, Write, Bash",
+    `tools: ${TOOLS[mode]}`,
     "disallowedTools: Agent",
     "hooks:",
     "  PreToolUse:",

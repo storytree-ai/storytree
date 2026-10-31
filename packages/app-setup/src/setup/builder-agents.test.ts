@@ -61,3 +61,16 @@ test("8.38 registering Claude Code's hooks writes storytree-red and storytree-gr
     assert.ok(!existsSync(red), "removing this build's Claude Code hooks deletes its agent too");
   });
 });
+
+test("8.38 the green builder agent may call storytree's run_tests and runs the whole suite through it, so the next role's same call reads its verified run", async () => {
+  await withTempDir(async (dir) => {
+    const claude = path.join(dir, ".claude");
+    mkdirSync(claude);
+    registerHooks({ claude }, HOOK);
+    const text = readFileSync(path.join(claude, "agents", "storytree-green.md"), "utf8");
+    const tools = /^tools: (.*)$/m.exec(text)?.[1]?.split(", ") ?? [];
+    assert.ok(tools.includes("mcp__storytree__run_tests"), `green's tools: ${tools.join(", ")}`);
+    assert.ok(tools.includes("Edit") && tools.includes("Bash"), "it keeps its building tools");
+    assert.match(text.slice(text.indexOf("Workflow:")), /run_tests/, "its workflow names run_tests");
+  });
+});

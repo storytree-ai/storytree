@@ -89,7 +89,7 @@ const pushRunsOnTrunk = (commit: string) => (query: URLSearchParams) =>
     ? [{ id: 7, head_sha: commit, html_url: "https://github.com/acme/shop/actions/runs/7" }]
     : [];
 
-test("3.1 reading a project's CI writes each contract's verified column from the newest finished push run on the default branch, by the project's CI with its tally, commit and run; the agent's reported column is never written, so CI alone turns the capability unhealthy or healthy", async (t) => {
+test("3.1, 3.17 reading a project's CI writes each contract's verified column from the newest finished push run on the default branch, by the project's CI with its tally, commit and run; the agent's reported column is never written, so CI alone turns the capability unhealthy or healthy", async (t) => {
   const { library, capability, contracts } = await shopLibrary(t);
   const { folder, commit } = projectFolder(t);
   const word = async () => (await library.projectTree()).stories[0]!.capabilities.find(({ id }) => id === capability)!.status;
@@ -102,6 +102,7 @@ test("3.1 reading a project's CI writes each contract's verified column from the
   assert.equal(first!.verified.state, "passing");
   assert.equal(second!.verified.state, "failing");
   assert.equal(second!.verified.by, VERIFIED_BY_PROJECT_CI);
+  assert.equal(second!.verified.source, "ci", "read from CI");
   assert.match(second!.verified.note ?? "", new RegExp(`0/1 tests passed, at commit ${commit.slice(0, 12)}, run https://github\\.com/acme/shop/actions/runs/7`));
   assert.equal(second!.reported.state, "passing", "the agent's word stays the agent's");
   assert.equal(second!.reported.by, "an agent");

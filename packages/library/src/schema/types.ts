@@ -311,6 +311,11 @@ export const RECORD_SCHEMAS = {
       /** The earlier verdict this entry did not reproduce, and when it was written: "not re-run". */
       was: z.enum(["passing", "failing"]).optional(),
       wasAt: z.string().optional(),
+      /**
+       * Where the verdict was seen (ADR-1193 D3): `local`, by a run on this computer through storytree, or `ci`, read
+       * from CI. Added on version 1, optional, so an entry written before it reads with no source.
+       */
+      source: z.enum(["local", "ci"]).optional(),
     })
     .strict(),
   /**

@@ -19,7 +19,7 @@ import { contractsOf } from "./test-run.mjs";
 
 const tsx = fileURLToPath(new URL("../../node_modules/tsx", import.meta.url));
 
-test("12.8 · a story whose code is a factory plugin has that folder's tests run by the factory's own test command and recorded as its verified health at the factory's commit; no package's test counts for it", async (t) => {
+test("12.8, 12.11 · a story whose code is a factory plugin has that folder's tests run by the factory's own test command and recorded as its verified health at the factory's commit; no package's test counts for it", async (t) => {
   const factory = mkdtempSync(path.join(tmpdir(), "factory-health-"));
   t.after(() => removeTemp(factory));
   const write = (file, lines) => {
@@ -79,6 +79,7 @@ test("12.8 · a story whose code is a factory plugin has that folder's tests run
     const passed = (await lib.health(contractIds.get("1.1"))).verified;
     assert.equal(passed.state, "passing");
     assert.equal(passed.by, "factory test run");
+    assert.equal(passed.source, "local", "verified locally");
     assert.ok(passed.note.includes(commit), "the factory's commit is in the note");
     assert.equal((await lib.health(contractIds.get("1.2"))).verified.state, "failing");
     assert.deepEqual(await lib.healthHistory(contractIds.get("1.3")), [], "a package's test titled with the story's package counts for nothing");

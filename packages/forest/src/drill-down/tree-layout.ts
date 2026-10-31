@@ -7,7 +7,7 @@
  */
 import dagre from "@dagrejs/dagre";
 
-import type { CapabilityStatus, HealthState } from "@storytree/library";
+import type { CapabilityStatus, HealthSource, HealthState } from "@storytree/library";
 
 import type { StoryPanel } from "./drill-down.js";
 
@@ -31,6 +31,8 @@ export interface Card {
   /** The agent's report and storytree's own column, for the story's own (storytree's only where written). */
   reported?: HealthState;
   verified?: HealthState;
+  /** Where storytree saw it, local before CI, when its contracts' entries say (ADR-1193 D3). */
+  sources?: HealthSource[];
   x: number;
   y: number;
   width: number;
@@ -70,6 +72,7 @@ export function layoutTree(panel: StoryPanel): TreeLayout {
       reported: line.reported,
       ...(line.reportOnly ? { agentSays: line.reported } : {}),
       ...(line.verified === undefined ? {} : { verified: line.verified }),
+      ...(line.verified === undefined || line.sources === undefined ? {} : { sources: [...line.sources] }),
     });
   }
   for (const arrow of panel.arrows) {

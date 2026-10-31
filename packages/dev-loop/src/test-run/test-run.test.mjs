@@ -598,12 +598,12 @@ test("12.2 judge reads a skipped contract's skip kind from its skip reason's fir
 
 const CI = { GITHUB_ACTIONS: "true", GITHUB_SHA: "9f3734a0c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f6" };
 
-test("12.3 on CI with HEALTH_PG_ADDRESS set, own health is recorded in the library at that address, by a test run on CI", () => {
+test("12.3, 12.11 on CI with HEALTH_PG_ADDRESS set, own health is recorded in the library at that address, by a test run on CI", () => {
   const address = "postgres://storytree-ci-health%40my-project.iam@library-box:5432/postgres";
   assert.deepEqual(recordingTarget({ env: { ...CI, HEALTH_PG_ADDRESS: address }, setting: { location: "local" } }), {
     record: true,
     library: { address },
-    writer: { by: "storytree test run on CI", commit: CI.GITHUB_SHA },
+    writer: { by: "storytree test run on CI", source: "ci", commit: CI.GITHUB_SHA },
   });
 });
 
@@ -615,16 +615,16 @@ test("12.3 on CI with no HEALTH_PG_ADDRESS, nothing is recorded, and it says the
   }
 });
 
-test("12.3 · run by hand, own health is recorded in the library the setting names: the Cloud SQL instance, a Postgres address, or the app's own", () => {
+test("12.3, 12.11 · run by hand, own health is recorded in the library the setting names: the Cloud SQL instance, a Postgres address, or the app's own", () => {
   const cloud = { location: "cloudsql", instance: "my-project:australia-southeast1:my-instance", user: "you@my-project.iam" };
   assert.deepEqual(recordingTarget({ env: {}, setting: cloud }), {
     record: true,
     library: { cloudSql: { instance: cloud.instance, user: cloud.user } },
-    writer: { by: "storytree test run" },
+    writer: { by: "storytree test run", source: "local" },
   });
-  assert.deepEqual(recordingTarget({ env: {}, setting: { location: "local" } }), { record: true, library: "app", writer: { by: "storytree test run" } });
+  assert.deepEqual(recordingTarget({ env: {}, setting: { location: "local" } }), { record: true, library: "app", writer: { by: "storytree test run", source: "local" } });
   const address = "postgres://me@library-box:5432/postgres";
-  assert.deepEqual(recordingTarget({ env: {}, setting: { location: "postgres", address } }), { record: true, library: { address }, writer: { by: "storytree test run" } });
+  assert.deepEqual(recordingTarget({ env: {}, setting: { location: "postgres", address } }), { record: true, library: { address }, writer: { by: "storytree test run", source: "local" } });
 });
 
 const JUNIT = `<?xml version="1.0" encoding="utf-8"?>

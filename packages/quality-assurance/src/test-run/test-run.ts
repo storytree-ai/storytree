@@ -142,7 +142,8 @@ export async function verifiedRun(folder: string, command: string, by: string, f
   return { run, reused: false };
 }
 
-function runText({ run, reused }: { run: VerifiedRun; reused: boolean }): string {
+/** The answer each door prints for a run: run_tests's and `storytree run-tests`'s alike. */
+export function runText({ run, reused }: { run: VerifiedRun; reused: boolean }): string {
   const head = reused
     ? `${run.command}: ${said(run)}, verified at these files by ${run.by} at ${run.at} in ${run.seconds}s; not re-run (fresh runs it again).`
     : `${run.command}: ${said(run)} in ${run.seconds}s, recorded against these files for the next role to read.`;

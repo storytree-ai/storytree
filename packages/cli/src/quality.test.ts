@@ -5,7 +5,8 @@
  * change-reviewer's loop, `quality brief`, `take`, `answer` and `standing`, run through the same API, and its 4.7: `standing` drops a contract the
  * increment no longer names; and its 5.1:
  * `quality graduate`. Its 2.8: `quality brief` run outside the increment's worktree reads the branch it was claimed on; its 2.16:
- * `quality brief` and `take` with --checkout review a change in a checkout outside the project, as the owner's factory repo is.
+ * `quality brief` and `take` with --checkout review a change in a checkout outside the project, as the owner's factory repo is; its 2.19:
+ * with --also, one brief and take cover the project's branch and an outside checkout's together.
  */
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
@@ -196,6 +197,60 @@ test("quality-assurance 2.16 · `quality brief` and `take` with --checkout revie
     try {
       const standing = await (await openReviews(storytree)).standing(world.project, increment.id);
       assert.deepEqual(standing.map(({ file, line, package: unit }) => ({ file, line, unit })), [{ file: "plugins/voice/src/door.test.ts", line: 2, unit: "voice" }], "the graduated check ran on the factory, and its hit stands in the project's ledger");
+    } finally {
+      await storytree.close();
+    }
+  });
+});
+
+test("quality-assurance 2.19 · `quality brief` and `take` with --also cover the project's branch and an outside checkout's in one review: both diffs and both packages in the brief, the graduated checks run on both", async () => {
+  await inWorld(command, async (world) => {
+    const git = (cwd: string, ...args: string[]) => execFileSync("git", ["-c", "user.name=t", "-c", "user.email=t@t", "-c", "commit.gpgsign=false", ...args], { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
+    const library = await world.library();
+    const story = await library.addStory({ title: "Talk by voice" });
+    const capability = await library.addCapability({ title: "1 · Connector", story: story.id });
+    const arc = await library.createArc({ title: "Voice moves out", intent: "Voice is a plugin", endState: "Voice runs from the factory", stories: [story.id] });
+    const increment = await library.addIncrement({ arc: arc.id, title: "Move voice", objective: "Voice in the factory", body: "Red then green", capabilities: [capability.id] });
+    const principle = await library.writeKnowledge("principle", { title: "Test creation principles", description: "How a test earns its place.", statement: "A test fails if its behaviour is removed.", why: "A test that cannot fail protects nothing.", howToApply: "Delete the behaviour and watch the test fail." });
+    const check = await library.writeKnowledge("check", { title: "Tautological expected value", description: "Expected values computed as the code computes them.", question: "Is any expected value computed the way the code computes it?", enforces: [principle.id] });
+    const graduated = await world.run(["quality", "graduate", check.id, "--part", "the same call on both sides of an equality", "--enforced-by", "self-equal-assertion"]);
+    assert.equal(graduated.code, 0, graduated.stderr);
+    // The project's half: its branch changes the forms package.
+    git(world.folder, "init", "-q", "-b", "main");
+    git(world.folder, "add", ".");
+    git(world.folder, "commit", "-qm", "first");
+    git(world.folder, "update-ref", "refs/remotes/origin/main", "HEAD");
+    git(world.folder, "checkout", "-qb", "move-voice");
+    mkdirSync(path.join(world.folder, "packages/forms/src"), { recursive: true });
+    writeFileSync(path.join(world.folder, "packages/forms/src/email.ts"), "export const valid = 1;\n");
+    git(world.folder, "add", "packages");
+    git(world.folder, "commit", "-qm", "the project's half");
+    // The factory's half: its branch adds the plugin's test.
+    const factory = path.join(world.elsewhere, "factory");
+    mkdirSync(path.join(factory, "plugins/voice/src"), { recursive: true });
+    writeFileSync(path.join(factory, "README.md"), "factory\n");
+    git(factory, "init", "-q", "-b", "main");
+    git(factory, "add", ".");
+    git(factory, "commit", "-qm", "first");
+    git(factory, "update-ref", "refs/remotes/origin/main", "HEAD");
+    git(factory, "checkout", "-qb", "move-voice");
+    writeFileSync(path.join(factory, "plugins/voice/src/door.test.ts"), "import assert from \"node:assert/strict\";\nassert.equal(door(1), door(1));\n");
+    git(factory, "add", ".");
+    git(factory, "commit", "-qm", "voice moves in");
+
+    const brief = await world.run(["quality", "brief", increment.id, "--also", factory]);
+    assert.equal(brief.code, 0, brief.stderr);
+    assert.match(brief.stdout, /packages it touches: forms, voice\./);
+    assert.match(brief.stdout, /export const valid = 1;/);
+    assert.match(brief.stdout, /assert\.equal\(door\(1\), door\(1\)\)/);
+
+    writeFileSync(path.join(world.folder, "return.json"), JSON.stringify({ review: 1, checks: [{ check: check.id, tripped: false, hits: [] }], contracts: [] }));
+    const taken = await world.run(["quality", "take", increment.id, "--return", "@return.json", "--also", factory]);
+    assert.equal(taken.code, 0, taken.stderr);
+    const storytree = await connect({ url: testServerUrl() });
+    try {
+      const standing = await (await openReviews(storytree)).standing(world.project, increment.id);
+      assert.deepEqual(standing.map(({ file, line, package: unit }) => ({ file, line, unit })), [{ file: "plugins/voice/src/door.test.ts", line: 2, unit: "voice" }], "the graduated check ran on the outside checkout too");
     } finally {
       await storytree.close();
     }

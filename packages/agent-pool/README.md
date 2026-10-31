@@ -30,7 +30,10 @@ The owner's Windows laptop runs the same dispatcher (`launch.mjs pool`) for work
 time, starting a lane only while it is plugged in and the library and GitHub answer. `windows/register-laptop-pool.ps1`
 (read it, then run it once; `-DryRun` shows what it would do) writes its configuration to `~/.storytree/agent-pool.json`
 (`machineOnly`, `sessions: 1`, Claude), forces the Claude engine in its lanes folder, and registers a Task Scheduler entry that
-runs `windows/laptop-pool.ps1` at logon. Its checkout (by default `C:\code\storytree03-dispatcher`) is a git worktree of the
-joined checkout, never a second clone, which storytree refuses: the script first runs `launch.mjs probe <checkout>`, which
-names whichever of the library and GitHub refuses there, and stops before writing anything. Run again from another
-checkout, it points the configuration at it and stops the old task and its dispatcher (`launch.mjs stop`). Pause it with `pool-stop` in the lanes folder, as on the box; delete it to resume.
+runs `windows/laptop-pool.ps1` at logon. Pause it with `pool-stop` in the lanes folder, as on the box; delete it to resume.
+Its `checkout` is a folder of its own, never the owner's working checkout: a git worktree of that checkout (a second clone
+of a project is refused, one folder per project per machine), today `C:\code\storytree03-dispatcher`, the script's default.
+Because it is a linked worktree, a lane makes its workspace from the main checkout (`pnpm storytree workspace <increment>
+--reason …` there). The script first runs `launch.mjs probe <checkout>`, which names whichever of the library and GitHub
+refuses there (a second clone among them), and stops before writing anything. Run again from another checkout, it points
+the configuration at it and stops the old task and the dispatcher it left running (`launch.mjs stop`).

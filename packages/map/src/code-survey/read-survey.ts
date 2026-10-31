@@ -26,14 +26,13 @@
  *   file (8.25). A commit is immutable, so a kept survey cannot be stale. A plan with mapped stories is not kept:
  *   an imported folder can change without a commit.
  */
-import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { readFileSync, realpathSync } from "node:fs";
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { Worker } from "node:worker_threads";
-import { manifestFrom, noMergedMain, SKIPPED, surveySourceReader, type SurveySource } from "./survey-source.js";
+import { gitText, manifestFrom, noMergedMain, SKIPPED, surveySourceReader, type SurveySource } from "./survey-source.js";
 import { mappedSurveyReader, type ImportedFolder } from "./mapped-survey.js";
 import { pytestTestedNumbers } from "./python-tests.js";
 
@@ -129,7 +128,7 @@ export interface FilePlace {
  */
 export async function placeFiles(folder: string, paths: readonly string[], tree: AnnotatedTree, options: Parameters<typeof capabilitiesOfFiles>[3] = {}): Promise<FilePlace[]> {
   // Git names the top by its real path, so each path is read by its own.
-  const root = checkoutTop(realOf(folder));
+  const root = await checkoutTop(realOf(folder));
   const relative = paths.map((given) => path.relative(root, realOf(path.resolve(folder, given))).split(path.sep).join("/"));
   const owners = await capabilitiesOfFiles(root, relative, tree, options);
   const alsoOwned = options.alsoOwned ?? ALSO_OWNED;
@@ -156,12 +155,8 @@ function realOf(file: string): string {
 }
 
 /** The top of the checkout `folder` is in, or `folder` itself when it is in none. */
-function checkoutTop(folder: string): string {
-  try {
-    return execFileSync("git", ["rev-parse", "--show-toplevel"], { cwd: folder, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim();
-  } catch {
-    return folder;
-  }
+async function checkoutTop(folder: string): Promise<string> {
+  return gitText(folder, ["rev-parse", "--show-toplevel"]).catch(() => folder);
 }
 
 /**

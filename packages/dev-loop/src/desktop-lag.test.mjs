@@ -9,7 +9,7 @@ import { fileURLToPath } from "node:url";
 import { removeTemp } from "@storytree/test-waits";
 import { CATALOGUE } from "@storytree/forest/actions";
 
-import { actionTable, alternate, closeApp, compareAction, compareTable, exitCode, judge, lagHome, NotRun, performRound, seededHome, startMeasuring, summary, withAgainst } from "./desktop-lag.mjs";
+import { actionTable, alternate, closeApp, compareAction, compareTable, exitCode, judge, lagHome, NotRun, performRound, roundDeadline, seededHome, startMeasuring, summary, withAgainst } from "./desktop-lag.mjs";
 
 test("8.3 pnpm lag:desktop --home starts cold on a new home and warm on one an earlier run left", async () => {
   const from = mkdtempSync(path.join(tmpdir(), "lag-home-from-"));
@@ -333,11 +333,10 @@ test("8.21 pnpm lag:desktop ends a round that stalls within its deadline NOT RUN
   const out = mkdtempSync(path.join(tmpdir(), "lag-stall-"));
   try {
     const { side, finish } = await startMeasuring({ page, ipc, state: "ready", readyMs: 1, extra: async () => ({}) }, { out, size: "live", deadlineMs: 50 });
-    const began = Date.now();
+    // The page's frames never come again, so only the deadline ends the round.
     const performed = await alternate([turn, idle], 10, [side], { deadlineMs: () => 100 });
-    assert.ok(Date.now() - began < 5000, "the stalled round ends at its deadline, not when the page answers");
     const [stalled, after] = performed[0];
-    assert.match(stalled.notRun, /^stalled: nothing for 100 ms while waiting for .*frame/);
+    assert.equal(stalled.notRun, `stalled: nothing for 100 ms while waiting for turn-forest's setup step 3 (wait): a frame of the page (requestAnimationFrame), to read whether it shows ${JSON.stringify(turn.setup[2].until)}`);
     assert.match(after.notRun, /^not performed: turn-forest stalled/);
     await finish(performed[0]);
     const kept = JSON.parse(readFileSync(path.join(out, "result.json"), "utf8"));
@@ -348,9 +347,21 @@ test("8.21 pnpm lag:desktop ends a round that stalls within its deadline NOT RUN
     const stuck = { ...page, evaluate: async () => never };
     const ready = await startMeasuring({ page: stuck, ipc, state: "ready", readyMs: 1, extra: async () => ({}) }, { out, size: "live", deadlineMs: 50 });
     const [[first]] = await alternate([idle], 3, [ready.side], { deadlineMs: () => 100 });
-    assert.match(first.notRun, /^not performed: the run stalled past state ready, nothing for 50 ms while waiting for /);
+    assert.equal(first.notRun, "not performed: the run stalled past state ready, nothing for 50 ms while waiting for the page to start watching its frames and inputs");
+
+    // An input that never returns names the step it was.
+    const press = { name: "press", setup: [], perform: [{ kind: "key", key: "Enter" }], settled: {}, budget: {}, limitMs: 10 };
+    const deaf = await startMeasuring({ page: { ...page, keyboard: { press: () => never } }, ipc, state: "ready", readyMs: 1, extra: async () => ({}) }, { out, size: "live", deadlineMs: 50 });
+    const [[pressed]] = await alternate([press], 1, [deaf.side], { deadlineMs: () => 100 });
+    assert.equal(pressed.notRun, "stalled: nothing for 100 ms while waiting for press's step 1 (key Enter)");
   } finally {
     await removeTemp(out);
+  }
+
+  // A round that takes every limit it has, its idle time too, is not cut short as stalled.
+  for (const action of CATALOGUE) {
+    const idleMs = action.perform.reduce((sum, step) => sum + (step.kind === "idle" ? step.ms : 0), 0);
+    assert.ok(roundDeadline(action) > action.limitMs * (action.setup.length + action.perform.length + 1) + idleMs, action.name);
   }
 
   // The app is stopped: closed, or killed when closing does not return.

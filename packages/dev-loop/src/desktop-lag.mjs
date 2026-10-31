@@ -179,7 +179,7 @@ function within(promise, ms, what) {
  * How long one round of `action` may take before it is called stalled: its every step and its settling at their own limit, its idle
  * time, and a minute's slack, so only a page that stopped answering reaches it.
  */
-const roundDeadline = (action) => action.limitMs * (action.setup.length + action.perform.length + 1)
+export const roundDeadline = (action) => action.limitMs * (action.setup.length + action.perform.length + 1)
   + action.perform.reduce((sum, step) => sum + (step.kind === "idle" ? step.ms : 0), 0) + 60_000;
 
 /** How long the run past state ready, and each read it ends with, may wait on the page. */

@@ -14,7 +14,7 @@ import { removeTemp, waitUntil } from "@storytree/test-waits";
 import { connect } from "@storytree/library";
 import { dropTestDatabases } from "@storytree/local-postgres/testing";
 
-import { actionStates, decide, lagVerdicts, openHistory, recordLagVerdicts, runBounded, statusText } from "./lag-box.mjs";
+import { actionStates, decide, lagVerdicts, openHistory, recordLagVerdicts, runBounded, statusText, tick as runTick } from "./lag-box.mjs";
 
 const ACTIONS = ["open-smallest-island", "open-largest-island", "close-panel"];
 // main's first-parent history, oldest first: m0, then merges m1..m20, each of pull request 100 + n.
@@ -122,6 +122,33 @@ test("8.14 pnpm lag:box keeps the history in the library's server and prints, pe
     await history.forget();
   } finally {
     await storytree.close();
+  }
+});
+
+test("8.14 a lag-box tick that cannot measure records itself NOT RUN with its cause, once however often it repeats, and pnpm lag:box prints the last measuring run's age and the last failure", async () => {
+  const url = process.env.STORYTREE_TEST_PG_URL;
+  if (!url) throw new Error("STORYTREE_TEST_PG_URL is not set; run through pnpm test");
+  const project = `lag-box-${randomBytes(4).toString("hex")}`;
+  const box = mkdtempSync(path.join(tmpdir(), "lag-box-box-"));
+  const storytree = await connect({ url });
+  try {
+    const history = await openHistory(storytree, project);
+    await history.finish(await history.start({ purpose: "measure", head: "m8", against: "m7", actions: null }), { state: "done", rows: verdicts() });
+    const open = (use) => use(history, storytree);
+    for (let n = 0; n < 3; n += 1) await assert.rejects(runTick([], { box, home: box, open, log: () => {} }), /no measuring checkout at /, "the tick still fails, so tick.log keeps saying why");
+    const read = await history.read();
+    assert.deepEqual(read.map((row) => [row.purpose, row.state]), [["measure", "done"], ["tick", "not-run"]], "one NOT RUN row for a failure however many ticks repeat it");
+    assert.match(read[1].reason, /no measuring checkout at .*: run pnpm lag:box install/);
+    assert.ok(read[1].ended >= read[1].started, "the row's end moves to the latest tick that failed");
+    assert.deepEqual(decide({ history: read, main: main(9), actions: ACTIONS, log: LOG }).comparisons, [{ purpose: "measure", head: "m9", against: "m8", actions: null }], "a tick that did not measure does not stand in for a measuring run");
+    const now = new Date(Date.parse(read[0].ended) + 3 * 86_400_000 + 3_600_000);
+    const text = statusText({ history: read, actions: ACTIONS, log: LOG, now });
+    assert.match(text, /last measured .* \(3 days ago\)/);
+    assert.match(text, /last failure .*: tick: no measuring checkout at /);
+    await history.forget();
+  } finally {
+    await storytree.close();
+    await removeTemp(box);
   }
 });
 

@@ -10,7 +10,7 @@ import { promisify } from "node:util";
 
 import { quietFor, removeTemp, waitUntil } from "@storytree/test-waits";
 
-import { bothAnswer, main, runLane, SIGNALED, storytreeCommand } from "./runner.mjs";
+import { bothAnswer, main, refusals, runLane, SIGNALED, storytreeCommand } from "./runner.mjs";
 
 const exec = promisify(execFile);
 const start = Date.parse("2026-10-06T00:00:00Z");
@@ -546,6 +546,16 @@ test("1.20 · the network is back only when both the library and GitHub answer",
     assert.equal(await bothAnswer({ probe, platform: "linux" }), expected, `down: ${down.join(", ") || "none"}`);
     assert.deepEqual(asked.map((line) => line.split(" ").slice(0, 4).join(" ")).sort(), ["gh api rate_limit", "pnpm -s storytree library"]);
   }
+});
+
+test("1.20 · each of the library and GitHub that does not answer is named with the first line it said, the library's from its error output", async () => {
+  const probe = async (file) => {
+    if (file === "pnpm") throw Object.assign(new Error("Command failed: pnpm -s storytree library read"), { stderr: "\nstorytree allows one folder per project per machine: work in a git worktree of it\nmore\n" });
+    if (file === "gh") throw new Error("gh: not logged in\nrun gh auth login");
+  };
+  assert.deepEqual(await refusals({ probe, platform: "linux" }), ["the library (storytree library read): storytree allows one folder per project per machine: work in a git worktree of it",
+    "GitHub (gh api rate_limit): gh: not logged in"]);
+  assert.deepEqual(await refusals({ probe: async () => {}, platform: "linux" }), []);
 });
 
 test("1.21 · A lane whose worktree has no git identity configured still commits, as the owner, on either engine; an identity the runner's environment sets is kept", async (t) => {

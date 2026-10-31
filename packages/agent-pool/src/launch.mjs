@@ -2,6 +2,8 @@
 // node --import tsx packages/agent-pool/src/launch.mjs pool            (one dispatcher over every active arc's ready increments; exits 3 to restart on its own code change)
 // node packages/agent-pool/src/launch.mjs slots                       (engines running now, and the cap)
 // node --import tsx packages/agent-pool/src/launch.mjs ready [project] [--drained] (as JSON: engines running, the cap, the lanes folder and the work the pool would start now)
+// node --import tsx packages/agent-pool/src/launch.mjs probe [checkout]  (whether the library and GitHub answer from the checkout, naming each refusal; exit 1 on one)
+// node --import tsx packages/agent-pool/src/launch.mjs stop               (ends the dispatcher pool.pid names, if it is one)
 import { execFile, spawn } from "node:child_process";
 import { appendFileSync, existsSync } from "node:fs";
 import { readFile, rm, writeFile } from "node:fs/promises";
@@ -14,7 +16,7 @@ import { promisify } from "node:util";
 import { laneSettings } from "./engine.mjs";
 import { blind, pickPlan, pickPool, planState, readOnly, surveyLibrary } from "./feed.mjs";
 import { codeVersion, composeBrief, countEngines, holdRunner, processTable, waitForSlot, WINDOWS_PROCESSES } from "./queue.mjs";
-import { bothAnswer, runLane as runEngineLane, SIGNALED } from "./runner.mjs";
+import { refusals, runLane as runEngineLane, SIGNALED } from "./runner.mjs";
 import { readBoxPace } from "./pace.mjs";
 import { poolConfig, readCap } from "./pool-config.mjs";
 import { handedOff } from "./watch.mjs";
@@ -27,6 +29,8 @@ export const PUSH_URL = "git@github.com:storytree-ai/storytree.git";
 const stamp = (now) => new Date(now()).toISOString().replace(/\.\d{3}Z$/, "Z");
 /** What laneOnce returns when the re-read before its start found the increment no longer ready: no lane ran. */
 export const NOT_STARTED = "not started";
+/** A dispatcher's command line, as pool.pid's holder is judged by. */
+const DISPATCHER = /launch\.mjs pool( |$)/;
 
 /**
  * Why increment `id` should not start now, read from a fresh survey (undefined when it is still ready): closed, gone,
@@ -84,13 +88,14 @@ export const checkoutLock = (path, platform = process.platform) => (fn) => (plat
 
 /**
  * The start rule of a machine-only dispatcher (ADR-1179 D3): a hold while `power` (the power line: Online, Offline or Unknown)
- * says the machine runs on battery, or while `online` says the library or GitHub does not answer; else undefined. An unread
- * power line, or a machine with no battery, is plugged in.
+ * says the machine runs on battery, or while `refusals` names the library or GitHub as not answering, naming each; else
+ * undefined. An unread power line, or a machine with no battery, is plugged in.
  */
-export async function startHold({ power, online }) {
+export async function startHold({ power, refusals }) {
   const line = await Promise.resolve().then(power).catch(() => "");
   if (String(line).trim() === "Offline") return { hold: "pause", windows: ["power"], reason: "on battery: a lane starts only while the machine is plugged in" };
-  if (!await online()) return { hold: "pause", windows: ["network"], reason: "offline: the library or GitHub does not answer" };
+  const refused = await refusals();
+  if (refused.length) return { hold: "pause", windows: ["network"], reason: `offline: ${refused.join("; ")}` };
   return undefined;
 }
 
@@ -300,7 +305,7 @@ function boxDefaults({ home = homedir(), env = process.env } = {}) {
     lanesDir, repo, addDirs, sessionsDir, stopAt, machineOnly: config.machineOnly, briefPaths: { checkout: repo, lanes: lanesDir },
     maxLanes: () => readCap({ lanesDir, sessions: config.sessions }),
     count: async () => countEngines(await processes()),
-    power: () => readPowerLine(), online: () => bothAnswer({ cwd: repo, env }),
+    power: () => readPowerLine(), refusals: (cwd = repo) => refusals({ cwd, env }), kill: (pid) => process.kill(pid),
     lock: checkoutLock(join(lanesDir, "night-checkout.lock")),
     prepare: () => prepareCheckout({ repo }),
     sleep: (ms, options) => wait(ms, undefined, options), argsOf, runLane: runEngineLane, survey: surveyLibrary, now: Date.now,
@@ -339,8 +344,29 @@ export async function main(args, box = {}) {
   }
   if (args[0] === "pool") return pool(b);
   if (args[0] === "ready") return ready(b, args[1], { drained: args.includes("--drained") });
-  (b.out ?? console.error)("usage: launch.mjs pool | slots | ready [project] [--drained]");
+  if (args[0] === "probe") return probe(b, args[1] ?? process.cwd());
+  if (args[0] === "stop") return stop(b);
+  (b.out ?? console.error)("usage: launch.mjs pool | slots | ready [project] [--drained] | probe [checkout] | stop");
   return 2;
+}
+
+/** `probe`: the start rule's network probe run from `checkout`, as the laptop's registration checks a checkout before it registers it. */
+async function probe(b, checkout) {
+  const out = b.out ?? console.log;
+  const refused = await b.refusals(checkout);
+  for (const one of refused) out(`refused: ${one}`);
+  if (!refused.length) out(`the library and GitHub answer from ${checkout}`);
+  return refused.length ? 1 : 0;
+}
+
+/** `stop`: ends the dispatcher pool.pid names, only while that pid runs `launch.mjs pool` (as holdRunner judges), so a reused pid is left alone. */
+async function stop(b) {
+  const out = b.out ?? console.log;
+  const pid = (await readFile(join(b.lanesDir, "pool.pid"), "utf8").catch(() => "")).trim();
+  if (!pid || !DISPATCHER.test(await b.argsOf(pid))) { out("no dispatcher is running"); return 0; }
+  b.kill(Number(pid));
+  out(`stopped dispatcher ${pid}`);
+  return 0;
 }
 
 /** A survey with each increment handed to the watcher held on it, as its event wait would hold it, so the pool and planning leave it alone. */
@@ -363,14 +389,14 @@ async function pool(b) {
   const L = b.lanesDir;
   const say = b.say ?? ((line) => appendFileSync(join(L, "pool.status"), `${line}\n`));
   const dated = (message) => say(`${stamp(b.now)} ${message}`);
-  const runner = await holdRunner({ pidFile: join(L, "pool.pid"), pid: b.pid ?? process.pid, marks: [/launch\.mjs pool( |$)/], argsOf: b.argsOf });
+  const runner = await holdRunner({ pidFile: join(L, "pool.pid"), pid: b.pid ?? process.pid, marks: [DISPATCHER], argsOf: b.argsOf });
   if (!runner.held) { dated(`dispatcher ${runner.by} is running: not starting`); return 1; }
   dated("dispatcher started");
   const survey = async () => withHandOffs(await b.survey(), await handedOff(join(L, "watch")));
   const code = await runPool({
     survey, maxLanes: b.maxLanes, count: b.count, machineOnly: b.machineOnly, stopFile: join(L, "pool-stop"), plans: planFile(join(L, "pool-planned.json")), sleep: b.sleep, now: b.now, say,
     // A machine-only dispatcher (the laptop's) first holds for its start rule, plugged in and online (ADR-1179 D3).
-    pace: async () => (b.machineOnly ? await startHold({ power: b.power, online: b.online }) : undefined) ?? (b.pace ?? readBoxPace)(),
+    pace: async () => (b.machineOnly ? await startHold({ power: b.power, refusals: () => b.refusals() }) : undefined) ?? (b.pace ?? readBoxPace)(),
     codeVersion: b.codeVersion ?? (() => codeVersion({ repo: b.repo })),
     refresh: () => b.lock(b.prepare),
     launch: async (one, { engineUp }) => {

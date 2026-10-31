@@ -559,9 +559,11 @@ test("3.30 · `probe` names each of the library and GitHub that refuses from the
   assert.equal(await main(["probe"], b), 0);
   assert.deepEqual(asked, ["C:/code/clone", process.cwd()]);
   assert.equal(out.at(-1), `the library and GitHub answer from ${process.cwd()}`);
+  assert.equal(await main(["probes"], b), 2);
+  assert.match(out.at(-1), /^usage: .*\| probe \[checkout\] \| stop$/);
 });
 
-test("3.30 · `stop` ends the dispatcher pool.pid names, and leaves a pid that is no dispatcher, or none, alone", async (t) => {
+test("3.31 · `stop` ends the dispatcher pool.pid names, and leaves a pid that is no dispatcher, or none, alone", async (t) => {
   const b = await box(t), out = [], killed = [];
   Object.assign(b, { out: (line) => out.push(line), kill: (pid) => killed.push(pid) });
   assert.equal(await main(["stop"], b), 0, "no pool.pid");

@@ -221,13 +221,7 @@ export function sheetKeyPan(held: ReadonlySet<string>, seconds: number): { x: nu
   return { x: x * KEY_PAN_SPEED * seconds, y: y * KEY_PAN_SPEED * seconds };
 }
 
-/** What a pointer press drags: the left button pans, the right button or Ctrl with the left spins and tilts (ADR-1060 D2,
- * ADR-1062 D2): its sideways part spins the sheet, its up-and-down part tilts it (`sheetSpinTilt`). */
-export function sheetDrag(event: { button: number; ctrlKey: boolean; isPrimary: boolean }): "pan" | "spin" | undefined {
-  if (!event.isPrimary) return undefined;
-  if (event.button === 2 || (event.button === 0 && event.ctrlKey)) return "spin";
-  return event.button === 0 ? "pan" : undefined;
-}
+export { sheetDrag } from "./sheet-drag.js";
 
 /** Radians a spinning drag turns the sheet for each CSS pixel across the window. */
 export const SPIN_PER_PIXEL = Math.PI / 600;

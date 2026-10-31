@@ -37,7 +37,14 @@ export function isReading(value: unknown): value is LagReading {
   const r = value as Record<string, unknown>;
   const ms = (n: unknown) => typeof n === "number" && Number.isFinite(n) && n >= 0;
   return typeof r.name === "string" && r.name.length > 0 && r.name.length <= 100 && ms(r.response) && ms(r.longFrames) && ms(r.longestFrame) && ms(r.settled)
-    && typeof r.progress === "boolean" && (r.size === undefined || ms(r.size));
+    && typeof r.progress === "boolean" && (r.size === undefined || ms(r.size)) && (r.frames === undefined || isTurnFrames(r.frames));
+}
+
+/** A turn's frames: its four numbers, each a time or a count. */
+function isTurnFrames(value: unknown): boolean {
+  if (typeof value !== "object" || value === null) return false;
+  const f = value as Record<string, unknown>;
+  return ["p50", "p95", "max", "over"].every((key) => typeof f[key] === "number" && Number.isFinite(f[key]) && (f[key] as number) >= 0);
 }
 
 /** The readings kept in `home`, oldest first; none when there is no file. */

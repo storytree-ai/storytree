@@ -1,11 +1,12 @@
 /**
  * Capability 5 · Recorder. The recorder mounted on the page: it hears trusted inputs, reads what the page shows each frame while an
- * action is under way (the same reading the lab instrument takes, packages/dev-loop/src/desktop-lag.mjs), and hands the browser's
+ * action is under way (the same reading the lab instrument takes, packages/dev-loop/src/desktop-lag.mjs), times each frame of a drag
+ * that turns the map, and hands the browser's
  * Event Timing and Long Animation Frame entries to the core. Nothing runs on the input path but one read of the page; readings
  * reach the app every half minute, or as the page hides, and only when no action is under way (ADR-0836 D1). The lab switches it
  * off with `?lag-recorder=off`, so the catalogue can be measured with it and without.
  */
-import { CATALOGUE, type PageState } from "@storytree/forest/actions";
+import { CATALOGUE, sheetDrag, type PageState } from "@storytree/forest/actions";
 import type { LagBridge } from "./bridge.js";
 import { createRecorder, type Entry } from "./recorder.js";
 
@@ -45,7 +46,8 @@ export function mountLagRecorder(bridge: LagBridge, win: RecorderWindow = window
   let watching = false;
   const watch = () => {
     watching = true;
-    win.requestAnimationFrame(() => {
+    win.requestAnimationFrame((time) => {
+      recorder.turnFrame(time);
       if (recorder.pending) watch();
       else watching = false;
       win.setTimeout(() => recorder.frame(win.performance.now(), readPage(win, true)), 0);
@@ -53,9 +55,16 @@ export function mountLagRecorder(bridge: LagBridge, win: RecorderWindow = window
   };
   const onInput = (event: Event) => {
     if (!event.isTrusted) return;
-    recorder.input(event.timeStamp, readPage(win, false));
+    // A press on the map's canvas that spins and tilts it is a turn of the view on show, timed by its frames; no click action.
+    const mode = event.type === "pointerdown" && (event.target as Element | null)?.tagName === "CANVAS" && sheetDrag(event as PointerEvent) === "spin"
+      ? readPage(win, false).mode : undefined;
+    if (mode === "forest" || mode === "library") recorder.turnStart(event.timeStamp, mode);
+    else recorder.input(event.timeStamp, readPage(win, false));
     if (!watching) watch();
   };
+  const onMove = (event: Event) => { if (event.isTrusted) recorder.turnMove(); };
+  const onLetGo = (event: Event) => { if (event.isTrusted) recorder.turnEnd(event.timeStamp); };
+  const turnListeners: [string, (event: Event) => void][] = [["pointermove", onMove], ["pointerup", onLetGo], ["pointercancel", onLetGo]];
   const observers: PerformanceObserver[] = [];
   const observe = (type: string, deliver: (entries: Entry[]) => void, options: PerformanceObserverInit) => {
     if (win.PerformanceObserver?.supportedEntryTypes?.includes(type) !== true) return;
@@ -68,12 +77,14 @@ export function mountLagRecorder(bridge: LagBridge, win: RecorderWindow = window
   const flush = () => recorder.flush();
   const onHide = () => { if (win.document.visibilityState === "hidden") flush(); };
   for (const type of ["pointerdown", "keydown"]) win.addEventListener(type, onInput, { capture: true, passive: true });
+  for (const [type, listener] of turnListeners) win.addEventListener(type, listener, { capture: true, passive: true });
   win.addEventListener("pagehide", flush);
   win.document.addEventListener("visibilitychange", onHide);
   const timer = win.setInterval(flush, FLUSH_EVERY_MS);
   return {
     stop() {
       for (const type of ["pointerdown", "keydown"]) win.removeEventListener(type, onInput, { capture: true });
+      for (const [type, listener] of turnListeners) win.removeEventListener(type, listener, { capture: true });
       win.removeEventListener("pagehide", flush);
       win.document.removeEventListener("visibilitychange", onHide);
       win.clearInterval(timer);

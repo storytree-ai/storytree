@@ -265,3 +265,47 @@ test("8.17 pnpm lag:desktop performs a start action as a real start of the page,
   assert.equal(round.progressHeld, true);
   assert.deepEqual(judge({ name: fresh.name, budget: fresh.budget, rounds: [round] }).verdict, { response: "n/a", smooth: "missed", settled: "within" });
 });
+
+test("8.18 pnpm lag:desktop turns the map by a Ctrl+drag from an uncovered point of its canvas, reads its frames, and reads NOT RUN when the map did not turn", async () => {
+  const turn = CATALOGUE.find((action) => action.name === "turn-forest");
+  /** A page whose canvas is uncovered at its middle; the map's places move once the drag has moved, unless `stuck`. */
+  const fake = (stuck) => {
+    const did = [];
+    let moves = 0;
+    const page = {
+      did,
+      evaluate: async (source) => {
+        if (source.includes("getBoundingClientRect")) return { matches: 0, box: null };
+        if (source.includes("elementFromPoint")) return null;
+        if (source.includes("__turnFrames = [")) return did.push("record frames");
+        if (source.includes("__turnFrames")) return [0, 16, 33, 50, 134, 150];
+        if (source.includes("islands()")) return did.includes("up") && !stuck ? [[140, 100], [300, 220]] : [[100, 100], [300, 200]];
+        if (source.includes("window.__ev.filter")) return { ev: [], loaf: [{ start: 50, duration: 84, scripts: [] }] };
+        if (source.includes("requestAnimationFrame")) return { t: 2000, inputs: 3, mode: "forest", panelOpen: false, still: true, progress: false, startSettled: true };
+        return { t: 1000, inputs: 0 };
+      },
+      locator: () => ({ first: () => ({ boundingBox: async () => ({ x: 0, y: 0, width: 800, height: 600 }) }) }),
+      keyboard: { press: async (key) => did.push(`press ${key}`), down: async (key) => did.push(`down ${key}`), up: async (key) => did.push(`up ${key}`) },
+      mouse: { move: async () => { moves++; }, down: async () => did.push("down"), up: async () => did.push("up") },
+      moves: () => moves,
+    };
+    return page;
+  };
+  const ipc = { mark: async () => 0, since: async () => ({}) };
+  const page = fake(false);
+  const round = await performRound(page, turn, ipc);
+  // Ctrl is held for the whole drag, and the frames are recorded in the page across it.
+  assert.deepEqual(page.did, ["press Escape", "record frames", "down Control", "down", "up", "up Control"]);
+  assert.ok(page.moves() >= 360, "a drag of many steps");
+  assert.deepEqual(round.turn, { p50: 17, p95: 84, max: 84, over: 1 });
+  assert.equal(round.settled, null, "a turn has nothing to settle");
+  const row = judge({ name: turn.name, budget: turn.budget, rounds: [round, round] });
+  assert.deepEqual([row.response, row.turn, row.verdict], [undefined, { p50: 17, p95: 84, max: 84, over: 2 }, { response: "n/a", smooth: "missed", settled: "n/a" }]);
+  assert.match(actionTable([row]).split("\n").at(-1), /^turn-forest frames: p50 17 \/ p95 84 ms, longest 84 ms, 2 over 50 ms$/);
+
+  // Two builds compare a turn by its frames' 95th percentile.
+  const compared = compareAction({ name: turn.name, budget: turn.budget, rounds: [{ ...round, turn: { ...round.turn, p95: 160 } }] }, { name: turn.name, budget: turn.budget, rounds: [round] });
+  assert.deepEqual([compared.measure, compared.against, compared.this, compared.verdict], ["frame p95", 84, 160, "slower"]);
+
+  await assert.rejects(performRound(fake(true), turn, ipc), (error) => error instanceof NotRun && /did not turn/.test(error.message));
+});

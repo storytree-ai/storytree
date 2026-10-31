@@ -11,8 +11,9 @@ export function createLagRuntime(options: { home?: string; appVersion: string; n
   return {
     recordLag(readings: unknown) {
       // Only a reading's own fields are kept, whatever else the page sent.
-      const kept = (Array.isArray(readings) ? readings.filter(isReading) : []).map(({ name, response, longFrames, longestFrame, settled, progress, size }) =>
-        ({ name, response, longFrames, longestFrame, settled, progress, ...(size === undefined ? {} : { size }) }));
+      const kept = (Array.isArray(readings) ? readings.filter(isReading) : []).map(({ name, response, longFrames, longestFrame, settled, progress, size, frames }) =>
+        ({ name, response, longFrames, longestFrame, settled, progress, ...(size === undefined ? {} : { size }),
+          ...(frames === undefined ? {} : { frames: { p50: frames.p50, p95: frames.p95, max: frames.max, over: frames.over } }) }));
       writing = writing.then(() => appendReadings(home, kept, { version: options.appVersion, now: (options.now ?? Date.now)() }))
         .catch(() => { /* Observation never breaks the app it observes. */ });
       return writing;

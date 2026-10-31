@@ -129,3 +129,36 @@ test("5.2 · readings reach the app in batches, never between an action's input 
   recorder.frame(20_000 + 10_001, closed);
   assert.equal(sent.length, 2);
 });
+
+test("5.3 · a drag that turns the map becomes one reading of its frames, named by the view it turned; a press that never moved records none", () => {
+  const { sent, recorder } = recording();
+  // A turn in the forest: a frame every 16 or 17 ms, one of them 84 ms, which a Long Animation Frame entry names.
+  recorder.turnStart(1000, "forest");
+  for (const at of [1016, 1033, 1050, 1066]) recorder.turnFrame(at);
+  recorder.turnMove();
+  for (const at of [1150, 1166, 1183]) recorder.turnFrame(at);
+  recorder.observe({ frames: [{ start: 1066, duration: 84 }, { start: 5000, duration: 90 }] });
+  recorder.turnEnd(1190);
+  assert.equal(recorder.pending, true, "its Long Animation Frame entries are still to come");
+  recorder.flush();
+  assert.deepEqual(sent, [], "nothing is sent while a turn is under way");
+  recorder.turnFrame(1200);
+  recorder.turnFrame(1216);
+  assert.equal(recorder.pending, false);
+  assert.deepEqual(sent, [[{ name: "turn-forest", response: 0, longFrames: 1, longestFrame: 84, settled: 0, progress: false, frames: { p50: 17, p95: 84, max: 84, over: 1 } }]]);
+
+  // A press let go without moving turned nothing; a turn in the Library is filed under its own name.
+  recorder.turnStart(2000, "library");
+  recorder.turnFrame(2016);
+  recorder.turnEnd(2020);
+  recorder.turnFrame(2033);
+  recorder.turnFrame(2050);
+  recorder.turnStart(3000, "library");
+  recorder.turnMove();
+  for (const at of [3016, 3033, 3050]) recorder.turnFrame(at);
+  recorder.turnEnd(3060);
+  recorder.turnFrame(3066);
+  recorder.turnFrame(3083);
+  recorder.flush();
+  assert.deepEqual(sent.slice(1), [[{ name: "turn-library", response: 0, longFrames: 0, longestFrame: 0, settled: 0, progress: false, frames: { p50: 17, p95: 17, max: 17, over: 0 } }]]);
+});

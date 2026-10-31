@@ -133,7 +133,8 @@ async function leftBehind({ group, mark }) {
 
 /**
  * What an exited engine left running (1.23): given settleMs to end on its own (a hook's hand-off), then SIGTERM, then SIGKILL
- * after graceMs, each named with its command line. Linux only; elsewhere nothing is looked for.
+ * after graceMs, each named with its command line; a killed one is waited for (up to graceMs again) so it is gone, or a zombie, on
+ * return. Linux only; elsewhere nothing is looked for.
  */
 async function reapLeftovers({ group, mark, dated, reap = REAP }) {
   if (process.platform !== "linux") return;
@@ -151,6 +152,7 @@ async function reapLeftovers({ group, mark, dated, reap = REAP }) {
   signal(survivors.map((one) => one.pid), "SIGTERM");
   const stubborn = await until(graceMs);
   signal(stubborn.map((one) => one.pid), "SIGKILL");
+  if (stubborn.length) await until(graceMs);
   const killed = new Set(stubborn.map((one) => one.pid));
   for (const { pid, command } of new Map([...survivors, ...stubborn].map((one) => [one.pid, one])).values()) {
     dated(`left running by the engine, stopped${killed.has(pid) ? " by SIGKILL" : ""}: pid ${pid} (${command})`);

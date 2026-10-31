@@ -135,16 +135,26 @@ test("8.14 a lag-box tick that cannot measure records itself NOT RUN with its ca
     const history = await openHistory(storytree, project);
     await history.finish(await history.start({ purpose: "measure", head: "m8", against: "m7", actions: null }), { state: "done", rows: verdicts() });
     const open = (use) => use(history, storytree);
-    for (let n = 0; n < 3; n += 1) await assert.rejects(runTick([], { box, home: box, open, log: () => {} }), /no measuring checkout at /, "the tick still fails, so tick.log keeps saying why");
+    const failing = () => assert.rejects(runTick([], { box, home: box, open, log: () => {} }), /no measuring checkout at /, "the tick still fails, so tick.log keeps saying why");
+    await failing();
+    const first = (await history.read()).at(-1);
+    for (let n = 0; n < 2; n += 1) {
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      await failing();
+    }
     const read = await history.read();
     assert.deepEqual(read.map((row) => [row.purpose, row.state]), [["measure", "done"], ["tick", "not-run"]], "one NOT RUN row for a failure however many ticks repeat it");
     assert.match(read[1].reason, /no measuring checkout at .*: run pnpm lag:box install/);
-    assert.ok(read[1].ended >= read[1].started, "the row's end moves to the latest tick that failed");
+    assert.ok(read[1].ended > first.ended, "the row's end moves to the latest tick that failed");
+    assert.equal(read[1].started, first.started, "its start stays at the first");
     assert.deepEqual(decide({ history: read, main: main(9), actions: ACTIONS, log: LOG }).comparisons, [{ purpose: "measure", head: "m9", against: "m8", actions: null }], "a tick that did not measure does not stand in for a measuring run");
     const now = new Date(Date.parse(read[0].ended) + 3 * 86_400_000 + 3_600_000);
     const text = statusText({ history: read, actions: ACTIONS, log: LOG, now });
+    assert.ok(text.includes(`NOT RUN ${read[1].started.slice(0, 16)} to ${read[1].ended.slice(0, 16)}  tick: no measuring checkout at `), text);
     assert.match(text, /last measured .* \(3 days ago\)/);
     assert.match(text, /last failure .*: tick: no measuring checkout at /);
+    const failingSince = [read[0], { ...read[1], started: "2026-10-20T00:00:00.000Z", ended: "2026-10-23T00:00:00.000Z" }];
+    assert.match(statusText({ history: failingSince, actions: ACTIONS, log: LOG, now: new Date(Date.parse(read[0].ended) + 10 * 86_400_000) }), /last measured .* \(10 days ago\)/, "a tick that did not measure is not the last measuring run");
     await history.forget();
   } finally {
     await storytree.close();

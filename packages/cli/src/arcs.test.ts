@@ -856,7 +856,7 @@ test("4.7 `arc increment move` re-homes open work with its claim and closed hist
   });
 });
 
-test("4.19 `arc show` lists each open increment's pending plan changes under it, as before and after, or a retirement with its reason (ADR-0966 D3)", async () => {
+test("4.19 `arc show` says under each open increment how many pending plan changes it holds and the command that lists them, never the changes themselves (ADR-0966 D3)", async () => {
   await inWorld(command, async (world) => {
     const library = await world.library();
     const arc = await anArc(world);
@@ -871,9 +871,8 @@ test("4.19 `arc show` lists each open increment's pending plan changes under it,
     const shown = await world.run(["arc", "show", arc]);
     assert.equal(shown.code, 0, shown.stderr);
     const below = shown.stdout.slice(shown.stdout.indexOf(increment.id));
-    assert.match(below, /Pending changes \(2\)/);
-    assert.match(below, new RegExp(`${form.id}.*\\n.*description: \\(none\\) -> Where they type it`));
-    assert.match(below, new RegExp(`${promise.id}.*\\n.*retire: overtaken`));
+    assert.match(below, new RegExp(`Pending changes \\(2\\), applied when its branch merges: storytree library read ${increment.id} lists them`));
+    assert.doesNotMatch(shown.stdout, new RegExp(`${form.id}|${promise.id}|Where they type it|retire: overtaken`));
   });
 });
 

@@ -21,7 +21,7 @@
  * landed since a time, by arc.
  */
 import { verb, VerbRefusal, type VerbFamilies } from "@storytree/library/verbs";
-import { beforeCutover, pullSaid, type ArcView, type Holds, type NoteWait, type PendingChange, type WaitFor } from "@storytree/library";
+import { beforeCutover, pullSaid, type ArcView, type Holds, type NoteWait, type WaitFor } from "@storytree/library";
 
 import { recentWindow, windowOf, type ClosedRange } from "../board/closed-range.js";
 import { questionsBehind } from "../work-states/board-states.js";
@@ -56,16 +56,12 @@ function actionRankOf(flag: string, value: string | undefined): { rank?: number 
 /** An arc's priority as said: 1 first, and an arc with none comes after every arc that has one (ADR-0963 D1). */
 const rankOf = (view: Pick<ArcView, "arc">): number => view.arc.fields.priority ?? Infinity;
 
-/** An increment's pending changes (ADR-0966 D3): each record, then each field as before -> after, or its retirement. */
-function pendingSaid(pending: readonly PendingChange[]): string[] {
-  const said = (value: unknown): string => (value === null || value === undefined ? "(none)" : typeof value === "string" ? value : JSON.stringify(value));
-  return [
-    `Pending changes (${pending.length}), applied when its branch merges:`,
-    ...pending.flatMap((change) => [
-      `  ${change.record}  [${change.type}]  read at history entry ${change.base}`,
-      ...("retire" in change ? [`    retire: ${change.retire}`] : Object.entries(change.after).map(([field, value]) => `    ${field}: ${said(change.before[field])} -> ${said(value)}`)),
-    ]),
-  ];
+/**
+ * An increment's pending changes (ADR-0966 D3) as `arc show` says them: their count and the command that lists them,
+ * so one increment carrying many never pushes the rest of the arc out of view (friction_0d86ef47917d).
+ */
+function pendingSaid(id: string, count: number): string {
+  return `Pending changes (${count}), applied when its branch merges: storytree library read ${id} lists them`;
 }
 
 /**
@@ -114,7 +110,8 @@ const show = verb({
     for (const increment of open) {
       lines.push(`  - ${increment.id}  [${increment.fields.status}]  ${increment.fields.title}`);
       for (const line of holdsOn(holds, increment.id)) lines.push(`      ${line}`);
-      if ((increment.fields.pending ?? []).length > 0) for (const line of pendingSaid(increment.fields.pending!)) lines.push(`      ${line}`);
+      const pending = increment.fields.pending?.length ?? 0;
+      if (pending > 0) lines.push(`      ${pendingSaid(increment.id, pending)}`);
     }
     const waiting = questions.filter((question) => question.fields.lifecycle === "open");
     // A parked arc's questions are parked with it until it is unparked (ADR-0835 D2).

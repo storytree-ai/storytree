@@ -448,7 +448,7 @@ export class WorkInFlight {
   /**
    * Increment `id`'s pending changes their record has moved since they were read (ADR-0966 D5's gate
    * case, movedSince): each with its base and its record's latest history entry, in the increment's
-   * order. Empty when none has moved; null if `id` is not a live increment.
+   * order. A record whose latest entry is this increment's own applying of the change is not moved (10.27). Empty when none has moved; null if `id` is not a live increment.
    */
   async stalePending(id: string): Promise<StalePending[] | null> {
     const increment = await liveRecord(this.#records, id, ["increment"]);
@@ -457,7 +457,7 @@ export class WorkInFlight {
     for (const change of increment.fields.pending ?? []) {
       const { record, type, base } = change;
       const [latest] = await this.#records.history({ id: record, newest: 1 });
-      if (latest === undefined || !movedSince(change, latest)) continue;
+      if (latest === undefined || !movedSince(change, latest) || appliedBy(latest.reason, id)) continue;
       const moved = { seq: latest.seq, action: latest.action, at: latest.at, ...(latest.actor === undefined ? {} : { actor: latest.actor }) };
       stale.push({ record, type, base, moved });
     }
@@ -472,8 +472,9 @@ export class WorkInFlight {
    * (movedSince), or whose record is gone, is stale; one its editor refuses is refused: neither is applied, and both are
    * parked together as one proposal increment on the same arc, its body naming each record, its base,
    * the entry that moved it or the refusal, and the change (D5). A change whose record's latest entry
-   * already carries its mark, as after a crash part-way, counts as applied. The increment keeps none
-   * pending afterwards. The library has no transaction across records, so they apply one at a time,
+   * already carries this increment's mark (any of its pull requests), as after a crash part-way, counts as
+   * applied. Each change leaves the increment's pending list as it applies, so an apply cut off part-way
+   * leaves pending only what it had not applied (10.27); the increment keeps none pending afterwards. The library has no transaction across records, so they apply one at a time,
    * in the increment's order. Null if `id` is not a live increment.
    */
   applyPending(id: string, pr?: string, options?: WriteOptions): Promise<AppliedPending | null> {
@@ -714,7 +715,7 @@ export class WorkInFlight {
     for (const change of pending) {
       const { record, type, base } = change;
       const [latest] = await this.#records.history({ id: record, newest: 1 });
-      if (latest?.reason?.includes(mark) === true) {
+      if (appliedBy(latest?.reason, increment.id)) {
         applied.push(record);
         continue;
       }
@@ -738,7 +739,11 @@ export class WorkInFlight {
         applied.push(record);
       } catch (error) {
         unapplied.push({ record, type, base, why: "refused", refusal: error instanceof Error ? error.message : String(error) });
+        continue;
       }
+      // Cleared as it applies, so an apply cut off part-way (a hook's deadline) leaves pending only what it had not applied.
+      const left = pending.filter((other) => !applied.includes(other.record));
+      if (left.length > 0) await this.#records.edit(increment.id, { pending: left }, { ...options, reason: `${mark}: ${record}` });
     }
     let residue: AppliedPending["residue"];
     if (unapplied.length > 0) {
@@ -1152,6 +1157,11 @@ function asleepUntil(arc: ArcFacts, increments: readonly IncrementFacts[], quest
 function isParked(arc: ArcFacts, at: Date = new Date()): boolean {
   const { parked, parkedUntil } = arc.fields;
   return parked === true && (parkedUntil === undefined || at.getTime() < Date.parse(`${parkedUntil}T00:00:00Z`));
+}
+
+/** Whether a history entry's reason is increment `id`'s own applying of a pending change (applyPending's mark). */
+function appliedBy(reason: string | undefined, id: string): boolean {
+  return reason !== undefined && (reason.includes(`applied at the landing of ${id}`) || new RegExp(`applied at the merge of PR #\\d+ \\(${id}\\)`).test(reason));
 }
 
 /** Why a close or a settling dropped `count` pending plan changes (ADR-0966 D6). */

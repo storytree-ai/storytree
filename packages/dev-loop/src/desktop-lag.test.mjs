@@ -9,7 +9,7 @@ import { fileURLToPath } from "node:url";
 import { removeTemp } from "@storytree/test-waits";
 import { CATALOGUE } from "@storytree/forest/actions";
 
-import { actionTable, alternate, compareAction, compareTable, exitCode, judge, lagHome, NotRun, performRound, seededHome, summary, withAgainst } from "./desktop-lag.mjs";
+import { actionTable, alternate, closeApp, compareAction, compareTable, exitCode, judge, lagHome, NotRun, performRound, roundDeadline, seededHome, startMeasuring, summary, withAgainst } from "./desktop-lag.mjs";
 
 test("8.3 pnpm lag:desktop --home starts cold on a new home and warm on one an earlier run left", async () => {
   const from = mkdtempSync(path.join(tmpdir(), "lag-home-from-"));
@@ -173,7 +173,7 @@ test("8.8 pnpm lag:desktop --against performs each action's rounds on the two bu
     },
   });
   const actions = [{ name: "one", budget: {} }, { name: "two", budget: {} }];
-  const [ours, theirs] = await alternate(actions, 3, [side("A", undefined), side("B", "two")]);
+  const [ours, theirs] = await alternate(actions, 3, [side("A", undefined), side("B", "two")], { deadlineMs: () => 10_000 });
   assert.deepEqual(order, ["A:one", "B:one", "A:one", "B:one", "A:one", "B:one", "A:two", "B:two"]);
   assert.deepEqual(ours.map((done) => [done.name, done.rounds.length, done.notRun]), [["one", 3, undefined], ["two", 1, undefined]]);
   assert.deepEqual(theirs.map((done) => [done.name, done.rounds.length, done.notRun]), [["one", 3, undefined], ["two", 0, "B cannot"]]);
@@ -308,4 +308,67 @@ test("8.18 pnpm lag:desktop turns the map by a Ctrl+drag from an uncovered point
   assert.deepEqual([compared.measure, compared.against, compared.this, compared.verdict], ["frame p95", 84, 160, "slower"]);
 
   await assert.rejects(performRound(fake(true), turn, ipc), (error) => error instanceof NotRun && /did not turn/.test(error.message));
+});
+
+test("8.21 pnpm lag:desktop ends a round that stalls within its deadline NOT RUN naming the wait it stalled in, writes result.json and stops the app it started", async () => {
+  const turn = CATALOGUE.find((action) => action.name === "turn-forest");
+  const idle = CATALOGUE.find((action) => action.name === "idle");
+  const never = new Promise(() => {});
+  // A page that answers until its frames stop coming: every read that waits for a frame (requestAnimationFrame) never returns.
+  const page = {
+    evaluate: async (source) => {
+      if (source.includes("requestAnimationFrame")) return never;
+      if (source.includes("getBoundingClientRect")) return { matches: 0, box: null };
+      if (source.includes("elementFromPoint")) return null;
+      return source.includes("islands()") ? [[1, 1]] : { t: 0, inputs: 0 };
+    },
+    locator: () => ({ first: () => ({ boundingBox: async () => ({ x: 0, y: 0, width: 800, height: 600 }) }) }),
+    keyboard: { press: async () => {}, down: async () => {}, up: async () => {} },
+    mouse: { move: async () => {}, down: async () => {}, up: async () => {} },
+    waitForTimeout: async () => {},
+    addInitScript: async () => {},
+    context: () => ({ newCDPSession: async () => ({ send: async (method) => (method === "Profiler.stop" ? never : {}) }) }),
+  };
+  const ipc = { mark: async () => 0, since: async () => ({}), all: async () => [] };
+  const out = mkdtempSync(path.join(tmpdir(), "lag-stall-"));
+  try {
+    const { side, finish } = await startMeasuring({ page, ipc, state: "ready", readyMs: 1, extra: async () => ({}) }, { out, size: "live", deadlineMs: 50 });
+    // The page's frames never come again, so only the deadline ends the round.
+    const performed = await alternate([turn, idle], 10, [side], { deadlineMs: () => 100 });
+    const [stalled, after] = performed[0];
+    assert.equal(stalled.notRun, `stalled: nothing for 100 ms while waiting for turn-forest's setup step 3 (wait): a frame of the page (requestAnimationFrame), to read whether it shows ${JSON.stringify(turn.setup[2].until)}`);
+    assert.match(after.notRun, /^not performed: turn-forest stalled/);
+    await finish(performed[0]);
+    const kept = JSON.parse(readFileSync(path.join(out, "result.json"), "utf8"));
+    assert.deepEqual(kept.actions.map((action) => action.notRun === undefined), [false, false]);
+    assert.equal(exitCode(kept.actions.map(judge)), 3);
+
+    // Stalled past state ready: every action reads NOT RUN naming that wait, and none is performed.
+    const stuck = { ...page, evaluate: async () => never };
+    const ready = await startMeasuring({ page: stuck, ipc, state: "ready", readyMs: 1, extra: async () => ({}) }, { out, size: "live", deadlineMs: 50 });
+    const [[first]] = await alternate([idle], 3, [ready.side], { deadlineMs: () => 100 });
+    assert.equal(first.notRun, "not performed: the run stalled past state ready, nothing for 50 ms while waiting for the page to start watching its frames and inputs");
+
+    // An input that never returns names the step it was.
+    const press = { name: "press", setup: [], perform: [{ kind: "key", key: "Enter" }], settled: {}, budget: {}, limitMs: 10 };
+    const deaf = await startMeasuring({ page: { ...page, keyboard: { press: () => never } }, ipc, state: "ready", readyMs: 1, extra: async () => ({}) }, { out, size: "live", deadlineMs: 50 });
+    const [[pressed]] = await alternate([press], 1, [deaf.side], { deadlineMs: () => 100 });
+    assert.equal(pressed.notRun, "stalled: nothing for 100 ms while waiting for press's step 1 (key Enter)");
+  } finally {
+    await removeTemp(out);
+  }
+
+  // A round that takes every limit it has, its idle time too, is not cut short as stalled.
+  for (const action of CATALOGUE) {
+    const idleMs = action.perform.reduce((sum, step) => sum + (step.kind === "idle" ? step.ms : 0), 0);
+    assert.ok(roundDeadline(action) > action.limitMs * (action.setup.length + action.perform.length + 1) + idleMs, action.name);
+  }
+
+  // The app is stopped: closed, or killed when closing does not return.
+  const killed = [];
+  await closeApp({ close: () => never, process: () => ({ kill: (signal) => killed.push(signal) }) }, 50);
+  assert.deepEqual(killed, ["SIGKILL"]);
+  const closed = [];
+  await closeApp({ close: async () => closed.push("closed"), process: () => ({ kill: (signal) => killed.push(signal) }) }, 50);
+  assert.deepEqual([closed, killed], [["closed"], ["SIGKILL"]]);
 });

@@ -15,7 +15,7 @@
 // - Each catalogue entry names the budget contract its action answers to on the capability that owns it; after each measuring
 //   run the runner writes that contract's VERIFIED verdict as a lag run (ADR-1001 D5, the shape of an acceptance run's,
 //   ADR-0825 D5), so a slowdown that reproduced makes the capability read not healthy and reaches the health worklist.
-// - A run is bounded (--limit-minutes, default 30, the heavy-run lock's queue included): one that passes it is stopped and recorded
+// - A run is bounded (--limit-minutes, default 60, the heavy-run lock's queue included): one that passes it is stopped and recorded
 //   NOT RUN, its heavy-run lock released.
 // - A tick that fails before it can measure (no measuring checkout, main unreadable) is recorded NOT RUN as a tick of its own, one row
 //   for a failure however many ticks repeat it, so `pnpm lag:box` shows from any machine that the box has stopped measuring: it prints
@@ -46,7 +46,7 @@ const root = fileURLToPath(new URL("../../..", import.meta.url));
 const PROJECT = "storytree";
 export const LAG_DATABASE = "storytree-lag";
 const BOX = path.join(homedir(), "storytree-lanes", "lag-box");
-const LIMIT_MINUTES = 30;
+const LIMIT_MINUTES = 60;
 
 const log = (...parts) => console.log(new Date().toISOString().slice(0, 19), ...parts);
 const short = (commit) => (commit ?? "-").slice(0, 8);
@@ -445,6 +445,11 @@ function option(args, name, fallback) {
   return at === -1 ? fallback : args[at + 1];
 }
 
+/** How long a tick's run may take, in milliseconds: --limit-minutes, or LIMIT_MINUTES, the heavy-run lock's queue included. */
+export function runLimitMs(args) {
+  return Number(option(args, "limit-minutes", LIMIT_MINUTES)) * 60_000;
+}
+
 /**
  * What the timer runs: decide, run, record. A failure before it can measure is recorded NOT RUN in the history (when the library is
  * reachable) and thrown on, so tick.log says it too; two days after the last measuring run it also marks each budget contract not
@@ -456,7 +461,7 @@ export async function tick(args, { box = BOX, home = storytreeHome(), open = wit
   if (release === undefined) return say("lag:box: another tick is running");
   try {
     const checkout = path.join(box, "measure");
-    const limitMs = Number(option(args, "limit-minutes", LIMIT_MINUTES)) * 60_000;
+    const limitMs = runLimitMs(args);
     await open(async (history, storytree) => {
       await history.abandon();
       let main, mainLog;

@@ -1,7 +1,7 @@
 /** Capability 1 under the glass sheet: each note is pulled toward every island its links reach, unlinked ones lie on a sea floor (ADR-1063). */
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { knowledge, selectedLinks, sheetLit, sheetPoints, underShelves } from "@storytree/knowledge-core";
+import { knowledge, selectedLinks, sheetLayout, sheetLit, sheetPoints, underShelves } from "@storytree/knowledge-core";
 import { History } from "../testing/changes.js";
 
 const shelves = new Map([["west", { x: -100, y: 20 }], ["east", { x: 100, y: -10 }], ["cap", { x: 130, y: -30 }]]);
@@ -112,4 +112,24 @@ test("1.11 under the glass sheet no links show at rest; selecting a story shows 
   assert.deepEqual(selectedLinks(links, undefined), [], "none at rest");
   assert.deepEqual(selectedLinks(links, new Set(["a1", "a2"])), [["a1", "a2"], ["a2", "b1"], ["c1", "a1"]], "the selected story's, and only those");
   assert.deepEqual(selectedLinks(links, new Set()), [], "a story with no notes shows none");
+});
+
+test("1.16 the sheet read again after news that changes nothing it lays out keeps its layout, and lays out again when a link, a note or a shelf moves", () => {
+  const layout = sheetLayout();
+  const read = (history: History, at: ReadonlyMap<string, { x: number; y: number }> = shelves) => {
+    const known = knowledge(history.changes);
+    // Each reading hands it fresh objects, as the globe's live updates do.
+    return layout(underShelves(history.changes, known), { shelfAt: node => at.get(node), floor: { ...floor }, depthStep: 7 }, known.notes);
+  };
+  const history = islands().decision("cover", { frontCoverOf: "cap" }).decision("citer", { links: ["cover"] }).decision("loose");
+  const first = read(history);
+  assert.equal(read(history), first, "the same library, read again");
+  assert.equal(read(history.update("citer", { title: "Renamed" })), first, "a change to what the sheet does not read");
+  const linked = read(history.update("loose", { links: ["citer"] }));
+  assert.notEqual(linked, first, "a new link lays out again");
+  const { core: _core, ...fresh } = hang(history);
+  assert.deepEqual(linked, fresh, "as a fresh layout would");
+  assert.notEqual(read(history.decision("new")), linked, "a new note lays out again");
+  const moved = new Map([...shelves, ["cap", { x: 120, y: -30 }]]);
+  assert.notEqual(read(history, moved), read(history), "a moved shelf lays out again");
 });

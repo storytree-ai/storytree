@@ -15,7 +15,7 @@ import { ORCHESTRATOR, dotSizes, lighting, noteCard, trails as readingPaths, tra
 import { ReadRecord } from "../reads/reads.js";
 import { underShelves } from "../shelves/shelves.js";
 import { globePoints, type Point as ShelfPoint } from "../shelves/positions.js";
-import { sheetLit, sheetPoints, type SheetHanging } from "../shelves/sheet.js";
+import { sheetLayout, sheetLit, type SheetHanging } from "../shelves/sheet.js";
 import { GlobePoints, NoteLinks, SeaFloor, type CoreGrowth } from "./globe-points.js";
 import { KindList, NoteCard } from "./drawing.js";
 
@@ -227,13 +227,17 @@ export function KnowledgeGlobePoints({ core, spots, radius, places, growth, shee
   const store = core as Store;
   const state = useSyncExternalStore(store.subscribe, store.get);
   const known = useMemo(() => knowledge(state.drawn), [state.drawn]);
+  // Live updates that change nothing the sheet lays out keep its layout (Live updates never freeze the globe).
+  const layout = useMemo(sheetLayout, []);
+  const laid = useMemo(() => sheet === undefined ? undefined : layout(underShelves(state.drawn, known), sheet, known.notes),
+    [layout, state.drawn, known, sheet?.shelfAt, sheet?.floor, sheet?.depthStep]);
   const hung = useMemo(() => {
-    if (sheet === undefined) return undefined;
-    const { points, links, floor } = sheetPoints(underShelves(state.drawn, known), sheet, known.notes);
+    if (sheet === undefined || laid === undefined) return undefined;
+    const { points, links, floor } = laid;
     const corners = floor.notes === 0 ? undefined
       : [[0, 0], [1, 0], [1, 1], [0, 1]].map(([u, v]) => sheet.place({ x: floor.x + u! * floor.width, y: floor.y + v! * floor.height, z: floor.z }));
     return { points: points.map(point => ({ ...point, at: sheet.place(point.at) })), links, floor: corners === undefined ? undefined : { corners, notes: floor.notes } };
-  }, [state.drawn, known, sheet?.shelfAt, sheet?.floor, sheet?.depthStep, sheet?.place]);
+  }, [laid, sheet?.place]);
   const placed = useMemo(() => hung?.points ?? globePoints(underShelves(state.drawn, known), spots, radius), [hung, state.drawn, known, spots, radius]);
   // With none selected, no session's traversal shows (ADR-0921): nothing lights and no path draws.
   const lit = useMemo(() => lighting(store.reads, state.roster, state.session, new Set(known.notes.keys())),

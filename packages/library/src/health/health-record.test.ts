@@ -502,6 +502,23 @@ for (const backend of [memory, postgres]) {
     await assert.rejects(health.recordVerified(sibling.id, "not-checked", { skip: untyped("because") }), schemaError("health", ["skip"]));
   });
 
+  contract("5.17", "a verified entry carries where it was seen, verified locally or read from CI, read back as written; one written without it has none", async ({ health, work }) => {
+    const { contract, sibling } = await smallPlan(work);
+    const local = await health.recordVerified(contract.id, "passing", { by: "factory plugin's tests", source: "local" });
+    assert.equal(local.source, "local");
+    assert.equal((await health.health(contract.id)).verified.source, "local");
+    await health.recordVerified(contract.id, "failing", { by: "the project's CI", source: "ci" });
+    const read = (await health.health(contract.id)).verified;
+    assert.equal(read.source, "ci");
+    assert.deepEqual((await health.healthHistory(contract.id)).map(({ source }) => source), ["local", "ci"]);
+    const inTree = (await health.annotate()).stories[0]!.capabilities[0]!.contracts.find(({ id }) => id === contract.id)!;
+    assert.deepEqual(inTree.health.verified, read);
+
+    await health.recordVerified(sibling.id, "passing", { by: "storytree test run" });
+    assert.equal("source" in (await health.health(sibling.id)).verified, false, "an entry written without a source has none");
+    await assert.rejects(health.recordVerified(sibling.id, "passing", { source: untyped("laptop") }), schemaError("health", ["source"]));
+  });
+
   contract("5.8", "a capability that is not healthy carries its reason in the annotated tree, and a healthy one none", async ({ health, work }) => {
     const { capability, contract, sibling } = await smallPlan(work);
     const whyOf = async () => (await health.annotate()).stories[0]!.capabilities.find(({ id }) => id === capability.id)!.why;

@@ -454,6 +454,11 @@ export class LogFold {
   #machines = new Map<string, string>();
   /** When each machine last started, as its machine-started lines say (Session management 4.29). */
   #machineStarts = new Map<string, string>();
+  /**
+   * Each session as last judged under each quiet and leave time read with, with what the judgement read and the times it
+   * holds between (4.40): never kept in a snapshot. One refresh of the page reads with the user's times and the defaults.
+   */
+  #judged = new Map<string, Map<string, Judged>>();
 
   /** Fold a bounded session reading with the log's standing claims, not the partial claims among its selected lines. */
   static fromBounded(lines: readonly Line[], claimLines: readonly Line[]): LogFold {
@@ -593,61 +598,94 @@ export class LogFold {
     const now = (options.now ?? new Date()).getTime();
     const quietMs = options.quietMs ?? QUIET_MS;
     const leaveMs = options.leaveMs ?? LEAVE_MS;
+    const claimedOnMain = new Set([...this.#holders.values()].filter((holder) => holder.increment !== undefined
+      && holder.branch !== undefined && MAIN_BRANCHES.has(holder.branch)).map((holder) => holder.session));
+    // A session is judged again only when something it reads changed or the time passed a threshold of its own (4.40):
+    // a burst of lines from one session re-judges that one, not every session on the page.
+    const times = `${quietMs} ${leaveMs}`;
+    let judgedAt = this.#judged.get(times);
+    if (judgedAt === undefined) {
+      if (this.#judged.size >= JUDGED_TIMES) this.#judged.delete(this.#judged.keys().next().value!);
+      this.#judged.set(times, judgedAt = new Map());
+    }
+    const judgements = judgedAt;
     return [...this.#sessions.values()].map((own) => {
-      const { session, harness, latest } = own;
-      const folder = own.startedIn ?? own.firstFolder;
-      // A session last seen before its machine's latest start died with it: nothing of it still runs (4.29).
-      const died = this.#diedWithMachine(session, latest.at);
-      const running = died ? [] : [...own.running.values()].filter(({ until }) => now <= until);
-      const quiet = now - Date.parse(latest.at) > quietMs && running.length === 0;
-      const state: SessionState = latest.kind === "session-ended" ? "ended"
-        : died || now - Date.parse(latest.at) > LONGEST_COMMAND_MS ? "gone"
-        : own.prompted ? (own.inTurn || running.length > 0 ? "working" : "waiting")
-        : quiet ? "waiting" : "working";
-      const branches = [...own.branches];
-      const openWork = branches.filter((branch) => this.#branchStates.get(branch)?.open !== false);
-      const branchesByFolder = [...own.placed.values()].map((placed): BranchInFolder => ({ ...placed, ...this.#branchState(placed.branch) }));
-      const record = this.#appRecords.get(session);
-      const archived = record?.kind === "session-archived";
-      const mainStates = [...own.onMain].map(([key, one]) => ({ ...one, state: this.#mainStates.get(key) }));
-      const onMain = this.#onMain(own, mainStates);
-      const settledSince = Math.max(Date.parse(latest.at), ...branches.map((branch) => Date.parse(this.#branchStates.get(branch)?.at ?? latest.at)),
-        ...mainStates.flatMap(({ edited, state }) => (edited && state !== undefined ? [Date.parse(state.at)] : [])));
-      const settled = state === "ended" || now - settledSince > leaveMs;
-      const closeOut = this.#closeOut(own, openWork, onMain);
-      // A verified close-out leaves at once; one that needs you stays, whatever else says (ADR-0758 D3).
-      const listing: Listing = closeOut !== undefined ? (closeOut.verified ? "hidden" : "listed")
-        : openWork.length > 0 || onMain !== undefined ? "listed"
-        : record !== undefined ? (archived ? "hidden" : settled ? "done" : "listed")
-        : settled ? "hidden" : "listed";
-      const words = this.#appWords.get(session);
-      const machine = this.#machines.get(session);
-      return {
-        session,
-        ...(harness === undefined ? {} : { harness }),
-        label: labelOf(harness),
-        ...(folder === undefined ? {} : { folder }),
-        ...(machine === undefined ? {} : { machine }),
-        worktrees: [...own.worktrees],
-        startedAt: own.firstAt,
-        lastSeenAt: latest.at,
-        state,
-        hooksRunning: own.hooksRunning,
-        tier: own.hooksRunning ? "watched" : tierOf(harness),
-        branches,
-        openWork,
-        branchesByFolder,
-        running: running.map(({ command, since }) => ({ command, since })),
-        ...(record === undefined ? {} : { app: record.app }),
-        archived,
-        ...(words?.title === undefined ? {} : { title: words.title }),
-        ...(own.name === undefined ? {} : { name: own.name }),
-        ...(words?.status === undefined ? {} : { status: words.status }),
-        ...(closeOut === undefined ? {} : { closeOut }),
-        ...(onMain === undefined ? {} : { onMain }),
-        listing,
-      };
+      const reads = this.#reads(own, claimedOnMain.has(own.session));
+      const was = judgements.get(own.session);
+      if (was !== undefined && was.from <= now && now < was.until && sameReads(was.reads, reads)) return was.session;
+      const { session: judged, until } = this.#judge(own, now, quietMs, leaveMs, claimedOnMain.has(own.session));
+      judgements.set(own.session, { reads, from: now, until, session: judged });
+      return judged;
     });
+  }
+
+  /** Everything outside `own`'s own fold that judging it reads, and its own fold's latest line, which every line it takes replaces. */
+  #reads(own: SessionFold, claimedOnMain: boolean): unknown[] {
+    const machine = this.#machines.get(own.session);
+    return [own.latest, claimedOnMain, machine, machine === undefined ? undefined : this.#machineStarts.get(machine),
+      this.#appRecords.get(own.session), this.#appWords.get(own.session),
+      ...[...own.branches].map((branch) => this.#branchStates.get(branch)), ...[...own.onMain.keys()].map((key) => this.#mainStates.get(key))];
+  }
+
+  /** `own` judged at `now`, and the first time after `now` at which the time alone would judge it differently. */
+  #judge(own: SessionFold, now: number, quietMs: number, leaveMs: number, claimedOnMain: boolean): { session: Session; until: number } {
+    const { session, harness, latest } = own;
+    const folder = own.startedIn ?? own.firstFolder;
+    // A session last seen before its machine's latest start died with it: nothing of it still runs (4.29).
+    const died = this.#diedWithMachine(session, latest.at);
+    const running = died ? [] : [...own.running.values()].filter(({ until }) => now <= until);
+    const quiet = now - Date.parse(latest.at) > quietMs && running.length === 0;
+    const state: SessionState = latest.kind === "session-ended" ? "ended"
+      : died || now - Date.parse(latest.at) > LONGEST_COMMAND_MS ? "gone"
+      : own.prompted ? (own.inTurn || running.length > 0 ? "working" : "waiting")
+      : quiet ? "waiting" : "working";
+    const branches = [...own.branches];
+    const openWork = branches.filter((branch) => this.#branchStates.get(branch)?.open !== false);
+    const branchesByFolder = [...own.placed.values()].map((placed): BranchInFolder => ({ ...placed, ...this.#branchState(placed.branch) }));
+    const record = this.#appRecords.get(session);
+    const archived = record?.kind === "session-archived";
+    const mainStates = [...own.onMain].map(([key, one]) => ({ ...one, state: this.#mainStates.get(key) }));
+    const onMain = this.#onMain(mainStates, claimedOnMain);
+    const settledSince = Math.max(Date.parse(latest.at), ...branches.map((branch) => Date.parse(this.#branchStates.get(branch)?.at ?? latest.at)),
+      ...mainStates.flatMap(({ edited, state }) => (edited && state !== undefined ? [Date.parse(state.at)] : [])));
+    const settled = state === "ended" || now - settledSince > leaveMs;
+    const closeOut = this.#closeOut(own, openWork, onMain);
+    // A verified close-out leaves at once; one that needs you stays, whatever else says (ADR-0758 D3).
+    const listing: Listing = closeOut !== undefined ? (closeOut.verified ? "hidden" : "listed")
+      : openWork.length > 0 || onMain !== undefined ? "listed"
+      : record !== undefined ? (archived ? "hidden" : settled ? "done" : "listed")
+      : settled ? "hidden" : "listed";
+    const words = this.#appWords.get(session);
+    const machine = this.#machines.get(session);
+    // Each comparison with the time above turns once `now` passes its threshold.
+    const seen = Date.parse(latest.at);
+    const until = Math.min(...[seen + quietMs + 1, seen + LONGEST_COMMAND_MS + 1, settledSince + leaveMs + 1,
+      ...(died ? [] : [...own.running.values()].map(({ until: ends }) => ends + 1))].filter((at) => at > now));
+    return { until, session: {
+      session,
+      ...(harness === undefined ? {} : { harness }),
+      label: labelOf(harness),
+      ...(folder === undefined ? {} : { folder }),
+      ...(machine === undefined ? {} : { machine }),
+      worktrees: [...own.worktrees],
+      startedAt: own.firstAt,
+      lastSeenAt: latest.at,
+      state,
+      hooksRunning: own.hooksRunning,
+      tier: own.hooksRunning ? "watched" : tierOf(harness),
+      branches,
+      openWork,
+      branchesByFolder,
+      running: running.map(({ command, since }) => ({ command, since })),
+      ...(record === undefined ? {} : { app: record.app }),
+      archived,
+      ...(words?.title === undefined ? {} : { title: words.title }),
+      ...(own.name === undefined ? {} : { name: own.name }),
+      ...(words?.status === undefined ? {} : { status: words.status }),
+      ...(closeOut === undefined ? {} : { closeOut }),
+      ...(onMain === undefined ? {} : { onMain }),
+      listing,
+    } };
   }
 
   /** Who holds what, each holder judged live or idle at `options.now`, in the order they were claimed. */
@@ -699,10 +737,8 @@ export class LogFold {
    * files in on main, as the latest look on that machine found them, or an increment it holds that was
    * claimed on main. In a repository with no commit yet, its first commit is pending instead.
    */
-  #onMain(own: SessionFold, folders: readonly (MainFolder & { state: MainState | undefined })[]): OnMain | undefined {
+  #onMain(folders: readonly (MainFolder & { state: MainState | undefined })[], claimed: boolean): OnMain | undefined {
     const dirty = folders.filter(({ edited, state }) => edited && state?.dirty === true);
-    const claimed = [...this.#holders.values()].some((holder) => holder.session === own.session && holder.increment !== undefined
-      && holder.branch !== undefined && MAIN_BRANCHES.has(holder.branch));
     if (dirty.length === 0 && !claimed) return undefined;
     return [...dirty, ...(claimed ? folders : [])].some(({ state }) => state?.unborn === true) ? "first-commit-pending" : "outside-workspace";
   }
@@ -723,6 +759,22 @@ export class LogFold {
     ];
     return disagreements.length === 0 ? { ...said, verified: true } : { ...said, verified: false, needsYou: `says safe, but ${disagreements.join("; ")}` };
   }
+}
+
+/** How many pairs of quiet and leave times a fold keeps judgements under: the oldest read is let go past this. */
+const JUDGED_TIMES = 4;
+
+/** A session as last judged: what the judgement read, and from when until when the time alone leaves it standing. */
+interface Judged {
+  reads: unknown[];
+  from: number;
+  until: number;
+  session: Session;
+}
+
+/** Whether two judgements read the same things, compared one by one as they were held. */
+function sameReads(a: readonly unknown[], b: readonly unknown[]): boolean {
+  return a.length === b.length && a.every((one, i) => one === b[i]);
 }
 
 /**

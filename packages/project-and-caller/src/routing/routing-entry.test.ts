@@ -8,9 +8,9 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { test } from "node:test";
 
-import { MARKER_FILE, NOT_A_PROJECT, NOT_RUNNING, route } from "@storytree/project-and-caller/routing";
+import { NOT_A_PROJECT, NOT_RUNNING, route } from "@storytree/project-and-caller/routing";
 
-import { withTempDir } from "../testing/folders.js";
+import { withTempDir, writeMarker } from "../testing/folders.js";
 
 test("1.15 the routing entry alone routes a folder: one that is no project, and a project whose app is stopped", async () => {
   await withTempDir((dir) => {
@@ -23,7 +23,7 @@ test("1.15 the routing entry alone routes a folder: one that is no project, and 
 
     const site = path.join(dir, "site");
     mkdirSync(path.join(site, "src"), { recursive: true });
-    writeFileSync(path.join(site, MARKER_FILE), `${JSON.stringify({ project: "site" })}\n`);
+    writeMarker(site, `${JSON.stringify({ project: "site" })}\n`);
     assert.deepEqual(route(path.join(site, "src"), stopped), { status: "not-running", project: "site", message: NOT_RUNNING });
   });
 });

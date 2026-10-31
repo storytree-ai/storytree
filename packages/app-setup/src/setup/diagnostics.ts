@@ -1,15 +1,14 @@
 /** Capability 8 · Setup check. The setup check's lines and fixes, shared by the terminal and the agent's check_setup tool. */
 import { NODE_FLOOR, type AgentCliState, type MachineState, type ToolState } from "./machine.js";
 import { CODEX_TRUST_STEP } from "./verify.js";
-import type { ServerEntry, SetupReport } from "./setup.js";
+import type { RootMarker, ServerEntry, SetupReport } from "./setup.js";
 import type { AppReading } from "@storytree/session-management";
 import { HARNESS_IDS, watchedHarness, type Harness } from "@storytree/project-and-caller/caller";
-import { MARKER_FILE } from "@storytree/project-and-caller";
 import { compareVersions } from "./hooks-release.js";
 import { IDENTITY_FIX } from "../project/making.js";
 
 export interface SetupLine {
-  readonly check: "storytree" | "hooks" | "hooks-release" | "codex-server" | "codex-hooks" | "elevated" | "transcripts" | "status-line" | "command" | "gh" | "agent-cli" | "git" | "node" | "archives" | "project" | "repository";
+  readonly check: "storytree" | "hooks" | "hooks-release" | "codex-server" | "codex-hooks" | "elevated" | "transcripts" | "status-line" | "command" | "gh" | "agent-cli" | "git" | "node" | "archives" | "project" | "repository" | "marker";
   /** A `note` names an optional tool that is missing: never a fix, so no agent is asked to install it (question_bb3efa1e3191). */
   readonly state: "ok" | "fixed" | "needs-attention" | "skipped" | "note";
   readonly message: string;
@@ -144,7 +143,30 @@ export function setupLines(report: Omit<SetupReport, "lines">): SetupLine[] {
     : { check: "project", state: "needs-attention", message: "This folder isn't a storytree project yet.", fix: `Only after the user says yes, set up project ${JSON.stringify(project.suggestion)} or a name they choose (lower-case letters, digits and hyphens).` });
   if (report.firstCommit !== undefined) lines.push(firstCommitLine(report.firstCommit));
   if (report.repository !== undefined) lines.push(repositoryLine(report.repository));
+  if (report.rootMarker !== undefined) lines.push(rootMarkerLine(report.rootMarker));
   return lines;
+}
+
+/**
+ * What a project whose marker is still a root `.storytree.json` is told (ADR-1191 D5): the move to `.storytree/project.json`
+ * offered as the command that makes it, a `git mv` when git tracks it, and never made by the check itself. Beside a
+ * `.storytree/project.json`, which routing reads instead, the old one is only to be deleted.
+ */
+function rootMarkerLine({ both, tracked }: RootMarker): SetupLine {
+  if (both) return {
+    check: "marker",
+    state: "needs-attention",
+    message: "This project's folder holds both .storytree/project.json and an older .storytree.json at its root: storytree reads .storytree/project.json and ignores the other. This check changed neither.",
+    fix: `Delete the older one: ${tracked ? "git rm .storytree.json, then commit" : "delete .storytree.json"}.`,
+  };
+  return {
+    check: "marker",
+    state: "needs-attention",
+    message: "This project's marker is .storytree.json at its root, where storytree set projects up before it kept its files in a .storytree folder. It still works; this check moved nothing.",
+    fix: tracked
+      ? "With the user's yes, move it: mkdir .storytree, then git mv .storytree.json .storytree/project.json, write .storytree/.gitignore holding *.local.json, and commit the .storytree folder."
+      : "With the user's yes, move it: mkdir .storytree, then move .storytree.json to .storytree/project.json, write .storytree/.gitignore holding *.local.json, and commit the .storytree folder.",
+  };
 }
 
 /**
@@ -154,15 +176,15 @@ export function setupLines(report: Omit<SetupReport, "lines">): SetupLine[] {
 function repositoryLine(lack: "no repository" | "no origin"): SetupLine {
   const local = "quality_brief reviews a change against the local main branch and land needs no remote, but verified health reads a remote's CI, so it is unavailable here; work locally: review each change on git diff, land it as a local commit, and close the increment with a note giving the commit's sha.";
   return lack === "no repository"
-    ? { check: "repository", state: "needs-attention", message: "This project's folder is in no git repository, so storytree cannot review this project's changes, land them or verify its health.", fix: `Make it one with a first commit (git init, then commit ${MARKER_FILE}). It needs no remote: ${local}` }
+    ? { check: "repository", state: "needs-attention", message: "This project's folder is in no git repository, so storytree cannot review this project's changes, land them or verify its health.", fix: `Make it one with a first commit (git init, then commit the .storytree folder). It needs no remote: ${local}` }
     : { check: "repository", state: "ok", message: `This project's git repository has no origin remote: ${local}` };
 }
 
 /** What a repository set_up_project began with no git identity is told (8.31): its first commit made, or the identity it waits for. */
 function firstCommitLine(first: "made" | "no identity"): SetupLine {
   return first === "made"
-    ? { check: "repository", state: "fixed", message: `storytree made this project's repository's first commit, holding ${MARKER_FILE}, now that git has an identity to make it with.` }
-    : { check: "repository", state: "needs-attention", message: `This project's git repository is waiting for its first commit, holding ${MARKER_FILE}: git has no identity to make it with (user.name and user.email), so storytree cannot review or land its work yet.`, fix: `${IDENTITY_FIX.charAt(0).toUpperCase()}${IDENTITY_FIX.slice(1)}.` };
+    ? { check: "repository", state: "fixed", message: `storytree made this project's repository's first commit, holding its .storytree folder, now that git has an identity to make it with.` }
+    : { check: "repository", state: "needs-attention", message: `This project's git repository is waiting for its first commit, holding its .storytree folder: git has no identity to make it with (user.name and user.email), so storytree cannot review or land its work yet.`, fix: `${IDENTITY_FIX.charAt(0).toUpperCase()}${IDENTITY_FIX.slice(1)}.` };
 }
 
 /**

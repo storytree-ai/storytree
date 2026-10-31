@@ -9,13 +9,14 @@ import { execFileSync } from "node:child_process";
 import { chmodSync, lstatSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { forgetProjectActivity, openActivityLog, readClaims } from "@storytree/session-management";
-import { findProject, forgetTrunk, keepOnThisComputer, machineOf, MARKER_FILE, ProjectFolderError, projectOnShow, readLibrary, readProjectChoice, recordRemovedProjects, removedProjects, storytreeHome, trunksOn } from "@storytree/project-and-caller";
+import { findProject, forgetTrunk, keepOnThisComputer, machineOf, markerIn, PROJECT_FILE, ProjectFolderError, projectOnShow, readLibrary, readProjectChoice, recordRemovedProjects, removedProjects, storytreeHome, trunksOn } from "@storytree/project-and-caller";
 import type { Storytree } from "@storytree/library";
 
 import { openStorytree } from "../setup/open-storytree.js";
 import { setUpProject, suggestProjectName, unusedName } from "./making.js";
 
 export { keepOnThisComputer, unusedName };
+export { COMMIT_STORYTREE, IGNORE_FILE, STORYTREE_FOLDER } from "./storytree-folder.js";
 export { firstCommit, IDENTITY_FIX, makeRepository, notAProjectYet, setUpProject, suggestedName, suggestProjectName } from "./making.js";
 export type { RepositoryMade, SetUpOptions } from "./making.js";
 export { moveOntoFactory, type Moved, type MoveOptions } from "./factory-move.js";
@@ -147,9 +148,9 @@ async function freeOnThisComputer(storytree: Storytree, project: string, home: s
   const trunk = (await trunksOn(storytree, machine)).find((each) => each.project === project);
   let kept = false;
   if (trunk !== undefined) {
-    const marker = path.join(trunk.folder, MARKER_FILE);
-    if (markerProject(marker) === project) {
-      kept = trackedByGit(trunk.folder);
+    const marker = markerIn(trunk.folder);
+    if (marker !== undefined && markerProject(marker) === project) {
+      kept = trackedByGit(trunk.folder, marker);
       if (!kept) rmSync(marker);
     }
     await forgetTrunk(storytree, { project, machine }, home);
@@ -305,6 +306,12 @@ foreach ($entry in $entries) {
   }
 }
 
+/** The marker `folder` holds, as a path within it: `.storytree/project.json`, or an older project's root `.storytree.json`. */
+export function markerNamed(folder: string): string {
+  const marker = markerIn(folder);
+  return marker === undefined ? PROJECT_FILE : path.relative(folder, marker).split(path.sep).join("/");
+}
+
 function markerProject(marker: string): string | undefined {
   try {
     const { project } = JSON.parse(readFileSync(marker, "utf8")) as { project?: unknown };
@@ -315,9 +322,9 @@ function markerProject(marker: string): string | undefined {
 }
 
 /** Whether the folder's marker is in git, where deleting it would be a change to the user's repository. */
-function trackedByGit(folder: string): boolean {
+function trackedByGit(folder: string, marker: string): boolean {
   try {
-    return execFileSync("git", ["ls-files", "--", MARKER_FILE], { cwd: folder, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"], windowsHide: true }).trim() !== "";
+    return execFileSync("git", ["ls-files", "--", path.relative(folder, marker)], { cwd: folder, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"], windowsHide: true }).trim() !== "";
   } catch {
     return false;
   }

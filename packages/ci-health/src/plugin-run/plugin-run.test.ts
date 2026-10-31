@@ -35,7 +35,7 @@ function home(t: TestContext): string {
   return path.join(folder, "your-factory");
 }
 
-test("4.1 · `health plugin <plugin>`, on the command line only (no record_plugin_health tool), runs a freshly made plugin's own numbered test in this computer's factory and records it on its story's promise in the project: passing, then failing once the test fails; a plugin with no story, or no test command, writes nothing and says why", async (t) => {
+test("4.1, 3.17 · `health plugin <plugin>`, on the command line only (no record_plugin_health tool), runs a freshly made plugin's own numbered test in this computer's factory and records it on its story's promise in the project: passing, then failing once the test fails; a plugin with no story, or no test command, writes nothing and says why", async (t) => {
   const url = process.env.STORYTREE_TEST_PG_URL;
   if (url === undefined) throw new Error("run the tests via `pnpm test`, which starts a local Postgres");
   const storytree = await connect({ url });
@@ -74,6 +74,7 @@ test("4.1 · `health plugin <plugin>`, on the command line only (no record_plugi
   const verified = (await library.health(contract.id)).verified;
   assert.equal(verified.state, "passing");
   assert.equal(verified.by, "factory plugin's tests");
+  assert.equal(verified.source, "local", "verified locally");
 
   const tests = path.join(factory, "plugins", "my-health", "verbs.test.js");
   writeFileSync(tests, readFileSync(tests, "utf8").replace(/is mounted/g, "is not mounted"));

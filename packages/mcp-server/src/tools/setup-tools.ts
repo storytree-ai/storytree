@@ -11,9 +11,8 @@ import { z } from "zod";
 
 import { habitsCard } from "../instructions/habits.js";
 import { hookFailures, type HookFailure } from "@storytree/session-management";
-import { MARKER_FILE } from "@storytree/project-and-caller";
 import { findProject, storytreeHome } from "@storytree/project-and-caller";
-import { IDENTITY_FIX, makeRepository, notAProjectYet, setUpProject, starterPackStatus, starterRolesIn, suggestProjectName, type RepositoryMade, type StarterPackStatus } from "@storytree/app-setup/project";
+import { COMMIT_STORYTREE, IDENTITY_FIX, makeRepository, notAProjectYet, setUpProject, starterPackStatus, starterRolesIn, suggestProjectName, type RepositoryMade, type StarterPackStatus } from "@storytree/app-setup/project";
 import { checkFile, checkFilesWritten, codexHooksState, FIX_SENTENCES, fixSentence, HOOK_TESTS, openStorytree, runSetupCheck, verifyHooks, type Fix, type SetupOptions } from "@storytree/app-setup/setup";
 import { isUnreachable, NOT_RUNNING_ANSWER, refusalOf, result } from "./answers.js";
 import type { Connections } from "./connections.js";
@@ -164,6 +163,8 @@ export function registerSetupTools({ server, folder, setup, connections, callerO
         const fixes: Fix[] = [caller.harness === "codex" && codexHooksState(setup) === "waiting" ? "codex-approval" : "new-session"];
         const said = [`This folder is now storytree project ${quoted(name)}, and its setup is finished: carry on with the user's request, with no second check_setup in this session.`];
         if (repository !== undefined && repository.state !== "already") said.push(repositorySentence(repository));
+        // A first commit storytree made, or will make once git has an identity, already holds the folder (ADR-1191 D3).
+        if (repository?.state !== "made" && repository?.state !== "no identity") said.push(COMMIT_STORYTREE);
         if (starterRoles.length > 0) said.push(rolesSentence(starterRoles));
         said.push(fixes[0] === "codex-approval" ? FIX_SENTENCES["codex-approval"] : SET_UP_THIS_SESSION);
         return result({ text: withCard(said.join(" ")), data: { project: name, starterRoles, fixes, ...(repository === undefined ? {} : { repository }) } });
@@ -217,9 +218,9 @@ function connectedSentence(caller: Caller): string {
  */
 function repositorySentence(made: Exclude<RepositoryMade, { state: "already" }>): string {
   const remote = "It needs no remote: quality_brief reviews a change against the local main branch and land needs none; only verified health, which reads a remote's CI, is unavailable. Work locally: review each change on git diff, land it as a local commit, and close the increment with a note giving the commit's sha.";
-  if (made.state === "made") return `The folder was in no git repository, so storytree made it a git repository, with a first commit holding ${MARKER_FILE}. ${remote}`;
-  if (made.state === "no identity") return `The folder was in no git repository, so storytree made it one with ${MARKER_FILE} staged, but git has no identity to make its first commit with (user.name and user.email), so its work cannot be reviewed or landed yet: ${IDENTITY_FIX}. ${remote}`;
-  return `The folder is in no git repository, and storytree could not make one (${made.reason}), so its work cannot be reviewed or landed yet: tell the user, and once git can commit here, make it one (git init, then commit ${MARKER_FILE}). ${remote}`;
+  if (made.state === "made") return `The folder was in no git repository, so storytree made it a git repository, with a first commit holding its .storytree folder. ${remote}`;
+  if (made.state === "no identity") return `The folder was in no git repository, so storytree made it one with its .storytree folder staged, but git has no identity to make its first commit with (user.name and user.email), so its work cannot be reviewed or landed yet: ${IDENTITY_FIX}. ${remote}`;
+  return `The folder is in no git repository, and storytree could not make one (${made.reason}), so its work cannot be reviewed or landed yet: tell the user, and once git can commit here, make it one (git init, then commit the .storytree folder). ${remote}`;
 }
 
 /** What a session that set its project up is told of its hooks, which only a session started in the project can show. */

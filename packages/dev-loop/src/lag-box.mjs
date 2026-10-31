@@ -209,7 +209,7 @@ export function lagVerdicts({ history, actions, log: mainLog, owners, ran }) {
  */
 export function recordLagVerdicts(library, verdicts, { commit, evidence }) {
   const withEvidence = new Map([...verdicts].map(([contract, verdict]) => [contract, verdict.note === undefined ? verdict : { ...verdict, note: `${verdict.note}, evidence ${evidence}` }]));
-  return recordHealth(library, new Map([...verdicts.keys()].map((contract) => [contract, contract])), withEvidence, { by: LAG_RUN, commit });
+  return recordHealth(library, new Map([...verdicts.keys()].map((contract) => [contract, contract])), withEvidence, { by: LAG_RUN, source: "local", commit });
 }
 
 /** The printed reading: per action, its baseline and standing, then its last runs. */

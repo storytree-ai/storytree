@@ -26,9 +26,8 @@ import pg from "pg";
 
 import { openActivityLog } from "@storytree/session-management";
 import { readClaims } from "@storytree/session-management";
-import { MARKER_FILE } from "@storytree/project-and-caller";
 import { claudeCode, codex, idOf, withAgent } from "../testing/agent.js";
-import { git, withTempDir } from "@storytree/project-and-caller/testing/folders";
+import { git, withTempDir, writeMarker } from "@storytree/project-and-caller/testing/folders";
 import { approveCheckout, dropTestProjects, placeTestServer, projectDatabase, testServerUrl, uniqueProjectName } from "@storytree/project-and-caller/testing/pg";
 import { NOT_RUNNING_ANSWER } from "./index.js";
 import { registerWorkTools } from "./work-tools.js";
@@ -69,7 +68,7 @@ test("in a folder whose project was deleted from the library, a tool says so and
   await withTempDir(async (dir) => {
     const folder = path.join(dir, "site");
     mkdirSync(folder);
-    writeFileSync(path.join(folder, MARKER_FILE), `${JSON.stringify({ project })}\n`);
+    writeMarker(folder, `${JSON.stringify({ project })}\n`);
     await approveCheckout(folder, project);
     const storytree = await connect({ url: testServerUrl() });
     try {
@@ -98,7 +97,7 @@ test("in a folder whose project was deleted and a new project of its name set up
     try {
       const first = await storytree.openProject(project);
       await first.close();
-      writeFileSync(path.join(folder, MARKER_FILE), `${JSON.stringify({ project, identity: first.identity })}\n`);
+      writeMarker(folder, `${JSON.stringify({ project, identity: first.identity })}\n`);
       await approveCheckout(folder, project);
       await storytree.dropProject(project); // deleted from another computer; this folder still names it
       await (await storytree.openProject(project)).close(); // and a new project of that name set up elsewhere
@@ -128,7 +127,7 @@ test("6.43 a tool called from a checkout not approved for the project its marker
     try {
       const existing = await storytree.openProject(project);
       await existing.close();
-      writeFileSync(path.join(folder, MARKER_FILE), JSON.stringify({ project, identity: existing.identity }));
+      writeMarker(folder, JSON.stringify({ project, identity: existing.identity }));
       await withAgent(folder, claudeCode("downloaded", { dataDir: path.join(home, "pgdata"), setup: { homes: {}, storytreeHome: home } }), async (agent) => {
         for (const [tool, args] of [["show_plan", {}], ["plan_story", { title: "Visitor can sign up", ...FOUNDED }], ["check_setup", {}]] as const) {
           const refused = await agent.call(tool, args);

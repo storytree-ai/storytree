@@ -16,9 +16,8 @@ import { ACTIVITY_DATABASE, openActivityLog, type ActivityLog, type LockedLog } 
 import { lineText, readClaim, readClaims } from "../index.js";
 import { claimFrom, claimsFrom, LONGEST_COMMAND_MS, STOPPED_MS } from "../readings.js";
 import { runHook } from "../hooks/index.js";
-import { MARKER_FILE } from "@storytree/project-and-caller";
 import { countingStore } from "@storytree/project-and-caller/testing/egress";
-import { withTempDir } from "@storytree/project-and-caller/testing/folders";
+import { withTempDir, writeMarker } from "@storytree/project-and-caller/testing/folders";
 import { approveCheckout, dropTestProjects, testServerDataDir, testServerUrl, uniqueProjectName } from "@storytree/project-and-caller/testing/pg";
 import { closeOut, readSessions } from "../sessions/index.js";
 import { claim, claimAll, claimClearingOwnerWait, claimRefusal, closed, closeRefusal, holdForPull, land, letGo, readAttribution, recordRed, recordRerun, release, releaseFor, type ClaimContext, type MergedPull, type MergeWatch } from "./index.js";
@@ -443,7 +442,7 @@ test("5.17 a holder last seen on this machine before it restarted is taken over 
 test("5.10 a claim taken on branch feature/signup ends with a merged line once GitHub shows a pull request from that branch merged after the claim was taken, found at the next tool call or hook line; one merged before the claim, or still open, ends nothing", async () => {
   await withWorld(async ({ log, project, emailForm, passwordReset, as }) => {
     await withTempDir(async (folder) => {
-      writeFileSync(path.join(folder, MARKER_FILE), `${JSON.stringify({ project })}
+      writeMarker(folder, `${JSON.stringify({ project })}
 `);
       await approveCheckout(folder, project);
       // GitHub, as `gh` would answer: the merged pull requests from each branch.

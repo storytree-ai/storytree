@@ -208,7 +208,8 @@ test("8.3 in a folder that is not a project, it creates nothing unless told to",
     try {
       const told = await storytree(command.script, ["doctor", "--set-up", project], { cwd: world.elsewhere, home: world.home, env: user.env });
       assert.equal(told.code, 0, told.stderr);
-      assert.equal(JSON.parse(readFileSync(path.join(world.elsewhere, ".storytree.json"), "utf8")).project, project);
+      assert.equal(JSON.parse(readFileSync(path.join(world.elsewhere, ".storytree", "project.json"), "utf8")).project, project);
+      assert.match(told.stdout, /Commit the \.storytree folder: git worktrees and fresh clones/, "it says to commit the folder, and why");
     } finally {
       await dropTestProjects([project]);
     }

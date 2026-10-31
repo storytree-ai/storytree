@@ -6,7 +6,7 @@
  * non-zero and says what to do; a command it does not have answers with the real one for that job.
  *
  * - The project is Session management's project routing (its capability 1) from the folder the command
- *   runs in: the nearest `.storytree.json` at or above it. Where storytree is, is the same routing's
+ *   runs in: the nearest `.storytree/project.json` (or older `.storytree.json`) at or above it. Where storytree is, is the same routing's
  *   reading of the storytree home (STORYTREE_HOME, else ~/.storytree/0.3). "Not a project" and
  *   "not running" are its words, and come back before anything reaches a database.
  * - The library is reached only through its public API, opened on first use, so a command that
@@ -658,7 +658,7 @@ class Opened {
   #routed(): { project: string; folder: string; identity?: string; library: ConnectOptions } {
     const where = route(this.#cwd);
     if (where.status === "not-a-project") {
-      throw new Refusal(`${where.message}: no .storytree.json in ${this.#cwd} or any folder above it`, {
+      throw new Refusal(`${where.message}: no .storytree/project.json (or older .storytree.json) in ${this.#cwd} or any folder above it`, {
         next: [{ command: "cd <your project's folder>", why: "run it where your project is" }],
       });
     }

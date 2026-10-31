@@ -19,8 +19,8 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { connect, type Line } from "@storytree/library";
 
 import { AFTER_TOOL, BACKGROUND, noteCodexHookRan, registeredHookScripts, SHELL_GUARD } from "@storytree/session-management";
-import { locateStorytree, MARKER_FILE } from "@storytree/project-and-caller";
-import { withTempDir } from "@storytree/project-and-caller/testing/folders";
+import { locateStorytree, PROJECT_FILE, ROOT_MARKER_FILE } from "@storytree/project-and-caller";
+import { withTempDir, writeMarker } from "@storytree/project-and-caller/testing/folders";
 import { dropTestProjects, placeTestServer, testServerRecordedUrl, testServerUrl, uniqueProjectName } from "@storytree/project-and-caller/testing/pg";
 import { waitUntil } from "@storytree/test-waits";
 
@@ -301,7 +301,7 @@ test("8.12 at the start of a session in a folder that isn't a storytree project,
       const input = JSON.stringify({ ...readJson(path.join(FIXTURES, harness, "session-start-startup.json")), cwd: fresh });
       for (const hook of starts) assert.equal(runRegistered(harness, hook, input, stopped), "", `${harness}: ${JSON.stringify(hook.args ?? hook.command)} says nothing`);
     }
-    assert.equal(existsSync(path.join(fresh, MARKER_FILE)), false, "the folder is not set up");
+    assert.equal(existsSync(path.join(fresh, PROJECT_FILE)), false, "the folder is not set up");
   });
 });
 
@@ -372,7 +372,7 @@ test("8.10 a terminal runs the shared setup check with diagnostic lines and fixe
         "the check says transcripts leave the machine, and that the scrub is best-effort (ADR-0749 D4)");
       assert.deepEqual(noteOf(report.lines, "gh"), { state: "note", fix: undefined }, "gh is never a fix (owner, question_bb3efa1e3191)");
       assert.match(report.lines.find((line) => line.check === "project")?.fix ?? "", /only.*yes/i);
-      assert.equal(existsSync(path.join(folder, MARKER_FILE)), false);
+      assert.equal(existsSync(path.join(folder, PROJECT_FILE)), false);
       assert.equal((await storytree.listProjects()).includes(name), false);
 
       await setUpProject({ folder, project: name, storytree, storytreeHome: home.storytreeHome }); // the terminal's explicit yes
@@ -412,7 +412,7 @@ test("8.31 in a project with no git repository the check asks for one, made loca
       assert.doesNotMatch(none?.fix ?? "", /push|gh repo create/, "a remote is never proposed");
 
       git("init", "-q");
-      git("add", MARKER_FILE);
+      git("add", ".storytree");
       git("commit", "-q", "-m", "first");
       const local = (await runSetupCheck(options)).lines.find((line) => line.check === "repository");
       assert.equal(local?.state, "ok", "a project with no origin is a working setup, not one needing attention");
@@ -427,6 +427,47 @@ test("8.31 in a project with no git repository the check asks for one, made loca
 
       git("remote", "add", "origin", "https://github.com/someone/somewhere.git");
       assert.equal((await runSetupCheck(options)).lines.find((line) => line.check === "repository"), undefined);
+    } finally {
+      await storytree.close();
+      await dropTestProjects([name]);
+    }
+  });
+});
+
+test("8.40 a project whose marker is still a root .storytree.json is offered the move to .storytree/project.json, a git mv when git tracks it, and the check moves nothing; beside a .storytree/project.json the older one is named as ignored", async () => {
+  await withTempDir(async (dir) => {
+    const home = throwawayHome(dir);
+    const name = uniqueProjectName();
+    const folder = path.join(dir, name);
+    mkdirSync(folder);
+    const options = { ...ANSWERED, folder, homes: home.homes, storytreeHome: home.storytreeHome };
+    const storytree = await connect({ url: testServerUrl() });
+    const git = (...args: string[]) => spawnSync("git", ["-c", "user.name=t", "-c", "user.email=t@t", ...args], { cwd: folder, encoding: "utf8" });
+    const markerLine = async () => (await runSetupCheck(options)).lines.find((line) => line.check === "marker");
+    try {
+      await setUpProject({ folder, project: name, storytree, storytreeHome: home.storytreeHome });
+      assert.equal(await markerLine(), undefined, "a project set up now is told nothing of its marker");
+
+      const marker = readFileSync(path.join(folder, PROJECT_FILE));
+      rmSync(path.join(folder, ".storytree"), { recursive: true });
+      writeFileSync(path.join(folder, ROOT_MARKER_FILE), marker);
+      const plain = await markerLine();
+      assert.equal(plain?.state, "needs-attention");
+      assert.match(plain?.message ?? "", /\.storytree\.json at its root/);
+      assert.match(plain?.fix ?? "", /move \.storytree\.json to \.storytree\/project\.json/);
+      assert.doesNotMatch(plain?.fix ?? "", /git mv/, "a marker git does not track is moved plainly");
+      assert.ok(existsSync(path.join(folder, ROOT_MARKER_FILE)) && !existsSync(path.join(folder, PROJECT_FILE)), "the check moved nothing");
+
+      git("init", "-q");
+      git("add", ROOT_MARKER_FILE);
+      git("commit", "-q", "-m", "first");
+      assert.match((await markerLine())?.fix ?? "", /git mv \.storytree\.json \.storytree\/project\.json/, "a tracked marker is moved with git mv");
+
+      writeMarker(folder, marker);
+      const both = await markerLine();
+      assert.equal(both?.state, "needs-attention");
+      assert.match(both?.message ?? "", /reads \.storytree\/project\.json and ignores the other/);
+      assert.match(both?.fix ?? "", /git rm \.storytree\.json/);
     } finally {
       await storytree.close();
       await dropTestProjects([name]);
@@ -468,7 +509,7 @@ test("8.31 a project's repository begun with no git identity, its marker staged,
       assert.equal(made[0]?.state, "fixed");
       assert.match(made[0]?.message ?? "", /first commit/);
       assert.equal(git("log", "--format=%an <%ae>").stdout.trim(), "A User <user@example.invalid>");
-      assert.equal(git("show", "--name-only", "--format=", "HEAD").stdout.trim(), MARKER_FILE);
+      assert.deepEqual(git("show", "--name-only", "--format=", "HEAD").stdout.trim().split("\n"), [".storytree/.gitignore", PROJECT_FILE]);
 
       const after = (await runSetupCheck(options)).lines.filter((line) => line.check === "repository");
       assert.deepEqual(after.map((line) => line.state), ["ok"], "made once: then only the local route is left");

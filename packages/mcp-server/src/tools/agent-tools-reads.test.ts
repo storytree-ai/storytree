@@ -209,6 +209,7 @@ test('6.4 a bad call gets a readable refusal rather than a crash, and with story
         ["read_context", {}],
         ["close_out", { safe: true, why: "all merged" }],
         ["name_session", { title: "Building signup" }],
+        ["file_owners", { paths: ["README.md"] }],
         ["wire_pipeline", { test: "npm test" }],
         ["take_starter_pack", {}],
         ["move_onto_factory", {}],

@@ -19,7 +19,7 @@ import { contractsOf } from "./test-run.mjs";
 
 const tsx = fileURLToPath(new URL("../../node_modules/tsx", import.meta.url));
 
-test("12.8, 12.11 · a story whose code is a factory plugin has that folder's tests run by the factory's own test command and recorded as its verified health at the factory's commit; no package's test counts for it", async (t) => {
+test("7.8, 7.11 · a story whose code is a factory plugin has that folder's tests run by the factory's own test command and recorded as its verified health at the factory's commit; no package's test counts for it", async (t) => {
   const factory = mkdtempSync(path.join(tmpdir(), "factory-health-"));
   t.after(() => removeTemp(factory));
   const write = (file, lines) => {
@@ -86,7 +86,7 @@ test("12.8, 12.11 · a story whose code is a factory plugin has that folder's te
   });
 });
 
-test("12.8 · a factory run that dies of a signal fails with no results, and `--factory` names the folder after it or else this computer's factory", async (t) => {
+test("7.8 · a factory run that dies of a signal fails with no results, and `--factory` names the folder after it or else this computer's factory", async (t) => {
   const factory = mkdtempSync(path.join(tmpdir(), "factory-killed-"));
   t.after(() => removeTemp(factory));
   mkdirSync(path.join(factory, "scripts"));
@@ -101,7 +101,7 @@ test("12.8 · a factory run that dies of a signal fails with no results, and `--
   assert.deepEqual(factoryArgument(["--factory", "elsewhere"], chosen), { folder: path.resolve("elsewhere"), unrecorded: false });
 });
 
-test("12.9 · a factory run with --unrecorded skips each plugin whose story already holds a factory test run's entry at the factory's commit, and records the rest; a new commit is recorded again", async (t) => {
+test("7.9 · a factory run with --unrecorded skips each plugin whose story already holds a factory test run's entry at the factory's commit, and records the rest; a new commit is recorded again", async (t) => {
   const factory = mkdtempSync(path.join(tmpdir(), "factory-unrecorded-"));
   t.after(() => removeTemp(factory));
   const write = (file, lines) => {
@@ -156,7 +156,7 @@ test("12.9 · a factory run with --unrecorded skips each plugin whose story alre
   });
 });
 
-test("12.10 · a factory run that finds no story whose plugin folder is in the factory records nothing and fails, saying why", async (t) => {
+test("7.10 · a factory run that finds no story whose plugin folder is in the factory records nothing and fails, saying why", async (t) => {
   const factory = mkdtempSync(path.join(tmpdir(), "factory-stray-"));
   t.after(() => removeTemp(factory));
   mkdirSync(path.join(factory, "plugins", "stray"), { recursive: true });

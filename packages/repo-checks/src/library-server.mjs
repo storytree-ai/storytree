@@ -1,4 +1,4 @@
-// Capability 5 · Library tools. How this repo's library scripts (`pnpm check:own-health`, `library:export`, `library:restore`)
+// Capability 7 · Own health. How this repo's library scripts (`pnpm check:own-health`, `library:export`, `library:restore`)
 // reach the library the storytree `library` setting names (settingLibraryServer below): a Postgres
 // address or Cloud SQL directly, and the app's library (~/.storytree/0.3/pgdata) without anyone
 // quitting the app first. The

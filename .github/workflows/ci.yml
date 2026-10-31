@@ -35,7 +35,7 @@ name: CI
 # stands on it, and `platforms` runs no tests again (22% of runner time, increment_08dac5c25a06);
 # with no passing queue run of the same commit (a direct merge, a batch whose head differs) the push
 # tests in full, as before. The queue's passing run keeps the Windows and macOS evidence own health
-# credits (packages/dev-loop/src/test-run/main-commit.mjs) and the timing history `timings` saves
+# credits (packages/repo-checks/src/test-run/main-commit.mjs) and the timing history `timings` saves
 # for main. A direct merge that
 # `automerge` makes starts none of them: GitHub starts no workflow from a push made with a
 # workflow's own token. So then `automerge` starts own-health.yml on main itself, which records

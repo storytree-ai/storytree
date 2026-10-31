@@ -19,7 +19,7 @@ import { connect } from "@storytree/library";
 import { readLibrary } from "@storytree/project-and-caller";
 
 import { appHome } from "../../../apps/desktop/src/home.ts";
-import { settingLibraryServer } from "./library-server.mjs";
+import { settingLibraryServer } from "@storytree/repo-checks/library-server";
 
 const PREFIX = "Story text: ";
 const COMMAND = "fold-story-text";

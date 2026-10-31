@@ -2,11 +2,11 @@ name: Own health
 
 # After CI completes for a change to main, run storytree 0.3's own stories' tests and record each
 # contract's VERIFIED health in the library (ADR-0744 D3-D4): `pnpm check:own-health`,
-# the same rules a hand run uses (packages/dev-loop/src/test-run), written as "storytree test run on CI"
+# the same rules a hand run uses (packages/repo-checks/src/test-run), written as "storytree test run on CI"
 # with the commit in each note. Windows-only and macOS-only contracts need the passing Windows or
 # macOS evidence from that exact commit and CI attempt: the merge queue's passing run of it, which is where it is
 # tested now that the push run stands on that run's verdict (ci.yml's `queue-verdict`), else main's push run of it
-# (packages/dev-loop/src/test-run/main-commit.mjs). Never from a pull request's run: only main's own commits are recorded.
+# (packages/repo-checks/src/test-run/main-commit.mjs). Never from a pull request's run: only main's own commits are recorded.
 #
 # The merge queue's merge (ADR-0796) is a push to main and starts CI, whose completion starts this.
 # A direct merge by CI is made
@@ -125,7 +125,7 @@ jobs:
       # run's Windows and macOS evidence, rather than nothing; only if that commit is not at or after its own does
       # it stand down, so newer health is never overwritten by older.
       # The commit whose CI finished, for the rules that choose what to record
-      # (packages/dev-loop/src/test-run/main-commit.mjs); the commit chosen is checked out below.
+      # (packages/repo-checks/src/test-run/main-commit.mjs); the commit chosen is checked out below.
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
           persist-credentials: false
@@ -135,7 +135,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         with:
           script: |
-            const { chooseRecording } = await import(`${process.env.GITHUB_WORKSPACE}/packages/dev-loop/src/test-run/main-commit.mjs`);
+            const { chooseRecording } = await import(`${process.env.GITHUB_WORKSPACE}/packages/repo-checks/src/test-run/main-commit.mjs`);
             // workflow_run's GITHUB_SHA is the current default branch, not the triggering commit.
             const own = context.payload.workflow_run?.head_sha ?? context.sha;
             const { data: main } = await github.rest.git.getRef({ ...context.repo, ref: 'heads/main' });

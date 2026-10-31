@@ -2,26 +2,29 @@
   "name": "@storytree/repo-checks",
   "private": true,
   "type": "module",
-  "description": "Storytree's own repository checks (story_c27bd2a8f61e, question_eda214a321bb, ADR-1199): the checks this repository runs on every pull request to keep itself honest, neither a base part shipped to users nor one of the owner's factory plugins. The leak, secret and push scans, the seed-records check, the lockfile report, the capability-list check, and storytree's declarations for the Guardrails story's package, type-import and allocation checks. CI and the root package.json run them from here, and the gate runs those it can through this package's gateSteps.",
+  "description": "Storytree's own repository checks (story_c27bd2a8f61e, question_eda214a321bb, ADR-1199): the checks this repository runs on every pull request to keep itself honest, neither a base part shipped to users nor one of the owner's factory plugins. The leak, secret and push scans, the seed-records check, the lockfile report, the capability-list check, own health (each story's tests run and recorded as its contracts' verified health, and a factory plugin's the same way), and storytree's declarations for the Guardrails story's package, type-import and allocation checks. CI and the root package.json run them from here, and the gate runs those it can through this package's gateSteps.",
   "dependencies": {
     "@storytree/base-dev-loop": "workspace:*",
+    "@storytree/ci-health": "workspace:*",
     "@storytree/forest": "workspace:*",
     "@storytree/guardrails": "workspace:*",
     "@storytree/library": "workspace:*",
     "@storytree/local-postgres": "workspace:*",
     "@storytree/map": "workspace:*",
     "@storytree/project-and-caller": "workspace:*",
+    "pg": "^8.23.0",
     "tsx": "^4.23.15"
   },
   "devDependencies": {
-    "@storytree/test-waits": "workspace:*",
-    "pg": "^8.23.0"
+    "@storytree/test-waits": "workspace:*"
   },
   "exports": {
     "./capability-list": "./src/capability-list.mjs",
     "./gate-steps": "./src/gate-steps.mjs",
     "./leak-scan": "./src/leak-scan.mjs",
-    "./library-reach": "./src/library-reach.mjs"
+    "./library-reach": "./src/library-reach.mjs",
+    "./library-server": "./src/library-server.mjs",
+    "./test-run": "./src/test-run/test-run.mjs"
   },
   "storytree": {
     "gateSteps": [

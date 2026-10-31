@@ -8,7 +8,7 @@
 // Like `pnpm check:own-health` run by hand, it reaches a Postgres address or Cloud SQL directly; the
 // app's own library it writes into while the app runs, or starts the app's Postgres itself when the
 // app is not running, never writing at the same time as another library script
-// (packages/dev-loop/src/library-server.mjs).
+// (packages/repo-checks/src/library-server.mjs).
 
 import { readFileSync } from "node:fs";
 
@@ -16,7 +16,7 @@ import { connect, RestoreRefusedError } from "@storytree/library";
 import { readLibrary } from "@storytree/project-and-caller";
 
 import { appHome } from "../../../apps/desktop/src/home.ts";
-import { settingLibraryServer } from "./library-server.mjs";
+import { settingLibraryServer } from "@storytree/repo-checks/library-server";
 
 const COMMAND = "pnpm library:restore";
 

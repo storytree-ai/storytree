@@ -1,6 +1,6 @@
-// Capability 12 · Recording a test run. How a run of a story's tests, read from their junit report, becomes each of its
+// Capability 7 · Own health. How a run of a story's tests, read from their junit report, becomes each of its
 // contracts' VERIFIED health: the rules record-run.mjs runs, and storytree's own health is this run configured for
-// storytree (`pnpm check:own-health`, packages/dev-loop/src/check-own-health.mjs, ADR-1066 D2 G). A story's contracts
+// storytree (`pnpm check:own-health`, packages/repo-checks/src/check-own-health.mjs, ADR-1066 D2 G). A story's contracts
 // and their numbers are read from the library, and its tests are its own packages': the package named after the
 // story's title (packageOf) and any other it owns. Everything here but markPending, which writes through the
 // library's public API, is pure.

@@ -804,10 +804,14 @@ export function remoteCommand(config, args) {
     `cd ${config.remoteCheckout} && node packages/agent-pool/src/watch.mjs ${args.join(" ")}`]];
 }
 
-/** The nearest storytree marker at or above `folder`: its folder and the project it names, or nothing. */
+/**
+ * The nearest storytree marker at or above `folder`: its folder and the project it names, or nothing. A folder's
+ * `.storytree/project.json` comes before a root `.storytree.json`, which is read during the move (ADR-1191).
+ */
 async function markerAt(folder) {
   for (let at = resolve(folder); ; at = dirname(at)) {
-    const text = await readFile(join(at, ".storytree.json"), "utf8").catch(() => undefined);
+    const text = await readFile(join(at, ".storytree", "project.json"), "utf8")
+      .catch(() => readFile(join(at, ".storytree.json"), "utf8")).catch(() => undefined);
     if (text !== undefined) { try { return { folder: at, name: JSON.parse(text).project }; } catch { return undefined; } }
     if (dirname(at) === at) return undefined;
   }

@@ -6,9 +6,9 @@
   "4": 100
  },
  "src/capability-list.mjs": {
-  "6": 27,
   "7": 137,
-  "10": 3
+  "10": 3,
+  "13": 27
  },
  "src/check-own-health.mjs": {
   "1": 20,
@@ -27,12 +27,12 @@
   "5": 48
  },
  "src/gate-steps.mjs": {
-  "6": 54,
-  "7": 248
+  "7": 248,
+  "13": 54
  },
  "src/gate.mjs": {
-  "6": 36,
-  "7": 56
+  "7": 56,
+  "13": 36
  },
  "src/guidance.mjs": {
   "4": 400
@@ -40,8 +40,8 @@
  "src/heavy-lock.mjs": {
   "1": 16,
   "5": 8,
-  "6": 189,
-  "8": 134
+  "8": 134,
+  "13": 189
  },
  "src/lag-box.mjs": {
   "8": 448
@@ -63,8 +63,8 @@
   "7": 11
  },
  "src/owner-applies.mjs": {
-  "6": 27,
-  "7": 59
+  "7": 59,
+  "13": 27
  },
  "src/package-boundaries.mjs": {
   "3": 1
@@ -82,8 +82,8 @@
   "5": 30
  },
  "src/red-run-reporter.mjs": {
-  "6": 9,
-  "9": 27
+  "9": 27,
+  "13": 9
  },
  "src/release-copy.mjs": {
   "11": 11
@@ -102,10 +102,10 @@
  },
  "src/survey-coverage.mjs": {
   "2": 26,
-  "6": 78
+  "13": 78
  },
  "src/test-ratio.mjs": {
-  "6": 6
+  "13": 6
  },
  "src/test-run/factory-run.mjs": {
   "1": 60,
@@ -134,7 +134,7 @@
  "src/test.mjs": {
   "1": 4,
   "5": 2,
-  "6": 9
+  "13": 9
  },
  "src/type-imports.mjs": {
   "3": 4

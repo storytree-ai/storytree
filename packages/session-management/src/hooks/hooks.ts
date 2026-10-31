@@ -253,6 +253,13 @@ function inOrder(value: unknown): unknown {
   return Object.fromEntries(Object.keys(value).sort().map((key) => [key, inOrder((value as Record<string, unknown>)[key])]));
 }
 
+/** One hook's lines placed where they are recorded, before any git or library work: its route, and each line at its worktree's root. */
+interface Placed {
+  readonly where: Exclude<Route, { status: "not-a-project" }>;
+  readonly made: HookLines;
+  readonly root: string | undefined;
+}
+
 /** One hook's lines as either way records them, and where. */
 interface Prepared {
   readonly where: Exclude<Route, { status: "not-a-project" }>;
@@ -261,25 +268,33 @@ interface Prepared {
 }
 
 /**
- * Where `made`'s lines go, and the lines as both the command hook and the tool server record them (ADR-1056 D2): each
- * naming its folder's branch, at its worktree's root, with what a shell command edited; undefined outside a project.
- * `guarded` also sets the shell guard's baseline of the worktree. The branch and the edits are read with `git` only in
- * a checkout approved for the project (contract 3.46): in any other the lines name neither.
+ * Where `made`'s lines go, read from the files alone, with no git and no library (so a hook can leave them waiting from
+ * here, 3.14): undefined outside a project. A command run in a subfolder is recorded at its worktree's root, so a session
+ * lists each worktree once (4.22), or, with no git repository, at the folder holding the project's marker (4.33).
  */
-async function prepare(made: HookLines, locate: LocateOptions | undefined, failed: (stage: HookFailure["stage"], error: unknown) => void, guarded: boolean, git: Git = runGit): Promise<Prepared | undefined> {
+async function place(made: HookLines, locate: LocateOptions | undefined): Promise<Placed | undefined> {
   const where = route(made.folder, locate);
   if (where.status === "not-a-project") return undefined;
-  const trusted = await mayRunGit(where, made.folder, locate);
-  // The branch the folder is on now, on every line, before any waits on this machine (ADR-0754 D4).
-  const { currentBranch, worktreeRoot } = await import("../activity/branch.js");
-  const branch = trusted ? currentBranch(made.folder, git) : undefined;
-  if (branch !== undefined) made = { ...made, lines: made.lines.map((line) => (line.branch === undefined ? { ...line, branch } : line)) };
-  // A command run in a subfolder is recorded at its worktree's root, so a session lists each worktree once (4.22),
-  // or, with no git repository, at the folder holding the project's marker (4.33).
+  const { worktreeRoot } = await import("../activity/branch.js");
   const root = worktreeRoot(made.folder);
   const marker = root === undefined ? findProject(made.folder) : undefined;
   const recordAt = root ?? (marker?.project === undefined ? undefined : marker.folder);
   if (recordAt !== undefined && recordAt !== path.resolve(made.folder)) made = { ...made, lines: made.lines.map((line) => (line.folder === made.folder ? { ...line, folder: recordAt } : line)) };
+  return { where, made, root };
+}
+
+/**
+ * The placed lines as both the command hook and the tool server record them (ADR-1056 D2): each naming its folder's
+ * branch, with what a shell command edited. `guarded` also sets the shell guard's baseline of the worktree. The branch
+ * and the edits are read with `git` only in a checkout approved for the project (contract 3.46): in any other the lines
+ * name neither.
+ */
+async function prepare({ where, made, root }: Placed, locate: LocateOptions | undefined, failed: (stage: HookFailure["stage"], error: unknown) => void, guarded: boolean, git: Git = runGit): Promise<Prepared> {
+  const trusted = await mayRunGit(where, made.folder, locate);
+  // The branch the folder is on now, on every line, before any waits on this machine (ADR-0754 D4).
+  const { currentBranch } = await import("../activity/branch.js");
+  const branch = trusted ? currentBranch(made.folder, git) : undefined;
+  if (branch !== undefined) made = { ...made, lines: made.lines.map((line) => (line.branch === undefined ? { ...line, branch } : line)) };
   const home = storytreeHome();
   // Observe before queueing or reaching the store: shell writes remain edits while offline, and
   // a command's edit line feeds the same upkeep/claim path as an explicit edit tool (3.22).
@@ -338,9 +353,9 @@ export interface DeliveredLines {
 export async function recordHookEvent(harness: string, input: unknown, reach: ReachLog, locate?: LocateOptions): Promise<DeliveredLines> {
   const failed = (stage: HookFailure["stage"], error: unknown) => noteHookFailure(storytreeHome, hookIdentity(harness, input), stage, error);
   const made = hookLines(harness, input);
-  const ready = made === undefined || made.lines.length === 0 ? undefined : await prepare(made, locate, failed, false);
-  if (ready === undefined) return { recorded: 0, waiting: 0 };
-  const { where, made: lines } = ready;
+  const placed = made === undefined || made.lines.length === 0 ? undefined : await place(made, locate);
+  if (placed === undefined) return { recorded: 0, waiting: 0 };
+  const { where, made: lines } = await prepare(placed, locate, failed, false);
   const delivered: DeliveredEvent = { key: eventKey(harness, input), via: "tool" };
   const { enqueue } = await import("./queue.js");
   const waits = (from: number): DeliveredLines => {
@@ -407,12 +422,22 @@ async function writeLines(harness: string, input: string, flags: readonly string
         return;
       }
     }
-    const ready = await prepare(made, locate, failed, guarded, git);
-    if (ready === undefined) return;
-    const { where, firstLine } = ready;
-    made = ready.made;
+    const placed = await place(made, locate);
+    if (placed === undefined) return;
+    const { where } = placed;
+    made = placed.made;
     const home = storytreeHome();
     const { enqueue, uploadQueued } = await import("./queue.js");
+    // Cut off from here, with its lines made and placed, what the hook has not written waits, even while it still asks
+    // the library whether its checkout is approved or reads git; the lines it waits with are its latest (3.14).
+    const written = { count: 0 };
+    leaveWaiting = () => {
+      failed("write", new Error(`cut off at its deadline with ${made.lines.length - written.count} of its ${made.lines.length} lines unwritten`));
+      enqueue(home, where.project, made.lines.slice(written.count), delivered);
+    };
+    const ready = await prepare(placed, locate, failed, guarded, git);
+    const { firstLine } = ready;
+    made = ready.made;
     if (where.status === "not-running") {
       enqueue(home, where.project, made.lines, delivered);
       return;
@@ -421,12 +446,7 @@ async function writeLines(harness: string, input: string, flags: readonly string
       await handOff(harness, input);
       return undefined;
     }
-    // Only now, with lines to write and somewhere to write them, is the database reached; cut off from here, they wait.
-    const written = { count: 0 };
-    leaveWaiting = () => {
-      failed("write", new Error(`cut off at its deadline with ${made.lines.length - written.count} of its ${made.lines.length} lines unwritten`));
-      enqueue(home, where.project, made.lines.slice(written.count), delivered);
-    };
+    // Only now, with lines to write and somewhere to write them, is the database reached.
     const [{ openActivityLog, thisMachine, currentBranch }, { connect }] = await Promise.all([import("../activity/index.js"), import("@storytree/library")]);
     const machine = thisMachine();
     let opened;
@@ -505,6 +525,9 @@ async function writeLines(harness: string, input: string, flags: readonly string
   } catch (error) {
     // Whatever went wrong, nothing is written.
     failed("write", error);
+  } finally {
+    // Done, or handed on, nothing is left to wait at the deadline.
+    leaveWaiting = undefined;
   }
 }
 

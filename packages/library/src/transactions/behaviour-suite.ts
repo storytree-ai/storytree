@@ -720,7 +720,7 @@ function assertTimestamp(value: unknown, what: string): void {
  * Check what every history entry must be (a positive whole seq, strictly increasing, and an ISO
  * timestamp), then return the entries without seq and at, for comparing with what a test expects.
  */
-function changesOf(entries: readonly HistoryEntry[]): Omit<HistoryEntry, "seq" | "at">[] {
+function changesOf(entries: readonly HistoryEntry[]): Omit<HistoryEntry, "seq" | "at" | "recordedBy">[] {
   let previous = 0;
   for (const entry of entries) {
     assert.ok(Number.isSafeInteger(entry.seq) && entry.seq > 0, `seq ${entry.seq} is a positive whole number`);
@@ -728,7 +728,8 @@ function changesOf(entries: readonly HistoryEntry[]): Omit<HistoryEntry, "seq" |
     assertTimestamp(entry.at, `the at of entry ${entry.seq}`);
     previous = entry.seq;
   }
-  return entries.map(({ seq: _seq, at: _at, ...change }) => change);
+  // The account the server saw is a server's to set, as seq and at are: the stores this suite runs on differ in it.
+  return entries.map(({ seq: _seq, at: _at, recordedBy: _recordedBy, ...change }) => change);
 }
 
 /** Records carrying a numeric field `n`, sorted by it. */

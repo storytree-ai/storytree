@@ -38,6 +38,11 @@ export interface HistoryEntry {
   outsideRead?: string[];
   /** When the change was written, as an ISO 8601 timestamp. */
   at: string;
+  /**
+   * The account the server saw write it (contract 1.22), set by the server whatever the writer sends: how a reader tells
+   * which door a record came through. Absent for an entry written before the history kept it, and in a store with no server.
+   */
+  recordedBy?: string;
 }
 
 /**

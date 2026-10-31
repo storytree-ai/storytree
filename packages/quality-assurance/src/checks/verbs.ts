@@ -54,14 +54,15 @@ const ledgerVerb = verb({
 
 const briefVerb = verb({
   consumers: ["agent"],
-  command: { family: "quality", name: "brief", summary: "issue the next review's brief for an increment's change: the diff of the branch it was claimed on against origin/main (or the local default branch with none), or of the branch in a checkout named outside the project, its contracts and the checks", usage: "quality brief <increment> [--diff @file | --checkout <folder>]" },
+  command: { family: "quality", name: "brief", summary: "issue the next review's brief for an increment's change: the diff of the branch it was claimed on against origin/main (or the local default branch with none), or of the branch in a checkout named outside the project, with each other half's in a checkout named by --also, its contracts and the checks", usage: "quality brief <increment> [--diff @file | --checkout <folder>] [--also <folder> …]" },
   tool: NO_TOOL,
   inputs: {
     increment: { kind: "text", word: 0, describe: "the increment whose change is reviewed" },
     diff: { kind: "text", optional: true, describe: "the change's diff against its default branch, as git diff gives it" },
     checkout: { kind: "text", optional: true, describe: "a checkout outside the project whose branch is the change, as the owner's factory repo is" },
+    also: { kind: "text", many: true, optional: true, describe: "a checkout outside the project whose branch is the change's other half, given once for each: its diff is listed beside the change's" },
   },
-  async act({ increment, diff, checkout }, context: QualityVerbContext) {
+  async act({ increment, diff, checkout, also }, context: QualityVerbContext) {
     if (diff !== undefined && checkout !== undefined) throw new VerbRefusal("give the change's diff or its checkout, not both", { misuse: true });
     const { briefWithReport, changeFolder, factoryPlugins, openReviews, worktreeChange } = await import("../index.js");
     const reviews = await openReviews(server(context));
@@ -73,7 +74,9 @@ const briefVerb = verb({
     }
     // A factory plugin's change is read from the factory repo, the checkout named or this computer's factory folder (contract 2.18).
     const factory = checkout === undefined ? (await import("@storytree/project-and-caller")).factoryFolder().folder : folder;
-    const brief = await reviews.brief(context.library, increment, diff ?? worktreeChange(folder), undefined, factoryPlugins(factory, increment));
+    // An increment landing in two repositories is reviewed whole: each other half's branch is listed beside the change (contract 2.19).
+    const halves = (also ?? []).map((other) => worktreeChange(resolve(context.folder, other)));
+    const brief = await reviews.brief(context.library, increment, diff ?? worktreeChange(folder), undefined, factoryPlugins(factory, increment), halves);
     // The change's mutation report runs on its worktree, never on a diff given by hand (contract 7.3).
     const { text } = await briefWithReport(server(context), brief, diff === undefined ? folder : undefined);
     return {
@@ -85,14 +88,15 @@ const briefVerb = verb({
 
 const takeVerb = verb({
   consumers: ["agent"],
-  command: { family: "quality", name: "take", summary: "take the change-reviewer's return on the increment's brief into the QA ledger, or refuse it naming what it leaves out", usage: "quality take <increment> --return @file [--checkout <folder>]" },
+  command: { family: "quality", name: "take", summary: "take the change-reviewer's return on the increment's brief into the QA ledger, or refuse it naming what it leaves out", usage: "quality take <increment> --return @file [--checkout <folder>] [--also <folder> …]" },
   tool: NO_TOOL,
   inputs: {
     increment: { kind: "text", word: 0, describe: "the increment whose change was reviewed" },
     return: { kind: "text", describe: "the change-reviewer's return, as JSON" },
     checkout: { kind: "text", optional: true, describe: "the checkout outside the project the brief read the change from, for Architecture checks' graduated checks to run on" },
+    also: { kind: "text", many: true, optional: true, describe: "a checkout the brief read the change's other half from, given once for each, for the graduated checks to run on too" },
   },
-  async act({ increment, return: text, checkout }, context: QualityVerbContext) {
+  async act({ increment, return: text, checkout, also }, context: QualityVerbContext) {
     const { graduatedFindings, openReviews, takenText, takenWithSurvivors } = await import("../index.js");
     let review;
     try {
@@ -101,7 +105,7 @@ const takeVerb = verb({
       throw new VerbRefusal(`the return is not JSON: ${(error as Error).message}`);
     }
     const reviews = await openReviews(server(context));
-    const taken = await takenWithSurvivors(server(context), reviews, context.library.name, increment, await reviews.take(context.library.name, increment, review, await graduatedFindings(context.library, checkout === undefined ? context.folder : resolve(context.folder, checkout))));
+    const taken = await takenWithSurvivors(server(context), reviews, context.library.name, increment, await reviews.take(context.library.name, increment, review, await graduatedFindings(context.library, checkout === undefined ? context.folder : resolve(context.folder, checkout), (also ?? []).map((other) => resolve(context.folder, other)))));
     return {
       text: takenText(taken),
       ...(taken.standing.length === 0 ? {} : { next: [{ command: "quality answer <hit> fixed|rejected --reason …", why: "answer each standing finding" }] }),

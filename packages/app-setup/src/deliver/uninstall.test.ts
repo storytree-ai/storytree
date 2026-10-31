@@ -94,6 +94,15 @@ test("1.8: uninstalling removes everything storytree added, and leaves the user'
   assert.equal(readFileSync(path.join(m.project, ".storytree.json"), "utf8"), '{"project":"my-project"}');
 });
 
+test("1.8: uninstalling removes a Codex registration storytree wrote before it allowed long tool calls", async (t) => {
+  const m = await installedMachine(t);
+  const file = path.join(m.codex, "config.toml");
+  writeFileSync(file, readFileSync(file, "utf8").replace(/tool_timeout_sec = \d+\n/, ""));
+  const report = await uninstall({ ...m.options, library: "remove" });
+  assert.equal(report.complete, true, report.lines.join("\n"));
+  assert.equal(readFileSync(file, "utf8"), '# the user\'s own\nmodel = "kept"\n');
+});
+
 test("1.8: keeping the library leaves only the library behind", async (t) => {
   const m = await installedMachine(t);
   // What the app leaves in its home beside the library: its browser data, logs and launch record.

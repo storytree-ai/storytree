@@ -23,6 +23,7 @@ import { closeOut, readSessions } from "../sessions/index.js";
 import { claim, claimAll, claimClearingOwnerWait, claimRefusal, closed, closeRefusal, holdForPull, land, letGo, readAttribution, recordRed, recordRerun, release, releaseFor, type ClaimContext, type MergedPull, type MergeWatch } from "./index.js";
 import { allMergedPullsThrough, allOpenPullsThrough, boardClaims, queuedPullsThrough, due, endMergedClaims, mergedPullsThrough, projectTempFile, type OpenPull } from "./merges.js";
 import { staleClaims } from "./stale-claims.js";
+import { WORKSPACE_FAMILIES } from "./verbs.js";
 
 interface World {
   log: ActivityLog;
@@ -1102,6 +1103,36 @@ test("5.46 letting go of a pull request ends every claim held for it, capabiliti
     assert.deepEqual(released.map((line) => line.kind === "released" && [line.holder, line.reason]), [
       ["pull-request-12", "PR #12 still red after 2 fix sessions"], ["pull-request-12", "PR #12 still red after 2 fix sessions"]]);
     assert.deepEqual(await letGo(as("C"), 12, "again"), [], "nothing is left to let go");
+  });
+});
+
+test("5.61 letting go of a merged pull request applies each held increment's pending plan changes, marked with that pull request, before its claims end; an apply that fails ends none of them", async () => {
+  await withWorld(async ({ log, library, project, emailForm, passwordReset, as }) => {
+    const { park } = await arcOf(library);
+    const work = await park("email form", [emailForm]);
+    assert.ok((await claim(as("A", { branch: "feature/signup" }), work, "driving the email form")).ok);
+    await library.pendChange(work, { record: emailForm, fields: { title: "Address form" } });
+    await holdForPull(as("C"), "A", 12, "feature/signup");
+
+    const failing = { ...as("C"), library: { ...library, applyPending: async () => { throw new Error("library unreachable"); } } as typeof library };
+    await assert.rejects(letGo(failing, 12, "PR #12 merged", { merged: true }), /library unreachable/);
+    assert.deepEqual((await readClaims(log, project)).map(({ increment }) => increment), [work], "nothing ends while its changes are unapplied");
+
+    // Through the command the watcher runs: `workspace let-go 12 --reason … --merged`.
+    const letGoVerb = WORKSPACE_FAMILIES[0]!.verbs.find((verb) => (verb.command as { name?: string }).name === "let-go")!;
+    const said = await letGoVerb.act({ pr: "12", reason: "PR #12 merged", merged: true }, as("C") as never, { door: "command", say: (step) => step.command ?? step.tool! });
+    assert.match(said.text, new RegExp(`Released what PR #12 held: ${work}`));
+    assert.equal(((await library.get(emailForm))?.fields as { title?: string } | undefined)?.title, "Address form");
+    const [entry] = await library.history({ id: emailForm, newest: 1 });
+    assert.equal(entry?.reason, `applied at the merge of PR #12 (${work})`);
+    assert.deepEqual(await readClaims(log, project), []);
+
+    const reset = await park("password reset", [passwordReset]);
+    assert.ok((await claim(as("B", { branch: "feature/reset" }), reset, "driving the reset")).ok);
+    await library.pendChange(reset, { record: passwordReset, fields: { title: "Reset link" } });
+    await holdForPull(as("C"), "B", 13, "feature/reset");
+    await letGo(as("C"), 13, "PR #13 closed without merging");
+    assert.notEqual(((await library.get(passwordReset))?.fields as { title?: string } | undefined)?.title, "Reset link", "a let-go that is no merge applies nothing");
   });
 });
 

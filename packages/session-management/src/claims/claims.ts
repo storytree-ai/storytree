@@ -336,10 +336,17 @@ export async function holdForPull(context: ClaimContext, session: string, pr: nu
 /**
  * Pull request `pr`'s held claims end (ADR-1037 D1, D3): on its merge or its closing, or when the watcher gives it up,
  * red past its fix limit or open past its time-out. Each is a release naming the holder and `reason`, capabilities
- * first, so an unclosed increment is a proposal again (5.29) and back on its arc as work. The ids released.
+ * first, so an unclosed increment is a proposal again (5.29) and back on its arc as work. On its merge (`merged`), each
+ * held increment's pending plan changes are applied first, marked with the pull request, as a merge a hook sees applies
+ * them (merges.ts, ADR-0966 D4), and outside the log's lock, so no hook waits on a long apply; an apply that fails ends
+ * nothing, so the claims stand for the next let-go or a hook's look (5.61). The ids released.
  */
-export async function letGo(context: ClaimContext, pr: number, reason: string): Promise<string[]> {
+export async function letGo(context: ClaimContext, pr: number, reason: string, { merged = false }: { merged?: boolean } = {}): Promise<string[]> {
   const holder = pullHolder(pr);
+  if (merged) {
+    const increments = (await readClaims(context.log, context.project)).filter((claim) => claim.session === holder && claim.increment !== undefined);
+    for (const { increment } of increments) await context.library.applyPending(increment!, `#${pr}`, context.writer);
+  }
   return context.log.locked(context.project, async (log) => {
     const held = [...(await heldNow(log, context)).values()].filter((claim) => claim.session === holder)
       .sort((a, b) => Number(a.capability === undefined) - Number(b.capability === undefined));

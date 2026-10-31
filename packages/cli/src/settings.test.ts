@@ -218,7 +218,7 @@ export const families = [{ name: "health", summary: "my own health, from my fact
 
 test("plugin-loader 4.3 · 5.15 · through the command line, `settings set part ci-health plugin my-health` names what ci-health takes away and what my-health adds in its place, and `plugin check my-health --for ci-health` lists ci-health's commands my-health lacks", async (t) => {
   const dir = realpathSync(mkdtempSync(path.join(tmpdir(), "storytree-taken-")));
-  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  t.after(() => removeTemp(dir));
   const home = path.join(dir, "home");
   const invoke = (args: string[]) => storytree(command.script, args, { cwd: dir, home });
   assert.equal((await invoke(["settings", "set", "factory", healthPlugin(dir)])).code, 0);

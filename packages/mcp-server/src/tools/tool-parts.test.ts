@@ -170,7 +170,7 @@ test("plugin-loader 5.15 · check_plugin, served by the tool server, is handed i
   t.after(() => {
     if (before === undefined) delete process.env.STORYTREE_HOME;
     else process.env.STORYTREE_HOME = before;
-    rmSync(home, { recursive: true, force: true });
+    return removeTemp(home);
   });
   const plugin = path.join(home, "factory", "plugins", "my-lab");
   mkdirSync(plugin, { recursive: true });

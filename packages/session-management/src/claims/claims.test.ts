@@ -1105,6 +1105,33 @@ test("5.46 letting go of a pull request ends every claim held for it, capabiliti
   });
 });
 
+test("5.61 letting go of a merged pull request applies each held increment's pending plan changes, marked with that pull request, before its claims end; an apply that fails ends none of them", async () => {
+  await withWorld(async ({ log, library, project, emailForm, passwordReset, as }) => {
+    const { park } = await arcOf(library);
+    const work = await park("email form", [emailForm]);
+    assert.ok((await claim(as("A", { branch: "feature/signup" }), work, "driving the email form")).ok);
+    await library.pendChange(work, { record: emailForm, fields: { title: "Address form" } });
+    await holdForPull(as("C"), "A", 12, "feature/signup");
+
+    const failing = { ...as("C"), library: { ...library, applyPending: async () => { throw new Error("library unreachable"); } } as typeof library };
+    await assert.rejects(letGo(failing, 12, "PR #12 merged", { merged: true }), /library unreachable/);
+    assert.deepEqual((await readClaims(log, project)).map(({ increment }) => increment), [work], "nothing ends while its changes are unapplied");
+
+    assert.deepEqual(await letGo(as("C"), 12, "PR #12 merged", { merged: true }), [work]);
+    assert.equal(((await library.get(emailForm))?.fields as { title?: string } | undefined)?.title, "Address form");
+    const [entry] = await library.history({ id: emailForm, newest: 1 });
+    assert.equal(entry?.reason, `applied at the merge of PR #12 (${work})`);
+    assert.deepEqual(await readClaims(log, project), []);
+
+    const reset = await park("password reset", [passwordReset]);
+    assert.ok((await claim(as("B", { branch: "feature/reset" }), reset, "driving the reset")).ok);
+    await library.pendChange(reset, { record: passwordReset, fields: { title: "Reset link" } });
+    await holdForPull(as("C"), "B", 13, "feature/reset");
+    await letGo(as("C"), 13, "PR #13 closed without merging");
+    assert.notEqual(((await library.get(passwordReset))?.fields as { title?: string } | undefined)?.title, "Reset link", "a let-go that is no merge applies nothing");
+  });
+});
+
 test("5.49 a red the watcher handles is a pr-red line on its pull request's holder, with its increment, whether it conflicts and its failed checks, and makes no session read live (ADR-1064 D4)", async () => {
   await withWorld(async ({ log, project, as }) => {
     await recordRed(as("C"), 12, "increment_signup", false, ["verify on Windows"]);

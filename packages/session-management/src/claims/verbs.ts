@@ -280,13 +280,17 @@ const letGoOfPr = verb({
     family: "workspace",
     name: "let-go",
     summary: "the watcher's: end every claim held for a pull request, on its merge or closing or when it is given up (ADR-1037 D1, D3)",
-    usage: "workspace let-go <pr> --reason <why>",
+    usage: "workspace let-go <pr> --reason <why> [--merged]",
   },
   tool: { absent: "the Mint box's watcher runs it when a handed-over pull request merges, closes or is given up" },
-  inputs: { pr, reason: { kind: "text", describe: "why its claims end" } },
-  async act({ pr: typed, reason: why }, context: SessionVerbContext) {
+  inputs: {
+    pr,
+    reason: { kind: "text", describe: "why its claims end" },
+    merged: { kind: "switch", describe: "it merged: apply each held increment's pending plan changes, marked with it, before its claims end" },
+  },
+  async act({ pr: typed, reason: why, merged }, context: SessionVerbContext) {
     const { letGo } = await import("./claims.js");
-    const released = await letGo(context, prNumber(typed), why);
+    const released = await letGo(context, prNumber(typed), why, { merged: merged === true });
     return { text: released.length === 0 ? `Nothing is held for PR #${typed}.` : `Released what PR #${typed} held: ${released.join(", ")}.` };
   },
 });

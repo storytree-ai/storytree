@@ -470,3 +470,55 @@ test("17.12 · library edit --remove <field> removes an optional field, keeping 
   const story = await library.addStory({ title: "Sign up", description: "Visitors sign up" });
   await refused({ id: story.id, remove: ["description"] }, /story/);
 });
+
+test("17.13 · library new capability, run by a session holding an increment, judges the story's capability numbers as that increment's pending changes would leave it: a number a pending move out of the story or a pending retirement frees is given, and one a pending move into the story brings is refused", async (t) => {
+  const storytree = await connect({ url: testServerUrl() });
+  const project = uniqueProjectName();
+  t.after(async () => {
+    try {
+      await storytree.dropProject(project);
+    } finally {
+      await storytree.close();
+    }
+  });
+  const library = await storytree.openProject(project);
+  const create = LIBRARY_FAMILIES.find((one) => one.name === "library")!.verbs.find((one) => mounted(one.command) && one.command.name === "new")!;
+
+  const host = await library.addStory({ title: "Factory host" });
+  const updates = await library.addStory({ title: "Factory updates" });
+  const running = await library.addCapability({ story: host.id, title: "1 · Keeping the host running" });
+  await library.addCapability({ story: host.id, title: "2 · Reading the logs" });
+  const old = await library.addCapability({ story: host.id, title: "3 · Rotating the logs" });
+  const current = await library.addCapability({ story: updates.id, title: "1 · Keeping the factory current" });
+  const arc = await library.createArc({ title: "Split the host", intent: "Move running out", endState: "Each story holds its own" });
+  const increment = await library.addIncrement({ arc: arc.id, title: "Move running", objective: "Split it", body: "Red then green" });
+  await library.advanceIncrement(increment.id, "active"); // as claiming it does
+  const writer = { actor: "session:lane" };
+  await library.pendChange(increment.id, { record: running.id, fields: { story: updates.id, title: "2 · Keeping the host running" } }, writer);
+  await library.pendChange(increment.id, { record: old.id, retire: "folded into reading the logs" }, writer);
+  await library.pendChange(increment.id, { record: current.id, fields: { story: host.id, title: "4 · Keeping the factory current" } }, writer);
+  const contextOf = (session: string): LibraryVerbContext => ({
+    library, project, session, folder: tmpdir(), writer: { actor: `session:${session}` },
+    claims: async () => [{ session: "lane", increment: increment.id, since: "2026-10-31T00:00:00.000Z" }],
+    testedNumbers: async () => ({ tested: [], untested: [] }),
+  });
+  const titleOf = async (text: string) => ((await library.get(/capability_[0-9a-f]{12}/.exec(text)![0]))?.fields as { title: string }).title;
+
+  const freed = await create.act({ "<kind>": "capability", "<fields>": { story: host.id, title: "1 · Heavy runs" } }, contextOf("lane"), WORDS);
+  assert.equal(await titleOf(freed.text), "1 · Heavy runs", "the number the pending move frees is given");
+  const retired = await create.act({ "<kind>": "capability", "<fields>": { story: host.id, title: "3 · Coverage" } }, contextOf("lane"), WORDS);
+  assert.equal(await titleOf(retired.text), "3 · Coverage", "the number the pending retirement frees is given");
+  await assert.rejects(
+    create.act({ "<kind>": "capability", "<fields>": { story: host.id, title: "4 · The test ratio" } }, contextOf("lane"), WORDS),
+    (error: unknown) => error instanceof Error && error.message.includes(`capability number 4 is taken: ${current.id}`) && error.message.includes("next free number is 5"),
+    "the number a pending move brings into the story is taken",
+  );
+  const next = await create.act({ "<kind>": "capability", "<fields>": { story: host.id, title: "The test ratio" } }, contextOf("lane"), WORDS);
+  assert.equal(await titleOf(next.text), "5 · The test ratio", "the next free number is past the one moving in");
+  await assert.rejects(
+    create.act({ "<kind>": "capability", "<fields>": { story: updates.id, title: "2 · Watching the factory" } }, contextOf("lane"), WORDS),
+    (error: unknown) => error instanceof Error && error.message.includes(`capability number 2 is taken: ${running.id}`),
+    "the number the pending move takes in the story it moves to is taken there",
+  );
+  assert.equal(((await library.get(running.id))?.fields as { story: string }).story, host.id, "the live plan is unchanged");
+});

@@ -1015,6 +1015,28 @@ test("6.56 edit_plan and retire_from_plan, under an increment's claim, hold a ch
   });
 });
 
+test("6.108 plan_capability, under an increment's claim, judges the story's capability numbers as that increment's pending changes would leave it: a number a pending move out of the story frees is given, and one a pending move into the story brings is refused", async () => {
+  await withProject(async ({ folder, library }) => {
+    await withAgent(folder, claudeCode("claude-1"), async (agent) => {
+      const { arc, story, capability } = await planned(agent);
+      const reset = idOf(await agent.call("plan_story", { title: "Visitor can reset a password", ...FOUNDED }));
+      const link = idOf(await agent.call("plan_capability", { story: reset, title: "Reset link", ...FOUNDED }));
+      const increment = idOf(await agent.call("park_increment", { arc, title: "Swap the forms", objective: "Move them", body: "Red then green" }));
+      assert.equal((await agent.call("claim", { increment, reason: "swapping the forms" })).isError, false);
+      assert.equal((await agent.call("edit_plan", { id: capability, story: reset, title: "2 · Email form" })).isError, false);
+      assert.equal((await agent.call("edit_plan", { id: link, story, title: "2 · Reset link" })).isError, false);
+
+      const freed = await agent.call("plan_capability", { story, title: "1 · Magic link", ...FOUNDED });
+      assert.equal(freed.isError, false, freed.text);
+      assert.equal((await library.get(idOf(freed)))?.fields["title" as never], "1 · Magic link", "the number the pending move frees is given");
+      const taken = await agent.call("plan_capability", { story, title: "2 · Passkey", ...FOUNDED });
+      assert.equal(taken.isError, true, "the number a pending move brings into the story is taken");
+      assert.match(taken.text, new RegExp(`capability number 2 is taken: ${link}`));
+      assert.equal((await library.get(capability))?.fields["story" as never], story, "the live plan is unchanged");
+    });
+  });
+});
+
 test("6.58 import_project imports a folder into the project as mapped stories, one per package, naming them; a folder inside the project gets a readable refusal and nothing is written", async () => {
   await withProject(async ({ folder, library }) => {
     const shop = path.join(folder, "..", "shop");

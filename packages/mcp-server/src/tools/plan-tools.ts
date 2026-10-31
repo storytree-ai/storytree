@@ -3,7 +3,7 @@
  * a capability or a contract (ADR-0641 D2 step 3), and see the plan with its health, who holds what and which sessions are about. A story or capability is planned with its founding decision, the
  * first book on its shelf, so none planned here starts with an empty shelf (ADR-0627 D5).
  */
-import { ANCHOR_ID, anchorGaps, CONTRACT_DEFINITION, LONG_CONTRACT_TITLE as LONG_CONTRACT, wordAndWhy, type AnnotatedTree, type DayWindow, type HealthState, type NodeHealth, type PlanChange } from "@storytree/library";
+import { ANCHOR_ID, anchorGaps, CONTRACT_DEFINITION, LONG_CONTRACT_TITLE as LONG_CONTRACT, wordAndWhy, type AnnotatedTree, type DayWindow, type HealthState, type NodeHealth, type PendingChange, type PlanChange } from "@storytree/library";
 import { z } from "zod";
 
 import { untestedContracts } from "@storytree/map/code-survey";
@@ -79,8 +79,9 @@ export function registerPlanTools(define: Define): void {
       covers,
       founding,
     }),
-    async ({ story, title: name, description: about, depends_on: dependsOn, covers: paths, founding: decision }, { library, writer }) => {
-      const capability = await library.addCapability({ title: name, story, ...optional({ description: about, dependsOn, covers: paths }) }, writer);
+    async ({ story, title: name, description: about, depends_on: dependsOn, covers: paths, founding: decision }, call) => {
+      const { library, writer } = call;
+      const capability = await library.addCapability({ title: name, story, ...optional({ description: about, dependsOn, covers: paths }) }, { ...writer, pending: await heldPending(call) });
       const book = await library.recordDecision({ ...decision, status: "accepted", frontCoverOf: capability.id }, writer);
       return {
         text: `Planned capability ${quoted(name)} (${capability.id}), founded on ${quoted(decision.title)} (${book.id}). Plan its contracts, then claim it before you build it.`,
@@ -257,15 +258,28 @@ async function editPlan(target: string, changes: Changes, call: Call): Promise<A
  * branch to merge (ADR-0966 D1), and say so; undefined when it holds none, or the increment planned
  * the record itself, and the change is made live. Of several, the one it claimed last.
  */
-async function heldOnIncrement({ library, log, project, quietMs, caller, writer }: Call, change: PlanChange): Promise<string | undefined> {
-  const increment = (await readClaims(log, project, { quietMs }))
-    .filter((claim) => claim.session === caller.session && claim.increment !== undefined)
-    .sort((one, other) => one.since.localeCompare(other.since))
-    .at(-1)?.increment;
+async function heldOnIncrement(call: Call, change: PlanChange): Promise<string | undefined> {
+  const { library, writer } = call;
+  const increment = await heldIncrement(call);
   if (increment === undefined) return undefined;
   const pended = await library.pendChange(increment, change, writer);
   if (pended === null || !("pending" in pended)) return undefined;
   return `pending on increment ${increment} until its branch merges; the live plan is unchanged. Reading the increment lists it.`;
+}
+
+/** The increment the calling session claimed last of those it holds, if any. */
+async function heldIncrement({ log, project, quietMs, caller }: Call): Promise<string | undefined> {
+  return (await readClaims(log, project, { quietMs }))
+    .filter((claim) => claim.session === caller.session && claim.increment !== undefined)
+    .sort((one, other) => one.since.localeCompare(other.since))
+    .at(-1)?.increment;
+}
+
+/** The pending changes of the increment the calling session holds, which its branch's new capabilities are numbered against (ADR-0966 D3). */
+async function heldPending(call: Call): Promise<readonly PendingChange[]> {
+  const increment = await heldIncrement(call);
+  const record = increment === undefined ? null : await call.library.get(increment);
+  return record?.type === "increment" ? ((record.fields as { pending?: PendingChange[] }).pending ?? []) : [];
 }
 
 /**

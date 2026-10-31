@@ -19,6 +19,7 @@ import { openReviews } from "@storytree/quality-assurance";
 
 import { firstCommit, makeRepository, setUpProject, suggestProjectName, userFactory } from "./making.js";
 import { takeStarterPack } from "./starter-pack.js";
+import { ROLES } from "./starter-roles.js";
 
 /** What a project's first commit holds: its .storytree folder, with no machine-local file of it. */
 const STORYTREE_FILES = [".storytree/.gitignore", PROJECT_FILE];
@@ -347,6 +348,13 @@ test("6.7 setting a new project up gives its factory the bare bones, no role, ch
       }
     });
   });
+});
+
+test("6.7 the starter orchestrator role may call storytree's run_tests and lands on the final suite run through it with the project's exact command, so it reads the green agent's verified run", () => {
+  const orchestrator = ROLES.find((role) => role.title === "orchestrator")!;
+  assert.match(orchestrator.tools ?? "", /\brun_tests\b/, "its tools name run_tests");
+  const landing = orchestrator.workflow?.split("\n").find((step) => step.startsWith("7. ")) ?? "";
+  assert.match(landing, /run_tests/, `its landing step runs the final suite through run_tests: ${landing}`);
 });
 
 test("6.10 a folder in no git repository gets one, whose first commit holds the project's marker; a folder already in one is left as it is; with no git nothing is made, and with no git identity the repository waits, its marker staged, for the first commit once git has one; the setup goes on", async () => {

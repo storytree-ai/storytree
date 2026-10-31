@@ -73,6 +73,21 @@ test("8.12 pnpm lag:box keeps each action's baseline at the last commit it was w
   assert.equal(actionStates({ history, actions: ACTIONS, log: LOG })["close-panel"].baseline, "m8", "back within the margin, the baseline moves on");
 });
 
+test("8.12 pnpm lag:box re-baselines an action whose baseline is not in main's history on main's parent, with that reason, and measures it this tick, though main is measured", () => {
+  seq = 0;
+  // open-smallest-island's baseline, x1, left with an old history; close-panel was slower once against it.
+  const history = [done("measure", "x1", "x0", [], ["open-smallest-island", "close-panel"]), done("measure", "m5", "m4", [], ["open-largest-island"]), done("measure", "m5", "x1", ["close-panel"], ["close-panel"])];
+  const next = decide({ history, main: main(5), actions: ACTIONS, log: LOG });
+  assert.deepEqual(next.rebaselines.map(({ action, head }) => [action, head]), [["open-smallest-island", "m4"], ["close-panel", "m4"]], "each action measured against a commit main does not hold gets main's parent");
+  assert.match(next.rebaselines[0].reason, /baseline x1 is not in main's history/, "the reason names the lost commit");
+  assert.deepEqual(next.comparisons, [{ purpose: "measure", head: "m5", against: "m4", actions: ["open-smallest-island", "close-panel"] }], "measured against it now, though main is measured; no second run against the lost baseline");
+  const after = [...history, ...next.rebaselines.map(({ action, head, reason }) => ({ seq: ++seq, purpose: "rebaseline", head, against: null, actions: [action], state: "done", reason })), { seq: ++seq, ...next.comparisons[0], state: "done", rows: verdicts() }];
+  const state = actionStates({ history: after, actions: ACTIONS, log: LOG });
+  assert.deepEqual(ACTIONS.map((action) => state[action].baseline), ["m5", "m5", "m5"], "measured against a baseline that exists, each moves on");
+  const settled = decide({ history: after, main: main(5), actions: ACTIONS, log: LOG });
+  assert.deepEqual([settled.comparisons, settled.rebaselines], [[], []], "once re-baselined, nothing more to do");
+});
+
 test("8.13 pnpm lag:box halves the merges between a slowdown's baseline and where it was seen, and names the pull request that slowed the action", () => {
   seq = 0;
   // close-panel slowed at m9 (pull request #109's merge), seen at m16, its baseline m8.

@@ -244,8 +244,10 @@ test("8.20 pnpm lag:box install makes each checkout locked, and locks one it fin
     git(repo, "worktree", "add", "-q", "--detach", path.join(box, "measure"), "origin/main");
     const setUp = [];
     makeCheckouts({ repo, box, say: () => {}, setUp: (tree) => setUp.push(tree) });
-    const locked = git(repo, "worktree", "list", "--porcelain").split("\n\n").filter((block) => /^locked/m.test(block)).map((block) => block.split("\n")[0].slice("worktree ".length));
-    assert.deepEqual(locked.sort(), [path.join(box, "measure"), path.join(box, "runner")]);
+    // Git names a worktree in its own spelling (forward slashes on Windows, a short temp folder spelt long), so both sides are compared resolved.
+    const real = (tree) => realpathSync.native(tree);
+    const locked = git(repo, "worktree", "list", "--porcelain").split("\n\n").filter((block) => /^locked/m.test(block)).map((block) => real(block.split("\n")[0].slice("worktree ".length)));
+    assert.deepEqual(locked.sort(), [real(path.join(box, "measure")), real(path.join(box, "runner"))]);
     assert.deepEqual(setUp, [path.join(box, "runner")], "only the new checkout is installed");
     makeCheckouts({ repo, box, say: () => {}, setUp: (tree) => setUp.push(tree) });
     assert.equal(setUp.length, 1, "a reinstall over locked checkouts changes nothing");

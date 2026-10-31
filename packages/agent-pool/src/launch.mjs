@@ -14,7 +14,7 @@ import { promisify } from "node:util";
 import { laneSettings } from "./engine.mjs";
 import { blind, pickPlan, pickPool, planState, readOnly, surveyLibrary } from "./feed.mjs";
 import { codeVersion, composeBrief, countEngines, holdRunner, processTable, waitForSlot, WINDOWS_PROCESSES } from "./queue.mjs";
-import { bothAnswer, runLane as runEngineLane } from "./runner.mjs";
+import { bothAnswer, runLane as runEngineLane, SIGNALED } from "./runner.mjs";
 import { readBoxPace } from "./pace.mjs";
 import { poolConfig, readCap } from "./pool-config.mjs";
 import { handedOff } from "./watch.mjs";
@@ -196,6 +196,8 @@ export async function runPool({ survey, maxLanes, count, launch, stopFile, exist
         const code = await launch(one, { engineUp: () => starting.delete(one.id) });
         // Never started: the next survey judges it afresh, with no back-off and no refusal on record.
         if (code === NOT_STARTED) attempts.delete(one.id);
+        // Stopped by a signal (a restart, a kill): requeued as if never started, never read as a failing engine.
+        if (code === SIGNALED) { attempts.delete(one.id); dated(`stopped by a signal: requeued ${one.id}`); }
         if (code === 75) ending ??= { code: 75, message: `pool stopped: engine failing at once on ${one.id}` };
       } catch (error) { ending ??= { error }; }
       finally { if (planning === one.id) planning = undefined; starting.delete(one.id); running.delete(one.id); wake(); }

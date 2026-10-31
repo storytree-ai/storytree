@@ -107,6 +107,9 @@ function argumentsFor(engine, brief, addDirs, resume, model) {
     : ["-p", brief, ...models, "--permission-mode", "bypassPermissions", ...adds, "--output-format", "stream-json", "--verbose"];
 }
 
+/** A lane stopped by a signal to its runner: its queue keeps it and the dispatcher offers it again; 75 stays "an engine failing at once". */
+export const SIGNALED = 76;
+
 /** The variable every process an engine starts inherits, so the runner finds them after it exits; the watcher's `free` drops it. */
 export const LANE_RUN = "STORYTREE_LANE_RUN";
 const REAP = { settleMs: 60_000, graceMs: 10_000, everyMs: 1_000 };
@@ -390,6 +393,8 @@ export async function runLane({ brief, log, err, addDirs = [], cwd = process.cwd
   if (!original.trim()) throw new Error(`brief ${brief} is empty`);
   const settings = laneSettings({ home, env });
   const dated = (message) => say(`${new Date(now()).toISOString().replace(/\.\d{3}Z$/, "Z")} ${message}`);
+  // Every way a signal to the runner ends a lane: its own code, so the dispatcher requeues it (75 means an engine failing at once).
+  const signaled = () => { dated(`lane runner stopped by a signal: exit ${SIGNALED} so the runner keeps this lane queued`); return SIGNALED; };
   const runEngine = (command, args, options) => runEngineOnce(command, args, { ...options, dated, reap });
   const login = await loginEnvironment(home, env).catch(async (error) => {
     if (error.code === "lane-token") await askForToken({ lanesDir: settings.lanesDir, increment, storytree, dated });
@@ -419,10 +424,7 @@ export async function runLane({ brief, log, err, addDirs = [], cwd = process.cwd
     result = await runEngine(commands.claude, argumentsFor("claude", handover, addDirs, undefined, settings.models.claude), { cwd, env: engineEnvironment("claude", login, last.log), log: last.log, err: last.err, watch });
     dated(`engine claude exit ${result.code}`);
   }
-  if (result.interrupted) {
-    dated(`lane runner stopped by a signal: exit 75 so the runner keeps this lane queued`);
-    return 75;
-  }
+  if (result.interrupted) return signaled();
   // A lane cut off by a lost connection is held, not failed: resumed in its own session once the network is back, else a fresh lane (1.20).
   if (result.stalled || (result.code !== 0 && !result.signaled && await lostConnection(last))) {
     const session = await sessionOf(last.log);
@@ -434,10 +436,7 @@ export async function runLane({ brief, log, err, addDirs = [], cwd = process.cwd
       dated(holding);
       await appendFile(logs.at(-1), `\n${new Date(now()).toISOString()} lane runner: ${holding}\n`).catch(() => {});
       const held = await holdForNetwork({ reachable, sleep, now, offline });
-      if (held.interrupted) {
-        dated(`lane runner stopped by a signal: exit 75 so the runner keeps this lane queued`);
-        return 75;
-      }
+      if (held.interrupted) return signaled();
       if (!held.back) {
         dated(`the library and GitHub did not answer within ${offline.ceilingMs / 3_600_000} h: exit 75 so the runner keeps this lane queued`);
         if (increment) await appendResidue({ increment, storytree, dated, residue: `Residue (lane runner, ${new Date(now()).toISOString().slice(0, 10)}): a pool lane lost its connection (${why}), and the library and GitHub did not answer within ${offline.ceilingMs / 3_600_000} h, so it was not resumed${session ? ` (its session ${session})` : ""}. Logs: ${logs.join(", ")}. Read the logs and any worktree it left before starting again.` });
@@ -450,10 +449,7 @@ export async function runLane({ brief, log, err, addDirs = [], cwd = process.cwd
       started = now();
       result = await runEngine(commands[last.engine], argumentsFor(last.engine, CONTINUE, addDirs, session, settings.models[last.engine]), { cwd, env: engineEnvironment(last.engine, login, resumed.log), ...resumed, watch });
       dated(`engine ${last.engine} exit ${result.code}`);
-      if (result.interrupted) {
-        dated(`lane runner stopped by a signal: exit 75 so the runner keeps this lane queued`);
-        return 75;
-      }
+      if (result.interrupted) return signaled();
       if (result.stalled || (result.code !== 0 && !result.signaled && await lostConnection(resumed))) {
         why = result.stalled ? "its log stopped growing while the library and GitHub did not answer" : `it exited ${result.code} on a connection error`;
         continue;
@@ -471,10 +467,7 @@ export async function runLane({ brief, log, err, addDirs = [], cwd = process.cwd
     started = now();
     result = await runEngine(commands[fresh.engine], argumentsFor(fresh.engine, brief, addDirs, undefined, settings.models[fresh.engine]), { cwd, env: engineEnvironment(fresh.engine, login, fresh.log), log: fresh.log, err: fresh.err, watch });
     dated(`engine ${fresh.engine} exit ${result.code}`);
-    if (result.interrupted) {
-      dated(`lane runner stopped by a signal: exit 75 so the runner keeps this lane queued`);
-      return 75;
-    }
+    if (result.interrupted) return signaled();
   }
   // An engine that exits 0 having left nothing ended its turn mid-work: resume its session once, then leave residue.
   if (before && result.code === 0 && !leftSomething(before, await traces({ increment, lanesDir: settings.lanesDir, heads }))) {
@@ -484,10 +477,7 @@ export async function runLane({ brief, log, err, addDirs = [], cwd = process.cwd
     dated(`engine ${last.engine} exit 0 having left no report or push for ${increment}: ${session ? `resuming session ${session}` : "restarting"} once, log ${resumed.log}`);
     result = await runEngine(commands[last.engine], argumentsFor(last.engine, session ? CONTINUE : `${CONTINUE}\n\n${original}`, addDirs, session, settings.models[last.engine]), { cwd, env: engineEnvironment(last.engine, login, resumed.log), ...resumed });
     dated(`engine ${last.engine} exit ${result.code}`);
-    if (result.interrupted) {
-      dated(`lane runner stopped by a signal: exit 75 so the runner keeps this lane queued`);
-      return 75;
-    }
+    if (result.interrupted) return signaled();
     if (!leftSomething(before, await traces({ increment, lanesDir: settings.lanesDir, heads }))) {
       await leaveResidue({ increment, session, logs: [last.log, resumed.log], storytree, day, dated });
       // A resume an operator stopped (a signal) is no failure of the lane's.

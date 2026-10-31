@@ -63,7 +63,9 @@ test("3.7 a worktree gets the push check as the pre-push hook its repository's w
   const hook = path.resolve(root, git("rev-parse", "--git-path", "hooks"), "pre-push");
   const lines = [];
   assert.equal(provision({ root, install: () => ({ ok: true }), log: (line) => lines.push(line) }).ok, true);
-  assert.match(readFileSync(hook, "utf8"), /push-check\.mjs/, "the hook runs the push check");
+  const text = readFileSync(hook, "utf8");
+  assert.ok(text.indexOf("/packages/repo-checks/src/push-check.mjs") !== -1, "the hook runs the pushing checkout's push check, in the repository checks' package");
+  assert.ok(text.indexOf("/packages/repo-checks/src/push-check.mjs") < text.indexOf("/packages/dev-loop/src/push-check.mjs"), "a branch from before the move is the fallback, not the first choice");
   assert.ok(lines.some((line) => line.includes("push check installed")), lines.join("\n"));
   const installed = readFileSync(hook, "utf8");
   const said = lines.length;

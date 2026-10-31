@@ -76,7 +76,7 @@ test("7.5 the gate installs an uninstalled worktree before its first check, and 
   assert.match(output.at(-1), /NOT RUN\s+test.*worktree not installed/);
 });
 
-test("library-only guidance edits can request every check, plan edges included (7.23), continuing past failure or launch error", async (t) => {
+test("library-only guidance edits can request every check, plan edges included, continuing past failure or launch error", async (t) => {
   const { root } = checkout(t);
   for (const broken of ["typecheck", "test", "check:guidance", "check:plan-edges", "check:type-imports", "check:seed-records", "check:leaks", "check:secrets"]) {
     const calls = [];

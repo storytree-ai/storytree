@@ -21,8 +21,8 @@ export async function stopStartedLibrary() {
   await server?.stop();
 }
 
-/** Run `read` on the project's library, or say why the library could not be opened and return undefined. */
-export async function withLibrary(read, command) {
+/** Run `read` on the project's library (storytree's own unless `project` names another), or say why it could not be opened and return undefined. */
+export async function withLibrary(read, command, project = PROJECT) {
   const home = path.dirname(appHome().pgdata);
   const where = locateLibrary({ home, dataDir: appHome().pgdata });
   let options = where.found ? where.connect : undefined;
@@ -38,11 +38,11 @@ export async function withLibrary(read, command) {
   }
   const storytree = await connect(options);
   try {
-    if (!(await storytree.listProjects()).includes(PROJECT)) {
-      console.error(`The app's library has no project "${PROJECT}". Restore it from a snapshot with \`pnpm library:restore\`.`);
+    if (!(await storytree.listProjects()).includes(project)) {
+      console.error(`The app's library has no project "${project}". Restore it from a snapshot with \`pnpm library:restore\`.`);
       return undefined;
     }
-    const library = await storytree.openProject(PROJECT);
+    const library = await storytree.openProject(project);
     try {
       return await read(library);
     } finally {

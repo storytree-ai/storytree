@@ -25,13 +25,13 @@ import type { TestResult } from "../run-results/run-results.js";
 
 /** The plan as judging needs it: stories, their numbered capabilities and contracts ("1.2 · …"). */
 export type PlanTree = {
-  readonly stories: readonly { readonly id: string; readonly title: string; readonly capabilities: readonly { readonly id: string; readonly title: string; readonly contracts: readonly { readonly id: string; readonly title: string }[] }[] }[];
+  readonly stories: readonly { readonly id: string; readonly title: string; readonly plugin?: string; readonly capabilities: readonly { readonly id: string; readonly title: string; readonly contracts: readonly { readonly id: string; readonly title: string }[] }[] }[];
 };
 
 /** A story's proofs at one commit: its contracts by number, and each numbered test title its package holds. */
 export type StoryProofs = {
   readonly story: string;
-  /** The package named after its title. */
+  /** The package named after its title, or the plugin it is. */
   readonly package: string;
   /** Every package it owns, its own first (ADR-1066 D3). */
   readonly packages: readonly string[];

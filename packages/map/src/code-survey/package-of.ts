@@ -5,10 +5,11 @@
  * (ADR-1066 D3), is added here and nowhere else. It imports nothing, so plain Node can load it as well as tsx.
  */
 
-/** A story as the packages it owns are read from: its id and its title. */
+/** A story as the packages it owns are read from: its id, its title, and the factory plugin it is, if it is one. */
 export interface StoryNamed {
   readonly id: string;
   readonly title: string;
+  readonly plugin?: string;
 }
 
 /**
@@ -40,9 +41,13 @@ const PACKAGE_NAMED_OTHERWISE: Readonly<Record<string, string>> = {
  */
 export const ALSO_OWNED: Readonly<Record<string, readonly string[]>> = {};
 
-/** The package a story's code lives in: named after its title ("Session management" is packages/session-management), but for a few of storytree's own named otherwise. */
+/**
+ * The package a story's code lives in: named after its title ("Session management" is packages/session-management),
+ * but for a few of storytree's own named otherwise, and a factory plugin's story, which is its plugin whatever its title.
+ */
 export function packageOf(story: StoryNamed): string {
   if (Object.hasOwn(PACKAGE_NAMED_OTHERWISE, story.id)) return PACKAGE_NAMED_OTHERWISE[story.id]!;
+  if (story.plugin !== undefined) return story.plugin;
   return story.title.replace(/^the\s+/i, "").toLowerCase().replace(/['’]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 }
 

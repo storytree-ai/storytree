@@ -122,7 +122,7 @@ export class SchemaRecords {
    * the whole list if any record in it cannot be interpreted. A dormant plugin kind lists nothing.
    */
   async list<T extends RecordType>(type: T | readonly T[], filter?: Omit<ListFilter, "projection">): Promise<SchemaRecord<T>[]> {
-    const kinds = (typeof type === "string" ? [type] : type).filter((kind) => !this.#isDormant(kind));
+    const kinds = (typeof type === "string" ? [type] : type).filter((kind) => !this.isDormant(kind));
     for (const kind of kinds) {
       if (!this.#isRecordType(kind)) throw new UnknownTypeError(kind);
     }
@@ -139,7 +139,7 @@ export class SchemaRecords {
   async select<T extends RecordType, K extends keyof FieldsOf<T> & string>(
     type: T, fields: readonly K[], filter: Omit<ListFilter, "projection"> = {},
   ): Promise<(Omit<SchemaRecord<T>, "fields"> & { fields: Pick<FieldsOf<T>, K> })[]> {
-    if (this.#isDormant(type)) return [];
+    if (this.isDormant(type)) return [];
     if (!this.#isRecordType(type)) throw new UnknownTypeError(type);
     const records = await this.#transactions.list(type, { ...filter, projection: { version: this.#version(type), fields } });
     return records.map((record) => {
@@ -260,7 +260,7 @@ export class SchemaRecords {
    */
   readonly current = (record: RecordEnvelope): SchemaRecord => {
     const { id, type } = record;
-    if (this.#isDormant(type)) return { ...record, dormant: true } as SchemaRecord;
+    if (this.isDormant(type)) return { ...record, dormant: true } as SchemaRecord;
     if (!this.#isRecordType(type)) throw new UnknownTypeError(type, id);
     const known = this.#version(type);
     if (record.version > known) throw new NewerSchemaError(id, type, record.version, known);
@@ -281,7 +281,7 @@ export class SchemaRecords {
    * the write.
    */
   readonly #check = (candidate: RecordEnvelope): void => {
-    if (this.#isDormant(candidate.type)) throw new UnknownTypeError(candidate.type, candidate.id || undefined);
+    if (this.isDormant(candidate.type)) throw new UnknownTypeError(candidate.type, candidate.id || undefined);
     const { type, fields } = this.current(candidate);
     const problems = [...this.#shapeProblems(type, fields), ...unstorableText(fields)];
     if (problems.length > 0) throw new SchemaError(type, problems);
@@ -298,8 +298,8 @@ export class SchemaRecords {
     return Object.hasOwn(this.#schema.versions, type);
   }
 
-  /** Whether `type` is a plugin's kind that no loaded plugin declares. */
-  #isDormant(type: string): boolean {
+  /** Whether `type` is a plugin's kind that no loaded plugin declares: its records read dormant. */
+  isDormant(type: string): boolean {
     return isPluginKind(type) && !this.#isRecordType(type);
   }
 

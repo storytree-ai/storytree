@@ -140,6 +140,7 @@ const LIBRARY_API = [
   "editPluginRecord",
   "pluginRecords",
   "removePluginRecords",
+  "dormantKinds",
   // Capability 27's fixed data questions.
   "counts",
   "latestChanges",

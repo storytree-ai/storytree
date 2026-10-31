@@ -53,6 +53,8 @@ export interface CommandPlace extends VerbPlace {
   testedNumbers(capability: string): Promise<{ tested: string[]; untested: string[] }>;
   /** Where each of `paths` belongs in this checkout, by the map's placement: what `workspace owners` reads. */
   placeFiles(paths: readonly string[]): Promise<readonly FilePlaceOf[]>;
+  /** Whether this computer's factory folder holds the plugin `plugin`: what the library's lists name as its mount, or say is missing. */
+  pluginInFactory(plugin: string): Promise<boolean>;
 }
 
 /** A file's place as the map gives it: the door hands it on (ADR-1017 D2). */
@@ -154,6 +156,17 @@ async function placeFilesOf(cwd: string, library: Library, paths: readonly strin
   return placeFiles(cwd, paths, await library.projectTree());
 }
 
+/** Whether this computer's factory folder holds a plugin called `plugin`, with a manifest the loader reads. */
+async function pluginInFactory(plugin: string): Promise<boolean> {
+  const [{ factoryFolder }, { pluginFor }] = await Promise.all([import("@storytree/project-and-caller"), import("@storytree/plugin-loader/factory")]);
+  try {
+    pluginFor(factoryFolder().folder, plugin);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /**
  * The command for `declared`, which must have one. Its context is the caller's, with the activity log, and this door's
  * place; a callerless verb's is the place alone, the folder the command runs in and the shell's sole session, and no
@@ -178,7 +191,7 @@ export function command(declared: Verb<VerbInputs, CommandCaller & CommandPlace>
       try {
         const input = commandInput(declared, { word: (index) => args.words[index], flag: (name) => args.text(name), flags: (name) => args.texts(name), has: (name) => args.has(name), names: () => args.names });
         if (declared.agentOnly !== undefined && commandSession() === undefined) throw new Refusal(`Run storytree ${face.family} ${face.name} from the agent's shell: ${declared.agentOnly}.`);
-        const place: CommandPlace = { folder: context.cwd, ...(context.script === undefined ? {} : { script: context.script }), journey: () => context.journey(), out: (text) => context.out(text), surfaces, parts, hostVerbs, projectRecords: () => projectRecords(), claims: () => context.claims(), testedNumbers: async (capability) => testedNumbersOf(context.cwd, await context.library(), capability), placeFiles: async (paths) => placeFilesOf(context.cwd, await context.library(), paths) };
+        const place: CommandPlace = { folder: context.cwd, ...(context.script === undefined ? {} : { script: context.script }), journey: () => context.journey(), out: (text) => context.out(text), surfaces, parts, hostVerbs, projectRecords: () => projectRecords(), claims: () => context.claims(), testedNumbers: async (capability) => testedNumbersOf(context.cwd, await context.library(), capability), placeFiles: async (paths) => placeFilesOf(context.cwd, await context.library(), paths), pluginInFactory };
         const caller = declared.callerless ? { ...place, ...soleSession() } as CommandCaller & CommandPlace : { ...place, ...await context.activityContext() };
         const answer = await declared.act(input, declared.writes ? writing(caller, context) : caller, WORDS);
         if (answer.raw) return { text: answer.text, raw: true };

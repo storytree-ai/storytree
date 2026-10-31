@@ -1011,12 +1011,18 @@ test("4.22 a hook run from a subfolder of a worktree records the worktree's root
     execFileSync("git", ["init", "-q", "-b", "claude/fix-login"], { cwd: folder, stdio: "ignore" });
     const inPackage = path.join(folder, "packages", "forest");
     mkdirSync(inPackage, { recursive: true });
-    await runHook("claude-code", recorded("claude-code", "session-start-startup", folder), home);
-    await runHook("claude-code", recorded("claude-code", "post-tool-use-bash", inPackage), home);
-    assert.deepEqual((await linesOf(project)).filter((line) => line.kind !== "branch-state").map((line) => [line.kind, line.folder]), [
-      ["session-started", folder],
+    const ran = [
+      await runHook("claude-code", recorded("claude-code", "session-start-startup", folder), home),
+      await runHook("claude-code", recorded("claude-code", "post-tool-use-bash", inPackage), home),
+    ];
+    // A loaded Windows runner cut the second hook off at its deadline, its line left waiting on this machine for the
+    // next hook (3.14; run 41207292718): the folder it records is read wherever the line is, logged or waiting.
+    const waiting = (existsSync(queueFolder(home)) ? readdirSync(queueFolder(home), { withFileTypes: true }) : []).filter((entry) => entry.name.endsWith(".jsonl"))
+      .flatMap((entry) => readFileSync(path.join(queueFolder(home), entry.name), "utf8").trim().split("\n").map((text) => (JSON.parse(text) as { line: NewLine }).line));
+    assert.deepEqual([...(await linesOf(project)), ...waiting].filter((line) => line.kind !== "branch-state").map((line) => [line.kind, line.folder]).sort(), [
       ["command-run", folder],
-    ]);
+      ["session-started", folder],
+    ], `the hooks took ${ran.map(({ ms }) => `${Math.round(ms)} ms`).join(" and ")}; ${existsSync(hookFailuresFile(home)) ? readFileSync(hookFailuresFile(home), "utf8") : "no hook failures traced"}`);
   });
 });
 

@@ -76,6 +76,9 @@ test("3.15 · every canvas, gear menu tab and dialog the app opens carries a dec
   await withCapture({ folder: dist, dist }, async ({ browser, origin, settle }) => {
     const page = await opened(browser, origin!, seeded, ready);
     await settle(page);
+    // The globe marks its canvas once it has measured a size to draw at, which a loaded Windows runner had not by the
+    // page's ready (run 41206023912): the corner names what is marked, so it is asked once the globe is.
+    await page.locator("[data-surface-id=globe]").waitFor();
     assert.equal(await named(page, ".app-gear"), "globe");
 
     // Open at its usual height, the sessions list is a strip under the globe; expanded, it is a canvas of its own.

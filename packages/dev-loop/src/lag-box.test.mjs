@@ -35,7 +35,12 @@ test("8.11 pnpm lag:box runs the newest main once main has moved past the last c
   assert.deepEqual(decide({ history, main: main(10), actions: ACTIONS, log: LOG }).comparisons, [], "main measured: nothing to run");
   assert.deepEqual(decide({ history: [], main: main(3), actions: ACTIONS, log: LOG }).comparisons, [{ purpose: "measure", head: "m3", against: "m2", actions: null }], "the first run compares main with its parent");
   const timedOut = [{ seq: 1, purpose: "measure", head: "m3", against: "m2", actions: null, state: "not-run", reason: "passed its limit" }];
-  assert.deepEqual(decide({ history: timedOut, main: main(3), actions: ACTIONS, log: LOG }).comparisons, [], "a run that could not finish is not retried on the same main");
+  assert.deepEqual(decide({ history: timedOut, main: main(3), actions: ACTIONS, log: LOG }).comparisons, [{ purpose: "measure", head: "m3", against: "m2", actions: null }], "a measure that ended NOT RUN leaves main due: the next tick measures it again");
+  timedOut.push({ ...timedOut[0], seq: 2 });
+  assert.equal(decide({ history: timedOut, main: main(3), actions: ACTIONS, log: LOG }).comparisons.length, 1, "twice NOT RUN: tried once more");
+  timedOut.push({ ...timedOut[0], seq: 3 });
+  assert.deepEqual(decide({ history: timedOut, main: main(3), actions: ACTIONS, log: LOG }).comparisons, [], "three NOT RUN in a row on one main: it waits for main to move rather than loop");
+  assert.equal(decide({ history: timedOut, main: main(4), actions: ACTIONS, log: LOG }).comparisons.length, 1, "main moves: measured again");
 });
 
 test("8.12 pnpm lag:box keeps each action's baseline at the last commit it was within the margin: a slowdown counts once a second run agrees, the baseline does not move over it, and a re-baseline moves it with its reason", () => {

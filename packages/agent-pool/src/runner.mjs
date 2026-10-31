@@ -12,6 +12,8 @@ import { FUNCTION_HOOKS, PLUGIN_FOLDER, SESSION_FILE } from "./claude-code-mod/i
 
 import { LANE_FAILURES, recordLaneFailure } from "./feed.mjs";
 import { assessAllowance, detectLimitHit, engineControls, iso, laneSettings, pickEngine, pickFresh, readLatestAllowance, readOptional } from "./engine.mjs";
+import { poolConfig, readCap } from "./pool-config.mjs";
+import { countEngines, processTable, waitForSlot, WINDOWS_PROCESSES } from "./queue.mjs";
 
 /** Who a lane's commits are by: the owner, as main's commits are authored. */
 const OWNER = { name: "Mick", email: "107184961+HuaMick@users.noreply.github.com" };
@@ -533,6 +535,23 @@ async function showStatus({ home, env, now = Date.now, say = console.log }) {
   say(`next lane: ${picked.engine} (${picked.reason}); switch at ${settings.stopAt}%${stale ? "; the reading is over an hour old, so the next lane takes a fresh one first" : ""}`);
 }
 
+/** The engines running on this machine, from its process table (queue.mjs's countEngines). */
+async function enginesRunning() {
+  if (process.platform === "win32") return countEngines(processTable((await run(...WINDOWS_PROCESSES, { maxBuffer: 64 * 1024 * 1024 })).stdout));
+  return countEngines((await run("ps", ["-eo", "pid=,ppid=,args="], { maxBuffer: 64 * 1024 * 1024 })).stdout);
+}
+
+/**
+ * Wait for the box's cap before a lane started from the command line (the watcher's fix and review sessions, the session
+ * manager's run-lane.sh) picks its engine, since a Codex probe is an engine too; the dispatcher calls runLane after its own wait.
+ */
+async function waitForCap({ home = homedir(), env = process.env, now = Date.now, say = console.log, count = enginesRunning,
+  sleep = (ms) => new Promise((done) => setTimeout(done, ms)) }) {
+  const config = poolConfig({ home, env });
+  const max = () => readCap({ lanesDir: config.lanesDir, sessions: config.sessions });
+  await waitForSlot({ max, count, sleep, onWait: (running) => say(`${new Date(now()).toISOString().replace(/\.\d{3}Z$/, "Z")} waiting for a slot (${running} engines running) before starting an engine`) });
+}
+
 export async function main(args, options = {}) {
   const complain = options.say ?? console.error;
   try {
@@ -541,6 +560,7 @@ export async function main(args, options = {}) {
       complain("usage: runner.mjs run <brief-file> <log> <err> [add-dir ...] | status");
       return 2;
     }
+    await waitForCap(options);
     return await runLane({ ...options, brief: args[1], log: args[2], err: args[3], addDirs: args.slice(4) });
   } catch (error) {
     // A lane that could not start (an empty brief, unreadable login settings, no lane token) stays queued: 75 stops its runner.

@@ -31,7 +31,9 @@ async function lane(t) {
   const { CLAUDE_CODE_ENABLE_FUNCTION_HOOKS: _hooks, STORYTREE_SESSION_FILE: _file, ...inherited } = process.env;
   return { home, lanesDir, cwd, brief, log, err, addDirs: [join(home, "directory with spaces"), "another"],
     env: { ...inherited, LANES_DIR: lanesDir, CODEX_STOP_AT: "95", FAST_FAIL_S: "120", CLAUDE_CODE_OAUTH_TOKEN: "", OPENAI_API_KEY: "test-api", CODEX_API_KEY: "test-api", CODEX_ACCESS_TOKEN: "test-api", ANTHROPIC_API_KEY: "test-api" },
-    commands: { codex: command(receipt), claude: command(receipt) }, now: () => start, say: (line) => lines.push(line), lines, failed: async () => [] };
+    commands: { codex: command(receipt), claude: command(receipt) }, now: () => start, say: (line) => lines.push(line), lines, failed: async () => [],
+    // The box's own engines never hold up a command-line lane under test (1.24 sets its own count).
+    count: async () => 0 };
 }
 
 test("1.6 · foreground engines receive the exact brief, model, directories and login environment in the current folder", async (t) => {
@@ -189,6 +191,24 @@ test("1.6 · the command front door runs a brief, refuses empty input and suppor
   const result = await exec(process.execPath, [runner, "status"], { cwd: options.cwd, env: { ...options.env, HOME: options.home, USERPROFILE: options.home } });
   assert.match(result.stdout, /latest reading: none/);
   assert.match(result.stdout, /next lane: codex/);
+});
+
+test("1.24 · a lane started from the command line waits while the box's engines are at its cap, and picks and starts its engine only once one ends", async (t) => {
+  const options = await lane(t);
+  await writeFile(join(options.lanesDir, "night-max-lanes"), "2\n");
+  await writeFile(join(options.lanesDir, "engine-override"), "codex");
+  const running = [2, 2, 1];
+  const slept = [];
+  options.count = async () => running.shift();
+  options.sleep = async (ms) => {
+    slept.push(ms);
+    await assert.rejects(readFile(options.log, "utf8"), { code: "ENOENT" }, "no engine starts while the cap is full");
+  };
+  assert.equal(await main(["run", options.brief, options.log, options.err], options), 0);
+  assert.deepEqual(slept, [60_000, 60_000]);
+  assert.deepEqual(running, []);
+  assert.equal(options.lines.filter((line) => /waiting for a slot \(2 engines running\)/.test(line)).length, 1, "said once");
+  assert.equal(JSON.parse(await readFile(options.log, "utf8")).args[0], "exec", "the engine ran once a slot freed");
 });
 
 test("1.10 · a lane whose newest reading is stale and spent runs one Codex probe for a fresh reading, then picks from it", async (t) => {

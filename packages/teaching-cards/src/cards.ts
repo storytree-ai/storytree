@@ -1,5 +1,5 @@
 /**
- * Capability 7 · Teaching cards. What each kind of thing on the user's map means, said once the first
+ * Capability 1 · Teaching cards. What each kind of thing on the user's map means, said once the first
  * time it appears (ADR-1048 D1): a title and a line at once, and what, why, how and the decisions behind
  * it for More (ADR-0841 D2's depth on demand). Rewritten from the website tour's concept copy
  * (packages/website/src/tour-copy.ts) so it reads true on the user's own project, not the tour's shop.

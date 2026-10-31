@@ -34,7 +34,7 @@
     "@storytree/arc-surface": "workspace:^",
     "@storytree/forest": "workspace:^",
     "@storytree/knowledge-core": "workspace:*",
-    "@storytree/website": "workspace:*",
+    "@storytree/teaching-cards": "workspace:*",
     "@storytree/library": "workspace:*",
     "@storytree/map": "workspace:*",
     "@types/node": "^24.13.6",

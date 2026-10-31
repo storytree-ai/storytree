@@ -3,10 +3,6 @@
   "private": true,
   "type": "module",
   "license": "Apache-2.0",
-  "exports": {
-    "./overlays": "./src/overlays/index.ts",
-    "./overlays/view": "./src/overlays/view/index.ts"
-  },
   "scripts": {
     "build": "node --import tsx src/build.ts",
     "typecheck": "tsc -p ."

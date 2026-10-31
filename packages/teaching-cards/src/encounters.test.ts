@@ -8,7 +8,7 @@ const capability = (id: string, proposed: boolean) => ({ id, proposed });
 const tree = (stories: { id: string; capabilities: { id: string; proposed: boolean }[] }[], arcs: { id: string }[] = []) => ({ stories, arcs });
 const created = (type: string, recordId: string, fields: Record<string, unknown> = {}) => ({ type, recordId, action: "created", record: { fields } });
 
-test("8.1 · the first of each kind on the map is found with what to anchor to, and an empty map once as empty", () => {
+test("2.1 · the first of each kind on the map is found with what to anchor to, and an empty map once as empty", () => {
   assert.deepEqual(encounters({ tree: tree([]), changes: [], lines: [] }), [{ kind: "empty", target: { kind: "map" } }]);
   const reading: MapReading = {
     tree: tree([
@@ -44,7 +44,7 @@ function storage() {
   return { getItem: (key: string) => kept.get(key) ?? null, setItem: (key: string, value: string) => { kept.set(key, value); } };
 }
 
-test("8.2 · a card fires once per user, on any project, and the journal keeps each in the order seen, across restarts", () => {
+test("2.2 · a card fires once per user, on any project, and the journal keeps each in the order seen, across restarts", () => {
   const store = storage();
   let now = "2026-10-15T01:00:00.000Z";
   const first = journal(store, () => now);
@@ -72,7 +72,7 @@ test("8.2 · a card fires once per user, on any project, and the journal keeps e
   assert.deepEqual(journal(broken).seen(), []);
 });
 
-test("8.3 · on a factory the factory is found first, at its switch, then its first role, note and check; a product finds none of them", () => {
+test("2.3 · on a factory the factory is found first, at its switch, then its first role, note and check; a product finds none of them", () => {
   const changes = [
     created("principle", "principle_1"), created("agent", "agent_1"), created("check", "check_1"),
     created("agent", "agent_gone"), { type: "agent", recordId: "agent_gone", action: "retired", record: { fields: {} } },

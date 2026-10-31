@@ -3,7 +3,7 @@ import { test } from "node:test";
 
 import { cardOf, KINDS } from "./index.js";
 
-test("7.1 · every kind has a card with a title and a line at once, and what, why, how and its decisions for More", () => {
+test("1.1 · every kind has a card with a title and a line at once, and what, why, how and its decisions for More", () => {
   assert.deepEqual([...KINDS], ["empty", "factory", "role", "note", "check", "arc", "story", "capability", "claim", "health", "decision", "question"]);
   // Each kind says its own thing at every depth: no two kinds share a title, a line, a what, a why or a how.
   for (const field of ["title", "line", "what", "why", "how"] as const) {

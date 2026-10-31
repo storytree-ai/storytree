@@ -1,5 +1,5 @@
 /**
- * Capability 8 · First encounters. Which kinds are on the user's map now, each with the first thing of
+ * Capability 2 · First encounters. Which kinds are on the user's map now, each with the first thing of
  * its kind to anchor its card to, read from the page's own reading: the tree, its history and the agent
  * log. Whether a kind has been seen before is the journal's (journal.ts).
  */

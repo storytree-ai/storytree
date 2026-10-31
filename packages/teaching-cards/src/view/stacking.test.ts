@@ -15,7 +15,7 @@ async function teachingBundle(): Promise<string> {
   return result.outputFiles[0]!.text;
 }
 
-test("9.4 · an open popover or modal dialog draws over the card on show: the card hides while it is open and comes back when it closes", async t => {
+test("3.4 · an open popover or modal dialog draws over the card on show: the card hides while it is open and comes back when it closes", async t => {
   // Chrome is installed on the three CI runner images; no browser download during tests.
   const browser = await chromium.launch({ channel: "chrome", headless: true });
   t.after(() => browser.close());

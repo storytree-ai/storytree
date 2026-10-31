@@ -38,7 +38,7 @@ const PAGE_BRIDGE = `window.storytree = new Proxy({}, { get: (_, method) => meth
 const GUIDE_SEEN = `try { localStorage.setItem("storytree:setup:guide-seen:v1", "yes"); } catch { /* about:blank has no storage */ }`;
 
 /**
- * Every teaching card (the website's overlays) hidden as it appears, so none intercepts a capture's
+ * Every teaching card (packages/teaching-cards) hidden as it appears, so none intercepts a capture's
  * clicks. An init script, since the page's CSP refuses an added style tag; it watches the document
  * itself, which exists before the page's own elements do. Text for the same reason as PAGE_BRIDGE.
  */

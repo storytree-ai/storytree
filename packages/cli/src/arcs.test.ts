@@ -975,6 +975,7 @@ test("4.28 `arc increment apply-pending <increment> --pr <n>` applies an open in
       assert.equal(applied.code, 0, applied.stderr);
       assert.match(applied.stdout, new RegExp(`Applied 1 of increment ${increment.id}'s pending plan changes at the merge of PR #151: ${form.id}`));
       assert.match(applied.stdout, new RegExp(`${promise.id}: stale`));
+      assert.match(applied.stdout, /Writer: /, "a write names its writer below the answer");
       assert.equal(((await library.get(form.id))?.fields as { description?: string }).description, "Where they type it");
       assert.equal(((await library.get(promise.id))?.fields as { title?: string }).title, "Accepts a postal address");
       assert.equal(((await library.get(increment.id))?.fields as { pending?: unknown[] }).pending, undefined);

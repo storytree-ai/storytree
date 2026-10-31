@@ -1,6 +1,6 @@
 /**
  * Capability 7 · Lag report. `storytree lag`: the field's readings over the last seven days, per action, against the catalogue's
- * budgets (ADR-1001 D2, D4), the action furthest over its budget first. A report, not a verdict (ADR-1001 D5).
+ * budgets (ADR-1001 D2, D4), the action furthest over its budget first, then a line per view the map was turned in, read by its frames. A report, not a verdict (ADR-1001 D5).
  */
 import type { Budget, LagAction } from "@storytree/forest/actions";
 
@@ -50,10 +50,14 @@ export function lagReport(readings: readonly KeptReading[], options: { now: numb
       spread(rs.map((r) => r.settled)), budget === undefined ? "none in this version's catalogue" : `${budget.responseMs} / ${budget.frameMs} / ${budget.settledMs}`,
       over.length === 0 ? "-" : over.join(", ")])];
   const widths = table[0]!.map((_, column) => Math.max(...table.map((line) => line[column]!.length)));
+  const turns = rows.map(({ name, readings: rs }) => ({ name, frames: rs.flatMap((r) => (r.frames === undefined ? [] : [r.frames])) })).filter((turn) => turn.frames.length > 0)
+    .map(({ name, frames }) => `${name} frames: p50 ${percentile(frames.map((f) => f.p50), 0.5)} ms, p95 ${percentile(frames.map((f) => f.p95), 0.5)} ms (medians over ${frames.length} turns), `
+      + `longest ${Math.max(...frames.map((f) => f.max))} ms, ${frames.reduce((sum, f) => sum + f.over, 0)} over 50 ms`);
   const few = rows.filter((r) => r.readings.length < ENOUGH).map((r) => `${r.name} has fewer than ${ENOUGH} readings: too few to judge.`);
   return [
     `Lag in real use, the last ${WINDOW_DAYS} days, against each action's budget (response / longest frame / settled, in ms; settled may run longer while progress is on show).`,
     ...table.map((line) => line.map((cell, column) => cell.padEnd(widths[column]!)).join("  ").trimEnd()),
+    ...turns,
     ...few,
   ].join("\n");
 }

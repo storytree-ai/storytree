@@ -6,6 +6,8 @@
  */
 import { KEPT_DRAWING_KEY, KEPT_TREE_KEY } from "../render/kept-keys.js";
 
+export { sheetDrag } from "../view/sheet-drag.js";
+
 /** ADR-1001 D2: an answer on screen within `responseMs`, no frame over `frameMs` until settled, and settled within `settledMs`
  * unless progress is on show within the response budget and stays until settled. Tuned here; an entry may carry its own. */
 export type Budget = { responseMs: number; frameMs: number; settledMs: number };
@@ -18,7 +20,8 @@ export type IslandChoice = "fewest" | "most" | { story: string };
  * One step of an action, performed through the page's real input:
  * `island`, turn the chosen island to face (unmeasured) and click its middle; `note`, click a Library note in view;
  * `click`, click an element's middle (`optional` skips it when the page has none); `key`, press a key; `hover-sweep`,
- * move the mouse across the globe; `idle`, touch nothing for `ms`; `wait`, until the page shows `until`; `start`, open the page
+ * move the mouse across the globe; `turn`, hold Ctrl and drag the map from an uncovered point of its canvas, sideways with a tilt
+ * wave, so it ends turned; `idle`, touch nothing for `ms`; `wait`, until the page shows `until`; `start`, open the page
  * again from the start, as opening the app does, having first forgotten the page's kept keys that begin with any of `forget`.
  */
 export type Step =
@@ -27,6 +30,7 @@ export type Step =
   | { kind: "click"; selector: string; optional?: true }
   | { kind: "key"; key: string }
   | { kind: "hover-sweep" }
+  | { kind: "turn" }
   | { kind: "idle"; ms: number }
   | { kind: "wait"; until: Settled }
   | { kind: "start"; forget: readonly string[] };
@@ -79,6 +83,11 @@ export interface LagAction {
    * box's lag run writes that contract's verified verdict, so a slowdown that reproduced makes the capability read not healthy.
    */
   owner: Owner;
+  /**
+   * The view a turn of the map is measured in. A turn has nothing to answer or settle: it is read by its frames (`turnFrames`), and
+   * the field recorder knows one by the drag itself, never by what the page settles on.
+   */
+  turns?: "forest" | "library";
 }
 
 /** A capability and its budget contract, by their ids in the library. */
@@ -94,6 +103,8 @@ const INSPECT_ARTIFACT: Owner = { capability: "capability_062b84e5c6b0", contrac
 const RUNNING_SESSIONS: Owner = { capability: "capability_6133809a4139", contract: "contract_b36003348949" };
 /** 3 · Story node render, 3.49: opening the app, with a kept forest and without one. */
 const OPENING_THE_APP: Owner = { capability: "capability_8ffc78a4bad2", contract: "contract_67d023b8c77f" };
+/** 3 · Story node render, 3.74: turning the map, in the forest and the Library. */
+const TURNING_THE_MAP: Owner = { capability: "capability_8ffc78a4bad2", contract: "contract_42255f86bb07" };
 /** The world's 5 · The canvas, 5.8: a globe left alone. */
 const THE_CANVAS: Owner = { capability: "capability_cd7ea3b6ca01", contract: "contract_c58268454e54" };
 
@@ -126,6 +137,10 @@ export const CATALOGUE: readonly LagAction[] = [
     { kind: "click", selector: ".session-row[data-selected]", optional: true }],
     perform: [{ kind: "click", selector: ".session-row" }], settled: { session: "selected" }, budget: DEFAULT_BUDGET, limitMs: 10_000, field: "open-session-row", owner: RUNNING_SESSIONS },
   { name: "hover-sweep", setup: RESET, perform: [{ kind: "hover-sweep" }], settled: {}, budget: DEFAULT_BUDGET, limitMs: 10_000, owner: STORY_NODE_RENDER },
+  { name: "turn-forest", setup: RESET, perform: [{ kind: "turn" }], settled: {}, budget: DEFAULT_BUDGET, limitMs: 10_000, field: "turn-forest", turns: "forest",
+    owner: TURNING_THE_MAP },
+  { name: "turn-library", setup: [...RESET, { kind: "click", selector: "[data-globe-switch=library]" }, { kind: "wait", until: { mode: "library", still: true } }],
+    perform: [{ kind: "turn" }], settled: {}, budget: DEFAULT_BUDGET, limitMs: 10_000, field: "turn-library", turns: "library", owner: TURNING_THE_MAP },
   { name: "idle", setup: RESET, perform: [{ kind: "idle", ms: 10_000 }], settled: {}, budget: DEFAULT_BUDGET, limitMs: 10_000, owner: THE_CANVAS },
 ];
 
@@ -146,4 +161,13 @@ export function isSettled(want: Settled, page: PageState, island?: string): bool
   if (want.session === "selected" && !page.sessionSelected) return false;
   if (want.start === "settled" && !page.startSettled) return false;
   return !want.still || page.still;
+}
+
+/** A turn's frames: the intervals between its successive frame times (`frameTimes`, oldest first), their median, 95th percentile
+ * (nearest rank) and longest, and how many ran over `frameMs`. All 0 for fewer than two frames. */
+export function turnFrames(frameTimes: readonly number[], frameMs: number): { p50: number; p95: number; max: number; over: number } {
+  const intervals = frameTimes.slice(1).map((at, n) => at - frameTimes[n]!).sort((a, b) => a - b);
+  if (intervals.length === 0) return { p50: 0, p95: 0, max: 0, over: 0 };
+  const rank = (p: number) => intervals[Math.max(0, Math.ceil(p * intervals.length) - 1)]!;
+  return { p50: rank(0.5), p95: rank(0.95), max: intervals.at(-1)!, over: intervals.filter((ms) => ms > frameMs).length };
 }

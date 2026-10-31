@@ -15,7 +15,12 @@ export interface LagReading {
   progress: boolean;
   /** How big the thing acted on was: for an island, how many capabilities its story has. */
   size?: number;
+  /** A turn of the map's frames: the intervals between them (median, 95th percentile, longest) and how many ran over 50 ms. A turn
+   * has nothing to answer or settle, so its response and settled read 0. */
+  frames?: TurnFrames;
 }
+
+export type TurnFrames = { p50: number; p95: number; max: number; over: number };
 
 export interface LagBridge {
   recordLag(readings: LagReading[]): Promise<void>;

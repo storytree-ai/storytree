@@ -14,8 +14,8 @@ const run: RunHarness = async (_executable, args, options) => {
   if (args[0] === "--version") return "test harness";
   const file = path.join(options.env.CODEX_HOME!, "config.toml");
   let source = existsSync(file) ? readFileSync(file, "utf8") : "";
-  const block = /\n?\[mcp_servers\.storytree\]\ncommand = (.+)\nargs = (.+)\n/.exec(source);
-  const server = block === null ? undefined : { name: "storytree", enabled: true, transport: { type: "stdio", command: JSON.parse(block[1]!), args: JSON.parse(block[2]!), env: null, env_vars: [], cwd: null }, enabled_tools: null, disabled_tools: [] };
+  const block = /\n?\[mcp_servers\.storytree\]\ncommand = (.+)\nargs = (.+)\n(?:tool_timeout_sec = (\d+)\n)?/.exec(source);
+  const server = block === null ? undefined : { name: "storytree", enabled: true, transport: { type: "stdio", command: JSON.parse(block[1]!), args: JSON.parse(block[2]!), env: null, env_vars: [], cwd: null }, enabled_tools: null, disabled_tools: [], tool_timeout_sec: block[3] === undefined ? null : Number(block[3]) };
   if (args[1] === "list") return JSON.stringify(server === undefined ? [] : [server]);
   if (args[1] === "get") return JSON.stringify(server);
   if (args[1] === "remove") { writeFileSync(file, source.replace(block![0], "")); return ""; }

@@ -49,8 +49,8 @@ const args = process.argv.slice(2);
 if (args[0] === '--version') { console.log('test harness'); process.exit(0); }
 const file = path.join(process.env.CODEX_HOME, 'config.toml');
 const source = existsSync(file) ? readFileSync(file, 'utf8') : '';
-const block = /\\n?\\[mcp_servers\\.storytree\\]\\ncommand = (.+)\\nargs = (.+)\\n/.exec(source);
-const server = block && { name: 'storytree', enabled: true, transport: { type: 'stdio', command: JSON.parse(block[1]), args: JSON.parse(block[2]) } };
+const block = /\\n?\\[mcp_servers\\.storytree\\]\\ncommand = (.+)\\nargs = (.+)\\n(?:tool_timeout_sec = (\\d+)\\n)?/.exec(source);
+const server = block && { name: 'storytree', enabled: true, transport: { type: 'stdio', command: JSON.parse(block[1]), args: JSON.parse(block[2]) }, tool_timeout_sec: block[3] === undefined ? null : Number(block[3]) };
 if (args[1] === 'list') console.log(JSON.stringify(server ? [server] : []));
 else if (args[1] === 'get') console.log(JSON.stringify(server));
 else if (args[1] === 'remove') writeFileSync(file, source.replace(block[0], ''));

@@ -103,7 +103,11 @@ export function claudeSettings(file: string, own: Readonly<Record<string, unknow
  * Codex 0.153), so a Codex home other than ~/.codex is
  * handed to it in the registration's env as `home`: without it the server's setup check would
  * register and read hooks in ~/.codex while Codex reads them from its own home.
+ * Codex cuts a tool call at 60 s unless the registration says otherwise, and a run_tests call
+ * runs the project's whole suite, so the registration allows one call CODEX_TOOL_TIMEOUT_SEC.
  */
+const CODEX_TOOL_TIMEOUT_SEC = 1800;
+
 export async function codexSettings(file: string, run: RunHarness, env: NodeJS.ProcessEnv, home?: string): Promise<Settings> {
   const before = read(file);
   const scratch = mkdtempSync(path.join(tmpdir(), "storytree-connect-"));
@@ -114,7 +118,7 @@ export async function codexSettings(file: string, run: RunHarness, env: NodeJS.P
     const listed: unknown = before === undefined ? [] : JSON.parse(await cli(["list", "--json"]));
     if (!Array.isArray(listed) || !listed.every((item) => object(item) && typeof item.name === "string")) throw new Error("Unexpected codex mcp list response; update Codex and retry.");
     const current: unknown = listed.some((item) => item.name === "storytree") ? JSON.parse(await cli(["get", "storytree", "--json"])) : undefined;
-    const compatible = (entry: unknown, installed: InstalledToolServerCommand, hand: string | undefined): boolean => {
+    const launches = (entry: unknown, installed: InstalledToolServerCommand, hand: string | undefined): boolean => {
       if (!object(entry) || entry.enabled !== true || !object(entry.transport)) return false;
       const transport = entry.transport;
       return transport.type === "stdio" && transport.command === installed.command && isDeepStrictEqual(transport.args, installed.args) &&
@@ -123,18 +127,21 @@ export async function codexSettings(file: string, run: RunHarness, env: NodeJS.P
         (transport.env_vars == null || isDeepStrictEqual(transport.env_vars, [])) &&
         (entry.enabled_tools == null) && (entry.disabled_tools == null || isDeepStrictEqual(entry.disabled_tools, []));
     };
+    const compatible = (entry: unknown, installed: InstalledToolServerCommand, hand: string | undefined): boolean =>
+      launches(entry, installed, hand) && object(entry) && typeof entry.tool_timeout_sec === "number" && entry.tool_timeout_sec >= CODEX_TOOL_TIMEOUT_SEC;
     const append = async (source: string, installed: InstalledToolServerCommand) => {
       // JSON's quoted strings/array are also TOML basic strings/array; escape control characters.
       // Appending a fresh table keeps every existing setting and comment byte-for-byte.
-      writeFileSync(staged, `${source}\n[mcp_servers.storytree]\ncommand = ${JSON.stringify(installed.command)}\nargs = ${JSON.stringify(installed.args)}\n${home === undefined ? "" : `env = { CODEX_HOME = ${JSON.stringify(home)} }\n`}`, { mode: 0o600 });
+      writeFileSync(staged, `${source}\n[mcp_servers.storytree]\ncommand = ${JSON.stringify(installed.command)}\nargs = ${JSON.stringify(installed.args)}\n${home === undefined ? "" : `env = { CODEX_HOME = ${JSON.stringify(home)} }\n`}tool_timeout_sec = ${CODEX_TOOL_TIMEOUT_SEC}\n`, { mode: 0o600 });
       if (!compatible(JSON.parse(await cli(["get", "storytree", "--json"])), installed, home)) throw new Error("Codex did not accept the installed tool server.");
       save(file, before, readFileSync(staged, "utf8"));
     };
     return {
       current,
       compatible: (installed) => compatible(current, installed, home),
-      // Before PR #350 connect handed no custom home over: that registration is storytree's own, only older.
-      outdated: (installed) => home !== undefined && compatible(current, installed, undefined),
+      // Before PR #350 connect handed no custom home over, and before this no tool timeout:
+      // either registration is storytree's own, only older.
+      outdated: (installed) => !compatible(current, installed, home) && (launches(current, installed, home) || (home !== undefined && launches(current, installed, undefined))),
       add: (installed) => append(before ?? "", installed),
       async update(installed) {
         await cli(["remove", "storytree"]);

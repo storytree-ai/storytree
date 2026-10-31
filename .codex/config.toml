@@ -8,3 +8,5 @@ command = "node"
 args = ["packages/dev-loop/src/provision-worktree.mjs", "--serve"]
 # Codex lanes run with approval_policy "never", which refuses any tool call that asks.
 default_tools_approval_mode = "approve"
+# run_tests runs a whole suite in one call; Codex would cut it at its 60 s default.
+tool_timeout_sec = 1800

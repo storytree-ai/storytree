@@ -382,7 +382,7 @@ class PgReviews implements Reviews {
     // The tests this review's diff adds, so a test checked in an earlier review is not asked for again (contract 2.14).
     const own = typeof read === "string" || read.root === undefined ? undefined : redsOf(newer ?? diff, read.root);
     // An outside checkout's new tests are read against its own saved red runs, its whole diff each review (contract 2.20).
-    const outside = outsideCheckouts({ factory: factory?.brief, also: halves }).flatMap(({ folder, diff }) => redsOf(diff, folder).map((red) => ({ folder, ...red })));
+    const outside = outsideCheckouts({ ...(factory === undefined ? {} : { factory: factory.brief }), also: halves }).flatMap(({ folder, diff }) => redsOf(diff, folder).map((red) => ({ folder, ...red })));
     const reds = own === undefined && outside.length === 0 ? undefined : [...(own ?? []), ...outside];
     const brief: Brief = {
       project, change, iteration: all + 1, diff: newer ?? diff, ...(base === undefined ? {} : { base }),

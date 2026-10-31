@@ -865,9 +865,11 @@ test("8.11 the check says whether Claude Code or Codex is installed and signed i
     fakeTool(bin, "node", { "--version": { out: "v20.11.0", code: 0 } });
     const check = (waitMs: number) => runSetupCheck({ folder: dir, homes: home.homes, storytreeHome: home.storytreeHome, gh: async () => "signed in" as const, machine: () => machineState({ path: bin, waitMs }) });
 
+    // The bound is generous, so a fake run through a shell on a loaded machine or as a Windows .cmd still answers within it
+    // (the product's own bound is shorter); Codex's fake waits a minute, so finishing well inside that proves it was left behind.
     const started = Date.now();
-    const report = await check(2_000);
-    assert.ok(Date.now() - started < 15_000, `a tool that never answers is not waited on: ${Date.now() - started}ms`);
+    const report = await check(10_000);
+    assert.ok(Date.now() - started < 40_000, `a tool that never answers is not waited on: ${Date.now() - started}ms`);
     const line = (name: string) => report.lines.find((each) => each.check === name);
     assert.equal(line("agent-cli")?.state, "needs-attention");
     assert.match(line("agent-cli")?.message ?? "", /Claude Code is installed and not signed in/);

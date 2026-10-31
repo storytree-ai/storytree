@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
+import { readFileSync } from "node:fs";
 import { mkdtemp, mkdir, readFile, realpath, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -613,7 +614,8 @@ test("1.23 · when its engine exits, the runner stops what the engine left runni
   options.reap = { settleMs: 1_500, graceMs: 2_000, everyMs: 100 };
   assert.equal(await runLane(options), 0, await readFile(options.err, "utf8"));
   const { server, hook, job, bare, stubborn } = JSON.parse(await readFile(pids, "utf8"));
-  const alive = (pid) => { try { process.kill(pid, 0); return true; } catch { return false; } };
+  // A killed process its new parent has not yet reaped is a zombie (state Z): stopped, though signal 0 still finds it.
+  const alive = (pid) => { try { const stat = readFileSync(`/proc/${pid}/stat`, "utf8"); return stat.slice(stat.lastIndexOf(")") + 2)[0] !== "Z"; } catch { return false; } };
   t.after(() => { for (const pid of [server, job, bare, stubborn]) if (alive(pid)) process.kill(pid, "SIGKILL"); });
   assert.equal(alive(server), false, "the detached server is stopped");
   assert.equal(alive(job), false, "the shell's background job is stopped");

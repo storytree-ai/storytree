@@ -37,6 +37,10 @@ test("6.1 · readings are kept in one file in the app's home, the oldest dropped
     const runtime = createLagRuntime({ home, appVersion: "0.3.43", now: () => now });
     await runtime.recordLag([reading(7), { name: 3 } as unknown as LagReading]);
     assert.deepEqual(readReadings(home).at(-1), { at: "2026-10-12T09:00:00.000Z", version: "0.3.43", ...reading(7) });
+    // A turn of the map keeps its frames; frames that are not a turn's four numbers are no reading.
+    const turn: LagReading = { name: "turn-forest", response: 0, longFrames: 1, longestFrame: 84, settled: 0, progress: false, frames: { p50: 17, p95: 84, max: 84, over: 1 } };
+    await runtime.recordLag([turn, { ...turn, frames: { p50: 17 } } as unknown as LagReading]);
+    assert.deepEqual(readReadings(home).slice(-2).map(({ at: _at, version: _version, ...kept }) => kept), [reading(7), turn]);
     assert.deepEqual(readdirSync(home), [path.basename(lagFile(home))]);
   } finally {
     rmSync(home, { recursive: true, force: true });

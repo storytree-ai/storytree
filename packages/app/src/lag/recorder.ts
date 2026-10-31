@@ -1,10 +1,10 @@
 /**
  * Capability 5 · Recorder. The field recorder's core (ADR-1001 D4): it is told of each trusted input with what the page showed at
- * it, of the page each frame while an action is under way, and of the browser's own entries (Event Timing, Long Animation Frames),
- * and turns each catalogue action its user takes into one reading. It never reads the page or the clock itself, so view.ts wires
+ * it, of the page each frame while an action is under way, of each drag that turns the map and its frames, and of the browser's own
+ * entries (Event Timing, Long Animation Frames), and turns each catalogue action its user takes into one reading. It never reads the page or the clock itself, so view.ts wires
  * it to the browser and the tests drive it with recorded entries.
  */
-import { isSettled, type LagAction, type PageState } from "@storytree/forest/actions";
+import { isSettled, turnFrames, type LagAction, type PageState } from "@storytree/forest/actions";
 
 import type { LagReading } from "./bridge.js";
 
@@ -60,13 +60,18 @@ type Pending = {
 const answered = (start: PageState, page: PageState) => page.progress || page.selected !== start.selected || page.note !== start.note
   || page.panelOpen !== start.panelOpen || page.mode !== start.mode || page.sessionSelected !== start.sessionSelected;
 
+/** A drag turning the map: when it began, in which view, whether it moved, its frame times, and once let go, when and the frames since. */
+type Turning = { at: number; view: "forest" | "library"; moved: boolean; frames: number[]; ended?: { at: number; frames: number } };
+
 export function createRecorder(options: RecorderOptions) {
   const actions = fieldActions(options.catalogue);
+  const turnActions = options.catalogue.filter((action): action is LagAction & { field: string } => action.turns !== undefined && action.field !== undefined);
   const limitMs = Math.max(0, ...actions.map((action) => action.limitMs));
   let events: Entry[] = [];
   let frames: Entry[] = [];
   let readings: LagReading[] = [];
   let pending: Pending | undefined;
+  let turning: Turning | undefined;
   /** A flush was asked for while an action was under way: it goes as soon as that action ends. */
   let flushWanted = false;
 
@@ -81,7 +86,22 @@ export function createRecorder(options: RecorderOptions) {
   /** The action under way is over, recorded or not. */
   function end(): void {
     pending = undefined;
-    if (flushWanted) send();
+    if (flushWanted && turning === undefined) send();
+  }
+
+  /** The turn under way is over: a turn that moved is one reading of its frames, the Long Animation Frames over it counted. */
+  function endTurn(done: Turning & { ended: NonNullable<Turning["ended"]> }): void {
+    turning = undefined;
+    const action = turnActions.find((one) => one.turns === done.view);
+    if (done.moved && action !== undefined) {
+      const loaf = frames.filter((e) => e.start + e.duration >= done.at && e.start <= done.ended.at);
+      const read = turnFrames(done.frames, action.budget.frameMs);
+      readings.push({
+        name: action.field, response: 0, longFrames: loaf.length, longestFrame: Math.round(Math.max(0, ...loaf.map((e) => e.duration))), settled: 0, progress: false,
+        frames: { p50: Math.round(read.p50), p95: Math.round(read.p95), max: Math.round(read.max), over: read.over },
+      });
+    }
+    if (flushWanted && pending === undefined) send();
   }
 
   function finish(done: NonNullable<Pending["settled"]>, from: Pending): void {
@@ -101,9 +121,29 @@ export function createRecorder(options: RecorderOptions) {
   }
 
   return {
-    /** Whether an action is under way: from an input until its reading is finished or its limit passes. */
+    /** Whether an action is under way: from an input until its reading is finished or its limit passes, or a turn of the map. */
     get pending(): boolean {
-      return pending !== undefined;
+      return pending !== undefined || turning !== undefined;
+    },
+    /** A press at `at` that turns the map (`sheetDrag`'s spin) in `view`: a turn begins. */
+    turnStart(at: number, view: "forest" | "library"): void {
+      turning = { at, view, moved: false, frames: [] };
+    },
+    /** The pressed pointer moved: the turn turned the map. */
+    turnMove(): void {
+      if (turning !== undefined && turning.ended === undefined) turning.moved = true;
+    },
+    /** A frame of the turn under way, at its frame time. Once let go, its reading is finished this many frames later, as an
+     * action's is after settled, so the Long Animation Frame entries over it have arrived. */
+    turnFrame(at: number): void {
+      const under = turning;
+      if (under === undefined) return;
+      if (under.ended === undefined) under.frames.push(at);
+      else if (++under.ended.frames >= FRAMES_AFTER_SETTLED) endTurn({ ...under, ended: under.ended });
+    },
+    /** The press let go, or was cancelled, at `at`. */
+    turnEnd(at: number): void {
+      if (turning !== undefined && turning.ended === undefined) turning.ended = { at, frames: 0 };
     },
     /**
      * A trusted input at `at`, with what the page showed then. While the page is still working on the input under way (it has
@@ -148,7 +188,7 @@ export function createRecorder(options: RecorderOptions) {
      * waits until it ends, so nothing is sent between an input and its settling.
      */
     flush(): void {
-      if (pending === undefined) send();
+      if (pending === undefined && turning === undefined) send();
       else flushWanted = true;
     },
   };

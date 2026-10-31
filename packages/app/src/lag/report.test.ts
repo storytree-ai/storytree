@@ -34,6 +34,13 @@ test("7.1 · the report prints each action's count, median, 75th percentile and 
     "close-panel has fewer than 10 readings: too few to judge.",
   ].join("\n"));
 
+  // A turn of the map is read by its frames: a line per turned view after the table, the median of its turns' p50 and p95, the
+  // longest, and how many frames ran over 50 ms in all.
+  const turn = (days: number, p50: number, p95: number, max: number, over: number): KeptReading =>
+    ({ ...read("turn-forest", days, 0, max > 50 ? max : 0, 0), frames: { p50, p95, max, over } });
+  const turned = lagReport([turn(1, 16, 33, 40, 0), turn(2, 17, 84, 84, 2), turn(3, 18, 60, 120, 3)], { now, catalogue: CATALOGUE, file: "/tmp/lag.jsonl" }).split("\n");
+  assert.equal(turned.at(-2), "turn-forest frames: p50 17 ms, p95 60 ms (medians over 3 turns), longest 120 ms, 5 over 50 ms");
+
   assert.equal(lagReport([read("open-island", 9, 10, 0, 100)], { now, catalogue: CATALOGUE, file: "/tmp/lag.jsonl" }),
     "No lag readings in the last 7 days in /tmp/lag.jsonl. The desktop app records them as you use it.");
 

@@ -1,12 +1,12 @@
 // Capability 8 · Lag instruments. `pnpm lag:desktop`: what a user's actions cost in the desktop app (ADR-0836), measured by name
 // against their budgets (ADR-1001 D1, D2). It performs the catalogue of named actions (@storytree/forest/actions: open the island
 // with the fewest capabilities, the most, a named story's; open the app again, with the forest the last start kept and without it; close the panel; Library and back; open a Library note; open a
-// session's row; a hover sweep; ten seconds idle) for a number of rounds, each through real input: a real mouse click at the
-// island's place on screen, which the page's locator (window.storytreeGlobe) gives, and opening the app as a real start of the page,
-// timed from its navigation. Per round it records:
+// session's row; a hover sweep; turning the map, in the forest and the Library; ten seconds idle) for a number of rounds, each through
+// real input: a real mouse click at the island's place on screen, which the page's locator (window.storytreeGlobe) gives, a Ctrl+drag
+// for a turn, and opening the app as a real start of the page, timed from its navigation. Per round it records:
 // - the response (the input's Event Timing, input to paint), the frames over 50 ms until settled with the scripts each names,
 //   the settled time (the page shows what the entry says settled looks like), whether a sign of progress showed, and the IPC
-//   calls the action made, counted by channel;
+//   calls the action made, counted by channel; a turn, the intervals between the page's frames across its drag;
 // - over the whole run, each IPC handler's time and answer size, event-loop lag in the main process, and a CPU profile.
 // It prints one table, a row per action and size, against each budget, then the run's summary, and writes result.json (every
 // round) and renderer.cpuprofile to the out folder, a folder per size on a seeded run. An action it could not perform reads NOT RUN
@@ -59,7 +59,7 @@ import { homedir, tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
-import { CATALOGUE, chooseIsland, isSettled, NAMED_STORY } from "@storytree/forest/actions";
+import { CATALOGUE, chooseIsland, isSettled, NAMED_STORY, turnFrames } from "@storytree/forest/actions";
 import { connect } from "@storytree/library";
 import { start } from "@storytree/local-postgres";
 import { openActivityLog } from "@storytree/session-management";
@@ -182,6 +182,28 @@ async function globePoint(page, places, what) {
   throw new NotRun(places.some((place) => place.visible) ? `${what} is covered on screen` : `${what} is not in view`);
 }
 
+/** Where the map's islands and notes are on screen, or null when the page offers no locator: a turn of the map moves them. */
+const PLACES = `(() => { const globe = window.storytreeGlobe;
+  return globe === undefined ? null : [...globe.islands(), ...globe.notes()].map((place) => [Math.round(place.x), Math.round(place.y)]); })()`;
+
+/** Record the page's frame times (requestAnimationFrame's) in window.__turnFrames until TURN_FRAMES_STOP takes them. */
+const TURN_FRAMES = `(() => { window.__turnFrames = [];
+  const tick = (time) => { if (window.__turnFrames === undefined) return; window.__turnFrames.push(time); requestAnimationFrame(tick); };
+  requestAnimationFrame(tick); })()`;
+const TURN_FRAMES_STOP = "(() => { const times = window.__turnFrames ?? []; window.__turnFrames = undefined; return times; })()";
+
+/** A turn's drag: this many steps, sideways across this share of the canvas, with a tilt wave of this share up and down. */
+const TURN = { steps: 360, across: 0.4, tilt: 0.08 };
+
+/** A point of the canvas `box` the page's own hit test reports as the canvas, left of the middle so the drag stays on it. */
+async function canvasPoint(page, box) {
+  for (const fy of [0.5, 0.4, 0.6, 0.3, 0.7]) for (const fx of [0.3, 0.4, 0.2]) {
+    const at = { x: Math.round(box.x + box.width * fx), y: Math.round(box.y + box.height * fy) };
+    if ((await covering(page, at)) === null) return at;
+  }
+  throw new NotRun("the globe canvas is covered on screen");
+}
+
 /**
  * Get one step ready without measuring it (find its island or element, turn the globe to face it) and return the input that performs
  * it. `round.island` is set to the story an island step clicks, for its settled condition.
@@ -219,6 +241,28 @@ async function prepare(page, step, round, limitMs) {
   }
   if (step.kind === "key") return () => page.keyboard.press(step.key);
   if (step.kind === "idle") return () => page.waitForTimeout(step.ms);
+  if (step.kind === "turn") {
+    // Ctrl held and a left drag from an uncovered point of the canvas, as a user spins and tilts the map, its frames recorded in the
+    // page across the drag; `round.turnTimes` keeps them. Unless an island or a note moved, the map did not turn: NOT RUN.
+    const box = await page.locator("canvas").first().boundingBox({ timeout: 2000 }).catch(() => null);
+    if (box === null) throw new NotRun("no globe canvas on the page");
+    const at = await canvasPoint(page, box);
+    const before = await page.evaluate(PLACES);
+    if (before === null) throw new NotRun("the page offers no island locator (window.storytreeGlobe)");
+    return async () => {
+      await page.evaluate(TURN_FRAMES);
+      await page.keyboard.down("Control");
+      await page.mouse.move(at.x, at.y);
+      await page.mouse.down();
+      for (let n = 1; n <= TURN.steps; n++) {
+        await page.mouse.move(at.x + (box.width * TURN.across * n) / TURN.steps, at.y + box.height * TURN.tilt * Math.sin((4 * Math.PI * n) / TURN.steps));
+      }
+      await page.mouse.up();
+      await page.keyboard.up("Control");
+      round.turnTimes = await page.evaluate(TURN_FRAMES_STOP);
+      if (JSON.stringify(await page.evaluate(PLACES)) === JSON.stringify(before)) throw new NotRun("the map did not turn: no island or note moved on screen");
+    };
+  }
   if (step.kind === "wait") return () => waitFor(page, step.until, round.island, limitMs);
   if (step.kind === "start") {
     // A start of the page, as opening the app is: the keys it names forgotten first, so the page starts without what they kept.
@@ -278,6 +322,7 @@ export async function performRound(page, action, ipc) {
     inputs: starts ? 0 : after.inputs - before.inputs,
     response: ev.length === 0 ? null : Math.max(...ev.map((e) => e.duration)),
     frames: loaf.map((e) => ({ duration: e.duration, scripts: e.scripts.map((s) => `${s.inv}/${s.fn}`) })),
+    ...(round.turnTimes === undefined ? {} : { turn: turnFrames(round.turnTimes, action.budget.frameMs) }),
     // An action with nothing to settle (a hover sweep, idle) has no settled time: its own length is not a wait.
     settled: Object.keys(action.settled).length === 0 ? null : settledAt - start,
     ...(progressAt.length === 0 ? {} : { progressAt: Math.min(...progressAt) - start, progressHeld: held }),
@@ -533,13 +578,16 @@ const median = (values) => [...values].sort((a, b) => a - b)[Math.floor((values.
  * One action's row from its recorded rounds, judged against its budget on the worst round (ADR-1001 D2: "at every size, with no
  * exception"). A round's response with no Event Timing entry was under the browser's 16 ms threshold; an action that made no input
  * has no response to judge, and one with nothing to settle (its rounds' settled is null) no settled time. A round is settled in budget within `settledMs`, or when progress showed within the response budget
- * and stayed until settled. An action with a round it could not perform is NOT RUN, with the reason.
+ * and stayed until settled. A turn of the map is judged on its frames alone, the longest of its drag's among them, and keeps their
+ * summary: the medians of its rounds' p50 and p95, the longest, and the frames over 50 ms in all. An action with a round it could
+ * not perform is NOT RUN, with the reason.
  */
 export function judge({ name, size, budget, rounds, notRun }) {
   const sized = size === undefined ? {} : { size };
   if (notRun !== undefined) return { name, ...sized, rounds: rounds.length, notRun };
-  const responses = rounds.filter((round) => round.inputs > 0).map((round) => round.response ?? 0);
-  const longest = Math.max(0, ...rounds.flatMap((round) => round.frames.map((frame) => frame.duration)));
+  const responses = rounds.filter((round) => round.inputs > 0 && round.turn === undefined).map((round) => round.response ?? 0);
+  const turns = rounds.flatMap((round) => (round.turn === undefined ? [] : [round.turn]));
+  const longest = Math.max(0, ...rounds.flatMap((round) => round.frames.map((frame) => frame.duration)), ...turns.map((turn) => turn.max));
   const settled = rounds.map((round) => round.settled).filter((ms) => ms !== null);
   const ipc = rounds.map((round) => Object.values(round.ipc).reduce((sum, n) => sum + n, 0));
   const settledWithin = (round) => round.settled === null || round.settled <= budget.settledMs || (round.progressAt !== undefined && round.progressAt <= budget.responseMs && round.progressHeld);
@@ -549,6 +597,8 @@ export function judge({ name, size, budget, rounds, notRun }) {
     longestFrame: longest,
     settled: settled.length === 0 ? undefined : { median: median(settled), worst: Math.max(...settled) },
     ipc: median(ipc),
+    ...(turns.length === 0 ? {} : { turn: { p50: median(turns.map((turn) => turn.p50)), p95: median(turns.map((turn) => turn.p95)), max: Math.max(...turns.map((turn) => turn.max)),
+      over: turns.reduce((sum, turn) => sum + turn.over, 0) } }),
     verdict: {
       response: responses.length === 0 ? "n/a" : Math.max(...responses) <= budget.responseMs ? "within" : "missed",
       smooth: longest <= budget.frameMs ? "within" : "missed",
@@ -557,7 +607,8 @@ export function judge({ name, size, budget, rounds, notRun }) {
   };
 }
 
-/** The table, a row per judged action and the size it ran at: median and worst response, the longest frame, settled, the IPC count, and each verdict. */
+/** The table, a row per judged action and the size it ran at: median and worst response, the longest frame, settled, the IPC count, and
+ * each verdict; then a line per turn of the map, its frames. */
 export function actionTable(rows) {
   const ms = (n) => (n === 0 ? "<16" : n.toFixed(0));
   const lines = [["action", "size", "rounds", "response p50/worst", "longest frame", "settled p50/worst", "IPC", "response", "smooth", "settled"]];
@@ -568,7 +619,9 @@ export function actionTable(rows) {
       String(row.ipc), row.verdict.response, row.verdict.smooth, row.verdict.settled]);
   }
   const widths = lines[0].map((_, column) => Math.max(...lines.filter((line) => line.length > 4).map((line) => line[column].length)));
-  return lines.map((line) => (line.length > 4 ? line.map((cell, column) => cell.padEnd(widths[column])).join("  ") : `${line.slice(0, 3).map((cell, column) => cell.padEnd(widths[column])).join("  ")}  ${line[3]}`).trimEnd()).join("\n");
+  const turns = rows.filter((row) => row.turn !== undefined).map(({ name, size, turn }) =>
+    `${name}${size === undefined ? "" : ` (${size})`} frames: p50 ${turn.p50.toFixed(0)} / p95 ${turn.p95.toFixed(0)} ms, longest ${turn.max.toFixed(0)} ms, ${turn.over} over 50 ms`);
+  return [...lines.map((line) => (line.length > 4 ? line.map((cell, column) => cell.padEnd(widths[column])).join("  ") : `${line.slice(0, 3).map((cell, column) => cell.padEnd(widths[column])).join("  ")}  ${line[3]}`).trimEnd()), ...turns].join("\n");
 }
 
 /** 3 when any action could not be performed (NOT RUN), else 0: a missed budget is reported, never a failed run. */
@@ -589,10 +642,12 @@ export const MARGIN = { ratio: 0.2, ms: 50 };
 const POLL = new Set(["changesSince", "linesSince", "projectSelection", "recordLag"]);
 
 /**
- * What a comparison measures an action by, from its rounds on both builds: its settled time when it has something to settle, else
- * its response when it made an input, else the time its frames over 50 ms took (ten seconds idle).
+ * What a comparison measures an action by, from its rounds on both builds: a turn of the map by its frames' 95th percentile, else its
+ * settled time when it has something to settle, else its response when it made an input, else the time its frames over 50 ms took
+ * (ten seconds idle).
  */
 function measureOf(rounds) {
+  if (rounds.some((round) => round.turn !== undefined)) return { measure: "frame p95", of: (round) => round.turn?.p95 ?? null };
   if (rounds.some((round) => round.settled !== null)) return { measure: "settled", of: (round) => round.settled };
   if (rounds.some((round) => round.inputs > 0)) return { measure: "response", of: (round) => round.response ?? 0 };
   return { measure: "frames", of: (round) => round.frames.reduce((sum, frame) => sum + frame.duration, 0) };

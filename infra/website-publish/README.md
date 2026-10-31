@@ -6,7 +6,7 @@ After each merge that changes the website, the **Publish website** workflow
 Manager as `heredotnow_api_key` in the cloud project. To read it the workflow needs a Google
 identity of its own. This folder is that identity, written down; **the owner applies it by hand**.
 The gate's check:owner-applies fails a branch that changes it (Markdown aside) unless an open increment
-waits on the owner with a note naming this folder (packages/dev-loop/src/owner-applies.mjs lists the folders).
+waits on the owner with a note naming this folder (the owner's factory plugin micks-dev-loop lists the folders, in src/owner-applies.mjs).
 Until the last step is done, the publish step says "Website publishing skipped: no here.now key"
 and names the two repository variables below; the build and its tests still run.
 

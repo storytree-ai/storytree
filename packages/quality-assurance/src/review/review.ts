@@ -61,7 +61,7 @@
  */
 import { execFileSync } from "node:child_process";
 import { readFileSync, realpathSync } from "node:fs";
-import { join } from "node:path";
+import { join, resolve as resolvePath } from "node:path";
 
 import type { HistoryEntry, Library, PendingChange, PluginPlan, Storytree } from "@storytree/library";
 import { pluginPlan } from "@storytree/plugin-loader/factory";
@@ -367,7 +367,7 @@ class PgReviews implements Reviews {
     const pendingChanges = (increment.fields as { pending?: PendingChange[] }).pending ?? [];
     // A factory plugin's change is read from the factory's worktree on the increment's branch (contract 2.18).
     const pluginOf = await pluginCapabilities(library, increment.fields);
-    const factory = factoryRead([...new Set([...pluginOf.values()].map(({ plugin }) => plugin))].sort(), plugins, typeof read === "string" ? undefined : read.root);
+    const factory = factoryRead([...new Set([...pluginOf.values()].map(({ plugin }) => plugin))].sort(), plugins, typeof read === "string" ? undefined : read.root, also.flatMap(({ root }) => (root === undefined ? [] : [root])));
     // The change's other halves, in checkouts outside the project, are judged with it (contract 2.19).
     const halves = also.map((other) => ({ folder: other.root ?? "", diff: other.diff }));
     // The library records the increment's sessions wrote are part of the change (contract 2.22).
@@ -596,14 +596,14 @@ async function pluginCapabilities(library: Library, fields: unknown): Promise<Ma
  * What a brief reads of the factory plugins `plugins` (contract 2.18): the worktree, its diff unless it is `root`, the change's own folder,
  * and each plugin's plan there; or why it was not read. Undefined with no plugin to read.
  */
-function factoryRead(plugins: readonly string[], reader: PluginReader | undefined, root: string | undefined): { brief: NonNullable<Brief["factory"]>; diff?: string; plans: Map<string, PluginPlan> } | undefined {
+function factoryRead(plugins: readonly string[], reader: PluginReader | undefined, root: string | undefined, halves: readonly string[]): { brief: NonNullable<Brief["factory"]>; diff?: string; plans: Map<string, PluginPlan> } | undefined {
   if (plugins.length === 0) return undefined;
   const reads = plugins.map((plugin) => [plugin, reader?.(plugin) ?? { unread: "no factory was read for this brief" }] as const);
   const unread = reads.find(([, read]) => "unread" in read);
   if (unread !== undefined) return { brief: { plugins, unread: (unread[1] as { unread: string }).unread }, plans: new Map() };
   const { folder, change } = reads[0]![1] as Extract<PluginRead, { folder: string }>;
   const plans = new Map(reads.flatMap(([plugin, read]) => ("plan" in read && read.plan !== undefined ? [[plugin, read.plan] as const] : [])));
-  const own = root !== undefined && sameFolder(root, folder);
+  const own = [root, ...halves].some((other) => other !== undefined && sameFolder(other, folder));
   return { brief: { plugins, folder, ...(own ? {} : { diff: change.diff }) }, ...(own ? {} : { diff: change.diff }), plans };
 }
 
@@ -1032,10 +1032,11 @@ export function changeFolder(cwd: string, branch: string | undefined, increment?
 
 /**
  * How a brief reads the factory plugins of `increment`'s capabilities from the factory repo at `factory` (contract 2.18): from the
- * worktree of that repo on a branch whose name carries the increment's id, `factory` itself when it is on one, its change and each
- * plugin's plan file there; with none, or no repository at `factory`, why not.
+ * first of the `also` checkouts that belongs to that repo, whatever its branch is called, else the worktree of that repo on a branch
+ * whose name carries the increment's id, `factory` itself when it is on one, its change and each plugin's plan file there; with none,
+ * or no repository at `factory`, why not.
  */
-export function factoryPlugins(factory: string, increment: string): PluginReader {
+export function factoryPlugins(factory: string, increment: string, also: readonly string[] = []): PluginReader {
   const id = increment.replace(/^increment_/, "");
   let found: { folder: string; change?: WorktreeChange } | { unread: string } | undefined;
   const folder = (): typeof found => {
@@ -1048,6 +1049,10 @@ export function factoryPlugins(factory: string, increment: string): PluginReader
     };
     const list = git("worktree", "list", "--porcelain");
     if (list === undefined) return { unread: `the factory folder ${factory} is no git repository` };
+    // A checkout named beside the change is the factory half when it shares the factory repo's store (friction_c5ab3bddb179).
+    const store = commonDir(factory);
+    const named = also.find((other) => store !== undefined && commonDir(other) === store);
+    if (named !== undefined) return { folder: named };
     const current = git("symbolic-ref", "--quiet", "--short", "HEAD")?.trim();
     if (current !== undefined && incrementOfBranch(current) === id) return { folder: factory };
     for (const entry of list.split(/\n\n+/)) {
@@ -1071,6 +1076,16 @@ export function factoryPlugins(factory: string, increment: string): PluginReader
     }
     return { folder: read.folder, change: read.change, ...(plan === undefined ? {} : { plan }) };
   };
+}
+
+/** The repository store a checkout's worktrees share, resolved, or undefined when `cwd` is no checkout. */
+function commonDir(cwd: string): string | undefined {
+  try {
+    const dir = execFileSync("git", ["rev-parse", "--git-common-dir"], { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"], windowsHide: true }).trim();
+    return realpathSync.native(resolvePath(cwd, dir));
+  } catch {
+    return undefined;
+  }
 }
 
 /** The increment a branch's name carries (claude/increment-<id>-<suffix>), as the gate's capability-list check reads it. */

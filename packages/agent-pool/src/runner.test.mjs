@@ -10,7 +10,7 @@ import { promisify } from "node:util";
 
 import { quietFor, removeTemp, waitUntil } from "@storytree/test-waits";
 
-import { bothAnswer, main, runLane, storytreeCommand } from "./runner.mjs";
+import { bothAnswer, main, runLane, SIGNALED, storytreeCommand } from "./runner.mjs";
 
 const exec = promisify(execFile);
 const start = Date.parse("2026-10-06T00:00:00Z");
@@ -112,7 +112,7 @@ test("1.7 · a completed or externally stopped Codex turn is not handed over, ev
   }
 });
 
-test("1.8 · a lane stopped by a signal to its runner exits 75, so its queue keeps it, and is not handed over", async (t) => {
+test("1.8 · a lane stopped by a signal to its runner exits its own code, not 75, so its queue keeps it, and is not handed over", async (t) => {
   const options = await lane(t);
   options.env.FAST_FAIL_S = "0";
   await writeFile(join(options.lanesDir, "engine-override"), "codex");
@@ -120,8 +120,9 @@ test("1.8 · a lane stopped by a signal to its runner exits 75, so its queue kee
   const running = runLane(options);
   await waitUntil(async () => (await readFile(options.log, "utf8").catch(() => "")).includes("started"), 10_000, "the engine to say it started");
   process.emit("SIGTERM", "SIGTERM");
-  assert.equal(await running, 75);
-  assert.match(options.lines.at(-1), /stopped by a signal: exit 75 so the runner keeps this lane queued$/);
+  assert.equal(await running, SIGNALED);
+  assert.notEqual(SIGNALED, 75, "75 means an engine failing at once");
+  assert.match(options.lines.at(-1), new RegExp(`stopped by a signal: exit ${SIGNALED} so the runner keeps this lane queued$`));
   await assert.rejects(readFile(join(options.lanesDir, "lane.claude.log")), { code: "ENOENT" });
 });
 

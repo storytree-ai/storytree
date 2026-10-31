@@ -38,7 +38,12 @@ export interface HealthColumn {
   skip?: SkipKind;
   /** The earlier verdict it did not reproduce, and when that was written: it is "not re-run". */
   was?: EarlierVerdict;
+  /** Where the verdict was seen, when the writer said: verified locally, or read from CI (ADR-1193 D3). */
+  source?: HealthSource;
 }
+
+/** Where a verdict was seen: by a run on this computer through storytree, or read from CI. */
+export type HealthSource = NonNullable<FieldsOf<"health">["source"]>;
 
 /** Why a test was skipped, by who can run it: the owner, a run on another platform, or anyone. */
 export type SkipKind = "owner" | "other" | `platform:${string}`;
@@ -64,6 +69,7 @@ export interface HealthOptions extends WriteOptions {
   readonly note?: string;
   readonly skip?: SkipKind;
   readonly was?: EarlierVerdict;
+  readonly source?: HealthSource;
 }
 
 /** One health entry, as it was written. */
@@ -80,6 +86,8 @@ export interface HealthEntry {
   skip?: SkipKind;
   /** The earlier verdict it did not reproduce, when there was one. */
   was?: EarlierVerdict;
+  /** Where it was seen, when the writer said. */
+  source?: HealthSource;
 }
 
 /** A contract in the annotated tree, with its own health. */
@@ -348,7 +356,7 @@ export class HealthRecord {
     if (target?.type !== "contract") {
       throw new MissingReferenceError("node", contractId, "contract", target?.type, target === null ? undefined : ROLLED_UP[target.type]);
     }
-    const { by, note, skip, was } = options;
+    const { by, note, skip, was, source } = options;
     const actor = options.actor ?? by;
     const record = await this.#records.create(
       "health",
@@ -360,6 +368,7 @@ export class HealthRecord {
         ...(note === undefined ? {} : { note }),
         ...(skip === undefined ? {} : { skip }),
         ...(was === undefined ? {} : { was: was.state, wasAt: was.at }),
+        ...(source === undefined ? {} : { source }),
       },
       { id: healthId(contractId, kept), ...(actor === undefined ? {} : { actor }), ...(options.signal === undefined ? {} : { signal: options.signal }) },
     );
@@ -534,7 +543,7 @@ function contractReason(verified: HealthColumn): HealthReason | undefined {
 
 /** An entry: a health record's fields, and when they were written. Each optional field only when there is one. */
 function entryOf(fields: FieldsOf<"health">, at: string): HealthEntry {
-  const { column, state, by, note, skip, was, wasAt } = fields;
+  const { column, state, by, note, skip, was, wasAt, source } = fields;
   return {
     column,
     state,
@@ -543,5 +552,6 @@ function entryOf(fields: FieldsOf<"health">, at: string): HealthEntry {
     ...(note === undefined ? {} : { note }),
     ...(skip === undefined ? {} : { skip: skip as SkipKind }),
     ...(was === undefined || wasAt === undefined ? {} : { was: { state: was, at: wasAt } }),
+    ...(source === undefined ? {} : { source }),
   };
 }

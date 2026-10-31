@@ -222,3 +222,31 @@ test("4.36 a story's risk bar shows its rating out of ten, the users it could re
   assert.match(renderStoryPanel({ ...panel, risk: { checks } }, undefined), /Risk rating[\s\S]*not read yet/, "checks without a reading");
   assert.doesNotMatch(renderStoryPanel(panel, undefined), /panel-risk/);
 });
+
+test("4.37 storytree's mark names its source on the card, in the detail and on each contract: verified locally, from CI, or both (short on the card); the reason says the source of what carries it; no source recorded, it says none", () => {
+  const shown = (part: string): string => part.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+  const base = line("base", "landed", "passing", "unhealthy");
+  const local: CapabilityLine = { ...base, verified: "passing", sources: ["local"], contracts: [{ ...base.contracts[0]!, verified: "passing", source: "local" }] };
+  const both: CapabilityLine = {
+    ...line("both", "landed", "passing", "unhealthy"),
+    verified: "failing",
+    sources: ["local", "ci"],
+    why: { reason: "failing", mover: "agent", contracts: ["2.1"], sources: ["ci"] },
+    contracts: [{ id: "k1", title: "2.1 · On CI", reported: "passing", trail: "green only", verified: "failing", source: "ci" }, { id: "k2", title: "2.2 · Local", reported: "passing", trail: "green only", verified: "passing", source: "local" }],
+  };
+  const older: CapabilityLine = { ...line("older", "landed", "passing", "unhealthy"), verified: "failing", why: { reason: "failing", mover: "agent", contracts: ["3.1"] } };
+  const html = (selected: string) => renderStoryPanel({ ...panel, capabilities: [local, both, older], arrows: [] }, selected);
+
+  assert.match(shown(box(html("base"), "The base")), /storytree saw: passing · local\b/, "the card, short of room, says it short");
+  assert.match(shown(box(html("base"), "The both")), /storytree saw: failing · local \+ CI/);
+  assert.doesNotMatch(shown(box(html("base"), "The older")), /· (local|CI)/, "no source recorded: none said");
+
+  const detail = (selected: string) => shown(/<section class="panel-detail[\s\S]*?<\/section>/.exec(html(selected))?.[0] ?? "");
+  assert.match(detail("base"), /storytree saw: passing, verified locally/);
+  assert.match(detail("both"), /storytree saw: failing, verified locally and from CI/);
+  assert.match(detail("both"), /2\.1 · On CI .*storytree saw: failing, from CI/);
+  assert.match(detail("both"), /2\.2 · Local .*storytree saw: passing, verified locally/);
+  assert.equal(whyLine(html("both")), "Why not green: 2.1 is failing, from CI. The agent moves this one.");
+  assert.equal(whyLine(html("older")), "Why not green: 3.1 is failing. The agent moves this one.");
+  assert.doesNotMatch(detail("older"), /locally|from CI/);
+});

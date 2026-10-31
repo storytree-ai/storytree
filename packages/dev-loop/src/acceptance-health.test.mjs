@@ -72,7 +72,7 @@ test("5.5 an observation the harness did not mint is refused: a check whose resu
   assert.throws(() => readObservations(JSON.stringify({ ...run, evidence: "" })), /evidence/);
 });
 
-test("5.5 recordAcceptance writes each passing or failing verdict to the verified column by \"acceptance run\", with the commit, the evidence path and the run's own note, and nothing for not checked", async () => {
+test("5.5, 12.11 recordAcceptance writes each passing or failing verdict to the verified column by \"acceptance run\", with the commit, the evidence path and the run's own note, and nothing for not checked", async () => {
   await withLibrary(async (lib) => {
     const story = await lib.addStory({ title: "The app setup" });
     const capability = await lib.addCapability({ story: story.id, title: "1 · Get storytree" });
@@ -91,6 +91,7 @@ test("5.5 recordAcceptance writes each passing or failing verdict to the verifie
     const passing = await lib.health(contractIds.get("1.1"));
     assert.equal(passing.verified.state, "passing");
     assert.equal(passing.verified.by, "acceptance run");
+    assert.equal(passing.verified.source, "local", "verified locally");
     assert.equal(passing.verified.note, "1/1 checks passed, visited the locally built site, evidence packages/app-setup/evidence/run, at commit 9f3734a");
     assert.deepEqual(passing.reported, { state: "not-checked" }, "the reported column is left alone");
     assert.equal((await lib.health(contractIds.get("1.2"))).verified.state, "failing");

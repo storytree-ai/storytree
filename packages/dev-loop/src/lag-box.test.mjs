@@ -191,7 +191,7 @@ test("8.16 after each measuring run the box mints each budget contract's verdict
   assert.deepEqual(states(tick(done("measure", "m9", "m4", [], ["open-smallest-island", "open-largest-island"]), done("measure", "m9", "m6", [], ["close-panel"]))), { "contract-open": "passing", "contract-close": "passing" }, "the fix: within the margin of the baseline again, it passes");
 });
 
-test("8.16 pnpm lag:box writes each verdict to its contract's verified column as a lag run, with the commit and the evidence; a failing one makes its capability read unhealthy, failing, and a NOT RUN after it reads not re-run", async () => {
+test("8.16, 12.11 pnpm lag:box writes each verdict to its contract's verified column as a lag run, with the commit and the evidence; a failing one makes its capability read unhealthy, failing, and a NOT RUN after it reads not re-run", async () => {
   const url = process.env.STORYTREE_TEST_PG_URL;
   if (!url) throw new Error("STORYTREE_TEST_PG_URL is not set; run through pnpm test");
   const name = `t-${randomBytes(4).toString("hex")}`;
@@ -207,7 +207,7 @@ test("8.16 pnpm lag:box writes each verdict to its contract's verified column as
 
       await recordLagVerdicts(lib, new Map([[contract.id, { state: "passing", note: "open-largest-island within the margin of its baseline m1" }]]), { commit: "m4", evidence: "pnpm lag:box, run 2" });
       const passing = (await lib.health(contract.id)).verified;
-      assert.deepEqual({ state: passing.state, by: passing.by, note: passing.note }, { state: "passing", by: "lag run", note: "open-largest-island within the margin of its baseline m1, evidence pnpm lag:box, run 2, at commit m4" });
+      assert.deepEqual({ state: passing.state, by: passing.by, source: passing.source, note: passing.note }, { state: "passing", by: "lag run", source: "local", note: "open-largest-island within the margin of its baseline m1, evidence pnpm lag:box, run 2, at commit m4" });
       assert.equal(await why(), undefined, "healthy");
 
       await recordLagVerdicts(lib, new Map([[contract.id, { state: "failing", note: "open-largest-island slower since m6 against its baseline m4" }]]), { commit: "m6", evidence: "pnpm lag:box, run 4" });

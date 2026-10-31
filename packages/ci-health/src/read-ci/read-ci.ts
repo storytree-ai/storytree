@@ -191,7 +191,7 @@ export async function readProjectCi({ library, git, github }: { library: Library
   // Each run's verdicts are written as a test run's are (record.ts), naming the commit and the run they were seen at.
   const counts = { passing: 0, failing: 0, notChecked: 0 };
   for (const { commit: seen, run: url, verdicts } of byRun.values()) {
-    const written = await recordHealth(library, new Map([...verdicts.keys()].map((id) => [id, id])), verdicts, { by: VERIFIED_BY_PROJECT_CI, commit: seen, run: url });
+    const written = await recordHealth(library, new Map([...verdicts.keys()].map((id) => [id, id])), verdicts, { by: VERIFIED_BY_PROJECT_CI, source: "ci", commit: seen, run: url });
     counts.passing += written.passing;
     counts.failing += written.failing;
     counts.notChecked += [...verdicts.values()].filter(({ state, skipped }) => state === "not-checked" && skipped > 0).length;

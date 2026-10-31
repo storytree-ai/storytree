@@ -14,7 +14,7 @@ import { quietFor, removeTemp, waitUntil } from "@storytree/test-waits";
 
 import type { AnnotatedTree, StorySurvey } from "@storytree/library";
 
-import { capabilitiesOfFiles, codeSurveyReader, noMergedMain, offThreadSurveyReader, readCodeSurvey, testedNumbers, untestedContracts } from "./read-survey.js";
+import { capabilitiesOfFiles, codeSurveyReader, placeFiles, noMergedMain, offThreadSurveyReader, readCodeSurvey, testedNumbers, untestedContracts } from "./read-survey.js";
 import { focusProject } from "../read.js";
 import { importedSource } from "./survey-source.js";
 // 8.16 runs this module on a worker thread; imported here, with no parent port, it answers nothing.
@@ -918,6 +918,33 @@ test("8.17 a changed file is placed by its own declaration, else by the survey's
     });
     assert.deepEqual(read, ["packages/shop/src/claim.ts"]);
     assert.deepEqual([...surveyed], [["packages/shop/src/claim.ts", { capability: "cap-cart", inferred: true }]]);
+  } finally {
+    await removeTemp(folder);
+  }
+});
+
+test("8.38 each path given is placed in its checkout: its story and package, the desktop app's apps/desktop too, a file the survey does not read included, its capability when it declares one, and a path in no story's package nowhere", async () => {
+  const folder = await mkdtemp(path.join(tmpdir(), "code-survey-places-"));
+  const shop = { id: "story-shop", title: "Shop", capabilities: [{ id: "cap-cart", title: "4 · Cart" }] };
+  const app = { id: "story_a93c6fb1a257", title: "Desktop app", capabilities: [{ id: "cap-packaged", title: "2 · Packaged app" }] };
+  const plan = { arcs: [], stories: [shop, app] } as unknown as AnnotatedTree;
+  try {
+    await mkdir(path.join(folder, "packages/shop/src"), { recursive: true });
+    await mkdir(path.join(folder, "packages/shop/scripts"), { recursive: true });
+    await mkdir(path.join(folder, "apps/desktop"), { recursive: true });
+    await writeFile(path.join(folder, "packages/shop/src/cart.ts"), "// Capability 4 · Cart.\nexport const cart = 1;\n");
+    await writeFile(path.join(folder, "packages/shop/scripts/run.mjs"), "console.log(1);\n");
+    await writeFile(path.join(folder, "apps/desktop/packaged-app.mjs"), "export {};\n");
+    const cart = path.join(folder, "packages/shop/src/cart.ts");
+    const places = await placeFiles(folder, [cart, "packages/shop/scripts/run.mjs", "apps/desktop/packaged-app.mjs", "packages/shop/src/new.ts", "README.md"], plan, { survey: async () => ({}) });
+    const story = (one: { id: string; title: string }) => ({ id: one.id, title: one.title });
+    assert.deepEqual(places, [
+      { file: cart, path: "packages/shop/src/cart.ts", story: story(shop), package: "packages/shop", capability: "cap-cart", inferred: false },
+      { file: "packages/shop/scripts/run.mjs", path: "packages/shop/scripts/run.mjs", story: story(shop), package: "packages/shop" },
+      { file: "apps/desktop/packaged-app.mjs", path: "apps/desktop/packaged-app.mjs", story: story(app), package: "apps/desktop" },
+      { file: "packages/shop/src/new.ts", path: "packages/shop/src/new.ts", story: story(shop), package: "packages/shop" },
+      { file: "README.md", path: "README.md" },
+    ]);
   } finally {
     await removeTemp(folder);
   }

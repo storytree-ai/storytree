@@ -11,6 +11,7 @@ import path from "node:path";
 import { verb, VerbRefusal, type Verb, type VerbContext, type VerbFamily, type VerbInputs } from "@storytree/library/verbs";
 
 import type { ActivityLog } from "../activity/index.js";
+import type { PlacedFile } from "../claims/file-owners.js";
 import { SESSION_NAME_LIMIT } from "./name.js";
 
 import { NOTICEBOARD_BOARD, NOTICEBOARD_VERBS } from "../claims/board-verbs.js";
@@ -22,6 +23,8 @@ export { MACHINE_VERBS };
 /** What a session verb's work needs beyond the caller: the activity log it reads and writes, which the doors hand. */
 export interface SessionVerbContext extends VerbContext {
   readonly log: ActivityLog;
+  /** Where each of `paths` belongs, by the map's placement, which each door hands since Session management may not import the map (ADR-0969). */
+  placeFiles?(paths: readonly string[]): Promise<readonly PlacedFile[]>;
 }
 
 const name = verb({

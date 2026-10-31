@@ -107,11 +107,9 @@ async function refusalsOf(context: GateContext, checkout: string, files: readonl
   const driving = mine.at(-1)?.increment;
   const refusals: EditRefusal[] = [];
   for (const { capability, title, file } of owners) {
-    const direct = others.find((claim) => claim.capability === capability);
-    // A capability the session claimed for itself is its own, whichever other increment lists it.
-    const owned = claims.some((claim) => claim.capability === capability && claim.session === context.session);
-    const listing = direct === undefined && !owned ? others.find((claim) => claim.increment !== undefined && lists.get(claim.increment)!.includes(capability)) : undefined;
-    const holder = direct ?? listing;
+    const held = holderOf(capability, context.session, claims, lists);
+    const holder = held?.holder;
+    const listing = held?.on === undefined ? undefined : held.holder;
     if (holder !== undefined) {
       if (noting) await context.log.append(context.project, {
         session: context.session, ...(context.harness === undefined ? {} : { harness: context.harness }), source: "hook", ...(context.folder === undefined ? {} : { folder: context.folder }),
@@ -141,6 +139,20 @@ async function refusalsOf(context: GateContext, checkout: string, files: readonl
     ask ??= { refused: "ask", file, folder: imported.folder, capability: covering.capability, title: covering.title, increment: driving };
   }
   return ask === undefined ? [] : [ask];
+}
+
+/**
+ * Who holds `capability` against `session`, of `claims`: another live session by its own claim, or, unless `session`
+ * claimed it itself, one holding an increment whose list in `lists` names it (`on`); undefined when none does.
+ */
+export function holderOf(capability: string, session: string, claims: readonly Claim[], lists: ReadonlyMap<string, readonly string[]>): { holder: Claim; on?: string } | undefined {
+  const others = claims.filter((claim) => claim.session !== session && claim.holder === "live");
+  const direct = others.find((claim) => claim.capability === capability);
+  if (direct !== undefined) return { holder: direct };
+  // A capability the session claimed for itself is its own, whichever other increment lists it.
+  if (claims.some((claim) => claim.capability === capability && claim.session === session)) return undefined;
+  const listing = others.find((claim) => claim.increment !== undefined && (lists.get(claim.increment) ?? []).includes(capability));
+  return listing === undefined ? undefined : { holder: listing, on: listing.increment! };
 }
 
 /** A capability a user's yes named, with what it covered then. */
@@ -345,6 +357,6 @@ async function planOf(library: Library, increment: string): Promise<{ capabiliti
 }
 
 /** The capabilities list of `increment`: none when it has none or is not an increment. */
-async function listOf(library: Library, increment: string): Promise<readonly string[]> {
+export async function listOf(library: Library, increment: string): Promise<readonly string[]> {
   return (await planOf(library, increment)).capabilities;
 }

@@ -183,6 +183,18 @@ test("2.22 · a change whose substance is a library record its sessions wrote si
   });
 });
 
+test("2.22 · the brief's tool reads who claimed the increment from the server's activity log and lists the library records they wrote since", async () => {
+  await withLibrary(async (library, storytree) => {
+    const { increment } = await plan(library);
+    const from = new Date().toISOString();
+    const process = await library.writeKnowledge("process", { title: "Manager: sweep stale claims", description: "The two-hourly sweep.", statement: "Release a quiet claim.", trigger: "Every two hours.", steps: "Release.", surfaces: "Sessions.", failureModes: "A live claim released." }, { actor: "session:S" });
+    const log = { lines: async (_project: string, filter: { kinds: readonly string[]; where: Record<string, string> }) => (filter.kinds.includes("claimed") && filter.where["increment"] === increment ? [{ session: "S", at: from }] : []) };
+
+    const { text } = await registeredTools().quality_brief!({ increment, diff: DIFF }, { library, storytree, project: library.name, log });
+    assert.match(text, new RegExp(`Library records \\(1\\)[^]*${process.id}  process  Manager: sweep stale claims  created`));
+  });
+});
+
 test("2.5 · the brief lists each contract under its story and capability, so two stories' contracts sharing a number both appear, each with its story, and a named capability with no contracts still shows", async () => {
   await withLibrary(async (library, storytree) => {
     const forest = await library.addStory({ title: "The world" });
@@ -262,7 +274,7 @@ test("2.9 · a return names the review it answers, and take refuses one naming a
 
 /** The tools this package registers, by name, as the MCP server would call them. */
 function registeredTools() {
-  type Call = { library: Library; storytree: unknown; project: string };
+  type Call = { library: Library; storytree: unknown; project: string; log?: unknown };
   const tools: Record<string, (args: object, call: Call) => Promise<{ text: string; data?: Record<string, unknown> }>> = {};
   qualityTools().registerTools!((name, _description, _input, act) => { tools[name] = act as never; });
   return tools;

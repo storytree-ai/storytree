@@ -30,7 +30,7 @@ async function box(t, extra = {}) {
     // A clear box: the real reading (/proc on a busy CI runner) would hold dispatch back (pace.mjs).
     pace: async () => undefined, briefPaths: undefined,
     // Plugged in and online: the real readings (the power line, the library and GitHub) are the start rule's tests' own (3.27).
-    power: async () => "Online", online: async () => true,
+    power: async () => "Online", refusals: async () => [],
     count: async () => { events.push("count"); return counts.length ? counts.shift() : 0; },
     lock: async (fn) => { events.push("lock"); await fn(); events.push("unlock"); },
     prepare: async () => { events.push("prepare"); },
@@ -499,13 +499,13 @@ test("3.26 · on Windows the checkout's pnpm install runs through a shell, since
   }
 });
 
-test("3.27 · the start rule holds a lane back on battery and while the library or GitHub does not answer; a machine with no battery is plugged in", async () => {
-  const online = async () => true, offline = async () => false;
-  assert.equal((await startHold({ power: async () => "Offline", online })).reason, "on battery: a lane starts only while the machine is plugged in");
-  assert.equal((await startHold({ power: async () => "Online", online: offline })).reason, "offline: the library or GitHub does not answer");
-  for (const line of ["Online", "Unknown", ""]) assert.equal(await startHold({ power: async () => line, online }), undefined, `power line ${line || "unread"}`);
-  assert.equal(await startHold({ power: async () => { throw new Error("no powershell"); }, online }), undefined, "an unread power line holds nothing back");
-  assert.equal((await startHold({ power: async () => "Offline", online: () => assert.fail("read online while on battery") })).windows[0], "power");
+test("3.27 · the start rule holds a lane back on battery and while the library or GitHub does not answer, naming each that refused; a machine with no battery is plugged in", async () => {
+  const online = async () => [], offline = async () => ["the library (storytree library read): no answer", "GitHub (gh api rate_limit): gh: not logged in"];
+  assert.equal((await startHold({ power: async () => "Offline", refusals: online })).reason, "on battery: a lane starts only while the machine is plugged in");
+  assert.equal((await startHold({ power: async () => "Online", refusals: offline })).reason, "offline: the library (storytree library read): no answer; GitHub (gh api rate_limit): gh: not logged in");
+  for (const line of ["Online", "Unknown", ""]) assert.equal(await startHold({ power: async () => line, refusals: online }), undefined, `power line ${line || "unread"}`);
+  assert.equal(await startHold({ power: async () => { throw new Error("no powershell"); }, refusals: online }), undefined, "an unread power line holds nothing back");
+  assert.equal((await startHold({ power: async () => "Offline", refusals: () => assert.fail("probed while on battery") })).windows[0], "power");
 });
 
 test("3.27 · a machine-only dispatcher on battery or offline starts nothing and says why once, then starts once plugged in and online; any other dispatcher never reads them", async (t) => {
@@ -513,7 +513,7 @@ test("3.27 · a machine-only dispatcher on battery or offline starts nothing and
   work.increments[0].machine = "laptop";
   let power = "Offline", online = false, looks = 0;
   const b = await box(t, { survey: async () => ({ ...work, here: "laptop" }), count: async () => 0, maxLanes: async () => 1,
-    power: async () => power, online: async () => online });
+    power: async () => power, refusals: async () => (online ? [] : ["GitHub (gh api rate_limit): no answer"]) });
   b.env = { AGENT_POOL_CONFIG: join(b.lanesDir, "agent-pool.json") };
   await writeFile(b.env.AGENT_POOL_CONFIG, JSON.stringify({ machineOnly: true }));
   b.sleep = async () => {
@@ -527,11 +527,11 @@ test("3.27 · a machine-only dispatcher on battery or offline starts nothing and
   assert.deepEqual(b.briefs.map((brief) => brief.split("\n")[0]), ["# Pool lane: mine"]);
   const holds = b.lines.filter((line) => /holding back dispatch/.test(line)).map((line) => line.replace(/^\S+ /, ""));
   assert.deepEqual(holds, ["holding back dispatch: on battery: a lane starts only while the machine is plugged in",
-    "holding back dispatch: offline: the library or GitHub does not answer"], "each said once, though on battery for two looks");
+    "holding back dispatch: offline: GitHub (gh api rate_limit): no answer"], "each said once, though on battery for two looks");
   assert.ok(b.lines.findIndex((line) => /offline/.test(line)) < b.lines.findIndex((line) => /start mine/.test(line)));
 
   const mint = await box(t, { survey: async () => poolWork(["any"]), count: async () => 0, maxLanes: async () => 1,
-    power: () => assert.fail("the Mint pool read the power line"), online: () => assert.fail("the Mint pool probed the network") });
+    power: () => assert.fail("the Mint pool read the power line"), refusals: () => assert.fail("the Mint pool probed the network") });
   mint.sleep = async () => { await new Promise((go) => setImmediate(go)); if (mint.briefs.length) await writeFile(join(mint.lanesDir, "pool-stop"), ""); };
   assert.equal(await main(["pool"], mint), 0);
   assert.equal(mint.briefs.length, 1);
@@ -547,6 +547,32 @@ test("3.28 · a dispatcher configured with its own checkout and lanes folder bri
   b.sleep = async () => { await new Promise((go) => setImmediate(go)); if (b.briefs.length) await writeFile(join(b.lanesDir, "pool-stop"), ""); };
   assert.equal(await main(["pool"], b), 0);
   assert.ok(b.briefs[0].endsWith(`Work from C:/code/storytree03, never ~/code/storytree03-wt. Your report goes to ${join(b.lanesDir, ".storytree", "agent-pool")}/pool-<increment>.report.md.\n`), b.briefs[0]);
+});
+
+test("3.30 · `probe` names each of the library and GitHub that refuses from the checkout it is given (by default the folder it runs in) and exits 1; it exits 0 when both answer", async (t) => {
+  const b = await box(t), out = [], asked = [];
+  b.out = (line) => out.push(line);
+  b.refusals = async (cwd) => { asked.push(cwd); return ["the library (storytree library read): storytree allows one folder per project per machine"]; };
+  assert.equal(await main(["probe", "C:/code/clone"], b), 1);
+  assert.deepEqual(out, ["refused: the library (storytree library read): storytree allows one folder per project per machine"]);
+  b.refusals = async (cwd) => { asked.push(cwd); return []; };
+  assert.equal(await main(["probe"], b), 0);
+  assert.deepEqual(asked, ["C:/code/clone", process.cwd()]);
+  assert.equal(out.at(-1), `the library and GitHub answer from ${process.cwd()}`);
+});
+
+test("3.30 · `stop` ends the dispatcher pool.pid names, and leaves a pid that is no dispatcher, or none, alone", async (t) => {
+  const b = await box(t), out = [], killed = [];
+  Object.assign(b, { out: (line) => out.push(line), kill: (pid) => killed.push(pid) });
+  assert.equal(await main(["stop"], b), 0, "no pool.pid");
+  await writeFile(join(b.lanesDir, "pool.pid"), "777\n");
+  b.argsOf = async (pid) => (pid === "777" ? "node --import tsx packages/agent-pool/src/launch.mjs pool" : "");
+  assert.equal(await main(["stop"], b), 0);
+  assert.deepEqual(killed, [777]);
+  b.argsOf = async () => "notepad.exe";
+  assert.equal(await main(["stop"], b), 0);
+  assert.deepEqual(killed, [777], "a reused pid is not the dispatcher");
+  assert.deepEqual(out, ["no dispatcher is running", "stopped dispatcher 777", "no dispatcher is running"]);
 });
 
 test("3.8 · a lane stopped by a signal leaves the pool running and its increment surveyed and started again; a lane exiting 75 still ends the pool", async () => {

@@ -351,11 +351,22 @@ export function storytreeCommand(args, platform = process.platform) {
     : ["pnpm", ["-s", "storytree", ...args]];
 }
 
-/** Whether both the library and GitHub answer: a library read (any record proves it) and a GitHub API call, each within a minute. */
-export async function bothAnswer({ cwd, env, platform = process.platform, probe = (file, args) => run(file, args, { cwd, env, timeout: 60_000, maxBuffer: 16 * 1024 * 1024 }) }) {
-  const answers = (file, args) => Promise.resolve().then(() => probe(file, args)).then(() => true, () => false);
-  const [library, github] = await Promise.all([answers(...storytreeCommand(["library", "read", TOKEN_ARC, "--field", "title"], platform)), answers("gh", ["api", "rate_limit"])]);
-  return library && github;
+/**
+ * Which of the library and GitHub do not answer: a library read (any record proves it) and a GitHub API call, each within a
+ * minute. Each refusal is named with the first line it said (its error output, else its error), as "the library (…): …".
+ */
+export async function refusals({ cwd, env, platform = process.platform, probe = (file, args) => run(file, args, { cwd, env, timeout: 60_000, maxBuffer: 16 * 1024 * 1024 }) }) {
+  const firstLine = (text) => String(text ?? "").split("\n").map((line) => line.trim()).find(Boolean);
+  const refused = (name, file, args) => Promise.resolve().then(() => probe(file, args)).then(() => undefined,
+    (error) => `${name}: ${firstLine(error?.stderr) ?? firstLine(error?.message) ?? "no answer"}`);
+  const said = await Promise.all([refused("the library (storytree library read)", ...storytreeCommand(["library", "read", TOKEN_ARC, "--field", "title"], platform)),
+    refused("GitHub (gh api rate_limit)", "gh", ["api", "rate_limit"])]);
+  return said.filter(Boolean);
+}
+
+/** Whether both the library and GitHub answer (refusals finds none). */
+export async function bothAnswer(options) {
+  return (await refusals(options)).length === 0;
 }
 
 /** How long a lane is held for the network, how often it looks, and how long a quiet log means a stall while offline. */

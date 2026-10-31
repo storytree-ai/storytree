@@ -3,8 +3,9 @@
 // library's server, where any machine's `pnpm lag:box` reads it back; and a run that passes its limit is stopped, never left holding
 // the heavy-run lock.
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
-import { existsSync, mkdtempSync } from "node:fs";
+import { existsSync, mkdtempSync, realpathSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
@@ -14,7 +15,7 @@ import { removeTemp, waitUntil } from "@storytree/test-waits";
 import { connect } from "@storytree/library";
 import { dropTestDatabases } from "@storytree/local-postgres/testing";
 
-import { actionStates, decide, lagVerdicts, openHistory, recordLagVerdicts, runBounded, statusText, tick as runTick } from "./lag-box.mjs";
+import { actionStates, decide, lagVerdicts, makeCheckouts, openHistory, recordLagVerdicts, runBounded, statusText, tick as runTick } from "./lag-box.mjs";
 
 const ACTIONS = ["open-smallest-island", "open-largest-island", "close-panel"];
 // main's first-parent history, oldest first: m0, then merges m1..m20, each of pull request 100 + n.
@@ -225,6 +226,31 @@ test("8.15 pnpm lag:box stops a run that passes its limit, records why, and leav
     assert.deepEqual({ timedOut: quick.timedOut, code: quick.code }, { timedOut: false, code: 3 });
   } finally {
     await removeTemp(home);
+  }
+});
+
+test("8.20 pnpm lag:box install makes each checkout locked, and locks one it finds there unlocked, so the session worktree reaper leaves it", async () => {
+  const temp = realpathSync(mkdtempSync(path.join(tmpdir(), "lag-box-install-")));
+  const git = (cwd, ...args) => execFileSync("git", args, { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();
+  try {
+    const origin = path.join(temp, "origin.git");
+    const repo = path.join(temp, "repo");
+    const box = path.join(temp, "box");
+    git(temp, "init", "-q", "--bare", "-b", "main", origin);
+    git(temp, "clone", "-q", origin, repo);
+    git(repo, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "--allow-empty", "-m", "start");
+    git(repo, "push", "-q", "origin", "HEAD:main");
+    // The measuring checkout is already there, unlocked, as an earlier install left it.
+    git(repo, "worktree", "add", "-q", "--detach", path.join(box, "measure"), "origin/main");
+    const setUp = [];
+    makeCheckouts({ repo, box, say: () => {}, setUp: (tree) => setUp.push(tree) });
+    const locked = git(repo, "worktree", "list", "--porcelain").split("\n\n").filter((block) => /^locked/m.test(block)).map((block) => block.split("\n")[0].slice("worktree ".length));
+    assert.deepEqual(locked.sort(), [path.join(box, "measure"), path.join(box, "runner")]);
+    assert.deepEqual(setUp, [path.join(box, "runner")], "only the new checkout is installed");
+    makeCheckouts({ repo, box, say: () => {}, setUp: (tree) => setUp.push(tree) });
+    assert.equal(setUp.length, 1, "a reinstall over locked checkouts changes nothing");
+  } finally {
+    await removeTemp(temp);
   }
 });
 

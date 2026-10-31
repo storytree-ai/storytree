@@ -134,7 +134,7 @@ test("8.3 · the verifier command builds the task image from the hidden tests re
   });
 });
 
-test("8.4 · importing a task puts its image and tests in a private tests repository alone, seeds each arm's public repository from the starting tree with a .storytree.json naming its project and the verifier in its CI, and parks the instruction in each arm's library; a missing arm home refuses it before anything is made", async () => {
+test("8.4 · importing a task puts its image and tests in a private tests repository alone, seeds each arm's public repository from the starting tree with a .storytree/project.json naming its project and the verifier in its CI, and parks the instruction in each arm's library; a missing arm home refuses it before anything is made", async () => {
   await withTempDir(async (dir) => {
     const task = writeTask(dir);
     const homes = { "map-reads-on": path.join(dir, "on"), "map-reads-off": path.join(dir, "off") };
@@ -173,8 +173,8 @@ test("8.4 · importing a task puts its image and tests in a private tests reposi
     assert.deepEqual(JSON.parse(tests!.read("total.json")), { total: 372 }, "the task's total sits beside the counting script, in the private repository only");
     assert.deepEqual(armRepositories.map((made) => [made.repository, made.visibility]), [["storytree-ai/x-twin-map-reads-on", "--public"], ["storytree-ai/x-twin-map-reads-off", "--public"]]);
     for (const made of armRepositories) {
-      assert.deepEqual(made.files, [".github/CODEOWNERS", ".github/workflows/arm.yml", ".storytree.json", "apps/page.tsx"], "the starting tree, its project and its CI; never the tests or the image");
-      assert.deepEqual(JSON.parse(made.read(".storytree.json")), { project: made.repository.slice("storytree-ai/".length) });
+      assert.deepEqual(made.files, [".github/CODEOWNERS", ".github/workflows/arm.yml", ".storytree/project.json", "apps/page.tsx"], "the starting tree, its project and its CI; never the tests or the image");
+      assert.deepEqual(JSON.parse(made.read(".storytree/project.json")), { project: made.repository.slice("storytree-ai/".length) });
       const workflow = JSON.parse(made.read(".github/workflows/arm.yml")) as ReturnType<typeof armWorkflow> & { jobs: Record<string, { steps: { with?: Record<string, string>; env?: Record<string, string> }[] }> };
       const hidden = workflow.jobs["hidden-tests"]!.steps;
       assert.ok(hidden.some((step) => step.with?.repository === "storytree-ai/x-twin-tests"), "the verifier fetches the tests repository");

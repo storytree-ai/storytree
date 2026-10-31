@@ -741,11 +741,14 @@ test("4.25 · each red the watcher handles writes one pr-red line as its fix ses
 
   const top = await mkdtemp(join(tmpdir(), "lane-watch-project-"));
   t.after(() => removeTemp(top));
-  for (const [folder, name] of [["repo", "storytree"], ["arm", "arm-a"]]) {
+  for (const [folder, name, marker] of [["repo", "storytree", ".storytree.json"], ["arm", "arm-a", ".storytree/project.json"], ["both", "arm-b", ".storytree/project.json"]]) {
     await mkdir(join(top, folder, "deep"), { recursive: true });
-    await writeFile(join(top, folder, ".storytree.json"), JSON.stringify({ project: name }));
+    await mkdir(join(top, folder, ".storytree"), { recursive: true });
+    await writeFile(join(top, folder, marker), JSON.stringify({ project: name }));
   }
-  assert.deepEqual(await projectOf({ cwd: join(top, "arm", "deep"), repo: join(top, "repo"), home: "/h" }), { folder: join(top, "arm"), home: "/h" });
+  await writeFile(join(top, "both", ".storytree.json"), JSON.stringify({ project: "storytree" }));
+  assert.deepEqual(await projectOf({ cwd: join(top, "arm", "deep"), repo: join(top, "repo"), home: "/h" }), { folder: join(top, "arm"), home: "/h" }, "a .storytree/project.json marker names the arm");
+  assert.deepEqual(await projectOf({ cwd: join(top, "both", "deep"), repo: join(top, "repo"), home: "/h" }), { folder: join(top, "both"), home: "/h" }, "the new marker wins over a root .storytree.json beside it");
   assert.equal(await projectOf({ cwd: join(top, "repo", "deep"), repo: join(top, "repo"), home: "/h" }), undefined, "the watcher's own project needs no routing");
 });
 

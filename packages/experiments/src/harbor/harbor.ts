@@ -5,14 +5,14 @@
  *
  * Importing one for an experiment makes three things. The experiment's private tests repository, `x-<experiment>-tests`,
  * holds `environment/`, `tests/` and the counting script, and is the only place the tests are pushed. Each arm's public
- * repository (capability 3) is seeded from the task's starting tree, with a `.storytree.json` naming the arm's project,
+ * repository (capability 3) is seeded from the task's starting tree, with a `.storytree/project.json` naming the arm's project,
  * and its CI's verifier builds the task image from the tests repository, runs `tests/test.sh` against the merged tree and
  * reports passed and total. Each arm's throwaway library (capability 2) gets the instruction as its one arc.
  *
  * Every GitHub step goes through `gh` and every arc through `park`, both injectable, so the tests watch the calls.
  */
 import { spawnSync } from "node:child_process";
-import { cpSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
@@ -280,7 +280,8 @@ export async function importHarborTask(spec: TaskImport, seams: { readonly gh?: 
       } else {
         cpSync(spec.startingTree, seed, { recursive: true });
       }
-      writeFileSync(path.join(seed, ".storytree.json"), `${JSON.stringify({ project: workspace.project })}\n`);
+      mkdirSync(path.join(seed, ".storytree"), { recursive: true });
+      writeFileSync(path.join(seed, ".storytree", "project.json"), `${JSON.stringify({ project: workspace.project })}\n`);
       return makeArmRepository({ experiment: spec.experiment, arm, startingTree: seed, ci, secrets: spec.secrets }, gh);
     });
     made.push({ arm, repository, arc: await park(workspace.home, workspace.project, arc) });

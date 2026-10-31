@@ -390,6 +390,31 @@ test("2.14 run as root (a cloud container), the Postgres tools and the server ru
  * Postgres will not start on a data directory other users can read, so the copy is given back
  * initdb's 0700, and the sign-in its 0700 and 0600.
  */
+test("2.15 a database an interrupted run left invalid is dropped when the server next starts, saying so once, so it can be made again and connected to", async () => {
+  const dataDir = await freshCluster("invalid-database");
+  const before = await started({ dataDir, superuserUrl: true });
+  await query(before.url, "CREATE DATABASE \"storytree_t-broken\"");
+  await query(before.url, "CREATE DATABASE t_kept");
+  assert.ok(before.superuserUrl);
+  // What a DROP DATABASE killed part way through leaves in Postgres 16.
+  await query(before.superuserUrl, "UPDATE pg_database SET datconnlimit = -2 WHERE datname = 'storytree_t-broken'");
+  const broken = new URL(before.url);
+  broken.pathname = "/storytree_t-broken";
+  await assert.rejects(query(broken.href, "SELECT 1"), /invalid database/);
+  await stopped(before);
+
+  const said: string[] = [];
+  const server = await started({ dataDir, log: (message) => said.push(message) });
+  assert.deepEqual(await query(server.url, "SELECT datname FROM pg_database WHERE NOT datistemplate ORDER BY datname"),
+    [{ datname: "postgres" }, { datname: "t_kept" }], "the invalid database is gone and the valid one kept");
+  assert.equal(said.filter((message) => message.includes("storytree_t-broken")).length, 1, said.join("\n"));
+  await query(server.url, "CREATE DATABASE \"storytree_t-broken\"");
+  const remade = new URL(server.url);
+  remade.pathname = "/storytree_t-broken";
+  assert.deepEqual(await query(remade.href, "SELECT 1 AS one"), [{ one: 1 }]);
+  await stopped(server);
+});
+
 async function freshCluster(name: string): Promise<string> {
   const template = path.join(root, "template");
   await ensureCluster(template);

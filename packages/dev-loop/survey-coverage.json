@@ -43,13 +43,6 @@
  "src/library-export.mjs": {
   "5": 36
  },
- "src/owner-applies.mjs": {
-  "13": 27,
-  "7": 59
- },
- "src/plan-edges.mjs": {
-  "3": 44
- },
  "src/read-latency.mjs": {
   "8": 54
  },

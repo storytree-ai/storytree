@@ -381,15 +381,6 @@ test("2.14 run as root (a cloud container), the Postgres tools and the server ru
   await stopped(server);
 });
 
-// --- helpers ---------------------------------------------------------------------------------
-
-/**
- * A cluster of its own for one test, copied from one made once by ensureCluster, with its sign-in
- * beside it (so the copy holds the password it is started with). cpSync makes the directories it
- * copies with the default mode (0755 under the usual umask), not the source's, and outside Windows
- * Postgres will not start on a data directory other users can read, so the copy is given back
- * initdb's 0700, and the sign-in its 0700 and 0600.
- */
 test("2.15 a database an interrupted run left invalid is dropped when the server next starts, saying so once, so it can be made again and connected to", async () => {
   const dataDir = await freshCluster("invalid-database");
   const before = await started({ dataDir, superuserUrl: true });
@@ -415,6 +406,15 @@ test("2.15 a database an interrupted run left invalid is dropped when the server
   await stopped(server);
 });
 
+// --- helpers ---------------------------------------------------------------------------------
+
+/**
+ * A cluster of its own for one test, copied from one made once by ensureCluster, with its sign-in
+ * beside it (so the copy holds the password it is started with). cpSync makes the directories it
+ * copies with the default mode (0755 under the usual umask), not the source's, and outside Windows
+ * Postgres will not start on a data directory other users can read, so the copy is given back
+ * initdb's 0700, and the sign-in its 0700 and 0600.
+ */
 async function freshCluster(name: string): Promise<string> {
   const template = path.join(root, "template");
   await ensureCluster(template);

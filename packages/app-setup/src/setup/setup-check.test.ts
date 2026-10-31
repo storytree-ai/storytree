@@ -1075,6 +1075,21 @@ test("8.11 a tool that exits while something it started still holds its output i
   });
 });
 
+test("8.11 a tool that answered while the check was busy reading synchronously is read as answering, not as missing its wait (regression: the owner's laptop, 2026-10-31)", { timeout: 30_000 }, async () => {
+  await withTempDir(async (dir) => {
+    const bin = path.join(dir, "bin");
+    mkdirSync(bin);
+    fakeTool(bin, "claude", { "--version": { out: "2.0.0 (Claude Code)", code: 0 }, "auth status": { code: 1 } });
+    fakeTool(bin, "git", { "--version": { out: "git version 2.50.0", code: 0 } });
+
+    const reading = machineState({ path: bin, waitMs: 300 });
+    // The setup check reads the app's session records synchronously beside the probes; here, for longer than the wait.
+    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 2_500);
+    const machine = await reading;
+    assert.deepEqual({ claude: machine.claude, git: machine.git }, { claude: "signed out", git: "present" });
+  });
+});
+
 test("8.13 the check says whether storytree can read which sessions the Claude desktop app and Codex keep and have archived; where it cannot, it says sessions here leave the list after the leave-after time instead, and never makes that a fix (ADR-0754 D4)", async () => {
   await withTempDir(async (dir) => {
     const home = throwawayHome(dir);

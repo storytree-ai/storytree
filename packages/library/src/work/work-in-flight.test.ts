@@ -376,6 +376,43 @@ for (const backend of [memory, postgres]) {
     assert.equal((await flight.arcView(arc.id))?.increments.length, 1, "no residue: the half-applied change was already applied");
   });
 
+  contract("10.27", "an apply cut off part-way, as a hook's deadline cuts it, leaves pending only the changes it had not applied; the gate reads none it applied as stale, and the next apply finishes the rest", async ({ work, flight, records }) => {
+    const arc = await work.createArc(ARC);
+    const story = await work.addStory({ title: "Visitor can sign up" });
+    const form = await work.addCapability({ title: "1 · Email form", story: story.id });
+    const link = await work.addCapability({ title: "2 · Confirmation link", story: story.id });
+    const code = await work.addCapability({ title: "3 · Confirmation code", story: story.id });
+    const increment = await flight.addIncrement({ arc: arc.id, ...WORK });
+    await flight.advanceIncrement(increment.id, "active");
+    for (const [id, title] of [[form.id, "1 · Address form"], [link.id, "2 · Link"], [code.id, "3 · Code"]] as const) {
+      await flight.pendChange(increment.id, { record: id, fields: { title } });
+    }
+    // The apply is cut at its second change: that edit never returns, as when a hook's process is killed mid-write.
+    let reached!: () => void;
+    const cut = new Promise<void>((resolve) => (reached = resolve));
+    const cutWork = Object.create(work) as WorkModel;
+    cutWork.editCapability = (async (id: string, ...rest: Parameters<WorkModel["editCapability"]> extends [string, ...infer R] ? R : never) => {
+      if (id !== link.id) return work.editCapability(id, ...rest);
+      reached();
+      return new Promise(() => {});
+    }) as WorkModel["editCapability"];
+    void new WorkInFlight(records, cutWork).applyPending(increment.id, "#145");
+    await cut;
+
+    const left = ((await records.get(increment.id)) as SchemaRecord<"increment">).fields.pending?.map(({ record }) => record);
+    assert.deepEqual(left, [link.id, code.id], "what it applied no longer reads pending");
+    assert.deepEqual(await flight.stalePending(increment.id), [], "the gate finds nothing stale");
+
+    // A change applied whose clearing the cut beat still counts as applied, not stale.
+    await records.edit(link.id, { title: "2 · Link" }, { reason: `applied at the merge of PR #145 (${increment.id})` });
+    assert.deepEqual(await flight.stalePending(increment.id), [], "applied by its own increment: not stale");
+
+    const rest = await flight.applyPending(increment.id, "#151");
+    assert.deepEqual(rest, { applied: [link.id, code.id] });
+    assert.equal(((await records.get(code.id)) as SchemaRecord<"capability">).fields.title, "3 · Code");
+    assert.equal(((await records.get(increment.id)) as SchemaRecord<"increment">).fields.pending, undefined, "nothing is left pending");
+  });
+
   contract("10.15", "a live write since a pending edit was read stales it only when it moved a field the edit sets: marking the capability built leaves its pending description to apply at the landing", async ({ work, flight, records, transactions }) => {
     const arc = await work.createArc(ARC);
     const story = await work.addStory({ title: "Visitor can sign up" });

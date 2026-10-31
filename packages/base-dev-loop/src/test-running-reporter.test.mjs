@@ -1,11 +1,11 @@
-// The test runner's reporter (packages/dev-loop/src/test-running-reporter.mjs), fed the events node's
+// The test runner's reporter (packages/base-dev-loop/src/test-running-reporter.mjs), fed the events node's
 // test runner emits: a file whose process failed is named with how it ended and its own stderr.
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import running from "./test-running-reporter.mjs";
 
-test("6.6 a file whose process failed is named with its exit code or signal and its own stderr tail, apart from another file's", async () => {
+test("4.6 a file whose process failed is named with its exit code or signal and its own stderr tail, apart from another file's", async () => {
   const failure = (file, error) => ({ type: "test:fail", data: { file, name: file, nesting: 0, details: { error } } });
   const events = [
     { type: "test:stderr", data: { file: "/w/exit.test.mjs", message: "loader stopped\n" } },

@@ -24,7 +24,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { redactionsIn } from "@storytree/forest/evidence-seed";
 
-import { changedFiles } from "./test-scope.mjs";
+import { changedFiles } from "@storytree/base-dev-loop/test-scope";
 
 /** A private word: the sha256 of a token (lowercased unless `exact`), its length, and what it is. */
 export const OWNER_WORDS = [{ what: "the owner's username", hash: "eae1206e68ff609dc03e5b25c4b2c2c4868d80901fa7319560f3a6469fcab8ff", length: 5, exact: false }];

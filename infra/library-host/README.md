@@ -363,7 +363,7 @@ connection before Cloudflare sees it. The library reads the password from `PGPAS
 so a cloud session saves no keys at all.
 
 A fresh container needs nothing by hand. Every cloud session starts with no storytree settings,
-so the session-start hook (`packages/dev-loop/src/provision-worktree.mjs`, contract 2.6), when
+so the session-start hook (`packages/base-dev-loop/src/provision-worktree.mjs`, base dev loop contract 3.6), when
 `CLAUDE_CODE_REMOTE=true` and `CF_ACCESS_CLIENT_ID` is set, installs with
 `ONNXRUNTIME_NODE_INSTALL=skip` (the agent proxy cuts off onnxruntime's download, and the failed
 install also timed out the MCP server's start), then runs

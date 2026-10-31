@@ -14,7 +14,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { acquireHeavyLock } from "./heavy-lock.mjs";
-import { check } from "./provision-worktree.mjs";
+import { check } from "@storytree/base-dev-loop/provision-worktree";
 
 const repoRoot = fileURLToPath(new URL("../../..", import.meta.url));
 

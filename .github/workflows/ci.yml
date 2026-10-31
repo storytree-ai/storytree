@@ -69,7 +69,7 @@ permissions:
 
 jobs:
   # On a push to main, whether the merge queue's run of this exact commit passed `verify`
-  # (packages/dev-loop/src/queue-verdict.mjs). Its run id is empty when none did, or when the API
+  # (packages/base-dev-loop/src/queue-verdict.mjs). Its run id is empty when none did, or when the API
   # could not be read, and then `platforms` tests the push in full.
   queue-verdict:
     name: queue verdict
@@ -85,7 +85,7 @@ jobs:
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
-          sparse-checkout: packages/dev-loop/src/queue-verdict.mjs
+          sparse-checkout: packages/base-dev-loop/src/queue-verdict.mjs
           sparse-checkout-cone-mode: false
           persist-credentials: false
       - name: Find the merge queue's passing run of this commit
@@ -93,7 +93,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         with:
           script: |
-            const { queueVerdict } = await import(`${process.env.GITHUB_WORKSPACE}/packages/dev-loop/src/queue-verdict.mjs`);
+            const { queueVerdict } = await import(`${process.env.GITHUB_WORKSPACE}/packages/base-dev-loop/src/queue-verdict.mjs`);
             const { run, reason } = await queueVerdict({ github, repo: context.repo, sha: context.sha });
             core.notice(reason);
             if (run === undefined) return;
@@ -203,7 +203,7 @@ jobs:
       # packages/dev-loop/src/test.mjs starts a throwaway Postgres from this machine's @embedded-postgres package
       # (linux-x64, darwin-arm64 or windows-x64). The live Cloud SQL proof (contract 8.1) is
       # skipped, visibly: CI holds no Google identity. Its first line is the `scope:` decision
-      # (packages/dev-loop/src/test-scope.mjs, the same one a local run takes, ADR-0649 D4) and its last the
+      # (packages/base-dev-loop/src/test-scope.mjs, the same one a local run takes, ADR-0649 D4) and its last the
       # PASS / FAIL table per package.
       # A fresh runner has no timing history, so every unit would get the fixed 3 minutes; on main
       # Windows agent-link passed in 171.3 s and macOS forest in 170.0 s (run 37839884329), and

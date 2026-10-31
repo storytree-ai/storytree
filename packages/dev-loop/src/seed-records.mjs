@@ -14,7 +14,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { captureProblems, captureText, scrubCapture, seedProblems } from "@storytree/forest/evidence-seed";
 
-import { changedFiles } from "./test-scope.mjs";
+import { changedFiles } from "@storytree/base-dev-loop/test-scope";
 
 /** A library dump a capture replays (`seed.json`, `seed.json.gz`, `<name>-seed.json…`) or one of the website's snapshots. */
 export function isSeedFile(file) {

@@ -22,7 +22,7 @@ export const STORIES = ["agent-pool", "app", "app-setup", "arc-surface", "base-d
 // agent-pool: story_b2051c0f7372 (Agent runner, ADR-1071 D3), which holds the Claude Code mod in src/claude-code-mod (ADR-1076 D5).
 // app-setup: story_b91056a06337 (Setup), which holds Journey events in src/journey-events (ADR-1076 D3).
 // app: story_a93c6fb1a257 (Desktop app), which holds Lag in real use in src/lag (ADR-1071 D3).
-// base-dev-loop: Base dev loop (ADR-1170 D1): the gate runner, its step interface and its results table.
+// base-dev-loop: story_4aeaccd76a1a (Base dev loop, ADR-1170 D1, ADR-1192 D1): the gate runner, the test runner, the worktree installer and the merge-queue scripts.
 // dev-loop: story_95ed402f9bd3 (Mick's dev loop, ADR-0805 D3, ADR-1170 D3), the personal half around the base dev loop.
 // forest: story_deee4230348c (Map view).
 // forest-world: story_ed2c6b55715d (The drawing engine, ADR-1076 D2), out of Map view again: Map view and the Website call it.

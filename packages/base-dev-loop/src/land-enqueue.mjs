@@ -1,4 +1,4 @@
-// Capability 7 · The gate. Whether land.yml tries a refused merge-queue enqueue again.
+// Capability 5 · The merge queue's CI scripts. Whether land.yml tries a refused merge-queue enqueue again.
 //
 // GitHub can refuse the enqueue after this run's `verify` passed on the very commit, before it has
 // taken the result in, with wordings that name required checks as not yet passed:

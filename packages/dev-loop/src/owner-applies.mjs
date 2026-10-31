@@ -6,7 +6,7 @@
 
 import { fileURLToPath, pathToFileURL } from "node:url";
 
-import { changedFiles } from "./test-scope.mjs";
+import { changedFiles } from "@storytree/base-dev-loop/test-scope";
 
 /** The folders the owner applies by hand, repo-relative. */
 export const OWNER_APPLIED = ["infra/ci-health", "infra/website-publish"];

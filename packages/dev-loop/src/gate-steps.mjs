@@ -30,7 +30,7 @@ import path from "node:path";
 import { capabilityListFor, currentBranch, incrementOfBranch } from "./capability-list.mjs";
 import { ownerAppliesFor } from "./owner-applies.mjs";
 import { REGION_START, REGION_END, ROLE_DIRS, SKILL_DIRS } from "./guidance.mjs";
-import { changedFiles } from "./test-scope.mjs";
+import { changedFiles } from "@storytree/base-dev-loop/test-scope";
 
 /** Check generated roles automatically; require the check when Git cannot establish the changes. */
 export function guidanceFor(root, requested = false) {

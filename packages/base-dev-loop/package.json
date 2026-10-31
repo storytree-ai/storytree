@@ -2,8 +2,9 @@
   "name": "@storytree/base-dev-loop",
   "private": true,
   "type": "module",
-  "description": "The base dev loop (ADR-1170 D1): the gate runner, its step interface and its results table. It runs the project's typecheck and tests, then every step a part contributes as `gateSteps` in its storytree manifest, in one PASS / FAIL / NOT RUN table; it runs in a user's project as in storytree's own, whose personal half (packages/dev-loop) contributes its checks through that interface.",
+  "description": "The base dev loop (ADR-1170 D1, ADR-1192 D1): the gate runner, its step interface and its results table; the scoped test runner (`pnpm test`: its scope, units, run table, rerun and leftovers, holding whatever lock its caller hands it); the worktree installer; and the merge-queue scripts CI calls (queue-verdict.mjs, land-enqueue.mjs). It runs in a user's project as in storytree's own, whose personal half (packages/dev-loop) wraps the gate and the test runner with its heavy-run lock and contributes its checks through the gate's step interface.",
   "dependencies": {
+    "@storytree/local-postgres": "workspace:*",
     "@storytree/plugin-loader": "workspace:*",
     "@storytree/project-and-caller": "workspace:*",
     "tsx": "^4.23.15"
@@ -12,6 +13,12 @@
     "@storytree/test-waits": "workspace:*"
   },
   "exports": {
-    ".": "./src/gate.mjs"
+    ".": "./src/gate.mjs",
+    "./junit": "./src/junit.mjs",
+    "./provision-worktree": "./src/provision-worktree.mjs",
+    "./red-runs": "./src/red-runs.mjs",
+    "./test": "./src/test.mjs",
+    "./test-scope": "./src/test-scope.mjs",
+    "./unit-run": "./src/unit-run.mjs"
   }
 }

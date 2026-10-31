@@ -13,7 +13,7 @@ import { removeTemp } from "@storytree/test-waits";
 import { coverageOf, executedFiles } from "./survey-coverage.mjs";
 import { recordBrowserCoverage } from "./browser-coverage.mjs";
 
-test("6.5 a coverage run records, for each source file, the numbered tests of each number that executed it times the functions of it they ran, in processes the tests started and through a bundle's source map", async () => {
+test("13.2 a coverage run records, for each source file, the numbered tests of each number that executed it times the functions of it they ran, in processes the tests started and through a bundle's source map", async () => {
   const work = mkdtempSync(path.join(tmpdir(), "survey-coverage-"));
   const pkg = path.join(work, "keys");
   try {
@@ -51,7 +51,7 @@ test("6.5 a coverage run records, for each source file, the numbered tests of ea
   }
 });
 
-test("6.5 measured browser bundle inputs survive Node regeneration, scoped to passing proofs in their own story", async () => {
+test("13.2 measured browser bundle inputs survive Node regeneration, scoped to passing proofs in their own story", async () => {
   const temp = mkdtempSync(path.join(tmpdir(), "survey-browser-"));
   const work = path.join(temp, "linked");
   mkdirSync(path.join(temp, "actual"));
@@ -98,7 +98,7 @@ test("6.5 measured browser bundle inputs survive Node regeneration, scoped to pa
   }
 });
 
-test("6.5 App records same-checkout Desktop functions from Node and browser proofs without admitting other stories", async () => {
+test("13.2 App records same-checkout Desktop functions from Node and browser proofs without admitting other stories", async () => {
   const temp = mkdtempSync(path.join(tmpdir(), "survey-desktop-"));
   const work = path.join(temp, "linked");
   mkdirSync(path.join(temp, "actual"));

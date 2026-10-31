@@ -3,11 +3,11 @@
   "5": 84
  },
  "src/build-guidance.mjs": {
-  "4": 90
+  "4": 100
  },
  "src/capability-list.mjs": {
-  "6": 24,
-  "7": 128,
+  "6": 27,
+  "7": 137,
   "10": 3
  },
  "src/check-own-health.mjs": {
@@ -15,7 +15,7 @@
   "5": 10
  },
  "src/desktop-lag.mjs": {
-  "8": 837
+  "8": 1090
  },
  "src/evidence-sweep.mjs": {
   "10": 84
@@ -26,19 +26,22 @@
  "src/fold-story-text.mjs": {
   "5": 48
  },
+ "src/gate-steps.mjs": {
+  "6": 54,
+  "7": 248
+ },
  "src/gate.mjs": {
-  "6": 104,
-  "7": 105
+  "6": 36,
+  "7": 56
  },
  "src/guidance.mjs": {
-  "4": 333
+  "4": 400
  },
  "src/heavy-lock.mjs": {
-  "1": 38,
+  "1": 16,
   "5": 8,
-  "6": 431,
-  "8": 134,
-  "9": 30
+  "6": 189,
+  "8": 134
  },
  "src/lag-box.mjs": {
   "8": 448
@@ -46,8 +49,9 @@
  "src/lag-seed.mjs": {
   "8": 18
  },
- "src/land-enqueue.mjs": {
-  "7": 3
+ "src/leak-scan.mjs": {
+  "7": 294,
+  "11": 21
  },
  "src/library-export.mjs": {
   "5": 36
@@ -55,11 +59,12 @@
  "src/library-server.mjs": {
   "5": 22
  },
- "src/node-runtime.mjs": {
-  "1": 6,
-  "5": 2,
-  "6": 36,
-  "9": 3
+ "src/lockfile-additions.mjs": {
+  "7": 11
+ },
+ "src/owner-applies.mjs": {
+  "6": 27,
+  "7": 59
  },
  "src/package-boundaries.mjs": {
   "3": 1
@@ -67,14 +72,8 @@
  "src/plan-edges.mjs": {
   "3": 44
  },
- "src/provision-worktree.mjs": {
-  "2": 600,
-  "6": 72,
-  "7": 11,
-  "8": 16
- },
- "src/queue-verdict.mjs": {
-  "7": 6
+ "src/push-check.mjs": {
+  "7": 46
  },
  "src/read-latency.mjs": {
   "8": 54
@@ -82,65 +81,62 @@
  "src/record-acceptance.mjs": {
   "5": 30
  },
- "src/red-runs.mjs": {
-  "1": 6,
-  "5": 2,
-  "6": 44,
-  "9": 15
+ "src/red-run-reporter.mjs": {
+  "6": 9,
+  "9": 27
+ },
+ "src/release-copy.mjs": {
+  "11": 11
+ },
+ "src/repo-carry.mjs": {
+  "11": 49
  },
  "src/restore-library.mjs": {
   "5": 16
  },
  "src/seed-records.mjs": {
-  "7": 5
+  "7": 78
  },
- "src/server-log.mjs": {
-  "6": 3
+ "src/starting-tree.mjs": {
+  "11": 16
  },
  "src/survey-coverage.mjs": {
   "2": 26,
   "6": 78
  },
- "src/test-leftovers.mjs": {
-  "1": 36,
-  "2": 4,
-  "5": 12,
-  "6": 240,
-  "9": 15
- },
  "src/test-ratio.mjs": {
   "6": 6
  },
- "src/test-running-reporter.mjs": {
-  "6": 1
+ "src/test-run/factory-run.mjs": {
+  "1": 60,
+  "12": 60
  },
- "src/test-scope.mjs": {
-  "1": 1417,
-  "5": 2,
-  "6": 80,
-  "7": 66,
-  "9": 3
+ "src/test-run/main-commit.mjs": {
+  "12": 48
+ },
+ "src/test-run/record-run.mjs": {
+  "1": 128,
+  "2": 44,
+  "3": 33,
+  "4": 22,
+  "9": 11,
+  "12": 304
+ },
+ "src/test-run/test-run.mjs": {
+  "1": 380,
+  "2": 168,
+  "3": 126,
+  "4": 84,
+  "5": 6,
+  "9": 42,
+  "12": 1052
  },
  "src/test.mjs": {
-  "1": 64,
-  "5": 20,
-  "6": 374,
-  "9": 30
+  "1": 4,
+  "5": 2,
+  "6": 9
  },
  "src/type-imports.mjs": {
   "3": 4
- },
- "src/unit-pool.mjs": {
-  "1": 52,
-  "5": 6,
-  "6": 304,
-  "9": 9
- },
- "src/unit-run.mjs": {
-  "1": 282,
-  "2": 19,
-  "5": 36,
-  "6": 2460,
-  "9": 78
  }
 }

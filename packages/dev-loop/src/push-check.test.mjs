@@ -12,7 +12,7 @@ import { gzipSync } from "node:zlib";
 
 import { removeTemp } from "@storytree/test-waits";
 
-import { installPushHook } from "./provision-worktree.mjs";
+import { installPushHook } from "@storytree/base-dev-loop/provision-worktree";
 import { checkPush, machineSecrets } from "./push-check.mjs";
 
 const script = fileURLToPath(new URL("./push-check.mjs", import.meta.url));

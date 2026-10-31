@@ -23,6 +23,7 @@ export const STAND_IN_KINDS: Readonly<Record<string, { readonly hosts: string; r
   surfaces: { hosts: "the desktop app", shape: "{ id, name, description, switchable, within?, follows?, settings: [] }: a surface of the window" },
   pageAnswers: { hosts: "the desktop app", shape: "an answer the window's page asks the app for, by channel" },
   pageChannels: { hosts: "the desktop app", shape: "a channel the window's page may ask the app on" },
+  gateSteps: { hosts: "the base dev loop's gate", shape: "{ name, when?, command }: when({ root, ...flags }) => { run, reason? } says whether it runs (absent, it always does), command({ root }) => { command, args, shell? } the process it runs from the project's root" },
   services: { hosts: "the service host of each machine whose settings turn the service on", shape: "{ start(host) }, running until host.stopping fires, named by an entry { name, from, export, run } rather than a list" },
 };
 
@@ -128,6 +129,17 @@ function familyProblems(family: unknown, at: number): string[] {
   return problems;
 }
 
+/** What the gate would refuse in declared gate step `at`, each said; none when it runs. */
+function gateStepProblems(step: unknown, at: number): string[] {
+  if (!isObject(step)) return [`gate step ${at + 1} is not an object { name, when?, command }`];
+  const name = said(step.name) ? String(step.name) : `${at + 1}`;
+  const problems: string[] = [];
+  if (!said(step.name)) problems.push(`gate step ${name} has no name`);
+  if (typeof step.command !== "function") problems.push(`gate step ${name} has no command({ root }) function`);
+  if (step.when !== undefined && typeof step.when !== "function") problems.push(`gate step ${name}'s when is not a function`);
+  return problems;
+}
+
 /** Whether this storytree would load a plugin: what it adds, by kind, and each problem when it would not. */
 export interface PluginCheck {
   readonly loads: boolean;
@@ -153,6 +165,7 @@ export function checkPlugin(folder: string | undefined, plugin: string): PluginC
     }
     if (declared.length > 0) adds[kind] = declared.length;
     if (kind === "verbs") problems.push(...declared.flatMap(familyProblems));
+    if (kind === "gateSteps") problems.push(...declared.flatMap(gateStepProblems));
   }
   try {
     const kinds = pluginRecordKinds(folder, plugin);

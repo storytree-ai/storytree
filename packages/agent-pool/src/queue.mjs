@@ -1,9 +1,10 @@
 // Capability 3 · The Mint pool runs its lanes under the box's cap (ADR-0955 D2): one dispatcher at a time, at most
 // the box's cap of engines at once, each lane's brief composed from its header, notes and the pool's rules.
 import { execFile } from "node:child_process";
-import { createHash } from "node:crypto";
-import { readFile, writeFile } from "node:fs/promises";
-import { posix } from "node:path";
+import { createHash, randomUUID } from "node:crypto";
+import { mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
+import { join, posix } from "node:path";
+import { setTimeout as wait } from "node:timers/promises";
 import { promisify } from "node:util";
 
 /**
@@ -77,6 +78,60 @@ export async function waitForSlot({ max, count, sleep, onWait }) {
     const running = await count();
     if (running < (typeof max === "function" ? await max() : max)) return running;
     if (!waited) { onWait(running); waited = true; }
+    await sleep(60_000);
+  }
+}
+
+/** Whether process `pid` is alive: signal 0 tests it on Linux and Windows alike; a process we may not signal is alive. */
+export const isAlive = (pid) => {
+  try { process.kill(pid, 0); return true; }
+  catch (error) { return error.code === "EPERM"; }
+};
+
+/**
+ * Hold the lock file `path` while `fn` runs, where flock(1) is absent (Windows, ADR-1179 D1): it is created exclusively with the
+ * holder's pid, waited on a second at a time while a live process holds it, taken over from a dead holder, and removed after.
+ */
+export async function withLockFile(path, fn, { pid = process.pid, alive = isAlive, sleep = (ms) => wait(ms) } = {}) {
+  for (;;) {
+    try { await writeFile(path, `${pid}\n`, { flag: "wx" }); break; }
+    catch (error) { if (error.code !== "EEXIST") throw error; }
+    const holder = Number((await readFile(path, "utf8").catch(() => "")).trim());
+    if (holder && !alive(holder)) { await rm(path, { force: true }); continue; }
+    await sleep(1000);
+  }
+  try { return await fn(); }
+  finally { await rm(path, { force: true }); }
+}
+
+/** The lanes folder's folder of engine slot reservations, shared by every starter on the machine (reserveSlot). */
+export const ENGINE_SLOTS = "engine-slots";
+
+/**
+ * Take one of the machine's engine slots (3.32): under a lock file in `dir`, count the engines running (`count`) plus the
+ * slots other starters there have reserved and not yet released, and reserve one when that is under `max`; else wait a
+ * minute outside the lock, as waitForSlot does, and look again. `release` frees the slot once its engine's process is
+ * up (or its start failed), so two starters cannot both see the last slot before either engine shows. A reservation
+ * whose starter has died holds no slot and is removed.
+ */
+export async function reserveSlot({ dir, max, count, sleep, onWait, pid = process.pid, alive = isAlive }) {
+  await mkdir(dir, { recursive: true });
+  let waited = false;
+  for (;;) {
+    const slot = await withLockFile(join(dir, "lock"), async () => {
+      let reserved = 0;
+      for (const name of (await readdir(dir)).filter((one) => one.endsWith(".slot"))) {
+        if (alive(Number(name.split("-")[0]))) reserved++;
+        else await rm(join(dir, name), { force: true });
+      }
+      const running = await count() + reserved;
+      if (running >= (typeof max === "function" ? await max() : max)) return { running };
+      const path = join(dir, `${pid}-${randomUUID()}.slot`);
+      await writeFile(path, `${pid}\n`);
+      return { running, release: () => rm(path, { force: true }).catch(() => {}) };
+    }, { alive });
+    if (slot.release) return slot;
+    if (!waited) { onWait(slot.running); waited = true; }
     await sleep(60_000);
   }
 }

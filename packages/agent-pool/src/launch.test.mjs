@@ -9,8 +9,8 @@ import { promisify } from "node:util";
 
 import { removeTemp } from "@storytree/test-waits";
 
-import { main, planRules, poolRules, prepareCheckout, PUSH_URL, runPool, startHold, withLockFile } from "./launch.mjs";
-import { codeVersion } from "./queue.mjs";
+import { main, planRules, poolRules, prepareCheckout, PUSH_URL, runPool, startHold } from "./launch.mjs";
+import { codeVersion, withLockFile } from "./queue.mjs";
 import { SIGNALED } from "./runner.mjs";
 
 const run = promisify(execFile);
@@ -54,7 +54,8 @@ test("3.5 · each lane waits for a slot and updates the checkout under the share
   const b = await box(t, {
     survey: async () => poolWork(["increment_one"]), rules: async () => "Pool rules.\n",
     lock: async (fn) => { b.events.push("lock"); locked = true; await fn(); locked = false; b.events.push("unlock"); },
-    count: async () => { if (!locked || waited) return 0; waited = true; return 5; },
+    // The lane's count, under its slot reservation (3.32), finds the cap full once; the dispatcher's own polls of free slots never do.
+    count: async () => { if (!locked || waited || !new Error().stack.includes("reserveSlot")) return 0; waited = true; return 5; },
     sleep: async () => { b.events.push("sleep"); await new Promise((go) => setImmediate(go)); if (b.briefs.length) await writeFile(join(b.lanesDir, "pool-stop"), ""); },
   });
   await writeFile(join(b.lanesDir, "pool-notes-increment_one.md"), "Notes for one.\n");

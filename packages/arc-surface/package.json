@@ -23,6 +23,13 @@
         "from": "./verbs",
         "export": "ARC_FAMILIES"
       }
+    ],
+    "guidance": [
+      {
+        "from": "./verbs",
+        "export": "arcGuidance",
+        "order": 21
+      }
     ]
   },
   "scripts": {

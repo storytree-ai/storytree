@@ -878,10 +878,11 @@ export function worktreeChange(cwd: string): WorktreeChange {
 /**
  * The folder to read an increment's change from (contract 2.8): `cwd` when it is on `branch`, the branch the increment was claimed
  * on, or on another branch whose name carries the same increment (a second pull request's), else the worktree of `cwd`'s repository
- * checked out on that branch, so a brief run from another checkout never reviews that checkout's work instead. Refused, naming the
- * branch, when no worktree is on it; with no branch known, `cwd`.
+ * checked out on that branch, so a brief run from another checkout never reviews that checkout's work instead; `cwd` too when its
+ * branch names `increment`, as a generic claimed branch renamed to name it does. Refused, naming the branch, when no worktree is on
+ * it; with no branch known, `cwd`.
  */
-export function changeFolder(cwd: string, branch: string | undefined): string {
+export function changeFolder(cwd: string, branch: string | undefined, increment?: string): string {
   if (branch === undefined) return cwd;
   const git = (...args: string[]): string => {
     try {
@@ -892,8 +893,8 @@ export function changeFolder(cwd: string, branch: string | undefined): string {
   };
   const current = git("symbolic-ref", "--quiet", "--short", "HEAD").trim();
   if (current === branch) return cwd;
-  const increment = incrementOfBranch(branch);
-  if (increment !== undefined && incrementOfBranch(current) === increment) return cwd;
+  const named = incrementOfBranch(branch) ?? increment?.replace(/^increment_/, "").toLowerCase();
+  if (named !== undefined && incrementOfBranch(current) === named) return cwd;
   for (const entry of git("worktree", "list", "--porcelain").split(/\n\n+/)) {
     const lines = entry.split("\n");
     const folder = lines.find((line) => line.startsWith("worktree "))?.slice("worktree ".length);

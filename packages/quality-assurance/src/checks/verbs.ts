@@ -70,7 +70,7 @@ const briefVerb = verb({
     let folder = checkout === undefined ? context.folder : resolve(context.folder, checkout);
     if (diff === undefined && checkout === undefined) {
       const { readClaims } = await import("@storytree/session-management");
-      folder = changeFolder(context.folder, (await readClaims(context.log as Parameters<typeof readClaims>[0], context.project)).find((claim) => claim.increment === increment)?.branch);
+      folder = changeFolder(context.folder, (await readClaims(context.log as Parameters<typeof readClaims>[0], context.project)).find((claim) => claim.increment === increment)?.branch, increment);
     }
     // A factory plugin's change is read from the factory repo, the checkout named or this computer's factory folder (contract 2.18).
     const factory = checkout === undefined ? (await import("@storytree/project-and-caller")).factoryFolder().folder : folder;
@@ -177,7 +177,7 @@ const riskVerb = verb({
     let folder = context.folder;
     if (diff === undefined && context.log !== undefined) {
       const { readClaims } = await import("@storytree/session-management");
-      folder = changeFolder(context.folder, (await readClaims(context.log as Parameters<typeof readClaims>[0], context.project)).find((claim) => claim.increment === increment)?.branch);
+      folder = changeFolder(context.folder, (await readClaims(context.log as Parameters<typeof readClaims>[0], context.project)).find((claim) => claim.increment === increment)?.branch, increment);
     }
     const stories = (await context.library.list("story")).filter((story) => story.fields.mapped === undefined).map((story) => ({ id: story.id, title: story.fields.title }));
     const line = readChange(diff ?? branchDiff(folder), new PackageGraph(readPackages(folder)), stories, today());

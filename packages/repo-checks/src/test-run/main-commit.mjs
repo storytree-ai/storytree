@@ -1,4 +1,4 @@
-// Capability 12 · Recording a test run. Which main commit a run of .github/workflows/own-health.yml records, and the CI run
+// Capability 7 · Own health. Which main commit a run of .github/workflows/own-health.yml records, and the CI run
 // whose Windows and macOS evidence it may credit (ADR-0744 D3). The workflow's first step calls this through
 // actions/github-script, so `github` is its Octokit.
 //

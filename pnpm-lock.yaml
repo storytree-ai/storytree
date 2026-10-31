@@ -1017,6 +1017,9 @@ importers:
       '@storytree/base-dev-loop':
         specifier: workspace:*
         version: link:../base-dev-loop
+      '@storytree/ci-health':
+        specifier: workspace:*
+        version: link:../ci-health
       '@storytree/forest':
         specifier: workspace:*
         version: link:../forest
@@ -1035,6 +1038,9 @@ importers:
       '@storytree/project-and-caller':
         specifier: workspace:*
         version: link:../project-and-caller
+      pg:
+        specifier: ^8.23.0
+        version: 8.23.0
       tsx:
         specifier: ^4.23.15
         version: 4.23.15
@@ -1042,9 +1048,6 @@ importers:
       '@storytree/test-waits':
         specifier: workspace:*
         version: link:../test-waits
-      pg:
-        specifier: ^8.23.0
-        version: 8.23.0
 
   packages/service-host:
     dependencies:

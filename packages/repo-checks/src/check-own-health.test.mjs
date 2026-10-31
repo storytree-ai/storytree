@@ -14,7 +14,7 @@ import { runStoryTests } from "./check-own-health.mjs";
 
 const root = fileURLToPath(new URL("../../..", import.meta.url));
 
-test("5.13 · `pnpm check:own-health` runs a story's tests through this repo's harness and reads back each one's result from their junit report", async (t) => {
+test("7.12 · `pnpm check:own-health` runs a story's tests through this repo's harness and reads back each one's result from their junit report", async (t) => {
   const folder = mkdtempSync(path.join(tmpdir(), "own-health-run-"));
   t.after(() => removeTemp(folder));
   const file = path.join(folder, "kettle.test.mjs");
@@ -31,7 +31,7 @@ test("5.13 · `pnpm check:own-health` runs a story's tests through this repo's h
   assert.equal(run.results?.find(({ name }) => name === "1.3 whistles")?.message, "owner: needs a kettle");
 });
 
-test("5.13 · `pnpm check:own-health` runs the stories' tests without the library's sign-in: no PG* or HEALTH_PG_* variable reaches them", async (t) => {
+test("7.12 · `pnpm check:own-health` runs the stories' tests without the library's sign-in: no PG* or HEALTH_PG_* variable reaches them", async (t) => {
   const folder = mkdtempSync(path.join(tmpdir(), "own-health-env-"));
   const given = { PGPASSWORD: "not-for-tests", PGUSER: "storytree-ci-health", HEALTH_PG_ADDRESS: "postgres://library.example:5432/postgres" };
   const before = Object.fromEntries(Object.keys(given).map((name) => [name, process.env[name]]));

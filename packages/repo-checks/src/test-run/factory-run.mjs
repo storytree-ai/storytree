@@ -1,4 +1,4 @@
-// Capability 12 · Recording a test run. A story whose code is a plugin in the owner's factory (ADR-1174: voice, in
+// Capability 7 · Own health. A story whose code is a plugin in the owner's factory (ADR-1174: voice, in
 // HuaMick/storytree-factory's plugins/voice) is proved by the factory's tests, which storytree's CI never sees. This is
 // the run configured for a factory: each story whose package names a plugin folder there (plugins/<name>, holding a
 // package.json) has that folder's tests run by the factory's own test command (`node --import tsx scripts/test.mjs

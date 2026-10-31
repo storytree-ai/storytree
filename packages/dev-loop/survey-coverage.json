@@ -5,10 +5,6 @@
  "src/build-guidance.mjs": {
   "4": 100
  },
- "src/check-own-health.mjs": {
-  "1": 20,
-  "5": 10
- },
  "src/desktop-lag.mjs": {
   "8": 1090
  },
@@ -47,9 +43,6 @@
  "src/library-export.mjs": {
   "5": 36
  },
- "src/library-server.mjs": {
-  "5": 22
- },
  "src/owner-applies.mjs": {
   "13": 27,
   "7": 59
@@ -85,30 +78,6 @@
  },
  "src/test-ratio.mjs": {
   "13": 6
- },
- "src/test-run/factory-run.mjs": {
-  "1": 60,
-  "12": 60
- },
- "src/test-run/main-commit.mjs": {
-  "12": 48
- },
- "src/test-run/record-run.mjs": {
-  "1": 128,
-  "12": 304,
-  "2": 44,
-  "3": 33,
-  "4": 22,
-  "9": 11
- },
- "src/test-run/test-run.mjs": {
-  "1": 380,
-  "12": 1052,
-  "2": 168,
-  "3": 126,
-  "4": 84,
-  "5": 6,
-  "9": 42
  },
  "src/test.mjs": {
   "1": 4,

@@ -1,4 +1,4 @@
-// Capability 12 · Recording a test run. A story's run: its own packages' tests, and each dependant's test titled with its
+// Capability 7 · Own health. A story's run: its own packages' tests, and each dependant's test titled with its
 // package (a title like processes 3.6: …, ADR-0845), run through the caller's test runner, judged by test-run.mjs's
 // rules and written to each contract's verified column, saying in the log what it saw and recorded. Since every story
 // numbers its contracts from 1.1, another package's test counts for the story only when its title names the story's

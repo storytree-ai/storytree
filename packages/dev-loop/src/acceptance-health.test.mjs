@@ -11,7 +11,7 @@ import { dropTestDatabases } from "@storytree/local-postgres/testing";
 
 import { acceptRun } from "./record-acceptance.mjs";
 import { mintAcceptance, readObservations, recordAcceptance, reportedStates, wentRedThenGreen } from "./acceptance-health.mjs";
-import { contractsOf } from "./test-run/test-run.mjs";
+import { contractsOf } from "@storytree/repo-checks/test-run";
 
 test("5.5 an acceptance verdict passes only when the harness ran checks for the contract and every one passed; any failure fails it; none, or one not observed, leaves it not checked", () => {
   const check = (contract, observed, name = "a check") => ({ contract, name, observed });

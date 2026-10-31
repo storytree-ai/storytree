@@ -49,10 +49,10 @@ export function readObservations(text) {
  * Mint each of `contracts` (their numbers) a verdict from the checks the harness observed. A check
  * for a contract not in the list counts for none.
  * @param {{ contracts: string[], checks: Check[] }} input
- * @returns {Map<string, import("./test-run/test-run.mjs").Verdict>}
+ * @returns {Map<string, import("@storytree/repo-checks/test-run").Verdict>}
  */
 export function mintAcceptance({ contracts, checks }) {
-  /** @type {Map<string, import("./test-run/test-run.mjs").Verdict>} */
+  /** @type {Map<string, import("@storytree/repo-checks/test-run").Verdict>} */
   const verdicts = new Map();
   for (const number of contracts) {
     const own = checks.filter((check) => check.contract === number);
@@ -79,7 +79,7 @@ export function mintAcceptance({ contracts, checks }) {
  * the commit in the note. Not checked writes nothing, and the reported column is never touched.
  * @param {import("@storytree/library").Library} library
  * @param {Map<string, string>} contractIds contract number -> id
- * @param {Map<string, import("./test-run/test-run.mjs").Verdict>} verdicts
+ * @param {Map<string, import("@storytree/repo-checks/test-run").Verdict>} verdicts
  * @param {{ commit: string, evidence: string, note?: string }} run
  */
 export function recordAcceptance(library, contractIds, verdicts, { commit, evidence, note }) {

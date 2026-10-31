@@ -1,5 +1,5 @@
 // Which main commit an own-health run records, and whose CI evidence it credits
-// (packages/dev-loop/src/test-run/main-commit.mjs), against a fake Actions API.
+// (packages/repo-checks/src/test-run/main-commit.mjs), against a fake Actions API.
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
@@ -31,7 +31,7 @@ function github(runs, status = "behind") {
   };
 }
 
-test("12.3 · main moved on and the commit's push run was cancelled: its own commit is recorded, crediting the merge queue's passing run of that exact commit", async () => {
+test("7.3 · main moved on and the commit's push run was cancelled: its own commit is recorded, crediting the merge queue's passing run of that exact commit", async () => {
   const cancelled = pushRun(11, A, "cancelled");
   const choice = await chooseRecording({ github: github([cancelled, queueRun(10, A), pushRun(5, C)]), repo, own: A, mainHead: B, triggering: cancelled });
   assert.equal(choice.sha, A);
@@ -39,20 +39,20 @@ test("12.3 · main moved on and the commit's push run was cancelled: its own com
   assert.equal(choice.run?.run_attempt, 2);
 });
 
-test("12.3 · at main's head, a cancelled push run is not evidence: the queue's passing run of the same commit is credited instead", async () => {
+test("7.3 · at main's head, a cancelled push run is not evidence: the queue's passing run of the same commit is credited instead", async () => {
   const cancelled = pushRun(11, A, "cancelled");
   const choice = await chooseRecording({ github: github([cancelled, queueRun(10, A)]), repo, own: A, mainHead: A, triggering: cancelled });
   assert.equal(choice.sha, A);
   assert.equal(choice.run?.id, 10);
 });
 
-test("12.3 · a passing push run of the commit is credited as before", async () => {
+test("7.3 · a passing push run of the commit is credited as before", async () => {
   const passed = pushRun(11, A);
   const choice = await chooseRecording({ github: github([passed]), repo, own: A, mainHead: A, triggering: passed });
   assert.deepEqual([choice.sha, choice.run?.id], [A, 11]);
 });
 
-test("12.3 · a pull request's run, a failed queue run or another commit's run never counts: with main moved on and nothing newer passing, nothing is recorded", async () => {
+test("7.3 · a pull request's run, a failed queue run or another commit's run never counts: with main moved on and nothing newer passing, nothing is recorded", async () => {
   const cancelled = pushRun(11, A, "cancelled");
   const runs = [cancelled, prRun(12, A), queueRun(13, A, "failure"), queueRun(14, C), pushRun(5, C)];
   const choice = await chooseRecording({ github: github(runs, "behind"), repo, own: A, mainHead: B, triggering: cancelled });
@@ -60,26 +60,26 @@ test("12.3 · a pull request's run, a failed queue run or another commit's run n
   assert.match(choice.notices.join("\n"), /records nothing/);
 });
 
-test("12.3 · at main's head with no passing run of its commit, it is still recorded, with no Windows or macOS credit", async () => {
+test("7.3 · at main's head with no passing run of its commit, it is still recorded, with no Windows or macOS credit", async () => {
   const cancelled = pushRun(11, A, "cancelled");
   const choice = await chooseRecording({ github: github([cancelled, prRun(12, A)]), repo, own: A, mainHead: A, triggering: cancelled });
   assert.equal(choice.sha, A);
   assert.equal(choice.run, undefined);
 });
 
-test("12.3 · main moved on with no evidence at the commit: main's newest passing push run at or after it is recorded, as before", async () => {
+test("7.3 · main moved on with no evidence at the commit: main's newest passing push run at or after it is recorded, as before", async () => {
   const cancelled = pushRun(11, A, "cancelled");
   const choice = await chooseRecording({ github: github([cancelled, pushRun(20, B)], "ahead"), repo, own: A, mainHead: C, triggering: cancelled });
   assert.deepEqual([choice.sha, choice.run?.id], [B, 20]);
 });
 
-test("12.3 · a push run that passed on the merge queue's verdict carries no evidence: the queue's passing run of that commit is credited", async () => {
+test("7.3 · a push run that passed on the merge queue's verdict carries no evidence: the queue's passing run of that commit is credited", async () => {
   const reused = pushRun(11, A);
   const choice = await chooseRecording({ github: github([reused, queueRun(10, A)]), repo, own: A, mainHead: A, triggering: reused });
   assert.deepEqual([choice.sha, choice.run?.id, choice.run?.run_attempt], [A, 10, 2]);
 });
 
-test("12.3 · main moved on with no evidence at the commit: the newest passing main commit is credited with its queue run when one passed", async () => {
+test("7.3 · main moved on with no evidence at the commit: the newest passing main commit is credited with its queue run when one passed", async () => {
   const cancelled = pushRun(11, A, "cancelled");
   const choice = await chooseRecording({ github: github([cancelled, pushRun(20, B), queueRun(19, B)], "ahead"), repo, own: A, mainHead: C, triggering: cancelled });
   assert.deepEqual([choice.sha, choice.run?.id], [B, 19]);

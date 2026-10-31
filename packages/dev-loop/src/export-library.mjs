@@ -7,7 +7,7 @@
 //
 // Like `pnpm check:own-health` run by hand, it reaches a Postgres address or Cloud SQL directly, and
 // the app's own library by joining the running app's database, or starting the app's Postgres itself
-// when the app is not running (packages/dev-loop/src/library-server.mjs). The rules for printing live in packages/dev-loop/src/library-export.mjs.
+// when the app is not running (packages/repo-checks/src/library-server.mjs). The rules for printing live in packages/dev-loop/src/library-export.mjs.
 
 import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
@@ -17,7 +17,7 @@ import { connect } from "@storytree/library";
 import { readLibrary } from "@storytree/project-and-caller";
 
 import { appHome } from "../../../apps/desktop/src/home.ts";
-import { settingLibraryServer } from "./library-server.mjs";
+import { settingLibraryServer } from "@storytree/repo-checks/library-server";
 import { exportLibrary } from "./library-export.mjs";
 
 const root = fileURLToPath(new URL("../../..", import.meta.url));

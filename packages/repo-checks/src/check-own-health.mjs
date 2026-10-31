@@ -1,5 +1,6 @@
-// Capability 5 · Library tools. `pnpm check:own-health`: storytree's own health, which is the recording of a test run
-// (./test-run, ADR-1066 D2 G, moved here from CI health by ADR-1170 D3) configured for storytree: each of 0.3's own stories' tests run
+// Capability 7 · Own health. `pnpm check:own-health`: storytree's own health, which is the recording of a test run
+// (./test-run, ADR-1066 D2 G, moved from CI health by ADR-1170 D3, and into this repository's own checks by
+// question_eda214a321bb) configured for storytree: each of 0.3's own stories' tests run
 // through this repo's test harness, and each contract's VERIFIED health recorded in the project `storytree`. The library
 // is the one copy of those stories (ADR-0641), so each story, its contracts and their numbers are read from it. What
 // counts as passing, and how each verdict is written, are CI health's, reached through its interface.
@@ -11,7 +12,7 @@
 // - Run by hand, the library the storytree setting names (`storytree settings show`): a Cloud SQL
 //   instance, signed in as the setting's account; a Postgres address; or the desktop app's own (~/.storytree/0.3/pgdata),
 //   joining the running app's database, or starting the app's Postgres itself when the app is not
-//   running, and holding the one-writer lock while it records (packages/dev-loop/src/library-server.mjs), so the
+//   running, and holding the one-writer lock while it records (packages/repo-checks/src/library-server.mjs), so the
 //   app never restarts into an update mid-write.
 //
 // `pnpm check:factory-health [folder]` (this with --factory) records instead the stories whose code is a plugin in the
@@ -113,7 +114,10 @@ async function main({ factory } = {}) {
   }
 }
 
-/** Run the tests `globs` name through this repo's test harness (its own throwaway Postgres), reading their junit report. */
+/**
+ * Run the tests `globs` name through this repo's test harness (its own throwaway Postgres), reading their junit report. The
+ * harness is the root `pnpm test` script's entry, which holds the machine's heavy-run lock around the base test runner.
+ */
 export async function runStoryTests(globs, root) {
   const work = mkdtempSync(path.join(tmpdir(), "storytree-health-"));
   const report = path.join(work, "tests.xml");

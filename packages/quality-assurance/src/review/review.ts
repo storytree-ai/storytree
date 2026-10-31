@@ -61,7 +61,7 @@
  */
 import { execFileSync } from "node:child_process";
 import { readFileSync, realpathSync } from "node:fs";
-import { join } from "node:path";
+import { join, resolve as resolvePath } from "node:path";
 
 import type { HistoryEntry, Library, PendingChange, PluginPlan, Storytree } from "@storytree/library";
 import { pluginPlan } from "@storytree/plugin-loader/factory";
@@ -367,7 +367,7 @@ class PgReviews implements Reviews {
     const pendingChanges = (increment.fields as { pending?: PendingChange[] }).pending ?? [];
     // A factory plugin's change is read from the factory's worktree on the increment's branch (contract 2.18).
     const pluginOf = await pluginCapabilities(library, increment.fields);
-    const factory = factoryRead([...new Set([...pluginOf.values()].map(({ plugin }) => plugin))].sort(), plugins, typeof read === "string" ? undefined : read.root);
+    const factory = factoryRead([...new Set([...pluginOf.values()].map(({ plugin }) => plugin))].sort(), plugins, typeof read === "string" ? undefined : read.root, also.flatMap(({ root }) => (root === undefined ? [] : [root])));
     // The change's other halves, in checkouts outside the project, are judged with it (contract 2.19).
     const halves = also.map((other) => ({ folder: other.root ?? "", diff: other.diff }));
     // The library records the increment's sessions wrote are part of the change (contract 2.22).

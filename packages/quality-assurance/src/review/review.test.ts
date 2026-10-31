@@ -339,6 +339,21 @@ test("2.8 · the change is read from the worktree on the increment's claimed bra
   }
 });
 
+test("2.8 · a brief run from a worktree whose generic claimed branch was renamed to name the increment reads that worktree", async () => {
+  const dir = branchCheckout();
+  const worktree = join(mkdtempSync(join(tmpdir(), "qa-renamed-")), "wt");
+  try {
+    const git = (cwd: string, ...args: string[]) => execFileSync("git", ["-c", "user.name=t", "-c", "user.email=t@t", "-c", "commit.gpgsign=false", ...args], { cwd });
+    git(dir, "worktree", "add", "-q", "-b", "work", worktree, "origin/main");
+    git(worktree, "branch", "-m", "claude/increment-0123456789ab-x");
+    assert.equal(realpathSync.native(changeFolder(worktree, "work", "increment_0123456789ab")), realpathSync.native(worktree));
+    assert.throws(() => changeFolder(worktree, "work", "increment_ba9876543210"), /branch work/, "another increment's renamed branch is still refused");
+  } finally {
+    await removeTemp(dir);
+    await removeTemp(join(worktree, ".."));
+  }
+});
+
 test("2.8 · a brief run from a worktree on another of the increment's branches reads that worktree, and one on another increment's branch is still refused", async () => {
   const dir = branchCheckout();
   const worktree = join(mkdtempSync(join(tmpdir(), "qa-second-")), "wt");

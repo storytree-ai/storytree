@@ -216,6 +216,11 @@ export interface Library
    * refused, removing nothing. Whether the plugin is switched off is its caller's to check: switching off removes nothing.
    */
   removePluginRecords(listed: PluginRecords, reason: string, options?: WriteOptions): Promise<PluginRecords>;
+  /**
+   * The plugin kinds this library holds live records of that the project was not opened with (ADR-1178 D3), each with
+   * how many, in name order: what reads dormant here, which a list leaves out.
+   */
+  dormantKinds(): Promise<readonly DormantKind[]>;
   /** Close this library's connections. */
   close(): Promise<void>;
 }
@@ -224,6 +229,12 @@ export interface Library
 export interface PluginRecords {
   readonly plugin: string;
   readonly kinds: readonly { readonly kind: string; readonly count: number; readonly ids: readonly string[] }[];
+}
+
+/** A plugin kind whose records read dormant here, and how many live records of it the library holds. */
+export interface DormantKind {
+  readonly kind: string;
+  readonly count: number;
 }
 
 /** A feedback note as the corner sends it: its record's fields but those the library sets. */
@@ -448,6 +459,10 @@ function libraryOf(project: Project): Library {
       }
       for (const { ids } of now.kinds) for (const id of ids) await project.flight.retire(id, reason, options);
       return now;
+    },
+    async dormantKinds() {
+      const { rows } = await project.pool.query<{ type: string; count: string }>("SELECT type, count(*) AS count FROM record WHERE strpos(type, '.') > 0 GROUP BY type ORDER BY type");
+      return rows.filter(({ type }) => project.records.isDormant(type)).map(({ type, count }) => ({ kind: type, count: Number(count) }));
     },
     close: () => project.close(),
   };

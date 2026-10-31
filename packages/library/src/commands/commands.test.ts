@@ -246,6 +246,51 @@ test("17.6 · library read says a record of a plugin's kind no mounted plugin de
   assert.match(dormant, /words: park the globe idea/, "read as stored");
 });
 
+test("17.14 · library list, search and phrase say how many records of a plugin's kind no mounted plugin declares the library holds, that they are dormant here, and the command that mounts the plugin, or that this computer's factory has no such plugin; with it mounted, nothing changes (ADR-1178 D3)", async (t) => {
+  const storytree = await connect({ url: testServerUrl() });
+  const project = uniqueProjectName();
+  t.after(async () => {
+    try {
+      await storytree.dropProject(project);
+    } finally {
+      await storytree.close();
+    }
+  });
+  const note = { kind: "voice.note", version: 1, fields: { type: "object", properties: { words: { type: "string" } }, required: ["words"] }, writers: ["storytree_voice"] };
+  const withPlugin = await storytree.openProject(project, { kinds: [note] });
+  for (const words of ["park the globe idea", "keep the globe"]) await withPlugin.createPluginRecord("voice.note", { words });
+  await withPlugin.defineTerm({ term: "Globe", meaning: "the world drawn round" });
+  const family = LIBRARY_FAMILIES.find((one) => one.name === "library")!;
+  const verbOf = (name: string) => family.verbs.find((one) => mounted(one.command) && one.command.name === name)! as Verb<VerbInputs, LibraryVerbContext>;
+  const contextOf = (library: typeof withPlugin, inFactory?: boolean): LibraryVerbContext => ({
+    library, project, session: "curator", folder: tmpdir(), writer: { actor: "session:curator" }, claims: async () => [], testedNumbers: async () => ({ tested: [], untested: [] }),
+    ...(inFactory === undefined ? {} : { pluginInFactory: async (plugin: string) => inFactory && plugin === "voice" }),
+  });
+  const said = "2 voice.note records are dormant here: their plugin, voice, is not mounted on this computer; mount it with storytree settings set part voice plugin voice.";
+  const unmounted = await storytree.openProject(project);
+  const here = contextOf(unmounted, true);
+
+  for (const all of [false, true]) {
+    const listed = await verbOf("list").act({ kind: "voice.note", where: [], all } as never, here, WORDS);
+    assert.equal(listed.text, said, `list ${all ? "--all " : ""}names the kind, the count and the mount command`);
+  }
+  const searched = await verbOf("search").act({ words: ["globe"], limit: undefined } as never, here, WORDS);
+  assert.ok(searched.text.split("\n").includes(said), searched.text);
+  await assert.rejects(
+    verbOf("phrase").act({ phrase: ["globe"], kind: ["voice.note"], field: [], limit: undefined, after: undefined } as never, here, WORDS),
+    (error: unknown) => error instanceof VerbRefusal && error.message === said,
+  );
+  const absent = await verbOf("list").act({ kind: "voice.note", where: [], all: false } as never, contextOf(unmounted, false), WORDS);
+  assert.equal(absent.text, "2 voice.note records are dormant here: their plugin, voice, is not mounted on this computer; voice is not in this computer's factory, so it cannot be mounted here.");
+  assert.doesNotMatch(searched.text, /keep the globe/, "bodies stay hidden");
+
+  const live = contextOf(withPlugin, true);
+  const listed = await verbOf("list").act({ kind: "voice.note", where: [], all: false } as never, live, WORDS);
+  assert.match(listed.text, /^2 voice\.note records:/);
+  assert.doesNotMatch(listed.text, /dormant/);
+  assert.doesNotMatch((await verbOf("search").act({ words: ["globe"], limit: undefined } as never, live, WORDS)).text, /dormant/);
+});
+
 test("17.7 · The open tool opens a record of a plugin's kind whole, as library read does, said dormant when no mounted plugin declares it (ADR-1178 D3)", async (t) => {
   const storytree = await connect({ url: testServerUrl() });
   const project = uniqueProjectName();

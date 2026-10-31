@@ -21,6 +21,8 @@
  * - Run by a session holding an increment, `edit` and `retire` of a story, capability or contract
  *   planned before it hold the change on the increment as a pending change until its branch merges
  *   (ADR-0966 D1), and `read` of the increment lists them as before and after (D3).
+ * - A plugin kind no mounted plugin declares stays out of `list`, `search` and `phrase` (ADR-1178 D3), never in silence:
+ *   each says how many of its records the library holds, that they are dormant here, and how to mount the plugin.
  * - Reads use `get`, `list` and `history`. Edits use the kind's public editor; question wording
  *   has no public editor yet, so that edit says what is missing.
  */
@@ -30,7 +32,7 @@ import { isDeepStrictEqual } from "node:util";
 
 import { ANCHOR_ID, CONTRACT_DEFINITION, LONG_CONTRACT_TITLE, SchemaError, type KnowledgeKind, type Library, type PendingChange, type PhraseKind, type PlanChange, type RecordType, type WriteOptions } from "../index.js";
 import { PR_CUTOVER_ID } from "../work/index.js";
-import { fieldValue, verb, VerbRefusal, type VerbContext, type VerbFamily } from "../verbs/verb.js";
+import { fieldValue, verb, VerbRefusal, type DoorWords, type VerbContext, type VerbFamily } from "../verbs/verb.js";
 import { changes, count, decisionNamed, find } from "../data/commands.js";
 import { ADR_FAMILY } from "./adr.js";
 import { FYI_FAMILY } from "./fyi.js";
@@ -52,6 +54,8 @@ export interface HeldClaim {
 export interface LibraryVerbContext extends VerbContext {
   claims(): Promise<readonly HeldClaim[]>;
   testedNumbers(capability: string): Promise<{ readonly tested: readonly string[]; readonly untested: readonly string[] }>;
+  /** Whether this computer's factory folder holds the plugin `plugin`, which `settings set part` can mount; unsaid when the door cannot tell. */
+  pluginInFactory?(plugin: string): Promise<boolean>;
 }
 
 type Fields = Record<string, unknown>;
@@ -150,6 +154,21 @@ const ELSEWHERE: Readonly<Record<string, string>> = {
   resteer: "storytree resteer new",
 };
 
+/**
+ * A line for each plugin kind among `kinds` (every one, when not given) whose records the library holds but read dormant
+ * here (ADR-1178 D3): how many, why, and the command that mounts its plugin, or that this computer's factory has none. A
+ * list leaves them out; this says so, never showing them.
+ */
+async function dormantSaid(context: LibraryVerbContext, words: DoorWords, kinds?: readonly string[]): Promise<string[]> {
+  const dormant = (await context.library.dormantKinds()).filter(({ kind }) => kinds === undefined || kinds.includes(kind));
+  return Promise.all(dormant.map(async ({ kind, count }) => {
+    const plugin = kind.slice(0, kind.indexOf("."));
+    const mount = words.say({ command: `settings set part ${plugin} plugin ${plugin}`, why: "" });
+    const how = await context.pluginInFactory?.(plugin) === false ? `${plugin} is not in this computer's factory, so it cannot be mounted here` : `mount it with ${mount}`;
+    return `${count} ${kind} ${count === 1 ? "record is" : "records are"} dormant here: ${count === 1 ? "its" : "their"} plugin, ${plugin}, is not mounted on this computer; ${how}.`;
+  }));
+}
+
 const NOT_A_TOOL = { absent: "an agent's artifact tools are search_notes, open, write_note and correct_note, which record its reads" } as const;
 
 const search = verb({
@@ -159,17 +178,19 @@ const search = verb({
     words: { kind: "text", word: 0, many: true, optional: true, blank: true, describe: "the words to search for" },
     limit: { kind: "text", optional: true, describe: "how many to show" },
   },
-  async act({ words, limit }, context: LibraryVerbContext) {
+  async act({ words, limit }, context: LibraryVerbContext, door) {
     const query = words.join(" ").trim();
     if (query === "") throw new VerbRefusal("this needs the words to search for", { misuse: true });
     const count = countOf(limit);
     const ranked = await context.library.rankAll(query, count === undefined ? {} : { limit: count });
     const heading = ranked.by === "meaning" ? `closest in meaning to "${query}":` : `ranked by words: ${ranked.why}; the records holding every word of "${query}":`;
-    if (ranked.hits.length === 0) return { text: `${heading}\n  none` };
+    // Records of a plugin kind no mounted plugin declares are never ranked; the answer says so (ADR-1178 D3).
+    const dormant = await dormantSaid(context, door);
+    if (ranked.hits.length === 0) return { text: [heading, "  none", ...dormant].join("\n") };
     // A friction report says where it stands, so a settled one found by meaning reads as settled (ADR-1016 D4).
     const kindOf = (note: (typeof ranked.hits)[number]["note"]): string => note.type === "friction" ? `friction: ${note.fields.state}` : note.type;
     const lines = ranked.hits.map(({ note, score }) => `  ${score === undefined ? "" : `${score.toFixed(2)}  `}${note.id}  [${kindOf(note)}]  ${labelOf(note.fields)}`);
-    return { text: [heading, ...lines].join("\n"), next: [{ command: "library read <id>", why: "read one whole" }] };
+    return { text: [heading, ...lines, ...dormant].join("\n"), next: [{ command: "library read <id>", why: "read one whole" }] };
   },
 });
 
@@ -188,9 +209,11 @@ const phrase = verb({
     limit: { kind: "text", optional: true, describe: "how many to a page" },
     after: { kind: "text", optional: true, describe: "the cursor to continue from" },
   },
-  async act({ phrase: words, kind, field, limit, after }, context: LibraryVerbContext) {
+  async act({ phrase: words, kind, field, limit, after }, context: LibraryVerbContext, door) {
     const query = readAt(needed(words[0], "one quoted literal phrase"), context.folder);
     if (words.length !== 1) throw new VerbRefusal("quote the phrase as one argument", { misuse: true });
+    const dormant = kind.length === 0 ? [] : await dormantSaid(context, door, kind);
+    if (dormant.length > 0) throw new VerbRefusal(dormant.join("\n"));
     const page = await context.library.findPhrase(query, {
       ...(kind.length > 0 ? { kinds: kind as PhraseKind[] } : {}),
       ...(field.length > 0 ? { fields: [...field] } : {}),
@@ -500,8 +523,11 @@ const list = verb({
     where: { kind: "text", many: true, optional: true, describe: "<field>=<value> to filter by" },
     all: { kind: "switch", describe: "settled friction too" },
   },
-  async act({ kind: given, where, all }, context: LibraryVerbContext) {
+  async act({ kind: given, where, all }, context: LibraryVerbContext, door) {
     const kind = needed(given, "the kind of record");
+    // A plugin's kind no mounted plugin declares lists nothing; the answer names it instead (ADR-1178 D3).
+    const dormant = await dormantSaid(context, door, [kind]);
+    if (dormant.length > 0) return { text: dormant.join("\n") };
     const filters = where.map((one) => {
       const equals = one.indexOf("=");
       if (equals < 1) throw new VerbRefusal(`--where needs <field>=<value>, not ${JSON.stringify(one)}`, { misuse: true });

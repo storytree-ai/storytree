@@ -314,6 +314,37 @@ export const families = [{ name: "health", summary: "my own health, from my fact
   });
 });
 
+test("1.46 · library list of a plugin's kind this computer does not mount says how many records of it the library holds, that they are dormant here, and the command that mounts the plugin from this computer's factory, or that the factory has no such plugin (ADR-1178 D3)", async () => {
+  await inWorld(command, async (world) => {
+    const folder = path.join(world.elsewhere, "factory");
+    const plugin = path.join(folder, "plugins", "my-health");
+    mkdirSync(plugin, { recursive: true });
+    const reading = { kind: "my-health.reading", version: 1, fields: { type: "object", properties: { words: { type: "string" } }, required: ["words"] }, writers: ["my_health"] };
+    writeFileSync(path.join(plugin, "package.json"), JSON.stringify({ name: "my-health", type: "module", exports: { "./verbs": "./verbs.js" }, storytree: { interface: 1, verbs: [{ from: "./verbs", export: "families" }], recordKinds: [reading] } }));
+    writeFileSync(path.join(plugin, "verbs.js"), `const note = {
+  consumers: ["agent", "user"],
+  command: { family: "my-health", name: "note", summary: "keep a health reading" },
+  tool: { name: "my_health_note", description: "keep a health reading" },
+  inputs: { words: { kind: "text", word: 0, describe: "the reading" } },
+  act: async ({ words }, { library, writer }) => ({ text: (await library.createPluginRecord("my-health.reading", { words }, writer)).id }),
+};
+export const families = [{ name: "my-health", summary: "my own health, from my factory", order: 18, verbs: [note] }];
+`);
+    assert.equal((await world.run(["settings", "set", "factory", folder])).code, 0);
+    assert.equal((await world.run(["settings", "set", "part", "my-health", "plugin", "my-health"])).code, 0);
+    assert.equal((await world.run(["my-health", "note", "steady"])).code, 0);
+    assert.match((await world.run(["library", "list", "my-health.reading"])).stdout, /^1 my-health\.reading records:$/m, "mounted, it lists as before");
+
+    assert.equal((await world.run(["settings", "set", "part", "my-health", "on"])).code, 0);
+    const dormant = await world.run(["library", "list", "my-health.reading"]);
+    assert.equal(dormant.code, 0, dormant.stderr);
+    assert.match(dormant.stdout, /^1 my-health\.reading record is dormant here: its plugin, my-health, is not mounted on this computer; mount it with storytree settings set part my-health plugin my-health\.$/m);
+    rmSync(plugin, { recursive: true, force: true });
+    const absent = await world.run(["library", "list", "my-health.reading"]);
+    assert.match(absent.stdout, /^1 my-health\.reading record is dormant here: its plugin, my-health, is not mounted on this computer; my-health is not in this computer's factory, so it cannot be mounted here\.$/m);
+  });
+});
+
 test("1.39 · `settings set system roles off` leaves the project's roles out of what `library list` and `library search` give at the next command, and `library read` still reads one by its id; a role switched on by its title shows again; `settings show` lists what is off and on (ADR-1092 D2)", async () => {
   await inWorld(command, async (world) => {
     const library = await world.library();

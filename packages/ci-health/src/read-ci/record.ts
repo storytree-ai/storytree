@@ -8,10 +8,13 @@
  * and any earlier passing or failing it did not reproduce, carried as "not re-run" (history keeps the old verdict).
  * With no tests there is nothing to re-run, and a verdict from elsewhere stands.
  */
-import { MissingReferenceError, type EarlierVerdict, type Library, type SkipKind } from "@storytree/library";
+import { MissingReferenceError, type EarlierVerdict, type HealthSource, type Library, type SkipKind } from "@storytree/library";
 
-/** Who writes a verdict, and where it was seen: the commit it ran on and the CI run that ran it, when known. */
-export type Writer = { by: string; commit?: string; run?: string };
+/**
+ * Who writes a verdict, and where it was seen: by a run on this computer (`local`) or read from CI (`ci`), written on
+ * every entry so the map can say which (ADR-1193 D3), and the commit it ran on and the CI run that ran it, when known.
+ */
+export type Writer = { by: string; source: HealthSource; commit?: string; run?: string };
 
 /** A contract's verdict as recording needs it: passing and failing carry their tally as `note`, not checked its `reason`. */
 export type RecordedVerdict = {
@@ -69,7 +72,7 @@ export async function recordHealth(
       }
       const at = seenAt(writer);
       const note = at === "" ? verdict.note : `${verdict.note ?? ""},${at}`;
-      await library.recordVerified(id!, verdict.state, { by: writer.by, ...(note === undefined || note === "" ? {} : { note }) });
+      await library.recordVerified(id!, verdict.state, { by: writer.by, source: writer.source, ...(note === undefined || note === "" ? {} : { note }) });
       written[verdict.state]++;
     } catch (error) {
       // Retired on the library after the run read its plan (runs 40092872110, 40103014567): one contract gone sinks no run.
@@ -96,6 +99,6 @@ async function markNotChecked(library: Pick<Library, "recordVerified" | "health"
   const at = seenAt(writer);
   const reason = verdict.reason ?? verdict.note ?? "";
   const note = was === undefined ? `${reason}${at === "" ? "" : `,${at}`}` : `not re-run${at}: ${reason}`;
-  await library.recordVerified(id, "not-checked", { by: writer.by, note, ...(verdict.skip === undefined ? {} : { skip: verdict.skip }), ...(was === undefined ? {} : { was }) });
+  await library.recordVerified(id, "not-checked", { by: writer.by, source: writer.source, note, ...(verdict.skip === undefined ? {} : { skip: verdict.skip }), ...(was === undefined ? {} : { was }) });
   return true;
 }

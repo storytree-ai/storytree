@@ -6,7 +6,7 @@
  * Every word from the library is written as text, never as HTML.
  */
 import { CARD, layoutTree, OUTSIDE_CARD, type CapabilityLine, type Card, type StoryPanel, type WhyLine } from "@storytree/forest";
-import type { HealthState } from "@storytree/library";
+import type { HealthSource, HealthState } from "@storytree/library";
 
 const HEALTH: Readonly<Record<HealthState, string>> = { passing: "passing", failing: "failing", "not-checked": "not checked" };
 
@@ -73,7 +73,7 @@ function capability(line: CapabilityLine): string {
               <span class="panel-health">
                 ${badge("the agent reports", contract.reported)}
                 <span class="panel-trail">${text(contract.trail)}</span>
-                ${contract.verified === undefined ? "" : badge("storytree saw", contract.verified)}
+                ${contract.verified === undefined ? "" : badge("storytree saw", contract.verified, contract.source === undefined ? undefined : [contract.source])}
                 ${contract.lastSeen === undefined ? "" : `<span class="panel-last-seen">last seen ${contract.lastSeen.state === "passing" ? "passing" : "failing"} ${day(contract.lastSeen.at)}, not re-run since</span>`}
               </span>
             </li>`,
@@ -88,7 +88,7 @@ function capability(line: CapabilityLine): string {
       <p>${text(line.description)}</p>
       <p class="panel-health">
         ${badge("the agent reports", line.reported)}
-        ${line.verified === undefined ? "" : badge("storytree saw", line.verified)}
+        ${line.verified === undefined ? "" : badge("storytree saw", line.verified, line.sources)}
       </p>
       <details><summary>${line.contracts.length} contract${line.contracts.length === 1 ? "" : "s"}</summary>${contracts}</details>
     </section>`;
@@ -108,10 +108,10 @@ const REASON: Readonly<Record<WhyLine["reason"], (named: string) => string>> = {
 };
 
 /** Under its word: why it is not green and who moves it (ADR-0825 D1). Everything the library says is text. */
-function why({ reason, mover, contracts, since }: WhyLine): string {
+function why({ reason, mover, contracts, since, sources }: WhyLine): string {
   const named = contracts.length < 2 ? (contracts[0] ?? "it") : `${contracts.slice(0, -1).join(", ")} and ${contracts.at(-1)}`;
   const sentence = REASON[reason](reason === "not built" ? "" : named);
-  return `<p class="panel-why mover-${mover}"><strong>Why not green:</strong> ${text(sentence)}${since === undefined || reason === "not re-run" ? "" : `, since ${day(since)}`}. <span class="panel-mover">${mover === "owner" ? "You move this one." : "The agent moves this one."}</span></p>`;
+  return `<p class="panel-why mover-${mover}"><strong>Why not green:</strong> ${text(sentence)}${sources === undefined ? "" : `, ${FROM[sourceKey(sources)]}`}${since === undefined || reason === "not re-run" ? "" : `, since ${day(since)}`}. <span class="panel-mover">${mover === "owner" ? "You move this one." : "The agent moves this one."}</span></p>`;
 }
 
 /** Why a grey territory is grey (ADR-0992 D6): the arcs that park it, by title. */
@@ -129,8 +129,16 @@ function day(at: string): string {
   return `${when.getUTCDate()} ${MONTHS[when.getUTCMonth()]}`;
 }
 
-function badge(who: string, state: HealthState): string {
-  return `<span class="panel-badge badge-${state}">${text(who)}: ${HEALTH[state]}</span>`;
+function badge(who: string, state: HealthState, sources?: readonly HealthSource[]): string {
+  return `<span class="panel-badge badge-${state}">${text(who)}: ${HEALTH[state]}${sources === undefined || sources.length === 0 ? "" : `, ${FROM[sourceKey(sources)]}`}</span>`;
+}
+
+/** Where storytree saw a verdict, in words (ADR-1193 D3), and shorter where a card has little room. */
+const FROM: Readonly<Record<"local" | "ci" | "both", string>> = { local: "verified locally", ci: "from CI", both: "verified locally and from CI" };
+const FROM_SHORT: Readonly<Record<"local" | "ci" | "both", string>> = { local: "local", ci: "CI", both: "local + CI" };
+
+function sourceKey(sources: readonly HealthSource[]): "local" | "ci" | "both" {
+  return sources.length > 1 ? "both" : (sources[0] ?? "local");
 }
 
 /**
@@ -183,7 +191,7 @@ function cardOf(card: Card, selected: boolean): string {
   const lines = [...(card.own ? [] : [{ words: card.story ?? "", kind: "card-story" }]), ...wrap(card.title, card.own ? 28 : 24, card.own ? 2 : 1).map((words) => ({ words, kind: "card-title" }))];
   const marks = [
     ...(card.reported === undefined ? [] : [mark("the agent reports", card.reported)]),
-    ...(card.verified === undefined ? [] : [mark("storytree saw", card.verified)]),
+    ...(card.verified === undefined ? [] : [mark("storytree saw", card.verified, card.sources)]),
   ];
   return `<g class="${classes.join(" ")}"${pressable} transform="translate(${card.x.toFixed(1)} ${card.y.toFixed(1)})">
       <title>${text(title)}</title>
@@ -197,8 +205,9 @@ function cardOf(card: Card, selected: boolean): string {
 
 const SIGN: Readonly<Record<HealthState, string>> = { passing: "✓", failing: "✗", "not-checked": "–" };
 
-function mark(who: string, state: HealthState): string {
-  return `<text class="card-mark mark-${state}">${SIGN[state]} ${text(who)}: ${HEALTH[state]}</text>`;
+function mark(who: string, state: HealthState, sources?: readonly HealthSource[]): string {
+  const from = sources === undefined || sources.length === 0 ? "" : `<tspan class="card-source"> · ${FROM_SHORT[sourceKey(sources)]}</tspan>`;
+  return `<text class="card-mark mark-${state}">${SIGN[state]} ${text(who)}: ${HEALTH[state]}${from}</text>`;
 }
 
 /** `words` in at most `most` lines of about `width` characters, the last cut short with an ellipsis. */

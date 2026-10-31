@@ -72,9 +72,10 @@ export function qualityTools(): ToolExtension {
         increment: z.string().min(1).describe("The increment whose change is reviewed"),
         diff: z.string().optional().describe("The change's diff against its default branch, as git diff gives it"),
         worktree: z.string().optional().describe("The worktree whose branch is the change, to read the diff from"),
-      }), async ({ increment, diff, worktree }, { library, storytree }) => {
+        also: z.array(z.string().min(1)).optional().describe("Each checkout outside the project whose branch is the change's other half, as an increment landing in storytree and the factory repo has: its diff is listed beside the change's"),
+      }), async ({ increment, diff, worktree, also }, { library, storytree }) => {
         if (diff === undefined && worktree === undefined) throw new Error("Give the change's diff, or the worktree whose branch is the change: this server's folder is not the branch.");
-        const brief = await (await openReviews(storytree)).brief(library, increment, diff ?? worktreeChange(worktree!));
+        const brief = await (await openReviews(storytree)).brief(library, increment, diff ?? worktreeChange(worktree!), undefined, undefined, (also ?? []).map((folder) => worktreeChange(folder)));
         const { text, mutation } = await briefWithReport(storytree, brief, diff === undefined ? worktree : undefined);
         return { text, data: { brief, ...(mutation === undefined ? {} : { mutation }) } };
       }, AGENT);
@@ -82,10 +83,11 @@ export function qualityTools(): ToolExtension {
         increment: z.string().min(1).describe("The increment whose change was reviewed"),
         return: reviewReturn,
         worktree: z.string().optional().describe("The worktree whose branch is the change, for Architecture checks' graduated checks to run on"),
-      }), async ({ increment, return: review, worktree }, { library, storytree, project }) => {
+        also: z.array(z.string().min(1)).optional().describe("Each checkout the brief read the change's other half from, for the graduated checks to run on too"),
+      }), async ({ increment, return: review, worktree, also }, { library, storytree, project }) => {
         const graduated = worktree === undefined
           ? { ran: false as const, reason: "no worktree was given, and this server's folder is not the branch." }
-          : await graduatedFindings(library, worktree);
+          : await graduatedFindings(library, worktree, also ?? []);
         const reviews = await openReviews(storytree);
         const taken = await takenWithSurvivors(storytree, reviews, project, increment, await reviews.take(project, increment, review as ReviewReturn, graduated));
         return { text: takenText(taken), data: { taken } };

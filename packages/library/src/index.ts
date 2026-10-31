@@ -84,6 +84,7 @@ export type {
   HealthReason,
   HealthState,
   NodeHealth,
+  HealthSource,
   SkipKind,
 } from "./health/index.js";
 export { heldBack, NOT_VERIFIED, wordAndWhy } from "./health/index.js";

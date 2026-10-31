@@ -60,7 +60,7 @@ export function factoryArgument(args, chosen) {
  */
 export async function recordFactory(library, stories, linked, { unrecorded = false, env = process.env, runTests = (folder) => runFactoryTests(linked, folder, env), log = (line) => console.log(line), error = (line) => console.error(line) } = {}) {
   const factory = realpathSync(linked);
-  const writer = { by: VERIFIED_BY_FACTORY, commit: factoryCommit(factory) };
+  const writer = { by: VERIFIED_BY_FACTORY, source: "local", commit: factoryCommit(factory) };
   const plugins = factoryPlugins(stories, factory);
   if (plugins.length === 0) {
     error(`the factory at ${factory}, commit ${writer.commit}: no plugin is a story's package, so nothing is recorded and the commit stays unrecorded`);

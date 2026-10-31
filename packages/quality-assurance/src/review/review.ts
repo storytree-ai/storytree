@@ -108,6 +108,11 @@ export interface Brief {
    * when none of those plugins' contracts may be answered met (contract 2.18). Absent when the increment names no plugin's capability.
    */
   readonly factory?: { readonly plugins: readonly string[]; readonly folder?: string; readonly diff?: string; readonly unread?: string };
+  /**
+   * Each checkout outside the project named as the change's other half, an increment landing in two repositories as storytree and the
+   * factory repo, with its branch's diff against its default branch (contract 2.19). Absent when none was named.
+   */
+  readonly also?: readonly { readonly folder: string; readonly diff: string }[];
   /** The contracts the increment retires pending its merge, with the reason: not judged (contract 2.4). Absent from briefs issued before 2.4. */
   readonly retired?: readonly { readonly id: string; readonly title: string; readonly reason: string }[];
   /**
@@ -236,7 +241,7 @@ export interface Reviews {
    * when known, or read from its worktree, when from the second review on only what changed since the last review taken is
    * briefed (contract 4.5); refused after the third with a finding standing.
    */
-  brief(library: Library, change: string, diff: string | WorktreeChange, base?: Base, plugins?: PluginReader): Promise<Brief>;
+  brief(library: Library, change: string, diff: string | WorktreeChange, base?: Base, plugins?: PluginReader, also?: readonly WorktreeChange[]): Promise<Brief>;
   /**
    * Take the reviewer's return on `change`'s brief awaiting one, or refuse it naming what it gets wrong, writing nothing.
    * What Architecture checks' graduated checks found on the change, when given, is recorded with it as theirs (contract 5.3).
@@ -292,7 +297,7 @@ class PgReviews implements Reviews {
     this.#pool = pool;
   }
 
-  async brief(library: Library, change: string, read: string | WorktreeChange, given?: Base, plugins?: PluginReader): Promise<Brief> {
+  async brief(library: Library, change: string, read: string | WorktreeChange, given?: Base, plugins?: PluginReader, also: readonly WorktreeChange[] = []): Promise<Brief> {
     const diff = typeof read === "string" ? read : read.diff;
     const base = typeof read === "string" ? given : read.base;
     const increment = await library.get(change);
@@ -301,7 +306,9 @@ class PgReviews implements Reviews {
     // A factory plugin's change is read from the factory's worktree on the increment's branch (contract 2.18).
     const pluginOf = await pluginCapabilities(library, increment.fields);
     const factory = factoryRead([...new Set([...pluginOf.values()].map(({ plugin }) => plugin))].sort(), plugins, typeof read === "string" ? undefined : read.root);
-    const packages = [...new Set([...diffPackages(diff), ...diffPackages(factory?.diff ?? ""), ...(pendingChanges.length === 0 ? [] : [PLAN_PACKAGE])])].sort();
+    // The change's other halves, in checkouts outside the project, are judged with it (contract 2.19).
+    const halves = also.map((other) => ({ folder: other.root ?? "", diff: other.diff }));
+    const packages = [...new Set([...diffPackages(diff), ...diffPackages(factory?.diff ?? ""), ...halves.flatMap((half) => diffPackages(half.diff)), ...(pendingChanges.length === 0 ? [] : [PLAN_PACKAGE])])].sort();
     if (packages.length === 0) throw new Error("The diff touches no file and the increment changes nothing in the plan: commit the change, then review it.");
     const project = library.name;
     const { all, taken } = await this.#taken(project, change, typeof read === "string" ? undefined : read);
@@ -373,6 +380,7 @@ class PgReviews implements Reviews {
       ...(mark === undefined ? {} : { mark }), ...(since === undefined ? {} : { since }),
       ...(risk === undefined ? {} : { risk }), pass: risk?.tier === "low" ? "light" : "full", packages, capabilities: listed, contracts, retired,
       ...(factory === undefined ? {} : { factory: factory.brief }),
+      ...(halves.length === 0 ? {} : { also: halves }),
       ...(plan.length === 0 ? {} : { plan }),
       ...(guardrails.length === 0 ? {} : { guardrails }),
       ...(reds === undefined ? {} : { reds }),
@@ -1042,6 +1050,11 @@ export function briefText(brief: Brief): string {
         ? `Factory plugins (${brief.factory.plugins.join(", ")}): ${brief.factory.plugins.map((plugin) => `${plugin}'s change was not read`).join("; ")}: ${brief.factory.unread}. Answer each of their contracts not met, saying so: a return answering one met is refused.`
         : `Factory plugins (${brief.factory.plugins.join(", ")}): their contracts above are as their plan files on the increment's branch number them; one marked as the plan's only is new in it. Their change is ${brief.factory.diff === undefined ? `the diff below, read from ${brief.factory.folder}` : `the factory worktree ${brief.factory.folder}'s diff against its default branch, judged with the checks and contracts like the diff below:`}`,
       ...(brief.factory.diff === undefined ? [] : [brief.factory.diff]),
+    ]),
+    ...(brief.also ?? []).flatMap((half) => [
+      "",
+      `The change's other half, the checkout ${half.folder}: its branch's diff against its default branch, judged with the checks and contracts like the diff below:`,
+      half.diff,
     ]),
     "",
     brief.since !== undefined

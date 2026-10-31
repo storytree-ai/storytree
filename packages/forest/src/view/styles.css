@@ -722,6 +722,12 @@
   fill: var(--fail-text);
 }
 
+/* Where storytree saw it (ADR-1193 D3): smaller, so the longest mark still fits the card. */
+:is(.panel-diagram, .tree-space-diagram) .card-source {
+  font-size: 9px;
+  fill: var(--none-text);
+}
+
 :is(.panel-diagram, .tree-space-diagram) .box[role="button"] {
   cursor: pointer;
 }

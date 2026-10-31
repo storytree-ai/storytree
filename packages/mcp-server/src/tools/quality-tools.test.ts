@@ -1,5 +1,5 @@
 /**
- * Quality assurance's contracts 1.2, 2.3, 3.4, 4.4, 5.1 and 5.3, at this front door: the real shared server serves the checks and
+ * Quality assurance's contracts 1.2, 2.3, 2.19, 3.4, 4.4, 5.1 and 5.3, at this front door: the real shared server serves the checks and
  * ledger readings and the change-reviewer's loop through quality assurance's public API, the tools being the ones that package registers. Kept here, beside
  * the server, because quality assurance cannot depend back on the MCP server.
  */
@@ -229,6 +229,56 @@ test("quality-assurance 5.1 and 5.3 · the shared server's graduate_check gradua
   } finally {
     rmSync(folder, { recursive: true, force: true });
     rmSync(worktree, { recursive: true, force: true });
+    await library.close();
+    await storytree.close();
+    await dropTestProjects([project]);
+  }
+});
+
+test("quality-assurance 2.19 · the shared server's quality_brief and quality_take given also cover the change's other half in a checkout outside the project: its folder and diff in the brief, the graduated checks run there too", async () => {
+  const project = uniqueProjectName();
+  const storytree = await connect({ url: testServerUrl() });
+  const library = await storytree.openProject(project);
+  const folder = mkdtempSync(path.join(tmpdir(), "quality-also-"));
+  const worktree = mkdtempSync(path.join(tmpdir(), "quality-also-branch-"));
+  const factory = mkdtempSync(path.join(tmpdir(), "quality-also-factory-"));
+  try {
+    const story = await library.addStory({ title: "Talk by voice" });
+    const capability = await library.addCapability({ title: "1 · Connector", story: story.id });
+    const contract = await library.addContract({ capability: capability.id, title: "1.1 · A wrong secret is answered 404" });
+    const arc = await library.createArc({ title: "Voice moves out", intent: "Voice is a plugin", endState: "Voice runs from the factory", stories: [story.id] });
+    const increment = (await library.addIncrement({ arc: arc.id, title: "Move voice", objective: "Voice in the factory", body: "The breakdown.", capabilities: [capability.id] })).id;
+    const principle = await library.writeKnowledge("principle", { title: "Test creation principles", description: "How a test earns its place.", statement: "A test fails if its behaviour is removed.", why: "A test that cannot fail protects nothing.", howToApply: "Delete the behaviour and watch the test fail." });
+    const check = await library.writeKnowledge("check", { title: "Tautological expected value", description: "Expected values computed as the code computes them.", question: "Is any expected value computed the way the code computes it?", enforces: [principle.id] });
+    const branch = (cwd: string, file: string, text: string) => {
+      const git = (...args: string[]) => execFileSync("git", ["-c", "user.name=t", "-c", "user.email=t@t", "-c", "commit.gpgsign=false", ...args], { cwd, encoding: "utf8" });
+      git("init", "-q");
+      writeFileSync(path.join(cwd, "README.md"), "base\n");
+      git("add", "."), git("commit", "-qm", "base"), git("update-ref", "refs/remotes/origin/main", "HEAD");
+      mkdirSync(path.dirname(path.join(cwd, file)), { recursive: true });
+      writeFileSync(path.join(cwd, file), text);
+      git("add", "."), git("commit", "-qm", "change");
+    };
+    branch(worktree, "packages/forms/src/email.ts", "export const valid = 1;\n");
+    branch(factory, "plugins/voice/src/door.test.ts", "assert.equal(door(1), door(1));\n");
+    writeFileSync(path.join(folder, ".storytree.json"), JSON.stringify({ project }));
+    await approveCheckout(folder, project);
+
+    await withClient(folder, async (client) => {
+      assert.notEqual((await client.callTool({ name: "graduate_check", arguments: { check: check.id, part: "the same call on both sides of an equality", enforced_by: "self-equal-assertion" } })).isError, true);
+      const brief = textOf(await client.callTool({ name: "quality_brief", arguments: { increment, worktree, also: [factory] } }));
+      assert.match(brief, /packages it touches: forms, voice\./);
+      assert.ok(brief.includes(`the checkout ${factory}:`), brief);
+      assert.match(brief, /export const valid = 1;/);
+      assert.match(brief, /assert\.equal\(door\(1\), door\(1\)\)/);
+      await client.callTool({ name: "quality_take", arguments: { increment, worktree, also: [factory], return: { review: 1, checks: [{ check: check.id, tripped: false }], contracts: [{ contract: contract.id, met: true, touched: false }] } } });
+      const { hits } = await (await openLedger(storytree)).rows(project);
+      assert.deepEqual(hits.map(({ file, line, foundBy }) => ({ file, line, foundBy })), [{ file: "plugins/voice/src/door.test.ts", line: 1, foundBy: "graduated" }]);
+    });
+  } finally {
+    rmSync(folder, { recursive: true, force: true });
+    rmSync(worktree, { recursive: true, force: true });
+    rmSync(factory, { recursive: true, force: true });
     await library.close();
     await storytree.close();
     await dropTestProjects([project]);

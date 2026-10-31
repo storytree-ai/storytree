@@ -1,0 +1,22 @@
+{
+  "name": "@storytree/teaching-cards",
+  "private": true,
+  "type": "module",
+  "license": "Apache-2.0",
+  "description": "Teaching cards (ADR-1196): the desktop's first-encounter cards and their journal, out of the website again because nothing there calls them.",
+  "exports": {
+    ".": "./src/index.ts",
+    "./view": "./src/view/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p ."
+  },
+  "devDependencies": {
+    "@types/node": "^24.13.6",
+    "esbuild": "^0.28.2",
+    "happy-dom": "catalog:",
+    "playwright-core": "1.60.0",
+    "tsx": "^4.23.15",
+    "typescript": "~7.0.2"
+  }
+}

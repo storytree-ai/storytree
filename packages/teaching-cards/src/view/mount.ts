@@ -1,5 +1,5 @@
 /**
- * Capability 9 · Cards and journal on screen. A fired card shows beside the thing it explains, one at a
+ * Capability 3 · Cards and journal on screen. A fired card shows beside the thing it explains, one at a
  * time, and never takes focus or blocks the map; the journal lists the cards seen and shows one again.
  */
 import { cardOf, type Card, type Kind } from "../cards.js";

@@ -314,9 +314,9 @@ test("2.1 the real workspace: a story whose captures reach desktop's capture kit
   for (const dir of users) assert.ok(!scope("packages/forest-world/src/planet/road-worker.ts").includes(dir), dir);
 });
 
-test("2.1 the real workspace: a website-only change runs website and desktop, not the packages whose captures and tests reach into desktop's files", () => {
+test("2.1 the real workspace: a website-only change runs only website, since nothing depends on it, nor the packages whose captures and tests reach into desktop's files", () => {
   const decision = classify(["packages/website/src/site.ts"], readWorkspace(repoRoot));
-  assert.deepEqual(decision.dirs, ["apps/desktop", "packages/website"]);
+  assert.deepEqual(decision.dirs, ["packages/website"]);
 });
 
 test("2.1 the real workspace: the capture scripts no test runs (forest-world's website-reveal, forest's probe-website) draw no edge into website", () => {

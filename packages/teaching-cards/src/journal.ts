@@ -1,5 +1,5 @@
 /**
- * Capability 8 · First encounters. The journal of cards a user has seen, kept on their machine so a
+ * Capability 2 · First encounters. The journal of cards a user has seen, kept on their machine so a
  * kind taught on one project is not taught again on another, in the order seen.
  */
 import { KINDS, type Kind } from "./cards.js";

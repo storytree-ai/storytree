@@ -1,12 +1,12 @@
 /**
- * Capability 9 · Cards and journal on screen. The drawing of how a decision is kept inside the globe (ADR-1018 D7), shown in the
- * decision card's depth and played by the website's tour: a drawing, not the globe, in three beats: an island seen from the side;
+ * Capability 3 · Cards and journal on screen. The drawing of how a decision is kept inside the globe (ADR-1018 D7), shown in the
+ * decision card's depth: a drawing, not the globe, in three beats: an island seen from the side;
  * a decision glued to its underside; the decisions it stands on, each one step deeper, a tunnel down to the core. It is true to
  * the knowledge core's placement (@storytree/knowledge-core, shelves/positions.ts): a note hangs on the line from its island's
  * entrance toward the globe's centre, at R × (1 − 0.8 d / max(deepest + 1, 5)) for its depth d, the longest chain of links from
  * the island's shelf; notes at one depth spread a little around that line; notes no shelf reaches fill a ball at the centre.
- * Given `seconds`, its host's styles play the beats once over that time; the classes are the website's (packages/website's
- * freeplay.css). Without it the drawing is still, at its last frame, and carries no style attribute, which the app's
+ * Given `seconds`, its host's styles play the beats once over that time (the website's tour did, until commit 61e9543d).
+ * Without it the drawing is still, at its last frame, and carries no style attribute, which the app's
  * style-src 'self' refuses.
  */
 const centre = { x: 220, y: 250 }, radius = 200, deepest = 4;

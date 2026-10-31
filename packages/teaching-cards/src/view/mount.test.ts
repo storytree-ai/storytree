@@ -17,7 +17,7 @@ function page() {
 
 const oneStory = { tree: { stories: [{ id: "story_a", capabilities: [] }], arcs: [] }, changes: [], lines: [] };
 
-test("9.1 · a fired card shows beside its thing, takes no focus and blocks nothing; More opens its depth and Got it takes it away", () => {
+test("3.1 · a fired card shows beside its thing, takes no focus and blocks nothing; More opens its depth and Got it takes it away", () => {
   const { document, host, store } = page();
   const button = document.createElement("button");
   document.body.append(button);
@@ -48,7 +48,7 @@ test("9.1 · a fired card shows beside its thing, takes no focus and blocks noth
   teaching.stop();
 });
 
-test("9.1 · a card at the window's right edge sits to the left of its point, inside the window", () => {
+test("3.1 · a card at the window's right edge sits to the left of its point, inside the window", () => {
   const { document, host, store } = page();
   const view = document.defaultView as unknown as { innerWidth: number; innerHeight: number };
   view.innerWidth = 1000; view.innerHeight = 600;
@@ -62,7 +62,7 @@ test("9.1 · a card at the window's right edge sits to the left of its point, in
   teaching.stop();
 });
 
-test("9.1 · a target off screen puts its card in the corner, and the next card waits for the one on show", () => {
+test("3.1 · a target off screen puts its card in the corner, and the next card waits for the one on show", () => {
   const { host, store } = page();
   const kept = journal(store);
   const teaching = mountTeaching(host, { journal: kept, locate: () => undefined });
@@ -82,7 +82,7 @@ test("9.1 · a target off screen puts its card in the corner, and the next card 
   assert.equal(host.querySelector(".teaching-card"), null);
 });
 
-test("9.2 · the journal lists every card seen, in order, and choosing one shows it again with its depth", () => {
+test("3.2 · the journal lists every card seen, in order, and choosing one shows it again with its depth", () => {
   const { host, store } = page();
   const kept = journal(store);
   kept.mark("empty"); kept.mark("story");
@@ -102,7 +102,7 @@ test("9.2 · the journal lists every card seen, in order, and choosing one shows
   assert.equal(host.children.length, 0);
 });
 
-test("9.3 · the decision card's depth draws a decision glued beneath its island and the ones it stands on deeper, toward the core; other cards draw nothing", () => {
+test("3.3 · the decision card's depth draws a decision glued beneath its island and the ones it stands on deeper, toward the core; other cards draw nothing", () => {
   const { host, store } = page();
   const kept = journal(store);
   kept.mark("story"); kept.mark("decision");

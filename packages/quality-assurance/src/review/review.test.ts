@@ -152,6 +152,49 @@ test("2.10 · a plan-only change, whose diff touches no file, gets a brief listi
   });
 });
 
+test("2.22 · a change whose substance is a library record its sessions wrote since claiming it is briefed on that record, in the package `library`, whose diff touches no file, and a hit naming the record is taken; one written before the claim, or by another writer, is not listed", async () => {
+  await withLibrary(async (library, storytree) => {
+    const { increment, contracts, checks } = await plan(library);
+    const reviews = await openReviews(storytree);
+    const steps = { statement: "Tidy the notes.", trigger: "A note is written.", steps: "Merge duplicates.", surfaces: "The library.", failureModes: "A note lost." };
+    const earlier = await library.writeKnowledge("process", { title: "Before the claim", description: "Written earlier.", ...steps }, { actor: "session:S" });
+    const from = new Date().toISOString();
+    await assert.rejects(reviews.brief(library, increment, "", undefined, undefined, [], [{ actor: "session:S", from }]), /The diff touches no file/, "nothing written since the claim: refused as before");
+
+    const process = await library.writeKnowledge("process", { title: "Manager: sweep stale claims", description: "The two-hourly sweep.", ...steps }, { actor: "session:S" });
+    await library.editNote(earlier.id, { statement: "Tidy the notes, then link them." }, { actor: "session:S" });
+    await library.writeKnowledge("process", { title: "Someone else's", description: "Another writer's.", ...steps }, { actor: "session:T" });
+    await library.advanceIncrement(increment, "active", { actor: "session:S" });
+    const brief = await reviews.brief(library, increment, "", undefined, undefined, [], [{ actor: "session:S", from }]);
+
+    assert.deepEqual(brief.packages, ["library"]);
+    assert.deepEqual(brief.records?.map(({ record, type, title, action }) => ({ record, type, title, action })), [
+      { record: earlier.id, type: "process", title: "Before the claim", action: "updated" },
+      { record: process.id, type: "process", title: "Manager: sweep stale claims", action: "created" },
+    ].sort((a, b) => a.record.localeCompare(b.record)));
+    const text = briefText(brief);
+    assert.match(text, new RegExp(`Library records \\(2\\)[^]*${process.id}  process  Manager: sweep stale claims  created\\n    [^\\n]*"statement":"Tidy the notes\\."`));
+    assert.match(text, /Tidy the notes, then link them\./);
+    assert.doesNotMatch(text, /Someone else's/);
+    assert.match(text, /The diff touches no file: the change under review is the library records above\./);
+
+    const taken = await reviews.take(library.name, increment, clean(checks, contracts, { [checks[0]!]: [{ file: process.id, line: 1, found: "a step no one can follow" }] }));
+    assert.deepEqual(taken.hits.map(({ check, file, package: where }) => ({ check, file, where })), [{ check: checks[0], file: process.id, where: "library" }]);
+  });
+});
+
+test("2.22 · the brief's tool reads who claimed the increment from the server's activity log and lists the library records they wrote since", async () => {
+  await withLibrary(async (library, storytree) => {
+    const { increment } = await plan(library);
+    const from = new Date().toISOString();
+    const process = await library.writeKnowledge("process", { title: "Manager: sweep stale claims", description: "The two-hourly sweep.", statement: "Release a quiet claim.", trigger: "Every two hours.", steps: "Release.", surfaces: "Sessions.", failureModes: "A live claim released." }, { actor: "session:S" });
+    const log = { lines: async (_project: string, filter: { kinds: readonly string[]; where: Record<string, string> }) => (filter.kinds.includes("claimed") && filter.where["increment"] === increment ? [{ session: "S", at: from }] : []) };
+
+    const { text } = await registeredTools().quality_brief!({ increment, diff: DIFF }, { library, storytree, project: library.name, log });
+    assert.match(text, new RegExp(`Library records \\(1\\)[^]*${process.id}  process  Manager: sweep stale claims  created`));
+  });
+});
+
 test("2.5 · the brief lists each contract under its story and capability, so two stories' contracts sharing a number both appear, each with its story, and a named capability with no contracts still shows", async () => {
   await withLibrary(async (library, storytree) => {
     const forest = await library.addStory({ title: "The world" });
@@ -231,7 +274,7 @@ test("2.9 · a return names the review it answers, and take refuses one naming a
 
 /** The tools this package registers, by name, as the MCP server would call them. */
 function registeredTools() {
-  type Call = { library: Library; storytree: unknown; project: string };
+  type Call = { library: Library; storytree: unknown; project: string; log?: unknown };
   const tools: Record<string, (args: object, call: Call) => Promise<{ text: string; data?: Record<string, unknown> }>> = {};
   qualityTools().registerTools!((name, _description, _input, act) => { tools[name] = act as never; });
   return tools;

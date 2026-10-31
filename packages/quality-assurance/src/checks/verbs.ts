@@ -64,7 +64,7 @@ const briefVerb = verb({
   },
   async act({ increment, diff, checkout, also }, context: QualityVerbContext) {
     if (diff !== undefined && checkout !== undefined) throw new VerbRefusal("give the change's diff or its checkout, not both", { misuse: true });
-    const { briefWithReport, changeFolder, factoryPlugins, openReviews, worktreeChange } = await import("../index.js");
+    const { briefWithReport, changeFolder, claimingWriters, factoryPlugins, openReviews, worktreeChange } = await import("../index.js");
     const reviews = await openReviews(server(context));
     // The change is the branch the increment was claimed on, wherever this runs (contract 2.8), or the one in the checkout named (2.16).
     let folder = checkout === undefined ? context.folder : resolve(context.folder, checkout);
@@ -76,7 +76,9 @@ const briefVerb = verb({
     const factory = checkout === undefined ? (await import("@storytree/project-and-caller")).factoryFolder().folder : folder;
     // An increment landing in two repositories is reviewed whole: each other half's branch is listed beside the change (contract 2.19).
     const halves = (also ?? []).map((other) => worktreeChange(resolve(context.folder, other)));
-    const brief = await reviews.brief(context.library, increment, diff ?? worktreeChange(folder), undefined, factoryPlugins(factory, increment), halves);
+    // The library records the increment's claiming sessions wrote are part of the change (contract 2.22).
+    const writers = context.log === undefined ? [] : await claimingWriters(context.log as Parameters<typeof claimingWriters>[0], context.project, increment);
+    const brief = await reviews.brief(context.library, increment, diff ?? worktreeChange(folder), undefined, factoryPlugins(factory, increment), halves, writers);
     // The change's mutation report runs on its worktree, never on a diff given by hand (contract 7.3).
     const { text } = await briefWithReport(server(context), brief, diff === undefined ? folder : undefined);
     return {

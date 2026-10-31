@@ -97,3 +97,46 @@ test("2.8 · `quality brief` and `quality risk` run in a worktree whose generic 
     await removeTemp(root);
   }
 });
+
+test("2.22 · `quality brief` lists beside the diff the library record the increment's claiming session wrote, with its kind and text, and not one it wrote before claiming the increment", async () => {
+  const root = mkdtempSync(join(tmpdir(), "qa-verbs-records-"));
+  const dir = join(root, "repo");
+  try {
+    const git = (...args: string[]) => execFileSync("git", ["-c", "user.name=t", "-c", "user.email=t@t", "-c", "commit.gpgsign=false", ...args], { cwd: dir });
+    mkdirSync(join(dir, "packages/library/src"), { recursive: true });
+    git("init", "-q");
+    writeFileSync(join(dir, "packages/library/package.json"), JSON.stringify({ name: "@storytree/library" }));
+    writeFileSync(join(dir, "packages/library/src/notes.md"), "base\n");
+    git("add", ".");
+    git("commit", "-qm", "base");
+    git("update-ref", "refs/remotes/origin/main", "HEAD");
+    git("checkout", "-qb", "work");
+    writeFileSync(join(dir, "packages/library/src/notes.md"), "base\nthe file beside the record\n");
+    git("commit", "-qam", "the change");
+
+    await withLibrary(async (library, storytree) => {
+      const story = await library.addStory({ title: "The library" });
+      const arc = await library.createArc({ title: "Manager", intent: "Sweep", endState: "Swept", stories: [story.id] });
+      const increment = await library.addIncrement({ arc: arc.id, title: "Sweep", objective: "Sweep", body: "b", capabilities: [] });
+      const steps = { trigger: "Every two hours.", steps: "Release quiet claims.", surfaces: "The sessions list.", failureModes: "A live claim released." };
+      await library.writeKnowledge("process", { title: "An older process", description: "Written before the claim.", statement: "Older.", ...steps }, { actor: "session:S" });
+      const log = await openActivityLog(testServerUrl());
+      try {
+        assert.equal((await claim({ log, library, project: library.name, session: "S", branch: "work" }, increment.id, "sweep", { keepBranch: true })).ok, true);
+        const process = await library.writeKnowledge("process", { title: "Manager: sweep stale claims", description: "The two-hourly sweep.", statement: "Release a claim only after its holder is quiet.", ...steps }, { actor: "session:S" });
+        const context = { folder: dir, library, project: library.name, session: "person:test", server: storytree, log } as unknown as SessionVerbContext;
+        const verbs = new Map(QUALITY_FAMILIES[0]!.verbs.map((one) => [(one.command as { name: string }).name, one]));
+
+        const { text } = await verbs.get("brief")!.act({ increment: increment.id }, context, WORDS);
+        assert.match(text, /\+the file beside the record/);
+        assert.match(text, new RegExp(`${process.id}  process  Manager: sweep stale claims  created\\n    [^\\n]*Release a claim only after its holder is quiet\\.`));
+        assert.doesNotMatch(text, /An older process/);
+      } finally {
+        await log.close();
+        await forgetProjectActivity(storytree, library.name);
+      }
+    });
+  } finally {
+    await removeTemp(root);
+  }
+});

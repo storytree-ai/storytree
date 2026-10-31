@@ -11,7 +11,7 @@ import { z } from "zod";
 import { graduate, graduatedFindings } from "../graduation/graduation.js";
 import { ledgerText, openLedger } from "../ledger/ledger.js";
 import { briefWithReport, takenWithSurvivors } from "../mutation/mutation.js";
-import { openReviews, standingText, takenText, worktreeChange, type ReviewReturn } from "../review/review.js";
+import { claimingWriters, openReviews, standingText, takenText, worktreeChange, type ReviewReturn } from "../review/review.js";
 import { checks, checksText } from "./checks.js";
 
 /** What a tool has to work with for one call, as far as the checks and ledger readings need it. */
@@ -20,6 +20,8 @@ interface ToolCall {
   /** The connection the library was opened on, which hands out the ledger's own database. */
   readonly storytree: Storytree;
   readonly project: string;
+  /** The activity log the server writes, from which a brief reads who claimed the increment (contract 2.22). */
+  readonly log?: unknown;
 }
 
 /** What a tool answers. */
@@ -73,9 +75,11 @@ export function qualityTools(): ToolExtension {
         diff: z.string().optional().describe("The change's diff against its default branch, as git diff gives it"),
         worktree: z.string().optional().describe("The worktree whose branch is the change, to read the diff from"),
         also: z.array(z.string().min(1)).optional().describe("Each checkout outside the project whose branch is the change's other half, as an increment landing in storytree and the factory repo has: its diff is listed beside the change's"),
-      }), async ({ increment, diff, worktree, also }, { library, storytree }) => {
+      }), async ({ increment, diff, worktree, also }, { library, storytree, project, log }) => {
         if (diff === undefined && worktree === undefined) throw new Error("Give the change's diff, or the worktree whose branch is the change: this server's folder is not the branch.");
-        const brief = await (await openReviews(storytree)).brief(library, increment, diff ?? worktreeChange(worktree!), undefined, undefined, (also ?? []).map((folder) => worktreeChange(folder)));
+        // The library records the increment's claiming sessions wrote are part of the change (contract 2.22).
+        const writers = log === undefined ? [] : await claimingWriters(log as Parameters<typeof claimingWriters>[0], project, increment);
+        const brief = await (await openReviews(storytree)).brief(library, increment, diff ?? worktreeChange(worktree!), undefined, undefined, (also ?? []).map((folder) => worktreeChange(folder)), writers);
         const { text, mutation } = await briefWithReport(storytree, brief, diff === undefined ? worktree : undefined);
         return { text, data: { brief, ...(mutation === undefined ? {} : { mutation }) } };
       }, AGENT);

@@ -17,6 +17,9 @@
  *   Every change the increment makes to the plan pending its merge is listed too, so a plan-only change, whose diff touches no file,
  *   is briefed with those changes as the thing under review, in the package `plan`, where a hit names the record as its file;
  *   with neither a diff nor a pending change the brief is refused (2.10).
+ *   Every library record the sessions that claimed the increment wrote or edited since their first claim on it is listed too, as it
+ *   was written, the increment itself and health left out: in the package `library`, where a hit names the record as its file, so a
+ *   change whose substance is a record (a process, a note) is briefed on it, and is not refused for a diff that touches no file (2.22).
  *   From the second review on it also holds each earlier hit with the implementer's answer, and the
  *   rejections the reviewer must judge (4.2). A brief read from the change's worktree then holds only the diff since the last
  *   review taken, naming it, unless that review's commit has left the branch's history or the branch has taken in its default
@@ -60,7 +63,7 @@ import { execFileSync } from "node:child_process";
 import { readFileSync, realpathSync } from "node:fs";
 import { join } from "node:path";
 
-import type { Library, PendingChange, PluginPlan, Storytree } from "@storytree/library";
+import type { HistoryEntry, Library, PendingChange, PluginPlan, Storytree } from "@storytree/library";
 import { pluginPlan } from "@storytree/plugin-loader/factory";
 
 import { checks as liveChecks, type Graduated } from "../checks/checks.js";
@@ -122,6 +125,11 @@ export interface Brief {
    * with the reason (contract 2.10). Absent when it makes none, and from briefs issued before 2.10.
    */
   readonly plan?: readonly PlanEntry[];
+  /**
+   * Each library record the increment's claiming sessions wrote or edited since their first claim on it, as their last write left it
+   * (contract 2.22). Absent when they wrote none, and from briefs issued before 2.22.
+   */
+  readonly records?: readonly RecordEntry[];
   /** Each live check not graduated whole; one graduated in part names the parts Architecture checks now enforces, which the reviewer does not judge (contract 5.2). */
   readonly checks: readonly { readonly id: string; readonly title: string; readonly question: string; readonly graduated?: readonly Graduated[] }[];
   /**
@@ -163,6 +171,17 @@ export interface BriefGuardrail {
 export type PlanEntry =
   | { readonly record: string; readonly type: string; readonly title: string; readonly after: Readonly<Record<string, unknown>> }
   | { readonly record: string; readonly type: string; readonly title: string; readonly retire: string };
+
+/** One library record the change wrote, as the brief lists it: made or edited, with its fields as written, or retired with the reason (contract 2.22). */
+export type RecordEntry =
+  | { readonly record: string; readonly type: string; readonly title: string; readonly action: "created" | "updated"; readonly fields: Readonly<Record<string, unknown>> }
+  | { readonly record: string; readonly type: string; readonly title: string; readonly action: "retired"; readonly reason: string };
+
+/** A session that claimed the increment, as the library names its writes, and when it first claimed it (contract 2.22). */
+export interface Writer {
+  readonly actor: string;
+  readonly from: string;
+}
 
 /** The branch a change's diff is read against; `local` when it is the repository's own default branch, for want of an origin/main. */
 export interface Base {
@@ -247,7 +266,7 @@ export interface Reviews {
    * when known, or read from its worktree, when from the second review on only what changed since the last review taken is
    * briefed (contract 4.5); refused after the third with a finding standing.
    */
-  brief(library: Library, change: string, diff: string | WorktreeChange, base?: Base, plugins?: PluginReader, also?: readonly WorktreeChange[]): Promise<Brief>;
+  brief(library: Library, change: string, diff: string | WorktreeChange, base?: Base, plugins?: PluginReader, also?: readonly WorktreeChange[], writers?: readonly Writer[]): Promise<Brief>;
   /**
    * Take the reviewer's return on `change`'s brief awaiting one, or refuse it naming what it gets wrong, writing nothing.
    * What Architecture checks' graduated checks found on the change, when given, is recorded with it as theirs (contract 5.3).
@@ -272,9 +291,46 @@ export async function openReviews(server: Pick<Storytree, "ownDatabase">): Promi
 /** The package a review of an increment's pending plan changes runs in: a hit on one names its record as the file (contract 2.10). */
 const PLAN_PACKAGE = "plan";
 
-/** The package a hit in `brief`'s change is in: `plan` for a record the change edits or retires pending its merge, else the file's. */
+/** The package a review of the library records an increment's sessions wrote runs in: a hit on one names its record as the file (contract 2.22). */
+const LIBRARY_PACKAGE = "library";
+
+/** The package a hit in `brief`'s change is in: `plan` for a record the change edits or retires pending its merge, `library` for one it wrote, else the file's. */
 function hitPackage(brief: Brief, file: string): string {
-  return (brief.plan ?? []).some(({ record }) => record === file) ? PLAN_PACKAGE : packageOf(file);
+  if ((brief.plan ?? []).some(({ record }) => record === file)) return PLAN_PACKAGE;
+  return (brief.records ?? []).some(({ record }) => record === file) ? LIBRARY_PACKAGE : packageOf(file);
+}
+
+/** What `claimingWriters` reads of the activity log: its lines of one kind whose fields hold given values. */
+export interface ClaimLines {
+  lines(project: string, filter: { readonly kinds: readonly ["claimed"]; readonly where: Readonly<Record<string, string>> }): Promise<readonly { readonly session: string; readonly at: string }[]>;
+}
+
+/** Each session that claimed `increment` in `project`, as the library names its writes, from when it first claimed it (contract 2.22). */
+export async function claimingWriters(log: ClaimLines, project: string, increment: string): Promise<Writer[]> {
+  const first = new Map<string, string>();
+  for (const { session, at } of await log.lines(project, { kinds: ["claimed"], where: { increment } })) if (!first.has(session) || at < first.get(session)!) first.set(session, at);
+  return [...first].map(([session, from]) => ({ actor: `session:${session}`, from }));
+}
+
+/**
+ * Each record `writers` wrote or edited since their first claim on `change`, by id, as the last of their writes left it: the
+ * increment itself, health, and a record the increment changes pending its merge (listed among its plan changes) left out (contract 2.22).
+ */
+async function writtenRecords(library: Library, change: string, writers: readonly Writer[], pending: readonly PendingChange[]): Promise<RecordEntry[]> {
+  const skipped = new Set([change, ...pending.map(({ record }) => record)]);
+  const last = new Map<string, HistoryEntry>();
+  for (const { actor, from } of writers) {
+    for (const entry of await library.history({ actor, from })) {
+      if (entry.type === "health" || skipped.has(entry.recordId)) continue;
+      const kept = last.get(entry.recordId);
+      if (kept === undefined || kept.seq < entry.seq) last.set(entry.recordId, entry);
+    }
+  }
+  return [...last.values()].sort((a, b) => (a.recordId < b.recordId ? -1 : 1)).map((entry): RecordEntry => {
+    const fields = entry.record.fields as Record<string, unknown>;
+    const head = { record: entry.recordId, type: entry.type, title: typeof fields["title"] === "string" ? fields["title"] : entry.recordId };
+    return entry.action === "retired" ? { ...head, action: "retired", reason: entry.reason ?? "no reason given" } : { ...head, action: entry.action, fields };
+  });
 }
 
 /**
@@ -303,7 +359,7 @@ class PgReviews implements Reviews {
     this.#pool = pool;
   }
 
-  async brief(library: Library, change: string, read: string | WorktreeChange, given?: Base, plugins?: PluginReader, also: readonly WorktreeChange[] = []): Promise<Brief> {
+  async brief(library: Library, change: string, read: string | WorktreeChange, given?: Base, plugins?: PluginReader, also: readonly WorktreeChange[] = [], writers: readonly Writer[] = []): Promise<Brief> {
     const diff = typeof read === "string" ? read : read.diff;
     const base = typeof read === "string" ? given : read.base;
     const increment = await library.get(change);
@@ -314,8 +370,10 @@ class PgReviews implements Reviews {
     const factory = factoryRead([...new Set([...pluginOf.values()].map(({ plugin }) => plugin))].sort(), plugins, typeof read === "string" ? undefined : read.root);
     // The change's other halves, in checkouts outside the project, are judged with it (contract 2.19).
     const halves = also.map((other) => ({ folder: other.root ?? "", diff: other.diff }));
-    const packages = [...new Set([...diffPackages(diff), ...diffPackages(factory?.diff ?? ""), ...halves.flatMap((half) => diffPackages(half.diff)), ...(pendingChanges.length === 0 ? [] : [PLAN_PACKAGE])])].sort();
-    if (packages.length === 0) throw new Error("The diff touches no file and the increment changes nothing in the plan: commit the change, then review it.");
+    // The library records the increment's sessions wrote are part of the change (contract 2.22).
+    const records = await writtenRecords(library, change, writers, pendingChanges);
+    const packages = [...new Set([...diffPackages(diff), ...diffPackages(factory?.diff ?? ""), ...halves.flatMap((half) => diffPackages(half.diff)), ...(pendingChanges.length === 0 ? [] : [PLAN_PACKAGE]), ...(records.length === 0 ? [] : [LIBRARY_PACKAGE])])].sort();
+    if (packages.length === 0) throw new Error("The diff touches no file, the increment changes nothing in the plan, and its sessions wrote no library record: commit the change, then review it.");
     const project = library.name;
     const { all, taken } = await this.#taken(project, change, typeof read === "string" ? undefined : read);
     const earlier = await this.#hits(project, change, "TRUE");
@@ -391,6 +449,7 @@ class PgReviews implements Reviews {
       ...(factory === undefined ? {} : { factory: factory.brief }),
       ...(halves.length === 0 ? {} : { also: halves }),
       ...(plan.length === 0 ? {} : { plan }),
+      ...(records.length === 0 ? {} : { records }),
       ...(guardrails.length === 0 ? {} : { guardrails }),
       ...(reds === undefined ? {} : { reds }),
       // A check graduated whole is asked by Architecture checks instead, and one naming its projects only in those (contract 2.17).
@@ -1097,6 +1156,11 @@ export function briefText(brief: Brief): string {
       `Pending plan changes (${plan.length}): what this change does to the plan on its merge, besides the contracts above it rewords or retires; judge them with the checks and contracts above; a hit on one names its record as the file, at line 1.`,
       ...plan.map((entry) => `  ${entry.record}  ${entry.type}  ${entry.title}\n    ${"retire" in entry ? `retired: ${entry.retire}` : `becomes: ${JSON.stringify(entry.after)}`}`),
     ]),
+    ...((brief.records ?? []).length === 0 ? [] : [
+      "",
+      `Library records (${brief.records!.length}): what the sessions that claimed this change wrote or edited in the library since claiming it, as their last write left each; judge them with the checks and contracts above like the diff; a hit on one names its record as the file, at line 1.`,
+      ...brief.records!.map((entry) => `  ${entry.record}  ${entry.type}  ${entry.title}  ${entry.action}\n    ${entry.action === "retired" ? `retired: ${entry.reason}` : JSON.stringify(entry.fields)}`),
+    ]),
     ...((brief.guardrails ?? []).length === 0 ? [] : [
       "",
       `Guardrails (${brief.guardrails!.length}): this change sets each off. Start the real app, or the built website, from seeded fixtures at the state nearest the change, click through only that part against the contracts above and the on-screen done-criteria, and save pictures of what you saw; answer each passed or failed, with its pictures, and why when failed.`,
@@ -1128,7 +1192,7 @@ export function briefText(brief: Brief): string {
     "",
     brief.since !== undefined
       ? `${brief.diff === "" ? "Nothing changed" : "The diff of what changed"} since review ${brief.since.review} (commit ${brief.since.head.slice(0, 12)}), which read the whole change: judge the checks and contracts on what changed, the whole change being in its worktree, and raise no finding the earlier hits already hold.`
-      : diffPackages(brief.diff).length === 0 ? "The diff touches no file: the change under review is its pending plan changes." : brief.base?.local ? `The diff against ${brief.base.ref}, this repository's own default branch: it has no origin/main.` : `The diff against ${brief.base?.ref ?? "origin/main"}:`,
+      : diffPackages(brief.diff).length === 0 ? `The diff touches no file: the change under review is ${[...((brief.plan ?? []).length === 0 ? [] : ["its pending plan changes"]), ...((brief.records ?? []).length === 0 ? [] : ["the library records above"])].join(" and ") || "its pending plan changes"}.` : brief.base?.local ? `The diff against ${brief.base.ref}, this repository's own default branch: it has no origin/main.` : `The diff against ${brief.base?.ref ?? "origin/main"}:`,
     brief.diff,
   ].join("\n");
 }

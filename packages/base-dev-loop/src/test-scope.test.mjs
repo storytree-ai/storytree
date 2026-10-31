@@ -13,7 +13,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { removeTemp } from "@storytree/test-waits";
 
@@ -442,24 +442,45 @@ test("a package whose tests are .test.mjs files is a unit, and its unit runs the
   assert.ok(unitGlobs("packages/loop").includes("packages/loop/src/**/*.test.mjs"));
 });
 
-test("the package-boundary check runs in every scoped run, since a change inside any one package can break it", (t) => {
+test("1.3 a file named to run in every scoped run is carried only when the caller names it, and a full run has it in its package already", (t) => {
   const root = fixture(t);
-  const ws = readWorkspace(root);
-  const decision = classify(["packages/agent-link/src/x.ts"], ws);
-  assert.deepEqual(planRun({ root, workspace: ws, decision }).units, ["packages/agent-link", "packages/cli"], "until the check exists");
-
   write(root, "packages/dev-loop/package.json", JSON.stringify({ name: "@x/dev-loop" }));
   write(root, "packages/dev-loop/src/package-boundaries.test.mjs", "");
   write(root, "packages/dev-loop/src/other.test.mjs", "");
-  const withLoop = readWorkspace(root);
-  assert.deepEqual(planRun({ root, workspace: withLoop, decision }).units, [
+  write(root, "packages/forest/src/view/desktop-renderer-smoke.test.ts", "");
+  const ws = readWorkspace(root);
+  const decision = classify(["packages/agent-link/src/x.ts"], ws);
+  assert.deepEqual(planRun({ root, workspace: ws, decision }).units, ["packages/agent-link", "packages/cli"], "the base runner names no file of storytree's own");
+  assert.deepEqual(planRun({ root, workspace: ws, decision: classify(["packages/forest/src/x.ts"], ws) }).units, ["apps/desktop", "packages/forest"], "nor runs one of storytree's alone");
+
+  const alwaysRun = ["packages/dev-loop/src/package-boundaries.test.mjs", "packages/dev-loop/src/gone.test.mjs"];
+  assert.deepEqual(planRun({ root, workspace: ws, decision, alwaysRun }).units, [
     "packages/agent-link",
     "packages/cli",
     "packages/dev-loop/src/package-boundaries.test.mjs",
-  ]);
+  ], "a named file that is not there is left out");
   assert.deepEqual(unitGlobs("packages/dev-loop/src/package-boundaries.test.mjs"), ["packages/dev-loop/src/package-boundaries.test.mjs"]);
-  const all = planRun({ root, workspace: withLoop, decision: classify(["README.md"], withLoop) }).units;
+  const all = planRun({ root, workspace: ws, decision: classify(["README.md"], ws), alwaysRun }).units;
   assert.ok(all.includes("packages/dev-loop") && !all.includes("packages/dev-loop/src/package-boundaries.test.mjs"), "a full run has it in its package already");
+});
+
+test("1.3 the test runner runs in a repository that is not storytree's, at the root and with the lists its caller gives", (t) => {
+  const root = workspace(t, { packages: { "packages/site": { name: "@w/site", files: { "src/site.ts": "", "src/site.test.mjs": "", "src/slow.test.mjs": "" } } } });
+  write(root, "checks/layout.test.mjs", "");
+  const runner = pathToFileURL(fileURLToPath(new URL("./test.mjs", import.meta.url))).href;
+  write(root, "run.mjs", `import { testCommand } from ${JSON.stringify(runner)};
+testCommand({ root: ${JSON.stringify(root)}, alwaysRun: ["checks/layout.test.mjs"], alone: ["packages/site/src/slow.test.mjs"] });
+`);
+  git(root, "init", "-q", "-b", "main");
+  git(root, "add", ".");
+  git(root, "commit", "-qm", "base");
+  git(root, "update-ref", "refs/remotes/origin/main", "HEAD");
+  write(root, "packages/site/src/site.ts", "export {};\n");
+  const home = mkdtempSync(path.join(tmpdir(), "test-elsewhere-"));
+  t.after(() => removeTemp(home));
+  const run = spawnSync(process.execPath, ["--import", import.meta.resolve("tsx"), "run.mjs", "--scope"], { cwd: root, env: { ...process.env, STORYTREE_HOME: home }, encoding: "utf8" });
+  assert.equal(run.status, 0, run.stderr);
+  assert.match(run.stdout, /^units: packages\/site, checks\/layout\.test\.mjs, packages\/site\/src\/slow\.test\.mjs$/m, run.stdout);
 });
 
 test("2.6 a folder under infra/ that holds tests is a unit: a full run runs it, and --only names it", (t) => {

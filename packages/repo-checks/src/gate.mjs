@@ -56,7 +56,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     console.error(`gate: unknown argument ${unknown}; use pnpm run gate --help`);
     process.exitCode = 1;
   } else if (args.includes("--help")) {
-    console.log("pnpm run gate [--guidance]\nRuns typecheck and scoped tests, then the steps parts contribute: in this checkout, type-only imports between stories, seed records, leaks added to changed files, and the capability list when the branch names an increment; with Mick's factory plugin named (storytree settings set part micks-dev-loop plugin micks-dev-loop), guidance when generated roles changed, its plan edges, owner applies and the change's risk line too.\nUse --guidance after editing a role or a note in the library, even if Git has no diff.");
+    console.log("pnpm run gate [--guidance]\nRuns typecheck and scoped tests, then the steps parts contribute: in this checkout, the lint step (type-only imports between stories, package boundaries, source files no numbered test reaches), seed records, leaks added to changed files, and the capability list when the branch names an increment; with Mick's factory plugin named (storytree settings set part micks-dev-loop plugin micks-dev-loop), guidance when generated roles changed, its plan edges, owner applies and the change's risk line too.\nUse --guidance after editing a role or a note in the library, even if Git has no diff.");
   } else {
     const controller = new AbortController();
     const force = new AbortController();

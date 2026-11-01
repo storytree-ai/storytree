@@ -8,23 +8,20 @@ import path from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 
-import { classify, planRun, readWorkspace } from "@storytree/base-dev-loop/test-scope";
 import { removeTemp } from "@storytree/test-waits";
 
-import { ALWAYS_RUN } from "./test.mjs";
+import { ALONE } from "./test.mjs";
 
 const root = fileURLToPath(new URL("../../..", import.meta.url));
 
-test("8.2 storytree's pnpm test carries its package-boundary and allocation checks in every scoped run, and runs its browser proofs alone", (t) => {
-  const workspace = readWorkspace(root);
-  const { units } = planRun({ root, workspace, decision: classify(["packages/mark/src/x.ts"], workspace), alwaysRun: ALWAYS_RUN });
-  for (const check of ["packages/repo-checks/src/package-boundaries.test.mjs", "packages/repo-checks/src/allocation.test.mjs"]) assert.ok(units.includes(check), `${check}: ${units.join(", ")}`);
-
+test("8.2 storytree's pnpm test runs its browser proofs alone", (t) => {
   const home = mkdtempSync(path.join(tmpdir(), "test-lists-"));
   t.after(() => removeTemp(home));
   const run = spawnSync(process.execPath, ["--import", "tsx", "packages/repo-checks/src/test.mjs", "--only=forest", "--scope"], { cwd: root, env: { ...process.env, STORYTREE_HOME: home }, encoding: "utf8" });
   assert.equal(run.status, 0, run.stderr);
-  assert.match(run.stdout, /^units: packages\/forest, packages\/forest\/src\/view\/desktop-renderer-smoke\.test\.ts$/m, run.stdout);
+  const proof = "packages/forest/src/view/desktop-renderer-smoke.test.ts";
+  assert.ok(ALONE.includes(proof), ALONE.join(", "));
+  assert.ok(run.stdout.split("\n").includes(`units: packages/forest, ${proof}`), run.stdout);
 });
 
 test("8.3 storytree's pnpm test takes the run hold a plugin this computer names contributes, past its scope decision, and lets it go once its run has ended", (t) => {

@@ -1,7 +1,7 @@
 // Capability 5 · Package boundaries. Which parts of this repo break the package boundaries of ADR-0649 D1-D3 (in storytree 0.2's
 // decision log). The rule's code is the Guardrails story's (packages/guardrails, ADR-0911 D2), the same
 // code a user's project runs as `storytree check`; this file holds only storytree's own declarations, and
-// packages/repo-checks/src/package-boundaries.test.mjs runs the rule over the repo with them in `pnpm test` and CI.
+// `pnpm lint` (lint.mjs) runs the rule over the repo with them, in `pnpm gate` and in CI on every pull request.
 //
 // - The frame is the app story's `packages/app` and `apps/desktop` (startup, lifecycle, updates and
 //   mounting each story's surface); the front door is the cli story's `packages/cli` (command families

@@ -5,7 +5,8 @@
  *
  * - A break is planted only on a line the change adds, in a source file (never a test or a test helper), one per line at the
  *   first place on it a break fits; with more than the cap, they are spread evenly across the change (7.1). A line it adds just
- *   as a line it deletes, ignoring indentation, in its own diff or another half's, was moved, not written, and gets none (7.11).
+ *   as a line it deletes, ignoring indentation, in its own diff or another half's, was moved, not written, and gets none, as do the
+ *   lines of a file an outside checkout adds that the change's own checkout held, at least half of it, at its base (7.11).
  * - Arid lines get none (7.1): a logging or output call, the setting of an upper-case constant, and every line on the arid
  *   list, which a rejected survivor's line joins (7.4).
  * - The tests that reach a file are the test files whose imports lead to it in its own package (or its own infra/ folder, a
@@ -172,6 +173,67 @@ export function deletedLines(diffs: readonly string[]): Map<string, number> {
     }
   }
   return deleted;
+}
+
+/**
+ * The lines of the files `diff` adds as new that stood, at least half of them, in a same-named file of the checkout at `root` at
+ * the commit its branch parted from `base` at, by their text without its indentation, each with how many times that file holds
+ * it: a file moved into another checkout unchanged, its deletion in no diff a review reads (a later review's diff is only what
+ * changed since, contract 4.5, and a file can leave a checkout on another branch), so its lines were moved, not written (7.11).
+ */
+export function movedFromBase(root: string, base: string | undefined, diff: string): Map<string, number> {
+  const moved = new Map<string, number>();
+  const added = new Map<string, string[]>();
+  let file: string | undefined;
+  let fresh = false;
+  let inHunk = false;
+  for (const text of diff.split("\n")) {
+    if (text.startsWith("diff --git")) [file, fresh, inHunk] = [undefined, false, false];
+    else if (!inHunk && text.startsWith("--- ")) fresh = text.slice(4).trim() === "/dev/null";
+    else if (!inHunk && text.startsWith("+++ ")) file = fresh ? text.slice(4).trim().replace(/^b\//, "") : undefined;
+    else if (text.startsWith("@@ ")) inHunk = true;
+    else if (inHunk && file !== undefined && text.startsWith("+")) added.set(file, [...(added.get(file) ?? []), text.slice(1).trim()]);
+  }
+  if (added.size === 0) return moved;
+  const git = (args: string[], input?: string) => execFileSync("git", args, { cwd: root, input, maxBuffer: 256 * 1024 * 1024, stdio: ["pipe", "pipe", "ignore"], windowsHide: true });
+  let from = "HEAD";
+  let tree: string[];
+  try {
+    if (base !== undefined) from = git(["merge-base", base, "HEAD"]).toString("utf8").trim();
+    tree = git(["ls-tree", "-r", "--name-only", "-z", from]).toString("utf8").split("\0").filter((one) => one !== "");
+  } catch {
+    // A folder with no commit, or no default branch to part from: nothing stood there to move.
+    return moved;
+  }
+  const named = (one: string) => one.slice(one.lastIndexOf("/") + 1);
+  const wanted = new Set([...added.keys()].map(named));
+  const candidates = tree.filter((one) => wanted.has(named(one)));
+  if (candidates.length === 0) return moved;
+  // Every candidate in one read: `git cat-file --batch` answers each `<commit>:<path>` with its size and its bytes.
+  const out = git(["cat-file", "--batch"], candidates.map((one) => `${from}:${one}\n`).join(""));
+  const texts = new Map<string, string[]>();
+  let at = 0;
+  for (const one of candidates) {
+    const end = out.indexOf(10, at);
+    const size = Number(/ blob (\d+)$/.exec(out.subarray(at, end).toString("utf8"))?.[1] ?? -1);
+    at = end + 1;
+    if (size < 0) continue;
+    texts.set(one, out.subarray(at, at + size).toString("utf8").replace(/\n$/, "").split("\n").map((line) => line.trim()));
+    at += size + 1;
+  }
+  for (const [file, lines] of added) {
+    let best: { shared: number; lines: string[] } | undefined;
+    for (const [one, text] of texts) {
+      if (named(one) !== named(file)) continue;
+      const left = new Map<string, number>();
+      for (const line of text) left.set(line, (left.get(line) ?? 0) + 1);
+      const shared = lines.filter((line) => (left.get(line) ?? 0) > 0 && left.set(line, left.get(line)! - 1) !== undefined).length;
+      if (best === undefined || shared > best.shared) best = { shared, lines: text };
+    }
+    if (best === undefined || best.shared === 0 || best.shared * 2 < lines.length) continue;
+    for (const line of best.lines) moved.set(line, (moved.get(line) ?? 0) + 1);
+  }
+  return moved;
 }
 
 type Node = { type: string; start: number; end: number; [key: string]: unknown };
@@ -974,8 +1036,13 @@ export async function briefWithReport(server: Pick<Storytree, "ownDatabase">, br
   const moved = { moved: deletedLines([brief.diff, ...checkouts.map(({ diff }) => diff)]), ...options };
   const mutation = root === undefined ? undefined : await runReport(server, brief.project, root, brief.diff, moved);
   const outside: OutsideReport[] = [];
-  // One after another: each runs tests.
-  for (const { folder, diff } of checkouts) outside.push({ folder, report: await runReport(server, brief.project, folder, diff, moved) });
+  // One after another: each runs tests. A file a checkout adds that the own checkout held at its base was moved too (7.11).
+  for (const { folder, diff } of checkouts) {
+    const fromBase = root === undefined ? new Map<string, number>() : movedFromBase(root, brief.base?.ref, diff);
+    const pooled = new Map(moved.moved);
+    for (const [line, count] of fromBase) pooled.set(line, (pooled.get(line) ?? 0) + count);
+    outside.push({ folder, report: await runReport(server, brief.project, folder, diff, { moved: pooled, ...options }) });
+  }
   await keepReport(server, brief.project, brief.change, brief.iteration, {
     ...(mutation ?? { ran: false, reason: "the change's own diff was given by hand, with no worktree to run it in" }),
     ...(outside.length === 0 ? {} : { outside }),

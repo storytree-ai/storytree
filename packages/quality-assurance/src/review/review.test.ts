@@ -603,6 +603,35 @@ test("4.8 · a finding a later review returns again whose earlier rejection was 
   });
 });
 
+test("4.8 · a red-run hit whose rejection was accepted is not taken again for the same test read from another checkout", async () => {
+  await withLibrary(async (library, storytree) => {
+    const { increment, contracts, checks } = await plan(library);
+    const reviews = await openReviews(storytree);
+    const ledger = await openLedger(storytree);
+    const dir = branchCheckout();
+    const other = branchCheckout();
+    try {
+      mkdirSync(join(other, "plugins/voice/src"), { recursive: true });
+      writeFileSync(join(other, "plugins/voice/src/door.test.ts"), 'import { test } from "node:test";\ntest("1.2 · moved here with its code", () => {});\n');
+
+      await reviews.brief(library, increment, worktreeChange(dir), undefined, undefined, [worktreeChange(other)]);
+      const first = await reviews.take(library.name, increment, clean(checks, contracts, {}, 1));
+      assert.deepEqual(first.hits.map(({ check, file }) => ({ check, file })), [{ check: RED_RUN, file: "plugins/voice/src/door.test.ts" }]);
+      await ledger.answer(library.name, first.hits[0]!.id, { answer: "rejected", reason: "moved, not new: it ran green on main" });
+
+      // The next review reads the same test from the checkout as its own, so its finding names no checkout.
+      const second = await reviews.brief(library, increment, worktreeChange(other));
+      assert.deepEqual(second.reds?.map(({ file, test, red }) => ({ file, test, red })), [{ file: "plugins/voice/src/door.test.ts", test: "1.2 · moved here with its code", red: false }]);
+      const accepted = await reviews.take(library.name, increment, { ...clean(checks, contracts, {}, 2), rejections: second.judge.map((hit) => ({ hit, accepted: true })) });
+      assert.deepEqual(accepted.hits, []);
+      assert.deepEqual(accepted.standing, []);
+    } finally {
+      await removeTemp(dir);
+      await removeTemp(other);
+    }
+  });
+});
+
 test("4.3 · with a finding standing after the third review a fourth brief is refused naming the arc and the findings; with none standing it is not", async () => {
   await withLibrary(async (library, storytree) => {
     const { arc, increment, contracts, checks } = await plan(library);

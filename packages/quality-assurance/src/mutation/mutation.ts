@@ -307,7 +307,13 @@ function unitOf(file: string): string | undefined {
   return folderOf(file) ?? /^(?:infra|plugins)\/[^/]+(?=\/)/.exec(file.replace(/\\/g, "/"))?.[0];
 }
 
-/** The import graph of the packages under `folders` of the checkout at `root`, each file to the files importing it. */
+/** The folder naming a checkout's root as a unit of its own, for a checkout built as one package there. */
+const ROOT_UNIT = "";
+
+/**
+ * The import graph of the packages under `folders` of the checkout at `root`, each file to the files importing it; a folder of
+ * {@link ROOT_UNIT} reads the root's own code, its files in no other unit forming one unit, its coverage map the root's.
+ */
 export function readReach(root: string, folders: readonly string[]): Reach {
   const packages: SurveyPackage[] = readPackages(root).map(({ folder, name }) => {
     let exports: Record<string, string> = {};
@@ -360,16 +366,18 @@ export function readReach(root: string, folders: readonly string[]): Reach {
     }
     return map;
   };
+  // The folder whose coverage map credits a file: its package's, or, read as the root's unit, the root's.
+  const mapped = (file: string): string | undefined => folderOf(file) ?? (folders.includes(ROOT_UNIT) && unitOf(file) === undefined ? ROOT_UNIT : undefined);
   const numbersOf = new Map(files.filter((file) => TEST.test(file.path)).map((file) => {
-    const story = path.posix.basename(folderOf(file.path) ?? "");
+    const story = path.posix.basename(mapped(file.path) ?? "");
     return [file.path, new Set([...file.text.matchAll(NUMBERED_TEST)].filter(([, prefix]) => prefix === undefined || prefix === story).map(([, , number]) => number!))];
   }));
   const measured = (file: string): string[] => {
-    const folder = folderOf(file);
+    const folder = mapped(file);
     if (folder === undefined) return [];
-    const credit = mapOf(folder)[file.slice(folder.length + 1)] ?? {};
+    const credit = mapOf(folder)[folder === ROOT_UNIT ? file : file.slice(folder.length + 1)] ?? {};
     const numbers = Object.keys(credit).sort((a, b) => credit[b]! - credit[a]!);
-    return numbers.flatMap((number) => [...numbersOf].filter(([test, carried]) => folderOf(test) === folder && carried.has(number)).map(([test]) => test));
+    return numbers.flatMap((number) => [...numbersOf].filter(([test, carried]) => mapped(test) === folder && carried.has(number)).map(([test]) => test));
   };
   const closure = (file: string): string[] => {
     const seen = new Set([file]);
@@ -447,10 +455,14 @@ function located(target: string, paths: ReadonlySet<string>): string | undefined
   return [target, `${stem}.ts`, `${stem}.tsx`, `${stem}.js`, `${stem}.mjs`, `${target}/index.ts`].find((candidate) => paths.has(candidate));
 }
 
-/** The code files under a folder of the checkout, as repository paths. */
+/**
+ * The code files under a folder of the checkout, as repository paths. Under its root ({@link ROOT_UNIT}), a folder holding a
+ * package or a checkout of its own (a workspace package, a git submodule) is another unit's, and is not read.
+ */
 function codeUnder(root: string, folder: string): string[] {
   const found: string[] = [];
   const walk = (dir: string): void => {
+    if (folder === ROOT_UNIT && dir !== ROOT_UNIT && (existsSync(path.join(root, dir, "package.json")) || existsSync(path.join(root, dir, ".git")))) return;
     let entries;
     try {
       entries = readdirSync(path.join(root, dir), { withFileTypes: true });
@@ -458,8 +470,9 @@ function codeUnder(root: string, folder: string): string[] {
       return;
     }
     for (const entry of entries) {
-      if (entry.isDirectory() && !SKIPPED.has(entry.name) && !entry.name.startsWith(".")) walk(`${dir}/${entry.name}`);
-      else if (entry.isFile() && CODE.test(entry.name) && !DECLARATION.test(entry.name)) found.push(`${dir}/${entry.name}`);
+      const at = dir === ROOT_UNIT ? entry.name : `${dir}/${entry.name}`;
+      if (entry.isDirectory() && !SKIPPED.has(entry.name) && !entry.name.startsWith(".")) walk(at);
+      else if (entry.isFile() && CODE.test(entry.name) && !DECLARATION.test(entry.name)) found.push(at);
     }
   };
   walk(folder);
@@ -552,9 +565,12 @@ export async function mutationReport(root: string, diff: string, arid: readonly 
   const { breaks, candidates } = changeBreaks(root, diff, arid, options.cap, options.moved);
   if (breaks.length === 0) return { ran: true, planted: 0, caught: 0, survivors: [], notRun: [], candidates, ms: now() - started };
   const reach = options.reach ?? (() => {
-    const graph = new PackageGraph(readPackages(root));
+    const packages = readPackages(root);
+    const graph = new PackageGraph(packages);
     const own = [...new Set(breaks.map((one) => unitOf(one.file)).filter((folder): folder is string => folder !== undefined))];
-    return readReach(root, [...own, ...graph.downstream(own)]);
+    // A checkout holding no packages, as an outside one built as one package at its root is, is its root's own unit (7.2).
+    const rooted = packages.length === 0 && breaks.some((one) => unitOf(one.file) === undefined);
+    return readReach(root, [...own, ...(rooted ? [ROOT_UNIT] : []), ...graph.downstream(own)]);
   })();
   const survivors: Survivor[] = [];
   const notRun: { file: string; line: number; why: string }[] = [];

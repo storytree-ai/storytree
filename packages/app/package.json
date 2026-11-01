@@ -14,6 +14,7 @@
     "./lag/runtime": "./src/lag/runtime.ts",
     "./lag/verbs": "./src/lag/verbs.ts",
     "./lag/view": "./src/lag/view.ts",
+    "./page": "./src/page/page.ts",
     "./projects": "./src/projects/follow.ts",
     "./projects/bridge": "./src/projects/bridge.ts",
     "./surfaces": "./src/surfaces/bridge.ts",

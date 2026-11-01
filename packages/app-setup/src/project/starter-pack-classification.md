@@ -101,7 +101,7 @@ FB frontend-builder, BR blind-reviewer, CI corpus-investigator; c = required rea
 | An agent never self-attests (guardrail) | FB, SO, SA, BR a | ADAPT | "0.3 has no signed-verdict spine" and ADR-0794 dropped. |
 | Parallel build-lane fan-out (pattern) | SO c | ADAPT | 0.2's measurements, the EnterWorktree harness trap and the Mint box dropped; make_workspace names the claimed workspace. |
 | Proof-walkthrough first (pattern) | SA r | BRING | |
-| Decompose by testability; delegate the glue (pattern) | SO c | ADAPT | "through its own subagents" becomes "a subagent where your harness has one". |
+| Decompose by testability; delegate the glue (pattern) | SO c | ADAPT | "through its own subagents" becomes "a subagent where your harness has one"; storytree's decision numbers, its main-process crash and the Slow growth link are left out, and "numbered test" is said as a test whose title carries the contract number. |
 | Pull-based context architecture (pattern) | SO, EX, CI, LC c | ADAPT | Bootstrap named as check_setup, the roles and show_plan rather than CLAUDE.md. |
 | An example carries its discriminator (pattern) | SA r, LC r | BRING | |
 | When a term is in question, the definition note wins (pattern) | LC r | ADAPT | storytree's layers and 0.2's glossary dropped. |

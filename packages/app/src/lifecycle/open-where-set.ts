@@ -1,5 +1,5 @@
 /**
- * Capability 1 · Lifecycle, contracts 1.9 and 1.10 (ADR-0734 D1, ADR-0735 D4): the app opens its
+ * Capability 1 · Lifecycle, contracts 1.9 and 1.10 (ADR-0734 D1, ADR-0735 D4), and 1.45: the app opens its
  * library where the user's library setting says. Local (the default), it starts its own Postgres on
  * its data folder and connects there, as it always has. Set to a Cloud SQL instance or a Postgres
  * address (ADR-0846), it starts no Postgres at all and connects there; when it cannot be reached it says so in
@@ -75,4 +75,16 @@ function withoutPassword(url: string): string {
   const shown = new URL(url);
   shown.password = "";
   return shown.href;
+}
+
+/**
+ * What the app says when its library cannot be opened (contract 1.45): a data folder another program holds names that
+ * program, its process and what to do; any other failure says why. local-postgres's DataDirInUseError is known by its name.
+ */
+export function libraryProblem(error: unknown): string {
+  if (error instanceof Error && error.name === "DataDirInUseError") {
+    const { dataDir, owner, pid } = error as Error & { dataDir: string; owner?: string; pid: number };
+    return `The app's library (${dataDir}) is in use by ${owner ?? "another program"} (process ${pid}). Close that, then open the app again.`;
+  }
+  return `The app's library could not be opened: ${error instanceof Error ? error.message : String(error)}`;
 }

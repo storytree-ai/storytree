@@ -46,6 +46,8 @@
  * - The return says of each contract it finds met whether the change touches it, and one the change adds or rewords pending its merge is
  *   touched; a touched contract answered met names the test covering the changed behaviour, or the changed line no test
  *   covers, which is taken as a hit asking for one (2.13, ADR-1153 D2).
+ * - A check's answer may name places that are not findings, as the glue check names every piece a change leaves without a test of
+ *   its own: each needs a file, a line and what it is, is kept in the return and printed under its check, and records no hit (2.23).
  * - A brief read from a worktree lists each test the diff it reviews adds, and whether the worktree's saved red runs
  *   (.pgtest/red-runs.jsonl, which `pnpm test` keeps: packages/dev-loop/src/red-runs.mjs) name it failing, by its name or its
  *   file failing to load; taking the return records a hit at each one none names, asking for its red, and re-runs nothing (2.14, ADR-1153 D3).
@@ -224,7 +226,11 @@ export type PluginReader = (plugin: string) => PluginRead;
 export interface ReviewReturn {
   /** The review it answers: its brief's number, so a return left from an earlier review is never taken for this one (contract 2.9). */
   readonly review: number;
-  readonly checks: readonly { readonly check: string; readonly tripped: boolean; readonly hits?: readonly { readonly file: string; readonly line: number; readonly found: string }[] }[];
+  readonly checks: readonly {
+    readonly check: string; readonly tripped: boolean; readonly hits?: readonly { readonly file: string; readonly line: number; readonly found: string }[];
+    /** The places the check asks to be named whether or not it trips, none of them a finding (contract 2.23). */
+    readonly named?: readonly { readonly file: string; readonly line: number; readonly found: string }[];
+  }[];
   /**
    * Each contract: met or not, why not, and whether the change touches it; a touched one answered met names its covering test
    * (`<file> › <title>`), or `at`, the changed line no test covers, which is taken as a hit asking for one (contract 2.13).
@@ -255,6 +261,8 @@ export interface Taken {
   /** The guardrails it found failed (contract 2.12). */
   readonly failed: readonly Failed[];
   readonly standing: readonly HitRow[];
+  /** The places its checks named that are not findings, so the implementer can name them in the pull request (contract 2.23). */
+  readonly named: readonly { readonly check: string; readonly file: string; readonly line: number; readonly found: string }[];
   /** Why Architecture checks' graduated checks did not run on the change, when they did not: none of their findings is recorded. */
   readonly graduatedNotRun?: string;
 }
@@ -506,6 +514,7 @@ class PgReviews implements Reviews {
       unmet: unmetIn(review),
       failed: failedIn(review),
       standing: await this.standing(project, change),
+      named: review.checks.flatMap(({ check, named = [] }) => named.map(({ file, line, found }) => ({ check, file, line, found }))),
       ...(graduated !== undefined && !graduated.ran ? { graduatedNotRun: graduated.reason } : {}),
     };
   }
@@ -911,7 +920,7 @@ function refusals(brief: Brief, review: ReviewReturn): string[] {
     if (!Array.isArray(pictures) || !pictures.some((picture) => typeof picture === "string" && picture.trim() !== "")) problems.push(`guardrail ${guardrail} names no picture: save at least one of what you saw`);
     if (!passed && (why ?? "").trim() === "") problems.push(`guardrail ${guardrail} failed and the return does not say why`);
   }
-  for (const { check, tripped, hits = [] } of review.checks ?? []) {
+  for (const { check, tripped, hits = [], named = [] } of review.checks ?? []) {
     if (tripped && hits.length === 0) problems.push(`check ${check} is tripped and names no file and line`);
     if (!tripped && hits.length > 0) problems.push(`check ${check} is not tripped and names hits`);
     for (const { file, line, found } of hits) {
@@ -919,6 +928,11 @@ function refusals(brief: Brief, review: ReviewReturn): string[] {
       if (!Number.isInteger(line) || line < 1) problems.push(`check ${check}'s hit in ${file} has line ${line}: a line is a whole number from 1`);
       if (typeof found !== "string" || found.trim() === "") problems.push(`check ${check}'s hit at ${file}:${line} does not say what was found`);
       if (typeof file === "string" && !brief.packages.includes(hitPackage(brief, file))) problems.push(`check ${check}'s hit at ${file}:${line} is in package ${hitPackage(brief, file)}, which the diff does not touch`);
+    }
+    for (const { file, line, found } of named) {
+      if (typeof file !== "string" || file.trim() === "") problems.push(`check ${check} names a place with no file`);
+      if (!Number.isInteger(line) || line < 1) problems.push(`check ${check}'s named place in ${file} has line ${line}: a line is a whole number from 1`);
+      if (typeof found !== "string" || found.trim() === "") problems.push(`check ${check}'s named place at ${file}:${line} does not say what it is`);
     }
   }
   const pending = new Set(brief.contracts.filter(({ pending }) => pending).map(({ id }) => id));
@@ -1224,6 +1238,10 @@ export function takenText(taken: Taken): string {
   return [
     `Recorded review ${taken.review}: ${taken.hits.length === 0 ? "no hits" : `${taken.hits.length} hit${taken.hits.length === 1 ? "" : "s"}`}.`,
     ...taken.hits.map((hit) => `  hit ${hit.id}  ${hit.check}  ${hit.file}:${hit.line}  ${hit.found ?? ""}`),
+    ...[...new Set(taken.named.map(({ check }) => check))].flatMap((check) => [
+      `  named by ${check}, not a finding:`,
+      ...taken.named.filter((place) => place.check === check).map(({ file, line, found }) => `  ${file}:${line}  ${found}`),
+    ]),
     ...(taken.graduatedNotRun === undefined ? [] : [`  Architecture checks' graduated checks did not run, so nothing of theirs is recorded: ${taken.graduatedNotRun}`]),
     standingText(taken.standing, taken.unmet, taken.failed),
   ].join("\n");

@@ -32,6 +32,7 @@ const PACKAGE_NAMED_OTHERWISE: Readonly<Record<string, string>> = {
   story_b91056a06337: "app-setup", // Setup
   story_b2051c0f7372: "agent-pool", // Agent runner (ADR-1071 D3): the package kept its name, so the box's live paths did not move.
   story_08790ee19bbf: "mark", // Marketing artifacts (ADR-1071 D3): The mark renamed, its package kept.
+  story_c27bd2a8f61e: "repo-checks", // Storytree's own repository checks (ADR-1199)
 };
 
 /**

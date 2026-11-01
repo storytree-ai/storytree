@@ -82,6 +82,7 @@ page = openProjectPage({
   failed: (what, error) => outage.failed(what, error),
   answered: () => outage.answered(),
   globe: () => (window as { storytreeGlobe?: GlobeLocator }).storytreeGlobe,
+  pluginViews: window.storytree.pluginViews.length,
   project: (name, timed) => {
     // One live reading for every surface on the page, started from the reading kept at the last start (ADR-0836 D3, D4); the
     // surfaces hearing one news share one read of the tree.
@@ -106,8 +107,7 @@ page = openProjectPage({
       take: (changes, lines) => core.take(changes, lines),
       libraryCard: (panel, onClose) => mountLibraryPanel(panel, core, onClose),
       teaching: (locate) => mountTeaching(content, { journal: seenCards, locate }),
-      plugins: (on) => window.storytree.pluginViews.length === 0 ? undefined
-        : mountPluginViews(content, window.storytree.pluginViews, on, { project: name, bridge: window.storytree }),
+      plugins: (on) => mountPluginViews(content, window.storytree.pluginViews, on, { project: name, bridge: window.storytree }),
       reading: (options) => forestReading({ project: name, reads, reading, ...options }),
       space: (frame, surface, choose, opening) => attachPanZoom(frame, surface, choose, opening as TreeOpening | undefined),
       renderPanel: (drilled, selected, options) => renderStoryPanel(drilled, selected, options),

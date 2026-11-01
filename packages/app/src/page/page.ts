@@ -53,8 +53,8 @@ export interface ProjectParts<View extends ForestGlobe = ForestGlobe> {
   take(changes: Changes, lines: News["lines"]): void;
   libraryCard(panel: HTMLElement, onClose: () => void): () => void;
   teaching(locate: (target: CardTarget) => Place | undefined): { take(reading: { tree: AnnotatedTree; changes: Changes; lines: Held["lines"]; factory: boolean }): void; stop(): void };
-  /** The factory's stand-in surfaces (ADR-1174), undefined when the factory has none. */
-  plugins(on: (surface: string) => boolean): Promise<{ stop(): void; failed: readonly { surface: string; why: string }[] }> | undefined;
+  /** Mount the factory's stand-in surfaces (ADR-1174) that `on` says are on. */
+  plugins(on: (surface: string) => boolean): Promise<{ stop(): void; failed: readonly { surface: string; why: string }[] }>;
   reading(options: Pick<ForestReadingOptions, "onTree" | "onError" | "onSettled" | "survey">): { stop(): void };
   space(frame: HTMLElement, surface: HTMLElement, choose: (id: string) => void, opening: string | undefined): PanelSpace;
   renderPanel(drilled: StoryPanel, selected: string | undefined, options: { tree: boolean }): string;
@@ -75,6 +75,8 @@ export interface PageParts<View extends ForestGlobe = ForestGlobe> {
   answered(): void;
   project(name: string, timed: TimedRead): ProjectParts<View>;
   globe(): IslandsAndNotes | undefined;
+  /** How many stand-in surface views the user's factory offers. */
+  pluginViews: number;
 }
 
 export interface ProjectPage {
@@ -236,9 +238,8 @@ export function openProjectPage<View extends ForestGlobe>(parts: PageParts<View>
     // The first time each kind appears on this map, its card shows beside it (ADR-1048 D1).
     mine.teaching = project.teaching((target) => locateTarget(target, { document, globe: parts.globe }));
     // A factory plugin standing in for a switched-off part draws its surfaces from the factory, while each is on.
-    const loading = project.plugins((id) => surfaceOn(surfaces, id));
-    if (loading !== undefined) {
-      const plugins = await loading;
+    if (parts.pluginViews > 0) {
+      const plugins = await project.plugins((id) => surfaceOn(surfaces, id));
       if (showing !== mine) return plugins.stop();
       mine.plugins = plugins;
       for (const { surface, why } of plugins.failed) console.error(`The ${surface} surface could not be loaded from the factory: ${why}`);

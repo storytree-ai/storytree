@@ -48,9 +48,9 @@ interface Drawn {
 }
 
 /** The page on stand-in surfaces; `answers` overrides the bridge and how each project's surfaces answer. */
-function page(t: TestContext, answers: Partial<Pick<PageParts, "problem" | "projectSelection" | "readSurfaces" | "globe">> & {
+function page(t: TestContext, answers: Partial<Pick<PageParts, "problem" | "projectSelection" | "readSurfaces" | "globe" | "pluginViews">> & {
   openView?: (name: string) => Promise<void>;
-  plugins?: (name: string) => Promise<{ stop(): void; failed: [] }> | undefined;
+  plugins?: (on: (surface: string) => boolean) => Promise<{ stop(): void; failed: [] }>;
   kept?: AnnotatedTree;
 } = {}) {
   if (!timed.has(t)) t.mock.timers.enable({ apis: ["setTimeout"] });
@@ -79,6 +79,7 @@ function page(t: TestContext, answers: Partial<Pick<PageParts, "problem" | "proj
     failed: (what, error) => { failures.push(`${what}: ${error instanceof Error ? error.message : String(error)}`); },
     answered: () => {},
     globe: () => undefined,
+    pluginViews: 0,
     ...answers,
     project(name, timed) {
       const mine: Drawn = {
@@ -121,7 +122,7 @@ function page(t: TestContext, answers: Partial<Pick<PageParts, "problem" | "proj
           mine.locate = locate;
           return { take: (reading) => { mine.teaching.push({ factory: reading.factory }); }, stop: () => { mine.stopped.push("teaching"); } };
         },
-        plugins: () => answers.plugins?.(name),
+        plugins: (on) => answers.plugins!(on),
         reading: (options) => { mine.reading = options; return { stop: () => { mine.stopped.push("reading"); } }; },
         space: () => {
           const space = { opened: 0, placed: [] as unknown[], view: { at: mine.spaces.length } };
@@ -151,6 +152,20 @@ function page(t: TestContext, answers: Partial<Pick<PageParts, "problem" | "proj
     line: () => content.querySelector("p")?.textContent,
   };
 }
+
+test("2.17 · the factory's stand-in views are mounted, each while its surface is on, and none is asked for when the factory offers none", async (t) => {
+  const asked: string[][] = [];
+  const views = (on: (surface: string) => boolean) => {
+    asked.push(["arcs", "standin"].filter(on));
+    return Promise.resolve({ stop() {}, failed: [] as [] });
+  };
+  page(t, { plugins: views });
+  await settled();
+  assert.deepEqual(asked, [], "a factory with no views is not asked");
+  page(t, { pluginViews: 2, plugins: views, readSurfaces: async () => ({ ok: true, value: [{ id: "standin", on: false, settings: [] }] as never }) });
+  await settled();
+  assert.deepEqual(asked, [["arcs"]], "each view mounts while its surface is on");
+});
 
 test("2.22 · a page opened with a problem says the library could not be opened, and why, and reads no projects", async (t) => {
   const on = page(t, { problem: "the database refused the password" });
@@ -227,7 +242,8 @@ test("2.26 · what lands after the page left the project's drawing changes nothi
   let pluginsAsked = 0;
   const on = page(t, {
     openView: () => { const wait = deferred<void>(); views.push(wait); return wait.promise; },
-    plugins: () => ++pluginsAsked === 1 ? plugins.promise : undefined,
+    pluginViews: 1,
+    plugins: () => ++pluginsAsked === 1 ? plugins.promise : Promise.resolve({ stop() {}, failed: [] }),
   });
   await settled();
   const opening = on.last();

@@ -52,3 +52,12 @@ test("8.3 the gate takes its hold once installed, before its first check, and le
   await gate({ root, hold, provision: () => 1, run: async (step) => (calls.push(step), 0), log: () => {} });
   assert.deepEqual(calls, []);
 });
+
+test("8.4 the gate hands its steps --guidance only when given it", async (t) => {
+  const { root } = checkout(t);
+  const seen = [];
+  const step = { name: "check:reads-guidance", when: ({ guidance }) => (seen.push(guidance), { run: false, reason: "only read" }), command: () => ({ command: process.execPath, args: [], shell: false }) };
+  const steps = async () => ({ parts: [step], owners: ["reader"], graph: { reader: [] } });
+  for (const guidance of [undefined, true]) await gate({ root, steps, guidance, run: async () => 0, log: () => {} });
+  assert.deepEqual(seen, [false, true]);
+});

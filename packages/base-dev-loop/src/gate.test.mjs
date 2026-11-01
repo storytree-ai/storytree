@@ -164,3 +164,21 @@ exports.runHolds = [{ name: "my lock", take: async ({ what }) => (appendFileSync
   none();
   assert.equal(readFileSync(log, "utf8"), "", "with every part switched off and no plugin named, nothing is taken");
 });
+
+test("1.5 run holds that cannot be read are said and hold nothing, and a hold refused part-way lets go of those already taken", async (t) => {
+  const root = project(t);
+  const said = [];
+  const unreadable = await contributedHold({ root, compose: async () => { throw new Error("no manifest"); }, partsOff: () => [], standIns: noStandIns, log: (line) => said.push(line) })({ root, what: "pnpm test" });
+  unreadable();
+  assert.match(said.join("\n"), /none taken, since the parts' run holds could not be read: no manifest/);
+
+  const events = [];
+  const composition = {
+    parts: [{ name: "first", take: async () => (events.push("take first"), () => events.push("release first")) }, { name: "second", take: async () => { throw new Error("gave up waiting"); } }],
+    owners: ["locker", "locker"],
+    graph: { locker: [] },
+  };
+  const refused = contributedHold({ root, compose: async () => composition, partsOff: () => [], standIns: noStandIns, log: () => {} });
+  await assert.rejects(refused({ root, what: "pnpm gate" }), /gave up waiting/);
+  assert.deepEqual(events, ["take first", "release first"]);
+});

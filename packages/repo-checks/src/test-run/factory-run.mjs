@@ -3,7 +3,7 @@
 // the run configured for a factory: each story whose package names a plugin folder there (plugins/<name>, holding a
 // package.json) has that folder's tests run by the factory's own test command (`node --import tsx scripts/test.mjs
 // plugins/<name>`, its throwaway Postgres and all), read back from their junit report, and recorded as the story's
-// verified health by record-run.mjs's rules, with the factory's commit in each note.
+// verified health by record-run.mjs's rules, with the factory's commit, and the commit of the storytree it links, in each note.
 
 import { execFileSync, spawn } from "node:child_process";
 import { existsSync, mkdtempSync, readFileSync, realpathSync, rmSync } from "node:fs";
@@ -52,7 +52,8 @@ export function factoryArgument(args, chosen) {
  * reports it recorded) or any run produced no report, else 0. The factory is taken at its real path, since the report
  * names each test file by it: one reached through a link (macOS's temp folder, /var under /private/var) would match none.
  * With `unrecorded`, a plugin whose story already holds a factory run's entry at that commit (recordedAt) is skipped,
- * so the Mint box's timer (packages/repo-checks/box/factory-health.sh) runs the tests once per factory commit.
+ * so the Mint box's timer (packages/repo-checks/box/factory-health.sh) runs the tests once per factory commit and
+ * storytree commit (factoryCommit).
  * @param {import("@storytree/library").Library} library
  * @param {readonly import("@storytree/library").AnnotatedStory[]} stories
  * @param {string} factory
@@ -90,9 +91,17 @@ export function recordedAt(story, commit) {
   );
 }
 
-/** The factory's checked-out commit, for each note its run writes. */
+/**
+ * The factory's checked-out commit, for each note its run writes, and with it the commit of the storytree checkout its
+ * plugins import through its `storytree` link (`<factory sha> with storytree <sha>`), when that link is a Git checkout:
+ * a storytree change can break the plugins' tests with the factory unmoved, so --unrecorded runs them again then too.
+ */
 export function factoryCommit(factory) {
-  return execFileSync("git", ["rev-parse", "HEAD"], { cwd: factory, encoding: "utf8" }).trim();
+  const head = (cwd) => execFileSync("git", ["rev-parse", "HEAD"], { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim();
+  const commit = head(factory);
+  const storytree = path.join(factory, "storytree");
+  if (!existsSync(path.join(storytree, ".git"))) return commit;
+  return `${commit} with storytree ${head(storytree)}`;
 }
 
 /**

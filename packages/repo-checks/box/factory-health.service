@@ -1,10 +1,10 @@
-# The Mint box's factory health (factory-health.sh, contract 7.9): after the factory moves, its plugins' own test runs
+# The Mint box's factory health (factory-health.sh, contract 7.9): after the factory or its linked storytree moves, its plugins' own test runs
 # are recorded as their stories' verified health, from a checkout of storytree's main kept for this alone.
 # Install as the owner:
 #   mkdir -p ~/storytree-lanes/factory-health && cp packages/repo-checks/box/factory-health.{service,timer} ~/.config/systemd/user/
 #   systemctl --user daemon-reload && systemctl --user enable --now factory-health.timer
 [Unit]
-Description=storytree: record the factory plugins' health at a new factory commit
+Description=storytree: record the factory plugins' health at a new factory or storytree commit
 
 [Service]
 Type=oneshot

@@ -101,9 +101,12 @@ test("7.8 · a factory run that dies of a signal fails with no results, and `--f
   assert.deepEqual(factoryArgument(["--factory", "elsewhere"], chosen), { folder: path.resolve("elsewhere"), unrecorded: false });
 });
 
-test("7.9 · a factory run with --unrecorded skips each plugin whose story already holds a factory test run's entry at the factory's commit, and records the rest; a new commit is recorded again", async (t) => {
+test("7.9 · a factory run with --unrecorded skips each plugin whose story already holds a factory test run's entry at the factory's commit, and records the rest; a new factory commit, or a new commit of the storytree it links, is recorded again", async (t) => {
   const factory = mkdtempSync(path.join(tmpdir(), "factory-unrecorded-"));
   t.after(() => removeTemp(factory));
+  // The storytree checkout the factory's plugins import, reached through the factory's `storytree` link.
+  const storytree = mkdtempSync(path.join(tmpdir(), "factory-storytree-"));
+  t.after(() => removeTemp(storytree));
   const write = (file, lines) => {
     mkdirSync(path.dirname(path.join(factory, file)), { recursive: true });
     writeFileSync(path.join(factory, file), lines.join("\n"));
@@ -121,9 +124,14 @@ test("7.9 · a factory run with --unrecorded skips each plugin whose story alrea
     write(`plugins/${name}/package.json`, [`{ "name": "${name}" }`]);
     write(`plugins/${name}/src/${name}.test.mjs`, ['import { test } from "node:test";', 'test("1.1 it works", () => {});']);
   }
-  const commit = () => execFileSync("git", ["-c", "user.name=t", "-c", "user.email=t@example.com", "commit", "-q", "--allow-empty", "-m", "factory"], { cwd: factory });
+  const commit = (cwd = factory) => execFileSync("git", ["-c", "user.name=t", "-c", "user.email=t@example.com", "commit", "-q", "--allow-empty", "-m", path.basename(cwd)], { cwd });
   execFileSync("git", ["init", "-q"], { cwd: factory });
   commit();
+  execFileSync("git", ["init", "-q"], { cwd: storytree });
+  commit(storytree);
+  symlinkSync(storytree, path.join(factory, "storytree"), "junction");
+  const storytreeAt = execFileSync("git", ["rev-parse", "HEAD"], { cwd: storytree, encoding: "utf8" }).trim();
+  assert.equal(factoryCommit(factory), `${execFileSync("git", ["rev-parse", "HEAD"], { cwd: factory, encoding: "utf8" }).trim()} with storytree ${storytreeAt}`, "the run's commit names both");
 
   assert.deepEqual(factoryArgument(["--factory", "--unrecorded"], () => factory), { folder: factory, unrecorded: true }, "the timer's command line");
   assert.deepEqual(factoryArgument(["--factory", factory, "--unrecorded"], () => "chosen"), { folder: factory, unrecorded: true });
@@ -153,6 +161,9 @@ test("7.9 · a factory run with --unrecorded skips each plugin whose story alrea
     assert.deepEqual(await record("The cli", false), { code: 0, runs: ["plugins/cli"] }, "without --unrecorded, a recorded commit is run again");
     commit();
     assert.deepEqual(await record(), { code: 0, runs: ["plugins/cli", "plugins/kettle"] }, "a new factory commit is recorded again");
+    assert.deepEqual(await record(), { code: 0, runs: [] });
+    commit(storytree);
+    assert.deepEqual(await record(), { code: 0, runs: ["plugins/cli", "plugins/kettle"] }, "a new commit of the linked storytree is recorded again");
   });
 });
 

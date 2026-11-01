@@ -1,18 +1,9 @@
 {
- "src/acceptance-health.mjs": {
-  "5": 84
- },
  "src/desktop-lag.mjs": {
   "8": 1090
  },
  "src/evidence-sweep.mjs": {
   "10": 84
- },
- "src/export-library.mjs": {
-  "5": 3
- },
- "src/fold-story-text.mjs": {
-  "5": 48
  },
  "src/gate.mjs": {
   "13": 36,
@@ -30,14 +21,8 @@
  "src/lag-seed.mjs": {
   "8": 18
  },
- "src/library-export.mjs": {
-  "5": 36
- },
  "src/read-latency.mjs": {
   "8": 54
- },
- "src/record-acceptance.mjs": {
-  "5": 30
  },
  "src/red-run-reporter.mjs": {
   "13": 9,
@@ -48,9 +33,6 @@
  },
  "src/repo-carry.mjs": {
   "11": 49
- },
- "src/restore-library.mjs": {
-  "5": 16
  },
  "src/starting-tree.mjs": {
   "11": 16

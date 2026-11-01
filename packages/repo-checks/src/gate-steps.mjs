@@ -1,8 +1,8 @@
 // Capability 4 · Capability-list check. The steps storytree's own repository checks add to the gate's base steps
 // (ADR-1170 D2), declared as `gateSteps` in this package's storytree manifest, beside the ones Mick's dev loop adds
 // (his factory plugin micks-dev-loop's gate steps). A step is `{ name, when?, command }`, as the base gate runner reads it.
-// check:type-imports (ADR-1017 D2) refuses a type-only import that ends at a story other than the library; it
-// reads only the code, so CI runs it too, and it runs here every time.
+// lint (lint.mjs, ADR-1199 D2) runs storytree's three code-structure rules, type-only imports, package boundaries and
+// the numbered-test refusal; it reads only the code, so CI runs it too, and it runs here every time.
 // check:seed-records refuses a seed or snapshot file the branch adds or changes that holds what the forest's seed
 // sanitiser drops (a work record, a withheld arc, a redaction pattern); it reads only files, so CI runs it too.
 // check:leaks refuses a file the branch adds or changes that gains a personal path, name, address or link
@@ -18,7 +18,7 @@ const node = (...args) => ({ command: process.execPath, args: ["--import", "tsx"
 export const listed = ({ root }) => capabilityListFor(root, {});
 
 export const gateSteps = [
-  { name: "check:type-imports", command: () => node("packages/repo-checks/src/type-imports.mjs") },
+  { name: "lint", command: () => node("packages/repo-checks/src/lint.mjs") },
   { name: "check:seed-records", command: () => node("packages/repo-checks/src/seed-records.mjs") },
   { name: "check:leaks", command: () => node("packages/repo-checks/src/leak-scan.mjs") },
   { name: "check:secrets", command: () => node("packages/repo-checks/src/leak-scan.mjs", "--secrets") },

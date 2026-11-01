@@ -194,8 +194,10 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm typecheck
-      # A type-only import ends only at the library (ADR-1017 D2); it reads only the code, in about 5 s.
-      - run: pnpm check:type-imports
+      # Storytree's three code-structure rules (lint.mjs, ADR-1199 D2): a type-only import ends only at the library,
+      # each story keeps its code in its own package, and no story package's source file is left reached by no
+      # numbered test. They read only the code, in a few seconds; any break fails the pull request.
+      - run: pnpm lint
       # A seed or snapshot file the branch adds or changes holds only what the forest's seed sanitiser keeps.
       - run: pnpm check:seed-records
       # No file the branch adds or changes gains a personal path, name, address or link (leak-scan.mjs).

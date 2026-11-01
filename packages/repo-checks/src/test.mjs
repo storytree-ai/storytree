@@ -1,6 +1,5 @@
 // Capability 8 · Storytree's own test and gate entries. Storytree's own `pnpm test`: the base dev loop's test runner
-// (packages/base-dev-loop/src/test.mjs, which says what a run does) handed storytree's own lists, the checks every scoped
-// run carries and the proofs run alone, and holding past its scope decision the run holds this computer's parts contribute
+// (packages/base-dev-loop/src/test.mjs, which says what a run does) handed storytree's own list of the proofs run alone, and holding past its scope decision the run holds this computer's parts contribute
 // (the base dev loop's contributedHold): where Mick's factory plugin micks-dev-loop is named, the machine's heavy-run lock,
 // so concurrent sessions' runs on one machine queue and a waiting run names whose it waits for (ADR-1192 D2). Under
 // `pnpm gate`, the gate holds it and this run's hold takes nothing (STORYTREE_HEAVY_LOCK_HOLDER); with no plugin named
@@ -13,13 +12,8 @@ import { testCommand } from "@storytree/base-dev-loop/test";
 
 const root = fileURLToPath(new URL("../../..", import.meta.url));
 
-/**
- * Checks that a change inside any one package can fail, so every scoped run carries them as units
- * of their own (a full run has them in their package already). The package-boundary check (ADR-0649 D3)
- * is one: a story's code landing in the frame is a change to the frame alone. The code allocation guardrail
- * (ADR-0838 D5) is another: a file left unreached in one package is a change to that package alone.
- */
-export const ALWAYS_RUN = ["packages/repo-checks/src/package-boundaries.test.mjs", "packages/repo-checks/src/allocation.test.mjs"];
+// No check rides along in every scoped run: the package-boundary and allocation rules, which a change inside any one
+// package can break, run once per pull request in `pnpm lint` (lint.mjs, ADR-1199 D2), in the gate and in CI.
 
 /**
  * Test files that run as a unit of their own, after every other unit has ended and with nothing
@@ -36,9 +30,9 @@ export const ALWAYS_RUN = ["packages/repo-checks/src/package-boundaries.test.mjs
 export const ALONE = ["packages/forest/src/view/desktop-renderer-smoke.test.ts", "packages/forest-world/src/planet/road-reveal.test.ts",
   "packages/knowledge-core/src/traversal-smoke.test.ts", "apps/desktop/src/renderer/named-surfaces.test.ts"];
 
-/** Run the base test runner on `argv` with storytree's own lists, holding the parts' run holds for its heavy part. */
+/** Run the base test runner on `argv` with storytree's own list, holding the parts' run holds for its heavy part. */
 export function storytreeTest(argv = process.argv.slice(2)) {
-  testCommand({ argv, root, hold: contributedHold({ root }), alwaysRun: ALWAYS_RUN, alone: ALONE });
+  testCommand({ argv, root, hold: contributedHold({ root }), alone: ALONE });
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) storytreeTest();

@@ -6,11 +6,10 @@
 // never disagree about what counts: an edge between two stories' capabilities is type-only when every import
 // behind it is, and tests and test helpers make no edge. The survey takes each capability from the library; this
 // check reads only the code, so CI can run it too, and groups files by the capability numbers their numbered
-// tests carry, which is how the survey matches a file to a capability. `pnpm gate` runs it as check:type-imports,
-// and CI runs it on every system.
+// tests carry, which is how the survey matches a file to a capability. `pnpm lint` runs it (lint.mjs), in
+// `pnpm gate` and in CI on every system.
 
 import path from "node:path";
-import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { codeSurveyReader } from "@storytree/map/code-survey";
 
@@ -39,12 +38,4 @@ export async function typeImportProblems(root, stories = STORIES) {
     }
   }
   return problems.sort();
-}
-
-if (process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  const problems = await typeImportProblems(fileURLToPath(new URL("../../..", import.meta.url)));
-  if (problems.length > 0) {
-    console.error(`A type-only import ends at a story other than the library:\n${problems.map((problem) => `  ${problem}`).join("\n")}`);
-    process.exitCode = 1;
-  } else console.log("every type-only import between stories ends at the library");
 }

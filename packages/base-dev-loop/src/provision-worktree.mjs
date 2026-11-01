@@ -322,8 +322,6 @@ function hookText(fallback) {
     `${HOOK_MARK}, installed by packages/base-dev-loop/src/provision-worktree.mjs: refuses a push that adds a credential held on this machine.`,
     'top="$(git rev-parse --show-toplevel)"',
     'script="$top/packages/repo-checks/src/push-check.mjs"',
-    // A branch from before the push check moved to the repository's own checks package (increment_fc3a008fe1c6).
-    '[ -f "$script" ] || script="$top/packages/dev-loop/src/push-check.mjs"',
     `[ -f "$script" ] || script='${slashed.replaceAll("'", "'\\''")}'`,
     '[ -f "$script" ] || exit 0',
     'exec node "$script" "$@"',

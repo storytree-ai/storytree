@@ -1,6 +1,6 @@
 // Capability 4 · Running the tests. Node's junit report read into one result per test: how `pnpm test` keeps CI's
-// evidence of each unit (unit-run.mjs), and what Mick's dev loop's recording of a test run judges contracts by
-// (packages/dev-loop/src/test-run).
+// evidence of each unit (unit-run.mjs), and what storytree's own health, recording a test run, judges contracts by
+// (packages/repo-checks/src/test-run).
 
 /**
  * @typedef {{ name: string, suites: string[], file: string, status: "passed" | "failed" | "skipped", message?: string, ciRun?: string, unrun?: true }} TestResult

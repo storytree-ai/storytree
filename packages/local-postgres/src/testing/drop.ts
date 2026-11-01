@@ -1,7 +1,7 @@
 /**
  * Dropping a throwaway test database: the one place every package's tests do it (capability 20).
  *
- * The test server is the one `pnpm test` starts (packages/dev-loop/src/test.mjs), or the one
+ * The test server is the one `pnpm test` starts (packages/repo-checks/src/test.mjs), or the one
  * STORYTREE_TEST_PG_URL names. Databases are dropped as the harness's superuser,
  * STORYTREE_TEST_PG_ADMIN_URL, when it is set: the ordinary role cannot end a backend another role
  * holds on the database, and FORCE then refuses. Keep this module small: most packages' tests

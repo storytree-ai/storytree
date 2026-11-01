@@ -1,6 +1,6 @@
 /**
  * Capability 8 · Code survey. The packages a story's code lives in, declared once: the map's code
- * survey, own health and the plan-edges check all read it (packages/dev-loop imports it as
+ * survey, own health and the plan-edges check all read it (Mick's factory plugin reaches it as
  * @storytree/map/package-of), so a story whose package is named otherwise, or that owns several
  * (ADR-1066 D3), is added here and nowhere else. It imports nothing, so plain Node can load it as well as tsx.
  */
@@ -32,7 +32,6 @@ const PACKAGE_NAMED_OTHERWISE: Readonly<Record<string, string>> = {
   story_b91056a06337: "app-setup", // Setup
   story_b2051c0f7372: "agent-pool", // Agent runner (ADR-1071 D3): the package kept its name, so the box's live paths did not move.
   story_08790ee19bbf: "mark", // Marketing artifacts (ADR-1071 D3): The mark renamed, its package kept.
-  story_95ed402f9bd3: "dev-loop", // Mick's dev loop (ADR-1170 D3): The dev loop renamed, its package kept.
 };
 
 /**

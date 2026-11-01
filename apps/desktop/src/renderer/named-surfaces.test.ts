@@ -57,7 +57,7 @@ async function named(page: Page, pick: string): Promise<string> {
 test("3.15 · every canvas, gear menu tab and dialog the app opens carries a declared surface id, and the corner names it", { timeout: 600_000 }, async (t) => {
   const dist = mkdtempSync(path.join(tmpdir(), "storytree-named-surfaces-"));
   t.after(() => rmSync(dist, { recursive: true, force: true }));
-  await buildCapture({ dist });
+  await buildCapture({ dist, entryPoints: [new URL("./renderer.ts", import.meta.url)] });
   const { seed } = captureSeed("forest");
   let current = seed.projects[0];
   const seeded: Partial<StorytreeBridge> = {

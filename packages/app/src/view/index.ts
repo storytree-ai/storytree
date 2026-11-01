@@ -1,4 +1,4 @@
-/** Capability 3 · Surfaces. */
+/** Capability 2 · Storytree projects: the gear menu and its overlay. */
 import { mountDecisionRights, mountSettings, type SettingsBridge } from "@storytree/project-and-caller/view";
 import type { ProjectSelection } from "../projects/selection.js";
 import type { SurfacesBridge } from "../surfaces/bridge.js";

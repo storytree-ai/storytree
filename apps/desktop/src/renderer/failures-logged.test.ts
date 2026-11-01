@@ -31,7 +31,7 @@ async function opened(browser: Browser, origin: string, answers: Partial<Storytr
 test("2.20 · the renderer writes a failed surfaces read, a failed projects poll or forest read, a failed project choice and a failed start mark to the console", { timeout: 600_000 }, async (t) => {
   const dist = mkdtempSync(path.join(tmpdir(), "storytree-failures-logged-"));
   t.after(() => rmSync(dist, { recursive: true, force: true }));
-  await buildCapture({ dist });
+  await buildCapture({ dist, entryPoints: [new URL("./renderer.ts", import.meta.url)] });
   const { seed } = captureSeed("forest");
   const projects = [...seed.projects, "elsewhere"];
   let pollFails = false;

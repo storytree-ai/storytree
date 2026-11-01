@@ -11,6 +11,7 @@
 
 import { existsSync } from "node:fs";
 import path from "node:path";
+import { setTimeout as sleep } from "node:timers/promises";
 
 import { contractsCoveredBy, contractsOf, creditPlatforms, dependantTestsNaming, judge, packageOf, recordHealth, sourcesOf, unseenPlatform } from "./test-run.mjs";
 
@@ -19,7 +20,7 @@ import { contractsCoveredBy, contractsOf, creditPlatforms, dependantTestsNaming,
  * its junit report's results) and record each of its contracts' verified health from what they showed. False if the run produced no report, so no
  * health could be recorded.
  */
-export async function checkStory(library, story, writer, { root, folders, evidence = [], runTests, log = (line) => console.log(line), error = (line) => console.error(line) }) {
+export async function checkStory(library, story, writer, { root, folders, evidence = [], runTests, pause = sleep, log = (line) => console.log(line), error = (line) => console.error(line) }) {
   const { numbers, contractIds } = contractsOf(story);
   const name = packageOf(story);
   const dirs = folders ?? sourcesOf(name);
@@ -83,7 +84,7 @@ export async function checkStory(library, story, writer, { root, folders, eviden
       if (verdict === undefined) continue;
       let line = `    ${number.padEnd(5)} ${verdict.state.padEnd(12)} ${verdict.note ?? verdict.reason ?? ""}`;
       if (verdict.state === "not-checked") {
-        const earlier = (await library.health(contract.id)).verified;
+        const earlier = (await retrying(() => library.health(contract.id), { pause, log })).verified;
         if (verdict.unrun === true && earlier.state === "passing") line += `; its earlier pass (${earlier.at}) stands: the ${verdict.skip} CI run did not reach its tests`;
         else if (unseenPlatform(verdict.skip, platformsSeen) && earlier.state === "passing") line += `; its earlier pass (${earlier.at}) stands: no ${verdict.skip} CI run to re-run it`;
         else if (earlier.state !== "not-checked") line += `; its earlier entry (${earlier.state}, ${earlier.at}) is marked not re-run`;
@@ -92,11 +93,42 @@ export async function checkStory(library, story, writer, { root, folders, eviden
       log(line);
     }
   }
-  const written = await recordHealth(library, contractIds, verdicts, writer, { platformsSeen });
+  // Writing a verdict again after a lost connection only repeats it in the contract's history.
+  const written = await retrying(() => recordHealth(library, contractIds, verdicts, writer, { platformsSeen }), { pause, log });
   log(
     `\nrecorded: ${written.passing} passing, ${written.failing} failing; ` +
       `${written.notChecked} not checked, ${written.marked} of them marked with a skip's kind or as not re-run. The reported column is untouched.`,
   );
   if (written.retired !== undefined) log(`skipped ${written.retired.length} contract(s) retired on the library since this run read the plan, so nothing was recorded on them: ${written.retired.join(", ")}`);
   return true;
+}
+
+/** The pauses before each retry of a library call whose connection was lost, in milliseconds: a few, then the run fails. */
+const RETRY_PAUSES = [5_000, 15_000, 30_000];
+
+/**
+ * `call`, tried again with a fresh connection after a pause when the library's connection was lost while a story's
+ * tests ran: over the tailnet a week of runs lost five that way (increment_309affca93cf), each at the first library call
+ * after a story's tests. Any other error, and the last loss, fails at once.
+ */
+async function retrying(call, { pause, log }) {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await call();
+    } catch (error) {
+      if (attempt >= RETRY_PAUSES.length || !connectionLost(error)) throw error;
+      log(`the library's connection was lost (${error.message}); trying again in ${RETRY_PAUSES[attempt] / 1000} s with a fresh one`);
+      await pause(RETRY_PAUSES[attempt]);
+    }
+  }
+}
+
+/** pg's words, or a network code, for a connection dropped, never made in time, or ended by the server as idle in a transaction (SQLSTATE 25P03). */
+function connectionLost(error) {
+  const { code, message } = error ?? {};
+  return (
+    code === "25P03" ||
+    ["ECONNRESET", "ETIMEDOUT", "EPIPE", "EHOSTUNREACH", "ENETUNREACH", "ECONNREFUSED"].includes(code) ||
+    /Connection terminated|timeout exceeded when trying to connect|timeout expired/i.test(message ?? "")
+  );
 }

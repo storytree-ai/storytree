@@ -1,14 +1,17 @@
-// Capability 13 · Heavy runs, coverage and the test ratio. Storytree's own `pnpm test`: the base dev loop's test runner
-// (packages/base-dev-loop/src/test.mjs, which says what a run does) holding the machine's heavy-run lock (heavy-lock.mjs)
-// past its scope decision, so concurrent sessions' runs on one machine queue and a waiting run names whose it waits for,
-// and handing it storytree's own lists: the checks every scoped run carries and the proofs run alone.
-// Under `pnpm gate`, the gate holds the lock and this run's hold takes nothing (STORYTREE_HEAVY_LOCK_HOLDER).
+// Capability 8 · Storytree's own test and gate entries. Storytree's own `pnpm test`: the base dev loop's test runner
+// (packages/base-dev-loop/src/test.mjs, which says what a run does) handed storytree's own lists, the checks every scoped
+// run carries and the proofs run alone, and holding past its scope decision the run holds this computer's parts contribute
+// (the base dev loop's contributedHold): where Mick's factory plugin micks-dev-loop is named, the machine's heavy-run lock,
+// so concurrent sessions' runs on one machine queue and a waiting run names whose it waits for (ADR-1192 D2). Under
+// `pnpm gate`, the gate holds it and this run's hold takes nothing (STORYTREE_HEAVY_LOCK_HOLDER); with no plugin named
+// (CI, a clone of storytree) it holds nothing.
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { contributedHold } from "@storytree/base-dev-loop";
 import { testCommand } from "@storytree/base-dev-loop/test";
 
-import { acquireHeavyLock } from "./heavy-lock.mjs";
+const root = fileURLToPath(new URL("../../..", import.meta.url));
 
 /**
  * Checks that a change inside any one package can fail, so every scoped run carries them as units
@@ -33,9 +36,9 @@ export const ALWAYS_RUN = ["packages/repo-checks/src/package-boundaries.test.mjs
 export const ALONE = ["packages/forest/src/view/desktop-renderer-smoke.test.ts", "packages/forest-world/src/planet/road-reveal.test.ts",
   "packages/knowledge-core/src/traversal-smoke.test.ts", "apps/desktop/src/renderer/named-surfaces.test.ts"];
 
-/** Run the base test runner on `argv` with storytree's own lists, holding the heavy-run lock for its heavy part. */
+/** Run the base test runner on `argv` with storytree's own lists, holding the parts' run holds for its heavy part. */
 export function storytreeTest(argv = process.argv.slice(2)) {
-  testCommand({ argv, hold: acquireHeavyLock, alwaysRun: ALWAYS_RUN, alone: ALONE });
+  testCommand({ argv, root, hold: contributedHold({ root }), alwaysRun: ALWAYS_RUN, alone: ALONE });
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) storytreeTest();

@@ -207,7 +207,8 @@ the declared stories are in [`packages/repo-checks/src/package-boundaries.mjs`](
 `pnpm test` runs only what a change can reach, locally and in CI alike: the packages holding a file
 changed since the branch left `main`, plus every package that depends on them. A change it cannot
 place in a package (a root file, a `package.json`, the lockfile) runs everything, and so does a change to the dev loop
-(`packages/dev-loop`: the test runner, its scoping and the gate decide how every test runs, ADR-0805). Its
+(`packages/base-dev-loop`, and `packages/repo-checks`, storytree's own entries to it: the test runner, its scoping and
+the gate decide how every test runs, ADR-0805). Its
 first line says which, as `scope: ...`; `pnpm run test --full` runs everything anyway, and after a
 failure `pnpm run test --rerun-failed` runs only the packages that failed. This
 `pnpm run <script> --flag` form works in every shell; Windows PowerShell 5.1 drops a bare `--`.

@@ -1,5 +1,5 @@
-// Capability 13 · Heavy runs, coverage and the test ratio: the red-run reporter a checkout outside storytree, such as
-// Mick's factory, gives its own `node --test` by this package's name, keeping its reds as `pnpm test` does (ADR-1153 D3).
+// Capability 4 · Running the tests: the red-run reporter a checkout outside storytree, such as a user's factory, gives its
+// own `node --test` by this package's name, keeping its reds as `pnpm test` does (ADR-1153 D3).
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
@@ -12,13 +12,13 @@ import { removeTemp } from "@storytree/test-waits";
 
 const root = fileURLToPath(new URL("../../..", import.meta.url));
 
-test("13.4 · a plain node --test run outside storytree, given the dev loop's red-run reporter by its package name, keeps its reds in its own checkout's red runs", async (t) => {
+test("4.27 · a plain node --test run outside storytree, given the base dev loop's red-run reporter by its package name, keeps its reds in its own checkout's red runs", async (t) => {
   const dir = realpathSync(mkdtempSync(path.join(tmpdir(), "red-runs-factory-")));
   t.after(() => removeTemp(dir));
-  // A factory-shaped repository: its own Git checkout, reaching the dev loop by a link to its package, as a factory's `link:` does.
+  // A factory-shaped repository: its own Git checkout, reaching the base dev loop by a link to its package, as a factory's `link:` does.
   const factory = path.join(dir, "factory");
   mkdirSync(path.join(factory, "node_modules", "@storytree"), { recursive: true });
-  symlinkSync(path.join(root, "packages", "dev-loop"), path.join(factory, "node_modules", "@storytree", "dev-loop"), "junction");
+  symlinkSync(path.join(root, "packages", "base-dev-loop"), path.join(factory, "node_modules", "@storytree", "base-dev-loop"), "junction");
   spawnSync("git", ["init", "-q"], { cwd: factory });
   mkdirSync(path.join(factory, "plugins", "p"), { recursive: true });
   // The run's own events, kept to give the reporter again in this process.
@@ -35,7 +35,7 @@ test("9.3 · its import is not built", () => notBuilt());`);
   const env = { ...process.env };
   delete env.NODE_TEST_CONTEXT; // a run of its own, not a child of this one
   const red = spawnSync(process.execPath, ["--test", "--test-reporter=spec", "--test-reporter-destination=stdout",
-    "--test-reporter=@storytree/dev-loop/red-run-reporter", "--test-reporter-destination=stderr",
+    "--test-reporter=@storytree/base-dev-loop/red-run-reporter", "--test-reporter-destination=stderr",
     `--test-reporter=${pathToFileURL(path.join(dir, "events.mjs")).href}`, `--test-reporter-destination=${path.join(dir, "events.jsonl")}`,
     path.join("plugins", "p", "failing.test.mjs"), path.join("plugins", "p", "unloadable.test.mjs")], { cwd: factory, env, encoding: "utf8" });
   assert.equal(red.status, 1, red.stdout + red.stderr);

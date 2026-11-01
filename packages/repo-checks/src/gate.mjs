@@ -1,26 +1,30 @@
-// Capability 7 · The gate. ADR-0716: one foreground command for the checks before landing. Tests keep their own
-// scoping, per-package table and rerun record in test.mjs. No second test runner lives here.
+// Capability 8 · Storytree's own test and gate entries. ADR-0716: one foreground command for the checks before landing.
+// Tests keep their own scoping, per-package table and rerun record in test.mjs. No second test runner lives here.
 // ADR-1170 D1: the runner is the base dev loop's (packages/base-dev-loop): typecheck and the project's tests, then
 // every step a part contributes. This is storytree's own `pnpm gate` around it: the repository's own checks add their steps
-// (packages/repo-checks), Mick's factory plugin micks-dev-loop adds its own while this computer names it (the guidance
+// (gate-steps.mjs), Mick's factory plugin micks-dev-loop adds its own while this computer names it (the guidance
 // check among them, ADR-1192 D2), and --guidance reaches that step's `when`.
 // Flags go as `pnpm run gate --guidance`: Windows PowerShell 5.1 drops a bare `--` before pnpm
 // sees it, so `pnpm gate -- --guidance` fails there; `pnpm run` passes them on in every shell.
-// The gate holds the machine's heavy-run lock (packages/dev-loop/src/heavy-lock.mjs) for its whole run, so
-// concurrent sessions' gates queue; its test step runs under that hold.
 // Before its first check it installs a worktree no session-start hook installed (a pool lane makes its
-// own with storytree workspace), as `pnpm storytree` does; one its install cannot fix runs no check (7.5).
+// own with storytree workspace), as `pnpm storytree` does; one its install cannot fix runs no check (8.1).
+// Installed, it holds the run holds this computer's parts contribute for the rest of its run (the base dev loop's
+// contributedHold; where micks-dev-loop is named, the machine's heavy-run lock), so concurrent sessions' gates queue; its
+// test step runs under that hold.
 // It starts under plain node in a worktree that may not be installed yet, so it loads the base dev loop only after.
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { acquireHeavyLock } from "./heavy-lock.mjs";
 import { check } from "@storytree/base-dev-loop/provision-worktree";
 
 const repoRoot = fileURLToPath(new URL("../../..", import.meta.url));
 
-/** The base gate over this checkout: `provision` returns 0 once the worktree is installed, and `guidance` asks for that check. */
-export async function runGate({ root = repoRoot, guidance = false, provision = () => 0, log = console.log, ...options } = {}) {
+/**
+ * The base gate over this checkout: `provision` returns 0 once the worktree is installed, and `guidance` asks for that
+ * check. Installed, it takes `hold` (by default the run holds this computer's parts contribute) before its first check and
+ * lets it go once its table has printed; one it could not install takes no hold.
+ */
+export async function runGate({ root = repoRoot, guidance = false, provision = () => 0, hold, stopped = () => false, log = console.log, ...options } = {}) {
   const unready = provision(log) === 0 ? null : "worktree not installed: see the line above";
   let base;
   try {
@@ -30,14 +34,19 @@ export async function runGate({ root = repoRoot, guidance = false, provision = (
     log(`\ngate: no check ran: ${unready}`);
     return 1;
   }
-  return base.runGate({
-    root,
-    log,
-    ...options,
-    flags: { guidance },
-    rerunHint: `rerun: pnpm ${guidance ? "run gate --guidance" : "gate"}`,
-    prepare: () => unready,
-  });
+  const release = unready ? () => {} : await (hold ?? base.contributedHold({ root, log }))({ root, what: "pnpm gate", stopped });
+  try {
+    return await base.runGate({
+      root,
+      log,
+      ...options,
+      flags: { guidance },
+      rerunHint: `rerun: pnpm ${guidance ? "run gate --guidance" : "gate"}`,
+      prepare: () => unready,
+    });
+  } finally {
+    release();
+  }
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
@@ -54,15 +63,12 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     const stop = () => controller.signal.aborted ? force.abort() : controller.abort();
     const signals = ["SIGINT", "SIGTERM", "SIGHUP", "SIGBREAK"];
     for (const signal of signals) process.on(signal, stop);
-    let release;
     try {
-      release = await acquireHeavyLock({ root: repoRoot, what: "pnpm gate", stopped: () => controller.signal.aborted });
-      process.exitCode = await runGate({ guidance: args.includes("--guidance"), provision: (log) => check({ root: repoRoot, log }), signal: controller.signal, forceSignal: force.signal });
+      process.exitCode = await runGate({ guidance: args.includes("--guidance"), provision: (log) => check({ root: repoRoot, log }), stopped: () => controller.signal.aborted, signal: controller.signal, forceSignal: force.signal });
     } catch (error) {
       console.error(`gate: ${error.message}`);
       process.exitCode = controller.signal.aborted ? 130 : 1;
     } finally {
-      release?.();
       for (const signal of signals) process.removeListener(signal, stop);
     }
   }

@@ -486,7 +486,7 @@ function withAlone(root, units, alone) {
  * `alone` names test files that run as a unit of their own, after every other unit has ended and with nothing beside them,
  * whenever their package runs; their package's unit runs its other files. `alwaysRun` names checks that a change inside any
  * one package can fail, so every scoped run carries each as a unit of its own (a full run has it in its package already).
- * Both are the calling repository's own (storytree's are in packages/dev-loop/src/test.mjs): the base runner names none.
+ * Both are the calling repository's own (storytree's are in packages/repo-checks/src/test.mjs): the base runner names none.
  */
 export function planRun({ root, workspace, decision, flags = {}, record, alone = [], alwaysRun = [] }) {
   const infra = infraUnits(root);

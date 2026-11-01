@@ -140,6 +140,8 @@ test("7.11 · a line the change adds exactly as a line it deletes, in its own di
       { line: 2, what: "`>=` to `<`" },
       { line: 4, what: "`>` to `<=`" },
     ]);
+    // A file's `--- a/…` header is not a line it deletes.
+    assert.deepEqual([...deletedLines([deleting({ "a.mjs": "one;\n", "b.mjs": "  one;\ntwo;\n" })])], [["one;", 2], ["two;", 1]]);
     // Deleted in one checkout and added in another, as a move into a factory plugin is.
     assert.deepEqual(changeBreaks(dir, adding(moved), [], undefined, deletedLines([adding(moved), deleting(old)])).breaks.map(({ line }) => line), [2, 4]);
   } finally {

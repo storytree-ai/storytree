@@ -1,8 +1,4 @@
 {
- "../../apps/desktop/src/bridge.ts": {
-  "1": 6,
-  "4": 6
- },
  "../../apps/desktop/src/capture/build.ts": {
   "2": 3
  },
@@ -19,30 +15,6 @@
  "../../apps/desktop/src/capture/runner.ts": {
   "2": 10,
   "3": 8
- },
- "../../apps/desktop/src/home.ts": {
-  "1": 1,
-  "4": 1
- },
- "../../apps/desktop/src/main/args.ts": {
-  "1": 1,
-  "4": 1
- },
- "../../apps/desktop/src/main/main.ts": {
-  "1": 24,
-  "4": 23
- },
- "../../apps/desktop/src/main/releases.ts": {
-  "1": 2,
-  "4": 2
- },
- "../../apps/desktop/src/main/tray-icon.ts": {
-  "1": 1,
-  "4": 1
- },
- "../../apps/desktop/src/preload/preload.ts": {
-  "1": 1,
-  "4": 1
  },
  "../../apps/desktop/src/renderer/renderer.ts": {
   "2": 32,
@@ -71,27 +43,24 @@
   "5": 12
  },
  "src/lifecycle/background.ts": {
-  "1": 68,
-  "4": 72
+  "1": 65,
+  "4": 70
  },
  "src/lifecycle/backups.ts": {
-  "1": 109,
-  "4": 200
+  "1": 108,
+  "4": 199
  },
  "src/lifecycle/launch.ts": {
-  "1": 8,
-  "4": 2
+  "1": 6
  },
  "src/lifecycle/open-where-set.ts": {
-  "1": 5,
-  "4": 1
+  "1": 4
  },
  "src/lifecycle/quit.ts": {
   "1": 14
  },
  "src/lifecycle/sign-in.ts": {
-  "1": 81,
-  "4": 3
+  "1": 78
  },
  "src/lifecycle/verbs.ts": {
   "1": 2
@@ -102,26 +71,20 @@
   "3": 5
  },
  "src/projects/selection.ts": {
-  "1": 6,
-  "2": 60,
-  "4": 6
+  "2": 60
  },
  "src/surfaces/bridge.ts": {
   "2": 5,
   "3": 5
  },
  "src/surfaces/reads.ts": {
-  "1": 1,
-  "3": 348,
-  "4": 1
+  "3": 348
  },
  "src/surfaces/smoke.ts": {
   "3": 4
  },
  "src/surfaces/switches.ts": {
-  "1": 1,
-  "3": 51,
-  "4": 1
+  "3": 51
  },
  "src/surfaces/verbs.ts": {
   "3": 26
@@ -136,15 +99,14 @@
   "4": 8
  },
  "src/updates/follow-main.ts": {
-  "1": 11,
-  "4": 21
+  "1": 6,
+  "4": 16
  },
  "src/updates/hold-run.mjs": {
   "4": 2
  },
  "src/updates/install-choice-file.ts": {
-  "1": 2,
-  "4": 11
+  "4": 9
  },
  "src/updates/install-choice.ts": {
   "4": 39
@@ -156,8 +118,8 @@
   "4": 24
  },
  "src/updates/main-updates.ts": {
-  "1": 12,
-  "4": 67
+  "1": 8,
+  "4": 63
  },
  "src/updates/one-app.ts": {
   "4": 34

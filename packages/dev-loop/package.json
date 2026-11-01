@@ -2,7 +2,7 @@
   "name": "@storytree/dev-loop",
   "private": true,
   "type": "module",
-  "description": "Mick's dev loop (story_95ed402f9bd3, ADR-0805 D3, ADR-1170 D3, ADR-1192 D2): the personal half of the dev loop, around the base dev loop (packages/base-dev-loop), which holds the gate runner, the test runner and its scoping, the worktree installer and the merge-queue scripts: storytree's gate (its lock and worktree install; the repository's own checks contribute their steps from packages/repo-checks, and Mick's factory plugin micks-dev-loop its own and the guidance build), its `pnpm test` (the base runner holding the heavy-run lock), and the library's export and restore (which reach the library through the repository's own checks' library server). The root package.json's commands and CI run them from here.",
+  "description": "Mick's dev loop (story_95ed402f9bd3, ADR-0805 D3, ADR-1170 D3, ADR-1192 D2): the personal half of the dev loop, around the base dev loop (packages/base-dev-loop), which holds the gate runner, the test runner and its scoping, the worktree installer and the merge-queue scripts: storytree's gate (its lock and worktree install; the repository's own checks contribute their steps from packages/repo-checks, and Mick's factory plugin micks-dev-loop its own and the guidance build), and its `pnpm test` (the base runner holding the heavy-run lock). The root package.json's commands and CI run them from here.",
   "dependencies": {
     "@storytree/forest": "workspace:*",
     "@storytree/local-postgres": "workspace:*",

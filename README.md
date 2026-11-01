@@ -164,6 +164,8 @@ one exception: a factory plugin's story is written from the plan file the plugin
 and contracts, but their source is the plugin's file, and the plan edits refuse them.
 `pnpm storytree settings show` says which library a machine uses, and each script below uses that
 library (the app's local one, one on Cloud SQL, or one at a Postgres address) and says which.
+`pnpm library:export`, `pnpm library:restore` and `pnpm record:acceptance` run Mick's factory plugin
+(`storytree library-tools …`), so they work only on a computer that names it.
 
 - `pnpm library:export` prints the project `storytree` as read-only story and decision files into
   `library-export/` (which git ignores), for reading the plan outside the app.

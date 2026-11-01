@@ -297,6 +297,28 @@ test("8.28 a '#' specifier the importing package's package.json imports field na
   assert.deepEqual(survey.files.map(({ path, capability }) => [path, capability]), [["src/parts/tools.ts", "cap-tools"], ["src/parts/other.ts", undefined]]);
 });
 
+test("8.39 a bare specifier naming another package of the same story is an ordinary import of the file its exports map it to, so a test in one of a story's packages reaches the files of its other package it imports; another story's package stays unreached", () => {
+  const tree = [
+    { path: "packages/app/src/view/index.ts", text: 'import { draw } from "./draw.js";\nexport const view = () => draw();\n' },
+    { path: "packages/app/src/view/draw.ts", text: "export const draw = () => 1;\n" },
+    { path: "packages/app/src/page/index.ts", text: "export const page = 2;\n" },
+    { path: "apps/desktop/src/renderer/renderer.ts", text: 'import { view } from "@x/app/view";\nimport { page } from "@x/app";\nimport { other } from "@x/other";\nexport const mount = () => [view(), page, other];\n' },
+    { path: "apps/desktop/src/renderer/renderer.test.ts", text: 'import { mount } from "./renderer.js";\ntest("3.15 the renderer mounts the page", () => mount());\n' },
+  ];
+  const survey = surveyStory(tree, [{ id: "cap-view", title: "2 · View" }, { id: "cap-desktop", title: "3 · Desktop" }], {}, ["app", "desktop"], [
+    { root: "packages/app/", name: "@x/app", exports: { ".": "./src/page/index.ts", "./view": "./src/view/index.ts" } },
+    { root: "apps/desktop/", name: "@x/desktop", exports: {} },
+  ]);
+  assert.deepEqual(survey.files.map(({ path, capability }) => [path, capability]), [
+    ["packages/app/src/view/index.ts", "cap-desktop"], ["packages/app/src/view/draw.ts", "cap-desktop"], ["packages/app/src/page/index.ts", "cap-desktop"],
+    ["apps/desktop/src/renderer/renderer.ts", "cap-desktop"],
+  ]);
+  assert.deepEqual(survey.imports.filter(({ from }) => from.startsWith("apps/")), [
+    { from: "apps/desktop/src/renderer/renderer.ts", to: "packages/app/src/view/index.ts" },
+    { from: "apps/desktop/src/renderer/renderer.ts", to: "packages/app/src/page/index.ts" },
+  ]);
+});
+
 test("8.34 a test file's literal new URL entry point inside an entryPoints array is an ordinary import of the file it names; a URL elsewhere reaches nothing", () => {
   const tree = [
     { path: "src/view/view.ts", text: 'import { palette } from "./styles.js";\nexport const view = palette;\n' },

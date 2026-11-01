@@ -9,6 +9,8 @@
  *   nearest (fewest ordinary imports away), then most; a tie goes to the lower number. So a test's own
  *   subject stays its own, and a file reached only through others goes to the capability nearest it.
  * - A CommonJS `require("…")` of a relative file or the package's own exported subpath is an ordinary import (8.12).
+ * - A bare specifier naming another package of the same story (apps/desktop's `@storytree/app/view`) is an ordinary
+ *   import of the file that package's exports map it to (8.39); another story's package is reached by no import.
  * - A `#name` its package.json's imports field maps literally to a file of the package is an ordinary import of it (8.28).
  * - A test's esbuild entry point, a literal `new URL("./x", import.meta.url)` under an `entryPoints` key, is an ordinary import of it (8.34).
  * - A test file that runs an imported behaviour suite (a file it reaches by value that imports node:test
@@ -185,15 +187,22 @@ const linesOf = (text: string): number => text.split("\n").filter((line) => line
  */
 type Edge = { readonly to: string; readonly reexport: boolean; readonly typeOnly: boolean; readonly names: readonly (readonly [name: string, as: string])[] | "all" };
 
-/** Resolve a relative specifier against the importing file, to a file the package holds. */
+/**
+ * Resolve a specifier against the importing file, to a file the story holds: a relative one by path, a `#name` by
+ * the importing package's imports field, and a bare one by the exports of whichever of `packages` (the story's
+ * own, 8.39) it names, the longest name first. Another story's package is not in `packages`, so it resolves to none.
+ */
 function resolve(from: string, specifier: string, paths: ReadonlySet<string>, packages: readonly SurveyPackage[]): string | undefined {
   if (!/^\.{1,2}\//.test(specifier)) {
-    const own = packages.find(pkg => from.startsWith(pkg.root));
-    if (own === undefined) return undefined;
-    const subpath = specifier === own.name ? "." : specifier.startsWith(own.name + "/") ? "." + specifier.slice(own.name.length) : undefined;
-    const target = specifier.startsWith("#") ? own.imports?.[specifier] : subpath === undefined ? undefined : own.exports[subpath];
-    if (target === undefined) return undefined;
-    return resolve(own.root + "package.json", target, paths, []);
+    if (specifier.startsWith("#")) {
+      const own = packages.find(pkg => from.startsWith(pkg.root));
+      const target = own?.imports?.[specifier];
+      return own === undefined || target === undefined ? undefined : resolve(own.root + "package.json", target, paths, []);
+    }
+    if (!packages.some(pkg => from.startsWith(pkg.root))) return undefined;
+    const named = packages.filter(pkg => specifier === pkg.name || specifier.startsWith(pkg.name + "/")).sort((a, b) => b.name.length - a.name.length)[0];
+    const target = named?.exports[specifier === named.name ? "." : "." + specifier.slice(named.name.length)];
+    return named === undefined || target === undefined ? undefined : resolve(named.root + "package.json", target, paths, []);
   }
   const parts = from.split("/").slice(0, -1);
   for (const part of specifier.split("/")) {

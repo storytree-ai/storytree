@@ -429,6 +429,68 @@ test("7.7 a contract retired between a run's checkout and its record is skipped 
   });
 });
 
+/** `lib` whose writes of verified health first fail with each of `failures` in turn, as a dropped connection would, then go through; `tries` counts every write tried. */
+function dropping(lib, failures) {
+  const left = [...failures];
+  const tries = { count: 0 };
+  const flaky = new Proxy(lib, {
+    get(target, key) {
+      if (key !== "recordVerified") return Reflect.get(target, key, target);
+      return async (...args) => {
+        tries.count++;
+        if (left.length > 0) throw left.shift();
+        return target.recordVerified(...args);
+      };
+    },
+  });
+  return { flaky, tries };
+}
+
+/** pg's errors as the own-health runs met them over the tailnet (runs 40442719643, 41216004749, 40806340594). */
+const terminated = () => new Error("Connection terminated unexpectedly");
+const timedOut = () => new Error("Connection terminated due to connection timeout");
+const idleInTransaction = () => Object.assign(new Error("terminating connection due to idle-in-transaction timeout"), { code: "25P03" });
+
+test("7.14 a connection lost at a story's record, dropped, timed out or ended as idle in a transaction, is retried after a pause and the story's health is recorded", async (t) => {
+  const root = mkdtempSync(path.join(tmpdir(), "own-health-dropped-"));
+  t.after(() => removeTemp(root));
+  mkdirSync(path.join(root, "packages/cli/src"), { recursive: true });
+  const file = path.join(root, "packages/cli/src/kettle.test.mjs");
+  await withLibrary(async (lib) => {
+    const story = await kettle(lib);
+    const { contractIds } = contractsOf(story);
+    const { flaky, tries } = dropping(lib, [terminated(), timedOut(), idleInTransaction()]);
+    const run = async () => ({ code: 0, results: [{ name: "1.1 it does a", suites: [], file, status: "passed" }] });
+    const lines = [];
+    const pauses = [];
+    const pause = async (ms) => void pauses.push(ms);
+    assert.equal(await checkStory(flaky, story, { by: "storytree test run" }, { root, runTests: run, pause, log: (line) => lines.push(line), error: (line) => lines.push(line) }), true);
+    assert.equal((await lib.health(contractIds.get("1.1"))).verified.state, "passing", "the story's health is recorded once the library answers again");
+    assert.equal(tries.count, 4, "each lost connection is tried again");
+    assert.equal(pauses.length, 3, "with a pause before each retry");
+    assert.ok(pauses.every((ms) => ms > 0));
+    assert.ok(lines.some((line) => line.includes("Connection terminated unexpectedly") && /trying again/.test(line)), "the log says what was lost and that it tries again");
+  });
+});
+
+test("7.14 a record that keeps losing its connection fails after a few tries, and any other error fails it at once", async (t) => {
+  const root = mkdtempSync(path.join(tmpdir(), "own-health-dropped-"));
+  t.after(() => removeTemp(root));
+  mkdirSync(path.join(root, "packages/cli/src"), { recursive: true });
+  const file = path.join(root, "packages/cli/src/kettle.test.mjs");
+  await withLibrary(async (lib) => {
+    const story = await kettle(lib);
+    const run = async () => ({ code: 0, results: [{ name: "1.1 it does a", suites: [], file, status: "passed" }] });
+    const quiet = { root, runTests: run, pause: async () => {}, log: () => {}, error: () => {} };
+    const gone = dropping(lib, Array.from({ length: 20 }, terminated));
+    await assert.rejects(checkStory(gone.flaky, story, { by: "storytree test run" }, quiet), /Connection terminated unexpectedly/);
+    assert.ok(gone.tries.count > 1 && gone.tries.count < 10, `a few tries, not endless: ${gone.tries.count}`);
+    const refused = dropping(lib, [Object.assign(new Error("permission denied for table record"), { code: "42501" })]);
+    await assert.rejects(checkStory(refused.flaky, story, { by: "storytree test run" }, quiet), /permission denied/);
+    assert.equal(refused.tries.count, 1, "an error that is not a lost connection is not retried");
+  });
+});
+
 test("7.1 checking the app story also runs the desktop app's tests as its own, crediting their numbered titles", async (t) => {
   const root = mkdtempSync(path.join(tmpdir(), "own-health-frame-"));
   t.after(() => removeTemp(root));

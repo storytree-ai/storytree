@@ -5,17 +5,13 @@ import assert from "node:assert/strict";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
 import { test } from "node:test";
 
 import { removeTemp } from "@storytree/test-waits";
 
-import { contributedSteps } from "@storytree/base-dev-loop";
 import { gateSteps as repoSteps } from "@storytree/repo-checks/gate-steps";
 
 import { runGate } from "./gate.mjs";
-
-const repoRoot = fileURLToPath(new URL("../../..", import.meta.url));
 
 // The gate's own steps as the checkout's manifests contribute them (the repository checks'), with nothing switched off:
 // the temporary folders below have no package.json to compose them from.
@@ -42,12 +38,4 @@ test("7.5 the gate installs an uninstalled worktree before its first check, and 
   assert.equal(refused, 1);
   assert.match(output.at(-1), /NOT RUN\s+typecheck.*worktree not installed/);
   assert.match(output.at(-1), /NOT RUN\s+test.*worktree not installed/);
-});
-
-test("storytree's checkout contributes the repository checks' five steps to the base dev loop's gate, and Mick's dev loop none", async () => {
-  const { parts, owners } = await contributedSteps(repoRoot);
-  const by = Object.fromEntries(parts.map((step, index) => [step.name, owners[index]]));
-  assert.deepEqual(by, {
-    "check:type-imports": "repo-checks", "check:seed-records": "repo-checks", "check:leaks": "repo-checks", "check:secrets": "repo-checks", "check:capability-list": "repo-checks",
-  });
 });

@@ -18,7 +18,7 @@ import { GUARDRAILS, NO_MODULE_MOCK, PATTERNS, PRINCIPLES, PROCESSES, TEST_CREAT
 import { ROLES } from "./starter-roles.js";
 
 /** The pack's version: raise it whenever its text changes. */
-export const STARTER_PACK_VERSION = 11;
+export const STARTER_PACK_VERSION = 12;
 
 /** Who the history says wrote the pack's records. */
 const ACTOR = `storytree setup (starter pack v${STARTER_PACK_VERSION})`;

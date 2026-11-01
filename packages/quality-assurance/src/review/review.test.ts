@@ -717,6 +717,37 @@ test("4.5 · from the second review on, a brief read from the worktree holds onl
   });
 });
 
+test("4.5 · a commit in the change's other half since the last review is a change: the brief names that checkout and its commits, never saying nothing changed", async () => {
+  await withLibrary(async (library, storytree) => {
+    const { increment, contracts, checks } = await plan(library);
+    const reviews = await openReviews(storytree);
+    const dir = branchCheckout();
+    const half = branchCheckout();
+    try {
+      await reviews.brief(library, increment, worktreeChange(dir), undefined, undefined, [worktreeChange(half)]);
+      await reviews.take(library.name, increment, clean(checks, contracts, {}, 1));
+      const reviewed = execFileSync("git", ["rev-parse", "HEAD"], { cwd: half, encoding: "utf8" }).trim();
+
+      const still = await reviews.brief(library, increment, worktreeChange(dir), undefined, undefined, [worktreeChange(half)]);
+      assert.match(briefText(still), /^Nothing changed since review 1 /m);
+      await reviews.take(library.name, increment, clean(checks, contracts, {}, 2));
+
+      writeFileSync(join(half, "packages/library/src/a.ts"), "export const a = 1;\nexport const b = 2;\nexport const fix = 3;\n");
+      execFileSync("git", ["-c", "user.name=t", "-c", "user.email=t@t", "-c", "commit.gpgsign=false", "commit", "-qam", "answer the review in the other half"], { cwd: half });
+      const moved = execFileSync("git", ["rev-parse", "HEAD"], { cwd: half, encoding: "utf8" }).trim();
+      const third = await reviews.brief(library, increment, worktreeChange(dir), undefined, undefined, [worktreeChange(half)]);
+      assert.equal(third.diff, "");
+      const text = briefText(third);
+      assert.doesNotMatch(text, /^Nothing changed since/m);
+      assert.ok(text.includes(`the checkout ${half} moved from commit ${reviewed.slice(0, 12)} to ${moved.slice(0, 12)}`), text.slice(-400));
+      assert.deepEqual(third.since?.moved, [{ folder: half, from: reviewed, to: moved }]);
+    } finally {
+      await removeTemp(dir);
+      await removeTemp(half);
+    }
+  });
+});
+
 test("4.6 · reviews whose commit the default branch has taken in, an earlier merged pull request's, do not count toward the next branch's three; one branch still stops at three", async () => {
   await withLibrary(async (library, storytree) => {
     const { arc, increment, contracts, checks } = await plan(library);

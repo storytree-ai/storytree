@@ -35,7 +35,7 @@ const ciRoleOf = project => `storytree-ci-health@${project}.iam`;
 // The three 0.3 databases. 0.2's frozen `storytree` was never moved here (owner, 2026-10-07: "we dont need backups
 // for 0.2"); its final export sits under the bucket's archive/.
 const DBS = ['storytree_storytree', 'storytree-activity', 'storytree-trunks'];
-// Backed up beside them: the lag runner's history (lag-box.mjs in Mick's factory plugin micks-dev-loop), whose baselines and
+// Backed up beside them: the lag runner's history (src/lag-box.mjs in Mick's factory plugin micks-dev-loop), whose baselines and
 // recorded reasons cannot be measured again, and the QA ledger (packages/quality-assurance), whose review history
 // ADR-0956 D7's ten-review refusal counts.
 const BACKED = [...DBS, 'storytree-lag', 'storytree-quality'];

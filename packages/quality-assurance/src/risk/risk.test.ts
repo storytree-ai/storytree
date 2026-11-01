@@ -57,6 +57,11 @@ test("6.1 · A change's risk line is read from its diff and the package graph: d
   assert.deepEqual([release.depth, release.radius, release.rating, release.tier, release.flags, release.stories], [3, 2, 8, "high", ["release path", "screen"], ["story_app"]]);
   const creds = readChange(diff(["apps/desktop/src/main/k.ts", "+const t = process.env.GITHUB_TOKEN;"]), graph, STORIES, "d");
   assert.deepEqual([creds.depth, creds.tier, creds.flags, creds.stories], [3, "high", ["credentials", "screen"], ["story_app"]]);
+  // The fix loop: the base dev loop (test runner, gate, landing) and storytree's own checks count, beside the agent pool,
+  // CI health, code review and the workflows.
+  for (const file of ["packages/base-dev-loop/src/gate.mjs", "packages/repo-checks/src/test.mjs", "packages/agent-pool/src/watch.mjs", ".github/workflows/land.yml"]) {
+    assert.deepEqual(readChange(diff([file, "+export const x = 1;"]), graph, STORIES, "d").flags, ["fix loop"], file);
+  }
   // The keys package itself holds credentials, whatever its lines say.
   assert.deepEqual(readChange(diff(["packages/keys/src/k.ts", "+export const k = 1;"]), graph, STORIES, "d").flags, ["credentials"]);
 

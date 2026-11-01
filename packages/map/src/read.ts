@@ -13,7 +13,7 @@ type PlanReader = Pick<Library, "projectTree">;
 
 /**
  * The increment a branch's name carries (a workspace's branch is claude/increment-<id>-<suffix>), as its
- * library id; undefined when it names none. The gate reads names the same way (packages/dev-loop/src/capability-list.mjs).
+ * library id; undefined when it names none. The gate reads names the same way (packages/repo-checks/src/capability-list.mjs).
  */
 export function incrementOfBranch(branch: string | undefined): string | undefined {
   const named = /(?:^|[/_-])increment[-_]([0-9a-f]{12})(?![0-9a-f])/i.exec(branch ?? "");

@@ -2,7 +2,7 @@
  * Capability 1 · The package rule (the Guardrails story, ADR-0911 D2): which parts of a checkout break
  * one package per story and roads one way (ADR-0649 D1-D3, in storytree 0.2's decision log; ADR-1078 rule 4
  * restores D1 after ADR-1066 D3). A user's project runs it as `storytree check`; storytree's own dev loop runs
- * the same code with its own declarations (packages/dev-loop/src/package-boundaries.mjs), so the two cannot drift.
+ * the same code with its own declarations (packages/repo-checks/src/package-boundaries.mjs), so the two cannot drift.
  *
  * - Every story has its own package, `packages/<id>`, and every package belongs to a story or to a
  *   declared frame: no package belongs to no story (ADR-0805 D5, which narrows ADR-0649 D1). A project

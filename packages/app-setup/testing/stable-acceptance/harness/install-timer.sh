@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Installs the stable routine on the Mint box: a checkout of its own kept at main (runner), and a systemd user timer
 # that starts fortnight.sh every Monday at 09:00 local time; fortnight.sh acts only every 14 days. Like the box's lag
-# timer (lag-box.mjs in Mick's factory plugin micks-dev-loop), it needs Linger=yes. Usage: install-timer.sh [--dry-run]
+# timer (src/lag-box.mjs in Mick's factory plugin micks-dev-loop), it needs Linger=yes. Usage: install-timer.sh [--dry-run]
 # The runner is a clone, never a worktree of this repository: the hooks' worktree reaper (ADR-0790) removed a clean
 # worktree at main once a session that worked in it closed out, and the 2026-10-26 run then failed to start
 # (status=200/CHDIR). The service also clones it again whenever it is missing, so nothing has to be installed twice.

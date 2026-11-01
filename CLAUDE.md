@@ -6,11 +6,11 @@ this project's library (ADR-0636 D1); edit those, not this file, then run `pnpm 
 The text above that marker is written by hand, and it counts toward the file's 40,000-byte budget.
 
 - A fresh or stale worktree is installed at session start (`packages/base-dev-loop/src/provision-worktree.mjs`).
-- `pnpm gate` runs typecheck, scoped tests and the guidance check in one foreground run, with a
-  PASS / FAIL / NOT RUN table. Guidance runs when generated roles changed; otherwise it is NOT RUN
-  with the reason. After editing a role or note in the library, use `pnpm run gate --guidance`, even
-  if regeneration left no Git diff. On a computer that names Mick's factory plugin (`storytree settings set
-  part micks-dev-loop plugin micks-dev-loop`) it also runs that plugin's checks: check:plan-edges every time
+- `pnpm gate` runs typecheck, scoped tests and the repository's own checks in one foreground run, with a
+  PASS / FAIL / NOT RUN table. On a computer that names Mick's factory plugin (`storytree settings set
+  part micks-dev-loop plugin micks-dev-loop`) it also runs that plugin's checks: the guidance check when
+  generated roles changed (otherwise NOT RUN with the reason; after editing a role or note in the library,
+  use `pnpm run gate --guidance`, even if regeneration left no Git diff), check:plan-edges every time
   (a capability depending on another story's against the code's package direction fails it when the branch
   changes both stories' packages, and is printed as a note otherwise, ADR-0840 D2), check:owner-applies and
   the change's risk line. A failure does not stop the remaining checks.
@@ -30,9 +30,10 @@ The text above that marker is written by hand, and it counts toward the file's 4
 - `pnpm test` and `pnpm gate` queue behind the machine's heavy-run lock themselves (a waiting run says
   whose run it waits for), so run them plain, in the background: no flock wrapper. A session whose engine
   exits when its turn ends (a Mint lane) runs them in the foreground instead, until the table prints.
-- `pnpm check:guidance` says whether this file, AGENTS.md and the role files match the library.
-  It reads the app's library, so CI cannot run it: run it yourself when you change a role or a note
-  a role stands on.
+- `pnpm check:guidance` says whether this file, AGENTS.md and the role files match the library, and
+  `pnpm build:guidance` regenerates them: both are that plugin's `storytree guidance check|build`, so they
+  run only where it is named. It reads the app's library, so CI cannot run it: run it yourself when you
+  change a role or a note a role stands on.
 - 0.3's plan (arcs, increments, the owner's questions) lives only in the library, project
   `storytree`, which this checkout's `.storytree/project.json` names; 0.2's store holds none of it since
   cutover. The library is where your `library` setting says (`pnpm storytree settings show`): since

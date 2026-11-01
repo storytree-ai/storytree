@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync } from "node:fs";
 import { builtinModules, createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -7,6 +7,7 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 
 import { build, type BuildOptions } from "esbuild";
+import { removeTemp } from "@storytree/test-waits";
 
 import { mainBuild, preloadBuild } from "./bundles.js";
 
@@ -70,7 +71,7 @@ test("1.47 · the preload script, bundled as the app bundles it, gives the page 
 
 test("4.10 · in a copy that does not install releases, the main process makes no updater, so an update request can neither fetch a build nor restart the app", { timeout: 120_000 }, async (t) => {
   const home = mkdtempSync(path.join(tmpdir(), "storytree-releases-"));
-  t.after(() => rmSync(home, { recursive: true, force: true }));
+  t.after(() => removeTemp(home));
   const { text } = await bundled({ ...mainBuild(dist), entryPoints: [fileURLToPath(new URL("./releases.ts", import.meta.url))] });
   const quitting: unknown[] = [];
   const app = { isPackaged: false, getAppPath: () => home, commandLine: { hasSwitch: () => false }, once: (...args: unknown[]) => { quitting.push(args); } };

@@ -4,7 +4,7 @@
 // capture kit's `code-rows` seed, storytree's own library. At three tilts the user gave by a real right-drag (from above, side
 // on, from below), a real press of Library and then of Stories each leaves the eye and the sheet exactly where they were,
 // while the glass clears and the islands become outlines, and back. Run from the checkout root, in the foreground:
-//   node packages/dev-loop/src/heavy-lock.mjs -- node --import tsx packages/forest/testing/view/glass-library-look/capture.mjs --retake
+//   node ~/.storytree/your-factory/plugins/micks-dev-loop/src/heavy-lock.mjs -- node --import tsx packages/forest/testing/view/glass-library-look/capture.mjs --retake
 // With --smoke it takes no pictures and prints one line of JSON for the real-browser test (3.55).
 import assert from 'node:assert/strict';
 import { writeFileSync } from 'node:fs';

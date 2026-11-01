@@ -479,8 +479,8 @@ test("2.11 · a change read from its worktree takes its own risk tier: a low-tie
       assert.deepEqual({ tier: low.risk?.tier, rating: low.risk?.rating, pass: low.pass }, { tier: "low", rating: 3, pass: "light" });
       assert.match(briefText(low), /^Light pass: this change reads low 3\b.*judge every check and contract from the diff below alone/m);
 
-      mkdirSync(join(dir, "packages/dev-loop/src"), { recursive: true });
-      writeFileSync(join(dir, "packages/dev-loop/src/gate.mjs"), "export const gate = 1;\n");
+      mkdirSync(join(dir, "packages/base-dev-loop/src"), { recursive: true });
+      writeFileSync(join(dir, "packages/base-dev-loop/src/gate.mjs"), "export const gate = 1;\n");
       const medium = await reviews.brief(library, increment, worktreeChange(dir));
       assert.deepEqual({ tier: medium.risk?.tier, flags: medium.risk?.flags, pass: medium.pass }, { tier: "medium", flags: ["fix loop"], pass: "full" });
       assert.match(briefText(medium), /^Full review: this change reads medium 5\b/m);

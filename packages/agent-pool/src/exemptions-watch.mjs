@@ -13,7 +13,7 @@
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 
-/** The owner's list of files check:secrets passes over (packages/dev-loop/src/leak-scan.mjs's SECRET_EXEMPTIONS). */
+/** The owner's list of files check:secrets passes over (packages/repo-checks/src/leak-scan.mjs's SECRET_EXEMPTIONS). */
 export const EXEMPTIONS = ".github/secret-check-exemptions.txt";
 export const EXEMPTIONS_EVERY_MS = 60 * 60_000;
 const run = promisify(execFile);

@@ -1,6 +1,6 @@
 /**
  * Helpers for quality assurance's tests, which run against the real Postgres `pnpm test` starts
- * (packages/dev-loop/src/test.mjs hands it over as STORYTREE_TEST_PG_URL). A Postgres test must never skip
+ * (packages/base-dev-loop/src/test.mjs hands it over as STORYTREE_TEST_PG_URL). A Postgres test must never skip
  * silently, so asking for the server when there is none throws. Restated from the librarian's, as the
  * library keeps its own helpers inside its package.
  */

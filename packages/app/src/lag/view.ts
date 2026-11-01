@@ -1,6 +1,6 @@
 /**
  * Capability 5 · Recorder. The recorder mounted on the page: it hears trusted inputs, reads what the page shows each frame while an
- * action is under way (the same reading the lab instrument takes, packages/dev-loop/src/desktop-lag.mjs), times each frame of a drag
+ * action is under way (the same reading the lab instrument takes, src/desktop-lag.mjs in Mick's factory plugin micks-dev-loop), times each frame of a drag
  * that turns the map, and hands the browser's
  * Event Timing and Long Animation Frame entries to the core. Nothing runs on the input path but one read of the page; readings
  * reach the app every half minute, or as the page hides, and only when no action is under way (ADR-0836 D1). The lab switches it

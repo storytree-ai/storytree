@@ -113,7 +113,7 @@ const CODE = /\.[cm]?[jt]sx?$/;
 const TEST = /\.(?:test|spec)\.[cm]?[jt]sx?$/;
 const TEST_SUPPORT = /(?:^|\/)testing\//;
 const DECLARATION = /\.d\.[cm]?ts$/;
-/** A numbered test's title, `N.M · …`, optionally after the story it proves (packages/dev-loop/src/survey-coverage.mjs). */
+/** A numbered test's title, `N.M · …`, optionally after the story it proves (src/survey-coverage.mjs in Mick's factory plugin micks-dev-loop). */
 const NUMBERED_TEST = /\b(?:test|it|describe)\s*\(\s*["'`](?:([a-z][a-z0-9-]*)\s+)?(\d+)\.\d+\b/g;
 /** A package's coverage map, measured with the processes its tests start followed (ADR-0838 D3). */
 const COVERAGE_MAP = "survey-coverage.json";
@@ -300,7 +300,7 @@ export interface Reach {
 
 /**
  * The test unit a repository path is in, as `pnpm test` scopes them: its package's folder, or its folder under infra/, which holds
- * tests but is no package (packages/dev-loop/src/test-scope.mjs), or, in a user's factory checkout, its plugin's folder under
+ * tests but is no package (packages/base-dev-loop/src/test-scope.mjs), or, in a user's factory checkout, its plugin's folder under
  * plugins/, whose promises its own tests prove.
  */
 function unitOf(file: string): string | undefined {
@@ -496,7 +496,7 @@ const PASS_REPORTER = `export default async function* (source) {
 }
 `;
 
-/** The variables naming an agent's session, which `pnpm test` keeps from its units (packages/dev-loop/src/unit-run.mjs). */
+/** The variables naming an agent's session, which `pnpm test` keeps from its units (packages/base-dev-loop/src/unit-run.mjs). */
 const SESSION_VARIABLES = [...WATCHED_HARNESSES.flatMap((harness) => ("shellSession" in harness ? [harness.shellSession] : [])), SESSION_ENV];
 
 /** The real test run: one node process for the files, in a temp folder of its own, killed with its children at `limitMs`. */

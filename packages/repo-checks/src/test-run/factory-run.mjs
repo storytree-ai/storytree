@@ -52,7 +52,7 @@ export function factoryArgument(args, chosen) {
  * reports it recorded) or any run produced no report, else 0. The factory is taken at its real path, since the report
  * names each test file by it: one reached through a link (macOS's temp folder, /var under /private/var) would match none.
  * With `unrecorded`, a plugin whose story already holds a factory run's entry at that commit (recordedAt) is skipped,
- * so the Mint box's timer (packages/dev-loop/box/factory-health.sh) runs the tests once per factory commit.
+ * so the Mint box's timer (packages/repo-checks/box/factory-health.sh) runs the tests once per factory commit.
  * @param {import("@storytree/library").Library} library
  * @param {readonly import("@storytree/library").AnnotatedStory[]} stories
  * @param {string} factory

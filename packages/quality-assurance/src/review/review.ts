@@ -49,7 +49,7 @@
  * - A check's answer may name places that are not findings, as the glue check names every piece a change leaves without a test of
  *   its own: each needs a file, a line and what it is, is kept in the return and printed under its check, and records no hit (2.23).
  * - A brief read from a worktree lists each test the diff it reviews adds, and whether the worktree's saved red runs
- *   (.pgtest/red-runs.jsonl, which `pnpm test` keeps: packages/dev-loop/src/red-runs.mjs) name it failing, by its name or its
+ *   (.pgtest/red-runs.jsonl, which `pnpm test` keeps: packages/base-dev-loop/src/red-runs.mjs) name it failing, by its name or its
  *   file failing to load; taking the return records a hit at each one none names, asking for its red, and re-runs nothing (2.14, ADR-1153 D3).
  *   A red run any worktree of the same clone saved counts too when it was saved at a commit the worktree's HEAD carries: `pnpm test`
  *   also keeps each in the clone's shared copy, so a lane resuming a pushed branch in a fresh worktree keeps its reds (2.15).
@@ -839,7 +839,7 @@ function closeOf(code: string, from: number): number {
 }
 
 /**
- * The red runs `pnpm test` saved for test files among `files` (packages/dev-loop/src/red-runs.mjs): every one the worktree at `root`
+ * The red runs `pnpm test` saved for test files among `files` (packages/base-dev-loop/src/red-runs.mjs): every one the worktree at `root`
  * saved, and each one any worktree of its clone saved, in the clone's shared copy, at a commit `root`'s HEAD carries, so a
  * worktree resuming a pushed branch keeps the reds that branch already showed (contract 2.15).
  */

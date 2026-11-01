@@ -1,5 +1,5 @@
 /**
- * Helpers for the Experiments story's tests, which run against the real Postgres `pnpm test` starts (packages/dev-loop/
+ * Helpers for the Experiments story's tests, which run against the real Postgres `pnpm test` starts (packages/base-dev-loop/
  * src/test.mjs hands it over as STORYTREE_TEST_PG_URL, its superuser as STORYTREE_TEST_PG_ADMIN_URL when that differs):
  * a fresh project's library, or the server signed in as its admin. A Postgres test must never skip silently, so asking
  * for the server when there is none throws. Restated from quality assurance's and the library's, as each story keeps its own.

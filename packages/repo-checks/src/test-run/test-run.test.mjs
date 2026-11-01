@@ -228,6 +228,7 @@ test("7.1 · own health reads a story's contracts from the library, each number 
   assert.equal(packageOf({ id: "story-b", title: "The arc surface" }), "arc-surface");
   assert.equal(packageOf({ id: "story-c", title: "The library" }), "library");
   assert.equal(packageOf({ id: "story_f9fb5136c28f", title: "The command line" }), "cli", "a package named otherwise");
+  assert.equal(packageOf({ id: "story_c27bd2a8f61e", title: "Storytree's own repository checks" }), "repo-checks", "this repository's own checks, whose tests own health would otherwise never find");
 });
 
 test("7.1 checking a story runs its own package's tests and records each contract's verified health from them; a run with no report, or a story with no package, records nothing", async (t) => {

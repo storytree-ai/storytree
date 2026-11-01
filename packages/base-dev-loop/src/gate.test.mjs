@@ -1,14 +1,14 @@
 // ADR-1170 D1, D2: the base dev loop's gate runs the project's typecheck and tests, then every step a part
 // contributes, in one PASS / FAIL / NOT RUN table, and an interrupted gate never reports a pass.
 import assert from "node:assert/strict";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { appendFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 
 import { removeTemp, waitUntil } from "@storytree/test-waits";
 
-import { runGate } from "./gate.mjs";
+import { contributedHold, runGate } from "./gate.mjs";
 
 const command = () => ({ command: process.execPath, args: [], shell: false });
 // Two contributed steps from one part, with nothing switched off.
@@ -130,4 +130,55 @@ test("1.4 a factory plugin's gate steps run where this computer names it, in its
   const broken = await run({ extra: "my-broken" }, ["extra"]);
   assert.deepEqual(broken.calls, ["typecheck", "test", "check:lint", "check:spelling"]);
   assert.match(broken.table, /NOT RUN\s+my-broken — its stand-in my-broken could not be loaded/);
+});
+
+test("1.5 a run takes every run hold placed on this computer, in order, and its release lets them go in reverse; a switched-off part's, or a plugin that cannot be loaded, holds nothing", async (t) => {
+  const root = project(t);
+  const factory = project(t);
+  const log = path.join(factory, "events");
+  const events = () => readFileSync(log, "utf8").trim().split("\n");
+  // Each hold records its take and its release in one file, the plugin's from its own process-loaded module.
+  const hold = (name) => ({ name, take: async ({ what }) => (appendFileSync(log, `take ${name} for ${what}\n`), () => appendFileSync(log, `release ${name}\n`)) });
+  const composition = { parts: [hold("base lock"), hold("quiet lock")], owners: ["locker", "quiet"], graph: { locker: [], quiet: [] } };
+  const plugin = (name, body) => {
+    const dir = path.join(factory, "plugins", name);
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(path.join(dir, "package.json"), JSON.stringify({ name, storytree: { interface: 1, runHolds: [{ from: "./holds", export: "runHolds" }] }, exports: { "./holds": "./holds.cjs" } }));
+    if (body) writeFileSync(path.join(dir, "holds.cjs"), body);
+  };
+  plugin("my-lock", `const { appendFileSync } = require("node:fs"); const log = ${JSON.stringify(log)};
+exports.runHolds = [{ name: "my lock", take: async ({ what }) => (appendFileSync(log, "take my lock for " + what + "\\n"), () => appendFileSync(log, "release my lock\\n")) }];`);
+  plugin("my-broken");
+  const said = [];
+  const take = contributedHold({ root, compose: async () => composition, partsOff: () => ["quiet", "extra", "broken"], standIns: () => ({ folder: factory, plugins: { extra: "my-lock", broken: "my-broken" } }), log: (line) => said.push(line) });
+
+  const release = await take({ root, what: "pnpm test" });
+  assert.deepEqual(events(), ["take base lock for pnpm test", "take my lock for pnpm test"], "the switched-off part's hold is not taken; the plugin's is, after the parts'");
+  assert.match(said.join("\n"), /my-broken holds nothing: its stand-in my-broken could not be loaded/);
+  release();
+  release();
+  assert.deepEqual(events().slice(2), ["release my lock", "release base lock"], "released once each, in reverse");
+
+  writeFileSync(log, "");
+  const none = await contributedHold({ root, compose: async () => composition, partsOff: () => ["locker", "quiet"], standIns: noStandIns, log: () => {} })({ root, what: "pnpm gate" });
+  none();
+  assert.equal(readFileSync(log, "utf8"), "", "with every part switched off and no plugin named, nothing is taken");
+});
+
+test("1.5 run holds that cannot be read are said and hold nothing, and a hold refused part-way lets go of those already taken", async (t) => {
+  const root = project(t);
+  const said = [];
+  const unreadable = await contributedHold({ root, compose: async () => { throw new Error("no manifest"); }, partsOff: () => [], standIns: noStandIns, log: (line) => said.push(line) })({ root, what: "pnpm test" });
+  unreadable();
+  assert.match(said.join("\n"), /none taken, since the parts' run holds could not be read: no manifest/);
+
+  const events = [];
+  const composition = {
+    parts: [{ name: "first", take: async () => (events.push("take first"), () => events.push("release first")) }, { name: "second", take: async () => { throw new Error("gave up waiting"); } }],
+    owners: ["locker", "locker"],
+    graph: { locker: [] },
+  };
+  const refused = contributedHold({ root, compose: async () => composition, partsOff: () => [], standIns: noStandIns, log: () => {} });
+  await assert.rejects(refused({ root, what: "pnpm gate" }), /gave up waiting/);
+  assert.deepEqual(events, ["take first", "release first"]);
 });

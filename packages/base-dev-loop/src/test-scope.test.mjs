@@ -331,9 +331,9 @@ test("the real workspace's undeclared reach is found: app-setup builds cli's bin
 });
 
 test("2.2 a change in the dev loop runs everything: its runner, scoper and gate decide how every test runs (ADR-0805 D4)", () => {
-  const decision = classify(["packages/dev-loop/src/gate.mjs"], readWorkspace(repoRoot));
+  const decision = classify(["packages/repo-checks/src/gate.mjs"], readWorkspace(repoRoot));
   assert.equal(decision.mode, "full");
-  assert.match(decision.reason, /@storytree\/dev-loop/);
+  assert.match(decision.reason, /@storytree\/repo-checks/);
 });
 
 test("2.2 any file the workspace graph cannot account for runs everything, and says which file", (t) => {

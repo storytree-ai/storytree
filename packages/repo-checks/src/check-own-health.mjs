@@ -19,7 +19,7 @@
 // owner's factory (the folder named, else this computer's factory setting): each run by the factory's own test command
 // and recorded as "factory test run" at the factory's commit (./test-run/factory-run.mjs), in the library the setting
 // names: storytree's CI cannot see the private factory. With --unrecorded it skips each plugin already recorded at that
-// commit: the Mint box's factory-health timer (packages/dev-loop/box/) runs it so after the factory moves.
+// commit: the Mint box's factory-health timer (packages/repo-checks/box/) runs it so after the factory moves.
 
 import { execFileSync, spawn } from "node:child_process";
 import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
@@ -125,7 +125,7 @@ export async function runStoryTests(globs, root) {
     const code = await new Promise((resolve, reject) => {
       const child = spawn(
         process.execPath,
-        ["--import", "tsx", path.join(root, "packages", "dev-loop", "src", "test.mjs"), "--test-reporter=junit", `--test-reporter-destination=${report}`, ...globs],
+        ["--import", "tsx", path.join(root, "packages", "repo-checks", "src", "test.mjs"), "--test-reporter=junit", `--test-reporter-destination=${report}`, ...globs],
         { cwd: root, stdio: "inherit", env: withoutLibrarySignIn(process.env) },
       );
       child.on("error", reject);

@@ -1,6 +1,6 @@
 // Capability 4 · Running the tests. `pnpm test`: run the tests a branch's changes can reach, with node:test (through tsx) against a
-// real Postgres. Run it as `pnpm test` (node --import tsx packages/dev-loop/src/test.mjs in storytree's checkout, which runs
-// this with the heavy-run lock as its hold; node --import tsx packages/base-dev-loop/src/test.mjs holds nothing): it imports
+// real Postgres. Run it as `pnpm test` (node --import tsx packages/repo-checks/src/test.mjs in storytree's checkout, which runs
+// this holding the run holds its parts contribute; node --import tsx packages/base-dev-loop/src/test.mjs holds nothing): it imports
 // @storytree/local-postgres, which is TypeScript. CI runs the same command, so it decides the same way.
 //
 // What runs (ADR-0649 D4, test-scope.mjs): the workspace packages holding a file changed
@@ -9,7 +9,7 @@
 // (a root file, a package.json, the lockfile, the dev loop, ...) or origin/main cannot be read. The
 // first line printed is the decision, `scope: ...`. Each package is one unit, its
 // `<dir>/src/**/*.test.{ts,mjs}`; the checks the caller names to carry (storytree's package-boundary check and code
-// allocation guardrail, packages/dev-loop/src/test.mjs) are units of every scoped run. Several units
+// allocation guardrail, packages/repo-checks/src/test.mjs) are units of every scoped run. Several units
 // run at once against the one Postgres (unit-pool.mjs: --jobs=<n>, else STORYTREE_TEST_JOBS, else 2 with a core left free,
 // or 1 where the Postgres runs under emulation, which the run says),
 // slowest first; each unit's output is held and printed whole under its name when it ends, and
@@ -90,9 +90,9 @@
 // DEADLINE_GRACE_MS past it (waiting, starting or stopping Postgres, or not exiting), the run says
 // where it stalled and exits 1. The units running at the deadline are each cut there.
 //
-// One heavy run at a time on a machine, in storytree's checkout (Mick's dev loop's heavy-lock.mjs, which its
-// packages/dev-loop/src/test.mjs hands this runner as its hold): past the scope decision, a run
-// takes the machine's heavy-run lock (heavy-run.lock in STORYTREE_HOME) and holds it until its
+// One heavy run at a time on a machine, in storytree's checkout where Mick's factory plugin micks-dev-loop is named (its
+// heavy-run lock is the run hold packages/repo-checks/src/test.mjs hands this runner, gate.mjs's contributedHold): past the
+// scope decision, a run takes the machine's heavy-run lock (heavy-run.lock in STORYTREE_HOME) and holds it until its
 // Postgres has stopped. While another session's run holds it, this one prints who holds it and
 // waits (at most an hour), and it takes over a lock whose holder's process has gone. Under
 // `pnpm gate`, the gate holds the lock and its test step runs under that hold. No flock wrapper.
@@ -137,7 +137,7 @@ const holdNothing = async () => () => {};
 
 /**
  * Run `pnpm test` with `argv`, once per process. `hold({ root, what, stopped })` is taken past the scope decision
- * and released once the test Postgres has stopped: Mick's dev loop passes its heavy-run lock (packages/dev-loop/src/test.mjs).
+ * and released once the test Postgres has stopped: storytree's own entry passes the run holds its parts contribute (packages/repo-checks/src/test.mjs).
  * `root` is the repository tested, by default the checkout this file is in; a repository building against storytree
  * (as a submodule) passes its own. `alone` and `alwaysRun` are its lists for planRun (test-scope.mjs), by default none.
  */

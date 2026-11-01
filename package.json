@@ -9,8 +9,8 @@
   },
   "scripts": {
     "storytree": "node packages/base-dev-loop/src/provision-worktree.mjs --check && node --import tsx packages/cli/src/bins/storytree.ts",
-    "test": "node packages/base-dev-loop/src/provision-worktree.mjs --check && node --import tsx packages/dev-loop/src/test.mjs",
-    "gate": "node packages/dev-loop/src/gate.mjs",
+    "test": "node packages/base-dev-loop/src/provision-worktree.mjs --check && node --import tsx packages/repo-checks/src/test.mjs",
+    "gate": "node packages/repo-checks/src/gate.mjs",
     "typecheck": "pnpm -r typecheck",
     "test-ratio": "pnpm -s storytree coverage ratio",
     "lag:reads": "pnpm -s storytree lag-instruments reads --",
@@ -38,7 +38,6 @@
     "@storytree/base-dev-loop": "workspace:*",
     "@storytree/local-postgres": "workspace:*",
     "@storytree/session-management": "workspace:*",
-    "@storytree/dev-loop": "workspace:*",
     "@storytree/repo-checks": "workspace:*",
     "@storytree/library": "workspace:*",
     "esbuild": "^0.28.2",

@@ -1,14 +1,14 @@
-// Capability 13 · Heavy runs, coverage and the test ratio. The red runs of a test run `pnpm test` does not drive (ADR-1153 D3): a node:test reporter a
+// Capability 4 · Running the tests. The red runs of a test run `pnpm test` does not drive (ADR-1153 D3): a node:test reporter a
 // checkout outside storytree, such as a user's factory, gives its own `node --test` by this package's name
-// (`--test-reporter=@storytree/dev-loop/red-run-reporter`), so each test that failed, by its full name ("suite › title"), and each
-// file that failed before any test in it ended, is kept in that checkout's red runs as `pnpm test` keeps them (the base dev loop's red-runs.mjs),
+// (`--test-reporter=@storytree/base-dev-loop/red-run-reporter`), so each test that failed, by its full name ("suite › title"), and each
+// file that failed before any test in it ended, is kept in that checkout's red runs as `pnpm test` keeps them (red-runs.mjs),
 // where the change-reviewer's brief reads them (packages/quality-assurance, contract 2.14). The checkout is the Git checkout
 // the run starts in, else its folder. It prints nothing: give it a destination beside the reporter that does.
 import { execFileSync } from "node:child_process";
 import { realpathSync } from "node:fs";
 import path from "node:path";
 
-import { recordReds } from "@storytree/base-dev-loop/red-runs";
+import { recordReds } from "./red-runs.mjs";
 
 export default async function* redRuns(source) {
   await keepReds(source, process.cwd());

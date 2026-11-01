@@ -748,6 +748,51 @@ test("4.5 · a commit in the change's other half since the last review is a chan
   });
 });
 
+test("4.5 · a commit in the factory worktree since the last review is a change: the brief names that checkout and its commits", async () => {
+  const factory = mkdtempSync(join(tmpdir(), "qa-factory-"));
+  const worktree = join(mkdtempSync(join(tmpdir(), "qa-factory-wt-")), "wt");
+  const dir = branchCheckout();
+  try {
+    const git = (cwd: string, ...args: string[]) => execFileSync("git", ["-c", "user.name=t", "-c", "user.email=t@t", "-c", "commit.gpgsign=false", ...args], { cwd, encoding: "utf8" });
+    mkdirSync(join(factory, "plugins/voice"), { recursive: true });
+    writeFileSync(join(factory, "plugins/voice/package.json"), JSON.stringify({ name: "voice", storytree: { interface: PLUGIN_INTERFACE, plan: "./plan.json" } }));
+    writeFileSync(join(factory, "plugins/voice/plan.json"), JSON.stringify({ story: { title: "Talk by voice" }, capabilities: [{ title: "1 · Connector", proposed: false, contracts: [{ title: "1.1 · A wrong secret is answered 404" }] }] }));
+    git(factory, "init", "-q", "-b", "main");
+    git(factory, "add", ".");
+    git(factory, "commit", "-qm", "first");
+    git(factory, "update-ref", "refs/remotes/origin/main", "HEAD");
+    await withLibrary(async (library, storytree) => {
+      const imported = await library.importPluginPlan("voice", JSON.parse(readFileSync(join(factory, "plugins/voice/plan.json"), "utf8")));
+      const capability = (await library.list("capability")).find(({ fields }) => fields.story === imported.story)!;
+      const contracts = (await library.list("contract")).filter(({ fields }) => fields.capability === capability.id).map(({ id }) => id);
+      const arc = await library.createArc({ title: "Voice grows", intent: "Voice does more", endState: "Voice does more", stories: [imported.story] });
+      const increment = await library.addIncrement({ arc: arc.id, title: "Voice grows", objective: "Voice does more", body: "Red then green", capabilities: [capability.id] });
+      const reviews = await openReviews(storytree);
+      git(factory, "worktree", "add", "-q", "-b", `claude/increment-${increment.id.slice("increment_".length)}-a1b2c3`, worktree, "main");
+      mkdirSync(join(worktree, "plugins/voice/src"));
+      writeFileSync(join(worktree, "plugins/voice/src/door.ts"), "export const timeout = 30;\n");
+      git(worktree, "add", ".");
+      git(worktree, "commit", "-qm", "the door");
+      const reviewed = git(worktree, "rev-parse", "HEAD").trim();
+
+      const first = await reviews.brief(library, increment.id, worktreeChange(dir), undefined, factoryPlugins(factory, increment.id));
+      await reviews.take(library.name, increment.id, clean(first.checks.map(({ id }) => id), contracts, {}, 1));
+      writeFileSync(join(worktree, "plugins/voice/src/door.ts"), "export const timeout = 10;\n");
+      git(worktree, "commit", "-qam", "answer the review in the factory");
+      const moved = git(worktree, "rev-parse", "HEAD").trim();
+      const second = await reviews.brief(library, increment.id, worktreeChange(dir), undefined, factoryPlugins(factory, increment.id));
+      assert.equal(second.diff, "");
+      assert.doesNotMatch(briefText(second), /^Nothing changed since/m);
+      assert.deepEqual(second.since?.moved?.map(({ from, to }) => ({ from, to })), [{ from: reviewed, to: moved }]);
+      assert.equal(realpathSync.native(second.since!.moved![0]!.folder), realpathSync.native(worktree));
+    });
+  } finally {
+    await removeTemp(dir);
+    await removeTemp(factory);
+    await removeTemp(join(worktree, ".."));
+  }
+});
+
 test("4.6 · reviews whose commit the default branch has taken in, an earlier merged pull request's, do not count toward the next branch's three; one branch still stops at three", async () => {
   await withLibrary(async (library, storytree) => {
     const { arc, increment, contracts, checks } = await plan(library);

@@ -1,7 +1,4 @@
 {
- "src/desktop-lag.mjs": {
-  "8": 1090
- },
  "src/evidence-sweep.mjs": {
   "10": 84
  },
@@ -14,15 +11,6 @@
   "13": 189,
   "5": 8,
   "8": 134
- },
- "src/lag-box.mjs": {
-  "8": 448
- },
- "src/lag-seed.mjs": {
-  "8": 18
- },
- "src/read-latency.mjs": {
-  "8": 54
  },
  "src/red-run-reporter.mjs": {
   "13": 9,

@@ -20,6 +20,7 @@
   },
   "exports": {
     "./capability-list": "./src/capability-list.mjs",
+    "./coverage-map": "./src/coverage-map.mjs",
     "./gate-steps": "./src/gate-steps.mjs",
     "./leak-scan": "./src/leak-scan.mjs",
     "./library-reach": "./src/library-reach.mjs",

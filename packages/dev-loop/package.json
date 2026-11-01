@@ -22,7 +22,6 @@
     "@storytree/test-waits": "workspace:*"
   },
   "exports": {
-    "./browser-coverage": "./src/browser-coverage.mjs",
     "./heavy-lock": "./src/heavy-lock.mjs",
     "./red-run-reporter": "./src/red-run-reporter.mjs"
   }

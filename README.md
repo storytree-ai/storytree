@@ -215,6 +215,8 @@ failure `pnpm run test --rerun-failed` runs only the packages that failed. This
 When an increment lands, `pnpm test-ratio` prints how many lines of test code there are for each
 line of implementation, overall and per package, counting code lines only. A rising ratio is a
 prompt to check that each test still protects something the product does. It is never a failure.
+It is the owner's factory plugin's (`storytree coverage ratio`), so it runs only on a computer that
+names that plugin.
 
 ## Generations
 

@@ -1,6 +1,6 @@
 // Capability 4 · Capability-list check. The steps storytree's own repository checks add to the gate's base steps
 // (ADR-1170 D2), declared as `gateSteps` in this package's storytree manifest, beside the ones Mick's dev loop adds
-// (packages/dev-loop/src/gate-steps.mjs). A step is `{ name, when?, command }`, as the base gate runner reads it.
+// (his factory plugin micks-dev-loop's gate steps). A step is `{ name, when?, command }`, as the base gate runner reads it.
 // check:type-imports (ADR-1017 D2) refuses a type-only import that ends at a story other than the library; it
 // reads only the code, so CI runs it too, and it runs here every time.
 // check:seed-records refuses a seed or snapshot file the branch adds or changes that holds what the forest's seed

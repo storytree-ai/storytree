@@ -66,7 +66,7 @@ test("8.12 pnpm lag:box keeps each action's baseline at the last commit it was w
   state = actionStates({ history, actions: ACTIONS, log: LOG });
   assert.equal(state["close-panel"].baseline, "m1", "still slower: the baseline does not move forward over the slowdown");
   assert.equal(state["open-largest-island"].baseline, "m6");
-  assert.deepEqual(decide({ history: history.concat({ seq: 99, purpose: "bisect", head: "m3", against: "m1", actions: ["close-panel"], state: "done", rows: verdicts(["close-panel"]) }, { seq: 100, purpose: "bisect", head: "m2", against: "m1", actions: ["close-panel"], state: "done", rows: verdicts() }), main: main(7), actions: ACTIONS, log: LOG }).comparisons,
+  assert.deepEqual(decide({ history: history.concat({ seq: 98, purpose: "bisect", head: "m3", against: "m1", actions: ["close-panel"], state: "done", rows: verdicts(["close-panel"]) }, { seq: 99, purpose: "bisect", head: "m3", against: "m1", actions: ["close-panel"], state: "done", rows: verdicts(["close-panel"]) }, { seq: 100, purpose: "bisect", head: "m2", against: "m1", actions: ["close-panel"], state: "done", rows: verdicts() }), main: main(7), actions: ACTIONS, log: LOG }).comparisons,
     [{ purpose: "measure", head: "m7", against: "m6", actions: ["open-smallest-island", "open-largest-island"] }, { purpose: "measure", head: "m7", against: "m1", actions: ["close-panel"] }], "each action is measured against its own baseline");
 
   history.push({ seq: ++seq, purpose: "rebaseline", head: "m6", against: null, actions: ["close-panel"], state: "done", reason: "the panel's new shadow is worth 60 ms" });
@@ -111,11 +111,30 @@ test("8.13 pnpm lag:box halves the merges between a slowdown's baseline and wher
     asked.push(ask.head);
     history.push(done("bisect", ask.head, ask.against, isSlow(ask.head) ? ["close-panel"] : [], ask.actions));
   }
-  assert.ok(asked.length <= Math.ceil(Math.log2(8)) + 1, `halving, not one by one: ${asked.join(", ")}`);
+  assert.ok(new Set(asked).size <= Math.ceil(Math.log2(8)) + 1, `halving, not one by one: ${asked.join(", ")}`);
   const { slowdown } = actionStates({ history, actions: ACTIONS, log: LOG })["close-panel"];
   assert.equal(slowdown.culprit, "m9");
   assert.equal(slowdown.pr, 109, "the merge's pull request is named");
   assert.deepEqual(decide({ history, main: main(16), actions: ACTIONS, log: LOG }).comparisons, [], "named: the runner waits for the next merge");
+});
+
+test("8.13 pnpm lag:box confirms a slower bisect step with a second run of the same commit against the baseline before it names a culprit: a slower reading the second run does not repeat reads same", () => {
+  seq = 0;
+  // close-panel slowed at m14 (pull request #114's merge), seen at m16, its baseline m8; m12 reads slower once by noise.
+  const history = [done("measure", "m8", "m7"), done("measure", "m16", "m8", ["close-panel"]), done("confirm", "m16", "m8", ["close-panel"], ["close-panel"])];
+  const ask = () => decide({ history, main: main(16), actions: ACTIONS, log: LOG }).comparisons;
+  assert.deepEqual(ask(), [{ purpose: "bisect", head: "m12", against: "m8", actions: ["close-panel"] }]);
+  history.push(done("bisect", "m12", "m8", ["close-panel"], ["close-panel"]));
+  assert.equal(actionStates({ history, actions: ACTIONS, log: LOG })["close-panel"].slowdown.hi, "m16", "one slower step does not move the halving");
+  assert.deepEqual(ask(), [{ purpose: "bisect", head: "m12", against: "m8", actions: ["close-panel"] }], "the same commit is run again against the baseline");
+  history.push(done("bisect", "m12", "m8", [], ["close-panel"]));
+  const { slowdown } = actionStates({ history, actions: ACTIONS, log: LOG })["close-panel"];
+  assert.deepEqual([slowdown.lo, slowdown.hi, slowdown.culprit], ["m12", "m16", undefined], "unconfirmed, it reads same: no culprit, and the halving moves on past it");
+  for (let step = 0; step < 10 && ask()[0]?.purpose === "bisect"; step += 1) {
+    const [next] = ask();
+    history.push(done("bisect", next.head, next.against, Number(next.head.slice(1)) >= 14 ? ["close-panel"] : [], next.actions));
+  }
+  assert.equal(actionStates({ history, actions: ACTIONS, log: LOG })["close-panel"].slowdown.pr, 114, "the pull request that slowed it is named, not the noisy one");
 });
 
 test("8.14 pnpm lag:box keeps the history in the library's server and prints, per action, its last runs, its baseline and any standing slowdown with its pull request", async () => {
@@ -128,12 +147,12 @@ test("8.14 pnpm lag:box keeps the history in the library's server and prints, pe
     const started = await history.start({ purpose: "measure", head: "m8", against: "m7", actions: null });
     assert.deepEqual((await history.read()).map((row) => [row.purpose, row.head, row.state]), [["measure", "m8", "running"]], "a run is written as it starts, so another tick sees it going");
     await history.finish(started, { state: "done", rows: verdicts() });
-    for (const [purpose, head, against, slower, actions] of [["measure", "m16", "m8", ["close-panel"], null], ["confirm", "m16", "m8", ["close-panel"], ["close-panel"]], ["bisect", "m12", "m8", ["close-panel"], ["close-panel"]], ["bisect", "m10", "m8", ["close-panel"], ["close-panel"]], ["bisect", "m9", "m8", ["close-panel"], ["close-panel"]]]) {
+    for (const [purpose, head, against, slower, actions] of [["measure", "m16", "m8", ["close-panel"], null], ["confirm", "m16", "m8", ["close-panel"], ["close-panel"]], ...["m12", "m10", "m9"].flatMap((head) => Array(2).fill(["bisect", head, "m8", ["close-panel"], ["close-panel"]]))]) {
       await history.finish(await history.start({ purpose, head, against, actions }), { state: "done", rows: verdicts(slower) });
     }
     await history.rebaseline({ action: "open-largest-island", head: "m16", reason: "a larger seed" });
     const read = await history.read();
-    assert.equal(read.length, 7);
+    assert.equal(read.length, 10);
     assert.ok(read.every((row, at) => at === 0 || row.seq > read[at - 1].seq), "oldest first");
     const text = statusText({ history: read, actions: ACTIONS, log: LOG });
     assert.match(text, /close-panel\s+baseline m8\s+SLOWER since m16: pull request #109 \(m9\)/);

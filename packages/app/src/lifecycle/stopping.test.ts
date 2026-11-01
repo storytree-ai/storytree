@@ -58,13 +58,13 @@ test("1.43 a part that fails to stop is said, and the next stops all the same", 
 });
 
 test("1.44 the app restarts itself only while it is not stopping, no seed is being written to its Postgres, and no backup holds it", async () => {
-  const state = { stopping: false, url: "postgres://own" as string | undefined, seed: false, backupsAllow: true };
+  const state = { stopping: false, url: "postgres://own" as string | undefined, seed: false, backups: undefined as { canRestart(): boolean } | undefined };
   const asked: string[] = [];
   const may = restartAllowed({
     stopping: () => state.stopping,
     postgresUrl: () => state.url,
     seedWriting: async (url) => { asked.push(url); return state.seed; },
-    backupsAllow: () => state.backupsAllow,
+    backups: () => state.backups,
   });
   assert.equal(await may(), true);
   assert.deepEqual(asked, ["postgres://own"], "the seed check asks the app's own Postgres");
@@ -72,9 +72,11 @@ test("1.44 the app restarts itself only while it is not stopping, no seed is bei
   assert.equal(await may(), false, "a seed being written holds it");
   state.url = undefined;
   assert.equal(await may(), true, "with no Postgres of its own there is no seed to wait for");
-  state.backupsAllow = false;
+  state.backups = { canRestart: () => true };
+  assert.equal(await may(), true, "backups not being written let it through, as no backups do");
+  state.backups = { canRestart: () => false };
   assert.equal(await may(), false, "a backup holds it");
-  state.backupsAllow = true;
+  state.backups = undefined;
   state.stopping = true;
   assert.equal(await may(), false, "a stopping app never restarts");
 });
@@ -85,7 +87,7 @@ test("1.44 a shutdown begun while the seed check is answering holds the restart"
     stopping: () => stopping,
     postgresUrl: () => "postgres://own",
     seedWriting: async () => { stopping = true; return false; },
-    backupsAllow: () => true,
+    backups: () => undefined,
   });
   assert.equal(await may(), false);
 });

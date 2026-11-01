@@ -3,10 +3,9 @@
  * reports. The updater is a stand-in whose checks answer as each test says.
  */
 import assert from "node:assert/strict";
-import path from "node:path";
 import { test } from "node:test";
 
-import { agentToolsFolder, channelOffered, keepCheckingReleases, RELEASE_CHECK_EVERY_MS } from "./follow-releases.js";
+import { channelOffered, keepCheckingReleases, refreshAgentTools, RELEASE_CHECK_EVERY_MS } from "./follow-releases.js";
 import { appVersion } from "./version.js";
 
 test("4.30 a following app checks for a release at start and every three minutes until it quits; a failed check is logged and the next goes ahead, and a waiting release says when it installs", async (t) => {
@@ -48,11 +47,24 @@ test("4.30 a following app checks for a release at start and every three minutes
   assert.equal(checks, 3, "and no check runs after it");
 });
 
-test("4.31 only an installed Linux AppImage refreshes the agent tools beside it", () => {
-  assert.equal(agentToolsFolder({ platform: "linux", appImage: "/home/u/Applications/storytree.AppImage" }), path.dirname("/home/u/Applications/storytree.AppImage"));
-  assert.equal(agentToolsFolder({ platform: "linux", appImage: undefined }), undefined, "a Linux app that is not an AppImage refreshes none");
-  assert.equal(agentToolsFolder({ platform: "win32", appImage: "C:\\storytree.AppImage" }), undefined);
-  assert.equal(agentToolsFolder({ platform: "darwin", appImage: undefined }), undefined);
+test("4.31 only an installed Linux AppImage refreshes the agent tools beside it, and a refresh that fails is said", () => {
+  const run = (platform: NodeJS.Platform, appImage: string | undefined, refresh: (folder: string) => boolean = () => true) => {
+    const folders: string[] = [];
+    const lines: string[] = [];
+    refreshAgentTools({
+      platform,
+      appImage,
+      refresh: (folder) => { folders.push(folder); return refresh(folder); },
+      log: { log: (line) => lines.push(line), error: (line) => lines.push(`error: ${line}`) },
+    });
+    return { folders, lines };
+  };
+  assert.deepEqual(run("linux", "/home/u/Applications/storytree.AppImage"), { folders: ["/home/u/Applications"], lines: ["Agent tools updated to this build's"] });
+  assert.deepEqual(run("linux", "/home/u/Applications/storytree.AppImage", () => false), { folders: ["/home/u/Applications"], lines: [] }, "tools already this build's are said nothing of");
+  assert.deepEqual(run("linux", undefined), { folders: [], lines: [] }, "a Linux app that is not an AppImage refreshes none");
+  assert.deepEqual(run("win32", "C:\\storytree.AppImage"), { folders: [], lines: [] });
+  assert.deepEqual(run("darwin", undefined), { folders: [], lines: [] });
+  assert.deepEqual(run("linux", "/apps/storytree.AppImage", () => { throw new Error("read-only"); }).lines, ["error: Agent tools could not be updated: read-only"]);
 });
 
 test("4.32 the gear offers the update channel only where releases install themselves, and never in a smoke check", () => {

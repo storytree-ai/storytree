@@ -54,19 +54,19 @@ export function appShutdown(parts: AppParts): AppShutdown {
  * Whether the app may restart itself now: not while it is stopping, which is asked again once the seed check has
  * answered, not while a seed is being written to its own Postgres, and not while a backup holds it.
  */
-export function restartAllowed({ stopping, postgresUrl, seedWriting, backupsAllow }: {
+export function restartAllowed({ stopping, postgresUrl, seedWriting, backups }: {
   stopping(): boolean;
   /** The app's own Postgres, when it started one. */
   postgresUrl(): string | undefined;
   seedWriting(url: string): Promise<boolean>;
-  /** Whether the backups let a restart through; true when there are none. */
-  backupsAllow(): boolean;
+  /** The backups, once kept; none hold a restart. */
+  backups(): { canRestart(): boolean } | undefined;
 }): () => Promise<boolean> {
   return async () => {
     if (stopping()) return false;
     const url = postgresUrl();
     if (url !== undefined && await seedWriting(url)) return false;
-    return !stopping() && backupsAllow();
+    return !stopping() && (backups()?.canRestart() ?? true);
   };
 }
 

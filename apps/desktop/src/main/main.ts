@@ -404,7 +404,7 @@ async function run(): Promise<void> {
     stopping: stopping.stopping,
     postgresUrl: () => postgres?.url,
     seedWriting,
-    backupsAllow: () => backups?.canRestart() ?? true,
+    backups: () => backups,
   });
   // When an update may install itself (updates 4.13): offered only where releases install themselves.
   const installing = installChoice({ available: !args.smoke && releasesInstall(), file: path.join(home.dir, "install-choice.json") });

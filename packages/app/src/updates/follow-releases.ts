@@ -29,9 +29,21 @@ export function keepCheckingReleases({ updater, log, waiting, every = RELEASE_CH
   return { stop: () => { clearInterval(timer); updater.stop(); } };
 }
 
-/** The folder whose agent tools an installed app refreshes as it starts: an AppImage's own, on Linux; none elsewhere. */
-export function agentToolsFolder({ platform, appImage }: { platform: NodeJS.Platform; appImage: string | undefined }): string | undefined {
-  return platform === "linux" && appImage !== undefined ? path.dirname(appImage) : undefined;
+/**
+ * An installed Linux AppImage that replaced itself puts its own agent tools beside it, where the hooks run them; no other
+ * app refreshes any. `refresh` copies this build's tools into a folder and says whether it changed them; a refresh that
+ * fails is said, and the app starts all the same.
+ */
+export function refreshAgentTools({ platform, appImage, refresh, log }: {
+  platform: NodeJS.Platform;
+  appImage: string | undefined;
+  refresh: (folder: string) => boolean;
+  log: { log(line: string): void; error(line: string): void };
+}): void {
+  if (platform !== "linux" || appImage === undefined) return;
+  try {
+    if (refresh(path.dirname(appImage))) log.log("Agent tools updated to this build's");
+  } catch (error) { log.error(`Agent tools could not be updated: ${error instanceof Error ? error.message : String(error)}`); }
 }
 
 /** Whether the gear offers the update channel: only where releases install themselves, and not in a smoke check. */

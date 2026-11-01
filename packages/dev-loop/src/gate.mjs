@@ -1,8 +1,9 @@
 // Capability 7 · The gate. ADR-0716: one foreground command for the checks before landing. Tests keep their own
 // scoping, per-package table and rerun record in test.mjs. No second test runner lives here.
 // ADR-1170 D1: the runner is the base dev loop's (packages/base-dev-loop): typecheck and the project's tests, then
-// every step a part contributes. This is storytree's own `pnpm gate` around it: the checks Mick's dev loop adds are this
-// package's contribution (gate-steps.mjs), the repository's own checks add theirs (packages/repo-checks), and --guidance reaches the guidance step's `when`.
+// every step a part contributes. This is storytree's own `pnpm gate` around it: the repository's own checks add their steps
+// (packages/repo-checks), Mick's factory plugin micks-dev-loop adds its own while this computer names it (the guidance
+// check among them, ADR-1192 D2), and --guidance reaches that step's `when`.
 // Flags go as `pnpm run gate --guidance`: Windows PowerShell 5.1 drops a bare `--` before pnpm
 // sees it, so `pnpm gate -- --guidance` fails there; `pnpm run` passes them on in every shell.
 // The gate holds the machine's heavy-run lock (packages/dev-loop/src/heavy-lock.mjs) for its whole run, so
@@ -46,7 +47,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     console.error(`gate: unknown argument ${unknown}; use pnpm run gate --help`);
     process.exitCode = 1;
   } else if (args.includes("--help")) {
-    console.log("pnpm run gate [--guidance]\nRuns typecheck and scoped tests, then the steps parts contribute: in this checkout, guidance when generated roles changed, type-only imports between stories, seed records, leaks added to changed files, and the capability list when the branch names an increment; with Mick's factory plugin named (storytree settings set part micks-dev-loop plugin micks-dev-loop), its plan edges, owner applies and the change's risk line too.\nUse --guidance after editing a role or a note in the library, even if Git has no diff.");
+    console.log("pnpm run gate [--guidance]\nRuns typecheck and scoped tests, then the steps parts contribute: in this checkout, type-only imports between stories, seed records, leaks added to changed files, and the capability list when the branch names an increment; with Mick's factory plugin named (storytree settings set part micks-dev-loop plugin micks-dev-loop), guidance when generated roles changed, its plan edges, owner applies and the change's risk line too.\nUse --guidance after editing a role or a note in the library, even if Git has no diff.");
   } else {
     const controller = new AbortController();
     const force = new AbortController();

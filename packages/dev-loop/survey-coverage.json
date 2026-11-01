@@ -2,9 +2,6 @@
  "src/acceptance-health.mjs": {
   "5": 84
  },
- "src/build-guidance.mjs": {
-  "4": 100
- },
  "src/desktop-lag.mjs": {
   "8": 1090
  },
@@ -17,16 +14,9 @@
  "src/fold-story-text.mjs": {
   "5": 48
  },
- "src/gate-steps.mjs": {
-  "13": 54,
-  "7": 248
- },
  "src/gate.mjs": {
   "13": 36,
   "7": 56
- },
- "src/guidance.mjs": {
-  "4": 400
  },
  "src/heavy-lock.mjs": {
   "1": 16,

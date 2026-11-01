@@ -4,9 +4,10 @@
 # credentials for any of it.
 #
 # GitHub's OIDC token -> the workload identity pool `github-actions` -> infra/ci-health's provider
-# `storytree-0-3-main`, which accepts ONLY this repository's token on main -> the binding, which
-# admits ONLY .github/workflows/website.yml -> the service account storytree-website-publish ->
-# read access to ONE secret, heredotnow_api_key.
+# `storytree-0-3-main`, which accepts ONLY the trusted repositories' tokens on main -> the bindings,
+# which admit ONLY .github/workflows/website.yml of storytree-ai/storytree or of
+# storytree-ai/storytree-website -> the service account storytree-website-publish -> read access to
+# ONE secret, heredotnow_api_key.
 #
 # The provider is reused, not made again: its condition is already exactly this repository on
 # main, which is what publishing needs, and it maps job_workflow_ref, which the binding below
@@ -81,6 +82,15 @@ resource "google_service_account_iam_member" "website_publish_workload_identity"
   service_account_id = google_service_account.website_publish.name
   role               = "roles/iam.workloadIdentityUser"
   member             = "principalSet://iam.googleapis.com/${local.pool}/attribute.job_workflow_ref/storytree-ai/storytree/.github/workflows/website.yml@refs/heads/main"
+}
+
+# The same, for the website's own repository, which publishes storytree.dev from ADR-1171 D3 step (3).
+# Beside the binding above, not instead of it, until a publish from there is proven; the one above
+# goes when storytree drops its website workflow (step 4).
+resource "google_service_account_iam_member" "website_repository_publish_workload_identity" {
+  service_account_id = google_service_account.website_publish.name
+  role               = "roles/iam.workloadIdentityUser"
+  member             = "principalSet://iam.googleapis.com/${local.pool}/attribute.job_workflow_ref/storytree-ai/storytree-website/.github/workflows/website.yml@refs/heads/main"
 }
 
 # ── The repository variables (README.md step 2) ──────────────────────────────────────────────

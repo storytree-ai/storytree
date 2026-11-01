@@ -73,8 +73,8 @@ infra/website-publish's binding names, beside `google.subject` and `attribute.re
 ## Trusting another repository
 
 The route trusts repositories by numeric id, the list `repository_ids` (default
-`["1388231144", "1433007599"]`: this repository and the stand-in `storytree-ai/storytree-next`, which
-takes this one's name at the cut-over). A repository made new under an old name has a new id, so its
+`["1388231144", "1433007599", "1440801072"]`: this repository, the stand-in `storytree-ai/storytree-next`, which
+takes this one's name at the cut-over, and the website's own `storytree-ai/storytree-website`). A repository made new under an old name has a new id, so its
 runs are refused until its id is in the list. Trust a new id **beside** the old one, never instead
 of it, so the old repository's CI keeps signing in until it is done with; drop the old id after.
 

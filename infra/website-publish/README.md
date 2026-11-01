@@ -92,6 +92,38 @@ route refused the run (a run not on main always is). `PERMISSION_DENIED` from
 publish manifest failed (HTTP 401)` or `403` means here.now refused the key: put a key for the
 account that owns `crisp-globe-bf6v` as a new version of the secret and run step 3 again.
 
+## Publishing from the website's own repository
+
+storytree.dev moves to `storytree-ai/storytree-website` (ADR-1171 D3 step 3), whose own
+`.github/workflows/website.yml` publishes the same site. Its runs sign in through the same route and
+account; two changes let them, each beside what is there, never instead of it:
+
+- infra/ci-health's `repository_ids` default gains the website repository's id, `1440801072`, so
+  the route accepts its runs on main.
+- `main.tf` here gains a second binding, for that repository's `website.yml` on main.
+
+Run in PowerShell from the checkout's root, on a `main` that holds both changes, signed in as above:
+
+```powershell
+$env:TF_VAR_project_id = (gcloud config get-value project)
+cd infra/ci-health
+terraform init -backend-config="bucket=$($env:TF_VAR_project_id)-tfstate"
+terraform plan     # expect 0 to add, 1 to change, 0 to destroy: the provider's attribute_condition
+terraform apply
+cd ../website-publish
+terraform init -backend-config="bucket=$($env:TF_VAR_project_id)-tfstate"
+terraform plan     # expect 1 to add, 0 to change, 0 to destroy: the new repository's binding
+terraform apply
+gh variable set WEBSITE_WIF_PROVIDER    --repo storytree-ai/storytree-website --body (terraform output -raw WEBSITE_WIF_PROVIDER)
+gh variable set WEBSITE_SERVICE_ACCOUNT --repo storytree-ai/storytree-website --body (terraform output -raw WEBSITE_SERVICE_ACCOUNT)
+cd ../..
+```
+
+A publish from the new repository is then proven with
+`gh workflow run website.yml --repo storytree-ai/storytree-website --ref main`, verified as above.
+Only after that does storytree stop publishing, and its binding and id go when storytree drops its
+website workflow (step 4).
+
 ## Undoing it
 
 Unset the two variables (the workflow goes back to the skip), then `terraform destroy` here, which

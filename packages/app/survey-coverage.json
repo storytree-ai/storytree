@@ -3,22 +3,8 @@
   "1": 6,
   "4": 6
  },
- "../../apps/desktop/src/capture/build.ts": {
-  "2": 3
- },
  "../../apps/desktop/src/capture/fake-bridge.ts": {
-  "2": 17,
-  "3": 6
- },
- "../../apps/desktop/src/capture/launch.ts": {
-  "2": 3
- },
- "../../apps/desktop/src/capture/output.ts": {
-  "2": 2
- },
- "../../apps/desktop/src/capture/runner.ts": {
-  "2": 10,
-  "3": 8
+  "2": 6
  },
  "../../apps/desktop/src/home.ts": {
   "1": 1,
@@ -43,10 +29,6 @@
  "../../apps/desktop/src/preload/preload.ts": {
   "1": 1,
   "4": 1
- },
- "../../apps/desktop/src/renderer/renderer.ts": {
-  "2": 32,
-  "3": 29
  },
  "src/lag/index.ts": {
   "7": 2
@@ -98,17 +80,12 @@
  },
  "src/projects/follow.ts": {
   "1": 30,
-  "2": 20,
-  "3": 5
+  "2": 14
  },
  "src/projects/selection.ts": {
   "1": 6,
   "2": 60,
   "4": 6
- },
- "src/surfaces/bridge.ts": {
-  "2": 5,
-  "3": 5
  },
  "src/surfaces/reads.ts": {
   "1": 1,
@@ -194,24 +171,21 @@
   "4": 6
  },
  "src/view/index.ts": {
-  "2": 46,
-  "3": 14
+  "2": 32
  },
  "src/view/render.ts": {
-  "2": 42,
-  "3": 5,
+  "2": 36,
   "4": 10
  },
  "src/view/surfaces.ts": {
-  "2": 6,
-  "3": 43
+  "2": 4,
+  "3": 24
  },
  "src/view/switch.ts": {
-  "2": 5
+  "2": 4
  },
  "src/view/updates.ts": {
-  "2": 36,
-  "3": 14,
+  "2": 22,
   "4": 50
  }
 }

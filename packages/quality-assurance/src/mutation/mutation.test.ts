@@ -176,6 +176,37 @@ test("7.11 · the brief's mutation reports plant no break on a line one checkout
   }
 });
 
+test("7.11 · a file an outside checkout adds as new, matching a same-named file the brief's own checkout held at its merge base, plants no break on its copied lines, even with no deletion in the own diff; an edited line still gets one", async () => {
+  const own = mkdtempSync(join(tmpdir(), "qa-moved-base-"));
+  const other = checkout();
+  try {
+    const git = (...args: string[]) => execFileSync("git", ["-c", "user.name=t", "-c", "user.email=t@t", "-c", "commit.gpgsign=false", ...args], { cwd: own });
+    git("init", "-q");
+    // The file as it stood before it moved, its line 2 since edited in the factory's copy.
+    write(own, { "packages/old/src/grade.mjs": PACKAGE["packages/demo/src/grade.mjs"]!.replace("n > 100", "n >= 100") });
+    git("add", ".");
+    git("commit", "-qm", "base");
+    git("update-ref", "refs/remotes/origin/main", "HEAD");
+    // A since-diff holds no deletion: here the branch never deleted it.
+    write(own, { "README.md": "moved\n" });
+    git("add", ".");
+    git("commit", "-qm", "unrelated");
+    await withLibrary(async (library, storytree) => {
+      const increment = await plan(library);
+      const reviews = await openReviews(storytree);
+      const brief = await reviews.brief(library, increment, worktreeChange(own), undefined, undefined, [worktreeChange(other)]);
+      assert.equal(deletedLines([brief.diff]).size, 0);
+      const { outside } = await briefWithReport(storytree, brief, own, { run: async () => ({ passed: true, ms: 1 }) });
+      const report = outside![0]!.report;
+      assert.ok(report.ran);
+      assert.deepEqual(report.survivors.map(({ file, line }) => `${file}:${line}`).sort(), ["packages/demo/src/broken.mjs:1", "packages/demo/src/grade.mjs:2", "packages/demo/src/loud.mjs:2"]);
+    });
+  } finally {
+    await removeTemp(own);
+    await removeTemp(other);
+  }
+});
+
 test("7.2 · each break runs against the tests that reach its file: an untested branch survives, ranked by the files depending on it, a file no test reaches survives untried, and a file whose tests fail unbroken is not run", async () => {
   const dir = mkdtempSync(join(tmpdir(), "qa-mutate-"));
   try {

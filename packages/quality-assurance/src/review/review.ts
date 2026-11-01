@@ -92,8 +92,11 @@ export interface Brief {
   readonly diff: string;
   /** The commits a brief read from a worktree read: the branch's, and where it parted from its default branch (contract 4.5). */
   readonly mark?: Mark;
-  /** The earlier review whose commit the diff is read since, when it is not the whole change (contract 4.5). */
-  readonly since?: { readonly review: number; readonly head: string };
+  /**
+   * The earlier review whose commit the diff is read since, when it is not the whole change, and each checkout outside the project
+   * whose change has moved since that review, from the commit it read to the one this brief reads (contract 4.5).
+   */
+  readonly since?: { readonly review: number; readonly head: string; readonly moved?: readonly Moved[] };
   /** The branch the diff was read against, when it was read from a worktree: `local` when the repository has no origin/main (contract 2.7). */
   readonly base?: Base;
   /** The change's risk line, read from its whole diff, or the increment's written one for a diff given by hand; absent when neither was read (contract 2.11). */
@@ -114,12 +117,12 @@ export interface Brief {
    * increment's branch and its diff (absent when it is the change's own folder, whose diff is above), or why it was not read,
    * when none of those plugins' contracts may be answered met (contract 2.18). Absent when the increment names no plugin's capability.
    */
-  readonly factory?: { readonly plugins: readonly string[]; readonly folder?: string; readonly diff?: string; readonly unread?: string };
+  readonly factory?: { readonly plugins: readonly string[]; readonly folder?: string; readonly diff?: string; readonly mark?: Mark; readonly unread?: string };
   /**
    * Each checkout outside the project named as the change's other half, an increment landing in two repositories as storytree and the
    * factory repo, with its branch's diff against its default branch (contract 2.19). Absent when none was named.
    */
-  readonly also?: readonly { readonly folder: string; readonly diff: string }[];
+  readonly also?: readonly { readonly folder: string; readonly diff: string; readonly mark?: Mark }[];
   /** The contracts the increment retires pending its merge, with the reason: not judged (contract 2.4). Absent from briefs issued before 2.4. */
   readonly retired?: readonly { readonly id: string; readonly title: string; readonly reason: string }[];
   /**
@@ -195,6 +198,13 @@ export interface Base {
 export interface Mark {
   readonly head: string;
   readonly from: string;
+}
+
+/** A checkout outside the project whose change moved since an earlier review: the commit that review read, when it read one, and this one's (contract 4.5). */
+export interface Moved {
+  readonly folder: string;
+  readonly from?: string;
+  readonly to: string;
 }
 
 /** A change read from its worktree: its whole diff, the branch it was read against and its mark, and how to read what changed since an earlier mark. */
@@ -377,7 +387,7 @@ class PgReviews implements Reviews {
     const pluginOf = await pluginCapabilities(library, increment.fields);
     const factory = factoryRead([...new Set([...pluginOf.values()].map(({ plugin }) => plugin))].sort(), plugins, typeof read === "string" ? undefined : read.root, also.flatMap(({ root }) => (root === undefined ? [] : [root])));
     // The change's other halves, in checkouts outside the project, are judged with it (contract 2.19).
-    const halves = also.map((other) => ({ folder: other.root ?? "", diff: other.diff }));
+    const halves = also.map((other) => ({ folder: other.root ?? "", diff: other.diff, ...(other.mark === undefined ? {} : { mark: other.mark }) }));
     // The library records the increment's sessions wrote are part of the change (contract 2.22).
     const records = await writtenRecords(library, change, writers, pendingChanges);
     const packages = [...new Set([...diffPackages(diff), ...diffPackages(factory?.diff ?? ""), ...halves.flatMap((half) => diffPackages(half.diff)), ...(pendingChanges.length === 0 ? [] : [PLAN_PACKAGE]), ...(records.length === 0 ? [] : [LIBRARY_PACKAGE])])].sort();
@@ -442,7 +452,8 @@ class PgReviews implements Reviews {
     const mark = typeof read === "string" ? undefined : read.mark;
     const last = mark === undefined || taken === 0 ? undefined : await this.#lastTaken(project, change);
     const newer = last?.mark === undefined || last.mark.from !== mark!.from ? undefined : (read as WorktreeChange).since(last.mark);
-    const since = newer === undefined ? undefined : { review: last!.iteration, head: last!.mark!.head };
+    const moved = newer === undefined ? [] : movedOutside(last!, { ...(factory === undefined ? {} : { factory: factory.brief }), also: halves });
+    const since = newer === undefined ? undefined : { review: last!.iteration, head: last!.mark!.head, ...(moved.length === 0 ? {} : { moved }) };
     // The tier is read on the whole change, whatever part of it this review reads (contract 2.11).
     const risk = await changeRisk(library, increment, diff, typeof read === "string" ? undefined : read.root);
     // The tests this review's diff adds, so a test checked in an earlier review is not asked for again (contract 2.14).
@@ -613,7 +624,7 @@ function factoryRead(plugins: readonly string[], reader: PluginReader | undefine
   const { folder, change } = reads[0]![1] as Extract<PluginRead, { folder: string }>;
   const plans = new Map(reads.flatMap(([plugin, read]) => ("plan" in read && read.plan !== undefined ? [[plugin, read.plan] as const] : [])));
   const own = [root, ...halves].some((other) => other !== undefined && sameFolder(other, folder));
-  return { brief: { plugins, folder, ...(own ? {} : { diff: change.diff }) }, ...(own ? {} : { diff: change.diff }), plans };
+  return { brief: { plugins, folder, ...(own ? {} : { diff: change.diff, ...(change.mark === undefined ? {} : { mark: change.mark }) }) }, ...(own ? {} : { diff: change.diff }), plans };
 }
 
 function sameFolder(a: string, b: string): boolean {
@@ -702,9 +713,23 @@ function redTest(found: string | undefined): string | undefined {
   return test?.replace(/ in the checkout [\s\S]*$/, "") ?? found;
 }
 
+/**
+ * Each checkout outside the change's own folder `now` reads whose change is not as `last` read it, its commit or its diff (uncommitted
+ * work included) since, so a fix made only there is judged as a change (contract 4.5).
+ */
+function movedOutside(last: Brief, now: Pick<Brief, "factory" | "also">): Moved[] {
+  const read = new Map(outsideCheckouts(last).map((checkout) => [checkout.folder, checkout]));
+  return outsideCheckouts(now).flatMap(({ folder, diff, mark }) => {
+    if (mark === undefined) return [];
+    const before = read.get(folder);
+    if (before?.mark?.head === mark.head && before.diff === diff) return [];
+    return [{ folder, ...(before?.mark === undefined ? {} : { from: before.mark.head }), to: mark.head }];
+  });
+}
+
 /** The checkouts outside the change's own folder a brief read, with their diffs: the factory worktree, then each other half (contracts 2.18, 2.19). */
-export function outsideCheckouts(brief: Pick<Brief, "factory" | "also">): { folder: string; diff: string }[] {
-  const factory = brief.factory?.folder !== undefined && brief.factory.diff !== undefined ? [{ folder: brief.factory.folder, diff: brief.factory.diff }] : [];
+export function outsideCheckouts(brief: Pick<Brief, "factory" | "also">): { folder: string; diff: string; mark?: Mark }[] {
+  const factory = brief.factory?.folder !== undefined && brief.factory.diff !== undefined ? [{ folder: brief.factory.folder, diff: brief.factory.diff, ...(brief.factory.mark === undefined ? {} : { mark: brief.factory.mark }) }] : [];
   return [...factory, ...(brief.also ?? []).filter(({ folder }) => folder !== "")];
 }
 
@@ -1227,7 +1252,7 @@ export function briefText(brief: Brief): string {
     ]),
     "",
     brief.since !== undefined
-      ? `${brief.diff === "" ? "Nothing changed" : "The diff of what changed"} since review ${brief.since.review} (commit ${brief.since.head.slice(0, 12)}), which read the whole change: judge the checks and contracts on what changed, the whole change being in its worktree, and raise no finding the earlier hits already hold.`
+      ? `${brief.diff === "" ? ((brief.since.moved ?? []).length === 0 ? "Nothing changed" : "Nothing changed in this worktree") : "The diff of what changed"} since review ${brief.since.review} (commit ${brief.since.head.slice(0, 12)}), which read the whole change${(brief.since.moved ?? []).map((moved) => `; since then the checkout ${moved.folder} moved ${moved.from === undefined ? "" : `from commit ${moved.from.slice(0, 12)} `}to ${moved.to.slice(0, 12)}, so judge what changed there too (its diff above${moved.from === undefined ? "" : `; \`git diff ${moved.from}\` in it reads only the new part`})`).join("")}: judge the checks and contracts on what changed, the whole change being in its worktree, and raise no finding the earlier hits already hold.`
       : diffPackages(brief.diff).length === 0 ? `The diff touches no file: the change under review is ${[...((brief.plan ?? []).length === 0 ? [] : ["its pending plan changes"]), ...((brief.records ?? []).length === 0 ? [] : ["the library records above"])].join(" and ") || "its pending plan changes"}.` : brief.base?.local ? `The diff against ${brief.base.ref}, this repository's own default branch: it has no origin/main.` : `The diff against ${brief.base?.ref ?? "origin/main"}:`,
     brief.diff,
   ].join("\n");

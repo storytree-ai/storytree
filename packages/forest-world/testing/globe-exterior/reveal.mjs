@@ -6,7 +6,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildPage } from './build.mjs';
 import { buildFolder, withCapture } from '../../../../apps/desktop/src/capture/index.ts';
-import { recordBrowserCoverage } from '../../../dev-loop/src/browser-coverage.mjs';
+import { recordBrowserCoverage } from '../../../repo-checks/src/coverage-map.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const pkgDir = path.resolve(here, '../..');

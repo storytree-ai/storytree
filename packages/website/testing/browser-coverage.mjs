@@ -3,7 +3,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { gzipSync } from "node:zlib";
-import { recordBrowserCoverage } from "@storytree/dev-loop/browser-coverage";
+import { recordBrowserCoverage } from "@storytree/repo-checks/coverage-map";
 
 const pkgDir = fileURLToPath(new URL("..", import.meta.url));
 

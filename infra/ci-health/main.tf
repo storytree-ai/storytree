@@ -39,11 +39,12 @@ variable "project_id" {
 # name can be taken again by another repository after a rename or a deletion; the id cannot, so a
 # new repository under the old name is a new id. A list, so a new id can be trusted beside the old
 # one before a cut-over and the old one dropped after it (README.md, "Trusting another
-# repository"). Today's are storytree-ai/storytree's (1388231144) and the stand-in
-# storytree-ai/storytree-next's (1433007599), which takes the name at the cut-over.
+# repository"). Today's are storytree-ai/storytree's (1388231144), the stand-in
+# storytree-ai/storytree-next's (1433007599), which takes the name at the cut-over, and the website's
+# own storytree-ai/storytree-website's (1440801072), which publishes storytree.dev (ADR-1171 D3).
 variable "repository_ids" {
   type    = list(string)
-  default = ["1388231144", "1433007599"]
+  default = ["1388231144", "1433007599", "1440801072"]
 
   validation {
     condition     = length(var.repository_ids) > 0 && alltrue([for id in var.repository_ids : can(regex("^[0-9]+$", id))])

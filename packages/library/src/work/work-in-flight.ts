@@ -472,7 +472,7 @@ export class WorkInFlight {
    * (movedSince), or whose record is gone, is stale; one its editor refuses is refused: neither is applied, and both are
    * parked together as one proposal increment on the same arc, its body naming each record, its base,
    * the entry that moved it or the refusal, and the change (D5). A change whose record's latest entry
-   * already carries this increment's mark (any of its pull requests), as after a crash part-way, counts as
+   * already carries this increment's mark (any of its pull requests) on an entry after the change's base, as after a crash part-way, counts as
    * applied. Each change leaves the increment's pending list as it applies, so an apply cut off part-way
    * leaves pending only what it had not applied (10.27); the increment keeps none pending afterwards. The library has no transaction across records, so they apply one at a time,
    * in the increment's order. Null if `id` is not a live increment.
@@ -715,7 +715,8 @@ export class WorkInFlight {
     for (const change of pending) {
       const { record, type, base } = change;
       const [latest] = await this.#records.history({ id: record, newest: 1 });
-      if (appliedBy(latest?.reason, increment.id)) {
+      // Its own mark counts only on an entry after the change was read: one pended on top of the increment's own earlier apply is not applied yet.
+      if (latest !== undefined && latest.seq !== base && appliedBy(latest.reason, increment.id)) {
         applied.push(record);
         continue;
       }

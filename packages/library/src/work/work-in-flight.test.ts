@@ -376,6 +376,21 @@ for (const backend of [memory, postgres]) {
     assert.equal((await flight.arcView(arc.id))?.increments.length, 1, "no residue: the half-applied change was already applied");
   });
 
+  contract("10.15", "a second change pended to a record on top of the increment's own earlier apply applies at the next merge, not counted applied while the record stays as it was", async ({ work, flight, records }) => {
+    const arc = await work.createArc(ARC);
+    const story = await work.addStory({ title: "Visitor can sign up" });
+    const form = await work.addCapability({ title: "1 · Email form", story: story.id });
+    const increment = await flight.addIncrement({ arc: arc.id, ...WORK });
+    await flight.advanceIncrement(increment.id, "active");
+    await flight.pendChange(increment.id, { record: form.id, fields: { title: "1 · Address form" } });
+    assert.deepEqual(await flight.applyPending(increment.id, "#145"), { applied: [form.id] });
+
+    await flight.pendChange(increment.id, { record: form.id, fields: { title: "1 · Address and name form" } });
+    assert.deepEqual(await flight.stalePending(increment.id), [], "pended on the live record: not stale");
+    assert.deepEqual(await flight.applyPending(increment.id, "#184"), { applied: [form.id] });
+    assert.equal(((await records.get(form.id)) as SchemaRecord<"capability">).fields.title, "1 · Address and name form", "the second change applied");
+  });
+
   contract("10.27", "an apply cut off part-way, as a hook's deadline cuts it, leaves pending only the changes it had not applied; the gate reads none it applied as stale, and the next apply finishes the rest", async ({ work, flight, records }) => {
     const arc = await work.createArc(ARC);
     const story = await work.addStory({ title: "Visitor can sign up" });

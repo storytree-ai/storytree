@@ -86,12 +86,14 @@ import { FEEDBACK_IDENTITY_CHANNELS, FEEDBACK_IDENTITY_OFFERED, SETUP_HELP_CHANN
 import { createJourneyRuntime, type JourneyRuntime } from "@storytree/app-setup/journey-events/runtime";
 import { JOURNEY_CHANNELS } from "@storytree/app-setup/journey-events/bridge";
 import { LIFECYCLE_CHANNELS } from "@storytree/app/lifecycle/bridge";
+import { libraryProblem } from "@storytree/app/lifecycle/open-where-set";
 import { restartLimit } from "@storytree/app/lifecycle/restart-limit";
+import { appShutdown, restartAllowed } from "@storytree/app/lifecycle/stopping";
 import { PROJECTS_CHANNELS } from "@storytree/app/projects/bridge";
 import { UPDATES_CHANNELS } from "@storytree/app/updates/bridge";
-import { sourceVersion } from "@storytree/app/version";
+import { appVersion as runningVersion } from "@storytree/app/version";
 import { connect, type AnnotatedTree, type Storytree } from "@storytree/library";
-import { DataDirInUseError, findBinaries, start, type LocalPostgres } from "@storytree/local-postgres";
+import { findBinaries, start, type LocalPostgres } from "@storytree/local-postgres";
 import {
   AUTH_CALLBACK,
   AUTH_SCHEME,
@@ -200,9 +202,17 @@ let reads: PageReads | undefined;
 /** How often the app looks at each project's branches itself; the look is shared with the hooks', once a minute a machine. */
 const LOOK_EVERY_MS = 60_000;
 let projects: ReturnType<typeof projectSelection> | undefined;
-let shutDown: Promise<void> | undefined;
 let backups: ReturnType<typeof keepBackups> | undefined;
 let journey: JourneyRuntime | undefined;
+// Quitting stops the journey, the page reads, the library and Postgres, in that order (lifecycle 1.43).
+const stopping = appShutdown({
+  backups: { held: () => backups },
+  journey: { held: () => journey },
+  reads: { held: () => reads, letGo: () => { reads = undefined; } },
+  library: { held: () => storytree, letGo: () => { storytree = undefined; } },
+  postgres: { held: () => postgres, letGo: () => { postgres = undefined; } },
+  error: (line) => verdict.error(line),
+});
 /** The parts this computer switches off, read once as the app starts (ADR-1095). */
 let partsOff: readonly string[] = [];
 /** The window's parts with the factory plugins standing in for switched-off parts composed in, as the app starts. */
@@ -264,7 +274,7 @@ async function run(): Promise<void> {
   // Every page operation is answered through one outage guard: a library that cannot be reached is said once in app.log, not a stack per poll (1.40).
   const page = sayOutagesOnce(ipcMain, (line) => console.error(line));
   // The bundled main is CommonJS with no import.meta, so its own build is named from Electron when packaged and from the checkout at its app path otherwise.
-  const appVersion = app.isPackaged ? app.getVersion() : (sourceVersion(app.getAppPath())?.version ?? "0.3.0");
+  const appVersion = runningVersion({ packaged: app.isPackaged, packagedVersion: () => app.getVersion(), appPath: app.getAppPath() });
   // The journey stays in the frame, not in a manifest (ADR-1030 D4): the frame is its client too, telling it of the launch,
   // an added project, a failure and the quit, so the frame makes the one runtime and answers the page with it.
   journey = createJourneyRuntime({ home: home.dir, appVersion });
@@ -386,21 +396,20 @@ async function run(): Promise<void> {
     project = (await projects.read(args.project)).current;
     if (!args.smoke) recordLaunch();
   } catch (error) {
-    problem =
-      error instanceof DataDirInUseError
-        ? `The app's library (${error.dataDir}) is in use by ${error.owner ?? "another program"} (process ${error.pid}). ` +
-          "Close that, then open the app again."
-        : `The app's library could not be opened: ${messageOf(error)}`;
+    problem = libraryProblem(error);
     console.error(problem);
   }
   build = await whichBuild();
-  const canRestart = async () => shutDown === undefined
-    && (postgres === undefined || !(await seedWriting(postgres.url)))
-    && shutDown === undefined && (backups?.canRestart() ?? true);
+  const canRestart = restartAllowed({
+    stopping: stopping.stopping,
+    postgresUrl: () => postgres?.url,
+    seedWriting,
+    backupsAllow: () => backups?.canRestart() ?? true,
+  });
   // When an update may install itself (updates 4.13): offered only where releases install themselves.
   const installing = installChoice({ available: !args.smoke && releasesInstall(), file: path.join(home.dir, "install-choice.json") });
   // Which release channel the updater follows (updates 4.24): stable unless the user opts in to alpha.
-  const channels = channelChoice(home.dir, !args.smoke);
+  const channels = channelChoice(home.dir, args.smoke);
   // Restarting into an update stops the app and its database for a minute or two: not under a user or an agent (4.4).
   const quiet = quietMoment({
     launchedAt: Date.now(),
@@ -510,7 +519,7 @@ async function checkCallbacks(): Promise<void> {
 
 /** Bring the window forward, opening it again on the same project if it was closed. */
 function showWindow(): void {
-  bringWindowForward(BrowserWindow.getAllWindows(), { stopping: shutDown !== undefined, open: () => openWindow(windowQuery) });
+  bringWindowForward(BrowserWindow.getAllWindows(), { stopping: stopping.stopping(), open: () => openWindow(windowQuery) });
 }
 
 /**
@@ -731,17 +740,7 @@ function drewText(tree: AnnotatedTree, drew: string | undefined): string {
 
 /** Close the library and stop Postgres. Safe to call more than once. */
 function shutdown(): Promise<void> {
-  backups?.stop();
-  shutDown ??= (async () => {
-    await journey?.finish();
-    await reads?.close().catch((error: unknown) => verdict.error(`closing the projects: ${messageOf(error)}`));
-    reads = undefined;
-    await storytree?.close().catch((error: unknown) => verdict.error(`closing the library: ${messageOf(error)}`));
-    storytree = undefined;
-    await postgres?.stop().catch((error: unknown) => verdict.error(`stopping Postgres: ${messageOf(error)}`));
-    postgres = undefined;
-  })();
-  return shutDown;
+  return stopping.shutdown();
 }
 
 function fail(error: unknown): void {

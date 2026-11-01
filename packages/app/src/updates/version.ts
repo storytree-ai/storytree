@@ -22,3 +22,16 @@ export function sourceVersion(from?: string): { version: string; commit: string 
     return undefined;
   }
 }
+
+/**
+ * The version the running app reports (contract 4.33): Electron's when packaged, else the checkout's it runs from, else
+ * 0.3.0. The bundled main is CommonJS with no import.meta, so its checkout is named by its app path.
+ */
+export function appVersion({ packaged, packagedVersion, appPath, source = sourceVersion }: {
+  packaged: boolean;
+  packagedVersion: () => string;
+  appPath: string;
+  source?: (from: string) => { version: string } | undefined;
+}): string {
+  return packaged ? packagedVersion() : (source(appPath)?.version ?? "0.3.0");
+}

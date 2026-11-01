@@ -9,7 +9,8 @@
 // - Each action keeps a baseline: the last commit at which it was within the margin. A slower verdict asks for a second run; the
 //   slowdown counts only when that one agrees, and the baseline does not move over it. `pnpm lag:box rebaseline <action> --reason …`
 //   moves it, the reason kept.
-// - A slowdown that reproduced is halved down to the merge between its baseline and where it was seen, naming the pull request.
+// - A slowdown that reproduced is halved down to the merge between its baseline and where it was seen, naming the pull request;
+//   each slower step counts only when a second run of the same commit agrees.
 // - The history is kept in the library's server, in a database of its own (storytree-lag), so `pnpm lag:box` reads it from any
 //   machine whose library setting names the box.
 // - Each catalogue entry names the budget contract its action answers to on the capability that owns it; after each measuring
@@ -68,7 +69,8 @@ const asks = (run, action) => run.actions === null || run.actions === undefined 
 
 /**
  * Each catalogue action's standing, replayed from the history (oldest first): its baseline, a suspect (one slower run waiting for a
- * second), a slowdown (two agreeing runs; lo and hi bound the merges being halved, culprit and pr once named), its last re-baseline.
+ * second), a slowdown (two agreeing runs; lo and hi bound the merges being halved, pending a slower step waiting for its second run,
+ * culprit and pr once named), its last re-baseline.
  */
 export function actionStates({ history, actions, log: mainLog }) {
   const states = {};
@@ -87,8 +89,13 @@ export function actionStates({ history, actions, log: mainLog }) {
       if (run.purpose === "bisect") {
         const halving = state.slowdown;
         if (halving !== undefined && halving.culprit === undefined && run.against === halving.baseline) {
-          if (verdict === "slower") halving.hi = run.head;
-          else halving.lo = run.head;
+          // A slower step counts only once a second run of the same commit agrees; one it does not repeat reads same.
+          if (verdict === "slower" && halving.pending !== run.head) halving.pending = run.head;
+          else {
+            if (verdict === "slower") halving.hi = run.head;
+            else halving.lo = run.head;
+            halving.pending = undefined;
+          }
         }
         continue;
       }
@@ -147,7 +154,8 @@ const NOT_RUN_TRIES = 3;
 
 /**
  * What the runner does next, given the history (oldest first), main's newest commit and its first parent, the catalogue's actions and
- * main's first-parent log (oldest first, with subjects): nothing while a run is going; else halve a slowdown not yet named; else give a
+ * main's first-parent log (oldest first, with subjects): nothing while a run is going; else halve a slowdown not yet named (a slower
+ * step run twice); else give a
  * slower verdict its second run; else, once main has moved past the last commit measured (a measure that ended NOT RUN leaves main due
  * again, up to NOT_RUN_TRIES in a row), measure the newest main against each
  * action's baseline (main's parent for an action with none yet). An action whose baseline main's history does not hold (it left with
@@ -168,8 +176,8 @@ export function decide({ history, main, actions, log: mainLog }) {
   });
   const own = actions.filter((action) => !lost.has(action));
   const halving = own.filter((action) => states[action].slowdown?.between !== undefined).map((action) => {
-    const { baseline, between } = states[action].slowdown;
-    return { purpose: "bisect", head: between[Math.floor((between.length - 1) / 2)], against: baseline, action };
+    const { baseline, between, pending } = states[action].slowdown;
+    return { purpose: "bisect", head: pending ?? between[Math.floor((between.length - 1) / 2)], against: baseline, action };
   });
   if (halving.length > 0) return also("halving the merges behind a slowdown", halving);
   const suspects = own.filter((action) => states[action].suspect !== undefined).map((action) => ({ purpose: "confirm", head: main.commit, against: states[action].baseline, action }));

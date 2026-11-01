@@ -15,6 +15,7 @@ import { quietFor, removeTemp, waitUntil } from "@storytree/test-waits";
 import type { Library } from "@storytree/library";
 
 import { withLibrary } from "../testing/pg.js";
+import { deletedLines } from "./mutation.js";
 import { aridList, briefWithReport, changeBreaks, fileBreaks, MUTATION_SURVIVOR, mutationReport, openLedger, openReviews, qualityTools, readReach, runTests, spread, worktreeChange, type ReviewReturn, type TestRun } from "../index.js";
 
 /** A diff adding every line of each file. */
@@ -22,6 +23,14 @@ function adding(files: Record<string, string>): string {
   return Object.entries(files).map(([file, text]) => {
     const lines = text.replace(/\n$/, "").split("\n");
     return [`diff --git a/${file} b/${file}`, "--- /dev/null", `+++ b/${file}`, `@@ -0,0 +1,${lines.length} @@`, ...lines.map((line) => `+${line}`)].join("\n");
+  }).join("\n") + "\n";
+}
+
+/** A diff deleting every line of each file. */
+function deleting(files: Record<string, string>): string {
+  return Object.entries(files).map(([file, text]) => {
+    const lines = text.replace(/\n$/, "").split("\n");
+    return [`diff --git a/${file} b/${file}`, `--- a/${file}`, "+++ /dev/null", `@@ -1,${lines.length} +0,0 @@`, ...lines.map((line) => `-${line}`)].join("\n");
   }).join("\n") + "\n";
 }
 
@@ -109,6 +118,59 @@ test("7.1 · a change touching only a hand-run script in an evidence folder plan
     assert.deepEqual(breaks, []);
   } finally {
     await removeTemp(dir);
+  }
+});
+
+test("7.11 · a line the change adds exactly as a line it deletes, in its own diff or another half's, gets no break, one for one and whatever its indentation; the lines it edited still do", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "qa-moved-"));
+  try {
+    const old = { "packages/old/src/grade.mjs": PACKAGE["packages/demo/src/grade.mjs"]! };
+    // Moved, re-indented on line 3, edited on line 2, and line 3 added a second time where only one copy was deleted.
+    const moved = { "packages/demo/src/grade.mjs": [
+      "export function grade(n, strict) {",
+      "  if (n >= 100 && strict) return \"huge\";",
+      "    if (n > 10) return \"big\";",
+      "  if (n > 10) return \"big\";",
+      "  return \"small\";",
+      "}",
+    ].join("\n") + "\n" };
+    write(dir, moved);
+    assert.deepEqual(changeBreaks(dir, adding(moved)).breaks.map(({ line }) => line), [2, 3, 4]);
+    assert.deepEqual(changeBreaks(dir, deleting(old) + adding(moved)).breaks.map(({ line, what }) => ({ line, what })), [
+      { line: 2, what: "`>=` to `<`" },
+      { line: 4, what: "`>` to `<=`" },
+    ]);
+    // Deleted in one checkout and added in another, as a move into a factory plugin is.
+    assert.deepEqual(changeBreaks(dir, adding(moved), [], undefined, deletedLines([adding(moved), deleting(old)])).breaks.map(({ line }) => line), [2, 4]);
+  } finally {
+    await removeTemp(dir);
+  }
+});
+
+test("7.11 · the brief's mutation reports plant no break on a line one checkout adds exactly as another deletes", async () => {
+  const own = mkdtempSync(join(tmpdir(), "qa-moved-own-"));
+  const other = checkout();
+  try {
+    const git = (...args: string[]) => execFileSync("git", ["-c", "user.name=t", "-c", "user.email=t@t", "-c", "commit.gpgsign=false", ...args], { cwd: own });
+    git("init", "-q");
+    write(own, { "packages/old/src/grade.mjs": PACKAGE["packages/demo/src/grade.mjs"]! });
+    git("add", ".");
+    git("commit", "-qm", "base");
+    git("update-ref", "refs/remotes/origin/main", "HEAD");
+    git("rm", "-q", "packages/old/src/grade.mjs");
+    git("commit", "-qm", "moved out");
+    await withLibrary(async (library, storytree) => {
+      const increment = await plan(library);
+      const reviews = await openReviews(storytree);
+      const brief = await reviews.brief(library, increment, worktreeChange(own), undefined, undefined, [worktreeChange(other)]);
+      const { outside } = await briefWithReport(storytree, brief, own, { run: async () => ({ passed: true, ms: 1 }) });
+      const report = outside![0]!.report;
+      assert.ok(report.ran);
+      assert.deepEqual(report.survivors.map(({ file, line }) => `${file}:${line}`).sort(), ["packages/demo/src/broken.mjs:1", "packages/demo/src/loud.mjs:2"]);
+    });
+  } finally {
+    await removeTemp(own);
+    await removeTemp(other);
   }
 });
 

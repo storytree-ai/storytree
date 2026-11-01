@@ -4,7 +4,8 @@
  * survives, and each survivor is a hit recorded with the review, ranked by how many files depend on its file.
  *
  * - A break is planted only on a line the change adds, in a source file (never a test or a test helper), one per line at the
- *   first place on it a break fits; with more than the cap, they are spread evenly across the change (7.1).
+ *   first place on it a break fits; with more than the cap, they are spread evenly across the change (7.1). A line it adds just
+ *   as a line it deletes, ignoring indentation, in its own diff or another half's, was moved, not written, and gets none (7.11).
  * - Arid lines get none (7.1): a logging or output call, the setting of an upper-case constant, and every line on the arid
  *   list, which a rejected survivor's line joins (7.4).
  * - The tests that reach a file are the test files whose imports lead to it in its own package (or its own infra/ folder, a
@@ -155,6 +156,24 @@ export function addedLines(diff: string): Map<string, number[]> {
   return added;
 }
 
+/**
+ * The lines `diffs` delete, by their text without its indentation, each with how many times it is deleted: a line a change adds
+ * as one of these is one it moved, not wrote (7.11). Each half of a change counts, so a file moved from one checkout into
+ * another is a move in both.
+ */
+export function deletedLines(diffs: readonly string[]): Map<string, number> {
+  const deleted = new Map<string, number>();
+  for (const diff of diffs) {
+    let inHunk = false;
+    for (const text of diff.split("\n")) {
+      if (text.startsWith("diff --git")) inHunk = false;
+      else if (text.startsWith("@@ ")) inHunk = true;
+      else if (inHunk && text.startsWith("-")) deleted.set(text.slice(1).trim(), (deleted.get(text.slice(1).trim()) ?? 0) + 1);
+    }
+  }
+  return deleted;
+}
+
 type Node = { type: string; start: number; end: number; [key: string]: unknown };
 
 const FLIP: Readonly<Record<string, string>> = {
@@ -247,11 +266,24 @@ export function spread<T>(breaks: readonly T[], cap = BREAK_CAP): T[] {
   return Array.from({ length: cap }, (_, index) => breaks[Math.floor((index * breaks.length) / cap)]!);
 }
 
-/** The breaks a change's diff has room for, read from the files in `root`, spread to the cap (7.1). */
-export function changeBreaks(root: string, diff: string, arid: readonly AridLine[] = [], cap = BREAK_CAP): { breaks: Break[]; candidates: number } {
+/**
+ * The breaks a change's diff has room for, read from the files in `root`, spread to the cap (7.1), none on a line added as one
+ * of the `moved` lines deleted, each deleted line excusing one added line (7.11).
+ */
+export function changeBreaks(root: string, diff: string, arid: readonly AridLine[] = [], cap = BREAK_CAP, moved: ReadonlyMap<string, number> = deletedLines([diff])): { breaks: Break[]; candidates: number } {
+  const left = new Map(moved);
   const all = [...addedLines(diff)].sort(([a], [b]) => a.localeCompare(b)).flatMap(([file, lines]) => {
     if (!mutable(file) || !existsSync(path.join(root, file))) return [];
-    return fileBreaks(file, readFileSync(path.join(root, file), "utf8"), lines, arid);
+    const text = readFileSync(path.join(root, file), "utf8");
+    const rows = text.split("\n");
+    const written = lines.filter((line) => {
+      const source = (rows[line - 1] ?? "").trim();
+      const count = left.get(source) ?? 0;
+      if (count === 0) return true;
+      left.set(source, count - 1);
+      return false;
+    });
+    return fileBreaks(file, text, written, arid);
   });
   return { breaks: spread(all, cap), candidates: all.length };
 }
@@ -510,14 +542,14 @@ export const runTests: TestRun = (root, tests, limitMs, given = process.env) => 
  * the import graph of the changed files' packages and those downstream; undefined `now` reads the real clock. Its copy and
  * its throwaway Postgres are made in, and orphaned ones swept from, `scratch`: the system's temp folder unless given.
  */
-export async function mutationReport(root: string, diff: string, arid: readonly AridLine[] = [], options: { run?: TestRun; reach?: Reach; cap?: number; budgetMs?: number; now?: () => number; scratch?: string } = {}): Promise<MutationReport> {
+export async function mutationReport(root: string, diff: string, arid: readonly AridLine[] = [], options: { run?: TestRun; reach?: Reach; cap?: number; budgetMs?: number; now?: () => number; scratch?: string; moved?: ReadonlyMap<string, number> } = {}): Promise<MutationReport> {
   const scratch = options.scratch ?? tmpdir();
   TestPostgres.sweep(scratch);
   sweepCopies(scratch);
   const now = options.now ?? Date.now;
   const started = now();
   const run = options.run ?? runTests;
-  const { breaks, candidates } = changeBreaks(root, diff, arid, options.cap);
+  const { breaks, candidates } = changeBreaks(root, diff, arid, options.cap, options.moved);
   if (breaks.length === 0) return { ran: true, planted: 0, caught: 0, survivors: [], notRun: [], candidates, ms: now() - started };
   const reach = options.reach ?? (() => {
     const graph = new PackageGraph(readPackages(root));
@@ -922,10 +954,12 @@ export async function recordSurvivors(server: Pick<Storytree, "ownDatabase">, pr
 export async function briefWithReport(server: Pick<Storytree, "ownDatabase">, brief: Brief, root: string | undefined, options: Parameters<typeof mutationReport>[3] = {}): Promise<{ text: string; mutation?: MutationReport; outside?: readonly OutsideReport[] }> {
   const checkouts = outsideCheckouts(brief);
   if (root === undefined && checkouts.length === 0) return { text: briefText(brief) };
-  const mutation = root === undefined ? undefined : await runReport(server, brief.project, root, brief.diff, options);
+  // A line one half deletes and another adds was moved between them, so every half's deletions count in each report (7.11).
+  const moved = { moved: deletedLines([brief.diff, ...checkouts.map(({ diff }) => diff)]), ...options };
+  const mutation = root === undefined ? undefined : await runReport(server, brief.project, root, brief.diff, moved);
   const outside: OutsideReport[] = [];
   // One after another: each runs tests.
-  for (const { folder, diff } of checkouts) outside.push({ folder, report: await runReport(server, brief.project, folder, diff, options) });
+  for (const { folder, diff } of checkouts) outside.push({ folder, report: await runReport(server, brief.project, folder, diff, moved) });
   await keepReport(server, brief.project, brief.change, brief.iteration, {
     ...(mutation ?? { ran: false, reason: "the change's own diff was given by hand, with no worktree to run it in" }),
     ...(outside.length === 0 ? {} : { outside }),

@@ -1,6 +1,6 @@
 /**
  * Helpers for the friction tests, which run against the real Postgres `pnpm test` starts
- * (packages/base-dev-loop/src/test.mjs hands it over as STORYTREE_TEST_PG_URL). A Postgres test must never skip
+ * (packages/repo-checks/src/test.mjs hands it over as STORYTREE_TEST_PG_URL). A Postgres test must never skip
  * silently, so asking for the server when there is none throws. Restated from the library's, as each story
  * keeps its own helpers inside its package.
  */

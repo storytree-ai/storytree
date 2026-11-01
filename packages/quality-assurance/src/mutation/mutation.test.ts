@@ -255,6 +255,28 @@ test("7.2 · a break in a factory plugin's file runs against the plugin's own te
   }
 });
 
+/** An outside checkout built as one package at its root, as storytree.dev's own repository is, whose own test imports its code. */
+const ROOTED: Record<string, string> = {
+  "package.json": JSON.stringify({ name: "@t/site", private: true, type: "module" }),
+  "src/publish.ts": "export const ready = (state: string): boolean => state === \"up\";\n",
+  "src/publish.test.ts": "import assert from \"node:assert/strict\";\nimport { test } from \"node:test\";\nimport { ready } from \"./publish.js\";\ntest(\"1.4 · ready\", () => { assert.equal(ready(\"up\"), true); assert.equal(ready(\"down\"), false); });\n",
+};
+
+test("7.2 · a break in a checkout built as one package at its root runs against that checkout's own tests and is caught, not reached by no test", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "qa-rooted-"));
+  try {
+    write(dir, ROOTED);
+    const report = await mutationReport(dir, adding(ROOTED));
+    assert.equal(report.ran, true);
+    if (!report.ran) return;
+    assert.equal(report.planted, 1);
+    assert.equal(report.caught, 1);
+    assert.deepEqual(report.survivors, []);
+  } finally {
+    await removeTemp(dir);
+  }
+});
+
 /**
  * A desktop page no test imports: a capture kit bundles it by its path from the checkout's root, and a test imports the kit; a
  * second page a test bundles by its path beside the test; a third a test names only to check it is there.

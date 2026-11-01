@@ -247,6 +247,29 @@ test("2.2 · a return answering every check and contract is taken and its hits r
   });
 });
 
+test("2.23 · a check's answer may name places without tripping it; the take prints them under their check and records no hit, and refuses a named place with no file, line or words", async () => {
+  await withLibrary(async (library, storytree) => {
+    const { increment, contracts, checks } = await plan(library);
+    const reviews = await openReviews(storytree);
+    const ledger = await openLedger(storytree);
+    await reviews.brief(library, increment, DIFF);
+
+    const naming = (named: { file: string; line: number; found: string }[]): ReviewReturn => {
+      const review = clean(checks, contracts);
+      return { ...review, checks: review.checks.map((answer) => (answer.check === checks[0] ? { ...answer, named } : answer)) };
+    };
+    await assert.rejects(reviews.take(library.name, increment, naming([{ file: "packages/library/src/a.ts", line: 0, found: "x" }])), new RegExp(`${checks[0]}.*line`));
+    await assert.rejects(reviews.take(library.name, increment, naming([{ file: "packages/library/src/a.ts", line: 1, found: " " }])), new RegExp(`${checks[0]}.*does not say`));
+    assert.deepEqual(await ledger.rows(library.name), { runs: [], hits: [] });
+
+    const taken = await reviews.take(library.name, increment, naming([{ file: "packages/library/src/a.ts", line: 1, found: "a constant passed straight through, run by 1.2 · A good email is kept" }]));
+    assert.deepEqual(taken.hits, []);
+    const text = takenText(taken);
+    assert.match(text, new RegExp(`named by ${checks[0]}, not a finding:\\n  packages/library/src/a\\.ts:1  a constant passed straight through, run by 1\\.2 · A good email is kept`));
+    assert.match(text, /ready for the gate/);
+  });
+});
+
 test("2.9 · a return names the review it answers, and take refuses one naming another review, such as a return left from an earlier review, recording nothing", async () => {
   await withLibrary(async (library, storytree) => {
     const { increment, contracts, checks } = await plan(library);

@@ -1,7 +1,7 @@
 /**
  * Capability 3 · Reading the project's CI. How each contract's verdict is written to its VERIFIED column, whoever ran the
  * tests: a project's CI read from its logs (read-ci) or a run of the tests read from their junit report (Mick's dev
- * loop's recording of a test run, packages/dev-loop/src/test-run, storytree's own health among them, ADR-1066 D2 G),
+ * loop's recording of a test run, packages/repo-checks/src/test-run, storytree's own health among them, ADR-1066 D2 G),
  * which reaches it through this package's interface: base never depends on that plugin (ADR-1170 D2). The reported column is never touched: that is what an agent says.
  *
  * Not checked is written only when a contract's tests were skipped or crashed (ADR-0825 D2): with the kind of its skip,

@@ -63,15 +63,13 @@ jobs:
           fi
           echo "held=$held" >> "$GITHUB_OUTPUT"
       # The enqueue's retry rule (packages/base-dev-loop/src/land-enqueue.mjs), and nothing else, read from the default
-      # branch: the pull request's own copy never runs here. Until the pull request moving it from packages/dev-loop
-      # lands (increment_fc3a008fe1c6), main holds it at its old path, so that one pull request reads it there.
+      # branch: the pull request's own copy never runs here.
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         if: steps.held.outputs.held == 'false'
         with:
           ref: ${{ github.event.repository.default_branch }}
           sparse-checkout: |
             packages/base-dev-loop/src/land-enqueue.mjs
-            packages/dev-loop/src/land-enqueue.mjs
           sparse-checkout-cone-mode: false
           persist-credentials: false
       # With a merge queue required on main, enqueue the pull request at the commit `verify` passed
@@ -109,7 +107,6 @@ jobs:
             # and only while the pull request's head is still the commit `verify` passed: a newer
             # push has a run of its own.
             rule=packages/base-dev-loop/src/land-enqueue.mjs
-            [ -f "$rule" ] || rule=packages/dev-loop/src/land-enqueue.mjs
             start=$SECONDS
             for attempt in $(seq 1 40); do
               if out=$(GH_TOKEN="$QUEUE_TOKEN" gh api graphql -f id="$PR_ID" -f sha="$SHA" \

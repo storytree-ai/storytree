@@ -1,5 +1,5 @@
 // This landing's bounded acceptance instrument: the real desktop page with read-only scene hooks.
-// Run through `node "<checkout>/packages/dev-loop/src/heavy-lock.mjs" --` (absolute checkout path).
+// Run through `node ~/.storytree/your-factory/plugins/micks-dev-loop/src/heavy-lock.mjs --` (absolute checkout path).
 import { mkdirSync, copyFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';

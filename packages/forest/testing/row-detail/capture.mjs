@@ -1,6 +1,6 @@
 // Pictures for the owner's look at contract 7.8: a session row, collapsed and expanded to its worktrees and window files.
 // The actual desktop page, built by ../sessions-list/build.mjs; all activity here is synthetic.
-// Run both through `node "<checkout>/packages/dev-loop/src/heavy-lock.mjs" --` (absolute checkout path). --smoke builds its own page
+// Run both through `node ~/.storytree/your-factory/plugins/micks-dev-loop/src/heavy-lock.mjs --` (absolute checkout path). --smoke builds its own page
 // into its build folder's smoke/, takes no pictures and skips the fixed rests, so a test proves every wait below still resolves in a real browser.
 import assert from 'node:assert/strict';
 import path from 'node:path';

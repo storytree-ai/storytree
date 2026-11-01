@@ -16,7 +16,7 @@ never moved here (owner, 2026-10-07: "we dont need backups for 0.2"); its final
 export sits under `archive/` in the bucket.
 
 The backups also carry `storytree-lag`, the lag runner's history
-(`packages/dev-loop/src/lag-box.mjs`): each action's baseline, its runs and the
+(`lag-box.mjs` in Mick's factory plugin micks-dev-loop): each action's baseline, its runs and the
 reasons recorded by `pnpm lag:box rebaseline`. The runs could be measured again;
 the reasons could not. They also carry `storytree-quality`, the QA ledger
 (`packages/quality-assurance`): every change-reviewer return, hit and answer, which

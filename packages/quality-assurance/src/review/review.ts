@@ -678,12 +678,19 @@ function coverage(brief: Brief, review: ReviewReturn): { check: string; hits: { 
 
 /**
  * Whether `hit` is the finding `earlier` was (contract 4.8): the same check at the same file, and for a covering-test hit the same
- * contract, for any other the same words; its line may have moved.
+ * contract, for a red-run hit the same test whichever checkout it was read from, for any other the same words; its line may have moved.
  */
 function sameFinding(earlier: Pick<HitRow, "check" | "file" | "found">, hit: { check: string; file: string; found?: string }): boolean {
   if (earlier.check !== hit.check || earlier.file !== hit.file) return false;
   const contract = (found: string | undefined) => /^contract (\S+) /.exec(found ?? "")?.[1];
-  return hit.check === COVERING_TEST ? contract(earlier.found) === contract(hit.found) : earlier.found === hit.found;
+  if (hit.check === COVERING_TEST) return contract(earlier.found) === contract(hit.found);
+  return hit.check === RED_RUN ? redTest(earlier.found) === redTest(hit.found) : earlier.found === hit.found;
+}
+
+/** The test a red-run hit's words name, without the checkout it was read from (`redRuns`). */
+function redTest(found: string | undefined): string | undefined {
+  const test = /^new test ([\s\S]*): no saved red run names it failing; /.exec(found ?? "")?.[1];
+  return test?.replace(/ in the checkout [\s\S]*$/, "") ?? found;
 }
 
 /** The checkouts outside the change's own folder a brief read, with their diffs: the factory worktree, then each other half (contracts 2.18, 2.19). */

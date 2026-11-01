@@ -20,7 +20,7 @@
     "check:own-health": "node --import tsx packages/repo-checks/src/check-own-health.mjs",
     "check:factory-health": "node --import tsx packages/repo-checks/src/check-own-health.mjs --factory",
     "record:acceptance": "pnpm -s storytree library-tools record-acceptance",
-    "evidence:sweep": "node --import tsx packages/dev-loop/src/evidence-sweep.mjs",
+    "evidence:sweep": "pnpm -s storytree evidence sweep",
     "library:export": "pnpm -s storytree library-tools export",
     "library:restore": "pnpm -s storytree library-tools restore",
     "desktop": "pnpm --filter @storytree/desktop start",

@@ -29,7 +29,7 @@ const ISLAND_WIDTH = 44;
 const LOT_INSET = 0.5, LOT_ON = 0.75, LOT_OFF = 0.6;
 /** Lifted just above the territories (`TERRITORY_LIFT`) so the lot lies on them. */
 const LOT_LIFT = 0.06;
-/** Drawn after the land, the borders and the file circles, and never hidden by the ground it stands on. */
+/** Drawn after the land and the borders, and never hidden by the ground it stands on. */
 const FLAG_ORDER = 6;
 
 /** The flag's scale `k` for islands `islandPx` wide on screen, fitted to the three drawn sizes (90, 200 and 480 px wide: 0.6, 0.9, 1.3), and never below 0.4. */

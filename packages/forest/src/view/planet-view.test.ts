@@ -1,15 +1,13 @@
 /** The page's planet joins: permanent places, mesh picking, and failure markers after orbiting. */
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { Color, DoubleSide, Euler, Group, LineBasicMaterial, LineSegments, Mesh, MeshBasicMaterial, OrthographicCamera, PlaneGeometry, Quaternion, Raycaster, SphereGeometry, SRGBColorSpace, Vector2, Vector3 } from "three";
+import { Color, DoubleSide, Group, LineBasicMaterial, LineSegments, Mesh, MeshBasicMaterial, OrthographicCamera, PlaneGeometry, Quaternion, Raycaster, SphereGeometry, SRGBColorSpace, Vector2, Vector3 } from "three";
 import { workStates } from "@storytree/arc-surface";
 import { forestDrawn, forestScene, MAPPED_ISLAND_CAP, MIN_ISLAND_AREA, storyNodes } from "@storytree/forest";
 import type { AnnotatedTree, Change } from "@storytree/library";
-import { globeFraming, globeHover, isGlobeDrag, markerSpot, pickGlobe, pickIsland, pointedFile } from "./planet-navigation.js";
+import { globeFraming, globeHover, isGlobeDrag, markerSpot, pickGlobe, pickIsland } from "./planet-navigation.js";
 import { sheetLayout, sheetMarkers } from "./sheet-navigation.js";
 import { sheetPoint } from "@storytree/forest-world/planet";
-import { codePathKey } from "@storytree/knowledge-core";
-import { circleStops, fileCircleMarks, lightFileCircles } from "./file-circles.js";
 import { lightTerritories, territoryLand } from "./territory-land.js";
 import { ClaimMarks } from "./claim-flag.js";
 import { territories } from "../territories/territories.js";
@@ -140,7 +138,7 @@ test("3.15 a click on a capability's territory picks its story with that capabil
   assert.equal(world.getObjectByName("territory-borders")?.userData.borders, 1);
 });
 
-test("3.32 pointing at a capability's territory shows its full name, without its number, and its description's first paragraph; a file there names the capability the same way", () => {
+test("3.32 pointing at a capability's territory shows its full name, without its number, and its description's first paragraph", () => {
   const land = {
     radius: 2,
     territories: [{ capability: "cap-a", title: "6 · Agent tools (the MCP server)", description: "The tools an agent calls to read and write the plan.\r\n\r\nAs built: notes for the agents who build it." }, { capability: "cap-b", title: "7 · Instructions" }],
@@ -155,13 +153,6 @@ test("3.32 pointing at a capability's territory shows its full name, without its
   plate.name = "planet:story";
   plate.rotation.x = Math.PI / 2;
   plate.add(territoryLand(land, (p) => new Vector3(p.x, 0, p.z)));
-  const file = new Mesh(new PlaneGeometry(0.5, 0.5));
-  file.name = "file:src/tools.ts";
-  file.userData = { file: "src/tools.ts", lines: 120, capability: "cap-a" };
-  // Lying on the land of cap-a's territory, just above it, at the screen's (300, 500).
-  file.rotation.x = -Math.PI / 2;
-  file.position.set(-1, 0.01, 1);
-  plate.add(file);
   world.add(plate);
   world.updateMatrixWorld(true);
   const camera = new OrthographicCamera(-4, 4, 4, -4, 0.1, 100);
@@ -171,7 +162,6 @@ test("3.32 pointing at a capability's territory shows its full name, without its
   assert.deepEqual(globeHover(world, camera, box, { x: 300, y: 300 }, "forest"),
     { cursor: "pointer", title: "Agent tools (the MCP server)", detail: "The tools an agent calls to read and write the plan." });
   assert.deepEqual(globeHover(world, camera, box, { x: 500, y: 400 }, "forest"), { cursor: "pointer", title: "Instructions" }, "no description: the name alone");
-  assert.deepEqual(globeHover(world, camera, box, { x: 300, y: 500 }, "forest"), { cursor: "pointer", title: "src/tools.ts · 120 lines · Agent tools (the MCP server)" });
 });
 
 test("3.14 a territory's land and borders stop at its island's coast", () => {
@@ -207,74 +197,8 @@ test("3.14 a territory's land and borders stop at its island's coast", () => {
   assert.ok(Math.abs(area(west) - 4) < 1e-6, "the western half less the bay's western part");
 });
 
-test("3.16, 3.17 a file circle lies flat on the island's surface; pointing at it names the file, its lines and its capability", () => {
-  const onSurface = (p: { x: number; z: number }) => new Vector3(p.x, -(p.x * p.x + p.z * p.z) / 40, p.z);
-  const normalAt = (p: { x: number; z: number }) => new Vector3(p.x / 20, 1, p.z / 20).normalize();
-  const circles = fileCircleMarks([{ path: "src/a/one.ts", lines: 120, capability: "cap-a", x: 3, z: -2, radius: 0.5 }], onSurface, normalAt);
-  const mark = circles.getObjectByName("file:src/a/one.ts")!;
-  assert.deepEqual(mark.userData, { file: "src/a/one.ts", lines: 120, capability: "cap-a" });
-  const up = new Vector3(0, 0, 1).applyQuaternion(mark.quaternion);
-  assert.ok(up.angleTo(normalAt({ x: 3, z: -2 })) < 1e-6, "the circle's face turns to the surface's normal");
-  assert.ok(mark.position.distanceTo(onSurface({ x: 3, z: -2 })) <= 0.2, "the circle rests just on the surface");
-
-  const world = new Group();
-  const plate = new Group();
-  plate.name = "planet:story";
-  plate.add(fileCircleMarks([{ path: "src/a/one.ts", lines: 120, capability: "cap-a", x: 0, z: 0, radius: 1 }], (p) => new Vector3(p.x, 0, p.z), () => new Vector3(0, 1, 0)));
-  world.add(plate);
-  world.updateMatrixWorld(true);
-  const camera = new OrthographicCamera(-4, 4, 4, -4, 0.1, 100);
-  camera.position.y = 40;
-  camera.lookAt(0, 0, 0);
-  camera.updateMatrixWorld();
-  assert.deepEqual(pointedFile(world, camera, { left: 0, top: 0, width: 800, height: 800 }, { x: 400, y: 400 }), { file: "src/a/one.ts", lines: 120, capability: "cap-a" });
-  assert.equal(pointedFile(world, camera, { left: 0, top: 0, width: 800, height: 800 }, { x: 700, y: 700 }), undefined);
-});
-
 const flat = { onSurface: (p: { x: number; z: number }) => new Vector3(p.x, 0, p.z), normalAt: () => new Vector3(0, 1, 0) };
-const circlesOf = () => fileCircleMarks([
-  { path: "src/a.ts", lines: 40, capability: "cap-a", x: -3, z: 0, radius: 1 },
-  { path: "src/b.ts", lines: 90, capability: "cap-a", x: 3, z: 0, radius: 1.5 },
-], flat.onSurface, flat.normalAt);
-const mark = (group: Group, path: string) => group.getObjectByName(`file:${path}`) as Mesh;
 const colourOf = (object: Mesh) => (object.material as MeshBasicMaterial).color.getHexString();
-
-test("3.18 the forest hands the core each circle's place on the globe: where it lies once its island is set on the sphere, keyed by its package and path", () => {
-  const circles = circlesOf();
-  const plate = new Group();
-  plate.position.set(4, -7, 9);
-  plate.quaternion.setFromEuler(new Euler(0.4, -1.1, 0.7));
-  plate.add(circles);
-  plate.updateMatrixWorld(true);
-  const stops = circleStops(circles, "session-management", { position: plate.position, quaternion: plate.quaternion });
-  assert.deepEqual([...stops.keys()], [codePathKey("session-management", "src/a.ts"), codePathKey("session-management", "src/b.ts")]);
-  assert.equal(codePathKey("session-management", "src/a.ts"), "packages/session-management/src/a.ts");
-  for (const path of ["src/a.ts", "src/b.ts"]) {
-    const world = mark(circles, path).getWorldPosition(new Vector3());
-    assert.ok(new Vector3().copy(stops.get(codePathKey("session-management", path))!).distanceTo(world) < 1e-9, path);
-  }
-});
-
-test("3.18 a file circle the selected session opened is lit in its colour with the in-view ring, a compacted one lighter with none, and letting go restores it", () => {
-  const circles = circlesOf();
-  const [a, b] = [mark(circles, "src/a.ts"), mark(circles, "src/b.ts")];
-  const resting = [a.material, b.material];
-  lightFileCircles(circles, new Map([[codePathKey("story", "src/a.ts"), "in-window" as const], [codePathKey("story", "src/b.ts"), "faded" as const]]), "#e69f00", "story");
-  const [litA, litB] = [a.getObjectByName("file-lit:src/a.ts") as Mesh, b.getObjectByName("file-lit:src/b.ts") as Mesh];
-  assert.equal(colourOf(litA), "e69f00");
-  assert.ok(new Color(`#${colourOf(litB)}`).getHSL({ h: 0, s: 0, l: 0 }).l > new Color("#e69f00").getHSL({ h: 0, s: 0, l: 0 }).l, "lighter, as a compacted note is");
-  assert.ok((litB.material as MeshBasicMaterial).opacity < (litA.material as MeshBasicMaterial).opacity);
-  assert.equal(a.userData.window, "in-window");
-  assert.equal(b.userData.window, "faded");
-  assert.ok(a.getObjectByName("file-ring:src/a.ts"), "the in-view ring");
-  assert.equal(b.getObjectByName("file-ring:src/b.ts"), undefined, "a compacted read has no ring");
-  assert.deepEqual([a.material, b.material], resting, "the circles themselves are not swapped for anything, so nothing that dims or restores them can undo the lighting");
-  assert.equal(litA.userData.traversal, true, "and the lighting is marked, for the session emphasis to leave alone");
-  assert.deepEqual({ file: a.userData.file, lines: a.userData.lines }, { file: "src/a.ts", lines: 40 }, "pointing still names it");
-  lightFileCircles(circles, new Map(), "#e69f00", "story");
-  assert.equal(a.userData.window, undefined);
-  assert.deepEqual([a.getObjectByName("file-lit:src/a.ts"), a.getObjectByName("file-ring:src/a.ts"), b.getObjectByName("file-lit:src/b.ts")], [undefined, undefined, undefined]);
-});
 
 test("3.18 a capability the selected session opened fills its territory in the session's colour, faintly lighter when compacted, and letting go restores its tint", () => {
   const land = {
@@ -478,7 +402,7 @@ const programsEveryFrame = (root: Group): string[] => {
   return found;
 };
 
-test("5.4 an animating globe redraws a session-lit island's land, circles, tints and claim flags without re-deriving a shader program", () => {
+test("5.4 an animating globe redraws a session-lit island's land, tints and claim flags without re-deriving a shader program", () => {
   const land = {
     radius: 2,
     territories: [{ capability: "cap-a", status: "healthy" as const }, { capability: "cap-b" }],
@@ -495,9 +419,7 @@ test("5.4 an animating globe redraws a session-lit island's land, circles, tints
   marks.claims(new Map([["cap-a", { colour: "#e69f00", faded: false }]]), 0, { standing: false, reduced: false });
   marks.frame(0.7, { zoom: 20, eye: new Quaternion(), reduced: false });
   lightTerritories(drawn, new Map([["cap-a", "in-window" as const], ["cap-b", "faded" as const]]), "#e69f00");
-  const circles = circlesOf();
-  lightFileCircles(circles, new Map([[codePathKey("story", "src/a.ts"), "in-window" as const], [codePathKey("story", "src/b.ts"), "faded" as const]]), "#e69f00", "story");
-  plate.add(drawn, circles, marks.root);
-  assert.ok(plate.getObjectByName("territory-claim:cap-a") && plate.getObjectByName("claim-lot:cap-a") && plate.getObjectByName("file-ring:src/a.ts"), "the fixture draws every kind of mark");
+  plate.add(drawn, marks.root);
+  assert.ok(plate.getObjectByName("territory-claim:cap-a") && plate.getObjectByName("claim-lot:cap-a"), "the fixture draws every kind of mark");
   assert.deepEqual(programsEveryFrame(plate), []);
 });

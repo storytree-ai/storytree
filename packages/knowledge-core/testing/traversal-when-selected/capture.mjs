@@ -3,7 +3,7 @@
 // opens three notes and a surveyed file no other window opens. Two views: none selected, then one session's row clicked.
 // `node --import tsx build.mjs <checkout> before|after`, then `node --import tsx capture.mjs before|after` (append --retake to
 // replace the committed pictures; --smoke runs the page built as `smoke`, takes no pictures and skips the fixed rests, so a test
-// proves every wait below still resolves in a real browser). Counts, from the scene, every lit note, trail and file circle by colour, and every claimed
+// proves every wait below still resolves in a real browser). Counts, from the scene, every lit note, trail and lit file mark (none since ADR-1212) by colour, and every claimed
 // territory, so "no traversal with none selected" and "who holds what unchanged" are measured, not looked at.
 import assert from 'node:assert/strict';
 import { writeFileSync } from 'node:fs';
@@ -135,7 +135,7 @@ await runCapture({
       if (document.body.dataset.state !== 'ready' || !state || !window.__nav || !state.scene.getObjectByName('sheet:under')) return false;
       return ids.every(id => !!state.scene.getObjectByName(`planet:${id}`)?.getObjectByName('island-ground'));
     }, seed.tree.stories.map(s => s.id), 120_000);
-    await whileFramesCome(page, 'the claimed territories and file circles', () => { let outlines = 0, files = 0; window.__globe.scene.traverse(o => { if (o.name.startsWith('territory-claim:')) outlines++; if (o.name.startsWith('file:')) files++; }); return outlines > 0 && files > 0; }, undefined, 60_000);
+    await whileFramesCome(page, 'the claimed territories', () => { let outlines = 0, territories = 0; window.__globe.scene.traverse(o => { if (o.name.startsWith('territory-claim:')) outlines++; if (o.name.startsWith('territory:')) territories++; }); return outlines > 0 && territories > 0; }, undefined, 60_000);
     for (const button of ['Close help', 'Close app menu']) { const b = page.getByRole('button', { name: button, exact: true }); if (await b.isVisible().catch(() => false)) await b.click(); }
     await page.evaluate(() => { for (const menu of document.querySelectorAll('[popover]')) if (menu.matches(':popover-open')) menu.hidePopover(); });
   },

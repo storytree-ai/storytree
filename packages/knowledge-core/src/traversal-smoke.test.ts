@@ -29,7 +29,8 @@ test("4.7 · 4.16 · in a real browser, no session's traversal draws with none s
   assert.equal(summary.windowsAskedWithNoneSelected, 0);
   // The capture waited for the selected window's three notes in its colour; the replay then relights them, so their count here varies.
   const { windowNotes, ...oneSelected } = summary.oneSelected;
-  assert.deepEqual(oneSelected, { trails: 3, trailColours: 1, litNotes: 0, litFiles: 1, claimedTerritories: 5 });
+  // Its file read lies between two notes and has no stop on the land (ADR-1212 D3), so the chain runs note to note: two steps.
+  assert.deepEqual(oneSelected, { trails: 2, trailColours: 1, litNotes: 0, litFiles: 0, claimedTerritories: 5 });
 });
 
 // The window capture run the same way, for the rings it waits for on a selected session's held notes.

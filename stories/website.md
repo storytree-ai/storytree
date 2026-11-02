@@ -23,7 +23,7 @@ The agent-level choice is permitted by the planning increment under ADR-0798 D4.
 
 **Current representation.** The same-engine commitment follows the app's owner-directed
 ADR-0804. Flat story islands landed in PR #333, and the app's file circles on capability
-territories followed in PR #337. Public labels say “project map” and promise only what the
+territories followed in PR #337 (removed again under ADR-1212: each island now shows only its territories). Public labels say “project map” and promise only what the
 website's saved snapshot and shared renderer actually draw. “Software you can watch grow.”
 remains the headline.
 Until the scene and saved snapshot land, future-tense placeholder text lives inside the mount,

@@ -4,15 +4,14 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { Group, Quaternion, Vector3, type Camera, type Object3D } from "three";
 import { claimTints, replayWisps, selectionLanes, type ClaimTint, type FacingIsland, type ForestScene, type GlobeTurn, type Island, type SessionWisp } from "@storytree/forest";
 import type { Descriptor3D } from "@storytree/forest-world";
-import { islandNormal, onIslandSurface, Overlay, PlanetWorldCanvas, plateTransform, PLATE_CLEARANCE, SHEET_LAND_LIFT, SHEET_RADIUS, SHEET_TILT, sheetEyeZoom, UnderTheGlass, usePlanetGrowth, type PlanetGrowth, type SheetExtent } from "@storytree/forest-world/planet";
-import { codePathKey, type CodePlaces } from "@storytree/knowledge-core";
+import { islandNormal, onIslandSurface, Overlay, PlanetWorldCanvas, PLATE_CLEARANCE, SHEET_RADIUS, SHEET_TILT, sheetEyeZoom, UnderTheGlass, usePlanetGrowth, type PlanetGrowth, type SheetExtent } from "@storytree/forest-world/planet";
+import type { CodePlaces } from "@storytree/knowledge-core";
 import { KnowledgeGlobePoints, useCodeLighting, type CodeLighting, type CoreUnderSheet, type KnowledgeCore } from "@storytree/knowledge-core/view";
 import { SessionIslandEmphasis } from "./session-emphasis.js";
-import { circleStops, fileCircleMarks, lightFileCircles } from "./file-circles.js";
 import { lightTerritories, territoryLand } from "./territory-land.js";
 import { laneWays } from "./border-route.js";
 import { ClaimMarks } from "./claim-flag.js";
-import { fileCircles, islandTerritories } from "../territories/territories.js";
+import { islandTerritories } from "../territories/territories.js";
 import { NameplateCrowd, Nameplates, reducedMotion, SelectionRing } from "./island-overlays.js";
 import { focusRotation, globeHover, isGlobeDrag, markerSpot, movingSpots, MOVE_SECONDS, oncePerFrame, pickGlobe, type ForestMode } from "./planet-navigation.js";
 import { claimsOn } from "./planet-update.js";
@@ -40,7 +39,7 @@ export type PlanetViewProps = {
   /** A host that changes `places` or `frame` (one layout for the plan as it was, one for the plan as it is) has its islands
    * ease across from one to the other, once (3.28); without it, or with reduced motion, they jump. */
   easeMoves?: boolean | undefined;
-  /** A recorded growth to replay (world 7): islands rise, their territories and file circles fill in behind them (3.30), and the core's notes appear. */
+  /** A recorded growth to replay (world 7): islands rise, their territories fill in behind them (3.30), and the core's notes appear. */
   growth?: PlanetGrowth | undefined;
   /** The live desktop grows arriving ordinary roads, separately from recorded replay. */
   liveRoads?: boolean | undefined;
@@ -98,23 +97,9 @@ export function PlanetView({ core, scene, places, wisps: live, selected, highlig
   const wisps = growth !== undefined && recordedSessions !== undefined ? replayed ?? [] : live;
   // ADR-0968, ADR-0923: a running session plants a flag on each territory it claimed, and nothing else; no wisps, no coast tint.
   const claimed = useMemo(() => claimTints(wisps), [wisps]);
-  // Each island reports where its file circles lie once it has drawn them (only the drawing knows its coast); the core's traversal hops between them (ADR-0804 D5).
-  const [stopsByStory, setStops] = useState<ReadonlyMap<string, ReadonlyMap<string, { x: number; y: number; z: number }>>>(new Map());
-  const reportStops = useCallback((story: string, stops: ReadonlyMap<string, { x: number; y: number; z: number }> | undefined) => setStops(before => {
-    const next = new Map(before);
-    if (stops === undefined) next.delete(story);
-    else next.set(story, stops);
-    return next;
-  }), []);
-  const code = useKept(useMemo(() => ({
-    imports: scene.islands.flatMap(({ land }) => land?.package === undefined ? [] : (land.imports ?? []).map(({ from, to }) => ({ from: codePathKey(land.package!, from), to: codePathKey(land.package!, to) }))),
-    capabilities: scene.islands.flatMap(({ land }) => land === undefined ? [] : land.territories.flatMap(({ capability }) => capability === undefined ? [] : [capability])),
-  }), [scene]), JSON.stringify);
-  const codePlaces = useMemo((): CodePlaces => ({
-    files: new Map([...stopsByStory.values()].flatMap(stops => [...stops])),
-    imports: code.imports,
-    capabilities: new Set(code.capabilities),
-  }), [stopsByStory, code]);
+  // ADR-1212 D3: no file is drawn on the land, so the core's traversal has no stops there; a capability a session opened still lights its territory.
+  const capabilities = useKept(useMemo(() => scene.islands.flatMap(({ land }) => land === undefined ? [] : land.territories.flatMap(({ capability }) => capability === undefined ? [] : [capability])), [scene]), JSON.stringify);
+  const codePlaces = useMemo((): CodePlaces => ({ files: new Map(), imports: [], capabilities: new Set(capabilities) }), [capabilities]);
   const lighting = useCodeLighting(core, codePlaces);
   // Contract 3.26: the selected story's links to other stories light as lanes, on both the sheet's faces (ADR-1043 D3).
   const lanes = useKept(useMemo(() => selectionLanes(scene, selected), [scene, selected]), JSON.stringify);
@@ -128,14 +113,14 @@ export function PlanetView({ core, scene, places, wisps: live, selected, highlig
     const local = { ...island, x: 0, z: 0 };
     const emphasis = shownSurfaces.sessionTints && highlighted?.length ? (highlighted.includes(island.story) ? "held" : "dimmed") : undefined;
     return <>
-      {island.land !== undefined && layout.spots.has(island.story) && <Territories story={island.story} land={island.land} coast={coast} claimed={claimed} radius={layout.radius}
-        spot={layout.spots.get(island.story)!} lighting={lighting} surfaces={shownSurfaces} onStops={reportStops} />}
+      {island.land !== undefined && layout.spots.has(island.story) && <Territories land={island.land} coast={coast} claimed={claimed} radius={layout.radius}
+        lighting={lighting} surfaces={shownSurfaces} />}
       <SessionIslandEmphasis emphasis={emphasis} />
       {emphasis === "held" && <SelectionRing island={local} descriptors={descriptors} onGlobe emphasis />}
       {shownSurfaces.nameplates && <Nameplates island={island} spot={layout.spots.get(island.story)!} coast={coast} radius={layout.radius} selected={selected} dimmed={emphasis === "dimmed"} claimed={claimed} />}
       <SelectionRing island={island.story === selected ? local : undefined} descriptors={descriptors} onGlobe />
     </>;
-  }, [wisps, claimed, selected, highlighted, layout.spots, layout.radius, lighting, reportStops, shownSurfaces]);
+  }, [wisps, claimed, selected, highlighted, layout.spots, layout.radius, lighting, shownSurfaces]);
   const titles = useMemo(() => new Map(scene.islands.map(i => [i.story, i.title])), [scene]);
   const inside = useMemo(() => library && <UnderTheGlass clear={outlines}><GrowingCore core={core} spots={layout.spots} radius={layout.radius} places={codePlaces} sheet={underSheet} growing={growth !== undefined} /></UnderTheGlass>,
     [library, outlines, core, layout.spots, layout.radius, codePlaces, underSheet, growth]);
@@ -146,7 +131,7 @@ export function PlanetView({ core, scene, places, wisps: live, selected, highlig
     <Navigation islands={layout.islands} radius={layout.radius} titles={titles}
       rotation={turned.current.rotation} onRotate={onRotate} onPose={setPose} onControls={onControls} onPick={onPick} onNote={onNote} mode={mode} sheet={layout.extent}
       sideOffset={sideOffset ?? 0} aside={aside}
-      showFailures={shownSurfaces.grounds || shownSurfaces.territories !== false || shownSurfaces.fileCircles || shownSurfaces.nameplates || shownSurfaces.roads} />
+      showFailures={shownSurfaces.grounds || shownSurfaces.territories !== false || shownSurfaces.nameplates || shownSurfaces.roads} />
     <NameplateCrowd selected={selected} />
     <CompiledAtLoad />
     {growth !== undefined && recordedSessions !== undefined && <ReplaySessions recorded={recordedSessions} onWisps={setReplayed} />}
@@ -222,16 +207,13 @@ const TERRITORY_LIFT = 0.05;
  * all in the plate's own units. It says where the circles lie on the sheet (3.18), and lights the territories
  * and circles the selected session's window opened.
  */
-function Territories({ story, land: given, coast: givenCoast, claimed, radius, spot, lighting, surfaces, onStops }: {
-  story: string;
+function Territories({ land: given, coast: givenCoast, claimed, radius, lighting, surfaces }: {
   land: NonNullable<Island["land"]>;
   coast: readonly (readonly { x: number; z: number }[])[];
   claimed: ReadonlyMap<string, ClaimTint>;
   radius: number;
-  spot: { x: number; y: number; z: number };
   lighting: CodeLighting;
   surfaces: GlobeSurfaces;
-  onStops: (story: string, stops: ReadonlyMap<string, { x: number; y: number; z: number }> | undefined) => void;
 }) {
   const { invalidate, clock, camera, size } = useThree();
   // 3.72: an update that redraws the island for anything else (its name, its trees) hands it new land and coast that read
@@ -242,10 +224,7 @@ function Territories({ story, land: given, coast: givenCoast, claimed, radius, s
   const drawn = useMemo(() => {
     const map = islandTerritories(land.territories, coast);
     const group = territoryLand(map, onIslandSurface(radius, TERRITORY_LIFT), coast, tints);
-    const circles = fileCircleMarks(fileCircles(map, land.files), onIslandSurface(radius), islandNormal(radius));
-    const root = new Group();
-    root.add(group, circles);
-    return { root, group, circles, map };
+    return { group, map };
   }, [land, coast, tints, radius]);
   // ADR-0968: each claim's flag, and on an island with no code its lot, kept across claim changes so each plays its life.
   const marks = useMemo(() => new ClaimMarks(), []);
@@ -266,41 +245,32 @@ function Territories({ story, land: given, coast: givenCoast, claimed, radius, s
     // A flag keeps its size at the zoom the perspective eye shows (ADR-1062 D1).
     if (marks.frame(clock.getElapsedTime(), { zoom: sheetEyeZoom(camera, size), eye: camera.quaternion, reduced: reducedMotion() })) invalidate();
   });
-  useEffect(() => {
-    if (land.package === undefined) return;
-    // Each island's plate is raised by its thickness (ADR-1059 D2).
-    const { position, quaternion } = plateTransform(spot, radius, SHEET_LAND_LIFT);
-    onStops(story, circleStops(drawn.circles, land.package, { position: new Vector3(...position), quaternion }));
-    return () => onStops(story, undefined);
-  }, [drawn, land.package, story, spot.x, spot.y, spot.z, radius, onStops]);
   // 3.30: on a growing map the land fills in behind its island; once whole it is left alone until the growth or the land changes.
   const growth = usePlanetGrowth();
   const whole = useRef(false);
-  const grow = useCallback(() => growLand(drawn.group, drawn.circles, { capability: id => growth.capability(id), file: path => growth.file(story, path) }), [drawn, growth, story]);
+  const grow = useCallback(() => growLand(drawn.group, { capability: id => growth.capability(id) }), [drawn, growth]);
   // 3.46: what this island already drew stays drawn across a rebuild; new borders trace on and new fills ease in.
   const drawOn = useMemo(() => new TerritoryDrawOn(), []);
   const opened = useRef(true);
   // Before the land is first drawn, so a rebuilt island never shows a frame in the wrong colours.
   useLayoutEffect(() => {
-    lightFileCircles(drawn.circles, surfaces.sessionTints ? lighting.files : new Map(), lighting.colour, land.package ?? "");
     lightTerritories(drawn.group, surfaces.sessionTints ? lighting.capabilities : new Map(), lighting.colour);
     drawOn.take(drawn.group, surfaces.territories, clock.getElapsedTime(), { standing: opened.current && clock.getElapsedTime() < 1, reduced: reducedMotion() });
     opened.current = false;
-    drawn.circles.visible = surfaces.fileCircles;
     marks.root.visible = surfaces.sessionTints;
     whole.current = grow();
     invalidate();
-  }, [drawn, marks, drawOn, lighting, land.package, surfaces, clock, grow, invalidate]);
+  }, [drawn, marks, drawOn, lighting, surfaces, clock, grow, invalidate]);
   useFrame(() => {
     if (drawOn.frame(clock.getElapsedTime(), reducedMotion())) invalidate();
     if (!whole.current) whole.current = grow();
   });
-  useEffect(() => () => drawn.root.traverse((object) => {
+  useEffect(() => () => drawn.group.traverse((object) => {
     const mark = object as { geometry?: { dispose(): void }; material?: { dispose(): void } };
     mark.geometry?.dispose();
     mark.material?.dispose();
   }), [drawn]);
-  return <><primitive object={drawn.root} /><primitive object={marks.root} /></>;
+  return <><primitive object={drawn.group} /><primitive object={marks.root} /></>;
 }
 
 /** A failing island's marker at the window's edge, in CSS pixels, with the turn that brings it into view (3.11). */

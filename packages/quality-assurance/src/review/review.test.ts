@@ -1088,6 +1088,7 @@ test("2.14 · a test whose title holds an escape is listed by the title the runn
       'test("1.1 · edit --capabilities \\"\\" clears it", () => {});',
       "test('1.2 · it\\'s a \\\\ slash and \\u00b7 a dot', () => {});",
       "test(`1.3 · a \\`tick\\``, () => {});",
+      'test("1.4 · \\x41, \\u{b7}, a \\t tab and a \\n line", () => {});',
       "",
     ];
     mkdirSync(join(dir, "packages/library/src"), { recursive: true });
@@ -1097,12 +1098,14 @@ test("2.14 · a test whose title holds an escape is listed by the title the runn
       { head: "abc", file, test: '1.1 · edit --capabilities "" clears it' },
       { head: "abc", file, test: "1.2 · it's a \\ slash and · a dot" },
       { head: "abc", file, test: "1.3 · a `tick`" },
+      { head: "abc", file, test: "1.4 · A, ·, a \t tab and a \n line" },
     ].map((row) => JSON.stringify(row)).join("\n") + "\n");
     const diff = [`diff --git a/${file} b/${file}`, "--- /dev/null", `+++ b/${file}`, `@@ -0,0 +1,${lines.length - 1} @@`, ...lines.slice(0, -1).map((line) => `+${line}`)].join("\n");
     assert.deepEqual(redsOf(diff, dir).map(({ line, test, red }) => ({ line, test, red })), [
       { line: 2, test: '1.1 · edit --capabilities "" clears it', red: true },
       { line: 3, test: "1.2 · it's a \\ slash and · a dot", red: true },
       { line: 4, test: "1.3 · a `tick`", red: true },
+      { line: 5, test: "1.4 · A, ·, a \t tab and a \n line", red: true },
     ]);
   } finally {
     await removeTemp(dir);

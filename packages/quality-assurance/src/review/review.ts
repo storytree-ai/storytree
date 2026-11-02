@@ -857,12 +857,10 @@ function titlesIn(text: string): { line: number; test: string; body: string }[] 
     .map(({ at, end, value }) => ({ line: text.slice(0, at).split("\n").length, test: cooked(value), body: text.slice(end, closeOf(code, end)).replace(/\s+/g, " ").trim() }));
 }
 
-/** A string literal's source text with its escapes cooked, as the runner names the test it titles (contract 2.14). */
+/** A string literal's source text with its escapes cooked, as the runner names the test it titles (contract 2.14); INERT ends a literal at a line break, so no line continuation reaches here. */
 function cooked(value: string): string {
-  return value.replace(/\\(u\{[0-9a-fA-F]+\}|u[0-9a-fA-F]{4}|x[0-9a-fA-F]{2}|\r\n|[\s\S])/g, (_, escape: string) => {
-    if (/^[ux]/.test(escape) && escape.length > 1) return String.fromCodePoint(parseInt(escape.replace(/^[ux]\{?|\}$/g, ""), 16));
-    return COOKED[escape] ?? (/^(?:\r\n|[\r\n\u2028\u2029])$/.test(escape) ? "" : escape);
-  });
+  return value.replace(/\\(u\{[0-9a-fA-F]+\}|u[0-9a-fA-F]{4}|x[0-9a-fA-F]{2}|.)/g, (_, escape: string) =>
+    escape.length > 1 ? String.fromCodePoint(parseInt(escape.replace(/^[ux]\{?|\}$/g, ""), 16)) : COOKED[escape] ?? escape);
 }
 
 const COOKED: Record<string, string> = { n: "\n", t: "\t", r: "\r", b: "\b", f: "\f", v: "\v", 0: "\0" };

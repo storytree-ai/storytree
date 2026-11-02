@@ -317,6 +317,39 @@ test("4.27 `arc waits --audit` lists the owner actions that need attention, olde
   });
 });
 
+test("4.29 `arc increment unwait --for event --merged <pr>` clears the event wait and marks the owner wait with that merged pull request, which `arc waits --audit` then lists as merged since it was last read, until the owner wait is written again", async () => {
+  await inWorld(command, async (world) => {
+    const library = await world.library();
+    const increment = (await library.addIncrement({ arc: await anArc(world), title: "Ship in two pull requests", objective: "Both halves land", body: "…" })).id;
+    for (const words of [
+      ["--for", "owner", "--note", "Turn the setting on", "--why", "the second pull request needs it", "--rank", "1"],
+      ["--for", "event", "--note", "PR #173 lands", "--check-back", "2099-01-01"],
+    ]) {
+      const ran = await world.run(["arc", "increment", "wait", increment, ...words]);
+      assert.equal(ran.code, 0, ran.stderr);
+    }
+    const refused = await world.run(["arc", "increment", "unwait", increment, "--for", "event", "--merged", "PR 173"]);
+    assert.equal(refused.code, 2, refused.stdout);
+    assert.match(refused.stderr, /--merged is a pull request number/);
+    const unpaired = await world.run(["arc", "increment", "unwait", increment, "--for", "owner", "--merged", "173"]);
+    assert.equal(unpaired.code, 2, unpaired.stdout);
+    assert.match(unpaired.stderr, /--merged goes with --for event/);
+    assert.equal((await library.waitsFor(increment)).length, 2, "a refused unwait clears nothing");
+    const cleared = await world.run(["arc", "increment", "unwait", increment, "--for", "event", "--merged", "173"]);
+    assert.equal(cleared.code, 0, cleared.stderr);
+    assert.deepEqual((await library.waitsFor(increment)).map(({ releaser, merged }) => ({ releaser, merged })), [{ releaser: "owner", merged: 173 }]);
+
+    const audit = await world.run(["arc", "waits", "--audit"]);
+    assert.equal(audit.code, 0, audit.stderr);
+    assert.match(audit.stdout, new RegExp(`${increment}  Ship in two pull requests, on .*: PR #173, which it was handed over with, has merged since it was last read`));
+
+    const reread = await world.run(["arc", "increment", "wait", increment, "--for", "owner"]);
+    assert.equal(reread.code, 0, reread.stderr);
+    const after = await world.run(["arc", "waits", "--audit"]);
+    assert.doesNotMatch(after.stdout, new RegExp(increment), "read again, it no longer needs attention");
+  });
+});
+
 /** Today, as the library dates a check-back: YYYY-MM-DD in UTC. */
 function today(): string {
   return new Date().toISOString().slice(0, 10);

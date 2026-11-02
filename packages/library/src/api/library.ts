@@ -154,9 +154,11 @@ export interface Library
   retire(id: string, reason: string, options?: WriteOptions): Promise<void>;
   /**
    * The changes after `cursor`, oldest first, and the cursor to pass next time. Start from 0; pass
-   * back each cursor handed out and no change is ever missed or seen twice.
+   * back each cursor handed out and no change is ever missed or seen twice. `types` and `actions`
+   * keep only the changes of those record types and actions, read on the server, and the cursor is
+   * then the last kept change's (a seed export that keeps only the stories' creations reads only those).
    */
-  changesSince(cursor: number): Promise<Changes>;
+  changesSince(cursor: number, filter?: ChangesFilter): Promise<Changes>;
   /**
    * Keep a note sent from the desktop app's feedback corner as a new `feedback` record, its status new, with
    * `screenshot`, a JPEG of the window, and `crop`, one cut to the element it points at, kept beside it rather than in
@@ -257,6 +259,12 @@ export interface Change {
   action: HistoryEntry["action"];
   /** The record as the change left it; for `retired`, its last state. */
   record: RecordEnvelope;
+}
+
+/** Which changes changesSince hands out: each list keeps only its own, none for an empty one. */
+export interface ChangesFilter {
+  readonly types?: readonly string[];
+  readonly actions?: readonly HistoryEntry["action"][];
 }
 
 /** What changesSince returns. */
@@ -380,14 +388,14 @@ function libraryOf(project: Project): Library {
      * history's seq order is the order its changes committed (capability 2), so a reader passing
      * back each cursor it is handed never misses a change or sees one twice.
      */
-    async changesSince(cursor) {
+    async changesSince(cursor, { types, actions } = {}) {
       if (!Number.isSafeInteger(cursor) || cursor < 0) {
         throw new RangeError(
           `changesSince takes a cursor: 0 to read from the start, or a cursor an earlier call handed back ` +
             `(a whole number, 0 or more), not ${typeof cursor === "string" ? JSON.stringify(cursor) : String(cursor)}`,
         );
       }
-      const entries = await project.records.history({ since: cursor });
+      const entries = await project.records.history({ since: cursor, ...(types === undefined ? {} : { types }), ...(actions === undefined ? {} : { actions }) });
       return {
         changes: entries.map(({ seq, recordId, type, action, record }) => ({ seq, recordId, type, action, record })),
         cursor: entries.at(-1)?.seq ?? cursor,

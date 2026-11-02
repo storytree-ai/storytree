@@ -554,9 +554,9 @@ export class WorkInFlight {
     return this.#serially(() => waits.addWaitFor(this.#records, id, wait, options));
   }
 
-  /** Stop an increment waiting for `releaser` (11.6). Null if `id` is not a live increment. */
-  removeWaitFor(id: string, releaser: WaitFor["releaser"], options?: WriteOptions): Promise<SchemaRecord<"increment"> | null> {
-    return this.#serially(() => waits.removeWaitFor(this.#records, id, releaser, options));
+  /** Stop an increment waiting for `releaser` (11.6), stamping `cleared.merged` on its owner wait (11.11). Null if `id` is not a live increment. */
+  removeWaitFor(id: string, releaser: WaitFor["releaser"], options?: WriteOptions, cleared?: { readonly merged?: number }): Promise<SchemaRecord<"increment"> | null> {
+    return this.#serially(() => waits.removeWaitFor(this.#records, id, releaser, options, cleared));
   }
 
   /**

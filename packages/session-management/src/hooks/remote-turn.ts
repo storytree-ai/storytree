@@ -8,17 +8,21 @@
  * rather than one per hook, each cut off at its deadline with the backlog it was uploading.
  *
  * The turn is a file under the storytree home naming its holder's process: taken when absent, or when the process it
- * names has gone; let go when the holder is done, or when its process exits, the deadline's exit included. Two hooks that
+ * names has gone; let go when the holder is done, or when its process exits, the deadline's exit included. A file that
+ * names no process yet is its new holder's, created and not yet written, unless it has stayed so for seconds. Two hooks that
  * find the same gone holder at once may both take it; that costs one run two connections, not a lost line, so it is
  * left so. Lines queued while the holder writes wait for the next hook, which takes the turn and uploads them first.
  */
-import { readFileSync, rmSync, writeFileSync } from "node:fs";
+import { readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
 import { readLibrary } from "@storytree/project-and-caller";
 
 /** The turn's file, under the storytree home. */
 export const TURN_FILE = "remote-turn";
+
+/** How long a turn file may name no process before it is taken as left behind: its new holder writes its pid at once. */
+const UNWRITTEN_GRACE_MS = 5000;
 
 /** Whether `address`, a library's, is reached over HTTPS as a wss:// address. */
 export function remoteAddress(address: string | undefined): boolean {
@@ -47,7 +51,7 @@ function alive(pid: number): boolean {
 
 /**
  * Take the machine's turn to reach a wss:// library, for this process: how to let it go, or undefined while another
- * live process holds it. A turn whose holder has gone, or whose file cannot be read as a process, is taken.
+ * live process holds it. A turn whose holder has gone is taken, and so is one whose file has named no process for seconds.
  */
 export function takeTurn(home: string): (() => void) | undefined {
   const file = path.join(home, TURN_FILE);
@@ -60,8 +64,10 @@ export function takeTurn(home: string): (() => void) | undefined {
       let holder = Number.NaN;
       try {
         holder = Number(readFileSync(file, "utf8").trim());
+        // Naming no process yet: its new holder's, unless it has stayed so past the grace.
+        if (!(Number.isInteger(holder) && holder > 0) && Date.now() - statSync(file).mtimeMs <= UNWRITTEN_GRACE_MS) return undefined;
       } catch {
-        // Let go between the two reads: try again.
+        // Let go between the reads: try again.
       }
       if (Number.isInteger(holder) && holder > 0 && holder !== process.pid && alive(holder)) return undefined;
       rmSync(file, { force: true });

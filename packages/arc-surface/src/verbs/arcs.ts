@@ -290,7 +290,7 @@ const incrementUnwait = verb({
     family: "arc increment",
     name: "unwait",
     summary: "clear a wait; clearing one for you to finish the increment yourself, --claim claims it first, so the pool never starts it in between",
-    usage: "arc increment unwait <increment> --on <increment>, or --for owner|event, or --for owner --claim <reason>",
+    usage: "arc increment unwait <increment> --on <increment>, or --for owner|event, or --for event --merged <pr>, or --for owner --claim <reason>",
   },
   tool: { absent: NO_TOOL },
   inputs: {
@@ -298,10 +298,13 @@ const incrementUnwait = verb({
     on: { kind: "text", optional: true, describe: "the increment it waits on" },
     for: { kind: "text", optional: true, describe: "owner or event" },
     claim: { kind: "text", optional: true, describe: "with --for owner, when this session finishes it: the claim's reason, taken before the wait clears" },
+    merged: { kind: "text", optional: true, describe: "with --for event: the pull request it was handed over with, which has merged; its wait for you is then listed for reading again" },
   },
   writes: true,
-  async act({ increment: id, on, for: waitingFor, claim }, context: ArcVerbContext) {
+  async act({ increment: id, on, for: waitingFor, claim, merged }, context: ArcVerbContext) {
     const releaser = releaserOf(on, waitingFor);
+    if (merged !== undefined && releaser !== "event") throw new VerbRefusal("--merged goes with --for event", { misuse: true });
+    if (merged !== undefined && !/^[1-9]\d*$/.test(merged)) throw new VerbRefusal(`--merged is a pull request number; not "${merged}"`, { misuse: true });
     if (claim !== undefined) {
       if (releaser !== "owner") throw new VerbRefusal("--claim goes with --for owner", { misuse: true });
       if (context.session.startsWith("person:")) throw new VerbRefusal("Run it from the agent's shell: a claim belongs to the agent session that will finish the work.");
@@ -313,7 +316,8 @@ const incrementUnwait = verb({
       return { text: `${id} no longer waits for the owner, and ${context.session} holds it: ${claim}.` };
     }
     if (releaser !== undefined) {
-      const done = await context.library.removeWaitFor(id, releaser, context.writer);
+      // A merged pull request is marked on the wait for the owner in the same write, so the audit asks for it to be read again (11.11).
+      const done = await context.library.removeWaitFor(id, releaser, context.writer, merged === undefined ? undefined : { merged: Number(merged) });
       if (done === null) throw new VerbRefusal(`no increment "${id}" in this project`);
       // Nobody holds it now, so the pool may start a lane on it (5.57).
       const ready = releaser === "owner" ? " Nobody holds it, so the pool may start it now: to finish it yourself, clear it with --claim <reason> instead." : "";
@@ -784,7 +788,8 @@ const waits = verb({
 /**
  * The owner's actions that need attention (11.10): every open increment's wait for him, on any arc, with each reason it does:
  * its note says "not yet" while nothing holds it, or names an increment that has closed; it has no why, or no rank; its arc
- * is parked or closed; or it has not been read again in REVIEW_DAYS days. Oldest read first, the never-read before them.
+ * is parked or closed; a pull request it was handed over with has merged since it was last read (11.11); or it has not been
+ * read again in REVIEW_DAYS days. Oldest read first, the never-read before them.
  */
 function auditOf(views: readonly ArcView[], holds: Holds, at: Date): { text: string; next?: { command: string; why: string }[] } {
   const closed = new Set(views.flatMap(({ increments }) => increments.flatMap((one) => (one.fields.status === "closed" ? [one.id] : []))));
@@ -800,6 +805,7 @@ function auditOf(views: readonly ArcView[], holds: Holds, at: Date): { text: str
         ...(wait.why === undefined ? ["it has no why"] : []),
         ...(wait.rank === undefined ? ["it has no rank"] : []),
         ...(view.state === "parked" || view.state === "closed" ? [`its arc is ${view.state}`] : []),
+        ...(wait.merged === undefined ? [] : [`PR #${wait.merged}, which it was handed over with, has merged since it was last read`]),
         ...(wait.reviewed === undefined ? ["it has never been read again"] : wait.reviewed < due ? [`it was last read again on ${wait.reviewed}`] : []),
       ];
       return { wait, increment, arc: view.arc, reasons };

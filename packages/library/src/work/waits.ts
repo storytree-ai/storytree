@@ -31,7 +31,7 @@ export type WaitFor = NonNullable<FieldsOf<"increment">["waitsFor"]>[number];
  * A wait for the owner or an event as a writer gives it (11.10): the review day is the library's to
  * stamp, and re-writing an owner wait may leave out its note, why or rank to keep the stored ones.
  */
-export type WaitWrite = Omit<WaitFor, "note" | "reviewed"> & { readonly note?: string };
+export type WaitWrite = Omit<WaitFor, "note" | "reviewed" | "merged"> & { readonly note?: string };
 
 /**
  * A wait for the owner or an outside event as read at one moment (11.6): an owner wait holds until
@@ -46,6 +46,8 @@ export interface NoteWait {
   readonly why?: string;
   readonly rank?: number;
   readonly reviewed?: string;
+  /** An owner wait's: the pull request, handed over with its increment, that merged since it was last read again (11.11). */
+  readonly merged?: number;
   readonly holds: boolean;
 }
 
@@ -190,11 +192,17 @@ export function checkedWaitFor({ releaser, note, checkBack, why, rank }: WaitWri
   return { releaser, note, why, ...(rank === undefined ? {} : { rank }), reviewed: today };
 }
 
-/** Stop an increment waiting for `releaser`. Null, with nothing written, if `id` is not a live increment. */
-export async function removeWaitFor(records: SchemaRecords, id: string, releaser: WaitFor["releaser"], options?: WriteOptions): Promise<SchemaRecord<"increment"> | null> {
+/**
+ * Stop an increment waiting for `releaser`. Given `merged`, the pull request it was handed over with that has merged,
+ * its owner wait, if it has one, carries that pull request from the same write, so the audit asks for it to be read
+ * again; writing the owner wait again drops it (11.11). Null, with nothing written, if `id` is not a live increment.
+ */
+export async function removeWaitFor(records: SchemaRecords, id: string, releaser: WaitFor["releaser"], options?: WriteOptions, { merged }: { readonly merged?: number } = {}): Promise<SchemaRecord<"increment"> | null> {
   const increment = await liveRecord(records, id, ["increment"]);
   if (increment === null) return null;
-  const waitsFor = (increment.fields.waitsFor ?? []).filter((one) => one.releaser !== releaser);
+  const waitsFor = (increment.fields.waitsFor ?? [])
+    .filter((one) => one.releaser !== releaser)
+    .map((one) => (merged !== undefined && one.releaser === "owner" ? { ...one, merged } : one));
   return (await records.edit(id, { waitsFor: waitsFor.length === 0 ? undefined : waitsFor }, options)) as SchemaRecord<"increment"> | null;
 }
 
@@ -209,13 +217,14 @@ export async function waitsFor(records: SchemaRecords, id: string, at: Date): Pr
 
 /** Each wait for the owner or an event, read at `at`: an event's no longer holds from UTC midnight of its check-back day (11.6). */
 export function noteWaits(waitsFor: readonly WaitFor[] | undefined, at: Date): NoteWait[] {
-  return (waitsFor ?? []).map(({ releaser, note, checkBack, why, rank, reviewed }) => ({
+  return (waitsFor ?? []).map(({ releaser, note, checkBack, why, rank, reviewed, merged }) => ({
     releaser,
     note,
     ...(checkBack === undefined ? {} : { checkBack }),
     ...(why === undefined ? {} : { why }),
     ...(rank === undefined ? {} : { rank }),
     ...(reviewed === undefined ? {} : { reviewed }),
+    ...(merged === undefined ? {} : { merged }),
     holds: checkBack === undefined || at.getTime() < Date.parse(`${checkBack}T00:00:00Z`),
   }));
 }

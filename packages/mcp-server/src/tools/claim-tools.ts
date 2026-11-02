@@ -10,16 +10,19 @@ import type { Library } from "@storytree/library";
 import { storyTests, testedNumbers as testedNumbersIn, untestedContracts as untestedIn } from "@storytree/map/code-survey";
 
 import { refusalOf } from "./answers.js";
-import type { Call, ClaimCheck, Landing, ToolExtension } from "./server.js";
+import type { Call, ClaimCheck, Landing, ToolExtension, ToolHost } from "./server.js";
 
-/** The claim checks a landing runs, and the next steps `extensions` suggest after it, read when a capability lands. */
-export function landingOf(checks: () => readonly ClaimCheck[], extensions: () => readonly ToolExtension[]): Landing {
+/**
+ * The claim checks a landing runs, and the next steps `extensions` suggest after it, read when a capability lands;
+ * `imports` gives the folders this machine imports a project from, where a mapped story's tests are read.
+ */
+export function landingOf(checks: () => readonly ClaimCheck[], extensions: () => readonly ToolExtension[], imports: ToolHost["imports"]): Landing {
   return {
     async unplaced(capability, { library, folder }) {
       const problems = await Promise.all(checks().map((check) => check.landing(capability, { library, folder })));
       return problems.flat();
     },
-    untested: untestedContracts,
+    untested: (capability, call) => untestedContracts(capability, call, imports),
     async next(capability, call) {
       const next: string[] = [];
       for (const extension of extensions()) {
@@ -40,12 +43,13 @@ export function landingOf(checks: () => readonly ClaimCheck[], extensions: () =>
  * The titles of `capability`'s planned contracts that no numbered test in its story's package names, in the
  * checkout the session works in, read with the map's survey as CI health reads proofs, and whether that package was
  * seen there at all (unseen, every planned contract is named, none proven missing); none for a capability the plan
- * lacks. A title prefixed with another package proves that package's contracts, not these.
+ * lacks. A title prefixed with another package proves that package's contracts, not these. A mapped story's tests are
+ * read where it was imported from: the checkout itself, or a folder this machine imports.
  */
-async function untestedContracts(capability: string, { folder, library }: Call): Promise<{ titles: string[]; seen: boolean }> {
+async function untestedContracts(capability: string, { folder, library, storytree, project }: Call, imports: ToolHost["imports"]): Promise<{ titles: string[]; seen: boolean }> {
   const tree = await library.projectTree();
   // The survey reads the checkout `folder` is in, from its top.
-  const { numbers, seen } = await storyTests(folder, tree, capability);
+  const { numbers, seen } = await storyTests(folder, tree, capability, { imports: await imports(storytree, project) });
   return { titles: untestedIn(tree, capability, numbers), seen };
 }
 

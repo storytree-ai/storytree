@@ -36,7 +36,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { Worker } from "node:worker_threads";
 import { gitText, manifestFrom, noMergedMain, SKIPPED, surveySourceReader, type SurveySource } from "./survey-source.js";
-import { mappedSurveyReader, type ImportedFolder } from "./mapped-survey.js";
+import { mappedCode, mappedSurveyReader, type ImportedFolder, type MappedStory } from "./mapped-survey.js";
 import { pytestTestedNumbers } from "./python-tests.js";
 
 import type { AnnotatedTree, StorySurvey } from "@storytree/library";
@@ -157,6 +157,16 @@ function realOf(file: string): string {
   }
 }
 
+/** The folder a mapped story imported from `from` is read in: the top of `root`'s checkout when `from` is that top or its remote's address, else the folder of `imports` keyed by it. */
+async function importFolder(root: string, from: string, imports: readonly ImportedFolder[]): Promise<string | undefined> {
+  const top = await checkoutTop(root);
+  if (path.resolve(top) === path.resolve(from)) return top;
+  const remotes = (await gitText(top, ["remote"]).catch(() => "")).split("\n").filter(Boolean);
+  const name = remotes.includes("origin") ? "origin" : remotes[0];
+  if (name !== undefined && (await gitText(top, ["remote", "get-url", name]).catch(() => undefined)) === from) return top;
+  return imports.find(({ folder, repository }) => repository === from || folder === from)?.folder;
+}
+
 /** The top of the checkout `folder` is in, or `folder` itself when it is in none. */
 async function checkoutTop(folder: string): Promise<string> {
   return gitText(folder, ["rev-parse", "--show-toplevel"]).catch(() => folder);
@@ -173,16 +183,27 @@ export async function testedNumbers(root: string, tree: AnnotatedTree, capabilit
 
 /**
  * {@link testedNumbers}'s numbers, and whether the survey saw `capability`'s story's tests at all: unseen when the
- * checkout holds no package of the story's (a hand-planned story with no code here, a mapped story, whose import this
- * reading never passes) and no pytest test carries a number of its, so an empty list is no evidence that a test is missing.
+ * checkout holds no package of the story's (a hand-planned story with no code here) and no pytest test carries a number
+ * of its, so an empty list is no evidence that a test is missing. A mapped story's tests are read where it was imported
+ * from (8.44): `root`'s checkout when that is its import, by the checkout's top or its remote, else the folder of
+ * `imports` (this machine's) that is; with neither, it is unseen.
  */
 export async function storyTests(root: string, tree: AnnotatedTree, capability: string, {
   alsoOwned = ALSO_OWNED,
   survey = (plan: AnnotatedTree) => codeSurveyReader({ checkout: "current", alsoOwned }).read(root, plan),
-}: { alsoOwned?: AlsoOwned; survey?(tree: AnnotatedTree): Promise<ProjectSurvey> } = {}): Promise<{ numbers: string[]; seen: boolean }> {
+  imports = [],
+}: { alsoOwned?: AlsoOwned; survey?(tree: AnnotatedTree): Promise<ProjectSurvey>; imports?: readonly ImportedFolder[] } = {}): Promise<{ numbers: string[]; seen: boolean }> {
   const story = tree.stories.find((one) => one.capabilities.some((part) => part.id === capability));
   if (story === undefined) return { numbers: [], seen: false };
   const own = packagesOf(story, alsoOwned);
+  if (story.mapped !== undefined) {
+    const mapped = story as MappedStory;
+    const from = await importFolder(root, mapped.mapped.from, imports);
+    if (from === undefined) return { numbers: [], seen: false };
+    const measured = surveyStory(await mappedCode(mapped, from, tree.stories, (file) => readFile(file, "utf8")), story.capabilities, {}, own);
+    const numbers = (measured.tests ?? []).flatMap((test) => test.titles.filter((title) => title.package === undefined || own.includes(title.package)).map((title) => title.number));
+    return { numbers, seen: true };
+  }
   const surveyed = (await survey({ ...tree, stories: [story] }))[story.id];
   const numbered = (surveyed?.tests ?? []).flatMap((test) => test.titles.filter((title) => title.package === undefined || own.includes(title.package)).map((title) => title.number));
   // A Python project's pytest tests carry numbers too, for this check alone (ADR-1189).

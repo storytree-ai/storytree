@@ -514,6 +514,30 @@ test("6.110 land on a capability whose story has no package it can read in the c
   });
 });
 
+test("6.112 land on a capability of a mapped story reads its story's numbered tests in the folder this machine imports it from, naming only the planned contracts none of them carries", async () => {
+  await withProject(async ({ folder }) => {
+    const shop = path.join(path.dirname(folder), "shop");
+    mkdirSync(path.join(shop, "src"), { recursive: true });
+    writeFileSync(path.join(shop, "package.json"), JSON.stringify({ name: "shop" }));
+    writeFileSync(path.join(shop, "src/cart.js"), "export const add = (a, b) => a + b;\n");
+    writeFileSync(path.join(shop, "src/cart.test.js"), 'import { test } from "node:test";\nimport { add } from "./cart.js";\ntest("1.1 adds", () => add(1, 2));\n');
+    await withAgent(folder, claudeCode("claude-1"), async (agent) => {
+      const imported = await agent.call("import_project", { folder: "../shop" });
+      assert.equal(imported.isError, false, imported.text);
+      const [story] = imported.data.added as string[];
+      const capability = idOf(await agent.call("plan_capability", { story, title: "Adding", covers: ["src"], ...FOUNDED }));
+      idOf(await agent.call("plan_contract", { capability, title: "Adds an item" }));
+      idOf(await agent.call("plan_contract", { capability, title: "Refuses a sold-out item" }));
+      assert.equal((await agent.call("claim", { capability, reason: "fixing the cart" })).isError, false);
+
+      const landed = await agent.call("land", { capability });
+      assert.equal(landed.isError, false, landed.text);
+      assert.doesNotMatch(landed.text, /cannot see the tests of its story/);
+      assert.deepEqual(landed.data.untested, ["1.2 · Refuses a sold-out item"]);
+    });
+  });
+});
+
 test("6.50 plan_contract numbers a new contract past the numbers its capability's landed tests already carry, naming those no contract carries", async () => {
   await withProject(async ({ folder }) => {
     await withAgent(folder, claudeCode("claude-1"), async (agent) => {

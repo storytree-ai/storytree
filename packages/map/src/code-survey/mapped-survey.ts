@@ -22,12 +22,13 @@ import path from "node:path";
 
 import type { AnnotatedTree, StorySurvey } from "@storytree/library";
 
+import type { SourceFile } from "./code-survey.js";
 import { importedSource, manifestFrom, SKIPPED, type SurveySource } from "./survey-source.js";
 
 /** A folder this machine imports, as Session management records it: its path, and its repository's address when it has one. */
 export type ImportedFolder = { readonly folder: string; readonly repository?: string };
 
-type MappedStory = AnnotatedTree["stories"][number] & { readonly mapped: NonNullable<AnnotatedTree["stories"][number]["mapped"]> };
+export type MappedStory = AnnotatedTree["stories"][number] & { readonly mapped: NonNullable<AnnotatedTree["stories"][number]["mapped"]> };
 
 /** What a story's walk found: its files with their lines, and its package's name and dependencies. */
 type Walked = { readonly files: StorySurvey["files"]; readonly name?: string; readonly deps: readonly string[] };
@@ -64,16 +65,6 @@ export function mappedSurveyReader(readText: (file: string) => Promise<string>) 
     return manifest;
   }
 
-  /** Every code file under `dir` but in `left`, by full path. */
-  async function codeUnder(source: SurveySource, dir: string, left: ReadonlySet<string>): Promise<string[]> {
-    const found = await Promise.all((await source.entries(dir)).map(async (entry): Promise<string[]> => {
-      const full = path.join(dir, entry.name);
-      if (entry.directory) return SKIPPED.has(entry.name) || left.has(full) ? [] : codeUnder(source, full, left);
-      return entry.file && CODE.test(entry.name) ? [full] : [];
-    }));
-    return found.flat();
-  }
-
   async function walk(story: MappedStory, source: SurveySource, root: string, left: ReadonlySet<string>): Promise<Walked> {
     const files = (await Promise.all(story.mapped.folders.map(async (folder) => {
       const paths = await codeUnder(source, path.join(root, folder), left);
@@ -104,9 +95,7 @@ export function mappedSurveyReader(readText: (file: string) => Promise<string>) 
       const { source, folder: root, commit, local } = await importedSource(imported.folder, readText);
       await Promise.all(own.map(async (story) => {
         // A folder another package of this import maps, inside one of this story's, is that story's to read.
-        const left = new Set(own.flatMap((other) => other === story ? [] : other.mapped.folders)
-          .filter((folder) => !story.mapped.folders.includes(folder) && story.mapped.folders.some((mine) => inside(folder, mine)))
-          .map((folder) => path.join(root, folder)));
+        const left = leftOut(story, own, root);
         const key = commit === undefined ? undefined : JSON.stringify([root, commit, local ?? "", story.mapped.folders, story.mapped.package, [...left].sort()]);
         const kept = walked.get(story.id);
         const walkedNow = key !== undefined && kept?.key === key ? kept.walk : await walk(story, source, root, left);
@@ -139,6 +128,41 @@ export function mappedSurveyReader(readText: (file: string) => Promise<string>) 
   }
 
   return { read };
+}
+
+/** Every code file under `dir` but in `left`, by full path. */
+async function codeUnder(source: SurveySource, dir: string, left: ReadonlySet<string>): Promise<string[]> {
+  const found = await Promise.all((await source.entries(dir)).map(async (entry): Promise<string[]> => {
+    const full = path.join(dir, entry.name);
+    if (entry.directory) return SKIPPED.has(entry.name) || left.has(full) ? [] : codeUnder(source, full, left);
+    return entry.file && CODE.test(entry.name) ? [full] : [];
+  }));
+  return found.flat();
+}
+
+/** The folders, by full path under `root`, that another of `own` (the stories of one import) maps inside one of `story`'s: that story's to read. */
+function leftOut(story: MappedStory, own: readonly MappedStory[], root: string): Set<string> {
+  return new Set(own.flatMap((other) => other === story ? [] : other.mapped.folders)
+    .filter((folder) => !story.mapped.folders.includes(folder) && story.mapped.folders.some((mine) => inside(folder, mine)))
+    .map((folder) => path.join(root, folder)));
+}
+
+/**
+ * The code files of mapped `story`, with their text, read from `folder`, where its import is (its checkout's commit
+ * with the work done there since, else the folder on disk), each by its path from there; `stories` are the plan's
+ * stories, whose folders another package of the same import maps are left out. What a mapped story's numbered tests
+ * are read from, so a landing sees them (ADR-1213 D1).
+ */
+export async function mappedCode(story: MappedStory, folder: string, stories: readonly AnnotatedTree["stories"][number][], readText: (file: string) => Promise<string>): Promise<SourceFile[]> {
+  const { source, folder: root } = await importedSource(folder, readText);
+  const own = stories.filter((other): other is MappedStory => other.mapped?.from === story.mapped.from);
+  const left = leftOut(story, own.includes(story) ? own : [...own, story], root);
+  const paths = [...new Set((await Promise.all(story.mapped.folders.map((mine) => codeUnder(source, path.join(root, mine), left)))).flat())];
+  const files = await Promise.all(paths.map(async (full): Promise<SourceFile | undefined> => {
+    const found = await source.file(full);
+    return found === undefined ? undefined : { path: path.relative(root, full).split(path.sep).join("/"), text: await found.read() };
+  }));
+  return files.filter((file): file is SourceFile => file !== undefined).sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0));
 }
 
 /** Whether `folder` is inside `outer` (both relative to an import, "." its top). */

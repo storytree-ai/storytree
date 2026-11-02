@@ -92,7 +92,7 @@ export function setupTools(readProtection: ProtectionReader = ghProtection, jobs
       );
       define(
         "import_project",
-        "Import an existing JavaScript or TypeScript project into this storytree project, when the user asks: its folder is recorded as imported, and each package it declares becomes a mapped story, with no capabilities. Importing again adds new packages and drops gone ones, and says the commit recorded before and now, the files changed between them, and any explored capability whose files are gone, which it leaves for an agent to reshape. Nothing is written into the folder.",
+        "Import an existing JavaScript or TypeScript project into this storytree project, when the user asks: its folder is recorded as imported, and each package it declares becomes a mapped story, with no capabilities. Importing again adds new packages and drops gone ones, and says the commit recorded before and now, the files changed between them, and any explored capability whose files are gone, which it leaves for an agent to reshape. Nothing is written into the folder. This project's own folder may be imported, mapping in place the repository storytree was set up inside; a folder nested inside this project is refused.",
         z.object({ folder: z.string().min(1).describe("The folder of the project to import, absolute or relative to this project's folder") }),
         async ({ folder }, { library, storytree, folder: here }) => {
           const imported = await importProject({ folder: path.resolve(here, folder), library, storytree }).catch((error: unknown) => {

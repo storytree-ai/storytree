@@ -1,18 +1,19 @@
-/** Round 4's layer on the real island, laid in the island's own plate so it turns and tilts with it. The map's island, its
- * territories (their shape, size, colour and thin white borders), its coast, glass and camera all stay as the map draws them;
- * the plan (town.ts) adds, in the claim flags' 2.5D inked manner (packages/forest/src/view/claim-flag.ts):
- * - a walled town inside each territory, inset by the same distance everywhere: an upright, flat-drawn cut-out with a pale
- *   band, crenellations and a thin ink outline, a small tower where the wall turns, unlit and untextured;
- * - no wall on a small territory, only its gate marks on open ground;
- * - one gate per link, in the called capability's wall: an opening between two small towers;
- * - the roads, dashed, along the borders between the towns and from the docks where other islands' roads land;
- * - a wrench, a flat ink icon standing upright and constant on screen as a flag does, at the gate its work changes;
- * - each capability's name at its town's middle. */
-import { BoxGeometry, BufferGeometry, CanvasTexture, Color, DoubleSide, Float32BufferAttribute, Group, LineBasicMaterial, LineSegments, Matrix4, Mesh,
+/** Round 5's layer on the real island, laid in the island's own plate so it turns and tilts with it. The map's island, its
+ * territories (their shape, size and colour), its coast, glass and camera all stay as the map draws them; the plan (town.ts)
+ * adds, flat on the land in the map's own colours:
+ * - the borders between territories drawn dashed, in the map's border colour, in place of its thin solid white line;
+ * - the roads, one solid line each in the map's road colour, along the borders and in from the docks where other islands'
+ *   roads land;
+ * - one gate per link: a gap in the called territory's dashed border, a short tick each side, the road running through it
+ *   and a short way in;
+ * - a wrench, a flat ink icon standing upright and constant on screen as a flag does, at the gap its work changes;
+ * - each capability's name at its territory's middle. */
+import { BoxGeometry, BufferGeometry, CanvasTexture, Color, DoubleSide, Float32BufferAttribute, Group, Matrix4, Mesh,
   MeshBasicMaterial, Object3D, Raycaster, RepeatWrapping, SRGBColorSpace, Vector2, Vector3, type Camera } from "three";
 import type { RootState } from "@react-three/fiber";
 import type { TerritoryMap } from "../../../../../packages/forest/src/territories/territories.js";
 import { SAMPLE } from "./panel.js";
+import { insideOf } from "../../../../../packages/forest/src/view/territory-land.js";
 import { along, townPlan, type LinkEnd, type P } from "./town.js";
 
 export type Picked =
@@ -23,7 +24,7 @@ export type Picked =
   | { kind: "wrench"; id: string; capability: string; sample: boolean };
 /** One link, as the panel tells it. */
 export type LinkInfo = { key: string; from: string; to: string; fromTitle: string; toTitle: string; fromStory: string; toStory: string; gate?: string; dock?: number };
-export type GateInfo = { key: string; town: string; links: string[]; walled: boolean };
+export type GateInfo = { key: string; town: string; links: string[] };
 export type Layer = {
   pick(x: number, y: number): Picked | undefined;
   find(kind: string, id: string): Picked | undefined;
@@ -46,53 +47,26 @@ export type Layer = {
 type Capability = { id: string; title: string; lines: number; word: string; parked: boolean; dependsOn: { id: string; title: string; story: string; storyId: string }[] };
 type Data = { story: { id: string; title: string }; capabilities: Capability[]; openWork: { capabilities: string[] }[]; map: { tree: { stories: { id: string; title: string; capabilities: { id: string; title: string }[] }[] } } };
 
-/** The ink map's palette (README.md lists it). */
+/** The palette (README.md lists it): the border and the road are the map's own colours (packages/forest/src/view/
+ * territory-land.ts's BORDER_COLOUR; packages/forest-world/src/planet/plumbing.ts's DEPENDENCY_ROAD). */
 export const PALETTE = {
-  ink: "#1b1814", wall: "#ece4d0", path: "#6e5236", lit: "#ffd34d",
+  ink: "#1b1814", border: "#f4f7f8", road: "#c7bba1", roadEdge: "#6e5236", lit: "#ffd34d",
   wrench: "#1b1814", wrenchEdge: "#ece4d0", wrenchSample: "#d6bdf0", shadow: "#080b0e",
 } as const;
-/** How far each town's wall stands in from its territory's edge, in the island's ground units (README: round 4). */
-export const INSET = Number(new URLSearchParams(location.search).get("inset") ?? 5);
-/** A territory whose deepest point is nearer its edge than this gets no wall, only its gate marks. */
-export const WALL_CUT = Number(new URLSearchParams(location.search).get("cut") ?? 8.5);
+const query = new URLSearchParams(location.search);
+/** The island's ground unit, as round 4 measured its strips: 5 units is about 13 pixels at rest. */
+export const UNIT = 5;
+/** A gate's gap in the border, in ground units (README: round 5). */
+export const GAP = Number(query.get("gap") ?? 4.2);
 
 const dist = (a: P, b: P) => Math.hypot(a.x - b.x, a.z - b.z);
 const nameOf = (title: string) => title.replace(/^\d+ · /, "");
 
-/** Triangles and an outline for a flat cut-out standing upright on the ground from `a` to `b`: the wall's band `h` high with
- * crenellations `m` higher, `merlon` wide, in the vertical plane through a and b. */
-function cutOut(a: P, b: P, h: number, m: number, merlon: number, y: (p: P) => number) {
-  const l = dist(a, b), tris: number[] = [], lines: number[] = [];
-  const at = (u: number, up: number) => { const p = along(a, b, u / l); return [p.x, y(p) + up, p.z]; };
-  const quad = (u0: number, u1: number, v0: number, v1: number) => tris.push(...at(u0, v0), ...at(u1, v0), ...at(u1, v1), ...at(u0, v0), ...at(u1, v1), ...at(u0, v1));
-  const line = (u0: number, v0: number, u1: number, v1: number) => lines.push(...at(u0, v0), ...at(u1, v1));
-  if (l < 1e-6) return { tris, lines };
-  quad(0, l, 0, h);
-  // A short run is a plain band: crenellations on it would be a few broken ticks.
-  if (l < merlon * 4) {
-    line(0, 0, l, 0); line(0, 0, 0, h); line(0, h, l, h); line(l, h, l, 0);
-    return { tris, lines };
-  }
-  const count = Math.max(2, Math.round((l / merlon + 1) / 2)), step = (l - merlon) / (count - 1);
-  let u = 0;
-  line(0, 0, l, 0); line(0, 0, 0, h + m);
-  for (let k = 0; k < count; k++) {
-    const u0 = k * step, u1 = Math.min(l, u0 + merlon);
-    quad(u0, u1, h, h + m);
-    if (k > 0) { line(u, h, u0, h); line(u0, h, u0, h + m); }
-    line(u0, h + m, u1, h + m);
-    if (k < count - 1) line(u1, h + m, u1, h);
-    u = u1;
-  }
-  line(l, 0, l, h + m);
-  return { tris, lines };
-}
-
-/** A dash drawn once, repeated along every road. */
-function dashTexture(colour: string = PALETTE.path, solid = false): CanvasTexture {
+/** A dash drawn once, repeated along every border: on for `on` of each repeat. */
+function dashTexture(colour: string, on: number): CanvasTexture {
   const canvas = document.createElement("canvas"); canvas.width = 8; canvas.height = 64;
   const ctx = canvas.getContext("2d")!;
-  ctx.fillStyle = colour; ctx.fillRect(0, solid ? 2 : 4, 8, solid ? 54 : 34);
+  ctx.fillStyle = colour; ctx.fillRect(0, 0, 8, Math.round(64 * on));
   const texture = new CanvasTexture(canvas);
   texture.wrapS = texture.wrapT = RepeatWrapping; texture.colorSpace = SRGBColorSpace;
   return texture;
@@ -150,10 +124,11 @@ export function castleLayer(state: RootState, story: string, data: Data, host: H
   const own = new Set(data.capabilities.map(({ id }) => id));
   const byId = new Map(data.capabilities.map(c => [c.id, c]));
   const elsewhere = new Map(data.map.tree.stories.flatMap(s => s.capabilities.map(c => [c.id, { title: c.title, story: s.title }] as const)));
-  // The map's file dots and claim flags on this island stay out of sight; its territories and borders stay as drawn.
+  // The map's file dots, claim flags and thin solid borders on this island stay out of sight (the borders are drawn again,
+  // dashed); its territories stay as drawn.
   const hideMap = () => {
     land.traverse(mark => {
-      if (mark === land || !/^(file|claim)/.test(mark.name) || Object.getOwnPropertyDescriptor(mark, "visible")?.get) return;
+      if (mark === land || !/^(file|claim|territory-borders)/.test(mark.name) || Object.getOwnPropertyDescriptor(mark, "visible")?.get) return;
       Object.defineProperty(mark, "visible", { get: () => false, set: () => {}, configurable: true });
     });
     state.invalidate();
@@ -192,7 +167,7 @@ export function castleLayer(state: RootState, story: string, data: Data, host: H
     if (dock) lanes.push({ from: o.userData.from, to: o.userData.to, dir: o.userData.dir, dock: { x: dock.x, z: dock.z } });
   });
   const dockAt: P[] = [];
-  const dockOf = (p: P) => { let i = dockAt.findIndex(d => dist(d, p) < INSET * 1.5); if (i < 0) { i = dockAt.length; dockAt.push(p); } return i; };
+  const dockOf = (p: P) => { let i = dockAt.findIndex(d => dist(d, p) < UNIT * 1.5); if (i < 0) { i = dockAt.length; dockAt.push(p); } return i; };
 
   // Every link with an end on this island: inside it, and to or from another island by a dock.
   const asked: { key: string; from: LinkEnd; to: LinkEnd; gateGroup?: string }[] = [];
@@ -216,91 +191,55 @@ export function castleLayer(state: RootState, story: string, data: Data, host: H
       : { key, from: lane.from, to: lane.to, fromTitle: other.title, toTitle: mine.title, fromStory: other.story, toStory: data.story.title, dock });
   }
 
-  // Sizes, from the inset: the strip between two towns is twice it.
-  const Gw = INSET * 2;
-  const H = Gw * 0.17, M = H * 0.55, MERLON = H * 1.1;
-  const OPEN = Gw * 0.3, TOWER = H * 1.1, TOWER_H = H * 1.35, TOP = H * 0.45, CORNER = H * 0.95;
-  const PATH = Gw * 0.05, DASH = Gw * 0.26, TURN = Gw * 0.3;
-  const plan = townPlan(map, coast, { inset: INSET, wallCut: WALL_CUT, gateRoom: OPEN + TOWER * 3, corner: INSET * 3, links: asked, docks: dockAt });
+  // Sizes, in ground units (about 2.6 pixels each at rest).
+  const BORDER = 0.42, DASH = 2.6, DASH_ON = 0.55;
+  const ROAD = 0.95, ROAD_EDGE = 0.22, TURN = UNIT * 0.6;
+  const TICK = GAP * 0.6, TICK_W = 0.8;
+  const LIFT = 0.05;
+  const plan = townPlan(map, coast, { inset: UNIT, gap: GAP, links: asked, docks: dockAt });
   for (const l of plan.links) { const info = links.get(l.key)!; if (l.gate) info.gate = l.gate; }
   const lift = (q: P, up = 0) => new Vector3(q.x, heightAt(q) + up, q.z);
-  const ground = (q: P) => heightAt(q) + H * 0.04;
+  const ground = (q: P) => heightAt(q) + LIFT;
 
-  const group = new Group(); group.name = "mock-castle"; root.add(group);
-  const wallFill = new MeshBasicMaterial({ color: PALETTE.wall, fog: false, side: DoubleSide, polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1 });
-  const solid = (tris: number[], lines: number[], fill: MeshBasicMaterial, ink: LineBasicMaterial) => {
-    const geometry = new BufferGeometry(); geometry.setAttribute("position", new Float32BufferAttribute(tris, 3));
-    const mesh = new Mesh(geometry, fill); mesh.renderOrder = 2; mesh.raycast = () => {};
-    const outline = new BufferGeometry(); outline.setAttribute("position", new Float32BufferAttribute(lines, 3));
-    const edge = new LineSegments(outline, ink); edge.renderOrder = 3; edge.raycast = () => {};
-    return [mesh, edge] as const;
-  };
-  /** A small square tower at `t`, squared to `dir`: a cut-out on each side, a flat roof, crenellated. */
-  const tower = (t: P, dir: P, size: number, height: number, tris: number[], lines: number[]) => {
-    const h = size / 2, nrm = { x: -dir.z, z: dir.x };
-    const sq = [[-h, -h], [h, -h], [h, h], [-h, h]].map(([u, v]) => ({ x: t.x + dir.x * u! + nrm.x * v!, z: t.z + dir.z * u! + nrm.z * v! }));
-    for (let k = 0; k < 4; k++) { const cut = cutOut(sq[k]!, sq[(k + 1) % 4]!, height, M * 0.8, size / 2.6, ground); tris.push(...cut.tris); lines.push(...cut.lines); }
-    const top = sq.map(q => [q.x, ground(q) + height - H * 0.01, q.z]);
-    tris.push(...top[0]!, ...top[1]!, ...top[2]!, ...top[0]!, ...top[2]!, ...top[3]!);
-  };
-
-  // The towns' walls: each run of the simplified outline, opened where a gate stands, a tower at every turn.
-  const towns = new Map<string, { band: MeshBasicMaterial; walled: boolean }>();
+  const group = new Group(); group.name = "mock-roads"; root.add(group);
+  const flat = (colour: string, offset: number, map?: CanvasTexture) => new MeshBasicMaterial({ color: map ? "#ffffff" : colour, ...(map ? { map } : {}), transparent: true, fog: false, side: DoubleSide, depthWrite: false, polygonOffset: true, polygonOffsetFactor: offset });
   const gatesOn = new Map<string, typeof plan.gates extends Map<string, infer G> ? G[] : never>();
   for (const g of plan.gates.values()) gatesOn.set(g.town, [...(gatesOn.get(g.town) ?? []), g]);
-  let wallLength = 0, turns = 0;
-  for (const t of plan.towns.values()) {
-    const band = wallFill.clone();
-    towns.set(t.id, { band, walled: t.walled });
-    if (!t.walled) continue;
-    const tris: number[] = [], lines: number[] = [], ring = t.ring, gates = gatesOn.get(t.id) ?? [];
-    ring.forEach((a, i) => {
-      const b = ring[(i + 1) % ring.length]!, l = dist(a, b);
-      // The openings on this run, as distances along it.
-      const cuts = gates.map(g => ({ u: (g.at.x - a.x) * (b.x - a.x) / l + (g.at.z - a.z) * (b.z - a.z) / l, off: Math.abs((b.x - a.x) * (a.z - g.at.z) - (a.x - g.at.x) * (b.z - a.z)) / l }))
-        .filter(c => c.off < 1e-3 && c.u > 0 && c.u < l).map(c => c.u).sort((p, q) => p - q);
+  const indexOf = new Map([...plan.towns.values()].map(t => [t.index, t.id]));
+
+  // The borders, dashed: every border the map draws, cut to the coast, opened where a gate stands on it.
+  const dashed = flat(PALETTE.border, -1, dashTexture(PALETTE.border, DASH_ON));
+  const litDashed = flat(PALETTE.lit, -4, dashTexture(PALETTE.lit, DASH_ON));
+  const bordersOf = new Map<string, P[][]>();
+  let gapsCut = 0;
+  for (const border of map.borders) {
+    const parts = border.between.map(c => map.cells[c]!.territory);
+    const mine = parts.map(i => indexOf.get(i)).filter((x): x is string => !!x);
+    const gaps = mine.flatMap(id => gatesOn.get(id) ?? []);
+    for (const piece of insideOf(border.from, border.to, coast)) {
+      const a = piece.from, b = piece.to, l = dist(a, b);
+      if (l < 1e-6) continue;
+      // Each gate's gap: the stretch of this piece within half a gap of the gate.
+      const cuts = gaps.flatMap(g => {
+        const dx = (b.x - a.x) / l, dz = (b.z - a.z) / l, u = (g.at.x - a.x) * dx + (g.at.z - a.z) * dz;
+        const off = Math.hypot(g.at.x - a.x - u * dx, g.at.z - a.z - u * dz), r = GAP / 2;
+        if (off >= r) return [];
+        const h = Math.sqrt(r * r - off * off), u0 = Math.max(0, u - h), u1 = Math.min(l, u + h);
+        return u1 > u0 ? [[u0, u1] as [number, number]] : [];
+      }).sort((p, q) => p[0] - q[0]);
+      const runs: P[][] = [];
       let from = 0;
-      const half = OPEN / 2 + TOWER / 2;
-      for (const u of [...cuts, Infinity]) {
-        const to = u === Infinity ? l : u - half;
-        if (to > from + 1e-6) {
-          const cut = cutOut(along(a, b, from / l), along(a, b, to / l), H, M, MERLON, ground);
-          tris.push(...cut.tris); lines.push(...cut.lines);
-          // The wall's walk: a pale strip along its top, so from above it reads as one band with one ink line.
-          const u0 = along(a, b, from / l), u1 = along(a, b, to / l), d = { x: (b.x - a.x) / l * TOP / 2, z: (b.z - a.z) / l * TOP / 2 }, n2 = { x: -d.z, z: d.x };
-          const q = [{ x: u0.x + n2.x, z: u0.z + n2.z }, { x: u1.x + n2.x, z: u1.z + n2.z }, { x: u1.x - n2.x, z: u1.z - n2.z }, { x: u0.x - n2.x, z: u0.z - n2.z }].map(r => [r.x, ground(r) + H, r.z]);
-          tris.push(...q[0]!, ...q[1]!, ...q[2]!, ...q[0]!, ...q[2]!, ...q[3]!);
-          wallLength += to - from;
-        }
-        from = u + half;
+      for (const [u0, u1] of cuts) { if (u0 > from + 1e-6) runs.push([along(a, b, from / l), along(a, b, u0 / l)]); from = Math.max(from, u1); gapsCut++; }
+      if (l > from + 1e-6) runs.push([along(a, b, from / l), b]);
+      for (const run of runs) {
+        const mesh = new Mesh(ribbon(run, BORDER, ground, DASH), dashed); mesh.renderOrder = 3; mesh.raycast = () => {};
+        group.add(mesh);
+        for (const id of mine) bordersOf.set(id, [...(bordersOf.get(id) ?? []), run]);
       }
-      // The tower where the wall turns, squared to the run that leaves it.
-      tower(a, { x: (b.x - a.x) / l, z: (b.z - a.z) / l }, CORNER, H * 1.25, tris, lines);
-      turns++;
-    });
-    const ink = new LineBasicMaterial({ color: PALETTE.ink });
-    const walls = new Group(); walls.name = `walls:${t.id}`; walls.add(...solid(tris, lines, band, ink)); group.add(walls);
+    }
   }
 
-  // Gates: a small square tower each side of the opening (on open ground, two gateposts), drawn the same way.
-  const gateGroups = new Map<string, Group>();
-  for (const g of plan.gates.values()) {
-    const walled = plan.towns.get(g.town)!.walled;
-    const tris: number[] = [], lines: number[] = [], half = OPEN / 2 + TOWER / 2;
-    const size = walled ? TOWER : TOWER * 0.8, height = walled ? TOWER_H : TOWER_H * 0.85;
-    for (const s of [-1, 1]) tower({ x: g.at.x + g.along.x * half * s, z: g.at.z + g.along.z * half * s }, g.along, size, height, tris, lines);
-    const fill = wallFill.clone(), ink = new LineBasicMaterial({ color: PALETTE.ink });
-    const gg = new Group(); gg.name = `gate:${g.key}`;
-    gg.add(...solid(tris, lines, fill, ink));
-    // A box over the gate, unseen, so a click on it is easy to land.
-    const top = TOWER_H + M, hit = new Mesh(new BoxGeometry(OPEN + TOWER * 2.4, top, TOWER * 2.4), new MeshBasicMaterial({ visible: false, side: DoubleSide }));
-    hit.position.copy(lift(g.at, top / 2)); hit.rotation.y = -Math.atan2(g.along.z, g.along.x);
-    gg.add(hit);
-    gg.userData = { fill, at: g.at };
-    gateGroups.set(g.key, gg); group.add(gg);
-  }
-
-  // Roads: every stretch the links walk, drawn once; a stretch is a line of the graph or a spur into a town.
+  // Roads: every stretch the links walk, drawn once; a stretch is a line of the graph or the way in through a gate.
   type Stretch = { pts: P[]; ends: [string, string]; carried: string[] };
   const stretches = new Map<string, Stretch>();
   const nodeKey = (i: number) => `n${i}`, pointKey = (p: P) => `p${Math.round(p.x * 1000)},${Math.round(p.z * 1000)}`;
@@ -312,12 +251,11 @@ export function castleLayer(state: RootState, story: string, data: Data, host: H
   const routeOf = new Map<string, P[]>();
   for (const l of plan.links) {
     for (const i of l.edges) { const e = plan.edges[i]!; carry(`e${i}`, [plan.nodes[e.a]!, plan.nodes[e.b]!], [nodeKey(e.a), nodeKey(e.b)], l.key); }
-    if (l.startSpur) carry(`s${pointKey(l.startSpur[0])}>${l.nodes[0]}`, l.startSpur, [pointKey(l.startSpur[0]), nodeKey(l.nodes[0]!)], l.key);
-    // A road ends in the gate's opening.
+    // A road ends through its gate and a short way in.
     if (l.endSpur) carry(`s${pointKey(l.endSpur[1])}<${l.nodes.at(-1)}`, l.endSpur, [nodeKey(l.nodes.at(-1)!), pointKey(l.endSpur[1])], l.key);
-    routeOf.set(l.key, [...(l.startSpur ? [l.startSpur[0]] : []), ...l.nodes.map(i => plan.nodes[i]!), ...(l.endSpur ? [l.endSpur[1]] : [])]);
+    routeOf.set(l.key, [...l.nodes.map(i => plan.nodes[i]!), ...(l.endSpur ? [l.endSpur[1]] : [])]);
   }
-  // Chained through the corners where only two stretches with the same load meet, so the dashes run on.
+  // Chained through the corners where only two stretches with the same load meet, so a road runs on as one line.
   const degree = new Map<string, number>();
   for (const s of stretches.values()) for (const e of s.ends) degree.set(e, (degree.get(e) ?? 0) + 1);
   const chains: { pts: P[]; carried: string[] }[] = [], seen = new Set<string>();
@@ -337,15 +275,49 @@ export function castleLayer(state: RootState, story: string, data: Data, host: H
     }
     chains.push({ pts, carried: s.carried });
   }
-  const dashMaterial = new MeshBasicMaterial({ map: dashTexture(), transparent: true, side: DoubleSide, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 });
+  // A solid line in the road colour over a thin darker edge, the edges all drawn first so where roads meet they join as one.
+  const roadFill = flat(PALETTE.road, -3), roadEdge = flat(PALETTE.roadEdge, -2);
   const roadHits: Mesh[] = [];
   chains.forEach((chain, k) => {
     const pts = rounded(chain.pts, TURN);
-    const mesh = new Mesh(ribbon(pts, PATH, ground, DASH), dashMaterial); mesh.renderOrder = 4; mesh.raycast = () => {};
-    const hit = new Mesh(ribbon(pts, Gw * 0.4, ground, DASH), new MeshBasicMaterial({ visible: false, side: DoubleSide }));
+    const edge = new Mesh(ribbon(pts, ROAD + ROAD_EDGE * 2, ground, 1), roadEdge); edge.renderOrder = 4; edge.raycast = () => {};
+    const mesh = new Mesh(ribbon(pts, ROAD, ground, 1), roadFill); mesh.renderOrder = 5; mesh.raycast = () => {};
+    const hit = new Mesh(ribbon(pts, UNIT * 0.8, ground, 1), new MeshBasicMaterial({ visible: false, side: DoubleSide }));
     hit.name = `road:${k}`; hit.userData = { links: chain.carried, pts };
-    group.add(mesh, hit); roadHits.push(hit);
+    group.add(edge, mesh, hit); roadHits.push(hit);
   });
+  // A round cap where a road ends or splits, so its joins read as one line.
+  const cap = (p: P, r: number, material: MeshBasicMaterial, order: number) => {
+    const pts: number[] = [], c = [p.x, ground(p), p.z];
+    for (let k = 0; k < 16; k++) { const a0 = k / 16 * Math.PI * 2, a1 = (k + 1) / 16 * Math.PI * 2, q0 = { x: p.x + r * Math.cos(a0), z: p.z + r * Math.sin(a0) }, q1 = { x: p.x + r * Math.cos(a1), z: p.z + r * Math.sin(a1) }; pts.push(...c, q0.x, ground(q0), q0.z, q1.x, ground(q1), q1.z); }
+    const geometry = new BufferGeometry(); geometry.setAttribute("position", new Float32BufferAttribute(pts, 3));
+    const m = new Mesh(geometry, material); m.renderOrder = order; m.raycast = () => {}; return m;
+  };
+  for (const [end, n] of degree) if (n !== 2) {
+    const s = [...stretches.values()].find(o => o.ends.includes(end))!, p = s.ends[0] === end ? s.pts[0]! : s.pts.at(-1)!;
+    group.add(cap(p, ROAD / 2 + ROAD_EDGE, roadEdge, 4), cap(p, ROAD / 2, roadFill, 5));
+  }
+
+  // Gates: the gap itself, marked by a short tick across the border's end each side of it, in the border's colour; an unseen
+  // box over the gap, so a click on it is easy to land.
+  const gateGroups = new Map<string, Group>();
+  const tickMaterial = flat(PALETTE.border, -6);
+  for (const g of plan.gates.values()) {
+    const gg = new Group(); gg.name = `gate:${g.key}`;
+    const fill = tickMaterial.clone();
+    for (const s of [-1, 1]) {
+      const c = { x: g.at.x + g.along.x * GAP / 2 * s, z: g.at.z + g.along.z * GAP / 2 * s };
+      const a = { x: c.x - g.out.x * TICK / 2, z: c.z - g.out.z * TICK / 2 }, b = { x: c.x + g.out.x * TICK / 2, z: c.z + g.out.z * TICK / 2 };
+      const tick = new Mesh(ribbon([a, b], TICK_W, q => ground(q) + 0.02, 1), fill); tick.renderOrder = 7; tick.raycast = () => {};
+      gg.add(tick);
+    }
+    const hit = new Mesh(new BoxGeometry(GAP * 1.2, 1.5, GAP * 1.2), new MeshBasicMaterial({ visible: false, side: DoubleSide }));
+    const mid = along(g.at, g.inner, 0.25);
+    hit.position.copy(lift(mid, 0.75)); hit.rotation.y = -Math.atan2(g.along.z, g.along.x);
+    gg.add(hit);
+    gg.userData = { fill, at: mid };
+    gateGroups.set(g.key, gg); group.add(gg);
+  }
 
   // The page's own marks over the canvas, constant on screen as the map's names and flags are.
   const overlay = document.createElement("div");
@@ -370,15 +342,15 @@ export function castleLayer(state: RootState, story: string, data: Data, host: H
   const wrenchAt = (capability: string): P => {
     const g = [...(gatesOn.get(capability) ?? [])].sort((a, b) => b.links.length - a.links.length)[0], t = plan.towns.get(capability)!;
     if (!g) return t.deep;
-    const inward = { x: -g.out.x, z: -g.out.z }, step = t.walled ? INSET * 0.75 : INSET * 0.4;
-    return { x: g.at.x + inward.x * step + g.along.x * OPEN, z: g.at.z + inward.z * step + g.along.z * OPEN };
+    const inward = { x: -g.out.x, z: -g.out.z }, step = GAP * 0.55;
+    return { x: g.at.x + inward.x * step + g.along.x * GAP * 0.8, z: g.at.z + inward.z * step + g.along.z * GAP * 0.8 };
   };
   const makeWrench = (capability: string, sample: boolean) => {
     const el = document.createElement("div");
     el.className = `mock-wrench${sample ? " mock-wrench-sample" : ""}`;
     el.innerHTML = wrenchSvg(sample ? PALETTE.wrenchSample : PALETTE.wrench) + (sample ? `<span class="mock-wrench-tag">sample</span>` : "");
     overlay.appendChild(el);
-    const spot = { el, at: lift(wrenchAt(capability), H * 0.1), sample };
+    const spot = { el, at: lift(wrenchAt(capability), 0.1), sample };
     spots.push(spot);
     return spot;
   };
@@ -395,9 +367,9 @@ export function castleLayer(state: RootState, story: string, data: Data, host: H
   dockInfo.forEach(d => {
     if (!d.links.length) return;
     const dot = document.createElement("div"); dot.className = "mock-road-end"; overlay.appendChild(dot);
-    spots.push({ el: dot, at: lift(d.at, H * 0.05) });
+    spots.push({ el: dot, at: lift(d.at, 0.05) });
     const el = document.createElement("div"); el.className = "forest-label planet-nameplate capability mock-road-name"; el.textContent = d.label; overlay.appendChild(el);
-    spots.push({ el, at: lift(d.at, H * 0.05), name: true });
+    spots.push({ el, at: lift(d.at, 0.05), name: true });
   });
   const project = (v: Vector3) => {
     const rect = state.gl.domElement.getBoundingClientRect(), hostRect = host.getBoundingClientRect();
@@ -470,16 +442,16 @@ export function castleLayer(state: RootState, story: string, data: Data, host: H
     return undefined;
   };
 
-  // The pick lights in the selection's gold: a town's wall band, a gate's towers, and every road it names drawn over in gold.
+  // The pick lights in the selection's gold: a territory's own dashed border, a gate's ticks, and every road it names drawn
+  // over in one solid gold line. Nothing is hidden or dimmed.
   // One solid gold line, wide enough to cover the brown dashes under it: gold over dashes out of step read as orange.
-  const litMaterial = new MeshBasicMaterial({ color: PALETTE.lit, transparent: true, fog: false, side: DoubleSide, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3 });
+  const litMaterial = new MeshBasicMaterial({ color: PALETTE.lit, transparent: true, fog: false, side: DoubleSide, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -5 });
   const lit: Mesh[] = [];
   const highlight = (picked: Picked | undefined) => {
-    for (const t of towns.values()) t.band.color.set(PALETTE.wall);
-    for (const g of gateGroups.values()) (g.userData.fill as MeshBasicMaterial).color.set(PALETTE.wall);
+    for (const g of gateGroups.values()) (g.userData.fill as MeshBasicMaterial).color.set(PALETTE.border);
     for (const w of [...wrenches.values(), ...(sampleWrench ? [sampleWrench] : [])]) w.el.classList.remove("lit");
     for (const m of lit.splice(0)) { group.remove(m); m.geometry.dispose(); }
-    if (picked?.kind === "territory") towns.get(picked.id)?.band.color.set(PALETTE.lit);
+    if (picked?.kind === "territory") for (const run of bordersOf.get(picked.id) ?? []) { const m = new Mesh(ribbon(run, BORDER * 1.6, q => ground(q) + 0.01, DASH), litDashed); m.renderOrder = 6; group.add(m); lit.push(m); }
     if (picked?.kind === "wrench") (picked.sample ? sampleWrench : wrenches.get(picked.capability))?.el.classList.add("lit");
     const keys = picked?.kind === "link" ? [picked.id] : picked?.kind === "road" ? picked.links : picked?.kind === "gate" ? plan.gates.get(picked.id)!.links : [];
     if (picked?.kind === "gate") (gateGroups.get(picked.id)!.userData.fill as MeshBasicMaterial).color.set(PALETTE.lit);
@@ -487,23 +459,28 @@ export function castleLayer(state: RootState, story: string, data: Data, host: H
     for (const k of keys) {
       const pts = routeOf.get(k);
       if (!pts) continue;
-      const m = new Mesh(ribbon(rounded(pts, TURN), PATH * 2.4, q => ground(q) + H * 0.01, DASH), litMaterial); m.renderOrder = 5; group.add(m); lit.push(m);
+      const m = new Mesh(ribbon(rounded(pts, TURN), ROAD + ROAD_EDGE * 2, q => ground(q) + 0.01, 1), litMaterial); m.renderOrder = 6; group.add(m); lit.push(m);
     }
     state.invalidate();
   };
 
   const point = (kind: string, id: string) => {
     if (kind === "wrench") { const w = id.endsWith(":sample") ? sampleWrench : wrenches.get(id); if (!w) return undefined; const b = w.el.querySelector("svg")!.getBoundingClientRect(); return { x: b.left + b.width / 2, y: b.top + b.height * 0.35 }; }
-    if (kind === "gate") { const g = gateGroups.get(id); return g ? project(lift(g.userData.at as P, TOWER_H / 2)).page : undefined; }
-    if (kind === "territory") { const t = plan.towns.get(id); return t ? project(lift(along(t.deep, t.ring[0]!, 0.5))).page : undefined; }
+    if (kind === "gate") { const g = gateGroups.get(id); return g ? project(lift(g.userData.at as P)).page : undefined; }
+    if (kind === "territory") { const t = plan.towns.get(id); return t ? project(lift({ x: t.deep.x, z: t.deep.z + t.depth * 0.5 })).page : undefined; }
     // A link, or a road: the middle of the stretch that carries it with the fewest others.
     const hits = kind === "link" ? roadHits.filter(h => (h.userData.links as string[]).includes(id)).sort((a, b) => a.userData.links.length - b.userData.links.length)
       : roadHits.filter(h => h.name === `road:${id}`);
     const pts = hits[0]?.userData.pts as P[] | undefined;
     if (!pts) return undefined;
-    let total = 0; for (let i = 1; i < pts.length; i++) total += dist(pts[i - 1]!, pts[i]!);
-    let walked = 0;
-    for (let i = 1; i < pts.length; i++) { const l = dist(pts[i - 1]!, pts[i]!); if (walked + l >= total / 2) return project(lift(along(pts[i - 1]!, pts[i]!, (total / 2 - walked) / (l || 1)))).page; walked += l; }
+    // The point along it farthest from every gate's gap, so a click there lands on the road and not on a gate.
+    const gateAt = [...gateGroups.values()].map(g => g.userData.at as P);
+    let best: P | undefined, room = -1;
+    for (let i = 1; i < pts.length; i++) for (let t = 0.1; t < 1; t += 0.2) {
+      const p = along(pts[i - 1]!, pts[i]!, t), r = Math.min(...gateAt.map(q => dist(p, q)));
+      if (r > room) { room = r; best = p; }
+    }
+    if (best) return project(lift(best)).page;
     return undefined;
   };
 
@@ -511,12 +488,9 @@ export function castleLayer(state: RootState, story: string, data: Data, host: H
     const word = c.parked ? "parked" : c.word, shape = fillOf.get(c.id);
     return [word, { word, colour: shape ? `#${new Color(shape.colour).getHexString()}` : "#97c459" }] as const;
   })).values()];
-  const gates = new Map([...plan.gates].map(([k, g]) => [k, { key: k, town: g.town, links: g.links, walled: plan.towns.get(g.town)!.walled }]));
+  const gates = new Map([...plan.gates].map(([k, g]) => [k, { key: k, town: g.town, links: g.links }]));
   const stats = {
-    inset: INSET, wallCut: WALL_CUT, towns: plan.towns.size, walled: [...plan.towns.values()].filter(t => t.walled).length,
-    unwalled: [...plan.towns.values()].filter(t => !t.walled).map(t => `${byId.get(t.id)?.title} (${byId.get(t.id)?.lines} lines, ${t.depth.toFixed(1)} deep)`),
-    depths: Object.fromEntries([...plan.towns.values()].map(t => [byId.get(t.id)?.title, Math.round(t.depth * 10) / 10])),
-    turns, wallLength: Math.round(wallLength), gates: plan.gates.size, links: links.size, routed: plan.links.length,
+    gap: GAP, territories: plan.towns.size, gapsCut, gates: plan.gates.size, links: links.size, routed: plan.links.length,
     unrouted: Object.entries(asked.filter(a => !plan.links.some(l => l.key === a.key)).reduce((m, a) => { const k = a.to.kind === 'town' ? byId.get(a.to.id)?.title ?? '' : 'dock'; m[k] = (m[k] ?? 0) + 1; return m; }, {} as Record<string, number>)),
     inside: asked.filter(a => a.from.kind === "town" && a.to.kind === "town").length, docks: dockInfo.map(d => ({ label: d.label, links: d.links.length })),
     stretches: stretches.size, sharedStretches: [...stretches.values()].filter(s => s.carried.length > 1).length, chains: chains.length,

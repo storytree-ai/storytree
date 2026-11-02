@@ -48,8 +48,8 @@ await withCapture({ folder: path.join(dist, 'stills'), dist }, async ({ browser,
   // The wrench on Cloud connection: the one open increment that names one of The library's capabilities today.
   await click(page, 'wrench', id('8 · Cloud connection (GCP)'), /^Work wanting 8 · Cloud connection/);
   await shot(page, 'wrench-arcs');
-  // A link's own gate in a walled town: Work in flight's, from the capability that calls it. Its route lights in gold.
-  const gate = info.gates.find(g => g.walled && g.links.length === 1 && g.town === id('10 · Work in flight'));
+  // A link's own gate, a gap in Work in flight's border, from the capability that calls it. Its route lights in gold.
+  const gate = info.gates.find(g => g.links.length === 1 && g.town === id('10 · Work in flight'));
   await click(page, 'gate', gate.key, /^Into 10 · Work in flight from /);
   await shot(page, 'gate');
   // A road: Rounds calls Lapsed questions.
@@ -81,11 +81,14 @@ await withCapture({ folder: path.join(dist, 'stills'), dist }, async ({ browser,
   await zoom('3 · Data schema', 8);
   await shot(page, 'close-up');
   for (let k = 0; k < 8; k++) { await page.mouse.wheel(0, 300); await settle(page, 2); }
-  // A small territory with no wall: its gates stand on open ground.
-  const small = info.gates.find(g => !g.walled && g.town === id('23 · Catalogue'));
-  await click(page, 'gate', small.key, /^Into 23 · Catalogue/);
-  await zoom('23 · Catalogue', 8);
-  await shot(page, 'small-territory');
+  // A few gaps close up, where Links, Decision log and Knowledge entrances meet: one of Links' gates picked, the wheel over it.
+  const small = info.gates.find(g => g.links.length === 1 && g.town === id('21 · Links'));
+  await click(page, 'gate', small.key, /^Into 21 · Links/);
+  const gap = await page.evaluate(k => window.mock.layer.point('gate', k), small.key);
+  await page.mouse.move(gap.x, gap.y);
+  for (let k = 0; k < 12; k++) { await page.mouse.wheel(0, -300); await settle(page, 2); }
+  await shot(page, 'gaps');
+  for (let k = 0; k < 4; k++) { await page.mouse.wheel(0, 300); await settle(page, 2); }
   // Panned out to the whole island, by the wheel.
   for (let k = 0; k < 14; k++) { await page.mouse.wheel(0, 300); await settle(page, 2); }
   await shot(page, 'whole-island');
@@ -111,7 +114,7 @@ await withCapture({ folder: path.join(dist, 'stills'), dist }, async ({ browser,
   const img = name => `data:image/png;base64,${readFileSync(path.join(out, `${name}.png`)).toString('base64')}`;
   // Both are the same window at the same framing; each is cropped to the map beside the panel and shown at half size.
   await pair.setContent(`<body style="margin:0;background:#0e1418;color:#e8eef0;font:600 15px system-ui;display:flex;gap:12px;padding:10px">
-    ${[['real-today', 'The map today: The library selected'], ['resting', 'Round 4: the same territories, a walled town inset in each, roads between']].map(([n, t]) =>
+    ${[['real-today', 'The map today: The library selected'], ['resting', 'Round 5: the same territories, borders dashed, roads solid, a gap for each gate']].map(([n, t]) =>
       `<figure style="margin:0"><div style="width:702px;height:450px;overflow:hidden"><img src="${img(n)}" style="width:1440px;transform:scale(0.645);transform-origin:0 0"></div><figcaption style="padding-top:6px">${t}</figcaption></figure>`).join('')}</body>`);
   await pair.screenshot({ path: path.join(out, 'side-by-side.png') });
   await pair.close();

@@ -1,25 +1,27 @@
-/** Round 4's plan of the island, with no three.js and no page: the map's own territories, a walled town inset in each, and the
- * roads between them. Plain geometry on the island's ground (x, z), so castle.ts only has to draw it.
+/** Round 5's plan of the island, with no three.js and no page: the map's own territories, the roads between them, and a gate
+ * for each link, a gap in the called territory's border. Plain geometry on the island's ground (x, z), so castle.ts only has
+ * to draw it.
  * - The land as a grid: each point's territory is the one its nearest cell site gives (the map's own Voronoi cut), on the coast.
- * - A town: the territory pulled in by INSET on every side (its distance to the territory's edge, by a distance transform), its
- *   narrow necks opened off, then its outline simplified to a few long straight runs, a tower at each turn.
+ * - Each territory's deepest point (by a distance transform), where its name stands.
  * - Roads: only along the lines the map already draws, the borders between territories and the coast between two borders, as
- *   packages/forest/src/view/border-route.ts routes a lit link inland; a short spur leads from the line into a town. A link is
- *   one road; a stretch already walked costs less, so roads merge. */
+ *   packages/forest/src/view/border-route.ts routes a lit link inland, so a road never crosses a third territory. A link is
+ *   one road; a stretch already walked costs less, so roads merge.
+ * - Gates: a gap in the called territory's border near where its road first meets it, the road running through and a short
+ *   way in. */
 import { onLand, type Point as P, type TerritoryMap } from "../../../../../packages/forest/src/territories/territories.js";
 import { insideOf } from "../../../../../packages/forest/src/view/territory-land.js";
 
 export type { P };
 export type Town = {
-  id: string; index: number; walled: boolean;
-  /** The town's wall (counter-clockwise), or for an unwalled territory the ring its gate marks stand on. */
-  ring: P[];
+  id: string; index: number;
   /** The territory's deepest point and how far it is from the territory's edge. */
   deep: P; depth: number; area: number;
 };
-export type Gate = { key: string; town: string; at: P; along: P; out: P; links: string[]; spurTo: number };
+/** A gate: a gap in the called territory's dashed border at `at`, `along` the border there, `out` its outward side; the road
+ * reaches it at node `spurTo` and runs on in to `inner`. */
+export type Gate = { key: string; town: string; at: P; along: P; out: P; links: string[]; spurTo: number; inner: P };
 export type LinkEnd = { kind: "town"; id: string } | { kind: "dock"; dock: number };
-export type Link = { key: string; from: LinkEnd; to: LinkEnd; gate?: string; nodes: number[]; edges: number[]; startSpur?: [P, P]; endSpur?: [P, P] };
+export type Link = { key: string; from: LinkEnd; to: LinkEnd; gate?: string; nodes: number[]; edges: number[]; endSpur?: [P, P] };
 export type Dock = { at: P; node: number };
 
 const far = (a: P, b: P) => Math.hypot(a.x - b.x, a.z - b.z);
@@ -48,68 +50,6 @@ function edt(zero: (i: number) => boolean, w: number, h: number): Float64Array {
   return d;
 }
 
-/** The outline of the cells where `inside` holds, as loops along the cells' sides, counter-clockwise; the largest loop. */
-function outline(inside: (x: number, y: number) => boolean, w: number, h: number, corner: (x: number, y: number) => P): P[] {
-  const next = new Map<string, [number, number][]>();
-  const add = (a: [number, number], b: [number, number]) => { const k = a.join(); next.set(k, [...(next.get(k) ?? []), b]); };
-  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
-    if (!inside(x, y)) continue;
-    // The region on the left of each side as it is walked.
-    if (!inside(x, y - 1)) add([x + 1, y], [x, y]);
-    if (!inside(x + 1, y)) add([x + 1, y + 1], [x + 1, y]);
-    if (!inside(x, y + 1)) add([x, y + 1], [x + 1, y + 1]);
-    if (!inside(x - 1, y)) add([x, y], [x, y + 1]);
-  }
-  const loops: [number, number][][] = [];
-  for (const [start, outs] of next) {
-    while (outs.length) {
-      const loop: [number, number][] = [start.split(",").map(Number) as [number, number]];
-      let at = outs.pop()!;
-      while (at.join() !== start) {
-        loop.push(at);
-        const options = next.get(at.join())!;
-        at = options.pop()!;
-      }
-      loops.push(loop);
-    }
-  }
-  const area = (l: P[]) => l.reduce((s, p, i) => { const q = l[(i + 1) % l.length]!; return s + p.x * q.z - q.x * p.z; }, 0) / 2;
-  const shaped = loops.map(l => l.map(([x, y]) => corner(x, y)));
-  return shaped.sort((a, b) => Math.abs(area(b)) - Math.abs(area(a)))[0] ?? [];
-}
-
-/** Douglas-Peucker on a closed loop, then the shortest runs folded away until every run is at least `minRun` long. */
-function simplify(loop: P[], eps: number, minRun: number): P[] {
-  if (loop.length < 4) return loop;
-  const dp = (pts: P[]): P[] => {
-    if (pts.length < 3) return pts;
-    const a = pts[0]!, b = pts.at(-1)!, l = far(a, b) || 1e-9;
-    let worst = 0, at = 0;
-    for (let i = 1; i < pts.length - 1; i++) {
-      const p = pts[i]!, dd = Math.abs((b.x - a.x) * (a.z - p.z) - (a.x - p.x) * (b.z - a.z)) / l;
-      if (dd > worst) { worst = dd; at = i; }
-    }
-    return worst <= eps ? [a, b] : [...dp(pts.slice(0, at + 1)).slice(0, -1), ...dp(pts.slice(at))];
-  };
-  // Split at the two points farthest apart, so the loop's ends are corners.
-  let i0 = 0, i1 = 0, best = 0;
-  for (let i = 0; i < loop.length; i += 3) for (let j = i + 1; j < loop.length; j += 3) { const dd = far(loop[i]!, loop[j]!); if (dd > best) { best = dd; i0 = i; i1 = j; } }
-  let out = [...dp(loop.slice(i0, i1 + 1)).slice(0, -1), ...dp([...loop.slice(i1), ...loop.slice(0, i0 + 1)]).slice(0, -1)];
-  // Fold away the corner whose triangle is smallest while a run is too short or a turn too slight.
-  for (let guard = 0; guard < 400 && out.length > 4; guard++) {
-    const n = out.length;
-    const weak = out.map((p, i) => {
-      const a = out[(i - 1 + n) % n]!, c = out[(i + 1) % n]!;
-      const turn = Math.abs(Math.atan2((p.x - a.x) * (c.z - p.z) - (p.z - a.z) * (c.x - p.x), (p.x - a.x) * (c.x - p.x) + (p.z - a.z) * (c.z - p.z)));
-      const short = Math.min(far(a, p), far(p, c)) < minRun, slight = turn < 0.22;
-      return { i, bad: short || slight, area: Math.abs((p.x - a.x) * (c.z - a.z) - (c.x - a.x) * (p.z - a.z)) };
-    }).filter(x => x.bad).sort((a, b) => a.area - b.area)[0];
-    if (!weak) break;
-    out = out.filter((_, i) => i !== weak.i);
-  }
-  return out;
-}
-
 /** A binary min-heap of states by cost. */
 class Heap {
   items: { s: number; c: number }[] = [];
@@ -132,23 +72,12 @@ export function onRing(p: P, ring: P[]): { at: P; s: number; run: number; distan
   });
   return best;
 }
-export const perimeter = (ring: P[]) => ring.reduce((s, a, i) => s + far(a, ring[(i + 1) % ring.length]!), 0);
-export function atS(ring: P[], s: number): { at: P; run: number; t: number } {
-  const total = perimeter(ring); s = ((s % total) + total) % total;
-  for (let i = 0; i < ring.length; i++) {
-    const a = ring[i]!, b = ring[(i + 1) % ring.length]!, l = far(a, b);
-    if (s <= l || i === ring.length - 1) return { at: along(a, b, l ? Math.min(1, s / l) : 0), run: i, t: l ? s / l : 0 };
-    s -= l;
-  }
-  return { at: ring[0]!, run: 0, t: 0 };
-}
-
 export type Plan = ReturnType<typeof townPlan>;
 
 /** The plan: towns, the line graph, docks, gates and every link's road. `links` names every link once, by its two ends; a
  * link from another island arrives at `dock` (an index into `docks`), one to another island leaves by it. */
 export function townPlan(map: TerritoryMap, coast: readonly (readonly P[])[], opts: {
-  inset: number; wallCut: number; gateRoom: number; corner: number; cell?: number;
+  inset: number; gap: number; cell?: number;
   links: { key: string; from: LinkEnd; to: LinkEnd; gateGroup?: string }[]; docks: P[];
 }) {
   const D = opts.inset;
@@ -176,7 +105,7 @@ export function townPlan(map: TerritoryMap, coast: readonly (readonly P[])[], op
   }
   const territoryAt = (p: P) => { const i = Math.floor((p.x - x0) / cell), j = Math.floor((p.z - z0) / cell); return i >= 0 && j >= 0 && i < N && j < N ? label[j * N + i]! : -1; };
 
-  // Towns.
+  // Territories: each one's deepest point (where its name stands) and how deep it is. No walls in round 5.
   const towns = new Map<string, Town>();
   map.territories.forEach((t, index) => {
     if (!t.capability) return;
@@ -190,26 +119,7 @@ export function townPlan(map: TerritoryMap, coast: readonly (readonly P[])[], op
     let deepest = 0, deepAt = 0, count = 0;
     for (let k = 0; k < w * h; k++) { if (mine(k)) count++; if (dist[k]! > deepest) { deepest = dist[k]!; deepAt = k; } }
     const depth = Math.sqrt(deepest) * cell, deep = centre(i0 + (deepAt % w), j0 + Math.floor(deepAt / w));
-    const corner = (x: number, y: number): P => ({ x: x0 + (i0 + x) * cell, z: z0 + (j0 + y) * cell });
-    let walled = depth >= opts.wallCut;
-    let ring: P[] = [];
-    if (walled) {
-      // Inset by D, with necks narrower than OPEN opened off: eroded by D + OPEN, then grown back by OPEN.
-      const OPEN = Math.min(D * 1.1, (depth - D) * 0.6), core = (k: number) => Math.sqrt(dist[k]!) * cell >= D + OPEN;
-      const grown = edt(core, w, h);
-      const inside = (x: number, y: number) => x >= 0 && y >= 0 && x < w && y < h && Math.sqrt(grown[y * w + x]!) * cell <= OPEN && mine(y * w + x);
-      ring = simplify(outline(inside, w, h, corner), D * 0.55, opts.corner);
-    }
-    if (ring.length < 3) {
-      walled = false;
-      // No wall: its gate marks stand on a ring about the territory's deepest point.
-      const r = Math.max(depth * 0.55, D * 0.35);
-      ring = Array.from({ length: 16 }, (_, k) => ({ x: deep.x + r * Math.cos(-k * Math.PI / 8), z: deep.z + r * Math.sin(-k * Math.PI / 8) }));
-    }
-    // Counter-clockwise (x right, z down the page), so the outward side is on the right of each run.
-    const signed = ring.reduce((s, p, i) => { const q = ring[(i + 1) % ring.length]!; return s + p.x * q.z - q.x * p.z; }, 0);
-    if (signed < 0) ring.reverse();
-    towns.set(t.capability, { id: t.capability, index, walled, ring, deep, depth, area: count * cell * cell });
+    towns.set(t.capability, { id: t.capability, index, deep, depth, area: count * cell * cell });
   });
 
   // The line graph: the borders as drawn, cut to the coast, and the coast cut at every border's end and every dock.
@@ -267,83 +177,104 @@ export function townPlan(map: TerritoryMap, coast: readonly (readonly P[])[], op
     for (let n = end; back.get(n)! >= 0;) { const i = back.get(n)!; way.unshift(i); n = edges[i]!.a === n ? edges[i]!.b : edges[i]!.a; walk.unshift(n); }
     return { nodes: walk, edges: way };
   };
-  /** The nodes on a town's territory's edge, each with the length of its spur into the town's ring. */
+  /** The nodes on a territory's edge: a road reaches it there. */
   const sidesOf = (town: Town, o: number[][]) => {
     const m = new Map<number, number>();
-    nodes.forEach((p, n) => { if (o[n]!.length && touching(n, o).has(town.index)) m.set(n, onRing(p, town.ring).distance); });
+    nodes.forEach((_, n) => { if (o[n]!.length && touching(n, o).has(town.index)) m.set(n, 0); });
     return m;
   };
   const endOf = (end: LinkEnd, o: number[][]) => end.kind === "dock" ? new Map([[docks[end.dock]!.node, 0]]) : sidesOf(towns.get(end.id)!, o);
 
-  // First, each link's way to the called end, to learn which side of the town it comes in by.
+  // First, each link's way to the called end, to learn where it first meets the called territory's edge.
   const o1 = out();
-  const arrive = new Map<string, P>();
+  const arrive = new Map<string, number>();
   const sorted = [...opts.links].map(l => ({ l, way: route(endOf(l.from, o1), endOf(l.to, o1)) }))
     .sort((a, b) => (b.way?.edges.length ?? 0) - (a.way?.edges.length ?? 0));
-  for (const { l, way } of sorted) if (way && l.to.kind === "town") arrive.set(l.key, nodes[way.nodes.at(-1)!]!);
+  for (const { l, way } of sorted) if (way && l.to.kind === "town") arrive.set(l.key, way.nodes.at(-1)!);
 
-  // Then the gates: one per link into a town (or per group: the links one road brings from other islands), on the ring
-  // nearest where it comes in, spread apart and kept off the towers at the turns.
+  // Then the gates: one per link into a territory (or per group: the links one road brings from other islands), each a gap
+  // in the territory's own dashed border, as near along that border as it can stand to where the road first meets it, and
+  // kept a gap's room from every other gate. The coast is never opened, unless a territory has no border at all.
   const gates = new Map<string, Gate>();
-  const byTown = new Map<string, { key: string; links: string[]; want: number }[]>();
+  const byTown = new Map<string, { key: string; links: string[]; arrive: number }[]>();
   for (const l of opts.links) {
     if (l.to.kind !== "town" || !arrive.has(l.key)) continue;
     const town = towns.get(l.to.id)!, gk = l.gateGroup ?? l.key, list = byTown.get(town.id) ?? [];
     const known = list.find(g => g.key === gk);
     if (known) known.links.push(l.key);
-    else list.push({ key: gk, links: [l.key], want: onRing(arrive.get(l.key)!, town.ring).s });
+    else list.push({ key: gk, links: [l.key], arrive: arrive.get(l.key)! });
     byTown.set(town.id, list);
   }
-  for (const [id, list] of byTown) {
-    const town = towns.get(id)!, ring = town.ring, total = perimeter(ring);
-    // Where a gate may stand: off the corners' towers on a walled town.
-    const turns: number[] = [];
-    let walked = 0;
-    ring.forEach((a, i) => { turns.push(walked); walked += far(a, ring[(i + 1) % ring.length]!); });
-    const free = (s: number) => !town.walled || turns.every(t => { const dd = Math.abs(((s - t) % total + total * 1.5) % total - total / 2); return dd >= opts.corner * 0.5; });
-    const placed: number[] = [];
-    const room = town.walled ? opts.gateRoom : Math.min(opts.gateRoom, total / Math.max(1, list.length));
-    for (const g of list.sort((a, b) => b.links.length - a.links.length)) {
-      let s = g.want;
-      for (let k = 0; k < 4000; k++) {
-        const c = g.want + (k % 2 ? 1 : -1) * Math.ceil(k / 2) * total / 4000;
-        const clear = placed.every(p => Math.abs(((c - p) % total + total * 1.5) % total - total / 2) >= room);
-        if (clear && free(c)) { s = c; break; }
-      }
-      placed.push(s);
-      const { at, run } = atS(ring, s), a = ring[run]!, b = ring[(run + 1) % ring.length]!, l = far(a, b) || 1;
-      const dir = { x: (b.x - a.x) / l, z: (b.z - a.z) / l };
-      // Outward is on the right of a counter-clockwise run (x across, z down).
-      const outward = { x: dir.z, z: -dir.x };
-      gates.set(g.key, { key: g.key, town: id, at, along: dir, out: outward, links: g.links, spurTo: -1 });
-    }
-  }
-  // Each gate's spur runs straight out from it to the first drawn line, which is cut there for it.
-  const lineHit = (p: P, d: P, limit: number) => {
-    let best: { i: number; t: number; u: number } | undefined;
-    edges.forEach((e, i) => {
-      if (e.dead) return;
-      const a = nodes[e.a]!, b = nodes[e.b]!, ex = b.x - a.x, ez = b.z - a.z, den = d.x * ez - d.z * ex;
-      if (Math.abs(den) < 1e-12) return;
-      const t = ((a.x - p.x) * ez - (a.z - p.z) * ex) / den, u = ((a.x - p.x) * d.z - (a.z - p.z) * d.x) / den;
-      if (t > 1e-6 && t < limit && u >= 0 && u <= 1 && (!best || t < best.t)) best = { i, t, u };
-    });
-    return best;
+  const G = opts.gap, inside = (p: P, index: number) => territoryAt(p) === index;
+  /** The inward side of a run from a to b, for territory `index` (+1 left of the run, -1 right, 0 neither). */
+  const inwardOf = (a: P, b: P, index: number) => {
+    const l = far(a, b) || 1, nx = -(b.z - a.z) / l, nz = (b.x - a.x) / l, m = along(a, b, 0.5), r = Math.min(G * 0.3, l * 0.3);
+    return inside({ x: m.x + nx * r, z: m.z + nz * r }, index) ? { x: nx, z: nz } : inside({ x: m.x - nx * r, z: m.z - nz * r }, index) ? { x: -nx, z: -nz } : undefined;
   };
-  for (const g of gates.values()) {
-    const town = towns.get(g.town)!;
-    const hit = lineHit(g.at, g.out, D * 3);
-    if (hit) {
-      const e = edges[hit.i]!, q = along(nodes[e.a]!, nodes[e.b]!, hit.u), n = node(q);
-      if (n !== e.a && n !== e.b) { e.dead = true; addEdge(e.a, n, e.parts, e.coast); addEdge(n, e.b, e.parts, e.coast); }
-      g.spurTo = n;
-    } else {
-      const o = out(), sides = sidesOf(town, o);
-      g.spurTo = [...sides.keys()].sort((a, b) => far(nodes[a]!, g.at) - far(nodes[b]!, g.at))[0]!;
+  /** Splits edge i at t along it, and gives the node there. */
+  const split = (i: number, t: number) => {
+    const e = edges[i]!, n = node(along(nodes[e.a]!, nodes[e.b]!, t));
+    if (n !== e.a && n !== e.b) { e.dead = true; addEdge(e.a, n, e.parts, e.coast); addEdge(n, e.b, e.parts, e.coast); }
+    return n;
+  };
+  for (const [id, list] of byTown) {
+    const town = towns.get(id)!, placed: P[] = [];
+    for (const g of list.sort((a, b) => b.links.length - a.links.length)) {
+      const o = out();
+      let mineEdges = edges.map((_, i) => i).filter(i => !edges[i]!.dead && !edges[i]!.coast && edges[i]!.parts.includes(town.index));
+      if (!mineEdges.length) mineEdges = edges.map((_, i) => i).filter(i => !edges[i]!.dead && edges[i]!.parts.includes(town.index));
+      // How far along the territory's edge each node is from where the road first meets it.
+      const far0 = new Map<number, number>([[g.arrive, 0]]), heap = new Heap(); heap.push(g.arrive, 0);
+      for (let top = heap.pop(); top; top = heap.pop()) {
+        if (top.c > far0.get(top.s)!) continue;
+        for (const i of o[top.s]!) {
+          if (!mineEdges.includes(i)) continue;
+          const e = edges[i]!, there = e.a === top.s ? e.b : e.a, c = top.c + e.length;
+          if (c < (far0.get(there) ?? Infinity)) { far0.set(there, c); heap.push(there, c); }
+        }
+      }
+      const reach = (n: number, p: P) => far0.get(n) ?? far(nodes[g.arrive]!, p) + 1e3;
+      // Candidates: points along each border run, a gap's half and a little from its ends, and the corners where only the
+      // territory's own borders meet.
+      type Spot = { at: P; along: P; in: P; edge?: number; t?: number; node?: number; cost: number };
+      const spots: Spot[] = [];
+      for (const i of mineEdges) {
+        const e = edges[i]!, a = nodes[e.a]!, b = nodes[e.b]!, inward = inwardOf(a, b, town.index);
+        if (!inward) continue;
+        const dir = { x: (b.x - a.x) / (e.length || 1), z: (b.z - a.z) / (e.length || 1) }, m = G * 0.6;
+        const steps = e.length < 2 * m ? (e.length >= G * 1.05 ? [e.length / 2] : []) : Array.from({ length: Math.floor((e.length - 2 * m) / 0.3) + 1 }, (_, k) => m + k * 0.3);
+        for (const u of steps) {
+          const at = along(a, b, u / e.length);
+          spots.push({ at, along: dir, in: inward, edge: i, t: u / e.length, cost: Math.min(reach(e.a, at) + u, reach(e.b, at) + e.length - u) });
+        }
+      }
+      for (const [n] of far0) {
+        const mine = o[n]!.filter(i => mineEdges.includes(i));
+        if (mine.length !== 2 || o[n]!.some(i => edges[i]!.coast)) continue;
+        const ins = mine.map(i => { const e = edges[i]!; return inwardOf(nodes[e.a]!, nodes[e.b]!, town.index); });
+        if (ins.some(v => !v)) continue;
+        const v = { x: ins[0]!.x + ins[1]!.x, z: ins[0]!.z + ins[1]!.z }, l = Math.hypot(v.x, v.z);
+        if (l < 0.6) continue;
+        const inward = { x: v.x / l, z: v.z / l };
+        spots.push({ at: nodes[n]!, along: { x: inward.z, z: -inward.x }, in: inward, node: n, cost: reach(n, nodes[n]!) });
+      }
+      const room = (k: number) => G * (k === 0 ? 1.7 : 1.25);
+      let best: Spot | undefined;
+      for (let k = 0; k < 2 && !best; k++) best = spots.filter(s => placed.every(p => far(p, s.at) >= room(k))).sort((a, b) => a.cost - b.cost)[0];
+      best ??= spots.sort((a, b) => a.cost - b.cost)[0];
+      if (!best) continue;
+      const n = best.node ?? split(best.edge!, best.t!);
+      placed.push(best.at);
+      // The road runs on through the gap and a short way in, stopping short of leaving the territory.
+      let reachIn = G * 1.15;
+      while (reachIn > G * 0.3 && ![0.35, 0.7, 1].every(f => inside({ x: best.at.x + best.in.x * reachIn * f, z: best.at.z + best.in.z * reachIn * f }, town.index))) reachIn *= 0.8;
+      const inner = { x: best.at.x + best.in.x * reachIn, z: best.at.z + best.in.z * reachIn };
+      gates.set(g.key, { key: g.key, town: id, at: best.at, along: best.along, out: { x: -best.in.x, z: -best.in.z }, links: g.links, spurTo: n, inner });
     }
   }
 
-  // Last, every link's road, the longest first so the shorter ones join the ways they lay.
+  // Last, every link's road, the longest first so the shorter ones join the ways they lay. A road starts on its caller's edge
+  // and ends through its gate.
   const o2 = out();
   const links: Link[] = [];
   for (const { l } of sorted) {
@@ -352,10 +283,9 @@ export function townPlan(map: TerritoryMap, coast: readonly (readonly P[])[], op
     const way = route(endOf(l.from, o2), targets);
     if (!way) continue;
     way.edges.forEach(i => used.add(i));
-    const first = nodes[way.nodes[0]!]!, last = nodes[way.nodes.at(-1)!]!;
-    const startSpur: [P, P] | undefined = l.from.kind === "town" ? [onRing(first, towns.get(l.from.id)!.ring).at, first] : undefined;
-    const endSpur: [P, P] | undefined = gate ? [last, gate.at] : l.to.kind === "town" ? [last, onRing(last, towns.get(l.to.id)!.ring).at] : undefined;
-    links.push({ key: l.key, from: l.from, to: l.to, ...(gate ? { gate: gate.key } : {}), nodes: way.nodes, edges: way.edges, ...(startSpur ? { startSpur } : {}), ...(endSpur ? { endSpur } : {}) });
+    const last = nodes[way.nodes.at(-1)!]!;
+    const endSpur: [P, P] | undefined = gate ? [last, gate.inner] : undefined;
+    links.push({ key: l.key, from: l.from, to: l.to, ...(gate ? { gate: gate.key } : {}), nodes: way.nodes, edges: way.edges, ...(endSpur ? { endSpur } : {}) });
   }
   return { towns, nodes, edges, docks, gates, links, territoryAt, cell, N };
 }

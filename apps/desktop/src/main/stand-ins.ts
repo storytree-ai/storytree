@@ -40,6 +40,14 @@ export function windowKinds(graph: PartsGraph, standIns: StandIns, off: readonly
   return kinds;
 }
 
+/**
+ * The records Delete forgets with a project (contract 1.37): those the app's story packages name in `records`, and each
+ * factory plugin's `standIns` names, as code review's QA ledger is now (ADR-1209), but none of a part `off` switches off.
+ */
+export function windowProjectRecords<Records>(records: Composition<Records>, standIns: StandIns, off: readonly string[]): Records[] {
+  return mount(standIn(records, "projectRecords", standIns), off).mounted;
+}
+
 /** What the window's scheme may serve: files of the factory's plugins standing in for a switched-off part, or adding one. */
 export interface Served {
   readonly folder?: string;

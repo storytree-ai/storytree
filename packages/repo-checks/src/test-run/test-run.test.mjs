@@ -41,7 +41,7 @@ test("7.1 judge: a contract passes only if every test it has passed; any failure
     return note === undefined ? { state } : { state, note };
   };
   assert.deepEqual(brief("1.1"), { state: "passing", note: "2/2 tests passed" });
-  assert.deepEqual(brief("1.2"), { state: "failing", note: "1/2 tests passed" });
+  assert.deepEqual(brief("1.2"), { state: "failing", note: "1/2 tests passed; first failure: boom" }, "a failure quotes its message");
   assert.deepEqual(brief("1.3"), { state: "not-checked" }, "no tests");
   assert.deepEqual(brief("2.1"), { state: "not-checked" }, "a skipped test is not a pass");
   assert.deepEqual(brief("2.2"), { state: "not-checked" }, "its only test counts for 8.2");

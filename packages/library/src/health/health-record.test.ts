@@ -731,6 +731,24 @@ for (const backend of [memory, postgres]) {
     ], "a run recorded them: offered by what it records, a named test no hold on another reason");
   });
 
+  contract("5.18", "a health worklist item whose reason is failing carries the verified note of the first contract carrying it, with the failure's message that note holds; an item with any other reason carries none", async ({ health, work }) => {
+    const { story, capability, contract, sibling } = await smallPlan(work);
+    const page = await work.addCapability({ title: "Thank-you page", story: story.id });
+    await work.addContract({ title: "Shows thanks", capability: page.id });
+    for (const built of [capability, page]) await work.setProposed(built.id, false);
+    const note = "0/1 tests passed; first failure: ENOENT: no such file or directory, open 'torn-down.txt', at commit 6c38737";
+    await health.recordVerified(sibling.id, "failing", { by: "storytree test run on CI", note });
+    await later();
+    await health.recordVerified(contract.id, "failing", { by: "storytree test run on CI", note: "1/2 tests passed" });
+    const itemOf = async (id: string) => (await health.worklist()).find((item) => item.capability === id)!;
+    const failing = await itemOf(capability.id);
+    assert.equal(failing.why.reason, "failing");
+    assert.equal(failing.failure, (await health.health(failing.why.contracts[0]!)).verified.note, "the first carrying contract's note, in the capability's order");
+    assert.equal((await itemOf(page.id)).failure, undefined, "no test names it: no failure to quote");
+    await health.recordVerified(contract.id, "passing");
+    assert.equal((await itemOf(capability.id)).failure, note, "the one contract still failing says why");
+  });
+
   contract("5.16", "an explored capability of a mapped story has no health until it has a contract: no reason, and off the worklist; given a contract, it is read as any capability", async ({ health, work }) => {
     const { added: [app] } = await work.mapStories("/code/app", [{ package: ".", title: "app", folders: ["."] }]);
     const stats = await work.addCapability({ title: "Stats page", story: app!.id, covers: ["app/stats"] });

@@ -95,8 +95,9 @@ export function mapTools({ imports: importsOf, heldBack }: ToolHost): ToolExtens
           if (listed.length === 0) return { text: ["Nothing waits on the health worklist: every capability is healthy or already routed.", ...(said === undefined ? [] : [said])].join("\n"), data: { items: [], more: 0, held } };
           const items = listed.slice(0, 3);
           const more = listed.length - items.length;
-          const lines = items.map(({ capability, title, status, why, since }) =>
-            `Capability "${title}" (${capability}): ${status} — ${why.reason}, the ${why.mover}'s to move${why.contracts.length === 0 ? "" : `, carried by ${why.contracts.join(", ")}`}; since ${since.slice(0, 10)}`,
+          const lines = items.map(({ capability, title, status, why, since, failure }) =>
+            `Capability "${title}" (${capability}): ${status} — ${why.reason}, the ${why.mover}'s to move${why.contracts.length === 0 ? "" : `, carried by ${why.contracts.join(", ")}`}; since ${since.slice(0, 10)}` +
+            (failure === undefined ? "" : `; its verified note: ${failure}`),
           );
           if (more > 0) lines.push(`${more} more wait.`);
           if (said !== undefined) lines.push(said);

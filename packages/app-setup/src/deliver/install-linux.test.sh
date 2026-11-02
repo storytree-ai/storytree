@@ -16,9 +16,21 @@ trap 'rm -rf "$root"' EXIT
 refused "x64" "an Arm Linux is refused" st_platform Linux aarch64
 st_platform Linux x86_64; check "$ST_SYSTEM $ST_ARCH" "linux x64" "x64 Linux is accepted"
 
-# FUSE: the AppImage runs through libfuse2; its absence names the one apt command, which storytree never runs itself.
-st_fuse "	libfuse.so.2 (libc6,x86-64) => /lib/x86_64-linux-gnu/libfuse.so.2" || check refused accepted "libfuse2 present"
-refused "sudo apt install libfuse2t64" "libfuse2 missing, with only libfuse3" st_fuse "	libfuse3.so.3 (libc6,x86-64) => /lib/x86_64-linux-gnu/libfuse3.so.3"
+# FUSE: the AppImage mounts itself through libfuse2 and /dev/fuse. Where this user can use both it launches plainly;
+# where either is missing it installs anyway and runs unpacked, saying so (/dev/null stands in for a usable device).
+libfuse2="	libfuse.so.2 (libc6,x86-64) => /lib/x86_64-linux-gnu/libfuse.so.2"
+unset APPIMAGE_EXTRACT_AND_RUN
+st_fuse "$libfuse2" /dev/null > "$root/fuse.said"
+check "${APPIMAGE_EXTRACT_AND_RUN:-}|$(cat "$root/fuse.said")" "|" "libfuse2 and an openable /dev/fuse: a plain launch, nothing said"
+st_fuse "	libfuse3.so.3 (libc6,x86-64) => /lib/x86_64-linux-gnu/libfuse3.so.3" /dev/null > "$root/fuse.said" || check refused installs "libfuse2 missing installs anyway"
+check "${APPIMAGE_EXTRACT_AND_RUN:-}" 1 "libfuse2 missing, with only libfuse3: the app runs unpacked"
+case "$(cat "$root/fuse.said")" in *"does not have libfuse2"*APPIMAGE_EXTRACT_AND_RUN=1*) ;; *) check "$(cat "$root/fuse.said")" "names libfuse2 and extract-and-run" "and says so" ;; esac
+unset APPIMAGE_EXTRACT_AND_RUN
+st_fuse "$libfuse2" "$root/no fuse device" > "$root/fuse.said" || check refused installs "an unusable /dev/fuse installs anyway"
+check "${APPIMAGE_EXTRACT_AND_RUN:-}" 1 "libfuse2 present but /dev/fuse unusable: the app runs unpacked"
+case "$(cat "$root/fuse.said")" in *"cannot open $root/no fuse device"*) ;; *) check "$(cat "$root/fuse.said")" "names the device" "and says which device it could not open" ;; esac
+[ ! -e "$root/no fuse device" ] || check made "not made" "checking a missing device makes no file in its place"
+unset APPIMAGE_EXTRACT_AND_RUN
 
 # Installation folder: ~/.local/share, unless this installation's own record names another.
 st_install_dir "$root/none" "$root"; check "$ST_DIR" "$root/.local/share/storytree-0.3" "the default Linux folder"
@@ -58,6 +70,10 @@ printf '1\n' > "$ST_USERNS"
 check "$(st_desktop_entry "$image/storytree-0.3.desktop" /o/storytree-0.3 /i.png | grep '^Exec=')" 'Exec="/o/storytree-0.3" --no-sandbox %U' "where the kernel blocks it, the menu entry turns the sandbox off"
 ST_USERNS="$root/no such setting"
 check "$(st_desktop_entry "$image/storytree-0.3.desktop" /o/storytree-0.3 /i.png | grep '^Exec=')" 'Exec="/o/storytree-0.3" %U' "a kernel without the setting keeps the sandbox on"
+APPIMAGE_EXTRACT_AND_RUN=1
+check "$(st_desktop_entry "$image/storytree-0.3.desktop" /o/storytree-0.3 /i.png | grep '^Exec=')" 'Exec=env APPIMAGE_EXTRACT_AND_RUN=1 "/o/storytree-0.3" %U' "where FUSE cannot be used, the menu entry runs the app unpacked"
+check "$(ST_SYSTEM=linux; st_opened /o | head -n 1)" "storytree is installed, and its app is open. To open it again, use your app menu, or run: APPIMAGE_EXTRACT_AND_RUN=1 '/o/storytree-0.3'" "and the command it gives to open it again does too"
+unset APPIMAGE_EXTRACT_AND_RUN
 check "$(grep '^Icon=' "$entry")" "Icon=$dir/storytree-0.3.png" "and shows the installed icon"
 check "$(grep -c 'storytree-auth' "$entry")" 1 "and keeps the sign-in scheme"
 check "$(st_appimage_version "$dir/storytree-0.3")" 0.3.123 "the installed version is read from the AppImage itself"

@@ -22,7 +22,7 @@ for (const shell of ["sh", "bash", "zsh"]) {
     assert.equal(result.status, 0, result.stdout + result.stderr);
     assert.match(result.stdout, /install\.sh PASS/);
   });
-  test(`1.13 under ${shell}: on x64 Linux the same one-liner refuses another chip, names the apt command for a missing libfuse2, takes the release's AppImage, installs it with its agent tools and icon under ~/.local/share/storytree-0.3 and a menu entry that starts it, reads its version from the AppImage, and writes the PATH line to ~/.profile`, {
+  test(`1.13 under ${shell}: on x64 Linux the same one-liner refuses another chip, installs where FUSE cannot be used (no libfuse2, or a /dev/fuse this user cannot open) and runs the app unpacked there, saying so, takes the release's AppImage, installs it with its agent tools and icon under ~/.local/share/storytree-0.3 and a menu entry that starts it, reads its version from the AppImage, and writes the PATH line to ~/.profile`, {
     skip: process.platform === "win32" && "platform:posix: the one-liner runs under a POSIX shell, which Windows CI does not provide",
   }, (t) => {
     const found = spawnSync(shell, ["-c", "exit 0"]);

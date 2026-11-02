@@ -3,5 +3,5 @@
 // desktop app all start their servers through it.
 export { binaryPackages, findBinaries } from "./binaries.js";
 export type { FindBinariesOptions } from "./binaries.js";
-export { DataDirInUseError, ensureCluster, start } from "./server.js";
-export type { ClusterOptions, LocalPostgres, StartOptions } from "./server.js";
+export { DataDirInUseError, ensureCluster, pgCtl, start } from "./server.js";
+export type { ClusterOptions, LocalPostgres, PgCtlOptions, StartOptions } from "./server.js";

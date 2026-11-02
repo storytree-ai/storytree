@@ -22,7 +22,7 @@ import { removeTemp, waitUntil } from "@storytree/test-waits";
 import pg from "pg";
 
 import { ensureClientSignIn } from "./auth.js";
-import { binaryPackages, DataDirInUseError, ensureCluster, findBinaries, start, type LocalPostgres } from "./index.js";
+import { binaryPackages, DataDirInUseError, ensureCluster, findBinaries, pgCtl as pgCtlAsServer, start, type LocalPostgres } from "./index.js";
 import { letThrough, serverAccount, type Account } from "./server.js";
 
 const packageDir = fileURLToPath(new URL("..", import.meta.url));
@@ -380,6 +380,19 @@ test("2.14 run as root (a cloud container), the Postgres tools and the server ru
   assert.deepEqual(await query(server.url, "SELECT 1 AS one"), [{ one: 1 }]);
   assert.equal(lstatSync(dataDir).uid, account.uid, "the cluster is the account's");
   assert.equal(lstatSync(`${dataDir}.log`).uid, account.uid, "and so is the server's log");
+  await stopped(server);
+});
+
+test("2.14 a caller's pg_ctl on a data directory runs as the server does, let through the folders above it, so run as root it reads whether the server runs and stops it", { skip: process.platform === "win32" && "platform:posix: user ids" }, async () => {
+  const above = path.join(root, "caller-pg-ctl");
+  mkdirSync(above);
+  const dataDir = path.join(above, "data");
+  const server = await started({ dataDir });
+  chmodSync(above, 0o700); // shut again after the start, as a caller making its folder private does
+  assert.equal(await pgCtlAsServer(dataDir, ["status"]), 0, "it reads the server running");
+  assert.equal(await pgCtlAsServer(dataDir, ["-m", "fast", "-w", "stop"], { timeoutMs: 60_000 }), 0, "and stops it");
+  assert.equal(await pgCtlAsServer(dataDir, ["status"]), 3, "then reads it stopped");
+  await assert.rejects(query(server.url, "SELECT 1"), { code: "ECONNREFUSED" });
   await stopped(server);
 });
 

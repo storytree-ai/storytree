@@ -13,8 +13,8 @@
       "kind": "path",
       "mark": "capability_389fd5e3722d->capability_d8451645c169",
       "at": {
-        "x": 271,
-        "y": 468
+        "x": 303,
+        "y": 474
       },
       "heading": "26 · Rounds calls 25 · Lapsed questions"
     },
@@ -22,8 +22,8 @@
       "kind": "gate",
       "mark": "capability_a7f068502213",
       "at": {
-        "x": 720,
-        "y": 342
+        "x": 718,
+        "y": 350
       },
       "heading": "Into 10 · Work in flight"
     },
@@ -32,7 +32,7 @@
       "mark": "capability_dd486ffa5b02",
       "at": {
         "x": 605,
-        "y": 305
+        "y": 311
       },
       "heading": "4 · Work model"
     },
@@ -40,8 +40,8 @@
       "kind": "road",
       "mark": "capability_a6d2887aed63->capability_88a6aaa1fa93",
       "at": {
-        "x": 124,
-        "y": 772
+        "x": 125,
+        "y": 793
       },
       "heading": "15 · Connection by address calls Keys · 1 · Key store and resolver"
     },
@@ -49,8 +49,8 @@
       "kind": "wrench",
       "mark": "capability_a7f068502213:sample",
       "at": {
-        "x": 723,
-        "y": 351
+        "x": 721,
+        "y": 357
       },
       "heading": "Work wanting 10 · Work in flight"
     },
@@ -59,7 +59,7 @@
       "mark": "capability_a1d4fadbec3e",
       "at": {
         "x": 496,
-        "y": 360
+        "y": 367
       },
       "heading": "3 · Data schema"
     }
@@ -70,31 +70,31 @@
     "gates": 24,
     "ways": 27,
     "links": 27,
-    "stretches": 76,
-    "sharedStretches": 48,
-    "chains": 53,
-    "wallLength": 958,
-    "merlons": 429,
+    "stretches": 86,
+    "sharedStretches": 55,
+    "chains": 57,
+    "wallLength": 925.8,
+    "merlons": 362,
     "roads": 1,
     "wrenches": 1,
-    "commonsWidth": 5.18,
+    "commonsWidth": 5.99,
     "fit": {
       "middle": {
         "x": 7.38893340269409,
         "z": -2.6534498202968795
       },
       "best": {
-        "s": 0.4710699357344097,
+        "s": 0.4607767750596442,
         "ox": 9.746585693359375,
-        "oz": -1.392369384765625,
+        "oz": 1.392369384765625,
         "turn": 0
       },
       "reach": 139.2369384765625,
       "bounds": {
-        "x0": -5.5,
-        "x1": 343.96077373975,
-        "z0": -158.2042580590958,
-        "z1": 164.8477058050295
+        "x0": -6.5,
+        "x1": 349.01160773608893,
+        "z0": -167.42534341851103,
+        "z1": 175.0153418800005
       },
       "land": [
         [
@@ -249,35 +249,35 @@
         ]
       ]
     },
-    "scale": 0.471,
+    "scale": 0.461,
     "ways_": {
       "capability_73c014cf4352->capability_dce9495fcaed": 20,
-      "capability_75d059640d9d->capability_5e0362aae607": 17,
-      "capability_389fd5e3722d->capability_a19bf216935b": 8,
+      "capability_75d059640d9d->capability_5e0362aae607": 20,
       "capability_389fd5e3722d->capability_36bcae448803": 8,
+      "capability_75d059640d9d->capability_baaeecb42577": 9,
+      "capability_389fd5e3722d->capability_a19bf216935b": 8,
       "capability_389fd5e3722d->capability_d8451645c169": 8,
-      "capability_75d059640d9d->capability_baaeecb42577": 8,
       "capability_556e276756c9->capability_baaeecb42577": 7,
+      "capability_5a80222c88c4->capability_5e0362aae607": 7,
       "capability_75d059640d9d->capability_dd486ffa5b02": 8,
-      "capability_13b04e769a4b->capability_baaeecb42577": 5,
-      "capability_5a80222c88c4->capability_5e0362aae607": 5,
-      "capability_a954e1eb16f6->capability_5e0362aae607": 5,
+      "capability_13b04e769a4b->capability_baaeecb42577": 7,
+      "capability_f27ac2abb10b->capability_dd486ffa5b02": 6,
       "capability_5f1ce148e63a->capability_a7f068502213": 6,
-      "capability_75d059640d9d->capability_f27ac2abb10b": 6,
+      "capability_a6d2887aed63->capability_5e0362aae607": 5,
+      "capability_389fd5e3722d->capability_53fd994f7b4c": 5,
+      "capability_75d059640d9d->capability_f27ac2abb10b": 8,
       "capability_78d6e026f902->capability_baaeecb42577": 5,
       "capability_dd486ffa5b02->capability_a1d4fadbec3e": 5,
-      "capability_389fd5e3722d->capability_b7a12a2b7273": 7,
-      "capability_f27ac2abb10b->capability_dd486ffa5b02": 5,
       "capability_a7f068502213->capability_dd486ffa5b02": 5,
-      "capability_baaeecb42577->capability_a1d4fadbec3e": 5,
-      "capability_53fd994f7b4c->capability_36bcae448803": 5,
-      "capability_389fd5e3722d->capability_53fd994f7b4c": 5,
       "capability_b7a12a2b7273->capability_a19bf216935b": 5,
-      "capability_a6d2887aed63->capability_5e0362aae607": 5,
+      "capability_53fd994f7b4c->capability_36bcae448803": 5,
+      "capability_baaeecb42577->capability_a1d4fadbec3e": 5,
+      "capability_a954e1eb16f6->capability_5e0362aae607": 5,
+      "capability_73c014cf4352->capability_75d059640d9d": 5,
+      "capability_389fd5e3722d->capability_b7a12a2b7273": 5,
       "capability_a1d4fadbec3e->capability_5a80222c88c4": 5,
       "capability_13b04e769a4b->capability_dd486ffa5b02": 5,
-      "capability_d632ff0454c0->capability_a7f068502213": 6,
-      "capability_73c014cf4352->capability_75d059640d9d": 5
+      "capability_d632ff0454c0->capability_a7f068502213": 5
     }
   },
   "errors": [],

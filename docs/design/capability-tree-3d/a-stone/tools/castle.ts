@@ -150,12 +150,13 @@ function rounded(points: P[], r: number): P[] {
 /** The wrench: a flat ink icon, an open-ended spanner standing upright, in the claim flag's manner (pale fill, ink outline, a
  * shadow at its foot). Drawn as an SVG on the page, constant on screen, its foot on the field. */
 function wrenchSvg(fill: string): string {
-  return `<svg viewBox="-14 -40 28 44" width="28" height="44" aria-hidden="true">
-    <ellipse cx="0" cy="1" rx="7" ry="2.6" fill="${PALETTE.shadow}" fill-opacity="0.55"/>
-    <path d="M -2.2 0 L -2.2 -24 C -6.5 -25.5 -8.6 -29.5 -7.6 -33.6 L -3.4 -30.2 L 0.4 -31.6 L 1.6 -35.6 L -2.2 -38.6 C 2.4 -40.2 7.6 -36.6 7.4 -31.4 C 7.2 -27.9 5.2 -25.2 2.2 -24 L 2.2 0 Z"
-      fill="${fill}" stroke="${fill === PALETTE.wrench ? PALETTE.wrenchEdge : PALETTE.ink}" stroke-width="1.3" stroke-linejoin="round"/>
+  return `<svg viewBox="-10 -36 20 38" width="18" height="34" aria-hidden="true">
+    <ellipse cx="0" cy="0.5" rx="5.5" ry="2" fill="${PALETTE.shadow}" fill-opacity="0.55"/>
+    <path d="${WRENCH}" fill="${fill}" stroke="${fill === PALETTE.wrench ? PALETTE.wrenchEdge : PALETTE.ink}" stroke-width="1.3" stroke-linejoin="round"/>
   </svg>`;
 }
+/** The spanner's outline: a straight handle up to a round head with an open jaw at its top. */
+export const WRENCH = "M -2 0 L -2 -17.25 A 8 8 0 0 1 -3 -32.42 L -3 -26 A 3 3 0 0 0 3 -26 L 3 -32.42 A 8 8 0 0 1 2 -17.25 L 2 0 Z";
 
 export function castleLayer(state: RootState, story: string, data: Data, host: HTMLElement): Layer {
   const plate = state.scene.getObjectByName(`planet:${story}`)!;
@@ -227,12 +228,12 @@ export function castleLayer(state: RootState, story: string, data: Data, host: H
   // Sizes, from the commons' width on the land.
   const Gw = GAP * S;
   const H = Gw * 0.24, M = H * 0.55, MERLON = H * 1.05;
-  const OPEN = Gw * 0.36, TOWER = H * 1.05, TOWER_H = H * 1.5, TOP = H * 0.45;
+  const OPEN = Gw * 0.32, TOWER = H * 1.15, TOWER_H = H * 1.35, TOP = H * 0.45;
   const PATH = Gw * 0.06, DASH = Gw * 0.26, TURN = Gw * 0.5;
   const lift = (q: P, up = 0) => new Vector3(q.x, heightAt(q) + up, q.z);
   const ground = (q: P) => heightAt(q) + H * 0.04;
 
-  // A path ends a little inside its field, through the opening between the gate's towers, so it lands on the gate.
+  // A path ends in the opening between the gate's towers, so it lands on the gate.
   const gateNodes = new Map([...p.gates].map(([id, g]) => [g.node, id]));
   const inGate = (pts: P[], nodes: number[]): P[] => {
     const out = [...pts];
@@ -240,7 +241,7 @@ export function castleLayer(state: RootState, story: string, data: Data, host: H
       const id = gateNodes.get(nodes[end]!);
       if (id === undefined) continue;
       const g = p.gates.get(id)!, wall = to(g.at), from = to(g.out), l = dist(wall, from);
-      const inside = { x: wall.x + (wall.x - from.x) / l * H * 1.2, z: wall.z + (wall.z - from.z) / l * H * 1.2 };
+      const inside = { x: wall.x + (wall.x - from.x) / l * H * 0.25, z: wall.z + (wall.z - from.z) / l * H * 0.25 };
       if (end === 0) out.unshift(inside); else out.push(inside);
       void near;
     }
@@ -272,7 +273,7 @@ export function castleLayer(state: RootState, story: string, data: Data, host: H
   }
   const group = new Group(); group.name = "mock-castle"; root.add(group);
   const inkMaterial = () => new LineBasicMaterial({ color: PALETTE.ink });
-  const wallFill = new MeshBasicMaterial({ color: PALETTE.wall, side: DoubleSide, polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1 });
+  const wallFill = new MeshBasicMaterial({ color: PALETTE.wall, fog: false, side: DoubleSide, polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1 });
 
   // The commons: the island's land under the fields, a pale parchment, as a drawn map's land is.
   {
@@ -316,11 +317,10 @@ export function castleLayer(state: RootState, story: string, data: Data, host: H
       for (const [u, w] of runs) {
         const cut = cutOut(u, w, H, M, MERLON, ground);
         tris.push(...cut.tris); lines.push(...cut.lines);
-        // The wall's walk: a pale strip along its top, so a wall seen from above reads as a band, not a bare line.
+        // The wall's walk: a pale strip along its top, unoutlined, so a wall seen from above reads as one band with one ink line.
         const l = dist(u, w), d = { x: (w.x - u.x) / l * TOP / 2, z: (w.z - u.z) / l * TOP / 2 }, n2 = { x: -d.z, z: d.x };
         const q = [{ x: u.x + n2.x, z: u.z + n2.z }, { x: w.x + n2.x, z: w.z + n2.z }, { x: w.x - n2.x, z: w.z - n2.z }, { x: u.x - n2.x, z: u.z - n2.z }].map(r => [r.x, ground(r) + H, r.z]);
         tris.push(...q[0]!, ...q[1]!, ...q[2]!, ...q[0]!, ...q[2]!, ...q[3]!);
-        lines.push(...q[0]!, ...q[1]!, ...q[3]!, ...q[2]!);
         wallLength += dist(u, w); merlons += Math.max(1, Math.round((dist(u, w) / MERLON + 1) / 2));
       }
     }
@@ -342,7 +342,7 @@ export function castleLayer(state: RootState, story: string, data: Data, host: H
     for (const t of [a, b]) {
       const h = TOWER / 2, sq = [[-h, -h], [h, -h], [h, h], [-h, h]].map(([u, v]) => ({ x: t.x + dir.x * u! + nrm.x * v!, z: t.z + dir.z * u! + nrm.z * v! }));
       const tris: number[] = [], lines: number[] = [];
-      for (let k = 0; k < 4; k++) { const cut = cutOut(sq[k]!, sq[(k + 1) % 4]!, TOWER_H, M, TOWER / 3, ground); tris.push(...cut.tris); lines.push(...cut.lines); }
+      for (let k = 0; k < 4; k++) { const cut = cutOut(sq[k]!, sq[(k + 1) % 4]!, TOWER_H, M * 0.8, TOWER / 3, ground); tris.push(...cut.tris); lines.push(...cut.lines); }
       // Its roof, a flat square at the top of the band, so from above it reads solid.
       const y = (q: P) => ground(q) + TOWER_H - H * 0.01, top = sq.map(q => [q.x, y(q), q.z]);
       tris.push(...top[0]!, ...top[1]!, ...top[2]!, ...top[0]!, ...top[2]!, ...top[3]!);
@@ -485,7 +485,7 @@ export function castleLayer(state: RootState, story: string, data: Data, host: H
     // just clear of it (at rest none moves; tipped, the crowded ones step apart).
     const boxes: { l: number; r: number; t: number; b: number }[] = [];
     // The wrenches stand where they stand; names keep clear of them too.
-    for (const w of [...wrenches.values(), ...(sampleWrench && !sampleWrench.el.hidden ? [sampleWrench] : [])]) boxes.push({ l: w.x! - 11, r: w.x! + 11, t: w.y! - 31, b: w.y! + 3 });
+    for (const w of [...wrenches.values(), ...(sampleWrench && !sampleWrench.el.hidden ? [sampleWrench] : [])]) boxes.push({ l: w.x! - 9, r: w.x! + 9, t: w.y! - 32, b: w.y! + 3 });
     for (const spot of spots.filter(sp => sp.name).sort((a, b) => a.y! - b.y!)) {
       const w = spot.el.offsetWidth, h = spot.el.offsetHeight, above = spot.el.classList.contains("mock-name-above"), below = spot.el.classList.contains("mock-name-below");
       const box = { l: spot.x! - w / 2, r: spot.x! + w / 2, t: spot.y! + (below ? 5 : above ? -h - 5 : -h / 2), b: 0 };
@@ -560,7 +560,7 @@ export function castleLayer(state: RootState, story: string, data: Data, host: H
   };
 
   // The pick lights in the selection's gold: a field's wall ink, a gate's towers, a way or the road drawn over in gold.
-  const litMaterial = new MeshBasicMaterial({ map: dashTexture(PALETTE.lit), transparent: true, side: DoubleSide, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3 });
+  const litMaterial = new MeshBasicMaterial({ map: dashTexture(PALETTE.lit), alphaTest: 0.5, fog: false, side: DoubleSide, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3 });
   let lit: Mesh | undefined;
   const highlight = (picked: Picked | undefined) => {
     for (const f of fields.values()) f.band?.color.set(PALETTE.wall);

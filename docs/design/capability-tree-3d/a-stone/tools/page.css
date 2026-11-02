@@ -35,11 +35,10 @@ html, body, #mock { margin: 0; height: 100%; overflow: hidden; background: #0e14
 .mock-overlay .mock-name[data-claimed] { translate: -50% 5px; }
 .mock-overlay .mock-name-below { translate: -50% 5px; }
 .mock-overlay .mock-name-above { translate: -50% calc(-100% - 5px); }
-.mock-wrench { width: 22px; height: 34px; translate: -11px -31px; }
-.mock-wrench svg { width: 22px; height: 34px; }
+.mock-wrench { width: 18px; height: 34px; translate: -9px -33px; }
 .mock-wrench svg { display: block; }
 .mock-wrench.lit path { fill: #ffd34d; stroke: #1b1814; }
-.mock-wrench-tag { position: absolute; left: 22px; top: 2px; padding: 0 5px; border-radius: 6px; background: #efe2fb; color: #5b3d7a; font-size: 10px; font-weight: 600; white-space: nowrap; }
+.mock-wrench-tag { position: absolute; left: 20px; top: -4px; padding: 0 5px; border-radius: 6px; background: #efe2fb; color: #5b3d7a; font-size: 10px; font-weight: 600; white-space: nowrap; }
 .mock-road-end { width: 7px; height: 7px; translate: -50% -50%; border-radius: 50%; background: #1b1814; box-shadow: 0 0 0 1.5px #ece4d0; }
 .mock-overlay .mock-road-name { max-width: 200px; }
 .mock-mark { width: 22px; height: 12px; margin-right: 5px; vertical-align: -1px; }

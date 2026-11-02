@@ -1,5 +1,5 @@
 /** The story panel beside the island: the story, a legend of what is drawn, and whatever was last clicked on the island. */
-import type { Picked } from "./castle.js";
+import { WRENCH, type Picked } from "./castle.js";
 
 type Contract = { id: string; title: string };
 type Dep = { id: string; title: string; story: string; storyId: string; contracts?: Contract[] };
@@ -91,7 +91,7 @@ export function Panel({ data, picked, onPick, sample, onSample, fills }: {
         <li><svg className="mock-mark" viewBox="0 0 22 12" aria-hidden="true"><path d="M1 11V5h3V2h3v3h3V2h3v3h3V2h3v3h1v6Z" fill="#ece4d0" stroke="#1b1814" strokeWidth="1" strokeLinejoin="round" /></svg>wall</li>
         <li><svg className="mock-mark" viewBox="0 0 22 12" aria-hidden="true"><path d="M1 7H21" stroke="#c2a27a" strokeWidth="2" strokeDasharray="4 3" /></svg>path</li>
         <li><svg className="mock-mark" viewBox="0 0 22 12" aria-hidden="true"><path d="M1 11V3h2V1h1v2h1V1h1v2h2v8ZM14 11V3h2V1h1v2h1V1h1v2h2v8Z" fill="#ece4d0" stroke="#1b1814" strokeWidth="0.9" strokeLinejoin="round" /></svg>gate</li>
-        <li><svg className="mock-mark" viewBox="-8 -40 16 42" aria-hidden="true"><path d="M -2.2 0 L -2.2 -24 C -6.5 -25.5 -8.6 -29.5 -7.6 -33.6 L -3.4 -30.2 L 0.4 -31.6 L 1.6 -35.6 L -2.2 -38.6 C 2.4 -40.2 7.6 -36.6 7.4 -31.4 C 7.2 -27.9 5.2 -25.2 2.2 -24 L 2.2 0 Z" fill="#1b1814" stroke="#ece4d0" strokeWidth="1.3" /></svg>wrench</li>
+        <li><svg className="mock-mark" viewBox="-10 -36 20 38" aria-hidden="true"><path d={WRENCH} fill="#1b1814" stroke="#ece4d0" strokeWidth="1.3" /></svg>wrench</li>
       </ul>
       <label className="mock-check"><input type="checkbox" checked={sample} onChange={e => onSample(e.target.checked)} /> Add sample work (made up, not in the library)</label>
       <p className="mock-muted">Drag to pan · right-drag to turn and tilt · wheel to zoom · Q/E turn · R/F tilt</p>

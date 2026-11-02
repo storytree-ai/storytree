@@ -176,3 +176,33 @@ other islands' roads should show at all from this view, especially the wide road
 Before (left) and after round 2 (right), turned and tipped:
 
 ![Round 2, before and after](stills/round-2.png)
+
+### Round 3: "nearly", 19 findings, one for Mick
+
+| # | Finding | Answer |
+| --- | --- | --- |
+| 1 | Turned, names land on neighbouring fields | Fixed in part with 4: every name hangs under its field's front wall. Tipped low, the far rows stand a few pixels apart, so their names still meet fields there; names never meet each other |
+| 2 | Panned out, names sit in other fields; Rounds' name reads as Data schema's | Fixed with 4 and wider commons |
+| 3 | Health record's gate towers stand on Knowledge entrances' name | Fixed with 4: gates are at the back of each field, names at the front |
+| 4 | Names above some fields and below others | Fixed: one rule, every name below its field at rest. Every gate is now in the field's north wall, so no path leaves through a name |
+| 5 | Orthogonal shared trunks read as a circuit board; near-parallel pairs | Fixed the pairs (wider commons, the paths keep to the lines above the fields). Rejected "no shared trunks": the brief asks that paths merge where they share a way |
+| 6 | Paths hug walls | Fixed: the commons are wider (13 units from 11), so the centre lines keep further off every wall |
+| 7 | Paths seem to reach a field's back wall where it has no gate | Fixed with 4: the back wall is where every gate is |
+| 8 | A path ends behind a name | Fixed with 4: the names no longer sit on the lines the paths run along |
+| 9 | Three golds; the picked path reads orange | Fixed: the picked path's dashes are drawn crisp in the one gold, with no blend at their edges. The ring's gold is the map's own |
+| 10 | Towers on small fields read as ears and dominate | Fixed: squarer towers with a two-notch top, the opening narrower |
+| 11 | East and west walls read as heavy double strokes | Fixed: the wall's top walk has no outline of its own, so every wall reads as one pale band with one thin ink line |
+| 12 | Walls look like trays when tipped | Rejected: round 2 asked for taller walls so they read as standing at rest; the walls stay a single cut-out with a walk |
+| 13 | The wrench reads as a pole and a hook, like a flag | Fixed: a spanner with a round head and a clearly open jaw, one size everywhere |
+| 14 | The sample tag's lavender; it crosses a path | Fixed the placing. Rejected the colour: it marks made-up work |
+| 15 | The picked wrench crowds its name and gate | Fixed with 4 and 13 |
+| 16 | Dashes run past the gate into the field | Fixed: a path ends in the gate's opening |
+| 17 | The road's name straddles the coast; its dot short of the map's road; its last stretch is the one diagonal | Fixed the name (on the land). Rejected the rest: the sea road leaves from the map's own dock, and the road heads straight for Keys |
+| 18 | A darker face on picked gold | Fixed: the added marks take no fog from the scene |
+| 19 | The north-east cramped, the south empty | Fixed in part: wider commons; the bare south is the island's own land beyond the plan |
+
+**For Mick, from round 3** (nothing built from it): should a field with no links (The command schema) have a gate at all?
+
+Before (left) and after round 3 (right), at rest:
+
+![Round 3, before and after](stills/round-3.png)

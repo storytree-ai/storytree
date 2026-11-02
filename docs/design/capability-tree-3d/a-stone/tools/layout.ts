@@ -27,11 +27,11 @@ export type Plan = {
 };
 
 /** The commons' width, in the plan's units (a field of L lines is √L wide). */
-export const GAP = 11;
+export const GAP = 13;
 /** The smallest field, in lines: under it a field could not hold its gate and its two towers. */
 export const FLOOR_LINES = 160;
 /** The commons between two fields of one column: wider than between columns, so the plan is nearer round, as the island is. */
-export const ROW_GAP = GAP * 2.8;
+export const ROW_GAP = GAP * 2.6;
 /** How far down the commons between two fields of a column its centre line runs: below the middle, so the upper field's name,
  * hung under its wall, stays clear of the path. */
 const ACROSS_AT = 0.66;
@@ -119,13 +119,9 @@ export function plan(caps: readonly Cap[]): Plan {
     void col;
     return { at: { x: f.x, z: edge }, out: { x: f.x, z: line } };
   };
-  // Each field's gate, in its north or south wall, whichever faces the fields it is linked to: those walls face the map's eye
-  // at rest, so the opening between the gate's two towers shows.
-  for (const f of all) {
-    let dz = 0;
-    for (const id of linked.get(f.id)!) { const o = at.get(id)!, l = Math.hypot(o.x - f.x, o.z - f.z) || 1; dz += (o.z - f.z) / l; }
-    f.gate = dz < 0 ? "N" : "S";
-  }
+  // Each field's gate is in its north wall: at rest the eye looks north, so the opening between its towers shows across the
+  // field, the paths keep to the commons above the fields, and the name hangs clear below the field's south wall.
+  for (const f of all) f.gate = "N";
   return { ...graph(all, segs, gateAt, calls), bounds: { x0: v[0]!, x1: v[C]!, z0: Math.min(...columns.map((_, k) => top(k))), z1: Math.max(...columns.map((_, k) => bottom(k))) } };
 }
 

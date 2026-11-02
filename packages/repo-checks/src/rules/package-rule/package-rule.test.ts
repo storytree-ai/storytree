@@ -1,5 +1,5 @@
 /**
- * Capability 1 · The package rule (the Guardrails story): each planted tree below starts from a checkout
+ * Capability 9 · The package rule: each planted tree below starts from a checkout
  * that keeps the rule and breaks one part of it. The first trees declare storytree's own frame and front
  * door, as its dev loop does; the last declares nothing, as a user's project does.
  */
@@ -37,7 +37,7 @@ test("the planted trees start from one that keeps the rules", (t: TestContext) =
   assert.deepEqual(packageProblems(plant(t, {}), DECLARED), []);
 });
 
-test("1.1 · a story with no package is refused, and so is a package that belongs to no story", (t: TestContext) => {
+test("9.1 · a story with no package is refused, and so is a package that belongs to no story", (t: TestContext) => {
   const problems = packageProblems(plant(t, { "packages/helpers/package.json": pkg("helpers") }), {
     ...DECLARED,
     stories: [...(DECLARED.stories ?? []), "knowledge-core"],
@@ -47,7 +47,7 @@ test("1.1 · a story with no package is refused, and so is a package that belong
   assert.match(problems.join("\n"), /packages\/helpers.*neither/);
 });
 
-test("1.1 · a project that declares no stories has one per package under packages/, and a package anywhere else belongs to none", (t: TestContext) => {
+test("9.1 · a project that declares no stories has one per package under packages/, and a package anywhere else belongs to none", (t: TestContext) => {
   const shop = { "packages/cart/package.json": JSON.stringify({ name: "cart" }), "packages/browsing/package.json": JSON.stringify({ name: "@shop/browsing" }) };
   const kept = mkdtempSync(path.join(tmpdir(), "boundaries-"));
   t.after(() => rmSync(kept, { recursive: true, force: true }));
@@ -60,7 +60,7 @@ test("1.1 · a project that declares no stories has one per package under packag
   assert.match(problems[0]!, /apps\/web.*belongs to a story/);
 });
 
-test("1.6 · A story owns exactly one package: a story declared with several is refused, and the package it would add belongs to no story", (t: TestContext) => {
+test("9.6 · A story owns exactly one package: a story declared with several is refused, and the package it would add belongs to no story", (t: TestContext) => {
   const root = plant(t, { "packages/local-postgres/package.json": pkg("local-postgres"), "packages/local-postgres/src/index.ts": "" });
   // As a project's untyped declarations (storytree's own are a .mjs file) could write a story with two packages (ADR-1078 rule 4).
   const several = { ...DECLARED, stories: ["app", "cli", "forest", "forest-world", { story: "library", packages: ["library", "local-postgres"] }] } as unknown as Declarations;
@@ -69,7 +69,7 @@ test("1.6 · A story owns exactly one package: a story declared with several is 
   assert.ok(problems.some((problem) => /packages\/local-postgres is neither a story's package/.test(problem)), problems.join("\n"));
 });
 
-test("1.1 · a package.json saved with a byte-order mark, as Windows editors write it, is read like any other", (t: TestContext) => {
+test("9.1 · a package.json saved with a byte-order mark, as Windows editors write it, is read like any other", (t: TestContext) => {
   const at = mkdtempSync(path.join(tmpdir(), "boundaries-"));
   t.after(() => rmSync(at, { recursive: true, force: true }));
   for (const [file, text] of Object.entries({ "packages/cart/package.json": `\uFEFF${JSON.stringify({ name: "cart", devDependencies: { checkout: "*" } })}`, "packages/checkout/package.json": JSON.stringify({ name: "checkout", dependencies: { cart: "*" } }) })) {
@@ -81,7 +81,7 @@ test("1.1 · a package.json saved with a byte-order mark, as Windows editors wri
   assert.match(problems[0]!, /cart → checkout → cart/);
 });
 
-test("1.2 · a story's code in the frame or the front door is refused", (t: TestContext) => {
+test("9.2 · a story's code in the frame or the front door is refused", (t: TestContext) => {
   const problems = packageProblems(
     plant(t, {
       "apps/desktop/src/forest/story-panel.ts": "",
@@ -97,7 +97,7 @@ test("1.2 · a story's code in the frame or the front door is refused", (t: Test
 });
 
 // increment_5c95db0bb297: the frame tests its own mounting of a story under that story's name.
-test("1.2 · a frame test of mounting a story may carry the story's name, when it reaches the story through its package", (t: TestContext) => {
+test("9.2 · a frame test of mounting a story may carry the story's name, when it reaches the story through its package", (t: TestContext) => {
   const problems = packageProblems(
     plant(t, {
       "apps/desktop/src/forest/forest.test.ts": 'import { forestScene } from "@storytree/forest";\nimport { mount } from "@storytree/app";\n',
@@ -109,7 +109,7 @@ test("1.2 · a frame test of mounting a story may carry the story's name, when i
   assert.match(problems[0]!, /apps\/desktop\/src\/library\/library\.test\.ts.*library/);
 });
 
-test("1.2 · a refused file that leans on the frame is never told to move into the story's package, which would make the story depend on the frame", (t: TestContext) => {
+test("9.2 · a refused file that leans on the frame is never told to move into the story's package, which would make the story depend on the frame", (t: TestContext) => {
   const problems = packageProblems(
     plant(t, {
       "apps/desktop/src/forest/panel.ts": 'import { mount } from "@storytree/app";\n',
@@ -125,7 +125,7 @@ test("1.2 · a refused file that leans on the frame is never told to move into t
   }
 });
 
-test("1.2 · story code the frame still holds passes only while it is declared, and its declaration only while it is there", (t: TestContext) => {
+test("9.2 · story code the frame still holds passes only while it is declared, and its declaration only while it is there", (t: TestContext) => {
   const declared: Declarations = { ...DECLARED, notYetMoved: [{ path: "apps/desktop/src/forest", question: "oq-move-it" }] };
   assert.deepEqual(packageProblems(plant(t, { "apps/desktop/src/forest/story-panel.ts": "" }), declared), []);
   const stale = packageProblems(plant(t, {}), declared);
@@ -133,7 +133,7 @@ test("1.2 · story code the frame still holds passes only while it is declared, 
   assert.match(stale[0]!, /apps\/desktop\/src\/forest.*oq-move-it/);
 });
 
-test("1.3 · a package reaching into another story's files is refused, by relative path or by a subpath it does not export", (t: TestContext) => {
+test("9.3 · a package reaching into another story's files is refused, by relative path or by a subpath it does not export", (t: TestContext) => {
   const problems = packageProblems(
     plant(t, {
       "packages/forest/src/drawn.ts": 'import { schema } from "../../library/src/schema.js";\n',
@@ -146,7 +146,7 @@ test("1.3 · a package reaching into another story's files is refused, by relati
   assert.match(problems.join("\n"), /packages\/cli\/src\/families\/forest\.ts.*@storytree\/library\/src\/inner\.ts/);
 });
 
-test("1.4 · packages that depend on each other, even for development only, are refused: pnpm links them into a loop", (t: TestContext) => {
+test("9.4 · packages that depend on each other, even for development only, are refused: pnpm links them into a loop", (t: TestContext) => {
   // On Windows each workspace link is a directory junction, which git walks as a folder, so a
   // cycle makes `git clean` recurse without end and a desktop session's start never finishes.
   const problems = packageProblems(
@@ -191,7 +191,7 @@ for (const size of [4, 5, 6]) {
   }
 }
 
-test("1.4 · a diamond is acyclic and overlapping cycles, downstream cycles and self-loops are each reported once", (t: TestContext) => {
+test("9.4 · a diamond is acyclic and overlapping cycles, downstream cycles and self-loops are each reported once", (t: TestContext) => {
   const graph = (edges: Record<string, string[]>): Record<string, string> => Object.fromEntries(Object.entries(edges).map(([name, tos]) => [
     `packages/${name}/package.json`,
     pkg(name, undefined, { optionalDependencies: Object.fromEntries(tos.map((to) => [`@storytree/${to}`, "workspace:*"])) }),
@@ -205,7 +205,7 @@ test("1.4 · a diamond is acyclic and overlapping cycles, downstream cycles and 
   ].map((cycle) => cycle.split(" → ").map((name) => `@storytree/${name}`).join(" → ")).sort());
 });
 
-test("1.5 · a story depending on the frame or the front door is refused, naming the edge, unless the owner sanctioned it; any other one-way edge needs no listing", (t: TestContext) => {
+test("9.5 · a story depending on the frame or the front door is refused, naming the edge, unless the owner sanctioned it; any other one-way edge needs no listing", (t: TestContext) => {
   const root = plant(t, {
     "packages/forest/package.json": pkg("forest", undefined, { dependencies: { "@storytree/forest-world": "workspace:*" }, devDependencies: { "@storytree/app": "workspace:*" } }),
     "packages/library/package.json": pkg("library", { ".": "./src/index.ts", "./readings": "./src/readings.ts" }, { peerDependencies: { "@storytree/cli": "workspace:*" } }),
@@ -222,7 +222,7 @@ test("1.5 · a story depending on the frame or the front door is refused, naming
   assert.match(left[0]!, /@storytree\/library → @storytree\/cli/);
 });
 
-test("1.5 · an edge-list entry no package.json uses any more is reported", (t: TestContext) => {
+test("9.5 · an edge-list entry no package.json uses any more is reported", (t: TestContext) => {
   const edges: Edge[] = [{ from: "@storytree/forest", to: "@storytree/library", said: null, on: null }];
   const problems = packageProblems(plant(t, {}), { ...DECLARED, edges: { edges } });
   assert.equal(problems.length, 1, problems.join("\n"));

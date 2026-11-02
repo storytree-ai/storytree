@@ -2,9 +2,8 @@
  * Capability 6 · Agent tools (the MCP server). What a landing is checked against, handed to Session management's land
  * tool, which reports a capability landed: claiming, releasing, reporting, landing and presenting are Session
  * management's tools, mounted from its manifest, so they switch off with it (ADR-1095). A landing is held while any claim
- * check the mounted parts contribute names a problem (ADR-1170 D2): Guardrails' allocation rule holds one that would leave
- * a source file of the capability's story package reached by no numbered test (ADR-0911 D4, contract 6.37), and with
- * Guardrails switched off it is not run (6.102). The checks read the parts and the map, so they are built here rather
+ * check the mounted parts contribute names a problem (ADR-1170 D2), such as the owner's dev-loop plugin's allocation
+ * rule, and a part not mounted is not run (6.102). The checks read the parts and the map, so they are built here rather
  * than in Session management, which stands on neither.
  */
 import type { Library } from "@storytree/library";

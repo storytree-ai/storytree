@@ -23,8 +23,6 @@ import pg from "pg";
 import { waitUntil } from "@storytree/test-waits";
 import { z } from "zod";
 
-import { claimChecks } from "@storytree/guardrails/claim-checks";
-import { pipelineJobs } from "@storytree/guardrails/pipeline-jobs";
 import { readClaims } from "@storytree/session-management";
 import { sessionsFrom } from "@storytree/session-management/readings";
 import { claudeCode, codex, idOf, withAgent } from "../testing/agent.js";
@@ -32,8 +30,6 @@ import { git, withTempDir } from "@storytree/project-and-caller/testing/folders"
 import { approveCheckout, projectDatabase, testServerDataDir, testServerUrl } from "@storytree/project-and-caller/testing/pg";
 import { createAgentTools, type ToolExtension } from "../index.js";
 import { protectionThrough, storytreeRef } from "@storytree/app-setup/pipeline";
-import claimCheckParts from "../parts/claim-checks.js";
-import pipelineJobParts from "../parts/pipeline-jobs.js";
 import { registerPlanTools } from "./plan-tools.js";
 import { CONTRACT_DEFINITION } from "../instructions/habits.js";
 import type { Call, Define } from "./server.js";
@@ -434,55 +430,41 @@ test("6.2 it claims the capability, sees who is on what, reports the contract re
   });
 });
 
-test("6.37 land refuses while the story's package has a source file no numbered test reaches, naming it, and lands once it is placed (ADR-0911 D4)", async () => {
-  await withProject(async ({ folder, project, log }) => {
-    await withAgent(folder, claudeCode("claude-1"), async (agent) => {
-      const story = idOf(await agent.call("plan_story", { title: "Shopping cart", ...FOUNDED }));
-      const capability = idOf(await agent.call("plan_capability", { story, title: "Adding", ...FOUNDED }));
-      const src = path.join(folder, "packages/shopping-cart/src");
-      mkdirSync(src, { recursive: true });
-      writeFileSync(path.join(folder, "packages/shopping-cart/package.json"), JSON.stringify({ name: "shopping-cart" }));
-      writeFileSync(path.join(src, "cart.js"), "export const add = (a, b) => a + b;\n");
-      writeFileSync(path.join(src, "cart.test.js"), 'import { test } from "node:test";\nimport { add } from "./cart.js";\ntest("1.1 adds", () => add(1, 2));\n');
-      writeFileSync(path.join(src, "refund.js"), "export const refund = () => 0;\n");
-      assert.equal((await agent.call("claim", { capability, reason: "building the cart" })).isError, false);
+/**
+ * A factory folder in `home` with one plugin, `my-checks`, added on this computer as a part of its own, contributing a
+ * claim check that holds every landing and a pipeline job, as ready-to-run JavaScript importing nothing of storytree's.
+ */
+function checksPlugin(home: string, named = true): void {
+  const plugin = path.join(home, "factory", "plugins", "my-checks");
+  mkdirSync(plugin, { recursive: true });
+  writeFileSync(path.join(plugin, "package.json"), JSON.stringify({ name: "my-checks", type: "module", exports: { "./checks": "./checks.js" }, storytree: { interface: 1, claimChecks: [{ from: "./checks", export: "claimChecks" }], pipelineJobs: [{ from: "./checks", export: "pipelineJobs" }] } }));
+  writeFileSync(path.join(plugin, "checks.js"), `export const claimChecks = [{ name: "my-hold", landing: async (capability) => [\`my hold keeps \${capability} back\`] }];
+export const pipelineJobs = [{ name: "my check", commands: (ref, workspace) => [\`my-check --at \${ref} "\${workspace}"\`] }];
+`);
+  writeFileSync(path.join(home, "settings.json"), JSON.stringify({ factory: path.join(home, "factory"), ...(named ? { "parts-off": ["my-checks"], "stand-ins": { "my-checks": "my-checks" } } : {}) }));
+}
 
-      const held = await agent.call("land", { capability });
-      assert.equal(held.isError, true, held.text);
-      assert.match(held.text, /packages\/shopping-cart\/src\/refund\.js/);
-      assert.match(held.text, /number a test that reaches it/);
-      assert.doesNotMatch(held.text, /cart\.js \(/);
-      assert.deepEqual((await log.since(project, 0)).lines.filter((line) => line.kind === "landed"), [], "a held landing records nothing");
-      assert.equal((await readClaims(log, project)).length, 1, "the claim stays");
-
-      writeFileSync(path.join(src, "refund.test.js"), 'import { test } from "node:test";\nimport { refund } from "./refund.js";\ntest("1.2 refunds", () => refund());\n');
-      const landed = await agent.call("land", { capability });
-      assert.equal(landed.isError, false, landed.text);
-      assert.deepEqual(await readClaims(log, project), []);
-    });
-  });
-});
-
-test("6.102 land runs every claim check the parts it mounts contribute and is held while one names a problem; with the contributing part switched off, the claim and its landing still work and the check is not run (ADR-1170 D2)", async () => {
-  assert.deepEqual(claimCheckParts.parts, claimChecks, "the server mounts the claim checks its story packages' manifests name");
-  assert.deepEqual(claimCheckParts.owners, ["guardrails"]);
+test("6.102 land runs every claim check the parts it mounts contribute and is held while one names a problem; with the contributing part not named, the claim and its landing still work and the check is not run (ADR-1170 D2)", async () => {
   await withProject(async ({ folder, project, log }) => {
     await withTempDir(async (home) => {
-      // This computer's storytree home, which switches Guardrails off, and where the checkout is approved.
-      writeFileSync(path.join(home, "settings.json"), JSON.stringify({ "parts-off": ["guardrails"] }));
+      // This computer's storytree home, which names the plugin, and where the checkout is approved.
+      checksPlugin(home);
       await approveCheckout(folder, project, home);
+      let capability = "";
       await withAgent(folder, claudeCode("claude-1", { setup: { storytreeHome: home } }), async (agent) => {
         const story = idOf(await agent.call("plan_story", { title: "Shopping cart", ...FOUNDED }));
-        const capability = idOf(await agent.call("plan_capability", { story, title: "Adding", ...FOUNDED }));
-        const src = path.join(folder, "packages/shopping-cart/src");
-        mkdirSync(src, { recursive: true });
-        writeFileSync(path.join(folder, "packages/shopping-cart/package.json"), JSON.stringify({ name: "shopping-cart" }));
-        writeFileSync(path.join(src, "refund.js"), "export const refund = () => 0;\n");
-        const claimed = await agent.call("claim", { capability, reason: "building the cart" });
-        assert.equal(claimed.isError, false, claimed.text);
+        capability = idOf(await agent.call("plan_capability", { story, title: "Adding", ...FOUNDED }));
+        assert.equal((await agent.call("claim", { capability, reason: "building the cart" })).isError, false);
+        const held = await agent.call("land", { capability });
+        assert.equal(held.isError, true, held.text);
+        assert.match(held.text, new RegExp(`my hold keeps ${capability} back`));
+        assert.equal((await readClaims(log, project)).length, 1, "the claim stays");
+      });
+      checksPlugin(home, false);
+      await withAgent(folder, claudeCode("claude-1", { setup: { storytreeHome: home } }), async (agent) => {
         const landed = await agent.call("land", { capability });
         assert.equal(landed.isError, false, landed.text);
-        assert.doesNotMatch(landed.text, /refund\.js/, "Guardrails' allocation check is not run");
+        assert.doesNotMatch(landed.text, /my hold/, "the plugin's claim check is not run");
         assert.deepEqual(await readClaims(log, project), [], "landing ended the claim");
       });
     });
@@ -592,7 +574,7 @@ test("6.57 plan_contract plans a contract whose title runs past 300 characters, 
   });
 });
 
-test("app-setup 11.1 on GitHub, wire_pipeline writes storytree's workflow: the project's install and tests on each system chosen, and storytree check pinned to this storytree's release", async () => {
+test("app-setup 11.1 on GitHub, wire_pipeline writes storytree's workflow: the project's install and tests on each system chosen", async () => {
   await withProject(async ({ folder }) => {
     git(folder, "init", "-q");
     git(folder, "remote", "add", "origin", "https://github.com/someone/shop.git");
@@ -603,13 +585,8 @@ test("app-setup 11.1 on GitHub, wire_pipeline writes storytree's workflow: the p
       assert.match(workflow, /on:\n {2}pull_request:\n {2}push:\n {4}branches: \[main\]/);
       assert.match(workflow, /os: \[ubuntu-latest, windows-latest\]/);
       assert.ok(workflow.includes('- run: "npm ci"\n      - run: "npm test -- --grep \\"a: b\\""'), workflow);
-      assert.ok(workflow.includes(`git fetch --quiet --depth 1 https://github.com/storytree-ai/storytree.git ${storytreeRef()}`), workflow);
-      assert.match(workflow, /pnpm install --frozen-lockfile --prod --ignore-scripts --filter-prod "@storytree\/guardrails\.\.\."/);
-      assert.match(workflow, /node --import tsx src\/check\/run\.ts "\$GITHUB_WORKSPACE"/);
-      const check = workflow.slice(workflow.indexOf("  storytree-check:"));
-      assert.match(check, /- uses: actions\/checkout@[0-9a-f]{40} # v[\d.]+\n {8}with:\n {10}persist-credentials: false\n {10}fetch-depth: 0\b/, check);
       assert.match(wired.text, /\.github\/workflows\/storytree\.yml/);
-      assert.match(wired.text, new RegExp(`on linux, windows, and storytree check from storytree's source at ${storytreeRef()}\\.`));
+      assert.match(wired.text, /on linux, windows\./);
     });
   });
 });
@@ -622,8 +599,7 @@ test("app-setup 11.2 in a project not on GitHub, wire_pipeline writes nothing an
       const wired = await agent.call("wire_pipeline", { install: "npm ci", test: "npm test" });
       assert.equal(wired.isError, false, wired.text);
       assert.equal(existsSync(path.join(folder, ".github")), false, "nothing is written");
-      assert.match(wired.text, /before it merges \(Node 24 for storytree check, with a temporary folder in RUNNER_TEMP\):\n {2}npm ci\n {2}npm test\n/);
-      assert.match(wired.text, /src\/check\/run\.ts/);
+      assert.match(wired.text, /before it merges:\n {2}npm ci\n {2}npm test\n/);
       assert.match(wired.text, /the pipeline you have/);
     });
   });
@@ -639,7 +615,7 @@ test("app-setup 11.3 wire_pipeline proposes branch protection as a command for t
     await withAgent(folder, claudeCode("claude-1", { protection: protectionThrough(process.execPath, [gh]) }), async (agent) => {
       const wired = await agent.call("wire_pipeline", { test: "npm test" });
       assert.match(wired.text, /gh api -X PUT repos\/someone\/shop\/branches\/main\/protection/);
-      assert.match(wired.text, /"strict":true,"contexts":\["test \(ubuntu-latest\)","storytree check"\]/);
+      assert.match(wired.text, /"strict":true,"contexts":\["test \(ubuntu-latest\)"\]/);
       assert.match(wired.text, /only if the user approves/);
       assert.equal((wired.data.protection as { approved: boolean }).approved, false);
     });
@@ -660,7 +636,7 @@ test("app-setup 11.5 when GitHub refuses protection on the repository's plan (a 
       assert.equal(wired.isError, false, wired.text);
       assert.doesNotMatch(wired.text, /-X PUT/);
       assert.match(wired.text, /cannot have branch protection/);
-      assert.match(wired.text, /merge only after every check passes \(the tests and storytree check\)/);
+      assert.match(wired.text, /merge only after every check passes \(the tests\)/);
       assert.match(wired.text, /GitHub Pro|public/);
       assert.deepEqual(wired.data.protection, { approved: false, available: false });
       assert.deepEqual(readFileSync(calls, "utf8").trim().split("\n"), ["api repos/someone/shop/branches/main/protection"], "it only read the setting");
@@ -668,35 +644,44 @@ test("app-setup 11.5 when GitHub refuses protection on the repository's plan (a 
   });
 });
 
-test("app-setup 11.9 wire_pipeline writes the pipeline jobs the parts the server mounts contribute, so with Guardrails switched off it writes no storytree check job and proposes no storytree check status (ADR-1170 D2)", async () => {
-  assert.deepEqual(pipelineJobParts.parts, pipelineJobs, "the server mounts the pipeline jobs its story packages' manifests name");
-  assert.deepEqual(pipelineJobParts.owners, ["guardrails"]);
+test("app-setup 11.9 wire_pipeline writes, lists and proposes as status checks the pipeline jobs the parts the server mounts contribute, at this storytree's release, and none of a part not named (ADR-1170 D2)", async () => {
   await withProject(async ({ folder, project }) => {
     git(folder, "init", "-q");
     git(folder, "remote", "add", "origin", "https://github.com/someone/shop.git");
     await withTempDir(async (home) => {
-      // This computer's storytree home, which switches Guardrails off, and where the checkout is approved.
-      writeFileSync(path.join(home, "settings.json"), JSON.stringify({ "parts-off": ["guardrails"] }));
+      // This computer's storytree home, which names the plugin, and where the checkout is approved.
+      checksPlugin(home);
       await approveCheckout(folder, project, home);
       // A gh that answers the protection read as GitHub does for a repository that can have protection and has none.
       const gh = path.join(home, "gh.mjs");
       writeFileSync(gh, `console.log(${JSON.stringify(JSON.stringify({ message: "Branch not protected", status: "404" }))});\nprocess.exit(1);\n`);
-      await withAgent(folder, claudeCode("claude-1", { setup: { storytreeHome: home }, protection: protectionThrough(process.execPath, [gh]) }), async (agent) => {
-        const wired = await agent.call("wire_pipeline", { test: "npm test" });
-        assert.equal(wired.isError, false, wired.text);
-        const workflow = readFileSync(path.join(folder, ".github/workflows/storytree.yml"), "utf8");
-        assert.match(workflow, /- run: "npm test"/);
-        assert.doesNotMatch(workflow, /storytree check|guardrails|run\.ts/, workflow);
-        assert.match(wired.text, /"contexts":\["test \(ubuntu-latest\)"\]/);
-        assert.doesNotMatch(wired.text, /storytree check|storytree's source/);
-      });
+      const wire = async () => {
+        let text = "";
+        await withAgent(folder, claudeCode("claude-1", { setup: { storytreeHome: home }, protection: protectionThrough(process.execPath, [gh]) }), async (agent) => {
+          const wired = await agent.call("wire_pipeline", { test: "npm test" });
+          assert.equal(wired.isError, false, wired.text);
+          text = wired.text;
+        });
+        return { wired: { text }, workflow: readFileSync(path.join(folder, ".github/workflows/storytree.yml"), "utf8") };
+      };
+      const named = await wire();
+      assert.ok(named.workflow.includes(`my-check --at ${storytreeRef()} "$GITHUB_WORKSPACE"`), named.workflow);
+      assert.match(named.wired.text, new RegExp(`on linux, and my check from storytree's source at ${storytreeRef()}\\.`));
+      assert.match(named.wired.text, /"contexts":\["test \(ubuntu-latest\)","my check"\]/);
+
+      checksPlugin(home, false);
+      const not = await wire();
+      assert.match(not.workflow, /- run: "npm test"/);
+      assert.doesNotMatch(not.workflow, /my-check/, not.workflow);
+      assert.match(not.wired.text, /"contexts":\["test \(ubuntu-latest\)"\]/);
+      assert.doesNotMatch(not.wired.text, /my check|storytree's source/);
     });
   });
 });
 
 /** The commands of the workflow's test job, in the order it runs them. */
 function testJobRuns(workflow: string): string[] {
-  const job = workflow.slice(workflow.indexOf("\n  test:"), workflow.indexOf("\n  storytree-check:"));
+  const job = workflow.slice(workflow.indexOf("\n  test:"));
   return [...job.matchAll(/^ {6}- run: (".*")$/gm)].map((match) => JSON.parse(match[1]!) as string);
 }
 

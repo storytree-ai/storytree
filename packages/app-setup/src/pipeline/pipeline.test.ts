@@ -4,7 +4,7 @@ import { test } from "node:test";
 
 import { storytreeRef, workflowFor } from "./pipeline.js";
 
-test("11.8 a contributed job that needs the history checks it out with origin/main, so the self-equal assertion check compares the change with it", () => {
+test("11.8 a contributed job that needs the history checks it out with origin/main, so a check it runs can compare the change with it", () => {
   const job = { name: "storytree check", needsHistory: true, commands: () => ["true"] };
   const workflow = workflowFor({ test: "npm test", systems: ["linux"], ref: "main", jobs: [job] });
   const written = workflow.slice(workflow.indexOf("  storytree-check:"));

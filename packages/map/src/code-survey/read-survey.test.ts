@@ -26,7 +26,7 @@ test("8.1, 8.5 Constructor stories survey alongside ordinary stories and storytr
   const folder = await mkdtemp(path.join(tmpdir(), "code-survey-titles-"));
   const fixtures = [["story-shop", "Shop", "shop"], ["story_f9fb5136c28f", "The command line", "cli"],
     // ADR-1066 D4's developer-first names, whose packages kept their names: storytree's own stories, by id.
-    ["story_6def59292b78", "Context", "project-and-caller"], ["story_e50347f0388e", "Architecture checks", "guardrails"],
+    ["story_6def59292b78", "Context", "project-and-caller"],
     ["story_73dad81ba7a7", "Code map", "map"], ["story_deee4230348c", "Map view", "forest"], ["story_d754d997f22a", "Knowledge graph", "knowledge-core"],
     ["story_7722ddb5461e", "Work board", "arc-surface"], ["story_a93c6fb1a257", "Desktop app", "app"], ["story_b91056a06337", "Setup", "app-setup"],
     // A user's stories of the same titles keep the title rule.

@@ -2,12 +2,11 @@
   "name": "@storytree/repo-checks",
   "private": true,
   "type": "module",
-  "description": "Storytree's own repository checks (story_c27bd2a8f61e, question_eda214a321bb, ADR-1199): the checks this repository runs on every pull request to keep itself honest, neither a base part shipped to users nor one of the owner's factory plugins. The leak, secret and push scans, the seed-records check, the lockfile report, the capability-list check, own health (each story's tests run and recorded as its contracts' verified health, and a factory plugin's the same way), and storytree's declarations for the Guardrails story's package, type-import and allocation checks. CI and the root package.json run them from here, and the gate runs those it can through this package's gateSteps.",
+  "description": "Storytree's own repository checks (story_c27bd2a8f61e, question_eda214a321bb, ADR-1199): the checks this repository runs on every pull request to keep itself honest, neither a base part shipped to users nor one of the owner's factory plugins. The leak, secret and push scans, the seed-records check, the lockfile report, the capability-list check, own health (each story's tests run and recorded as its contracts' verified health, and a factory plugin's the same way), and the package rule and the allocation rule (moved here from packages/guardrails, ADR-1199 D5) with storytree's declarations for them and the type-import check; the owner's dev-loop plugin imports the two rules for `storytree check`. CI and the root package.json run them from here, and the gate runs those it can through this package's gateSteps.",
   "dependencies": {
     "@storytree/base-dev-loop": "workspace:*",
     "@storytree/ci-health": "workspace:*",
     "@storytree/forest": "workspace:*",
-    "@storytree/guardrails": "workspace:*",
     "@storytree/library": "workspace:*",
     "@storytree/local-postgres": "workspace:*",
     "@storytree/map": "workspace:*",
@@ -19,12 +18,14 @@
     "@storytree/test-waits": "workspace:*"
   },
   "exports": {
+    "./allocation-rule": "./src/rules/allocation-rule/allocation-rule.ts",
     "./capability-list": "./src/capability-list.mjs",
     "./coverage-map": "./src/coverage-map.mjs",
     "./gate-steps": "./src/gate-steps.mjs",
     "./leak-scan": "./src/leak-scan.mjs",
     "./library-reach": "./src/library-reach.mjs",
     "./library-server": "./src/library-server.mjs",
+    "./package-rule": "./src/rules/package-rule/package-rule.ts",
     "./test-run": "./src/test-run/test-run.mjs"
   },
   "storytree": {

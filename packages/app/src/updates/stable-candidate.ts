@@ -31,11 +31,11 @@ const build = (version: string) => Number(version.slice(4));
 const nameOf = (p: Platform) => p === "windows" ? "Windows" : FEED_PLATFORMS[p].name;
 const list = (names: string[]) => names.length > 1 ? `${names.slice(0, -1).join(", ")} and ${names.at(-1)}` : names[0] ?? "";
 
-/** The builds a concern names as regressed: it must say "regress…" and name the build whole, never a longer one. */
+/** The builds a concern names as regressed, each once: it must say "regress…" and name the build whole, never a longer one. */
 function regressed(concern: Concern): number[] {
   const words = `${concern.title}\n${concern.text}`;
   if (!/regress/i.test(words)) return [];
-  return [...words.matchAll(/(?<![\d.])0\.3\.([1-9]\d*)(?![\d])/g)].map(m => Number(m[1]));
+  return [...new Set([...words.matchAll(/(?<![\d.])0\.3\.([1-9]\d*)(?![\d])/g)].map(m => Number(m[1])))];
 }
 
 export async function stableCandidate(ports: CandidatePorts): Promise<StableCandidate> {

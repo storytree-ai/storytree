@@ -7,8 +7,9 @@
 #         Nothing pins by itself (ADR-0871).
 #   FAIL: raises nothing to the owner. It files a friction naming a regression in that build, which the candidate
 #         rule then passes over, and tries the next candidate, up to three, or records that none qualified.
-#   No verdict (the judge or the harness failed, not the build), or the run's precondition failed (its user's Claude
-#         Code not signed in): files a friction about the harness and stops.
+#   No verdict (the judge or the harness failed, not the build), a HARNESS verdict (every failed criterion the run's
+#         own), or the run's precondition failed (its user's Claude Code not signed in): files a friction about the
+#         harness and stops.
 # Only a judged run counts as the fortnight's: a run that could not start or be judged is tried again at the next timer
 # (contract 1.17, increment_f3b08b9f235c).
 # Usage: fortnight.sh [--now]   (--now skips the interval and the open-question guard checks, for a run by hand)
@@ -72,6 +73,13 @@ for attempt in 1 2 3; do
   if [[ -n $precondition ]]; then
     { echo "Evidence folder on the Mint box: $out"; echo; tail -40 "$out/run.log" 2>/dev/null; } > "$out/library/evidence.txt"
     harness "The stable acceptance run could not judge $version: $precondition" "The fortnightly acceptance run on the old laptop stopped before installing $version because its precondition failed: $precondition. The build was not judged." "$out/library/evidence.txt"
+    exit 0
+  fi
+  # A HARNESS verdict, every failed criterion the run's own (criteria.md), judged the run, not the build: filed about the
+  # harness, like no verdict, and no other build is tried (friction_58e4eda75992 was such a run filed as a regression).
+  if [[ $verdict == "VERDICT: HARNESS"* ]]; then
+    { echo "Evidence folder on the Mint box: $out"; echo; tail -40 "$out/verdict.txt" 2>/dev/null || tail -40 "$out/run.log"; } > "$out/library/evidence.txt"
+    harness "The stable acceptance run failed on its own evidence for $version" "The fortnightly acceptance run on the old laptop could not judge $version: its judge found every failed criterion was the run's own. ${verdict#VERDICT: HARNESS: }" "$out/library/evidence.txt"
     exit 0
   fi
   # No verdict is the harness's failure, not the build's: filed as a regression it would bar this build and every later

@@ -85,6 +85,17 @@ test("1.17 a run that ends with no verdict from its judge files a friction about
   } finally { await done(r); }
 });
 
+test("1.17 a judge's HARNESS verdict, every failed criterion the run's own, files a friction about the harness, not a regression, and does not count the fortnight", { skip }, async () => {
+  const r = routine([CANDIDATE, { text: NONE }], { runLog: "VERDICT: HARNESS: 3, 4 (the run's evidence steps ran outside the project the user built)\n" });
+  try {
+    assert.deepEqual(r.runs, ["0.3.2164"], "one run only");
+    assert.equal(filed(r).length, 1, r.calls.join("\n"));
+    assert.doesNotMatch(fileOf(filed(r)[0]!, "title") + fileOf(filed(r)[0]!, "statement"), /regress/i);
+    assert.match(fileOf(filed(r)[0]!, "statement"), /evidence steps ran outside/);
+    assert.equal(lastRun(r), false);
+  } finally { await done(r); }
+});
+
 test("1.17 a build the judge failed files a regression friction linking a note the library accepts, counts the fortnight, and asks for the next candidate", { skip }, async () => {
   const r = routine([CANDIDATE, { text: NONE }], { runLog: "VERDICT: FAIL: criterion 3, no test passed\n" });
   try {
@@ -143,12 +154,14 @@ test("1.17 a run whose acceptance user's Claude Code is not signed in files a fr
 });
 
 /** Runs the acceptance run's named phases against a laptop stood in for by ssh and scp, its sign-in step saying `signin`. */
-function acceptance(signin: string, phases: string[]) {
+function acceptance(signin: string, phases: string[], seed: Record<string, string> = {}) {
   const root = mkdtempSync(path.join(tmpdir(), "storytree-stable-run-"));
   const here = path.join(root, "harness"), bin = path.join(root, "bin"), out = path.join(root, "out");
   for (const dir of [here, path.join(here, "steps"), bin]) mkdirSync(dir, { recursive: true });
   spawnSync("git", ["init", "-q", here]);
-  for (const file of ["run.sh", "user.ps1", "state.ps1", "steps/prepare.ps1", "steps/signin.ps1", "steps/install.ps1"]) copyFileSync(path.join(harness, file), path.join(here, file));
+  for (const file of ["run.sh", "user.ps1", "state.ps1", "steps/prepare.ps1", "steps/signin.ps1", "steps/install.ps1", "steps/cdp.ps1", "steps/verify.ps1"]) copyFileSync(path.join(harness, file), path.join(here, file));
+  mkdirSync(out, { recursive: true });
+  for (const [file, text] of Object.entries(seed)) writeFileSync(path.join(out, file), text);
   writeFileSync(path.join(here, "judge.sh"), `echo judged >> "${root}/calls"; echo "VERDICT: PASS" | tee -a "$1/run.log"`);
   const token = path.join(root, "token");
   writeFileSync(token, "sk-ant-oat01-abc\n");
@@ -160,7 +173,7 @@ function acceptance(signin: string, phases: string[]) {
   const env = { ...process.env, STABLE_ACCEPTANCE_HOST: "laptop", STABLE_ACCEPTANCE_TOKEN_FILE: token, PATH: `${bin}${path.delimiter}${process.env.PATH ?? ""}` };
   const result = spawnSync("bash", [path.join(here, "run.sh"), "0.3.2167", out, ...phases], { encoding: "utf8", env });
   const calls = readFileSync(path.join(root, "calls"), "utf8").trim().split("\n");
-  return { root, status: result.status, calls, log: readFileSync(path.join(out, "run.log"), "utf8") };
+  return { root, out, status: result.status, calls, log: readFileSync(path.join(out, "run.log"), "utf8") };
 }
 
 test("1.17 the acceptance run checks its user's Claude Code sign-in before it installs the build: signed out, it notes the precondition, removes the user and judges nothing", { skip }, async () => {
@@ -182,4 +195,39 @@ test("1.17 an acceptance user whose Claude Code is signed in goes on to install 
     assert.ok(r.calls.some((call) => call.includes("install.ps1")), r.calls.join("\n"));
     assert.doesNotMatch(r.log, /PRECONDITION/);
   } finally { await removeTemp(r.root); }
+});
+
+test("1.17 the acceptance run reads the user's feedback and test command from a reply that sets them in markdown bold, and runs its evidence in the folder the user's turns built", { skip }, async () => {
+  const reply = "Done.\n\n**FEEDBACK TITLE:** Setup was smooth\n**FEEDBACK:** The doctor said I was signed out.\n**TEST COMMAND:** `npm test`";
+  const r = acceptance("", ["feedback", "verify"], {
+    "turn-1.summary.json": JSON.stringify({ project: "C:\\Users\\st-2167\\Documents\\tip-calculator", reply: "built" }),
+    "turn-2.summary.json": JSON.stringify({ reply }),
+  });
+  try {
+    assert.equal(r.status, 0, r.log);
+    const said = (file: string) => readFileSync(path.join(r.out, "steps", file), "utf8").trim();
+    assert.equal(said("feedback-title.txt"), "Setup was smooth");
+    assert.equal(said("feedback-body.txt"), "The doctor said I was signed out.");
+    assert.equal(said("test-command.txt"), "npm test");
+    assert.equal(said("project.txt"), "C:\\Users\\st-2167\\Documents\\tip-calculator");
+    assert.ok(r.calls.some((call) => /scp .*project\.txt/.test(call)), "the found folder goes to the laptop: " + r.calls.join("\n"));
+  } finally { await removeTemp(r.root); }
+});
+
+test("1.17 a turn's summary names the project folder its writes went to, wherever the turn itself ran", async () => {
+  const root = mkdtempSync(path.join(tmpdir(), "storytree-stable-sum-"));
+  try {
+    const write = (file_path: string) => ({ type: "assistant", message: { content: [{ type: "tool_use", name: "Write", input: { file_path } }] } });
+    const lines = [
+      { type: "system", subtype: "init", cwd: "C:\\Windows\\System32" },
+      write("C:\\Users\\st\\Documents\\tip-calculator\\index.html"),
+      write("C:\\Users\\st\\Documents\\tip-calculator\\tests\\tip.test.js"),
+      { type: "assistant", message: { content: [{ type: "tool_use", name: "Edit", input: { file_path: "C:\\Users\\st\\Documents\\tip-calculator\\app.js" } }] } },
+      { type: "result", subtype: "success", duration_ms: 1000, result: "done", usage: {} },
+    ];
+    writeFileSync(path.join(root, "turn-1.jsonl"), lines.map((l) => JSON.stringify(l)).join("\r\n"));
+    const result = spawnSync(process.execPath, [path.join(harness, "sum.mjs"), path.join(root, "turn-1.jsonl")], { encoding: "utf8" });
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(JSON.parse(result.stdout).project, "C:\\Users\\st\\Documents\\tip-calculator");
+  } finally { await removeTemp(root); }
 });

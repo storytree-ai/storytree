@@ -2,9 +2,14 @@
 # (test-command.txt) and what storytree's library holds for the project. The judge reads both; nothing here grades.
 $ev = "$PSScriptRoot\ev"
 $project = Join-Path $env:USERPROFILE 'tipjar'
+# The folder the user's turns wrote the project into (project.txt, from their transcript), when it is not the one they
+# started in.
+$found = if (Test-Path -LiteralPath "$PSScriptRoot\project.txt") { (Get-Content -Raw -Encoding UTF8 "$PSScriptRoot\project.txt").Trim() }
+if ($found) { $project = $found }
+"project: $project" | Set-Content "$ev\project.txt"
 $env:Path = [Environment]::GetEnvironmentVariable('Path', 'Machine') + ';' + [Environment]::GetEnvironmentVariable('Path', 'User')
 $tools = "$env:LOCALAPPDATA\Programs\storytree-0.3\resources\agent-tools"
-Set-Location -LiteralPath $project
+Set-Location -LiteralPath $project -ErrorAction Stop
 $t = Get-Date
 $command = (Get-Content -Raw -Encoding UTF8 "$PSScriptRoot\test-command.txt").Trim()
 "> $command" | Set-Content "$ev\tests.txt"

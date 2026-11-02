@@ -1,6 +1,8 @@
 # As the fresh user: Claude Code the way its site installs it, and its folder on the user's PATH.
 $ProgressPreference = 'SilentlyContinue'
 New-Item -ItemType Directory -Force "$PSScriptRoot\ev\shots" | Out-Null
+# The project folder the user's turns start in: the installer asks for none, so the run makes it.
+New-Item -ItemType Directory -Force (Join-Path $env:USERPROFILE 'tipjar') | Out-Null
 "user: $(whoami); profile: $env:USERPROFILE"
 Invoke-RestMethod https://claude.ai/install.ps1 | Invoke-Expression
 $bin = "$env:USERPROFILE\.local\bin"

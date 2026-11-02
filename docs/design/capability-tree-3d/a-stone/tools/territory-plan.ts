@@ -311,7 +311,13 @@ export function plan(map: TerritoryMap, links: Links, onLand: (p: P) => boolean,
     const c = centre(t), dir = { x: toward.x - c.x, z: toward.z - c.z }, l = Math.hypot(dir.x, dir.z);
     // A coast end facing away from where the road heads costs more.
     const facing = (n: number) => coastEnds.has(n) ? unit * 4 * (1 - ((nodes[n]!.x - c.x) * dir.x + (nodes[n]!.z - c.z) * dir.z) / (l * Math.max(1e-6, dist(nodes[n]!, c)))) : 0;
-    const found = walk(middlesOf(t), coastEnds, facing);
+    // Only a coast end that looks straight out on open sea, away from the island's middle, as the road leaves it: one at the
+    // back of a bay would run the road off its end across the land beyond.
+    const open = (n: number) => { const q = nodes[n]!, d = q, k = Math.hypot(d.x, d.z) || 1;
+      for (let i = 1; i <= 12; i++) if (onLand({ x: q.x + d.x / k * unit * 0.1 * i, z: q.z + d.z / k * unit * 0.1 * i })) return false;
+      return true; };
+    const seaward = new Set([...coastEnds].filter(open));
+    const found = walk(middlesOf(t), seaward.size ? seaward : coastEnds, facing);
     if (!found) continue;
     found.halves.forEach(i => { used.add(i); corridor.add(halves[i]!.side); });
     const first = sideByMiddle.get(found.nodes[0]!)!, { pts } = ends(found);

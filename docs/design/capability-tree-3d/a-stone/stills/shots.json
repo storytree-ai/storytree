@@ -22,8 +22,8 @@
       "kind": "road",
       "mark": "capability_a6d2887aed63->capability_88a6aaa1fa93",
       "at": {
-        "x": 508,
-        "y": 712
+        "x": 532,
+        "y": 718
       },
       "heading": "15 · Connection by address calls Keys · 1 · Key store and resolver"
     },
@@ -58,7 +58,7 @@
       "kind": "path",
       "mark": "capability_556e276756c9->capability_baaeecb42577",
       "at": {
-        "x": 574,
+        "x": 575,
         "y": 515
       },
       "heading": "14 · Ranked search calls 6 · Knowledge artifacts"

@@ -87,10 +87,10 @@ tagged "sample", on 10 · Work in flight, with three made-up increments on two m
 | Meaning | Hex |
 | --- | --- |
 | Healthy, untested, parked territories (the map's, drawn by its own code) | `#97C459`, `#F2D16B`, `#86939D`, at the map's opacity |
-| Corridor ground (the open strip a way runs down) | `#d9d1b9` |
+| Corridor ground (the open strip a way runs down) | `#cdc4a5` |
 | Ink: every outline, the road's end | `#1b1814` |
 | Wall and tower faces | `#ece4d0` |
-| Paths, dashed | `#6e5236` |
+| Paths, dashed | `#6e5236`; the road's run off the coast `#ece4d0`, since brown is lost on the dark glass |
 | Wrench | `#1b1814` with a `#ece4d0` edge; sample `#d6bdf0` |
 | Picked mark (the selection's gold) | `#ffd34d` |
 
@@ -108,7 +108,7 @@ All taken by `tools/shots.mjs`, which clicks each mark where it stands on the pa
 | `wrench-arcs.png` | The Cloud connection wrench's arc list |
 | `sample-wrench-arcs.png` | The sample wrench, listing two made-up arcs |
 | `territory.png` | Work model's description and contracts |
-| `road-off-the-coast.png` | The road to Keys: Key store and resolver's contracts |
+| `road-off-the-coast.png` | The road to Keys, leaving the coast into the bay south of the island: Key store and resolver's contracts |
 | `orbited.png`, `orbited-south-west.png` | Turned and tipped by the map's own keys, two ways |
 | `real-today.png`, `side-by-side.png` | The map's island today, beside the mock |
 
@@ -184,3 +184,24 @@ Before (left) and after round 2 (right), a gate picked:
 
 ![Round 2, before and after](stills/round-2.png)
 
+### Round 3: "not yet", 9 findings, none for Mick
+
+| # | Finding | Answer |
+| --- | --- | --- |
+| 1 | Corridors read as walled, paved roads with lane markings, the heaviest marks on the island | Fixed in part: the path is a quarter thinner. The walls either side stay: a corridor's sides are its territories' borders, and the brief puts a wall on every border |
+| 2 | Gates cannot be told from broken wall: two plain blocks in a gap, like rubble or dominoes | Fixed: each gate tower now has its own two crenellations, so it reads as a small tower beside the opening, not a loose slab |
+| 3 | At rest every border reads as a dashed, stitched line | Fixed in part: the crenellations are half again as wide, so a wall shows fewer, larger teeth. The walls stay one flat recipe in the one ink |
+| 4 | Tilted low, the crenellations stand up like a toy castle and the wrench like a game pin | Rejected: the brief keeps PR #230's 2.5D walls and its upright flat wrench; the tilt is the map's own camera |
+| 5 | The road off the coast is only a dot and a label on dry land | Fixed: the road stopped at the back of a bay and ran on toward Keys over the land beyond. It now leaves only from a coast that looks out on open sea, straight out from the island, its run onto the glass dashed in the wall's pale tone so it shows on the dark sea, and its name hangs below its dot, moving further out to sea, never back onto the island, to keep clear of other names. That name had been pushed up onto Health record in the whole-island still |
+| 6 | The picked territory's gold line is gold on two sides and faint green on the others | Fixed: the gold was drawn before the map's see-through territory fills, which tinted it; it is now drawn after them, solid gold all round |
+| 7 | Names collide when tilted; chips sit across walls | Rejected: tilted low, names stack but never hide one another (the names rule), as the map's own do; a name stands at its territory's middle, so a wall may pass under it. The one name that hid another, the road's, is fixed with 5 |
+| 8 | "Decision log" appears twice | Rejected: the library has two capabilities of that title (13 and 22); the mock shows the library's titles |
+| 9 | The legend's gate looks like two black squares and its wrench is too small to recognise | Fixed: the legend's marks are larger, the gate's pale towers with their ink edge, and the wrench at a readable height |
+
+Before (left) and after round 3 (right), close up: gate towers with crenellations, wider crenels.
+
+![Round 3, before and after, close up](stills/round-3.png)
+
+The road off the coast at rest, before (left) and after (right):
+
+![Round 3, the road off the coast](stills/round-3-road.png)

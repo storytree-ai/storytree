@@ -66,14 +66,14 @@ const pkey = (p: P) => `${Math.round(p.x * 1e3)},${Math.round(p.z * 1e3)}`;
 
 /** Triangles and an outline for a flat cut-out standing upright on the ground from `a` to `b`: the wall's band `h` high with
  * crenellations `m` higher, `merlon` wide, in the vertical plane through a and b. */
-function cutOut(a: P, b: P, h: number, m: number, merlon: number, y: (p: P) => number) {
+function cutOut(a: P, b: P, h: number, m: number, merlon: number, y: (p: P) => number, crenellated = false) {
   const l = dist(a, b), tris: number[] = [], lines: number[] = [];
   const at = (u: number, up: number) => { const p = along(a, b, u / l); return [p.x, y(p) + up, p.z]; };
   const quad = (u0: number, u1: number, v0: number, v1: number) => tris.push(...at(u0, v0), ...at(u1, v0), ...at(u1, v1), ...at(u0, v0), ...at(u1, v1), ...at(u0, v1));
   const line = (u0: number, v0: number, u1: number, v1: number) => lines.push(...at(u0, v0), ...at(u1, v1));
   quad(0, l, 0, h);
   // A short run is a plain band: crenellations on it would be a few broken ticks.
-  if (l < merlon * 4 && merlon < h) {
+  if (!crenellated && l < merlon * 4 && merlon < h) {
     lines.push(...at(0, 0), ...at(l, 0), ...at(0, 0), ...at(0, h), ...at(0, h), ...at(l, h), ...at(l, h), ...at(l, 0));
     return { tris, lines };
   }
@@ -218,9 +218,9 @@ export function castleLayer(state: RootState, story: string, data: Data, host: H
   const U = p.unit;
 
   // Sizes, from one cell's width of land.
-  const H = U * 0.09, M = H * 0.55, MERLON = H * 1.1;
+  const H = U * 0.09, M = H * 0.55, MERLON = H * 1.7;
   const OPEN = U * 0.16, TOWER = H * 2, TOWER_H = H * 2.6, TOP = H * 0.85;
-  const PATH = U * 0.032, DASH = U * 0.15, TURN = U * 0.18;
+  const PATH = U * 0.024, DASH = U * 0.15, TURN = U * 0.18;
   const lift = (q: P, up = 0) => new Vector3(q.x, heightAt(q) + up, q.z);
   const ground = (q: P) => heightAt(q) + TERRITORY_LIFT + H * 0.04;
 
@@ -366,7 +366,7 @@ export function castleLayer(state: RootState, story: string, data: Data, host: H
       // Each tower runs from the opening's edge outward along the wall.
       const inner = { x: t.x - dir.x * side * TOWER / 2, z: t.z - dir.z * side * TOWER / 2 }, outer = { x: t.x + dir.x * side * TOWER / 2, z: t.z + dir.z * side * TOWER / 2 };
       const [u, v] = side < 0 ? [outer, inner] : [inner, outer];
-      const cut = cutOut(u, v, TOWER_H, M * 1.2, TOWER / 3, ground); tris.push(...cut.tris); lines.push(...cut.lines);
+      const cut = cutOut(u, v, TOWER_H, M * 1.2, TOWER / 3, ground, true); tris.push(...cut.tris); lines.push(...cut.lines);
       const n2 = { x: -dir.z * TOP / 2, z: dir.x * TOP / 2 };
       const q = [{ x: u.x + n2.x, z: u.z + n2.z }, { x: v.x + n2.x, z: v.z + n2.z }, { x: v.x - n2.x, z: v.z - n2.z }, { x: u.x - n2.x, z: u.z - n2.z }].map(w => [w.x, ground(w) + TOWER_H, w.z]);
       tris.push(...q[0]!, ...q[1]!, ...q[2]!, ...q[0]!, ...q[2]!, ...q[3]!);
@@ -407,7 +407,8 @@ export function castleLayer(state: RootState, story: string, data: Data, host: H
   for (const [t, road] of p.roads) {
     const e = elsewhere.get(Number(t))!, a = gateAt(road.gate);
     if (!a) continue;
-    const toward = { x: e.there.x - road.coast.x, z: e.there.z - road.coast.z }, l = Math.hypot(toward.x, toward.z);
+    // It leaves the coast straight out from the island's middle, onto the glass, where the map's own sea road carries on.
+    const toward = road.coast, l = Math.hypot(toward.x, toward.z) || 1;
     const end = { x: road.coast.x + toward.x / l * U * 1.2, z: road.coast.z + toward.z / l * U * 1.2 };
     const key = `${capOf(road.from)}->${e.dep.id}`;
     routes.push({ key: `road:${key}`, points: [a, ...entered(road.points, false)] });
@@ -454,11 +455,13 @@ export function castleLayer(state: RootState, story: string, data: Data, host: H
     group.add(mesh, hit); pathMeshes.push(hit);
   }
   const roadHits = new Map<string, Mesh>();
+  // Off the coast the road is dashed in the wall's pale tone, since the path's brown is lost on the dark glass.
+  const seaMaterial = new MeshBasicMaterial({ map: dashTexture(PALETTE.wall), transparent: true, side: DoubleSide, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 });
   for (const [key, road] of roadLines) {
     // Its run off the coast, onto the glass, to its dot.
     const off = road.points.slice(-2), top = heightAt(off[0]!);
     const y = (u: P) => Math.max(heightAt(u), top) + TERRITORY_LIFT + H * 0.04;
-    const mesh = new Mesh(ribbon(off, PATH, y, DASH), dashMaterial); mesh.renderOrder = 4; mesh.raycast = () => {};
+    const mesh = new Mesh(ribbon(off, PATH * 1.4, y, DASH), seaMaterial); mesh.renderOrder = 4; mesh.raycast = () => {};
     const hit = new Mesh(ribbon(off, p.halfWidth * 1.6, y, DASH), new MeshBasicMaterial({ visible: false, side: DoubleSide }));
     hit.name = `road:${key}`;
     group.add(mesh, hit); roadHits.set(key, hit);
@@ -514,9 +517,9 @@ export function castleLayer(state: RootState, story: string, data: Data, host: H
   for (const [, road] of roadLines) {
     const dot = document.createElement("div"); dot.className = "mock-road-end"; overlay.appendChild(dot);
     spots.push({ el: dot, at: lift(road.end, H * 0.05) });
-    const el = document.createElement("div"); el.className = "forest-label planet-nameplate capability mock-road-name mock-name-above"; el.textContent = road.label; overlay.appendChild(el);
-    // Its name stands over the dot it ends at.
-    spots.push({ el, at: lift(road.end, H * 0.05), name: true });
+    const el = document.createElement("div"); el.className = "forest-label planet-nameplate capability mock-road-name"; el.textContent = road.label; overlay.appendChild(el);
+    // Its name hangs below the dot it ends at, out on the glass, and moves further out, never onto the island, to keep clear.
+    spots.push({ el, at: lift(road.end, H * 0.05), name: true, below: true });
   }
   const project = (v: Vector3) => {
     const rect = state.gl.domElement.getBoundingClientRect(), hostRect = host.getBoundingClientRect();
@@ -616,7 +619,8 @@ export function castleLayer(state: RootState, story: string, data: Data, host: H
 
   // The pick lights in the selection's gold: a territory's walls lined in gold on its side, a gate's towers, a way or the
   // road drawn over in gold.
-  const litMaterial = new MeshBasicMaterial({ color: PALETTE.lit, fog: false, side: DoubleSide, depthWrite: false, depthTest: false });
+  // Transparent, so it is drawn after the map's see-through territory fills rather than under them.
+  const litMaterial = new MeshBasicMaterial({ color: PALETTE.lit, fog: false, side: DoubleSide, transparent: true, depthWrite: false, depthTest: false });
   let lit: Mesh[] = [];
   const highlight = (picked: Picked | undefined) => {
     for (const g of gateGroups.values()) (g.userData.fill as MeshBasicMaterial).color.set(PALETTE.wall);

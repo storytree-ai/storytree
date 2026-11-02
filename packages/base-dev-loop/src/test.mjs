@@ -106,7 +106,7 @@ import { fileURLToPath } from "node:url";
 
 import { DataDirInUseError, start } from "@storytree/local-postgres";
 
-import { runtimeRefusal } from "./node-runtime.mjs";
+import { floorRefusal, runtimeRefusal } from "./node-runtime.mjs";
 import { recordReds } from "./red-runs.mjs";
 import { keepPreviousServerLog } from "./server-log.mjs";
 import { parseTestArgs, planRun, readWorkspace, resultsTable, scopeFor, scopeLine, TEST_USAGE, unitGlobs } from "./test-scope.mjs";
@@ -199,7 +199,7 @@ export function testCommand({ argv: given = process.argv.slice(2), hold: takeHol
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) testCommand();
 
 async function main() {
-  const refusal = runtimeRefusal();
+  const refusal = runtimeRefusal() ?? floorRefusal(process.version, root);
   if (refusal !== undefined) {
     console.error(`test harness: ${refusal}`);
     return 1;

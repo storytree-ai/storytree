@@ -567,3 +567,38 @@ test("17.13 · library new capability, run by a session holding an increment, ju
   );
   assert.equal(((await library.get(running.id))?.fields as { story: string }).story, host.id, "the live plan is unchanged");
 });
+
+test("17.15 · library list --where on a list field matches the records whose list holds the value, and --open keeps only open increments (proposal or active), so one call finds the open increments that name a capability; --open on another kind is refused", async (t) => {
+  const storytree = await connect({ url: testServerUrl() });
+  const project = uniqueProjectName();
+  t.after(async () => {
+    try {
+      await storytree.dropProject(project);
+    } finally {
+      await storytree.close();
+    }
+  });
+  const library = await storytree.openProject(project);
+  const story = await library.addStory({ title: "Sign up" });
+  const [form, mailer] = [await library.addCapability({ story: story.id, title: "Form" }), await library.addCapability({ story: story.id, title: "Mailer" })];
+  const arc = await library.createArc({ title: "Launch", intent: "Ship sign-up", endState: "Visitors sign up" });
+  const work = { arc: arc.id, objective: "Do it", body: "Red then green" };
+  const both = await library.addIncrement({ ...work, title: "Both", capabilities: [form.id, mailer.id] });
+  const onlyMailer = await library.addIncrement({ ...work, title: "Only the mailer", capabilities: [mailer.id] });
+  const done = await library.addIncrement({ ...work, title: "Done", capabilities: [form.id] });
+  await library.closeIncrement(done.id, { pr: "#1", disposition: "landed" });
+  const family = LIBRARY_FAMILIES.find((one) => one.name === "library")!;
+  const list = family.verbs.find((one) => mounted(one.command) && one.command.name === "list")! as Verb<VerbInputs, LibraryVerbContext>;
+  const context: LibraryVerbContext = { library, project, session: "curator", folder: tmpdir(), writer: { actor: "session:curator" }, claims: async () => [], testedNumbers: async () => ({ tested: [], untested: [] }) };
+  const run = async (inputs: { kind: string; where: string[]; all?: boolean; open?: boolean }) => (await list.act({ all: false, open: false, ...inputs } as never, context, WORDS)).text;
+
+  const naming = await run({ kind: "increment", where: [`capabilities=${form.id}`] });
+  assert.ok(naming.includes(both.id) && naming.includes(done.id), naming);
+  assert.ok(!naming.includes(onlyMailer.id), naming);
+  const open = await run({ kind: "increment", where: [`capabilities=${form.id}`], open: true });
+  assert.ok(open.includes(both.id), open);
+  assert.ok(!open.includes(done.id), "a closed increment is not open work");
+  const whole = await run({ kind: "increment", where: [`capabilities=${JSON.stringify([mailer.id])}`] });
+  assert.ok(whole.includes(onlyMailer.id) && !whole.includes(both.id), "a whole list still matches the list it equals");
+  await assert.rejects(run({ kind: "decision", where: [], open: true }), (error: unknown) => error instanceof VerbRefusal && /--open/.test(error.message));
+});

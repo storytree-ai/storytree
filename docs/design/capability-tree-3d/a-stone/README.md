@@ -136,3 +136,26 @@ style, and flags anything that reads as a building, plot or game prop; anything 
 nothing is built from it. Findings about the map's own drawing, which the brief keeps unchanged underneath, are rejected with
 that reason. Round 2's five review rounds, on the square fields, are in this folder's history (PR #230).
 
+### Round 1: "not yet", 11 findings, three for Mick
+
+| # | Finding | Answer |
+| --- | --- | --- |
+| 1 | Gate towers are shaded boxes, like dice or toy blocks: a second recipe beside the flat walls | Fixed: each tower is a taller stretch of the same flat cut-out, in the wall's own line, with its own crenellations and walk; the gap between them is the gate |
+| 2 | Short walls ending in a tower stick into a territory like a plot fence; towers sit beside the wall line | Fixed with 1: towers stand in the wall's line. A neighbours' gate stands on the longest stretch of wall the two share |
+| 3 | North–south borders show as a bare ink line, east–west ones as a crenellated wall | Fixed in part: the wall's walk is nearly twice as wide, so a wall seen end-on reads as a pale band. Its crenellations still foreshorten at the map's own tilt |
+| 4 | Lines end on nothing: a corridor runs on past its gate in a square stub, a path starts with a hook, towers stand on the coast | Fixed: a corridor's gate stands at the dead end of the border it opens, so the corridor and its path both end in the gate; neighbours' gates stand mid-way along their longest shared wall, clear of the coast |
+| 5 | Corridors read as fortified streets, the loudest thing on the island; widths vary | Fixed in part: corridors are a quarter narrower and their ground a quieter tone than the walls. The strip is one width; it looks wider only where two corridors meet |
+| 6 | Wall ink is wobbly and broken | Rejected: every outline is one pixel of the one ink; the walls follow the map's own cell borders, which bend every few units |
+| 7 | Picked marks are mostly invisible; the territory's pick is lime, not gold | Fixed: every pick is drawn in solid gold over the drawing and wider; a picked gate also gets a gold bar across its opening |
+| 8 | The road's name sits mid-island; its end reads as a drill hole | Fixed: the name stands by the coast it leaves; the end is a pale disc with an ink edge |
+| 9 | Names crowd; one hangs off the coast; names sit on walls | Fixed in part: a name near the coast steps inland. Tilted low, names stack but never hide one another (the names rule). A name stands at its territory's middle, so a wall may pass under it |
+| 10 | The sample chip's lilac is a second accent | Rejected: it marks made-up work, so it must not pass for real |
+| 11 | Two plates both read "Decision log" | Rejected: the library has two capabilities of that title (13 and 22); the mock shows the library's titles |
+
+**For Mick, from round 1** (nothing built from these): a gate drawn as an arched opening between flat towers; an arrow or quay
+mark where the road leaves the cliff; a way to tell apart two territories with the same name.
+
+Before (left) and after round 1 (right), close up:
+
+![Round 1, before and after](stills/round-1.png)
+

@@ -4,7 +4,7 @@
       "kind": "wrench",
       "mark": "capability_a954e1eb16f6",
       "at": {
-        "x": 268,
+        "x": 291,
         "y": 487
       },
       "heading": "Work wanting 8 · Cloud connection (GCP)"
@@ -13,8 +13,8 @@
       "kind": "gate",
       "mark": "13|14@300",
       "at": {
-        "x": 312,
-        "y": 597
+        "x": 335,
+        "y": 595
       },
       "heading": "26 · Rounds calls 25 · Lapsed questions"
     },
@@ -22,8 +22,8 @@
       "kind": "path",
       "mark": "capability_556e276756c9->capability_baaeecb42577",
       "at": {
-        "x": 583,
-        "y": 536
+        "x": 605,
+        "y": 541
       },
       "heading": "14 · Ranked search calls 6 · Knowledge artifacts"
     },
@@ -31,7 +31,7 @@
       "kind": "territory",
       "mark": "capability_dd486ffa5b02",
       "at": {
-        "x": 708,
+        "x": 732,
         "y": 304
       },
       "heading": "4 · Work model"
@@ -40,7 +40,7 @@
       "kind": "road",
       "mark": "capability_a6d2887aed63->capability_88a6aaa1fa93",
       "at": {
-        "x": 496,
+        "x": 519,
         "y": 700
       },
       "heading": "15 · Connection by address calls Keys · 1 · Key store and resolver"
@@ -49,7 +49,7 @@
       "kind": "wrench",
       "mark": "capability_a7f068502213:sample",
       "at": {
-        "x": 369,
+        "x": 392,
         "y": 366
       },
       "heading": "Work wanting 10 · Work in flight"
@@ -58,7 +58,7 @@
       "kind": "territory",
       "mark": "capability_13b04e769a4b",
       "at": {
-        "x": 654,
+        "x": 677,
         "y": 407
       },
       "heading": "9 · Knowledge entrances"
@@ -82,7 +82,7 @@
     "chains": 8,
     "sharedStretches": 1,
     "walls": 184,
-    "wallLength": 1495,
+    "wallLength": 1418,
     "unlinked": [],
     "seeds": {
       "capability_5e0362aae607": {

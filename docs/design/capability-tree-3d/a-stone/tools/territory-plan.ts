@@ -276,13 +276,21 @@ export function plan(map: TerritoryMap, links: Links, onLand: (p: P) => boolean,
   const apart = links.filter(([a, b]) => !touch.has(pairKey(a, b)));
   const gates = new Map<string, Gate>(), neighbourGates = new Map<string, string>(), ways = new Map<string, Way>();
   const corridor = new Set<number>();
-  const halfWidth = unit * 0.13;
+  const halfWidth = unit * 0.1;
   const sideByMiddle = new Map([...border].map(([i, b]) => [b.m, i]));
-  const gateOn = (territory: number, side: number): string => {
-    const k = `${territory}@${side}`, s = sides[side]!, b = border.get(side)!;
-    void s;
-    if (!gates.has(k)) gates.set(k, { key: k, territory, side, at: nodes[b.m]! });
+  const gateOn = (territory: number, side: number, at?: P): string => {
+    const k = `${territory}@${side}`, b = border.get(side)!;
+    if (!gates.has(k)) gates.set(k, { key: k, territory, side, at: at ?? nodes[b.m]! });
     return k;
+  };
+  /** A way starts in the middle of a border and opens all of it, so its gate stands near the border's far end, where the
+   * corridor stops, and the way walks the border from there: no stretch of corridor runs on past a gate. */
+  const KEEP = unit * 0.24;
+  const ends = (found: { nodes: number[] }) => {
+    const pts = found.nodes.map(n => nodes[n]!), out = [...pts];
+    const far = (m: P, e: P) => { const back = { x: 2 * m.x - e.x, z: 2 * m.z - e.z }, l = dist(back, e); return { x: back.x + (e.x - back.x) * Math.min(0.5, KEEP / l), z: back.z + (e.z - back.z) * Math.min(0.5, KEEP / l) }; };
+    if (pts.length > 1) out[0] = far(pts[0]!, pts[1]!);
+    return { pts: out, last: (p2: P[]) => { if (p2.length > 1) p2[p2.length - 1] = far(p2.at(-1)!, p2.at(-2)!); return p2; } };
   };
   // The furthest apart first, so the nearer ones join the ways they open.
   const centre = (t: number) => { const cs = owner.map((o, c) => o === t ? map.cells[c]!.site : undefined).filter((s): s is P => !!s); return { x: cs.reduce((s, p) => s + p.x, 0) / cs.length, z: cs.reduce((s, p) => s + p.z, 0) / cs.length }; };
@@ -291,7 +299,8 @@ export function plan(map: TerritoryMap, links: Links, onLand: (p: P) => boolean,
     if (!found) continue;
     found.halves.forEach(i => { used.add(i); corridor.add(halves[i]!.side); });
     const first = sideByMiddle.get(found.nodes[0]!)!, last = sideByMiddle.get(found.nodes.at(-1)!)!;
-    ways.set(`${a}->${b}`, { from: a, to: b, gates: [gateOn(a, first), gateOn(b, last)], points: found.nodes.map(n => nodes[n]!), sides: [...new Set(found.halves.map(i => halves[i]!.side))] });
+    const { pts, last: trim } = ends(found), points = trim(pts);
+    ways.set(`${a}->${b}`, { from: a, to: b, gates: [gateOn(a, first, points[0]), gateOn(b, last, points.at(-1))], points, sides: [...new Set(found.halves.map(i => halves[i]!.side))] });
   }
   // Roads off the coast: from a border of the territory to the coast nearest where the road heads.
   const roads: Plan["roads"] = new Map();
@@ -304,8 +313,8 @@ export function plan(map: TerritoryMap, links: Links, onLand: (p: P) => boolean,
     const found = walk(middlesOf(t), coastEnds, facing);
     if (!found) continue;
     found.halves.forEach(i => { used.add(i); corridor.add(halves[i]!.side); });
-    const first = sideByMiddle.get(found.nodes[0]!)!;
-    roads.set(`${t}`, { from: t, gate: gateOn(t, first), points: found.nodes.map(n => nodes[n]!), coast: nodes[found.nodes.at(-1)!]!, sides: [...new Set(found.halves.map(i => halves[i]!.side))] });
+    const first = sideByMiddle.get(found.nodes[0]!)!, { pts } = ends(found);
+    roads.set(`${t}`, { from: t, gate: gateOn(t, first, pts[0]), points: pts, coast: nodes[found.nodes.at(-1)!]!, sides: [...new Set(found.halves.map(i => halves[i]!.side))] });
   }
   // Neighbours: one gate in their shared wall, on the longest side they share that no corridor runs along.
   for (const [a, b] of links) {

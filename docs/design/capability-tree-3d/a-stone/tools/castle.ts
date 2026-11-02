@@ -52,7 +52,7 @@ type Data = { story: { id: string }; capabilities: Capability[]; openWork: { cap
 
 /** The ink map's palette (README.md lists it). */
 export const PALETTE = {
-  ink: "#1b1814", wall: "#ece4d0", ground: "#d9d1b9", path: "#6e5236", lit: "#ffd34d",
+  ink: "#1b1814", wall: "#ece4d0", ground: "#cdc4a5", path: "#6e5236", lit: "#ffd34d",
   wrench: "#1b1814", wrenchEdge: "#ece4d0", wrenchSample: "#d6bdf0", shadow: "#080b0e",
 } as const;
 /** The map lifts its territories this far off the land (planet-view.tsx's TERRITORY_LIFT). */
@@ -61,6 +61,7 @@ const TERRITORY_LIFT = 0.05;
 const dist = (a: P, b: P) => Math.hypot(a.x - b.x, a.z - b.z);
 const along = (a: P, b: P, t: number): P => ({ x: a.x + (b.x - a.x) * t, z: a.z + (b.z - a.z) * t });
 const nameOf = (title: string) => title.replace(/^\d+ · /, "");
+const mid = (a: P, b: P): P => ({ x: (a.x + b.x) / 2, z: (a.z + b.z) / 2 });
 const pkey = (p: P) => `${Math.round(p.x * 1e3)},${Math.round(p.z * 1e3)}`;
 
 /** Triangles and an outline for a flat cut-out standing upright on the ground from `a` to `b`: the wall's band `h` high with
@@ -218,7 +219,7 @@ export function castleLayer(state: RootState, story: string, data: Data, host: H
 
   // Sizes, from one cell's width of land.
   const H = U * 0.09, M = H * 0.55, MERLON = H * 1.1;
-  const OPEN = U * 0.16, TOWER = H * 1.15, TOWER_H = H * 1.35, TOP = H * 0.45;
+  const OPEN = U * 0.16, TOWER = H * 1.7, TOWER_H = H * 2.3, TOP = H * 0.85;
   const PATH = U * 0.032, DASH = U * 0.15, TURN = U * 0.18;
   const lift = (q: P, up = 0) => new Vector3(q.x, heightAt(q) + up, q.z);
   const ground = (q: P) => heightAt(q) + TERRITORY_LIFT + H * 0.04;
@@ -287,7 +288,13 @@ export function castleLayer(state: RootState, story: string, data: Data, host: H
     return along(w.a, w.b, Math.max(m, Math.min(1 - m, t)));
   };
   const wallFor = (g: { territory: number; side: number; at: P }) => {
-    const mine = walls.filter(w => g.territory < 0 ? w.kind === "shared" : w.kind === "corridor" && w.territories[0] === g.territory);
+    if (g.territory < 0) {
+      // Between neighbours: the longest stretch of the wall the two share, so its towers stand well clear of the coast.
+      const pair = walls.find(w => w.side === g.side)?.territories;
+      const shared = walls.filter(w => w.kind === "shared" && pair && w.territories.every(t => pair.includes(t)));
+      return shared.sort((a, b) => dist(b.a, b.b) - dist(a.a, a.b))[0];
+    }
+    const mine = walls.filter(w => w.kind === "corridor" && w.territories[0] === g.territory);
     const near = (list: Wall[]) => list.sort((a, b) => dist(projectOn(a, g.at, 0), g.at) - dist(projectOn(b, g.at, 0), g.at) || dist(b.a, b.b) - dist(a.a, a.b))[0];
     // Its own side's wall; where a second corridor at that corner has pulled the territory back past it, the nearest wall it
     // has on a corridor.
@@ -300,7 +307,7 @@ export function castleLayer(state: RootState, story: string, data: Data, host: H
     if (!mark) {
       const wall = wallFor(g);
       if (!wall) return;
-      mark = { key: gateKey, wall, at: projectOn(wall, g.at, OPEN / 2 + TOWER), links: [] };
+      mark = { key: gateKey, wall, at: projectOn(wall, g.territory < 0 ? mid(wall.a, wall.b) : g.at, OPEN / 2 + TOWER), links: [] };
       gateMarks.set(gateKey, mark);
     }
     if (!mark.links.some(l => l.from === link.from && l.to === link.to)) mark.links.push(link);
@@ -323,9 +330,9 @@ export function castleLayer(state: RootState, story: string, data: Data, host: H
       const runs: [P, P][] = [];
       const gate = [...gateMarks.values()].find(g => g.wall === w);
       if (gate) {
-        const l = dist(w.a, w.b), half = Math.min(0.5, (OPEN / 2 + TOWER / 2) / l), t = dist(w.a, gate.at) / l;
+        const l = dist(w.a, w.b), half = Math.min(0.5, (OPEN / 2 + TOWER / 2) / l), t = dist(w.a, gate.at) / l, reach = (OPEN / 2 + TOWER) / l;
         const left = along(w.a, w.b, Math.max(0, t - half)), right = along(w.a, w.b, Math.min(1, t + half));
-        runs.push([w.a, left], [right, w.b]);
+        runs.push([w.a, along(w.a, w.b, Math.max(0, t - reach))], [along(w.a, w.b, Math.min(1, t + reach)), w.b]);
         towerAt.set(gate.key, [left, right]);
       } else runs.push([w.a, w.b]);
       for (const [u, v] of runs) {
@@ -346,25 +353,28 @@ export function castleLayer(state: RootState, story: string, data: Data, host: H
     const wallGroup = new Group(); wallGroup.name = "walls"; wallGroup.add(fill, edge); group.add(wallGroup);
   }
 
-  // Gates: a small square tower each side of the opening, a box drawn flat (pale faces, ink edges, crenellated top).
+  // Gates: an opening in the wall between two towers, each a taller stretch of the same wall, drawn by the same flat recipe
+  // in the wall's own line (pale face, ink outline, its own crenellations and walk), so the gap reads as a way through it.
   const gateGroups = new Map<string, Group>();
   for (const [key, [l, r]] of towerAt) {
     const g = new Group(); g.name = `gate:${key}`;
     const ink = inkMaterial(), towerFill = wallFill.clone();
-    const [a, b] = [l, r], dl = dist(a, b) || 1, dir = { x: (b.x - a.x) / dl, z: (b.z - a.z) / dl }, nrm = { x: -dir.z, z: dir.x };
-    for (const t of [a, b]) {
-      const h = TOWER / 2, sq = [[-h, -h], [h, -h], [h, h], [-h, h]].map(([u, v]) => ({ x: t.x + dir.x * u! + nrm.x * v!, z: t.z + dir.z * u! + nrm.z * v! }));
-      const tris: number[] = [], lines: number[] = [];
-      for (let k = 0; k < 4; k++) { const cut = cutOut(sq[k]!, sq[(k + 1) % 4]!, TOWER_H, M * 0.8, TOWER / 2.6, ground); tris.push(...cut.tris); lines.push(...cut.lines); }
-      // Its roof, a flat square at the top of the band, so from above it reads solid.
-      const y = (q: P) => ground(q) + TOWER_H - H * 0.01, top = sq.map(q => [q.x, y(q), q.z]);
-      tris.push(...top[0]!, ...top[1]!, ...top[2]!, ...top[0]!, ...top[2]!, ...top[3]!);
-      const geometry = new BufferGeometry(); geometry.setAttribute("position", new Float32BufferAttribute(tris, 3));
-      const mesh = new Mesh(geometry, towerFill); mesh.renderOrder = 2; mesh.raycast = () => {};
-      const outline = new BufferGeometry(); outline.setAttribute("position", new Float32BufferAttribute(lines, 3));
-      const edge = new LineSegments(outline, ink); edge.renderOrder = 3; edge.raycast = () => {};
-      g.add(mesh, edge);
+    const [a, b] = [l, r], dl = dist(a, b) || 1, dir = { x: (b.x - a.x) / dl, z: (b.z - a.z) / dl };
+    const tris: number[] = [], lines: number[] = [];
+    for (const [t, side] of [[a, -1], [b, 1]] as const) {
+      // Each tower runs from the opening's edge outward along the wall.
+      const inner = { x: t.x - dir.x * side * TOWER / 2, z: t.z - dir.z * side * TOWER / 2 }, outer = { x: t.x + dir.x * side * TOWER / 2, z: t.z + dir.z * side * TOWER / 2 };
+      const [u, v] = side < 0 ? [outer, inner] : [inner, outer];
+      const cut = cutOut(u, v, TOWER_H, M, TOWER / 3, ground); tris.push(...cut.tris); lines.push(...cut.lines);
+      const n2 = { x: -dir.z * TOP / 2, z: dir.x * TOP / 2 };
+      const q = [{ x: u.x + n2.x, z: u.z + n2.z }, { x: v.x + n2.x, z: v.z + n2.z }, { x: v.x - n2.x, z: v.z - n2.z }, { x: u.x - n2.x, z: u.z - n2.z }].map(w => [w.x, ground(w) + TOWER_H, w.z]);
+      tris.push(...q[0]!, ...q[1]!, ...q[2]!, ...q[0]!, ...q[2]!, ...q[3]!);
     }
+    const geometry = new BufferGeometry(); geometry.setAttribute("position", new Float32BufferAttribute(tris, 3));
+    const mesh = new Mesh(geometry, towerFill); mesh.renderOrder = 2; mesh.raycast = () => {};
+    const outline = new BufferGeometry(); outline.setAttribute("position", new Float32BufferAttribute(lines, 3));
+    const edge = new LineSegments(outline, ink); edge.renderOrder = 3; edge.raycast = () => {};
+    g.add(mesh, edge);
     // A box over the gate, unseen, so a click on it is easy to land.
     const middle = along(a, b, 0.5), top = TOWER_H + M;
     const hit = new Mesh(new BoxGeometry(dl + TOWER * 1.6, top, TOWER * 2.4), new MeshBasicMaterial({ visible: false, side: DoubleSide }));
@@ -459,7 +469,12 @@ export function castleLayer(state: RootState, story: string, data: Data, host: H
     const pieces = mine.map(c => { const poly = cells[c.index]!.map(q => q.p); let a = 0, x = 0, z = 0; for (let i = 0; i < poly.length; i++) { const u = poly[i]!, v = poly[(i + 1) % poly.length]!, k = u.x * v.z - v.x * u.z; a += k; x += (u.x + v.x) * k; z += (u.z + v.z) * k; } return { c, a: a / 2, at: a ? { x: x / (3 * a), z: z / (3 * a) } : c.site }; }).filter(q => onLand(q.at));
     const total = pieces.reduce((s, q) => s + q.a, 0) || 1, centre = { x: pieces.reduce((s, q) => s + q.at.x * q.a, 0) / total, z: pieces.reduce((s, q) => s + q.at.z * q.a, 0) / total };
     const best = pieces.sort((a, b) => dist(a.at, centre) - dist(b.at, centre))[0];
-    anchors.set(terr.capability!, best ? best.at : mine[0]!.site);
+    // A name by the coast steps inland, a little at a time, so it stands on the island rather than over the sea.
+    let at = best ? best.at : mine[0]!.site;
+    for (let k = 0; k < 3 && [0, 1, 2, 3, 4, 5, 6, 7].some(i => !onLand({ x: at.x + Math.cos(i * Math.PI / 4) * U * 0.9, z: at.z + Math.sin(i * Math.PI / 4) * U * 0.9 })); k++) {
+      const l = Math.hypot(at.x, at.z) || 1; at = { x: at.x - at.x / l * U * 0.3, z: at.z - at.z / l * U * 0.3 };
+    }
+    anchors.set(terr.capability!, at);
   });
   const names = new Map<string, Spot>();
   for (const terr of map.territories) {
@@ -493,7 +508,7 @@ export function castleLayer(state: RootState, story: string, data: Data, host: H
     const el = document.createElement("div"); el.className = "forest-label planet-nameplate capability mock-road-name mock-name-above"; el.textContent = road.label; overlay.appendChild(el);
     // Its name stands on the land, by the coast it leaves by.
     const coastAt = road.points.at(-2)!, inland = road.points.at(-3) ?? coastAt;
-    spots.push({ el, at: lift(along(coastAt, inland, Math.min(1, U * 0.8 / Math.max(1e-6, dist(coastAt, inland)))), H * 0.05), name: true });
+    spots.push({ el, at: lift(along(coastAt, inland, Math.min(1, U * 0.35 / Math.max(1e-6, dist(coastAt, inland)))), H * 0.05), name: true });
   }
   const project = (v: Vector3) => {
     const rect = state.gl.domElement.getBoundingClientRect(), hostRect = host.getBoundingClientRect();
@@ -593,7 +608,7 @@ export function castleLayer(state: RootState, story: string, data: Data, host: H
 
   // The pick lights in the selection's gold: a territory's walls lined in gold on its side, a gate's towers, a way or the
   // road drawn over in gold.
-  const litMaterial = new MeshBasicMaterial({ map: dashTexture(PALETTE.lit, true), alphaTest: 0.5, fog: false, side: DoubleSide, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3 });
+  const litMaterial = new MeshBasicMaterial({ color: PALETTE.lit, fog: false, side: DoubleSide, depthWrite: false, depthTest: false });
   let lit: Mesh[] = [];
   const highlight = (picked: Picked | undefined) => {
     for (const g of gateGroups.values()) (g.userData.fill as MeshBasicMaterial).color.set(PALETTE.wall);
@@ -608,13 +623,18 @@ export function castleLayer(state: RootState, story: string, data: Data, host: H
         const n = w.inward.get(t);
         if (!n) continue;
         const off = H * 0.9;
-        draw([{ x: w.a.x + n.x * off, z: w.a.z + n.z * off }, { x: w.b.x + n.x * off, z: w.b.z + n.z * off }], PATH * 1.6);
+        draw([{ x: w.a.x + n.x * off, z: w.a.z + n.z * off }, { x: w.b.x + n.x * off, z: w.b.z + n.z * off }], PATH * 2.2);
       }
     }
-    if (picked?.kind === "gate") (gateGroups.get(picked.id)!.userData.fill as MeshBasicMaterial).color.set(PALETTE.lit);
+    if (picked?.kind === "gate") {
+      // Its towers turn gold, and a gold bar lies across its opening.
+      const g = gateGroups.get(picked.id)!, w = gateMarks.get(picked.id)!.wall, at = g.userData.at as P, l = dist(w.a, w.b), n = { x: -(w.b.z - w.a.z) / l, z: (w.b.x - w.a.x) / l };
+      (g.userData.fill as MeshBasicMaterial).color.set(PALETTE.lit);
+      draw([{ x: at.x - n.x * OPEN * 0.8, z: at.z - n.z * OPEN * 0.8 }, { x: at.x + n.x * OPEN * 0.8, z: at.z + n.z * OPEN * 0.8 }], OPEN * 0.9);
+    }
     if (picked?.kind === "wrench") (picked.sample ? sampleWrench : wrenches.get(picked.capability))?.el.classList.add("lit");
     const line = picked?.kind === "path" ? routes.find(r => r.key === picked.id)?.points : picked?.kind === "road" ? roadLines.get(picked.id)?.points : undefined;
-    if (line) draw(rounded(line, TURN), PATH * 2);
+    if (line) draw(rounded(line, TURN), PATH * 2.6);
     state.invalidate();
   };
 

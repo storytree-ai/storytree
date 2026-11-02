@@ -490,8 +490,7 @@ async function writeLines(harness: string, input: string, flags: readonly string
       // The folders the project imports here are remembered, and their baselines set, for the shell guard (shell-guard.ts).
       if (firstLine !== undefined) await watchImports(storytree, where.project, homeOf(locate), home, firstLine, failed, git);
       // Lines that waited go first, so the log keeps each session's lines in the order they happened; the guard's are in an imported folder.
-      const admits = async (project: string, folder: string): Promise<boolean> => rememberedImports(home, project).some((place) => place.folder === folder) || approved(storytree, project, folder, homeOf(locate));
-      await uploadQueued(home, log, admits);
+      await uploadQueued(home, log, async (project, folder) => rememberedImports(home, project).some((place) => place.folder === folder) || approved(storytree, project, folder, homeOf(locate)));
       // The first hook to reach the log since this machine started says so, once: sessions it outlived read gone everywhere (4.29).
       const [by] = made.lines;
       if (by !== undefined) {
@@ -500,8 +499,6 @@ async function writeLines(harness: string, input: string, flags: readonly string
       }
       await appendEvent(log, where.project, made.lines, delivered, written);
       leaveWaiting = undefined;
-      // The turn's holder also uploads what other hooks left waiting while it wrote (remote-turn.ts).
-      if (turn !== undefined) await uploadQueued(home, log, admits);
       // A claim whose pull request has merged ends now (ADR-0643 D3), except before a storytree tool
       // call or at a prompt, which the harness waits for; the tool call looks for itself.
       const [first] = made.lines;

@@ -8,7 +8,9 @@
  * rather than one per hook, each cut off at its deadline with the backlog it was uploading.
  *
  * The turn is a file under the storytree home naming its holder's process: taken when absent, or when the process it
- * names has gone; let go when the holder is done, or when its process exits, the deadline's exit included.
+ * names has gone; let go when the holder is done, or when its process exits, the deadline's exit included. Two hooks that
+ * find the same gone holder at once may both take it; that costs one run two connections, not a lost line, so it is
+ * left so. Lines queued while the holder writes wait for the next hook, which takes the turn and uploads them first.
  */
 import { readFileSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";

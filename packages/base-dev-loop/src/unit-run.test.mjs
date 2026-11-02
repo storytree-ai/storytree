@@ -551,3 +551,10 @@ test("4.1 a run stalled outside any unit past its deadline names where it stalle
   assert.equal(run.status, 1, run.output);
   assert.match(run.output, /test harness: past the run's deadline .* while waiting for the heavy-run lock; ending the run/);
 });
+
+// increment_1097ddf4b80d: a one-file run queued tens of minutes behind full gates on the Mint box, under the same hold.
+test("4.29 · a run of files named on the command line tells its hold its scope is files, so the hold can let it pass the full runs' queue", (t) => {
+  const run = harnessRun(t, { "passes.test.mjs": `import { test } from "node:test";\ntest("passes", () => {});` }, { deadline: Math.floor(Date.now() / 1000) + 60, hold: "(options) => { console.log(`hold taken for scope: ${options.scope}`); return () => {}; }" });
+  assert.equal(run.status, 0, run.output);
+  assert.match(run.output, /hold taken for scope: files/);
+});

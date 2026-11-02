@@ -1,7 +1,7 @@
 /** Capability 3 · Hooks, contracts 3.51 and 3.52: hooks over a wss:// library, which every round trip crosses Cloudflare and a tunnel to reach (ADR-1093). */
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { writeFileSync } from "node:fs";
+import { utimesSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { test } from "node:test";
 
@@ -47,5 +47,18 @@ test("3.52 one hook at a time on a machine holds the turn to reach a wss:// libr
     const again = takeTurn(dir);
     assert.ok(again !== undefined, "let go: free again");
     again();
+  });
+});
+
+test("3.52 a turn file a live process has just created, still empty before it names its holder, is not taken; one left empty long ago is", async () => {
+  await withTempDir((dir) => {
+    const file = path.join(dir, TURN_FILE);
+    writeFileSync(file, "");
+    assert.equal(takeTurn(dir), undefined, "just created, not yet written: held");
+    const past = new Date(Date.now() - 60_000);
+    utimesSync(file, past, past);
+    const taken = takeTurn(dir);
+    assert.ok(taken !== undefined, "left empty long ago: taken");
+    taken();
   });
 });

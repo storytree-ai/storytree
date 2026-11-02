@@ -8,6 +8,7 @@ import { codeSurveyReader, type ImportedFolder } from "./code-survey/read-survey
 import { buildGraph, type ProjectGraph } from "./graph.js";
 import { focus, formatFocus, type FocusAnswer, type FocusOptions } from "./focus.js";
 import { crossingsOf, formatCrossing, type CrossingAnswer, type CrossingOptions } from "./code-survey/crossings.js";
+import { capabilityTreeOf, formatCapabilityTree } from "./capability-tree.js";
 
 type PlanReader = Pick<Library, "projectTree">;
 
@@ -78,6 +79,13 @@ export async function crossingProject(library: PlanReader, folder: string, optio
 export async function crossingCommand(library: PlanReader, folder: string, options: CrossingOptions, json = false, imports: readonly ImportedFolder[] = []): Promise<string> {
   const answer = await crossingProject(library, folder, options, imports);
   return json ? JSON.stringify(answer) : formatCrossing(answer);
+}
+
+/** The story `select` names, its capabilities with their contracts, links, files and lines, read in one survey of the checkout at `folder` (3.11). */
+export async function capabilitiesCommand(library: PlanReader, folder: string, select: string, json = false, imports: readonly ImportedFolder[] = []): Promise<string> {
+  const tree = await branchPlan(library, folder);
+  const answer = capabilityTreeOf(tree, await codeSurveyReader({ checkout: "current" }).read(folder, tree, imports), select);
+  return json ? JSON.stringify(answer) : formatCapabilityTree(answer);
 }
 
 /** The affected front door and diff focus share one map implementation and renderer. */

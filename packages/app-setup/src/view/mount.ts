@@ -3,10 +3,12 @@ import type { FeedbackAccount, SetupHelpBridge } from "../help/bridge.js";
 import { draftSaid, feedbackText } from "../journey-events/feedback.js";
 import { addedSentence } from "./add-project.js";
 import { guideOffered, rememberGuideDismissed } from "./first-run.js";
-import { guide, recoveryRequest } from "./guide.js";
+import { guideFor, platformOf, recoveryRequest, type GuidePlatform } from "./guide.js";
 
 /** A single help surface survives empty/error states and project switching in the thin frame. */
-export function mountSetupHelp(host: HTMLElement, bridge: SetupHelpBridge, options: { returnFocus?: HTMLElement; embedded?: boolean; onOpen?: () => void } = {}): { open(): void; close(): void; stop(): void } {
+export function mountSetupHelp(host: HTMLElement, bridge: SetupHelpBridge, options: { returnFocus?: HTMLElement; embedded?: boolean; onOpen?: () => void; platform?: GuidePlatform | undefined } = {}): { open(): void; close(): void; stop(): void } {
+  // The troubleshooting shown is the platform's the app runs on (3.15), read from Electron's user agent unless given.
+  const platform = "platform" in options ? options.platform : platformOf(globalThis.navigator?.userAgent ?? "");
   const entry = options.embedded ? null : document.createElement("div");
   if (entry) {
     entry.className = "setup-help";
@@ -27,7 +29,7 @@ export function mountSetupHelp(host: HTMLElement, bridge: SetupHelpBridge, optio
       <button type="button" data-page="license" aria-pressed="false">License</button>
       <button type="button" data-page="feedback" aria-pressed="false">Send feedback</button>
     </nav>
-    <div data-content="guide"><div class="setup-help-agents" data-agents role="status" hidden></div>${guide}
+    <div data-content="guide"><div class="setup-help-agents" data-agents role="status" hidden></div>${guideFor(platform)}
       <div class="setup-help-actions"><button type="button" data-check>Check a folder…</button><button type="button" data-recover>Copy request for your agent</button></div>
       <p data-check-status role="status"></p>
       <div class="setup-help-diagnostics" data-diagnostics hidden></div>

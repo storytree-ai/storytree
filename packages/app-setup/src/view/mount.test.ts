@@ -5,6 +5,7 @@ import { Window } from "happy-dom";
 
 import type { SetupHelpBridge } from "../help/bridge.js";
 import { mountAddProject, mountDeleteProject, mountRemoveProject, mountSetupHelp } from "./index.js";
+import { platformOf } from "./guide.js";
 
 let window: Window;
 let originals: Record<string, PropertyDescriptor | undefined>;
@@ -206,7 +207,7 @@ test("3.4 Add project asks the picker bridge, shows the chosen project and leave
 });
 
 test("3.8 the mounted guide explains a Smart App Control block: what it is, where to see it, how to turn it off and what that costs", () => {
-  const mounted = mountSetupHelp(document.body, helpBridge());
+  const mounted = mountSetupHelp(document.body, helpBridge(), { platform: "windows" });
   try {
     const step = [...document.querySelectorAll("#setup-help-panel details")]
       .find((details) => /Smart App Control/.test(details.querySelector("summary")!.textContent!));
@@ -219,6 +220,48 @@ test("3.8 the mounted guide explains a Smart App Control block: what it is, wher
     assert.match(text, /April 2026/);
     assert.match(text, /reset/i);
   } finally { mounted.stop(); }
+});
+
+test("3.15 the guide's troubleshooting is for the platform it runs on, read from the app's user agent when not given", () => {
+  const summaries = (options: Parameters<typeof mountSetupHelp>[2]) => {
+    const mounted = mountSetupHelp(document.body, helpBridge(), options);
+    try {
+      return [...document.querySelectorAll("#setup-help-panel details")].map((details) => details.textContent!);
+    } finally { mounted.stop(); }
+  };
+  const windows = summaries({ platform: "windows" }).join("\n");
+  assert.match(windows, /SmartScreen/);
+  assert.match(windows, /Windows Settings → Apps/);
+  assert.doesNotMatch(windows, /FUSE|macOS/);
+
+  const linux = summaries({ platform: "linux" }).join("\n");
+  assert.match(linux, /FUSE/);
+  assert.match(linux, /APPIMAGE_EXTRACT_AND_RUN=1/);
+  assert.match(linux, /ordinary user, not as root or with sudo/);
+  assert.match(linux, /DISPLAY or WAYLAND_DISPLAY/);
+  assert.match(linux, /storytree setup uninstall/);
+  assert.doesNotMatch(linux, /Windows|SmartScreen|Smart App Control|macOS/);
+
+  const mac = summaries({ platform: "mac" }).join("\n");
+  assert.match(mac, /Privacy & Security/);
+  assert.match(mac, /storytree setup uninstall/);
+  assert.doesNotMatch(mac, /Windows|FUSE/);
+
+  assert.equal(platformOf("Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) storytree/0.3.1 Chrome/138.0 Electron/37.0 Safari/537.36"), "linux");
+  assert.equal(platformOf("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Electron/37.0 Safari/537.36"), "mac");
+  assert.equal(platformOf("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Electron/37.0 Safari/537.36"), "windows");
+  const navigator = Object.getOwnPropertyDescriptor(globalThis, "navigator");
+  Object.defineProperty(globalThis, "navigator", { configurable: true, value: { userAgent: "Mozilla/5.0 (X11; Linux x86_64) Electron/37.0" } });
+  try {
+    const read = summaries({}).join("\n");
+    assert.match(read, /FUSE/, "not given, the platform is the user agent's");
+    assert.doesNotMatch(read, /SmartScreen/);
+  } finally {
+    if (navigator) Object.defineProperty(globalThis, "navigator", navigator);
+    else Reflect.deleteProperty(globalThis, "navigator");
+  }
+  const unknown = summaries({ platform: platformOf("Node.js/22") }).join("\n");
+  for (const each of [/SmartScreen/, /FUSE/, /Privacy & Security/]) assert.match(unknown, each, "a platform it cannot tell gets every platform's steps");
 });
 
 test("5.5 · feedback sign-in is optional and only explicitly added identity enters the editable draft", async () => {

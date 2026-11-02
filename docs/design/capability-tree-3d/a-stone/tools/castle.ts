@@ -645,10 +645,10 @@ export function castleLayer(state: RootState, story: string, data: Data, host: H
       }
     }
     if (picked?.kind === "gate") {
-      // Its towers turn gold, and a thin gold line runs through its opening.
-      const g = gateGroups.get(picked.id)!, w = gateMarks.get(picked.id)!.wall, at = g.userData.at as P, l = dist(w.a, w.b), n = { x: -(w.b.z - w.a.z) / l, z: (w.b.x - w.a.x) / l };
+      // Its towers turn gold, and a gold band lies along the wall under them and its opening, so a gate seen end-on still shows.
+      const g = gateGroups.get(picked.id)!, [a, b] = towerAt.get(picked.id)!, l = dist(a, b) || 1, d = { x: (b.x - a.x) / l * TOWER, z: (b.z - a.z) / l * TOWER };
       (g.userData.fill as MeshBasicMaterial).color.set(PALETTE.lit);
-      draw([{ x: at.x - n.x * OPEN * 1.6, z: at.z - n.z * OPEN * 1.6 }, { x: at.x + n.x * OPEN * 1.6, z: at.z + n.z * OPEN * 1.6 }], PATH * 2.6);
+      draw([{ x: a.x - d.x, z: a.z - d.z }, { x: b.x + d.x, z: b.z + d.z }], TOP * 2.2);
     }
     if (picked?.kind === "wrench") (picked.sample ? sampleWrench : wrenches.get(picked.capability))?.el.classList.add("lit");
     const line = picked?.kind === "path" ? routes.find(r => r.key === picked.id)?.points : picked?.kind === "road" ? roadLines.get(picked.id)?.points : undefined;

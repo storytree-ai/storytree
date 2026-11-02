@@ -229,3 +229,25 @@ Before (left) and after round 4 (right), close up: taller gate towers and olive 
 A picked gate (left pair) and a picked path (right pair), before and after round 4:
 
 ![Round 4, picks](stills/round-4-picks.png)
+
+### Round 5: "not yet", 9 findings, one for Mick; the review stops here
+
+| # | Finding | Answer |
+| --- | --- | --- |
+| 1 | Tilted, the walls and towers read as a castle diorama | Rejected: the brief keeps PR #230's 2.5D walls and towered gates; the tilt is the map's own camera (for Mick below) |
+| 2 | Where several gates share a border, their towers run together like a picket fence | Rejected: each pair is a real link between those two neighbours, standing on the longest stretch of wall they share; spacing them out would move gates off the border they belong to |
+| 3 | A picked gate seen end-on shows a gold crosshair and no gate | Fixed: a picked gate's towers turn gold and a gold band lies along the wall under them and its opening, so it reads as that stretch of wall lit, from any side |
+| 4 | Corridors read as paved, walled roads | Rejected: rounds 3 and 4 thinned the path and made its ground open olive land; the walls either side are its territories' borders |
+| 5 | Walls look hairy at rest | Rejected: round 3 widened the crenels; the walls are one flat recipe in the one ink, following the map's own cell borders |
+| 6 | Names sit on walls and nearly touch | Rejected: the names rule; none hides another |
+| 7 | "Decision log" twice | Rejected: two capabilities of the library carry that title |
+| 8 | The road off the coast reads as a callout's leader line | Rejected: the brief keeps the road off the coast, dashed as the paths are |
+| 9 | The sample tag's purple | Rejected: it marks made-up work, so it must not pass for real; it shows only when sample work is switched on |
+
+**For Mick, from round 5** (nothing built from it): whether the walls should keep their height when the map is tilted low.
+
+The brief stops the review after five rounds. Round 5 still said "not yet": its findings that stand are about what the brief keeps (the 2.5D walls and towers, the wrench, the road, the names rule) and the library's own titles, so they are his to call, gathered in the "for Mick" lists above.
+
+A picked gate, before (left) and after round 5 (right):
+
+![Round 5, a picked gate](stills/round-5.png)

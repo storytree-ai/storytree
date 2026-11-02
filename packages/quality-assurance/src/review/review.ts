@@ -854,8 +854,18 @@ function titlesIn(text: string): { line: number; test: string; body: string }[] 
   });
   return strings
     .filter(({ at, value, template }) => CALLED.test(code.slice(Math.max(0, at - 40), at)) && !(template && value.includes("${")))
-    .map(({ at, end, value }) => ({ line: text.slice(0, at).split("\n").length, test: value, body: text.slice(end, closeOf(code, end)).replace(/\s+/g, " ").trim() }));
+    .map(({ at, end, value }) => ({ line: text.slice(0, at).split("\n").length, test: cooked(value), body: text.slice(end, closeOf(code, end)).replace(/\s+/g, " ").trim() }));
 }
+
+/** A string literal's source text with its escapes cooked, as the runner names the test it titles (contract 2.14). */
+function cooked(value: string): string {
+  return value.replace(/\\(u\{[0-9a-fA-F]+\}|u[0-9a-fA-F]{4}|x[0-9a-fA-F]{2}|\r\n|[\s\S])/g, (_, escape: string) => {
+    if (/^[ux]/.test(escape) && escape.length > 1) return String.fromCodePoint(parseInt(escape.replace(/^[ux]\{?|\}$/g, ""), 16));
+    return COOKED[escape] ?? (/^(?:\r\n|[\r\n\u2028\u2029])$/.test(escape) ? "" : escape);
+  });
+}
+
+const COOKED: Record<string, string> = { n: "\n", t: "\t", r: "\r", b: "\b", f: "\f", v: "\v", 0: "\0" };
 
 /** Where the call whose title ends at `from` in `code` (strings and comments blanked) closes, or the code's end. */
 function closeOf(code: string, from: number): number {

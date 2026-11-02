@@ -255,9 +255,11 @@ export const STOPPED_MS = 60_000;
 /**
  * Whether a session last seen at `lastSeen` stopped by its heartbeat at `now`: it said it ended, or beat last over STOPPED_MS ago,
  * and wrote no line after that. A line written after shows it lives without its beats, so beats only ever shorten a holder's life.
+ * Missed beats never stop a session with a command still recorded as running (`running`): an engine inside one tool call can
+ * miss its beats while it lives (5.6, friction_6bbc3b886ee6); only its said end does.
  */
-function stoppedBy(beat: Beat | undefined, lastSeen: string, now: number): boolean {
-  if (beat === undefined) return false;
+function stoppedBy(beat: Beat | undefined, lastSeen: string, now: number, running = false): boolean {
+  if (beat === undefined || (running && beat.ended === undefined)) return false;
   const last = beat.ended ?? beat.at;
   const after = Date.parse(lastSeen) > Date.parse(last) + (beat.ended === undefined ? STOPPED_MS : 0);
   return !after && (beat.ended !== undefined || now - Date.parse(beat.at) > STOPPED_MS);
@@ -703,7 +705,7 @@ export class LogFold {
       const closeOut = sessions.get(holder.session)?.closeOut;
       const because: QuietBecause | undefined = closeOut?.verified === true ? "closed-out"
         : diedIn(options.restarted, this.#machines.get(holder.session), seen) || this.#diedWithMachine(holder.session, seen) ? "restart"
-        : stoppedBy(options.beats?.get(holder.session), seen, now) ? "stopped"
+        : stoppedBy(options.beats?.get(holder.session), seen, now, running) ? "stopped"
         : now - Date.parse(seen) > quietMs && !running ? (now - Date.parse(seen) > LONGEST_COMMAND_MS ? "gone" : "idle")
         : undefined;
       if (because !== undefined) return { ...holder, holder: "idle", quiet: { since: seen, because } } as Claim;

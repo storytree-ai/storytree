@@ -89,8 +89,8 @@ const CARDS: Record<Kind, Omit<Card, "kind">> = {
   capability: {
     title: "A part of a story.",
     line: "Each story is broken into the parts that make it work. Each part is a territory on its island.",
-    what: "A part, called a capability, is one piece of how a story works. It makes promises, called contracts, that its tests check.",
-    why: "You can see where the code went and which promises it serves, without opening a file.",
+    what: "A part, called a capability, is one piece of how a story works. It makes guarantees, called contracts, that its tests check.",
+    why: "You can see where the code went and which contracts it serves, without opening a file.",
     how: "Once a part has code, each dot in its territory is a file, sized by its lines, in the part whose tests reach it. A part with no code yet has an equal share of the island.",
     decisions: [adr(804, "Code islands: land, territories and file circles"), adr(838, "Every line of code belongs to a capability")],
   },
@@ -105,9 +105,9 @@ const CARDS: Record<Kind, Omit<Card, "kind">> = {
   health: {
     title: "Health.",
     line: "Once a part is built, its colour says whether something has checked it: yellow is not proved yet, green is passing.",
-    what: "A part's health is rolled up from its promises' test results; red means a test that names it is failing.",
+    what: "A part's health is rolled up from its contracts' test results; red means a test that names it is failing.",
     why: "You can see what has been proved and what still needs checking, without taking an agent's word for it.",
-    how: "As your tests run, storytree matches each result to the promise it checks. A colour counts only when something other than the agent checked it; saying 'done' doesn't count.",
+    how: "As your tests run, storytree matches each result to the contract it checks. A colour counts only when something other than the agent checked it; saying 'done' doesn't count.",
     decisions: [adr(623, "Minimal viable TDD: red, then green"), adr(744, "Health says what was checked"), adr(825, "Every card that isn't green says why, and who moves it")],
   },
   decision: {

@@ -9,7 +9,7 @@
  *   D7): a spine or title shown is a peek, an opened artifact is read whole. How it was found is how the session last
  *   saw it: in a search, on a shelf, or as a link from another artifact; an artifact opened without having been shown
  *   was found by its id. The record says what was reached, never what helped (ADR-0624 D3).
- * - A contract opens whole too: its promise and the capability it belongs to. So does a question: its arc and state,
+ * - A contract opens whole too: what it guarantees and the capability it belongs to. So does a question: its arc and state,
  *   its wording and answer, and the open increments held on it. An arc is refused.
  * - An artifact is corrected in place through editNote (ADR-0641 D2 step 3): only the fields given change, and its
  *   old wording stays in its history.
@@ -90,7 +90,7 @@ const open = verb({
   command: NO_COMMAND("read"),
   tool: {
     name: "open",
-    description: "Open a story or a capability to see its shelf of front-cover decisions as spines, founding book first; open a contract to read its promise and the capability it belongs to; open a question to read it whole with the work held on it; or open an artifact to read it whole, with the titles of what it links to and what links to it. Start at the shelf, open what matches your task, and stop when you can act. Give a field to get only that field's stored value, exactly, to edit and write back.",
+    description: "Open a story or a capability to see its shelf of front-cover decisions as spines, founding book first; open a contract to read what it guarantees and the capability it belongs to; open a question to read it whole with the work held on it; or open an artifact to read it whole, with the titles of what it links to and what links to it. Start at the shelf, open what matches your task, and stop when you can act. Give a field to get only that field's stored value, exactly, to edit and write back.",
   },
   inputs: {
     id: { kind: "text", describe: "The id of a story, a capability, a contract, a question or an artifact" },

@@ -334,7 +334,7 @@ const PLAN_INPUTS = {
   title: { kind: "text", optional: true, describe: "its title" },
   objective: { kind: "text", optional: true, describe: "what it delivers" },
   body: { kind: "text", optional: true, describe: "its breakdown" },
-  capabilities: { kind: "text", optional: true, blank: true, describe: "the capabilities its promises' paths cross, comma-separated, or none to empty the list" },
+  capabilities: { kind: "text", optional: true, blank: true, describe: "the capabilities its contracts' paths cross, comma-separated, or none to empty the list" },
   links: { kind: "text", optional: true, describe: "what it cites, comma-separated" },
   remedies: { kind: "text", optional: true, describe: "the friction it remedies, comma-separated" },
   "held-on": { kind: "text", optional: true, blank: true, describe: "the owner's questions it is held on, comma-separated, or none to clear" },

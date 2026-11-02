@@ -138,7 +138,7 @@ test("10.8 a mapped story's line says it is mapped, here before storytree and as
   });
 });
 
-test("10.5 `storytree health worklist` prints the oldest three capabilities on the health worklist, each with its word, reason, who moves it, the contracts carrying it and since when, and how many more wait; with none it says nothing waits; one a test run in progress will record is held back and counted", async () => {
+test("10.5 `storytree health worklist` prints the oldest three capabilities on the health worklist, each with its word, reason, who moves it, the contracts carrying it and since when, and a failing one its verified note, and how many more wait; with none it says nothing waits; one a test run in progress will record is held back and counted", async () => {
   await inWorld(command, async (world) => {
     const library = await world.library();
     const none = await world.run(["health", "worklist"]);
@@ -149,7 +149,7 @@ test("10.5 `storytree health worklist` prints the oldest three capabilities on t
     const form = await library.addCapability({ title: "Email form", story: story.id });
     const check = await library.addContract({ title: "1.1 · Rejects an email with no @", capability: form.id });
     await library.setProposed(form.id, false);
-    await library.recordVerified(check.id, "failing");
+    await library.recordVerified(check.id, "failing", { by: "storytree test run on CI", note: "0/1 tests passed; first failure: ENOENT: no such file or directory, at commit 6c38737" });
     let previous = form.createdAt;
     for (const title of ["Password rules", "Thank-you page", "Welcome email"]) {
       await waitUntil(() => Date.now() > Date.parse(previous), 5_000, `the clock to pass ${previous}`);
@@ -163,7 +163,8 @@ test("10.5 `storytree health worklist` prints the oldest three capabilities on t
     const at = (text: string): number => lines.findIndex((line) => line.includes(text));
     assert.match(lines[at("Email form")]!, new RegExp(`unhealthy — failing, the agent's to move: ${check.id}.*since \\d{4}-\\d{2}-\\d{2}`));
     assert.ok(at("Email form") < at("Password rules") && at("Password rules") < at("Thank-you page"), ran.stdout);
-    assert.match(lines[at("Password rules")]!, /proposed — not built, the agent's to move/);
+    assert.match(lines[at("Email form")]!, /since \d{4}-\d{2}-\d{2}; its verified note: 0\/1 tests passed; first failure: ENOENT: no such file or directory, at commit 6c38737$/, "a failing one says why");
+    assert.match(lines[at("Password rules")]!, /proposed — not built, the agent's to move; since \d{4}-\d{2}-\d{2}$/, "another reason quotes no note");
     assert.equal(at("Welcome email"), -1, ran.stdout);
     assert.match(ran.stdout, /1 more wait/);
 

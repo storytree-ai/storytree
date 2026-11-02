@@ -770,7 +770,7 @@ test("6.69 plan_capability on a mapped story records what the agent explored wit
   });
 });
 
-test("6.30 health_worklist gives the oldest three capabilities on the health worklist, each with its reason, who moves it, the contracts carrying it and since when, and how many more wait; a capability an open increment lists among its capabilities is not offered, and one a test run in progress will record is held back and counted", async () => {
+test("6.30 health_worklist gives the oldest three capabilities on the health worklist, each with its reason, who moves it, the contracts carrying it and since when, and a failing one its verified note, and how many more wait; a capability an open increment lists among its capabilities is not offered, and one a test run in progress will record is held back and counted", async () => {
   await withProject(async ({ folder, library }) => {
     await withAgent(folder, claudeCode("claude-1"), async (agent) => {
       assert.match((await agent.call("health_worklist")).text, /nothing waits/i);
@@ -779,7 +779,7 @@ test("6.30 health_worklist gives the oldest three capabilities on the health wor
       const story = (await library.projectTree()).stories[0]!.id;
       const check = idOf(await agent.call("plan_contract", { capability, title: "1.1 · Rejects a bad email" }));
       await library.setProposed(capability, false);
-      await library.recordVerified(check, "failing");
+      await library.recordVerified(check, "failing", { by: "storytree test run on CI", note: "0/1 tests passed; first failure: ENOENT: no such file or directory, at commit 6c38737" });
       const later = [];
       for (const title of ["Thank-you page", "Password rules", "Welcome email", "Sign-up button"]) {
         const at = Date.now();
@@ -796,7 +796,8 @@ test("6.30 health_worklist gives the oldest three capabilities on the health wor
       assert.deepEqual(items[0]?.why.contracts, [check]);
       assert.equal(listed.data.more, 1);
       assert.match(listed.text, new RegExp(`Email form[^\\n]*unhealthy — failing, the agent's to move[^\\n]*${check}[^\\n]*since \\d{4}-\\d{2}-\\d{2}`));
-      assert.match(listed.text, /Password rules[^\n]*proposed — not built, the agent's to move/);
+      assert.match(listed.text, /since \d{4}-\d{2}-\d{2}; its verified note: 0\/1 tests passed; first failure: ENOENT: no such file or directory, at commit 6c38737$/m, "a failing one says why");
+      assert.match(listed.text, /Password rules[^\n]*proposed — not built, the agent's to move[^\n]*since \d{4}-\d{2}-\d{2}$/m, "another reason quotes no note");
       assert.match(listed.text, /1 more wait/);
       assert.ok(!listed.text.includes(routed), listed.text);
 

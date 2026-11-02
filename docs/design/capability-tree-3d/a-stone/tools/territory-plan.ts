@@ -65,8 +65,9 @@ export function sidesOf(map: TerritoryMap): Side[] {
       let across = -1;
       for (const n of cell.neighbours) {
         const s = map.cells[n]!.site, here = cell.site;
-        const off = (p: P) => Math.abs(dist(p, here) - dist(p, s));
-        if (off(from) < 1e-6 * map.radius && off(to) < 1e-6 * map.radius) { across = n; break; }
+        // Both ends equally far from the two seeds, or both ends corners of the neighbour too (the cut's rounding).
+        const off = (p: P) => Math.abs(dist(p, here) - dist(p, s)), corner = (p: P) => map.cells[n]!.polygon.some(q => dist(p, q) < 1e-5 * map.radius);
+        if ((off(from) < 1e-5 * map.radius && off(to) < 1e-5 * map.radius) || (corner(from) && corner(to))) { across = n; break; }
       }
       sides.push({ cell: cell.index, across, from, to });
     }

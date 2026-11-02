@@ -159,3 +159,28 @@ Before (left) and after round 1 (right), close up:
 
 ![Round 1, before and after](stills/round-1.png)
 
+### Round 2: "not yet", 13 findings, three for Mick
+
+| # | Finding | Answer |
+| --- | --- | --- |
+| 1 | Gates are two plain posts either side of a gap; tilted, crates or a broken wall | Fixed in part: the towers are taller and wider than the wall, with their own crenellations, so the gap reads as an opening between them. Kept flat, in the wall's line, by round 1's answer |
+| 2 | Walls break into dashes, with bare gaps | Fixed: some cells' shared sides were not matched both ways, so their wall was dropped; every shared side now gets its one wall, and slivers shorter than a wall's height are left out rather than drawn as ticks |
+| 3 | Some shared borders have no wall (Rounds and Lapsed questions); the picked gate sits on a bare line | Fixed with 2. Rounds and Lapsed questions share one short side, which their gate fills |
+| 4 | Picked marks too small; the corridor still shows a gate's panel; territory picks are patchy | Fixed: a path's click point is the stretch furthest from any gate, so it picks the path; picks are wider solid gold; the gate and corridor stills are taken close, so the picked mark shows |
+| 5 | The road off the coast barely reads; its name sits inland | Fixed: the road runs twice as far onto the glass, and its name stands over its end. The wide sea road beside it is the map's own |
+| 6 | Hooks where a corridor meets a gate | Fixed: a way leaves its gate on a slant toward where it heads, so it turns into the corridor without a hook |
+| 7 | Extra posts sticking out sideways on corridors | Fixed with 2: the stubs were slivers of wall at corridor corners, now left out |
+| 8 | Names straddle walls, crowd, pile up tilted; the wrench stem cuts its name when turned | Rejected: a name stands at its territory's middle and never hides another (the names rule); tilted low they stack, as the map's own do. The wrench and its name are kept from round 2 |
+| 9 | The wrench reads as a slingshot or pin | Rejected: the brief keeps PR #230's flat ink wrench |
+| 10 | The sample tag's purple | Rejected: it marks made-up work, so it must not pass for real |
+| 11 | Walls carry a shaded face | Rejected: walls and towers are drawn unlit in one flat tone; the darker strip is the ink outline of the far side seen through the crenels |
+| 12 | Far walls at a grazing angle read as picket fencing | Rejected: the tilt is the map's own camera |
+| 13 | The side-by-side caption uses working language and says "the same cells" | Fixed: it now says the cells are the map's own, their owners reseeded |
+
+**For Mick, from round 2** (nothing built from these): the road off the coast in the legend; a mark wherever a wall meets
+the coast; gates sized to show at island scale when picked.
+
+Before (left) and after round 2 (right), a gate picked:
+
+![Round 2, before and after](stills/round-2.png)
+

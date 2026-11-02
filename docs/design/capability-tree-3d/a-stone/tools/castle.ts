@@ -219,7 +219,7 @@ export function castleLayer(state: RootState, story: string, data: Data, host: H
 
   // Sizes, from one cell's width of land.
   const H = U * 0.09, M = H * 0.55, MERLON = H * 1.1;
-  const OPEN = U * 0.16, TOWER = H * 1.7, TOWER_H = H * 2.3, TOP = H * 0.85;
+  const OPEN = U * 0.16, TOWER = H * 2, TOWER_H = H * 2.6, TOP = H * 0.85;
   const PATH = U * 0.032, DASH = U * 0.15, TURN = U * 0.18;
   const lift = (q: P, up = 0) => new Vector3(q.x, heightAt(q) + up, q.z);
   const ground = (q: P) => heightAt(q) + TERRITORY_LIFT + H * 0.04;
@@ -260,6 +260,7 @@ export function castleLayer(state: RootState, story: string, data: Data, host: H
   const walls: Wall[] = [];
   const edgesOf = (c: number) => cells[c]!.map((q, i) => ({ a: q.p, b: cells[c]![(i + 1) % cells[c]!.length]!.p, tag: q.tag }));
   const normalToward = (a: P, b: P, toward: P): P => { const l = dist(a, b), n = { x: -(b.z - a.z) / l, z: (b.x - a.x) / l }; const s = Math.sign((toward.x - a.x) * n.x + (toward.z - a.z) * n.z) || 1; return { x: n.x * s, z: n.z * s }; };
+  const done = new Set<string>();
   for (let c = 0; c < cells.length; c++) for (const e of edgesOf(c)) {
     if (dist(e.a, e.b) < 1e-6) continue;
     const site = map.cells[c]!.site, t = p.owner[c]!;
@@ -268,15 +269,15 @@ export function castleLayer(state: RootState, story: string, data: Data, host: H
       continue;
     }
     const j = Number(e.tag);
-    if (j < 0 || j < c || p.owner[j] === t) continue;
+    if (j < 0 || p.owner[j] === t || done.has(`${Math.min(c, j)}|${Math.max(c, j)}`)) continue;
+    done.add(`${Math.min(c, j)}|${Math.max(c, j)}`);
     // Where both cells still reach their shared side (a corridor passing its end pulls both back from it).
-    const other = edgesOf(j).find(f => f.tag === `${c}`);
-    if (!other) continue;
+    const other = edgesOf(j).find(f => f.tag === `${c}`) ?? e;
     const l = dist(e.a, e.b), u = (q: P) => ((q.x - e.a.x) * (e.b.x - e.a.x) + (q.z - e.a.z) * (e.b.z - e.a.z)) / (l * l);
     const [t0, t1] = [Math.max(0, Math.min(u(other.a), u(other.b))), Math.min(1, Math.max(u(other.a), u(other.b)))];
     if (t1 - t0 < 1e-6) continue;
     const a = along(e.a, e.b, t0), b = along(e.a, e.b, t1);
-    for (const piece of insideOf(a, b, coast)) walls.push({ a: piece.from, b: piece.to, side: canonical(c, j), kind: "shared", territories: [t, p.owner[j]!],
+    for (const piece of insideOf(a, b, coast)) walls.push({ a: piece.from, b: piece.to, side: canonical(c, j) ?? canonical(j, c), kind: "shared", territories: [t, p.owner[j]!],
       inward: new Map([[t, normalToward(a, b, site)], [p.owner[j]!, normalToward(a, b, map.cells[j]!.site)]]) });
   }
 
@@ -336,7 +337,7 @@ export function castleLayer(state: RootState, story: string, data: Data, host: H
         towerAt.set(gate.key, [left, right]);
       } else runs.push([w.a, w.b]);
       for (const [u, v] of runs) {
-        if (dist(u, v) < H * 0.3) continue;
+        if (dist(u, v) < H * 0.8) continue;
         const cut = cutOut(u, v, H, M, MERLON, ground);
         tris.push(...cut.tris); lines.push(...cut.lines);
         // The wall's walk: a pale strip along its top, unoutlined, so a wall seen from above reads as one band with one ink line.
@@ -365,7 +366,7 @@ export function castleLayer(state: RootState, story: string, data: Data, host: H
       // Each tower runs from the opening's edge outward along the wall.
       const inner = { x: t.x - dir.x * side * TOWER / 2, z: t.z - dir.z * side * TOWER / 2 }, outer = { x: t.x + dir.x * side * TOWER / 2, z: t.z + dir.z * side * TOWER / 2 };
       const [u, v] = side < 0 ? [outer, inner] : [inner, outer];
-      const cut = cutOut(u, v, TOWER_H, M, TOWER / 3, ground); tris.push(...cut.tris); lines.push(...cut.lines);
+      const cut = cutOut(u, v, TOWER_H, M * 1.2, TOWER / 3, ground); tris.push(...cut.tris); lines.push(...cut.lines);
       const n2 = { x: -dir.z * TOP / 2, z: dir.x * TOP / 2 };
       const q = [{ x: u.x + n2.x, z: u.z + n2.z }, { x: v.x + n2.x, z: v.z + n2.z }, { x: v.x - n2.x, z: v.z - n2.z }, { x: u.x - n2.x, z: u.z - n2.z }].map(w => [w.x, ground(w) + TOWER_H, w.z]);
       tris.push(...q[0]!, ...q[1]!, ...q[2]!, ...q[0]!, ...q[2]!, ...q[3]!);
@@ -377,7 +378,7 @@ export function castleLayer(state: RootState, story: string, data: Data, host: H
     g.add(mesh, edge);
     // A box over the gate, unseen, so a click on it is easy to land.
     const middle = along(a, b, 0.5), top = TOWER_H + M;
-    const hit = new Mesh(new BoxGeometry(dl + TOWER * 1.6, top, TOWER * 2.4), new MeshBasicMaterial({ visible: false, side: DoubleSide }));
+    const hit = new Mesh(new BoxGeometry(dl + TOWER, top, TOWER * 1.4), new MeshBasicMaterial({ visible: false, side: DoubleSide }));
     hit.position.copy(lift(middle, top / 2)); hit.rotation.y = -Math.atan2(dir.z, dir.x);
     g.add(hit);
     g.userData = { ink, fill: towerFill, at: middle };
@@ -389,20 +390,28 @@ export function castleLayer(state: RootState, story: string, data: Data, host: H
   const gateAt = (k: string) => gateMarks.get(k)?.at;
   const wayKey = (w: { from: number; to: number }) => `${capOf(w.from)}->${capOf(w.to)}`;
   const routes: { key: string; points: P[] }[] = [];
+  /** A way leaves its gate on a slant toward where it heads, so it turns into the corridor without a hook. */
+  const entered = (pts: P[], both = true): P[] => {
+    const out = [...pts];
+    const slant = (i: number, toward: number) => { const q = pts[i]!, n = pts[toward]!, l = dist(q, n); if (l > 1e-6) out[i] = along(q, n, Math.min(0.45, p.halfWidth * 1.4 / l)); };
+    if (pts.length > 1) slant(0, 1);
+    if (both && pts.length > 2) slant(pts.length - 1, pts.length - 2);
+    return out;
+  };
   for (const w of p.ways.values()) {
     const a = gateAt(w.gates[0]), b = gateAt(w.gates[1]);
     if (!a || !b) continue;
-    routes.push({ key: wayKey(w), points: [a, ...w.points, b] });
+    routes.push({ key: wayKey(w), points: [a, ...entered(w.points), b] });
   }
   const roadLines = new Map<string, { points: P[]; end: P; label: string; from: string; to: string }>();
   for (const [t, road] of p.roads) {
     const e = elsewhere.get(Number(t))!, a = gateAt(road.gate);
     if (!a) continue;
     const toward = { x: e.there.x - road.coast.x, z: e.there.z - road.coast.z }, l = Math.hypot(toward.x, toward.z);
-    const end = { x: road.coast.x + toward.x / l * U * 0.55, z: road.coast.z + toward.z / l * U * 0.55 };
+    const end = { x: road.coast.x + toward.x / l * U * 1.2, z: road.coast.z + toward.z / l * U * 1.2 };
     const key = `${capOf(road.from)}->${e.dep.id}`;
-    routes.push({ key: `road:${key}`, points: [a, ...road.points] });
-    roadLines.set(key, { points: [a, ...road.points, end], end, label: `to ${e.dep.story} · ${nameOf(e.dep.title)}`, from: capOf(road.from), to: e.dep.id });
+    routes.push({ key: `road:${key}`, points: [a, ...entered(road.points, false)] });
+    roadLines.set(key, { points: [a, ...entered(road.points, false), end], end, label: `to ${e.dep.story} · ${nameOf(e.dep.title)}`, from: capOf(road.from), to: e.dep.id });
   }
   const stretches = new Map<string, { a: P; b: P; load: string[] }>();
   for (const r of routes) for (let i = 0; i + 1 < r.points.length; i++) {
@@ -506,9 +515,8 @@ export function castleLayer(state: RootState, story: string, data: Data, host: H
     const dot = document.createElement("div"); dot.className = "mock-road-end"; overlay.appendChild(dot);
     spots.push({ el: dot, at: lift(road.end, H * 0.05) });
     const el = document.createElement("div"); el.className = "forest-label planet-nameplate capability mock-road-name mock-name-above"; el.textContent = road.label; overlay.appendChild(el);
-    // Its name stands on the land, by the coast it leaves by.
-    const coastAt = road.points.at(-2)!, inland = road.points.at(-3) ?? coastAt;
-    spots.push({ el, at: lift(along(coastAt, inland, Math.min(1, U * 0.35 / Math.max(1e-6, dist(coastAt, inland)))), H * 0.05), name: true });
+    // Its name stands over the dot it ends at.
+    spots.push({ el, at: lift(road.end, H * 0.05), name: true });
   }
   const project = (v: Vector3) => {
     const rect = state.gl.domElement.getBoundingClientRect(), hostRect = host.getBoundingClientRect();
@@ -623,14 +631,14 @@ export function castleLayer(state: RootState, story: string, data: Data, host: H
         const n = w.inward.get(t);
         if (!n) continue;
         const off = H * 0.9;
-        draw([{ x: w.a.x + n.x * off, z: w.a.z + n.z * off }, { x: w.b.x + n.x * off, z: w.b.z + n.z * off }], PATH * 2.2);
+        draw([{ x: w.a.x + n.x * off, z: w.a.z + n.z * off }, { x: w.b.x + n.x * off, z: w.b.z + n.z * off }], PATH * 3);
       }
     }
     if (picked?.kind === "gate") {
       // Its towers turn gold, and a gold bar lies across its opening.
       const g = gateGroups.get(picked.id)!, w = gateMarks.get(picked.id)!.wall, at = g.userData.at as P, l = dist(w.a, w.b), n = { x: -(w.b.z - w.a.z) / l, z: (w.b.x - w.a.x) / l };
       (g.userData.fill as MeshBasicMaterial).color.set(PALETTE.lit);
-      draw([{ x: at.x - n.x * OPEN * 0.8, z: at.z - n.z * OPEN * 0.8 }, { x: at.x + n.x * OPEN * 0.8, z: at.z + n.z * OPEN * 0.8 }], OPEN * 0.9);
+      draw([{ x: at.x - n.x * OPEN * 1.4, z: at.z - n.z * OPEN * 1.4 }, { x: at.x + n.x * OPEN * 1.4, z: at.z + n.z * OPEN * 1.4 }], OPEN * 1.6);
     }
     if (picked?.kind === "wrench") (picked.sample ? sampleWrench : wrenches.get(picked.capability))?.el.classList.add("lit");
     const line = picked?.kind === "path" ? routes.find(r => r.key === picked.id)?.points : picked?.kind === "road" ? roadLines.get(picked.id)?.points : undefined;
@@ -655,7 +663,8 @@ export function castleLayer(state: RootState, story: string, data: Data, host: H
       const inner = route.points.length > 3 ? route.points.slice(1, -1) : route.points;
       const parts = inner.map((q, i, all) => i + 1 < all.length ? [q, all[i + 1]!] as const : undefined).filter((x): x is readonly [P, P] => !!x);
       const loadOf = (a: P, b: P) => stretches.get([pkey(a), pkey(b)].sort().join("|"))?.load.length ?? 9;
-      const best = [...parts].sort((u, v) => loadOf(...u) - loadOf(...v) || dist(...v) - dist(...u))[0];
+      const clear = (q: readonly [P, P]) => Math.min(...[...gateMarks.values()].map(g => dist(g.at, along(q[0], q[1], 0.5))));
+      const best = [...parts].sort((u, v) => loadOf(...u) - loadOf(...v) || clear(v) - clear(u))[0];
       return best ? project(lift(along(best[0], best[1], 0.5))).page : undefined;
     }
     return undefined;

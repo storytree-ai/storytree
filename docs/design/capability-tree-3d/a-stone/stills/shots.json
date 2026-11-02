@@ -10,24 +10,6 @@
       "heading": "Work wanting 8 · Cloud connection (GCP)"
     },
     {
-      "kind": "gate",
-      "mark": "13|14@300",
-      "at": {
-        "x": 335,
-        "y": 595
-      },
-      "heading": "26 · Rounds calls 25 · Lapsed questions"
-    },
-    {
-      "kind": "path",
-      "mark": "capability_556e276756c9->capability_baaeecb42577",
-      "at": {
-        "x": 605,
-        "y": 541
-      },
-      "heading": "14 · Ranked search calls 6 · Knowledge artifacts"
-    },
-    {
       "kind": "territory",
       "mark": "capability_dd486ffa5b02",
       "at": {
@@ -40,8 +22,8 @@
       "kind": "road",
       "mark": "capability_a6d2887aed63->capability_88a6aaa1fa93",
       "at": {
-        "x": 519,
-        "y": 700
+        "x": 508,
+        "y": 712
       },
       "heading": "15 · Connection by address calls Keys · 1 · Key store and resolver"
     },
@@ -62,6 +44,24 @@
         "y": 407
       },
       "heading": "9 · Knowledge entrances"
+    },
+    {
+      "kind": "gate",
+      "mark": "13|14@300",
+      "at": {
+        "x": 335,
+        "y": 595
+      },
+      "heading": "26 · Rounds calls 25 · Lapsed questions"
+    },
+    {
+      "kind": "path",
+      "mark": "capability_556e276756c9->capability_baaeecb42577",
+      "at": {
+        "x": 574,
+        "y": 515
+      },
+      "heading": "14 · Ranked search calls 6 · Knowledge artifacts"
     }
   ],
   "layer": {
@@ -81,8 +81,8 @@
     "paths": 4,
     "chains": 8,
     "sharedStretches": 1,
-    "walls": 184,
-    "wallLength": 1418,
+    "walls": 186,
+    "wallLength": 1395,
     "unlinked": [],
     "seeds": {
       "capability_5e0362aae607": {

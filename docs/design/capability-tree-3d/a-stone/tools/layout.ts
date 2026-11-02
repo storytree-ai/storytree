@@ -29,9 +29,12 @@ export type Plan = {
 /** The commons' width, in the plan's units (a field of L lines is √L wide). */
 export const GAP = 10;
 /** The smallest field, in lines: under it a field could not hold its gate and its two towers. */
-export const FLOOR_LINES = 100;
+export const FLOOR_LINES = 160;
 /** The commons between two fields of one column: wider than between columns, so the plan is nearer round, as the island is. */
-export const ROW_GAP = GAP * 2.6;
+export const ROW_GAP = GAP * 2.8;
+/** How far down the commons between two fields of a column its centre line runs: below the middle, so the upper field's name,
+ * hung under its wall, stays clear of the path. */
+const ACROSS_AT = 0.66;
 /** A name's width on the page, in the plan's units at rest (about 2.6 pixels a unit): a column is at least as wide as its widest
  * name, less what may run over into the commons, so names in neighbouring columns do not meet. */
 export const NAME_UNITS = (name: string) => (name.length * 5.4 + 16) / 2.6;
@@ -91,7 +94,7 @@ export function plan(caps: readonly Cap[]): Plan {
   const left = (k: number) => columns[k]![0]!.x - widths[k]! / 2, right = (k: number) => columns[k]![0]!.x + widths[k]! / 2;
   const v = Array.from({ length: C + 1 }, (_, k) => k === 0 ? left(0) - GAP / 2 : k === C ? right(C - 1) + GAP / 2 : (right(k - 1) + left(k)) / 2);
   const top = (k: number) => Math.min(...columns[k]!.map(f => f.z - f.side / 2)) - GAP / 2;
-  const bottom = (k: number) => Math.max(...columns[k]!.map(f => f.z + f.side / 2)) + GAP / 2;
+  const bottom = (k: number) => Math.max(...columns[k]!.map(f => f.z + f.side / 2)) + ROW_GAP * ACROSS_AT;
   const segs: [P, P][] = [];
   for (let k = 0; k <= C; k++) {
     const adj = [k - 1, k].filter(j => j >= 0 && j < C);
@@ -100,7 +103,7 @@ export function plan(caps: readonly Cap[]): Plan {
   // Across each column: above it, below it and between each two of its fields.
   const across = (k: number): number[] => {
     const col = [...columns[k]!].sort((a, b) => a.z - b.z), out = [top(k), bottom(k)];
-    for (let i = 0; i + 1 < col.length; i++) out.push((col[i]!.z + col[i]!.side / 2 + col[i + 1]!.z - col[i + 1]!.side / 2) / 2);
+    for (let i = 0; i + 1 < col.length; i++) { const a = col[i]!.z + col[i]!.side / 2, b = col[i + 1]!.z - col[i + 1]!.side / 2; out.push(a + (b - a) * ACROSS_AT); }
     return out;
   };
   for (let k = 0; k < C; k++) for (const z of across(k)) segs.push([{ x: v[k]!, z }, { x: v[k + 1]!, z }]);
@@ -116,11 +119,12 @@ export function plan(caps: readonly Cap[]): Plan {
     void col;
     return { at: { x: f.x, z: edge }, out: { x: f.x, z: line } };
   };
+  // Each field's gate, in its north or south wall, whichever faces the fields it is linked to: those walls face the map's eye
+  // at rest, so the opening between the gate's two towers shows.
   for (const f of all) {
-    let dx = 0, dz = 0;
-    for (const id of linked.get(f.id)!) { const o = at.get(id)!, l = Math.hypot(o.x - f.x, o.z - f.z) || 1; dx += (o.x - f.x) / l; dz += (o.z - f.z) / l; }
-    const sides: [Side, number][] = [["E", dx], ["W", -dx], ["S", dz], ["N", -dz]];
-    f.gate = sides.sort((a, b) => b[1] - a[1])[0]![0];
+    let dz = 0;
+    for (const id of linked.get(f.id)!) { const o = at.get(id)!, l = Math.hypot(o.x - f.x, o.z - f.z) || 1; dz += (o.z - f.z) / l; }
+    f.gate = dz < 0 ? "N" : "S";
   }
   return { ...graph(all, segs, gateAt, calls), bounds: { x0: v[0]!, x1: v[C]!, z0: Math.min(...columns.map((_, k) => top(k))), z1: Math.max(...columns.map((_, k) => bottom(k))) } };
 }

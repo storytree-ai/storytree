@@ -43,7 +43,7 @@ type Data = { story: { id: string }; capabilities: Capability[]; openWork: { cap
 /** The ink map's palette (README.md lists it). */
 export const PALETTE = {
   ink: "#1b1814", wall: "#ece4d0", commons: "#d9d1b9", path: "#6e5236", lit: "#ffd34d",
-  wrench: "#e6e9ec", wrenchSample: "#d6bdf0", shadow: "#080b0e",
+  wrench: "#1b1814", wrenchEdge: "#ece4d0", wrenchSample: "#d6bdf0", shadow: "#080b0e",
 } as const;
 
 const dist = (a: P, b: P) => Math.hypot(a.x - b.x, a.z - b.z);
@@ -151,9 +151,9 @@ function rounded(points: P[], r: number): P[] {
  * shadow at its foot). Drawn as an SVG on the page, constant on screen, its foot on the field. */
 function wrenchSvg(fill: string): string {
   return `<svg viewBox="-14 -40 28 44" width="28" height="44" aria-hidden="true">
-    <ellipse cx="0" cy="1" rx="7" ry="2.6" fill="${PALETTE.shadow}" fill-opacity="0.45"/>
+    <ellipse cx="0" cy="1" rx="7" ry="2.6" fill="${PALETTE.shadow}" fill-opacity="0.55"/>
     <path d="M -2.2 0 L -2.2 -24 C -6.5 -25.5 -8.6 -29.5 -7.6 -33.6 L -3.4 -30.2 L 0.4 -31.6 L 1.6 -35.6 L -2.2 -38.6 C 2.4 -40.2 7.6 -36.6 7.4 -31.4 C 7.2 -27.9 5.2 -25.2 2.2 -24 L 2.2 0 Z"
-      fill="${fill}" stroke="${PALETTE.ink}" stroke-width="1.4" stroke-linejoin="round"/>
+      fill="${fill}" stroke="${fill === PALETTE.wrench ? PALETTE.wrenchEdge : PALETTE.ink}" stroke-width="1.3" stroke-linejoin="round"/>
   </svg>`;
 }
 
@@ -200,10 +200,10 @@ export function castleLayer(state: RootState, story: string, data: Data, host: H
     return { x: middle.x + f.ox + (dx * c - dz * sn) * f.s, z: middle.z + f.oz + (dx * sn + dz * c) * f.s };
   };
   const fits = (f: { s: number; ox: number; oz: number; turn: number }) => edgeSamples.every(q => landAt(place(q, f)));
-  // As large as it goes, square to the island's north so the columns stand upright and the names run across them, shifted
+  // As large as it goes near the land's middle (so the commons spread evenly round it), square to the island's north so the columns stand upright and the names run across them, shifted
   // about the land's middle.
   let best = { s: 0, ox: 0, oz: 0, turn: 0 };
-  for (let t = 0; t < 1; t++) for (const ox of [-0.16, -0.08, 0, 0.08, 0.16]) for (const oz of [-0.16, -0.08, 0, 0.08, 0.16]) {
+  for (let t = 0; t < 1; t++) for (const ox of [-0.04, 0, 0.04]) for (const oz of [-0.04, 0, 0.04]) {
     const trial = { s: 1e-6, ox: ox * reach, oz: oz * reach, turn: t * Math.PI / 12 };
     if (!fits(trial)) continue;
     let lo = 0, hi = reach * 4 / (p.bounds.x1 - p.bounds.x0);
@@ -212,7 +212,7 @@ export function castleLayer(state: RootState, story: string, data: Data, host: H
     if (lo > best.s) best = { ...trial, s: lo };
   }
   // Then nudged, finer, about the best.
-  for (let round = 0; round < 3; round++) for (const d of [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0]]) {
+  for (let round = 0; round < 3; round++) for (const d of [[0.5, 0, 0], [-0.5, 0, 0], [0, 0.5, 0], [0, -0.5, 0]]) {
     const trial = { ...best, ox: best.ox + d[0]! * reach * 0.02, oz: best.oz + d[1]! * reach * 0.02, turn: best.turn + d[2]! * Math.PI / 72 };
     let lo = best.s, hi = best.s * 1.3;
     if (!fits({ ...trial, s: lo })) continue;
@@ -227,11 +227,49 @@ export function castleLayer(state: RootState, story: string, data: Data, host: H
   // Sizes, from the commons' width on the land.
   const Gw = GAP * S;
   const H = Gw * 0.2, M = H * 0.6, MERLON = H * 1.1;
-  const OPEN = Gw * 0.42, TOWER = H * 1.5, TOWER_H = H * 1.9;
-  const PATH = Gw * 0.075, DASH = Gw * 0.26, TURN = Gw * 0.5;
+  const OPEN = Gw * 0.42, TOWER = H * 1.25, TOWER_H = H * 1.6, TOP = H * 0.5;
+  const PATH = Gw * 0.05, DASH = Gw * 0.26, TURN = Gw * 0.5;
   const lift = (q: P, up = 0) => new Vector3(q.x, heightAt(q) + up, q.z);
   const ground = (q: P) => heightAt(q) + H * 0.04;
 
+  // A path ends a little inside its field, through the opening between the gate's towers, so it lands on the gate.
+  const gateNodes = new Map([...p.gates].map(([id, g]) => [g.node, id]));
+  const inGate = (pts: P[], nodes: number[]): P[] => {
+    const out = [...pts];
+    for (const [end, near] of [[0, 1], [nodes.length - 1, nodes.length - 2]] as const) {
+      const id = gateNodes.get(nodes[end]!);
+      if (id === undefined) continue;
+      const g = p.gates.get(id)!, wall = to(g.at), from = to(g.out), l = dist(wall, from);
+      const inside = { x: wall.x + (wall.x - from.x) / l * H * 1.2, z: wall.z + (wall.z - from.z) / l * H * 1.2 };
+      if (end === 0) out.unshift(inside); else out.push(inside);
+      void near;
+    }
+    return out;
+  };
+  // The road off the coast, for each link to another story's capability: along the commons from its gate to the outer line
+  // nearest that island, then straight off the coast onto the glass, ending at a dot and the name of where it goes.
+  function roadsOf() {
+    const inverse = new Matrix4().copy(root.matrixWorld).invert(), out: { key: string; way: { nodes: number[]; edges: number[] }; coast: P; end: P; top: number; label: string }[] = [];
+    for (const c of data.capabilities) for (const d of c.dependsOn.filter(d => !own.has(d.id))) {
+      const other = state.scene.getObjectByName(`planet:${d.storyId}`);
+      if (!other) continue;
+      const there = other.getWorldPosition(new Vector3()).applyMatrix4(inverse), from = to(p.gates.get(c.id)!.at);
+      const toward = { x: there.x - from.x, z: there.z - from.z }, l = Math.hypot(toward.x, toward.z);
+      toward.x /= l; toward.z /= l;
+      const rects = p.fields.map(f => { const h = f.side / 2; return [to({ x: f.x - h, z: f.z - h }), to({ x: f.x + h, z: f.z + h })]; });
+      const inField = (q: P) => rects.some(([a, b]) => q.x > Math.min(a!.x, b!.x) && q.x < Math.max(a!.x, b!.x) && q.z > Math.min(a!.z, b!.z) && q.z < Math.max(a!.z, b!.z));
+      const candidates = p.nodes.map((n, i) => ({ i, q: to(n) })).filter(({ i }) => !gateNodes.has(i)).sort((a, b) => (b.q.x * toward.x + b.q.z * toward.z) - (a.q.x * toward.x + a.q.z * toward.z));
+      for (const { i, q } of candidates) {
+        let r = 0, clear = true;
+        while (landAt({ x: q.x + toward.x * r, z: q.z + toward.z * r }) && r < reach * 3) { if (inField({ x: q.x + toward.x * r, z: q.z + toward.z * r })) { clear = false; break; } r += Gw * 0.1; }
+        if (!clear) continue;
+        const coast = { x: q.x + toward.x * r, z: q.z + toward.z * r }, end = { x: coast.x + toward.x * Gw * 0.5, z: coast.z + toward.z * Gw * 0.5 };
+        out.push({ key: `${c.id}->${d.id}`, way: p.shortest(p.gates.get(c.id)!.node, i), coast, end, top: heightAt(coast), label: `to ${d.story} · ${nameOf(d.title)}` });
+        break;
+      }
+    }
+    return out;
+  }
   const group = new Group(); group.name = "mock-castle"; root.add(group);
   const inkMaterial = () => new LineBasicMaterial({ color: PALETTE.ink });
   const wallFill = new MeshBasicMaterial({ color: PALETTE.wall, side: DoubleSide, polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1 });
@@ -278,6 +316,11 @@ export function castleLayer(state: RootState, story: string, data: Data, host: H
       for (const [u, w] of runs) {
         const cut = cutOut(u, w, H, M, MERLON, ground);
         tris.push(...cut.tris); lines.push(...cut.lines);
+        // The wall's walk: a pale strip along its top, so a wall seen from above reads as a band, not a bare line.
+        const l = dist(u, w), d = { x: (w.x - u.x) / l * TOP / 2, z: (w.z - u.z) / l * TOP / 2 }, n2 = { x: -d.z, z: d.x };
+        const q = [{ x: u.x + n2.x, z: u.z + n2.z }, { x: w.x + n2.x, z: w.z + n2.z }, { x: w.x - n2.x, z: w.z - n2.z }, { x: u.x - n2.x, z: u.z - n2.z }].map(r => [r.x, ground(r) + H, r.z]);
+        tris.push(...q[0]!, ...q[1]!, ...q[2]!, ...q[0]!, ...q[2]!, ...q[3]!);
+        lines.push(...q[0]!, ...q[1]!, ...q[3]!, ...q[2]!);
         wallLength += dist(u, w); merlons += Math.max(1, Math.round((dist(u, w) / MERLON + 1) / 2));
       }
     }
@@ -322,6 +365,8 @@ export function castleLayer(state: RootState, story: string, data: Data, host: H
   const texture = dashTexture();
   const carried = new Map<number, string[]>();
   for (const [key, way] of p.ways) for (const e of way.edges) carried.set(e, [...(carried.get(e) ?? []), key]);
+  const roadWays = roadsOf();
+  for (const r of roadWays) for (const e of r.way.edges) if (!carried.has(e)) carried.set(e, [`road:${r.key}`]);
   const degree = new Map<number, number>();
   for (const e of carried.keys()) for (const n of [p.edges[e]!.a, p.edges[e]!.b]) degree.set(n, (degree.get(n) ?? 0) + 1);
   const chains: { edges: number[]; nodes: number[] }[] = [], seen = new Set<number>();
@@ -343,47 +388,30 @@ export function castleLayer(state: RootState, story: string, data: Data, host: H
   const dashMaterial = new MeshBasicMaterial({ map: texture, transparent: true, side: DoubleSide, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 });
   const pathMeshes: Mesh[] = [];
   for (const chain of chains) {
-    const pts = rounded(chain.nodes.map(n => to(p.nodes[n]!)), TURN);
+    const pts = inGate(rounded(chain.nodes.map(n => to(p.nodes[n]!)), TURN), chain.nodes);
     const mesh = new Mesh(ribbon(pts, PATH, ground, DASH), dashMaterial);
     mesh.renderOrder = 4; mesh.raycast = () => {};
     // A wider unseen ribbon over it takes the clicks.
     const hit = new Mesh(ribbon(pts, Gw * 0.45, ground, DASH), new MeshBasicMaterial({ visible: false, side: DoubleSide }));
-    hit.name = `path:${carried.get(chain.edges[0]!)!.join(",")}`;
-    hit.userData.edges = chain.edges;
+    const load = carried.get(chain.edges[0]!)!.filter(k => !k.startsWith("road:"));
+    hit.name = load.length ? `path:${load.join(",")}` : `road:${carried.get(chain.edges[0]!)![0]!.slice(5)}`;
+    hit.userData.edges = chain.edges; hit.userData.pts = pts;
     group.add(mesh, hit); pathMeshes.push(hit);
   }
-  const wayPoints = (key: string) => { const w = p.ways.get(key)!; return rounded(w.nodes.map(n => to(p.nodes[n]!)), TURN); };
+  const wayPoints = (key: string) => { const w = p.ways.get(key)!; return inGate(rounded(w.nodes.map(n => to(p.nodes[n]!)), TURN), w.nodes); };
 
   // The road off the coast, for the link to another story's capability: along the commons to the outer line nearest that
   // island, then straight off the coast onto the glass, ending at a dot and the name of where it goes.
-  const inverse = new Matrix4().copy(root.matrixWorld).invert();
   const roads = new Map<string, { points: P[]; hit: Mesh; end: P; label: string }>();
-  for (const c of data.capabilities) for (const d of c.dependsOn.filter(d => !own.has(d.id))) {
-    const other = state.scene.getObjectByName(`planet:${d.storyId}`);
-    if (!other) continue;
-    const there = other.getWorldPosition(new Vector3()).applyMatrix4(inverse), from = to(p.gates.get(c.id)!.at);
-    const toward = { x: there.x - from.x, z: there.z - from.z }, l = Math.hypot(toward.x, toward.z);
-    toward.x /= l; toward.z /= l;
-    const fieldRects = [...fields.values()].map(f => f.corners);
-    const inField = (q: P) => fieldRects.some(([a, , c2]) => q.x > Math.min(a!.x, c2!.x) && q.x < Math.max(a!.x, c2!.x) && q.z > Math.min(a!.z, c2!.z) && q.z < Math.max(a!.z, c2!.z));
-    const candidates = p.nodes.map((n, i) => ({ i, q: to(n) })).sort((a, b) => (b.q.x * toward.x + b.q.z * toward.z) - (a.q.x * toward.x + a.q.z * toward.z));
-    const gateNodes = new Set([...p.gates.values()].map(g => g.node));
-    for (const { i, q } of candidates) {
-      if (gateNodes.has(i)) continue;
-      let r = 0, clear = true;
-      while (onLand({ x: q.x + toward.x * r, z: q.z + toward.z * r }) && r < reach * 3) { if (inField({ x: q.x + toward.x * r, z: q.z + toward.z * r })) { clear = false; break; } r += Gw * 0.1; }
-      if (!clear) continue;
-      const way = p.shortest(p.gates.get(c.id)!.node, i);
-      const coast = { x: q.x + toward.x * r, z: q.z + toward.z * r }, end = { x: coast.x + toward.x * Gw * 1.6, z: coast.z + toward.z * Gw * 1.6 };
-      const top = heightAt(coast), points = [...rounded(way.nodes.map(n => to(p.nodes[n]!)), TURN), coast, end];
-      const y = (u: P) => Math.max(heightAt(u), top) + H * 0.04;
-      const mesh = new Mesh(ribbon(points, PATH, y, DASH), dashMaterial); mesh.renderOrder = 4; mesh.raycast = () => {};
-      const hit = new Mesh(ribbon(points.slice(-3), Gw * 0.45, y, DASH), new MeshBasicMaterial({ visible: false, side: DoubleSide }));
-      hit.name = `road:${c.id}->${d.id}`;
-      group.add(mesh, hit);
-      roads.set(`${c.id}->${d.id}`, { points, hit, end, label: `to ${d.story} · ${nameOf(d.title)}` });
-      break;
-    }
+  for (const r of roadWays) {
+    const y = (u: P) => Math.max(heightAt(u), r.top) + H * 0.04;
+    // Its way along the commons is drawn with the paths, stretch for stretch; here, its own run off the coast.
+    const off = [to(p.nodes[r.way.nodes.at(-1)!]!), r.coast, r.end];
+    const mesh = new Mesh(ribbon(off, PATH, y, DASH), dashMaterial); mesh.renderOrder = 4; mesh.raycast = () => {};
+    const hit = new Mesh(ribbon(off, Gw * 0.45, y, DASH), new MeshBasicMaterial({ visible: false, side: DoubleSide }));
+    hit.name = `road:${r.key}`;
+    group.add(mesh, hit);
+    roads.set(r.key, { points: [...rounded(r.way.nodes.map(n => to(p.nodes[n]!)), TURN), r.coast, r.end], hit, end: r.end, label: r.label });
   }
 
   // The page's own marks over the canvas, constant on screen as the map's names and flags are: the fields' names, the wrenches
@@ -391,7 +419,7 @@ export function castleLayer(state: RootState, story: string, data: Data, host: H
   const overlay = document.createElement("div");
   overlay.className = "mock-overlay";
   host.appendChild(overlay);
-  type Spot = { el: HTMLElement; at: Vector3; below?: Vector3; inside?: Vector3; field?: P[] };
+  type Spot = { el: HTMLElement; at: Vector3; below?: Vector3; inside?: Vector3; field?: P[]; name?: boolean; x?: number; y?: number };
   const spots: Spot[] = [];
   const names = new Map<string, Spot>(), names_ = names;
   for (const [id, field] of fields) {
@@ -402,7 +430,7 @@ export function castleLayer(state: RootState, story: string, data: Data, host: H
     overlay.appendChild(el);
     // In its field when it fits there; else just below the field's south wall, as a map names a small place beside it.
     const south = along(field.corners[3]!, field.corners[2]!, 0.5);
-    const spot: Spot = { el, at: lift(field.centre, H * 0.1), below: lift(south, 0), inside: lift(field.centre, H * 0.1), field: field.corners };
+    const spot: Spot = { el, at: lift(field.centre, H * 0.1), below: lift(south, 0), inside: lift(field.centre, H * 0.1), field: field.corners, name: true };
     spots.push(spot); names.set(id, spot);
   }
   const wrenches = new Map<string, Spot & { sample: boolean }>();
@@ -426,7 +454,7 @@ export function castleLayer(state: RootState, story: string, data: Data, host: H
     const dot = document.createElement("div"); dot.className = "mock-road-end"; overlay.appendChild(dot);
     spots.push({ el: dot, at: lift(road.end, H * 0.05) });
     const el = document.createElement("div"); el.className = "forest-label planet-nameplate capability mock-road-name"; el.textContent = road.label; overlay.appendChild(el);
-    spots.push({ el, at: lift(road.end, H * 0.05) });
+    spots.push({ el, at: lift(road.end, H * 0.05), name: true });
   }
   const project = (v: Vector3) => {
     const rect = state.gl.domElement.getBoundingClientRect(), hostRect = host.getBoundingClientRect();
@@ -446,6 +474,23 @@ export function castleLayer(state: RootState, story: string, data: Data, host: H
       const at = project(spot.at);
       spot.el.style.transform = `translate(${at.x}px, ${at.y}px)`;
       spot.el.style.visibility = at.front ? "" : "hidden";
+      spot.y = at.y; spot.x = at.x;
+    }
+    // Names never hide one another: taken from the top of the page down, a name that would meet one already placed moves down
+    // just clear of it (at rest none moves; tipped, the crowded ones step apart).
+    const boxes: { l: number; r: number; t: number; b: number }[] = [];
+    for (const spot of spots.filter(sp => sp.name).sort((a, b) => a.y! - b.y!)) {
+      const w = spot.el.offsetWidth, h = spot.el.offsetHeight, below = spot.el.classList.contains("mock-name-below") || spot.el.dataset.claimed !== undefined || spot.el.classList.contains("mock-road-name");
+      const box = { l: spot.x! - w / 2, r: spot.x! + w / 2, t: spot.y! + (below ? 5 : -h / 2), b: 0 };
+      box.b = box.t + h;
+      let shift = 0;
+      for (let k = 0; k < 8; k++) {
+        const hit = boxes.find(o => o.l < box.r - 2 && box.l + 2 < o.r && o.t < box.b + shift - 1 && box.t + shift + 1 < o.b);
+        if (!hit) break;
+        shift = hit.b - box.t + 1;
+      }
+      spot.el.style.marginTop = shift ? `${shift}px` : "";
+      boxes.push({ ...box, t: box.t + shift, b: box.b + shift });
     }
     frame = requestAnimationFrame(follow);
   };
@@ -475,7 +520,16 @@ export function castleLayer(state: RootState, story: string, data: Data, host: H
     // A gate stands over the paths meeting it, so it is asked first; then the road, then the paths.
     for (const set of [[...gateGroups.values()], [...roads.values()].map(r => r.hit), pathMeshes]) {
       const marks = raycaster.intersectObjects(set, true);
-      if (marks.length) return hitOf(marks[0]!.object);
+      if (!marks.length) continue;
+      // Where two paths' click strips overlap, the path whose line runs nearest the point clicked.
+      const near = (m: (typeof marks)[number]) => {
+        const pts = m.object.userData.pts as P[] | undefined, q = new Vector3().copy(m.point).applyMatrix4(new Matrix4().copy(root.matrixWorld).invert());
+        if (!pts) return 0;
+        let best = Infinity;
+        for (let i = 0; i + 1 < pts.length; i++) { const a = pts[i]!, b = pts[i + 1]!, dx = b.x - a.x, dz = b.z - a.z, l = dx * dx + dz * dz || 1, t = Math.max(0, Math.min(1, ((q.x - a.x) * dx + (q.z - a.z) * dz) / l)); best = Math.min(best, Math.hypot(q.x - a.x - t * dx, q.z - a.z - t * dz)); }
+        return best;
+      };
+      return hitOf([...marks].sort((a, b) => near(a) - near(b))[0]!.object);
     }
     const under = raycaster.intersectObjects([...fields.values()].map(f => f.mesh), false);
     return under.length ? hitOf(under[0]!.object) : undefined;
@@ -521,8 +575,10 @@ export function castleLayer(state: RootState, story: string, data: Data, host: H
     if (kind === "path") {
       // The middle of the way's stretch that carries the fewest other ways.
       const way = p.ways.get(id); if (!way) return undefined;
+      // The stretch carrying the fewest other ways (its own, if it has one), at its end away from any gate.
       const e = [...way.edges].sort((a, b) => carried.get(a)!.length - carried.get(b)!.length || p.edges[b]!.length - p.edges[a]!.length)[0]!;
-      return project(lift(along(to(p.nodes[p.edges[e]!.a]!), to(p.nodes[p.edges[e]!.b]!), 0.5))).page;
+      const { a, b } = p.edges[e]!, t = gateNodes.has(a) ? 0.8 : gateNodes.has(b) ? 0.2 : 0.5;
+      return project(lift(along(to(p.nodes[a]!), to(p.nodes[b]!), t))).page;
     }
     return undefined;
   };

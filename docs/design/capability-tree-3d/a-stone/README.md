@@ -110,4 +110,37 @@ added; `?room=` and `?ground=` change the island's extra land and the rest view'
 
 ## The look review
 
-(Rounds recorded below as they run.)
+Mick's rule: "I want it kept minimal so the adversarial review should just judge if the existing stuff looks nice, not add
+stuff it thinks is missing without my go ahead." Each round a fresh reviewer (the `blind-reviewer` role) was given only the
+stills, the page and the brief's review section with the style bar above (the 2.5D cartographer style and anatomy's
+principles), never this session's reasoning or an earlier round's answers. It judged only what is drawn; anything it thought
+missing went under "for Mick". Findings about the map's own drawing, which the brief keeps unchanged underneath, are
+rejected with that reason.
+
+### Round 1: "nearly", 19 findings, none for Mick
+
+| # | Finding | Answer |
+| --- | --- | --- |
+| 1 | The tan sea roads, lower right, are translucent slabs with seams and a fan of streaks | Rejected: the map's own roads between islands, kept unchanged by the brief |
+| 2 | Perspective keystones the fields; asks for a parallel camera | Rejected: the map's own camera, kept unchanged by the brief |
+| 3 | Names pile into each other when the map is tipped; the story's gold name is cut by the panel | Fixed the first: a name that would meet another steps down just clear of it (nothing hides). The story's name is the map's own |
+| 4 | Gates on east and west walls stack their two towers into a squiggle | Fixed: every gate is in a north or south wall, the walls that face the eye at rest, so the opening shows |
+| 5 | East and west walls are a bare ink line from above | Fixed: every wall has a pale walk along its top, so from above it reads as a band |
+| 6 | Untested yellow is close to the gold pick | Rejected: both are the map's own (its health colour and its selection gold) |
+| 7 | A doubled trunk path, left of centre, smudges into a near-solid stroke | Fixed: it was the road to Keys drawn beside the paths it shares a way with; the road now walks the paths' own stretches |
+| 8 | Paths run through names | Fixed: the commons' centre line between two fields of a column runs two thirds of the way down, clear of the upper field's name |
+| 9 | The road's end dot stops in the sea, short of the sea road | Fixed in part: the road now ends on the coast. The sea road is the map's own, leaving from its own dock |
+| 10 | The island's shaded cliffs, and the land poking past the gold ring | Rejected: the map's own island and selection ring |
+| 11 | Path dashes three times the wall's ink weight; the coast's doubled line | Fixed the first: paths are a third thinner. The coast is the map's own |
+| 12 | The sample tag sits on a neighbour's name; lilac is a second accent | Fixed the first: the tag stands beside the wrench. The lilac stays: it marks made-up work, so it must not pass for real |
+| 13 | Tiny fields dominated by their towers read as rooks | Fixed: smaller towers, and the floor raised from 100 to 160 lines' area |
+| 14 | The picked gate is a soft gold smudge | Fixed with 4: the picked gate's ink turns gold on towers that now stand apart |
+| 15 | Paths stop short of the gates | Fixed: a path runs through the opening a little into its field |
+| 16 | The wrench's base is soft, and the pale wrench vanishes on the grey parked field | Fixed: an ink wrench with a pale edge on a firmer shadow, which shows on every field colour |
+| 17 | Name pills are mid grey, unlike the claim flags' | Rejected: they are the map's own capability nameplates, drawn by its own style |
+| 18 | The sea plane's edge and the compass at the frame's edge | Rejected: the map's own |
+| 19 | Fields crowd the upper half; the lower half is empty | Fixed: the plan is kept near the land's middle, with taller commons between the fields of a column |
+
+Before (left) and after round 1 (right), at rest:
+
+![Round 1, before and after](stills/round-1.png)

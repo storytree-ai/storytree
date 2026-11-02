@@ -373,25 +373,34 @@ export async function handThroughLibrary({ pr, increment, session, branch, keepO
 /**
  * The box's watcher takes each hand-over written through the library that it has no record of yet, as `hand` would record it (4.30),
  * once `viewOf` shows its head is on HOME: one GitHub cannot be asked about is left for a later look, and a fork's, or one whose head
- * GitHub does not say, is refused, its wait and held claims let go (4.32).
+ * GitHub does not say, is refused, its wait and held claims let go (4.32). A request for a pull request it already records, saying
+ * another session or keep-open, is a repeated hand-over: the record takes them, as `hand` would, keeping its fix sessions (4.11).
  */
 export async function adoptRequests({ dir, storytree, viewOf, now = Date.now, say = () => {} }) {
-  const known = new Set((await records(dir)).map((record) => record.pr));
+  const known = new Map((await records(dir)).map((record) => [record.pr, record]));
   for (const line of (await storytree(["arc", "waits"])).split("\n")) {
     const found = REQUEST.exec(line);
-    if (!found || known.has(Number(found[1]))) continue;
+    if (!found) continue;
     const [, pr, session, keepOpen, increment] = found;
+    if (known.has(Number(pr))) {
+      const old = known.get(Number(pr));
+      if (!old || (old.session === session && Boolean(old.keepOpen) === Boolean(keepOpen))) continue;
+      await save(dir, { ...old, session, keepOpen: Boolean(keepOpen), handedAt: new Date(now()).toISOString() });
+      known.set(Number(pr), { ...old, session, keepOpen: Boolean(keepOpen) });
+      say(`${new Date(now()).toISOString().replace(/\.\d{3}Z$/, "Z")} PR #${pr}: handed over again through the library by session ${session}${keepOpen ? `, to keep ${increment} open` : ""}`);
+      continue;
+    }
     const view = await viewOf(Number(pr)).catch(() => undefined);
     if (view === undefined) continue;
     try { ownBranch(pr, view); } catch (error) {
       await storytree(["arc", "increment", "unwait", increment, "--for", "event"]).catch(() => "");
       await storytree(["workspace", "let-go", pr, "--reason", `PR #${pr}'s head is not on ${HOME}; released by the watcher`]).catch(() => "");
-      known.add(Number(pr));
+      known.set(Number(pr), null);
       say(`${new Date(now()).toISOString().replace(/\.\d{3}Z$/, "Z")} PR #${pr}: ${error.message}; ${increment} no longer waits on it`);
       continue;
     }
     await save(dir, { fixes: [], fixing: null, pr: Number(pr), increment, session, keepOpen: Boolean(keepOpen), closed: false, handedAt: new Date(now()).toISOString() });
-    known.add(Number(pr));
+    known.set(Number(pr), null);
     say(`${new Date(now()).toISOString().replace(/\.\d{3}Z$/, "Z")} PR #${pr}: handed over through the library by session ${session}; watching it for ${increment}`);
   }
 }

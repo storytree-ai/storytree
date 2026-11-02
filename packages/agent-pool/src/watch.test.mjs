@@ -463,6 +463,30 @@ test("4.11 · a pull request handed over to keep its increment open is watched a
   assert.match(outs[0], /stays open/);
 });
 
+test("4.11 · a pull request handed over again through the library to keep its increment open, after the watcher took it, lands without closing it", async (t) => {
+  const b = await box(t);
+  await hand({ ...b.options, pr: 41, increment: "increment_one", session: "bbbb-session", startWatcher: async () => {} });
+  b.looks[41] = red;
+  await watchOnce(b.options);
+  const written = [];
+  const library = async (args) => { written.push(args); return ""; };
+  const lines = await handThroughLibrary({ pr: 41, increment: "increment_one", session: SESSION, branch: "claude/pr-41", keepOpen: true, storytree: library, now: () => at });
+  assert.match(lines[0], /stays open for its next pull request/);
+  b.options.storytree = async (args) => { b.calls.push(args); return args[1] === "waits" ? `  - event  ${written[0][7]} — increment_one  The one, on arc_a  An arc; check back 2026-10-13\n` : ""; };
+  await adoptRequests(b.options);
+  const record = await saved(b);
+  assert.equal(record.keepOpen, true, "the record holds what the reply said");
+  assert.equal(record.session, SESSION, "the claims released on merge are the latest handing session's");
+  assert.equal(record.fixes.length, 1, "its fix sessions are kept");
+
+  b.live.clear();
+  b.calls.length = 0;
+  b.looks[41] = { state: "merged", head: "h2" };
+  await watchOnce(b.options);
+  assert.ok(!b.calls.some(([, , verb]) => verb === "close"), "kept open, as the repeated hand-over asked");
+  assert.match(b.lines.at(-1), /PR #41 merged: increment_one stays open/);
+});
+
 test("4.14 · a fix session refused by another session's claim hands back without counting, and is retried once the holder's session ends", async (t) => {
   const b = await box(t);
   await handOff(b, 41, "increment_one");

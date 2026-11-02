@@ -10,7 +10,7 @@ import { writeFileSync } from "node:fs";
 import path from "node:path";
 
 import { withTempDir } from "@storytree/project-and-caller/testing/folders";
-import { approveCheckout } from "@storytree/project-and-caller/testing/pg";
+import { approveCheckout, testServerDataDir } from "@storytree/project-and-caller/testing/pg";
 import { VerbRefusal, type Verb } from "@storytree/library/verbs";
 import { z } from "zod";
 
@@ -121,7 +121,8 @@ test("6.61 a tool whose door-answered line cannot be written still gives its ans
 
 test("6.63 the tool server names every tool it would serve in a folder, the same names its client lists, with who calls each, without a call", async () => {
   await withProject(async ({ folder }) => {
-    const served = await servedTools(folder, { extensions: [fixtures] });
+    // The test home the agent's server reads, not this computer's, whose factory may mount more tools.
+    const served = await servedTools(folder, { dataDir: testServerDataDir(), extensions: [fixtures] });
     const named = served.map(({ name }) => name);
     await withAgent(folder, claudeCode("tool-door-names", { extensions: [fixtures] }), async (agent) => {
       // Less a harness's own tools, which no agent or person calls (ADR-1056 D2).

@@ -8,7 +8,7 @@ import { codeSurveyReader, type ImportedFolder } from "./code-survey/read-survey
 import { buildGraph, type ProjectGraph } from "./graph.js";
 import { focus, formatFocus, type FocusAnswer, type FocusOptions } from "./focus.js";
 import { crossingsOf, formatCrossing, type CrossingAnswer, type CrossingOptions } from "./code-survey/crossings.js";
-import { capabilityTreeOf, formatCapabilityTree } from "./capability-tree.js";
+import { capabilityTreeOf, formatCapabilityTree, type CapabilityTree } from "./capability-tree.js";
 
 type PlanReader = Pick<Library, "projectTree">;
 
@@ -82,9 +82,13 @@ export async function crossingCommand(library: PlanReader, folder: string, optio
 }
 
 /** The story `select` names, its capabilities with their contracts, links, files and lines, read in one survey of the checkout at `folder` (3.11). */
-export async function capabilitiesCommand(library: PlanReader, folder: string, select: string, json = false, imports: readonly ImportedFolder[] = []): Promise<string> {
+export async function capabilityTreeProject(library: PlanReader, folder: string, select: string, imports: readonly ImportedFolder[] = []): Promise<CapabilityTree> {
   const tree = await branchPlan(library, folder);
-  const answer = capabilityTreeOf(tree, await codeSurveyReader({ checkout: "current" }).read(folder, tree, imports), select);
+  return capabilityTreeOf(tree, await codeSurveyReader({ checkout: "current" }).read(folder, tree, imports), select);
+}
+
+export async function capabilitiesCommand(library: PlanReader, folder: string, select: string, json = false, imports: readonly ImportedFolder[] = []): Promise<string> {
+  const answer = await capabilityTreeProject(library, folder, select, imports);
   return json ? JSON.stringify(answer) : formatCapabilityTree(answer);
 }
 

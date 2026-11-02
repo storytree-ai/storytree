@@ -306,13 +306,12 @@ function registerRunsTools(define: DefineForOwner, home: string | undefined): vo
  */
 export const recordingGuidance: readonly string[] = [
   [
-  "Record your work on the plan, so the user watches it grow.",
-  "- `report` a contract's test red once it is written and fails, and green once it passes.",
+  "Record your work on the plan: `report` each contract's test red once it fails, green once it passes.",
   "- When its contracts pass, `land` the capability, ending your claim; it is held while a source file of the story's package is reached by no numbered test, and names each planned contract no numbered test proves (write its test, or retire it). Stopping before then, `release` it.",
-  "- `mark_built` a capability once you consider it built; its card then shows the health storytree verified, never your report.",
+  "- `mark_built` a capability once you consider it built; its card shows the health storytree verified.",
   "- Between increments, `read_context` gives your context's size: judge whether to take on more.",
   "- When the increment is done, `close_increment` with its outcome (landed, failed, withdrawn) and pull request, or a note naming the local commit. Record unparked work that landed with `park_increment` and its outcome.",
-  "- When your session's work is done, `close_out`: say whether it is safe to close (pull requests merged or commits made, tree clean, nothing of yours running) and why. The sessions list checks a yes and keeps what it cannot bear out listed for the owner.",
+  "- When your session's work is done, `close_out`: say whether it is safe to close (pull requests merged or commits made, tree clean, nothing of yours running) and why. The sessions list checks a yes.",
   ].join("\n"),
 ];
 

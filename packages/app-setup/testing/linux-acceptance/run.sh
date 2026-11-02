@@ -39,7 +39,7 @@ step machine sh -c 'cat /etc/os-release; uname -srm; id -un; echo "HOME=$HOME"; 
 step before sh -c "ls -la '$APP' 2>&1; ls -la '$HOME/.storytree' 2>&1; command -v storytree; command -v claude; true"
 
 # What a desktop has and a server image lacks: a display (Xvfb, with a window manager so the app's window is placed),
-# libfuse2, which the installer names with its apt command when it is missing, and expect to answer its questions.
+# libfuse2, without which the installer runs the app unpacked, and expect to answer its questions.
 step packages sh -c 'sudo apt-get update -qq && sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq libfuse2t64 xvfb openbox imagemagick expect x11-utils >/dev/null'
 export DISPLAY=:99
 Xvfb :99 -screen 0 1440x900x24 >"$OUT/xvfb.log" 2>&1 &

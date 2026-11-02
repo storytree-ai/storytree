@@ -30,11 +30,18 @@ st_platform() {
   esac
 }
 
-# st_fuse LIBRARIES: the AppImage runs through libfuse2. Its absence is named with the one command that adds it;
-# storytree never runs sudo itself.
+# st_fuse LIBRARIES DEVICE: the AppImage mounts itself through FUSE, which needs libfuse2 and a DEVICE (/dev/fuse) this
+# user can open. Where either is missing (no libfuse2, or a container that denies /dev/fuse), the app runs unpacked
+# instead (APPIMAGE_EXTRACT_AND_RUN=1, exported for the first launch and written into the menu entry), and says so.
+# A device is only opened when it is one, so no file is ever made in its place; storytree never runs sudo itself.
 st_fuse() {
-  case "$1" in *libfuse.so.2*) return 0 ;; esac
-  st_fail "storytree's Linux app needs libfuse2, which this computer does not have. Add it with: sudo apt install libfuse2t64 (on Ubuntu before 24.04: sudo apt install libfuse2), then run this command again. Nothing was installed"
+  [ "${APPIMAGE_EXTRACT_AND_RUN:-}" != 1 ] || return 0
+  case "$1" in
+    *libfuse.so.2*) if [ -c "$2" ] && (: <>"$2") 2>/dev/null; then return 0; fi; st_why="this user cannot open $2" ;;
+    *) st_why='this computer does not have libfuse2' ;;
+  esac
+  APPIMAGE_EXTRACT_AND_RUN=1; export APPIMAGE_EXTRACT_AND_RUN
+  echo "FUSE cannot be used here ($st_why), so the app will run unpacked each time it starts, which needs no FUSE (APPIMAGE_EXTRACT_AND_RUN=1, in its menu entry too)."
 }
 
 # st_json KEY < JSON: prints the value at a dotted key (array elements by index), or fails when it is absent.
@@ -227,11 +234,13 @@ st_appimage_version() {
 st_userns_blocked() { [ "$(cat "${ST_USERNS:-/proc/sys/kernel/apparmor_restrict_unprivileged_userns}" 2>/dev/null)" = 1 ]; }
 
 # st_desktop_entry ENTRY APP ICON: the AppImage's own entry, started from the installed AppImage with the installed icon.
-# Exec keeps the arguments the release packaged after its AppRun, and turns the sandbox off only where the kernel blocks it.
+# Exec keeps the arguments the release packaged after its AppRun, turns the sandbox off only where the kernel blocks it,
+# and runs the app unpacked where FUSE cannot be used (st_fuse).
 st_desktop_entry() {
   if st_userns_blocked; then st_sandbox=' --no-sandbox'; else st_sandbox=; fi
-  ST_ENTRY_EXEC=$(printf '%s' "$2" | sed 's/[\\"`$]/\\&/g; s/\\/\\\\/g') ST_ENTRY_ICON=$3 ST_ENTRY_ARGS=$st_sandbox awk '
-    /^Exec=/ { rest = substr($0, 6); n = index(rest, " "); print "Exec=\"" ENVIRON["ST_ENTRY_EXEC"] "\"" ENVIRON["ST_ENTRY_ARGS"] (n ? substr(rest, n) : ""); next }
+  if [ "${APPIMAGE_EXTRACT_AND_RUN:-}" = 1 ]; then st_env='env APPIMAGE_EXTRACT_AND_RUN=1 '; else st_env=; fi
+  ST_ENTRY_EXEC=$(printf '%s' "$2" | sed 's/[\\"`$]/\\&/g; s/\\/\\\\/g') ST_ENTRY_ICON=$3 ST_ENTRY_ARGS=$st_sandbox ST_ENTRY_ENV=$st_env awk '
+    /^Exec=/ { rest = substr($0, 6); n = index(rest, " "); print "Exec=" ENVIRON["ST_ENTRY_ENV"] "\"" ENVIRON["ST_ENTRY_EXEC"] "\"" ENVIRON["ST_ENTRY_ARGS"] (n ? substr(rest, n) : ""); next }
     /^Icon=/ { print "Icon=" ENVIRON["ST_ENTRY_ICON"]; next }
     { print }' "$1"
 }
@@ -300,6 +309,7 @@ st_opened() {
   st_quoted="'$(printf '%s' "$st_target" | sed "s/'/'\\\\''/g")'"
   if [ "$ST_SYSTEM" = linux ]; then
     if st_userns_blocked; then st_quoted="$st_quoted --no-sandbox"; fi
+    if [ "${APPIMAGE_EXTRACT_AND_RUN:-}" = 1 ]; then st_quoted="APPIMAGE_EXTRACT_AND_RUN=1 $st_quoted"; fi
     echo "storytree is installed, and its app is open. To open it again, use your app menu, or run: $st_quoted"
   else
     echo "storytree is installed, and its app is open. To open it again, use Applications, or run: open $st_quoted"
@@ -352,7 +362,7 @@ st_tools() {
   ST_NODE="$st_res/node"; ST_HELPER="$st_res/storytree-deliver.mjs"
 }
 
-st_op_fuse() { st_fuse "$({ ldconfig -p || /sbin/ldconfig -p; ls /lib*/*/libfuse.so.2* /usr/lib*/*/libfuse.so.2* /lib*/libfuse.so.2* /usr/lib*/libfuse.so.2*; } 2>/dev/null)"; }
+st_op_fuse() { st_fuse "$({ ldconfig -p || /sbin/ldconfig -p; ls /lib*/*/libfuse.so.2* /usr/lib*/*/libfuse.so.2* /lib*/libfuse.so.2* /usr/lib*/libfuse.so.2*; } 2>/dev/null)" /dev/fuse; }
 
 st_op_stage() {
   case "$1" in
@@ -445,7 +455,7 @@ st_main() {
   # A terminal running under Rosetta reports an Intel chip on an Apple Silicon Mac.
   if [ "$st_system" = Darwin ] && [ "$st_chip" = x86_64 ] && [ "$(sysctl -n sysctl.proc_translated 2>/dev/null)" = 1 ]; then st_chip=arm64; fi
   st_platform "$st_system" "$st_chip" || return
-  if [ "$ST_SYSTEM" = linux ]; then st_op_fuse || return; fi
+  if [ "$ST_SYSTEM" = linux ]; then st_op_fuse; fi
   ST_HOME=${STORYTREE_HOME:-$HOME/.storytree/0.3}
   st_install_dir "$ST_HOME" "$HOME" || return
   st_channel "$ST_HOME" "$ST_DIR" "$st_requested" || return

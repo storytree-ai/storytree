@@ -2,8 +2,8 @@
 // .pgtest/red-runs.jsonl, one JSON line { at, head, file, test } per failure, `test` its full name ("suite › title"),
 // or null for a file that failed before any test in it ended. Lines are only added, so the green run that follows
 // never erases the red; the change-reviewer's brief reads them to show each new test's red without re-running it
-// (packages/quality-assurance, contract 2.14). Each is also added to the clone's shared copy, storytree/red-runs.jsonl in Git's
-// common directory, so a worktree resuming a pushed branch finds the reds seen at the commits it carries (2.15, contract 4.26).
+// (the micks-dev-loop factory plugin's code review, contract 15.14). Each is also added to the clone's shared copy, storytree/red-runs.jsonl in Git's
+// common directory, so a worktree resuming a pushed branch finds the reds seen at the commits it carries (15.15, contract 4.26).
 // Nothing here runs in CI's time: it is a file write after the run.
 import { execFileSync } from "node:child_process";
 import { appendFileSync, mkdirSync } from "node:fs";

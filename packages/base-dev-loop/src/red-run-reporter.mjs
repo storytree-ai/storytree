@@ -2,7 +2,7 @@
 // checkout outside storytree, such as a user's factory, gives its own `node --test` by this package's name
 // (`--test-reporter=@storytree/base-dev-loop/red-run-reporter`), so each test that failed, by its full name ("suite › title"), and each
 // file that failed before any test in it ended, is kept in that checkout's red runs as `pnpm test` keeps them (red-runs.mjs),
-// where the change-reviewer's brief reads them (packages/quality-assurance, contract 2.14). The checkout is the Git checkout
+// where the change-reviewer's brief reads them (the micks-dev-loop factory plugin's code review, contract 15.14). The checkout is the Git checkout
 // the run starts in, else its folder. It prints nothing: give it a destination beside the reporter that does.
 import { execFileSync } from "node:child_process";
 import { realpathSync } from "node:fs";

@@ -353,5 +353,10 @@ test("2.13 lines written earlier, appended as one batch, go in at their own time
     assert.equal(many, one, "a hundred lines take the round trips one does");
     assert.ok(one <= 4, `a batch is a few round trips, not ${one}`);
     assert.deepEqual((await log.since(project, 0)).lines.slice(-100).map((written) => written.folder), Array.from({ length: 100 }, (_, index) => `/many-${index}`), "in the order given");
+
+    const count = (await log.since(project, 0)).lines.length;
+    await assert.rejects(log.appendMany(project, [{ line: line("/caused"), at: at(200) }, { line: { ...line("/dangling"), causedBy: 999_999_999 }, at: at(201) }]), /its cause, line 999999999, is not a line of/);
+    await assert.rejects(log.appendMany(project, [{ line: line("/untimed"), at: "yesterday" }]), RangeError);
+    assert.equal((await log.since(project, 0)).lines.length, count, "a batch with a dangling cause or a time that is not one writes nothing");
   });
 });

@@ -26,7 +26,7 @@ test("3.51 the library is remote when this machine's setting is a wss:// address
     assert.equal(remoteLibrary(dir), false, "no setting: the local library");
     setLibrary(["postgres", "postgres://storytree_library@mint:5432/postgres"], dir);
     assert.equal(remoteLibrary(dir), false);
-    setLibrary(["postgres", "wss://storytree_library@library.example.dev/postgres"], dir);
+    setLibrary(["postgres", "wss://storytree_library@library-host/postgres"], dir);
     assert.equal(remoteLibrary(dir), true);
   });
 });

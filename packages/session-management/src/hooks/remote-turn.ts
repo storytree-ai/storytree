@@ -25,10 +25,14 @@ export function remoteAddress(address: string | undefined): boolean {
   return address !== undefined && address.startsWith("wss:");
 }
 
-/** Whether this machine's library, as the storytree home `home` names it, is a wss:// address. */
+/** Whether this machine's library, as the storytree home `home` names it, is a wss:// address; a setting that cannot be read is not, since a hook never throws. */
 export function remoteLibrary(home: string): boolean {
-  const library = readLibrary(home);
-  return library.location === "postgres" && remoteAddress(library.address);
+  try {
+    const library = readLibrary(home);
+    return library.location === "postgres" && remoteAddress(library.address);
+  } catch {
+    return false;
+  }
 }
 
 /** Whether process `pid` is still running here. */

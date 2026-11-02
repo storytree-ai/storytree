@@ -1,6 +1,7 @@
-/** Capability tree, 3D mock 1, reworked: the real map's view of The library, as the desktop app draws it, with its island laid
- * out again by dependency as walled fields on open commons, drawn as an inked map in 2.5D (layout.ts, castle.ts). `?real` draws the island as the map does today,
- * file dots and all, with nothing added: the left half of the side-by-side. */
+/** Capability tree, 3D mock 1, round 3: the real map's view of The library, as the desktop app draws it, its territories cut
+ * on the map's own cells with linked capabilities side by side, walled along their real borders, drawn as an inked map in 2.5D
+ * (territory-plan.ts, castle.ts). `?real` draws the island as the map does today, with nothing added: the left half of the
+ * side-by-side. */
 import { createRoot } from "react-dom/client";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { RootState } from "@react-three/fiber";
@@ -23,8 +24,8 @@ const params = new URLSearchParams(location.search);
 const REAL = params.has("real");
 /** How much of the sheet half the window's short side spans at rest, in ground units: The library close up. */
 const GROUND = Number(params.get("ground") ?? 150);
-/** How much more land the island is given than its lines of code would, for the commons between the fields. */
-const ROOM = Number(params.get("room") ?? 1.6);
+/** How much more land the island is given than its lines of code would: none, the island is the map's own size. */
+const ROOM = Number(params.get("room") ?? 1);
 const PANEL_WIDTH = 352;
 /** The rest view's margin around the plan, in CSS pixels. */
 const MARGIN = 28;
@@ -36,8 +37,9 @@ const seam = globalThis as { __storytreeCaptureGlobe?: (get: () => RootState) =>
 // rest of the map's cut, so the map draws a larger island (and keeps the sea between it and its neighbours) by its own rules.
 const own = (data.map.survey as Record<string, { files: { path: string; lines: number }[] }>)[STORY]!;
 const lines = own.files.reduce((sum, file) => sum + file.lines, 0);
-const survey = REAL ? data.map.survey : { ...data.map.survey, [STORY]: { ...own, files: [...own.files, { path: "(the mock's commons)", lines: Math.round(lines * (ROOM - 1)) }] } } as typeof data.map.survey;
+const survey = REAL || ROOM === 1 ? data.map.survey : { ...data.map.survey, [STORY]: { ...own, files: [...own.files, { path: "(the mock's commons)", lines: Math.round(lines * (ROOM - 1)) }] } } as typeof data.map.survey;
 const scene = forestScene(data.map.tree, data.map.changes, workStates([]), survey);
+const island = scene.islands.find(i => i.story === STORY)!;
 const places = new Map(storyNodes(data.map.tree, data.map.changes, survey).map(node => [node.id, node.place]));
 
 function Mock() {
@@ -70,7 +72,8 @@ function Mock() {
       // Each step waits until the view has moved to it before it measures again.
       if (key === last && waited++ < 20) { timer = setTimeout(frame, 150); return; }
       last = key; waited = 0;
-      const need = Math.max((box.right - box.left) / (width - 2 * MARGIN), (box.bottom - box.top) / (height - 2 * MARGIN - 40));
+      // Tilted, the island does not sit in the middle of the window: each half of it must fit its half of the window.
+      const need = Math.max((box.right - box.left) / (width - 2 * MARGIN), Math.max(height / 2 - box.top - 20, box.bottom - height / 2) / (height / 2 - MARGIN - 20));
       const off = (box.left + box.right) / 2 - width / 2;
       console.info("framing", ground.current, side.current, need, off, waited);
       if ((Math.abs(need - 1) < 0.03 && Math.abs(off) < 12) || tries-- <= 0) { setFramed(true); return; }
@@ -94,7 +97,7 @@ function Mock() {
       const key = borders && borders.geometry.drawRange.count === Infinity ? opacities.join() : "";
       same = key !== "" && key === last ? same + 1 : 0;
       last = key;
-      if (same >= 2) { setLayer(castleLayer(state, STORY, data, host.current!)); return; }
+      if (same >= 2) { setLayer(castleLayer(state, STORY, data, host.current!, island)); return; }
       timer = setTimeout(wait, 150);
     };
     wait();

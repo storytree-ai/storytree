@@ -38,7 +38,7 @@ export function Panel({ data, picked, onPick, sample, onSample, fills }: {
     </li>)}</ul>;
   };
   let body: React.ReactNode;
-  if (!picked) body = <p className="mock-muted">Click a field, a path, a gate, the road off the coast or a wrench.</p>;
+  if (!picked) body = <p className="mock-muted">Click a territory, a gate, a path, the road off the coast or a wrench.</p>;
   else if (picked.kind === "territory") {
     const c = byId.get(picked.id)!, callers = data.capabilities.filter(o => o.dependsOn.some(d => d.id === c.id)), work = workOn(c.id);
     body = <>
@@ -62,14 +62,20 @@ export function Panel({ data, picked, onPick, sample, onSample, fills }: {
       {picked.kind === "path" && picked.shared && <><h4>This stretch also carries</h4><ul>{picked.shared.map(id => { const [f, t] = id.split("->"); return <li key={id}>{link("path", id, `${name(f!)} calls ${name(t!)}`)}</li>; })}</ul></>}
     </>;
   } else if (picked.kind === "gate") {
-    const c = byId.get(picked.id)!, callers = data.capabilities.filter(o => o.dependsOn.some(d => d.id === c.id));
+    // A gate stands for the links that pass through it: between neighbours, one; at a corridor's end, every way it opens on.
+    const calls = (l: { from: string; to: string }) => {
+      const from = byId.get(l.from)!, dep = from.dependsOn.find(d => d.id === l.to)!, called = byId.get(l.to);
+      return { from, dep, called, text: `${from.title} calls ${called ? "" : `${dep.story} · `}${dep.title}` };
+    };
+    const [one, ...more] = picked.links.map(calls);
     body = <>
       <p className="mock-kicker">Gate</p>
-      <h3>Into {c.title}</h3>
-      <p className="mock-muted">Every path to or from {c.title} passes through this gate.</p>
-      <h4>Its calls go out</h4>{c.dependsOn.length ? <ul>{c.dependsOn.map(d => <li key={d.id}>{d.storyId === data.story.id ? link("path", `${c.id}->${d.id}`, d.title) : link("road", `${c.id}->${d.id}`, `${d.story} · ${d.title}`)}</li>)}</ul> : <p className="mock-muted">None.</p>}
-      <h4>Its callers come in, for its contracts</h4>{callers.length ? <ul>{callers.map(o => <li key={o.id}>{link("path", `${o.id}->${c.id}`, o.title)}</li>)}</ul> : <p className="mock-muted">None in this story.</p>}
-      <h4>{c.title}'s contracts</h4>{contracts(c.contracts)}
+      <h3>{more.length ? `${picked.links.length} links pass this gate` : one!.text}</h3>
+      {picked.links.map(calls).map(c => <section key={c.text}>
+        {more.length > 0 && <p><strong>{c.text}</strong></p>}
+        <h4>{c.dep.title}'s contracts</h4>{contracts(c.called?.contracts ?? c.dep.contracts)}
+        {c.called && <p>{link("territory", c.called.id, `Open ${c.called.title}`)}</p>}
+      </section>)}
     </>;
   } else {
     const c = byId.get(picked.capability)!, work = workOn(c.id).filter(w => picked.sample ? "sample" in w : !("sample" in w));

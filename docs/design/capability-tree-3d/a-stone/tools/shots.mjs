@@ -47,12 +47,16 @@ await withCapture({ folder: path.join(dist, 'stills'), dist }, async ({ browser,
   // The wrench on Cloud connection: the one open increment that names one of The library's capabilities today.
   await click(page, 'wrench', id('8 · Cloud connection (GCP)'), /^Work wanting 8 · Cloud connection/);
   await shot(page, 'wrench-arcs');
-  // A path: Rounds calls Lapsed questions.
-  await click(page, 'path', `${id('26 · Rounds')}->${id('25 · Lapsed questions')}`, /calls 25 · Lapsed questions$/);
-  await shot(page, 'pathway-contracts');
-  // A gate: Work in flight's, where its callers come in.
-  await click(page, 'gate', id('10 · Work in flight'), /^Into 10 · Work in flight$/);
+  // A link between neighbours is a gate in their shared wall: Rounds calls Lapsed questions.
+  const gate = await page.evaluate(k => window.mock.layer.find('path', k), `${id('26 · Rounds')}->${id('25 · Lapsed questions')}`);
+  assert.equal(gate?.kind, 'gate', 'Rounds and Lapsed questions are neighbours, so their link is a gate');
+  await click(page, 'gate', gate.id, /^26 · Rounds calls 25 · Lapsed questions$/);
   await shot(page, 'gate');
+  // A link whose ends cannot touch runs through a corridor: the first the layer lists.
+  const [from, to] = report.layer.corridorLinks_[0].split(' -> ');
+  const corridor = `${id(from)}->${id(to)}`;
+  await click(page, 'path', corridor, new RegExp(`^${from.replace(/[()]/g, '.')} calls ${to.replace(/[()]/g, '.')}$`));
+  await shot(page, 'pathway-contracts');
   await click(page, 'territory', id('4 · Work model'), /^4 · Work model$/);
   await shot(page, 'territory');
   await click(page, 'road', `${id('15 · Connection by address')}->${data.capabilities.find(c => c.title === '15 · Connection by address').dependsOn.find(d => d.story !== data.story.title).id}`, /calls Keys · /);
@@ -63,14 +67,14 @@ await withCapture({ folder: path.join(dist, 'stills'), dist }, async ({ browser,
   await click(page, 'wrench', `${id('10 · Work in flight')}:sample`, /^Work wanting 10 · Work in flight/);
   await shot(page, 'sample-wrench-arcs');
   await page.locator('.mock-check input').uncheck();
-  await click(page, 'territory', id('3 · Data schema'), /^3 · Data schema$/);
-  // One field close up, by the wheel over it.
-  const field = await page.evaluate(i => window.mock.layer.point('territory', i), id('3 · Data schema'));
-  await page.mouse.move(field.x, field.y);
-  for (let k = 0; k < 10; k++) { await page.mouse.wheel(0, -300); await settle(page, 2); }
+  await click(page, 'territory', id('9 · Knowledge entrances'), /^9 · Knowledge entrances$/);
+  // Close up, by the wheel over the corridor beside it, where gates and walls meet.
+  const near = await page.evaluate(k => window.mock.layer.point('path', k), corridor);
+  await page.mouse.move(near.x, near.y);
+  for (let k = 0; k < 14; k++) { await page.mouse.wheel(0, -300); await settle(page, 2); }
   await shot(page, 'close-up');
   // Panned out to the whole island, by the wheel.
-  for (let k = 0; k < 16; k++) { await page.mouse.wheel(0, 300); await settle(page, 2); }
+  for (let k = 0; k < 22; k++) { await page.mouse.wheel(0, 300); await settle(page, 2); }
   await shot(page, 'whole-island');
   await page.close();
   // Orbited: turned 45 degrees with E, and tipped two steps nearer level with F, by the map's own keys.
@@ -94,7 +98,7 @@ await withCapture({ folder: path.join(dist, 'stills'), dist }, async ({ browser,
   const img = name => `data:image/png;base64,${readFileSync(path.join(out, `${name}.png`)).toString('base64')}`;
   // Both are the same window at the same framing; each is cropped to the map beside the panel and shown at half size.
   await pair.setContent(`<body style="margin:0;background:#0e1418;color:#e8eef0;font:600 15px system-ui;display:flex;gap:12px;padding:10px">
-    ${[['real-today', 'The map today: The library selected'], ['resting', 'Mock 1, reworked: the same island laid out by dependency, as walled fields on open commons']].map(([n, t]) =>
+    ${[['real-today', 'The map today: The library selected'], ['resting', 'Round 3: the same cells, linked capabilities side by side, walled on their borders']].map(([n, t]) =>
       `<figure style="margin:0"><div style="width:702px;height:450px;overflow:hidden"><img src="${img(n)}" style="width:1440px;transform:scale(0.645);transform-origin:0 0"></div><figcaption style="padding-top:6px">${t}</figcaption></figure>`).join('')}</body>`);
   await pair.screenshot({ path: path.join(out, 'side-by-side.png') });
   await pair.close();

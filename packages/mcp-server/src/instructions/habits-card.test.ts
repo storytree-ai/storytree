@@ -5,7 +5,7 @@
  * it is the app setup's setup check.
  */
 import assert from "node:assert/strict";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
@@ -16,7 +16,7 @@ import { InMemoryTransport } from "@modelcontextprotocol/server";
 import { createAgentTools } from "../index.js";
 import { storyParts } from "@storytree/plugin-loader";
 import { setupGuidance } from "@storytree/app-setup/setup";
-import { decisionRights } from "@storytree/project-and-caller";
+import { decisionRights, readStandIns } from "@storytree/project-and-caller";
 import { qualityGuidance } from "@storytree/quality-assurance";
 import { CONTRACT_DEFINITION, habitsCard } from "./habits.js";
 
@@ -85,6 +85,33 @@ test("7.13 with code review switched off, the card still tells the agent to reco
     assert.doesNotMatch(card, /STOP|Red, then green/, "a stop of the build loop is still on the card");
   } finally {
     await session.close();
+  }
+});
+
+test("7.14 with a factory plugin standing in for a switched-off part, the card handed at session start carries the plugin's sections in the part's place, not the part's own, and does not name the part switched off; one that cannot be loaded adds nothing and the part is named off", async () => {
+  // Code review moves to a factory plugin whole, its section with it (ADR-1209 D1): the card is where that section reaches an agent.
+  const folder = mkdtempSync(path.join(tmpdir(), "habits-card-factory-"));
+  try {
+    const plugin = path.join(folder, "factory", "plugins", "my-review");
+    mkdirSync(plugin, { recursive: true });
+    writeFileSync(path.join(plugin, "package.json"), JSON.stringify({ name: "my-review", type: "module", exports: { "./guidance": "./guidance.js" }, storytree: { interface: 1, guidance: [{ from: "./guidance", export: "guidance" }] } }));
+    writeFileSync(path.join(plugin, "guidance.js"), `export const guidance = ["Review each change with the reviewer before the gate."];\n`);
+    const settings = (standIn: string) => ({ factory: path.join(folder, "factory"), "parts-off": ["quality-assurance"], "stand-ins": { "quality-assurance": standIn } });
+    const card = (off: readonly string[], standIn: string) => {
+      const home = mkdtempSync(path.join(folder, "home-"));
+      writeFileSync(path.join(home, "settings.json"), JSON.stringify(settings(standIn)));
+      return habitsCard(off, readStandIns(home));
+    };
+    const stoodIn = card(["quality-assurance"], "my-review");
+    assert.ok(stoodIn.includes("Review each change with the reviewer before the gate."), "the plugin's section is on the card");
+    for (const section of qualityGuidance) assert.ok(!stoodIn.includes(section), `the part's own section is left out: ${section.slice(0, 60)}`);
+    assert.doesNotMatch(stoodIn, /Switched off on this computer/, "a part stood in for is served, not named off");
+    assert.ok(stoodIn.indexOf("Review each change") < stoodIn.indexOf("If storytree says it isn't running"), "before the closing line");
+    const missing = card(["quality-assurance"], "no-such-plugin");
+    assert.ok(!missing.includes("Review each change"), "a plugin that cannot be loaded adds nothing");
+    assert.match(missing, /Switched off on this computer, so not served here: quality-assurance\./);
+  } finally {
+    rmSync(folder, { recursive: true, force: true });
   }
 });
 

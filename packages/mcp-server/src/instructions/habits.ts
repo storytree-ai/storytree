@@ -11,13 +11,14 @@
  * setup check's paragraph and the closing are the server's own: what storytree is, how a session starts and what to
  * do when it is not running speak of storytree as a whole, and belong to no one story.
  *
- * A part this computer switches off (ADR-1095) takes its section with it, and the card names it switched off instead.
+ * A part this computer switches off (ADR-1095) takes its section with it, and the card names it switched off instead,
+ * unless a factory plugin stands in for it: then the plugin's sections are in the part's place (contract 7.14).
  *
  * The card names each tool in backticks, and uses backticks for nothing else: its tests hold it to
  * naming exactly the tools the server has, within its word budget.
  */
 import { CONTRACT_DEFINITION } from "@storytree/library";
-import { mount } from "@storytree/plugin-loader";
+import { mount, standIn, type StandIns } from "@storytree/plugin-loader";
 import GUIDANCE from "#parts/guidance";
 
 /** What one contract is (contract 7.8): the library owns the definition, and plan_contract quotes it when a title runs long (6.57). */
@@ -44,9 +45,15 @@ const SETUP = "Start every session with `check_setup`, and do what it says. If t
 
 const CLOSING = "If storytree says it isn't running, carry on without it.";
 
-/** The habits card, as the tool server hands it to the agent, without the sections of the parts `off` switches off. */
-export function habitsCard(off: readonly string[] = []): string {
-  const { mounted, off: switched } = mount(GUIDANCE, off);
-  const said = switched.length === 0 ? [] : [`Switched off on this computer, so not served here: ${switched.map(({ part }) => part).join(", ")}. The user switches one on with: storytree settings set part <part> on`];
+/**
+ * The habits card, as the tool server hands it to the agent, without the sections of the parts `off` switches off, and
+ * with those of each factory plugin `standIns` names in its part's place.
+ */
+export function habitsCard(off: readonly string[] = [], standIns: StandIns = { plugins: {} }): string {
+  const composed = standIn(GUIDANCE, "guidance", standIns);
+  const { mounted, off: switched } = mount(composed, off);
+  const servedBy = new Set(Object.values(composed.standsIn ?? {}));
+  const unserved = switched.filter(({ part }) => !servedBy.has(part));
+  const said = unserved.length === 0 ? [] : [`Switched off on this computer, so not served here: ${unserved.map(({ part }) => part).join(", ")}. The user switches one on with: storytree settings set part <part> on`];
   return [`${OPENING} ${SETUP}`, ...mounted, ...said, CLOSING].join("\n\n");
 }

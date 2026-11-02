@@ -91,6 +91,11 @@
         "order": 40
       },
       {
+        "from": "./tools",
+        "export": "recordingGuidance",
+        "order": 72
+      },
+      {
         "from": "./friction/verbs",
         "export": "frictionGuidance",
         "order": 85

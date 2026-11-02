@@ -61,7 +61,7 @@ test("map 3.5: focus serves the current project with counts, dry_run, show and a
       const rows = shown.data.rows as { id: string }[];
       assert.ok(rows.some(row => row.id === cap.id));
       assert.ok(rows.some(row => row.id === promise.id));
-      const filtered = await agent.call("focus", { select: `cap:${cap.id}`, down: 1, kind: ["promise"], mode: "show" });
+      const filtered = await agent.call("focus", { select: `cap:${cap.id}`, down: 1, kind: ["contract"], mode: "show" });
       assert.deepEqual((filtered.data.rows as { id: string }[]).map(row => row.id), [promise.id]);
       for (const args of [{ select, up: -1 }, { select, mode: "invalid" }, {}]) assert.equal((await agent.call("focus", args)).isError, true);
       await Promise.all(Array.from({ length: 201 }, (_, index) => library.addContract({ capability: cap.id, title: `2.${index + 6} · Promise ${index}` })));

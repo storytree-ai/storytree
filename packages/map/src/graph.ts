@@ -6,7 +6,7 @@ import type { ProjectSurvey } from "./code-survey/read-survey.js";
 
 export type SnapshotOrigin = "base" | "target" | "both";
 export type ChangeLabel = "added" | "modified" | "deleted" | "renamed-from" | "renamed-to" | "untracked";
-export type NodeKind = "story" | "capability" | "promise" | "file" | "test";
+export type NodeKind = "story" | "capability" | "contract" | "file" | "test";
 export type MapHealth = "healthy" | "failing" | "untested";
 export interface MapNode {
   readonly id: string;
@@ -84,7 +84,7 @@ export function buildGraph(tree: AnnotatedTree, survey: ProjectSurvey): ProjectG
       for (const dependency of cap.dependsOn) edge(cap.id, dependency, "depends-on", "declared");
       for (const contract of cap.contracts) {
         const number = /^\s*(\d+\.\d+)\b/.exec(contract.title)?.[1];
-        add({ id: contract.id, kind: "promise", title: contract.title, story: story.id, health: healthOf(contract.health, healthSource), ...(number === undefined ? {} : { number }) });
+        add({ id: contract.id, kind: "contract", title: contract.title, story: story.id, health: healthOf(contract.health, healthSource), ...(number === undefined ? {} : { number }) });
         edge(contract.id, cap.id, "belongs-to", "declared");
       }
     }

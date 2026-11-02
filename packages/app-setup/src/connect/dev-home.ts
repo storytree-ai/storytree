@@ -11,7 +11,7 @@
  *   . <dir>/env.sh            (PowerShell: . <dir>/env.ps1), then codex or claude in a new folder
  *   pnpm --filter @storytree/app-setup dev-home <dir> --remove
  */
-import { execFileSync, spawn } from "node:child_process";
+import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { chmodSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
@@ -20,7 +20,7 @@ import { setTimeout as sleep } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
 
 import { buildBins } from "../bins/build.js";
-import { findBinaries } from "@storytree/local-postgres";
+import { pgCtl } from "@storytree/local-postgres";
 import { installCommand } from "../deliver/command.js";
 import { connectAgents, installedToolServerCommand, type ConnectionResult, type Harness, type RunHarness } from "./index.js";
 
@@ -149,15 +149,12 @@ export async function removeDevHome(dir: string): Promise<void> {
     await waitForExit(pid, dir);
   }
   if (existsSync(path.join(dataDir, "PG_VERSION"))) {
-    const pgCtl = (...args: string[]) => new Promise<number | null>((resolve, reject) => {
-      const child = spawn(path.join(findBinaries(), process.platform === "win32" ? "pg_ctl.exe" : "pg_ctl"), ["-D", dataDir, ...args], { stdio: "ignore", windowsHide: true, timeout: 25_000 });
-      child.on("error", reject);
-      child.on("close", resolve);
-    });
-    let status = await pgCtl("status");
+    // Run as the server runs (as root, the tools' account): Postgres refuses root, which reads as neither running nor stopped.
+    const run = (...args: string[]) => pgCtl(dataDir, args, { timeoutMs: 25_000 });
+    let status = await run("status");
     if (status === 0) {
-      await pgCtl("-m", "fast", "-w", "-t", "20", "stop");
-      status = await pgCtl("status");
+      await run("-m", "fast", "-w", "-t", "20", "stop");
+      status = await run("status");
     }
     if (status !== 3) throw new Error(`Could not confirm the database stopped; keeping ${dir}.`);
   }

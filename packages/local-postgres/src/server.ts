@@ -603,6 +603,25 @@ async function stopServer(dataDir: string, tools: Tools, log: (message: string) 
   log(`stopped (${since(started)})`);
 }
 
+export interface PgCtlOptions extends ClusterOptions {
+  /** Kill pg_ctl if it has not finished in this many milliseconds; it then reads as exit code 1. */
+  readonly timeoutMs?: number;
+}
+
+/**
+ * Run pg_ctl on `dataDir` (given as its `-D`) as start() runs it: as the tools' account when this
+ * process is root, as in a cloud container, where Postgres refuses root, let through the folders
+ * above the data directory again (a caller may have shut one since the start). Its output is
+ * appended to the tools' log. Resolves to its exit code: for `status`, 0 while a server runs and 3
+ * once none does.
+ */
+export function pgCtl(dataDir: string, args: readonly string[], options: PgCtlOptions = {}): Promise<number> {
+  const dir = path.resolve(dataDir);
+  const tools = toolsFor(dir, options);
+  if (tools.account !== undefined) letThrough(dir, tools.account);
+  return tool(tools, "pg_ctl", ["-D", dir, ...args], undefined, undefined, options.timeoutMs);
+}
+
 async function isRunning(dataDir: string, tools: Tools): Promise<boolean> {
   if (!existsSync(path.join(dataDir, "PG_VERSION"))) return false;
   return (await tool(tools, "pg_ctl", ["-D", dataDir, "status"])) === 0;
@@ -641,7 +660,14 @@ function toolsFor(dataDir: string, options: ClusterOptions): Tools {
 }
 
 /** Run one Postgres tool to completion, appending its output to the tool log. Resolves to its exit code. */
-function tool(tools: Tools, name: string, args: readonly string[], input?: string, env?: Readonly<Record<string, string>>): Promise<number> {
+function tool(
+  tools: Tools,
+  name: string,
+  args: readonly string[],
+  input?: string,
+  env?: Readonly<Record<string, string>>,
+  timeoutMs?: number,
+): Promise<number> {
   mkdirSync(path.dirname(tools.toolLog), { recursive: true });
   const out = openSync(tools.toolLog, "a");
   writeSync(out, `\n[${new Date().toISOString()}] ${name} ${args.join(" ")}\n`);
@@ -653,6 +679,7 @@ function tool(tools: Tools, name: string, args: readonly string[], input?: strin
       windowsHide: true,
       ...(tools.account === undefined ? {} : { uid: tools.account.uid, gid: tools.account.gid }),
       ...(env === undefined ? {} : { env: { ...process.env, ...env } }),
+      ...(timeoutMs === undefined ? {} : { timeout: timeoutMs }),
     });
     child.on("error", reject);
     child.stdin?.end(input);

@@ -5,7 +5,7 @@ import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, st
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
-import { findBinaries } from "@storytree/local-postgres";
+import { pgCtl } from "@storytree/local-postgres";
 import { removeTemp, waitUntil } from "@storytree/test-waits";
 import pg from "pg";
 
@@ -128,10 +128,8 @@ for (const crashed of [false, true]) {
     const dataDir = path.join(home, "pgdata");
     const ownerFile = `${dataDir}.owner.json`;
     const handoffFile = path.join(`${dataDir}.auth`, "connection.json");
-    const pgCtl = (...args: string[]) => spawnSync(
-      path.join(findBinaries(), process.platform === "win32" ? "pg_ctl.exe" : "pg_ctl"),
-      ["-D", dataDir, ...args], { encoding: "utf8", timeout: 15_000, windowsHide: true },
-    );
+    // pg_ctl as the server runs it: as root (a cloud container), the tools' account, since Postgres refuses root.
+    const serverCtl = (...args: string[]) => pgCtl(dataDir, args, { timeoutMs: 15_000 });
     const app = JSON.parse(readFileSync(path.join(home, "app.json"), "utf8")) as { command: string; args: string[] };
     const child = spawn(app.command, app.args, { stdio: ["ignore", "ignore", "pipe"], windowsHide: true });
     let stderr = "";
@@ -144,7 +142,8 @@ for (const crashed of [false, true]) {
       await client?.end();
       if (child.exitCode === null && child.signalCode === null) child.kill("SIGKILL");
       await exited;
-      if (pgCtl("status").status === 0) pgCtl("-m", "immediate", "-w", "stop");
+      // A removed home has no cluster left to ask about.
+      if (existsSync(path.join(dataDir, "PG_VERSION")) && await serverCtl("status") === 0) await serverCtl("-m", "immediate", "-w", "stop");
       // The old removal can partially delete a live cluster. Cleanup must still stop that
       // test-only server even when pg_ctl has lost its postmaster.pid.
       if (postgresPid !== undefined && postgresStart !== undefined && started(postgresPid) === postgresStart) {

@@ -1,12 +1,12 @@
 import assert from "node:assert/strict";
 import { execFileSync, spawnSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
-import { chmodSync, existsSync, linkSync, mkdirSync, readFileSync, renameSync, rmSync, symlinkSync, utimesSync, writeFileSync } from "node:fs";
+import { chmodSync, chownSync, existsSync, linkSync, mkdirSync, readFileSync, renameSync, rmSync, symlinkSync, utimesSync, writeFileSync } from "node:fs";
 import { createServer, type AddressInfo } from "node:net";
 import path from "node:path";
 import { test, type TestContext } from "node:test";
 
-import { findBinaries } from "@storytree/local-postgres";
+import { findBinaries, letThrough, serverAccount } from "@storytree/local-postgres";
 import pg from "pg";
 
 import { setLibrary } from "../settings/settings.js";
@@ -95,10 +95,21 @@ test("1.16 authenticated discovery connects to an independently provisioned SCRA
   await withTempDir(async (home) => {
     const dataDir = path.join(home, "pgdata");
     const pwfile = path.join(home, "init-password");
+    const serverLog = path.join(home, "server.log");
     writeFileSync(pwfile, password, { mode: 0o600 });
     privatePath(pwfile);
+    // Postgres refuses root, so run as root (a cloud container) its tools run as the account
+    // local-postgres runs them as, which is given what they write and let through to it.
+    const account = serverAccount();
+    const asAccount = account === undefined ? {} : { uid: account.uid, gid: account.gid };
+    if (account !== undefined) {
+      mkdirSync(dataDir, { mode: 0o700 });
+      writeFileSync(serverLog, "");
+      for (const file of [dataDir, pwfile, serverLog]) chownSync(file, account.uid, account.gid);
+      letThrough(dataDir, account);
+    }
     const initdb = path.join(findBinaries(), process.platform === "win32" ? "initdb.exe" : "initdb");
-    execFileSync(initdb, ["-D", dataDir, "-U", "postgres", "-A", "scram-sha-256", "--pwfile", pwfile, "-E", "UTF8"], { stdio: "pipe", timeout: 60_000 });
+    execFileSync(initdb, ["-D", dataDir, "-U", "postgres", "-A", "scram-sha-256", "--pwfile", pwfile, "-E", "UTF8"], { stdio: "pipe", timeout: 60_000, ...asAccount });
     rmSync(pwfile);
     // This consumer fixture owns its server and credentials. The production launcher's
     // untouched handoff is exercised by project-routing 1.4, including after it adopts auth.
@@ -113,7 +124,7 @@ test("1.16 authenticated discovery connects to an independently provisioned SCRA
     try {
       // No inherited pipes: Windows pg_ctl can leave their handles in the server's shell.
       execFileSync(pgctl, ["-D", dataDir, "-o", `-p ${port} -c listen_addresses=127.0.0.1`,
-        "-l", path.join(home, "server.log"), "-w", "start"], { stdio: "ignore", timeout: 60_000 });
+        "-l", serverLog, "-w", "start"], { stdio: "ignore", timeout: 60_000, ...asAccount });
       const f = fixture(home, port);
       const discovered = route(home, { home });
       assert.equal(discovered.status, "routed", discovered.status === "not-running" ? discovered.message : "project routing failed");
@@ -137,7 +148,7 @@ test("1.16 authenticated discovery connects to an independently provisioned SCRA
     } finally {
       // Also stop a server whose startup timed out after creating its PID file.
       if (existsSync(path.join(dataDir, "postmaster.pid"))) {
-        execFileSync(pgctl, ["-D", dataDir, "-m", "immediate", "-w", "stop"], { stdio: "ignore", timeout: 60_000 });
+        execFileSync(pgctl, ["-D", dataDir, "-m", "immediate", "-w", "stop"], { stdio: "ignore", timeout: 60_000, ...asAccount });
       }
     }
   });

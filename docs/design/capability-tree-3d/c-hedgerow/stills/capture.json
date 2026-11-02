@@ -1,0 +1,64 @@
+{
+  "counts": {
+    "state": "ready",
+    "gates": "31",
+    "bushes": "608",
+    "tracks": "64"
+  },
+  "restingErrors": [],
+  "wrench": {
+    "clicked": {
+      "kind": "wrench",
+      "capability": "capability_a954e1eb16f6",
+      "sample": false
+    },
+    "card": {
+      "kind": "wrench",
+      "heading": "Wrench on 8 · Cloud connection (GCP)",
+      "items": 1
+    }
+  },
+  "track": {
+    "clicked": {
+      "kind": "track",
+      "links": [
+        "capability_f27ac2abb10b->capability_dd486ffa5b02",
+        "capability_75d059640d9d->capability_dd486ffa5b02",
+        "capability_75d059640d9d->capability_baaeecb42577",
+        "capability_13b04e769a4b->capability_dd486ffa5b02",
+        "capability_13b04e769a4b->capability_baaeecb42577",
+        "capability_d632ff0454c0->capability_a7f068502213"
+      ]
+    },
+    "card": {
+      "kind": "track",
+      "heading": "Track shared by 6 links",
+      "items": 138
+    }
+  },
+  "gate": {
+    "clicked": {
+      "kind": "gate",
+      "links": [
+        "capability_baaeecb42577->capability_a1d4fadbec3e"
+      ],
+      "between": [
+        "capability_baaeecb42577",
+        "capability_a1d4fadbec3e"
+      ]
+    },
+    "card": {
+      "kind": "gate",
+      "heading": "Gate between 6 · Knowledge artifacts and 3 · Data schema",
+      "items": 19
+    }
+  },
+  "territory": {
+    "aimedAt": "capability_f27ac2abb10b",
+    "card": {
+      "kind": "territory",
+      "heading": "5 · Health record",
+      "items": 18
+    }
+  }
+}

@@ -9,7 +9,7 @@
  */
 import assert from "node:assert/strict";
 import { spawn, spawnSync, type ChildProcess } from "node:child_process";
-import { appendFileSync, chmodSync, cpSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { appendFileSync, chmodSync, chownSync, cpSync, existsSync, lchownSync, lstatSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { connect, createServer, type Server } from "node:net";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -29,6 +29,8 @@ const packageDir = fileURLToPath(new URL("..", import.meta.url));
 const holderScript = fileURLToPath(new URL("./testing/holder.ts", import.meta.url));
 const root = mkdtempSync(path.join(tmpdir(), "storytree-local-postgres-"));
 const exe = (tool: string): string => (process.platform === "win32" ? `${tool}.exe` : tool);
+/** Run as root (a cloud container), the account the tools run as; the tests' own tool runs take it too. */
+const toolAccount = serverAccount();
 
 /** Every server and holder a test started, stopped at the end whatever happened. */
 const servers = new Set<LocalPostgres>();
@@ -218,7 +220,7 @@ test("2.6 the server lets in only a client with the installation's password, whi
 });
 
 test("2.7 a cluster made when local connections were trusted is given the password before its server starts again, keeping its data, and an interrupted start never reopens it, even for a Windows administrator", async () => {
-  const dataDir = path.join(root, "legacy");
+  const dataDir = path.join(toolsFolder("legacy-home"), "legacy");
   assert.equal(tool("initdb", ["-D", dataDir, "-U", "postgres", "-A", "trust", "-E", "UTF8"]), 0);
   appendFileSync(path.join(dataDir, "postgresql.conf"), "\nlisten_addresses = '127.0.0.1'\n");
   const oldPort = await freePort();
@@ -413,13 +415,15 @@ test("2.15 a database an interrupted run left invalid is dropped when the server
  * beside it (so the copy holds the password it is started with). cpSync makes the directories it
  * copies with the default mode (0755 under the usual umask), not the source's, and outside Windows
  * Postgres will not start on a data directory other users can read, so the copy is given back
- * initdb's 0700, and the sign-in its 0700 and 0600.
+ * initdb's 0700, and the sign-in its 0700 and 0600. cpSync also makes the copy this process's,
+ * and run as root the template is the tools' account's, so the copy is given back its owner too.
  */
 async function freshCluster(name: string): Promise<string> {
   const template = path.join(root, "template");
   await ensureCluster(template);
   const dataDir = path.join(root, name);
   cpSync(template, dataDir, { recursive: true });
+  keepOwner(template, dataDir);
   chmodSync(dataDir, 0o700);
   cpSync(`${template}.auth`, `${dataDir}.auth`, { recursive: true });
   chmodSync(`${dataDir}.auth`, 0o700);
@@ -500,9 +504,33 @@ function pgCtl(args: string[]): number {
   return tool("pg_ctl", args);
 }
 
+/** Postgres will not run as root, so run as root a tool runs as the tools' account, as the code under test runs it. */
 function tool(name: string, args: string[]): number {
-  const result = spawnSync(path.join(findBinaries(), exe(name)), args, { stdio: "ignore" });
+  const result = spawnSync(path.join(findBinaries(), exe(name)), args, {
+    stdio: "ignore",
+    ...(toolAccount === undefined ? {} : { uid: toolAccount.uid, gid: toolAccount.gid }),
+  });
   return result.status ?? 1;
+}
+
+/** A folder under the tests' root that the tools' account may make things in, for the tests' own tool runs. */
+function toolsFolder(name: string): string {
+  const dir = path.join(root, name);
+  mkdirSync(dir);
+  if (toolAccount !== undefined) {
+    chownSync(dir, toolAccount.uid, toolAccount.gid);
+    letThrough(path.join(dir, "inside"), toolAccount);
+  }
+  return dir;
+}
+
+/** Give everything copied from `from` to `to` its source's owner, as `cp -a` does (outside Windows). */
+function keepOwner(from: string, to: string): void {
+  if (process.platform === "win32") return;
+  const source = lstatSync(from);
+  const copy = lstatSync(to);
+  if (copy.uid !== source.uid || copy.gid !== source.gid) lchownSync(to, source.uid, source.gid);
+  if (source.isDirectory()) for (const entry of readdirSync(from)) keepOwner(path.join(from, entry), path.join(to, entry));
 }
 
 /**

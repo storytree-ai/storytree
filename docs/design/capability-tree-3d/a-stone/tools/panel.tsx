@@ -71,7 +71,7 @@ export function Panel({ data, picked, onPick, sample, onSample, fills, links = n
   } else if (picked.kind === "gate") {
     const g = gates.get(picked.id)!, c = byId.get(g.town)!, first = links.get(g.links[0]!)!;
     body = <>
-      <p className="mock-kicker">Gate{g.walled ? "" : " (open ground, no wall)"}</p>
+      <p className="mock-kicker">Gate (a gap in the border)</p>
       <h3>Into {c.title}{g.links.length === 1 ? ` from ${first.fromTitle}` : ` from ${first.fromStory === data.story.title ? "this island" : "other islands"}`}</h3>
       <p className="mock-muted">{g.links.length === 1 ? "This link's own gate; its road is lit in gold." : `The road from the coast brings ${g.links.length} links in by this gate; their roads are lit in gold.`}</p>
       <h4>{c.title}'s contracts</h4>{contracts(c.contracts)}
@@ -94,9 +94,9 @@ export function Panel({ data, picked, onPick, sample, onSample, fills, links = n
       <ul className="mock-legend">
         {fills.map(f => <li key={f.word}><span className="mock-swatch" style={{ background: f.colour }} />{f.word}</li>)}
         {/* Each swatch is a small copy of the mark it names. */}
-        <li><svg className="mock-mark" viewBox="0 0 22 12" aria-hidden="true"><path d="M1 11V5h3V2h3v3h3V2h3v3h3V2h3v3h1v6Z" fill="#ece4d0" stroke="#1b1814" strokeWidth="1" strokeLinejoin="round" /></svg>wall</li>
-        <li><svg className="mock-mark" viewBox="0 0 22 12" aria-hidden="true"><path d="M1 7H21" stroke="#6e5236" strokeWidth="2" strokeDasharray="4 3" /></svg>road</li>
-        <li><svg className="mock-mark" viewBox="0 0 22 12" aria-hidden="true"><path d="M1 11V3h2V1h1v2h1V1h1v2h2v8ZM14 11V3h2V1h1v2h1V1h1v2h2v8Z" fill="#ece4d0" stroke="#1b1814" strokeWidth="0.9" strokeLinejoin="round" /></svg>gate</li>
+        <li><svg className="mock-mark" viewBox="0 0 22 12" aria-hidden="true"><path d="M1 6H21" stroke="#f4f7f8" strokeWidth="1.4" strokeDasharray="3.5 2.5" /></svg>border</li>
+        <li><svg className="mock-mark" viewBox="0 0 22 12" aria-hidden="true"><path d="M1 7H21" stroke="#6e5236" strokeWidth="3.6" /><path d="M1 7H21" stroke="#c7bba1" strokeWidth="2.4" /></svg>road</li>
+        <li><svg className="mock-mark" viewBox="0 0 22 12" aria-hidden="true"><path d="M0 3H6M16 3H22" stroke="#f4f7f8" strokeWidth="1.4" strokeDasharray="3 2" /><path d="M7 0.5V5.5M15 0.5V5.5" stroke="#f4f7f8" strokeWidth="1.6" /><path d="M11 1V12" stroke="#6e5236" strokeWidth="3.6" /><path d="M11 1V12" stroke="#c7bba1" strokeWidth="2.4" /></svg>gate</li>
         <li><svg className="mock-mark" viewBox="-10 -36 20 38" aria-hidden="true"><path d={WRENCH} fill="#1b1814" stroke="#ece4d0" strokeWidth="2" /></svg>wrench</li>
       </ul>
       <label className="mock-check"><input type="checkbox" checked={sample} onChange={e => onSample(e.target.checked)} /> Add sample work (made up, not in the library)</label>

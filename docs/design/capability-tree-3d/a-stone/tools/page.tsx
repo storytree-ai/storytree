@@ -1,5 +1,5 @@
-/** Capability tree, 3D mock 1, round 4: the real map's view of The library, as the desktop app draws it, its territories
- * unchanged, with a walled town inset in each and roads between them, drawn as an inked map in 2.5D (town.ts, castle.ts). `?real` draws the island as the map does today,
+/** Capability tree, 3D mock 1, round 5: the real map's view of The library, as the desktop app draws it, its territories
+ * unchanged, their borders dashed, solid roads between them, and each link's gate a gap in the border (town.ts, castle.ts). `?real` draws the island as the map does today,
  * file dots and all, with nothing added: the left half of the side-by-side. */
 import { createRoot } from "react-dom/client";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -26,7 +26,7 @@ const REAL = params.has("real");
 /** How much of the sheet half the window's short side spans at rest, in ground units: The library close up. */
 const GROUND = Number(params.get("ground") ?? 150);
 /** How much larger the island is drawn than its lines of code would make it: every file's lines times this, so each
- * territory keeps its share and shape and only the strips between the towns widen. */
+ * territory keeps its share and shape. */
 const ROOM = Number(params.get("room") ?? 1);
 const PANEL_WIDTH = 352;
 /** The rest view's margin around the plan, in CSS pixels. */

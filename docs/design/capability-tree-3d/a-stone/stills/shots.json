@@ -4,8 +4,8 @@
       "kind": "wrench",
       "mark": "capability_a954e1eb16f6",
       "at": {
-        "x": 423,
-        "y": 428
+        "x": 494,
+        "y": 480
       },
       "heading": "Work wanting 8 · Cloud connection (GCP)"
     },
@@ -13,8 +13,8 @@
       "kind": "gate",
       "mark": "capability_d632ff0454c0->capability_a7f068502213",
       "at": {
-        "x": 409,
-        "y": 664
+        "x": 454,
+        "y": 644
       },
       "heading": "Into 10 · Work in flight from 11 · Waits"
     },
@@ -22,8 +22,8 @@
       "kind": "link",
       "mark": "capability_389fd5e3722d->capability_d8451645c169",
       "at": {
-        "x": 358,
-        "y": 613
+        "x": 319,
+        "y": 622
       },
       "heading": "26 · Rounds calls 25 · Lapsed questions"
     },
@@ -31,8 +31,8 @@
       "kind": "territory",
       "mark": "capability_dd486ffa5b02",
       "at": {
-        "x": 673,
-        "y": 350
+        "x": 658,
+        "y": 391
       },
       "heading": "4 · Work model"
     },
@@ -40,8 +40,8 @@
       "kind": "link",
       "mark": "capability_a6d2887aed63->capability_88a6aaa1fa93",
       "at": {
-        "x": 382,
-        "y": 551
+        "x": 232,
+        "y": 677
       },
       "heading": "15 · Connection by address calls Keys · 1 · Key store and resolver"
     },
@@ -49,8 +49,8 @@
       "kind": "road",
       "mark": "0",
       "at": {
-        "x": 718,
-        "y": 592
+        "x": 768,
+        "y": 554
       },
       "heading": "210 links along this road"
     },
@@ -58,8 +58,8 @@
       "kind": "wrench",
       "mark": "capability_a7f068502213:sample",
       "at": {
-        "x": 425,
-        "y": 688
+        "x": 518,
+        "y": 681
       },
       "heading": "Work wanting 10 · Work in flight"
     },
@@ -67,68 +67,25 @@
       "kind": "territory",
       "mark": "capability_a1d4fadbec3e",
       "at": {
-        "x": 679,
-        "y": 218
+        "x": 663,
+        "y": 282
       },
       "heading": "3 · Data schema"
     },
     {
       "kind": "gate",
-      "mark": "capability_53fd994f7b4c->capability_36bcae448803",
+      "mark": "capability_b7a12a2b7273->capability_a19bf216935b",
       "at": {
-        "x": 228,
-        "y": 564
+        "x": 446,
+        "y": 524
       },
-      "heading": "Into 23 · Catalogue from 24 · Graduation"
+      "heading": "Into 21 · Links from 22 · Decision log"
     }
   ],
   "layer": {
-    "inset": 5,
-    "wallCut": 8.5,
-    "towns": 24,
-    "walled": 12,
-    "unwalled": [
-      "9 · Knowledge entrances (38 lines, 7.1 deep)",
-      "21 · Links (103 lines, 6.8 deep)",
-      "22 · Decision log (103 lines, 7.1 deep)",
-      "23 · Catalogue (102 lines, 7.9 deep)",
-      "24 · Graduation (130 lines, 6.8 deep)",
-      "25 · Lapsed questions (12 lines, 6.8 deep)",
-      "26 · Rounds (405 lines, 8.4 deep)",
-      "11 · Waits (269 lines, 7.0 deep)",
-      "12 · Owner questions (259 lines, 6.8 deep)",
-      "15 · Connection by address (388 lines, 7.2 deep)",
-      "16 · The command schema (173 lines, 7.0 deep)",
-      "27 · Fixed data questions (218 lines, 5.2 deep)"
-    ],
-    "depths": {
-      "1 · Project libraries": 20.7,
-      "2 · Library transactions": 20.1,
-      "3 · Data schema": 22.8,
-      "4 · Work model": 16.8,
-      "6 · Knowledge artifacts": 15.9,
-      "5 · Health record": 10,
-      "7 · Library API": 8.6,
-      "8 · Cloud connection (GCP)": 11.2,
-      "9 · Knowledge entrances": 7.1,
-      "21 · Links": 6.8,
-      "22 · Decision log": 7.1,
-      "23 · Catalogue": 7.9,
-      "24 · Graduation": 6.8,
-      "25 · Lapsed questions": 6.8,
-      "26 · Rounds": 8.4,
-      "10 · Work in flight": 16.5,
-      "11 · Waits": 7,
-      "12 · Owner questions": 6.8,
-      "13 · Decision log": 10.9,
-      "14 · Ranked search": 10.2,
-      "15 · Connection by address": 7.2,
-      "16 · The command schema": 7,
-      "17 · The library's commands": 11.5,
-      "27 · Fixed data questions": 5.2
-    },
-    "turns": 57,
-    "wallLength": 959,
+    "gap": 4.2,
+    "territories": 24,
+    "gapsCut": 76,
     "gates": 43,
     "links": 239,
     "routed": 239,
@@ -144,9 +101,9 @@
         "links": 211
       }
     ],
-    "stretches": 284,
-    "sharedStretches": 134,
-    "chains": 117,
+    "stretches": 189,
+    "sharedStretches": 103,
+    "chains": 78,
     "wrenches": 1,
     "borders": 147
   },

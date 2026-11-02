@@ -1,25 +1,80 @@
-# Capability tree, 3D mock 1: walled towns inset in the map's own territories, drawn as an inked map
+# Capability tree, 3D mock 1: the map's own territories, dashed borders, solid roads, and a gap in the border for each gate
 
-The real map's 3D island for The library, as the desktop app draws it, with its land laid out again: each capability a
-walled field in its health colour, the fields placed by what they call, open common ground between them, and the paths
-running along the commons from gate to gate. The walls, gates, paths and wrench are drawn as an inked cartographer's map in
-2.5D, in the manner of the map's claim flags: flat-drawn, upright, unlit. This is Mick's rework of mock 1 (increment_355de70ab9c4
-on arc_9bbaa3497530, question_752b6ef53b90), after "looks very cramped, pathways look a mess". A mock only: it changes no
-product code.
+The real map's 3D island for The library, as the desktop app draws it: each capability's territory as the map draws it
+(shape, size by lines of code, health colour), the borders between them dashed, the roads between them solid, and each
+link's gate a gap in the called territory's border where its road comes in. This is Mick's rework of mock 1
+(increment_355de70ab9c4 on arc_9bbaa3497530, question_752b6ef53b90), now at round 5; the rounds before are recorded below.
+A mock only: it changes no product code.
 
 **Open it:** `index.html`, straight from disk; it needs no network. Drag to pan, right-drag (or Q/E and R/F) to turn and
-tilt, wheel to zoom: the map's own controls. Click a field, a path, a gate, the road off the coast or a wrench, and the
+tilt, wheel to zoom: the map's own controls. Click a territory, a road, a gate, the road off the coast or a wrench, and the
 panel on the right shows what it holds. The window is 1440 × 900 with the story panel's 352 pixels on the right, as the app
-lays it out; the rest view frames the whole plan, every name and path in sight.
+lays it out; the rest view frames the whole island, every name and road in sight.
 
 ![Resting view](stills/resting.png)
 
-## Round 4: walled towns inset in the map's own territories (increment_d14a67b93b8a)
+## Round 5: no walls; dashed borders that open where a solid road enters (increment_2e7db9a9e5f4)
+
+Mick, 2026-11-02, on round 4: "4 is done, but it still looks vergy noisy. Lets not go with the walls, lets try the borders
+with gaps for the pathway to flow into. Note i think most maps use dashes for territory borders, and solid lines for
+pathways right?" Yes: a cartographer draws a boundary dashed and a road solid. One build, no review loop. The page now draws
+round 5; round 4 is the section below, and is seen in `round-4.png` and in git history (PR #237). Round 5 retook the stills
+under the same names, and `round-5.png` keeps its resting view.
+
+![Round 5 at rest](stills/resting.png)
+
+| What | How the page does it now |
+| --- | --- |
+| No walls, no towns | The walled towns, their towers and crenellations, and the gateposts are gone. Each territory is open land, its name at its deepest point. |
+| Territories unchanged | The map's own territories, drawn by the map: shape, size by lines of code and health colour. No layout change. |
+| Dashed borders | The map's thin solid white border is hidden on this island and drawn again from the same lines (`map.borders`, cut to the coast) as dashes, in the map's border colour **`#f4f7f8`**: **0.42** ground units wide (about 1.1 pixels at rest), a **2.6**-unit repeat with the dash on for 55% of it (a dash about 3.7 pixels, a space about 3). The coast is the map's, untouched. |
+| Solid roads | Every road is one solid line in the map's own road colour, **`#c7bba1`** (the warm sand of the map's dependency roads), **0.95** units wide (about 2.5 pixels) on a thin **`#6e5236`** edge **0.22** units each side, so a road is about three times a border's weight and never reads as one. Where roads meet or end, a round cap joins them. Routing is round 4's: along the borders and the coast between them, never through a third territory; stretches already walked are cheaper, so shared ways merge; the links from other islands come ashore at the map's own docks and split to the territories they serve. A road runs on top of a border it follows, hiding those dashes. |
+| A gate is a gap | Where a link's road enters the called capability's territory, that territory's dashed border opens for **4.2** units (about 11 pixels), centred where the road crosses, and the road runs through and **about 4.8** units in (shortened where the territory is too narrow). The gap is placed on the called territory's own border, as near along it as it can stand to where the road first meets that territory, and at least a gap and a quarter from every other gap; the coast is never opened. 43 gates, 76 border pieces opened. |
+| The gap's mark (chosen by eye) | A short tick across the border at each end of the gap, in the border's colour, **0.8** units wide and **2.5** long: the dashes end in two posts with the road between them. Widening the road's end was tried in thought and left out: a wider road end reads as a junction, the ticks read as an opening. Each gap is its own click target (an unseen box a gap and a fifth square over its mouth). |
+| Clicks | A gate shows its contracts (the called capability's) and its link or links, and lights its route in one solid gold line, its ticks gold too; nothing is hidden or dimmed. A road (one link: its called capability's contracts; a shared road: every link along it). A territory (lights its own dashed border gold). The wrench and the panel's links, as before. |
+| Gates shared from other islands | As round 4: the links one road brings from the coast to one territory share one gap (16 such gates), not one gap each, which would be 212. |
+| The wrench | The flat ink wrench stands just inside the gap its work changes (the territory's busiest gate): Cloud connection's, from the coast. |
+
+**Kept:** every name shown and none hidden, the map's colours, pan and zoom, every click, the road to Keys, the sample-work
+box. `?gap=` changes the gap's width in the browser.
+
+### Round 5's stills
+
+| Still | What it shows |
+| --- | --- |
+| `resting.png` | The resting view |
+| `whole-island.png` | Panned out to the whole island |
+| `gaps.png` | A few gaps close up, round Links and Decision log, the gate from Decision log into Links picked |
+| `close-up.png` | Data schema close up, picked (its border lit) |
+| `orbited.png`, `orbited-south-west.png` | Turned and tipped by the map's own keys, two ways |
+| `gate.png` | A link's own gate into Work in flight: its contracts, its route in gold |
+| `pathway-contracts.png` | Rounds calls Lapsed questions, clicked on its road |
+| `road-arriving.png` | The road from the south-east dock splitting to the territories it serves, every way lit |
+| `road-off-the-coast.png` | The road to Keys, leaving by the south-west dock |
+| `wrench-arcs.png`, `sample-wrench-arcs.png` | The Cloud connection wrench open; the sample wrench |
+| `territory.png` | Work model's description and contracts |
+| `real-today.png`, `side-by-side.png` | The map's island today, beside round 5 |
+
+![Today's map beside round 5](stills/side-by-side.png)
+
+### What I would look at next (for Mick; nothing built from these)
+
+1. Where a road follows a border it covers the dashes, so on those stretches the boundary is read only from the colours
+   either side; drawing the road a little to one side of the border would keep both.
+2. A road starts on its caller's border with no mark, so which side it leaves from is read from the panel, not the land.
+3. The south-east dock's trunk still runs under many territories; showing links from other islands only when one is picked
+   would calm the island most.
+4. Small territories with several gates (Catalogue, Library API) have their gaps close together; one shared gap for the
+   links that arrive by the same border may read better.
+5. The ticks are the border's white; in gold when picked they are easy to see, at rest a hair small when the map is tipped
+   low.
+
+## Round 4: walled towns inset in the map's own territories (increment_d14a67b93b8a, superseded by round 5)
 
 Mick, 2026-11-02: "keep the territory size, but take the idea from the first mock where it did blocks with the fence, only we
 dont make it square blocks ... the city/wall is inside the territory giving room for a pathway to be drawn into it." One build,
 no review loop, so he can judge the direction from the pictures. Round 3's branches (stopped: "too much wall") were not used.
-The page now draws round 4; everything from "What changed from mock 1" down is the earlier version's record. Round 4 retook
+Round 4 is now the earlier version's record, as is everything from "What changed from mock 1" down. Round 4 retook
 the stills under the same names, so the earlier version is seen only in `round-1.png` to `round-4.png` and in git history (PR #230).
 
 ![Round 4 at rest](stills/resting.png)
@@ -120,7 +175,7 @@ project's library and the code survey the map itself uses:
 **Sample, clearly marked:** the box "Add sample work (made up, not in the library)" adds a second wrench, lavender and
 tagged "sample", on 10 · Work in flight, with three made-up increments on two made-up arcs. Nothing else is sample.
 
-## Palette
+## Palette (mock 1 to round 4; round 5's colours are in its section above)
 
 | Meaning | Hex |
 | --- | --- |

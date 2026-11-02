@@ -68,13 +68,20 @@ is installed on the Mint box (`stable-acceptance.timer`), counting the fortnight
 
 `fortnight.sh`, from a weekly timer: every 14 days (`STABLE_ACCEPTANCE_INTERVAL_DAYS`; 7 for weekly) and only while
 no pin question waits on the owner, it takes `storytree release candidate` and runs the acceptance run on it. A pass
-raises "Pin 0.3.N as stable?" on arc_312aa103bfca with the evidence folder, the verdict, the cost and the release
+raises "Pin 0.3.N as stable?" on arc_e75e343c4afe with the evidence folder, the verdict, the cost and the release
 notes since the last pin; a yes is settled with the owner's words and that session runs `storytree release pin`.
 That question is the pin's evidence: this run is the fresh-install sweep the owner asked for before each formal
 release (question_0e1c032af8b9), so `storytree release pin` refuses a build without it, unless `--expedited`, and
 records it in the pin (contract 4.25).
 A failure raises nothing to the owner: it files a friction naming a regression in that build, which `release
 candidate` then passes over (with every later build, until the friction is closed), and tries the next candidate,
-up to three. `cost.mjs` gives the minutes, tokens and list-price dollars of the user's turns and the judge.
+up to three; that friction links the Moving stable process (process_79d46c9c757d), and if it cannot be filed the
+routine stops rather than run the same build again. A run with no verdict (the judge or the harness failed) is not the
+build's failure: it files a friction about the harness and tries no other build. A refusal from `release candidate`
+other than "no build is fit to pin" is filed as a friction too. Only a judged run counts as the fortnight's, so a run
+that could not start or be judged is tried again at the next Monday's timer. The runner is a clone of its own, which
+storytree refuses until it is approved as storytree's checkout: the routine approves it (`storytree doctor --join
+storytree`) when refused, and the judge signs in with the same token as the run's user (contract 1.17).
+`cost.mjs` gives the minutes, tokens and list-price dollars of the user's turns and the judge.
 
 Not here: the Mac acceptance run (`mac-acceptance.yml`, after every release) and Linux's, which its arc owns.

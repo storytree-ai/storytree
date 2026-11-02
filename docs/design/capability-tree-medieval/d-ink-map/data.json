@@ -1,0 +1,2470 @@
+{
+  "story": {
+    "id": "story_754e87e7d531",
+    "title": "The library"
+  },
+  "measuredAt": "2026-11-02T02:36:06.732Z",
+  "unclaimedLines": 0,
+  "capabilities": [
+    {
+      "id": "capability_5e0362aae607",
+      "number": "1",
+      "title": "Project libraries",
+      "contracts": [
+        {
+          "number": "1.1",
+          "title": "`openProject(\"site\")` on a server with no storytree databases creates the project's database and its tables; a project set up before a table changed gains what was added since at its next open."
+        },
+        {
+          "number": "1.2",
+          "title": "Opening the same project again succeeds and changes nothing (no error, no second database, its records are untouched)."
+        },
+        {
+          "number": "1.3",
+          "title": "After opening \"site\" and \"app\", `listProjects()` returns exactly `[\"app\", \"site\"]`. Databases on the server that are not storytree projects are never listed."
+        },
+        {
+          "number": "1.4",
+          "title": "A record saved in \"site\" cannot be read from \"app\"."
+        },
+        {
+          "number": "1.5",
+          "title": "A project name that is not lower-case letters, digits and single hyphens (1–40 characters, starting with a letter or digit) is refused before anything touches the server, and the error names the rule."
+        },
+        {
+          "number": "1.6",
+          "title": "`snapshot(\"site\")` returns every record of the project and its whole history, as they stood at one moment, while writes go on."
+        },
+        {
+          "number": "1.7",
+          "title": "`restore(\"copy\", snapshot)` into a project with no records and no history gives back the same records and the same history, sequence numbers, actors and times included, and the next write continues after them."
+        },
+        {
+          "number": "1.8",
+          "title": "Restoring into a project that holds any record or any history is refused, naming the project, and writes nothing."
+        },
+        {
+          "number": "1.9",
+          "title": "A local database that accepts TCP but never completes a fresh handshake is refused at a 10-second connection deadline by default (ADR-1163 D1), or at the deadline the caller gives, for both the server and project pools, with an actionable \"storytree isn't reachable\" answer that says the database took longer than that to answer and the computer may be busy. This includes library opens made by the CLI. A later call recovers once the database answers."
+        },
+        {
+          "number": "1.10",
+          "title": "Opening a project whose tables are current runs no table setup and writes nothing, so an account that may only read its tables (not their owner, no right to create in its schema) opens it and reads its records."
+        },
+        {
+          "number": "1.11",
+          "title": "Opening a project whose tables are not current, as an account that may not change them (no CREATE on its schema, or not holding the owner's rights over its tables), changes nothing: no table statement runs and no memory is converted. A project set up before opens as its tables stand, reads and writes as the account's grants allow, and warns once per process per project, naming the project, the account and the role owning its database. A project never set up is refused with a ConnectionError (`project-owner`) naming the project and the account and saying that only the role owning its database may set it up. Its owner's next open sets the tables up as before."
+        },
+        {
+          "number": "1.12",
+          "title": "`dropProject(name)` deletes the project's database, with every record and all its history, for every machine using the server; it is listed no more, other projects are untouched, and an unknown project is refused. An open that only reaches an existing project (`openProject(name, { create: false })`, how a folder that names a project opens it) refuses a deleted one as gone and never makes it again."
+        },
+        {
+          "number": "1.13",
+          "title": "Closing a server connection waits for project and own-database openings already in flight, releases every pool they create, and refuses new openings once closing starts."
+        },
+        {
+          "number": "1.14",
+          "title": "Loopback database connections refuse cleartext and MD5 password requests before sending credential material, for both admin and project pools; SCRAM and passwordless test connections still work."
+        },
+        {
+          "number": "1.15",
+          "title": "A project records whether it is the user's factory or a product naming its factory, and refuses to be both"
+        },
+        {
+          "number": "1.16",
+          "title": "A product project reads its factory's roles, notes and checks, and its own record of the same kind and title wins"
+        },
+        {
+          "number": "1.17",
+          "title": "A product's link to a system record it retired reads the record of that kind and title: its own, else its factory's"
+        },
+        {
+          "number": "1.18",
+          "title": "An edit through a product of a system record it reads from its factory writes the product's own copy, which wins, and retiring one hides it from the product; the factory is unchanged"
+        },
+        {
+          "number": "1.19",
+          "title": "A product's inherited records are the factory's system records it reads and holds none of its own for"
+        },
+        {
+          "number": "1.20",
+          "title": "A local url naming a connect_timeout (libpq's, in seconds) longer than the given deadline gives its handshakes that deadline, on both admin and project pools, and the refusal says so; a url naming none, or a shorter one, keeps the given deadline (10 seconds by default)"
+        },
+        {
+          "number": "1.21",
+          "title": "A project opened with system switches leaves each switched-off role, check and note out of its lists, selections and searches, a product's factory's included; a record's own title or id beats its group, which beats all; reading one by its id still finds it, and the plan is never switched off"
+        },
+        {
+          "number": "1.22",
+          "title": "Each history entry carries the server's own time and the account that wrote it, and no writer may change or remove one"
+        },
+        {
+          "number": "1.23",
+          "title": "An outside writer's role, fenced to its plugin's kinds, inserts a record of its own kind, and each history entry carries its role in recorded_by"
+        },
+        {
+          "number": "1.24",
+          "title": "An outside writer's role is refused a core kind, another plugin's kind, an update, a delete and any change to the tables"
+        },
+        {
+          "number": "1.25",
+          "title": "An outside writer whose plugin declares updates may change its own kind's records, and still no other record nor another kind"
+        },
+        {
+          "number": "1.26",
+          "title": "A project opened with a plugin's kinds writes and reads them; opened without them, a record of that kind reads dormant"
+        },
+        {
+          "number": "1.27",
+          "title": "fenceProject fences a plugin's writers in a live project's library as the owner, refusing a missing role or a non-owner account and naming what it fenced first"
+        },
+        {
+          "number": "1.28",
+          "title": "A change to the history goes only through the logged repair switch, for the owner too, and the owner's ordinary writes pass when row-level security is forced"
+        },
+        {
+          "number": "1.29",
+          "title": "A shared library gets schema and own-database table statements only from merged code"
+        }
+      ],
+      "description": "Each project gets its own library, a separate database on one Postgres server, created the first time the project is opened, with its tables set up automatically, and brought up to date by the next open after storytree adds to them. Opening a project whose tables are already current touches no table, so an account let only read, or write a few kinds of record, can open it too. Storytree can list the projects on the server, and nothing written in one project can ever show up in another, with one exception: a product project names the user's factory, and reads its system (roles, notes and checks) from it, its own records of the same kind and title winning (ADR-1040).",
+      "word": "healthy",
+      "parked": false,
+      "lines": 1977,
+      "files": 10,
+      "dependsOn": []
+    },
+    {
+      "id": "capability_5a80222c88c4",
+      "number": "2",
+      "title": "Library transactions",
+      "contracts": [
+        {
+          "number": "2.1",
+          "title": "`save` creates a record. Saving the same id again replaces it, and each save appends one history entry."
+        },
+        {
+          "number": "2.2",
+          "title": "`edit` changes only the fields it names; every other field keeps its stored value."
+        },
+        {
+          "number": "2.3",
+          "title": "`edit` merges onto what is stored NOW, not onto a copy the caller read earlier. If two edits of different fields race, both survive."
+        },
+        {
+          "number": "2.4",
+          "title": "`edit` of a missing record returns `null` and creates nothing."
+        },
+        {
+          "number": "2.5",
+          "title": "`get` of a missing record returns `null` and never throws."
+        },
+        {
+          "number": "2.6",
+          "title": "`list(type)` returns only that type's current records (none retired), and `[]` when there are none."
+        },
+        {
+          "number": "2.7",
+          "title": "`retire(id, reason)` removes the record from `get`/`list`, keeps the reason in the history, and retiring an already-retired or missing record is a harmless no-op."
+        },
+        {
+          "number": "2.8",
+          "title": "`history()` returns every change in the order it happened, with strictly increasing sequence numbers. `history({ id })` filters to one record, and `history({ since })` returns only entries after that sequence number."
+        },
+        {
+          "number": "2.9",
+          "title": "A `validate` check passed to `save`/`edit` sees the merged result. If it throws, nothing is written (no record change and no history entry)."
+        },
+        {
+          "number": "2.10",
+          "title": "A write naming an `actor` keeps it in history. A write without one is accepted and its history entry has no actor; an edit or retirement never inherits an earlier write's actor. Refused writes and harmless no-ops add no history entry."
+        },
+        {
+          "number": "2.11",
+          "title": "Save, edit and retire accept an optional abort signal. If aborted before write admission, including while waiting for the project write lock, they reject without changing records or history. After admission, cancellation does not interrupt the write or undo its history. The in-memory twin applies the same boundary at write entry."
+        },
+        {
+          "number": "2.12",
+          "title": "`history` also narrows on the server: `from` (a time) keeps the changes made at or after it, to the millisecond, however the time is written; `types` keeps only changes to records of those types (none for an empty list); `oldest: n` or `newest: n` keeps only the first or last n of what matches, still in order. Filters combine with each other and with `id` and `since`; a malformed one (a limit that is not a whole number above 0, both limits, or a time that is not one) is refused with a RangeError before anything is read."
+        },
+        {
+          "number": "2.13",
+          "title": "Lists narrow on the server by ids and stored field values, take an ordered limit, and project only requested fields on the named schema version; memory and Postgres agree."
+        },
+        {
+          "number": "2.14",
+          "title": "`revert(id, to, read)` writes the record back to the state its own history entry `to` kept, whole: changed fields restored, removed ones put back, added ones gone. It is one more `updated` entry whose reason names the entry it reverts to, with its writer; nothing in history is rewritten."
+        },
+        {
+          "number": "2.15",
+          "title": "A revert of a retired record to an entry before its retirement brings it back live under its own id, created when it first was, so links to that id reconnect. A retirement entry is not a state to revert to."
+        },
+        {
+          "number": "2.16",
+          "title": "A revert is refused, writing nothing, when the record was written to after the entry the writer read (`read` is not its newest seq), when the entry is not the record's own, or when its validate check throws."
+        },
+        {
+          "number": "2.17",
+          "title": "`history({ actor })` keeps only the changes one writer made, as their entries name them, on the server, combined with the other filters."
+        },
+        {
+          "number": "2.18",
+          "title": "`revertWrites({ of })` writes every record `of` wrote (health left out) back, in one write, to its state before `of`'s first write to it: a changed record to its entry before, a record `of` retired live again, a record `of` made retired. Each is one more entry naming the writer reverted and the entry it goes back to, with its own writer and reason; a record `of` made and retired itself is left alone. It returns what it changed, by id."
+        },
+        {
+          "number": "2.19",
+          "title": "`revertWrites` is refused, writing nothing, when another writer (named or not) wrote to any record `of` wrote after `of`'s first write to it: LaterWriterError names each such record with the first such entry and its writer. A check that throws refuses it whole too."
+        },
+        {
+          "number": "2.20",
+          "title": "A write made for a writer who had read outside text keeps what it read in its history entry; a write without one carries no mark"
+        },
+        {
+          "number": "2.21",
+          "title": "A library whose history has no place for the outside-text mark yet writes and reads its history as before, leaving the mark off"
+        },
+        {
+          "number": "2.22",
+          "title": "Each history entry read back names the account the server saw write it"
+        }
+      ],
+      "description": "The only data actions the library allows are: save a record, fetch it, list records of one type, change only named fields, retire a record with a reason, revert a record, retired or not, to the state one of its own history entries kept, or revert every record one writer wrote to its state before that writer's first write, refused where another writer wrote since. Every change is all-or-nothing, and is written first to a permanent, append-only history, so nothing is ever truly erased.\n",
+      "word": "healthy",
+      "parked": false,
+      "lines": 1722,
+      "files": 7,
+      "dependsOn": [
+        "capability_5e0362aae607"
+      ]
+    },
+    {
+      "id": "capability_a1d4fadbec3e",
+      "number": "3",
+      "title": "Data schema",
+      "contracts": [
+        {
+          "number": "3.1",
+          "title": "Saving a `story` with no `title` is refused, the error names `title`, and nothing is written."
+        },
+        {
+          "number": "3.2",
+          "title": "An unknown field (for example `titel`) is refused and named."
+        },
+        {
+          "number": "3.3",
+          "title": "An unknown type is refused."
+        },
+        {
+          "number": "3.4",
+          "title": "Every stored record carries its schema version (1 today)."
+        },
+        {
+          "number": "3.5",
+          "title": "Reading a record stamped with a version newer than this code knows is refused, never guessed at. The error names the record and both schema versions, gives the update and agent-link restart steps, and reports the running code commit distance behind locally fetched origin/main when known; unavailable Git information never masks the refusal or invents a distance."
+        },
+        {
+          "number": "3.6",
+          "title": "An `edit` that would leave the record invalid (for example blanking a required field) is refused, and nothing is written."
+        },
+        {
+          "number": "3.7",
+          "title": "A record written on an OLDER version of its type is read (`get`, `list`) upgraded to the current version, its upgrade steps applied in order. Reading it writes nothing."
+        },
+        {
+          "number": "3.8",
+          "title": "An `edit` of such a record merges onto its upgraded fields and stores it on the current version, in place, in the same all-or-nothing write. If the upgraded result does not fit, nothing is written."
+        },
+        {
+          "number": "3.9",
+          "title": "An older record that no upgrade step brings to the next version is refused by `get`, `list` and `edit`, with an error naming the missing step. It is never guessed at."
+        },
+        {
+          "number": "3.10",
+          "title": "A friction report written before reports carried a state reads with one worked out from its route and stamp (no route open, nothing dismissed, a stamp resolved, any other route routed), and its next write stores it so"
+        },
+        {
+          "number": "3.11",
+          "title": "A story and a capability carry their prose as `text`, read back whole and in order; one written without it reads as before"
+        },
+        {
+          "number": "3.12",
+          "title": "A process's schedule, time zone and precheck are validated: words the parser cannot read, a grace on any but a daily schedule, an unknown time zone, a precheck not on the fixed list, or a time zone or precheck on a process with no schedule are refused and named"
+        },
+        {
+          "number": "3.13",
+          "title": "A process's schedule reads back as written, and as its rule (a daily schedule's grace in minutes), its times in its own time zone or the owner's, and its precheck as written; a process with no schedule reads as before"
+        },
+        {
+          "number": "3.14",
+          "title": "A story carries a risk reading (a blast depth 1 to 3 and a blast radius 1 to 4 with its downstream stories, audience and users, each with the day read and why), and a story or capability its own guardrails (a check and whether a change or a release triggers it); a value out of range is refused and named, and a record written without them reads as before"
+        },
+        {
+          "number": "3.15",
+          "title": "A kind a plugin declares, `<plugin>.<kind>` with its fields' shape as JSON Schema, is written and read back like a core kind, and read upgraded by the steps it declares as data."
+        },
+        {
+          "number": "3.16",
+          "title": "A dotted kind no loaded plugin declares is refused on write, and nothing is written."
+        },
+        {
+          "number": "3.17",
+          "title": "A write that breaks the shape its plugin declared is refused, naming each field at fault, and nothing is written."
+        },
+        {
+          "number": "3.18",
+          "title": "A plugin kind no loaded plugin declares reads dormant: kept intact and readable by id, hidden from lists, refused an edit; declared again, its records read as before."
+        },
+        {
+          "number": "3.19",
+          "title": "A write to a principle, guardrail, pattern, process, agent role or decision carries the mark of the outside text its writer had read; a write of any other kind carries none"
+        }
+      ],
+      "description": "Every record has a declared type with a fixed set of fields, and a badly filled-in record is refused with a message naming the problem field. Every record is stamped with the schema version it was written on, so a later change to a type is handled deliberately rather than silently misread: an older record is upgraded automatically, step by step, and stored upgraded the next time it is written, because every user's library is their own database and nobody else can repair it.",
+      "word": "healthy",
+      "parked": false,
+      "lines": 1929,
+      "files": 10,
+      "dependsOn": [
+        "capability_5a80222c88c4"
+      ]
+    },
+    {
+      "id": "capability_dd486ffa5b02",
+      "number": "4",
+      "title": "Work model",
+      "contracts": [
+        {
+          "number": "4.1",
+          "title": "Add a story, a capability under it and a contract under that, and `projectTree()` returns them nested: story › capability › contract."
+        },
+        {
+          "number": "4.2",
+          "title": "An arc listing that story is returned by `arcsFor(storyId)`. An arc listing no stories is accepted."
+        },
+        {
+          "number": "4.3",
+          "title": "A capability naming a missing (or retired) story is refused, as is a contract naming a missing capability and an arc listing a missing story."
+        },
+        {
+          "number": "4.4",
+          "title": "A capability depending on another capability that does not exist is refused."
+        },
+        {
+          "number": "4.5",
+          "title": "A dependency loop between capabilities (A → B → A, or longer) is refused, and nothing is written."
+        },
+        {
+          "number": "4.6",
+          "title": "A capability is born proposed. The agent switches the flag off, and back on, and history names the writer; only a live capability has the flag, and a capability written before the flag reads proposed."
+        },
+        {
+          "number": "4.7",
+          "title": "A contract planned without a number is given its capability's next free one (after the highest its live contracts carry); a title whose number another live contract of the capability carries is refused, on planning and on correcting, and nothing is written. A capability with no number numbers nothing."
+        },
+        {
+          "number": "4.8",
+          "title": "A capability planned without a number is given its story's next free one (after the highest its live capabilities carry), so the contracts planned on it are numbered from the start; a number given is kept."
+        },
+        {
+          "number": "4.9",
+          "title": "Retiring a capability with live dependents is refused, naming every dependent and dependsOn, with nothing written; after those links are removed or the dependents retired, retirement succeeds with its reason and writer kept in history."
+        },
+        {
+          "number": "4.10",
+          "title": "A contract planned without a number skips the numbers the capability's tests already carry, past the highest; a number given is kept"
+        },
+        {
+          "number": "4.11",
+          "title": "a contract planned without a number never takes the number of a numbered test no live contract carries: it gets the next free number past it, and only a number given binds it to that test"
+        },
+        {
+          "number": "4.12",
+          "title": "A story is made mapped only by mapStories: a mapped field given to addStory or editStory is refused, and nothing is written"
+        },
+        {
+          "number": "4.13",
+          "title": "mapStories(from, packages) adds a mapped story, with no capabilities, for each package no live story of that import maps, retires that import's stories whose package is gone, and leaves every other story as it stands"
+        },
+        {
+          "number": "4.14",
+          "title": "The plan's tree carries a mapped story's import, package and folders as mapStories recorded them; a story storytree built carries none"
+        },
+        {
+          "number": "4.15",
+          "title": "A number given in a contract's title is written in the numbered form, number then \" · \", so every reader of contract numbers finds it"
+        },
+        {
+          "number": "4.16",
+          "title": "a capability on a mapped story is planned with the folders and files of its import it covers, several roots allowed and written plainly; one with none, or a path outside its story's folders, is refused, as are covers on a built story"
+        },
+        {
+          "number": "4.17",
+          "title": "no two capabilities of a mapped story cover one file: a path equal to, inside or around another's is refused, naming the capability that covers it, on planning and on correcting"
+        },
+        {
+          "number": "4.19",
+          "title": "The project's anchor is written a half at a time, what it is and who it is for (setAnchor), at one id, and read back by anchor() and the plan's tree; a half given as undefined is removed, and an empty half is refused with nothing written (ADR-1085 D1)."
+        },
+        {
+          "number": "4.20",
+          "title": "anchorGaps(tree) reads what the plan has not said, the anchor's missing halves only, and nothing when both are said; no story is ever named (ADR-1085 D1, ADR-1096); it fails nothing."
+        },
+        {
+          "number": "4.21",
+          "title": "a story carries no audience (ADR-1096): one given an audience is refused with nothing written, and one stored with an audience before reads without failing, its tree node carries none, and its next edit stores it without one"
+        },
+        {
+          "number": "4.22",
+          "title": "The plan's tree carries a story's risk reading and guardrails, and a capability's guardrails, as stored; one without them carries none"
+        },
+        {
+          "number": "4.23",
+          "title": "A pull request number resolves through the project's repository cut-over by when it was recorded: before it, the old repository's (none when that one was deleted); on its day or after, the new one's; with no cut-over, the project's one repository's"
+        },
+        {
+          "number": "4.24",
+          "title": "A capability planned or retitled with a number another live capability of its story carries is refused, naming that one and the story's next free number; nothing is written"
+        },
+        {
+          "number": "4.25",
+          "title": "importPluginPlan writes a plugin's story, capabilities and contracts from its plan, adopting a live story the first time; a later import matches capabilities by number and contracts by theirs, edits what changed, adds what is new and retires what the plan no longer holds, keeping ids"
+        },
+        {
+          "number": "4.26",
+          "title": "a plugin's story, its capabilities and its contracts are refused every plan edit (story, capability, proposed flag, contract), each naming the plugin's plan; nothing is written"
+        },
+        {
+          "number": "4.27",
+          "title": "a plugin plan with a capability or contract carrying no number, a number twice, or a contract numbered under another capability is refused, as is adopting a mapped story or another plugin's, with nothing written"
+        }
+      ],
+      "description": "The library holds each project's plan of work: arcs (initiatives), stories (what a user can do), capabilities (the parts that make a story work) and contracts (single testable promises). Capabilities and contracts point at their parent. Stories belong to the project directly, and an arc *may* list the stories it grows, though a research arc may list none. The library refuses broken structure. A capability carries a proposed flag, on from its birth until the agent says it is built (`setProposed`, ADR-0744 D2); switching it says nothing about health, and a capability written before the flag reads proposed. A story is made mapped (ADR-0993 D2) only by mapStories, which an import calls: one mapped story per package of the import, keyed by the package, with no capabilities; a mapped field given to addStory or editStory is refused. A capability of a mapped story is one an agent explored there (ADR-0993 D5): it names the folders and files of its import it covers, inside its story's folders and overlapping no other capability of the story, the refusal naming the one to correct; a capability of a built story covers none.",
+      "word": "healthy",
+      "parked": false,
+      "lines": 1017,
+      "files": 5,
+      "dependsOn": [
+        "capability_a1d4fadbec3e"
+      ]
+    },
+    {
+      "id": "capability_baaeecb42577",
+      "number": "6",
+      "title": "Knowledge artifacts",
+      "contracts": [
+        {
+          "number": "6.3",
+          "title": "Editing a decision keeps its old wording in history."
+        },
+        {
+          "number": "6.4",
+          "title": "A link to a record that does not exist is refused."
+        },
+        {
+          "number": "6.1",
+          "title": "An artifact is found by `search` on any word it contains (case-insensitive)."
+        },
+        {
+          "number": "6.2",
+          "title": "`relatedNotes(noteId)` returns every artifact that links to that artifact."
+        },
+        {
+          "number": "6.5",
+          "title": "`definitions()` returns every live definition, and nothing else, in creation order. Added for the agent link's definition lookups at each prompt (ADR-0636 D1, b2), which adds `definitions` to 7's list of functions."
+        },
+        {
+          "number": "6.7",
+          "title": "Friction with no evidence is refused, and so is a re-steer marked a defect with no failure mode. Friction stores the optional dischargedBy reference to the remedy that landed, alongside its route and reason; editing other fields preserves the reference."
+        },
+        {
+          "number": "6.6",
+          "title": "Each of the eight kinds is saved with its required fields, and refused, naming the field, without one."
+        },
+        {
+          "number": "6.9",
+          "title": "Opening an older project converts an explicitly classified memory once, keeping its id, links and history, and reports an unclassified memory while preserving its original record."
+        },
+        {
+          "number": "6.8",
+          "title": "Saving a `memory` is refused with the reason that memories belong to the harness, and nothing is written."
+        },
+        {
+          "number": "6.10",
+          "title": "`related(noteId)` ranks the other live artifacts by likeness to one, saying of each whether a link joins them in either direction; with `unlinked`, only those no link reaches. An artifact sharing no word with it is never listed."
+        },
+        {
+          "number": "6.11",
+          "title": "`searchEach(queries)` and `relatedEach(ids, options)` answer as search() and related() would for each, in order, from one reading of the artifacts; an id that is not a live artifact is left out of relatedEach's answer."
+        },
+        {
+          "number": "6.12",
+          "title": "A quality control check is a ninth kind (ADR-0956 D3): saved with its title, one-line description, its question and at least one link to a live principle or guardrail, and refused, naming the field, without its question or without such a link; it may carry what has graduated, each part with where it is now enforced."
+        },
+        {
+          "number": "6.13",
+          "title": "A friction report carries its state (ADR-1016): filed open, and an edit naming state is refused with nothing written; routing it to nothing makes it dismissed, any other route routed, or resolved when the route carries a delivery stamp, and a stamp added later resolves a routed one"
+        },
+        {
+          "number": "6.14",
+          "title": "A recurrence on a resolved or dismissed friction report returns it to open, its route, reason and stamp cleared from its fields and kept in its history; one on an open or routed report leaves its state"
+        },
+        {
+          "number": "6.15",
+          "title": "A research note is saved with its title, description, the day the research was done and its findings, and refused without its findings or day, or with a day that is not one"
+        },
+        {
+          "number": "6.16",
+          "title": "An artifact refiled as another kind keeps its id, creation date and links, reads as the new kind, and its history keeps what it was; fields that do not fit the new kind, a friction or re-steer, or an id that is no live artifact are refused with nothing written"
+        },
+        {
+          "number": "6.17",
+          "title": "An experiment record is saved with its arms, hypotheses, measures, criteria, budget and stop rules; once frozen, only an outcome may be added"
+        }
+      ],
+      "description": "Alongside the plan, the library keeps what the project has learned: decisions and definitions of terms, and principles, guardrails, patterns, processes, agent roles, friction, re-steers and tech stack, each with 0.2's fields. Each can link to the other artifacts it relates to, and you can find them again by searching their words; an edit keeps the old wording in history. An artifact never links straight to the work: capability 9 is how the work reaches its knowledge.\n\nPlanned, not yet built (ADR-0956 D3, contract 6.12): a ninth kind, the quality control check, one yes-or-no question about a finished change, linked to the principle or guardrail note it enforces.",
+      "word": "healthy",
+      "parked": false,
+      "lines": 937,
+      "files": 4,
+      "dependsOn": [
+        "capability_a1d4fadbec3e"
+      ]
+    },
+    {
+      "id": "capability_f27ac2abb10b",
+      "number": "5",
+      "title": "Health record",
+      "contracts": [
+        {
+          "number": "5.1",
+          "title": "A node with no health entries reads `reported: not-checked, verified: not-checked`."
+        },
+        {
+          "number": "5.2",
+          "title": "After an agent reports a contract `passing`, it reads `reported: passing, verified: not-checked`."
+        },
+        {
+          "number": "5.3",
+          "title": "After storytree records the same contract verified `failing`, both columns are kept and shown side by side (`reported: passing, verified: failing`)."
+        },
+        {
+          "number": "5.4",
+          "title": "A capability or story's health is rolled up from its contracts, column by column: `failing` if any contract is failing; `passing` only if it has at least one contract and every one is passing; otherwise `not-checked`. A single never-checked contract keeps its story `not-checked`."
+        },
+        {
+          "number": "5.5",
+          "title": "Every health entry is kept in history with who wrote it and when. A health entry for a node that does not exist is refused."
+        },
+        {
+          "number": "5.6",
+          "title": "A capability's word is proposed while its flag is on, even with every contract verified passing. Once the flag is off, it is healthy when every contract is verified passing, unhealthy when any is verified failing, and untested when any has no verified result or it has no contracts; reported passing alone reads untested."
+        },
+        {
+          "number": "5.7",
+          "title": "A verified entry can carry the kind of skip that left it not checked (owner, platform:<os> or other) and the earlier verdict it did not reproduce with that verdict's time; both read back from the contract's health and in the annotated tree, and an entry without them reads as before."
+        },
+        {
+          "number": "5.8",
+          "title": "A capability that is not healthy carries one reason and who moves it: not built while proposed; otherwise, from its contracts' verified columns, failing, then not re-run, then no test names it, then out of CI's reach, then needs owner; with the contracts carrying it and the earliest time one was recorded so. Only needs owner is the owner's; a healthy capability carries none."
+        },
+        {
+          "number": "5.9",
+          "title": "The health worklist lists every capability that is not healthy with its reason, who moves it, the contracts carrying it and since when (the earliest time one was recorded so, or else when the capability was recorded), oldest first; one an open increment touches is routed and left off until that increment closes."
+        },
+        {
+          "number": "5.10",
+          "title": "In a project whose health nothing verifies (no verified entry anywhere), a built capability carries no reason and is marked as shown by the agent's report; its line says what the agent reports and that storytree does not check this project's tests yet, and it is off the health worklist"
+        },
+        {
+          "number": "5.11",
+          "title": "A capability whose every contract carrying its reason has a pending mark from a run in progress, newer than its verified entry and younger than the run's time limit, stays on the health worklist saying the run it waits on; once that run records the contract, or its time is up, it is offered (or left off) by what is recorded. A pending mark is no verdict: the contract's health reads as before."
+        },
+        {
+          "number": "5.12",
+          "title": "A capability whose story's code changed on main after every contract carrying its reason was last verified, by a commit younger than the time a merge's own-health run takes, stays on the health worklist saying the commit it waits on; once its contracts are verified after that commit, or the time is up, it is offered by what is recorded. One with no contract carrying its reason is never held so."
+        },
+        {
+          "number": "5.13",
+          "title": "A capability not proven carries the arcs that park it in the annotated tree"
+        },
+        {
+          "number": "5.14",
+          "title": "A proposed capability with at least one contract and every contract verified passing is on the worklist still not built and the agent's, marked that its contracts already pass; one with no contract or any contract not passing is not so marked"
+        },
+        {
+          "number": "5.15",
+          "title": "A capability whose every contract carrying \"no test names it\" a test on main names stays on the health worklist held back, saying so with main's commit, until a run records it; one with any such contract unnamed on main is offered as before"
+        },
+        {
+          "number": "5.16",
+          "title": "an explored capability of a mapped story has no health until it has a contract: no reason, and off the worklist; given a contract, it is read as any capability"
+        },
+        {
+          "number": "5.17",
+          "title": "A verified entry can carry where it was seen, verified locally or read from CI; it reads back from the contract's health, its history and the annotated tree, and an entry written without it reads with no source"
+        }
+      ],
+      "description": "Every story, capability and contract has a health record with two separate columns: what the agent **reported**, and what storytree **verified** by seeing it for itself. Each column is one of three states: `passing`, `failing` or `not-checked`. A missing entry always reads as `not-checked`, never as `passing`. A capability also has a word, as its card says it (ADR-0744 D1, D3): `proposed` while its flag is on; once the agent switches it off, `healthy` when every contract is verified passing, `unhealthy` when any is verified failing, and `untested` otherwise. Only the verified column counts: the agent's report never makes a capability healthy.",
+      "word": "healthy",
+      "parked": false,
+      "lines": 526,
+      "files": 2,
+      "dependsOn": [
+        "capability_dd486ffa5b02"
+      ]
+    },
+    {
+      "id": "capability_75d059640d9d",
+      "number": "7",
+      "title": "Library API",
+      "contracts": [
+        {
+          "number": "7.2",
+          "title": "`changesSince(n)` returns only changes after `n`, in order, each carrying the new cursor to pass next time."
+        },
+        {
+          "number": "7.3",
+          "title": "The package's public entry exports exactly the documented API and nothing else, and its internals cannot be imported through the package. At runtime it exports `ANCHOR_ID`, `CONNECT_TIMEOUT_MS`, `CONTRACT_DEFINITION`, `ConnectionError`, `DependencyLoopError`, `LONG_CONTRACT_TITLE`, `LifecycleError`, `LinkLoopError`, `MissingReferenceError`, `MissingUpgradeError`, `NEW_LINE`, `NOT_VERIFIED`, `NewerSchemaError`, `NumberTakenError`, `OWNER_TIME_ZONE`, `ProjectGoneError`, `ProjectNameError`, `RestoreRefusedError`, `RetireRefusedError`, `SEED_CONNECTION`, `SchemaError`, `SupersessionLoopError`, `UnknownTypeError`, `WaitLoopError`, `anchorGaps`, `beforeCutover`, `connect`, `connectionString`, `explainConnectTimeout`, `heldBack`, `knowledgeGuidance`, `parseSchedule`, `planGuidance`, `pluginSchema`, `pullSaid`, `wordAndWhy`. Everything else exported is a data type, including WriteOptions, HistoryEntry, HistoryFilter and the literal phrase query options and page. The connection offers exactly `openProject`, `listProjects`, `projectIdentities`, `snapshot`, `restore`, `dropProject`, `ownDatabase`, `close`. A project library offers exactly `name`, `identity`, `factory`, `markFactory`, `recordFactory`, `get`, `list`, `inherited`, `history`, `addStory`, `createArc`, `addCapability`, `editStory`, `editCapability`, `addContract`, `editContract`, `editArc`, `projectTree`, `arcsFor`, `addIncrement`, `advanceIncrement`, `closeIncrement`, `moveIncrement`, `editIncrement`, `parkArc`, `unparkArc`, `arcView`, `arcViews`, `addWait`, `removeWait`, `waitHolds`, `addWaitFor`, `removeWaitFor`, `waitsFor`, `holds`, `raiseQuestion`, `settleQuestion`, `questions`, `heldOnQuestion`, `checkQuestion`, `renewQuestion`, `editQuestion`, `lapsedQuestions`, `reportHealth`, `recordVerified`, `health`, `healthHistory`, `healthWorklist`, `recordDecision`, `numberDecision`, `numberDecisionsFromFullRecord`, `numberFoundingDecisions`, `setDecisionNumberFloor`, `setProposed`, `decisionNumberPlan`, `defineTerm`, `writeKnowledge`, `definitions`, `editNote`, `search`, `searchEach`, `rank`, `rankAll`, `findPhrase`, `relatedNotes`, `related`, `relatedEach`, `frontCovers`, `decision`, `decisions`, `composeStatement`, `retire`, `changesSince`, capability 27's fixed data questions `counts`, `latestChanges`, `findByTitle` and `decisionNumbered`, `recordFyi`, `unheardFyis`, `markFyisHeard`, `createPluginRecord`, `editPluginRecord`, `pluginRecords`, `removePluginRecords`, `dormantKinds`, `close`. Project handles expose no pool, store or table; the connection's ownDatabase is the deliberate exception described by 7.7."
+        },
+        {
+          "number": "7.1",
+          "title": "An end-to-end \"agent's day\" against a real local Postgres: open a project, create an arc, add a story, a capability and a contract, report passing, record verified, record a decision as the capability's front cover and write a definition inside it, then read `projectTree()` and `changesSince(0)`. Every step is visible where the next step expects it."
+        },
+        {
+          "number": "7.4",
+          "title": "`editStory`, `editContract` and `editArc` change only the fields they name, merged onto what is stored now, and check a new reference as adding does (a contract's capability, an arc's stories). Each gives `null`, writing nothing, for an id that is not a live record of its type."
+        },
+        {
+          "number": "7.5",
+          "title": "`get`, `list` and `history` return whole records through the public API, agreeing with the in-memory twin. Live reads upgrade old records; history preserves original writes, including actors and retirement reasons, and can filter by id and sequence. Reads write nothing."
+        },
+        {
+          "number": "7.6",
+          "title": "Every public write carries its optional actor to history, as in 2.10. Health can name a writer separately from its reporter; omitting the writer preserves its existing `by` attribution."
+        },
+        {
+          "number": "7.7",
+          "title": "A connection hands its caller one named database of its own beside the projects, on the same server, local or Cloud SQL: created the first time (borrowing a granted creator role where the user may not create databases), never listed as a project, closed with the connection. Handed its table definitions, the library sets it up too (ADR-0973): only the statements the database has not yet applied, in one transaction under the database's own lock, so connections setting it up at once all succeed and one opening a database already set up runs no DDL a concurrent writer could block or deadlock; a caller that only reads may leave them out."
+        },
+        {
+          "number": "7.8",
+          "title": "`arcViews()` returns every live arc's view in a few reads, not one per arc"
+        },
+        {
+          "number": "7.10",
+          "title": "projectTree marks a parked capability with its arc"
+        },
+        {
+          "number": "7.18",
+          "title": "sendFeedback writes a feedback record, with the element it points at, and keeps its screenshot and the crop to that element beside it, out of the record's history; feedbackScreenshot returns the bytes, and none for a note sent without one"
+        },
+        {
+          "number": "7.19",
+          "title": "routeFeedback marks a new feedback record routed with its route, target and reason; a missing, non-feedback or already routed record is refused with nothing written, and a routed record must carry its route and reason"
+        },
+        {
+          "number": "7.20",
+          "title": "printable(text) turns every control character a terminal would act on (C0 but line breaks, tabs and a line-ending carriage return, DEL, C1) into a placeholder, from a light entry that imports nothing"
+        },
+        {
+          "number": "7.21",
+          "title": "createPluginRecord saves a record of a plugin's kind the project was opened with, and refuses any other"
+        },
+        {
+          "number": "7.22",
+          "title": "pluginRecords lists a plugin's records by kind with count and ids; removePluginRecords removes exactly that listing, refusing a stale one"
+        },
+        {
+          "number": "7.23",
+          "title": "recordFyi keeps what the owner should know with its title, what happened, when (now when not given), what it is about and who noticed it; unheardFyis lists those he has not heard, oldest first; markFyisHeard marks them heard, so they are listed no more but stay in history, and refuses an id that is no FYI with nothing written (ADR-1184 D3)"
+        },
+        {
+          "number": "7.24",
+          "title": "editPluginRecord changes a record of a plugin's kind the project was opened with, once-only when checkCurrent refuses, and refuses any other"
+        }
+      ],
+      "description": "One small, fixed list of functions is the only way anything outside the library reads or writes it. The agent link, arc surface, forest and desktop app all call these, and `changesSince` lets them see what just changed without re-reading everything.",
+      "word": "healthy",
+      "parked": false,
+      "lines": 566,
+      "files": 4,
+      "dependsOn": [
+        "capability_5e0362aae607",
+        "capability_dd486ffa5b02",
+        "capability_f27ac2abb10b",
+        "capability_baaeecb42577"
+      ]
+    },
+    {
+      "id": "capability_a954e1eb16f6",
+      "number": "8",
+      "title": "Cloud connection (GCP)",
+      "contracts": [
+        {
+          "number": "8.1",
+          "title": "Capability 2's behaviour suite, unchanged, passes against a real Cloud SQL instance reached with Google sign-in."
+        },
+        {
+          "number": "8.2",
+          "title": "A missing or bad Google sign-in is refused with a message saying what to fix, never a hang."
+        },
+        {
+          "number": "8.3",
+          "title": "Two accounts sharing the role that creates project databases (a laptop owner and a machine's service account on one instance) both open, write and read one project and a connection's own database: each connection signs in as its account and acts as the database's owning role, so every table either makes is the role's and neither needs the other's ownership."
+        },
+        {
+          "number": "8.4",
+          "title": "An account granted exactly infra/ci-health/grants.sql or infra/library-host/grants.sql (CI's health account, ADR-0747) opens the project, reads its plan, records a contract's verified health, and reads no other kind of record nor its history; it is refused any other kind of record (a new one is refused by row-level security; one it may not change is not there for it to change), any history entry under the id of a record of another kind, even one it cannot read, and any change to the tables; the owner's accounts are unaffected and read what it recorded. In storytree numbering mode, fresh-id health history cannot raise automatic decision numbers or reserve explicit numbers; owner decision writes, the stored floor and all non-health legacy reservations still work. Health history at the floor's own id, even written before the floor is set, neither sets nor blocks it."
+        },
+        {
+          "number": "8.5",
+          "title": "On a shared server, a library call waits for a free connection slot instead of failing, and each Cloud SQL pool holds at most three slots."
+        },
+        {
+          "number": "8.6",
+          "title": "On a shared server, each of a library's connections names the machine and process holding it (application_name), so a server whose slots run out shows who holds them"
+        },
+        {
+          "number": "8.8",
+          "title": "A library call kept waiting, for a connection slot on a full server or for another session's write to the same project, says once what it waits for as the wait starts, goes on when it can, and past its wait bound (30 s unless the caller sets waitMs) fails with the server's reason, writing nothing"
+        },
+        {
+          "number": "8.7",
+          "title": "A caller that may be cut off bounds each statement (statementTimeoutMs), and the server ends one still running at the bound, so a cut-off process's slot comes free"
+        },
+        {
+          "number": "8.9",
+          "title": "A writer cut off mid-write (its process killed or its network gone) holds the project's write lock at most 10 s: the server ends its idle transaction, and another session's write waiting on it is written"
+        },
+        {
+          "number": "8.10",
+          "title": "A failure is told apart as the library being unreachable"
+        },
+        {
+          "number": "8.11",
+          "title": "A polling surface says an unreachable library once per outage"
+        }
+      ],
+      "description": "Instead of the local Postgres, a user can point storytree at a Postgres database in Google Cloud (Cloud SQL) and sign in with their Google account rather than a stored password. Everything above works the same, and each project still gets its own database, now on the cloud server.",
+      "word": "untested",
+      "parked": true,
+      "lines": 476,
+      "files": 2,
+      "dependsOn": [
+        "capability_5e0362aae607"
+      ]
+    },
+    {
+      "id": "capability_13b04e769a4b",
+      "number": "9",
+      "title": "Knowledge entrances",
+      "contracts": [
+        {
+          "number": "9.1",
+          "title": "A decision can be the front cover of a story or a capability, and `frontCovers(nodeId)` returns that node's live covers, founding (oldest) first, and nothing else."
+        },
+        {
+          "number": "9.2",
+          "title": "A front cover that names anything but a live story or capability is refused, and nothing is written. Only a decision can be a front cover."
+        },
+        {
+          "number": "9.3",
+          "title": "An artifact that links to a story, capability, contract, arc or health entry is refused, and nothing is written. Artifacts link only to other artifacts."
+        },
+        {
+          "number": "9.4",
+          "title": "A link that would close a loop between artifacts, an artifact linking to itself included, is refused with the chain it would close named, and nothing is written. The knowledge is a DAG under its covers (ADR-0647 D2)."
+        }
+      ],
+      "description": "Every story and capability has its own shelf of front-cover decisions, and a decision can be a front cover of one of them at most. Artifacts link only to other artifacts, so the only way from the work into the knowledge is through a front cover.",
+      "word": "healthy",
+      "parked": false,
+      "lines": 38,
+      "files": 1,
+      "dependsOn": [
+        "capability_dd486ffa5b02",
+        "capability_baaeecb42577"
+      ]
+    },
+    {
+      "id": "capability_a19bf216935b",
+      "number": "21",
+      "title": "Links",
+      "contracts": [
+        {
+          "number": "21.1",
+          "title": "`link(from, to)` makes artifact `from` rest on artifact `to`, keeping its other links. Linking it again writes nothing."
+        },
+        {
+          "number": "21.2",
+          "title": "A definition rests only on a decision, and a friction or re-steer rests on nothing: any other link is refused, naming the rule, and nothing is written."
+        },
+        {
+          "number": "21.3",
+          "title": "The worklist names each accepted decision on no shelf that no artifact rests on, and drops it once one does."
+        },
+        {
+          "number": "21.4",
+          "title": "For each live artifact written since the session's cursor, including edits, the worklist lists neighbours ranked by likeness that no link joins in either direction. It uses the library's related-but-unlinked search and writes no links; the agent decides which are real dependencies."
+        }
+      ],
+      "description": "The librarian links one artifact to another only where the first really rests on the second. It finds neighbours no edge reaches with related-but-unlinked search, alongside plain search (ADR-0654). This is how the whole-project decisions come to sit behind the covers that rest on them.",
+      "word": "healthy",
+      "parked": false,
+      "lines": 103,
+      "files": 3,
+      "dependsOn": []
+    },
+    {
+      "id": "capability_b7a12a2b7273",
+      "number": "22",
+      "title": "Decision log",
+      "contracts": [
+        {
+          "number": "22.1",
+          "title": "`supersede(olds, decision)` records a new accepted decision, or names an existing accepted successor by ID, adding the old ones to its `supersedes` without duplicating it or losing existing links, wording or authority. Each old one reads superseded and stays readable; the successor inherits the first old one's shelf only if it has none, and any old one's load-bearing mark. Missing, retired, proposed or already superseded successors, invalid predecessors and supersession loops are refused before anything is written."
+        },
+        {
+          "number": "22.2",
+          "title": "`correct(id, fields)` changes a decision in place (its text, title or load-bearing mark), and the old wording stays in its history. A correction that would turn an accepted decision back to proposed is refused, since only the owner does that, and nothing is written."
+        },
+        {
+          "number": "22.3",
+          "title": "`annotate(target, { by, note })` adds a dated annotation to the target decision's text, naming the decision that narrows it. A narrowing decision that is not a live decision is refused, and nothing is written."
+        },
+        {
+          "number": "22.4",
+          "title": "The worklist's health report names each link or supersession that points at a record no longer live, with both ends."
+        }
+      ],
+      "description": "Every accepted decision stays true in full. When a later landing overtakes something a decision says, the librarian corrects it in place if the decision did not change, and records a new decision that supersedes it if it did; finished business is retired or consolidated.",
+      "word": "healthy",
+      "parked": false,
+      "lines": 103,
+      "files": 2,
+      "dependsOn": [
+        "capability_a19bf216935b"
+      ]
+    },
+    {
+      "id": "capability_36bcae448803",
+      "number": "23",
+      "title": "Catalogue",
+      "contracts": [
+        {
+          "number": "23.1",
+          "title": "`retire(id, reason)` retires an artifact nothing points at. An artifact that another live record points at (a link, a supersession, a process's hand-on, an agent role's reading, rules or anti-patterns, an increment's remedies, or a question it settled) is refused, naming what points at it, and nothing is written."
+        },
+        {
+          "number": "23.2",
+          "title": "The worklist lists each artifact written new since a cursor, with the live artifacts a plain search for any word of its title finds, so the agent can see what might already cover it."
+        },
+        {
+          "number": "23.3",
+          "title": "The worklist lists each write to an agent role or a principle since its cursor that was made after its session read outside text, with what was read"
+        }
+      ],
+      "description": "Every artifact that lands is either genuinely new or an edit to the artifact that already covers it, and never a near-copy. Guidance any capable agent would work out for itself is pruned.",
+      "word": "healthy",
+      "parked": false,
+      "lines": 102,
+      "files": 2,
+      "dependsOn": []
+    },
+    {
+      "id": "capability_53fd994f7b4c",
+      "number": "24",
+      "title": "Graduation",
+      "contracts": [
+        {
+          "number": "24.1",
+          "title": "The worklist lists each memory in the memory folders that is new, changed since it was parked, or parked more than 60 days ago. A memory parked unchanged within its 60 days is not listed."
+        },
+        {
+          "number": "24.2",
+          "title": "`park(memory, reason)` keeps the reason, the date and what the memory said when it was parked, beside the memory folder, never in the library."
+        },
+        {
+          "number": "24.3",
+          "title": "`graduate(memory, kind, fields)` writes the lesson as a principle, process or definition, and only then deletes the memory. A write the library refuses leaves the memory where it was, and any other kind is refused."
+        },
+        {
+          "number": "24.4",
+          "title": "The worklist lists each process that names none of the tools served, and each tool served that no process names."
+        }
+      ],
+      "description": "ADR-0650 keeps the built graduation functions, but graduation is not needed for the MVP. Harness memories remain outside the library; promotion writes a proper artifact kind.",
+      "word": "healthy",
+      "parked": false,
+      "lines": 130,
+      "files": 2,
+      "dependsOn": [
+        "capability_36bcae448803"
+      ]
+    },
+    {
+      "id": "capability_d8451645c169",
+      "number": "25",
+      "title": "Lapsed questions",
+      "contracts": [
+        {
+          "number": "25.1",
+          "title": "The worklist lists only open questions whose review lease has lapsed, across every arc, longest lapsed first. Fresh and settled questions are excluded; gathering the list neither settles nor renews a question."
+        }
+      ],
+      "description": "Open questions whose review lease has lapsed are looked at on the librarian's pass, and nothing is closed without a reason. The library owns the review date and lease; the librarian uses its lapsed-question drain (ADR-0654). Part of The library's curation tooling (ADR-1077 D3).",
+      "word": "healthy",
+      "parked": false,
+      "lines": 12,
+      "files": 2,
+      "dependsOn": []
+    },
+    {
+      "id": "capability_389fd5e3722d",
+      "number": "26",
+      "title": "Rounds",
+      "contracts": [
+        {
+          "number": "26.1",
+          "title": "The trigger fires when the change feed since the session started holds a write to a curated kind, and when there is no start to read from; graduation is due at every landing either way."
+        },
+        {
+          "number": "26.2",
+          "title": "The worklist gathers each capability's list into one report: graduation's always (ADR-0789 D3), the rest only when the trigger fired; the friction drain is Friction's own, apart from it (ADR-1077 D4)."
+        },
+        {
+          "number": "26.3",
+          "title": "`land`'s answer ends with the \"next\" line \"run the librarian's pass\" when the trigger fired, and with none when it did not."
+        },
+        {
+          "number": "26.4",
+          "title": "A test client lists the librarian's tools on the agent link's one server, beside its own, and calls them."
+        },
+        {
+          "number": "26.5",
+          "title": "The librarian's subagent definition names every librarian tool the server serves."
+        },
+        {
+          "number": "26.6",
+          "title": "The worklist and `land`'s next-line check take about as much from a library whose history holds weeks of changes, with health entries piling up since the session started, as from one whose history holds an hour's: the session's start is found from the first change since it, the trigger asks only whether one curated change came after it, and the links and catalogue read only note changes since it."
+        },
+        {
+          "number": "26.7",
+          "title": "The worklist reads the live notes about once however many notes the session wrote, and with no recorded session start it gathers every list but the catalogue and related ones, which it leaves unread saying why, instead of reading every note's whole history."
+        },
+        {
+          "number": "26.8",
+          "title": "A worklist call names each phase through the call's progress before it answers (graduation, trigger, links, related, health, catalogue, processes, questions), and stops at its next phase once progress rejects, reading nothing more."
+        },
+        {
+          "number": "26.9",
+          "title": "The worklist tool answers in a size a session can read: each list's first five notes named by ID, kind and title, with how many it holds; any one is read whole by its ID."
+        },
+        {
+          "number": "26.10",
+          "title": "A plugin's curation guidance is offered only for its own kinds, beneath the core rules"
+        },
+        {
+          "number": "26.11",
+          "title": "Through the tool, a mounted plugin's guidance is offered after a write to its kind"
+        }
+      ],
+      "description": "When the librarian runs, and how an agent is told to put on its hat. At a landing where the session wrote to a curated kind of artifact, storytree asks for the librarian's pass before the landing is reported.",
+      "word": "healthy",
+      "parked": false,
+      "lines": 405,
+      "files": 5,
+      "dependsOn": [
+        "capability_a19bf216935b",
+        "capability_b7a12a2b7273",
+        "capability_36bcae448803",
+        "capability_53fd994f7b4c",
+        "capability_d8451645c169"
+      ]
+    },
+    {
+      "id": "capability_a7f068502213",
+      "number": "10",
+      "title": "Work in flight",
+      "contracts": [
+        {
+          "number": "",
+          "title": "An increment moves forward: proposal, active, closed (ADR-0909 D4 retired the ready step, and asking for it is refused); its one step back is 10.9's, active work nobody holds returning to proposal. Closing records the date, pull request, note and outcome (landed, failed or withdrawn), and a close with no pull request needs a note. A dedicated correction replaces a closed outcome with a required nonblank reason kept in history, preserves its closure date unless supplied, and leaves it closed; an open increment or an invalid outcome is refused without a write."
+        },
+        {
+          "number": "10.1",
+          "title": "An increment belongs to one live arc. It is created as a proposal, stamped with the date it was parked, or born closed."
+        },
+        {
+          "number": "10.3",
+          "title": "An arc with increments reads closed exactly when none is open and none of its questions waits on the owner, and active otherwise; an arc with no increments yet reads active. A parked arc reads parked until it is unparked."
+        },
+        {
+          "number": "10.4",
+          "title": "An arc's intent and end state are required, and an arc written before they were is upgraded to carry them."
+        },
+        {
+          "number": "10.5",
+          "title": "An increment moves to another live arc keeping its id, lifecycle and waits, its history recording the move and why; closed history may move into a closed arc, while open work moving to a closed arc is refused and nothing is written."
+        },
+        {
+          "number": "10.6",
+          "title": "An arc parked until a day reads parked before that day (UTC midnight) and as if unparked from it on, worked out on read with no write in between"
+        },
+        {
+          "number": "10.7",
+          "title": "An increment stored as ready, a step ADR-0909 D4 retired, reads as a proposal keeping its parked date, and an edit stores it so."
+        },
+        {
+          "number": "10.8",
+          "title": "Holds and wait checks read open work and named blockers, and one arc view reads only its own history: adding hundreds of long closed increments elsewhere adds at most 128 KiB per read."
+        },
+        {
+          "number": "10.9",
+          "title": "An active increment returns to proposal, keeping its parked date, when nobody holds it; a proposal or closed one is refused with nothing written"
+        },
+        {
+          "number": "10.10",
+          "title": "An arc whose every open increment waits only on a dated event, or on its own work so held, reads parked until the earliest check-back day, worked out on read; free work, an owner wait or an open question keeps it active"
+        },
+        {
+          "number": "10.11",
+          "title": "An increment carries a capabilities list naming live capabilities only, parked empty and editable after parking, and cites anything else (its stories, notes, decisions) through links; one stored with the retired touches reads its capabilities in the list and the rest as links, and an edit stores it so (ADR-0949 D2)"
+        },
+        {
+          "number": "10.12",
+          "title": "An active increment takes a pending change to a story, capability or contract it did not plan: the live record stays, the change keeps its base history entry and its before and after, a second change merges into it, and one another open increment already holds is refused naming it"
+        },
+        {
+          "number": "10.14",
+          "title": "An increment's branch reads the plan with its pending changes laid over, every other reader the live plan; a pending change its record has moved since it was read (a later value in a field the edit sets, or any later entry for a retirement) is named stale with the entry that moved it"
+        },
+        {
+          "number": "10.15",
+          "title": "An increment's pending changes apply through the plan's own editors when it lands, each history entry marked with its pull request; a stale or refused change is not applied and is parked as residue on its arc naming both history entries; applying again applies nothing twice"
+        },
+        {
+          "number": "10.16",
+          "title": "An increment closed failed or withdrawn drops its pending changes, its history saying so, and the live plan is left as it was"
+        },
+        {
+          "number": "10.17",
+          "title": "Settling closed increments' leftover pending changes applies those of each one that landed and drops those of each one that did not, and finds nothing left the second time"
+        },
+        {
+          "number": "10.18",
+          "title": "A capability is parked when every open increment naming it sits on a parked arc and asks nothing of the owner"
+        },
+        {
+          "number": "10.19",
+          "title": "An increment may name the one machine that can take it: parked with it, edited to another, and cleared by an edit to none, which removes the field"
+        },
+        {
+          "number": "10.20",
+          "title": "Closing an increment as landed resolves each friction in its remedies, stamped with its pull request (the increment when it has none), and a closure corrected to landed does the same"
+        },
+        {
+          "number": "10.21",
+          "title": "Closing an increment failed or withdrawn returns each friction in its remedies that reads routed to open, its route cleared, unless another open increment still remedies it; a closure corrected from landed does the same to the reports it resolved"
+        },
+        {
+          "number": "10.22",
+          "title": "The board's arcs: live arcs whole plus closed arcs whose closing day falls in a window, and closed arcs alone by a window, each with its closing day and only the increment fields the board draws"
+        },
+        {
+          "number": "10.23",
+          "title": "An increment names the escape it fixes: the pull request or increment that caused it and the story it hit, set by parking or editing and cleared by an edit; a cause or story that is not one is refused with nothing written"
+        },
+        {
+          "number": "10.24",
+          "title": "An increment carries a risk line (its tier, rating, depth, radius, depth flags, the live stories it touches and the day read), set and cleared by an edit; a value out of range or a story that is not one is refused with nothing written"
+        },
+        {
+          "number": "10.25",
+          "title": "An increment is parked already waiting for the owner, its note written in the parking's one write; a wait the owner-wait rules refuse, two for one releaser, or one on an increment born closed is refused with nothing written"
+        },
+        {
+          "number": "10.26",
+          "title": "An open increment drops one pending change by its record, with a reason, its history saying so and the live plan left as it was; a record it holds no change for, or a closed increment, is refused with nothing written"
+        },
+        {
+          "number": "10.27",
+          "title": "An apply cut off part-way leaves pending only the changes it had not applied; the gate reads none its own increment applied as stale, and the next apply, under any of the increment's pull requests, finishes the rest"
+        }
+      ],
+      "description": "Each arc is whole: its intent, its end state and its increments. An increment moves from proposal to active to closed (ADR-0909 D4 retired the ready step; one stored as ready reads as a proposal). An arc reads closed when its last increment closes, and reopens when new work is parked on it, unless the owner has parked the arc. A closed increment stays, as the arc's log entry: its date, pull request, note, and whether it landed, failed or was withdrawn.",
+      "word": "healthy",
+      "parked": false,
+      "lines": 1162,
+      "files": 1,
+      "dependsOn": [
+        "capability_dd486ffa5b02"
+      ]
+    },
+    {
+      "id": "capability_d632ff0454c0",
+      "number": "11",
+      "title": "Waits",
+      "contracts": [
+        {
+          "number": "11.1",
+          "title": "An increment wait holds until the blocker closes as landed. A failed, withdrawn or missing blocker holds for good, and says it will never release."
+        },
+        {
+          "number": "11.3",
+          "title": "A wait that would close a loop across arcs and increments is refused, naming the loop, and nothing is written."
+        },
+        {
+          "number": "11.2",
+          "title": "An arc wait holds until that arc closes."
+        },
+        {
+          "number": "11.4",
+          "title": "`waitHolds(id)` returns the blockers still holding, each with its reason."
+        },
+        {
+          "number": "11.5",
+          "title": "holds() answers every live arc's and open increment's wait holds, and every open increment's owner holds, in one reading, each the same as waitHolds and heldOnQuestion give; closed increments have no holds and are omitted."
+        },
+        {
+          "number": "11.6",
+          "title": "An increment waits for the owner or an outside event with a note: an owner wait holds until cleared, an event wait until its check-back day, then reads passed"
+        },
+        {
+          "number": "11.8",
+          "title": "A wait is cleared from the record that stores it as its blocker lands (an increment) or closes (an arc), with the reason in its history; a failed or withdrawn blocker's wait stays"
+        },
+        {
+          "number": "11.9",
+          "title": "An arc waits on an increment of another arc"
+        },
+        {
+          "number": "11.10",
+          "title": "An owner wait needs a why (what it protects or unblocks) and may carry a rank, a whole number, 1 first; each write stamps the day it was read again, and writing it again keeps the note, why and rank not given; an event wait takes neither"
+        }
+      ],
+      "description": "An arc waits on an arc, and an increment on an increment on any arc, each with a reason. A loop across both kinds is refused when it is written. The library alone answers whether a wait holds (`waitHolds`), naming its blockers and saying when one can never release.",
+      "word": "healthy",
+      "parked": false,
+      "lines": 269,
+      "files": 1,
+      "dependsOn": [
+        "capability_a7f068502213"
+      ]
+    },
+    {
+      "id": "capability_5f1ce148e63a",
+      "number": "12",
+      "title": "Owner questions",
+      "contracts": [
+        {
+          "number": "12.1",
+          "title": "A question is raised with its required fields, and is open."
+        },
+        {
+          "number": "12.2",
+          "title": "Settling needs an answer and keeps it, with the date and the decision that carried it. A settled question stays readable on its arc."
+        },
+        {
+          "number": "12.3",
+          "title": "An open increment held on an open question reads as waiting on the owner. Settling the question takes it off every increment's heldOn, keeping their other holds. A question that does not exist holds nothing."
+        },
+        {
+          "number": "12.4",
+          "title": "A question an increment is held on cannot be retired through retire; retireQuestion (12.9) is the step that releases its holders."
+        },
+        {
+          "number": "12.5",
+          "title": "An open question carries a review date and a lease, 7 days unless given. It checks fresh until the lease runs out and lapsed after, it is listed as lapsed until renewed, and renewing re-stamps it."
+        },
+        {
+          "number": "12.6",
+          "title": "Renewing a settled question is refused and nothing is written. A settled question checks settled and is never listed as lapsed."
+        },
+        {
+          "number": "12.7",
+          "title": "An open question's wording (title, stakes, statement, context, options, analogy, diagram, recommendation) can be corrected in place, changing only the named fields. Its arc, lifecycle, answer and lease are not edited this way, and editing a settled question is refused with nothing written: its answer stands."
+        },
+        {
+          "number": "12.8",
+          "title": "A question raised on a parked arc is refused, naming the arc, and nothing is written; once its wake day passes, it is raised"
+        },
+        {
+          "number": "12.9",
+          "title": "Retiring a question with retireQuestion takes it off the heldOn of every increment held on it, open or closed (keeping their other holds), and retires it in one step, naming the increments released. A record that is not a live question is refused with nothing written."
+        },
+        {
+          "number": "12.10",
+          "title": "An open question carries the session putting it to the owner, set and cleared in place through editQuestion; settling clears it, and a settled question cannot carry one"
+        },
+        {
+          "number": "12.11",
+          "title": "an open question moves to another arc in place, keeping its id, wording and holders"
+        }
+      ],
+      "description": "A question is raised on an arc, with its stakes, statement, context and options, and settled with the owner's answer, which stays on the arc. An increment held on an open question reads as waiting on him (`heldOnQuestion`), and the library alone answers that.",
+      "word": "healthy",
+      "parked": false,
+      "lines": 259,
+      "files": 1,
+      "dependsOn": [
+        "capability_a7f068502213"
+      ]
+    },
+    {
+      "id": "capability_78d6e026f902",
+      "number": "13",
+      "title": "Decision log",
+      "contracts": [
+        {
+          "number": "13.1",
+          "title": "In projects with automatic numbering, decisions recorded at once from separate connections get distinct numbers, each higher than any before. A number held by another decision is never reused, including retired decisions and old numbers kept in history. Ordinary edits cannot change or remove a decision's number and a refused edit writes nothing."
+        },
+        {
+          "number": "13.2",
+          "title": "A decision is superseded exactly when an accepted decision names it in `supersedes`. It stays readable, and a supersession loop is refused."
+        },
+        {
+          "number": "13.3",
+          "title": "Status and the load-bearing mark are stored and read back, and a decision written before status was is upgraded to carry one."
+        },
+        {
+          "number": "13.4",
+          "title": "A decision may carry one composed statement. A read returns it marked stale when the decision's text changed after it was written, and the full text is always readable."
+        },
+        {
+          "number": "13.5",
+          "title": "Only in the storytree project, numberDecision repairs a live decision once to the number in its own single Full record: ADR-NNNN line. Missing or ambiguous lines, mismatches, retired records, previous repairs, and numbers any non-health record has ever held are refused without writing. Concurrent repairs cannot share a number or repair a record twice. The old number stays in history; editNote still refuses number. decisionNumberPlan lists proposed old → new numbers and refusals, including duplicate targets, without writing. Decisions without a Full record line are untouched. Health events never reserve decision numbers, including in repair previews and writes; legacy non-health reservations remain."
+        },
+        {
+          "number": "13.6",
+          "title": "Only in storytree, setDecisionNumberFloor previews by default and apply: true stores 0.2's final number once as a positive safe integer project setting, retained in history and snapshots. Repeated or lower floor settings are refused, including concurrent attempts. Recording without an explicit number is refused while the floor is unset; afterwards, automatic numbers exceed the floor and every number any non-health record has ever held, with concurrent writers receiving distinct numbers. An explicit free number remains accepted; other projects still auto-number from 1. Health events never reserve decision numbers, including in repair previews and writes; legacy non-health reservations remain."
+        },
+        {
+          "number": "13.7",
+          "title": "numberDecisionsFromFullRecord previews by default; apply: true applies every eligible proposal through numberDecision and returns each refusal. Decisions already matching their Full record number are omitted. Duplicate targets are refused, the write checks history again under the project lock, and repeated bulk application writes nothing once all eligible repairs are complete."
+        },
+        {
+          "number": "13.8",
+          "title": "Only in storytree with its floor set, numberFoundingDecisions previews live decisions that existed at switch-on and have no Full record line, in first-creation history order. Targets exceed the floor and every number any non-health record has ever held. Preview writes and reserves nothing; apply: true rechecks every write and returns each refusal. The record keeps its identity, other fields and old number in history. Concurrent moves cannot share numbers or move a book twice. Completed moves, Full record decisions and decisions created after switch-on are omitted; a repeat can finish a partial run without renumbering completed books. Health events never reserve decision numbers, including in repair previews and writes; legacy non-health reservations remain."
+        },
+        {
+          "number": "13.9",
+          "title": "`decisions()` gives every live decision's view in one reading, oldest first, each the same as `decision(id)` gives."
+        },
+        {
+          "number": "13.10",
+          "title": "The library declares the `adr` family the command line lists 4th: a pulled decision pushed back unedited writes nothing and never asks for the writer, and an edited title writes that field alone"
+        }
+      ],
+      "description": "Decision numbers do not collide, even across concurrent writers, and history reserves every number a decision has held. Other projects start at 1. In the project named exactly `storytree`, automatic numbers exceed the persisted floor and every number any non-health record has ever held; automatic numbering is refused if that setting is absent. An explicit free number remains accepted. The N1 move is complete: the 29 Full record decisions retain their 0.2 numbers, the floor is 662, and the 53 founding books are ADR-0663..0715. Ordinary edits cannot change or remove a decision's number. A decision's status is proposed or accepted, and it can be superseded: the superseded decision is kept, and reads as superseded. A decision carries the load-bearing mark, who decided it, in their own words, and one composed statement. Health events never reserve decision numbers, including in repair previews and writes; legacy non-health reservations remain.",
+      "word": "healthy",
+      "parked": false,
+      "lines": 554,
+      "files": 2,
+      "dependsOn": [
+        "capability_baaeecb42577"
+      ]
+    },
+    {
+      "id": "capability_556e276756c9",
+      "number": "14",
+      "title": "Ranked search",
+      "contracts": [
+        {
+          "number": "14.1",
+          "title": "`rank(query)` orders the live artifacts by meaning, best first, with each one's score, and finds an artifact that shares no word with the question."
+        },
+        {
+          "number": "14.2",
+          "title": "An artifact scores by its best chunk (its rendered text packed into chunks of at most 1600 characters on paragraph boundaries, ADR-1044 D1), and at most `limit` artifacts come back, ten unless told."
+        },
+        {
+          "number": "14.3",
+          "title": "An edited artifact ranks by its new words at the next search; a chunk already embedded is not embedded again, and a library opened afresh on the same project reads the kept vectors, embedding only the question."
+        },
+        {
+          "number": "14.4",
+          "title": "With no embedding model to hand (switched off, or it cannot load), `rank` gives the word matches of `search` and says why, rather than failing."
+        },
+        {
+          "number": "14.5",
+          "title": "The installed Windows CLI and MCP tools resolve their bundled Transformers and native ONNX CPU runtime without a checkout or npm installation, on x64 and arm64. The installer ships runtime code and target binaries, never model weights; the embedding model remains a first-use download into <storytree home>/models."
+        },
+        {
+          "number": "14.7",
+          "title": "A ranked search puts first the records it names by title: one whose title (a definition's term) is the search, ignoring case, spacing and a leading contract number; then one whose contract number (such as 7.17) is a word of the search; then one whose title holds every word of it as a whole word, ignoring case, a plural finding its singular, never letters inside a longer word; each group, and the rest, keep their meaning order."
+        },
+        {
+          "number": "14.8",
+          "title": "rankAll ranks live stories, capabilities and contracts by their own wording alongside knowledge artifacts, labels each hit with its type, and finds a contract whose meaning matches even when it shares no query word."
+        },
+        {
+          "number": "14.9",
+          "title": "With no embedding model, rankAll returns word matches including a contract holding every query word, reports why it fell back, and never treats a plan record’s parent identifier as searchable words."
+        },
+        {
+          "number": "14.10",
+          "title": "Ranked searches reuse local vectors across processes only within the same server, project database identity and model. Only missing content keys come from Postgres, including after one note is added. Other servers, projects, recreated databases and old unscoped entries cannot alter ranks or scores. Writes reach Postgres and the scoped local copy; concurrent processes share it safely, and no identity or usable local storage falls back to Postgres."
+        },
+        {
+          "number": "14.11",
+          "title": "An explicit literal phrase lookup matches case-sensitive contiguous text within stored top-level string fields of selected artifact and plan kinds, returns full live records in id order with bounded pages and a continuation cursor, sees edits and retirement, and filters before records leave Postgres. Ranked search is unchanged."
+        },
+        {
+          "number": "14.12",
+          "title": "A long note's late paragraph is embedded: each chunk fits the 512 tokens the model reads, so a search finds the note by what that paragraph says"
+        },
+        {
+          "number": "14.13",
+          "title": "Behind a proxy that HTTPS_PROXY or HTTP_PROXY names, the embedding model's first-use download goes through that proxy (NO_PROXY honoured), and a failed load behind a proxy names the hosts the proxy must allow"
+        },
+        {
+          "number": "14.14",
+          "title": "The embedding model loads only from one pinned revision, and only files whose SHA-256 matches the hashes committed in the repo; a file that differs, or one the pinned model does not list, is deleted and the load refused naming it (with both hashes), so search falls back to words and says why"
+        },
+        {
+          "number": "14.15",
+          "title": "A question is embedded with the model's query prefix, and an artifact's chunks never are"
+        }
+      ],
+      "description": "A library search ranks the live artifacts by how close their meaning is to the question, using an embedding model (Snowflake's arctic-embed-s, ADR-1115; bge-small until 2026-10-22) run on this computer, with no LLM, paid API or extra service, as the owner directed (0.2's ADR-0664). An artifact written or edited is embedded again before the next search ranks it, and with no model to hand the search falls back to word matches and says why.\n\nAs built: Windows delivery stages the locked Transformers Node distribution, ONNX Runtime CPU binding and DLL, and the Sharp runtime dependency beside the CLI and MCP entrypoints for x64 and arm64. No model weights ship. The existing lazy loader downloads arctic-embed-s on first use into <storytree home>/models, from one pinned revision, checking each file's SHA-256. The installed-layout check imports Transformers and runs a weight-free ONNX Identity graph on the native CPU backend without a source checkout. Windows x64 execution is checked by installer CI; ARM64 PE headers are inspected, with ARM64 execution awaiting a native Windows acceptance run.\n",
+      "word": "healthy",
+      "parked": false,
+      "lines": 483,
+      "files": 4,
+      "dependsOn": [
+        "capability_baaeecb42577"
+      ]
+    },
+    {
+      "id": "capability_a6d2887aed63",
+      "number": "15",
+      "title": "Connection by address",
+      "contracts": [
+        {
+          "number": "15.1",
+          "title": "A library at a Postgres address, with its password saved as the `postgres` key, opens, writes and reads a project as a password-authenticated role."
+        },
+        {
+          "number": "15.2",
+          "title": "With no password saved for the library (no `postgres` key and no PGPASSWORD), connecting is refused saying so and how to save one, before anything reaches the server."
+        },
+        {
+          "number": "15.3",
+          "title": "A password the server refuses and a host that cannot be reached are each refused as their own problem, with what to fix, and never show the password."
+        },
+        {
+          "number": "15.4",
+          "title": "A remote address gets the password only after its certificate is checked"
+        },
+        {
+          "number": "15.5",
+          "title": "The routed library's connection string, signed in with its key, reaches the database it names, for psql; it stores nothing, and no saved password or a Cloud SQL library is refused saying why"
+        },
+        {
+          "number": "15.6",
+          "title": "A wss:// library address reaches the library over HTTPS, through Access and HTTPS_PROXY"
+        }
+      ],
+      "description": "Instead of the local app's Postgres or Cloud SQL with Google sign-in, storytree reaches any Postgres by its address (Neon, Supabase, RDS, self-hosted, Cloud SQL with an ordinary user), its password resolved as a key.",
+      "word": "healthy",
+      "parked": false,
+      "lines": 388,
+      "files": 2,
+      "dependsOn": [
+        "capability_5e0362aae607",
+        "capability_88a6aaa1fa93"
+      ]
+    },
+    {
+      "id": "capability_984398616605",
+      "number": "16",
+      "title": "The command schema",
+      "contracts": [
+        {
+          "number": "16.1",
+          "title": "A verb is declared once with a face on each door or why a door lacks one, and its refusal is a misuse only when it says so, carrying the steps that do the job instead"
+        },
+        {
+          "number": "16.2",
+          "title": "A verb declares who calls it: an agent, a person or both"
+        }
+      ],
+      "description": "The shapes a story declares its verbs with (Verb, VerbFamily, VerbInput, VerbAnswer, VerbRefusal, VerbContext and the rest, the verb helper and the mounted guard), in packages/library/src/verbs/verb.ts, which every story downstream imports and each front door reads. Moved from Project and caller's capability 4 · The verb contract by ADR-1035 D1; the door reading went to the hosts (the command line's 13 · Reading a command, the MCP server's toolInput).",
+      "word": "healthy",
+      "parked": false,
+      "lines": 173,
+      "files": 1,
+      "dependsOn": []
+    },
+    {
+      "id": "capability_dce9495fcaed",
+      "number": "17",
+      "title": "The library's commands",
+      "contracts": [
+        {
+          "number": "17.1",
+          "title": "The library declares the library family first among storytree's families, its thirteen verbs as commands, then capability 27's three, and none as a tool; a verb reads a phrase from @file in the caller's folder, refile rewrites an artifact as another kind under its id, and edit run by a session holding an increment holds a planned record's change on it"
+        },
+        {
+          "number": "17.2",
+          "title": "The library declares search_notes, open, write_note and correct_note as tools and none as a command; each artifact they show is handed to the door as a read, found as the session last saw it, and an artifact written with no place goes onto the shelf of the capability the session claimed last, inside the cover it opened last"
+        },
+        {
+          "number": "17.3",
+          "title": "library edit project-anchor --what … --audience … writes the project's anchor, making it on its first write and refusing any other field with nothing written, and library read reads it back; a story takes no audience (ADR-1085 D1, ADR-1096)"
+        },
+        {
+          "number": "17.4",
+          "title": "One field round-trips byte for byte: library read --field and the open tool's field give a record's stored value exactly, and library edit @file writes it back unchanged"
+        },
+        {
+          "number": "17.5",
+          "title": "library edit pr-cutover --at … --repository … writes the repository cut-over, the old repository by default the name's -history and none when it was deleted; refused without both, or with another field, with nothing written"
+        },
+        {
+          "number": "17.6",
+          "title": "library read says a record of a plugin's kind no mounted plugin declares is dormant"
+        },
+        {
+          "number": "17.7",
+          "title": "The open tool opens a record of a plugin's kind whole, as library read does, said dormant when no mounted plugin declares it"
+        },
+        {
+          "number": "17.8",
+          "title": "library revert <id> --to <seq> --read <seq> [--reason …] reverts a record to an entry library history shows, retired ones included, with the session as writer; a stale --read is refused naming the newest entry, and a session holding an increment is refused a planned record's revert, which cannot wait on the increment as an edit does."
+        },
+        {
+          "number": "17.9",
+          "title": "library undo <writer> [--reason …] runs as a write and reverts every record the writer wrote to before their first write to it, retiring what they made, and lists each; refused with nothing written, naming the record and its later writer, where another writer wrote since, and refused for a session holding an increment when a record is a planned one; a writer who wrote nothing has nothing to revert."
+        },
+        {
+          "number": "17.10",
+          "title": "The library declares the fyi family: fyi new records an FYI, by the caller unless --by names another, fyi list lists the unheard ones oldest first, and fyi heard marks them heard so the list no longer shows them; none is a tool (ADR-1184 D3)"
+        },
+        {
+          "number": "17.11",
+          "title": "library history shows, under each write made after its session read outside text, what was read"
+        },
+        {
+          "number": "17.12",
+          "title": "library edit --remove <field> removes an optional field, keeping the record and its other fields; a field the kind requires, one also given a value, or one on a story, capability or contract is refused with nothing written"
+        },
+        {
+          "number": "17.13",
+          "title": "library new capability, run by a session holding an increment, judges the story's capability numbers as that increment's pending changes would leave it: a number a pending move out of the story or a pending retirement frees is given, and one a pending move into the story brings is refused"
+        },
+        {
+          "number": "17.14",
+          "title": "library list, search and phrase say how many records of a plugin kind no mounted plugin declares the library holds, that they are dormant here, and the command that mounts the plugin, or that the factory lacks it"
+        }
+      ],
+      "description": "The library declares its own storytree library family (search, phrase, links, related, new, read, edit, refile, retire, list, history, revert, undo) in its manifest, which the command line mounts first among its families (ADR-1035 D3). Its context is the caller's with the calling session's claims and the contract numbers a capability's story package's tests carry, which the door hands it.\n",
+      "word": "healthy",
+      "parked": false,
+      "lines": 1017,
+      "files": 3,
+      "dependsOn": []
+    },
+    {
+      "id": "capability_73c014cf4352",
+      "number": "27",
+      "title": "Fixed data questions",
+      "contracts": [
+        {
+          "number": "27.1",
+          "title": "library count tallies live records by kind and status, and open increments by arc, leaving health out"
+        },
+        {
+          "number": "27.2",
+          "title": "library changes lists the latest changes newest first by sequence number, at most 20, health left out"
+        },
+        {
+          "number": "27.3",
+          "title": "library find lists live records whose title holds every word, at most 20, long titles cut"
+        },
+        {
+          "number": "27.4",
+          "title": "library read takes a decision's number, 1103 or ADR-1103, in place of its id"
+        },
+        {
+          "number": "27.5",
+          "title": "library changes --actor <writer> lists every record the writer wrote, health left out, by id: created, updated by N writes, or retired with its reason, each changed field from before their first write to after their last, and the first later writer and entry where another wrote since; it takes no --limit."
+        }
+      ],
+      "description": "A few fixed questions about the library's data, as library commands: how many records of each kind and status, the latest changes, every record one writer wrote as a diff, a record by title words, a decision by its number. Each answers in milliseconds with at most 20 rows (one writer's diff shows all their records), for voice and for anyone at the command line.\n",
+      "word": "healthy",
+      "parked": false,
+      "lines": 218,
+      "files": 2,
+      "dependsOn": [
+        "capability_75d059640d9d",
+        "capability_dce9495fcaed"
+      ]
+    }
+  ],
+  "linked": {
+    "capability_5e0362aae607": {
+      "number": "1",
+      "title": "Project libraries",
+      "contracts": [
+        {
+          "number": "1.1",
+          "title": "`openProject(\"site\")` on a server with no storytree databases creates the project's database and its tables; a project set up before a table changed gains what was added since at its next open."
+        },
+        {
+          "number": "1.2",
+          "title": "Opening the same project again succeeds and changes nothing (no error, no second database, its records are untouched)."
+        },
+        {
+          "number": "1.3",
+          "title": "After opening \"site\" and \"app\", `listProjects()` returns exactly `[\"app\", \"site\"]`. Databases on the server that are not storytree projects are never listed."
+        },
+        {
+          "number": "1.4",
+          "title": "A record saved in \"site\" cannot be read from \"app\"."
+        },
+        {
+          "number": "1.5",
+          "title": "A project name that is not lower-case letters, digits and single hyphens (1–40 characters, starting with a letter or digit) is refused before anything touches the server, and the error names the rule."
+        },
+        {
+          "number": "1.6",
+          "title": "`snapshot(\"site\")` returns every record of the project and its whole history, as they stood at one moment, while writes go on."
+        },
+        {
+          "number": "1.7",
+          "title": "`restore(\"copy\", snapshot)` into a project with no records and no history gives back the same records and the same history, sequence numbers, actors and times included, and the next write continues after them."
+        },
+        {
+          "number": "1.8",
+          "title": "Restoring into a project that holds any record or any history is refused, naming the project, and writes nothing."
+        },
+        {
+          "number": "1.9",
+          "title": "A local database that accepts TCP but never completes a fresh handshake is refused at a 10-second connection deadline by default (ADR-1163 D1), or at the deadline the caller gives, for both the server and project pools, with an actionable \"storytree isn't reachable\" answer that says the database took longer than that to answer and the computer may be busy. This includes library opens made by the CLI. A later call recovers once the database answers."
+        },
+        {
+          "number": "1.10",
+          "title": "Opening a project whose tables are current runs no table setup and writes nothing, so an account that may only read its tables (not their owner, no right to create in its schema) opens it and reads its records."
+        },
+        {
+          "number": "1.11",
+          "title": "Opening a project whose tables are not current, as an account that may not change them (no CREATE on its schema, or not holding the owner's rights over its tables), changes nothing: no table statement runs and no memory is converted. A project set up before opens as its tables stand, reads and writes as the account's grants allow, and warns once per process per project, naming the project, the account and the role owning its database. A project never set up is refused with a ConnectionError (`project-owner`) naming the project and the account and saying that only the role owning its database may set it up. Its owner's next open sets the tables up as before."
+        },
+        {
+          "number": "1.12",
+          "title": "`dropProject(name)` deletes the project's database, with every record and all its history, for every machine using the server; it is listed no more, other projects are untouched, and an unknown project is refused. An open that only reaches an existing project (`openProject(name, { create: false })`, how a folder that names a project opens it) refuses a deleted one as gone and never makes it again."
+        },
+        {
+          "number": "1.13",
+          "title": "Closing a server connection waits for project and own-database openings already in flight, releases every pool they create, and refuses new openings once closing starts."
+        },
+        {
+          "number": "1.14",
+          "title": "Loopback database connections refuse cleartext and MD5 password requests before sending credential material, for both admin and project pools; SCRAM and passwordless test connections still work."
+        },
+        {
+          "number": "1.15",
+          "title": "A project records whether it is the user's factory or a product naming its factory, and refuses to be both"
+        },
+        {
+          "number": "1.16",
+          "title": "A product project reads its factory's roles, notes and checks, and its own record of the same kind and title wins"
+        },
+        {
+          "number": "1.17",
+          "title": "A product's link to a system record it retired reads the record of that kind and title: its own, else its factory's"
+        },
+        {
+          "number": "1.18",
+          "title": "An edit through a product of a system record it reads from its factory writes the product's own copy, which wins, and retiring one hides it from the product; the factory is unchanged"
+        },
+        {
+          "number": "1.19",
+          "title": "A product's inherited records are the factory's system records it reads and holds none of its own for"
+        },
+        {
+          "number": "1.20",
+          "title": "A local url naming a connect_timeout (libpq's, in seconds) longer than the given deadline gives its handshakes that deadline, on both admin and project pools, and the refusal says so; a url naming none, or a shorter one, keeps the given deadline (10 seconds by default)"
+        },
+        {
+          "number": "1.21",
+          "title": "A project opened with system switches leaves each switched-off role, check and note out of its lists, selections and searches, a product's factory's included; a record's own title or id beats its group, which beats all; reading one by its id still finds it, and the plan is never switched off"
+        },
+        {
+          "number": "1.22",
+          "title": "Each history entry carries the server's own time and the account that wrote it, and no writer may change or remove one"
+        },
+        {
+          "number": "1.23",
+          "title": "An outside writer's role, fenced to its plugin's kinds, inserts a record of its own kind, and each history entry carries its role in recorded_by"
+        },
+        {
+          "number": "1.24",
+          "title": "An outside writer's role is refused a core kind, another plugin's kind, an update, a delete and any change to the tables"
+        },
+        {
+          "number": "1.25",
+          "title": "An outside writer whose plugin declares updates may change its own kind's records, and still no other record nor another kind"
+        },
+        {
+          "number": "1.26",
+          "title": "A project opened with a plugin's kinds writes and reads them; opened without them, a record of that kind reads dormant"
+        },
+        {
+          "number": "1.27",
+          "title": "fenceProject fences a plugin's writers in a live project's library as the owner, refusing a missing role or a non-owner account and naming what it fenced first"
+        },
+        {
+          "number": "1.28",
+          "title": "A change to the history goes only through the logged repair switch, for the owner too, and the owner's ordinary writes pass when row-level security is forced"
+        },
+        {
+          "number": "1.29",
+          "title": "A shared library gets schema and own-database table statements only from merged code"
+        }
+      ],
+      "story": "story_754e87e7d531",
+      "storyTitle": "The library"
+    },
+    "capability_5a80222c88c4": {
+      "number": "2",
+      "title": "Library transactions",
+      "contracts": [
+        {
+          "number": "2.1",
+          "title": "`save` creates a record. Saving the same id again replaces it, and each save appends one history entry."
+        },
+        {
+          "number": "2.2",
+          "title": "`edit` changes only the fields it names; every other field keeps its stored value."
+        },
+        {
+          "number": "2.3",
+          "title": "`edit` merges onto what is stored NOW, not onto a copy the caller read earlier. If two edits of different fields race, both survive."
+        },
+        {
+          "number": "2.4",
+          "title": "`edit` of a missing record returns `null` and creates nothing."
+        },
+        {
+          "number": "2.5",
+          "title": "`get` of a missing record returns `null` and never throws."
+        },
+        {
+          "number": "2.6",
+          "title": "`list(type)` returns only that type's current records (none retired), and `[]` when there are none."
+        },
+        {
+          "number": "2.7",
+          "title": "`retire(id, reason)` removes the record from `get`/`list`, keeps the reason in the history, and retiring an already-retired or missing record is a harmless no-op."
+        },
+        {
+          "number": "2.8",
+          "title": "`history()` returns every change in the order it happened, with strictly increasing sequence numbers. `history({ id })` filters to one record, and `history({ since })` returns only entries after that sequence number."
+        },
+        {
+          "number": "2.9",
+          "title": "A `validate` check passed to `save`/`edit` sees the merged result. If it throws, nothing is written (no record change and no history entry)."
+        },
+        {
+          "number": "2.10",
+          "title": "A write naming an `actor` keeps it in history. A write without one is accepted and its history entry has no actor; an edit or retirement never inherits an earlier write's actor. Refused writes and harmless no-ops add no history entry."
+        },
+        {
+          "number": "2.11",
+          "title": "Save, edit and retire accept an optional abort signal. If aborted before write admission, including while waiting for the project write lock, they reject without changing records or history. After admission, cancellation does not interrupt the write or undo its history. The in-memory twin applies the same boundary at write entry."
+        },
+        {
+          "number": "2.12",
+          "title": "`history` also narrows on the server: `from` (a time) keeps the changes made at or after it, to the millisecond, however the time is written; `types` keeps only changes to records of those types (none for an empty list); `oldest: n` or `newest: n` keeps only the first or last n of what matches, still in order. Filters combine with each other and with `id` and `since`; a malformed one (a limit that is not a whole number above 0, both limits, or a time that is not one) is refused with a RangeError before anything is read."
+        },
+        {
+          "number": "2.13",
+          "title": "Lists narrow on the server by ids and stored field values, take an ordered limit, and project only requested fields on the named schema version; memory and Postgres agree."
+        },
+        {
+          "number": "2.14",
+          "title": "`revert(id, to, read)` writes the record back to the state its own history entry `to` kept, whole: changed fields restored, removed ones put back, added ones gone. It is one more `updated` entry whose reason names the entry it reverts to, with its writer; nothing in history is rewritten."
+        },
+        {
+          "number": "2.15",
+          "title": "A revert of a retired record to an entry before its retirement brings it back live under its own id, created when it first was, so links to that id reconnect. A retirement entry is not a state to revert to."
+        },
+        {
+          "number": "2.16",
+          "title": "A revert is refused, writing nothing, when the record was written to after the entry the writer read (`read` is not its newest seq), when the entry is not the record's own, or when its validate check throws."
+        },
+        {
+          "number": "2.17",
+          "title": "`history({ actor })` keeps only the changes one writer made, as their entries name them, on the server, combined with the other filters."
+        },
+        {
+          "number": "2.18",
+          "title": "`revertWrites({ of })` writes every record `of` wrote (health left out) back, in one write, to its state before `of`'s first write to it: a changed record to its entry before, a record `of` retired live again, a record `of` made retired. Each is one more entry naming the writer reverted and the entry it goes back to, with its own writer and reason; a record `of` made and retired itself is left alone. It returns what it changed, by id."
+        },
+        {
+          "number": "2.19",
+          "title": "`revertWrites` is refused, writing nothing, when another writer (named or not) wrote to any record `of` wrote after `of`'s first write to it: LaterWriterError names each such record with the first such entry and its writer. A check that throws refuses it whole too."
+        },
+        {
+          "number": "2.20",
+          "title": "A write made for a writer who had read outside text keeps what it read in its history entry; a write without one carries no mark"
+        },
+        {
+          "number": "2.21",
+          "title": "A library whose history has no place for the outside-text mark yet writes and reads its history as before, leaving the mark off"
+        },
+        {
+          "number": "2.22",
+          "title": "Each history entry read back names the account the server saw write it"
+        }
+      ],
+      "story": "story_754e87e7d531",
+      "storyTitle": "The library"
+    },
+    "capability_a1d4fadbec3e": {
+      "number": "3",
+      "title": "Data schema",
+      "contracts": [
+        {
+          "number": "3.1",
+          "title": "Saving a `story` with no `title` is refused, the error names `title`, and nothing is written."
+        },
+        {
+          "number": "3.2",
+          "title": "An unknown field (for example `titel`) is refused and named."
+        },
+        {
+          "number": "3.3",
+          "title": "An unknown type is refused."
+        },
+        {
+          "number": "3.4",
+          "title": "Every stored record carries its schema version (1 today)."
+        },
+        {
+          "number": "3.5",
+          "title": "Reading a record stamped with a version newer than this code knows is refused, never guessed at. The error names the record and both schema versions, gives the update and agent-link restart steps, and reports the running code commit distance behind locally fetched origin/main when known; unavailable Git information never masks the refusal or invents a distance."
+        },
+        {
+          "number": "3.6",
+          "title": "An `edit` that would leave the record invalid (for example blanking a required field) is refused, and nothing is written."
+        },
+        {
+          "number": "3.7",
+          "title": "A record written on an OLDER version of its type is read (`get`, `list`) upgraded to the current version, its upgrade steps applied in order. Reading it writes nothing."
+        },
+        {
+          "number": "3.8",
+          "title": "An `edit` of such a record merges onto its upgraded fields and stores it on the current version, in place, in the same all-or-nothing write. If the upgraded result does not fit, nothing is written."
+        },
+        {
+          "number": "3.9",
+          "title": "An older record that no upgrade step brings to the next version is refused by `get`, `list` and `edit`, with an error naming the missing step. It is never guessed at."
+        },
+        {
+          "number": "3.10",
+          "title": "A friction report written before reports carried a state reads with one worked out from its route and stamp (no route open, nothing dismissed, a stamp resolved, any other route routed), and its next write stores it so"
+        },
+        {
+          "number": "3.11",
+          "title": "A story and a capability carry their prose as `text`, read back whole and in order; one written without it reads as before"
+        },
+        {
+          "number": "3.12",
+          "title": "A process's schedule, time zone and precheck are validated: words the parser cannot read, a grace on any but a daily schedule, an unknown time zone, a precheck not on the fixed list, or a time zone or precheck on a process with no schedule are refused and named"
+        },
+        {
+          "number": "3.13",
+          "title": "A process's schedule reads back as written, and as its rule (a daily schedule's grace in minutes), its times in its own time zone or the owner's, and its precheck as written; a process with no schedule reads as before"
+        },
+        {
+          "number": "3.14",
+          "title": "A story carries a risk reading (a blast depth 1 to 3 and a blast radius 1 to 4 with its downstream stories, audience and users, each with the day read and why), and a story or capability its own guardrails (a check and whether a change or a release triggers it); a value out of range is refused and named, and a record written without them reads as before"
+        },
+        {
+          "number": "3.15",
+          "title": "A kind a plugin declares, `<plugin>.<kind>` with its fields' shape as JSON Schema, is written and read back like a core kind, and read upgraded by the steps it declares as data."
+        },
+        {
+          "number": "3.16",
+          "title": "A dotted kind no loaded plugin declares is refused on write, and nothing is written."
+        },
+        {
+          "number": "3.17",
+          "title": "A write that breaks the shape its plugin declared is refused, naming each field at fault, and nothing is written."
+        },
+        {
+          "number": "3.18",
+          "title": "A plugin kind no loaded plugin declares reads dormant: kept intact and readable by id, hidden from lists, refused an edit; declared again, its records read as before."
+        },
+        {
+          "number": "3.19",
+          "title": "A write to a principle, guardrail, pattern, process, agent role or decision carries the mark of the outside text its writer had read; a write of any other kind carries none"
+        }
+      ],
+      "story": "story_754e87e7d531",
+      "storyTitle": "The library"
+    },
+    "capability_dd486ffa5b02": {
+      "number": "4",
+      "title": "Work model",
+      "contracts": [
+        {
+          "number": "4.1",
+          "title": "Add a story, a capability under it and a contract under that, and `projectTree()` returns them nested: story › capability › contract."
+        },
+        {
+          "number": "4.2",
+          "title": "An arc listing that story is returned by `arcsFor(storyId)`. An arc listing no stories is accepted."
+        },
+        {
+          "number": "4.3",
+          "title": "A capability naming a missing (or retired) story is refused, as is a contract naming a missing capability and an arc listing a missing story."
+        },
+        {
+          "number": "4.4",
+          "title": "A capability depending on another capability that does not exist is refused."
+        },
+        {
+          "number": "4.5",
+          "title": "A dependency loop between capabilities (A → B → A, or longer) is refused, and nothing is written."
+        },
+        {
+          "number": "4.6",
+          "title": "A capability is born proposed. The agent switches the flag off, and back on, and history names the writer; only a live capability has the flag, and a capability written before the flag reads proposed."
+        },
+        {
+          "number": "4.7",
+          "title": "A contract planned without a number is given its capability's next free one (after the highest its live contracts carry); a title whose number another live contract of the capability carries is refused, on planning and on correcting, and nothing is written. A capability with no number numbers nothing."
+        },
+        {
+          "number": "4.8",
+          "title": "A capability planned without a number is given its story's next free one (after the highest its live capabilities carry), so the contracts planned on it are numbered from the start; a number given is kept."
+        },
+        {
+          "number": "4.9",
+          "title": "Retiring a capability with live dependents is refused, naming every dependent and dependsOn, with nothing written; after those links are removed or the dependents retired, retirement succeeds with its reason and writer kept in history."
+        },
+        {
+          "number": "4.10",
+          "title": "A contract planned without a number skips the numbers the capability's tests already carry, past the highest; a number given is kept"
+        },
+        {
+          "number": "4.11",
+          "title": "a contract planned without a number never takes the number of a numbered test no live contract carries: it gets the next free number past it, and only a number given binds it to that test"
+        },
+        {
+          "number": "4.12",
+          "title": "A story is made mapped only by mapStories: a mapped field given to addStory or editStory is refused, and nothing is written"
+        },
+        {
+          "number": "4.13",
+          "title": "mapStories(from, packages) adds a mapped story, with no capabilities, for each package no live story of that import maps, retires that import's stories whose package is gone, and leaves every other story as it stands"
+        },
+        {
+          "number": "4.14",
+          "title": "The plan's tree carries a mapped story's import, package and folders as mapStories recorded them; a story storytree built carries none"
+        },
+        {
+          "number": "4.15",
+          "title": "A number given in a contract's title is written in the numbered form, number then \" · \", so every reader of contract numbers finds it"
+        },
+        {
+          "number": "4.16",
+          "title": "a capability on a mapped story is planned with the folders and files of its import it covers, several roots allowed and written plainly; one with none, or a path outside its story's folders, is refused, as are covers on a built story"
+        },
+        {
+          "number": "4.17",
+          "title": "no two capabilities of a mapped story cover one file: a path equal to, inside or around another's is refused, naming the capability that covers it, on planning and on correcting"
+        },
+        {
+          "number": "4.19",
+          "title": "The project's anchor is written a half at a time, what it is and who it is for (setAnchor), at one id, and read back by anchor() and the plan's tree; a half given as undefined is removed, and an empty half is refused with nothing written (ADR-1085 D1)."
+        },
+        {
+          "number": "4.20",
+          "title": "anchorGaps(tree) reads what the plan has not said, the anchor's missing halves only, and nothing when both are said; no story is ever named (ADR-1085 D1, ADR-1096); it fails nothing."
+        },
+        {
+          "number": "4.21",
+          "title": "a story carries no audience (ADR-1096): one given an audience is refused with nothing written, and one stored with an audience before reads without failing, its tree node carries none, and its next edit stores it without one"
+        },
+        {
+          "number": "4.22",
+          "title": "The plan's tree carries a story's risk reading and guardrails, and a capability's guardrails, as stored; one without them carries none"
+        },
+        {
+          "number": "4.23",
+          "title": "A pull request number resolves through the project's repository cut-over by when it was recorded: before it, the old repository's (none when that one was deleted); on its day or after, the new one's; with no cut-over, the project's one repository's"
+        },
+        {
+          "number": "4.24",
+          "title": "A capability planned or retitled with a number another live capability of its story carries is refused, naming that one and the story's next free number; nothing is written"
+        },
+        {
+          "number": "4.25",
+          "title": "importPluginPlan writes a plugin's story, capabilities and contracts from its plan, adopting a live story the first time; a later import matches capabilities by number and contracts by theirs, edits what changed, adds what is new and retires what the plan no longer holds, keeping ids"
+        },
+        {
+          "number": "4.26",
+          "title": "a plugin's story, its capabilities and its contracts are refused every plan edit (story, capability, proposed flag, contract), each naming the plugin's plan; nothing is written"
+        },
+        {
+          "number": "4.27",
+          "title": "a plugin plan with a capability or contract carrying no number, a number twice, or a contract numbered under another capability is refused, as is adopting a mapped story or another plugin's, with nothing written"
+        }
+      ],
+      "story": "story_754e87e7d531",
+      "storyTitle": "The library"
+    },
+    "capability_f27ac2abb10b": {
+      "number": "5",
+      "title": "Health record",
+      "contracts": [
+        {
+          "number": "5.1",
+          "title": "A node with no health entries reads `reported: not-checked, verified: not-checked`."
+        },
+        {
+          "number": "5.2",
+          "title": "After an agent reports a contract `passing`, it reads `reported: passing, verified: not-checked`."
+        },
+        {
+          "number": "5.3",
+          "title": "After storytree records the same contract verified `failing`, both columns are kept and shown side by side (`reported: passing, verified: failing`)."
+        },
+        {
+          "number": "5.4",
+          "title": "A capability or story's health is rolled up from its contracts, column by column: `failing` if any contract is failing; `passing` only if it has at least one contract and every one is passing; otherwise `not-checked`. A single never-checked contract keeps its story `not-checked`."
+        },
+        {
+          "number": "5.5",
+          "title": "Every health entry is kept in history with who wrote it and when. A health entry for a node that does not exist is refused."
+        },
+        {
+          "number": "5.6",
+          "title": "A capability's word is proposed while its flag is on, even with every contract verified passing. Once the flag is off, it is healthy when every contract is verified passing, unhealthy when any is verified failing, and untested when any has no verified result or it has no contracts; reported passing alone reads untested."
+        },
+        {
+          "number": "5.7",
+          "title": "A verified entry can carry the kind of skip that left it not checked (owner, platform:<os> or other) and the earlier verdict it did not reproduce with that verdict's time; both read back from the contract's health and in the annotated tree, and an entry without them reads as before."
+        },
+        {
+          "number": "5.8",
+          "title": "A capability that is not healthy carries one reason and who moves it: not built while proposed; otherwise, from its contracts' verified columns, failing, then not re-run, then no test names it, then out of CI's reach, then needs owner; with the contracts carrying it and the earliest time one was recorded so. Only needs owner is the owner's; a healthy capability carries none."
+        },
+        {
+          "number": "5.9",
+          "title": "The health worklist lists every capability that is not healthy with its reason, who moves it, the contracts carrying it and since when (the earliest time one was recorded so, or else when the capability was recorded), oldest first; one an open increment touches is routed and left off until that increment closes."
+        },
+        {
+          "number": "5.10",
+          "title": "In a project whose health nothing verifies (no verified entry anywhere), a built capability carries no reason and is marked as shown by the agent's report; its line says what the agent reports and that storytree does not check this project's tests yet, and it is off the health worklist"
+        },
+        {
+          "number": "5.11",
+          "title": "A capability whose every contract carrying its reason has a pending mark from a run in progress, newer than its verified entry and younger than the run's time limit, stays on the health worklist saying the run it waits on; once that run records the contract, or its time is up, it is offered (or left off) by what is recorded. A pending mark is no verdict: the contract's health reads as before."
+        },
+        {
+          "number": "5.12",
+          "title": "A capability whose story's code changed on main after every contract carrying its reason was last verified, by a commit younger than the time a merge's own-health run takes, stays on the health worklist saying the commit it waits on; once its contracts are verified after that commit, or the time is up, it is offered by what is recorded. One with no contract carrying its reason is never held so."
+        },
+        {
+          "number": "5.13",
+          "title": "A capability not proven carries the arcs that park it in the annotated tree"
+        },
+        {
+          "number": "5.14",
+          "title": "A proposed capability with at least one contract and every contract verified passing is on the worklist still not built and the agent's, marked that its contracts already pass; one with no contract or any contract not passing is not so marked"
+        },
+        {
+          "number": "5.15",
+          "title": "A capability whose every contract carrying \"no test names it\" a test on main names stays on the health worklist held back, saying so with main's commit, until a run records it; one with any such contract unnamed on main is offered as before"
+        },
+        {
+          "number": "5.16",
+          "title": "an explored capability of a mapped story has no health until it has a contract: no reason, and off the worklist; given a contract, it is read as any capability"
+        },
+        {
+          "number": "5.17",
+          "title": "A verified entry can carry where it was seen, verified locally or read from CI; it reads back from the contract's health, its history and the annotated tree, and an entry written without it reads with no source"
+        }
+      ],
+      "story": "story_754e87e7d531",
+      "storyTitle": "The library"
+    },
+    "capability_baaeecb42577": {
+      "number": "6",
+      "title": "Knowledge artifacts",
+      "contracts": [
+        {
+          "number": "6.3",
+          "title": "Editing a decision keeps its old wording in history."
+        },
+        {
+          "number": "6.4",
+          "title": "A link to a record that does not exist is refused."
+        },
+        {
+          "number": "6.1",
+          "title": "An artifact is found by `search` on any word it contains (case-insensitive)."
+        },
+        {
+          "number": "6.2",
+          "title": "`relatedNotes(noteId)` returns every artifact that links to that artifact."
+        },
+        {
+          "number": "6.5",
+          "title": "`definitions()` returns every live definition, and nothing else, in creation order. Added for the agent link's definition lookups at each prompt (ADR-0636 D1, b2), which adds `definitions` to 7's list of functions."
+        },
+        {
+          "number": "6.7",
+          "title": "Friction with no evidence is refused, and so is a re-steer marked a defect with no failure mode. Friction stores the optional dischargedBy reference to the remedy that landed, alongside its route and reason; editing other fields preserves the reference."
+        },
+        {
+          "number": "6.6",
+          "title": "Each of the eight kinds is saved with its required fields, and refused, naming the field, without one."
+        },
+        {
+          "number": "6.9",
+          "title": "Opening an older project converts an explicitly classified memory once, keeping its id, links and history, and reports an unclassified memory while preserving its original record."
+        },
+        {
+          "number": "6.8",
+          "title": "Saving a `memory` is refused with the reason that memories belong to the harness, and nothing is written."
+        },
+        {
+          "number": "6.10",
+          "title": "`related(noteId)` ranks the other live artifacts by likeness to one, saying of each whether a link joins them in either direction; with `unlinked`, only those no link reaches. An artifact sharing no word with it is never listed."
+        },
+        {
+          "number": "6.11",
+          "title": "`searchEach(queries)` and `relatedEach(ids, options)` answer as search() and related() would for each, in order, from one reading of the artifacts; an id that is not a live artifact is left out of relatedEach's answer."
+        },
+        {
+          "number": "6.12",
+          "title": "A quality control check is a ninth kind (ADR-0956 D3): saved with its title, one-line description, its question and at least one link to a live principle or guardrail, and refused, naming the field, without its question or without such a link; it may carry what has graduated, each part with where it is now enforced."
+        },
+        {
+          "number": "6.13",
+          "title": "A friction report carries its state (ADR-1016): filed open, and an edit naming state is refused with nothing written; routing it to nothing makes it dismissed, any other route routed, or resolved when the route carries a delivery stamp, and a stamp added later resolves a routed one"
+        },
+        {
+          "number": "6.14",
+          "title": "A recurrence on a resolved or dismissed friction report returns it to open, its route, reason and stamp cleared from its fields and kept in its history; one on an open or routed report leaves its state"
+        },
+        {
+          "number": "6.15",
+          "title": "A research note is saved with its title, description, the day the research was done and its findings, and refused without its findings or day, or with a day that is not one"
+        },
+        {
+          "number": "6.16",
+          "title": "An artifact refiled as another kind keeps its id, creation date and links, reads as the new kind, and its history keeps what it was; fields that do not fit the new kind, a friction or re-steer, or an id that is no live artifact are refused with nothing written"
+        },
+        {
+          "number": "6.17",
+          "title": "An experiment record is saved with its arms, hypotheses, measures, criteria, budget and stop rules; once frozen, only an outcome may be added"
+        }
+      ],
+      "story": "story_754e87e7d531",
+      "storyTitle": "The library"
+    },
+    "capability_a19bf216935b": {
+      "number": "21",
+      "title": "Links",
+      "contracts": [
+        {
+          "number": "21.1",
+          "title": "`link(from, to)` makes artifact `from` rest on artifact `to`, keeping its other links. Linking it again writes nothing."
+        },
+        {
+          "number": "21.2",
+          "title": "A definition rests only on a decision, and a friction or re-steer rests on nothing: any other link is refused, naming the rule, and nothing is written."
+        },
+        {
+          "number": "21.3",
+          "title": "The worklist names each accepted decision on no shelf that no artifact rests on, and drops it once one does."
+        },
+        {
+          "number": "21.4",
+          "title": "For each live artifact written since the session's cursor, including edits, the worklist lists neighbours ranked by likeness that no link joins in either direction. It uses the library's related-but-unlinked search and writes no links; the agent decides which are real dependencies."
+        }
+      ],
+      "story": "story_754e87e7d531",
+      "storyTitle": "The library"
+    },
+    "capability_36bcae448803": {
+      "number": "23",
+      "title": "Catalogue",
+      "contracts": [
+        {
+          "number": "23.1",
+          "title": "`retire(id, reason)` retires an artifact nothing points at. An artifact that another live record points at (a link, a supersession, a process's hand-on, an agent role's reading, rules or anti-patterns, an increment's remedies, or a question it settled) is refused, naming what points at it, and nothing is written."
+        },
+        {
+          "number": "23.2",
+          "title": "The worklist lists each artifact written new since a cursor, with the live artifacts a plain search for any word of its title finds, so the agent can see what might already cover it."
+        },
+        {
+          "number": "23.3",
+          "title": "The worklist lists each write to an agent role or a principle since its cursor that was made after its session read outside text, with what was read"
+        }
+      ],
+      "story": "story_754e87e7d531",
+      "storyTitle": "The library"
+    },
+    "capability_b7a12a2b7273": {
+      "number": "22",
+      "title": "Decision log",
+      "contracts": [
+        {
+          "number": "22.1",
+          "title": "`supersede(olds, decision)` records a new accepted decision, or names an existing accepted successor by ID, adding the old ones to its `supersedes` without duplicating it or losing existing links, wording or authority. Each old one reads superseded and stays readable; the successor inherits the first old one's shelf only if it has none, and any old one's load-bearing mark. Missing, retired, proposed or already superseded successors, invalid predecessors and supersession loops are refused before anything is written."
+        },
+        {
+          "number": "22.2",
+          "title": "`correct(id, fields)` changes a decision in place (its text, title or load-bearing mark), and the old wording stays in its history. A correction that would turn an accepted decision back to proposed is refused, since only the owner does that, and nothing is written."
+        },
+        {
+          "number": "22.3",
+          "title": "`annotate(target, { by, note })` adds a dated annotation to the target decision's text, naming the decision that narrows it. A narrowing decision that is not a live decision is refused, and nothing is written."
+        },
+        {
+          "number": "22.4",
+          "title": "The worklist's health report names each link or supersession that points at a record no longer live, with both ends."
+        }
+      ],
+      "story": "story_754e87e7d531",
+      "storyTitle": "The library"
+    },
+    "capability_53fd994f7b4c": {
+      "number": "24",
+      "title": "Graduation",
+      "contracts": [
+        {
+          "number": "24.1",
+          "title": "The worklist lists each memory in the memory folders that is new, changed since it was parked, or parked more than 60 days ago. A memory parked unchanged within its 60 days is not listed."
+        },
+        {
+          "number": "24.2",
+          "title": "`park(memory, reason)` keeps the reason, the date and what the memory said when it was parked, beside the memory folder, never in the library."
+        },
+        {
+          "number": "24.3",
+          "title": "`graduate(memory, kind, fields)` writes the lesson as a principle, process or definition, and only then deletes the memory. A write the library refuses leaves the memory where it was, and any other kind is refused."
+        },
+        {
+          "number": "24.4",
+          "title": "The worklist lists each process that names none of the tools served, and each tool served that no process names."
+        }
+      ],
+      "story": "story_754e87e7d531",
+      "storyTitle": "The library"
+    },
+    "capability_d8451645c169": {
+      "number": "25",
+      "title": "Lapsed questions",
+      "contracts": [
+        {
+          "number": "25.1",
+          "title": "The worklist lists only open questions whose review lease has lapsed, across every arc, longest lapsed first. Fresh and settled questions are excluded; gathering the list neither settles nor renews a question."
+        }
+      ],
+      "story": "story_754e87e7d531",
+      "storyTitle": "The library"
+    },
+    "capability_a7f068502213": {
+      "number": "10",
+      "title": "Work in flight",
+      "contracts": [
+        {
+          "number": "",
+          "title": "An increment moves forward: proposal, active, closed (ADR-0909 D4 retired the ready step, and asking for it is refused); its one step back is 10.9's, active work nobody holds returning to proposal. Closing records the date, pull request, note and outcome (landed, failed or withdrawn), and a close with no pull request needs a note. A dedicated correction replaces a closed outcome with a required nonblank reason kept in history, preserves its closure date unless supplied, and leaves it closed; an open increment or an invalid outcome is refused without a write."
+        },
+        {
+          "number": "10.1",
+          "title": "An increment belongs to one live arc. It is created as a proposal, stamped with the date it was parked, or born closed."
+        },
+        {
+          "number": "10.3",
+          "title": "An arc with increments reads closed exactly when none is open and none of its questions waits on the owner, and active otherwise; an arc with no increments yet reads active. A parked arc reads parked until it is unparked."
+        },
+        {
+          "number": "10.4",
+          "title": "An arc's intent and end state are required, and an arc written before they were is upgraded to carry them."
+        },
+        {
+          "number": "10.5",
+          "title": "An increment moves to another live arc keeping its id, lifecycle and waits, its history recording the move and why; closed history may move into a closed arc, while open work moving to a closed arc is refused and nothing is written."
+        },
+        {
+          "number": "10.6",
+          "title": "An arc parked until a day reads parked before that day (UTC midnight) and as if unparked from it on, worked out on read with no write in between"
+        },
+        {
+          "number": "10.7",
+          "title": "An increment stored as ready, a step ADR-0909 D4 retired, reads as a proposal keeping its parked date, and an edit stores it so."
+        },
+        {
+          "number": "10.8",
+          "title": "Holds and wait checks read open work and named blockers, and one arc view reads only its own history: adding hundreds of long closed increments elsewhere adds at most 128 KiB per read."
+        },
+        {
+          "number": "10.9",
+          "title": "An active increment returns to proposal, keeping its parked date, when nobody holds it; a proposal or closed one is refused with nothing written"
+        },
+        {
+          "number": "10.10",
+          "title": "An arc whose every open increment waits only on a dated event, or on its own work so held, reads parked until the earliest check-back day, worked out on read; free work, an owner wait or an open question keeps it active"
+        },
+        {
+          "number": "10.11",
+          "title": "An increment carries a capabilities list naming live capabilities only, parked empty and editable after parking, and cites anything else (its stories, notes, decisions) through links; one stored with the retired touches reads its capabilities in the list and the rest as links, and an edit stores it so (ADR-0949 D2)"
+        },
+        {
+          "number": "10.12",
+          "title": "An active increment takes a pending change to a story, capability or contract it did not plan: the live record stays, the change keeps its base history entry and its before and after, a second change merges into it, and one another open increment already holds is refused naming it"
+        },
+        {
+          "number": "10.14",
+          "title": "An increment's branch reads the plan with its pending changes laid over, every other reader the live plan; a pending change its record has moved since it was read (a later value in a field the edit sets, or any later entry for a retirement) is named stale with the entry that moved it"
+        },
+        {
+          "number": "10.15",
+          "title": "An increment's pending changes apply through the plan's own editors when it lands, each history entry marked with its pull request; a stale or refused change is not applied and is parked as residue on its arc naming both history entries; applying again applies nothing twice"
+        },
+        {
+          "number": "10.16",
+          "title": "An increment closed failed or withdrawn drops its pending changes, its history saying so, and the live plan is left as it was"
+        },
+        {
+          "number": "10.17",
+          "title": "Settling closed increments' leftover pending changes applies those of each one that landed and drops those of each one that did not, and finds nothing left the second time"
+        },
+        {
+          "number": "10.18",
+          "title": "A capability is parked when every open increment naming it sits on a parked arc and asks nothing of the owner"
+        },
+        {
+          "number": "10.19",
+          "title": "An increment may name the one machine that can take it: parked with it, edited to another, and cleared by an edit to none, which removes the field"
+        },
+        {
+          "number": "10.20",
+          "title": "Closing an increment as landed resolves each friction in its remedies, stamped with its pull request (the increment when it has none), and a closure corrected to landed does the same"
+        },
+        {
+          "number": "10.21",
+          "title": "Closing an increment failed or withdrawn returns each friction in its remedies that reads routed to open, its route cleared, unless another open increment still remedies it; a closure corrected from landed does the same to the reports it resolved"
+        },
+        {
+          "number": "10.22",
+          "title": "The board's arcs: live arcs whole plus closed arcs whose closing day falls in a window, and closed arcs alone by a window, each with its closing day and only the increment fields the board draws"
+        },
+        {
+          "number": "10.23",
+          "title": "An increment names the escape it fixes: the pull request or increment that caused it and the story it hit, set by parking or editing and cleared by an edit; a cause or story that is not one is refused with nothing written"
+        },
+        {
+          "number": "10.24",
+          "title": "An increment carries a risk line (its tier, rating, depth, radius, depth flags, the live stories it touches and the day read), set and cleared by an edit; a value out of range or a story that is not one is refused with nothing written"
+        },
+        {
+          "number": "10.25",
+          "title": "An increment is parked already waiting for the owner, its note written in the parking's one write; a wait the owner-wait rules refuse, two for one releaser, or one on an increment born closed is refused with nothing written"
+        },
+        {
+          "number": "10.26",
+          "title": "An open increment drops one pending change by its record, with a reason, its history saying so and the live plan left as it was; a record it holds no change for, or a closed increment, is refused with nothing written"
+        },
+        {
+          "number": "10.27",
+          "title": "An apply cut off part-way leaves pending only the changes it had not applied; the gate reads none its own increment applied as stale, and the next apply, under any of the increment's pull requests, finishes the rest"
+        }
+      ],
+      "story": "story_754e87e7d531",
+      "storyTitle": "The library"
+    },
+    "capability_88a6aaa1fa93": {
+      "number": "1",
+      "title": "Key store and resolver",
+      "contracts": [
+        {
+          "number": "1.1",
+          "title": "Saving a key creates `auth.json` in storytree's home (`STORYTREE_HOME` when set, else `~/.storytree/0.3`, the folder `settings.json` uses), readable and writable by the user alone: on macOS and Linux the file's mode is 0600; on Windows it relies on the user-profile folder's own permissions, and nothing changes them."
+        },
+        {
+          "number": "1.2",
+          "title": "Two writers saving different keys at once both survive: reading `auth.json` back after they finish finds both entries, because every write holds a file lock and writes a temporary file that is then renamed over `auth.json`, so a reader never sees a half-written file."
+        },
+        {
+          "number": "1.3",
+          "title": "Resolving a key returns, first to last, an explicit value given by the caller, then its `auth.json` entry, then its environment variable: with all three present the explicit value wins; with no explicit value a saved entry wins over the environment variable; with neither, the environment variable is returned; with none, resolving says the key is not set."
+        },
+        {
+          "number": "1.4",
+          "title": "An `auth.json` entry `!<command>` resolves to the command's standard output, trimmed, and resolving it again in the same process does not run the command again; a command that fails is an error naming the key and that its command failed, which never contains the command's output."
+        },
+        {
+          "number": "1.5",
+          "title": "`storytree auth set <name>` reads the value from standard input, takes none as an argument and never prints it; `storytree auth list` prints each key's name and where it resolves from (file, command or environment) and never a value; `storytree auth remove <name>` deletes that entry from `auth.json`, leaving the others."
+        }
+      ],
+      "story": "story_d47051f035f0",
+      "storyTitle": "Keys"
+    },
+    "capability_75d059640d9d": {
+      "number": "7",
+      "title": "Library API",
+      "contracts": [
+        {
+          "number": "7.2",
+          "title": "`changesSince(n)` returns only changes after `n`, in order, each carrying the new cursor to pass next time."
+        },
+        {
+          "number": "7.3",
+          "title": "The package's public entry exports exactly the documented API and nothing else, and its internals cannot be imported through the package. At runtime it exports `ANCHOR_ID`, `CONNECT_TIMEOUT_MS`, `CONTRACT_DEFINITION`, `ConnectionError`, `DependencyLoopError`, `LONG_CONTRACT_TITLE`, `LifecycleError`, `LinkLoopError`, `MissingReferenceError`, `MissingUpgradeError`, `NEW_LINE`, `NOT_VERIFIED`, `NewerSchemaError`, `NumberTakenError`, `OWNER_TIME_ZONE`, `ProjectGoneError`, `ProjectNameError`, `RestoreRefusedError`, `RetireRefusedError`, `SEED_CONNECTION`, `SchemaError`, `SupersessionLoopError`, `UnknownTypeError`, `WaitLoopError`, `anchorGaps`, `beforeCutover`, `connect`, `connectionString`, `explainConnectTimeout`, `heldBack`, `knowledgeGuidance`, `parseSchedule`, `planGuidance`, `pluginSchema`, `pullSaid`, `wordAndWhy`. Everything else exported is a data type, including WriteOptions, HistoryEntry, HistoryFilter and the literal phrase query options and page. The connection offers exactly `openProject`, `listProjects`, `projectIdentities`, `snapshot`, `restore`, `dropProject`, `ownDatabase`, `close`. A project library offers exactly `name`, `identity`, `factory`, `markFactory`, `recordFactory`, `get`, `list`, `inherited`, `history`, `addStory`, `createArc`, `addCapability`, `editStory`, `editCapability`, `addContract`, `editContract`, `editArc`, `projectTree`, `arcsFor`, `addIncrement`, `advanceIncrement`, `closeIncrement`, `moveIncrement`, `editIncrement`, `parkArc`, `unparkArc`, `arcView`, `arcViews`, `addWait`, `removeWait`, `waitHolds`, `addWaitFor`, `removeWaitFor`, `waitsFor`, `holds`, `raiseQuestion`, `settleQuestion`, `questions`, `heldOnQuestion`, `checkQuestion`, `renewQuestion`, `editQuestion`, `lapsedQuestions`, `reportHealth`, `recordVerified`, `health`, `healthHistory`, `healthWorklist`, `recordDecision`, `numberDecision`, `numberDecisionsFromFullRecord`, `numberFoundingDecisions`, `setDecisionNumberFloor`, `setProposed`, `decisionNumberPlan`, `defineTerm`, `writeKnowledge`, `definitions`, `editNote`, `search`, `searchEach`, `rank`, `rankAll`, `findPhrase`, `relatedNotes`, `related`, `relatedEach`, `frontCovers`, `decision`, `decisions`, `composeStatement`, `retire`, `changesSince`, capability 27's fixed data questions `counts`, `latestChanges`, `findByTitle` and `decisionNumbered`, `recordFyi`, `unheardFyis`, `markFyisHeard`, `createPluginRecord`, `editPluginRecord`, `pluginRecords`, `removePluginRecords`, `dormantKinds`, `close`. Project handles expose no pool, store or table; the connection's ownDatabase is the deliberate exception described by 7.7."
+        },
+        {
+          "number": "7.1",
+          "title": "An end-to-end \"agent's day\" against a real local Postgres: open a project, create an arc, add a story, a capability and a contract, report passing, record verified, record a decision as the capability's front cover and write a definition inside it, then read `projectTree()` and `changesSince(0)`. Every step is visible where the next step expects it."
+        },
+        {
+          "number": "7.4",
+          "title": "`editStory`, `editContract` and `editArc` change only the fields they name, merged onto what is stored now, and check a new reference as adding does (a contract's capability, an arc's stories). Each gives `null`, writing nothing, for an id that is not a live record of its type."
+        },
+        {
+          "number": "7.5",
+          "title": "`get`, `list` and `history` return whole records through the public API, agreeing with the in-memory twin. Live reads upgrade old records; history preserves original writes, including actors and retirement reasons, and can filter by id and sequence. Reads write nothing."
+        },
+        {
+          "number": "7.6",
+          "title": "Every public write carries its optional actor to history, as in 2.10. Health can name a writer separately from its reporter; omitting the writer preserves its existing `by` attribution."
+        },
+        {
+          "number": "7.7",
+          "title": "A connection hands its caller one named database of its own beside the projects, on the same server, local or Cloud SQL: created the first time (borrowing a granted creator role where the user may not create databases), never listed as a project, closed with the connection. Handed its table definitions, the library sets it up too (ADR-0973): only the statements the database has not yet applied, in one transaction under the database's own lock, so connections setting it up at once all succeed and one opening a database already set up runs no DDL a concurrent writer could block or deadlock; a caller that only reads may leave them out."
+        },
+        {
+          "number": "7.8",
+          "title": "`arcViews()` returns every live arc's view in a few reads, not one per arc"
+        },
+        {
+          "number": "7.10",
+          "title": "projectTree marks a parked capability with its arc"
+        },
+        {
+          "number": "7.18",
+          "title": "sendFeedback writes a feedback record, with the element it points at, and keeps its screenshot and the crop to that element beside it, out of the record's history; feedbackScreenshot returns the bytes, and none for a note sent without one"
+        },
+        {
+          "number": "7.19",
+          "title": "routeFeedback marks a new feedback record routed with its route, target and reason; a missing, non-feedback or already routed record is refused with nothing written, and a routed record must carry its route and reason"
+        },
+        {
+          "number": "7.20",
+          "title": "printable(text) turns every control character a terminal would act on (C0 but line breaks, tabs and a line-ending carriage return, DEL, C1) into a placeholder, from a light entry that imports nothing"
+        },
+        {
+          "number": "7.21",
+          "title": "createPluginRecord saves a record of a plugin's kind the project was opened with, and refuses any other"
+        },
+        {
+          "number": "7.22",
+          "title": "pluginRecords lists a plugin's records by kind with count and ids; removePluginRecords removes exactly that listing, refusing a stale one"
+        },
+        {
+          "number": "7.23",
+          "title": "recordFyi keeps what the owner should know with its title, what happened, when (now when not given), what it is about and who noticed it; unheardFyis lists those he has not heard, oldest first; markFyisHeard marks them heard, so they are listed no more but stay in history, and refuses an id that is no FYI with nothing written (ADR-1184 D3)"
+        },
+        {
+          "number": "7.24",
+          "title": "editPluginRecord changes a record of a plugin's kind the project was opened with, once-only when checkCurrent refuses, and refuses any other"
+        }
+      ],
+      "story": "story_754e87e7d531",
+      "storyTitle": "The library"
+    },
+    "capability_dce9495fcaed": {
+      "number": "17",
+      "title": "The library's commands",
+      "contracts": [
+        {
+          "number": "17.1",
+          "title": "The library declares the library family first among storytree's families, its thirteen verbs as commands, then capability 27's three, and none as a tool; a verb reads a phrase from @file in the caller's folder, refile rewrites an artifact as another kind under its id, and edit run by a session holding an increment holds a planned record's change on it"
+        },
+        {
+          "number": "17.2",
+          "title": "The library declares search_notes, open, write_note and correct_note as tools and none as a command; each artifact they show is handed to the door as a read, found as the session last saw it, and an artifact written with no place goes onto the shelf of the capability the session claimed last, inside the cover it opened last"
+        },
+        {
+          "number": "17.3",
+          "title": "library edit project-anchor --what … --audience … writes the project's anchor, making it on its first write and refusing any other field with nothing written, and library read reads it back; a story takes no audience (ADR-1085 D1, ADR-1096)"
+        },
+        {
+          "number": "17.4",
+          "title": "One field round-trips byte for byte: library read --field and the open tool's field give a record's stored value exactly, and library edit @file writes it back unchanged"
+        },
+        {
+          "number": "17.5",
+          "title": "library edit pr-cutover --at … --repository … writes the repository cut-over, the old repository by default the name's -history and none when it was deleted; refused without both, or with another field, with nothing written"
+        },
+        {
+          "number": "17.6",
+          "title": "library read says a record of a plugin's kind no mounted plugin declares is dormant"
+        },
+        {
+          "number": "17.7",
+          "title": "The open tool opens a record of a plugin's kind whole, as library read does, said dormant when no mounted plugin declares it"
+        },
+        {
+          "number": "17.8",
+          "title": "library revert <id> --to <seq> --read <seq> [--reason …] reverts a record to an entry library history shows, retired ones included, with the session as writer; a stale --read is refused naming the newest entry, and a session holding an increment is refused a planned record's revert, which cannot wait on the increment as an edit does."
+        },
+        {
+          "number": "17.9",
+          "title": "library undo <writer> [--reason …] runs as a write and reverts every record the writer wrote to before their first write to it, retiring what they made, and lists each; refused with nothing written, naming the record and its later writer, where another writer wrote since, and refused for a session holding an increment when a record is a planned one; a writer who wrote nothing has nothing to revert."
+        },
+        {
+          "number": "17.10",
+          "title": "The library declares the fyi family: fyi new records an FYI, by the caller unless --by names another, fyi list lists the unheard ones oldest first, and fyi heard marks them heard so the list no longer shows them; none is a tool (ADR-1184 D3)"
+        },
+        {
+          "number": "17.11",
+          "title": "library history shows, under each write made after its session read outside text, what was read"
+        },
+        {
+          "number": "17.12",
+          "title": "library edit --remove <field> removes an optional field, keeping the record and its other fields; a field the kind requires, one also given a value, or one on a story, capability or contract is refused with nothing written"
+        },
+        {
+          "number": "17.13",
+          "title": "library new capability, run by a session holding an increment, judges the story's capability numbers as that increment's pending changes would leave it: a number a pending move out of the story or a pending retirement frees is given, and one a pending move into the story brings is refused"
+        },
+        {
+          "number": "17.14",
+          "title": "library list, search and phrase say how many records of a plugin kind no mounted plugin declares the library holds, that they are dormant here, and the command that mounts the plugin, or that the factory lacks it"
+        }
+      ],
+      "story": "story_754e87e7d531",
+      "storyTitle": "The library"
+    }
+  },
+  "openWork": [
+    {
+      "arc": "arc_238ac88fdb14",
+      "arcTitle": "Cloud SQL sign-in, kept in the back pocket",
+      "increment": "increment_dc514c1a7edb",
+      "title": "Run the live Cloud SQL checks and record their health",
+      "status": "proposal",
+      "capabilities": [
+        "capability_a954e1eb16f6"
+      ]
+    }
+  ]
+}

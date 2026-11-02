@@ -291,7 +291,7 @@ class PgActivityLog implements ActivityLog {
     if (earlier.length === 0) return;
     const parsed = earlier.map(({ line, at, event }) => {
       if (Number.isNaN(Date.parse(at))) throw new RangeError(`a line's time must be an ISO 8601 time, not ${JSON.stringify(at)}`);
-      return { line: parseLine(this.#stamped(line)), at, event };
+      return { line: parseLine(this.#stamped(line)), at, ...(event === undefined ? {} : { event }) };
     });
     await this.#write(project, (client) => insertMany(client, project, parsed));
   }

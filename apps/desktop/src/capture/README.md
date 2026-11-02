@@ -79,4 +79,6 @@ with `--retake`. A capture's bundled page goes to `buildFolder(folder, …)`, un
 checkout's ignored `.evidence-builds/`, never to a `dist/` beside the evidence, so a
 build leaves nothing untracked in a package's source or evidence folders. `CAPTURE_PLAYWRIGHT` and `CAPTURE_CHROMIUM` override the workspace
 module and installed browser; older `PLANET_*` and `STORYTREE_PLAYWRIGHT` names are
-retained. No script needs a home-directory path or another server/launcher copy.
+retained. When the Chromium Playwright pins is not installed (a cloud container's
+browsers folder holds another revision), the newest one in that folder is launched and
+named on stderr. No script needs a home-directory path or another server/launcher copy.

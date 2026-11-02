@@ -5,7 +5,7 @@
  */
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { createRequire } from "node:module";
@@ -17,7 +17,7 @@ import type { Line, NewLine } from "@storytree/library";
 import { workStates } from "@storytree/arc-surface";
 import { removeTemp } from "@storytree/test-waits";
 
-import { buildCapture, buildFolder, fakeBridge, launchPlan, outputFolder, seedWorkStates, visibleGlobeTargets, zoomGlobe } from "./index.js";
+import { buildCapture, buildFolder, fakeBridge, installedChromium, launchPlan, outputFolder, seedWorkStates, visibleGlobeTargets, zoomGlobe } from "./index.js";
 
 const checkout = path.resolve(import.meta.dirname, "../../../..");
 
@@ -119,6 +119,23 @@ test("a capture launches an installed browser channel when one is named, and a C
   const named = launchPlan({ env: { CAPTURE_CHANNEL: "chrome", CAPTURE_CHROMIUM: "/opt/chromium" }, platform: "linux" }).options;
   assert.equal(named.executablePath, "/opt/chromium");
   assert.equal(named.channel, undefined);
+});
+
+test("when the Chromium Playwright pins is missing, a capture launches the newest one its browsers folder holds", t => {
+  const browsers = mkdtempSync(path.join(tmpdir(), "capture-browsers-"));
+  t.after(() => rmSync(browsers, { recursive: true, force: true }));
+  const install = (relative: string) => {
+    mkdirSync(path.dirname(path.join(browsers, relative)), { recursive: true });
+    writeFileSync(path.join(browsers, relative), "");
+  };
+  const pinned = path.join(browsers, "chromium-1223", "chrome-linux64", "chrome");
+  install("chromium-1194/chrome-linux64/chrome");
+  install("chromium-1243/chrome-linux64/chrome");
+  assert.equal(installedChromium(pinned), path.join(browsers, "chromium-1243", "chrome-linux64", "chrome"));
+  install("chromium_headless_shell-1243/chrome-headless-shell-linux64/chrome-headless-shell");
+  assert.equal(installedChromium(pinned), path.join(browsers, "chromium_headless_shell-1243", "chrome-headless-shell-linux64", "chrome-headless-shell"));
+  install("chromium_headless_shell-1223/chrome-headless-shell-linux64/chrome-headless-shell");
+  assert.equal(installedChromium(pinned), undefined);
 });
 
 // Under 3-CPU contention like macOS CI's, a separate GPU process stretched live-road frame gaps to 10 s;

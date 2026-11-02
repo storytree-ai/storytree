@@ -82,11 +82,11 @@ await withCapture({ folder: path.join(dist, 'stills'), dist }, async ({ browser,
   await shot(near.page, 'whole-island');
   report.errors = [...errors, ...near.errors];
   await near.page.close();
-  // Orbited: turned with E and tipped nearer level with F, by the map's own keys.
+  // Orbited: turned with E and tipped one step nearer level with F, by the map's own keys.
   const turned = await open('');
   await turned.page.mouse.click(300, 120);
   await keys(turned.page, 'e', 3);
-  await keys(turned.page, 'f', 2);
+  await keys(turned.page, 'f', 1);
   await shot(turned.page, 'orbited');
   report.errors.push(...turned.errors);
   await turned.page.close();

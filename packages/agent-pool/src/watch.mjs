@@ -23,6 +23,7 @@ import { promisify } from "node:util";
 
 import { poolConfig, readCap } from "./pool-config.mjs";
 import { LANE_RUN } from "./runner.mjs";
+import { readBoxPace } from "./pace.mjs";
 import { codeVersion, countEngines, holdRunner } from "./queue.mjs";
 import { EXEMPTIONS_EVERY_MS, exemptionChanges, watchExemptions } from "./exemptions-watch.mjs";
 import { attempted, failedJob, FOLLOWERS, isSecurityCheck, judgeReleases, recordFix, RELEASE_ARC, RELEASE_EVERY_MS, RUNNER_ATTEMPTS, runnerFault, runnerReruns, securityJobs, watchReleases } from "./release-watch.mjs";
@@ -33,7 +34,7 @@ import { attempted, failedJob, FOLLOWERS, isSecurityCheck, judgeReleases, record
  * change anywhere else in the dev loop leaves it looking. When one of these files comes to import another file, name
  * that file here; the pool's configuration, read once at start, is here too.
  */
-export const WATCH_CODE = [...["watch.mjs", "release-watch.mjs", "exemptions-watch.mjs", "queue.mjs", "runner.mjs", "engine.mjs", "pool-config.mjs"]
+export const WATCH_CODE = [...["watch.mjs", "release-watch.mjs", "exemptions-watch.mjs", "queue.mjs", "pace.mjs", "runner.mjs", "engine.mjs", "pool-config.mjs"]
   .map((name) => `packages/agent-pool/src/${name}`), "agent-pool.json"];
 
 const run = promisify(execFile);
@@ -963,6 +964,24 @@ function boxDefaults({ home = homedir(), env = process.env } = {}) {
 }
 
 /** `handover <pr> <increment> [--keep-open]`, `hand <pr> <increment> [--session <id>] [--keep-open]`, `forget`, `run` or `status`; `box` overrides the box's home, paths and processes in tests. */
+/**
+ * Room for one more fix session: an engine slot free and the box not saturated (pace.mjs, ADR-1139), the hold the dispatcher
+ * keeps. A box that cannot be read holds nothing back. Each change of the box's state is said once, with its reading (4.45).
+ */
+export function boxRoom({ engines, pace = readBoxPace, say }) {
+  let said = "clear";
+  return async () => {
+    if (!(await engines())) return false;
+    let held, key, line;
+    try { held = await pace(); }
+    catch (error) { key = "unread"; line = `box readings unread (${String(error.message).split("\n")[0]}): starting fix sessions as usual`; }
+    if (held) { key = `${held.hold} ${held.windows}`; line = `holding back fix sessions: ${held.reason}`; }
+    else if (!key) { key = "clear"; line = "box clear: starting fix sessions up to the cap"; }
+    if (key !== said) { said = key; say(line); }
+    return !held;
+  };
+}
+
 export async function main(args, box = {}) {
   const defaults = boxDefaults({ home: box.home, env: box.env });
   const b = { ...defaults, ...box };
@@ -1066,17 +1085,19 @@ export async function main(args, box = {}) {
   const began = await version();
   if (began) await writeFile(versionPath(b.dir), `${b.pid ?? process.pid} ${began}\n`);
   let releasesAt = 0, exemptionsAt = 0;
+  // One reading of the box serves both watchers, so a hold is said once whichever of them meets it.
+  const room = boxRoom({ engines: b.room, pace: b.pace, say: dated });
   for (;;) {
     // Between looks, never in one: a fix session it started runs on, and its hand-off on disk keeps the count.
     const current = began && await version();
     if (current && current !== began) { dated(`dev loop code changed (${began} → ${current}): restarting`); return RESTART; }
     try { await adoptRequests({ ...b, say }); }
     catch (error) { dated(`reading the library's hand-overs failed: ${error.message.split("\n")[0]}`); }
-    try { await watchOnce({ ...b, say }); }
+    try { await watchOnce({ ...b, room, say }); }
     catch (error) { dated(`look failed: ${error.message.split("\n")[0]}`); }
     if (b.readReleases && b.now() - releasesAt >= RELEASE_EVERY_MS) {
       releasesAt = b.now();
-      try { await watchReleases({ ...b, startFix: b.startReleaseFix, say }); }
+      try { await watchReleases({ ...b, room, startFix: b.startReleaseFix, say }); }
       catch (error) { dated(`release look failed: ${error.message.split("\n")[0]}`); }
     }
     if (b.readExemptions && b.now() - exemptionsAt >= EXEMPTIONS_EVERY_MS) {

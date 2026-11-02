@@ -103,8 +103,8 @@ export function claudeSettings(file: string, own: Readonly<Record<string, unknow
  * Codex 0.153), so a Codex home other than ~/.codex is
  * handed to it in the registration's env as `home`: without it the server's setup check would
  * register and read hooks in ~/.codex while Codex reads them from its own home.
- * Codex cuts a tool call at 60 s unless the registration says otherwise, and a run_tests call
- * runs the project's whole suite, so the registration allows one call CODEX_TOOL_TIMEOUT_SEC.
+ * Codex cuts a tool call at 60 s unless the registration says otherwise, and a tool call may
+ * run for many minutes, so the registration allows one call CODEX_TOOL_TIMEOUT_SEC.
  */
 const CODEX_TOOL_TIMEOUT_SEC = 1800;
 

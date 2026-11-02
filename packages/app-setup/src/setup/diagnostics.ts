@@ -174,7 +174,7 @@ function rootMarkerLine({ both, tracked }: RootMarker): SetupLine {
  * setup that names what a remote would add and the local route; storytree never proposes making or pushing a remote.
  */
 function repositoryLine(lack: "no repository" | "no origin"): SetupLine {
-  const local = "quality_brief reviews a change against the local main branch and land needs no remote, but verified health reads a remote's CI, so it is unavailable here; work locally: review each change on git diff, land it as a local commit, and close the increment with a note giving the commit's sha.";
+  const local = "a review reads a change against the local main branch and land needs no remote, but verified health reads a remote's CI, so it is unavailable here; work locally: review each change on git diff, land it as a local commit, and close the increment with a note giving the commit's sha.";
   return lack === "no repository"
     ? { check: "repository", state: "needs-attention", message: "This project's folder is in no git repository, so storytree cannot review this project's changes, land them or verify its health.", fix: `Make it one with a first commit (git init, then commit the .storytree folder). It needs no remote: ${local}` }
     : { check: "repository", state: "ok", message: `This project's git repository has no origin remote: ${local}` };

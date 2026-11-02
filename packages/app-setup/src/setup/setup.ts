@@ -188,7 +188,7 @@ function rootMarkerIn(folder: string): RootMarker | undefined {
 }
 
 /**
- * What `folder`, a project's, lacks that review, landing and verified health read (8.31): quality_brief diffs against
+ * What `folder`, a project's, lacks that review, landing and verified health read (8.31): a review diffs against
  * origin's default branch, and land and the health record read fetched origin/main. Undefined when git cannot be asked.
  */
 function repositoryLack(folder: string): SetupReport["repository"] {

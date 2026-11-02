@@ -418,7 +418,7 @@ test("8.31 in a project with no git repository the check asks for one, made loca
       assert.equal(local?.state, "ok", "a project with no origin is a working setup, not one needing attention");
       assert.equal(local?.fix, undefined);
       assert.match(local?.message ?? "", /no origin remote/);
-      assert.match(local?.message ?? "", /quality_brief.*land.*health/s, "it names the steps that need a remote");
+      assert.match(local?.message ?? "", /review.*land.*health/s, "it names the steps that need a remote");
       assert.match(local?.message ?? "", /git diff/, "review goes on the local diff");
       assert.match(local?.message ?? "", /local commit/);
       assert.match(local?.message ?? "", /close the increment with a note/i);

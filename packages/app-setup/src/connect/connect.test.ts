@@ -339,7 +339,7 @@ test("2.2 a custom-home Codex registration storytree wrote before it handed over
   assert.ok(source.includes(`\nenv = { CODEX_HOME = ${JSON.stringify(custom)} }\n`), source);
 });
 
-test("2.2 Codex's registration lets one tool call run for many minutes, so a long run_tests answers instead of being cut at Codex's one-minute default; one written without that is updated in place", async (t) => {
+test("2.2 Codex's registration lets one tool call run for many minutes, so a long tool call answers instead of being cut at Codex's one-minute default; one written without that is updated in place", async (t) => {
   const f = fixture(t);
   writeFileSync(f.codexFile, `${legacy}\n[mcp_servers.storytree]\ncommand = ${JSON.stringify(f.options.installed.command)}\nargs = ${JSON.stringify(f.options.installed.args)}\n`);
   const [result] = await connectAgents({ ...f.options, harnesses: ["codex"] });

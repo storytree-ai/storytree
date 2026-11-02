@@ -13,6 +13,12 @@ import { capabilityTreeOf, formatCapabilityTree, type CapabilityTree } from "./c
 type PlanReader = Pick<Library, "projectTree">;
 
 /**
+ * The one reader of current checkouts the map's entry points share for the life of the process, so a repeat ask of
+ * an unchanged checkout reads and parses no file (3.12, ADR-0836 D2): a fresh reader per ask kept nothing.
+ */
+const current = codeSurveyReader({ checkout: "current" });
+
+/**
  * The increment a branch's name carries (a workspace's branch is claude/increment-<id>-<suffix>), as its
  * library id; undefined when it names none. The gate reads names the same way (packages/repo-checks/src/capability-list.mjs).
  */
@@ -51,7 +57,7 @@ function onBranch(library: PlanReader, folder: string): PlanReader {
 /** The map of the checkout at `folder`, with each mapped story `imports` holds, the folders this machine imports (ADR-0993 D2). */
 export async function readMap(library: PlanReader, folder: string, imports: readonly ImportedFolder[] = []): Promise<ProjectGraph> {
   const tree = await branchPlan(library, folder);
-  const survey = await codeSurveyReader({ checkout: "current" }).read(folder, tree, imports);
+  const survey = await current.read(folder, tree, imports);
   return buildGraph(tree, survey);
 }
 
@@ -72,7 +78,7 @@ export async function mapCommand(library: PlanReader, folder: string, options: F
  */
 export async function crossingProject(library: PlanReader, folder: string, options: CrossingOptions, imports: readonly ImportedFolder[] = []): Promise<CrossingAnswer> {
   const tree = await branchPlan(library, folder);
-  const survey = await codeSurveyReader({ checkout: "current" }).read(folder, tree, imports);
+  const survey = await current.read(folder, tree, imports);
   return crossingsOf(tree, survey, await topOf(folder), options);
 }
 
@@ -84,7 +90,7 @@ export async function crossingCommand(library: PlanReader, folder: string, optio
 /** The story `select` names, its capabilities with their contracts, links, files and lines, read in one survey of the checkout at `folder` (3.11). */
 export async function capabilityTreeProject(library: PlanReader, folder: string, select: string, imports: readonly ImportedFolder[] = []): Promise<CapabilityTree> {
   const tree = await branchPlan(library, folder);
-  return capabilityTreeOf(tree, await codeSurveyReader({ checkout: "current" }).read(folder, tree, imports), select);
+  return capabilityTreeOf(tree, await current.read(folder, tree, imports), select);
 }
 
 export async function capabilitiesCommand(library: PlanReader, folder: string, select: string, json = false, imports: readonly ImportedFolder[] = []): Promise<string> {

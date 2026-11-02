@@ -81,4 +81,5 @@ build leaves nothing untracked in a package's source or evidence folders. `CAPTU
 module and installed browser; older `PLANET_*` and `STORYTREE_PLAYWRIGHT` names are
 retained. When the Chromium Playwright pins is not installed (a cloud container's
 browsers folder holds another revision), the newest one in that folder is launched and
-named on stderr. No script needs a home-directory path or another server/launcher copy.
+named on stderr; when none is, the launch fails naming `CAPTURE_CHROMIUM` and what the
+folder holds. No script needs a home-directory path or another server/launcher copy.

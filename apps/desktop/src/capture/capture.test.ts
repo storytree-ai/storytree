@@ -17,7 +17,7 @@ import type { Line, NewLine } from "@storytree/library";
 import { workStates } from "@storytree/arc-surface";
 import { removeTemp } from "@storytree/test-waits";
 
-import { buildCapture, buildFolder, fakeBridge, fallbackChromium, launchPlan, outputFolder, seedWorkStates, visibleGlobeTargets, zoomGlobe } from "./index.js";
+import { buildCapture, buildFolder, fakeBridge, fallbackChromium, launch, launchFailure, launchPlan, outputFolder, seedWorkStates, visibleGlobeTargets, zoomGlobe } from "./index.js";
 
 const checkout = path.resolve(import.meta.dirname, "../../../..");
 
@@ -141,6 +141,28 @@ test("2.31 · when the Chromium Playwright pins is missing, a capture launches t
   assert.equal(fallbackChromium(launchPlan({ env: { CAPTURE_CHANNEL: "chrome" }, platform: "linux" }).options, pinned), undefined);
   install("chromium_headless_shell-1223/chrome-headless-shell-linux64/chrome-headless-shell");
   assert.equal(fallbackChromium(plain, pinned), undefined);
+});
+
+test("2.36 · a launch that finds no Chromium in the pinned one's place fails naming CAPTURE_CHROMIUM and what the browsers folder holds", async t => {
+  const browsers = mkdtempSync(path.join(tmpdir(), "capture-browsers-"));
+  t.after(() => rmSync(browsers, { recursive: true, force: true }));
+  const pinned = path.join(browsers, "chromium-1223", "chrome-linux64", "chrome");
+  const plain = launchPlan({ env: {}, platform: "linux" }).options;
+  const playwrights = new Error("browserType.launch: Executable doesn't exist");
+  const message = (error: unknown) => (error as Error).message;
+  assert.match(message(launchFailure(playwrights, plain, pinned)), /chromium_headless_shell-1223.*which is empty.*CAPTURE_CHROMIUM/s);
+  mkdirSync(path.join(browsers, "firefox-1490"));
+  mkdirSync(path.join(browsers, "chromium-1243"));
+  const failure = launchFailure(playwrights, plain, pinned);
+  assert.match(message(failure), /which holds chromium-1243, firefox-1490.*CAPTURE_CHROMIUM.*Executable doesn't exist/s);
+  assert.equal((failure as Error).cause, playwrights);
+  assert.equal(launchFailure(playwrights, launchPlan({ env: { CAPTURE_CHROMIUM: "/opt/chromium" }, platform: "linux" }).options, pinned), playwrights);
+  // launch() itself, through a stand-in Playwright whose pinned Chromium is missing.
+  const stand = path.join(browsers, "playwright.mjs");
+  writeFileSync(stand, `export const chromium = { executablePath: () => ${JSON.stringify(pinned)}, launch: async () => { throw new Error("Executable doesn't exist"); } };`);
+  await assert.rejects(launch({ env: { CAPTURE_PLAYWRIGHT: stand }, platform: process.platform }), /which holds chromium-1243, firefox-1490.*CAPTURE_CHROMIUM/s);
+  mkdirSync(path.join(browsers, "chromium_headless_shell-1223"));
+  assert.equal(launchFailure(playwrights, plain, pinned), playwrights);
 });
 
 // Under 3-CPU contention like macOS CI's, a separate GPU process stretched live-road frame gaps to 10 s;

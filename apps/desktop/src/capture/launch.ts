@@ -5,7 +5,8 @@
  * (CAPTURE_CHANNEL, such as chrome, which CI's runner images carry). A path is imported by its file URL,
  * since import() refuses a bare Windows path (ERR_UNSUPPORTED_ESM_URL_SCHEME). When the Chromium
  * Playwright pins is not installed, as in a cloud container whose browsers folder holds another
- * revision, the newest Chromium in that folder is launched instead, saying which.
+ * revision, the newest Chromium in that folder is launched instead, saying which; when none is, the
+ * launch failure names CAPTURE_CHROMIUM and what that folder holds.
  */
 import type { ChildProcess } from "node:child_process";
 import { existsSync, readdirSync, statSync } from "node:fs";
@@ -51,7 +52,9 @@ export async function launch(machine: Machine = THIS_MACHINE, graphics: { softwa
   const { options } = launchPlan(machine, graphics);
   const { chromium } = await loadPlaywright(machine);
   const installed = fallbackChromium(options, chromium.executablePath());
-  if (installed === undefined) return chromium.launch(options);
+  if (installed === undefined) {
+    try { return await chromium.launch(options); } catch (error) { throw launchFailure(error, options, chromium.executablePath()); }
+  }
   process.stderr.write(`capture: Playwright's pinned Chromium is not installed; launching ${installed}\n`);
   return chromium.launch({ ...options, executablePath: installed });
 }
@@ -73,13 +76,9 @@ const EXECUTABLES = ["chrome-headless-shell", "chrome-headless-shell.exe", "chro
  * folder is missing or holds no other Chromium. Otherwise the newest revision's, its headless shell before its full browser.
  */
 export function installedChromium(pinned: string): string | undefined {
-  let revisionFolder = pinned;
-  while (!REVISION.test(path.basename(revisionFolder))) {
-    if (path.dirname(revisionFolder) === revisionFolder) return undefined;
-    revisionFolder = path.dirname(revisionFolder);
-  }
-  const browsers = path.dirname(revisionFolder);
-  const revision = REVISION.exec(path.basename(revisionFolder))![2];
+  const found = browsersFolder(pinned);
+  if (found === undefined) return undefined;
+  const { browsers, revision } = found;
   if (!existsSync(browsers) || existsSync(path.join(browsers, `chromium_headless_shell-${revision}`))) return undefined;
   const candidates = readdirSync(browsers).flatMap(name => {
     const match = REVISION.exec(name);
@@ -93,6 +92,33 @@ export function installedChromium(pinned: string): string | undefined {
         if (existsSync(found) && statSync(found).isFile()) return found;
       }
     }
+  }
+  return undefined;
+}
+
+/**
+ * A failed launch's error, saying how to name a Chromium when the pinned one is missing and nothing
+ * took its place: CAPTURE_CHROMIUM or CAPTURE_CHANNEL, and what the browsers folder holds. Any other
+ * failure, or one whose Chromium the environment named, is returned as it came.
+ */
+export function launchFailure(error: unknown, options: LaunchOptions, pinned: string): unknown {
+  const found = browsersFolder(pinned);
+  if (options.executablePath !== undefined || options.channel !== undefined || found === undefined) return error;
+  const { browsers, revision } = found;
+  const shell = `chromium_headless_shell-${revision}`;
+  if (existsSync(path.join(browsers, shell))) return error;
+  const held = existsSync(browsers) ? readdirSync(browsers).sort() : [];
+  const holds = !existsSync(browsers) ? "which does not exist" : held.length === 0 ? "which is empty" : `which holds ${held.join(", ")}`;
+  return new Error(`capture: Playwright's pinned Chromium (${shell}) is not installed in ${browsers}, ${holds}, and no other Chromium there could take its place. `
+    + "Set CAPTURE_CHROMIUM to a Chromium executable's path, or CAPTURE_CHANNEL to an installed browser channel such as chrome.\n"
+    + (error instanceof Error ? error.message : String(error)), { cause: error });
+}
+
+/** The browsers folder holding `pinned`'s `chromium-<revision>` folder, and that revision; undefined when it is in none. */
+function browsersFolder(pinned: string): { browsers: string; revision: string } | undefined {
+  for (let folder = pinned; path.dirname(folder) !== folder; folder = path.dirname(folder)) {
+    const revision = REVISION.exec(path.basename(folder))?.[2];
+    if (revision !== undefined) return { browsers: path.dirname(folder), revision };
   }
   return undefined;
 }

@@ -1,9 +1,10 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdtemp, mkdir, writeFile } from "node:fs/promises";
+import fsPromises, { mkdtemp, mkdir, writeFile } from "node:fs/promises";
+import { syncBuiltinESMExports } from "node:module";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { test } from "node:test";
+import { mock, test } from "node:test";
 
 import { removeTemp } from "@storytree/test-waits";
 
@@ -98,6 +99,42 @@ test("3.11 with --capabilities, the map answers a selected story's capabilities 
     assert.match(text, /\n  Unclaimed: 1 line in 1 file\n    packages\/app\/src\/lone\.ts  1$/);
     await assert.rejects(capabilitiesCommand(library, folder, "story:Nothing"), /Map selection not found: story:Nothing/);
   } finally {
+    await removeTemp(folder);
+  }
+});
+
+test("3.12 a repeat map or focus on an unchanged checkout reads and parses no file; a changed file is read again", async () => {
+  const folder = await mkdtemp(path.join(tmpdir(), "map-repeat-"));
+  // Every file the survey reads from disk goes through fs/promises' readFile: count those in this checkout.
+  const read: string[] = [];
+  const readFile = fsPromises.readFile;
+  mock.method(fsPromises, "readFile", (file: unknown, ...rest: unknown[]) => {
+    if (typeof file === "string" && file.startsWith(folder)) read.push(file);
+    return (readFile as (...args: unknown[]) => unknown)(file, ...rest);
+  });
+  syncBuiltinESMExports();
+  try {
+    await mkdir(path.join(folder, "packages/app/src"), { recursive: true });
+    await writeFile(path.join(folder, "packages/app/src/view.ts"), "export const view = 1;");
+    await writeFile(path.join(folder, "packages/app/src/view.test.ts"), 'import { view } from "./view.js"; test("2.5 empty view", () => view);');
+    const health = { reported: { state: "not-checked" }, verified: { state: "passing" } };
+    const plan = { arcs: [], stories: [{ id: "app", title: "The app", health, capabilities: [{ id: "projects", title: "2 · Projects", health, dependsOn: [], contracts: [{ id: "empty", title: "2.5 empty view", health }] }] }] } as unknown as AnnotatedTree;
+    const library = { projectTree: async () => plan };
+    const options = { select: "file:packages/app/src/view.ts", up: 1, mode: "show" as const };
+
+    const first = await mapCommand(library, folder, options, true);
+    assert.equal(read.length, 2);
+    read.length = 0;
+    assert.equal(await mapCommand(library, folder, options, true), first);
+    await capabilitiesCommand(library, folder, "story:The app");
+    assert.deepEqual(read, [], "a repeat ask of an unchanged checkout reads no file");
+
+    await writeFile(path.join(folder, "packages/app/src/view.ts"), "export const view = 1;\nexport const more = 2;\n");
+    await mapCommand(library, folder, options, true);
+    assert.deepEqual(read, [path.join(folder, "packages/app/src/view.ts")]);
+  } finally {
+    mock.restoreAll();
+    syncBuiltinESMExports();
     await removeTemp(folder);
   }
 });

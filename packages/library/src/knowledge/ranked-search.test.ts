@@ -242,6 +242,30 @@ for (const backend of [memory, postgres]) {
     assert.equal((await knowledge.rankAll("title lift", { limit: 1 })).hits[0]!.note.id, numbered.id, "a contract's number is not part of its title");
   });
 
+  contract("14.16", "the patterns a ranked search compiles do not grow with the records it ranks", async (_, { knowledge }) => {
+    const compiledBy = async (search: () => Promise<unknown>): Promise<number> => {
+      const original = globalThis.RegExp;
+      let compiled = 0;
+      globalThis.RegExp = new Proxy(original, { construct: (target, args, newTarget) => ((compiled += 1), Reflect.construct(target, args, newTarget)) });
+      try {
+        await search();
+      } finally {
+        globalThis.RegExp = original;
+      }
+      return compiled;
+    };
+    const define = async (names: readonly string[]): Promise<void> => {
+      for (const name of names) await knowledge.defineTerm({ term: `${name} release`, meaning: `The ${name.toLowerCase()} release ships.` });
+    };
+    await define(["Alpha", "Bravo", "Charlie", "Delta", "Echo", "Foxtrot"]);
+    const few = await compiledBy(() => knowledge.rankAll("release train", { limit: 1 }));
+
+    await define(["Golf", "Hotel", "India", "Juliet", "Kilo", "Lima", "Mike", "November", "Oscar", "Papa", "Quebec", "Romeo"]);
+    const many = await compiledBy(() => knowledge.rankAll("release train", { limit: 1 }));
+
+    assert.equal(many, few, "three times the records and title words, the same patterns compiled");
+  });
+
   contract("14.12", "a long note's late paragraph is embedded, so a search finds the note by what that paragraph says", async (embedder, { reopen }) => {
     const knowledge = await reopen(async () => reads512Tokens(embedder));
     await knowledge.defineTerm({ term: "Pricing", meaning: "Plans cost ten a month." });

@@ -6,6 +6,10 @@ set -uo pipefail
 OUT=${1:?usage: judge.sh <evidence folder>}
 HERE=$(cd "$(dirname "$0")" && pwd)
 MODEL=${STABLE_ACCEPTANCE_JUDGE_MODEL:-claude-sonnet-5-5}
+# The judge signs in as the run's user does, with the long-lived token made for these runs (run.sh), so it needs no
+# sign-in of the box's own Claude Code: on 2026-11-02 the box had none, and the judge answered "Not logged in".
+TOKEN=${STABLE_ACCEPTANCE_TOKEN_FILE:-$HOME/storytree-lanes/secrets/stable-acceptance.claude-token}
+if [[ -s $TOKEN ]]; then CLAUDE_CODE_OAUTH_TOKEN=$(tr -d '[:space:]' < "$TOKEN"); export CLAUDE_CODE_OAUTH_TOKEN; fi
 cd "$OUT" || exit 2
 claude -p --model "$MODEL" --allowedTools Read Glob Grep --output-format json < "$HERE/criteria.md" > judge.json 2> judge.err
 node -e '

@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import test from "node:test";
 import { type CandidatePorts, type PublishedBuild, stableCandidate } from "./stable-candidate.js";
-import { releasePlatforms, releaseRunPassed } from "./stable-github.js";
+import { releaseCommit, releasePlatforms, releaseRunPassed } from "./stable-github.js";
 import type { StableManifest } from "./stable-pin.js";
 
 const NOW = "2026-10-16T12:00:00.000Z";
@@ -86,4 +90,25 @@ test("4.23 an open friction or question naming a regression in a build passes ov
   state.concerns.splice(0, 1, { id: "question_b", title: "Is 0.3.12 slow to start?", text: "It took a minute once" },
     { id: "friction_c", title: "Regression", text: "broke in 0.3.110" });
   assert.equal((await stableCandidate(ports)).candidate?.version, "0.3.12");
+});
+
+test("4.23 a build's tag is checked against its version from a shallow clone too, as a cloud session's checkout is", t => {
+  const root = mkdtempSync(join(tmpdir(), "release-commit-"));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const gitIn = (cwd: string) => (...args: string[]) => execFileSync("git", args, { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();
+  const origin = join(root, "origin");
+  mkdirSync(join(origin, "apps", "desktop"), { recursive: true });
+  const og = gitIn(origin);
+  og("init", "-q", "-b", "main");
+  for (const n of [1, 2, 3]) {
+    writeFileSync(join(origin, "apps", "desktop", "package.json"), JSON.stringify({ version: "0.3.0", releaseCountOffset: 10, n }));
+    og("add", ".");
+    og("-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "-m", `build ${n}`);
+  }
+  og("tag", "v0.3.13");
+  og("tag", "v0.3.14");
+  execFileSync("git", ["clone", "-q", "--depth", "1", `file://${origin}`, join(root, "clone")]);
+  const clone = gitIn(join(root, "clone"));
+  assert.equal(releaseCommit(clone, "0.3.13"), og("rev-parse", "HEAD"));
+  assert.throws(() => releaseCommit(clone, "0.3.14"), /Release tag and merged build version do not match/);
 });

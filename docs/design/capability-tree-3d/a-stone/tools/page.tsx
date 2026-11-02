@@ -1,5 +1,5 @@
-/** Capability tree, 3D mock 1, reworked: the real map's view of The library, as the desktop app draws it, with its island laid
- * out again by dependency as walled fields on open commons, drawn as an inked map in 2.5D (layout.ts, castle.ts). `?real` draws the island as the map does today,
+/** Capability tree, 3D mock 1, round 4: the real map's view of The library, as the desktop app draws it, its territories
+ * unchanged, with a walled town inset in each and roads between them, drawn as an inked map in 2.5D (town.ts, castle.ts). `?real` draws the island as the map does today,
  * file dots and all, with nothing added: the left half of the side-by-side. */
 import { createRoot } from "react-dom/client";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -9,6 +9,8 @@ import { forestScene, storyNodes } from "@storytree/forest";
 import { PlanetView, type GlobeControls } from "@storytree/forest/view";
 import { workStates } from "@storytree/arc-surface";
 import { createKnowledgeCore } from "@storytree/knowledge-core/view";
+import { islandCoast } from "@storytree/forest-world/geometry";
+import { islandTerritories } from "../../../../../packages/forest/src/territories/territories.js";
 import { SHEET_RADIUS } from "@storytree/forest-world/planet";
 import "@storytree/forest/view/styles.css";
 import "./page.css";
@@ -23,8 +25,9 @@ const params = new URLSearchParams(location.search);
 const REAL = params.has("real");
 /** How much of the sheet half the window's short side spans at rest, in ground units: The library close up. */
 const GROUND = Number(params.get("ground") ?? 150);
-/** How much more land the island is given than its lines of code would, for the commons between the fields. */
-const ROOM = Number(params.get("room") ?? 1.6);
+/** How much larger the island is drawn than its lines of code would make it: every file's lines times this, so each
+ * territory keeps its share and shape and only the strips between the towns widen. */
+const ROOM = Number(params.get("room") ?? 1);
 const PANEL_WIDTH = 352;
 /** The rest view's margin around the plan, in CSS pixels. */
 const MARGIN = 28;
@@ -32,12 +35,14 @@ const MARGIN = 28;
 /** The capture build's seam, the only one the forest offers a host for its canvas's live state (PlanetWorldCanvas.tsx). */
 const seam = globalThis as { __storytreeCaptureGlobe?: (get: () => RootState) => void };
 
-// Room for the commons: the island is given land for ROOM times its lines, as one unclaimed share the mock hides with the
-// rest of the map's cut, so the map draws a larger island (and keeps the sea between it and its neighbours) by its own rules.
+// Room: every one of the island's files counted ROOM times, so the map draws a larger island by its own rules.
 const own = (data.map.survey as Record<string, { files: { path: string; lines: number }[] }>)[STORY]!;
-const lines = own.files.reduce((sum, file) => sum + file.lines, 0);
-const survey = REAL ? data.map.survey : { ...data.map.survey, [STORY]: { ...own, files: [...own.files, { path: "(the mock's commons)", lines: Math.round(lines * (ROOM - 1)) }] } } as typeof data.map.survey;
+const survey = REAL || ROOM === 1 ? data.map.survey : { ...data.map.survey, [STORY]: { ...own, files: own.files.map(f => ({ ...f, lines: Math.round(f.lines * ROOM) })) } } as typeof data.map.survey;
 const scene = forestScene(data.map.tree, data.map.changes, workStates([]), survey);
+// The island's own coast and territory cut, as the map draws them (the same cut, by the same shares, as its drawing asks for).
+const island = scene.islands.find(one => one.story === STORY)!;
+const coast = islandCoast(island);
+const cut = islandTerritories(island.land!.territories, coast);
 const places = new Map(storyNodes(data.map.tree, data.map.changes, survey).map(node => [node.id, node.place]));
 
 function Mock() {
@@ -70,7 +75,8 @@ function Mock() {
       // Each step waits until the view has moved to it before it measures again.
       if (key === last && waited++ < 20) { timer = setTimeout(frame, 150); return; }
       last = key; waited = 0;
-      const need = Math.max((box.right - box.left) / (width - 2 * MARGIN), (box.bottom - box.top) / (height - 2 * MARGIN - 40));
+      // The camera shifts only sideways, so the island's farther edge from the window's middle must fit.
+      const need = Math.max((box.right - box.left) / (width - 2 * MARGIN), 2 * Math.max(box.bottom - height / 2, height / 2 - box.top) / (height - 2 * MARGIN));
       const off = (box.left + box.right) / 2 - width / 2;
       console.info("framing", ground.current, side.current, need, off, waited);
       if ((Math.abs(need - 1) < 0.03 && Math.abs(off) < 12) || tries-- <= 0) { setFramed(true); return; }
@@ -91,10 +97,11 @@ function Mock() {
       const borders = plate?.getObjectByName("territory-borders") as { geometry: { drawRange: { count: number } } } | undefined;
       const opacities: number[] = [];
       plate?.traverse(object => { if (object.name.startsWith("territory:")) opacities.push((object as unknown as { material: { opacity: number } }).material.opacity); });
-      const key = borders && borders.geometry.drawRange.count === Infinity ? opacities.join() : "";
+      const lanes = state.scene.getObjectByName("pathways:selection-lanes");
+      const key = borders && lanes && borders.geometry.drawRange.count === Infinity ? opacities.join() : "";
       same = key !== "" && key === last ? same + 1 : 0;
       last = key;
-      if (same >= 2) { setLayer(castleLayer(state, STORY, data, host.current!)); return; }
+      if (same >= 2) { setLayer(castleLayer(state, STORY, data as never, host.current!, cut, coast)); return; }
       timer = setTimeout(wait, 150);
     };
     wait();
@@ -128,7 +135,7 @@ function Mock() {
       <PlanetView core={core} scene={scene} places={places} wisps={[]} selected={STORY} library={false} aside={PANEL_WIDTH}
         surfaces={REAL ? { knowledgeCore: false } : { fileCircles: false, knowledgeCore: false }} onPick={ignore} onNote={ignore} onControls={setControls} />
     </div>
-    {REAL ? <aside className="mock-panel" aria-label="Story panel"><header><p className="mock-kicker">Story</p><h2>{data.story.title}</h2></header></aside> : <Panel data={data} picked={picked} onPick={(kind, id) => layer && setPicked(layer.find(kind, id))} sample={sample} onSample={setSample} fills={layer?.fills ?? []} />}
+    {REAL ? <aside className="mock-panel" aria-label="Story panel"><header><p className="mock-kicker">Story</p><h2>{data.story.title}</h2></header></aside> : <Panel data={data} picked={picked} onPick={(kind, id) => layer && setPicked(layer.find(kind, id))} sample={sample} onSample={setSample} fills={layer?.fills ?? []} links={layer?.links} gates={layer?.gates} />}
   </>;
 }
 

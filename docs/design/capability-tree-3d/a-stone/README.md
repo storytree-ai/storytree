@@ -1,4 +1,4 @@
-# Capability tree, 3D mock 1, reworked: one roomy island, laid out by dependency, drawn as an inked map
+# Capability tree, 3D mock 1: walled towns inset in the map's own territories, drawn as an inked map
 
 The real map's 3D island for The library, as the desktop app draws it, with its land laid out again: each capability a
 walled field in its health colour, the fields placed by what they call, open common ground between them, and the paths
@@ -13,6 +13,62 @@ panel on the right shows what it holds. The window is 1440 × 900 with the story
 lays it out; the rest view frames the whole plan, every name and path in sight.
 
 ![Resting view](stills/resting.png)
+
+## Round 4: walled towns inset in the map's own territories (increment_d14a67b93b8a)
+
+Mick, 2026-11-02: "keep the territory size, but take the idea from the first mock where it did blocks with the fence, only we
+dont make it square blocks ... the city/wall is inside the territory giving room for a pathway to be drawn into it." One build,
+no review loop, so he can judge the direction from the pictures. Round 3's branches (stopped: "too much wall") were not used.
+The page now draws round 4; everything from "What changed from mock 1" down is the earlier version's record. Round 4 retook
+the stills under the same names, so the earlier version is seen only in `round-1.png` to `round-4.png` and in git history (PR #230).
+
+![Round 4 at rest](stills/resting.png)
+
+| What | How the page does it now |
+| --- | --- |
+| Territories unchanged | The map's own territories, drawn by the map: shape, size by lines, health colour and thin white borders. No column layout, no squares, no commons board (`tools/layout.ts` is gone). |
+| A walled town inside each | `tools/town.ts` reads the map's own cut (`islandTerritories`, `islandCoast`) onto a grid, measures every point's distance to its territory's edge, and keeps what is at least the **inset, 3.4 ground units**, on every territory alike (about 9 pixels at rest), so the strip between two towns is 6.8 units with the white border down its middle. Necks narrower than 3.7 units are opened off, so no wall runs into a sliver. The outline is then simplified (Douglas-Peucker at 1.9 units, then the shortest runs folded away until every run is at least 10 units): 89 turns on 13 walls, each with a small tower, against 206 traced turns before simplifying. Drawn as before: upright, pale band, ink outline, crenellations, unlit. |
+| Small territories | No wall where a territory's deepest point is under **8 units** from its edge. It falls between the one-cell territories (all 6.8 to 7.8 deep: the map gives even a 12-line capability a whole cell) and the next, Rounds at 8.5. Below it, a town inside would be under 2 units across: a toy. Eleven have no wall: Knowledge entrances, Links, both Decision logs' smaller one (22), Catalogue, Graduation, Lapsed questions, Waits, Owner questions, Connection by address, The command schema and Fixed data questions. Their gates stand as two gateposts on open ground round their middle. |
+| Roads in the strips | Only along lines the map already draws, the borders between territories and the coast between two borders (the coast costs three times its length), as `packages/forest/src/view/border-route.ts` routes a lit link inland. A short spur leads from the line into the town. One road per link; a stretch already walked costs half, so roads merge. The longest links are laid first. |
+| Roads from other islands | Each link to or from another island comes ashore at the map's own dock (read from where the map's own lane for it leaves the land), then follows the borders and splits to the towns it serves. Two docks are used: the south-west one, the road to Keys; and the south-east one, where 211 links from 21 islands land. |
+| One gate per link | Every link inside the island ends at its own gate in the called town's wall: an opening between two small towers, on the side the road comes in by, spread apart and kept off the corner towers. It is the link's click target, shows the called capability's contracts and lights the link's whole road in gold. **One change from the brief:** the 212 links from other islands would be 212 gates (51 into Library API alone), so the links one road brings in from the coast to one town share one gate, which lists them all: 16 such gates, 43 gates in all. |
+| Clicks | A gate (its contracts and its link or links, the road lit); a road (one link: its called capability's contracts; a shared road: every link along it, all lit); a territory; the wrench; the panel's links. The wrench stands just inside its town's busiest gate (Cloud connection has no link from inside the island, so it is the gate from the coast). |
+
+**Kept from PR #230:** every name shown (each at its town's middle; a name that would meet another steps down clear of it),
+the map's colours, pan and zoom, the road to Keys, every click, the sample-work box. `?inset=`, `?cut=` and `?room=` (every
+file of the island counted that many times, so the map draws a larger island with the same shares) change the build's
+choices in the browser; the island was not enlarged, since the strips read at rest without it.
+
+### Round 4's stills
+
+| Still | What it shows |
+| --- | --- |
+| `resting.png` | The resting view |
+| `whole-island.png` | Panned out to the whole island |
+| `close-up.png` | One town close up (Data schema, picked) |
+| `orbited.png`, `orbited-south-west.png` | Turned and tipped by the map's own keys, two ways |
+| `gate.png` | A link's own gate into Work in flight: its contracts, its road in gold |
+| `pathway-contracts.png` | Rounds calls Lapsed questions, clicked on its road |
+| `road-arriving.png` | The road from the south-east dock: every link along it, and every way it splits into, in gold |
+| `road-off-the-coast.png` | The road to Keys, leaving by the south-west dock |
+| `wrench-arcs.png`, `sample-wrench-arcs.png` | The Cloud connection wrench open; the sample wrench |
+| `small-territory.png` | Catalogue: no wall, its gates on open ground |
+| `territory.png` | Work model's description and contracts |
+| `real-today.png`, `side-by-side.png` | The map's island today, beside round 4 |
+
+![Today's map beside round 4](stills/side-by-side.png)
+
+### What I would look at next (for Mick; nothing built from these)
+
+1. The roads that follow the coast run on the coast line itself, as the map's lit lanes do; drawn half a strip inland they
+   would read as roads rather than a dashed coast.
+2. A road leaves its calling town by touching the wall, with no opening: only the called town has the link's gate. Whether a
+   caller wants a postern of its own is a call on what a gate means.
+3. The south-east dock carries 211 links, so its trunk is one road under nearly every town; whether links from other
+   islands show at all until one is picked would change the island's calm most.
+4. Eleven of 24 territories are one map cell, so they have no wall; the map's minimum cell, not the cutoff, decides most of that.
+5. The gate sharing for links from other islands (one gate per road per town) is my reading; one gate per calling island would
+   be 108 gates.
 
 ## What changed from mock 1, and why
 

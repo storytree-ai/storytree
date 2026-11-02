@@ -65,6 +65,7 @@ import { piLines, piSession } from "./pi.js";
 import { antigravityLines } from "./antigravity.js";
 import { EDIT_GATE, editGate, recordYesAfterEdit, yesSaid } from "./edit-gate.js";
 import { UPKEEP_DEADLINE_MS, withDeadline } from "./deadlines.js";
+import { remoteAddress, takeTurn } from "./remote-turn.js";
 import { noteCodexHookRan } from "./codex-trust.js";
 import { BACKGROUND } from "./at-once.js";
 import { AFTER_TOOL, deliveredByTool, deliveredInput, noteDelivered, TOOL_GRACE_MS } from "./codex-delivery.js";
@@ -405,6 +406,7 @@ export function atDeadline(): void {
 
 /** Write one hook's lines to the log of the project its folder belongs to, or leave them waiting on this machine; a failure is traced with `failed`. Never throws. */
 async function writeLines(harness: string, input: string, flags: readonly string[], made: HookLines, delivered: DeliveredEvent, handOff: HookInput["handOff"], merges: MergeWatch | undefined, locate: LocateOptions | undefined, failed: (stage: HookFailure["stage"], error: unknown) => void, guarded = false, clock?: HookClock, git: Git = runGit): Promise<void> {
+  let turn: (() => void) | undefined;
   try {
     if (made.lines.length === 0) return;
     // Registered beside the tool server's handler (codex-delivery.ts) or under Claude Code's mod, an event the tool recorded is not recorded
@@ -446,6 +448,14 @@ async function writeLines(harness: string, input: string, flags: readonly string
       await handOff(harness, input);
       return undefined;
     }
+    // Over a wss:// library one hook at a time on this machine reaches it; the others leave their lines for the holder (remote-turn.ts).
+    const remote = remoteAddress(where.library.address);
+    turn = remote ? takeTurn(home) : undefined;
+    if (remote && turn === undefined) {
+      leaveWaiting = undefined;
+      enqueue(home, where.project, made.lines, delivered);
+      return;
+    }
     // Only now, with lines to write and somewhere to write them, is the database reached.
     const [{ openActivityLog, thisMachine, currentBranch }, { connect }] = await Promise.all([import("../activity/index.js"), import("@storytree/library")]);
     const machine = thisMachine();
@@ -480,7 +490,8 @@ async function writeLines(harness: string, input: string, flags: readonly string
       // The folders the project imports here are remembered, and their baselines set, for the shell guard (shell-guard.ts).
       if (firstLine !== undefined) await watchImports(storytree, where.project, homeOf(locate), home, firstLine, failed, git);
       // Lines that waited go first, so the log keeps each session's lines in the order they happened; the guard's are in an imported folder.
-      await uploadQueued(home, log, async (project, folder) => rememberedImports(home, project).some((place) => place.folder === folder) || approved(storytree, project, folder, homeOf(locate)));
+      const admits = async (project: string, folder: string): Promise<boolean> => rememberedImports(home, project).some((place) => place.folder === folder) || approved(storytree, project, folder, homeOf(locate));
+      await uploadQueued(home, log, admits);
       // The first hook to reach the log since this machine started says so, once: sessions it outlived read gone everywhere (4.29).
       const [by] = made.lines;
       if (by !== undefined) {
@@ -489,6 +500,8 @@ async function writeLines(harness: string, input: string, flags: readonly string
       }
       await appendEvent(log, where.project, made.lines, delivered, written);
       leaveWaiting = undefined;
+      // The turn's holder also uploads what other hooks left waiting while it wrote (remote-turn.ts).
+      if (turn !== undefined) await uploadQueued(home, log, admits);
       // A claim whose pull request has merged ends now (ADR-0643 D3), except before a storytree tool
       // call or at a prompt, which the harness waits for; the tool call looks for itself.
       const [first] = made.lines;
@@ -528,6 +541,7 @@ async function writeLines(harness: string, input: string, flags: readonly string
   } finally {
     // Done, or handed on, nothing is left to wait at the deadline.
     leaveWaiting = undefined;
+    turn?.();
   }
 }
 

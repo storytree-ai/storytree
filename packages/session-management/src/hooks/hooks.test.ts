@@ -44,7 +44,8 @@ import { runGit, type Git } from "../activity/git.js";
 import { hookTools } from "./tools.js";
 import { AFTER_TOOL, codexToolArguments } from "./codex-delivery.js";
 import { queueFolder } from "./queue.js";
-import { readSettings, setSetting } from "@storytree/project-and-caller";
+import { readSettings, setLibrary, setSetting } from "@storytree/project-and-caller";
+import { takeTurn } from "./remote-turn.js";
 import { countingStore, longHistory } from "@storytree/project-and-caller/testing/egress";
 import { git, removeTempDir, withTempDir, writeMarker } from "@storytree/project-and-caller/testing/folders";
 import { approveCheckout, dropTestProjects, markedProject, placeTestServer, testServerDataDir, testServerUrl, uniqueProjectName } from "@storytree/project-and-caller/testing/pg";
@@ -1267,6 +1268,32 @@ test("3.14 a hook cut off at its deadline before its line is written leaves the 
       await holder.end();
       await dropTestProjects([project]);
     }
+  });
+});
+
+test("3.52 over a wss:// library a hook that finds another hook holding the machine's turn leaves its line waiting and does not reach the library; with the turn free it does", { timeout: 60_000 }, async () => {
+  const project = uniqueProjectName();
+  await withTempDir(async (dir) => {
+    const home = storytreeHome(dir, false);
+    const folder = await projectFolder(dir, project);
+    // Nothing answers here: a hook that tries records why it could not reach the library.
+    setLibrary(["postgres", "wss://storytree_library@127.0.0.1:9/postgres"], home);
+    const input = recorded("claude-code", "post-tool-use-bash", folder);
+    const session = (JSON.parse(input) as { session_id: string }).session_id;
+    // Straight to that address, as on a machine with no proxy, so the refusal comes at once.
+    const direct = { HTTPS_PROXY: undefined, https_proxy: undefined };
+    const release = takeTurn(home);
+    assert.ok(release !== undefined);
+    try {
+      assert.equal((await runHook("claude-code", input, home, [AFTER_TOOL], direct)).code, 0);
+      assert.deepEqual(hookFailures(home, session).filter((failure) => failure.stage === "reach"), [], "the turn was held: the library was not reached");
+      assert.equal(readdirSync(queueFolder(home)).filter((name) => name.endsWith(".jsonl")).length, 1, "its line waits on this machine");
+    } finally {
+      release();
+    }
+    assert.equal((await runHook("claude-code", input, home, [AFTER_TOOL], direct)).code, 0);
+    assert.equal(hookFailures(home, session).filter((failure) => failure.stage === "reach").length, 1, "the turn was free: the library was reached for");
+    assert.equal(readdirSync(queueFolder(home)).filter((name) => name.endsWith(".jsonl")).length, 2);
   });
 });
 

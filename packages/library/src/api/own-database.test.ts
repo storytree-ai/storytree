@@ -12,13 +12,14 @@ import { connect } from "@storytree/library";
 import { dropTestDatabases, testServerUrl, uniqueProjectName } from "../testing/pg.js";
 
 test("7.7 a connection's own database is made the first time, is never a project, and closes with the connection", async () => {
-  const name = `storytree-own-${uniqueProjectName()}`;
+  const unique = uniqueProjectName();
+  const name = `storytree-own-${unique}`;
   const storytree = await connect({ url: testServerUrl() });
   try {
     const pool = await storytree.ownDatabase(name);
     assert.equal((await pool.query<{ db: string }>("SELECT current_database() AS db")).rows[0]?.db, name);
     assert.equal(await storytree.ownDatabase(name), pool, "asking again hands back the same pool");
-    assert.ok(!(await storytree.listProjects()).some((project) => project.includes("own-")), "it is not listed as a project");
+    assert.ok(!(await storytree.listProjects()).some((project) => project.includes(unique)), "it is not listed as a project");
     await assert.rejects(storytree.ownDatabase("storytree_site"), /project/i, "a project's database is never handed out");
     await storytree.close();
     assert.equal(pool.ended, true);

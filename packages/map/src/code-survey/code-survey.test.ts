@@ -385,3 +385,24 @@ test("8.15 a source file's opening \"Capability N · …\" declaration, after a 
   assert.equal(surveyed("const x = 1;\n/** Capability 4 · Hooks */")?.declared, undefined, "only the opening comment declares");
   assert.equal(surveyed("/** See Capability 4 · Hooks */")?.declared, undefined, "the comment must begin with it");
 });
+
+test("8.41 deciding which strings are a call's first argument reads text in proportion to the file, not to its strings times its length", () => {
+  const file = (count: number) => ({ path: "src/claims/many.test.ts", text: 'const lead = "3.1";\n' + Array.from({ length: count }, (_, i) => `test("3.${i + 2} case ${i}", () => claim("arg ${i}"));\n`).join("") });
+  const readBy = (text: string): number => {
+    const exec = RegExp.prototype.exec;
+    const seen = new Set<string>();
+    RegExp.prototype.exec = function (this: RegExp, input: string) {
+      seen.add(String(input));
+      return exec.call(this, input);
+    };
+    try {
+      surveyStory([{ path: "src/claims/claim.ts", text: "export const claim = () => 1;\n" }, { path: "src/claims/many.test.ts", text }], capabilities);
+    } finally {
+      RegExp.prototype.exec = exec;
+    }
+    return [...seen].reduce((sum, input) => sum + input.length, 0);
+  };
+  const { text } = file(400);
+  assert.ok(readBy(text) < 10 * text.length, `${readBy(text)} characters read for a ${text.length}-character file`);
+  assert.deepEqual(surveyStory([{ path: "src/claims/claim.ts", text: "export const claim = () => 1;\n" }, file(3)], capabilities).tests[0]?.titles.map(({ number }) => number), ["3.2", "3.3", "3.4"]);
+});

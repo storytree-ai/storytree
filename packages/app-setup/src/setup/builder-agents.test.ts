@@ -62,15 +62,17 @@ test("8.38 registering Claude Code's hooks writes storytree-red and storytree-gr
   });
 });
 
-test("8.38 the green builder agent may call storytree's run_tests and runs the whole suite through it, so the next role's same call reads its verified run", async () => {
+test("8.38 the green builder agent runs the project's whole test command itself and lists no storytree tool, since base storytree serves no test runner", async () => {
   await withTempDir(async (dir) => {
     const claude = path.join(dir, ".claude");
     mkdirSync(claude);
     registerHooks({ claude }, HOOK);
     const text = readFileSync(path.join(claude, "agents", "storytree-green.md"), "utf8");
     const tools = /^tools: (.*)$/m.exec(text)?.[1]?.split(", ") ?? [];
-    assert.ok(tools.includes("mcp__storytree__run_tests"), `green's tools: ${tools.join(", ")}`);
-    assert.ok(tools.includes("Edit") && tools.includes("Bash"), "it keeps its building tools");
-    assert.match(text.slice(text.indexOf("Workflow:")), /run_tests/, "its workflow names run_tests");
+    assert.ok(!tools.some((tool) => tool.startsWith("mcp__storytree__")), `green's tools: ${tools.join(", ")}`);
+    assert.ok(tools.includes("Edit") && tools.includes("Bash"), "it keeps its building tools, Bash running the tests");
+    const workflow = text.slice(text.indexOf("Workflow:"));
+    assert.match(workflow, /the project's whole test command, exactly as the project gives it/, "its workflow runs the whole suite");
+    assert.doesNotMatch(workflow, /run_tests/, "its workflow names no test-running tool");
   });
 });

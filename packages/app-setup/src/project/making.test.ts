@@ -344,11 +344,15 @@ test("6.7 setting a new project up gives its factory the bare bones, no role, ch
   });
 });
 
-test("6.7 the starter orchestrator role may call storytree's run_tests and lands on the final suite run through it with the project's exact command, so it reads the green agent's verified run", () => {
+test("6.7 the starter orchestrator role lands on the project's own test command, and no starter role tells its agent to call code review's tools, which base storytree no longer serves", () => {
   const orchestrator = ROLES.find((role) => role.title === "orchestrator")!;
-  assert.match(orchestrator.tools ?? "", /\brun_tests\b/, "its tools name run_tests");
+  assert.match(orchestrator.tools ?? "", /the project's own test command/, "its tools include the project's own test command");
   const landing = orchestrator.workflow?.split("\n").find((step) => step.startsWith("7. ")) ?? "";
-  assert.match(landing, /run_tests/, `its landing step runs the final suite through run_tests: ${landing}`);
+  assert.match(landing, /project's own test command/, `its landing step runs the project's own test command: ${landing}`);
+  for (const role of ROLES) {
+    const text = [role.role, role.outcome, role.tools, role.workflow, role.escalation].join("\n");
+    assert.doesNotMatch(text, /\brun_tests\b|\bquality_[a-z]+/, `${role.title} names no tool base does not serve`);
+  }
 });
 
 test("6.10 a folder in no git repository gets one, whose first commit holds the project's marker; a folder already in one is left as it is; with no git nothing is made, and with no git identity the repository waits, its marker staged, for the first commit once git has one; the setup goes on", async () => {

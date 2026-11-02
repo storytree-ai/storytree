@@ -50,11 +50,16 @@ export function launchPlan({ env, platform }: Machine = THIS_MACHINE, { software
 export async function launch(machine: Machine = THIS_MACHINE, graphics: { softwareGL?: boolean } = {}): Promise<Browser> {
   const { options } = launchPlan(machine, graphics);
   const { chromium } = await loadPlaywright(machine);
-  if (options.executablePath !== undefined || options.channel !== undefined) return chromium.launch(options);
-  const installed = installedChromium(chromium.executablePath());
+  const installed = fallbackChromium(options, chromium.executablePath());
   if (installed === undefined) return chromium.launch(options);
   process.stderr.write(`capture: Playwright's pinned Chromium is not installed; launching ${installed}\n`);
   return chromium.launch({ ...options, executablePath: installed });
+}
+
+/** The installed Chromium a launch with `options` takes in place of the pinned one: none when the environment named one. */
+export function fallbackChromium(options: LaunchOptions, pinned: string): string | undefined {
+  if (options.executablePath !== undefined || options.channel !== undefined) return undefined;
+  return installedChromium(pinned);
 }
 
 const REVISION = /^(chromium|chromium_headless_shell)-(\d+)$/;

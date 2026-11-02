@@ -22,6 +22,8 @@ await withCapture({ folder: path.join(dist, 'stills'), dist }, async ({ browser,
     page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
     await page.goto(`${origin}/index.html${query}`, { waitUntil: 'domcontentloaded', timeout: 120000 });
     await page.waitForFunction(() => document.body.dataset.state === 'ready', undefined, { timeout: 120000 }).catch(e => { console.error(errors); throw e; });
+  // The rest view frames itself on the plan as the map paints, so it is painted until it has.
+  for (let k = 0; k < 200 && !query.includes('real') && await page.evaluate(() => document.body.dataset.framed) !== 'yes'; k++) await settle(page, 3);
     await settle(page, 12);
     return { page, errors };
   };
@@ -45,13 +47,11 @@ await withCapture({ folder: path.join(dist, 'stills'), dist }, async ({ browser,
   // The wrench on Cloud connection: the one open increment that names one of The library's capabilities today.
   await click(page, 'wrench', id('8 · Cloud connection (GCP)'), /^Work wanting 8 · Cloud connection/);
   await shot(page, 'wrench-arcs');
-  // A pathway: Rounds calls Lapsed questions, on a stretch of its own.
+  // A path: Rounds calls Lapsed questions.
   await click(page, 'path', `${id('26 · Rounds')}->${id('25 · Lapsed questions')}`, /calls 25 · Lapsed questions$/);
   await shot(page, 'pathway-contracts');
-  // A gate a link passes through directly: Waits calls Work in flight, or whichever direct link's gate the layer laid first.
-  const gate = report.layer.gateList.find(g => g.between.includes('10 · Work in flight') && g.between.includes('11 · Waits'))
-    ?? report.layer.gateList.find(g => data.capabilities.some(c => c.dependsOn.some(d => [c.id, d.id].sort().join('|') === g.key)));
-  await click(page, 'gate', gate.key, /^Between /);
+  // A gate: Work in flight's, where its callers come in.
+  await click(page, 'gate', id('10 · Work in flight'), /^Into 10 · Work in flight$/);
   await shot(page, 'gate');
   await click(page, 'territory', id('4 · Work model'), /^4 · Work model$/);
   await shot(page, 'territory');
@@ -63,18 +63,28 @@ await withCapture({ folder: path.join(dist, 'stills'), dist }, async ({ browser,
   await click(page, 'wrench', `${id('10 · Work in flight')}:sample`, /^Work wanting 10 · Work in flight/);
   await shot(page, 'sample-wrench-arcs');
   await page.locator('.mock-check input').uncheck();
-  // Orbited: turned 45 degrees with E, and tipped two steps nearer level with F, by the map's own keys.
-  await page.mouse.click(300, 60);
-  await keys(page, 'e', 3);
-  await keys(page, 'f', 2);
-  await shot(page, 'orbited');
-  // Close up, by the wheel over the middle of the island.
-  await keys(page, 'r', 2); await keys(page, 'q', 3);
-  await page.mouse.move(544, 470);
-  for (let k = 0; k < 6; k++) { await page.mouse.wheel(0, -240); await settle(page, 2); }
+  await click(page, 'territory', id('3 · Data schema'), /^3 · Data schema$/);
+  // One field close up, by the wheel over it.
+  const field = await page.evaluate(i => window.mock.layer.point('territory', i), id('3 · Data schema'));
+  await page.mouse.move(field.x, field.y);
+  for (let k = 0; k < 10; k++) { await page.mouse.wheel(0, -300); await settle(page, 2); }
   await shot(page, 'close-up');
-  report.errors = errors;
+  // Panned out to the whole island, by the wheel.
+  for (let k = 0; k < 16; k++) { await page.mouse.wheel(0, 300); await settle(page, 2); }
+  await shot(page, 'whole-island');
   await page.close();
+  // Orbited: turned 45 degrees with E, and tipped two steps nearer level with F, by the map's own keys.
+  const turned = await open('');
+  await turned.page.mouse.click(300, 60);
+  await keys(turned.page, 'e', 3);
+  await keys(turned.page, 'f', 2);
+  await shot(turned.page, 'orbited');
+  // A second angle: turned the other way, from the south-west.
+  await keys(turned.page, 'q', 8);
+  await keys(turned.page, 'r', 1);
+  await shot(turned.page, 'orbited-south-west');
+  report.errors = [...errors, ...turned.errors];
+  await turned.page.close();
   const real = await open('?real');
   await shot(real.page, 'real-today');
   report.realErrors = real.errors;
@@ -84,8 +94,8 @@ await withCapture({ folder: path.join(dist, 'stills'), dist }, async ({ browser,
   const img = name => `data:image/png;base64,${readFileSync(path.join(out, `${name}.png`)).toString('base64')}`;
   // Both are the same window at the same framing; each is cropped to the map beside the panel and shown at half size.
   await pair.setContent(`<body style="margin:0;background:#0e1418;color:#e8eef0;font:600 15px system-ui;display:flex;gap:12px;padding:10px">
-    ${[['real-today', 'The map today: The library selected'], ['resting', 'Mock 1: the same island, with walls, gates, pathways and a wrench added']].map(([n, t]) =>
-      `<figure style="margin:0"><div style="width:702px;height:450px;overflow:hidden"><img src="${img(n)}" style="width:1440px;transform:scale(0.645);transform-origin:0 -60px"></div><figcaption style="padding-top:6px">${t}</figcaption></figure>`).join('')}</body>`);
+    ${[['real-today', 'The map today: The library selected'], ['resting', 'Mock 1, reworked: the same island laid out by dependency, as walled fields on open commons']].map(([n, t]) =>
+      `<figure style="margin:0"><div style="width:702px;height:450px;overflow:hidden"><img src="${img(n)}" style="width:1440px;transform:scale(0.645);transform-origin:0 0"></div><figcaption style="padding-top:6px">${t}</figcaption></figure>`).join('')}</body>`);
   await pair.screenshot({ path: path.join(out, 'side-by-side.png') });
   await pair.close();
   writeFileSync(path.join(out, 'shots.json'), JSON.stringify(report, null, 2) + '\n');

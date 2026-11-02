@@ -8,7 +8,7 @@ import { test } from "node:test";
 import { removeTemp } from "@storytree/test-waits";
 
 import type { AnnotatedTree } from "@storytree/library";
-import { incrementOfBranch, mapCommand } from "./read.js";
+import { capabilitiesCommand, incrementOfBranch, mapCommand } from "./read.js";
 
 test("3.4 the map command reads the current plan and survey and exposes counts, dry-run, show and refusal as text or JSON", async () => {
   const folder = await mkdtemp(path.join(tmpdir(), "map-command-"));
@@ -61,6 +61,42 @@ test("3.6 in a branch's checkout the map reads the plan with that branch's incre
     git("checkout", "-q", "-b", "claude/increment-ca8ba53211b7-f8f424");
     assert.equal(await promises(), 0, "the increment's branch reads its pending retirement");
     assert.equal(incrementOfBranch("claude/dazzling-jones-f96c61"), undefined);
+  } finally {
+    await removeTemp(folder);
+  }
+});
+
+test("3.11 with --capabilities, the map answers a selected story's capabilities in one read: each with its health word and reason, its contracts, the capabilities it depends on, and its source files with their lines of code, tests left out; --json gives it as data", async () => {
+  const folder = await mkdtemp(path.join(tmpdir(), "map-capabilities-"));
+  try {
+    await mkdir(path.join(folder, "packages/app/src"), { recursive: true });
+    await writeFile(path.join(folder, "packages/app/src/view.ts"), "export const view = 1;\n\nexport const more = 2;\n");
+    await writeFile(path.join(folder, "packages/app/src/view.test.ts"), 'import { view } from "./view.js"; test("2.5 empty view", () => view);');
+    await writeFile(path.join(folder, "packages/app/src/lone.ts"), "export const lone = 1;\n");
+    const health = { reported: { state: "not-checked" }, verified: { state: "passing" } };
+    const why = { reason: "no test names it", mover: "agent", contracts: ["save"] };
+    const plan = { arcs: [], stories: [{ id: "app", title: "The app", health, capabilities: [
+      { id: "projects", title: "2 · Projects", health, status: "healthy", dependsOn: ["saving"], contracts: [{ id: "empty", title: "2.5 · empty view", health }] },
+      { id: "saving", title: "3 · Saving", health, status: "untested", why, dependsOn: [], contracts: [{ id: "save", title: "3.1 · saves", health }] },
+    ] }] } as unknown as AnnotatedTree;
+    const library = { projectTree: async () => plan };
+
+    const data = JSON.parse(await capabilitiesCommand(library, folder, "story:The app", true));
+
+    assert.deepEqual(data, {
+      story: { id: "app", title: "The app" },
+      capabilities: [
+        { id: "projects", title: "2 · Projects", health: "healthy", dependsOn: ["saving"], contracts: [{ id: "empty", number: "2.5", title: "2.5 · empty view" }], files: [{ path: "packages/app/src/view.ts", lines: 2 }], lines: 2 },
+        { id: "saving", title: "3 · Saving", health: "untested", why, dependsOn: [], contracts: [{ id: "save", number: "3.1", title: "3.1 · saves" }], files: [], lines: 0 },
+      ],
+      unclaimed: [{ path: "packages/app/src/lone.ts", lines: 1 }],
+    });
+    const text = await capabilitiesCommand(library, folder, "app");
+    assert.match(text, /2 · Projects  \[projects\]  healthy; 2 lines in 1 file; 1 contract; depends on saving/);
+    assert.match(text, /3 · Saving  \[saving\]  untested — no test names it, the agent's to move: 3\.1; 0 lines in 0 files/);
+    assert.match(text, /packages\/app\/src\/view\.ts  2/);
+    assert.match(text, /\n  Unclaimed: 1 line in 1 file\n    packages\/app\/src\/lone\.ts  1$/);
+    await assert.rejects(capabilitiesCommand(library, folder, "story:Nothing"), /Map selection not found: story:Nothing/);
   } finally {
     await removeTemp(folder);
   }

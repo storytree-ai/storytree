@@ -35,7 +35,7 @@ const founding = z
     title: z.string().min(1).describe("The one choice that shapes it, as a short title"),
     text: z.string().min(1).describe("What it is for, and why that choice"),
   })
-  .describe("Its founding decision, the first book on its shelf");
+  .describe("Its founding decision, the first book on its shelf: an object of a title, the one choice that shapes it as a short title, and a text, what it is for and why that choice");
 
 export function registerPlanTools(define: Define): void {
   define(

@@ -362,6 +362,18 @@ test("6.1 a test client lists the tools, then plans an arc, a story, a capabilit
   });
 });
 
+test("6.111 plan_story's and plan_capability's published input schema says founding is a title and a text, so an agent passes it right from the description alone", async () => {
+  await withProject(async ({ folder }) => {
+    await withAgent(folder, claudeCode("claude-1"), async (agent) => {
+      for (const tool of ["plan_story", "plan_capability"]) {
+        const founding = ((await agent.inputSchema(tool)).properties as Record<string, { description?: string }>).founding;
+        assert.match(founding?.description ?? "", /\btitle\b/, `${tool}'s founding description names its title`);
+        assert.match(founding?.description ?? "", /\btext\b/, `${tool}'s founding description names its text`);
+      }
+    });
+  });
+});
+
 test("6.32 name_session names the calling session, and calling it again renames it; a title longer than 40 characters is refused naming the limit", async () => {
   await withProject(async ({ folder, project, log }) => {
     await withAgent(folder, claudeCode("claude-1"), async (agent) => {

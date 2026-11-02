@@ -171,6 +171,29 @@ test("4.4 · the built site names the merge it was built from in its home page a
   assert.equal(await readFile(path.join(output, "version.txt"), "utf8"), "unpublished local build\n");
 });
 
+test("1.17 · every built page, live and preview, carries a content security policy that loads only the site's own scripts and refuses plugins, a rebased document and outside form targets", async (t) => {
+  const output = await mkdtemp(path.join(tmpdir(), "website-policy-"));
+  t.after(() => removeTemp(output));
+  await buildFromEnvironment(output, { ...process.env, WEBSITE_SITE: "1" });
+  for (const page of ["index.html", "404.html", "staging/index.html", "staging/404.html"]) {
+    const document = new HappyWindow({ settings: { disableJavaScriptFileLoading: true, disableCSSFileLoading: true } }).document;
+    document.write(await readFile(path.join(output, page), "utf8"));
+    const policies = [...document.querySelectorAll('meta[http-equiv="Content-Security-Policy" i]')];
+    assert.equal(policies.length, 1, `${page} carries one policy`);
+    // A policy applies only to what loads after it, so it must come before every script and stylesheet.
+    const head = [...document.head.children];
+    const first = head.findIndex(element => element.matches("script, link[rel=stylesheet], style"));
+    assert.ok(first === -1 || head.indexOf(policies[0]!) < first, `${page}'s policy comes before its scripts and styles`);
+    const directives = new Map(policies[0]!.getAttribute("content")!.split(";").map(part => part.trim().split(/\s+/)).filter(([name]) => name)
+      .map(([name, ...sources]) => [name!, sources]));
+    assert.deepEqual(directives.get("default-src"), ["'self'"], page);
+    assert.deepEqual(directives.get("script-src"), ["'self'"], `${page} runs only the site's own script files, nothing inline or evaluated`);
+    assert.deepEqual(directives.get("form-action"), ["'self'"], page);
+    assert.deepEqual(directives.get("base-uri"), ["'none'"], page);
+    assert.deepEqual(directives.get("object-src"), ["'none'"], page);
+  }
+});
+
 test("4.6 · the published site holds the live build at its root and the preview build under /staging/, not indexed, its links and assets staying inside /staging/", async (t) => {
   const [output, alone] = await Promise.all([mkdtemp(path.join(tmpdir(), "website-site-")), mkdtemp(path.join(tmpdir(), "website-alone-"))]);
   t.after(() => Promise.all([removeTemp(output), removeTemp(alone)]));

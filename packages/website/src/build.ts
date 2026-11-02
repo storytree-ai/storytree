@@ -13,6 +13,19 @@ import type { TourSnapshot } from "./forest-data.js";
 const packageRoot = fileURLToPath(new URL("..", import.meta.url));
 
 /**
+ * What every page may load: only the site's own files. Styles also allow inline, because the opening places its windows with
+ * style attributes. A meta tag cannot refuse framing (frame-ancestors): that needs a response header from the host.
+ */
+export const CONTENT_SECURITY_POLICY = [
+  "default-src 'self'",
+  "script-src 'self'",
+  "style-src 'self' 'unsafe-inline'",
+  "form-action 'self'",
+  "base-uri 'none'",
+  "object-src 'none'",
+].join("; ");
+
+/**
  * One static folder: no server runtime and no connection to the project's library. It names the merge
  * it was built from (CI's WEBSITE_SHA) in a meta tag and /version.txt; a local build says it is one.
  */
@@ -54,7 +67,8 @@ export async function buildWebsite(output = path.join(packageRoot, "dist"), opti
   const counts = tourCounts(JSON.parse(await readFile(path.join(packageRoot, "src", "forest-snapshot.json"), "utf8")) as TourSnapshot);
   for (const page of ["index.html", "404.html"]) {
     const template = fill(await readFile(path.join(packageRoot, "src", page), "utf8"), counts);
-    const html = template.replace("<!-- OPENING -->", openingMarkup()).replace("<!-- CLAIMS -->", preview ? claimsMarkup() : "").replace("<!-- PAGE END -->", pageEndMarkup()).replaceAll("<!-- MARK -->", inlineMark())
+    const html = template.replace('<meta charset="utf-8">', `<meta charset="utf-8">\n    <meta http-equiv="Content-Security-Policy" content="${CONTENT_SECURITY_POLICY}">`)
+      .replace("<!-- OPENING -->", openingMarkup()).replace("<!-- CLAIMS -->", preview ? claimsMarkup() : "").replace("<!-- PAGE END -->", pageEndMarkup()).replaceAll("<!-- MARK -->", inlineMark())
       .replace("<!-- MARK LINKS -->", MARK_LINKS)
       .replace(/\/assets\/(main|forest|styles)\.(?:js|css)/g, (_, name: string) => {
         const entry = entries.get(name);

@@ -3,17 +3,19 @@
  * test reaches fails, on a small project laid out as the habits card says (ADR-0900 D1).
  */
 import assert from "node:assert/strict";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test, type TestContext } from "node:test";
+
+import { removeTemp } from "@storytree/test-waits";
 
 import { allocationProblems, misdeclaredCode, unallocatedCode, undeclaredCode } from "./allocation-rule.js";
 
 /** A checkout holding `files` (repo-relative path to text), removed after the test. */
 function plant(t: TestContext, files: Record<string, string>): string {
   const at = mkdtempSync(path.join(tmpdir(), "allocation-"));
-  t.after(() => rmSync(at, { recursive: true, force: true }));
+  t.after(() => removeTemp(at));
   for (const [file, text] of Object.entries(files)) {
     mkdirSync(path.dirname(path.join(at, file)), { recursive: true });
     writeFileSync(path.join(at, file), text);

@@ -4,10 +4,12 @@
  * door, as its dev loop does; the last declares nothing, as a user's project does.
  */
 import assert from "node:assert/strict";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test, type TestContext } from "node:test";
+
+import { removeTemp } from "@storytree/test-waits";
 
 import { packageProblems, type Declarations, type Edge } from "./package-rule.js";
 
@@ -33,7 +35,7 @@ const DECLARED: Declarations = {
   edges: { edges: [] },
 };
 
-test("the planted trees start from one that keeps the rules", (t: TestContext) => {
+test("9.1 · the planted trees start from one that keeps the rules", (t: TestContext) => {
   assert.deepEqual(packageProblems(plant(t, {}), DECLARED), []);
 });
 
@@ -50,7 +52,7 @@ test("9.1 · a story with no package is refused, and so is a package that belong
 test("9.1 · a project that declares no stories has one per package under packages/, and a package anywhere else belongs to none", (t: TestContext) => {
   const shop = { "packages/cart/package.json": JSON.stringify({ name: "cart" }), "packages/browsing/package.json": JSON.stringify({ name: "@shop/browsing" }) };
   const kept = mkdtempSync(path.join(tmpdir(), "boundaries-"));
-  t.after(() => rmSync(kept, { recursive: true, force: true }));
+  t.after(() => removeTemp(kept));
   for (const [file, text] of Object.entries({ ...shop, "apps/web/package.json": JSON.stringify({ name: "web" }) })) {
     mkdirSync(path.dirname(path.join(kept, file)), { recursive: true });
     writeFileSync(path.join(kept, file), text);
@@ -71,7 +73,7 @@ test("9.6 · A story owns exactly one package: a story declared with several is 
 
 test("9.1 · a package.json saved with a byte-order mark, as Windows editors write it, is read like any other", (t: TestContext) => {
   const at = mkdtempSync(path.join(tmpdir(), "boundaries-"));
-  t.after(() => rmSync(at, { recursive: true, force: true }));
+  t.after(() => removeTemp(at));
   for (const [file, text] of Object.entries({ "packages/cart/package.json": `\uFEFF${JSON.stringify({ name: "cart", devDependencies: { checkout: "*" } })}`, "packages/checkout/package.json": JSON.stringify({ name: "checkout", dependencies: { cart: "*" } }) })) {
     mkdirSync(path.dirname(path.join(at, file)), { recursive: true });
     writeFileSync(path.join(at, file), text);
@@ -163,7 +165,7 @@ test("9.4 · packages that depend on each other, even for development only, are 
 
 for (const size of [4, 5, 6]) {
   for (const cyclicTail of [false, true]) {
-    test(`1.4 · a ${size}-package forward DAG is checked without enumerating its paths${cyclicTail ? ", even when they lead to a cycle" : ""}`, (t: TestContext) => {
+    test(`9.4 · a ${size}-package forward DAG is checked without enumerating its paths${cyclicTail ? ", even when they lead to a cycle" : ""}`, (t: TestContext) => {
       const names = Array.from({ length: size }, (_, i) => `dag-${i}`);
       const files = Object.fromEntries(names.map((name, i) => [
         `packages/${name}/package.json`,
@@ -236,7 +238,7 @@ function pkg(name: string, exports: Record<string, string> | undefined = { ".": 
 /** A temporary copy of KEPT with `files` added over it, removed when the test ends. */
 function plant(t: TestContext, files: Record<string, string>): string {
   const dir = mkdtempSync(path.join(tmpdir(), "boundaries-"));
-  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  t.after(() => removeTemp(dir));
   for (const [file, text] of Object.entries({ ...KEPT, ...files })) {
     mkdirSync(path.dirname(path.join(dir, file)), { recursive: true });
     writeFileSync(path.join(dir, file), text);

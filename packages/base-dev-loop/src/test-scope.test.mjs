@@ -356,7 +356,9 @@ test("2.7 a change under docs/ runs only the packages whose code reads that path
   assert.deepEqual(none.dirs, []);
   assert.match(scopeLine(none), /^scope: affected — nothing — .*docs\/.*no test reads/);
   assert.deepEqual(classify(["docs/hooks.md"], ws).dirs, ["packages/pages"]);
-  assert.deepEqual(classify(["docs/design/mock/page.js"], ws).dirs, ["packages/mocks", "packages/site"], "a reader's dependents run too");
+  const read = classify(["docs/design/mock/page.js"], ws);
+  assert.deepEqual(read.dirs, ["packages/mocks", "packages/site"], "a reader's dependents run too");
+  assert.equal(read.reason, "1 under docs/, read by packages/mocks; their dependents: packages/site");
   assert.deepEqual(classify(["docs/design/mock/page.js", "packages/other/src/o.ts"], ws).dirs, ["packages/mocks", "packages/other", "packages/site"]);
 });
 

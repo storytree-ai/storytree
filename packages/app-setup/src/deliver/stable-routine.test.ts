@@ -214,7 +214,7 @@ test("1.17 the acceptance run reads the user's feedback and test command from a 
   } finally { await removeTemp(r.root); }
 });
 
-test("1.17 a turn's summary names the project folder its writes went to, wherever the turn itself ran", async () => {
+test("1.17 a turn's summary names the project folder its writes went to, wherever the turn itself ran, its own settings' folder aside", async () => {
   const root = mkdtempSync(path.join(tmpdir(), "storytree-stable-sum-"));
   try {
     const write = (file_path: string) => ({ type: "assistant", message: { content: [{ type: "tool_use", name: "Write", input: { file_path } }] } });
@@ -222,6 +222,7 @@ test("1.17 a turn's summary names the project folder its writes went to, whereve
       { type: "system", subtype: "init", cwd: "C:\\Windows\\System32" },
       write("C:\\Users\\st\\Documents\\tip-calculator\\index.html"),
       write("C:\\Users\\st\\Documents\\tip-calculator\\tests\\tip.test.js"),
+      write("C:\\Users\\st\\.claude\\settings.json"),
       { type: "assistant", message: { content: [{ type: "tool_use", name: "Edit", input: { file_path: "C:\\Users\\st\\Documents\\tip-calculator\\app.js" } }] } },
       { type: "result", subtype: "success", duration_ms: 1000, result: "done", usage: {} },
     ];

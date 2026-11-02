@@ -52,6 +52,11 @@
 // from the environment itself (PGPASSWORD, CF_ACCESS_CLIENT_ID, CF_ACCESS_CLIENT_SECRET), so nothing
 // secret is written. infra/library-host/README.md describes the route.
 //
+// There too, when the container's Node.js is below package.json's engines floor (its path put Node.js 22 first,
+// friction_7bc32d462aa2), the newest Node.js installed under /opt or on the path that meets the floor is put first
+// on the session's path, through the file Claude Code names in CLAUDE_ENV_FILE and sources before each Bash
+// command (contract 3.8), so the tests run without the agent fetching a Node.js by hand; finding none, it says so.
+//
 // Before anything else, it installs the push check (packages/repo-checks/src/push-check.mjs, contract 3.7) as git's pre-push hook, in the
 // hooks folder the repository's worktrees share, unless someone else's pre-push hook is already there.
 //
@@ -64,6 +69,8 @@ import { homedir } from "node:os";
 import path from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
+
+import { floorRefusal } from "./node-runtime.mjs";
 
 // On Windows a bare-named program (git, pnpm) is found on PATH only, never in the checkout it runs in; every
 // process it starts inherits that.
@@ -173,6 +180,61 @@ function cloudLibraryAddress(env) {
 /** True in a Claude Code cloud container. */
 function inCloud(env) {
   return env.CLAUDE_CODE_REMOTE === "true";
+}
+
+/** Each Node.js binary installed under /opt (/opt/<name>/bin/node) or on env's PATH, in that order, without repeats. */
+function installedNodes(env) {
+  const found = [];
+  try {
+    for (const entry of readdirSync("/opt")) found.push(path.join("/opt", entry, "bin", "node"));
+  } catch {
+    // No /opt: only the path is searched.
+  }
+  for (const dir of (env.PATH ?? "").split(path.delimiter)) if (dir) found.push(path.join(dir, "node"));
+  return [...new Set(found)].filter((bin) => existsSync(bin));
+}
+
+/** The version a Node.js binary reports (`node -v`), or undefined when it will not run. */
+function nodeVersion(bin) {
+  const result = spawnSync(bin, ["-v"], { encoding: "utf8", timeout: 10_000, windowsHide: true });
+  return result.status === 0 ? result.stdout.trim() : undefined;
+}
+
+/** a's x.y.z against b's, for sorting newest first. */
+function newer(a, b) {
+  const [x, y] = [a, b].map((v) => v.replace(/^v/, "").split(".").map(Number));
+  return y[0] - x[0] || y[1] - x[1] || y[2] - x[2];
+}
+
+/**
+ * In a cloud container whose Node.js `version` is below root's engines floor, put the newest of `nodes` meeting
+ * it first on the session's path, by a line in env's CLAUDE_ENV_FILE written once (contract 3.8).
+ * @returns {{ dir?: string, message?: string }} the folder put first, and what the session must be told, if anything
+ */
+export function cloudNode({ root = repoRoot, env = process.env, version = process.version, nodes, versionOf = nodeVersion, log = () => {} } = {}) {
+  const refusal = inCloud(env) ? floorRefusal(version, root) : undefined;
+  if (refusal === undefined) return {};
+  const meeting = (nodes ?? installedNodes(env))
+    .map((bin) => ({ bin, version: versionOf(bin) }))
+    .filter((node) => /^v?\d+\.\d+\.\d+/.test(node.version ?? "") && floorRefusal(node.version, root) === undefined)
+    .sort((a, b) => newer(a.version, b.version));
+  if (meeting.length === 0) {
+    return { message: `${refusal} In this cloud container no installed Node.js meets it (searched /opt/*/bin and the path).` };
+  }
+  const dir = path.dirname(meeting[0].bin);
+  const line = `export PATH='${dir.replaceAll("'", "'\\''")}':"$PATH"`;
+  if (!env.CLAUDE_ENV_FILE) {
+    return { dir, message: `${refusal} Node.js ${meeting[0].version} is installed at ${dir}: run \`${line}\` before any pnpm or node command.` };
+  }
+  let written = "";
+  try {
+    written = readFileSync(env.CLAUDE_ENV_FILE, "utf8");
+  } catch {
+    // Not written yet.
+  }
+  if (!written.split("\n").includes(line)) writeFileSync(env.CLAUDE_ENV_FILE, `${written}${written && !written.endsWith("\n") ? "\n" : ""}${line}\n`);
+  log(`provision-worktree: cloud container's Node.js ${version} is below the engines floor; Node.js ${meeting[0].version} at ${dir} put first on the session's path`);
+  return { dir };
 }
 
 /** The environment pnpm install runs with: onnxruntime's download skipped everywhere unless env says otherwise. */
@@ -457,13 +519,16 @@ export function check({ root = repoRoot, install = pnpmInstall, log = () => {} }
   return refusal ? 1 : 0;
 }
 
-/** What the hook writes to stdout for a result: the agent's heads-up when the install failed, else "". */
-export function hookOutput(result, root) {
-  if (result.ok) return "";
-  const additionalContext = result.message ??
-    `This worktree (${root}) ${WHAT_HAPPENED[result.condition]}. Run \`pnpm install\` in ${root} before ` +
-    "any pnpm, tsx or test command: until then they fail with errors such as ERR_MODULE_NOT_FOUND or " +
-    "TS2307 that name the wrong cause.";
+/** What the hook writes to stdout for a result: the agent's heads-up when the install failed, and each of notes; else "". */
+export function hookOutput(result, root, notes = []) {
+  const install = result.ok
+    ? []
+    : [result.message ??
+      `This worktree (${root}) ${WHAT_HAPPENED[result.condition]}. Run \`pnpm install\` in ${root} before ` +
+      "any pnpm, tsx or test command: until then they fail with errors such as ERR_MODULE_NOT_FOUND or " +
+      "TS2307 that name the wrong cause."];
+  const additionalContext = [...install, ...notes].join("\n\n");
+  if (!additionalContext) return "";
   return JSON.stringify({ hookSpecificOutput: { hookEventName: "SessionStart", additionalContext } });
 }
 
@@ -486,9 +551,10 @@ if (isEntry()) {
     process.exitCode = check({ root, log: (line) => process.stderr.write(`${line}\n`) });
   } else {
     const log = (line) => process.stderr.write(`${line}\n`);
+    const node = cloudNode({ root, log });
     const result = provision({ root, log });
     if (result.ok) connectCloud({ root, log });
-    const output = hook ? hookOutput(result, root) : "";
+    const output = hook ? hookOutput(result, root, node.message ? [node.message] : []) : "";
     if (output) process.stdout.write(`${output}\n`);
     process.exitCode = hook ? 0 : result.code;
   }

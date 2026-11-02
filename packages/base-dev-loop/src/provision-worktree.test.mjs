@@ -13,7 +13,7 @@ import { fileURLToPath } from "node:url";
 
 import { quietFor, removeTemp } from "@storytree/test-waits";
 
-import { check, connectCloud, hookOutput, installEnvironment, pnpmInstall, provision, serve } from "./provision-worktree.mjs";
+import { check, cloudNode, connectCloud, hookOutput, installEnvironment, pnpmInstall, provision, serve } from "./provision-worktree.mjs";
 
 const script = fileURLToPath(new URL("./provision-worktree.mjs", import.meta.url));
 
@@ -473,4 +473,68 @@ test("3.6 approving a cloud container's checkout leaves its committed .storytree
   connectCloud({ root, home, env: { ...CLOUD }, run });
   assert.equal(readFileSync(marker, "utf8"), before);
   assert.equal(existsSync(path.join(root, ".storytree")), false, "the folder joining made is gone");
+});
+
+/** A checkout whose package.json names the engines floor, and a CLAUDE_ENV_FILE beside it, for cloudNode. */
+function floored(t, floor = ">=24.20.0") {
+  const root = mkdtempSync(path.join(tmpdir(), "cloud-node-"));
+  t.after(() => removeTemp(root));
+  writeFileSync(path.join(root, "package.json"), JSON.stringify({ engines: { node: floor } }));
+  return { root, envFile: path.join(root, "claude-env.sh") };
+}
+
+const INSTALLED = new Map([
+  [path.join("/opt", "node22", "bin", "node"), "v22.23.4"],
+  [path.join("/opt", "node24", "bin", "node"), "v24.22.2"],
+  [path.join("/opt", "node24old", "bin", "node"), "v24.19.0"],
+  [path.join("/opt", "node26", "bin", "node"), "v26.1.0"],
+]);
+const versionOf = (bin) => INSTALLED.get(bin);
+
+test("3.8 a cloud container whose Node is below the engines floor gets the newest installed Node meeting it first on the session's path, once", (t) => {
+  const { root, envFile } = floored(t);
+  const env = { CLAUDE_CODE_REMOTE: "true", CLAUDE_ENV_FILE: envFile };
+  const result = cloudNode({ root, env, version: "v22.23.4", nodes: [...INSTALLED.keys()], versionOf });
+  const dir = path.join("/opt", "node26", "bin");
+  assert.equal(result.dir, dir);
+  assert.equal(readFileSync(envFile, "utf8"), `export PATH='${dir}':"$PATH"\n`);
+
+  cloudNode({ root, env, version: "v22.23.4", nodes: [...INSTALLED.keys()], versionOf });
+  assert.equal(readFileSync(envFile, "utf8"), `export PATH='${dir}':"$PATH"\n`, "a second session start adds no second line");
+});
+
+test("3.8 with no installed Node meeting the floor, the cloud session is told the floor and the Node it has, and its path is left as it was", (t) => {
+  const { root, envFile } = floored(t);
+  const nodes = [path.join("/opt", "node22", "bin", "node"), path.join("/opt", "node24old", "bin", "node")];
+  const result = cloudNode({ root, env: { CLAUDE_CODE_REMOTE: "true", CLAUDE_ENV_FILE: envFile }, version: "v22.23.4", nodes, versionOf });
+  assert.equal(result.dir, undefined);
+  assert.match(result.message, /v22\.23\.4 is below this project's floor, node >=24\.20\.0/);
+  assert.match(result.message, /no installed Node\.js meets it/);
+  assert.equal(existsSync(envFile), false);
+});
+
+test("3.8 a found Node with no CLAUDE_ENV_FILE to write is named to the session to put first on its path", (t) => {
+  const { root } = floored(t);
+  const result = cloudNode({ root, env: { CLAUDE_CODE_REMOTE: "true" }, version: "v22.23.4", nodes: [...INSTALLED.keys()], versionOf });
+  assert.match(result.message, new RegExp(`export PATH='${path.join("/opt", "node26", "bin").replaceAll("\\", "\\\\")}':"\\$PATH"`));
+});
+
+test("3.8 outside a cloud container, or at the floor, the session's path is left as it was", (t) => {
+  const { root, envFile } = floored(t);
+  const nodes = [...INSTALLED.keys()];
+  assert.deepEqual(cloudNode({ root, env: { CLAUDE_ENV_FILE: envFile }, version: "v22.23.4", nodes, versionOf }), {});
+  assert.deepEqual(cloudNode({ root, env: { CLAUDE_CODE_REMOTE: "true", CLAUDE_ENV_FILE: envFile }, version: "v24.20.0", nodes, versionOf }), {});
+  assert.equal(existsSync(envFile), false);
+});
+
+test("3.8 each installed Node's version is read by running it", (t) => {
+  const { root, envFile } = floored(t, ">=1.0.0");
+  const result = cloudNode({ root, env: { CLAUDE_CODE_REMOTE: "true", CLAUDE_ENV_FILE: envFile }, version: "v0.12.0", nodes: [process.execPath, path.join(root, "no-node-here")] });
+  assert.equal(result.dir, path.dirname(process.execPath));
+});
+
+test("3.8 the session-start hook's heads-up carries what the Node check found, even when the install succeeded", () => {
+  const output = JSON.parse(hookOutput({ ok: true, code: 0 }, "/repo", ["no Node meets the floor"]));
+  assert.equal(output.hookSpecificOutput.additionalContext, "no Node meets the floor");
+  assert.equal(hookOutput({ ok: true, code: 0 }, "/repo", []), "");
 });

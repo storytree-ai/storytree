@@ -11,10 +11,25 @@ export function normalisedWords(text: string): string {
   return text.toLowerCase().replace(/[-_\s]+/g, " ").trim();
 }
 
-/** Whether `text` holds `name` as whole words, its last word plural or not. */
+/** A letter or digit ending, or starting, the text it is tested on: what makes a match part of a longer word. */
+const WORD_BEFORE = /[\p{L}\p{N}]$/u;
+const WORD_AFTER = /^[\p{L}\p{N}]/u;
+
+/**
+ * Whether `text` holds `name` as whole words, its last word plural or not. It compiles no pattern
+ * of its own: a ranked search asks this of thousands of title words, and compiling a Unicode
+ * pattern for each cost seconds (14.16).
+ */
 export function holdsName(text: string, name: string): boolean {
-  const words = normalisedWords(name).split(" ").map((word) => word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
-  const last = words.pop()!;
-  const plural = last.endsWith("y") ? `(?:${last}|${last.slice(0, -1)}ies)` : `${last}(?:e?s)?`;
-  return new RegExp(`(?<![\\p{L}\\p{N}])${[...words, plural].join(" ")}(?![\\p{L}\\p{N}])`, "u").test(normalisedWords(text));
+  const haystack = normalisedWords(text);
+  const words = normalisedWords(name);
+  const forms = words.endsWith("y") ? [words, `${words.slice(0, -1)}ies`] : [words, `${words}s`, `${words}es`];
+  return forms.some((form) => {
+    for (let at = haystack.indexOf(form); at !== -1; at = at === haystack.length ? -1 : haystack.indexOf(form, at + 1)) {
+      const end = at + form.length;
+      // Two code units either side: a whole character, even one outside the Basic Multilingual Plane.
+      if (!WORD_BEFORE.test(haystack.slice(Math.max(0, at - 2), at)) && !WORD_AFTER.test(haystack.slice(end, end + 2))) return true;
+    }
+    return false;
+  });
 }

@@ -130,3 +130,56 @@ test("1.17 the judge signs in with the routine's long-lived token, its whitespac
     assert.equal(JSON.parse(readFileSync(path.join(out, "judge.json"), "utf8")).token, "sk-ant-oat01-abcdef");
   } finally { await removeTemp(root); }
 });
+
+test("1.17 a run whose acceptance user's Claude Code is not signed in files a friction about the run's precondition, not a regression in the build, and does not count the fortnight", { skip }, async () => {
+  const r = routine([CANDIDATE, { text: NONE }], { runLog: "PRECONDITION: the run user's Claude Code is not signed in: Invalid API key\n", runStatus: 4 });
+  try {
+    assert.deepEqual(r.runs, ["0.3.2164"], "one run only");
+    assert.equal(filed(r).length, 1, r.calls.join("\n"));
+    assert.doesNotMatch(fileOf(filed(r)[0]!, "title"), /regression/);
+    assert.match(fileOf(filed(r)[0]!, "statement"), /not signed in: Invalid API key/);
+    assert.equal(lastRun(r), false);
+  } finally { await done(r); }
+});
+
+/** Runs the acceptance run's named phases against a laptop stood in for by ssh and scp, its sign-in step saying `signin`. */
+function acceptance(signin: string, phases: string[]) {
+  const root = mkdtempSync(path.join(tmpdir(), "storytree-stable-run-"));
+  const here = path.join(root, "harness"), bin = path.join(root, "bin"), out = path.join(root, "out");
+  for (const dir of [here, path.join(here, "steps"), bin]) mkdirSync(dir, { recursive: true });
+  spawnSync("git", ["init", "-q", here]);
+  for (const file of ["run.sh", "user.ps1", "state.ps1", "steps/prepare.ps1", "steps/signin.ps1", "steps/install.ps1"]) copyFileSync(path.join(harness, file), path.join(here, file));
+  writeFileSync(path.join(here, "judge.sh"), `echo judged >> "${root}/calls"; echo "VERDICT: PASS" | tee -a "$1/run.log"`);
+  const token = path.join(root, "token");
+  writeFileSync(token, "sk-ant-oat01-abc\n");
+  const script = (name: string, body: string) => { writeFileSync(path.join(bin, name), `#!/bin/bash\n${body}\n`); chmodSync(path.join(bin, name), 0o755); };
+  script("ssh", `echo "ssh $*" >> "${root}/calls"; case "$*" in *signin.ps1*) printf '%s\\n' ${JSON.stringify(signin)} ;; esac; exit 0`);
+  script("scp", `echo "scp $*" >> "${root}/calls"; exit 0`);
+  script("curl", "echo STORYTREE_ACCEPTANCE_VERSION");
+  script("pnpm", "exit 0");
+  const env = { ...process.env, STABLE_ACCEPTANCE_HOST: "laptop", STABLE_ACCEPTANCE_TOKEN_FILE: token, PATH: `${bin}${path.delimiter}${process.env.PATH ?? ""}` };
+  const result = spawnSync("bash", [path.join(here, "run.sh"), "0.3.2167", out, ...phases], { encoding: "utf8", env });
+  const calls = readFileSync(path.join(root, "calls"), "utf8").trim().split("\n");
+  return { root, status: result.status, calls, log: readFileSync(path.join(out, "run.log"), "utf8") };
+}
+
+test("1.17 the acceptance run checks its user's Claude Code sign-in before it installs the build: signed out, it notes the precondition, removes the user and judges nothing", { skip }, async () => {
+  const r = acceptance("signed in: no (Invalid API key)", ["before", "user", "prepare", "signin", "install", "judge"]);
+  try {
+    assert.equal(r.status, 4, r.log);
+    assert.match(r.log, /^PRECONDITION: the run user's Claude Code is not signed in: \(Invalid API key\)$/m);
+    assert.ok(r.calls.some((call) => call.includes("user.ps1 remove")), "the user is removed: " + r.calls.join("\n"));
+    assert.ok(!r.calls.some((call) => call.includes("install.ps1")), "the build is not installed");
+    assert.ok(!r.calls.includes("judged"), "the run is not judged");
+    assert.doesNotMatch(r.log, /^VERDICT:/m);
+  } finally { await removeTemp(r.root); }
+});
+
+test("1.17 an acceptance user whose Claude Code is signed in goes on to install the build", { skip }, async () => {
+  const r = acceptance("signed in: yes", ["before", "user", "prepare", "signin", "install"]);
+  try {
+    assert.equal(r.status, 0, r.log);
+    assert.ok(r.calls.some((call) => call.includes("install.ps1")), r.calls.join("\n"));
+    assert.doesNotMatch(r.log, /PRECONDITION/);
+  } finally { await removeTemp(r.root); }
+});

@@ -25,6 +25,19 @@ import type { SetupReport } from "./setup.js";
 const NO_TOOL = { absent: "an agent session's setup check is the check_setup tool; this is the person at the terminal's" };
 const HARNESSES = { "claude-code": "Claude Code", codex: "Codex", cursor: "Cursor", pi: "Pi", antigravity: "Antigravity CLI" } as const;
 
+/**
+ * The agent CLI whose session's shell runs this command, by the variable that harness names its shells' session with:
+ * it is signed in, since its session is running, though Claude Code keeps a token sign-in from its shells (8.11).
+ */
+async function askingShell(env: NodeJS.ProcessEnv): Promise<"claude" | "codex" | undefined> {
+  const { WATCHED_HARNESSES } = await import("@storytree/project-and-caller/caller");
+  const named = (id: string) => {
+    const variable = WATCHED_HARNESSES.find((harness) => harness.id === id)?.shellSession;
+    return variable !== undefined && (env[variable]?.trim() ?? "") !== "";
+  };
+  return named("claude-code") ? "claude" : named("codex") ? "codex" : undefined;
+}
+
 /** storytree's hook script, when the command sits beside it as an installed storytree's does. */
 async function hookBeside(script: string | undefined): Promise<string | undefined> {
   if (script === undefined) return undefined;
@@ -156,9 +169,11 @@ export const DOCTOR = verb({
     const hook = await hookBeside(context.script);
     const { homedir } = await import("node:os");
     const { runSetupCheck } = await import("./setup.js");
+    const asking = await askingShell(process.env);
     const report = await runSetupCheck({
       folder: context.folder,
       look: input.repair !== true,
+      ...(asking === undefined ? {} : { asking }),
       ...(hook === undefined ? {} : { hook: { node: process.execPath, script: hook }, command: { path: process.env.PATH ?? process.env.Path ?? "", home: homedir() } }),
     });
     if (report.storytree.state === "not running") throw new VerbRefusal(report.storytree.message);

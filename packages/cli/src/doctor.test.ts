@@ -312,3 +312,29 @@ test("8.8 the doctor's exit code matches what it prints: 0 with its answer and n
     assert.match(misused.stderr, /--repiar/);
   });
 });
+
+test("8.11 run in a Claude Code or Codex session's shell, the doctor counts that agent signed in though its ask says signed out (a CLAUDE_CODE_OAUTH_TOKEN sign-in its shells never see)", async () => {
+  await inWorld(command, async (world) => {
+    const user = aUser(world);
+    const bin = path.join(user.home, "bin");
+    // Both answer `--version` and fail their sign-in ask, as Claude Code does in its own Bash tool's shell when signed in by token.
+    agentCli(bin, "claude", ["--version"]);
+    agentCli(bin, "codex", ["--version"]);
+
+    const outside = await world.run(["doctor"], user.env);
+    assert.equal(outside.code, 0, outside.stderr);
+    assert.match(outside.stdout, /Claude Code is installed and not signed in/);
+    assert.match(outside.stdout, /Codex is installed and not signed in/);
+
+    const inClaude = await world.run(["doctor"], { ...user.env, CLAUDE_CODE_SESSION_ID: "a-claude-session" });
+    assert.equal(inClaude.code, 0, inClaude.stderr);
+    assert.match(inClaude.stdout, /Claude Code is installed and signed in/);
+    assert.match(inClaude.stdout, /Codex is installed and not signed in/);
+    assert.doesNotMatch(inClaude.stdout, /claude auth login/);
+
+    const inCodex = await world.run(["doctor"], { ...user.env, CODEX_THREAD_ID: "a-codex-thread" });
+    assert.equal(inCodex.code, 0, inCodex.stderr);
+    assert.match(inCodex.stdout, /Codex is installed and signed in/);
+    assert.match(inCodex.stdout, /Claude Code is installed and not signed in/);
+  });
+});

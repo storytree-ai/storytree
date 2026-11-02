@@ -250,6 +250,16 @@ test("3.15 the guide's troubleshooting is for the platform it runs on, read from
   assert.equal(platformOf("Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) storytree/0.3.1 Chrome/138.0 Electron/37.0 Safari/537.36"), "linux");
   assert.equal(platformOf("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Electron/37.0 Safari/537.36"), "mac");
   assert.equal(platformOf("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Electron/37.0 Safari/537.36"), "windows");
+  const navigator = Object.getOwnPropertyDescriptor(globalThis, "navigator");
+  Object.defineProperty(globalThis, "navigator", { configurable: true, value: { userAgent: "Mozilla/5.0 (X11; Linux x86_64) Electron/37.0" } });
+  try {
+    const read = summaries({}).join("\n");
+    assert.match(read, /FUSE/, "not given, the platform is the user agent's");
+    assert.doesNotMatch(read, /SmartScreen/);
+  } finally {
+    if (navigator) Object.defineProperty(globalThis, "navigator", navigator);
+    else Reflect.deleteProperty(globalThis, "navigator");
+  }
   const unknown = summaries({ platform: platformOf("Node.js/22") }).join("\n");
   for (const each of [/SmartScreen/, /FUSE/, /Privacy & Security/]) assert.match(unknown, each, "a platform it cannot tell gets every platform's steps");
 });

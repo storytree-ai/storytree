@@ -1,0 +1,96 @@
+{
+  "clicks": [
+    {
+      "kind": "gate",
+      "mark": "capability_d632ff0454c0->capability_a7f068502213",
+      "at": {
+        "x": 615,
+        "y": 583
+      },
+      "heading": "11 · Waits calls 10 · Work in flight"
+    },
+    {
+      "kind": "gate",
+      "mark": "arrive->capability_75d059640d9d",
+      "at": {
+        "x": 837,
+        "y": 308
+      },
+      "heading": "17 stories · 47 links calls 7 · Library API"
+    },
+    {
+      "kind": "wrench",
+      "mark": "capability_a954e1eb16f6",
+      "at": {
+        "x": 281,
+        "y": 245
+      },
+      "heading": "Work wanting 8 · Cloud connection (GCP)"
+    },
+    {
+      "kind": "territory",
+      "mark": "capability_dd486ffa5b02",
+      "at": {
+        "x": 738,
+        "y": 448
+      },
+      "heading": "4 · Work model"
+    }
+  ],
+  "layer": {
+    "links": 45,
+    "inside": 27,
+    "ways": 45,
+    "gates": 57,
+    "entranceGates": 45,
+    "passGates": 12,
+    "sharedOpenings": 0,
+    "insideBorders": [
+      1,
+      1,
+      1,
+      1,
+      3,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      2,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      5,
+      2,
+      2,
+      2
+    ],
+    "overThird": [
+      "5 · Health record -> 4 · Work model: 3 borders",
+      "26 · Rounds -> 24 · Graduation: 2 borders",
+      "7 · Library API -> 6 · Knowledge artifacts: 5 borders",
+      "9 · Knowledge entrances -> 4 · Work model: 2 borders",
+      "9 · Knowledge entrances -> 6 · Knowledge artifacts: 2 borders",
+      "27 · Fixed data questions -> 7 · Library API: 2 borders"
+    ],
+    "landings": 18,
+    "roadLength": 648,
+    "wrenches": [
+      {
+        "capability": "8 · Cloud connection (GCP)",
+        "via": "arrive->capability_a954e1eb16f6"
+      }
+    ]
+  },
+  "errors": [],
+  "realErrors": []
+}

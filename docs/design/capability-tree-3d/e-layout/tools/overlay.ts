@@ -314,7 +314,8 @@ export function overlayLayer(state: RootState, story: string, data: Data, host: 
   const h = nearestOn(layout.harbour.sea), rel = (i: number) => { let d = (i - h) % soft.length; if (d > soft.length / 2) d -= soft.length; if (d < -soft.length / 2) d += soft.length; return d; };
   const stops = arrivals.filter(a => !a.key.endsWith("->leave")).map(a => rel(nearestOn(a.sea)));
   const lo = Math.min(0, ...stops), hi = Math.max(0, ...stops);
-  const road = [layout.harbour.sea, ...Array.from({ length: hi - lo + 1 }, (_, k) => soft[(h + lo + k + soft.length) % soft.length]!)];
+  // The road runs both ways along the coast from where the harbour's lane meets it; the lane joins it there.
+  const road = Array.from({ length: hi - lo + 1 }, (_, k) => soft[(h + lo + k + soft.length) % soft.length]!), join = [layout.harbour.sea, soft[h]!];
   // Each landing's spur leaves the road at its nearest point, comes through the coast, and ends near the capability's name.
   for (const a of arrivals) {
     const e = spot(a.id, a.inside);
@@ -385,8 +386,10 @@ export function overlayLayer(state: RootState, story: string, data: Data, host: 
   const keep = (key: string, m: MeshBasicMaterial) => { m.userData.colour ??= `#${m.color.getHexString()}`; coreMats.set(key, [...(coreMats.get(key) ?? []), m]); return m; };
   // The coast road, under its spurs.
   const roadMat = mat(PALETTE.line);
-  add(ribbon(road, SIZE.line + SIZE.casing * 2, y(0)), casingMat, 10);
-  add(ribbon(road, SIZE.line, y(0.02)), roadMat, 11);
+  for (const r of [road, join]) {
+    add(ribbon(r, SIZE.line + SIZE.casing * 2, y(0)), casingMat, 10);
+    add(ribbon(r, SIZE.line, y(0.02)), roadMat, 11);
+  }
   for (const w of ways) {
     const m = keep(w.key, mat(w.colour));
     const back = SIZE.arrow * 0.7, body = [...w.pts];
@@ -527,7 +530,7 @@ export function overlayLayer(state: RootState, story: string, data: Data, host: 
     passGates: gates.filter(g => !g.entranceOf).length, sharedOpenings: gates.filter(g => g.links.length > 1).length,
     insideBorders: insideWays.map(w => w.crossings.filter(c => !c.coast).length),
     overThird: insideWays.filter(w => w.crossings.filter(c => !c.coast).length > 1).map(w => `${links.get(w.key)!.fromTitle} -> ${links.get(w.key)!.toTitle}: ${w.crossings.length} borders`),
-    landings: layout.landings.length, roadLength: Math.round(road.reduce((s, p, i) => i ? s + dist(road[i - 1]!, p) : 0, 0)),
+    landings: layout.landings.length, roadLength: Math.round([join, road].reduce((sum, r) => sum + r.reduce((s, p, i) => i ? s + dist(r[i - 1]!, p) : 0, 0), 0)),
     wrenches: [...wrenches].map(([id, w]) => ({ capability: byId.get(id)?.title, via: w.via })),
   };
   return {

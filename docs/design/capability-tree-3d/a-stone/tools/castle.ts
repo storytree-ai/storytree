@@ -52,9 +52,9 @@ export const PALETTE = {
   wrench: "#1b1814", wrenchEdge: "#ece4d0", wrenchSample: "#d6bdf0", shadow: "#080b0e",
 } as const;
 /** How far each town's wall stands in from its territory's edge, in the island's ground units (README: round 4). */
-export const INSET = Number(new URLSearchParams(location.search).get("inset") ?? 3.4);
+export const INSET = Number(new URLSearchParams(location.search).get("inset") ?? 5);
 /** A territory whose deepest point is nearer its edge than this gets no wall, only its gate marks. */
-export const WALL_CUT = Number(new URLSearchParams(location.search).get("cut") ?? 8);
+export const WALL_CUT = Number(new URLSearchParams(location.search).get("cut") ?? 8.5);
 
 const dist = (a: P, b: P) => Math.hypot(a.x - b.x, a.z - b.z);
 const nameOf = (title: string) => title.replace(/^\d+ · /, "");
@@ -471,7 +471,8 @@ export function castleLayer(state: RootState, story: string, data: Data, host: H
   };
 
   // The pick lights in the selection's gold: a town's wall band, a gate's towers, and every road it names drawn over in gold.
-  const litMaterial = new MeshBasicMaterial({ map: dashTexture(PALETTE.lit, true), transparent: true, alphaTest: 0.5, fog: false, side: DoubleSide, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3 });
+  // One solid gold line, wide enough to cover the brown dashes under it: gold over dashes out of step read as orange.
+  const litMaterial = new MeshBasicMaterial({ color: PALETTE.lit, transparent: true, fog: false, side: DoubleSide, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3 });
   const lit: Mesh[] = [];
   const highlight = (picked: Picked | undefined) => {
     for (const t of towns.values()) t.band.color.set(PALETTE.wall);
@@ -486,7 +487,7 @@ export function castleLayer(state: RootState, story: string, data: Data, host: H
     for (const k of keys) {
       const pts = routeOf.get(k);
       if (!pts) continue;
-      const m = new Mesh(ribbon(rounded(pts, TURN), PATH * 2, q => ground(q) + H * 0.01, DASH), litMaterial); m.renderOrder = 5; group.add(m); lit.push(m);
+      const m = new Mesh(ribbon(rounded(pts, TURN), PATH * 2.4, q => ground(q) + H * 0.01, DASH), litMaterial); m.renderOrder = 5; group.add(m); lit.push(m);
     }
     state.invalidate();
   };
@@ -516,6 +517,7 @@ export function castleLayer(state: RootState, story: string, data: Data, host: H
     unwalled: [...plan.towns.values()].filter(t => !t.walled).map(t => `${byId.get(t.id)?.title} (${byId.get(t.id)?.lines} lines, ${t.depth.toFixed(1)} deep)`),
     depths: Object.fromEntries([...plan.towns.values()].map(t => [byId.get(t.id)?.title, Math.round(t.depth * 10) / 10])),
     turns, wallLength: Math.round(wallLength), gates: plan.gates.size, links: links.size, routed: plan.links.length,
+    unrouted: Object.entries(asked.filter(a => !plan.links.some(l => l.key === a.key)).reduce((m, a) => { const k = a.to.kind === 'town' ? byId.get(a.to.id)?.title ?? '' : 'dock'; m[k] = (m[k] ?? 0) + 1; return m; }, {} as Record<string, number>)),
     inside: asked.filter(a => a.from.kind === "town" && a.to.kind === "town").length, docks: dockInfo.map(d => ({ label: d.label, links: d.links.length })),
     stretches: stretches.size, sharedStretches: [...stretches.values()].filter(s => s.carried.length > 1).length, chains: chains.length,
     wrenches: wrenches.size, borders: map.borders.length,

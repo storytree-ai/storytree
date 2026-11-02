@@ -191,15 +191,17 @@ export function townPlan(map: TerritoryMap, coast: readonly (readonly P[])[], op
     for (let k = 0; k < w * h; k++) { if (mine(k)) count++; if (dist[k]! > deepest) { deepest = dist[k]!; deepAt = k; } }
     const depth = Math.sqrt(deepest) * cell, deep = centre(i0 + (deepAt % w), j0 + Math.floor(deepAt / w));
     const corner = (x: number, y: number): P => ({ x: x0 + (i0 + x) * cell, z: z0 + (j0 + y) * cell });
-    const walled = depth >= opts.wallCut;
-    let ring: P[];
+    let walled = depth >= opts.wallCut;
+    let ring: P[] = [];
     if (walled) {
       // Inset by D, with necks narrower than OPEN opened off: eroded by D + OPEN, then grown back by OPEN.
-      const OPEN = D * 1.1, core = (k: number) => Math.sqrt(dist[k]!) * cell >= D + OPEN;
+      const OPEN = Math.min(D * 1.1, (depth - D) * 0.6), core = (k: number) => Math.sqrt(dist[k]!) * cell >= D + OPEN;
       const grown = edt(core, w, h);
       const inside = (x: number, y: number) => x >= 0 && y >= 0 && x < w && y < h && Math.sqrt(grown[y * w + x]!) * cell <= OPEN && mine(y * w + x);
       ring = simplify(outline(inside, w, h, corner), D * 0.55, opts.corner);
-    } else {
+    }
+    if (ring.length < 3) {
+      walled = false;
       // No wall: its gate marks stand on a ring about the territory's deepest point.
       const r = Math.max(depth * 0.55, D * 0.35);
       ring = Array.from({ length: 16 }, (_, k) => ({ x: deep.x + r * Math.cos(-k * Math.PI / 8), z: deep.z + r * Math.sin(-k * Math.PI / 8) }));

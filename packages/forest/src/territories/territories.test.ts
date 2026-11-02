@@ -6,7 +6,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { circleDiameter, fileCircles, territories, territoryAt, type CircleFile } from "./territories.js";
+import { territories, territoryAt } from "./territories.js";
 
 const shares = [
   { capability: "cap-a", lines: 600 },
@@ -49,24 +49,7 @@ test("3.15 a point on a territory's land picks that capability; open sea picks n
   assert.equal(territoryAt(map, 30, 0), undefined);
 });
 
-test("3.16 every file is one circle whose middle lies on its capability's territory, a longer file never drawn smaller", () => {
-  const files: CircleFile[] = [
-    ...Array.from({ length: 9 }, (_, at) => ({ path: `src/a/${at}.ts`, lines: 20 + at * 60, capability: "cap-a" })),
-    ...Array.from({ length: 4 }, (_, at) => ({ path: `src/b/${at}.ts`, lines: 40 + at * 20, capability: "cap-b" })),
-    { path: "src/c/only.ts", lines: 100, capability: "cap-c" },
-    { path: "src/bins/run.ts", lines: 50 },
-  ];
-  const circles = fileCircles(map, files);
-  assert.deepEqual(circles.map(({ path }) => path), files.map(({ path }) => path));
-  for (const circle of circles) {
-    const file = files.find(({ path }) => path === circle.path)!;
-    assert.equal(territoryAt(map, circle.x, circle.z)?.capability, file.capability, `${circle.path} lies on its own territory`);
-  }
-  const bySize = [...circles].sort((a, b) => files.find(({ path }) => path === a.path)!.lines - files.find(({ path }) => path === b.path)!.lines);
-  bySize.slice(1).forEach((circle, at) => assert.ok(circle.radius >= bySize[at]!.radius));
-});
-
-test("3.14 and 3.16 cut to a real coast, every territory's cells and every file's circle lie on the land, the areas following the lines", () => {
+test("3.14 cut to a real coast, every territory's cells lie on the land, the areas following the lines", () => {
   // A C-shaped island: a square 20 across with a bay cut into its east side.
   const coast = [[{ x: -10, z: -10 }, { x: 10, z: -10 }, { x: 10, z: -3 }, { x: 0, z: -3 }, { x: 0, z: 3 }, { x: 10, z: 3 }, { x: 10, z: 10 }, { x: -10, z: 10 }]];
   const onLand = (x: number, z: number) => Math.abs(x) <= 10 && Math.abs(z) <= 10 && !(x > 0 && Math.abs(z) < 3);
@@ -77,47 +60,4 @@ test("3.14 and 3.16 cut to a real coast, every territory's cells and every file'
     assert.ok(Math.abs(share - shares[at]!.lines / 1000) <= 0.02, "cells follow the lines");
   });
   assert.equal(territoryAt(cut, 5, 0), undefined, "the bay is sea");
-  const files = [{ path: "a.ts", lines: 400, capability: "cap-a" }, { path: "b.ts", lines: 90, capability: "cap-b" }, { path: "u.ts", lines: 30 }];
-  for (const circle of fileCircles(cut, files)) assert.ok(onLand(circle.x, circle.z), `${circle.path} is on the land`);
-});
-
-/** How far `p` lies inside its own territory: its distance to the nearest border of that territory or the coast (negative off it). */
-function clearance(cut: ReturnType<typeof territories>, p: { x: number; z: number }, coastSegments: readonly (readonly [{ x: number; z: number }, { x: number; z: number }])[]): number {
-  const toSegment = (a: { x: number; z: number }, b: { x: number; z: number }) => {
-    const [dx, dz] = [b.x - a.x, b.z - a.z];
-    const t = Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.z - a.z) * dz) / (dx * dx + dz * dz || 1)));
-    return Math.hypot(p.x - a.x - t * dx, p.z - a.z - t * dz);
-  };
-  return Math.min(...cut.borders.map(({ from, to }) => toSegment(from, to)), ...coastSegments.map(([a, b]) => toSegment(a, b)));
-}
-
-test("3.16 every circle lies wholly inside its own territory and on the land, and no two circles overlap or stack", () => {
-  // A crowded C-shaped island: more files than its territories had spots before, of mixed sizes.
-  const coast = [[{ x: -10, z: -10 }, { x: 10, z: -10 }, { x: 10, z: -3 }, { x: 0, z: -3 }, { x: 0, z: 3 }, { x: 10, z: 3 }, { x: 10, z: 10 }, { x: -10, z: 10 }]];
-  const ring = coast[0]!;
-  const segments = ring.map((a, at) => [a, ring[(at + 1) % ring.length]!] as const);
-  const cut = territories(shares, coast);
-  const files: CircleFile[] = [
-    ...Array.from({ length: 30 }, (_, at) => ({ path: `src/a/${at}.ts`, lines: 5 + ((at * 37) % 200), capability: "cap-a" })),
-    ...Array.from({ length: 12 }, (_, at) => ({ path: `src/b/${at}.ts`, lines: 3 + ((at * 53) % 120), capability: "cap-b" })),
-    ...Array.from({ length: 6 }, (_, at) => ({ path: `src/c/${at}.ts`, lines: 10 + at * 15, capability: "cap-c" })),
-    ...Array.from({ length: 4 }, (_, at) => ({ path: `src/bins/${at}.ts`, lines: 8 + at * 4 })),
-  ];
-  const circles = fileCircles(cut, files);
-  assert.equal(circles.length, files.length, "every file is one circle");
-  for (const circle of circles) {
-    const file = files.find(({ path }) => path === circle.path)!;
-    assert.equal(territoryAt(cut, circle.x, circle.z)?.capability, file.capability, `${circle.path} lies on its own territory`);
-    assert.ok(clearance(cut, circle, segments) >= circle.radius - 1e-9, `${circle.path} lies wholly inside its territory (clearance ${clearance(cut, circle, segments).toFixed(2)}, radius ${circle.radius.toFixed(2)})`);
-  }
-  for (let i = 0; i < circles.length; i++) for (let j = i + 1; j < circles.length; j++) {
-    const [a, b] = [circles[i]!, circles[j]!];
-    assert.ok(Math.hypot(a.x - b.x, a.z - b.z) >= a.radius + b.radius, `${a.path} and ${b.path} do not overlap`);
-  }
-});
-
-test("3.16 a circle grows gently with its file's lines: a 1,000-line file is under six units across, under five times a one-line file (the old curve: 8.8 across, 5.7 times)", () => {
-  assert.ok(circleDiameter(1000) < 6);
-  assert.ok(circleDiameter(1000) < 5 * circleDiameter(1));
-  assert.ok(circleDiameter(101) > circleDiameter(100));
 });

@@ -21,7 +21,7 @@ type SessionWisp = { session: string; story: string; colour: string; faded: bool
 const snapshot = saved as unknown as TourSnapshot;
 const places = new Map(snapshot.places.map(place => [place.id, place.place]));
 const notes = [...knowledge(snapshot.changes).notes.values()];
-const complete: GlobeSurfaces = { grounds: true, roads: true, nameplates: true, territories: "health", fileCircles: true, knowledgeCore: true, sessionTints: true };
+const complete: GlobeSurfaces = { grounds: true, roads: true, nameplates: true, territories: "health", knowledgeCore: true, sessionTints: true };
 /** The map's whole view: on the glass sheet, the view it opens on (forest 3.66). */
 const overview: GlobeTarget = { kind: "core" };
 /** The map frames itself in the glass sheet's ground units (the short half-side of the view); the sheet's camera takes them in its sphere's radii. */

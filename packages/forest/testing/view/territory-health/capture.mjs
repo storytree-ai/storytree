@@ -92,10 +92,13 @@ function measure(page) {
     });
     const filled = islands.flatMap(i => i.territories).filter(t => t.opacity > 0 && t.capability !== null);
     const uncharted = islands.flatMap(i => i.territories.filter(t => t.capability === null).map(t => ({ story: i.story, fill: t.fill, opacity: t.opacity, saturation: t.saturation, hatches: i.hatches })));
+    // ADR-1212: an island shows only its territories' colours, so nothing on the land is a file's mark.
+    let fileMarks = 0;
+    scene.traverse(object => { if (object.name.startsWith('file:') || object.name === 'file-circles') fileMarks++; });
     const markers = [...document.querySelectorAll('.planet-edge-marker')].map(m => ({ story: m.dataset.failingStory, title: m.title, label: m.getAttribute('aria-label') }));
     // Grey is parked's alone (ADR-0992): greyFills counts a grey territory that is not parked.
     return { zoom: camera.zoom, fills: [...new Set(filled.map(t => `${t.word}${t.parked ? ' parked' : ''} ${t.fill} ${t.opacity}`))].sort(), greyFills: filled.filter(t => t.saturation < 0.3 && !t.parked).length,
-      parked: filled.filter(t => t.parked).map(t => t.capability).sort(), uncharted, markers, islands };
+      parked: filled.filter(t => t.parked).map(t => t.capability).sort(), fileMarks, uncharted, markers, islands };
   });
 }
 
@@ -180,7 +183,7 @@ function measure(page) {
   }, seed.tree.stories.map(s => s.id), { timeout: 60000, polling: 100 }).catch(error => failedWait('seeded islands', error));
   phase('wait for territory and claim meshes');
   // Territories arrive with the survey, and the claim flags with the first read of the log: wait until both are drawn.
-  await page.waitForFunction(() => { let outlines = 0, files = 0; window.__globe.scene.traverse(o => { if (o.name.startsWith('territory-claim:')) outlines++; if (o.name.startsWith('file:')) files++; }); return outlines > 0 && files > 0; }, undefined, { timeout: 30000, polling: 100 }).catch(error => failedWait('claim flags and file circles', error));
+  await page.waitForFunction(() => { let outlines = 0, territories = 0; window.__globe.scene.traverse(o => { if (o.name.startsWith('territory-claim:')) outlines++; if (o.name.startsWith('territory:')) territories++; }); return outlines > 0 && territories > 0; }, undefined, { timeout: 30000, polling: 100 }).catch(error => failedWait('claim flags and territories', error));
   phase('wait for the land to finish drawing on');
   // Territories that arrive after the globe opens draw on (3.46): borders trace, then fills ease in. Measure them whole:
   // every border drawn in full and every territory's opacity unchanged across three polls.
@@ -240,7 +243,7 @@ function measure(page) {
   // Page errors are recorded, not asserted: the stand-in bridge answers nothing for panels newer than it (sign-in and
   // the like), which throw on the missing answer. The land's own marks are asserted from the scene below.
   assert.equal(results.front.greyFills, 0);
-  console.log(JSON.stringify({ browser: results.browser, fills: results.front.fills, greyFills: results.front.greyFills, parked: results.front.parked,
+  console.log(JSON.stringify({ browser: results.browser, fills: results.front.fills, greyFills: results.front.greyFills, parked: results.front.parked, fileMarks: results.front.fileMarks,
     flags: results.front.islands.flatMap(i => i.claimOutlines.map(o => [i.story, o.capability, o.colour, o.faded, o.triangles])), errors }));
   // Observation is complete. Stop redraws, then let page closure release the WebGL context.
   // Explicit dispose/forceContextLoss can itself stall the macOS software-GL driver.

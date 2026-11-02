@@ -7,7 +7,8 @@ $env:CLAUDE_CODE_OAUTH_TOKEN = (Get-Content -Raw "$PSScriptRoot\claude-token.txt
 $env:Path = [Environment]::GetEnvironmentVariable('Path', 'Machine') + ';' + [Environment]::GetEnvironmentVariable('Path', 'User')
 $app = (Get-Item "$env:LOCALAPPDATA\Programs\storytree-0.3\storytree-0.3.exe").VersionInfo.ProductVersion
 "start $(Get-Date -Format o) app $app" | Set-Content "$ev\turn-@N@.meta.txt"
-Set-Location -LiteralPath $project
+# A folder that cannot be entered stops the turn, rather than leave it in the task's own (C:\Windows\System32).
+Set-Location -LiteralPath $project -ErrorAction Stop
 $t = Get-Date
 cmd /c "claude -p @MORE@ --permission-mode bypassPermissions --output-format stream-json --verbose < `"$PSScriptRoot\prompt-@N@.txt`" > `"$ev\turn-@N@.jsonl`" 2>&1"
 $code = $LASTEXITCODE

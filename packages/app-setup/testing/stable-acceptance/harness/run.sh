@@ -6,16 +6,16 @@
 # user and everything it made. Driven from the Mint box over ssh, as process_81a7122f6849 says.
 #
 # Usage: run.sh <0.3.N> [evidence folder] [phase...]
-#   phases, in order: before user prepare install app turn1 shots1 turn2 feedback verify after judge
+#   phases, in order: before user prepare signin install app turn1 shots1 turn2 feedback verify after judge
 #   (default all; naming some reruns only those, for a run's repair). Evidence stays out of the repository's
 #   history: by default ~/storytree-lanes/stable-acceptance/<UTC stamp>-<version>/.
-# Exit 0 only when the judge says PASS.
+# Exit 0 only when the judge says PASS; 4 when the run's user is not signed in, which judges nothing (PRECONDITION:).
 set -uo pipefail
 VERSION=${1:?usage: run.sh <0.3.N> [evidence folder] [phase...]}
 [[ $VERSION =~ ^0\.3\.[1-9][0-9]*$ ]] || { echo "not a 0.3.<n> version: $VERSION" >&2; exit 2; }
 OUT=${2:-$HOME/storytree-lanes/stable-acceptance/$(date -u +%Y%m%dT%H%M%SZ)-$VERSION}
 shift $(( $# >= 2 ? 2 : 1 ))
-PHASES=${*:-before user prepare install app turn1 shots1 turn2 feedback verify after judge}
+PHASES=${*:-before user prepare signin install app turn1 shots1 turn2 feedback verify after judge}
 # The laptop's ssh name, kept on this box beside the runs rather than in the repository.
 HOST=${STABLE_ACCEPTANCE_HOST:-$(cat "$HOME/storytree-lanes/stable-acceptance/host")}
 [[ -n $HOST ]] || { echo "no laptop to run on: set STABLE_ACCEPTANCE_HOST or write its ssh name to ~/storytree-lanes/stable-acceptance/host" >&2; exit 2; }
@@ -44,6 +44,21 @@ step() {
 # repository's evidence check wants it, so a capture copied into the repository later carries none of them either.
 REPO=$(git -C "$HERE" rev-parse --show-toplevel)
 fetch() { scp -q -r "$HOST:$RUN/ev/*" "$OUT/ev/" 2>/dev/null; (cd "$REPO" && pnpm -s scrub:evidence "$OUT/ev") >> "$OUT/run.log" 2>&1; }
+# The user, its task, profile and run folder removed, and the laptop compared with before the run.
+cleanup() {
+  fetch
+  admin "user.ps1 remove $NAME" | tee -a "$OUT/run.log"
+  admin state.ps1 > "$OUT/state-after.txt"
+  ssh -n "$HOST" "rmdir /s /q st-acc" >/dev/null 2>&1
+  diff <(grep -v '^st-profiles:' "$OUT/state-before.txt") <(grep -v '^st-profiles:' "$OUT/state-after.txt") > "$OUT/state-diff.txt" \
+    && log "the laptop is as it was before the run" || log "the laptop differs from before the run: state-diff.txt"
+}
+# One line of the user's last reply, "<FIELD>: <value>", as the prompt asks for it; the reply may set it in markdown
+# (on 2026-11-02 it said **TEST COMMAND:** `npm test`, which a bare ^TEST COMMAND: missed, and the run typed nothing).
+said() {
+  node -e 'console.log(JSON.parse(require("fs").readFileSync(process.argv[1])).reply)' "$OUT/turn-2.summary.json" \
+    | sed -nE "s/^[-*_> ]*$1:[*_]*[[:space:]]*//p" | head -1 | sed -E 's/[[:space:]]*[*_]+$//; s/^`(.*)`$/\1/'
+}
 cdp() { printf '%s\n' "$@" > "$OUT/steps/cdp-steps.txt"; put "$OUT/steps/cdp-steps.txt" cdp-steps.txt; step cdp 5; fetch; }
 # The installer: the newest release's one-liner when it takes a version; until a release carries that option
 # (increment_eddead0e5ef2), main's copy of the same file, which each release publishes unchanged.
@@ -68,6 +83,16 @@ for phase in $PHASES; do
       # then reads it as no sign-in at all.
       tr -d '[:space:]' < "$TOKEN" > "$OUT/steps/claude-token.txt"; put "$OUT/steps/claude-token.txt" claude-token.txt
       rm -f "$OUT/steps/claude-token.txt" ;;
+    signin)
+      # A user its Claude Code does not answer measures the sign-in, not the build: the run stops before installing it,
+      # and the routine files that as the run's precondition, never as the build's regression (friction_58e4eda75992).
+      said=$(step signin 5)
+      if ! grep -q '^signed in: yes' <<<"$said"; then
+        # Unstamped, as the judge's VERDICT line is, so the routine finds it at the start of a line.
+        why=$(sed -n 's/^signed in: no *//p' <<<"$said" | head -1)
+        echo "PRECONDITION: the run user's Claude Code is not signed in: ${why:-the sign-in step said nothing}" | tee -a "$OUT/run.log"
+        cleanup; exit 4
+      fi ;;
     install) step install 20; fetch ;;
     app)
       put "$HERE/steps/cdp.mjs" cdp.mjs
@@ -83,26 +108,21 @@ for phase in $PHASES; do
       N=2 step turn 20 --continue; fetch
       node "$HERE/sum.mjs" "$OUT/ev/turn-2.jsonl" > "$OUT/turn-2.summary.json" ;;
     feedback)
-      reply=$(node -e 'console.log(JSON.parse(require("fs").readFileSync(process.argv[1])).reply)' "$OUT/turn-2.summary.json")
-      grep -m1 '^FEEDBACK TITLE:' <<<"$reply" | sed 's/^FEEDBACK TITLE: *//' > "$OUT/steps/feedback-title.txt"
-      grep -m1 '^FEEDBACK:' <<<"$reply" | sed 's/^FEEDBACK: *//' > "$OUT/steps/feedback-body.txt"
+      said 'FEEDBACK TITLE' > "$OUT/steps/feedback-title.txt"
+      said FEEDBACK > "$OUT/steps/feedback-body.txt"
       put "$OUT/steps/feedback-title.txt" feedback-title.txt; put "$OUT/steps/feedback-body.txt" feedback-body.txt
       cdp "mouse:App menu" wait:1500 "mouse:Help" wait:1500 "mouse:Send feedback" wait:1500 shot:04-feedback-page \
         "mouse:css=[data-feedback-form] input[name=title]" "typefile:$RUN/feedback-title.txt" \
         "mouse:css=[data-feedback-form] textarea" "typefile:$RUN/feedback-body.txt" shot:05-feedback-written \
         "mouse:Open GitHub draft" wait:3000 "text:[data-feedback-status]" shot:06-feedback-opened ;;
     verify)
-      reply=$(node -e 'console.log(JSON.parse(require("fs").readFileSync(process.argv[1])).reply)' "$OUT/turn-2.summary.json")
-      grep -m1 '^TEST COMMAND:' <<<"$reply" | sed 's/^TEST COMMAND: *//; s/^`//; s/`$//' > "$OUT/steps/test-command.txt"
+      said 'TEST COMMAND' > "$OUT/steps/test-command.txt"
       put "$OUT/steps/test-command.txt" test-command.txt
+      # The folder the user's turns wrote the project into (sum.mjs), which verify.ps1 looks in.
+      node -e 'try { console.log(JSON.parse(require("fs").readFileSync(process.argv[1])).project ?? "") } catch { console.log("") }' "$OUT/turn-1.summary.json" > "$OUT/steps/project.txt"
+      put "$OUT/steps/project.txt" project.txt
       step verify 15; fetch ;;
-    after)
-      fetch
-      admin "user.ps1 remove $NAME" | tee -a "$OUT/run.log"
-      admin state.ps1 > "$OUT/state-after.txt"
-      ssh -n "$HOST" "rmdir /s /q st-acc" >/dev/null 2>&1
-      diff <(grep -v '^st-profiles:' "$OUT/state-before.txt") <(grep -v '^st-profiles:' "$OUT/state-after.txt") > "$OUT/state-diff.txt" \
-        && log "the laptop is as it was before the run" || log "the laptop differs from before the run: state-diff.txt" ;;
+    after) cleanup ;;
     judge) bash "$HERE/judge.sh" "$OUT"; status=$? ;;
     *) log "unknown phase $phase"; exit 2 ;;
   esac

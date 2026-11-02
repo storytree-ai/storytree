@@ -14,7 +14,7 @@ The evidence (paths relative to this folder):
   reply; `ev/turn-N.jsonl` are the full transcripts and `ev/turn-N.meta.txt` the app's version before and after.
 - `ev/tests.txt`: the project's tests, run again by the run itself with the command the user named.
 - `ev/library-tree.txt`, `ev/library-arcs.txt`: what storytree's library holds for the project afterwards.
-- `ev/project-files.txt`: the project's files. `run.log`: each phase's output, including what the run did on the app's screens and what they said.
+- `ev/project.txt`: the folder the run looked in for the project. `ev/project-files.txt`: the project's files. `run.log`: each phase's output, including what the run did on the app's screens and what they said.
 - `state-diff.txt`: how the laptop differs from before the run (empty means as it was).
 
 The criteria, each PASS or FAIL:
@@ -37,8 +37,18 @@ The criteria, each PASS or FAIL:
    standard user, cannot write them, and the owner's own app may change them during the run (an update re-registers
    its hooks), so report any such change but do not fail on it.
 
+A criterion can fail on the run itself rather than the build: the user's transcripts show the thing done, but the
+run's own evidence step did not see it. These are the run's own failures: an evidence step that ran outside the project
+the user's turns built (`ev/project.txt` names the folder it looked in; library files saying "not a storytree project"
+in another folder, or an empty `ev/project-files.txt` while the transcripts wrote the project's files), an empty test
+command in `ev/tests.txt` while the user's last reply named one, a turn stopped by its account's usage limit, or the
+run's user not signed in to Claude Code before turn 1. A failure storytree caused (its doctor, its tools, its app or
+its installer saying or doing the wrong thing) is the build's, even when it concerns signing in.
+
 Answer with a short paragraph per criterion, citing files, then end with exactly one line:
 VERDICT: PASS
-or
+or, when every criterion that failed failed on the run itself:
+VERDICT: HARNESS: <the criteria numbers, and in a few words what the run failed to see>
+or otherwise:
 VERDICT: FAIL: <the criteria numbers that failed, and in a few words why>
 PASS only when all seven pass.

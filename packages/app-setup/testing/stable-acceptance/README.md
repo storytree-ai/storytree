@@ -27,14 +27,15 @@ is installed on the Mint box (`stable-acceptance.timer`), counting the fortnight
 |---|---|---|
 | before | owner's SSH login | `state.ps1` snapshot; `user.ps1 sweep` removes any user and profile an earlier run left |
 | user | owner's SSH login | `user.ps1 create`: a standard local user `st-<build>-<MMDDHHMM>` with a random password nobody keeps, the right to log on as a batch job, and an on-demand task `st-acc-<user>` |
-| prepare | the fresh user | Claude Code from its own installer and Node LTS from nodejs.org, both on the user's PATH; the run's token put in the run folder |
-| install | the fresh user | the stable one-liner with `STORYTREE_ACCEPTANCE_VERSION`, answered 1 (Claude Code) and a project folder `~\tipjar` |
+| prepare | the fresh user | Claude Code from its own installer and Node LTS from nodejs.org, both on the user's PATH; the project folder `~\tipjar` the turns start in; the run's token put in the run folder |
+| signin | the fresh user | a one-word `claude -p` call on the run's token: a user its Claude Code does not answer (a bad or expired token, a usage limit) stops the run with `PRECONDITION:` in `run.log` and exit 4, removes the user and judges nothing |
+| install | the fresh user | the stable one-liner with `STORYTREE_ACCEPTANCE_VERSION`; it asks nothing |
 | app | the fresh user | the app reopened with a DevTools port on 127.0.0.1; a screenshot of first open |
 | turn1 | the fresh user | the first-run guide's steps: the connection check, then a small tip calculator with tests (`prompts/turn-1.txt`) |
 | shots1 | the fresh user | the forest and stories after the build |
 | turn2 | the fresh user | the same session: feedback for storytree's makers and the test command (`prompts/turn-2.txt`) |
 | feedback | the fresh user | that feedback typed into Help → Send feedback, then Open GitHub draft (a browser draft; nothing is submitted) |
-| verify | the fresh user | the tests run again by the named command; the project's library read |
+| verify | the fresh user | in the folder turn 1 wrote the project into (`sum.mjs` reads it from the transcript), the tests run again by the named command and the project's library read |
 | after | owner's SSH login | the user, its task, profile, run folder and logon right removed; `state.ps1` again and diffed |
 | judge | Mint box | `judge.sh`: a separate `claude -p` (Sonnet, read-only tools) against `criteria.md`; exit 0 only on PASS |
 
@@ -76,8 +77,8 @@ records it in the pin (contract 4.25).
 A failure raises nothing to the owner: it files a friction naming a regression in that build, which `release
 candidate` then passes over (with every later build, until the friction is closed), and tries the next candidate,
 up to three; that friction links the Moving stable process (process_79d46c9c757d), and if it cannot be filed the
-routine stops rather than run the same build again. A run with no verdict (the judge or the harness failed) is not the
-build's failure: it files a friction about the harness and tries no other build. A refusal from `release candidate`
+routine stops rather than run the same build again. A run with no verdict (the judge or the harness failed), a HARNESS verdict (every failed criterion the run's own, as `criteria.md` names them: its evidence looked outside the project, or a usage limit stopped a turn), or one stopped at its precondition (the run's user not
+signed in), is not the build's failure: it files a friction about the harness and tries no other build. A refusal from `release candidate`
 other than "no build is fit to pin" is filed as a friction too. Only a judged run counts as the fortnight's, so a run
 that could not start or be judged is tried again at the next Monday's timer. The runner is a clone of its own, which
 storytree refuses until it is approved as storytree's checkout: the routine approves it (`storytree doctor --join

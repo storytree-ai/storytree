@@ -394,6 +394,27 @@ test("5.6 while a command A started is still running, past the quiet time, B's c
   });
 });
 
+test("5.6 a command still recorded as running keeps its holder live even once its heartbeat has stopped; past the command's limit the stopped heartbeat frees it (regression: a lane taken over 87 seconds into a command, friction_6bbc3b886ee6, 2026-11-02)", async () => {
+  await withWorld(async ({ log, project, emailForm, as }) => {
+    assert.ok((await claim(as("A"), emailForm, "building the email form")).ok);
+    await log.beats.beat(project, "A");
+    const beat = (await log.beats.of(project, ["A"])).get("A")!;
+    const at = (ms: number) => new Date(Date.parse(beat.at) + ms);
+    await log.append(project, { session: "A", harness: "claude-code", source: "hook", kind: "command-started", command: "pnpm gate", call: "call-1" }, { at: at(-1_000).toISOString() });
+
+    const during = (await readClaims(log, project, { now: at(STOPPED_MS + 30_000) }))[0];
+    assert.equal(during?.holder, "live", "its command runs on, though its beats stopped");
+    assert.equal(during?.quiet, undefined);
+    const after = (await readClaims(log, project, { now: at(11 * 60 * 1000) }))[0];
+    assert.equal(after?.quiet?.because, "stopped", "past Claude Code's own limit on the command, nothing keeps it live");
+
+    // A session that says it ended has ended, whatever command it left recorded as running.
+    await log.beats.beat(project, "A", { ended: true });
+    const ended = (await log.beats.of(project, ["A"])).get("A")!;
+    assert.equal((await readClaims(log, project, { now: new Date(Date.parse(ended.ended!) + 1_000) }))[0]?.quiet?.because, "stopped");
+  });
+});
+
 test("5.6 a Claude Code command with no finish line keeps its holder live only until Claude Code's own limit on a command (10 minutes, or the limit its line records); past it the holder reads idle (regression: a claim read live for 7 hours, 2026-09-29)", async () => {
   await withWorld(async ({ log, project, emailForm, as }) => {
     const quietMs = 5 * 60 * 1000;

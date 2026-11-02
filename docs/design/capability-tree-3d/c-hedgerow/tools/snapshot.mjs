@@ -18,6 +18,7 @@ const { pageReads } = await load('@storytree/app');
 const { route } = await load('@storytree/project-and-caller/routing');
 const { workStates } = await load('@storytree/arc-surface');
 const { readCodeSurvey } = await load('@storytree/forest/code-survey');
+const { sanitiseSeed } = await load('@storytree/forest/evidence-seed');
 
 const PROJECT = 'storytree', STORY = 'The library';
 const where = route(root);
@@ -64,7 +65,8 @@ try {
       surveyedFiles: Object.values(survey[story.id]?.files ?? []).length, surveyedLines: (survey[story.id]?.files ?? []).reduce((n, f) => n + f.lines, 0) },
     story: story.id, tree: slim, history, states, survey, wants,
   };
-  writeFileSync(path.join(here, '../data.json'), JSON.stringify(data) + '\n');
+  // Through the evidence seeds' own scrub, so no machine, home folder, username or private link reaches the repository.
+  writeFileSync(path.join(here, '../data.json'), JSON.stringify(sanitiseSeed(data)) + '\n');
   console.log(JSON.stringify(data.measured, null, 1));
   for (const c of story.capabilities) console.log(c.title.padEnd(32), c.status, c.parkedOn ? 'parked' : '', (wants[c.id] ?? []).length, 'wants');
 } finally {

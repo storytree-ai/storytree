@@ -66,12 +66,14 @@ than their hex:
 Everything drawn is measured (ADR-0853 D2), snapshotted into `data.json` by `tools/snapshot.mjs` on
 2026-11-02T05:21Z from the project's own library, through `pageReads`, the reads the desktop page uses:
 
-- The tree (30 stories; The library's 24 capabilities and 287 contracts, each with its word and health), so territories,
+- The tree (29 of the project's 30 stories, the one an evidence seed withholds left out; The library's 24 capabilities and 287 contracts, each with its word and health), so territories,
   their colours (two yellow, one parked grey, the rest green) and every card's text are today's.
 - This checkout's code survey (`readCodeSurvey`): The library's 78 files, 14,581 lines, so each territory is sized by its
   capability's lines, as on the map.
 - Each capability's work state, from the activity log, as the page derives it.
 - The order stories were created in (the only part of the history the scene reads; the whole history is about 95 MB).
+- The whole snapshot then passes through the evidence seeds' own scrub (`sanitiseSeed`, packages/forest/src/snapshot),
+  so no machine name, home folder, username or private link reaches the repository.
 - The wrenches: of 77 open increments on 25 open arcs, one names one of The library's capabilities: "Run the live Cloud
   SQL checks and record their health" (arc "Cloud SQL sign-in, kept in the back pocket") names 8 · Cloud connection
   (GCP), the parked grey territory. So there is one wrench, and it is real; no sample was needed. The page adds a

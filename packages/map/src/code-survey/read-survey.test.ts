@@ -1077,6 +1077,41 @@ test("8.30 a story that owns several packages has each package's files surveyed 
   }
 });
 
+test("8.44 reading a mapped story's tests finds its numbered titles where it was imported from: the checkout itself when that is the import (by its top or its origin), else the folder this machine imports it from; a mapped story whose import is neither is unseen", async () => {
+  const repo = await mkdtemp(path.join(tmpdir(), "code-survey-mapped-tests-"));
+  const elsewhere = await mkdtemp(path.join(tmpdir(), "code-survey-mapped-elsewhere-"));
+  const from = "https://github.com/shop/shop.git";
+  const contracts = [{ title: "1.1 · adds" }, { title: "1.2 · empties" }];
+  const planFrom = (key: string) => ({ arcs: [], stories: [
+    { id: "story-cart", title: "@shop/cart", mapped: { from: key, package: "packages/cart", folders: ["packages/cart"] }, capabilities: [{ id: "cap-cart", title: "1 · Adding", contracts }] },
+  ] } as unknown as AnnotatedTree);
+  try {
+    await mkdir(path.join(repo, "packages/cart/src"), { recursive: true });
+    await mkdir(path.join(repo, "packages/pay"), { recursive: true });
+    await writeFile(path.join(repo, "packages/cart/src/cart.js"), "export const add = 1;\n");
+    await writeFile(path.join(repo, "packages/cart/src/cart.test.js"), 'import { add } from "./cart.js";\ntest("1.1 adds", () => add);\n');
+    await writeFile(path.join(repo, "packages/pay/pay.test.js"), 'test("1.2 pays, another package\'s", () => 1);\n');
+    const git = (...args: string[]) => execFileSync("git", ["-C", repo, ...args], { stdio: "ignore" });
+    git("init", "-q");
+    git("add", ".");
+    git("-c", "user.name=t", "-c", "user.email=t@t", "commit", "-qm", "shop");
+    git("remote", "add", "origin", from);
+    const top = realpathSync(repo);
+
+    assert.deepEqual(await storyTests(path.join(repo, "packages"), planFrom(from), "cap-cart"), { numbers: ["1.1"], seen: true }, "the checkout whose origin is the import");
+    assert.deepEqual(await storyTests(repo, planFrom(top), "cap-cart"), { numbers: ["1.1"], seen: true }, "the checkout whose top is the import");
+    assert.deepEqual(await storyTests(elsewhere, planFrom(from), "cap-cart", { imports: [{ folder: top, repository: from }] }), { numbers: ["1.1"], seen: true }, "the folder this machine imports it from");
+    assert.deepEqual(await storyTests(elsewhere, planFrom(from), "cap-cart"), { numbers: [], seen: false }, "an import neither the checkout nor this machine's");
+    assert.deepEqual(await storyTests(elsewhere, planFrom(top), "cap-cart", { imports: [{ folder: top }] }), { numbers: ["1.1"], seen: true }, "an import keyed by its folder");
+    git("remote", "rename", "origin", "upstream");
+    assert.deepEqual(await storyTests(repo, planFrom(from), "cap-cart"), { numbers: ["1.1"], seen: true }, "a checkout whose only remote is not named origin");
+    assert.deepEqual(untestedContracts(planFrom(from), "cap-cart", (await storyTests(repo, planFrom(from), "cap-cart")).numbers), ["1.2 · empties"]);
+  } finally {
+    await removeTemp(repo);
+    await removeTemp(elsewhere);
+  }
+});
+
 test("8.32 a numbered test carries its contract's number whatever its test file's script extension, so the untested list never names it", async () => {
   const folder = await mkdtemp(path.join(tmpdir(), "code-survey-extensions-"));
   const contracts = ["1.1 · ts", "1.2 · mjs", "1.3 · cjs", "1.4 · mts", "1.5 · none"].map((title) => ({ title }));

@@ -282,12 +282,13 @@ export function createAgentTools(options: AgentToolOptions): AgentTools {
   const standIns = readStandIns(home);
   const claimChecks = mount(standIn(CLAIM_CHECK_PARTS, "claimChecks", standIns), off).mounted;
   const armChecks = mount(standIn(ARM_CHECK_PARTS, "armChecks", standIns), off).mounted;
+  const imports: ToolHost["imports"] = (storytree, project) => importsOf(storytree, project, machineOf(storytreeHome()).id);
   const host: ToolHost = {
     project: findProject(options.folder).project, tools: () => servedTools,
-    imports: (storytree, project) => importsOf(storytree, project, machineOf(storytreeHome()).id),
+    imports,
     heldBack,
     // Read when a capability lands, after every part has mounted: the next steps come from all of them.
-    landing: landingOf(() => claimChecks, () => extensions),
+    landing: landingOf(() => claimChecks, () => extensions, imports),
     pipelineJobs: mount(standIn(PIPELINE_JOB_PARTS, "pipelineJobs", standIns), off).mounted,
     ...(verbHome === undefined ? {} : { home: verbHome, ledger: path.join(path.dirname(options.dataDir!), "own") }),
     ...(options.merges === undefined ? {} : { merges: options.merges }),

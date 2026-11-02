@@ -17,6 +17,7 @@ import { existsSync, readdirSync, readFileSync, realpathSync, statSync } from "n
 import path from "node:path";
 
 import type { Library, MappedPackage, Storytree } from "@storytree/library";
+import { packageOf } from "@storytree/map/package-of";
 import { findProject, importsOf, machineOf, recordImport, storytreeHome, trunksOn } from "@storytree/project-and-caller";
 
 export interface ImportOptions {
@@ -72,8 +73,9 @@ export class ImportRefusedError extends Error {
 
 /**
  * Import `folder` into `library`'s project: refused, with nothing written, when the folder does not exist,
- * is inside the storytree project (its trunk on this machine, or a folder whose marker names it), or has no
- * package.json at its top. Otherwise the folder is recorded, with its repository's address and commit when it
+ * is nested inside the storytree project (its trunk on this machine, or a folder whose marker names it) without
+ * being the project's own folder, or has no package.json at its top. The project's own folder is mapped in place
+ * (ADR-1213 D1), leaving out the package of each story storytree built there (ADR-0993 D2). Otherwise the folder is recorded, with its repository's address and commit when it
  * is a git checkout with a remote, and its packages are mapped, keyed by that address or else by the folder.
  */
 export async function importProject({ folder, library, storytree, storytreeHome: home = storytreeHome() }: ImportOptions): Promise<Imported> {
@@ -81,12 +83,15 @@ export async function importProject({ folder, library, storytree, storytreeHome:
   if (!existsSync(at) || !statSync(at).isDirectory()) throw new ImportRefusedError(`${at} does not exist, so there is nothing to import.`);
   const machine = machineOf(home);
   const trunk = (await trunksOn(storytree, machine.id)).find((own) => own.project === library.name);
-  if ((trunk !== undefined && within(at, trunk.folder)) || findProject(at).project === library.name) {
+  const marked = findProject(at);
+  // The project's own folder, the one its marker is in, is an existing repository set up in place, mapped where it is (ADR-1213 D1).
+  const inPlace = marked.project === library.name && key(marked.folder) === key(at);
+  if (!inPlace && ((trunk !== undefined && within(at, trunk.folder)) || marked.project === library.name)) {
     throw new ImportRefusedError(`${at} is inside storytree project "${library.name}"; import a folder outside it, where the existing project lives.`);
   }
   if (!existsSync(path.join(at, "package.json"))) throw new ImportRefusedError(`${at} has no package.json at its top, so it holds no JavaScript or TypeScript package to import.`);
   const origin = gitOrigin(at);
-  const packages = packagesOf(at);
+  const packages = inPlace ? await unbuilt(library, packagesOf(at)) : packagesOf(at);
   const recorded = (await importsOf(storytree, library.name, machine.id)).find((imported) => imported.folder === at);
   await recordImport(storytree, { project: library.name, machine: machine.id, machineName: machine.name, folder: at, ...origin });
   const mapped = await library.mapStories(origin.repository ?? at, packages);
@@ -158,6 +163,14 @@ async function strandedIn(library: Library, folder: string, stories: ReadonlySet
       return gone.length === 0 ? [] : [{ id: capability.id, title: capability.fields.title, story: capability.fields.story, gone }];
     })
     .sort((one, other) => one.id.localeCompare(other.id));
+}
+
+/** `packages` but those in the folder packages/<package> of a live story built in the project, which is never mapped (ADR-0993 D2). */
+async function unbuilt(library: Library, packages: readonly MappedPackage[]): Promise<MappedPackage[]> {
+  const built = new Set((await library.list("story"))
+    .filter((story) => story.fields.mapped === undefined)
+    .map((story) => `packages/${packageOf({ id: story.id, title: story.fields.title })}`));
+  return packages.filter((one) => !built.has(one.package));
 }
 
 /** The packages `root` declares, by folder, each named as its package.json names it (else by its folder). */

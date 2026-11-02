@@ -140,7 +140,7 @@ test("12.2 importing again adds the packages that are new, retires the stories w
   });
 });
 
-test("12.3 a folder that does not exist, one inside the storytree project, and one with no package.json are refused, saying why, and nothing is written", async () => {
+test("12.3 a folder that does not exist, one nested inside the storytree project, and one with no package.json are refused, saying why, and nothing is written; the project's own trunk folder is mapped in place, leaving out the packages of the stories built there", async () => {
   await withProject(async ({ dir, home, trunk, storytree, library }) => {
     const inside = path.join(trunk, "vendor", "lib");
     write(inside, { "package.json": { name: "lib" } });
@@ -149,7 +149,6 @@ test("12.3 a folder that does not exist, one inside the storytree project, and o
     const refusals: [string, RegExp][] = [
       [path.join(dir, "missing"), /does not exist/],
       [inside, /inside storytree project/],
-      [trunk, /inside storytree project/],
       [plain, /no package\.json/],
     ];
     const before = await library.history();
@@ -159,6 +158,14 @@ test("12.3 a folder that does not exist, one inside the storytree project, and o
     assert.deepEqual(await library.history(), before, "no story was written");
     assert.deepEqual(await importsOf(storytree, library.name, machineOf(home).id), [], "no import was recorded");
     assert.equal(readFileSync(path.join(inside, "package.json"), "utf8"), JSON.stringify({ name: "lib" }));
+
+    // The trunk folder, an existing repository set up in place (ADR-1213 D1): its packages are mapped where they are,
+    // but a package of a story storytree built there is never mapped (ADR-0993 D2).
+    write(trunk, { "package.json": { name: "repo", workspaces: ["packages/*"] }, "packages/cart/package.json": { name: "@repo/cart" }, "packages/basket/package.json": { name: "@repo/basket" } });
+    await library.addStory({ title: "Basket" });
+    const imported = await importProject({ folder: trunk, library, storytree, storytreeHome: home });
+    assert.deepEqual(imported.added.map((story) => story.title), ["@repo/cart"]);
+    assert.deepEqual(Object.keys(await mapped(library)), ["packages/cart"]);
   });
 });
 

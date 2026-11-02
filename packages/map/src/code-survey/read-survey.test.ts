@@ -970,6 +970,9 @@ test("8.43 the survey code's name changes when any of the survey's own source fi
     assert.notEqual(surveyCodeName(path.join(bundle, "main.js")), bundled);
 
     assert.equal(surveyCodeName(path.join(folder, "gone", "read-survey.ts")), undefined);
+    await mkdir(path.join(folder, "tests-only"));
+    await writeFile(path.join(folder, "tests-only", "code-survey.test.ts"), "test('8.1', () => {});\n");
+    assert.equal(surveyCodeName(path.join(folder, "tests-only", "code-survey.test.ts")), undefined, "a folder with no source names no code");
   } finally {
     await removeTemp(folder);
   }

@@ -882,3 +882,25 @@ test("7.24 editPluginRecord changes the named fields of a record of a plugin's k
     await without.close();
   });
 });
+
+test("7.25 changesSince(n, { types, actions }) hands out only the changes of those types and actions after n, oldest first, with the cursor of the last one it kept", async () => {
+  const name = uniqueProjectName();
+  await withStorytree([name], async (storytree) => {
+    const lib = await storytree.openProject(name);
+    const first = await lib.addStory({ title: "Visitor can sign up" });
+    await lib.editStory(first.id, { title: "Visitor signs up" });
+    const capability = await lib.addCapability({ title: "Email form", story: first.id });
+    const second = await lib.addStory({ title: "Visitor signs in" });
+    await lib.addCapability({ title: "Password form", story: second.id });
+
+    const whole = await lib.changesSince(0);
+    const created = await lib.changesSince(0, { types: ["story"], actions: ["created"] });
+    assert.deepEqual(created, { changes: whole.changes.filter((change) => change.type === "story" && change.action === "created"), cursor: created.changes.at(-1)!.seq });
+    assert.deepEqual(created.changes.map((change) => change.recordId), [first.id, second.id]);
+    assert.deepEqual((await lib.changesSince(created.changes[0]!.seq, { types: ["story"], actions: ["created"] })).changes.map((change) => change.recordId), [second.id], "after the cursor only");
+    assert.deepEqual((await lib.changesSince(0, { types: ["capability"] })).changes.map((change) => change.recordId), [capability.id, whole.changes.at(-1)!.recordId], "types alone");
+    assert.deepEqual((await lib.changesSince(0, { actions: ["updated"] })).changes.map((change) => change.recordId), [first.id], "actions alone");
+    assert.deepEqual(await lib.changesSince(created.cursor, { types: ["story"], actions: ["created"] }), { changes: [], cursor: created.cursor }, "nothing kept: the cursor given");
+    await assert.rejects(lib.changesSince(0, { actions: untyped(["deleted"]) }), RangeError, "an action no change has is refused");
+  });
+});

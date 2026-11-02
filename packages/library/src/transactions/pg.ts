@@ -233,6 +233,7 @@ export class PgTransactions implements Transactions {
     if (filter.actor !== undefined) narrow((param) => `actor = ${param}`, filter.actor);
     if (filter.from !== undefined) narrow((param) => `at >= ${param}::timestamptz`, filter.from);
     if (filter.types !== undefined) narrow((param) => `type = ANY(${param}::text[])`, filter.types);
+    if (filter.actions !== undefined) narrow((param) => `action = ANY(${param}::text[])`, filter.actions);
     const where = conditions.length === 0 ? "" : `WHERE ${conditions.join(" AND ")}`;
     const columns = eventColumns(await this.#marksIt());
     // Only the changes kept leave the server: a limit is applied there, the newest read backwards and turned round.

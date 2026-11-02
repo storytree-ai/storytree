@@ -95,7 +95,7 @@ cf16714fe59d2fc0e168b2cce67b3329cece039e4ee88700e9919fe535c7a0f7  host.mjs
 ## Addendum — 2026-10-15: storytree-quality joins the backups
 
 increment_12f4800dc93e. `backup` also dumps, scratch-restores and uploads
-`storytree-quality`, the QA ledger (`packages/quality-assurance`: every
+`storytree-quality`, the QA ledger (code review, now the micks-dev-loop factory plugin: every
 change-reviewer return, hit and answer, which ADR-0956 D7's ten-review refusal
 counts), owned by `storytree_library` and unmarked like `storytree-lag`. A manifest
 naming the three, the three and `storytree-lag`, or all five restores; anything

@@ -19,7 +19,7 @@ The backups also carry `storytree-lag`, the lag runner's history
 (`src/lag-box.mjs` in Mick's factory plugin micks-dev-loop): each action's baseline, its runs and the
 reasons recorded by `pnpm lag:box rebaseline`. The runs could be measured again;
 the reasons could not. They also carry `storytree-quality`, the QA ledger
-(`packages/quality-assurance`): every change-reviewer return, hit and answer, which
+(code review, now the micks-dev-loop factory plugin): every change-reviewer return, hit and answer, which
 ADR-0956 D7's ten-review refusal counts; a review cannot be re-run. Both are made
 on Mint by their own packages.
 

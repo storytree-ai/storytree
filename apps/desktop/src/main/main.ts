@@ -49,7 +49,6 @@ import PAGE_ANSWERS from "#parts/pageAnswers";
 import PAGE_CHANNELS from "#parts/pageChannels";
 // The records the stories keep for a project outside its library, which Delete forgets with it (ADR-1170 D2).
 import PROJECT_RECORDS from "#parts/projectRecords";
-import { standIn } from "@storytree/plugin-loader/factory";
 import { mount } from "@storytree/plugin-loader/switch";
 import { readPartsOff, readStandIns } from "@storytree/project-and-caller";
 import { app, BrowserWindow, clipboard, dialog, ipcMain, Menu, nativeTheme, powerMonitor, protocol, safeStorage, shell, Tray } from "electron";
@@ -128,7 +127,7 @@ import { keepPageInWindow } from "./page-window.js";
 import { keepTray } from "./tray.js";
 import { titleWindow } from "./window-title.js";
 import { bringWindowForward } from "./window-shown.js";
-import { PLUGIN_SCHEME, pluginResponse, windowKinds, windowStandIns } from "./stand-ins.js";
+import { PLUGIN_SCHEME, pluginResponse, windowKinds, windowProjectRecords, windowStandIns } from "./stand-ins.js";
 import { checkPage, PAGE_SCHEME, pageResponse, pageUrl } from "./page-scheme.js";
 import { finishStartCheck, runWhenReady } from "./start-check.js";
 import { answerStartMarks, processLaunchedAt, startMarks } from "./start-marks.js";
@@ -323,7 +322,7 @@ async function run(): Promise<void> {
       if (storytree === undefined) throw new Error("The library is not open");
       return storytree;
     },
-    projectRecords: mount(standIn(PROJECT_RECORDS, "projectRecords", readStandIns(home.dir)), partsOff).mounted,
+    projectRecords: windowProjectRecords(PROJECT_RECORDS, readStandIns(home.dir), partsOff),
   });
   // Adding a project also tells the journey, so the frame composes that answer from the two stories'.
   answerPage(page, SETUP_HELP_CHANNELS, { ...help, addProject: () => help.addProject().then(result => journey!.afterProjectAdded(result)) });

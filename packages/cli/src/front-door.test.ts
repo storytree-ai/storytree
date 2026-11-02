@@ -16,8 +16,6 @@ import { SETTINGS_FAMILIES } from "@storytree/app/surfaces/verbs";
 import { HEALTH_FAMILIES } from "@storytree/ci-health/verbs";
 import { IDENTITY_FAMILIES } from "@storytree/project-and-caller/identity/verbs";
 import { CHECK_FAMILIES } from "@storytree/guardrails/verbs";
-import { QUALITY_FAMILIES } from "@storytree/quality-assurance/verbs";
-import { TEST_RUN_FAMILIES } from "@storytree/quality-assurance/test-run/verbs";
 import { JOURNEY_FAMILIES } from "@storytree/app-setup/journey-events/verbs";
 import { EXPERIMENT_FAMILIES } from "@storytree/experiments/verbs";
 import { armChecks } from "@storytree/experiments/arm-checks";
@@ -43,7 +41,7 @@ import armCheckParts from "./parts/arm-checks.js";
 import { BuiltCommand, inWorld, storytree, testServerUrl } from "./testing/cli.js";
 
 const command = new BuiltCommand();
-const DECLARED = [...LIBRARY_FAMILIES, ...APP_FAMILIES, ...SETTINGS_FAMILIES, ...RELEASE_FAMILIES, ...IDENTITY_FAMILIES, ...CHECK_FAMILIES, ...QUALITY_FAMILIES, ...TEST_RUN_FAMILIES, ...HEALTH_FAMILIES, ...ARC_FAMILIES, ...FRICTION_FAMILIES, ...SETUP_FAMILIES, ...PROCESSES_FAMILIES, ...SERVICES_FAMILIES, ...SCHEDULE_FAMILIES, ...SESSION_FAMILIES, ...WORKSPACE_FAMILIES, ...LAG_FAMILIES, ...JOURNEY_FAMILIES, ...EXPERIMENT_FAMILIES, ...MAP_FAMILIES, ...FEEDBACK_FAMILIES, ...PLUGIN_FAMILIES];
+const DECLARED = [...LIBRARY_FAMILIES, ...APP_FAMILIES, ...SETTINGS_FAMILIES, ...RELEASE_FAMILIES, ...IDENTITY_FAMILIES, ...CHECK_FAMILIES, ...HEALTH_FAMILIES, ...ARC_FAMILIES, ...FRICTION_FAMILIES, ...SETUP_FAMILIES, ...PROCESSES_FAMILIES, ...SERVICES_FAMILIES, ...SCHEDULE_FAMILIES, ...SESSION_FAMILIES, ...WORKSPACE_FAMILIES, ...LAG_FAMILIES, ...JOURNEY_FAMILIES, ...EXPERIMENT_FAMILIES, ...MAP_FAMILIES, ...FEEDBACK_FAMILIES, ...PLUGIN_FAMILIES];
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 before(() => command.build());
@@ -393,9 +391,8 @@ test("1.18 storytree doors prints the front-door reading: every command walked f
     // Each verb's consumers come from where its story declares it (ADR-1045 D1), on both doors.
     assert.deepEqual(of("storytree settings show")?.consumers, ["user"], "a settings verb is a person's");
     assert.deepEqual(of("storytree auth list")?.consumers, ["user"], "a kept family's verb declares its own");
-    assert.deepEqual(of("storytree quality brief")?.consumers, ["agent"], "a dev-loop verb is an agent's");
     assert.deepEqual(of("storytree session close-out")?.consumers, ["agent"], "an agent-only verb is an agent's");
-    assert.deepEqual(of("quality_brief")?.consumers, ["agent"], "a tool mounted from a declared verb carries its consumers");
+    assert.deepEqual(of("close_out")?.consumers, ["agent"], "a tool mounted from a declared verb carries its consumers");
     assert.deepEqual(of("make_workspace")?.consumers, ["agent"], "a tool the server defines declares its own");
     assert.deepEqual(of("set_up_project")?.consumers, ["user"], "setting up a project is a person's");
     assert.deepEqual(short.misses, [{ door: "command", where: "storytree arc increment", word: "get", named: "storytree library read", count: 1 }]);
@@ -404,7 +401,7 @@ test("1.18 storytree doors prints the front-door reading: every command walked f
     assert.equal(printed.code, 0, printed.stderr);
     assert.match(printed.stdout, /\(2 days\), with the 14 days/);
     assert.match(printed.stdout, /storytree arc increment get\s+1\s+1\s+→ storytree library read/);
-    assert.match(printed.stdout, /storytree quality brief\s+agent\s+0\s+0\s+0\s+0\s+unused/, "an agent's verb with no call is unused");
+    assert.match(printed.stdout, /storytree session close-out\s+agent\s+0\s+0\s+0\s+0\s+unused/, "an agent's verb with no call is unused");
     assert.match(printed.stdout, /storytree settings show\s+user\s+0\s+0\s+0\s+0\s+not judged/, "a person's is not judged");
     assert.equal((await world.run(["doors", "--days", "0"])).code, 2, "a window of no days is refused");
   });

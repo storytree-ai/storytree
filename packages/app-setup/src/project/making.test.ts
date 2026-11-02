@@ -15,7 +15,6 @@ import { findProject, forgetTrunk, machineOf, PROJECT_FILE, registerTrunk, requi
 import { git, withTempDir, writeMarker } from "@storytree/project-and-caller/testing/folders";
 import { dropTestProjects, testServerUrl, uniqueProjectName } from "@storytree/project-and-caller/testing/pg";
 import { connect, ProjectNameError, type Storytree } from "@storytree/library";
-import { openReviews } from "@storytree/quality-assurance";
 
 import { firstCommit, makeRepository, setUpProject, suggestProjectName, userFactory } from "./making.js";
 import { takeStarterPack } from "./starter-pack.js";
@@ -334,15 +333,10 @@ test("6.7 setting a new project up gives its factory the bare bones, no role, ch
       assert.deepEqual(factoryNotes.filter((note) => !seeded.notes.includes(note)), [], "every note the factory's contents mark in is taken");
       assert.deepEqual((await standsOn("corpus-investigator")).rules.slice(-2), ["The same file in another tree is a different file", "A measured claim carries the method that produced it"]);
 
-      // A review of a change in this project is briefed with the checks taken.
+      // The project's library holds the checks taken, live, for a review's brief to list.
       const library = await storytree.openProject(project);
       try {
-        const story = await library.addStory({ title: "Visitor can sign up" });
-        const capability = await library.addCapability({ title: "1 · Email form", story: story.id });
-        const arc = await library.createArc({ title: "Launch sign-up", intent: "Ship sign-up", endState: "Visitors sign up", stories: [story.id] });
-        const increment = await library.addIncrement({ arc: arc.id, title: "Email form", objective: "Build the email form", body: "Build the form.", capabilities: [capability.id] });
-        const brief = await (await openReviews(storytree)).brief(library, increment.id, "diff --git a/src/form.ts b/src/form.ts\n+export const form = 1;\n");
-        assert.deepEqual(brief.checks.map((check) => check.title).sort(), STARTER_CHECKS);
+        assert.deepEqual((await library.list("check")).map((check) => check.fields.title).sort(), STARTER_CHECKS);
       } finally {
         await library.close();
       }

@@ -89,9 +89,6 @@ importers:
       '@storytree/project-and-caller':
         specifier: workspace:*
         version: link:../../packages/project-and-caller
-      '@storytree/quality-assurance':
-        specifier: workspace:*
-        version: link:../../packages/quality-assurance
       '@storytree/session-management':
         specifier: workspace:*
         version: link:../../packages/session-management
@@ -252,9 +249,6 @@ importers:
       '@storytree/plugin-loader':
         specifier: workspace:*
         version: link:../plugin-loader
-      '@storytree/quality-assurance':
-        specifier: workspace:*
-        version: link:../quality-assurance
       '@storytree/test-waits':
         specifier: workspace:*
         version: link:../test-waits
@@ -390,9 +384,6 @@ importers:
       '@storytree/project-and-caller':
         specifier: workspace:*
         version: link:../project-and-caller
-      '@storytree/quality-assurance':
-        specifier: workspace:*
-        version: link:../quality-assurance
       '@storytree/service-host':
         specifier: workspace:*
         version: link:../service-host
@@ -826,9 +817,6 @@ importers:
       '@storytree/project-and-caller':
         specifier: workspace:*
         version: link:../project-and-caller
-      '@storytree/quality-assurance':
-        specifier: workspace:*
-        version: link:../quality-assurance
       '@storytree/session-management':
         specifier: workspace:*
         version: link:../session-management
@@ -913,49 +901,6 @@ importers:
       happy-dom:
         specifier: 'catalog:'
         version: 20.14.5
-      tsx:
-        specifier: ^4.23.15
-        version: 4.23.15
-      typescript:
-        specifier: ~7.0.2
-        version: 7.0.2
-
-  packages/quality-assurance:
-    dependencies:
-      '@babel/parser':
-        specifier: ^7.29.9
-        version: 7.29.9
-      '@storytree/guardrails':
-        specifier: workspace:*
-        version: link:../guardrails
-      '@storytree/library':
-        specifier: workspace:*
-        version: link:../library
-      '@storytree/local-postgres':
-        specifier: workspace:*
-        version: link:../local-postgres
-      '@storytree/map':
-        specifier: workspace:*
-        version: link:../map
-      '@storytree/plugin-loader':
-        specifier: workspace:*
-        version: link:../plugin-loader
-      '@storytree/project-and-caller':
-        specifier: workspace:*
-        version: link:../project-and-caller
-      '@storytree/session-management':
-        specifier: workspace:*
-        version: link:../session-management
-      zod:
-        specifier: ^4.6.5
-        version: 4.6.5
-    devDependencies:
-      '@storytree/test-waits':
-        specifier: workspace:*
-        version: link:../test-waits
-      '@types/node':
-        specifier: ^24.13.6
-        version: 24.13.6
       tsx:
         specifier: ^4.23.15
         version: 4.23.15

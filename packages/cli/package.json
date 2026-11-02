@@ -30,7 +30,6 @@
     "@storytree/keys": "workspace:*",
     "@storytree/library": "workspace:*",
     "@storytree/map": "workspace:*",
-    "@storytree/quality-assurance": "workspace:*",
     "@storytree/mcp-server": "workspace:*",
     "@storytree/project-and-caller": "workspace:*",
     "@storytree/experiments": "workspace:*",

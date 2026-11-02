@@ -8,8 +8,6 @@ import { test } from "node:test";
 import { setupToolParts } from "@storytree/app-setup/tools";
 import { librarianToolParts } from "@storytree/library/librarian";
 import { mapToolParts } from "@storytree/map/tools";
-import { qualityToolParts } from "@storytree/quality-assurance";
-import { testRunToolParts } from "@storytree/quality-assurance/test-run";
 import { hookToolParts } from "@storytree/session-management";
 import { sessionToolParts } from "@storytree/session-management/tools";
 import { removeTemp } from "@storytree/test-waits";
@@ -22,15 +20,15 @@ import { withProject } from "../testing/tool-world.js";
 import { createAgentTools, type ToolPart } from "./server.js";
 
 // The stories restate the server's extension point rather than import it (ADR-1017 D2); this is where the two are checked to fit.
-const declared: readonly ToolPart[] = [...librarianToolParts, ...qualityToolParts, ...testRunToolParts, ...hookToolParts, ...sessionToolParts, ...mapToolParts, ...setupToolParts];
+const declared: readonly ToolPart[] = [...librarianToolParts, ...hookToolParts, ...sessionToolParts, ...mapToolParts, ...setupToolParts];
 
-test("6.75 the tool server mounts the tool parts its story packages' manifests name: the librarian's, then quality assurance's review tools and its verified test run, then Session management's hook event tool and its claim, landing, context and runs tools, then the map's, then App setup's, each given the project served and the server's tool names", () => {
+test("6.75 the tool server mounts the tool parts its story packages' manifests name: the librarian's, then Session management's hook event tool and its claim, landing, context and runs tools, then the map's, then App setup's, each given the project served and the server's tool names", () => {
   assert.equal(import.meta.resolve("#parts/tools"), new URL("../parts/tools.ts", import.meta.url).href, "the package's #parts/tools is its composing module");
   assert.deepEqual(toolParts.parts, declared);
   const tools = () => ["check_setup"];
   const served = (project: string | undefined) => toolParts.parts.map((part) => part({ project, tools, imports: async () => [], heldBack: () => undefined, pipelineJobs: [] }) !== undefined);
-  assert.deepEqual(served("storytree"), [true, true, true, true, true, true, true], "storytree's own library gets the librarian's tools, quality assurance's, Session management's, the map's and App setup's");
-  assert.deepEqual(served("another-project"), [false, true, true, true, true, true, true], "another project gets all but the librarian's (ADR-0644 U1)");
+  assert.deepEqual(served("storytree"), [true, true, true, true, true], "storytree's own library gets the librarian's tools, Session management's, the map's and App setup's");
+  assert.deepEqual(served("another-project"), [false, true, true, true, true], "another project gets all but the librarian's (ADR-0644 U1)");
 });
 
 test("6.95 the tool server serves no tool of a part this computer switches off, nor of one standing on it, and serves the rest", async (t) => {
@@ -46,18 +44,15 @@ test("6.95 the tool server serves no tool of a part this computer switches off, 
     }
   };
   const all = await served([]);
-  assert.ok(all.includes("quality_brief") && all.includes("hook_event"), "both parts' tools are served with nothing off");
+  assert.ok(all.includes("hook_event"), "Session management's hook tool is served with nothing off");
   const declaredTools = ["record_friction", "friction_drain", "route", "name_session", "close_out", "file_owners"];
   for (const tool of declaredTools) assert.ok(all.includes(tool), `${tool}, declared on a verb, is served with nothing off`);
   const partTools = ["claim", "release", "make_workspace", "attach_workspace", "stale_claims", "read_context", "list_own_runs", "list_all_runs", "stop_own_run", "clear_own_runs", "report", "land", "present_question"];
   for (const tool of partTools) assert.ok(all.includes(tool), `${tool}, Session management's tool part, is served with nothing off`);
-  const qualityOff = await served(["quality-assurance"]);
-  assert.ok(!qualityOff.includes("quality_brief"), "quality assurance's tools are not served");
-  assert.ok(qualityOff.includes("hook_event") && qualityOff.includes("check_setup"), "the rest still are");
   const sessionsOff = await served(["session-management"]);
   for (const tool of declaredTools) assert.ok(!sessionsOff.includes(tool), `${tool}, declared on Session management's verbs, goes with it`);
   for (const tool of partTools) assert.ok(!sessionsOff.includes(tool), `${tool}, in Session management's tool part, goes with it`);
-  assert.ok(!sessionsOff.includes("hook_event") && !sessionsOff.includes("quality_brief"), "quality assurance stands on Session management: its tools go with it");
+  assert.ok(!sessionsOff.includes("hook_event"), "its hook tool goes with it");
   assert.ok(sessionsOff.includes("check_setup"), "the server's own tools stay");
   const mapTools = ["focus", "health_worklist"];
   const setupTools = ["wire_pipeline", "import_project", "take_starter_pack", "move_onto_factory"];
@@ -71,7 +66,7 @@ test("6.95 the tool server serves no tool of a part this computer switches off, 
   for (const tool of ["check_setup", "set_up_project", ...mapTools]) assert.ok(setupOff.includes(tool), `${tool} stays with App setup off`);
 });
 
-test("6.103 with code review and architecture checks both switched off, the tool server starts and serves every tool it serves with both on but code review's (ADR-1170 D2)", async (t) => {
+test("6.103 with architecture checks switched off, the tool server starts and serves every tool it serves with it on (ADR-1170 D2)", async (t) => {
   const folder = mkdtempSync(path.join(tmpdir(), "review-off-"));
   t.after(() => removeTemp(folder));
   const served = async (off: readonly string[]) => {
@@ -84,9 +79,8 @@ test("6.103 with code review and architecture checks both switched off, the tool
     }
   };
   const all = await served([]);
-  const off = await served(["quality-assurance", "guardrails"]);
-  const gone = all.filter((tool) => !off.includes(tool));
-  assert.ok(gone.length > 0 && gone.every((tool) => tool.startsWith("quality_") || tool === "graduate_check" || tool === "run_tests"), `only code review's tools go: ${gone.join(", ")}`);
+  const off = await served(["guardrails"]);
+  assert.deepEqual(all.filter((tool) => !off.includes(tool)), [], "no tool goes with architecture checks");
   for (const tool of ["check_setup", "claim", "land", "make_workspace", "show_plan", "close_increment", "wire_pipeline"]) assert.ok(off.includes(tool), `${tool} is still served`);
   assert.deepEqual(off.filter((tool) => !all.includes(tool)), [], "nothing new is served in their place");
 });

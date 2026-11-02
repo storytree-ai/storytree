@@ -121,6 +121,22 @@ test("7.1 · a change touching only a hand-run script in an evidence folder plan
   }
 });
 
+test("7.1 · a design mock's tools script under docs/ gets no breaks; a package's source in the same change still does", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "qa-docs-"));
+  try {
+    const files = {
+      "docs/design/mock/tools/measure.mjs": "export const wide = (n) => n > 10 ? \"wide\" : \"narrow\";\n",
+      "packages/demo/src/size.mjs": "export const big = (n) => n > 10;\n",
+    };
+    write(dir, files);
+    const { breaks, candidates } = changeBreaks(dir, adding(files));
+    assert.equal(candidates, 1);
+    assert.deepEqual(breaks.map(({ file }) => file), ["packages/demo/src/size.mjs"]);
+  } finally {
+    await removeTemp(dir);
+  }
+});
+
 test("7.11 · a line the change adds exactly as a line it deletes, in its own diff or another half's, gets no break, one for one and whatever its indentation; the lines it edited still do", async () => {
   const dir = mkdtempSync(join(tmpdir(), "qa-moved-"));
   try {

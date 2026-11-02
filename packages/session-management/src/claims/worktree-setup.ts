@@ -32,7 +32,7 @@
  */
 import { execFileSync, spawn, spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { copyFileSync, existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, realpathSync, symlinkSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, realpathSync, statSync, symlinkSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
 import { readSetupApproval, setSetupApproval } from "@storytree/project-and-caller";
@@ -207,11 +207,14 @@ interface Mark {
 /**
  * Where `worktree`'s teardown stands: "none" when it was never set up here or names no teardown,
  * "due" before it has started, "running" while its process runs (the worktree must stay), and
- * "done" once that process has finished or died. Never throws: a marker it cannot read is "none".
+ * "done" once that process has finished or died. Never throws: a marker it cannot read is "none",
+ * unless it was written in the last minute: then a write is taken to be in flight (each write
+ * empties the file before filling it), and it reads "running".
  */
 export function teardownState(worktree: string): "none" | "due" | "running" | "done" {
   const mark = readMark(worktree)?.mark;
-  if (mark === undefined || !Array.isArray(mark.teardown) || mark.teardown.length === 0) return "none";
+  if (mark === undefined) return writtenWithin(markOf(worktree), STARTING_MS) ? "running" : "none";
+  if (!Array.isArray(mark.teardown) || mark.teardown.length === 0) return "none";
   if (mark.ran !== undefined) return "done";
   if (mark.started === undefined) return "due";
   const { at, pid } = mark.started;
@@ -267,6 +270,14 @@ function markOf(worktree: string): string | undefined {
   } catch {
     // The main checkout's .git is a folder, and a folder with none is no worktree: neither is marked.
     return undefined;
+  }
+}
+
+function writtenWithin(file: string | undefined, ms: number): boolean {
+  try {
+    return file !== undefined && Date.now() - statSync(file).mtimeMs < ms;
+  } catch {
+    return false;
   }
 }
 

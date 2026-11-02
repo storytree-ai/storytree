@@ -24,7 +24,7 @@ for (const [name, s] of Object.entries(shots)) {
   page.on('pageerror', (e) => console.log(name, 'error', e.message));
   await page.goto(page0);
   await page.waitForFunction(() => window.__board);
-  const info = await page.evaluate(`(${s.run})(window.__board), ({ failed: window.__board.failed, crossings: window.__board.crossings, byKind: window.__board.byKind, W: window.__board.W, H: window.__board.H })`);
+  const info = await page.evaluate(`(${s.run})(window.__board), ({ failed: window.__board.failed, crossings: window.__board.crossings, byKind: window.__board.byKind, routeMs: window.__board.routeMs, W: window.__board.W, H: window.__board.H })`);
   await page.screenshot({ path: `${dir}/stills/${name}.png` });
   console.log(name, JSON.stringify(info));
   await page.close();

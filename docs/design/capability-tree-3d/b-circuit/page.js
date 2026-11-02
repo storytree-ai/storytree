@@ -33,8 +33,9 @@
   for (const w of D.openWork) for (const c of w.capabilities) { if (!work.has(c)) work.set(c, []); work.get(c).push(w); }
 
   // ---- text measure ---------------------------------------------------------------------------------------------
-  const ctx = document.createElement('canvas').getContext('2d');
-  const textW = (s, size, font = FONT, weight = '') => { ctx.font = `${weight} ${size}px ${font}`; return ctx.measureText(s).width; };
+  // Widths are estimated from the character count, not measured, so the layout (and the routes saved for it) come out
+  // the same on every machine whatever fonts it has; the estimate is generous, so names never overrun their space.
+  const textW = (s, size, font = FONT, weight = '') => s.length * size * (font === MONO ? 0.61 : weight ? 0.6 : 0.56) + (/^[A-Z ]+$/.test(s) ? s.length * 1.2 : 0);
   const cells = (px) => Math.ceil(px / G);
   const NAME = 13, META = 10.5;
   const metaOf = (c) => `${c.lines.toLocaleString('en')} lines · ${c.contracts.length} contracts`;
@@ -202,7 +203,7 @@
   // Routes from `start` (leaving in direction d0) to `goal` (entered moving in direction dGoal).
   const route = (g, start, d0, goal, dGoal) => {
     const best = new Float32Array(N * 4).fill(Infinity); const prev = new Int32Array(N * 4).fill(-1);
-    const gx = goal % Wc, gy = (goal / Wc) | 0; const shared = [...owner].some((o) => o === g);
+    const gx = goal % Wc, gy = (goal / Wc) | 0; const shared = started.has(g);
     const hw = shared ? 0.25 : 1;
     const h = (i) => hw * (Math.abs((i % Wc) - gx) + Math.abs(((i / Wc) | 0) - gy));
     const heap = new Heap(); const s0 = start * 4 + d0; best[s0] = 0; heap.push(h(start), s0);
@@ -246,22 +247,74 @@
       owner[i] = g; axis[i] |= ax; if (bend || k === 0 || k === path.length - 1) fixed[i] = 1;
     }
   };
+  // Routing order matters: the first traces get the straight runs. Try a few honest orders and keep the one whose
+  // traces pass under each other least (ties: fewest bends), so the board stays calm.
   const span = (l) => (l.kind === 'in' ? byId.get(l.from).layer - byId.get(l.to).layer : 99);
-  const order = [...links].sort((a, b) => span(a) - span(b) || Math.abs(srcY(a) - dstY(a)) - Math.abs(srcY(b) - dstY(b)));
-  const failed = [];
-  for (const l of order) {
-    let start, d0;
-    if (l.kind === 'inc') { start = at(l.finger.stubEnd, l.finger.y); d0 = 1; }
-    else { start = at(l.pin.x, l.pin.y); d0 = 1; }
-    const goal = at(l.pad.x, l.pad.y);
-    const p = route(gnum(l), start, d0, goal, 1);
-    if (!p) { failed.push(l); continue; }
-    if (l.kind === 'inc') { // prepend the finger's stub
-      const stub = []; for (let x = l.finger.x; x > l.finger.stubEnd; x--) stub.push(at(x, l.finger.y)); p.unshift(...stub);
-    }
+  const dy = (l) => Math.abs(srcY(l) - dstY(l));
+  const orders = [
+    [...links].sort((a, b) => span(a) - span(b) || dy(a) - dy(b)),
+    [...links].sort((a, b) => (a.kind === 'inc') - (b.kind === 'inc') || dy(a) - dy(b)),
+    [...links].sort((a, b) => (b.kind === 'inc') - (a.kind === 'inc') || span(a) - span(b) || dy(a) - dy(b)),
+    [...links].sort((a, b) => dy(a) - dy(b)),
+    [...links].sort((a, b) => (b.kind === 'inc') - (a.kind === 'inc') || dy(b) - dy(a)),
+  ];
+  const base = { owner: owner.slice(), axis: axis.slice(), fixed: fixed.slice() };
+  const started = new Set();
+  const reset = () => { owner.set(base.owner); axis.set(base.axis); fixed.set(base.fixed); started.clear(); };
+  const commitAll = (list) => { reset(); for (const l of list) if (l.path) { commit(l, l.path); started.add(gnum(l)); } };
+  const routeOne = (l) => {
+    const start = l.kind === 'inc' ? at(l.finger.stubEnd, l.finger.y) : at(l.pin.x, l.pin.y);
+    const p = route(gnum(l), start, 1, at(l.pad.x, l.pad.y), 1);
+    if (!p) return null;
+    if (l.kind === 'inc') { const stub = []; for (let x = l.finger.x; x > l.finger.stubEnd; x--) stub.push(at(x, l.finger.y)); p.unshift(...stub); }
     if (l.kind === 'out') { for (let x = l.finger.stubEnd - 1; x >= l.finger.x; x--) p.push(at(x, l.finger.y)); }
-    commit(l, p);
-  }
+    return p;
+  };
+  const bendsOf = (path) => path.filter((_, k) => k > 0 && k < path.length - 1 && path[k + 1] - path[k] !== path[k] - path[k - 1]).length;
+  const scoreOf = () => links.reduce((s, l) => s + (l.path ? l.under.length * 100 + bendsOf(l.path) + l.path.length * 0.01 : 1e6), 0);
+  const runAll = (order) => {
+    reset();
+    for (const l of links) { l.path = null; l.under = []; }
+    for (const l of order) { const p = routeOne(l); if (p) { commit(l, p); started.add(gnum(l)); } }
+    return { order: [...order], score: scoreOf() };
+  };
+  // Rip up and reroute: take each trace that passes under or over another out, route it again around everything else,
+  // and keep the change only when the whole board scores better.
+  const search = () => {
+    const tried = orders.map((o) => runAll(o));
+    let best = tried.reduce((a, b) => (b.score < a.score ? b : a));
+    runAll(best.order); let order = best.order; let score = best.score;
+    for (let pass = 0; pass < 4; pass++) {
+      let improved = false;
+      const involved = (l) => { if (!l.path) return 1; const cells = new Set(l.path); return l.under.length + links.filter((m) => m !== l && m.path).reduce((s, m) => s + m.under.filter((k) => cells.has(m.path[k])).length, 0); };
+      for (const l of [...links].sort((a, b) => involved(b) - involved(a))) {
+        if (involved(l) === 0) continue;
+        const keep = l.path; const others = order.filter((m) => m !== l);
+        commitAll(others); const p = routeOne(l); if (!p) { commitAll(order); continue; }
+        l.path = p; const next = [...others, l]; commitAll(next); const s = scoreOf();
+        if (s < score - 0.5) { order = next; score = s; improved = true; } else { l.path = keep; commitAll(order); }
+      }
+      if (!improved) break;
+    }
+    return { order, tried: tried.map((t) => Math.round(t.score)), score: Math.round(score) };
+  };
+  const t0 = performance.now();
+  const saved = window.CAPTREE_ROUTES;
+  const wanted = new URLSearchParams(location.search).has('search');
+  let searched = null;
+  if (!wanted && saved && saved.grid === `${Wc}x${Hc}` && saved.links === links.length) {
+    const byN = new Map(saved.order.map((n, k) => [n, k]));
+    const order = [...links].sort((a, b) => byN.get(a.n) - byN.get(b.n));
+    for (const l of links) l.path = saved.paths[l.n];
+    commitAll(order);
+  } else if (wanted) searched = search();
+  else runAll(orders[4]);
+  const failed = links.filter((l) => !l.path);
+  const routeMs = Math.round(performance.now() - t0);
+  const exportRoutes = () => {
+    const order = searched ? searched.order.map((l) => l.n) : links.map((l) => l.n);
+    return { grid: `${Wc}x${Hc}`, links: links.length, order, paths: links.map((l) => l.path), score: searched?.score, tried: searched?.tried };
+  };
   if (failed.length) console.warn('unrouted', failed.map((l) => `${l.from}->${l.to}`));
 
   // ---- drawing ------------------------------------------------------------------------------------------------------
@@ -370,8 +423,8 @@
     const ps = c.pads.filter((l) => l.pad);
     const pad = ps.length ? ps.reduce((a, b) => (b.kind === 'in' && a.kind !== 'in' ? b : a)) : null;
     const wx = (c.x + c.w) * G - 9; const wy = pad ? (pad.pad.y + 0.5) * G : (c.y + c.h / 2) * G;
-    const g = el('g', { class: 'wrench', 'data-cap': id, transform: `translate(${wx} ${wy}) rotate(-35) scale(1.05)` }, wrenches);
-    el('circle', { r: 11, fill: 'transparent', class: 'hit' }, g);
+    const g = el('g', { class: 'wrench', 'data-cap': id, transform: `translate(${wx} ${wy}) rotate(-35) scale(1.45)` }, wrenches);
+    el("circle", { r: 9, fill: 'transparent', class: 'hit' }, g);
     el('path', { d: WRENCH, fill: C.ink, stroke: C.silk, 'stroke-width': 1.3, 'stroke-linejoin': 'round', transform: 'translate(0 4)' }, g);
     const t = el('title', {}, g); t.textContent = `Work wants ${c.title}: ${ws.length} increment${ws.length > 1 ? 's' : ''}`;
     g.addEventListener('click', clickOf({ type: 'wrench', c, ws, pad }));
@@ -454,7 +507,7 @@
 
   // hooks for the stills script
   window.__board = {
-    W, H, view, apply, fit, failed: failed.length, byKind: ['in','out','inc'].map((k) => links.filter((l) => l.kind === k).reduce((s, l) => s + (l.under?.length ?? 0), 0)), crossings: links.reduce((s, l) => s + (l.under?.length ?? 0), 0),
+    W, H, view, apply, fit, failed: failed.length, routeMs, exportRoutes, searched: searched && { score: searched.score, tried: searched.tried }, byKind: ['in','out','inc'].map((k) => links.filter((l) => l.kind === k).reduce((s, l) => s + (l.under?.length ?? 0), 0)), crossings: links.reduce((s, l) => s + (l.under?.length ?? 0), 0),
     select(kind, key) {
       if (kind === 'cap') show({ type: 'cap', c: caps.find((c) => c.title.startsWith(key)) });
       if (kind === 'link') show({ type: 'link', l: links.find((l) => nameFrom(l).startsWith(key[0]) && nameTo(l).startsWith(key[1])) });
@@ -466,7 +519,7 @@
       if (kind === 'cap') { const c = caps.find((c) => c.title.startsWith(key)); x = (c.x + c.w / 2) * G; y = (c.y + c.h / 2) * G; }
       if (kind === 'finger') { const f = fingers.find((f) => f.title.startsWith(key)); x = (f.x - 20) * G; y = f.y * G; }
       if (kind === 'xy') [x, y] = key;
-      const r = svg.getBoundingClientRect(); view.k = k; view.x = r.width * 0.4 - x * k; view.y = r.height / 2 - y * k; apply();
+      const r = svg.getBoundingClientRect(); view.k = k; view.x = (panel.hidden ? r.width / 2 : (r.width - 440) / 2) - x * k; view.y = r.height / 2 - y * k; apply();
     },
   };
 })();

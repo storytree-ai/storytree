@@ -116,12 +116,11 @@ export function launchFailure(error: unknown, options: LaunchOptions, pinned: st
 
 /** The browsers folder holding `pinned`'s `chromium-<revision>` folder, and that revision; undefined when it is in none. */
 function browsersFolder(pinned: string): { browsers: string; revision: string } | undefined {
-  let revisionFolder = pinned;
-  while (!REVISION.test(path.basename(revisionFolder))) {
-    if (path.dirname(revisionFolder) === revisionFolder) return undefined;
-    revisionFolder = path.dirname(revisionFolder);
+  for (let folder = pinned; path.dirname(folder) !== folder; folder = path.dirname(folder)) {
+    const revision = REVISION.exec(path.basename(folder))?.[2];
+    if (revision !== undefined) return { browsers: path.dirname(folder), revision };
   }
-  return { browsers: path.dirname(revisionFolder), revision: REVISION.exec(path.basename(revisionFolder))![2] };
+  return undefined;
 }
 
 /** Also used by Electron captures that connect over CDP instead of launching Chromium. */

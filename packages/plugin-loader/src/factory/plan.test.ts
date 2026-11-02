@@ -11,6 +11,7 @@ import { test } from "node:test";
 import { connect } from "@storytree/library";
 import { dropTestDatabases, testServerUrl, uniqueProjectName } from "@storytree/library/testing/pg";
 import { VerbRefusal } from "@storytree/library/verbs";
+import { removeTemp } from "@storytree/test-waits";
 
 import { PLUGIN_INTERFACE } from "./factory.js";
 
@@ -75,10 +76,10 @@ test("5.18 · `plugin import-plan <plugin> --from <folder>` reads the plugin's p
   const home = mkdtempSync(path.join(tmpdir(), "storytree-home-"));
   const saved = process.env.STORYTREE_HOME;
   process.env.STORYTREE_HOME = home;
-  t.after(() => {
+  t.after(async () => {
     if (saved === undefined) delete process.env.STORYTREE_HOME;
     else process.env.STORYTREE_HOME = saved;
-    rmSync(home, { recursive: true, force: true });
+    await removeTemp(home);
   });
   const worktree = path.join(home, "factory-worktree");
   const plugin = path.join(worktree, "plugins", "voice");

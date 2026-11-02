@@ -28,6 +28,7 @@
     "typecheck": "tsc -p ."
   },
   "devDependencies": {
+    "@storytree/test-waits": "workspace:*",
     "@types/node": "^24.13.6",
     "esbuild": "^0.28.2",
     "tsx": "^4.23.15",

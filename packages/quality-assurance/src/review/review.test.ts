@@ -1168,7 +1168,7 @@ test("2.20 · a test an outside checkout's diff adds is listed under its checkou
   });
 });
 
-test("2.18 · a change to a factory plugin's story is briefed with the factory worktree on the increment's branch, its diff and the plugin plan's contracts there; with no such worktree the brief says so and a return answering those contracts met is refused", async () => {
+test("2.18 · a change to a factory plugin's story is briefed with the factory worktree on the increment's branch, its diff and the plugin plan's contracts there; with a branch carrying the id and no worktree on it the brief says so and a return answering those contracts met is refused; with neither, the plugin's capabilities are crossed only, and a return answering their contracts touched is refused while one answering them met and untouched is taken", async () => {
   const factory = mkdtempSync(join(tmpdir(), "qa-factory-"));
   const worktree = join(mkdtempSync(join(tmpdir(), "qa-factory-wt-")), "wt");
   try {
@@ -1191,13 +1191,24 @@ test("2.18 · a change to a factory plugin's story is briefed with the factory w
       await library.writeKnowledge("check", { title: "Silent skip", description: "Tests that skip without saying so.", question: "Does any test skip silently?", enforces: [principle.id] });
       const reviews = await openReviews(storytree);
 
+      const crossed = await reviews.brief(library, increment.id, DIFF, undefined, factoryPlugins(factory, increment.id));
+      assert.equal(crossed.factory?.unread, undefined, "with no worktree or branch carrying the id, the change edits none of voice's code");
+      assert.match(crossed.factory?.crossed ?? "", /no worktree or branch/);
+      assert.deepEqual(crossed.contracts.map(({ id }) => id), [kept, dropped]);
+      assert.match(briefText(crossed), /voice is crossed only/);
+      const crossedReturn = clean(crossed.checks.map(({ id }) => id), [kept!, dropped!], {}, crossed.iteration);
+      await assert.rejects(reviews.take(library.name, increment.id, crossedReturn), /is answered touched, and voice is crossed only/);
+      await reviews.take(library.name, increment.id, { ...crossedReturn, contracts: crossedReturn.contracts.map(({ contract }) => ({ contract, met: true, touched: false })) });
+      assert.deepEqual(await reviews.unmet(library, increment.id), [], "a crossed-only capability's contracts answered untouched leave nothing standing");
+
+      const branch = `claude/increment-${increment.id.slice("increment_".length)}-a1b2c3`;
+      git(factory, "branch", branch, "main");
       const unread = await reviews.brief(library, increment.id, DIFF, undefined, factoryPlugins(factory, increment.id));
       assert.match(unread.factory?.unread ?? "", /no worktree/);
-      assert.deepEqual(unread.contracts.map(({ id }) => id), [kept, dropped]);
       assert.match(briefText(unread), /voice's change was not read/);
-      await assert.rejects(reviews.take(library.name, increment.id, clean(unread.checks.map(({ id }) => id), [kept!, dropped!])), /voice's change was not read/);
+      await assert.rejects(reviews.take(library.name, increment.id, clean(unread.checks.map(({ id }) => id), [kept!, dropped!], {}, unread.iteration)), /voice's change was not read/);
 
-      git(factory, "worktree", "add", "-q", "-b", `claude/increment-${increment.id.slice("increment_".length)}-a1b2c3`, worktree, "main");
+      git(factory, "worktree", "add", "-q", worktree, branch);
       plan(worktree, [{ title: "1.1 · A wrong secret is answered 404" }, { title: "1.3 · A slow caller is timed out" }]);
       mkdirSync(join(worktree, "plugins/voice/src"));
       writeFileSync(join(worktree, "plugins/voice/src/door.ts"), "export const timeout = 30;\n");
@@ -1211,7 +1222,7 @@ test("2.18 · a change to a factory plugin's story is briefed with the factory w
         { id: "voice:1.3", title: "1.3 · A slow caller is timed out" },
       ]);
       assert.deepEqual(read.retired?.map(({ id }) => id), [dropped]);
-      const answered = clean(read.checks.map(({ id }) => id), [kept!]);
+      const answered = clean(read.checks.map(({ id }) => id), [kept!], {}, read.iteration);
       await reviews.take(library.name, increment.id, { ...answered, contracts: [...answered.contracts, { contract: "voice:1.3", met: false, why: "no timeout is set" }] });
       assert.deepEqual(await reviews.unmet(library, increment.id), [{ contract: "voice:1.3", why: "no timeout is set" }], "a contract only the plan holds stands when found not met");
 

@@ -642,6 +642,21 @@ test("4.22 `arc increment edit --held-on none` clears a hold, for a shell that d
   });
 });
 
+test("4.22 `arc increment edit --capabilities \"\"`, or `--capabilities none` for a shell that drops an empty argument, empties an increment's capabilities list", async () => {
+  await inWorld(command, async (world) => {
+    const library = await world.library();
+    const arc = await anArc(world);
+    for (const empty of ["", "none"]) {
+      const work = await library.addIncrement({ arc, title: "Mailer", objective: "Mail", body: "…" });
+
+      const emptied = await world.run(["arc", "increment", "edit", work.id, "--capabilities", empty]);
+
+      assert.equal(emptied.code, 0, emptied.stderr);
+      assert.deepEqual(((await library.get(work.id))?.fields as { capabilities?: string[] }).capabilities, [], JSON.stringify(empty));
+    }
+  });
+});
+
 test("4.23 `arc increment edit --machine <name>` names the one machine that can take an increment, `--machine none` clears it, and a name Machines does not know is refused with nothing written", async () => {
   await inWorld(command, async (world) => {
     const library = await world.library();

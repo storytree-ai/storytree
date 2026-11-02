@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { TestResult } from "../run-results/run-results.js";
-import { judgeRun, proofsAt, type PlanTree } from "./verdicts.js";
+import { judgeRun, proofsAt, verdictOf, type PlanTree } from "./verdicts.js";
 
 /** Two stories whose contract numbers repeat, as every user's do: each has a 1.1. */
 const TREE: PlanTree = {
@@ -124,4 +124,21 @@ test("2.4 a result no test holds by its exact title counts for contract N.M of t
     "the cart's 1.2 through its helper's number and title, both backends; checkout's 1.2 by its exact title; 1.1's bare number is held by both stories",
   );
   assert.deepEqual(unmatched.map(({ name }) => name), ["1.1 [memory] a wait is cleared as its blocker lands", "1.20 [memory] a wait is cleared as its blocker lands", "1.2 [memory] another title"]);
+});
+
+test("2.5 a failing verdict's note carries, after its tally, the first line of the first message its failed tests carry, cut to 200 characters; a failure with no message leaves the tally alone", () => {
+  const enoent = "ENOENT: no such file or directory, open '/tmp/t/torn-down.txt'\n    at Object.openSync (node:fs:573:18)";
+  const failing = verdictOf([
+    { status: "passed" },
+    { status: "failed" },
+    { status: "failed", message: enoent },
+    { status: "failed", message: "a later failure" },
+  ]);
+  assert.equal(failing.state, "failing");
+  assert.equal(failing.note, "1/4 tests passed; first failure: ENOENT: no such file or directory, open '/tmp/t/torn-down.txt'", "the first failure that has a message, its first line only");
+  assert.equal(verdictOf([{ status: "failed" }]).note, "0/1 tests passed", "no message: the tally alone");
+  assert.equal(verdictOf([{ status: "passed", message: "kept quiet" }]).note, "1/1 tests passed", "a passing verdict quotes nothing");
+  const long = verdictOf([{ status: "failed", message: `Expected values to be strictly equal: ${"x".repeat(400)}` }]).note!;
+  assert.ok(long.length <= "0/1 tests passed; first failure: ".length + 200, "a long message is cut to fit a note");
+  assert.match(long, /…$/);
 });

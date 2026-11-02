@@ -38,6 +38,7 @@ export const GUESSES: Readonly<Record<string, string>> = {
 export const POINTERS: Readonly<Record<string, string>> = {
   "adr show": "adr pull",
   wait: "arc increment wait",
+  "file-owners": "workspace owners",
   "friction list": "library list friction",
   "library open": "library read",
   "capability show": "library read",

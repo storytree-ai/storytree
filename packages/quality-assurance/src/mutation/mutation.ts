@@ -3,8 +3,8 @@
  * changed source line, about 15 in all, each run against only the tests that reach its file; a break no test notices
  * survives, and each survivor is a hit recorded with the review, ranked by how many files depend on its file.
  *
- * - A break is planted only on a line the change adds, in a source file (never a test or a test helper), one per line at the
- *   first place on it a break fits; with more than the cap, they are spread evenly across the change (7.1). A line it adds just
+ * - A break is planted only on a line the change adds, in a source file (never a test, a test helper or a file under docs/),
+ *   one per line at the first place on it a break fits; with more than the cap, they are spread evenly across the change (7.1). A line it adds just
  *   as a line it deletes, ignoring indentation, in its own diff or another half's, was moved, not written, and gets none, as do the
  *   lines of a file an outside checkout adds that the change's own checkout held, at least half of it, at its base (7.11).
  * - Arid lines get none (7.1): a logging or output call, the setting of an upper-case constant, and every line on the arid
@@ -122,10 +122,11 @@ const SKIPPED = new Set(["node_modules", "dist", "out", "evidence"]);
 
 /**
  * Whether a repository path is source a break may go in: code, and not a test, a test helper, a declaration or a file in a
- * folder the reach walk skips (a hand-run evidence script no test reaches by design, ADR-0794).
+ * folder the reach walk skips (a hand-run evidence script no test reaches by design, ADR-0794), or under the repository's
+ * docs/ (a design mock's capture and measure scripts, which its brief asks for and no story owns).
  */
 export function mutable(file: string): boolean {
-  return CODE.test(file) && !TEST.test(file) && !TEST_SUPPORT.test(file) && !DECLARATION.test(file)
+  return CODE.test(file) && !TEST.test(file) && !TEST_SUPPORT.test(file) && !DECLARATION.test(file) && !file.startsWith("docs/")
     && !file.split("/").slice(0, -1).some((folder) => SKIPPED.has(folder));
 }
 

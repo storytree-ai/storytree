@@ -159,6 +159,11 @@ export interface HealthWorkItem {
    * tests already pass and only its proposed flag is left (friction_fd6154bff0be). Its reason stays `not built`.
    */
   contractsPass?: true;
+  /**
+   * Present when its reason is `failing` and the first contract carrying it has a verified note: that note, which a test
+   * run writes with the first failure's message (friction_b8ae83aa48e5), so the item says why it failed.
+   */
+  failure?: string;
 }
 
 /** A test run in progress that will record a contract's verified column: when it said so, who, and its note. */
@@ -341,7 +346,8 @@ export class HealthRecord {
         const carrying = why.contracts.map((id) => verified.get(id));
         const waits = waitingOn(why.contracts.map((id) => ({ mark: marks.get(id), verified: verified.get(id) })), now) ?? waitingOnMerge(changed.get(story.id), carrying, now) ?? waitingOnNamed(named, why, contracts);
         const contractsPass = status === "proposed" && contracts.length > 0 && contracts.every((contract) => contract.health.verified.state === "passing");
-        return [{ capability: id, title, story: story.id, status, why, since: why.since ?? recorded.get(id) ?? "", ...(waits === undefined ? {} : { waits }), ...(contractsPass ? { contractsPass } : {}) }];
+        const failure = why.reason === "failing" ? carrying[0]?.note : undefined;
+        return [{ capability: id, title, story: story.id, status, why, since: why.since ?? recorded.get(id) ?? "", ...(waits === undefined ? {} : { waits }), ...(contractsPass ? { contractsPass } : {}), ...(failure === undefined ? {} : { failure }) }];
       }))
       .sort((a, b) => (a.since < b.since ? -1 : a.since > b.since ? 1 : 0));
   }

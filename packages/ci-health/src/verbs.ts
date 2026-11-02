@@ -24,9 +24,10 @@ const worklist = verb({
     const listed = all.filter(({ waits }) => waits === undefined);
     if (listed.length === 0) return { text: ["Nothing waits on the health worklist: every capability is healthy or already routed.", ...(held === undefined ? [] : [held])].join("\n") };
     const shown = listed.slice(0, 3);
-    const lines = shown.map(({ capability, title, status, why, since, contractsPass }) =>
+    const lines = shown.map(({ capability, title, status, why, since, contractsPass, failure }) =>
       `${title}  [${capability}]  ${status} — ${why.reason}, the ${why.mover}'s to move${why.contracts.length === 0 ? "" : `: ${why.contracts.join(", ")}`}; since ${since.slice(0, 10)}` +
-      (contractsPass ? "; its tests already pass on main; only its proposed flag is left" : ""),
+      (contractsPass ? "; its tests already pass on main; only its proposed flag is left" : "") +
+      (failure === undefined ? "" : `; its verified note: ${failure}`),
     );
     if (listed.length > shown.length) lines.push(`${listed.length - shown.length} more wait.`);
     if (held !== undefined) lines.push(held);

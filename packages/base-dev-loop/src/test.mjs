@@ -95,7 +95,8 @@
 // scope decision, a run takes the machine's heavy-run lock (heavy-run.lock in STORYTREE_HOME) and holds it until its
 // Postgres has stopped. While another session's run holds it, this one prints who holds it and
 // waits (at most an hour), and it takes over a lock whose holder's process has gone. Under
-// `pnpm gate`, the gate holds the lock and its test step runs under that hold. No flock wrapper.
+// `pnpm gate`, the gate holds the lock and its test step runs under that hold. No flock wrapper. A run of named files
+// tells the hold its scope is files, and that lock lets it take one of a few light slots instead of queueing behind full runs.
 //
 // Logs: .pgtest/pg.log (the server, this run), .pgtest/pg.previous.log (the server, the run before,
 // so a --rerun-failed keeps the red run's; server-log.mjs) and .pgtest/tools.log (initdb and pg_ctl).
@@ -136,7 +137,8 @@ let plannedShards; // every shard's units, when this run is one shard of several
 const holdNothing = async () => () => {};
 
 /**
- * Run `pnpm test` with `argv`, once per process. `hold({ root, what, stopped })` is taken past the scope decision
+ * Run `pnpm test` with `argv`, once per process. `hold({ root, what, stopped, scope })` is taken past the scope decision,
+ * `scope` "files" when the run is only files named on the command line,
  * and released once the test Postgres has stopped: storytree's own entry passes the run holds its parts contribute (packages/repo-checks/src/test.mjs).
  * `root` is the repository tested, by default the checkout this file is in; a repository building against storytree
  * (as a submodule) passes its own. `alone` and `alwaysRun` are its lists for planRun (test-scope.mjs), by default none.
@@ -249,7 +251,8 @@ async function main() {
     else if (jobsSource.startsWith("default:")) console.log(`jobs: 1 unit at a time (${jobsSource}); --jobs=<n> tests more at once`);
   }
   phase = "waiting for the heavy-run lock";
-  const release = await hold({ root, what: "pnpm test", stopped: () => interrupted });
+  // A run of named files tells its hold so (4.29): seconds of work, which a machine's hold may let pass its full runs' queue.
+  const release = await hold({ root, what: "pnpm test", stopped: () => interrupted, ...(namedFiles ? { scope: "files" } : {}) });
   try {
     return await runHeavy(units);
   } finally {

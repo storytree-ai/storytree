@@ -5,9 +5,12 @@
 // release to install instead. Which releases carry the fix is restated here from Node's own
 // changelog (24.16.0, 26.1.0), not taken from the code.
 import assert from "node:assert/strict";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import { test } from "node:test";
 
-import { runtimeRefusal } from "./node-runtime.mjs";
+import { floorRefusal, runtimeRefusal } from "./node-runtime.mjs";
 
 test("4.3 on Windows, a Node.js without libuv's fix is refused, naming it, the crash it causes and the release that fixes it", () => {
   // 24.x before 24.16.0, every 25.x and 26.0.x ship libuv without the fix, as do the older lines.
@@ -37,4 +40,30 @@ test("4.3 the bug is in libuv's Windows TCP code, so off Windows no Node.js is r
 
 test("by default it judges the Node.js and the platform it runs on", () => {
   assert.equal(runtimeRefusal(), runtimeRefusal(process.version, process.platform));
+});
+
+// Below the floor the tested project's package.json names (engines.node), the tests can hang file by file until each
+// unit's deadline: in a cloud container, Node.js 22 first on the path timed every file out at 180 s where Node.js 24
+// passed the same file in 1.3 s (friction_dae7689d182a). The harness refuses such a Node.js before it runs anything.
+test("4.28 a Node.js below the project's engines floor is refused, naming the floor and the Node.js it found; at or above it, or with no floor it can read, none is", () => {
+  const root = mkdtempSync(path.join(tmpdir(), "node-floor-"));
+  try {
+    writeFileSync(path.join(root, "package.json"), JSON.stringify({ engines: { node: ">=24.20.0" } }));
+    for (const version of ["v22.23.0", "v24.19.9", "v23.99.0"]) {
+      const refusal = floorRefusal(version, root);
+      assert.equal(typeof refusal, "string", `${version} is refused`);
+      assert.ok(refusal.includes(`Node.js ${version}`), `the refusal names ${version}: ${refusal}`);
+      assert.ok(refusal.includes(">=24.20.0"), `and the floor: ${refusal}`);
+    }
+    for (const version of ["v24.20.0", "v24.22.1", "v26.0.0"]) assert.equal(floorRefusal(version, root), undefined, version);
+
+    for (const manifest of [{}, { engines: {} }, { engines: { node: "^24 || ^26" } }]) {
+      writeFileSync(path.join(root, "package.json"), JSON.stringify(manifest));
+      assert.equal(floorRefusal("v22.23.0", root), undefined, JSON.stringify(manifest));
+    }
+    rmSync(path.join(root, "package.json"));
+    assert.equal(floorRefusal("v22.23.0", root), undefined, "no package.json");
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
 });

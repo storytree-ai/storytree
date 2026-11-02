@@ -1171,3 +1171,37 @@ test("4.44 · a hand-over GitHub cannot be asked about names why, a missing shar
   assert.equal((await handOver({ pr: 93, increment: "increment_one", session: SESSION, onBox: true, local: async () => 1 })).code, 1,
     "on the box, hand's refusal is the hand-over's");
 });
+
+test("4.46 · a saturated box holds new pull request and release fix sessions, said once with its reading; an unread box holds nothing back", async (t) => {
+  const b = await box(t);
+  await handOff(b);
+  b.looks[41] = red;
+  const saturated = { hold: "pause", windows: ["cpu"], reason: "box saturated: CPU load 30.0 on 16 cores" };
+  const releaseFixes = [];
+  // Each look reads the box as the next reading says; the third sleep changes the code, which ends the loop.
+  const readings = [saturated, saturated, new Error("no /proc here")];
+  let version = "tree-a", sleeps = 0, reading;
+  const watching = { ...b.options, loopPidFile: join(b.dir, "watch-loop.pid"), pid: 7, argsOf: async () => "",
+    codeVersion: async () => version,
+    pace: async () => { if (reading instanceof Error) throw reading; return reading; },
+    readReleases: async () => ({ release: { tag: "v0.3.1", at: minutes(-600) }, reruns: [],
+      alarm: { why: "the last two release attempts both ended failed or cancelled", run: { id: 50, url: "https://ci/run/50" } } }),
+    tail: async () => "", raise: async () => "question_r", questionOpen: async () => true,
+    startReleaseFix: async (fix) => { releaseFixes.push(fix); return { pid: 3000 + releaseFixes.length, log: "/lanes/release-fix.log" }; },
+    sleep: async () => { sleeps++; reading = readings[sleeps]; if (sleeps === 2) version = "tree-b"; } };
+  reading = readings[0];
+  assert.equal(await main(["watch"], watching), RESTART);
+  assert.equal(b.fixes.length, 0, "no pull request fix session on a saturated box");
+  assert.equal(releaseFixes.length, 0, "and no release fix session");
+  const held = b.lines.filter((line) => line.includes("CPU load 30.0 on 16 cores"));
+  assert.equal(held.length, 1, `the hold is said once, with its reading: ${b.lines.join(" | ")}`);
+  assert.match(held[0], /holding back fix sessions: box saturated/);
+
+  // A box that cannot be read holds nothing back, and says so once.
+  version = "tree-b"; sleeps = 2; reading = readings[2];
+  watching.sleep = async () => { version = "tree-c"; };
+  assert.equal(await main(["watch"], watching), RESTART);
+  assert.equal(b.fixes.length, 1, "the red pull request's fix session starts");
+  assert.equal(releaseFixes.length, 1, "and the release's");
+  assert.equal(b.lines.filter((line) => /box readings unread \(no \/proc here\)/.test(line)).length, 1);
+});

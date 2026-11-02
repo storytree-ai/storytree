@@ -104,10 +104,10 @@ function cutOut(a: P, b: P, h: number, m: number, merlon: number, y: (p: P) => n
 }
 
 /** A dash drawn once, repeated along every path. */
-function dashTexture(): CanvasTexture {
+function dashTexture(colour: string = PALETTE.path): CanvasTexture {
   const canvas = document.createElement("canvas"); canvas.width = 8; canvas.height = 64;
   const ctx = canvas.getContext("2d")!;
-  ctx.fillStyle = PALETTE.path; ctx.fillRect(0, 4, 8, 34);
+  ctx.fillStyle = colour; ctx.fillRect(0, 4, 8, 34);
   const texture = new CanvasTexture(canvas);
   texture.wrapS = texture.wrapT = RepeatWrapping; texture.colorSpace = SRGBColorSpace;
   return texture;
@@ -226,9 +226,9 @@ export function castleLayer(state: RootState, story: string, data: Data, host: H
 
   // Sizes, from the commons' width on the land.
   const Gw = GAP * S;
-  const H = Gw * 0.2, M = H * 0.6, MERLON = H * 1.1;
-  const OPEN = Gw * 0.42, TOWER = H * 1.25, TOWER_H = H * 1.6, TOP = H * 0.5;
-  const PATH = Gw * 0.05, DASH = Gw * 0.26, TURN = Gw * 0.5;
+  const H = Gw * 0.24, M = H * 0.55, MERLON = H * 1.05;
+  const OPEN = Gw * 0.36, TOWER = H * 1.05, TOWER_H = H * 1.5, TOP = H * 0.45;
+  const PATH = Gw * 0.06, DASH = Gw * 0.26, TURN = Gw * 0.5;
   const lift = (q: P, up = 0) => new Vector3(q.x, heightAt(q) + up, q.z);
   const ground = (q: P) => heightAt(q) + H * 0.04;
 
@@ -284,7 +284,7 @@ export function castleLayer(state: RootState, story: string, data: Data, host: H
     group.add(commons);
   }
   // Fields: the map's colour for the capability's health, a flat square inside its wall.
-  const fields = new Map<string, { mesh: Mesh; corners: P[]; centre: P; ink: LineBasicMaterial[] }>();
+  const fields = new Map<string, { mesh: Mesh; corners: P[]; centre: P; ink: LineBasicMaterial[]; band?: MeshBasicMaterial }>();
   for (const f of p.fields) {
     const h = f.side / 2, corners = [{ x: f.x - h, z: f.z - h }, { x: f.x + h, z: f.z - h }, { x: f.x + h, z: f.z + h }, { x: f.x - h, z: f.z + h }].map(to);
     const shape = fillOf.get(f.id), geometry = new BufferGeometry(), steps = 8, pos: number[] = [];
@@ -325,7 +325,8 @@ export function castleLayer(state: RootState, story: string, data: Data, host: H
       }
     }
     const geometry = new BufferGeometry(); geometry.setAttribute("position", new Float32BufferAttribute(tris, 3));
-    const fill = new Mesh(geometry, wallFill); fill.renderOrder = 2; fill.raycast = () => {};
+    const band = wallFill.clone(), fill = new Mesh(geometry, band); fill.renderOrder = 2; fill.raycast = () => {};
+    field.band = band;
     const outline = new BufferGeometry(); outline.setAttribute("position", new Float32BufferAttribute(lines, 3));
     const ink = inkMaterial(), edge = new LineSegments(outline, ink); edge.renderOrder = 3; edge.raycast = () => {};
     field.ink.push(ink);
@@ -336,7 +337,7 @@ export function castleLayer(state: RootState, story: string, data: Data, host: H
   const gateGroups = new Map<string, Group>();
   for (const [id, [l, r]] of towerAt) {
     const g = new Group(); g.name = `gate:${id}`;
-    const ink = inkMaterial();
+    const ink = inkMaterial(), towerFill = wallFill.clone();
     const [a, b] = [l!, r!], dir = { x: (b.x - a.x) / dist(a, b), z: (b.z - a.z) / dist(a, b) }, nrm = { x: -dir.z, z: dir.x };
     for (const t of [a, b]) {
       const h = TOWER / 2, sq = [[-h, -h], [h, -h], [h, h], [-h, h]].map(([u, v]) => ({ x: t.x + dir.x * u! + nrm.x * v!, z: t.z + dir.z * u! + nrm.z * v! }));
@@ -346,7 +347,7 @@ export function castleLayer(state: RootState, story: string, data: Data, host: H
       const y = (q: P) => ground(q) + TOWER_H - H * 0.01, top = sq.map(q => [q.x, y(q), q.z]);
       tris.push(...top[0]!, ...top[1]!, ...top[2]!, ...top[0]!, ...top[2]!, ...top[3]!);
       const geometry = new BufferGeometry(); geometry.setAttribute("position", new Float32BufferAttribute(tris, 3));
-      const mesh = new Mesh(geometry, wallFill); mesh.renderOrder = 2; mesh.raycast = () => {};
+      const mesh = new Mesh(geometry, towerFill); mesh.renderOrder = 2; mesh.raycast = () => {};
       const outline = new BufferGeometry(); outline.setAttribute("position", new Float32BufferAttribute(lines, 3));
       const edge = new LineSegments(outline, ink); edge.renderOrder = 3; edge.raycast = () => {};
       g.add(mesh, edge);
@@ -356,7 +357,7 @@ export function castleLayer(state: RootState, story: string, data: Data, host: H
     const hit = new Mesh(new BoxGeometry(OPEN + TOWER * 2.4, top, TOWER * 2.4), new MeshBasicMaterial({ visible: false, side: DoubleSide }));
     hit.position.copy(lift(mid, top / 2)); hit.rotation.y = -Math.atan2(dir.z, dir.x);
     g.add(hit);
-    g.userData = { ink, at: mid };
+    g.userData = { ink, fill: towerFill, at: mid };
     gateGroups.set(id, g); group.add(g);
   }
 
@@ -419,7 +420,7 @@ export function castleLayer(state: RootState, story: string, data: Data, host: H
   const overlay = document.createElement("div");
   overlay.className = "mock-overlay";
   host.appendChild(overlay);
-  type Spot = { el: HTMLElement; at: Vector3; below?: Vector3; inside?: Vector3; field?: P[]; name?: boolean; x?: number; y?: number };
+  type Spot = { el: HTMLElement; at: Vector3; field?: P[]; gate?: number; name?: boolean; above?: boolean; x?: number; y?: number };
   const spots: Spot[] = [];
   const names = new Map<string, Spot>(), names_ = names;
   for (const [id, field] of fields) {
@@ -429,8 +430,7 @@ export function castleLayer(state: RootState, story: string, data: Data, host: H
     el.textContent = nameOf(byId.get(id)!.title);
     overlay.appendChild(el);
     // In its field when it fits there; else just below the field's south wall, as a map names a small place beside it.
-    const south = along(field.corners[3]!, field.corners[2]!, 0.5);
-    const spot: Spot = { el, at: lift(field.centre, H * 0.1), below: lift(south, 0), inside: lift(field.centre, H * 0.1), field: field.corners, name: true };
+    const spot: Spot = { el, at: lift(field.centre), field: field.corners, gate: gateSide(id), name: true };
     spots.push(spot); names.set(id, spot);
   }
   const wrenches = new Map<string, Spot & { sample: boolean }>();
@@ -442,19 +442,21 @@ export function castleLayer(state: RootState, story: string, data: Data, host: H
     el.innerHTML = wrenchSvg(sample ? PALETTE.wrenchSample : PALETTE.wrench) + (sample ? `<span class="mock-wrench-tag">sample</span>` : "");
     overlay.appendChild(el);
     // It stands where the name is, and the name hangs just below its foot, as a claimed territory's does.
+    // It stands in the middle of its field, clear of the gate, its path and the name outside the wall.
     const spot = { el, at: lift(fields.get(capability)!.centre, H * 0.1), sample };
-    names.get(capability)!.el.dataset.claimed = "";
     spots.push(spot);
     return spot;
   };
   for (const capability of named) if (own.has(capability)) wrenches.set(capability, makeWrench(capability, false));
   const sampleWrench = sampleCapability === undefined ? undefined : makeWrench(sampleCapability, true);
-  if (sampleWrench) { sampleWrench.el.hidden = true; if (!named.has(sampleCapability!)) delete names.get(sampleCapability!)!.el.dataset.claimed; }
+  if (sampleWrench) sampleWrench.el.hidden = true;
   for (const [, road] of roads) {
     const dot = document.createElement("div"); dot.className = "mock-road-end"; overlay.appendChild(dot);
     spots.push({ el: dot, at: lift(road.end, H * 0.05) });
-    const el = document.createElement("div"); el.className = "forest-label planet-nameplate capability mock-road-name"; el.textContent = road.label; overlay.appendChild(el);
-    spots.push({ el, at: lift(road.end, H * 0.05), name: true });
+    const el = document.createElement("div"); el.className = "forest-label planet-nameplate capability mock-road-name mock-name-above"; el.textContent = road.label; overlay.appendChild(el);
+    // Its name stands on the land, over the coast it leaves by.
+    const inland = road.points.at(-3) ?? road.end, back = along(road.points.at(-2)!, inland, Math.min(1, Gw * 0.9 / Math.max(1e-6, dist(road.points.at(-2)!, inland))));
+    spots.push({ el, at: lift(back, H * 0.05), name: true });
   }
   const project = (v: Vector3) => {
     const rect = state.gl.domElement.getBoundingClientRect(), hostRect = host.getBoundingClientRect();
@@ -464,12 +466,15 @@ export function castleLayer(state: RootState, story: string, data: Data, host: H
   let frame = 0;
   const follow = () => {
     for (const spot of spots) {
-      if (spot.field && spot.below && spot.inside) {
-        // The field's width on the page, across its middle, against the name's.
-        const a = project(lift(along(spot.field[0]!, spot.field[3]!, 0.5))), b = project(lift(along(spot.field[1]!, spot.field[2]!, 0.5)));
-        const fits = Math.abs(b.x - a.x) > spot.el.offsetWidth + 14 && spot.el.dataset.claimed === undefined;
-        spot.at = fits ? spot.inside : spot.below;
-        spot.el.classList.toggle("mock-name-below", !fits);
+      if (spot.field && spot.gate !== undefined) {
+        // One rule at every zoom and turn: the name hangs on the open ground under the field's nearest wall as the eye sees it,
+        // unless that wall holds the gate, whose path leaves under it; then it stands on the ground over the far wall.
+        const mids = [0, 1, 2, 3].map(k => lift(along(spot.field![k]!, spot.field![(k + 1) % 4]!, 0.5)));
+        const ys = mids.map(m => project(m).y), front = ys.indexOf(Math.max(...ys)), back = ys.indexOf(Math.min(...ys));
+        const above = front === spot.gate;
+        spot.at = mids[above ? back : front]!;
+        spot.el.classList.toggle("mock-name-below", !above);
+        spot.el.classList.toggle("mock-name-above", above);
       }
       const at = project(spot.at);
       spot.el.style.transform = `translate(${at.x}px, ${at.y}px)`;
@@ -479,15 +484,18 @@ export function castleLayer(state: RootState, story: string, data: Data, host: H
     // Names never hide one another: taken from the top of the page down, a name that would meet one already placed moves down
     // just clear of it (at rest none moves; tipped, the crowded ones step apart).
     const boxes: { l: number; r: number; t: number; b: number }[] = [];
+    // The wrenches stand where they stand; names keep clear of them too.
+    for (const w of [...wrenches.values(), ...(sampleWrench && !sampleWrench.el.hidden ? [sampleWrench] : [])]) boxes.push({ l: w.x! - 11, r: w.x! + 11, t: w.y! - 31, b: w.y! + 3 });
     for (const spot of spots.filter(sp => sp.name).sort((a, b) => a.y! - b.y!)) {
-      const w = spot.el.offsetWidth, h = spot.el.offsetHeight, below = spot.el.classList.contains("mock-name-below") || spot.el.dataset.claimed !== undefined || spot.el.classList.contains("mock-road-name");
-      const box = { l: spot.x! - w / 2, r: spot.x! + w / 2, t: spot.y! + (below ? 5 : -h / 2), b: 0 };
+      const w = spot.el.offsetWidth, h = spot.el.offsetHeight, above = spot.el.classList.contains("mock-name-above"), below = spot.el.classList.contains("mock-name-below");
+      const box = { l: spot.x! - w / 2, r: spot.x! + w / 2, t: spot.y! + (below ? 5 : above ? -h - 5 : -h / 2), b: 0 };
       box.b = box.t + h;
       let shift = 0;
       for (let k = 0; k < 8; k++) {
         const hit = boxes.find(o => o.l < box.r - 2 && box.l + 2 < o.r && o.t < box.b + shift - 1 && box.t + shift + 1 < o.b);
         if (!hit) break;
-        shift = hit.b - box.t + 1;
+        // A name over its field steps up, away from the field; any other steps down.
+        shift = above ? hit.t - box.b - 1 : hit.b - box.t + 1;
       }
       spot.el.style.marginTop = shift ? `${shift}px` : "";
       boxes.push({ ...box, t: box.t + shift, b: box.b + shift });
@@ -552,15 +560,16 @@ export function castleLayer(state: RootState, story: string, data: Data, host: H
   };
 
   // The pick lights in the selection's gold: a field's wall ink, a gate's towers, a way or the road drawn over in gold.
-  const litMaterial = new MeshBasicMaterial({ color: PALETTE.lit, transparent: true, opacity: 0.95, side: DoubleSide, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3 });
+  const litMaterial = new MeshBasicMaterial({ map: dashTexture(PALETTE.lit), transparent: true, side: DoubleSide, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3 });
   let lit: Mesh | undefined;
   const highlight = (picked: Picked | undefined) => {
-    for (const f of fields.values()) for (const m of f.ink) m.color.set(PALETTE.ink);
-    for (const g of gateGroups.values()) (g.userData.ink as LineBasicMaterial).color.set(PALETTE.ink);
+    for (const f of fields.values()) f.band?.color.set(PALETTE.wall);
+    for (const g of gateGroups.values()) (g.userData.fill as MeshBasicMaterial).color.set(PALETTE.wall);
     for (const w of [...wrenches.values(), ...(sampleWrench ? [sampleWrench] : [])]) w.el.classList.remove("lit");
     if (lit) { group.remove(lit); lit.geometry.dispose(); lit = undefined; }
-    if (picked?.kind === "territory") for (const m of fields.get(picked.id)!.ink) m.color.set(PALETTE.lit);
-    if (picked?.kind === "gate") (gateGroups.get(picked.id)!.userData.ink as LineBasicMaterial).color.set(PALETTE.lit);
+    // The pick keeps its ink outline; its wall band, or its towers, turn gold.
+    if (picked?.kind === "territory") fields.get(picked.id)!.band?.color.set(PALETTE.lit);
+    if (picked?.kind === "gate") (gateGroups.get(picked.id)!.userData.fill as MeshBasicMaterial).color.set(PALETTE.lit);
     if (picked?.kind === "wrench") (picked.sample ? sampleWrench : wrenches.get(picked.capability))?.el.classList.add("lit");
     const line = picked?.kind === "path" ? wayPoints(picked.id) : picked?.kind === "road" ? roads.get(picked.id)?.points : undefined;
     if (line) { lit = new Mesh(ribbon(line, PATH * 1.6, q => ground(q) + H * 0.01, DASH), litMaterial); lit.renderOrder = 5; group.add(lit); }
@@ -607,7 +616,7 @@ export function castleLayer(state: RootState, story: string, data: Data, host: H
       return { left: Math.min(...corners.map(c => c.x), ...names.map(b => b.left)), right: Math.max(...corners.map(c => c.x), ...names.map(b => b.right)),
         top: Math.min(...corners.map(c => c.y), ...names.map(b => b.top)), bottom: Math.max(...corners.map(c => c.y), ...names.map(b => b.bottom)) };
     },
-    showSample(on) { if (sampleWrench) { sampleWrench.el.hidden = !on; if (!named.has(sampleCapability!)) { if (on) names.get(sampleCapability!)!.el.dataset.claimed = ""; else delete names.get(sampleCapability!)!.el.dataset.claimed; } } },
+    showSample(on) { if (sampleWrench) sampleWrench.el.hidden = !on; },
     dispose() { cancelAnimationFrame(frame); overlay.remove(); root.remove(group); },
   };
 }

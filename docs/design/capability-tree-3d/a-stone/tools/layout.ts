@@ -27,7 +27,7 @@ export type Plan = {
 };
 
 /** The commons' width, in the plan's units (a field of L lines is √L wide). */
-export const GAP = 10;
+export const GAP = 11;
 /** The smallest field, in lines: under it a field could not hold its gate and its two towers. */
 export const FLOOR_LINES = 160;
 /** The commons between two fields of one column: wider than between columns, so the plan is nearer round, as the island is. */

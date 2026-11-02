@@ -144,3 +144,35 @@ rejected with that reason.
 Before (left) and after round 1 (right), at rest:
 
 ![Round 1, before and after](stills/round-1.png)
+
+### Round 2: "nearly", 20 findings, two for Mick
+
+| # | Finding | Answer |
+| --- | --- | --- |
+| 1 | Turned, each name lands on a wall | Fixed: one rule at every turn and zoom. A name hangs on open ground under the field's nearest wall as the eye sees it, or stands over the far wall when the near one holds the gate |
+| 2 | The sea roads' fan, slabs and shoulders | Rejected: the map's own roads, kept unchanged by the brief |
+| 3 | The road to Keys ends at a dot short of the sea road; its name straddles the coast | Fixed the second: the name stands on the land. Rejected the first: the sea road leaves from the map's own dock, which the mock does not move |
+| 4 | The gold story ring is the heaviest line | Rejected: the map's own selection ring |
+| 5 | Paths leaving a south gate run through the name below | Fixed with 1: a field's name never stands on its gate's side |
+| 6 | The north-east crowded, the south-east bare | Fixed in part: the commons are a tenth wider. The plan's shape is the dependency columns', so a bare stretch of island stays |
+| 7 | The name pills are the heaviest shapes | Rejected: they are the map's own capability nameplates |
+| 8 | From above, the walls read as film-strip frames | Fixed in part: walls a fifth taller with a narrower walk, so the band and crenellations read as standing. The camera's tilt is the map's own |
+| 9 | Walls and wrench heavier than the hair-thin paths; the doubled coast line | Fixed in part: paths a fifth heavier, the wrench smaller. Every outline is already one pixel; the coast is the map's own |
+| 10 | Gate stubs dotted unlike the trunks; merged paths meet in T-junctions | Rejected: every path is one dash recipe (short stubs show fewer dashes), and merging where ways are shared is the brief's own rule |
+| 11 | The picked path is solid gold, not dashed | Fixed: it is drawn in gold dashes. It still runs a step through each gate into its field, as round 1 asked |
+| 12 | The picked gate's towers barely change | Fixed: the towers fill gold and keep their ink outline |
+| 13 | Towers dominate the small fields | Fixed: towers and their opening a fifth smaller |
+| 14 | The wrench collides with the gate and dominates small fields | Fixed: it is a fifth smaller and stands in the middle of its field; names keep clear of it |
+| 15 | The coast's hex lobes and shaded cliffs | Rejected: the map's own island |
+| 16 | Names jump between inside and below their field as the zoom changes | Fixed with 1: one rule, every name outside its field |
+| 17 | The picked field's wall loses its ink outline | Fixed: the wall's band turns gold and its outline stays ink |
+| 18 | The sample tag's lavender is used nowhere else | Rejected: it marks made-up work, so it must not pass for real |
+| 19 | The other islands' labels and slabs | Rejected: the map's own |
+| 20 | The legend's swatches look nothing like the marks | Fixed: each swatch is a small copy of its mark |
+
+**For Mick, from round 2** (nothing built from these): a pale halo behind a name where it must cross a path; and whether the
+other islands' roads should show at all from this view, especially the wide road passing at the right of the rest view.
+
+Before (left) and after round 2 (right), turned and tipped:
+
+![Round 2, before and after](stills/round-2.png)

@@ -23,6 +23,7 @@ export const STAND_IN_KINDS: Readonly<Record<string, { readonly hosts: string; r
   surfaces: { hosts: "the desktop app", shape: "{ id, name, description, switchable, within?, follows?, settings: [] }: a surface of the window" },
   pageAnswers: { hosts: "the desktop app", shape: "an answer the window's page asks the app for, by channel" },
   pageChannels: { hosts: "the desktop app", shape: "a channel the window's page may ask the app on" },
+  guidance: { hosts: "the MCP server's habits card", shape: "a paragraph of the card (a string), placed where the part's own sections were, or before the card's closing line for a plugin that adds a part" },
   gateSteps: { hosts: "the base dev loop's gate", shape: "{ name, when?, command }: when({ root, ...flags }) => { run, reason? } says whether it runs (absent, it always does), command({ root }) => { command, args, shell? } the process it runs from the project's root" },
   services: { hosts: "the service host of each machine whose settings turn the service on", shape: "{ start(host) }, running until host.stopping fires, named by an entry { name, from, export, run } rather than a list" },
 };
@@ -140,6 +141,10 @@ function gateStepProblems(step: unknown, at: number): string[] {
   return problems;
 }
 
+function sectionProblems(section: unknown, at: number): string[] {
+  return typeof section === "string" && section.trim() !== "" ? [] : [`guidance section ${at + 1} is not a paragraph of text`];
+}
+
 /** Whether this storytree would load a plugin: what it adds, by kind, and each problem when it would not. */
 export interface PluginCheck {
   readonly loads: boolean;
@@ -166,6 +171,7 @@ export function checkPlugin(folder: string | undefined, plugin: string): PluginC
     if (declared.length > 0) adds[kind] = declared.length;
     if (kind === "verbs") problems.push(...declared.flatMap(familyProblems));
     if (kind === "gateSteps") problems.push(...declared.flatMap(gateStepProblems));
+    if (kind === "guidance") problems.push(...declared.flatMap(sectionProblems));
   }
   try {
     const kinds = pluginRecordKinds(folder, plugin);

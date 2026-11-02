@@ -476,6 +476,27 @@ test("5.16 · a plugin's manifest declares gate steps, each { name, when?, comma
   assert.match((await act({})).text, /^  gateSteps \(mounted by the base dev loop's gate\): \{ name, when\?, command \}/m);
 });
 
+test("5.17 · a plugin's manifest declares guidance, sections of the habits card: `plugin check` loads one declaring only guidance, saying how many, and refuses a section that is not text with why; `plugin contract` describes a section", async (t) => {
+  const sections = (module: string) => ({
+    exports: { "./guidance": "./guidance.js" },
+    manifest: { interface: PLUGIN_INTERFACE, guidance: [{ from: "./guidance", export: "guidance" }] },
+    files: { "guidance.js": module },
+  });
+  const folder = factory(t, {
+    "my-review": sections(`export const guidance = ["Review every change.", "Then run the gate."];\n`),
+    "not-text": sections(`export const guidance = [42];\n`),
+    empty: sections(`export const guidance = [""];\n`),
+  });
+  assert.deepEqual(checkPlugin(folder, "my-review"), { loads: true, adds: { guidance: 2 }, problems: [] }, "a plugin declaring only guidance is a plugin");
+  for (const plugin of ["not-text", "empty"]) {
+    const checked = checkPlugin(folder, plugin);
+    assert.equal(checked.loads, false, plugin);
+    assert.match(checked.problems.join("\n"), /guidance section 1 is not a paragraph of text/);
+  }
+  const { act } = await pluginVerb(t, "contract");
+  assert.match((await act({})).text, /^  guidance \(mounted by the MCP server's habits card\): a paragraph of the card/m);
+});
+
 test("5.15 · `plugin check` on a plugin made `--for <part>` lists what that part provides that the plugin does not: its commands and tools, as the host's door composes them", async (t) => {
   const { act: create, home } = await pluginVerb(t, "new");
   await create({ plugin: "my-health", for: "ci-health" });

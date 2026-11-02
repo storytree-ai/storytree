@@ -1079,6 +1079,39 @@ test("2.14 · a test the change adds below a regex literal holding a quote or a 
   }
 });
 
+test("2.14 · a test whose title holds an escape is listed by the title the runner prints, so its saved red run matches it", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "qa-escaped-"));
+  try {
+    const file = "packages/library/src/a.test.ts";
+    const lines = [
+      'import { test } from "node:test";',
+      'test("1.1 · edit --capabilities \\"\\" clears it", () => {});',
+      "test('1.2 · it\\'s a \\\\ slash and \\u00b7 a dot', () => {});",
+      "test(`1.3 · a \\`tick\\``, () => {});",
+      'test("1.4 · \\x41, \\u{b7}, a \\t tab and a \\n line", () => {});',
+      "",
+    ];
+    mkdirSync(join(dir, "packages/library/src"), { recursive: true });
+    writeFileSync(join(dir, file), lines.join("\n"));
+    mkdirSync(join(dir, ".pgtest"));
+    writeFileSync(join(dir, ".pgtest/red-runs.jsonl"), [
+      { head: "abc", file, test: '1.1 · edit --capabilities "" clears it' },
+      { head: "abc", file, test: "1.2 · it's a \\ slash and · a dot" },
+      { head: "abc", file, test: "1.3 · a `tick`" },
+      { head: "abc", file, test: "1.4 · A, ·, a \t tab and a \n line" },
+    ].map((row) => JSON.stringify(row)).join("\n") + "\n");
+    const diff = [`diff --git a/${file} b/${file}`, "--- /dev/null", `+++ b/${file}`, `@@ -0,0 +1,${lines.length - 1} @@`, ...lines.slice(0, -1).map((line) => `+${line}`)].join("\n");
+    assert.deepEqual(redsOf(diff, dir).map(({ line, test, red }) => ({ line, test, red })), [
+      { line: 2, test: '1.1 · edit --capabilities "" clears it', red: true },
+      { line: 3, test: "1.2 · it's a \\ slash and · a dot", red: true },
+      { line: 4, test: "1.3 · a `tick`", red: true },
+      { line: 5, test: "1.4 · A, ·, a \t tab and a \n line", red: true },
+    ]);
+  } finally {
+    await removeTemp(dir);
+  }
+});
+
 test("2.21 · a test moved to another file and renumbered with its body unchanged is not listed; one whose assertion changed, a copy whose original stays, or a second copy of a moved one, is", async () => {
   const dir = mkdtempSync(join(tmpdir(), "qa-moved-"));
   try {

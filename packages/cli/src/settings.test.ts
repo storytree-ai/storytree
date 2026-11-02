@@ -8,7 +8,6 @@ import { after, before, test } from "node:test";
 import { arcSurfaces } from "@storytree/arc-surface/surfaces";
 import { forestSurfaces } from "@storytree/forest/surfaces";
 import { readSettings } from "@storytree/project-and-caller";
-import { projectRecords as qualityRecords } from "@storytree/quality-assurance/project-records";
 import { removeTemp } from "@storytree/test-waits";
 import unbundled from "./parts/surfaces.js";
 import { projectRecords } from "./mount.js";
@@ -173,25 +172,25 @@ test("1.37 · a family a switched-off part declares is not listed, and asking fo
   assert.match(map.stderr, /storytree map is not mounted: map is switched off on this computer\. Switch it on with: storytree settings set part map on/);
 });
 
-test("1.41 · with code review and architecture checks switched off, `storytree` starts and lists every family but theirs, asking for one says it is switched off, and `project delete` is handed no project records of theirs; with both on it is handed the QA ledger's (ADR-1170 D2)", async (t) => {
+test("1.41 · with architecture checks switched off, `storytree` starts and lists every family but its, asking for it says it is switched off, and `project delete` is handed no project records, no base part keeping any now code review is a factory plugin's (ADR-1170 D2, ADR-1209)", async (t) => {
   const dir = mkdtempSync(path.join(tmpdir(), "storytree-review-off-"));
   t.after(() => removeTemp(dir));
   const home = path.join(dir, "home");
   const invoke = (args: string[]) => storytree(command.script, args, { cwd: dir, home });
 
   const listed = await invoke([]);
-  for (const family of ["quality", "check"]) assert.match(listed.stdout, new RegExp(`^  ${family}\\b`, "m"), `${family} is listed with both on`);
-  assert.deepEqual(await projectRecords(home), qualityRecords, "the QA ledger's records are handed to project delete");
+  assert.match(listed.stdout, /^  check\b/m, "check is listed with it on");
+  assert.deepEqual(await projectRecords(home), [], "no base part hands project delete records of its own");
 
-  for (const part of ["quality-assurance", "guardrails"]) assert.equal((await invoke(["settings", "set", "part", part, "off"])).code, 0);
+  assert.equal((await invoke(["settings", "set", "part", "guardrails", "off"])).code, 0);
   const off = await invoke([]);
   assert.equal(off.code, 0, off.stderr);
-  for (const family of ["quality", "check"]) assert.doesNotMatch(off.stdout, new RegExp(`^  ${family}\\b`, "m"), `${family} is not listed`);
+  assert.doesNotMatch(off.stdout, /^  check\b/m, "check is not listed");
   for (const family of ["library", "arc", "workspace", "project", "settings"]) assert.match(off.stdout, new RegExp(`^  ${family}\\b`, "m"), `${family} is still listed`);
-  const quality = await invoke(["quality", "checks"]);
-  assert.equal(quality.code, 1, quality.stdout);
-  assert.match(quality.stderr, /storytree quality is not mounted: quality-assurance is switched off on this computer/);
-  assert.deepEqual(await projectRecords(home), [], "no part mounted keeps project records");
+  const check = await invoke(["check", "check"]);
+  assert.equal(check.code, 1, check.stdout);
+  assert.match(check.stderr, /storytree check is not mounted: guardrails is switched off on this computer/);
+  assert.deepEqual(await projectRecords(home), [], "still none with it off");
 });
 
 /**

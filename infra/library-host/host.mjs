@@ -36,7 +36,7 @@ const ciRoleOf = project => `storytree-ci-health@${project}.iam`;
 // for 0.2"); its final export sits under the bucket's archive/.
 const DBS = ['storytree_storytree', 'storytree-activity', 'storytree-trunks'];
 // Backed up beside them: the lag runner's history (src/lag-box.mjs in Mick's factory plugin micks-dev-loop), whose baselines and
-// recorded reasons cannot be measured again, and the QA ledger (packages/quality-assurance), whose review history
+// recorded reasons cannot be measured again, and the QA ledger (code review, now the micks-dev-loop factory plugin), whose review history
 // ADR-0956 D7's ten-review refusal counts.
 const BACKED = [...DBS, 'storytree-lag', 'storytree-quality'];
 const MARK = 'storytree library-host increment_b3ccd17ff113';

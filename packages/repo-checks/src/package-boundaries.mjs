@@ -18,7 +18,7 @@ import { readFileSync } from "node:fs";
 import { packageProblems } from "@storytree/guardrails";
 
 /** 0.3's own stories, each by the id its one package has (packages/<id>): a story owns exactly one package (ADR-1078 rule 4). */
-export const STORIES = ["agent-pool", "app", "app-setup", "arc-surface", "base-dev-loop", "ci-health", "cli", "experiments", "forest", "forest-world", "guardrails", "keys", "knowledge-core", "library", "local-postgres", "map", "mark", "mcp-server", "plugin-loader", "project-and-caller", "quality-assurance", "repo-checks", "service-host", "session-management", "surface-feedback", "teaching-cards", "test-waits", "website"];
+export const STORIES = ["agent-pool", "app", "app-setup", "arc-surface", "base-dev-loop", "ci-health", "cli", "experiments", "forest", "forest-world", "guardrails", "keys", "knowledge-core", "library", "local-postgres", "map", "mark", "mcp-server", "plugin-loader", "project-and-caller", "repo-checks", "service-host", "session-management", "surface-feedback", "teaching-cards", "test-waits", "website"];
 // agent-pool: story_b2051c0f7372 (Agent runner, ADR-1071 D3), which holds the Claude Code mod in src/claude-code-mod (ADR-1076 D5).
 // app-setup: story_b91056a06337 (Setup), which holds Journey events in src/journey-events (ADR-1076 D3).
 // app: story_a93c6fb1a257 (Desktop app), which holds Lag in real use in src/lag (ADR-1071 D3).
@@ -31,7 +31,6 @@ export const STORIES = ["agent-pool", "app", "app-setup", "arc-surface", "base-d
 // ci-health: story_5c212e7a9a6c (CI health, ADR-0902).
 // guardrails: Guardrails, ADR-0911 D2.
 // mcp-server: The MCP server, ADR-0969 D1, which reads its own tools' use (ADR-1071 D3).
-// quality-assurance: story_421e473f0a99 (Quality assurance, ADR-0956 D2).
 // repo-checks: story_c27bd2a8f61e (Storytree's own repository checks, ADR-1199): the checks this repository runs on every pull request, these declarations among them.
 // project-and-caller: story_6def59292b78 (Context, ADR-1025), which owns identity too (ADR-1066 D4).
 // plugin-loader: story_09e58d68f87c (Plugin loader, ADR-1021).

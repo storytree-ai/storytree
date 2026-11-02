@@ -212,23 +212,24 @@ function measure(page) {
   await picture(page, 'front.png');
 
   const AGENT_LINK = 'story_05e45963ca9f', FOREST = 'story_be32e99ed54f', LIBRARY = 'story_eb7d623fb9c8';
+  // Aimed by the sheet's own camera stop for the story (the page's locator, 3.41), as a click on its marker is.
   const faceIt = async story => {
-    await page.evaluate(id => {
-      const { scene, camera } = window.__globe, { rotation, onRotate } = window.__nav;
-      const V = camera.position.constructor;
-      const at = scene.getObjectByName(`planet:${id}`).getWorldPosition(new V()).normalize();
-      const eye = camera.position.clone().normalize();
-      const Q = camera.quaternion.constructor;
-      onRotate(new Q().setFromUnitVectors(at, eye).multiply(rotation));
-    }, story);
+    if (!await page.evaluate(id => window.storytreeGlobe.face({ kind: 'story', story: id }), story)) throw new Error(`close-up: no camera stop for ${story}`);
+    await page.waitForFunction(() => window.storytreeGlobe.still(), undefined, { timeout: 30000, polling: 100 });
     await settleView(page);
   };
   const zoomed = async () => { await page.evaluate(() => { const { camera, invalidate } = window.__globe; camera.zoom *= 2.6; camera.updateProjectionMatrix(); invalidate(); }); await settleView(page); };
   const unzoom = async () => { await page.evaluate(() => { const { camera, invalidate } = window.__globe; camera.zoom /= 2.6; camera.updateProjectionMatrix(); invalidate(); }); await settleView(page); };
+  // A close-up whose island is off screen fails the capture rather than writing a blank still as evidence.
+  const onScreen = async (name, story) => {
+    const island = await page.evaluate(id => window.storytreeGlobe.islands().find(i => i.story === id), story);
+    if (!island?.visible) throw new Error(`close-up ${name}: island ${story} is not on screen (${JSON.stringify(island ?? null)})`);
+  };
   // Close-ups serve pictures only; the smoke already measures all territories and claims.
   if (!smoke) for (const [name, story] of [['agent-link', AGENT_LINK], ['forest', FOREST], ['library', LIBRARY], ['command-line', 'story_20549f1d48af'], ['arc-surface', 'story_78b33d16d0b6']]) {
     await faceIt(story);
     await zoomed();
+    await onScreen(name, story);
     results[`closeUp-${name}`] = await measure(page);
     await picture(page, `close-up-${name}.png`);
     await unzoom();

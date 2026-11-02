@@ -79,14 +79,42 @@ const numberOf = (title: string): number | undefined => {
   return match === null ? undefined : Number(match[1]);
 };
 
+const SPACE = /\s/;
+/** Where the text before `at` ends once the whitespace just before it is skipped. */
+const spaceBefore = (code: string, at: number): number => {
+  while (at > 0 && SPACE.test(code[at - 1]!)) at -= 1;
+  return at;
+};
+/** Whether `[\w$.]\s*\(\s*` ends just before `at`, read back from it rather than matched against the whole prefix (8.41). */
+const followsCall = (code: string, at: number): boolean => {
+  const paren = spaceBefore(code, at) - 1;
+  if (code[paren] !== "(") return false;
+  const callee = spaceBefore(code, paren) - 1;
+  return callee >= 0 && /[\w$.]/.test(code[callee]!);
+};
+/** The name in `\bconst\s+name\s*=\s*` ending just before `at`, read back from it (8.41). */
+const constantBefore = (code: string, at: number): string | undefined => {
+  const equals = spaceBefore(code, at) - 1;
+  if (code[equals] !== "=") return undefined;
+  const end = spaceBefore(code, equals);
+  let start = end;
+  while (start > 0 && /[\w$]/.test(code[start - 1]!)) start -= 1;
+  const keyword = spaceBefore(code, start);
+  if (start === end || /\d/.test(code[start]!) || keyword === start || keyword < 5 || code.slice(keyword - 5, keyword) !== "const") return undefined;
+  return keyword === 5 || !/\w/.test(code[keyword - 6]!) ? code.slice(start, end) : undefined;
+};
+
 /** First-argument title strings, including helpers and local constants, without reading comments or quoted examples as calls. */
 function calledTitles(file: SourceFile): readonly string[] {
-  let text = file.text;
   // Regex quotes and call-looking text are inert; keep offsets for the existing title scan.
+  let text = "";
+  let kept = 0;
   for (const token of syntaxOf(file, true)?.tokens ?? []) {
     if (typeof token.type === "string" || token.type.label !== "regexp") continue;
-    text = text.slice(0, token.start) + text.slice(token.start, token.end).replace(/[^\r\n]/g, " ") + text.slice(token.end);
+    text += file.text.slice(kept, token.start) + file.text.slice(token.start, token.end).replace(/[^\r\n]/g, " ");
+    kept = token.end;
   }
+  text += file.text.slice(kept);
   const strings: { at: number; quote: string; value: string }[] = [];
   const code = text.replace(/\/\/[^\r\n]*|\/\*[\s\S]*?\*\/|(["'`])(?:\\.|(?!\1)[^\\])*\1/g, (token: string, quote: string | undefined, at: number) => {
     if (quote !== undefined) strings.push({ at, quote, value: token.slice(1, -1) });
@@ -94,12 +122,12 @@ function calledTitles(file: SourceFile): readonly string[] {
   });
   const constants = new Map<string, string>();
   for (const { at, value } of strings) {
-    const name = /\bconst\s+([A-Za-z_$][\w$]*)\s*=\s*$/.exec(code.slice(0, at))?.[1];
+    const name = constantBefore(code, at);
     if (name !== undefined) constants.set(name, value);
   }
   const titles: { at: number; title: string }[] = [];
   for (const { at, quote, value } of strings) {
-    if (!/[\w$.]\s*\(\s*$/.test(code.slice(0, at))) continue;
+    if (!followsCall(code, at)) continue;
     const template = quote === "`" ? /^\$\{\s*([A-Za-z_$][\w$]*)\s*\}([\s\S]*)$/.exec(value) : null;
     const prefix = template === null ? undefined : constants.get(template[1]!);
     const title = template === null ? value : prefix === undefined ? undefined : prefix + template[2];

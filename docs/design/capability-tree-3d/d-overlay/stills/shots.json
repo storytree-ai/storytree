@@ -1,0 +1,196 @@
+{
+  "clicks": [
+    {
+      "kind": "line",
+      "mark": "capability_75d059640d9d->capability_dd486ffa5b02",
+      "at": {
+        "x": 485,
+        "y": 427
+      },
+      "heading": "7 · Library API calls 4 · Work model"
+    },
+    {
+      "kind": "territory",
+      "mark": "capability_a7f068502213",
+      "at": {
+        "x": 469,
+        "y": 719
+      },
+      "heading": "10 · Work in flight"
+    },
+    {
+      "kind": "wrench",
+      "mark": "capability_75d059640d9d",
+      "at": {
+        "x": 421,
+        "y": 405
+      },
+      "heading": "Work wanting 7 · Library API"
+    },
+    {
+      "kind": "line",
+      "mark": "dock1->capability_75d059640d9d",
+      "at": {
+        "x": 521,
+        "y": 452
+      },
+      "heading": "47 links into 7 · Library API"
+    },
+    {
+      "kind": "line",
+      "mark": "capability_a6d2887aed63->capability_88a6aaa1fa93",
+      "at": {
+        "x": 427,
+        "y": 587
+      },
+      "heading": "15 · Connection by address calls Keys · 1 · Key store and resolver"
+    }
+  ],
+  "layer": {
+    "lines": 44,
+    "inside": 27,
+    "arrivalLines": 16,
+    "out": 1,
+    "links": 231,
+    "docks": 2,
+    "landings": 1,
+    "arrivals": [
+      {
+        "dock": 1,
+        "stories": [
+          "The command line",
+          "Knowledge graph",
+          "Mick's dev loop",
+          "Code map",
+          "The MCP server",
+          "Experiments",
+          "Talk to storytree by voice",
+          "Session management",
+          "Desktop app",
+          "Map view",
+          "Work board",
+          "Setup",
+          "Website",
+          "CI health",
+          "Architecture checks",
+          "Plugin loader",
+          "Context",
+          "Agent runner",
+          "Surface feedback",
+          "Service host",
+          "Storytree's own repository checks"
+        ],
+        "links": 203,
+        "serves": [
+          {
+            "id": "capability_75d059640d9d",
+            "title": "7 · Library API",
+            "links": 47
+          },
+          {
+            "id": "capability_5a80222c88c4",
+            "title": "2 · Library transactions",
+            "links": 7
+          },
+          {
+            "id": "capability_a1d4fadbec3e",
+            "title": "3 · Data schema",
+            "links": 35
+          },
+          {
+            "id": "capability_baaeecb42577",
+            "title": "6 · Knowledge artifacts",
+            "links": 5
+          },
+          {
+            "id": "capability_13b04e769a4b",
+            "title": "9 · Knowledge entrances",
+            "links": 1
+          },
+          {
+            "id": "capability_a7f068502213",
+            "title": "10 · Work in flight",
+            "links": 10
+          },
+          {
+            "id": "capability_d632ff0454c0",
+            "title": "11 · Waits",
+            "links": 9
+          },
+          {
+            "id": "capability_5f1ce148e63a",
+            "title": "12 · Owner questions",
+            "links": 3
+          },
+          {
+            "id": "capability_78d6e026f902",
+            "title": "13 · Decision log",
+            "links": 2
+          },
+          {
+            "id": "capability_dd486ffa5b02",
+            "title": "4 · Work model",
+            "links": 12
+          },
+          {
+            "id": "capability_f27ac2abb10b",
+            "title": "5 · Health record",
+            "links": 22
+          },
+          {
+            "id": "capability_73c014cf4352",
+            "title": "27 · Fixed data questions",
+            "links": 1
+          },
+          {
+            "id": "capability_984398616605",
+            "title": "16 · The command schema",
+            "links": 33
+          },
+          {
+            "id": "capability_556e276756c9",
+            "title": "14 · Ranked search",
+            "links": 1
+          },
+          {
+            "id": "capability_5e0362aae607",
+            "title": "1 · Project libraries",
+            "links": 10
+          },
+          {
+            "id": "capability_a954e1eb16f6",
+            "title": "8 · Cloud connection (GCP)",
+            "links": 5
+          }
+        ],
+        "landing": true,
+        "territory": "17 · The library's commands"
+      }
+    ],
+    "wrenches": [
+      "8 · Cloud connection (GCP)",
+      "7 · Library API"
+    ],
+    "namesMeasured": 24,
+    "width": 0.999986678273284,
+    "laneDocks": [
+      [
+        "up -50.5,70.9",
+        1
+      ],
+      [
+        "down 62.2,33.0",
+        197
+      ],
+      [
+        "down 62.2,31.9",
+        6
+      ]
+    ],
+    "markersInOwnTerritory": true,
+    "markersInNames": 0,
+    "markersOnFallback": 0
+  },
+  "errors": [],
+  "realErrors": []
+}

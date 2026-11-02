@@ -172,6 +172,8 @@ export interface HistoryFilter {
   readonly from?: string;
   /** Only changes to records of these types; none for an empty list. */
   readonly types?: readonly string[];
+  /** Only changes of these actions; none for an empty list. */
+  readonly actions?: readonly HistoryEntry["action"][];
   /** Only the first this many changes the rest of the filter keeps. Not with `newest`. */
   readonly oldest?: number;
   /** Only the last this many changes the rest of the filter keeps, still oldest first. Not with `oldest`. */

@@ -1,5 +1,5 @@
 /**
- * Capability 2 · Library transactions: ONE behaviour suite, one test per contract 2.1-2.9, 2.12 and 2.14-2.20 in
+ * Capability 2 · Library transactions: ONE behaviour suite, one test per contract 2.1-2.9, 2.12, 2.14-2.20 and 2.23 in
  * the library story. Each backend registers it (memory.test.ts, pg.test.ts) and it must pass
  * unchanged on every one. Parity is the point: later stories test against the in-memory twin, so
  * the twin has to behave exactly as Postgres does.
@@ -706,6 +706,21 @@ export function transactionsBehaviourSuite(label: string, makeStore: () => Promi
     ], "marked where the writer named reads for the record's type, and nowhere else: no other type, no other writer, no empty list");
     assert.equal((await store.history({ id: "n-1" }))[0]!.outsideRead, undefined);
     assert.ok(!("outsideRead" in (await store.history({ id: "p-2" }))[0]!), "an unmarked entry has no mark at all");
+  });
+
+  contract("2.23", "history narrows to some actions, on the server, combined with the other filters", async (store) => {
+    await store.save({ id: "s-1", type: "story", fields: { v: 1 } });
+    await store.edit({ id: "s-1", fields: { v: 2 } });
+    await store.save({ id: "n-1", type: "note", fields: { v: 1 } });
+    await store.retire({ id: "n-1", reason: "overtaken" });
+    await store.save({ id: "s-2", type: "story", fields: { v: 1 } });
+
+    const all = await store.history();
+    assert.deepEqual((await store.history({ actions: ["created"] })).map((entry) => entry.recordId), ["s-1", "n-1", "s-2"]);
+    assert.deepEqual(await store.history({ actions: ["updated", "retired"] }), all.filter((entry) => entry.action !== "created"));
+    assert.deepEqual(await store.history({ actions: [] }), [], "none for no actions");
+    assert.deepEqual((await store.history({ types: ["story"], actions: ["created"], since: all[0]!.seq })).map((entry) => entry.recordId), ["s-2"], "combined with types and since");
+    await assert.rejects(store.history({ actions: ["deleted" as "created"] }), RangeError, "an action no change has is refused before anything is read");
   });
 
 }

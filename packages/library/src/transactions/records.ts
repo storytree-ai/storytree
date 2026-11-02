@@ -14,8 +14,14 @@ export function now(): string {
  * `filter` as both backends apply it: its time as records carry one (UTC, to the millisecond), so
  * that a comparison means the same in each. A malformed filter is refused before anything is read.
  */
+/** Every action a history entry can have. */
+const HISTORY_ACTIONS: readonly HistoryEntry["action"][] = ["created", "updated", "retired"];
+
 export function historyFilter(filter: HistoryFilter): HistoryFilter {
-  const { from, oldest, newest } = filter;
+  const { from, oldest, newest, actions } = filter;
+  for (const action of actions ?? []) {
+    if (!HISTORY_ACTIONS.includes(action)) throw new RangeError(`history's actions are ${HISTORY_ACTIONS.join(", ")}, not ${JSON.stringify(action)}`);
+  }
   for (const [name, limit] of [["oldest", oldest], ["newest", newest]] as const) {
     if (limit !== undefined && !(Number.isSafeInteger(limit) && limit > 0)) {
       throw new RangeError(`history's ${name} is how many changes to keep, a whole number above 0, not ${String(limit)}`);

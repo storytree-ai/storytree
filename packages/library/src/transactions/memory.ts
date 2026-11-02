@@ -113,10 +113,11 @@ export class MemoryTransactions implements Transactions {
   }
 
   async history(given: HistoryFilter = {}): Promise<HistoryEntry[]> {
-    const { id, since, actor, from, types, oldest, newest } = historyFilter(given);
+    const { id, since, actor, from, types, actions, oldest, newest } = historyFilter(given);
     const kept = this.#history.filter((entry) =>
       (id === undefined || entry.recordId === id) && (since === undefined || entry.seq > since) && (actor === undefined || entry.actor === actor)
-      && (from === undefined || entry.at >= from) && (types === undefined || types.includes(entry.type)));
+      && (from === undefined || entry.at >= from) && (types === undefined || types.includes(entry.type))
+      && (actions === undefined || actions.includes(entry.action)));
     const limited = oldest !== undefined ? kept.slice(0, oldest) : newest !== undefined ? kept.slice(-newest) : kept;
     return limited.map((entry) => jsonCopy(entry));
   }

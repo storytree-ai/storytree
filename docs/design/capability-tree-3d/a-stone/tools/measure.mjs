@@ -21,8 +21,8 @@ try {
   const tree = await library.projectTree();
   const survey = await readCodeSurvey(routed.folder, tree);
   // Only the stories' creation order reaches the map (story-nodes.ts reads it for each island's place).
-  const { changes } = await library.changesSince(0);
-  const created = changes.filter((c) => c.type === 'story' && c.action === 'created').map(({ type, action, recordId }) => ({ type, action, recordId }));
+  const { changes } = await library.changesSince(0, { types: ['story'], actions: ['created'] });
+  const created = changes.map(({ type, action, recordId }) => ({ type, action, recordId }));
   const story = tree.stories.find(({ id }) => id === STORY);
   const own = survey[STORY];
   const titles = new Map(tree.stories.flatMap((s) => s.capabilities.map((c) => [c.id, { title: c.title, story: s.title, storyId: s.id, contracts: c.contracts.map((k) => ({ id: k.id, title: k.title })) }])));

@@ -22,8 +22,21 @@ html, body, #mock { margin: 0; height: 100%; overflow: hidden; background: #0e14
 .mock-arcs > li { margin-bottom: 8px; }
 .mock-legend { display: flex; flex-wrap: wrap; gap: 4px 12px; list-style: none; padding: 0 !important; margin: 0 0 8px !important; }
 .mock-swatch { display: inline-block; width: 12px; height: 12px; margin-right: 5px; border-radius: 3px; vertical-align: -2px; }
-.mock-swatch-wall { background: #a39d90; }
-.mock-swatch-path { background: #b8a888; border: 1px dashed #8c7c60; box-sizing: border-box; }
-.mock-swatch-gate { background: #8a5a32; }
-.mock-swatch-wrench { background: #c9d0d6; border-radius: 6px; }
+.mock-swatch-wall { background: #ece4d0; border: 1px solid #1b1814; box-sizing: border-box; }
+.mock-swatch-path { height: 0; border-top: 2px dashed #5a4630; border-radius: 0; vertical-align: 3px; }
+.mock-swatch-gate { background: #ece4d0; border: 1px solid #1b1814; box-sizing: border-box; border-radius: 0; }
+.mock-swatch-wrench { background: #e6e9ec; border: 1px solid #1b1814; box-sizing: border-box; border-radius: 6px; }
 .mock-check { display: block; margin-bottom: 6px; }
+/* The mock's own marks over the canvas, placed each frame where their spot on the island is (castle.ts). */
+.mock-laid .planet-nameplate.capability:not(.mock-name):not(.mock-road-name) { display: none; }
+.mock-overlay { position: absolute; inset: 0; pointer-events: none; overflow: hidden; z-index: 5; }
+.mock-overlay > * { position: absolute; left: 0; top: 0; will-change: transform; }
+.mock-overlay .mock-name { translate: -50% -50%; }
+.mock-overlay .mock-name[data-claimed] { translate: -50% 5px; }
+.mock-overlay .mock-name.mock-name-below { translate: -50% 4px; }
+.mock-wrench { width: 28px; height: 44px; translate: -14px -40px; }
+.mock-wrench svg { display: block; }
+.mock-wrench.lit path { fill: #ffd34d; }
+.mock-wrench-tag { position: absolute; left: 50%; top: -15px; translate: -50% 0; padding: 0 5px; border-radius: 6px; background: #efe2fb; color: #5b3d7a; font-size: 10px; font-weight: 600; white-space: nowrap; }
+.mock-road-end { width: 7px; height: 7px; translate: -50% -50%; border-radius: 50%; background: #1b1814; box-shadow: 0 0 0 1.5px #ece4d0; }
+.mock-overlay .mock-road-name { translate: -50% 7px; max-width: 200px; }

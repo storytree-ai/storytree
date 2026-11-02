@@ -1,5 +1,5 @@
 /** The story panel beside the island: the story, a legend of what is drawn, and whatever was last clicked on the island. */
-import type { Picked } from "./stone.js";
+import type { Picked } from "./castle.js";
 
 type Contract = { id: string; title: string };
 type Dep = { id: string; title: string; story: string; storyId: string; contracts?: Contract[] };
@@ -38,7 +38,7 @@ export function Panel({ data, picked, onPick, sample, onSample, fills }: {
     </li>)}</ul>;
   };
   let body: React.ReactNode;
-  if (!picked) body = <p className="mock-muted">Click a territory, a pathway, a gate, the road off the coast or a wrench.</p>;
+  if (!picked) body = <p className="mock-muted">Click a field, a path, a gate, the road off the coast or a wrench.</p>;
   else if (picked.kind === "territory") {
     const c = byId.get(picked.id)!, callers = data.capabilities.filter(o => o.dependsOn.some(d => d.id === c.id)), work = workOn(c.id);
     body = <>
@@ -62,13 +62,14 @@ export function Panel({ data, picked, onPick, sample, onSample, fills }: {
       {picked.kind === "path" && picked.shared && <><h4>This stretch also carries</h4><ul>{picked.shared.map(id => { const [f, t] = id.split("->"); return <li key={id}>{link("path", id, `${name(f!)} calls ${name(t!)}`)}</li>; })}</ul></>}
     </>;
   } else if (picked.kind === "gate") {
-    const [a, b] = picked.pair;
-    const through = data.capabilities.flatMap(c => c.dependsOn.filter(d => (c.id === a && d.id === b) || (c.id === b && d.id === a)).map(d => ({ from: c, to: byId.get(d.id)! })));
+    const c = byId.get(picked.id)!, callers = data.capabilities.filter(o => o.dependsOn.some(d => d.id === c.id));
     body = <>
       <p className="mock-kicker">Gate</p>
-      <h3>Between {name(a)} and {name(b)}</h3>
-      {through.length ? through.map(({ from, to }) => <div key={from.id + to.id}><p>{link("path", `${from.id}->${to.id}`, `${from.title} calls ${to.title}`)}</p><h4>{to.title}'s contracts</h4>{contracts(to.contracts)}</div>)
-        : <p className="mock-muted">No link joins these two directly: pathways between territories further apart pass through this gate.</p>}
+      <h3>Into {c.title}</h3>
+      <p className="mock-muted">Every path to or from {c.title} passes through this gate.</p>
+      <h4>Its calls go out</h4>{c.dependsOn.length ? <ul>{c.dependsOn.map(d => <li key={d.id}>{d.storyId === data.story.id ? link("path", `${c.id}->${d.id}`, d.title) : link("road", `${c.id}->${d.id}`, `${d.story} · ${d.title}`)}</li>)}</ul> : <p className="mock-muted">None.</p>}
+      <h4>Its callers come in, for its contracts</h4>{callers.length ? <ul>{callers.map(o => <li key={o.id}>{link("path", `${o.id}->${c.id}`, o.title)}</li>)}</ul> : <p className="mock-muted">None in this story.</p>}
+      <h4>{c.title}'s contracts</h4>{contracts(c.contracts)}
     </>;
   } else {
     const c = byId.get(picked.capability)!, work = workOn(c.id).filter(w => picked.sample ? "sample" in w : !("sample" in w));
@@ -87,7 +88,7 @@ export function Panel({ data, picked, onPick, sample, onSample, fills }: {
       <ul className="mock-legend">
         {fills.map(f => <li key={f.word}><span className="mock-swatch" style={{ background: f.colour }} />{f.word}</li>)}
         <li><span className="mock-swatch mock-swatch-wall" />wall</li>
-        <li><span className="mock-swatch mock-swatch-path" />pathway</li>
+        <li><span className="mock-swatch mock-swatch-path" />path</li>
         <li><span className="mock-swatch mock-swatch-gate" />gate</li>
         <li><span className="mock-swatch mock-swatch-wrench" />wrench</li>
       </ul>

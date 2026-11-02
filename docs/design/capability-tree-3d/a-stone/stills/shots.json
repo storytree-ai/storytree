@@ -4,8 +4,8 @@
       "kind": "wrench",
       "mark": "capability_a954e1eb16f6",
       "at": {
-        "x": 453,
-        "y": 364
+        "x": 412,
+        "y": 200
       },
       "heading": "Work wanting 8 · Cloud connection (GCP)"
     },
@@ -13,26 +13,26 @@
       "kind": "path",
       "mark": "capability_389fd5e3722d->capability_d8451645c169",
       "at": {
-        "x": 401,
-        "y": 601
+        "x": 309,
+        "y": 491
       },
       "heading": "26 · Rounds calls 25 · Lapsed questions"
     },
     {
       "kind": "gate",
-      "mark": "capability_5a80222c88c4|capability_5e0362aae607",
+      "mark": "capability_a7f068502213",
       "at": {
-        "x": 471,
-        "y": 254
+        "x": 769,
+        "y": 371
       },
-      "heading": "Between 2 · Library transactions and 1 · Project libraries"
+      "heading": "Into 10 · Work in flight"
     },
     {
       "kind": "territory",
       "mark": "capability_dd486ffa5b02",
       "at": {
-        "x": 724,
-        "y": 374
+        "x": 611,
+        "y": 313
       },
       "heading": "4 · Work model"
     },
@@ -40,8 +40,8 @@
       "kind": "road",
       "mark": "capability_a6d2887aed63->capability_88a6aaa1fa93",
       "at": {
-        "x": 793,
-        "y": 463
+        "x": 134,
+        "y": 716
       },
       "heading": "15 · Connection by address calls Keys · 1 · Key store and resolver"
     },
@@ -49,444 +49,236 @@
       "kind": "wrench",
       "mark": "capability_a7f068502213:sample",
       "at": {
-        "x": 542,
-        "y": 637
+        "x": 732,
+        "y": 349
       },
       "heading": "Work wanting 10 · Work in flight"
+    },
+    {
+      "kind": "territory",
+      "mark": "capability_a1d4fadbec3e",
+      "at": {
+        "x": 501,
+        "y": 365
+      },
+      "heading": "3 · Data schema"
     }
   ],
   "layer": {
-    "gateList": [
-      {
-        "key": "capability_5a80222c88c4|capability_5e0362aae607",
-        "between": [
-          "2 · Library transactions",
-          "1 · Project libraries"
-        ]
-      },
-      {
-        "key": "capability_5a80222c88c4|capability_a1d4fadbec3e",
-        "between": [
-          "2 · Library transactions",
-          "3 · Data schema"
-        ]
-      },
-      {
-        "key": "capability_a1d4fadbec3e|capability_dd486ffa5b02",
-        "between": [
-          "3 · Data schema",
-          "4 · Work model"
-        ]
-      },
-      {
-        "key": "capability_a1d4fadbec3e|capability_baaeecb42577",
-        "between": [
-          "3 · Data schema",
-          "6 · Knowledge artifacts"
-        ]
-      },
-      {
-        "key": "capability_5e0362aae607|capability_f27ac2abb10b",
-        "between": [
-          "1 · Project libraries",
-          "5 · Health record"
-        ]
-      },
-      {
-        "key": "capability_5a80222c88c4|capability_dd486ffa5b02",
-        "between": [
-          "2 · Library transactions",
-          "4 · Work model"
-        ]
-      },
-      {
-        "key": "capability_5e0362aae607|capability_75d059640d9d",
-        "between": [
-          "1 · Project libraries",
-          "7 · Library API"
-        ]
-      },
-      {
-        "key": "capability_5a80222c88c4|capability_75d059640d9d",
-        "between": [
-          "2 · Library transactions",
-          "7 · Library API"
-        ]
-      },
-      {
-        "key": "capability_75d059640d9d|capability_f27ac2abb10b",
-        "between": [
-          "7 · Library API",
-          "5 · Health record"
-        ]
-      },
-      {
-        "key": "capability_baaeecb42577|capability_dd486ffa5b02",
-        "between": [
-          "6 · Knowledge artifacts",
-          "4 · Work model"
-        ]
-      },
-      {
-        "key": "capability_5a80222c88c4|capability_a954e1eb16f6",
-        "between": [
-          "2 · Library transactions",
-          "8 · Cloud connection (GCP)"
-        ]
-      },
-      {
-        "key": "capability_13b04e769a4b|capability_a954e1eb16f6",
-        "between": [
-          "9 · Knowledge entrances",
-          "8 · Cloud connection (GCP)"
-        ]
-      },
-      {
-        "key": "capability_a954e1eb16f6|capability_d632ff0454c0",
-        "between": [
-          "8 · Cloud connection (GCP)",
-          "11 · Waits"
-        ]
-      },
-      {
-        "key": "capability_d632ff0454c0|capability_dd486ffa5b02",
-        "between": [
-          "11 · Waits",
-          "4 · Work model"
-        ]
-      },
-      {
-        "key": "capability_a19bf216935b|capability_b7a12a2b7273",
-        "between": [
-          "21 · Links",
-          "22 · Decision log"
-        ]
-      },
-      {
-        "key": "capability_36bcae448803|capability_53fd994f7b4c",
-        "between": [
-          "23 · Catalogue",
-          "24 · Graduation"
-        ]
-      },
-      {
-        "key": "capability_389fd5e3722d|capability_a19bf216935b",
-        "between": [
-          "26 · Rounds",
-          "21 · Links"
-        ]
-      },
-      {
-        "key": "capability_389fd5e3722d|capability_b7a12a2b7273",
-        "between": [
-          "26 · Rounds",
-          "22 · Decision log"
-        ]
-      },
-      {
-        "key": "capability_389fd5e3722d|capability_75d059640d9d",
-        "between": [
-          "26 · Rounds",
-          "7 · Library API"
-        ]
-      },
-      {
-        "key": "capability_36bcae448803|capability_75d059640d9d",
-        "between": [
-          "23 · Catalogue",
-          "7 · Library API"
-        ]
-      },
-      {
-        "key": "capability_53fd994f7b4c|capability_75d059640d9d",
-        "between": [
-          "24 · Graduation",
-          "7 · Library API"
-        ]
-      },
-      {
-        "key": "capability_389fd5e3722d|capability_d8451645c169",
-        "between": [
-          "26 · Rounds",
-          "25 · Lapsed questions"
-        ]
-      },
-      {
-        "key": "capability_78d6e026f902|capability_a7f068502213",
-        "between": [
-          "13 · Decision log",
-          "10 · Work in flight"
-        ]
-      },
-      {
-        "key": "capability_78d6e026f902|capability_a6d2887aed63",
-        "between": [
-          "13 · Decision log",
-          "15 · Connection by address"
-        ]
-      },
-      {
-        "key": "capability_a6d2887aed63|capability_dd486ffa5b02",
-        "between": [
-          "15 · Connection by address",
-          "4 · Work model"
-        ]
-      },
-      {
-        "key": "capability_78d6e026f902|capability_a954e1eb16f6",
-        "between": [
-          "13 · Decision log",
-          "8 · Cloud connection (GCP)"
-        ]
-      },
-      {
-        "key": "capability_5f1ce148e63a|capability_78d6e026f902",
-        "between": [
-          "12 · Owner questions",
-          "13 · Decision log"
-        ]
-      },
-      {
-        "key": "capability_556e276756c9|capability_dce9495fcaed",
-        "between": [
-          "14 · Ranked search",
-          "17 · The library's commands"
-        ]
-      },
-      {
-        "key": "capability_baaeecb42577|capability_dce9495fcaed",
-        "between": [
-          "6 · Knowledge artifacts",
-          "17 · The library's commands"
-        ]
-      },
-      {
-        "key": "capability_a6d2887aed63|capability_d632ff0454c0",
-        "between": [
-          "15 · Connection by address",
-          "11 · Waits"
-        ]
-      },
-      {
-        "key": "capability_5a80222c88c4|capability_d632ff0454c0",
-        "between": [
-          "2 · Library transactions",
-          "11 · Waits"
-        ]
-      },
-      {
-        "key": "capability_73c014cf4352|capability_dce9495fcaed",
-        "between": [
-          "27 · Fixed data questions",
-          "17 · The library's commands"
-        ]
-      },
-      {
-        "key": "capability_dce9495fcaed|capability_dd486ffa5b02",
-        "between": [
-          "17 · The library's commands",
-          "4 · Work model"
-        ]
-      },
-      {
-        "key": "capability_a6d2887aed63|capability_dce9495fcaed",
-        "between": [
-          "15 · Connection by address",
-          "17 · The library's commands"
-        ]
-      }
-    ],
-    "reach": 111.94196894226866,
-    "wallHeight": 1.5671875651917613,
-    "walls": 139,
-    "wallLength": 1281.5075379737393,
-    "stones": 7955,
-    "gates": 34,
-    "pathways": 27,
+    "fields": 24,
+    "columns": 7,
+    "gates": 24,
+    "ways": 27,
     "links": 27,
-    "unrouted": [],
-    "neighbourLinks": 12,
+    "stretches": 75,
+    "sharedStretches": 47,
+    "chains": 46,
+    "wallLength": 1011.1,
+    "merlons": 505,
     "roads": 1,
     "wrenches": 1,
-    "seats": 24,
-    "linkWays": [
-      {
-        "from": "2 · Library transactions",
-        "to": "1 · Project libraries",
-        "through": []
+    "commonsWidth": 5.14,
+    "fit": {
+      "middle": {
+        "x": 7.38893340269409,
+        "z": -2.6534498202968795
       },
-      {
-        "from": "3 · Data schema",
-        "to": "2 · Library transactions",
-        "through": []
+      "best": {
+        "s": 0.5142471883340656,
+        "ox": 16.7084326171875,
+        "oz": -5.5694775390625,
+        "turn": 0
       },
-      {
-        "from": "4 · Work model",
-        "to": "3 · Data schema",
-        "through": []
+      "reach": 139.2369384765625,
+      "bounds": {
+        "x0": -5,
+        "x1": 341.46077373975004,
+        "z0": -142.3075904136861,
+        "z1": 131.8541202619401
       },
-      {
-        "from": "6 · Knowledge artifacts",
-        "to": "3 · Data schema",
-        "through": []
-      },
-      {
-        "from": "5 · Health record",
-        "to": "4 · Work model",
-        "through": [
-          "1 · Project libraries",
-          "2 · Library transactions"
+      "land": [
+        [
+          -112.12347412109375,
+          -50.31879806518555,
+          -89.65364837646484,
+          5.370713233947754
+        ],
+        [
+          -62.69420623779297,
+          21.72185707092285,
+          -95.1479263305664,
+          -40.75120544433594
+        ],
+        [
+          -59.24197006225586,
+          22.298641204833984,
+          -60.27082443237305,
+          -4.367189884185791
+        ],
+        [
+          32.16355514526367,
+          89.77605438232422,
+          -128.76756286621094,
+          -81.81439971923828
+        ],
+        [
+          12.779766082763672,
+          65.20518493652344,
+          -102.5865249633789,
+          -63.40510177612305
+        ],
+        [
+          11.445516586303711,
+          47.47716522216797,
+          -81.0728988647461,
+          -51.462284088134766
+        ],
+        [
+          34.70523452758789,
+          81.0538101196289,
+          -84.75575256347656,
+          -44.88536834716797
+        ],
+        [
+          70.28270721435547,
+          98.67524719238281,
+          -87.41455078125,
+          -43.096717834472656
+        ],
+        [
+          20.269325256347656,
+          41.082763671875,
+          -58.18064498901367,
+          -38.33551025390625
+        ],
+        [
+          21.38181495666504,
+          41.03876495361328,
+          -38.467647552490234,
+          -18.22574234008789
+        ],
+        [
+          9.758780479431152,
+          29.931182861328125,
+          -22.826250076293945,
+          0.020809845998883247
+        ],
+        [
+          25.16249656677246,
+          47.205753326416016,
+          -19.406597137451172,
+          2.916851282119751
+        ],
+        [
+          38.083011627197266,
+          58.46549606323242,
+          -47.55239486694336,
+          -27.824493408203125
+        ],
+        [
+          34.84284210205078,
+          56.235782623291016,
+          -30.910762786865234,
+          -9.620383262634277
+        ],
+        [
+          55.40083694458008,
+          77.18701934814453,
+          -48.427188873291016,
+          -8.669469833374023
+        ],
+        [
+          69.60038757324219,
+          122.84676361083984,
+          -61.744205474853516,
+          -0.7173040509223938
+        ],
+        [
+          120.4820556640625,
+          139.2369384765625,
+          -22.005645751953125,
+          7.749737739562988
+        ],
+        [
+          -111.80248260498047,
+          -90.98307037353516,
+          -3.883230447769165,
+          20.191617965698242
+        ],
+        [
+          -102.31201171875,
+          -59.963279724121094,
+          -11.77120590209961,
+          29.57474708557129
+        ],
+        [
+          -91.3160171508789,
+          -64.89458465576172,
+          16.14849853515625,
+          53.33694839477539
+        ],
+        [
+          -85.53984832763672,
+          -46.80577087402344,
+          36.003108978271484,
+          58.21139144897461
+        ],
+        [
+          -52.9285888671875,
+          -30.531272888183594,
+          -9.15883731842041,
+          14.138412475585938
+        ],
+        [
+          -77.18173217773438,
+          -28.809022903442383,
+          2.393505573272705,
+          81.07698822021484
+        ],
+        [
+          -70.59181213378906,
+          -45.581764221191406,
+          73.31137084960938,
+          98.01139831542969
+        ],
+        [
+          -52.16313552856445,
+          138.9563751220703,
+          -15.398892402648926,
+          133.82119750976562
         ]
-      },
-      {
-        "from": "7 · Library API",
-        "to": "1 · Project libraries",
-        "through": []
-      },
-      {
-        "from": "7 · Library API",
-        "to": "4 · Work model",
-        "through": [
-          "2 · Library transactions"
-        ]
-      },
-      {
-        "from": "7 · Library API",
-        "to": "5 · Health record",
-        "through": []
-      },
-      {
-        "from": "7 · Library API",
-        "to": "6 · Knowledge artifacts",
-        "through": [
-          "2 · Library transactions",
-          "4 · Work model"
-        ]
-      },
-      {
-        "from": "8 · Cloud connection (GCP)",
-        "to": "1 · Project libraries",
-        "through": [
-          "2 · Library transactions"
-        ]
-      },
-      {
-        "from": "9 · Knowledge entrances",
-        "to": "4 · Work model",
-        "through": [
-          "8 · Cloud connection (GCP)",
-          "11 · Waits"
-        ]
-      },
-      {
-        "from": "9 · Knowledge entrances",
-        "to": "6 · Knowledge artifacts",
-        "through": [
-          "8 · Cloud connection (GCP)",
-          "11 · Waits",
-          "4 · Work model"
-        ]
-      },
-      {
-        "from": "22 · Decision log",
-        "to": "21 · Links",
-        "through": []
-      },
-      {
-        "from": "24 · Graduation",
-        "to": "23 · Catalogue",
-        "through": []
-      },
-      {
-        "from": "26 · Rounds",
-        "to": "21 · Links",
-        "through": []
-      },
-      {
-        "from": "26 · Rounds",
-        "to": "22 · Decision log",
-        "through": []
-      },
-      {
-        "from": "26 · Rounds",
-        "to": "23 · Catalogue",
-        "through": [
-          "7 · Library API"
-        ]
-      },
-      {
-        "from": "26 · Rounds",
-        "to": "24 · Graduation",
-        "through": [
-          "7 · Library API"
-        ]
-      },
-      {
-        "from": "26 · Rounds",
-        "to": "25 · Lapsed questions",
-        "through": []
-      },
-      {
-        "from": "10 · Work in flight",
-        "to": "4 · Work model",
-        "through": [
-          "13 · Decision log",
-          "15 · Connection by address"
-        ]
-      },
-      {
-        "from": "11 · Waits",
-        "to": "10 · Work in flight",
-        "through": [
-          "8 · Cloud connection (GCP)",
-          "13 · Decision log"
-        ]
-      },
-      {
-        "from": "12 · Owner questions",
-        "to": "10 · Work in flight",
-        "through": [
-          "13 · Decision log"
-        ]
-      },
-      {
-        "from": "13 · Decision log",
-        "to": "6 · Knowledge artifacts",
-        "through": [
-          "15 · Connection by address",
-          "4 · Work model"
-        ]
-      },
-      {
-        "from": "14 · Ranked search",
-        "to": "6 · Knowledge artifacts",
-        "through": [
-          "17 · The library's commands"
-        ]
-      },
-      {
-        "from": "15 · Connection by address",
-        "to": "1 · Project libraries",
-        "through": [
-          "11 · Waits",
-          "2 · Library transactions"
-        ]
-      },
-      {
-        "from": "27 · Fixed data questions",
-        "to": "7 · Library API",
-        "through": [
-          "17 · The library's commands",
-          "4 · Work model",
-          "2 · Library transactions"
-        ]
-      },
-      {
-        "from": "27 · Fixed data questions",
-        "to": "17 · The library's commands",
-        "through": []
-      }
-    ]
+      ]
+    },
+    "scale": 0.514,
+    "ways_": {
+      "capability_73c014cf4352->capability_dce9495fcaed": 14,
+      "capability_75d059640d9d->capability_5e0362aae607": 14,
+      "capability_389fd5e3722d->capability_36bcae448803": 7,
+      "capability_75d059640d9d->capability_baaeecb42577": 6,
+      "capability_389fd5e3722d->capability_a19bf216935b": 7,
+      "capability_389fd5e3722d->capability_d8451645c169": 6,
+      "capability_a1d4fadbec3e->capability_5a80222c88c4": 7,
+      "capability_556e276756c9->capability_baaeecb42577": 7,
+      "capability_13b04e769a4b->capability_baaeecb42577": 6,
+      "capability_75d059640d9d->capability_dd486ffa5b02": 5,
+      "capability_5a80222c88c4->capability_5e0362aae607": 6,
+      "capability_a7f068502213->capability_dd486ffa5b02": 7,
+      "capability_dd486ffa5b02->capability_a1d4fadbec3e": 6,
+      "capability_73c014cf4352->capability_75d059640d9d": 6,
+      "capability_f27ac2abb10b->capability_dd486ffa5b02": 6,
+      "capability_53fd994f7b4c->capability_36bcae448803": 6,
+      "capability_b7a12a2b7273->capability_a19bf216935b": 4,
+      "capability_389fd5e3722d->capability_53fd994f7b4c": 4,
+      "capability_baaeecb42577->capability_a1d4fadbec3e": 5,
+      "capability_389fd5e3722d->capability_b7a12a2b7273": 5,
+      "capability_75d059640d9d->capability_f27ac2abb10b": 4,
+      "capability_5f1ce148e63a->capability_a7f068502213": 5,
+      "capability_78d6e026f902->capability_baaeecb42577": 5,
+      "capability_a954e1eb16f6->capability_5e0362aae607": 4,
+      "capability_a6d2887aed63->capability_5e0362aae607": 3,
+      "capability_13b04e769a4b->capability_dd486ffa5b02": 3,
+      "capability_d632ff0454c0->capability_a7f068502213": 3
+    }
   },
   "errors": [],
   "realErrors": []

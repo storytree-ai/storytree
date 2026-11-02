@@ -296,6 +296,23 @@ test("8.7 run plain, the doctor leaves another build's hooks in an agent's setti
   });
 });
 
+test("8.9 run from a Claude Code session's shell, the doctor counts Claude Code signed in, though `claude auth status` there answers signed out (a CLAUDE_CODE_OAUTH_TOKEN sign-in Claude Code strips from its tools' shells)", async () => {
+  await inWorld(command, async (world) => {
+    const user = aUser(world);
+    // The session's claude answers its version, and signed out to `auth status`, as it does without the stripped token.
+    agentCli(path.join(user.home, "bin"), "claude", ["--version"]);
+
+    const plain = await world.run(["doctor"], user.env);
+    assert.match(plain.stdout, /Claude Code is installed and not signed in/, "outside a session, the ask is believed");
+
+    const asked = await world.run(["doctor"], { ...user.env, CLAUDECODE: "1" });
+
+    assert.equal(asked.code, 0, asked.stderr);
+    assert.match(asked.stdout, /Claude Code is installed and signed in/);
+    assert.doesNotMatch(asked.stdout, /claude auth login/);
+  });
+});
+
 test("8.8 the doctor's exit code matches what it prints: 0 with its answer and nothing on standard error, 2 with the misuse it names", async () => {
   await inWorld(command, async (world) => {
     const user = aUser(world);

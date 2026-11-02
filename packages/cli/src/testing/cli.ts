@@ -152,7 +152,7 @@ export function storytree(script: string, args: readonly string[], options: RunO
     const started = performance.now();
     // A variable given replaces the test's own of the same name in any case (Windows spells PATH `Path`).
     // The shell running the tests may itself belong to an agent; each world starts as a person.
-    const given = { CLAUDE_CODE_SESSION_ID: "", CODEX_THREAD_ID: "", ...options.env, STORYTREE_HOME: options.home };
+    const given = { CLAUDE_CODE_SESSION_ID: "", CLAUDECODE: "", CODEX_THREAD_ID: "", ...options.env, STORYTREE_HOME: options.home };
     const env: Record<string, string | undefined> = { ...process.env };
     for (const name of Object.keys(given)) for (const own of Object.keys(env)) if (own.toLowerCase() === name.toLowerCase()) delete env[own];
     const child = spawn(process.execPath, [script, ...args], {

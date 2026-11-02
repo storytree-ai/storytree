@@ -89,6 +89,8 @@ const day = z
  * releaser: an action of the owner's, with no day, or an outside event, with the day to check back.
  * An owner's may carry its why (what it protects or unblocks), its rank (1 first) and the day a
  * session last read it again (11.10); a wait stored before 11.10 has none, so none is required here.
+ * It may also carry the pull request, handed over with the increment, that merged since it was last
+ * read (11.11).
  */
 const waitsFor = z
   .array(
@@ -100,12 +102,13 @@ const waitsFor = z
         why: nonEmpty.optional(),
         rank: z.number().int().min(1).optional(),
         reviewed: day.optional(),
+        merged: z.number().int().min(1).optional(),
       })
       .strict()
-      .superRefine(({ releaser, checkBack, why, rank, reviewed }, context) => {
+      .superRefine(({ releaser, checkBack, why, rank, reviewed, merged }, context) => {
         if (releaser === "event" && checkBack === undefined) context.addIssue({ code: "custom", path: ["checkBack"], message: "an event wait needs a check-back day" });
         if (releaser === "owner" && checkBack !== undefined) context.addIssue({ code: "custom", path: ["checkBack"], message: "an owner wait takes no check-back day" });
-        if (releaser === "event" && (why !== undefined || rank !== undefined || reviewed !== undefined)) context.addIssue({ code: "custom", path: ["releaser"], message: "only an owner wait carries a why, a rank or a review day" });
+        if (releaser === "event" && (why !== undefined || rank !== undefined || reviewed !== undefined || merged !== undefined)) context.addIssue({ code: "custom", path: ["releaser"], message: "only an owner wait carries a why, a rank, a review day or a merged pull request" });
       }),
   )
   .refine((list) => new Set(list.map(({ releaser }) => releaser)).size === list.length, "at most one wait per releaser")

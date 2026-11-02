@@ -488,7 +488,7 @@ const named = (failures) => (failures.tests.length ? failures.tests : failures.u
 
 /**
  * One look at every hand-off. MERGED: clear the wait, close the increment landed (unless it was handed over to stay
- * open), let go of the claims held for it and forget it. CLOSED: clear the wait, let go of its claims and forget it.
+ * open, when the cleared wait is marked with the merge for the owner wait to be read again, 4.47), let go of the claims held for it and forget it. CLOSED: clear the wait, let go of its claims and forget it.
  * Open past HELD_DAYS since it was handed over, it is given up: back on its arc as ready work, as a conflict past its
  * limit is, its claims let go (4.23). Every end of a watch lets go of its claims (ADR-1037 D3). Red: with no fix session running and an engine slot
  * free, clear the wait and start one; once `limit` have run, put the increment on an owner wait instead. A conflict
@@ -602,7 +602,9 @@ export async function watchOnce({ dir, look, storytree, cutover = async () => un
       continue;
     }
     if (pull.state === "merged" || pull.state === "closed") {
-      if (!record.closed) await tell(["arc", "increment", "unwait", increment, "--for", "event"]);
+      // A kept-open increment's merge is marked on its wait for the owner, never by rewriting his note, so the audit asks for it to be read again (4.47).
+      const marked = pull.state === "merged" && record.keepOpen ? ["--merged", String(pr)] : [];
+      if (!record.closed) await tell(["arc", "increment", "unwait", increment, "--for", "event", ...marked]);
       if (pull.state === "merged") {
         merged = true;
         if (!record.keepOpen && !record.closed) await tell(["arc", "increment", "close", increment, "--disposition", "landed", "--pr", String(pr)]);

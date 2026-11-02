@@ -1,5 +1,5 @@
 /**
- * Capability 11 · Waits (ADR-0640): one test per contract 11.1-11.6, 11.8 and 11.9 in the library story, each run
+ * Capability 11 · Waits (ADR-0640): one test per contract 11.1-11.6 and 11.8-11.11 in the library story, each run
  * on BOTH backends: a WorkModel and a WorkInFlight over a fresh MemoryTransactions, and the `work`
  * and `flight` of a fresh Postgres project, dropped afterwards, pass or fail.
  *
@@ -313,5 +313,30 @@ for (const backend of [memory, postgres]) {
 
     const born = await flight.addIncrement({ arc: arc.id, title: "Sign in", ...WORK, waitsFor: [{ releaser: "owner", note: "sign in", why: "the box reads mail", rank: 3 }] });
     assert.deepEqual(born.fields.waitsFor, [{ releaser: "owner", note: "sign in", why: "the box reads mail", rank: 3, reviewed: today }]);
+  });
+
+  contract("11.11", "clearing an increment's event wait as a pull request it was handed over with merges stamps that pull request on its owner wait in the same write; writing the owner wait again drops it, and only an owner wait carries one", async ({ work, flight, records, transactions }) => {
+    const arc = await work.createArc({ title: "Hand-overs", ...ARC });
+    const today = new Date().toISOString().slice(0, 10);
+    const tomorrow = new Date(Date.now() + 86_400_000).toISOString().slice(0, 10);
+    const ship = await flight.addIncrement({ arc: arc.id, title: "Ship in two pull requests", ...WORK });
+    const owner = { releaser: "owner" as const, note: "turn the setting on", why: "the second pull request needs it", reviewed: today };
+    await flight.addWaitFor(ship.id, { releaser: "owner", note: owner.note, why: owner.why });
+    await flight.addWaitFor(ship.id, { releaser: "event", note: "PR #173 lands", checkBack: tomorrow });
+    const before = (await transactions.history()).length;
+    await flight.removeWaitFor(ship.id, "event", undefined, { merged: 173 });
+    assert.equal((await transactions.history()).length, before + 1, "one write");
+    const stored = async () => ((await records.get(ship.id))?.fields as { waitsFor?: unknown } | undefined)?.waitsFor;
+    assert.deepEqual(await stored(), [{ ...owner, merged: 173 }], "the event wait cleared, the merge stamped on the owner wait");
+    assert.deepEqual((await flight.holds()).waitsFor?.[ship.id], [{ ...owner, merged: 173, holds: true }]);
+
+    await flight.addWaitFor(ship.id, { releaser: "owner" });
+    assert.deepEqual(await stored(), [owner], "read again, the merge is dropped");
+
+    const alone = await flight.addIncrement({ arc: arc.id, title: "Only an event", ...WORK });
+    await flight.addWaitFor(alone.id, { releaser: "event", note: "PR #174 lands", checkBack: tomorrow });
+    await flight.removeWaitFor(alone.id, "event", undefined, { merged: 174 });
+    assert.equal(((await records.get(alone.id))?.fields as { waitsFor?: unknown } | undefined)?.waitsFor, undefined, "with no owner wait, nothing is stamped");
+    await assert.rejects(records.edit(alone.id, { waitsFor: [{ releaser: "event", note: "it lands", checkBack: tomorrow, merged: 1 }] } as never), /only an owner wait/);
   });
 }

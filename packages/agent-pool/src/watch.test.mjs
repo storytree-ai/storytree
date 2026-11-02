@@ -419,6 +419,20 @@ test("4.45 · on MERGED the watcher lets go of a pull request's claims as a merg
   ]);
 });
 
+test("4.47 · on MERGED a pull request handed over to keep its increment open clears its event wait marked with that pull request, so the increment's wait for the owner is listed for reading again; a merge that closes the increment marks nothing", async (t) => {
+  const b = await box(t);
+  await hand({ ...b.options, pr: 41, increment: "increment_one", session: SESSION, keepOpen: true, startWatcher: async () => {} });
+  await handOff(b, 42, "increment_two");
+  b.calls.length = 0;
+  b.looks[41] = { state: "merged", head: "h1" };
+  b.looks[42] = { state: "merged", head: "h1" };
+  await watchOnce(b.options);
+  assert.deepEqual(b.calls.filter(([, , verb]) => verb === "unwait"), [
+    ["arc", "increment", "unwait", "increment_one", "--for", "event", "--merged", "41"],
+    ["arc", "increment", "unwait", "increment_two", "--for", "event"],
+  ]);
+});
+
 test("4.11 · a pull request handed over to keep its increment open is watched and fixed, and on MERGED leaves the increment open", async (t) => {
   const b = await box(t);
   await hand({ ...b.options, pr: 41, increment: "increment_one", session: SESSION, keepOpen: true, startWatcher: async () => {} });
@@ -431,7 +445,7 @@ test("4.11 · a pull request handed over to keep its increment open is watched a
   b.looks[41] = { state: "merged", head: "h2" };
   await watchOnce(b.options);
   assert.deepEqual(b.calls, [
-    ["arc", "increment", "unwait", "increment_one", "--for", "event"],
+    ["arc", "increment", "unwait", "increment_one", "--for", "event", "--merged", "41"],
     ["workspace", "let-go", "41", "--reason", "PR #41 merged; released by the watcher", "--merged"],
   ], "no close");
   assert.match(b.lines.at(-1), /PR #41 merged: increment_one stays open/);

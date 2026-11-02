@@ -1,10 +1,11 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { test } from "node:test";
+import { removeTemp } from "@storytree/test-waits";
 
 // The stable routine (fortnight.sh) and its judge (judge.sh) run on the Mint box, from a weekly timer. Here each runs
 // from a copy in a git folder of its own, with storytree's command line (pnpm), the acceptance run (run.sh) and Claude
@@ -49,9 +50,9 @@ const filed = (r: Routine) => r.calls.filter((call) => call.includes("friction n
 const asked = (r: Routine) => r.calls.filter((call) => call.includes("release candidate")).length;
 /** The text of the file a call passed as `--<flag> @file`. */
 const fileOf = (call: string, flag: string) => readFileSync(new RegExp(`--${flag} @(\\S+)`).exec(call)![1]!, "utf8");
-const done = (r: Routine) => rmSync(r.root, { recursive: true, force: true });
+const done = (r: Routine) => removeTemp(r.root);
 
-test("1.17 the stable routine approves its own clone as storytree's checkout when `release candidate` refuses it as unapproved, and asks again", { skip }, () => {
+test("1.17 the stable routine approves its own clone as storytree's checkout when `release candidate` refuses it as unapproved, and asks again", { skip }, async () => {
   const r = routine([{ text: UNAPPROVED, status: 1 }, { text: NONE }]);
   try {
     const join = r.calls.findIndex((call) => call.includes("doctor --join storytree"));
@@ -59,10 +60,10 @@ test("1.17 the stable routine approves its own clone as storytree's checkout whe
     assert.equal(asked(r), 2, "asked again after the join");
     assert.deepEqual(filed(r), [], "an answer of no candidate files nothing");
     assert.equal(lastRun(r), false, "no run happened, so the fortnight is not counted");
-  } finally { done(r); }
+  } finally { await done(r); }
 });
 
-test("1.17 the stable routine files a friction when `release candidate` refuses for another reason, and does not count the fortnight", { skip }, () => {
+test("1.17 the stable routine files a friction when `release candidate` refuses for another reason, and does not count the fortnight", { skip }, async () => {
   const r = routine([{ text: "the library at mint:5432 does not answer", status: 1 }]);
   try {
     assert.equal(filed(r).length, 1, r.calls.join("\n"));
@@ -70,10 +71,10 @@ test("1.17 the stable routine files a friction when `release candidate` refuses 
     assert.doesNotMatch(fileOf(filed(r)[0]!, "title"), /regression/);
     assert.deepEqual(r.runs, []);
     assert.equal(lastRun(r), false);
-  } finally { done(r); }
+  } finally { await done(r); }
 });
 
-test("1.17 a run that ends with no verdict from its judge files a friction about the harness, not a regression in the build, and tries no other candidate", { skip }, () => {
+test("1.17 a run that ends with no verdict from its judge files a friction about the harness, not a regression in the build, and tries no other candidate", { skip }, async () => {
   const r = routine([CANDIDATE, { text: "Stable candidate: storytree 0.3.2163 (stable is 0.3.1482)." }], { runLog: "VERDICT: FAIL: the judge gave no verdict  (judge ?, $0.00, 0 s)\n" });
   try {
     assert.deepEqual(r.runs, ["0.3.2164"], "one run only");
@@ -81,10 +82,10 @@ test("1.17 a run that ends with no verdict from its judge files a friction about
     assert.doesNotMatch(fileOf(filed(r)[0]!, "title"), /regression/);
     assert.match(fileOf(filed(r)[0]!, "title"), /0\.3\.2164/);
     assert.equal(lastRun(r), false, "a run the harness could not judge is tried again at the next timer");
-  } finally { done(r); }
+  } finally { await done(r); }
 });
 
-test("1.17 a build the judge failed files a regression friction linking a note the library accepts, counts the fortnight, and asks for the next candidate", { skip }, () => {
+test("1.17 a build the judge failed files a regression friction linking a note the library accepts, counts the fortnight, and asks for the next candidate", { skip }, async () => {
   const r = routine([CANDIDATE, { text: NONE }], { runLog: "VERDICT: FAIL: criterion 3, no test passed\n" });
   try {
     assert.equal(filed(r).length, 1, r.calls.join("\n"));
@@ -92,27 +93,27 @@ test("1.17 a build the judge failed files a regression friction linking a note t
     assert.match(filed(r)[0]!, /--links process_[0-9a-f]{12}(\s|$)/, "links the Moving stable process note, not an arc");
     assert.equal(asked(r), 2);
     assert.equal(lastRun(r), true);
-  } finally { done(r); }
+  } finally { await done(r); }
 });
 
-test("1.17 when a build's regression friction cannot be filed, the routine stops rather than run the same build again", { skip }, () => {
+test("1.17 when a build's regression friction cannot be filed, the routine stops rather than run the same build again", { skip }, async () => {
   const r = routine([CANDIDATE], { runLog: "VERDICT: FAIL: criterion 3, no test passed\n", filing: 1 });
   try {
     assert.deepEqual(r.runs, ["0.3.2164"]);
-  } finally { done(r); }
+  } finally { await done(r); }
 });
 
-test("1.17 a passed build raises its pin question on the arc open for it", { skip }, () => {
+test("1.17 a passed build raises its pin question on the arc open for it", { skip }, async () => {
   const r = routine([CANDIDATE], { runLog: "VERDICT: PASS\n", runStatus: 0 });
   try {
     const questions = r.calls.filter((call) => call.includes("question new"));
     assert.equal(questions.length, 1, r.calls.join("\n"));
     assert.match(questions[0]!, /--arc arc_e75e343c4afe /);
     assert.equal(lastRun(r), true);
-  } finally { done(r); }
+  } finally { await done(r); }
 });
 
-test("1.17 the judge signs in with the routine's long-lived token, its whitespace stripped, needing no sign-in on the box", { skip }, () => {
+test("1.17 the judge signs in with the routine's long-lived token, its whitespace stripped, needing no sign-in on the box", { skip }, async () => {
   const root = mkdtempSync(path.join(tmpdir(), "storytree-stable-judge-"));
   try {
     const bin = path.join(root, "bin"), out = path.join(root, "out"), here = path.join(root, "harness");
@@ -127,5 +128,5 @@ test("1.17 the judge signs in with the routine's long-lived token, its whitespac
     const result = spawnSync("bash", [path.join(here, "judge.sh"), out], { encoding: "utf8", env: { ...rest, STABLE_ACCEPTANCE_TOKEN_FILE: token, PATH: `${bin}${path.delimiter}${process.env.PATH ?? ""}` } });
     assert.equal(result.status, 0, result.stdout + result.stderr);
     assert.equal(JSON.parse(readFileSync(path.join(out, "judge.json"), "utf8")).token, "sk-ant-oat01-abcdef");
-  } finally { rmSync(root, { recursive: true, force: true }); }
+  } finally { await removeTemp(root); }
 });

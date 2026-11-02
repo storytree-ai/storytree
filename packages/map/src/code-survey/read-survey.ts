@@ -160,11 +160,28 @@ function realOf(file: string): string {
 /** The folder a mapped story imported from `from` is read in: the top of `root`'s checkout when `from` is that top or its remote's address, else the folder of `imports` keyed by it. */
 async function importFolder(root: string, from: string, imports: readonly ImportedFolder[]): Promise<string | undefined> {
   const top = await checkoutTop(root);
-  if (path.resolve(top) === path.resolve(from)) return top;
+  if (samePlace(top, from)) return top;
   const remotes = (await gitText(top, ["remote"]).catch(() => "")).split("\n").filter(Boolean);
   const name = remotes.includes("origin") ? "origin" : remotes[0];
   if (name !== undefined && (await gitText(top, ["remote", "get-url", name]).catch(() => undefined)) === from) return top;
   return imports.find(({ folder, repository }) => repository === from || folder === from)?.folder;
+}
+
+/**
+ * Whether `one` and `other` name the same folder: Git writes Windows paths with forward slashes and long names, where
+ * a caller's may be an 8.3 short name or differ in the drive letter's case, so each is resolved to its final path.
+ */
+function samePlace(one: string, other: string): boolean {
+  const final = (folder: string) => {
+    const resolved = path.resolve(folder);
+    try {
+      return realpathSync.native(resolved);
+    } catch {
+      return resolved;
+    }
+  };
+  const [a, b] = [final(one), final(other)];
+  return process.platform === "win32" ? a.toLowerCase() === b.toLowerCase() : a === b;
 }
 
 /** The top of the checkout `folder` is in, or `folder` itself when it is in none. */

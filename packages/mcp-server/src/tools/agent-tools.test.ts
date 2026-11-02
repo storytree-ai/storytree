@@ -500,6 +500,26 @@ test("6.38 land names each planned contract of the capability that no numbered t
   });
 });
 
+test("6.110 land on a capability whose story has no package it can read in the checkout says it cannot see that story's tests and why, lists the planned contracts it could not check, and does not advise writing them", async () => {
+  await withProject(async ({ folder }) => {
+    await withAgent(folder, claudeCode("claude-1"), async (agent) => {
+      const story = idOf(await agent.call("plan_story", { title: "Shopping cart", ...FOUNDED }));
+      const capability = idOf(await agent.call("plan_capability", { story, title: "Adding", ...FOUNDED }));
+      idOf(await agent.call("plan_contract", { capability, title: "Adds an item" }));
+      assert.equal((await agent.call("claim", { capability, reason: "building the cart" })).isError, false);
+
+      const landed = await agent.call("land", { capability });
+      assert.equal(landed.isError, false, landed.text);
+      assert.match(landed.text, /cannot see the tests of its story/);
+      assert.match(landed.text, /no package/);
+      assert.match(landed.text, /1\.1 · Adds an item/);
+      assert.doesNotMatch(landed.text, /write each one's test/);
+      assert.equal(landed.data.untested, undefined);
+      assert.deepEqual(landed.data.unchecked, ["1.1 · Adds an item"]);
+    });
+  });
+});
+
 test("6.50 plan_contract numbers a new contract past the numbers its capability's landed tests already carry, naming those no contract carries", async () => {
   await withProject(async ({ folder }) => {
     await withAgent(folder, claudeCode("claude-1"), async (agent) => {

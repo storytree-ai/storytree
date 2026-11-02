@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The library, charted</title>
+<link rel="stylesheet" href="page.css">
+</head>
+<body>
+<main id="sheet">
+  <svg id="chart" xmlns="http://www.w3.org/2000/svg" aria-label="A chart of the story The library: its capabilities, their links and the open work on them">
+    <defs>
+      <symbol id="wrench" viewBox="-12 -12 24 24">
+        <path d="M5.6-9.6a5.4 5.4 0 0 0-6.7 6.9L-9.4 5.6a2.1 2.1 0 1 0 3 3L2.1-0.9a5.4 5.4 0 0 0 6.9-6.7L5.7-4.3 3.2-4.9 2.6-7.4z"/>
+      </symbol>
+    </defs>
+    <g id="world"></g>
+  </svg>
+</main>
+<aside id="side">
+  <header id="cartouche">
+    <div class="fig">Fig. 1</div>
+    <h1>The library</h1>
+    <p id="readout"></p>
+    <p class="hint">Drag to pan, wheel to zoom. Click an estate, a road, a gate, a harbour or a wrench.</p>
+    <button id="fit" type="button">Whole chart</button>
+  </header>
+  <div id="panel"></div>
+</aside>
+<script src="data.js"></script>
+<script src="page.js"></script>
+</body>
+</html>

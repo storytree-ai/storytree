@@ -4,7 +4,7 @@ import { existsSync } from "node:fs";
 import path from "node:path";
 import { affectedProject, changedOnMain, namedOnMain, type AffectedOptions } from "./affected.js";
 import type { AnnotatedTree, HealthWorkItem, Library } from "@storytree/library";
-import { codeSurveyReader, type ImportedFolder } from "./code-survey/read-survey.js";
+import { codeSurveyReader, surveyCodeName, type ImportedFolder } from "./code-survey/read-survey.js";
 import { buildGraph, type ProjectGraph } from "./graph.js";
 import { focus, formatFocus, type FocusAnswer, type FocusOptions } from "./focus.js";
 import { crossingsOf, formatCrossing, type CrossingAnswer, type CrossingOptions } from "./code-survey/crossings.js";
@@ -13,10 +13,11 @@ import { capabilityTreeOf, formatCapabilityTree, type CapabilityTree } from "./c
 type PlanReader = Pick<Library, "projectTree">;
 
 /**
- * The one reader of current checkouts the map's entry points share for the life of the process, so a repeat ask of
- * an unchanged checkout reads and parses no file (3.12, ADR-0836 D2): a fresh reader per ask kept nothing.
+ * The one reader of current checkouts the map's entry points, diff focus's working tree among them, share for the life
+ * of the process, so a repeat ask of an unchanged checkout reads and parses no file (3.12, ADR-0836 D2): a fresh reader
+ * per ask kept nothing. It keeps a Git checkout's survey in its Git directory, so a new process's first ask parses none either (3.13).
  */
-const current = codeSurveyReader({ checkout: "current" });
+const current = codeSurveyReader({ checkout: "current", codeName: () => surveyCodeName() });
 
 /**
  * The increment a branch's name carries (a workspace's branch is claude/increment-<id>-<suffix>), as its
@@ -62,7 +63,7 @@ export async function readMap(library: PlanReader, folder: string, imports: read
 }
 
 export async function focusProject(library: PlanReader, folder: string, options: FocusOptions, imports: readonly ImportedFolder[] = []): Promise<FocusAnswer> {
-  if (options.select.startsWith("diff:")) return affectedProject(onBranch(library, folder), folder, { ...options, range: options.select.slice(5) });
+  if (options.select.startsWith("diff:")) return affectedProject(onBranch(library, folder), folder, { ...options, range: options.select.slice(5) }, current);
   const top = await topOf(folder);
   return focus(await readMap(library, folder, imports), options, { exists: file => existsSync(path.join(top, file)) });
 }
@@ -100,7 +101,7 @@ export async function capabilitiesCommand(library: PlanReader, folder: string, s
 
 /** The affected front door and diff focus share one map implementation and renderer. */
 export async function affectedCommand(library: PlanReader, folder: string, options: AffectedOptions, json = false): Promise<string> {
-  const answer = await affectedProject(onBranch(library, folder), folder, options);
+  const answer = await affectedProject(onBranch(library, folder), folder, options, current);
   return json ? JSON.stringify(answer) : formatFocus(answer);
 }
 

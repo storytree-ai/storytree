@@ -4,17 +4,19 @@
  */
 import assert from "node:assert/strict";
 import { execFileSync, spawn } from "node:child_process";
+import { realpathSync } from "node:fs";
 import { chmod, mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
+import { pathToFileURL } from "node:url";
 
 import { quietFor, removeTemp, waitUntil } from "@storytree/test-waits";
 
 import type { AnnotatedTree, StorySurvey } from "@storytree/library";
 
-import { capabilitiesOfFiles, codeSurveyReader, placeFiles, noMergedMain, offThreadSurveyReader, readCodeSurvey, storyTests, testedNumbers, untestedContracts } from "./read-survey.js";
+import { capabilitiesOfFiles, codeSurveyReader, placeFiles, noMergedMain, offThreadSurveyReader, readCodeSurvey, storyTests, surveyCodeName, testedNumbers, untestedContracts } from "./read-survey.js";
 import { focusProject } from "../read.js";
 import { importedSource } from "./survey-source.js";
 // 8.16 runs this module on a worker thread; imported here, with no parent port, it answers nothing.
@@ -891,6 +893,86 @@ test("8.25 a start whose fetched main is the commit last surveyed, with the same
     assert.equal(moved["story-shop"]?.files[0]?.lines, 2, "a newer main is surveyed afresh");
     await forgetContents();
     assert.deepEqual(await surveyed(tree), moved, "and kept in its turn");
+  } finally {
+    await removeTemp(folder);
+  }
+});
+
+test("8.42 a current-checkout reader given its code's name answers a fresh start on an unchanged checkout from the survey kept in its Git directory, reading no file", async () => {
+  // By its real path, as Git names the checkout.
+  const folder = realpathSync.native(await mkdtemp(path.join(tmpdir(), "code-survey-kept-current-")));
+  const src = path.join(folder, "packages/shop/src");
+  const read: string[] = [];
+  // Each start is a new reader: nothing of an earlier one's reading is in memory.
+  const surveyed = (code: string | undefined = "code-a") => codeSurveyReader({ checkout: "current", codeName: () => code, readFile: (file) => (read.push(file), readFile(file, "utf8")) }).read(folder, tree);
+  const reads = async (code?: string) => {
+    read.length = 0;
+    const survey = await surveyed(code);
+    return { survey, read: read.map((file) => path.relative(folder, file).split(path.sep).join("/")).sort() };
+  };
+  try {
+    await mkdir(src, { recursive: true });
+    await writeFile(path.join(src, "claim.ts"), "export const claim = 1;\n");
+    await writeFile(path.join(src, "claim.test.ts"), 'import { claim } from "./claim.js";\ntest("3.1 a claim holds", () => claim);\n');
+    const first = await reads();
+    assert.equal(first.read.length, 2, "a folder with no Git keeps nothing");
+    assert.deepEqual((await reads()).read, first.read);
+
+    execFileSync("git", ["init", "-q", "-b", "main", folder], { stdio: "pipe", windowsHide: true });
+    assert.equal((await reads()).read.length, 2);
+    const kept = await reads();
+    assert.deepEqual(kept, { survey: first.survey, read: [] }, "an unchanged checkout is answered from the kept survey");
+    assert.equal((await reads("code-b")).read.length, 2, "a survey kept by other code is not used");
+    assert.equal((await reads(undefined)).read.length, 2, "a reader whose code has no name keeps nothing");
+
+    await writeFile(path.join(src, "claim.ts"), "export const claim = 1;\nexport const twice = 2;\n");
+    const changed = await reads();
+    assert.equal(changed.survey["story-shop"]?.files[0]?.lines, 2, "a changed file is surveyed afresh");
+    assert.deepEqual((await reads()).read, [], "and kept in its turn");
+    await writeFile(path.join(src, "cart.ts"), "export const cart = 1;\n");
+    assert.ok((await reads()).read.includes("packages/shop/src/cart.ts"), "an added file is read");
+    await rm(path.join(src, "cart.ts"));
+    assert.deepEqual((await reads()).survey, changed.survey, "a removed file leaves the survey");
+    const renamed = { arcs: [], stories: [{ ...tree.stories[0], capabilities: [{ id: "cap-claims", title: "3 · Claimed" }] }] } as unknown as AnnotatedTree;
+    read.length = 0;
+    await codeSurveyReader({ checkout: "current", codeName: () => "code-a", readFile: (file) => (read.push(file), readFile(file, "utf8")) }).read(folder, renamed);
+    assert.equal(read.length, 2, "another plan is surveyed afresh");
+  } finally {
+    await removeTemp(folder);
+  }
+});
+
+test("8.43 the survey code's name changes when any of the survey's own source files changes, or its bundle does, and is none when they cannot be read", async () => {
+  const folder = await mkdtemp(path.join(tmpdir(), "code-survey-code-name-"));
+  try {
+    await writeFile(path.join(folder, "read-survey.ts"), "export const read = 1;\n");
+    await writeFile(path.join(folder, "code-survey.ts"), "export const survey = 1;\n");
+    await writeFile(path.join(folder, "code-survey.test.ts"), "test('8.1', () => {});\n");
+    await writeFile(path.join(folder, "notes.md"), "not code\n");
+    const at = pathToFileURL(path.join(folder, "read-survey.ts"));
+    const name = surveyCodeName(at);
+    assert.match(name ?? "", /^[0-9a-f]{64}$/);
+    assert.equal(surveyCodeName(path.join(folder, "read-survey.ts")), name, "a path names it as its URL does");
+    assert.equal(surveyCodeName(at.href), name);
+    await writeFile(path.join(folder, "code-survey.test.ts"), "test('8.2', () => {});\n");
+    await writeFile(path.join(folder, "notes.md"), "still not code\n");
+    assert.equal(surveyCodeName(at), name, "a test or a file that is not code leaves it");
+    await writeFile(path.join(folder, "code-survey.ts"), "export const survey = 2;\n");
+    const changed = surveyCodeName(at);
+    assert.notEqual(changed, name, "a change to any of its source files changes it, not only the file asking");
+
+    // A bundle is one file standing for all of them.
+    const bundle = path.join(folder, "out");
+    await mkdir(bundle);
+    await writeFile(path.join(bundle, "main.js"), "var survey = 1;\n");
+    const bundled = surveyCodeName(path.join(bundle, "main.js"));
+    await writeFile(path.join(bundle, "main.js"), "var survey = 2;\n");
+    assert.notEqual(surveyCodeName(path.join(bundle, "main.js")), bundled);
+
+    assert.equal(surveyCodeName(path.join(folder, "gone", "read-survey.ts")), undefined);
+    await mkdir(path.join(folder, "tests-only"));
+    await writeFile(path.join(folder, "tests-only", "code-survey.test.ts"), "test('8.1', () => {});\n");
+    assert.equal(surveyCodeName(path.join(folder, "tests-only", "code-survey.test.ts")), undefined, "a folder with no source names no code");
   } finally {
     await removeTemp(folder);
   }

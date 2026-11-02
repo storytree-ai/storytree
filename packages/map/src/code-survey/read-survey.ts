@@ -25,9 +25,12 @@
  *   survey code: a start that finds main unmoved and the plan the same answers from it, reading and parsing no
  *   file (8.25). A commit is immutable, so a kept survey cannot be stale. A plan with mapped stories is not kept:
  *   an imported folder can change without a commit.
+ * - A current-checkout reader given its code's name keeps the checkout's last survey in its Git directory, with
+ *   every folder listing and file version the survey consulted: a start that finds each as it was, and the code
+ *   and plan the same, answers from it, reading no file but the keep (8.42). A folder with no Git keeps nothing.
  */
 import { createHash } from "node:crypto";
-import { readFileSync, realpathSync } from "node:fs";
+import { readdirSync, readFileSync, realpathSync } from "node:fs";
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -232,27 +235,88 @@ export interface SurveyKeep {
 
 const hashOf = (text: string) => createHash("sha256").update(text).digest("hex");
 
-/** The kept survey of the checkout at `root` for `key`, if the keep holds one; a missing or unreadable keep holds none. */
-async function keptSurvey(file: string, key: string): Promise<ProjectSurvey | undefined> {
+/** What a survey read from disk consulted: each folder's listing and each file's version, null for a file that was not there. */
+type Witness = { readonly entries: readonly (readonly [string, string])[]; readonly files: readonly (readonly [string, string | null])[] };
+
+/** A survey as kept: the key it was kept for, and for a current checkout what it consulted. */
+type KeptSurvey = { readonly key: string; readonly survey: ProjectSurvey; readonly witness?: Witness };
+
+/** The checkout's survey kept in `file`, if the keep holds one; a missing or unreadable keep holds none. */
+async function keptSurvey(file: string): Promise<KeptSurvey | undefined> {
   try {
-    const kept = JSON.parse(await readFile(file, "utf8")) as { key?: unknown; survey?: ProjectSurvey };
-    return kept.key === key ? kept.survey : undefined;
+    const kept = JSON.parse(await readFile(file, "utf8")) as Partial<KeptSurvey>;
+    return typeof kept.key === "string" && kept.survey !== undefined ? kept as KeptSurvey : undefined;
   } catch {
     return undefined;
   }
 }
 
-/** Keep `survey` for `key`, replacing the checkout's last; a keep that cannot be written leaves the survey answered all the same. */
-async function keepSurvey(file: string, key: string, survey: ProjectSurvey): Promise<void> {
+/** Keep `kept`, replacing the checkout's last; a keep that cannot be written leaves the survey answered all the same. */
+async function keepSurvey(file: string, kept: KeptSurvey): Promise<void> {
   try {
     await mkdir(path.dirname(file), { recursive: true });
     const writing = `${file}.${process.pid}.${Date.now()}.tmp`;
-    await writeFile(writing, JSON.stringify({ key, survey }));
+    await writeFile(writing, JSON.stringify(kept));
     await rename(writing, file);
   } catch {}
 }
 
-export function codeSurveyReader({ readFile: readText = (file: string) => readFile(file, "utf8"), checkout: checkoutScope = "main", keep, startFromFetched = false, alsoOwned = ALSO_OWNED }: {
+type Entries = Awaited<ReturnType<SurveySource["entries"]>>;
+const listing = (entries: Entries) => entries.map(({ name, directory, file }) => `${directory ? "d" : file ? "f" : "o"}:${name}`).sort().join("\0");
+
+/** `source`, noting every folder it lists and every file it is asked for, so that what a survey consulted can be checked again by stat alone. */
+function witnessing(source: SurveySource): { source: SurveySource; witness(): Witness } {
+  const entries = new Map<string, string>();
+  const files = new Map<string, string | null>();
+  const byPath = (a: readonly [string, unknown], b: readonly [string, unknown]) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0);
+  return {
+    source: {
+      ...source,
+      async entries(directory) {
+        const found = await source.entries(directory);
+        entries.set(directory, listing(found));
+        return found;
+      },
+      async file(full) {
+        const found = await source.file(full);
+        files.set(full, found?.version ?? null);
+        return found;
+      },
+    },
+    witness: () => ({ entries: [...entries].sort(byPath), files: [...files].sort(byPath) }),
+  };
+}
+
+/** Whether every folder and file `witness` names is as it was, read by listing and stat, no file's text. */
+async function stillWitnessed(source: SurveySource, witness: Witness): Promise<boolean> {
+  const checks = [
+    ...witness.entries.map(async ([directory, was]) => listing(await source.entries(directory)) === was),
+    ...witness.files.map(async ([full, was]) => ((await source.file(full))?.version ?? null) === was),
+  ];
+  return (await Promise.all(checks)).every(Boolean);
+}
+
+const CODE_FILE = /\.[cm]?[jt]sx?$/;
+
+/**
+ * The name of the survey's code at `at` (8.43): a hash of every source file, tests left out, in the folder of the file
+ * `at` names, a path or a file URL (this module's own by default). In development that is the survey's own folder; in a bundle, the bundle
+ * standing for it. None when they cannot be read.
+ */
+export function surveyCodeName(at: string | URL = import.meta.url): string | undefined {
+  try {
+    const folder = path.dirname(typeof at === "string" && !at.startsWith("file:") ? at : fileURLToPath(at));
+    const names = readdirSync(folder, { withFileTypes: true }).filter((entry) => entry.isFile() && CODE_FILE.test(entry.name) && !TEST_FILE.test(entry.name)).map(({ name }) => name).sort();
+    if (names.length === 0) return undefined;
+    const hash = createHash("sha256");
+    for (const name of names) hash.update(`${name}\0${readFileSync(path.join(folder, name), "utf8")}\0`);
+    return hash.digest("hex");
+  } catch {
+    return undefined;
+  }
+}
+
+export function codeSurveyReader({ readFile: readText = (file: string) => readFile(file, "utf8"), checkout: checkoutScope = "main", keep, codeName, startFromFetched = false, alsoOwned = ALSO_OWNED }: {
   readFile?(file: string): Promise<string>;
   /** The packages stories own beyond the one named after their title (8.30); by default, those package-of.ts declares. */
   alsoOwned?: AlsoOwned;
@@ -260,6 +324,11 @@ export function codeSurveyReader({ readFile: readText = (file: string) => readFi
   checkout?: "main" | "current";
   /** Where surveys of a fetched main are kept between starts (8.25); without it nothing is kept. */
   keep?: SurveyKeep;
+  /**
+   * The name of the code surveying, asked once when first needed: a current-checkout reader given one keeps the checkout's
+   * last survey in its Git directory between starts (8.42), by that name. None keeps nothing.
+   */
+  codeName?(): string | undefined;
   /**
    * A start's reader (8.27): its first ask of a repository is answered from the main already fetched, when there is one, while
    * it fetches; its next ask waits on that fetch and surveys what it brought. Without it, every ask waits on its own fetch.
@@ -333,19 +402,47 @@ async function declaredPlumbing(source: SurveySource, checkout: string): Promise
 
 /** The checkout's last kept survey by its file, and the key it was kept for: written again only when that changes. */
   const keptKeys = new Map<string, string>();
+  /** Each current checkout's last survey by its keep's file, with what it consulted: the disk's keep is read only before there is one. */
+  const keptCurrent = new Map<string, KeptSurvey>();
+  const gitDirectories = new Map<string, Promise<string | undefined>>();
+  let code: { readonly name: string | undefined } | undefined;
+
+  /** Where the current checkout at `checkout` keeps its survey of `tree`, and the key it keeps it for; none without Git or a code name. */
+  async function currentKeep(checkout: string, tree: AnnotatedTree): Promise<{ file: string; key: string } | undefined> {
+    if (checkoutScope !== "current" || codeName === undefined || tree.stories.some((story) => story.mapped !== undefined)) return undefined;
+    code ??= { name: codeName() };
+    if (code.name === undefined) return undefined;
+    if (!gitDirectories.has(checkout)) gitDirectories.set(checkout, gitText(checkout, ["rev-parse", "--path-format=absolute", "--git-dir"]).catch(() => undefined));
+    const gitDirectory = await gitDirectories.get(checkout)!;
+    if (gitDirectory === undefined) return undefined;
+    return {
+      file: path.join(gitDirectory, "storytree", "current-survey.json"),
+      key: hashOf(JSON.stringify([code.name, alsoOwned, tree.stories.map(({ id, title, capabilities }) => [id, title, capabilities.map((part) => [part.id, part.title])])])),
+    };
+  }
 
   async function survey(folder: string, tree: AnnotatedTree, imports: readonly ImportedFolder[]): Promise<ProjectSurvey> {
-    const source = await sourceAt(folder);
-    const checkout = source.root;
+    const opened = await sourceAt(folder);
+    const checkout = opened.root;
+    const current = await currentKeep(checkout, tree);
+    if (current !== undefined) {
+      const last = keptCurrent.get(current.file) ?? await keptSurvey(current.file);
+      if (last?.key === current.key && last.witness !== undefined && await stillWitnessed(opened, last.witness)) {
+        keptCurrent.set(current.file, last);
+        return last.survey;
+      }
+    }
+    const recording = current === undefined ? undefined : witnessing(opened);
+    const source = recording?.source ?? opened;
     const keeping = keep === undefined || source.commit === undefined || tree.stories.some((story) => story.mapped !== undefined) ? undefined : {
       file: path.join(keep.folder, `${hashOf(checkout).slice(0, 16)}.json`),
       key: hashOf(JSON.stringify([keep.code, source.commit, tree.stories.map(({ id, title, capabilities }) => [id, title, capabilities.map((part) => [part.id, part.title])])])),
     };
     if (keeping !== undefined) {
-      const found = keptKeys.get(keeping.file) === keeping.key || !keptKeys.has(keeping.file) ? await keptSurvey(keeping.file, keeping.key) : undefined;
-      if (found !== undefined) {
+      const found = keptKeys.get(keeping.file) === keeping.key || !keptKeys.has(keeping.file) ? await keptSurvey(keeping.file) : undefined;
+      if (found?.key === keeping.key) {
         keptKeys.set(keeping.file, keeping.key);
-        return found;
+        return found.survey;
       }
     }
     const seen = new Map<string, Kept>();
@@ -452,7 +549,13 @@ async function declaredPlumbing(source: SurveySource, checkout: string): Promise
     const answer = { ...Object.fromEntries(withEdges), ...Object.fromEntries(mappedRead.surveys) };
     if (keeping !== undefined && keptKeys.get(keeping.file) !== keeping.key) {
       keptKeys.set(keeping.file, keeping.key);
-      await keepSurvey(keeping.file, keeping.key, answer);
+      await keepSurvey(keeping.file, { key: keeping.key, survey: answer });
+    }
+    if (current !== undefined) {
+      const now: KeptSurvey = { key: current.key, survey: answer, witness: recording!.witness() };
+      const last = keptCurrent.get(current.file);
+      keptCurrent.set(current.file, now);
+      if (last?.key !== now.key || JSON.stringify(last.witness) !== JSON.stringify(now.witness)) await keepSurvey(current.file, now);
     }
     return answer;
   }

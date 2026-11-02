@@ -1,10 +1,12 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
+import { realpathSync } from "node:fs";
 import fsPromises, { mkdtemp, mkdir, writeFile } from "node:fs/promises";
 import { syncBuiltinESMExports } from "node:module";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { mock, test } from "node:test";
+import { Worker } from "node:worker_threads";
 
 import { removeTemp } from "@storytree/test-waits";
 
@@ -100,6 +102,65 @@ test("3.11 with --capabilities, the map answers a selected story's capabilities 
     await assert.rejects(capabilitiesCommand(library, folder, "story:Nothing"), /Map selection not found: story:Nothing/);
   } finally {
     await removeTemp(folder);
+  }
+});
+
+test("3.13 a new process's map or diff focus on an unchanged Git checkout parses no file of it, and diff focus shares the map's reading", async () => {
+  // By its real path, as Git names the checkout: a temporary folder can sit behind a link (macOS) or a short name (Windows).
+  const folder = realpathSync.native(await mkdtemp(path.join(tmpdir(), "map-new-process-")));
+  const health = { reported: { state: "not-checked" }, verified: { state: "passing" } };
+  const plan = { arcs: [], stories: [{ id: "app", title: "The app", health, capabilities: [{ id: "projects", title: "2 · Projects", health, dependsOn: [], contracts: [{ id: "empty", title: "2.5 empty view", health }] }] }] };
+  // Each start is a fresh worker thread, with its own copy of every module: it counts the checkout's files it reads,
+  // its Git directory left out, through a map and then a diff focus.
+  const script = path.join(await mkdtemp(path.join(tmpdir(), "map-new-process-script-")), "start.mjs");
+  await writeFile(script, `
+      import { parentPort, workerData } from "node:worker_threads";
+      import fs from "node:fs/promises";
+      import { syncBuiltinESMExports } from "node:module";
+      import path from "node:path";
+      const { folder, plan, module } = workerData;
+      const read = [];
+      const readFile = fs.readFile;
+      fs.readFile = (file, ...rest) => {
+        if (typeof file === "string" && file.startsWith(folder) && !file.startsWith(path.join(folder, ".git"))) read.push(file);
+        return readFile(file, ...rest);
+      };
+      syncBuiltinESMExports();
+      import(module).then(async ({ mapCommand }) => {
+        const library = { projectTree: async () => plan };
+        const answers = [];
+        answers.push(await mapCommand(library, folder, { select: "file:packages/app/src/view.ts", up: 1, mode: "show" }, true));
+        const map = read.length;
+        answers.push(await mapCommand(library, folder, { select: "diff:HEAD", up: 1, mode: "show" }, true));
+        parentPort.postMessage({ answers, read: [map, read.length - map] });
+      }, (error) => parentPort.postMessage({ error: String(error) }));
+  `);
+  const start = () => new Promise<{ answers: string[]; read: number[] }>((resolve, reject) => {
+    const worker = new Worker(script, { execArgv: ["--import", "tsx"], workerData: { folder, plan, module: new URL("./read.ts", import.meta.url).href } });
+    worker.once("message", (said: { error?: string; answers: string[]; read: number[] }) => {
+      void worker.terminate();
+      if (said.error === undefined) resolve(said);
+      else reject(new Error(said.error));
+    });
+    worker.once("error", reject);
+  });
+  try {
+    await mkdir(path.join(folder, "packages/app/src"), { recursive: true });
+    await writeFile(path.join(folder, "packages/app/src/view.ts"), "export const view = 1;");
+    await writeFile(path.join(folder, "packages/app/src/view.test.ts"), 'import { view } from "./view.js"; test("2.5 empty view", () => view);');
+    const git = (...args: string[]) => execFileSync("git", args, { cwd: folder, stdio: "pipe", windowsHide: true });
+    git("init", "-q", "-b", "main");
+    git("add", ".");
+    git("-c", "user.name=Map test", "-c", "user.email=map@example.test", "-c", "commit.gpgsign=false", "commit", "-q", "-m", "fixture");
+
+    const first = await start();
+    assert.deepEqual(first.read, [2, 0], "the first start reads its files once, and its diff focus reads the map's reading");
+    const again = await start();
+    assert.deepEqual(again.read, [0, 0], "a new process on an unchanged checkout parses no file of it");
+    assert.deepEqual(again.answers, first.answers);
+  } finally {
+    await removeTemp(folder);
+    await removeTemp(path.dirname(script));
   }
 });
 

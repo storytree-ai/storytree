@@ -307,3 +307,56 @@ test("2.11 a line appended for a hook event is not added again when the log hold
     assert.deepEqual(lines.map((written) => written.folder), ["/site", "/elsewhere", "/site", "/site", "/site"], "a different line, another event, the same way again and the other way past the window each add one");
   });
 });
+
+/** Run `body`, counting the statements every connection sends the server meanwhile: each is one round trip. */
+async function countingRoundTrips(body: () => Promise<void>): Promise<number> {
+  const query = pg.Client.prototype.query;
+  let sent = 0;
+  pg.Client.prototype.query = function (this: pg.Client, ...args: unknown[]) {
+    sent += 1;
+    return (query as (...given: unknown[]) => unknown).apply(this, args);
+  } as typeof query;
+  try {
+    await body();
+  } finally {
+    pg.Client.prototype.query = query;
+  }
+  return sent;
+}
+
+test("2.13 lines written earlier, appended as one batch, go in at their own times and in order in a few round trips however many they are; a line exactly like one the log holds at that time, or like an earlier one of the batch, is added once, and a line of an event that came the other way within two minutes is kept once", async () => {
+  const project = uniqueProjectName();
+  await withLog(async (log) => {
+    const line = (folder: string): NewLine => ({ session: "s1", harness: "claude-code", source: "hook", kind: "turn-ended", folder });
+    const start = Date.parse("2026-11-02T00:00:00.000Z");
+    const at = (seconds: number): string => new Date(start + seconds * 1_000).toISOString();
+    const command = { key: "event-a", via: "command" } as const;
+    const tool = { key: "event-a", via: "tool" } as const;
+    await log.append(project, line("/held"), { at: at(0), once: true });
+    await log.append(project, line("/evented"), { at: at(0), event: command });
+    await log.appendMany(project, [
+      { line: line("/new"), at: at(1) },
+      { line: line("/held"), at: at(0) },
+      { line: line("/held"), at: at(2) },
+      { line: line("/evented"), at: at(3), event: tool },
+      { line: line("/new"), at: at(1) },
+      { line: line("/twice"), at: at(4), event: tool },
+      { line: line("/twice"), at: at(5), event: command },
+      { line: line("/twice"), at: at(6), event: tool },
+    ]);
+    const lines = (await log.since(project, 0)).lines.slice(2);
+    assert.deepEqual(lines.map((written) => [written.folder, written.at]), [["/new", at(1)], ["/held", at(2)], ["/twice", at(4)], ["/twice", at(6)]],
+      "the held line at its time, the other way's delivery and the batch's own repeats are not added again; the same way twice adds two");
+
+    const one = await countingRoundTrips(() => log.appendMany(project, [{ line: line("/one"), at: at(10) }]));
+    const many = await countingRoundTrips(() => log.appendMany(project, Array.from({ length: 100 }, (_, index) => ({ line: line(`/many-${index}`), at: at(20 + index) }))));
+    assert.equal(many, one, "a hundred lines take the round trips one does");
+    assert.ok(one <= 4, `a batch is a few round trips, not ${one}`);
+    assert.deepEqual((await log.since(project, 0)).lines.slice(-100).map((written) => written.folder), Array.from({ length: 100 }, (_, index) => `/many-${index}`), "in the order given");
+
+    const count = (await log.since(project, 0)).lines.length;
+    await assert.rejects(log.appendMany(project, [{ line: line("/caused"), at: at(200) }, { line: { ...line("/dangling"), causedBy: 999_999_999 }, at: at(201) }]), /its cause, line 999999999, is not a line of/);
+    await assert.rejects(log.appendMany(project, [{ line: line("/untimed"), at: "yesterday" }]), RangeError);
+    assert.equal((await log.since(project, 0)).lines.length, count, "a batch with a dangling cause or a time that is not one writes nothing");
+  });
+});

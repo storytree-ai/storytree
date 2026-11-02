@@ -4,7 +4,7 @@
  * store restarting), a hook writes its lines here, under the storytree home, each with the time and
  * machine it was written at. The next hook that reaches the log uploads every waiting line before
  * its own, oldest first, at its own time; an upload tried twice, by two hooks at once or after a
- * crash, adds each line once (ActivityLog.append's `once`).
+ * crash, adds each line once (ActivityLog.appendMany, as append's `once`).
  *
  * Each hook's lines are one file, written whole and then renamed into place, so a reader never sees
  * half of one; the file name starts with the time, so the files sort oldest first.
@@ -14,7 +14,7 @@ import { mkdirSync, readdirSync, readFileSync, renameSync, rmSync, writeFileSync
 import { hostname } from "node:os";
 import path from "node:path";
 
-import type { ActivityLog, DeliveredEvent } from "../activity/index.js";
+import type { ActivityLog, DeliveredEvent, Earlier } from "../activity/index.js";
 import type { NewLine } from "@storytree/library";
 
 /** One waiting line: the project it is for, when it was written, and the hook event it records, so it is kept once whichever way that event came (ADR-1056 D2). */
@@ -44,9 +44,14 @@ export function enqueue(home: string, project: string, lines: readonly NewLine[]
   renameSync(path.join(folder, `${name}.part`), path.join(folder, `${name}.jsonl`));
 }
 
+/** How many waiting lines go up in one transaction, of a few round trips (ADR-1207's follow-up): whole files, so a file is forgotten once its lines are in. */
+export const UPLOAD_BATCH = 100;
+
 /**
  * Upload every waiting line to `log`, oldest first, each once, and forget each file once all its
- * lines are in. A file that cannot be read as lines is set aside (renamed `.unreadable`), never
+ * lines are in. They go up in batches of whole files, about UPLOAD_BATCH lines, each in a few round
+ * trips (ActivityLog.appendMany), so a backlog over a slow route drains fast and holds the project's
+ * lock only briefly. A file that cannot be read as lines is set aside (renamed `.unreadable`), never
  * retried for ever. Stops at the first failure, leaving the rest for the next hook. A line waits
  * only while storytree is out of reach, before its folder's approval could be asked, so it is
  * uploaded only if `admits` its project and folder now (ADR-0942 D1); one it does not is dropped.
@@ -67,6 +72,14 @@ export async function uploadQueued(home: string, log: ActivityLog, admits: (proj
   } catch {
     return;
   }
+  let files: string[] = [];
+  let batch = new Map<string, Earlier[]>();
+  let count = 0;
+  const send = async (): Promise<void> => {
+    for (const [project, earlier] of batch) await log.appendMany(project, earlier);
+    for (const file of files) rmSync(file, { force: true });
+    [files, batch, count] = [[], new Map(), 0];
+  };
   for (const name of names) {
     const file = path.join(folder, name);
     let waiting: Queued[];
@@ -78,7 +91,15 @@ export async function uploadQueued(home: string, log: ActivityLog, admits: (proj
       renameSync(file, `${file}.unreadable`);
       continue;
     }
-    for (const { project, at, line, event } of waiting) if (await admitted(project, line.folder)) await log.append(project, line, { at, once: true, ...(event === undefined ? {} : { event }) });
-    rmSync(file, { force: true });
+    for (const { project, at, line, event } of waiting) {
+      if (!(await admitted(project, line.folder))) continue;
+      const lines = batch.get(project) ?? [];
+      lines.push({ line, at, ...(event === undefined ? {} : { event }) });
+      batch.set(project, lines);
+      count += 1;
+    }
+    files.push(file);
+    if (count >= UPLOAD_BATCH) await send();
   }
+  await send();
 }

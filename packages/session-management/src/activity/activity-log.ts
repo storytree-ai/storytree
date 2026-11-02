@@ -36,6 +36,12 @@ export interface ActivityLog {
   /** Add a line to `project`'s log, and return it as the log keeps it. A line that is not one the log knows is refused. */
   append(project: string, line: NewLine, options?: AppendOptions): Promise<Line>;
   /**
+   * Add `earlier`, lines written earlier elsewhere (a hook's queued lines), to `project`'s log in the
+   * order given, each as `append` adds it with its own time and `once`: one transaction of a few round
+   * trips however many lines there are, for a log reached across a slow route (contract 2.13).
+   */
+  appendMany(project: string, earlier: readonly Earlier[]): Promise<void>;
+  /**
    * `project`'s lines after `cursor`, oldest first, and the cursor to pass next time. Start from 0
    * only for a reader that keeps what it read and asks again from its cursor (the app's): a reader
    * that asks once asks for what it needs, with `lines`.
@@ -98,6 +104,13 @@ export interface AppendOptions {
    * not added again: an event both ways deliver is kept once. One way never dedupes against itself, so
    * two events with the same input, each delivered once, are two.
    */
+  readonly event?: DeliveredEvent;
+}
+
+/** A line written earlier elsewhere, at `at` (ISO 8601), recording `event` when it records one. */
+export interface Earlier {
+  readonly line: NewLine;
+  readonly at: string;
   readonly event?: DeliveredEvent;
 }
 
@@ -271,6 +284,16 @@ class PgActivityLog implements ActivityLog {
     const parsed = parseLine(this.#stamped(line));
     if (options.at !== undefined && Number.isNaN(Date.parse(options.at))) throw new RangeError(`a line's time must be an ISO 8601 time, not ${JSON.stringify(options.at)}`);
     return this.#write(project, (client) => insert(client, project, parsed, options));
+  }
+
+  async appendMany(project: string, earlier: readonly Earlier[]): Promise<void> {
+    assertProject(project);
+    if (earlier.length === 0) return;
+    const parsed = earlier.map(({ line, at, event }) => {
+      if (Number.isNaN(Date.parse(at))) throw new RangeError(`a line's time must be an ISO 8601 time, not ${JSON.stringify(at)}`);
+      return { line: parseLine(this.#stamped(line)), at, ...(event === undefined ? {} : { event }) };
+    });
+    await this.#write(project, (client) => insertMany(client, project, parsed));
   }
 
   async since(project: string, cursor: number): Promise<LinesSince> {
@@ -462,6 +485,83 @@ async function insert(client: PoolClient, project: string, line: NewLine, { at, 
   );
   const row = rows[0]!;
   return { ...line, seq: Number(row.seq), project, at: row.at.toISOString() } as Line;
+}
+
+/** The same line, as the log compares lines: its columns and its detail, the detail's keys in order (jsonb sorts them). */
+function sameKey(line: NewLine): string {
+  const { session, harness, source, kind, folder, ...detail } = line;
+  const sorted = (value: unknown): unknown => Array.isArray(value) ? value.map(sorted)
+    : value !== null && typeof value === "object" ? Object.fromEntries(Object.entries(value).filter(([, field]) => field !== undefined).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)).map(([key, field]) => [key, sorted(field)])) : value;
+  return JSON.stringify([session, harness ?? null, source, kind, folder ?? null, sorted(detail)]);
+}
+
+/**
+ * Add `earlier` to `project`'s log on `client`, inside a transaction holding the project's lock, as
+ * `insert` adds each with `once` and its time: one statement checks a run of lines against the log and
+ * inserts the rest, in order. A line that could be the same as an earlier one of the run (exactly like
+ * it at its time, or of its event come the other way) starts the next run, so it is checked against
+ * the log once that one is in, as one line after another would be; almost every batch is one run.
+ */
+async function insertMany(client: PoolClient, project: string, earlier: readonly Earlier[]): Promise<void> {
+  // A cause is an earlier line of this project's log: a dangling one is refused, never healed (0.2 inc-74).
+  const causes = [...new Set(earlier.flatMap(({ line }) => (line.causedBy === undefined ? [] : [line.causedBy])))];
+  if (causes.length > 0) {
+    const { rows } = await client.query<{ seq: string }>("SELECT seq FROM activity WHERE project = $1 AND seq = ANY($2::bigint[])", [project, causes]);
+    const found = new Set(rows.map((row) => Number(row.seq)));
+    const missing = causes.find((cause) => !found.has(cause));
+    if (missing !== undefined) throw new Error(`the activity log refused a line: its cause, line ${missing}, is not a line of ${project}'s log`);
+  }
+  let run: Earlier[] = [];
+  const seen = new Set<string>();
+  const ways = new Map<string, Set<string>>();
+  for (const entry of earlier) {
+    const same = `${sameKey(entry.line)}@${Date.parse(entry.at)}`;
+    const other = entry.event === undefined ? false : [...(ways.get(entry.event.key) ?? [])].some((via) => via !== entry.event!.via);
+    if (seen.has(same) || other) {
+      await insertRun(client, project, run);
+      run = [];
+      seen.clear();
+      ways.clear();
+    }
+    run.push(entry);
+    seen.add(same);
+    if (entry.event !== undefined) ways.set(entry.event.key, (ways.get(entry.event.key) ?? new Set()).add(entry.event.via));
+  }
+  await insertRun(client, project, run);
+}
+
+/** Insert the lines of `run` that the log does not already hold, by `insert`'s once and event rules, in one statement, in order. */
+async function insertRun(client: PoolClient, project: string, run: readonly Earlier[]): Promise<void> {
+  if (run.length === 0) return;
+  const column = (pick: (entry: Earlier) => string | null) => run.map(pick);
+  const detail = (line: NewLine): string => {
+    const { session: _session, harness: _harness, source: _source, kind: _kind, folder: _folder, ...rest } = line;
+    return JSON.stringify(rest);
+  };
+  const like = (a: string) => `${a}.session = b.session AND ${a}.harness IS NOT DISTINCT FROM b.harness AND ${a}.source = b.source AND ${a}.kind = b.kind
+    AND ${a}.folder IS NOT DISTINCT FROM b.folder AND ${a}.detail = b.detail`;
+  await client.query(
+    `INSERT INTO activity (project, session, harness, source, kind, folder, detail, at, event, event_via)
+     SELECT $1, b.session, b.harness, b.source, b.kind, b.folder, b.detail, b.at, b.event, b.event_via
+       FROM unnest($2::text[], $3::text[], $4::text[], $5::text[], $6::text[], $7::jsonb[], $8::timestamptz[], $9::text[], $10::text[])
+              WITH ORDINALITY AS b(session, harness, source, kind, folder, detail, at, event, event_via, ord)
+      WHERE NOT EXISTS (SELECT 1 FROM activity a WHERE a.project = $1 AND ${like("a")} AND a.at = b.at)
+        AND (b.event IS NULL OR NOT EXISTS (SELECT 1 FROM activity a WHERE a.project = $1 AND a.event = b.event AND a.event_via <> b.event_via AND ${like("a")}
+          AND a.at BETWEEN b.at - interval '${EVENT_WINDOW}' AND b.at + interval '${EVENT_WINDOW}'))
+      ORDER BY b.ord`,
+    [
+      project,
+      column(({ line }) => line.session),
+      column(({ line }) => line.harness ?? null),
+      column(({ line }) => line.source),
+      column(({ line }) => line.kind),
+      column(({ line }) => line.folder ?? null),
+      column(({ line }) => detail(line)),
+      column(({ at }) => at),
+      column(({ event }) => event?.key ?? null),
+      column(({ event }) => event?.via ?? null),
+    ],
+  );
 }
 
 /** A stored row as the line it is: its own fields, with nothing absent written as undefined. */

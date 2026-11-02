@@ -48,11 +48,13 @@ test("2.1 both code files and capabilities return dependencies up and dependents
   assert.ok(focus(built, { select: `file:${view}`, up: 1, mode: "show" }).rows?.some(row => row.id === "file:packages/app/src/projects.ts"));
 });
 
-test("2.2 selects story, capability or promise by identity or unambiguous number and filters after walking", () => {
+test("2.2 selects story, capability or contract by identity or unambiguous number and filters after walking", () => {
   const built = graph();
   assert.ok(focus(built, { select: "story:The app", down: 2, kind: ["file"], mode: "show" }).rows?.some(row => row.id === `file:${view}`));
   assert.equal(focus(built, { select: "cap:2", up: 0, mode: "show" }).rows?.[0]?.id, "projects");
-  assert.equal(focus(built, { select: "promise:2.5", up: 0, mode: "show" }).rows?.[0]?.id, promise.id);
+  const contract = focus(built, { select: "contract:2.5", up: 0, mode: "show" }).rows?.[0];
+  assert.deepEqual([contract?.id, contract?.kind], [promise.id, "contract"]);
+  assert.deepEqual(focus(built, { select: "cap:projects", down: 1, kind: ["contract"], mode: "show" }).rows?.map(row => row.id), [promise.id]);
   assert.throws(() => focus(built, { select: "file:missing.ts" }), /not found/i);
   assert.throws(() => focus(built, { select: "cap:projects", up: -1 }), /depth/i);
   const ambiguous = buildGraph({ ...tree, stories: [...tree.stories, { ...tree.stories[0]!, id: "other", capabilities: [{ ...tree.stories[0]!.capabilities[0]!, id: "other-projects" }] }] }, {});
@@ -65,6 +67,7 @@ test("2.6 a selection in the library's record names, or a bare record id, select
   assert.equal(selected("capability:projects"), "projects");
   assert.equal(selected("capability:2"), "projects");
   assert.equal(selected("contract:projects-empty"), promise.id);
+  assert.equal(selected("promise:projects-empty"), promise.id, "the old spelling still selects a contract");
   assert.equal(selected("projects"), "projects");
   assert.equal(selected("projects-empty"), promise.id);
   assert.equal(selected("app"), "app");

@@ -1,0 +1,160 @@
+{
+  "clicks": [
+    {
+      "kind": "link",
+      "mark": "capability_389fd5e3722d->capability_d8451645c169",
+      "at": {
+        "x": 364,
+        "y": 572
+      },
+      "heading": "26 · Rounds calls 25 · Lapsed questions"
+    },
+    {
+      "kind": "wrench",
+      "mark": "capability_dce9495fcaed",
+      "at": {
+        "x": 851,
+        "y": 434
+      },
+      "heading": "Work wanting 17 · The library's commands"
+    },
+    {
+      "kind": "landing",
+      "mark": "arrival1",
+      "at": {
+        "x": 755,
+        "y": 543
+      },
+      "heading": "The road from 21 stories"
+    },
+    {
+      "kind": "link",
+      "mark": "arrival1:down:capability_dce9495fcaed",
+      "at": {
+        "x": 772,
+        "y": 498
+      },
+      "heading": "The MCP server · 6 · Agent tools (the MCP server) calls 17 · The library's commands"
+    },
+    {
+      "kind": "link",
+      "mark": "arrival0:up:capability_a6d2887aed63",
+      "at": {
+        "x": 441,
+        "y": 572
+      },
+      "heading": "15 · Connection by address calls Keys · 1 · Key store and resolver"
+    },
+    {
+      "kind": "territory",
+      "mark": "capability_dd486ffa5b02",
+      "at": {
+        "x": 637,
+        "y": 387
+      },
+      "heading": "4 · Work model"
+    }
+  ],
+  "layer": {
+    "links": 250,
+    "inside": 27,
+    "lines": 45,
+    "starts": 23,
+    "arrivals": [
+      {
+        "kind": "direct",
+        "fans": [
+          "up 15 · Connection by address: 1"
+        ],
+        "stories": [
+          "Keys"
+        ],
+        "capabilities": [
+          "15 · Connection by address"
+        ],
+        "links": 1
+      },
+      {
+        "kind": "landing",
+        "fans": [
+          "down 7 · Library API: 47",
+          "down 2 · Library transactions: 7",
+          "down 3 · Data schema: 35",
+          "down 6 · Knowledge artifacts: 5",
+          "down 9 · Knowledge entrances: 1",
+          "down 10 · Work in flight: 10",
+          "down 11 · Waits: 9",
+          "down 12 · Owner questions: 3",
+          "down 13 · Decision log: 2",
+          "down 4 · Work model: 12",
+          "down 5 · Health record: 22",
+          "down 27 · Fixed data questions: 1",
+          "down 16 · The command schema: 33",
+          "down 14 · Ranked search: 1",
+          "down 1 · Project libraries: 10",
+          "down 8 · Cloud connection (GCP): 5",
+          "down 17 · The library's commands: 1"
+        ],
+        "stories": [
+          "The command line",
+          "Knowledge graph",
+          "Mick's dev loop",
+          "Code map",
+          "The MCP server",
+          "Experiments",
+          "Talk to storytree by voice",
+          "Session management",
+          "Desktop app",
+          "Map view",
+          "Work board",
+          "Setup",
+          "Website",
+          "CI health",
+          "Architecture checks",
+          "Plugin loader",
+          "Context",
+          "Agent runner",
+          "Surface feedback",
+          "Service host",
+          "Storytree's own repository checks"
+        ],
+        "capabilities": [
+          "7 · Library API",
+          "2 · Library transactions",
+          "3 · Data schema",
+          "6 · Knowledge artifacts",
+          "9 · Knowledge entrances",
+          "10 · Work in flight",
+          "11 · Waits",
+          "12 · Owner questions",
+          "13 · Decision log",
+          "4 · Work model",
+          "5 · Health record",
+          "27 · Fixed data questions",
+          "16 · The command schema",
+          "14 · Ranked search",
+          "1 · Project libraries",
+          "8 · Cloud connection (GCP)",
+          "17 · The library's commands"
+        ],
+        "links": 204
+      }
+    ],
+    "wrenches": [
+      {
+        "capability": "8 · Cloud connection (GCP)",
+        "via": "arrival1:down:capability_a954e1eb16f6"
+      },
+      {
+        "capability": "17 · The library's commands",
+        "via": "capability_73c014cf4352->capability_dce9495fcaed"
+      },
+      {
+        "capability": "7 · Library API",
+        "via": "arrival1:down:capability_75d059640d9d"
+      }
+    ]
+  },
+  "errors": [],
+  "realErrors": []
+}

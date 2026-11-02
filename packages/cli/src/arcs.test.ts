@@ -331,6 +331,10 @@ test("4.29 `arc increment unwait --for event --merged <pr>` clears the event wai
     const refused = await world.run(["arc", "increment", "unwait", increment, "--for", "event", "--merged", "PR 173"]);
     assert.equal(refused.code, 2, refused.stdout);
     assert.match(refused.stderr, /--merged is a pull request number/);
+    const unpaired = await world.run(["arc", "increment", "unwait", increment, "--for", "owner", "--merged", "173"]);
+    assert.equal(unpaired.code, 2, unpaired.stdout);
+    assert.match(unpaired.stderr, /--merged goes with --for event/);
+    assert.equal((await library.waitsFor(increment)).length, 2, "a refused unwait clears nothing");
     const cleared = await world.run(["arc", "increment", "unwait", increment, "--for", "event", "--merged", "173"]);
     assert.equal(cleared.code, 0, cleared.stderr);
     assert.deepEqual((await library.waitsFor(increment)).map(({ releaser, merged }) => ({ releaser, merged })), [{ releaser: "owner", merged: 173 }]);

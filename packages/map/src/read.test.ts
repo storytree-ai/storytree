@@ -95,6 +95,7 @@ test("3.11 with --capabilities, the map answers a selected story's capabilities 
     assert.match(text, /2 · Projects  \[projects\]  healthy; 2 lines in 1 file; 1 contract; depends on saving/);
     assert.match(text, /3 · Saving  \[saving\]  untested — no test names it, the agent's to move: 3\.1; 0 lines in 0 files/);
     assert.match(text, /packages\/app\/src\/view\.ts  2/);
+    assert.match(text, /\n  Unclaimed: 1 line in 1 file\n    packages\/app\/src\/lone\.ts  1$/);
     await assert.rejects(capabilitiesCommand(library, folder, "story:Nothing"), /Map selection not found: story:Nothing/);
   } finally {
     await removeTemp(folder);

@@ -2,7 +2,7 @@
 import { execFileSync } from "node:child_process";
 import type { Library } from "@storytree/library";
 import { STABLE_BRANCH } from "./release-channel.js";
-import { versionAt } from "./release-source.js";
+import { type Git, versionAt } from "./release-source.js";
 import { stableCandidate, type PublishedBuild, type StableCandidate } from "./stable-candidate.js";
 import {
   FEED_PLATFORMS, mergedPullRequests, moveStableBack, pinCoverage, pinStable, readStableManifest, windowsInstallers,
@@ -138,6 +138,19 @@ export function sweptBy(questions: readonly { id: string; fields: Record<string,
   return pass && `${pass.id}: the stable routine's fresh-install sweep on the old laptop passed ${version}`;
 }
 
+/**
+ * The commit tagged `v<wanted>`, once it is on main and its first-parent count gives that version. A shallow clone (a cloud
+ * session's checkout) counts only its own depth, so its history is fetched whole before it is counted.
+ */
+export function releaseCommit(git: Git, wanted: string): string {
+  const shallow = git("rev-parse", "--is-shallow-repository") === "true";
+  git("fetch", ...(shallow ? ["--unshallow"] : []), "origin", "+refs/heads/main:refs/remotes/origin/main", `refs/tags/v${wanted}:refs/tags/v${wanted}`);
+  const commit = git("rev-parse", `v${wanted}^{commit}`);
+  git("merge-base", "--is-ancestor", commit, "origin/main");
+  if (versionAt(git, commit) !== wanted) throw new Error("Release tag and merged build version do not match");
+  return commit;
+}
+
 /** `storytree release candidate`: the stable candidate read from GitHub and the library; it changes nothing. */
 export async function findStableCandidate(options: { library: Pick<Library, "list" | "prCutover">; cwd: string }): Promise<StableCandidate> {
   const api = github(options.cwd);
@@ -218,10 +231,7 @@ export async function pinRelease(version: string, options: { library: Pick<Libra
       if (release.tag_name !== `v${wanted}` || release.draft || release.prerelease) throw new Error("Pin a published alpha build by its 0.3.<n> version");
       const remote = git("remote", "get-url", "origin");
       if (!/^(?:https:\/\/github\.com\/|git@github\.com:)storytree-ai\/storytree(?:\.git)?$/.test(remote)) throw new Error("Pin from a storytree checkout whose origin is storytree-ai/storytree");
-      git("fetch", "origin", "+refs/heads/main:refs/remotes/origin/main", `refs/tags/v${wanted}:refs/tags/v${wanted}`);
-      const commit = git("rev-parse", `v${wanted}^{commit}`);
-      git("merge-base", "--is-ancestor", commit, "origin/main");
-      if (versionAt(git, commit) !== wanted) throw new Error("Release tag and merged build version do not match");
+      const commit = releaseCommit(git, wanted);
       type Entry = { name: string; sha256: string; sha512: string; size: number };
       const delivery = JSON.parse(download(release, "storytree-delivery.json")) as {
         schema: number; version: string; channelSchema: number; architectures: string[]; installers?: Record<string, Entry>; installer?: Entry;

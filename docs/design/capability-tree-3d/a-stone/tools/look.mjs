@@ -12,7 +12,7 @@ await withCapture({ dist, folder: process.env.LOOK_DIR ?? path.join(dist, 'still
   const page = await browser.newPage({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 1, colorScheme: 'dark' });
   const errors = [];
   page.on('pageerror', e => errors.push(String(e.stack ?? e)));
-  page.on('console', m => { if (m.type() === 'error' || m.text().startsWith('framing')) errors.push(m.text()); });
+  page.on('console', m => { if (m.type() === 'error' || m.text().startsWith('framing') || m.text().startsWith('unrouted')) errors.push(m.text()); });
   await page.goto(`${origin}/index.html${query}`, { waitUntil: 'domcontentloaded', timeout: 120000 });
   await page.waitForFunction(() => document.body.dataset.state === 'ready', undefined, { timeout: 120000 }).catch(e => { console.error(errors); throw e; });
   // The rest view frames itself on the plan as the map paints, so it is painted until it has.

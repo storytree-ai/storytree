@@ -64,21 +64,22 @@ function lastLines(text: string, count = 5): string {
   return text.trim().split(/\r?\n/).slice(-count).join("\n");
 }
 
+/** Whether the launched process ended in failure: a second instance hands over to the running app and exits 0. */
+function failed(ended: ReturnType<Launched["exit"]>): boolean {
+  return ended !== undefined && (ended.code !== 0 || ended.signal !== null);
+}
+
 /** Why the launched app did not come up, in words a user can act on, naming the file that keeps its output. */
-export function whyAppDidNotStart(launched: Launched, waited: string, env: NodeJS.ProcessEnv = process.env, platform = process.platform): string {
+export function whyAppDidNotStart(launched: Launched, waited: string): string {
   const output = readFrom(launched.log, 0);
   const database = readFrom(launched.toolLog, launched.toolLogFrom);
   const ended = launched.exit();
+  const how = failed(ended) ? `stopped (${ended!.signal ?? `exit code ${ended!.code}`}) before its database was ready` : `did not come up within ${waited}`;
   const found = CAUSES.find((c) => c.pattern.test(c.source === "app" ? output : database));
-  if (found) {
-    const where = found.source === "app" ? launched.log : launched.toolLog;
-    return `The app did not start: ${found.cause}. Its output is in ${where}.`;
-  }
-  const how = ended === undefined ? `did not come up within ${waited}` : `stopped (${ended.signal ?? `exit code ${ended.code}`}) before its database was ready`;
-  const noDisplay = platform === "linux" && !env.DISPLAY && !env.WAYLAND_DISPLAY ? " There is no display here (neither DISPLAY nor WAYLAND_DISPLAY is set), which keeps the app's window from opening." : "";
+  if (found) return `The app ${how}: ${found.cause}. Its output is in ${found.source === "app" ? launched.log : launched.toolLog}.`;
   const tail = lastLines(output) || lastLines(database);
   const said = tail ? ` Its last output:\n${tail}\n` : " It printed nothing. ";
-  return `The app ${how}.${noDisplay}${said}Its output is in ${launched.log}${database ? ` and its database's in ${launched.toolLog}` : ""}.`;
+  return `The app ${how}.${said}Its output is in ${launched.log}${database ? ` and its database's in ${launched.toolLog}` : ""}.`;
 }
 
 /**
@@ -91,9 +92,7 @@ export async function waitForApp(home: string, timeoutMs = 90_000, launched?: La
   const cloud = readLibrary(home).location !== "local";
   const waited = `${timeoutMs / 1000} seconds`;
   while (Date.now() < deadline) {
-    // A second instance hands over to the running app and exits 0; any other exit is the app failing.
-    const ended = launched?.exit();
-    if (launched && ended && (ended.code !== 0 || ended.signal !== null)) throw new Error(whyAppDidNotStart(launched, waited));
+    if (launched && failed(launched.exit())) throw new Error(whyAppDidNotStart(launched, waited));
     if (cloud) {
       if (locateApp(home).running) return;
       await sleep(250);

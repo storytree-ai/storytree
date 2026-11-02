@@ -1,7 +1,7 @@
 /** Capability 1 · Get storytree. */
 import { locateApp, locateStorytree, readLibrary, storytreeHome } from "@storytree/project-and-caller";
 import { spawn } from "node:child_process";
-import { mkdirSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import { closeSync, mkdirSync, openSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { connect } from "node:net";
 import path from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
@@ -18,24 +18,81 @@ interface DeliveryOptions {
   platform?: NodeJS.Platform;
 }
 
-/** Launch even when already running: Electron's second-instance handler brings its window back. */
-function launch(exe: string): Promise<void> {
+/** The app the finish step launched: where its output is kept, and how it ended if it has. */
+export interface Launched {
+  log: string;
+  toolLog: string;
+  /** How far the database's tool log already ran before this launch, so an older attempt's error is not read as this one's. */
+  toolLogFrom: number;
+  exit(): { code: number | null; signal: NodeJS.Signals | null } | undefined;
+}
+
+function sizeOf(file: string): number {
+  try { return statSync(file).size; } catch { return 0; }
+}
+
+function readFrom(file: string, from: number): string {
+  try { return readFileSync(file).subarray(from).toString("utf8"); } catch { return ""; }
+}
+
+/** Launch even when already running: Electron's second-instance handler brings its window back. Its output is kept in the home's app-launch.log. */
+export function launch(exe: string, home: string, args: string[] = []): Promise<Launched> {
+  mkdirSync(home, { recursive: true });
+  const log = path.join(home, "app-launch.log");
+  const toolLog = path.join(home, "pgdata.tools.log");
+  const toolLogFrom = sizeOf(toolLog);
+  const out = openSync(log, "w");
   return new Promise((resolve, reject) => {
-    const child = spawn(exe, [], { cwd: path.dirname(exe), detached: true, stdio: "ignore" });
+    let ended: { code: number | null; signal: NodeJS.Signals | null } | undefined;
+    const child = spawn(exe, args, { cwd: path.dirname(exe), detached: true, stdio: ["ignore", out, out] });
+    closeSync(out);
     child.once("error", reject);
-    child.once("spawn", () => { child.unref(); resolve(); });
+    child.once("exit", (code, signal) => { ended = { code, signal }; });
+    child.once("spawn", () => { child.unref(); resolve({ log, toolLog, toolLogFrom, exit: () => ended }); });
   });
+}
+
+/** The known reasons the app cannot come up, read from its output and the database's tool log, each with what to do. */
+const CAUSES: { pattern: RegExp; source: "app" | "database"; cause: string }[] = [
+  { pattern: /running as root without --no-sandbox/i, source: "app", cause: "the app refuses to run as root (Electron's sandbox needs an ordinary user). Run the installer as an ordinary user, not as root or with sudo" },
+  { pattern: /fuse: |\/dev\/fuse|libfuse/i, source: "app", cause: "the AppImage could not use /dev/fuse (FUSE is missing or not permitted here, as in many containers). Run the installer again with APPIMAGE_EXTRACT_AND_RUN=1 set, so the app runs without FUSE" },
+  { pattern: /missing x server or \$display|cannot open display|platform failed to initialize/i, source: "app", cause: "there is no display to open the app's window on. Run the installer from a desktop session (with DISPLAY or WAYLAND_DISPLAY set)" },
+  { pattern: /cannot be run as root/i, source: "database", cause: "its database refuses to run as root. Run the installer as an ordinary user, not as root or with sudo" },
+];
+
+function lastLines(text: string, count = 5): string {
+  return text.trim().split(/\r?\n/).slice(-count).join("\n");
+}
+
+/** Whether the launched process ended in failure: a second instance hands over to the running app and exits 0. */
+function failed(ended: ReturnType<Launched["exit"]>): boolean {
+  return ended !== undefined && (ended.code !== 0 || ended.signal !== null);
+}
+
+/** Why the launched app did not come up, in words a user can act on, naming the file that keeps its output. */
+export function whyAppDidNotStart(launched: Launched, waited: string): string {
+  const output = readFrom(launched.log, 0);
+  const database = readFrom(launched.toolLog, launched.toolLogFrom);
+  const ended = launched.exit();
+  const how = failed(ended) ? `stopped (${ended!.signal ?? `exit code ${ended!.code}`}) before its database was ready` : `did not come up within ${waited}`;
+  const found = CAUSES.find((c) => c.pattern.test(c.source === "app" ? output : database));
+  if (found) return `The app ${how}: ${found.cause}. Its output is in ${found.source === "app" ? launched.log : launched.toolLog}.`;
+  const tail = lastLines(output) || lastLines(database);
+  const said = tail ? ` Its last output:\n${tail}\n` : " It printed nothing. ";
+  return `The app ${how}.${said}Its output is in ${launched.log}${database ? ` and its database's in ${launched.toolLog}` : ""}.`;
 }
 
 /**
  * Wait until the delivered app is up. On a local library that is its database answering; on a
  * Cloud SQL or Postgres-address library the app starts no local database, so it is the app itself running (its launch
- * record's process, app lifecycle 1.11).
+ * record's process, app lifecycle 1.11). An app that exits with an error, or never comes up, fails with why (1.16).
  */
-export async function waitForApp(home: string, timeoutMs = 90_000): Promise<void> {
+export async function waitForApp(home: string, timeoutMs = 90_000, launched?: Launched): Promise<void> {
   const deadline = Date.now() + timeoutMs;
   const cloud = readLibrary(home).location !== "local";
+  const waited = `${timeoutMs / 1000} seconds`;
   while (Date.now() < deadline) {
+    if (launched && failed(launched.exit())) throw new Error(whyAppDidNotStart(launched, waited));
     if (cloud) {
       if (locateApp(home).running) return;
       await sleep(250);
@@ -55,14 +112,18 @@ export async function waitForApp(home: string, timeoutMs = 90_000): Promise<void
     }
     await sleep(250);
   }
-  throw new Error(`The app did not come up within ${timeoutMs / 1000} seconds. Open the app to read its error, then retry the delivery command.`);
+  if (launched) throw new Error(whyAppDidNotStart(launched, waited));
+  throw new Error(`The app did not come up within ${waited}. Open the app to read its error, then retry the delivery command.`);
 }
 
 /** Finishing touches only delivery's own command and record. It never creates a project or configures a harness. */
-export async function finishDelivery(options: DeliveryOptions, effects = { launch, waitForApp }) {
+export async function finishDelivery(options: DeliveryOptions, effects: {
+  launch(exe: string, home: string): Promise<Launched | void>;
+  waitForApp(home: string, timeoutMs?: number, launched?: Launched): Promise<void>;
+} = { launch, waitForApp }) {
   const tools = verifyPayload(options.installDir, options.arch, options.platform);
-  await effects.launch(tools.app);
-  await effects.waitForApp(options.home);
+  const launched = await effects.launch(tools.app, options.home);
+  await effects.waitForApp(options.home, undefined, launched || undefined);
   const command = installCommand({ ...options, tools });
   const record = { schema: 1, installDir: path.resolve(options.installDir), tools };
   mkdirSync(options.home, { recursive: true });

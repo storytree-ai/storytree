@@ -10,7 +10,7 @@ import { launcherRuns } from "../setup/index.js";
 import { disconnectAgents, installedToolServerCommand } from "@storytree/app-setup/connect";
 
 import { finishDelivery, installCommand, refreshTools, toolPaths, verifyPayload, writePayloadManifest } from "./index.js";
-import { runtimeProblem, waitForApp } from "./delivery.js";
+import { launch, runtimeProblem, waitForApp } from "./delivery.js";
 
 /** The program the Windows command is made from: on Windows the real one, which tests run; elsewhere nothing runs it. */
 let program: Buffer | undefined;
@@ -322,4 +322,53 @@ test("1.5 after a Linux AppImage replaces itself, its next start puts its own ag
     assert.equal(refreshTools(install, path.join(dir, "no-tools")), false, "a build without tools changes nothing");
     assert.equal(readFileSync(tools.hook, "utf8"), "new storytree-hook.mjs");
   } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test("1.16: when the launched app cannot come up, the finish step keeps its output and names the cause", async () => {
+  const f = fixture();
+  const home = f.home;
+  /** A stand-in app: node running `script`, launched the way the finish step launches the real one. */
+  const standIn = (script: string) => (_exe: string, at: string) => launch(process.execPath, at, ["-e", script]);
+  const fails = async (script: string, timeoutMs = 60_000, before?: () => void) => {
+    const launched = await standIn(script)("", home);
+    before?.();
+    const error = await waitForApp(home, timeoutMs, launched).then(() => undefined, (e: Error) => e);
+    assert.ok(error, "the finish step must fail");
+    return error.message;
+  };
+  const log = path.join(home, "app-launch.log");
+  const toolLog = path.join(home, "pgdata.tools.log");
+  try {
+    // Through the finish step itself: the app that exits is not waited on for the whole 90 seconds.
+    const options = { installDir: f.install, home, arch: "arm64" as const, platform: "win32" as const, searchPath: "" };
+    const error = await finishDelivery(options, { launch: standIn('console.error("fuse: failed to open /dev/fuse: Permission denied"); process.exit(127)'), waitForApp })
+      .then(() => undefined, (e: Error) => e);
+    assert.ok(error);
+    assert.match(error.message, /stopped \(exit code 127\) before its database was ready/);
+    assert.match(error.message, /\/dev\/fuse/);
+    assert.match(error.message, /APPIMAGE_EXTRACT_AND_RUN=1/);
+    assert.ok(error.message.includes(log), "names the file that keeps the app's output");
+    assert.match(readFileSync(log, "utf8"), /failed to open \/dev\/fuse/);
+    assert.equal(existsSync(path.join(home, "delivery.json")), false);
+
+    const root = await fails('console.error("[1:FATAL:electron_main_delegate.cc(294)] Running as root without --no-sandbox is not supported."); process.exit(1)');
+    assert.match(root, /root/);
+    assert.match(root, /ordinary user/);
+
+    const display = await fails('console.error("Missing X server or $DISPLAY"); process.exit(1)');
+    assert.match(display, /display/i);
+
+    // initdb refuses root while the app hands over and exits cleanly: only the database's own log says so.
+    const initdb = await fails("process.exit(0)", 2_000, () => writeFileSync(toolLog, "initdb: error: cannot be run as root\n"));
+    assert.match(initdb, /did not come up within 2 seconds/);
+    assert.match(initdb, /database refuses to run as root/);
+    assert.ok(initdb.includes(toolLog));
+
+    // The database's log still holds that refusal; a later launch that fails otherwise is not blamed on it.
+    const unknown = await fails('console.error("something nobody has seen before"); process.exit(3)');
+    assert.match(unknown, /stopped \(exit code 3\)/);
+    assert.match(unknown, /something nobody has seen before/);
+    assert.ok(unknown.includes(log));
+    assert.doesNotMatch(unknown, /refuses to run as root/);
+  } finally { f.close(); }
 });

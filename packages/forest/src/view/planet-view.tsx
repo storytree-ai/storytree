@@ -203,9 +203,8 @@ function useKept<T>(value: T, keyOf: (value: T) => string): T {
 const TERRITORY_LIFT = 0.05;
 
 /**
- * An island's territories (3.14) and its files' circles (3.16), cut to its coast and laid on its surface,
- * all in the plate's own units. It says where the circles lie on the sheet (3.18), and lights the territories
- * and circles the selected session's window opened.
+ * An island's territories (3.14), cut to its coast and laid on its surface, all in the plate's own units; it lights
+ * the territories the selected session's window opened (3.18). No file is drawn on them (ADR-1212).
  */
 function Territories({ land: given, coast: givenCoast, claimed, radius, lighting, surfaces }: {
   land: NonNullable<Island["land"]>;

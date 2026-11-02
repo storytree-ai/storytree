@@ -966,7 +966,7 @@ function boxDefaults({ home = homedir(), env = process.env } = {}) {
 /** `handover <pr> <increment> [--keep-open]`, `hand <pr> <increment> [--session <id>] [--keep-open]`, `forget`, `run` or `status`; `box` overrides the box's home, paths and processes in tests. */
 /**
  * Room for one more fix session: an engine slot free and the box not saturated (pace.mjs, ADR-1139), the hold the dispatcher
- * keeps. A box that cannot be read holds nothing back. Each change of the box's state is said once, with its reading (4.45).
+ * keeps. A box that cannot be read holds nothing back. Each change of the box's state is said once, with its reading (4.46).
  */
 export function boxRoom({ engines, pace = readBoxPace, say }) {
   let said = "clear";

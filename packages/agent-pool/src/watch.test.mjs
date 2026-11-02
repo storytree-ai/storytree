@@ -1172,7 +1172,7 @@ test("4.44 · a hand-over GitHub cannot be asked about names why, a missing shar
     "on the box, hand's refusal is the hand-over's");
 });
 
-test("4.45 · a saturated box holds new pull request and release fix sessions, said once with its reading; an unread box holds nothing back", async (t) => {
+test("4.46 · a saturated box holds new pull request and release fix sessions, said once with its reading; an unread box holds nothing back", async (t) => {
   const b = await box(t);
   await handOff(b);
   b.looks[41] = red;

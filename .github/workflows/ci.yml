@@ -360,6 +360,14 @@ jobs:
           if-no-files-found: warn
           retention-days: 1
       # The same for macOS: own health credits a platform:darwin skip only from this run (contract 1.11).
+      # A change the tests do not reach (only docs/, say) runs no unit and writes no evidence, so
+      # then, as for a Windows shard given no units, the missing folder only warns.
+      - name: Does macOS test anything?
+        id: macos
+        if: always() && matrix.system == 'macOS'
+        shell: bash
+        run: |
+          pnpm run -s test --scope 2>/dev/null | grep -qx "units: none" || echo "units=true" >> "$GITHUB_OUTPUT"
       - name: Preserve macOS test evidence
         if: always() && matrix.system == 'macOS'
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -367,7 +375,7 @@ jobs:
           name: macos-test-evidence-${{ github.run_attempt }}
           path: .pgtest/macos-evidence
           include-hidden-files: true
-          if-no-files-found: ${{ job.status == 'success' && 'error' || 'warn' }}
+          if-no-files-found: ${{ job.status == 'success' && steps.macos.outputs.units == 'true' && 'error' || 'warn' }}
           retention-days: 14
 
   # On a push that stands on the merge queue's verdict, each system saves the timing history that

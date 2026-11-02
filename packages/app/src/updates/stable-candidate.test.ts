@@ -106,8 +106,9 @@ test("4.23 a build's tag is checked against its version from a shallow clone too
     og("-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "-m", `build ${n}`);
   }
   og("tag", "v0.3.13");
+  og("tag", "v0.3.14");
   execFileSync("git", ["clone", "-q", "--depth", "1", `file://${origin}`, join(root, "clone")]);
   const clone = gitIn(join(root, "clone"));
   assert.equal(releaseCommit(clone, "0.3.13"), og("rev-parse", "HEAD"));
-  assert.throws(() => releaseCommit(clone, "0.3.12"));
+  assert.throws(() => releaseCommit(clone, "0.3.14"), /Release tag and merged build version do not match/);
 });

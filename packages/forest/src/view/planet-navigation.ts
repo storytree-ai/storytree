@@ -15,8 +15,8 @@ export function isGlobeDrag(from: { x: number; y: number }, to: { x: number; y: 
 }
 
 /**
- * The cursor and tooltip for the actual eligible artifact, file or capability territory beneath the pointer
- * (3.12, 3.17): a territory gives its capability's name, without its number, and its description's first paragraph as the detail (3.32).
+ * The cursor and tooltip for the actual eligible artifact or capability territory beneath the pointer
+ * (3.12): a territory gives its capability's name, without its number, and its description's first paragraph as the detail (3.32).
  */
 export function globeHover(world: Object3D, camera: Camera,
   box: { left: number; top: number; width: number; height: number }, cursor: { x: number; y: number }, mode: ForestMode): { cursor: string; title: string | undefined; detail?: string } {
@@ -24,8 +24,6 @@ export function globeHover(world: Object3D, camera: Camera,
   const pointer = hit === undefined ? "" : "pointer";
   if (hit?.kind === "note") return { cursor: pointer, title: world.getObjectByName(`knowledge-point:${hit.id}`)?.userData.title as string | undefined };
   const territory = (capability: string) => world.getObjectByName(`territory:${capability}`)?.userData as { title?: string; description?: string } | undefined;
-  const file = pointedFile(world, camera, box, cursor);
-  if (file !== undefined) return { cursor: pointer, title: `${file.file} · ${file.lines} lines · ${file.capability === undefined ? "Unclaimed" : globeName(territory(file.capability)?.title ?? file.capability)}` };
   if (hit?.kind !== "story" || hit.capability === undefined) return { cursor: pointer, title: undefined };
   const { title, description } = territory(hit.capability) ?? {};
   // What the capability does is its description's first paragraph; later ones are notes for the agents who build it.
@@ -97,20 +95,6 @@ function pickLand(ray: Raycaster, world: Object3D): { story: string; capability?
       if (object.name.startsWith("territory:") && typeof object.userData.capability === "string") capability ??= object.userData.capability;
       if (object.name.startsWith("planet:")) return capability === undefined ? { story: object.name.slice("planet:".length) } : { story: object.name.slice("planet:".length), capability };
     }
-  }
-  return undefined;
-}
-
-/** The file circle under the cursor (3.17): its file, lines and capability, or undefined when none is. */
-export function pointedFile(world: Object3D, camera: Camera,
-  box: { left: number; top: number; width: number; height: number }, cursor: { x: number; y: number }): { file: string; lines: number; capability?: string } | undefined {
-  world.updateMatrixWorld(true);
-  camera.updateMatrixWorld(true);
-  const ray = new Raycaster();
-  ray.setFromCamera(new Vector2(2 * (cursor.x - box.left) / box.width - 1, 1 - 2 * (cursor.y - box.top) / box.height), camera);
-  for (const hit of ray.intersectObject(world, true)) {
-    if (!isDrawn(hit.object)) continue;
-    if (hit.object.name.startsWith("file:")) return hit.object.userData as { file: string; lines: number; capability?: string };
   }
   return undefined;
 }

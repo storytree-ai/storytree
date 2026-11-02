@@ -336,6 +336,38 @@ test("2.2 a change in the dev loop runs everything: its runner, scoper and gate 
   assert.match(decision.reason, /@storytree\/repo-checks/);
 });
 
+// Written apart, so this file's own text reaches nothing under the real docs/.
+const UP = "../../" + "../";
+
+test("2.7 a change under docs/ runs only the packages whose code reads that path, by a relative path; with no reader it runs nothing", (t) => {
+  const root = workspace(t, {
+    packages: {
+      "packages/pages": { name: "@x/pages", files: { "src/page.test.ts": `const page = new URL("${UP}docs/hooks.md", import.meta.url);\n` } },
+      "packages/mocks": { name: "@x/mocks", files: { "src/mock.test.ts": `const at = new URL("${UP}docs/design/", import.meta.url);\nconst fixture = "docs/research/look/notes.md";\n` } },
+      "packages/site": { name: "@x/site", deps: ["@x/mocks"], files: { "src/s.test.ts": "" } },
+      "packages/other": { name: "@x/other", files: { "src/o.test.ts": "" } },
+    },
+  });
+  write(root, "docs/hooks.md", "# hooks\n");
+  write(root, "docs/design/mock/page.js", "");
+  const ws = readWorkspace(root);
+  const none = classify(["docs/research/look/notes.md", "docs/design.md"], ws);
+  assert.equal(none.mode, "affected");
+  assert.deepEqual(none.dirs, []);
+  assert.match(scopeLine(none), /^scope: affected — nothing — .*docs\/.*no test reads/);
+  assert.deepEqual(classify(["docs/hooks.md"], ws).dirs, ["packages/pages"]);
+  const read = classify(["docs/design/mock/page.js"], ws);
+  assert.deepEqual(read.dirs, ["packages/mocks", "packages/site"], "a reader's dependents run too");
+  assert.equal(read.reason, "1 under docs/, read by packages/mocks; their dependents: packages/site");
+  assert.deepEqual(classify(["docs/design/mock/page.js", "packages/other/src/o.ts"], ws).dirs, ["packages/mocks", "packages/other", "packages/site"]);
+});
+
+test("2.7 the real workspace: a change to a design mock under docs/ runs no package's tests", () => {
+  const decision = classify(["docs/design/capability-tree-3d/a-stone/page.js", "docs/research/notes.md"], readWorkspace(repoRoot));
+  assert.equal(decision.mode, "affected");
+  assert.deepEqual(decision.dirs, []);
+});
+
 test("2.2 any file the workspace graph cannot account for runs everything, and says which file", (t) => {
   const ws = readWorkspace(fixture(t));
   const wide = {

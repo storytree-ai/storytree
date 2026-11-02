@@ -5,15 +5,15 @@ import type { BufferAttribute, Group, LineSegments, Mesh, MeshBasicMaterial, Obj
 export type GlobeSurfaces = {
   grounds: boolean; roads: boolean; nameplates: boolean;
   territories: false | "plain" | "health";
-  fileCircles: boolean; knowledgeCore: boolean; sessionTints: boolean;
+  knowledgeCore: boolean; sessionTints: boolean;
 };
 
 /** The ordinary Forest view. */
-const FOREST: GlobeSurfaces = { grounds: true, roads: true, nameplates: true, territories: "health", fileCircles: true, knowledgeCore: true, sessionTints: true };
+const FOREST: GlobeSurfaces = { grounds: true, roads: true, nameplates: true, territories: "health", knowledgeCore: true, sessionTints: true };
 
 /** The glass sheet's Library face: the islands as outlines with their names over the knowledge, their territories as borders
- * with no fill, no file circles and no roads; a session's tints still light them (ADR-1061 D2). */
-const OUTLINES = { roads: false, fileCircles: false } as const;
+ * with no fill and no roads; a session's tints still light them (ADR-1061 D2). */
+const OUTLINES = { roads: false } as const;
 
 /** What the sheet shows: a host's switches over the Forest view; on the glass sheet's Library face (`outlines`), only the
  * islands' outlines and names. */
@@ -28,8 +28,6 @@ const presentation = new WeakMap<Object3D, GlobeSurfaces["territories"]>();
 const grownBy = new WeakMap<Object3D, number>();
 /** How far each new territory's fill has eased in after its borders drew on (3.46); absent is whole. */
 const drawnBy = new WeakMap<Object3D, number>();
-/** Each file circle's full size, before the growth swells it. */
-const fullSize = new WeakMap<Object3D, number>();
 
 export function presentTerritories(group: Group, mode: GlobeSurfaces["territories"]): void {
   presentation.set(group, mode);
@@ -55,11 +53,11 @@ export function restoreTerritoryPresentation(root: Object3D): void {
 }
 
 /**
- * An island's land on a growing globe (3.30): each capability's territory fills in, and each file circle swells
- * from its middle, by how far the globe's growth has brought it; at 1 each is exactly as drawn without one.
+ * An island's land on a growing globe (3.30): each capability's territory fills in by how far the globe's growth has
+ * brought it; at 1 each is exactly as drawn without one.
  * The territory switches still hold. Returns whether everything is whole.
  */
-export function growLand(land: Group, circles: Group, grown: { capability(capability: string): number; file(path: string): number }): boolean {
+export function growLand(land: Group, grown: { capability(capability: string): number }): boolean {
   let whole = true;
   for (const mark of land.children) {
     const capability = mark.userData.capability;
@@ -69,15 +67,6 @@ export function growLand(land: Group, circles: Group, grown: { capability(capabi
     whole &&= progress >= 1;
   }
   presentTerritories(land, presentation.get(land) ?? "health");
-  for (const circle of circles.children) {
-    const path = circle.userData.file;
-    if (typeof path !== "string") continue;
-    if (!fullSize.has(circle)) fullSize.set(circle, circle.scale.x);
-    const progress = grown.file(path);
-    circle.visible = progress > 0;
-    circle.scale.setScalar(fullSize.get(circle)! * Math.max(progress, 0.001));
-    whole &&= progress >= 1;
-  }
   return whole;
 }
 

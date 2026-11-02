@@ -21,6 +21,10 @@
 // one it could reach merges untested code, so every doubt resolves to the full run. A root path is
 // narrowed only once its test-time readers have been measured, never by guessing (0.2's ADR-0394).
 // One doubt is settled narrow instead: a path into desktop's renderer reaches desktop's files only (ADR-1141).
+// And one root path has been measured: docs/ (design mocks, research, the pages users read) is read by no test
+// (increment_6bae65aca68d), so a file under it runs only the packages whose code reaches it by a relative path, as
+// a path into another package is read, and their dependents; with no reader it runs nothing. A string merely starting
+// docs/ is no read: the leak scan's and mutation tests' fixtures, and code sorting paths, write them.
 //
 // A folder under infra/ that holds tests (the library host's backup checks) is a unit too, though no
 // package: a change there runs everything, so the full run carries it (increment_e557d7df8a07).
@@ -33,6 +37,7 @@ import { resultsTable as baseTable } from "./gate.mjs";
 
 const WORKSPACE_ROOTS = ["packages", "apps"];
 const INFRA = "infra";
+const DOCS = "docs/";
 const SOURCE = /\.(?:[cm]?[jt]sx?)$/;
 const RELATIVE_PATH = /["'`](\.{1,2}\/[^"'`$\r\n]*)["'`]/g;
 const PATH_TOKEN = /[\w.*-]+(?:\/[\w.*-]+)*\/?/g;
@@ -338,6 +343,11 @@ function reachesOf(pkg, packages, reaching, { reach }) {
   for (const { at, targets, text } of reaching) {
     if (!at.startsWith(`${pkg.dir}/`)) continue;
     for (const target of targets) {
+      if (target.startsWith(DOCS)) {
+        through.files.add(target);
+        through.folders.add(`${target.replace(/\/$/, "")}/`);
+        continue;
+      }
       const owner = packages.find((p) => p !== pkg && (target === p.dir || target.startsWith(`${p.dir}/`)));
       if (!owner) continue;
       reaches.add(owner.dir);
@@ -357,7 +367,9 @@ export function classify(files, workspace) {
   const changed = files.map((f) => f.replace(/\\/g, "/").replace(/^\.\//, "")).filter(Boolean);
   if (changed.length === 0) return full("no change against origin/main, so nothing narrows the run");
   const touched = new Set();
+  const docs = changed.filter((file) => file.startsWith(DOCS));
   for (const file of changed) {
+    if (file.startsWith(DOCS)) continue; // reaches only the packages naming it, found below
     if (file === "pnpm-lock.yaml") return full(`${file} changed: the lockfile can change what every package runs`);
     if (path.posix.basename(file) === "package.json") {
       return full(`${file} changed: package manifests are the dependency graph this scope is read from`);
@@ -373,9 +385,12 @@ export function classify(files, workspace) {
     touched.add(owner.dir);
   }
   const selected = new Set(touched);
+  const readers = new Set();
   for (const pkg of workspace) {
     const { files = [], folders = [] } = pkg.through ?? {};
-    if (changed.some((file) => files.includes(file) || folders.some((folder) => file.startsWith(folder)))) selected.add(pkg.dir);
+    const reads = (file) => files.includes(file) || folders.some((folder) => file.startsWith(folder));
+    if (changed.some(reads)) selected.add(pkg.dir);
+    if (docs.some(reads) && !touched.has(pkg.dir)) readers.add(pkg.dir);
   }
   for (let grew = true; grew; ) {
     grew = false;
@@ -389,8 +404,12 @@ export function classify(files, workspace) {
     }
   }
   const dirs = [...selected].sort();
-  const dependents = dirs.filter((dir) => !touched.has(dir));
-  const reason = `changed: ${[...touched].sort().join(", ")}${dependents.length ? `; their dependents: ${dependents.join(", ")}` : ""}`;
+  const dependents = dirs.filter((dir) => !touched.has(dir) && !readers.has(dir));
+  const parts = [];
+  if (touched.size) parts.push(`changed: ${[...touched].sort().join(", ")}`);
+  if (docs.length) parts.push(`${docs.length} under docs/, ${readers.size ? `read by ${[...readers].sort().join(", ")}` : "which no test reads"}`);
+  if (dependents.length) parts.push(`their dependents: ${dependents.join(", ")}`);
+  const reason = parts.join("; ");
   return { mode: "affected", dirs, reason };
 }
 

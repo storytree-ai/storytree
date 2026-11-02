@@ -130,6 +130,8 @@ test("2.31 · when the Chromium Playwright pins is missing, a capture launches t
   };
   const pinned = path.join(browsers, "chromium-1223", "chrome-linux64", "chrome");
   const plain = launchPlan({ env: {}, platform: "linux" }).options;
+  // CI's runners hold no browsers folder at all: nothing to launch in the pinned one's place.
+  assert.equal(fallbackChromium(plain, path.join(browsers, "absent", "chromium-1223", "chrome-linux64", "chrome")), undefined);
   install("chromium-1194/chrome-linux64/chrome");
   install("chromium-1243/chrome-linux64/chrome");
   assert.equal(fallbackChromium(plain, pinned), path.join(browsers, "chromium-1243", "chrome-linux64", "chrome"));

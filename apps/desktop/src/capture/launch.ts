@@ -70,7 +70,7 @@ const EXECUTABLES = ["chrome-headless-shell", "chrome-headless-shell.exe", "chro
  * The Chromium to launch in place of the one Playwright pins, given where Playwright's full Chromium
  * would be (`chromium.executablePath()`, inside its browsers folder's `chromium-<revision>`): undefined
  * while the pinned revision's headless shell, which headless launches use, is installed, or when the
- * folder holds no other Chromium. Otherwise the newest revision's, its headless shell before its full browser.
+ * folder is missing or holds no other Chromium. Otherwise the newest revision's, its headless shell before its full browser.
  */
 export function installedChromium(pinned: string): string | undefined {
   let revisionFolder = pinned;
@@ -80,7 +80,7 @@ export function installedChromium(pinned: string): string | undefined {
   }
   const browsers = path.dirname(revisionFolder);
   const revision = REVISION.exec(path.basename(revisionFolder))![2];
-  if (existsSync(path.join(browsers, `chromium_headless_shell-${revision}`))) return undefined;
+  if (!existsSync(browsers) || existsSync(path.join(browsers, `chromium_headless_shell-${revision}`))) return undefined;
   const candidates = readdirSync(browsers).flatMap(name => {
     const match = REVISION.exec(name);
     return match ? [{ name, shell: match[1] === "chromium_headless_shell", revision: Number(match[2]) }] : [];

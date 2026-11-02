@@ -1,5 +1,5 @@
 /** The story panel beside the island: the story, a legend of what is drawn, and whatever was last clicked on the island. */
-import { WRENCH, type Picked } from "./castle.js";
+import { WRENCH, type GateInfo, type LinkInfo, type Picked } from "./castle.js";
 
 type Contract = { id: string; title: string };
 type Dep = { id: string; title: string; story: string; storyId: string; contracts?: Contract[] };
@@ -17,13 +17,12 @@ export const SAMPLE = {
   ],
 } as const;
 
-export function Panel({ data, picked, onPick, sample, onSample, fills }: {
+export function Panel({ data, picked, onPick, sample, onSample, fills, links = new Map(), gates = new Map() }: {
   data: Data; picked: Picked | undefined; onPick: (kind: string, id: string) => void; sample: boolean; onSample: (on: boolean) => void;
-  fills: { word: string; colour: string }[];
+  fills: { word: string; colour: string }[]; links?: Map<string, LinkInfo>; gates?: Map<string, GateInfo>;
 }) {
   const byId = new Map(data.capabilities.map(c => [c.id, c]));
   const total = data.capabilities.reduce((s, c) => s + c.lines, 0);
-  const name = (id: string) => byId.get(id)?.title ?? id;
   const link = (kind: string, id: string, text: string) => <button type="button" className="mock-link" onClick={() => onPick(kind, id)}>{text}</button>;
   const contracts = (list: readonly Contract[] | undefined) => list && list.length
     ? <ul className="mock-contracts">{list.map(k => <li key={k.id}>{k.title}</li>)}</ul> : <p className="mock-muted">No contracts recorded.</p>;
@@ -37,39 +36,46 @@ export function Panel({ data, picked, onPick, sample, onSample, fills }: {
       <ul>{ws.map(w => <li key={w.increment}>{w.title} <span className="mock-id">{w.sample ? "made up" : `${w.increment} · ${w.status}`}</span></li>)}</ul>
     </li>)}</ul>;
   };
+  const linkLine = (key: string) => { const l = links.get(key); return l ? <li key={key}>{link("link", key, `${l.fromStory === data.story.title ? "" : `${l.fromStory} · `}${l.fromTitle} calls ${l.toStory === data.story.title ? "" : `${l.toStory} · `}${l.toTitle}`)}</li> : null; };
+  const calledContracts = (to: string) => byId.get(to)?.contracts ?? data.capabilities.flatMap(c => c.dependsOn).find(d => d.id === to)?.contracts;
   let body: React.ReactNode;
-  if (!picked) body = <p className="mock-muted">Click a field, a path, a gate, the road off the coast or a wrench.</p>;
+  if (!picked) body = <p className="mock-muted">Click a territory, a road, a gate or a wrench.</p>;
   else if (picked.kind === "territory") {
-    const c = byId.get(picked.id)!, callers = data.capabilities.filter(o => o.dependsOn.some(d => d.id === c.id)), work = workOn(c.id);
+    const c = byId.get(picked.id)!, work = workOn(c.id);
+    const callers = [...links.values()].filter(l => l.to === c.id), calls = [...links.values()].filter(l => l.from === c.id);
     body = <>
       <h3>{c.title}</h3>
       <p className="mock-facts"><span className={`mock-word mock-word-${c.parked ? "parked" : c.word}`}>{c.parked ? `${c.word}, parked` : c.word}</span>
         {` ${c.lines.toLocaleString("en-GB")} lines in ${c.files} files · ${(c.lines / total * 100).toFixed(1)}% of the island`}</p>
       <p>{c.description}</p>
       <h4>Contracts</h4>{contracts(c.contracts)}
-      <h4>Calls</h4>{c.dependsOn.length ? <ul>{c.dependsOn.map(d => <li key={d.id}>{d.storyId === data.story.id ? link("path", `${c.id}->${d.id}`, d.title) : link("road", `${c.id}->${d.id}`, `${d.story} · ${d.title}`)}</li>)}</ul> : <p className="mock-muted">Nothing.</p>}
-      <h4>Called by</h4>{callers.length ? <ul>{callers.map(o => <li key={o.id}>{link("path", `${o.id}->${c.id}`, o.title)}</li>)}</ul> : <p className="mock-muted">Nothing in this story.</p>}
+      <h4>Calls</h4>{calls.length ? <ul>{calls.map(l => linkLine(l.key))}</ul> : <p className="mock-muted">Nothing.</p>}
+      <h4>Called by, each through its own gate</h4>{callers.length ? <ul>{callers.map(l => linkLine(l.key))}</ul> : <p className="mock-muted">Nothing.</p>}
       {work.length > 0 && <><h4>Open work naming it</h4>{link("wrench", c.id, "Its wrench")}</>}
     </>;
-  } else if (picked.kind === "path" || picked.kind === "road") {
-    const from = byId.get(picked.from)!, dep = from.dependsOn.find(d => d.id === picked.to)!;
-    const called = byId.get(picked.to);
+  } else if (picked.kind === "link") {
+    const l = links.get(picked.id)!;
     body = <>
-      <p className="mock-kicker">{picked.kind === "road" ? "Road off the coast" : "Pathway"}</p>
-      <h3>{from.title} calls {picked.kind === "road" ? `${dep.story} · ` : ""}{dep.title}</h3>
-      <h4>{dep.title}'s contracts</h4>{contracts(called?.contracts ?? dep.contracts)}
-      {called && <p>{link("territory", called.id, `Open ${called.title}`)}</p>}
-      {picked.kind === "path" && picked.shared && <><h4>This stretch also carries</h4><ul>{picked.shared.map(id => { const [f, t] = id.split("->"); return <li key={id}>{link("path", id, `${name(f!)} calls ${name(t!)}`)}</li>; })}</ul></>}
+      <p className="mock-kicker">{l.dock === undefined ? "Road" : "Road between islands"}</p>
+      <h3>{l.fromStory === data.story.title ? "" : `${l.fromStory} · `}{l.fromTitle} calls {l.toStory === data.story.title ? "" : `${l.toStory} · `}{l.toTitle}</h3>
+      <h4>{l.toTitle}'s contracts</h4>{contracts(calledContracts(l.to))}
+      {l.gate && <p>{link("gate", l.gate, `Its gate into ${l.toTitle}`)}</p>}
+      {byId.has(l.to) && <p>{link("territory", l.to, `Open ${l.toTitle}`)}</p>}
+    </>;
+  } else if (picked.kind === "road") {
+    body = <>
+      <p className="mock-kicker">Shared road</p>
+      <h3>{picked.links.length} links along this road</h3>
+      <ul>{picked.links.map(linkLine)}</ul>
     </>;
   } else if (picked.kind === "gate") {
-    const c = byId.get(picked.id)!, callers = data.capabilities.filter(o => o.dependsOn.some(d => d.id === c.id));
+    const g = gates.get(picked.id)!, c = byId.get(g.town)!, first = links.get(g.links[0]!)!;
     body = <>
-      <p className="mock-kicker">Gate</p>
-      <h3>Into {c.title}</h3>
-      <p className="mock-muted">Every path to or from {c.title} passes through this gate.</p>
-      <h4>Its calls go out</h4>{c.dependsOn.length ? <ul>{c.dependsOn.map(d => <li key={d.id}>{d.storyId === data.story.id ? link("path", `${c.id}->${d.id}`, d.title) : link("road", `${c.id}->${d.id}`, `${d.story} · ${d.title}`)}</li>)}</ul> : <p className="mock-muted">None.</p>}
-      <h4>Its callers come in, for its contracts</h4>{callers.length ? <ul>{callers.map(o => <li key={o.id}>{link("path", `${o.id}->${c.id}`, o.title)}</li>)}</ul> : <p className="mock-muted">None in this story.</p>}
+      <p className="mock-kicker">Gate{g.walled ? "" : " (open ground, no wall)"}</p>
+      <h3>Into {c.title}{g.links.length === 1 ? ` from ${first.fromTitle}` : ` from ${first.fromStory === data.story.title ? "this island" : "other islands"}`}</h3>
+      <p className="mock-muted">{g.links.length === 1 ? "This link's own gate; its road is lit in gold." : `The road from the coast brings ${g.links.length} links in by this gate; their roads are lit in gold.`}</p>
       <h4>{c.title}'s contracts</h4>{contracts(c.contracts)}
+      <h4>{g.links.length === 1 ? "The link" : "The links"}</h4><ul>{g.links.map(linkLine)}</ul>
     </>;
   } else {
     const c = byId.get(picked.capability)!, work = workOn(c.id).filter(w => picked.sample ? "sample" in w : !("sample" in w));
@@ -89,7 +95,7 @@ export function Panel({ data, picked, onPick, sample, onSample, fills }: {
         {fills.map(f => <li key={f.word}><span className="mock-swatch" style={{ background: f.colour }} />{f.word}</li>)}
         {/* Each swatch is a small copy of the mark it names. */}
         <li><svg className="mock-mark" viewBox="0 0 22 12" aria-hidden="true"><path d="M1 11V5h3V2h3v3h3V2h3v3h3V2h3v3h1v6Z" fill="#ece4d0" stroke="#1b1814" strokeWidth="1" strokeLinejoin="round" /></svg>wall</li>
-        <li><svg className="mock-mark" viewBox="0 0 22 12" aria-hidden="true"><path d="M1 7H21" stroke="#6e5236" strokeWidth="2" strokeDasharray="4 3" /></svg>path</li>
+        <li><svg className="mock-mark" viewBox="0 0 22 12" aria-hidden="true"><path d="M1 7H21" stroke="#6e5236" strokeWidth="2" strokeDasharray="4 3" /></svg>road</li>
         <li><svg className="mock-mark" viewBox="0 0 22 12" aria-hidden="true"><path d="M1 11V3h2V1h1v2h1V1h1v2h2v8ZM14 11V3h2V1h1v2h1V1h1v2h2v8Z" fill="#ece4d0" stroke="#1b1814" strokeWidth="0.9" strokeLinejoin="round" /></svg>gate</li>
         <li><svg className="mock-mark" viewBox="-10 -36 20 38" aria-hidden="true"><path d={WRENCH} fill="#1b1814" stroke="#ece4d0" strokeWidth="2" /></svg>wrench</li>
       </ul>

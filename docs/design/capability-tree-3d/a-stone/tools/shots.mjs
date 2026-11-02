@@ -39,49 +39,66 @@ await withCapture({ folder: path.join(dist, 'stills'), dist }, async ({ browser,
     console.error(`clicked ${kind} at ${Math.round(at.x)},${Math.round(at.y)}: ${shown}`);
     assert.match(shown, heading);
   };
-  const keys = async (page, key, times) => { for (let k = 0; k < times; k++) { await page.keyboard.press(key); await settle(page, 2); } };
+  const keys_ = async (page, key, times) => { for (let k = 0; k < times; k++) { await page.keyboard.press(key); await settle(page, 2); } };
 
   const { page, errors } = await open('');
   report.layer = await page.evaluate(() => window.mock.layer.stats);
+  const info = await page.evaluate(() => ({ gates: [...window.mock.layer.gates.values()], links: [...window.mock.layer.links.values()], roads: window.mock.layer.roads }));
   await shot(page, 'resting');
   // The wrench on Cloud connection: the one open increment that names one of The library's capabilities today.
   await click(page, 'wrench', id('8 · Cloud connection (GCP)'), /^Work wanting 8 · Cloud connection/);
   await shot(page, 'wrench-arcs');
-  // A path: Rounds calls Lapsed questions.
-  await click(page, 'path', `${id('26 · Rounds')}->${id('25 · Lapsed questions')}`, /calls 25 · Lapsed questions$/);
-  await shot(page, 'pathway-contracts');
-  // A gate: Work in flight's, where its callers come in.
-  await click(page, 'gate', id('10 · Work in flight'), /^Into 10 · Work in flight$/);
+  // A link's own gate in a walled town: Work in flight's, from the capability that calls it. Its route lights in gold.
+  const gate = info.gates.find(g => g.walled && g.links.length === 1 && g.town === id('10 · Work in flight'));
+  await click(page, 'gate', gate.key, /^Into 10 · Work in flight from /);
   await shot(page, 'gate');
+  // A road: Rounds calls Lapsed questions.
+  await click(page, 'link', `${id('26 · Rounds')}->${id('25 · Lapsed questions')}`, /calls 25 · Lapsed questions$/);
+  await shot(page, 'pathway-contracts');
   await click(page, 'territory', id('4 · Work model'), /^4 · Work model$/);
   await shot(page, 'territory');
-  await click(page, 'road', `${id('15 · Connection by address')}->${data.capabilities.find(c => c.title === '15 · Connection by address').dependsOn.find(d => d.story !== data.story.title).id}`, /calls Keys · /);
+  // The road to Keys, leaving by the south-west dock.
+  const keys = info.links.find(l => l.toStory === 'Keys');
+  await click(page, 'link', keys.key, /calls Keys · /);
   await shot(page, 'road-off-the-coast');
+  // The road the other islands' links come ashore by, at its dock, and every way it splits into, lit.
+  const trunk = [...info.roads].sort((a, b) => b.links.length - a.links.length)[0];
+  await click(page, 'road', trunk.id, /links along this road$/);
+  await shot(page, 'road-arriving');
   // Sample work: two made-up arcs wanting Work in flight, so one wrench lists more than one arc.
   await page.locator('.mock-check input').check();
   await settle(page, 4);
   await click(page, 'wrench', `${id('10 · Work in flight')}:sample`, /^Work wanting 10 · Work in flight/);
   await shot(page, 'sample-wrench-arcs');
   await page.locator('.mock-check input').uncheck();
+  const zoom = async (title, clicks) => {
+    const at = await page.evaluate(i => window.mock.layer.point('territory', i), id(title));
+    await page.mouse.move(at.x, at.y);
+    for (let k = 0; k < clicks; k++) { await page.mouse.wheel(0, clicks > 0 ? -300 : 300); await settle(page, 2); }
+  };
+  // One town close up, by the wheel over it.
   await click(page, 'territory', id('3 · Data schema'), /^3 · Data schema$/);
-  // One field close up, by the wheel over it.
-  const field = await page.evaluate(i => window.mock.layer.point('territory', i), id('3 · Data schema'));
-  await page.mouse.move(field.x, field.y);
-  for (let k = 0; k < 10; k++) { await page.mouse.wheel(0, -300); await settle(page, 2); }
+  await zoom('3 · Data schema', 8);
   await shot(page, 'close-up');
+  for (let k = 0; k < 8; k++) { await page.mouse.wheel(0, 300); await settle(page, 2); }
+  // A small territory with no wall: its gates stand on open ground.
+  const small = info.gates.find(g => !g.walled && g.town === id('23 · Catalogue'));
+  await click(page, 'gate', small.key, /^Into 23 · Catalogue/);
+  await zoom('23 · Catalogue', 8);
+  await shot(page, 'small-territory');
   // Panned out to the whole island, by the wheel.
-  for (let k = 0; k < 16; k++) { await page.mouse.wheel(0, 300); await settle(page, 2); }
+  for (let k = 0; k < 14; k++) { await page.mouse.wheel(0, 300); await settle(page, 2); }
   await shot(page, 'whole-island');
   await page.close();
   // Orbited: turned 45 degrees with E, and tipped two steps nearer level with F, by the map's own keys.
   const turned = await open('');
   await turned.page.mouse.click(300, 60);
-  await keys(turned.page, 'e', 3);
-  await keys(turned.page, 'f', 2);
+  await keys_(turned.page, 'e', 3);
+  await keys_(turned.page, 'f', 2);
   await shot(turned.page, 'orbited');
   // A second angle: turned the other way, from the south-west.
-  await keys(turned.page, 'q', 8);
-  await keys(turned.page, 'r', 1);
+  await keys_(turned.page, 'q', 8);
+  await keys_(turned.page, 'r', 1);
   await shot(turned.page, 'orbited-south-west');
   report.errors = [...errors, ...turned.errors];
   await turned.page.close();
@@ -94,7 +111,7 @@ await withCapture({ folder: path.join(dist, 'stills'), dist }, async ({ browser,
   const img = name => `data:image/png;base64,${readFileSync(path.join(out, `${name}.png`)).toString('base64')}`;
   // Both are the same window at the same framing; each is cropped to the map beside the panel and shown at half size.
   await pair.setContent(`<body style="margin:0;background:#0e1418;color:#e8eef0;font:600 15px system-ui;display:flex;gap:12px;padding:10px">
-    ${[['real-today', 'The map today: The library selected'], ['resting', 'Mock 1, reworked: the same island laid out by dependency, as walled fields on open commons']].map(([n, t]) =>
+    ${[['real-today', 'The map today: The library selected'], ['resting', 'Round 4: the same territories, a walled town inset in each, roads between']].map(([n, t]) =>
       `<figure style="margin:0"><div style="width:702px;height:450px;overflow:hidden"><img src="${img(n)}" style="width:1440px;transform:scale(0.645);transform-origin:0 0"></div><figcaption style="padding-top:6px">${t}</figcaption></figure>`).join('')}</body>`);
   await pair.screenshot({ path: path.join(out, 'side-by-side.png') });
   await pair.close();

@@ -303,7 +303,7 @@ export function createAgentTools(options: AgentToolOptions): AgentTools {
   const kinds = recordKinds(graph, standIns, off);
   const because = switchedOff(graph, off);
   const kindsFailed = Object.entries(kinds.failed).map(([part, why]) => offSaid({ part, because: because.get(part) ?? part, failed: why }));
-  const card = habitsCard(off);
+  const card = habitsCard(off, standIns);
   const instructions = [card, ...kindsFailed, ...extensions.flatMap((extension) => extension.instructions === undefined ? [] : [extension.instructions])].join("\n");
   const server = new McpServer({ name: "storytree", version: "0.3.0" }, { instructions });
   const connections = new Connections(kinds.kinds);

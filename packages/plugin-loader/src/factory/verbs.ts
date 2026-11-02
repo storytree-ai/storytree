@@ -7,8 +7,11 @@
  * taken, which switching a plugin off never takes (ADR-1178 D4). The fifth fences, in the project's library, the database
  * roles each plugin this computer mounts declares (its kinds' writers, and its librarian): a deliberate step, run with an
  * account that may act as the project database's owner, which never makes a role (ADR-1178 D5). The sixth writes a plugin's own
- * story, capabilities and contracts into the project's plan from the plan file it carries (ADR-1187).
+ * story, capabilities and contracts into the project's plan from the plan file it carries (ADR-1187), read from this computer's factory
+ * folder or from one it is given, such as a lane's own factory worktree (friction_6614c32ede85).
  */
+import path from "node:path";
+
 import { verb, VerbRefusal, type VerbContext, type VerbFamily, type VerbPlace } from "@storytree/library/verbs";
 
 import type { Composition, ProvidingFamily } from "../switch/switch.js";
@@ -156,17 +159,18 @@ const importPlan = verb({
   command: { family: "plugin", name: "import-plan", summary: "write a plugin's own story, capabilities and contracts into this project's plan from the plan file it carries" },
   tool: {
     name: "import_plugin_plan",
-    description: "Write a factory plugin's own story, its capabilities and contracts into this project's plan from the plan file its manifest names: the plugin's file is their one source, so they are then edited only there and imported again. Capabilities and contracts are matched by number: what changed is edited, what is new added, and what the file no longer holds retired, so a kept promise keeps its id and health. The first time, adopt names the live story it takes over, else a new story is made.",
+    description: "Write a factory plugin's own story, its capabilities and contracts into this project's plan from the plan file its manifest names: the plugin's file is their one source, so they are then edited only there and imported again. It reads this computer's factory folder, or the one from names, such as a lane's own factory worktree right after its push. Capabilities and contracts are matched by number: what changed is edited, what is new added, and what the file no longer holds retired, so a kept promise keeps its id and health. The first time, adopt names the live story it takes over, else a new story is made.",
   },
   inputs: {
     plugin: { kind: "text", word: 0, describe: "the plugin's name: its folder in the factory's plugins folder" },
     adopt: { kind: "text", optional: true, describe: "the first time only: the live story the plugin's plan takes over, keeping its id" },
+    from: { kind: "text", optional: true, describe: "the factory folder to read the plugin from, such as a lane's own factory worktree, instead of this computer's" },
   },
   writes: true,
-  async act({ plugin, adopt }, { library, writer }: VerbContext) {
+  async act({ plugin, adopt, from }, { library, writer }: VerbContext) {
     const [{ factoryFolder }, { pluginPlan }] = await Promise.all([import("@storytree/project-and-caller"), import("./factory.js")]);
     try {
-      const plan = pluginPlan(factoryFolder().folder, plugin);
+      const plan = pluginPlan(from === undefined ? factoryFolder().folder : path.resolve(from), plugin);
       if (plan === undefined) throw new Error(`${plugin}'s storytree manifest names no plan`);
       const done = await library.importPluginPlan(plugin, plan, { ...writer, ...(adopt === undefined ? {} : { adopt }) });
       return {

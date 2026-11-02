@@ -5,12 +5,12 @@
 import assert from "node:assert/strict";
 import { execFileSync, spawn } from "node:child_process";
 import { realpathSync } from "node:fs";
-import { chmod, mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { appendFile, chmod, copyFile, mkdtemp, mkdir, readdir, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
-import { pathToFileURL } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { quietFor, removeTemp, waitUntil } from "@storytree/test-waits";
 
@@ -839,10 +839,16 @@ console.log(survey["story-shop"].files.length);`;
   }
 });
 
-test("8.25 a start whose fetched main is the commit last surveyed, with the same plan, answers from the kept survey without reading a file", async () => {
+test("8.25 a start whose fetched main is the commit last surveyed, with the same plan and survey code, answers from the kept survey without reading a file", async () => {
   const folder = await mkdtemp(path.join(tmpdir(), "code-survey-kept-"));
   const checkout = path.join(folder, "checkout");
   const kept = path.join(folder, "kept");
+  // The survey's own code, copied so a test can change it, reaching the package's modules through a link.
+  const code = path.join(folder, "code");
+  const here = path.dirname(fileURLToPath(import.meta.url));
+  await mkdir(path.join(code, "src"), { recursive: true });
+  await symlink(path.resolve(here, "../../node_modules"), path.join(code, "node_modules"), "junction");
+  for (const name of await readdir(here)) if (name.endsWith(".ts") && !name.endsWith(".test.ts")) await copyFile(path.join(here, name), path.join(code, "src", name));
   const git = (...args: string[]) => execFileSync("git", args, { cwd: checkout, encoding: "utf8", stdio: "pipe", windowsHide: true }).trim();
   const commit = () => {
     git("add", ".");
@@ -851,7 +857,7 @@ test("8.25 a start whose fetched main is the commit last surveyed, with the same
     git("push", "--quiet", "origin", "main");
   };
   // Each start is a fresh worker thread: nothing of an earlier start's reading is in memory.
-  const start = () => offThreadSurveyReader(new URL("./survey-worker.ts", import.meta.url), { execArgv: ["--import", "tsx"], keptIn: kept });
+  const start = () => offThreadSurveyReader(path.join(code, "src", "survey-worker.ts"), { execArgv: ["--import", "tsx"], keptIn: kept });
   const surveyed = async (plan: AnnotatedTree) => {
     const reader = start();
     try {
@@ -885,6 +891,8 @@ test("8.25 a start whose fetched main is the commit last surveyed, with the same
     assert.deepEqual(await surveyed(tree), first, "main unmoved and the same plan: no file is read");
     const renamed = { arcs: [], stories: [{ ...tree.stories[0], capabilities: [{ id: "cap-claims", title: "3 · Claimed" }] }] } as unknown as AnnotatedTree;
     await assert.rejects(surveyed(renamed), "another plan is surveyed afresh, reading the files");
+    await appendFile(path.join(code, "src", "code-survey.ts"), "// changed\n");
+    await assert.rejects(surveyed(tree), "a change to the survey's code beside its worker surveys afresh, reading the files");
 
     await writeFile(path.join(src, "claim.ts"), "export const claim = 1;\nexport const twice = 2;\n");
     await writeFile(path.join(src, "claim.test.ts"), 'import { claim } from "./claim.js";\ntest("3.1 a claim still holds", () => claim);\n');

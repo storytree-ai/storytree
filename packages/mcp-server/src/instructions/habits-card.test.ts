@@ -74,6 +74,20 @@ test("7.12 with a part switched off, the card handed at session start leaves out
   }
 });
 
+test("7.13 with code review switched off, the card still tells the agent to record its work on the plan, and holds none of the build loop's stops", async () => {
+  // What paints the map stays in base when code review moves to a plugin (ADR-1209 D2): the reported column, landed and
+  // built capabilities, closed increments and the session's close-out.
+  const session = await sessionStart("claude-code", ["quality-assurance"]);
+  try {
+    const card = session.client.getInstructions() ?? "";
+    const taught = new Set([...card.matchAll(/`([^`]+)`/g)].map(([, name]) => name!));
+    for (const tool of ["report", "land", "mark_built", "read_context", "close_increment", "park_increment", "close_out"]) assert.ok(taught.has(tool), `the card does not teach ${tool}`);
+    assert.doesNotMatch(card, /STOP|Red, then green/, "a stop of the build loop is still on the card");
+  } finally {
+    await session.close();
+  }
+});
+
 test("7.3 the tool server hands the card to the agent at the start of every session", async () => {
   for (const session of ["claude-code", "codex-mcp-client"]) {
     const started = await sessionStart(session);

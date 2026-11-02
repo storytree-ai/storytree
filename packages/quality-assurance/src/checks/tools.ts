@@ -139,10 +139,5 @@ export const qualityGuidance: readonly string[] = [
   "- Green (the storytree-green agent if present): hash the approved test files (git hash-object), write the least code that passes them, never editing one (stop and say why if one looks wrong); run the whole suite, `report` green, show the hashes unchanged and git diff --stat.",
   "- Before landing, have a fresh-context subagent, told only the increment and folder, review it: `quality_brief` gives the review the diff, contracts and checks (`quality_checks` lists them); `quality_take` records it. Answer each hit with `quality_answer`, fixed or rejected with a reason, and review again while `quality_standing` lists one. `quality_ledger` counts hits by check; `graduate_check` records a check's part now enforced deterministically.",
   "- Show the user the diff and STOP until they approve. Then commit on the branch and merge it to main locally; or, if the user asked for a pull request or the remote is theirs, push the branch, open one and stop, never merging it.",
-  "- When its contracts pass, `land` the capability, ending your claim; it is held while a source file of the story's package is reached by no numbered test, and names each planned contract no numbered test proves (write its test, or retire it). Stopping before then, `release` it.",
-  "- `mark_built` a capability once you consider it built; its card then shows the health storytree verified, never your report.",
-  "- Between increments, `read_context` gives your context's size: judge whether to take on more.",
-  "- When the increment is done, `close_increment` with its outcome (landed, failed, withdrawn) and pull request, or a note naming the local commit. Record unparked work that landed with `park_increment` and its outcome.",
-  "- When your session's work is done, `close_out`: say whether it is safe to close (pull requests merged or commits made, tree clean, nothing of yours running) and why. The sessions list checks a yes and keeps what it cannot bear out listed for the owner.",
   ].join("\n"),
 ];

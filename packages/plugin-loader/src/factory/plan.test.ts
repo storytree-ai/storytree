@@ -11,6 +11,7 @@ import { test } from "node:test";
 import { connect } from "@storytree/library";
 import { dropTestDatabases, testServerUrl, uniqueProjectName } from "@storytree/library/testing/pg";
 import { VerbRefusal } from "@storytree/library/verbs";
+import { removeTemp } from "@storytree/test-waits";
 
 import { PLUGIN_INTERFACE } from "./factory.js";
 
@@ -65,6 +66,44 @@ test("5.14 · A plugin's manifest names its plan file inside its folder: `plugin
     manifest("./plan.json");
     writeFileSync(path.join(plugin, "plan.json"), "{ not json");
     await assert.rejects(importPlan({ plugin: "voice" }), (error: unknown) => error instanceof VerbRefusal && /plan\.json is not JSON/.test(error.message));
+  } finally {
+    await storytree.close();
+    await dropTestDatabases([`storytree_${run}`]);
+  }
+});
+
+test("5.18 · `plugin import-plan <plugin> --from <folder>` reads the plugin's plan from that factory folder instead of this computer's, so a lane imports from its own factory worktree right after its push; a folder that is not there is refused saying so", async (t) => {
+  const home = mkdtempSync(path.join(tmpdir(), "storytree-home-"));
+  const saved = process.env.STORYTREE_HOME;
+  process.env.STORYTREE_HOME = home;
+  t.after(async () => {
+    if (saved === undefined) delete process.env.STORYTREE_HOME;
+    else process.env.STORYTREE_HOME = saved;
+    await removeTemp(home);
+  });
+  const worktree = path.join(home, "factory-worktree");
+  const plugin = path.join(worktree, "plugins", "voice");
+  mkdirSync(plugin, { recursive: true });
+  writeFileSync(path.join(plugin, "package.json"), JSON.stringify({ name: "voice", storytree: { interface: PLUGIN_INTERFACE, plan: "./plan.json" } }));
+  writeFileSync(path.join(plugin, "plan.json"), JSON.stringify(PLAN));
+
+  const { PLUGIN_FAMILIES } = await import("./verbs.js");
+  const importVerb = PLUGIN_FAMILIES[0]!.verbs.find((each) => "name" in each.command && each.command.name === "import-plan")!;
+  const words = { door: "command" as const, say: (step: { command?: string }) => `storytree ${step.command}` };
+  const run = uniqueProjectName();
+  const storytree = await connect({ url: testServerUrl() });
+  try {
+    const library = await storytree.openProject(run);
+    const importPlan = (inputs: Record<string, unknown>) => importVerb.act(inputs as never, { folder: home, project: run, library, session: "test" } as never, words);
+
+    await assert.rejects(importPlan({ plugin: "voice" }), (error: unknown) => error instanceof VerbRefusal && /no plugin called voice/.test(error.message), "this computer's own factory folder holds no voice yet");
+    const done = await importPlan({ plugin: "voice", from: worktree });
+    assert.match(done.text, /^Imported voice's plan into story_\w+: 6 added, 0 edited, 0 retired, 0 kept\.$/);
+    const { stories } = await library.projectTree();
+    assert.deepEqual(stories.find(({ plugin: named }) => named === "voice")!.capabilities.map(({ title }) => title), PLAN.capabilities.map(({ title }) => title));
+
+    const gone = path.join(home, "no-such-worktree");
+    await assert.rejects(importPlan({ plugin: "voice", from: gone }), (error: unknown) => error instanceof VerbRefusal && error.message.includes(path.join(gone, "plugins", "voice")));
   } finally {
     await storytree.close();
     await dropTestDatabases([`storytree_${run}`]);

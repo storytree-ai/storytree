@@ -827,6 +827,9 @@ importers:
         specifier: workspace:*
         version: link:../project-and-caller
     devDependencies:
+      '@storytree/test-waits':
+        specifier: workspace:*
+        version: link:../test-waits
       '@types/node':
         specifier: ^24.13.6
         version: 24.13.6

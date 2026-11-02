@@ -182,11 +182,11 @@ function inCloud(env) {
   return env.CLAUDE_CODE_REMOTE === "true";
 }
 
-/** Each Node.js binary installed under /opt (/opt/<name>/bin/node) or on env's PATH, in that order, without repeats. */
-function installedNodes(env) {
+/** Each Node.js binary installed under opt (opt/<name>/bin/node) or on env's PATH, in that order, without repeats. */
+export function installedNodes(env, opt = "/opt") {
   const found = [];
   try {
-    for (const entry of readdirSync("/opt")) found.push(path.join("/opt", entry, "bin", "node"));
+    for (const entry of readdirSync(opt)) found.push(path.join(opt, entry, "bin", "node"));
   } catch {
     // No /opt: only the path is searched.
   }

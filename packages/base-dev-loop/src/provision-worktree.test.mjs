@@ -13,7 +13,7 @@ import { fileURLToPath } from "node:url";
 
 import { quietFor, removeTemp } from "@storytree/test-waits";
 
-import { check, cloudNode, connectCloud, hookOutput, installEnvironment, pnpmInstall, provision, serve } from "./provision-worktree.mjs";
+import { check, cloudNode, connectCloud, hookOutput, installEnvironment, installedNodes, pnpmInstall, provision, serve } from "./provision-worktree.mjs";
 
 const script = fileURLToPath(new URL("./provision-worktree.mjs", import.meta.url));
 
@@ -537,4 +537,17 @@ test("3.8 the session-start hook's heads-up carries what the Node check found, e
   const output = JSON.parse(hookOutput({ ok: true, code: 0 }, "/repo", ["no Node meets the floor"]));
   assert.equal(output.hookSpecificOutput.additionalContext, "no Node meets the floor");
   assert.equal(hookOutput({ ok: true, code: 0 }, "/repo", []), "");
+});
+
+test("3.8 the Node.js binaries searched are each /opt/<name>/bin/node, then each on the path, once each and only those that exist", (t) => {
+  const { root } = floored(t);
+  const opt = path.join(root, "opt");
+  for (const name of ["node24", "empty"]) mkdirSync(path.join(opt, name, "bin"), { recursive: true });
+  writeFileSync(path.join(opt, "node24", "bin", "node"), "");
+  const onPath = path.join(root, "bin");
+  mkdirSync(onPath);
+  writeFileSync(path.join(onPath, "node"), "");
+  const PATH = ["", onPath, path.join(opt, "node24", "bin"), onPath, path.join(root, "nowhere")].join(path.delimiter);
+  assert.deepEqual(installedNodes({ PATH }, opt), [path.join(opt, "node24", "bin", "node"), path.join(onPath, "node")]);
+  assert.deepEqual(installedNodes({}, path.join(root, "no-opt")), [], "no /opt and no PATH finds none");
 });

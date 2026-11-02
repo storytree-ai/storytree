@@ -910,3 +910,22 @@ test("19.7 · `storytree workspace approve-setup <fingerprint>` records the user
     });
   });
 });
+
+test("5.62 · claiming an increment says to close it with its pull request where the folder's origin is on GitHub, and with a note naming the local commit where it has no remote", async () => {
+  await withWorld(async ({ dir, log, library, project, site, park }) => {
+    const tools = new Map<string, (args: Record<string, unknown>, call: ToolCall) => Promise<{ text: string }>>();
+    sessionTools().registerTools?.((name, _description, _input, act) => { tools.set(name, act as never); });
+    const local = path.join(dir, "local");
+    mkdirSync(local);
+    git(local, "init", "-b", "main");
+    git(site, "remote", "set-url", "origin", "git@github.com:someone/site.git");
+    const claimIn = async (folder: string, session: string) =>
+      (await tools.get("claim")!({ increment: await park(`work in ${session}`), reason: "driving it" }, { library, log, project, caller: { session }, folder, quietMs: 0, writer: {} } as unknown as ToolCall)).text;
+
+    const hosted = await claimIn(site, "A");
+    assert.match(hosted, /close it with its outcome and its pull request/);
+    const bare = await claimIn(local, "B");
+    assert.match(bare, /close it with its outcome and a note naming the local commit/);
+    assert.doesNotMatch(bare, /pull request/, "a project with no remote is never told of a pull request");
+  });
+});

@@ -15,6 +15,7 @@ import { locateStorytree, type LocateOptions } from "@storytree/project-and-call
 import { lineOf, type Caller } from "@storytree/project-and-caller/caller";
 import { z } from "zod";
 
+import { runGit } from "./activity/git.js";
 import type { ActivityLog } from "./activity/index.js";
 import { claim, claimAll, CLAIM_REASON_LIMIT, closeRefusal, increments, land, release, type Claim, type ClaimAnswer, type ClaimContext } from "./claims/claims.js";
 import { currentBranch, type MergeWatch } from "./claims/merges.js";
@@ -155,7 +156,7 @@ function registerClaimTools(define: Define, merges: MergeWatch): void {
       const next =
         increment === undefined
           ? "Write each contract's failing test and report it red, make it pass and report it green, then land it."
-          : "It is active now. When it is done, close it with its outcome and its pull request.";
+          : `It is active now. When it is done, close it with its outcome and ${landsByPullRequest(call.folder) ? "its pull request" : "a note naming the local commit it landed in"}.`;
       return { text: `You hold ${name} now.${taken} ${next}`, data: { held: true } };
     },
     AGENT,
@@ -418,6 +419,15 @@ function registerLandingTools(define: Define, landing: Landing | undefined): voi
 export function claimContext({ log, library, project, caller, folder, quietMs, writer }: ToolCall): ClaimContext & { readonly folder: string } {
   const branch = currentBranch(folder);
   return { log, library, project, ...lineOf(caller), folder, quietMs, writer, ...(branch === undefined ? {} : { branch }) };
+}
+
+/** Whether work in `folder` lands by pull request: its repository's origin is on GitHub. A local project has none to name. */
+function landsByPullRequest(folder: string): boolean {
+  try {
+    return /github\.com[:/]/.test(runGit(["remote", "get-url", "origin"], { cwd: folder }));
+  } catch {
+    return false;
+  }
 }
 
 /** Why a claim was refused, as the agent is told it. */

@@ -49,15 +49,6 @@ function alive(pid: number): boolean {
   }
 }
 
-/** Whether the turn file, naming no process, has stayed so past the grace its new holder needs to write it. */
-function leftUnwritten(file: string): boolean {
-  try {
-    return Date.now() - statSync(file).mtimeMs > UNWRITTEN_GRACE_MS;
-  } catch {
-    return true;
-  }
-}
-
 /**
  * Take the machine's turn to reach a wss:// library, for this process: how to let it go, or undefined while another
  * live process holds it. A turn whose holder has gone is taken, and so is one whose file has named no process for seconds.
@@ -73,9 +64,10 @@ export function takeTurn(home: string): (() => void) | undefined {
       let holder = Number.NaN;
       try {
         holder = Number(readFileSync(file, "utf8").trim());
-        if (!(Number.isInteger(holder) && holder > 0) && !leftUnwritten(file)) return undefined;
+        // Naming no process yet: its new holder's, unless it has stayed so past the grace.
+        if (!(Number.isInteger(holder) && holder > 0) && Date.now() - statSync(file).mtimeMs <= UNWRITTEN_GRACE_MS) return undefined;
       } catch {
-        // Let go between the two reads: try again.
+        // Let go between the reads: try again.
       }
       if (Number.isInteger(holder) && holder > 0 && holder !== process.pid && alive(holder)) return undefined;
       rmSync(file, { force: true });

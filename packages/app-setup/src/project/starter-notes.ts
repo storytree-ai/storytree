@@ -29,7 +29,7 @@ export const PRINCIPLES: readonly Principle[] = [
     description: "Before building a behaviour, write the smallest test that fails because it is missing.",
     statement: "Before building a behaviour, write the smallest test that fails because the behaviour is missing, and see it fail.",
     why: "A test you never saw fail may test nothing. A small one says exactly what broke.",
-    howToApply: "Test what the user can do or see (the contract's promise), not the wording of text or how the files are laid out. Run it and see it fail, then make it pass. If the test is hard to write, the piece is too big: split it.",
+    howToApply: "Test what the user can do or see (what the contract guarantees), not the wording of text or how the files are laid out. Run it and see it fail, then make it pass. If the test is hard to write, the piece is too big: split it.",
   },
   {
     title: "Edit before adding",

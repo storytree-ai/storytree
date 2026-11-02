@@ -87,7 +87,7 @@ tagged "sample", on 10 · Work in flight, with three made-up increments on two m
 | Meaning | Hex |
 | --- | --- |
 | Healthy, untested, parked territories (the map's, drawn by its own code) | `#97C459`, `#F2D16B`, `#86939D`, at the map's opacity |
-| Corridor ground (the open strip a way runs down) | `#cdc4a5` |
+| Corridor ground (the open strip a way runs down) | `#bfc19a` |
 | Ink: every outline, the road's end | `#1b1814` |
 | Wall and tower faces | `#ece4d0` |
 | Paths, dashed | `#6e5236`; the road's run off the coast `#ece4d0`, since brown is lost on the dark glass |
@@ -205,3 +205,27 @@ Before (left) and after round 3 (right), close up: gate towers with crenellation
 The road off the coast at rest, before (left) and after (right):
 
 ![Round 3, the road off the coast](stills/round-3-road.png)
+
+### Round 4: "not yet", 9 findings, two for Mick
+
+| # | Finding | Answer |
+| --- | --- | --- |
+| 1 | A gate's towers are lost among the wall's own crenels; a picked gate is a solid gold slab, like a plot | Fixed: the towers stand a quarter taller, clear above the wall's teeth; a picked gate's towers turn gold and a thin gold line runs through its opening instead of a slab |
+| 2 | Corridors read as cream causeways, their floor the wall's colour | Fixed: the corridor's open ground is a muted olive, open land between the territories rather than a paved floor. The walls either side stay, as round 3 answered |
+| 3 | The wall's top reads as dashed ticks, like the path's dashes | Rejected: the wall is one flat pale band with one ink outline; the ticks are its crenels seen from above, drawn by the one wall recipe, and the path is a brown dash on the corridor's ground, not on a wall |
+| 4 | The wrench stands up like a game marker | Rejected: the brief keeps PR #230's upright flat ink wrench |
+| 5 | Names sit across walls and stack | Rejected: the names rule, as in round 3: a name stands at its territory's middle and never hides another |
+| 6 | "Decision log" twice | Rejected: two capabilities of the library carry that title (13 and 22) |
+| 7 | Tilted low, the walls are a jagged mess; the road's name runs into the island's own "The library" tag | Fixed in part: the mock's names now keep clear of the map's island names too. The tilt and the 2.5D walls are the map's camera and the brief's walls |
+| 8 | The road off the coast reads as a label pointer | Rejected: the brief keeps PR #230's road off the coast, dashed as the paths are; round 3 made its run onto the glass show |
+| 9 | A picked path does not show which two territories it joins | Fixed: a picked path's gates at both ends turn gold with it |
+
+**For Mick, from round 4** (nothing built from these): whether the two "Decision log" capabilities should keep one title; walls drawn lower once the camera tilts low.
+
+Before (left) and after round 4 (right), close up: taller gate towers and olive corridor ground.
+
+![Round 4, before and after, close up](stills/round-4.png)
+
+A picked gate (left pair) and a picked path (right pair), before and after round 4:
+
+![Round 4, picks](stills/round-4-picks.png)

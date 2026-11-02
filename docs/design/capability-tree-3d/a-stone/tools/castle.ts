@@ -52,7 +52,7 @@ type Data = { story: { id: string }; capabilities: Capability[]; openWork: { cap
 
 /** The ink map's palette (README.md lists it). */
 export const PALETTE = {
-  ink: "#1b1814", wall: "#ece4d0", ground: "#cdc4a5", path: "#6e5236", lit: "#ffd34d",
+  ink: "#1b1814", wall: "#ece4d0", ground: "#bfc19a", path: "#6e5236", lit: "#ffd34d",
   wrench: "#1b1814", wrenchEdge: "#ece4d0", wrenchSample: "#d6bdf0", shadow: "#080b0e",
 } as const;
 /** The map lifts its territories this far off the land (planet-view.tsx's TERRITORY_LIFT). */
@@ -219,7 +219,7 @@ export function castleLayer(state: RootState, story: string, data: Data, host: H
 
   // Sizes, from one cell's width of land.
   const H = U * 0.09, M = H * 0.55, MERLON = H * 1.7;
-  const OPEN = U * 0.16, TOWER = H * 2, TOWER_H = H * 2.6, TOP = H * 0.85;
+  const OPEN = U * 0.16, TOWER = H * 2, TOWER_H = H * 3.3, TOP = H * 0.85;
   const PATH = U * 0.024, DASH = U * 0.15, TURN = U * 0.18;
   const lift = (q: P, up = 0) => new Vector3(q.x, heightAt(q) + up, q.z);
   const ground = (q: P) => heightAt(q) + TERRITORY_LIFT + H * 0.04;
@@ -537,6 +537,12 @@ export function castleLayer(state: RootState, story: string, data: Data, host: H
     // Names never hide one another: taken from the top of the page down, a name that would meet one already placed moves down
     // just clear of it.
     const boxes: { l: number; r: number; t: number; b: number }[] = [];
+    // The map's own island names stand where they stand; the mock's names keep clear of them too.
+    const hostRect = host.getBoundingClientRect();
+    for (const plate of host.querySelectorAll<HTMLElement>(".planet-nameplate[data-story-id]")) {
+      const r = plate.getBoundingClientRect();
+      if (r.width) boxes.push({ l: r.left - hostRect.left, r: r.right - hostRect.left, t: r.top - hostRect.top, b: r.bottom - hostRect.top });
+    }
     // The wrenches stand where they stand; names keep clear of them too.
     for (const w of [...wrenches.values(), ...(sampleWrench && !sampleWrench.el.hidden ? [sampleWrench] : [])]) boxes.push({ l: w.x! - 9, r: w.x! + 9, t: w.y! - 32, b: w.y! + 3 });
     for (const spot of spots.filter(sp => sp.name).sort((a, b) => a.y! - b.y!)) {
@@ -639,14 +645,16 @@ export function castleLayer(state: RootState, story: string, data: Data, host: H
       }
     }
     if (picked?.kind === "gate") {
-      // Its towers turn gold, and a gold bar lies across its opening.
+      // Its towers turn gold, and a thin gold line runs through its opening.
       const g = gateGroups.get(picked.id)!, w = gateMarks.get(picked.id)!.wall, at = g.userData.at as P, l = dist(w.a, w.b), n = { x: -(w.b.z - w.a.z) / l, z: (w.b.x - w.a.x) / l };
       (g.userData.fill as MeshBasicMaterial).color.set(PALETTE.lit);
-      draw([{ x: at.x - n.x * OPEN * 1.4, z: at.z - n.z * OPEN * 1.4 }, { x: at.x + n.x * OPEN * 1.4, z: at.z + n.z * OPEN * 1.4 }], OPEN * 1.6);
+      draw([{ x: at.x - n.x * OPEN * 1.6, z: at.z - n.z * OPEN * 1.6 }, { x: at.x + n.x * OPEN * 1.6, z: at.z + n.z * OPEN * 1.6 }], PATH * 2.6);
     }
     if (picked?.kind === "wrench") (picked.sample ? sampleWrench : wrenches.get(picked.capability))?.el.classList.add("lit");
     const line = picked?.kind === "path" ? routes.find(r => r.key === picked.id)?.points : picked?.kind === "road" ? roadLines.get(picked.id)?.points : undefined;
     if (line) draw(rounded(line, TURN), PATH * 2.6);
+    // A path's gates at both ends turn gold with it, so the pick shows the two territories it joins.
+    if (picked?.kind === "path") for (const k of p.ways.get(`${indexOf.get(picked.from)}->${indexOf.get(picked.to)}`)?.gates ?? []) (gateGroups.get(k)?.userData.fill as MeshBasicMaterial | undefined)?.color.set(PALETTE.lit);
     state.invalidate();
   };
 

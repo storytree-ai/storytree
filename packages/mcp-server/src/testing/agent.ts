@@ -21,6 +21,8 @@ export interface Answer {
 export interface Agent {
   call(tool: string, args?: Record<string, unknown>, meta?: Record<string, unknown>): Promise<Answer>;
   tools(): Promise<string[]>;
+  /** A tool's input schema, as tools/list publishes it to the agent. */
+  inputSchema(tool: string): Promise<Record<string, unknown>>;
   instructions(): string | undefined;
   close(): Promise<void>;
 }
@@ -53,6 +55,11 @@ export async function agentIn(folder: string, options: AgentOptions = {}): Promi
     },
     async tools() {
       return (await client.listTools()).tools.map((tool) => tool.name).sort();
+    },
+    async inputSchema(tool) {
+      const listed = (await client.listTools()).tools.find((each) => each.name === tool);
+      assert.ok(listed, `${tool} is listed`);
+      return listed.inputSchema as Record<string, unknown>;
     },
     instructions() {
       return client.getInstructions();

@@ -403,6 +403,7 @@ test("8.41 deciding which strings are a call's first argument reads text in prop
     return [...seen].reduce((sum, input) => sum + input.length, 0);
   };
   const { text } = file(400);
-  assert.ok(readBy(text) < 10 * text.length, `${readBy(text)} characters read for a ${text.length}-character file`);
-  assert.deepEqual(surveyStory([{ path: "src/claims/claim.ts", text: "export const claim = () => 1;\n" }, file(3)], capabilities).tests[0]?.titles.map(({ number }) => number), ["3.2", "3.3", "3.4"]);
+  const read = readBy(text);
+  assert.ok(read < 10 * text.length, `${read} characters read for a ${text.length}-character file`);
+  assert.deepEqual(surveyStory([{ path: "src/claims/claim.ts", text: "export const claim = () => 1;\n" }, file(3)], capabilities).tests?.[0]?.titles?.map(({ number }) => number), ["3.2", "3.3", "3.4"]);
 });

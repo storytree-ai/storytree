@@ -1,8 +1,9 @@
 /**
- * Capability 2 · The allocation rule (the Guardrails story, ADR-0911 D2): which source files of a story
+ * Capability 10 · The allocation rule (storytree's repository checks, ADR-1199 D5; moved from Architecture
+ * checks' packages/guardrails, ADR-0911 D2): which source files of a story
  * package no numbered test reaches (ADR-0838 D5), the rule that keeps every line of code on an island
- * inside a capability's territory. A user's project runs it as `storytree check`; storytree's own dev
- * loop runs it over its checkout in every `pnpm test` (packages/repo-checks/src/allocation.mjs).
+ * inside a capability's territory. storytree's own lint runs it over its checkout in every `pnpm test`
+ * (allocation.mjs), and the owner's dev-loop plugin imports the same code for `storytree check`.
  *
  * It needs no plan: any numbered test of a package, or its coverage map (survey-coverage.json), allocates,
  * as the map's code survey reads the checkout as it stands. A test numbered for a capability the plan

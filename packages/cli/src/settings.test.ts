@@ -172,24 +172,24 @@ test("1.37 · a family a switched-off part declares is not listed, and asking fo
   assert.match(map.stderr, /storytree map is not mounted: map is switched off on this computer\. Switch it on with: storytree settings set part map on/);
 });
 
-test("1.41 · with architecture checks switched off, `storytree` starts and lists every family but its, asking for it says it is switched off, and `project delete` is handed no project records, no base part keeping any now code review is a factory plugin's (ADR-1170 D2, ADR-1209)", async (t) => {
+test("1.41 · with CI health switched off, `storytree` starts and lists every family but its, asking for it says it is switched off, and `project delete` is handed no project records, no base part keeping any now code review is a factory plugin's (ADR-1170 D2, ADR-1209)", async (t) => {
   const dir = mkdtempSync(path.join(tmpdir(), "storytree-review-off-"));
   t.after(() => removeTemp(dir));
   const home = path.join(dir, "home");
   const invoke = (args: string[]) => storytree(command.script, args, { cwd: dir, home });
 
   const listed = await invoke([]);
-  assert.match(listed.stdout, /^  check\b/m, "check is listed with it on");
+  assert.match(listed.stdout, /^  health\b/m, "health is listed with it on");
   assert.deepEqual(await projectRecords(home), [], "no base part hands project delete records of its own");
 
-  assert.equal((await invoke(["settings", "set", "part", "guardrails", "off"])).code, 0);
+  assert.equal((await invoke(["settings", "set", "part", "ci-health", "off"])).code, 0);
   const off = await invoke([]);
   assert.equal(off.code, 0, off.stderr);
-  assert.doesNotMatch(off.stdout, /^  check\b/m, "check is not listed");
+  assert.doesNotMatch(off.stdout, /^  health\b/m, "health is not listed");
   for (const family of ["library", "arc", "workspace", "project", "settings"]) assert.match(off.stdout, new RegExp(`^  ${family}\\b`, "m"), `${family} is still listed`);
-  const check = await invoke(["check", "check"]);
-  assert.equal(check.code, 1, check.stdout);
-  assert.match(check.stderr, /storytree check is not mounted: guardrails is switched off on this computer/);
+  const health = await invoke(["health", "worklist"]);
+  assert.equal(health.code, 1, health.stdout);
+  assert.match(health.stderr, /storytree health is not mounted: ci-health is switched off on this computer/);
   assert.deepEqual(await projectRecords(home), [], "still none with it off");
 });
 

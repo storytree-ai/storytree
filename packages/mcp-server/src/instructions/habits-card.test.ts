@@ -56,13 +56,13 @@ test("7.1 the card names every tool the server has, and no tool the server lacks
 });
 
 test("7.12 with a part switched off, the card handed at session start leaves out its section and those of the parts standing on it, names them switched off, and names no tool the server lacks", async () => {
-  const session = await sessionStart("claude-code", ["guardrails"]);
+  const session = await sessionStart("claude-code", ["experiments"]);
   try {
     const card = session.client.getInstructions() ?? "";
     const offered = (await session.client.listTools()).tools.map((tool) => tool.name).filter((tool) => !session.harnessTools.includes(tool)).sort();
     const taught = [...new Set([...card.matchAll(/`([^`]+)`/g)].map(([, name]) => name!))].sort();
     assert.deepEqual(taught.filter((tool) => !offered.includes(tool)), [], "every tool it teaches is served");
-    assert.match(card, /Switched off on this computer, so not served here: guardrails\. The user switches one on with: storytree settings set part <part> on/);
+    assert.match(card, /Switched off on this computer, so not served here: experiments\. The user switches one on with: storytree settings set part <part> on/);
     for (const section of setupGuidance) assert.ok(card.includes(section), `App setup's section stays: ${section.slice(0, 60)}`);
     for (const tool of ["check_setup", "set_up_project", "wire_pipeline"]) assert.ok(taught.includes(tool) && offered.includes(tool), `${tool} is still served and taught`);
   } finally {

@@ -66,25 +66,6 @@ test("6.95 the tool server serves no tool of a part this computer switches off, 
   for (const tool of ["check_setup", "set_up_project", ...mapTools]) assert.ok(setupOff.includes(tool), `${tool} stays with App setup off`);
 });
 
-test("6.103 with architecture checks switched off, the tool server starts and serves every tool it serves with it on (ADR-1170 D2)", async (t) => {
-  const folder = mkdtempSync(path.join(tmpdir(), "review-off-"));
-  t.after(() => removeTemp(folder));
-  const served = async (off: readonly string[]) => {
-    writeFileSync(path.join(folder, "settings.json"), JSON.stringify({ "parts-off": off }));
-    const tools = createAgentTools({ folder, env: {}, setup: { storytreeHome: folder } });
-    try {
-      return [...tools.tools, ...tools.harnessTools];
-    } finally {
-      await tools.close();
-    }
-  };
-  const all = await served([]);
-  const off = await served(["guardrails"]);
-  assert.deepEqual(all.filter((tool) => !off.includes(tool)), [], "no tool goes with architecture checks");
-  for (const tool of ["check_setup", "claim", "land", "make_workspace", "show_plan", "close_increment", "wire_pipeline"]) assert.ok(off.includes(tool), `${tool} is still served`);
-  assert.deepEqual(off.filter((tool) => !all.includes(tool)), [], "nothing new is served in their place");
-});
-
 test("6.98 with a factory folder chosen and a factory plugin named to stand in for experiments, a part nothing stands on, the tool server serves the plugin's verb tools where experiments' were, and not once experiments is on again", async (t) => {
   const folder = mkdtempSync(path.join(tmpdir(), "stand-in-"));
   t.after(() => rmSync(folder, { recursive: true, force: true }));

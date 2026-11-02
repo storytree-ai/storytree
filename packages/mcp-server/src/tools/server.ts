@@ -77,7 +77,7 @@ export type ProtectionReader = (folder: string, repository: { owner: string; nam
 /**
  * A job another story contributes to a user's pipeline (ADR-1170 D2), as its manifest's `pipelineJobs` names it, which
  * the server hands to App setup's wire_pipeline: its name is the status check's, and its commands run at `workspace`.
- * Guardrails contributes `storytree check`; a part switched off contributes none. Declared here, as the reader above is.
+ * No base part contributes one; a factory plugin may, and a part switched off contributes none. Declared here, as the reader above is.
  */
 export interface PipelineJob {
   readonly name: string;
@@ -213,7 +213,7 @@ export interface ToolExtension {
 /**
  * A check another story contributes to the claim front doors (ADR-1170 D2), as its manifest's `claimChecks` names it:
  * run as a claim on `capability` lands, in the checkout `folder` is in, it gives the problems that hold the landing,
- * none to let it land. Guardrails contributes its allocation rule (ADR-0911 D4); a part switched off contributes none.
+ * none to let it land. No base part contributes one; a factory plugin may (the owner's dev loop's allocation rule), and a part switched off contributes none.
  */
 export interface ClaimCheck {
   readonly name: string;

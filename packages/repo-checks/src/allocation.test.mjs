@@ -1,7 +1,7 @@
 // Every line of code on an island lies in a capability's territory (ADR-0838 D5): `pnpm lint` refuses, in
 // the gate and CI, a change that leaves a story package's source file reached by no numbered test; this file is contract
 // 6.1's test, run with this package's tests.
-// The rule itself, and its planted checkouts, are the Guardrails story's (packages/guardrails).
+// The rule itself, and its planted checkouts, are the allocation rule's, capability 10 (src/rules/allocation-rule).
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";

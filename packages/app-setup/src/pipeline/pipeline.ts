@@ -2,7 +2,7 @@
  * Capability 11 · Pipeline wiring (the app setup story since ADR-0969 D3; ADR-0911 D1, D3): storytree's pipeline for a user's
  * project, which the agent connects at setup and never writes for itself. It runs the project's own install
  * and test commands, and each job the parts the host mounts contribute through their manifests' `pipelineJobs`
- * (Guardrails' `storytree check`, ADR-1170 D2), at this storytree's release: a part switched off contributes none.
+ * (ADR-1170 D2; no base part contributes one since Architecture checks left the base), at this storytree's release: a part switched off contributes none.
  * On GitHub it is a workflow file; elsewhere, the same commands for the pipeline the user has. Branch protection,
  * merging only what CI verified, is a repository setting: it is proposed for the user to approve, never applied here.
  *

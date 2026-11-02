@@ -336,6 +336,41 @@ test("19.4 · a worktree set up from the local file that names teardown commands
   }
 });
 
+test("19.4 · a set-up worktree whose teardown marker is read mid-write, empty between its truncation and its write, stays for a later pass (regression: reaped mid-teardown on CI's own-health run, 2026-11-02)", async () => {
+  const log = await openActivityLog(testServerUrl());
+  const project = uniqueProjectName();
+  try {
+    await withTempDir(async (dir) => {
+      const repo = path.join(dir, "site");
+      git(dir, "init", "-q", "-b", "main", repo);
+      git(repo, "commit", "-q", "--allow-empty", "-m", "first");
+      mkdirSync(path.join(repo, ".storytree"));
+      writeFileSync(path.join(repo, ".git", "info", "exclude"), ".storytree/\n");
+      writeFileSync(path.join(repo, ".storytree", "worktree.local.json"), JSON.stringify({ teardown: ["node -e \"\""] }));
+      const folder = path.join(dir, "set-up");
+      git(repo, "worktree", "add", "-q", "-b", "claude/set-up", folder, "main");
+      const here = { harness: "claude-code", source: "hook", machine: "here" } as const;
+      await log.append(project, { ...here, session: "s-set-up", folder, branch: "claude/set-up", kind: "file-edited", files: ["x.ts"] });
+      await log.append(project, { ...here, session: "observer", folder: repo, kind: "branch-state", of: "claude/set-up", open: false, how: "not-ahead" });
+      await log.append(project, { ...here, session: "s-set-up", folder, branch: "claude/set-up", kind: "closed-out", safe: true, why: "merged", running: 0 });
+      assert.deepEqual(setUpWorktree(repo, folder)?.steps, []);
+      const mark = path.join(path.resolve(folder, git(folder, "rev-parse", "--git-dir").trim()), "storytree-setup.json");
+      assert.equal(existsSync(mark), true);
+
+      writeFileSync(mark, "");
+      const observer = { log, project, folder: repo, session: "observer", harness: "claude-code", source: "hook" } as const;
+      const watch = { everyMs: 0, budgetMs: 60_000, protect: [], empty: (trash: string) => rmSync(trash, { recursive: true, force: true }) };
+      assert.deepEqual(await reapWorktrees(observer, watch), [], "a marker caught mid-write keeps the worktree");
+      assert.equal(existsSync(folder), true);
+
+      writeFileSync(mark, JSON.stringify({ teardown: ["node -e \"\""], started: { at: Date.now() }, ran: [] }));
+      assert.deepEqual(await reapWorktrees(observer, watch), [folder], "once it reads whole and done, it goes");
+    });
+  } finally {
+    await log.close();
+  }
+});
+
 test("3.46 the look the hooks hand on runs git with the repository's own commands off: reaping a merged worktree, and reading which folders git still lists, starts neither its file-system monitor nor its hooks", async () => {
   const log = await openActivityLog(testServerUrl());
   const project = uniqueProjectName();

@@ -23,7 +23,6 @@ const PACKAGE_NAMED_OTHERWISE: Readonly<Record<string, string>> = {
   // ADR-1066 D4's developer-first names: the stories were renamed and their packages kept their names.
   story_6def59292b78: "project-and-caller", // Context
   story_e50347f0388e: "guardrails", // Architecture checks
-  story_421e473f0a99: "quality-assurance", // Code review
   story_73dad81ba7a7: "map", // Code map
   story_deee4230348c: "forest", // Map view
   story_d754d997f22a: "knowledge-core", // Knowledge graph

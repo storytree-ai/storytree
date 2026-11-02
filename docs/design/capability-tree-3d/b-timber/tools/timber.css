@@ -1,0 +1,30 @@
+/* The mock's own marks: the panel a click opens, the road labels, the legend, and the late-afternoon wash. */
+/* The panel's view of one island: the app's menus, arcs and sessions around the map are not part of it. */
+body.timber #app-menu-host, body.timber .sessions-list, body.timber .arc-surface-mount, body.timber .forest-views,
+body.timber-real #app-menu-host, body.timber-real .sessions-list, body.timber-real .arc-surface-mount, body.timber-real .forest-views { display: none !important; }
+body.timber main#content, body.timber-real main#content { position: fixed; inset: 0; max-width: none; margin: 0; padding: 0; }
+body.timber::after { content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 30;
+  background: radial-gradient(120% 90% at 15% 20%, rgba(255, 196, 120, 0.16), rgba(255, 170, 90, 0.06) 55%, rgba(60, 30, 10, 0.18)); mix-blend-mode: soft-light; }
+.timber-panel { position: fixed; top: 16px; right: 16px; bottom: 16px; width: min(380px, calc(100vw - 32px)); overflow: auto; z-index: 60;
+  background: #f6eedf; color: #3b2a1a; border: 2px solid #8a6240; border-radius: 10px; padding: 18px 20px; font: 14px/1.45 Georgia, "Iowan Old Style", serif;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45); }
+.timber-panel h2 { font-size: 19px; margin: 4px 0 10px; line-height: 1.25; }
+.timber-panel h3 { font-size: 14px; margin: 16px 0 6px; color: #6b4a2f; text-transform: none; }
+.timber-kicker { margin: 0; font: 600 11px/1.3 system-ui, sans-serif; letter-spacing: 0.06em; text-transform: uppercase; color: #8a6240; }
+.timber-note { background: #efe2c8; border-left: 3px solid #c79a63; padding: 6px 10px; margin: 8px 0; }
+.timber-contracts, .timber-calls { margin: 0; padding-left: 20px; }
+.timber-contracts li, .timber-calls li { margin: 0 0 6px; }
+.timber-status { font: 600 10px/1 system-ui, sans-serif; text-transform: uppercase; background: #e3cf9f; border-radius: 4px; padding: 2px 5px; margin-left: 4px; }
+.timber-none { color: #8a7a68; font-style: italic; }
+.timber-close { position: absolute; top: 8px; right: 10px; border: 0; background: none; font-size: 22px; color: #6b4a2f; cursor: pointer; }
+.timber-labels { position: fixed; inset: 0; pointer-events: none; z-index: 45; }
+.timber-label { position: absolute; transform: translate(-50%, -100%); pointer-events: auto; cursor: pointer; white-space: nowrap;
+  background: #f6eedf; color: #3b2a1a; border: 1.5px solid #8a6240; border-radius: 4px; padding: 2px 7px; font: 600 11px/1.3 system-ui, sans-serif; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35); }
+.timber-label.road-out { background: #e8d3a0; }
+.timber-legend { position: fixed; left: 16px; bottom: 16px; z-index: 50; display: flex; flex-direction: column; gap: 2px; max-width: 360px;
+  background: rgba(20, 16, 12, 0.72); color: #f6eedf; border: 1px solid #8a6240; border-radius: 8px; padding: 10px 12px; font: 12px/1.4 system-ui, sans-serif; }
+.timber-legend strong { font: 600 15px/1.3 Georgia, serif; }
+.timber-measured { color: #c7b394; }
+/* The map's own notice that its roads between islands were not routed: with one island on show there are none to route. */
+body.timber-real .forest [role="alert"], body.timber .forest [role="alert"] { display: none !important; }
+@media (max-width: 600px) { .timber-legend { display: none; } }

@@ -29,7 +29,7 @@ export type Plan = {
 /** The commons' width, in the plan's units (a field of L lines is √L wide). */
 export const GAP = 13;
 /** The smallest field, in lines: under it a field could not hold its gate and its two towers. */
-export const FLOOR_LINES = 160;
+export const FLOOR_LINES = 220;
 /** The commons between two fields of one column: wider than between columns, so the plan is nearer round, as the island is. */
 export const ROW_GAP = GAP * 2.6;
 /** How far down the commons between two fields of a column its centre line runs: below the middle, so the upper field's name,
@@ -64,7 +64,7 @@ export function plan(caps: readonly Cap[]): Plan {
     (columns[col] ??= []).push({ id: c.id, col, side: Math.sqrt(Math.max(FLOOR_LINES, c.lines)), x: 0, z: 0, gate: "E" });
   }
   const titleOf = new Map(caps.map(c => [c.id, c.title.replace(/^\d+ · /, "")]));
-  const widths = columns.map(col => Math.max(...col.map(f => Math.max(f.side, NAME_UNITS(titleOf.get(f.id)!) - GAP * 0.8))));
+  const widths = columns.map(col => Math.max(...col.map(f => Math.max(f.side, NAME_UNITS(titleOf.get(f.id)!) - GAP * 0.2))));
   let cursor = 0;
   columns.forEach((col, k) => { const x = cursor + widths[k]! / 2; col.forEach(f => { f.x = x; }); cursor += widths[k]! + GAP; });
   const stack = (col: Field[]) => {
@@ -93,7 +93,7 @@ export function plan(caps: readonly Cap[]): Plan {
   const C = columns.length;
   const left = (k: number) => columns[k]![0]!.x - widths[k]! / 2, right = (k: number) => columns[k]![0]!.x + widths[k]! / 2;
   const v = Array.from({ length: C + 1 }, (_, k) => k === 0 ? left(0) - GAP / 2 : k === C ? right(C - 1) + GAP / 2 : (right(k - 1) + left(k)) / 2);
-  const top = (k: number) => Math.min(...columns[k]!.map(f => f.z - f.side / 2)) - GAP / 2;
+  const top = (k: number) => Math.min(...columns[k]!.map(f => f.z - f.side / 2)) - GAP * 0.8;
   const bottom = (k: number) => Math.max(...columns[k]!.map(f => f.z + f.side / 2)) + ROW_GAP * ACROSS_AT;
   const segs: [P, P][] = [];
   for (let k = 0; k <= C; k++) {

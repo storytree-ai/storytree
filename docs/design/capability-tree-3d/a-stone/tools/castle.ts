@@ -84,6 +84,11 @@ function cutOut(a: P, b: P, h: number, m: number, merlon: number, y: (p: P) => n
   const quad = (u0: number, u1: number, v0: number, v1: number) => tris.push(...at(u0, v0), ...at(u1, v0), ...at(u1, v1), ...at(u0, v0), ...at(u1, v1), ...at(u0, v1));
   const line = (u0: number, v0: number, u1: number, v1: number) => lines.push(...at(u0, v0), ...at(u1, v1));
   quad(0, l, 0, h);
+  // A short run is a plain band: crenellations on it would be a few broken ticks.
+  if (l < merlon * 4 && merlon < h) {
+    lines.push(...at(0, 0), ...at(l, 0), ...at(0, 0), ...at(0, h), ...at(0, h), ...at(l, h), ...at(l, h), ...at(l, 0));
+    return { tris, lines };
+  }
   // Merlons and crenels of equal width, a merlon at each end, the spacing stretched to fit.
   const count = Math.max(1, Math.round((l / merlon + 1) / 2)), step = count > 1 ? (l - merlon) / (count - 1) : 0;
   let u = 0;
@@ -104,10 +109,10 @@ function cutOut(a: P, b: P, h: number, m: number, merlon: number, y: (p: P) => n
 }
 
 /** A dash drawn once, repeated along every path. */
-function dashTexture(colour: string = PALETTE.path): CanvasTexture {
+function dashTexture(colour: string = PALETTE.path, solid = false): CanvasTexture {
   const canvas = document.createElement("canvas"); canvas.width = 8; canvas.height = 64;
   const ctx = canvas.getContext("2d")!;
-  ctx.fillStyle = colour; ctx.fillRect(0, 4, 8, 34);
+  ctx.fillStyle = colour; ctx.fillRect(0, solid ? 2 : 4, 8, solid ? 54 : 34);
   const texture = new CanvasTexture(canvas);
   texture.wrapS = texture.wrapT = RepeatWrapping; texture.colorSpace = SRGBColorSpace;
   return texture;
@@ -227,9 +232,9 @@ export function castleLayer(state: RootState, story: string, data: Data, host: H
 
   // Sizes, from the commons' width on the land.
   const Gw = GAP * S;
-  const H = Gw * 0.24, M = H * 0.55, MERLON = H * 1.05;
+  const H = Gw * 0.2, M = H * 0.55, MERLON = H * 1.1;
   const OPEN = Gw * 0.32, TOWER = H * 1.15, TOWER_H = H * 1.35, TOP = H * 0.45;
-  const PATH = Gw * 0.06, DASH = Gw * 0.26, TURN = Gw * 0.5;
+  const PATH = Gw * 0.05, DASH = Gw * 0.26, TURN = Gw * 0.5;
   const lift = (q: P, up = 0) => new Vector3(q.x, heightAt(q) + up, q.z);
   const ground = (q: P) => heightAt(q) + H * 0.04;
 
@@ -342,7 +347,7 @@ export function castleLayer(state: RootState, story: string, data: Data, host: H
     for (const t of [a, b]) {
       const h = TOWER / 2, sq = [[-h, -h], [h, -h], [h, h], [-h, h]].map(([u, v]) => ({ x: t.x + dir.x * u! + nrm.x * v!, z: t.z + dir.z * u! + nrm.z * v! }));
       const tris: number[] = [], lines: number[] = [];
-      for (let k = 0; k < 4; k++) { const cut = cutOut(sq[k]!, sq[(k + 1) % 4]!, TOWER_H, M * 0.8, TOWER / 3, ground); tris.push(...cut.tris); lines.push(...cut.lines); }
+      for (let k = 0; k < 4; k++) { const cut = cutOut(sq[k]!, sq[(k + 1) % 4]!, TOWER_H, M * 0.8, TOWER / 2.6, ground); tris.push(...cut.tris); lines.push(...cut.lines); }
       // Its roof, a flat square at the top of the band, so from above it reads solid.
       const y = (q: P) => ground(q) + TOWER_H - H * 0.01, top = sq.map(q => [q.x, y(q), q.z]);
       tris.push(...top[0]!, ...top[1]!, ...top[2]!, ...top[0]!, ...top[2]!, ...top[3]!);
@@ -420,7 +425,7 @@ export function castleLayer(state: RootState, story: string, data: Data, host: H
   const overlay = document.createElement("div");
   overlay.className = "mock-overlay";
   host.appendChild(overlay);
-  type Spot = { el: HTMLElement; at: Vector3; field?: P[]; gate?: number; name?: boolean; above?: boolean; x?: number; y?: number };
+  type Spot = { el: HTMLElement; at: Vector3; field?: P[]; gate?: number; name?: boolean; above?: boolean; x?: number; y?: number; pin?: { x: number; y: number } };
   const spots: Spot[] = [];
   const names = new Map<string, Spot>(), names_ = names;
   for (const [id, field] of fields) {
@@ -442,8 +447,9 @@ export function castleLayer(state: RootState, story: string, data: Data, host: H
     el.innerHTML = wrenchSvg(sample ? PALETTE.wrenchSample : PALETTE.wrench) + (sample ? `<span class="mock-wrench-tag">sample</span>` : "");
     overlay.appendChild(el);
     // It stands where the name is, and the name hangs just below its foot, as a claimed territory's does.
-    // It stands in the middle of its field, clear of the gate, its path and the name outside the wall.
-    const spot = { el, at: lift(fields.get(capability)!.centre, H * 0.1), sample };
+    // It stands in the front half of its field, clear of the gate at the back, its path and the name outside the wall.
+    const f = fields.get(capability)!, front = along(f.corners[3]!, f.corners[2]!, 0.5);
+    const spot = { el, at: lift(along(f.centre, front, 0.45), H * 0.1), sample };
     spots.push(spot);
     return spot;
   };
@@ -455,7 +461,7 @@ export function castleLayer(state: RootState, story: string, data: Data, host: H
     spots.push({ el: dot, at: lift(road.end, H * 0.05) });
     const el = document.createElement("div"); el.className = "forest-label planet-nameplate capability mock-road-name mock-name-above"; el.textContent = road.label; overlay.appendChild(el);
     // Its name stands on the land, over the coast it leaves by.
-    const inland = road.points.at(-3) ?? road.end, back = along(road.points.at(-2)!, inland, Math.min(1, Gw * 0.9 / Math.max(1e-6, dist(road.points.at(-2)!, inland))));
+    const inland = road.points.at(-3) ?? road.end, back = along(road.points.at(-2)!, inland, Math.min(1, Gw * 2 / Math.max(1e-6, dist(road.points.at(-2)!, inland))));
     spots.push({ el, at: lift(back, H * 0.05), name: true });
   }
   const project = (v: Vector3) => {
@@ -472,13 +478,17 @@ export function castleLayer(state: RootState, story: string, data: Data, host: H
         const mids = [0, 1, 2, 3].map(k => lift(along(spot.field![k]!, spot.field![(k + 1) % 4]!, 0.5)));
         const ys = mids.map(m => project(m).y), front = ys.indexOf(Math.max(...ys)), back = ys.indexOf(Math.min(...ys));
         const above = front === spot.gate;
+        // Under the field's lowest point on the page (or over its highest), across from its middle.
+        const corners = spot.field!.map(c => project(lift(c)).y), mid = project(lift(along(spot.field![0]!, spot.field![2]!, 0.5)));
+        const edge = above ? Math.min(...spot.field!.map(c => project(lift(c, H + M)).y)) : Math.max(...corners);
         spot.at = mids[above ? back : front]!;
+        spot.pin = { x: mid.x, y: edge };
         spot.el.classList.toggle("mock-name-below", !above);
         spot.el.classList.toggle("mock-name-above", above);
       }
-      const at = project(spot.at);
+      const at = spot.pin ?? project(spot.at); spot.pin = undefined;
       spot.el.style.transform = `translate(${at.x}px, ${at.y}px)`;
-      spot.el.style.visibility = at.front ? "" : "hidden";
+      spot.el.style.visibility = ("front" in at ? at.front : true) ? "" : "hidden";
       spot.y = at.y; spot.x = at.x;
     }
     // Names never hide one another: taken from the top of the page down, a name that would meet one already placed moves down
@@ -560,7 +570,7 @@ export function castleLayer(state: RootState, story: string, data: Data, host: H
   };
 
   // The pick lights in the selection's gold: a field's wall ink, a gate's towers, a way or the road drawn over in gold.
-  const litMaterial = new MeshBasicMaterial({ map: dashTexture(PALETTE.lit), alphaTest: 0.5, fog: false, side: DoubleSide, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3 });
+  const litMaterial = new MeshBasicMaterial({ map: dashTexture(PALETTE.lit, true), alphaTest: 0.5, fog: false, side: DoubleSide, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3 });
   let lit: Mesh | undefined;
   const highlight = (picked: Picked | undefined) => {
     for (const f of fields.values()) f.band?.color.set(PALETTE.wall);
@@ -572,7 +582,7 @@ export function castleLayer(state: RootState, story: string, data: Data, host: H
     if (picked?.kind === "gate") (gateGroups.get(picked.id)!.userData.fill as MeshBasicMaterial).color.set(PALETTE.lit);
     if (picked?.kind === "wrench") (picked.sample ? sampleWrench : wrenches.get(picked.capability))?.el.classList.add("lit");
     const line = picked?.kind === "path" ? wayPoints(picked.id) : picked?.kind === "road" ? roads.get(picked.id)?.points : undefined;
-    if (line) { lit = new Mesh(ribbon(line, PATH * 1.6, q => ground(q) + H * 0.01, DASH), litMaterial); lit.renderOrder = 5; group.add(lit); }
+    if (line) { lit = new Mesh(ribbon(line, PATH * 2, q => ground(q) + H * 0.01, DASH), litMaterial); lit.renderOrder = 5; group.add(lit); }
     state.invalidate();
   };
 

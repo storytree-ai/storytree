@@ -206,3 +206,32 @@ Before (left) and after round 2 (right), turned and tipped:
 Before (left) and after round 3 (right), at rest:
 
 ![Round 3, before and after](stills/round-3.png)
+
+### Round 4: "nearly", 17 findings, nothing new for Mick
+
+From this round the reviewer's brief named the map's own drawing as out of scope, in the brief's own words ("The real map's
+island, colours, pan and zoom stay underneath, unchanged"), so it judged only the mock's marks against it.
+
+| # | Finding | Answer |
+| --- | --- | --- |
+| 1 | Zoomed out and turned, names land on neighbouring fields | Fixed: a name hangs below its field's lowest point on the page, across from its middle, at every turn and zoom |
+| 2 | Right-angled runs that wrap fields read as a circuit board; parallel trunks | Rejected: the paths keep to the commons' centre lines as the story roads keep to drawn lines, the brief's routing. Wider columns keep trunks further apart |
+| 3 | Paths run under the ends of names | Fixed: each column is as wide as its widest name, so names stop short of the trunks between columns |
+| 4 | Paths meet fields at corners or run along a wall past its gate | Fixed: more commons above the top field of each column, so the line there keeps off its wall |
+| 5 | Small fields are "two towers on a tray"; short walls scribbly | Fixed: the smallest field is drawn at 220 lines' area; a short wall is a plain band without crenellations |
+| 6 | Paths heavier and darker than the outlines | Fixed in part: paths a sixth thinner. Their brown stays, the cartographer's road ink Mick's reference shows |
+| 7 | The wrench blocks the gate | Fixed: it stands in the front half of its field, away from the gate at the back |
+| 8 | The picked path reads as hazard tape | Fixed: a heavier, near-solid gold line over the ink dashes |
+| 9 | The picked gate has little mass | Rejected: colouring the wall beside it would read as the field picked; the gate's towers fill gold |
+| 10 | The road's name straddles the coast and crosses its line | Fixed: it stands further inland. Its dot is where the road leaves the coast toward Keys; the sea road is the map's own |
+| 11 | Tipped low, the front wall hides small fields | Fixed: walls a sixth lower |
+| 12 | Fields packed into the upper two-thirds | Rejected: the plan's shape is the dependency columns', centred on the island's middle |
+| 13 | The sample tag's lavender | Rejected: it marks made-up work |
+| 14 | The picked wrench loses its ink outline | Fixed |
+| 15 | Tower tops smudge into a "W" | Fixed: two clean merlons |
+| 16 | The picked wall's gold is near the untested yellow | Rejected: round 2 asked that the picked wall keep its ink outline and turn its band gold |
+| 17 | The legend's path swatch is tan; the wrench swatch faint | Fixed: drawn in the map marks' own inks |
+
+Before (left) and after round 4 (right), from the south-west:
+
+![Round 4, before and after](stills/round-4.png)

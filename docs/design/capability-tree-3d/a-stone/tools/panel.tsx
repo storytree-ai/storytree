@@ -89,9 +89,9 @@ export function Panel({ data, picked, onPick, sample, onSample, fills }: {
         {fills.map(f => <li key={f.word}><span className="mock-swatch" style={{ background: f.colour }} />{f.word}</li>)}
         {/* Each swatch is a small copy of the mark it names. */}
         <li><svg className="mock-mark" viewBox="0 0 22 12" aria-hidden="true"><path d="M1 11V5h3V2h3v3h3V2h3v3h3V2h3v3h1v6Z" fill="#ece4d0" stroke="#1b1814" strokeWidth="1" strokeLinejoin="round" /></svg>wall</li>
-        <li><svg className="mock-mark" viewBox="0 0 22 12" aria-hidden="true"><path d="M1 7H21" stroke="#c2a27a" strokeWidth="2" strokeDasharray="4 3" /></svg>path</li>
+        <li><svg className="mock-mark" viewBox="0 0 22 12" aria-hidden="true"><path d="M1 7H21" stroke="#6e5236" strokeWidth="2" strokeDasharray="4 3" /></svg>path</li>
         <li><svg className="mock-mark" viewBox="0 0 22 12" aria-hidden="true"><path d="M1 11V3h2V1h1v2h1V1h1v2h2v8ZM14 11V3h2V1h1v2h1V1h1v2h2v8Z" fill="#ece4d0" stroke="#1b1814" strokeWidth="0.9" strokeLinejoin="round" /></svg>gate</li>
-        <li><svg className="mock-mark" viewBox="-10 -36 20 38" aria-hidden="true"><path d={WRENCH} fill="#1b1814" stroke="#ece4d0" strokeWidth="1.3" /></svg>wrench</li>
+        <li><svg className="mock-mark" viewBox="-10 -36 20 38" aria-hidden="true"><path d={WRENCH} fill="#1b1814" stroke="#ece4d0" strokeWidth="2" /></svg>wrench</li>
       </ul>
       <label className="mock-check"><input type="checkbox" checked={sample} onChange={e => onSample(e.target.checked)} /> Add sample work (made up, not in the library)</label>
       <p className="mock-muted">Drag to pan · right-drag to turn and tilt · wheel to zoom · Q/E turn · R/F tilt</p>

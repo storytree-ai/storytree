@@ -200,7 +200,7 @@ test("1.17 an acceptance user whose Claude Code is signed in goes on to install 
 test("1.17 the acceptance run reads the user's feedback and test command from a reply that sets them in markdown bold, and runs its evidence in the folder the user's turns built", { skip }, async () => {
   const reply = "Done.\n\n**FEEDBACK TITLE:** Setup was smooth\n**FEEDBACK:** The doctor said I was signed out.\n**TEST COMMAND:** `npm test`";
   const r = acceptance("", ["feedback", "verify"], {
-    "turn-1.summary.json": JSON.stringify({ project: "C:\\Users\\st-2167\\Documents\\tip-calculator", reply: "built" }),
+    "turn-1.summary.json": JSON.stringify({ project: "D:\\work\\tip-calculator", reply: "built" }),
     "turn-2.summary.json": JSON.stringify({ reply }),
   });
   try {
@@ -209,7 +209,7 @@ test("1.17 the acceptance run reads the user's feedback and test command from a 
     assert.equal(said("feedback-title.txt"), "Setup was smooth");
     assert.equal(said("feedback-body.txt"), "The doctor said I was signed out.");
     assert.equal(said("test-command.txt"), "npm test");
-    assert.equal(said("project.txt"), "C:\\Users\\st-2167\\Documents\\tip-calculator");
+    assert.equal(said("project.txt"), "D:\\work\\tip-calculator");
     assert.ok(r.calls.some((call) => /scp .*project\.txt/.test(call)), "the found folder goes to the laptop: " + r.calls.join("\n"));
   } finally { await removeTemp(r.root); }
 });
@@ -220,15 +220,15 @@ test("1.17 a turn's summary names the project folder its writes went to, whereve
     const write = (file_path: string) => ({ type: "assistant", message: { content: [{ type: "tool_use", name: "Write", input: { file_path } }] } });
     const lines = [
       { type: "system", subtype: "init", cwd: "C:\\Windows\\System32" },
-      write("C:\\Users\\st\\Documents\\tip-calculator\\index.html"),
-      write("C:\\Users\\st\\Documents\\tip-calculator\\tests\\tip.test.js"),
-      write("C:\\Users\\st\\.claude\\settings.json"),
-      { type: "assistant", message: { content: [{ type: "tool_use", name: "Edit", input: { file_path: "C:\\Users\\st\\Documents\\tip-calculator\\app.js" } }] } },
+      write("D:\\work\\tip-calculator\\index.html"),
+      write("D:\\work\\tip-calculator\\tests\\tip.test.js"),
+      write("D:\\work\\.claude\\settings.json"),
+      { type: "assistant", message: { content: [{ type: "tool_use", name: "Edit", input: { file_path: "D:\\work\\tip-calculator\\app.js" } }] } },
       { type: "result", subtype: "success", duration_ms: 1000, result: "done", usage: {} },
     ];
     writeFileSync(path.join(root, "turn-1.jsonl"), lines.map((l) => JSON.stringify(l)).join("\r\n"));
     const result = spawnSync(process.execPath, [path.join(harness, "sum.mjs"), path.join(root, "turn-1.jsonl")], { encoding: "utf8" });
     assert.equal(result.status, 0, result.stderr);
-    assert.equal(JSON.parse(result.stdout).project, "C:\\Users\\st\\Documents\\tip-calculator");
+    assert.equal(JSON.parse(result.stdout).project, "D:\\work\\tip-calculator");
   } finally { await removeTemp(root); }
 });

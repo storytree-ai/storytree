@@ -512,19 +512,29 @@ const retire = verb({
   },
 });
 
+/** An increment's statuses while it is open work. */
+const OPEN: ReadonlySet<string> = new Set(["proposal", "active"]);
+
+/** A `--where` value matches a field it equals, or a list field holding it: an array never answers a silent empty. */
+function matches(stored: unknown, value: unknown): boolean {
+  return isDeepStrictEqual(stored, value) || (Array.isArray(stored) && stored.some((one) => isDeepStrictEqual(one, value)));
+}
+
 /** The friction states that leave the default list (ADR-1016 D4). */
 const SETTLED: ReadonlySet<string> = new Set(["resolved", "dismissed"]);
 
 const list = verb({
-  command: { family: "library", name: "list", summary: "every live record of a kind, optionally filtered by fields; settled friction (resolved or dismissed) only with --all or a --where on its state", usage: "library list <kind> [--where <field>=<value>]… [--all]" },
+  command: { family: "library", name: "list", summary: "every live record of a kind, optionally filtered by fields (a list field matches when its list holds the value, or equals a whole list given as JSON); settled friction (resolved or dismissed) only with --all or a --where on its state; --open keeps only open increments", usage: "library list <kind> [--where <field>=<value>]… [--all] [--open]" },
   tool: NOT_A_TOOL,
   inputs: {
     kind: { kind: "text", word: 0, optional: true, describe: "the kind of record" },
     where: { kind: "text", many: true, optional: true, describe: "<field>=<value> to filter by" },
     all: { kind: "switch", describe: "settled friction too" },
+    open: { kind: "switch", describe: "only open increments (proposal or active)" },
   },
-  async act({ kind: given, where, all }, context: LibraryVerbContext, door) {
+  async act({ kind: given, where, all, open }, context: LibraryVerbContext, door) {
     const kind = needed(given, "the kind of record");
+    if (open && kind !== "increment") throw new VerbRefusal(`--open keeps only open increments, so it lists no ${kind}`, { misuse: true });
     // A plugin's kind no mounted plugin declares lists nothing; the answer names it instead (ADR-1178 D3).
     const dormant = await dormantSaid(context, door, [kind]);
     if (dormant.length > 0) return { text: dormant.join("\n") };
@@ -534,7 +544,8 @@ const list = verb({
       return { field: one.slice(0, equals), value: fieldValue(one.slice(equals + 1)) };
     });
     const matching = (await context.library.list(kind as RecordType))
-      .filter((record) => filters.every(({ field, value }) => isDeepStrictEqual((record.fields as Fields)[field], value)));
+      .filter((record) => filters.every(({ field, value }) => matches((record.fields as Fields)[field], value)))
+      .filter((record) => !open || OPEN.has(String((record.fields as Fields)["status"])));
     // Settled friction stays live but out of the default list (ADR-1016 D4).
     const hideSettled = kind === "friction" && !all && !filters.some(({ field }) => field === "state");
     const records = hideSettled ? matching.filter((record) => !SETTLED.has(String((record.fields as Fields)["state"]))) : matching;

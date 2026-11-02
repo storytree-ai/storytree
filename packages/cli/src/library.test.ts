@@ -3,7 +3,7 @@
  * throwaway project, plus a focused check of how the command presents the library's ranked answer.
  */
 import assert from "node:assert/strict";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { userInfo } from "node:os";
 import path from "node:path";
 import { after, before, test } from "node:test";
@@ -109,6 +109,22 @@ test("3.10 `read --field` prints one field exactly as stored, and refuses a fiel
     assert.equal(missing.code, 1);
     assert.match(missing.stderr, /\banswer\b/);
     for (const field of Object.keys(note.fields)) assert.ok(missing.stderr.includes(field), missing.stderr);
+  });
+});
+
+test("3.22 `read --field --out` writes the one field to the file exactly as stored, whatever stdout carries, and --out alone is refused", async () => {
+  await inWorld(command, async (world) => {
+    const library = await world.library();
+    const meaning = "  Indented first line.\n\nA trailing blank line and spaces follow.  \n\n";
+    const note = await library.defineTerm({ term: "Raw", meaning });
+    const saved = await world.run(["library", "read", note.id, "--field", "meaning", "--out", "meaning.txt"]);
+    assert.equal(saved.code, 0, saved.stderr);
+    assert.equal(readFileSync(path.join(world.folder, "meaning.txt"), "utf8"), meaning);
+    assert.ok(!saved.stdout.includes("Indented first line"), saved.stdout);
+    const alone = await world.run(["library", "read", note.id, "--out", "whole.txt"]);
+    assert.notEqual(alone.code, 0);
+    assert.match(alone.stderr, /--field/);
+    assert.ok(!existsSync(path.join(world.folder, "whole.txt")));
   });
 });
 

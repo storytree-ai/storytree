@@ -26,7 +26,7 @@
  * - Reads use `get`, `list` and `history`. Edits use the kind's public editor; question wording
  *   has no public editor yet, so that edit says what is missing.
  */
-import { readFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { isDeepStrictEqual } from "node:util";
 
@@ -312,15 +312,17 @@ export function wholeRecord(record: Stored): string {
 }
 
 const read = verb({
-  command: { family: "library", name: "read", summary: "records, whole, in one start (--linked adds the records their id lists name); or one record's field exactly as stored", usage: "library read <id|decision number> [<id>…] [--linked] [--field <name>]" },
+  command: { family: "library", name: "read", summary: "records, whole, in one start (--linked adds the records their id lists name); or one record's field exactly as stored", usage: "library read <id|decision number> [<id>…] [--linked] [--field <name> [--out <file>]]" },
   tool: NOT_A_TOOL,
   inputs: {
     ids: { kind: "text", word: 0, many: true, optional: true, describe: "the records' ids" },
     linked: { kind: "switch", describe: "add the records their id lists name" },
     field: { kind: "text", optional: true, describe: "one field to read exactly as stored" },
+    out: { kind: "text", optional: true, describe: "a file to write the field to instead of printing it (relative to the caller's folder), so pnpm's script banner cannot reach it" },
   },
-  async act({ ids: given, linked: withLinked, field }, context: LibraryVerbContext) {
+  async act({ ids: given, linked: withLinked, field, out }, context: LibraryVerbContext) {
     needed(given[0], "the record's id");
+    if (out !== undefined && field === undefined) throw new VerbRefusal("--out writes one field; give --field <name> with it", { misuse: true });
     // A decision may be named by its number (1103 or ADR-1103), capability 27's lookup.
     const ids = [...new Set(await Promise.all(given.map(async (id) => (await decisionNamed(context.library, id)) ?? id)))];
     const library = context.library;
@@ -333,7 +335,11 @@ const read = verb({
       const record = named[0]!;
       const value = Object.hasOwn(record.fields, field) ? (record.fields as Fields)[field] : undefined;
       if (value === undefined) throw new VerbRefusal(`${record.id} has no field "${field}"; its fields are ${Object.keys(record.fields).join(", ")}`);
-      return { text: typeof value === "string" ? value : JSON.stringify(value, null, 2), raw: true };
+      const text = typeof value === "string" ? value : JSON.stringify(value, null, 2);
+      if (out === undefined) return { text, raw: true };
+      const file = path.resolve(context.folder, out);
+      writeFileSync(file, text, "utf8");
+      return { text: `Wrote ${record.id}'s ${field} to ${file}.` };
     }
     const linkedIds = withLinked ? [...new Set(named.flatMap(idsNamedBy))].filter((id) => !ids.includes(id)) : [];
     const linked = await Promise.all(linkedIds.map((id) => library.get(id)));

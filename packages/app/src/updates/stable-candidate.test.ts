@@ -92,6 +92,13 @@ test("4.23 an open friction or question naming a regression in a build passes ov
   assert.equal((await stableCandidate(ports)).candidate?.version, "0.3.12");
 });
 
+test("4.23 a concern naming a build more than once passes over each build for it once", async () => {
+  const { state, ports } = fixture();
+  state.concerns.push({ id: "friction_a", title: "Stable acceptance run: a regression in 0.3.11", text: "The run failed for 0.3.11.\nVERDICT: FAIL on 0.3.11" });
+  const found = await stableCandidate(ports);
+  assert.deepEqual(found.passedOver.map(b => b.reasons.filter(r => r.includes("friction_a")).length), [1, 1, 1, 1, 1]);
+});
+
 test("4.23 a build's tag is checked against its version from a shallow clone too, as a cloud session's checkout is", t => {
   const root = mkdtempSync(join(tmpdir(), "release-commit-"));
   t.after(() => rmSync(root, { recursive: true, force: true }));

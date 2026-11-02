@@ -53,6 +53,12 @@ cleanup() {
   diff <(grep -v '^st-profiles:' "$OUT/state-before.txt") <(grep -v '^st-profiles:' "$OUT/state-after.txt") > "$OUT/state-diff.txt" \
     && log "the laptop is as it was before the run" || log "the laptop differs from before the run: state-diff.txt"
 }
+# One line of the user's last reply, "<FIELD>: <value>", as the prompt asks for it; the reply may set it in markdown
+# (on 2026-11-02 it said **TEST COMMAND:** `npm test`, which a bare ^TEST COMMAND: missed, and the run typed nothing).
+said() {
+  node -e 'console.log(JSON.parse(require("fs").readFileSync(process.argv[1])).reply)' "$OUT/turn-2.summary.json" \
+    | sed -nE "s/^[-*_> ]*$1:[*_]*[[:space:]]*//p" | head -1 | sed -E 's/[[:space:]]*[*_]+$//; s/^`(.*)`$/\1/'
+}
 cdp() { printf '%s\n' "$@" > "$OUT/steps/cdp-steps.txt"; put "$OUT/steps/cdp-steps.txt" cdp-steps.txt; step cdp 5; fetch; }
 # The installer: the newest release's one-liner when it takes a version; until a release carries that option
 # (increment_eddead0e5ef2), main's copy of the same file, which each release publishes unchanged.
@@ -102,18 +108,19 @@ for phase in $PHASES; do
       N=2 step turn 20 --continue; fetch
       node "$HERE/sum.mjs" "$OUT/ev/turn-2.jsonl" > "$OUT/turn-2.summary.json" ;;
     feedback)
-      reply=$(node -e 'console.log(JSON.parse(require("fs").readFileSync(process.argv[1])).reply)' "$OUT/turn-2.summary.json")
-      grep -m1 '^FEEDBACK TITLE:' <<<"$reply" | sed 's/^FEEDBACK TITLE: *//' > "$OUT/steps/feedback-title.txt"
-      grep -m1 '^FEEDBACK:' <<<"$reply" | sed 's/^FEEDBACK: *//' > "$OUT/steps/feedback-body.txt"
+      said 'FEEDBACK TITLE' > "$OUT/steps/feedback-title.txt"
+      said FEEDBACK > "$OUT/steps/feedback-body.txt"
       put "$OUT/steps/feedback-title.txt" feedback-title.txt; put "$OUT/steps/feedback-body.txt" feedback-body.txt
       cdp "mouse:App menu" wait:1500 "mouse:Help" wait:1500 "mouse:Send feedback" wait:1500 shot:04-feedback-page \
         "mouse:css=[data-feedback-form] input[name=title]" "typefile:$RUN/feedback-title.txt" \
         "mouse:css=[data-feedback-form] textarea" "typefile:$RUN/feedback-body.txt" shot:05-feedback-written \
         "mouse:Open GitHub draft" wait:3000 "text:[data-feedback-status]" shot:06-feedback-opened ;;
     verify)
-      reply=$(node -e 'console.log(JSON.parse(require("fs").readFileSync(process.argv[1])).reply)' "$OUT/turn-2.summary.json")
-      grep -m1 '^TEST COMMAND:' <<<"$reply" | sed 's/^TEST COMMAND: *//; s/^`//; s/`$//' > "$OUT/steps/test-command.txt"
+      said 'TEST COMMAND' > "$OUT/steps/test-command.txt"
       put "$OUT/steps/test-command.txt" test-command.txt
+      # The folder the user's turns wrote the project into (sum.mjs), which verify.ps1 looks in.
+      node -e 'try { console.log(JSON.parse(require("fs").readFileSync(process.argv[1])).project ?? "") } catch { console.log("") }' "$OUT/turn-1.summary.json" > "$OUT/steps/project.txt"
+      put "$OUT/steps/project.txt" project.txt
       step verify 15; fetch ;;
     after) cleanup ;;
     judge) bash "$HERE/judge.sh" "$OUT"; status=$? ;;

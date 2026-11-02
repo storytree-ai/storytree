@@ -2,12 +2,13 @@ import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { existsSync } from 'node:fs';
-import { chmod, mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { chmod, chown, mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
+import { letThrough, serverAccount } from '@storytree/local-postgres';
 import pg from 'pg';
 import { chainOf, checkedPrefix, nextDigest } from './host.mjs';
 import { localRestore, verifyOffbox } from './verify-offbox.mjs';
@@ -199,11 +200,19 @@ test('the weekly restore puts each dump into a throwaway local server and checks
   // A source server of the install's own version stands in for the box's, its socket in the work folder.
   const tool = name => path.join(pgBin, name);
   const data = path.join(work, 'source');
-  assert.equal(spawnSync(tool('initdb'), ['-D', data, '-A', 'trust', '-U', 'postgres']).status, 0);
+  // Postgres refuses root, so run as root (a cloud container) the source server runs as the account local-postgres
+  // runs its servers as, which is given the work folder (its cluster, log and socket go there) and let through to it.
+  const account = serverAccount();
+  const asAccount = account === undefined ? {} : { uid: account.uid, gid: account.gid };
+  if (account !== undefined) {
+    await chown(work, account.uid, account.gid);
+    letThrough(data, account);
+  }
+  assert.equal(spawnSync(tool('initdb'), ['-D', data, '-A', 'trust', '-U', 'postgres'], asAccount).status, 0);
   const port = await new Promise(resolve => { const s = createServer().listen(0, '127.0.0.1', () => { const { port } = s.address(); s.close(() => resolve(port)); }); });
-  const started = spawnSync(tool('pg_ctl'), ['-D', data, '-l', path.join(work, 'source.log'), '-w', 'start', '-o', `-p ${port} -k ${work} -c listen_addresses=127.0.0.1`]);
+  const started = spawnSync(tool('pg_ctl'), ['-D', data, '-l', path.join(work, 'source.log'), '-w', 'start', '-o', `-p ${port} -k ${work} -c listen_addresses=127.0.0.1`], asAccount);
   assert.equal(started.status, 0, String(started.stderr));
-  t.after(() => spawnSync(tool('pg_ctl'), ['-D', data, '-m', 'fast', '-w', 'stop']));
+  t.after(() => spawnSync(tool('pg_ctl'), ['-D', data, '-m', 'fast', '-w', 'stop'], asAccount));
   const client = new pg.Client({ host: '127.0.0.1', port, user: 'postgres', database: 'postgres' });
   await client.connect();
   await client.query('CREATE TABLE record (id int)');

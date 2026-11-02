@@ -48,20 +48,20 @@ await withCapture({ folder: path.join(dist, 'stills'), dist }, async ({ browser,
   // 1. At rest: The library selected.
   await shot(page, 'resting');
   // 2. A gate's contracts open, its line lit: a link between neighbours, clicked on its entrance gate.
-  const between = links.find(l => l.fromTitle === '11 · Waits' && l.toTitle === '10 · Work in flight') ?? links.find(l => l.dir === 'inside');
+  const between = links.find(l => l.fromTitle === '3 · Data schema' && l.toTitle === '2 · Library transactions') ?? links.find(l => l.dir === 'inside');
   const gateAt = await click(page, 'gate', between.key, new RegExp(`calls ${between.toTitle}$`));
   await shot(page, 'gate-contracts');
   // 3. Gates and entrances close up, around that gate.
-  await wheel(page, gateAt, 8);
+  await wheel(page, gateAt, 18);
   await shot(page, 'gates-close');
-  await wheel(page, gateAt, -8);
+  await wheel(page, gateAt, -18);
   // 4. An arrival landing: Library API's, the busiest (47 links), clicked on its gate in the coast, then close up.
   const api = links.find(l => l.dir === 'down' && l.to === id('7 · Library API'));
   const landing = await click(page, 'gate', api.key, /calls 7 · Library API$/);
   await shot(page, 'arrival-landing');
-  await wheel(page, landing, 7);
+  await wheel(page, landing, 9);
   await shot(page, 'arrival-landing-close');
-  await wheel(page, landing, -7);
+  await wheel(page, landing, -9);
   // 5. A wrench open.
   const wrenched = await page.evaluate(() => [...window.mock.layer.wrenches.keys()]);
   if (wrenched.length) { await click(page, 'wrench', wrenched[0], new RegExp(`^Work wanting ${title(wrenched[0]).replace(/[()]/g, '\\$&')}`)); await shot(page, 'wrench'); }
@@ -88,10 +88,12 @@ await withCapture({ folder: path.join(dist, 'stills'), dist }, async ({ browser,
   report.realErrors = real.errors;
   await real.page.close();
   const pair = await browser.newPage({ viewport: { width: 1440, height: 500 }, deviceScaleFactor: 1 });
-  const img = name => `data:image/png;base64,${readFileSync(path.join(out, `${name}.png`)).toString('base64')}`;
+  const img = name => `${origin}/${path.relative(dist, path.join(out, `${name}.png`)).split(path.sep).join('/')}`;
+  await pair.goto(`${origin}/index.html?real`, { waitUntil: 'domcontentloaded' });
   await pair.setContent(`<body style="margin:0;background:#0e1418;color:#e8eef0;font:600 15px system-ui;display:flex;gap:12px;padding:10px">
     ${[['real-today', 'The map today: The library selected'], ['resting', 'Round 8: laid out by the links, lines through gates']].map(([n, t]) =>
       `<figure style="margin:0"><div style="width:702px;height:450px;overflow:hidden"><img src="${img(n)}" style="width:1440px;transform:scale(0.645);transform-origin:0 0"></div><figcaption style="padding-top:6px">${t}</figcaption></figure>`).join('')}</body>`);
+  await pair.waitForFunction(() => [...document.images].every(i => i.complete && i.naturalWidth > 0));
   await pair.screenshot({ path: path.join(out, 'side-by-side.png') });
   await pair.close();
   writeFileSync(path.join(out, 'shots.json'), JSON.stringify(report, null, 2) + '\n');

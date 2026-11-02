@@ -249,15 +249,15 @@ export function overlayLayer(state: RootState, story: string, data: Data, host: 
     let best: P | undefined, cost = Infinity;
     for (const seg of between(a, b)) {
       const l = dist(seg.a, seg.b);
-      if (l < SIZE.opening + 1) continue;
-      for (let t = (SIZE.opening / 2 + 0.6) / l; t <= 1 - (SIZE.opening / 2 + 0.6) / l; t += 0.5 / l) {
+      if (l < SIZE.opening + 0.5) continue;
+      for (let t = (SIZE.opening / 2 + 0.25) / l; t <= 1 - (SIZE.opening / 2 + 0.25) / l + 1e-9; t += 0.4 / l) {
         const g = { x: seg.a.x + (seg.b.x - seg.a.x) * t, z: seg.a.z + (seg.b.z - seg.a.z) * t };
         if (taken.some(q => dist(q, g) < SIZE.entranceApart) || underName(g, 2)) continue;
-        // A way through the gate should stay on its two territories: sample it.
-        const c = dist(s, g) + dist(g, e);
+        // A way through the gate should stay on its two territories: each point of it over a third one costs.
+        let c = dist(s, g) + dist(g, e);
         if (c >= cost) continue;
-        const pts = smooth([s, g, e]);
-        if (pts.some(p => { const t = territoryAt(p); return t !== undefined && t !== a && t !== b; })) continue;
+        c += 25 * smooth([s, g, e]).filter(p => { const t = territoryAt(p); return t !== undefined && t !== a && t !== b; }).length;
+        if (c >= cost) continue;
         cost = c; best = g;
       }
     }
@@ -276,10 +276,18 @@ export function overlayLayer(state: RootState, story: string, data: Data, host: 
   };
   const internal = [...links.values()].filter(l => l.dir === "inside");
   // Between neighbours first (their one gate is the entrance), then the rest, which cross where their straight way does.
+  const noGate: string[] = [];
   const neighbourly = (l: LinkInfo) => between(l.from, l.to).length > 0;
   for (const l of [...internal].sort((a, b) => Number(neighbourly(b)) - Number(neighbourly(a)))) {
-    const e = spot(l.to, anchorOf(l.from)), s = spot(l.from, e);
+    let e = spot(l.to, anchorOf(l.from)), s = spot(l.from, e);
     const g = neighbourly(l) ? gateOn(l.from, l.to, s, e) : undefined;
+    // With its gate chosen, each end is placed again toward the gate, so the line does not double back through it.
+    if (g) {
+      const drop = (id: string, p: P) => placed.set(id, (placed.get(id) ?? []).filter(q => q !== p));
+      drop(l.from, s); drop(l.to, e);
+      e = spot(l.to, g); s = spot(l.from, g);
+    }
+    if (neighbourly(l) && !g) noGate.push(`${l.fromTitle} -> ${l.toTitle}`);
     const pts = smooth(g ? [s, g, e] : [s, e]);
     const crossings = crossingsOf(pts);
     const last = [...crossings].reverse().find(c => c.pair?.includes(l.to));
@@ -314,7 +322,9 @@ export function overlayLayer(state: RootState, story: string, data: Data, host: 
   const h = nearestOn(layout.harbour.sea), rel = (i: number) => { let d = (i - h) % soft.length; if (d > soft.length / 2) d -= soft.length; if (d < -soft.length / 2) d += soft.length; return d; };
   const stops = arrivals.filter(a => !a.key.endsWith("->leave")).map(a => rel(nearestOn(a.sea)));
   const lo = Math.min(0, ...stops), hi = Math.max(0, ...stops);
-  const road = [layout.harbour.sea, ...Array.from({ length: hi - lo + 1 }, (_, k) => soft[(h + lo + k + soft.length) % soft.length]!)];
+  const road = Array.from({ length: hi - lo + 1 }, (_, k) => soft[(h + lo + k + soft.length) % soft.length]!);
+  /** Where the map's lane, cut offshore, meets the coast road. */
+  const harbourLink = [layout.harbour.sea, soft[h]!];
   // Each landing's spur leaves the road at its nearest point, comes through the coast, and ends near the capability's name.
   for (const a of arrivals) {
     const e = spot(a.id, a.inside);
@@ -343,6 +353,12 @@ export function overlayLayer(state: RootState, story: string, data: Data, host: 
       const isEntrance = c === entering;
       if (shared && !isEntrance && !shared.entranceOf) { shared.links.push(w.key); continue; }
       gates.push({ at: c.p, along: c.along, links: [w.key], coast: c.coast, ...(isEntrance ? { entranceOf: w.key } : {}) });
+    }
+    // No crossing found into the territory it calls (two one-cell neighbours, its ends on their names): its gate stands
+    // where the way first comes onto that territory.
+    if (!entering && w.to !== "sea") {
+      const k = w.pts.findIndex(p => territoryAt(p) === w.to);
+      if (k > 0) gates.push({ at: w.pts[k]!, along: (() => { const d = norm(sub(w.pts[k]!, w.pts[k - 1]!)); return { x: -d.z, z: d.x }; })(), links: [w.key], coast: false, entranceOf: w.key });
     }
     // A way out of the island is entered at the coast; its gate is its own.
     if (w.to === "sea") { const c = w.crossings.find(x => x.coast); const g = c && gates.find(x => x.at === c.p); if (g) g.entranceOf = w.key; }
@@ -387,6 +403,8 @@ export function overlayLayer(state: RootState, story: string, data: Data, host: 
   const roadMat = mat(PALETTE.line);
   add(ribbon(road, SIZE.line + SIZE.casing * 2, y(0)), casingMat, 10);
   add(ribbon(road, SIZE.line, y(0.02)), roadMat, 11);
+  add(ribbon(harbourLink, SIZE.line + SIZE.casing * 2, y(0)), casingMat, 10);
+  add(ribbon(harbourLink, SIZE.line, y(0.02)), roadMat, 11);
   for (const w of ways) {
     const m = keep(w.key, mat(w.colour));
     const back = SIZE.arrow * 0.7, body = [...w.pts];
@@ -527,7 +545,8 @@ export function overlayLayer(state: RootState, story: string, data: Data, host: 
     passGates: gates.filter(g => !g.entranceOf).length, sharedOpenings: gates.filter(g => g.links.length > 1).length,
     insideBorders: insideWays.map(w => w.crossings.filter(c => !c.coast).length),
     overThird: insideWays.filter(w => w.crossings.filter(c => !c.coast).length > 1).map(w => `${links.get(w.key)!.fromTitle} -> ${links.get(w.key)!.toTitle}: ${w.crossings.length} borders`),
-    landings: layout.landings.length, roadLength: Math.round(road.reduce((s, p, i) => i ? s + dist(road[i - 1]!, p) : 0, 0)),
+    long: ways.map(w => ({ k: `${links.get(w.key)?.fromTitle} -> ${links.get(w.key)?.toTitle}`, l: Math.round(w.pts.reduce((s, p, i) => i ? s + dist(w.pts[i - 1]!, p) : 0, 0)) })).filter(x => x.l > 70),
+    noGate, landings: layout.landings.length, roadLength: Math.round(road.reduce((s, p, i) => i ? s + dist(road[i - 1]!, p) : 0, 0)),
     wrenches: [...wrenches].map(([id, w]) => ({ capability: byId.get(id)?.title, via: w.via })),
   };
   return {

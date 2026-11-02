@@ -24,7 +24,6 @@
     "@storytree/guardrails": "workspace:*",
     "@storytree/library": "workspace:*",
     "@storytree/map": "workspace:*",
-    "@storytree/quality-assurance": "workspace:*",
     "@storytree/app-setup": "workspace:*",
     "zod": "^4.6.5",
     "@storytree/plugin-loader": "workspace:*",

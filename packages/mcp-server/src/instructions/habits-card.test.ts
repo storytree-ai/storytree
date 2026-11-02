@@ -17,7 +17,6 @@ import { createAgentTools } from "../index.js";
 import { storyParts } from "@storytree/plugin-loader";
 import { setupGuidance } from "@storytree/app-setup/setup";
 import { decisionRights, readStandIns } from "@storytree/project-and-caller";
-import { qualityGuidance } from "@storytree/quality-assurance";
 import { CONTRACT_DEFINITION, habitsCard } from "./habits.js";
 
 /** A client connected in memory to a fresh tool server, as a harness is at session start. */
@@ -57,16 +56,13 @@ test("7.1 the card names every tool the server has, and no tool the server lacks
 });
 
 test("7.12 with a part switched off, the card handed at session start leaves out its section and those of the parts standing on it, names them switched off, and names no tool the server lacks", async () => {
-  // Code review stands on Architecture checks, so switching that off takes code review with it; App setup no longer stands on code review (ADR-1170 D2).
   const session = await sessionStart("claude-code", ["guardrails"]);
   try {
     const card = session.client.getInstructions() ?? "";
     const offered = (await session.client.listTools()).tools.map((tool) => tool.name).filter((tool) => !session.harnessTools.includes(tool)).sort();
     const taught = [...new Set([...card.matchAll(/`([^`]+)`/g)].map(([, name]) => name!))].sort();
     assert.deepEqual(taught.filter((tool) => !offered.includes(tool)), [], "every tool it teaches is served");
-    assert.ok(!taught.includes("quality_brief") && !offered.includes("quality_brief"), "quality assurance's tools are neither served nor taught");
-    assert.match(card, /Switched off on this computer, so not served here: guardrails, quality-assurance\. The user switches one on with: storytree settings set part <part> on/);
-    for (const section of qualityGuidance) assert.ok(!card.includes(section), `its section is left out: ${section.slice(0, 60)}`);
+    assert.match(card, /Switched off on this computer, so not served here: guardrails\. The user switches one on with: storytree settings set part <part> on/);
     for (const section of setupGuidance) assert.ok(card.includes(section), `App setup's section stays: ${section.slice(0, 60)}`);
     for (const tool of ["check_setup", "set_up_project", "wire_pipeline"]) assert.ok(taught.includes(tool) && offered.includes(tool), `${tool} is still served and taught`);
   } finally {
@@ -74,10 +70,10 @@ test("7.12 with a part switched off, the card handed at session start leaves out
   }
 });
 
-test("7.13 with code review switched off, the card still tells the agent to record its work on the plan, and holds none of the build loop's stops", async () => {
-  // What paints the map stays in base when code review moves to a plugin (ADR-1209 D2): the reported column, landed and
+test("7.13 with code review a factory plugin's, the card storytree hands still tells the agent to record its work on the plan, and holds none of the build loop's stops", async () => {
+  // What paints the map stays in base now code review is a plugin's (ADR-1209 D2): the reported column, landed and
   // built capabilities, closed increments and the session's close-out.
-  const session = await sessionStart("claude-code", ["quality-assurance"]);
+  const session = await sessionStart("claude-code");
   try {
     const card = session.client.getInstructions() ?? "";
     const taught = new Set([...card.matchAll(/`([^`]+)`/g)].map(([, name]) => name!));
@@ -89,27 +85,27 @@ test("7.13 with code review switched off, the card still tells the agent to reco
 });
 
 test("7.14 with a factory plugin standing in for a switched-off part, the card handed at session start carries the plugin's sections in the part's place, not the part's own, and does not name the part switched off; one that cannot be loaded adds nothing and the part is named off", async () => {
-  // Code review moves to a factory plugin whole, its section with it (ADR-1209 D1): the card is where that section reaches an agent.
+  // Code review moved to a factory plugin whole, its section with it (ADR-1209 D1): the card is where a plugin's section reaches an agent.
   const folder = mkdtempSync(path.join(tmpdir(), "habits-card-factory-"));
   try {
-    const plugin = path.join(folder, "factory", "plugins", "my-review");
+    const plugin = path.join(folder, "factory", "plugins", "my-setup");
     mkdirSync(plugin, { recursive: true });
-    writeFileSync(path.join(plugin, "package.json"), JSON.stringify({ name: "my-review", type: "module", exports: { "./guidance": "./guidance.js" }, storytree: { interface: 1, guidance: [{ from: "./guidance", export: "guidance" }] } }));
+    writeFileSync(path.join(plugin, "package.json"), JSON.stringify({ name: "my-setup", type: "module", exports: { "./guidance": "./guidance.js" }, storytree: { interface: 1, guidance: [{ from: "./guidance", export: "guidance" }] } }));
     writeFileSync(path.join(plugin, "guidance.js"), `export const guidance = ["Review each change with the reviewer before the gate."];\n`);
-    const settings = (standIn: string) => ({ factory: path.join(folder, "factory"), "parts-off": ["quality-assurance"], "stand-ins": { "quality-assurance": standIn } });
+    const settings = (standIn: string) => ({ factory: path.join(folder, "factory"), "parts-off": ["app-setup"], "stand-ins": { "app-setup": standIn } });
     const card = (off: readonly string[], standIn: string) => {
       const home = mkdtempSync(path.join(folder, "home-"));
       writeFileSync(path.join(home, "settings.json"), JSON.stringify(settings(standIn)));
       return habitsCard(off, readStandIns(home));
     };
-    const stoodIn = card(["quality-assurance"], "my-review");
+    const stoodIn = card(["app-setup"], "my-setup");
     assert.ok(stoodIn.includes("Review each change with the reviewer before the gate."), "the plugin's section is on the card");
-    for (const section of qualityGuidance) assert.ok(!stoodIn.includes(section), `the part's own section is left out: ${section.slice(0, 60)}`);
+    for (const section of setupGuidance) assert.ok(!stoodIn.includes(section), `the part's own section is left out: ${section.slice(0, 60)}`);
     assert.doesNotMatch(stoodIn, /Switched off on this computer/, "a part stood in for is served, not named off");
     assert.ok(stoodIn.indexOf("Review each change") < stoodIn.indexOf("If storytree says it isn't running"), "before the closing line");
-    const missing = card(["quality-assurance"], "no-such-plugin");
+    const missing = card(["app-setup"], "no-such-plugin");
     assert.ok(!missing.includes("Review each change"), "a plugin that cannot be loaded adds nothing");
-    assert.match(missing, /Switched off on this computer, so not served here: quality-assurance\./);
+    assert.match(missing, /Switched off on this computer, so not served here: app-setup\./);
   } finally {
     rmSync(folder, { recursive: true, force: true });
   }
@@ -181,7 +177,7 @@ test("7.9 the card handed at session start says how to build beside mapped code"
 
 test("7.10 the card handed at session start is composed from the guidance each story package the server mounts declares in its manifest, in the manifests' order, between the server's own opening and closing lines", async () => {
   const parts = storyParts(path.resolve(import.meta.dirname, "../.."), "guidance");
-  for (const story of ["@storytree/app-setup", "@storytree/library", "@storytree/map", "@storytree/project-and-caller", "@storytree/quality-assurance", "@storytree/session-management"]) {
+  for (const story of ["@storytree/app-setup", "@storytree/library", "@storytree/map", "@storytree/project-and-caller", "@storytree/session-management"]) {
     assert.ok(parts.some((part) => part.package === story), `${story} declares no guidance`);
   }
   const session = await sessionStart();

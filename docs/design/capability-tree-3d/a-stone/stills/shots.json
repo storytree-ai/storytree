@@ -4,26 +4,26 @@
       "kind": "wrench",
       "mark": "capability_a954e1eb16f6",
       "at": {
-        "x": 494,
-        "y": 480
+        "x": 504,
+        "y": 654
       },
       "heading": "Work wanting 8 · Cloud connection (GCP)"
     },
     {
       "kind": "gate",
-      "mark": "capability_d632ff0454c0->capability_a7f068502213",
+      "mark": "capability_5f1ce148e63a->capability_a7f068502213",
       "at": {
-        "x": 454,
-        "y": 644
+        "x": 732,
+        "y": 155
       },
-      "heading": "Into 10 · Work in flight from 11 · Waits"
+      "heading": "Into 10 · Work in flight from 12 · Owner questions"
     },
     {
       "kind": "link",
       "mark": "capability_389fd5e3722d->capability_d8451645c169",
       "at": {
-        "x": 319,
-        "y": 622
+        "x": 211,
+        "y": 385
       },
       "heading": "26 · Rounds calls 25 · Lapsed questions"
     },
@@ -31,8 +31,8 @@
       "kind": "territory",
       "mark": "capability_dd486ffa5b02",
       "at": {
-        "x": 658,
-        "y": 391
+        "x": 549,
+        "y": 415
       },
       "heading": "4 · Work model"
     },
@@ -40,26 +40,26 @@
       "kind": "link",
       "mark": "capability_a6d2887aed63->capability_88a6aaa1fa93",
       "at": {
-        "x": 232,
-        "y": 677
+        "x": 201,
+        "y": 857
       },
       "heading": "15 · Connection by address calls Keys · 1 · Key store and resolver"
     },
     {
       "kind": "road",
-      "mark": "0",
+      "mark": "38",
       "at": {
-        "x": 768,
-        "y": 554
+        "x": 891,
+        "y": 599
       },
-      "heading": "210 links along this road"
+      "heading": "22 links along this road"
     },
     {
       "kind": "wrench",
       "mark": "capability_a7f068502213:sample",
       "at": {
-        "x": 518,
-        "y": 681
+        "x": 746,
+        "y": 135
       },
       "heading": "Work wanting 10 · Work in flight"
     },
@@ -67,45 +67,103 @@
       "kind": "territory",
       "mark": "capability_a1d4fadbec3e",
       "at": {
-        "x": 663,
-        "y": 282
+        "x": 513,
+        "y": 544
       },
       "heading": "3 · Data schema"
     },
     {
       "kind": "gate",
-      "mark": "capability_b7a12a2b7273->capability_a19bf216935b",
+      "mark": "capability_7b7421be1a1b->capability_75d059640d9d",
       "at": {
-        "x": 446,
-        "y": 524
+        "x": 483,
+        "y": 183
       },
-      "heading": "Into 21 · Links from 22 · Decision log"
+      "heading": "Into 7 · Library API from The command line · 1 · Front door"
     }
   ],
   "layer": {
-    "gap": 4.2,
-    "territories": 24,
-    "gapsCut": 76,
-    "gates": 43,
-    "links": 239,
-    "routed": 239,
-    "unrouted": [],
+    "scale": 0.116,
+    "mirrored": true,
+    "plan": {
+      "w": 1395,
+      "h": 1560
+    },
+    "layers": [
+      [
+        "Waits",
+        "Owner questions",
+        "Fixed data questions"
+      ],
+      [
+        "Work in flight",
+        "Knowledge entrances",
+        "The library's commands",
+        "Library API",
+        "Decision log",
+        "Ranked search"
+      ],
+      [
+        "Health record",
+        "Knowledge artifacts",
+        "Rounds"
+      ],
+      [
+        "Work model",
+        "Decision log",
+        "Graduation",
+        "Lapsed questions"
+      ],
+      [
+        "Data schema",
+        "Links",
+        "Catalogue"
+      ],
+      [
+        "Library transactions",
+        "Cloud connection (GCP)",
+        "Connection by address"
+      ],
+      [
+        "The command schema",
+        "Project libraries"
+      ]
+    ],
+    "crossings": 4,
+    "patches": 24,
+    "gates": 49,
+    "gapsCut": 49,
+    "links": 50,
     "inside": 27,
+    "arriving": 22,
+    "leaving": 1,
+    "unrouted": [],
+    "roadRuns": 130,
     "docks": [
       {
-        "label": "road to Keys",
+        "label": "to Keys · Key store and resolver",
         "links": 1
       },
       {
-        "label": "roads from 21 islands",
-        "links": 211
+        "label": "from 7 stories",
+        "links": 22
       }
     ],
-    "stretches": 189,
-    "sharedStretches": 103,
-    "chains": 78,
-    "wrenches": 1,
-    "borders": 147
+    "lanes": 205,
+    "wrenches": [
+      {
+        "capability": "Cloud connection (GCP)",
+        "gate": "its way out"
+      },
+      {
+        "capability": "The library's commands",
+        "gate": "capability_73c014cf4352->capability_dce9495fcaed"
+      },
+      {
+        "capability": "Ranked search",
+        "gate": "its way out"
+      }
+    ]
   },
   "errors": [],
   "realErrors": []

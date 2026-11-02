@@ -1,6 +1,7 @@
-/** Capability tree, 3D mock 1, round 5: the real map's view of The library, as the desktop app draws it, its territories
- * unchanged, their borders dashed, solid roads between them, and each link's gate a gap in the border (town.ts, castle.ts). `?real` draws the island as the map does today,
- * file dots and all, with nothing added: the left half of the side-by-side. */
+/** Capability tree, round 6A: a flowchart in the map's clothes. The real map's view of The library, as the desktop app draws
+ * it, with the island's own territory cut hidden and the capabilities laid on its land in layers by dependency, organic patches
+ * with open land and solid roads between them, a gap in the dashed outline for each link's gate (flow.ts, island.ts). `?real`
+ * draws the island as the map does today, file dots and all, with nothing added. */
 import { createRoot } from "react-dom/client";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { RootState } from "@react-three/fiber";
@@ -10,12 +11,11 @@ import { PlanetView, type GlobeControls } from "@storytree/forest/view";
 import { workStates } from "@storytree/arc-surface";
 import { createKnowledgeCore } from "@storytree/knowledge-core/view";
 import { islandCoast } from "@storytree/forest-world/geometry";
-import { islandTerritories } from "../../../../../packages/forest/src/territories/territories.js";
 import { SHEET_RADIUS } from "@storytree/forest-world/planet";
 import "@storytree/forest/view/styles.css";
 import "./page.css";
 import measured from "../data.json" with { type: "json" };
-import { castleLayer, type Layer, type Picked } from "./castle.js";
+import { islandLayer, type Layer, type Picked } from "./island.js";
 import { Panel, SAMPLE } from "./panel.js";
 
 type Data = typeof measured & { map: { tree: AnnotatedTree; changes: { type: string; action: string; recordId: string }[]; survey: Record<string, never> } };
@@ -25,9 +25,8 @@ const params = new URLSearchParams(location.search);
 const REAL = params.has("real");
 /** How much of the sheet half the window's short side spans at rest, in ground units: The library close up. */
 const GROUND = Number(params.get("ground") ?? 150);
-/** How much larger the island is drawn than its lines of code would make it: every file's lines times this, so each
- * territory keeps its share and shape. */
-const ROOM = Number(params.get("room") ?? 1);
+/** How much larger the island is drawn than its lines of code would make it, so the open land has room. */
+const ROOM = Number(params.get("room") ?? 1.6);
 const PANEL_WIDTH = 352;
 /** The rest view's margin around the plan, in CSS pixels. */
 const MARGIN = 28;
@@ -35,14 +34,15 @@ const MARGIN = 28;
 /** The capture build's seam, the only one the forest offers a host for its canvas's live state (PlanetWorldCanvas.tsx). */
 const seam = globalThis as { __storytreeCaptureGlobe?: (get: () => RootState) => void };
 
-// Room: every one of the island's files counted ROOM times, so the map draws a larger island by its own rules.
+// Room for the open land: the island is given land for ROOM times its lines, as one unclaimed share the mock hides with the
+// rest of the map's cut, so the map draws a larger island (and keeps the sea between it and its neighbours) by its own rules.
 const own = (data.map.survey as Record<string, { files: { path: string; lines: number }[] }>)[STORY]!;
-const survey = REAL || ROOM === 1 ? data.map.survey : { ...data.map.survey, [STORY]: { ...own, files: own.files.map(f => ({ ...f, lines: Math.round(f.lines * ROOM) })) } } as typeof data.map.survey;
+const lines = own.files.reduce((sum, file) => sum + file.lines, 0);
+const survey = REAL ? data.map.survey : { ...data.map.survey, [STORY]: { ...own, files: [...own.files, { path: "(the mock's open land)", lines: Math.round(lines * (ROOM - 1)) }] } } as typeof data.map.survey;
 const scene = forestScene(data.map.tree, data.map.changes, workStates([]), survey);
-// The island's own coast and territory cut, as the map draws them (the same cut, by the same shares, as its drawing asks for).
+// The island's own coast, as the map draws it.
 const island = scene.islands.find(one => one.story === STORY)!;
 const coast = islandCoast(island);
-const cut = islandTerritories(island.land!.territories, coast);
 const places = new Map(storyNodes(data.map.tree, data.map.changes, survey).map(node => [node.id, node.place]));
 
 function Mock() {
@@ -85,10 +85,14 @@ function Mock() {
       controls.stop({ target: { kind: "story", story: STORY }, framing: ground.current / SHEET_RADIUS, sideOffset: side.current, duration: 0 });
       timer = setTimeout(frame, 150);
     };
+    // Looked at from higher than the map's opening, by its own tilt key pressed twice, so the layers furthest away keep their
+    // room on the page (`?tilt=` says how many presses; 0 keeps the map's own).
+    const tilt = Number(params.get("tilt") ?? 2);
+    for (let k = 0; k < tilt; k++) { window.dispatchEvent(new KeyboardEvent("keydown", { key: "r" })); window.dispatchEvent(new KeyboardEvent("keyup", { key: "r" })); }
     timer = setTimeout(frame, 600);
     return () => clearTimeout(timer);
   }, [controls, layer, get]);
-  // Lay the stone on the island once the map has drawn its territories in full.
+  // Lay the plan on the island once the map has drawn its territories in full.
   useEffect(() => {
     if (!get || REAL) return;
     let timer: ReturnType<typeof setTimeout>, last = "", same = 0;
@@ -101,7 +105,7 @@ function Mock() {
       const key = borders && lanes && borders.geometry.drawRange.count === Infinity ? opacities.join() : "";
       same = key !== "" && key === last ? same + 1 : 0;
       last = key;
-      if (same >= 2) { setLayer(castleLayer(state, STORY, data as never, host.current!, cut, coast)); return; }
+      if (same >= 2) { setLayer(islandLayer(state, STORY, data as never, host.current!, coast)); return; }
       timer = setTimeout(wait, 150);
     };
     wait();

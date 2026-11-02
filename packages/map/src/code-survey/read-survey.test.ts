@@ -1102,6 +1102,9 @@ test("8.44 reading a mapped story's tests finds its numbered titles where it was
     assert.deepEqual(await storyTests(repo, planFrom(top), "cap-cart"), { numbers: ["1.1"], seen: true }, "the checkout whose top is the import");
     assert.deepEqual(await storyTests(elsewhere, planFrom(from), "cap-cart", { imports: [{ folder: top, repository: from }] }), { numbers: ["1.1"], seen: true }, "the folder this machine imports it from");
     assert.deepEqual(await storyTests(elsewhere, planFrom(from), "cap-cart"), { numbers: [], seen: false }, "an import neither the checkout nor this machine's");
+    assert.deepEqual(await storyTests(elsewhere, planFrom(top), "cap-cart", { imports: [{ folder: top }] }), { numbers: ["1.1"], seen: true }, "an import keyed by its folder");
+    git("remote", "rename", "origin", "upstream");
+    assert.deepEqual(await storyTests(repo, planFrom(from), "cap-cart"), { numbers: ["1.1"], seen: true }, "a checkout whose only remote is not named origin");
     assert.deepEqual(untestedContracts(planFrom(from), "cap-cart", (await storyTests(repo, planFrom(from), "cap-cart")).numbers), ["1.2 · empties"]);
   } finally {
     await removeTemp(repo);

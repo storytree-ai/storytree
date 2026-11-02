@@ -84,8 +84,8 @@ export async function importProject({ folder, library, storytree, storytreeHome:
   const machine = machineOf(home);
   const trunk = (await trunksOn(storytree, machine.id)).find((own) => own.project === library.name);
   const marked = findProject(at);
-  // The project's own trunk folder is an existing repository set up in place, mapped where it is (ADR-1213 D1).
-  const inPlace = (trunk !== undefined && key(trunk.folder) === key(at)) || (marked.project === library.name && key(marked.folder) === key(at));
+  // The project's own folder, the one its marker is in, is an existing repository set up in place, mapped where it is (ADR-1213 D1).
+  const inPlace = marked.project === library.name && key(marked.folder) === key(at);
   if (!inPlace && ((trunk !== undefined && within(at, trunk.folder)) || marked.project === library.name)) {
     throw new ImportRefusedError(`${at} is inside storytree project "${library.name}"; import a folder outside it, where the existing project lives.`);
   }
@@ -169,7 +169,7 @@ async function strandedIn(library: Library, folder: string, stories: ReadonlySet
 async function unbuilt(library: Library, packages: readonly MappedPackage[]): Promise<MappedPackage[]> {
   const built = new Set((await library.list("story"))
     .filter((story) => story.fields.mapped === undefined)
-    .map((story) => `packages/${packageOf({ id: story.id, title: story.fields.title, ...(story.fields.plugin === undefined ? {} : { plugin: story.fields.plugin }) })}`));
+    .map((story) => `packages/${packageOf({ id: story.id, title: story.fields.title })}`));
   return packages.filter((one) => !built.has(one.package));
 }
 

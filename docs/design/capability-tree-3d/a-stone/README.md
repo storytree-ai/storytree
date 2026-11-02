@@ -19,12 +19,12 @@ lays it out; the rest view frames the whole plan, every name and path in sight.
 | Mick asked | What the mock does now |
 | --- | --- |
 | "looks very cramped": lay it out by dependency on one island, with empty space for the paths | Fields stand in columns by dependency depth, as the map lays its islands out in rows (`packages/forest/src/planet-places`): a capability that calls nothing in the west, each other one a column east of the deepest it calls. In a column the fields are sorted toward the fields they are linked to. Between every two columns, and between the fields of a column, runs a band of open commons. |
-| Field area in proportion to lines of code, coloured by health | Each field is a square whose area is its lines (the five under 100 lines are drawn at 100, so each can hold its gate). The colours are the map's own, read from what it drew. |
-| "pathways look a mess": route them like the story-node roads | The paths run only along the commons' centre lines, as the map's border routes run only along lines already drawn (`packages/forest/src/view/border-route.ts`). Each field has one gate; a path leaves by it, takes the shortest way along the lines and enters the other field by its gate. One path per linked pair, never one each way, and a stretch already walked is cheaper, so the ways merge. No path crosses a field. |
+| Field area in proportion to lines of code, coloured by health | Each field is a square whose area is its lines (the eight under 220 lines are drawn at 220, so each holds its gate in proportion). The colours are the map's own, read from what it drew. |
+| "pathways look a mess": route them like the story-node roads | The paths run only along the commons' centre lines, as the map's border routes run only along lines already drawn (`packages/forest/src/view/border-route.ts`). Each field has one gate, in its north wall; a path leaves by it, takes the shortest way along the lines and enters the other field by its gate. One path per linked pair, never one each way, and a stretch already walked is cheaper, so the ways merge. No path crosses a field. |
 | Calmer walls, in a castle-wall look, 2.5D like the claim flags | Four straight runs of wall around each field and nothing else: an upright cut-out with a pale band, crenellations and a thin ink outline, low, unlit and untextured, standing on the land so it reads as the map turns. |
-| Simpler gates | An opening in the wall between two small square towers, drawn the same way. |
-| A wrench in the claim flags' style, told apart from a flag | A flat ink spanner standing upright on a small shadow, constant on screen like the flag; pale, with no pole and no pennant. The field's name hangs just below it, as a claimed territory's name hangs below its flag. |
-| Room, not hiding | Nothing is hidden at rest. The island is given more land (1.6 times its lines' worth, the map's own island grown by its own rules), and the rest view is framed on the plan, its names included. |
+| Simpler gates | An opening in the north wall between two small square towers, drawn the same way; at rest the eye looks north, so the opening shows across the field. |
+| A wrench in the claim flags' style, told apart from a flag | A flat ink spanner with an open jaw, standing upright on a small shadow in the front half of its field, constant on screen like the flag; no pole and no pennant. |
+| Room, not hiding | Nothing is hidden, at rest or turned: each field's name hangs below it, and a name that would meet another steps clear rather than fading. The island is given more land (1.6 times its lines' worth, the map's own island grown by its own rules), and the rest view is framed on the plan, its names included. |
 
 **What the map still draws, unchanged:** the island's coast, cliffs and shape, the glass sheet, the other islands and the
 roads between them, the selection ring, the camera and its controls (`PlanetView`, mounted as the desktop app mounts it).
@@ -40,8 +40,8 @@ is copied; these principles are borrowed:
   non-scaling weight; only the picked mark changes colour.
 - **Few tones, one accent.** The marks use the ink, one pale wall tone, one path brown and the parchment commons; gold is
   the one accent, for the picked mark.
-- **Every line ends on something.** A path begins and ends at a gate, the road ends at a dot, a wall run ends at a corner
-  or a tower.
+- **Every line ends on something.** A path begins and ends in a gate's opening, the road ends at a dot, a wall run ends at
+  a corner or a tower.
 - **Depth from shape and order, not shading.** The walls and towers stand up as cut-outs; nothing is lit or hatched.
 - **One recipe per symbol.** Every wall run, tower and wrench is built by one function at one scale.
 - **No floating text on the drawing.** Names are the map's own nameplates, each on its field or just below it.
@@ -73,7 +73,7 @@ tagged "sample", on 10 · Work in flight, with three made-up increments on two m
 | Ink: every outline, the road's end | `#1b1814` |
 | Wall and tower faces | `#ece4d0` |
 | Paths, dashed | `#6e5236` |
-| Wrench | `#e6e9ec`, sample `#d6bdf0` |
+| Wrench | `#1b1814` with a `#ece4d0` edge; sample `#d6bdf0` |
 | Picked mark (the selection's gold) | `#ffd34d` |
 
 ## Stills
@@ -93,6 +93,7 @@ All taken by `tools/shots.mjs`, which clicks each mark where it stands on the pa
 | `road-off-the-coast.png` | The road to Keys: Key store and resolver's contracts |
 | `orbited.png`, `orbited-south-west.png` | Turned and tipped by the map's own keys, two ways |
 | `real-today.png`, `side-by-side.png` | The map's island today, beside the mock |
+| `round-1.png` to `round-4.png` | Before and after each round of the look review |
 
 ## Rebuild it
 
@@ -235,3 +236,45 @@ island, colours, pan and zoom stay underneath, unchanged"), so it judged only th
 Before (left) and after round 4 (right), from the south-west:
 
 ![Round 4, before and after](stills/round-4.png)
+
+### Round 5: "nearly", 15 findings, one for Mick: the loop stops here
+
+The brief stops the loop after five rounds, so round 5's findings were not drawn in; the version landed is round 4's, and
+these stand, for Mick to judge from the pictures. Where a finding asks for what an earlier round or the brief decided
+against, that is said.
+
+| # | Finding (standing) | Note |
+| --- | --- | --- |
+| 1 | The plan fills the island's upper two-thirds; the north-east cluster is tight while the south and east are bare | The plan's shape is the dependency columns', centred; filling the island would mean a different layout than "placed by dependency" in columns |
+| 2 | Tipped low, names land on the next field | Names hang below their own field's lowest point; at a low tilt the rows are a few pixels apart |
+| 3 | Paths merge into shared trunks and loops that read as fences round groups of fields | The brief asks that paths merge where they share a way and run along the commons as the story roads do; rounds 3 and 4 answered the same |
+| 4 | Paths pass under the ends of some names | Columns are as wide as their names, but a name can still reach the line between columns |
+| 5 | The road's name stands apart from its dot and near "The command schema" | Round 3 asked that it stand wholly on land |
+| 6 | The road's dot misses where the map's sea road meets the coast | The sea road leaves from the map's own dock |
+| 7 | The picked wall's gold band reads like the untested yellow | Round 2 asked for this (a gold band, the ink outline kept) |
+| 8 | The picked path's gold looks orange-brown and thin at rest | |
+| 9 | On small fields the wrench's head reaches the back wall and gate | Round 4 moved it to the front half, out of the gateway on the larger fields |
+| 10 | Gate towers take up half the wall of the smallest fields | Round 4 raised the smallest field to 220 lines' area |
+| 11 | Side walls are a thin double line without crenellations | They foreshorten at the map's tilt; short runs are plain by round 4's answer |
+| 12 | The picked gate is easy to miss at rest | |
+| 13 | Panned out, crenellations and towers blur | |
+| 14 | The sample tag's lilac | It marks made-up work, so it must not pass for real |
+| 15 | The legend's gate and path icons read darker or more orange than the marks | |
+
+## Where it stands, and what is for Mick
+
+Every round's verdict was "nearly"; none came back clean. What changed most over the loop: gates moved to the back wall
+where they read as an opening between two towers, names hang below each field by one rule at every turn, the road stopped
+doubling the paths, the walls became one band with one ink line, and the wrench became a spanner with an open jaw. What
+reviewers kept returning to, and the brief decides: the orthogonal, merging paths (the brief's routing), the plan's shape on
+the island (dependency columns), and how crowded the far rows get when the map is tipped low.
+
+**For Mick** (nothing was built from these):
+
+1. A pale halo behind a name where it must cross a path (round 2).
+2. Whether the other islands' roads should show at all from this view, especially the wide road at the right of the rest
+   view (round 2).
+3. Whether a field with no links, such as The command schema, should have a gate (round 3).
+4. No still shows a claim flag and a wrench side by side, so whether they tell apart at a glance on the map itself is
+   unjudged (round 5).
+5. The wrench's shadow at its foot, like the claim flag's, is the one soft mark (round 4).

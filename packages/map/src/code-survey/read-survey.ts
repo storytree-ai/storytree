@@ -619,12 +619,13 @@ export function readCodeSurvey(folder: string, tree: AnnotatedTree, imports?: re
  * A reader whose surveys run on a worker thread started from `workerFile` (this folder's survey-worker, or a
  * bundle of it), so parsing never holds the asking thread's event loop (8.16). The worker starts on the first ask,
  * keeps its reader between asks, and is started again after it dies; close ends it. Given `keptIn`, it keeps its
- * surveys there between starts (8.25), named by the worker file's contents, so a survey kept by another build is not used.
+ * surveys there between starts (8.25), named by the survey's code, every source file beside the worker (8.43), so a survey
+ * kept by other survey code is not used; with no name for that code it keeps nothing.
  * Given `startFromFetched`, its reader answers a start's first ask from the main already fetched (8.27).
  */
 export function offThreadSurveyReader(workerFile: string | URL, options: { execArgv?: string[]; keptIn?: string; startFromFetched?: boolean } = {}) {
-  const keep: SurveyKeep | undefined = options.keptIn === undefined ? undefined
-    : { folder: options.keptIn, code: hashOf(readFileSync(typeof workerFile === "string" ? workerFile : fileURLToPath(workerFile), "utf8")) };
+  const codeName = options.keptIn === undefined ? undefined : surveyCodeName(workerFile);
+  const keep: SurveyKeep | undefined = options.keptIn === undefined || codeName === undefined ? undefined : { folder: options.keptIn, code: codeName };
   let worker: Worker | undefined;
   let next = 0;
   const waiting = new Map<number, { resolve: (survey: ProjectSurvey) => void; reject: (error: Error) => void }>();

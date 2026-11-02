@@ -1,4 +1,4 @@
-# Capability tree: seven medieval mocks, side by side
+# Capability tree: the first round of medieval mocks, side by side
 
 Seven mocks of the capability tree, each drawing the same story (The library, 24 capabilities, measured 2026-11-02)
 as one medieval island: a field per capability, sized by its lines of code and coloured by its health, a path for each
@@ -8,8 +8,11 @@ arc_9bbaa3497530, and are mocks only: no product code changed.
 
 **Open it:** `index.html` in any browser, straight from disk. It shows every mock's resting still at the same size with
 its letter, name and direction, each linking to its own page, and below them one row per mock with its wrench and a
-path or gate clicked. The pick between them is the owner's question on arc_9bbaa3497530, raised by
-increment_5e6e43a0a10b.
+path or gate clicked (increment_5e6e43a0a10b).
+
+**They are the record of round one, not candidates.** On 2026-11-02 Mick found them off the mark: they were drawn flat
+and from scratch rather than on the map's own 3D story-node island (his words are on question_752b6ef53b90). The next
+round is 3D and starts from that island, in `docs/design/capability-tree-3d/`; these stay to compare against.
 
 | | Mock | Direction |
 | --- | --- | --- |

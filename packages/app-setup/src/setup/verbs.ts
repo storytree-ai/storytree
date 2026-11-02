@@ -13,6 +13,7 @@
  * - A folder whose marker names a project is read only once it is approved as that project's checkout on this machine
  *   (ADR-0942 D1); until then the doctor says so, and `--join <name>` run there approves it on purpose.
  * - The hooks last seen firing is the latest hook line in the project's activity log.
+ * - Run inside a Claude Code session (CLAUDECODE=1), Claude Code counts as signed in, as check_setup counts its caller.
  *
  * `storytree setup install | remove` runs the installed `storytree-setup.mjs` beside the command.
  */
@@ -159,6 +160,8 @@ export const DOCTOR = verb({
     const report = await runSetupCheck({
       folder: context.folder,
       look: input.repair !== true,
+      // Run from a Claude Code session's shell, which Claude Code strips of its CLAUDE_CODE_OAUTH_TOKEN, that session is the asking one (8.11).
+      ...(process.env.CLAUDECODE === "1" ? { asking: "claude" as const } : {}),
       ...(hook === undefined ? {} : { hook: { node: process.execPath, script: hook }, command: { path: process.env.PATH ?? process.env.Path ?? "", home: homedir() } }),
     });
     if (report.storytree.state === "not running") throw new VerbRefusal(report.storytree.message);

@@ -58,8 +58,10 @@
  * - A capability the increment names whose story is a factory plugin's (ADR-1187) has its change read from the worktree of the factory
  *   repo on a branch carrying the increment's id: the brief holds that worktree's diff, its files in the plugin's package, and the
  *   capability's contracts as the plugin's plan file there numbers them, a contract only the plan holds briefed as `<plugin>:<number>`
- *   and one it no longer holds listed as retired. With no such worktree the brief says the plugin's change was not read, and a return
- *   answering any of those contracts met is refused (2.18, friction_cda9575aee9f).
+ *   and one it no longer holds listed as retired. With a branch carrying the id and no worktree on it the brief says the plugin's change
+ *   was not read, and a return answering any of those contracts met is refused (2.18, friction_cda9575aee9f). With neither, the change
+ *   edits none of the plugin's code: its capabilities are on the list only because the increment's promises cross them (ADR-1208), so
+ *   the brief marks the plugin crossed only, and a return answering any of its contracts touched is refused (2.18, friction_a60f56eac534).
  */
 import { execFileSync } from "node:child_process";
 import { readFileSync, realpathSync } from "node:fs";
@@ -115,9 +117,10 @@ export interface Brief {
   /**
    * The factory plugins whose stories the increment's capabilities belong to, and their change: the factory worktree on the
    * increment's branch and its diff (absent when it is the change's own folder, whose diff is above), or why it was not read,
-   * when none of those plugins' contracts may be answered met (contract 2.18). Absent when the increment names no plugin's capability.
+   * when none of those plugins' contracts may be answered met, or why the change edits none of their code, `crossed`, when none may be
+   * answered touched (contract 2.18). Absent when the increment names no plugin's capability.
    */
-  readonly factory?: { readonly plugins: readonly string[]; readonly folder?: string; readonly diff?: string; readonly mark?: Mark; readonly unread?: string };
+  readonly factory?: { readonly plugins: readonly string[]; readonly folder?: string; readonly diff?: string; readonly mark?: Mark; readonly unread?: string; readonly crossed?: string };
   /**
    * Each checkout outside the project named as the change's other half, an increment landing in two repositories as storytree and the
    * factory repo, with its branch's diff against its default branch (contract 2.19). Absent when none was named.
@@ -225,9 +228,9 @@ export interface WorktreeChange {
 
 /**
  * A factory plugin's change as a brief reads it (contract 2.18): the factory worktree on the increment's branch, its change, and the
- * plugin's plan there; or why it could not be read.
+ * plugin's plan there; or why it could not be read; or why the change edits none of its code, when the plugin is crossed only.
  */
-export type PluginRead = { readonly folder: string; readonly change: WorktreeChange; readonly plan?: PluginPlan } | { readonly unread: string };
+export type PluginRead = { readonly folder: string; readonly change: WorktreeChange; readonly plan?: PluginPlan } | { readonly unread: string } | { readonly crossed: string };
 
 /** What a brief reads of each factory plugin whose story a capability the increment names belongs to. */
 export type PluginReader = (plugin: string) => PluginRead;
@@ -621,6 +624,8 @@ function factoryRead(plugins: readonly string[], reader: PluginReader | undefine
   const reads = plugins.map((plugin) => [plugin, reader?.(plugin) ?? { unread: "no factory was read for this brief" }] as const);
   const unread = reads.find(([, read]) => "unread" in read);
   if (unread !== undefined) return { brief: { plugins, unread: (unread[1] as { unread: string }).unread }, plans: new Map() };
+  const crossed = reads.find(([, read]) => "crossed" in read);
+  if (crossed !== undefined) return { brief: { plugins, crossed: (crossed[1] as { crossed: string }).crossed }, plans: new Map() };
   const { folder, change } = reads[0]![1] as Extract<PluginRead, { folder: string }>;
   const plans = new Map(reads.flatMap(([plugin, read]) => ("plan" in read && read.plan !== undefined ? [[plugin, read.plan] as const] : [])));
   const own = [root, ...halves].some((other) => other !== undefined && sameFolder(other, folder));
@@ -963,8 +968,11 @@ function refusals(brief: Brief, review: ReviewReturn): string[] {
   const pending = new Set(brief.contracts.filter(({ pending }) => pending).map(({ id }) => id));
   // A plugin's contract is never answered met on a review that could not read the plugin's change (contract 2.18).
   const unread = new Map(brief.factory?.unread === undefined ? [] : brief.contracts.flatMap(({ id, plugin }) => (plugin === undefined ? [] : [[id, plugin] as const])));
+  // A crossed-only plugin's contract is never answered touched: the change edits none of its code (contract 2.18).
+  const crossed = new Map(brief.factory?.crossed === undefined ? [] : brief.contracts.flatMap(({ id, plugin }) => (plugin === undefined ? [] : [[id, plugin] as const])));
   for (const { contract, met, why, touched, test, at } of review.contracts ?? []) {
     if (met && unread.has(contract)) problems.push(`contract ${contract} is answered met, and ${unread.get(contract)}'s change was not read: ${brief.factory!.unread}; answer it not met, saying so`);
+    if (touched === true && crossed.has(contract)) problems.push(`contract ${contract} is answered touched, and ${crossed.get(contract)} is crossed only: ${brief.factory!.crossed}; answer it untouched, or put the plugin's change on a factory worktree on a branch carrying the increment's id and review again`);
     if (!met && (why ?? "").trim() === "") problems.push(`contract ${contract} is not met and the return does not say why`);
     // Contract 2.13: "met" alone is no answer for a contract the change touches.
     if (met && typeof touched !== "boolean") problems.push(`contract ${contract} is met and does not say whether the change touches it: give "touched": true or false`);
@@ -1079,12 +1087,13 @@ export function changeFolder(cwd: string, branch: string | undefined, increment?
 /**
  * How a brief reads the factory plugins of `increment`'s capabilities from the factory repo at `factory` (contract 2.18): from the
  * first of the `also` checkouts that belongs to that repo, whatever its branch is called, else the worktree of that repo on a branch
- * whose name carries the increment's id, `factory` itself when it is on one, its change and each plugin's plan file there; with none,
- * or no repository at `factory`, why not.
+ * whose name carries the increment's id, `factory` itself when it is on one, its change and each plugin's plan file there; with a branch
+ * carrying the id and no worktree on it, or no repository at `factory`, why not; with no worktree or branch carrying it, the plugin is
+ * crossed only: the change edits none of its code.
  */
 export function factoryPlugins(factory: string, increment: string, also: readonly string[] = []): PluginReader {
   const id = increment.replace(/^increment_/, "");
-  let found: { folder: string; change?: WorktreeChange } | { unread: string } | undefined;
+  let found: { folder: string; change?: WorktreeChange } | { unread: string } | { crossed: string } | undefined;
   const folder = (): typeof found => {
     const git = (...args: string[]): string | undefined => {
       try {
@@ -1107,11 +1116,14 @@ export function factoryPlugins(factory: string, increment: string, also: readonl
       const branch = lines.find((line) => line.startsWith("branch refs/heads/"))?.slice("branch refs/heads/".length);
       if (at !== undefined && branch !== undefined && incrementOfBranch(branch) === id) return { folder: at };
     }
-    return { unread: `no worktree of the factory repo at ${factory} is on a branch carrying ${increment}'s id` };
+    // A branch carrying the id holds factory work this brief cannot read; with none, the change edits no factory code (friction_a60f56eac534).
+    const branch = git("for-each-ref", "--format=%(refname)", "refs/heads", "refs/remotes")?.split("\n").find((ref) => incrementOfBranch(ref) === id);
+    if (branch !== undefined) return { unread: `no worktree of the factory repo at ${factory} is on a branch carrying ${increment}'s id, though ${branch} carries it` };
+    return { crossed: `no worktree or branch of the factory repo at ${factory} carries ${increment}'s id, so the change edits none of its code` };
   };
   return (plugin) => {
     found ??= folder();
-    if ("unread" in found!) return found;
+    if ("unread" in found! || "crossed" in found!) return found;
     const read = found!;
     read.change ??= worktreeChange(read.folder);
     let plan: PluginPlan | undefined;
@@ -1242,6 +1254,8 @@ export function briefText(brief: Brief): string {
       "",
       brief.factory.unread !== undefined
         ? `Factory plugins (${brief.factory.plugins.join(", ")}): ${brief.factory.plugins.map((plugin) => `${plugin}'s change was not read`).join("; ")}: ${brief.factory.unread}. Answer each of their contracts not met, saying so: a return answering one met is refused.`
+        : brief.factory.crossed !== undefined
+        ? `Factory plugins (${brief.factory.plugins.join(", ")}): ${brief.factory.plugins.map((plugin) => `${plugin} is crossed only`).join("; ")}: ${brief.factory.crossed}. Its capabilities are named because the increment's promises run through them (ADR-1208): answer each of their contracts on whether the diff below keeps it, untouched, as a return answering one touched is refused. If the change does edit their code elsewhere, answer them not met, saying so.`
         : `Factory plugins (${brief.factory.plugins.join(", ")}): their contracts above are as their plan files on the increment's branch number them; one marked as the plan's only is new in it. Their change is ${brief.factory.diff === undefined ? `the diff below, read from ${brief.factory.folder}` : `the factory worktree ${brief.factory.folder}'s diff against its default branch, judged with the checks and contracts like the diff below:`}`,
       ...(brief.factory.diff === undefined ? [] : [brief.factory.diff]),
     ]),

@@ -330,7 +330,7 @@ const PLAN_INPUTS = {
   title: { kind: "text", optional: true, describe: "its title" },
   objective: { kind: "text", optional: true, describe: "what it delivers" },
   body: { kind: "text", optional: true, describe: "its breakdown" },
-  capabilities: { kind: "text", optional: true, describe: "the capabilities it changes, comma-separated" },
+  capabilities: { kind: "text", optional: true, blank: true, describe: "the capabilities its promises' paths cross, comma-separated, or none to empty the list" },
   links: { kind: "text", optional: true, describe: "what it cites, comma-separated" },
   remedies: { kind: "text", optional: true, describe: "the friction it remedies, comma-separated" },
   "held-on": { kind: "text", optional: true, blank: true, describe: "the owner's questions it is held on, comma-separated, or none to clear" },
@@ -354,6 +354,8 @@ function incrementOf({ capabilities, links, remedies, "held-on": heldOn, machine
   }
   // `--held-on none`, or an empty value where the shell delivers one (Windows PowerShell 5.1 drops it),
   // clears the hold, as settling or retiring its last question does.
+  // `--capabilities none` (or empty) empties the list, which a parked increment starts with (ADR-1208).
+  if ((fields.capabilities as string[] | undefined)?.join() === "none") fields.capabilities = [];
   const held = fields.heldOn as string[] | undefined;
   if (held?.length === 0 || (held?.length === 1 && held[0] === "none")) fields.heldOn = undefined;
   // The escape it fixes: what caused it and the story it hit, given together; `--escape-of none` clears it.
@@ -491,7 +493,7 @@ const incrementEdit = verb({
     family: "arc increment",
     name: "edit",
     summary: "change only the named fields; --capabilities and --links replace the lists, --remedies adds friction to those it already remedies, --machine names the one machine that can take it, --escape-of and --escape-story the escape it fixes",
-    usage: "arc increment edit <increment> [--title …] [--objective …] [--body …] [--capabilities a,b] [--links a,b] [--remedies f,g] [--held-on q, or none to clear] [--machine <name>, or none to clear] [--escape-of <pr|increment> --escape-story <story>, or --escape-of none to clear]",
+    usage: "arc increment edit <increment> [--title …] [--objective …] [--body …] [--capabilities a,b, or none to empty] [--links a,b] [--remedies f,g] [--held-on q, or none to clear] [--machine <name>, or none to clear] [--escape-of <pr|increment> --escape-story <story>, or --escape-of none to clear]",
   },
   tool: { absent: "the MCP server's own edit_plan edits an increment" },
   inputs: { increment: { kind: "text", word: 0, describe: "the increment's id" }, ...PLAN_INPUTS },

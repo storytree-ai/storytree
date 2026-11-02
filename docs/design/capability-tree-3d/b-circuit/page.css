@@ -1,0 +1,39 @@
+:root { --bg: #14251d; --paper: #f4ecd9; --ink: #2a241b; --rule: #d9cdb0; --gold: #b98a2e; }
+html, body { margin: 0; height: 100%; background: var(--bg); overflow: hidden; font-family: "Segoe UI", "Helvetica Neue", "DejaVu Sans", Arial, sans-serif; }
+#board { position: fixed; inset: 0; width: 100%; height: 100%; cursor: grab; user-select: none; }
+#board.panning { cursor: grabbing; }
+#board .chip, #board .pad, #board .finger, #board .wrench, #board .trace .hit { cursor: pointer; }
+#board .chip.on .body { stroke: #ffe39a; stroke-width: 3; }
+#board .pad.on .gold, #board .finger.on .gold { fill: #ffe39a; stroke: #3a2a0e; stroke-width: 1.6; }
+#board .pad:hover .gold, #board .finger:hover .gold { fill: #f0cf7a; }
+#board .wrench.on path { stroke: #ffe39a; stroke-width: 2; }
+#board text { pointer-events: none; }
+#panel { position: fixed; top: 16px; right: 16px; bottom: 16px; width: min(420px, calc(100vw - 32px)); overflow: auto; box-sizing: border-box;
+  background: var(--paper); color: var(--ink); border-radius: 10px; padding: 18px 22px 22px; box-shadow: 0 10px 30px rgba(0,0,0,.35); font-size: 14px; line-height: 1.45; }
+#panel[hidden] { display: none; }
+#panel h2 { font-size: 19px; margin: 2px 0 6px; line-height: 1.25; }
+#panel h3 { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; margin: 18px 0 6px; border-top: 1px solid var(--rule); padding-top: 12px; }
+#panel .kicker { font-size: 11px; text-transform: uppercase; letter-spacing: .1em; color: #7a6a48; margin: 0; }
+#panel .meta { font-family: Consolas, "DejaVu Sans Mono", monospace; font-size: 12px; color: #6b5c3e; margin: 0 0 10px; }
+#panel .arrow { color: var(--gold); }
+#panel .contracts { padding-left: 0; list-style: none; margin: 0; }
+#panel .contracts li { padding: 4px 0; border-bottom: 1px dotted var(--rule); }
+#panel .contracts b { font-family: Consolas, "DejaVu Sans Mono", monospace; color: #8a6420; margin-right: 4px; }
+#panel ul.links, #panel ul.work { padding-left: 18px; margin: 0; }
+#panel a { color: #6d4c12; }
+#panel .id { font-family: Consolas, "DejaVu Sans Mono", monospace; font-size: 11px; color: #8d7e60; }
+#panel .st { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; background: #e6d8b6; padding: 1px 5px; border-radius: 3px; }
+#panel .close { position: absolute; top: 8px; right: 10px; border: 0; background: none; font-size: 22px; cursor: pointer; color: #7a6a48; }
+#legend { position: fixed; left: 16px; bottom: 16px; background: rgba(244,236,217,.95); color: var(--ink); border-radius: 8px; padding: 10px 14px; font-size: 12px; max-width: 360px; }
+#legend h4 { margin: 0 0 6px; font-size: 11px; text-transform: uppercase; letter-spacing: .1em; }
+#legend ul { list-style: none; margin: 0; padding: 0; }
+#legend li { margin: 3px 0; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+#legend .sw { width: 12px; height: 12px; border: 1px solid #14211a; border-radius: 2px; display: inline-block; }
+#legend .tr { width: 22px; height: 3px; background: #c6914a; outline: 1px solid #15291f; display: inline-block; }
+#legend .pd { width: 10px; height: 7px; background: #d9b45a; border: 1px solid #7d5f27; display: inline-block; border-radius: 1px; }
+#legend .fg { width: 18px; height: 9px; background: #d9b45a; border: 1px solid #7d5f27; display: inline-block; border-radius: 2px; }
+#legend .via { width: 8px; height: 8px; border: 1.5px solid #b08a3a; border-radius: 50%; display: inline-block; background: #1f3a2d; }
+#legend .wr { width: 16px; height: 22px; background: #1f3a2d; border-radius: 3px; }
+#tools { position: fixed; left: 16px; top: 16px; display: flex; gap: 6px; }
+#tools button { background: var(--paper); color: var(--ink); border: 0; border-radius: 6px; padding: 6px 11px; font-size: 14px; cursor: pointer; }
+@media (max-width: 700px) { #legend { display: none; } }

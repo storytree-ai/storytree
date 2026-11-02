@@ -6,7 +6,7 @@ import path from "node:path";
 import { promisify } from "node:util";
 import type { AnnotatedTree, ChangedOnMain, Library, NamedOnMain } from "@storytree/library";
 import { packageOf, packagesOf } from "./code-survey/code-survey.js";
-import { codeSurveyReader } from "./code-survey/read-survey.js";
+import { codeSurveyReader, type CodeSurveyReader } from "./code-survey/read-survey.js";
 import { buildGraph, type ChangeLabel, type MapEdge, type MapNode, type ProjectGraph } from "./graph.js";
 import { impact } from "./impact.js";
 import type { DiffSummary, FocusAnswer, FocusOptions } from "./focus.js";
@@ -135,7 +135,8 @@ async function defaultRange(root: string): Promise<string> {
   return "origin/main";
 }
 
-export async function affectedProject(library: Pick<Library, "projectTree">, folder: string, options: AffectedOptions): Promise<FocusAnswer> {
+/** What changed in `options.range` and what it reaches; the working tree is surveyed by `working`, a reader the caller can share. */
+export async function affectedProject(library: Pick<Library, "projectTree">, folder: string, options: AffectedOptions, working: CodeSurveyReader = codeSurveyReader({ checkout: "current" })): Promise<FocusAnswer> {
   const root = await gitText(folder, ["rev-parse", "--show-toplevel"]);
   const range = options.range || await defaultRange(root);
   const compared = await comparison(root, range);
@@ -143,7 +144,7 @@ export async function affectedProject(library: Pick<Library, "projectTree">, fol
   const tree = await library.projectTree();
   const [base, target] = await Promise.all([
     historicalGraph(root, compared.base, tree),
-    compared.target === "working-tree" ? codeSurveyReader({ checkout: "current" }).read(root, tree).then(survey => buildGraph(tree, survey)) : historicalGraph(root, compared.target, tree),
+    compared.target === "working-tree" ? working.read(root, tree).then(survey => buildGraph(tree, survey)) : historicalGraph(root, compared.target, tree),
   ]);
   const graph = union(base, target);
   const nodes = new Map(graph.nodes.map(node => [node.id, node]));

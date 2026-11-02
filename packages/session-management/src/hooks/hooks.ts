@@ -65,6 +65,7 @@ import { piLines, piSession } from "./pi.js";
 import { antigravityLines } from "./antigravity.js";
 import { EDIT_GATE, editGate, recordYesAfterEdit, yesSaid } from "./edit-gate.js";
 import { UPKEEP_DEADLINE_MS, withDeadline } from "./deadlines.js";
+import { remoteAddress, takeTurn } from "./remote-turn.js";
 import { noteCodexHookRan } from "./codex-trust.js";
 import { BACKGROUND } from "./at-once.js";
 import { AFTER_TOOL, deliveredByTool, deliveredInput, noteDelivered, TOOL_GRACE_MS } from "./codex-delivery.js";
@@ -405,6 +406,7 @@ export function atDeadline(): void {
 
 /** Write one hook's lines to the log of the project its folder belongs to, or leave them waiting on this machine; a failure is traced with `failed`. Never throws. */
 async function writeLines(harness: string, input: string, flags: readonly string[], made: HookLines, delivered: DeliveredEvent, handOff: HookInput["handOff"], merges: MergeWatch | undefined, locate: LocateOptions | undefined, failed: (stage: HookFailure["stage"], error: unknown) => void, guarded = false, clock?: HookClock, git: Git = runGit): Promise<void> {
+  let turn: (() => void) | undefined;
   try {
     if (made.lines.length === 0) return;
     // Registered beside the tool server's handler (codex-delivery.ts) or under Claude Code's mod, an event the tool recorded is not recorded
@@ -445,6 +447,14 @@ async function writeLines(harness: string, input: string, flags: readonly string
     if (flags.includes(BACKGROUND) && handOff !== undefined) {
       await handOff(harness, input);
       return undefined;
+    }
+    // Over a wss:// library one hook at a time on this machine reaches it; the others leave their lines for the holder (remote-turn.ts).
+    const remote = remoteAddress(where.library.address);
+    turn = remote ? takeTurn(home) : undefined;
+    if (remote && turn === undefined) {
+      leaveWaiting = undefined;
+      enqueue(home, where.project, made.lines, delivered);
+      return;
     }
     // Only now, with lines to write and somewhere to write them, is the database reached.
     const [{ openActivityLog, thisMachine, currentBranch }, { connect }] = await Promise.all([import("../activity/index.js"), import("@storytree/library")]);
@@ -528,6 +538,7 @@ async function writeLines(harness: string, input: string, flags: readonly string
   } finally {
     // Done, or handed on, nothing is left to wait at the deadline.
     leaveWaiting = undefined;
+    turn?.();
   }
 }
 

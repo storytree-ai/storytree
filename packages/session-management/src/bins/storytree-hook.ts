@@ -31,6 +31,7 @@ import { storytreeHome } from "@storytree/project-and-caller";
 import type { DeclaredCapabilities } from "../claims/edit-gate.js";
 import { deafIfHandingOffAtOnce } from "../hooks/at-once.js";
 import { limitOf } from "../hooks/learned-limits.js";
+import { remoteLibrary } from "../hooks/remote-turn.js";
 import { OBSERVE_STEP } from "../hooks/shell-edits.js";
 import { atDeadline, BACKGROUND, HANDED, HookClock, hookDeadline, recordHookTime, runHook, statusLine, UPKEEP, UPKEEP_DEADLINE_MS } from "../hooks/index.js";
 
@@ -45,7 +46,7 @@ export function hookCommand({ declaredCapabilities, guardMs }: { declaredCapabil
   setTimeout(() => {
     atDeadline();
     process.exit(0);
-  }, Math.max(process.argv.includes(UPKEEP) ? UPKEEP_DEADLINE_MS : hookDeadline(process.argv.slice(3), limitOf(storytreeHome(), OBSERVE_STEP)), guardMs ?? 0)).unref();
+  }, Math.max(process.argv.includes(UPKEEP) ? UPKEEP_DEADLINE_MS : hookDeadline(process.argv.slice(3), limitOf(storytreeHome(), OBSERVE_STEP), remoteLibrary(storytreeHome())), guardMs ?? 0)).unref();
   process.on("uncaughtException", () => process.exit(0));
   process.on("unhandledRejection", () => process.exit(0));
   const [harness = "", ...flags] = process.argv.slice(2);

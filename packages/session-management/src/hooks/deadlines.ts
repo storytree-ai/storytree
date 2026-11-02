@@ -22,6 +22,11 @@ export const DEADLINE_MS = 5_000;
  * inside the 10 s Codex gives them, the most any harness storytree sets up gives a hook it waits on.
  */
 export const GUARDED_DEADLINE_MS = 9_000;
+/**
+ * The longest a hook nothing waits for (`--after-tool`, Claude Code's async hooks) may run over a wss:// library, where
+ * one hook's write takes about 20 s (remote-turn.ts): inside the 60 s Claude Code gives a hook before it stops it (ADR-1207 D1).
+ */
+export const REMOTE_DEADLINE_MS = 50_000;
 /** The longest the look around the machine a hook hands on may run: asking GitHub alone may take 10 s. */
 export const UPKEEP_DEADLINE_MS = 20_000;
 
@@ -31,10 +36,12 @@ export const UPKEEP_DEADLINE_MS = 20_000;
  * off while it connected to a store slow to answer, and the line was lost rather than left waiting (seen on CI,
  * 2026-10-19). Nothing waits on such a hook, which is `async`, so the longer bound costs the agent nothing. An ordinary
  * hook is also given what this machine's shell-edit observation learned over its floor (`observeMs`, ADR-1163 D2):
- * the observation's Git reads run before anything else, and cannot be cut off mid-read.
+ * the observation's Git reads run before anything else, and cannot be cut off mid-read. Over a wss:// library (`remote`) the
+ * `--after-tool` hook is given REMOTE_DEADLINE_MS instead.
  */
-export function hookDeadline(flags: readonly string[], observeMs = OBSERVE_STEP.floorMs): number {
+export function hookDeadline(flags: readonly string[], observeMs = OBSERVE_STEP.floorMs, remote = false): number {
   if (flags.includes(EDIT_GATE) || flags.includes(SHELL_GUARD)) return GUARDED_DEADLINE_MS;
+  if (remote && flags.includes(AFTER_TOOL)) return REMOTE_DEADLINE_MS;
   const ordinary = DEADLINE_MS + Math.max(0, Math.min(observeMs, OBSERVE_STEP.ceilingMs) - OBSERVE_STEP.floorMs);
   return flags.includes(AFTER_TOOL) ? ordinary + TOOL_GRACE_MS : ordinary;
 }

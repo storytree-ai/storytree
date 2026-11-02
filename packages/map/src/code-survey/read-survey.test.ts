@@ -14,7 +14,7 @@ import { quietFor, removeTemp, waitUntil } from "@storytree/test-waits";
 
 import type { AnnotatedTree, StorySurvey } from "@storytree/library";
 
-import { capabilitiesOfFiles, codeSurveyReader, placeFiles, noMergedMain, offThreadSurveyReader, readCodeSurvey, testedNumbers, untestedContracts } from "./read-survey.js";
+import { capabilitiesOfFiles, codeSurveyReader, placeFiles, noMergedMain, offThreadSurveyReader, readCodeSurvey, storyTests, testedNumbers, untestedContracts } from "./read-survey.js";
 import { focusProject } from "../read.js";
 import { importedSource } from "./survey-source.js";
 // 8.16 runs this module on a worker thread; imported here, with no parent port, it answers nothing.
@@ -1008,6 +1008,27 @@ test("8.32 a numbered test carries its contract's number whatever its test file'
     const tested = await testedNumbers(folder, plan, "cap-run");
     assert.deepEqual([...tested].sort(), ["1.1", "1.2", "1.3", "1.4"]);
     assert.deepEqual(untestedContracts(plan, "cap-run", tested), ["1.5 · none"]);
+  } finally {
+    await removeTemp(folder);
+  }
+});
+
+test("8.40 reading a capability's story tests says whether its story's package was seen in the checkout: a story with no package there, and no pytest numbers, is unseen; testedNumbers still reads the numbers alone", async () => {
+  const folder = await mkdtemp(path.join(tmpdir(), "code-survey-seen-"));
+  const contracts = [{ title: "1.1 · adds" }];
+  const plan = { arcs: [], stories: [
+    { id: "story-cart", title: "Cart", capabilities: [{ id: "cap-cart", title: "1 · Adding", contracts }] },
+    { id: "story-ghost", title: "Ghost", capabilities: [{ id: "cap-ghost", title: "1 · Haunting", contracts }] },
+  ] } as unknown as AnnotatedTree;
+  try {
+    await mkdir(path.join(folder, "packages/cart/src"), { recursive: true });
+    await writeFile(path.join(folder, "packages/cart/src/cart.ts"), "export const add = 1;\n");
+    await writeFile(path.join(folder, "packages/cart/src/cart.test.ts"), 'import { add } from "./cart.js";\ntest("1.1 adds", () => add);\n');
+    assert.deepEqual(await storyTests(folder, plan, "cap-cart"), { numbers: ["1.1"], seen: true });
+    assert.deepEqual(await storyTests(folder, plan, "cap-ghost"), { numbers: [], seen: false }, "a story with no package in the checkout is unseen");
+    assert.deepEqual(await testedNumbers(folder, plan, "cap-cart"), ["1.1"]);
+    await writeFile(path.join(folder, "test_ghost.py"), "def test_1_1_haunts():\n    pass\n");
+    assert.deepEqual(await storyTests(folder, { ...plan, stories: [plan.stories[1]!] } as AnnotatedTree, "cap-ghost"), { numbers: ["1.1"], seen: true }, "pytest numbers are seen tests");
   } finally {
     await removeTemp(folder);
   }

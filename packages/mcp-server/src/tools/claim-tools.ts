@@ -8,7 +8,7 @@
  * than in Session management, which stands on neither.
  */
 import type { Library } from "@storytree/library";
-import { testedNumbers as testedNumbersIn, untestedContracts as untestedIn } from "@storytree/map/code-survey";
+import { storyTests, testedNumbers as testedNumbersIn, untestedContracts as untestedIn } from "@storytree/map/code-survey";
 
 import { refusalOf } from "./answers.js";
 import type { Call, ClaimCheck, Landing, ToolExtension } from "./server.js";
@@ -39,12 +39,15 @@ export function landingOf(checks: () => readonly ClaimCheck[], extensions: () =>
 
 /**
  * The titles of `capability`'s planned contracts that no numbered test in its story's package names, in the
- * checkout the session works in, read with the map's survey as CI health reads proofs; none for a capability
- * the plan lacks. A title prefixed with another package proves that package's contracts, not these.
+ * checkout the session works in, read with the map's survey as CI health reads proofs, and whether that package was
+ * seen there at all (unseen, every planned contract is named, none proven missing); none for a capability the plan
+ * lacks. A title prefixed with another package proves that package's contracts, not these.
  */
-async function untestedContracts(capability: string, call: Call): Promise<string[]> {
-  const tree = await call.library.projectTree();
-  return untestedIn(tree, capability, await testedNumbers(call, capability, tree));
+async function untestedContracts(capability: string, { folder, library }: Call): Promise<{ titles: string[]; seen: boolean }> {
+  const tree = await library.projectTree();
+  // The survey reads the checkout `folder` is in, from its top.
+  const { numbers, seen } = await storyTests(folder, tree, capability);
+  return { titles: untestedIn(tree, capability, numbers), seen };
 }
 
 /** The contract numbers the numbered tests in `capability`'s story package carry, in the checkout the session works in, read against `tree`. */

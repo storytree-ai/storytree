@@ -236,7 +236,7 @@ export interface ArmCheck {
  */
 export interface Landing {
   unplaced(capability: string, call: Call): Promise<readonly string[]>;
-  untested(capability: string, call: Call): Promise<readonly string[]>;
+  untested(capability: string, call: Call): Promise<{ readonly titles: readonly string[]; readonly seen: boolean }>;
   next(capability: string, call: Call): Promise<readonly string[]>;
 }
 

@@ -85,7 +85,7 @@ export interface ToolExtension {
  */
 export interface Landing {
   unplaced(capability: string, call: ToolCall): Promise<readonly string[]>;
-  untested(capability: string, call: ToolCall): Promise<readonly string[]>;
+  untested(capability: string, call: ToolCall): Promise<{ readonly titles: readonly string[]; readonly seen: boolean }>;
   next(capability: string, call: ToolCall): Promise<readonly string[]>;
 }
 
@@ -364,7 +364,9 @@ function registerLandingTools(define: Define, landing: Landing | undefined): voi
         };
       }
       // Naming the gap is an aid: a checkout the survey cannot read names none, and never stops the landing.
-      const untested = (await landing?.untested(capability, call).catch(() => [])) ?? [];
+      const { titles, seen } = (await landing?.untested(capability, call).catch(() => undefined)) ?? { titles: [], seen: true };
+      const untested = seen ? titles : [];
+      const unchecked = seen ? [] : titles;
       const answer = await land(claimContext(call), capability);
       if (answer.ok) {
         const next = (await landing?.next(capability, call)) ?? [];
@@ -372,9 +374,14 @@ function registerLandingTools(define: Define, landing: Landing | undefined): voi
           `No numbered test in its story's package proves ${untested.length === 1 ? "this planned contract" : `these ${untested.length} planned contracts`}: write each one's test ("N.M · …"), or retire the contract if it is no longer wanted.`,
           ...untested.map((title) => `- ${title}`),
         ];
+        // A story whose package this checkout lacks (no code here yet, or mapped from a folder of its own) shows no tests: none is proven missing.
+        const unseen = unchecked.length === 0 ? [] : [
+          `This checkout cannot see the tests of its story: it holds no package of that story's (no code here yet, or a story mapped from a folder of its own), so ${unchecked.length === 1 ? "this planned contract was" : `these ${unchecked.length} planned contracts were`} not checked against them.`,
+          ...unchecked.map((title) => `- ${title}`),
+        ];
         return {
-          text: [`Landed ${await titleOf(call.library, capability)}. Your claim on it has ended.`, ...gaps, ...next.map((line) => `Next: ${line}`)].join("\n"),
-          data: { landed: true, ...(untested.length === 0 ? {} : { untested }), ...(next.length === 0 ? {} : { next }) },
+          text: [`Landed ${await titleOf(call.library, capability)}. Your claim on it has ended.`, ...gaps, ...unseen, ...next.map((line) => `Next: ${line}`)].join("\n"),
+          data: { landed: true, ...(untested.length === 0 ? {} : { untested }), ...(unchecked.length === 0 ? {} : { unchecked }), ...(next.length === 0 ? {} : { next }) },
         };
       }
       return answer.refused === "held"

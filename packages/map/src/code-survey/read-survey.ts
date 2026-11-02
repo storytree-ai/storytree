@@ -164,17 +164,27 @@ async function checkoutTop(folder: string): Promise<string> {
  * checkout, which both front doors skip when they number a new contract, from every package the story owns; none for a
  * capability `tree` lacks. A title prefixed with another story's package carries that package's numbers, not these.
  */
-export async function testedNumbers(root: string, tree: AnnotatedTree, capability: string, {
+export async function testedNumbers(root: string, tree: AnnotatedTree, capability: string, options: Parameters<typeof storyTests>[3] = {}): Promise<string[]> {
+  return (await storyTests(root, tree, capability, options)).numbers;
+}
+
+/**
+ * {@link testedNumbers}'s numbers, and whether the survey saw `capability`'s story's tests at all: unseen when the
+ * checkout holds no package of the story's (a hand-planned story with no code here, a mapped story, whose import this
+ * reading never passes) and no pytest test carries a number of its, so an empty list is no evidence that a test is missing.
+ */
+export async function storyTests(root: string, tree: AnnotatedTree, capability: string, {
   alsoOwned = ALSO_OWNED,
   survey = (plan: AnnotatedTree) => codeSurveyReader({ checkout: "current", alsoOwned }).read(root, plan),
-}: { alsoOwned?: AlsoOwned; survey?(tree: AnnotatedTree): Promise<ProjectSurvey> } = {}): Promise<string[]> {
+}: { alsoOwned?: AlsoOwned; survey?(tree: AnnotatedTree): Promise<ProjectSurvey> } = {}): Promise<{ numbers: string[]; seen: boolean }> {
   const story = tree.stories.find((one) => one.capabilities.some((part) => part.id === capability));
-  if (story === undefined) return [];
+  if (story === undefined) return { numbers: [], seen: false };
   const own = packagesOf(story, alsoOwned);
-  const surveyed = await survey({ ...tree, stories: [story] });
-  const numbered = (surveyed[story.id]?.tests ?? []).flatMap((test) => test.titles.filter((title) => title.package === undefined || own.includes(title.package)).map((title) => title.number));
+  const surveyed = (await survey({ ...tree, stories: [story] }))[story.id];
+  const numbered = (surveyed?.tests ?? []).flatMap((test) => test.titles.filter((title) => title.package === undefined || own.includes(title.package)).map((title) => title.number));
   // A Python project's pytest tests carry numbers too, for this check alone (ADR-1189).
-  return [...numbered, ...(await pytestTestedNumbers(root, tree, story.id))];
+  const pytest = await pytestTestedNumbers(root, tree, story.id);
+  return { numbers: [...numbered, ...pytest], seen: surveyed !== undefined || pytest.length > 0 };
 }
 
 /**

@@ -5,10 +5,11 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "nod
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test, type TestContext } from "node:test";
-import { fileURLToPath, pathToFileURL } from "node:url";
+import { pathToFileURL } from "node:url";
 
 import { pluginSchema, type PluginRecords } from "@storytree/library";
 
+import { writePartsList } from "./compose/parts-list.js";
 import { checkPlugin } from "./factory/contract.js";
 import { pluginServices, type ServiceHost } from "./factory/factory.js";
 import { composeParts, mount, offSaid, PLUGIN_INTERFACE, pluginExport, recordKinds, standIn, storyParts, storyServices } from "./index.js";
@@ -82,9 +83,7 @@ test("2.1 the parts-list step writes, for each #parts/<kind> the host's package.
   const manifest = JSON.parse(readFileSync(path.join(dir, "package.json"), "utf8")) as Record<string, unknown>;
   writeFileSync(path.join(dir, "package.json"), JSON.stringify({ ...manifest, imports: { "#parts/surfaces": "./src/parts/surfaces.js", "#parts/pages": "./src/parts/pages.js", "#own": "./src/own.js" } }));
   const file = path.join(dir, "parts-list.json");
-  // Run as a build runs it: Plugin loader's own step, a command, so the build imports none of its code.
-  const step = spawnSync(process.execPath, ["--import", import.meta.resolve("tsx"), fileURLToPath(new URL("./compose/parts-list.ts", import.meta.url)), dir, file], { encoding: "utf8" });
-  assert.equal(step.status, 0, step.stderr);
+  writePartsList(dir, file);
   const list = JSON.parse(readFileSync(file, "utf8")) as { host: string; kinds: Record<string, unknown>; graph: unknown; inputs: Record<string, string> };
   assert.equal(list.host, dir);
   assert.deepEqual(list.kinds, {

@@ -6,7 +6,6 @@ import type { Island } from "@storytree/forest";
 import { onIslandSurface, Overlay, plateTransform, type PlanetSpot } from "@storytree/forest-world/planet";
 import { islandTerritories, type Coast } from "../territories/territories.js";
 import { capabilityPlates, facing, fadedCapabilities, fadedPlates, southOnPlate, STORY_PLATE_WIDTH, storyPlate } from "./nameplates.js";
-import { islandProgress } from "./island-progress.js";
 import { GROUND_PER_WORLD_UNIT, islandReach, type Descriptor3D } from "@storytree/forest-world";
 
 /** Where an island's middle is, in 0.2 ground units. */
@@ -41,19 +40,14 @@ export function Nameplates({ island, spot, coast, radius, selected, dimmed = fal
   }, -1);
   const chosen = island.story === selected;
   const plates = useMemo(() => chosen && island.land !== undefined ? capabilityPlates(islandTerritories(island.land.territories, coast)) : [], [chosen, island.land, coast]);
-  const progress = islandProgress(island);
   const opacity = dimmed ? 0.24 : selected !== undefined && !chosen ? 0.5 : 1;
   // Its opacity is a variable, so a crowded plate's fade (styles.css) can take it to nothing and back.
   const plateStyle = { "--plate-opacity": opacity, maxWidth: STORY_PLATE_WIDTH } as CSSProperties;
   return <>
     <group ref={anchor} position={at}>
       <Overlay zIndexRange={[20, 10]} style={{ pointerEvents: "none" }}>
-        <div ref={label} className={`forest-label planet-nameplate${chosen ? " selected" : ""}${progress !== undefined ? " with-progress" : ""}`} data-story-id={island.story} data-dimmed={dimmed ? "" : undefined} style={plateStyle}>
+        <div ref={label} className={`forest-label planet-nameplate${chosen ? " selected" : ""}`} data-story-id={island.story} data-dimmed={dimmed ? "" : undefined} style={plateStyle}>
           <span className="planet-nameplate-title">{island.title}</span>
-          {progress !== undefined && <span className="planet-progress">
-            {progress.landed} / {progress.total}<span className="planet-progress-word"> landed</span>
-            <span className="planet-progress-meter" aria-hidden="true"><span style={{ width: `${progress.landed / progress.total * 100}%` }} /></span>
-          </span>}
         </div>
       </Overlay>
     </group>

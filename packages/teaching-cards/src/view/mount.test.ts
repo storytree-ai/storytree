@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { Window } from "happy-dom";
+import { waitUntil } from "@storytree/test-waits";
 
 import { journal } from "../journal.js";
 import { mountJournal, mountTeaching } from "./index.js";
@@ -173,10 +174,26 @@ test("3.5 · a panel that opens after the card is shown moves the card off it", 
   const aside = document.createElement("aside");
   aside.hidden = true;
   host.append(aside);
-  await new Promise(resolve => setTimeout(resolve, 0));
   reading.push(panel);
   aside.hidden = false;
-  await new Promise(resolve => setTimeout(resolve, 0));
+  await waitUntil(() => at().left === "88px", 2000, "the card to move off the opened panel");
   assert.deepEqual(at(), { left: "88px", top: "250px" }, "on the left once the panel is open");
+  teaching.stop();
+});
+
+test("3.5 · a window resized under the card places it again, clear of what is being read", () => {
+  const reading: { left: number; top: number; right: number; bottom: number }[] = [];
+  const { document, teaching, at } = sized(reading, () => ({ x: 400, y: 300, visible: true }));
+  assert.deepEqual(at(), { left: "412px", top: "250px" });
+  reading.push(panel);
+  document.defaultView!.dispatchEvent(new (document.defaultView as unknown as typeof globalThis).Event("resize"));
+  assert.deepEqual(at(), { left: "88px", top: "250px" });
+  teaching.stop();
+});
+
+test("3.5 · when every place covers something being read, the card takes the place that covers least", () => {
+  // The whole window is being read, and the right of the point twice over.
+  const { teaching, at } = sized([{ left: 0, top: 0, right: 1000, bottom: 600 }, { left: 412, top: 250, right: 712, bottom: 350 }], () => ({ x: 400, y: 300, visible: true }));
+  assert.deepEqual(at(), { left: "88px", top: "250px" }, "the left of its point, not the right it would take first");
   teaching.stop();
 });

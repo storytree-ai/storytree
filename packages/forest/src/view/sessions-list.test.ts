@@ -187,15 +187,10 @@ test("7.16 an expanded row's Running block, between its worktrees and its files,
   assert.equal(isSessionRows([{ ...row, children: [], running: undefined }]), false, "rows kept by an older build are not drawn");
 });
 
-test("7.10 idle sessions are listed on the one list below the sessions at work, each with the idle dot; the header counts only those at work; with none listed it says so", () => {
-  const idle: SessionRow = { ...row, id: "quiet", label: "Quiet one", children: [], idle: true };
-  const html = renderToStaticMarkup(createElement(SessionsList, { rows: [idle, { ...row, children: [] }], onHighlight() {} }));
-  assert.deepEqual([...html.matchAll(/data-session-id="(\w+)"/g)].map(m => m[1]), ["parent", "quiet"], "the idle one below the one at work");
-  assert.match(html, /data-session-id="quiet"[^>]*>.*?<span class="session-dot" data-dot="idle" title="Idle"/);
-  assert.match(html, /class="sessions-count"[^>]*>1</, "the header counts the one at work");
-  const only = renderToStaticMarkup(createElement(SessionsList, { rows: [idle], onHighlight() {} }));
-  assert.match(only, /data-session-id="quiet"/);
-  assert.doesNotMatch(only, /No sessions at work|idle in History/);
+test("7.10 the list draws the sessions at work in order and its header counts them; with none listed it says so", () => {
+  const html = renderToStaticMarkup(createElement(SessionsList, { rows: [{ ...row, id: "first", children: [] }, { ...row, children: [] }], onHighlight() {} }));
+  assert.deepEqual([...html.matchAll(/data-session-id="(\w+)"/g)].map(m => m[1]), ["first", "parent"]);
+  assert.match(html, /class="sessions-count"[^>]*>2</, "the header counts every listed session");
   assert.match(renderToStaticMarkup(createElement(SessionsList, { rows: [], onHighlight() {} })), /No running sessions/);
 });
 

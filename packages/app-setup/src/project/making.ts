@@ -50,14 +50,16 @@ export const FACTORY_NAME = "factory";
  * names the user's factory (6.11), made the first time and seeded with the starter pack, and holds no copy of the
  * pack itself: its roles, notes and checks are the factory's (6.7). A join makes none.
  */
-export async function setUpProject({ folder, project, storytree, storytreeHome: home = storytreeHome(), join = false, factory = FACTORY_NAME }: SetUpOptions): Promise<{ project: string; marker: string }> {
+export async function setUpProject({ folder, project, storytree, storytreeHome: home = storytreeHome(), join = false, factory = FACTORY_NAME }: SetUpOptions): Promise<{ project: string; marker: string; replaced?: string }> {
   const at = canonical(path.resolve(folder));
   const existing = findProject(at);
   // Joining on purpose from the folder its marker already names is how an unapproved trunk is approved (ADR-0942 D1).
   const rejoining = join && existing.project === project && existing.folder === at;
-  if (existing.project !== undefined && !rejoining) throw new ProjectFolderError(`${at} is already part of storytree project "${existing.project}" (its folder is ${existing.folder}).`);
   const machine = machineOf(home);
   const [projects, trunks] = await Promise.all([storytree.listProjects(), liveTrunks(storytree, machine.id, home)]);
+  // The folder's own marker naming a project this library lacks (set up against another library, or deleted here) gives way to the new one.
+  const replaced = !join && existing.project !== undefined && existing.folder === at && !projects.includes(existing.project) ? existing.project : undefined;
+  if (existing.project !== undefined && !rejoining && replaced === undefined) throw new ProjectFolderError(`${at} is already part of storytree project "${existing.project}" (its folder is ${existing.folder}).`);
   const refused = refusal({ folder: at, inMain: inMainCheckout(at), project, join, projects, trunks, suggestion: unusedName(suggestedName(at), projects) });
   if (refused !== undefined) throw refused;
   const library = await storytree.openProject(project);
@@ -99,7 +101,18 @@ export async function setUpProject({ folder, project, storytree, storytreeHome: 
     }
     throw error;
   }
-  return { project, marker };
+  // The root marker an older setup left, naming the project replaced, would only be read as ignored beside the new one.
+  if (replaced !== undefined && rootMarkerNames(at, replaced)) rmSync(path.join(at, ROOT_MARKER_FILE), { force: true });
+  return { project, marker, ...(replaced === undefined ? {} : { replaced }) };
+}
+
+/** Whether `folder`'s root `.storytree.json` names `project`. */
+function rootMarkerNames(folder: string, project: string): boolean {
+  try {
+    return (JSON.parse(readFileSync(path.join(folder, ROOT_MARKER_FILE), "utf8")) as { project?: unknown }).project === project;
+  } catch {
+    return false;
+  }
 }
 
 const LOCAL_FILES = "*.local.json";

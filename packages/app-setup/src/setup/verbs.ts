@@ -184,6 +184,10 @@ export const DOCTOR = verb({
         said.push(`This folder names storytree project "${project}", but it is not approved as "${project}"'s checkout on this machine, so storytree opens nothing and records nothing here.`);
         next.push({ command: `doctor --join ${project}`, why: `approve this folder as "${project}"'s checkout, if it is yours` });
       }
+    } else if (report.project.status === "missing" && input["set-up"] === undefined) {
+      const { missingProjectReading } = await import("@storytree/project-and-caller/routing");
+      said.push(missingProjectReading(report.project.name));
+      next.push({ command: `doctor --set-up ${report.project.name}`, why: "set this folder up here as a new project, replacing its marker, or name it as you like" });
     } else {
       const { connect } = await import("@storytree/library");
       const storytree = await connect(library);

@@ -118,6 +118,15 @@ function goneProject(project: string): ProjectFolderError {
 }
 
 /**
+ * The one reading of a folder whose marker names a project this computer's library has none of: a marker committed
+ * on a computer with another library (a teammate's checkout, a clone), or a project deleted from this one. The setup
+ * check, the doctor, check_setup, the app's Add project and every tool's refusal say it alike.
+ */
+export function missingProjectReading(project: string): string {
+  return `This folder's marker names storytree project "${project}", but this computer's library has no project "${project}": it was set up against another library, or deleted from this one.`;
+}
+
+/**
  * Refuse unless `folder` (a git worktree's main checkout standing for it) is in `project`'s approved
  * trunk on this machine (ADR-0942 D1, D2): a marker, a known identity or a folder's name approves
  * nothing. Every hook and tool asks this before it opens the project, appends to its activity or
@@ -130,8 +139,8 @@ export async function requireApproval(storytree: Storytree, project: string, fol
   if (rememberedHere(project, at, home, machine.id)) return;
   const trunk = await approvedTrunk(storytree, project, machine.id, at);
   if (trunk !== undefined) return rememberApproval(home, machine.id, trunk);
-  // A project deleted, perhaps from another computer, took its trunks with it: say that, not "approve it".
-  if (!(await storytree.listProjects()).includes(project)) throw goneProject(project);
+  // A marker set up against another library, or a project deleted from this one, has no trunks here: say that, not "approve it".
+  if (!(await storytree.listProjects()).includes(project)) throw new ProjectFolderError(`${missingProjectReading(project)} To use storytree here, set this folder up as a new project, which replaces its marker (${PROJECT_FILE}, or ${ROOT_MARKER_FILE} in a project set up before it moved there); if "${project}" is in another library you can reach, point this computer's library setting at that library and join it.`);
   throw new ProjectFolderError(`${at} names storytree project "${project}", but it is not approved as "${project}"'s checkout on this machine, so storytree opens nothing and records nothing here. If this is your checkout of "${project}", approve it on purpose: \`storytree doctor --join ${project}\` in a terminal there, or ask your agent to join it.`);
 }
 

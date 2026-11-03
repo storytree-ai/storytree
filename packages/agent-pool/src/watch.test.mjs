@@ -781,7 +781,7 @@ test("4.24 · a hand-over from another machine runs on the configured machine, i
   assert.deepEqual(written.map((args) => args.slice(0, 4)), [["arc", "increment", "wait", "increment_one"], ["workspace", "hold", "41", "--holder"]]);
 });
 
-test("4.48 · a hand-over that finds no machine names the file to set it in; on Windows its library fallback starts storytree through node, not pnpm", async (t) => {
+test("4.30 · a hand-over that finds no machine names the file to set it in; on Windows its library fallback starts storytree through node, not pnpm", async (t) => {
   const home = await mkdtemp(join(tmpdir(), "lane-watch-windows-"));
   t.after(() => removeTemp(home));
   const file = join(home, "agent-pool.json");

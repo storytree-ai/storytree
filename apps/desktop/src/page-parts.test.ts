@@ -17,13 +17,13 @@ import type { AnnotatedTree } from "@storytree/library";
 
 import { readReadings } from "@storytree/app/lag";
 import { readSettings } from "@storytree/project-and-caller";
-import { partsPlugin } from "@storytree/plugin-loader";
 
 import pageAnswers from "./main/parts/page-answers.js";
 import pageChannels from "./parts/page-channels.js";
 
 import { createBridge } from "./bridge.js";
 import { answerPageParts } from "./page-operations.js";
+import { partsFromList } from "./main/parts-list.js";
 
 /** The feedback corner's side of the frame, which these tests do not use: nothing declared, no library, no window. */
 const NO_FEEDBACK = { declaredSurfaces: [], server: () => undefined, captureWindow: async () => undefined };
@@ -52,7 +52,7 @@ test("1.18 a story's page operations its package's manifest names are answered i
   const out = mkdtempSync(path.join(tmpdir(), "storytree-page-channels-"));
   t.after(() => rmSync(out, { recursive: true, force: true }));
   const outfile = path.join(out, "page-channels.mjs");
-  await build({ stdin: { contents: `export { default } from "#parts/pageChannels";`, resolveDir: desktop }, outfile, bundle: true, format: "esm", platform: "node", logLevel: "silent", plugins: [partsPlugin()] });
+  await build({ stdin: { contents: `export { default } from "#parts/pageChannels";`, resolveDir: desktop }, outfile, bundle: true, format: "esm", platform: "node", logLevel: "silent", plugins: [partsFromList()] });
   const { default: bundled } = await import(pathToFileURL(outfile).href) as { default: unknown };
   assert.deepEqual(bundled, pageChannels);
 });

@@ -2,7 +2,7 @@
  * Capability 3 · Run-time composition. What a host's `#parts/<kind>` names when it runs unbundled (under tsx, in tests
  * and `pnpm storytree`): the host's package.json `imports` maps it to a module of its own that exports
  * `await composeParts(import.meta.url, kind)`. The parts are those capability 1 reads, each imported as the host
- * resolves it; a bundle never reaches this, since the parts plugin answers the same import first (capability 2).
+ * resolves it; a bundle never reaches this, since the build answers the same import first from the parts list (capability 2).
  */
 import { createRequire } from "node:module";
 import path from "node:path";

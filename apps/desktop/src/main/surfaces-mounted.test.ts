@@ -20,10 +20,10 @@ import { arcSmokeProblems, boardView, watchBoard, type BoardState } from "@story
 import { arcSurfaces } from "@storytree/arc-surface/surfaces";
 import { forestSurfaces } from "@storytree/forest/surfaces";
 import { connect, type DayWindow } from "@storytree/library";
-import { partsPlugin } from "@storytree/plugin-loader";
 import { waitUntil } from "@storytree/test-waits";
 
 import unbundled from "./parts/surfaces.js";
+import { partsFromList } from "./parts-list.js";
 
 test("3.8 the app's Surfaces menu lists the arc surface as Arcs, with no settings, on until the user switches it off; switched off, it is saved and reads off at the next launch", (t) => {
   const home = mkdtempSync(path.join(tmpdir(), "storytree-arc-surfaces-"));
@@ -41,7 +41,7 @@ test("3.12 the desktop app's Surfaces menu lists the surfaces its story packages
   const out = mkdtempSync(path.join(tmpdir(), "storytree-desktop-parts-"));
   t.after(() => rmSync(out, { recursive: true, force: true }));
   const outfile = path.join(out, "surfaces.mjs");
-  await build({ stdin: { contents: `export { default } from "#parts/surfaces";`, resolveDir: desktop }, outfile, bundle: true, format: "esm", platform: "node", logLevel: "silent", plugins: [partsPlugin()] });
+  await build({ stdin: { contents: `export { default } from "#parts/surfaces";`, resolveDir: desktop }, outfile, bundle: true, format: "esm", platform: "node", logLevel: "silent", plugins: [partsFromList()] });
   const { default: mounted } = await import(pathToFileURL(outfile).href) as { default: { parts: unknown } };
   assert.deepEqual(mounted.parts, [...forestSurfaces, ...arcSurfaces]);
   assert.equal(import.meta.resolve("#parts/surfaces"), new URL("./parts/surfaces.ts", import.meta.url).href, "the app's #parts/surfaces is its composing module");

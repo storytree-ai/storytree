@@ -27,7 +27,31 @@ interface PackageJson {
   readonly storytree?: unknown;
 }
 
-const readJson = (file: string): PackageJson => JSON.parse(readFileSync(file, "utf8")) as PackageJson;
+/** While readsOf runs, every package.json read, so a list written from them can say what it was written from. */
+let reading: Set<string> | undefined;
+
+const readJson = (file: string): PackageJson => {
+  reading?.add(file);
+  return JSON.parse(readFileSync(file, "utf8")) as PackageJson;
+};
+
+/** What `run` returns, with every package.json it read, in the order first read. */
+export function readsOf<T>(run: () => T): { value: T; files: string[] } {
+  const outer = reading;
+  reading = new Set();
+  try {
+    const value = run();
+    return { value, files: [...reading] };
+  } finally {
+    reading = outer;
+  }
+}
+
+/** The kinds a host imports as `#parts/<kind>`, as its package.json's `imports` maps them, for its unbundled form. */
+export function hostKinds(host: string): string[] {
+  const imports = (readJson(path.join(host, "package.json")) as { imports?: Record<string, unknown> }).imports ?? {};
+  return Object.keys(imports).filter((key) => /^#parts\/[\w-]+$/.test(key)).map((key) => key.slice("#parts/".length));
+}
 
 /** The installed package.json of `name`, found as Node finds a package: in node_modules from `from` upwards. */
 function installed(name: string, from: string): PackageJson | undefined {

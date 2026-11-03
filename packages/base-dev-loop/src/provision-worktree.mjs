@@ -26,9 +26,13 @@
 // .codex/config.toml, ADR-0793 D2): the harness starts the server beside the session-start hook,
 // so in a worktree still being installed it waits for that install, then runs the server from this
 // worktree's source. It never installs itself, so two installs never run in one worktree at once.
-// A primary checkout on main behind locally fetched origin/main is refused before it can serve
-// old code against newer records. The hook names the gap and pull/install/restart repair too.
-// This checks local Git refs only: no network wait, checkout update or change to linked worktrees.
+// A primary checkout on main is first fetched from origin (bounded by a timeout) and, when it has no
+// edits to tracked files and no local commits, fast-forwarded, by whichever of the hook and the server
+// takes the checkout's update lock first; the other waits for it. The fast-forward's new lockfile or
+// workspace package is then the hook's install to make, which the server waits for as above. A primary
+// still behind (local edits, local commits, a failed fetch) is refused before it can serve old code
+// against newer records, and the hook names the gap, why it was not updated, and the pull/install/restart
+// repair. Linked worktrees and other branches are never touched.
 //
 // With --check it is what `pnpm storytree` runs first: a worktree that is FRESH, UNLINKED or BEHIND
 // cannot start the command line at all, and the crash names a missing module (often @storytree/app), not
@@ -64,7 +68,7 @@
 // (a failed install must never break the session) and writes to stdout only the heads-up for the
 // agent, as SessionStart additionalContext; pnpm's own output goes to stderr.
 import { execFileSync, spawn, spawnSync } from "node:child_process";
-import { chmodSync, existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import path from "node:path";
 import process from "node:process";
@@ -79,23 +83,103 @@ if (process.platform === "win32") process.env.NoDefaultCurrentDirectoryInExePath
 const repoRoot = fileURLToPath(new URL("../../..", import.meta.url));
 const WORKSPACE_GROUPS = ["packages", "apps"];
 
-/** A known-stale primary must be repaired before this process loads Session management's source. */
-function checkoutRefusal(root) {
-  const git = (...args) => {
-    const result = spawnSync("git", args, { cwd: root, encoding: "utf8", timeout: 5_000, windowsHide: true });
-    return result.status === 0 ? result.stdout.trim() : "";
-  };
-  const dirs = git("rev-parse", "--path-format=absolute", "--git-dir", "--git-common-dir").split(/\r?\n/);
+/** Run git in root, never asking for credentials, stopped after timeout ms. */
+function runGit(root, args, timeout = 5_000) {
+  return spawnSync("git", args, {
+    cwd: root,
+    encoding: "utf8",
+    timeout,
+    windowsHide: true,
+    stdio: ["ignore", "pipe", "pipe"],
+    env: { ...process.env, GIT_TERMINAL_PROMPT: "0" },
+  });
+}
+
+/** Git's trimmed output in root, or "" when it fails. */
+function gitIn(root, args) {
+  const result = runGit(root, args);
+  return result.status === 0 ? result.stdout.trim() : "";
+}
+
+/** Block this process for ms (it has not started the server, or is the hook, so nothing else waits on it). */
+function sleepSync(ms) {
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+}
+
+/**
+ * Run update holding the primary's fast-forward lock, a folder in its .git (made atomically), so the hook and the
+ * server, started side by side, never fetch or merge at once: the later one waits for it. A lock older than lockMs is a
+ * crashed run's and is taken over, so the wait is bounded; a lock that cannot be made at all is run without.
+ */
+function withLock(gitDir, update, lockMs) {
+  const lock = path.join(gitDir, "storytree-fast-forward.lock");
+  for (let held = false; !held;) {
+    try {
+      mkdirSync(lock);
+      held = true;
+    } catch (error) {
+      if (error.code !== "EEXIST") return update();
+      let age;
+      try {
+        age = Date.now() - statSync(lock).mtimeMs;
+      } catch {
+        continue; // Released between the two calls.
+      }
+      if (age > lockMs) rmSync(lock, { recursive: true, force: true });
+      else sleepSync(200);
+    }
+  }
+  try {
+    return update();
+  } finally {
+    rmSync(lock, { recursive: true, force: true });
+  }
+}
+
+/**
+ * A primary checkout on main is brought up to date before this process loads Session management's source: fetched
+ * from origin (within fetchMs) and fast-forwarded when it has no edits to tracked files and no local commits. What
+ * cannot be brought up to date is refused, naming why, before it can serve old code against newer records.
+ * Linked worktrees and other branches are left alone.
+ * @returns {string} the refusal, or "" when the checkout may run
+ */
+function updateCheckout(root, { fastForward = true, fetchMs = 20_000, lockMs = 120_000, log = () => {} } = {}) {
+  const dirs = gitIn(root, ["rev-parse", "--path-format=absolute", "--git-dir", "--git-common-dir"]).split(/\r?\n/);
   if (dirs.length !== 2 || dirs[0] !== dirs[1]) return ""; // Not Git, or a linked worktree.
-  if (git("symbolic-ref", "--quiet", "--short", "HEAD") !== "main") return "";
-  const counts = git("rev-list", "--left-right", "--count", "HEAD...refs/remotes/origin/main");
-  if (!/^\d+\s+\d+$/.test(counts)) return ""; // No fetched main to compare yet.
-  const [ahead, behind] = counts.split(/\s+/).map(Number);
+  if (gitIn(root, ["symbolic-ref", "--quiet", "--short", "HEAD"]) !== "main") return "";
+  const gap = () => {
+    const counts = gitIn(root, ["rev-list", "--left-right", "--count", "HEAD...refs/remotes/origin/main"]);
+    return /^\d+\s+\d+$/.test(counts) ? counts.split(/\s+/).map(Number) : undefined;
+  };
+  let why = "";
+  if (fastForward) {
+    withLock(dirs[0], () => {
+      const fetched = runGit(root, ["fetch", "--quiet", "origin", "+refs/heads/main:refs/remotes/origin/main"], fetchMs);
+      if (fetched.status !== 0) {
+        why = ` Fetching origin failed or took over ${fetchMs / 1000} s, so it was not brought up to date.`;
+        return;
+      }
+      const [ahead, behind] = gap() ?? [0, 0];
+      if (behind === 0 || ahead > 0) return;
+      if (gitIn(root, ["--no-optional-locks", "status", "--porcelain", "--untracked-files=no"]) !== "") {
+        why = " It has local edits, so it was not brought up to date.";
+        return;
+      }
+      if (runGit(root, ["merge", "--quiet", "--ff-only", "refs/remotes/origin/main"], 60_000).status !== 0) {
+        why = " The fast-forward failed, so it was not brought up to date.";
+        return;
+      }
+      log(`provision-worktree: primary checkout fast-forwarded ${behind} commit${behind === 1 ? "" : "s"} to origin/main`);
+    }, lockMs);
+  }
+  const counts = gap();
+  if (counts === undefined) return ""; // No fetched main to compare yet.
+  const [ahead, behind] = counts;
   if (behind === 0) return "";
   const reconcile = ahead > 0
-    ? ` It also has ${ahead} local commit${ahead === 1 ? "" : "s"}; reconcile those with origin/main before the fast-forward.`
-    : "";
-  return `storytree: the primary checkout (${root}) on main is ${behind} commit${behind === 1 ? "" : "s"} behind locally fetched origin/main; ` +
+    ? ` It has ${ahead} local commit${ahead === 1 ? "" : "s"}, so it was not brought up to date; reconcile those with origin/main before the fast-forward.`
+    : why;
+  return `storytree: the primary checkout (${root}) on main is ${behind} commit${behind === 1 ? "" : "s"} behind origin/main; ` +
     `the MCP server cannot start from this older code.${reconcile} Preserve any local edits, then run ` +
     "`git pull --ff-only origin main && pnpm install` in that checkout and restart the session's MCP server.";
 }
@@ -420,12 +504,13 @@ export function installPushHook({ root, fallback }) {
 }
 
 /**
- * Install root's dependencies if it is fresh, stale, unlinked or behind, trying `retries` more times after a
- * failure (a failed install leaves the store warm, so the retry is quick).
+ * Bring a primary checkout on main up to date (updateCheckout, with `update`'s options), then install root's
+ * dependencies if it is fresh, stale, unlinked or behind, trying `retries` more times after a failure (a failed
+ * install leaves the store warm, so the retry is quick).
  * @returns {{ ok: boolean, condition?: "fresh" | "stale" | "unlinked" | "behind" | "checkout", message?: string, code: number }}
  */
-export function provision({ root = repoRoot, install = pnpmInstall, retries = 1, log = () => {} } = {}) {
-  const message = checkoutRefusal(root);
+export function provision({ root = repoRoot, install = pnpmInstall, retries = 1, log = () => {}, update = {} } = {}) {
+  const message = updateCheckout(root, { ...update, log });
   if (message) {
     log(message);
     return { ok: false, condition: "checkout", message, code: 1 };
@@ -463,12 +548,12 @@ function startServer(root) {
 }
 
 /**
- * Start the tool server once root is installed, waiting up to waitMs for the session-start hook's
- * install; past that it starts anyway, and the harness reports what failed.
+ * Start the tool server once root is up to date (updateCheckout, with `update`'s options) and installed, waiting up
+ * to waitMs for the session-start hook's install; past that it starts anyway, and the harness reports what failed.
  * @returns {Promise<number>} the server's exit code
  */
-export async function serve({ root = repoRoot, start = startServer, pollMs = 500, waitMs = 240_000, log = (line) => process.stderr.write(`${line}\n`) } = {}) {
-  const refusal = checkoutRefusal(root);
+export async function serve({ root = repoRoot, start = startServer, pollMs = 500, waitMs = 240_000, log = (line) => process.stderr.write(`${line}\n`), update = {} } = {}) {
+  const refusal = updateCheckout(root, { ...update, log });
   if (refusal) {
     log(refusal);
     return 1;
@@ -513,7 +598,7 @@ export function checkOutput(root) {
  */
 export function check({ root = repoRoot, install = pnpmInstall, log = () => {} } = {}) {
   if (!checkOutput(root)) return 0;
-  provision({ root, install, log });
+  provision({ root, install, log, update: { fastForward: false } });
   const refusal = checkOutput(root);
   if (refusal) log(refusal);
   return refusal ? 1 : 0;

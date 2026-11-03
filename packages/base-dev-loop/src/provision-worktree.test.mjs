@@ -5,7 +5,7 @@
 // UNLINKED (an install reported success but linked no workspace package).
 import assert from "node:assert/strict";
 import { execFile, execFileSync } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, utimesSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
@@ -312,16 +312,97 @@ async function repoPair(t) {
   await git(remote, "commit", "-m", "initial");
   const root = worktree(t, "current");
   await git(root, "init", "--initial-branch=main");
+  // Windows runners check out with core.autocrlf on; keep the file's bytes as origin wrote them.
+  await git(root, "config", "core.autocrlf", "false");
   await git(root, "remote", "add", "origin", remote);
   await git(root, "fetch", "origin", "main");
   await git(root, "reset", "--hard", "origin/main");
   return { root, remote };
 }
 
-test("3.4 a stale primary names the gap at session start and refuses to serve until updated", async (t) => {
+test("3.4 a clean primary behind origin is fetched and fast-forwarded at session start, then installed, so the tool server starts on current code", async (t) => {
+  const { root, remote } = await repoPair(t);
+  await git(remote, "add", "pnpm-lock.yaml");
+  await git(remote, "commit", "-m", "lockfile");
+  await git(root, "fetch", "origin", "main");
+  await git(root, "reset", "--hard", "origin/main");
+  writeFileSync(path.join(remote, "version.txt"), "two\n");
+  writeFileSync(path.join(remote, "pnpm-lock.yaml"), "lockfileVersion: '9.1'\n");
+  await git(remote, "commit", "-am", "new record schema and a dependency");
+  const head = await git(remote, "rev-parse", "HEAD");
+  let installs = 0;
+  const result = provision({ root, install: () => (installs++, { ok: true }) });
+  assert.equal(hookOutput(result, root), "", "the session is told nothing: it starts current");
+  assert.equal(await git(root, "rev-parse", "HEAD"), head, "the never-fetched remote commit is fetched and fast-forwarded to");
+  assert.equal(readFileSync(path.join(root, "version.txt"), "utf8"), "two\n");
+  assert.equal(installs, 1, "the fast-forward's new lockfile is installed");
+});
+
+test("3.4 the tool server, started beside the hook, fast-forwards a clean primary behind origin itself and starts", async (t) => {
+  const { root, remote } = await repoPair(t);
+  writeFileSync(path.join(remote, "version.txt"), "two\n");
+  await git(remote, "commit", "-am", "new record schema");
+  assert.equal(await serve({ root, start: async () => 17, log: () => {} }), 17);
+  assert.equal(await git(root, "rev-parse", "HEAD"), await git(remote, "rev-parse", "HEAD"));
+});
+
+test("3.4 a held update lock makes the hook wait, then bring the primary up to date", async (t) => {
+  const { root, remote } = await repoPair(t);
+  await git(remote, "commit", "--allow-empty", "-m", "new record schema");
+  const before = await git(root, "rev-parse", "HEAD");
+  const lock = path.join(root, ".git", "storytree-fast-forward.lock");
+  mkdirSync(lock);
+  const hook = run(process.execPath, [script, "--hook", "--root", root]);
+  let done = false;
+  hook.then(() => (done = true));
+  await quietFor(() => done, 400, "the hook finishing while the server's update holds the lock");
+  assert.equal(await git(root, "rev-parse", "HEAD"), before, "nothing merges while the lock is held");
+  rmSync(lock, { recursive: true });
+  const finished = await hook;
+  assert.equal(finished.stdout, "", finished.stdout);
+  assert.equal(await git(root, "rev-parse", "HEAD"), await git(remote, "rev-parse", "HEAD"));
+});
+
+test("3.4 an update lock left by a crashed start is taken over, so the primary is still brought up to date", async (t) => {
+  const { root, remote } = await repoPair(t);
+  await git(remote, "commit", "--allow-empty", "-m", "new record schema");
+  const lock = path.join(root, ".git", "storytree-fast-forward.lock");
+  mkdirSync(lock);
+  const crashed = new Date(Date.now() - 10 * 60_000);
+  utimesSync(lock, crashed, crashed);
+  assert.equal(hookOutput(provision({ root }), root), "");
+  assert.equal(await git(root, "rev-parse", "HEAD"), await git(remote, "rev-parse", "HEAD"));
+  assert.equal(existsSync(lock), false, "the lock is released after the update");
+});
+
+test("3.4 a clean primary whose fast-forward git refuses is left as it was and refused, saying why", async (t) => {
+  const { root, remote } = await repoPair(t);
+  writeFileSync(path.join(remote, "notes.txt"), "origin's\n");
+  await git(remote, "add", "notes.txt");
+  await git(remote, "commit", "-m", "notes");
+  writeFileSync(path.join(root, "notes.txt"), "an untracked file the merge would overwrite\n");
+  const before = await git(root, "rev-parse", "HEAD");
+  const result = provision({ root, install: () => assert.fail("updating the checkout comes first") });
+  assert.match(result.message, /1 commit behind.*fast-forward failed/);
+  assert.equal(await git(root, "rev-parse", "HEAD"), before);
+  assert.equal(readFileSync(path.join(root, "notes.txt"), "utf8"), "an untracked file the merge would overwrite\n");
+});
+
+test("3.4 a storytree command's pre-command install never fast-forwards the primary", async (t) => {
   const { root, remote } = await repoPair(t);
   await git(remote, "commit", "--allow-empty", "-m", "new record schema");
   await git(root, "fetch", "origin", "main");
+  rmSync(path.join(root, "packages", "library", "node_modules"), { recursive: true });
+  const before = await git(root, "rev-parse", "HEAD");
+  check({ root, install: () => assert.fail("a behind primary is not installed") });
+  assert.equal(await git(root, "rev-parse", "HEAD"), before);
+});
+
+test("3.4 a primary whose fetch fails names the gap at session start and refuses to serve until updated", async (t) => {
+  const { root, remote } = await repoPair(t);
+  await git(remote, "commit", "--allow-empty", "-m", "new record schema");
+  await git(root, "fetch", "origin", "main");
+  await git(root, "remote", "set-url", "origin", path.join(root, "no-such-remote"));
   const before = await git(root, "rev-parse", "HEAD");
   const hook = await run(process.execPath, [script, "--hook", "--root", root]);
   assert.equal(hook.status, 0, "a warning must leave the session able to repair its checkout");
@@ -329,6 +410,7 @@ test("3.4 a stale primary names the gap at session start and refuses to serve un
   const warning = JSON.parse(hook.stdout).hookSpecificOutput.additionalContext;
   assert.ok(warning.includes(root));
   assert.match(warning, /1 commit behind.*origin\/main/);
+  assert.match(warning, /fetching origin failed/i);
   assert.match(warning, /git pull --ff-only origin main && pnpm install/);
   assert.match(warning, /restart/i);
   const messages = [];
@@ -336,19 +418,31 @@ test("3.4 a stale primary names the gap at session start and refuses to serve un
   assert.equal(code, 1);
   assert.equal(messages.length, 1);
   assert.match(messages[0], /1 commit behind/);
-  assert.equal(await git(root, "rev-parse", "HEAD"), before, "startup never moves the checkout");
+  assert.equal(await git(root, "rev-parse", "HEAD"), before, "a failed fetch never moves the checkout");
 
   await git(root, "merge", "--ff-only", "origin/main");
   assert.equal(hookOutput(provision({ root }), root), "", "an updated primary is silent");
   assert.equal(await serve({ root, start: async () => 17 }), 17, "the updated server can start");
 });
 
-test("3.4 a stale dirty or diverged primary keeps its edits and names local commits to reconcile", async (t) => {
+test("3.4 a primary behind origin with local edits keeps them and is refused, saying why", async (t) => {
   const { root, remote } = await repoPair(t);
-  await git(root, "commit", "--allow-empty", "-m", "local work");
   writeFileSync(path.join(root, "version.txt"), "local edits\n");
   await git(remote, "commit", "--allow-empty", "-m", "new record schema");
-  await git(root, "fetch", "origin", "main");
+  const before = await git(root, "rev-parse", "HEAD");
+  const result = provision({ root, install: () => assert.fail("updating the checkout comes first") });
+  assert.equal(result.ok, false);
+  const warning = JSON.parse(hookOutput(result, root)).hookSpecificOutput.additionalContext;
+  assert.match(warning, /1 commit behind/);
+  assert.match(warning, /local edits, so it was not brought up to date/);
+  assert.equal(await git(root, "rev-parse", "HEAD"), before);
+  assert.equal(readFileSync(path.join(root, "version.txt"), "utf8"), "local edits\n");
+});
+
+test("3.4 a diverged primary keeps its edits and names local commits to reconcile", async (t) => {
+  const { root, remote } = await repoPair(t);
+  await git(root, "commit", "--allow-empty", "-m", "local work");
+  await git(remote, "commit", "--allow-empty", "-m", "new record schema");
   const before = await git(root, "rev-parse", "HEAD");
   const result = provision({ root, install: () => assert.fail("updating the checkout comes first") });
   assert.equal(result.ok, false);
@@ -357,7 +451,6 @@ test("3.4 a stale dirty or diverged primary keeps its edits and names local comm
   assert.match(warning, /1 local commit/);
   assert.match(warning, /reconcile/i);
   assert.equal(await git(root, "rev-parse", "HEAD"), before);
-  assert.equal(readFileSync(path.join(root, "version.txt"), "utf8"), "local edits\n");
 });
 
 test("3.4 a feature branch or linked worktree can serve while the primary is behind", async (t) => {

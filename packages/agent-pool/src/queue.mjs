@@ -72,6 +72,17 @@ export function countEngines(table) {
 }
 
 /**
+ * The increments whose pool lanes run on the box, from the same table: each engine's brief names its own
+ * (`Your increment: increment_…`), so a dispatcher started after a lane, before that lane claimed, still sees it.
+ * Only engines count, once a lane; a process that only mentions an increment (a grep) does not.
+ */
+export function runningLanes(table) {
+  const ids = table.split("\n").map((line) => /^\s*\d+\s+\d+\s+(.*)$/.exec(line)?.[1]).filter((args) => args && isEngine(args))
+    .map((args) => /Your increment: (increment_[0-9a-f]+)/.exec(args)?.[1]).filter(Boolean);
+  return [...new Set(ids)];
+}
+
+/**
  * Wait, a minute at a time, until fewer than `max` engines run; say so once when it has to wait. `max` may be a
  * reader of the cap, read on every poll, so a raised cap frees a waiting runner without a lane ending.
  */

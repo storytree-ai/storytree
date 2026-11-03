@@ -111,7 +111,7 @@ test("3.32 · two engine starters racing for the last slot under the cap start o
   assert.deepEqual((await readdir(dir)).map((name) => name.split("-")[0]), ["22"], "only the live starter's reservation is left");
 });
 
-test("3.37 · the increments whose lanes run on the machine are read from each engine's brief, once a lane, never from a process that only mentions one", () => {
+test("3.39 · the increments whose lanes run on the machine are read from each engine's brief, once a lane, never from a process that only mentions one", () => {
   const table = [
     "  100     1 /home/m/.local/bin/claude -p # Pool lane: increment_7fe8b4e4567b  Your increment: increment_7fe8b4e4567b.  --- Rules for every pool lane",
     "  200     1 node /home/m/.nvm/versions/node/v24.19.0/bin/codex exec # Pool lane: increment_ec24bf955632  Your increment: increment_ec24bf955632. You are a blind reviewer",

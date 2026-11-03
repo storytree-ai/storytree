@@ -15,7 +15,7 @@ import { promisify } from "node:util";
 
 import { laneSettings } from "./engine.mjs";
 import { blind, pickPlan, pickPool, planState, readOnly, surveyLibrary, surveyProjects } from "./feed.mjs";
-import { codeVersion, composeBrief, countEngines, localBrief, ENGINE_SLOTS, holdRunner, processTable, reserveSlot, withLockFile, WINDOWS_PROCESSES } from "./queue.mjs";
+import { codeVersion, composeBrief, countEngines, localBrief, ENGINE_SLOTS, holdRunner, processTable, reserveSlot, runningLanes, withLockFile, WINDOWS_PROCESSES } from "./queue.mjs";
 import { refusals, runLane as runEngineLane, SIGNALED } from "./runner.mjs";
 import { readBoxPace } from "./pace.mjs";
 import { poolConfig, readCap } from "./pool-config.mjs";
@@ -152,8 +152,10 @@ export async function laneOnce({ increment, project, brief, log, err, addDirs, r
  * finds nothing and no session is starting, it first brings the checkout up to date (`refresh`) to see that change.
  * With free slots it reads the box's `pace` first (pace.mjs, ADR-1139): while the box is saturated it starts nothing.
  * A `machineOnly` dispatcher takes only work tagged to its machine and starts no planning session (ADR-1179 D2).
+ * The lanes already running on the machine (`lanes`, an earlier dispatcher's that ran on past its stop) are
+ * never started again, claimed or not, until their engines end; an unread process table reads as none.
  */
-export async function runPool({ survey, maxLanes, count, launch, stopFile, exists = async (path) => existsSync(path),
+export async function runPool({ survey, maxLanes, count, launch, stopFile, lanes = async () => [], exists = async (path) => existsSync(path),
   plans = { load: async () => new Map(), save: async () => {} }, codeVersion = async () => undefined, refresh = async () => {}, pace = async () => undefined,
   sleep = (ms, options) => wait(ms, undefined, options), intervalMs = 15 * 60_000, idleMs = 2 * 60_000, pollMs = 60_000, now = Date.now, say = console.log, machineOnly = false }) {
   const dated = (message) => say(`${stamp(now)} ${message}`);
@@ -230,7 +232,7 @@ export async function runPool({ survey, maxLanes, count, launch, stopFile, exist
       await pause(intervalMs);
       continue;
     }
-    const { picks, skipped } = pickPool(found, { attempts, running: [...running.keys()], max: free, machineOnly });
+    const { picks, skipped } = pickPool(found, { attempts, running: [...new Set([...running.keys(), ...await lanes().catch(() => [])])], max: free, machineOnly });
     for (const [id, attempt] of attempts) {
       if (attempt.refusedBy && refused.get(id) !== attempt.refusedBy) { refused.set(id, attempt.refusedBy); dated(`refused ${id}: claimed by live session ${attempt.refusedBy}; retried once that claim clears`); }
     }
@@ -331,6 +333,7 @@ function boxDefaults({ home = homedir(), env = process.env } = {}) {
     configFile: config.file, projects: config.projects,
     maxLanes: () => readCap({ lanesDir, sessions: config.sessions }),
     count: async () => countEngines(await processes()),
+    lanes: async () => runningLanes(await processes()),
     power: () => readPowerLine(), refusals: (cwd = repo) => refusals({ cwd, env }), kill: (pid) => process.kill(pid),
     lock: checkoutLock(join(lanesDir, "night-checkout.lock")),
     prepare: (checkout = repo, project) => prepareCheckout({ repo: checkout, project }),
@@ -425,7 +428,7 @@ async function pool(b) {
   // A lane starts in its project's checkout (the main worktree, where make_workspace cuts its own); storytree's, by default, where it always has.
   const checkoutOf = (name) => { const own = b.projects.find((one) => one.name === name)?.checkout; return own && mainCheckout(own); };
   const code = await runPool({
-    survey, maxLanes: b.maxLanes, count: b.count, machineOnly: b.machineOnly, stopFile: join(L, "pool-stop"), plans: planFile(join(L, "pool-planned.json")), sleep: b.sleep, now: b.now, say,
+    survey, maxLanes: b.maxLanes, count: b.count, lanes: b.lanes, machineOnly: b.machineOnly, stopFile: join(L, "pool-stop"), plans: planFile(join(L, "pool-planned.json")), sleep: b.sleep, now: b.now, say,
     // A machine-only dispatcher (the laptop's) first holds for its start rule, plugged in and online (ADR-1179 D3).
     pace: async () => (b.machineOnly ? await startHold({ power: b.power, refusals: () => b.refusals() }) : undefined) ?? (b.pace ?? readBoxPace)(),
     codeVersion: b.codeVersion ?? (() => codeVersion({ repo: b.repo, config: b.configFile })),

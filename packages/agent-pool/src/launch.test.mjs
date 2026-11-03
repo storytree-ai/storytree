@@ -765,21 +765,22 @@ test("3.31 · `stop` ends the dispatcher pool.pid names, and leaves a pid that i
   assert.deepEqual(out, ["no dispatcher is running", "stopped dispatcher 777", "no dispatcher is running"]);
 });
 
-test("3.37 · a dispatcher started while a lane an earlier one started still runs leaves that lane's increment alone until its engine ends, its claim not yet made", async (t) => {
+test("3.39 · a dispatcher started while a lane an earlier one started still runs leaves that lane's increment alone until its engine ends, its claim not yet made", async (t) => {
   // The box on 2026-11-03: the service stopped the dispatcher 5 s after it started increment_a's lane, which ran on unclaimed.
   let lanes = ["increment_a"];
   const b = await box(t, { survey: async () => poolWork(["increment_a", "increment_b"]), count: async () => lanes.length, maxLanes: async () => 3, lanes: async () => lanes });
   const started = [];
-  b.runLane = async (options) => { started.push(options.increment); options.say("2026-10-08T04:00:00Z engine claude allowance used"); return 0; };
+  b.runLane = async (options) => { started.push(`${options.increment}${lanes.length ? " while increment_a's lane runs" : ""}`); options.say("2026-10-08T04:00:00Z engine claude allowance used"); return 0; };
   let looks = 0;
   b.sleep = async () => {
     looks += 1;
     await new Promise((go) => setImmediate(go));
-    if (looks === 2) { assert.deepEqual(started, ["increment_b"], "increment_a's lane still runs: only increment_b starts"); lanes = []; }
-    if (started.length === 2 || looks > 20) await writeFile(join(b.lanesDir, "pool-stop"), "");
+    // The earlier lane's engine ends a few looks after increment_b started.
+    if (started.length === 1 && looks > 5) lanes = [];
+    if (started.length === 2 || looks > 60) await writeFile(join(b.lanesDir, "pool-stop"), "");
   };
   assert.equal(await main(["pool"], b), 0);
-  assert.deepEqual(started, ["increment_b", "increment_a"], "increment_a started once the earlier lane's engine ended");
+  assert.deepEqual(started, ["increment_b while increment_a's lane runs", "increment_a"], "increment_a starts only once the earlier lane's engine ended");
 });
 
 test("3.8 · a lane stopped by a signal leaves the pool running and its increment surveyed and started again; a lane exiting 75 still ends the pool", async () => {

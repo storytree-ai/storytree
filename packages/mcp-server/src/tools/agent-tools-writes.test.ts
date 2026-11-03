@@ -836,7 +836,7 @@ test("6.46 add_remedies adds live friction to a parked increment's remedies, kee
   });
 });
 
-test("6.47 park_increment takes an increment's capabilities and links, and edit_plan replaces either after parking; a story given as a capability is refused with nothing written (ADR-0949 D2)", async () => {
+test("6.47 park_increment takes an increment's capabilities and links, and edit_plan replaces either, or its objective and body, after parking; a story given as a capability is refused with nothing written (ADR-0949 D2)", async () => {
   await withProject(async ({ folder, library }) => {
     await withAgent(folder, claudeCode("claude-1"), async (agent) => {
       const { arc, story, capability } = await planned(agent);
@@ -855,6 +855,11 @@ test("6.47 park_increment takes an increment's capabilities and links, and edit_
       const filled = await agent.call("edit_plan", { id: increment, capabilities: [capability] });
       assert.equal(filled.isError, false, filled.text);
       assert.deepEqual([(await fieldsOf(increment)).capabilities, (await fieldsOf(increment)).links], [[capability], [story]], "the claiming session fills it; the links stay");
+
+      const broken = await agent.call("edit_plan", { id: increment, objective: "Build the email form", body: "1. Red test\n2. Green" });
+      assert.equal(broken.isError, false, broken.text);
+      const fields = (await library.get(increment))?.fields as { objective?: string; body?: string };
+      assert.deepEqual([fields.objective, fields.body], ["Build the email form", "1. Red test\n2. Green"], "its breakdown is recorded after parking");
     });
   });
 });

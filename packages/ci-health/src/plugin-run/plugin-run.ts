@@ -43,12 +43,15 @@ export const runTests: RunTests = (command, folder) =>
     child.on("close", () => resolve(output));
   });
 
-/** Each code file in `folder`, outside node_modules and .git, by its path from `folder` with `/` between folders, after `prefix`. */
+/** Folders whose files are never a project's own: installed packages, virtual environments, caches and git's. */
+const NOT_OWN = new Set(["node_modules", ".git", ".venv", "venv", "__pycache__", ".tox"]);
+
+/** Each code file in `folder` (JavaScript, TypeScript or Python), outside installed packages, virtual environments and .git, by its path from `folder` with `/` between folders, after `prefix`. */
 export function filesIn(folder: string, prefix = ""): { path: string; text: string }[] {
   return readdirSync(folder, { recursive: true, withFileTypes: true })
-    .filter((entry) => entry.isFile() && /\.[cm]?[jt]sx?$/.test(entry.name))
+    .filter((entry) => entry.isFile() && /\.(?:[cm]?[jt]sx?|py)$/.test(entry.name))
     .map((entry) => path.relative(folder, path.join(entry.parentPath, entry.name)))
-    .filter((file) => !file.split(path.sep).some((part) => part === "node_modules" || part === ".git"))
+    .filter((file) => !file.split(path.sep).some((part) => NOT_OWN.has(part)))
     .map((file) => ({ path: `${prefix}${file.split(path.sep).join("/")}`, text: readFileSync(path.join(folder, file), "utf8") }));
 }
 

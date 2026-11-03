@@ -7,7 +7,10 @@
  * - A project whose CI storytree reads (a GitHub origin and a workflow under .github/workflows) is read from its CI
  *   (`health ci`, ADR-0901) and never written by a local run: the newest CI verdict is of the merged tree, a local run's
  *   of whatever the folder holds, so a local run writes nothing there and says so (ADR-1194 D2).
- * - A project with no package.json, no test command, or whose run reported no results writes nothing and says why.
+ * - A Python project (a pyproject.toml, setup.cfg or setup.py, and no package.json test command) has its tests run by
+ *   `pytest -rA`, whose short test summary is what a CI log of it is read by, through `uv run` or `poetry run` when its
+ *   lockfile is uv's or Poetry's; its .py files are read beside its JS and TS, as reading its CI reads them.
+ * - A project with no test command (neither), or whose run reported no results, writes nothing and says why.
  */
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
@@ -34,18 +37,34 @@ async function ciOf(folder: string): Promise<string | undefined> {
   return repositoryOf(await gitIn(folder)(["remote", "get-url", "origin"]).catch(() => ""));
 }
 
+/** The files that make `folder` a Python project, and the lockfiles that name the runner its pytest runs through. */
+const PYTHON_MANIFESTS = ["pyproject.toml", "setup.cfg", "setup.py"];
+const PYTHON_RUNNERS: [lockfile: string, runner: string][] = [["uv.lock", "uv run "], ["poetry.lock", "poetry run "]];
+
+/** The project in `folder`'s test command and the output storytree reads of it, or why it has none. */
+function testCommandOf(folder: string): { command: string; reads: string } | { why: string } {
+  const manifest = path.join(folder, "package.json");
+  const script: unknown = existsSync(manifest) ? JSON.parse(readFileSync(manifest, "utf8")).scripts?.test : undefined;
+  if (typeof script === "string" && script.trim() !== "") return { command: script, reads: "node --test's output" };
+  if (PYTHON_MANIFESTS.some((file) => existsSync(path.join(folder, file)))) {
+    const runner = PYTHON_RUNNERS.find(([lockfile]) => existsSync(path.join(folder, lockfile)))?.[1] ?? "";
+    return { command: `${runner}pytest -rA`, reads: "pytest -rA's short test summary" };
+  }
+  if (!existsSync(manifest)) return { why: `This project's folder (${folder}) has no package.json and no pyproject.toml, so storytree has no test command of it to run; nothing was written.` };
+  return { why: `This project has no test command (a "test" script in its package.json), so storytree has no tests of it to run; nothing was written.` };
+}
+
 /** Run the project in `folder`'s own tests and write their verdicts to its stories' verified health, as a local run. */
 export async function recordLocalTests({ library, folder, run = runTests }: { library: Library; folder: string; run?: RunTests }): Promise<LocalReading> {
-  const manifest = path.join(folder, "package.json");
-  if (!existsSync(manifest)) return { written: false, why: `This project's folder (${folder}) has no package.json, so storytree has no test command of it to run; nothing was written.` };
-  const command: unknown = JSON.parse(readFileSync(manifest, "utf8")).scripts?.test;
-  if (typeof command !== "string" || command.trim() === "") return { written: false, why: `This project has no test command (a "test" script in its package.json), so storytree has no tests of it to run; nothing was written.` };
+  const tests = testCommandOf(folder);
+  if ("why" in tests) return { written: false, why: tests.why };
+  const { command, reads } = tests;
   const repository = await ciOf(folder);
   if (repository !== undefined) return { written: false, why: `This project's tests run in ${repository}'s CI, so its verified health is read from there: run storytree health ci. A local run writes nothing over it.` };
 
   const proofs = proofsAt(await library.projectTree(), filesIn(folder));
   const results = parseTestLog(await run(command, folder));
-  if (results.length === 0) return { written: false, why: `This project's test command (${command}) reported no test results storytree can read (node --test's output); nothing was written.` };
+  if (results.length === 0) return { written: false, why: `This project's test command (${command}) reported no test results storytree can read (${reads}); nothing was written.` };
   const { verdicts, unmatched } = judgeRun(proofs, results);
   const commit = await commitOf(folder);
   const tested = new Map<string, Verdict>([...verdicts].filter(([, { total }]) => total > 0));

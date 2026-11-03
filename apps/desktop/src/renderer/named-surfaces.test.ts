@@ -80,6 +80,7 @@ test("3.15 · every canvas, gear menu tab and dialog the app opens carries a dec
     // The globe marks its canvas once it has measured a size to draw at, which a loaded Windows runner had not by the
     // page's ready (run 41206023912): the corner names what is marked, so it is asked once the globe is.
     await page.locator("[data-surface-id=globe]").waitFor();
+    // A control on no surface names the map, with the rail's Arcs tab on show (a project opens on it) as with its Sessions tab.
     assert.equal(await named(page, ".app-gear"), "globe");
 
     // The left rail's two tabs, each the surface it shows; an arc's card, opened by its row, is the arcs' too.
@@ -87,6 +88,7 @@ test("3.15 · every canvas, gear menu tab and dialog the app opens carries a dec
     await page.locator("#rail-sessions:not([hidden])").waitFor();
     assert.equal(await named(page, '[data-rail-tab="sessions"]'), "sessions");
     assert.equal(await named(page, ".sessions-name"), "sessions");
+    assert.equal(await named(page, ".app-gear"), "globe", "the Sessions tab on show still leaves the map in front");
     await page.click('[data-rail-tab="arcs"]');
     await page.locator('.arc-rail [data-arc-select="arc_named"]').waitFor();
     assert.equal(await named(page, '[data-rail-tab="arcs"]'), "arcs");

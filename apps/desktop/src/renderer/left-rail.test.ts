@@ -4,10 +4,12 @@
  * bar, the rail runs to the window's bottom, and the forest takes the rest of the width, never under the rail.
  */
 import assert from "node:assert/strict";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
+
+import { removeTemp } from "@storytree/test-waits";
 
 import { buildCapture, captureSeed, fakeBridge, withCapture } from "../capture/index.js";
 
@@ -15,7 +17,7 @@ type Box = { left: number; top: number; right: number; bottom: number };
 
 test("2.8 · the left rail and the forest beside it start directly below the 48 px app bar, the rail to the window's bottom and the forest never under it", { timeout: 600_000 }, async (t) => {
   const dist = mkdtempSync(path.join(tmpdir(), "storytree-left-rail-"));
-  t.after(() => rmSync(dist, { recursive: true, force: true }));
+  t.after(() => removeTemp(dist));
   await buildCapture({ dist, entryPoints: [new URL("./renderer.ts", import.meta.url)] });
   const { seed } = captureSeed("forest");
   const bridge = fakeBridge({

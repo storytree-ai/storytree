@@ -4,7 +4,7 @@ import { execFile, spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { constants, homedir, hostname } from "node:os";
 import { appendFile, open, readdir, readFile, rm, stat, writeFile } from "node:fs/promises";
-import { join, resolve } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 
@@ -561,6 +561,18 @@ async function reserveCap({ home = homedir(), env = process.env, now = Date.now,
   return reserveSlot({ dir: join(config.lanesDir, ENGINE_SLOTS), max, count, sleep, onWait: (running) => say(`${new Date(now()).toISOString().replace(/\.\d{3}Z$/, "Z")} waiting for a slot (${running} engines running) before starting an engine`) });
 }
 
+/**
+ * The project the nearest `.storytree/project.json` at or above `folder` names, else storytree: a lane the command line
+ * starts in another project's checkout (the watcher's fix and review sessions) runs as that project's lane (1.26).
+ */
+export async function checkoutProject(folder) {
+  for (let at = resolve(folder); ; at = dirname(at)) {
+    const text = await readFile(join(at, ".storytree", "project.json"), "utf8").catch(() => undefined);
+    if (text !== undefined) { try { return JSON.parse(text).project || "storytree"; } catch { return "storytree"; } }
+    if (dirname(at) === at) return "storytree";
+  }
+}
+
 export async function main(args, options = {}) {
   const complain = options.say ?? console.error;
   try {
@@ -570,7 +582,8 @@ export async function main(args, options = {}) {
       return 2;
     }
     const slot = await reserveCap(options);
-    try { return await runLane({ ...options, brief: args[1], log: args[2], err: args[3], addDirs: args.slice(4), onSpawn: slot.release }); }
+    const project = options.project ?? await checkoutProject(options.cwd ?? process.cwd());
+    try { return await runLane({ ...options, project, brief: args[1], log: args[2], err: args[3], addDirs: args.slice(4), onSpawn: slot.release }); }
     finally { await slot.release(); }
   } catch (error) {
     // A lane that could not start (an empty brief, unreadable login settings, no lane token) stays queued: 75 stops its runner.

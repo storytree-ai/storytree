@@ -41,12 +41,11 @@ import { pytestTestedNumbers } from "./python-tests.js";
 
 import type { AnnotatedTree, StorySurvey } from "@storytree/library";
 
-import { ALSO_OWNED, declaredNumberOf, declaresTitle, dependenciesOf, packageOf, packagesOf, storyEdges, surveyStory, type CoverageMap, type SourceFile, type SurveyPackage } from "./code-survey.js";
+import { ALSO_OWNED, declaredNumberOf, declaresTitle, dependenciesOf, isCodeFile, isTestFile, packageOf, packagesOf, readsFile, storyEdges, surveyStory, type CoverageMap, type SourceFile, type SurveyPackage } from "./code-survey.js";
 
 /** Each story's survey, by story id; a story with no package is absent. */
 export type ProjectSurvey = Readonly<Record<string, StorySurvey>>;
 
-const TEST_FILE = /\.(?:test|spec)\.[cm]?[jt]sx?$/;
 
 /** The file beside a package's src that holds its coverage map (written by the dev loop's `pnpm survey:coverage`). */
 const COVERAGE_MAP = "survey-coverage.json";
@@ -88,7 +87,7 @@ export async function capabilitiesOfFiles(root: string, files: readonly string[]
     const number = declaredNumberOf({ path: file, text }, packagesOf(story, alsoOwned));
     const numbered = number === undefined ? undefined : story.capabilities.find(({ title }) => Number(/^\s*(\d+)\s*·/.exec(title)?.[1]) === number);
     // A source file's header must name the capability its number does here; a test file's numbers carry no title.
-    const declared = numbered !== undefined && (TEST_FILE.test(file) || declaresTitle(text, numbered.title)) ? numbered : undefined;
+    const declared = numbered !== undefined && (isTestFile(file) || declaresTitle(text, numbered.title)) ? numbered : undefined;
     if (declared === undefined) undeclared.push(file);
     else owners.set(file, { capability: declared.id, inferred: false });
   }
@@ -334,7 +333,9 @@ async function stillWitnessed(source: SurveySource, witness: Witness): Promise<b
   return (await Promise.all(checks)).every(Boolean);
 }
 
+/** The survey's own code: TypeScript, its tests left out. */
 const CODE_FILE = /\.[cm]?[jt]sx?$/;
+const TEST_FILE = /\.(?:test|spec)\.[cm]?[jt]sx?$/;
 
 /**
  * The name of the survey's code at `at` (8.43): a hash of every source file, tests left out, in the folder of the file
@@ -400,7 +401,7 @@ export function codeSurveyReader({ readFile: readText = (file: string) => readFi
     const found = await Promise.all(entries.map(async (entry): Promise<SourceFile[]> => {
       const full = path.join(dir, entry.name);
       if (entry.directory) return SKIPPED.has(entry.name) ? [] : filesUnder(source, root, full, seen);
-      if (!/\.[cm]?[jt]sx?$/.test(entry.name)) return [];
+      if (!readsFile(entry.name)) return [];
       const file = await fileAt(source, root, full, seen);
       return file === undefined ? [] : [file];
     }));
@@ -413,7 +414,7 @@ export function codeSurveyReader({ readFile: readText = (file: string) => readFi
     const found = await Promise.all(entries.map(async (entry): Promise<string[]> => {
       const full = path.join(dir, entry.name);
       if (entry.directory) return SKIPPED.has(entry.name) || (dir === root && entry.name === "src") ? [] : codeBeside(source, root, full);
-      return entry.file && /\.[cm]?[jt]sx?$/.test(entry.name) ? [full] : [];
+      return entry.file && readsFile(entry.name) ? [full] : [];
     }));
     return found.flat();
   }
@@ -522,8 +523,8 @@ async function declaredPlumbing(source: SurveySource, checkout: string): Promise
       };
       const outside = new Map(beside.map(full => [path.relative(checkout, full).split(path.sep).join("/"), full]));
       const loaded = new Map(sources.map(file => [inCheckout(file.path), file]));
-      const paths = new Set([...loaded.keys(), ...outside.keys()].filter(file => !/\.d\.[cm]?ts$/.test(file)));
-      const queue = [...paths].filter(file => TEST_FILE.test(file));
+      const paths = new Set([...loaded.keys(), ...outside.keys()].filter(isCodeFile));
+      const queue = [...paths].filter(isTestFile);
       const visited = new Set(queue);
       for (const name of queue) {
         let file = loaded.get(name);

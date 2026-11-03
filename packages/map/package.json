@@ -9,6 +9,7 @@
     "./package-of": "./src/code-survey/package-of.ts",
     "./read": "./src/read.ts",
     "./tools": "./src/tools.ts",
+    "./tree-sitter-bundle": "./src/code-survey/tree-sitter-bundle.ts",
     "./verbs": "./src/verbs.ts"
   },
   "scripts": {
@@ -16,6 +17,8 @@
   },
   "dependencies": {
     "@babel/parser": "^7.29.9",
+    "tree-sitter-python": "0.25.0",
+    "web-tree-sitter": "0.27.1",
     "zod": "^4.6.5"
   },
   "devDependencies": {
@@ -23,6 +26,7 @@
     "@storytree/project-and-caller": "workspace:*",
     "@storytree/test-waits": "workspace:*",
     "@types/node": "^24.13.6",
+    "esbuild": "^0.28.2",
     "tsx": "^4.23.15",
     "typescript": "~7.0.2"
   },

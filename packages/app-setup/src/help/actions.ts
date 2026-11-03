@@ -10,7 +10,7 @@ import { agentsOnThisComputer, connectAgents, type ConnectionOptions } from "../
 import { deliveredCommand, deliveredCommandIfAny } from "../connect/installed.js";
 import { CODEX_TRUST_STEP, runSetupCheck } from "../setup/index.js";
 import type { Library, Storytree } from "@storytree/library";
-import { addProject, deleteProject, keepOnThisComputer, projectFolder, projectInView, removeProject, whoLoses, type ProjectRecords } from "../project/index.js";
+import { addProject, deleteProject, projectFolder, projectInView, removeProject, whoLoses, type ProjectRecords } from "../project/index.js";
 import type { AgentConnection, ProjectSentence, SetupHelpBridge } from "./bridge.js";
 import { openFeedbackDraft } from "../journey-events/feedback.js";
 import { readShippedLicense } from "./license.js";
@@ -100,12 +100,9 @@ export function setupHelpActions(options: {
       if (folder === undefined) return null;
       const library = options.library();
       const found = await projectFolder(folder, { library });
-      if ("project" in found) {
-        keepOnThisComputer(found.project, options.storytreeHome);
-        return { status: "already a project", project: found.project, folder: found.folder };
-      }
       // The folder's own name, unless a project has it already: a second folder never joins it silently (ADR-0757).
-      const added = await addProject(found.folder, found.suggestion, { home: options.storytreeHome, library });
+      // A folder already a project is said so, unless its marker names a project this library lacks, set up here afresh.
+      const added = await addProject(found.folder, "project" in found ? found.project : found.suggestion, { home: options.storytreeHome, library });
       if (added.status === "name refused" || added.status === "folder refused") throw new Error(added.message);
       return added;
     },

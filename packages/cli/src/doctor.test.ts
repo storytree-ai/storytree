@@ -245,6 +245,30 @@ test("1.16 a folder whose marker names a project, unapproved on this machine, is
   });
 });
 
+test("app-setup 8.42 in a folder whose marker names a project this computer's library lacks, the doctor says so, never \"not approved\", and offers --set-up, which sets the folder up here, replacing the marker", async () => {
+  await inWorld(command, async (world) => {
+    const user = aUser(world);
+    const project = uniqueProjectName();
+    // A marker committed on another computer, against another library: this one never had the project.
+    writeFileSync(path.join(world.elsewhere, ".storytree.json"), `${JSON.stringify({ project, identity: "19697429" })}\n`);
+    const run = (args: readonly string[]) => storytree(command.script, args, { cwd: world.elsewhere, home: world.home, env: user.env });
+    try {
+      const told = await run(["doctor"]);
+      assert.equal(told.code, 0, told.stderr);
+      assert.ok(told.stdout.includes(`this computer's library has no project "${project}"`), told.stdout);
+      assert.doesNotMatch(told.stdout, /not approved/);
+      assert.ok(told.stdout.includes(`storytree doctor --set-up ${project}`), told.stdout);
+
+      const setUp = await run(["doctor", "--set-up", project]);
+      assert.equal(setUp.code, 0, setUp.stderr);
+      assert.equal(JSON.parse(readFileSync(path.join(world.elsewhere, ".storytree", "project.json"), "utf8")).project, project);
+      assert.equal(existsSync(path.join(world.elsewhere, ".storytree.json")), false, "the old marker is replaced");
+    } finally {
+      await dropTestProjects([project]);
+    }
+  });
+});
+
 test("8.6 with Codex's hooks registered and none of them run yet, it names the one step that lets Codex run them (Session management 8.16)", async () => {
   await inWorld(command, async (world) => {
     const user = aUser(world);

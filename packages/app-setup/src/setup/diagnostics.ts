@@ -4,6 +4,7 @@ import { CODEX_TRUST_STEP } from "./verify.js";
 import type { RootMarker, ServerEntry, SetupReport } from "./setup.js";
 import type { AppReading } from "@storytree/session-management";
 import { HARNESS_IDS, watchedHarness, type Harness } from "@storytree/project-and-caller/caller";
+import { missingProjectReading } from "@storytree/project-and-caller/routing";
 import { compareVersions } from "./hooks-release.js";
 import { IDENTITY_FIX } from "../project/making.js";
 
@@ -140,7 +141,9 @@ export function setupLines(report: Omit<SetupReport, "lines">): SetupLine[] {
   lines.push(archivesLine(report.archives));
   lines.push(project.status === "set up"
     ? { check: "project", state: "ok", message: `This folder is storytree project ${JSON.stringify(project.name)}.` }
-    : { check: "project", state: "needs-attention", message: "This folder isn't a storytree project yet.", fix: `Only after the user says yes, set up project ${JSON.stringify(project.suggestion)} or a name they choose (lower-case letters, digits and hyphens).` });
+    : project.status === "missing"
+      ? { check: "project", state: "needs-attention", message: missingProjectReading(project.name), fix: `Only after the user says yes, set this folder up here as a new project (it replaces the marker), as ${JSON.stringify(project.name)} or a name they choose; if ${JSON.stringify(project.name)} is in another library they can reach, point this computer's library setting at that library and join it instead.` }
+      : { check: "project", state: "needs-attention", message: "This folder isn't a storytree project yet.", fix: `Only after the user says yes, set up project ${JSON.stringify(project.suggestion)} or a name they choose (lower-case letters, digits and hyphens).` });
   if (report.firstCommit !== undefined) lines.push(firstCommitLine(report.firstCommit));
   if (report.repository !== undefined) lines.push(repositoryLine(report.repository));
   if (report.rootMarker !== undefined) lines.push(rootMarkerLine(report.rootMarker));

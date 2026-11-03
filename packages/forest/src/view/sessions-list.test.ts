@@ -51,6 +51,7 @@ test("7.2 a finished child of a running parent stays listed, greyed; an idle par
   const opened = renderToStaticMarkup(createElement(SessionsList, { rows: [idle], tab: "history", expanded: new Set(["parent"]), onHighlight() {} }));
   assert.match(opened, /data-session-id="child"/);
   assert.match(opened, /data-session-id="lane"/);
+  assert.doesNotMatch(opened, /class="session-children"/, "opened, the children show and the count goes");
 });
 
 test("5.5 a row wears its session's colour, the one its outlines wear", () => {

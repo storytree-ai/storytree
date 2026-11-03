@@ -1,4 +1,4 @@
-// Capability 3 · The Mint pool runs its lanes under the box's cap (ADR-0955 D2): one dispatcher at a time, at most
+// Capability 3 · The pool runs its lanes under the machine's cap (ADR-0955 D2): one dispatcher at a time, at most
 // the box's cap of engines at once, each lane's brief composed from its header, notes and the pool's rules.
 import { execFile } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
@@ -11,18 +11,21 @@ import { promisify } from "node:util";
  * The code the dispatcher runs (3.10, ADR-0981): what launch.mjs loads, each lane's runner loads, and the briefs it
  * composes. A change to one of these restarts the dispatcher; a change anywhere else in the dev loop (the test runner,
  * the gate, the health readers, a test) leaves it starting work. When one of these files comes to import another file,
- * name that file here. The pool's configuration (agent-pool.json, pool-config.mjs) is read once at start, so it is here too.
+ * name that file here. The pool's configuration reader (pool-config.mjs) is read once at start, so it is here too; the
+ * machine's own configuration file is outside the repository (ADR-1216 D1), so codeVersion reads it beside these.
  */
-export const POOL_CODE = [...["launch.mjs", "feed.mjs", "queue.mjs", "runner.mjs", "engine.mjs", "watch.mjs", "pool-config.mjs",
-  "pool-brief.md", "pool-brief-plan.md", "pool-brief-read-only.md"].map((name) => `packages/agent-pool/src/${name}`), "agent-pool.json"];
+export const POOL_CODE = ["launch.mjs", "feed.mjs", "queue.mjs", "runner.mjs", "engine.mjs", "watch.mjs", "pool-config.mjs",
+  "pool-brief.md", "pool-brief-plan.md", "pool-brief-read-only.md"].map((name) => `packages/agent-pool/src/${name}`);
 
 /**
  * The version of `paths` (repository-relative) at the checkout's HEAD: one hash of their blob ids, so it moves only
  * when one of them changes. A path HEAD lacks is left out; with none of them there it is undefined.
  */
-export async function codeVersion({ repo, paths = POOL_CODE, exec = promisify(execFile) }) {
+export async function codeVersion({ repo, paths = POOL_CODE, config, exec = promisify(execFile) }) {
   const { stdout } = await exec("git", ["ls-tree", "HEAD", "--", ...paths], { cwd: repo });
-  return stdout.trim() ? createHash("sha1").update(stdout).digest("hex").slice(0, 12) : undefined;
+  // The machine's configuration file, read once at start, is part of what it runs: a change to it restarts it too.
+  const configured = config ? await readFile(config, "utf8").catch(() => "") : "";
+  return stdout.trim() ? createHash("sha1").update(stdout).update(configured).digest("hex").slice(0, 12) : undefined;
 }
 
 const ENGINES = [["codex", "exec"], ["codex", "e"], ["claude", "-p"], ["claude", "--print"]];
@@ -137,6 +140,17 @@ export async function reserveSlot({ dir, max, count, sleep, onWait, pid = proces
 }
 
 /** A lane's brief: its header, the increment's own notes when it has any, then the pool's rules. */
+/**
+ * The pool's rules name the folders a lane works from and reports to as `{checkout}` and `{lanes}`: a lane is briefed with
+ * its machine's own (ADR-1216 D1), so it works and reports where its runner looks.
+ */
+export function localBrief(text, { checkout, lanes } = {}) {
+  let local = text;
+  if (checkout) local = local.replaceAll("{checkout}", () => checkout);
+  if (lanes) local = local.replaceAll("{lanes}", () => lanes);
+  return local;
+}
+
 export function composeBrief({ title, intro, notes = "", common }) {
   return [`# ${title}`, "", intro, "", ...(notes ? [notes.replace(/\n*$/, ""), ""] : []), common].join("\n");
 }

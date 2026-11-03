@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdtemp, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { test } from "node:test";
@@ -20,16 +20,31 @@ async function configFile(t, fields) {
   return file;
 }
 
-test("3.15 · the pool reads its machine, checkout, lanes, session cap, models and watcher limits from its configuration, ~ as this machine's home", async (t) => {
-  const file = await configFile(t, { machine: "box", checkout: "~/src/shop", lanes: "~/pool", addDirs: ["~/src/shop-wt", "/srv/shared"], sessions: 3,
+test("3.15 · the pool reads its machine, checkout, lanes, briefs, session cap, models, identity and watcher limits from this machine's own file, ~ as this machine's home", async (t) => {
+  const fields = { machine: "box", checkout: "~/src/shop", lanes: "~/pool", briefs: "~/pool/briefs", addDirs: ["~/src/shop-wt", "/srv/shared"], sessions: 3,
     engines: { codex: { model: "codex-model" }, claude: { model: "claude-model" }, switchAt: 80 },
-    watcher: { fixesPerRed: 1, fixesPerPullRequest: 4, intervalSeconds: 30 } });
-  assert.deepEqual(poolConfig({ home: "/home/u", env: { AGENT_POOL_CONFIG: file } }), {
+    identity: { name: "Lane Owner", email: "owner@example.com" },
+    watcher: { fixesPerRed: 1, fixesPerPullRequest: 4, intervalSeconds: 30 } };
+  const file = await configFile(t, fields);
+  const expected = {
     machine: "box", checkout: join("/home/u", "src/shop"), remoteCheckout: "~/src/shop", lanesDir: join("/home/u", "pool"),
-    addDirs: [join("/home/u", "src/shop-wt"), "/srv/shared", join("/home/u", "pool")], sessions: 3,
-    models: { codex: "codex-model", claude: "claude-model" }, switchAt: 80,
+    briefsDir: join("/home/u", "pool/briefs"), addDirs: [join("/home/u", "src/shop-wt"), "/srv/shared", join("/home/u", "pool")], sessions: 3,
+    models: { codex: "codex-model", claude: "claude-model" }, switchAt: 80, identity: { name: "Lane Owner", email: "owner@example.com" },
     watcher: { fixesPerRed: 1, fixesPerPullRequest: 4, intervalMs: 30_000 }, machineOnly: false,
-  });
+  };
+  assert.deepEqual(poolConfig({ home: "/home/u", env: { AGENT_POOL_CONFIG: file } }), expected);
+
+  // With no AGENT_POOL_CONFIG it is the machine file under this machine's home, ~/.storytree/agent-pool.json (ADR-1216 D1).
+  const home = await mkdtemp(join(tmpdir(), "pool-config-home-"));
+  t.after(() => removeTemp(home));
+  await mkdir(join(home, ".storytree"));
+  await writeFile(join(home, ".storytree", "agent-pool.json"), JSON.stringify(fields));
+  assert.deepEqual(poolConfig({ home, env: {} }), { ...expected, checkout: join(home, "src/shop"), lanesDir: join(home, "pool"), briefsDir: join(home, "pool/briefs"),
+    addDirs: [join(home, "src/shop-wt"), "/srv/shared", join(home, "pool")] });
+
+  // A hand-over from another machine runs in the pool's checkout there, which may be named apart from this machine's own.
+  await writeFile(file, JSON.stringify({ machine: "box", checkout: "C:/src/shop", machineCheckout: "~/code/shop" }));
+  assert.equal(poolConfig({ home: "/home/u", env: { AGENT_POOL_CONFIG: file } }).remoteCheckout, "~/code/shop");
 
   // The environment the pool read before still overrides the file.
   const env = { AGENT_POOL_CONFIG: file, LANES_DIR: "/tmp/lanes", CODEX_STOP_AT: "70", WATCH_BOX_HOST: "other", WATCH_FIX_LIMIT: "3", WATCH_FIX_CAP: "9", WATCH_INTERVAL_S: "5" };
@@ -46,8 +61,8 @@ test("3.15 · the pool reads its machine, checkout, lanes, session cap, models a
 test("3.16 · with no configuration the pool runs on general defaults: this checkout, no other machine, no pinned session cap, the engines' own models, Codex until it is spent", async (t) => {
   const file = await configFile(t);
   assert.deepEqual(poolConfig({ home: "/home/u", env: { AGENT_POOL_CONFIG: file } }), {
-    machine: undefined, checkout: CHECKOUT, remoteCheckout: CHECKOUT, lanesDir: join("/home/u", ".storytree/agent-pool"),
-    addDirs: [join("/home/u", ".storytree/agent-pool")], sessions: undefined, models: { codex: undefined, claude: undefined }, switchAt: 100,
+    machine: undefined, checkout: CHECKOUT, remoteCheckout: CHECKOUT, lanesDir: join("/home/u", ".storytree/agent-pool"), briefsDir: undefined,
+    addDirs: [join("/home/u", ".storytree/agent-pool")], sessions: undefined, models: { codex: undefined, claude: undefined }, switchAt: 100, identity: undefined,
     watcher: { fixesPerRed: 2, fixesPerPullRequest: 6, intervalMs: 60_000 }, machineOnly: false,
   });
 });
@@ -62,7 +77,7 @@ test("3.24 · a pool configured machineOnly is read as machine-only; any other v
 test("3.17 · with nothing pinning it, the cap is what the box's size allows: the smaller of its cores and its memory per lane, at least one", async () => {
   const GiB = 1024 ** 3;
   const unpinned = { lanesDir: "/lanes", readText: async () => { throw new Error("ENOENT"); } };
-  assert.equal(await readCap({ ...unpinned, box: { cores: 12, memoryBytes: 32 * GiB } }), 6, "the Mint box: 12 cores / 2 = 6, under 32 GB / 3 GB = 10");
+  assert.equal(await readCap({ ...unpinned, box: { cores: 12, memoryBytes: 32 * GiB } }), 6, "12 cores / 2 = 6, under 32 GB / 3 GB = 10");
   assert.equal(await readCap({ ...unpinned, box: { cores: 32, memoryBytes: 16 * GiB } }), 5, "memory bound: 16 GB / 3 GB");
   assert.equal(await readCap({ ...unpinned, box: { cores: 1, memoryBytes: 2 * GiB } }), 1, "a small machine still runs one");
   assert.equal(await readCap({ ...unpinned, sessions: 4, box: { cores: 12, memoryBytes: 32 * GiB } }), 4, "a configured sessions count pins it");

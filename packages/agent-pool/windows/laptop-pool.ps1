@@ -1,5 +1,5 @@
 # Capability 3 · The laptop's dispatcher loop (ADR-1179 D1, D3): what the logon task register-laptop-pool.ps1 makes runs.
-# It runs launch.mjs pool in the laptop's checkout with the laptop's pool configuration, as the Mint box's launch-pool.sh
+# It runs launch.mjs pool in the laptop's checkout with the laptop's pool configuration, as a Linux box's launch-pool.sh
 # does there: started again at once when its own code changed (exit 3), after a pause otherwise, and paused while the lanes
 # folder's pool-stop exists (the dispatcher ends on it once its running lane ends; delete the file to resume).
 param(

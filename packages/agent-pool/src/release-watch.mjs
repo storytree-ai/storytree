@@ -134,11 +134,11 @@ export const stopName = (at) => `Releases stopped since ${new Date(at).toISOStri
 function fixBrief({ release, alarm, tail, n, limit, name }) {
   return `# Release fix session ${n} of ${limit}: releases are stopped
 
-The Mint box's watcher started you: no release has published since ${release.tag} (${release.at}), and ${alarm.why}.
+The pool's watcher started you: no release has published since ${release.tag} (${release.at}), and ${alarm.why}.
 The failing run: ${alarm.run.url}${alarm.run.job ? `, job "${alarm.run.job}"` : ""}. Any failed release attempt and main's red CI run were
 already rerun once.${tail ? `\nThe log's last lines:\n\n\`\`\`\n${tail}\n\`\`\`` : ""}
 
-Your job is to get releases moving and nothing else. Work from ~/code/storytree03 and follow its AGENTS.md as the session-orchestrator.
+Your job is to get releases moving and nothing else. Work from {checkout} and follow its AGENTS.md as the session-orchestrator.
 - First name your row: \`pnpm storytree session name "${name}"\`.
 - Read the failing log (\`gh run view ${alarm.run.id} --log-failed\`) and the arc ${RELEASE_ARC} (\`pnpm storytree arc show ${RELEASE_ARC}\`).
 - A fix in the code: park an increment for it on ${RELEASE_ARC}, make its workspace (it claims it), build it to a green \`pnpm gate\`
@@ -195,7 +195,7 @@ export async function watchReleases({ dir, readReleases, rerun, tail, alive, roo
       title: `Releases stopped on a failed security check (${checks})`,
       stakes: "No release publishes until it passes, and the watcher starts no fix session for it, since a fix session's commits and pull request are public.",
       statement: `Run ${alarm.run.id} failed the security check ${checks}. What should be done about it?`,
-      context: `The Mint watcher reads ${checks} as a security check (4.41): it puts no log or alert text anywhere and asks you instead. Read the run on GitHub, signed in.`,
+      context: `The pool's watcher reads ${checks} as a security check (4.41): it puts no log or alert text anywhere and asks you instead. Read the run on GitHub, signed in.`,
       options: "A. Fix it yourself, privately. B. Judge it a false alarm and dismiss it on GitHub.",
     });
     await save(dir, state);
@@ -207,7 +207,7 @@ export async function watchReleases({ dir, readReleases, rerun, tail, alive, roo
       title: `${name}, and ${limit} fix sessions could not move it`,
       stakes: "Every platform's development builds stay where they are, and no urgent fix can reach a stable install, until a release publishes again.",
       statement: `No release has published since ${release.tag} (${release.at}): ${alarm.why}. The failing run: ${alarm.run.url}${alarm.run.job ? ` (${alarm.run.job})` : ""}. What should move it?`,
-      context: `The Mint watcher reran the failing runs once and started ${limit} fix sessions; their logs: ${state.fixes.map((fix) => fix.log).join(", ")}. It starts no other until this is settled (ADR-1032 D2).`,
+      context: `The pool's watcher reran the failing runs once and started ${limit} fix sessions; their logs: ${state.fixes.map((fix) => fix.log).join(", ")}. It starts no other until this is settled (ADR-1032 D2).`,
       options: "A. Name what only you can do (a secret, a sign-in, an outside party) and do it. B. Say what a next fix session should try.",
     });
     await save(dir, state);

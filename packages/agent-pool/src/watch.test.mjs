@@ -287,9 +287,9 @@ test("4.7 · a session on any machine hands over: on the box directly, elsewhere
   assert.equal(away.lines.join("\n").match(/close-out --safe yes/g)?.length, 1, "the box's own words are relayed, with the close-out line said once");
 
   const down = await handOver({ pr: 41, increment: "increment_one", session: SESSION, onBox: false, local,
-    remote: async () => { throw new Error("ssh: connect to host mint port 22: Connection timed out"); } });
+    remote: async () => { throw new Error("ssh: connect to host box port 22: Connection timed out"); } });
   assert.equal(down.code, 1);
-  assert.match(down.lines.join("\n"), /could not reach the Mint box.*Connection timed out/s);
+  assert.match(down.lines.join("\n"), /could not reach the pool's watcher.*Connection timed out/s);
   assert.match(down.lines.join("\n"), /wait for the merge yourself/i, "the session falls back to landing it itself");
 
   const nobody = await handOver({ pr: 41, increment: "increment_one", session: "", onBox: false, local, remote: ok });
@@ -314,7 +314,7 @@ test("4.30 · a session ssh cannot reach the box from hands over through the lib
   const b = await box(t);
   const waits = ["2 waits for you or an outside event:",
     `  - event  ${written[0][7]} — increment_one  The one, on arc_a  An arc; check back 2026-10-13`,
-    "  - event  PR #40 is open and green and handed to the Mint box's watcher, which closes this on its merge or starts a fix session on a red. — increment_zero  The zero, on arc_a  An arc; check back 2026-10-13",
+    "  - event  PR #40 is open and green and handed to the pool's watcher, which closes this on its merge or starts a fix session on a red. — increment_zero  The zero, on arc_a  An arc; check back 2026-10-13",
     ""].join("\n");
   b.options.storytree = async (args) => { b.calls.push(args); return args[1] === "waits" ? waits : ""; };
   await adoptRequests(b.options);
@@ -365,6 +365,8 @@ test("4.10 · a watcher whose code changes between two looks ends with the resta
   const home = await mkdtemp(join(tmpdir(), "lane-watch-home-"));
   t.after(() => removeTemp(home));
   const repo = join(home, "code", "storytree03");
+  await mkdir(join(home, ".storytree"), { recursive: true });
+  await writeFile(join(home, ".storytree", "agent-pool.json"), JSON.stringify({ checkout: "~/code/storytree03" }));
   const git = (...args) => promisify(execFile)("git", ["-c", "user.name=t", "-c", "user.email=t@t", ...args], { cwd: repo });
   const commit = async (path, text) => {
     await mkdir(join(repo, path, ".."), { recursive: true });
@@ -747,8 +749,10 @@ test("4.17 · a watch loop on a folder other than the box's own reads no release
   // A home with the lane runner is the box's; the loop is given another folder, as a test on the box gives it.
   const home = await mkdtemp(join(tmpdir(), "lane-watch-box-"));
   t.after(() => removeTemp(home));
-  await mkdir(join(home, "storytree-lanes"), { recursive: true });
-  await writeFile(join(home, "storytree-lanes", "run-lane.sh"), "");
+  await mkdir(join(home, ".storytree"), { recursive: true });
+  await writeFile(join(home, ".storytree", "agent-pool.json"), JSON.stringify({ lanes: "~/lanes" }));
+  await mkdir(join(home, "lanes"), { recursive: true });
+  await writeFile(join(home, "lanes", "run-lane.sh"), "");
   let version = "tree-a";
   assert.equal(await main(["watch"], { ...b.options, home, loopPidFile: join(b.dir, "watch-loop.pid"), pid: 7, argsOf: async () => "",
     codeVersion: async () => version, sleep: async () => { version = "tree-b"; } }), RESTART);
@@ -950,7 +954,7 @@ test("4.32 · a pull request whose head is not on this repository, or whose head
   assert.equal(refusing.code, 1);
   assert.deepEqual(written, [], "the box's refusal is not taken round through the library");
 
-  const waits = `  - event  PR #44 is open and green and handed to the Mint box's watcher through the library by session ${SESSION}, which closes this on its merge or starts a fix session on a red. — increment_four  The four, on arc_a  An arc; check back 2026-10-13\n`;
+  const waits = `  - event  PR #44 is open and green and handed to the box's watcher through the library by session ${SESSION}, which closes this on its merge or starts a fix session on a red. — increment_four  The four, on arc_a  An arc; check back 2026-10-13\n`;
   const adopt = await box(t);
   adopt.options.storytree = async (args) => { adopt.calls.push(args); return args[1] === "waits" ? waits : ""; };
   await adoptRequests({ ...adopt.options, viewOf: async () => { throw new Error("gh: timed out"); } });

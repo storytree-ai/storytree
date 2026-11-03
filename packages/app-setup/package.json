@@ -40,6 +40,7 @@
     "@storytree/session-management": "workspace:*",
     "@storytree/library": "workspace:*",
     "@storytree/map": "workspace:*",
+    "@storytree/plugin-loader": "workspace:*",
     "@storytree/project-and-caller": "workspace:*",
     "smol-toml": "1.9.1",
     "zod": "^4.6.5"
@@ -52,7 +53,6 @@
     "pg": "^8.23.0",
     "tsx": "^4.23.15",
     "typescript": "~7.0.2",
-    "@storytree/plugin-loader": "workspace:*",
     "@storytree/test-waits": "workspace:*"
   },
   "storytree": {

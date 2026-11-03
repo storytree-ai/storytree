@@ -691,3 +691,41 @@ test("4.43 · a watcher a lane starts by its hand-over outlives the lane: the ru
   assert.doesNotThrow(() => process.kill(watcher, 0), "the watcher is still running");
   assert.doesNotMatch(options.lines.join("\n"), /left running by the engine/);
 });
+
+test("1.25 · a lane of a project other than storytree reaches the library through the installed storytree command, run in its checkout, on every platform, and probes the library with a read any project answers", async (t) => {
+  for (const platform of ["linux", "win32"]) assert.deepEqual(storytreeCommand(["arc", "list"], platform, "storytree-website"), ["storytree", ["arc", "list"]], platform);
+  assert.deepEqual(storytreeCommand(["arc", "list"], "linux", "storytree-website", ["/bin/st", "--quiet"]), ["/bin/st", ["--quiet", "arc", "list"]]);
+  const probed = [];
+  assert.deepEqual(await refusals({ project: "storytree-website", platform: "linux", probe: async (file, args) => { probed.push([file, ...args]); } }), []);
+  assert.deepEqual(probed.find((call) => call[0] !== "gh"), ["storytree", "arc", "list"], "no storytree record, which another project's library lacks");
+
+  // The lane-token question, asked through the installed command in the lane's checkout.
+  const options = await lane(t);
+  await writeFile(join(options.home, ".storytree", "secrets.json"), "{}");
+  const record = join(options.home, "storytree-calls.jsonl");
+  options.commands.storytree = command(`const fs=require('node:fs');const a=process.argv.slice(1);fs.appendFileSync(${JSON.stringify(record)},JSON.stringify({args:a,cwd:process.cwd()})+'\\n');`
+    + `console.log(a[0]==='library'?'arc_site':'Raised question_9 on arc_site.');`);
+  Object.assign(options, { increment: "increment_site", project: "storytree-website" });
+  assert.equal(await main(["run", options.brief, options.log, options.err], options), 75);
+  const calls = (await readFile(record, "utf8")).trim().split("\n").map((line) => JSON.parse(line));
+  assert.deepEqual(calls.map((call) => call.args.slice(0, 2)), [["library", "read"], ["question", "new"]]);
+  assert.equal(calls[1].args[calls[1].args.indexOf("--arc") + 1], "arc_site", "asked on its increment's arc, read from its own project");
+  for (const call of calls) assert.equal(await realpath(call.cwd), await realpath(options.cwd));
+});
+
+test("1.26 · a lane started from the command line in another project's checkout runs as that project: it reaches storytree through the installed command there", async (t) => {
+  const options = await lane(t);
+  await writeFile(join(options.home, ".storytree", "secrets.json"), "{}");
+  await mkdir(join(options.cwd, ".storytree"));
+  await writeFile(join(options.cwd, ".storytree", "project.json"), JSON.stringify({ project: "storytree-website" }));
+  const record = join(options.home, "storytree-calls.jsonl");
+  options.commands.storytree = command(`const fs=require('node:fs');const a=process.argv.slice(1);fs.appendFileSync(${JSON.stringify(record)},JSON.stringify({args:a,cwd:process.cwd()})+'\\n');`
+    + `console.log(a[0]==='library'?'arc_site':'Raised question_9 on arc_site.');`);
+  options.increment = "increment_site";
+  // The folder it runs in, a subfolder of the checkout, as the watcher's sessions start: no project is passed.
+  options.cwd = join(options.cwd, "packages");
+  await mkdir(options.cwd);
+  assert.equal(await main(["run", options.brief, options.log, options.err], options), 75);
+  const calls = (await readFile(record, "utf8")).trim().split("\n").map((line) => JSON.parse(line));
+  assert.deepEqual(calls.map((call) => call.args.slice(0, 2)), [["library", "read"], ["question", "new"]], "the lane-token question, asked in the checkout's own library");
+});

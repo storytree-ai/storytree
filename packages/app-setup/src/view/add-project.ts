@@ -1,5 +1,7 @@
 /** Capability 3 · First-run guide. */
 import type { AddedFolder, SetupHelpBridge } from "../help/bridge.js";
+import { unreadableSentence } from "@storytree/map/languages";
+
 import { COMMIT_STORYTREE } from "../project/storytree-folder.js";
 
 /** Said on the page the remove and delete views live on when a project leaves this computer's list, so a line naming it is cleared. */
@@ -13,6 +15,9 @@ export function sayProjectGone(from: HTMLElement, project: string): void {
 
 /** What adding a folder made of it, in plain words. */
 export function addedSentence(added: AddedFolder, shown = ""): string {
+  // A folder whose code the map cannot read is told so after what it became (3.19).
+  const { unreadable, ...folder } = added;
+  if (unreadable !== undefined) return `${addedSentence(folder, shown)} ${unreadableSentence(unreadable)}`;
   if (added.status === "set up" && added.replaced !== undefined) return `${added.folder} is now project “${added.project}”${shown}, set up here as a new project: its marker named a project this computer's library does not have, “${added.replaced}”. ${COMMIT_STORYTREE}`;
   if (added.status === "set up") return `${added.folder} is now project “${added.project}”${shown}. ${COMMIT_STORYTREE}`;
   if (added.status === "brought back") return `${added.folder} is project “${added.project}” again, with its records${shown}.`;

@@ -11,6 +11,8 @@ import path from "node:path";
 import { forgetProjectActivity, openActivityLog, readClaims } from "@storytree/session-management";
 import { findProject, forgetTrunk, keepOnThisComputer, machineOf, markerIn, PROJECT_FILE, ProjectFolderError, projectOnShow, readLibrary, readProjectChoice, recordRemovedProjects, removedProjects, storytreeHome, trunksOn } from "@storytree/project-and-caller";
 import type { Storytree } from "@storytree/library";
+import { folderLanguages } from "@storytree/map/folder-languages";
+import { unreadableOf } from "@storytree/map/languages";
 
 import { openStorytree } from "../setup/open-storytree.js";
 import { setUpProject, suggestProjectName, unusedName } from "./making.js";
@@ -29,7 +31,7 @@ export type ProjectFolder = { folder: string; project: string } | { folder: stri
 
 export type AddedProject =
   /** `brought back`: the folder of a project removed from this computer, which is that project here again. */
-  | { status: "set up" | "already a project" | "brought back"; folder: string; project: string; replaced?: string }
+  | { status: "set up" | "already a project" | "brought back"; folder: string; project: string; replaced?: string; unreadable?: string[] }
   /** Another name would do: the message says why this one would not, and suggests one. */
   | { status: "name refused"; folder: string; message: string; suggestion?: string }
   /** The folder cannot be a project of its own (it is inside, or holds, another project's folder). */
@@ -92,7 +94,9 @@ export async function addProject(folder: string, name: string, options: AddProje
       }
       mkdirSync(resolved, { recursive: true });
       const { replaced } = await setUpProject({ folder: resolved, project, storytree, storytreeHome: home });
-      return { status: "set up", folder: resolved, project, ...(replaced === undefined ? {} : { replaced }) };
+      // Code only in languages the survey cannot read leaves the map empty of it: the reply says so (3.19, 6.115).
+      const unreadable = unreadableOf(await folderLanguages(resolved).catch(() => undefined));
+      return { status: "set up", folder: resolved, project, ...(replaced === undefined ? {} : { replaced }), ...(unreadable === undefined ? {} : { unreadable }) };
     } catch (error) {
       if (error instanceof ProjectFolderError) {
         return error.suggestion === undefined

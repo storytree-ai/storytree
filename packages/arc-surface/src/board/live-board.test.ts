@@ -125,6 +125,41 @@ test("3.9 the board draws fresh from its own read of the work at once, without w
   }
 });
 
+test("3.9 a board told to start after the page's start reads nothing until then, drawing the kept board as refreshing, and then reads the work once, past all the page held by then", async () => {
+  const arc = record("arc_1", "arc", { title: "Ship the board", intent: "See the work", endState: "Board shipped" });
+  const view = { arc, increments: [], questions: [], state: "active" as const };
+  const asked = { boardArcs: 0, holds: 0 };
+  let served = false;
+  const reads: BoardReads = {
+    changesSince: async () => { const changes = served ? [] : [{ seq: 1, recordId: "arc_1", type: "arc", action: "updated" as const, record: arc }]; served = true; return { changes, cursor: 1 }; },
+    linesSince: async () => ({ lines: [], cursor: 0 }),
+    boardArcs: async () => { asked.boardArcs++; return [view]; }, closedArcs: async () => [],
+    holds: async () => { asked.holds++; return { waits: {}, heldOn: {} }; },
+  };
+  const timers = { now: () => Date.parse("2026-10-19T10:00:00Z"), every: () => () => {} };
+  const page = pageReading({ project: "p", reads, timers });
+  let settle!: () => void;
+  const startAfter = new Promise<void>((resolve) => { settle = resolve; });
+  const kept = { read: (): BoardSnapshot => ({ arcs: [view], waits: {}, heldOn: {} }), write() {} };
+  let state: BoardState | undefined;
+  const watcher = watchBoard({ project: "p", reads, timers, reading: page, kept, startAfter, onState: (next) => { state = next; } });
+  try {
+    // The page's first read lands, with an arc change, while its start is still settling.
+    await until(() => page.held().changes.length === 1);
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.deepEqual(asked, { boardArcs: 0, holds: 0 }, "nothing is read before the start settles");
+    assert.equal(state?.status, "refreshing");
+    assert.deepEqual(state?.board?.lanes.map(({ id }) => id), ["arc_1"]);
+    settle();
+    await until(() => state?.status === "ready");
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.deepEqual(asked, { boardArcs: 1, holds: 1 }, "one read, which holds what the page heard before it");
+  } finally {
+    watcher.stop();
+    page.stop();
+  }
+});
+
 test("3.9 news the page reading already held when the board opened reads no work beyond the board's own read", async () => {
   const arc = record("arc_1", "arc", { title: "Ship the board", intent: "See the work", endState: "Board shipped" });
   const asked = { boardArcs: 0 };

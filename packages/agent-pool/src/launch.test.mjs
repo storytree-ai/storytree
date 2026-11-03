@@ -622,10 +622,81 @@ test("3.36 · a lane for a project other than storytree is briefed with that pro
   assert.doesNotMatch(site, /pnpm gate|\{\w+\}/, "nothing of storytree's gate, and every slot filled");
   assert.match(briefs.increment_bare, /names no checks of its own/, "a project naming no checks is told so");
   assert.match(briefs.increment_bare, /names no review of its own/, "and no review");
-  assert.ok(briefs.increment_look.endsWith(localBrief(await poolRules("needs: read-only"), { checkout: website, lanes: b.lanesDir })),
-    "another project's read-only lane keeps the read-only rules, in its own checkout");
   assert.equal(briefs.increment_ours, `# Pool lane: increment_ours\n\nYour increment: increment_ours.\n\n${localBrief(await poolRules(""), { checkout: "/srv/storytree03", lanes: b.lanesDir })}`,
     "storytree's lane keeps storytree's brief");
+});
+
+test("3.37 · another project's lane has that project's checkout brought to origin/main before it starts, pushing to its own repository over SSH, with no install; storytree's refresh is unchanged", async (t) => {
+  const repo = await folder(t);
+  const git = (...args) => run("git", args, { cwd: repo });
+  await git("init", "-q");
+  const ran = [];
+  const prepare = () => prepareCheckout({ repo, project: "storytree-website", exec: async (command, args, options) => {
+    ran.push([command, ...args]);
+    if (command === "git" && args[0] === "config") return run(command, args, options);
+    return { stdout: "" };
+  } });
+  const pushUrl = async () => (await git("config", "--get", "remote.origin.pushurl").catch(() => ({ stdout: "" }))).stdout.trim();
+  await git("remote", "add", "origin", "https://github.com/storytree-ai/storytree-website");
+  await prepare();
+  assert.deepEqual(ran.slice(0, 2), [["git", "fetch", "-q", "origin"], ["git", "merge", "-q", "--ff-only", "origin/main"]], "fetched and brought to origin/main");
+  assert.ok(!ran.some(([command]) => command === "pnpm"), "no install: its own checks install");
+  assert.equal(await pushUrl(), "git@github.com:storytree-ai/storytree-website.git", "pushes go to its own repository over SSH");
+  // One pushing to storytree's repository is pointed at its own; one already SSH to it, through an alias, is kept.
+  await git("config", "remote.origin.pushurl", PUSH_URL);
+  await prepare();
+  assert.equal(await pushUrl(), "git@github.com:storytree-ai/storytree-website.git");
+  await git("config", "remote.origin.pushurl", "git@github.com-website:storytree-ai/storytree-website.git");
+  await prepare();
+  assert.equal(await pushUrl(), "git@github.com-website:storytree-ai/storytree-website.git");
+  // A checkout whose fetch URL is already SSH to its repository (the box's website checkout) gets no push URL.
+  await git("config", "--unset", "remote.origin.pushurl");
+  await git("config", "remote.origin.url", "git@github.com-website:storytree-ai/storytree-website.git");
+  await prepare();
+  assert.equal(await pushUrl(), "");
+
+  const website = await folder(t);
+  const b = await box(t, { count: async () => 0, rules: async () => "Work from {checkout}.\n",
+    survey: async (project) => poolWork(project === "storytree" ? ["increment_ours"] : ["increment_site"]) });
+  b.home = b.lanesDir;
+  b.env = { AGENT_POOL_CONFIG: join(b.lanesDir, "agent-pool.json") };
+  await writeFile(b.env.AGENT_POOL_CONFIG, JSON.stringify({ checkout: "/srv/storytree03", lanes: b.lanesDir, projects: [{ name: "storytree" }, { name: "storytree-website", checkout: website }] }));
+  delete b.briefPaths; delete b.projects;
+  const prepared = [];
+  b.prepare = async (...args) => { prepared.push(args); };
+  b.runLane = async (options) => { prepared.push(options.increment); b.briefs.push(options.brief); return 0; };
+  b.sleep = async () => { await new Promise((go) => setImmediate(go)); if (b.briefs.length === 2) await writeFile(join(b.lanesDir, "pool-stop"), ""); };
+  assert.equal(await main(["pool"], b), 0);
+  const before = (id) => prepared[prepared.indexOf(id) - 1];
+  assert.deepEqual(before("increment_site"), [website, "storytree-website"], "the website's checkout, refreshed as the website's");
+  assert.deepEqual(before("increment_ours"), [], "storytree's lane refreshes storytree's checkout, as it always has");
+});
+
+test("3.38 · another project's read-only, blind and planning lanes start in its checkout, briefed for its repository: the installed storytree command, and none of storytree's own roles or scripts", async (t) => {
+  const website = await folder(t);
+  const arcs = [{ id: "arc_plan", state: "active", title: "Plan me", created: "2026-10-01T00:00:00Z", openQuestions: 0 }];
+  const b = await box(t, { count: async () => 0, maxLanes: async () => 2,
+    survey: async (project) => project === "storytree" ? poolWork([])
+      : { ...poolWork(["increment_look", "increment_eye"], { bodies: { increment_look: "needs: read-only", increment_eye: "needs: blind" } }), arcs } });
+  b.home = b.lanesDir;
+  b.env = { AGENT_POOL_CONFIG: join(b.lanesDir, "agent-pool.json") };
+  await writeFile(b.env.AGENT_POOL_CONFIG, JSON.stringify({ checkout: "/srv/storytree03", lanes: b.lanesDir, projects: [{ name: "storytree" }, { name: "storytree-website", checkout: website }] }));
+  delete b.briefPaths; delete b.projects;
+  const lanes = {};
+  b.runLane = async (options) => { lanes[options.increment ?? "plan"] = { cwd: options.cwd, project: options.project, brief: await readFile(options.brief, "utf8") }; b.briefs.push(options.brief); return 0; };
+  b.sleep = async () => { await new Promise((go) => setImmediate(go)); if (b.briefs.length === 3) await writeFile(join(b.lanesDir, "pool-stop"), ""); };
+  assert.equal(await main(["pool"], b), 0);
+  assert.deepEqual(Object.keys(lanes).sort(), ["increment_eye", "increment_look", "plan"]);
+  for (const [id, lane] of Object.entries(lanes)) {
+    assert.equal(lane.cwd, website, `${id} starts in the website's checkout`);
+    assert.equal(lane.project, "storytree-website", id);
+    assert.ok(lane.brief.includes("project storytree-website"), `${id} is briefed for its project`);
+    assert.ok(lane.brief.includes("`storytree "), `${id} uses the installed command`);
+    assert.doesNotMatch(lane.brief, /pnpm (-s )?storytree|\.claude\/agents|\{\w+\}/, `${id}: nothing of storytree's own repository, and every slot filled`);
+  }
+  assert.match(lanes.plan.brief, /^# Planning lane: arc_plan\n/);
+  assert.match(lanes.increment_look.brief, /Rules for every read-only pool lane of project storytree-website/);
+  assert.match(lanes.increment_eye.brief, /^# Pool lane: increment_eye\n\nYour increment: increment_eye\. You are a blind reviewer/);
 });
 
 test("3.28 · a dispatcher whose machine names its own brief folder briefs its lanes from the copy there, and from the base's where it holds none", async (t) => {
@@ -692,6 +763,24 @@ test("3.31 · `stop` ends the dispatcher pool.pid names, and leaves a pid that i
   assert.equal(await main(["stop"], b), 0);
   assert.deepEqual(killed, [777], "a reused pid is not the dispatcher");
   assert.deepEqual(out, ["no dispatcher is running", "stopped dispatcher 777", "no dispatcher is running"]);
+});
+
+test("3.8 · a dispatcher started while a lane an earlier one started still runs leaves that lane's increment alone until its engine ends, its claim not yet made", async (t) => {
+  // The box on 2026-11-03: the service stopped the dispatcher 5 s after it started increment_a's lane, which ran on unclaimed.
+  let lanes = ["increment_a"];
+  const b = await box(t, { survey: async () => poolWork(["increment_a", "increment_b"]), count: async () => lanes.length, maxLanes: async () => 3, lanes: async () => lanes });
+  const started = [];
+  b.runLane = async (options) => { started.push(`${options.increment}${lanes.length ? " while increment_a's lane runs" : ""}`); options.say("2026-10-08T04:00:00Z engine claude allowance used"); return 0; };
+  let looks = 0;
+  b.sleep = async () => {
+    looks += 1;
+    await new Promise((go) => setImmediate(go));
+    // The earlier lane's engine ends a few looks after increment_b started.
+    if (started.length === 1 && looks > 5) lanes = [];
+    if (started.length === 2 || looks > 60) await writeFile(join(b.lanesDir, "pool-stop"), "");
+  };
+  assert.equal(await main(["pool"], b), 0);
+  assert.deepEqual(started, ["increment_b while increment_a's lane runs", "increment_a"], "increment_a starts only once the earlier lane's engine ended");
 });
 
 test("3.8 · a lane stopped by a signal leaves the pool running and its increment surveyed and started again; a lane exiting 75 still ends the pool", async () => {

@@ -12,7 +12,8 @@ import { readBoard, type BoardReads } from "./reads.js";
 export interface BoardState { status: "loading" | "refreshing" | "ready" | "error"; board?: BoardView; error?: string; /** What waits on the owner across the active arcs, whatever the scope on show (3.1). */ waiting?: number }
 export interface WatchBoardOptions { project: string; reads: BoardReads; timers?: Timers; kept?: Kept<BoardSnapshot>; /** The scope drawn first, so a kept board opens at the saved scope. */ scope?: BoardScope; onState(state: BoardState): void;
   /** The Closed tab's range drawn first; Today unless given (3.12). */ closedRange?: ClosedRange;
-  /** The page's one live reading, which the board hears; without it the board reads for itself. */ reading?: PageReading }
+  /** The page's one live reading, which the board hears; without it the board reads for itself. */ reading?: PageReading;
+  /** The page's start: until it settles the board reads nothing and hears no news (3.9; story node render 3.49). */ startAfter?: PromiseLike<unknown> }
 
 /** The records the board's work reading is made of: a change to any other leaves it as it was. */
 const WORK_TYPES: ReadonlySet<string> = new Set(["arc", "increment", "question"]);
@@ -24,7 +25,7 @@ export function isBoardSnapshot(value: unknown): value is BoardSnapshot {
     && value.arcs.every((view) => isRecord(view) && isRecord(view.arc) && Array.isArray(view.increments) && Array.isArray(view.questions) && typeof view.state === "string");
 }
 
-export function watchBoard({ project, reads, timers, kept, scope: startScope = "active", onState, reading: page, closedRange = { preset: "today" } }: WatchBoardOptions) {
+export function watchBoard({ project, reads, timers, kept, scope: startScope = "active", onState, reading: page, closedRange = { preset: "today" }, startAfter }: WatchBoardOptions) {
   let snapshot = kept?.read();
   let fresh = false;
   let log: readonly Line[] | LogReading = [];
@@ -88,24 +89,30 @@ export function watchBoard({ project, reads, timers, kept, scope: startScope = "
     quietMs = idleAfter ?? quietMs;
     log = reading.held(); now = timers?.now() ?? Date.now(); error = undefined; draw();
   };
-  // The board reads its own work at once (3.9), rather than waiting on the page reading's first read,
-  // which may be the whole history; news the page already held when it opened is in that read.
-  const since = reading.held().changes.at(-1)?.seq ?? 0;
-  let failed = false;
-  void readWork().catch((cause) => { failed = true; if (!stopped) { error = cause instanceof Error ? cause.message : String(cause); draw(); } });
-  const stopHearing = reading.subscribe({
-    onNews: async (news) => {
-      // The work is read again only for news that changes it (3.9): each read is every arc and hold.
-      // News that fails to be heard comes back joined with the next, so none is lost.
-      const rereads = failed || news.changes.some((change) => change.seq > since && WORK_TYPES.has(change.type));
-      if (rereads) { await readWork(); failed = false; return; }
-      quietMs = await reads.idleAfterMs?.().catch(() => undefined) ?? quietMs;
-      if (stopped) return;
-      log = reading.held(); now = timers?.now() ?? Date.now(); error = undefined; draw();
-    },
-    onClock: (at) => { now = at; draw(); },
-    onError: (cause) => { error = cause instanceof Error ? cause.message : String(cause); draw(); },
-  });
+  // The board reads its own work once the page's start has settled (3.9), rather than alongside the start's first read,
+  // or after the page reading's first read, which may be the whole history; news the page held by then is in that read.
+  let stopHearing = (): void => {};
+  const begin = (): void => {
+    if (stopped) return;
+    const since = reading.held().changes.at(-1)?.seq ?? 0;
+    let failed = false;
+    void readWork().catch((cause) => { failed = true; if (!stopped) { error = cause instanceof Error ? cause.message : String(cause); draw(); } });
+    stopHearing = reading.subscribe({
+      onNews: async (news) => {
+        // The work is read again only for news that changes it (3.9): each read is every arc and hold.
+        // News that fails to be heard comes back joined with the next, so none is lost.
+        const rereads = failed || news.changes.some((change) => change.seq > since && WORK_TYPES.has(change.type));
+        if (rereads) { await readWork(); failed = false; return; }
+        quietMs = await reads.idleAfterMs?.().catch(() => undefined) ?? quietMs;
+        if (stopped) return;
+        log = reading.held(); now = timers?.now() ?? Date.now(); error = undefined; draw();
+      },
+      onClock: (at) => { now = at; draw(); },
+      onError: (cause) => { error = cause instanceof Error ? cause.message : String(cause); draw(); },
+    });
+  };
+  if (startAfter === undefined) begin();
+  else void Promise.resolve(startAfter).then(begin, begin);
   return {
     setScope(next: BoardScope) { scope = next; askClosed(); draw(); },
     setClosedRange(next: ClosedRange) { range = next; askClosed(); draw(); },

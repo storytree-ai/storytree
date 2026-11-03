@@ -10,6 +10,8 @@ export interface AddedFolder {
   folder: string;
   /** The project a marker named that this computer's library does not have, replaced by setting the folder up here. */
   replaced?: string;
+  /** A folder set up whose code is only in languages the map cannot read: those languages (3.19). */
+  unreadable?: string[];
 }
 
 /** This computer's factory folder: storytree's own, or one switched to, with who switched it and when (2.22). */

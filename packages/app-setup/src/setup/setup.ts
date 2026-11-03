@@ -78,6 +78,14 @@ export interface SetupOptions {
    * connected it by starting storytree's tools in it. Every other harness gets hooks only where it already has some (8.43).
    */
   readonly calling?: Harness;
+  /** The plugins in this computer's factory that no part setting names, as the host that mounts them reads them; none without it. */
+  readonly unnamedPlugins?: () => readonly UnnamedPlugin[];
+}
+
+/** A factory plugin no part setting names, and the part `storytree settings set part <part> plugin <plugin>` names it as. */
+export interface UnnamedPlugin {
+  readonly plugin: string;
+  readonly part: string;
 }
 
 export interface SetupReport {
@@ -127,6 +135,8 @@ export interface SetupReport {
    * `.storytree/project.json`, which wins; and whether git tracks it. Undefined for every other folder.
    */
   readonly rootMarker?: RootMarker;
+  /** The factory plugins no part setting names (friction_f1d8f14c01e2); undefined when the check was given no reading of them. */
+  readonly unnamedPlugins?: readonly UnnamedPlugin[];
 }
 
 /** A root `.storytree.json` the setup check found (ADR-1191 D5). */
@@ -183,7 +193,8 @@ export async function runSetupCheck(options: SetupOptions): Promise<SetupReport>
   const first = committed === "made" || committed === "no identity" ? committed : undefined;
   const repository = here === undefined ? undefined : repositoryLack(here);
   const rootMarker = here === undefined ? undefined : rootMarkerIn(here);
-  const report = { storytree, hooks, codexServer, codexHooks, project, command, gh, machine, archives, hooksRelease: released, serverEntry, ...(options.connected === undefined ? {} : { connected: options.connected }), ...(repository === undefined ? {} : { repository }), ...(first === undefined ? {} : { firstCommit: first }), ...(rootMarker === undefined ? {} : { rootMarker }) };
+  const unnamedPlugins = options.unnamedPlugins?.();
+  const report = { storytree, hooks, codexServer, codexHooks, project, command, gh, machine, archives, hooksRelease: released, serverEntry, ...(options.connected === undefined ? {} : { connected: options.connected }), ...(repository === undefined ? {} : { repository }), ...(first === undefined ? {} : { firstCommit: first }), ...(rootMarker === undefined ? {} : { rootMarker }), ...(unnamedPlugins === undefined ? {} : { unnamedPlugins }) };
   return { ...report, lines: setupLines(report) };
 }
 

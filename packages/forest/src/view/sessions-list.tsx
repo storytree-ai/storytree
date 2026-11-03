@@ -369,10 +369,13 @@ export function ranFor(ms: number): string {
   return minutes < 60 ? `${minutes}m` : minutes % 60 === 0 ? `${Math.floor(minutes / 60)}h` : `${Math.floor(minutes / 60)}h ${minutes % 60}m`;
 }
 
-/** An expanded row's detail (7.8): its description's lines (7.14), then each worktree by its folder's name (full path on hover), then the files in its window, each block labelled. */
+/** An expanded row's detail (7.8): its description's lines (7.14), its work on main (7.20), then each worktree by its folder's name (full path on hover), then the files in its window, each block labelled. */
 function SessionDetail({ row, files }: { row: SessionRow; files: SessionFiles | undefined }) {
   return <div className="session-detail">
     {row.description.length > 0 && <div className="session-description">{row.description.map(said => <p key={said}>{said}</p>)}</div>}
+    {row.onMain !== undefined && <section className="session-detail-block session-on-main" data-tone={ON_MAIN_TONES[row.onMain]}>
+      <p className="session-detail-label">Work on main</p>
+      <p className="session-on-main-words">{ON_MAIN_WORDS[row.onMain]}: {ON_MAIN_LABELS[row.onMain]}</p></section>}
     {row.worktrees.length > 0 && <section className="session-detail-block">
       <p className="session-detail-label">Worktrees</p>
       <ul className="session-detail-worktrees" aria-label="Worktrees">
@@ -403,7 +406,7 @@ function busy(row: SessionRow): boolean {
   return !row.idle && row.state !== "observed" || row.children.some(busy);
 }
 
-/** Work on main as a row's label (7.20, ADR-0906): outside a workspace is a warning, a new repository's first commit is not; the reading's words on hover. */
+/** Work on main in a row's detail (7.20, ADR-0906 as narrowed by the owner): outside a workspace is a warning, a new repository's first commit is not. */
 const ON_MAIN_WORDS: Readonly<Record<OnMain, string>> = { "outside-workspace": "on main", "first-commit-pending": "first commit" };
 const ON_MAIN_TONES: Readonly<Record<OnMain, "warning" | "neutral">> = { "outside-workspace": "warning", "first-commit-pending": "neutral" };
 
@@ -458,7 +461,7 @@ export function SessionsList({ rows, loading = false, refreshing = false, error,
         onClick={() => onSelect?.(clickedSelection(rows, row.id, selected))}
         onKeyDown={event => { if (event.target === event.currentTarget && (event.key === "Enter" || event.key === " ")) {
           event.preventDefault(); onSelect?.(clickedSelection(rows, row.id, selected)); } }}
-        aria-label={`${row.label} · ${row.agent}${row.machine === undefined ? "" : ` on ${row.machine}`}${row.onMain === undefined ? "" : ` · ${ON_MAIN_LABELS[row.onMain]}`}`}
+        aria-label={`${row.label} · ${row.agent}${row.machine === undefined ? "" : ` on ${row.machine}`}`}
         onPointerEnter={() => setHovered(row.id)} onPointerLeave={() => setHovered(undefined)}
         onFocus={() => setFocused(row.id)} onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget)) setFocused(undefined); }}>
         {/* One expander per row, at its start (7.8): its detail, and its children while they are folded (7.2), counted by the "+N" after its name. */}
@@ -467,9 +470,9 @@ export function SessionsList({ rows, loading = false, refreshing = false, error,
           onClick={event => { event.stopPropagation(); onToggle(row.id); }} />
         <span className="session-dot" data-dot={dotOf(row)} title={dotWords(row)} aria-hidden="true" />
         {depth === 0 && <span className="session-colour" style={{ background: sessionColour(row.id) }} aria-hidden="true" />}
-        <span className="session-label" title={`${row.label}\n${row.agent} · ${row.id}${row.machine === undefined ? "" : ` · on ${row.machine}`}${row.state === "observed" ? "\nSubagent observed; current state unavailable" : ""}${row.worktrees.length > 0 ? `\n${row.worktrees.map(tree => tree.path).join("\n")}` : ""}`}>{row.label}</span>
-        {row.onMain !== undefined && <span className="session-on-main" data-tone={ON_MAIN_TONES[row.onMain]} title={ON_MAIN_LABELS[row.onMain]}>{ON_MAIN_WORDS[row.onMain]}</span>}
-        {row.machine !== undefined && <span className="session-machine" title={`Runs on ${row.machine}`}>{row.machine}</span>}
+        {/* The name and its machine (7.13): the machine wraps onto a hidden second line, so a narrow row drops it before the name is cut. */}
+        <span className="session-name-fit"><span className="session-label" title={`${row.label}\n${row.agent} · ${row.id}${row.machine === undefined ? "" : ` · on ${row.machine}`}${row.state === "observed" ? "\nSubagent observed; current state unavailable" : ""}${row.worktrees.length > 0 ? `\n${row.worktrees.map(tree => tree.path).join("\n")}` : ""}`}>{row.label}</span>
+        {row.machine !== undefined && <span className="session-machine" title={`Runs on ${row.machine}`}>{row.machine}</span>}</span>
         {row.children.length > 0 && !busy(row) && !isOpen(row.id) && <span className="session-children" aria-hidden="true">+{row.children.length}</span>}
         {row.worktrees.length > 1 && <span className="session-worktrees" title={row.worktrees.map(tree => tree.path).join("\n")}
           aria-label={`works in ${row.worktrees.length} worktrees`}>{row.worktrees.length} worktrees</span>}

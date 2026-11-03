@@ -117,3 +117,28 @@ test("3.17 Add project on a folder whose marker names a project this computer's 
   assert.equal(JSON.parse(readFileSync(path.join(picked, ".storytree", "project.json"), "utf8")).project, checkbox);
   assert.match(addedSentence(added!), /set up here as a new project: its marker named a project this computer's library does not have/);
 });
+
+test("3.19 Add project on a folder whose code is only in languages the map cannot read says so in its reply, naming them and what still works", async (t) => {
+  const dir = realpathSync.native(mkdtempSync(path.join(tmpdir(), "storytree-app-add-unread-")));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const home = path.join(dir, "home");
+  const service = `go-service-t-${randomBytes(4).toString("hex")}`;
+  const url = process.env.STORYTREE_TEST_PG_URL;
+  if (url === undefined) throw new Error("run the tests via `pnpm test`, which starts a local Postgres");
+  const library = await connect({ url });
+  t.after(async () => {
+    await library.close();
+    await dropTestDatabases([`storytree_${service}`]);
+  });
+  const picked = path.join(dir, service);
+  mkdirSync(picked);
+  writeFileSync(path.join(picked, "main.go"), "package main\n");
+  const actions = setupHelpActions({
+    licenseFile: "", storytreeHome: home, chooseFolder: async () => picked,
+    openExternal: async () => {}, copyText: async () => {}, library: () => library,
+  });
+
+  const added = await actions.addProject();
+  assert.deepEqual(added, { status: "set up", project: service, folder: picked, unreadable: ["Go"] });
+  assert.match(addedSentence(added!), /storytree's map reads JavaScript, TypeScript and Python, and this folder's code is in Go, so the map will not draw that code: planning by hand still works, and so does health from what the agent reports\./);
+});

@@ -49,6 +49,8 @@ interface Drawn {
   /** Where the arcs and the sessions list were mounted, and how the arcs speak to their tab's badge. */
   hosts: { arcs?: HTMLElement; sessions?: HTMLElement };
   waiting: ((count: number) => void) | undefined;
+  /** What the arcs were told to start reading after. */
+  arcsStart: PromiseLike<unknown> | undefined;
 }
 
 /** The page on stand-in surfaces; `answers` overrides the bridge and how each project's surfaces answer. */
@@ -88,7 +90,7 @@ function page(t: TestContext, answers: Partial<Pick<PageParts, "problem" | "proj
     project(name, timed) {
       const mine: Drawn = {
         name, mounted: [], stopped: [], reading: undefined, teaching: [], locate: undefined, readingNear: undefined, rendered: [], spaces: [], treeShown: 0, treeOpen: false,
-        kept: answers.kept, timed: undefined, hosts: {}, waiting: undefined,
+        kept: answers.kept, timed: undefined, hosts: {}, waiting: undefined, arcsStart: undefined,
         view: {
           scenes: 0, disposed: false, onSelect: () => {}, painted: deferred<void>(),
           show() { mine.view.scenes++; }, drawn: () => mine.view.painted.promise, select() {}, dispose() { mine.view.disposed = true; },
@@ -103,7 +105,7 @@ function page(t: TestContext, answers: Partial<Pick<PageParts, "problem" | "proj
         states: { part: () => "planned", add() {} },
         kept: { read: () => mine.kept, write: (written) => { mine.kept = written; } },
         drawing: { read: () => kept as never, write: (written) => { kept = written; } },
-        arcs: (host, on) => { mine.hosts.arcs = host; mine.waiting = on.onWaiting; return surface("arcs"); },
+        arcs: (host, on) => { mine.hosts.arcs = host; mine.waiting = on.onWaiting; mine.arcsStart = on.startAfter; return surface("arcs"); },
         treeSpace: () => {
           mine.mounted.push("capability-tree");
           return {
@@ -306,6 +308,35 @@ test("2.37 · a start with a kept forest is marked settled only once the globe h
   fresh.last().reading!.onSettled!();
   await settled();
   assert.equal(fresh.body.dataset.start, "settled", "a start with nothing kept settles with its reading, as before");
+});
+
+test("2.40 · the arcs read nothing until the page's start is settled, or until the forest's first read fails", async (t) => {
+  const told = (start: PromiseLike<unknown> | undefined) => {
+    let heard = false;
+    void start?.then(() => { heard = true; });
+    return () => heard;
+  };
+  const kept = page(t, { kept: tree });
+  await settled();
+  const project = kept.last();
+  const started = told(project.arcsStart);
+  await kept.land();
+  project.reading!.onSettled!();
+  await settled();
+  assert.equal(started(), false, "the forest reading settled, but the globe has drawn no frame of it yet");
+  project.view.painted.resolve();
+  await settled();
+  assert.equal(kept.body.dataset.start, "settled");
+  assert.equal(started(), true, "told once the start is settled");
+
+  const failing = page(t);
+  await settled();
+  const fails = told(failing.last().arcsStart);
+  await settled();
+  assert.equal(fails(), false);
+  failing.last().reading!.onError(new Error("the library is away"));
+  await settled();
+  assert.equal(fails(), true, "a first read that fails lets the arcs read for themselves");
 });
 
 test("2.27 · the kept forest is drawn at once, marked not fresh; a first read that fails says so over it or over the page, and once drawn a failure changes nothing", async (t) => {

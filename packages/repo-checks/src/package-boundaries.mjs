@@ -18,10 +18,11 @@ import { readFileSync } from "node:fs";
 import { packageProblems } from "./rules/package-rule/package-rule.ts";
 
 /** 0.3's own stories, each by the id its one package has (packages/<id>): a story owns exactly one package (ADR-1078 rule 4). */
-export const STORIES = ["agent-pool", "app", "app-setup", "arc-surface", "base-dev-loop", "ci-health", "cli", "forest", "forest-world", "keys", "knowledge-core", "library", "local-postgres", "map", "mark", "mcp-server", "plugin-loader", "project-and-caller", "repo-checks", "service-host", "session-management", "surface-feedback", "teaching-cards", "test-waits"];
-// agent-pool: story_b2051c0f7372 (Agent runner, ADR-1071 D3), which holds the Claude Code mod in src/claude-code-mod (ADR-1076 D5).
+export const STORIES = ["agent-pool", "app", "app-setup", "arc-surface", "base-dev-loop", "ci-health", "claude-code-mod", "cli", "forest", "forest-world", "keys", "knowledge-core", "library", "local-postgres", "map", "mark", "mcp-server", "plugin-loader", "project-and-caller", "repo-checks", "service-host", "session-management", "surface-feedback", "teaching-cards", "test-waits"];
+// agent-pool: story_b2051c0f7372 (Agent runner, ADR-1071 D3).
 // app-setup: story_b91056a06337 (Setup), which holds Journey events in src/journey-events (ADR-1076 D3).
 // app: story_a93c6fb1a257 (Desktop app), which holds Lag in real use in src/lag (ADR-1071 D3).
+// claude-code-mod: story_5da0dcea1405 (Claude Code mod, ADR-1216 D2), out of Agent runner: every Claude Code session carries it, so switching the runner off never touches it.
 // base-dev-loop: story_4aeaccd76a1a (Base dev loop, ADR-1170 D1, ADR-1192 D1): the gate runner, the test runner, the worktree installer and the merge-queue scripts.
 // forest: story_deee4230348c (Map view).
 // forest-world: story_ed2c6b55715d (The drawing engine, ADR-1076 D2), out of Map view again: Map view and the Website (now its own repository, ADR-1171) call it.

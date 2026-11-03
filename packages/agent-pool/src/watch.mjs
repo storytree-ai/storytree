@@ -911,6 +911,8 @@ function boxDefaults({ home = homedir(), env = process.env, platform = process.p
   const dir = join(lanesDir, "watch");
   const script = fileURLToPath(import.meta.url);
   const free = freeOf(env);
+  // The storytree home a hand-off's own project is read and written under.
+  const storytreeHome = env.STORYTREE_HOME || join(home, ".storytree", "0.3");
   const onBox = existsSync(join(lanesDir, "run-lane.sh"));
   const own = join(repo, "packages", "agent-pool", "src", "watch.mjs");
   const detached = (args, log, cwd) => {
@@ -933,9 +935,9 @@ function boxDefaults({ home = homedir(), env = process.env, platform = process.p
     limit: config.watcher.fixesPerRed, cap: config.watcher.fixesPerPullRequest, intervalMs: config.watcher.intervalMs, now: Date.now,
     session: env.CLAUDE_CODE_SESSION_ID?.trim() || env.CODEX_THREAD_ID?.trim() || "",
     storytree,
-    project: () => projectOf({ cwd: process.cwd(), repo, home: env.STORYTREE_HOME || join(home, ".storytree", "0.3") }),
+    project: () => projectOf({ cwd: process.cwd(), repo, home: storytreeHome }),
     // Which of the pool's other projects a handed-over increment is in, read from each one's checkout (4.49).
-    ownerOf: (increment) => ownerOf({ increment, projects: config.projects, home: env.STORYTREE_HOME || join(home, ".storytree", "0.3"),
+    ownerOf: (increment) => ownerOf({ increment, projects: config.projects, home: storytreeHome,
       has: (one, project) => storytree(["library", "read", one, "--field", "title"], project).then(() => true, () => false),
       repoOf: async (folder) => (await run("gh", ["repo", "view", "--json", "nameWithOwner", "--jq", ".nameWithOwner"], { cwd: folder })).stdout.trim() }),
     // The time of a project's repository cut-over, or nothing while it has none (the read refuses).

@@ -1334,3 +1334,78 @@ test("4.49 · a hand-over of another project's increment records that project's 
   assert.equal(risks, 0, "a merge on another repository reads none of storytree's risks");
   assert.ok(!(await readdir(b.dir)).includes("7.json"), "and it is forgotten");
 });
+
+test("4.49 · another project's hand-off is handed over on its repository, and its review, retries, refusals, give-up and cut-over all act in its own library and checkout", async (t) => {
+  const web = { folder: "/srv/web", home: "/h", name: "storytree-website", repo: "storytree-ai/storytree-website", checks: ["pnpm test"] };
+  const setUp = async (board = "") => {
+    const b = await box(t, { board });
+    const where = [];
+    b.options.storytree = async (args, project) => { b.calls.push(args); where.push(project); return args[0] === "noticeboard" ? board : ""; };
+    await hand({ ...b.options, pr: 7, increment: "increment_web", session: SESSION, branch: "claude/web", project: web, startWatcher: async () => {} });
+    b.calls.length = 0; where.length = 0;
+    const steps = () => b.calls.map((args, i) => [args.slice(0, 3).join(" "), where[i]?.folder ?? "storytree"]);
+    return { b, where, steps };
+  };
+  const rewrite = async (b, change) => writeFile(join(b.dir, "7.json"), JSON.stringify({ ...(await saved(b, 7)), ...change }));
+
+  // Handed over from storytree's checkout, as a website lane's brief says: asked of the website's repository, and handed over.
+  const asked = [], over = (await setUp()).b;
+  const theirs = async (pr, on) => { asked.push(on); return { ...view(pr), headRepository: { name: on.split("/")[1] } }; };
+  const code = await main(["handover", "8", "increment_web"], { onBox: true, session: SESSION, out: () => {}, ownerOf: async () => web, ownViewOf: theirs, viewOf: theirs,
+    dir: over.dir, project: async () => undefined, storytree: async () => "", pidFile: join(over.dir, "pid"), argsOf: async () => "", startWatcher: async () => 1 });
+  assert.equal(code, 0);
+  assert.deepEqual(asked, ["storytree-ai/storytree-website", "storytree-ai/storytree-website"], "its head is asked of its own repository, before and on the box");
+  assert.deepEqual((await saved(over, 8)).project, web, "and the box records it as the website's");
+
+  // Past its fix sessions, its review session starts in its checkout, with its own commands.
+  let s = await setUp();
+  await rewrite(s.b, { fixes: [{ at: minutes(-30), head: "a" }, { at: minutes(-20), head: "b" }] });
+  s.b.looks[7] = { ...red, head: "c" };
+  await watchOnce(s.b.options);
+  const [review] = s.b.reviews;
+  assert.deepEqual(review.project, web);
+  assert.match(review.brief, /Work from \/srv\/web\./);
+  assert.match(review.brief, /`node \/srv\/shop\/packages\/agent-pool\/src\/watch\.mjs verdict 7 flake/);
+  assert.match(review.brief, /`storytree question new --arc <arc>/);
+  assert.doesNotMatch(review.brief, /arc_1a42179de853|pnpm storytree/, "a test elsewhere is parked on its own arc, not storytree's flakes arc");
+
+  // A red outside its reach is refreshed from its own repository's main; a fix session reads how far behind its own main it is.
+  s = await setUp();
+  const refreshed = [], behind = [];
+  s.b.options.refresh = async (pr, head, on) => { refreshed.push(on); };
+  s.b.options.behind = async (head, on) => { behind.push(on); return { count: 0, subjects: [] }; };
+  s.b.looks[7] = flaky();
+  await watchOnce(s.b.options);
+  s.b.looks[7] = { ...red, head: "h9" };
+  await watchOnce(s.b.options);
+  assert.deepEqual([refreshed, behind], [["storytree-ai/storytree-website"], ["storytree-ai/storytree-website"]]);
+
+  // A fix session refused by another session's claim waits on that session's claims in its own library's noticeboard.
+  s = await setUp(`  - increment increment_web  other-session  fixing it\n`);
+  await rewrite(s.b, { fixes: [{ at: minutes(-30), head: "a", refused: true, refusedAt: minutes(-30), holder: "other-session" }] });
+  s.b.looks[7] = { ...red, head: "b" };
+  await watchOnce(s.b.options);
+  assert.equal(s.b.fixes.length, 0, "the holder still holds it");
+  assert.deepEqual(s.steps(), [["noticeboard", "/srv/web"]]);
+
+  // Open past its three days, it goes back on its own arc.
+  s = await setUp();
+  s.b.tick(4 * 86_400_000);
+  s.b.looks[7] = { state: "pending", head: "h1" };
+  await watchOnce(s.b.options);
+  assert.deepEqual(s.steps(), [["library read increment_web", "/srv/web"], ["arc increment edit", "/srv/web"], ["arc increment unwait", "/srv/web"], ["workspace let-go 7", "/srv/web"]]);
+
+  // Handed over before its repository's cut-over, it is forgotten in its own library.
+  s = await setUp();
+  s.b.options.cutover = async (project) => project?.folder === "/srv/web" ? minutes(60) : undefined;
+  await watchOnce(s.b.options);
+  assert.deepEqual(s.steps(), [["arc increment unwait", "/srv/web"], ["workspace let-go 7", "/srv/web"]]);
+
+  // One whose increment had already closed has no wait to clear before its fix session.
+  s = await setUp();
+  await rewrite(s.b, { closed: true });
+  s.b.looks[7] = { ...red, head: "h2" };
+  await watchOnce(s.b.options);
+  assert.equal(s.b.fixes.length, 1);
+  assert.deepEqual(s.steps(), [["workspace red 7", "/srv/web"]], "no unwait for a closed increment");
+});

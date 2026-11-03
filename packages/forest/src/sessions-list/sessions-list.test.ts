@@ -20,7 +20,7 @@ const arc = { arc: { id: "arc", fields: { title: "Build" } }, state: "active",
   increments: [{ id: "inc", fields: { title: "Finish signup", status: "active", capabilities: ["cap-two"] } }],
   questions: [{ id: "q", fields: { title: "Choose wording", lifecycle: "open" } }] } as ArcView;
 
-test("one row per non-ended claiming session at work, reason and held islands follow standing claims", () => {
+test("7.1, 7.10 one row per non-ended claiming session at work, reason and held islands follow standing claims", () => {
   const lines = log(claimed("cap-one", "Build signup"), claimed("cap-two", "Build signup"),
     { ...off, kind: "claimed", increment: "tidy", reason: "", at: "2026-09-28T11:45:00Z" },
     { ...child, kind: "session-ended" },
@@ -117,6 +117,10 @@ test("7.13 each row names the machine its session runs on only when the listed s
   assert.deepEqual(sessionRows(tree, lines, [], now).map(row => row.machine), ["laptop", "mint", undefined]);
   const one = log({ ...parent, kind: "session-started", machine: "laptop" }, { ...off, kind: "session-started", machine: "laptop" });
   assert.deepEqual(sessionRows(tree, one, [], now).map(row => row.machine), [undefined, undefined], "one machine is not worth naming");
+  const idleElsewhere = log({ ...parent, kind: "session-started", machine: "laptop" },
+    { ...off, kind: "session-started", machine: "mint", at: "2026-09-28T11:15:00Z" });
+  assert.deepEqual(sessionRows(tree, idleElsewhere, [], now).map(row => [row.id, row.machine]), [["parent", undefined]],
+    "an idle session on another machine is not listed, so the list spans one machine");
 });
 
 test("a session whose hooks report no turns is judged by the idle-after setting the list is given, not a fixed 30 minutes", () => {

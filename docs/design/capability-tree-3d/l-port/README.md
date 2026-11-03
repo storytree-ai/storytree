@@ -20,22 +20,25 @@ shipping lines all stay the same. Only add thickness for more lines merging." (r
   - a low building at the coast with a door on the land side, where the road arrives;
   - two towers either side in the gate posts' slate, shading and ink-and-paper top, about three times a post's height
     and capped wider, so it reads as the gates' kin and not as another gate;
-  - a light stone jetty out over the water at the cliff top on two slim piles, with its shadow on the sea; the white
-    coastline breaks under it.
+  - no jetty: Mick, "remove the jetty though dont think its needed". The lanes end just off the building's front, where
+    the white coastline breaks.
+- **Islands 3 units thick** (the map's own `SHEET_LAND_THICKNESS`, 9 before; chosen from `../m-height/`).
 - `?sea=map` draws the map's own lanes. `?lane=#rrggbb` and `?laneMix=0.6` try another lane tone, and `?port=1.3` scales the
   port.
 
 ## Looking at it
 
-- A solid quay down to the water read as a stone pillar, because the cliff is about 8 units tall, so the quay is a deck on
-  piles instead.
+- A solid quay down to the water read as a stone pillar on the 9-unit cliff, then a jetty on piles; with 3-unit islands
+  and no jetty the building and towers stand on the coast alone.
+
+![Before and after: 9 units with the jetty, 3 units without](stills/before-after-port.png)
 - At rest the lanes read as chart lines, and the ports as small pale marks where they meet the island.
 - At Keys the line leaves the berth with a small curl before it turns along the coast (the hand-drawn way out, as in
   `i-sea-lanes/`).
 
 ## Next
 
-1. Whether the jetty earns its place, or whether the building and towers alone are enough at the coast.
+1. The way out at Keys kinks where it leaves the port.
 2. Ports on the other islands, where the lanes now just stop at the coast.
 3. The legend still describes purple and teal roads.
 

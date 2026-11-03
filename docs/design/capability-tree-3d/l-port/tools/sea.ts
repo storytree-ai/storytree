@@ -5,10 +5,10 @@
  * merging." So (`?sea=port`, the default):
  * - the line: the map's own lanes (pathways:selection-lanes) followed piece by piece, each stretch drawn once however many
  *   lanes share it, in and out alike, one solid pale sea-blue, a step wider only where more lanes share it; mixed opaque into
- *   the sea so shared stretches show no knots. It stops at every coast, and at the selected island it ends off a quay's head,
+ *   the sea so shared stretches show no knots. It stops at every coast, and at the selected island it ends just off the port,
  *   never on the road. The map's purple and teal lanes, their pips and the tan band they ride are hidden;
- * - the port, at each landing (the mouth, Keys' landfall): a stone quay jutting from the cliff top over the water, a low
- *   building at its root where the sandy road ends, and two towers either side in the gate posts' own slate, shading and
+ * - the port, at each landing (the mouth, Keys' landfall): a low building at the coast where the sandy road ends (the
+ *   jetty an earlier take had is gone: Mick, "remove the jetty though dont think its needed"), and two towers either side in the gate posts' own slate, shading and
  *   ink top, but twice as tall and capped, so it reads as the gates' kin and not a gate;
  * - `map`: the map's own lanes, as round 11 drew them. */
 import { BufferGeometry, Color, DoubleSide, Float32BufferAttribute, Group, Matrix4, Mesh, MeshBasicMaterial, Vector3,
@@ -33,12 +33,12 @@ const JOIN_CLEAR = 80;
 const SNAP = 10;
 /** How far off the coast the reach from Keys' landfall rounds the island, in ground units. */
 const OFFSHORE = 6;
-/** The port, in ground units: the quay's reach past the coast and half width, the building, the towers. `?port=<scale>`
+/** The port, in ground units: the berth, the building, the towers. `?port=<scale>`
  * scales it all. */
 const SCALE = Number(QUERY.get("port") ?? 1);
 const PORT = {
-  quay: { reach: 4 * SCALE, half: 1.5 * SCALE, deck: 0.45 * SCALE, stone: "#a7aeb3" },
-  berth: 1.1 * SCALE,
+  /** The lanes end this far off the coast, in front of the building. */
+  berth: 3 * SCALE,
   house: { along: 2.4 * SCALE, half: 2.0 * SCALE, height: 1.6 * SCALE, roof: "#2a3036" },
   tower: { side: 1.4 * SCALE, height: 3.3 * SCALE, cap: 1.75 * SCALE, capDepth: 0.35 * SCALE, apart: 0.6 * SCALE },
   /** Keys' landfall carries one link, so its port is smaller. */
@@ -96,12 +96,12 @@ export function seaLayer({ state, root, story, docks, heightAt, light, post }: S
   const toWorld = root.matrixWorld;
   const onIsland = (p: P) => !!islandAt(new Vector3(p.x, heightAt(p), p.z).applyMatrix4(toWorld));
 
-  // Each landing's port: the coast found walking out from the road's end, the quay beyond it, its berth off the quay's head.
+  // Each landing's port: the coast found walking out from the road's end, its berth a little off the coast.
   const ports = docks.map(d => {
     const l = Math.hypot(d.sea.x - d.at.x, d.sea.z - d.at.z) || 1, u = { x: (d.sea.x - d.at.x) / l, z: (d.sea.z - d.at.z) / l };
     let t = 0; while (t < 30 && onIsland({ x: d.at.x + u.x * t, z: d.at.z + u.z * t })) t += 0.2;
     const k = d.dir === "down" ? 1 : PORT.small, coast = { x: d.at.x + u.x * t, z: d.at.z + u.z * t };
-    const berth = { x: coast.x + u.x * (PORT.quay.reach * k + PORT.berth), z: coast.z + u.z * (PORT.quay.reach * k + PORT.berth) };
+    const berth = { x: coast.x + u.x * PORT.berth, z: coast.z + u.z * PORT.berth };
     return { ...d, u, n: { x: -u.z, z: u.x }, k, coast, inland: t, berth };
   });
 
@@ -202,7 +202,9 @@ export function seaLayer({ state, root, story, docks, heightAt, light, post }: S
     const steps = Math.max(2, Math.ceil(Math.abs(dt) / 0.3)), round: P[] = [];
     for (let k = 1; k < steps; k++) { const t = t0 + dt * k / steps, r = reachAt(t); round.push({ x: cx + Math.cos(t) * r, z: cz + Math.sin(t) * r }); }
     const nx = local(j.next, 0);
-    const all = catmull([j.port.berth, sea0, ...round, endP, { x: nx.x, z: nx.z }]);
+    // From just off the port's front, so the way out visibly leaves the port.
+    const front = { x: j.port.coast.x + j.port.u.x * 0.8, z: j.port.coast.z + j.port.u.z * 0.8 };
+    const all = catmull([front, j.port.berth, sea0, ...round, endP, { x: nx.x, z: nx.z }]);
     let kEnd = 0, dEnd = Infinity; all.forEach((p, i) => { const dd = Math.hypot(p.x - endP.x, p.z - endP.z); if (dd < dEnd) { dEnd = dd; kEnd = i; } });
     const path = all.slice(0, kEnd + 1), h = WIDTHS[0]! / 2;
     path.forEach((p, i) => {
@@ -251,25 +253,12 @@ export function seaLayer({ state, root, story, docks, heightAt, light, post }: S
     pts.sort((p, r) => Math.atan2(p.z - c0.z, p.x - c0.x) - Math.atan2(r.z - c0.z, r.x - c0.x));
     flat([c0, ...pts, pts[0]!], p => y(p) + 0.05, black, 27, post.shadow * 1.6);
   };
-  const body = new Color(post.body), ink = new Color(post.ink), paper = new Color(post.paper), stone = new Color(PORT.quay.stone), roof = new Color(PORT.house.roof);
+  const body = new Color(post.body), ink = new Color(post.ink), paper = new Color(post.paper), roof = new Color(PORT.house.roof);
   const ground = (p: P) => heightAt(p), seaY = (p: P) => heightAt(p) - seaDrop;
   const portStats: Record<string, unknown>[] = [];
   for (const port of ports) {
     const { u, n, k } = port, top = heightAt(port.coast);
-    // The quay: a stone deck at the cliff top, from a little inland of the coast out over the water, walls down to the sea.
-    const qa = PORT.quay.reach * k, qh = PORT.quay.half * k;
-    const qc = { x: port.coast.x + u.x * (qa - 0.8) / 2, z: port.coast.z + u.z * (qa - 0.8) / 2 }, quay = rect(qc, u, n, (qa + 0.8) / 2, qh);
-    // A jetty, not a pier of rock: a thin deck at the cliff top on slim piles down to the water, its shadow on the sea.
-    const deck = PORT.quay.deck * k;
-    shadow(quay, seaDrop * 0.5, seaY);
-    walls(quay, top + 0.06 - deck, top + 0.06, stone, mid => onIsland(mid));
-    for (const j of [-1, 1]) {
-      const pc = { x: port.coast.x + u.x * (qa - 0.35) + n.x * (qh - 0.35) * j, z: port.coast.z + u.z * (qa - 0.35) + n.z * (qh - 0.35) * j };
-      walls(rect(pc, u, n, 0.2 * k, 0.2 * k), seaY, top - deck, ink.clone().lerp(body, 0.35));
-    }
-    flat(quay, top + 0.06, stone, 29);
-    flat(rect(qc, u, n, (qa + 0.8) / 2 - 0.18, qh - 0.18), top + 0.07, stone.clone().lerp(paper, 0.35), 29);
-    // The building: a low block at the quay's root, where the road ends, its long side facing the land.
+    // The building: a low block at the coast, where the road ends, its long side facing the land.
     const ha = PORT.house.along * k / 2, hh = PORT.house.half * k, tall = PORT.house.height * k;
     const hc = { x: port.coast.x - u.x * (ha + 0.15), z: port.coast.z - u.z * (ha + 0.15) }, house = rect(hc, u, n, ha, hh);
     shadow(house, tall, ground);
@@ -296,12 +285,12 @@ export function seaLayer({ state, root, story, docks, heightAt, light, post }: S
     const sg = new BufferGeometry(); sg.setAttribute("position", new Float32BufferAttribute(sides.pos, 3)); sg.setAttribute("color", new Float32BufferAttribute(sides.col, 3));
     const sm = new Mesh(sg, new MeshBasicMaterial({ vertexColors: true, side: DoubleSide, depthWrite: true, depthTest: true, fog: false })); sm.renderOrder = 32; sm.raycast = () => {}; group.add(sm);
   }
-  // The white coastline is cut under each quay, so the quay stands out over the water through it.
+  // The white coastline breaks in front of each building, where the lanes come in.
   const cutCoast = () => {
     for (const c of own) {
       const geo = c.mesh.geometry; if (c.mesh.userData.gapFor === geo.uuid) continue;
       const at = geo.getAttribute("position") as BufferAttribute, index = geo.getIndex()!, keep: number[] = [];
-      const open = (i: number) => { v.set(at.getX(i), at.getY(i), at.getZ(i)).applyMatrix4(c.mesh.matrixWorld).applyMatrix4(toRoot); return ports.some(p => Math.hypot(v.x - p.coast.x, v.z - p.coast.z) < PORT.quay.half * p.k + 0.3); };
+      const open = (i: number) => { v.set(at.getX(i), at.getY(i), at.getZ(i)).applyMatrix4(c.mesh.matrixWorld).applyMatrix4(toRoot); return ports.some(p => Math.hypot(v.x - p.coast.x, v.z - p.coast.z) < PORT.house.half * p.k + 0.3); };
       for (let t = 0; t < index.count; t += 3) { const tri = [index.getX(t), index.getX(t + 1), index.getX(t + 2)]; if (!tri.some(open)) keep.push(...tri); }
       geo.setIndex(keep); c.mesh.userData.gapFor = geo.uuid;
     }

@@ -33,8 +33,9 @@ export const SHEET_GLASS_THICKNESS = 4;
 export const SHEET_FOV = 35;
 
 /** Every island's thickness on the sheet (ADR-1059 D2), from its land down to the glass, in ground units: one for all, so
- * an island's height stays free to carry a signal later. */
-export const SHEET_LAND_THICKNESS = 9;
+ * an island's height stays free to carry a signal later. Three, Mick's pick from 9, 5 and 3 (2026-11-04): the sides still
+ * show at rest, and the land's own relief reads as height beside them. */
+export const SHEET_LAND_THICKNESS = 3;
 
 /** How far above its resting place an island's plate is raised on the sheet, for its land to stand that thick on the glass. */
 export const SHEET_LAND_LIFT = SHEET_LAND_THICKNESS - SHEET_GLASS_BELOW;

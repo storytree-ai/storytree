@@ -12,7 +12,8 @@ import { readBoard, type BoardReads } from "./reads.js";
 export interface BoardState { status: "loading" | "refreshing" | "ready" | "error"; board?: BoardView; error?: string; /** What waits on the owner across the active arcs, whatever the scope on show (3.1). */ waiting?: number }
 export interface WatchBoardOptions { project: string; reads: BoardReads; timers?: Timers; kept?: Kept<BoardSnapshot>; /** The scope drawn first, so a kept board opens at the saved scope. */ scope?: BoardScope; onState(state: BoardState): void;
   /** The Closed tab's range drawn first; Today unless given (3.12). */ closedRange?: ClosedRange;
-  /** The page's one live reading, which the board hears; without it the board reads for itself. */ reading?: PageReading }
+  /** The page's one live reading, which the board hears; without it the board reads for itself. */ reading?: PageReading;
+  /** The page's start: until it settles the board reads nothing and hears no news (3.9; story node render 3.49). */ startAfter?: PromiseLike<unknown> }
 
 /** The records the board's work reading is made of: a change to any other leaves it as it was. */
 const WORK_TYPES: ReadonlySet<string> = new Set(["arc", "increment", "question"]);

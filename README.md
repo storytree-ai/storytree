@@ -104,6 +104,26 @@ curl -fsSL https://raw.githubusercontent.com/storytree-ai/storytree/release-chan
   display (`DISPLAY` or `WAYLAND_DISPLAY` set). On a machine with no desktop (a server, a container,
   WSL without its graphics layer, a box reached over ssh) the install cannot finish.
 
+### Stable or alpha
+
+The commands above install the stable channel: a build that was tried before it was offered, which
+can be weeks and hundreds of releases behind the newest. To follow every release as soon as it is
+published, install the alpha channel instead. On Windows:
+
+```powershell
+& ([scriptblock]::Create((Invoke-RestMethod 'https://github.com/storytree-ai/storytree/releases/latest/download/install-storytree.ps1'))) -Channel alpha
+```
+
+On a Mac or Linux:
+
+```sh
+curl -fsSL https://github.com/storytree-ai/storytree/releases/latest/download/install-storytree.sh | sh -s -- --channel alpha
+```
+
+An installation keeps its channel, so neither command switches one already installed. To switch,
+use **Updates → Update channel** in the app where your build has it; otherwise run
+`storytree setup uninstall` first, then the other channel's command.
+
 ## Keys
 
 Storytree borrows the logins you already have (Claude Code or Codex, `gh`, Google sign-in), so most

@@ -2,7 +2,8 @@
 import { homedir } from "node:os";
 import path from "node:path";
 import { codexHookTrust } from "@storytree/session-management";
-import { factoryFolder, makeFactoryFolder, setFactory } from "@storytree/project-and-caller";
+import { factoryFolder, makeFactoryFolder, readStandIns, setFactory } from "@storytree/project-and-caller";
+import { unnamedPlugins } from "@storytree/plugin-loader/factory";
 
 import { HARNESS_IDS, watchedHarness, type Harness } from "@storytree/project-and-caller/caller";
 
@@ -83,7 +84,7 @@ export function setupHelpActions(options: {
       if (folder === undefined) return null;
       // With no hook command supplied this is a diagnostic, not a second hook installer.
       // The returned fixes direct the user to their installed agent session for recovery.
-      return (await runSetupCheck({ folder, storytreeHome: options.storytreeHome, openWaitMs: 2_000 })).lines;
+      return (await runSetupCheck({ folder, storytreeHome: options.storytreeHome, openWaitMs: 2_000, unnamedPlugins: () => unnamedPlugins(readStandIns(options.storytreeHome)) })).lines;
     },
     async factoryFolder() {
       return factoryFolder(options.storytreeHome);

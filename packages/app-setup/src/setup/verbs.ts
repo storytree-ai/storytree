@@ -86,6 +86,11 @@ function machineSaid(report: SetupReport): string[] {
     .map((line) => (line.fix === undefined ? line.message : `${line.message} Fix: ${line.fix}`));
 }
 
+/** Each factory plugin no part setting names, and the command that names it (8.45). */
+function factorySaid(report: SetupReport): string[] {
+  return (report.unnamedPlugins ?? []).map(({ plugin, part }) => `This computer's factory holds the plugin ${plugin}, which no part setting names, so nothing of it is mounted: \`storytree settings set part ${part} plugin ${plugin}\` names it, for a session started after.`);
+}
+
 /** When storytree last heard from a hook in `project`, and from which harness. */
 async function lastHook(library: ConnectOptions, project: string): Promise<string> {
   const { connect } = await import("@storytree/library");
@@ -157,8 +162,11 @@ export const DOCTOR = verb({
     const hook = await hookBeside(context.script);
     const { homedir } = await import("node:os");
     const { runSetupCheck } = await import("./setup.js");
+    const [{ readStandIns }, { unnamedPlugins }] = await Promise.all([import("@storytree/project-and-caller"), import("@storytree/plugin-loader/factory")]);
     const report = await runSetupCheck({
       folder: context.folder,
+      // The factory's plugins no part setting names, as check_setup reads them (8.45).
+      unnamedPlugins: () => unnamedPlugins(readStandIns()),
       look: input.repair !== true,
       // Run from a Claude Code session's shell, which Claude Code strips of its CLAUDE_CODE_OAUTH_TOKEN, that session is the asking one (8.11).
       // and its harness is connected by asking, so --repair registers its hooks even where it has none yet (8.43).
@@ -215,7 +223,7 @@ export const DOCTOR = verb({
         await storytree.close();
       }
     }
-    said.push(...commandSaid(report), ...ghSaid(report), ...machineSaid(report));
+    said.push(...commandSaid(report), ...ghSaid(report), ...machineSaid(report), ...factorySaid(report));
     return { text: said.join("\n"), next };
   },
 });

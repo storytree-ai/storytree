@@ -11,7 +11,7 @@
  *   entrance gate where it enters the territory it calls, its click target; no arrowheads (the panel says which way);
  * - a picked link lit in gold along its whole way over the shared roads; a picked shared road lists what it carries;
  * - 6C's wrench, upright and constant on screen like a claim flag, at the entrance gate its work changes. */
-import { BufferGeometry, CircleGeometry, Color, DoubleSide, Float32BufferAttribute, Group, Matrix4, Mesh, MeshBasicMaterial,
+import { BufferGeometry, CircleGeometry, Color, DoubleSide, Float32BufferAttribute, FrontSide, Group, Matrix4, Mesh, MeshBasicMaterial,
   Raycaster, Vector2, Vector3, type Camera, type BufferAttribute, type LineSegments } from "three";
 import type { RootState } from "@react-three/fiber";
 import type { TerritoryMap } from "../../../../../packages/forest/src/territories/territories.js";
@@ -49,8 +49,24 @@ const ROAD_STYLES: Record<string, RoadStyle> = {
   "sand-faint": { border: { colour: "#f4f7f8", alpha: 0.4 }, layers: [{ colour: "#e2d3aa", alpha: 0.7, widths: [0.5, 0.7, 0.95, 1.3] }] },
   "worn-faint": { border: { colour: "#f4f7f8", alpha: 0.4 }, layers: [{ colour: "#000000", alpha: 0.16, widths: [0.6, 0.8, 1.1, 1.5] }] },
 };
-const ROAD_KEY = typeof location === "undefined" ? "r10" : new URLSearchParams(location.search).get("road") ?? "r10";
+const QUERY = typeof location === "undefined" ? new URLSearchParams() : new URLSearchParams(location.search);
+/** Mick's pick, 2026-11-03: "17 sandy track" (the swatches' 17); `?road=<key>` shows another. */
+const ROAD_KEY = QUERY.get("road") ?? "sand-faint";
 const ROAD = ROAD_STYLES[ROAD_KEY] ?? ROAD_STYLES.r10!;
+/** Round 11's relief (Mick's pick: the relief pieces' 4, bevel and standing posts, with 5's ramps only where open land meets
+ * a territory): every territory a plateau `height` above the open land, all at one height, with walls where it stands above
+ * the open land or the coast and a soft shadow on the open land; a ramp where a road climbs from the open land into a
+ * territory; a bevel rim inside each border, light where it faces the light and dark where it faces away, broken at each
+ * gate; the gate posts standing up. `?relief=0` draws round 10's flat land and flat posts. Values from the pieces'
+ * relief-tools/relief.ts, the height raised for the island's smaller scale. */
+const RELIEF = QUERY.get("relief") === "0" ? undefined : {
+  height: 1.3,
+  wall: { lit: 0.84, away: 0.56 },
+  shadow: { alpha: 0.3, reach: 1.0, feather: 0.9 },
+  ramp: { width: 3.4, depth: 3.2 },
+  rim: { width: 0.9, light: 0.45, dark: 0.36, hold: 0.45 },
+  post: { side: 1.2, entrance: 1.4, height: 1.5, entranceHeight: 1.7, faceRatio: 0.62, body: "#59626a", shadow: 0.3, reach: 0.8 },
+};
 /** The island's bare ground as it shows on the page (round 11's still), under the see-through territory fills. */
 const GROUND_HEX = "#686d70";
 
@@ -341,11 +357,49 @@ export function overlayLayer(state: RootState, story: string, data: Data, host: 
 
   // ── Draw ───────────────────────────────────────────────────────────────────────────────────────────────────────────
   const group = new Group(); group.name = "mock-overlay-lines"; root.add(group);
-  const y = (up: number) => (p: P) => heightAt(p) + SIZE.lift + up;
+  const H = RELIEF?.height ?? 0;
+  const dot = (a: P, b: P) => a.x * b.x + a.z * b.z;
+  const perp = (a: P): P => ({ x: -a.z, z: a.x });
+  const at = (p: P, d: P, k: number): P => ({ x: p.x + d.x * k, z: p.z + d.z * k });
+  // The light, from the upper left of the page at rest, as a direction on the ground (toward the light).
+  const L = (() => {
+    const o = project(lift({ x: 0, z: 0 })).page, ax = project(lift({ x: 10, z: 0 })).page, az = project(lift({ x: 0, z: 10 })).page;
+    const m00 = (ax.x - o.x) / 10, m01 = (az.x - o.x) / 10, m10 = (ax.y - o.y) / 10, m11 = (az.y - o.y) / 10, det = m00 * m11 - m01 * m10 || 1;
+    return norm({ x: (m11 * -1 - m01 * -1) / det, z: (-m10 * -1 + m00 * -1) / det });
+  })();
+  // A ramp at every gate between a territory and the open land, on the open land's side, climbing to the territory.
+  type Ramp = { at: P; along: P; out: P; gate: Gate; territory: string };
+  const ramps: Ramp[] = [];
+  if (RELIEF) for (const g of gates) if (g.open) {
+    const n = perp(g.along), out = territoryAt(at(g.at, n, 0.8)) === "open" ? n : { x: -n.x, z: -n.z };
+    const territory = territoryAt(at(g.at, out, -0.8));
+    if (territory && territory !== "open") ramps.push({ at: g.at, along: g.along, out, gate: g, territory });
+  }
+  const onRamp = (p: P) => {
+    for (const r of ramps) { const d = sub(p, r.at), u = dot(d, r.along), w = dot(d, r.out); if (Math.abs(u) <= RELIEF!.ramp.width / 2 && w >= -0.05 && w <= RELIEF!.ramp.depth) return 1 - Math.max(0, w) / RELIEF!.ramp.depth; }
+    return undefined;
+  };
+  /** How far a point stands above the open land: a territory's plateau, or part way up a ramp. */
+  const raise = (p: P) => { if (!RELIEF) return 0; const t = territoryAt(p); if (t && t !== "open") return H; return (onRamp(p) ?? 0) * H; };
+  const topAt = (p: P) => heightAt(p) + raise(p);
+  const liftTop = (p: P, up = 0) => new Vector3(p.x, topAt(p) + up, p.z);
+  const y = (up: number) => (p: P) => topAt(p) + SIZE.lift + up;
+  /** A way resampled every half unit, so what it carries follows the ramps. */
+  const dense = (pts: P[]) => { const out: P[] = [pts[0]!]; for (let i = 1; i < pts.length; i++) { const a = pts[i - 1]!, b = pts[i]!, n = Math.max(1, Math.ceil(dist(a, b) / 0.5)); for (let k = 1; k <= n; k++) out.push({ x: a.x + (b.x - a.x) * k / n, z: a.z + (b.z - a.z) * k / n }); } return out; };
+  // The map's own territories (fills and borders) lifted onto the plateau; again whenever the map redraws them.
+  const raiseLand = () => {
+    if (!RELIEF) return;
+    for (const o of [land, land.parent?.getObjectByName("territory-borders")]) if (o) { o.userData.baseY ??= o.position.y; o.position.y = (o.userData.baseY as number) + H; }
+  };
+  raiseLand();
+  const GROUND = new Color(GROUND_HEX);
+  /** The colour a point shows: its territory's fill over the island's ground, or the bare ground. */
+  const under = (p: P) => { const t = territoryAt(p), f = t && t !== "open" ? fillOf.get(t) : undefined; if (!f) return GROUND.clone(); const m = f.mesh.material as MeshBasicMaterial; return GROUND.clone().lerp(new Color(f.colour), m.transparent ? m.opacity : 1); };
+  const fillShown = (t: string) => under(at(anchorOf(t), { x: 0, z: 0 }, 0)).clone();
   const mat = (colour: string, opacity = 1) => new MeshBasicMaterial({ color: colour, transparent: true, opacity, side: DoubleSide, depthWrite: false, depthTest: false, fog: false });
   const casingMat = mat(PALETTE.casing, 0.88);
   const add = (geometry: BufferGeometry, m: MeshBasicMaterial, order: number) => { const o = new Mesh(geometry, m); o.renderOrder = order; o.raycast = () => {}; group.add(o); return o; };
-  const disc = (p: P, r: number, m: MeshBasicMaterial, order: number, up: number) => { const g = new CircleGeometry(r, 20); g.rotateX(-Math.PI / 2); const o = add(g, m, order); o.position.copy(lift(p, SIZE.lift + up)); return o; };
+  const disc = (p: P, r: number, m: MeshBasicMaterial, order: number, up: number) => { const g = new CircleGeometry(r, 20); g.rotateX(-Math.PI / 2); const o = add(g, m, order); o.position.copy(liftTop(p, SIZE.lift + up)); return o; };
   const coreMats = new Map<string, MeshBasicMaterial[]>();
   const keep = (key: string, m: MeshBasicMaterial) => { m.userData.colour ??= `#${m.color.getHexString()}`; coreMats.set(key, [...(coreMats.get(key) ?? []), m]); return m; };
   /** A road's width, by how many links it carries: a quiet step at 2, 4 and 8. */
@@ -368,17 +422,15 @@ export function overlayLayer(state: RootState, story: string, data: Data, host: 
   } else {
     // Round 11: each layer opaque, its colour mixed into the land under each point, so a faint road joins without dark knots.
     const cls = (n: number) => n >= 8 ? 3 : n >= 4 ? 2 : n >= 2 ? 1 : 0;
-    const GROUND = new Color(GROUND_HEX);
-    const under = (p: P) => { const t = territoryAt(p), f = t && t !== "open" ? fillOf.get(t) : undefined; if (!f) return GROUND.clone(); const m = f.mesh.material as MeshBasicMaterial; return GROUND.clone().lerp(new Color(f.colour), m.transparent ? m.opacity : 1); };
     ROAD.layers.forEach((layer, li) => {
       const ink = new Color(layer.colour), mix = (p: P) => under(p).lerp(ink, layer.alpha);
       const m = new MeshBasicMaterial({ vertexColors: true, transparent: true, opacity: 1, side: DoubleSide, depthWrite: false, depthTest: false, fog: false });
-      for (const s of segments) add(ribbon(s.pts, layer.widths[cls(s.links.length)]!, y(0.02 * li), mix), m, 10 + li);
-      for (const { at, n } of ends.values()) { const g = new CircleGeometry(layer.widths[cls(n)]! / 2, 16); g.rotateX(-Math.PI / 2); const o = add(g, new MeshBasicMaterial({ color: mix(at), transparent: true, opacity: 1, side: DoubleSide, depthWrite: false, depthTest: false, fog: false }), 10 + li); o.position.copy(lift(at, SIZE.lift + 0.02 * li + 0.005)); }
+      for (const s of segments) add(ribbon(dense(s.pts), layer.widths[cls(s.links.length)]!, y(0.02 * li), mix), m, 10 + li);
+      for (const { at, n } of ends.values()) { const g = new CircleGeometry(layer.widths[cls(n)]! / 2, 16); g.rotateX(-Math.PI / 2); const o = add(g, new MeshBasicMaterial({ color: mix(at), transparent: true, opacity: 1, side: DoubleSide, depthWrite: false, depthTest: false, fog: false }), 10 + li); o.position.copy(liftTop(at, SIZE.lift + 0.02 * li + 0.005)); }
     });
     // A picked road lights in gold on a thin dark edge, so it holds on yellow land.
     for (const s of segments) {
-      const edge = add(ribbon(s.pts, SIZE.line + 0.6, y(0.04)), mat(PALETTE.casing, 0.75), 12), gold = add(ribbon(s.pts, SIZE.line, y(0.05)), mat(PALETTE.lit), 13);
+      const edge = add(ribbon(dense(s.pts), SIZE.line + 0.6, y(0.04)), mat(PALETTE.casing, 0.75), 12), gold = add(ribbon(dense(s.pts), SIZE.line, y(0.05)), mat(PALETTE.lit), 13);
       edge.visible = gold.visible = false; litRoad.set(`road:${s.id}`, [edge, gold]);
     }
   }
@@ -387,8 +439,8 @@ export function overlayLayer(state: RootState, story: string, data: Data, host: 
   const litWay = new Map<string, Mesh>();
   const litEdge = new Map<string, Mesh>();
   for (const w of ways) {
-    const o = add(ribbon(w.pts, SIZE.line, y(0.05)), litMat, 13); o.visible = false; litWay.set(w.key, o);
-    if (ROAD_KEY !== "r10") { const e = add(ribbon(w.pts, SIZE.line + 0.6, y(0.04)), mat(PALETTE.casing, 0.75), 12); e.visible = false; litEdge.set(w.key, e); }
+    const o = add(ribbon(dense(w.pts), SIZE.line, y(0.05)), litMat, 13); o.visible = false; litWay.set(w.key, o);
+    if (ROAD_KEY !== "r10") { const e = add(ribbon(dense(w.pts), SIZE.line + 0.6, y(0.04)), mat(PALETTE.casing, 0.75), 12); e.visible = false; litEdge.set(w.key, e); }
   }
   // The settlements, over the roads that meet there: a paper disc ringed in ink, graded by how many roads meet.
   const inkTown = mat(PALETTE.ink), paperTown = mat(PALETTE.paper);
@@ -406,16 +458,142 @@ export function overlayLayer(state: RootState, story: string, data: Data, host: 
     return add(bar(a, b, side, y(up)), m, order);
   };
   const inkMat = mat(PALETTE.post);
+  /** Coloured triangles: `tri(a, b, c, colour)` with points in the root's frame; one mesh per call of `solid`. */
+  const solid = (order: number, opts: { depth?: boolean; front?: boolean } = {}) => {
+    const pos: number[] = [], col: number[] = [];
+    const tri = (a: Vector3, b: Vector3, c: Vector3, ca: Color, cb = ca, cc = ca) => { pos.push(a.x, a.y, a.z, b.x, b.y, b.z, c.x, c.y, c.z); col.push(ca.r, ca.g, ca.b, cb.r, cb.g, cb.b, cc.r, cc.g, cc.b); };
+    /** A quad a-b-c-d; with `facing`, wound so its front faces that way on the ground (a vertical face seen from outside). */
+    const quad = (a: Vector3, b: Vector3, c: Vector3, d: Vector3, ca: Color, cb = ca, cc = cb, cd = ca, facing?: P) => {
+      if (facing) { const n = new Vector3().subVectors(b, a).cross(new Vector3().subVectors(c, a)); if (n.x * facing.x + n.z * facing.z < 0) { tri(a, c, b, ca, cc, cb); tri(a, d, c, ca, cd, cc); return; } }
+      tri(a, b, c, ca, cb, cc); tri(a, c, d, ca, cc, cd);
+    };
+    const done = () => {
+      const g = new BufferGeometry(); g.setAttribute("position", new Float32BufferAttribute(pos, 3)); g.setAttribute("color", new Float32BufferAttribute(col, 3));
+      return add(g, new MeshBasicMaterial({ vertexColors: true, transparent: true, opacity: 1, side: opts.front ? FrontSide : DoubleSide, depthWrite: !!opts.depth, depthTest: !!opts.depth, fog: false }), order);
+    };
+    return { tri, quad, done };
+  };
+  const shade = (c: Color, facing: P) => { const k = (dot(norm(facing), L) + 1) / 2; return c.clone().multiplyScalar(RELIEF ? RELIEF.wall.away + (RELIEF.wall.lit - RELIEF.wall.away) * k : 1); };
+  const openingOf = (g: Gate) => Math.max(SIZE.opening, (ROAD_KEY === "r10" ? widthOf(g.links.length) : ROAD.layers.at(-1)!.widths[g.links.length >= 8 ? 3 : g.links.length >= 4 ? 2 : g.links.length >= 2 ? 1 : 0]!) + 2);
+  const postSolid = RELIEF ? solid(17, { depth: true }) : undefined, postShadow = RELIEF ? solid(16) : undefined;
   for (const g of gates) {
     const m = mat(PALETTE.paper);
-    const [outer, face] = g.entranceOf ? [SIZE.entrancePost, SIZE.entranceFace] : [SIZE.post, SIZE.face];
-    const opening = Math.max(SIZE.opening, (ROAD_KEY === "r10" ? widthOf(g.links.length) : ROAD.layers.at(-1)!.widths[g.links.length >= 8 ? 3 : g.links.length >= 4 ? 2 : g.links.length >= 2 ? 1 : 0]!) + 2);
-    for (const side of [-1, 1]) {
-      const c = { x: g.at.x + g.along.x * (opening / 2 + outer / 2) * side, z: g.at.z + g.along.z * (opening / 2 + outer / 2) * side };
-      square(c, g.along, outer, inkMat, 17, 0.12);
-      square(c, g.along, face, m, 18, 0.14);
+    const opening = openingOf(g), ramp = ramps.find(r => r.gate === g);
+    if (!RELIEF) {
+      const [outer, face] = g.entranceOf ? [SIZE.entrancePost, SIZE.entranceFace] : [SIZE.post, SIZE.face];
+      for (const side of [-1, 1]) {
+        const c = { x: g.at.x + g.along.x * (opening / 2 + outer / 2) * side, z: g.at.z + g.along.z * (opening / 2 + outer / 2) * side };
+        square(c, g.along, outer, inkMat, 17, 0.12);
+        square(c, g.along, face, m, 18, 0.14);
+      }
+    } else {
+      // Standing posts: an ink-edged top with a paper face, slate sides shaded by the light, a soft shadow away from it.
+      const P = RELIEF.post, side = g.entranceOf ? P.entrance : P.side, tall = g.entranceOf ? P.entranceHeight : P.height;
+      const gap = ramp ? Math.max(opening, RELIEF.ramp.width) : opening, nrm = perp(g.along);
+      for (const sgn of [-1, 1]) {
+        let c = at(g.at, g.along, (gap / 2 + side / 2) * sgn);
+        if (ramp) c = at(c, ramp.out, -(side / 2 + 0.15));
+        const base = heightAt(c) + (RELIEF ? Math.max(raise(at(c, nrm, 0.3)), raise(at(c, nrm, -0.3))) : 0), h = side / 2;
+        const foot = [at(at(c, g.along, -h), nrm, -h), at(at(c, g.along, h), nrm, -h), at(at(c, g.along, h), nrm, h), at(at(c, g.along, -h), nrm, h)];
+        const v = (q: P, up: number) => new Vector3(q.x, base + up, q.z), body = new Color(P.body);
+        for (let i = 0; i < 4; i++) { const a = foot[i]!, b = foot[(i + 1) % 4]!, out = sub(at(a, sub(b, a), 0.5), c); postSolid!.quad(v(a, 0), v(b, 0), v(b, tall), v(a, tall), shade(body, out), undefined, undefined, undefined, out); }
+        const ink = new Color(PALETTE.post);
+        postSolid!.quad(v(foot[0]!, tall), v(foot[1]!, tall), v(foot[2]!, tall), v(foot[3]!, tall), ink);
+        const f = side * P.faceRatio / 2, faceAt = [at(at(c, g.along, -f), nrm, -f), at(at(c, g.along, f), nrm, -f), at(at(c, g.along, f), nrm, f), at(at(c, g.along, -f), nrm, f)];
+        const faceGeom = new BufferGeometry(); faceGeom.setAttribute("position", new Float32BufferAttribute(faceAt.flatMap(q => [q.x, base + tall + 0.02, q.z]), 3)); faceGeom.setIndex([0, 1, 2, 0, 2, 3]);
+        const faceMat = new MeshBasicMaterial({ color: PALETTE.paper, transparent: true, opacity: 1, side: DoubleSide, depthWrite: true, depthTest: true, fog: false });
+        add(faceGeom, faceMat, 18); if (g.entranceOf) keep(g.entranceOf, faceMat);
+        // The shadow: the footprint swept away from the light, flat on the ground beside it.
+        const away = { x: -L.x * tall * P.reach, z: -L.z * tall * P.reach }, hull = [...foot, ...foot.map(q => ({ x: q.x + away.x, z: q.z + away.z }))];
+        const mid = { x: hull.reduce((a, q) => a + q.x, 0) / hull.length, z: hull.reduce((a, q) => a + q.z, 0) / hull.length };
+        hull.sort((a, b) => Math.atan2(a.z - mid.z, a.x - mid.x) - Math.atan2(b.z - mid.z, b.x - mid.x));
+        for (let i = 0; i < hull.length; i++) { const a = hull[i]!, b = hull[(i + 1) % hull.length]!; postShadow!.tri(v(mid, 0.04), v(a, 0.04), v(b, 0.04), under(mid).lerp(new Color("#000"), P.shadow)); }
+      }
     }
-    if (g.entranceOf) keep(g.entranceOf, m);
+    if (!RELIEF && g.entranceOf) keep(g.entranceOf, m);
+  }
+  postSolid?.done(); postShadow?.done();
+
+  // ── The relief: walls and shadows round the plateaus, ramps, and the bevel rims inside the borders ─────────────────
+  const reliefStats = { walls: 0, ramps: ramps.length, rims: 0 };
+  if (RELIEF) {
+    const R = RELIEF, black = new Color("#000"), white = new Color("#fff");
+    /** The stretches of a-b (as [from, to] fractions) left once `holes` (each a centre and a half-width along it) are cut. */
+    const keepOf = (a: P, b: P, holes: { at: P; half: number }[]) => {
+      const l = dist(a, b) || 1, u = { x: (b.x - a.x) / l, z: (b.z - a.z) / l }, cut = holes.filter(h => toSegment(h.at, a, b) < 0.6).map(h => { const t = dot(sub(h.at, a), u) / l; return [t - h.half / l, t + h.half / l] as [number, number]; }).sort((x, y2) => x[0] - y2[0]);
+      const out: [number, number][] = []; let from = 0;
+      for (const [h0, h1] of [...cut, [1, 1] as [number, number]]) { const to = Math.max(from, Math.min(1, h0)); if (to - from > 1e-3) out.push([from, to]); from = Math.max(from, h1); }
+      return out;
+    };
+    const lerpP = (a: P, b: P, t: number): P => ({ x: a.x + (b.x - a.x) * t, z: a.z + (b.z - a.z) * t });
+    const rampHoles = ramps.map(r => ({ at: r.at, half: R.ramp.width / 2 }));
+    // Walls: every edge of a territory's fill that no other territory shares (onto the open land, or the coast).
+    const walls = solid(9, { front: true }), shadows = solid(8);
+    const edges = new Map<string, { a: P; b: P; c: P; t: string; n: number }>();
+    for (const [t, f] of fillOf) {
+      const g = f.mesh.geometry, pos = g.getAttribute("position"), idx = g.getIndex(), count = (idx ? idx.count : pos.count) / 3;
+      for (let k = 0; k < count; k++) {
+        const ps = [0, 1, 2].map(j => { const i = idx ? idx.getX(3 * k + j) : 3 * k + j; return { x: pos.getX(i), z: pos.getZ(i) }; });
+        for (let e = 0; e < 3; e++) {
+          const a = ps[e]!, b = ps[(e + 1) % 3]!, key = [a, b].map(q => `${q.x.toFixed(3)},${q.z.toFixed(3)}`).sort().join("|");
+          const was = edges.get(key);
+          if (was) was.n++; else edges.set(key, { a, b, c: ps[(e + 2) % 3]!, t, n: 1 });
+        }
+      }
+    }
+    for (const e of edges.values()) {
+      if (e.n !== 1) continue;
+      let n = norm(perp(sub(e.b, e.a))); if (dot(n, sub(e.c, e.a)) > 0) n = { x: -n.x, z: -n.z };
+      const mid = lerpP(e.a, e.b, 0.5), beyond = territoryAt(at(mid, n, 0.5));
+      if (beyond && beyond !== "open") continue;
+      const fill = under(at(mid, n, -0.5)), face = shade(fill, n);
+      for (const [t0, t1] of keepOf(e.a, e.b, beyond === "open" ? rampHoles : [])) {
+        const a = lerpP(e.a, e.b, t0), b = lerpP(e.a, e.b, t1);
+        walls.quad(new Vector3(a.x, heightAt(a) + H, a.z), new Vector3(b.x, heightAt(b) + H, b.z), new Vector3(b.x, heightAt(b) - 0.05, b.z), new Vector3(a.x, heightAt(a) - 0.05, a.z), face, face, face, face, n);
+        reliefStats.walls++;
+        // Its shadow on the open land, where the wall faces away from the light.
+        const k = -dot(n, L);
+        if (beyond === "open" && k > 0) {
+          const A = R.shadow.alpha * Math.sqrt(k), r1 = R.shadow.reach * Math.sqrt(k), r2 = r1 + R.shadow.feather;
+          const g0 = GROUND.clone().lerp(black, A), g1 = GROUND.clone().lerp(black, A * 0.85), g2 = GROUND.clone();
+          const v = (q: P) => new Vector3(q.x, heightAt(q) + 0.02, q.z);
+          shadows.quad(v(a), v(b), v(at(b, n, r1)), v(at(a, n, r1)), g0, g0, g1, g1);
+          shadows.quad(v(at(a, n, r1)), v(at(b, n, r1)), v(at(b, n, r2)), v(at(a, n, r2)), g1, g1, g2, g2);
+        }
+      }
+    }
+    walls.done(); shadows.done();
+    // Ramps: a slope from the open land up to the plateau, its two cheeks first so the slope covers the far one.
+    const cheeks = solid(9.2), slopes = solid(9.4);
+    for (const r of ramps) {
+      const fill = fillShown(r.territory), w = R.ramp.width / 2, d = R.ramp.depth;
+      const e1 = at(r.at, r.along, -w), e2 = at(r.at, r.along, w), f1 = at(e1, r.out, d), f2 = at(e2, r.out, d);
+      const top = (q: P) => new Vector3(q.x, heightAt(q) + H, q.z), low = (q: P) => new Vector3(q.x, heightAt(q) + 0.01, q.z);
+      cheeks.tri(top(e1), low(e1), low(f1), shade(fill, { x: -r.along.x, z: -r.along.z }));
+      cheeks.tri(top(e2), low(e2), low(f2), shade(fill, r.along));
+      const slope = fill.clone().multiplyScalar(0.9 + 0.08 * dot(r.out, L));
+      slopes.quad(top(e1), top(e2), low(f2), low(f1), fill, fill, slope, slope);
+    }
+    cheeks.done(); slopes.done();
+    // Bevel rims: inside each border, on each territory's side, broken at every gate.
+    const rims = solid(9.6), gateHoles = gates.map(g => ({ at: g.at, half: openingOf(g) / 2 + (g.entranceOf ? R.post.entrance : R.post.side) + 0.2 }));
+    for (const seg of borderSegs) {
+      const n = norm(perp(sub(seg.b, seg.a)));
+      for (const sgn of [1, -1]) {
+        const into = { x: n.x * sgn, z: n.z * sgn }, mid = lerpP(seg.a, seg.b, 0.5), t = territoryAt(at(mid, into, 0.4));
+        if (!t || t === "open") continue;
+        const k = dot({ x: -into.x, z: -into.z }, L), fill = under(at(mid, into, 0.4));
+        const edge = fill.clone().lerp(k > 0 ? white : black, (k > 0 ? R.rim.light : R.rim.dark) * Math.sqrt(Math.abs(k)));
+        const hold = fill.clone().lerp(edge, 0.85);
+        for (const [t0, t1] of keepOf(seg.a, seg.b, gateHoles)) {
+          const a = lerpP(seg.a, seg.b, t0), b = lerpP(seg.a, seg.b, t1), v = (q: P) => new Vector3(q.x, heightAt(q) + H + 0.06, q.z);
+          rims.quad(v(a), v(b), v(at(b, into, R.rim.width * R.rim.hold)), v(at(a, into, R.rim.width * R.rim.hold)), edge, edge, hold, hold);
+          rims.quad(v(at(a, into, R.rim.width * R.rim.hold)), v(at(b, into, R.rim.width * R.rim.hold)), v(at(b, into, R.rim.width)), v(at(a, into, R.rim.width)), hold, hold, fill, fill);
+          reliefStats.rims++;
+        }
+      }
+    }
+    rims.done();
   }
 
   // ── The wrenches: 6C's rule, at the entrance gate of the link its work changes (its most central entrance) ───────────
@@ -440,7 +618,7 @@ export function overlayLayer(state: RootState, story: string, data: Data, host: 
       <g transform="translate(0 -27) scale(0.66)"><path class="glyph" d="${WRENCH}" fill="${PALETTE.ink}"/></g>
     </svg>`;
     overlay.appendChild(el);
-    const s = { el, at: lift(g.at, SIZE.lift), via };
+    const s = { el, at: liftTop(g.at, SIZE.lift), via };
     spots.push(s); wrenches.set(id, s);
   }
   let frame = 0;
@@ -455,14 +633,14 @@ export function overlayLayer(state: RootState, story: string, data: Data, host: 
   const raycaster = new Raycaster();
   const gateAt = (x: number, yy: number) => {
     let best: string | undefined, d = 10;
-    for (const [key, g] of entranceGate) { const q = project(lift(g.at, SIZE.lift)).page, dd = Math.hypot(q.x - x, q.y - yy); if (dd < d) { d = dd; best = key; } }
+    for (const [key, g] of entranceGate) { const q = project(liftTop(g.at, SIZE.lift)).page, dd = Math.hypot(q.x - x, q.y - yy); if (dd < d) { d = dd; best = key; } }
     return best;
   };
   /** The road segment under a point on the page. */
   const lineAt = (x: number, yy: number) => {
     let best: (typeof segments)[number] | undefined, d = 6;
     for (const s of segments) {
-      const pts = s.pts.map(p => project(lift(p, SIZE.lift)).page);
+      const pts = s.pts.map(p => project(liftTop(p, SIZE.lift)).page);
       for (let i = 0; i + 1 < pts.length; i++) { const dd = toSegment({ x, z: yy }, { x: pts[i]!.x, z: pts[i]!.y }, { x: pts[i + 1]!.x, z: pts[i + 1]!.y }); if (dd < d) { d = dd; best = s; } }
     }
     return best;
@@ -474,7 +652,7 @@ export function overlayLayer(state: RootState, story: string, data: Data, host: 
     }
     const gate = gateAt(x, yy);
     if (gate) return { kind: "link", id: gate };
-    for (const [id, at] of towns) { const q = project(lift(at, SIZE.lift)).page; if (Math.hypot(q.x - x, q.y - yy) < 7) return { kind: "territory", id }; }
+    for (const [id, at] of towns) { const q = project(liftTop(at, SIZE.lift)).page; if (Math.hypot(q.x - x, q.y - yy) < 7) return { kind: "territory", id }; }
     // A road carrying one link opens that link; a shared road opens the road, with the links it carries.
     const line = lineAt(x, yy);
     if (line) return line.links.length === 1 ? { kind: "link", id: line.links[0]! } : { kind: "road", id: String(line.id) };
@@ -505,25 +683,25 @@ export function overlayLayer(state: RootState, story: string, data: Data, host: 
   /** Where a mark stands on the page: a link by its entrance gate, a territory by a clear point in it. */
   const point = (kind: string, id: string) => {
     if (kind === "wrench") { const w = wrenches.get(id); if (!w) return undefined; const b = w.el.querySelector(".plate")!.getBoundingClientRect(); return { x: b.left + b.width / 2, y: b.top + b.height / 2 }; }
-    if (kind === "gate") { const g = entranceGate.get(id); return g ? project(lift(g.at, SIZE.lift)).page : undefined; }
-    if (kind === "town") { const t = towns.get(id); return t ? project(lift(t, SIZE.lift)).page : undefined; }
-    if (kind === "mouth") return project(lift(layout.harbour.dock, SIZE.lift)).page;
+    if (kind === "gate") { const g = entranceGate.get(id); return g ? project(liftTop(g.at, SIZE.lift)).page : undefined; }
+    if (kind === "town") { const t = towns.get(id); return t ? project(liftTop(t, SIZE.lift)).page : undefined; }
+    if (kind === "mouth") return project(liftTop(layout.harbour.dock, SIZE.lift)).page;
     if (kind === "road") {
       const s = segments.find(x => String(x.id) === id);
       if (!s) return undefined;
-      for (const t of [0.5, 0.4, 0.6, 0.3, 0.7]) { const q = project(lift(s.pts[Math.round(t * (s.pts.length - 1))]!, SIZE.lift)).page, hit = pick(q.x, q.y); if (hit?.kind === "road" && hit.id === id) return q; }
+      for (const t of [0.5, 0.4, 0.6, 0.3, 0.7]) { const q = project(liftTop(s.pts[Math.round(t * (s.pts.length - 1))]!, SIZE.lift)).page, hit = pick(q.x, q.y); if (hit?.kind === "road" && hit.id === id) return q; }
       return undefined;
     }
     if (kind === "territory") {
       const nm = anchorOf(id);
       for (let r = 3; r < 30; r += 1) for (let a = 0; a < 360; a += 20) {
-        const p = { x: nm.x + r * Math.cos(a * Math.PI / 180), z: nm.z + r * Math.sin(a * Math.PI / 180) }, q = project(lift(p)).page;
+        const p = { x: nm.x + r * Math.cos(a * Math.PI / 180), z: nm.z + r * Math.sin(a * Math.PI / 180) }, q = project(liftTop(p)).page;
         if (territoryAt(p) === id && !underName(p, 4) && clearance(p) > 1.5 && !lineAt(q.x, q.y) && !gateAt(q.x, q.y) && pick(q.x, q.y)?.kind === "territory") return q;
       }
       return undefined;
     }
     const g = entranceGate.get(id);
-    if (g) { const q = project(lift(g.at, SIZE.lift)).page, hit = pick(q.x, q.y); if (hit?.kind === "link" && hit.id === id) return q; }
+    if (g) { const q = project(liftTop(g.at, SIZE.lift)).page, hit = pick(q.x, q.y); if (hit?.kind === "link" && hit.id === id) return q; }
     return undefined;
   };
 
@@ -542,14 +720,14 @@ export function overlayLayer(state: RootState, story: string, data: Data, host: 
     waysPerSegment: { mean: +(segments.reduce((s, x) => s + x.links.length, 0) / segments.length).toFixed(2), most: Math.max(...segments.map(x => x.links.length)) },
     shared: segments.filter(s => s.links.length > 1).map(s => ({ id: s.id, links: s.links.length })).sort((a, b) => b.links - a.links).slice(0, 8),
     towns: [...towns.keys()].map(id => ({ capability: byId.get(id)?.title, roads: degree.get(id) ?? 0 })),
-    gatesOnOpenLand: gates.filter(g => g.open).length,
+    gatesOnOpenLand: gates.filter(g => g.open).length, relief: reliefStats, road: ROAD_KEY,
     noEntrance: ways.filter(w => !entranceGate.has(w.key)).map(w => w.key),
     wrenches: [...wrenches].map(([id, w]) => ({ capability: byId.get(id)?.title, via: w.via })),
   };
   return {
     pick, find, highlight, point, links, fills, stats, roads: new Map(segments.map(s => [String(s.id), s.links])),
     wrenches: new Map([...wrenches].map(([id, w]) => [id, { at: w.via }])),
-    keep: () => { cutLanes(); cutBorders(); },
+    keep: () => { cutLanes(); cutBorders(); raiseLand(); },
     dispose() { cancelAnimationFrame(frame); overlay.remove(); root.remove(group); },
   };
 }

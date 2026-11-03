@@ -35,9 +35,9 @@ export type SurveyedTest = {
 export type EdgeFile = { readonly from: string; readonly to?: string; readonly typeOnly: boolean; readonly forwarder?: true; readonly plumbing?: "build step" | "cleanup" };
 
 /**
- * An edge the code derives from a story to another (ADR-0991 D1, D2): from its capability to the other
- * story's, type-only when every import behind it is. A capability absent at either end makes it a story
- * edge with no capability edge under it; `files` names the imports that cause it.
+ * An edge the code derives from a story to another (ADR-0991 D1, D2), or to itself between two of its capabilities: from
+ * its capability to the other's, type-only when every import behind it is. A capability absent at either end makes it a
+ * story edge with no capability edge under it; `files` names the imports, or the manifest parts loaded, that cause it.
  */
 export type CodeEdge = { readonly story: string; readonly from?: string; readonly to?: string; readonly typeOnly: boolean; readonly files: readonly EdgeFile[] };
 
@@ -46,7 +46,7 @@ export type StorySurvey = {
   readonly imports: readonly FileImport[];
   /** Numbered tests and helpers; absent only in older saved surveys. */
   readonly tests?: readonly SurveyedTest[];
-  /** The edges its source files' imports of other stories' packages derive, by capability (ADR-0991 D1, D2); absent in older saved surveys. */
+  /** The edges its source files' imports and manifest loads derive, by capability (ADR-0991 D1, D2), its own story's included; absent in older saved surveys. */
   readonly edges?: readonly CodeEdge[];
   /** The stories whose packages this story's package depends on, through any field of its package.json; absent when it has none (ADR-0840 D2). */
   readonly dependsOn?: readonly string[];

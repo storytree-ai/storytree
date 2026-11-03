@@ -452,6 +452,76 @@ test("8.33 an edge file the checkout's storytree.check.json declares as a build 
   }
 });
 
+test("8.45 an import between two capabilities' source files in one story is an edge to its own story, from the importer's capability to the defining file's, type-only when every import behind it is; one capability's own imports make none", async () => {
+  const folder = await mkdtemp(path.join(tmpdir(), "code-survey-inner-edges-"));
+  const stories = { arcs: [], stories: [{ id: "story-shop", title: "Shop", capabilities: [{ id: "cap-cart", title: "1 · Cart" }, { id: "cap-pay", title: "2 · Pay" }, { id: "cap-tax", title: "3 · Tax" }] }] } as unknown as AnnotatedTree;
+  try {
+    await writePackages(folder, {
+      shop: {
+        "package.json": JSON.stringify({ name: "@x/shop", exports: { "./pay": "./src/pay.ts" } }),
+        // Through its own barrel, by relative path, to the file defining what it takes; and by its own package's name.
+        "src/cart.ts": 'import { rate } from "./tax/index.js";\nimport { pay } from "@x/shop/pay";\nimport { line } from "./line.js";\nexport const cart = rate + pay() + line;\n',
+        "src/line.ts": "export const line = 1;\n",
+        "src/tax/index.ts": 'export { rate } from "./rate.js";\n',
+        "src/tax/rate.ts": "export const rate = 1;\n",
+        // Types alone make a type-only edge.
+        "src/pay.ts": 'import type { Rate } from "./tax/types.js";\nexport const pay = (): Rate => 1;\n',
+        "src/tax/types.ts": "/** Capability 3 · Tax. */\nexport type Rate = number;\n",
+        "src/cart.test.ts": 'import { cart } from "./cart.js";\nimport { line } from "./line.js";\ntest("1.1 cart", () => cart + line);\n',
+        "src/pay.test.ts": 'import { pay } from "./pay.js";\ntest("2.1 pay", () => pay);\n',
+        "src/tax.test.ts": 'import { rate } from "./tax/index.js";\nimport type { Rate } from "./tax/types.js";\ntest("3.1 tax", () => rate);\n',
+      },
+    });
+    const survey = await codeSurveyReader().read(folder, stories);
+    assert.deepEqual(edgeLines(survey["story-shop"]), [
+      "cap-cart > story-shop:cap-pay value",
+      "cap-cart > story-shop:cap-tax value",
+      "cap-pay > story-shop:cap-tax types",
+    ], "cart's import of its own line makes no edge");
+    assert.deepEqual(survey["story-shop"]?.edges?.find((edge) => edge.from === "cap-cart" && edge.to === "cap-tax")?.files, [{ from: "src/cart.ts", to: "src/tax/rate.ts", typeOnly: false }]);
+  } finally {
+    await removeTemp(folder);
+  }
+});
+
+test("8.46 a source file calling composeParts with a literal kind is an edge from its capability to the capability of the file defining each part of that kind its package's story dependencies declare in their storytree manifests", async () => {
+  const folder = await mkdtemp(path.join(tmpdir(), "code-survey-manifest-edges-"));
+  const stories = { arcs: [], stories: [
+    { id: "story-host", title: "Host", capabilities: [{ id: "cap-tools", title: "1 · Tools" }] },
+    { id: "story-lib", title: "Lib", capabilities: [{ id: "cap-rounds", title: "1 · Rounds" }, { id: "cap-guide", title: "2 · Guide" }] },
+    { id: "story-other", title: "Other", capabilities: [{ id: "cap-else", title: "1 · Else" }] },
+  ] } as unknown as AnnotatedTree;
+  try {
+    await writePackages(folder, {
+      host: {
+        "package.json": JSON.stringify({ name: "@x/host", dependencies: { "@x/lib": "workspace:*" } }),
+        "src/parts/tools.ts": 'import { composeParts } from "@x/loader";\nexport default await composeParts(import.meta.url, "tools");\n',
+        "src/parts.test.ts": 'import tools from "./parts/tools.js";\ntest("1.1 tools", () => tools);\n',
+      },
+      lib: {
+        "package.json": JSON.stringify({ name: "@x/lib", exports: { "./tools": "./src/tools/index.ts", "./guide": "./src/guide.ts" },
+          storytree: { tools: [{ from: "./tools", export: "toolParts" }], guidance: [{ from: "./guide", export: "guide" }] } }),
+        "src/tools/index.ts": 'export { toolParts } from "./rounds.js";\n',
+        "src/tools/rounds.ts": "export const toolParts = [];\n",
+        "src/guide.ts": "export const guide = [];\n",
+        "src/rounds.test.ts": 'import { toolParts } from "./tools/rounds.js";\ntest("1.1 rounds", () => toolParts);\n',
+        "src/guide.test.ts": 'import { guide } from "./guide.js";\ntest("2.1 guide", () => guide);\n',
+      },
+      // Declares tools too, but the host's package does not depend on it.
+      other: {
+        "package.json": JSON.stringify({ name: "@x/other", exports: { "./tools": "./src/tools.ts" }, storytree: { tools: [{ from: "./tools", export: "toolParts" }] } }),
+        "src/tools.ts": "export const toolParts = [];\n",
+        "src/tools.test.ts": 'import { toolParts } from "./tools.js";\ntest("1.1 else", () => toolParts);\n',
+      },
+    });
+    const survey = await codeSurveyReader().read(folder, stories);
+    assert.deepEqual(edgeLines(survey["story-host"]), ["cap-tools > story-lib:cap-rounds value"]);
+    assert.deepEqual(survey["story-host"]?.edges?.[0]?.files, [{ from: "src/parts/tools.ts", to: "src/tools/rounds.ts", typeOnly: false }]);
+  } finally {
+    await removeTemp(folder);
+  }
+});
+
 test("8.9 the app survey includes desktop source and resolves its imports as the same story", async () => {
   const folder = await mkdtemp(path.join(tmpdir(), "code-survey-desktop-"));
   const app = { arcs: [], stories: [{ id: "app", title: "The app", capabilities: [{ id: "projects", title: "2 · Projects" }] }] } as unknown as AnnotatedTree;

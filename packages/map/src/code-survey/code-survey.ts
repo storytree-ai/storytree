@@ -388,7 +388,7 @@ const javascriptReader: LanguageReader = {
   titlesOf: calledTitles, edgesOf, registersTests, declarationOf,
 };
 
-/** The languages the survey reads, each through its reader. */
+/** The languages the survey reads, each through its reader; a reader added here marks its language read in languages.ts (8.53). */
 const READERS: readonly LanguageReader[] = [javascriptReader, pythonReader];
 
 /** The reader of the language a file at `path` is in, if the survey reads it. */

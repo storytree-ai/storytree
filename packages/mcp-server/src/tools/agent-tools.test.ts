@@ -514,6 +514,30 @@ test("6.110 land on a capability whose story has no package it can read in the c
   });
 });
 
+test("session-management 5.63 · land on a checkout whose code is only in languages the map cannot read says it cannot read the code, naming them and the ones it reads, not that the story has no package here", async () => {
+  await withProject(async ({ folder }) => {
+    mkdirSync(path.join(folder, "cmd"), { recursive: true });
+    writeFileSync(path.join(folder, "cmd/main.go"), "package main\n");
+    writeFileSync(path.join(folder, "schema.sql"), "create table cart (id int);\n");
+    await withAgent(folder, claudeCode("claude-1"), async (agent) => {
+      const story = idOf(await agent.call("plan_story", { title: "Shopping cart", ...FOUNDED }));
+      const capability = idOf(await agent.call("plan_capability", { story, title: "Adding", ...FOUNDED }));
+      idOf(await agent.call("plan_contract", { capability, title: "Adds an item" }));
+      assert.equal((await agent.call("claim", { capability, reason: "building the cart" })).isError, false);
+
+      const landed = await agent.call("land", { capability });
+      assert.equal(landed.isError, false, landed.text);
+      assert.match(landed.text, /cannot read this project's code/);
+      assert.match(landed.text, /Go and SQL/);
+      assert.match(landed.text, /JavaScript, TypeScript and Python/);
+      assert.match(landed.text, /1\.1 · Adds an item/);
+      assert.doesNotMatch(landed.text, /no package|write each one's test/);
+      assert.deepEqual(landed.data.unchecked, ["1.1 · Adds an item"]);
+      assert.deepEqual(landed.data.unreadable, ["Go", "SQL"]);
+    });
+  });
+});
+
 test("6.112 land on a capability of a mapped story reads its story's numbered tests in the folder this machine imports it from, naming only the planned contracts none of them carries", async () => {
   await withProject(async ({ folder }) => {
     const shop = path.join(path.dirname(folder), "shop");

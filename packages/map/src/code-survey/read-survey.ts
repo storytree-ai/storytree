@@ -41,6 +41,7 @@ import { usePythonParser } from "./python-reader.js";
 import { pyprojectFrom } from "./pyproject.js";
 import { parsePythonNow, pythonLanguage } from "./tree-sitter.js";
 import { pytestTestedNumbers } from "./python-tests.js";
+import { folderLanguages } from "./folder-languages.js";
 
 import type { AnnotatedTree, StorySurvey } from "@storytree/library";
 
@@ -56,7 +57,8 @@ export type ProjectSurvey = Readonly<Record<string, StorySurvey>>;
 /** The file beside a package's src that holds its coverage map (written by the dev loop's `pnpm survey:coverage`). */
 const COVERAGE_MAP = "survey-coverage.json";
 
-export { declaredNumberOf, noMergedMain, packageOf, packagesOf };
+export { declaredNumberOf, folderLanguages, noMergedMain, packageOf, packagesOf };
+export { languageList, SURVEYED_LANGUAGES } from "./languages.js";
 
 /** The packages stories own beyond their own, by their own package's folder name (ADR-1066 D3). */
 type AlsoOwned = Readonly<Record<string, readonly string[]>>;
@@ -208,13 +210,14 @@ export async function testedNumbers(root: string, tree: AnnotatedTree, capabilit
  * checkout holds no package of the story's (a hand-planned story with no code here) and no pytest test carries a number
  * of its, so an empty list is no evidence that a test is missing. A mapped story's tests are read where it was imported
  * from (8.44): `root`'s checkout when that is its import, by the checkout's top or its remote, else the folder of
- * `imports` (this machine's) that is; with neither, it is unseen.
+ * `imports` (this machine's) that is; with neither, it is unseen. An unseen story in a checkout whose code is only in
+ * languages the survey cannot read names them as `unreadable` (5.63).
  */
 export async function storyTests(root: string, tree: AnnotatedTree, capability: string, {
   alsoOwned = ALSO_OWNED,
   survey = (plan: AnnotatedTree) => codeSurveyReader({ checkout: "current", alsoOwned }).read(root, plan),
   imports = [],
-}: { alsoOwned?: AlsoOwned; survey?(tree: AnnotatedTree): Promise<ProjectSurvey>; imports?: readonly ImportedFolder[] } = {}): Promise<{ numbers: string[]; seen: boolean }> {
+}: { alsoOwned?: AlsoOwned; survey?(tree: AnnotatedTree): Promise<ProjectSurvey>; imports?: readonly ImportedFolder[] } = {}): Promise<{ numbers: string[]; seen: boolean; unreadable?: string[] }> {
   const story = tree.stories.find((one) => one.capabilities.some((part) => part.id === capability));
   if (story === undefined) return { numbers: [], seen: false };
   const own = packagesOf(story, alsoOwned);
@@ -232,7 +235,11 @@ export async function storyTests(root: string, tree: AnnotatedTree, capability: 
   const numbered = (surveyed?.tests ?? []).flatMap((test) => test.titles.filter((title) => title.package === undefined || own.includes(title.package)).map((title) => title.number));
   // A Python project's pytest tests carry numbers too, for this check alone (ADR-1189).
   const pytest = await pytestTestedNumbers(root, tree, story.id);
-  return { numbers: [...numbered, ...pytest], seen: surveyed !== undefined || pytest.length > 0 };
+  const seen = surveyed !== undefined || pytest.length > 0;
+  // Unseen in a checkout whose code is only in languages the survey cannot read: that, not a missing package, is why (5.63).
+  const languages = seen ? undefined : await folderLanguages(root).catch(() => undefined);
+  const unreadable = languages !== undefined && languages.read.length === 0 && languages.unread.length > 0 ? languages.unread : undefined;
+  return { numbers: [...numbered, ...pytest], seen, ...(unreadable === undefined ? {} : { unreadable }) };
 }
 
 /**

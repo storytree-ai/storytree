@@ -777,6 +777,39 @@ test("6.107 set_up_project tells the user in one line to commit the .storytree f
   });
 });
 
+test("6.115 · set_up_project on a folder whose code is only in languages the map cannot read says so in one sentence, naming them and what it reads, and what still works; a folder with code it reads hears none of it", async () => {
+  const [other, readable, factory] = [uniqueProjectName(), uniqueProjectName(), uniqueProjectName()];
+  await withTempDir(async (dir) => {
+    const home = throwawayHome(dir);
+    const setup = { dataDir: path.join(home.storytreeHome, "pgdata"), setup: { ...ANSWERED, homes: home.homes, storytreeHome: home.storytreeHome, factory } };
+    try {
+      const goRepo = path.join(dir, other);
+      mkdirSync(path.join(goRepo, "cmd"), { recursive: true });
+      writeFileSync(path.join(goRepo, "cmd/main.go"), "package main\n");
+      execFileSync("git", ["init", "-q"], { cwd: goRepo });
+      await withAgent(goRepo, claudeCode(`claude-${other}`, setup), async (agent) => {
+        const setUp = await agent.call("set_up_project", { name: other });
+        assert.equal(setUp.isError, false, setUp.text);
+        assert.match(setUp.text, /storytree's map reads JavaScript, TypeScript and Python, and this folder's code is in Go/);
+        assert.match(setUp.text, /planning by hand/);
+        assert.deepEqual(setUp.data.unreadable, ["Go"]);
+      });
+      const tsRepo = path.join(dir, readable);
+      mkdirSync(tsRepo);
+      writeFileSync(path.join(tsRepo, "app.ts"), "export {};\n");
+      writeFileSync(path.join(tsRepo, "schema.sql"), "select 1;\n");
+      execFileSync("git", ["init", "-q"], { cwd: tsRepo });
+      await withAgent(tsRepo, claudeCode(`claude-${readable}`, setup), async (agent) => {
+        const setUp = await agent.call("set_up_project", { name: readable });
+        assert.doesNotMatch(setUp.text, /storytree's map reads/);
+        assert.equal(setUp.data.unreadable, undefined);
+      });
+    } finally {
+      await dropTestProjects([other, readable, factory]);
+    }
+  });
+});
+
 test("6.114 check_setup reads a marker naming a project this computer's library lacks as missing, says set_up_project is called only on the user's yes, and set_up_project then sets the folder up, replacing the marker", async () => {
   await withTempDir(async (dir) => {
     const home = throwawayHome(dir);

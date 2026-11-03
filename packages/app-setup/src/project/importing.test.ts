@@ -169,6 +169,27 @@ test("12.3 a folder that does not exist, one nested inside the storytree project
   });
 });
 
+test("12.7 · the refusal of a folder with no package to import names the languages the map reads, and, when the folder holds code in others, names those and what still works", async () => {
+  await withProject(async ({ dir, home, storytree, library }) => {
+    const go = path.join(dir, "go-service");
+    write(go, { "cmd/main.go": "package main", "db/schema.sql": "" });
+    const empty = path.join(dir, "notes");
+    write(empty, { "README.md": "" });
+    const refusal = async (folder: string) => {
+      const error = await importProject({ folder, library, storytree, storytreeHome: home }).then(() => undefined, (thrown: unknown) => thrown as Error);
+      assert.equal(error?.name, "ImportRefusedError", folder);
+      return error!.message;
+    };
+    const fromGo = await refusal(go);
+    assert.match(fromGo, /no JavaScript, TypeScript or Python package to import/);
+    assert.match(fromGo, /Its code is in Go and SQL, which storytree's map cannot read/);
+    assert.match(fromGo, /planning its stories by hand still works/);
+    const fromEmpty = await refusal(empty);
+    assert.match(fromEmpty, /no JavaScript, TypeScript or Python package to import/);
+    assert.doesNotMatch(fromEmpty, /cannot read/);
+  });
+});
+
 test("12.4 importing again says the commit recorded before and now and the files added, changed and removed between them, and names each explored capability whose covered files are gone, leaving it as it stands", async () => {
   await withProject(async ({ dir, home, storytree, library }) => {
     const shop = path.join(dir, "shop");

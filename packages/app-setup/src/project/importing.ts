@@ -24,6 +24,8 @@ import path from "node:path";
 import { parse as parseToml } from "smol-toml";
 
 import type { Library, MappedPackage, Storytree } from "@storytree/library";
+import { folderLanguages } from "@storytree/map/folder-languages";
+import { languageList } from "@storytree/map/languages";
 import { packageOf } from "@storytree/map/package-of";
 import { findProject, importsOf, machineOf, recordImport, storytreeHome, trunksOn } from "@storytree/project-and-caller";
 
@@ -97,7 +99,10 @@ export async function importProject({ folder, library, storytree, storytreeHome:
     throw new ImportRefusedError(`${at} is inside storytree project "${library.name}"; import a folder outside it, where the existing project lives.`);
   }
   if (!existsSync(path.join(at, "package.json")) && !holdsPython(at)) {
-    throw new ImportRefusedError(`${at} has no package.json, pyproject.toml, setup.cfg or setup.py at its top, so it holds no JavaScript, TypeScript or Python package to import.`);
+    // Code the survey cannot read is named, with what still works for it (12.7).
+    const { unread } = await folderLanguages(at);
+    const other = unread.length === 0 ? "" : ` Its code is in ${languageList(unread)}, which storytree's map cannot read; planning its stories by hand still works, and so does health from what the agent reports.`;
+    throw new ImportRefusedError(`${at} has no package.json, pyproject.toml, setup.cfg or setup.py at its top, so it holds no JavaScript, TypeScript or Python package to import.${other}`);
   }
   const origin = gitOrigin(at);
   const packages = inPlace ? await unbuilt(library, packagesOf(at)) : packagesOf(at);

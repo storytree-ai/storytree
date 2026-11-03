@@ -1,5 +1,7 @@
 /** Capability 3 · First-run guide. One offline guide; the README and installation point here. */
 
+import { languageList, SURVEYED_LANGUAGES } from "@storytree/map/languages";
+
 /** The platform the guide's troubleshooting is for (3.15); undefined when the app cannot tell, which gets every platform's. */
 export type GuidePlatform = "windows" | "mac" | "linux";
 
@@ -54,7 +56,7 @@ export function guideFor(platform: GuidePlatform | undefined): string {
   <h4>Connect your coding agents</h4>
   <div class="setup-help-connect" data-connect role="status"><p>Looking for the coding agents on this computer…</p></div>
   <h4>Add your first project</h4>
-  <p>Choose the folder of something you want to build. Storytree sets it up as a project and shows it.</p>
+  <p>Choose the folder of something you want to build. Storytree sets it up as a project and shows it. Its map reads ${languageList(SURVEYED_LANGUAGES)} code; a project in another language shows only what its agent plans.</p>
   <div class="setup-help-actions"><button type="button" data-guide-add-project>Add a project…</button></div>
   <p data-guide-add-status role="status"></p>
   <h3>Start your first project</h3>

@@ -51,6 +51,10 @@ plain-language view of how each story works and whether it is healthy. Health sh
 *reported*, labelled as the agent's report. Storytree does not yet check your project's tests
 itself: so far it checks only its own project's tests, and shows what it found separately.
 
+The map reads JavaScript, TypeScript and Python code. A project in another language (Go, Rust or
+SQL, say) still gets its plan, its activity and the health its agent reports, but its code never
+appears on the map.
+
 Once it is installed, **Help → First-run guide** in the app covers setup, connection checks, the
 offline license and feedback. Help is available before you have a project and while viewing any
 forest.

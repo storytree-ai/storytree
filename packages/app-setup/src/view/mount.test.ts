@@ -239,6 +239,16 @@ test("3.8 the mounted guide explains a Smart App Control block: what it is, wher
   } finally { mounted.stop(); }
 });
 
+test("3.18 · before a project is added, the guide names the languages the map reads, and says a project in another language shows only what its agent plans", () => {
+  const mounted = mountSetupHelp(document.body, helpBridge(), { platform: "linux" });
+  try {
+    const text = document.querySelector("#setup-help-panel")!.textContent!;
+    const before = text.slice(0, text.indexOf("Add a project…"));
+    assert.match(before, /map reads JavaScript, TypeScript and Python code/);
+    assert.match(before, /another language shows only what its agent plans/);
+  } finally { mounted.stop(); }
+});
+
 test("3.15 the guide's troubleshooting is for the platform it runs on, read from the app's user agent when not given", () => {
   const summaries = (options: Parameters<typeof mountSetupHelp>[2]) => {
     const mounted = mountSetupHelp(document.body, helpBridge(), options);

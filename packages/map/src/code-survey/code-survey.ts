@@ -41,6 +41,7 @@ import type { CodeEdge, EdgeFile, StorySurvey, SurveyedFile, SurveyedTest } from
 
 import type { Edge, LanguageReader, SourceFile, SurveyPackage } from "./language-reader.js";
 import { ALSO_OWNED, packageOf, packagesOf } from "./package-of.js";
+import { pythonReader } from "./python-reader.js";
 
 export { ALSO_OWNED, packageOf, packagesOf };
 export type { LanguageReader, SourceFile, SurveyPackage };
@@ -388,7 +389,7 @@ const javascriptReader: LanguageReader = {
 };
 
 /** The languages the survey reads, each through its reader. */
-const READERS: readonly LanguageReader[] = [javascriptReader];
+const READERS: readonly LanguageReader[] = [javascriptReader, pythonReader];
 
 /** The reader of the language a file at `path` is in, if the survey reads it. */
 const readerOf = (path: string): LanguageReader | undefined => READERS.find((reader) => reader.files.test(path));

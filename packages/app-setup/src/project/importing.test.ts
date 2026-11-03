@@ -140,7 +140,7 @@ test("12.2 importing again adds the packages that are new, retires the stories w
   });
 });
 
-test("12.3 a folder that does not exist, one nested inside the storytree project, and one with no package.json are refused, saying why, and nothing is written; the project's own trunk folder is mapped in place, leaving out the packages of the stories built there", async () => {
+test("12.3 a folder that does not exist, one nested inside the storytree project, and one with no package.json, pyproject.toml, setup.cfg or setup.py are refused, saying why, and nothing is written; the project's own trunk folder is mapped in place, leaving out the packages of the stories built there", async () => {
   await withProject(async ({ dir, home, trunk, storytree, library }) => {
     const inside = path.join(trunk, "vendor", "lib");
     write(inside, { "package.json": { name: "lib" } });
@@ -149,7 +149,7 @@ test("12.3 a folder that does not exist, one nested inside the storytree project
     const refusals: [string, RegExp][] = [
       [path.join(dir, "missing"), /does not exist/],
       [inside, /inside storytree project/],
-      [plain, /no package\.json/],
+      [plain, /no package\.json, pyproject\.toml, setup\.cfg or setup\.py/],
     ];
     const before = await library.history();
     for (const [folder, why] of refusals) {
@@ -259,5 +259,49 @@ test("12.5 a workspace pattern that climbs out of the folder or runs past the ma
     }
     assert.deepEqual(await library.history(), before, "no story was written for a refused pattern");
     assert.deepEqual((await importsOf(storytree, library.name, machineOf(home).id)).map((imported) => imported.folder), [realpathSync.native(slow)], "no import was recorded for a refused pattern");
+  });
+});
+
+test("12.6 a folder with pyproject.toml, setup.cfg or setup.py and no package.json imports as Python packages: a uv workspace's members less its exclude, its root too when it is a project, else the root and its Poetry path dependencies inside the folder, else one package, each named as its manifest names it", async () => {
+  await withProject(async ({ dir, home, storytree, library }) => {
+    const from = async (folder: string) => (await library.list("story")).map((story) => story.fields).filter((fields) => fields.mapped?.from === folder)
+      .map((fields) => [fields.mapped!.package, fields.title, ...(fields.description === undefined ? [] : [fields.description])]).sort();
+
+    const uv = path.join(dir, "uv");
+    write(uv, {
+      "pyproject.toml": "[project]\nname = \"shop\"\ndescription = \"The shop\"\n\n[tool.uv.workspace]\nmembers = [\"packages/*\", \"apps/web\"]\nexclude = [\"packages/scratch\"]\n",
+      "packages/cart/pyproject.toml": "[project]\nname = \"cart\"\ndescription = 'The basket'\n",
+      "packages/pay/pyproject.toml": "[project]\n# no name\nversion = \"1\"\n",
+      "packages/scratch/pyproject.toml": "[project]\nname = \"scratch\"\n",
+      "packages/notes/README.md": "not a package",
+      "apps/web/pyproject.toml": "[project]\nname = \"web\"\n",
+    });
+    const before = snapshot(uv);
+    await importProject({ folder: uv, library, storytree, storytreeHome: home });
+    assert.deepEqual(await from(uv), [[".", "shop", "The shop"], ["apps/web", "web"], ["packages/cart", "cart", "The basket"], ["packages/pay", "pay"]], "members less exclude, the root a project too; a nameless member named by its folder");
+    assert.deepEqual(snapshot(uv), before, "nothing was written into the imported folder");
+
+    const virtual = path.join(dir, "virtual");
+    write(virtual, { "pyproject.toml": "[tool.uv.workspace]\nmembers = [\"libs/*\"]\n", "libs/a/pyproject.toml": "[project]\nname = \"a\"\n" });
+    await importProject({ folder: virtual, library, storytree, storytreeHome: home });
+    assert.deepEqual(await from(virtual), [["libs/a", "a"]], "a workspace root that is no project is no package");
+
+    const poetry = path.join(dir, "poetry");
+    write(poetry, {
+      "pyproject.toml": "[tool.poetry]\nname = \"app\"\ndescription = \"An app\"\n\n[tool.poetry.dependencies]\npython = \"^3.12\"\ncore = { path = \"libs/core\", develop = true }\noutside = { path = \"../elsewhere\" }\n\n[tool.poetry.group.dev.dependencies]\nkit = {path = \"libs/kit\"}\n",
+      "libs/core/pyproject.toml": "[tool.poetry]\nname = \"core\"\n",
+      "libs/kit/pyproject.toml": "[project]\nname = \"kit\"\n",
+    });
+    await importProject({ folder: poetry, library, storytree, storytreeHome: home });
+    assert.deepEqual(await from(poetry), [[".", "app", "An app"], ["libs/core", "core"], ["libs/kit", "kit"]], "the root and its path dependencies inside the folder");
+
+    const one = path.join(dir, "one");
+    write(one, { "pyproject.toml": "[project]\nname = \"one\"\n" });
+    const legacy = path.join(dir, "legacy");
+    write(legacy, { "setup.cfg": "[metadata]\nname = legacy-tool\ndescription = Old style\n" });
+    const script = path.join(dir, "script");
+    write(script, { "setup.py": "from setuptools import setup\nsetup()\n" });
+    for (const folder of [one, legacy, script]) await importProject({ folder, library, storytree, storytreeHome: home });
+    assert.deepEqual([await from(one), await from(legacy), await from(script)], [[[".", "one"]], [[".", "legacy-tool", "Old style"]], [[".", "script"]]], "one package, named by its manifest, else by its folder");
   });
 });

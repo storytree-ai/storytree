@@ -7,7 +7,7 @@ import { dayOf } from "../board/closed-range.js";
 import { record } from "../testing/records.js";
 import { mountArcSurface } from "./index.js";
 
-test("3.6 the public smoke check visits the mounted scopes and expands queues, judging only drawn chips and root bars", async (t) => {
+test("3.6 the public smoke check visits the mounted scopes and opens every root arc's caret, judging only drawn chips and root bars", async (t) => {
   const page = new Window({ url: "https://storytree.test" });
   const document = page.document as unknown as Document;
   let surface: ReturnType<typeof mountArcSurface> | undefined;
@@ -79,6 +79,7 @@ test("3.6 the public smoke check visits the mounted scopes and expands queues, j
   assert.equal(document.querySelector(".arc-queue-more")!.textContent, "+1");
   assert.equal(document.querySelector('[data-arc-id="hidden"]'), null);
   assert.equal(document.querySelector('[data-increment-id="release-work"]'), null);
+  assert.ok(document.querySelector('details[data-fold-key="rail:build:increment:build-work"]'), "an open caret's increment rows are there, yet not counted as drawn bars");
 
   const missing = arc("missing");
   assert.deepEqual(await smokeArcSurface(execution, "p", { ...reads, boardArcs: async () => [...snapshot.arcs, missing] }),

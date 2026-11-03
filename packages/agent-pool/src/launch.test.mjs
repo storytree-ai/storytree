@@ -10,7 +10,7 @@ import { promisify } from "node:util";
 import { removeTemp } from "@storytree/test-waits";
 
 import { main, planRules, poolRules, prepareCheckout, PUSH_URL, runPool, startHold } from "./launch.mjs";
-import { codeVersion, withLockFile } from "./queue.mjs";
+import { codeVersion, localBrief, withLockFile } from "./queue.mjs";
 import { SIGNALED } from "./runner.mjs";
 
 const run = promisify(execFile);
@@ -588,10 +588,44 @@ test("3.35 · a dispatcher whose machine names a second project offers that proj
   assert.equal(await main(["pool"], b), 0);
   assert.deepEqual(lanes.increment_site.cwd, website, "the second project's lane starts in its checkout");
   assert.equal(lanes.increment_site.project, "storytree-website");
-  assert.ok(lanes.increment_site.brief.endsWith(`Work from ${website}.\n`), lanes.increment_site.brief);
+  assert.ok(lanes.increment_site.brief.includes(`Work from ${website},`), lanes.increment_site.brief);
   assert.equal(lanes.increment_ours.cwd, b.repo, "storytree's lane starts where it always has");
   assert.equal(lanes.increment_ours.project, "storytree");
   assert.ok(lanes.increment_ours.brief.endsWith("Work from /srv/storytree03.\n"), lanes.increment_ours.brief);
+});
+
+test("3.36 · a lane for a project other than storytree is briefed with that project's name, checkout, checks and review from the machine's pool config, and a storytree lane's brief is unchanged", async (t) => {
+  const website = await folder(t);
+  const b = await box(t, {
+    count: async () => 0,
+    survey: async (project) => poolWork({ storytree: ["increment_ours"], "storytree-website": ["increment_site", "increment_look"], shop: ["increment_bare"] }[project],
+      { bodies: { increment_look: "needs: read-only" } }),
+  });
+  b.home = b.lanesDir;
+  b.env = { AGENT_POOL_CONFIG: join(b.lanesDir, "agent-pool.json") };
+  await writeFile(b.env.AGENT_POOL_CONFIG, JSON.stringify({ checkout: "/srv/storytree03", lanes: b.lanesDir, projects: [{ name: "storytree" },
+    { name: "storytree-website", checkout: website, checks: ["pnpm install --frozen-lockfile", "pnpm typecheck"], review: "Run the site's own review." },
+    { name: "shop", checkout: website }] }));
+  delete b.briefPaths; delete b.projects;
+  const briefs = {};
+  b.runLane = async (options) => { briefs[options.increment] = await readFile(options.brief, "utf8"); b.briefs.push(options.brief); return 0; };
+  b.sleep = async () => { await new Promise((go) => setImmediate(go)); if (b.briefs.length === 4) await writeFile(join(b.lanesDir, "pool-stop"), ""); };
+  assert.equal(await main(["pool"], b), 0);
+  const site = briefs.increment_site;
+  assert.match(site, /^# Pool lane: increment_site\n\nYour increment: increment_site\.\n/);
+  assert.match(site, /Rules for every pool lane of project storytree-website/);
+  assert.ok(site.includes(`Work from ${website}, storytree-website's checkout`), "it works from its own checkout");
+  assert.ok(site.includes("  - `pnpm install --frozen-lockfile`\n  - `pnpm typecheck`\n"), "its checks, in order, from its config");
+  assert.ok(site.includes("**Review.** Run the site's own review."), "its review, from its config");
+  assert.ok(site.includes("hand it to the pool's watcher from /srv/storytree03"), "the watcher is reached from storytree's checkout");
+  assert.ok(site.includes(`${b.lanesDir}/pool-<increment>.report.md`));
+  assert.doesNotMatch(site, /pnpm gate|\{\w+\}/, "nothing of storytree's gate, and every slot filled");
+  assert.match(briefs.increment_bare, /names no checks of its own/, "a project naming no checks is told so");
+  assert.match(briefs.increment_bare, /names no review of its own/, "and no review");
+  assert.ok(briefs.increment_look.endsWith(localBrief(await poolRules("needs: read-only"), { checkout: website, lanes: b.lanesDir })),
+    "another project's read-only lane keeps the read-only rules, in its own checkout");
+  assert.equal(briefs.increment_ours, `# Pool lane: increment_ours\n\nYour increment: increment_ours.\n\n${localBrief(await poolRules(""), { checkout: "/srv/storytree03", lanes: b.lanesDir })}`,
+    "storytree's lane keeps storytree's brief");
 });
 
 test("3.28 · a dispatcher whose machine names its own brief folder briefs its lanes from the copy there, and from the base's where it holds none", async (t) => {

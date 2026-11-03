@@ -143,7 +143,3 @@ export function incrementRows(lane: Lane): IncrementRow[] {
   return rows.map((row, index) => ({ row, index })).sort((a, b) => rank(a.row) - rank(b.row) || a.index - b.index).map(({ row }) => row);
 }
 
-/** The caller gives arcs in lane order and in the current scope. */
-export function firstBriefing(arcs: readonly { id: string; parked?: boolean; questions: readonly Question[] }[]): string | undefined {
-  return (arcs.find(({ parked, questions }) => !parked && questions.some(({ fields }) => fields.lifecycle === "open")) ?? arcs[0])?.id;
-}

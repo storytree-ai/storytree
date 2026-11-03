@@ -2,9 +2,9 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { FieldsOf, Line } from "@storytree/library";
 import { boardView } from "../board/board.js";
-import { renderBoard } from "../view/render.js";
+import { renderBoard, renderCard } from "../view/render.js";
 import { record } from "../testing/records.js";
-import { briefing, firstBriefing, incrementRows, questionReading } from "./briefing.js";
+import { briefing, incrementRows, questionReading } from "./briefing.js";
 
 const fields: FieldsOf<"question"> = {
   arc: "a", title: "Choose the view", lifecycle: "open", statement: "Choose a view", stakes: "Readers need clarity",
@@ -14,24 +14,20 @@ const fields: FieldsOf<"question"> = {
 };
 const question = { id: "q", fields };
 
-test("5.1 and 5.3 briefing starts with intent, lists every question in one list, open first, each with its status, and initially picks the first waiting arc", () => {
+test("5.1 and 5.3 briefing starts with intent, lists every question in one list, open first, each with its status", () => {
   const settled = { id: "answered", fields: { ...fields, lifecycle: "settled" as const, answer: "Use the whole view", settledAt: "2026-09-27T00:00:00Z" } };
   const read = briefing("Make the work legible.", [settled, question]);
   assert.equal(read.intent, "Make the work legible.");
   assert.deepEqual(read.questions.map(({ id, status, answer }) => [id, status, answer]), [["q", "open", undefined], ["answered", "settled", "Use the whole view"]]);
   assert.equal(read.parkedNote, undefined);
-  assert.equal(firstBriefing([{ id: "quiet", questions: [] }, { id: "waiting", questions: [question] }]), "waiting");
-  assert.equal(firstBriefing([{ id: "quiet", questions: [] }, { id: "settled", questions: [settled] }]), "quiet");
-  assert.equal(firstBriefing([]), undefined);
 });
 
-test("5.4 a parked arc's briefing says once that its open questions are parked with the arc, and a parked arc's question does not pick the first briefing", () => {
+test("5.4 a parked arc's briefing says once that its open questions are parked with the arc", () => {
   const read = briefing("Intent", [question], { parked: true });
   assert.deepEqual(read.questions.map(({ id }) => id), ["q"]);
   assert.match(read.parkedNote ?? "", /parked with the arc/i);
   assert.equal(briefing("Intent", [question], { parked: false }).parkedNote, undefined);
   assert.equal(briefing("Intent", [], { parked: true }).parkedNote, undefined);
-  assert.equal(firstBriefing([{ id: "quiet", questions: [] }, { id: "parked", parked: true, questions: [question] }]), "quiet");
 });
 
 test("5.2 a question is read statement first with trade-offs, a non-binding recommendation and measured folds; unstructured options survive", () => {
@@ -59,8 +55,7 @@ test("5.3 a settled question published with only its title and answer opens on t
   // A saved reading publishes a settled question's title and answer alone (website 3.14), so its other fields are absent.
   const kept = record("kept", "question", { arc: "a", title: "Which way?", lifecycle: "settled", answer: "The short way" } as FieldsOf<"question">);
   const arc = { arc: record("a", "arc", { title: "Arc a", intent: "a", endState: "Done" }), state: "active" as const, increments: [], questions: [kept] };
-  const html = renderBoard(boardView({ arcs: [arc], waits: {}, heldOn: {} }, [], new Date()), "a", "kept");
-  const reading = html.slice(html.indexOf('<aside class="arc-briefing"'));
+  const reading = renderCard(boardView({ arcs: [arc], waits: {}, heldOn: {} }, [], new Date()), "a", "kept");
   assert.match(reading, /arc-answer.*?The short way.*?<h3>Which way\?<\/h3>/s);
   assert.doesNotMatch(reading, /<h4>|diagram stored|arc-fold|\d+ words|undefined/i);
 });

@@ -196,22 +196,10 @@ function everyId(rows: readonly SessionRow[]): string[] {
   return rows.flatMap(row => [row.id, ...everyId(row.children)]);
 }
 
-/** Whether the strip shows its rows, kept per project in the page's storage like the arcs bar's state; nothing kept, or a foreign value, is expanded (7.17). */
-export function keptPanelOpen(project: string, storage?: Parameters<typeof pageKept>[2]) {
-  const kept = pageKept<boolean>(`storytree.forest.sessions-open.v1:${project}`, (value): value is boolean => typeof value === "boolean", storage);
-  return { read: (): boolean => kept.read() ?? true, write: (open: boolean): void => kept.write(open) };
-}
-
-/** Whether the strip fills the forest pane rather than its usual 40%, kept per project like its open state; nothing kept, or a foreign value, is the usual height (7.17). */
-export function keptStripFull(project: string, storage?: Parameters<typeof pageKept>[2]) {
-  const kept = pageKept<boolean>(`storytree.forest.sessions-size.v1:${project}`, (value): value is boolean => typeof value === "boolean", storage);
-  return { read: (): boolean => kept.read() ?? false, write: (full: boolean): void => kept.write(full) };
-}
-
-/** The strip's two tabs (7.21): the sessions at work now, and the ones that have left the list. */
+/** The list's two tabs (7.21): the sessions at work now, and the ones that have left the list. */
 export type SessionsTab = "live" | "history";
 
-/** Which tab the strip shows, kept per project like its open state; nothing kept, or a foreign value, is Live (7.22). */
+/** Which tab the list shows, kept per project; nothing kept, or a foreign value, is Live (7.22). */
 export function keptTab(project: string, storage?: Parameters<typeof pageKept>[2]) {
   const kept = pageKept<SessionsTab>(`storytree.forest.sessions-tab.v1:${project}`, (value): value is SessionsTab => value === "live" || value === "history", storage);
   return { read: (): SessionsTab => kept.read() ?? "live", write: (tab: SessionsTab): void => kept.write(tab) };
@@ -261,10 +249,6 @@ export function mountSessionsList(container: HTMLElement, options: {
   let selected: string | undefined;
   // Every row starts collapsed; these are the ones the user opened.
   let expanded: ReadonlySet<string> = new Set();
-  const openKept = keptPanelOpen(options.project);
-  let stripOpen = openKept.read();
-  const fullKept = keptStripFull(options.project);
-  let stripFull = fullKept.read();
   const tabKept = keptTab(options.project);
   let tab = tabKept.read();
   let range: HistoryChoice = { preset: "today" };
@@ -283,10 +267,8 @@ export function mountSessionsList(container: HTMLElement, options: {
     root.render(<SessionsList rows={rows} loading={tree === undefined && rows.length === 0}
     refreshing={tree === undefined && rows.length > 0}
     error={banner?.text} errorDetail={banner?.detail} selected={selected} onHighlight={options.onHighlight}
-    expanded={expanded} files={files} onToggle={toggle} open={stripOpen}
-    onToggleOpen={() => { stripOpen = !stripOpen; openKept.write(stripOpen); draw(); }}
-    full={stripFull} onToggleFull={() => { stripFull = !stripFull; fullKept.write(stripFull); draw(); }}
-    // Choosing a tab or a range redraws the strip and nothing else: the globe keeps the live rows (7.22).
+    expanded={expanded} files={files} onToggle={toggle}
+    // Choosing a tab or a range redraws the list and nothing else: the globe keeps the live rows (7.22).
     tab={tab} onTab={next => { tab = next; tabKept.write(tab); draw(); }} history={past} range={range} now={now()}
     onRange={next => { range = next; draw(); }} storyTitles={titles}
     {...(options.onSelect ? { onSelect: options.onSelect } : {})} />);
@@ -492,12 +474,6 @@ export function SessionsList({ rows, loading = false, refreshing = false, error,
   onToggle?(session: string): void;
   /** Each expanded row's files, once read (7.8). */
   files?: ReadonlyMap<string, SessionFiles>;
-  /** Whether the strip shows its rows (7.17), when the caller keeps it; otherwise the list keeps its own, starting expanded. */
-  open?: boolean;
-  onToggleOpen?(): void;
-  /** Whether the open strip fills the forest pane (7.17), when the caller keeps it; otherwise the list keeps its own, starting at the usual height. */
-  full?: boolean;
-  onToggleFull?(): void;
   /** The tab shown (7.21), when the caller keeps it; otherwise the list keeps its own, starting on Live. */
   tab?: SessionsTab;
   onTab?(tab: SessionsTab): void;
@@ -515,12 +491,6 @@ export function SessionsList({ rows, loading = false, refreshing = false, error,
   storyTitles?: ReadonlyMap<string, string>;
 }) {
   const [own, setOwn] = useState<ReadonlySet<string>>(new Set());
-  const [ownOpen, setOwnOpen] = useState(true);
-  const stripOpen = control.open ?? ownOpen;
-  const onToggleOpen = control.onToggleOpen ?? (() => setOwnOpen(!ownOpen));
-  const [ownFull, setOwnFull] = useState(false);
-  const stripFull = control.full ?? ownFull;
-  const onToggleFull = control.onToggleFull ?? (() => setOwnFull(!ownFull));
   const expanded = control.expanded ?? own;
   const isOpen = (id: string): boolean => expanded.has(id);
   const onToggle = control.onToggle ?? ((id: string) => setOwn(toggle(own, id)));
@@ -544,8 +514,8 @@ export function SessionsList({ rows, loading = false, refreshing = false, error,
   // Live lists only the sessions at work; the idle ones are listed first under History, found by its search (ADR-1002 D4).
   const idle = rows.filter(row => row.idle);
   const idleShown = visit(idle.filter(row => matchesSearch([row.label, row.agent, "idle", ...row.stories.map(id => storyTitles?.get(id) ?? id)], search)), 0);
-  // Folded, or showing History, the strip draws no live rows, so none is hovered or drawn: History lights no islands (7.22).
-  const visible = !stripOpen || tab === "history" ? [] : visit(rows.filter(row => !row.idle), 0);
+  // Showing History, the list draws no live rows, so none is hovered or drawn: History lights no islands (7.22).
+  const visible = tab === "history" ? [] : visit(rows.filter(row => !row.idle), 0);
   const active = visible.find(({ row }) => row.id === (hovered ?? focused))?.row;
   const islands = active?.stories.join("\0");
   useEffect(() => {
@@ -586,29 +556,19 @@ export function SessionsList({ rows, loading = false, refreshing = false, error,
       </div>
       {isOpen(row.id) && <SessionDetail row={row} files={files?.get(row.id)} />}
     </li>);
-  return <aside className="sessions-list" data-fresh={refreshing ? "no" : undefined} data-open={stripOpen}
-    data-size={stripOpen && stripFull ? "full" : undefined} aria-label="Running sessions">
-    {/* The header toggles the whole list, like the arcs bar's (7.17): a click anywhere on it, the button for the keyboard. */}
-    <header onClick={onToggleOpen}>
-      <button type="button" className="sessions-handle" aria-expanded={stripOpen} aria-controls="sessions-body"
-        aria-label={stripOpen ? "Hide sessions" : "Show sessions"} title={stripOpen ? "Hide sessions" : "Show sessions"}>
-        Sessions <span className="sessions-count" title="Sessions at work or waiting for you">{atWork(rows)}</span></button>
+  // The Sessions tab of the app's left rail (7.17): the list fills it, with no control of its own to hide or size it.
+  return <aside className="sessions-list" data-fresh={refreshing ? "no" : undefined} aria-label="Running sessions">
+    <header>
+      <span className="sessions-name">Sessions <span className="sessions-count" title="Sessions at work or waiting for you">{atWork(rows)}</span></span>
       <span className="sessions-tabs" role="tablist" aria-label="Sessions shown">
         {([["live", "Live"], ["history", "History"]] as const).map(([id, name]) => <button key={id} type="button" role="tab" aria-selected={tab === id}
-          aria-controls="sessions-body" onClick={event => { event.stopPropagation(); if (!stripOpen) onToggleOpen(); onTab(id); }}>{name}</button>)}
+          aria-controls="sessions-body" onClick={() => onTab(id)}>{name}</button>)}
       </span>
       {tab === "live" && <span className="session-legend" aria-label="Bar colours">
         {GROUPS.map(([group, name]) => <span key={group} data-group={group}><span className="session-swatch" aria-hidden="true" />{name}</span>)}
       </span>}
-      {/* The size control reads as the arcs drawer's does: what a press gives (ADR-1002 D3). Collapsed, the strip has no size to choose. */}
-      {stripOpen && <button type="button" className="sessions-size" aria-pressed={stripFull}
-        aria-label={stripFull ? "Restore sessions to their usual height" : "Expand sessions to fill the pane"}
-        title={stripFull ? "Restore sessions to their usual height" : "Expand sessions to fill the pane"}
-        onClick={event => { event.stopPropagation(); onToggleFull(); }}>{stripFull ? "Restore" : "Expand"}</button>}
-      <span className="sessions-caret" aria-hidden="true">{stripOpen ? "▾" : "▴"}</span>
     </header>
-    {/* Expanded to fill the pane, the list is a canvas of its own (Surface feedback names it); open at its usual height, it is a strip under the globe. */}
-    <div id="sessions-body" className="sessions-body" hidden={!stripOpen} data-surface-id={stripOpen && stripFull ? "sessions" : undefined} data-surface-layer="panel">
+    <div id="sessions-body" className="sessions-body" data-surface-id="sessions">
     {tab === "history" ? <HistoryBody rows={history} range={range} onRange={onRange ?? setOwnRange} now={now} selected={selected}
       onSelect={session => onSelect?.(historySelection(session, selected))} search={search} onSearch={onSearch}
       idle={idleShown.map(entry => sessionItem(entry, entry.depth === 0 ? IDLE_LEAD : undefined))} /> : <>

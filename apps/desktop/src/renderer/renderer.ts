@@ -94,11 +94,11 @@ page = openProjectPage({
       states: keptWorkStates(),
       kept: keptTree(name),
       drawing: keptDrawing(name),
-      arcs: (onFreshDraw) => mountArcSurface(content, { project: name, reads, reading, onFreshDraw }),
+      arcs: (host, on) => mountArcSurface(host, { project: name, reads, reading, ...on }),
       treeSpace: (on, opening) => mountTreeSpace(content, { ...on, opening: opening as TreeOpening | undefined }),
       openView: (holder, onSelect, { library, opening }) => openForestView(holder, onSelect, core, { library, opening: opening as GlobeOpening | undefined }),
-      sessions: (view) => {
-        const sessions = mountSessionsList(content, { project: name, reads, reading,
+      sessions: (view, host) => {
+        const sessions = mountSessionsList(host, { project: name, reads, reading,
           onHighlight: stories => view.highlight(stories), onWisps: wisps => view.showWisps(wisps),
           onRoster: roster => core.showRoster(roster), onSelect: session => core.select(session) });
         core.onSelect(session => sessions.select(session));

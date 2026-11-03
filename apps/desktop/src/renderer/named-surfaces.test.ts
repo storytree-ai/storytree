@@ -68,6 +68,7 @@ test("3.15 · every canvas, gear menu tab and dialog the app opens carries a dec
     changesSince: async (_, cursor) => cursor === 0 ? seed.changes : { changes: [], cursor: seed.changes.cursor },
     linesSince: async (_, cursor) => cursor === 0 ? seed.lines : { lines: [], cursor: seed.lines.cursor },
     frontCovers: async (_, id) => seed.covers[id] ?? [],
+    boardArcs: async () => [{ arc: { id: "arc_named", type: "arc", fields: { title: "Name every surface", intent: "Point at anything", endState: "Named" }, version: 1, createdAt: "2026-11-03T00:00:00Z", updatedAt: "2026-11-03T00:00:00Z" }, increments: [], questions: [], state: "active" }] as never,
   };
   const ready = (page: Page) => page.waitForFunction(() => document.body.dataset.state === "ready", undefined, { timeout: 180_000 });
   // The runner images carry Chrome, not the Chromium Playwright downloads for itself.
@@ -79,21 +80,23 @@ test("3.15 · every canvas, gear menu tab and dialog the app opens carries a dec
     // The globe marks its canvas once it has measured a size to draw at, which a loaded Windows runner had not by the
     // page's ready (run 41206023912): the corner names what is marked, so it is asked once the globe is.
     await page.locator("[data-surface-id=globe]").waitFor();
+    // A control on no surface names the map, with the rail's Arcs tab on show (a project opens on it) as with its Sessions tab.
     assert.equal(await named(page, ".app-gear"), "globe");
 
-    // Open at its usual height, the sessions list is a strip under the globe; expanded, it is a canvas of its own.
-    if (await page.locator("#sessions-body[hidden]").count() > 0) await page.click(".sessions-handle");
-    await page.locator("#sessions-body:not([hidden])").waitFor();
-    assert.equal(await named(page, ".app-gear"), "globe", "the open strip leaves the globe in front");
-    await page.click(".sessions-size");
-    assert.equal(await named(page, ".app-gear"), "sessions");
-    await page.click(".sessions-size");
-
-    await page.click(".arc-surface-mount [data-open-arcs]");
-    await page.locator("#arc-drawer:not([hidden])").waitFor();
-    assert.equal(await named(page, "#arc-drawer [data-close-arcs]"), "arcs");
-    await page.click("#arc-drawer [data-close-arcs]");
-    await page.locator("#arc-drawer").waitFor({ state: "hidden" });
+    // The left rail's two tabs, each the surface it shows; an arc's card, opened by its row, is the arcs' too.
+    await page.click('[data-rail-tab="sessions"]');
+    await page.locator("#rail-sessions:not([hidden])").waitFor();
+    assert.equal(await named(page, '[data-rail-tab="sessions"]'), "sessions");
+    assert.equal(await named(page, ".sessions-name"), "sessions");
+    assert.equal(await named(page, ".app-gear"), "globe", "the Sessions tab on show still leaves the map in front");
+    await page.click('[data-rail-tab="arcs"]');
+    await page.locator('.arc-rail [data-arc-select="arc_named"]').waitFor();
+    assert.equal(await named(page, '[data-rail-tab="arcs"]'), "arcs");
+    await page.click('.arc-rail [data-arc-select="arc_named"]');
+    await page.locator(".arc-card:not([hidden])").waitFor();
+    assert.equal(await named(page, ".arc-card [data-close-card]"), "arcs");
+    await page.click(".arc-card [data-close-card]");
+    await page.locator(".arc-card").waitFor({ state: "hidden" });
 
     const { islands } = await visibleGlobeTargets(page, { x: 0.6, y: 0.6 });
     assert.ok(islands.length > 0, "the seed's forest shows an island to open");

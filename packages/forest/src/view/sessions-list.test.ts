@@ -3,7 +3,7 @@ import { createElement } from "react";
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { renderToStaticMarkup } from "react-dom/server";
-import { arcsAfter, cutoverAfter, FAILURES_WINDOW_MS, isSessionRows, keptPanelOpen, keptStripFull, keptTab, NEWS_STEP, readContext, refreshFailures, sessionsOutage, SessionsList, StepFailed, windowsReader } from "./sessions-list.js";
+import { arcsAfter, cutoverAfter, FAILURES_WINDOW_MS, isSessionRows, keptTab, NEWS_STEP, readContext, refreshFailures, sessionsOutage, SessionsList, StepFailed, windowsReader } from "./sessions-list.js";
 import type { ArcView } from "@storytree/library";
 import { LIBRARY_UNREACHABLE } from "@storytree/library/connection-error";
 import type { SessionWindow } from "@storytree/session-management";
@@ -199,50 +199,12 @@ test("7.10 the Live tab lists only the sessions at work, with no idle row; the h
   assert.doesNotMatch(only, /No running sessions|data-session-id="quiet"/);
 });
 
-test("7.17 the list is a bottom strip whose header toggles it, like the arcs bar's: it starts expanded; collapsed it leaves only the header (name, count, legend and a caret pointing up), drawing no rows; the choice is kept per project and a missing or foreign value means expanded", () => {
-  const open = renderToStaticMarkup(createElement(SessionsList, { rows: [{ ...row, children: [] }], onHighlight() {} }));
-  assert.match(open, /<button type="button" class="sessions-handle" aria-expanded="true" aria-controls="sessions-body" aria-label="Hide sessions"/);
-  assert.match(open, /class="sessions-caret" aria-hidden="true">▾</);
-  assert.match(open, /id="sessions-body"(?! hidden)/);
-  assert.match(open, /data-session-id="parent"/);
-  const shut = renderToStaticMarkup(createElement(SessionsList, { rows: [{ ...row, children: [] }], open: false, onHighlight() {} }));
-  assert.match(shut, /aria-expanded="false" aria-controls="sessions-body" aria-label="Show sessions"/);
-  assert.match(shut, /class="sessions-caret" aria-hidden="true">▴</);
-  assert.match(shut, /class="sessions-count"[^>]*>1</, "the count and legend stay on the strip");
-  assert.match(shut, /class="session-legend"/);
-  assert.doesNotMatch(shut, /data-session-id|session-detail/);
-
-  const store = new Map<string, string>();
-  const storage = { getItem: (key: string) => store.get(key) ?? null, setItem: (key: string, value: string) => void store.set(key, value) };
-  assert.equal(keptPanelOpen("demo", storage).read(), true, "nothing kept: expanded");
-  keptPanelOpen("demo", storage).write(false);
-  assert.equal(keptPanelOpen("demo", storage).read(), false, "a folded strip stays folded next start");
-  assert.equal(keptPanelOpen("other", storage).read(), true, "kept per project");
-  store.set("storytree.forest.sessions-open.v1:demo", "\"maybe\"");
-  assert.equal(keptPanelOpen("demo", storage).read(), true, "a foreign value is ignored");
-});
-
-test("7.17 the header carries an Expand control beside its caret that fills the forest pane, and Restore that returns it to at most 40%; the size is kept per project, a missing or foreign value reads as not expanded, and a collapsed strip shows only its header", () => {
-  const strip = { rows: [{ ...row, children: [] }], onHighlight() {} };
-  const usual = renderToStaticMarkup(createElement(SessionsList, strip));
-  assert.doesNotMatch(usual, /<aside[^>]*data-size=/, "the usual height by default");
-  assert.match(usual, /<button type="button" class="sessions-size" aria-pressed="false" aria-label="Expand sessions to fill the pane"[^>]*>Expand<\/button><span class="sessions-caret"/);
-  const full = renderToStaticMarkup(createElement(SessionsList, { ...strip, full: true }));
-  assert.match(full, /<aside[^>]*data-size="full"/);
-  assert.match(full, /class="sessions-size" aria-pressed="true" aria-label="Restore sessions to their usual height"[^>]*>Restore</);
-  const history = renderToStaticMarkup(createElement(SessionsList, { ...strip, full: true, tab: "history" }));
-  assert.match(history, /<aside[^>]*data-size="full"/, "History uses the height too");
-  const shut = renderToStaticMarkup(createElement(SessionsList, { ...strip, full: true, open: false }));
-  assert.doesNotMatch(shut, /data-size=|sessions-size/, "collapsed, only the header: no size and no size control");
-
-  const store = new Map<string, string>();
-  const storage = { getItem: (key: string) => store.get(key) ?? null, setItem: (key: string, value: string) => void store.set(key, value) };
-  assert.equal(keptStripFull("demo", storage).read(), false, "nothing kept: the usual height");
-  keptStripFull("demo", storage).write(true);
-  assert.equal(keptStripFull("demo", storage).read(), true, "an expanded strip stays expanded next start");
-  assert.equal(keptStripFull("other", storage).read(), false, "kept per project");
-  store.set("storytree.forest.sessions-size.v1:demo", "\"huge\"");
-  assert.equal(keptStripFull("demo", storage).read(), false, "a foreign value is ignored");
+test("7.17 · the list fills its rail tab: its header names it, counts it and carries its tabs and legend, and nothing on it hides the rows or sizes the list", () => {
+  const list = renderToStaticMarkup(createElement(SessionsList, { rows: [{ ...row, children: [] }], onHighlight() {} }));
+  assert.match(list, /<header><span class="sessions-name">Sessions <span class="sessions-count"[^>]*>1<\/span><\/span><span class="sessions-tabs" role="tablist"/);
+  assert.match(list, /class="session-legend"/);
+  assert.match(list, /<div id="sessions-body" class="sessions-body" data-surface-id="sessions"><ul>.*data-session-id="parent"/s);
+  assert.doesNotMatch(list, /aria-expanded="(true|false)" aria-controls="sessions-body"|Expand|Restore|hidden=""/, "no collapse or size control, and the body is never hidden");
 });
 
 test("the list reads every arc in one ask, and again only when a change touches an arc, an increment or a question (ADR-0836 D3)", async () => {

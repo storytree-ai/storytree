@@ -1,25 +1,20 @@
 /** Capability 3 · Arc surface. */
 import type { BoardScope } from "../board/board.js";
 
-/** `expanded` is kept only while the drawer fills the window (3.10); absent, it is half the window's height. */
-export interface DrawerPreferences { open: boolean; scope: BoardScope; picked?: string; expanded?: true }
+/** Only the scope is kept: an arc's card opens on its click alone, so no picked arc is restored (3.7). */
+export interface ArcPreferences { scope: BoardScope }
 const key = (project: string) => `storytree.arc-surface.v1:${project}`;
 /** Browser-local viewer state; no library write, and a denied or old value cannot stop a reading. */
-export function readPreferences(project: string): DrawerPreferences {
+export function readPreferences(project: string): ArcPreferences {
   try {
     const value: unknown = JSON.parse(localStorage.getItem(key(project)) ?? "null");
     if (value && typeof value === "object") {
       const saved = value as Record<string, unknown>;
-      return { open: saved.open === true, scope: saved.scope === "parked" || saved.scope === "closed" ? saved.scope : "active",
-        ...(typeof saved.picked === "string" ? { picked: saved.picked } : {}), ...(saved.expanded === true ? { expanded: true } : {}) };
+      return { scope: saved.scope === "parked" || saved.scope === "closed" ? saved.scope : "active" };
     }
   } catch { /* Storage is optional; the surface remains usable without it. */ }
-  return { open: false, scope: "active" };
+  return { scope: "active" };
 }
-export function writePreferences(project: string, value: DrawerPreferences): void {
+export function writePreferences(project: string, value: ArcPreferences): void {
   try { localStorage.setItem(key(project), JSON.stringify(value)); } catch { /* Keep this launch's state. */ }
-}
-/** A saved arc is restored while it is still on the board; otherwise the briefing's own pick applies. */
-export function restorePick(lanes: readonly string[], picked: string | undefined, briefed: string | undefined): string | undefined {
-  return picked !== undefined && lanes.includes(picked) ? picked : briefed !== undefined && lanes.includes(briefed) ? briefed : undefined;
 }

@@ -2,7 +2,7 @@
  * Capability 3 · First-run guide and capability 12 · Import an existing project.
  * `storytree project remove <project>`: take a project added by mistake off this computer's list.
  * `storytree project delete <project> --confirm <project>`: delete its records (ADR-0831).
- * `storytree import <folder>`: import an existing JavaScript or TypeScript project into this one, as mapped stories (ADR-0993).
+ * `storytree import <folder>`: import an existing JavaScript, TypeScript or Python project into this one, as mapped stories (ADR-0993).
  */
 import { verb, VerbRefusal, type Verb, type VerbInputs } from "@storytree/library/verbs";
 

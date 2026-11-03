@@ -8,7 +8,7 @@
 // - machineCheckout: the pool's checkout on `machine`, as written there (its own `~`), where a hand-over over ssh runs;
 //   by default `checkout`, as on the pool's own machine.
 // - lanes: the folder of briefs, logs, hand-offs and the pool's controls; by default ~/.storytree/agent-pool.
-// - briefs: a folder whose pool-brief.md, pool-brief-plan.md or pool-brief-read-only.md, where it holds one, a lane is
+// - briefs: a folder whose pool-brief.md, pool-brief-plan.md, pool-brief-read-only.md or pool-brief-project.md, where it holds one, a lane is
 //   briefed with in place of the one beside this file; by default none.
 // - addDirs: folders each engine may write besides its worktree (the lanes folder is always one).
 // - sessions: pins the cap on engines running at once (the lanes folder's night-max-lanes overrides it live); by default
@@ -22,9 +22,11 @@
 // - machineOnly: true, and the dispatcher takes only work whose machine field names this machine, and plans no arc,
 //   leaving untagged work to the shared pool (ADR-1179 D2), and starts a lane only while plugged in and while the library
 //   and GitHub answer (D3); by default false. windows/register-laptop-pool.ps1 writes a laptop's.
-// - projects: [{ name, checkout }]: the storytree projects whose ready work the pool offers, each lane started in its
-//   project's checkout on this machine; storytree's may leave its checkout out (it is `checkout`), any other must name
-//   one. By default, or empty, storytree alone.
+// - projects: [{ name, checkout, checks, review }]: the storytree projects whose ready work the pool offers, each lane started
+//   in its project's checkout on this machine; storytree's may leave its checkout out (it is `checkout`), any other must name
+//   one. Another project's lanes are briefed with its `checks`, the commands its lane runs before it opens a pull request,
+//   in order, and its `review`, what its lane does to have its change reviewed (pool-brief-project.md). By default, or
+//   empty, storytree alone.
 // `~` is the home folder of the machine reading the file. The environment variables the pool read before
 // (LANES_DIR, CODEX_STOP_AT, WATCH_BOX_HOST, WATCH_FIX_LIMIT, WATCH_FIX_CAP, WATCH_INTERVAL_S) still override it.
 import { readFileSync } from "node:fs";
@@ -83,11 +85,10 @@ export function poolConfig({ home = homedir(), env = process.env, file = env.AGE
   };
 }
 
-/** One project the pool serves: its name, and its checkout when it is not the pool's own (storytree's). */
-function projectOf({ name, checkout }, local) {
-  if (checkout) return { name, checkout: local(checkout) };
-  if (name !== "storytree") throw new Error(`the agent pool's configuration: project ${name} names no checkout`);
-  return { name };
+/** One project the pool serves: its name, its checkout when it is not the pool's own (storytree's), and its checks and review when it names them. */
+function projectOf({ name, checkout, checks, review }, local) {
+  if (!checkout && name !== "storytree") throw new Error(`the agent pool's configuration: project ${name} names no checkout`);
+  return { name, ...(checkout ? { checkout: local(checkout) } : {}), ...(checks?.length ? { checks } : {}), ...(review ? { review } : {}) };
 }
 
 /** What one lane takes at its peak (an engine, its tests' Postgres, at times a headless browser), until it is measured. */

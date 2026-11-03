@@ -262,6 +262,17 @@ export async function poolRules(body, briefsDir) {
   return rulesFile(readOnly(body) || blind(body) ? "pool-brief-read-only.md" : "pool-brief.md", briefsDir);
 }
 
+/**
+ * The build rules for a lane of `project`, a project other than storytree: its name, its checks (one command a line, in
+ * order) and its review filled in from its entry in the machine's configuration, each said to be missing when it names none.
+ */
+export async function projectRules({ name, checks = [], review }, briefsDir) {
+  const lines = checks.length ? checks.map((check) => `  - \`${check}\``).join("\n")
+    : `  - This project's entry in the pool's configuration names no checks of its own: run the checks its CI runs, as its CI runs them, and say in your report which you ran.`;
+  return (await rulesFile("pool-brief-project.md", briefsDir)).replaceAll("{project}", () => name).replaceAll("{checks}", () => lines)
+    .replaceAll("{review}", () => review ?? "This project's entry in the pool's configuration names no review of its own: its checks above and its CI are the check, and your report says no review ran.");
+}
+
 const windows = process.platform === "win32";
 
 /** The process table, `pid ppid args` a line: ps on Linux, Win32_Process on Windows (queue.mjs's processTable). */
@@ -400,10 +411,12 @@ async function pool(b) {
     launch: async (one, { engineUp }) => {
       const at = new Date(b.now()).toISOString().replace(/[-:]|\.\d{3}Z$/g, "");
       const role = !one.plan && blind(one.body) ? " You are a blind reviewer: follow .claude/agents/blind-reviewer.md (ADR-0950)." : "";
+      // Another project's build lane is briefed for its own repository; storytree's, and every read-only or blind lane, as before.
+      const other = !one.plan && !readOnly(one.body) && !blind(one.body) && one.project && one.project !== "storytree" && b.projects.find((p) => p.name === one.project);
       const brief = one.plan
         ? { title: `Planning lane: ${one.id}`, intro: `Your arc: ${one.id} (${one.title}).`, notes: "", common: await planRules(b.briefsDir) }
         : { title: `Pool lane: ${one.id}`, intro: `Your increment: ${one.id}.${role}`,
-          notes: await readFile(join(L, `pool-notes-${one.id}.md`), "utf8").catch(() => ""), common: await (b.rules ?? poolRules)(one.body, b.briefsDir) };
+          notes: await readFile(join(L, `pool-notes-${one.id}.md`), "utf8").catch(() => ""), common: other ? await projectRules(other, b.briefsDir) : await (b.rules ?? poolRules)(one.body, b.briefsDir) };
       const checkout = checkoutOf(one.project);
       return laneOnce({
         increment: one.id, project: one.project, addDirs: b.addDirs, repo: checkout ?? b.laneRepo ?? b.repo, maxLanes: b.maxLanes, lock: b.lock, count: b.count, slots: join(L, ENGINE_SLOTS), prepare: b.prepare,
@@ -411,7 +424,7 @@ async function pool(b) {
         ...(one.plan ? {} : { recheck: async () => whyNotStart(await survey(), one.id) }),
         say: (line) => { if (/^\S+ engine \w+ /.test(line) && !/ exit -?\d+$/.test(line)) engineUp(); say(line); },
         log: join(L, `pool-${one.id}-${at}.log`), err: join(L, `pool-${one.id}-${at}.err`),
-        brief: { path: join(L, `pool-${one.id}-brief.md`), text: localBrief(composeBrief(brief), checkout ? { ...b.briefPaths, checkout } : b.briefPaths) },
+        brief: { path: join(L, `pool-${one.id}-brief.md`), text: localBrief(composeBrief(brief), checkout ? { ...b.briefPaths, checkout, pool: b.briefPaths?.checkout } : b.briefPaths) },
       });
     },
   });

@@ -141,13 +141,15 @@ export async function reserveSlot({ dir, max, count, sleep, onWait, pid = proces
 
 /** A lane's brief: its header, the increment's own notes when it has any, then the pool's rules. */
 /**
- * The pool's rules name the folders a lane works from and reports to as `{checkout}` and `{lanes}`: a lane is briefed with
- * its machine's own (ADR-1216 D1), so it works and reports where its runner looks.
+ * The pool's rules name the folders a lane works from and reports to as `{checkout}` and `{lanes}`, and another project's
+ * the pool's own storytree checkout as `{pool}`: a lane is briefed with its machine's own (ADR-1216 D1), so it works and
+ * reports where its runner looks.
  */
-export function localBrief(text, { checkout, lanes } = {}) {
+export function localBrief(text, { checkout, lanes, pool } = {}) {
   let local = text;
   if (checkout) local = local.replaceAll("{checkout}", () => checkout);
   if (lanes) local = local.replaceAll("{lanes}", () => lanes);
+  if (pool) local = local.replaceAll("{pool}", () => pool);
   return local;
 }
 

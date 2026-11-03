@@ -806,6 +806,77 @@ test("app-setup 11.7 an import recorded with no repository is named by wire_pipe
   });
 });
 
+test("app-setup 11.11 in a Python project, or one importing a Python folder, wire_pipeline's test job sets up Python and uv at pinned commits, and Poetry where a poetry.lock is, before its install and tests; an imported Python folder's own dependencies are installed by its lockfile", async () => {
+  await withProject(async ({ folder }) => {
+    git(folder, "init", "-q");
+    git(folder, "remote", "add", "origin", "https://github.com/someone/shop.git");
+    const around = path.dirname(folder);
+    // Python projects beside it, each recorded by repository and commit when it is imported: one locked by uv, one locked by nothing.
+    const pushed = (name: string, files: Record<string, string>): void => {
+      const origin = path.join(around, `${name}-origin.git`);
+      git(around, "init", "-q", "--bare", origin);
+      const at = path.join(around, name);
+      mkdirSync(at);
+      git(at, "init", "-q");
+      for (const [file, text] of Object.entries(files)) writeFileSync(path.join(at, file), text);
+      git(at, "add", ".");
+      git(at, "commit", "-q", "-m", "first");
+      git(at, "remote", "add", "origin", origin);
+      git(at, "push", "-q", "origin", "HEAD:refs/heads/main");
+    };
+    pushed("orders", { "pyproject.toml": '[project]\nname = "orders"\nversion = "1.0.0"\n', "uv.lock": "version = 1\n" });
+    pushed("billing", { "setup.py": "from setuptools import setup\nsetup(name='billing')\n" });
+
+    await withAgent(folder, claudeCode("claude-1", { protection: async () => "allowed" }), async (agent) => {
+      // A JavaScript project importing it: Python and uv are set up for the import, which installs by its uv.lock.
+      assert.equal((await agent.call("import_project", { folder: "../orders" })).isError, false);
+      assert.equal((await agent.call("import_project", { folder: "../billing" })).isError, false);
+      assert.equal((await agent.call("wire_pipeline", { install: "npm ci", test: "npm test" })).isError, false);
+      const importing = readFileSync(path.join(folder, ".github/workflows/storytree.yml"), "utf8");
+      const steps = importing.slice(importing.indexOf("\n  test:"));
+      assert.match(steps, /- uses: actions\/setup-python@[0-9a-f]{40} # v[\d.]+\n/, steps);
+      assert.match(steps, /- uses: astral-sh\/setup-uv@[0-9a-f]{40} # v[\d.]+\n/, steps);
+      assert.ok(steps.indexOf("setup-uv") < steps.indexOf("- run:"), "Python is set up before anything runs");
+      const runs = testJobRuns(importing);
+      const fetched = runs.slice(0, runs.indexOf("npm ci"));
+      assert.ok(fetched.includes('uv sync --frozen --directory "../orders"'), runs.join("\n"));
+      assert.ok(fetched.includes('python -m pip install "../billing"'), `a Python folder with no lockfile is installed by pip: ${runs.join("\n")}`);
+      assert.doesNotMatch(importing, /poetry/, "no poetry.lock, no Poetry");
+
+      // The project itself becomes a Poetry project: Poetry is set up too, before its install.
+      writeFileSync(path.join(folder, "pyproject.toml"), '[tool.poetry]\nname = "shop"\n');
+      writeFileSync(path.join(folder, "poetry.lock"), "");
+      assert.equal((await agent.call("wire_pipeline", { install: "poetry install", test: "poetry run pytest -rA" })).isError, false);
+      const poetry = testJobRuns(readFileSync(path.join(folder, ".github/workflows/storytree.yml"), "utf8"));
+      assert.ok(poetry.indexOf("pipx install poetry") >= 0 && poetry.indexOf("pipx install poetry") < poetry.indexOf("poetry install"), poetry.join("\n"));
+
+      // Not on GitHub, the commands to add start by installing Poetry, and say the tests need Python and uv.
+      git(folder, "remote", "set-url", "origin", "https://gitlab.com/someone/shop.git");
+      const elsewhere = await agent.call("wire_pipeline", { install: "poetry install", test: "poetry run pytest -rA" });
+      assert.equal(elsewhere.isError, false, elsewhere.text);
+      assert.match(elsewhere.text, /before it merges \(Python 3 and uv for the tests\):\n {2}pipx install poetry\n/, elsewhere.text);
+    });
+  });
+});
+
+test("app-setup 11.12 when the test command runs pytest without -rA, wire_pipeline says CI health cannot credit its numbered tests and to wire it again with -rA", async () => {
+  await withProject(async ({ folder }) => {
+    git(folder, "init", "-q");
+    git(folder, "remote", "add", "origin", "https://github.com/someone/shop.git");
+    writeFileSync(path.join(folder, "pyproject.toml"), '[project]\nname = "shop"\n');
+    await withAgent(folder, claudeCode("claude-1", { protection: async () => "allowed" }), async (agent) => {
+      const bare = await agent.call("wire_pipeline", { install: "uv sync --frozen", test: "uv run pytest -q" });
+      assert.equal(bare.isError, false, bare.text);
+      assert.match(bare.text, /without -rA/);
+      assert.match(bare.text, /call wire_pipeline again/);
+      for (const test of ["uv run pytest -rA", "uv run pytest -q -rA tests", "npm test"]) {
+        const wired = await agent.call("wire_pipeline", { test });
+        assert.doesNotMatch(wired.text, /without -rA/, test);
+      }
+    });
+  });
+});
+
 test("6.2 show_plan reads every live arc's increments in one ask of the board's arcs, however many arcs the project has (ADR-0836 D3)", async () => {
   await withProject(async ({ folder, project, library, log }) => {
     for (const title of ["Launch", "Relaunch", "Sunset"]) {

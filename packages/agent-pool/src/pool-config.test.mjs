@@ -84,6 +84,15 @@ test("3.35 · the pool serves each project its machine names, each from its chec
   assert.throws(read, /project storytree-website names no checkout/);
 });
 
+test("3.36 · another project's entry keeps the checks and review its lanes are briefed with; one naming neither keeps none", async (t) => {
+  const file = await configFile(t, { projects: [{ name: "storytree-website", checkout: "/srv/site", checks: ["pnpm test", "pnpm build"], review: "CI reviews it." },
+    { name: "shop", checkout: "/srv/shop", checks: [] }] });
+  assert.deepEqual(poolConfig({ home: "/home/u", env: { AGENT_POOL_CONFIG: file } }).projects, [
+    { name: "storytree-website", checkout: "/srv/site", checks: ["pnpm test", "pnpm build"], review: "CI reviews it." },
+    { name: "shop", checkout: "/srv/shop" },
+  ]);
+});
+
 test("3.24 · a pool configured machineOnly is read as machine-only; any other value, or none, is not (ADR-1179 D2)", async (t) => {
   const file = await configFile(t, { machine: "laptop", machineOnly: true });
   assert.equal(poolConfig({ home: "/home/u", env: { AGENT_POOL_CONFIG: file } }).machineOnly, true);

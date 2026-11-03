@@ -7,7 +7,7 @@
  */
 import { execFileSync, spawn } from "node:child_process";
 import { existsSync, readdirSync, readFileSync, rmdirSync, rmSync, writeFileSync } from "node:fs";
-import { homedir } from "node:os";
+import { homedir, tmpdir } from "node:os";
 import path from "node:path";
 import { installedToolServerCommand, removeConnections, type RunHarness } from "../connect/index.js";
 import { locateApp, storytreeHome } from "@storytree/project-and-caller";
@@ -31,6 +31,8 @@ export interface UninstallOptions {
   readonly effects?: UserPath;
   /** The installation's layout (toolPaths); the host's by default. */
   readonly platform?: NodeJS.Platform;
+  /** Where the report is also written, for an uninstaller that runs with no window to show it in. */
+  readonly reportFile?: string;
 }
 export interface UninstallReport {
   /** False when something storytree added is still there; `lines` says what and how to remove it. */
@@ -120,14 +122,40 @@ function removeMacInstallation(installDir: string, userHome: string, env: NodeJS
   }
 }
 
+/**
+ * The silent Windows uninstaller shows nothing, so its report goes where `storytree setup uninstall` says to look: outside the
+ * installation folder and the home, which both go.
+ */
+export const uninstallReportFile = () => path.join(tmpdir(), "storytree-uninstall.txt");
+
+/** Its report, with the sign of the end: the uninstaller deletes the installation folder after this helper has run, last. */
+function writeReport(file: string, installDir: string, report: UninstallReport): void {
+  try {
+    writeFileSync(file, [
+      `storytree's uninstall, ${new Date().toISOString()}`,
+      ...report.lines,
+      report.complete ? "Everything storytree added was removed, or goes with the app's folder." : "Something storytree added is still there: each line above says how to remove it.",
+      `The uninstall is finished when ${installDir} is gone.`,
+      "",
+    ].join("\n"));
+  } catch { /* The report is also printed; a file that cannot be written loses nothing else. */ }
+}
+
 const remove = (target: string) => rmSync(target, { recursive: true, force: true, maxRetries: 10, retryDelay: 300 });
 
 export async function uninstall(options: UninstallOptions): Promise<UninstallReport> {
+  const report = await removeInstallation(options);
+  if (options.reportFile !== undefined) writeReport(options.reportFile, options.installDir, report);
+  return report;
+}
+
+async function removeInstallation(options: UninstallOptions): Promise<UninstallReport> {
   const lines: string[] = [];
   let complete = true;
   const tools = toolPaths(options.installDir, options.platform);
   const connections = await removeConnections({
     installed: installedToolServerCommand(tools.node, tools.mcp),
+    installDir: options.installDir,
     ...(options.userHome === undefined ? {} : { home: options.userHome }),
     ...(options.env === undefined ? {} : { env: options.env }),
     ...(options.run === undefined ? {} : { run: options.run }),
@@ -211,11 +239,13 @@ export async function openUninstaller(choice?: string, helperDir = path.dirname(
   }
   // Apps & features runs it with /currentuser, the per-user installation's switch.
   const args = ["/currentuser", ...(choice === undefined ? [] : ["/S", `--${choice}-library`])];
+  // An earlier uninstall's report must not be read as this one's.
+  rmSync(uninstallReportFile(), { force: true });
   const child = spawn(uninstaller, args, { detached: true, stdio: "ignore" });
   await new Promise<void>((resolve, reject) => { child.once("error", reject); child.once("spawn", () => { child.unref(); resolve(); }); });
   return choice === undefined
     ? "The storytree uninstaller is opening: it asks whether to keep your library, then removes the app, its command and its agent connections. Your project folders are left alone."
-    : `storytree is uninstalling in the background (${choice === "keep" ? "keeping" : "removing"} your library). It removes the app, its command and its agent connections, and leaves your project folders alone. Restart your agents afterwards.`;
+    : `storytree is uninstalling in the background (${choice === "keep" ? "keeping" : "removing"} your library). It removes the app, its command and its agent connections, and leaves your project folders alone. It is finished when ${installDir} is gone, usually within a few minutes; ${uninstallReportFile()} then says what it removed and anything it could not. Restart your agents afterwards.`;
 }
 
 /** The registry's raw per-user Path, so %VARIABLES% and its value kind survive the edit. */

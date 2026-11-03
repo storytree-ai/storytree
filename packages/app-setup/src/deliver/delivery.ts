@@ -8,7 +8,7 @@ import { setTimeout as sleep } from "node:timers/promises";
 import { installCommand } from "./command.js";
 import { runInstalledConnection } from "../connect/installed.js";
 import { verifyPayload, type Architecture } from "./payload.js";
-import { openUninstaller, uninstall, uninstallAsks } from "./uninstall.js";
+import { openUninstaller, uninstall, uninstallAsks, uninstallReportFile } from "./uninstall.js";
 
 interface DeliveryOptions {
   installDir: string;
@@ -159,7 +159,7 @@ export async function runDeliveryCommand(args = process.argv.slice(2)): Promise<
     return;
   }
   if (args[0] === "uninstall" && args.length === 3 && (args[2] === "keep" || args[2] === "remove")) {
-    const report = await uninstall({ installDir: args[1]!, home: storytreeHome(), library: args[2] });
+    const report = await uninstall({ installDir: args[1]!, home: storytreeHome(), library: args[2], reportFile: uninstallReportFile() });
     process.stdout.write(report.lines.join("\n") + "\n");
     if (!report.complete) process.exitCode = 1;
     return;

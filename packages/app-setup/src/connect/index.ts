@@ -245,12 +245,27 @@ export interface RemovalResult {
   readonly next?: string;
 }
 
+/** The command a registration starts: Codex's under its transport, a JSON file's at its top. */
+function commandOf(current: unknown): unknown {
+  if (current === null || typeof current !== "object") return undefined;
+  const entry = current as { transport?: { command?: unknown }; command?: unknown };
+  return entry.transport !== null && typeof entry.transport === "object" ? entry.transport.command : entry.command;
+}
+
+/** Whether a file lies inside a folder, compared without case as Windows compares its paths. */
+function inside(file: unknown, folder: string): boolean {
+  if (typeof file !== "string" || !path.isAbsolute(file)) return false;
+  const relative = path.relative(path.resolve(folder).toLowerCase(), path.resolve(file).toLowerCase());
+  return relative !== "" && !relative.startsWith("..") && !path.isAbsolute(relative);
+}
+
 /**
  * Uninstalling: take out this installation's registration, hooks and status line from every agent,
- * whichever were chosen. Anything that does not run this installation's tools (another build's, 0.2's,
- * the user's own) is not ours and stays, silently. Records no disconnection, since the home goes too.
+ * whichever were chosen. A registration whose command lies in the installation folder being removed
+ * is ours whatever shape an older connect gave it, since it cannot run afterwards. Anything else
+ * (another build's, 0.2's, the user's own) is not ours and stays, silently. Records no disconnection, since the home goes too.
  */
-export async function removeConnections(options: Omit<ConnectionOptions, "harnesses">): Promise<RemovalResult[]> {
+export async function removeConnections(options: Omit<ConnectionOptions, "harnesses"> & { readonly installDir?: string }): Promise<RemovalResult[]> {
   const where = locations({ ...options, harnesses: [] });
   const hook = hookCommand(options.installed);
   const results: RemovalResult[] = [];
@@ -262,7 +277,8 @@ export async function removeConnections(options: Omit<ConnectionOptions, "harnes
       // Codex's own command line reads its TOML; without a storytree table there is nothing to ask it.
       if (harness === "codex" && !/mcp_servers\.["']?storytree\b/.test(read(where.files.codex) ?? "")) { results.push({ harness, tools: "none" }); continue; }
       settings = await openSettings(harness, { ...options, harnesses: [] });
-      const ours = settings.current !== undefined && (settings.compatible(options.installed) || settings.outdated(options.installed));
+      const ours = settings.current !== undefined && (settings.compatible(options.installed) || settings.outdated(options.installed) ||
+        (options.installDir !== undefined && inside(commandOf(settings.current), options.installDir)));
       if (ours) await settings.remove();
       results.push({ harness, tools: ours ? "removed" : "none" });
     } catch {

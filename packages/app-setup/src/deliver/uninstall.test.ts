@@ -103,6 +103,36 @@ test("1.8: uninstalling removes a Codex registration storytree wrote before it a
   assert.equal(readFileSync(file, "utf8"), '# the user\'s own\nmodel = "kept"\n');
 });
 
+test("1.8: uninstalling removes any registration that starts a tool server from the installation, whatever shape an older connect gave it", async (t) => {
+  const m = await installedMachine(t);
+  const tools = toolPaths(m.installDir, "win32");
+  // An older connect's entries: this installation's Node (spelt in another case, as Windows allows), another server file and shape.
+  const node = tools.node.toUpperCase() === tools.node ? tools.node.toLowerCase() : tools.node.toUpperCase();
+  const older = [path.join(m.installDir, "resources", "app.asar.unpacked", "storytree-mcp.mjs"), "--stdio"];
+  const toml = path.join(m.codex, "config.toml");
+  writeFileSync(toml, `# the user's own\nmodel = "kept"\n\n[mcp_servers.storytree]\ncommand = ${JSON.stringify(node)}\nargs = ${JSON.stringify(older)}\n`);
+  const claudeConfig = JSON.parse(readFileSync(m.claudeFile, "utf8"));
+  claudeConfig.mcpServers.storytree = { type: "stdio", command: node, args: older, env: { STORYTREE_DEBUG: "1" } };
+  writeFileSync(m.claudeFile, JSON.stringify(claudeConfig));
+
+  const report = await uninstall({ ...m.options, library: "remove" });
+  assert.equal(report.complete, true, report.lines.join("\n"));
+  assert.equal(readFileSync(toml, "utf8"), '# the user\'s own\nmodel = "kept"\n');
+  assert.equal(JSON.parse(readFileSync(m.claudeFile, "utf8")).mcpServers.storytree, undefined);
+  assert.ok(report.lines.some((line) => line.startsWith("Codex") && line.includes("removed")), report.lines.join("\n"));
+});
+
+test("1.8: the uninstall's report is kept in a file that names what stayed and how to tell the removal is finished", async (t) => {
+  const m = await installedMachine(t);
+  const reportFile = path.join(m.user, "storytree-uninstall.txt");
+  const broken: RunHarness = async () => { throw new Error("codex is not installed"); };
+  const report = await uninstall({ ...m.options, run: broken, library: "remove", reportFile });
+  assert.equal(report.complete, false);
+  const kept = readFileSync(reportFile, "utf8");
+  assert.ok(report.lines.every((line) => kept.includes(line)), kept);
+  assert.ok(kept.includes(m.installDir), "it names the folder whose going means the uninstall is done");
+});
+
 test("1.8: keeping the library leaves only the library behind", async (t) => {
   const m = await installedMachine(t);
   // What the app leaves in its home beside the library: its browser data, logs and launch record.

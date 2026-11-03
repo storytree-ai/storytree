@@ -5,7 +5,7 @@ import type { AnnotatedTree, ArcView, Line } from "@storytree/library";
 import { outageSaidOnce, saysUnreachable, type OutageSaidOnce } from "@storytree/library/connection-error";
 import { ON_MAIN_LABELS, type LogReading, type OnMain } from "@storytree/session-management/readings";
 import { pageKept, pageReading, type LiveReads, type PageReading } from "@storytree/arc-surface";
-import { atWork, clickedSelection, sessionRoster, sessionRows, windowFiles, type RosterEntry, type SessionDetails, type SessionFiles, type SessionRow, type SessionWindow } from "../sessions-list/sessions-list.js";
+import { clickedSelection, sessionRoster, sessionRows, windowFiles, type RosterEntry, type SessionDetails, type SessionFiles, type SessionRow, type SessionWindow } from "../sessions-list/sessions-list.js";
 import { sessionColour, sessionWisps, type SessionWisp } from "../agent-claims/agent-claims.js";
 import { treeAfter } from "../render/forest-reading.js";
 
@@ -441,8 +441,8 @@ export function SessionsList({ rows, loading = false, refreshing = false, error,
     }
     return into;
   };
-  // One list (7.10): the sessions at work, then the idle ones below them, each wearing the idle dot.
-  const visible = visit([...rows.filter(row => !row.idle), ...rows.filter(row => row.idle)], 0);
+  // One list of the sessions at work (7.10), as the rows hold them.
+  const visible = visit(rows, 0);
   const active = visible.find(({ row }) => row.id === (hovered ?? focused))?.row;
   const islands = active?.stories.join("\0");
   useEffect(() => {
@@ -485,7 +485,7 @@ export function SessionsList({ rows, loading = false, refreshing = false, error,
   // The Sessions tab of the app's left rail (7.17): the list fills it, with no control of its own to hide or size it.
   return <aside className="sessions-list" data-fresh={refreshing ? "no" : undefined} aria-label="Running sessions">
     <header>
-      <span className="sessions-name">Sessions <span className="sessions-count" title="Sessions at work or waiting for you">{atWork(rows)}</span></span>
+      <span className="sessions-name">Sessions <span className="sessions-count" title="Sessions at work or waiting for you">{rows.length}</span></span>
       <span className="session-legend" aria-label="Bar colours">
         {GROUPS.map(([group, name]) => <span key={group} data-group={group}><span className="session-swatch" aria-hidden="true" />{name}</span>)}
       </span>

@@ -51,8 +51,8 @@ export interface SessionRow {
   /** A subagent start alone does not tell us whether the subagent is still running. */
   state: SessionState | "observed";
   /**
-   * Listed below the sessions at work, wearing the idle dot, and not counted (ADR-0758 D1): neither working, nor
-   * waiting for you (a turn ended within the idle-after time). By its state alone; who is listed at all is Session management's reading.
+   * Neither working, nor waiting for you (a turn ended within the idle-after time), by its state alone: a root row that is idle
+   * is not listed (7.10); a child row that is stays under its parent, wearing the idle dot (7.2, 7.9).
    */
   idle: boolean;
   /** When its session's lines were last seen; a subagent's, when it was started. */
@@ -82,9 +82,9 @@ const LABEL_LIMIT = 40;
 /**
  * The log is the lines themselves, or a reading that holds its sessions and claims folded and keeps
  * its claim and subagent lines.
- * One row per session that has not ended, claimed or not (ADR-0749 D1), each working or waiting by
- * its turns (ADR-0754 D5); one whose hooks report no turns is judged by `quietMs`, the user's
- * idle-after setting (the 30-minute default when the caller has none). A quiet session leaves by `leaveMs`,
+ * One row per session at work, claimed or not (ADR-0749 D1, 7.10): working, or waiting for you within `quietMs`,
+ * the user's idle-after setting (the 30-minute default when the caller has none), by its turns (ADR-0754 D5),
+ * or with a child working. Who may be listed at all is Session management's reading, judged with `leaveMs`,
  * the user's leave-after setting (the 1-hour default when the caller has none).
  */
 export function sessionRows(tree: AnnotatedTree, log: readonly Line[] | LogReading, arcs: readonly ArcView[], now: Date,
@@ -151,12 +151,14 @@ export function sessionRows(tree: AnnotatedTree, log: readonly Line[] | LogReadi
   }
   for (const row of roots) includeChildren(row);
   for (const row of roots) row.idle &&= !row.children.some(child => child.state === "working");
+  // Only the sessions at work are listed (7.10): an idle one is not, whatever keeps Session management listing it.
+  const listed = roots.filter(row => !row.idle);
   // A session's machine is the latest one its lines name; worth showing only when the list spans several.
   const machines = fold.machines();
-  if (new Set(roots.flatMap(row => machines.has(row.id) ? [machines.get(row.id)!] : [])).size > 1) {
-    for (const row of roots) if (machines.has(row.id)) row.machine = machines.get(row.id)!;
+  if (new Set(listed.flatMap(row => machines.has(row.id) ? [machines.get(row.id)!] : [])).size > 1) {
+    for (const row of listed) if (machines.has(row.id)) row.machine = machines.get(row.id)!;
   }
-  return roots;
+  return listed;
 }
 
 /** The longest a running command's words run, ellipsis included. */
@@ -192,11 +194,6 @@ function worktreeRows(session: Session): WorktreeRow[] {
 function pullLabel(pr: PullState): string {
   const waiting = pr.queued ? "in merge queue" : pr.draft ? "draft" : pr.checks === "failing" ? "failing" : pr.checks === "pending" ? "in CI" : undefined;
   return waiting === undefined ? `PR #${pr.number}` : `PR #${pr.number} · ${waiting}`;
-}
-
-/** How many listed sessions are at work, as the list's header counts them (ADR-0758 D1): every row not idle. */
-export function atWork(rows: readonly SessionRow[]): number {
-  return rows.filter(row => !row.idle).length;
 }
 
 /**

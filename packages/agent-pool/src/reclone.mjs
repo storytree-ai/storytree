@@ -173,7 +173,7 @@ export async function main(args, box = {}) {
   if (lanes && apply) {
     const beside = await (box.lanesBeside ?? (async () => lanesBeside((await run("ps", ["-eo", "pid=,ppid=,args="], { maxBuffer: 64 * 1024 * 1024 })).stdout)))();
     if (!existsSync(join(lanes, "pool-stop")) || beside.length) {
-      say(`refused: pause the pool first (node packages/agent-pool/src/pause.mjs pause): ${existsSync(join(lanes, "pool-stop")) ? `${beside.length} other lane${beside.length === 1 ? " is" : "s are"} still running` : `no stop file in ${lanes}`}`);
+      say(`refused: pause the pool first (node --import tsx packages/agent-pool/src/pause.mjs pause): ${existsSync(join(lanes, "pool-stop")) ? `${beside.length} other lane${beside.length === 1 ? " is" : "s are"} still running` : `no stop file in ${lanes}`}`);
       return 1;
     }
     const loops = (box.loopsInside ?? loopsInside)(resolve(checkout));

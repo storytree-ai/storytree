@@ -74,6 +74,11 @@ test("9.1 · the re-clone moves the old checkout and its follow-main worktrees a
   assert.equal(await main([...args, "--apply"], box), 1);
   assert.match(lines.join("\n"), /refused: pause the pool first/);
   assert.equal(await text(join(m.checkout, "which.txt")), "old\n");
+  // With no --lanes, the box is found by the lanes folder holding the watcher's hand-offs.
+  lines.length = 0;
+  assert.equal(await main(["--checkout", m.checkout, "--repo", repo, "--apply"], box), 1);
+  assert.match(lines.join("\n"), new RegExp(`refused: pause the pool first .*no stop file in ${m.lanes.replace(/[\\^$.*+?()[\]{}|]/g, "\\$&")}`));
+  assert.equal(await text(join(m.checkout, "which.txt")), "old\n");
 
   await writeFile(join(m.lanes, "pool-stop"), "paused\n");
   // Nor while the dispatcher's loop still runs from the checkout: it would restart on the moved-aside code.

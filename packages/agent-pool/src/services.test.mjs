@@ -6,7 +6,7 @@ import { test } from "node:test";
 
 import { removeTemp, waitUntil } from "@storytree/test-waits";
 
-import { alive, keepRunning, laneEnv, outsideHost, poolService } from "./services.mjs";
+import { alive, keepRunning, laneEnv, outsideHost, poolService, stoppedOn75 } from "./services.mjs";
 
 async function folder(t) {
   const path = await mkdtemp(join(tmpdir(), "pool-services-"));
@@ -122,6 +122,8 @@ appendFileSync(status, "2026-11-03T00:02:00Z dispatcher started\\n" + (runs >= 2
   await running;
   assert.equal(lines.filter((line) => line.startsWith("started the dispatcher")).length, 2, "the exit 75 from before its start held nothing; its own held the next start");
   assert.match(lines.at(-1), /left stopped: its last run ended on exit 75 \(pool stopped: engine failing at once on increment_b\); start it again with: storytree services restart agent-pool\/dispatcher/);
+  assert.equal(stoppedOn75("2026-11-03T00:01:00Z pool stopped: engine failing at once on increment_a\n2026-11-03T00:02:00Z dispatcher started\n"), undefined, "an exit 75 before the dispatcher's last start holds nothing");
+  assert.match(stoppedOn75("2026-11-03T00:02:00Z dispatcher started\n2026-11-03T00:03:00Z pool stopped: engine failing at once on increment_b\n"), /increment_b$/);
 });
 
 // A watcher as `watch.mjs run` is one: its look loop a child in its process group, and a fix session it started in a group of its own.

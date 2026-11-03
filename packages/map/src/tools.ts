@@ -56,13 +56,13 @@ export function mapTools({ imports: importsOf, heldBack }: ToolHost): ToolExtens
     registerTools(define) {
       define(
         "focus",
-        "Focus the project's map on file:<path>, cap:<id|number>, promise:<id|number>, or story:<name>. Up follows dependencies; down follows dependents, each to a depth. Counts are the default; dry_run estimates detail and show returns every row or refuses above the ceiling. Reads the current checkout. Give crossing (folders or file patterns in a mapped island, from its import's folder, full paths, or cap:<id|number> for an explored capability's folders and files) to count the files outside that import files inside and the files inside that import files outside, before changing or adopting a part; select may then name a mapped story to draw the line among its files only, and show lists each import. Give capabilities with select story:<name> for that story's capabilities in one read: each with its health, contracts, dependencies, and files with their lines of code.",
+        "Focus the project's map on file:<path>, cap:<id|number>, contract:<id|number>, or story:<name>. Up follows dependencies; down follows dependents, each to a depth. Counts are the default; dry_run estimates detail and show returns every row or refuses above the ceiling. Reads the current checkout. Give crossing (folders or file patterns in a mapped island, from its import's folder, full paths, or cap:<id|number> for an explored capability's folders and files) to count the files outside that import files inside and the files inside that import files outside, before changing or adopting a part; select may then name a mapped story to draw the line among its files only, and show lists each import. Give capabilities with select story:<name> for that story's capabilities in one read: each with its health, contracts, dependencies, and files with their lines of code.",
         z.object({
           select: z.string().min(1).optional(),
           crossing: z.array(z.string().min(1)).min(1).optional(),
           up: z.number().int().nonnegative().optional(),
           down: z.number().int().nonnegative().optional(),
-          kind: z.array(z.enum(["story", "capability", "promise", "file", "test"])).optional(),
+          kind: z.array(z.enum(["story", "capability", "contract", "file", "test"])).optional(),
           mode: z.enum(["counts", "dry_run", "show"]).optional(),
           capabilities: z.boolean().optional(),
         }),

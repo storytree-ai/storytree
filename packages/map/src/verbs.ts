@@ -13,7 +13,7 @@ import type { NodeKind } from "./graph.js";
 const SELECTION = {
   up: { kind: "text", describe: "how many hops of dependencies to follow", optional: true },
   down: { kind: "text", describe: "how many hops of dependents to follow", optional: true },
-  kind: { kind: "text", describe: "the node kinds to return, comma-separated: story, capability, promise, file, test", optional: true },
+  kind: { kind: "text", describe: "the node kinds to return, comma-separated: story, capability, contract, file, test", optional: true },
   "dry-run": { kind: "switch", describe: "the row count and estimated token cost, without rows" },
   show: { kind: "switch", describe: "every selected row, or a refusal with the counts above the ceiling" },
   json: { kind: "switch", describe: "answer as JSON" },
@@ -50,7 +50,7 @@ async function crossingStory(select: string | undefined): Promise<{ story?: stri
 }
 
 const mapInputs = {
-  select: { kind: "text", describe: "file:<path>, cap:<id|number>, promise:<id|number>, story:<name> or diff:<range>; with --crossing, story:<mapped>", optional: true },
+  select: { kind: "text", describe: "file:<path>, cap:<id|number>, contract:<id|number>, story:<name> or diff:<range>; with --crossing, story:<mapped>", optional: true },
   crossing: { kind: "text", describe: "the folders, file patterns or explored capabilities a line is drawn round, comma-separated", optional: true },
   capabilities: { kind: "switch", describe: "with --select story:<name>, the story's capabilities, each with its health, contracts, dependencies, and files with their lines of code" },
   ...SELECTION,
@@ -61,7 +61,7 @@ const map: Verb<typeof mapInputs> = {
     family: "map",
     name: "map",
     summary: "up follows dependencies; down follows dependents; --crossing counts the imports across a line in a mapped island; show refuses above 200 rows; JSON on every mode",
-    usage: "map --select story:<name> --capabilities [--json], or map --select file:<path>|cap:<id|number>|promise:<id|number>|story:<name>|diff:<range> [--up N] [--down N] [--kind story,capability,promise,file,test] [--dry-run|--show] [--json], or map --crossing <folder|pattern|cap:<id|number>,...> [--select story:<mapped>] [--show] [--json]",
+    usage: "map --select story:<name> --capabilities [--json], or map --select file:<path>|cap:<id|number>|contract:<id|number>|story:<name>|diff:<range> [--up N] [--down N] [--kind story,capability,contract,file,test] [--dry-run|--show] [--json], or map --crossing <folder|pattern|cap:<id|number>,...> [--select story:<mapped>] [--show] [--json]",
   },
   tool: { absent: "the focus tool serves the map to agents" },
   inputs: mapInputs,
@@ -97,7 +97,7 @@ const affected: Verb<typeof affectedInputs> = {
     family: "affected",
     name: "affected",
     summary: "defaults to origin/main's merge-base against the working tree, including untracked files; A..B compares commits; down limits impact hops, up follows dependencies",
-    usage: "affected [<range>|--range <range>] [--up N] [--down N] [--kind story,capability,promise,file,test] [--dry-run|--show] [--json]",
+    usage: "affected [<range>|--range <range>] [--up N] [--down N] [--kind story,capability,contract,file,test] [--dry-run|--show] [--json]",
   },
   tool: { absent: "the focus tool's diff:<range> selection serves a branch's impact to agents" },
   inputs: affectedInputs,
@@ -115,6 +115,6 @@ const affected: Verb<typeof affectedInputs> = {
 
 /** The command line's `map` and `affected` families, 16th and 17th among `storytree`'s families. */
 export const MAP_FAMILIES: readonly VerbFamily[] = [
-  { name: "map", summary: "focus dependencies and dependents of a file, capability, promise or story; counts first", order: 16, verbs: [], bare: map as Verb<VerbInputs, VerbContext> },
-  { name: "affected", summary: "map a branch's changed files to the promises, dependents and tests they affect; counts first", order: 17, verbs: [], bare: affected as Verb<VerbInputs, VerbContext> },
+  { name: "map", summary: "focus dependencies and dependents of a file, capability, contract or story; counts first", order: 16, verbs: [], bare: map as Verb<VerbInputs, VerbContext> },
+  { name: "affected", summary: "map a branch's changed files to the contracts, dependents and tests they affect; counts first", order: 17, verbs: [], bare: affected as Verb<VerbInputs, VerbContext> },
 ];

@@ -58,7 +58,7 @@ test("3.6 in a branch's checkout the map reads the plan with that branch's incre
     const library = { projectTree: async (options?: { pendingOf?: string | undefined }) => (options?.pendingOf === "increment_ca8ba53211b7" ? pending : live) };
     const promises = async (): Promise<number> => {
       const answer = JSON.parse(await mapCommand(library, folder, { select: "cap:projects", down: 1, mode: "show" }, true));
-      return answer.rows.filter((row: { kind: string }) => row.kind === "promise").length;
+      return answer.rows.filter((row: { kind: string }) => row.kind === "contract").length;
     };
     assert.equal(await promises(), 1, "main reads the live plan");
     git("checkout", "-q", "-b", "claude/increment-ca8ba53211b7-f8f424");

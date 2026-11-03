@@ -156,8 +156,8 @@ export async function affectedProject(library: Pick<Library, "projectTree">, fol
     const existing = byPath.get(file);
     const kind = /(?:^|\/)testing\/|\.(?:test|spec)\.[cm]?[jt]sx?$/.test(file) ? "test" : "file";
     const node: MapNode = existing ?? { id: `${kind}:${file}`, kind, path: file, title: file, story: "", health: "untested", snapshot: changes.some(change => change === "deleted" || change === "renamed-from") ? "base" : changes.includes("modified") ? "both" : "target" };
-    const owns = graph.edges.some(edge => edge.from === node.id && (edge.kind === "implements" || edge.kind === "tests") && ["capability", "promise"].includes(nodes.get(edge.to)?.kind ?? ""));
-    const reason = !existing ? "Changed path is outside the surveyed code." : !owns ? "No capability or promise ownership was found in either code reading." : undefined;
+    const owns = graph.edges.some(edge => edge.from === node.id && (edge.kind === "implements" || edge.kind === "tests") && ["capability", "contract"].includes(nodes.get(edge.to)?.kind ?? ""));
+    const reason = !existing ? "Changed path is outside the surveyed code." : !owns ? "No capability or contract ownership was found in either code reading." : undefined;
     if (reason) unresolved++;
     nodes.set(node.id, { ...node, changes, ...(reason === undefined ? {} : { unresolved: reason }) });
     selected.push(node.id);
@@ -165,7 +165,7 @@ export async function affectedProject(library: Pick<Library, "projectTree">, fol
   }
   const answer = impact({ ...graph, nodes: [...nodes.values()] }, selected, `diff:${range}`, options);
   return { ...answer, diff: { range, ...compared, changedPaths: changed.paths.size, renames: changed.renames, unresolved, statuses, notes: [
-    "Both code readings use today's plan, not historical promise wording.",
+    "Both code readings use today's plan, not historical contract wording.",
     "Impact conservatively joins base and target edges; a route may combine both readings.",
   ] } };
 }

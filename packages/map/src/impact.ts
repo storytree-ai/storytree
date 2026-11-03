@@ -20,8 +20,8 @@ export function impact(graph: ProjectGraph, selected: readonly string[], label: 
     for (let index = 0; index < queue.length; index++) {
       const current = queue[index]!;
       if (current.depth >= limit) continue;
-      const forward = (outgoing.get(current.id) ?? []).filter(edge => direction === "up" || edge.kind === "implements" || edge.kind === "tests" || (edge.kind === "belongs-to" && byId.get(edge.from)?.kind === "promise" && byId.get(edge.to)?.kind === "capability"));
-      const reverse = direction === "up" ? [] : (incoming.get(current.id) ?? []).filter(edge => ["imports", "implements", "tests", "depends-on"].includes(edge.kind) || (edge.kind === "belongs-to" && byId.get(edge.from)?.kind === "promise" && byId.get(edge.to)?.kind === "capability"));
+      const forward = (outgoing.get(current.id) ?? []).filter(edge => direction === "up" || edge.kind === "implements" || edge.kind === "tests" || (edge.kind === "belongs-to" && byId.get(edge.from)?.kind === "contract" && byId.get(edge.to)?.kind === "capability"));
+      const reverse = direction === "up" ? [] : (incoming.get(current.id) ?? []).filter(edge => ["imports", "implements", "tests", "depends-on"].includes(edge.kind) || (edge.kind === "belongs-to" && byId.get(edge.from)?.kind === "contract" && byId.get(edge.to)?.kind === "capability"));
       for (const [edge, id] of [...forward.map(edge => [edge, edge.to] as const), ...reverse.map(edge => [edge, edge.from] as const)]) {
         const node = byId.get(id);
         if (!node || (direction === "impact" && node.kind === "story")) continue;

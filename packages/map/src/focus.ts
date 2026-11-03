@@ -47,11 +47,11 @@ export interface FocusAnswer {
 }
 
 export const SHOW_CEILING = 200;
-const KINDS: readonly NodeKind[] = ["story", "capability", "promise", "file", "test"];
+const KINDS: readonly NodeKind[] = ["story", "capability", "contract", "file", "test"];
 
 /** The library's own record names, which agents select by, and the prefix each is read as (contract 2.6). */
-const SPELLINGS = new Map([["capability", "cap"], ["contract", "promise"]]);
-const RECORDS: readonly NodeKind[] = ["story", "capability", "promise"];
+const SPELLINGS = new Map([["capability", "cap"], ["promise", "contract"]]);
+const RECORDS: readonly NodeKind[] = ["story", "capability", "contract"];
 
 /** Whether a repository path is on disk in the checkout the map was read from; the map's graph cannot say. */
 export type OnDisk = (path: string) => boolean;
@@ -88,17 +88,17 @@ function unmappedFile(graph: ProjectGraph, select: string, wanted: string, exist
 /** An ambiguous number is refused rather than choosing one story's identically numbered capability. */
 export function selectNode(graph: ProjectGraph, select: string, exists?: OnDisk): MapNode {
   const at = select.indexOf(":");
-  // A bare record id, as the library prints it, names its story, capability or promise (contract 2.6).
+  // A bare record id, as the library prints it, names its story, capability or contract (contract 2.6).
   const bare = at < 0 ? graph.nodes.find(node => node.id === select && RECORDS.includes(node.kind)) : undefined;
   if (bare) return bare;
   const prefix = SPELLINGS.get(select.slice(0, at)) ?? select.slice(0, at);
   const wanted = select.slice(at + 1);
-  if (at < 0 || !wanted || !["file", "cap", "promise", "story"].includes(prefix)) throw new Error("Select file:<path>, cap:<id|number>, promise:<id|number>, or story:<name>.");
+  if (at < 0 || !wanted || !["file", "cap", "contract", "story"].includes(prefix)) throw new Error("Select file:<path>, cap:<id|number>, contract:<id|number>, or story:<name>.");
   const found = graph.nodes.filter(node => {
     // A mapped file is also selected by its full path, which its id carries.
     if (prefix === "file") return (node.kind === "file" || node.kind === "test") && (node.path === normalizePath(wanted) || (node.health === "mapped" && normalizePath(node.id.slice(5)) === normalizePath(wanted)));
     if (prefix === "cap") return node.kind === "capability" && (node.id === wanted || node.number === wanted);
-    if (prefix === "promise") return node.kind === "promise" && (node.id === wanted || node.number === wanted);
+    if (prefix === "contract") return node.kind === "contract" && (node.id === wanted || node.number === wanted);
     return node.kind === "story" && (node.id === wanted || node.title.toLowerCase() === wanted.toLowerCase());
   });
   if (found.length === 0) throw new Error(prefix === "file" ? unmappedFile(graph, select, normalizePath(wanted), exists) : `Map selection not found: ${select}`);
@@ -174,7 +174,7 @@ export function focusRows(graph: ProjectGraph, selected: readonly string[], rows
     mode, selected, rowCount: shown.length, estimatedTokens: Math.ceil(JSON.stringify(shown).length / 4), healthSource: graph.healthSource,
     counts, refused, ceiling,
     ...(loops.length === 0 ? {} : { loops }),
-    hints: ["Narrow with a smaller --up/--down depth or --kind story,capability,promise,file,test.", "Use --dry-run to estimate, then --show for every row."],
+    hints: ["Narrow with a smaller --up/--down depth or --kind story,capability,contract,file,test.", "Use --dry-run to estimate, then --show for every row."],
     ...(mode === "show" && !refused ? { rows: shown } : {}),
   };
 }

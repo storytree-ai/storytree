@@ -16,11 +16,14 @@ import { globeFraming } from "./planet-navigation.js";
 import { LAUNCH_FACE, sheetFaces, type SheetFace } from "./globe-switches.js";
 import type { PlacedGlobeControls } from "./globe-guide.js";
 import { globeLocator, type GlobeLocator } from "./globe-locator.js";
+import { paintedScenes } from "./painted-scenes.js";
 import type { GlobeOpening } from "../surfaces/surfaces.js";
 
 export interface ForestView {
   /** Draw `scene`, recomputing only the islands that changed since the last one. */
   show(scene: ForestScene, places: ReadonlyMap<string, number>): void;
+  /** Resolves once the globe has painted a frame of the scene on show (3.75). */
+  drawn(): Promise<void>;
   /** Show where each running session works: the outline on each territory it claimed (capability 5, ADR-0923). */
   showWisps(wisps: readonly SessionWisp[]): void;
   /** Light a session’s claimed islands, without changing the selected story. */
@@ -60,6 +63,7 @@ export async function openForestView(container: HTMLElement, onSelect: (selectio
   let drawn: Drawn = {
     face: LAUNCH_FACE, places: new Map(), scene: { islands: [] }, wisps: [], selected: undefined, highlighted: undefined, viewport: undefined, aside: 0,
   };
+  const painted = paintedScenes(drawn.scene);
 
   const render = (next: Partial<Drawn>): void => {
     drawn = { ...drawn, ...next };
@@ -73,7 +77,7 @@ export async function openForestView(container: HTMLElement, onSelect: (selectio
       <div className="forest-globe">
         <PlanetView core={core} scene={drawn.scene} places={drawn.places} wisps={drawn.wisps}
           selected={drawn.selected} highlighted={drawn.highlighted}
-          onPick={pick} onNote={pickNote} onControls={onControls} mode={layers.mode} framing={globeFraming(opening)} aside={drawn.aside} library={layers.library} liveRoads
+          onPick={pick} onNote={pickNote} onControls={onControls} onPainted={painted.painted} mode={layers.mode} framing={globeFraming(opening)} aside={drawn.aside} library={layers.library} liveRoads
           />
       </div>
       <div className="forest-views" role="group" aria-label="Sheet faces">
@@ -125,7 +129,9 @@ export async function openForestView(container: HTMLElement, onSelect: (selectio
     show(scene, places) {
       const next = nextScene(drawn, scene, places);
       if (next !== undefined) render({ scene: next, places });
+      painted.shown(drawn.scene);
     },
+    drawn: () => painted.drawn(),
     showWisps(wisps) {
       if (!sameWisps(wisps, drawn.wisps)) render({ wisps });
     },

@@ -16,6 +16,12 @@ export interface Composition<Part> {
   readonly graph: PartsGraph;
   /** Each factory plugin among the owners, with the part it stands in for (capability 5): mounted only while that part is off, or, for a part the host has none of, while the setting names it. */
   readonly standsIn?: Readonly<Record<string, string>>;
+  /**
+   * In step with `parts`, the factory plugin each declaration came from, none for a part's own: what tells a stand-in's
+   * declarations from its part's when the plugin is named as the part. Absent, a declaration owned by a plugin `standsIn`
+   * names is that plugin's.
+   */
+  readonly fromPlugin?: readonly (string | undefined)[];
   /** Each part whose named stand-in could not be loaded, with why. */
   readonly failed?: Readonly<Record<string, string>>;
 }
@@ -65,6 +71,13 @@ export function standInPlaces(graph: PartsGraph, off: readonly string[]): Readon
   return new Set([...switchedOff(graph, off).keys(), ...off.filter((part) => !Object.hasOwn(graph, part) && !CORE.includes(part))]);
 }
 
+/** The factory plugin declaration `index` of `composition` came from, standing in for a part, or none for a part's own. */
+export function pluginAt(composition: Composition<unknown>, index: number): string | undefined {
+  if (composition.fromPlugin !== undefined) return composition.fromPlugin[index];
+  const owner = composition.owners[index]!;
+  return Object.hasOwn(composition.standsIn ?? {}, owner) ? owner : undefined;
+}
+
 /**
  * The declarations of `composition` a host mounts when `off` names parts off, and each part it left out with why: a
  * factory plugin's stand in for its part only while that part is off, or while the setting names it off when no part of
@@ -77,8 +90,8 @@ export function mount<Part>(composition: Composition<Part>, off: readonly string
   const failed = composition.failed ?? {};
   return {
     mounted: composition.parts.filter((_, index) => {
-      const owner = composition.owners[index]!;
-      return Object.hasOwn(standsIn, owner) ? places.has(standsIn[owner]!) : !switched.has(owner);
+      const plugin = pluginAt(composition, index);
+      return plugin !== undefined ? places.has(standsIn[plugin]!) : !switched.has(composition.owners[index]!);
     }),
     off: [...switched].map(([part, because]) => ({ part, because, ...(Object.hasOwn(failed, part) ? { failed: failed[part]! } : {}) }))
       .sort((a, b) => a.part.localeCompare(b.part)),
@@ -132,9 +145,14 @@ export function provided(families: readonly ProvidingFamily[]): Provided {
   return { families: families.map((family) => family.name), commands: each.flatMap((one) => one.commands), tools: each.flatMap((one) => one.tools) };
 }
 
-/** What `part` provides of the command families `composition` composed: those it declares. */
+/** What `part` provides of the command families `composition` composed: those it declares, not a stand-in's for it. */
 export function partProvides(composition: Composition<ProvidingFamily>, part: string): Provided {
-  return provided(composition.parts.filter((_, index) => composition.owners[index] === part));
+  return provided(composition.parts.filter((_, index) => composition.owners[index] === part && pluginAt(composition, index) === undefined));
+}
+
+/** What factory plugin `plugin` provides of the command families `composition` composed: those it adds, standing in for a part. */
+export function pluginProvides(composition: Composition<ProvidingFamily>, plugin: string): Provided {
+  return provided(composition.parts.filter((_, index) => pluginAt(composition, index) === plugin));
 }
 
 const listed = (one: string, many: string, names: readonly string[]): string => `${names.length === 1 ? one : many} ${names.join(", ")}`;

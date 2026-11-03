@@ -4,7 +4,7 @@
  * the stand-in's channels and views, and serves a view only from a mounted stand-in's exported files.
  */
 import assert from "node:assert/strict";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test, type TestContext } from "node:test";
@@ -133,4 +133,15 @@ test("1.42 the app opens its projects with the kinds of record a factory plugin 
   declare({ ...reading, kind: "lag.reading" });
   assert.deepEqual(windowKinds(graph, standIns, ["lag"], log), []);
   assert.deepEqual(logged, [`lag is switched off on this computer, and its stand-in my-lag's record kinds could not be read: my-lag's record kind "lag.reading" is not named my-lag.<kind>. Switch it on with: storytree settings set part lag on`]);
+});
+
+test("plugin-loader 5.19 · a factory plugin named as the part it stands in for offers the page only its own surface's view and channels while the part is off, never the part's own", (t) => {
+  const folder = factory(t);
+  const renamed = path.join(folder, "plugins", "lag");
+  writeFileSync(path.join(folder, "plugins", "my-lag", "package.json"), readFileSync(path.join(folder, "plugins", "my-lag", "package.json"), "utf8").replace('"name":"my-lag"', '"name":"lag"'));
+  renameSync(path.join(folder, "plugins", "my-lag"), renamed);
+  const off = windowStandIns(builtIn, { folder, plugins: { lag: "lag" } }, ["lag"]);
+  assert.deepEqual(off.page.views, [{ surface: "my-lag", url: "storytree-plugin://factory/lag/view" }]);
+  assert.equal(off.page.channels.length, 1, "the plugin's channels alone, not the part's beside them");
+  assert.deepEqual(windowStandIns(builtIn, { folder, plugins: { lag: "lag" } }, []).page, { channels: [], views: [] });
 });

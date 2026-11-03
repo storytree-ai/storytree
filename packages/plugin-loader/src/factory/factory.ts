@@ -26,7 +26,7 @@ import type { VerbContext } from "@storytree/library/verbs";
 import type { SettingsReading } from "@storytree/project-and-caller";
 
 import { isServiceRun, type ServiceRun } from "../manifests/manifests.js";
-import { standInPlaces, type Composition, type PartsGraph } from "../switch/switch.js";
+import { pluginAt, standInPlaces, type Composition, type PartsGraph } from "../switch/switch.js";
 
 export type { ServiceRun };
 
@@ -114,6 +114,7 @@ export function pluginParts(folder: string | undefined, plugin: string, kind: st
 export function standIn<Part>(composition: Composition<Part>, kind: string, standIns: StandIns): Composition<Part> {
   const parts = [...composition.parts];
   const owners = [...composition.owners];
+  const fromPlugin = composition.owners.map((_, index) => pluginAt(composition, index));
   const standsIn: Record<string, string> = { ...composition.standsIn };
   const failed: Record<string, string> = { ...composition.failed };
   for (const [part, plugin] of Object.entries(standIns.plugins)) {
@@ -128,8 +129,9 @@ export function standIn<Part>(composition: Composition<Part>, kind: string, stan
     const at = owners.lastIndexOf(part) + 1 || owners.length;
     parts.splice(at, 0, ...declared as Part[]);
     owners.splice(at, 0, ...declared.map(() => plugin));
+    fromPlugin.splice(at, 0, ...declared.map(() => plugin));
   }
-  return { parts, owners, graph: composition.graph, standsIn, failed };
+  return { parts, owners, graph: composition.graph, standsIn, fromPlugin, failed };
 }
 
 /**

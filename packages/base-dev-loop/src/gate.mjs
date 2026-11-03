@@ -46,7 +46,7 @@ export async function place(composition, kind, { partsOff = readPartsOff, standI
   const named = await standIns();
   const { standIn } = await import("@storytree/plugin-loader");
   const composed = standIn(composition, kind, named);
-  const { offSaid, standInPlaces, switchedOff } = await import("@storytree/plugin-loader/switch");
+  const { offSaid, pluginAt, standInPlaces, switchedOff } = await import("@storytree/plugin-loader/switch");
   const parts = await partsOff();
   const off = switchedOff(composed.graph, parts);
   const places = standInPlaces(composed.graph, parts);
@@ -58,8 +58,9 @@ export async function place(composition, kind, { partsOff = readPartsOff, standI
   const placed = [];
   composed.parts.forEach((part, index) => {
     const owner = composed.owners[index];
-    if (Object.hasOwn(standsIn, owner) && !places.has(standsIn[owner])) return;
-    placed.push({ part, owner, ...(off.has(owner) ? { off: offSaid({ part: owner, because: off.get(owner) }) } : {}) });
+    const plugin = pluginAt(composed, index);
+    if (plugin !== undefined && !places.has(standsIn[plugin])) return;
+    placed.push({ part, owner, ...(plugin === undefined && off.has(owner) ? { off: offSaid({ part: owner, because: off.get(owner) }) } : {}) });
   });
   return { placed, failed };
 }

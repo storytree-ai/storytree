@@ -9,7 +9,7 @@
 import composed from "#parts/verbs";
 import { readPartsOff, readStandIns } from "@storytree/project-and-caller";
 import { mount, standIn, type SwitchedOff } from "@storytree/plugin-loader";
-import { standInPlaces } from "@storytree/plugin-loader/switch";
+import { pluginAt, standInPlaces } from "@storytree/plugin-loader/switch";
 
 import type { Family } from "../door.js";
 import { family as mounted } from "../mount.js";
@@ -76,10 +76,12 @@ function declaredIn(home?: string) {
   const loaded = standIn(composed, "verbs", standIns);
   const places = standInPlaces(loaded.graph, off);
   const standsIn = loaded.standsIn ?? {};
-  const standing = new Set(loaded.owners.filter((owner) => Object.hasOwn(standsIn, owner) && places.has(standsIn[owner]!)));
-  const replaced = new Set([...standing].map((plugin) => standsIn[plugin]!));
-  const keep = loaded.owners.map((owner) => Object.hasOwn(standsIn, owner) ? standing.has(owner) : !replaced.has(owner));
-  return { ...loaded, parts: loaded.parts.filter((_, at) => keep[at]), owners: loaded.owners.filter((_, at) => keep[at]) };
+  const from = loaded.owners.map((_, at) => pluginAt(loaded, at));
+  const standing = new Set(from.filter((plugin) => plugin !== undefined && places.has(standsIn[plugin]!)));
+  const replaced = new Set([...standing].map((plugin) => standsIn[plugin!]!));
+  const keep = loaded.owners.map((owner, at) => from[at] !== undefined ? standing.has(from[at]) : !replaced.has(owner));
+  const kept = <T>(list: readonly T[]) => list.filter((_, at) => keep[at]);
+  return { ...loaded, parts: kept(loaded.parts), owners: kept(loaded.owners), fromPlugin: kept(from) };
 }
 
 /** The families `storytree` answers on the computer whose storytree home is `home`, in the order it lists them. */
@@ -107,7 +109,7 @@ export function familiesOff(off: readonly string[]): ReadonlyMap<string, Switche
   const said = new Map(mount(declared, off).off.map((one) => [one.part, one]));
   return new Map(declared.parts.flatMap((family, index) => {
     const part = declared.owners[index]!;
-    const switched = said.get(part);
+    const switched = pluginAt(declared, index) === undefined ? said.get(part) : undefined;
     return switched === undefined || family.name === WAY_BACK ? [] : [[family.name, { ...switched, part }] as const];
   }));
 }

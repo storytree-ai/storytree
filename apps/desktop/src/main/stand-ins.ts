@@ -11,7 +11,7 @@ import { readFileSync } from "node:fs";
 import type { SurfaceDeclaration } from "@storytree/app";
 import type { PluginRecordKind } from "@storytree/library";
 import { pluginExport, recordKinds, standIn, type StandIns } from "@storytree/plugin-loader/factory";
-import { mount, offSaid, standInPlaces, switchedOff, type Composition, type PartsGraph } from "@storytree/plugin-loader/switch";
+import { mount, offSaid, pluginAt, standInPlaces, switchedOff, type Composition, type PartsGraph } from "@storytree/plugin-loader/switch";
 
 import type { PageChannelMap, PagePart, PageStandIns } from "../page-operations.js";
 
@@ -78,10 +78,9 @@ export function windowStandIns(parts: WindowParts, standIns: StandIns, off: read
 /** The declarations of `composition` a stand-in adds that are mounted when `off` names parts off, each with its plugin. */
 function standing<Part>(composition: Composition<Part>, off: readonly string[]): { plugin: string; part: Part }[] {
   const mounted = new Set(mount(composition, off).mounted);
-  const standsIn = composition.standsIn ?? {};
   return composition.parts.flatMap((part, index) => {
-    const plugin = composition.owners[index]!;
-    return Object.hasOwn(standsIn, plugin) && mounted.has(part) ? [{ plugin, part }] : [];
+    const plugin = pluginAt(composition, index);
+    return plugin !== undefined && mounted.has(part) ? [{ plugin, part }] : [];
   });
 }
 

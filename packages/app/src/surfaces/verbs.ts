@@ -62,12 +62,12 @@ function switchedHere(graph: PartsGraph, off: readonly string[]): ReadonlyMap<st
  * standing in for it (the stand-ins `standIns` name), added in its place (friction_9ff1eaa190a0).
  */
 async function takenSaid(part: string, graph: PartsGraph, off: readonly string[], standIns: { readonly folder?: string; readonly plugins: Readonly<Record<string, string>> }, composed: Composition<ProvidingFamily>): Promise<string[]> {
-  const [{ standIn }, { partProvides, providedSaid }] = await Promise.all([import("@storytree/plugin-loader"), import("@storytree/plugin-loader/switch")]);
+  const [{ standIn }, { partProvides, pluginProvides, providedSaid }] = await Promise.all([import("@storytree/plugin-loader"), import("@storytree/plugin-loader/switch")]);
   const gone = [...switchedOff(graph, off)].filter(([, because]) => because === part).map(([one]) => one).sort((a, b) => a === part ? -1 : b === part ? 1 : a.localeCompare(b));
   const lines = gone.map((one) => `${one === part ? one : `${one}, which stands on ${part},`} takes away ${providedSaid(partProvides(composed, one))}.`);
   const plugin = standIns.plugins[part];
   if (plugin === undefined || !Object.hasOwn(graph, part)) return lines;
-  return [...lines, `${plugin} adds in its place ${providedSaid(partProvides(standIn(composed, "verbs", standIns), plugin))}.`];
+  return [...lines, `${plugin} adds in its place ${providedSaid(pluginProvides(standIn(composed, "verbs", standIns), plugin))}.`];
 }
 
 const set = verb({

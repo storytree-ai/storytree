@@ -1,7 +1,7 @@
 // Capability 3 · The pool's dispatcher and watcher as services (ADR-1216 D3, ADR-1180): the agent runner's manifest
 // declares two services, `dispatcher` and `watcher`, both run always, which the service host on a machine runs while
-// its settings turn them on (`storytree settings set service agent-pool/dispatcher on`), in place of the crontab's
-// keep.mjs and launch-pool.sh. Each service keeps its process running as the keeper did: it adopts one already running
+// its settings turn them on (`storytree settings set service agent-pool/dispatcher on`), in place of the crontab keeper
+// and the launch-pool.sh loop they retire. Each service keeps its process running: it adopts one already running
 // (its pid file names a live one), starts it otherwise, and starts it again a minute after it ends. The dispatcher is
 // left stopped while pool-stop is there, and after a run of this service's ended on exit 75 (an engine failing at once),
 // until the service is started again (`storytree services restart agent-pool/dispatcher`). Under systemd each process
@@ -12,11 +12,11 @@
 import { spawn } from "node:child_process";
 import { existsSync, openSync } from "node:fs";
 import { appendFile, readFile } from "node:fs/promises";
-import { join } from "node:path";
+import { homedir } from "node:os";
+import { delimiter, dirname, join } from "node:path";
 import { setTimeout as wait } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
 
-import { laneEnv, stoppedOn75 } from "./keep.mjs";
 import { argsOf, DISPATCHER } from "./launch.mjs";
 import { poolConfig } from "./pool-config.mjs";
 import { MARKS } from "./watch.mjs";
@@ -28,6 +28,29 @@ export const LEAVE = "SIGUSR2";
 export function outsideHost([command, args], { env = process.env, platform = process.platform } = {}) {
   if (platform === "linux" && env.INVOCATION_ID) return ["systemd-run", ["--user", "--scope", "--quiet", "--collect", command, ...args]];
   return [command, args];
+}
+
+/**
+ * Why the dispatcher should stay stopped, read from pool.status after its last start: its run ended on exit 75, which a
+ * dispatcher says as "pool stopped: …" (an engine failing at once).
+ */
+export function stoppedOn75(status) {
+  const lines = status.split("\n");
+  return lines.slice(lines.findLastIndex((line) => line.endsWith(" dispatcher started")) + 1).find((line) => / pool stopped: /.test(line));
+}
+
+/**
+ * The environment a service starts the dispatcher and the watcher in: a service manager's is bare (no ~/.local/bin, where
+ * claude and gh are, maybe no node), so the node running the host and ~/.local/bin go first on PATH, the user's runtime
+ * dir is named, and no agent session's id is passed on.
+ */
+export function laneEnv(env, { home = homedir(), nodeBin = dirname(process.execPath), uid = process.getuid?.(), exists = existsSync } = {}) {
+  const path = [nodeBin, join(home, ".local", "bin"), ...(env.PATH || "/usr/local/bin:/usr/bin:/bin").split(delimiter)];
+  const out = { ...env, HOME: env.HOME || home, PATH: [...new Set(path.filter(Boolean))].join(delimiter) };
+  const runtime = `/run/user/${uid}`;
+  if (!out.XDG_RUNTIME_DIR && uid !== undefined && exists(runtime)) out.XDG_RUNTIME_DIR = runtime;
+  for (const name of ["CLAUDE_CODE_SESSION_ID", "CODEX_THREAD_ID"]) delete out[name];
+  return out;
 }
 
 /** Whether process `pid` is alive. */

@@ -163,8 +163,8 @@ export async function main(args, box = {}) {
   const say = box.say ?? console.log, home = box.home ?? homedir();
   const config = poolConfig({ home, env: box.env ?? process.env });
   const checkout = flag("--checkout") ?? config.checkout, repo = flag("--repo") ?? "https://github.com/storytree-ai/storytree.git";
-  // The box is the machine whose lanes folder holds the pool's launcher; elsewhere (the laptop) there are no lanes to carry.
-  const lanes = flag("--lanes") ?? (existsSync(join(config.lanesDir, "launch-pool.sh")) ? config.lanesDir : undefined);
+  // The box is the machine whose lanes folder holds the watcher's hand-offs; elsewhere (the laptop) there are none to carry.
+  const lanes = flag("--lanes") ?? (existsSync(join(config.lanesDir, "watch")) ? config.lanesDir : undefined);
   const apply = args.includes("--apply");
   if (args.some((arg) => arg.startsWith("--") && !["--checkout", "--repo", "--lanes", "--apply"].includes(arg))) {
     say("usage: reclone.mjs [--checkout <folder>] [--repo <git url>] [--lanes <folder>] [--apply]");

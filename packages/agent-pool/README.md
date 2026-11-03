@@ -29,14 +29,14 @@ development dependency, so switching the agent runner off takes its services off
 `./launch` for the ready pool, `./runner` for the lane runner), resolved by `agentRunnerEntry` in `src/interface.mjs`,
 which answers with a stand-in plugin's entry while the part is switched off.
 
-## The box's keeper (increment_89c736caa64a)
+## The box's dispatcher and watcher (ADR-1216 D3)
 
-On a Linux pool machine the user's crontab runs `src/keep.mjs` once a minute (`node packages/agent-pool/src/keep.mjs install` adds the
-line, once). It starts the dispatcher's loop (`launch-pool.sh run`) and the watcher (`watch.mjs run`) when either is down.
-What cron starts lives in `cron.service`, not in a login session or the user manager, so the desktop logging out, or
-`user@1000` exiting as it did twice on 2026-10-31, no longer stops the pool, and it comes back after a reboot unattended.
-It leaves the loop stopped while `pool-stop` is there, or when the dispatcher's last run ended on exit 75, which it says
-once in `pool.status` for pool health and the session manager. Its own output is `keep.log` in the lanes folder.
+On the Mint box the service host (`storytree-host.service`, a systemd user unit kept past logout by lingering) runs
+the two services, turned on in the box's settings (`storytree settings set service agent-pool/dispatcher on`, and the
+same for `agent-pool/watcher`). They replace the crontab keeper (`keep.mjs`, increment_89c736caa64a) and the
+`launch-pool.sh run` loop, both retired. `pause.mjs` writes `pool-stop`, which the dispatcher's service reads as "leave it
+stopped"; `pause.mjs resume` removes it and starts nothing itself. `storytree settings set part agent-pool off` stops
+both services (a stand-in's run under the same names, if one is named).
 
 ## The laptop's dispatcher (ADR-1179)
 

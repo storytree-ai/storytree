@@ -1,12 +1,12 @@
 import assert from "node:assert/strict";
 import { mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { delimiter, join } from "node:path";
 import { test } from "node:test";
 
 import { removeTemp, waitUntil } from "@storytree/test-waits";
 
-import { alive, keepRunning, outsideHost, poolService } from "./services.mjs";
+import { alive, keepRunning, laneEnv, outsideHost, poolService } from "./services.mjs";
 
 async function folder(t) {
   const path = await mkdtemp(join(tmpdir(), "pool-services-"));
@@ -73,6 +73,15 @@ writeFileSync(lanes + "/lane.pid", String(lane.pid));
 process.on("SIGTERM", () => { try { process.kill(lane.pid, "SIGTERM"); } catch {} process.exit(0); });
 setInterval(() => {}, 1000);
 `;
+
+test("3.33 · the service starts its process with node and ~/.local/bin first on PATH, the user's runtime dir named, and no agent session's id", () => {
+  const env = laneEnv({ PATH: ["/usr/bin", "/bin"].join(delimiter), CLAUDE_CODE_SESSION_ID: "s" }, { home: "/home/me", nodeBin: "/n/bin", uid: 1000, exists: () => true });
+  assert.equal(env.PATH, ["/n/bin", join("/home/me", ".local", "bin"), "/usr/bin", "/bin"].join(delimiter), "a service manager's bare PATH has no claude (~/.local/bin) and maybe no node");
+  assert.equal(env.XDG_RUNTIME_DIR, "/run/user/1000");
+  assert.equal(env.CLAUDE_CODE_SESSION_ID, undefined, "what it starts belongs to no agent session");
+  assert.equal(env.HOME, "/home/me", "a HOME the manager leaves unset is the user's");
+  assert.equal(laneEnv({ HOME: "/h" }, { home: "/home/me", nodeBin: "/n/bin" }).HOME, "/h");
+});
 
 test("3.33 · stopping the dispatcher's service ends the dispatcher and leaves its running lane running", async (t) => {
   const lanesDir = await folder(t);

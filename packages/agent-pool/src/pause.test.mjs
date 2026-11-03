@@ -7,7 +7,7 @@ import { test } from "node:test";
 
 import { removeTemp } from "@storytree/test-waits";
 
-import { lanesBeside, loopRunning, main } from "./pause.mjs";
+import { lanesBeside, main } from "./pause.mjs";
 
 async function folder(t) {
   const path = await mkdtemp(join(tmpdir(), "pool-pause-"));
@@ -17,7 +17,7 @@ async function folder(t) {
 
 // Two lanes: 100's engine (its node child is no engine of its own), and 200's, which runs the shell calling pause.
 const TABLE = `
-  1 0 bash launch-pool.sh run
+  1 0 node --import tsx packages/agent-pool/src/launch.mjs pool
   100 1 claude -p # Pool lane: increment_a
   101 100 node something
   200 1 codex exec # Pool lane: increment_b
@@ -28,8 +28,6 @@ const TABLE = `
 test("3.23 · pause stops the pool taking new work and waits until no other lane runs and the merge queue is empty, then says what is still open", async (t) => {
   const lanesDir = await folder(t);
   assert.deepEqual(lanesBeside(TABLE, "202").map((one) => one.pid), ["100"], "the caller's own lane is not waited for");
-  assert.equal(loopRunning(TABLE), true);
-  assert.equal(loopRunning("  5 1 node other\n"), false);
 
   const running = [[{ pid: "100", args: "claude -p" }], [], []], queued = [[], [{ number: 7, title: "queued" }], []];
   const lines = [], sleeps = [];
@@ -57,47 +55,38 @@ test("3.23 · pause stops the pool taking new work and waits until no other lane
   assert.ok(lines.includes("not drained yet: 1 lane running (300)\n  300 claude -p # Pool lane: increment_d"), "each lane still running is listed on its own line");
 });
 
-test("3.23 · resume lets the pool take work again, starting the dispatcher's loop only when it has ended", async (t) => {
+test("3.23 · resume lets the pool take work again and starts no loop, leaving the dispatcher to its service when that is on", async (t) => {
   const lanesDir = await folder(t);
   const stopFile = join(lanesDir, "pool-stop");
   await writeFile(stopFile, "paused\n");
-  const started = [], lines = [];
-  let looping = true;
-  const box = { lanesDir, stopFile, say: (line) => lines.push(line), looping: async () => looping, startLoop: async () => { started.push(1); return 4242; } };
+  const lines = [];
+  let on = true;
+  const box = { lanesDir, stopFile, say: (line) => lines.push(line), serviceOn: async () => on };
   assert.equal(await main(["resume"], box), 0);
   assert.equal(existsSync(stopFile), false, "the stop file goes");
-  assert.deepEqual(started, [], "a loop still running starts the dispatcher again itself");
+  assert.match(lines.at(-1), /^resumed: the service host's agent-pool\/dispatcher starts the dispatcher again/);
 
+  on = false;
   await writeFile(stopFile, "paused\n");
-  looping = false;
   assert.equal(await main(["resume"], box), 0);
   assert.equal(existsSync(stopFile), false);
-  assert.deepEqual(started, [1], "an ended loop is started");
-  assert.match(lines.at(-1), /started the dispatcher's loop \(pid 4242\)/);
-
-  // One ssh command that checks ps for the loop and then resumes: its shell and its grep hold the text, and are no loop.
-  const caller = `
-  10 1 sshd: owner@notty
-  11 10 bash -c ps -eo args | grep -c "launch-pool.sh run"; node packages/agent-pool/src/pause.mjs resume
-  12 11 grep -c launch-pool.sh run
-  13 11 node packages/agent-pool/src/pause.mjs resume
-`;
-  assert.equal(loopRunning(caller), false, "the caller's command line is not the loop");
-  assert.equal(loopRunning(`${caller}  20 1 bash /srv/lanes/launch-pool.sh run\n`), true);
+  assert.match(lines.at(-1), /^resumed: the dispatcher's service is off on this machine.*storytree settings set service agent-pool\/dispatcher on/);
+  assert.equal(await main(["resume"], box), 0);
+  assert.match(lines.at(-1), /^the pool was not paused: /);
 });
 
 test("3.23 · status says whether the pool is paused, what runs beside it, the merge queue and what is still open", async (t) => {
   const lanesDir = await folder(t);
   const lines = [];
   const box = {
-    lanesDir, stopFile: join(lanesDir, "pool-stop"), say: (line) => lines.push(line), looping: async () => true,
+    lanesDir, stopFile: join(lanesDir, "pool-stop"), say: (line) => lines.push(line), serviceOn: async () => true,
     lanes: async () => [{ pid: "100", args: "claude -p" }], queue: async () => [{ number: 7, title: "queued" }],
     open: async () => [], handed: async () => [],
   };
   assert.equal(await main(["status"], box), 0);
   await writeFile(box.stopFile, "paused\n");
   assert.equal(await main(["status"], box), 0);
-  assert.deepEqual(lines.filter((line) => line.startsWith("pool:")), ["pool: taking work; dispatcher loop running", "pool: paused; dispatcher loop running"]);
+  assert.deepEqual(lines.filter((line) => line.startsWith("pool:")), ["pool: taking work; the dispatcher's service is on (the service host keeps it running)", "pool: paused; the dispatcher's service is on (the service host keeps it running)"]);
   assert.ok(lines.includes("1 other lane running (100)"));
   assert.ok(lines.includes("in the merge queue: #7"));
   assert.ok(lines.includes("no open pull requests"));

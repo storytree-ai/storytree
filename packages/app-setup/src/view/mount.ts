@@ -113,7 +113,13 @@ export function mountSetupHelp(host: HTMLElement, bridge: SetupHelpBridge, optio
       return;
     }
     box.setAttribute("role", "status");
-    box.replaceChildren(...found.map((each) => {
+    // What check_setup tells the agent, told to the user before they press Connect (3.16).
+    const records = document.createElement("p");
+    records.dataset.connectRecords = "";
+    records.textContent = "Once an agent is connected, storytree's hooks send each session's transcript, and with it the code the agent reads, into your library, " +
+      "so every computer that shares the library can read it. Obvious secrets such as API keys and tokens are scrubbed first, but the scrub is best-effort, not a guarantee. " +
+      "Raw transcript records are kept 180 days.";
+    box.replaceChildren(records, ...found.map((each) => {
       const row = document.createElement("p");
       row.className = "setup-help-connect-agent";
       const name = document.createElement("strong");

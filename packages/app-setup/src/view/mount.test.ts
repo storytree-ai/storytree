@@ -122,6 +122,23 @@ test("3.13 a Connect that fails can be tried again, one at a time; an Add a proj
   } finally { mounted.stop(); }
 });
 
+test("3.16 before a Connect is pressed the guide says what connecting records: each session's transcript and the code read in it, a best-effort scrub, 180 days; and says it still once connected", async () => {
+  const mounted = mountSetupHelp(document.body, helpBridge({
+    agentsToConnect: async () => [{ harness: "claude-code", agent: "Claude Code", connected: false }],
+    connectAgent: async () => ({ agent: "Claude Code", connected: true, next: "Start a new agent session in the folder of your project." }),
+  }));
+  try {
+    await setImmediate();
+    const offer = document.querySelector<HTMLElement>("[data-connect]")!;
+    const said = (): string => offer.querySelector("[data-connect-records]")?.textContent ?? "";
+    for (const words of [/each session's transcript/, /code the agent reads/, /library/, /best-effort/, /180 days/]) assert.match(said(), words);
+    offer.querySelector<HTMLButtonElement>("[data-connect-agent=claude-code]")!.click();
+    await setImmediate();
+    assert.match(offer.textContent!, /Claude Code is connected\./);
+    assert.match(said(), /180 days/, "connecting does not take the notice away");
+  } finally { mounted.stop(); }
+});
+
 test("3.13 when the agents cannot be read the guide says why", async () => {
   const mounted = mountSetupHelp(document.body, helpBridge({ agentsToConnect: async () => { throw new Error("No delivery record"); } }));
   try {

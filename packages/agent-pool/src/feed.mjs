@@ -71,7 +71,7 @@ export function pickPool(survey, { attempts = new Map(), running = [], max = 1, 
     const why = (() => {
       if (running.includes(one.id)) return "running now";
       const failures = failuresOf.get(one.id) ?? [];
-      if (failures.length >= LANE_FAILURES) return `its lanes failed ${failures.length} times (${failures.map((failure) => failure.at).join(", ")}): the pool offers it no more until a session that fixed the cause offers it again (feed.mjs reoffer ${one.id} --reason …)`;
+      if (failures.length >= LANE_FAILURES) return `its lanes failed ${failures.length} times (${failures.map((failure) => failure.at).join(", ")}): the pool offers it no more until a session that fixed the cause offers it again (feed.mjs reoffer ${one.id}${one.project && one.project !== "storytree" ? ` --project ${one.project}` : ""} --reason …)`;
       const attempt = attempts.get(one.id);
       const claim = live.get(one.id);
       if (claim) {
@@ -221,6 +221,26 @@ export async function surveyLibrary(project = "storytree") {
   });
 }
 
+/**
+ * One survey of every project in `projects` (the pool's configuration names them), each read by `surveyOne` from its own
+ * project in the library: their arcs, increments, claims, holds, refusals and failed lanes side by side, each arc and
+ * increment naming its `project`, so pickPool offers every project's ready work under each project's own records.
+ */
+export async function surveyProjects(projects, surveyOne) {
+  const found = await Promise.all(projects.map(async (project) => ({ project, survey: await surveyOne(project) })));
+  const tagged = (list, project) => (list ?? []).map((one) => ({ ...one, project }));
+  const holds = {};
+  for (const { survey } of found) for (const [kind, byIncrement] of Object.entries(survey.holds ?? {})) holds[kind] = { ...holds[kind], ...byIncrement };
+  return {
+    arcs: found.flatMap(({ project, survey }) => tagged(survey.arcs, project)),
+    increments: found.flatMap(({ project, survey }) => tagged(survey.increments, project)),
+    holds, here: found.map(({ survey }) => survey.here).find(Boolean),
+    claims: found.flatMap(({ survey }) => survey.claims ?? []),
+    refusals: found.flatMap(({ survey }) => survey.refusals ?? []),
+    failures: found.flatMap(({ survey }) => survey.failures ?? []),
+  };
+}
+
 /** The session a lane-failed line is written on: the pool's own, which reads as no session. */
 export const POOL_SESSION = "pool";
 
@@ -262,22 +282,24 @@ export async function reoffer({ log, project, increment, why, by }) {
   return cleared;
 }
 
-/** node packages/agent-pool/src/feed.mjs reoffer <increment> --reason "…": offer an increment the pool gave up on to it again, in the shared library. */
+/** node packages/agent-pool/src/feed.mjs reoffer <increment> [--project <name>] --reason "…": offer an increment the pool gave up on to it again, in its project (by default storytree) in the shared library. */
 export async function main(args, { env = process.env, say = console.log, complain = console.error, offer } = {}) {
   const at = args.indexOf("--reason");
   const [verb, increment] = args;
   const why = at >= 0 ? args[at + 1] : undefined;
-  if (verb !== "reoffer" || !increment || increment.startsWith("--") || !why) {
-    complain('usage: feed.mjs reoffer <increment> --reason "what was fixed"');
+  const named = args.indexOf("--project");
+  const project = named >= 0 ? args[named + 1] : "storytree";
+  if (verb !== "reoffer" || !increment || increment.startsWith("--") || !why || !project) {
+    complain('usage: feed.mjs reoffer <increment> [--project <name>] --reason "what was fixed"');
     return 2;
   }
   const by = env.CLAUDE_CODE_SESSION_ID || env.CODEX_THREAD_ID || undefined;
   const write = offer ?? (async (request) => {
     const { openActivityLog } = await import("@storytree/session-management");
-    return withLibrary("storytree", async (_library, storytree) => reoffer({ log: await openActivityLog(storytree), project: "storytree", ...request }));
+    return withLibrary(request.project, async (_library, storytree) => reoffer({ log: await openActivityLog(storytree), ...request }));
   });
   try {
-    const cleared = await write({ increment, why, by });
+    const cleared = await write({ increment, why, by, project });
     say(`${increment} is offered to the pool again; cleared ${cleared} failed lane${cleared === 1 ? "" : "s"}, and it now has ${LANE_FAILURES} more before the pool gives up on it again.`);
     return 0;
   } catch (error) {

@@ -29,7 +29,7 @@ async function box(t, extra = {}) {
     lanesDir, events, lines, briefs, repo: join(lanesDir, "repo"), addDirs: ["/wt", lanesDir], pid: 4242, now,
     say: (line) => lines.push(line), argsOf: async () => "", maxLanes: async () => 5,
     // A clear box: the real reading (/proc on a busy CI runner) would hold dispatch back (pace.mjs).
-    pace: async () => undefined, briefPaths: undefined, laneRepo: undefined,
+    pace: async () => undefined, briefPaths: undefined, laneRepo: undefined, projects: [{ name: "storytree" }],
     // Plugged in and online: the real readings (the power line, the library and GitHub) are the start rule's tests' own (3.27).
     power: async () => "Online", refusals: async () => [],
     count: async () => { events.push("count"); return counts.length ? counts.shift() : 0; },
@@ -559,6 +559,39 @@ test("3.28 · a dispatcher configured with its own checkout and lanes folder bri
   b.sleep = async () => { await new Promise((go) => setImmediate(go)); if (b.briefs.length) await writeFile(join(b.lanesDir, "pool-stop"), ""); };
   assert.equal(await main(["pool"], b), 0);
   assert.ok(b.briefs[0].endsWith(`Work from C:/no-such-folder/storytree03, never C:/no-such-folder/storytree03-wt. Your report goes to ${join(b.lanesDir, ".storytree", "agent-pool")}/pool-<increment>.report.md.\n`), b.briefs[0]);
+});
+
+test("3.35 · a dispatcher whose machine names a second project offers that project's ready work beside storytree's, in `ready` and its picks, and starts its lane in that project's checkout, briefed with it, its failures counted there", async (t) => {
+  const website = await folder(t);
+  const b = await box(t, {
+    count: async () => 0, rules: async () => "Work from {checkout}.\n",
+    survey: async (project) => {
+      const work = poolWork(project === "storytree" ? ["increment_ours"] : ["increment_site"]);
+      for (const one of work.increments) one.title = `${project}: ${one.id}`;
+      return work;
+    },
+  });
+  b.home = b.lanesDir;
+  b.env = { AGENT_POOL_CONFIG: join(b.lanesDir, "agent-pool.json") };
+  await writeFile(b.env.AGENT_POOL_CONFIG, JSON.stringify({ checkout: "/srv/storytree03", lanes: b.lanesDir,
+    projects: [{ name: "storytree" }, { name: "storytree-website", checkout: website }] }));
+  delete b.briefPaths; delete b.projects;
+  const out = [];
+  assert.equal(await main(["ready"], { ...b, out: (line) => out.push(line) }), 0);
+  assert.deepEqual(JSON.parse(out.join("\n")).ready, [
+    { id: "increment_ours", title: "storytree: increment_ours", project: "storytree" },
+    { id: "increment_site", title: "storytree-website: increment_site", project: "storytree-website" },
+  ]);
+  const lanes = {};
+  b.runLane = async (options) => { lanes[options.increment] = { cwd: options.cwd, project: options.project, brief: await readFile(options.brief, "utf8") }; b.briefs.push(options.brief); return 0; };
+  b.sleep = async () => { await new Promise((go) => setImmediate(go)); if (b.briefs.length === 2) await writeFile(join(b.lanesDir, "pool-stop"), ""); };
+  assert.equal(await main(["pool"], b), 0);
+  assert.deepEqual(lanes.increment_site.cwd, website, "the second project's lane starts in its checkout");
+  assert.equal(lanes.increment_site.project, "storytree-website");
+  assert.ok(lanes.increment_site.brief.endsWith(`Work from ${website}.\n`), lanes.increment_site.brief);
+  assert.equal(lanes.increment_ours.cwd, b.repo, "storytree's lane starts where it always has");
+  assert.equal(lanes.increment_ours.project, "storytree");
+  assert.ok(lanes.increment_ours.brief.endsWith("Work from /srv/storytree03.\n"), lanes.increment_ours.brief);
 });
 
 test("3.28 · a dispatcher whose machine names its own brief folder briefs its lanes from the copy there, and from the base's where it holds none", async (t) => {

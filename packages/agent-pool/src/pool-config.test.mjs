@@ -30,7 +30,7 @@ test("3.15 · the pool reads its machine, checkout, lanes, briefs, session cap, 
     file, machine: "box", checkout: join("/home/u", "src/shop"), remoteCheckout: "~/src/shop", lanesDir: join("/home/u", "pool"),
     briefsDir: join("/home/u", "pool/briefs"), addDirs: [join("/home/u", "src/shop-wt"), "/srv/shared", join("/home/u", "pool")], sessions: 3,
     models: { codex: "codex-model", claude: "claude-model" }, switchAt: 80, identity: { name: "Lane Owner", email: "owner@example.com" },
-    watcher: { fixesPerRed: 1, fixesPerPullRequest: 4, intervalMs: 30_000 }, machineOnly: false,
+    watcher: { fixesPerRed: 1, fixesPerPullRequest: 4, intervalMs: 30_000 }, machineOnly: false, projects: [{ name: "storytree" }],
   };
   assert.deepEqual(poolConfig({ home: "/home/u", env: { AGENT_POOL_CONFIG: file } }), expected);
 
@@ -69,8 +69,19 @@ test("3.16 · with no configuration the pool runs on general defaults: this chec
   assert.deepEqual(poolConfig({ home: "/home/u", env: { AGENT_POOL_CONFIG: file } }), {
     file, machine: undefined, checkout: CHECKOUT, remoteCheckout: CHECKOUT, lanesDir: join("/home/u", ".storytree/agent-pool"), briefsDir: undefined,
     addDirs: [join("/home/u", ".storytree/agent-pool")], sessions: undefined, models: { codex: undefined, claude: undefined }, switchAt: 100, identity: undefined,
-    watcher: { fixesPerRed: 2, fixesPerPullRequest: 6, intervalMs: 60_000 }, machineOnly: false,
+    watcher: { fixesPerRed: 2, fixesPerPullRequest: 6, intervalMs: 60_000 }, machineOnly: false, projects: [{ name: "storytree" }],
   });
+});
+
+test("3.35 · the pool serves each project its machine names, each from its checkout there, ~ as this machine's home; with none named it serves storytree alone, from the pool's own checkout", async (t) => {
+  const file = await configFile(t, { projects: [{ name: "storytree" }, { name: "storytree-website", checkout: "~/code/storytree-website" }] });
+  const read = () => poolConfig({ home: "/home/u", env: { AGENT_POOL_CONFIG: file } }).projects;
+  assert.deepEqual(read(), [{ name: "storytree" }, { name: "storytree-website", checkout: join("/home/u", "code/storytree-website") }]);
+  await writeFile(file, JSON.stringify({ projects: [] }));
+  assert.deepEqual(read(), [{ name: "storytree" }], "an empty list names none");
+  // Only storytree's lanes may start in the pool's own checkout: another project's must say where its own is.
+  await writeFile(file, JSON.stringify({ projects: [{ name: "storytree-website" }] }));
+  assert.throws(read, /project storytree-website names no checkout/);
 });
 
 test("3.24 · a pool configured machineOnly is read as machine-only; any other value, or none, is not (ADR-1179 D2)", async (t) => {

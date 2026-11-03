@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { blind, LANE_FAILURES, laneFailures, main, noteLaneFailure, pickPlan, pickPool, planState, readOnly, readSurvey, reoffer } from "./feed.mjs";
+import { blind, LANE_FAILURES, laneFailures, main, noteLaneFailure, pickPlan, pickPool, planState, readOnly, readSurvey, reoffer, surveyProjects } from "./feed.mjs";
 
 const now = Date.parse("2026-10-07T03:00:00Z");
 
@@ -445,9 +445,49 @@ test("2.28 · one lane-reoffered line offers a tripped increment to the pool aga
   const asked = [];
   const options = { env: { CODEX_THREAD_ID: "t1" }, say: (text) => said.push(text), complain: (text) => said.push(text), offer: async (request) => (asked.push(request), 3) };
   assert.equal(await main(["reoffer", "increment_abc", "--reason", "the brief is fixed"], options), 0);
-  assert.deepEqual(asked, [{ increment: "increment_abc", why: "the brief is fixed", by: "t1" }]);
+  assert.deepEqual(asked, [{ increment: "increment_abc", why: "the brief is fixed", by: "t1", project: "storytree" }]);
   assert.match(said.at(-1), /cleared 3 failed lanes/);
   assert.equal(await main(["reoffer", "increment_abc"], options), 2, "a reoffer must say what was fixed");
   assert.equal(await main(["reoffer", "increment_abc", "--reason", "x"], { ...options, offer: async () => { throw new Error("nothing to clear"); } }), 1);
   assert.match(said.at(-1), /^reoffer refused: nothing to clear/);
+});
+
+test("2.30 · one survey of every project the machine names offers each one's ready work, each increment naming its project, under that project's own claims, holds and failed lanes; storytree alone is surveyed as before", async () => {
+  const failed = (id) => Array.from({ length: LANE_FAILURES }, (_, n) => ({ increment: id, at: `2026-10-0${n + 1}T00:00:00Z` }));
+  const libraries = {
+    storytree: survey([increment("i_free", ""), increment("i_claimed", "", { parked: "2026-10-01T00:00:00Z" })], {
+      arcs: [{ id: "arc_a", state: "active" }], here: "mint", refusals: [], failures: [],
+      claims: [{ increment: "i_claimed", session: "s1", holder: "live", since: "2026-10-07T02:00:00Z" }],
+    }),
+    "storytree-website": survey([increment("w_free", "", { arc: "arc_w", parked: "2026-10-05T00:00:00Z" }), increment("w_waits", "", { arc: "arc_w" }),
+      increment("w_tripped", "", { arc: "arc_w" })], {
+      arcs: [{ id: "arc_w", state: "active" }], here: "mint", refusals: [], failures: failed("w_tripped"),
+      holds: { waits: { w_waits: [{ on: "w_free" }] }, heldOn: {}, waitsFor: {} },
+    }),
+  };
+  const asked = [];
+  const surveyOne = async (project) => { asked.push(project); return libraries[project]; };
+  const both = await surveyProjects(["storytree", "storytree-website"], surveyOne);
+  assert.deepEqual(asked, ["storytree", "storytree-website"]);
+  assert.deepEqual(both.increments.map((one) => [one.id, one.project]),
+    [["i_free", "storytree"], ["i_claimed", "storytree"], ["w_free", "storytree-website"], ["w_waits", "storytree-website"], ["w_tripped", "storytree-website"]]);
+  assert.deepEqual(both.arcs.map((arc) => [arc.id, arc.project]), [["arc_a", "storytree"], ["arc_w", "storytree-website"]]);
+  assert.equal(both.here, "mint");
+  const { picks, skipped } = pickPool(both, { max: Infinity, now });
+  assert.deepEqual(picks.map((one) => one.id), ["w_free", "i_free"], "the second project's ready work is offered beside storytree's");
+  assert.deepEqual(skipped.map((one) => [one.id, one.why.split(" ").slice(0, 3).join(" ")]),
+    [["i_claimed", "held by live"], ["w_waits", "waits on w_free"], ["w_tripped", "its lanes failed"]]);
+  assert.match(skipped[2].why, /feed\.mjs reoffer w_tripped --project storytree-website --reason/, "the tripped one is re-offered in its own project");
+
+  asked.length = 0;
+  const alone = await surveyProjects(["storytree"], surveyOne);
+  assert.deepEqual(asked, ["storytree"]);
+  const reading = ({ picks, skipped }) => [picks.map((one) => one.id), skipped];
+  assert.deepEqual(reading(pickPool(alone, { max: Infinity, now })), reading(pickPool(libraries.storytree, { max: Infinity, now })), "storytree alone picks and skips as its own survey does");
+
+  // A failed lane's count is cleared in the project it was counted in.
+  const offered = [];
+  const options = { env: {}, say: () => {}, complain: () => {}, offer: async (request) => (offered.push(request), 1) };
+  assert.equal(await main(["reoffer", "w_tripped", "--project", "storytree-website", "--reason", "the website's brief is fixed"], options), 0);
+  assert.equal(offered[0].project, "storytree-website");
 });

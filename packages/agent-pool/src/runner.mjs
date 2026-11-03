@@ -314,15 +314,15 @@ async function leaveResidue({ increment, session, logs, storytree, day, dated })
  * A lane that failed (1.17): recorded by `failed`, which gives back the increment's failures so far, or null for a lane refused a claim,
  * which is no failure. At the LANE_FAILURES-th, residue on the increment names each, since the pool offers it no more (2.27).
  */
-async function laneFailed({ increment, why, logs, lane, started, failed, storytree, day, dated }) {
-  const failures = await Promise.resolve().then(() => failed({ increment, why, logs, ...(lane ? { lane } : {}), started }))
+async function laneFailed({ increment, project, why, logs, lane, started, failed, storytree, day, dated }) {
+  const failures = await Promise.resolve().then(() => failed({ increment, why, logs, ...(lane ? { lane } : {}), started }, project))
     .catch((error) => { dated(`failed lane on ${increment} not recorded: ${String(error.message).split("\n")[0]}`); return null; });
   if (!failures) return;
   dated(`lane on ${increment} failed (${why}): ${failures.length} of ${LANE_FAILURES}`);
   if (failures.length !== LANE_FAILURES) return;
   const tell = (args) => storytree(args).catch((error) => { dated(`storytree ${args.slice(0, 3).join(" ")} refused: ${String(error.message).split("\n")[0]}`); return ""; });
   const body = (await tell(["library", "read", increment, "--field", "body"])).trimEnd();
-  const residue = `Residue (lane runner, ${day}): this increment's pool lanes failed ${failures.length} times, so the pool offers it no more (Agent runner 2.27) until a session that fixed the cause offers it again: node packages/agent-pool/src/feed.mjs reoffer ${increment} --reason "what was fixed" (2.28).`
+  const residue = `Residue (lane runner, ${day}): this increment's pool lanes failed ${failures.length} times, so the pool offers it no more (Agent runner 2.27) until a session that fixed the cause offers it again: node packages/agent-pool/src/feed.mjs reoffer ${increment}${project === "storytree" ? "" : ` --project ${project}`} --reason "what was fixed" (2.28).`
     + ` Each failure: ${failures.map((one, n) => `${n + 1}. ${one.at}: ${one.why}${one.logs?.length ? ` (${one.logs.join(", ")})` : ""}`).join("; ")}.`
     + " Read those logs and any worktree they left before starting again.";
   await tell(["arc", "increment", "edit", increment, "--body", body ? `${body}\n\n${residue}` : residue]);
@@ -401,8 +401,8 @@ async function holdForNetwork({ reachable, sleep, now, offline }) {
 }
 
 export async function runLane({ brief, log, err, addDirs = [], cwd = process.cwd(), home = homedir(), env = process.env,
-  commands = { codex: ["codex"], claude: ["claude"] }, now = Date.now, say = console.log, increment,
-  heads = (id) => remoteHeads(id, cwd), failed = (failure) => recordLaneFailure(failure),
+  commands = { codex: ["codex"], claude: ["claude"] }, now = Date.now, say = console.log, increment, project = "storytree",
+  heads = (id) => remoteHeads(id, cwd), failed = (failure, where) => recordLaneFailure(failure, where),
   storytree = async (args) => (await run(...storytreeCommand(args), { cwd, env, maxBuffer: 16 * 1024 * 1024 })).stdout,
   reachable = () => bothAnswer({ cwd, env }), sleep = (ms) => new Promise((done) => setTimeout(done, ms)), offline: limits = {}, reap, onSpawn }) {
   const original = await readFile(brief, "utf8");
@@ -498,7 +498,7 @@ export async function runLane({ brief, log, err, addDirs = [], cwd = process.cwd
     if (!leftSomething(before, await traces({ increment, lanesDir: settings.lanesDir, heads }))) {
       await leaveResidue({ increment, session, logs: [last.log, resumed.log], storytree, day, dated });
       // A resume an operator stopped (a signal) is no failure of the lane's.
-      if (!result.signaled) await laneFailed({ increment, why: `exit 0 with no report and no push, twice (started, then resumed once; the resume exited ${result.code})`, logs: [last.log, resumed.log],
+      if (!result.signaled) await laneFailed({ increment, project, why: `exit 0 with no report and no push, twice (started, then resumed once; the resume exited ${result.code})`, logs: [last.log, resumed.log],
         lane: session, started: began, failed, storytree, day, dated });
       return 1;
     }
@@ -511,7 +511,7 @@ export async function runLane({ brief, log, err, addDirs = [], cwd = process.cwd
   }
   // A slow failing exit of the engine's own (not a signal: an operator's stop) that left nothing is a failed lane.
   if (before && result.code !== 0 && !result.signaled && !leftSomething(before, await traces({ increment, lanesDir: settings.lanesDir, heads }))) {
-    await laneFailed({ increment, why: `exit ${result.code} with no report and no push`, logs: [last.log], lane: await sessionOf(last.log), started: began, failed, storytree, day, dated });
+    await laneFailed({ increment, project, why: `exit ${result.code} with no report and no push`, logs: [last.log], lane: await sessionOf(last.log), started: began, failed, storytree, day, dated });
   }
   return result.code;
 }

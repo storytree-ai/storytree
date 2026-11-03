@@ -32,6 +32,12 @@ export function usePythonParser(given: NonNullable<typeof parser>): void {
   parser = given;
 }
 
+/** The parser given, or a throw: a survey that reads Python with none must fail, never draw a file with no imports. */
+function givenParser(): NonNullable<typeof parser> {
+  if (parser === undefined) throw new Error("the Python reader has no parser: usePythonParser was never called");
+  return parser;
+}
+
 /** The file a dotted module names under `root` (a folder with a trailing slash, or ""), if `paths` holds it. */
 function moduleFile(root: string, parts: readonly string[], paths: ReadonlySet<string>): string | undefined {
   if (parts.length === 0) return paths.has(`${root}__init__.py`) ? `${root}__init__.py` : undefined;
@@ -54,8 +60,7 @@ const importedParts = (node: Node): string[] => partsOf(node.type === "aliased_i
 
 /** The imports a Python file makes of files `paths` holds. */
 function edgesOf(file: SourceFile, paths: ReadonlySet<string>, packages: readonly SurveyPackage[]): Edge[] {
-  if (parser === undefined) throw new Error("the Python reader has no parser: usePythonParser was never called");
-  const tree = parser.parse(file.text);
+  const tree = givenParser().parse(file.text);
   try {
     const roots = searchRoots(file.path, packages);
     const found = new Set<string>();
@@ -115,7 +120,6 @@ export const pythonReader: LanguageReader = {
     return match === null ? undefined : { number: Number(match[1]), title: match[2]! };
   },
   ready: async () => {
-    if (parser === undefined) throw new Error("the Python reader has no parser: usePythonParser was never called");
-    await parser.load();
+    await givenParser().load();
   },
 };

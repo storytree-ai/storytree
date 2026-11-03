@@ -7,6 +7,7 @@ import { test, type TestContext } from "node:test";
 import { pathToFileURL } from "node:url";
 
 import { build } from "esbuild";
+import { removeTemp } from "@storytree/test-waits";
 
 import { partsFromList, writeWithPluginLoader } from "./parts-list.js";
 
@@ -15,7 +16,7 @@ interface Story { readonly name: string; readonly dependencies?: readonly string
 /** A folder holding a host that imports #parts/surfaces, with each story installed in its node_modules. */
 function host(t: TestContext, stories: readonly Story[], dependencies = stories.map((story) => story.name)): string {
   const root = mkdtempSync(path.join(tmpdir(), "storytree-desktop-parts-list-"));
-  t.after(() => rmSync(root, { recursive: true, force: true }));
+  t.after(() => removeTemp(root));
   const imports = { "#parts/surfaces": "./src/surfaces.js" };
   writeFileSync(path.join(root, "package.json"), JSON.stringify({ name: "host", imports, dependencies: Object.fromEntries(dependencies.map((name) => [name, "*"])) }));
   for (const story of stories) {
@@ -57,7 +58,7 @@ test("1.48 · the main process and preload bundles pack each #parts/<kind> from 
   assert.deepEqual(bundled.surfaces.graph, { arcs: [], forest: [] });
 });
 
-test("1.48 · a desktop bundle whose parts list is missing, or out of date with a package.json it was written from, fails naming it rather than pack the wrong parts", async (t) => {
+test("1.48 · a desktop bundle whose parts list is missing, or out of date with a package.json it was written from, fails naming it rather than pack the wrong parts, and so does one importing a kind its package.json maps no list for", async (t) => {
   const entry = `import surfaces from "#parts/surfaces";\nexport { surfaces };\n`;
   const missing = host(t, [arcs, forest]);
   await assert.rejects(bundle(missing, entry, partsFromList({ write: async () => {} })), /no parts list for .*: Plugin loader's step wrote none/);
@@ -66,4 +67,6 @@ test("1.48 · a desktop bundle whose parts list is missing, or out of date with 
   // The list is written, then a story's manifest changes under it: an install between the step and the pack.
   const write = async (from: string, file: string) => { await writeWithPluginLoader(from, file); writeFileSync(changed, "{}"); };
   await assert.rejects(bundle(stale, entry, partsFromList({ write })), (error: Error) => error.message.includes(`out of date: ${changed} changed`));
+  const unmapped = host(t, [arcs, forest]);
+  await assert.rejects(bundle(unmapped, `import pages from "#parts/pages";\nexport { pages };\n`), /holds no #parts\/pages: its package\.json's imports map no such kind/);
 });

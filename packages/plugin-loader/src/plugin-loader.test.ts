@@ -1,7 +1,6 @@
 /** The plugin loader: the manifests a host's story packages carry, and the parts composed from them into its bundle. */
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { createHash } from "node:crypto";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -93,9 +92,10 @@ test("2.1 the parts-list step writes, for each #parts/<kind> the host's package.
     pages: [],
   });
   assert.deepEqual(list.graph, { arcs: ["forest"], forest: [] });
-  const sha = (file: string) => createHash("sha256").update(readFileSync(file)).digest("hex");
+  // Each fingerprint is checked against the file by the build that reads the list (Setup's 8.41); here, which files.
   const read = [path.join(dir, "package.json"), path.join(dir, "node_modules", "@s", "arcs", "package.json"), path.join(dir, "node_modules", "@s", "forest", "package.json")];
-  assert.deepEqual(list.inputs, Object.fromEntries(read.map((one) => [one, sha(one)])));
+  assert.deepEqual(Object.keys(list.inputs), read);
+  for (const sha of Object.values(list.inputs)) assert.match(sha, /^[0-9a-f]{64}$/);
 });
 
 test("3.1 an unbundled host importing #parts/<kind>, which its imports map to its own module calling composeParts, gets every part's declarations in storyParts' order, and an empty list for a kind no manifest names", async (t) => {

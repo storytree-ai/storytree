@@ -18,7 +18,6 @@ import type { Plugin } from "esbuild";
 
 /** A host's parts list, as Plugin loader writes it. */
 interface PartsList {
-  readonly host: string;
   readonly kinds: Record<string, readonly { module: string; export: string; owner: string }[]>;
   readonly graph: unknown;
   readonly inputs: Record<string, string>;
@@ -46,7 +45,6 @@ function hostOf(from: string): string {
 function readList(host: string, file: string): PartsList {
   if (!existsSync(file)) throw new Error(`There is no parts list for ${host}: Plugin loader's step wrote none, so the build stops rather than pack no parts.`);
   const list = JSON.parse(readFileSync(file, "utf8")) as PartsList;
-  if (list.host !== host) throw new Error(`The parts list for ${host} was written for ${list.host}.`);
   for (const [input, sha] of Object.entries(list.inputs)) {
     const now = existsSync(input) ? createHash("sha256").update(readFileSync(input)).digest("hex") : undefined;
     if (now !== sha) throw new Error(`The parts list for ${host} is out of date: ${input} changed since it was written, so the build stops rather than pack the wrong parts.`);

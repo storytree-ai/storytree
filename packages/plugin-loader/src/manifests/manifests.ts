@@ -91,9 +91,13 @@ function dependencies(host: string): { name: string; pkg: PackageJson | undefine
 
 const manifested = (pkg: PackageJson | undefined): boolean => typeof pkg?.storytree === "object" && pkg.storytree !== null;
 
+const declaresServices = (pkg: PackageJson | undefined): boolean => manifested(pkg) && (pkg!.storytree as Record<string, unknown>).services !== undefined;
+
 /**
  * The parts `host` depends on (capability 4): each package with a manifest, by part name, with the parts its package.json
  * depends on. A part reached only through another part is in it too, so switching it off takes the one standing on it.
+ * So is a part another takes only as a development dependency and whose manifest declares services, as the service host
+ * takes the agent runner it mounts (contract 4.4), but with no edge from the one taking it, which stays on without it.
  */
 export function partsGraph(host: string): PartsGraph {
   const graph: Record<string, string[]> = {};
@@ -103,6 +107,7 @@ export function partsGraph(host: string): PartsGraph {
     const standsOn = Object.keys(found!.pkg.dependencies ?? {}).filter((one) => manifested(installedAt(one, found!.dir)?.pkg));
     graph[partName(name)] = standsOn.map(partName).sort();
     for (const one of standsOn) visit(one, found!.dir);
+    for (const one of Object.keys(found!.pkg.devDependencies ?? {})) if (declaresServices(installedAt(one, found!.dir)?.pkg)) visit(one, found!.dir);
   };
   for (const { name } of dependencies(host)) visit(name, host);
   return Object.fromEntries(Object.entries(graph).sort(([a], [b]) => a.localeCompare(b)));

@@ -1,13 +1,14 @@
 import assert from "node:assert/strict";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
+import { removeTemp } from "@storytree/test-waits";
 import { setupHelpActions } from "./actions.js";
 
 test("3.2 from the guide, checking a folder whose connection is incomplete shows the setup diagnostics with their recovery fixes; a cancelled pick shows nothing", async (t) => {
   const dir = mkdtempSync(path.join(tmpdir(), "storytree-app-check-"));
-  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  t.after(() => removeTemp(dir));
   const folder = path.join(dir, "notes");
   mkdirSync(folder);
   let picked: string | undefined;
@@ -24,7 +25,7 @@ test("3.2 from the guide, checking a folder whose connection is incomplete shows
 
 test("8.45 from the guide, checking a folder names each plugin in this computer's factory that no part setting names, with the command that names it, and none the setting names", async (t) => {
   const dir = mkdtempSync(path.join(tmpdir(), "storytree-app-check-"));
-  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  t.after(() => removeTemp(dir));
   const home = path.join(dir, "home");
   const plugin = (name: string, manifest: Record<string, unknown>) => {
     mkdirSync(path.join(home, "your-factory", "plugins", name), { recursive: true });

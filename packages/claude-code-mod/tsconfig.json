@@ -4,10 +4,10 @@
     "allowJs": true
   },
   "include": [
-    "src/claude-code-mod"
+    "src"
   ],
   "exclude": [
-    "src/claude-code-mod/plugin/.claude-plugin",
-    "src/claude-code-mod/plugin/tsconfig.json"
+    "src/plugin/.claude-plugin",
+    "src/plugin/tsconfig.json"
   ]
 }

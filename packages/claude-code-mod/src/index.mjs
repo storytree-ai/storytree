@@ -1,4 +1,4 @@
-// Capability 6 · Loads in the runner's lanes and in interactive sessions. Where the mod's plugin folder is, for a host that loads it
+// Capability 2 · Loads in the runner's lanes and in interactive sessions. Where the mod's plugin folder is, for a host that loads it
 // (`claude --plugin-dir <folder>`, or CLAUDE_CODE_PLUGIN_DIRS): in the checkout, so it follows main (ADR-1056 D3).
 import { fileURLToPath } from "node:url";
 

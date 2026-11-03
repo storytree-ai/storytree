@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { mkdtemp, mkdir, readdir, readFile, realpath, rm, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { hostname, tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
@@ -25,6 +25,9 @@ async function lane(t) {
   const lanesDir = join(home, "lanes"), cwd = join(home, "worktree");
   await mkdir(lanesDir); await mkdir(cwd); await mkdir(join(home, ".storytree"));
   await writeFile(join(home, ".storytree", "secrets.json"), JSON.stringify({ CLAUDE_CODE_OAUTH_TOKEN: "test-login" }));
+  // The machine's own pool configuration (ADR-1216 D1): the engines' models and who a lane commits as.
+  await writeFile(join(home, ".storytree", "agent-pool.json"), JSON.stringify({ engines: { codex: { model: "codex-model" }, claude: { model: "claude-model" } },
+    identity: { name: "Lane Owner", email: "owner@example.com" } }));
   const brief = join(home, "brief.md"), log = join(lanesDir, "lane.log"), err = join(lanesDir, "lane.err");
   await writeFile(brief, "Build this increment. Preserve `literal` $text and \"quotes\".\n");
   const lines = [];
@@ -46,8 +49,8 @@ test("1.6 · foreground engines receive the exact brief, model, directories and 
     const adds = options.addDirs.flatMap((path) => ["--add-dir", path]);
     const brief = await readFile(options.brief, "utf8");
     assert.deepEqual(result.args, engine === "codex"
-      ? ["exec", brief, "--model", "gpt-6-astra", "--sandbox", "danger-full-access", "--dangerously-bypass-hook-trust", ...adds, "--json"]
-      : ["-p", brief, "--model", "claude-opus-5-5", "--permission-mode", "bypassPermissions", ...adds, "--plugin-dir", PLUGIN_FOLDER, "--output-format", "stream-json", "--verbose"]);
+      ? ["exec", brief, "--model", "codex-model", "--sandbox", "danger-full-access", "--dangerously-bypass-hook-trust", ...adds, "--json"]
+      : ["-p", brief, "--model", "claude-model", "--permission-mode", "bypassPermissions", ...adds, "--plugin-dir", PLUGIN_FOLDER, "--output-format", "stream-json", "--verbose"]);
     assert.equal(await realpath(result.cwd), await realpath(options.cwd));
     assert.equal(result.token, "test-login");
     assert.deepEqual(result.keys, []); assert.equal(result.stdin, "");
@@ -65,7 +68,7 @@ test("1.6 · foreground engines receive the exact brief, model, directories and 
 
 test("1.14 · A Claude lane loads the Claude Code mod from its plugin folder with function hooks turned on; a Codex lane is given neither", async (t) => {
   const options = await lane(t);
-  // Started from a Claude Code session with the mod loaded, as a dispatcher on the Mint box may be.
+  // Started from a Claude Code session with the mod loaded, as a pool's dispatcher may be.
   Object.assign(options.env, { CLAUDE_CODE_ENABLE_FUNCTION_HOOKS: "1", CLAUDE_CODE_PLUGIN_DIRS: "/parent/plugin", STORYTREE_SESSION_FILE: "/parent.session" });
   const told = `console.log(JSON.stringify({args:process.argv.slice(1),hooks:process.env.CLAUDE_CODE_ENABLE_FUNCTION_HOOKS??null,plugins:process.env.CLAUDE_CODE_PLUGIN_DIRS??null,file:process.env.STORYTREE_SESSION_FILE??null}));`;
   options.commands = { codex: command(told), claude: command(told) };
@@ -425,7 +428,7 @@ test("1.18 · A lane with no lane token of its own does not start: no engine run
   }
 });
 
-test("1.19 · A lane refused for want of its token asks the owner once, on its increment's arc, to mint a new one; it asks again only once that question is settled", async (t) => {
+test("1.19 · A lane refused for want of its token asks the owner once, on its increment's arc, to make a new one; it asks again only once that question is settled", async (t) => {
   const options = await lane(t);
   await writeFile(join(options.home, ".storytree", "secrets.json"), "{}");
   const told = [];
@@ -444,6 +447,7 @@ test("1.19 · A lane refused for want of its token asks the owner once, on its i
   const question = asked()[0];
   assert.equal(question[question.indexOf("--arc") + 1], "arc_lanes");
   assert.match(question[question.indexOf("--title") + 1], /lane token/);
+  assert.ok(question[question.indexOf("--title") + 1].endsWith(` for ${hostname()}`), "it names the machine that lacks the token");
   assert.ok(!question.includes("--hold"), "no work is held on it");
   settled = true;
   assert.equal(await main(["run", options.brief, options.log, options.err], options), 75);
@@ -592,7 +596,7 @@ test("1.20 · each of the library and GitHub that does not answer is named with 
   assert.deepEqual(await refusals({ probe: async () => {}, platform: "linux" }), []);
 });
 
-test("1.21 · A lane whose worktree has no git identity configured still commits, as the owner, on either engine; an identity the runner's environment sets is kept", async (t) => {
+test("1.21 · A lane whose worktree has no git identity configured still commits, as the identity its machine's pool configuration names, on either engine; an identity the runner's environment sets is kept", async (t) => {
   const options = await lane(t);
   const empty = join(options.home, "empty.gitconfig");
   await writeFile(empty, "");
@@ -600,7 +604,7 @@ test("1.21 · A lane whose worktree has no git identity configured still commits
   Object.assign(options.env, { GIT_CONFIG_GLOBAL: empty, GIT_CONFIG_NOSYSTEM: "1" });
   const commits = `const git=(...a)=>require('node:child_process').execFileSync('git',a,{encoding:'utf8'});git('init','-q');git('commit','-q','--allow-empty','-m','lane');console.log(git('log','-1','--format=%an <%ae> / %cn <%ce>').trim());`;
   options.commands = { codex: command(commits), claude: command(commits) };
-  const owner = "Mick <107184961+HuaMick@users.noreply.github.com>";
+  const owner = "Lane Owner <owner@example.com>";
   for (const engine of ["codex", "claude"]) {
     await rm(join(options.cwd, ".git"), { recursive: true, force: true });
     await writeFile(join(options.lanesDir, "engine-override"), engine);

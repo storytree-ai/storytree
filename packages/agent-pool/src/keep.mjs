@@ -1,4 +1,4 @@
-// Capability 3 · The keeper (3.29, increment_89c736caa64a): the Mint box's dispatcher loop and watcher are started
+// Capability 3 · The keeper (3.29, increment_89c736caa64a): the pool machine's dispatcher loop and watcher are started
 // again by the user's crontab, once a minute, when they are not running. cron is a system service, so what it starts
 // lives in cron.service's cgroup: neither the desktop session ending nor the user manager (user@1000) exiting reaches
 // it, as both did on 2026-10-31 at 00:15 and 00:17 AEDT, and it runs again after a reboot without anyone logging in.

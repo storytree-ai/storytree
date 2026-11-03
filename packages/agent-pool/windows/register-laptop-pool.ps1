@@ -6,7 +6,7 @@
 # first stopping a task already registered and the dispatcher it left running.
 # The start rule (plugged in, online) is the dispatcher's own, so the task runs on battery too.
 #   powershell -ExecutionPolicy Bypass -File packages\agent-pool\windows\register-laptop-pool.ps1 -DryRun
-#   powershell -ExecutionPolicy Bypass -File packages\agent-pool\windows\register-laptop-pool.ps1
+#   powershell -ExecutionPolicy Bypass -File packages\agent-pool\windows\register-laptop-pool.ps1 [-ClaudeModel <model>]
 #   powershell -ExecutionPolicy Bypass -File packages\agent-pool\windows\register-laptop-pool.ps1 -Unregister
 # Pause it by creating pool-stop in the lanes folder; delete that file to resume.
 param(
@@ -14,6 +14,8 @@ param(
   [string] $Lanes = (Join-Path $env:USERPROFILE '.storytree\agent-pool'),
   [string] $Config = (Join-Path $env:USERPROFILE '.storytree\agent-pool.json'),
   [string] $TaskName = 'storytree laptop dispatcher',
+  # The model its Claude lanes run; none, and Claude Code's own default.
+  [string] $ClaudeModel = '',
   [switch] $DryRun,
   [switch] $Unregister
 )
@@ -66,8 +68,8 @@ if (Test-Path -LiteralPath $Config) {
     lanes       = $Lanes
     sessions    = 1
     machineOnly = $true
-    engines     = @{ claude = @{ model = 'claude-opus-5-5' } }
   }
+  if ($ClaudeModel) { $settings['engines'] = @{ claude = @{ model = $ClaudeModel } } }
   WriteText $Config ($settings | ConvertTo-Json -Depth 4)
 }
 $override = Join-Path $Lanes 'engine-override'

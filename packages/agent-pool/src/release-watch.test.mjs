@@ -118,7 +118,7 @@ async function box(t, { judged, release: latest = release } = {}) {
   const fixes = [], reruns = [], questions = [], lines = [], live = new Set(), open = new Set();
   let room = true, outcome = judged;
   const options = {
-    dir, limit: 2, now: () => at, say: (line) => lines.push(line),
+    dir, limit: 2, now: () => at, say: (line) => lines.push(line), folders: { checkout: "/srv/shop", lanes: "/srv/lanes" },
     readReleases: async () => ({ release: latest, ...outcome }),
     rerun: async (run) => { reruns.push(run.id); },
     tail: async () => "Error: notarisation timed out",
@@ -149,6 +149,7 @@ test("4.17 · a release alarm starts one fix session per stop, quiet while it or
   assert.match(b.fixes[0].brief, /https:\/\/ci\/run\/50/);
   assert.match(b.fixes[0].brief, /package \(macOS\)/);
   assert.match(b.fixes[0].brief, /notarisation timed out/);
+  assert.match(b.fixes[0].brief, /Work from \/srv\/shop and follow/, "it works from this machine's own checkout");
   const name = /session name "(Releases stopped since [^"]+)"/.exec(b.fixes[0].brief)[1];
   assert.ok(name.length <= 40, name);
 

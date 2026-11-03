@@ -59,7 +59,7 @@ async function sayOpen({ open, handed, say }) {
   const pulls = await open().catch((error) => { say(`open pull requests unread (${String(error.message).split("\n")[0]})`); return undefined; });
   if (pulls) say(pulls.length ? `open pull requests (${pulls.length}):\n${pulls.map((one) => `  #${one.number}${one.isDraft ? " (draft)" : ""} ${one.title}`).join("\n")}` : "no open pull requests");
   const watched = await handed();
-  say(watched.length ? `handed to the watcher (${watched.length}):\n${watched.map((one) => `  ${one.note.replace(/ is with the Mint box's watcher/, "")}: ${one.increment}`).join("\n")}` : "nothing handed to the watcher");
+  say(watched.length ? `handed to the watcher (${watched.length}):\n${watched.map((one) => `  ${one.note.replace(/ is with the [\w ]+'s watcher/, "")}: ${one.increment}`).join("\n")}` : "nothing handed to the watcher");
 }
 
 /**

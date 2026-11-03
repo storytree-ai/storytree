@@ -1,13 +1,14 @@
 # Agent runner (`@storytree/agent-pool`)
 
-The Mint box's lane runner, dispatcher and watcher. Its configuration is `agent-pool.json` at the repository root;
-its plan lives in the library (story_b2051c0f7372).
+The agent pool's lane runner, dispatcher and watcher, for whichever machine runs it. Each machine configures it in its own
+file, `~/.storytree/agent-pool.json` (or the file `AGENT_POOL_CONFIG` names), never in this repository (ADR-1216 D1):
+`src/pool-config.mjs` says what each field means. Its plan lives in the library (story_b2051c0f7372).
 
 ## The lane login (ADR-1175)
 
 A lane runs only on the lane token: `CLAUDE_CODE_OAUTH_TOKEN`, from the runner's environment or
-`~/.storytree/secrets.json` on the box, minted with `claude setup-token`. Without it the runner starts no engine,
-exits 75 so the lane stays queued, and asks the owner once in the library to mint a new one. Every engine it starts
+`~/.storytree/secrets.json` on the box, made with `claude setup-token`. Without it the runner starts no engine,
+exits 75 so the lane stays queued, and asks the owner once in the library to make a new one. Every engine it starts
 carries `ENABLE_CLAUDEAI_MCP_SERVERS=false`, so no claude.ai connector loads, and `node src/health.mjs` flags a lane
 whose engine started with any tool server other than storytree, and a stored claude.ai login
 (`~/.claude/.credentials.json`) on the box.
@@ -17,7 +18,7 @@ never of this repository.
 
 ## The box's keeper (increment_89c736caa64a)
 
-On the Mint box the user's crontab runs `src/keep.mjs` once a minute (`node packages/agent-pool/src/keep.mjs install` adds the
+On a Linux pool machine the user's crontab runs `src/keep.mjs` once a minute (`node packages/agent-pool/src/keep.mjs install` adds the
 line, once). It starts the dispatcher's loop (`launch-pool.sh run`) and the watcher (`watch.mjs run`) when either is down.
 What cron starts lives in `cron.service`, not in a login session or the user manager, so the desktop logging out, or
 `user@1000` exiting as it did twice on 2026-10-31, no longer stops the pool, and it comes back after a reboot unattended.
@@ -29,7 +30,7 @@ once in `pool.status` for pool health and the session manager. Its own output is
 The owner's Windows laptop runs the same dispatcher (`launch.mjs pool`) for work tagged `machine=laptop` only, one lane at a
 time, starting a lane only while it is plugged in and the library and GitHub answer. `windows/register-laptop-pool.ps1`
 (read it, then run it once; `-DryRun` shows what it would do) writes its configuration to `~/.storytree/agent-pool.json`
-(`machineOnly`, `sessions: 1`, Claude), forces the Claude engine in its lanes folder, and registers a Task Scheduler entry that
+(`machineOnly`, `sessions: 1`, Claude on the model `-ClaudeModel` names, if any), forces the Claude engine in its lanes folder, and registers a Task Scheduler entry that
 runs `windows/laptop-pool.ps1` at logon. Pause it with `pool-stop` in the lanes folder, as on the box; delete it to resume.
 Its `checkout` is a folder of its own, never the owner's working checkout: a git worktree of that checkout (a second clone
 of a project is refused, one folder per project per machine), today `C:\code\storytree03-dispatcher`, the script's default.

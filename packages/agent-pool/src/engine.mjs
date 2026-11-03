@@ -1,4 +1,4 @@
-// Capability 1 · A Mint lane runs on the engine its allowance allows. Mint lane allowance and limit-stop policy (Agent runner's capability 1; ADR-0929).
+// Capability 1 · A lane runs on the engine its allowance allows. The lane's allowance and limit-stop policy (Agent runner's capability 1; ADR-0929).
 import { createReadStream } from "node:fs";
 import { mkdir, open, readdir, readFile, stat, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
@@ -7,7 +7,7 @@ import { createInterface } from "node:readline";
 
 import { poolConfig } from "./pool-config.mjs";
 
-/** A lane's settings: the pool's lanes folder, switch point and models (pool-config.mjs), and where Codex keeps its sessions. */
+/** A lane's settings: the pool's lanes folder, switch point, models and commit identity (pool-config.mjs), and where Codex keeps its sessions. */
 export function laneSettings({ home = homedir(), env = process.env, config = poolConfig({ home, env }) } = {}) {
   return {
     home,
@@ -15,6 +15,7 @@ export function laneSettings({ home = homedir(), env = process.env, config = poo
     sessionsDir: join(home, ".codex", "sessions"),
     stopAt: config.switchAt,
     models: config.models,
+    identity: config.identity,
   };
 }
 

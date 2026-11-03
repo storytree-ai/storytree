@@ -67,9 +67,12 @@ test("1.3 · Codex is the default below 95 percent; a live reached flag and CODE
     [reading(77), 75, "claude"], [reading(77), 80, "codex"],
     [reading(100, { secondary: { used_percent: 100, resets_at: now }, rate_limit_reached_type: "weekly" }), 95, "codex"],
   ]) assert.equal((await pickEngine({ lanesDir, reading: allowance, stopAt, now })).engine, engine);
+  // The switch point and lanes folder are the machine file's (ADR-1216 D1), and CODEX_STOP_AT overrides it.
+  await mkdir(join(lanesDir, ".storytree"), { recursive: true });
+  await writeFile(join(lanesDir, ".storytree", "agent-pool.json"), JSON.stringify({ lanes: "~/lanes", engines: { switchAt: 95 } }));
   assert.equal(laneSettings({ home: lanesDir, env: {} }).stopAt, 95);
   assert.equal(laneSettings({ home: lanesDir, env: { CODEX_STOP_AT: "80" } }).stopAt, 80);
-  assert.equal(laneSettings({ home: lanesDir, env: {} }).lanesDir, join(lanesDir, "storytree-lanes"));
+  assert.equal(laneSettings({ home: lanesDir, env: {} }).lanesDir, join(lanesDir, "lanes"));
   assert.equal(laneSettings({ env: { LANES_DIR: lanesDir } }).lanesDir, lanesDir);
 });
 

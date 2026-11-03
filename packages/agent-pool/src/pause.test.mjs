@@ -36,7 +36,7 @@ test("3.23 · pause stops the pool taking new work and waits until no other lane
   const box = {
     lanesDir, stopFile: join(lanesDir, "pool-stop"), say: (line) => lines.push(line), sleep: async (ms) => { sleeps.push(ms); },
     lanes: async () => running.shift(), queue: async () => queued.shift(),
-    open: async () => [{ number: 9, title: "left open", isDraft: false }], handed: async () => [{ increment: "increment_c", note: "PR #9 is with the Mint box's watcher" }],
+    open: async () => [{ number: 9, title: "left open", isDraft: false }], handed: async () => [{ increment: "increment_c", note: "PR #9 is with the pool's watcher" }],
   };
   assert.equal(await main(["pause"], box), 0);
   assert.ok(existsSync(box.stopFile), "the stop file the dispatcher reads is written");

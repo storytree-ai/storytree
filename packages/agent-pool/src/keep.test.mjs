@@ -52,9 +52,9 @@ test("3.29 · the keeper starts the dispatcher's loop and the watcher when they 
   await main([], restarted);
   assert.equal(restarted.did.loops, 1, "a 75 before the dispatcher's last start no longer holds it");
 
-  const table = "  7 1 bash /home/me/storytree-lanes/launch-pool.sh run\n  8 1 bash -c grep 'launch-pool.sh run'\n";
-  assert.equal(loopOf(table, "/home/me/storytree-lanes"), true);
-  assert.equal(loopOf("  7 1 bash launch-pool.sh run\n", "/home/me/storytree-lanes"), true, "a loop started from the lanes folder names its script bare");
+  const table = "  7 1 bash /home/me/lanes/launch-pool.sh run\n  8 1 bash -c grep 'launch-pool.sh run'\n";
+  assert.equal(loopOf(table, "/home/me/lanes"), true);
+  assert.equal(loopOf("  7 1 bash launch-pool.sh run\n", "/home/me/lanes"), true, "a loop started from the lanes folder names its script bare");
   assert.equal(loopOf(table, "/tmp/other-lanes"), false, "another lanes folder's loop is not this one's");
 
   await writeFile(join(lanesDir, "pool-stop"), "paused\n");

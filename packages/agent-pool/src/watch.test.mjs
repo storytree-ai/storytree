@@ -21,7 +21,7 @@ async function box(t, { looks = {}, board = "" } = {}) {
   const calls = [], fixes = [], reviews = [], lines = [], live = new Set();
   let clock = at, room = true;
   const options = {
-    dir, limit: 2, say: (line) => lines.push(line), now: () => clock,
+    dir, limit: 2, say: (line) => lines.push(line), now: () => clock, folders: { checkout: "/srv/shop", lanes: "/srv/lanes" },
     // No repository cut-over unless a test sets one (4.39): the watcher's own default reads the real library.
     cutover: async () => undefined,
     look: async (pr) => looks[pr],
@@ -102,6 +102,7 @@ test("4.2 · a red pull request starts exactly one fix session at a time, and on
   assert.equal(fix.pr, 41); assert.equal(fix.increment, "increment_one"); assert.equal(fix.n, 1);
   assert.match(fix.brief, /verify on Windows failed/); assert.match(fix.brief, /https:\/\/ci\/run\/9/);
   assert.match(fix.brief, /stale branch/); assert.match(fix.brief, /watch\.mjs hand 41 increment_one/);
+  assert.match(fix.brief, /Work from \/srv\/shop and follow/, "it works from this machine's own checkout");
   b.live.clear();
   b.looks[41] = { state: "pending", head: "h2" };
   await watchOnce(b.options);
@@ -136,7 +137,7 @@ test("4.3 · past its fix limit the watcher starts a review session, never a thi
   assert.equal(b.fixes.length, 2, "two fix sessions, then no third");
   assert.equal(b.reviews.length, 1, "an independent review instead");
   assert.ok(!b.calls.some(([, , verb, , , waitFor]) => verb === "wait" && waitFor === "owner"), "no owner wait below the cap");
-  for (const piece of ["#41", "increment_one", "https://ci/run/9", "/lanes/fix-41-1.log", "/lanes/fix-41-2.log", "watch.mjs verdict 41"]) assert.ok(b.reviews[0].brief.includes(piece), piece);
+  for (const piece of ["#41", "increment_one", "https://ci/run/9", "/lanes/fix-41-1.log", "/lanes/fix-41-2.log", "watch.mjs verdict 41", "Work from /srv/shop."]) assert.ok(b.reviews[0].brief.includes(piece), piece);
   // Each review sends it back to a fix session, until six sessions are spent.
   for (let round = 0; round < 3; round++) {
     if ((await saved(b)).fixes.at(-1).review) await recordVerdict({ dir: b.dir, pr: 41, kind: "fix", summary: `the cache test reads a stale key (${round})` });
@@ -287,9 +288,9 @@ test("4.7 · a session on any machine hands over: on the box directly, elsewhere
   assert.equal(away.lines.join("\n").match(/close-out --safe yes/g)?.length, 1, "the box's own words are relayed, with the close-out line said once");
 
   const down = await handOver({ pr: 41, increment: "increment_one", session: SESSION, onBox: false, local,
-    remote: async () => { throw new Error("ssh: connect to host mint port 22: Connection timed out"); } });
+    remote: async () => { throw new Error("ssh: connect to host box port 22: Connection timed out"); } });
   assert.equal(down.code, 1);
-  assert.match(down.lines.join("\n"), /could not reach the Mint box.*Connection timed out/s);
+  assert.match(down.lines.join("\n"), /could not reach the pool's watcher.*Connection timed out/s);
   assert.match(down.lines.join("\n"), /wait for the merge yourself/i, "the session falls back to landing it itself");
 
   const nobody = await handOver({ pr: 41, increment: "increment_one", session: "", onBox: false, local, remote: ok });
@@ -314,7 +315,7 @@ test("4.30 · a session ssh cannot reach the box from hands over through the lib
   const b = await box(t);
   const waits = ["2 waits for you or an outside event:",
     `  - event  ${written[0][7]} — increment_one  The one, on arc_a  An arc; check back 2026-10-13`,
-    "  - event  PR #40 is open and green and handed to the Mint box's watcher, which closes this on its merge or starts a fix session on a red. — increment_zero  The zero, on arc_a  An arc; check back 2026-10-13",
+    "  - event  PR #40 is open and green and handed to the pool's watcher, which closes this on its merge or starts a fix session on a red. — increment_zero  The zero, on arc_a  An arc; check back 2026-10-13",
     ""].join("\n");
   b.options.storytree = async (args) => { b.calls.push(args); return args[1] === "waits" ? waits : ""; };
   await adoptRequests(b.options);
@@ -365,6 +366,8 @@ test("4.10 · a watcher whose code changes between two looks ends with the resta
   const home = await mkdtemp(join(tmpdir(), "lane-watch-home-"));
   t.after(() => removeTemp(home));
   const repo = join(home, "code", "storytree03");
+  await mkdir(join(home, ".storytree"), { recursive: true });
+  await writeFile(join(home, ".storytree", "agent-pool.json"), JSON.stringify({ checkout: "~/code/storytree03" }));
   const git = (...args) => promisify(execFile)("git", ["-c", "user.name=t", "-c", "user.email=t@t", ...args], { cwd: repo });
   const commit = async (path, text) => {
     await mkdir(join(repo, path, ".."), { recursive: true });
@@ -384,6 +387,13 @@ test("4.10 · a watcher whose code changes between two looks ends with the resta
   assert.equal(await main(["watch"], { ...unpinned, home,
     sleep: async () => { assert.ok(merges.length, "it restarts once its own code changes"); await merges.shift()(); } }), RESTART);
   assert.equal(looks, 2, "the test runner changed: it looked again; then its own code changed: it restarted");
+
+  // The machine's own configuration, outside the repository (ADR-1216 D1), is read once at start, so a change to it restarts it too.
+  looks = 0;
+  const configured = [() => writeFile(join(home, ".storytree", "agent-pool.json"), JSON.stringify({ checkout: "~/code/storytree03", watcher: { fixesPerRed: 3 } }))];
+  assert.equal(await main(["watch"], { ...unpinned, home,
+    sleep: async () => { assert.ok(configured.length, "it restarts once its configuration changes"); await configured.shift()(); } }), RESTART);
+  assert.equal(looks, 1, "its configuration changed: it restarted");
 });
 
 test("4.42 · the look loop reads main's changes to the secret-check exemptions list once an hour, not on every look", async (t) => {
@@ -747,8 +757,10 @@ test("4.17 · a watch loop on a folder other than the box's own reads no release
   // A home with the lane runner is the box's; the loop is given another folder, as a test on the box gives it.
   const home = await mkdtemp(join(tmpdir(), "lane-watch-box-"));
   t.after(() => removeTemp(home));
-  await mkdir(join(home, "storytree-lanes"), { recursive: true });
-  await writeFile(join(home, "storytree-lanes", "run-lane.sh"), "");
+  await mkdir(join(home, ".storytree"), { recursive: true });
+  await writeFile(join(home, ".storytree", "agent-pool.json"), JSON.stringify({ lanes: "~/lanes" }));
+  await mkdir(join(home, "lanes"), { recursive: true });
+  await writeFile(join(home, "lanes", "run-lane.sh"), "");
   let version = "tree-a";
   assert.equal(await main(["watch"], { ...b.options, home, loopPidFile: join(b.dir, "watch-loop.pid"), pid: 7, argsOf: async () => "",
     codeVersion: async () => version, sleep: async () => { version = "tree-b"; } }), RESTART);
@@ -950,7 +962,7 @@ test("4.32 · a pull request whose head is not on this repository, or whose head
   assert.equal(refusing.code, 1);
   assert.deepEqual(written, [], "the box's refusal is not taken round through the library");
 
-  const waits = `  - event  PR #44 is open and green and handed to the Mint box's watcher through the library by session ${SESSION}, which closes this on its merge or starts a fix session on a red. — increment_four  The four, on arc_a  An arc; check back 2026-10-13\n`;
+  const waits = `  - event  PR #44 is open and green and handed to the box's watcher through the library by session ${SESSION}, which closes this on its merge or starts a fix session on a red. — increment_four  The four, on arc_a  An arc; check back 2026-10-13\n`;
   const adopt = await box(t);
   adopt.options.storytree = async (args) => { adopt.calls.push(args); return args[1] === "waits" ? waits : ""; };
   await adoptRequests({ ...adopt.options, viewOf: async () => { throw new Error("gh: timed out"); } });

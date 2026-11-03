@@ -1,4 +1,4 @@
-// Capability 8 · Reports the pool's health, concerns first. Run on the pool's machine (the Mint box):
+// Capability 8 · Reports the pool's health, concerns first. Run on the pool's machine:
 // node packages/agent-pool/src/health.mjs [--all]   (concerns, then with --all what is healthy too; exits 1 on a concern)
 // It reads the dispatcher's pid, stop file and status lines (launch.mjs), the engines running against the cap, each
 // session's logs and report, and the watcher's hand-offs (watch.mjs) with their pull requests on GitHub. It changes

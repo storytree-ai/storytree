@@ -172,9 +172,9 @@ test("9.1 · the dispatcher's loops running inside a checkout are found by their
     await symlink(cwd, join(proc, pid, "cwd"));
     if (cmdline !== undefined) await writeFile(join(proc, pid, "cmdline"), cmdline.split(" ").join("\0"));
   };
-  await at("77", checkout, "bash /home/u/storytree-lanes/launch-pool.sh run");
+  await at("77", checkout, "bash /home/u/lanes/launch-pool.sh run");
   await at("78", join(checkout, "packages"), "node voice-commit.ts");
-  await at("79", root, "bash /home/u/storytree-lanes/launch-pool.sh run");
+  await at("79", root, "bash /home/u/lanes/launch-pool.sh run");
   await at("80", checkout);
   assert.deepEqual(loopsInside(checkout, proc), ["77"]);
 });

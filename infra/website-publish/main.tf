@@ -1,13 +1,12 @@
 # The website's Google identity for publishing (arc_a5b72bd96bd9): the publish job in
-# .github/workflows/website.yml signs in with it, keylessly, and reads the here.now key from
-# Secret Manager. Authored here, applied by the owner by hand (README.md): an agent holds no
-# credentials for any of it.
+# storytree-ai/storytree-website's .github/workflows/website.yml signs in with it, keylessly, and
+# reads the here.now key from Secret Manager. Authored here, applied by the owner by hand
+# (README.md): an agent holds no credentials for any of it.
 #
 # GitHub's OIDC token -> the workload identity pool `github-actions` -> infra/ci-health's provider
-# `storytree-0-3-main`, which accepts ONLY the trusted repositories' tokens on main -> the bindings,
-# which admit ONLY .github/workflows/website.yml of storytree-ai/storytree or of
-# storytree-ai/storytree-website -> the service account storytree-website-publish -> read access to
-# ONE secret, heredotnow_api_key.
+# `storytree-0-3-main`, which accepts ONLY the trusted repositories' tokens on main -> the binding,
+# which admits ONLY .github/workflows/website.yml of storytree-ai/storytree-website -> the service
+# account storytree-website-publish -> read access to ONE secret, heredotnow_api_key.
 #
 # The provider is reused, not made again: its condition is already exactly this repository on
 # main, which is what publishing needs, and it maps job_workflow_ref, which the binding below
@@ -75,18 +74,10 @@ resource "google_secret_manager_secret_iam_member" "website_publish_key" {
   member    = "serviceAccount:${google_service_account.website_publish.email}"
 }
 
-# Only the website workflow on main may act as the account. The principal set is keyed on
+# Only the website repository's website workflow on main may act as the account (ADR-1171 D3 step 3;
+# storytree's own binding went with its website workflow in step 4). The principal set is keyed on
 # job_workflow_ref, which only the main-only provider above maps, so a token can match only through
 # it, and so only on main, and only from .github/workflows/website.yml.
-resource "google_service_account_iam_member" "website_publish_workload_identity" {
-  service_account_id = google_service_account.website_publish.name
-  role               = "roles/iam.workloadIdentityUser"
-  member             = "principalSet://iam.googleapis.com/${local.pool}/attribute.job_workflow_ref/storytree-ai/storytree/.github/workflows/website.yml@refs/heads/main"
-}
-
-# The same, for the website's own repository, which publishes storytree.dev from ADR-1171 D3 step (3).
-# Beside the binding above, not instead of it, until a publish from there is proven; the one above
-# goes when storytree drops its website workflow (step 4).
 resource "google_service_account_iam_member" "website_repository_publish_workload_identity" {
   service_account_id = google_service_account.website_publish.name
   role               = "roles/iam.workloadIdentityUser"

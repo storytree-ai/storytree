@@ -63,7 +63,7 @@ To check the route (read-only):
 gcloud iam workload-identity-pools providers describe storytree-0-3-main \
   --workload-identity-pool=github-actions --location=global --project="$PROJECT" \
   --format='value(attributeCondition)'
-# (assertion.repository_id == '1388231144' || assertion.repository_id == '1433007599') && assertion.ref == 'refs/heads/main'
+# (assertion.repository_id == '1433007599' || assertion.repository_id == '1440801072') && assertion.ref == 'refs/heads/main'
 ```
 
 Its mappings are limited to what bindings use: `attribute.job_workflow_ref`, which
@@ -73,8 +73,8 @@ infra/website-publish's binding names, beside `google.subject` and `attribute.re
 ## Trusting another repository
 
 The route trusts repositories by numeric id, the list `repository_ids` (default
-`["1388231144", "1433007599", "1440801072"]`: this repository, the stand-in `storytree-ai/storytree-next`, which
-takes this one's name at the cut-over, and the website's own `storytree-ai/storytree-website`). A repository made new under an old name has a new id, so its
+`["1433007599", "1440801072"]`: this repository, made as `storytree-ai/storytree-next`, which took
+this name at the cut-over, and the website's own `storytree-ai/storytree-website`). A repository made new under an old name has a new id, so its
 runs are refused until its id is in the list. Trust a new id **beside** the old one, never instead
 of it, so the old repository's CI keeps signing in until it is done with; drop the old id after.
 
@@ -82,15 +82,15 @@ From this folder, signed in and initialised as above, with `TF_VAR_project_id` s
 (`<new id>` is `gh api repos/<owner>/<name> --jq .id`):
 
 ```bash
-terraform plan  -var='repository_ids=["1388231144","<new id>"]'   # expect 0 to add, 1 to change, 0 to destroy
-terraform apply -var='repository_ids=["1388231144","<new id>"]'
+terraform plan  -var='repository_ids=["1433007599","1440801072","<new id>"]'   # expect 0 to add, 1 to change, 0 to destroy
+terraform apply -var='repository_ids=["1433007599","1440801072","<new id>"]'
 ```
 
 The one change is the provider's `attribute_condition`, in place:
-`(assertion.repository_id == '1388231144' || assertion.repository_id == '<new id>') && assertion.ref == 'refs/heads/main'`.
+`(assertion.repository_id == '1433007599' || assertion.repository_id == '1440801072' || assertion.repository_id == '<new id>') && assertion.ref == 'refs/heads/main'`.
 Nothing is destroyed, and the service accounts and infra/website-publish's binding are untouched.
-Dropping the old id later is the same two commands with `-var='repository_ids=["<new id>"]'`,
-which puts the condition back to the single-id form. After each apply, land the same list as the
+Dropping an old id later is the same two commands with the list it leaves (one id left puts the
+condition back to the single-id form). After each apply, land the same list as the
 variable's default in [`main.tf`](main.tf), so a plain `terraform plan` shows no change again.
 The read-only check above prints which ids the condition trusts.
 

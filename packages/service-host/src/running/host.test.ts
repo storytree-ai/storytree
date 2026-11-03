@@ -1,10 +1,10 @@
 /** Capability 1 · Running services, contract 1.1: the host runs a fixture plugin's services as child processes, as this machine's settings turn them on. */
 import assert from "node:assert/strict";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, symlinkSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { test, type TestContext } from "node:test";
 
-import { PLUGIN_INTERFACE } from "@storytree/plugin-loader";
+import { PLUGIN_INTERFACE, partsGraph, switchedOff } from "@storytree/plugin-loader";
 import { setPartOff, setServiceOn } from "@storytree/project-and-caller";
 import { waitUntil } from "@storytree/test-waits";
 
@@ -38,7 +38,7 @@ test("1.1 · the host runs each declared service of each mounted part that this 
   }
 
   setPartOff("voice", false, home);
-  assert.deepEqual(mountedServices(HOST_DIR, home).services, [], "a part not mounted runs no service");
+  assert.deepEqual(mountedServices(HOST_DIR, home).services.filter((service) => service.part === "voice"), [], "a part not mounted runs no service");
 
   setPartOff("voice", true, home, "no-such-plugin");
   const said: string[] = [];
@@ -66,4 +66,24 @@ test("plugin-loader 5.19 · a factory plugin named as the part it stands in for 
   assert.deepEqual(mountedServices(hostDir, home).services.map((service) => service.from), [{ plugin: "voice", factory: path.join(home, "factory") }]);
   setPartOff("voice", false, home);
   assert.deepEqual(mountedServices(hostDir, home).services.map((service) => "module" in service.from && service.from.module), ["@s/voice/services"]);
+});
+
+test("1.5 · the host runs the agent runner's dispatcher and watcher, each run always, and switching the agent runner off takes them off without taking off the service host a host stands on", (t) => {
+  const { home } = fixtureHome(t);
+  const ours = (mounted: ReturnType<typeof mountedServices>) => mounted.services.filter((service) => service.part === "agent-pool").map(({ id, run, from }) => ({ id, run, from: "module" in from ? from.module : from.plugin }));
+  assert.deepEqual(ours(mountedServices(HOST_DIR, home)), [
+    { id: "agent-pool/dispatcher", run: "always", from: "@storytree/agent-pool/services" },
+    { id: "agent-pool/watcher", run: "always", from: "@storytree/agent-pool/services" },
+  ]);
+  setPartOff("agent-pool", true, home);
+  assert.deepEqual(ours(mountedServices(HOST_DIR, home)), []);
+
+  // A host standing on the service host (the command line does) keeps it while the agent runner is off.
+  const standing = path.join(home, "standing");
+  mkdirSync(path.join(standing, "node_modules", "@storytree"), { recursive: true });
+  symlinkSync(HOST_DIR, path.join(standing, "node_modules", "@storytree", "service-host"), "junction");
+  writeFileSync(path.join(standing, "package.json"), JSON.stringify({ name: "standing", dependencies: { "@storytree/service-host": "*" } }));
+  const graph = partsGraph(standing);
+  assert.ok(Object.hasOwn(graph, "service-host"));
+  assert.equal(switchedOff(graph, ["agent-pool"]).has("service-host"), false);
 });

@@ -42,7 +42,7 @@ const run = promisify(execFile);
 const RED = new Set(["FAILURE", "TIMED_OUT", "CANCELLED", "ACTION_REQUIRED", "STARTUP_FAILURE", "ERROR"]);
 // The queue's removals that the Requeue workflow puts back once; one it left out past its grace is red.
 const EJECTED = new Set(["FAILED_CHECKS", "BRANCH_PROTECTION_FAILURE"]);
-const MARKS = [/watch\.mjs run( |$)/];
+export const MARKS = [/watch\.mjs run( |$)/];
 const LOOP_MARKS = [/watch\.mjs watch( |$)/];
 
 /** Whether a process's command line is a fix session's runner (4.26). */

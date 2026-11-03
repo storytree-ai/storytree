@@ -16,6 +16,19 @@ whose engine started with any tool server other than storytree, and a stored cla
 The box's own `~/.claude/settings.json` also sets `"disableClaudeAiConnectors": true`. That is a setting of the box,
 never of this repository.
 
+## As a part, started as services (ADR-1216 D3)
+
+Its manifest makes it the part `agent-pool`, declaring two services, `dispatcher` and `watcher` (run always), that the
+service host runs once a machine turns them on (`storytree settings set service agent-pool/dispatcher on`, and the
+same for `agent-pool/watcher`), in place of the keeper below. Each adopts its process when one already runs, and
+starts it in a systemd scope of its own when the host runs under systemd, so the host's restart kills no lane.
+Stopping the dispatcher's service ends the dispatcher alone; its lanes run on and finish. A dispatcher held after
+exit 75 is let go by `storytree services restart agent-pool/dispatcher`. The service host names the part as a
+development dependency, so switching the agent runner off takes its services off without taking the host's own
+`services` commands with it. Its dependents reach it only through its declared interface (`storytree.declares`:
+`./launch` for the ready pool, `./runner` for the lane runner), resolved by `agentRunnerEntry` in `src/interface.mjs`,
+which answers with a stand-in plugin's entry while the part is switched off.
+
 ## The box's keeper (increment_89c736caa64a)
 
 On a Linux pool machine the user's crontab runs `src/keep.mjs` once a minute (`node packages/agent-pool/src/keep.mjs install` adds the

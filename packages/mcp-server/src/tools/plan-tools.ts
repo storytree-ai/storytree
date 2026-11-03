@@ -130,7 +130,7 @@ export function registerPlanTools(define: Define): void {
         .describe("An arc's priority: a whole number, 1 first, or \"none\" to clear it; an arc with none comes after every arc that has one (ADR-0963)"),
       capabilities: z.array(z.string().min(1)).optional().describe("An increment's capabilities, replacing them: the ones it changes, and nothing else"),
       links: z.array(z.string().min(1)).optional().describe("An increment's links, replacing them: its stories, notes or decisions"),
-      machine: z.string().min(1).optional().describe("The one machine that can take an increment, by the short name Machines knows it by, or \"none\" to clear it, so any machine can"),
+      machine: z.string().min(1).optional().describe("The one machine that can take an increment, by the short name Machines knows it by, \"cloud\" for work only a cloud container can prove (no dispatcher takes it), or \"none\" to clear it, so any machine can"),
       escape: z
         .union([z.object({ caused_by: z.string().min(1).describe("The pull request (#123) or increment that caused it"), story: z.string().min(1).describe("The story it hit") }), z.literal("none")])
         .optional()

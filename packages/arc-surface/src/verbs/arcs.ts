@@ -319,8 +319,12 @@ const incrementUnwait = verb({
       // A merged pull request is marked on the wait for the owner in the same write, so the audit asks for it to be read again (11.11).
       const done = await context.library.removeWaitFor(id, releaser, context.writer, merged === undefined ? undefined : { merged: Number(merged) });
       if (done === null) throw new VerbRefusal(`no increment "${id}" in this project`);
-      // Nobody holds it now, so the pool may start a lane on it (5.57).
-      const ready = releaser === "owner" ? " Nobody holds it, so the pool may start it now: to finish it yourself, clear it with --claim <reason> instead." : "";
+      // Nobody holds it now, so the pool may start a lane on it (5.57), unless only a cloud container takes it.
+      const { CLOUD_MACHINE } = await import("@storytree/session-management/machines");
+      const cloud = (done.fields as { machine?: string }).machine === CLOUD_MACHINE;
+      const ready = releaser !== "owner" ? "" : cloud
+        ? ` Nobody holds it, and only a cloud container takes it (its machine is ${CLOUD_MACHINE}), so the pool never starts it: start a cloud session on it.`
+        : " Nobody holds it, so the pool may start it now: to finish it yourself, clear it with --claim <reason> instead.";
       return { text: `${id} no longer waits for ${releasedBy(releaser)}.${ready}` };
     }
     const done = await context.library.removeWait(id, on!, context.writer);
@@ -338,7 +342,7 @@ const PLAN_INPUTS = {
   links: { kind: "text", optional: true, describe: "what it cites, comma-separated" },
   remedies: { kind: "text", optional: true, describe: "the friction it remedies, comma-separated" },
   "held-on": { kind: "text", optional: true, blank: true, describe: "the owner's questions it is held on, comma-separated, or none to clear" },
-  machine: { kind: "text", optional: true, describe: "the one machine that can take it, or none to clear" },
+  machine: { kind: "text", optional: true, describe: "the one machine that can take it, cloud for work only a cloud container can prove (no dispatcher takes it), or none to clear" },
   "escape-of": { kind: "text", optional: true, describe: "the pull request (#123) or increment that caused the escape it fixes, or none to clear" },
   "escape-story": { kind: "text", optional: true, describe: "the story that escape hit, with --escape-of" },
   touches: { kind: "text", optional: true, describe: "retired: --capabilities and --links" },

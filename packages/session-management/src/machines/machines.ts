@@ -34,6 +34,12 @@ const SHORT_NAME = /^[a-z0-9](?:[a-z0-9-]{0,30}[a-z0-9])?$/;
 /** The word an increment's machine field is cleared with, so no machine is called it. */
 export const NO_MACHINE = "none";
 
+/**
+ * The word an increment's machine field names a cloud container with (a Claude Code cloud session), for work only one
+ * can prove. No computer is called it, so neither the Mint pool nor a machine-only dispatcher ever takes that work.
+ */
+export const CLOUD_MACHINE = "cloud";
+
 const SCHEMA = `CREATE TABLE IF NOT EXISTS machines (
   id       text PRIMARY KEY,
   hostname text NOT NULL,
@@ -63,6 +69,7 @@ function hostOf(here: Here): string {
 /** Give this computer `name`, in place of any name it had; refused when it is not a short name or another machine has it. */
 export async function nameThisMachine(server: Server, name: string, here: Here = {}): Promise<MachineRecord> {
   if (name === NO_MACHINE) throw new MachineNameError(`"${NO_MACHINE}" clears an increment's machine, so no machine is called it`, true);
+  if (name === CLOUD_MACHINE) throw new MachineNameError(`"${CLOUD_MACHINE}" names a cloud container on an increment, so no machine is called it`, true);
   if (!SHORT_NAME.test(name)) throw new MachineNameError(`"${name}" is not a short name: lowercase letters, digits and hyphens, at most 32, starting and ending with a letter or digit`, true);
   const { id } = machineOf(here.home ?? storytreeHome());
   const host = hostOf(here);
@@ -116,13 +123,15 @@ export async function machineNames(server: Server): Promise<Map<string, string>>
 
 /**
  * What an increment's machine field is set to when `name` is given (ADR-0982): a named machine's name is kept,
- * NO_MACHINE clears it (undefined, so any machine can take it), and any other name is refused naming the known ones.
+ * CLOUD_MACHINE is kept though no machine has it, NO_MACHINE clears it (undefined, so any machine can take it), and any
+ * other name is refused naming the known ones.
  * Both front doors check here before they set the field.
  */
 export async function incrementMachine(server: Server, name: string): Promise<string | undefined> {
   if (name === NO_MACHINE) return undefined;
+  if (name === CLOUD_MACHINE) return name;
   const known = [...new Set((await machineNames(server)).values())].sort();
   if (known.includes(name)) return name;
   const said = known.length === 0 ? "no machine is named yet (storytree machine name <name> names one)" : `the named machines are ${known.join(", ")}`;
-  throw new MachineNameError(`no machine is called "${name}": ${said}, and "${NO_MACHINE}" clears it`, false);
+  throw new MachineNameError(`no machine is called "${name}": ${said}, "${CLOUD_MACHINE}" names a cloud container, and "${NO_MACHINE}" clears it`, false);
 }

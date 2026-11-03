@@ -1162,7 +1162,7 @@ test("6.99 edit_plan records the escape an increment fixes, the change that caus
   });
 });
 
-test("6.62 park_increment and edit_plan set an increment's machine to a machine Machines knows, edit_plan's \"none\" clears it, and an unknown name is refused with nothing written", async () => {
+test("6.62 park_increment and edit_plan set an increment's machine to a machine Machines knows, edit_plan's \"none\" clears it, and an unknown name is refused with nothing written; \"cloud\" names a cloud container, and clear_wait on its owner wait says the pool never starts it", async () => {
   await withProject(async ({ folder, library }) => {
     const mint = `m-${randomBytes(4).toString("hex")}`;
     const storytree = await connect({ url: testServerUrl() });
@@ -1192,6 +1192,14 @@ test("6.62 park_increment and edit_plan set an increment's machine to a machine 
       assert.equal(await machineOf(installer), undefined);
       assert.equal(idOf(await agent.call("edit_plan", { id: installer, machine: mint })), installer);
       assert.equal(await machineOf(installer), mint);
+
+      const proof = idOf(await agent.call("park_increment", { arc, title: "Cloud proof", objective: "Prove it in a cloud container", body: "Red then green", machine: "cloud" }));
+      assert.equal(await machineOf(proof), "cloud");
+      assert.equal((await agent.call("set_wait", { waiter: proof, for: "owner", note: "start a cloud session", why: "it unblocks the work" })).isError, false);
+      const unwaited = await agent.call("clear_wait", { waiter: proof, for: "owner" });
+      assert.equal(unwaited.isError, false, unwaited.text);
+      assert.match(unwaited.text, /cloud container[\s\S]*the pool never starts it/);
+      assert.doesNotMatch(unwaited.text, /pool may start it/);
     });
   });
 });

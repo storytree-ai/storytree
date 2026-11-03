@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { Window } from "happy-dom";
+import { waitUntil } from "@storytree/test-waits";
 
 import { journal } from "../journal.js";
 import { mountJournal, mountTeaching } from "./index.js";
@@ -124,4 +125,75 @@ test("3.3 · the decision card's depth draws a decision glued beneath its island
   assert.ok(deeper.every(decision => decision.y > cover!.y), "the cover hangs nearest the island");
   assert.ok([cover!, ...deeper].every(decision => decision.y < coreTop), "every decision hangs above the core it tunnels to");
   shelf.stop();
+});
+
+/** A 1000 × 600 window whose cards measure 300 × 100, and the rectangles `reading` says are being read. */
+function sized(reading: { left: number; top: number; right: number; bottom: number }[], locate: Parameters<typeof mountTeaching>[1]["locate"]) {
+  const { document, host, store } = page();
+  const view = document.defaultView as unknown as { innerWidth: number; innerHeight: number };
+  view.innerWidth = 1000; view.innerHeight = 600;
+  const element = document.defaultView!.HTMLElement.prototype as unknown as HTMLElement;
+  const measured = element.getBoundingClientRect;
+  element.getBoundingClientRect = function (this: HTMLElement) {
+    return (this.classList.contains("teaching-card") ? { width: 300, height: 100 } : measured.call(this)) as DOMRect;
+  };
+  const asked: unknown[] = [];
+  const teaching = mountTeaching(host, { journal: journal(store), locate, reading: (target) => { asked.push(target); return reading; } });
+  teaching.take(oneStory);
+  const card = host.querySelector<HTMLElement>(".teaching-card")!;
+  return { document, host, teaching, card, asked, at: () => ({ left: card.style.left, top: card.style.top }) };
+}
+
+const panel = { left: 520, top: 12, right: 988, bottom: 588 };
+
+test("3.5 · a card whose right side would cover the open panel sits on the left of its point instead", () => {
+  const { teaching, at, asked } = sized([panel], () => ({ x: 400, y: 300, visible: true }));
+  assert.deepEqual(asked.at(-1), { kind: "story", story: "story_a" }, "the page is asked what is being read near the card's thing");
+  assert.deepEqual(at(), { left: "88px", top: "250px" });
+  teaching.stop();
+});
+
+test("3.5 · a card beside a nameplate it would cover on either side sits above its point", () => {
+  const plate = { left: 340, top: 310, right: 460, bottom: 340 };
+  const { teaching, at } = sized([plate], () => ({ x: 400, y: 300, visible: true }));
+  assert.deepEqual(at(), { left: "250px", top: "188px" });
+  teaching.stop();
+});
+
+test("3.5 · a card whose thing is off screen takes the corner clear of the open panel", () => {
+  const { teaching, at, card } = sized([panel], () => undefined);
+  assert.ok(card.classList.contains("teaching-card-corner"));
+  assert.deepEqual(at(), { left: "16px", top: "484px" }, "the bottom left corner, the bottom right being under the panel");
+  teaching.stop();
+});
+
+test("3.5 · a panel that opens after the card is shown moves the card off it", async () => {
+  const reading: { left: number; top: number; right: number; bottom: number }[] = [];
+  const { document, host, teaching, at } = sized(reading, () => ({ x: 400, y: 300, visible: true }));
+  assert.deepEqual(at(), { left: "412px", top: "250px" }, "on the right while nothing is open");
+  const aside = document.createElement("aside");
+  aside.hidden = true;
+  host.append(aside);
+  reading.push(panel);
+  aside.hidden = false;
+  await waitUntil(() => at().left === "88px", 2000, "the card to move off the opened panel");
+  assert.deepEqual(at(), { left: "88px", top: "250px" }, "on the left once the panel is open");
+  teaching.stop();
+});
+
+test("3.5 · a window resized under the card places it again, clear of what is being read", () => {
+  const reading: { left: number; top: number; right: number; bottom: number }[] = [];
+  const { document, teaching, at } = sized(reading, () => ({ x: 400, y: 300, visible: true }));
+  assert.deepEqual(at(), { left: "412px", top: "250px" });
+  reading.push(panel);
+  document.defaultView!.dispatchEvent(new (document.defaultView as unknown as typeof globalThis).Event("resize"));
+  assert.deepEqual(at(), { left: "88px", top: "250px" });
+  teaching.stop();
+});
+
+test("3.5 · when every place covers something being read, the card takes the place that covers least", () => {
+  // The whole window is being read, and the right of the point twice over.
+  const { teaching, at } = sized([{ left: 0, top: 0, right: 1000, bottom: 600 }, { left: 412, top: 250, right: 712, bottom: 350 }], () => ({ x: 400, y: 300, visible: true }));
+  assert.deepEqual(at(), { left: "88px", top: "250px" }, "the left of its point, not the right it would take first");
+  teaching.stop();
 });

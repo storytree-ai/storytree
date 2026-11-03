@@ -10,13 +10,18 @@ import { decisionsDiagram } from "./diagram.js";
 /** Where a target is on the page, in client pixels, or undefined when it is not drawn. */
 export type Locate = (target: Target) => { x: number; y: number; visible: boolean } | undefined;
 
+/** A rectangle on the page, in client pixels. */
+export type Box = { left: number; top: number; right: number; bottom: number };
+
+/** What the user is reading near a target (an open panel, the target's own name), in client pixels: a card covers none of it. */
+export type Reading = (target: Target) => readonly Box[];
+
 const STYLES = `
 .teaching-card { position: fixed; z-index: 20; max-width: 22rem; padding: .75rem .9rem; border-radius: .6rem;
   background: rgba(20, 24, 32, .94); color: #f2f4f8; font: 14px/1.4 system-ui, sans-serif; box-shadow: 0 6px 24px rgba(0,0,0,.35);
   max-height: calc(100vh - 24px); overflow-y: auto; }
 /* Beneath an open menu or dialog (the app's gear menu is a popover): hidden, so none of it shows past the overlay's edge, and back when it closes. */
 :root:has(:popover-open, dialog:modal) .teaching-card { display: none; }
-.teaching-card-corner { left: auto !important; top: auto !important; right: 1rem; bottom: 1rem; }
 .teaching-card h3 { margin: 0 0 .25rem; font-size: 15px; }
 .teaching-card p, .teaching-journal p { margin: .25rem 0; }
 .teaching-card [data-depth] h4, .teaching-journal h4 { margin: .5rem 0 0; font-size: 13px; }
@@ -37,6 +42,14 @@ const STYLES = `
 
 /** Pixels between a card and its point, and kept clear at the window's edges. */
 const GAP = 12;
+/** Pixels between a card in a corner and the window's edges. */
+const CORNER = 16;
+
+/** How much of `boxes` a card at `card` covers, in square pixels. */
+function covered(card: Box, boxes: readonly Box[]): number {
+  return boxes.reduce((sum, box) => sum + Math.max(0, Math.min(card.right, box.right) - Math.max(card.left, box.left))
+    * Math.max(0, Math.min(card.bottom, box.bottom) - Math.max(card.top, box.top)), 0);
+}
 
 /** The card's depth: what, why, how and its decisions, and for a decision the drawing of where it is kept, still at its last beat. */
 function depth(card: Card): string {
@@ -60,9 +73,9 @@ function adoptStyles(document: Document): () => void {
 
 /**
  * Show each kind's card in `host` the first time `take` hears it on the map, placed at `locate`'s point
- * for its target (the corner when it is not on show); cards fired together wait their turn.
+ * for its target (a corner when it is not on show) where it covers nothing `reading` names; cards fired together wait their turn.
  */
-export function mountTeaching(host: HTMLElement, { journal, locate }: { journal: Journal; locate: Locate }): { take(reading: MapReading): void; stop(): void } {
+export function mountTeaching(host: HTMLElement, { journal, locate, reading = () => [] }: { journal: Journal; locate: Locate; reading?: Reading }): { take(reading: MapReading): void; stop(): void } {
   const unstyle = adoptStyles(host.ownerDocument);
   const waiting: Encounter[] = [];
   let shown: { card: HTMLElement; found: Encounter } | undefined;
@@ -72,15 +85,31 @@ export function mountTeaching(host: HTMLElement, { journal, locate }: { journal:
     const at = locate(shown.found.target);
     const onShow = at !== undefined && at.visible;
     shown.card.classList.toggle("teaching-card-corner", !onShow);
-    if (!onShow) return;
-    // Beside its point, on the right unless the window has no room there, and always inside the window.
     const { width, height } = shown.card.getBoundingClientRect();
     const view = host.ownerDocument.defaultView;
     const right = view?.innerWidth ?? Infinity, bottom = view?.innerHeight ?? Infinity;
-    const left = at.x + GAP + width + GAP <= right ? at.x + GAP : at.x - GAP - width;
-    shown.card.style.left = `${Math.max(GAP, Math.min(left, right - width - GAP))}px`;
-    shown.card.style.top = `${Math.max(GAP, Math.min(at.y - height / 2, bottom - height - GAP))}px`;
+    // Always inside the window.
+    const inside = (left: number, top: number): Box => {
+      const x = Math.max(GAP, Math.min(left, right - width - GAP)), y = Math.max(GAP, Math.min(top, bottom - height - GAP));
+      return { left: x, top: y, right: x + width, bottom: y + height };
+    };
+    const corners = [inside(right - width - CORNER, bottom - height - CORNER), inside(CORNER, bottom - height - CORNER),
+      inside(right - width - CORNER, CORNER), inside(CORNER, CORNER)];
+    // Beside its point, on the right unless the window has no room there, then the other side, below, above, and the corners.
+    const besides = !onShow ? [] : (at.x + GAP + width + GAP <= right ? [at.x + GAP, at.x - GAP - width] : [at.x - GAP - width, at.x + GAP])
+      .map(left => inside(left, at.y - height / 2))
+      .concat([inside(at.x - width / 2, at.y + GAP), inside(at.x - width / 2, at.y - GAP - height)]);
+    // Never over its own point, nor over what is being read; when every place covers some, the one that covers least.
+    const clear = [...reading(shown.found.target), ...(onShow ? [{ left: at.x - GAP, top: at.y - GAP, right: at.x + GAP, bottom: at.y + GAP }] : [])];
+    const places = [...besides, ...corners];
+    const chosen = places.find(one => covered(one, clear) === 0) ?? places.reduce((best, one) => covered(one, clear) < covered(best, clear) ? one : best);
+    shown.card.style.left = `${chosen.left}px`;
+    shown.card.style.top = `${chosen.top}px`;
   };
+  // A panel opened or closed on the page changes what is being read, so the card on show is placed again.
+  const opened = new (host.ownerDocument.defaultView ?? window).MutationObserver(place);
+  opened.observe(host, { subtree: true, attributeFilter: ["hidden"] });
+  host.ownerDocument.defaultView?.addEventListener("resize", place);
   const next = (): void => {
     const found = waiting.shift();
     if (found === undefined) return;
@@ -121,6 +150,8 @@ export function mountTeaching(host: HTMLElement, { journal, locate }: { journal:
       else place();
     },
     stop() {
+      opened.disconnect();
+      host.ownerDocument.defaultView?.removeEventListener("resize", place);
       shown?.card.remove();
       shown = undefined;
       waiting.length = 0;

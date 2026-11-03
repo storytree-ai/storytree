@@ -1,11 +1,12 @@
 /**
  * Capability 2 · Storytree projects. Where a teaching card's target is on the desktop page (Learning as you build places the card
  * beside it): a story or capability at its island, a decision at its note on the globe, a plan or a question at the arcs drawer,
- * the factory beside the app bar's project dropdown; undefined when it is not on show.
+ * the factory beside the app bar's project dropdown; undefined when it is not on show. And what the user is reading near it, which
+ * the card keeps clear of: the open story panel, and a story's or capability's nameplate.
  */
 
 /** A teaching card's target, as the teaching cards name it. */
-export type CardTarget = { kind: string; story?: string; note?: string };
+export type CardTarget = { kind: string; story?: string; capability?: string; note?: string };
 
 /** The globe's locator (the forest's `window.storytreeGlobe`), the little of it this reads. */
 export interface IslandsAndNotes {
@@ -28,4 +29,19 @@ export function locateTarget(target: CardTarget, page: { document: Document; glo
   // Just past the Arcs bar's label, on the bar.
   if (target.kind === "arc" || target.kind === "question") return beside(".arc-surface-mount [data-open-arcs]", (box) => box.left + 60);
   return undefined;
+}
+
+/** A rectangle on the page, in client pixels. */
+export type Box = { left: number; top: number; right: number; bottom: number };
+
+/** What is being read near `target` on the page, drawn now: the open story panel, and the nameplates of its story and capability. */
+export function readingNear(target: CardTarget, document: Document): Box[] {
+  const near = [...document.querySelectorAll<HTMLElement>(".story-panel:not([hidden]), .planet-nameplate")].filter((element) =>
+    element.classList.contains("story-panel")
+    || (target.story !== undefined && element.dataset.storyId === target.story)
+    || (target.capability !== undefined && element.dataset.capabilityId === target.capability));
+  return near.flatMap((element) => {
+    const { left, top, right, bottom, width } = element.getBoundingClientRect();
+    return width === 0 ? [] : [{ left, top, right, bottom }];
+  });
 }

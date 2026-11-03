@@ -2,7 +2,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { AnnotatedTree, ArcView, Line, NewLine } from "@storytree/library";
-import { clickedSelection, sessionRoster, sessionRows, windowFiles } from "./sessions-list.js";
+import { clickedSelection, listedRows, sessionRoster, sessionRows, windowFiles } from "./sessions-list.js";
 import { sessionColour } from "../agent-claims/agent-claims.js";
 
 const now = new Date("2026-09-28T12:00:00Z");
@@ -20,15 +20,16 @@ const arc = { arc: { id: "arc", fields: { title: "Build" } }, state: "active",
   increments: [{ id: "inc", fields: { title: "Finish signup", status: "active", capabilities: ["cap-two"] } }],
   questions: [{ id: "q", fields: { title: "Choose wording", lifecycle: "open" } }] } as ArcView;
 
-test("7.1, 7.10 one row per non-ended claiming session at work, reason and held islands follow standing claims", () => {
+test("one row per non-ended claiming session, plain idle, reason and held islands follow standing claims", () => {
   const lines = log(claimed("cap-one", "Build signup"), claimed("cap-two", "Build signup"),
-    { ...off, kind: "claimed", increment: "tidy", reason: "", at: "2026-09-28T11:45:00Z" },
+    { ...off, kind: "claimed", increment: "tidy", reason: "", at: "2026-09-28T11:00:00Z" },
     { ...child, kind: "session-ended" },
     { session: "quiet", harness: "codex", source: "hook", kind: "session-started" });
   const rows = sessionRows(tree, lines, [], now);
-  assert.deepEqual(rows.map(row => row.id), ["parent", "off", "quiet"], "every session at work that has not ended shows (ADR-0749 D1)");
+  assert.deepEqual(rows.map(row => row.id), ["parent", "off", "quiet"], "every session that has not ended shows (ADR-0749 D1)");
   assert.equal(rows[0]!.label, "Build signup");
   assert.deepEqual(rows[0]!.stories, ["one", "two"]);
+  assert.equal(rows[1]!.state, "waiting");
   assert.equal(rows[0]!.totalTokens, undefined, "an unavailable total is not zero");
   lines.push(...log({ ...parent, kind: "released", capability: "cap-one" }).map(line => ({ ...line, seq: 5 })));
   assert.deepEqual(sessionRows(tree, lines, [], now)[0]!.stories, ["two"]);
@@ -119,14 +120,14 @@ test("7.13 each row names the machine its session runs on only when the listed s
   assert.deepEqual(sessionRows(tree, one, [], now).map(row => row.machine), [undefined, undefined], "one machine is not worth naming");
   const idleElsewhere = log({ ...parent, kind: "session-started", machine: "laptop" },
     { ...off, kind: "session-started", machine: "mint", at: "2026-09-28T11:15:00Z" });
-  assert.deepEqual(sessionRows(tree, idleElsewhere, [], now).map(row => [row.id, row.machine]), [["parent", undefined]],
+  assert.deepEqual(listedRows(sessionRows(tree, idleElsewhere, [], now)).map(row => [row.id, row.machine]), [["parent", undefined]],
     "an idle session on another machine is not listed, so the list spans one machine");
 });
 
 test("a session whose hooks report no turns is judged by the idle-after setting the list is given, not a fixed 30 minutes", () => {
   const lines = log({ ...off, kind: "claimed", increment: "tidy", reason: "Tidy", at: "2026-09-28T11:45:00Z" });
   assert.equal(sessionRows(tree, lines, [], now)[0]?.state, "working", "15 minutes quiet is working at the 30-minute default");
-  assert.deepEqual(sessionRows(tree, lines, [], now, new Map(), 10 * 60 * 1000).map(row => row.id), [], "and idle, so not listed, past a 10-minute setting");
+  assert.equal(sessionRows(tree, lines, [], now, new Map(), 10 * 60 * 1000)[0]?.state, "waiting", "and waiting past a 10-minute setting");
 });
 
 test("a session that stopped reporting (gone) is hidden like an ended one, even holding a claim", () => {
@@ -192,16 +193,16 @@ test("7.10 only the sessions at work are listed: working, waiting for you within
     { ...hook("lead"), kind: "prompt-submitted", at: minutes(50) }, { ...hook("lead"), kind: "turn-ended", at: minutes(45) },
     { ...hook("lane"), kind: "prompt-submitted", at: minutes(5) });
   const details = new Map([["lane", { parentSession: "lead" }]]);
-  const rows = sessionRows(tree, lines, [], now, details);
+  const rows = listedRows(sessionRows(tree, lines, [], now, details));
   assert.deepEqual(rows.map(row => row.id), ["busy", "asking", "lead"],
     "quiet past the idle-after, ended holding unmerged work, or closed out not safe: none is listed");
   assert.deepEqual(rows[2]!.children.map(child => child.id), ["lane"], "a quiet parent is at work through its working child");
-  assert.deepEqual(sessionRows(tree, lines, [], now, details, 60 * 60_000).map(row => row.id), ["busy", "asking", "quiet", "held", "lead"],
+  assert.deepEqual(listedRows(sessionRows(tree, lines, [], now, details, 60 * 60_000)).map(row => row.id), ["busy", "asking", "quiet", "held", "lead"],
     "a one-hour idle-after keeps the 45-minute-quiet sessions at work; an ended one is never");
   const late = log({ ...hook("late"), kind: "prompt-submitted", at: minutes(125) }, { ...hook("late"), kind: "turn-ended", at: minutes(120) });
   const hours3 = 3 * 60 * 60_000;
-  assert.deepEqual(sessionRows(tree, late, [], now, new Map(), hours3).map(row => row.id), [], "Session management's 1-hour leave-after still lets it go");
-  assert.deepEqual(sessionRows(tree, late, [], now, new Map(), hours3, hours3).map(row => row.id), ["late"]);
+  assert.deepEqual(listedRows(sessionRows(tree, late, [], now, new Map(), hours3)).map(row => row.id), [], "Session management's 1-hour leave-after still lets it go");
+  assert.deepEqual(listedRows(sessionRows(tree, late, [], now, new Map(), hours3, hours3)).map(row => row.id), ["late"]);
 });
 
 test("7.15 each worktree in a row's detail is labelled unmerged or merged by the branch its session recorded there and whether that branch still holds open work; the main line, or no branch, carries no label; a branch recorded with no folder is folded under the folder last worked in, and none is dropped", () => {

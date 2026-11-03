@@ -22,7 +22,7 @@ const run = (file: string, args: string[], options: ExecFileOptions) => {
   return result;
 };
 
-test("3.20 · 3.14 · in a real browser, each territory is filled by its word, grey only when parked, claims plant their flags, and no file is drawn on the land", { timeout: 200_000 }, async () => {
+test("3.20 · 3.14 · 7.10 · in a real browser, each territory is filled by its word, grey only when parked, claims plant their flags (an idle holder's too, though its row is not listed), and no file is drawn on the land", { timeout: 200_000 }, async () => {
   await run(process.execPath, [path.join(territoryFolder, "build.mjs"), "smoke"], { cwd: checkout, timeout: 60_000 });
   // Chrome is installed on CI's three runner images, so the smoke downloads no browser.
   const { stdout } = await run(process.execPath, ["--import", "tsx", path.join(territoryFolder, "capture.mjs"), "--smoke"],
@@ -39,6 +39,7 @@ test("3.20 · 3.14 · in a real browser, each territory is filled by its word, g
     ["story_be32e99ed54f", "capability_9f02379a2e1a", true, true],
     ["story_eb7d623fb9c8", "capability_75abfdd699c0", false, true],
   ]);
+  assert.deepEqual(summary.listed, ["A", "B"], "the quiet session's flag stays, furled, while the sessions list shows only the two at work (7.10)");
 });
 
 // The territory smoke above omits its picture-only tour: on macOS that tour consumed

@@ -52,7 +52,7 @@ export interface SessionRow {
   state: SessionState | "observed";
   /**
    * Neither working, nor waiting for you (a turn ended within the idle-after time), by its state alone: a root row that is idle
-   * is not listed (7.10); a child row that is stays under its parent, wearing the idle dot (7.2, 7.9).
+   * is not listed (listedRows, 7.10); a child row that is stays under its parent, wearing the idle dot (7.2, 7.9).
    */
   idle: boolean;
   /** When its session's lines were last seen; a subagent's, when it was started. */
@@ -82,10 +82,11 @@ const LABEL_LIMIT = 40;
 /**
  * The log is the lines themselves, or a reading that holds its sessions and claims folded and keeps
  * its claim and subagent lines.
- * One row per session at work, claimed or not (ADR-0749 D1, 7.10): working, or waiting for you within `quietMs`,
- * the user's idle-after setting (the 30-minute default when the caller has none), by its turns (ADR-0754 D5),
- * or with a child working. Who may be listed at all is Session management's reading, judged with `leaveMs`,
- * the user's leave-after setting (the 1-hour default when the caller has none).
+ * One row per session that has not ended, claimed or not (ADR-0749 D1), each working or waiting by
+ * its turns (ADR-0754 D5); one whose hooks report no turns is judged by `quietMs`, the user's
+ * idle-after setting (the 30-minute default when the caller has none). A quiet session leaves by `leaveMs`,
+ * the user's leave-after setting (the 1-hour default when the caller has none). The list shows only
+ * those at work (listedRows, 7.10).
  */
 export function sessionRows(tree: AnnotatedTree, log: readonly Line[] | LogReading, arcs: readonly ArcView[], now: Date,
   details: ReadonlyMap<string, SessionDetails> = new Map(), quietMs?: number, leaveMs?: number): SessionRow[] {
@@ -151,14 +152,20 @@ export function sessionRows(tree: AnnotatedTree, log: readonly Line[] | LogReadi
   }
   for (const row of roots) includeChildren(row);
   for (const row of roots) row.idle &&= !row.children.some(child => child.state === "working");
-  // Only the sessions at work are listed (7.10): an idle one is not, whatever keeps Session management listing it.
-  const listed = roots.filter(row => !row.idle);
-  // A session's machine is the latest one its lines name; worth showing only when the list spans several.
+  // A session's machine is the latest one its lines name; worth showing only when the listed rows (7.10) span several.
   const machines = fold.machines();
-  if (new Set(listed.flatMap(row => machines.has(row.id) ? [machines.get(row.id)!] : [])).size > 1) {
-    for (const row of listed) if (machines.has(row.id)) row.machine = machines.get(row.id)!;
+  if (new Set(listedRows(roots).flatMap(row => machines.has(row.id) ? [machines.get(row.id)!] : [])).size > 1) {
+    for (const row of roots) if (machines.has(row.id)) row.machine = machines.get(row.id)!;
   }
-  return listed;
+  return roots;
+}
+
+/**
+ * The rows the list shows (7.10, ADR-1225): only the sessions at work. An idle one is not listed, whatever keeps
+ * Session management listing it; its claims still flag the map, from every row (capability 5).
+ */
+export function listedRows(rows: readonly SessionRow[]): SessionRow[] {
+  return rows.filter(row => !row.idle);
 }
 
 /** The longest a running command's words run, ellipsis included. */

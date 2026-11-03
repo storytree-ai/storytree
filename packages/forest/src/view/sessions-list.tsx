@@ -5,7 +5,7 @@ import type { AnnotatedTree, ArcView, Line } from "@storytree/library";
 import { outageSaidOnce, saysUnreachable, type OutageSaidOnce } from "@storytree/library/connection-error";
 import { ON_MAIN_LABELS, type LogReading, type OnMain } from "@storytree/session-management/readings";
 import { pageKept, pageReading, type LiveReads, type PageReading } from "@storytree/arc-surface";
-import { clickedSelection, sessionRoster, sessionRows, windowFiles, type RosterEntry, type SessionDetails, type SessionFiles, type SessionRow, type SessionWindow } from "../sessions-list/sessions-list.js";
+import { clickedSelection, listedRows, sessionRoster, sessionRows, windowFiles, type RosterEntry, type SessionDetails, type SessionFiles, type SessionRow, type SessionWindow } from "../sessions-list/sessions-list.js";
 import { sessionColour, sessionWisps, type SessionWisp } from "../agent-claims/agent-claims.js";
 import { treeAfter } from "../render/forest-reading.js";
 
@@ -207,7 +207,7 @@ export function mountSessionsList(container: HTMLElement, options: {
   let log: readonly Line[] | LogReading = [];
   // The rows last drawn for this project, shown marked as refreshing until the first read lands.
   const kept = pageKept(`storytree.forest.sessions.v1:${options.project}`, isSessionRows);
-  let rows: SessionRow[] = kept.read() ?? [];
+  let rows: SessionRow[] = listedRows(kept.read() ?? []);
   let details: ReadonlyMap<string, SessionDetails> = new Map();
   let readings: ReadonlyMap<string, SessionDetails> = new Map();
   let quietMs: number | undefined;
@@ -269,10 +269,12 @@ export function mountSessionsList(container: HTMLElement, options: {
   };
   const refresh = (now: Date, ask = true): void => {
     if (stopped || tree === undefined || arcs === undefined) return;
-    rows = sessionRows(tree, log, arcs, now, merged(), quietMs, leaveMs);
+    // The list shows only the sessions at work (7.10); every session's claims still flag the map (capability 5).
+    const all = sessionRows(tree, log, arcs, now, merged(), quietMs, leaveMs);
+    rows = listedRows(all);
     kept.write(rows);
     askFiles(everyId(rows).filter(session => expanded.has(session) && !files.has(session)));
-    options.onWisps?.(sessionWisps(rows, log, now, quietMs));
+    options.onWisps?.(sessionWisps(all, log, now, quietMs));
     options.onRoster?.(sessionRoster(rows));
     draw();
     if (ask) askReadings();

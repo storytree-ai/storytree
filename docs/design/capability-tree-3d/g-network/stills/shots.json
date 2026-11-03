@@ -1,0 +1,286 @@
+{
+  "clicks": [
+    {
+      "kind": "gate",
+      "mark": "capability_d632ff0454c0->capability_a7f068502213",
+      "at": {
+        "x": 261,
+        "y": 427
+      },
+      "heading": "11 · Waits calls 10 · Work in flight"
+    },
+    {
+      "kind": "gate",
+      "mark": "arrive->capability_75d059640d9d",
+      "at": {
+        "x": 682,
+        "y": 484
+      },
+      "heading": "16 stories · 46 links calls 7 · Library API"
+    },
+    {
+      "kind": "gate",
+      "mark": "capability_75d059640d9d->capability_5e0362aae607",
+      "at": {
+        "x": 550,
+        "y": 318
+      },
+      "heading": "7 · Library API calls 1 · Project libraries"
+    },
+    {
+      "kind": "road",
+      "mark": "0",
+      "at": {
+        "x": 766,
+        "y": 545
+      },
+      "heading": "A road carrying 18 links"
+    },
+    {
+      "kind": "town",
+      "mark": "capability_75d059640d9d",
+      "at": {
+        "x": 587,
+        "y": 450
+      },
+      "heading": "7 · Library API"
+    },
+    {
+      "kind": "wrench",
+      "mark": "capability_a954e1eb16f6",
+      "at": {
+        "x": 694,
+        "y": 310
+      },
+      "heading": "Work wanting 8 · Cloud connection (GCP)"
+    },
+    {
+      "kind": "territory",
+      "mark": "capability_dd486ffa5b02",
+      "at": {
+        "x": 381,
+        "y": 553
+      },
+      "heading": "4 · Work model"
+    }
+  ],
+  "layer": {
+    "links": 54,
+    "inside": 35,
+    "ways": 54,
+    "gates": 57,
+    "entranceGates": 54,
+    "passGates": 3,
+    "sharedOpenings": 24,
+    "insideBorders": [
+      1,
+      1,
+      2,
+      1,
+      1,
+      2,
+      2,
+      2,
+      1,
+      1,
+      2,
+      2,
+      3,
+      1,
+      2,
+      2,
+      1,
+      1,
+      1,
+      1,
+      1,
+      3,
+      1,
+      3,
+      1,
+      1,
+      2,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      2
+    ],
+    "overThird": [
+      "4 · Work model -> 3 · Data schema: 2 borders",
+      "7 · Library API -> 1 · Project libraries: 2 borders",
+      "7 · Library API -> 4 · Work model: 2 borders",
+      "7 · Library API -> 5 · Health record: 2 borders",
+      "9 · Knowledge entrances -> 4 · Work model: 2 borders",
+      "9 · Knowledge entrances -> 6 · Knowledge artifacts: 2 borders",
+      "21 · Links -> 7 · Library API: 3 borders",
+      "22 · Decision log -> 7 · Library API: 2 borders",
+      "23 · Catalogue -> 7 · Library API: 2 borders",
+      "26 · Rounds -> 21 · Links: 3 borders",
+      "26 · Rounds -> 23 · Catalogue: 3 borders",
+      "26 · Rounds -> 7 · Library API: 2 borders",
+      "27 · Fixed data questions -> 17 · The library's commands: 2 borders"
+    ],
+    "landings": 19,
+    "segments": 131,
+    "junctions": 74,
+    "roadDrawn": 1239,
+    "waysPerSegment": {
+      "mean": 3.44,
+      "most": 18
+    },
+    "shared": [
+      {
+        "id": 0,
+        "links": 18
+      },
+      {
+        "id": 13,
+        "links": 14
+      },
+      {
+        "id": 1,
+        "links": 13
+      },
+      {
+        "id": 5,
+        "links": 12
+      },
+      {
+        "id": 11,
+        "links": 12
+      },
+      {
+        "id": 3,
+        "links": 11
+      },
+      {
+        "id": 9,
+        "links": 11
+      },
+      {
+        "id": 23,
+        "links": 11
+      }
+    ],
+    "towns": [
+      {
+        "capability": "1 · Project libraries",
+        "roads": 5
+      },
+      {
+        "capability": "2 · Library transactions",
+        "roads": 3
+      },
+      {
+        "capability": "3 · Data schema",
+        "roads": 4
+      },
+      {
+        "capability": "4 · Work model",
+        "roads": 6
+      },
+      {
+        "capability": "6 · Knowledge artifacts",
+        "roads": 6
+      },
+      {
+        "capability": "5 · Health record",
+        "roads": 3
+      },
+      {
+        "capability": "7 · Library API",
+        "roads": 12
+      },
+      {
+        "capability": "8 · Cloud connection (GCP)",
+        "roads": 2
+      },
+      {
+        "capability": "9 · Knowledge entrances",
+        "roads": 3
+      },
+      {
+        "capability": "21 · Links",
+        "roads": 5
+      },
+      {
+        "capability": "22 · Decision log",
+        "roads": 3
+      },
+      {
+        "capability": "23 · Catalogue",
+        "roads": 4
+      },
+      {
+        "capability": "24 · Graduation",
+        "roads": 4
+      },
+      {
+        "capability": "25 · Lapsed questions",
+        "roads": 2
+      },
+      {
+        "capability": "26 · Rounds",
+        "roads": 7
+      },
+      {
+        "capability": "10 · Work in flight",
+        "roads": 4
+      },
+      {
+        "capability": "11 · Waits",
+        "roads": 2
+      },
+      {
+        "capability": "12 · Owner questions",
+        "roads": 2
+      },
+      {
+        "capability": "13 · Decision log",
+        "roads": 2
+      },
+      {
+        "capability": "14 · Ranked search",
+        "roads": 2
+      },
+      {
+        "capability": "15 · Connection by address",
+        "roads": 2
+      },
+      {
+        "capability": "16 · The command schema",
+        "roads": 1
+      },
+      {
+        "capability": "17 · The library's commands",
+        "roads": 2
+      },
+      {
+        "capability": "27 · Fixed data questions",
+        "roads": 3
+      }
+    ],
+    "gatesOnOpenLand": 10,
+    "noEntrance": [],
+    "wrenches": [
+      {
+        "capability": "8 · Cloud connection (GCP)",
+        "via": "arrive->capability_a954e1eb16f6"
+      },
+      {
+        "capability": "3 · Data schema",
+        "via": "arrive->capability_a1d4fadbec3e"
+      },
+      {
+        "capability": "17 · The library's commands",
+        "via": "capability_73c014cf4352->capability_dce9495fcaed"
+      }
+    ]
+  },
+  "errors": [],
+  "realErrors": []
+}

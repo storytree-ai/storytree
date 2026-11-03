@@ -15,7 +15,7 @@
  * records read dormant. It may declare long-running services (ADR-1180 D1), which a service host on each machine runs.
  * It may carry its own story's plan, as a file its manifest's `plan` names (ADR-1187), imported from there.
  */
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
@@ -104,6 +104,39 @@ export function pluginParts(folder: string | undefined, plugin: string, kind: st
     if (!Array.isArray(declared)) throw new Error(`${plugin}'s ${path.relative(dir, file)} exports no list called ${String(entry.export)} for ${kind}`);
     return declared as unknown[];
   });
+}
+
+/** A factory plugin this computer's setting does not name, with the part `settings set part <part> plugin <plugin>` names it as. */
+export interface UnnamedPlugin {
+  readonly plugin: string;
+  /** The part its manifest's `for` names, else its own name (a plugin that adds a part of its own). */
+  readonly part: string;
+}
+
+/**
+ * The plugin in this computer's factory folder that no stand-in names whose declarations of `kind` include one called
+ * `name`, so a host asked for it can say which plugin holds it and how to name it; none without a folder, and a plugin
+ * that cannot be loaded is passed over.
+ */
+export function unnamedOwnerOf(standIns: StandIns, kind: string, name: string): UnnamedPlugin | undefined {
+  const { folder } = standIns;
+  if (folder === undefined) return undefined;
+  const named = new Set(Object.values(standIns.plugins));
+  let plugins: string[];
+  try {
+    plugins = readdirSync(path.join(folder, "plugins")).sort();
+  } catch {
+    return undefined;
+  }
+  for (const plugin of plugins.filter((one) => !named.has(one))) {
+    try {
+      const declared = pluginParts(folder, plugin, kind);
+      if (declared.some((one) => typeof one === "object" && one !== null && (one as { name?: unknown }).name === name)) return { plugin, part: pluginFor(folder, plugin) ?? plugin };
+    } catch {
+      // A plugin that cannot be loaded holds nothing a host could mount.
+    }
+  }
+  return undefined;
 }
 
 /**

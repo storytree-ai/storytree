@@ -564,6 +564,7 @@ export function SessionsList({ rows, loading = false, refreshing = false, error,
         <button type="button" className="session-children-toggle" aria-expanded={isOpen(row.id)}
           aria-label={`${isOpen(row.id) ? "Hide" : "Show"} detail${row.children.length > 0 ? ` and ${row.children.length} children` : ""} of ${row.label}`}
           onClick={event => { event.stopPropagation(); onToggle(row.id); }} />
+        <span className="session-dot" data-dot={dotOf(row)} title={dotWords(row)} aria-hidden="true" />
         {depth === 0 && <span className="session-colour" style={{ background: sessionColour(row.id) }} aria-hidden="true" />}
         <span className="session-label" title={`${row.label}\n${row.agent} · ${row.id}${row.machine === undefined ? "" : ` · on ${row.machine}`}${row.state === "observed" ? "\nSubagent observed; current state unavailable" : ""}${row.worktrees.length > 0 ? `\n${row.worktrees.map(tree => tree.path).join("\n")}` : ""}`}>{row.label}</span>
         {row.onMain !== undefined && <span className="session-on-main" data-tone={ON_MAIN_TONES[row.onMain]} title={ON_MAIN_LABELS[row.onMain]}>{ON_MAIN_WORDS[row.onMain]}</span>}
@@ -631,6 +632,22 @@ function outcomeWords(outcome: HistoryOutcome): string {
 function dayOf(ms: number): string {
   const at = new Date(ms);
   return `${at.getFullYear()}-${String(at.getMonth() + 1).padStart(2, "0")}-${String(at.getDate()).padStart(2, "0")}`;
+}
+
+/**
+ * A row's status dot, read from its recorded state alone (7.9, the owner's trial on question_66ebe5dc5eec): working, or with a
+ * child at work; waiting for you within the idle-after time; otherwise idle. An observed subagent's state is not known, so its
+ * dot is idle's and says so.
+ */
+function dotOf(row: SessionRow): "working" | "waiting" | "idle" {
+  if (row.state === "working" || row.children.some(child => child.state === "working")) return "working";
+  return row.state === "waiting" && !row.idle ? "waiting" : "idle";
+}
+
+/** What a row's dot means, on hover. */
+function dotWords(row: SessionRow): string {
+  const dot = dotOf(row);
+  return dot === "idle" && row.state === "observed" ? "State unavailable" : { working: "Working", waiting: "Waiting for you", idle: "Idle" }[dot];
 }
 
 /** An idle session's lead under History, where an ended one's outcome stands (7.21). */

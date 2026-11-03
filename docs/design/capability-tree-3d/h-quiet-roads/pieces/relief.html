@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Relief pieces</title>
+<style>
+  :root { --bg: #101418; --ink: #d9dee3; --muted: #8e99a3; --rule: #26303a; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 13px/1.4 "Segoe UI", system-ui, sans-serif; }
+  section { padding: 20px 24px 18px; width: 1440px; }
+  h1 { font-size: 17px; font-weight: 600; margin: 0 0 4px; }
+  h2 { font-size: 15px; font-weight: 600; margin: 0 0 4px; }
+  .lede { color: var(--muted); margin: 0 0 14px; max-width: 1200px; }
+  .grid { display: grid; gap: 18px 24px; }
+  .three { grid-template-columns: repeat(3, 448px); }
+  .four { grid-template-columns: repeat(4, 330px); }
+  figure { margin: 0; }
+  canvas { display: block; border-radius: 3px; }
+  figcaption { margin-top: 7px; }
+  figcaption b { font-weight: 600; }
+  figcaption span { display: block; color: var(--muted); font-size: 12px; margin-top: 2px; }
+  #close { border-top: 1px solid var(--rule); }
+</style>
+</head>
+<body data-state="loading">
+<section id="sheet">
+  <h1>Relief: a little 2.5D on one piece of the map</h1>
+  <p class="lede">The same piece in every panel (about 110 × 70 ground units): two healthy territories, one untested, open land along the coast,
+    a quiet placeholder road crossing two borders at gates to a settlement, and a second road leaving onto the open land through a third gate.
+    The map's resting tilt (40° off straight down) at 1.5× its resting scale (3.9 px per ground unit); light from the upper left; round 11's colours.</p>
+  <div class="grid three">
+    <figure><canvas width="448" height="270" data-look="flat"></canvas>
+      <figcaption><b>0 · Flat, as today</b><span>Flat fills; 1 px white border at 85%; gate = a 3.0 opening with flat posts (1.45 ink square, 0.9 paper face).</span></figcaption></figure>
+    <figure><canvas width="448" height="270" data-look="bevel"></canvas>
+      <figcaption><b>1 · Bevelled tiles</b><span>A 0.9 rim inside each territory edge: white up to 45% where the edge faces the light, black up to 36% where it faces away, holding for half its width, then fading inward. The rim stops at each gate's opening.</span></figcaption></figure>
+    <figure><canvas width="448" height="270" data-look="raised"></canvas>
+      <figcaption><b>2 · Raised tiles</b><span>Territories 1.0 above the open land; sides in the fill colour shaded by the light (53% facing south); soft shadow on the open land, black 30%; where the road leaves, a 3.0 × 2.6 ramp cut into the tile.</span></figcaption></figure>
+    <figure><canvas width="448" height="270" data-look="standing"></canvas>
+      <figcaption><b>3 · Standing posts on flat land</b><span>Posts 1.2 square and 1.5 tall: paper face on an ink-edged top, slate sides (#59626a) shaded by the light, a soft 30% shadow to the lower right.</span></figcaption></figure>
+    <figure><canvas width="448" height="270" data-look="both"></canvas>
+      <figcaption><b>4 · Bevel + standing posts</b><span>Panel 1's rims with panel 3's posts.</span></figcaption></figure>
+    <figure><canvas width="448" height="270" data-look="levels"></canvas>
+      <figcaption><b>5 · Levels, a gate is a ramp (own idea)</b><span>The middle territory stands 0.8 above its neighbours, which stand 0.8 above the open land; every gate is a 3.0 × 2.6 ramp cut into the higher side; steps shaded and shadowed as in 2; posts flat as today.</span></figcaption></figure>
+  </div>
+</section>
+<section id="close">
+  <h2>Close-up: the gate on the green–green border</h2>
+  <p class="lede">Panels 0, 1, 3 and 4 at 3× the map's resting scale (7.8 px per ground unit), same tilt and light.</p>
+  <div class="grid four">
+    <figure><canvas width="330" height="250" data-look="flat" data-zoom="3" data-at="G1"></canvas><figcaption><b>0 · Flat, as today</b></figcaption></figure>
+    <figure><canvas width="330" height="250" data-look="bevel" data-zoom="3" data-at="G1"></canvas><figcaption><b>1 · Bevelled tiles</b></figcaption></figure>
+    <figure><canvas width="330" height="250" data-look="standing" data-zoom="3" data-at="G1"></canvas><figcaption><b>3 · Standing posts</b></figcaption></figure>
+    <figure><canvas width="330" height="250" data-look="both" data-zoom="3" data-at="G1"></canvas><figcaption><b>4 · Bevel + standing posts</b></figcaption></figure>
+  </div>
+  <p class="lede" style="margin-top: 16px">And the ramps, which only show close up: panel 2 where the road leaves onto the open land, panel 5 at each of its three gates.</p>
+  <div class="grid four">
+    <figure><canvas width="330" height="250" data-look="raised" data-zoom="3" data-at="G3"></canvas><figcaption><b>2 · Raised tiles</b>, road onto the open land</figcaption></figure>
+    <figure><canvas width="330" height="250" data-look="levels" data-zoom="3" data-at="G1"></canvas><figcaption><b>5 · Levels</b>, green up to the higher green</figcaption></figure>
+    <figure><canvas width="330" height="250" data-look="levels" data-zoom="3" data-at="G2"></canvas><figcaption><b>5 · Levels</b>, higher green down to yellow</figcaption></figure>
+    <figure><canvas width="330" height="250" data-look="levels" data-zoom="3" data-at="G3"></canvas><figcaption><b>5 · Levels</b>, yellow down to the open land</figcaption></figure>
+  </div>
+</section>
+<script src="relief.js"></script>
+</body>
+</html>

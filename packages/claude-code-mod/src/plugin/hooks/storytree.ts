@@ -15,7 +15,7 @@
  * the session ended; at start it writes the session's id where a Mint lane's runner reads it.
  *
  * Capability 3 reports the session's live usage (`$.session.usage()`: context fill, rate-limit windows, cost) as a mod-only
- * hook event the command hooks never send: at each main-loop turn's end, with why the turn ended (contracts 7.1, 7.2), and
+ * hook event the command hooks never send: at each main-loop turn's end, with why the turn ended (contracts 3.1, 3.2), and
  * each minute while the figures move, so an idle or ended session sends none.
  *
  * The API is early access and moves between releases (read from Claude Code 2.1.284's own declarations), so this

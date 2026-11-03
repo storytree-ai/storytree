@@ -125,3 +125,58 @@ test("3.3 · the decision card's depth draws a decision glued beneath its island
   assert.ok([cover!, ...deeper].every(decision => decision.y < coreTop), "every decision hangs above the core it tunnels to");
   shelf.stop();
 });
+
+/** A 1000 × 600 window whose cards measure 300 × 100, and the rectangles `reading` says are being read. */
+function sized(reading: { left: number; top: number; right: number; bottom: number }[], locate: Parameters<typeof mountTeaching>[1]["locate"]) {
+  const { document, host, store } = page();
+  const view = document.defaultView as unknown as { innerWidth: number; innerHeight: number };
+  view.innerWidth = 1000; view.innerHeight = 600;
+  const element = document.defaultView!.HTMLElement.prototype as unknown as HTMLElement;
+  const measured = element.getBoundingClientRect;
+  element.getBoundingClientRect = function (this: HTMLElement) {
+    return (this.classList.contains("teaching-card") ? { width: 300, height: 100 } : measured.call(this)) as DOMRect;
+  };
+  const asked: unknown[] = [];
+  const teaching = mountTeaching(host, { journal: journal(store), locate, reading: (target) => { asked.push(target); return reading; } });
+  teaching.take(oneStory);
+  const card = host.querySelector<HTMLElement>(".teaching-card")!;
+  return { document, host, teaching, card, asked, at: () => ({ left: card.style.left, top: card.style.top }) };
+}
+
+const panel = { left: 520, top: 12, right: 988, bottom: 588 };
+
+test("3.5 · a card whose right side would cover the open panel sits on the left of its point instead", () => {
+  const { teaching, at, asked } = sized([panel], () => ({ x: 400, y: 300, visible: true }));
+  assert.deepEqual(asked.at(-1), { kind: "story", story: "story_a" }, "the page is asked what is being read near the card's thing");
+  assert.deepEqual(at(), { left: "88px", top: "250px" });
+  teaching.stop();
+});
+
+test("3.5 · a card beside a nameplate it would cover on either side sits above its point", () => {
+  const plate = { left: 340, top: 310, right: 460, bottom: 340 };
+  const { teaching, at } = sized([plate], () => ({ x: 400, y: 300, visible: true }));
+  assert.deepEqual(at(), { left: "250px", top: "188px" });
+  teaching.stop();
+});
+
+test("3.5 · a card whose thing is off screen takes the corner clear of the open panel", () => {
+  const { teaching, at, card } = sized([panel], () => undefined);
+  assert.ok(card.classList.contains("teaching-card-corner"));
+  assert.deepEqual(at(), { left: "16px", top: "484px" }, "the bottom left corner, the bottom right being under the panel");
+  teaching.stop();
+});
+
+test("3.5 · a panel that opens after the card is shown moves the card off it", async () => {
+  const reading: { left: number; top: number; right: number; bottom: number }[] = [];
+  const { document, host, teaching, at } = sized(reading, () => ({ x: 400, y: 300, visible: true }));
+  assert.deepEqual(at(), { left: "412px", top: "250px" }, "on the right while nothing is open");
+  const aside = document.createElement("aside");
+  aside.hidden = true;
+  host.append(aside);
+  await new Promise(resolve => setTimeout(resolve, 0));
+  reading.push(panel);
+  aside.hidden = false;
+  await new Promise(resolve => setTimeout(resolve, 0));
+  assert.deepEqual(at(), { left: "88px", top: "250px" }, "on the left once the panel is open");
+  teaching.stop();
+});

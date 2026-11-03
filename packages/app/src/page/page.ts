@@ -12,7 +12,7 @@ import type { AnnotatedTree } from "@storytree/library";
 import { followProjects, type ProjectSelection } from "../projects/follow.js";
 import { surfaceOn, surfaceSetting, type SurfacesResult } from "../surfaces/bridge.js";
 import { renderNoProjects } from "../view/render.js";
-import { locateTarget, type CardTarget, type IslandsAndNotes, type Place } from "./locate.js";
+import { locateTarget, readingNear, type Box, type CardTarget, type IslandsAndNotes, type Place } from "./locate.js";
 import { pageStatus } from "./status.js";
 import { storyPanel, type PanelSpace, type StoryPanelView, type TreeWindow } from "./story-panel.js";
 
@@ -54,7 +54,7 @@ export interface ProjectParts<View extends ForestGlobe = ForestGlobe> {
   /** Hand the knowledge core the library's changes and the log's lines. */
   take(changes: Changes, lines: News["lines"]): void;
   libraryCard(panel: HTMLElement, onClose: () => void): () => void;
-  teaching(locate: (target: CardTarget) => Place | undefined): { take(reading: { tree: AnnotatedTree; changes: Changes; lines: Held["lines"]; factory: boolean }): void; stop(): void };
+  teaching(locate: (target: CardTarget) => Place | undefined, reading: (target: CardTarget) => Box[]): { take(reading: { tree: AnnotatedTree; changes: Changes; lines: Held["lines"]; factory: boolean }): void; stop(): void };
   /** Mount the factory's stand-in surfaces (ADR-1174) that `on` says are on. */
   plugins(on: (surface: string) => boolean): Promise<{ stop(): void; failed: readonly { surface: string; why: string }[] }>;
   reading(options: Pick<ForestReadingOptions, "onTree" | "onError" | "onSettled" | "survey">): { stop(): void };
@@ -237,8 +237,8 @@ export function openProjectPage<View extends ForestGlobe>(parts: PageParts<View>
     mine.view = view;
     // Sessions off is a quiet globe: no list, no session tints and no islands lit on hover.
     if (surfaceOn(surfaces, "sessions")) mine.sessions = project.sessions(view);
-    // The first time each kind appears on this map, its card shows beside it (ADR-1048 D1).
-    mine.teaching = project.teaching((target) => locateTarget(target, { document, globe: parts.globe }));
+    // The first time each kind appears on this map, its card shows beside it (ADR-1048 D1), clear of what is being read there.
+    mine.teaching = project.teaching((target) => locateTarget(target, { document, globe: parts.globe }), (target) => readingNear(target, document));
     // A factory plugin standing in for a switched-off part draws its surfaces from the factory, while each is on.
     if (parts.pluginViews > 0) {
       const plugins = await project.plugins((id) => surfaceOn(surfaces, id));

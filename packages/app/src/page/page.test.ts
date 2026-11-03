@@ -39,6 +39,7 @@ interface Drawn {
   reading: Reading | undefined;
   teaching: { factory: boolean }[];
   locate: Parameters<ProjectParts["teaching"]>[0] | undefined;
+  readingNear: Parameters<ProjectParts["teaching"]>[1] | undefined;
   rendered: (string | undefined)[];
   spaces: { opened: number; placed: unknown[]; view: unknown }[];
   treeShown: number;
@@ -83,7 +84,7 @@ function page(t: TestContext, answers: Partial<Pick<PageParts, "problem" | "proj
     ...answers,
     project(name, timed) {
       const mine: Drawn = {
-        name, mounted: [], stopped: [], reading: undefined, teaching: [], locate: undefined, rendered: [], spaces: [], treeShown: 0, treeOpen: false,
+        name, mounted: [], stopped: [], reading: undefined, teaching: [], locate: undefined, readingNear: undefined, rendered: [], spaces: [], treeShown: 0, treeOpen: false,
         kept: answers.kept, timed: undefined,
         view: {
           scenes: 0, disposed: false, onSelect: () => {}, painted: deferred<void>(),
@@ -118,8 +119,9 @@ function page(t: TestContext, answers: Partial<Pick<PageParts, "problem" | "proj
         sessions: () => surface("sessions"),
         take() {},
         libraryCard: () => () => {},
-        teaching: (locate) => {
+        teaching: (locate, readingNear) => {
           mine.locate = locate;
+          mine.readingNear = readingNear;
           return { take: (reading) => { mine.teaching.push({ factory: reading.factory }); }, stop: () => { mine.stopped.push("teaching"); } };
         },
         plugins: (on) => answers.plugins!(on),
@@ -378,6 +380,28 @@ test("2.29 · teaching cards hear whether the project on show is the factory, an
   assert.deepEqual(locate({ kind: "switch" }), { x: 140, y: 24, visible: true });
   assert.deepEqual(locate({ kind: "question" }), { x: 68, y: 72, visible: true });
   assert.equal(locate({ kind: "map" }), undefined);
+
+  // What is being read near a card's target, which the card keeps clear of: the open story panel and the target's nameplates.
+  const reading = on.last().readingNear!;
+  const boxed = (element: HTMLElement, box: { left: number; top: number; right: number; bottom: number }) => {
+    element.getBoundingClientRect = () => ({ ...box, width: box.right - box.left, height: box.bottom - box.top }) as DOMRect;
+    on.document.body.append(element);
+    return element;
+  };
+  const plate = (attribute: string, id: string, left: number) => {
+    const element = on.document.createElement("div");
+    element.className = "planet-nameplate";
+    element.setAttribute(attribute, id);
+    return boxed(element, { left, top: 30, right: left + 50, bottom: 50 });
+  };
+  plate("data-story-id", story.id, 0); plate("data-story-id", "story_other", 100); plate("data-capability-id", "cap_a", 200);
+  const shut = on.document.createElement("aside");
+  shut.className = "story-panel";
+  shut.hidden = true;
+  boxed(shut, { left: 500, top: 12, right: 900, bottom: 588 });
+  assert.deepEqual(reading({ kind: "capability", story: story.id, capability: "cap_a" }).map(box => box.left), [0, 200], "its story's and capability's nameplates, not another's");
+  shut.hidden = false;
+  assert.deepEqual(reading({ kind: "arc" }).map(box => box.left), [500], "the story panel once it is open");
 });
 
 test("2.30 · each start mark is sent once, and what the forest drew joins the page's census", async (t) => {

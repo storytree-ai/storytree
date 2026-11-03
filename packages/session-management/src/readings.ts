@@ -362,7 +362,7 @@ function idOf(of: { capability?: string | undefined; increment?: string | undefi
 interface SessionFold {
   session: string;
   firstAt: string;
-  latest: { kind: Line["kind"]; at: string };
+  latest: { kind: Line["kind"]; at: string; exits?: true };
   harness?: string;
   /** The folder of its first start line that names one, and of its first line that names one. */
   startedIn?: string;
@@ -541,11 +541,12 @@ export class LogFold {
   #own(line: Line): void {
     let own = this.#sessions.get(line.session);
     if (own === undefined) {
-      own = { session: line.session, firstAt: line.at, latest: line, worktrees: new Set(), hooksRunning: false, branches: new Set(), placed: new Map(),
+      own = { session: line.session, firstAt: line.at, latest: { kind: line.kind, at: line.at }, worktrees: new Set(), hooksRunning: false, branches: new Set(), placed: new Map(),
         prompted: false, inTurn: false, running: new Map(), finished: new Set(), onMain: new Map() };
       this.#sessions.set(line.session, own);
     }
-    own.latest = { kind: line.kind, at: line.at };
+    // A turn its process exits with, leaving nothing in the background, ends the session as an end line would (4.41).
+    own.latest = line.kind === "turn-ended" && line.exits === true && (line.background ?? 0) === 0 ? { kind: line.kind, at: line.at, exits: true } : { kind: line.kind, at: line.at };
     if (line.harness !== undefined) own.harness ??= line.harness;
     if (line.folder !== undefined) {
       own.firstFolder ??= line.folder;
@@ -637,7 +638,7 @@ export class LogFold {
     const died = this.#diedWithMachine(session, latest.at);
     const running = died ? [] : [...own.running.values()].filter(({ until }) => now <= until);
     const quiet = now - Date.parse(latest.at) > quietMs && running.length === 0;
-    const state: SessionState = latest.kind === "session-ended" ? "ended"
+    const state: SessionState = latest.kind === "session-ended" || latest.exits === true ? "ended"
       : died || now - Date.parse(latest.at) > LONGEST_COMMAND_MS ? "gone"
       : own.prompted ? (own.inTurn || running.length > 0 ? "working" : "waiting")
       : quiet ? "waiting" : "working";

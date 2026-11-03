@@ -217,6 +217,28 @@ test("4.9 who is listed (ADR-0754 D4): a session holding unmerged work stays lis
   });
 });
 
+test("4.41 a print-mode session whose turn ended, saying its process exits with it, reads ended and leaves the list though no end line arrived; a later prompt makes it working again, and a turn that left background tasks running reads as before", async () => {
+  await withProject(async (log, project) => {
+    const printed = { ...CLAUDE, session: "printed" } as const;
+    const read = async (session: string, now: Date) => (await readSessions(log, project, { now })).find((one) => one.session === session);
+    await log.append(project, { ...printed, kind: "prompt-submitted" });
+    const exited = await log.append(project, { ...printed, kind: "turn-ended", background: 0, exits: true });
+    const gone = await read("printed", after(exited, 1_000));
+    assert.deepEqual({ state: gone?.state, listing: gone?.listing }, { state: "ended", listing: "hidden" });
+    const states = await readSessionStates(log, project, { now: after(exited, 1_000) });
+    assert.equal(states.find((one) => one.session === "printed")?.state, "ended", "the status line's states agree");
+
+    await log.append(project, { ...printed, kind: "prompt-submitted" });
+    assert.equal((await read("printed", after(exited, 1_000)))?.state, "working", "a resumed turn is judged as usual");
+
+    const backgrounded = { ...CLAUDE, session: "backgrounded" } as const;
+    await log.append(project, { ...backgrounded, kind: "prompt-submitted" });
+    await log.append(project, { ...backgrounded, kind: "command-started", command: "pnpm test", call: "call-bg" });
+    const left = await log.append(project, { ...backgrounded, kind: "turn-ended", background: 1, exits: true });
+    assert.equal((await read("backgrounded", after(left, 1_000)))?.state, "working", "its background command is still running");
+  });
+});
+
 test("4.20 a line about other sessions (a branch's state, what an app keeps) never makes its writer a session: a person or the app that looked is not listed", async () => {
   await withProject(async (log, project) => {
     const worker = await log.append(project, { ...CLAUDE, branch: "fix-login", kind: "file-edited", files: ["a.ts"] });

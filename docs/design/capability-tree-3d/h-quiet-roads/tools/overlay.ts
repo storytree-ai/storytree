@@ -65,7 +65,7 @@ const RELIEF = QUERY.get("relief") === "0" ? undefined : {
   shadow: { alpha: 0.3, reach: 1.0, feather: 0.9 },
   ramp: { width: 3.4, depth: 3.2 },
   rim: { width: 0.9, light: 0.45, dark: 0.36, hold: 0.45 },
-  post: { side: 1.2, entrance: 1.4, height: 1.5, entranceHeight: 1.7, faceRatio: 0.62, body: "#59626a", shadow: 0.3, reach: 0.8 },
+  post: { side: 1.2, entrance: 1.4, height: 1.0, entranceHeight: 1.2, faceRatio: 0.62, body: "#9aa2a8", shadow: 0.22, reach: 0.8 },
 };
 /** The island's bare ground as it shows on the page (round 11's still), under the see-through territory fills. */
 const GROUND_HEX = "#686d70";
@@ -214,7 +214,11 @@ export function overlayLayer(state: RootState, story: string, data: Data, host: 
 
   // ── The sea: the selection's lanes stop at the coast, where the roads ashore take over ─────────────────────────────
   const inverse = new Matrix4().copy(root.matrixWorld).invert();
-  const nearCoast = (p: P) => onLand(p);
+  // Round 11: with no coast band a lane that rounds the island lies along its very edge, so a lane is cut a little offshore
+  // too, except where the sea roads come ashore (the mouth and the way out to Keys).
+  const SHORE = 1.4, ashoreAt = [layout.harbour.dock, layout.keys.dock];
+  const nearCoast = (p: P) => onLand(p) || (ashoreAt.every(d => dist(p, d) > 4 * SHORE) &&
+    Array.from({ length: 8 }, (_, k) => ({ x: p.x + SHORE * Math.cos(k * Math.PI / 4), z: p.z + SHORE * Math.sin(k * Math.PI / 4) })).some(onLand));
   const cutLanes = () => {
     const v = new Vector3();
     state.scene.getObjectByName("pathways:selection-lanes")?.traverse(o => {

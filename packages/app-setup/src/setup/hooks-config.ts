@@ -271,6 +271,8 @@ function claudeEntries({ node, script }: HookCommand): Record<string, HookEntry[
     PostToolUseFailure: [{ matcher: "Bash|PowerShell", hooks: [run(true)] }, { matcher: "Bash|PowerShell", hooks: [guard] }],
     // The turn's line in the background; then, in the foreground, a check that may ask the agent to close out (ADR-0758 D4).
     Stop: [{ hooks: [run(true)] }, { hooks: [{ type: "command", command: node, args: [script, "claude-code", CLOSE_OUT_REMINDER] }] }],
+    // A subagent's end, in the background: the sessions list reads a finished one as idle (Hooks 3.55).
+    SubagentStop: [{ hooks: [run(true)] }],
     UserPromptSubmit: [{ hooks: [run(false)] }],
     // Claude Code stops its end hooks after 1.5 s, sooner than a distant store answers: the hook hands its line to a copy of itself that outlives it.
     SessionEnd: [{ hooks: [{ type: "command", command: node, args: [script, "claude-code", BACKGROUND] }] }],

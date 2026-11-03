@@ -306,6 +306,9 @@ test("the page reading holds the log's sessions and claims folded, and drops eve
     { ...common, seq: 4, kind: "command-run", command: "pnpm gate", call: "c1" },
     { ...common, seq: 5, kind: "file-edited", files: ["a.ts"] },
     { ...common, seq: 6, kind: "turn-ended" },
+    // The sessions list reads a subagent's start and end one by one (7.2).
+    { ...common, seq: 7, kind: "subagent-started", subagent: "a1" },
+    { ...common, seq: 8, kind: "subagent-ended", subagent: "a1" },
   );
   app.claim("cap_a");
   const clock = new Clock();
@@ -313,15 +316,15 @@ test("the page reading holds the log's sessions and claims folded, and drops eve
   const heard: News[] = [];
   reading.subscribe({ onNews: (news) => heard.push(news) });
   await settle();
-  app.lines.push({ ...common, seq: 8, kind: "prompt-submitted" }, { ...common, seq: 9, kind: "command-started", command: "pnpm test", call: "c2" });
+  app.lines.push({ ...common, seq: 10, kind: "prompt-submitted" }, { ...common, seq: 11, kind: "command-started", command: "pnpm test", call: "c2" });
   await clock.advance(2_000);
 
-  assert.equal(heard.flatMap(({ lines }) => lines).length, 9, "every surface still hears every line");
+  assert.equal(heard.flatMap(({ lines }) => lines).length, 11, "every surface still hears every line");
   const held = reading.held();
   const options = { now: new Date(0) };
   assert.deepEqual(held.fold.sessions(options), sessionsFrom(app.lines, options));
   assert.deepEqual(held.fold.claims(options), claimsFrom(app.lines, options));
-  assert.deepEqual(held.lines.map(({ kind }) => kind), ["claimed"], "only the claim is held as a line");
+  assert.deepEqual(held.lines.map(({ kind }) => kind), ["subagent-started", "subagent-ended", "claimed"], "only the subagent's lines and the claim are held as lines");
   reading.stop();
 });
 

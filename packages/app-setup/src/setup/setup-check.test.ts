@@ -156,8 +156,10 @@ test("8.1 in a throwaway home with only the tool server installed, the first ses
       ["claude-code", storytreeHooks(claude, HOOK.script, "claude-code"), true],
       ["codex", storytreeHooks(readJson(home.codexHooks), HOOK.script, "codex"), false],
     ] as const) {
-      const failure = harness === "claude-code" ? ["PostToolUseFailure"] : [];
-      assert.deepEqual(Object.keys(events).sort(), ["PostToolUse", ...failure, "PreToolUse", "SessionEnd", "SessionStart", "Stop", "UserPromptSubmit"].sort(), harness);
+      // Claude Code also says when a command failed, and when a subagent finished, which its end line records (3.55).
+      const claudeOnly = harness === "claude-code" ? ["PostToolUseFailure", "SubagentStop"] : [];
+      assert.deepEqual(Object.keys(events).sort(), ["PostToolUse", ...claudeOnly, "PreToolUse", "SessionEnd", "SessionStart", "Stop", "UserPromptSubmit"].sort(), harness);
+      if (harness === "claude-code") assert.ok(events.SubagentStop?.every((entry) => entry.background), "a subagent's end is recorded in the background");
       // And after each tool that reads outside text, whose line marks the session's later knowledge writes (3.49).
       const edits = harness === "claude-code"
         ? ["Write", "Edit", "MultiEdit", "NotebookEdit", "Bash", "Agent", "Task", "WebFetch", "WebSearch", "mcp__github__get_issue", "mcp__claude_ai_Gmail__read_thread"]
@@ -233,7 +235,7 @@ test("8.2 a second start changes nothing, and removing storytree takes out exact
     assert.deepEqual(moved.hooks?.replaced, { "claude-code": [old], codex: [old] });
     assert.ok(moved.lines.find((line) => line.check === "hooks")?.message.includes(old), JSON.stringify(moved.lines));
     assert.deepEqual(Object.keys(storytreeHooks(readJson(home.claudeSettings), path.join(dir, "old", "storytree-hook.mjs"), "claude-code")), []);
-    assert.equal(Object.keys(storytreeHooks(readJson(home.claudeSettings), HOOK.script, "claude-code")).length, 7);
+    assert.equal(Object.keys(storytreeHooks(readJson(home.claudeSettings), HOOK.script, "claude-code")).length, 8);
   });
 });
 
@@ -294,7 +296,7 @@ test("8.2 the built storytree-setup install registers storytree's hooks, and rem
     assert.match(installed.stdout, /^Claude Code: registered$/m, installed.stdout);
     assert.match(installed.stdout, /^Codex: registered/m, installed.stdout);
     // The command names its own hook by its real path (on macOS the temporary folder is a link into /private).
-    assert.equal(Object.keys(storytreeHooks(readJson(home.claudeSettings), realpathSync(hookScript), "claude-code")).length, 7, "the hook built beside it is registered");
+    assert.equal(Object.keys(storytreeHooks(readJson(home.claudeSettings), realpathSync(hookScript), "claude-code")).length, 8, "the hook built beside it is registered");
 
     const removed = setup("remove");
     assert.equal(removed.status, 0, removed.stderr);
@@ -1323,7 +1325,7 @@ test("8.33 Claude Code's registration leaves the mod's own tool calls (hook_even
     assert.ok(runs(tools.matcher, "mcp__storytree__hook_events"), "a tool whose name only starts like it is still one");
     // Every background hook that records a line stands down when the tool recorded its event; the foreground ones look for the note at once.
     const background = Object.keys(groups).flatMap((event) => ours(event).map((one) => ({ event, ...one }))).filter(({ hook }) => hook.async === true);
-    assert.deepEqual([...new Set(background.map(({ event }) => event))].sort(), ["PostToolUse", "PostToolUseFailure", "PreToolUse", "SessionStart", "Stop"], "the background hooks");
+    assert.deepEqual([...new Set(background.map(({ event }) => event))].sort(), ["PostToolUse", "PostToolUseFailure", "PreToolUse", "SessionStart", "Stop", "SubagentStop"], "the background hooks");
     for (const { hook } of background) assert.ok(hook.args?.includes(AFTER_TOOL), hook.args?.join(" "));
     for (const { hook } of Object.keys(groups).flatMap(ours).filter(({ hook }) => hook.async !== true)) assert.ok(!hook.args?.includes(AFTER_TOOL), hook.args?.join(" "));
   });

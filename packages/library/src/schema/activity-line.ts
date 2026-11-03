@@ -83,6 +83,8 @@ export const NEW_LINE = z.discriminatedUnion("kind", [
   z.object({ ...common, kind: z.literal("session-ended"), reason: z.string().min(1).optional() }).strict(),
   /** A subagent the session started: the harness's id for it, its type, and the task it was given. */
   z.object({ ...common, kind: z.literal("subagent-started"), subagent: z.string().min(1), type: z.string().min(1).optional(), task: z.string().min(1).optional() }).strict(),
+  /** A subagent of the session that the harness reported finished, by the id its started line carries; the two may be written in either order. */
+  z.object({ ...common, kind: z.literal("subagent-ended"), subagent: z.string().min(1) }).strict(),
   z.object({ ...common, kind: z.literal("file-edited"), files: z.array(z.string().min(1)).min(1) }).strict(),
   /**
    * A shell command about to run: the harness's id for the call, which its finish line carries too.

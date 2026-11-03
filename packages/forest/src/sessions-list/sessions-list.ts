@@ -124,11 +124,13 @@ export function sessionRows(tree: AnnotatedTree, log: readonly Line[] | LogReadi
       ...(session.onMain === undefined ? {} : { onMain: session.onMain }), children: [] });
   }
   // The activity API explicitly names parent and child; a task or matching folder never implies one.
+  // A subagent the harness reported finished reads idle, whichever of its two lines came first.
+  const finished = new Set(lines.flatMap(line => line.kind === "subagent-ended" ? [line.subagent] : []));
   for (const line of [...lines].sort((a, b) => a.seq - b.seq)) {
     if (line.kind !== "subagent-started" || ended.has(line.subagent) || !rows.has(line.session)) continue;
     if (!parents.has(line.subagent)) parents.set(line.subagent, details.get(line.subagent)?.parentSession ?? line.session);
     if (!rows.has(line.subagent)) rows.set(line.subagent, { id: line.subagent, label: line.task ?? line.type ?? "Subagent",
-      agent: line.type ?? "Subagent", state: "observed", idle: false, lastSeenAt: line.at,
+      agent: line.type ?? "Subagent", ...(finished.has(line.subagent) ? { state: "ended", idle: true } : { state: "observed", idle: false }), lastSeenAt: line.at,
       totalTokens: contextTotal(details.get(line.subagent)), composition: details.get(line.subagent)?.composition, stories: [], worktrees: [], running: [], description: [], children: [] });
   }
   // Bad/missing relationship metadata must never lose a session or recurse forever.

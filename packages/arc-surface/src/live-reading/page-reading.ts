@@ -45,7 +45,7 @@ export interface PageReading extends LiveReading {
 const COMMAND_SHOWN = 300;
 
 /** The kinds of log line a surface reads one by one, rather than through the fold: claims and closes, subagents and reads. */
-const READ_ONE_BY_ONE: ReadonlySet<Line["kind"]> = new Set(["claimed", "released", "landed", "closed", "merged", "subagent-started", "note-read"]);
+const READ_ONE_BY_ONE: ReadonlySet<Line["kind"]> = new Set(["claimed", "released", "landed", "closed", "merged", "subagent-started", "subagent-ended", "note-read"]);
 
 /**
  * The record fields a surface reads from the held history (other than health's): note cards' text and

@@ -182,3 +182,23 @@ test("1.5 run holds that cannot be read are said and hold nothing, and a hold re
   await assert.rejects(refused({ root, what: "pnpm gate" }), /gave up waiting/);
   assert.deepEqual(events, ["take first", "release first"]);
 });
+
+test("plugin-loader 5.19 · a factory plugin named as the part it stands in for runs its gate steps alone in that part's place, and the part's alone once it is on", async (t) => {
+  const root = project(t);
+  const factory = project(t);
+  const dir = path.join(factory, "plugins", "linter");
+  mkdirSync(dir, { recursive: true });
+  writeFileSync(path.join(dir, "package.json"), JSON.stringify({ name: "linter", storytree: { interface: 1, gateSteps: [{ from: "./steps", export: "gateSteps" }] }, exports: { "./steps": "./steps.cjs" } }));
+  writeFileSync(path.join(dir, "steps.cjs"), `exports.gateSteps = [{ name: "check:my-lint", command: () => ({ command: process.execPath, args: [], shell: false }) }];`);
+  const run = async (partsOff) => {
+    const calls = [];
+    const output = [];
+    const code = await runGate({ root, steps: async () => composition, partsOff: () => partsOff, standIns: () => ({ folder: factory, plugins: { linter: "linter" } }), log: (line) => output.push(line), run: async (name) => (calls.push(name), 0) });
+    return { code, calls, table: output.at(-1) };
+  };
+  const off = await run(["linter"]);
+  assert.deepEqual(off.calls, ["typecheck", "test", "check:my-lint"]);
+  assert.match(off.table, /NOT RUN\s+check:lint — linter is switched off/);
+  assert.doesNotMatch(off.table, /check:my-lint — /, "the plugin's own step is not said off");
+  assert.deepEqual((await run([])).calls, ["typecheck", "test", "check:lint", "check:spelling"]);
+});

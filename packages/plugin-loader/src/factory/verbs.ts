@@ -92,12 +92,16 @@ const check = verb({
     const { pluginLibrarian } = await import("./factory.js");
     const librarian = checked.adds.librarian === undefined ? undefined : pluginLibrarian(factoryFolder().folder, plugin);
     const keeps = librarian === undefined ? "" : ` Its librarian, librarian-${plugin}, connects as the database role ${librarian.role}, which ${granted(librarian)}.`;
-    const lacks = hostVerbs === undefined ? undefined : await lackingLine(factoryFolder().folder, plugin, named, await hostVerbs());
+    const host = hostVerbs === undefined ? undefined : await hostVerbs();
+    const lacks = host === undefined ? undefined : await lackingLine(factoryFolder().folder, plugin, named, host);
+    const ownName = host !== undefined && Object.hasOwn(host.graph, plugin)
+      ? `or switch ${plugin} off with the plugin of its name in its place`
+      : "or add it under its own name, standing in for no part";
     return {
       text: `${plugin} would load: it adds ${adds}.${keeps}${lacks === undefined ? "" : `\n${lacks}`}`,
       next: [
         { command: `settings set part <part> plugin ${plugin}`, why: "switch a part off with it in its place" },
-        { command: `settings set part ${plugin} plugin ${plugin}`, why: "or add it under its own name, standing in for no part" },
+        { command: `settings set part ${plugin} plugin ${plugin}`, why: ownName },
         ...(checked.adds.recordKinds === undefined ? [] : [{ command: "plugin fence", tool: "fence_plugin", why: "fence its roles in this project's library, as the database's owner" }]),
       ],
     };
@@ -112,7 +116,7 @@ const check = verb({
 async function lackingLine(folder: string | undefined, plugin: string, named: string | undefined, composed: Composition<ProvidingFamily>): Promise<string | undefined> {
   const [{ readStandIns }, { pluginFor, pluginParts }, { lackingSaid, partProvides, provided }] = await Promise.all([import("@storytree/project-and-caller"), import("./factory.js"), import("../switch/switch.js")]);
   const part = named ?? pluginFor(folder, plugin) ?? Object.entries(readStandIns().plugins).find(([, one]) => one === plugin)?.[0];
-  if (part === undefined || part === plugin || !composed.owners.includes(part)) return undefined;
+  if (part === undefined || !composed.owners.includes(part)) return undefined;
   const lacking = lackingSaid(partProvides(composed, part), provided(pluginParts(folder, plugin, "verbs") as ProvidingFamily[]));
   return lacking === undefined ? `${plugin} stands in for ${part} and provides every command and tool it does.` : `${plugin} stands in for ${part}, which provides what ${plugin} does not: ${lacking}.`;
 }

@@ -25,6 +25,11 @@ export const STAND_IN_KINDS: Readonly<Record<string, { readonly hosts: string; r
   pageChannels: { hosts: "the desktop app", shape: "a channel the window's page may ask the app on" },
   guidance: { hosts: "the MCP server's habits card", shape: "a paragraph of the card (a string), placed where the part's own sections were, or before the card's closing line for a plugin that adds a part" },
   gateSteps: { hosts: "the base dev loop's gate", shape: "{ name, when?, command }: when({ root, ...flags }) => { run, reason? } says whether it runs (absent, it always does), command({ root }) => { command, args, shell? } the process it runs from the project's root" },
+  armChecks: {
+    hosts: "the command line and the MCP server",
+    shape: "{ name, verdict(door, verb, home?) => { allowed: true } | { allowed: false, message } }: whether a door (\"command\" or \"tool\") may run verb `verb` for a caller whose storytree home is `home`, refused with the message it says",
+  },
+  runHolds: { hosts: "the base dev loop, for a project's gate and test commands", shape: "{ name, take({ root, what, stopped }) => Promise<release> }: a hold taken before a heavy run starts, its release called once the run ends" },
   services: { hosts: "the service host of each machine whose settings turn the service on", shape: "{ start(host) }, running until host.stopping fires, named by an entry { name, from, export, run } rather than a list" },
 };
 

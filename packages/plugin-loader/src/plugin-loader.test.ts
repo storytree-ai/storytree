@@ -518,3 +518,39 @@ test("5.15 · `plugin check` on a plugin made `--for <part>` lists what that par
   assert.doesNotMatch((await act({ plugin: "my-extra" }, { hostVerbs })).text, /provides what/, "a plugin standing in for no part lacks nothing");
   assert.match((await act({ plugin: "my-extra", for: "ci-health" }, { hostVerbs })).text, /^my-extra stands in for ci-health, which provides what my-extra does not: the commands health worklist, health ci/m, "--for names the part for a plugin made without one");
 });
+
+test("5.19 · a factory plugin named as the part it stands in for mounts alone in that part's place while it is off, and the part alone once it is on; what each provides is its own, and `plugin check` names the switch as standing that part off", async (t) => {
+  const health = (name: string, verb: string) => ({ name, verbs: [{ command: { family: name, name: verb }, tool: { absent: "a terminal step" } }] });
+  const folder = factory(t, { "ci-health": { ...verbsPlugin, files: { "verbs.js": `export const verbs = [${JSON.stringify(health("health", "mine"))}];\n` } } });
+  const host = { parts: [health("health", "worklist"), { name: "globe", verbs: [] }], owners: ["ci-health", "forest"], graph: builtIn.graph };
+  const composed = standIn(host, "verbs", { folder, plugins: { "ci-health": "ci-health" } });
+  const commands = (families: readonly { verbs: readonly { command: object }[] }[]) => families.flatMap((family) => family.verbs.map((verb) => (verb.command as { name: string }).name));
+  assert.deepEqual(commands(mount(composed, ["ci-health"]).mounted), ["mine"], "switched off, only the plugin's family mounts");
+  assert.deepEqual(commands(mount(composed, []).mounted), ["worklist"], "switched on, only the part's");
+  const { partProvides, pluginProvides } = await import("./switch/switch.js");
+  assert.deepEqual(partProvides(composed, "ci-health").commands, ["health worklist"]);
+  assert.deepEqual(pluginProvides(composed, "ci-health").commands, ["health mine"]);
+
+  const { act: create, home } = await pluginVerb(t, "new");
+  await create({ plugin: "ci-health" });
+  const { PLUGIN_FAMILIES } = await import("./factory/verbs.js");
+  const check = PLUGIN_FAMILIES[0]!.verbs.find((each) => "name" in each.command && each.command.name === "check")!;
+  const checked = await check.act({ plugin: "ci-health" } as never, { folder: home, hostVerbs: async () => host } as never, { door: "command", say: (step) => step.command! });
+  const own = checked.next!.find((step) => step.command === "settings set part ci-health plugin ci-health");
+  assert.equal(own?.why, "or switch ci-health off with the plugin of its name in its place");
+});
+
+test("5.20 · a plugin's manifest declares arm checks and run holds: `plugin check` loads one declaring them, saying how many of each, and `plugin contract` describes each", async (t) => {
+  const folder = factory(t, {
+    "my-arm": {
+      exports: { "./doors": "./doors.js" },
+      manifest: { interface: PLUGIN_INTERFACE, armChecks: [{ from: "./doors", export: "armChecks" }], runHolds: [{ from: "./doors", export: "runHolds" }] },
+      files: { "doors.js": `export const armChecks = [{ name: "arm", verdict: () => ({ allowed: true }) }];\nexport const runHolds = [{ name: "a", take: async () => () => {} }, { name: "b", take: async () => () => {} }];\n` },
+    },
+  });
+  assert.deepEqual(checkPlugin(folder, "my-arm"), { loads: true, adds: { armChecks: 1, runHolds: 2 }, problems: [] });
+  const { act } = await pluginVerb(t, "contract");
+  const { text } = await act({});
+  assert.match(text, /^  armChecks \(mounted by the command line and the MCP server\): \{ name, verdict\(door, verb, home\?\)/m);
+  assert.match(text, /^  runHolds \(mounted by the base dev loop, for a project's gate and test commands\): \{ name, take\(\{ root, what, stopped \}\)/m);
+});

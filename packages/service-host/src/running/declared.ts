@@ -49,6 +49,7 @@ export function mountedServices(hostDir: string, home: string = storytreeHome())
     from: { module: service.module, export: service.export, host: hostDir },
   }));
   const owners = parts.map((service) => service.part);
+  const fromPlugin: (string | undefined)[] = parts.map(() => undefined);
   const standsIn: Record<string, string> = {};
   const failed: Record<string, string> = {};
   const standIns = readStandIns(home);
@@ -65,9 +66,10 @@ export function mountedServices(hostDir: string, home: string = storytreeHome())
     for (const service of declared) {
       parts.push({ id: `${part}/${service.name}`, part, name: service.name, run: service.run, folder: path.join(standIns.folder, "plugins", plugin), from: { plugin, factory: standIns.folder } });
       owners.push(plugin);
+      fromPlugin.push(plugin);
     }
   }
-  const composition: Composition<Declared> = { parts, owners, graph, standsIn, failed };
+  const composition: Composition<Declared> = { parts, owners, graph, standsIn, fromPlugin, failed };
   const mounted = mount(composition, off);
   const on = new Set(readServicesOn(home));
   return { services: mounted.mounted.map((service) => ({ ...service, on: on.has(service.id) })), off: mounted.off };

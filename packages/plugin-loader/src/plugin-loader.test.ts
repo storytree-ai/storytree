@@ -1,19 +1,18 @@
 /** The plugin loader: the manifests a host's story packages carry, and the parts composed from them into its bundle. */
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test, type TestContext } from "node:test";
 import { pathToFileURL } from "node:url";
 
-import { build } from "esbuild";
-
 import { pluginSchema, type PluginRecords } from "@storytree/library";
 
+import { writePartsList } from "./compose/parts-list.js";
 import { checkPlugin } from "./factory/contract.js";
 import { pluginServices, type ServiceHost } from "./factory/factory.js";
-import { composeParts, mount, offSaid, partsPlugin, PLUGIN_INTERFACE, pluginExport, recordKinds, standIn, storyParts, storyServices } from "./index.js";
+import { composeParts, mount, offSaid, PLUGIN_INTERFACE, pluginExport, recordKinds, standIn, storyParts, storyServices } from "./index.js";
 
 /** The loader's own entry, as a fixture host's composing module imports it (the fixture installs no loader of its own). */
 const LOADER = JSON.stringify(new URL("./index.ts", import.meta.url).href);
@@ -79,36 +78,23 @@ test("1.3 storyParts orders parts by their manifest's order, unordered last, tie
   assert.deepEqual(storyParts(dir, "surfaces").map((part) => part.export), ["forestSurfaces", "arcSurfaces", "a", "z"]);
 });
 
-test("2.1 a bundle importing #parts/<kind> gets every part's declarations, concatenated in storyParts' order, the host being the importing file's package, and an empty list for a kind no manifest names", async (t) => {
-  const dir = host(t, [surfaces("@s/arcs", "arcSurfaces", ["arcs"], 2), surfaces("@s/forest", "forestSurfaces", ["globe", "library"], 1)]);
-  mkdirSync(path.join(dir, "src"));
-  writeFileSync(path.join(dir, "src", "entry.js"), `import surfaces from "#parts/surfaces";\nimport pages from "#parts/pages";\nexport { surfaces, pages };\n`);
-  const outfile = path.join(dir, "out.mjs");
-  await build({ entryPoints: [path.join(dir, "src", "entry.js")], outfile, bundle: true, format: "esm", platform: "node", logLevel: "silent", absWorkingDir: dir, plugins: [partsPlugin()] });
-  rmSync(path.join(dir, "node_modules"), { recursive: true, force: true });
-  const bundled = await import(pathToFileURL(outfile).href) as { surfaces: { parts: unknown; owners: unknown }; pages: { parts: unknown } };
-  assert.deepEqual(bundled.surfaces.parts, [{ id: "globe" }, { id: "library" }, { id: "arcs" }]);
-  assert.deepEqual(bundled.surfaces.owners, ["forest", "forest", "arcs"]);
-  assert.deepEqual(bundled.pages.parts, []);
-});
-
-test("2.1 two hosts in one bundle importing the same #parts/<kind> each get their own parts, the host being each importing file's package", async (t) => {
-  // A story package that is itself a host, mounting its own dependencies' parts, bundled into another host.
-  const inner: Story = {
-    name: "@s/inner",
-    dependencies: ["@s/arcs"],
-    exports: { ".": "./index.js" },
-    files: { "index.js": `import surfaces from "#parts/surfaces";\nexport { surfaces };\n` },
-  };
-  const dir = host(t, [surfaces("@s/arcs", "arcSurfaces", ["arcs"], 2), surfaces("@s/forest", "forestSurfaces", ["globe"], 1), inner], ["@s/arcs", "@s/forest", "@s/inner"]);
-  mkdirSync(path.join(dir, "src"));
-  writeFileSync(path.join(dir, "src", "entry.js"), `import surfaces from "#parts/surfaces";\nimport { surfaces as inner } from "@s/inner";\nexport { surfaces, inner };\n`);
-  const outfile = path.join(dir, "out.mjs");
-  await build({ entryPoints: [path.join(dir, "src", "entry.js")], outfile, bundle: true, format: "esm", platform: "node", logLevel: "silent", absWorkingDir: dir, plugins: [partsPlugin()] });
-  rmSync(path.join(dir, "node_modules"), { recursive: true, force: true });
-  const bundled = await import(pathToFileURL(outfile).href) as { surfaces: { parts: unknown }; inner: { parts: unknown } };
-  assert.deepEqual(bundled.surfaces.parts, [{ id: "globe" }, { id: "arcs" }], "the outer host's dependencies' parts");
-  assert.deepEqual(bundled.inner.parts, [{ id: "arcs" }], "the inner host's own dependencies' parts, not the outer's");
+test("2.1 the parts-list step writes, for each #parts/<kind> the host's package.json imports, every part in storyParts' order with the part it came from, an empty list for a kind no manifest names, the host's parts graph, and a fingerprint of each package.json it read", (t) => {
+  const dir = host(t, [surfaces("@s/arcs", "arcSurfaces", ["arcs"], 2, ["@s/forest"]), surfaces("@s/forest", "forestSurfaces", ["globe", "library"], 1)]);
+  const manifest = JSON.parse(readFileSync(path.join(dir, "package.json"), "utf8")) as Record<string, unknown>;
+  writeFileSync(path.join(dir, "package.json"), JSON.stringify({ ...manifest, imports: { "#parts/surfaces": "./src/parts/surfaces.js", "#parts/pages": "./src/parts/pages.js", "#own": "./src/own.js" } }));
+  const file = path.join(dir, "parts-list.json");
+  writePartsList(dir, file);
+  const list = JSON.parse(readFileSync(file, "utf8")) as { host: string; kinds: Record<string, unknown>; graph: unknown; inputs: Record<string, string> };
+  assert.equal(list.host, dir);
+  assert.deepEqual(list.kinds, {
+    surfaces: [{ module: "@s/forest/surfaces", export: "forestSurfaces", owner: "forest" }, { module: "@s/arcs/surfaces", export: "arcSurfaces", owner: "arcs" }],
+    pages: [],
+  });
+  assert.deepEqual(list.graph, { arcs: ["forest"], forest: [] });
+  // Each fingerprint is checked against the file by the build that reads the list (Setup's 8.41); here, which files.
+  const read = [path.join(dir, "package.json"), path.join(dir, "node_modules", "@s", "arcs", "package.json"), path.join(dir, "node_modules", "@s", "forest", "package.json")];
+  assert.deepEqual(Object.keys(list.inputs), read.map((one) => realpathSync(one)));
+  for (const sha of Object.values(list.inputs)) assert.match(sha, /^[0-9a-f]{64}$/);
 });
 
 test("3.1 an unbundled host importing #parts/<kind>, which its imports map to its own module calling composeParts, gets every part's declarations in storyParts' order, and an empty list for a kind no manifest names", async (t) => {

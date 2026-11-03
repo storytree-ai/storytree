@@ -7,7 +7,8 @@ import path from "node:path";
 
 import { PATH_ONLY } from "@storytree/app-setup/bins";
 import { journeyDefine } from "@storytree/app-setup/journey-events/release";
-import { partsPlugin } from "@storytree/plugin-loader";
+
+import { partsFromList } from "./parts-list.js";
 
 /** A public setting from the build's environment, as an esbuild define: its value, or undefined when it is not set. */
 const stamped = (name: string) => (process.env[name] ? JSON.stringify(process.env[name]) : "undefined");
@@ -40,8 +41,9 @@ export function mainBuild(dist: string, desktop = path.resolve(import.meta.dirna
     // local-postgres finds its binaries from its own location (import.meta.url) only when not told
     // where they are; the app always tells it (main.ts: postgresBinaries), so that path is never taken.
     logOverride: { "empty-import-meta": "silent" as const },
-    // The parts storytree's own story packages name in their manifests, composed in from this app's dependencies (ADR-1021).
-    plugins: [partsPlugin()],
+    // The parts storytree's own story packages name in their manifests, packed from the parts list Plugin loader writes
+    // for this app (ADR-1021).
+    plugins: [partsFromList()],
     // A release build stamps in PostHog's public project token (never a private key); others share nothing.
     // A build offering sign-in for feedback (the staging build) stamps in WorkOS's public client ID (app setup contract 5.6);
     // the app checks its token itself and offers no sign-in without the ID. It is not a secret.
@@ -60,7 +62,7 @@ export function preloadBuild(dist: string, desktop = path.resolve(import.meta.di
     outfile: path.join(dist, "preload.cjs"),
     absWorkingDir: desktop, bundle: true, platform: "node" as const, format: "cjs" as const, target: "node22",
     external: ["electron"],
-    // The page channels the story packages' manifests name, composed in as data (ADR-1021).
-    plugins: [partsPlugin()],
+    // The page channels the story packages' manifests name, packed from the parts list as data (ADR-1021).
+    plugins: [partsFromList()],
   };
 }

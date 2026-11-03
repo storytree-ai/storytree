@@ -6,6 +6,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./factory": "./src/factory/factory.ts",
+    "./parts-list": "./src/compose/parts-list.ts",
     "./switch": "./src/switch/switch.ts",
     "./verbs": "./src/factory/verbs.ts"
   },
@@ -30,7 +31,6 @@
   "devDependencies": {
     "@storytree/test-waits": "workspace:*",
     "@types/node": "^24.13.6",
-    "esbuild": "^0.28.2",
     "tsx": "^4.23.15",
     "typescript": "~7.0.2"
   },

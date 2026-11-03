@@ -8,8 +8,6 @@
   "edges": [],
   "placement": {
     "threshold": 2,
-    "plumbing": [
-      { "from": "packages/app-setup/src/bins/build.ts", "to": "plugin-loader", "kind": "build step", "said": "ADR-1085 D3 (decision_daed4099168f), the owner's call", "on": "2026-10-19" }
-    ]
+    "plumbing": []
   }
 }

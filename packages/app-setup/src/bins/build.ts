@@ -17,11 +17,10 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { build } from "esbuild";
 import { journeyDefine } from "../journey-events/release.js";
-import { partsPlugin } from "@storytree/plugin-loader";
-
 import { buildLauncher, LAUNCHER_PROGRAM } from "./launcher.js";
+import { partsFromList } from "./parts-list.js";
 
-export { buildLauncher, LAUNCHER_PROGRAM };
+export { buildLauncher, LAUNCHER_PROGRAM, partsFromList };
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 
@@ -79,8 +78,9 @@ export async function buildBins(outdir: string, { release, launcher = true }: { 
       // Ranked search loads the embedding model runtime lazily, from node_modules (native ONNX Runtime).
       "@huggingface/transformers",
     ],
-    // The parts storytree's own story packages name in their manifests, composed in for each host package it holds (ADR-1021).
-    plugins: [partsPlugin()],
+    // The parts storytree's own story packages name in their manifests, packed for each host package it holds from the
+    // parts list Plugin loader writes for it (ADR-1021).
+    plugins: [partsFromList()],
   }));
   await buildPhase("stage native probes", () => stageNativeProbes(outdir));
   // On Windows the `storytree` command is a program of its own, beside the script it runs (ADR-0854).

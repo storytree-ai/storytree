@@ -19,7 +19,7 @@ import { STORIES } from "./package-boundaries.mjs";
 const NUMBERS = Array.from({ length: 99 }, (_, at) => at + 1);
 
 /**
- * Each type-only import in the checkout at `root` that ends at a story other than the library, one sentence each,
+ * Each type-only import in the checkout at `root` that ends at a story other than the library or its own, one sentence each,
  * naming the importing file and the file that defines the name; empty when there is none. `stories` are the ids
  * of the stories, each the folder of its package under packages/.
  */
@@ -29,7 +29,7 @@ export async function typeImportProblems(root, stories = STORIES) {
   const problems = [];
   for (const [story, { edges = [] }] of Object.entries(survey)) {
     for (const edge of edges) {
-      if (!edge.typeOnly || edge.story === "library") continue;
+      if (!edge.typeOnly || edge.story === "library" || edge.story === story) continue;
       for (const file of edge.files) {
         const from = path.posix.join("packages", story, file.from);
         const to = file.to === undefined ? `packages/${edge.story}` : path.posix.join("packages", edge.story, file.to);

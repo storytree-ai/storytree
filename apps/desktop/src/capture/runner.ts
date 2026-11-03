@@ -54,7 +54,8 @@ interface CaptureOptions {
 
 export interface SeededCaptureOptions extends CaptureOptions {
   dist: string;
-  seed: CaptureSeed;
+  /** What the page reads; none for a capture whose `answers` read a live library (live.ts's liveAnswers). */
+  seed?: CaptureSeed;
   survey?: Awaited<ReturnType<StorytreeBridge["codeSurvey"]>>;
   answers?: Partial<StorytreeBridge>;
   /** The first-run guide is already seen unless "unseen", for a capture of the guide itself. */
@@ -119,43 +120,55 @@ export async function withCapture<T>({ folder, dist, softwareGL = true, closeGra
 export async function runCapture(options: SeededCaptureOptions): Promise<unknown[]> {
   return withCapture(options, async context => {
     const { seed, survey, answers = {} } = options;
-    let current = seed.projects[0];
     const bridge = fakeBridge({
-      projectSelection: async () => ({ projects: seed.projects, current }),
-      chooseProject: async name => ({ projects: seed.projects, current: current = name }),
-      listProjects: async () => seed.projects,
-      projectTree: async () => seed.tree,
-      changesSince: async (_, cursor) => cursor === 0 ? seed.changes : { changes: [], cursor: seed.changes.cursor },
-      linesSince: async (_, cursor) => cursor === 0 ? seed.lines : { lines: [], cursor: seed.lines.cursor },
-      frontCovers: async (_, id) => seed.covers[id] ?? [],
+      ...(seed === undefined ? {} : seeded(seed)),
       ...(survey === undefined ? {} : { codeSurvey: async () => survey }),
       ...answers,
     }, { guide: options.guide, teaching: options.teaching });
-    const page = await context.browser.newPage({ viewport: options.viewport ?? { width: 1440, height: 960 }, deviceScaleFactor: 1, colorScheme: "dark" });
-    const errors: string[] = [], warnings: string[] = [], failed: string[] = [];
-    page.on("pageerror", error => errors.push(String(error)));
-    page.on("console", message => {
-      if (message.type() === "error") errors.push(message.text());
-      if (message.type() === "warning") warnings.push(message.text());
-    });
-    page.on("response", response => { if (response.status() >= 400) failed.push(response.url()); });
-    const viewContext = { ...context, page, bridge, errors, warnings, failed };
-    await bridge.install(page);
-    await page.goto(`${context.origin}/index.html`, { waitUntil: "domcontentloaded", timeout: 180_000 });
-    await bridge.ready(page);
-    await options.prepare?.(viewContext);
-    const values: unknown[] = [];
-    for (const view of options.views) {
-      await view.prepare?.(viewContext);
-      await settle(page);
-      const value = await view.measure?.(viewContext);
-      await view.expect?.(value, viewContext);
-      if (view.picture !== false) await page.screenshot({ path: path.join(context.out, `${view.name}.png`), timeout: 180_000 });
-      if (value !== undefined) writeFileSync(path.join(context.out, view.measurement ?? `${view.name}.json`), JSON.stringify(value, null, 2) + "\n");
-      values.push(value);
-    }
-    assert.deepEqual(errors, [], "the captured page has no script or console errors");
-    assert.deepEqual(failed, [], "the captured page loads its assets");
-    return values;
+    return views(context, bridge, options);
   });
+}
+
+/** The page's reads answered from `seed`: its whole history at the first read, nothing newer after. */
+function seeded(seed: CaptureSeed): Partial<StorytreeBridge> {
+  let current = seed.projects[0];
+  return {
+    projectSelection: async () => ({ projects: seed.projects, current }),
+    chooseProject: async name => ({ projects: seed.projects, current: current = name }),
+    listProjects: async () => seed.projects,
+    projectTree: async () => seed.tree,
+    changesSince: async (_, cursor) => cursor === 0 ? seed.changes : { changes: [], cursor: seed.changes.cursor },
+    linesSince: async (_, cursor) => cursor === 0 ? seed.lines : { lines: [], cursor: seed.lines.cursor },
+    frontCovers: async (_, id) => seed.covers[id] ?? [],
+  };
+}
+
+/** The page opened on `bridge`, then each view's picture and measurement. */
+async function views(context: CaptureContext, bridge: FakeBridge, options: SeededCaptureOptions): Promise<unknown[]> {
+  const page = await context.browser.newPage({ viewport: options.viewport ?? { width: 1440, height: 960 }, deviceScaleFactor: 1, colorScheme: "dark" });
+  const errors: string[] = [], warnings: string[] = [], failed: string[] = [];
+  page.on("pageerror", error => errors.push(String(error)));
+  page.on("console", message => {
+    if (message.type() === "error") errors.push(message.text());
+    if (message.type() === "warning") warnings.push(message.text());
+  });
+  page.on("response", response => { if (response.status() >= 400) failed.push(response.url()); });
+  const viewContext = { ...context, page, bridge, errors, warnings, failed };
+  await bridge.install(page);
+  await page.goto(`${context.origin}/index.html`, { waitUntil: "domcontentloaded", timeout: 180_000 });
+  await bridge.ready(page);
+  await options.prepare?.(viewContext);
+  const values: unknown[] = [];
+  for (const view of options.views) {
+    await view.prepare?.(viewContext);
+    await settle(page);
+    const value = await view.measure?.(viewContext);
+    await view.expect?.(value, viewContext);
+    if (view.picture !== false) await page.screenshot({ path: path.join(context.out, `${view.name}.png`), timeout: 180_000 });
+    if (value !== undefined) writeFileSync(path.join(context.out, view.measurement ?? `${view.name}.json`), JSON.stringify(value, null, 2) + "\n");
+    values.push(value);
+  }
+  assert.deepEqual(errors, [], "the captured page has no script or console errors");
+  assert.deepEqual(failed, [], "the captured page loads its assets");
+  return values;
 }

@@ -108,31 +108,29 @@ function sleepSync(ms) {
 
 /**
  * Run update holding the primary's fast-forward lock, a folder in its .git (made atomically), so the hook and the
- * server, started side by side, never fetch or merge at once. A lock older than lockMs is a crashed run's and is taken
- * over; one still held after lockMs is given up on, and update does not run.
+ * server, started side by side, never fetch or merge at once: the later one waits for it. A lock older than lockMs is a
+ * crashed run's and is taken over, so the wait is bounded; a lock that cannot be made at all is run without.
  */
 function withLock(gitDir, update, lockMs) {
   const lock = path.join(gitDir, "storytree-fast-forward.lock");
-  const until = Date.now() + lockMs;
-  for (;;) {
+  for (let held = false; !held;) {
     try {
       mkdirSync(lock);
-      break;
-    } catch {
-      let age = 0;
+      held = true;
+    } catch (error) {
+      if (error.code !== "EEXIST") return update();
+      let age;
       try {
         age = Date.now() - statSync(lock).mtimeMs;
       } catch {
         continue; // Released between the two calls.
       }
       if (age > lockMs) rmSync(lock, { recursive: true, force: true });
-      else if (Date.now() >= until) return false;
       else sleepSync(200);
     }
   }
   try {
-    update();
-    return true;
+    return update();
   } finally {
     rmSync(lock, { recursive: true, force: true });
   }
@@ -155,7 +153,7 @@ function updateCheckout(root, { fastForward = true, fetchMs = 20_000, lockMs = 1
   };
   let why = "";
   if (fastForward) {
-    const ran = withLock(dirs[0], () => {
+    withLock(dirs[0], () => {
       const fetched = runGit(root, ["fetch", "--quiet", "origin", "+refs/heads/main:refs/remotes/origin/main"], fetchMs);
       if (fetched.status !== 0) {
         why = ` Fetching origin failed or took over ${fetchMs / 1000} s, so it was not brought up to date.`;
@@ -173,7 +171,6 @@ function updateCheckout(root, { fastForward = true, fetchMs = 20_000, lockMs = 1
       }
       log(`provision-worktree: primary checkout fast-forwarded ${behind} commit${behind === 1 ? "" : "s"} to origin/main`);
     }, lockMs);
-    if (!ran) why = " Another start held its update lock too long, so it was not brought up to date.";
   }
   const counts = gap();
   if (counts === undefined) return ""; // No fetched main to compare yet.

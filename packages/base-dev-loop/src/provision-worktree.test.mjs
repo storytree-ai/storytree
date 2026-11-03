@@ -5,7 +5,7 @@
 // UNLINKED (an install reported success but linked no workspace package).
 import assert from "node:assert/strict";
 import { execFile, execFileSync } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, utimesSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
@@ -359,6 +359,41 @@ test("3.4 a held update lock makes the hook wait, then bring the primary up to d
   const finished = await hook;
   assert.equal(finished.stdout, "", finished.stdout);
   assert.equal(await git(root, "rev-parse", "HEAD"), await git(remote, "rev-parse", "HEAD"));
+});
+
+test("3.4 an update lock left by a crashed start is taken over, so the primary is still brought up to date", async (t) => {
+  const { root, remote } = await repoPair(t);
+  await git(remote, "commit", "--allow-empty", "-m", "new record schema");
+  const lock = path.join(root, ".git", "storytree-fast-forward.lock");
+  mkdirSync(lock);
+  const crashed = new Date(Date.now() - 10 * 60_000);
+  utimesSync(lock, crashed, crashed);
+  assert.equal(hookOutput(provision({ root }), root), "");
+  assert.equal(await git(root, "rev-parse", "HEAD"), await git(remote, "rev-parse", "HEAD"));
+  assert.equal(existsSync(lock), false, "the lock is released after the update");
+});
+
+test("3.4 a clean primary whose fast-forward git refuses is left as it was and refused, saying why", async (t) => {
+  const { root, remote } = await repoPair(t);
+  writeFileSync(path.join(remote, "notes.txt"), "origin's\n");
+  await git(remote, "add", "notes.txt");
+  await git(remote, "commit", "-m", "notes");
+  writeFileSync(path.join(root, "notes.txt"), "an untracked file the merge would overwrite\n");
+  const before = await git(root, "rev-parse", "HEAD");
+  const result = provision({ root, install: () => assert.fail("updating the checkout comes first") });
+  assert.match(result.message, /1 commit behind.*fast-forward failed/);
+  assert.equal(await git(root, "rev-parse", "HEAD"), before);
+  assert.equal(readFileSync(path.join(root, "notes.txt"), "utf8"), "an untracked file the merge would overwrite\n");
+});
+
+test("3.4 a storytree command's pre-command install never fast-forwards the primary", async (t) => {
+  const { root, remote } = await repoPair(t);
+  await git(remote, "commit", "--allow-empty", "-m", "new record schema");
+  await git(root, "fetch", "origin", "main");
+  rmSync(path.join(root, "packages", "library", "node_modules"), { recursive: true });
+  const before = await git(root, "rev-parse", "HEAD");
+  check({ root, install: () => assert.fail("a behind primary is not installed") });
+  assert.equal(await git(root, "rev-parse", "HEAD"), before);
 });
 
 test("3.4 a primary whose fetch fails names the gap at session start and refuses to serve until updated", async (t) => {

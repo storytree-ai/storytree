@@ -98,7 +98,7 @@ export interface ArmCheck {
 }
 
 /**
- * The arm checks the story packages contribute (experiments' arm switch), but those of a part switched off in `home`,
+ * The arm checks the story packages contribute, but those of a part switched off in `home`,
  * with a factory plugin's in the place of a part it stands in for, so the door enforces an arm with no import of the
  * part that keeps arms, and with none mounted runs every command.
  */

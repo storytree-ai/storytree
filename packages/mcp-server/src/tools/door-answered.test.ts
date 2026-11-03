@@ -6,15 +6,13 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { writeFileSync } from "node:fs";
+import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
 import { withTempDir } from "@storytree/project-and-caller/testing/folders";
 import { approveCheckout, testServerDataDir } from "@storytree/project-and-caller/testing/pg";
 import { VerbRefusal, type Verb } from "@storytree/library/verbs";
 import { z } from "zod";
-
-import { armChecks } from "@storytree/experiments/arm-checks";
 
 import armCheckParts from "../parts/arm-checks.js";
 import { claudeCode, withAgent } from "../testing/agent.js";
@@ -68,7 +66,7 @@ test("6.90 a tool the lane's experiment arm denies does nothing else: it answers
   await withProject(async ({ folder, project, log }) => {
     await withTempDir(async (home) => {
       // The lane's own storytree home, which names its arm, and where its checkout is approved.
-      writeFileSync(path.join(home, "settings.json"), JSON.stringify({ experiment: { name: "twin-build", arm: "map-reads-off", denies: { tools: ["focus"], commands: ["storytree map"] } } }));
+      writeFileSync(path.join(home, "settings.json"), JSON.stringify({ ...armPlugin(home), experiment: { name: "twin-build", arm: "map-reads-off", denies: { tools: ["focus"], commands: ["storytree map"] } } }));
       await approveCheckout(folder, project, home);
       await withAgent(folder, claudeCode("arm-tool-1", { extensions: [fixtures], setup: { storytreeHome: home } }), async (agent) => {
         const denied = await agent.call("focus", { select: "story:Anything" });
@@ -91,13 +89,12 @@ test("6.90 a tool the lane's experiment arm denies does nothing else: it answers
   });
 });
 
-test("6.104 the tool server asks the arm checks its parts contribute: it mounts experiments' from its manifest, and with experiments switched off a tool the home's arm denies answers as usual", async () => {
-  assert.deepEqual(armCheckParts.parts, armChecks, "the server mounts the arm checks its story packages' manifests name");
-  assert.deepEqual(armCheckParts.owners, ["experiments"]);
+test("6.104 the tool server asks the arm checks its parts contribute: its own parts contribute none, and with the part a factory plugin's arm check stands in for switched on, a tool the home's arm denies answers as usual", async () => {
+  assert.deepEqual(armCheckParts.parts, [], "no story package the server mounts contributes an arm check");
   await withProject(async ({ folder, project }) => {
     await withTempDir(async (home) => {
-      // The lane's own storytree home, which names an arm denying show_thing and switches experiments off.
-      writeFileSync(path.join(home, "settings.json"), JSON.stringify({ "parts-off": ["experiments"], experiment: { name: "twin-build", arm: "things-off", denies: { tools: ["show_thing"], commands: [] } } }));
+      // The lane's own storytree home, which names an arm denying show_thing and a plugin's arm check whose part is on.
+      writeFileSync(path.join(home, "settings.json"), JSON.stringify({ ...armPlugin(home), "parts-off": [], experiment: { name: "twin-build", arm: "things-off", denies: { tools: ["show_thing"], commands: [] } } }));
       await approveCheckout(folder, project, home);
       await withAgent(folder, claudeCode("arm-tool-off", { extensions: [fixtures], setup: { storytreeHome: home } }), async (agent) => {
         const answered = await agent.call("show_thing");
@@ -107,6 +104,26 @@ test("6.104 the tool server asks the arm checks its parts contribute: it mounts 
     });
   });
 });
+
+/**
+ * Writes into `home`'s factory a plugin contributing an arm check, which denies what the home's experiment setting says
+ * its arm denies, and returns the settings that mount it in the place of experiments, a part the host does not have.
+ */
+function armPlugin(home: string): Record<string, unknown> {
+  const plugin = path.join(home, "factory", "plugins", "my-arms");
+  mkdirSync(plugin, { recursive: true });
+  writeFileSync(path.join(plugin, "package.json"), JSON.stringify({ name: "my-arms", type: "module", exports: { "./arm-checks": "./arm-checks.js" }, storytree: { interface: 1, armChecks: [{ from: "./arm-checks", export: "armChecks" }] } }));
+  writeFileSync(path.join(plugin, "arm-checks.js"), `import { readFileSync } from "node:fs";
+import path from "node:path";
+export const armChecks = [{ name: "my-arm", verdict(door, verb, home = process.env.STORYTREE_HOME) {
+  const { experiment } = JSON.parse(readFileSync(path.join(home, "settings.json"), "utf8"));
+  const denies = experiment?.denies?.[door === "tool" ? "tools" : "commands"] ?? [];
+  if (!denies.some((denied) => verb === denied || verb.startsWith(denied + " "))) return { allowed: true };
+  return { allowed: false, message: \`experiment "\${experiment.name}", arm "\${experiment.arm}", denies \${verb}\` };
+} }];
+`);
+  return { factory: path.join(home, "factory"), "parts-off": ["experiments"], "stand-ins": { experiments: "my-arms" } };
+}
 
 test("6.61 a tool whose door-answered line cannot be written still gives its answer", async () => {
   await withProject(async ({ folder }) => {

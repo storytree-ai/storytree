@@ -3,7 +3,7 @@
  * real, built `storytree` command in a throwaway folder and storytree home.
  */
 import assert from "node:assert/strict";
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { after, before, test } from "node:test";
 
@@ -16,8 +16,6 @@ import { SETTINGS_FAMILIES } from "@storytree/app/surfaces/verbs";
 import { HEALTH_FAMILIES } from "@storytree/ci-health/verbs";
 import { IDENTITY_FAMILIES } from "@storytree/project-and-caller/identity/verbs";
 import { JOURNEY_FAMILIES } from "@storytree/app-setup/journey-events/verbs";
-import { EXPERIMENT_FAMILIES } from "@storytree/experiments/verbs";
-import { armChecks } from "@storytree/experiments/arm-checks";
 import { FEEDBACK_FAMILIES } from "@storytree/surface-feedback/verbs";
 import { LAG_FAMILIES } from "@storytree/app/lag/verbs";
 import { SESSION_FAMILIES } from "@storytree/session-management/verbs";
@@ -40,7 +38,7 @@ import armCheckParts from "./parts/arm-checks.js";
 import { BuiltCommand, inWorld, storytree, testServerUrl } from "./testing/cli.js";
 
 const command = new BuiltCommand();
-const DECLARED = [...LIBRARY_FAMILIES, ...APP_FAMILIES, ...SETTINGS_FAMILIES, ...RELEASE_FAMILIES, ...IDENTITY_FAMILIES, ...HEALTH_FAMILIES, ...ARC_FAMILIES, ...FRICTION_FAMILIES, ...SETUP_FAMILIES, ...PROCESSES_FAMILIES, ...SERVICES_FAMILIES, ...SCHEDULE_FAMILIES, ...SESSION_FAMILIES, ...WORKSPACE_FAMILIES, ...LAG_FAMILIES, ...JOURNEY_FAMILIES, ...EXPERIMENT_FAMILIES, ...MAP_FAMILIES, ...FEEDBACK_FAMILIES, ...PLUGIN_FAMILIES];
+const DECLARED = [...LIBRARY_FAMILIES, ...APP_FAMILIES, ...SETTINGS_FAMILIES, ...RELEASE_FAMILIES, ...IDENTITY_FAMILIES, ...HEALTH_FAMILIES, ...ARC_FAMILIES, ...FRICTION_FAMILIES, ...SETUP_FAMILIES, ...PROCESSES_FAMILIES, ...SERVICES_FAMILIES, ...SCHEDULE_FAMILIES, ...SESSION_FAMILIES, ...WORKSPACE_FAMILIES, ...LAG_FAMILIES, ...JOURNEY_FAMILIES, ...MAP_FAMILIES, ...FEEDBACK_FAMILIES, ...PLUGIN_FAMILIES];
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 before(() => command.build());
@@ -127,9 +125,9 @@ test("1.6 `--help` after a command prints its usage and summary, and runs nothin
     assert.match(ran.stdout, /storytree question new --arc <arc>/);
     assert.match(ran.stdout, /raise a question for the owner/);
 
-    const inner = await storytree(command.script, ["experiment", "arm", "--help"], { cwd: world.elsewhere, home: world.home });
+    const inner = await storytree(command.script, ["arc", "increment", "--help"], { cwd: world.elsewhere, home: world.home });
     assert.equal(inner.code, 0, inner.stderr);
-    assert.match(inner.stdout, /^storytree experiment arm: /);
+    assert.match(inner.stdout, /^storytree arc increment: /);
   });
 });
 
@@ -326,7 +324,7 @@ test("1.36 a word agents guess for a job a command already does runs that comman
 test("1.32 a command the lane's experiment arm denies does nothing else: it exits 1 naming the experiment and arm, and is recorded as a door-answered line, denied-by-arm, carrying both", async () => {
   await inWorld(command, async (world) => {
     const settings = path.join(world.home, "settings.json");
-    writeFileSync(settings, JSON.stringify({ ...readSettingsFile(settings), experiment: { name: "twin-build", arm: "map-reads-off", denies: { tools: ["focus"], commands: ["storytree map"] } } }));
+    writeFileSync(settings, JSON.stringify({ ...readSettingsFile(settings), ...armPlugin(world.home), experiment: { name: "twin-build", arm: "map-reads-off", denies: { tools: ["focus"], commands: ["storytree map"] } } }));
     const session = { CLAUDE_CODE_SESSION_ID: "arm-1" };
 
     const denied = await world.run(["map", "--select", "story:Experiments"], session);
@@ -352,12 +350,11 @@ test("1.32 a command the lane's experiment arm denies does nothing else: it exit
   });
 });
 
-test("1.42 the command line asks the arm checks its parts contribute: it mounts experiments' from its manifest, and with experiments switched off a command the home's arm denies runs as usual", async () => {
-  assert.deepEqual(armCheckParts.parts, armChecks, "the command line mounts the arm checks its story packages' manifests name");
-  assert.deepEqual(armCheckParts.owners, ["experiments"]);
+test("1.42 the command line asks the arm checks its parts contribute: its own parts contribute none, and with the part a factory plugin's arm check stands in for switched on, a command the home's arm denies runs as usual", async () => {
+  assert.deepEqual(armCheckParts.parts, [], "no story package the command line mounts contributes an arm check");
   await inWorld(command, async (world) => {
     const settings = path.join(world.home, "settings.json");
-    writeFileSync(settings, JSON.stringify({ ...readSettingsFile(settings), "parts-off": ["experiments"], experiment: { name: "twin-build", arm: "search-off", denies: { tools: [], commands: ["storytree library search"] } } }));
+    writeFileSync(settings, JSON.stringify({ ...readSettingsFile(settings), ...armPlugin(world.home), "parts-off": [], experiment: { name: "twin-build", arm: "search-off", denies: { tools: [], commands: ["storytree library search"] } } }));
 
     const ran = await world.run(["library", "search", "Mailer"], { CLAUDE_CODE_SESSION_ID: "arm-off-1" });
 
@@ -365,6 +362,26 @@ test("1.42 the command line asks the arm checks its parts contribute: it mounts 
     assert.doesNotMatch(ran.stderr, /twin-build/);
   });
 });
+
+/**
+ * Writes into `home`'s factory a plugin contributing an arm check, which denies what the home's experiment setting says
+ * its arm denies, and returns the settings that mount it in the place of experiments, a part the host does not have.
+ */
+function armPlugin(home: string): Record<string, unknown> {
+  const plugin = path.join(home, "factory", "plugins", "my-arms");
+  mkdirSync(plugin, { recursive: true });
+  writeFileSync(path.join(plugin, "package.json"), JSON.stringify({ name: "my-arms", type: "module", exports: { "./arm-checks": "./arm-checks.js" }, storytree: { interface: 1, armChecks: [{ from: "./arm-checks", export: "armChecks" }] } }));
+  writeFileSync(path.join(plugin, "arm-checks.js"), `import { readFileSync } from "node:fs";
+import path from "node:path";
+export const armChecks = [{ name: "my-arm", verdict(door, verb, home = process.env.STORYTREE_HOME) {
+  const { experiment } = JSON.parse(readFileSync(path.join(home, "settings.json"), "utf8"));
+  const denies = experiment?.denies?.[door === "tool" ? "tools" : "commands"] ?? [];
+  if (!denies.some((denied) => verb === denied || verb.startsWith(denied + " "))) return { allowed: true };
+  return { allowed: false, message: \`experiment "\${experiment.name}", arm "\${experiment.arm}", denies \${verb}\` };
+} }];
+`);
+  return { factory: path.join(home, "factory"), "parts-off": ["experiments"], "stand-ins": { experiments: "my-arms" } };
+}
 
 /** A settings file's object, empty when there is none. */
 function readSettingsFile(file: string): Record<string, unknown> {
@@ -422,7 +439,7 @@ test("1.19 storytree lag prints Lag in real use's report over the lag readings k
   });
 });
 
-test("1.21 · `storytree` mounts the families its story packages' manifests declare, in its bundle and run unbundled, each at the place it declares: the library's library 1st, CI health's health 18th, the arc surface's arc and question 2nd and 3rd, the library core's adr 4th with its guesses, Session management's friction and resteer 13th and 14th, Surface feedback's feedback after them, the app setup's doctor 8th and setup, project and import 20th to 22nd, Processes' processes 24th, the Experiments story's experiment 27th, Code map's map and affected 16th and 17th, Session management's workspace among the rest, its bare name making a workspace, each listed in ascending order of its place, so a family at an unused or fractional place moves no other", async () => {
+test("1.21 · `storytree` mounts the families its story packages' manifests declare, in its bundle and run unbundled, each at the place it declares: the library's library 1st, CI health's health 18th, the arc surface's arc and question 2nd and 3rd, the library core's adr 4th with its guesses, Session management's friction and resteer 13th and 14th, Surface feedback's feedback after them, the app setup's doctor 8th and setup, project and import 20th to 22nd, Processes' processes 24th, Code map's map and affected 16th and 17th, Session management's workspace among the rest, its bare name making a workspace, each listed in ascending order of its place, so a family at an unused or fractional place moves no other", async () => {
   await inWorld(command, async (world) => {
     const listed = await world.run([]);
     assert.equal(listed.code, 0, listed.stderr);

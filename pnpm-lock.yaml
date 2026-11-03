@@ -360,9 +360,6 @@ importers:
       '@storytree/ci-health':
         specifier: workspace:*
         version: link:../ci-health
-      '@storytree/experiments':
-        specifier: workspace:*
-        version: link:../experiments
       '@storytree/forest':
         specifier: workspace:*
         version: link:../forest
@@ -415,49 +412,6 @@ importers:
       pg:
         specifier: ^8.23.0
         version: 8.23.0
-      tsx:
-        specifier: ^4.23.15
-        version: 4.23.15
-      typescript:
-        specifier: ~7.0.2
-        version: 7.0.2
-
-  packages/experiments:
-    dependencies:
-      '@storytree/agent-pool':
-        specifier: workspace:*
-        version: link:../agent-pool
-      '@storytree/keys':
-        specifier: workspace:*
-        version: link:../keys
-      '@storytree/library':
-        specifier: workspace:*
-        version: link:../library
-      '@storytree/map':
-        specifier: workspace:*
-        version: link:../map
-      '@storytree/project-and-caller':
-        specifier: workspace:*
-        version: link:../project-and-caller
-      '@storytree/session-management':
-        specifier: workspace:*
-        version: link:../session-management
-      pg:
-        specifier: ^8.23.0
-        version: 8.23.0
-    devDependencies:
-      '@storytree/local-postgres':
-        specifier: workspace:*
-        version: link:../local-postgres
-      '@storytree/test-waits':
-        specifier: workspace:*
-        version: link:../test-waits
-      '@types/node':
-        specifier: ^24.13.6
-        version: 24.13.6
-      '@types/pg':
-        specifier: ^8.23.1
-        version: 8.23.1
       tsx:
         specifier: ^4.23.15
         version: 4.23.15
@@ -774,9 +728,6 @@ importers:
       '@storytree/arc-surface':
         specifier: workspace:*
         version: link:../arc-surface
-      '@storytree/experiments':
-        specifier: workspace:*
-        version: link:../experiments
       '@storytree/library':
         specifier: workspace:*
         version: link:../library

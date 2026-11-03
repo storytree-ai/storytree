@@ -38,7 +38,7 @@ export interface ToolExtension {
 
 /**
  * What the part is given: the core's readings its tools use. The map does not install the library or Project and caller,
- * which the storytree check's slim install of the map must leave out (App setup's 11.4), so the server hands them over.
+ * so the server hands them over.
  */
 export interface ToolHost {
   /** The folders this machine imports for `project`, where the map reads the mapped stories (ADR-0993 D2). */

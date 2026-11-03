@@ -9,7 +9,7 @@ success:
   pack already does).
 - **ADAPT**: goes in rewritten for a user's machine and project ("the owner" becomes "the user";
   storytree's own gate, CI, merge queue, Mint box, pool and watcher give way to the project's test
-  command, `storytree check` and the pipeline `wire_pipeline` sets up).
+  command and the pipeline `wire_pipeline` sets up, which runs the project's tests).
 - **OUT**: stays out, with the reason. Storytree's memory is always out (D3).
 
 It is a session's reading, recorded rather than asked; the owner corrects it by editing this file.
@@ -70,9 +70,9 @@ Observability-first, One element per signal). These are the notes no role links;
 | part | class | reason |
 |---|---|---|
 | The six quality control checks | ADAPT | Already in the pack (pack v2, with Module mock). |
-| `storytree check`: the package rule and the allocation rule | IN | Already run by the pipeline `wire_pipeline` sets up. |
-| Graduated guardrail: self-equal assertion | ADAPT | Today only storytree's gate runs it; it belongs in `storytree check`, so the user's pipeline enforces what Tautological expected value graduated to. |
-| Storytree's gate and its dev-loop checks (guidance, plan edges, package boundaries, type imports, own health, test ratio, coverage map) | OUT | They check storytree's own repository; the project's test command, `storytree check` and the review stand in (ADR-0996 D2). |
+| `storytree check`: the package rule and the allocation rule | OUT | Storytree's own architecture checks (Mick's plugin, ADR-1192); the pipeline `wire_pipeline` sets up runs only the project's tests. |
+| Graduated guardrail: self-equal assertion | OUT | Storytree's own check (Mick's plugin, ADR-1192), run by storytree's gate, not by the user's pipeline. |
+| Storytree's gate and its dev-loop checks (guidance, plan edges, package boundaries, type imports, own health, test ratio, coverage map) | OUT | They check storytree's own repository; the project's test command and the review stand in (ADR-0996 D2). |
 
 ## The habits card
 

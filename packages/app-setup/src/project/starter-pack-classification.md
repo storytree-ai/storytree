@@ -12,8 +12,8 @@ classified the way the 2026-09-27 fan-out classified 0.2's for 0.3 (ADR-0652):
 
 - **BRING**: carried over in substance; wording changed only to drop storytree's own history
   ("in 0.2 …", decision numbers, friction ids), which ADR-0996 D2 leaves out.
-- **ADAPT**: rewritten for a user's project (ADR-0996 D2). The project's own test command,
-  `storytree check` and the pipeline `wire_pipeline` sets up stand in for storytree's `pnpm gate`,
+- **ADAPT**: rewritten for a user's project (ADR-0996 D2). The project's own test command and
+  the pipeline `wire_pipeline` sets up (the project's tests) stand in for storytree's `pnpm gate`,
   CI on three systems, merge queue, automerge, Mint box, pool and watcher; storytree's tools stand in
   for its `storytree …` commands and `pnpm build:guidance`; "the owner" becomes "the user".
 - **FOLD**: the user pack already holds a note that says it (pack v1 and v2's principles); the
@@ -93,7 +93,7 @@ FB frontend-builder, BR blind-reviewer, CI corpus-investigator; c = required rea
 | The authoritative source beats the derived one (principle) | CI r, LC r | ADAPT | "generated guidance" examples dropped. |
 | Observability-first (principle) | FB c, SO r | DROP | storytree's own product principle ("could the desktop app show it?"): a user's project designs its own state. |
 | One element per signal (principle) | FB r | DROP | storytree's forest-planet visual vocabulary, by its own statement. |
-| Verification is never bypassed (guardrail) | SO a, BR a | ADAPT | Three-system CI, automerge and `gh pr merge` become the project's test command, `storytree check`, the pipeline and the review. |
+| Verification is never bypassed (guardrail) | SO a, BR a | ADAPT | Three-system CI, automerge and `gh pr merge` become the project's test command, the pipeline (the project's tests) and the review. |
 | The owner owns the outer loop (guardrail) | FB a, SO a | ADAPT | Retitled "The user owns the outer loop"; `storytree question …` becomes raise_question / settle_question. |
 | Escalate up when blocked or out of scope (guardrail) | FB, EX, SA, CI, LC a | BRING | |
 | The library is the edit surface (guardrail) | SO a, LC a | ADAPT | `pnpm build:guidance`, `check:guidance` and generated files dropped (a user's project has none). |

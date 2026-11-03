@@ -1,8 +1,8 @@
 /**
  * Capability 6 · Make a folder a project. The starter pack's notes (contract 6.7): the principles,
  * guardrails, patterns and processes the starter roles stand on, adapted from storytree's own for a
- * user's project (ADR-0996 D2): its own test command, `storytree check` and the pipeline
- * `wire_pipeline` sets up stand in for storytree's gate, merge queue and machines, and storytree's
+ * user's project (ADR-0996 D2): its own test command and the pipeline `wire_pipeline` sets up
+ * stand in for storytree's gate, merge queue and machines, and storytree's
  * own history is left out. starter-pack-classification.md records where each came from and what was
  * dropped. This file is part of the pack's one versioned place: change it and raise STARTER_PACK_VERSION.
  */
@@ -422,10 +422,10 @@ export const GUARDRAILS: readonly Guardrail[] = [
   },
   {
     title: "Verification is never bypassed",
-    description: "A change reaches the main branch only after the project's tests, storytree check and the review pass; no path skips, waives or works around them.",
+    description: "A change reaches the main branch only after the project's tests and the review pass; no path skips, waives or works around them.",
     statement: "Never land un-green work: no skipped test or check, no disabled hook, no merge of a red or unfinished change, no landing without the fresh-context review.",
-    rule: "Before a change lands, the project's own test command passes over the exact tree being committed, the change-reviewer's review leaves no finding standing, and, where the project has the pipeline wire_pipeline set up, its checks (the tests and storytree check) pass on the pull request. Never skip a hook (`--no-verify`), never weaken or disable a test or check to get green, never merge a pull request whose checks are red or still running. The user's approval admits work that already passed; it cannot waive the check. If the pipeline goes red, read the failure and fix it; suspect a stale branch first (merge the main branch in and re-run).",
-    enforcedBy: "The pipeline wire_pipeline sets up (the project's tests and storytree check on every change) and, once the user approves it, branch protection that requires those checks. The review and a local run are discipline.",
+    rule: "Before a change lands, the project's own test command passes over the exact tree being committed, the change-reviewer's review leaves no finding standing, and, where the project has the pipeline wire_pipeline set up, its checks (the project's tests) pass on the pull request. Never skip a hook (`--no-verify`), never weaken or disable a test or check to get green, never merge a pull request whose checks are red or still running. The user's approval admits work that already passed; it cannot waive the check. If the pipeline goes red, read the failure and fix it; suspect a stale branch first (merge the main branch in and re-run).",
+    enforcedBy: "The pipeline wire_pipeline sets up (the project's tests on every change) and, once the user approves it, branch protection that requires those checks. The review and a local run are discipline.",
     failureMode: "Unproven or broken work reaches the main branch, and the next session builds on it believing it works.",
   },
   {
@@ -562,13 +562,13 @@ export const PROCESSES: readonly Process[] = [
     steps: [
       "1. Verify over the FINAL tree: run the project's test command and quote its summary line. Any edit after the green (a librarian fix, a note, a wording tweak) makes it stale: run it again before committing.",
       "2. Finish the librarian pass (Pre-merge librarian pass) BEFORE opening the pull request: once the pull request merges, the branch is finished.",
-      "3. Show the user the diff and wait for their approval; commit nothing before it. Then land the way this project does. By pull request only when the user asked for pull-request landing or the remote is their own: commit on the work's branch (never on the main branch), push, open a pull request that is ready, not a draft, and stop. Otherwise commit locally and push nothing: never push to a remote that is not the user's. The pipeline wire_pipeline set up runs the project's tests and storytree check on a pull request. Propose wire_pipeline only for the user's own repository, never add CI to another's; with no pipeline, the local test run over the final tree is the check, and you say so.",
+      "3. Show the user the diff and wait for their approval; commit nothing before it. Then land the way this project does. By pull request only when the user asked for pull-request landing or the remote is their own: commit on the work's branch (never on the main branch), push, open a pull request that is ready, not a draft, and stop. Otherwise commit locally and push nothing: never push to a remote that is not the user's. The pipeline wire_pipeline set up runs the project's tests on a pull request. Propose wire_pipeline only for the user's own repository, never add CI to another's; with no pipeline, the local test run over the final tree is the check, and you say so.",
       "4. A pull request merges only once the pipeline verified it green, the way this project merges (automatically on green, or by the user or the repository's reviewers; never by you unless the user said that is how it merges; ask once if it is not written down, and record their answer as a decision). Never merge a red or running pull request, and never bypass a check. A red: read the failure, suspect a stale branch first (merge the main branch in, reinstall, re-run), fix, push.",
       "5. Closing leg, once it has merged or been committed locally, in order: (a) land each capability whose work finished, mark_built what is now built, and close_increment with its outcome and its pull request, or a note naming the local commit (work that was never parked is recorded with park_increment and its outcome); (b) release any claim you still hold; (c) leave the working tree clean and nothing of yours running (list_own_runs, then stop_own_run or clear_own_runs); (d) close_out, saying whether the session is safe to close and why; (e) tell the user what landed (pull requests and a plain paragraph of what now works) and whether it is safe to close. Every other concern becomes a record (a fix on its own pull request, an increment on the arc, or a question), not a debrief paragraph.",
       "6. Blocked mid-work: land what is genuinely green, write the rest onto the OPEN increment (what was tried, what is done, what is not, what the user was asked, how to resume) and push it to a branch named there (with no remote of the user's, commit it on a local branch named there), raise_question on the arc holding that increment, and end or take other work. A refused claim is the same landing minus the question: nobody queues, so pick other work.",
       "7. Continue or stop. A merged branch is finished: new code goes on a fresh branch from the current main branch. Continuing is the default. Stop only for a named reason, said in the debrief: the next work needs the user's decision (written as a question); your context is too full to take on another piece well (judge it between pieces, never mid-piece); the next work is a different workstream; or nothing ready is left that you may claim.",
     ].join("\n"),
-    surfaces: "git and the project's host (pull requests); the pipeline wire_pipeline set up (the project's tests and storytree check); storytree's tools: land, mark_built, close_increment, release, raise_question, list_own_runs, close_out.",
+    surfaces: "git and the project's host (pull requests); the pipeline wire_pipeline set up (the project's tests); storytree's tools: land, mark_built, close_increment, release, raise_question, list_own_runs, close_out.",
     failureModes: [
       "- Merging by hand around the pipeline, or merging before it finished: unverified work reaches the main branch.",
       "- Sitting on green work, or leaving finished work in a draft, while the user keeps asking for it.",

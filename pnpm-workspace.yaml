@@ -20,6 +20,8 @@ ignoredBuiltDependencies:
   - electron-winstaller
   - onnxruntime-node
   - protobufjs
+  # The code survey loads its grammar's wasm as bytes; the native binding its script builds is never used.
+  - tree-sitter-python
 
 # A version is installed only once it has been published for 3 days (in minutes).
 minimumReleaseAge: 4320

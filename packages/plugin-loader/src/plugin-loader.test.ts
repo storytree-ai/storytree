@@ -538,6 +538,8 @@ test("5.19 · a factory plugin named as the part it stands in for mounts alone i
   const checked = await check.act({ plugin: "ci-health" } as never, { folder: home, hostVerbs: async () => host } as never, { door: "command", say: (step) => step.command! });
   const own = checked.next!.find((step) => step.command === "settings set part ci-health plugin ci-health");
   assert.equal(own?.why, "or switch ci-health off with the plugin of its name in its place");
+  const lacking = await check.act({ plugin: "ci-health", for: "ci-health" } as never, { folder: home, hostVerbs: async () => host } as never, { door: "command", say: (step) => step.command! });
+  assert.match(lacking.text, /^ci-health stands in for ci-health, which provides what ci-health does not: the command health worklist\.$/m);
 });
 
 test("5.20 · a plugin's manifest declares arm checks and run holds: `plugin check` loads one declaring them, saying how many of each, and `plugin contract` describes each", async (t) => {

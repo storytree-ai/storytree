@@ -1,8 +1,10 @@
 /** Capability 1 · Running services, contract 1.1: the host runs a fixture plugin's services as child processes, as this machine's settings turn them on. */
 import assert from "node:assert/strict";
+import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { test, type TestContext } from "node:test";
 
+import { PLUGIN_INTERFACE } from "@storytree/plugin-loader";
 import { setPartOff, setServiceOn } from "@storytree/project-and-caller";
 import { waitUntil } from "@storytree/test-waits";
 
@@ -44,4 +46,24 @@ test("1.1 · the host runs each declared service of each mounted part that this 
   await broken.stop();
   assert.deepEqual(broken.supervisor.states(), [], "a stand-in whose services cannot be read runs none");
   assert.match(said.join("\n"), /^service host: voice hosts no services: its stand-in no-such-plugin's services could not be read: the factory has no plugin called no-such-plugin/m);
+});
+
+test("plugin-loader 5.19 · a factory plugin named as the part it stands in for mounts its services alone in that part's place while the part is off, and the part's own alone once it is on", (t) => {
+  const { home } = fixtureHome(t);
+  const services = [{ name: "listen", from: "./services", export: "listen", run: "always" }];
+  const hostDir = path.join(home, "host");
+  const part = path.join(hostDir, "node_modules", "@s", "voice");
+  mkdirSync(part, { recursive: true });
+  writeFileSync(path.join(hostDir, "package.json"), JSON.stringify({ name: "host", dependencies: { "@s/voice": "*" } }));
+  writeFileSync(path.join(part, "package.json"), JSON.stringify({ name: "@s/voice", type: "module", exports: { "./services": "./services.js" }, storytree: { services } }));
+  writeFileSync(path.join(part, "services.js"), "export const listen = { start() {} };\n");
+  const plugin = path.join(home, "factory", "plugins", "voice");
+  mkdirSync(plugin, { recursive: true });
+  writeFileSync(path.join(plugin, "package.json"), JSON.stringify({ name: "voice", type: "module", exports: { "./services": "./services.js" }, storytree: { interface: PLUGIN_INTERFACE, services } }));
+  writeFileSync(path.join(plugin, "services.js"), "export const listen = { start() {} };\n");
+
+  setPartOff("voice", true, home, "voice");
+  assert.deepEqual(mountedServices(hostDir, home).services.map((service) => service.from), [{ plugin: "voice", factory: path.join(home, "factory") }]);
+  setPartOff("voice", false, home);
+  assert.deepEqual(mountedServices(hostDir, home).services.map((service) => "module" in service.from && service.from.module), ["@s/voice/services"]);
 });

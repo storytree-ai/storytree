@@ -42,6 +42,10 @@
 .arc-flagged .arc-bars { row-gap: 12px; }
 .arc-bar { position: relative; flex: 0 0 16px; width: 16px; height: 8px; border-radius: 50%; }
 .arc-green { background: #5b9975; } .arc-red { background: #be6463; } .arc-yellow { background: #d3a84c; } .arc-grey { background: #8d9498; }
+/* A long strip's fold marks (3.2): each as wide as the ovals it takes the place of, its gaps included (three for "N landed", two for "+N"). */
+.arc-fold-mark { flex: 0 0 auto; box-sizing: border-box; height: 10px; padding: 0 3px; border-radius: 5px; font-size: .56rem; line-height: 10px; text-align: center; white-space: nowrap; overflow: hidden; color: #d9dedb; }
+.arc-landed-mark { width: 54px; background: #5b997559; }
+.arc-more-mark { width: 35px; background: #8d949859; }
 .arc-check-back { outline: 1px solid #d3a84c; outline-offset: 1px; }
 /* A holder's flag: its foot at the oval's middle, a little left of centre, so the pennant flies over the oval. An increment has one holder, so one flag. */
 .arc-agent-mark { position: absolute; left: 3px; top: -11px; overflow: visible; pointer-events: none; }

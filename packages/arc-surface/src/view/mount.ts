@@ -42,6 +42,12 @@ export function mountArcSurface(host: HTMLElement, options: { project: string; r
   let drawnKey: string | undefined;
   let waiting: number | undefined;
   const folds = new Set<string>();
+  /** How many ovals one row of a strip holds at the rail's width, as last measured: a 16 px oval and its 3 px gap (3.2). */
+  let perRow: number | undefined;
+  const measure = () => {
+    const width = body.querySelector<HTMLElement>(".arc-lane .arc-bars")?.clientWidth ?? 0;
+    return width > 0 ? Math.floor((width + 3) / 19) : perRow;
+  };
   const queues = new Set<string>();
   const remember = () => writePreferences(options.project, { scope });
   const sayDrawn = (drawn?: ArcDrawn) => {
@@ -75,8 +81,14 @@ export function mountArcSurface(host: HTMLElement, options: { project: string; r
     const cardTop = cardKey === drawnKey ? card.scrollTop : 0;
     drawnKey = cardKey;
     // 3.20: a refresh that changes nothing keeps its nodes, so a selection in the card holds.
-    const html = renderBoard(next.board, opened, queues);
-    if (html !== drawn) { body.innerHTML = html; drawn = html; }
+    const write = () => {
+      const html = renderBoard(next.board!, opened, queues, perRow);
+      if (html !== drawn) { body.innerHTML = html; drawn = html; }
+    };
+    write();
+    // A strip is cut to the width it is drawn at, so a first draw, or one at a new width, is drawn again once measured.
+    const measured = measure();
+    if (measured !== perRow) { perRow = measured; write(); }
     const cardHtml = opened ? renderCard(next.board, opened, question) : "";
     if (cardHtml !== drawnCard) { briefingPane.innerHTML = cardHtml; drawnCard = cardHtml; }
     card.hidden = !opened;
@@ -86,10 +98,12 @@ export function mountArcSurface(host: HTMLElement, options: { project: string; r
     const lanes = body.querySelector(".arc-lanes");
     if (lanes) lanes.scrollTop = lanesTop;
     card.scrollTop = cardTop;
+    const folded = [...body.querySelectorAll<HTMLElement>("[data-folded-ids]")].flatMap((node) => node.dataset.foldedIds!.split(" "));
     sayDrawn({
       arcs: [...new Set([...body.querySelectorAll<HTMLElement>("[data-arc-id]")].map((node) => node.dataset.arcId!))],
-      increments: [...new Set([...body.querySelectorAll<HTMLElement>("[data-increment-id]")].map((node) => node.dataset.incrementId!))],
+      increments: [...new Set([...body.querySelectorAll<HTMLElement>("[data-increment-id]")].map((node) => node.dataset.incrementId!).concat(folded))],
       holders: [...body.querySelectorAll<HTMLElement>("[data-agent-session]")].map((node) => ({ work: node.dataset.workId!, session: node.dataset.agentSession!, label: node.dataset.agentLabel! })),
+      ...(folded.length ? { folded } : {}),
     });
     if (firstFresh) options.onFreshDraw?.();
   }
@@ -102,9 +116,11 @@ export function mountArcSurface(host: HTMLElement, options: { project: string; r
     card.hidden = true;
     [...body.querySelectorAll<HTMLButtonElement>("[data-arc-select]")].find((button) => button.dataset.arcSelect === was)?.focus({ preventScroll: true });
   }
+  const resizes = typeof ResizeObserver === "function" ? new ResizeObserver(() => { if (state && measure() !== perRow) draw(state); }) : undefined;
+  resizes?.observe(body);
   const watching = watchBoard({ ...options, kept: pageKept(`storytree.arc-surface.board.v1:${options.project}`, isBoardSnapshot), scope, closedRange, onState: draw });
   const surface: ArcSurface = {
-    stop() { watching.stop(); document.removeEventListener("keydown", onKey); sayDrawn(); root.remove(); },
+    stop() { watching.stop(); resizes?.disconnect(); document.removeEventListener("keydown", onKey); sayDrawn(); root.remove(); },
   };
   function onKey(event: KeyboardEvent): void {
     if (event.key === "Escape" && opened) { event.preventDefault(); closeCard(); }

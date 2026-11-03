@@ -35,7 +35,7 @@ interface Drawn {
   name: string;
   mounted: string[];
   stopped: string[];
-  view: ForestGlobe & { scenes: number; disposed: boolean; onSelect: (selection: ForestSelection) => void };
+  view: ForestGlobe & { scenes: number; disposed: boolean; onSelect: (selection: ForestSelection) => void; painted: ReturnType<typeof deferred<void>> };
   reading: Reading | undefined;
   teaching: { factory: boolean }[];
   locate: Parameters<ProjectParts["teaching"]>[0] | undefined;
@@ -86,8 +86,8 @@ function page(t: TestContext, answers: Partial<Pick<PageParts, "problem" | "proj
         name, mounted: [], stopped: [], reading: undefined, teaching: [], locate: undefined, rendered: [], spaces: [], treeShown: 0, treeOpen: false,
         kept: answers.kept, timed: undefined,
         view: {
-          scenes: 0, disposed: false, onSelect: () => {},
-          show() { mine.view.scenes++; }, select() {}, dispose() { mine.view.disposed = true; },
+          scenes: 0, disposed: false, onSelect: () => {}, painted: deferred<void>(),
+          show() { mine.view.scenes++; }, drawn: () => mine.view.painted.promise, select() {}, dispose() { mine.view.disposed = true; },
         },
       };
       drawn.push(mine);
@@ -281,6 +281,26 @@ test("2.26 · what lands after the page left the project's drawing changes nothi
   assert.equal(shown.view.scenes, scenes);
   assert.equal(on.body.dataset.state, "loading", "the new drawing is still loading, whatever the old reading says");
   assert.equal(on.failures.length, failures);
+});
+
+test("2.37 · a start with a kept forest is marked settled only once the globe has drawn a frame of what is on show after the fresh tree", async (t) => {
+  const kept = page(t, { kept: tree });
+  await settled();
+  const project = kept.last();
+  await kept.land();
+  project.reading!.onSettled!();
+  await settled();
+  assert.notEqual(kept.body.dataset.start, "settled", "the forest reading settled, but the globe has drawn no frame of it yet");
+  project.view.painted.resolve();
+  await settled();
+  assert.equal(kept.body.dataset.start, "settled");
+
+  const fresh = page(t);
+  await settled();
+  await fresh.land();
+  fresh.last().reading!.onSettled!();
+  await settled();
+  assert.equal(fresh.body.dataset.start, "settled", "a start with nothing kept settles with its reading, as before");
 });
 
 test("2.27 · the kept forest is drawn at once, marked not fresh; a first read that fails says so over it or over the page, and once drawn a failure changes nothing", async (t) => {

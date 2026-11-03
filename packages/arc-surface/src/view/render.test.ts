@@ -101,6 +101,35 @@ test("3.2 a claimed increment's oval carries its holder's flag in the session's 
   assert.match(lanes([]), /<span class="arc-track">/, "and a lane with none does not");
 });
 
+test("3.2 a long arc's strip stops at four rows: past them its landed ovals fold into one \"N landed\" mark, and open ovals still beyond four rows into a \"+N\" mark; a short arc is drawn whole, and the label keeps the full count", () => {
+  const work = (id: string, status: "proposal" | "closed" = "proposal") => record(id, "increment", { arc: "a", title: `Build ${id}`, objective: id, body: id, status, ...(status === "closed" ? { outcome: { date: "2026-09-20", disposition: "landed" as const } } : {}) });
+  const many = (prefix: string, count: number, status?: "closed") => Array.from({ length: count }, (_, index) => work(`${prefix}${String(index).padStart(2, "0")}`, status));
+  const strip = (increments: ReturnType<typeof work>[], perRow?: number) => {
+    const a = { arc: record("a", "arc", { title: "Arc a", intent: "a", endState: "Done" }), state: "active" as const, questions: [], increments };
+    return renderBoard(boardView({ arcs: [a], heldOn: {}, waits: {} }, [], new Date()), undefined, new Set(), perRow).match(/<span class="arc-bars"[^>]*>.*?<\/span><\/span>\s*<\/button>/s)![0];
+  };
+  const ovals = (html: string) => [...html.matchAll(/data-increment-id="([^"]+)"/g)].map(([, id]) => id);
+  const short = [...many("l", 10, "closed"), ...many("o", 10)];
+  assert.equal(ovals(strip(short, 5)).length, 20, "twenty ovals fill four rows of five: drawn whole");
+  assert.equal(strip(short, 5), strip(short), "and drawn exactly as an unmeasured strip is");
+  assert.doesNotMatch(strip(short, 5), /arc-fold-mark/);
+
+  const long = strip([...many("l", 30, "closed"), ...many("o", 5)], 5);
+  assert.match(long, /aria-label="Increments: 30 landed · 5 open"/, "the full count stays on the label");
+  assert.match(long, /^<span class="arc-bars"[^>]*><span class="arc-fold-mark arc-landed-mark" role="img" aria-label="30 landed\nBuild l00\nBuild l01[^"]*Build l29" title="30 landed\nBuild l00\nBuild l01[^"]*Build l29"[^>]*>30 landed<\/span>/, "the landed fold opens the strip and its hover names what it folds");
+  assert.deepEqual(ovals(long), ["o00", "o01", "o02", "o03", "o04"], "the open ovals follow it, every one drawn");
+  assert.doesNotMatch(long, /arc-more-mark/);
+
+  const crowded = strip([...many("l", 30, "closed"), ...many("o", 25)], 5);
+  assert.deepEqual(ovals(crowded), Array.from({ length: 15 }, (_, index) => `o${String(index).padStart(2, "0")}`), "a landed mark of three ovals' width, then fifteen ovals, then a +N of two: four rows of five");
+  assert.match(crowded, /<span class="arc-fold-mark arc-more-mark" role="img" aria-label="10 more\nBuild o15\n[^"]*Build o24" title="10 more\nBuild o15\n[^"]*Build o24"[^>]*>\+10<\/span><\/span>/, "the +N ends the strip and names what it folds");
+
+  const open = strip(many("o", 25), 5);
+  assert.deepEqual(ovals(open).length, 18, "with nothing landed, eighteen ovals and a +N");
+  assert.match(open, />\+7<\/span>/);
+  assert.doesNotMatch(open, /arc-landed-mark/);
+});
+
 test("3.3 a lane counts what its open work waits on at the right of its title: an hourglass for other work and events, a question mark for the owner; a mark with nothing to count is not drawn, and a ready lane's idle claims are in its chip's hover", () => {
   const work = (id: string, arcId: string, status: "proposal" | "active" = "proposal") => record(id, "increment", { arc: arcId, title: `Build ${id}`, objective: id, body: id, status });
   const arcs = ["ready", "owner", "free", "mixed"].map((id) => ({ arc: record(id, "arc", { title: `Arc ${id}`, intent: id, endState: "Done" }), state: "active" as const,

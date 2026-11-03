@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { Window } from "happy-dom";
 import type { Line } from "@storytree/library";
-import { smokeArcSurface, type ArcDrawn, type BoardReads, type BoardSnapshot } from "../index.js";
+import { arcSmokeProblems, boardView, smokeArcSurface, type ArcDrawn, type BoardReads, type BoardSnapshot } from "../index.js";
 import { dayOf } from "../board/closed-range.js";
 import { record } from "../testing/records.js";
 import { mountArcSurface } from "./index.js";
@@ -84,4 +84,13 @@ test("3.6 the public smoke check visits the mounted scopes and opens every root 
   const missing = arc("missing");
   assert.deepEqual(await smokeArcSurface(execution, "p", { ...reads, boardArcs: async () => [...snapshot.arcs, missing] }),
     ["arc not drawn: missing", "increment not drawn: missing work"]);
+});
+
+test("3.6 the smoke check counts an increment a strip's mark folds as drawn, and asks no flag of its holder, which the mark hides", () => {
+  const work = record("held", "increment", { arc: "a", title: "Held work", objective: "o", body: "b", status: "proposal" });
+  const at = new Date().toISOString();
+  const board = boardView({ arcs: [{ arc: record("a", "arc", { title: "A", intent: "i", endState: "e" }), state: "active", increments: [work], questions: [] }], waits: {}, heldOn: {} },
+    [{ seq: 1, project: "p", session: "s", harness: "codex", source: "tool", kind: "claimed", increment: "held", reason: "Build it", at }], new Date());
+  assert.deepEqual(arcSmokeProblems(board, { arcs: ["a"], increments: ["held"], holders: [], folded: ["held"] }), []);
+  assert.deepEqual(arcSmokeProblems(board, { arcs: ["a"], increments: ["held"], holders: [] }), ["holder not drawn: Codex on Held work"]);
 });

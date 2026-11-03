@@ -22,8 +22,11 @@ const MARKER = "<!-- storytree builder agent: written and removed by storytree's
 type Mode = "red" | "green";
 const MODES: readonly Mode[] = ["red", "green"];
 
-/** Both agents' tools: each runs the project's own test command through Bash. */
-const TOOLS = "Read, Grep, Glob, Edit, Write, Bash";
+/**
+ * Both agents' tools: each runs the project's own test command through the shell Claude Code gives it, Bash, or
+ * PowerShell where that is its shell (Windows). Claude Code drops a listed tool it does not have, so both are listed.
+ */
+const TOOLS = "Read, Grep, Glob, Edit, Write, Bash, PowerShell";
 
 /** The guard's command line, run by Claude Code through its shell: each path in double quotes. */
 function guardCommand({ node, script }: HookCommand, mode: Mode): string {

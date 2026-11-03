@@ -18,7 +18,7 @@ import { blind, pickPlan, pickPool, planState, readOnly, surveyLibrary } from ".
 import { codeVersion, composeBrief, countEngines, localBrief, ENGINE_SLOTS, holdRunner, processTable, reserveSlot, withLockFile, WINDOWS_PROCESSES } from "./queue.mjs";
 import { refusals, runLane as runEngineLane, SIGNALED } from "./runner.mjs";
 import { readBoxPace } from "./pace.mjs";
-import { configFile, poolConfig, readCap } from "./pool-config.mjs";
+import { poolConfig, readCap } from "./pool-config.mjs";
 import { handedOff } from "./watch.mjs";
 
 const run = promisify(execFile);
@@ -294,7 +294,7 @@ function boxDefaults({ home = homedir(), env = process.env } = {}) {
   const laneRepo = mainCheckout(repo);
   return {
     lanesDir, repo, laneRepo, addDirs, sessionsDir, stopAt, machineOnly: config.machineOnly, briefPaths: { checkout: laneRepo, lanes: lanesDir }, briefsDir: config.briefsDir,
-    configFile: env.AGENT_POOL_CONFIG || configFile(home),
+    configFile: config.file,
     maxLanes: () => readCap({ lanesDir, sessions: config.sessions }),
     count: async () => countEngines(await processes()),
     power: () => readPowerLine(), refusals: (cwd = repo) => refusals({ cwd, env }), kill: (pid) => process.kill(pid),

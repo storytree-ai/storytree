@@ -49,7 +49,7 @@ function readConfig(file) {
 const number = (...values) => values.map((value) => (value === undefined || value === "" ? NaN : Number(value))).find((value) => Number.isFinite(value));
 
 /**
- * The pool's settings on this machine: its configuration file's fields over the general defaults, `~` read as `home`,
+ * The pool's settings on this machine: its configuration file's fields (`file`, the one read) over the general defaults, `~` read as `home`,
  * and the environment's overrides over both. `remoteCheckout` is the checkout as written, for a shell on the pool's
  * machine to read its own `~`.
  */
@@ -59,6 +59,7 @@ export function poolConfig({ home = homedir(), env = process.env, file = env.AGE
   const lanesDir = env.LANES_DIR || local(raw.lanes ?? "~/.storytree/agent-pool");
   const watcher = raw.watcher ?? {};
   return {
+    file,
     machine: env.WATCH_BOX_HOST || raw.machine || undefined,
     checkout: local(raw.checkout ?? HERE),
     remoteCheckout: raw.machineCheckout ?? raw.checkout ?? HERE,

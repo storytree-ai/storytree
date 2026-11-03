@@ -2,7 +2,7 @@
   "name": "@storytree/agent-pool",
   "private": true,
   "type": "module",
-  "description": "Agent runner (story_b2051c0f7372, ADR-1071 D3), once the dev loop's agent pool (ADR-1066 D2 G): the lane runner and its engine, the dispatcher, the watcher that lands handed-over pull requests, configured by agent-pool.json at the repo root. Its Claude lanes carry the Claude Code mod, its own story's package (ADR-1216 D2), through that package's declared interface.",
+  "description": "Agent runner (story_b2051c0f7372, ADR-1071 D3), once the dev loop's agent pool (ADR-1066 D2 G): the lane runner and its engine, the dispatcher, the watcher that lands handed-over pull requests, configured by each machine's own ~/.storytree/agent-pool.json (ADR-1216 D1). Its Claude lanes carry the Claude Code mod, its own story's package (ADR-1216 D2), through that package's declared interface.",
   "dependencies": {
     "@storytree/claude-code-mod": "workspace:*",
     "@storytree/library": "workspace:*",

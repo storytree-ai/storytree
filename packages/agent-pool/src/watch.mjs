@@ -21,7 +21,7 @@ import { setTimeout as wait } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 
-import { configFile, poolConfig, readCap } from "./pool-config.mjs";
+import { poolConfig, readCap } from "./pool-config.mjs";
 import { LANE_RUN } from "./runner.mjs";
 import { readBoxPace } from "./pace.mjs";
 import { codeVersion, countEngines, holdRunner, localBrief } from "./queue.mjs";
@@ -526,7 +526,7 @@ reviewed again (4.37). At the cap the increment waits on the owner with the last
  * repository cut-over (`cutover`, its time) is the old repository's pull request, whose number now names another: it is
  * never looked up, only forgotten, its wait cleared and its claims let go (4.39).
  */
-export async function watchOnce({ dir, look, storytree, cutover = async () => undefined, startFix, startReview, rerun, refresh, behind, enqueue, alive, room, readRisks, limit, cap = 6, backoff = 15 * 60_000, now = Date.now, say }) {
+export async function watchOnce({ dir, look, storytree, cutover = async () => undefined, startFix, startReview, rerun, refresh, behind, enqueue, alive, room, readRisks, limit, cap = 6, backoff = 15 * 60_000, folders = {}, now = Date.now, say }) {
   const dated = (message) => say(`${new Date(now()).toISOString().replace(/\.\d{3}Z$/, "Z")} ${message}`);
   // A step the library refuses (a wait already cleared, an increment closed by hand) is said, not retried forever.
   const tell = (args, project) => storytree(args, project).catch((error) => { dated(`storytree ${args.slice(0, 3).join(" ")} refused: ${error.message.split("\n")[0]}`); return ""; });
@@ -769,9 +769,9 @@ export async function watchOnce({ dir, look, storytree, cutover = async () => un
     // How far its branch is behind main, read at the head judged red; a reading that fails says nothing and stops nothing (4.38).
     const lag = !reviewing && behind ? await behind(pull.head).catch(() => undefined) : undefined;
     const session = reviewing
-      ? await startReview({ pr, increment, n, brief: reviewBrief({ pr, increment, why: pull.why, logs: pull.logs, fixLogs, n, cap, closed: record.closed }) })
-      : await startFix({ pr, increment, n, brief: fixBrief({ pr, increment, why: pull.why, logs: pull.logs, n: counted + 1, limit: allowed, keepOpen: record.keepOpen, closed: record.closed,
-        review: verdict?.summary, lag }) });
+      ? await startReview({ pr, increment, n, brief: localBrief(reviewBrief({ pr, increment, why: pull.why, logs: pull.logs, fixLogs, n, cap, closed: record.closed }), folders) })
+      : await startFix({ pr, increment, n, brief: localBrief(fixBrief({ pr, increment, why: pull.why, logs: pull.logs, n: counted + 1, limit: allowed, keepOpen: record.keepOpen, closed: record.closed,
+        review: verdict?.summary, lag }), folders) });
     record.fixing = { pid: session.pid };
     record.fixes.push({ at: new Date(now()).toISOString(), head: pull.head, pid: session.pid, log: session.log, ...(reviewing ? { review: true } : {}),
       ...(pull.conflict ? { conflict: true } : {}), ...(failures && !reviewing ? { units: failures.units, tests: failures.tests } : {}) });
@@ -874,6 +874,8 @@ function boxDefaults({ home = homedir(), env = process.env } = {}) {
     : await run("pnpm", ["-s", "storytree", ...args], { cwd: repo, maxBuffer: 16 * 1024 * 1024 })).stdout;
   return {
     lanesDir, repo, dir, pidFile: join(dir, "watch.pid"), loopPidFile: join(dir, "watch-loop.pid"), argsOf,
+    // The folders a fix, review or release fix session's brief names ({checkout}, {lanes}): this machine's own.
+    folders: { checkout: repo, lanes: lanesDir },
     // The one log every start of the watcher writes, whether a hand-over starts it or the box's owner does (4.28).
     log: join(lanesDir, "watch.runner.log"),
     limit: config.watcher.fixesPerRed, cap: config.watcher.fixesPerPullRequest, intervalMs: config.watcher.intervalMs, now: Date.now,
@@ -910,21 +912,21 @@ function boxDefaults({ home = homedir(), env = process.env } = {}) {
       < await readCap({ lanesDir, sessions: config.sessions }),
     startFix: async ({ pr, n, brief }) => {
       const base = join(dir, `fix-${pr}-${n}`);
-      await writeFile(`${base}-brief.md`, localBrief(brief, { checkout: repo, lanes: lanesDir }));
+      await writeFile(`${base}-brief.md`, brief);
       const pid = detached([join(script, "..", "runner.mjs"), "run", `${base}-brief.md`, `${base}.log`, `${base}.err`,
         ...config.addDirs], `${base}.runner.log`, repo);
       return { pid, log: `${base}.log` };
     },
     startReview: async ({ pr, n, brief }) => {
       const base = join(dir, `review-${pr}-${n}`);
-      await writeFile(`${base}-brief.md`, localBrief(brief, { checkout: repo, lanes: lanesDir }));
+      await writeFile(`${base}-brief.md`, brief);
       const pid = detached([join(script, "..", "runner.mjs"), "run", `${base}-brief.md`, `${base}.log`, `${base}.err`,
         ...config.addDirs], `${base}.runner.log`, repo);
       return { pid, log: `${base}.log` };
     },
     // Started from the shared checkout's copy, whichever worktree handed over, so it runs the code it watches for changes.
     startWatcher: (log) => detached([own, "run"], log, repo),
-    codeVersion: () => codeVersion({ repo, paths: WATCH_CODE, config: env.AGENT_POOL_CONFIG || configFile(home) }),
+    codeVersion: () => codeVersion({ repo, paths: WATCH_CODE, config: config.file }),
     loop: () => new Promise((ended) => {
       const child = spawnChild(process.execPath, [own, "watch"], { cwd: repo, env: free, stdio: "inherit" });
       child.once("error", () => ended(1));
@@ -968,7 +970,7 @@ function boxDefaults({ home = homedir(), env = process.env } = {}) {
     },
     startReleaseFix: async ({ n, brief }) => {
       const base = join(dir, `release-fix-${Date.now()}-${n}`);
-      await writeFile(`${base}-brief.md`, localBrief(brief, { checkout: repo, lanes: lanesDir }));
+      await writeFile(`${base}-brief.md`, brief);
       const pid = detached([join(script, "..", "runner.mjs"), "run", `${base}-brief.md`, `${base}.log`, `${base}.err`,
         ...config.addDirs], `${base}.runner.log`, repo);
       return { pid, log: `${base}.log` };

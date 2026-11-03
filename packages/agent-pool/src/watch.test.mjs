@@ -21,7 +21,7 @@ async function box(t, { looks = {}, board = "" } = {}) {
   const calls = [], fixes = [], reviews = [], lines = [], live = new Set();
   let clock = at, room = true;
   const options = {
-    dir, limit: 2, say: (line) => lines.push(line), now: () => clock,
+    dir, limit: 2, say: (line) => lines.push(line), now: () => clock, folders: { checkout: "/srv/shop", lanes: "/srv/lanes" },
     // No repository cut-over unless a test sets one (4.39): the watcher's own default reads the real library.
     cutover: async () => undefined,
     look: async (pr) => looks[pr],
@@ -102,6 +102,7 @@ test("4.2 · a red pull request starts exactly one fix session at a time, and on
   assert.equal(fix.pr, 41); assert.equal(fix.increment, "increment_one"); assert.equal(fix.n, 1);
   assert.match(fix.brief, /verify on Windows failed/); assert.match(fix.brief, /https:\/\/ci\/run\/9/);
   assert.match(fix.brief, /stale branch/); assert.match(fix.brief, /watch\.mjs hand 41 increment_one/);
+  assert.match(fix.brief, /Work from \/srv\/shop and follow/, "it works from this machine's own checkout");
   b.live.clear();
   b.looks[41] = { state: "pending", head: "h2" };
   await watchOnce(b.options);
@@ -136,7 +137,7 @@ test("4.3 · past its fix limit the watcher starts a review session, never a thi
   assert.equal(b.fixes.length, 2, "two fix sessions, then no third");
   assert.equal(b.reviews.length, 1, "an independent review instead");
   assert.ok(!b.calls.some(([, , verb, , , waitFor]) => verb === "wait" && waitFor === "owner"), "no owner wait below the cap");
-  for (const piece of ["#41", "increment_one", "https://ci/run/9", "/lanes/fix-41-1.log", "/lanes/fix-41-2.log", "watch.mjs verdict 41"]) assert.ok(b.reviews[0].brief.includes(piece), piece);
+  for (const piece of ["#41", "increment_one", "https://ci/run/9", "/lanes/fix-41-1.log", "/lanes/fix-41-2.log", "watch.mjs verdict 41", "Work from /srv/shop."]) assert.ok(b.reviews[0].brief.includes(piece), piece);
   // Each review sends it back to a fix session, until six sessions are spent.
   for (let round = 0; round < 3; round++) {
     if ((await saved(b)).fixes.at(-1).review) await recordVerdict({ dir: b.dir, pr: 41, kind: "fix", summary: `the cache test reads a stale key (${round})` });
@@ -386,6 +387,13 @@ test("4.10 · a watcher whose code changes between two looks ends with the resta
   assert.equal(await main(["watch"], { ...unpinned, home,
     sleep: async () => { assert.ok(merges.length, "it restarts once its own code changes"); await merges.shift()(); } }), RESTART);
   assert.equal(looks, 2, "the test runner changed: it looked again; then its own code changed: it restarted");
+
+  // The machine's own configuration, outside the repository (ADR-1216 D1), is read once at start, so a change to it restarts it too.
+  looks = 0;
+  const configured = [() => writeFile(join(home, ".storytree", "agent-pool.json"), JSON.stringify({ checkout: "~/code/storytree03", watcher: { fixesPerRed: 3 } }))];
+  assert.equal(await main(["watch"], { ...unpinned, home,
+    sleep: async () => { assert.ok(configured.length, "it restarts once its configuration changes"); await configured.shift()(); } }), RESTART);
+  assert.equal(looks, 1, "its configuration changed: it restarted");
 });
 
 test("4.42 · the look loop reads main's changes to the secret-check exemptions list once an hour, not on every look", async (t) => {

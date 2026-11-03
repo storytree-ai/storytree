@@ -13,6 +13,8 @@ import { existsSync } from "node:fs";
 import { readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
+import { localBrief } from "./queue.mjs";
+
 /** How long a commit green on main may wait for a published release before the alarm: 90th percentile gap 2.8 h, median 44 min (ADR-1032). */
 export const RELEASE_LIMIT_MS = 2 * 3600_000;
 /** How often the look loop reads release state; a release takes about 23 minutes. */
@@ -159,7 +161,7 @@ Your job is to get releases moving and nothing else. Work from {checkout} and fo
  * still with the watcher, or while the question it (or the watcher) raised is open; a settled question lets the alarm
  * start sessions again. After `limit` sessions the watcher raises that question itself.
  */
-export async function watchReleases({ dir, readReleases, rerun, tail, alive, room, questionOpen, raise, startFix, limit, storytree, now = Date.now, say }) {
+export async function watchReleases({ dir, readReleases, rerun, tail, alive, room, questionOpen, raise, startFix, limit, storytree, folders = {}, now = Date.now, say }) {
   const dated = (message) => say(`${new Date(now()).toISOString().replace(/\.\d{3}Z$/, "Z")} releases: ${message}`);
   const { release, reruns, alarm } = await readReleases();
   let state = await load(dir);
@@ -216,7 +218,7 @@ export async function watchReleases({ dir, readReleases, rerun, tail, alive, roo
   }
   if (!(await room())) return;
   const n = state.fixes.length + 1;
-  const fix = await startFix({ n, brief: fixBrief({ release, alarm, tail: await tail(alarm.run).catch(() => ""), n, limit, name }) });
+  const fix = await startFix({ n, brief: localBrief(fixBrief({ release, alarm, tail: await tail(alarm.run).catch(() => ""), n, limit, name }), folders) });
   state.fixing = { pid: fix.pid };
   state.fixes.push({ at: new Date(now()).toISOString(), run: alarm.run.id, pid: fix.pid, log: fix.log });
   await save(dir, state);

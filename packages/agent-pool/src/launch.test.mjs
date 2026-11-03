@@ -300,6 +300,13 @@ test("3.10 · its own code is the code it runs: a merge touching only other dev 
   // The machine's own configuration, outside the repository (ADR-1216 D1), restarts it too.
   const configured = await dispatch(() => writeFile(config, "{\"sessions\": 4}"));
   assert.deepEqual(configured, { code: 3, started: ["a"] }, "the pool's configuration changed: it restarts to read it");
+
+  // A dispatcher given no version of its own reads its checkout's code and the configuration file it was started with.
+  const pooled = await box(t, { survey: async () => poolWork(["a", "b"]), count: async () => 0, maxLanes: async () => 1, rules: async () => "Pool rules.\n",
+    repo, configFile: config, runLane: async (options) => { pooled.briefs.push(await readFile(options.brief, "utf8")); await writeFile(config, "{\"sessions\": 5}"); return 0; } });
+  pooled.sleep = async () => { await new Promise((go) => setImmediate(go)); if (pooled.briefs.length > 1) await writeFile(join(pooled.lanesDir, "pool-stop"), ""); };
+  assert.equal(await main(["pool"], pooled), 3, "its configuration changed under it: it restarts");
+  assert.equal(pooled.briefs.length, 1, "starting nothing more");
 });
 
 test("3.11 · with free slots and nothing ready, one planning session starts for a qualifying arc, never two at once", async (t) => {

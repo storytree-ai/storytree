@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { mkdtemp, mkdir, readdir, readFile, realpath, rm, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { hostname, tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
@@ -447,6 +447,7 @@ test("1.19 · A lane refused for want of its token asks the owner once, on its i
   const question = asked()[0];
   assert.equal(question[question.indexOf("--arc") + 1], "arc_lanes");
   assert.match(question[question.indexOf("--title") + 1], /lane token/);
+  assert.ok(question[question.indexOf("--title") + 1].endsWith(` for ${hostname()}`), "it names the machine that lacks the token");
   assert.ok(!question.includes("--hold"), "no work is held on it");
   settled = true;
   assert.equal(await main(["run", options.brief, options.log, options.err], options), 75);

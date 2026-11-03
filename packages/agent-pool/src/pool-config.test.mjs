@@ -27,7 +27,7 @@ test("3.15 · the pool reads its machine, checkout, lanes, briefs, session cap, 
     watcher: { fixesPerRed: 1, fixesPerPullRequest: 4, intervalSeconds: 30 } };
   const file = await configFile(t, fields);
   const expected = {
-    machine: "box", checkout: join("/home/u", "src/shop"), remoteCheckout: "~/src/shop", lanesDir: join("/home/u", "pool"),
+    file, machine: "box", checkout: join("/home/u", "src/shop"), remoteCheckout: "~/src/shop", lanesDir: join("/home/u", "pool"),
     briefsDir: join("/home/u", "pool/briefs"), addDirs: [join("/home/u", "src/shop-wt"), "/srv/shared", join("/home/u", "pool")], sessions: 3,
     models: { codex: "codex-model", claude: "claude-model" }, switchAt: 80, identity: { name: "Lane Owner", email: "owner@example.com" },
     watcher: { fixesPerRed: 1, fixesPerPullRequest: 4, intervalMs: 30_000 }, machineOnly: false,
@@ -39,8 +39,14 @@ test("3.15 · the pool reads its machine, checkout, lanes, briefs, session cap, 
   t.after(() => removeTemp(home));
   await mkdir(join(home, ".storytree"));
   await writeFile(join(home, ".storytree", "agent-pool.json"), JSON.stringify(fields));
-  assert.deepEqual(poolConfig({ home, env: {} }), { ...expected, checkout: join(home, "src/shop"), lanesDir: join(home, "pool"), briefsDir: join(home, "pool/briefs"),
+  assert.deepEqual(poolConfig({ home, env: {} }), { ...expected, file: join(home, ".storytree", "agent-pool.json"), checkout: join(home, "src/shop"), lanesDir: join(home, "pool"), briefsDir: join(home, "pool/briefs"),
     addDirs: [join(home, "src/shop-wt"), "/srv/shared", join(home, "pool")] });
+
+  // An identity is read only whole: a name with no email (or the reverse) is none, and git's own configuration decides.
+  await writeFile(file, JSON.stringify({ identity: { name: "Lane Owner" } }));
+  assert.equal(poolConfig({ home: "/home/u", env: { AGENT_POOL_CONFIG: file } }).identity, undefined);
+  await writeFile(file, JSON.stringify({ identity: { email: "owner@example.com" } }));
+  assert.equal(poolConfig({ home: "/home/u", env: { AGENT_POOL_CONFIG: file } }).identity, undefined);
 
   // A hand-over from another machine runs in the pool's checkout there, which may be named apart from this machine's own.
   await writeFile(file, JSON.stringify({ machine: "box", checkout: "C:/src/shop", machineCheckout: "~/code/shop" }));
@@ -61,7 +67,7 @@ test("3.15 · the pool reads its machine, checkout, lanes, briefs, session cap, 
 test("3.16 · with no configuration the pool runs on general defaults: this checkout, no other machine, no pinned session cap, the engines' own models, Codex until it is spent", async (t) => {
   const file = await configFile(t);
   assert.deepEqual(poolConfig({ home: "/home/u", env: { AGENT_POOL_CONFIG: file } }), {
-    machine: undefined, checkout: CHECKOUT, remoteCheckout: CHECKOUT, lanesDir: join("/home/u", ".storytree/agent-pool"), briefsDir: undefined,
+    file, machine: undefined, checkout: CHECKOUT, remoteCheckout: CHECKOUT, lanesDir: join("/home/u", ".storytree/agent-pool"), briefsDir: undefined,
     addDirs: [join("/home/u", ".storytree/agent-pool")], sessions: undefined, models: { codex: undefined, claude: undefined }, switchAt: 100, identity: undefined,
     watcher: { fixesPerRed: 2, fixesPerPullRequest: 6, intervalMs: 60_000 }, machineOnly: false,
   });

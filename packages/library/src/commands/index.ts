@@ -394,15 +394,16 @@ function pendingSaid(pending: readonly PendingChange[]): string[] {
 }
 
 const edit = verb({
-  command: { family: "library", name: "edit", summary: "change only the named fields, through the kind's editor", usage: "library edit <id> --<field> <value|@file> … [--remove <field>]…" },
+  command: { family: "library", name: "edit", summary: "change only the named fields, through the kind's editor", usage: "library edit <id> --<field> <value|@file> … [--remove <field>]… [--live]" },
   tool: NOT_A_TOOL,
   writes: true,
   inputs: {
     "<id>": { kind: "text", word: 0, optional: true, describe: "the record's id" },
     "<fields>": { kind: "fields", describe: "the fields to change" },
     remove: { kind: "text", many: true, optional: true, describe: "an optional field to remove" },
+    live: { kind: "switch", describe: "edit a story, capability or contract live while you hold an increment, keeping its claim" },
   },
-  async act({ "<id>": given, "<fields>": values, remove = [] }, context: LibraryVerbContext) {
+  async act({ "<id>": given, "<fields>": values, remove = [], live }, context: LibraryVerbContext) {
     const id = needed(given, "the record's id");
     const library = context.library;
     if (id === ANCHOR_ID) return editAnchor(fieldsOf(values), context);
@@ -419,7 +420,8 @@ const edit = verb({
     // The store removes a field given as undefined, and the kind's schema refuses removing one it requires.
     const fields: Fields = { ...fieldsOf(values), ...Object.fromEntries(remove.map((field) => [field, undefined])) };
     if (Object.keys(fields).length === 0) return { text: `No fields given: ${id} is unchanged.` };
-    if (PLAN_TYPES.has(record.type)) {
+    // --live names a correction the increment does not change, made live with its claim kept (ADR-0966 D1's note).
+    if (PLAN_TYPES.has(record.type) && !live) {
       const held = await withIdLists(fields, (fields) => heldOnIncrement(context, { record: id, fields }));
       if (held !== undefined) return { text: `Your edit of ${record.type} ${id} (${Object.keys(fields).join(", ")}) is ${held}`, next: [{ command: "library read <increment>", why: "see its pending changes" }] };
     }

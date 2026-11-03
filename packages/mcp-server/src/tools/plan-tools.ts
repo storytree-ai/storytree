@@ -110,7 +110,7 @@ export function registerPlanTools(define: Define): void {
 
   define(
     "edit_plan",
-    `Correct an arc, story, capability, contract or increment in place, or the project's anchor (id ${ANCHOR_ID}: what it is, and its audience, who it is for): change only the fields you give. An increment's capabilities list is filled here by the session that claims it, as it plans (ADR-0949 D2). While you hold an increment, a change to a story, capability or contract planned before it waits on the increment as a pending change until its branch merges, and the live plan is unchanged (ADR-0966); one it planned changes at once.`,
+    `Correct an arc, story, capability, contract or increment in place, or the project's anchor (id ${ANCHOR_ID}: what it is, and its audience, who it is for): change only the fields you give. An increment's capabilities list is filled here by the session that claims it, as it plans (ADR-0949 D2). While you hold an increment, a change to a story, capability or contract planned before it waits on the increment as a pending change until its branch merges, and the live plan is unchanged (ADR-0966); one it planned changes at once, and so does one given live: true, with the increment's claim kept.`,
     z.object({
       id: id(`arc, story, capability, contract or increment to correct, or ${ANCHOR_ID} for the project's anchor`),
       what: z.string().min(1).optional().describe("The project's anchor: what it is, in a few words (\"a software factory\")"),
@@ -135,8 +135,9 @@ export function registerPlanTools(define: Define): void {
         .union([z.object({ caused_by: z.string().min(1).describe("The pull request (#123) or increment that caused it"), story: z.string().min(1).describe("The story it hit") }), z.literal("none")])
         .optional()
         .describe("The escape an increment fixes, a defect that reached main: the change that caused it and the story it hit, or \"none\" to clear it"),
+      live: z.boolean().optional().describe("While you hold an increment, make this change to a story, capability or contract live instead of pending, keeping the increment's claim: for a correction the increment does not change"),
     }),
-    async ({ id: target, ...changes }, call) => editPlan(target, changes, call),
+    async ({ id: target, live, ...changes }, call) => editPlan(target, changes, call, live === true),
   );
 
   define(
@@ -208,7 +209,7 @@ const EDITABLE = {
   anchor: ["what", "audience"],
 } as const;
 
-async function editPlan(target: string, changes: Changes, call: Call): Promise<Answer> {
+async function editPlan(target: string, changes: Changes, call: Call, live = false): Promise<Answer> {
   const { library, storytree, writer } = call;
   const kind = target === ANCHOR_ID ? "anchor" : (kindOf(await library.projectTree(), target) ?? ((await library.get(target))?.type === "increment" ? "increment" : undefined));
   if (kind === undefined) return { text: `Nothing in the plan has the id ${target}; show_plan lists every id.`, refused: true };
@@ -235,7 +236,7 @@ async function editPlan(target: string, changes: Changes, call: Call): Promise<A
     ...(named ?? {}),
     ...(escape === undefined ? {} : { escape: escape === "none" ? undefined : { causedBy: escape.caused_by, story: escape.story } }),
   };
-  if (kind === "story" || kind === "capability" || kind === "contract") {
+  if (!live && (kind === "story" || kind === "capability" || kind === "contract")) {
     const held = await heldOnIncrement(call, { record: target, fields });
     if (held !== undefined) return { text: `Your change to ${kind} ${quoted(String(((await library.get(target))?.fields as { title?: string } | undefined)?.title))} (${target}) is ${held}`, data: { id: target } };
   }

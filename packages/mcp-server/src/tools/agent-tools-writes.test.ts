@@ -1026,6 +1026,26 @@ test("6.56 edit_plan and retire_from_plan, under an increment's claim, hold a ch
   });
 });
 
+test("6.113 edit_plan with live: true, under an increment's claim, corrects a story, capability or contract in the live plan, writing no pending change on the increment, and the session still holds its increment, so the pool never takes it in a release gap (ADR-0966 D1's note)", async () => {
+  await withProject(async ({ folder, library }) => {
+    await withAgent(folder, claudeCode("claude-1"), async (agent) => {
+      const { arc, story, capability } = await planned(agent);
+      const mail = idOf(await agent.call("plan_capability", { story, title: "Mail", ...FOUNDED }));
+      const increment = idOf(await agent.call("park_increment", { arc, title: "Address form", objective: "Rename it", body: "Red then green" }));
+      assert.equal((await agent.call("claim", { increment, reason: "driving the address form" })).isError, false);
+
+      const edited = await agent.call("edit_plan", { id: capability, depends_on: [mail], live: true });
+      assert.equal(edited.isError, false, edited.text);
+      assert.doesNotMatch(edited.text, /pending/);
+      assert.deepEqual((await library.get(capability))?.fields["dependsOn" as never], [mail], "the live capability is corrected");
+      assert.deepEqual(((await library.get(increment))?.fields as { pending?: unknown[] }).pending ?? [], [], "nothing waits on the increment");
+      await withAgent(folder, claudeCode("claude-2"), async (other) => {
+        assert.equal((await other.call("claim", { increment, reason: "taking it in a gap" })).isError, true, "the increment is still held");
+      });
+    });
+  });
+});
+
 test("6.108 plan_capability, under an increment's claim, judges the story's capability numbers as that increment's pending changes would leave it: a number a pending move out of the story frees is given, and one a pending move into the story brings is refused", async () => {
   await withProject(async ({ folder, library }) => {
     await withAgent(folder, claudeCode("claude-1"), async (agent) => {

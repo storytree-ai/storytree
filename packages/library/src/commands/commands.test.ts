@@ -602,3 +602,37 @@ test("17.15 · library list --where on a list field matches the records whose li
   assert.ok(whole.includes(onlyMailer.id) && !whole.includes(both.id), "a whole list still matches the list it equals");
   await assert.rejects(run({ kind: "decision", where: [], open: true }), (error: unknown) => error instanceof VerbRefusal && /--open/.test(error.message));
 });
+
+test("17.16 · library edit --live, run by a session holding an increment, edits a story, capability or contract live, writing no pending change on the increment, so the session corrects the live plan without letting its increment go (ADR-0966 D1's note)", async (t) => {
+  const storytree = await connect({ url: testServerUrl() });
+  const project = uniqueProjectName();
+  t.after(async () => {
+    try {
+      await storytree.dropProject(project);
+    } finally {
+      await storytree.close();
+    }
+  });
+  const library = await storytree.openProject(project);
+  const edit = LIBRARY_FAMILIES.find((one) => one.name === "library")!.verbs.find((one) => mounted(one.command) && one.command.name === "edit")!;
+  const story = await library.addStory({ title: "Sign up" });
+  const form = await library.addCapability({ story: story.id, title: "Form" });
+  const mail = await library.addCapability({ story: story.id, title: "Mail" });
+  const arc = await library.createArc({ title: "Launch", intent: "Ship sign-up", endState: "Visitors sign up" });
+  const increment = await library.addIncrement({ arc: arc.id, title: "Address form", objective: "Rename it", body: "Red then green" });
+  await library.advanceIncrement(increment.id, "active"); // as claiming it does
+  const context: LibraryVerbContext = {
+    library, project, session: "lane", folder: tmpdir(), writer: { actor: "session:lane" },
+    claims: async () => [{ session: "lane", increment: increment.id, since: "2026-11-03T00:00:00.000Z" }],
+    testedNumbers: async () => ({ tested: [], untested: [] }),
+  };
+  const pendingOf = async () => ((await library.get(increment.id))?.fields as { pending?: unknown[] }).pending ?? [];
+
+  const live = await edit.act({ "<id>": form.id, "<fields>": { dependsOn: mail.id }, live: true }, context, WORDS);
+  assert.doesNotMatch(live.text, /pending/, live.text);
+  assert.deepEqual(((await library.get(form.id))?.fields as { dependsOn?: string[] }).dependsOn, [mail.id], "the live capability is edited");
+  assert.deepEqual(await pendingOf(), [], "nothing waits on the increment");
+
+  await edit.act({ "<id>": form.id, "<fields>": { description: "Where they type it" }, live: false }, context, WORDS);
+  assert.equal((await pendingOf()).length, 1, "without --live the edit still waits on the increment");
+});

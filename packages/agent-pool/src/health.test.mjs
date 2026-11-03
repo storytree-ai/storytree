@@ -19,7 +19,7 @@ const green = (extra = {}) => ({
 });
 
 /** A lanes folder with a live dispatcher and its status lines, and the box's processes and GitHub faked. */
-async function box(t, { status = [], live = { 100: "node launch.mjs pool", 200: "node watch.mjs run" }, engines = 2, cap = 5, pulls = {} } = {}) {
+async function box(t, { status = [], live = { 100: "node launch.mjs pool", 200: "node watch.mjs run" }, engines = 2, cap = 5, pulls = {}, serviceOn = false } = {}) {
   const lanesDir = await mkdtemp(join(tmpdir(), "pool-health-"));
   t.after(() => rm(lanesDir, { recursive: true, force: true }));
   await mkdir(join(lanesDir, "watch"));
@@ -30,7 +30,7 @@ async function box(t, { status = [], live = { 100: "node launch.mjs pool", 200: 
   return {
     lanesDir, lines,
     b: { lanesDir, credentials: join(lanesDir, "no-credentials.json"), now: () => NOW, out: (line) => lines.push(line), argsOf: async (pid) => live[pid] ?? "",
-      count: async () => engines, maxLanes: async () => cap,
+      count: async () => engines, maxLanes: async () => cap, serviceOn: async () => serviceOn,
       pull: async (pr) => { if (!pulls[pr]) throw new Error("not found"); return pulls[pr]; } },
   };
 }
@@ -57,6 +57,14 @@ test("8.1 · a dispatcher not running is a concern unless the stop file says it 
   // A pid file left by a dead dispatcher, its pid now another program's, is no dispatcher.
   const reused = await box(t, { live: { 100: "vim notes.md", 200: "node watch.mjs run" } });
   assert.equal(await main([], reused.b), 1);
+
+  // Where the service host keeps the dispatcher, health says so, and a dispatcher down there points at its service.
+  const kept = await box(t, { serviceOn: true });
+  assert.equal(await main(["--all"], kept.b), 0);
+  assert.ok(kept.lines.includes("dispatcher: running (pid 100) under the service host's agent-pool/dispatcher"));
+  const held = await box(t, { live: { 200: "node watch.mjs run" }, serviceOn: true });
+  assert.equal(await main([], held.b), 1);
+  assert.match(held.lines[0], /^concern: dispatcher not running, and no pool-stop says that is on purpose; its service is on, so `storytree services` says why/);
 });
 
 test("8.2 · engines running are read against the cap, and over the cap is a concern", async (t) => {

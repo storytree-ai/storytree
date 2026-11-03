@@ -1,9 +1,11 @@
 // Capability 3 · The pool switch (3.23), which a cut-over to a new repository drains and resumes the pool with (process_761459dc626c B1, B9):
-// node packages/agent-pool/src/pause.mjs pause [--repo <owner/name>] [--wait-minutes <n>] (no new work; waits until no other lane runs and no pull request is in the merge queue, then says what is still open)
-// node packages/agent-pool/src/pause.mjs resume                                        (takes work again: the stop file goes, and the dispatcher's loop starts if it has ended)
-// node packages/agent-pool/src/pause.mjs status [--repo <owner/name>]
-import { execFile, spawn } from "node:child_process";
-import { existsSync, openSync } from "node:fs";
+// node --import tsx packages/agent-pool/src/pause.mjs pause [--repo <owner/name>] [--wait-minutes <n>] (no new work; waits until no other lane runs and no pull request is in the merge queue, then says what is still open)
+// node --import tsx packages/agent-pool/src/pause.mjs resume   (takes work again: the stop file goes, and the dispatcher's service, when on, starts it again)
+// node --import tsx packages/agent-pool/src/pause.mjs status [--repo <owner/name>]
+// What starts the dispatcher is the service host's agent-pool/dispatcher (services.mjs) where this machine's settings
+// turn it on, else whatever runs it on the machine (the laptop's scheduled task); pause and resume start no process.
+import { execFile } from "node:child_process";
+import { existsSync } from "node:fs";
 import { rm, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join, resolve } from "node:path";
@@ -33,12 +35,8 @@ export function lanesBeside(table, self = String(process.pid)) {
     .map(({ pid, args }) => ({ pid, args: args.slice(0, 120) }));
 }
 
-/**
- * Whether the box's dispatcher loop is alive in `table`: a shell running launch-pool.sh run itself, so a caller whose
- * command line only holds the text (`bash -c '… grep "launch-pool.sh run"; … resume'`, or that grep) is no loop. A lane
- * runs beneath the loop, so the caller's own ancestors are not left out.
- */
-export const loopRunning = (table) => rowsOf(table).some((row) => /^(?:\S*\/)?(?:ba)?sh\s+(?:\S*\/)?launch-pool\.sh\s+run\b/.test(row.args));
+/** The dispatcher's service, as this machine's settings name it (ADR-1216 D3). */
+export const DISPATCHER_SERVICE = "agent-pool/dispatcher";
 
 /** The pull requests in `repo`'s merge queue for main, as GitHub lists them. */
 export async function mergeQueue(repo) {
@@ -94,13 +92,14 @@ export async function pause({ stopFile, lanes, queue, open, handed, waitMs = 180
   }
 }
 
-/** `resume`: the stop file goes, and the dispatcher's loop is started when it has ended (a loop still draining starts the dispatcher again itself). */
-export async function resume({ stopFile, looping, startLoop, say = console.log }) {
+/** `resume`: the stop file goes; the dispatcher's service, when on, starts the dispatcher again, and nothing else is started. */
+export async function resume({ stopFile, serviceOn, say = console.log }) {
   const was = existsSync(stopFile);
   if (was) await rm(stopFile);
-  if (await looping()) { say(`${was ? "resumed" : "the pool was not paused"}: the dispatcher's loop is running and takes work again once its current dispatcher ends`); return 0; }
-  const pid = await startLoop();
-  say(`${was ? "resumed" : "the pool was not paused"}: started the dispatcher's loop (pid ${pid})`);
+  const head = was ? "resumed" : "the pool was not paused";
+  say(await serviceOn()
+    ? `${head}: the service host's ${DISPATCHER_SERVICE} starts the dispatcher again within its look, once any dispatcher still draining has ended`
+    : `${head}: the dispatcher's service is off on this machine, so the dispatcher takes work again only when what runs it here starts it; let the service host keep it with: storytree settings set service ${DISPATCHER_SERVICE} on`);
   return 0;
 }
 
@@ -109,13 +108,8 @@ function boxDefaults({ home = homedir(), env = process.env } = {}) {
   return {
     lanesDir, stopFile: join(lanesDir, "pool-stop"), repo: HOME,
     lanes: async () => lanesBeside(await ps()),
-    looping: async () => loopRunning(await ps()),
-    startLoop: async () => {
-      const out = openSync(join(lanesDir, "pool.runner.log"), "a");
-      const child = spawn("setsid", ["nohup", "bash", join(lanesDir, "launch-pool.sh"), "run"], { detached: true, stdio: ["ignore", out, out] });
-      child.unref();
-      return child.pid;
-    },
+    // Read only when asked, so reclone.mjs, which imports lanesBeside, still runs under plain node.
+    serviceOn: async () => (await import("@storytree/project-and-caller")).readServicesOn().includes(DISPATCHER_SERVICE),
     handed: () => handedOff(join(lanesDir, "watch")),
   };
 }
@@ -131,10 +125,10 @@ export async function main(args, box = {}) {
     return pause({ stopFile: b.stopFile, lanes: b.lanes, queue, open, handed: b.handed, say, sleep: b.sleep, now: b.now,
       ...(minutes === undefined ? {} : { waitMs: Number(minutes) * 60_000 }) });
   }
-  if (args[0] === "resume") return resume({ stopFile: b.stopFile, looping: b.looping, startLoop: b.startLoop, say });
+  if (args[0] === "resume") return resume({ stopFile: b.stopFile, serviceOn: b.serviceOn, say });
   if (args[0] === "status") {
     const running = await b.lanes(), queued = await queue().catch(() => undefined);
-    say(`pool: ${existsSync(b.stopFile) ? "paused" : "taking work"}; dispatcher loop ${await b.looping() ? "running" : "not running"}`);
+    say(`pool: ${existsSync(b.stopFile) ? "paused" : "taking work"}; the dispatcher's service is ${await b.serviceOn() ? "on (the service host keeps it running)" : "off on this machine"}`);
     say(`${running.length} other lane${running.length === 1 ? "" : "s"} running${running.length ? ` (${running.map((one) => one.pid).join(", ")})` : ""}`);
     say(queued === undefined ? "merge queue unread" : queued.length ? `in the merge queue: ${queued.map((one) => `#${one.number}`).join(", ")}` : "merge queue empty");
     await sayOpen({ open, handed: b.handed, say });

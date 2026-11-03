@@ -17,7 +17,7 @@ const snapshot: BoardSnapshot = {
 };
 const board = boardView(snapshot, [], new Date());
 
-test("3/4 lane rows hide queued chips until their blocker's caret opens, with downstream +N", () => {
+test("3.3 · lane rows hide queued chips until their blocker's caret opens, with downstream +N", () => {
   const closed = renderBoard(board, "build");
   assert.match(closed, /data-arc-queue="build"[^>]*aria-expanded="false"/);
   assert.doesNotMatch(closed, /data-arc-select="release"/);
@@ -28,7 +28,7 @@ test("3/4 lane rows hide queued chips until their blocker's caret opens, with do
   assert.doesNotMatch(opened, /Queued after this arc/);
 });
 
-test("3/5 the arc's card is rows you scan: a folded intent, a question per row with its status, and nothing of a question's prose until it is opened", () => {
+test("5.1 · the arc's card is rows you scan: a folded intent, a question per row with its status, and nothing of a question's prose until it is opened", () => {
   const list = renderCard(board, "build");
   assert.match(list, /<details class="arc-fold arc-intent-fold" data-fold-key="build:intent"><summary>Intent<\/summary>/);
   assert.match(list, /data-question-open="q"[^>]*>.*?Which release\?.*?arc-status-open[^>]*>open</s);
@@ -43,7 +43,7 @@ test("3/5 the arc's card is rows you scan: a folded intent, a question per row w
   assert.equal(renderCard(board, "gone"), "", "an arc no longer on the board opens no card");
 });
 
-test("3/5 the increments table follows the questions: a row per open increment opens in place to its detail, and landed ones fold behind one row", () => {
+test("5.5 · the increments table follows the questions: a row per open increment opens in place to its detail, and landed ones fold behind one row", () => {
   const work = (id: string, status: "proposal" | "closed" = "proposal") => record(id, "increment", { arc: "a", title: `Build ${id}`, objective: `Objective of ${id}`, body: "planning body", status, ...(status === "closed" ? { outcome: { date: "2026-09-20", disposition: "landed" as const, pr: "7" } } : {}) });
   const a = { arc: record("a", "arc", { title: "Arc a", intent: "a", endState: "Done" }), state: "active" as const, questions: [], increments: [work("l1", "closed"), work("l2", "closed"), work("o1")] };
   const panel = renderCard(boardView({ arcs: [a], heldOn: {}, waits: {} }, [], new Date()), "a");
@@ -53,7 +53,7 @@ test("3/5 the increments table follows the questions: a row per open increment o
   assert.doesNotMatch(panel, /planning body|<h4>Questions/, "an arc with no questions shows no questions section");
 });
 
-test("3/4 a queued lane's hourglass names what it waits on, and its chip under the blocker names the increment", () => {
+test("3.3 · a queued lane's hourglass names what it waits on, and its chip under the blocker names the increment", () => {
   const work = (id: string, arcId: string) => record(id, "increment", { arc: arcId, title: `Build ${id}`, objective: id, body: id, status: "proposal" });
   const arcs = ["lamp", "users", "cutover"].map((id) => ({ arc: record(id, "arc", { title: `Arc ${id}`, intent: id, endState: "Done" }), state: "active" as const, increments: [work(`${id}1`, id)], questions: [] }));
   const queued = boardView({ arcs, heldOn: {}, waits: {

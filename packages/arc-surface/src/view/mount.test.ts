@@ -250,3 +250,77 @@ test("3.20 · the picked arc's title stays selectable across a refresh that chan
   assert.deepEqual(copied, ["Stability & testing <rigour>"]);
   assert.equal(document.querySelector("[data-copy-arc-title]")?.textContent, "Copied");
 });
+
+test("3.1 · the Arcs tab's badge counts what waits on the owner across the active arcs, whatever scope is on show", async (t) => {
+  const page = new Window({ url: "https://storytree.test" });
+  const document = page.document as unknown as Document;
+  let surface: ReturnType<typeof mountArcSurface> | undefined;
+  const globals = { document: page.document, HTMLElement: page.HTMLElement, localStorage: page.localStorage };
+  const previous = new Map(Object.keys(globals).map((key) => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
+  for (const [key, value] of Object.entries(globals)) Object.defineProperty(globalThis, key, { configurable: true, value });
+  t.after(async () => {
+    surface?.stop();
+    for (const [key, descriptor] of previous) {
+      if (descriptor) Object.defineProperty(globalThis, key, descriptor);
+      else Reflect.deleteProperty(globalThis, key);
+    }
+    await page.happyDOM.abort();
+  });
+  const asking = (id: string, arc: string) => record(id, "question", { arc, title: id, lifecycle: "open", statement: "s", stakes: "s", context: "c", options: "o" });
+  const reads: BoardReads = {
+    changesSince: async () => ({ changes: [], cursor: 0 }),
+    linesSince: async () => ({ lines: [], cursor: 0 }),
+    boardArcs: async () => [
+      { arc: record("live", "arc", { title: "Live work", intent: "i", endState: "e" }), increments: [], questions: [asking("q1", "live")], state: "active" },
+      { arc: record("later", "arc", { title: "Later work", intent: "i", endState: "e" }), increments: [], questions: [asking("q2", "later"), asking("q3", "later")], state: "parked" },
+    ],
+    closedArcs: async () => [],
+    holds: async () => ({ waits: {}, heldOn: {} }),
+  };
+  page.localStorage.setItem("storytree.arc-surface.v1:p", JSON.stringify({ scope: "parked" }));
+  const waiting: number[] = [];
+  surface = mountArcSurface(document.body, { project: "p", reads, onWaiting: (count) => { waiting.push(count); }, timers: { now: () => Date.parse("2026-11-03T00:00:00Z"), every: () => () => {} } });
+  await settle();
+  assert.ok(document.querySelector('[data-arc-select="later"]'), "it opened on the kept Parked scope");
+  assert.deepEqual(waiting, [1], "the active arc's question, not the parked arc's two");
+  document.querySelector<HTMLButtonElement>('[data-arc-scope="closed"]')!.click();
+  await settle();
+  assert.deepEqual(waiting, [1], "another scope on show changes nothing");
+});
+
+test("5.2 · opening a question row swaps the card's briefing for its reading, and back to questions restores it, the row taking the focus", async (t) => {
+  const page = new Window({ url: "https://storytree.test" });
+  const document = page.document as unknown as Document;
+  let surface: ReturnType<typeof mountArcSurface> | undefined;
+  const globals = { document: page.document, HTMLElement: page.HTMLElement, localStorage: page.localStorage };
+  const previous = new Map(Object.keys(globals).map((key) => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
+  for (const [key, value] of Object.entries(globals)) Object.defineProperty(globalThis, key, { configurable: true, value });
+  t.after(async () => {
+    surface?.stop();
+    for (const [key, descriptor] of previous) {
+      if (descriptor) Object.defineProperty(globalThis, key, descriptor);
+      else Reflect.deleteProperty(globalThis, key);
+    }
+    await page.happyDOM.abort();
+  });
+  const question = record("q1", "question", { arc: "arc_1", title: "Which vendor?", lifecycle: "open", statement: "Pick the vendor for the board", stakes: "s", context: "c", options: "o" });
+  const reads: BoardReads = {
+    changesSince: async () => ({ changes: [], cursor: 0 }),
+    linesSince: async () => ({ lines: [], cursor: 0 }),
+    boardArcs: async () => [{ arc: record("arc_1", "arc", { title: "Ship the board", intent: "See the work", endState: "e" }), increments: [], questions: [question], state: "active" }],
+    closedArcs: async () => [],
+    holds: async () => ({ waits: {}, heldOn: {} }),
+  };
+  surface = mountArcSurface(document.body, { project: "p", reads, timers: { now: () => Date.parse("2026-11-03T00:00:00Z"), every: () => () => {} } });
+  await settle();
+  document.querySelector<HTMLButtonElement>('[data-arc-select="arc_1"]')!.click();
+  const card = document.querySelector<HTMLElement>(".arc-card")!;
+  card.querySelector<HTMLButtonElement>('[data-question-open="q1"]')!.click();
+  assert.match(card.textContent ?? "", /Pick the vendor for the board/);
+  assert.equal(card.querySelector("[data-question-open]"), null, "the reading replaces the briefing");
+  assert.equal(page.document.activeElement, card.querySelector("[data-question-back]"));
+  card.querySelector<HTMLButtonElement>("[data-question-back]")!.click();
+  assert.doesNotMatch(card.textContent ?? "", /Pick the vendor for the board/);
+  assert.equal(page.document.activeElement, card.querySelector('[data-question-open="q1"]'));
+  assert.equal(card.hidden, false, "the card stays open");
+});

@@ -134,3 +134,12 @@ export function boardView(snapshot: BoardSnapshot, log: readonly Line[] | LogRea
   }).sort((a, b) => (a.priority ?? Infinity) - (b.priority ?? Infinity) || rank[a.state] - rank[b.state] || b.lastActivity - a.lastActivity || a.id.localeCompare(b.id));
   return { scope, lanes, queues: arcQueues(lanes) };
 }
+
+/** What a lane waits on the owner for: its open questions, and its owner note waits that still hold. */
+export function ownerWaits(lane: Lane) {
+  return { questions: lane.view.questions.filter(({ fields }) => fields.lifecycle === "open"), owners: lane.noteWaits.filter(({ releaser }) => releaser === "owner") };
+}
+/** A lane's question-mark count: its open questions, and its owner note waits counted once per note. */
+export const ownerCount = (lane: Lane) => { const { questions, owners } = ownerWaits(lane); return questions.length + new Set(owners.map(({ note }) => note)).size; };
+/** What waits on the owner across the board's lanes, each lane's question-mark count summed: the Arcs tab's badge (3.1). */
+export const waitingOnYou = (board: BoardView) => board.lanes.reduce((sum, lane) => sum + ownerCount(lane), 0);

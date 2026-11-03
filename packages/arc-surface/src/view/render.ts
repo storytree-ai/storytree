@@ -3,7 +3,7 @@ import type { NoteWait } from "@storytree/library";
 import { pennantOutline, quietColour, sessionColour } from "@storytree/session-management/claim-mark";
 import type { BoardAgent } from "../agents/agents.js";
 import { briefing, incrementRows, type Briefing, type IncrementRow, type QuestionReading } from "../briefing/briefing.js";
-import type { Bar, BoardView, Lane, LaneNoteWait } from "../board/board.js";
+import { ownerCount, ownerWaits, type Bar, type BoardView, type Lane, type LaneNoteWait } from "../board/board.js";
 import { queueRun, type ArcQueue, type NamedWait, type WorkName } from "../waits/waits.js";
 
 export const escape = (text: string) => text.replace(/[&<>"']/gu, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char]!);
@@ -64,14 +64,6 @@ function renderMarks(lane: Lane): string {
     + mark("owner", `<span class="arc-mark-icon" aria-hidden="true">?</span>`, ownerCount(lane), [...questions.map(({ fields }) => `waiting on you: ${fields.title}`), ...owners.map(laneNoteText)]);
   return marks ? `<span class="arc-marks">${marks}</span>` : "";
 }
-/** What a lane waits on the owner for: its open questions, and its owner note waits that still hold. */
-function ownerWaits(lane: Lane) {
-  return { questions: lane.view.questions.filter(({ fields }) => fields.lifecycle === "open"), owners: lane.noteWaits.filter(({ releaser }) => releaser === "owner") };
-}
-/** A lane's question-mark count: its open questions, and its owner note waits counted once per note. */
-const ownerCount = (lane: Lane) => { const { questions, owners } = ownerWaits(lane); return questions.length + new Set(owners.map(({ note }) => note)).size; };
-/** What waits on the owner across the board's lanes, each lane's question mark summed: the Arcs tab's badge (3.1). */
-export const waitingOnYou = (board: BoardView) => board.lanes.reduce((sum, lane) => sum + ownerCount(lane), 0);
 function renderQueue(queue: ArcQueue, lanes: ReadonlyMap<string, Lane>, opened: string | undefined, expanded: ReadonlySet<string>): string {
   const lane = lanes.get(queue.arc.id)!;
   const open = expanded.has(lane.id);

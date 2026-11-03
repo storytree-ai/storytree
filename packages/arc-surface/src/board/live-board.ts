@@ -4,14 +4,13 @@ import type { Line } from "@storytree/library";
 import type { Kept } from "../live-reading/kept.js";
 import type { Timers } from "../live-reading/live-reading.js";
 import { pageReading, type PageReading } from "../live-reading/page-reading.js";
-import { boardView, type BoardScope, type BoardSnapshot, type BoardView } from "./board.js";
+import { boardView, waitingOnYou, type BoardScope, type BoardSnapshot, type BoardView } from "./board.js";
 import { covers, dayOf, recentWindow, windowOf, type ClosedRange } from "./closed-range.js";
 import { readBoard, type BoardReads } from "./reads.js";
 
 /** "refreshing": the kept last board, drawn before this start's first read lands. */
-export interface BoardState { status: "loading" | "refreshing" | "ready" | "error"; board?: BoardView; error?: string }
+export interface BoardState { status: "loading" | "refreshing" | "ready" | "error"; board?: BoardView; error?: string; /** What waits on the owner across the active arcs, whatever the scope on show (3.1). */ waiting?: number }
 export interface WatchBoardOptions { project: string; reads: BoardReads; timers?: Timers; kept?: Kept<BoardSnapshot>; /** The scope drawn first, so a kept board opens at the saved scope. */ scope?: BoardScope; onState(state: BoardState): void;
-  /** Whether the kept board was read fresh earlier on this page (a reopened drawer): it is drawn ready, not refreshing. */ keptFresh?: boolean;
   /** The Closed tab's range drawn first; Today unless given (3.12). */ closedRange?: ClosedRange;
   /** The page's one live reading, which the board hears; without it the board reads for itself. */ reading?: PageReading }
 
@@ -25,9 +24,9 @@ export function isBoardSnapshot(value: unknown): value is BoardSnapshot {
     && value.arcs.every((view) => isRecord(view) && isRecord(view.arc) && Array.isArray(view.increments) && Array.isArray(view.questions) && typeof view.state === "string");
 }
 
-export function watchBoard({ project, reads, timers, kept, scope: startScope = "active", onState, reading: page, keptFresh = false, closedRange = { preset: "today" } }: WatchBoardOptions) {
+export function watchBoard({ project, reads, timers, kept, scope: startScope = "active", onState, reading: page, closedRange = { preset: "today" } }: WatchBoardOptions) {
   let snapshot = kept?.read();
-  let fresh = keptFresh && snapshot !== undefined;
+  let fresh = false;
   let log: readonly Line[] | LogReading = [];
   let now = timers?.now() ?? Date.now();
   let scope: BoardScope = startScope;
@@ -64,7 +63,9 @@ export function watchBoard({ project, reads, timers, kept, scope: startScope = "
   };
   const draw = () => {
     if (stopped) return;
-    const board = snapshot ? { board: viewOf(snapshot) } : {};
+    const shown = snapshot ? viewOf(snapshot) : undefined;
+    const active = snapshot && scope !== "active" ? boardView(snapshot, log, new Date(now), "active", quietMs) : shown;
+    const board = shown && active ? { board: shown, waiting: waitingOnYou(active) } : {};
     onState(error ? { status: "error", ...board, error } : !snapshot ? { status: "loading" } : { status: fresh ? "ready" : "refreshing", ...board });
   };
   draw();

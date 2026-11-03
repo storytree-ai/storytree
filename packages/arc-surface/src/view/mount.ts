@@ -7,7 +7,7 @@ import type { ClosedRange } from "../board/closed-range.js";
 import type { ArcDrawn } from "../board/smoke.js";
 import type { Timers } from "../live-reading/live-reading.js";
 import type { PageReading } from "../live-reading/page-reading.js";
-import { copyIcon, renderBoard, renderCard, waitingOnYou } from "./render.js";
+import { copyIcon, renderBoard, renderCard } from "./render.js";
 import { readPreferences, writePreferences } from "./preferences.js";
 
 export interface ArcSurface { stop(): void }
@@ -63,10 +63,7 @@ export function mountArcSurface(host: HTMLElement, options: { project: string; r
     const lane = next.board.lanes.find(({ id }) => id === opened);
     if (!lane) { opened = undefined; question = undefined; }
     if (question && !lane?.view.questions.some(({ id }) => id === question)) question = undefined;
-    if (next.board.scope === "active") {
-      const count = waitingOnYou(next.board);
-      if (count !== waiting) { waiting = count; options.onWaiting?.(count); }
-    }
+    if (next.waiting !== undefined && next.waiting !== waiting) { waiting = next.waiting; options.onWaiting?.(waiting); }
     const focused = document.activeElement instanceof HTMLElement ? document.activeElement : undefined;
     const focusAttributes = ["data-arc-select", "data-arc-scope", "data-arc-queue", "data-closed-range", "data-question-open", "data-question-back"];
     const focusAttribute = focusAttributes.find((name) => focused?.hasAttribute(name));
@@ -105,7 +102,7 @@ export function mountArcSurface(host: HTMLElement, options: { project: string; r
     card.hidden = true;
     [...body.querySelectorAll<HTMLButtonElement>("[data-arc-select]")].find((button) => button.dataset.arcSelect === was)?.focus({ preventScroll: true });
   }
-  const watching = watchBoard({ ...options, kept: pageKept(`storytree.arc-surface.board.v1:${options.project}`, isBoardSnapshot), scope, keptFresh: false, closedRange, onState: draw });
+  const watching = watchBoard({ ...options, kept: pageKept(`storytree.arc-surface.board.v1:${options.project}`, isBoardSnapshot), scope, closedRange, onState: draw });
   const surface: ArcSurface = {
     stop() { watching.stop(); document.removeEventListener("keydown", onKey); sayDrawn(); root.remove(); },
   };

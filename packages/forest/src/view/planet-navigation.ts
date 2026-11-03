@@ -68,17 +68,9 @@ export function focusRotation(turn: GlobeTurn, eye: Quaternion): Quaternion {
   return eye.clone().multiply(new Quaternion().setFromEuler(new Euler(turn.pitch, turn.yaw, 0)));
 }
 
-type PaneRect = { left: number; right: number; top: number; bottom: number };
-
-/**
- * 3.11: where an edge marker sits in a canvas `size`, in its pixels: at its spot, kept 20px inside the canvas and
- * 20px above anything docked over the canvas's bottom edge under it (the Sessions strip), so nothing covers it.
- */
-export function markerSpot(at: { left: number; top: number }, size: { width: number; height: number }, docked: readonly PaneRect[]): { left: number; top: number } {
-  const left = Math.max(20, Math.min(size.width - 20, at.left));
-  const lowest = docked.reduce((limit, rect) =>
-    rect.bottom >= size.height && rect.left < left + 20 && rect.right > left - 20 ? Math.min(limit, rect.top - 20) : limit, size.height - 20);
-  return { left, top: Math.max(20, Math.min(lowest, at.top)) };
+/** 3.11: where an edge marker sits in a canvas `size`, in its pixels: at its spot, kept 20px inside the canvas. */
+export function markerSpot(at: { left: number; top: number }, size: { width: number; height: number }): { left: number; top: number } {
+  return { left: Math.max(20, Math.min(size.width - 20, at.left)), top: Math.max(20, Math.min(size.height - 20, at.top)) };
 }
 
 /** Pick the actual turned land. */

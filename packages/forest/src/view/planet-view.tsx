@@ -547,14 +547,8 @@ function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onCon
     // The compass turns with the sheet, read to a tenth of a degree.
     const reading = Math.round(compassNorth(heading.current, seesUnderside(tilt.current)) * 1800 / Math.PI);
     if (reading !== compass.current.reading) { compass.current.reading = reading; compass.current.follow?.(reading); }
-    // The Sessions strip is docked over the pane's bottom edge; a marker sits clear above it (3.11).
-    const box = gl.domElement.getBoundingClientRect();
-    const docked = hidden.length === 0 ? [] : [...gl.domElement.ownerDocument.querySelectorAll(".sessions-list")].map(strip => {
-      const rect = strip.getBoundingClientRect();
-      return { left: rect.left - box.left, right: rect.right - box.left, top: rect.top - box.top, bottom: rect.bottom - box.top };
-    });
     const next = hidden.map(marker => {
-      const spot = markerSpot(marker, size, docked);
+      const spot = markerSpot(marker, size);
       return { story: marker.story, turn: marker.turn, left: Math.round(spot.left), top: Math.round(spot.top) };
     });
     const key = JSON.stringify(next);

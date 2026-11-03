@@ -1,6 +1,6 @@
 /** Capability 3 · Story node render. The globe's nameplates and selection rings, drawn on each island's plate. */
 import { useFrame, useThree } from "@react-three/fiber";
-import { useEffect, useMemo, useRef, type CSSProperties } from "react";
+import { useMemo, useRef, type CSSProperties } from "react";
 import { DoubleSide, Quaternion, type Group } from "three";
 import type { Island } from "@storytree/forest";
 import { onIslandSurface, Overlay, plateTransform, type PlanetSpot } from "@storytree/forest-world/planet";
@@ -63,39 +63,10 @@ export function Nameplates({ island, spot, coast, radius, selected, dimmed = fal
   </>;
 }
 
-/** Fade the names that overlap another or the Sessions strip whenever the globe draws: no name moves to clear another (ADR-0917). */
+/** Fade the names that overlap another whenever the globe draws: no name moves to clear another (ADR-0917). */
 export function NameplateCrowd({ selected }: { selected: string | undefined }) {
   const gl = useThree(state => state.gl);
   const invalidate = useThree(state => state.invalidate);
-  const strip = useRef<HTMLElement | null>(null);
-  useEffect(() => {
-    const globe = gl.domElement.closest("[data-view='globe']");
-    const surface = globe?.parentElement;
-    if (surface == null) return;
-    const resize = new ResizeObserver(() => invalidate());
-    const refresh = () => {
-      const next = surface.querySelector<HTMLElement>(":scope > .sessions-list, :scope > * > .sessions-list");
-      if (next !== strip.current) {
-        resize.disconnect();
-        strip.current = next;
-        if (next !== null) resize.observe(next);
-      }
-      // The strip's sibling host is appended first; React mounts its aside afterwards.
-      mounted.disconnect();
-      mounted.observe(surface, { childList: true });
-      for (const child of surface.children) {
-        if (child !== globe) mounted.observe(child, { childList: true });
-      }
-      invalidate();
-    };
-    const mounted = new MutationObserver(refresh);
-    refresh();
-    return () => {
-      mounted.disconnect();
-      resize.disconnect();
-      strip.current = null;
-    };
-  }, [gl, invalidate]);
   useFrame(() => {
     const host = gl.domElement.parentElement;
     if (host === null) return;
@@ -104,8 +75,7 @@ export function NameplateCrowd({ selected }: { selected: string | undefined }) {
     const labels = [...host.querySelectorAll<HTMLElement>(".planet-nameplate[data-story-id]")];
     const shown = labels.filter(onScreen).map(label => ({ story: label.dataset.storyId!, box: label.getBoundingClientRect(),
       facing: Number(label.dataset.facing ?? 0), dimmed: label.dataset.dimmed !== undefined }));
-    const stripBox = strip.current?.getBoundingClientRect();
-    const faded = fadedPlates(shown, selected, stripBox && stripBox.width > 0 && stripBox.height > 0 ? stripBox : undefined);
+    const faded = fadedPlates(shown, selected);
     for (const label of labels) label.classList.toggle("crowded", faded.has(label.dataset.storyId!));
     // The overlays place the names after this pass in the same frame: once they have, a name judged where it no longer stands
     // (a jump with nothing drawn after it, as a reduced-motion step makes) is judged again on one more frame.

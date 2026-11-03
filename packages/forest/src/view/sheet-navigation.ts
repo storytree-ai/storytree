@@ -19,8 +19,10 @@ import type { ForestMode } from "./planet-navigation.js";
 
 /** Glass round the land on every side, in ground units. */
 const MARGIN = 24;
-/** CSS pixels of the window's height kept clear at the opening: the Sessions strip docked over the bottom, as much again at the top. */
-const CLEAR_HEIGHT = 170;
+/** CSS pixels kept clear above the sheet's north edge at the opening: the map's Stories / Library switch and its compass. */
+const CLEAR_TOP = 85;
+/** CSS pixels kept clear below its south edge, where nothing is docked over the map: room for the names hanging below the southmost islands. */
+const CLEAR_BOTTOM = 45;
 
 /** How wide and deep an island-less sheet's sea floor is, in ground units: with no land to set it, room for the user's factory's notes (3.63). */
 const BARE_FLOOR = 180;
@@ -114,19 +116,23 @@ function focal(size: { height: number }): number {
 
 /**
  * The view the sheet opens on, and Home returns to (D4), at the top resting tilt: its whole height framed in perspective,
- * clear of the Sessions strip, the north edge as far below the window's top as the south edge is above its bottom, from its
- * west edge, so the user scrolls east to follow the depth; a sheet narrower than the window sits in its middle.
+ * the north edge `CLEAR_TOP` below the window's top and the south edge `CLEAR_BOTTOM` above its bottom, from its west edge,
+ * so the user scrolls east to follow the depth; a sheet narrower than the window sits in its middle.
  * The perspective draws the near south half bigger than the far north half, so the middle of the view lies a little south
  * of the sheet's middle. At a `framing` asked for, the whole map is the same view zoomed: still from its west edge, or in the
  * middle once the sheet is narrower than the window (3.66).
  */
 export function sheetOpening(extent: SheetExtent, size: { width: number; height: number }, framing?: number): GlobePose {
-  const f = focal(size), half = Math.max(size.height - CLEAR_HEIGHT, 1) / 2, n = extent.height / 2;
-  const sin = Math.sin(SHEET_TILT), cos = Math.cos(SHEET_TILT), lean = half * sin / (f * cos);
-  // North of the middle of the view the sheet runs `far` units, south of it `near`; the eye stands `distance` off, or as far
-  // as a `framing` asked for puts it, with the middle of the view where the opening has it (3.66).
-  const far = n * (1 + lean), near = n * (1 - lean);
-  const zoom = framing === undefined ? f / (far * (f * cos - half * sin) / half) : Math.min(size.width, size.height) / (2 * framing * SHEET_RADIUS);
+  const f = focal(size), n = extent.height / 2;
+  // How far above and below the window's middle the north and south edges are drawn.
+  const above = Math.max(size.height / 2 - CLEAR_TOP, 0.5), below = Math.max(size.height / 2 - CLEAR_BOTTOM, 0.5);
+  const sin = Math.sin(SHEET_TILT), cos = Math.cos(SHEET_TILT);
+  // North of the middle of the view the sheet runs `far` units, south of it `near`, in the ratio that draws each edge where
+  // it is kept; the eye stands `distance` off, or as far as a `framing` asked for puts it, with the middle of the view where
+  // the opening has it (3.66).
+  const ratio = above * (f * cos + below * sin) / (below * (f * cos - above * sin));
+  const far = 2 * n * ratio / (1 + ratio), near = 2 * n / (1 + ratio);
+  const zoom = framing === undefined ? f / (far * (f * cos - above * sin) / above) : Math.min(size.width, size.height) / (2 * framing * SHEET_RADIUS);
   const distance = f / zoom, y = n - far;
   // The south-west corner, nearest the eye, comes to the window's left edge.
   const closest = distance - near * sin, x = extent.width * f / closest <= size.width ? 0 : -extent.width / 2 + size.width * closest / (2 * f);

@@ -47,6 +47,12 @@
 .arc-agent-mark { position: absolute; left: 3px; top: -11px; overflow: visible; pointer-events: none; }
 .arc-other-waits { color: var(--muted, #adb8b2); font-size: .68rem; }
 .arc-queue { display: flex; align-items: center; flex-wrap: wrap; gap: 5px; padding: 2px 14px 7px 27px; color: var(--muted, #adb8b2); font-size: .75rem; }
+/* What an arc's caret opens under its row (3.21): its questions, then its increments, then its queued arcs, indented under the title. */
+.arc-under { padding: 0 10px 7px 27px; font-size: .78rem; }
+.arc-under .arc-table + .arc-table { margin-top: 6px; }
+.arc-under .arc-row-button, .arc-under .arc-increment > summary { min-height: 26px; padding: 3px 4px; }
+.arc-under .arc-landed-fold { margin-top: 0; font-size: inherit; }
+.arc-under .arc-queue { padding: 6px 0 0; }
 .arc-queue-chip { display: inline-flex; align-items: center; gap: 4px; max-width: 30ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .72rem !important; background: transparent; border: 1px solid var(--line, #43504d); border-radius: 4px; padding: 1px 6px; }
 .arc-queue-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .arc-queue-more { flex: 0 0 auto; }

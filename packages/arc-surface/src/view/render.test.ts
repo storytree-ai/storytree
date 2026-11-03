@@ -138,3 +138,32 @@ test("3.3 each bar's hover names its note waits, and a bar whose check-back has 
   assert.doesNotMatch(bar("i4"), /check-back|waits for/);
   assert.doesNotMatch(bar("i1") + bar("i2"), /data-check-back-passed/);
 });
+
+test("3.21 · an arc row's caret opens under the row its questions, then its increments with the landed folded, then its queued arcs, never its intent; an arc with no questions shows only its increments", () => {
+  const work = (arcId: string, id: string, status: "proposal" | "closed" = "proposal") => record(id, "increment", { arc: arcId, title: `Build ${id}`, objective: `Objective of ${id}`, body: "planning body", status, ...(status === "closed" ? { outcome: { date: "2026-09-20", disposition: "landed" as const, pr: "7" } } : {}) });
+  const asking = (id: string, lifecycle: "open" | "settled") => record(id, "question", { arc: "a", title: `Ask ${id}`, lifecycle, statement: "s", stakes: "s", context: "c", options: "o" });
+  const arcs = [
+    { arc: record("a", "arc", { title: "Arc a", intent: "Intent of a", endState: "Done" }), state: "active" as const, questions: [asking("settled1", "settled"), asking("open1", "open")], increments: [work("a", "l1", "closed"), work("a", "o1")] },
+    { arc: record("b", "arc", { title: "Arc b", intent: "Intent of b", endState: "Done" }), state: "active" as const, questions: [], increments: [work("b", "b1")] },
+    { arc: record("c", "arc", { title: "Arc c", intent: "Intent of c", endState: "Done" }), state: "active" as const, questions: [], increments: [work("c", "c1")] },
+  ];
+  const shown = boardView({ arcs, heldOn: {}, waits: { c1: [{ on: "o1", reason: "after o1", forGood: false }] } }, [], new Date());
+  const closed = renderBoard(shown);
+  assert.match(rowOf(closed, "b"), /data-arc-queue="b"[^>]*aria-expanded="false"/, "an arc with increments and nothing queued has a caret");
+  assert.doesNotMatch(closed, /data-rail-question|arc-increment/, "nothing opens until the caret does");
+  const opened = renderBoard(shown, undefined, new Set(["a", "b"]));
+  const a = rowOf(opened, "a"), b = rowOf(opened, "b");
+  assert.match(a, /data-arc-queue="a"[^>]*aria-expanded="true"/);
+  assert.match(a, /data-arc-queue="a"[^>]*aria-label="Hide 2 questions, 2 increments, 1 queued arc under Arc a"/, "the caret names what it opens, each counted");
+  assert.match(b, /data-arc-queue="b"[^>]*aria-label="Hide 1 increment under Arc b"/);
+  assert.ok(a.indexOf('data-rail-question="open1"') < a.indexOf('data-rail-question="settled1"'), "open questions first");
+  assert.match(a, /data-rail-question="open1"[^>]*data-question-arc="a"/, "a question's row names its arc, so it can open that arc's card");
+  assert.ok(a.indexOf('data-rail-question="settled1"') < a.indexOf("rail:a:increment:o1"), "questions before increments");
+  assert.match(a, /<details class="arc-fold arc-landed-fold" data-fold-key="rail:a:landed"><summary>1 landed<\/summary>.*?data-fold-key="rail:a:increment:l1"/s);
+  assert.ok(a.indexOf("rail:a:increment:o1") < a.indexOf("rail:a:landed"), "open work before the landed fold");
+  assert.ok(a.indexOf("rail:a:landed") < a.indexOf('data-arc-select="c"'), "the queued arcs come last");
+  assert.doesNotMatch(opened, /Intent of|planning body/, "no intent and no planning body");
+  assert.doesNotMatch(b, /data-rail-question/, "an arc with no questions shows only its increments");
+  assert.match(b, /rail:b:increment:b1/);
+  assert.doesNotMatch(a.replace(/<span class="arc-track.*?<\/span><\/span>/s, ""), /data-increment-id/, "the rows under an arc are not drawn bars");
+});

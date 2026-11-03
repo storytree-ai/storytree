@@ -324,3 +324,51 @@ test("5.2 · opening a question row swaps the card's briefing for its reading, a
   assert.equal(page.document.activeElement, card.querySelector('[data-question-open="q1"]'));
   assert.equal(card.hidden, false, "the card stays open");
 });
+
+test("3.21 · a question's row under an opened arc opens that arc's card on the question, and the opened caret and its folds survive the live redraw", async (t) => {
+  const page = new Window({ url: "https://storytree.test" });
+  const document = page.document as unknown as Document;
+  let surface: ReturnType<typeof mountArcSurface> | undefined;
+  const globals = { document: page.document, HTMLElement: page.HTMLElement, localStorage: page.localStorage };
+  const previous = new Map(Object.keys(globals).map((key) => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
+  for (const [key, value] of Object.entries(globals)) Object.defineProperty(globalThis, key, { configurable: true, value });
+  t.after(async () => {
+    surface?.stop();
+    for (const [key, descriptor] of previous) {
+      if (descriptor) Object.defineProperty(globalThis, key, descriptor);
+      else Reflect.deleteProperty(globalThis, key);
+    }
+    await page.happyDOM.abort();
+  });
+  const question = record("q1", "question", { arc: "arc_1", title: "Which vendor?", lifecycle: "open", statement: "Pick the vendor for the board", stakes: "s", context: "c", options: "o" });
+  const work = record("i1", "increment", { arc: "arc_1", title: "Build the board", objective: "A board", body: "b", status: "proposal" });
+  let title = "Ship the board";
+  const arc = () => record("arc_1", "arc", { title, intent: "See the work", endState: "e" });
+  const reads: BoardReads = {
+    changesSince: async () => ({ changes: [], cursor: 0 }),
+    linesSince: async () => ({ lines: [], cursor: 0 }),
+    boardArcs: async () => [{ arc: arc(), increments: [work], questions: [question], state: "active" }],
+    closedArcs: async () => [],
+    holds: async () => ({ waits: {}, heldOn: {} }),
+  };
+  const ticks: (() => void)[] = [];
+  surface = mountArcSurface(document.body, { project: "p", reads, timers: { now: () => Date.parse("2026-11-03T00:00:00Z"), every: (_ms, tick) => { ticks.push(tick); return () => {}; } } });
+  await settle();
+  document.querySelector<HTMLButtonElement>('[data-arc-queue="arc_1"]')!.click();
+  const fold = document.querySelector<HTMLDetailsElement>('details[data-fold-key="rail:arc_1:increment:i1"]')!;
+  fold.open = true;
+  fold.dispatchEvent(new page.Event("toggle") as unknown as Event);
+  const card = document.querySelector<HTMLElement>(".arc-card")!;
+  assert.equal(card.hidden, true, "the caret opens no card");
+  document.querySelector<HTMLButtonElement>('[data-rail-question="q1"]')!.click();
+  assert.equal(card.hidden, false);
+  assert.match(card.textContent ?? "", /Pick the vendor for the board/, "the card opens on that question's reading");
+  assert.equal(page.document.activeElement, card.querySelector("[data-question-back]"), "the focus goes to the reading's way back");
+  title = "Ship the whole board";
+  reads.changesSince = async () => ({ changes: [{ seq: 1, recordId: "arc_1", type: "arc", action: "updated" as const, record: arc() }], cursor: 1 });
+  for (const tick of ticks) tick();
+  await settle(); await settle();
+  assert.match(document.querySelector('[data-arc-select="arc_1"]')!.textContent ?? "", /Ship the whole board/, "the rail was drawn again");
+  assert.equal(document.querySelector('[data-arc-queue="arc_1"]')!.getAttribute("aria-expanded"), "true", "the caret is still open after the redraw");
+  assert.equal(document.querySelector<HTMLDetailsElement>('details[data-fold-key="rail:arc_1:increment:i1"]')!.open, true, "and so is its increment row");
+});

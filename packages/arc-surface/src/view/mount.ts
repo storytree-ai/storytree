@@ -65,7 +65,7 @@ export function mountArcSurface(host: HTMLElement, options: { project: string; r
     if (question && !lane?.view.questions.some(({ id }) => id === question)) question = undefined;
     if (next.waiting !== undefined && next.waiting !== waiting) { waiting = next.waiting; options.onWaiting?.(waiting); }
     const focused = document.activeElement instanceof HTMLElement ? document.activeElement : undefined;
-    const focusAttributes = ["data-arc-select", "data-arc-scope", "data-arc-queue", "data-closed-range", "data-question-open", "data-question-back"];
+    const focusAttributes = ["data-arc-select", "data-arc-scope", "data-arc-queue", "data-closed-range", "data-question-open", "data-question-back", "data-rail-question"];
     const focusAttribute = focusAttributes.find((name) => focused?.hasAttribute(name));
     const focusKey = focusAttribute ? focused?.getAttribute(focusAttribute) : undefined;
     const focusedFold = focused?.tagName === "SUMMARY" ? focused.parentElement?.dataset.foldKey : undefined;
@@ -128,8 +128,11 @@ export function mountArcSurface(host: HTMLElement, options: { project: string; r
       if (queues.has(id)) queues.delete(id); else queues.add(id);
       if (state) draw(state);
     }
-    if (button.dataset.questionOpen) {
-      question = button.dataset.questionOpen;
+    // 3.21: a question's row under an arc opens that arc's card on the question, as the card's own row opens it.
+    if (button.dataset.railQuestion) opened = button.dataset.questionArc;
+    const asked = button.dataset.questionOpen ?? button.dataset.railQuestion;
+    if (asked) {
+      question = asked;
       if (state) draw(state);
       card.querySelector<HTMLButtonElement>("[data-question-back]")?.focus({ preventScroll: true });
     }

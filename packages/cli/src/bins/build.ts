@@ -11,6 +11,7 @@ import { buildLauncher, LAUNCHER_PROGRAM, partsFromList, stageNativeProbes } fro
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { build } from "esbuild";
+import { embedTreeSitterWasm } from "@storytree/map/tree-sitter-bundle";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 
@@ -35,8 +36,9 @@ export async function buildCommand(outdir: string): Promise<string> {
     banner: { js: 'import { createRequire as __storytreeRequire } from "node:module"; const require = __storytreeRequire(import.meta.url);' },
     external: ["koffi", "pg-native", "pg-cloudflare", "cloudflare:sockets", "@huggingface/transformers"],
     // The parts storytree's own story packages name in their manifests, packed for each host package it holds from the
-    // parts list Plugin loader writes for it, as Setup's builds do (ADR-1021).
-    plugins: [partsFromList()],
+    // parts list Plugin loader writes for it, as Setup's builds do (ADR-1021); and tree-sitter's wasm, which the code
+    // survey parses Python with (map 8.48).
+    plugins: [partsFromList(), embedTreeSitterWasm()],
   });
   await stageNativeProbes(outdir);
   // On Windows the command a setup check puts on the path is a program built beside this script (ADR-0854).

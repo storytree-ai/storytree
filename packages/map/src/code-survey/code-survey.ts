@@ -174,10 +174,10 @@ function proofTitles(titles: readonly string[]): SurveyedTest["titles"] {
 /** The opening comment's "Capability N · …", after a shebang: a comment that begins with it, before any code. */
 const DECLARED = /^(?:#![^\n]*\n)?\s*(?:\/\*+|\/\/)[\s*]*Capability\s+(\d+)\s*·[ \t]*([^\n]*)/;
 
-/** The capability number a source file declares in its opening comment (ADR-0925 D1), if any. */
-export const declarationOf = (text: string): number | undefined => {
+/** The capability a source file declares in its opening comment (ADR-0925 D1), if any: its number and the words after the dot. */
+export const declarationOf = (text: string): { number: number; title: string } | undefined => {
   const match = DECLARED.exec(text);
-  return match === null ? undefined : Number(match[1]);
+  return match === null ? undefined : { number: Number(match[1]), title: match[2]! };
 };
 
 /**
@@ -185,8 +185,8 @@ export const declarationOf = (text: string): number | undefined => {
  * the dot begin with the title's, in any case. A file moved from another story keeps the header naming that story's
  * capability, whose number here names another (8.29).
  */
-export const declaresTitle = (text: string, title: string): boolean => {
-  const named = DECLARED.exec(text)?.[2]?.toLowerCase();
+export const declaresTitle = (file: SourceFile, title: string): boolean => {
+  const named = readerOf(file.path)?.declarationOf(file.text)?.title.toLowerCase();
   const own = title.replace(/^\s*\d+\s*·\s*/, "").toLowerCase();
   return named !== undefined && named.startsWith(own);
 };
@@ -198,7 +198,7 @@ export const declaresTitle = (text: string, title: string): boolean => {
 export function declaredNumberOf(file: SourceFile, ownPackage?: string | readonly string[]): number | undefined {
   if (!isCodeFile(file.path)) return undefined;
   const reader = readerOf(file.path)!;
-  if (!reader.tests.test(file.path)) return reader.declarationOf(file.text);
+  if (!reader.tests.test(file.path)) return reader.declarationOf(file.text)?.number;
   const numbers = new Set(reader.titlesOf(file).flatMap((title) => {
     const named = NUMBERED_TITLE.exec(title);
     return named === null || !ownPrefix(named[1], ownPackage) ? [] : [Number(named[2])];
@@ -394,6 +394,16 @@ const READERS: readonly LanguageReader[] = [javascriptReader, pythonReader];
 /** The reader of the language a file at `path` is in, if the survey reads it. */
 const readerOf = (path: string): LanguageReader | undefined => READERS.find((reader) => reader.files.test(path));
 
+/** Loads what the readers of `paths`' languages need before the survey reads them (tree-sitter's grammar for Python), each once. */
+export async function readersReady(paths: Iterable<string>): Promise<void> {
+  const readers = new Set<LanguageReader>();
+  for (const path of paths) {
+    const reader = readerOf(path);
+    if (reader?.ready !== undefined) readers.add(reader);
+  }
+  await Promise.all([...readers].map((reader) => reader.ready!()));
+}
+
 /** Whether the survey reads the file at `path`, as code or as a file no code of its own (a declaration file). */
 export const readsFile = (path: string): boolean => readerOf(path) !== undefined;
 
@@ -514,7 +524,7 @@ export function surveyStory(tree: readonly SourceFile[], capabilities: readonly 
   const sources = code.filter((file) => !isTestCode(file));
   const files = sources.map((file): SurveyedFile => {
     const tally = [...(reach.get(file.path) ?? [])].sort(([a, near], [b, far]) => near.depth - far.depth || far.count - near.count || a - b);
-    const declared = readerOf(file.path)!.declarationOf(file.text);
+    const declared = readerOf(file.path)!.declarationOf(file.text)?.number;
     const reachedBy = tally.map(([number]) => number).sort((a, b) => a - b);
     const owner = declared !== undefined && reachedBy.includes(declared) ? declared : tally[0]?.[0];
     const capability = owner === undefined ? undefined : byNumber.get(owner);

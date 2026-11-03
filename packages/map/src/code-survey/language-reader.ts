@@ -40,6 +40,8 @@ export interface LanguageReader {
   edgesOf(file: SourceFile, paths: ReadonlySet<string>, packages: readonly SurveyPackage[]): Edge[];
   /** Whether a file registers tests itself, so a test file that runs it carries the titles it registers. */
   registersTests(file: SourceFile): boolean;
-  /** The capability number a source file's text declares in its opening comment (ADR-0925 D1), if any. */
-  declarationOf(text: string): number | undefined;
+  /** The capability a source file's text declares in its opening comment (ADR-0925 D1), its number and the words after the dot; if any. */
+  declarationOf(text: string): { readonly number: number; readonly title: string } | undefined;
+  /** Loads what reading this language's files needs (a grammar), once: awaited before the survey reads one. */
+  ready?(): Promise<void>;
 }

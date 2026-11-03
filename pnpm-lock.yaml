@@ -685,6 +685,9 @@ importers:
       '@babel/parser':
         specifier: ^7.29.9
         version: 7.29.9
+      smol-toml:
+        specifier: 1.9.1
+        version: 1.9.1
       tree-sitter-python:
         specifier: 0.25.0
         version: 0.25.0

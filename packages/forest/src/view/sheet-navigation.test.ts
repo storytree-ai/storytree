@@ -78,8 +78,9 @@ test("3.52 on the glass sheet the eye rests at a tabletop tilt from above, the n
   const opening = sheetOpening(extent, size);
   const opened = eye(opening, extent), middle = sheetCentre(opening.turn);
   const north = opened.screen({ x: middle.x, y: extent.height / 2 }), south = opened.screen({ x: middle.x, y: -extent.height / 2 });
-  // The Sessions strip's 170 px are kept clear, half at the top and half at the bottom.
-  assert.ok(Math.abs(north.y - 85) < 1 && Math.abs(south.y - (size.height - 85)) < 1, `the sheet's whole height fills the window (${north.y.toFixed(1)} to ${south.y.toFixed(1)})`);
+  // Nothing is docked over the map's bottom: 85 px are kept at the top, clear of the Stories / Library switch and the compass,
+  // and only 45 px at the bottom, room for the names that hang below the southmost islands.
+  assert.ok(Math.abs(north.y - 85) < 1 && Math.abs(south.y - (size.height - 45)) < 1, `the sheet's whole height fills the window (${north.y.toFixed(1)} to ${south.y.toFixed(1)})`);
   assert.ok(middle.y < 0, "the nearer south half drawn bigger, the middle of the view lies south of the sheet's middle");
   const southWest = opened.screen({ x: -extent.width / 2, y: -extent.height / 2 }), northWest = opened.screen({ x: -extent.width / 2, y: extent.height / 2 });
   assert.ok(Math.abs(southWest.x) < 1 && northWest.x > 0, `the whole west edge in view, its nearest corner at the window's left (${southWest.x.toFixed(2)} px)`);
@@ -204,7 +205,7 @@ test("3.11 on the glass sheet a failing island past the window's edge gets a mar
   assert.equal(rest.length, 0);
   assert.equal(marker!.story, "s11");
   const at11 = opened.screen(where("s11"));
-  const spot = markerSpot(marker!, size, []);
+  const spot = markerSpot(marker!, size);
   assert.equal(spot.left, size.width - 20, "at the window's right edge, the edge nearest the island");
   assert.ok(Math.abs(spot.top - at11.y) < 0.5, "level with where it is drawn");
   assert.deepEqual(sheetMarkers(failing("s11"), drawn, size, "library"), [], "in Library, where the islands are outlines over the knowledge, none is marked (ADR-0660 D4)");

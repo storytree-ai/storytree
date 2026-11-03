@@ -56,7 +56,7 @@ test("3.32 selecting a story shows one capability nameplate per territory, named
   }
 });
 
-test("3.31 where two story names overlap on screen, the less face-on one fades and neither moves; the selected name always shows, a dimmed one yields, and a name under the Sessions strip fades", () => {
+test("3.31 where two story names overlap on screen, the less face-on one fades and neither moves; the selected name always shows, and a dimmed one yields", () => {
   const box = (left: number, top: number) => ({ left, top, right: left + 120, bottom: top + 20 });
   // As storytree's own globe showed them: The local database's plate over Process ledger's, both islands near the rim.
   const rim = [
@@ -74,11 +74,6 @@ test("3.31 where two story names overlap on screen, the less face-on one fades a
   const pair = [{ story: "a", box: box(0, 0), facing: 0.2 }, { story: "b", box: box(10, 5), facing: 0.9 }];
   assert.deepEqual([...fadedPlates(pair, "a")], ["b"], "the selected story's name shows, however edge-on");
   assert.deepEqual([...fadedPlates([{ ...pair[1]!, dimmed: true }, pair[0]!])], ["b"], "a dimmed name yields to a name in focus");
-  const library = { story: "library", box: { left: 660, right: 760, top: 897, bottom: 916 }, facing: 0.7 };
-  for (const selected of [undefined, "library"]) {
-    assert.deepEqual([...fadedPlates([library], selected, { left: 0, right: 1440, top: 886, bottom: 960 })], ["library"], "a name under the strip fades rather than lifting");
-  }
-  assert.deepEqual([...fadedPlates([library], undefined, { left: 0, right: 600, top: 886, bottom: 960 })], [], "a strip narrowed beside a story panel fades no name outside its width");
 });
 
 test("3.33 where a selected island's capability names overlap, the smaller territory's fades", () => {

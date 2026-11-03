@@ -94,15 +94,11 @@ test("3.11 the edge marker reads storytree's verified word, never the agent's re
   assert.deepEqual(sheetMarkers(layout.islands, pastTheEdge, { width: 1440, height: 900 }).map(m => m.story), ["verified"]);
 });
 
-test("3.11 an edge marker keeps clear above what is docked over the canvas's bottom edge, so the Sessions strip never covers it", () => {
+test("3.11 an edge marker is kept 20px inside the canvas, and one already inside stays where it is", () => {
   const size = { width: 1440, height: 920 };
-  const strip = { left: 0, right: 1440, top: 884, bottom: 920 };
-  assert.deepEqual(markerSpot({ left: 720, top: 930 }, size, []), { left: 720, top: 900 }, "with nothing docked it stays 20px inside the canvas");
-  assert.deepEqual(markerSpot({ left: 720, top: 930 }, size, [strip]), { left: 720, top: 864 }, "it sits 20px above the strip");
-  assert.deepEqual(markerSpot({ left: 720, top: 400 }, size, [strip]), { left: 720, top: 400 }, "a marker clear of the strip does not move");
-  const panel = { left: 0, right: 600, top: 884, bottom: 920 };
-  assert.deepEqual(markerSpot({ left: 900, top: 930 }, size, [panel]), { left: 900, top: 900 }, "a strip that does not reach under the marker leaves it");
-  assert.deepEqual(markerSpot({ left: -5, top: 930 }, size, [{ left: 0, right: 1440, top: 400, bottom: 600 }]), { left: 20, top: 900 }, "only what reaches the bottom edge counts");
+  assert.deepEqual(markerSpot({ left: 720, top: 930 }, size), { left: 720, top: 900 }, "past the bottom it stays 20px inside the canvas");
+  assert.deepEqual(markerSpot({ left: -5, top: -40 }, size), { left: 20, top: 20 }, "past the top-left corner it comes 20px inside both edges");
+  assert.deepEqual(markerSpot({ left: 720, top: 400 }, size), { left: 720, top: 400 }, "a marker inside the canvas does not move");
 });
 
 test("3.66 the zoom a stop at the whole map frames it at: 1.18 radii across half the short side by default; close up fills more, room around less (ADR-0750)", () => {

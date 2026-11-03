@@ -886,7 +886,7 @@
 @media (prefers-reduced-motion: reduce) { .planet-nameplate { transition:none; } }
 /* A story's plate wraps its title to STORY_PLATE_WIDTH (set where it is drawn), balanced and centred under its island. */
 .planet-nameplate:not(.capability) { width:max-content; white-space:normal; text-wrap:balance; text-align:center; line-height:1.15; border-radius:0.6rem; }
-/* A name that overlaps a more face-on one, a larger territory's or the Sessions strip fades where it is; it never moves (ADR-0917). */
+/* A name that overlaps a more face-on one or a larger territory's fades where it is; it never moves (ADR-0917). */
 .planet-nameplate.crowded { opacity:0; }
 /* A capability's name wraps by word to two lines at most, an ellipsis past them; its full name and description read on hover (3.32). */
 .planet-nameplate.capability { transform:none; display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden; width:max-content; max-width:120px; white-space:normal; text-wrap:balance; text-align:center; line-height:1.15; border-radius:0.6rem; padding:0.1rem 0.45rem; font-size:0.7rem; font-weight:500; background:rgb(16 20 24 / 0.62); }

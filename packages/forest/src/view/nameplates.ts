@@ -30,11 +30,11 @@ export const NAME_OVERLAP_SLACK = 4;
 const overlaps = (box: Box, other: Box) => box.left + NAME_OVERLAP_SLACK < other.right && other.left + NAME_OVERLAP_SLACK < box.right
   && box.top + NAME_OVERLAP_SLACK < other.bottom && other.top + NAME_OVERLAP_SLACK < box.bottom;
 
-/** Taken in order, each name shows if it clears the names already shown and the strip; the rest fade. A faded name fades no other. */
-function fadeOverlaps<T extends { box: Box }>(ordered: readonly T[], strip?: Box): T[] {
+/** Taken in order, each name shows if it clears the names already shown; the rest fade. A faded name fades no other. */
+function fadeOverlaps<T extends { box: Box }>(ordered: readonly T[]): T[] {
   const shown: Box[] = [], faded: T[] = [];
   for (const name of ordered) {
-    if ((strip !== undefined && overlaps(name.box, strip)) || shown.some(other => overlaps(name.box, other))) faded.push(name);
+    if (shown.some(other => overlaps(name.box, other))) faded.push(name);
     else shown.push(name.box);
   }
   return faded;
@@ -43,17 +43,17 @@ function fadeOverlaps<T extends { box: Box }>(ordered: readonly T[], strip?: Box
 /**
  * Which story names fade where names overlap on screen (ADR-0917): no name moves off its island to clear another. The selected
  * story's shows first, then the names not dimmed, each the more squarely its island faces the eye the sooner; a name that would
- * overlap one already shown fades. A name under the Sessions strip fades, the selected one too, rather than lifting above it.
+ * overlap one already shown fades.
  */
-export function fadedPlates(plates: readonly ShownPlate[], selected?: string, strip?: Box): Set<string> {
+export function fadedPlates(plates: readonly ShownPlate[], selected?: string): Set<string> {
   const order = [...plates].sort((a, b) => Number(b.story === selected) - Number(a.story === selected)
     || Number(a.dimmed ?? false) - Number(b.dimmed ?? false) || b.facing - a.facing);
-  return new Set(fadeOverlaps(order, strip).map(plate => plate.story));
+  return new Set(fadeOverlaps(order).map(plate => plate.story));
 }
 
 /** Which of a selected island's capability names fade where they overlap on screen: the larger territory's name shows (ADR-0917). */
 export function fadedCapabilities(names: readonly { capability: string; box: Box; size: number }[]): Set<string> {
-  return new Set(fadeOverlaps([...names].sort((a, b) => b.size - a.size), undefined).map(name => name.capability));
+  return new Set(fadeOverlaps([...names].sort((a, b) => b.size - a.size)).map(name => name.capability));
 }
 
 /** The globe's south as it lies on a plate turned by `plate` on the unturned globe: the way to its south pole along the surface, in the plate's own ground (x, z). */

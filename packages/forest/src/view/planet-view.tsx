@@ -23,6 +23,8 @@ import { growLand, shownSurfaces as surfacesFor, TerritoryDrawOn, type GlobeSurf
 export type PlanetViewProps = {
   /** Receives the app-owned controls while the map is mounted. */
   onControls?: ((controls: PlacedGlobeControls | undefined) => void) | undefined;
+  /** Hears each scene once a frame showing it has been painted (3.75). */
+  onPainted?: ((scene: ForestScene) => void) | undefined;
   /** Every surface is shown by default, with territories coloured by health. */
   surfaces?: Partial<GlobeSurfaces> | undefined;
   /** Move the sheet right by this many CSS pixels, leaving its turn unchanged. */
@@ -58,7 +60,7 @@ export type PlanetViewProps = {
 
 /** The forest drawn on the glass sheet, depth running west to east (ADR-1043): the user tilts it from above to below
  * (ADR-1062 D2); `mode` changes only its look, never the eye (D3). */
-export function PlanetView({ core, scene, places, wisps: live, selected, highlighted, onPick, onNote, mode = "forest", framing, sideOffset, aside = 0, surfaces, onControls, library = true, frame, easeMoves = false, growth, liveRoads = false, recordedSessions }: PlanetViewProps) {
+export function PlanetView({ core, scene, places, wisps: live, selected, highlighted, onPick, onNote, mode = "forest", framing, sideOffset, aside = 0, surfaces, onControls, onPainted, library = true, frame, easeMoves = false, growth, liveRoads = false, recordedSessions }: PlanetViewProps) {
   // In the glass sheet's Library the glass is clear and the islands hollow outlines with their names over the knowledge, from
   // every angle (ADR-1061 D2, ADR-1062 D3): the button pressed decides, never the side the eye is on.
   const outlines = mode === "library";
@@ -134,6 +136,7 @@ export function PlanetView({ core, scene, places, wisps: live, selected, highlig
       showFailures={shownSurfaces.grounds || shownSurfaces.territories !== false || shownSurfaces.nameplates || shownSurfaces.roads} />
     <NameplateCrowd selected={selected} />
     <CompiledAtLoad />
+    {onPainted !== undefined && <PaintedReport scene={scene} onPainted={onPainted} />}
     {growth !== undefined && recordedSessions !== undefined && <ReplaySessions recorded={recordedSessions} onWisps={setReplayed} />}
   </PlanetWorldCanvas>;
 }
@@ -145,6 +148,22 @@ function CompiledAtLoad() {
     const frame = requestAnimationFrame(() => gl.compile(scene, camera));
     return () => cancelAnimationFrame(frame);
   }, [gl, scene, camera]);
+  return null;
+}
+
+/**
+ * 3.75: tells the host once a frame showing `scene` has been painted. A new scene asks for a frame, so a scene that changes no
+ * object still gets one; the report waits for the frame's render, which runs after every frame callback in the same task.
+ */
+function PaintedReport({ scene, onPainted }: { scene: ForestScene; onPainted: (scene: ForestScene) => void }) {
+  const invalidate = useThree(state => state.invalidate);
+  const reported = useRef<ForestScene>(undefined);
+  useEffect(() => { invalidate(); }, [scene, invalidate]);
+  useFrame(() => {
+    if (reported.current === scene) return;
+    reported.current = scene;
+    queueMicrotask(() => onPainted(scene));
+  });
   return null;
 }
 

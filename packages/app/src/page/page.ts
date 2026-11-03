@@ -29,6 +29,8 @@ export type ForestSelection = { kind: "story"; id: string; capability?: string }
 /** The forest's globe (the forest's openForestView), the little of it the page drives. */
 export interface ForestGlobe {
   show(scene: ForestScene, places: ReadonlyMap<string, number>): void;
+  /** Resolves once the globe has painted a frame of the scene on show. */
+  drawn(): Promise<void>;
   select(story: string | undefined): void;
   dispose(): void;
 }
@@ -286,7 +288,11 @@ export function openProjectPage<View extends ForestGlobe>(parts: PageParts<View>
         startMark("forest first fresh draw");
       },
       onError: failed,
-      onSettled: () => { if (showing === mine) status.showProgress(false); },
+      // A kept start is settled only once the globe has painted what is on show after the fresh tree, never before the globe
+      // is on screen (3.49; the owner's ruling on question_f1589345683f, which moved open-app-kept's baseline for it).
+      onSettled: () => {
+        void (last === undefined ? Promise.resolve() : view.drawn()).then(() => { if (showing === mine) status.showProgress(false); });
+      },
     };
     mine.reading = project.reading(drawnWith === undefined ? reading : { ...reading, survey: drawnWith.survey });
   };

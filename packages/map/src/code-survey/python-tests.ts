@@ -17,9 +17,9 @@ import path from "node:path";
 import type { AnnotatedTree } from "@storytree/library";
 
 import { packageOf } from "./package-of.js";
+import { PYTEST_FILE } from "./python-reader.js";
 import { gitText } from "./survey-source.js";
 
-const PYTEST_FILE = /(?:^|\/)(?:test_[^/]*|[^/]*_test)\.py$/;
 /** Folders a walk of a non-checkout never enters, beside hidden ones: virtualenvs, caches and dependencies. */
 const UNWALKED = new Set(["node_modules", "venv", "env", "__pycache__", "site-packages", "dist", "build"]);
 /** A test's name: `test_`, then perhaps a package (words of letters and digits), then the number's two parts. */

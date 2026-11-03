@@ -41,6 +41,7 @@
     "@storytree/library": "workspace:*",
     "@storytree/map": "workspace:*",
     "@storytree/project-and-caller": "workspace:*",
+    "smol-toml": "1.9.1",
     "zod": "^4.6.5"
   },
   "devDependencies": {

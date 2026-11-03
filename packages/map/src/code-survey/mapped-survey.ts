@@ -2,7 +2,7 @@
  * Capability 8 · Code survey of mapped stories (ADR-0993 D2, D3, D5): each package an import mapped, read
  * from the folder this machine imports it from, as a black box.
  *
- * - A mapped story's files are the JavaScript and TypeScript files Git tracks at its imported checkout's commit
+ * - A mapped story's files are the files of a language the survey reads (JavaScript, TypeScript, Python) Git tracks at its imported checkout's commit
  *   (a folder that is no checkout: every such file in it) under the story's folders, leaving out the skip list's
  *   folders and a folder another package of the same import maps. Each carries its non-blank lines, and the
  *   capability an agent explored that covers it, by a folder above it or by its own path (ADR-0993 D5); the rest
@@ -22,7 +22,7 @@ import path from "node:path";
 
 import type { AnnotatedTree, StorySurvey } from "@storytree/library";
 
-import type { SourceFile } from "./code-survey.js";
+import { readsFile, type SourceFile } from "./code-survey.js";
 import { importedSource, manifestFrom, SKIPPED, type SurveySource } from "./survey-source.js";
 
 /** A folder this machine imports, as Session management records it: its path, and its repository's address when it has one. */
@@ -33,7 +33,6 @@ export type MappedStory = AnnotatedTree["stories"][number] & { readonly mapped: 
 /** What a story's walk found: its files with their lines, and its package's name and dependencies. */
 type Walked = { readonly files: StorySurvey["files"]; readonly name?: string; readonly deps: readonly string[] };
 
-const CODE = /\.[cm]?[jt]sx?$/;
 const linesOf = (text: string): number => text.split("\n").filter((line) => line.trim() !== "").length;
 
 /** Reads mapped stories, keeping line counts and walks so that reading again does only what changed. */
@@ -135,7 +134,7 @@ async function codeUnder(source: SurveySource, dir: string, left: ReadonlySet<st
   const found = await Promise.all((await source.entries(dir)).map(async (entry): Promise<string[]> => {
     const full = path.join(dir, entry.name);
     if (entry.directory) return SKIPPED.has(entry.name) || left.has(full) ? [] : codeUnder(source, full, left);
-    return entry.file && CODE.test(entry.name) ? [full] : [];
+    return entry.file && readsFile(entry.name) ? [full] : [];
   }));
   return found.flat();
 }

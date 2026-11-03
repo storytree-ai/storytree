@@ -245,7 +245,9 @@ function measure(page) {
   // the like), which throw on the missing answer. The land's own marks are asserted from the scene below.
   assert.equal(results.front.greyFills, 0);
   console.log(JSON.stringify({ browser: results.browser, fills: results.front.fills, greyFills: results.front.greyFills, parked: results.front.parked, fileMarks: results.front.fileMarks,
-    flags: results.front.islands.flatMap(i => i.claimOutlines.map(o => [i.story, o.capability, o.colour, o.faded, o.triangles])), errors }));
+    flags: results.front.islands.flatMap(i => i.claimOutlines.map(o => [i.story, o.capability, o.colour, o.faded, o.triangles])),
+    // The sessions list's rows, by their letters here (forest 7.10): only the sessions at work.
+    listed: Array.isArray(results.sessionRows.rows) ? results.sessionRows.rows.map(row => Object.keys(SESSIONS).find(name => SESSIONS[name] === row.id) ?? row.id) : null, errors }));
   // Observation is complete. Stop redraws, then let page closure release the WebGL context.
   // Explicit dispose/forceContextLoss can itself stall the macOS software-GL driver.
   phase('stop redraws after observation');

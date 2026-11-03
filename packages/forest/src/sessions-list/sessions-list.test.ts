@@ -2,7 +2,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { AnnotatedTree, ArcView, Line, NewLine } from "@storytree/library";
-import { atWork, clickedSelection, sessionRoster, sessionRows, windowFiles } from "./sessions-list.js";
+import { clickedSelection, listedRows, sessionRoster, sessionRows, windowFiles } from "./sessions-list.js";
 import { sessionColour } from "../agent-claims/agent-claims.js";
 
 const now = new Date("2026-09-28T12:00:00Z");
@@ -118,6 +118,10 @@ test("7.13 each row names the machine its session runs on only when the listed s
   assert.deepEqual(sessionRows(tree, lines, [], now).map(row => row.machine), ["laptop", "mint", undefined]);
   const one = log({ ...parent, kind: "session-started", machine: "laptop" }, { ...off, kind: "session-started", machine: "laptop" });
   assert.deepEqual(sessionRows(tree, one, [], now).map(row => row.machine), [undefined, undefined], "one machine is not worth naming");
+  const idleElsewhere = log({ ...parent, kind: "session-started", machine: "laptop" },
+    { ...off, kind: "session-started", machine: "mint", at: "2026-09-28T11:15:00Z" });
+  assert.deepEqual(listedRows(sessionRows(tree, idleElsewhere, [], now)).map(row => [row.id, row.machine]), [["parent", undefined]],
+    "an idle session on another machine is not listed, so the list spans one machine");
 });
 
 test("a session whose hooks report no turns is judged by the idle-after setting the list is given, not a fixed 30 minutes", () => {
@@ -176,38 +180,29 @@ test("7.8 a row's files are its window's opened files, each once in the order fi
     { absent: "no hook has named this session's transcript" });
 });
 
-test("7.9–7.11 the header counts sessions at work; a quiet session folds as idle by its state alone, a close-out that says not safe keeping it listed but never out of the fold; a verified one is gone (ADR-0758)", () => {
+test("7.10 only the sessions at work are listed: working, waiting for you within the idle-after time, or a parent whose child works; an idle one is not, whatever keeps Session management listing it, by the idle-after and leave-after it is given", () => {
   const minutes = (n: number) => new Date(now.getTime() - n * 60_000).toISOString();
   const hook = (session: string) => ({ session, harness: "claude-code", source: "hook" }) as const;
   const lines = log(
     { ...hook("busy"), kind: "prompt-submitted", at: minutes(50) },
     { ...hook("asking"), kind: "prompt-submitted", at: minutes(12) }, { ...hook("asking"), kind: "turn-ended", at: minutes(10) },
-    { ...hook("idle"), kind: "prompt-submitted", at: minutes(50) }, { ...hook("idle"), kind: "turn-ended", at: minutes(45) },
-    { ...hook("unsure"), branch: "fix-login", kind: "file-edited", files: ["a.ts"], at: minutes(20) },
-    { ...hook("unsure"), branch: "fix-login", kind: "closed-out", safe: true, why: "all merged", running: 0, at: minutes(19) },
+    { ...hook("quiet"), kind: "prompt-submitted", at: minutes(50) }, { ...hook("quiet"), kind: "turn-ended", at: minutes(45) },
+    { ...hook("holding"), branch: "fix-login", kind: "file-edited", files: ["a.ts"], at: minutes(20) }, { ...hook("holding"), kind: "session-ended", at: minutes(15) },
     { ...hook("held"), kind: "prompt-submitted", at: minutes(50) }, { ...hook("held"), kind: "turn-ended", at: minutes(45) },
     { ...hook("held"), branch: "main", kind: "closed-out", safe: false, why: "waiting on the owner's look", running: 0, at: minutes(44) },
-    { ...hook("done"), branch: "main", kind: "closed-out", safe: true, why: "all merged", running: 0, at: minutes(5) });
-  const rows = sessionRows(tree, lines, [], now);
-  assert.deepEqual(rows.map(row => [row.id, row.idle]), [["busy", false], ["asking", false], ["idle", true], ["unsure", false], ["held", true]],
-    "a verified close-out leaves at once; one that says not safe stays listed, folded like any quiet session");
-  assert.equal(atWork(rows), 3, "working and waiting for you count; idle does not");
-  assert.equal(rows.some(row => "needsYou" in row || "needsYouWhy" in row), false, "a row carries no need of the owner's: owner decisions are open questions on the arc surface");
-});
-
-test("7.12 a session holding unmerged work stays listed; the list leaves by the leave-after it is given; a finished desktop window folds as idle (ADR-0754 D4, ADR-0758 D5)", () => {
-  const hours = (n: number) => new Date(now.getTime() - n * 3_600_000).toISOString();
-  const hook = (session: string) => ({ session, harness: "claude-code", source: "hook" }) as const;
-  const lines = log(
-    { ...hook("holding"), branch: "fix-login", kind: "file-edited", files: ["a.ts"], at: hours(5) },
-    { ...hook("quiet"), kind: "prompt-submitted", at: hours(2) }, { ...hook("quiet"), kind: "turn-ended", at: hours(2) },
-    { ...hook("desk"), kind: "prompt-submitted", at: hours(3) }, { ...hook("desk"), kind: "turn-ended", at: hours(3) },
-    { ...hook("reader"), kind: "session-unarchived", of: "desk", app: "claude-desktop", at: hours(4) });
-  const rows = sessionRows(tree, lines, [], now);
-  assert.deepEqual(rows.map(row => [row.id, row.idle]), [["holding", true], ["desk", true]],
-    "two hours quiet leaves at the 1-hour default; unmerged work stays; the finished desktop window folds");
-  assert.deepEqual(sessionRows(tree, lines, [], now, new Map(), undefined, 3 * 3_600_000).map(row => row.id), ["holding", "quiet", "desk"],
-    "a 3-hour leave-after keeps the two-hour-quiet session listed");
+    { ...hook("lead"), kind: "prompt-submitted", at: minutes(50) }, { ...hook("lead"), kind: "turn-ended", at: minutes(45) },
+    { ...hook("lane"), kind: "prompt-submitted", at: minutes(5) });
+  const details = new Map([["lane", { parentSession: "lead" }]]);
+  const rows = listedRows(sessionRows(tree, lines, [], now, details));
+  assert.deepEqual(rows.map(row => row.id), ["busy", "asking", "lead"],
+    "quiet past the idle-after, ended holding unmerged work, or closed out not safe: none is listed");
+  assert.deepEqual(rows[2]!.children.map(child => child.id), ["lane"], "a quiet parent is at work through its working child");
+  assert.deepEqual(listedRows(sessionRows(tree, lines, [], now, details, 60 * 60_000)).map(row => row.id), ["busy", "asking", "quiet", "held", "lead"],
+    "a one-hour idle-after keeps the 45-minute-quiet sessions at work; an ended one is never");
+  const late = log({ ...hook("late"), kind: "prompt-submitted", at: minutes(125) }, { ...hook("late"), kind: "turn-ended", at: minutes(120) });
+  const hours3 = 3 * 60 * 60_000;
+  assert.deepEqual(listedRows(sessionRows(tree, late, [], now, new Map(), hours3)).map(row => row.id), [], "Session management's 1-hour leave-after still lets it go");
+  assert.deepEqual(listedRows(sessionRows(tree, late, [], now, new Map(), hours3, hours3)).map(row => row.id), ["late"]);
 });
 
 test("7.15 each worktree in a row's detail is labelled unmerged or merged by the branch its session recorded there and whether that branch still holds open work; the main line, or no branch, carries no label; a branch recorded with no folder is folded under the folder last worked in, and none is dropped", () => {

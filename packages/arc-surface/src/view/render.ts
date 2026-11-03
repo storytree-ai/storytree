@@ -64,6 +64,7 @@ function renderMarks(lane: Lane): string {
     + mark("owner", `<span class="arc-mark-icon" aria-hidden="true">?</span>`, ownerCount(lane), [...questions.map(({ fields }) => `waiting on you: ${fields.title}`), ...owners.map(laneNoteText)]);
   return marks ? `<span class="arc-marks">${marks}</span>` : "";
 }
+/** What an arc's caret opens under its row (3.21, ADR-1222): its questions, then its increments with the landed folded, then its queued arcs; never its intent. */
 function renderQueue(queue: ArcQueue, lanes: ReadonlyMap<string, Lane>, opened: string | undefined, expanded: ReadonlySet<string>): string {
   const lane = lanes.get(queue.arc.id)!;
   const open = expanded.has(lane.id);
@@ -74,17 +75,27 @@ function renderQueue(queue: ArcQueue, lanes: ReadonlyMap<string, Lane>, opened: 
     const title = [queued.title, laneText(queued), ...queued.bars.map(barText)].join("\n");
     return `${index ? `<span aria-hidden="true">${run.shape === "chain" ? "→" : "·"}</span>` : ""}<button type="button" class="arc-queue-chip" data-arc-id="${escape(chip.id)}" data-arc-select="${escape(chip.id)}" aria-pressed="${opened === chip.id}" aria-label="${escape(`${chip.title} — queued behind ${behind}${chip.waitsOn.length ? `, waits on ${chip.waitsOn.join(", ")}` : ""}${chip.hidden ? `, holds up ${chip.hidden} more` : ""}`)}" title="${escape(title)}"><span class="arc-queue-title">${escape(chip.title)}</span>${chip.hidden ? `<span class="arc-queue-more">+${chip.hidden}</span>` : ""}</button>${chip.otherWaits ? `<span class="arc-other-waits">+${chip.otherWaits} other wait${chip.otherWaits === 1 ? "" : "s"}</span>` : ""}`;
   });
-  const queueLabel = `${open ? "Hide" : "Show"} ${queue.queued.length} arc${queue.queued.length === 1 ? "" : "s"} queued behind ${lane.title}`;
+  const questions = lane.view.questions.length ? briefing(lane.view.arc.fields.intent, lane.view.questions).questions : [];
+  const rows = incrementRows(lane);
+  const plural = (count: number, word: string) => `${count} ${word}${count === 1 ? "" : "s"}`;
+  const holds = [...(questions.length ? [plural(questions.length, "question")] : []), ...(rows.length ? [plural(rows.length, "increment")] : []), ...(queue.queued.length ? [plural(queue.queued.length, "queued arc")] : [])];
+  const caretLabel = `${open ? "Hide" : "Show"} ${holds.join(", ")} under ${lane.title}`;
+  const unfolded = rows.filter(({ landed }) => !landed), landed = rows.filter(({ landed }) => landed);
+  const key = `rail:${lane.id}`;
+  const under = `${questions.length ? `<div class="arc-table arc-rail-questions">${questions.map((question) => renderQuestionRow(question, lane.id)).join("")}</div>` : ""}`
+    + `${rows.length ? `<div class="arc-table arc-rail-increments">${unfolded.map((row) => renderIncrementRow(key, row)).join("")}${landed.length ? `<details class="arc-fold arc-landed-fold" data-fold-key="${escape(`${key}:landed`)}"><summary>${landed.length} landed</summary>${landed.map((row) => renderIncrementRow(key, row)).join("")}</details>` : ""}</div>` : ""}`
+    + `${queue.queued.length ? `<div class="arc-queue" data-queue-shape="${run.shape}"><span aria-hidden="true">→</span>${chips.join("")}</div>` : ""}`;
   return `<section class="arc-row" data-arc-id="${escape(lane.id)}"><div class="arc-lane-line">
-    <span class="arc-caret-slot">${queue.queued.length ? `<button type="button" class="arc-caret" data-arc-queue="${escape(lane.id)}" aria-expanded="${open}" aria-controls="arc-queue-${escape(lane.id)}" aria-label="${escape(queueLabel)}" title="${escape(queueLabel)}"><span aria-hidden="true">${open ? "▾" : "▸"}</span></button>` : ""}</span>
+    <span class="arc-caret-slot">${holds.length ? `<button type="button" class="arc-caret" data-arc-queue="${escape(lane.id)}" aria-expanded="${open}" aria-controls="arc-under-${escape(lane.id)}" aria-label="${escape(caretLabel)}" title="${escape(caretLabel)}"><span aria-hidden="true">${open ? "▾" : "▸"}</span></button>` : ""}</span>
     <button type="button" class="arc-lane" data-arc-select="${escape(lane.id)}" aria-pressed="${opened === lane.id}">
       <span class="arc-lane-head"><span class="arc-chip arc-state-${lane.state}" title="${escape(chipText(lane))}">${escape(lane.chip)}</span>${lane.priority === undefined ? "" : `<span class="arc-chip arc-priority" title="Priority ${lane.priority}">P${lane.priority}</span>`}<span class="arc-title" title="${escape(lane.title)}">${escape(lane.title)}</span>${renderMarks(lane)}</span>
       <span class="arc-track${lane.bars.some(({ agents }) => agents.length) ? " arc-flagged" : ""}"><span class="arc-bars" role="group" aria-label="${escape(`Increments: ${lane.count}`)}">${lane.bars.map(renderBar).join("")}</span></span>
-    </button></div>${open && queue.queued.length ? `<div class="arc-queue" id="arc-queue-${escape(lane.id)}" data-queue-shape="${run.shape}"><span aria-hidden="true">→</span>${chips.join("")}</div>` : ""}</section>`;
+    </button></div>${open && holds.length ? `<div class="arc-under" id="arc-under-${escape(lane.id)}">${under}</div>` : ""}</section>`;
 }
-/** One question, one row: its title and its status; the row opens its reading (ADR-0980 D5). */
-function renderQuestionRow(question: QuestionReading): string {
-  return `<button type="button" class="arc-row-button arc-question-row" data-question-open="${escape(question.id)}"><span class="arc-row-title" title="${escape(question.title)}">${escape(question.title)}</span><span class="arc-status-chip arc-status-${question.status}">${question.status}</span></button>`;
+/** One question, one row: its title and its status; the row opens its reading (ADR-0980 D5), under an arc's row opening that arc's card on it (3.21). */
+function renderQuestionRow(question: QuestionReading, arc?: string): string {
+  const opens = arc ? `data-rail-question="${escape(question.id)}" data-question-arc="${escape(arc)}"` : `data-question-open="${escape(question.id)}"`;
+  return `<button type="button" class="arc-row-button arc-question-row" ${opens}><span class="arc-row-title" title="${escape(question.title)}">${escape(question.title)}</span><span class="arc-status-chip arc-status-${question.status}">${question.status}</span></button>`;
 }
 const detailList = (label: string, lines: readonly string[]) => lines.length ? `<dt>${label}</dt>${lines.map((line) => `<dd>${escape(line)}</dd>`).join("")}` : "";
 /** One increment, one row that opens in place to its objective and waits, never its planning body. */
@@ -101,7 +112,7 @@ function renderPanel(lane: Lane, detail: Briefing): string {
   const open = rows.filter(({ landed }) => !landed), landed = rows.filter(({ landed }) => landed);
   const fold = (kind: string, label: string, inner: string) => `<details class="arc-fold arc-${kind}-fold" data-fold-key="${escape(`${lane.id}:${kind}`)}"><summary>${label}</summary>${inner}</details>`;
   return `<h3><span class="arc-briefing-title">${escape(lane.title)}</span><button type="button" class="arc-copy" data-copy-arc-title aria-label="Copy this arc's title" title="Copy title">${copyIcon}</button></h3>${fold("intent", "Intent", `<p class="arc-prose arc-intent">${escape(detail.intent)}</p>`)}
-    ${detail.questions.length ? `<h4>Questions${detail.parkedNote ? ` <small class="arc-parked-note">${escape(detail.parkedNote)}</small>` : ""}</h4><div class="arc-table">${detail.questions.map(renderQuestionRow).join("")}</div>` : ""}
+    ${detail.questions.length ? `<h4>Questions${detail.parkedNote ? ` <small class="arc-parked-note">${escape(detail.parkedNote)}</small>` : ""}</h4><div class="arc-table">${detail.questions.map((question) => renderQuestionRow(question)).join("")}</div>` : ""}
     ${rows.length ? `<h4>Increments</h4><div class="arc-table">${open.map((row) => renderIncrementRow(lane.id, row)).join("")}${landed.length ? fold("landed", `${landed.length} landed`, landed.map((row) => renderIncrementRow(lane.id, row)).join("")) : ""}</div>` : ""}`;
 }
 function renderQuestion(question: QuestionReading): string {

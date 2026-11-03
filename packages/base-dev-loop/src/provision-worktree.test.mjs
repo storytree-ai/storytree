@@ -312,6 +312,8 @@ async function repoPair(t) {
   await git(remote, "commit", "-m", "initial");
   const root = worktree(t, "current");
   await git(root, "init", "--initial-branch=main");
+  // Windows runners check out with core.autocrlf on; keep the file's bytes as origin wrote them.
+  await git(root, "config", "core.autocrlf", "false");
   await git(root, "remote", "add", "origin", remote);
   await git(root, "fetch", "origin", "main");
   await git(root, "reset", "--hard", "origin/main");

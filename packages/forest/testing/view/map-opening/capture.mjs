@@ -22,13 +22,16 @@ const measure = page => page.evaluate(() => {
   scene.updateMatrixWorld(true); camera.updateMatrixWorld(true);
   const canvas = document.querySelector('canvas').getBoundingClientRect();
   const glass = scene.getObjectByName('sheet:glass');
-  glass.geometry.computeBoundingBox();
-  const { min, max } = glass.geometry.boundingBox;
   const ys = [];
-  for (const x of [min.x, max.x]) for (const y of [min.y, max.y]) for (const z of [min.z, max.z]) {
-    const at = glass.localToWorld(new V(x, y, z)).project(camera);
-    ys.push((1 - at.y) * canvas.height / 2);
-  }
+  glass.traverse(mesh => {
+    if (!mesh.geometry) return;
+    mesh.geometry.computeBoundingBox();
+    const { min, max } = mesh.geometry.boundingBox;
+    for (const x of [min.x, max.x]) for (const y of [min.y, max.y]) for (const z of [min.z, max.z]) {
+      const at = mesh.localToWorld(new V(x, y, z)).project(camera);
+      ys.push((1 - at.y) * canvas.height / 2);
+    }
+  });
   const bottomOf = selector => { const rect = document.querySelector(selector)?.getBoundingClientRect(); return rect ? Math.round(rect.bottom - canvas.top) : null; };
   const names = [...document.querySelectorAll('.planet-nameplate[data-story-id]')].map(n => n.getBoundingClientRect()).filter(r => r.width > 0);
   return {

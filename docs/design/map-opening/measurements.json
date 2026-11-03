@@ -1,0 +1,35 @@
+{
+ "seed": "code-rows",
+ "results": {
+  "opening-1440x960": {
+   "canvas": {
+    "width": 1056,
+    "height": 912
+   },
+   "northEdge": 86,
+   "southEdge": 870,
+   "keptBelowSouthEdge": 42,
+   "switchBottom": 51,
+   "compassBottom": 72,
+   "lowestName": 860,
+   "fadedNames": 0,
+   "names": 15,
+   "errors": []
+  },
+  "opening-1280x720": {
+   "canvas": {
+    "width": 896,
+    "height": 672
+   },
+   "northEdge": 86,
+   "southEdge": 629,
+   "keptBelowSouthEdge": 43,
+   "switchBottom": 51,
+   "compassBottom": 72,
+   "lowestName": 629,
+   "fadedNames": 0,
+   "names": 15,
+   "errors": []
+  }
+ }
+}

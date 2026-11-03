@@ -48,8 +48,15 @@ const ownPrefix = (named: string | undefined, own: string | readonly string[] | 
 /** A file of a story's package; the disk reader tags helpers outside src as test support. */
 export type SourceFile = { readonly path: string; readonly text: string; readonly testSupport?: boolean };
 
-/** A package's literal exports, in the same coordinates as its source files. */
-export type SurveyPackage = { readonly root: string; readonly name: string; readonly exports: Readonly<Record<string, string>>; readonly imports?: Readonly<Record<string, string>> };
+/**
+ * A package's literal exports, in the same coordinates as its source files; with the packages it depends on and the
+ * parts its storytree manifest declares by kind, each a module subpath and the export it names, when its manifest was read.
+ */
+export type SurveyPackage = {
+  readonly root: string; readonly name: string; readonly exports: Readonly<Record<string, string>>; readonly imports?: Readonly<Record<string, string>>;
+  readonly deps?: readonly string[];
+  readonly parts?: Readonly<Record<string, readonly { readonly from: string; readonly export: string }[]>>;
+};
 
 /** A capability as the survey needs it: its id and its numbered title ("3 · Claims"). */
 export type SurveyCapability = { readonly id: string; readonly title: string };
@@ -535,8 +542,11 @@ const literal = (node: unknown): string | undefined => {
   return found?.type === "TSLiteralType" ? literal(found.literal) : undefined;
 };
 
-/** What a file offers, what it imports of other packages, and whether it does anything but import and pass names on. */
-type Reading = { readonly offers: Offers; readonly imports: readonly PackageImport[]; readonly ownCode: boolean };
+/**
+ * What a file offers, what it imports of other packages, whether it does anything but import and pass names on, and the
+ * manifest kinds it composes the parts of (a `composeParts(…, "<kind>")` call with a literal kind).
+ */
+type Reading = { readonly offers: Offers; readonly imports: readonly PackageImport[]; readonly ownCode: boolean; readonly composes: readonly string[] };
 
 /** Parse each unchanged file once for what it offers and what it imports of other packages. */
 const reading = new WeakMap<SourceFile, Reading>();
@@ -591,17 +601,23 @@ function readingOf(file: SourceFile): Reading {
     }
   }
   // Imports inside the code: a literal dynamic import runs its file; `import("…").T` in a type only names it.
+  const composes: string[] = [];
   const visit = (value: unknown): void => {
     if (Array.isArray(value)) { value.forEach(visit); return; }
     if (value === null || typeof value !== "object" || !("type" in value)) return;
     const node = value as Node;
     const source = node.type === "ImportExpression" ? literal(node.source) : node.type === "TSImportType" ? literal(node.argument) : undefined;
     if (source !== undefined) imports.push({ specifier: source, names: { all: node.type === "TSImportType" } });
+    if (node.type === "CallExpression") {
+      const callee = node.callee as Node;
+      const kind = literal(nodes(node.arguments)[1]);
+      if (kind !== undefined && nameOf(callee.type === "MemberExpression" ? callee.property : callee) === "composeParts") composes.push(kind);
+    }
     Object.values(value).forEach(visit);
   };
   visit(program?.body);
   for (const specifier of requiresOf(file)) imports.push({ specifier, names: { all: false } });
-  const read = { offers: { local, from, star }, imports, ownCode };
+  const read = { offers: { local, from, star }, imports, ownCode, composes };
   reading.set(file, read);
   return read;
 }
@@ -617,10 +633,11 @@ export type EdgeStory = {
 };
 
 /**
- * Each story's edges to other stories, from the imports its source files (never its tests or test helpers)
- * make of another story's package: each name taken leads, through that package's exports and re-exports,
- * to the file that defines it; a name taken whole leads to the file its specifier names. Paths stay in the
- * coordinates `files` gave.
+ * Each story's edges, from the imports its source files (never its tests or test helpers) make: of another story's
+ * package, each name taken leads, through that package's exports and re-exports, to the file that defines it; a name
+ * taken whole leads to the file its specifier names. Its imports of its own files are edges to its own story, kept only
+ * between two of its capabilities (8.45). A file composing the parts of a manifest kind reaches the file defining each
+ * part of that kind its package's dependencies declare (8.46). Paths stay in the coordinates `files` gave.
  */
 export function storyEdges(stories: readonly EdgeStory[]): Map<string, CodeEdge[]> {
   const byName = new Map(stories.flatMap((story) => story.packages.map((pkg) => [pkg.name, { story, pkg }] as const)));
@@ -655,34 +672,50 @@ export function storyEdges(stories: readonly EdgeStory[]): Map<string, CodeEdge[
   /** The story and package a specifier names, the longest package name first; undefined when it names none of theirs. */
   const packageNamed = (specifier: string) => [...byName].filter(([name]) => specifier === name || specifier.startsWith(name + "/")).sort(([a], [b]) => b.length - a.length)[0]?.[1];
 
+  /** The file a package's export subpath names, in its story's files; undefined when it exports none there. */
+  const exported = (story: EdgeStory, pkg: SurveyPackage, subpath: string) => {
+    const target = pkg.exports[subpath];
+    return target === undefined ? undefined : resolve(pkg.root + "package.json", target, lookups.get(story.id)!.paths, []);
+  };
+
   const edges = new Map<string, CodeEdge[]>();
   for (const story of stories) {
     const grouped = new Map<string, { story: string; from?: string; to?: string; files: Map<string, EdgeFile> }>();
     for (const file of story.files) {
       if (isTestCode(file) || !CODE_FILE.test(file.path) || DECLARATION.test(file.path)) continue;
-      const { imports, ownCode } = readingOf(file);
+      const { imports, ownCode, composes } = readingOf(file);
       // A forwarder (8.31): nothing of its own, and every name it takes is passed on from one other story's package.
       const sources = new Set(imports.map(({ specifier }) => packageNamed(specifier)?.story.id));
       const forwarder = !ownCode && imports.length > 0 && sources.size === 1 && !sources.has(undefined) && !sources.has(story.id);
+      const fromCapability = story.owners.get(file.path);
+      /** One import of `name` (or the whole file, undefined) behind an edge, starting at `start` in `target`'s files. */
+      const take = (target: EdgeStory, start: string | undefined, name: string | undefined, typeOnly: boolean) => {
+        const to = start === undefined || name === undefined ? start : definer(target, start, name, new Set()) ?? start;
+        const toCapability = to === undefined ? undefined : target.owners.get(to);
+        // Inside a story only a line between two capabilities is an edge (8.45).
+        if (target === story && (fromCapability === undefined || toCapability === undefined || fromCapability === toCapability)) return;
+        const key = JSON.stringify([target.id, fromCapability ?? null, toCapability ?? null]);
+        const group = grouped.get(key) ?? { story: target.id, ...(fromCapability === undefined ? {} : { from: fromCapability }), ...(toCapability === undefined ? {} : { to: toCapability }), files: new Map() };
+        grouped.set(key, group);
+        const pair = JSON.stringify([file.path, to ?? null]);
+        const before = group.files.get(pair);
+        group.files.set(pair, { from: file.path, ...(to === undefined ? {} : { to }), typeOnly: typeOnly && (before?.typeOnly ?? true), ...(forwarder && target !== story ? { forwarder: true as const } : {}) });
+      };
       for (const { specifier, names } of imports) {
         const named = packageNamed(specifier);
-        if (named === undefined || named.story.id === story.id) continue;
-        const { paths } = lookups.get(named.story.id)!;
-        const subpath = specifier === named.pkg.name ? "." : "." + specifier.slice(named.pkg.name.length);
-        const target = named.pkg.exports[subpath];
-        const start = target === undefined ? undefined : resolve(named.pkg.root + "package.json", target, paths, []);
+        const own = named === undefined || named.story.id === story.id;
+        // Its own files by relative path, its '#' imports or its own packages' names; another story's by its exports.
+        const start = own ? resolve(file.path, specifier, lookups.get(story.id)!.paths, story.packages)
+          : exported(named.story, named.pkg, specifier === named.pkg.name ? "." : "." + specifier.slice(named.pkg.name.length));
+        if (own && start === undefined) continue;
         const taken = "all" in names ? [[undefined, names.all] as const] : names;
-        for (const [name, typeOnly] of taken) {
-          const to = start === undefined || name === undefined ? start : definer(named.story, start, name, new Set()) ?? start;
-          const fromCapability = story.owners.get(file.path);
-          const toCapability = to === undefined ? undefined : named.story.owners.get(to);
-          const key = JSON.stringify([named.story.id, fromCapability ?? null, toCapability ?? null]);
-          const group = grouped.get(key) ?? { story: named.story.id, ...(fromCapability === undefined ? {} : { from: fromCapability }), ...(toCapability === undefined ? {} : { to: toCapability }), files: new Map() };
-          grouped.set(key, group);
-          const pair = JSON.stringify([file.path, to ?? null]);
-          const before = group.files.get(pair);
-          group.files.set(pair, { from: file.path, ...(to === undefined ? {} : { to }), typeOnly: typeOnly && (before?.typeOnly ?? true), ...(forwarder ? { forwarder: true as const } : {}) });
-        }
+        for (const [name, typeOnly] of taken) take(own ? story : named.story, start, name, typeOnly);
+      }
+      // A manifest load (8.46): the parts of each kind it composes, as its own package's dependencies declare them.
+      const host = story.packages.filter((pkg) => file.path.startsWith(pkg.root)).sort((a, b) => b.root.length - a.root.length)[0];
+      for (const kind of composes) for (const dep of host?.deps ?? []) {
+        const named = byName.get(dep);
+        for (const part of named?.pkg.parts?.[kind] ?? []) take(named!.story, exported(named!.story, named!.pkg, part.from), part.export, false);
       }
     }
     edges.set(story.id, [...grouped].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)).map(([, { files, ...edge }]) => {

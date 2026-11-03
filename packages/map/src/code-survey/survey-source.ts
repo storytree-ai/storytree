@@ -14,8 +14,11 @@ export const SKIPPED = new Set(["node_modules", "dist", "out", "evidence"]);
 /** The dependency fields of a package.json, in the order their names are listed. */
 const DEPENDENCY_FIELDS = ["dependencies", "devDependencies", "optionalDependencies", "peerDependencies"] as const;
 
-/** A package.json's name and the packages it depends on through any field; undefined when it cannot be read. */
-export function manifestFrom(text: string): { name: string; deps: string[]; exports: SurveyPackage["exports"]; imports: NonNullable<SurveyPackage["imports"]> } | undefined {
+/**
+ * A package.json's name, the packages it depends on through any field, and the parts its storytree manifest declares
+ * by kind (each entry's module subpath and export name); undefined when it cannot be read.
+ */
+export function manifestFrom(text: string): { name: string; deps: string[]; exports: SurveyPackage["exports"]; imports: NonNullable<SurveyPackage["imports"]>; parts: NonNullable<SurveyPackage["parts"]> } | undefined {
   try {
     const parsed = JSON.parse(text) as Record<string, unknown>;
     if (typeof parsed.name !== "string") return undefined;
@@ -33,7 +36,10 @@ export function manifestFrom(text: string): { name: string; deps: string[]; expo
       key.startsWith("#") && !key.includes("*") && typeof target === "string" && target.startsWith("./")
       && !target.includes("*") && !target.split("/").slice(1).some(part => part === ".." || part === "node_modules"),
     ) as [string, string][] : [];
-    return { name: parsed.name, deps: [...new Set(deps)], exports: Object.fromEntries(literal), imports: Object.fromEntries(own) };
+    const manifest = typeof parsed.storytree === "object" && parsed.storytree !== null ? parsed.storytree as Record<string, unknown> : {};
+    const parts = Object.fromEntries(Object.entries(manifest).flatMap(([kind, entries]) => !Array.isArray(entries) ? [] : [[kind, entries.flatMap((entry: { from?: unknown; export?: unknown } | null) =>
+      typeof entry?.from === "string" && typeof entry.export === "string" ? [{ from: entry.from, export: entry.export }] : [])] as const]));
+    return { name: parsed.name, deps: [...new Set(deps)], exports: Object.fromEntries(literal), imports: Object.fromEntries(own), parts };
   } catch {
     return undefined;
   }

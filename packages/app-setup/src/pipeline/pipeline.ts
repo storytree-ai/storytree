@@ -10,6 +10,10 @@
  * each imported folder first, from its recorded repository at its recorded commit, into the place beside the
  * checkout where the folder sits (where a `link:` or `file:` dependency names it), and installs its own
  * dependencies, which a built package borrows. The commit moves only when the folder is imported again.
+ *
+ * A Python project, or one importing a Python folder (arc_1cb3e3979611), has Python and uv set up before anything
+ * runs, and Poetry where a poetry.lock is; an imported Python folder installs by its uv.lock or poetry.lock. CI health
+ * reads pytest's -rA short summary, so a pytest command without -rA is named as one whose tests CI health cannot credit.
  */
 import { execFileSync } from "node:child_process";
 import { existsSync } from "node:fs";
@@ -51,6 +55,33 @@ export function storytreeRef(release: { version: string; commit: string } | unde
 /** The actions storytree's workflow uses, each pinned to a commit (the release it is, after the #). */
 const CHECKOUT = "actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0";
 const SETUP_NODE = "actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0";
+const SETUP_PYTHON = "actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0";
+const SETUP_UV = "astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3";
+
+/** The Python manifests a folder may hold. */
+const PYTHON_MANIFESTS = ["pyproject.toml", "setup.cfg", "setup.py"];
+
+/** The Python CI needs for these folders: none when none holds a Python manifest, Poetry too when one is locked by Poetry. */
+export type PythonSetup = "none" | "uv" | "poetry";
+export function pythonSetupOf(folders: readonly string[]): PythonSetup {
+  const has = (folder: string, file: string): boolean => existsSync(path.join(folder, file));
+  const python = folders.filter((folder) => PYTHON_MANIFESTS.some((manifest) => has(folder, manifest)));
+  if (python.length === 0) return "none";
+  return python.some((folder) => has(folder, "poetry.lock")) ? "poetry" : "uv";
+}
+
+/** The command that installs Poetry, run before anything else when the setup needs it. */
+const INSTALL_POETRY = "pipx install poetry";
+
+/** The commands that install the Python tools `python` needs beyond its setup steps. */
+export function pythonCommands(python: PythonSetup): string[] {
+  return python === "poetry" ? [INSTALL_POETRY] : [];
+}
+
+/** Whether `test` runs pytest without -rA, whose short summary is all CI health reads of a pytest run. */
+export function pytestWithoutSummary(test: string): boolean {
+  return /\bpytest\b/.test(test) && !/(?:^|\s)-r[a-zA-Z]*A/.test(test);
+}
 
 /** The GitHub repository `folder`'s origin names, as owner and name; undefined when its origin is not on GitHub. */
 export function githubRepository(folder: string): { owner: string; name: string } | undefined {
@@ -111,12 +142,15 @@ function installCommands(imported: string, at: string): string[] {
   if (has("pnpm-lock.yaml")) return ["corepack enable", `pnpm --dir ${at} install --frozen-lockfile`];
   if (has("yarn.lock")) return ["corepack enable", `yarn --cwd ${at} install --frozen-lockfile`];
   if (has("package-lock.json")) return [`npm ci --prefix ${at}`];
+  if (has("uv.lock")) return [`uv sync --frozen --directory ${at}`];
+  if (has("poetry.lock")) return [`poetry --directory ${at} install`];
+  if (!has("package.json") && PYTHON_MANIFESTS.some(has)) return [`python -m pip install ${at}`];
   return [`npm install --prefix ${at}`];
 }
 
 /** storytree's workflow for a GitHub project: the project's tests on each system, after fetching what it imports, and each contributed job. */
-export function workflowFor({ install, test, systems, ref, fetches = [], jobs }: { install?: string | undefined; test: string; systems: readonly System[]; ref: string; fetches?: readonly string[]; jobs: readonly PipelineJob[] }): string {
-  const runs = [...fetches, ...(install === undefined ? [] : [install]), test].map((command) => `      - run: ${JSON.stringify(command)}`);
+export function workflowFor({ install, test, systems, ref, fetches = [], jobs, python = "none" }: { install?: string | undefined; test: string; systems: readonly System[]; ref: string; fetches?: readonly string[]; jobs: readonly PipelineJob[]; python?: PythonSetup }): string {
+  const runs = [...pythonCommands(python), ...fetches, ...(install === undefined ? [] : [install]), test].map((command) => `      - run: ${JSON.stringify(command)}`);
   return [
     "# storytree's pipeline (ADR-0911): the project's tests, and the checks storytree's parts contribute, on every pull request.",
     "# storytree provides this file through its agent's wire_pipeline: change the commands, never the checks.",
@@ -140,6 +174,7 @@ export function workflowFor({ install, test, systems, ref, fetches = [], jobs }:
     `      - uses: ${SETUP_NODE}`,
     "        with:",
     "          node-version: 24",
+    ...(python === "none" ? [] : [`      - uses: ${SETUP_PYTHON}`, "        with:", '          python-version: "3.x"', `      - uses: ${SETUP_UV}`]),
     ...runs,
     ...jobs.flatMap((job) => [
       `  ${job.name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}:`,

@@ -13,7 +13,7 @@ import path from "node:path";
 import type { Library, Storytree } from "@storytree/library";
 import { z } from "zod";
 
-import { ghProtection, githubRepository, importFetches, protectionCommand, storytreeRef, WORKFLOW_FILE, workflowFor, type ImportFetch, type PipelineJob, type ProtectionReader, type System } from "./pipeline/pipeline.js";
+import { ghProtection, githubRepository, importFetches, protectionCommand, pytestWithoutSummary, pythonCommands, pythonSetupOf, storytreeRef, WORKFLOW_FILE, workflowFor, type ImportFetch, type PipelineJob, type ProtectionReader, type System } from "./pipeline/pipeline.js";
 import { moveOntoFactory } from "./project/factory-move.js";
 import { ImportRefusedError, importLines, importProject } from "./project/importing.js";
 import { STARTER_CHECKS, STARTER_ROLES, takeStarterPack } from "./project/starter-pack.js";
@@ -118,7 +118,7 @@ export function setupTools(readProtection: ProtectionReader = ghProtection, jobs
       );
       define(
         "wire_pipeline",
-        "When this project is set up or adopts a pipeline, add its tests and storytree's checks to its CI: on GitHub this writes storytree's workflow, elsewhere it gives the commands to add. It proposes branch protection for the user to approve and never turns it on.",
+        "When this project is set up or adopts a pipeline, add its tests and storytree's checks to its CI: on GitHub this writes storytree's workflow, elsewhere it gives the commands to add. A Python project's CI gets Python and uv, and Poetry where it is locked by Poetry; run pytest with -rA, from the repository's top or a package folder, so its numbered tests are credited. It proposes branch protection for the user to approve and never turns it on.",
         z.object({
           test: z.string().min(1).describe("The command that runs the project's tests, as its CI should run it"),
           install: z.string().min(1).optional().describe("The command that installs its dependencies first, if any"),
@@ -129,13 +129,15 @@ export function setupTools(readProtection: ProtectionReader = ghProtection, jobs
           const repository = githubRepository(folder);
           const imports = await importFetches({ storytree, project: library.name, folder });
           const fetches = imports.flatMap((imported) => ("commands" in imported ? imported.commands : []));
-          const said = importsSaid(imports);
+          const python = pythonSetupOf([folder, ...imports.flatMap((imported) => ("commands" in imported ? [imported.folder] : []))]);
+          const said = [...importsSaid(imports), ...(pytestWithoutSummary(test) ? [`Its test command runs pytest without -rA, so CI health cannot credit its numbered tests: it reads only pytest's -rA short summary, so call wire_pipeline again with -rA added to the pytest command.`] : [])];
           const checks = jobs.map((job) => job.name);
           if (repository === undefined) {
-            const commands = [...fetches, ...(install === undefined ? [] : [install]), test, ...jobs.flatMap((job) => job.commands(ref, "<this checkout>"))];
+            const commands = [...pythonCommands(python), ...fetches, ...(install === undefined ? [] : [install]), test, ...jobs.flatMap((job) => job.commands(ref, "<this checkout>"))];
+            const needs = [...(python === "none" ? [] : ["Python 3 and uv for the tests"]), ...(checks.length === 0 ? [] : [`Node 24 for ${checks.join(" and ")}, with a temporary folder in RUNNER_TEMP`])];
             return {
               text: [
-                `This project is not on GitHub, so nothing was written. Add these commands to the pipeline you have, run on every change before it merges${checks.length === 0 ? "" : ` (Node 24 for ${checks.join(" and ")}, with a temporary folder in RUNNER_TEMP)`}:`,
+                `This project is not on GitHub, so nothing was written. Add these commands to the pipeline you have, run on every change before it merges${needs.length === 0 ? "" : ` (${needs.join("; ")})`}:`,
                 ...commands.map((command) => `  ${command}`),
                 ...said,
                 "Then propose to the user that their host merge only what this pipeline verified: it is a repository setting, theirs to approve.",
@@ -145,7 +147,7 @@ export function setupTools(readProtection: ProtectionReader = ghProtection, jobs
           }
           const file = path.join(folder, WORKFLOW_FILE);
           mkdirSync(path.dirname(file), { recursive: true });
-          writeFileSync(file, workflowFor({ install, test, systems, ref, fetches, jobs }));
+          writeFileSync(file, workflowFor({ install, test, systems, ref, fetches, jobs, python }));
           const wrote = [
             `Wrote storytree's workflow to ${WORKFLOW_FILE}: on every pull request and push to main it runs \`${test}\` on ${systems.join(", ")}${checks.length === 0 ? "" : `, and ${checks.join(" and ")} from storytree's source at ${ref}`}. Commit it on a branch and open a pull request: its first run is the proof.`,
             ...said,

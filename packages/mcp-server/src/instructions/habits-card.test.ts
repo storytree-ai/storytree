@@ -211,3 +211,15 @@ test("7.11 the part of the card Claude Code keeps, its first 2,048 characters, t
     await session.close();
   }
 });
+
+test("7.15 the card handed at session start says the layout the map draws for Python as for JavaScript: a story's pyproject.toml package with its module under src, and a test carrying its contract number in its name", async () => {
+  const session = await sessionStart();
+  try {
+    const served = session.client.getInstructions() ?? "";
+    for (const said of ["packages/<story>/pyproject.toml", "src/<module>", "test_2_3_", "test_<package>_2_3_", "a docstring's number is for reading only"]) {
+      assert.ok(served.includes(said), `the served card lacks: ${said}`);
+    }
+  } finally {
+    await session.close();
+  }
+});

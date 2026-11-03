@@ -62,10 +62,10 @@ const create = verb({
         ? { command: `settings set part ${plugin} plugin ${plugin}`, why: `add ${plugin}, standing in for no part, under its own name` }
         : { command: `settings set part ${part} plugin ${plugin}`, why: `switch ${part} off with ${plugin} in its place` },
       { command: "plugin contract", tool: "plugin_contract", why: "what a plugin may contain" },
-      { command: `health plugin ${plugin}`, why: `run its tests and record them on the promises of a story titled ${plugin}` },
+      { command: `health plugin ${plugin}`, why: `run its tests and record them on the contracts of a story titled ${plugin}` },
     ];
     return {
-      text: `Started ${plugin} in ${made.dir}: ${made.files.join(", ")}. Its verbs module adds a \`${plugin}\` family with one verb, and its test (\`npm test\` in its folder) proves promise 1.1 of a story titled ${plugin}; make it the stand-in you need.`,
+      text: `Started ${plugin} in ${made.dir}: ${made.files.join(", ")}. Its verbs module adds a \`${plugin}\` family with one verb, and its test (\`npm test\` in its folder) proves contract 1.1 of a story titled ${plugin}; make it the stand-in you need.`,
       next,
     };
   },
@@ -163,7 +163,7 @@ const importPlan = verb({
   command: { family: "plugin", name: "import-plan", summary: "write a plugin's own story, capabilities and contracts into this project's plan from the plan file it carries" },
   tool: {
     name: "import_plugin_plan",
-    description: "Write a factory plugin's own story, its capabilities and contracts into this project's plan from the plan file its manifest names: the plugin's file is their one source, so they are then edited only there and imported again. It reads this computer's factory folder, or the one from names, such as a lane's own factory worktree right after its push. Capabilities and contracts are matched by number: what changed is edited, what is new added, and what the file no longer holds retired, so a kept promise keeps its id and health. The first time, adopt names the live story it takes over, else a new story is made.",
+    description: "Write a factory plugin's own story, its capabilities and contracts into this project's plan from the plan file its manifest names: the plugin's file is their one source, so they are then edited only there and imported again. It reads this computer's factory folder, or the one from names, such as a lane's own factory worktree right after its push. Capabilities and contracts are matched by number: what changed is edited, what is new added, and what the file no longer holds retired, so a kept contract keeps its id and health. The first time, adopt names the live story it takes over, else a new story is made.",
   },
   inputs: {
     plugin: { kind: "text", word: 0, describe: "the plugin's name: its folder in the factory's plugins folder" },
@@ -180,7 +180,7 @@ const importPlan = verb({
       return {
         text: `Imported ${plugin}'s plan into ${done.story}: ${done.added.length} added, ${done.edited.length} edited, ${done.retired.length} retired, ${done.kept.length} kept.`,
         data: { imported: done },
-        next: [{ command: `tree ${done.story}`, why: "the plan as imported, with each promise's health" }],
+        next: [{ command: `tree ${done.story}`, why: "the plan as imported, with each contract's health" }],
       };
     } catch (error) {
       throw refused(error);

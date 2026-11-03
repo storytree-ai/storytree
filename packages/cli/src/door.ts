@@ -295,11 +295,26 @@ async function dispatch(argv: readonly string[], heard: Heard, context: Context)
   }
   if (family === undefined) {
     if (Object.hasOwn(POINTERS, first)) return pointedBy(first, rest, heard, context);
+    const held = await unnamedHolderOf(first);
+    if (held !== undefined) {
+      const naming = `storytree settings set part ${held.part} plugin ${held.plugin}`;
+      throw new Refusal(`storytree has no "${first}": it is a family of the factory plugin ${held.plugin}, which this computer does not name. Name it with: ${naming}`, { code: 2, next: [{ command: naming, why: `mount ${held.plugin}'s families here` }] });
+    }
     const named = FAMILIES.filter((candidate) => candidate.waitsOn === undefined).map((candidate) => ({ name: candidate.name, command: candidate.name }));
     const guessed = [`${first} ${rest[0]}`, first].find((words) => Object.hasOwn(GUESSES, words));
     throw unknown("storytree", first, guessed === undefined ? undefined : GUESSES[guessed], "Its families", named, rest);
   }
   return dispatchIn(family, family.name, rest, heard, context);
+}
+
+/** The factory plugin this computer does not name that declares family `word`, when one does; a settings file that cannot be read names none. */
+async function unnamedHolderOf(word: string) {
+  const [{ readStandIns }, { unnamedOwnerOf }] = await Promise.all([import("@storytree/project-and-caller"), import("@storytree/plugin-loader/factory")]);
+  try {
+    return unnamedOwnerOf(readStandIns(), "verbs", word);
+  } catch {
+    return undefined;
+  }
 }
 
 /** Run the command `words` (after `storytree`) are hand-pointed to, with the words after them, saying so unless the answer is raw. */

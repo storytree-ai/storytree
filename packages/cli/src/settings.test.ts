@@ -250,6 +250,27 @@ test("plugin-loader 5.19 · a factory plugin named ci-health, switched in with `
   assert.equal(ran.stdout.trim().split("\n")[0], `my health is fine in ${dir}`);
 });
 
+test("1.47 · a family only a factory plugin this computer does not name declares is refused with which plugin holds it and the settings command that names it; once named it runs, and a word no plugin declares is refused as before", async (t) => {
+  const dir = realpathSync(mkdtempSync(path.join(tmpdir(), "storytree-unnamed-")));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const home = path.join(dir, "home");
+  const invoke = (args: string[]) => storytree(command.script, args, { cwd: dir, home });
+  assert.equal((await invoke(["plugin", "new", "my-extra"])).code, 0);
+
+  const refused = await invoke(["my-extra", "hello"]);
+  assert.notEqual(refused.code, 0);
+  assert.match(refused.stderr, /storytree has no "my-extra": it is a family of the factory plugin my-extra, which this computer does not name\./);
+  assert.match(refused.stderr, /storytree settings set part my-extra plugin my-extra/);
+  assert.match((await invoke(["nowhere-family"])).stderr, /storytree has no "nowhere-family"\n/);
+
+  assert.equal((await invoke(["settings", "set", "part", "my-extra", "plugin", "my-extra"])).code, 0);
+  assert.equal((await invoke(["my-extra", "hello"])).code, 0);
+
+  writeFileSync(path.join(home, "settings.json"), "{ not json");
+  const unread = await invoke(["my-extra", "hello"]);
+  assert.match(unread.stderr, /storytree has no "my-extra"\n/, "a settings file that cannot be read names no plugin, and the word is refused as before");
+});
+
 test("1.40 · with a factory folder chosen and `settings set part ci-health plugin my-health`, the command line lists and runs the factory plugin's family where ci-health's was, its verb handed the door's place; `settings set part ci-health on` mounts ci-health's own again", async (t) => {
   const dir = realpathSync(mkdtempSync(path.join(tmpdir(), "storytree-stand-in-")));
   t.after(() => rmSync(dir, { recursive: true, force: true }));

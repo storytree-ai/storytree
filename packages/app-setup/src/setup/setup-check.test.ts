@@ -1149,6 +1149,34 @@ test("8.15 with no desktop app, a session whose tool server runs from a checkout
   });
 });
 
+test("8.15 a checkout at origin's main registers that build even when its own origin/main ref is older, as a cloud container's cached clone leaves it; a branch with work on it still registers nothing (regression: 29 of 31 cloud sessions wrote no hook line, 2026-11-02)", async () => {
+  await withTempDir(async (dir) => {
+    const home = throwawayHome(dir);
+    const origin = path.join(dir, "origin.git");
+    spawnSync("git", ["init", "-q", "--bare", origin]);
+    const { folder, commit: old } = checkoutOfMain(dir);
+    const git = (...args: string[]) => spawnSync("git", ["-c", "user.name=t", "-c", "user.email=t@t", ...args], { cwd: folder, encoding: "utf8" }).stdout.trim();
+    git("remote", "add", "origin", origin);
+    // Main moves on after the clone was cached; the session's branch is cut from main as it is now, and only it is fetched.
+    git("commit", "-q", "--allow-empty", "-m", "main, later");
+    git("push", "-q", "origin", "HEAD:refs/heads/main");
+    git("update-ref", "refs/remotes/origin/main", old);
+    const commit = git("rev-parse", "HEAD");
+    const build = async (outdir: string) => {
+      mkdirSync(outdir, { recursive: true });
+      writeFileSync(path.join(outdir, "storytree-hook.mjs"), "");
+    };
+    const options = { checkout: folder, storytreeHome: home.storytreeHome, homes: home.homes, build };
+
+    const hook = await builtFromMain(options);
+    assert.ok(hook !== undefined, "a checkout at origin's main gives a hook to register, whatever its own ref says");
+    assert.equal(path.dirname(hook.script), path.join(home.storytreeHome, "agent-tools", commit), "built from main's commit as origin has it");
+
+    git("commit", "-q", "--allow-empty", "-m", "branch work");
+    assert.equal(await builtFromMain(options), undefined, "a branch with work on it is still not main");
+  });
+});
+
 test("8.15 a build of main, run from outside the checkout, loads the embedding runtime its library search ranks by meaning with (regression: the Mint box's installed tools ranked by words, 2026-10-02)", { timeout: 120_000 }, async () => {
   await withTempDir(async (dir) => {
     const { folder } = checkoutOfMain(dir);

@@ -70,10 +70,10 @@ export async function keepRunning({ name, running, start, held = async () => und
 }
 
 /** The live process `pidFile` names, when its command line is one `marks` matches; a reused pid is not it. */
-async function livePid(pidFile, marks, readArgs) {
+async function livePid(pidFile, marks) {
   const pid = Number((await readFile(pidFile, "utf8").catch(() => "")).trim());
   if (!pid || !alive(pid)) return undefined;
-  const args = await readArgs(pid);
+  const args = await argsOf(pid);
   return marks.some((mark) => mark.test(args)) ? pid : undefined;
 }
 
@@ -99,7 +99,7 @@ export function poolService(kind, box = {}) {
       const stopFile = join(lanesDir, "pool-stop");
       return keepRunning({
         name: kind, stopping: host.stopping, log: host.log, ...(box.pollMs ? { pollMs: box.pollMs, againMs: box.pollMs } : {}),
-        running: () => livePid(pidFile, marks, box.argsOf ?? argsOf),
+        running: () => livePid(pidFile, marks),
         held: async () => {
           if (!dispatcher) return undefined;
           if (existsSync(stopFile)) return "pool-stop is there";

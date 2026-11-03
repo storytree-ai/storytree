@@ -80,7 +80,7 @@ test("3.33 · stopping the dispatcher's service ends the dispatcher and leaves i
   await writeFile(script, FAKE_DISPATCHER);
   const stopping = new AbortController();
   const lines = [];
-  const service = poolService("dispatcher", { lanesDir, checkout: lanesDir, command: [process.execPath, [script, "pool", lanesDir]], pollMs: 50, argsOf: async () => "launch.mjs pool" });
+  const service = poolService("dispatcher", { lanesDir, checkout: lanesDir, command: [process.execPath, [script, "pool", lanesDir]], pollMs: 50 });
   const running = service.start({ stopping: stopping.signal, log: (line) => lines.push(line) });
   const lane = Number(await waitUntil(async () => (await readFile(join(lanesDir, "lane.pid"), "utf8").catch(() => "")), 10_000, "the fake lane's pid"));
   const dispatcherPid = Number(await readFile(join(lanesDir, "pool.pid"), "utf8"));
@@ -106,11 +106,38 @@ appendFileSync(status, "2026-11-03T00:02:00Z dispatcher started\\n" + (runs >= 2
 `);
   const stopping = new AbortController();
   const lines = [];
-  const service = poolService("dispatcher", { lanesDir, checkout: lanesDir, command: [process.execPath, [script, "pool", lanesDir]], pollMs: 20, argsOf: async () => "" });
+  const service = poolService("dispatcher", { lanesDir, checkout: lanesDir, command: [process.execPath, [script, "pool", lanesDir]], pollMs: 20 });
   const running = service.start({ stopping: stopping.signal, log: (line) => lines.push(line) });
   await waitUntil(() => lines.some((line) => line.startsWith("the dispatcher is left stopped")), 10_000, "the dispatcher held on its exit 75");
   stopping.abort();
   await running;
   assert.equal(lines.filter((line) => line.startsWith("started the dispatcher")).length, 2, "the exit 75 from before its start held nothing; its own held the next start");
   assert.match(lines.at(-1), /left stopped: its last run ended on exit 75 \(pool stopped: engine failing at once on increment_b\); start it again with: storytree services restart agent-pool\/dispatcher/);
+});
+
+// A watcher as `watch.mjs run` is one: its look loop a child in its process group, and a fix session it started in a group of its own.
+const FAKE_WATCHER = `
+import { spawn } from "node:child_process";
+import { writeFileSync } from "node:fs";
+const lanes = process.argv[3];
+const loop = spawn(process.execPath, ["-e", "setTimeout(() => {}, 60000)"], { stdio: "ignore" });
+const fix = spawn(process.execPath, ["-e", "setTimeout(() => {}, 60000)"], { detached: true, stdio: "ignore" });
+fix.unref();
+writeFileSync(lanes + "/pids", JSON.stringify({ run: process.pid, loop: loop.pid, fix: fix.pid }));
+setInterval(() => {}, 1000);
+`;
+
+test("3.33 · stopping the watcher's service ends the watcher and its look loop, and leaves a fix session it started running", { skip: process.platform === "win32" && "the watcher runs on a POSIX pool machine; Windows ends no process group" }, async (t) => {
+  const lanesDir = await folder(t);
+  const script = join(lanesDir, "watch.mjs");
+  await writeFile(script, FAKE_WATCHER);
+  const stopping = new AbortController();
+  const service = poolService("watcher", { lanesDir, checkout: lanesDir, command: [process.execPath, [script, "run", lanesDir]], pollMs: 50 });
+  const running = service.start({ stopping: stopping.signal, log: () => {} });
+  const pids = JSON.parse(await waitUntil(async () => (await readFile(join(lanesDir, "pids"), "utf8").catch(() => "")), 10_000, "the fake watcher's pids"));
+  t.after(() => { for (const pid of Object.values(pids)) { try { process.kill(pid); } catch {} } });
+  stopping.abort();
+  await running;
+  await waitUntil(() => !alive(pids.run) && !alive(pids.loop), 10_000, "the watcher and its look loop to end");
+  assert.equal(alive(pids.fix), true, "the fix session runs on after the watcher's service stopped");
 });

@@ -157,6 +157,9 @@ const CART_PYTEST = [
   `def test_check_out_1_2_handoff():`,
   `    assert True`,
   ``,
+  `@pytest.fixture`,
+  `def key():`,
+  `    return "k"`,
   `def test_lists_inside():`,
   `    """1.2 · cart lists what is in it"""`,
   ``,
@@ -214,6 +217,9 @@ test("2.7 · a skipped pytest test, which -rA names only by its file and line, i
   );
   const bodySkip: TestResult = { ...platformSkip, line: lineOf(`    """1.2 · cart lists`) };
   assert.deepEqual(judgeRun(proofs, [bodySkip]).unmatched.map(({ name }) => name), ["test_lists_inside"], "a skip two lines above the next test's decorators is the test whose body it is in");
+  const fixtureSkip: TestResult = { ...platformSkip, line: lineOf("@pytest.fixture") };
+  const fromFixture = judgeRun(proofs, [fixtureSkip]);
+  assert.deepEqual([fromFixture.unmatched, fromFixture.verdicts.get("c_out_12")!.total], [[], 1], "a fixture's decorators are no test's: the skip there is in the body above, test_check_out_1_2_handoff's");
   const ownerSkip: TestResult = { name: "", suites: [], status: "skipped", file: cart, line: lineOf(`        pytest.skip(`), message: "owner: needs a key" };
   const { verdicts, unmatched } = judgeRun(proofs, [platformSkip, passedOnLinux, ownerSkip]);
   assert.deepEqual([verdicts.get("c_cart_12")!.state, verdicts.get("c_cart_12")!.skip], ["not-checked", "owner"], "the skip in test_1_2_keeps's body is its own");

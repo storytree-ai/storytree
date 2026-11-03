@@ -22,6 +22,9 @@
 // - machineOnly: true, and the dispatcher takes only work whose machine field names this machine, and plans no arc,
 //   leaving untagged work to the shared pool (ADR-1179 D2), and starts a lane only while plugged in and while the library
 //   and GitHub answer (D3); by default false. windows/register-laptop-pool.ps1 writes a laptop's.
+// - projects: [{ name, checkout }]: the storytree projects whose ready work the pool offers, each lane started in its
+//   project's checkout on this machine; storytree's may leave its checkout out (it is `checkout`), any other must name
+//   one. By default, or empty, storytree alone.
 // `~` is the home folder of the machine reading the file. The environment variables the pool read before
 // (LANES_DIR, CODEX_STOP_AT, WATCH_BOX_HOST, WATCH_FIX_LIMIT, WATCH_FIX_CAP, WATCH_INTERVAL_S) still override it.
 import { readFileSync } from "node:fs";
@@ -76,7 +79,15 @@ export function poolConfig({ home = homedir(), env = process.env, file = env.AGE
       intervalMs: (number(env.WATCH_INTERVAL_S, watcher.intervalSeconds) ?? 60) * 1000,
     },
     machineOnly: raw.machineOnly === true,
+    projects: raw.projects?.length ? raw.projects.map((project) => projectOf(project, local)) : [{ name: "storytree" }],
   };
+}
+
+/** One project the pool serves: its name, and its checkout when it is not the pool's own (storytree's). */
+function projectOf({ name, checkout }, local) {
+  if (checkout) return { name, checkout: local(checkout) };
+  if (name !== "storytree") throw new Error(`the agent pool's configuration: project ${name} names no checkout`);
+  return { name };
 }
 
 /** What one lane takes at its peak (an engine, its tests' Postgres, at times a headless browser), until it is measured. */

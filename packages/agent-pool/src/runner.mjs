@@ -401,8 +401,8 @@ async function holdForNetwork({ reachable, sleep, now, offline }) {
 }
 
 export async function runLane({ brief, log, err, addDirs = [], cwd = process.cwd(), home = homedir(), env = process.env,
-  commands = { codex: ["codex"], claude: ["claude"] }, now = Date.now, say = console.log, increment,
-  heads = (id) => remoteHeads(id, cwd), failed = (failure) => recordLaneFailure(failure),
+  commands = { codex: ["codex"], claude: ["claude"] }, now = Date.now, say = console.log, increment, project = "storytree",
+  heads = (id) => remoteHeads(id, cwd), failed = (failure) => recordLaneFailure(failure, project),
   storytree = async (args) => (await run(...storytreeCommand(args), { cwd, env, maxBuffer: 16 * 1024 * 1024 })).stdout,
   reachable = () => bothAnswer({ cwd, env }), sleep = (ms) => new Promise((done) => setTimeout(done, ms)), offline: limits = {}, reap, onSpawn }) {
   const original = await readFile(brief, "utf8");

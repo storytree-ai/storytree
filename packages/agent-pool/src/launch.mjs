@@ -1,7 +1,7 @@
 // Capability 3 · The pool's dispatcher (ADR-0955 D2), which the machine's launcher execs:
 // node --import tsx packages/agent-pool/src/launch.mjs pool            (one dispatcher over every active arc's ready increments; exits 3 to restart on its own code change)
 // node packages/agent-pool/src/launch.mjs slots                       (engines running now, and the cap)
-// node --import tsx packages/agent-pool/src/launch.mjs ready [project] [--drained] (as JSON: engines running, the cap, the lanes folder and the work the pool would start now)
+// node --import tsx packages/agent-pool/src/launch.mjs ready [project] [--drained] (as JSON: engines running, the cap, the lanes folder and the work the pool would start now, from every project it serves or the one named)
 // node --import tsx packages/agent-pool/src/launch.mjs probe [checkout]  (whether the library and GitHub answer from the checkout, naming each refusal; exit 1 on one)
 // node --import tsx packages/agent-pool/src/launch.mjs stop               (ends the dispatcher pool.pid names, if it is one)
 import { execFile, execFileSync, spawn } from "node:child_process";
@@ -14,7 +14,7 @@ import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 
 import { laneSettings } from "./engine.mjs";
-import { blind, pickPlan, pickPool, planState, readOnly, surveyLibrary } from "./feed.mjs";
+import { blind, pickPlan, pickPool, planState, readOnly, surveyLibrary, surveyProjects } from "./feed.mjs";
 import { codeVersion, composeBrief, countEngines, localBrief, ENGINE_SLOTS, holdRunner, processTable, reserveSlot, withLockFile, WINDOWS_PROCESSES } from "./queue.mjs";
 import { refusals, runLane as runEngineLane, SIGNALED } from "./runner.mjs";
 import { readBoxPace } from "./pace.mjs";
@@ -103,8 +103,9 @@ export async function withFlock(path, fn) {
  * the runner checks the lane left a report or a push for its increment, and resumes it once if not. With `recheck`,
  * the increment is read again once the slot and checkout are ready, since that wait can outlast its survey by minutes:
  * a reason back (or an unread library) starts nothing and returns NOT_STARTED. The slot is held until the runner's engine is up, or the lane ends.
+ * `project` is the storytree project the lane's work is in, where the runner counts its failure.
  */
-export async function laneOnce({ increment, brief, log, err, addDirs, repo, maxLanes, lock, count, slots, prepare, sleep, runLane, recheck, follow, now = Date.now, say }) {
+export async function laneOnce({ increment, project, brief, log, err, addDirs, repo, maxLanes, lock, count, slots, prepare, sleep, runLane, recheck, follow, now = Date.now, say }) {
   const dated = (message) => say(`${stamp(now)} ${message}`);
   let slot;
   await lock(async () => {
@@ -118,7 +119,7 @@ export async function laneOnce({ increment, brief, log, err, addDirs, repo, maxL
     await writeFile(brief.path, brief.text);
     dated(`start ${increment}`);
     let code;
-    try { code = await runLane({ brief: brief.path, log, err, addDirs, cwd: repo, say, onSpawn: slot.release, ...(follow ? { increment } : {}) }); }
+    try { code = await runLane({ brief: brief.path, log, err, addDirs, cwd: repo, say, onSpawn: slot.release, ...(project ? { project } : {}), ...(follow ? { increment } : {}) }); }
     catch (error) { dated(`lane runner: ${error.message}; exit 75, which stops the dispatcher`); code = 75; }
     dated(`end ${increment} exit ${code}`);
     return code;
@@ -294,7 +295,7 @@ function boxDefaults({ home = homedir(), env = process.env } = {}) {
   const laneRepo = mainCheckout(repo);
   return {
     lanesDir, repo, laneRepo, addDirs, sessionsDir, stopAt, machineOnly: config.machineOnly, briefPaths: { checkout: laneRepo, lanes: lanesDir }, briefsDir: config.briefsDir,
-    configFile: config.file,
+    configFile: config.file, projects: config.projects,
     maxLanes: () => readCap({ lanesDir, sessions: config.sessions }),
     count: async () => countEngines(await processes()),
     power: () => readPowerLine(), refusals: (cwd = repo) => refusals({ cwd, env }), kill: (pid) => process.kill(pid),
@@ -305,17 +306,19 @@ function boxDefaults({ home = homedir(), env = process.env } = {}) {
 }
 
 /**
- * `ready`: what the box would do now for `project` (by default storytree), read by another dispatcher that shares the box's
+ * `ready`: what the box would do now for `project` (by default every project it serves, each item then naming its project when there are several), read by another dispatcher that shares the box's
  * cap (the experiment dispatcher, ADR-1064 D3): the engines running, the cap, the lanes folder, every increment
  * pickPool would start, with its arc's priority when it has one, and every arc pickPlan would plan with nothing ready, in
  * its order, each with the state it would be planned in (the reader keeps which it planned); with `drained`, every arc
  * drained of its work (closed, no question open) after them, as an experiment arm plans its one arc. The library is the
  * one this process's storytree home names.
  */
-async function ready(b, project = "storytree", { drained = false } = {}) {
-  const found = withHandOffs(await b.survey(project), await handedOff(join(b.lanesDir, "watch")));
+async function ready(b, project, { drained = false } = {}) {
+  const projects = project ? [project] : b.projects.map((one) => one.name);
+  const found = withHandOffs(await surveyProjects(projects, b.survey), await handedOff(join(b.lanesDir, "watch")));
   const { picks } = pickPool(found, { max: Infinity, now: b.now() });
-  const work = picks.map((one) => ({ id: one.id, title: one.title, ...(one.priority === undefined ? {} : { priority: one.priority }) }));
+  const work = picks.map((one) => ({ id: one.id, title: one.title, ...(one.priority === undefined ? {} : { priority: one.priority }),
+    ...(projects.length > 1 ? { project: one.project } : {}) }));
   const plans = [], offered = new Map();
   for (let arc = pickPlan(found, { planned: offered, now: b.now() }); arc; arc = pickPlan(found, { planned: offered, now: b.now() })) {
     offered.set(arc.id, arc.state);
@@ -384,7 +387,10 @@ async function pool(b) {
   const runner = await holdRunner({ pidFile: join(L, "pool.pid"), pid: b.pid ?? process.pid, marks: [DISPATCHER], argsOf: b.argsOf });
   if (!runner.held) { dated(`dispatcher ${runner.by} is running: not starting`); return 1; }
   dated("dispatcher started");
-  const survey = async () => withHandOffs(await b.survey(), await handedOff(join(L, "watch")));
+  // Every project the machine names (pool-config.mjs), each surveyed in its own project in the library.
+  const survey = async () => withHandOffs(await surveyProjects(b.projects.map((one) => one.name), b.survey), await handedOff(join(L, "watch")));
+  // A lane starts in its project's checkout (the main worktree, where make_workspace cuts its own); storytree's, by default, where it always has.
+  const checkoutOf = (name) => { const own = b.projects.find((one) => one.name === name)?.checkout; return own && mainCheckout(own); };
   const code = await runPool({
     survey, maxLanes: b.maxLanes, count: b.count, machineOnly: b.machineOnly, stopFile: join(L, "pool-stop"), plans: planFile(join(L, "pool-planned.json")), sleep: b.sleep, now: b.now, say,
     // A machine-only dispatcher (the laptop's) first holds for its start rule, plugged in and online (ADR-1179 D3).
@@ -398,13 +404,14 @@ async function pool(b) {
         ? { title: `Planning lane: ${one.id}`, intro: `Your arc: ${one.id} (${one.title}).`, notes: "", common: await planRules(b.briefsDir) }
         : { title: `Pool lane: ${one.id}`, intro: `Your increment: ${one.id}.${role}`,
           notes: await readFile(join(L, `pool-notes-${one.id}.md`), "utf8").catch(() => ""), common: await (b.rules ?? poolRules)(one.body, b.briefsDir) };
+      const checkout = checkoutOf(one.project);
       return laneOnce({
-        increment: one.id, addDirs: b.addDirs, repo: b.laneRepo ?? b.repo, maxLanes: b.maxLanes, lock: b.lock, count: b.count, slots: join(L, ENGINE_SLOTS), prepare: b.prepare,
+        increment: one.id, project: one.project, addDirs: b.addDirs, repo: checkout ?? b.laneRepo ?? b.repo, maxLanes: b.maxLanes, lock: b.lock, count: b.count, slots: join(L, ENGINE_SLOTS), prepare: b.prepare,
         sleep: b.sleep, runLane: b.runLane, now: b.now, follow: !one.plan,
         ...(one.plan ? {} : { recheck: async () => whyNotStart(await survey(), one.id) }),
         say: (line) => { if (/^\S+ engine \w+ /.test(line) && !/ exit -?\d+$/.test(line)) engineUp(); say(line); },
         log: join(L, `pool-${one.id}-${at}.log`), err: join(L, `pool-${one.id}-${at}.err`),
-        brief: { path: join(L, `pool-${one.id}-brief.md`), text: localBrief(composeBrief(brief), b.briefPaths) },
+        brief: { path: join(L, `pool-${one.id}-brief.md`), text: localBrief(composeBrief(brief), checkout ? { ...b.briefPaths, checkout } : b.briefPaths) },
       });
     },
   });

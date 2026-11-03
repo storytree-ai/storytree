@@ -233,8 +233,8 @@ export async function storyTests(root: string, tree: AnnotatedTree, capability: 
   }
   const surveyed = (await survey({ ...tree, stories: [story] }))[story.id];
   const numbered = (surveyed?.tests ?? []).flatMap((test) => test.titles.filter((title) => title.package === undefined || own.includes(title.package)).map((title) => title.number));
-  // A Python project's pytest tests carry numbers too, for this check alone (ADR-1189).
-  const pytest = await pytestTestedNumbers(root, tree, story.id);
+  // A Python project's pytest tests outside the packages the survey read carry numbers too, for this check alone (ADR-1189, 8.55).
+  const pytest = await pytestTestedNumbers(root, tree, story.id, surveyed === undefined ? [] : own.map((name) => `packages/${name}`));
   const seen = surveyed !== undefined || pytest.length > 0;
   // Unseen in a checkout whose code is only in languages the survey cannot read: that, not a missing package, is why (5.63).
   const languages = seen ? undefined : await folderLanguages(root).catch(() => undefined);

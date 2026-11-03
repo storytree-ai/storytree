@@ -8,8 +8,12 @@
  *   from the importing file's. A folder with no __init__.py is a namespace package. An absolute import is searched
  *   from the src/ of the package holding the file, then its root; outside every package, from src/, then the top.
  * - A file declares its capability by an opening `# Capability N · …`, after an optional shebang (ADR-0925 D1).
+ * - A test file's titles are its pytest tests', read from the syntax tree: each `test*` function at the top of the file,
+ *   and each `test*` method of a `Test*` class, nested classes too (8.54). A test whose docstring's first line starts
+ *   with a number, perhaps after a package (`2.3 · …`, `shop 2.3 · …`), is titled by that line; else by its name,
+ *   `test_2_3_cart_keeps_items` as `2.3 · cart keeps items` and `test_shop_2_3_…` as `shop 2.3 · …` (the package's
+ *   hyphens as underscores), as python-tests.ts reads them for the landing check (ADR-1189).
  * - Its parser is given it (usePythonParser) by the survey's Node-only reader, read-survey.ts.
- * Its test titles are the test join's, the arc's later increment, so it reads none yet.
  */
 import type { Node, Tree } from "web-tree-sitter";
 
@@ -107,12 +111,60 @@ function edgesOf(file: SourceFile, paths: ReadonlySet<string>, packages: readonl
   }
 }
 
+/** A test's name: `test_`, then perhaps a package (words of letters and digits), then the number's two parts and the rest. */
+const NUMBERED_NAME = /^test_((?:[a-z][a-z0-9]*_)*?)(\d+)_(\d+)(?![0-9])_?(.*)$/i;
+/** A docstring's first line that starts with a number, perhaps after a package's name. */
+const NUMBERED_DOCSTRING = /^(?:[a-z][a-z0-9-]*\s+)?\d+\.\d+(?![0-9])/i;
+
+/** A function's docstring: its body's opening string, as written between its quotes; none for an f-string or a concatenation. */
+function docstringOf(definition: Node): string | undefined {
+  const opening = definition.childForFieldName("body")?.namedChildren[0];
+  const string = opening?.type === "expression_statement" && opening.namedChildCount === 1 ? opening.namedChildren[0] : undefined;
+  if (string?.type !== "string" || string.namedChildren.some((part) => part.type === "interpolation")) return undefined;
+  return string.namedChildren.filter((part) => part.type === "string_content").map((part) => part.text).join("");
+}
+
+/** The title of one test function: its numbered docstring's first line, else its name, numbered when it carries one. */
+function testTitle(definition: Node): string {
+  const name = definition.childForFieldName("name")?.text ?? "";
+  const line = docstringOf(definition)?.trim().split("\n")[0]!.trim();
+  if (line !== undefined && NUMBERED_DOCSTRING.test(line)) return line;
+  const numbered = NUMBERED_NAME.exec(name);
+  if (numbered === null) return name;
+  const [, prefix, major, minor, rest] = numbered;
+  const named = prefix!.replace(/_$/, "").toLowerCase().replaceAll("_", "-");
+  return `${named === "" ? "" : `${named} `}${major}.${minor} · ${rest!.replaceAll("_", " ")}`.trim();
+}
+
+/** The definitions in a block (a module's or a class's), seen through their decorators. */
+const definitionsIn = (block: Node): Node[] => block.namedChildren.map((child) => child.type === "decorated_definition" ? child.childForFieldName("definition") : child).filter((child): child is Node => child !== null);
+
+/** The tests pytest collects from a block: its `test*` functions, and those of its `Test*` classes. */
+function testsIn(block: Node): Node[] {
+  return definitionsIn(block).flatMap((definition) => {
+    const name = definition.childForFieldName("name")?.text ?? "";
+    if (definition.type === "function_definition") return name.startsWith("test") ? [definition] : [];
+    const body = definition.childForFieldName("body");
+    return definition.type === "class_definition" && name.startsWith("Test") && body !== null ? testsIn(body) : [];
+  });
+}
+
+/** The titles of a pytest file's tests. */
+function titlesOf(file: SourceFile): string[] {
+  const tree = givenParser().parse(file.text);
+  try {
+    return testsIn(tree.rootNode).map(testTitle);
+  } finally {
+    tree.delete();
+  }
+}
+
 /** Python, its imports read from tree-sitter's syntax tree once its parser has loaded the grammar. */
 export const pythonReader: LanguageReader = {
   files: /\.py$/,
   tests: PYTEST_FILE,
   testSupport: /(?:^|\/)conftest\.py$/,
-  titlesOf: () => [],
+  titlesOf,
   edgesOf,
   registersTests: () => false,
   declarationOf: (text) => {

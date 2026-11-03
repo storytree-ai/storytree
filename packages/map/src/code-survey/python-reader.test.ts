@@ -36,7 +36,7 @@ test("8.44, 8.50 reading a mapped Python story's tests loads the Python reader's
     });
     const shop = { ...story("story-shop", "Shop"), mapped: { from: folder, package: ".", folders: ["."] } };
     const plan = { arcs: [], stories: [shop] } as unknown as AnnotatedTree;
-    assert.deepEqual(await storyTests(folder, plan, "story-shop-cap-1"), { numbers: [], seen: true });
+    assert.deepEqual(await storyTests(folder, plan, "story-shop-cap-1"), { numbers: ["1.1"], seen: true });
   } finally {
     await removeTemp(folder);
   }
@@ -126,6 +126,102 @@ test("8.52 a built Python story's pyproject.toml makes roads to the stories whos
       assert.equal(survey[id]?.files.length, 1, `${id} is still surveyed`);
       assert.equal(survey[id]?.dependsOn, undefined, `${id}'s pyproject.toml, no TOML or naming no project, is no package`);
     }
+  } finally {
+    await removeTemp(folder);
+  }
+});
+
+/** A built Cart story whose pytest tests carry numbers by their names, their docstrings and inside a Test* class. */
+const numberedCart: Readonly<Record<string, string>> = {
+  "packages/cart/pyproject.toml": "[project]\nname = \"cart\"\n",
+  "packages/cart/src/cart/__init__.py": "",
+  "packages/cart/src/cart/lines.py": "def lines(items):\n    return list(items)\n",
+  "packages/cart/src/cart/total.py": "def total(lines):\n    return sum(lines)\n",
+  "packages/cart/tests/test_lines.py": [
+    "from cart.lines import lines",
+    "",
+    "",
+    "def test_keeps_order():",
+    "    \"\"\"1.1 · lines keep their order",
+    "",
+    "    More words after the first line.",
+    "    \"\"\"",
+    "    assert lines([2, 1]) == [2, 1]",
+    "",
+  ].join("\n"),
+  "packages/cart/tests/test_total.py": [
+    "import pytest",
+    "",
+    "from cart.total import total",
+    "",
+    "",
+    "def test_2_1_totals_lines():",
+    "    def test_9_9_nested_helper():",
+    "        pass",
+    "    assert total([1]) == 1",
+    "",
+    "",
+    "class TestTotals:",
+    "    def test_cart_2_2_empty_is_zero(self):",
+    "        assert total([]) == 0",
+    "",
+    "    @pytest.mark.slow",
+    "    async def test_2_3_slow(self):",
+    "        assert total([2]) == 2",
+    "",
+    "    class TestNested:",
+    "        def test_2_4_nested_class(self):",
+    "            pass",
+    "",
+    "",
+    "class Helper:",
+    "    def test_2_9_not_collected(self):",
+    "        pass",
+    "",
+    "",
+    "def test_shop_2_5_another_storys():",
+    "    pass",
+    "",
+    "",
+    "def helper_2_6():",
+    "    pass",
+    "",
+  ].join("\n"),
+};
+
+test("8.54 a built Python story's pytest tests, module functions and methods of a Test* class, carry the number their name (test_2_3_…, perhaps after the package) or their docstring starts with, and pin the files they reach to that capability", async () => {
+  const folder = await mkdtemp(path.join(tmpdir(), "python-test-join-"));
+  try {
+    await write(folder, numberedCart);
+    const plan = { arcs: [], stories: [story("story-cart", "Cart", ["1 · Lines", "2 · Totals"])] } as unknown as AnnotatedTree;
+    const survey = (await codeSurveyReader().read(folder, plan))["story-cart"]!;
+    const titles = (file: string) => survey.tests?.find((one) => one.path === file)?.titles.map(({ number, title, package: named }) => `${named ?? ""}|${number}|${title}`);
+    assert.deepEqual(titles("tests/test_total.py"), [
+      "|2.1|2.1 · totals lines",
+      "cart|2.2|cart 2.2 · empty is zero",
+      "|2.3|2.3 · slow",
+      "|2.4|2.4 · nested class",
+      "shop|2.5|shop 2.5 · another storys",
+    ], "module tests and Test* methods carry their names' numbers; a nested function, another class's method and a non-test do not");
+    assert.deepEqual(titles("tests/test_lines.py"), ["|1.1|1.1 · lines keep their order"], "a docstring's first line is the title");
+    const owner = (file: string) => survey.files.find((one) => one.path === file)?.capability;
+    assert.equal(owner("src/cart/total.py"), "story-cart-cap-2");
+    assert.equal(owner("src/cart/lines.py"), "story-cart-cap-1");
+    const owners = await capabilitiesOfFiles(folder, ["packages/cart/tests/test_lines.py"], plan, { survey: async () => ({}) });
+    assert.deepEqual([...owners], [["packages/cart/tests/test_lines.py", { capability: "story-cart-cap-1", inferred: false }]], "a test file whose tests carry one number declares that capability");
+  } finally {
+    await removeTemp(folder);
+  }
+});
+
+test("8.55 a built Python story's numbered pytest test, read by both the survey and the checkout-wide pytest read, is counted once in its story's tested numbers", async () => {
+  const folder = await mkdtemp(path.join(tmpdir(), "python-counted-once-"));
+  try {
+    await write(folder, numberedCart);
+    const plan = { arcs: [], stories: [story("story-cart", "Cart", ["1 · Lines", "2 · Totals"])] } as unknown as AnnotatedTree;
+    const { numbers, seen } = await storyTests(folder, plan, "story-cart-cap-1");
+    assert.equal(seen, true);
+    assert.deepEqual([...numbers].sort(), ["1.1", "2.1", "2.2", "2.3", "2.4"], "each once, read as the survey reads them: another class's method carries none");
   } finally {
     await removeTemp(folder);
   }

@@ -21,7 +21,12 @@ try {
   New-Item -ItemType Directory -Path $channelInstall -Force | Out-Null
   [IO.File]::WriteAllText((Join-Path $channelInstall 'storytree-0.3.exe'), 'app')
   try { Resolve-StorytreeChannel $channelHome $channelInstall 'alpha'; throw 'accepted conflict' }
-  catch { Assert ($_.Exception.Message -match 'already.*stable') 'an explicit conflicting channel cannot silently migrate an install' }
+  catch {
+    Assert ($_.Exception.Message -match 'already.*stable') 'an explicit conflicting channel cannot silently migrate an install'
+    # The refusal says how to change channel: the app's own choice where the build has it, or removing storytree first.
+    Assert ($_.Exception.Message -match 'Update channel') 'a refused channel change names the app''s Update channel choice'
+    Assert ($_.Exception.Message -match 'storytree setup uninstall') 'a refused channel change names removing storytree first'
+  }
   Remove-Item -LiteralPath (Join-Path $channelInstall 'storytree-0.3.exe')
   [IO.File]::WriteAllText($channelFile, '{broken')
   try { Resolve-StorytreeChannel $channelHome $channelInstall ''; throw 'unexpected success' }

@@ -117,7 +117,7 @@ st_channel() {
     if [ ! -e "$2" ] && [ -n "$st_wanted" ]; then st_existing=; fi
   fi
   if [ -n "$st_existing" ] && [ -n "$st_wanted" ] && [ "$st_existing" != "$st_wanted" ]; then
-    st_fail "This installation already uses $st_existing. Delivery cannot change its release channel to $st_wanted"; return
+    st_fail "This installation already uses $st_existing. Delivery cannot change its release channel to $st_wanted. To change it, choose $st_wanted in the app under Updates, Update channel, where your build has that choice; otherwise remove storytree first with storytree setup uninstall, then run this command again"; return
   fi
   ST_CHANNEL=${st_existing:-${st_wanted:-stable}}
 }

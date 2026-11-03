@@ -25,7 +25,7 @@ function Resolve-StorytreeChannel([string]$HomeDir, [string]$InstallDir, [string
     elseif ($marker -ceq 'nsis-stable') { $existing = 'stable' }
     else { throw 'The installed app has an unknown release channel marker. Check it before retrying delivery.' }
   }
-  if ($existing -and $Requested -and $existing -cne $Requested) { throw "This installation already uses $existing. Delivery cannot change its release channel to $Requested." }
+  if ($existing -and $Requested -and $existing -cne $Requested) { throw "This installation already uses $existing. Delivery cannot change its release channel to $Requested. To change it, choose $Requested in the app under Updates, Update channel, where your build has that choice; otherwise remove storytree first with storytree setup uninstall, then run this command again." }
   if ($existing) { return $existing } elseif ($Requested) { return $Requested } else { return 'stable' }
 }
 

@@ -40,6 +40,9 @@ st_save_channel "$home" stable
 st_channel "$home" "$app" alpha; check "$ST_CHANNEL" alpha "an explicit retry replaces a failed download's leftover record"
 mkdir -p "$app"
 refused "already uses stable" "an installed app's channel is not silently changed" st_channel "$home" "$app" alpha
+# The refusal says how to change channel: the app's own choice where the build has it, or removing storytree first.
+refused "Update channel" "a refused channel change names the app's Update channel choice" st_channel "$home" "$app" alpha
+refused "storytree setup uninstall" "a refused channel change names removing storytree first" st_channel "$home" "$app" alpha
 st_channel "$home" "$app" ""; check "$ST_CHANNEL" stable "a repeat keeps the installed channel"
 # Alpha's old name, development, still reads and asks for alpha (ADR-1121).
 printf '{"schema":1,"channel":"development"}' > "$home/release-channel.json"

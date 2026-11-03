@@ -12,7 +12,7 @@ import { connect } from "@storytree/library";
 import { dropTestDatabases } from "@storytree/local-postgres/testing";
 import { openActivityLog } from "@storytree/session-management";
 
-import { browserProcess, closeBrowser, fakeBridge, outputFolder, runCapture, settle, withCapture } from "./index.js";
+import { browserProcess, closeBrowser, fakeBridge, liveAnswers, outputFolder, runCapture, settle, withCapture } from "./index.js";
 
 test("2.9 · capture settling awaits each requested frame after invalidating the globe", async t => {
   // Chrome is installed on the three CI runner images; no browser download during tests.
@@ -152,6 +152,7 @@ test("2.38 · a capture on a live library answers the page with the app's own re
   const library = await storytree.openProject(project);
   const story = await library.addStory({ title: "Visitor can sign up" });
   await library.editStory(story.id, { title: "Visitor can join" });
+  await library.addStory({ title: "Visitor can sign in" });
   await library.editStory(story.id, { title: "Visitor can join today" });
   for (let n = 0; n < 8; n++) await log.append(project, { session: `S${n}`, source: "hook", kind: "session-started" });
 
@@ -163,6 +164,7 @@ test("2.38 · a capture on a live library answers the page with the app's own re
     async addInitScript() {},
     async goto() {
       read.selection = await call("projectSelection", []);
+      read.chosen = await call("chooseProject", [project]);
       const first = await call("linesSince", [project, 0]) as { lines: { session: string }[]; cursor: number };
       read.first = first.lines.map(line => line.session);
       await log.append(project, { session: "S8", source: "hook", kind: "session-started" });
@@ -181,10 +183,19 @@ test("2.38 · a capture on a live library answers the page with the app's own re
   await runCapture({ folder, dist: folder, live: { storytree, project, lines: 3 }, views: [] });
 
   assert.deepEqual((read.selection as { current: string }).current, project, "the page opens on the project the capture names");
+  assert.deepEqual((read.chosen as { current: string }).current, project, "a project the page chooses is on show");
   assert.deepEqual(read.first, ["S5", "S6", "S7"], "the first activity read holds only the newest lines up to the bound");
   assert.deepEqual(read.next, ["S8"], "a later read follows on from the first's cursor");
-  assert.deepEqual(read.changes, [["created", "Visitor can sign up"], ["updated", "Visitor can join today"]], "each record's creation and only its latest later change");
-  assert.deepEqual(read.tree, ["Visitor can join today"], "the other reads are the app's own, on the live library");
+  assert.deepEqual(read.changes, [["created", "Visitor can sign up"], ["created", "Visitor can sign in"], ["updated", "Visitor can join today"]],
+    "each record's creation and only its latest later change, in the order they happened");
+  assert.deepEqual((read.tree as string[]).toSorted(), ["Visitor can join today", "Visitor can sign in"], "the other reads are the app's own, on the live library");
+
+  const projects = await storytree.listProjects();
+  const unnamed = await liveAnswers({ storytree });
+  t.after(() => unnamed.close());
+  assert.equal((await unnamed.answers.projectSelection!()).current, projects[0], "a capture naming no project opens on the library's first");
+  await assert.rejects(liveAnswers({ storytree, project: "t-absent" }), /no project called "t-absent"/, "a project the library lacks is refused, naming it");
+  await assert.rejects(runCapture({ folder, dist: folder, views: [] }), /either a seed or a live library/, "a capture given neither a seed nor a live library is refused");
 });
 
 // PR #1279's macOS run: the browser disconnected, then browser.close() never returned and 3.35 hit its timeout.

@@ -70,9 +70,22 @@ test("8.38 the green builder agent runs the project's whole test command itself 
     const text = readFileSync(path.join(claude, "agents", "storytree-green.md"), "utf8");
     const tools = /^tools: (.*)$/m.exec(text)?.[1]?.split(", ") ?? [];
     assert.ok(!tools.some((tool) => tool.startsWith("mcp__storytree__")), `green's tools: ${tools.join(", ")}`);
-    assert.ok(tools.includes("Edit") && tools.includes("Bash"), "it keeps its building tools, Bash running the tests");
+    assert.ok(tools.includes("Edit"), "it keeps its building tools");
     const workflow = text.slice(text.indexOf("Workflow:"));
     assert.match(workflow, /the project's whole test command, exactly as the project gives it/, "its workflow runs the whole suite");
     assert.doesNotMatch(workflow, /run_tests/, "its workflow names no test-running tool");
+  });
+});
+
+test("8.38 both builder agents carry the shell Claude Code gives them, Bash or, on Windows, PowerShell, so each can run the project's tests", async () => {
+  await withTempDir(async (dir) => {
+    const claude = path.join(dir, ".claude");
+    mkdirSync(claude);
+    registerHooks({ claude }, HOOK);
+    for (const mode of ["red", "green"]) {
+      const text = readFileSync(path.join(claude, "agents", `storytree-${mode}.md`), "utf8");
+      const tools = /^tools: (.*)$/m.exec(text)?.[1]?.split(", ") ?? [];
+      assert.ok(tools.includes("Bash") && tools.includes("PowerShell"), `${mode}'s tools: ${tools.join(", ")}`);
+    }
   });
 });

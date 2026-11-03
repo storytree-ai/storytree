@@ -142,3 +142,70 @@ test("2.5 a failing verdict's note carries, after its tally, the first line of t
   assert.ok(long.length <= "0/1 tests passed; first failure: ".length + 200, "a long message is cut to fit a note");
   assert.match(long, /…$/);
 });
+
+/** A pytest file in the cart's package; the checkout's package holds one at the same path inside it. */
+const CART_PYTEST = [
+  `"""The cart's totals."""`,
+  `import sys`,
+  `import pytest`,
+  ``,
+  `class TestTotals:`,
+  `    def test_1_1_shell(self):`,
+  `        assert True`,
+  ``,
+  `def test_check_out_1_2_handoff():`,
+  `    assert True`,
+  ``,
+  `def test_lists_inside():`,
+  `    """1.2 · cart lists what is in it"""`,
+  ``,
+  `@pytest.mark.skipif(`,
+  `    sys.platform == "win32", reason="platform:posix: needs a POSIX shell")`,
+  `def test_1_2_lists():`,
+  `    assert True`,
+  ``,
+  `def test_1_2_keeps():`,
+  `    if True:`,
+  `        pytest.skip("owner: needs a key")`,
+].join("\n");
+const PY_FILES = [
+  ...FILES,
+  { path: "packages/review-the-cart/tests/test_total.py", text: CART_PYTEST },
+  { path: "packages/check-out/tests/test_total.py", text: [`def test_1_1_shell():`, `    pass`, `def test_1_1_form(case):`, `    pass`].join("\n") },
+];
+const ran = (file: string, name: string, suites: string[] = [], status: TestResult["status"] = "passed"): TestResult => ({ name, suites, status, file });
+const lineOf = (text: string) => CART_PYTEST.split("\n").findIndex((line) => line.startsWith(text)) + 1;
+
+test("2.6 · a pytest result counts for contract N.M by the number its test's name carries, for the one story whose package holds that test in the node id's file, or the story whose package the name names; a docstring's number reaches no log", () => {
+  const cart = "packages/review-the-cart/tests/test_total.py";
+  const { verdicts, unmatched } = judgeRun(proofsAt(TREE, PY_FILES), [
+    ran(cart, "test_1_1_shell", ["TestTotals"]),
+    ran("tests/test_total.py", "test_1_1_shell"),
+    ran(cart, "test_check_out_1_2_handoff"),
+    ran(cart, "test_lists_inside"),
+    ran(cart, "test_1_2_gone"),
+    ran("tests/test_total.py", "test_1_1_form[a]"),
+  ]);
+  assert.deepEqual(
+    Object.fromEntries([...verdicts].map(([id, verdict]) => [id, [verdict.state, verdict.total]])),
+    { c_cart_11: ["passing", 1], c_cart_12: ["not-checked", 0], c_out_11: ["passing", 1], c_out_12: ["passing", 1] },
+    "the cart's 1.1 by its file's path from the top; checkout's 1.2 by the package its name names; checkout's 1.1 by the one package whose tests/test_total.py holds test_1_1_form",
+  );
+  assert.deepEqual(unmatched.map(({ name }) => name), ["test_1_1_shell", "test_lists_inside", "test_1_2_gone"], "a path two packages hold, a number only a docstring carries, and a test the file does not hold credit nothing");
+});
+
+test("2.7 · a skipped pytest test, which -rA names only by its file and line, is tied to the test at that line, its decorators' or its body's, so its skip leaves that test's contract not checked", () => {
+  const cart = "tests/test_total.py";
+  const proofs = proofsAt(TREE, PY_FILES.filter(({ path }) => !path.startsWith("packages/check-out/tests/")));
+  const platformSkip: TestResult = { name: "", suites: [], status: "skipped", file: cart, line: lineOf("@pytest.mark.skipif("), message: "platform:posix: needs a POSIX shell", platform: "win32" };
+  const passedOnLinux: TestResult = { ...ran(cart, "test_1_2_lists"), platform: "linux" };
+  assert.deepEqual(
+    [judgeRun(proofs, [platformSkip, passedOnLinux]).verdicts.get("c_cart_12")].map((verdict) => [verdict?.state, verdict?.total]),
+    [["passing", 2]],
+    "the skip at the decorator is test_1_2_lists's, proved by the Linux job",
+  );
+  const ownerSkip: TestResult = { name: "", suites: [], status: "skipped", file: cart, line: lineOf(`        pytest.skip(`), message: "owner: needs a key" };
+  const { verdicts, unmatched } = judgeRun(proofs, [platformSkip, passedOnLinux, ownerSkip]);
+  assert.deepEqual([verdicts.get("c_cart_12")!.state, verdicts.get("c_cart_12")!.skip], ["not-checked", "owner"], "the skip in test_1_2_keeps's body is its own");
+  assert.deepEqual(unmatched, []);
+});

@@ -93,9 +93,9 @@ export function platformOfJob(job: { name?: string; labels?: readonly string[] }
   return undefined;
 }
 
-/** Each code file in a package at `commit` (its src, and test folders beside it), in repository coordinates. */
+/** Each code file in a package at `commit` (its src, and test folders beside it; JavaScript, TypeScript and Python), in repository coordinates. */
 async function filesAt(git: Git, commit: string): Promise<{ path: string; text: string }[]> {
-  const paths = (await git(["ls-tree", "-r", "--name-only", commit, "--", "packages"])).split("\n").filter((file) => /^packages\/[^/]+\/.+\.[cm]?[jt]sx?$/.test(file));
+  const paths = (await git(["ls-tree", "-r", "--name-only", commit, "--", "packages"])).split("\n").filter((file) => /^packages\/[^/]+\/.+\.(?:[cm]?[jt]sx?|py)$/.test(file));
   return Promise.all(paths.map(async (file) => ({ path: file, text: await git(["show", `${commit}:${file}`]) })));
 }
 

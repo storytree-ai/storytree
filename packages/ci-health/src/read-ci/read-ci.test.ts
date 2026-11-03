@@ -142,6 +142,27 @@ test("3.3 a job log holding terminal escape sequences is read all the same, from
   for (const gh of [strict, plain]) assert.equal(await ghApi(process.execPath, [gh]).text("repos/acme/shop/actions/jobs/1/logs"), log, path.basename(gh));
 });
 
+test("3.18 · a Python story's pytest tests are verified from its CI as a JavaScript story's are: the run's commit's .py files under packages are read beside its JS and TS", async (t) => {
+  const { library, capability } = await shopLibrary(t);
+  const folder = mkdtempSync(path.join(tmpdir(), "ci-health-"));
+  t.after(() => removeTemp(folder));
+  const git = (...args: string[]) => execFileSync("git", ["-C", folder, "-c", "user.name=t", "-c", "user.email=t@t", ...args], { encoding: "utf8" }).trim();
+  git("init", "-q");
+  mkdirSync(path.join(folder, "packages/check-out/tests"), { recursive: true });
+  writeFileSync(path.join(folder, "packages/check-out/pyproject.toml"), `[project]\nname = "check-out"\n`);
+  writeFileSync(path.join(folder, "packages/check-out/tests/test_checkout.py"), ["def test_1_1_shows_the_form():", "    pass", "", "def test_1_2_shows_the_error():", "    pass"].join("\n"));
+  git("add", ".");
+  git("commit", "-q", "-m", "checkout");
+  git("remote", "add", "origin", "https://github.com/acme/shop.git");
+  const log = [
+    "2026-11-04T10:00:01.3000000Z PASSED tests/test_checkout.py::test_1_1_shows_the_form",
+    "2026-11-04T10:00:01.4000000Z PASSED tests/test_checkout.py::test_1_2_shows_the_error",
+  ].join("\n");
+  const read = await readProjectCi({ library, git: gitIn(folder), github: github(pushRunsOnTrunk(git("rev-parse", "HEAD")), log) });
+  assert.equal(read.written, true, read.written ? "" : read.why);
+  assert.equal((await library.projectTree()).stories[0]!.capabilities.find(({ id }) => id === capability)!.status, "healthy", "both contracts verified passing from packages/check-out/tests/test_checkout.py");
+});
+
 test("3.4 a story whose tests live in its package's own test folder, outside src, is verified from its CI as one with them under src is", async (t) => {
   const { library, capability } = await shopLibrary(t);
   const { folder, commit } = projectFolder(t, "https://github.com/acme/shop.git", "test");

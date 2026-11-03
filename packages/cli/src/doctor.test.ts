@@ -284,6 +284,27 @@ test("app-setup 8.44 `doctor --set-up` on a folder whose code is only in languag
   });
 });
 
+test("app-setup 8.45 the doctor names each plugin in this computer's factory that no part setting names, with the command that names it, and none the setting names", async () => {
+  await inWorld(command, async (world) => {
+    const user = aUser(world);
+    const plugin = (name: string, manifest: Record<string, unknown>) => {
+      mkdirSync(path.join(world.home, "your-factory", "plugins", name), { recursive: true });
+      writeFileSync(path.join(world.home, "your-factory", "plugins", name, "package.json"), JSON.stringify({ name, storytree: { interface: 1, ...manifest } }));
+    };
+    plugin("micks-dev-loop", {});
+    plugin("my-runner", { for: "agent-pool" });
+    plugin("ci-health", {});
+    writeFileSync(path.join(world.home, "settings.json"), JSON.stringify({ "stand-ins": { "ci-health": "ci-health" } }));
+
+    const ran = await world.run(["doctor"], user.env);
+
+    assert.equal(ran.code, 0, ran.stderr);
+    assert.match(ran.stdout, /micks-dev-loop.*`storytree settings set part micks-dev-loop plugin micks-dev-loop`/);
+    assert.match(ran.stdout, /my-runner.*`storytree settings set part agent-pool plugin my-runner`/);
+    assert.doesNotMatch(ran.stdout, /ci-health/);
+  });
+});
+
 test("8.6 with Codex's hooks registered and none of them run yet, it names the one step that lets Codex run them (Session management 8.16)", async () => {
   await inWorld(command, async (world) => {
     const user = aUser(world);

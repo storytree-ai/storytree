@@ -9,7 +9,7 @@ import { promisify } from "node:util";
 import { removeTemp } from "@storytree/test-waits";
 
 import { countEngines } from "./queue.mjs";
-import { adoptRequests, asRun, ensureWatcher, forget, hand, handedOff, handOver, handThroughLibrary, isFixSession, main, projectOf, readFailures, readPull, reachOf, recordVerdict, remoteCommand, RESTART, watchOnce } from "./watch.mjs";
+import { adoptRequests, asRun, ensureWatcher, forget, hand, handedOff, handOver, handThroughLibrary, isFixSession, main, ownerOf, projectOf, readFailures, readPull, reachOf, recordVerdict, remoteCommand, RESTART, watchOnce } from "./watch.mjs";
 
 const at = Date.parse("2026-10-10T12:00:00Z");
 const minutes = (n) => new Date(at + n * 60_000).toISOString();
@@ -1270,4 +1270,67 @@ test("4.46 · a saturated box holds new pull request and release fix sessions, s
   assert.equal(b.fixes.length, 1, "the red pull request's fix session starts");
   assert.equal(releaseFixes.length, 1, "and the release's");
   assert.equal(b.lines.filter((line) => /box readings unread \(no \/proc here\)/.test(line)).length, 1);
+});
+
+test("4.49 · a hand-over of another project's increment records that project's repository and checkout, and the watcher's merge, close and fix act on them, while storytree's own act as before", async (t) => {
+  const website = { name: "storytree-website", checkout: "/srv/web", checks: ["pnpm test", "pnpm build"], review: "Ask a fresh-context subagent to review the diff." };
+  const projects = [{ name: "storytree" }, website];
+  const holds = { storytree: new Set(["increment_one"]), "/srv/web": new Set(["increment_web"]) };
+  const has = async (increment, project) => holds[project?.folder ?? "storytree"].has(increment);
+  const repoOf = async (folder) => folder === "/srv/web" ? "storytree-ai/storytree-website" : "storytree-ai/storytree";
+  const web = await ownerOf({ increment: "increment_web", projects, home: "/h", has, repoOf });
+  assert.deepEqual(web, { folder: "/srv/web", home: "/h", name: "storytree-website", repo: "storytree-ai/storytree-website", checks: website.checks, review: website.review },
+    "an increment only another project's library holds belongs to that project");
+  assert.equal(await ownerOf({ increment: "increment_one", projects, home: "/h", has, repoOf }), undefined, "storytree's own increment needs no routing");
+  assert.equal(await ownerOf({ increment: "increment_none", projects, home: "/h", has, repoOf }), undefined, "one no project holds is storytree's, as before");
+  assert.equal(await ownerOf({ increment: "increment_web", projects: [{ name: "storytree" }], home: "/h", has, repoOf }), undefined, "a pool serving storytree alone asks nothing");
+
+  const options = { since: minutes(-60), now: at, graceMs: 0 };
+  const theirs = { from: "storytree-ai/storytree-website" };
+  assert.equal(readPull(pull({ state: "MERGED", ...theirs }), options).state, "foreign", "storytree's watch never lands the website's pull request");
+  assert.equal(readPull(pull({ state: "MERGED", ...theirs }), { ...options, home: web.repo }).state, "merged", "the website's watch lands it");
+  assert.equal(readPull(pull({ state: "MERGED" }), { ...options, home: web.repo }).state, "foreign", "and never storytree's");
+
+  const b = await box(t);
+  const where = [], viewed = [];
+  b.options.storytree = async (args, project) => { b.calls.push(args); where.push(project); return ""; };
+  const lines = [];
+  const handBox = { dir: b.dir, now: b.options.now, out: (line) => lines.push(line), storytree: b.options.storytree,
+    viewOf: async (pr, repo) => { viewed.push(repo); return { ...view(pr), headRepository: { name: repo.split("/")[1] } }; },
+    ownerOf: async (increment) => increment === "increment_web" ? web : undefined,
+    project: async () => undefined, pidFile: join(b.dir, "pid"), argsOf: async () => "", startWatcher: async () => 1 };
+  assert.equal(await main(["hand", "7", "increment_web", "--session", SESSION], handBox), 0, lines.join("\n"));
+  assert.deepEqual(viewed, ["storytree-ai/storytree-website"], "its head is asked of its own repository");
+  assert.deepEqual((await saved(b, 7)).project, web, "the hand-off records its project and repository");
+  assert.deepEqual(b.calls.map((args, i) => [args.slice(0, 3), where[i]]), [[["arc", "increment", "wait"], web], [["workspace", "hold", "7"], web]],
+    "its wait and held claims are written in its own library");
+  assert.equal(await main(["hand", "8", "increment_web", "--session", SESSION], { ...handBox, viewOf: async (pr) => view(pr) }), 1,
+    "a pull request whose head is on storytree's repository is no website hand-over");
+  assert.match(lines.at(-1), /not on storytree-ai\/storytree-website/);
+
+  b.calls.length = 0; where.length = 0;
+  const looked = [];
+  b.options.look = async (pr, record) => { looked.push(record.project?.repo); return b.looks[pr]; };
+  b.looks[7] = { ...red, head: "w1" };
+  await watchOnce(b.options);
+  assert.deepEqual(looked, ["storytree-ai/storytree-website"], "it is looked up on its own repository");
+  const [fix] = b.fixes;
+  assert.deepEqual(fix.project, web, "its fix session starts in its project's checkout");
+  assert.match(fix.brief, /Work from \/srv\/web/);
+  assert.match(fix.brief, /`pnpm test`, `pnpm build`/, "with its project's checks, not storytree's gate");
+  assert.doesNotMatch(fix.brief, /pnpm gate|pnpm storytree/);
+  assert.match(fix.brief, /node \/srv\/shop\/packages\/agent-pool\/src\/watch\.mjs hand 7 increment_web/, "handed back through storytree's checkout");
+  assert.deepEqual(where, where.map(() => web), "its red and its cleared wait are its own library's");
+
+  b.calls.length = 0; where.length = 0;
+  b.live.clear();
+  b.looks[7] = { state: "merged", head: "w2" };
+  let risks = 0;
+  b.options.readRisks = async () => { risks++; return ""; };
+  await watchOnce(b.options);
+  assert.deepEqual(b.calls.map((args, i) => [args.slice(0, 3), where[i]]), [
+    [["arc", "increment", "unwait"], web], [["arc", "increment", "close"], web], [["workspace", "let-go", "7"], web]],
+    "its merge closes the increment and lets go of its claims in its own library");
+  assert.equal(risks, 0, "a merge on another repository reads none of storytree's risks");
+  assert.ok(!(await readdir(b.dir)).includes("7.json"), "and it is forgotten");
 });

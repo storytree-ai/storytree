@@ -372,3 +372,44 @@ test("3.21 · a question's row under an opened arc opens that arc's card on the 
   assert.equal(document.querySelector('[data-arc-queue="arc_1"]')!.getAttribute("aria-expanded"), "true", "the caret is still open after the redraw");
   assert.equal(document.querySelector<HTMLDetailsElement>('details[data-fold-key="rail:arc_1:increment:i1"]')!.open, true, "and so is its increment row");
 });
+
+test("3.2 · the mounted strip is cut at four rows of the ovals its measured width holds, drawn again when that width changes, and counts what its marks fold as drawn", async (t) => {
+  const page = new Window({ url: "https://storytree.test" });
+  const document = page.document as unknown as Document;
+  let surface: ReturnType<typeof mountArcSurface> | undefined;
+  let width = 92;
+  Object.defineProperty(page.HTMLElement.prototype, "clientWidth", { configurable: true, get(this: HTMLElement) { return this.classList.contains("arc-bars") ? width : 0; } });
+  const resized: (() => void)[] = [];
+  class Resizes { constructor(heard: () => void) { resized.push(heard); } observe() {} disconnect() {} }
+  const globals = { document: page.document, HTMLElement: page.HTMLElement, localStorage: page.localStorage, ResizeObserver: Resizes };
+  const previous = new Map(Object.keys(globals).map((key) => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
+  for (const [key, value] of Object.entries(globals)) Object.defineProperty(globalThis, key, { configurable: true, value });
+  t.after(async () => {
+    surface?.stop();
+    for (const [key, descriptor] of previous) {
+      if (descriptor) Object.defineProperty(globalThis, key, descriptor);
+      else Reflect.deleteProperty(globalThis, key);
+    }
+    await page.happyDOM.abort();
+  });
+  const work = (id: string, closed: boolean) => record(id, "increment", { arc: "arc_1", title: `Build ${id}`, objective: id, body: id, status: closed ? "closed" : "proposal", ...(closed ? { outcome: { date: "2026-10-20", disposition: "landed" as const } } : {}) });
+  const increments = [...Array.from({ length: 30 }, (_, index) => work(`l${index}`, true)), ...Array.from({ length: 5 }, (_, index) => work(`o${index}`, false))];
+  const reads: BoardReads = {
+    changesSince: async () => ({ changes: [], cursor: 0 }),
+    linesSince: async () => ({ lines: [], cursor: 0 }),
+    boardArcs: async () => [{ arc: record("arc_1", "arc", { title: "Ship the board", intent: "i", endState: "e" }), increments, questions: [], state: "active" }],
+    closedArcs: async () => [],
+    holds: async () => ({ waits: {}, heldOn: {} }),
+  };
+  surface = mountArcSurface(document.body, { project: "p", reads, timers: { now: () => Date.parse("2026-11-03T00:00:00Z"), every: () => () => {} } });
+  await settle();
+  const ovals = () => document.querySelectorAll(".arc-bars .arc-bar").length;
+  assert.equal(ovals(), 5, "92 px holds five ovals a row: the thirty landed fold, the five open are drawn");
+  assert.equal(document.querySelector(".arc-landed-mark")?.textContent, "30 landed");
+  assert.equal(JSON.parse(document.body.dataset.drew!).arcSurface.increments.length, 35, "what a mark folds is drawn, for the smoke check");
+  assert.equal(JSON.parse(document.body.dataset.drew!).arcSurface.folded.length, 30, "and named as folded");
+  width = 400;
+  for (const heard of resized) heard();
+  assert.equal(ovals(), 35, "a wider rail holds the whole strip in four rows");
+  assert.equal(document.querySelector(".arc-landed-mark"), null);
+});

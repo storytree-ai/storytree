@@ -43,6 +43,26 @@ function renderBar(bar: Bar): string {
   const passed = bar.reading.checkBackPassed ? ` arc-check-back" data-check-back-passed="true` : "";
   return `<span class="arc-bar arc-${bar.reading.color}${passed}" data-increment-id="${escape(bar.id)}" role="img" aria-label="${escape(title)}" title="${escape(title)}">${bar.agents.map(renderFlag).join("")}</span>`;
 }
+/** The rows a strip may take, and the oval places each fold mark is drawn across, its gaps included (ADR-0980 D3 as narrowed). */
+const STRIP_ROWS = 4, LANDED_PLACES = 3, MORE_PLACES = 2;
+const foldMark = (kind: string, text: string, label: string, bars: readonly Bar[]) => {
+  const named = [label, ...bars.map(({ title }) => title)].join("\n");
+  return `<span class="arc-fold-mark arc-${kind}-mark" role="img" aria-label="${escape(named)}" title="${escape(named)}" data-folded-ids="${escape(bars.map(({ id }) => id).join(" "))}">${escape(text)}</span>`;
+};
+/**
+ * An arc's strip, never taller than four rows of `perRow` ovals: one that fits is drawn whole; past that its landed ovals
+ * fold into one "N landed" mark at its start, and open ovals still beyond the fourth row into a "+N" mark at its end.
+ * Unmeasured, it is drawn whole.
+ */
+function renderStrip(bars: readonly Bar[], perRow: number | undefined): string {
+  const places = perRow === undefined ? Infinity : STRIP_ROWS * Math.max(perRow, LANDED_PLACES);
+  if (bars.length <= places) return bars.map(renderBar).join("");
+  const landed = bars.filter(({ reading }) => reading.state === "landed"), rest = bars.filter(({ reading }) => reading.state !== "landed");
+  const room = places - (landed.length ? LANDED_PLACES : 0);
+  const shown = rest.length <= room ? rest : rest.slice(0, room - MORE_PLACES), hidden = rest.slice(shown.length);
+  return (landed.length ? foldMark("landed", `${landed.length} landed`, `${landed.length} landed`, landed) : "")
+    + shown.map(renderBar).join("") + (hidden.length ? foldMark("more", `+${hidden.length}`, `${hidden.length} more`, hidden) : "");
+}
 function laneText(lane: Lane): string {
   return [lane.count, ...lane.agents.map(agentText), ...lane.waits.map(waitText), ...lane.noteWaits.map(laneNoteText),
     ...lane.holdsUp.map((work) => `Holds up ${because(workText(work), work.reason)}`)].join("\n");
@@ -65,7 +85,7 @@ function renderMarks(lane: Lane): string {
   return marks ? `<span class="arc-marks">${marks}</span>` : "";
 }
 /** What an arc's caret opens under its row (3.21, ADR-1222): its questions, then its increments with the landed folded, then its queued arcs; never its intent. */
-function renderQueue(queue: ArcQueue, lanes: ReadonlyMap<string, Lane>, opened: string | undefined, expanded: ReadonlySet<string>): string {
+function renderQueue(queue: ArcQueue, lanes: ReadonlyMap<string, Lane>, opened: string | undefined, expanded: ReadonlySet<string>, perRow: number | undefined): string {
   const lane = lanes.get(queue.arc.id)!;
   const open = expanded.has(lane.id);
   const run = queueRun(queue);
@@ -89,7 +109,7 @@ function renderQueue(queue: ArcQueue, lanes: ReadonlyMap<string, Lane>, opened: 
     <span class="arc-caret-slot">${holds.length ? `<button type="button" class="arc-caret" data-arc-queue="${escape(lane.id)}" aria-expanded="${open}" aria-controls="arc-under-${escape(lane.id)}" aria-label="${escape(caretLabel)}" title="${escape(caretLabel)}"><span aria-hidden="true">${open ? "▾" : "▸"}</span></button>` : ""}</span>
     <button type="button" class="arc-lane" data-arc-select="${escape(lane.id)}" aria-pressed="${opened === lane.id}">
       <span class="arc-lane-head"><span class="arc-chip arc-state-${lane.state}" title="${escape(chipText(lane))}">${escape(lane.chip)}</span>${lane.priority === undefined ? "" : `<span class="arc-chip arc-priority" title="Priority ${lane.priority}">P${lane.priority}</span>`}<span class="arc-title" title="${escape(lane.title)}">${escape(lane.title)}</span>${renderMarks(lane)}</span>
-      <span class="arc-track${lane.bars.some(({ agents }) => agents.length) ? " arc-flagged" : ""}"><span class="arc-bars" role="group" aria-label="${escape(`Increments: ${lane.count}`)}">${lane.bars.map(renderBar).join("")}</span></span>
+      <span class="arc-track${lane.bars.some(({ agents }) => agents.length) ? " arc-flagged" : ""}"><span class="arc-bars" role="group" aria-label="${escape(`Increments: ${lane.count}`)}">${renderStrip(lane.bars, perRow)}</span></span>
     </button></div>${open && holds.length ? `<div class="arc-under" id="arc-under-${escape(lane.id)}">${under}</div>` : ""}</section>`;
 }
 /** One question, one row: its title and its status; the row opens its reading (ADR-0980 D5), under an arc's row opening that arc's card on it (3.21). */
@@ -133,12 +153,15 @@ function renderClosedRange(closed: NonNullable<BoardView["closed"]>): string {
     + `<label>From <input type="date" data-closed-from value="${escape(closed.from)}" max="${escape(closed.to)}"></label><label>to <input type="date" data-closed-to value="${escape(closed.to)}" min="${escape(closed.from)}"></label></div>`;
 }
 
-/** HTML is a reading: every stored title and field is escaped before entering the page. The lanes alone: an arc opened by its click is pressed. */
-export function renderBoard(board: BoardView, opened?: string, expanded: ReadonlySet<string> = new Set()): string {
+/**
+ * HTML is a reading: every stored title and field is escaped before entering the page. The lanes alone: an arc opened by its
+ * click is pressed. `perRow` is how many ovals one row of a strip holds, as the page measured it; unmeasured, strips are drawn whole.
+ */
+export function renderBoard(board: BoardView, opened?: string, expanded: ReadonlySet<string> = new Set(), perRow?: number): string {
   const lanes = new Map(board.lanes.map((lane) => [lane.id, lane]));
   return `<nav class="arc-scopes" aria-label="Arc lifecycle">${(["active", "parked", "closed"] as const).map((scope) => `<button type="button" data-arc-scope="${scope}" aria-pressed="${board.scope === scope}">${scope[0]!.toUpperCase() + scope.slice(1)}</button>`).join("")}</nav>
     ${board.closed ? renderClosedRange(board.closed) : ""}
-    <div class="arc-lanes" aria-label="Arcs">${board.lanes.length ? board.queues.map((queue) => renderQueue(queue, lanes, lanes.has(opened ?? "") ? opened : undefined, expanded)).join("")
+    <div class="arc-lanes" aria-label="Arcs">${board.lanes.length ? board.queues.map((queue) => renderQueue(queue, lanes, lanes.has(opened ?? "") ? opened : undefined, expanded, perRow)).join("")
       : board.closed?.reading ? `<p class="arc-empty" role="status">Reading closed arcs…</p>` : `<p class="arc-empty">No ${board.closed ? "arcs closed in this range" : `${board.scope} arcs`}.</p>`}</div>`;
 }
 /** The card an arc's click opens over the map (5.1): its briefing, or the question opened in it; empty when that arc is not on the board. */

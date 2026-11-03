@@ -199,6 +199,13 @@ export const DOCTOR = verb({
           if (join === undefined) await context.journey?.().then((journey) => journey.projectCreated()).catch(() => {});
           const { COMMIT_STORYTREE } = await import("../project/storytree-folder.js");
           said.push(join === undefined ? `This folder is set up as storytree project "${project}" now. ${COMMIT_STORYTREE}` : `This folder is storytree project "${project}"'s checkout on this machine now.`);
+          // Code only in languages the survey cannot read leaves the map empty of it: said as set_up_project says it (8.44, 6.115).
+          if (join === undefined) {
+            const { folderLanguages } = await import("@storytree/map/folder-languages");
+            const { unreadableOf, unreadableSentence } = await import("@storytree/map/languages");
+            const unreadable = unreadableOf(await folderLanguages(context.folder).catch(() => undefined));
+            if (unreadable !== undefined) said.push(unreadableSentence(unreadable));
+          }
         } else {
           const { suggestProjectName } = await import("../project/making.js");
           said.push(`This folder is not a storytree project. Nothing was set up: storytree sets a folder up only when you tell it to.`);

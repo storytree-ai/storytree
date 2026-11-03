@@ -44,6 +44,16 @@ export function languageList(names: readonly string[]): string {
   return names.length <= 1 ? (names[0] ?? "") : `${names.slice(0, -1).join(", ")} and ${names.at(-1)}`;
 }
 
+/** The languages of a folder's code the map cannot draw when it holds none the survey reads, or undefined: the folder setting up says so of (6.115). */
+export function unreadableOf(languages: { readonly read: readonly string[]; readonly unread: readonly string[] } | undefined): string[] | undefined {
+  return languages !== undefined && languages.read.length === 0 && languages.unread.length > 0 ? [...languages.unread] : undefined;
+}
+
+/** What setting a folder up says of its code in `unreadable` languages: what the map reads, and what still works. */
+export function unreadableSentence(unreadable: readonly string[]): string {
+  return `storytree's map reads ${languageList(SURVEYED_LANGUAGES)}, and this folder's code is in ${languageList(unreadable)}, so the map will not draw that code: planning by hand still works, and so does health from what the agent reports.`;
+}
+
 /** The languages a folder's `paths` are in, in LANGUAGES' order: those the survey reads, and those it cannot. */
 export function languagesOf(paths: Iterable<string>): { readonly read: string[]; readonly unread: string[] } {
   const found = new Set<Language>();

@@ -81,9 +81,9 @@ export function webSocketTransport(url: URL, ca?: string): Transport {
 
 /**
  * The proxy a connection to the wss:// address `url` goes through: HTTPS_PROXY's, unless the host is
- * this machine's loopback or NO_PROXY names it. NO_PROXY is read as curl and Go read it: a comma-separated
- * list of hosts, each covering its subdomains too (`.host` and `*.host` alike), optionally with a port,
- * and `*` for every host. CIDR ranges are not read.
+ * this machine's loopback or NO_PROXY names it (the upper-case variables first, then the lower-case).
+ * NO_PROXY is a comma-separated list of hosts, each covering its subdomains too (`.host` and `*.host`
+ * alike), optionally with a port, and `*` for every host, much as curl and Go read it; CIDR ranges are not read.
  */
 export function proxyFor(url: URL, env: NodeJS.ProcessEnv = process.env): string | undefined {
   const proxy = env.HTTPS_PROXY || env.https_proxy || undefined;
@@ -105,9 +105,9 @@ function covers(entry: string, host: string, port: string): boolean {
   return host === name || host.endsWith(`.${name}`);
 }
 
-/** `hostname` in lower case without an IPv6 address's brackets. */
+/** `hostname` in lower case without an IPv6 address's brackets or a name's trailing dot. */
 function bare(hostname: string): string {
-  return hostname.toLowerCase().replace(/^\[(.*)\]$/, "$1");
+  return hostname.toLowerCase().replace(/^\[(.*)\]$/, "$1").replace(/\.$/, "");
 }
 
 /** Whether `host` (lower case, unbracketed) is this machine's loopback: localhost and its subdomains, 127.0.0.0/8, ::1. */

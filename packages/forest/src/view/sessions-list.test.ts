@@ -3,12 +3,12 @@ import { createElement } from "react";
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { renderToStaticMarkup } from "react-dom/server";
-import { arcsAfter, cutoverAfter, FAILURES_WINDOW_MS, isSessionRows, keptTab, NEWS_STEP, readContext, refreshFailures, sessionsOutage, SessionsList, StepFailed, windowsReader } from "./sessions-list.js";
+import { arcsAfter, FAILURES_WINDOW_MS, isSessionRows, NEWS_STEP, readContext, refreshFailures, sessionsOutage, SessionsList, StepFailed, windowsReader } from "./sessions-list.js";
 import type { ArcView } from "@storytree/library";
 import { LIBRARY_UNREACHABLE } from "@storytree/library/connection-error";
 import type { SessionWindow } from "@storytree/session-management";
 import { sessionColour } from "../agent-claims/agent-claims.js";
-import type { HistoryRow, SessionRow } from "../sessions-list/sessions-list.js";
+import type { SessionRow } from "../sessions-list/sessions-list.js";
 
 const row: SessionRow = { id: "parent", label: "Build <signup>", agent: "Codex", state: "waiting",
   idle: false, lastSeenAt: "2026-09-28T12:00:00Z", totalTokens: 120_000, stories: ["signup"], worktrees: [], running: [], description: [], children: [
@@ -43,12 +43,12 @@ test("7.2 a finished child of a running parent stays listed, greyed; an idle par
   assert.doesNotMatch(live, /data-session-id="child"[^>]*data-done/, "a child not known to be finished is not");
   assert.doesNotMatch(live, /data-session-id="parent"[^>]*data-done/);
   const idle: SessionRow = { ...running, state: "waiting", idle: true, children: [{ ...row.children[0]!, state: "waiting", idle: true }, finished] };
-  const folded = renderToStaticMarkup(createElement(SessionsList, { rows: [idle], tab: "history", onHighlight() {} }));
+  const folded = renderToStaticMarkup(createElement(SessionsList, { rows: [idle], onHighlight() {} }));
   assert.match(folded, /data-session-id="parent"/);
   assert.doesNotMatch(folded, /data-session-id="(child|lane)"/, "the ended parent's tree folds into it");
   assert.match(folded, /class="session-children"[^>]*>\+2<\/span>/);
   assert.match(folded, /aria-label="Show detail and 2 children of Build &lt;signup&gt;"/);
-  const opened = renderToStaticMarkup(createElement(SessionsList, { rows: [idle], tab: "history", expanded: new Set(["parent"]), onHighlight() {} }));
+  const opened = renderToStaticMarkup(createElement(SessionsList, { rows: [idle], expanded: new Set(["parent"]), onHighlight() {} }));
   assert.match(opened, /data-session-id="child"/);
   assert.match(opened, /data-session-id="lane"/);
   assert.doesNotMatch(opened, /class="session-children"/, "opened, the children show and the count goes");
@@ -158,8 +158,6 @@ test("7.9 every row leads with a status dot read from its state alone: working, 
   assert.deepEqual(dot(live, "q"), ["waiting", "Waiting for you"]);
   assert.deepEqual(dot(live, "p"), ["working", "Working"], "a parent at work through its child");
   assert.deepEqual(dot(live, "child"), ["idle", "State unavailable"]);
-  const history = renderToStaticMarkup(createElement(SessionsList, { rows: [{ ...row, id: "i", idle: true, children: [] }], tab: "history", onHighlight() {} }));
-  assert.deepEqual(dot(history, "i"), ["idle", "Idle"]);
   assert.ok(live.indexOf('class="session-dot"') < live.indexOf('class="session-colour"') && live.indexOf('class="session-colour"') < live.indexOf('class="session-label"'), "dot, colour, then name");
 });
 
@@ -187,21 +185,21 @@ test("7.16 an expanded row's Running block, between its worktrees and its files,
   assert.equal(isSessionRows([{ ...row, children: [], running: undefined }]), false, "rows kept by an older build are not drawn");
 });
 
-test("7.10 the Live tab lists only the sessions at work, with no idle row; the header still counts them; with only idle ones it says where they are", () => {
+test("7.10 idle sessions are listed on the one list below the sessions at work, each with the idle dot; the header counts only those at work; with none listed it says so", () => {
   const idle: SessionRow = { ...row, id: "quiet", label: "Quiet one", children: [], idle: true };
-  const html = renderToStaticMarkup(createElement(SessionsList, { rows: [{ ...row, children: [] }, idle], onHighlight() {} }));
-  assert.match(html, /data-session-id="parent"/);
-  assert.doesNotMatch(html, /data-session-id="quiet"|session-idle-fold|\d idle</);
+  const html = renderToStaticMarkup(createElement(SessionsList, { rows: [idle, { ...row, children: [] }], onHighlight() {} }));
+  assert.deepEqual([...html.matchAll(/data-session-id="(\w+)"/g)].map(m => m[1]), ["parent", "quiet"], "the idle one below the one at work");
+  assert.match(html, /data-session-id="quiet"[^>]*>.*?<span class="session-dot" data-dot="idle" title="Idle"/);
   assert.match(html, /class="sessions-count"[^>]*>1</, "the header counts the one at work");
-  const only = renderToStaticMarkup(createElement(SessionsList, { rows: [idle, { ...idle, id: "quiet2" }], onHighlight() {} }));
-  assert.match(only, /No sessions at work/);
-  assert.match(only, /<button type="button" class="sessions-idle-elsewhere"[^>]*>2 idle in History<\/button>/);
-  assert.doesNotMatch(only, /No running sessions|data-session-id="quiet"/);
+  const only = renderToStaticMarkup(createElement(SessionsList, { rows: [idle], onHighlight() {} }));
+  assert.match(only, /data-session-id="quiet"/);
+  assert.doesNotMatch(only, /No sessions at work|idle in History/);
+  assert.match(renderToStaticMarkup(createElement(SessionsList, { rows: [], onHighlight() {} })), /No running sessions/);
 });
 
-test("7.17 · the list fills its rail tab: its header names it, counts it and carries its tabs and legend, and nothing on it hides the rows or sizes the list", () => {
+test("7.17 · the list fills its rail tab: its header names it, counts it and carries its legend, and nothing on it hides the rows or sizes the list", () => {
   const list = renderToStaticMarkup(createElement(SessionsList, { rows: [{ ...row, children: [] }], onHighlight() {} }));
-  assert.match(list, /<header><span class="sessions-name">Sessions <span class="sessions-count"[^>]*>1<\/span><\/span><span class="sessions-tabs" role="tablist"/);
+  assert.match(list, /<header><span class="sessions-name">Sessions <span class="sessions-count"[^>]*>1<\/span><\/span><span class="session-legend"/);
   assert.match(list, /class="session-legend"/);
   assert.match(list, /<div id="sessions-body" class="sessions-body" data-surface-id="sessions"><ul>.*data-session-id="parent"/s);
   assert.doesNotMatch(list, /aria-expanded="(true|false)" aria-controls="sessions-body"|Expand|Restore|hidden=""/, "no collapse or size control, and the body is never hidden");
@@ -217,19 +215,6 @@ test("the list reads every arc in one ask, and again only when a change touches 
   assert.equal(await arcsAfter(reads, "p", { changes: [change("note"), change("decision")] }, last), last, "no work change keeps the last views");
   assert.equal(await arcsAfter(reads, "p", { changes: [change("note"), change("increment")] }, last), views);
   assert.deepEqual(asked, ["p", "p"], "one ask per reading, never one per arc");
-});
-
-test("7.21 History reads the repository cut-over its rows say old pull requests by once, and again only when a change touches it; none recorded, or no way to ask, is null", async () => {
-  const asked: string[] = [];
-  const cutover = { at: "2026-10-20T00:00:00Z", repository: "storytree-ai/storytree", before: "storytree-ai/storytree-history" };
-  const reads = { prCutover: async (project: string) => { asked.push(project); return cutover; } };
-  const change = (type: string) => ({ type });
-  assert.equal(await cutoverAfter(reads, "p", { changes: [] }, undefined), cutover, "the first reading asks");
-  assert.equal(await cutoverAfter(reads, "p", { changes: [change("increment")] }, null), null, "no change to it keeps the last");
-  assert.equal(await cutoverAfter(reads, "p", { changes: [change("prCutover")] }, null), cutover);
-  assert.deepEqual(asked, ["p", "p"]);
-  assert.equal(await cutoverAfter({ prCutover: async () => undefined }, "p", { changes: [] }, undefined), null);
-  assert.equal(await cutoverAfter({}, "p", { changes: [] }, undefined), null);
 });
 
 test("expanded rows' windows are read in one batched ask, one at a time: rows asked meanwhile wait for the next, and a session in flight is not asked twice", async () => {
@@ -291,91 +276,6 @@ test("7.33 · a library outage across several polls of the context readings is w
     [`forest sessions list: the idle-after setting could not be read: ${LIBRARY_UNREACHABLE}: connect EHOSTUNREACH Said once until it answers again.`],
     ["forest sessions list: the library answers again"],
   ]);
-});
-
-/** A time on 3 October 2026, local, as History's days are. */
-const local = (hour: number, minute: number): string => new Date(2026, 9, 3, hour, minute).toISOString();
-const past: HistoryRow[] = [
-  { id: "lander", label: "Build signup", agent: "Claude Code", startedAt: local(9, 0), lastSeenAt: local(10, 30), ranMs: 90 * 60_000,
-    stories: [{ id: "s1", title: "Sign up" }], outcome: { kind: "landed", prs: ["#12", "#13"] } },
-  { id: "holder", label: "Choose the tabs", agent: "Codex", startedAt: local(13, 0), lastSeenAt: local(14, 0), ranMs: 60 * 60_000,
-    stories: [], outcome: { kind: "held", question: "Which tab opens first?" } },
-  { id: "quiet", label: "Tidy the docs", agent: "Codex", startedAt: local(15, 0), lastSeenAt: local(15, 20), ranMs: 20 * 60_000,
-    stories: [], outcome: { kind: "no-close-out" } },
-];
-
-test("7.21 the History tab lists past sessions, each row led by how it ended, under a range bar of presets and a custom from–to", () => {
-  const html = renderToStaticMarkup(createElement(SessionsList, { rows: [row], history: past, tab: "history", range: { preset: "yesterday" },
-    now: new Date(2026, 9, 4, 12), onHighlight() {} }));
-  assert.match(html, /role="tab" aria-selected="false"[^>]*>Live</);
-  assert.match(html, /role="tab" aria-selected="true"[^>]*>History</);
-  assert.doesNotMatch(html, /data-session-id="parent"/, "the live rows are not drawn under History");
-  assert.deepEqual([...html.matchAll(/aria-pressed="(\w+)"[^>]*>(Today|Yesterday|7 days)</g)].map(m => [m[2], m[1]]),
-    [["Today", "false"], ["Yesterday", "true"], ["7 days", "false"]]);
-  assert.match(html, /type="date"[^>]*value="2026-10-03"[^>]*>.*type="date"[^>]*value="2026-10-03"/, "the custom days show the range chosen");
-  const rows = [...html.matchAll(/class="history-row" data-session-id="(\w+)".*?<span class="history-outcome" data-outcome="([\w-]+)"[^>]*>([^<]*)</g)];
-  assert.deepEqual(rows.map(m => [m[1], m[2], m[3]]), [["lander", "landed", "Landed #12 · #13"], ["holder", "held", "Held: Which tab opens first?"],
-    ["quiet", "no-close-out", "Ended without a close-out"]], "outcome leads each row");
-  assert.match(html, /Build signup<\/span><span class="history-agent">Claude Code<\/span><span class="history-ran">1h 30m<\/span><span class="history-stories">Sign up<\/span>/);
-  const none = renderToStaticMarkup(createElement(SessionsList, { rows: [row], history: [], tab: "history", range: { preset: "today" }, onHighlight() {} }));
-  assert.match(none, /No sessions ended in this range/);
-});
-
-test("7.22 the Live tab is the list as it was; the tab is kept per project, Live when nothing or a foreign value is kept", () => {
-  const live = renderToStaticMarkup(createElement(SessionsList, { rows: [row], history: past, onHighlight() {} }));
-  assert.match(live, /role="tab" aria-selected="true"[^>]*>Live</);
-  assert.match(live, /data-session-id="parent"/);
-  assert.doesNotMatch(live, /history-row/);
-  const store = new Map<string, string>();
-  const storage = { getItem: (key: string) => store.get(key) ?? null, setItem: (key: string, value: string) => void store.set(key, value) };
-  assert.equal(keptTab("demo", storage).read(), "live");
-  keptTab("demo", storage).write("history");
-  assert.equal(keptTab("demo", storage).read(), "history");
-  assert.equal(keptTab("other", storage).read(), "live", "kept per project");
-  store.set("storytree.forest.sessions-tab.v1:demo", "\"archive\"");
-  assert.equal(keptTab("demo", storage).read(), "live", "a foreign value is ignored");
-});
-
-test("7.23 the selected history row is marked as a selected live row is", () => {
-  const html = renderToStaticMarkup(createElement(SessionsList, { rows: [row], history: past, tab: "history", range: { preset: "yesterday" },
-    now: new Date(2026, 9, 4, 12), selected: "holder", onHighlight() {} }));
-  assert.match(html, /class="history-row" data-session-id="holder" data-selected="true"/);
-  assert.doesNotMatch(html, /data-session-id="lander" data-selected/);
-});
-
-const quiet: SessionRow = { ...row, id: "idler", label: "Waiting on review", agent: "Claude Code", state: "waiting", idle: true, stories: ["signup"], children: [
-  { ...row.children[0]!, id: "idle-child" }] };
-
-test("7.21 History lists every idle session still listed first, whatever the range, each led by idle and keeping its live row's labels and expander; then the sessions that left in the range", () => {
-  const html = renderToStaticMarkup(createElement(SessionsList, { rows: [{ ...row, children: [] }, quiet], history: past, tab: "history", range: { preset: "today" },
-    now: new Date(2026, 9, 4, 12), expanded: new Set(["idler"]), onHighlight() {} }));
-  assert.doesNotMatch(html, /data-session-id="parent"/, "a session at work stays on Live");
-  assert.match(html, /<span class="history-outcome" data-outcome="idle"[^>]*>idle<\/span>/);
-  assert.match(html, /class="session-children-toggle" aria-expanded="true" aria-label="Hide detail and 1 children of Waiting on review"/, "its expander comes with it");
-  assert.match(html, /data-session-id="idle-child"/, "expanded, its children show");
-  assert.match(html, /class="session-detail"/);
-  assert.match(html, /120K<\/span>/, "its context total comes with it");
-  assert.match(html, /No sessions ended in this range/, "today holds no ended session, yet the idle one is listed");
-  const week = renderToStaticMarkup(createElement(SessionsList, { rows: [quiet], history: past, tab: "history", range: { preset: "week" },
-    now: new Date(2026, 9, 4, 12), onHighlight() {} }));
-  assert.deepEqual([...week.matchAll(/data-session-id="(\w+)"/g)].map(m => m[1]), ["idler", "lander", "holder", "quiet"], "idle first, then the ended ones");
-});
-
-test("7.28 History's search keeps the rows, idle and ended, whose name, agent, outcome line and stories hold every word typed, whatever the case; emptied every row returns; none left says so", () => {
-  const props = { rows: [quiet], history: past, tab: "history" as const, range: { preset: "week" } as const, now: new Date(2026, 9, 4, 12),
-    storyTitles: new Map([["signup", "Sign up"]]), onHighlight() {} };
-  const ids = (search: string): string[] => [...renderToStaticMarkup(createElement(SessionsList, { ...props, search }))
-    .matchAll(/data-session-id="(\w+)"/g)].map(m => m[1]!);
-  assert.match(renderToStaticMarkup(createElement(SessionsList, { ...props, search: "" })), /<input type="search"[^>]*aria-label="Search sessions"/);
-  assert.deepEqual(ids(""), ["idler", "lander", "holder", "quiet"]);
-  assert.deepEqual(ids("#13"), ["lander"], "the outcome line's pull requests");
-  assert.deepEqual(ids("TAB which"), ["holder"], "every word, in any order and case, the question included");
-  assert.deepEqual(ids("idle claude"), ["idler"], "an idle row's word and agent");
-  assert.deepEqual(ids("sign up"), ["idler", "lander"], "stories by their titles");
-  assert.deepEqual(ids("codex docs"), ["quiet"]);
-  const none = renderToStaticMarkup(createElement(SessionsList, { ...props, search: "nothing like it" }));
-  assert.match(none, /No sessions match the search/);
-  assert.doesNotMatch(none, /history-row|No sessions ended in this range/);
 });
 
 test("7.33 a failed refresh names its step with the error on hover and is logged once per step and message; a lone failure raises no banner, three within 30 s do, and it clears on recovery or once they age out", () => {

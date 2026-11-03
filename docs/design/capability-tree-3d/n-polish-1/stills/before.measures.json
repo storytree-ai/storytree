@@ -1,0 +1,36 @@
+{
+ "query": "",
+ "roadDrawn": 1188,
+ "roadOnEdge": 0,
+ "segments": 97,
+ "gates": 39,
+ "overThird": 14,
+ "crowding": {
+  "island": {
+   "marks": 89,
+   "overlaps": 25,
+   "byKind": {
+    "name+symbol": 15,
+    "name+wrench": 1,
+    "name+name": 2,
+    "gate+name": 4,
+    "gate+gate": 2,
+    "gate+wrench": 1
+   },
+   "nearestApart": 0.4,
+   "within4px": 12
+  },
+  "knot": {
+   "marks": 31,
+   "overlaps": 8,
+   "byKind": {
+    "name+name": 1,
+    "name+symbol": 4,
+    "gate+name": 3
+   },
+   "nearestApart": 0.6,
+   "within4px": 3
+  }
+ },
+ "errors": []
+}

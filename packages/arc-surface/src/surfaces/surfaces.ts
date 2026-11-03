@@ -3,7 +3,7 @@ export const arcSurfaces = [
   {
     id: "arcs",
     name: "Arcs",
-    description: "The bar across the top that shows each arc's work, and the drawer it opens. Off, the globe gets the full height.",
+    description: "The Arcs tab of the left rail, which shows each arc's work and opens an arc's card on a click. Off, the rail has no Arcs tab.",
     switchable: true,
     settings: [],
   },

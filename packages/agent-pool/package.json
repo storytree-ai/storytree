@@ -2,26 +2,44 @@
   "name": "@storytree/agent-pool",
   "private": true,
   "type": "module",
-  "description": "Agent runner (story_b2051c0f7372, ADR-1071 D3), once the dev loop's agent pool (ADR-1066 D2 G): the lane runner and its engine, the dispatcher, the watcher that lands handed-over pull requests, configured by agent-pool.json at the repo root, and the Claude Code mod in src/claude-code-mod (ADR-1076 D5), the plugin the runner gives its Claude lanes.",
+  "description": "Agent runner (story_b2051c0f7372, ADR-1071 D3), once the dev loop's agent pool (ADR-1066 D2 G): the lane runner and its engine, the dispatcher, the watcher that lands handed-over pull requests, configured by each machine's own ~/.storytree/agent-pool.json (ADR-1216 D1). Its Claude lanes carry the Claude Code mod, its own story's package (ADR-1216 D2), through that package's declared interface.",
   "dependencies": {
+    "@storytree/claude-code-mod": "workspace:*",
     "@storytree/library": "workspace:*",
+    "@storytree/plugin-loader": "workspace:*",
     "@storytree/project-and-caller": "workspace:*",
     "@storytree/session-management": "workspace:*"
   },
   "exports": {
-    "./claude-code-mod": "./src/claude-code-mod/index.mjs",
     "./feed": "./src/feed.mjs",
+    "./interface": "./src/interface.mjs",
     "./launch": "./src/launch.mjs",
     "./runner": "./src/runner.mjs",
+    "./services": "./src/services.mjs",
     "./watch": "./src/watch.mjs"
-  },
-  "scripts": {
-    "typecheck": "tsc -p ."
   },
   "devDependencies": {
     "@storytree/test-waits": "workspace:*",
-    "@types/node": "^24.13.6",
-    "tsx": "^4.23.15",
-    "typescript": "~7.0.2"
+    "tsx": "^4.23.15"
+  },
+  "storytree": {
+    "services": [
+      {
+        "name": "dispatcher",
+        "from": "./services",
+        "export": "dispatcher",
+        "run": "always"
+      },
+      {
+        "name": "watcher",
+        "from": "./services",
+        "export": "watcher",
+        "run": "always"
+      }
+    ],
+    "declares": [
+      "./launch",
+      "./runner"
+    ]
   }
 }

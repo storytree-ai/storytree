@@ -144,9 +144,15 @@ importers:
 
   packages/agent-pool:
     dependencies:
+      '@storytree/claude-code-mod':
+        specifier: workspace:*
+        version: link:../claude-code-mod
       '@storytree/library':
         specifier: workspace:*
         version: link:../library
+      '@storytree/plugin-loader':
+        specifier: workspace:*
+        version: link:../plugin-loader
       '@storytree/project-and-caller':
         specifier: workspace:*
         version: link:../project-and-caller
@@ -157,15 +163,9 @@ importers:
       '@storytree/test-waits':
         specifier: workspace:*
         version: link:../test-waits
-      '@types/node':
-        specifier: ^24.13.6
-        version: 24.13.6
       tsx:
         specifier: ^4.23.15
         version: 4.23.15
-      typescript:
-        specifier: ~7.0.2
-        version: 7.0.2
 
   packages/app:
     dependencies:
@@ -242,6 +242,9 @@ importers:
       posthog-node:
         specifier: 5.55.0
         version: 5.55.0
+      smol-toml:
+        specifier: 1.9.1
+        version: 1.9.1
       zod:
         specifier: ^4.6.5
         version: 4.6.5
@@ -336,6 +339,18 @@ importers:
       '@storytree/test-waits':
         specifier: workspace:*
         version: link:../test-waits
+      '@types/node':
+        specifier: ^24.13.6
+        version: 24.13.6
+      tsx:
+        specifier: ^4.23.15
+        version: 4.23.15
+      typescript:
+        specifier: ~7.0.2
+        version: 7.0.2
+
+  packages/claude-code-mod:
+    devDependencies:
       '@types/node':
         specifier: ^24.13.6
         version: 24.13.6
@@ -682,6 +697,9 @@ importers:
       '@babel/parser':
         specifier: ^7.29.9
         version: 7.29.9
+      smol-toml:
+        specifier: 1.9.1
+        version: 1.9.1
       tree-sitter-python:
         specifier: 0.25.0
         version: 0.25.0
@@ -889,6 +907,9 @@ importers:
         specifier: ^4.23.15
         version: 4.23.15
     devDependencies:
+      '@storytree/agent-pool':
+        specifier: workspace:*
+        version: link:../agent-pool
       '@storytree/test-waits':
         specifier: workspace:*
         version: link:../test-waits
@@ -3152,6 +3173,10 @@ packages:
   simple-update-notifier@2.0.0:
     resolution: {integrity: sha512-a2B9Y0KlNXl9u/vsW6sTIu9vGEpfKu2wRV6l1H3XEas/0gUIzGzBoP/IouTcUQbm9JWZLH3COxyn03TYlFax6w==}
     engines: {node: '>=10'}
+
+  smol-toml@1.9.1:
+    resolution: {integrity: sha512-j7WyPdf0CJoutMzMoPLF/bVXHtKZIT9Rb4eGeEbWw8X2t5oirjPgpL+OpaENZrILYaXqYwnVH+qgUwVbl+pUJQ==}
+    engines: {node: '>= 18'}
 
   source-map-support@0.5.21:
     resolution: {integrity: sha512-uBHU3L3czsIyYXKX88fdrGovxdSCoTGDRZ6SYXtSRxLZUzHg5P/66Ht6uoUlHu9EZod+inXhKo3qQgwXUT/y1w==}
@@ -5664,6 +5689,8 @@ snapshots:
   simple-update-notifier@2.0.0:
     dependencies:
       semver: 7.8.5
+
+  smol-toml@1.9.1: {}
 
   source-map-support@0.5.21:
     dependencies:

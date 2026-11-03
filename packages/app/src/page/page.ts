@@ -3,7 +3,7 @@
  * renderer hands it as parts: which project is on show and when it is drawn again; what the page says while it loads, has nothing
  * to show or fails (`data-state`: loading, ready, empty, missing, error); the forest drawn at once from the tree kept at the last
  * start (`data-fresh="no"`) and the notice over it while the first read fails; which surfaces are mounted as the settings say
- * (every one when they cannot be read); the start-timing marks, each sent once (lifecycle 1.33); and that a read landing after
+ * (every one when they cannot be read), the sessions list and the arcs each in its tab of the left rail; the start-timing marks, each sent once (lifecycle 1.33); and that a read landing after
  * the user switched project changes nothing on show.
  */
 import { drawingOf, drillDown, forestDrawn, forestScene, storyNodes, type ForestReadingOptions, type ForestScene, type KeptDrawing, type StoryPanel } from "@storytree/forest";
@@ -13,6 +13,7 @@ import { followProjects, type ProjectSelection } from "../projects/follow.js";
 import { surfaceOn, surfaceSetting, type SurfacesResult } from "../surfaces/bridge.js";
 import { renderNoProjects } from "../view/render.js";
 import { locateTarget, readingNear, type Box, type CardTarget, type IslandsAndNotes, type Place } from "./locate.js";
+import { mountRail, type Rail, type RailTab } from "./rail.js";
 import { pageStatus } from "./status.js";
 import { storyPanel, type PanelSpace, type StoryPanelView, type TreeWindow } from "./story-panel.js";
 
@@ -46,11 +47,12 @@ export interface ProjectParts<View extends ForestGlobe = ForestGlobe> {
   /** The tree the forest last drew, and what it drew it with (forest keptTree and keptDrawing). */
   kept: { read(): AnnotatedTree | undefined; write(tree: AnnotatedTree): void };
   drawing: { read(): KeptDrawing | undefined; write(drawing: ReturnType<typeof drawingOf>): void };
-  arcs(onFreshDraw: () => void): { stop(): void };
+  /** The arcs, in `host` (the rail's Arcs tab); `onWaiting` hears what waits on the owner there, the tab's badge. */
+  arcs(host: HTMLElement, on: { onFreshDraw(): void; onWaiting(count: number): void }): { stop(): void };
   treeSpace(on: { choose(id: string): void; closed(): void }, opening: string | undefined): TreeWindow;
   openView(holder: HTMLElement, onSelect: (selection: ForestSelection) => void, options: { library: boolean; opening: string | undefined }): Promise<View>;
-  /** The sessions list, joined to `view` and the knowledge core both ways. */
-  sessions(view: View): { stop(): void };
+  /** The sessions list in `host` (the rail's Sessions tab), joined to `view` and the knowledge core both ways. */
+  sessions(view: View, host: HTMLElement): { stop(): void };
   /** Hand the knowledge core the library's changes and the log's lines. */
   take(changes: Changes, lines: News["lines"]): void;
   libraryCard(panel: HTMLElement, onClose: () => void): () => void;
@@ -97,6 +99,7 @@ interface Showing {
   view?: ForestGlobe;
   arcs?: { stop(): void };
   sessions?: { stop(): void };
+  rail?: Rail;
   panel?: StoryPanelView;
   tree?: TreeWindow;
   teaching?: { take: ReturnType<ProjectParts["teaching"]>["take"]; stop(): void };
@@ -138,6 +141,7 @@ export function openProjectPage<View extends ForestGlobe>(parts: PageParts<View>
     showing?.reading?.stop();
     showing?.sessions?.stop();
     showing?.page?.stop();
+    showing?.rail?.stop();
     showing?.view?.dispose();
     showing = undefined;
     status.showFreshness(undefined);
@@ -206,7 +210,10 @@ export function openProjectPage<View extends ForestGlobe>(parts: PageParts<View>
     mine.page = page;
     const history = () => page.held().changes;
     const states = project.states;
-    if (surfaceOn(surfaces, "arcs")) mine.arcs = project.arcs(() => startMark("arcs first fresh draw"));
+    // The left rail, a tab for each of the sessions list and the arcs that is on (ADR-1219).
+    const rail = mountRail(content, { project: name, tabs: (["sessions", "arcs"] as const).filter((tab: RailTab) => surfaceOn(surfaces, tab)) });
+    if (rail) mine.rail = rail;
+    if (rail && surfaceOn(surfaces, "arcs")) mine.arcs = project.arcs(rail.panel("arcs"), { onFreshDraw: () => startMark("arcs first fresh draw"), onWaiting: (count) => rail.badge(count) });
     let tree: AnnotatedTree | undefined;
     /** The code survey last read, which counts a mapped story's files and lines for its panel. */
     let surveyed: Survey = {};
@@ -236,7 +243,7 @@ export function openProjectPage<View extends ForestGlobe>(parts: PageParts<View>
     if (showing !== mine) return view.dispose();
     mine.view = view;
     // Sessions off is a quiet globe: no list, no session tints and no islands lit on hover.
-    if (surfaceOn(surfaces, "sessions")) mine.sessions = project.sessions(view);
+    if (rail && surfaceOn(surfaces, "sessions")) mine.sessions = project.sessions(view, rail.panel("sessions"));
     // The first time each kind appears on this map, its card shows beside it (ADR-1048 D1), clear of what is being read there.
     mine.teaching = project.teaching((target) => locateTarget(target, { document, globe: parts.globe }), (target) => readingNear(target, document));
     // A factory plugin standing in for a switched-off part draws its surfaces from the factory, while each is on.

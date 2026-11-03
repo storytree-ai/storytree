@@ -30,7 +30,7 @@ test("3.20 · the box reading comes from /proc and nvidia-smi; Claude's and Code
   assert.deepEqual(held.windows, ["cpu", "gpu0"], "load 19.5 on 12 cores, and the GPU at 97%");
 
   const bare = await readBoxPace({ cores: 12, readText: async () => { throw new Error("no /proc"); }, nvidia: async () => { throw new Error("Failed to initialize NVML"); } });
-  assert.equal(bare, undefined, "no /proc and no working nvidia-smi (as on the Mint box's driver mismatch): nothing held back");
+  assert.equal(bare, undefined, "no /proc and no working nvidia-smi (as on a box whose driver mismatches): nothing held back");
 });
 
 test("3.20 · the dispatcher holds back while the box is saturated, saying why in its status once per change, and dispatches to the cap once it clears; usage near a limit never slows it; a failed reading dispatches as usual", async () => {

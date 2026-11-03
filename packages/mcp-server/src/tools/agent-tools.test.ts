@@ -514,6 +514,30 @@ test("6.110 land on a capability whose story has no package it can read in the c
   });
 });
 
+test("session-management 5.63 · land on a checkout whose code is only in languages the map cannot read says it cannot read the code, naming them and the ones it reads, not that the story has no package here", async () => {
+  await withProject(async ({ folder }) => {
+    mkdirSync(path.join(folder, "cmd"), { recursive: true });
+    writeFileSync(path.join(folder, "cmd/main.go"), "package main\n");
+    writeFileSync(path.join(folder, "schema.sql"), "create table cart (id int);\n");
+    await withAgent(folder, claudeCode("claude-1"), async (agent) => {
+      const story = idOf(await agent.call("plan_story", { title: "Shopping cart", ...FOUNDED }));
+      const capability = idOf(await agent.call("plan_capability", { story, title: "Adding", ...FOUNDED }));
+      idOf(await agent.call("plan_contract", { capability, title: "Adds an item" }));
+      assert.equal((await agent.call("claim", { capability, reason: "building the cart" })).isError, false);
+
+      const landed = await agent.call("land", { capability });
+      assert.equal(landed.isError, false, landed.text);
+      assert.match(landed.text, /cannot read this project's code/);
+      assert.match(landed.text, /Go and SQL/);
+      assert.match(landed.text, /JavaScript, TypeScript and Python/);
+      assert.match(landed.text, /1\.1 · Adds an item/);
+      assert.doesNotMatch(landed.text, /no package|write each one's test/);
+      assert.deepEqual(landed.data.unchecked, ["1.1 · Adds an item"]);
+      assert.deepEqual(landed.data.unreadable, ["Go", "SQL"]);
+    });
+  });
+});
+
 test("6.112 land on a capability of a mapped story reads its story's numbered tests in the folder this machine imports it from, naming only the planned contracts none of them carries", async () => {
   await withProject(async ({ folder }) => {
     const shop = path.join(path.dirname(folder), "shop");
@@ -559,7 +583,7 @@ test("6.50 plan_contract numbers a new contract past the numbers its capability'
   });
 });
 
-test("6.73 plan_contract's reply names the capability's other contracts that no numbered test carries yet, so a lane reuses a backed-off lane's promise instead of planning a duplicate", async () => {
+test("6.73 plan_contract's reply names the capability's other contracts that no numbered test carries yet, so one is built rather than planned again, in words a user's project knows (no lanes)", async () => {
   await withProject(async ({ folder }) => {
     await withAgent(folder, claudeCode("claude-1"), async (agent) => {
       const story = idOf(await agent.call("plan_story", { title: "Shopping cart", ...FOUNDED }));
@@ -574,7 +598,8 @@ test("6.73 plan_contract's reply names the capability's other contracts that no 
       const planned = await agent.call("plan_contract", { capability, title: "Removes an item" });
       assert.equal(planned.isError, false, planned.text);
       assert.match(planned.text, /1\.3 · Removes an item/);
-      assert.match(planned.text, /1\.2 · Refuses a sold-out item/, "the untested contract an earlier lane planned is named");
+      assert.match(planned.text, /1\.2 · Refuses a sold-out item/, "the untested contract planned earlier is named");
+      assert.doesNotMatch(planned.text, /lane/, "a user's project has no lanes");
       assert.deepEqual(planned.data.untested, ["1.2 · Refuses a sold-out item"], "neither the tested contract nor the one just planned is named");
     });
   });

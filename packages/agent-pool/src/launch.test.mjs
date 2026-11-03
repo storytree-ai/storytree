@@ -96,7 +96,7 @@ test("3.5 · the prepared checkout is at origin/main, installed from its lockfil
   assert.deepEqual(ran, ["git", "git", "git", "git", "pnpm"]);
   assert.deepEqual(install, ["install", "--frozen-lockfile", "--silent"]);
   assert.equal((await readFile(join(repo, "a.txt"), "utf8")).trim(), "two");
-  // The configured URLs, not get-url's, which a machine's own insteadOf rewrite (the Mint box's deploy-key alias) would change.
+  // The configured URLs, not get-url's, which a machine's own insteadOf rewrite (a box's deploy-key alias) would change.
   assert.equal((await git(repo, "config", "--get", "remote.origin.pushurl")).stdout.trim(), PUSH_URL);
   assert.equal((await git(repo, "config", "--get", "remote.origin.url")).stdout.trim(), origin);
 });
@@ -279,12 +279,13 @@ test("3.10 · its own code is the code it runs: a merge touching only other dev 
   await git("init", "-q");
   await commit("packages/agent-pool/src/launch.mjs", "pool v1");
   await commit("packages/dev-loop/src/test-runner.mjs", "tests v1");
+  const config = join(await folder(t), "agent-pool.json");
   const dispatch = async (merge) => {
     const started = [];
     let stop = false;
     const code = await runPool({
       survey: async () => poolWork(["a", "b"]), maxLanes: async () => 1, count: async () => 0,
-      codeVersion: () => codeVersion({ repo }), refresh: async () => {},
+      codeVersion: () => codeVersion({ repo, config }), refresh: async () => {},
       stopFile: "/lanes/pool-stop", exists: async () => stop, now, say: () => {},
       // The merge lands, and the shared checkout reaches it, while the first session runs.
       launch: async (one) => { started.push(one.id); if (started.length === 1) await merge(); return 0; },
@@ -296,8 +297,16 @@ test("3.10 · its own code is the code it runs: a merge touching only other dev 
   assert.deepEqual(elsewhere, { code: 0, started: ["a", "b"] }, "the test runner changed: no restart, and b starts after the merge");
   const own = await dispatch(() => commit("packages/agent-pool/src/launch.mjs", "pool v2"));
   assert.deepEqual(own, { code: 3, started: ["a"] }, "the dispatcher's code changed: it restarts, starting nothing more");
-  const configured = await dispatch(() => commit("agent-pool.json", "{\"sessions\": 4}"));
+  // The machine's own configuration, outside the repository (ADR-1216 D1), restarts it too.
+  const configured = await dispatch(() => writeFile(config, "{\"sessions\": 4}"));
   assert.deepEqual(configured, { code: 3, started: ["a"] }, "the pool's configuration changed: it restarts to read it");
+
+  // A dispatcher given no version of its own reads its checkout's code and the configuration file it was started with.
+  const pooled = await box(t, { survey: async () => poolWork(["a", "b"]), count: async () => 0, maxLanes: async () => 1, rules: async () => "Pool rules.\n",
+    repo, configFile: config, runLane: async (options) => { pooled.briefs.push(await readFile(options.brief, "utf8")); await writeFile(config, "{\"sessions\": 5}"); return 0; } });
+  pooled.sleep = async () => { await new Promise((go) => setImmediate(go)); if (pooled.briefs.length > 1) await writeFile(join(pooled.lanesDir, "pool-stop"), ""); };
+  assert.equal(await main(["pool"], pooled), 3, "its configuration changed under it: it restarts");
+  assert.equal(pooled.briefs.length, 1, "starting nothing more");
 });
 
 test("3.11 · with free slots and nothing ready, one planning session starts for a qualifying arc, never two at once", async (t) => {
@@ -533,23 +542,41 @@ test("3.27 · a machine-only dispatcher on battery or offline starts nothing and
     "holding back dispatch: offline: GitHub (gh api rate_limit): no answer"], "each said once, though on battery for two looks");
   assert.ok(b.lines.findIndex((line) => /offline/.test(line)) < b.lines.findIndex((line) => /start mine/.test(line)));
 
-  const mint = await box(t, { survey: async () => poolWork(["any"]), count: async () => 0, maxLanes: async () => 1,
-    power: () => assert.fail("the Mint pool read the power line"), refusals: () => assert.fail("the Mint pool probed the network") });
-  mint.sleep = async () => { await new Promise((go) => setImmediate(go)); if (mint.briefs.length) await writeFile(join(mint.lanesDir, "pool-stop"), ""); };
-  assert.equal(await main(["pool"], mint), 0);
-  assert.equal(mint.briefs.length, 1);
+  const shared = await box(t, { survey: async () => poolWork(["any"]), count: async () => 0, maxLanes: async () => 1,
+    power: () => assert.fail("the shared pool read the power line"), refusals: () => assert.fail("the shared pool probed the network") });
+  shared.sleep = async () => { await new Promise((go) => setImmediate(go)); if (shared.briefs.length) await writeFile(join(shared.lanesDir, "pool-stop"), ""); };
+  assert.equal(await main(["pool"], shared), 0);
+  assert.equal(shared.briefs.length, 1);
 });
 
-test("3.28 · a dispatcher configured with its own checkout and lanes folder briefs its lanes with those folders, not the Mint box's", async (t) => {
+test("3.28 · a dispatcher configured with its own checkout and lanes folder briefs its lanes with those folders", async (t) => {
   const b = await box(t, { survey: async () => poolWork(["one"]), count: async () => 0,
-    rules: async () => "Work from ~/code/storytree03, never ~/code/storytree03-wt. Your report goes to ~/storytree-lanes/pool-<increment>.report.md.\n" });
+    rules: async () => "Work from {checkout}, never {checkout}-wt. Your report goes to {lanes}/pool-<increment>.report.md.\n" });
   b.home = b.lanesDir;
   b.env = { AGENT_POOL_CONFIG: join(b.lanesDir, "agent-pool.json") };
   await writeFile(b.env.AGENT_POOL_CONFIG, JSON.stringify({ checkout: "C:/no-such-folder/storytree03", lanes: "~/.storytree/agent-pool" }));
   delete b.briefPaths;
   b.sleep = async () => { await new Promise((go) => setImmediate(go)); if (b.briefs.length) await writeFile(join(b.lanesDir, "pool-stop"), ""); };
   assert.equal(await main(["pool"], b), 0);
-  assert.ok(b.briefs[0].endsWith(`Work from C:/no-such-folder/storytree03, never ~/code/storytree03-wt. Your report goes to ${join(b.lanesDir, ".storytree", "agent-pool")}/pool-<increment>.report.md.\n`), b.briefs[0]);
+  assert.ok(b.briefs[0].endsWith(`Work from C:/no-such-folder/storytree03, never C:/no-such-folder/storytree03-wt. Your report goes to ${join(b.lanesDir, ".storytree", "agent-pool")}/pool-<increment>.report.md.\n`), b.briefs[0]);
+});
+
+test("3.28 · a dispatcher whose machine names its own brief folder briefs its lanes from the copy there, and from the base's where it holds none", async (t) => {
+  const b = await box(t, { survey: async () => poolWork(["one"]), count: async () => 0 });
+  b.briefsDir = await folder(t);
+  b.briefPaths = { checkout: "/srv/shop", lanes: "/srv/lanes" };
+  await writeFile(join(b.briefsDir, "pool-brief.md"), "This machine's own rules: work from {checkout}.\n");
+  b.sleep = async () => { await new Promise((go) => setImmediate(go)); if (b.briefs.length) await writeFile(join(b.lanesDir, "pool-stop"), ""); };
+  assert.equal(await main(["pool"], b), 0);
+  assert.ok(b.briefs[0].endsWith("This machine's own rules: work from /srv/shop.\n"), b.briefs[0]);
+
+  const base = await box(t, { survey: async () => poolWork(["one"]), count: async () => 0 });
+  base.briefsDir = await folder(t);
+  base.briefPaths = { checkout: "/srv/shop", lanes: "/srv/lanes" };
+  base.sleep = async () => { await new Promise((go) => setImmediate(go)); if (base.briefs.length) await writeFile(join(base.lanesDir, "pool-stop"), ""); };
+  assert.equal(await main(["pool"], base), 0);
+  assert.match(base.briefs[0], /Rules for every pool lane \(ADR-0955\)/, "a folder without the brief leaves the base's");
+  assert.doesNotMatch(base.briefs[0], /\{checkout\}|\{lanes\}/, "its folders are filled in");
 });
 
 test("3.28 · a dispatcher whose checkout is a linked worktree runs and briefs its lanes from the repository's main worktree, where make_workspace accepts them", async (t) => {
@@ -559,7 +586,7 @@ test("3.28 · a dispatcher whose checkout is a linked worktree runs and briefs i
   await git("init", "-q");
   await git("-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "--allow-empty", "-m", "start");
   await git("worktree", "add", "-q", "-b", "laptop-dispatcher", linked);
-  const b = await box(t, { survey: async () => poolWork(["one"]), count: async () => 0, rules: async () => "Work from ~/code/storytree03.\n" });
+  const b = await box(t, { survey: async () => poolWork(["one"]), count: async () => 0, rules: async () => "Work from {checkout}.\n" });
   b.home = b.lanesDir;
   b.env = { AGENT_POOL_CONFIG: join(b.lanesDir, "agent-pool.json") };
   await writeFile(b.env.AGENT_POOL_CONFIG, JSON.stringify({ checkout: linked, lanes: b.lanesDir }));

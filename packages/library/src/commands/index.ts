@@ -283,7 +283,7 @@ const create = verb({
     const options = numbers === undefined ? { ...context.writer!, ...pending } : { ...context.writer!, testedNumbers: [...numbers.tested] };
     const written = await withIdLists(fields, (fields) => write(context.library, fields, options));
     const untested = numbers?.untested ?? [];
-    const open = untested.length === 0 ? "" : `\nNo numbered test carries ${untested.length === 1 ? "this other contract" : `these ${untested.length} other contracts`} of the capability yet, perhaps planned by a lane that backed off; if this contract repeats one of them, retire it and build that one:${untested.map((title) => `\n  - ${title}`).join("")}`;
+    const open = untested.length === 0 ? "" : `\nNo numbered test carries ${untested.length === 1 ? "this other contract" : `these ${untested.length} other contracts`} of the capability yet, planned but not built; if this contract repeats one of them, retire it and build that one:${untested.map((title) => `\n  - ${title}`).join("")}`;
     const long = kind === "contract" && String(fields.title ?? "").length > LONG_CONTRACT_TITLE;
     const advice = long ? `\nIts title runs past ${LONG_CONTRACT_TITLE} characters, which often means more than one contract: ${CONTRACT_DEFINITION} Split it with \`storytree library edit\` and \`storytree library new contract\` if so.` : "";
     return { text: `Wrote ${kind} ${written.id}.${open}${advice}`, next: [{ command: `library read ${written.id}`, why: "read it back" }] };

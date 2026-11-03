@@ -16,6 +16,7 @@ import { createRequire } from "node:module";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { build } from "esbuild";
+import { embedTreeSitterWasm } from "@storytree/map/tree-sitter-bundle";
 import { journeyDefine } from "../journey-events/release.js";
 import { buildLauncher, LAUNCHER_PROGRAM } from "./launcher.js";
 import { partsFromList } from "./parts-list.js";
@@ -79,8 +80,8 @@ export async function buildBins(outdir: string, { release, launcher = true }: { 
       "@huggingface/transformers",
     ],
     // The parts storytree's own story packages name in their manifests, packed for each host package it holds from the
-    // parts list Plugin loader writes for it (ADR-1021).
-    plugins: [partsFromList()],
+    // parts list Plugin loader writes for it (ADR-1021); and tree-sitter's wasm, which the code survey parses Python with (map 8.48).
+    plugins: [partsFromList(), embedTreeSitterWasm()],
   }));
   await buildPhase("stage native probes", () => stageNativeProbes(outdir));
   // On Windows the `storytree` command is a program of its own, beside the script it runs (ADR-0854).

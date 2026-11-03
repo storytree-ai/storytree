@@ -42,7 +42,6 @@ test("3.3 lanes sort waiting, blocked, in progress, idle, quiet then recent acti
   assert.deepEqual(board.lanes.map(({ id }) => id), ["waiting", "blocked", "claimed", "idle", "recent", "quiet"]);
   assert.equal(board.lanes.find(({ id }) => id === "idle")?.chip, "in progress · idle 42 min");
   assert.equal(board.lanes.find(({ id }) => id === "claimed")?.chip, "in progress");
-  assert.equal(board.selected, "waiting");
   assert.deepEqual(boardView(snapshot, lines, now, "parked").lanes.map(({ id }) => id), ["parked"]);
   assert.deepEqual(boardView(snapshot, lines, now, "closed").lanes.map(({ id }) => id), ["closed"]);
 });

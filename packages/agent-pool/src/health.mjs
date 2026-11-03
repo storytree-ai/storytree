@@ -1,6 +1,7 @@
-// Capability 8 · Reports the pool's health, concerns first. Run on the pool's machine (the Mint box):
-// node packages/agent-pool/src/health.mjs [--all]   (concerns, then with --all what is healthy too; exits 1 on a concern)
-// It reads the dispatcher's pid, stop file and status lines (launch.mjs), the engines running against the cap, each
+// Capability 8 · Reports the pool's health, concerns first. Run on the pool's machine:
+// node --import tsx packages/agent-pool/src/health.mjs [--all] (concerns, then with --all what is healthy too; exits 1 on a concern)
+// It reads the dispatcher's pid, stop file and status lines (launch.mjs), whether the service host keeps the dispatcher
+// (its agent-pool/dispatcher service on in this machine's settings, services.mjs), the engines running against the cap, each
 // session's logs and report, and the watcher's hand-offs (watch.mjs) with their pull requests on GitHub. It changes
 // nothing: restarting, stopping or re-queueing stays the session manager's call. It also flags a lane whose engine started
 // with a tool server other than storytree, and a stored claude.ai login on the box (ADR-1175 D1).
@@ -99,10 +100,11 @@ export async function poolHealth(b) {
 
   const dispatcher = await alive(join(L, "pool.pid"), DISPATCHER);
   const stopFile = await mtime(join(L, "pool-stop")) !== undefined;
+  const kept = await b.serviceOn();
   let state;
-  if (dispatcher) state = `running (pid ${dispatcher})${stopFile ? ", stopping: pool-stop is there" : ""}`;
+  if (dispatcher) state = `running (pid ${dispatcher})${kept ? " under the service host's agent-pool/dispatcher" : ""}${stopFile ? ", stopping: pool-stop is there" : ""}`;
   else if (stopFile) state = "stopped on purpose (pool-stop is there)";
-  else concerns.push("dispatcher not running, and no pool-stop says that is on purpose");
+  else concerns.push(`dispatcher not running, and no pool-stop says that is on purpose${kept ? "; its service is on, so `storytree services` says why (between runs, or held after exit 75)" : ""}`);
   details.push(`dispatcher: ${state ?? "not running"}`);
 
   const [engines, cap] = [await b.count(), await b.maxLanes()];
@@ -171,6 +173,7 @@ function boxDefaults({ home = homedir(), env = process.env } = {}) {
     argsOf: async (pid) => (await readFile(`/proc/${pid}/cmdline`, "utf8").catch(() => "")).split("\0").join(" ").trim(),
     count: async () => countEngines((await run("ps", ["-eo", "pid=,ppid=,args="], { maxBuffer: 64 * 1024 * 1024 })).stdout),
     maxLanes: () => readCap({ lanesDir, sessions: config.sessions }),
+    serviceOn: async () => (await import("@storytree/project-and-caller")).readServicesOn().includes("agent-pool/dispatcher"),
     pull: async (pr) => JSON.parse((await run("gh", ["api", "graphql", "-f", "owner=storytree-ai", "-f", "name=storytree", "-F", `pr=${pr}`, "-f", `query=${QUERY}`],
       { cwd: repo, maxBuffer: 16 * 1024 * 1024 })).stdout).data.repository.pullRequest,
   };

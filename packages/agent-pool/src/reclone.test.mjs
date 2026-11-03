@@ -74,8 +74,19 @@ test("9.1 · the re-clone moves the old checkout and its follow-main worktrees a
   assert.equal(await main([...args, "--apply"], box), 1);
   assert.match(lines.join("\n"), /refused: pause the pool first/);
   assert.equal(await text(join(m.checkout, "which.txt")), "old\n");
+  // With no --lanes, the box is found by the lanes folder holding the watcher's hand-offs.
+  lines.length = 0;
+  assert.equal(await main(["--checkout", m.checkout, "--repo", repo, "--apply"], box), 1);
+  assert.match(lines.join("\n"), new RegExp(`refused: pause the pool first .*no stop file in ${m.lanes.replace(/[\\^$.*+?()[\]{}|]/g, "\\$&")}`));
+  assert.equal(await text(join(m.checkout, "which.txt")), "old\n");
 
   await writeFile(join(m.lanes, "pool-stop"), "paused\n");
+  // Nor while another lane still runs, each counted in what it says.
+  for (const [beside, said] of [[["300"], "1 other lane is still running"], [["300", "301"], "2 other lanes are still running"]]) {
+    lines.length = 0;
+    assert.equal(await main([...args, "--apply"], { ...box, lanesBeside: async () => beside.map((pid) => ({ pid, args: "claude -p" })) }), 1);
+    assert.match(lines.join("\n"), new RegExp(`refused: pause the pool first .*: ${said}$`));
+  }
   // Nor while the dispatcher's loop still runs from the checkout: it would restart on the moved-aside code.
   lines.length = 0;
   assert.equal(await main([...args, "--apply"], { ...box, loopsInside: (at) => at === m.checkout ? ["77"] : [] }), 1);
@@ -172,9 +183,9 @@ test("9.1 · the dispatcher's loops running inside a checkout are found by their
     await symlink(cwd, join(proc, pid, "cwd"));
     if (cmdline !== undefined) await writeFile(join(proc, pid, "cmdline"), cmdline.split(" ").join("\0"));
   };
-  await at("77", checkout, "bash /home/u/storytree-lanes/launch-pool.sh run");
+  await at("77", checkout, "bash /home/u/lanes/launch-pool.sh run");
   await at("78", join(checkout, "packages"), "node voice-commit.ts");
-  await at("79", root, "bash /home/u/storytree-lanes/launch-pool.sh run");
+  await at("79", root, "bash /home/u/lanes/launch-pool.sh run");
   await at("80", checkout);
   assert.deepEqual(loopsInside(checkout, proc), ["77"]);
 });

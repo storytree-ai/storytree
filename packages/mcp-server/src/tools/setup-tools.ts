@@ -12,6 +12,9 @@ import { z } from "zod";
 import { habitsCard } from "../instructions/habits.js";
 import { hookFailures, type HookFailure } from "@storytree/session-management";
 import { findProject, storytreeHome } from "@storytree/project-and-caller";
+import { missingProjectReading } from "@storytree/project-and-caller/routing";
+import { folderLanguages } from "@storytree/map/folder-languages";
+import { languageList, SURVEYED_LANGUAGES } from "@storytree/map/languages";
 import { COMMIT_STORYTREE, IDENTITY_FIX, makeRepository, notAProjectYet, setUpProject, starterPackStatus, starterRolesIn, suggestProjectName, type RepositoryMade, type StarterPackStatus } from "@storytree/app-setup/project";
 import { checkFile, checkFilesWritten, codexHooksState, FIX_SENTENCES, fixSentence, HOOK_TESTS, openStorytree, runSetupCheck, verifyHooks, type Fix, type SetupOptions } from "@storytree/app-setup/setup";
 import { isUnreachable, NOT_RUNNING_ANSWER, refusalOf, result } from "./answers.js";
@@ -68,6 +71,11 @@ export function registerSetupTools({ server, folder, setup, connections, callerO
         // A name no project has yet (ADR-0757 D3); the folder's own when storytree cannot say.
         const name = await connections.server(report.storytree.library).then((storytree) => suggestProjectName(folder, storytree)).catch(() => undefined);
         said.push(notAProjectYet(folder, name));
+        return result({ text: said.join(" "), data: { ...data, ...unverified } });
+      }
+      if (report.project.status === "missing") {
+        // A marker set up against another library, or a project deleted here: no project to reach, and no hooks to verify (contract 6.114).
+        said.push(missingProjectReading(report.project.name), `Tell the user, and call set_up_project only after the user says yes: it sets this folder up here as a new project, replacing its marker, under ${quoted(report.project.name)} or a name they choose. If ${quoted(report.project.name)} is in another library they can reach, this computer's library setting can point there instead, and the folder joins it.`);
         return result({ text: said.join(" "), data: { ...data, ...unverified } });
       }
       said.push(`This folder is storytree project ${quoted(report.project.name)}.`);
@@ -136,15 +144,18 @@ export function registerSetupTools({ server, folder, setup, connections, callerO
     (async ({ name, join }: { name: string; join?: boolean }, context: ServerContext): Promise<CallToolResult> => {
       const caller = callerOf(context);
       const existing = findProject(folder);
+      const already = { text: `This folder is already storytree project ${quoted(existing.project ?? "")}.`, data: { project: existing.project } };
       // Joining on purpose from the folder its marker names approves a trunk not approved yet (ADR-0942 D1).
-      if (existing.project !== undefined && !(join === true && existing.project === name)) return result({ text: `This folder is already storytree project ${quoted(existing.project)}.`, data: { project: existing.project } });
+      const settled = existing.project !== undefined && !(join === true && existing.project === name);
       const running = await openStorytree({
         ...(setup.storytreeHome === undefined ? {} : { home: setup.storytreeHome }),
         ...(setup.openWaitMs === undefined ? {} : { waitMs: setup.openWaitMs }),
       });
-      if (running.state === "not running") return result({ text: NOT_RUNNING_ANSWER });
+      if (running.state === "not running") return result(settled ? already : { text: NOT_RUNNING_ANSWER });
       try {
-        await setUpProject({
+        // A marker naming a project this library lacks is set up afresh, replacing it (contract 6.114); any other is the folder's project already.
+        if (settled && (await (await connections.server(running.library)).listProjects()).includes(existing.project!)) return result(already);
+        const { replaced } = await setUpProject({
           folder, project: name, storytree: await connections.server(running.library), join: join === true,
           ...(setup.storytreeHome === undefined ? {} : { storytreeHome: setup.storytreeHome }),
           ...(setup.factory === undefined ? {} : { factory: setup.factory }),
@@ -162,12 +173,17 @@ export function registerSetupTools({ server, folder, setup, connections, callerO
         const starterRoles = await starterRolesIn(library);
         const fixes: Fix[] = [caller.harness === "codex" && codexHooksState(setup) === "waiting" ? "codex-approval" : "new-session"];
         const said = [`This folder is now storytree project ${quoted(name)}, and its setup is finished: carry on with the user's request, with no second check_setup in this session.`];
+        if (replaced !== undefined) said.push(`Its marker, which named project ${quoted(replaced)} this computer's library does not have, was replaced.`);
         if (repository !== undefined && repository.state !== "already") said.push(repositorySentence(repository));
         // A first commit storytree made, or will make once git has an identity, already holds the folder (ADR-1191 D3).
         if (repository?.state !== "made" && repository?.state !== "no identity") said.push(COMMIT_STORYTREE);
         if (starterRoles.length > 0) said.push(rolesSentence(starterRoles));
+        // Code only in languages the survey cannot read leaves the map empty of it: say so now, not at the first map (6.115).
+        const languages = await folderLanguages(folder).catch(() => undefined);
+        const unreadable = languages !== undefined && languages.read.length === 0 && languages.unread.length > 0 ? languages.unread : undefined;
+        if (unreadable !== undefined) said.push(`storytree's map reads ${languageList(SURVEYED_LANGUAGES)}, and this folder's code is in ${languageList(unreadable)}, so the map will not draw that code: planning by hand still works, and so does health from what the agent reports.`);
         said.push(fixes[0] === "codex-approval" ? FIX_SENTENCES["codex-approval"] : SET_UP_THIS_SESSION);
-        return result({ text: withCard(said.join(" ")), data: { project: name, starterRoles, fixes, ...(repository === undefined ? {} : { repository }) } });
+        return result({ text: withCard(said.join(" ")), data: { project: name, starterRoles, fixes, ...(repository === undefined ? {} : { repository }), ...(unreadable === undefined ? {} : { unreadable }), ...(replaced === undefined ? {} : { replaced }) } });
       } catch (error) {
         if (isUnreachable(error)) {
           await connections.close();

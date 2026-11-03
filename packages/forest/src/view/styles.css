@@ -799,23 +799,14 @@
   color: #a61b1b;
 }
 
-/* z-index 4: the forest pane forms no stacking context, so an open Arcs drawer (5) lies over the strip, expanded or not (ADR-1002 D3). */
-.sessions-list { position:absolute; left:0; right:0; bottom:0; z-index:4; max-height:40%; display:flex; flex-direction:column; box-sizing:border-box; color:#d9dedb; background:rgba(18,24,27,.62); backdrop-filter:blur(3px); border-top:1px solid #3d4748; font:13px/1.45 system-ui,sans-serif; box-shadow:0 -5px 20px #0004; }
+/* The Sessions tab of the app's left rail (7.17, ADR-1219): the list fills the tab, scrolling inside. */
+.sessions-list { height:100%; display:flex; flex-direction:column; box-sizing:border-box; color:#d9dedb; font:13px/1.45 system-ui,sans-serif; }
 .sessions-list { --group-injected:#8d9794; --group-grounding:#5c9fd6; --group-implementation:#e0a84a; --group-other:#566260; }
-.sessions-list[data-fresh="no"] { border-top-color:#b5771980; }
-.sessions-list header { flex:0 0 auto; display:flex; flex-wrap:wrap; align-items:center; gap:2px 16px; padding:0 20px; min-height:36px; font-size:11px; letter-spacing:.06em; color:#abb4b1; cursor:pointer; }
-.sessions-list header:hover { background:#ffffff0b; }
-.sessions-list button.sessions-handle { font-size:13px; font-weight:600; letter-spacing:.02em; color:#eceae3; padding:6px 0; }
-.sessions-list .session-legend { margin-left:auto; }
-.sessions-list[data-size="full"] { top:0; max-height:none; }
-.sessions-list button.sessions-size { font-size:11px; letter-spacing:.04em; color:#abb4b1; padding:2px 8px; border:1px solid #4a5654; }
-.sessions-list button.sessions-size:hover { color:#eceae3; border-color:#8d9794; }
-.sessions-tabs + .sessions-size { margin-left:auto; }
-.sessions-caret { color:#a9b0ba; font-size:13px; }
-.sessions-body { flex:1 1 auto; min-height:0; overflow-x:hidden; overflow-y:auto; padding:2px 20px 10px; }
-.sessions-body[hidden] { display:none; }
-:has(> .story-panel:not([hidden])) .sessions-list { right:calc(min(30rem, 100% - 1.5rem) + 1.5rem); }
-:has(> #freshness) .sessions-list { bottom:3.4rem; }
+.sessions-list[data-fresh="no"] header { border-bottom-color:#b5771980; }
+.sessions-list header { flex:0 0 auto; display:flex; flex-wrap:wrap; align-items:center; gap:4px 12px; padding:6px 12px; font-size:11px; letter-spacing:.06em; color:#abb4b1; border-bottom:1px solid #3d4748; }
+.sessions-name { font-size:13px; font-weight:600; letter-spacing:.02em; color:#eceae3; }
+.sessions-list .session-legend { flex-basis:100%; }
+.sessions-body { flex:1 1 auto; min-height:0; overflow-x:hidden; overflow-y:auto; overscroll-behavior:contain; padding:4px 8px 10px; }
 .sessions-count { margin-left:6px; }
 .session-legend { display:flex; flex-wrap:wrap; gap:2px 9px; letter-spacing:.02em; }
 .session-legend > span { display:inline-flex; align-items:center; gap:4px; white-space:nowrap; }
@@ -824,9 +815,16 @@
 .sessions-list p { margin:4px 0; font-size:12px; color:#abb4b1; }
 .session-row { display:flex; align-items:center; gap:8px; min-height:29px; border-radius:4px; padding:0 4px; }
 .session-row:hover,.session-row:focus-within { background:#ffffff0b; }
-.session-colour { width:8px; height:8px; flex-shrink:0; border-radius:50%; }
+.session-colour { width:8px; height:8px; flex-shrink:0; border-radius:2px; }
+/* A row's status dot (7.9): green at work, amber waiting for you, a hollow ring idle; the colour swatch beside it is a square so the two never read as one. */
+.session-dot { width:7px; height:7px; flex-shrink:0; border-radius:50%; box-sizing:border-box; }
+.session-dot[data-dot="working"] { background:#5fd38d; box-shadow:0 0 0 2px #5fd38d33; }
+.session-dot[data-dot="waiting"] { background:#f2b84b; }
+.session-dot[data-dot="idle"] { border:1.5px solid #8a948f; }
 .session-row { cursor:pointer; }
 .session-row[data-selected] { background:#ffffff17; }
+/* A finished child of a parent still at work stays listed, greyed, until the parent ends and its tree folds into it (7.2). */
+.session-row[data-done] { opacity:.5; }
 .session-row[data-selected] .session-colour { box-shadow:0 0 0 2px #ffffffcc; }
 .session-row:focus-visible,.sessions-list button:focus-visible { outline:1px solid #d9dedb; outline-offset:2px; }
 .session-label { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; min-width:60px; }
@@ -834,7 +832,7 @@
 .session-children-toggle { font-size:11px !important; color:#b3bdb9 !important; flex-shrink:0; padding:1px 2px !important; }
 .session-children-toggle::before { content:"▸"; display:inline-block; width:9px; }
 .session-children-toggle[aria-expanded="true"]::before { content:"▾"; }
-.session-detail { margin:1px 0 6px 20px; padding-left:8px; border-left:1px solid #3d4748; font-size:11px; line-height:1.5; color:#b3bdb9; display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:2px 28px; align-items:start; }
+.session-detail { margin:1px 0 6px 20px; padding-left:8px; border-left:1px solid #3d4748; font-size:11px; line-height:1.5; color:#b3bdb9; display:grid; grid-template-columns:minmax(0, 1fr); gap:4px; align-items:start; }
 .session-detail .session-description { grid-column:1 / -1; }
 .sessions-list .session-description { margin:0 0 4px; color:#d9dedb; }
 .sessions-list .session-description p { margin:0; font-size:12px; color:inherit; overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; }
@@ -864,11 +862,11 @@
 .sessions-idle-note { font-size:11px; color:#b3bdb9; }
 .sessions-list button.sessions-idle-elsewhere { font:inherit; color:#d9dedb; background:none; border:0; padding:0; text-decoration:underline; cursor:pointer; }
 .session-worktrees,.session-children { font-size:11px; color:#b3bdb9; white-space:nowrap; }
-.session-machine { font-size:10px; color:#b3bdb9; white-space:nowrap; border:1px solid #4a5654; border-radius:3px; padding:0 4px; }
+.session-machine { font-size:10px; color:#b3bdb9; white-space:nowrap; border:1px solid #4a5654; border-radius:3px; padding:0 4px; max-width:5.5rem; overflow:hidden; text-overflow:ellipsis; flex-shrink:1; min-width:2rem; }
 .session-on-main { font-size:10px; color:#b3bdb9; white-space:nowrap; flex-shrink:0; border:1px solid #4a5654; border-radius:3px; padding:0 4px; }
 .session-on-main[data-tone="warning"] { color:#f2c46b; border-color:#9a7a34; background:#f2c46b1f; }
 .session-on-main[data-tone="warning"]::before { content:"⚠ "; }
-.session-context-slot { position:relative; display:flex; overflow:hidden; width:120px; height:7px; flex-shrink:0; border:1px solid #65716d; border-radius:2px; box-sizing:border-box; margin-left:8px; }
+.session-context-slot { position:relative; display:flex; overflow:hidden; width:72px; height:7px; flex-shrink:0; border:1px solid #65716d; border-radius:2px; box-sizing:border-box; margin-left:8px; }
 .session-segment { height:100%; flex-shrink:0; }
 .sessions-list [data-group="injected"],.sessions-list [data-group="raw"] { --swatch:var(--group-injected); }
 .sessions-list [data-group="grounding"] { --swatch:var(--group-grounding); }
@@ -877,8 +875,7 @@
 .session-segment { background:var(--swatch); }
 .session-tick { position:absolute; top:-1px; bottom:-1px; width:1px; background:#d9dedb; opacity:.7; }
 .session-total { font-variant-numeric:tabular-nums; font-size:11px; width:38px; text-align:right; color:#abb4b1; flex-shrink:0; }
-@media(max-width:900px) { .session-detail { grid-template-columns:minmax(0, 1fr); } }
-@media(max-width:600px) { .sessions-list header { padding:0 12px; } .sessions-caret { order:1; margin-left:auto; } .sessions-list button.sessions-size { order:1; margin-left:auto; } .sessions-size + .sessions-caret { margin-left:0; } .sessions-list .session-legend { order:2; flex-basis:100%; margin-left:0; padding-bottom:4px; } .sessions-body { padding:2px 8px 8px; } .session-row { gap:4px; } .session-context-slot { width:59px; margin-left:0; } .session-detail { margin-left:6px; } }
+@media(max-width:600px) { .session-row { gap:4px; } .session-context-slot { width:59px; margin-left:0; } .session-detail { margin-left:6px; } }
 .session-worktree-state { margin-left:8px; font-size:10px; border:1px solid #4a5654; border-radius:3px; padding:0 4px; color:#b3bdb9; white-space:nowrap; }
 .session-worktree-state[data-state="unmerged"] { color:#e8a07a; border-color:#8a5a43; }
 .session-detail-running li { display:flex; gap:8px; justify-content:space-between; color:#d9dedb; }

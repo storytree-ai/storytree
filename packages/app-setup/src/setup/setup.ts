@@ -15,6 +15,7 @@ import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 
+import { connect, type ConnectOptions } from "@storytree/library";
 import { codexHookTrust, readAppRecords, type AppPlaces, type AppReading } from "@storytree/session-management";
 import { findProject, PROJECT_FILE, ROOT_MARKER_FILE, storytreeHome } from "@storytree/project-and-caller";
 
@@ -80,7 +81,7 @@ export interface SetupReport {
   /** What registering the hooks found; undefined when this server has no hook command to register. */
   readonly hooks: HooksReport | undefined;
   /** The project the folder is set up as, or the name to suggest when asking the user. */
-  readonly project: { status: "set up"; name: string } | { status: "ask"; suggestion: string };
+  readonly project: { status: "set up"; name: string } | { status: "ask"; suggestion: string } | { status: "missing"; name: string };
   /**
    * Whether a Codex session in the folder starts storytree's tool server, and from which config.toml; `broken`
    * names the `missing` command or server file. Undefined without a Codex home here, or with Codex disconnected.
@@ -150,7 +151,11 @@ export async function runSetupCheck(options: SetupOptions): Promise<SetupReport>
   const codexServer = disconnected.has("codex") ? undefined : codexServerState(homes.codex, options.folder);
   const codexHooks = codexHooksState(options);
   const found = findProject(options.folder);
-  const project = found.project === undefined ? { status: "ask" as const, suggestion: suggestedName(options.folder) } : { status: "set up" as const, name: found.project };
+  // A marker naming a project this library lacks (set up against another library, or deleted here) is no project here.
+  const missing = found.project !== undefined && storytree.state !== "not running" && (await lacksProject(storytree.library, found.project));
+  const project = found.project === undefined ? { status: "ask" as const, suggestion: suggestedName(options.folder) } : missing ? { status: "missing" as const, name: found.project } : { status: "set up" as const, name: found.project };
+  // Only a project here has a repository, a first commit or a marker's move to judge.
+  const here = found.project !== undefined && project.status === "set up" ? found.folder : undefined;
   // The `storytree` command runs the front door built beside the hook script (ADR-0643 D1, 8).
   const command = options.hook === undefined || options.command === undefined ? undefined : putCommandOnPath(options.command, options.hook.node, path.join(path.dirname(options.hook.script), "storytree.mjs"), options.look === true);
   const [gh, machine, archives, released] = await Promise.all([
@@ -161,14 +166,28 @@ export async function runSetupCheck(options: SetupOptions): Promise<SetupReport>
   ]);
   // The tool server is built beside the hook script, as the `storytree` command is.
   const serverEntry = options.hook === undefined ? undefined : { command: options.hook.node, args: [path.join(path.dirname(options.hook.script), "storytree-mcp.mjs")] };
-  const committed = found.project === undefined ? undefined : firstCommit(found.folder)?.state;
+  const committed = here === undefined ? undefined : firstCommit(here)?.state;
   const first = committed === "made" || committed === "no identity" ? committed : undefined;
-  const repository = found.project === undefined ? undefined : repositoryLack(found.folder);
-  const rootMarker = found.project === undefined ? undefined : rootMarkerIn(found.folder);
+  const repository = here === undefined ? undefined : repositoryLack(here);
+  const rootMarker = here === undefined ? undefined : rootMarkerIn(here);
   const report = { storytree, hooks, codexServer, codexHooks, project, command, gh, machine, archives, hooksRelease: released, serverEntry, ...(options.connected === undefined ? {} : { connected: options.connected }), ...(repository === undefined ? {} : { repository }), ...(first === undefined ? {} : { firstCommit: first }), ...(rootMarker === undefined ? {} : { rootMarker }) };
   return { ...report, lines: setupLines(report) };
 }
 
+
+/** Whether the library at `library` has no project `name`; a library that cannot be asked is not said to lack it. */
+async function lacksProject(library: ConnectOptions, name: string): Promise<boolean> {
+  try {
+    const storytree = await connect(library);
+    try {
+      return !(await storytree.listProjects()).includes(name);
+    } finally {
+      await storytree.close();
+    }
+  } catch {
+    return false;
+  }
+}
 
 /** `machine`, with the asking session's own agent CLI signed in where its ask said signed out (8.11). */
 function signedInAsking(machine: MachineState, asking: SetupOptions["asking"]): MachineState {

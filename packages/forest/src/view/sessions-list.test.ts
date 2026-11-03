@@ -3,7 +3,7 @@ import { createElement } from "react";
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { renderToStaticMarkup } from "react-dom/server";
-import { arcsAfter, cutoverAfter, FAILURES_WINDOW_MS, isSessionRows, keptPanelOpen, keptStripFull, keptTab, NEWS_STEP, readContext, refreshFailures, sessionsOutage, SessionsList, StepFailed, windowsReader } from "./sessions-list.js";
+import { arcsAfter, cutoverAfter, FAILURES_WINDOW_MS, isSessionRows, keptTab, NEWS_STEP, readContext, refreshFailures, sessionsOutage, SessionsList, StepFailed, windowsReader } from "./sessions-list.js";
 import type { ArcView } from "@storytree/library";
 import { LIBRARY_UNREACHABLE } from "@storytree/library/connection-error";
 import type { SessionWindow } from "@storytree/session-management";
@@ -16,21 +16,42 @@ const row: SessionRow = { id: "parent", label: "Build <signup>", agent: "Codex",
       totalTokens: undefined, stories: [], worktrees: [], running: [], description: [], children: [] },
   ] };
 
-test("7.1–7.5 rows start collapsed, showing neither detail nor children; a row the user opened shows its detail and its children below it; rows show safe words and available total beside its bar", () => {
+test("7.1–7.5 rows start with their detail closed; a running row's children show beneath it without a click, with no \"+N\"; a row the user opened shows its detail before its children; rows show safe words and available total beside its bar", () => {
   const fresh = renderToStaticMarkup(createElement(SessionsList, { rows: [row], onHighlight() {} }));
   assert.match(fresh, /Build &lt;signup&gt;/);
   assert.match(fresh, /aria-expanded="false"/);
-  assert.match(fresh, /class="session-children"[^>]*>\+1<\/span>/, "the count stays on a collapsed row");
-  assert.doesNotMatch(fresh, /data-session-id="child"|session-detail/);
+  assert.doesNotMatch(fresh, /session-detail/);
+  assert.match(fresh, /data-session-id="child"/, "a running parent's child shows without a click");
+  assert.doesNotMatch(fresh, /class="session-children"/, "no count while the children show");
+  assert.match(fresh, /aria-label="Show detail of Build &lt;signup&gt;"/, "the expander opens only the row's own detail");
   const html = renderToStaticMarkup(createElement(SessionsList, { rows: [row], expanded: new Set(["parent"]), onHighlight() {} }));
   assert.match(html, /aria-expanded="true"/);
-  assert.match(html, /data-session-id="child"/);
   assert.match(html, /class="session-detail"/);
+  assert.ok(html.indexOf("session-detail") < html.indexOf('data-session-id="child"'), "children follow the detail");
   assert.match(html, /class="session-context-slot" title="120,000 tokens"/);
   assert.match(html, /120,000 context tokens/);
   assert.match(html, />120K<\/span>/);
   const unavailable = renderToStaticMarkup(createElement(SessionsList, { rows: [{ ...row, totalTokens: undefined }], onHighlight() {} }));
   assert.match(unavailable, /Context total unavailable">—/);
+});
+
+test("7.2 a finished child of a running parent stays listed, greyed; an idle parent folds its whole tree behind its \"+N\", which its expander opens", () => {
+  const finished: SessionRow = { ...row, id: "lane", label: "Supervised lane", state: "waiting", idle: true, children: [] };
+  const running: SessionRow = { ...row, state: "working", children: [row.children[0]!, finished] };
+  const live = renderToStaticMarkup(createElement(SessionsList, { rows: [running], onHighlight() {} }));
+  assert.match(live, /data-session-id="lane"[^>]*data-done="true"/, "the finished child is greyed");
+  assert.doesNotMatch(live, /data-session-id="child"[^>]*data-done/, "a child not known to be finished is not");
+  assert.doesNotMatch(live, /data-session-id="parent"[^>]*data-done/);
+  const idle: SessionRow = { ...running, state: "waiting", idle: true, children: [{ ...row.children[0]!, state: "waiting", idle: true }, finished] };
+  const folded = renderToStaticMarkup(createElement(SessionsList, { rows: [idle], tab: "history", onHighlight() {} }));
+  assert.match(folded, /data-session-id="parent"/);
+  assert.doesNotMatch(folded, /data-session-id="(child|lane)"/, "the ended parent's tree folds into it");
+  assert.match(folded, /class="session-children"[^>]*>\+2<\/span>/);
+  assert.match(folded, /aria-label="Show detail and 2 children of Build &lt;signup&gt;"/);
+  const opened = renderToStaticMarkup(createElement(SessionsList, { rows: [idle], tab: "history", expanded: new Set(["parent"]), onHighlight() {} }));
+  assert.match(opened, /data-session-id="child"/);
+  assert.match(opened, /data-session-id="lane"/);
+  assert.doesNotMatch(opened, /class="session-children"/, "opened, the children show and the count goes");
 });
 
 test("5.5 a row wears its session's colour, the one its outlines wear", () => {
@@ -73,17 +94,16 @@ test("the list draws its kept last rows at once, marked as refreshing; a kept va
   assert.equal(isSessionRows({ rows: [row] }), false);
 });
 
-test("7.8 one expander per row, counting its children; expanded, a row lists its labelled worktrees by folder name (full path on hover), its labelled window's files (gone ones muted) and then its children", () => {
+test("7.8 one expander per row; expanded, a row lists its labelled worktrees by folder name (full path on hover), its labelled window's files (gone ones muted) and then its children", () => {
   const busy: SessionRow = { ...row, worktrees: [{ path: "/home/me/code/app/.claude/worktrees/one", branches: [] }, { path: "/home/me/code/app/.claude/worktrees/two", branches: [] }] };
   const folded = renderToStaticMarkup(createElement(SessionsList, { rows: [busy, { ...row, id: "lone", children: [] }], onHighlight() {} }));
-  assert.equal(folded.match(/<button[^>]*session-children-toggle/g)?.length, 2, "every row has one expander, a childless one too");
+  assert.equal(folded.match(/<button[^>]*session-children-toggle/g)?.length, 3, "every row has one expander, a childless one and a running parent's child too");
   assert.doesNotMatch(folded, /session-detail/);
   const files = new Map([["parent", { files: [{ path: "src/a.ts", resident: true }, { path: "src/b.ts", resident: false }] }]]);
   const html = renderToStaticMarkup(createElement(SessionsList, { rows: [busy], files, expanded: new Set(["parent"]), onHighlight() {} }));
   const parentRow = html.match(/data-session-id="parent".*?<\/div>/s)?.[0] ?? "";
   assert.equal(parentRow.match(/<button/g)?.length, 1, "the children do not bring a second control to the row");
   assert.match(parentRow, /^data-session-id="parent"[^>]*><button[^>]*session-children-toggle/, "the expander opens the row");
-  assert.match(parentRow, /class="session-children"[^>]*>\+1<\/span>/);
   assert.match(html, /aria-expanded="true"/);
   const detail = html.match(/class="session-detail".*?<\/div>/s)?.[0] ?? "";
   assert.ok(detail.indexOf(">Worktrees<") < detail.indexOf(">one<") && detail.indexOf(">one<") < detail.indexOf(">two<")
@@ -129,6 +149,20 @@ test("7.9 the list prints no prose about a session: a row with a close-out why s
   assert.doesNotMatch(html, /needs you|unmerged|says safe|fix-login|needing/i);
 });
 
+test("7.9 every row leads with a status dot read from its state alone: working, waiting for you within the idle-after time, or idle; a parent whose child works is working; an observed subagent's dot says its state is unavailable", () => {
+  const dot = (html: string, id: string) => html.match(new RegExp(`data-session-id="${id}"[^>]*>.*?<span class="session-dot" data-dot="([a-z]+)" title="([^"]*)"`))?.slice(1);
+  const working: SessionRow = { ...row, id: "w", state: "working", children: [] };
+  const live = renderToStaticMarkup(createElement(SessionsList, { rows: [working, { ...row, id: "q", children: [] },
+    { ...row, id: "p", idle: false, state: "waiting", children: [{ ...row.children[0]!, id: "c", state: "working" }] }, row], expanded: new Set(["parent"]), onHighlight() {} }));
+  assert.deepEqual(dot(live, "w"), ["working", "Working"]);
+  assert.deepEqual(dot(live, "q"), ["waiting", "Waiting for you"]);
+  assert.deepEqual(dot(live, "p"), ["working", "Working"], "a parent at work through its child");
+  assert.deepEqual(dot(live, "child"), ["idle", "State unavailable"]);
+  const history = renderToStaticMarkup(createElement(SessionsList, { rows: [{ ...row, id: "i", idle: true, children: [] }], tab: "history", onHighlight() {} }));
+  assert.deepEqual(dot(history, "i"), ["idle", "Idle"]);
+  assert.ok(live.indexOf('class="session-dot"') < live.indexOf('class="session-colour"') && live.indexOf('class="session-colour"') < live.indexOf('class="session-label"'), "dot, colour, then name");
+});
+
 test("7.15 an expanded row's worktree carries its label, unmerged or merged or its pull request's state, beside its folder's name; a worktree with none carries none", () => {
   const worktrees: SessionRow["worktrees"] = [{ path: "/w/one", branches: ["fix-one"], state: "unmerged" }, { path: "/w/two", branches: ["fix-two"], state: "merged" }, { path: "/w/site", branches: [] },
     { path: "/w/three", branches: ["fix-three"], state: "unmerged", label: "PR #40 · in CI" }];
@@ -165,50 +199,12 @@ test("7.10 the Live tab lists only the sessions at work, with no idle row; the h
   assert.doesNotMatch(only, /No running sessions|data-session-id="quiet"/);
 });
 
-test("7.17 the list is a bottom strip whose header toggles it, like the arcs bar's: it starts expanded; collapsed it leaves only the header (name, count, legend and a caret pointing up), drawing no rows; the choice is kept per project and a missing or foreign value means expanded", () => {
-  const open = renderToStaticMarkup(createElement(SessionsList, { rows: [{ ...row, children: [] }], onHighlight() {} }));
-  assert.match(open, /<button type="button" class="sessions-handle" aria-expanded="true" aria-controls="sessions-body" aria-label="Hide sessions"/);
-  assert.match(open, /class="sessions-caret" aria-hidden="true">▾</);
-  assert.match(open, /id="sessions-body"(?! hidden)/);
-  assert.match(open, /data-session-id="parent"/);
-  const shut = renderToStaticMarkup(createElement(SessionsList, { rows: [{ ...row, children: [] }], open: false, onHighlight() {} }));
-  assert.match(shut, /aria-expanded="false" aria-controls="sessions-body" aria-label="Show sessions"/);
-  assert.match(shut, /class="sessions-caret" aria-hidden="true">▴</);
-  assert.match(shut, /class="sessions-count"[^>]*>1</, "the count and legend stay on the strip");
-  assert.match(shut, /class="session-legend"/);
-  assert.doesNotMatch(shut, /data-session-id|session-detail/);
-
-  const store = new Map<string, string>();
-  const storage = { getItem: (key: string) => store.get(key) ?? null, setItem: (key: string, value: string) => void store.set(key, value) };
-  assert.equal(keptPanelOpen("demo", storage).read(), true, "nothing kept: expanded");
-  keptPanelOpen("demo", storage).write(false);
-  assert.equal(keptPanelOpen("demo", storage).read(), false, "a folded strip stays folded next start");
-  assert.equal(keptPanelOpen("other", storage).read(), true, "kept per project");
-  store.set("storytree.forest.sessions-open.v1:demo", "\"maybe\"");
-  assert.equal(keptPanelOpen("demo", storage).read(), true, "a foreign value is ignored");
-});
-
-test("7.17 the header carries an Expand control beside its caret that fills the forest pane, and Restore that returns it to at most 40%; the size is kept per project, a missing or foreign value reads as not expanded, and a collapsed strip shows only its header", () => {
-  const strip = { rows: [{ ...row, children: [] }], onHighlight() {} };
-  const usual = renderToStaticMarkup(createElement(SessionsList, strip));
-  assert.doesNotMatch(usual, /<aside[^>]*data-size=/, "the usual height by default");
-  assert.match(usual, /<button type="button" class="sessions-size" aria-pressed="false" aria-label="Expand sessions to fill the pane"[^>]*>Expand<\/button><span class="sessions-caret"/);
-  const full = renderToStaticMarkup(createElement(SessionsList, { ...strip, full: true }));
-  assert.match(full, /<aside[^>]*data-size="full"/);
-  assert.match(full, /class="sessions-size" aria-pressed="true" aria-label="Restore sessions to their usual height"[^>]*>Restore</);
-  const history = renderToStaticMarkup(createElement(SessionsList, { ...strip, full: true, tab: "history" }));
-  assert.match(history, /<aside[^>]*data-size="full"/, "History uses the height too");
-  const shut = renderToStaticMarkup(createElement(SessionsList, { ...strip, full: true, open: false }));
-  assert.doesNotMatch(shut, /data-size=|sessions-size/, "collapsed, only the header: no size and no size control");
-
-  const store = new Map<string, string>();
-  const storage = { getItem: (key: string) => store.get(key) ?? null, setItem: (key: string, value: string) => void store.set(key, value) };
-  assert.equal(keptStripFull("demo", storage).read(), false, "nothing kept: the usual height");
-  keptStripFull("demo", storage).write(true);
-  assert.equal(keptStripFull("demo", storage).read(), true, "an expanded strip stays expanded next start");
-  assert.equal(keptStripFull("other", storage).read(), false, "kept per project");
-  store.set("storytree.forest.sessions-size.v1:demo", "\"huge\"");
-  assert.equal(keptStripFull("demo", storage).read(), false, "a foreign value is ignored");
+test("7.17 · the list fills its rail tab: its header names it, counts it and carries its tabs and legend, and nothing on it hides the rows or sizes the list", () => {
+  const list = renderToStaticMarkup(createElement(SessionsList, { rows: [{ ...row, children: [] }], onHighlight() {} }));
+  assert.match(list, /<header><span class="sessions-name">Sessions <span class="sessions-count"[^>]*>1<\/span><\/span><span class="sessions-tabs" role="tablist"/);
+  assert.match(list, /class="session-legend"/);
+  assert.match(list, /<div id="sessions-body" class="sessions-body" data-surface-id="sessions"><ul>.*data-session-id="parent"/s);
+  assert.doesNotMatch(list, /aria-expanded="(true|false)" aria-controls="sessions-body"|Expand|Restore|hidden=""/, "no collapse or size control, and the body is never hidden");
 });
 
 test("the list reads every arc in one ask, and again only when a change touches an arc, an increment or a question (ADR-0836 D3)", async () => {

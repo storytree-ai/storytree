@@ -196,22 +196,10 @@ function everyId(rows: readonly SessionRow[]): string[] {
   return rows.flatMap(row => [row.id, ...everyId(row.children)]);
 }
 
-/** Whether the strip shows its rows, kept per project in the page's storage like the arcs bar's state; nothing kept, or a foreign value, is expanded (7.17). */
-export function keptPanelOpen(project: string, storage?: Parameters<typeof pageKept>[2]) {
-  const kept = pageKept<boolean>(`storytree.forest.sessions-open.v1:${project}`, (value): value is boolean => typeof value === "boolean", storage);
-  return { read: (): boolean => kept.read() ?? true, write: (open: boolean): void => kept.write(open) };
-}
-
-/** Whether the strip fills the forest pane rather than its usual 40%, kept per project like its open state; nothing kept, or a foreign value, is the usual height (7.17). */
-export function keptStripFull(project: string, storage?: Parameters<typeof pageKept>[2]) {
-  const kept = pageKept<boolean>(`storytree.forest.sessions-size.v1:${project}`, (value): value is boolean => typeof value === "boolean", storage);
-  return { read: (): boolean => kept.read() ?? false, write: (full: boolean): void => kept.write(full) };
-}
-
-/** The strip's two tabs (7.21): the sessions at work now, and the ones that have left the list. */
+/** The list's two tabs (7.21): the sessions at work now, and the ones that have left the list. */
 export type SessionsTab = "live" | "history";
 
-/** Which tab the strip shows, kept per project like its open state; nothing kept, or a foreign value, is Live (7.22). */
+/** Which tab the list shows, kept per project; nothing kept, or a foreign value, is Live (7.22). */
 export function keptTab(project: string, storage?: Parameters<typeof pageKept>[2]) {
   const kept = pageKept<SessionsTab>(`storytree.forest.sessions-tab.v1:${project}`, (value): value is SessionsTab => value === "live" || value === "history", storage);
   return { read: (): SessionsTab => kept.read() ?? "live", write: (tab: SessionsTab): void => kept.write(tab) };
@@ -261,10 +249,6 @@ export function mountSessionsList(container: HTMLElement, options: {
   let selected: string | undefined;
   // Every row starts collapsed; these are the ones the user opened.
   let expanded: ReadonlySet<string> = new Set();
-  const openKept = keptPanelOpen(options.project);
-  let stripOpen = openKept.read();
-  const fullKept = keptStripFull(options.project);
-  let stripFull = fullKept.read();
   const tabKept = keptTab(options.project);
   let tab = tabKept.read();
   let range: HistoryChoice = { preset: "today" };
@@ -283,10 +267,8 @@ export function mountSessionsList(container: HTMLElement, options: {
     root.render(<SessionsList rows={rows} loading={tree === undefined && rows.length === 0}
     refreshing={tree === undefined && rows.length > 0}
     error={banner?.text} errorDetail={banner?.detail} selected={selected} onHighlight={options.onHighlight}
-    expanded={expanded} files={files} onToggle={toggle} open={stripOpen}
-    onToggleOpen={() => { stripOpen = !stripOpen; openKept.write(stripOpen); draw(); }}
-    full={stripFull} onToggleFull={() => { stripFull = !stripFull; fullKept.write(stripFull); draw(); }}
-    // Choosing a tab or a range redraws the strip and nothing else: the globe keeps the live rows (7.22).
+    expanded={expanded} files={files} onToggle={toggle}
+    // Choosing a tab or a range redraws the list and nothing else: the globe keeps the live rows (7.22).
     tab={tab} onTab={next => { tab = next; tabKept.write(tab); draw(); }} history={past} range={range} now={now()}
     onRange={next => { range = next; draw(); }} storyTitles={titles}
     {...(options.onSelect ? { onSelect: options.onSelect } : {})} />);
@@ -462,6 +444,14 @@ function SessionDetail({ row, files }: { row: SessionRow; files: SessionFiles | 
   </div>;
 }
 
+/**
+ * Whether a row is known to be at work, itself or through a child (7.2): its children then show beneath it without a click,
+ * and once it is not, its tree folds into it. An observed subagent's state is not known, so it keeps no tree open by itself.
+ */
+function busy(row: SessionRow): boolean {
+  return !row.idle && row.state !== "observed" || row.children.some(busy);
+}
+
 /** Work on main as a row's label (7.20, ADR-0906): outside a workspace is a warning, a new repository's first commit is not; the reading's words on hover. */
 const ON_MAIN_WORDS: Readonly<Record<OnMain, string>> = { "outside-workspace": "on main", "first-commit-pending": "first commit" };
 const ON_MAIN_TONES: Readonly<Record<OnMain, "warning" | "neutral">> = { "outside-workspace": "warning", "first-commit-pending": "neutral" };
@@ -484,12 +474,6 @@ export function SessionsList({ rows, loading = false, refreshing = false, error,
   onToggle?(session: string): void;
   /** Each expanded row's files, once read (7.8). */
   files?: ReadonlyMap<string, SessionFiles>;
-  /** Whether the strip shows its rows (7.17), when the caller keeps it; otherwise the list keeps its own, starting expanded. */
-  open?: boolean;
-  onToggleOpen?(): void;
-  /** Whether the open strip fills the forest pane (7.17), when the caller keeps it; otherwise the list keeps its own, starting at the usual height. */
-  full?: boolean;
-  onToggleFull?(): void;
   /** The tab shown (7.21), when the caller keeps it; otherwise the list keeps its own, starting on Live. */
   tab?: SessionsTab;
   onTab?(tab: SessionsTab): void;
@@ -507,12 +491,6 @@ export function SessionsList({ rows, loading = false, refreshing = false, error,
   storyTitles?: ReadonlyMap<string, string>;
 }) {
   const [own, setOwn] = useState<ReadonlySet<string>>(new Set());
-  const [ownOpen, setOwnOpen] = useState(true);
-  const stripOpen = control.open ?? ownOpen;
-  const onToggleOpen = control.onToggleOpen ?? (() => setOwnOpen(!ownOpen));
-  const [ownFull, setOwnFull] = useState(false);
-  const stripFull = control.full ?? ownFull;
-  const onToggleFull = control.onToggleFull ?? (() => setOwnFull(!ownFull));
   const expanded = control.expanded ?? own;
   const isOpen = (id: string): boolean => expanded.has(id);
   const onToggle = control.onToggle ?? ((id: string) => setOwn(toggle(own, id)));
@@ -529,15 +507,15 @@ export function SessionsList({ rows, loading = false, refreshing = false, error,
   const visit = (list: readonly SessionRow[], depth: number, into: { row: SessionRow; depth: number }[] = []): { row: SessionRow; depth: number }[] => {
     for (const row of list) {
       into.push({ row, depth });
-      if (isOpen(row.id)) visit(row.children, depth + 1, into);
+      if (isOpen(row.id) || busy(row)) visit(row.children, depth + 1, into);
     }
     return into;
   };
   // Live lists only the sessions at work; the idle ones are listed first under History, found by its search (ADR-1002 D4).
   const idle = rows.filter(row => row.idle);
   const idleShown = visit(idle.filter(row => matchesSearch([row.label, row.agent, "idle", ...row.stories.map(id => storyTitles?.get(id) ?? id)], search)), 0);
-  // Folded, or showing History, the strip draws no live rows, so none is hovered or drawn: History lights no islands (7.22).
-  const visible = !stripOpen || tab === "history" ? [] : visit(rows.filter(row => !row.idle), 0);
+  // Showing History, the list draws no live rows, so none is hovered or drawn: History lights no islands (7.22).
+  const visible = tab === "history" ? [] : visit(rows.filter(row => !row.idle), 0);
   const active = visible.find(({ row }) => row.id === (hovered ?? focused))?.row;
   const islands = active?.stories.join("\0");
   useEffect(() => {
@@ -548,10 +526,10 @@ export function SessionsList({ rows, loading = false, refreshing = false, error,
     document.body.dataset.drew = JSON.stringify({ ...JSON.parse(document.body.dataset.drew ?? "{}"),
       sessions: visible.map(({ row }) => row.id) });
   });
-  /** A listed session's row and, opened, its detail and children (7.8); under History an idle one is led by its word (7.21). */
+  /** A listed session's row, its children beneath it while it is at work (7.2) and, opened, its detail and children (7.8); under History an idle one is led by its word (7.21). */
   const sessionItem = ({ row, depth }: { row: SessionRow; depth: number }, lead?: ReactNode) => (
     <li key={row.id} style={{ marginLeft: Math.min(depth, 5) * 14 }}>
-      <div className="session-row" data-session-id={row.id} data-state={row.state} data-idle={row.idle || undefined}
+      <div className="session-row" data-session-id={row.id} data-state={row.state} data-idle={row.idle || undefined} data-done={depth > 0 && row.idle && !busy(row) || undefined}
         data-selected={row.id === selected || undefined} tabIndex={0}
         onClick={() => onSelect?.(clickedSelection(rows, row.id, selected))}
         onKeyDown={event => { if (event.target === event.currentTarget && (event.key === "Enter" || event.key === " ")) {
@@ -560,15 +538,16 @@ export function SessionsList({ rows, loading = false, refreshing = false, error,
         onPointerEnter={() => setHovered(row.id)} onPointerLeave={() => setHovered(undefined)}
         onFocus={() => setFocused(row.id)} onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget)) setFocused(undefined); }}>
         {lead}
-        {/* One expander per row, at its start (7.8): its detail and its children (7.2), counted by the "+N" after its name. */}
+        {/* One expander per row, at its start (7.8): its detail, and its children while they are folded (7.2), counted by the "+N" after its name. */}
         <button type="button" className="session-children-toggle" aria-expanded={isOpen(row.id)}
-          aria-label={`${isOpen(row.id) ? "Hide" : "Show"} detail${row.children.length > 0 ? ` and ${row.children.length} children` : ""} of ${row.label}`}
+          aria-label={`${isOpen(row.id) ? "Hide" : "Show"} detail${row.children.length > 0 && !busy(row) ? ` and ${row.children.length} children` : ""} of ${row.label}`}
           onClick={event => { event.stopPropagation(); onToggle(row.id); }} />
+        <span className="session-dot" data-dot={dotOf(row)} title={dotWords(row)} aria-hidden="true" />
         {depth === 0 && <span className="session-colour" style={{ background: sessionColour(row.id) }} aria-hidden="true" />}
         <span className="session-label" title={`${row.label}\n${row.agent} · ${row.id}${row.machine === undefined ? "" : ` · on ${row.machine}`}${row.state === "observed" ? "\nSubagent observed; current state unavailable" : ""}${row.worktrees.length > 0 ? `\n${row.worktrees.map(tree => tree.path).join("\n")}` : ""}`}>{row.label}</span>
         {row.onMain !== undefined && <span className="session-on-main" data-tone={ON_MAIN_TONES[row.onMain]} title={ON_MAIN_LABELS[row.onMain]}>{ON_MAIN_WORDS[row.onMain]}</span>}
         {row.machine !== undefined && <span className="session-machine" title={`Runs on ${row.machine}`}>{row.machine}</span>}
-        {row.children.length > 0 && <span className="session-children" aria-hidden="true">+{row.children.length}</span>}
+        {row.children.length > 0 && !busy(row) && !isOpen(row.id) && <span className="session-children" aria-hidden="true">+{row.children.length}</span>}
         {row.worktrees.length > 1 && <span className="session-worktrees" title={row.worktrees.map(tree => tree.path).join("\n")}
           aria-label={`works in ${row.worktrees.length} worktrees`}>{row.worktrees.length} worktrees</span>}
         <ContextBar row={row} />
@@ -577,29 +556,19 @@ export function SessionsList({ rows, loading = false, refreshing = false, error,
       </div>
       {isOpen(row.id) && <SessionDetail row={row} files={files?.get(row.id)} />}
     </li>);
-  return <aside className="sessions-list" data-fresh={refreshing ? "no" : undefined} data-open={stripOpen}
-    data-size={stripOpen && stripFull ? "full" : undefined} aria-label="Running sessions">
-    {/* The header toggles the whole list, like the arcs bar's (7.17): a click anywhere on it, the button for the keyboard. */}
-    <header onClick={onToggleOpen}>
-      <button type="button" className="sessions-handle" aria-expanded={stripOpen} aria-controls="sessions-body"
-        aria-label={stripOpen ? "Hide sessions" : "Show sessions"} title={stripOpen ? "Hide sessions" : "Show sessions"}>
-        Sessions <span className="sessions-count" title="Sessions at work or waiting for you">{atWork(rows)}</span></button>
+  // The Sessions tab of the app's left rail (7.17): the list fills it, with no control of its own to hide or size it.
+  return <aside className="sessions-list" data-fresh={refreshing ? "no" : undefined} aria-label="Running sessions">
+    <header>
+      <span className="sessions-name">Sessions <span className="sessions-count" title="Sessions at work or waiting for you">{atWork(rows)}</span></span>
       <span className="sessions-tabs" role="tablist" aria-label="Sessions shown">
         {([["live", "Live"], ["history", "History"]] as const).map(([id, name]) => <button key={id} type="button" role="tab" aria-selected={tab === id}
-          aria-controls="sessions-body" onClick={event => { event.stopPropagation(); if (!stripOpen) onToggleOpen(); onTab(id); }}>{name}</button>)}
+          aria-controls="sessions-body" onClick={() => onTab(id)}>{name}</button>)}
       </span>
       {tab === "live" && <span className="session-legend" aria-label="Bar colours">
         {GROUPS.map(([group, name]) => <span key={group} data-group={group}><span className="session-swatch" aria-hidden="true" />{name}</span>)}
       </span>}
-      {/* The size control reads as the arcs drawer's does: what a press gives (ADR-1002 D3). Collapsed, the strip has no size to choose. */}
-      {stripOpen && <button type="button" className="sessions-size" aria-pressed={stripFull}
-        aria-label={stripFull ? "Restore sessions to their usual height" : "Expand sessions to fill the pane"}
-        title={stripFull ? "Restore sessions to their usual height" : "Expand sessions to fill the pane"}
-        onClick={event => { event.stopPropagation(); onToggleFull(); }}>{stripFull ? "Restore" : "Expand"}</button>}
-      <span className="sessions-caret" aria-hidden="true">{stripOpen ? "▾" : "▴"}</span>
     </header>
-    {/* Expanded to fill the pane, the list is a canvas of its own (Surface feedback names it); open at its usual height, it is a strip under the globe. */}
-    <div id="sessions-body" className="sessions-body" hidden={!stripOpen} data-surface-id={stripOpen && stripFull ? "sessions" : undefined} data-surface-layer="panel">
+    <div id="sessions-body" className="sessions-body" data-surface-id="sessions">
     {tab === "history" ? <HistoryBody rows={history} range={range} onRange={onRange ?? setOwnRange} now={now} selected={selected}
       onSelect={session => onSelect?.(historySelection(session, selected))} search={search} onSearch={onSearch}
       idle={idleShown.map(entry => sessionItem(entry, entry.depth === 0 ? IDLE_LEAD : undefined))} /> : <>
@@ -631,6 +600,22 @@ function outcomeWords(outcome: HistoryOutcome): string {
 function dayOf(ms: number): string {
   const at = new Date(ms);
   return `${at.getFullYear()}-${String(at.getMonth() + 1).padStart(2, "0")}-${String(at.getDate()).padStart(2, "0")}`;
+}
+
+/**
+ * A row's status dot, read from its recorded state alone (7.9, the owner's trial on question_66ebe5dc5eec): working, or with a
+ * child at work; waiting for you within the idle-after time; otherwise idle. An observed subagent's state is not known, so its
+ * dot is idle's and says so.
+ */
+function dotOf(row: SessionRow): "working" | "waiting" | "idle" {
+  if (row.state === "working" || row.children.some(child => child.state === "working")) return "working";
+  return row.state === "waiting" && !row.idle ? "waiting" : "idle";
+}
+
+/** What a row's dot means, on hover. */
+function dotWords(row: SessionRow): string {
+  const dot = dotOf(row);
+  return dot === "idle" && row.state === "observed" ? "State unavailable" : { working: "Working", waiting: "Waiting for you", idle: "Idle" }[dot];
 }
 
 /** An idle session's lead under History, where an ended one's outcome stands (7.21). */

@@ -8,6 +8,8 @@ export interface AddedFolder {
   status: "set up" | "already a project" | "brought back";
   project: string;
   folder: string;
+  /** The project a marker named that this computer's library does not have, replaced by setting the folder up here. */
+  replaced?: string;
 }
 
 /** This computer's factory folder: storytree's own, or one switched to, with who switched it and when (2.22). */

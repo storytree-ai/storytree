@@ -1335,3 +1335,31 @@ test("8.37 a look (the doctor without --repair) writes no file: each harness, th
     assert.match(line(relooked, "command")?.fix ?? "", /storytree doctor --repair/);
   });
 });
+
+test("8.42 a folder whose marker names a project this computer's library lacks reads missing, with the one reading and a set-up fix only on the user's yes; once the library has the project, it reads set up", async () => {
+  await withTempDir(async (dir) => {
+    const home = throwawayHome(dir);
+    const name = uniqueProjectName();
+    const folder = path.join(dir, "checkout");
+    mkdirSync(folder);
+    // A marker committed on another computer, against another library: this one never had the project.
+    writeFileSync(path.join(folder, ROOT_MARKER_FILE), `${JSON.stringify({ project: name, identity: "19697429" })}\n`);
+    const options = { ...ANSWERED, folder, homes: home.homes, storytreeHome: home.storytreeHome };
+    const storytree = await connect({ url: testServerUrl() });
+    try {
+      const missing = await runSetupCheck(options);
+      assert.deepEqual(missing.project, { status: "missing", name });
+      const line = missing.lines.find((each) => each.check === "project");
+      assert.equal(line?.state, "needs-attention");
+      assert.ok(line?.message.includes(`this computer's library has no project "${name}"`), line?.message);
+      assert.match(line?.fix ?? "", /^Only after the user says yes, set this folder up here as a new project/);
+      assert.equal(missing.lines.find((each) => each.check === "marker"), undefined, "a missing project's marker is not offered the move");
+
+      await (await storytree.openProject(name)).close();
+      assert.deepEqual((await runSetupCheck(options)).project, { status: "set up", name });
+    } finally {
+      await storytree.close();
+      await dropTestProjects([name]);
+    }
+  });
+});

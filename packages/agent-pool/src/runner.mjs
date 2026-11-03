@@ -1,14 +1,14 @@
-// Capability 1 · A Mint lane runs on the engine its allowance allows. node packages/agent-pool/src/runner.mjs run <brief-file> <log> <err> [add-dir ...]
+// Capability 1 · A lane runs on the engine its allowance allows. node packages/agent-pool/src/runner.mjs run <brief-file> <log> <err> [add-dir ...]
 // node packages/agent-pool/src/runner.mjs status
 import { execFile, spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
-import { constants, homedir } from "node:os";
+import { constants, homedir, hostname } from "node:os";
 import { appendFile, open, readdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 
-import { FUNCTION_HOOKS, PLUGIN_FOLDER, SESSION_FILE } from "./claude-code-mod/index.mjs";
+import { FUNCTION_HOOKS, PLUGIN_FOLDER, SESSION_FILE } from "@storytree/claude-code-mod";
 
 import { LANE_FAILURES, recordLaneFailure } from "./feed.mjs";
 import { assessAllowance, detectLimitHit, engineControls, iso, laneSettings, pickEngine, pickFresh, readLatestAllowance, readOptional } from "./engine.mjs";
@@ -16,10 +16,8 @@ import { poolConfig, readCap } from "./pool-config.mjs";
 import { countEngines, ENGINE_SLOTS, processTable, reserveSlot, WINDOWS_PROCESSES } from "./queue.mjs";
 
 /** Who a lane's commits are by: the owner, as main's commits are authored. */
-const OWNER = { name: "Mick", email: "107184961+HuaMick@users.noreply.github.com" };
-const LANE_IDENTITY = { GIT_AUTHOR_NAME: OWNER.name, GIT_AUTHOR_EMAIL: OWNER.email, GIT_COMMITTER_NAME: OWNER.name, GIT_COMMITTER_EMAIL: OWNER.email };
 
-async function loginEnvironment(home, env) {
+async function loginEnvironment(home, env, identity) {
   const login = { ...env };
   const names = ["CLAUDE_CODE_OAUTH_TOKEN"];
   if (names.some((name) => !login[name])) {
@@ -34,9 +32,10 @@ async function loginEnvironment(home, env) {
   // both engines carry that, so a claude nested in a Codex lane does too (ADR-1175 D1).
   if (!login.CLAUDE_CODE_OAUTH_TOKEN.trim()) throw Object.assign(new Error("no lane token (CLAUDE_CODE_OAUTH_TOKEN, in the environment or ~/.storytree/secrets.json): the lane does not start"), { code: "lane-token" });
   login.ENABLE_CLAUDEAI_MCP_SERVERS = "false";
-  // The box's checkout has no git identity, and a re-clone would lose one set there: a lane commits as the owner,
-  // unless the runner's environment names someone else (1.21).
-  for (const [name, value] of Object.entries(LANE_IDENTITY)) login[name] ||= value;
+  // A pool's checkout may have no git identity, and a re-clone would lose one set there: a lane commits as the identity
+  // the machine's pool configuration names, unless the runner's environment names someone else (1.21).
+  if (identity) for (const [name, value] of Object.entries({ GIT_AUTHOR_NAME: identity.name, GIT_AUTHOR_EMAIL: identity.email,
+    GIT_COMMITTER_NAME: identity.name, GIT_COMMITTER_EMAIL: identity.email })) login[name] ||= value;
   return login;
 }
 
@@ -46,7 +45,7 @@ const TOKEN_QUESTION = "lane-token.question";
 const TOKEN_ARC = "arc_cae8dffd9fe7";
 
 /**
- * A lane refused for want of its token asks the owner to mint a new one (ADR-1175 D2): once, on its increment's arc,
+ * A lane refused for want of its token asks the owner to make a new one (ADR-1175 D2): once, on its increment's arc,
  * while that question stands open, however often the pool retries; once it is settled, a token still missing asks again.
  */
 async function askForToken({ lanesDir, increment, storytree, dated }) {
@@ -63,15 +62,16 @@ async function askForToken({ lanesDir, increment, storytree, dated }) {
   try { await writeFile(file, "", { flag: "wx" }); } catch { return; }
   try {
     const arc = increment ? (await storytree(["library", "read", increment, "--field", "arc"])).trim() : "";
-    const raised = await storytree(["question", "new", "--arc", arc || TOKEN_ARC, "--title", "Mint a new lane token for the Mint box",
-      "--stakes", "No pool lane, fix session or release fix on the Mint box starts until it has its own lane token: lanes run only on that token, never on the box's claude.ai login (ADR-1175).",
-      "--statement", "The lane runner found no lane token (CLAUDE_CODE_OAUTH_TOKEN, in its environment or ~/.storytree/secrets.json), or an empty one, so it started no lane. Will you mint a new one and put it there?",
+    const machine = hostname();
+    const raised = await storytree(["question", "new", "--arc", arc || TOKEN_ARC, "--title", `Make a new lane token for ${machine}`,
+      "--stakes", `No pool lane, fix session or release fix on ${machine} starts until it has its own lane token: lanes run only on that token, never on the machine's claude.ai login (ADR-1175).`,
+      "--statement", "The lane runner found no lane token (CLAUDE_CODE_OAUTH_TOKEN, in its environment or ~/.storytree/secrets.json), or an empty one, so it started no lane. Will you make a new one and put it there?",
       "--context", `Lanes stay queued and start again on their own once the token is in place. The runner asks this once, while this question stands open, however often it retries.${increment ? ` First refused: ${increment}.` : ""}`,
-      "--options", "A. Mint a new token with `claude setup-token` on the box and save it as CLAUDE_CODE_OAUTH_TOKEN in ~/.storytree/secrets.json, then settle this question. B. Leave the pool stopped for now: write pool-stop in the lanes folder."]);
+      "--options", `A. Make a new token with \`claude setup-token\` on ${machine} and save it as CLAUDE_CODE_OAUTH_TOKEN in ~/.storytree/secrets.json, then settle this question. B. Leave the pool stopped for now: write pool-stop in the lanes folder.`]);
     const id = /question_\w+/.exec(raised)?.[0];
     if (!id) throw new Error("no question id in its answer");
     await writeFile(file, id);
-    dated(`no lane token: asked the owner to mint one in ${id}`);
+    dated(`no lane token: asked the owner to make one in ${id}`);
   } catch (error) {
     await rm(file, { force: true });
     dated(`no lane token, and asking the owner for one failed: ${String(error.message).split("\n")[0]}`);
@@ -90,7 +90,7 @@ const MOD_VARIABLES = [...Object.keys(FUNCTION_HOOKS), "CLAUDE_CODE_PLUGIN_DIRS"
 const sessionFile = (log) => `${log.replace(/\.log$/, "")}.session`;
 function engineEnvironment(engine, login, log) {
   // The pool configuration a dispatcher was started with (the laptop's, ADR-1179) is the runner's: the engine's own tools
-  // (its hand-over to the Mint box's watcher) read the repository's.
+  // (its hand-over to the pool's watcher) read the machine's own.
   const { AGENT_POOL_CONFIG: _config, ...lane } = login;
   if (engine === "claude") return { ...lane, ...FUNCTION_HOOKS, [SESSION_FILE]: sessionFile(log) };
   const codex = { ...lane };
@@ -229,7 +229,7 @@ async function probeCodex(command, { cwd, env, log, model, timeoutMs = 180_000 }
 }
 
 /** How a lane carrying another's work on finds what that one left, and takes over its claims. */
-const CARRY_ON = `Before anything else, find what it left: its worktree and branch for this increment (\`git worktree list\` in ~/code/storytree03),
+const CARRY_ON = `Before anything else, find what it left: its worktree and branch for this increment (\`git worktree list\`),
 commits and any pull request on that branch whose head is on this repository (\`gh pr list --head <branch> --state all --json number,state,isCrossRepository\`,
 keeping only those with isCrossRepository false: a fork's pull request on a branch of the same name is never this lane's), and the last lines of its log.
 Carry on from that work rather than starting again. If a claim is refused as held by that session, it has stopped:
@@ -239,7 +239,7 @@ function handoverBrief(log, original) {
   return `# Handover: Codex's weekly allowance ran out mid-lane
 
 A Codex lane on this box started the brief below and stopped when Codex's weekly allowance ran out (its log: ${log}).
-You are Claude Code, carrying the same lane on (owner, 2026-10-06: Mint lanes switch to Claude when Codex's allowance is used up).
+You are Claude Code, carrying the same lane on (the pool switches its lanes to Claude when Codex's allowance is used up).
 ${CARRY_ON}
 
 ${original}`;
@@ -413,7 +413,7 @@ export async function runLane({ brief, log, err, addDirs = [], cwd = process.cwd
   const signaled = () => { dated(`lane runner stopped by a signal: exit ${SIGNALED} so the runner keeps this lane queued`); return SIGNALED; };
   // The first engine's start frees the slot its starter reserved (3.32): from then on the process table counts it.
   const runEngine = (command, args, options) => runEngineOnce(command, args, { ...options, dated, reap, onSpawn });
-  const login = await loginEnvironment(home, env).catch(async (error) => {
+  const login = await loginEnvironment(home, env, settings.identity).catch(async (error) => {
     if (error.code === "lane-token") await askForToken({ lanesDir: settings.lanesDir, increment, storytree, dated });
     throw error;
   });

@@ -1,4 +1,4 @@
-// Pictures for the owner's look at contract 7.8: a session row, collapsed and expanded to its worktrees and window files.
+// Pictures for the owner's look at contracts 7.2 and 7.8: a running session with its subagent beneath it before any click, then expanded to its worktrees and window files.
 // The actual desktop page, built by ../sessions-list/build.mjs; all activity here is synthetic.
 // Run both through `node ~/.storytree/your-factory/plugins/micks-dev-loop/src/heavy-lock.mjs --`, from storytree's checkout root. --smoke builds its own page
 // into its build folder's smoke/, takes no pictures and skips the fixed rests, so a test proves every wait below still resolves in a real browser.
@@ -69,14 +69,18 @@ await withCapture({ folder: evidence, dist }, async ({ browser, origin, out, set
   const closeHelp = page.getByRole('button', { name: /^Close/ }).first();
   await page.waitForFunction(() => document.body.dataset.state === 'ready', null, { timeout: 15000 }).catch(async error => { console.error(errors, await page.evaluate(() => [document.body.dataset.state, document.body.innerText.slice(0, 400)])); throw error; });
   if (await closeHelp.isVisible()) await closeHelp.click();
+  await page.locator('[data-rail-tab="sessions"]').click(); // the sessions list is the left rail's Sessions tab (ADR-1219)
   const list = page.getByRole('complementary', { name: 'Running sessions', exact: true });
   const row = list.locator(`.session-row[data-session-id="${ids.builder}"]`);
   await row.waitFor();
-  // Every row starts collapsed (forest 7.8), as the collapsed picture shows it.
+  // Every row's detail starts closed (forest 7.8), and the running builder's subagent shows beneath it without a click (7.2), as the tree picture shows it.
   await row.getByRole('button', { name: /^Show detail/ }).waitFor();
-  if (!smoke) { await page.waitForTimeout(500); await list.screenshot({ path: path.join(out, 'collapsed.png') }); }
+  const helper = list.locator(`.session-row[data-session-id="${ids.helper}"]`);
+  await helper.waitFor();
+  if (!smoke) { await page.waitForTimeout(500); await list.screenshot({ path: path.join(out, 'tree.png') }); }
   const toggles = await list.locator('.session-children-toggle').evaluateAll(items => items.map(item => item.getAttribute('aria-expanded')));
-  assert.ok(toggles.length > 0 && toggles.every(open => open === 'false'), `every row starts collapsed: ${toggles}`);
+  assert.ok(toggles.length > 0 && toggles.every(open => open === 'false'), `every row's detail starts closed: ${toggles}`);
+  assert.equal(await row.locator('.session-children').count(), 0, 'no "+N" while the children show');
   assert.equal(await list.locator('.session-detail').count(), 0, 'no detail drawn while collapsed');
   await row.getByRole('button', { name: /^Show detail/ }).click();
   const detail = list.locator('li', { has: page.locator(`.session-row[data-session-id="${ids.builder}"]`) }).locator('.session-detail');
@@ -87,10 +91,10 @@ await withCapture({ folder: evidence, dist }, async ({ browser, origin, out, set
     trees.map(tree => [path.basename(tree), tree]), 'each worktree by its folder name, its full path on hover');
   assert.equal(await detail.locator('.session-detail-files li').count(), opened.length);
   assert.equal(await detail.locator('li[data-resident="no"]').count(), 1);
-  await list.locator(`.session-row[data-session-id="${ids.helper}"]`).waitFor();
+  assert.ok(await helper.isVisible(), 'the subagent stays beneath the opened row');
   if (!smoke) { await page.waitForTimeout(300); await list.screenshot({ path: path.join(out, 'expanded.png') }); }
   assert.deepEqual(errors, []);
-  console.log(smoke ? 'Smoke run: no pictures' : 'Captured collapsed.png and expanded.png');
-  console.log(JSON.stringify({ collapsed: toggles.length, worktrees: await detail.locator('.session-detail-worktrees li').count(),
+  console.log(smoke ? 'Smoke run: no pictures' : 'Captured tree.png and expanded.png');
+  console.log(JSON.stringify({ closed: toggles.length, children: await helper.count(), worktrees: await detail.locator('.session-detail-worktrees li').count(),
     files: await detail.locator('.session-detail-files li').count(), muted: await detail.locator('li[data-resident="no"]').count() }));
 });

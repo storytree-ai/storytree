@@ -8,6 +8,8 @@
  * - A test carries a number by its name, `def test_2_1_…` (a Python name cannot start with a digit), or by
  *   its docstring starting `2.1`. Either may name a story's package first: `test_order_intake_2_1_…` (the
  *   package's hyphens as underscores) or a docstring `order-intake 2.1 …`, as a JS/TS title does.
+ * - A built story's own package folders are the survey's to read (8.54), so the files under them are left out here,
+ *   and a test the survey reads is counted once (8.55).
  * - A number a story's package names is that story's alone. An unnamed one is a story's only while no other
  *   story in the plan has a contract with that number: two stories' 2.1 are told apart only by a prefix.
  */
@@ -17,9 +19,9 @@ import path from "node:path";
 import type { AnnotatedTree } from "@storytree/library";
 
 import { packageOf } from "./package-of.js";
+import { PYTEST_FILE } from "./python-reader.js";
 import { gitText } from "./survey-source.js";
 
-const PYTEST_FILE = /(?:^|\/)(?:test_[^/]*|[^/]*_test)\.py$/;
 /** Folders a walk of a non-checkout never enters, beside hidden ones: virtualenvs, caches and dependencies. */
 const UNWALKED = new Set(["node_modules", "venv", "env", "__pycache__", "site-packages", "dist", "build"]);
 /** A test's name: `test_`, then perhaps a package (words of letters and digits), then the number's two parts. */
@@ -49,21 +51,21 @@ function pytestNumbersIn(text: string, packages: readonly string[]): PytestNumbe
   return found;
 }
 
-/** The pytest files of the checkout `root` is in, as full paths. */
-async function pytestFiles(root: string): Promise<string[]> {
+/** The pytest files of the checkout `root` is in, as full paths and as paths from its top (or `root` outside a checkout) with forward slashes. */
+async function pytestFiles(root: string): Promise<{ full: string; relative: string }[]> {
   const listed = await gitText(root, ["rev-parse", "--path-format=absolute", "--show-toplevel"]).then(
-    async (top) => (await gitText(top, ["ls-files", "-z", "--cached", "--others", "--exclude-standard"])).split("\0").filter(Boolean).map((file) => path.join(top, file)),
+    async (top) => (await gitText(top, ["ls-files", "-z", "--cached", "--others", "--exclude-standard"])).split("\0").filter(Boolean).map((file) => ({ full: path.join(top, file), relative: file })),
     () => undefined,
   );
-  if (listed !== undefined) return listed.filter((file) => PYTEST_FILE.test(file.replaceAll("\\", "/")));
-  const files: string[] = [];
+  if (listed !== undefined) return listed.filter((file) => PYTEST_FILE.test(file.relative));
+  const files: { full: string; relative: string }[] = [];
   const walk = async (folder: string): Promise<void> => {
     const entries = await readdir(folder, { withFileTypes: true }).catch(() => []);
     for (const entry of entries) {
       const full = path.join(folder, entry.name);
       if (entry.isDirectory()) {
         if (!entry.name.startsWith(".") && !UNWALKED.has(entry.name)) await walk(full);
-      } else if (entry.isFile() && PYTEST_FILE.test(entry.name)) files.push(full);
+      } else if (entry.isFile() && PYTEST_FILE.test(entry.name)) files.push({ full, relative: path.relative(root, full).replaceAll("\\", "/") });
     }
   };
   await walk(root);
@@ -86,8 +88,11 @@ function plannedNumbers(tree: AnnotatedTree): Map<string, Set<string>> {
   return owners;
 }
 
-/** The contract numbers the pytest tests of the checkout `root` is in carry for the story `storyId` of `tree`, by the rules above. */
-export async function pytestTestedNumbers(root: string, tree: AnnotatedTree, storyId: string): Promise<string[]> {
+/**
+ * The contract numbers the pytest tests of the checkout `root` is in carry for the story `storyId` of `tree`, by the rules
+ * above, leaving out the files under `surveyed`, the folders (from the checkout's top, `packages/<name>`) the survey read.
+ */
+export async function pytestTestedNumbers(root: string, tree: AnnotatedTree, storyId: string, surveyed: readonly string[] = []): Promise<string[]> {
   const story = tree.stories.find((one) => one.id === storyId);
   if (story === undefined) return [];
   const own = packageOf(story);
@@ -95,9 +100,10 @@ export async function pytestTestedNumbers(root: string, tree: AnnotatedTree, sto
   const planned = plannedNumbers(tree);
   const numbers = new Set<string>();
   for (const file of await pytestFiles(root)) {
+    if (surveyed.some((folder) => file.relative.startsWith(`${folder}/`))) continue;
     let text: string;
     try {
-      text = await readFile(file, "utf8");
+      text = await readFile(file.full, "utf8");
     } catch {
       continue;
     }

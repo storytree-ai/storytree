@@ -1,4 +1,4 @@
-// Capability 4 · A watcher lands a handed-over pull request (ADR-0955 D3). A Mint session ends once its pull request
+// Capability 4 · A watcher lands a handed-over pull request (ADR-0955 D3). A pool session ends once its pull request
 // is open and its gate is green, and hands the pull request here; this script, not a model, watches CI and the merge
 // queue: on MERGED it closes the increment and releases the session's claims, on a red it starts one fix session.
 // node packages/agent-pool/src/watch.mjs hand <pr> <increment> [--session <id>] [--keep-open] [--refused [--holder <session>]]   (records it and starts the watcher)
@@ -24,7 +24,7 @@ import { promisify } from "node:util";
 import { poolConfig, readCap } from "./pool-config.mjs";
 import { LANE_RUN } from "./runner.mjs";
 import { readBoxPace } from "./pace.mjs";
-import { codeVersion, countEngines, holdRunner } from "./queue.mjs";
+import { codeVersion, countEngines, holdRunner, localBrief } from "./queue.mjs";
 import { EXEMPTIONS_EVERY_MS, exemptionChanges, watchExemptions } from "./exemptions-watch.mjs";
 import { attempted, failedJob, FOLLOWERS, isSecurityCheck, judgeReleases, recordFix, RELEASE_ARC, RELEASE_EVERY_MS, RUNNER_ATTEMPTS, runnerFault, runnerReruns, securityJobs, watchReleases } from "./release-watch.mjs";
 
@@ -32,16 +32,17 @@ import { attempted, failedJob, FOLLOWERS, isSecurityCheck, judgeReleases, record
  * The code the watcher runs (4.10, ADR-0981 D3): what watch.mjs loads and what the fix sessions it starts load
  * (runner.mjs and its engine.mjs; their brief is written here). A change to one of these restarts the look loop; a
  * change anywhere else in the dev loop leaves it looking. When one of these files comes to import another file, name
- * that file here; the pool's configuration, read once at start, is here too.
+ * that file here; the pool's configuration reader, read once at start, is here too (the machine's own file is outside the
+ * repository, ADR-1216 D1, so codeVersion reads it beside these).
  */
-export const WATCH_CODE = [...["watch.mjs", "release-watch.mjs", "exemptions-watch.mjs", "queue.mjs", "pace.mjs", "runner.mjs", "engine.mjs", "pool-config.mjs"]
-  .map((name) => `packages/agent-pool/src/${name}`), "agent-pool.json"];
+export const WATCH_CODE = ["watch.mjs", "release-watch.mjs", "exemptions-watch.mjs", "queue.mjs", "pace.mjs", "runner.mjs", "engine.mjs", "pool-config.mjs"]
+  .map((name) => `packages/agent-pool/src/${name}`);
 
 const run = promisify(execFile);
 const RED = new Set(["FAILURE", "TIMED_OUT", "CANCELLED", "ACTION_REQUIRED", "STARTUP_FAILURE", "ERROR"]);
 // The queue's removals that the Requeue workflow puts back once; one it left out past its grace is red.
 const EJECTED = new Set(["FAILED_CHECKS", "BRANCH_PROTECTION_FAILURE"]);
-const MARKS = [/watch\.mjs run( |$)/];
+export const MARKS = [/watch\.mjs run( |$)/];
 const LOOP_MARKS = [/watch\.mjs watch( |$)/];
 
 /** Whether a process's command line is a fix session's runner (4.26). */
@@ -283,7 +284,7 @@ export async function forget({ dir, now = Date.now }) {
  */
 export async function handedOff(dir) {
   return (await records(dir)).map((record) => ({ increment: record.increment,
-    note: `PR #${record.pr} is with the Mint box's watcher${record.fixing ? ", and a fix session works it" : ""}` }));
+    note: `PR #${record.pr} is with the pool's watcher${record.fixing ? ", and a fix session works it" : ""}` }));
 }
 
 /**
@@ -304,7 +305,7 @@ export async function hand({ dir, pr, increment, session, branch, keepOpen = fal
   const old = (await records(dir)).find((record) => record.pr === pr);
   let closed = false;
   await storytree(["arc", "increment", "wait", increment, "--for", "event", "--note",
-    `PR #${pr} is open and green and handed to the Mint box's watcher, which ${keepOpen ? "leaves this open (more pull requests are to come) on its merge" : "closes this on its merge"} or starts a fix session on a red.`,
+    `PR #${pr} is open and green and handed to the pool's watcher, which ${keepOpen ? "leaves this open (more pull requests are to come) on its merge" : "closes this on its merge"} or starts a fix session on a red.`,
     "--check-back", new Date(now() + HELD_MS).toISOString().slice(0, 10)])
     .catch((error) => { if (/ is closed, and waits for nothing/.test(error.message)) closed = true; else throw error; });
   const last = old?.fixes?.at(-1);
@@ -339,7 +340,7 @@ export async function handOver({ pr, increment, session, keepOpen = false, onBox
     // The box refused it (a fork's pull request): no other way in takes it either.
     const refusal = `${error.stdout ?? ""}\n${error.message}`.split("\n").find((line) => line.startsWith("not handed over: "));
     if (refusal) return { code: 1, lines: [refusal] };
-    unreached = `could not reach the Mint box's watcher over ssh: ${last(error)}`;
+    unreached = `could not reach the pool's watcher over ssh: ${last(error)}`;
   }
   if (!library) return { code: 1, lines: [unreached, fallback] };
   try {
@@ -350,9 +351,10 @@ export async function handOver({ pr, increment, session, keepOpen = false, onBox
 }
 
 /** The event wait a hand-over through the library writes is its request: it names the pull request, the session and whether to keep the increment open (4.30). */
-const requestNote = ({ pr, session, keepOpen }) => `PR #${pr} is open and green and handed to the Mint box's watcher through the library by session ${session}${keepOpen ? ", to keep this open" : ""},`
+const requestNote = ({ pr, session, keepOpen }) => `PR #${pr} is open and green and handed to the pool's watcher through the library by session ${session}${keepOpen ? ", to keep this open" : ""},`
   + ` which ${keepOpen ? "leaves this open (more pull requests are to come) on its merge" : "closes this on its merge"} or starts a fix session on a red.`;
-const REQUEST = /^\s*- event\s+PR #(\d+) is open and green and handed to the Mint box's watcher through the library by session ([^\s,]+)(, to keep this open)?, .* — (increment_\w+)\s/;
+// A request written before the pool's machine left the wording ("the <machine>'s watcher") still reads as one.
+const REQUEST = /^\s*- event\s+PR #(\d+) is open and green and handed to the [^,]*?watcher through the library by session ([^\s,]+)(, to keep this open)?, .* — (increment_\w+)\s/;
 
 /**
  * Hand a pull request over through the library, from wherever it is reachable (4.30): the event wait `hand` would
@@ -417,12 +419,12 @@ function fixBrief({ pr, increment, why, logs, n, limit, keepOpen, closed, review
   const handBack = `${pr} ${increment}${keepOpen ? " --keep-open" : ""}`;
   return `# Fix session ${review ? `${n}, after an independent review` : `${n} of ${limit}`}: pull request #${pr} (${increment}) is red
 
-The Mint box's watcher started you: a session opened PR #${pr} for ${increment}, saw its gate green and handed it over,
+The pool's watcher started you: a session opened PR #${pr} for ${increment}, saw its gate green and handed it over,
 and it has since gone red: ${why}.${logs.length ? `\nThe failing runs: ${logs.join(", ")}.` : ""}${lagLine(lag)}${review
     ? `\nAfter ${limit} fix sessions an independent review session read it and judged it a bug in the pull request that a session can fix: ${review}`
     : ""}
 
-Your job is that pull request and nothing else. Work from ~/code/storytree03 and follow its AGENTS.md as the session-orchestrator.
+Your job is that pull request and nothing else. Work from {checkout} and follow its AGENTS.md as the session-orchestrator.
 - Find the PR's branch (\`gh pr view ${pr} --json headRefName\`) and a worktree on it (\`git worktree list\`), or add one for it
   under .claude/worktrees, and ${closed
     ? `work there without claiming the increment: ${increment} already closed on an earlier pull request, so claim only the capabilities you edit.`
@@ -454,11 +456,11 @@ function reviewBrief({ pr, increment, why, logs, fixLogs, n, cap, closed }) {
   const verdict = `node packages/agent-pool/src/watch.mjs verdict ${pr}`;
   return `# Review session (session ${n} of at most ${cap}): pull request #${pr} (${increment}) is still red after its fix sessions
 
-The Mint box's watcher started you. PR #${pr} for ${increment} has gone red again after its fix sessions: ${why}.
+The pool's watcher started you. PR #${pr} for ${increment} has gone red again after its fix sessions: ${why}.
 ${logs.length ? `The failing runs: ${logs.join(", ")}.\n` : ""}The fix sessions' logs: ${fixLogs.join(", ") || "none"}.
 
 You are an independent reviewer, not a fixer: you did not write this pull request or its fixes, and you do not change its
-branch. Work from ~/code/storytree03. Read the failing runs (\`gh run view <run> --log-failed\`, \`gh pr checks ${pr}\`),
+branch. Work from {checkout}. Read the failing runs (\`gh run view <run> --log-failed\`, \`gh pr checks ${pr}\`),
 the fix sessions' logs and the pull request's diff (\`gh pr diff ${pr}\`), and decide exactly ONE verdict:
 - flake: the failure is random, and another try may pass. \`${verdict} flake --summary "<why>"\`
 - elsewhere: a slow or flaky test the pull request does not own fails it. Park that test's fix as its own increment on
@@ -524,7 +526,7 @@ reviewed again (4.37). At the cap the increment waits on the owner with the last
  * repository cut-over (`cutover`, its time) is the old repository's pull request, whose number now names another: it is
  * never looked up, only forgotten, its wait cleared and its claims let go (4.39).
  */
-export async function watchOnce({ dir, look, storytree, cutover = async () => undefined, startFix, startReview, rerun, refresh, behind, enqueue, alive, room, readRisks, limit, cap = 6, backoff = 15 * 60_000, now = Date.now, say }) {
+export async function watchOnce({ dir, look, storytree, cutover = async () => undefined, startFix, startReview, rerun, refresh, behind, enqueue, alive, room, readRisks, limit, cap = 6, backoff = 15 * 60_000, folders = {}, now = Date.now, say }) {
   const dated = (message) => say(`${new Date(now()).toISOString().replace(/\.\d{3}Z$/, "Z")} ${message}`);
   // A step the library refuses (a wait already cleared, an increment closed by hand) is said, not retried forever.
   const tell = (args, project) => storytree(args, project).catch((error) => { dated(`storytree ${args.slice(0, 3).join(" ")} refused: ${error.message.split("\n")[0]}`); return ""; });
@@ -637,7 +639,7 @@ export async function watchOnce({ dir, look, storytree, cutover = async () => un
       await tell(["question", "new", "--arc", arc, "--title", `PR #${pr} failed a security check (${checks})`,
         "--stakes", `PR #${pr} cannot land until it passes, and the watcher starts no fix session for it, since a fix session's commits and pull request are public.`,
         "--statement", `PR #${pr} (${increment}) failed the security check ${checks}. What should be done about it?`,
-        "--context", `The Mint watcher reads ${checks} as a security check (4.41): it puts no log or alert text anywhere and asks you instead. Read the check on GitHub, signed in.`,
+        "--context", `The pool's watcher reads ${checks} as a security check (4.41): it puts no log or alert text anywhere and asks you instead. Read the check on GitHub, signed in.`,
         "--options", "A. Fix it yourself, privately, then hand the pull request to the watcher again. B. Judge it a false alarm, dismiss it on GitHub and hand it over again. C. Close the pull request.",
         ...(record.closed ? [] : ["--hold", increment])], record.project);
       await letGo(pr, `PR #${pr} failed a security check, which is the owner's; released by the watcher`);
@@ -767,9 +769,9 @@ export async function watchOnce({ dir, look, storytree, cutover = async () => un
     // How far its branch is behind main, read at the head judged red; a reading that fails says nothing and stops nothing (4.38).
     const lag = !reviewing && behind ? await behind(pull.head).catch(() => undefined) : undefined;
     const session = reviewing
-      ? await startReview({ pr, increment, n, brief: reviewBrief({ pr, increment, why: pull.why, logs: pull.logs, fixLogs, n, cap, closed: record.closed }) })
-      : await startFix({ pr, increment, n, brief: fixBrief({ pr, increment, why: pull.why, logs: pull.logs, n: counted + 1, limit: allowed, keepOpen: record.keepOpen, closed: record.closed,
-        review: verdict?.summary, lag }) });
+      ? await startReview({ pr, increment, n, brief: localBrief(reviewBrief({ pr, increment, why: pull.why, logs: pull.logs, fixLogs, n, cap, closed: record.closed }), folders) })
+      : await startFix({ pr, increment, n, brief: localBrief(fixBrief({ pr, increment, why: pull.why, logs: pull.logs, n: counted + 1, limit: allowed, keepOpen: record.keepOpen, closed: record.closed,
+        review: verdict?.summary, lag }), folders) });
     record.fixing = { pid: session.pid };
     record.fixes.push({ at: new Date(now()).toISOString(), head: pull.head, pid: session.pid, log: session.log, ...(reviewing ? { review: true } : {}),
       ...(pull.conflict ? { conflict: true } : {}), ...(failures && !reviewing ? { units: failures.units, tests: failures.tests } : {}) });
@@ -872,6 +874,8 @@ function boxDefaults({ home = homedir(), env = process.env } = {}) {
     : await run("pnpm", ["-s", "storytree", ...args], { cwd: repo, maxBuffer: 16 * 1024 * 1024 })).stdout;
   return {
     lanesDir, repo, dir, pidFile: join(dir, "watch.pid"), loopPidFile: join(dir, "watch-loop.pid"), argsOf,
+    // The folders a fix, review or release fix session's brief names ({checkout}, {lanes}): this machine's own.
+    folders: { checkout: repo, lanes: lanesDir },
     // The one log every start of the watcher writes, whether a hand-over starts it or the box's owner does (4.28).
     log: join(lanesDir, "watch.runner.log"),
     limit: config.watcher.fixesPerRed, cap: config.watcher.fixesPerPullRequest, intervalMs: config.watcher.intervalMs, now: Date.now,
@@ -922,7 +926,7 @@ function boxDefaults({ home = homedir(), env = process.env } = {}) {
     },
     // Started from the shared checkout's copy, whichever worktree handed over, so it runs the code it watches for changes.
     startWatcher: (log) => detached([own, "run"], log, repo),
-    codeVersion: () => codeVersion({ repo, paths: WATCH_CODE }),
+    codeVersion: () => codeVersion({ repo, paths: WATCH_CODE, config: config.file }),
     loop: () => new Promise((ended) => {
       const child = spawnChild(process.execPath, [own, "watch"], { cwd: repo, env: free, stdio: "inherit" });
       child.once("error", () => ended(1));

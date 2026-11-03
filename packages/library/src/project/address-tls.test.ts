@@ -241,7 +241,11 @@ const skip = process.env[UNDER_ELECTRON] !== undefined
 test("15.4 every check in this file holds under the desktop app's runtime, Electron, whose TLS is not Node's", { skip, timeout: 150_000 }, async () => {
   assert.ok(typeof electron === "string", `Electron is not installed: ${String(electron)}`);
   // NODE_TEST_CONTEXT would make the child report to this runner's protocol instead of running its own.
-  const { NODE_TEST_CONTEXT: _parent, ...env } = process.env;
+  const { NODE_TEST_CONTEXT: _parent, NODE_OPTIONS: options, ...env } = process.env;
+  // Electron refuses to start with Node's CA-store flags (a cloud container sets --use-openssl-ca for
+  // its proxy), so they are dropped and every other flag kept; NODE_EXTRA_CA_CERTS still passes on.
+  const kept = (options ?? "").split(/\s+/).filter((flag) => flag !== "" && !/^--use-(openssl|bundled)-ca$/.test(flag));
+  if (kept.length > 0) env.NODE_OPTIONS = kept.join(" ");
   // Not spawnSync: blocking this process holds back the report that this test has started, so the
   // test harness, seeing a file with no test running, would kill it as one that never exits.
   const run = await new Promise<{ status: number | null; stdout: string; stderr: string }>((resolve, reject) => {

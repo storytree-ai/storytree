@@ -506,3 +506,22 @@ test("6.11 setting the first project up makes the user's factory, a project with
     });
   });
 });
+
+test("6.14 setting up a folder whose own marker names a project this library lacks replaces the marker, a root .storytree.json included, and says whose it replaced; once the library has the project, the folder is refused", async () => {
+  const [gone, other] = [uniqueProjectName(), uniqueProjectName()];
+  await withTempDir(async (dir) => {
+    const home = path.join(dir, "app-home");
+    const folder = path.join(dir, "checkout");
+    mkdirSync(folder);
+    // A marker committed on another computer, against another library: this one never had the project.
+    writeFileSync(path.join(folder, ROOT_MARKER_FILE), `${JSON.stringify({ project: gone, identity: "19697429" })}\n`);
+    await withStorytree([gone, other], async (storytree) => {
+      const made = await setUpProject({ folder, project: gone, storytree, storytreeHome: home });
+      assert.equal(made.replaced, gone);
+      assert.deepEqual(JSON.parse(readFileSync(path.join(folder, PROJECT_FILE), "utf8")), { project: gone, identity: (await storytree.projectIdentities())[gone] }, "the new marker names this library's project");
+      assert.equal(existsSync(path.join(folder, ROOT_MARKER_FILE)), false, "the old root marker is gone");
+      await assert.rejects(setUpProject({ folder, project: other, storytree, storytreeHome: home }), folderRefusal("already part of", gone));
+      assert.equal((await storytree.listProjects()).includes(other), false);
+    });
+  });
+});

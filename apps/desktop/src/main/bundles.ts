@@ -7,6 +7,7 @@ import path from "node:path";
 
 import { PATH_ONLY } from "@storytree/app-setup/bins";
 import { journeyDefine } from "@storytree/app-setup/journey-events/release";
+import { embedTreeSitterWasm } from "@storytree/map/tree-sitter-bundle";
 
 import { partsFromList } from "./parts-list.js";
 
@@ -42,8 +43,8 @@ export function mainBuild(dist: string, desktop = path.resolve(import.meta.dirna
     // where they are; the app always tells it (main.ts: postgresBinaries), so that path is never taken.
     logOverride: { "empty-import-meta": "silent" as const },
     // The parts storytree's own story packages name in their manifests, packed from the parts list Plugin loader writes
-    // for this app (ADR-1021).
-    plugins: [partsFromList()],
+    // for this app (ADR-1021); and tree-sitter's wasm, which the code survey parses Python with (map 8.48).
+    plugins: [partsFromList(), embedTreeSitterWasm()],
     // A release build stamps in PostHog's public project token (never a private key); others share nothing.
     // A build offering sign-in for feedback (the staging build) stamps in WorkOS's public client ID (app setup contract 5.6);
     // the app checks its token itself and offers no sign-in without the ID. It is not a secret.

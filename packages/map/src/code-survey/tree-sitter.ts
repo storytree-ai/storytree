@@ -10,22 +10,30 @@ import { Language, Parser, type Tree } from "web-tree-sitter";
 import { treeSitterWasm } from "./tree-sitter-wasm.js";
 
 let python: Promise<Language> | undefined;
+let loaded: Language | undefined;
 
 /** tree-sitter's Python grammar, its engine started first; loaded once. */
 export function pythonLanguage(): Promise<Language> {
   python ??= treeSitterWasm().then(async (wasm) => {
     await Parser.init({ wasmBinary: wasm.engine });
-    return Language.load(wasm.python);
+    loaded = await Language.load(wasm.python);
+    return loaded;
   });
   return python;
 }
 
 /** The syntax tree of a Python file's text. */
 export async function parsePython(text: string): Promise<Tree> {
-  const language = await pythonLanguage();
+  await pythonLanguage();
+  return parsePythonNow(text);
+}
+
+/** The syntax tree of a Python file's text, parsed at once: the grammar must have loaded ({@link pythonLanguage}), or it throws. */
+export function parsePythonNow(text: string): Tree {
+  if (loaded === undefined) throw new Error("tree-sitter's Python grammar is not loaded: await pythonLanguage() first");
   const parser = new Parser();
   try {
-    parser.setLanguage(language);
+    parser.setLanguage(loaded);
     const tree = parser.parse(text);
     if (tree === null) throw new Error("tree-sitter parsed no tree");
     return tree;

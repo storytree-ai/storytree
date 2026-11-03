@@ -13,6 +13,7 @@ export function sayProjectGone(from: HTMLElement, project: string): void {
 
 /** What adding a folder made of it, in plain words. */
 export function addedSentence(added: AddedFolder, shown = ""): string {
+  if (added.status === "set up" && added.replaced !== undefined) return `${added.folder} is now project “${added.project}”${shown}, set up here as a new project: its marker named a project this computer's library does not have, “${added.replaced}”. ${COMMIT_STORYTREE}`;
   if (added.status === "set up") return `${added.folder} is now project “${added.project}”${shown}. ${COMMIT_STORYTREE}`;
   if (added.status === "brought back") return `${added.folder} is project “${added.project}” again, with its records${shown}.`;
   return `${added.folder} is already project “${added.project}”.`;

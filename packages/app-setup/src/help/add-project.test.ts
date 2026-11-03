@@ -8,6 +8,7 @@ import { connect } from "@storytree/library";
 import { dropTestDatabases } from "@storytree/local-postgres/testing";
 import { projectsOnThisComputer } from "../project/index.js";
 import { setupHelpActions } from "./actions.js";
+import { addedSentence } from "../view/add-project.js";
 
 test("3.4 Add project: the picked folder becomes a project under its own name (kept apart from an existing one of that name) and is shown; a folder already a project is simply selected, and a removed project's folder brings that project back; cancelling does nothing", async (t) => {
   const dir = realpathSync.native(mkdtempSync(path.join(tmpdir(), "storytree-app-add-project-")));
@@ -87,4 +88,32 @@ test("3.6 the project the app shows when none was chosen, the first on this comp
   assert.ok(offered.includes(second));
   await assert.rejects(actions.deleteProject(first, first, false), /in use/);
   assert.ok((await library.listProjects()).includes(first), "and it is not deleted");
+});
+
+test("3.17 Add project on a folder whose marker names a project this computer's library lacks sets it up here under that name, replacing the marker, and says why, never \"already project\"", async (t) => {
+  const dir = realpathSync.native(mkdtempSync(path.join(tmpdir(), "storytree-app-add-missing-")));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const home = path.join(dir, "home");
+  const checkbox = `checkbox-t-${randomBytes(4).toString("hex")}`;
+  const url = process.env.STORYTREE_TEST_PG_URL;
+  if (url === undefined) throw new Error("run the tests via `pnpm test`, which starts a local Postgres");
+  const library = await connect({ url });
+  t.after(async () => {
+    await library.close();
+    await dropTestDatabases([`storytree_${checkbox}`]);
+  });
+  const picked = path.join(dir, "checkbox-assessment");
+  mkdirSync(picked);
+  // A marker committed on another computer, against another library: this one never had the project.
+  writeFileSync(path.join(picked, ".storytree.json"), `${JSON.stringify({ project: checkbox, identity: "19697429" })}\n`);
+  const actions = setupHelpActions({
+    licenseFile: "", storytreeHome: home, chooseFolder: async () => picked,
+    openExternal: async () => {}, copyText: async () => {}, library: () => library,
+  });
+
+  const added = await actions.addProject();
+  assert.deepEqual(added, { status: "set up", project: checkbox, folder: picked, replaced: checkbox });
+  assert.ok((await library.listProjects()).includes(checkbox), "the project is in this computer's library now");
+  assert.equal(JSON.parse(readFileSync(path.join(picked, ".storytree", "project.json"), "utf8")).project, checkbox);
+  assert.match(addedSentence(added!), /set up here as a new project: its marker named a project this computer's library does not have/);
 });

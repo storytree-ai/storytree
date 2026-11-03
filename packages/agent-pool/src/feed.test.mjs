@@ -31,7 +31,7 @@ test("2.2 · the survey reads arcs and holds once, with every increment's arc, c
     { increment: "i3", session: "desk", holder: "live", since: "2026-10-07T02:30:00Z" }, { capability: "capability_z", session: "laptop", holder: "live", since: "2026-10-07T02:30:00Z" }];
   const asked = [];
   const refused = [{ capability: "capability_x", under: "i2", holder: "laptop" }, { capability: "capability_y", under: "i5", holder: "quiet" }];
-  const read = await readSurvey({ library, claims: async () => claims, refusals: async (under) => (asked.push(under), refused), here: async () => "mint" });
+  const read = await readSurvey({ library, claims: async () => claims, refusals: async (under) => (asked.push(under), refused), here: async () => "box" });
   assert.deepEqual(asked, [["i1", "i2", "i3", "i5"]], "refusals are read once, under every open increment on an active arc, a capability nobody holds included (ADR-1079 D1)");
   assert.equal(read.refusals, refused);
   assert.equal(reads, 1);
@@ -39,7 +39,7 @@ test("2.2 · the survey reads arcs and holds once, with every increment's arc, c
     ["i1", "arc_laptop", "active", "a"], ["i2", "arc_laptop", "active", "b"], ["i3", "arc_cap", "active", "c"], ["i4", "arc_box", "parked", "d"], ["i5", "arc_stale", "active", "e"]]);
   assert.deepEqual(read.increments.map((one) => one.capabilities), [[], ["capability_x"], ["capability_x"], [], []], "with each one's capabilities list");
   assert.deepEqual(read.increments.map((one) => one.machine), [undefined, undefined, undefined, undefined, "laptop"], "with each one's machine field");
-  assert.equal(read.here, "mint", "and this machine's name");
+  assert.equal(read.here, "box", "and this machine's name");
   assert.deepEqual(read.holds.waits.i1, [{ on: "z", reason: "r" }]);
   assert.deepEqual(read.arcs.map((arc) => [arc.id, arc.state, arc.openQuestions]), [["arc_laptop", "active", 1], ["arc_cap", "active", 0], ["arc_box", "parked", 0], ["arc_stale", "active", 0]]);
   assert.equal(read.claims, claims);
@@ -63,7 +63,7 @@ test("2.8 · the pool picks ready work from every package by claims alone, oldes
   ], {
     holds: { waits: { waits: [{ on: "x" }] }, waitsFor: { "owner-wait": [{ releaser: "owner", note: "his call", holds: true }] }, heldOn: { question: ["question_1"] } },
     claims: [{ increment: "claimed", session: "s1", holder: "live", since: "2026-10-07T00:00:00Z" }],
-    here: "mint",
+    here: "box",
   });
   const { picks, skipped } = pickPool(work, { max: 3 });
   assert.deepEqual(picks.map((one) => one.id), ["app-work", "unplaced", "library-work"], "arc_busy has a live session, so its older work comes after the idle arcs'; one pick per idle arc first");
@@ -149,7 +149,7 @@ test("2.9 · an active arc whose open work all waits on an event, or has none, w
 
 test("2.13 · an arc whose open work waits on its own handed-over pull requests is in flight, not offered for planning", () => {
   const arc = (id, created) => ({ id, state: "active", title: id, created, openQuestions: 0 });
-  const handed = (pr) => [{ releaser: "event", note: `PR #${pr} is open and green and handed to the Mint box's watcher, which closes this on its merge or starts a fix session on a red.`, holds: true }];
+  const handed = (pr) => [{ releaser: "event", note: `PR #${pr} is open and green and handed to the pool's watcher, which closes this on its merge or starts a fix session on a red.`, holds: true }];
   const work = survey([
     increment("landing", "x", { arc: "arc_landing" }), increment("next", "x", { arc: "arc_landing" }),
     increment("fixing", "x", { arc: "arc_fixing" }),
@@ -157,7 +157,7 @@ test("2.13 · an arc whose open work waits on its own handed-over pull requests 
   ], {
     arcs: [arc("arc_landing", "2026-10-01T00:00:00Z"), arc("arc_fixing", "2026-10-02T00:00:00Z"), arc("arc_stalled", "2026-10-03T00:00:00Z")],
     holds: { waits: { next: [{ on: "landing", reason: "x", forGood: false }] }, heldOn: {}, waitsFor: {
-      landing: handed(1085), fixing: [{ releaser: "event", note: "PR #1090 is with the Mint box's watcher, and a fix session works it", holds: true }],
+      landing: handed(1085), fixing: [{ releaser: "event", note: "PR #1090 is with the box's watcher, and a fix session works it", holds: true }],
       stalled: [{ releaser: "event", note: "the vendor ships 2.0", holds: true }],
     } },
   });
@@ -292,7 +292,7 @@ test("2.16 · work is left out while a capability on its list is on the list of 
 });
 
 test("2.17 · only the body's leading needs clause routes work: read-only or blind said later is not its need", () => {
-  const sameLine = "Needs: packages/website; Mint-capable. Build the panels and retain usable read-only panels for a blind reviewer on the laptop.";
+  const sameLine = "Needs: packages/website; box-capable. Build the panels and retain usable read-only panels for a blind reviewer on the laptop.";
   const quoted = "Needs: packages/dev-loop.\nThe bug: a label reading needs: read-only, blind, or needs: the laptop, later in a body.";
   for (const body of [sameLine, quoted]) {
     assert.equal(readOnly(body), false, body);
@@ -308,25 +308,25 @@ test("2.17 · only the body's leading needs clause routes work: read-only or bli
 test("2.19 · work whose machine field names another machine is left out, with that machine's name; work naming this one, or none, is picked, whatever its body says", () => {
   const work = survey([
     increment("laptop", "Build it in packages/app.", { machine: "laptop" }),
-    increment("mint", "Build it in packages/app.", { machine: "mint" }),
+    increment("box", "Build it in packages/app.", { machine: "box" }),
     increment("any", "Build it in packages/app.", { parked: "2026-10-06T00:00:01Z" }),
     increment("worded", "needs: the laptop, or another machine. Build it there.", { parked: "2026-10-06T00:00:02Z" }),
-  ], { here: "mint" });
+  ], { here: "box" });
   const { picks, skipped } = pickPool(work, { max: 4, now });
-  assert.deepEqual(picks.map((one) => one.id), ["mint", "any", "worded"]);
+  assert.deepEqual(picks.map((one) => one.id), ["box", "any", "worded"]);
   assert.deepEqual(skipped, [{ id: "laptop", why: "needs laptop" }]);
-  assert.deepEqual(pickPool({ ...work, here: undefined }, { max: 4, now }).skipped.map((skip) => skip.id), ["laptop", "mint"], "an unnamed machine takes no work that names one");
+  assert.deepEqual(pickPool({ ...work, here: undefined }, { max: 4, now }).skipped.map((skip) => skip.id), ["laptop", "box"], "an unnamed machine takes no work that names one");
 });
 
-test("2.29 · a machine-only survey picks only work whose machine field names this machine: untagged work is the Mint pool's, and another machine's is that machine's (ADR-1179 D2)", () => {
+test("2.29 · a machine-only survey picks only work whose machine field names this machine: untagged work is the shared pool's, and another machine's is that machine's (ADR-1179 D2)", () => {
   const work = survey([
     increment("laptop", "Build it in packages/app.", { machine: "laptop" }),
     increment("any", "Build it in packages/app.", { parked: "2026-10-06T00:00:01Z" }),
-    increment("mint", "Build it in packages/app.", { machine: "mint", parked: "2026-10-06T00:00:02Z" }),
+    increment("box", "Build it in packages/app.", { machine: "box", parked: "2026-10-06T00:00:02Z" }),
   ], { here: "laptop" });
   const { picks, skipped } = pickPool(work, { max: 3, now, machineOnly: true });
   assert.deepEqual(picks.map((one) => one.id), ["laptop"]);
-  assert.deepEqual(skipped, [{ id: "any", why: "untagged: the Mint pool's" }, { id: "mint", why: "needs mint" }]);
+  assert.deepEqual(skipped, [{ id: "any", why: "untagged: the shared pool's" }, { id: "box", why: "needs box" }]);
   assert.deepEqual(pickPool(work, { max: 3, now }).picks.map((one) => one.id), ["laptop", "any"], "without the setting, untagged work is picked as before");
 });
 

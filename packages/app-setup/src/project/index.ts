@@ -29,7 +29,7 @@ export type ProjectFolder = { folder: string; project: string } | { folder: stri
 
 export type AddedProject =
   /** `brought back`: the folder of a project removed from this computer, which is that project here again. */
-  | { status: "set up" | "already a project" | "brought back"; folder: string; project: string }
+  | { status: "set up" | "already a project" | "brought back"; folder: string; project: string; replaced?: string }
   /** Another name would do: the message says why this one would not, and suggests one. */
   | { status: "name refused"; folder: string; message: string; suggestion?: string }
   /** The folder cannot be a project of its own (it is inside, or holds, another project's folder). */
@@ -68,16 +68,20 @@ async function withLibrary<T>(options: AddProjectOptions, use: (storytree: Story
   }
 }
 
-/** Make `folder` (created if missing) project `name`, and the one the app shows. Nothing is made for a folder already in a project, or for one removed from this computer, which brings its project back. */
+/** Make `folder` (created if missing) project `name`, and the one the app shows. Nothing is made for a folder already in a project, or for one removed from this computer, which brings its project back; a folder whose own marker names a project this library lacks is set up under the marker's name, replacing it. */
 export async function addProject(folder: string, name: string, options: AddProjectOptions = {}): Promise<AddedProject> {
   const resolved = path.resolve(folder);
   const home = options.home ?? storytreeHome();
   const found = findProject(resolved);
-  if (found.project !== undefined) {
-    keepOnThisComputer(found.project, home);
-    return { status: "already a project", folder: resolved, project: found.project };
-  }
   return withLibrary({ ...options, home }, async (storytree) => {
+    if (found.project !== undefined) {
+      // The folder's own marker naming a project this library lacks is set up afresh under that name, replacing it (contract 3.17).
+      if (found.folder !== resolved || (await storytree.listProjects()).includes(found.project)) {
+        keepOnThisComputer(found.project, home);
+        return { status: "already a project", folder: resolved, project: found.project };
+      }
+    }
+    const project = found.project ?? name;
     try {
       // A folder removed from this computer, its project still in the library, is that project again, never a second one (ADR-0757).
       const identities = await storytree.projectIdentities();
@@ -87,8 +91,8 @@ export async function addProject(folder: string, name: string, options: AddProje
         return { status: "brought back", folder: resolved, project: removed.name };
       }
       mkdirSync(resolved, { recursive: true });
-      await setUpProject({ folder: resolved, project: name, storytree, storytreeHome: home });
-      return { status: "set up", folder: resolved, project: name };
+      const { replaced } = await setUpProject({ folder: resolved, project, storytree, storytreeHome: home });
+      return { status: "set up", folder: resolved, project, ...(replaced === undefined ? {} : { replaced }) };
     } catch (error) {
       if (error instanceof ProjectFolderError) {
         return error.suggestion === undefined

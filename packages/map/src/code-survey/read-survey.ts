@@ -37,11 +37,18 @@ import { fileURLToPath } from "node:url";
 import { Worker } from "node:worker_threads";
 import { gitText, manifestFrom, noMergedMain, SKIPPED, surveySourceReader, type SurveySource } from "./survey-source.js";
 import { mappedCode, mappedSurveyReader, type ImportedFolder, type MappedStory } from "./mapped-survey.js";
+import { usePythonParser } from "./python-reader.js";
+import { pyprojectFrom } from "./pyproject.js";
+import { parsePythonNow, pythonLanguage } from "./tree-sitter.js";
 import { pytestTestedNumbers } from "./python-tests.js";
+import { folderLanguages } from "./folder-languages.js";
 
 import type { AnnotatedTree, StorySurvey } from "@storytree/library";
 
-import { ALSO_OWNED, declaredNumberOf, declaresTitle, dependenciesOf, isCodeFile, isTestFile, packageOf, packagesOf, readsFile, storyEdges, surveyStory, type CoverageMap, type SourceFile, type SurveyPackage } from "./code-survey.js";
+import { ALSO_OWNED, declaredNumberOf, declaresTitle, dependenciesOf, isCodeFile, isTestFile, packageOf, packagesOf, readersReady, readsFile, storyEdges, surveyStory, type CoverageMap, type SourceFile, type SurveyPackage } from "./code-survey.js";
+
+// The survey reads Python with tree-sitter, loaded here, where it runs on Node (8.50).
+usePythonParser({ load: pythonLanguage, parse: parsePythonNow });
 
 /** Each story's survey, by story id; a story with no package is absent. */
 export type ProjectSurvey = Readonly<Record<string, StorySurvey>>;
@@ -50,7 +57,8 @@ export type ProjectSurvey = Readonly<Record<string, StorySurvey>>;
 /** The file beside a package's src that holds its coverage map (written by the dev loop's `pnpm survey:coverage`). */
 const COVERAGE_MAP = "survey-coverage.json";
 
-export { declaredNumberOf, noMergedMain, packageOf, packagesOf };
+export { declaredNumberOf, folderLanguages, noMergedMain, packageOf, packagesOf };
+export { languageList, SURVEYED_LANGUAGES } from "./languages.js";
 
 /** The packages stories own beyond their own, by their own package's folder name (ADR-1066 D3). */
 type AlsoOwned = Readonly<Record<string, readonly string[]>>;
@@ -87,7 +95,7 @@ export async function capabilitiesOfFiles(root: string, files: readonly string[]
     const number = declaredNumberOf({ path: file, text }, packagesOf(story, alsoOwned));
     const numbered = number === undefined ? undefined : story.capabilities.find(({ title }) => Number(/^\s*(\d+)\s*·/.exec(title)?.[1]) === number);
     // A source file's header must name the capability its number does here; a test file's numbers carry no title.
-    const declared = numbered !== undefined && (isTestFile(file) || declaresTitle(text, numbered.title)) ? numbered : undefined;
+    const declared = numbered !== undefined && (isTestFile(file) || declaresTitle({ path: file, text }, numbered.title)) ? numbered : undefined;
     if (declared === undefined) undeclared.push(file);
     else owners.set(file, { capability: declared.id, inferred: false });
   }
@@ -202,13 +210,14 @@ export async function testedNumbers(root: string, tree: AnnotatedTree, capabilit
  * checkout holds no package of the story's (a hand-planned story with no code here) and no pytest test carries a number
  * of its, so an empty list is no evidence that a test is missing. A mapped story's tests are read where it was imported
  * from (8.44): `root`'s checkout when that is its import, by the checkout's top or its remote, else the folder of
- * `imports` (this machine's) that is; with neither, it is unseen.
+ * `imports` (this machine's) that is; with neither, it is unseen. An unseen story in a checkout whose code is only in
+ * languages the survey cannot read names them as `unreadable` (5.63).
  */
 export async function storyTests(root: string, tree: AnnotatedTree, capability: string, {
   alsoOwned = ALSO_OWNED,
   survey = (plan: AnnotatedTree) => codeSurveyReader({ checkout: "current", alsoOwned }).read(root, plan),
   imports = [],
-}: { alsoOwned?: AlsoOwned; survey?(tree: AnnotatedTree): Promise<ProjectSurvey>; imports?: readonly ImportedFolder[] } = {}): Promise<{ numbers: string[]; seen: boolean }> {
+}: { alsoOwned?: AlsoOwned; survey?(tree: AnnotatedTree): Promise<ProjectSurvey>; imports?: readonly ImportedFolder[] } = {}): Promise<{ numbers: string[]; seen: boolean; unreadable?: string[] }> {
   const story = tree.stories.find((one) => one.capabilities.some((part) => part.id === capability));
   if (story === undefined) return { numbers: [], seen: false };
   const own = packagesOf(story, alsoOwned);
@@ -216,15 +225,21 @@ export async function storyTests(root: string, tree: AnnotatedTree, capability: 
     const mapped = story as MappedStory;
     const from = await importFolder(root, mapped.mapped.from, imports);
     if (from === undefined) return { numbers: [], seen: false };
-    const measured = surveyStory(await mappedCode(mapped, from, tree.stories, (file) => readFile(file, "utf8")), story.capabilities, {}, own);
+    const code = await mappedCode(mapped, from, tree.stories, (file) => readFile(file, "utf8"));
+    await readersReady(code.map((file) => file.path));
+    const measured = surveyStory(code, story.capabilities, {}, own);
     const numbers = (measured.tests ?? []).flatMap((test) => test.titles.filter((title) => title.package === undefined || own.includes(title.package)).map((title) => title.number));
     return { numbers, seen: true };
   }
   const surveyed = (await survey({ ...tree, stories: [story] }))[story.id];
   const numbered = (surveyed?.tests ?? []).flatMap((test) => test.titles.filter((title) => title.package === undefined || own.includes(title.package)).map((title) => title.number));
-  // A Python project's pytest tests carry numbers too, for this check alone (ADR-1189).
-  const pytest = await pytestTestedNumbers(root, tree, story.id);
-  return { numbers: [...numbered, ...pytest], seen: surveyed !== undefined || pytest.length > 0 };
+  // A Python project's pytest tests outside the packages the survey read carry numbers too, for this check alone (ADR-1189, 8.55).
+  const pytest = await pytestTestedNumbers(root, tree, story.id, surveyed === undefined ? [] : own.map((name) => `packages/${name}`));
+  const seen = surveyed !== undefined || pytest.length > 0;
+  // Unseen in a checkout whose code is only in languages the survey cannot read: that, not a missing package, is why (5.63).
+  const languages = seen ? undefined : await folderLanguages(root).catch(() => undefined);
+  const unreadable = languages !== undefined && languages.read.length === 0 && languages.unread.length > 0 ? languages.unread : undefined;
+  return { numbers: [...numbered, ...pytest], seen, ...(unreadable === undefined ? {} : { unreadable }) };
 }
 
 /**
@@ -500,13 +515,18 @@ async function declaredPlumbing(source: SurveySource, checkout: string): Promise
       const beside = (await Promise.all(roots.map((dir) => codeBeside(source, dir, dir)))).flat();
       const manifestPaths = [...roots.map((dir) => path.join(dir, "package.json")), ...(storyPackage === "app" ? [path.join(checkout, "apps", "desktop", "package.json")] : [])];
       const manifests = await Promise.all(manifestPaths.map((file) => fileAt(source, root, file, seen)));
+      // A Python package's pyproject.toml names its project and the projects it depends on (8.52).
+      const pyprojects = await Promise.all(roots.map((dir) => fileAt(source, root, path.join(dir, "pyproject.toml"), seen)));
       const maps = await Promise.all(roots.map((dir) => fileAt(source, root, path.join(dir, COVERAGE_MAP), seen)));
       const capabilities = JSON.stringify(story.capabilities.map(({ id, title }) => [id, title]));
       const last = surveyed.get(story.id);
       const read = manifests.flatMap((file) => {
         const manifest = file === undefined ? undefined : manifestFrom(file.text);
         return manifest === undefined ? [] : [{ ...manifest, root: path.posix.dirname(path.posix.normalize(`packages/${storyPackage}/${file!.path}`)) + "/" }];
-      });
+      }).concat(pyprojects.flatMap((file) => {
+        const project = file === undefined ? undefined : pyprojectFrom(file.text);
+        return project === undefined ? [] : [{ ...project, imports: {}, parts: {}, root: path.posix.dirname(path.posix.normalize(`packages/${storyPackage}/${file!.path}`)) + "/" }];
+      }));
       // Survey in repository coordinates so imports crossing the app/desktop seam can return to
       // packages/app; publish the package-relative paths the forest and map already consume.
       const base = `packages/${storyPackage}`;
@@ -524,6 +544,7 @@ async function declaredPlumbing(source: SurveySource, checkout: string): Promise
       const outside = new Map(beside.map(full => [path.relative(checkout, full).split(path.sep).join("/"), full]));
       const loaded = new Map(sources.map(file => [inCheckout(file.path), file]));
       const paths = new Set([...loaded.keys(), ...outside.keys()].filter(isCodeFile));
+      await readersReady(paths);
       const queue = [...paths].filter(isTestFile);
       const visited = new Set(queue);
       for (const name of queue) {

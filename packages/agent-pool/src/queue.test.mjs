@@ -15,13 +15,13 @@ async function folder(t) {
 test("3.1 · each running lane's engine counts once: not its wrapper or native child, nor a process that only mentions an engine", async () => {
   const codex = "/home/m/.nvm/versions/node/v24.19.0/lib/node_modules/@openai/codex/vendor/x86_64-unknown-linux-musl/bin/codex";
   const table = [
-    "  100     1 bash /home/m/storytree-lanes/launch-night.sh run L",
-    "  101   100 bash /home/m/storytree-lanes/run-lane.sh /home/m/storytree-lanes/night-L-a-brief.md log err",
+    "  100     1 bash /home/m/lanes/launch-night.sh run L",
+    "  101   100 bash /home/m/lanes/run-lane.sh /home/m/lanes/night-L-a-brief.md log err",
     "  102   101 node /home/m/.nvm/versions/node/v24.19.0/bin/codex exec # Overnight lane: track L, a",
     `  103   102 ${codex} exec # Overnight lane: track L, a`,
     `  104   103 ${codex.replace(/codex$/, "codex-code-mode-host")}`,
     "  200   199 node /home/m/code/storytree03/packages/agent-pool/src/runner.mjs run brief log err",
-    "  201   200 /home/m/.local/bin/claude -p # Overnight lane: track B, b --model claude-opus-5-5",
+    "  201   200 /home/m/.local/bin/claude -p # Overnight lane: track B, b --model claude-model",
     "  202   201 /home/m/.local/bin/claude -p child of the same lane",
     "  300   299 codex exec Reply with the single word OK.",
     "  400   399 grep -E codex exec|claude -p",
@@ -70,7 +70,7 @@ test("3.3 · one dispatcher at a time: a live one refuses a second, and a dead o
 test("3.26 · on Windows each lane's engine counts once from the process list, its paths quoted and its brief over many lines", () => {
   const listed = [
     { ProcessId: 100, ParentProcessId: 1, CommandLine: String.raw`"C:\Program Files\nodejs\node.exe" --import tsx packages/agent-pool/src/launch.mjs pool` },
-    { ProcessId: 101, ParentProcessId: 100, CommandLine: String.raw`"C:\Users\m\.local\bin\claude.exe" -p "# Pool lane: a` + "\r\n\r\n" + `Your increment: a." --model claude-opus-5-5` },
+    { ProcessId: 101, ParentProcessId: 100, CommandLine: String.raw`"C:\Users\m\.local\bin\claude.exe" -p "# Pool lane: a` + "\r\n\r\n" + `Your increment: a." --model claude-model` },
     { ProcessId: 102, ParentProcessId: 101, CommandLine: String.raw`"C:\Users\m\.local\bin\claude.exe" -p child of the same lane` },
     { ProcessId: 200, ParentProcessId: 1, CommandLine: String.raw`C:\nvm\node.exe C:\npm\node_modules\@openai\codex\bin\codex.js exec brief` },
     { ProcessId: 300, ParentProcessId: 1, CommandLine: 'powershell.exe -NoProfile -Command "claude -p"' },

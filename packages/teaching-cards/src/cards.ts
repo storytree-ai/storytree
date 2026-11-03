@@ -35,7 +35,7 @@ const CARDS: Record<Kind, Omit<Card, "kind">> = {
     line: "It fills as your agent builds: ask your agent for what you want to make, and watch it appear here.",
     what: "This globe is a map of your project. Each thing your agent plans or builds shows up on it, and the first time each kind appears, a card like this one says what it is.",
     why: "Watching a project grow from nothing shows you how to read the map of one that is already big.",
-    how: "Your agent plans the work before it writes code. As it does, storytree records the plan in your project's library and draws it here; nothing on the map is drawn by hand.",
+    how: "Your agent plans the work before it writes code. As it does, storytree records the plan in your project's library and draws it here; nothing on the map is drawn by hand. It draws your code only in the languages it reads, which Help's first-run guide names: a project in another language shows what its agent plans, and its code never appears.",
     decisions: [adr(1048, "A new user learns on their own product")],
   },
   factory: {

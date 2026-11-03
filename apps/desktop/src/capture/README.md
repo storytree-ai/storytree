@@ -35,6 +35,23 @@ method fails with its name. A view writes `<name>.png` and, when measured,
 `<name>.json`; `picture: false` omits the picture and `measurement` changes the JSON
 filename. The return value is the array of measured values.
 
+To photograph the app on a real library instead, omit `seed` and pass the answers of
+`liveAnswers({ storytree, project, lines })` from `live.ts` (imported on its own, so
+the kit's other captures do not reach the app's reads), closing them after:
+
+```js
+const live = await liveAnswers({ storytree }); // storytree: a connection the script opened, e.g. connect(route(checkout).library)
+try { await runCapture({ folder, dist, answers: live.answers, views }); } finally { await live.close(); }
+```
+
+The page's reads are then the app's own `pageReads` on that library, so it opens as
+the app does, with two first reads bounded to fit a busy library: the first activity
+read holds only the newest `lines` (5,000 by default), later reads following on from
+its cursor, and the changes come back folded, each record's creation and only its
+latest later change. `project` is the library's first when not named. Every other
+bridge method keeps the stand-in's quiet answer, so no change the page asks for
+reaches the library.
+
 Shared seeds: `captureSeed('code-rows')` returns storytree's own library snapshot
 and its code survey; `captureSeed('forest')` returns the eight-story forest
 snapshot. Each call is a fresh copy. Refresh one with the script beside it:

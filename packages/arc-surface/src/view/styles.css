@@ -1,24 +1,17 @@
-.arc-surface-mount { color: var(--text, #eee); }
-/* Reserve the arc bar below the app's bar; the drawer and forest share this edge. */
-:root :has(> .arc-surface-mount) { margin-top: calc(var(--app-bar-height, 0px) + 48px); }
-.arc-handle { position: fixed; top: var(--app-bar-height, 0px); left: 0; right: 0; z-index: 6; display: flex; align-items: center; gap: 14px; width: 100%; height: 48px; padding: 0 20px; border: 0; border-bottom: 1px solid #485159; border-radius: 0; background: #101418; color: #eceae3; font: 14px/1.5 "Segoe UI", system-ui, sans-serif; text-align: left; cursor: pointer; }
-.arc-handle:hover { background: #262a2f; }
-.arc-surface-mount .arc-handle:focus-visible { outline: 2px solid #a9b0ba; outline-offset: -3px; }
-.arc-handle-label { flex: 0 0 auto; font-weight: 600; }
-.arc-handle-caret { margin-left: auto; color: #a9b0ba; }
-.arc-overlay { position: fixed; inset: calc(var(--app-bar-height, 0px) + 48px) 0 auto; z-index: 5; height: 50dvh; min-height: min(260px, 70dvh); max-height: calc(100dvh - var(--app-bar-height, 0px) - 48px); display: flex; flex-direction: column; background: var(--surface, #202622); border-bottom: 1px solid var(--line, #43504d); box-shadow: 0 12px 28px #0004; }
-/* 3.10: expanded, the drawer fills the window below the two bars, over all the forest pane stacks (its tree space is 60). */
-.arc-overlay[data-expanded=true] { height: calc(100dvh - var(--app-bar-height, 0px) - 48px); z-index: 61; }
-.arc-overlay[hidden], .arc-handle[hidden] { display: none; }
-.arc-overlay button:not(.arc-handle) { font: inherit; color: inherit; cursor: pointer; }
-/* The size control sits at the drawer's top right, on the row the scopes start. */
-.arc-overlay button.arc-size { position: absolute; top: 5px; right: 18px; z-index: 1; border: 0; border-radius: 4px; padding: 2px 10px; background: transparent; color: var(--muted, #adb8b2); }
-.arc-overlay button.arc-size:hover { background: var(--row-hover, #2c3630); color: inherit; }
-.arc-surface-mount button:focus-visible, .arc-overlay summary:focus-visible { outline: 2px solid #7dbdab; outline-offset: -2px; }
-.arc-status:not(:empty) { padding: 6px 96px 6px 18px; font-size: .8rem; color: #b57719; background: #c5922420; }
-.arc-body { min-height: 0; flex: 1; display: flex; flex-direction: column; animation: arc-pull-down 180ms ease-out; }
-@keyframes arc-pull-down { from { transform: translateY(-12px); opacity: .4; } to { transform: translateY(0); opacity: 1; } }
-@media (prefers-reduced-motion: reduce) { .arc-body { animation: none; } }
+.arc-surface-mount { color: var(--text, #eee); height: 100%; }
+/* The Arcs tab of the app's left rail (3.1): its scopes, then the lanes, scrolling inside it. */
+.arc-rail { height: 100%; display: flex; flex-direction: column; min-height: 0; }
+.arc-surface-mount button { font: inherit; color: inherit; cursor: pointer; }
+.arc-surface-mount button:focus-visible, .arc-surface-mount summary:focus-visible { outline: 2px solid #7dbdab; outline-offset: -2px; }
+.arc-status:not(:empty) { padding: 6px 18px; font-size: .8rem; color: #b57719; background: #c5922420; }
+.arc-body { min-height: 0; flex: 1; display: flex; flex-direction: column; }
+/* An arc's card, opened by its row's click, over the map beside the rail (5.1, ADR-1219): never a standing panel. */
+.arc-card { position: fixed; z-index: 55; top: calc(var(--app-bar-height, 0px) + 12px); left: calc(var(--rail-width, 0px) + 12px); width: min(32rem, calc(100vw - var(--rail-width, 0px) - 24px)); max-height: calc(100dvh - var(--app-bar-height, 0px) - 24px); overflow: auto; overscroll-behavior: contain; background: var(--surface, #202622); border: 1px solid var(--line, #43504d); border-radius: 8px; box-shadow: 0 12px 28px #0006; animation: arc-card-in 140ms ease-out; }
+.arc-card[hidden] { display: none; }
+@keyframes arc-card-in { from { transform: translateX(-8px); opacity: .4; } to { transform: translateX(0); opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .arc-card { animation: none; } }
+.arc-card button.arc-card-close { position: absolute; top: 6px; right: 8px; z-index: 1; border: 0; border-radius: 4px; padding: 0 8px; background: transparent; color: var(--muted, #adb8b2); font-size: 1.1rem; line-height: 1.6; }
+.arc-card button.arc-card-close:hover { background: var(--row-hover, #2c3630); color: inherit; }
 .arc-scopes { display: flex; gap: 4px; padding: 5px 18px; border-bottom: 1px solid var(--line, #43504d); }
 .arc-scopes button { border: 0; border-radius: 4px; padding: 2px 10px; background: transparent; font-size: .75rem; }
 .arc-scopes button[aria-pressed=true] { background: var(--row-hover, #34443b); color: #78b396; }
@@ -27,9 +20,7 @@
 .arc-closed-range button[aria-pressed=true] { background: var(--row-hover, #34443b); color: #78b396; border-color: #79af95; }
 .arc-closed-range label { display: inline-flex; align-items: center; gap: 4px; margin-left: 6px; }
 .arc-closed-range input { font: inherit; color: #d9dedb; background: #12181b99; border: 1px solid var(--line, #43504d); border-radius: 3px; padding: 1px 4px; color-scheme: dark; }
-.arc-panes { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); min-height: 0; flex: 1; }
-.arc-lanes, .arc-briefing { overflow: auto; overscroll-behavior: contain; }
-.arc-lanes { padding: 4px 0; border-right: 1px solid var(--line, #43504d); }
+.arc-lanes { min-height: 0; flex: 1; overflow: auto; overscroll-behavior: contain; padding: 4px 0; }
 .arc-lane-line { display: flex; align-items: stretch; }
 .arc-caret-slot { width: 18px; flex: 0 0 18px; display: flex; align-items: center; justify-content: center; }
 .arc-caret { width: 18px; min-height: 30px; padding: 0; border: 0; background: transparent; font-size: .8rem !important; color: var(--muted, #adb8b2) !important; }
@@ -61,7 +52,7 @@
 .arc-queue-more { flex: 0 0 auto; }
 .arc-queue-chip[aria-pressed=true] { border-color: #79af95; background: var(--row-hover, #2c3630); }
 .arc-briefing { padding: 12px 20px 20px; font-size: .84rem; }
-.arc-briefing h3 { font-size: 1rem; margin: 0 0 10px; font-weight: 600; }
+.arc-briefing h3 { font-size: 1rem; margin: 0 28px 10px 0; font-weight: 600; }
 .arc-copy { margin-left: 8px; padding: 2px 6px; vertical-align: middle; font-size: .7rem; font-weight: 400; line-height: 1; color: inherit; background: transparent; border: 1px solid currentColor; border-radius: 4px; opacity: .65; cursor: pointer; }
 .arc-copy:hover, .arc-copy:focus-visible { opacity: 1; }
 .arc-briefing h4 { font-size: .75rem; margin: 15px 0 5px; }
@@ -99,4 +90,4 @@
 .arc-answer { border-left: 3px solid #6c9b80; margin: 0 0 10px; padding: 5px 10px; background: #6c9b8012; }
 .arc-empty { color: var(--muted, #adb8b2); padding: 0 18px; }
 @media (prefers-color-scheme: dark) { .arc-state-waiting, .arc-state-blocked, .arc-state-queued { color: #e7c77d; } .arc-state-in-progress { color: #a8d6ba; } .arc-mark, .arc-status-open, .arc-wait-you, .arc-wait-work, .arc-wait-event, .arc-wait-blocked { color: #e7c77d; } .arc-wait-agent { color: #a8d6ba; } .arc-wait-not-completed { color: #e39a99; } }
-@media (max-width: 700px) { .arc-panes { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } .arc-briefing { padding: 10px; } .arc-title { font-size: .75rem; } .arc-lane-head { gap: 4px; } }
+@media (max-width: 700px) { .arc-briefing { padding: 10px; } .arc-title { font-size: .75rem; } .arc-lane-head { gap: 4px; } }

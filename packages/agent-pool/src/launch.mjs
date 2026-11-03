@@ -1,4 +1,4 @@
-// Capability 3 · The Mint pool's dispatcher (ADR-0955 D2), which the box's launcher execs:
+// Capability 3 · The pool's dispatcher (ADR-0955 D2), which the machine's launcher execs:
 // node --import tsx packages/agent-pool/src/launch.mjs pool            (one dispatcher over every active arc's ready increments; exits 3 to restart on its own code change)
 // node packages/agent-pool/src/launch.mjs slots                       (engines running now, and the cap)
 // node --import tsx packages/agent-pool/src/launch.mjs ready [project] [--drained] (as JSON: engines running, the cap, the lanes folder and the work the pool would start now)
@@ -15,7 +15,7 @@ import { promisify } from "node:util";
 
 import { laneSettings } from "./engine.mjs";
 import { blind, pickPlan, pickPool, planState, readOnly, surveyLibrary } from "./feed.mjs";
-import { codeVersion, composeBrief, countEngines, ENGINE_SLOTS, holdRunner, processTable, reserveSlot, withLockFile, WINDOWS_PROCESSES } from "./queue.mjs";
+import { codeVersion, composeBrief, countEngines, localBrief, ENGINE_SLOTS, holdRunner, processTable, reserveSlot, withLockFile, WINDOWS_PROCESSES } from "./queue.mjs";
 import { refusals, runLane as runEngineLane, SIGNALED } from "./runner.mjs";
 import { readBoxPace } from "./pace.mjs";
 import { poolConfig, readCap } from "./pool-config.mjs";
@@ -30,7 +30,7 @@ const stamp = (now) => new Date(now()).toISOString().replace(/\.\d{3}Z$/, "Z");
 /** What laneOnce returns when the re-read before its start found the increment no longer ready: no lane ran. */
 export const NOT_STARTED = "not started";
 /** A dispatcher's command line, as pool.pid's holder is judged by. */
-const DISPATCHER = /launch\.mjs pool( |$)/;
+export const DISPATCHER = /launch\.mjs pool( |$)/;
 
 /**
  * Why increment `id` should not start now, read from a fresh survey (undefined when it is still ready): closed, gone,
@@ -83,17 +83,6 @@ export async function readPowerLine({ platform = process.platform, exec = (comma
   const { stdout } = await exec("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command",
     "Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.SystemInformation]::PowerStatus.PowerLineStatus"], { timeout: 30_000 });
   return String(stdout).trim();
-}
-
-/**
- * The pool's rules name the Mint box's folders (~/code/storytree03, ~/storytree-lanes); a dispatcher configured with its own
- * checkout and lanes folder (the laptop's) briefs its lanes with those, so a lane works and reports where its runner looks.
- */
-export function localBrief(text, { checkout, lanes } = {}) {
-  let local = text;
-  if (checkout) local = local.replace(/~\/code\/storytree03(?![\w-])/g, () => checkout);
-  if (lanes) local = local.replace(/~\/storytree-lanes(?![\w-])/g, () => lanes);
-  return local;
 }
 
 /** Hold an flock(1) lock on `path` while `fn` runs, so the box's shell launchers and these runners share it. */
@@ -253,15 +242,23 @@ export async function runPool({ survey, maxLanes, count, launch, stopFile, exist
   }
 }
 
-/** The planning session's brief rules, versioned beside this file: plan the arc's next increments, never build. */
-export async function planRules() {
-  return readFile(new URL("./pool-brief-plan.md", import.meta.url), "utf8");
+/** A brief's rules: the machine's own copy in `briefsDir` when its configuration names a folder holding one, else the one versioned beside this file. */
+async function rulesFile(name, briefsDir) {
+  if (briefsDir) {
+    const own = await readFile(join(briefsDir, name), "utf8").catch((error) => { if (error.code === "ENOENT") return undefined; throw error; });
+    if (own !== undefined) return own;
+  }
+  return readFile(new URL(`./${name}`, import.meta.url), "utf8");
 }
 
-/** The pool's brief rules, versioned beside this file: the read-only rules for read-only or blind work, else the build rules. */
-export async function poolRules(body) {
-  const name = readOnly(body) || blind(body) ? "pool-brief-read-only.md" : "pool-brief.md";
-  return readFile(new URL(`./${name}`, import.meta.url), "utf8");
+/** The planning session's brief rules: plan the arc's next increments, never build. */
+export async function planRules(briefsDir) {
+  return rulesFile("pool-brief-plan.md", briefsDir);
+}
+
+/** The pool's brief rules: the read-only rules for read-only or blind work, else the build rules. */
+export async function poolRules(body, briefsDir) {
+  return rulesFile(readOnly(body) || blind(body) ? "pool-brief-read-only.md" : "pool-brief.md", briefsDir);
 }
 
 const windows = process.platform === "win32";
@@ -272,7 +269,7 @@ async function processes() {
   return (await run("ps", ["-eo", "pid=,ppid=,args="], { maxBuffer: 64 * 1024 * 1024 })).stdout;
 }
 
-async function argsOf(pid) {
+export async function argsOf(pid) {
   if (windows) return (await processes().catch(() => "")).split("\n").find((row) => row.startsWith(`${pid} `))?.replace(/^\d+ \d+ /, "") ?? "";
   return (await readFile(`/proc/${pid}/cmdline`, "utf8").catch(() => "")).split("\0").join(" ").trim();
 }
@@ -296,7 +293,8 @@ function boxDefaults({ home = homedir(), env = process.env } = {}) {
   // Lanes work from the main worktree, where make_workspace cuts theirs; the dispatcher updates its own checkout.
   const laneRepo = mainCheckout(repo);
   return {
-    lanesDir, repo, laneRepo, addDirs, sessionsDir, stopAt, machineOnly: config.machineOnly, briefPaths: { checkout: laneRepo, lanes: lanesDir },
+    lanesDir, repo, laneRepo, addDirs, sessionsDir, stopAt, machineOnly: config.machineOnly, briefPaths: { checkout: laneRepo, lanes: lanesDir }, briefsDir: config.briefsDir,
+    configFile: config.file,
     maxLanes: () => readCap({ lanesDir, sessions: config.sessions }),
     count: async () => countEngines(await processes()),
     power: () => readPowerLine(), refusals: (cwd = repo) => refusals({ cwd, env }), kill: (pid) => process.kill(pid),
@@ -391,15 +389,15 @@ async function pool(b) {
     survey, maxLanes: b.maxLanes, count: b.count, machineOnly: b.machineOnly, stopFile: join(L, "pool-stop"), plans: planFile(join(L, "pool-planned.json")), sleep: b.sleep, now: b.now, say,
     // A machine-only dispatcher (the laptop's) first holds for its start rule, plugged in and online (ADR-1179 D3).
     pace: async () => (b.machineOnly ? await startHold({ power: b.power, refusals: () => b.refusals() }) : undefined) ?? (b.pace ?? readBoxPace)(),
-    codeVersion: b.codeVersion ?? (() => codeVersion({ repo: b.repo })),
+    codeVersion: b.codeVersion ?? (() => codeVersion({ repo: b.repo, config: b.configFile })),
     refresh: () => b.lock(b.prepare),
     launch: async (one, { engineUp }) => {
       const at = new Date(b.now()).toISOString().replace(/[-:]|\.\d{3}Z$/g, "");
       const role = !one.plan && blind(one.body) ? " You are a blind reviewer: follow .claude/agents/blind-reviewer.md (ADR-0950)." : "";
       const brief = one.plan
-        ? { title: `Planning lane: ${one.id}`, intro: `Your arc: ${one.id} (${one.title}).`, notes: "", common: await planRules() }
+        ? { title: `Planning lane: ${one.id}`, intro: `Your arc: ${one.id} (${one.title}).`, notes: "", common: await planRules(b.briefsDir) }
         : { title: `Pool lane: ${one.id}`, intro: `Your increment: ${one.id}.${role}`,
-          notes: await readFile(join(L, `pool-notes-${one.id}.md`), "utf8").catch(() => ""), common: await (b.rules ?? poolRules)(one.body) };
+          notes: await readFile(join(L, `pool-notes-${one.id}.md`), "utf8").catch(() => ""), common: await (b.rules ?? poolRules)(one.body, b.briefsDir) };
       return laneOnce({
         increment: one.id, addDirs: b.addDirs, repo: b.laneRepo ?? b.repo, maxLanes: b.maxLanes, lock: b.lock, count: b.count, slots: join(L, ENGINE_SLOTS), prepare: b.prepare,
         sleep: b.sleep, runLane: b.runLane, now: b.now, follow: !one.plan,

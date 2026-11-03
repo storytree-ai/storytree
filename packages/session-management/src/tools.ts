@@ -86,7 +86,8 @@ export interface ToolExtension {
  */
 export interface Landing {
   unplaced(capability: string, call: ToolCall): Promise<readonly string[]>;
-  untested(capability: string, call: ToolCall): Promise<{ readonly titles: readonly string[]; readonly seen: boolean }>;
+  /** `unreadable` when the checkout's code is only in languages the map cannot read, with those it reads. */
+  untested(capability: string, call: ToolCall): Promise<{ readonly titles: readonly string[]; readonly seen: boolean; readonly unreadable?: { readonly languages: readonly string[]; readonly reads: readonly string[] } }>;
   next(capability: string, call: ToolCall): Promise<readonly string[]>;
 }
 
@@ -114,6 +115,9 @@ const ONE_PART = "Name a capability or an increment to claim, exactly one.";
 const ONE_CLAIM = "Name a capability, several capabilities or an increment to claim, exactly one of them.";
 /** Claiming work and the workspace it is built in are an agent session's (ADR-1045 D1). */
 const AGENT = { consumers: ["agent"] } as const;
+
+/** Names as a sentence lists them: "Go", "Go and SQL", "Go, Rust and SQL". */
+const listed = (names: readonly string[]): string => (names.length <= 1 ? (names[0] ?? "") : `${names.slice(0, -1).join(", ")} and ${names.at(-1)}`);
 const NO_OWNER = "This needs a resolved session identity and calling agent; use list_all_runs (or storytree processes --all) for read-only attribution.";
 
 /** The claim, workspace, report, land and presenting tools (5), the context reading (9) and the runs tools (14). */
@@ -365,7 +369,7 @@ function registerLandingTools(define: Define, landing: Landing | undefined): voi
         };
       }
       // Naming the gap is an aid: a checkout the survey cannot read names none, and never stops the landing.
-      const { titles, seen } = (await landing?.untested(capability, call).catch(() => undefined)) ?? { titles: [], seen: true };
+      const { titles, seen, unreadable } = (await landing?.untested(capability, call).catch(() => undefined)) ?? { titles: [], seen: true };
       const untested = seen ? titles : [];
       const unchecked = seen ? [] : titles;
       const answer = await land(claimContext(call), capability);
@@ -376,13 +380,17 @@ function registerLandingTools(define: Define, landing: Landing | undefined): voi
           ...untested.map((title) => `- ${title}`),
         ];
         // A story whose package this checkout lacks (no code here yet, or mapped from a folder of its own) shows no tests: none is proven missing.
-        const unseen = unchecked.length === 0 ? [] : [
+        // A checkout whose code is only in languages the map cannot read is told apart from both (5.63).
+        const unseen = unchecked.length === 0 ? [] : unreadable !== undefined ? [
+          `storytree cannot read this project's code: it is in ${listed(unreadable.languages)}, and the map reads ${listed(unreadable.reads)}, so ${unchecked.length === 1 ? "this planned contract was" : `these ${unchecked.length} planned contracts were`} not checked against its tests.`,
+          ...unchecked.map((title) => `- ${title}`),
+        ] : [
           `This checkout cannot see the tests of its story: it holds no package of that story's (no code here yet, or a story mapped from a folder of its own), so ${unchecked.length === 1 ? "this planned contract was" : `these ${unchecked.length} planned contracts were`} not checked against them.`,
           ...unchecked.map((title) => `- ${title}`),
         ];
         return {
           text: [`Landed ${await titleOf(call.library, capability)}. Your claim on it has ended.`, ...gaps, ...unseen, ...next.map((line) => `Next: ${line}`)].join("\n"),
-          data: { landed: true, ...(untested.length === 0 ? {} : { untested }), ...(unchecked.length === 0 ? {} : { unchecked }), ...(next.length === 0 ? {} : { next }) },
+          data: { landed: true, ...(untested.length === 0 ? {} : { untested }), ...(unchecked.length === 0 ? {} : { unchecked }), ...(unchecked.length === 0 || unreadable === undefined ? {} : { unreadable: unreadable.languages }), ...(next.length === 0 ? {} : { next }) },
         };
       }
       return answer.refused === "held"

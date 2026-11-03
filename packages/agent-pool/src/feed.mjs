@@ -1,4 +1,4 @@
-// Capability 2 · The Mint pool keeps its lanes fed (ADR-0955 D2): one survey of the library names every active
+// Capability 2 · The pool keeps its lanes fed (ADR-0955 D2): one survey of the library names every active
 // arc's ready increments, under the manager's skip rules, and claims are the only conflict guard.
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -19,7 +19,7 @@ export function blind(body) {
 }
 
 /** A wait's note that says its pull request is with the watcher: the hand-off's event wait, or the watcher's own record. */
-const HANDED = /\bthe Mint box's watcher\b/;
+const HANDED = /\b(?:handed to|is with) the [\w ]+'s watcher\b/;
 
 /**
  * Each capability a live session holds, by the claim that holds it: one on the list of an increment a live session holds,
@@ -44,7 +44,7 @@ const rank = (one) => one.priority ?? Infinity;
  * not closed, sits on an active arc, has no live claim on it or on a capability its list names (directly, or on the list of an
  * increment a live session holds), no capability its lane was refused while any live session holds it (whoever it passed to), no wait or held-on
  * question (only those say it needs the owner; its body's wording never does), its machine field, when set, names this
- * machine (`survey.here`; its body's wording never names one), and with `machineOnly` it must name it: untagged work is then the Mint pool's (ADR-1179 D2); no fence or track is read. By arc priority, then oldest parked first, and within one priority
+ * machine (`survey.here`; its body's wording never names one), and with `machineOnly` it must name it: untagged work is then the shared pool's (ADR-1179 D2); no fence or track is read. By arc priority, then oldest parked first, and within one priority
  * those on an arc no live session (nor a pick already made) is on before the rest (ADR-0963 D2). `running` names the increments this dispatcher is running, never started
  * twice; `attempts` maps each increment this dispatcher has started to when it started it: a live claim older than that start
  * (on it, on a listed capability or on one its lane was refused) refused it, and it is retried only once that claim clears (it records the refusal in `attempts`). Work whose session has
@@ -99,7 +99,7 @@ export function pickPool(survey, { attempts = new Map(), running = [], max = 1, 
       const questions = survey.holds.heldOn[one.id] ?? [];
       if (questions.length) return `held on ${questions.join(", ")}`;
       if (one.machine && one.machine !== survey.here) return `needs ${one.machine}`;
-      if (machineOnly && !one.machine) return "untagged: the Mint pool's";
+      if (machineOnly && !one.machine) return "untagged: the shared pool's";
       return undefined;
     })();
     if (why) skipped.push({ id: one.id, why });

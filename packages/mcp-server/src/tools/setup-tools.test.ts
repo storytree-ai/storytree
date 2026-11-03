@@ -16,7 +16,7 @@ import { after, before, test } from "node:test";
 import { fileURLToPath } from "node:url";
 
 import { noteCodexHookRan, noteHookFailure, type Homes } from "@storytree/session-management";
-import { PROJECT_FILE } from "@storytree/project-and-caller";
+import { PROJECT_FILE, ROOT_MARKER_FILE } from "@storytree/project-and-caller";
 import { registerHooks, type GhState, type HookCommand } from "@storytree/app-setup/setup";
 import { buildBins } from "@storytree/app-setup/bins";
 import { STARTER_PACK_VERSION } from "@storytree/app-setup/project";
@@ -773,6 +773,71 @@ test("6.107 set_up_project tells the user in one line to commit the .storytree f
         else process.env[key] = value;
       }
       await dropTestProjects([inRepo, fresh, factory]);
+    }
+  });
+});
+
+test("6.115 · set_up_project on a folder whose code is only in languages the map cannot read says so in one sentence, naming them and what it reads, and what still works; a folder with code it reads hears none of it", async () => {
+  const [other, readable, factory] = [uniqueProjectName(), uniqueProjectName(), uniqueProjectName()];
+  await withTempDir(async (dir) => {
+    const home = throwawayHome(dir);
+    const setup = { dataDir: path.join(home.storytreeHome, "pgdata"), setup: { ...ANSWERED, homes: home.homes, storytreeHome: home.storytreeHome, factory } };
+    try {
+      const goRepo = path.join(dir, other);
+      mkdirSync(path.join(goRepo, "cmd"), { recursive: true });
+      writeFileSync(path.join(goRepo, "cmd/main.go"), "package main\n");
+      execFileSync("git", ["init", "-q"], { cwd: goRepo });
+      await withAgent(goRepo, claudeCode(`claude-${other}`, setup), async (agent) => {
+        const setUp = await agent.call("set_up_project", { name: other });
+        assert.equal(setUp.isError, false, setUp.text);
+        assert.match(setUp.text, /storytree's map reads JavaScript, TypeScript and Python, and this folder's code is in Go/);
+        assert.match(setUp.text, /planning by hand/);
+        assert.deepEqual(setUp.data.unreadable, ["Go"]);
+      });
+      const tsRepo = path.join(dir, readable);
+      mkdirSync(tsRepo);
+      writeFileSync(path.join(tsRepo, "app.ts"), "export {};\n");
+      writeFileSync(path.join(tsRepo, "schema.sql"), "select 1;\n");
+      execFileSync("git", ["init", "-q"], { cwd: tsRepo });
+      await withAgent(tsRepo, claudeCode(`claude-${readable}`, setup), async (agent) => {
+        const setUp = await agent.call("set_up_project", { name: readable });
+        assert.doesNotMatch(setUp.text, /storytree's map reads/);
+        assert.equal(setUp.data.unreadable, undefined);
+      });
+    } finally {
+      await dropTestProjects([other, readable, factory]);
+    }
+  });
+});
+
+test("6.114 check_setup reads a marker naming a project this computer's library lacks as missing, says set_up_project is called only on the user's yes, and set_up_project then sets the folder up, replacing the marker", async () => {
+  await withTempDir(async (dir) => {
+    const home = throwawayHome(dir);
+    const [name, factory] = [uniqueProjectName(), uniqueProjectName()];
+    const folder = path.join(dir, "checkout");
+    mkdirSync(folder);
+    // A marker committed on another computer, against another library: this one never had the project.
+    writeFileSync(path.join(folder, ROOT_MARKER_FILE), `${JSON.stringify({ project: name, identity: "19697429" })}\n`);
+    const storytree = await connect({ url: testServerUrl() });
+    try {
+      await withAgent(folder, claudeCode("claude-1", { dataDir: path.join(home.storytreeHome, "pgdata"), setup: { ...ANSWERED, homes: home.homes, storytreeHome: home.storytreeHome, factory } }), async (agent) => {
+        const checked = await agent.call("check_setup");
+        assert.equal(checked.isError, false, checked.text);
+        assert.deepEqual(checked.data.project, { status: "missing", name });
+        assert.equal(checked.data.verified, false);
+        assert.ok(checked.text.includes(`this computer's library has no project "${name}"`), checked.text);
+        assert.match(checked.text, /set_up_project only after the user says yes/);
+
+        const yes = await agent.call("set_up_project", { name });
+        assert.equal(yes.isError, false, yes.text);
+        assert.equal(yes.data.replaced, name);
+        assert.equal(readJson(path.join(folder, PROJECT_FILE)).project, name);
+        assert.equal(existsSync(path.join(folder, ROOT_MARKER_FILE)), false, "the old marker is replaced");
+        assert.ok((await storytree.listProjects()).includes(name));
+      });
+    } finally {
+      await storytree.close();
+      await dropTestProjects([name, factory]);
     }
   });
 });

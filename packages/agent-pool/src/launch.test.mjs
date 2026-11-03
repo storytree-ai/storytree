@@ -598,7 +598,8 @@ test("3.36 · a lane for a project other than storytree is briefed with that pro
   const website = await folder(t);
   const b = await box(t, {
     count: async () => 0,
-    survey: async (project) => poolWork({ storytree: ["increment_ours"], "storytree-website": ["increment_site"], shop: ["increment_bare"] }[project]),
+    survey: async (project) => poolWork({ storytree: ["increment_ours"], "storytree-website": ["increment_site", "increment_look"], shop: ["increment_bare"] }[project],
+      { bodies: { increment_look: "needs: read-only" } }),
   });
   b.home = b.lanesDir;
   b.env = { AGENT_POOL_CONFIG: join(b.lanesDir, "agent-pool.json") };
@@ -608,7 +609,7 @@ test("3.36 · a lane for a project other than storytree is briefed with that pro
   delete b.briefPaths; delete b.projects;
   const briefs = {};
   b.runLane = async (options) => { briefs[options.increment] = await readFile(options.brief, "utf8"); b.briefs.push(options.brief); return 0; };
-  b.sleep = async () => { await new Promise((go) => setImmediate(go)); if (b.briefs.length === 3) await writeFile(join(b.lanesDir, "pool-stop"), ""); };
+  b.sleep = async () => { await new Promise((go) => setImmediate(go)); if (b.briefs.length === 4) await writeFile(join(b.lanesDir, "pool-stop"), ""); };
   assert.equal(await main(["pool"], b), 0);
   const site = briefs.increment_site;
   assert.match(site, /^# Pool lane: increment_site\n\nYour increment: increment_site\.\n/);
@@ -621,6 +622,8 @@ test("3.36 · a lane for a project other than storytree is briefed with that pro
   assert.doesNotMatch(site, /pnpm gate|\{\w+\}/, "nothing of storytree's gate, and every slot filled");
   assert.match(briefs.increment_bare, /names no checks of its own/, "a project naming no checks is told so");
   assert.match(briefs.increment_bare, /names no review of its own/, "and no review");
+  assert.ok(briefs.increment_look.endsWith(localBrief(await poolRules("needs: read-only"), { checkout: website, lanes: b.lanesDir })),
+    "another project's read-only lane keeps the read-only rules, in its own checkout");
   assert.equal(briefs.increment_ours, `# Pool lane: increment_ours\n\nYour increment: increment_ours.\n\n${localBrief(await poolRules(""), { checkout: "/srv/storytree03", lanes: b.lanesDir })}`,
     "storytree's lane keeps storytree's brief");
 });

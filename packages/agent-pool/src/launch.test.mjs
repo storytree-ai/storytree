@@ -765,7 +765,7 @@ test("3.31 · `stop` ends the dispatcher pool.pid names, and leaves a pid that i
   assert.deepEqual(out, ["no dispatcher is running", "stopped dispatcher 777", "no dispatcher is running"]);
 });
 
-test("3.39 · a dispatcher started while a lane an earlier one started still runs leaves that lane's increment alone until its engine ends, its claim not yet made", async (t) => {
+test("3.8 · a dispatcher started while a lane an earlier one started still runs leaves that lane's increment alone until its engine ends, its claim not yet made", async (t) => {
   // The box on 2026-11-03: the service stopped the dispatcher 5 s after it started increment_a's lane, which ran on unclaimed.
   let lanes = ["increment_a"];
   const b = await box(t, { survey: async () => poolWork(["increment_a", "increment_b"]), count: async () => lanes.length, maxLanes: async () => 3, lanes: async () => lanes });

@@ -27,11 +27,15 @@ interface PackageJson {
   readonly storytree?: unknown;
 }
 
-/** While readsOf runs, every package.json read, so a list written from them can say what it was written from. */
+/**
+ * While readsOf runs, every package.json read, so a list written from them can say what it was written from. Each is
+ * kept by its real path: a part's own dependencies are found from the folder it really lives in, so one file can be
+ * reached by two paths (macOS's /var is /private/var), and a build checks the file, not the way it was reached.
+ */
 let reading: Set<string> | undefined;
 
 const readJson = (file: string): PackageJson => {
-  reading?.add(file);
+  if (reading !== undefined) reading.add(realpathSync(file));
   return JSON.parse(readFileSync(file, "utf8")) as PackageJson;
 };
 

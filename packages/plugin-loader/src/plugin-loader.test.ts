@@ -1,7 +1,7 @@
 /** The plugin loader: the manifests a host's story packages carry, and the parts composed from them into its bundle. */
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test, type TestContext } from "node:test";
@@ -93,7 +93,7 @@ test("2.1 the parts-list step writes, for each #parts/<kind> the host's package.
   assert.deepEqual(list.graph, { arcs: ["forest"], forest: [] });
   // Each fingerprint is checked against the file by the build that reads the list (Setup's 8.41); here, which files.
   const read = [path.join(dir, "package.json"), path.join(dir, "node_modules", "@s", "arcs", "package.json"), path.join(dir, "node_modules", "@s", "forest", "package.json")];
-  assert.deepEqual(Object.keys(list.inputs), read);
+  assert.deepEqual(Object.keys(list.inputs), read.map((one) => realpathSync(one)));
   for (const sha of Object.values(list.inputs)) assert.match(sha, /^[0-9a-f]{64}$/);
 });
 

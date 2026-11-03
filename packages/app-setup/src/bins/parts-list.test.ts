@@ -1,6 +1,6 @@
 /** Setup's builds pack each host's parts from the list Plugin loader's step writes, never from its code. */
 import assert from "node:assert/strict";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test, type TestContext } from "node:test";
@@ -75,7 +75,7 @@ test("8.41 · a build whose parts list is missing, or out of date with a package
   const changed = path.join(stale, "node_modules", "@s", "arcs", "package.json");
   // The list is written, then a story's manifest changes under it: an install between the step and the pack.
   const write = async (from: string, file: string) => { await writeWithPluginLoader(from, file); writeFileSync(changed, "{}"); };
-  await assert.rejects(bundle(stale, entry, partsFromList({ write })), (error: Error) => error.message.includes(`out of date: ${changed} changed`));
+  await assert.rejects(bundle(stale, entry, partsFromList({ write })), (error: Error) => error.message.includes(`out of date: ${realpathSync(changed)} changed`));
   const unmapped = host(t, [arcs, forest]);
   await assert.rejects(bundle(unmapped, `import pages from "#parts/pages";\nexport { pages };\n`), /holds no #parts\/pages: its package\.json's imports map no such kind/);
 });

@@ -129,6 +129,20 @@ test("7.9 the list prints no prose about a session: a row with a close-out why s
   assert.doesNotMatch(html, /needs you|unmerged|says safe|fix-login|needing/i);
 });
 
+test("7.9 every row leads with a status dot read from its state alone: working, waiting for you within the idle-after time, or idle; a parent whose child works is working; an observed subagent's dot says its state is unavailable", () => {
+  const dot = (html: string, id: string) => html.match(new RegExp(`data-session-id="${id}"[^>]*>.*?<span class="session-dot" data-dot="([a-z]+)" title="([^"]*)"`))?.slice(1);
+  const working: SessionRow = { ...row, id: "w", state: "working", children: [] };
+  const live = renderToStaticMarkup(createElement(SessionsList, { rows: [working, { ...row, id: "q", children: [] },
+    { ...row, id: "p", idle: false, state: "waiting", children: [{ ...row.children[0]!, id: "c", state: "working" }] }, row], expanded: new Set(["parent"]), onHighlight() {} }));
+  assert.deepEqual(dot(live, "w"), ["working", "Working"]);
+  assert.deepEqual(dot(live, "q"), ["waiting", "Waiting for you"]);
+  assert.deepEqual(dot(live, "p"), ["working", "Working"], "a parent at work through its child");
+  assert.deepEqual(dot(live, "child"), ["idle", "State unavailable"]);
+  const history = renderToStaticMarkup(createElement(SessionsList, { rows: [{ ...row, id: "i", idle: true, children: [] }], tab: "history", onHighlight() {} }));
+  assert.deepEqual(dot(history, "i"), ["idle", "Idle"]);
+  assert.ok(live.indexOf('class="session-dot"') < live.indexOf('class="session-colour"') && live.indexOf('class="session-colour"') < live.indexOf('class="session-label"'), "dot, colour, then name");
+});
+
 test("7.15 an expanded row's worktree carries its label, unmerged or merged or its pull request's state, beside its folder's name; a worktree with none carries none", () => {
   const worktrees: SessionRow["worktrees"] = [{ path: "/w/one", branches: ["fix-one"], state: "unmerged" }, { path: "/w/two", branches: ["fix-two"], state: "merged" }, { path: "/w/site", branches: [] },
     { path: "/w/three", branches: ["fix-three"], state: "unmerged", label: "PR #40 · in CI" }];

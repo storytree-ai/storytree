@@ -81,6 +81,12 @@ test("9.1 · the re-clone moves the old checkout and its follow-main worktrees a
   assert.equal(await text(join(m.checkout, "which.txt")), "old\n");
 
   await writeFile(join(m.lanes, "pool-stop"), "paused\n");
+  // Nor while another lane still runs, each counted in what it says.
+  for (const [beside, said] of [[["300"], "1 other lane is still running"], [["300", "301"], "2 other lanes are still running"]]) {
+    lines.length = 0;
+    assert.equal(await main([...args, "--apply"], { ...box, lanesBeside: async () => beside.map((pid) => ({ pid, args: "claude -p" })) }), 1);
+    assert.match(lines.join("\n"), new RegExp(`refused: pause the pool first .*: ${said}$`));
+  }
   // Nor while the dispatcher's loop still runs from the checkout: it would restart on the moved-aside code.
   lines.length = 0;
   assert.equal(await main([...args, "--apply"], { ...box, loopsInside: (at) => at === m.checkout ? ["77"] : [] }), 1);

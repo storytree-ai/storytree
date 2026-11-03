@@ -568,7 +568,7 @@ export function SessionsList({ rows, loading = false, refreshing = false, error,
         {GROUPS.map(([group, name]) => <span key={group} data-group={group}><span className="session-swatch" aria-hidden="true" />{name}</span>)}
       </span>}
     </header>
-    <div id="sessions-body" className="sessions-body" data-surface-id="sessions" data-surface-layer="panel">
+    <div id="sessions-body" className="sessions-body" data-surface-id="sessions">
     {tab === "history" ? <HistoryBody rows={history} range={range} onRange={onRange ?? setOwnRange} now={now} selected={selected}
       onSelect={session => onSelect?.(historySelection(session, selected))} search={search} onSearch={onSearch}
       idle={idleShown.map(entry => sessionItem(entry, entry.depth === 0 ? IDLE_LEAD : undefined))} /> : <>

@@ -69,6 +69,7 @@ await withCapture({ folder: evidence, dist }, async ({ browser, origin, out, set
   const closeHelp = page.getByRole('button', { name: /^Close/ }).first();
   await page.waitForFunction(() => document.body.dataset.state === 'ready', null, { timeout: 15000 }).catch(async error => { console.error(errors, await page.evaluate(() => [document.body.dataset.state, document.body.innerText.slice(0, 400)])); throw error; });
   if (await closeHelp.isVisible()) await closeHelp.click();
+  await page.locator('[data-rail-tab="sessions"]').click(); // the sessions list is the left rail's Sessions tab (ADR-1219)
   const list = page.getByRole('complementary', { name: 'Running sessions', exact: true });
   const row = list.locator(`.session-row[data-session-id="${ids.builder}"]`);
   await row.waitFor();

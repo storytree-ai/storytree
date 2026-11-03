@@ -93,6 +93,7 @@ try {
     const close = page.getByRole('button', { name, exact: true });
     if (await close.isVisible()) await close.click();
   }
+  await page.locator('[data-rail-tab="sessions"]').click(); // the sessions list is the left rail's Sessions tab (ADR-1219)
   const row = page.getByRole('complementary', { name: 'Running sessions', exact: true }).locator(`.session-row[data-session-id="${session}"]`);
   await row.waitFor();
   await page.locator('button[data-globe-switch="library"]').click(); // a launch opens on the Stories face: turn the sheet over to its notes

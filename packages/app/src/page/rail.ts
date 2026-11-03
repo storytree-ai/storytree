@@ -30,7 +30,6 @@ export function mountRail(content: HTMLElement, options: { project: string; tabs
   const rail = document.createElement("aside");
   rail.className = "side-rail";
   rail.setAttribute("aria-label", "Sessions and arcs");
-  rail.dataset.surfaceLayer = "panel";
   rail.innerHTML = `<div class="side-rail-tabs" role="tablist" aria-label="Rail">${tabs.map((tab) =>
     `<button type="button" role="tab" id="rail-tab-${tab}" data-rail-tab="${tab}" aria-controls="rail-${tab}">${NAMES[tab]}${tab === "arcs" ? `<span class="side-rail-badge" data-rail-badge hidden></span>` : ""}</button>`).join("")}</div>`
     + tabs.map((tab) => `<div role="tabpanel" class="side-rail-panel" id="rail-${tab}" aria-labelledby="rail-tab-${tab}"></div>`).join("");
@@ -38,7 +37,8 @@ export function mountRail(content: HTMLElement, options: { project: string; tabs
   const buttons = [...rail.querySelectorAll<HTMLButtonElement>("[data-rail-tab]")];
   const show = (tab: RailTab): void => {
     shown = tab;
-    // The rail is the surface of the tab on show, so the feedback corner names it from the tabs too.
+    // The rail is the surface of the tab on show, so the feedback corner names it from the tabs too. It is marked as no layer,
+    // ranking with the map beside it, so a control on neither (the gear) names the map, as before the rail.
     rail.dataset.surfaceId = tab;
     for (const button of buttons) {
       const on = button.dataset.railTab === tab;

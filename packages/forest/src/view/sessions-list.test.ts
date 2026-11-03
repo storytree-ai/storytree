@@ -203,7 +203,7 @@ test("7.17 · the list fills its rail tab: its header names it, counts it and ca
   const list = renderToStaticMarkup(createElement(SessionsList, { rows: [{ ...row, children: [] }], onHighlight() {} }));
   assert.match(list, /<header><span class="sessions-name">Sessions <span class="sessions-count"[^>]*>1<\/span><\/span><span class="sessions-tabs" role="tablist"/);
   assert.match(list, /class="session-legend"/);
-  assert.match(list, /<div id="sessions-body" class="sessions-body" data-surface-id="sessions" data-surface-layer="panel"><ul>.*data-session-id="parent"/s);
+  assert.match(list, /<div id="sessions-body" class="sessions-body" data-surface-id="sessions"><ul>.*data-session-id="parent"/s);
   assert.doesNotMatch(list, /aria-expanded="(true|false)" aria-controls="sessions-body"|Expand|Restore|hidden=""/, "no collapse or size control, and the body is never hidden");
 });
 

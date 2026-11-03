@@ -138,6 +138,8 @@ await runCapture({
     await whileFramesCome(page, 'the claimed territories', () => { let outlines = 0, territories = 0; window.__globe.scene.traverse(o => { if (o.name.startsWith('territory-claim:')) outlines++; if (o.name.startsWith('territory:')) territories++; }); return outlines > 0 && territories > 0; }, undefined, 60_000);
     for (const button of ['Close help', 'Close app menu']) { const b = page.getByRole('button', { name: button, exact: true }); if (await b.isVisible().catch(() => false)) await b.click(); }
     await page.evaluate(() => { for (const menu of document.querySelectorAll('[popover]')) if (menu.matches(':popover-open')) menu.hidePopover(); });
+    // The sessions list is the left rail's Sessions tab, which a project opens beside Arcs (ADR-1219).
+    await page.locator('[data-rail-tab="sessions"]').click();
   },
   views: [{
     name: `${label}-none-selected`, ...(smoke ? { picture: false } : {}),

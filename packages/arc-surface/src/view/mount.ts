@@ -20,7 +20,7 @@ export interface ArcSurface { stop(): void }
 export function mountArcSurface(host: HTMLElement, options: { project: string; reads: BoardReads; timers?: Timers; reading?: PageReading; onFreshDraw?: () => void; onWaiting?: (count: number) => void }): ArcSurface {
   const root = document.createElement("div");
   root.className = "arc-surface-mount";
-  root.innerHTML = `<section class="arc-rail" aria-label="Arcs" data-surface-id="arcs" data-surface-layer="panel"><div class="arc-status" role="status"></div><div class="arc-body"></div></section>`
+  root.innerHTML = `<section class="arc-rail" aria-label="Arcs" data-surface-id="arcs"><div class="arc-status" role="status"></div><div class="arc-body"></div></section>`
     + `<aside class="arc-card" aria-label="Arc briefing" data-surface-id="arcs" data-surface-layer="overlay" hidden><button type="button" class="arc-card-close" data-close-card aria-label="Close this arc's detail" title="Close">×</button><div class="arc-briefing"></div></aside>`;
   host.append(root);
   const rail = root.querySelector<HTMLElement>(".arc-rail")!;

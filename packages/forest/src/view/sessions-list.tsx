@@ -1,13 +1,11 @@
 /** Capability 7 · Running sessions. The forest owns its sessions surface; the desktop only mounts it and carries public reads. */
-import React, { useEffect, useState, type ReactNode } from "react";
+import React, { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import type { AnnotatedTree, ArcView, Line } from "@storytree/library";
 import { outageSaidOnce, saysUnreachable, type OutageSaidOnce } from "@storytree/library/connection-error";
-import type { PrCutover } from "@storytree/library/pr-cutover";
 import { ON_MAIN_LABELS, type LogReading, type OnMain } from "@storytree/session-management/readings";
 import { pageKept, pageReading, type LiveReads, type PageReading } from "@storytree/arc-surface";
-import { ALL_TIME, atWork, clickedSelection, dayRange, globeRoster, historyRows, historySelection, matchesSearch, presetRange, sessionRows, windowFiles, withinRange,
-  type HistoryOutcome, type HistoryPreset, type HistoryRange, type HistoryRow, type RosterEntry, type SessionDetails, type SessionFiles, type SessionRow, type SessionWindow } from "../sessions-list/sessions-list.js";
+import { atWork, clickedSelection, sessionRoster, sessionRows, windowFiles, type RosterEntry, type SessionDetails, type SessionFiles, type SessionRow, type SessionWindow } from "../sessions-list/sessions-list.js";
 import { sessionColour, sessionWisps, type SessionWisp } from "../agent-claims/agent-claims.js";
 import { treeAfter } from "../render/forest-reading.js";
 
@@ -32,8 +30,6 @@ export interface SessionsReads extends LiveReads {
   idleAfterMs?(): Promise<number>;
   /** The user's leave-after setting in milliseconds; without it a quiet session leaves the list by the 1-hour default. */
   leaveAfterMs?(): Promise<number>;
-  /** The project's repository cut-over, undefined while it has none: History says a pull request before it as the old repository's. */
-  prCutover?(project: string): Promise<PrCutover | undefined>;
 }
 
 /** How often the listed sessions' context readings are asked for again. */
@@ -59,16 +55,6 @@ export async function arcsAfter(reads: Pick<SessionsReads, "arcViews">, project:
   news: { readonly changes: readonly { readonly type: string }[] }, last: readonly ArcView[] | undefined): Promise<readonly ArcView[]> {
   if (last !== undefined && !news.changes.some(change => WORK_TYPES.has(change.type))) return last;
   return reads.arcViews(project);
-}
-
-/**
- * The repository cut-over History's rows say their pull requests by after `news`: read first, and again only when a
- * change touches it; null when the project has none, or the reads cannot ask for it.
- */
-export async function cutoverAfter(reads: Pick<SessionsReads, "prCutover">, project: string,
-  news: { readonly changes: readonly { readonly type: string }[] }, last: PrCutover | null | undefined): Promise<PrCutover | null> {
-  if (last !== undefined && !news.changes.some(change => change.type === "prCutover")) return last;
-  return (await reads.prCutover?.(project)) ?? null;
 }
 
 /**
@@ -196,23 +182,6 @@ function everyId(rows: readonly SessionRow[]): string[] {
   return rows.flatMap(row => [row.id, ...everyId(row.children)]);
 }
 
-/** The list's two tabs (7.21): the sessions at work now, and the ones that have left the list. */
-export type SessionsTab = "live" | "history";
-
-/** Which tab the list shows, kept per project; nothing kept, or a foreign value, is Live (7.22). */
-export function keptTab(project: string, storage?: Parameters<typeof pageKept>[2]) {
-  const kept = pageKept<SessionsTab>(`storytree.forest.sessions-tab.v1:${project}`, (value): value is SessionsTab => value === "live" || value === "history", storage);
-  return { read: (): SessionsTab => kept.read() ?? "live", write: (tab: SessionsTab): void => kept.write(tab) };
-}
-
-/** History's range as chosen (7.21): a preset, or a custom from–to of days (YYYY-MM-DD). */
-export type HistoryChoice = { preset: HistoryPreset } | { from: string; to: string };
-
-/** The span a choice covers at `now`; none for an unreadable custom range. */
-function rangeOf(choice: HistoryChoice, now: Date): HistoryRange | undefined {
-  return "preset" in choice ? presetRange(choice.preset, now) : dayRange(choice.from, choice.to);
-}
-
 /** The optional details seam takes already-read facts; it never asks for or parses transcripts. */
 export function mountSessionsList(container: HTMLElement, options: {
   project: string;
@@ -235,7 +204,6 @@ export function mountSessionsList(container: HTMLElement, options: {
   const now = options.now ?? (() => new Date());
   let tree: AnnotatedTree | undefined;
   let arcs: readonly ArcView[] | undefined;
-  let cutover: PrCutover | null | undefined;
   let log: readonly Line[] | LogReading = [];
   // The rows last drawn for this project, shown marked as refreshing until the first read lands.
   const kept = pageKept(`storytree.forest.sessions.v1:${options.project}`, isSessionRows);
@@ -249,14 +217,7 @@ export function mountSessionsList(container: HTMLElement, options: {
   let selected: string | undefined;
   // Every row starts collapsed; these are the ones the user opened.
   let expanded: ReadonlySet<string> = new Set();
-  const tabKept = keptTab(options.project);
-  let tab = tabKept.read();
-  let range: HistoryChoice = { preset: "today" };
-  // Every session that has left the live list; History shows those active in the range chosen (7.21).
-  let past: HistoryRow[] = [];
   let files: ReadonlyMap<string, SessionFiles> = new Map();
-  // Story titles by id, so History's search finds an idle row by the stories it claimed (7.28).
-  let titles: ReadonlyMap<string, string> = new Map();
   let stopped = false;
   const failures = refreshFailures(line => console.error(line));
   const outage = sessionsOutage();
@@ -268,9 +229,6 @@ export function mountSessionsList(container: HTMLElement, options: {
     refreshing={tree === undefined && rows.length > 0}
     error={banner?.text} errorDetail={banner?.detail} selected={selected} onHighlight={options.onHighlight}
     expanded={expanded} files={files} onToggle={toggle}
-    // Choosing a tab or a range redraws the list and nothing else: the globe keeps the live rows (7.22).
-    tab={tab} onTab={next => { tab = next; tabKept.write(tab); draw(); }} history={past} range={range} now={now()}
-    onRange={next => { range = next; draw(); }} storyTitles={titles}
     {...(options.onSelect ? { onSelect: options.onSelect } : {})} />);
   };
   /** Supplied details (showDetails) keep their parent; a reading supplies the tokens and groups. */
@@ -312,11 +270,10 @@ export function mountSessionsList(container: HTMLElement, options: {
   const refresh = (now: Date, ask = true): void => {
     if (stopped || tree === undefined || arcs === undefined) return;
     rows = sessionRows(tree, log, arcs, now, merged(), quietMs, leaveMs);
-    past = historyRows(tree, log, arcs, ALL_TIME, now, quietMs, leaveMs, cutover);
     kept.write(rows);
     askFiles(everyId(rows).filter(session => expanded.has(session) && !files.has(session)));
     options.onWisps?.(sessionWisps(rows, log, now, quietMs));
-    options.onRoster?.(globeRoster(rows, past, selected));
+    options.onRoster?.(sessionRoster(rows));
     draw();
     if (ask) askReadings();
   };
@@ -328,10 +285,7 @@ export function mountSessionsList(container: HTMLElement, options: {
       // Each read again only when the news changes what it is read from (7.24, ADR-0836 D3).
       const nextTree = await named("reading the project tree", () => treeAfter(options.reads, options.project, news, tree));
       const nextArcs = await named("reading the arcs", () => arcsAfter(options.reads, options.project, news, arcs));
-      const nextCutover = await named("reading the repository cut-over", () => cutoverAfter(options.reads, options.project, news, cutover));
       if (stopped) return;
-      cutover = nextCutover;
-      if (nextTree !== tree) titles = new Map(nextTree.stories.map(story => [story.id, story.title]));
       tree = nextTree;
       arcs = nextArcs;
       // The page reading holds the log once for every surface, folded and thinned to what they read (ADR-0836 D4).
@@ -353,10 +307,7 @@ export function mountSessionsList(container: HTMLElement, options: {
     showDetails(next: ReadonlyMap<string, SessionDetails>) { details = next; refresh(now()); },
     /** Mark the session the knowledge core has selected, or none. */
     select(session: string | undefined) {
-      const was = selected;
       selected = session;
-      // A history session selected, or let go, joins or leaves the core's roster so it is drawn in its own colour (7.23).
-      if (past.some(row => row.id === session || row.id === was)) options.onRoster?.(globeRoster(rows, past, selected));
       draw();
     },
     stop() {
@@ -456,8 +407,7 @@ function busy(row: SessionRow): boolean {
 const ON_MAIN_WORDS: Readonly<Record<OnMain, string>> = { "outside-workspace": "on main", "first-commit-pending": "first commit" };
 const ON_MAIN_TONES: Readonly<Record<OnMain, "warning" | "neutral">> = { "outside-workspace": "warning", "first-commit-pending": "neutral" };
 
-export function SessionsList({ rows, loading = false, refreshing = false, error, errorDetail, selected, onHighlight, onSelect, files,
-  history = [], range: chosen, onRange, now = new Date(), storyTitles, ...control }: {
+export function SessionsList({ rows, loading = false, refreshing = false, error, errorDetail, selected, onHighlight, onSelect, files, ...control }: {
   rows: readonly SessionRow[];
   loading?: boolean;
   /** The rows are the ones last kept, drawn before this start's first read lands. */
@@ -474,21 +424,6 @@ export function SessionsList({ rows, loading = false, refreshing = false, error,
   onToggle?(session: string): void;
   /** Each expanded row's files, once read (7.8). */
   files?: ReadonlyMap<string, SessionFiles>;
-  /** The tab shown (7.21), when the caller keeps it; otherwise the list keeps its own, starting on Live. */
-  tab?: SessionsTab;
-  onTab?(tab: SessionsTab): void;
-  /** Every session that has left the live list, latest first (7.21). */
-  history?: readonly HistoryRow[];
-  /** History's range, when the caller keeps it; otherwise the list keeps its own, starting on Today. */
-  range?: HistoryChoice;
-  onRange?(range: HistoryChoice): void;
-  /** The time History's presets count days from. */
-  now?: Date;
-  /** What History's search is, when the caller keeps it; otherwise the list keeps its own, starting empty and never saved (7.28). */
-  search?: string;
-  onSearch?(search: string): void;
-  /** Story titles by id, so the search finds an idle row by its stories; an id with none is searched as itself. */
-  storyTitles?: ReadonlyMap<string, string>;
 }) {
   const [own, setOwn] = useState<ReadonlySet<string>>(new Set());
   const expanded = control.expanded ?? own;
@@ -496,14 +431,6 @@ export function SessionsList({ rows, loading = false, refreshing = false, error,
   const onToggle = control.onToggle ?? ((id: string) => setOwn(toggle(own, id)));
   const [hovered, setHovered] = useState<string>();
   const [focused, setFocused] = useState<string>();
-  const [ownTab, setOwnTab] = useState<SessionsTab>("live");
-  const tab = control.tab ?? ownTab;
-  const onTab = control.onTab ?? setOwnTab;
-  const [ownRange, setOwnRange] = useState<HistoryChoice>({ preset: "today" });
-  const range = chosen ?? ownRange;
-  const [ownSearch, setOwnSearch] = useState("");
-  const search = control.search ?? ownSearch;
-  const onSearch = control.onSearch ?? setOwnSearch;
   const visit = (list: readonly SessionRow[], depth: number, into: { row: SessionRow; depth: number }[] = []): { row: SessionRow; depth: number }[] => {
     for (const row of list) {
       into.push({ row, depth });
@@ -511,11 +438,8 @@ export function SessionsList({ rows, loading = false, refreshing = false, error,
     }
     return into;
   };
-  // Live lists only the sessions at work; the idle ones are listed first under History, found by its search (ADR-1002 D4).
-  const idle = rows.filter(row => row.idle);
-  const idleShown = visit(idle.filter(row => matchesSearch([row.label, row.agent, "idle", ...row.stories.map(id => storyTitles?.get(id) ?? id)], search)), 0);
-  // Showing History, the list draws no live rows, so none is hovered or drawn: History lights no islands (7.22).
-  const visible = tab === "history" ? [] : visit(rows.filter(row => !row.idle), 0);
+  // One list (7.10): the sessions at work, then the idle ones below them, each wearing the idle dot.
+  const visible = visit([...rows.filter(row => !row.idle), ...rows.filter(row => row.idle)], 0);
   const active = visible.find(({ row }) => row.id === (hovered ?? focused))?.row;
   const islands = active?.stories.join("\0");
   useEffect(() => {
@@ -526,8 +450,8 @@ export function SessionsList({ rows, loading = false, refreshing = false, error,
     document.body.dataset.drew = JSON.stringify({ ...JSON.parse(document.body.dataset.drew ?? "{}"),
       sessions: visible.map(({ row }) => row.id) });
   });
-  /** A listed session's row, its children beneath it while it is at work (7.2) and, opened, its detail and children (7.8); under History an idle one is led by its word (7.21). */
-  const sessionItem = ({ row, depth }: { row: SessionRow; depth: number }, lead?: ReactNode) => (
+  /** A listed session's row, its children beneath it while it is at work (7.2) and, opened, its detail and children (7.8). */
+  const sessionItem = ({ row, depth }: { row: SessionRow; depth: number }) => (
     <li key={row.id} style={{ marginLeft: Math.min(depth, 5) * 14 }}>
       <div className="session-row" data-session-id={row.id} data-state={row.state} data-idle={row.idle || undefined} data-done={depth > 0 && row.idle && !busy(row) || undefined}
         data-selected={row.id === selected || undefined} tabIndex={0}
@@ -537,7 +461,6 @@ export function SessionsList({ rows, loading = false, refreshing = false, error,
         aria-label={`${row.label} · ${row.agent}${row.machine === undefined ? "" : ` on ${row.machine}`}${row.onMain === undefined ? "" : ` · ${ON_MAIN_LABELS[row.onMain]}`}`}
         onPointerEnter={() => setHovered(row.id)} onPointerLeave={() => setHovered(undefined)}
         onFocus={() => setFocused(row.id)} onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget)) setFocused(undefined); }}>
-        {lead}
         {/* One expander per row, at its start (7.8): its detail, and its children while they are folded (7.2), counted by the "+N" after its name. */}
         <button type="button" className="session-children-toggle" aria-expanded={isOpen(row.id)}
           aria-label={`${isOpen(row.id) ? "Hide" : "Show"} detail${row.children.length > 0 && !busy(row) ? ` and ${row.children.length} children` : ""} of ${row.label}`}
@@ -560,46 +483,20 @@ export function SessionsList({ rows, loading = false, refreshing = false, error,
   return <aside className="sessions-list" data-fresh={refreshing ? "no" : undefined} aria-label="Running sessions">
     <header>
       <span className="sessions-name">Sessions <span className="sessions-count" title="Sessions at work or waiting for you">{atWork(rows)}</span></span>
-      <span className="sessions-tabs" role="tablist" aria-label="Sessions shown">
-        {([["live", "Live"], ["history", "History"]] as const).map(([id, name]) => <button key={id} type="button" role="tab" aria-selected={tab === id}
-          aria-controls="sessions-body" onClick={() => onTab(id)}>{name}</button>)}
-      </span>
-      {tab === "live" && <span className="session-legend" aria-label="Bar colours">
+      <span className="session-legend" aria-label="Bar colours">
         {GROUPS.map(([group, name]) => <span key={group} data-group={group}><span className="session-swatch" aria-hidden="true" />{name}</span>)}
-      </span>}
+      </span>
     </header>
     <div id="sessions-body" className="sessions-body" data-surface-id="sessions">
-    {tab === "history" ? <HistoryBody rows={history} range={range} onRange={onRange ?? setOwnRange} now={now} selected={selected}
-      onSelect={session => onSelect?.(historySelection(session, selected))} search={search} onSearch={onSearch}
-      idle={idleShown.map(entry => sessionItem(entry, entry.depth === 0 ? IDLE_LEAD : undefined))} /> : <>
     {loading && !error && <p role="status">Reading sessions…</p>}
     {refreshing && !error && <p role="status">As last read. Refreshing…</p>}
     {error && <p role="status" title={errorDetail}>{error}</p>}
     {!loading && rows.length === 0 && <p>No running sessions</p>}
-    {/* With only idle sessions the tab says where they are, as a fact (ADR-0824 D1). */}
-    {rows.length > 0 && idle.length === rows.length && <p className="sessions-idle-note">No sessions at work · <button type="button" className="sessions-idle-elsewhere"
-      onClick={() => onTab("history")}>{idle.length} idle in History</button></p>}
     <ul>
       {visible.map(entry => sessionItem(entry))}
-    </ul></>}
+    </ul>
     </div>
   </aside>;
-}
-
-/** How a past session ended, in a few words: its pull requests, or the question its work waits on. */
-function outcomeWords(outcome: HistoryOutcome): string {
-  switch (outcome.kind) {
-    case "landed": return `Landed ${outcome.prs.join(" · ")}`;
-    case "held": return `Held: ${outcome.question}`;
-    case "closed-out": return "Closed out";
-    case "no-close-out": return "Ended without a close-out";
-  }
-}
-
-/** A local day as a date input writes it (YYYY-MM-DD). */
-function dayOf(ms: number): string {
-  const at = new Date(ms);
-  return `${at.getFullYear()}-${String(at.getMonth() + 1).padStart(2, "0")}-${String(at.getDate()).padStart(2, "0")}`;
 }
 
 /**
@@ -616,50 +513,4 @@ function dotOf(row: SessionRow): "working" | "waiting" | "idle" {
 function dotWords(row: SessionRow): string {
   const dot = dotOf(row);
   return dot === "idle" && row.state === "observed" ? "State unavailable" : { working: "Working", waiting: "Waiting for you", idle: "Idle" }[dot];
-}
-
-/** An idle session's lead under History, where an ended one's outcome stands (7.21). */
-const IDLE_LEAD = <span className="history-outcome" data-outcome="idle" title="Idle: listed, neither working nor waiting for you">idle</span>;
-
-const PRESETS = [["today", "Today"], ["yesterday", "Yesterday"], ["week", "7 days"]] as const;
-
-/**
- * History (7.21): a range bar of presets and a custom from–to of days and a search box (7.28), then every idle session still
- * listed, whatever the range, then each past session active in the range, led by how it ended. A row lights nothing on hover or
- * focus (7.22); clicking one selects its session as a live row does (7.23).
- */
-function HistoryBody({ rows, range, onRange, now, selected, onSelect, search, onSearch, idle }: { rows: readonly HistoryRow[]; range: HistoryChoice;
-  onRange(range: HistoryChoice): void; now: Date; selected: string | undefined; onSelect(session: string): void; search: string; onSearch(search: string): void;
-  idle: readonly ReactNode[] }) {
-  const span = rangeOf(range, now);
-  const shown = (span === undefined ? [] : withinRange(rows, span))
-    .filter(row => matchesSearch([row.label, row.agent, outcomeWords(row.outcome), ...row.stories.map(story => story.title)], search));
-  const searching = search.trim() !== "";
-  const [from, to] = "preset" in range ? [dayOf(span!.from), dayOf(span!.to - 1)] : [range.from, range.to];
-  return <>
-    <div className="history-range" role="group" aria-label="Sessions active in">
-      {PRESETS.map(([preset, name]) => <button key={preset} type="button" aria-pressed={"preset" in range && range.preset === preset}
-        onClick={() => onRange({ preset })}>{name}</button>)}
-      <label>From <input type="date" value={from} max={to} onChange={event => onRange({ from: event.currentTarget.value, to })} /></label>
-      <label>to <input type="date" value={to} min={from} onChange={event => onRange({ from, to: event.currentTarget.value })} /></label>
-    </div>
-    <input type="search" className="history-search" value={search} placeholder="Search sessions" aria-label="Search sessions"
-      onChange={event => onSearch(event.currentTarget.value)} />
-    {searching && idle.length === 0 && shown.length === 0 ? <p>No sessions match the search</p> : <ul>
-      {idle}
-      {shown.map(row => <li key={row.id}>
-        <div className="history-row" data-session-id={row.id} data-selected={row.id === selected || undefined} tabIndex={0}
-          aria-label={`${outcomeWords(row.outcome)} · ${row.label} · ${row.agent}`}
-          onClick={() => onSelect(row.id)}
-          onKeyDown={event => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); onSelect(row.id); } }}>
-          <span className="history-outcome" data-outcome={row.outcome.kind} title={outcomeWords(row.outcome)}>{outcomeWords(row.outcome)}</span>
-          <span className="session-colour" style={{ background: sessionColour(row.id) }} aria-hidden="true" />
-          <span className="session-label" title={`${row.label}\n${row.agent} · ${row.id}\n${new Date(row.startedAt).toLocaleString()} – ${new Date(row.lastSeenAt).toLocaleString()}`}>{row.label}</span>
-          <span className="history-agent">{row.agent}</span><span className="history-ran">{ranFor(row.ranMs)}</span>
-          <span className="history-stories">{row.stories.map(story => story.title).join(", ")}</span>
-        </div>
-      </li>)}
-    </ul>}
-    {!searching && shown.length === 0 && <p>No sessions ended in this range</p>}
-  </>;
 }

@@ -46,7 +46,7 @@ const frictionNew = verb({
     family: "friction",
     name: "new",
     summary: "file friction with concrete evidence and its impact",
-    usage: "friction new --title <t> --description … --statement … --evidence <text|@file> --impact … [--links a,b]",
+    usage: "friction new --title <t> --description … --statement … --evidence <text|@file> --impact … [--links a,b] [--about-storytree]",
   },
   tool: {
     name: "record_friction",
@@ -59,12 +59,26 @@ const frictionNew = verb({
     evidence: { kind: "text", describe: "the concrete evidence for it" },
     impact: { kind: "text", describe: "what it cost" },
     links: { kind: "text", optional: true, describe: "what it links to, comma-separated" },
+    "about-storytree": { kind: "switch", describe: "it is a defect in storytree itself (its tools, app or guidance), not in this project: the reply carries a draft issue for the user to send storytree's maintainers" },
   },
   writes: true,
-  async act(input, context: VerbContext) {
+  async act({ "about-storytree": aboutStorytree, ...input }, context: VerbContext) {
     const { recordFriction } = await import("./filing/capture.js");
     const note = await recordFriction(context.library, { ...fields(input), branch: await branchIn(context.folder) } as never, context.writer!);
-    return { text: `Recorded friction ${note.id}.`, data: { id: note.id }, next: [{ command: `library read ${note.id}`, why: "read it whole" }] };
+    const next = [{ command: `library read ${note.id}`, why: "read it whole" }];
+    if (!aboutStorytree) return { text: `Recorded friction ${note.id}.`, data: { id: note.id }, next };
+    // Settled by question_03c165b887c7 (option A): storytree sends nothing; the user reviews the draft and submits it.
+    const { issueDraft } = await import("./issue-draft.js");
+    const draft = issueDraft({ ...input, project: context.project, folder: context.folder });
+    return {
+      text: [
+        `Recorded friction ${note.id} in this project's library, which storytree's maintainers cannot see.`,
+        "It is about storytree, so offer the user this draft issue for its maintainers, showing them its title and text (paths and the project's name are stripped). Only if they agree do they open it, review it on GitHub and submit it themselves; storytree sends nothing:",
+        draft,
+      ].join("\n"),
+      data: { id: note.id, issueDraft: draft },
+      next,
+    };
   },
 });
 
@@ -177,7 +191,7 @@ export const FRICTION_FAMILIES: readonly VerbFamily[] = [
 
 /** Its section of the habits card (ADR-1021, the guidance kind): filing what fought you, and draining what others filed. */
 export const frictionGuidance: readonly string[] = [
-  "File what fought you: `record_friction` when something got in your way, with concrete evidence, and `reinforce` the existing item when it happens again, with its own; `record_resteer` when the owner redirects you, quoting their own words. Before landing, `friction_drain` hands you up to three reports other sessions filed: read each, then `route` it with its reason.",
+  "File what fought you: `record_friction` when something got in your way, with concrete evidence (marked about storytree when the defect is storytree's own, so the user can choose to send it on), and `reinforce` the existing item when it happens again, with its own; `record_resteer` when the owner redirects you, quoting their own words. Before landing, `friction_drain` hands you up to three reports other sessions filed: read each, then `route` it with its reason.",
 ];
 
 /** Friction's verbs that are tools, which the MCP server mounts (17.18). */

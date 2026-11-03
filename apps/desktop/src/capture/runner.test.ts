@@ -2,10 +2,15 @@ import assert from "node:assert/strict";
 import { EventEmitter } from "node:events";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { get } from "node:http";
+import { randomBytes } from "node:crypto";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 import { chromium, type Browser, type Page } from "playwright-core";
+
+import { connect } from "@storytree/library";
+import { dropTestDatabases } from "@storytree/local-postgres/testing";
+import { openActivityLog } from "@storytree/session-management";
 
 import { browserProcess, closeBrowser, fakeBridge, outputFolder, runCapture, settle, withCapture } from "./index.js";
 
@@ -126,6 +131,60 @@ test("a seed-and-views capture uses workspace Playwright and quiet bridge reads,
   }] }), /view failed/);
   assert.equal(closed, 2, "a failed view also closes the browser");
   await assert.rejects(readPage(origin), "a failed view also closes the server");
+});
+
+test("2.38 · a capture on a live library answers the page with the app's own reads, its first activity read bounded to the newest lines and its changes folded", async t => {
+  const url = process.env.STORYTREE_TEST_PG_URL;
+  if (url === undefined || url === "") throw new Error("STORYTREE_TEST_PG_URL is not set: run the tests via `pnpm test`, which starts a local Postgres.");
+  const project = `t-${randomBytes(4).toString("hex")}`;
+  const storytree = await connect({ url });
+  const log = await openActivityLog(url);
+  const folder = mkdtempSync(path.join(tmpdir(), "storytree-capture-live-"));
+  t.after(async () => {
+    await log.close();
+    await storytree.close();
+    await dropTestDatabases([`storytree_${project}`]);
+    rmSync(folder, { recursive: true, force: true });
+    rmSync(outputFolder(folder), { recursive: true, force: true });
+  });
+  writeFileSync(path.join(folder, "index.html"), "<body>capture fixture</body>");
+  // A busy library, small: eight lines where the capture's bound is three, and a story edited twice.
+  const library = await storytree.openProject(project);
+  const story = await library.addStory({ title: "Visitor can sign up" });
+  await library.editStory(story.id, { title: "Visitor can join" });
+  await library.editStory(story.id, { title: "Visitor can join today" });
+  for (let n = 0; n < 8; n++) await log.append(project, { session: `S${n}`, source: "hook", kind: "session-started" });
+
+  let call!: (method: string, args: unknown[]) => Promise<unknown>;
+  const read: Record<string, unknown> = {};
+  const page = {
+    on() { return page; },
+    async exposeFunction(_name: string, fn: typeof call) { call = fn; },
+    async addInitScript() {},
+    async goto() {
+      read.selection = await call("projectSelection", []);
+      const first = await call("linesSince", [project, 0]) as { lines: { session: string }[]; cursor: number };
+      read.first = first.lines.map(line => line.session);
+      await log.append(project, { session: "S8", source: "hook", kind: "session-started" });
+      read.next = (await call("linesSince", [project, first.cursor]) as { lines: { session: string }[] }).lines.map(line => line.session);
+      read.changes = (await call("changesSince", [project, 0]) as { changes: { recordId: string; action: string; record: { fields: { title?: string } } }[] }).changes
+        .map(change => [change.action, change.record.fields.title]);
+      read.tree = (await call("projectTree", [project]) as { stories: { title: string }[] }).stories.map(each => each.title);
+    },
+    async waitForFunction() {},
+    async evaluate() {},
+    async close() {},
+  } as unknown as Page;
+  const browser = Object.assign(new EventEmitter(), { isConnected: () => true, async newPage() { return page; }, async close() {} }) as unknown as Browser;
+  t.mock.method(chromium, "launch", async () => browser);
+
+  await runCapture({ folder, dist: folder, live: { storytree, project, lines: 3 }, views: [] });
+
+  assert.deepEqual((read.selection as { current: string }).current, project, "the page opens on the project the capture names");
+  assert.deepEqual(read.first, ["S5", "S6", "S7"], "the first activity read holds only the newest lines up to the bound");
+  assert.deepEqual(read.next, ["S8"], "a later read follows on from the first's cursor");
+  assert.deepEqual(read.changes, [["created", "Visitor can sign up"], ["updated", "Visitor can join today"]], "each record's creation and only its latest later change");
+  assert.deepEqual(read.tree, ["Visitor can join today"], "the other reads are the app's own, on the live library");
 });
 
 // PR #1279's macOS run: the browser disconnected, then browser.close() never returned and 3.35 hit its timeout.

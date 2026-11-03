@@ -154,6 +154,11 @@ test("17.19 · Friction marked about storytree answers with a pre-filled GitHub 
 
       const plain = await verbNamed("new").act({ title: "Plain", description: "Plain", statement: "Plain", evidence: "src/mail.ts: TimeoutError after 30 seconds", impact: "Plain" }, project, WORDS);
       assert.doesNotMatch(plain.text, /github\.com/, "friction not marked about storytree offers no draft");
+
+      const long = await verbNamed("new").act({ title: "Long", description: "Long", statement: "Long", evidence: `src/mail.ts: TimeoutError ${"x".repeat(5_000)}`, impact: "Long", "about-storytree": true }, project, WORDS);
+      const cut = new URL((long.data as { issueDraft: string }).issueDraft).searchParams.get("body")!;
+      assert.equal(cut.length, 4_001, "a long body is cut short of GitHub's link limit");
+      assert.ok(cut.endsWith("…"), "and says it was cut");
     });
   });
 });

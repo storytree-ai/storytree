@@ -8,6 +8,10 @@
  *
  * A checkout off main (a branch with work on it) builds nothing: its hooks are not what every session
  * on the machine should run. Hooks the app installed stay the app's.
+ *
+ * Whether the commit is main's is asked of origin itself when the checkout's own origin/main ref says no: a Claude Code
+ * cloud container starts from a clone cached when its image was made, fetches only the session's branch, and keeps that
+ * older origin/main, so a session cut from main as it is now read as off main and registered no hooks (2026-11-03).
  */
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readdirSync, realpathSync, renameSync, rmSync, statSync, symlinkSync } from "node:fs";
@@ -38,8 +42,9 @@ const APP_PAYLOAD = /[\\/]resources[\\/]agent-tools[\\/]/;
 /** The hook command built from `checkout`'s commit when it is origin/main's, building it if it is not built yet; otherwise undefined. */
 export async function builtFromMain(options: FollowMainOptions): Promise<HookCommand | undefined> {
   const head = commit(options.checkout, "HEAD");
-  if (head === undefined || head !== commit(options.checkout, "refs/remotes/origin/main")) return undefined;
+  if (head === undefined) return undefined;
   if (registeredHookScripts(options.homes ?? defaultHomes()).some((script) => APP_PAYLOAD.test(script))) return undefined;
+  if (head !== commit(options.checkout, "refs/remotes/origin/main") && head !== originMain(options.checkout)) return undefined;
   const builds = path.join(options.storytreeHome ?? storytreeHome(), "agent-tools");
   const dir = path.join(builds, head);
   const script = path.join(dir, "storytree-hook.mjs");
@@ -63,6 +68,19 @@ export async function builtFromMain(options: FollowMainOptions): Promise<HookCom
 function commit(checkout: string, ref: string): string | undefined {
   try {
     return execFileSync("git", ["rev-parse", "--verify", "--quiet", ref], { cwd: checkout, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"], windowsHide: true }).trim() || undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/** How long origin is given to say what its main is: the tool server waits on it before it serves. */
+const ORIGIN_ASK_MS = 10_000;
+
+/** The commit main names on origin now, asked of origin, or undefined where it cannot say in time; it never prompts for a sign-in. */
+function originMain(checkout: string): string | undefined {
+  try {
+    const listed = execFileSync("git", ["ls-remote", "origin", "refs/heads/main"], { cwd: checkout, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"], windowsHide: true, timeout: ORIGIN_ASK_MS, env: { ...process.env, GIT_TERMINAL_PROMPT: "0" } });
+    return listed.split(/\s/)[0] || undefined;
   } catch {
     return undefined;
   }

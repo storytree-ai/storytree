@@ -3,8 +3,8 @@
  * HTTPS where nothing but HTTPS gets out (a cloud session's container). Its connections are Neon's
  * WebSocket driver, `wss://<host>/v1?address=127.0.0.1:5432`: Cloudflare Access in front, checking the
  * service token the request carries; a tunnel to wsproxy on the library's box; Postgres on that box's
- * loopback, which is the only address wsproxy will reach. When HTTPS_PROXY is set, every socket is
- * opened through it with CONNECT.
+ * loopback, which is the only address wsproxy will reach. When HTTPS_PROXY is set, a socket is opened
+ * through it with CONNECT, unless its host is loopback or NO_PROXY names it (`proxyFor`).
  *
  * The outer TLS is checked against Node's authorities (ADR-0997 D1), and is all the TLS there is: the
  * driver never speaks Postgres's own, so an address asking for sslmode or sslrootcert is refused rather
@@ -12,6 +12,8 @@
  * never in plain text nor as an MD5 answer, and is never sent before the server asks (the driver's
  * pipelined connect would). What the spike found and why each choice is made: research_2dd40286e14b.
  */
+import { isIPv4 } from "node:net";
+
 import { Client as NeonClient, Pool as NeonPool } from "@neondatabase/serverless";
 import { resolveKey } from "@storytree/keys";
 import { HttpsProxyAgent } from "https-proxy-agent";
@@ -32,7 +34,7 @@ const TLS_PARAM = /^(ssl|uselibpqcompat)/i;
 
 /**
  * The transport for the wss:// address `url`: Neon's pool and a client that carries the Access token
- * through HTTPS_PROXY. Refused when the address asks for TLS settings or the token is not saved.
+ * through HTTPS_PROXY where `proxyFor` says. Refused when the address asks for TLS settings or the token is not saved.
  * `ca`, for tests alone, is an authority trusted besides Node's.
  */
 export function webSocketTransport(url: URL, ca?: string): Transport {
@@ -41,7 +43,7 @@ export function webSocketTransport(url: URL, ca?: string): Transport {
     throw new ConnectionError("config", `The library's address ${url.href} sets ${tls}, but a wss:// library has no TLS of Postgres's own: its TLS is the HTTPS connection's, checked against this computer's authorities. Take ${tls} out.`);
   }
   const headers = { "CF-Access-Client-Id": accessKey("id"), "CF-Access-Client-Secret": accessKey("secret") };
-  const proxy = process.env.HTTPS_PROXY || process.env.https_proxy || undefined;
+  const proxy = proxyFor(url);
   const host = url.host;
   const AccessWebSocket = accessWebSocket(headers, proxy, host, ca);
 
@@ -75,6 +77,43 @@ export function webSocketTransport(url: URL, ca?: string): Transport {
     }
   }
   return { Pool: WebSocketPool as unknown as typeof pg.Pool };
+}
+
+/**
+ * The proxy a connection to the wss:// address `url` goes through: HTTPS_PROXY's, unless the host is
+ * this machine's loopback or NO_PROXY names it (the upper-case variables first, then the lower-case).
+ * NO_PROXY is a comma-separated list of hosts, each covering its subdomains too (`.host` and `*.host`
+ * alike), optionally with a port, and `*` for every host, much as curl and Go read it; CIDR ranges are not read.
+ */
+export function proxyFor(url: URL, env: NodeJS.ProcessEnv = process.env): string | undefined {
+  const proxy = env.HTTPS_PROXY || env.https_proxy || undefined;
+  if (proxy === undefined) return undefined;
+  const host = bare(url.hostname);
+  if (loopback(host)) return undefined;
+  const port = url.port || "443";
+  const named = (env.NO_PROXY || env.no_proxy || "").split(",").map((entry) => entry.trim().toLowerCase()).filter((entry) => entry !== "");
+  return named.some((entry) => covers(entry, host, port)) ? undefined : proxy;
+}
+
+/** Whether the NO_PROXY entry `entry` covers `host` (lower case, unbracketed) at `port`. */
+function covers(entry: string, host: string, port: string): boolean {
+  if (entry === "*") return true;
+  // A port follows a bracketed IPv6 address or a name; a bare IPv6 address has colons of its own.
+  const ported = /^(\[[^\]]+\]|[^:]+):(\d+)$/.exec(entry);
+  if (ported !== null && ported[2] !== port) return false;
+  const name = bare(ported === null ? entry : ported[1]!).replace(/^\*?\./, "");
+  return host === name || host.endsWith(`.${name}`);
+}
+
+/** `hostname` in lower case without an IPv6 address's brackets or a name's trailing dot. */
+function bare(hostname: string): string {
+  return hostname.toLowerCase().replace(/^\[(.*)\]$/, "$1").replace(/\.$/, "");
+}
+
+/** Whether `host` (lower case, unbracketed) is this machine's loopback: localhost and its subdomains, 127.0.0.0/8, ::1. */
+function loopback(host: string): boolean {
+  if (host === "localhost" || host.endsWith(".localhost") || host === "::1") return true;
+  return isIPv4(host) && host.startsWith("127.");
 }
 
 /** The postgres:// form of the wss:// address `url`, for the pool's own settings: its user, host, database and options. */

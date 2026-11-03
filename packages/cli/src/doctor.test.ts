@@ -269,6 +269,21 @@ test("app-setup 8.42 in a folder whose marker names a project this computer's li
   });
 });
 
+test("app-setup 8.44 `doctor --set-up` on a folder whose code is only in languages the map cannot read says so, naming them and what still works", async () => {
+  await inWorld(command, async (world) => {
+    const user = aUser(world);
+    writeFileSync(path.join(world.elsewhere, "main.go"), "package main\n");
+    const project = uniqueProjectName();
+    try {
+      const told = await storytree(command.script, ["doctor", "--set-up", project], { cwd: world.elsewhere, home: world.home, env: user.env });
+      assert.equal(told.code, 0, told.stderr);
+      assert.match(told.stdout, /storytree's map reads JavaScript, TypeScript and Python, and this folder's code is in Go, so the map will not draw that code: planning by hand still works, and so does health from what the agent reports\./);
+    } finally {
+      await dropTestProjects([project]);
+    }
+  });
+});
+
 test("8.6 with Codex's hooks registered and none of them run yet, it names the one step that lets Codex run them (Session management 8.16)", async () => {
   await inWorld(command, async (world) => {
     const user = aUser(world);

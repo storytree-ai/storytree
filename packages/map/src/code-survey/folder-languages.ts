@@ -12,16 +12,16 @@ import { gitText, SKIPPED } from "./survey-source.js";
 /** The most files a walk outside a checkout reads the names of. */
 const WALK_LIMIT = 20_000;
 
-/** The languages `folder`'s code is in: those the survey reads, and those it cannot. */
-export async function folderLanguages(folder: string): Promise<{ readonly read: string[]; readonly unread: string[] }> {
+/** The languages `folder`'s code is in: those the survey reads, and those it cannot; a walk stops once it has `walkLimit` files. */
+export async function folderLanguages(folder: string, { walkLimit = WALK_LIMIT }: { walkLimit?: number } = {}): Promise<{ readonly read: string[]; readonly unread: string[] }> {
   const tracked = await gitText(folder, ["ls-files", "-z", "--cached", "--others", "--exclude-standard"]).then((text) => text.split("\0").filter(Boolean), () => undefined);
-  return languagesOf(tracked ?? (await walked(folder)));
+  return languagesOf(tracked ?? (await walked(folder, walkLimit)));
 }
 
-async function walked(folder: string): Promise<string[]> {
+async function walked(folder: string, limit: number): Promise<string[]> {
   const files: string[] = [];
   const folders = [folder];
-  while (folders.length > 0 && files.length < WALK_LIMIT) {
+  while (folders.length > 0 && files.length < limit) {
     const at = folders.shift()!;
     for (const entry of await readdir(at, { withFileTypes: true }).catch(() => [])) {
       if (entry.isDirectory() && !entry.name.startsWith(".") && !SKIPPED.has(entry.name)) folders.push(path.join(at, entry.name));

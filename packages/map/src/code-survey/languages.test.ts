@@ -43,6 +43,9 @@ test("8.53 · the languages named as read are exactly those whose files the surv
     const loose = path.join(root, "loose");
     await write(loose, { "cmd/main.go": "package main", "node_modules/x/index.js": "", ".tools/run.py": "", "db/q.sql": "" });
     assert.deepEqual(await folderLanguages(loose), { read: [], unread: ["Go", "SQL"] });
+    // A walk is bounded: it stops at its limit once the folder it is reading is read, nearest folders first.
+    await write(loose, { "top.rs": "" });
+    assert.deepEqual(await folderLanguages(loose, { walkLimit: 1 }), { read: [], unread: ["Rust"] }, "the top's file reaches the limit before any folder is read");
 
     // A checkout's code is its files Git lists: tracked or new, never ignored.
     const checkout = path.join(root, "checkout");

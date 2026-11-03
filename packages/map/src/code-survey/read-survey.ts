@@ -37,12 +37,17 @@ import { fileURLToPath } from "node:url";
 import { Worker } from "node:worker_threads";
 import { gitText, manifestFrom, noMergedMain, SKIPPED, surveySourceReader, type SurveySource } from "./survey-source.js";
 import { mappedCode, mappedSurveyReader, type ImportedFolder, type MappedStory } from "./mapped-survey.js";
-import { pyprojectFrom } from "./python-reader.js";
+import { usePythonParser } from "./python-reader.js";
+import { pyprojectFrom } from "./pyproject.js";
+import { parsePythonNow, pythonLanguage } from "./tree-sitter.js";
 import { pytestTestedNumbers } from "./python-tests.js";
 
 import type { AnnotatedTree, StorySurvey } from "@storytree/library";
 
 import { ALSO_OWNED, declaredNumberOf, declaresTitle, dependenciesOf, isCodeFile, isTestFile, packageOf, packagesOf, readersReady, readsFile, storyEdges, surveyStory, type CoverageMap, type SourceFile, type SurveyPackage } from "./code-survey.js";
+
+// The survey reads Python with tree-sitter, loaded here, where it runs on Node (8.50).
+usePythonParser({ load: pythonLanguage, parse: parsePythonNow });
 
 /** Each story's survey, by story id; a story with no package is absent. */
 export type ProjectSurvey = Readonly<Record<string, StorySurvey>>;

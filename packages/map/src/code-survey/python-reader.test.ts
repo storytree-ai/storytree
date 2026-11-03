@@ -14,7 +14,7 @@ import type { AnnotatedTree } from "@storytree/library";
 
 import { readersReady } from "./code-survey.js";
 import { pythonReader } from "./python-reader.js";
-import { capabilitiesOfFiles, codeSurveyReader } from "./read-survey.js";
+import { capabilitiesOfFiles, codeSurveyReader, storyTests } from "./read-survey.js";
 
 async function write(folder: string, files: Readonly<Record<string, string>>): Promise<void> {
   for (const [file, text] of Object.entries(files)) {
@@ -25,6 +25,22 @@ async function write(folder: string, files: Readonly<Record<string, string>>): P
 
 const story = (id: string, title: string, capabilities: readonly string[] = ["1 · Value"]) =>
   ({ id, title, capabilities: capabilities.map((name, at) => ({ id: `${id}-cap-${at + 1}`, title: name })) });
+
+// First in its file, so the grammar has not loaded when it runs: reading a mapped story's tests loads it itself.
+test("8.44, 8.50 reading a mapped Python story's tests loads the Python reader's grammar before it surveys their imports", async () => {
+  const folder = await mkdtemp(path.join(tmpdir(), "python-mapped-tests-"));
+  try {
+    await write(folder, {
+      "src/shop/total.py": "def total(lines):\n    return sum(lines)\n",
+      "tests/test_total.py": "from shop.total import total\n\n\ndef test_1_1_totals():\n    assert total([1]) == 1\n",
+    });
+    const shop = { ...story("story-shop", "Shop"), mapped: { from: folder, package: ".", folders: ["."] } };
+    const plan = { arcs: [], stories: [shop] } as unknown as AnnotatedTree;
+    assert.deepEqual(await storyTests(folder, plan, "story-shop-cap-1"), { numbers: [], seen: true });
+  } finally {
+    await removeTemp(folder);
+  }
+});
 
 test("8.50 a built Python story's imports are edges in its survey: import a.b, from a import y (a submodule, else the package), a wildcard, relative levels, nested imports and namespace packages, searched from its src/ then its root; a mapped island's from src/ then the top", async () => {
   const folder = await mkdtemp(path.join(tmpdir(), "python-survey-"));
@@ -62,6 +78,7 @@ test("8.50 a built Python story's imports are edges in its survey: import a.b, f
     const paths = new Set(["src/shop/a.py", "src/shop/b.py", "lib/c.py"]);
     await readersReady(paths);
     assert.deepEqual(pythonReader.edgesOf({ path: "src/shop/a.py", text: "import shop.b\nimport lib.c\n" }, paths, []).map((edge) => edge.to), ["src/shop/b.py", "lib/c.py"]);
+    assert.deepEqual(pythonReader.edgesOf({ path: "lib/c.py", text: "from ... import shop\nfrom .... import b\n" }, paths, []), [], "a relative import that climbs above the top reaches nothing");
   } finally {
     await removeTemp(folder);
   }
@@ -95,12 +112,20 @@ test("8.52 a built Python story's pyproject.toml makes roads to the stories whos
       "packages/checkout/src/checkout/__init__.py": "x = 1\n",
       "packages/pricing/pyproject.toml": "[project]\nname = \"pricing\"\n\n[tool.uv.sources]\nShop-Cart = { workspace = true }\nrequests = { git = \"https://example.com/requests\" }\n",
       "packages/pricing/src/pricing/__init__.py": "x = 1\n",
+      "packages/broken/pyproject.toml": "[project\nname = \"shop.cart\"\n",
+      "packages/broken/src/broken/__init__.py": "x = 1\n",
+      "packages/nameless/pyproject.toml": "[project]\ndependencies = [\"shop-cart\"]\n",
+      "packages/nameless/src/nameless/__init__.py": "x = 1\n",
     });
-    const plan = { arcs: [], stories: [story("story-cart", "Cart"), story("story-checkout", "Checkout"), story("story-pricing", "Pricing")] } as unknown as AnnotatedTree;
+    const plan = { arcs: [], stories: [story("story-cart", "Cart"), story("story-checkout", "Checkout"), story("story-pricing", "Pricing"), story("story-broken", "Broken"), story("story-nameless", "Nameless")] } as unknown as AnnotatedTree;
     const survey = await codeSurveyReader().read(folder, plan);
     assert.deepEqual(survey["story-checkout"]?.dependsOn, ["story-cart"]);
     assert.deepEqual(survey["story-pricing"]?.dependsOn, ["story-cart"]);
     assert.deepEqual(survey["story-cart"]?.dependsOn, []);
+    for (const id of ["story-broken", "story-nameless"]) {
+      assert.equal(survey[id]?.files.length, 1, `${id} is still surveyed`);
+      assert.equal(survey[id]?.dependsOn, undefined, `${id}'s pyproject.toml, no TOML or naming no project, is no package`);
+    }
   } finally {
     await removeTemp(folder);
   }

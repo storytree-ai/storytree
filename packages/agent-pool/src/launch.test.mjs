@@ -554,6 +554,24 @@ test("3.28 · a dispatcher configured with its own checkout and lanes folder bri
   assert.ok(b.briefs[0].endsWith(`Work from C:/no-such-folder/storytree03, never C:/no-such-folder/storytree03-wt. Your report goes to ${join(b.lanesDir, ".storytree", "agent-pool")}/pool-<increment>.report.md.\n`), b.briefs[0]);
 });
 
+test("3.28 · a dispatcher whose machine names its own brief folder briefs its lanes from the copy there, and from the base's where it holds none", async (t) => {
+  const b = await box(t, { survey: async () => poolWork(["one"]), count: async () => 0 });
+  b.briefsDir = await folder(t);
+  b.briefPaths = { checkout: "/srv/shop", lanes: "/srv/lanes" };
+  await writeFile(join(b.briefsDir, "pool-brief.md"), "This machine's own rules: work from {checkout}.\n");
+  b.sleep = async () => { await new Promise((go) => setImmediate(go)); if (b.briefs.length) await writeFile(join(b.lanesDir, "pool-stop"), ""); };
+  assert.equal(await main(["pool"], b), 0);
+  assert.ok(b.briefs[0].endsWith("This machine's own rules: work from /srv/shop.\n"), b.briefs[0]);
+
+  const base = await box(t, { survey: async () => poolWork(["one"]), count: async () => 0 });
+  base.briefsDir = await folder(t);
+  base.briefPaths = { checkout: "/srv/shop", lanes: "/srv/lanes" };
+  base.sleep = async () => { await new Promise((go) => setImmediate(go)); if (base.briefs.length) await writeFile(join(base.lanesDir, "pool-stop"), ""); };
+  assert.equal(await main(["pool"], base), 0);
+  assert.match(base.briefs[0], /Rules for every pool lane \(ADR-0955\)/, "a folder without the brief leaves the base's");
+  assert.doesNotMatch(base.briefs[0], /\{checkout\}|\{lanes\}/, "its folders are filled in");
+});
+
 test("3.28 · a dispatcher whose checkout is a linked worktree runs and briefs its lanes from the repository's main worktree, where make_workspace accepts them", async (t) => {
   const main_ = join(await folder(t), "main"), linked = join(await folder(t), "dispatcher");
   const git = (...args) => run("git", args, { cwd: main_ });

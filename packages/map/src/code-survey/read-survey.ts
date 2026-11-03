@@ -37,11 +37,17 @@ import { fileURLToPath } from "node:url";
 import { Worker } from "node:worker_threads";
 import { gitText, manifestFrom, noMergedMain, SKIPPED, surveySourceReader, type SurveySource } from "./survey-source.js";
 import { mappedCode, mappedSurveyReader, type ImportedFolder, type MappedStory } from "./mapped-survey.js";
+import { usePythonParser } from "./python-reader.js";
+import { pyprojectFrom } from "./pyproject.js";
+import { parsePythonNow, pythonLanguage } from "./tree-sitter.js";
 import { pytestTestedNumbers } from "./python-tests.js";
 
 import type { AnnotatedTree, StorySurvey } from "@storytree/library";
 
-import { ALSO_OWNED, declaredNumberOf, declaresTitle, dependenciesOf, isCodeFile, isTestFile, packageOf, packagesOf, readsFile, storyEdges, surveyStory, type CoverageMap, type SourceFile, type SurveyPackage } from "./code-survey.js";
+import { ALSO_OWNED, declaredNumberOf, declaresTitle, dependenciesOf, isCodeFile, isTestFile, packageOf, packagesOf, readersReady, readsFile, storyEdges, surveyStory, type CoverageMap, type SourceFile, type SurveyPackage } from "./code-survey.js";
+
+// The survey reads Python with tree-sitter, loaded here, where it runs on Node (8.50).
+usePythonParser({ load: pythonLanguage, parse: parsePythonNow });
 
 /** Each story's survey, by story id; a story with no package is absent. */
 export type ProjectSurvey = Readonly<Record<string, StorySurvey>>;
@@ -87,7 +93,7 @@ export async function capabilitiesOfFiles(root: string, files: readonly string[]
     const number = declaredNumberOf({ path: file, text }, packagesOf(story, alsoOwned));
     const numbered = number === undefined ? undefined : story.capabilities.find(({ title }) => Number(/^\s*(\d+)\s*·/.exec(title)?.[1]) === number);
     // A source file's header must name the capability its number does here; a test file's numbers carry no title.
-    const declared = numbered !== undefined && (isTestFile(file) || declaresTitle(text, numbered.title)) ? numbered : undefined;
+    const declared = numbered !== undefined && (isTestFile(file) || declaresTitle({ path: file, text }, numbered.title)) ? numbered : undefined;
     if (declared === undefined) undeclared.push(file);
     else owners.set(file, { capability: declared.id, inferred: false });
   }
@@ -216,7 +222,9 @@ export async function storyTests(root: string, tree: AnnotatedTree, capability: 
     const mapped = story as MappedStory;
     const from = await importFolder(root, mapped.mapped.from, imports);
     if (from === undefined) return { numbers: [], seen: false };
-    const measured = surveyStory(await mappedCode(mapped, from, tree.stories, (file) => readFile(file, "utf8")), story.capabilities, {}, own);
+    const code = await mappedCode(mapped, from, tree.stories, (file) => readFile(file, "utf8"));
+    await readersReady(code.map((file) => file.path));
+    const measured = surveyStory(code, story.capabilities, {}, own);
     const numbers = (measured.tests ?? []).flatMap((test) => test.titles.filter((title) => title.package === undefined || own.includes(title.package)).map((title) => title.number));
     return { numbers, seen: true };
   }
@@ -500,13 +508,18 @@ async function declaredPlumbing(source: SurveySource, checkout: string): Promise
       const beside = (await Promise.all(roots.map((dir) => codeBeside(source, dir, dir)))).flat();
       const manifestPaths = [...roots.map((dir) => path.join(dir, "package.json")), ...(storyPackage === "app" ? [path.join(checkout, "apps", "desktop", "package.json")] : [])];
       const manifests = await Promise.all(manifestPaths.map((file) => fileAt(source, root, file, seen)));
+      // A Python package's pyproject.toml names its project and the projects it depends on (8.52).
+      const pyprojects = await Promise.all(roots.map((dir) => fileAt(source, root, path.join(dir, "pyproject.toml"), seen)));
       const maps = await Promise.all(roots.map((dir) => fileAt(source, root, path.join(dir, COVERAGE_MAP), seen)));
       const capabilities = JSON.stringify(story.capabilities.map(({ id, title }) => [id, title]));
       const last = surveyed.get(story.id);
       const read = manifests.flatMap((file) => {
         const manifest = file === undefined ? undefined : manifestFrom(file.text);
         return manifest === undefined ? [] : [{ ...manifest, root: path.posix.dirname(path.posix.normalize(`packages/${storyPackage}/${file!.path}`)) + "/" }];
-      });
+      }).concat(pyprojects.flatMap((file) => {
+        const project = file === undefined ? undefined : pyprojectFrom(file.text);
+        return project === undefined ? [] : [{ ...project, imports: {}, parts: {}, root: path.posix.dirname(path.posix.normalize(`packages/${storyPackage}/${file!.path}`)) + "/" }];
+      }));
       // Survey in repository coordinates so imports crossing the app/desktop seam can return to
       // packages/app; publish the package-relative paths the forest and map already consume.
       const base = `packages/${storyPackage}`;
@@ -524,6 +537,7 @@ async function declaredPlumbing(source: SurveySource, checkout: string): Promise
       const outside = new Map(beside.map(full => [path.relative(checkout, full).split(path.sep).join("/"), full]));
       const loaded = new Map(sources.map(file => [inCheckout(file.path), file]));
       const paths = new Set([...loaded.keys(), ...outside.keys()].filter(isCodeFile));
+      await readersReady(paths);
       const queue = [...paths].filter(isTestFile);
       const visited = new Set(queue);
       for (const name of queue) {

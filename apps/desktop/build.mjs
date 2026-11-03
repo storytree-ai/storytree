@@ -8,6 +8,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { build } from "esbuild";
+import { embedTreeSitterWasm } from "@storytree/map/tree-sitter-bundle";
 import { mainBuild, preloadBuild } from "./src/main/bundles.ts";
 import { pageBuild } from "./src/renderer/page-build.ts";
 import { roadWorkerBuild } from "./src/renderer/road-worker.ts";
@@ -32,6 +33,8 @@ await build({
   platform: "node",
   format: "cjs",
   target: "node22",
+  // The survey parses Python with tree-sitter, whose wasm the bundle carries in itself (map 8.48).
+  plugins: [embedTreeSitterWasm()],
 });
 
 await build({ ...common, ...preloadBuild(dist) });

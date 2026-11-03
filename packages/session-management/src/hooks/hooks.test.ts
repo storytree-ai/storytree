@@ -1298,18 +1298,16 @@ test("3.52 over a wss:// library a hook that finds another hook holding the mach
     setLibrary(["postgres", "wss://storytree_library@127.0.0.1:9/postgres"], home);
     const input = recorded("claude-code", "post-tool-use-bash", folder);
     const session = (JSON.parse(input) as { session_id: string }).session_id;
-    // Straight to that address, as on a machine with no proxy, so the refusal comes at once.
-    const direct = { HTTPS_PROXY: undefined, https_proxy: undefined };
     const release = takeTurn(home);
     assert.ok(release !== undefined);
     try {
-      assert.equal((await runHook("claude-code", input, home, [AFTER_TOOL], direct)).code, 0);
+      assert.equal((await runHook("claude-code", input, home, [AFTER_TOOL])).code, 0);
       assert.deepEqual(hookFailures(home, session).filter((failure) => failure.stage === "reach"), [], "the turn was held: the library was not reached");
       assert.equal(readdirSync(queueFolder(home)).filter((name) => name.endsWith(".jsonl")).length, 1, "its line waits on this machine");
     } finally {
       release();
     }
-    assert.equal((await runHook("claude-code", input, home, [AFTER_TOOL], direct)).code, 0);
+    assert.equal((await runHook("claude-code", input, home, [AFTER_TOOL])).code, 0);
     assert.equal(hookFailures(home, session).filter((failure) => failure.stage === "reach").length, 1, "the turn was free: the library was reached for");
     assert.equal(readdirSync(queueFolder(home)).filter((name) => name.endsWith(".jsonl")).length, 2);
   });

@@ -26,6 +26,7 @@ import { createTestRole, dropTestDatabases, dropTestRoles, testRoleUrl, testServ
 import { addressServer, connectionString } from "./address.js";
 import { ConnectionError } from "./connection-error.js";
 import { vectorServerIdentity } from "./embeddings.js";
+import { proxyFor } from "./websocket.js";
 
 const TLS = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "testing", "tls");
 const CA = readFileSync(path.join(TLS, "trusted-ca.crt"), "utf8");
@@ -107,7 +108,7 @@ async function proxy(allow = ["library.test"]): Promise<{ url: string; connects:
 function home(): string {
   const made = mkdtempSync(path.join(tmpdir(), "storytree-wss-"));
   process.env.STORYTREE_HOME = made;
-  for (const name of ["PGPASSWORD", "CF_ACCESS_CLIENT_ID", "CF_ACCESS_CLIENT_SECRET", "HTTPS_PROXY", "https_proxy"]) delete process.env[name];
+  for (const name of ["PGPASSWORD", "CF_ACCESS_CLIENT_ID", "CF_ACCESS_CLIENT_SECRET", "HTTPS_PROXY", "https_proxy", "NO_PROXY", "no_proxy"]) delete process.env[name];
   return made;
 }
 
@@ -271,6 +272,84 @@ test("15.6 a wss:// library that asks for the password in plain text is refused 
     await server?.admin.end().catch(() => {});
     for (const socket of sockets) socket.destroy();
     await Promise.all([front.close(), agent.close(), new Promise((resolve) => asker.close(resolve))]);
+    await removeTemp(keys);
+  }
+});
+
+test("15.6 a wss:// address skips HTTPS_PROXY for a loopback host and for a host NO_PROXY names, in its usual forms", () => {
+  const proxy = "http://proxy.example:8080";
+  const via = (address: string, noProxy?: string, lower = false) =>
+    proxyFor(new URL(address), { HTTPS_PROXY: lower ? undefined : proxy, https_proxy: lower ? proxy : undefined, NO_PROXY: lower ? undefined : noProxy, no_proxy: lower ? noProxy : undefined });
+
+  assert.equal(via("wss://library.example/postgres"), proxy, "a remote host goes through the proxy");
+  assert.equal(via("wss://library.example/postgres", undefined, true), proxy, "https_proxy is read too");
+  assert.equal(proxyFor(new URL("wss://library.example/postgres"), {}), undefined, "no proxy set: direct");
+  for (const loopback of ["127.0.0.1", "127.8.9.10", "[::1]", "localhost", "LocalHost", "db.localhost"]) {
+    assert.equal(via(`wss://${loopback}:8443/postgres`), undefined, `${loopback} is loopback`);
+  }
+  assert.equal(via("wss://library.example/postgres", "library.example"), undefined, "a named host");
+  assert.equal(via("wss://library.example/postgres", "other.example, library.example"), undefined, "a list, spaced");
+  assert.equal(via("wss://library.example/postgres", "LIBRARY.EXAMPLE"), undefined, "any case");
+  assert.equal(via("wss://box.library.example/postgres", "library.example"), undefined, "a name covers its subdomains");
+  assert.equal(via("wss://box.library.example/postgres", ".library.example"), undefined, "a leading dot is a suffix");
+  assert.equal(via("wss://library.example/postgres", ".library.example"), undefined, "and covers the name itself");
+  assert.equal(via("wss://box.library.example/postgres", "*.library.example"), undefined, "a leading *. is a suffix");
+  assert.equal(via("wss://library.example/postgres", "*"), undefined, "* names every host");
+  assert.equal(via("wss://library.example:8443/postgres", "library.example:8443"), undefined, "a host with its port");
+  assert.equal(via("wss://library.example/postgres", "library.example:443"), undefined, "wss's own port when none is written");
+  assert.equal(via("wss://10.0.0.7/postgres", "10.0.0.7"), undefined, "an address");
+  assert.equal(via("wss://[fd00::7]/postgres", "fd00::7"), undefined, "an IPv6 address, bare");
+  assert.equal(via("wss://[fd00::7]/postgres", "[fd00::7]:443"), undefined, "an IPv6 address, bracketed with its port");
+
+  assert.equal(via("wss://library.example:8443/postgres", "library.example:9443"), proxy, "another port is not named");
+  assert.equal(via("wss://notlibrary.example/postgres", "library.example"), proxy, "a suffix matches at a dot only");
+  assert.equal(via("wss://library.example/postgres", "other.example,,"), proxy, "an unnamed host still goes through");
+  assert.equal(via("wss://library.example/postgres", ""), proxy, "an empty NO_PROXY names nothing");
+});
+
+/** A listener on 127.0.0.1 that counts the connections it is dialled with, then hangs up. */
+async function listener(): Promise<{ port: number; dialled: () => number; close: () => Promise<void> }> {
+  let dialled = 0;
+  const sockets = new Set<Socket>();
+  const server = createServer((socket) => { dialled += 1; sockets.add(socket); socket.on("error", () => {}); socket.destroy(); });
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  return {
+    port: (server.address() as { port: number }).port,
+    dialled: () => dialled,
+    close: () => new Promise((resolve) => { for (const socket of sockets) socket.destroy(); server.close(() => resolve()); }),
+  };
+}
+
+test("15.6 with HTTPS_PROXY set, a wss:// address on a loopback host or one NO_PROXY names is dialled directly, and a remote one still through the proxy", async () => {
+  const keys = home();
+  const direct = await listener();
+  const agent = await proxy(["library.test", "127.0.0.1", "localhost"]);
+  const opened: ReturnType<typeof addressServer>[] = [];
+  const reach = async (address: string) => {
+    const server = addressServer(address, 5_000, {}, undefined, CA);
+    opened.push(server);
+    await assert.rejects(server.admin.query("SELECT 1"));
+  };
+  try {
+    saveKey("postgres", "synthetic-password", { home: keys });
+    saveToken(keys);
+    process.env.HTTPS_PROXY = agent.url;
+
+    await reach(`wss://someone@127.0.0.1:${direct.port}/postgres`);
+    await reach(`wss://someone@localhost:${direct.port}/postgres`);
+    assert.deepEqual(agent.connects, [], "loopback went through the proxy");
+    assert.ok(direct.dialled() >= 2, `the loopback listener was dialled ${direct.dialled()} times`);
+
+    process.env.NO_PROXY = "elsewhere.test, .test";
+    await reach(`wss://someone@library.test:${direct.port}/postgres`);
+    assert.deepEqual(agent.connects, [], "a host NO_PROXY names went through the proxy");
+
+    process.env.NO_PROXY = "elsewhere.test";
+    await reach(`wss://someone@library.test:${direct.port}/postgres`);
+    assert.ok(agent.connects.length > 0 && agent.connects.every((target) => target === `library.test:${direct.port}`), agent.connects.join());
+  } finally {
+    await Promise.allSettled(opened.map((server) => server.admin.end()));
+    await Promise.all([direct.close(), agent.close()]);
     await removeTemp(keys);
   }
 });

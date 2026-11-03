@@ -272,6 +272,9 @@ test("app-setup 8.42 in a folder whose marker names a project this computer's li
 test("8.6 with Codex's hooks registered and none of them run yet, it names the one step that lets Codex run them (Session management 8.16)", async () => {
   await inWorld(command, async (world) => {
     const user = aUser(world);
+    // Codex is connected: its settings carry storytree's hooks, an older build's (8.43).
+    const other = path.join(user.home, "older", "storytree-hook.mjs");
+    writeFileSync(path.join(user.home, ".codex", "hooks.json"), `${JSON.stringify({ hooks: { SessionStart: [{ hooks: [{ type: "command", command: `node ${other} codex` }] }] } }, null, 2)}\n`);
 
     const ran = await world.run(["doctor", "--repair"], user.env);
 
@@ -283,12 +286,14 @@ test("8.6 with Codex's hooks registered and none of them run yet, it names the o
 test("8.4 a second run changes nothing", async () => {
   await inWorld(command, async (world) => {
     const user = aUser(world);
-    const first = await world.run(["doctor", "--repair"], user.env);
+    // Run from a Claude Code session's shell, so Claude Code is connected by asking (8.43).
+    const env = { ...user.env, CLAUDECODE: "1" };
+    const first = await world.run(["doctor", "--repair"], env);
     assert.equal(first.code, 0, first.stderr);
     assert.ok(existsSync(path.join(user.home, ".claude", "settings.json")), `the first run registered storytree's hooks:\n${first.stdout}`);
     const after = snapshot(user.home, world.folder);
 
-    const second = await world.run(["doctor", "--repair"], user.env);
+    const second = await world.run(["doctor", "--repair"], env);
 
     assert.equal(second.code, 0, second.stderr);
     assert.deepEqual(snapshot(user.home, world.folder), after);
@@ -308,7 +313,8 @@ test("8.7 run plain, the doctor leaves another build's hooks in an agent's setti
     assert.equal(looked.code, 0, looked.stderr);
     assert.deepEqual(snapshot(user.home), before, `the plain doctor changed an agent's files:\n${looked.stdout}`);
     assert.ok(looked.stdout.includes(`Hooks for Codex: another build's hooks, which run ${other}; left as they are (\`storytree doctor --repair\` registers storytree's).`), looked.stdout);
-    assert.match(looked.stdout, /Hooks for Claude Code: not registered; left as they are/);
+    // A Claude Code with none of storytree's hooks, the doctor run from no session of it, is not connected: named, never wired (8.43).
+    assert.match(looked.stdout, /Hooks for Claude Code: none, since it is not connected to storytree \(Help → Connect Claude Code in the app, or `storytree setup connect --claude`, connects it\)/);
 
     const repaired = await world.run(["doctor", "--repair"], user.env);
 

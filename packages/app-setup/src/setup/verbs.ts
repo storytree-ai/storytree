@@ -43,7 +43,7 @@ function hooksSaid(report: SetupReport): string[] {
     const state = report.hooks![harness];
     const replaced = report.hooks!.replaced?.[harness] ?? [];
     const scripts = replaced.join(" and ");
-    return `Hooks for ${HARNESSES[harness]}: ${state === "registered" ? `registered now${scripts === "" ? "" : `, replacing another build's hooks, which ran ${scripts}`}` : state === "would register" ? `${scripts === "" ? "not registered" : `another build's hooks, which run ${scripts}`}; left as they are (\`storytree doctor --repair\` registers storytree's)` : state === "already registered" ? "registered" : state === "disconnected" ? "none, since you disconnected it (`storytree setup connect` connects it again)" : "not installed on this machine"}.`;
+    return `Hooks for ${HARNESSES[harness]}: ${state === "registered" ? `registered now${scripts === "" ? "" : `, replacing another build's hooks, which ran ${scripts}`}` : state === "would register" ? `${scripts === "" ? "not registered" : `another build's hooks, which run ${scripts}`}; left as they are (\`storytree doctor --repair\` registers storytree's)` : state === "already registered" ? "registered" : state === "disconnected" ? "none, since you disconnected it (`storytree setup connect` connects it again)" : state === "not connected" ? `none, since it is not connected to storytree (Help → Connect ${HARNESSES[harness]} in the app, or \`storytree setup connect --${harness === "claude-code" ? "claude" : harness}\`, connects it)` : "not installed on this machine"}.`;
   });
   const server = report.lines.find((line) => line.check === "codex-server" && line.fix !== undefined);
   if (server !== undefined) said.push(`${server.message} Fix: ${server.fix}`);
@@ -161,7 +161,8 @@ export const DOCTOR = verb({
       folder: context.folder,
       look: input.repair !== true,
       // Run from a Claude Code session's shell, which Claude Code strips of its CLAUDE_CODE_OAUTH_TOKEN, that session is the asking one (8.11).
-      ...(process.env.CLAUDECODE === "1" ? { asking: "claude" as const } : {}),
+      // and its harness is connected by asking, so --repair registers its hooks even where it has none yet (8.43).
+      ...(process.env.CLAUDECODE === "1" ? { asking: "claude" as const, calling: "claude-code" as const } : {}),
       ...(hook === undefined ? {} : { hook: { node: process.execPath, script: hook }, command: { path: process.env.PATH ?? process.env.Path ?? "", home: homedir() } }),
     });
     if (report.storytree.state === "not running") throw new VerbRefusal(report.storytree.message);

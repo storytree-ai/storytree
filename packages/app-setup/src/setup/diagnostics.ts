@@ -16,6 +16,9 @@ export interface SetupLine {
   readonly fix?: string;
 }
 
+/** Each harness's switch on `storytree setup connect`. */
+const CONNECT_FLAG: Record<Harness, string> = { "claude-code": "claude", codex: "codex", cursor: "cursor", pi: "pi", antigravity: "antigravity" };
+
 export function setupLines(report: Omit<SetupReport, "lines">): SetupLine[] {
   const { storytree, hooks, codexServer, codexHooks, command, gh, machine, project } = report;
   const lines: SetupLine[] = [storytree.state === "not running"
@@ -53,7 +56,14 @@ export function setupLines(report: Omit<SetupReport, "lines">): SetupLine[] {
         "Obvious secrets (API keys, bearer and OAuth tokens, private keys, connection-string passwords) are scrubbed before they leave this machine; " +
         "the scrub is best-effort, not a guarantee, so a secret in another shape can still reach the log. Raw transcript records are kept 180 days." });
     }
-    if (hooks.statusLine === "would install") lines.push({ check: "status-line", state: "needs-attention", message: "storytree's status line is not installed in Claude Code. This check changed nothing.", fix: "Run `storytree doctor --repair` to install it." });
+    // An agent on this computer the user has not connected: said, never a fix, so no agent connects it unasked (8.43).
+    for (const harness of HARNESS_IDS.filter((each) => hooks[each] === "not connected")) {
+      const agent = watchedHarness(harness)?.label ?? harness;
+      lines.push({ check: "hooks", state: "note", message: `${agent} is on this computer and not connected to storytree, so its hooks were left alone. To connect it: Help → Connect ${agent} in the app, or \`storytree setup connect --${CONNECT_FLAG[harness]}\`.` });
+    }
+    if (hooks.statusLine === "not here") {
+      // No Claude Code, or one not connected: no status line to speak of.
+    } else if (hooks.statusLine === "would install") lines.push({ check: "status-line", state: "needs-attention", message: "storytree's status line is not installed in Claude Code. This check changed nothing.", fix: "Run `storytree doctor --repair` to install it." });
     else lines.push({ check: "status-line", state: hooks.statusLine === "installed" ? "fixed" : "ok", message: hooks.statusLine === "installed"
       ? "storytree's status line was installed in Claude Code: it shows from the next session."
       : hooks.statusLine === "the user's own kept"

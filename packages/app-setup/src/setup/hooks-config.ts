@@ -64,10 +64,11 @@ export interface HookCommand {
 
 /**
  * What registering found: storytree's hooks added now, already there, no such harness on this
- * machine, or a harness the user disconnected from storytree, whose hooks stay out. A look that
- * writes nothing says "would register" where registering would have changed the harness's file.
+ * machine, a harness the user disconnected from storytree, whose hooks stay out, or one on this machine
+ * the user never connected, whose files are left alone (8.43). A look that writes nothing says
+ * "would register" where registering would have changed the harness's file.
  */
-export type HookRegistration = "registered" | "already registered" | "would register" | "not here" | "disconnected";
+export type HookRegistration = "registered" | "already registered" | "would register" | "not here" | "disconnected" | "not connected";
 
 /** A harness storytree connects to: one Session management describes (decision_057bc7ad0a8c D1). */
 import type { Harness } from "@storytree/project-and-caller/caller";
@@ -114,22 +115,25 @@ interface HookEntry {
 type Settings = Record<string, unknown> & { hooks?: Record<string, HookEntry[]> };
 
 /**
- * Register storytree's hooks for each harness whose home is here, replacing any older registration
- * of them, and install storytree's status line in Claude Code where the user has none of their own.
+ * Register storytree's hooks in each harness's settings, replacing any older registration of them, and install storytree's
+ * status line in Claude Code where the user has none of their own; with `look`, write nothing and say what registering would
+ * change ("would register", with the other build's hook scripts it would replace). A harness `disconnected` names, or one
+ * `unconnected` names, has nothing of its own written (8.43).
  */
-/**
- * Register storytree's hooks in each harness's settings; with `look`, write nothing and say what registering would
- * change ("would register", with the other build's hook scripts it would replace).
- */
-export function registerHooks(homes: Homes, hook: HookCommand, disconnected: ReadonlySet<Harness> = new Set(), codexVersion?: string, look = false): HooksReport {
-  const claude = disconnected.has("claude-code") ? { registration: "disconnected" as const, replaced: [] } : register(homes.claude, "settings.json", claudeEntries(hook), hook.script, {}, look);
+export function registerHooks(homes: Homes, hook: HookCommand, disconnected: ReadonlySet<Harness> = new Set(), codexVersion?: string, look = false, unconnected: ReadonlySet<Harness> = new Set()): HooksReport {
+  const home = { "claude-code": homes.claude, codex: homes.codex, cursor: homes.cursor, pi: homes.pi, antigravity: homes.antigravity } as const;
+  const left = (harness: Harness): { registration: HookRegistration; replaced: string[] } | undefined =>
+    disconnected.has(harness) ? { registration: "disconnected", replaced: [] }
+      : unconnected.has(harness) ? { registration: isFolder(home[harness]) ? "not connected" : "not here", replaced: [] }
+        : undefined;
+  const claude = left("claude-code") ?? register(homes.claude, "settings.json", claudeEntries(hook), hook.script, {}, look);
   // storytree's red and green builder agents go with Claude Code's hooks (8.38).
-  if (!disconnected.has("claude-code")) installBuilderAgents(homes.claude, hook, look);
-  const codex = disconnected.has("codex") ? { registration: "disconnected" as const, replaced: [] } : register(homes.codex, "hooks.json", codexEntries(hook, codexVersion), hook.script, {}, look);
+  if (left("claude-code") === undefined) installBuilderAgents(homes.claude, hook, look);
+  const codex = left("codex") ?? register(homes.codex, "hooks.json", codexEntries(hook, codexVersion), hook.script, {}, look);
   // Cursor's hooks file must name its version: a new file gets 1, and one the user wrote keeps its own.
-  const cursor = disconnected.has("cursor") ? { registration: "disconnected" as const, replaced: [] } : register(homes.cursor, "hooks.json", cursorEntries(hook), hook.script, { version: 1 }, look);
-  const pi = disconnected.has("pi") ? { registration: "disconnected" as const, replaced: [] } : registerPi(homes.pi, hook, look);
-  const antigravity = disconnected.has("antigravity") ? { registration: "disconnected" as const, replaced: [] } : registerAntigravity(homes.antigravity, hook, look);
+  const cursor = left("cursor") ?? register(homes.cursor, "hooks.json", cursorEntries(hook), hook.script, { version: 1 }, look);
+  const pi = left("pi") ?? registerPi(homes.pi, hook, look);
+  const antigravity = left("antigravity") ?? registerAntigravity(homes.antigravity, hook, look);
   const replaced = { ...(claude.replaced.length > 0 ? { "claude-code": claude.replaced } : {}), ...(codex.replaced.length > 0 ? { codex: codex.replaced } : {}), ...(cursor.replaced.length > 0 ? { cursor: cursor.replaced } : {}), ...(pi.replaced.length > 0 ? { pi: pi.replaced } : {}), ...(antigravity.replaced.length > 0 ? { antigravity: antigravity.replaced } : {}) };
   return {
     "claude-code": claude.registration,
@@ -137,9 +141,27 @@ export function registerHooks(homes: Homes, hook: HookCommand, disconnected: Rea
     cursor: cursor.registration,
     pi: pi.registration,
     antigravity: antigravity.registration,
-    statusLine: disconnected.has("claude-code") ? "not here" : installStatusLine(homes.claude, hook, look),
+    statusLine: left("claude-code") === undefined ? installStatusLine(homes.claude, hook, look) : "not here",
     ...(Object.keys(replaced).length > 0 ? { replaced } : {}),
   };
+}
+
+/**
+ * The harnesses whose settings in `homes` already carry storytree's hooks, any build's: the ones the user connected, so the
+ * setup check keeps theirs current and leaves every other harness's files alone (8.43). A file that cannot be read counts none.
+ */
+export function connectedHarnesses(homes: Homes): Set<Harness> {
+  const carries = (harness: Harness): boolean => {
+    try {
+      if (harness === "pi") return homes.pi !== undefined && existsSync(path.join(homes.pi, PI_EXTENSION)) && piExtensionScript(readFileSync(path.join(homes.pi, PI_EXTENSION), "utf8")) !== undefined;
+      if (harness === "antigravity") return homes.antigravity !== undefined && scriptsIn(stringsIn(readSettings(path.join(homes.antigravity, ANTIGRAVITY_HOOKS))[ANTIGRAVITY_NAME])).length > 0;
+      const file = harness === "claude-code" ? homes.claude && path.join(homes.claude, "settings.json") : harness === "codex" ? homes.codex && path.join(homes.codex, "hooks.json") : homes.cursor && path.join(homes.cursor, "hooks.json");
+      return file !== undefined && Object.values(readSettings(file).hooks ?? {}).some((entries) => Array.isArray(entries) && entries.some(isStorytrees));
+    } catch {
+      return false;
+    }
+  };
+  return new Set(HARNESS_IDS.filter(carries));
 }
 
 /**
@@ -466,7 +488,8 @@ function writeSettings(file: string, settings: Settings): void {
   save(file, read(file), `${JSON.stringify(settings, null, 2)}\n`);
 }
 
-function isFolder(folder: string): boolean {
+function isFolder(folder: string | undefined): boolean {
+  if (folder === undefined) return false;
   try {
     return statSync(folder).isDirectory();
   } catch {

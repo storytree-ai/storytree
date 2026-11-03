@@ -18,9 +18,10 @@ import path from "node:path";
 import { connect, type ConnectOptions } from "@storytree/library";
 import { codexHookTrust, readAppRecords, type AppPlaces, type AppReading } from "@storytree/session-management";
 import { findProject, PROJECT_FILE, ROOT_MARKER_FILE, storytreeHome } from "@storytree/project-and-caller";
+import { HARNESS_IDS } from "@storytree/project-and-caller/caller";
 
 import { firstCommit, suggestedName } from "../project/making.js";
-import { defaultHomes, disconnectedHarnesses, registeredHookScripts, registerHooks, type HookCommand, type Homes, type HooksReport } from "./hooks-config.js";
+import { connectedHarnesses, defaultHomes, disconnectedHarnesses, registeredHookScripts, registerHooks, type Harness, type HookCommand, type Homes, type HooksReport } from "./hooks-config.js";
 import { hooksRelease, type HooksRelease, type LatestRelease } from "./hooks-release.js";
 import { openStorytree, type StorytreeOpened } from "./open-storytree.js";
 import { ghState, putCommandOnPath, type CommandInstall, type CommandPath, type GhState } from "./command.js";
@@ -35,7 +36,7 @@ export type { AgentCliState, MachineOptions, MachineState, ToolState } from "./m
 export { ghState, putCommandOnPath, removeCommand } from "./command.js";
 export type { CommandInstall, CommandPath, GhState } from "./command.js";
 
-export { defaultHomes, disconnectedHarnesses, markDisconnected, registerHooks, removeHooks } from "./hooks-config.js";
+export { connectedHarnesses, defaultHomes, disconnectedHarnesses, markDisconnected, registerHooks, removeHooks } from "./hooks-config.js";
 export type { Harness, HookCommand, HookRegistration, Homes, HooksReport, RemovalReport } from "./hooks-config.js";
 export { openStorytree } from "./open-storytree.js";
 export type { StorytreeOpened } from "./open-storytree.js";
@@ -72,6 +73,11 @@ export interface SetupOptions {
    * server cannot see (CLAUDE_CODE_OAUTH_TOKEN, held by the session, not its children) is not reported as signed out (8.11).
    */
   readonly asking?: "claude" | "codex";
+  /**
+   * The harness of the session asking, whose hooks the check registers even where its settings carry none yet: the user
+   * connected it by starting storytree's tools in it. Every other harness gets hooks only where it already has some (8.43).
+   */
+  readonly calling?: Harness;
 }
 
 export interface SetupReport {
@@ -84,7 +90,7 @@ export interface SetupReport {
   readonly project: { status: "set up"; name: string } | { status: "ask"; suggestion: string } | { status: "missing"; name: string };
   /**
    * Whether a Codex session in the folder starts storytree's tool server, and from which config.toml; `broken`
-   * names the `missing` command or server file. Undefined without a Codex home here, or with Codex disconnected.
+   * names the `missing` command or server file. Undefined without a Codex home here, with Codex disconnected, or with none named where Codex is not connected.
    */
   readonly codexServer: { readonly state: "registered" | "missing" | "broken"; readonly config: string; readonly missing?: string } | undefined;
   /** Whether Codex runs storytree's hooks, or waits for the user to trust them; undefined where Codex has none. */
@@ -146,9 +152,16 @@ export async function runSetupCheck(options: SetupOptions): Promise<SetupReport>
   // A harness the user disconnected gets no hooks back until they connect it again (app-setup's connect).
   const disconnected = disconnectedHarnesses(options.storytreeHome ?? storytreeHome());
   const homes = options.homes ?? defaultHomes();
-  const codexVersion = options.codexVersion ?? (options.homes === undefined && options.hook !== undefined && !disconnected.has("codex") ? installedCodexVersion() : undefined);
-  const hooks = options.hook === undefined ? undefined : registerHooks(homes, options.hook, disconnected, codexVersion, options.look === true);
-  const codexServer = disconnected.has("codex") ? undefined : codexServerState(homes.codex, options.folder);
+  // Connecting is the user's act (the app's Connect, `storytree setup connect`): the check keeps current only the harnesses
+  // whose settings already carry storytree's hooks, and the one whose session is asking, and writes nothing for another (8.43).
+  const connected = connectedHarnesses(homes);
+  if (options.calling !== undefined) connected.add(options.calling);
+  const unconnected = new Set(HARNESS_IDS.filter((harness) => !connected.has(harness) && !disconnected.has(harness)));
+  const codexVersion = options.codexVersion ?? (options.homes === undefined && options.hook !== undefined && connected.has("codex") ? installedCodexVersion() : undefined);
+  const hooks = options.hook === undefined ? undefined : registerHooks(homes, options.hook, disconnected, codexVersion, options.look === true, unconnected);
+  const server = disconnected.has("codex") ? undefined : codexServerState(homes.codex, options.folder);
+  // A Codex the user has not connected is not told to have storytree's tool server; one naming a removed install still is.
+  const codexServer = server?.state === "missing" && unconnected.has("codex") ? undefined : server;
   const codexHooks = codexHooksState(options);
   const found = findProject(options.folder);
   // A marker naming a project this library lacks (set up against another library, or deleted here) is no project here.

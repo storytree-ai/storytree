@@ -65,10 +65,11 @@ const ENQUEUE_TRIES = 3;
  * a re-run of failed jobs only ends that way with automerge skipped (4.31).
  * A failed security check (isSecurityCheck) makes it `security` instead of red, whatever else failed, naming only those
  * checks, so no fix session and no log or alert text follow it (4.41).
+ * `home` is the repository the hand-off is on, storytree's unless it is another project's (4.49).
  */
-export function readPull(pull, { since, now, graceMs }) {
+export function readPull(pull, { since, now, graceMs, home = HOME }) {
   const head = pull.headRefOid;
-  if (!ownPull(pull)) return { state: "foreign", head };
+  if (!ownPull(pull, home)) return { state: "foreign", head };
   if (pull.state === "MERGED") return { state: "merged", head };
   if (pull.state === "CLOSED") return { state: "closed", head };
   const checks = pull.commits?.nodes?.[0]?.commit?.statusCheckRollup?.contexts?.nodes ?? [];
@@ -102,17 +103,17 @@ export function readPull(pull, { since, now, graceMs }) {
 /** The repository the watcher watches: a pull request whose head is elsewhere (a fork's) is never its to land or fix. */
 export const HOME = "storytree-ai/storytree";
 
-/** Whether `pull`, as GitHub's GraphQL gives it, has its head on HOME: a fork's is not, nor one whose head GitHub does not say. */
-export const ownPull = (pull) => pull?.isCrossRepository === false && pull.headRepository?.nameWithOwner === HOME;
+/** Whether `pull`, as GitHub's GraphQL gives it, has its head on `home`: a fork's is not, nor one whose head GitHub does not say. */
+export const ownPull = (pull, home = HOME) => pull?.isCrossRepository === false && pull.headRepository?.nameWithOwner === home;
 
 /**
- * The branch of pull request `pr`, from `gh pr view`'s `view` of it, when its head is on HOME; otherwise it throws, so a
- * fork's pull request, or one GitHub does not say the head of, is never handed over or adopted.
+ * The branch of pull request `pr`, from `gh pr view`'s `view` of it, when its head is on `home` (HOME, or another
+ * project's repository, 4.49); otherwise it throws, so a fork's pull request, or one GitHub does not say the head of, is never handed over or adopted.
  */
-export function ownBranch(pr, view) {
-  const own = view?.isCrossRepository === false && `${view.headRepositoryOwner?.login}/${view.headRepository?.name}` === HOME;
+export function ownBranch(pr, view, home = HOME) {
+  const own = view?.isCrossRepository === false && `${view.headRepositoryOwner?.login}/${view.headRepository?.name}` === home;
   if (own && typeof view.headRefName === "string" && view.headRefName) return view.headRefName;
-  throw new Error(`not handed over: PR #${pr}'s head is not on ${HOME}, or GitHub did not say where it is; the watcher takes only this repository's pull requests`);
+  throw new Error(`not handed over: PR #${pr}'s head is not on ${home}, or GitHub did not say where it is; the watcher takes only this repository's pull requests`);
 }
 
 /** What `gh pr view` is asked, for ownBranch. */
@@ -125,24 +126,25 @@ const QUERY = `query($owner: String!, $name: String!, $pr: Int!) { repository(ow
   timelineItems(itemTypes: [REMOVED_FROM_MERGE_QUEUE_EVENT], last: 1) { nodes { ... on RemovedFromMergeQueueEvent { createdAt reason } } }
 } } }`;
 
-/** One pull request from GitHub through `gh`, the box's signed-in GitHub command line. */
-export async function lookOnGitHub(pr, { repo, since, now = Date.now, graceMs = 10 * 60_000 }) {
-  const { stdout } = await run("gh", ["api", "graphql", "-f", "owner=storytree-ai", "-f", "name=storytree", "-F", `pr=${pr}`, "-f", `query=${QUERY}`],
+/** One pull request from GitHub through `gh`, the box's signed-in GitHub command line, on repository `home` (4.49). */
+export async function lookOnGitHub(pr, { repo, since, now = Date.now, graceMs = 10 * 60_000, home = HOME }) {
+  const [owner, name] = home.split("/"), api = `repos/${home}`;
+  const { stdout } = await run("gh", ["api", "graphql", "-f", `owner=${owner}`, "-f", `name=${name}`, "-F", `pr=${pr}`, "-f", `query=${QUERY}`],
     { cwd: repo, maxBuffer: 16 * 1024 * 1024 });
-  const pull = readPull(JSON.parse(stdout).data.repository.pullRequest, { since, now: now(), graceMs });
+  const pull = readPull(JSON.parse(stdout).data.repository.pullRequest, { since, now: now(), graceMs, home });
   if (pull.state !== "red" || pull.conflict || !pull.runs) return pull;
   const runs = [];
   for (const id of pull.runs) {
-    const one = await ghJson(repo, `${REPO}/actions/runs/${id}`);
-    const jobs = await jobsOf(repo, one);
-    runs.push({ id, attempt: one.run_attempt, status: one.status, repo: one.repository?.full_name ?? REPO.replace(/^repos\//, ""), jobs,
-      log: one.run_attempt < RUNNER_ATTEMPTS ? await failedLog(repo, one, jobs) : "" });
+    const one = await ghJson(repo, `${api}/actions/runs/${id}`);
+    const jobs = await jobsOf(repo, one, api);
+    runs.push({ id, attempt: one.run_attempt, status: one.status, repo: one.repository?.full_name ?? home, jobs,
+      log: one.run_attempt < RUNNER_ATTEMPTS ? await failedLog(repo, one, jobs, home) : "" });
   }
   // What failed, from each red job's own log, read at every attempt, and the packages the pull request changes (4.34).
   let failures;
   try {
-    const reach = reachOf(await filesOf(repo, pr, pull.head));
-    for (const one of runs) one.jobs = await Promise.all(one.jobs.map(async (job) => ({ ...job, log: redJob(job) ? await jobLog(repo, job.id) : "" })));
+    const reach = reachOf(await filesOf(repo, pr, pull.head, api));
+    for (const one of runs) one.jobs = await Promise.all(one.jobs.map(async (job) => ({ ...job, log: redJob(job) ? await jobLog(repo, job.id, api) : "" })));
     failures = readFailures(runs, reach);
   } catch { /* unread, so the red counts as any red does */ }
   return { ...pull, runner: runnerReruns(runs), ...(failures ? { failures } : {}) };
@@ -188,18 +190,18 @@ export function readFailures(runs, reach) {
 
 const filesSeen = new Map();
 /** The paths pull request `pr` changes at `head`, read once a head. */
-async function filesOf(repo, pr, head) {
-  const key = `${pr}:${head}`;
+async function filesOf(repo, pr, head, api = REPO) {
+  const key = `${api}:${pr}:${head}`;
   if (!filesSeen.has(key)) {
-    const { stdout } = await run("gh", ["api", "--paginate", `${REPO}/pulls/${pr}/files?per_page=100`, "--jq", ".[].filename"], { cwd: repo, maxBuffer: 16 * 1024 * 1024 });
+    const { stdout } = await run("gh", ["api", "--paginate", `${api}/pulls/${pr}/files?per_page=100`, "--jq", ".[].filename"], { cwd: repo, maxBuffer: 16 * 1024 * 1024 });
     filesSeen.set(key, stdout.split("\n").filter(Boolean));
   }
   return filesSeen.get(key);
 }
 const jobLogs = new Map();
 /** A finished job's own log, read once; readable before the rest of its run ends, unlike `gh run view --log-failed`. */
-async function jobLog(repo, id) {
-  if (!jobLogs.has(id)) jobLogs.set(id, (await run("gh", ["api", `${REPO}/actions/jobs/${id}/logs`], { cwd: repo, maxBuffer: 64 * 1024 * 1024 })).stdout);
+async function jobLog(repo, id, api = REPO) {
+  if (!jobLogs.has(id)) jobLogs.set(id, (await run("gh", ["api", `${api}/actions/jobs/${id}/logs`], { cwd: repo, maxBuffer: 64 * 1024 * 1024 })).stdout);
   return jobLogs.get(id);
 }
 
@@ -207,21 +209,21 @@ const REPO = "repos/storytree-ai/storytree";
 const ghJson = async (repo, path) => JSON.parse((await run("gh", ["api", path], { cwd: repo, maxBuffer: 16 * 1024 * 1024 })).stdout);
 const jobsSeen = new Map();
 /** A run's jobs as { name, conclusion, steps }; a completed attempt's never change, so they are read once. */
-async function jobsOf(repo, run) {
+async function jobsOf(repo, run, api = REPO) {
   const key = `${run.id}:${run.run_attempt}`;
   if (jobsSeen.has(key)) return jobsSeen.get(key);
-  const jobs = (await ghJson(repo, `${REPO}/actions/runs/${run.id}/jobs?filter=latest&per_page=100`)).jobs
+  const jobs = (await ghJson(repo, `${api}/actions/runs/${run.id}/jobs?filter=latest&per_page=100`)).jobs
     .map((job) => ({ id: job.id, name: job.name, conclusion: job.conclusion, steps: job.steps?.length ?? 0, runner: job.runner_name ?? "" }));
   if (run.status === "completed") jobsSeen.set(key, jobs);
   return jobs;
 }
 const logsSeen = new Map();
 /** A completed attempt's failed steps' log, read once and only when a job that ran ended red (runnerFault reads it). */
-async function failedLog(repo, one, jobs) {
+async function failedLog(repo, one, jobs, home = HOME) {
   const key = `${one.id}:${one.run_attempt}`;
   if (logsSeen.has(key)) return logsSeen.get(key);
   if (one.status !== "completed" || !jobs.some((job) => job.steps > 0 && job.conclusion === "failure")) return "";
-  const log = (await run("gh", ["run", "view", String(one.id), "--log-failed"], { cwd: repo, maxBuffer: 64 * 1024 * 1024 }).catch(() => ({ stdout: "" }))).stdout;
+  const log = (await run("gh", ["run", "view", String(one.id), "--log-failed", "-R", home], { cwd: repo, maxBuffer: 64 * 1024 * 1024 }).catch(() => ({ stdout: "" }))).stdout;
   logsSeen.set(key, log);
   return log;
 }
@@ -298,10 +300,12 @@ export async function handedOff(dir) {
  * The handing session's claims are held for the pull request, on its `branch`, until it merges or closes (ADR-1037 D1,
  * 4.22): its close-out then releases nothing. With no session or branch to hold them by, `held` says why none are.
  * `project` is where the hand-off's own storytree project lives when it is not the watcher's (an experiment arm's
- * throwaway library: its folder and storytree home), so the reds it records land there (ADR-1064 D4, 4.25).
+ * throwaway library: its folder and storytree home), so the reds it records land there (ADR-1064 D4, 4.25). A project with a
+ * `repo` is another repository's (ownerOf, 4.49): the increment is its library's, so the wait and the held claims are written there too.
  */
-export async function hand({ dir, pr, increment, session, branch, keepOpen = false, refused = false, holder, project, storytree, startWatcher, now = Date.now }) {
+export async function hand({ dir, pr, increment, session, branch, keepOpen = false, refused = false, holder, project, storytree: everywhere, startWatcher, now = Date.now }) {
   await mkdir(dir, { recursive: true });
+  const storytree = (args) => everywhere(args, libraryOf({ project }));
   const old = (await records(dir)).find((record) => record.pr === pr);
   let closed = false;
   await storytree(["arc", "increment", "wait", increment, "--for", "event", "--note",
@@ -415,8 +419,22 @@ function lagLine(lag) {
   return `\nIts branch is ${lag.count} commit${lag.count === 1 ? "" : "s"} behind main, lacking (newest first): ${newest.map((one) => `"${one}"`).join(", ")}${rest > 0 ? `, and ${rest} more` : ""}.`;
 }
 
-function fixBrief({ pr, increment, why, logs, n, limit, keepOpen, closed, review, lag }) {
+/**
+ * The commands a fix or review session runs, storytree's own or, for another project's pull request (4.49), that project's:
+ * its checks for the gate, the installed `storytree` command, and the watcher reached through storytree's checkout, {pool}.
+ */
+function commandsOf(project) {
+  if (!project) return { follow: "its AGENTS.md as the session-orchestrator", storytree: "pnpm storytree", watch: "node packages/agent-pool/src/watch.mjs",
+    stale: "merge\n  origin/main, run `pnpm install`, and `pnpm gate`", gate: "`pnpm gate`", tests: "`pnpm gate` and `pnpm test`",
+    until: "the PASS / FAIL / NOT RUN table prints" };
+  const checks = project.checks?.length ? project.checks.map((check) => `\`${check}\``).join(", ") : "the checks its CI runs, as its CI runs them";
+  return { follow: "its own AGENTS.md or CLAUDE.md where it has one", storytree: "storytree", watch: "node {pool}/packages/agent-pool/src/watch.mjs",
+    stale: `merge\n  origin/main and run ${project.name}'s checks, in order: ${checks}`, gate: `${project.name}'s checks`, tests: `${project.name}'s checks`, until: "each one ends" };
+}
+
+function fixBrief({ pr, increment, why, logs, n, limit, keepOpen, closed, review, lag, project }) {
   const handBack = `${pr} ${increment}${keepOpen ? " --keep-open" : ""}`;
+  const use = commandsOf(project);
   return `# Fix session ${review ? `${n}, after an independent review` : `${n} of ${limit}`}: pull request #${pr} (${increment}) is red
 
 The pool's watcher started you: a session opened PR #${pr} for ${increment}, saw its gate green and handed it over,
@@ -424,23 +442,22 @@ and it has since gone red: ${why}.${logs.length ? `\nThe failing runs: ${logs.jo
     ? `\nAfter ${limit} fix sessions an independent review session read it and judged it a bug in the pull request that a session can fix: ${review}`
     : ""}
 
-Your job is that pull request and nothing else. Work from {checkout} and follow its AGENTS.md as the session-orchestrator.
+Your job is that pull request and nothing else. Work from {checkout} and follow ${use.follow}.
 - Find the PR's branch (\`gh pr view ${pr} --json headRefName\`) and a worktree on it (\`git worktree list\`), or add one for it
   under .claude/worktrees, and ${closed
     ? `work there without claiming the increment: ${increment} already closed on an earlier pull request, so claim only the capabilities you edit.`
-    : `claim the increment there: \`pnpm storytree workspace attach ${increment} --folder <worktree> --reason "fix PR #${pr}"\`.`}
+    : `claim the increment there: \`${use.storytree} workspace attach ${increment} --folder <worktree> --reason "fix PR #${pr}"\`.`}
   The claims are held for PR #${pr} until it merges; working on its branch, you take them over (ADR-1037 D2).
-- Read the failing log (\`gh run view <run> --log-failed\`, or \`gh pr checks ${pr}\`). Suspect a stale branch first: merge
-  origin/main, run \`pnpm install\`, and \`pnpm gate\`. Then fix what is really broken, see \`pnpm gate\` green and push.
+- Read the failing log (\`gh run view <run> --log-failed\`, or \`gh pr checks ${pr}\`). Suspect a stale branch first: ${use.stale}. Then fix what is really broken, see ${use.gate} green and push.
   Never force-push, squash or \`gh pr merge\`.
 - You exit when you end a turn: a session that ends its turn to wait exits at once, and its uncommitted work is stranded.
-  So run \`pnpm gate\` and \`pnpm test\` in the foreground and stay in the turn until the PASS / FAIL / NOT RUN table prints,
+  So run ${use.tests} in the foreground and stay in the turn until ${use.until},
   however long the run queues behind another lane's; this overrides the general guidance to run them in the background.
   A run already in the background is polled inside the same turn, never waited for by ending the turn.
-- Hand it back: \`node packages/agent-pool/src/watch.mjs hand ${handBack}\`, then
-  \`pnpm storytree session close-out --safe yes --why "PR #${pr} fixed and handed back to the watcher"\`, and end.
+- Hand it back: \`${use.watch} hand ${handBack}\`, then
+  \`${use.storytree} session close-out --safe yes --why "PR #${pr} fixed and handed back to the watcher"\`, and end.
 - If a claim you need is refused (another session holds the increment or a capability), leave the branch alone: hand it back
-  with \`node packages/agent-pool/src/watch.mjs hand ${handBack} --refused --holder <session>\`, where <session> is the
+  with \`${use.watch} hand ${handBack} --refused --holder <session>\`, where <session> is the
   session id the refusal names ("held by … session <id>"), close out and end. A refused session does not count against
   the limit, and the watcher starts the next one once that session holds no claim.
 - If it needs the owner (a decision, a sign-in, a spend), raise the question on the increment's arc${closed ? "" : " holding the increment"}, then close out and end.
@@ -452,8 +469,11 @@ export const VERDICTS = ["flake", "elsewhere", "fix", "owner"];
 /** The arc a review session parks a slow or flaky test's fix on (4.37). */
 export const FLAKES_ARC = "arc_1a42179de853";
 
-function reviewBrief({ pr, increment, why, logs, fixLogs, n, cap, closed }) {
-  const verdict = `node packages/agent-pool/src/watch.mjs verdict ${pr}`;
+function reviewBrief({ pr, increment, why, logs, fixLogs, n, cap, closed, project }) {
+  const use = commandsOf(project);
+  const verdict = `${use.watch} verdict ${pr}`;
+  // Storytree's slow and flaky tests have their own arc; another project's go on the increment's own (4.49).
+  const flakes = project ? `${increment}'s own arc` : FLAKES_ARC;
   return `# Review session (session ${n} of at most ${cap}): pull request #${pr} (${increment}) is still red after its fix sessions
 
 The pool's watcher started you. PR #${pr} for ${increment} has gone red again after its fix sessions: ${why}.
@@ -464,14 +484,14 @@ branch. Work from {checkout}. Read the failing runs (\`gh run view <run> --log-f
 the fix sessions' logs and the pull request's diff (\`gh pr diff ${pr}\`), and decide exactly ONE verdict:
 - flake: the failure is random, and another try may pass. \`${verdict} flake --summary "<why>"\`
 - elsewhere: a slow or flaky test the pull request does not own fails it. Park that test's fix as its own increment on
-  ${FLAKES_ARC} (\`pnpm storytree arc increment new --arc ${FLAKES_ARC} …\`, capabilities list empty), never loosening it
+  ${flakes} (\`${use.storytree} arc increment new --arc ${project ? "<arc>" : FLAKES_ARC} …\`, capabilities list empty), never loosening it
   inside this pull request, then \`${verdict} elsewhere --summary "<why>" --parked <increment>\`
 - fix: a bug in the pull request that a session can fix. \`${verdict} fix --summary "<what is broken and where>"\`; your
   summary is the next fix session's brief.
 - owner: only the owner can unblock it (a decision, access, a spend). Raise the question on ${increment}'s arc${closed ? "" : `, holding it
-  (\`pnpm storytree question new --arc <arc> … --hold ${increment}\`)`}, written so he can answer it cold, then
+  (\`${use.storytree} question new --arc <arc> … --hold ${increment}\`)`}, written so he can answer it cold, then
   \`${verdict} owner --summary "<why>" --question <question>\`
-The watcher acts on the verdict you record; record it once, then \`pnpm storytree session close-out --safe yes --why "verdict on PR #${pr} recorded"\` and end.
+The watcher acts on the verdict you record; record it once, then \`${use.storytree} session close-out --safe yes --why "verdict on PR #${pr} recorded"\` and end.
 `;
 }
 
@@ -524,7 +544,9 @@ reviewed again (4.37). At the cap the increment waits on the owner with the last
  * tried at most ENQUEUE_TRIES times (4.31). A look that saw any merge reads every story's risk reading again, once, from
  * main (`readRisks`), and says the readings that changed since the last (4.33). A hand-off made before its project's
  * repository cut-over (`cutover`, its time) is the old repository's pull request, whose number now names another: it is
- * never looked up, only forgotten, its wait cleared and its claims let go (4.39).
+ * never looked up, only forgotten, its wait cleared and its claims let go (4.39). A hand-off on another project's repository
+ * (`record.project.repo`, 4.49) is all that project's: every library step is taken in its library, its fix and review sessions
+ * start in its checkout with its own commands, and its merge reads none of storytree's risks.
  */
 export async function watchOnce({ dir, look, storytree, cutover = async () => undefined, startFix, startReview, rerun, refresh, behind, enqueue, alive, room, readRisks, limit, cap = 6, backoff = 15 * 60_000, folders = {}, now = Date.now, say }) {
   const dated = (message) => say(`${new Date(now()).toISOString().replace(/\.\d{3}Z$/, "Z")} ${message}`);
@@ -532,22 +554,22 @@ export async function watchOnce({ dir, look, storytree, cutover = async () => un
   const tell = (args, project) => storytree(args, project).catch((error) => { dated(`storytree ${args.slice(0, 3).join(" ")} refused: ${error.message.split("\n")[0]}`); return ""; });
   // The claims held for a pull request end with its watch (ADR-1037 D1, D3).
   // On a merge, its increment's pending plan changes are applied before they end, keep-open or not (4.45).
-  const letGo = (pr, reason, merged = false) => tell(["workspace", "let-go", String(pr), "--reason", reason, ...(merged ? ["--merged"] : [])]);
+  const letGo = (record, reason, merged = false) => tell(["workspace", "let-go", String(record.pr), "--reason", reason, ...(merged ? ["--merged"] : [])], libraryOf(record));
   // A pull request given up goes back on its arc as ready work, its body naming the pull request and its branch, never to the owner (4.20, 4.23).
   const backOnArc = async (record, pull, why) => {
-    const { pr, increment } = record;
+    const { pr, increment } = record, at = libraryOf(record);
     if (!record.closed) {
-      const body = (await tell(["library", "read", increment, "--field", "body"])).trimEnd();
+      const body = (await tell(["library", "read", increment, "--field", "body"], at)).trimEnd();
       const residue = join(dir, `${pr}-residue.md`);
       await writeFile(residue, `${body ? `${body}\n\n` : ""}**Back from the watcher, ${new Date(now()).toISOString().slice(0, 10)}.** PR #${pr}`
         + ` (branch \`${pull.branch ?? "unknown"}\`) ${why}${record.fixes.length ? ` (fix sessions' logs: ${record.fixes.map((fix) => fix.log).join(", ")})` : ""}.`
         + ` Take that branch, merge origin/main, resolve what is in the way,`
         + ` see \`pnpm gate\` green, push, and hand PR #${pr} to the watcher again.\n`);
-      await tell(["arc", "increment", "edit", increment, "--body", `@${residue}`]);
+      await tell(["arc", "increment", "edit", increment, "--body", `@${residue}`], at);
       await rm(residue, { force: true });
-      await tell(["arc", "increment", "unwait", increment, "--for", "event"]);
+      await tell(["arc", "increment", "unwait", increment, "--for", "event"], at);
     }
-    await letGo(pr, `PR #${pr} ${why}; released by the watcher`);
+    await letGo(record, `PR #${pr} ${why}; released by the watcher`);
     await rm(recordPath(dir, pr), { force: true });
   };
   // A red retried with no model session: main merged into its branch when main has moved, else its failed runs rerun,
@@ -557,7 +579,7 @@ export async function watchOnce({ dir, look, storytree, cutover = async () => un
     let by;
     try {
       if (!refresh) throw new Error("no refresh");
-      await refresh(pr, pull.head);
+      await refresh(pr, pull.head, repoOf(record));
       by = "main merged into its branch";
     } catch {
       try {
@@ -582,9 +604,12 @@ export async function watchOnce({ dir, look, storytree, cutover = async () => un
   for (const record of all) if (record.fixing && await alive(record.fixing.pid)) running.set(record.pr, { conflict: record.fixes.at(-1)?.conflict ?? false, review: record.fixes.at(-1)?.review ?? false });
   // A review session claims nothing, so it never holds back a refused fix session's retry (4.14).
   const fixing = () => [...running.values()].some((one) => !one.review);
-  // The noticeboard, read once a look and only when a refusal named its holder.
-  let board;
-  const holds = async (session) => (board ??= await tell(["noticeboard"])).split("\n").some((line) => /^\s*- (?:increment|capability) /.test(line) && line.includes(` ${session} `));
+  // The noticeboard of each hand-off's library, read once a look and only when a refusal named its holder.
+  const boards = new Map();
+  const holds = async (session, at) => {
+    if (!boards.has(at?.folder)) boards.set(at?.folder, await tell(["noticeboard"], at));
+    return boards.get(at?.folder).split("\n").some((line) => /^\s*- (?:increment|capability) /.test(line) && line.includes(` ${session} `));
+  };
   let merged = false;
   // Each project's repository cut-over, read once a look and only when a hand-off is watched.
   const cutovers = new Map();
@@ -593,10 +618,10 @@ export async function watchOnce({ dir, look, storytree, cutover = async () => un
     return cutovers.get(project?.folder);
   };
   for (const record of all) {
-    const { pr, increment } = record;
+    const { pr, increment } = record, at = libraryOf(record);
     if (Date.parse(record.handedAt) < await cutoverOf(record.project)) {
       if (!record.closed) await tell(["arc", "increment", "unwait", increment, "--for", "event"], record.project);
-      await letGo(pr, `PR #${pr} was handed over before the repository cut-over; released by the watcher`);
+      await letGo(record, `PR #${pr} was handed over before the repository cut-over; released by the watcher`);
       await rm(recordPath(dir, pr), { force: true });
       dated(`PR #${pr}: handed over before the repository cut-over, so its number is the old repository's: no longer watched, and ${increment} no longer waits on it`);
       continue;
@@ -606,24 +631,24 @@ export async function watchOnce({ dir, look, storytree, cutover = async () => un
     catch (error) { dated(`PR #${pr}: could not read it (${error.message.split("\n")[0]}); looking again next time`); continue; }
     if (pull.state === "foreign") {
       // A fork's pull request, or one GitHub no longer says the head of, is never landed, closed on or fixed (4.32).
-      if (!record.closed) await tell(["arc", "increment", "unwait", increment, "--for", "event"]);
-      await letGo(pr, `PR #${pr}'s head is not on ${HOME}; released by the watcher`);
+      if (!record.closed) await tell(["arc", "increment", "unwait", increment, "--for", "event"], at);
+      await letGo(record, `PR #${pr}'s head is not on ${repoOf(record)}; released by the watcher`);
       await rm(recordPath(dir, pr), { force: true });
-      dated(`PR #${pr}: its head is not on ${HOME}, or GitHub did not say where it is: no longer watched, and ${increment} no longer waits on it`);
+      dated(`PR #${pr}: its head is not on ${repoOf(record)}, or GitHub did not say where it is: no longer watched, and ${increment} no longer waits on it`);
       continue;
     }
     if (pull.state === "merged" || pull.state === "closed") {
       // A kept-open increment's merge is marked on its wait for the owner, never by rewriting his note, so the audit asks for it to be read again (4.47).
       const marked = pull.state === "merged" && record.keepOpen ? ["--merged", String(pr)] : [];
-      if (!record.closed) await tell(["arc", "increment", "unwait", increment, "--for", "event", ...marked]);
+      if (!record.closed) await tell(["arc", "increment", "unwait", increment, "--for", "event", ...marked], at);
       if (pull.state === "merged") {
-        merged = true;
-        if (!record.keepOpen && !record.closed) await tell(["arc", "increment", "close", increment, "--disposition", "landed", "--pr", String(pr)]);
-        await letGo(pr, `PR #${pr} merged; released by the watcher`, true);
+        if (!at) merged = true;
+        if (!record.keepOpen && !record.closed) await tell(["arc", "increment", "close", increment, "--disposition", "landed", "--pr", String(pr)], at);
+        await letGo(record, `PR #${pr} merged; released by the watcher`, true);
         dated(record.closed ? `PR #${pr} merged: ${increment} had already closed`
           : record.keepOpen ? `PR #${pr} merged: ${increment} stays open for its next pull request` : `PR #${pr} merged: closed ${increment}`);
       } else {
-        await letGo(pr, `PR #${pr} closed without merging; released by the watcher`);
+        await letGo(record, `PR #${pr} closed without merging; released by the watcher`);
         dated(`PR #${pr} closed without merging: ${increment} no longer waits on it`);
       }
       await rm(recordPath(dir, pr), { force: true });
@@ -642,7 +667,7 @@ export async function watchOnce({ dir, look, storytree, cutover = async () => un
         "--context", `The pool's watcher reads ${checks} as a security check (4.41): it puts no log or alert text anywhere and asks you instead. Read the check on GitHub, signed in.`,
         "--options", "A. Fix it yourself, privately, then hand the pull request to the watcher again. B. Judge it a false alarm, dismiss it on GitHub and hand it over again. C. Close the pull request.",
         ...(record.closed ? [] : ["--hold", increment])], record.project);
-      await letGo(pr, `PR #${pr} failed a security check, which is the owner's; released by the watcher`);
+      await letGo(record, `PR #${pr} failed a security check, which is the owner's; released by the watcher`);
       await rm(recordPath(dir, pr), { force: true });
       dated(`PR #${pr} failed the security check ${checks}: asked the owner on ${arc}, with no fix session`);
       continue;
@@ -708,7 +733,7 @@ export async function watchOnce({ dir, look, storytree, cutover = async () => un
     const counted = record.fixes.filter((fix) => !fix.refused && !fix.moved && !fix.flake && !fix.review).length;
     const spent = counted >= allowed || record.fixes.length >= cap;
     if (spent && record.closed) {
-      await letGo(pr, `PR #${pr} still red after ${record.fixes.length} sessions; released by the watcher`);
+      await letGo(record, `PR #${pr} still red after ${record.fixes.length} sessions; released by the watcher`);
       await rm(recordPath(dir, pr), { force: true });
       dated(`PR #${pr} still red after ${record.fixes.length} sessions, and ${increment} had already closed, so nothing can wait on the owner: ${pull.why}`);
       continue;
@@ -728,16 +753,16 @@ export async function watchOnce({ dir, look, storytree, cutover = async () => un
           "--description", `The watcher retried PR #${pr} ${record.fixes.filter((fix) => fix.flake).length} times for reds it judged random, and gave it to the owner at its cap.`,
           "--statement", "Tests outside a pull request's reach failed it at random, so it could not land.",
           "--evidence", `PR #${pr} (${increment}) failed on: ${flaky.join("; ")}.`,
-          "--impact", `PR #${pr} waits on the owner instead of landing; the Windows-flakes arc can take these tests.`]);
+          "--impact", `PR #${pr} waits on the owner instead of landing; the Windows-flakes arc can take these tests.`], at);
       }
-      await tell(["arc", "increment", "unwait", increment, "--for", "event"]);
-      await letGo(pr, `PR #${pr} still red after ${record.fixes.length} sessions; released by the watcher`);
+      await tell(["arc", "increment", "unwait", increment, "--for", "event"], at);
+      await letGo(record, `PR #${pr} still red after ${record.fixes.length} sessions; released by the watcher`);
       await storytree(["arc", "increment", "wait", increment, "--for", "owner", "--note",
         `PR #${pr} is still red after ${record.fixes.length} sessions, the most the watcher starts for one pull request (${counted} fix sessions counted): ${pull.why}.`
         + `${pull.logs.length ? ` Failing runs: ${pull.logs.join(", ")}.` : ""}`
         + ` Sessions' logs: ${record.fixes.filter((fix) => fix.log).map((fix) => fix.log).join(", ") || "none"}.`
         + (review ? ` The last review judged it "${review.kind}": ${review.summary}` : " No review ran.")
-        + `${flaky.length ? ` Flaky outside it: ${flaky.join("; ")}.` : ""} Retry it (hand PR #${pr} to the watcher again), fix it yourself, or withdraw it.`]);
+        + `${flaky.length ? ` Flaky outside it: ${flaky.join("; ")}.` : ""} Retry it (hand PR #${pr} to the watcher again), fix it yourself, or withdraw it.`], at);
       await rm(recordPath(dir, pr), { force: true });
       dated(`PR #${pr} still red after ${record.fixes.length} sessions: ${increment} waits on the owner`);
       continue;
@@ -745,8 +770,8 @@ export async function watchOnce({ dir, look, storytree, cutover = async () => un
     // Past the limit, the last review's verdict decides this red; with none, a review session is started (4.37).
     const verdict = spent && last?.review ? last.verdict : undefined;
     if (verdict?.kind === "owner") {
-      if (!record.closed) await tell(["arc", "increment", "unwait", increment, "--for", "event"]);
-      await letGo(pr, `PR #${pr} waits on the owner's answer to ${verdict.question}; released by the watcher`);
+      if (!record.closed) await tell(["arc", "increment", "unwait", increment, "--for", "event"], at);
+      await letGo(record, `PR #${pr} waits on the owner's answer to ${verdict.question}; released by the watcher`);
       await rm(recordPath(dir, pr), { force: true });
       dated(`PR #${pr} still red: its review put it to the owner in ${verdict.question} (${verdict.summary})`);
       continue;
@@ -756,22 +781,24 @@ export async function watchOnce({ dir, look, storytree, cutover = async () => un
       continue;
     }
     const reviewing = spent && verdict?.kind !== "fix";
-    if (last?.refused && (last.holder ? await holds(last.holder)
+    if (last?.refused && (last.holder ? await holds(last.holder, at)
       : fixing() || now() < Date.parse(last.refusedAt ?? last.at) + backoff)) continue;
     if (pull.conflict && [...running.values()].some((one) => one.conflict)) continue;
     if (!(await room())) continue;
     // Each red it handles is a pr-red activity line in the hand-off's project, written as its fix session starts (ADR-1064 D4, 4.25).
     await tell(["workspace", "red", String(pr), "--increment", increment, ...(pull.conflict ? ["--conflict"] : []),
       ...(pull.checks ?? []).flatMap((check) => ["--check", check])], record.project);
-    if (!record.closed) await tell(["arc", "increment", "unwait", increment, "--for", "event"]);
+    if (!record.closed) await tell(["arc", "increment", "unwait", increment, "--for", "event"], at);
     const n = record.fixes.length + 1;
     const fixLogs = record.fixes.filter((one) => one.log && !one.review).map((one) => one.log);
     // How far its branch is behind main, read at the head judged red; a reading that fails says nothing and stops nothing (4.38).
-    const lag = !reviewing && behind ? await behind(pull.head).catch(() => undefined) : undefined;
+    const lag = !reviewing && behind ? await behind(pull.head, repoOf(record)).catch(() => undefined) : undefined;
+    // Another project's session works in its checkout, and reaches the watcher through storytree's (4.49).
+    const where = at ? { ...folders, checkout: at.folder, pool: folders.checkout } : folders;
     const session = reviewing
-      ? await startReview({ pr, increment, n, brief: localBrief(reviewBrief({ pr, increment, why: pull.why, logs: pull.logs, fixLogs, n, cap, closed: record.closed }), folders) })
-      : await startFix({ pr, increment, n, brief: localBrief(fixBrief({ pr, increment, why: pull.why, logs: pull.logs, n: counted + 1, limit: allowed, keepOpen: record.keepOpen, closed: record.closed,
-        review: verdict?.summary, lag }), folders) });
+      ? await startReview({ pr, increment, n, ...(at ? { project: at } : {}), brief: localBrief(reviewBrief({ pr, increment, why: pull.why, logs: pull.logs, fixLogs, n, cap, closed: record.closed, project: at }), where) })
+      : await startFix({ pr, increment, n, ...(at ? { project: at } : {}), brief: localBrief(fixBrief({ pr, increment, why: pull.why, logs: pull.logs, n: counted + 1, limit: allowed, keepOpen: record.keepOpen, closed: record.closed,
+        review: verdict?.summary, lag, project: at }), where) });
     record.fixing = { pid: session.pid };
     record.fixes.push({ at: new Date(now()).toISOString(), head: pull.head, pid: session.pid, log: session.log, ...(reviewing ? { review: true } : {}),
       ...(pull.conflict ? { conflict: true } : {}), ...(failures && !reviewing ? { units: failures.units, tests: failures.tests } : {}) });
@@ -843,6 +870,31 @@ export async function projectOf({ cwd, repo, home }) {
 }
 
 /**
+ * The project a handed-over `increment` belongs to when it is another repository's (4.49): the first of the pool's
+ * `projects` other than storytree whose library `has` it, when storytree's has not, with its checkout as its folder, the
+ * storytree `home`, its GitHub repository (`repoOf` its checkout) and its checks and review. Storytree's own increment,
+ * or one no project holds, is nothing, and a pool that serves storytree alone asks no library.
+ */
+export async function ownerOf({ increment, projects, home, has, repoOf }) {
+  const others = projects.filter((one) => one.name !== "storytree" && one.checkout);
+  if (!others.length || await has(increment)) return undefined;
+  for (const one of others) {
+    const project = { folder: one.checkout, home };
+    if (!(await has(increment, project))) continue;
+    return { ...project, name: one.name, repo: await repoOf(one.checkout), ...(one.checks ? { checks: one.checks } : {}), ...(one.review ? { review: one.review } : {}) };
+  }
+  return undefined;
+}
+
+/** The storytree home a hand-off's own project is read and written under: the one this process runs under, else the machine's default (4.50). */
+export const homeOf = ({ env, home }) => env.STORYTREE_HOME || join(home, ".storytree", "0.3");
+
+/** The library a hand-off's increment and claims are in: its project's when that is another repository's (4.49); storytree's (nothing) for its own and an experiment arm's. */
+export const libraryOf = (record) => (record.project?.repo ? record.project : undefined);
+/** The repository a hand-off's pull request is on. */
+const repoOf = (record) => record.project?.repo ?? HOME;
+
+/**
  * The environment the watcher and its fix sessions start in: they belong to no agent session and outlive the one that
  * handed over, so they carry neither its session's id nor its lane's run, which the lane runner stops at its end (4.43).
  */
@@ -862,6 +914,7 @@ function boxDefaults({ home = homedir(), env = process.env, platform = process.p
   const dir = join(lanesDir, "watch");
   const script = fileURLToPath(import.meta.url);
   const free = freeOf(env);
+  const storytreeHome = homeOf({ env, home });
   const onBox = existsSync(join(lanesDir, "run-lane.sh"));
   const own = join(repo, "packages", "agent-pool", "src", "watch.mjs");
   const detached = (args, log, cwd) => {
@@ -884,10 +937,14 @@ function boxDefaults({ home = homedir(), env = process.env, platform = process.p
     limit: config.watcher.fixesPerRed, cap: config.watcher.fixesPerPullRequest, intervalMs: config.watcher.intervalMs, now: Date.now,
     session: env.CLAUDE_CODE_SESSION_ID?.trim() || env.CODEX_THREAD_ID?.trim() || "",
     storytree,
-    project: () => projectOf({ cwd: process.cwd(), repo, home: env.STORYTREE_HOME || join(home, ".storytree", "0.3") }),
+    project: () => projectOf({ cwd: process.cwd(), repo, home: storytreeHome }),
+    // Which of the pool's other projects a handed-over increment is in, read from each one's checkout (4.49).
+    ownerOf: (increment) => ownerOf({ increment, projects: config.projects, home: storytreeHome,
+      has: (one, project) => storytree(["library", "read", one, "--field", "title"], project).then(() => true, () => false),
+      repoOf: async (folder) => (await run("gh", ["repo", "view", "--json", "nameWithOwner", "--jq", ".nameWithOwner"], { cwd: folder })).stdout.trim() }),
     // The time of a project's repository cut-over, or nothing while it has none (the read refuses).
     cutover: async (project) => (await storytree(["library", "read", "pr-cutover", "--field", "at"], project)).trim(),
-    look: (pr, record) => lookOnGitHub(pr, { repo, since: record.fixes.at(-1)?.at ?? record.handedAt }),
+    look: (pr, record) => lookOnGitHub(pr, { repo, since: record.fixes.at(-1)?.at ?? record.handedAt, home: repoOf(record) }),
     // From a checkout of freshly fetched origin/main kept in the watch folder, locked so no reaper takes it, never a merged branch's worktree (4.33).
     readRisks: async () => {
       const main = join(dir, "main");
@@ -901,31 +958,31 @@ function boxDefaults({ home = homedir(), env = process.env, platform = process.p
         { cwd: main, env: free, maxBuffer: 16 * 1024 * 1024 })).stdout;
     },
     // Off the box the shared checkout may not exist, and gh would be started in no folder at all (4.44).
-    viewOf: async (pr) => {
+    viewOf: async (pr, on = HOME) => {
       if (!existsSync(repo)) throw new Error(`the shared checkout ${repo} is not on this machine; off the box, hand over with \`watch.mjs handover\``);
-      return JSON.parse((await run("gh", ["pr", "view", String(pr), ...VIEW], { cwd: repo })).stdout);
+      return JSON.parse((await run("gh", ["pr", "view", String(pr), "-R", on, ...VIEW], { cwd: repo })).stdout);
     },
     // Off the box, where the shared checkout may not exist (a cloud container), the hand-over's library writes and its
     // branch are read from the folder it runs in: the pull request's branch from GitHub, else the folder's own (4.30).
     // On Windows pnpm is a .cmd that execFile cannot start, so there it is storytree's command line through node.
     here: async (args) => (await exec(...storytreeCommand(args, platform), { maxBuffer: 16 * 1024 * 1024 })).stdout,
-    ownViewOf: async (pr) => JSON.parse((await run("gh", ["pr", "view", String(pr), ...VIEW])).stdout),
+    ownViewOf: async (pr, on) => JSON.parse((await run("gh", ["pr", "view", String(pr), ...(on ? ["-R", on] : []), ...VIEW])).stdout),
     ownBranchOf: async () => (await run("git", ["branch", "--show-current"])).stdout.trim().replace(/^(main|master)$/, ""),
     alive: async (pid) => isFixSession(await argsOf(pid)),
     room: async () => countEngines((await run("ps", ["-eo", "pid=,ppid=,args="], { maxBuffer: 64 * 1024 * 1024 })).stdout)
       < await readCap({ lanesDir, sessions: config.sessions }),
-    startFix: async ({ pr, n, brief }) => {
+    startFix: async ({ pr, n, brief, project }) => {
       const base = join(dir, `fix-${pr}-${n}`);
       await writeFile(`${base}-brief.md`, brief);
       const pid = detached([join(script, "..", "runner.mjs"), "run", `${base}-brief.md`, `${base}.log`, `${base}.err`,
-        ...config.addDirs], `${base}.runner.log`, repo);
+        ...config.addDirs], `${base}.runner.log`, project?.folder ?? repo);
       return { pid, log: `${base}.log` };
     },
-    startReview: async ({ pr, n, brief }) => {
+    startReview: async ({ pr, n, brief, project }) => {
       const base = join(dir, `review-${pr}-${n}`);
       await writeFile(`${base}-brief.md`, brief);
       const pid = detached([join(script, "..", "runner.mjs"), "run", `${base}-brief.md`, `${base}.log`, `${base}.err`,
-        ...config.addDirs], `${base}.runner.log`, repo);
+        ...config.addDirs], `${base}.runner.log`, project?.folder ?? repo);
       return { pid, log: `${base}.log` };
     },
     // Started from the shared checkout's copy, whichever worktree handed over, so it runs the code it watches for changes.
@@ -954,16 +1011,16 @@ function boxDefaults({ home = homedir(), env = process.env, platform = process.p
     enqueue: (id, head) => run("gh", ["api", "graphql", "-f", `id=${id}`, "-f", `sha=${head}`, "-f",
       "query=mutation($id: ID!, $sha: GitObjectID!) { enqueuePullRequest(input: {pullRequestId: $id, expectedHeadOid: $sha}) { mergeQueueEntry { position } } }"], { cwd: repo }),
     // Main merged into a flaky pull request's branch at the head it read, as GitHub's update-branch does, only when main has moved past it (4.34).
-    refresh: async (pr, head) => {
-      const behind = Number((await run("gh", ["api", `${REPO}/compare/main...${head}`, "--jq", ".behind_by"], { cwd: repo })).stdout.trim());
+    refresh: async (pr, head, on = HOME) => {
+      const behind = Number((await run("gh", ["api", `repos/${on}/compare/main...${head}`, "--jq", ".behind_by"], { cwd: repo })).stdout.trim());
       if (!(behind > 0)) throw new Error("its branch is up to date with main");
-      await run("gh", ["api", "-X", "PUT", `${REPO}/pulls/${pr}/update-branch`, "-f", `expected_head_sha=${head}`], { cwd: repo });
+      await run("gh", ["api", "-X", "PUT", `repos/${on}/pulls/${pr}/update-branch`, "-f", `expected_head_sha=${head}`], { cwd: repo });
     },
     // The commits main has that the head lacks, oldest first as GitHub lists them (4.38).
-    behind: async (head) => JSON.parse((await run("gh", ["api", `${REPO}/compare/${head}...main`, "--jq", "{count: .ahead_by, subjects: [.commits[].commit.message | split(\"\\n\")[0]]}"], { cwd: repo })).stdout),
+    behind: async (head, on = HOME) => JSON.parse((await run("gh", ["api", `repos/${on}/compare/${head}...main`, "--jq", "{count: .ahead_by, subjects: [.commits[].commit.message | split(\"\\n\")[0]]}"], { cwd: repo })).stdout),
     // Its failed and cancelled jobs; a run with nothing left to rerun that way is rerun whole.
-    rerun: (one) => run("gh", ["run", "rerun", String(one.id), "--failed"], { cwd: repo })
-      .catch(() => run("gh", ["run", "rerun", String(one.id)], { cwd: repo })),
+    rerun: (one) => run("gh", ["run", "rerun", String(one.id), "--failed", "-R", one.repo ?? HOME], { cwd: repo })
+      .catch(() => run("gh", ["run", "rerun", String(one.id), "-R", one.repo ?? HOME], { cwd: repo })),
     tail: async (one) => (await run("gh", ["run", "view", String(one.id), "--log-failed"], { cwd: repo, maxBuffer: 64 * 1024 * 1024 }))
       .stdout.trimEnd().split("\n").slice(-30).join("\n"),
     questionOpen: async (id) => !/, (settled|retired)\b/.test((await run("pnpm", ["-s", "storytree", "question", "show", id], { cwd: repo })).stdout.split("\n")[1] ?? ""),
@@ -1009,14 +1066,18 @@ export async function main(args, box = {}) {
   if (!box.readReleases && b.dir !== defaults.dir) b.readReleases = undefined;
   // Likewise its FYIs: a loop given another folder would tell the real library about main's changes.
   if (!box.readExemptions && b.dir !== defaults.dir) b.readExemptions = undefined;
+  // And its projects: a hand-over in another folder would ask the real library whose increment it hands over.
+  if (!box.ownerOf && b.dir !== defaults.dir) b.ownerOf = async () => undefined;
   const out = b.out ?? console.log;
   const keepOpen = args.includes("--keep-open"), refused = args.includes("--refused");
   if (args[0] === "handover" && /^\d+$/.test(args[1] ?? "") && /^increment_\w+$/.test(args[2] ?? "")) {
     // A fork's pull request is refused here (4.32); one GitHub cannot be asked about from here is checked by the box, which refuses it too.
-    const view = await b.ownViewOf(Number(args[1])).catch(() => undefined);
+    // Another project's increment's pull request is asked of its own repository (4.49).
+    const on = (await Promise.resolve().then(() => b.ownerOf(args[2])).catch(() => undefined))?.repo;
+    const view = await b.ownViewOf(Number(args[1]), on).catch(() => undefined);
     let branch;
     if (view !== undefined) {
-      try { branch = ownBranch(args[1], view); } catch (error) { out(error.message); return 1; }
+      try { branch = ownBranch(args[1], view, on); } catch (error) { out(error.message); return 1; }
     }
     const { code, lines } = await handOver({ pr: Number(args[1]), increment: args[2], session: b.session, keepOpen, onBox: b.onBox,
       local: (hand) => main(hand, box), remote: b.remote,
@@ -1030,13 +1091,14 @@ export async function main(args, box = {}) {
     const session = at > 0 ? args[at + 1] ?? "" : b.session;
     const holder = args.includes("--holder") ? args[args.indexOf("--holder") + 1] : undefined;
     let view, branch;
+    // Another project's increment belongs to its repository and library (4.49); else the folder's own, an experiment arm's (4.25).
+    const project = await b.ownerOf(args[2]) ?? await b.project();
     // GitHub not answering is said as itself, so only a real fork's pull request reads as one (4.44).
-    try { view = await b.viewOf(Number(args[1])); } catch (error) {
+    try { view = await b.viewOf(Number(args[1]), project?.repo ?? HOME); } catch (error) {
       out(`not handed over: GitHub could not be asked about PR #${args[1]}: ${(error.stderr?.trim() || error.message).split("\n").join("; ")}`);
       return 1;
     }
-    try { branch = ownBranch(args[1], view); } catch (error) { out(error.message); return 1; }
-    const project = await b.project();
+    try { branch = ownBranch(args[1], view, project?.repo); } catch (error) { out(error.message); return 1; }
     const { closed, held } = await hand({ dir: b.dir, pr: Number(args[1]), increment: args[2], session, branch, keepOpen, refused, holder, project, storytree: b.storytree, now: b.now,
       startWatcher: () => ensureWatcher({ pidFile: b.pidFile, argsOf: b.argsOf, spawn: () => b.startWatcher(b.log) }) });
     out(`PR #${args[1]} handed to the watcher (${join(b.dir, `${args[1]}.json`)}); `
@@ -1079,7 +1141,7 @@ export async function main(args, box = {}) {
       out(`look loop: running (pid ${loopPid}) ${by !== loopPid || !began ? "on code of unknown version (it records none): restart the watcher"
         : began === current ? `on the checkout's code (${began})` : `on stale code: ${began}, while the checkout has ${current ?? "an unreadable version"}`}`);
     } else out("look loop: not running");
-    for (const record of found) out(`PR #${record.pr} ${record.increment}: handed ${record.handedAt}, ${record.fixes.length} fix sessions${record.fixing ? `, one running (pid ${record.fixing.pid})` : ""}`);
+    for (const record of found) out(`PR #${record.pr}${record.project?.repo ? ` on ${record.project.repo}` : ""} ${record.increment}: handed ${record.handedAt}, ${record.fixes.length} fix sessions${record.fixing ? `, one running (pid ${record.fixing.pid})` : ""}`);
     if (!found.length) out("no hand-offs");
     return 0;
   }

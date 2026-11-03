@@ -58,6 +58,22 @@ test("explicit children nest once and pass their islands up; ending a parent pro
   assert.deepEqual(sessionRows(tree, lines, [arc], now).map(row => row.id), ["child"]);
 });
 
+test("7.2 a subagent whose end is recorded, before or after its start line, reads idle and stays listed under its parent; one with no end recorded stays observed", () => {
+  const lines = log({ ...parent, kind: "prompt-submitted" },
+    { ...parent, kind: "subagent-ended", subagent: "early" },
+    { ...parent, kind: "subagent-started", subagent: "early", task: "Answered at once" },
+    { ...parent, kind: "subagent-started", subagent: "late", task: "Ran in the background" },
+    { ...parent, kind: "subagent-started", subagent: "busy", task: "Still reading" },
+    { ...parent, kind: "subagent-ended", subagent: "late" });
+  const [row] = sessionRows(tree, lines, [], now);
+  assert.equal(row!.state, "working");
+  assert.deepEqual(row!.children.map(({ id, state, idle }) => ({ id, state, idle })), [
+    { id: "early", state: "ended", idle: true },
+    { id: "late", state: "ended", idle: true },
+    { id: "busy", state: "observed", idle: false },
+  ]);
+});
+
 test("7.1 a session holding no claim still gets a plain row, named from the worktree it works in, with no off-plan label (ADR-0749 D1)", () => {
   const lines = log({ ...off, folder: "/home/me/code/site", kind: "file-edited", files: ["a.ts"] },
     { ...off, folder: "/home/me/code/site/.claude/worktrees/fix-login", kind: "command-run", command: "gh pr create --fill" });

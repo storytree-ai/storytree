@@ -21,6 +21,9 @@
  * - Stop fires when the agent finishes its turn, and lists the `background_tasks` still running. In print mode (`claude -p`,
  *   CLAUDE_CODE_ENTRYPOINT exactly "sdk-cli") the process exits with the turn and cuts SessionEnd short, so its line says so (3.54);
  *   an SDK host (sdk-ts, sdk-py) may run more turns.
+ * - SubagentStop fires when a subagent finishes (its own turn's end, instead of Stop), under its parent's `session_id`, with the
+ *   subagent's `agent_id`, the id the Agent tool's `tool_response` gave it (shaped from Claude Code 2.1.284's hook schema). A
+ *   foreground subagent's end comes before the Agent call's PostToolUse, a background one's after it.
  * - SessionEnd carries `reason`.
  * - Two events only Claude Code's mod sends (ADR-1056 D3), each with the session's `usage` as its status line has it
  *   (`context`, `rateLimits`, `cost`): UsageMeasured, while the figures move, and TurnComplete, at a main-loop turn's end, with
@@ -59,6 +62,8 @@ export function claudeCodeLines(input: Record<string, unknown>, env: NodeJS.Proc
       return lines(toolLine(common, input) ?? subagentLine(common, input.tool_name, input.tool_input, input.tool_response), outsideTextLine(common, input.tool_name, input.tool_input));
     case "PostToolUseFailure":
       return line(isText(input.tool_name) && RUNS_COMMAND.has(input.tool_name) ? toolLine(common, input) : undefined);
+    case "SubagentStop":
+      return line(isText(input.agent_id) ? { ...common, kind: "subagent-ended", subagent: input.agent_id } : undefined);
     case "UserPromptSubmit":
       return line({ ...common, kind: "prompt-submitted" });
     case "Stop":

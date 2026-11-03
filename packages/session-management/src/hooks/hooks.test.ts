@@ -416,6 +416,23 @@ test("3.5 recorded inputs for starting a subagent, for a storytree tool call ins
   });
 });
 
+test("3.55 Claude Code's SubagentStop records the subagent's end under its parent session, by the id its started line carries, so a finished subagent is known to be finished", async () => {
+  const project = uniqueProjectName();
+  await withTempDir(async (dir) => {
+    const folder = await projectFolder(dir, project);
+    const home = storytreeHome(dir, true);
+    for (const name of ["post-tool-use-agent", "subagent-stop"]) {
+      const ran = await runHook("claude-code", recorded("claude-code", name, folder), home);
+      assert.deepEqual({ code: ran.code, stdout: ran.stdout, stderr: ran.stderr }, { code: 0, stdout: "", stderr: "" }, name);
+    }
+    const claude = { project, session: "cf0453e9-0036-435f-9ea6-2a11f2ea0946", harness: "claude-code", source: "hook", folder, machine: MACHINE } as const;
+    assert.deepEqual((await linesOf(project)).map(written), [
+      { ...claude, kind: "subagent-started", subagent: "a5b107a7efcabea1e", type: "probe-reader", task: "probe read alpha" },
+      { ...claude, kind: "subagent-ended", subagent: "a5b107a7efcabea1e" },
+    ]);
+  });
+});
+
 test("3.6 where Claude Code's limit on a command is raised (BASH_MAX_TIMEOUT_MS, in the environment its hooks share), the command's started line records it, so the command counts as running until then", () => {
   const input = JSON.parse(recorded("claude-code", "pre-tool-use-bash", "/work/site")) as unknown;
   const before = process.env.BASH_MAX_TIMEOUT_MS;

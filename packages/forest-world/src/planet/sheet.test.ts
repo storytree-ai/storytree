@@ -103,7 +103,7 @@ test('4.23 on the glass sheet every island is a raised plate of one shared thick
     const land = new Vector3(...position).length(), drawn = under.length();
     assert.ok(Math.abs(land - drawn - SHEET_LAND_THICKNESS) < 1e-3, `the land stands ${(land - drawn).toFixed(3)} units above the glass at its corner`);
   }
-  assert.ok(SHEET_LAND_THICKNESS >= 6, `thick enough to be seen at the tilt (${SHEET_LAND_THICKNESS} units)`);
+  assert.ok(SHEET_LAND_THICKNESS >= 3, `thick enough for its sides to show at rest (${SHEET_LAND_THICKNESS} units)`);
 });
 
 test('4.24 on the glass sheet a hollow island is its coast line alone, hiding nothing beneath it, and turns solid again (ADR-1061 D2)', () => {

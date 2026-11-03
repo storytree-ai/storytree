@@ -209,6 +209,8 @@ test("5.21 · the factory plugin this computer's setting does not name that decl
     "micks-dev-loop": quality,
     "my-runner": { ...quality, manifest: { ...verbsPlugin.manifest, for: "agent-pool" }, files: { "verbs.js": `export const verbs = [{ name: "pool" }];\n` } },
     broken: { ...quality, manifest: { ...verbsPlugin.manifest, interface: 99 } },
+    // Read first, and its manifest is readable, but its verbs cannot be loaded.
+    "a-unexported": { ...quality, exports: {} },
   });
   assert.deepEqual(unnamedOwnerOf({ folder, plugins: {} }, "verbs", "quality"), { plugin: "micks-dev-loop", part: "micks-dev-loop" });
   assert.deepEqual(unnamedOwnerOf({ folder, plugins: {} }, "verbs", "pool"), { plugin: "my-runner", part: "agent-pool" });

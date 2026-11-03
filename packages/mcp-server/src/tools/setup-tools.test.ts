@@ -408,6 +408,30 @@ test("app-setup 8.8 with gh missing, signed out or signed in, the agent is never
   });
 });
 
+test("app-setup 8.45 check_setup names each plugin in this computer's factory that no part setting names, with the command that names it (the part its manifest's `for` names, else its own name), and none the setting names (regression: the Surface Pro's missing quality family, friction_f1d8f14c01e2)", async () => {
+  await withTempDir(async (dir) => {
+    const home = throwawayHome(dir);
+    const plugins = path.join(dir, ".storytree", "your-factory", "plugins");
+    const plugin = (name: string, manifest: Record<string, unknown>) => {
+      mkdirSync(path.join(plugins, name), { recursive: true });
+      writeFileSync(path.join(plugins, name, "package.json"), JSON.stringify({ name, storytree: { interface: 1, ...manifest } }));
+    };
+    plugin("micks-dev-loop", {});
+    plugin("my-runner", { for: "agent-pool" });
+    plugin("ci-health", {});
+    writeFileSync(path.join(home.storytreeHome, "settings.json"), JSON.stringify({ "stand-ins": { "ci-health": "ci-health" } }));
+    const setup = { ...ANSWERED, homes: home.homes, storytreeHome: home.storytreeHome };
+    await withAgent(dir, claudeCode("claude-1", { dataDir: path.join(home.storytreeHome, "pgdata"), setup }), async (agent) => {
+      const checked = await agent.call("check_setup");
+      const factory = (checked.data.lines as { check: string; message: string; fix?: string }[]).filter((line) => line.check === "factory");
+      assert.equal(factory.length, 2, JSON.stringify(checked.data.lines));
+      assert.match(checked.text, /micks-dev-loop.*`storytree settings set part micks-dev-loop plugin micks-dev-loop`/);
+      assert.match(checked.text, /my-runner.*`storytree settings set part agent-pool plugin my-runner`/);
+      assert.doesNotMatch(checked.text, /ci-health/);
+    });
+  });
+});
+
 test("app-setup 8.11 a Claude Code or Codex session calling check_setup is signed in to its own harness, though the tool server's ask says signed out (a CLAUDE_CODE_OAUTH_TOKEN sign-in it never sees)", async () => {
   await withTempDir(async (dir) => {
     const home = throwawayHome(dir);

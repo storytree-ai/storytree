@@ -22,7 +22,7 @@ import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 
 import { poolConfig, readCap } from "./pool-config.mjs";
-import { LANE_RUN } from "./runner.mjs";
+import { LANE_RUN, storytreeCommand } from "./runner.mjs";
 import { readBoxPace } from "./pace.mjs";
 import { codeVersion, countEngines, holdRunner, localBrief } from "./queue.mjs";
 import { EXEMPTIONS_EVERY_MS, exemptionChanges, watchExemptions } from "./exemptions-watch.mjs";
@@ -852,8 +852,11 @@ export function freeOf(env) {
   return free;
 }
 
-/** The box's paths, limits and processes, from the pool's configuration (pool-config.mjs). */
-function boxDefaults({ home = homedir(), env = process.env } = {}) {
+/**
+ * The box's paths, limits and processes, from the pool's configuration (pool-config.mjs). `exec` starts a command as
+ * execFile does and `platform` is the one storytree's command line is started for (tests give both).
+ */
+function boxDefaults({ home = homedir(), env = process.env, platform = process.platform, exec = run } = {}) {
   const config = poolConfig({ home, env });
   const { lanesDir, checkout: repo } = config;
   const dir = join(lanesDir, "watch");
@@ -871,7 +874,7 @@ function boxDefaults({ home = homedir(), env = process.env } = {}) {
   const storytree = async (args, project) => (project
     ? await run(process.execPath, ["--import", import.meta.resolve("tsx"), join(repo, "packages", "cli", "src", "bins", "storytree.ts"), ...args],
       { cwd: project.folder, env: { ...env, STORYTREE_HOME: project.home }, maxBuffer: 16 * 1024 * 1024 })
-    : await run("pnpm", ["-s", "storytree", ...args], { cwd: repo, maxBuffer: 16 * 1024 * 1024 })).stdout;
+    : await exec(...storytreeCommand(args, platform), { cwd: repo, maxBuffer: 16 * 1024 * 1024 })).stdout;
   return {
     lanesDir, repo, dir, pidFile: join(dir, "watch.pid"), loopPidFile: join(dir, "watch-loop.pid"), argsOf,
     // The folders a fix, review or release fix session's brief names ({checkout}, {lanes}): this machine's own.
@@ -904,7 +907,8 @@ function boxDefaults({ home = homedir(), env = process.env } = {}) {
     },
     // Off the box, where the shared checkout may not exist (a cloud container), the hand-over's library writes and its
     // branch are read from the folder it runs in: the pull request's branch from GitHub, else the folder's own (4.30).
-    here: async (args) => (await run("pnpm", ["-s", "storytree", ...args], { maxBuffer: 16 * 1024 * 1024 })).stdout,
+    // On Windows pnpm is a .cmd that execFile cannot start, so there it is storytree's command line through node.
+    here: async (args) => (await exec(...storytreeCommand(args, platform), { maxBuffer: 16 * 1024 * 1024 })).stdout,
     ownViewOf: async (pr) => JSON.parse((await run("gh", ["pr", "view", String(pr), ...VIEW])).stdout),
     ownBranchOf: async () => (await run("git", ["branch", "--show-current"])).stdout.trim().replace(/^(main|master)$/, ""),
     alive: async (pid) => isFixSession(await argsOf(pid)),
@@ -935,7 +939,7 @@ function boxDefaults({ home = homedir(), env = process.env } = {}) {
     // The box is the machine whose lanes folder has the lane runner; any other reaches it over ssh as the configured machine.
     onBox,
     remote: async (args) => {
-      if (!config.machine) throw new Error("the agent pool's configuration names no machine to hand over to");
+      if (!config.machine) throw new Error(`the agent pool's configuration names no machine to hand over to (set "machine" and "machineCheckout" in ${config.file})`);
       return (await run(...remoteCommand(config, args), { timeout: 120_000 })).stdout;
     },
     sleep: (ms) => wait(ms),
@@ -998,7 +1002,7 @@ export function boxRoom({ engines, pace = readBoxPace, say }) {
 }
 
 export async function main(args, box = {}) {
-  const defaults = boxDefaults({ home: box.home, env: box.env });
+  const defaults = boxDefaults({ home: box.home, env: box.env, platform: box.platform, exec: box.exec });
   const b = { ...defaults, ...box };
   // The box's releases are its own folder's: a loop given another folder (a test on the box) would keep its stop
   // there, forget it each run and start the box a real fix session every time, unless it brings its own reader.

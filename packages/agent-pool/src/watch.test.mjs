@@ -777,8 +777,24 @@ test("4.24 · a hand-over from another machine runs on the configured machine, i
   const lines = [], written = [];
   assert.equal(await main(["handover", "41", "increment_one"], { home, env: { AGENT_POOL_CONFIG: join(home, "agent-pool.json") }, onBox: false, session: SESSION,
     out: (line) => lines.push(line), ownViewOf: async () => view(41), here: async (args) => { written.push(args); return ""; } }), 0);
-  assert.match(lines.join("\n"), /names no machine to hand over to; handed over through the library instead/);
+  assert.match(lines.join("\n"), /names no machine to hand over to .*; handed over through the library instead/);
   assert.deepEqual(written.map((args) => args.slice(0, 4)), [["arc", "increment", "wait", "increment_one"], ["workspace", "hold", "41", "--holder"]]);
+});
+
+test("4.48 · a hand-over that finds no machine names the file to set it in; on Windows its library fallback starts storytree through node, not pnpm", async (t) => {
+  const home = await mkdtemp(join(tmpdir(), "lane-watch-windows-"));
+  t.after(() => removeTemp(home));
+  const file = join(home, "agent-pool.json");
+  await writeFile(file, JSON.stringify({ lanes: join(home, "lanes") }));
+  const lines = [], started = [];
+  assert.equal(await main(["handover", "41", "increment_one"], { home, env: { AGENT_POOL_CONFIG: file }, onBox: false, session: SESSION, platform: "win32",
+    exec: async (command, args) => { started.push([command, ...args]); return { stdout: "" }; },
+    out: (line) => lines.push(line), ownViewOf: async () => view(41) }), 0);
+  // The refusal says where the box is named, so the laptop's owner can name it.
+  assert.ok(lines.join("\n").includes(`names no machine to hand over to (set "machine" and "machineCheckout" in ${file})`), lines.join("\n"));
+  assert.deepEqual(started.map((command) => command.slice(0, 7)), [
+    [process.execPath, "--import", "tsx", "packages/cli/src/bins/storytree.ts", "arc", "increment", "wait"],
+    [process.execPath, "--import", "tsx", "packages/cli/src/bins/storytree.ts", "workspace", "hold", "41"]]);
 });
 
 test("4.26 · a fix session counts as running while its runner runs", () => {

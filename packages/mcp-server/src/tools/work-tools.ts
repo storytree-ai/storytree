@@ -13,7 +13,7 @@ import type { Library, Storytree } from "@storytree/library";
 import { z } from "zod";
 
 import { closed, currentBranch, increments, releaseAsked } from "@storytree/session-management";
-import { incrementMachine, MachineNameError } from "@storytree/session-management/machines";
+import { CLOUD_MACHINE, incrementMachine, MachineNameError } from "@storytree/session-management/machines";
 import { claimClearingOwnerWait, claimContext as sessionClaimContext, closeRefusalText, refusalText } from "@storytree/session-management/tools";
 import { lineOf, type Answer, type Call, type Define } from "./server.js";
 import { quoted } from "./text.js";
@@ -41,7 +41,7 @@ export function registerWorkTools(define: Define): void {
       wait_for_owner: z.string().min(1).optional().describe("What the owner must do before it can start, in a line: it is born waiting for him until the wait is cleared (clear_wait)"),
       wait_for_owner_why: z.string().min(1).optional().describe("With wait_for_owner, required: what his action protects or unblocks, in a line"),
       wait_for_owner_rank: z.number().int().min(1).optional().describe("With wait_for_owner: where it ranks among his actions, 1 first"),
-      machine: z.string().min(1).optional().describe("The one machine that can take it, by the short name Machines knows it by; leave it out when any machine can"),
+      machine: z.string().min(1).optional().describe("The one machine that can take it, by the short name Machines knows it by, or \"cloud\" for work only a cloud container can prove (no dispatcher takes it); leave it out when any machine can"),
       outcome: z.object({ disposition, pr, note }).optional().describe("Only for work that already landed without being parked: how it closed"),
     }),
     async ({ arc, title, objective, body, capabilities, links, held_on, waits_on, wait_for_owner, wait_for_owner_why, wait_for_owner_rank, machine, outcome }, { library, storytree, writer }) => {
@@ -185,8 +185,11 @@ export function registerWorkTools(define: Define): void {
       }
       const done = on !== undefined ? await library.removeWait(waiter, on, writer) : await library.removeWaitFor(waiter, releaser!, writer);
       if (done === null) return { text: `There is no increment or arc ${waiter} in this project's plan.`, refused: true };
-      // Nobody holds it now, so the pool may start a lane on it (5.57).
-      const ready = releaser === "owner" ? " Nobody holds it, so the pool may start it now: to finish it yourself, claim it at once." : "";
+      // Nobody holds it now, so the pool may start a lane on it (5.57), unless only a cloud container takes it.
+      const cloud = (done.fields as { machine?: string }).machine === CLOUD_MACHINE;
+      const ready = releaser !== "owner" ? "" : cloud
+        ? ` Nobody holds it, and only a cloud container takes it (its machine is ${CLOUD_MACHINE}), so the pool never starts it: start a cloud session on it.`
+        : " Nobody holds it, so the pool may start it now: to finish it yourself, claim it at once.";
       return { text: `${waiter} no longer waits ${on !== undefined ? `on ${on}` : `for ${releasedBy(releaser!)}`}.${ready}`, data: { id: waiter } };
     },
   );

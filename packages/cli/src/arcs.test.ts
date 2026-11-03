@@ -690,7 +690,7 @@ test("4.22 `arc increment edit --capabilities \"\"`, or `--capabilities none` fo
   });
 });
 
-test("4.23 `arc increment edit --machine <name>` names the one machine that can take an increment, `--machine none` clears it, and a name Machines does not know is refused with nothing written", async () => {
+test("4.23 `arc increment edit --machine <name>` names the one machine that can take an increment, `--machine none` clears it, and a name Machines does not know is refused with nothing written; `--machine cloud` names a cloud container, and clearing its owner wait says the pool never starts it", async () => {
   await inWorld(command, async (world) => {
     const library = await world.library();
     const arc = await anArc(world);
@@ -717,6 +717,15 @@ test("4.23 `arc increment edit --machine <name>` names the one machine that can 
     const cleared = await world.run(["arc", "increment", "edit", work.id, "--machine", "none"]);
     assert.equal(cleared.code, 0, cleared.stderr);
     assert.equal(await machineOf(), undefined);
+
+    const cloud = await world.run(["arc", "increment", "edit", work.id, "--machine", "cloud"]);
+    assert.equal(cloud.code, 0, cloud.stderr);
+    assert.equal(await machineOf(), "cloud");
+    assert.equal((await world.run(["arc", "increment", "wait", work.id, "--for", "owner", "--note", "Prove it in a cloud session", "--why", "it unblocks the work"])).code, 0);
+    const unwaited = await world.run(["arc", "increment", "unwait", work.id, "--for", "owner"]);
+    assert.equal(unwaited.code, 0, unwaited.stderr);
+    assert.match(unwaited.stdout, /cloud container[\s\S]*the pool never starts it/);
+    assert.doesNotMatch(unwaited.stdout, /pool may start it/);
   });
 });
 

@@ -19,7 +19,7 @@ import { VerbRefusal, type DoorWords, type Verb, type VerbInputs } from "@storyt
 import { MACHINE_VERBS, SESSION_VERBS, type SessionVerbContext } from "../sessions/verbs.js";
 import { removeTempDir } from "@storytree/project-and-caller/testing/folders";
 import { testServerUrl, uniqueProjectName } from "@storytree/project-and-caller/testing/pg";
-import { incrementMachine, MachineNameError, machineNames, nameThisMachine, NO_MACHINE } from "./machines.js";
+import { CLOUD_MACHINE, incrementMachine, MachineNameError, machineNames, nameThisMachine, NO_MACHINE } from "./machines.js";
 
 const WORDS: DoorWords = { door: "command", say: (step) => step.command === undefined ? step.tool! : `storytree ${step.command}` };
 
@@ -139,12 +139,14 @@ test("11.3 · The sessions list shows each session's machine by its short name, 
   });
 });
 
-test("11.4 · An increment's machine is checked against Machines: a named machine is kept, \"none\" clears it, and any other name is refused naming the known ones", async () => {
+test("11.4 · An increment's machine is checked against Machines: a named machine is kept, \"cloud\" is kept for a cloud container no machine may be named, \"none\" clears it, and any other name is refused naming the known ones", async () => {
   await withMachines(async ({ storytree, homes: [here] }) => {
     const mint = uniqueName();
     await nameThisMachine(storytree, mint, { home: here, host: `host-${randomBytes(4).toString("hex")}` });
     assert.equal(await incrementMachine(storytree, mint), mint);
     assert.equal(await incrementMachine(storytree, NO_MACHINE), undefined, "none clears it");
+    assert.equal(await incrementMachine(storytree, CLOUD_MACHINE), CLOUD_MACHINE, "a cloud container is named though no machine is");
+    await assert.rejects(nameThisMachine(storytree, CLOUD_MACHINE, { home: here }), (error: unknown) => error instanceof MachineNameError && error.misuse, "no machine is called cloud, so no dispatcher takes cloud work");
     const unknown = uniqueName();
     await assert.rejects(incrementMachine(storytree, unknown), (error: unknown) => error instanceof MachineNameError && error.message.includes(`"${unknown}"`) && error.message.includes(mint));
   });

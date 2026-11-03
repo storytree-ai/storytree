@@ -15,9 +15,9 @@ export interface ArcSurface { stop(): void }
  * The Arcs tab of the app's left rail (3.1): its lanes fill `host`, read for as long as it is mounted, whichever tab is on
  * show, and an arc's card opens over the map only when its row is clicked. `onFreshDraw` is told once, when the surface first
  * draws a board read fresh since this mount (3.18), which the app times from its start; `onWaiting` hears what waits on the
- * owner across the active arcs, the Arcs tab's badge.
+ * owner across the active arcs, the Arcs tab's badge. Given `startAfter`, the page's start, it reads nothing until that settles (3.9).
  */
-export function mountArcSurface(host: HTMLElement, options: { project: string; reads: BoardReads; timers?: Timers; reading?: PageReading; onFreshDraw?: () => void; onWaiting?: (count: number) => void }): ArcSurface {
+export function mountArcSurface(host: HTMLElement, options: { project: string; reads: BoardReads; timers?: Timers; reading?: PageReading; startAfter?: PromiseLike<unknown>; onFreshDraw?: () => void; onWaiting?: (count: number) => void }): ArcSurface {
   const root = document.createElement("div");
   root.className = "arc-surface-mount";
   root.innerHTML = `<section class="arc-rail" aria-label="Arcs" data-surface-id="arcs"><div class="arc-status" role="status"></div><div class="arc-body"></div></section>`

@@ -102,11 +102,18 @@ export interface BoardWaits {
 export function waitsOnBoard(work: readonly WorkName[], holds: ReadonlyMap<string, readonly Hold[]>): BoardWaits {
   const names = new Map(work.map((item) => [item.id, item]));
   const name = (id: string): WorkName => names.get(id) ?? { id, title: `${id} (missing)` };
+  // What each piece of work holds up, indexed once: a board asks it of every arc and increment (story node render 3.49).
+  const holding = new Map<string, { waiting: string; reason: string }[]>();
+  for (const [waiting, held] of holds) for (const { on, reason } of held) {
+    const list = holding.get(on) ?? [];
+    if (list.length === 0) holding.set(on, list);
+    list.push({ waiting, reason });
+  }
   return {
     on: (id) => (holds.get(id) ?? []).map((hold) => ({
       ...name(hold.on), ...hold,
       ...(hold.forGood ? { warning: "This wait will not release by itself." } : {}),
     })),
-    heldUpBy: (id) => [...holds].flatMap(([waiting, held]) => held.filter(({ on }) => on === id).map(({ reason }) => ({ ...name(waiting), reason }))),
+    heldUpBy: (id) => (holding.get(id) ?? []).map(({ waiting, reason }) => ({ ...name(waiting), reason })),
   };
 }

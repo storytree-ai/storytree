@@ -3,7 +3,7 @@
  * renderer hands it as parts: which project is on show and when it is drawn again; what the page says while it loads, has nothing
  * to show or fails (`data-state`: loading, ready, empty, missing, error); the forest drawn at once from the tree kept at the last
  * start (`data-fresh="no"`) and the notice over it while the first read fails; which surfaces are mounted as the settings say
- * (every one when they cannot be read), the sessions list and the arcs each in its tab of the left rail; the start-timing marks, each sent once (lifecycle 1.33); and that a read landing after
+ * (every one when they cannot be read), the sessions list and the arcs each in its tab of the left rail, the arcs reading once the start settled; the start-timing marks, each sent once (lifecycle 1.33); and that a read landing after
  * the user switched project changes nothing on show.
  */
 import { drawingOf, drillDown, forestDrawn, forestScene, storyNodes, type ForestReadingOptions, type ForestScene, type KeptDrawing, type StoryPanel } from "@storytree/forest";
@@ -47,8 +47,11 @@ export interface ProjectParts<View extends ForestGlobe = ForestGlobe> {
   /** The tree the forest last drew, and what it drew it with (forest keptTree and keptDrawing). */
   kept: { read(): AnnotatedTree | undefined; write(tree: AnnotatedTree): void };
   drawing: { read(): KeptDrawing | undefined; write(drawing: ReturnType<typeof drawingOf>): void };
-  /** The arcs, in `host` (the rail's Arcs tab); `onWaiting` hears what waits on the owner there, the tab's badge. */
-  arcs(host: HTMLElement, on: { onFreshDraw(): void; onWaiting(count: number): void }): { stop(): void };
+  /**
+   * The arcs, in `host` (the rail's Arcs tab); `onWaiting` hears what waits on the owner there, the tab's badge. They read nothing
+   * until `startAfter`, the page's start settled or the forest's first read failed (2.40), so the start does not wait on them.
+   */
+  arcs(host: HTMLElement, on: { onFreshDraw(): void; onWaiting(count: number): void; startAfter: PromiseLike<void> }): { stop(): void };
   treeSpace(on: { choose(id: string): void; closed(): void }, opening: string | undefined): TreeWindow;
   openView(holder: HTMLElement, onSelect: (selection: ForestSelection) => void, options: { library: boolean; opening: string | undefined }): Promise<View>;
   /** The sessions list in `host` (the rail's Sessions tab), joined to `view` and the knowledge core both ways. */
@@ -213,7 +216,9 @@ export function openProjectPage<View extends ForestGlobe>(parts: PageParts<View>
     // The left rail, a tab for each of the sessions list and the arcs that is on (ADR-1219).
     const rail = mountRail(content, { project: name, tabs: (["sessions", "arcs"] as const).filter((tab: RailTab) => surfaceOn(surfaces, tab)) });
     if (rail) mine.rail = rail;
-    if (rail && surfaceOn(surfaces, "arcs")) mine.arcs = project.arcs(rail.panel("arcs"), { onFreshDraw: () => startMark("arcs first fresh draw"), onWaiting: (count) => rail.badge(count) });
+    let started!: () => void;
+    const startAfter = new Promise<void>((resolve) => { started = resolve; });
+    if (rail && surfaceOn(surfaces, "arcs")) mine.arcs = project.arcs(rail.panel("arcs"), { onFreshDraw: () => startMark("arcs first fresh draw"), onWaiting: (count) => rail.badge(count), startAfter });
     let tree: AnnotatedTree | undefined;
     /** The code survey last read, which counts a mapped story's files and lines for its panel. */
     let surveyed: Survey = {};
@@ -268,6 +273,7 @@ export function openProjectPage<View extends ForestGlobe>(parts: PageParts<View>
     // once the library answers. Once drawn, a failed read changes nothing on show.
     const failed = (error: unknown): void => {
       if (showing !== mine) return;
+      started();
       parts.failed(`the forest of ${name} could not be read`, error);
       if (status.state() === "ready") return;
       const heading = "The forest could not be read";
@@ -298,7 +304,7 @@ export function openProjectPage<View extends ForestGlobe>(parts: PageParts<View>
       // A kept start is settled only once the globe has painted what is on show after the fresh tree, never before the globe
       // is on screen (3.49; the owner's ruling on question_f1589345683f, which moved open-app-kept's baseline for it).
       onSettled: () => {
-        void (last === undefined ? Promise.resolve() : view.drawn()).then(() => { if (showing === mine) status.showProgress(false); });
+        void (last === undefined ? Promise.resolve() : view.drawn()).then(() => { if (showing === mine) { status.showProgress(false); started(); } });
       },
     };
     mine.reading = project.reading(drawnWith === undefined ? reading : { ...reading, survey: drawnWith.survey });

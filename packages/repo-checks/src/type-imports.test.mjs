@@ -21,7 +21,7 @@ function plant(files) {
 
 const manifest = (name) => ({ name, type: "module", exports: { ".": "./src/index.ts" } });
 
-test("5.2 a type-only import ending at a story other than the library is refused and named; one at the library, one by value and one in a test are not", async (t) => {
+test("5.2 a type-only import ending at a story other than the library is refused and named; one at the library, one by value, one in a test and one between two capabilities of the importer's own story are not", async (t) => {
   const root = plant({
     "packages/library/package.json": manifest("@t/library"),
     "packages/library/src/index.ts": 'export type { Row } from "./row.js";\n',
@@ -32,9 +32,12 @@ test("5.2 a type-only import ending at a story other than the library is refused
     "packages/shop/src/price.ts": "export const price = 1;\n",
     "packages/till/package.json": { ...manifest("@t/till"), dependencies: { "@t/library": "workspace:*", "@t/shop": "workspace:*" } },
     // Capability 1 reads the shop's cart by type alone: refused.
-    "packages/till/src/basket.ts": 'import type { Cart } from "@t/shop";\nexport const count = (cart: Cart) => cart.items.length;\n',
+    "packages/till/src/basket.ts": 'import type { Cart } from "@t/shop";\nexport type Line = string;\nexport const count = (cart: Cart) => cart.items.length;\n',
     // Capability 2 takes a row's shape from the library and the shop's price by value: both pass.
     "packages/till/src/total.ts": 'import type { Row } from "@t/library";\nimport { price } from "@t/shop";\nexport const total = (rows: Row[]) => rows.length * price;\n',
+    // Capability 3 reads capability 1's line by type alone, inside the till's own story: passes.
+    "packages/till/src/receipt.ts": 'import type { Line } from "./basket.js";\nexport const print = (line: Line) => line;\n',
+    "packages/till/src/receipt.test.ts": 'import { test } from "node:test";\nimport { print } from "./receipt.js";\ntest("3.1 prints", () => { print(""); });\n',
     "packages/till/src/basket.test.ts": 'import { test } from "node:test";\nimport type { Cart } from "@t/shop";\nimport { count } from "./basket.js";\ntest("1.1 counts", () => { const cart: Cart = { items: [] }; count(cart); });\n',
     "packages/till/src/total.test.ts": 'import { test } from "node:test";\nimport { total } from "./total.js";\ntest("2.1 totals", () => { total([]); });\n',
   });

@@ -39,14 +39,15 @@ export interface Structure {
 export function crossingsOf(survey: ProjectSurvey): number | undefined {
   let crossImports = 0;
   let placed = false;
-  for (const story of Object.values(survey)) {
+  for (const [id, story] of Object.entries(survey)) {
     const owner = new Map(story.files.flatMap((file) => (file.capability === undefined ? [] : [[file.path, file.capability] as const])));
     placed ||= owner.size > 0;
     const within = story.imports.filter(({ from, to }) => owner.has(from) && owner.has(to) && owner.get(from) !== owner.get(to));
     crossImports += new Set(within.map(({ from, to }) => `${from}\0${to}`)).size;
-    // Another story's capability is always another capability; an end the survey places nowhere crosses no line.
+    // Another story's capability is always another capability; an end the survey places nowhere crosses no line, and an
+    // edge to its own story is an import `within` has counted already.
     for (const edge of story.edges ?? []) {
-      if (edge.from !== undefined && edge.to !== undefined) crossImports += new Set(edge.files.map(({ from, to }) => `${from}\0${to}`)).size;
+      if (edge.story !== id && edge.from !== undefined && edge.to !== undefined) crossImports += new Set(edge.files.map(({ from, to }) => `${from}\0${to}`)).size;
     }
   }
   return placed ? crossImports : undefined;

@@ -92,7 +92,7 @@ export function registerPlanTools(define: Define): void {
 
   define(
     "plan_contract",
-    "Plan a contract: one testable guarantee a capability makes. Leave its number off the title: it is given the capability's next free one, past the numbers its contracts and its story package's numbered tests carry, even a test no contract carries yet, since that test may prove another contract; the reply names those tests, so when this contract is the one a test proves you give that number in the title. It also names the capability's other contracts no numbered test carries yet, perhaps planned by a lane that backed off: build one of those rather than plan it again. A number another contract of the capability carries is refused. Write its test, see it fail, and report it red.",
+    "Plan a contract: one testable guarantee a capability makes. Leave its number off the title: it is given the capability's next free one, past the numbers its contracts and its story package's numbered tests carry, even a test no contract carries yet, since that test may prove another contract; the reply names those tests, so when this contract is the one a test proves you give that number in the title. It also names the capability's other contracts no numbered test carries yet, planned but not built: build one of those rather than plan it again. A number another contract of the capability carries is refused. Write its test, see it fail, and report it red.",
     z.object({ capability: id("capability it belongs to"), title, description }),
     async ({ capability, title: name, description: about }, call) => {
       const tree = await call.library.projectTree();
@@ -101,7 +101,7 @@ export function registerPlanTools(define: Define): void {
       const orphans = await orphanTests(call, capability, contract.fields.title, tested);
       const named = orphans.length === 0 ? "" : ` Numbered ${orphans.length === 1 ? `test ${orphans[0]} has` : `tests ${orphans.slice(0, -1).join(", ")} and ${orphans.at(-1)} have`} no contract: if this contract is the one ${orphans.length === 1 ? "it proves" : "one proves"}, give it that number with edit_plan.`;
       const untested = untestedContracts(tree, capability, tested);
-      const open = untested.length === 0 ? "" : ` No numbered test carries ${untested.length === 1 ? "this other contract" : `these ${untested.length} other contracts`} of the capability yet, perhaps planned by a lane that backed off: ${untested.map(quoted).join(", ")}. If this contract repeats one of them, retire it and build that one.`;
+      const open = untested.length === 0 ? "" : ` No numbered test carries ${untested.length === 1 ? "this other contract" : `these ${untested.length} other contracts`} of the capability yet, planned but not built: ${untested.map(quoted).join(", ")}. If this contract repeats one of them, retire it and build that one.`;
       const long = contract.fields.title.length > LONG_CONTRACT;
       const advice = long ? ` Its title runs past ${LONG_CONTRACT} characters, which often means more than one contract: ${CONTRACT_DEFINITION} Split it with edit_plan and plan_contract if so.` : "";
       return { text: `Planned contract ${quoted(contract.fields.title)} (${contract.id}).${named}${open}${advice} Write its test, see it fail, and report it red.`, data: { id: contract.id, orphans, untested, long } };
@@ -110,7 +110,7 @@ export function registerPlanTools(define: Define): void {
 
   define(
     "edit_plan",
-    `Correct an arc, story, capability, contract or increment in place, or the project's anchor (id ${ANCHOR_ID}: what it is, and its audience, who it is for): change only the fields you give. An increment's capabilities list is filled here by the session that claims it, as it plans (ADR-0949 D2). While you hold an increment, a change to a story, capability or contract planned before it waits on the increment as a pending change until its branch merges, and the live plan is unchanged (ADR-0966); one it planned changes at once, and so does one given live: true, with the increment's claim kept.`,
+    `Correct an arc, story, capability, contract or increment in place, or the project's anchor (id ${ANCHOR_ID}: what it is, and its audience, who it is for): change only the fields you give. An increment's capabilities list is filled here by the session that claims it, as it plans (ADR-0949 D2), and its objective and body, its breakdown, are rewritten here. While you hold an increment, a change to a story, capability or contract planned before it waits on the increment as a pending change until its branch merges, and the live plan is unchanged (ADR-0966); one it planned changes at once, and so does one given live: true, with the increment's claim kept.`,
     z.object({
       id: id(`arc, story, capability, contract or increment to correct, or ${ANCHOR_ID} for the project's anchor`),
       what: z.string().min(1).optional().describe("The project's anchor: what it is, in a few words (\"a software factory\")"),
@@ -128,6 +128,8 @@ export function registerPlanTools(define: Define): void {
         .union([z.number().int().min(1).max(Number.MAX_SAFE_INTEGER), z.literal("none")])
         .optional()
         .describe("An arc's priority: a whole number, 1 first, or \"none\" to clear it; an arc with none comes after every arc that has one (ADR-0963)"),
+      objective: z.string().min(1).optional().describe("What an increment delivers, in a sentence"),
+      body: z.string().min(1).optional().describe("An increment's body, replacing it: how the work breaks down"),
       capabilities: z.array(z.string().min(1)).optional().describe("An increment's capabilities, replacing them: the ones it changes, and nothing else"),
       links: z.array(z.string().min(1)).optional().describe("An increment's links, replacing them: its stories, notes or decisions"),
       machine: z.string().min(1).optional().describe("The one machine that can take an increment, by the short name Machines knows it by, \"cloud\" for work only a cloud container can prove (no dispatcher takes it), or \"none\" to clear it, so any machine can"),
@@ -191,6 +193,8 @@ interface Changes {
   intent?: string | undefined;
   end_state?: string | undefined;
   priority?: number | "none" | undefined;
+  objective?: string | undefined;
+  body?: string | undefined;
   capabilities?: string[] | undefined;
   links?: string[] | undefined;
   machine?: string | undefined;
@@ -205,7 +209,7 @@ const EDITABLE = {
   capability: ["title", "description", "story", "depends_on", "covers"],
   contract: ["title", "description", "capability"],
   arc: ["title", "description", "stories", "intent", "end_state", "priority"],
-  increment: ["title", "capabilities", "links", "machine", "escape"],
+  increment: ["title", "objective", "body", "capabilities", "links", "machine", "escape"],
   anchor: ["what", "audience"],
 } as const;
 

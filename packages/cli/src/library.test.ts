@@ -486,7 +486,8 @@ test("3.21 `new contract`'s answer names the capability's other contracts that n
 
     const written = await world.run(["library", "new", "contract", "--capability", capability.id, "--title", "Totals its items"]);
     assert.equal(written.code, 0, written.stderr);
-    assert.match(written.stdout, /1\.2 · Refuses a sold-out item/, "the untested contract an earlier lane planned is named");
+    assert.match(written.stdout, /1\.2 · Refuses a sold-out item/, "the untested contract planned earlier is named");
+    assert.doesNotMatch(written.stdout, /lane/, "a user's project has no lanes");
     assert.doesNotMatch(written.stdout, /1\.1 · Holds an item|1\.3 · Totals its items/, "neither the tested contract nor the one just written is named");
   });
 });

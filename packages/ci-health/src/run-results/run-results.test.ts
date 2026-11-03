@@ -87,3 +87,32 @@ test("1.2 the commit a run tested is read from its log's checkout, and a log tha
   assert.equal(commitOfLog(SAVED_LOG), "7f745ec5218a72a19aef3953e4b7b91aca6a8e76");
   assert.equal(commitOfLog(API_LOG), undefined);
 });
+
+/** A job log holding pytest's short test summary, as `pytest -rA` prints it. */
+const PYTEST_LOG = [
+  "test\tRun uv run pytest -rA\t2026-11-04T10:00:01.0000000Z ============================= test session starts ==============================",
+  "test\tRun uv run pytest -rA\t2026-11-04T10:00:01.1000000Z tests/test_total.py ..F.sx                                                  [100%]",
+  "test\tRun uv run pytest -rA\t2026-11-04T10:00:01.2000000Z =========================== short test summary info ============================",
+  "test\tRun uv run pytest -rA\t2026-11-04T10:00:01.3000000Z PASSED tests/test_total.py::TestTotals::test_cart_2_2_empty",
+  "test\tRun uv run pytest -rA\t2026-11-04T10:00:01.4000000Z PASSED tests/test_total.py::test_2_1_sums[one-two]",
+  "test\tRun uv run pytest -rA\t2026-11-04T10:00:01.5000000Z \x1b[31mFAILED\x1b[0m tests/test_total.py::test_2_1_rounds - AssertionError: assert 3 == 4",
+  "test\tRun uv run pytest -rA\t2026-11-04T10:00:01.6000000Z ERROR tests/test_total.py::test_2_3_reads - fixture 'db' not found",
+  "test\tRun uv run pytest -rA\t2026-11-04T10:00:01.7000000Z SKIPPED [1] tests\\test_total.py:14: platform:posix: needs a POSIX shell",
+  "test\tRun uv run pytest -rA\t2026-11-04T10:00:01.8000000Z XFAIL tests/test_total.py::test_2_4_later - not built yet",
+  "test\tRun uv run pytest -rA\t2026-11-04T10:00:01.9000000Z XPASS tests/test_total.py::test_2_5_lucky",
+  "test\tRun uv run pytest -rA\t2026-11-04T10:00:02.0000000Z PASSED is not a result without a node id",
+  "test\tRun uv run pytest -rA\t2026-11-04T10:00:02.1000000Z ============== 1 failed, 2 passed, 1 skipped, 1 xfailed, 1 xpassed, 1 error in 0.12s ==============",
+].join("\n");
+
+test("1.21 · pytest's -rA summary lines read as one result per test: PASSED and XPASS passed, FAILED and ERROR failed, XFAIL skipped, each with its node id's file and classes; a SKIPPED line, which names no test, keeps its file, line and reason", () => {
+  const file = "tests/test_total.py";
+  assert.deepEqual(parseTestLog(PYTEST_LOG), [
+    { name: "test_cart_2_2_empty", suites: ["TestTotals"], status: "passed", file },
+    { name: "test_2_1_sums[one-two]", suites: [], status: "passed", file },
+    { name: "test_2_1_rounds", suites: [], status: "failed", file, message: "AssertionError: assert 3 == 4" },
+    { name: "test_2_3_reads", suites: [], status: "failed", file, message: "fixture 'db' not found" },
+    { name: "", suites: [], status: "skipped", file, line: 14, message: "platform:posix: needs a POSIX shell" },
+    { name: "test_2_4_later", suites: [], status: "skipped", file, message: "not built yet" },
+    { name: "test_2_5_lucky", suites: [], status: "passed", file },
+  ]);
+});

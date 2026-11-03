@@ -541,7 +541,7 @@ export class LogFold {
   #own(line: Line): void {
     let own = this.#sessions.get(line.session);
     if (own === undefined) {
-      own = { session: line.session, firstAt: line.at, latest: line, worktrees: new Set(), hooksRunning: false, branches: new Set(), placed: new Map(),
+      own = { session: line.session, firstAt: line.at, latest: { kind: line.kind, at: line.at }, worktrees: new Set(), hooksRunning: false, branches: new Set(), placed: new Map(),
         prompted: false, inTurn: false, running: new Map(), finished: new Set(), onMain: new Map() };
       this.#sessions.set(line.session, own);
     }

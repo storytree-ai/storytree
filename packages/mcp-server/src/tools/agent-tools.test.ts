@@ -811,22 +811,26 @@ test("app-setup 11.11 in a Python project, or one importing a Python folder, wir
     git(folder, "init", "-q");
     git(folder, "remote", "add", "origin", "https://github.com/someone/shop.git");
     const around = path.dirname(folder);
-    // A Python project beside it, locked by uv, recorded by repository and commit when it is imported.
-    const origin = path.join(around, "orders-origin.git");
-    git(around, "init", "-q", "--bare", origin);
-    const orders = path.join(around, "orders");
-    mkdirSync(orders);
-    git(orders, "init", "-q");
-    writeFileSync(path.join(orders, "pyproject.toml"), '[project]\nname = "orders"\nversion = "1.0.0"\n');
-    writeFileSync(path.join(orders, "uv.lock"), "version = 1\n");
-    git(orders, "add", ".");
-    git(orders, "commit", "-q", "-m", "first");
-    git(orders, "remote", "add", "origin", origin);
-    git(orders, "push", "-q", "origin", "HEAD:refs/heads/main");
+    // Python projects beside it, each recorded by repository and commit when it is imported: one locked by uv, one locked by nothing.
+    const pushed = (name: string, files: Record<string, string>): void => {
+      const origin = path.join(around, `${name}-origin.git`);
+      git(around, "init", "-q", "--bare", origin);
+      const at = path.join(around, name);
+      mkdirSync(at);
+      git(at, "init", "-q");
+      for (const [file, text] of Object.entries(files)) writeFileSync(path.join(at, file), text);
+      git(at, "add", ".");
+      git(at, "commit", "-q", "-m", "first");
+      git(at, "remote", "add", "origin", origin);
+      git(at, "push", "-q", "origin", "HEAD:refs/heads/main");
+    };
+    pushed("orders", { "pyproject.toml": '[project]\nname = "orders"\nversion = "1.0.0"\n', "uv.lock": "version = 1\n" });
+    pushed("billing", { "setup.py": "from setuptools import setup\nsetup(name='billing')\n" });
 
     await withAgent(folder, claudeCode("claude-1", { protection: async () => "allowed" }), async (agent) => {
       // A JavaScript project importing it: Python and uv are set up for the import, which installs by its uv.lock.
       assert.equal((await agent.call("import_project", { folder: "../orders" })).isError, false);
+      assert.equal((await agent.call("import_project", { folder: "../billing" })).isError, false);
       assert.equal((await agent.call("wire_pipeline", { install: "npm ci", test: "npm test" })).isError, false);
       const importing = readFileSync(path.join(folder, ".github/workflows/storytree.yml"), "utf8");
       const steps = importing.slice(importing.indexOf("\n  test:"));
@@ -834,7 +838,9 @@ test("app-setup 11.11 in a Python project, or one importing a Python folder, wir
       assert.match(steps, /- uses: astral-sh\/setup-uv@[0-9a-f]{40} # v[\d.]+\n/, steps);
       assert.ok(steps.indexOf("setup-uv") < steps.indexOf("- run:"), "Python is set up before anything runs");
       const runs = testJobRuns(importing);
-      assert.ok(runs.slice(0, runs.indexOf("npm ci")).includes('uv sync --frozen --directory "../orders"'), runs.join("\n"));
+      const fetched = runs.slice(0, runs.indexOf("npm ci"));
+      assert.ok(fetched.includes('uv sync --frozen --directory "../orders"'), runs.join("\n"));
+      assert.ok(fetched.includes('python -m pip install "../billing"'), `a Python folder with no lockfile is installed by pip: ${runs.join("\n")}`);
       assert.doesNotMatch(importing, /poetry/, "no poetry.lock, no Poetry");
 
       // The project itself becomes a Poetry project: Poetry is set up too, before its install.
@@ -843,6 +849,12 @@ test("app-setup 11.11 in a Python project, or one importing a Python folder, wir
       assert.equal((await agent.call("wire_pipeline", { install: "poetry install", test: "poetry run pytest -rA" })).isError, false);
       const poetry = testJobRuns(readFileSync(path.join(folder, ".github/workflows/storytree.yml"), "utf8"));
       assert.ok(poetry.indexOf("pipx install poetry") >= 0 && poetry.indexOf("pipx install poetry") < poetry.indexOf("poetry install"), poetry.join("\n"));
+
+      // Not on GitHub, the commands to add start by installing Poetry, and say the tests need Python and uv.
+      git(folder, "remote", "set-url", "origin", "https://gitlab.com/someone/shop.git");
+      const elsewhere = await agent.call("wire_pipeline", { install: "poetry install", test: "poetry run pytest -rA" });
+      assert.equal(elsewhere.isError, false, elsewhere.text);
+      assert.match(elsewhere.text, /before it merges \(Python 3 and uv for the tests\):\n {2}pipx install poetry\n/, elsewhere.text);
     });
   });
 });

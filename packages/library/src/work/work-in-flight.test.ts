@@ -496,6 +496,31 @@ for (const backend of [memory, postgres]) {
     assert.equal(await flight.dropPending("increment_000000000000", form.id, "x"), null);
   });
 
+  contract("10.28", "a pending edit to a plugin's story, capability or contract is refused before it is staged, naming the plugin's plan file, with nothing written, while another story's record still pends", async ({ work, flight, records, transactions }) => {
+    const arc = await work.createArc(ARC);
+    const plugin = await work.importPluginPlan("voice", {
+      story: { title: "Voice" },
+      capabilities: [{ title: "1 · The address", proposed: true, contracts: [{ title: "1.1 · A wrong path is answered 404" }] }],
+    });
+    const [address] = plugin.added.filter((id) => id.startsWith("capability_"));
+    const [notFound] = plugin.added.filter((id) => id.startsWith("contract_"));
+    const increment = await flight.addIncrement({ arc: arc.id, ...WORK });
+    await flight.advanceIncrement(increment.id, "active");
+
+    const before = await transactions.history();
+    for (const [record, fields] of [[plugin.story, { description: "Talk by voice" }], [address!, { description: "Where it listens" }], [notFound!, { description: "A typo is answered 404" }]] as const) {
+      await assert.rejects(flight.pendChange(increment.id, { record, fields }), (error: unknown) => error instanceof SchemaError && /voice's plan: edit plugins\/voice's plan file/.test(error.message), record);
+    }
+    assert.deepEqual(await transactions.history(), before, "nothing was written");
+    assert.equal(((await records.get(increment.id)) as SchemaRecord<"increment">).fields.pending, undefined, "nothing is pending to drop at a close");
+
+    const story = await work.addStory({ title: "Visitor can sign up" });
+    const form = await work.addCapability({ title: "Email form", story: story.id });
+    const later = await flight.addIncrement({ arc: arc.id, ...WORK });
+    await flight.advanceIncrement(later.id, "active");
+    assert.ok(await flight.pendChange(later.id, { record: form.id, fields: { description: "Where they type it" } }), "another story's record still pends");
+  });
+
   contract("10.17", "settling closed increments' leftover pending changes applies those of each that landed and drops those of each that did not, and finds nothing the second time", async ({ work, flight, records, transactions }) => {
     const arc = await work.createArc(ARC);
     const story = await work.addStory({ title: "Visitor can sign up" });

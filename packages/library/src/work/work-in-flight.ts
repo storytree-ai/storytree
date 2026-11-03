@@ -381,7 +381,8 @@ export class WorkInFlight {
    * retirement is refused. A record the increment planned itself, created after it started, is not
    * held: the answer says so, and the caller edits it live. Refused, with nothing written: an increment
    * that is not active (RangeError); a record that is not a live story, capability or contract
-   * (MissingReferenceError); an edit that would leave the record invalid (SchemaError) or name a
+   * (MissingReferenceError); an edit to a plugin's plan, refused as the plan's editors refuse it live (SchemaError,
+   * 10.28); an edit that would leave the record invalid (SchemaError) or name a
    * missing record (MissingReferenceError); and a record another open increment already holds a
    * pending change for, naming that increment (RangeError, D5). Null if `id` is not a live increment.
    */
@@ -416,6 +417,7 @@ export class WorkInFlight {
         if (earlier !== undefined && "retire" in earlier) {
           throw new RangeError(`${record.type} ${JSON.stringify(record.id)} is pending retirement on this increment: it takes no edit after that`);
         }
+        await this.#work.refusePluginEdit(record as SchemaRecord<"story"> | SchemaRecord<"capability"> | SchemaRecord<"contract">, change.fields);
         const live = record.fields as Record<string, unknown>;
         const given = Object.keys(change.fields);
         const after = { ...(earlier?.after ?? {}), ...Object.fromEntries(given.map((field) => [field, change.fields[field] ?? null])) };

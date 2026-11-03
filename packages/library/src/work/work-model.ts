@@ -389,8 +389,7 @@ export class WorkModel {
     return this.#serially(async () => {
       const stored = (await liveRecord(this.#records, id, ["capability"])) as SchemaRecord<"capability"> | null;
       if (stored === null) return null;
-      if (PLUGIN_CAPABILITY_FIELDS.some((field) => field in fields)) this.#refusePlugins("capability", "story", await this.#pluginOfStory(stored.fields.story));
-      this.#refusePlugins("capability", "story", await this.#pluginOfStory(fields.story));
+      await this.refusePluginEdit(stored, fields);
       await checkReference(this.#records, "story", fields.story, "story");
       await checkReferences(this.#records, "dependsOn", fields.dependsOn, "capability");
       if (Array.isArray(fields.dependsOn)) await this.#refuseLoop(id, fields.dependsOn);
@@ -445,7 +444,7 @@ export class WorkModel {
       refuseMapped(fields);
       const stored = (await liveRecord(this.#records, id, ["story"])) as SchemaRecord<"story"> | null;
       if (stored === null) return null;
-      if (PLUGIN_STORY_FIELDS.some((field) => field in fields)) this.#refusePlugins("story", "title", stored.fields.plugin);
+      await this.refusePluginEdit(stored, fields);
       return (await this.#records.edit(id, { audience: undefined, ...fields } as StoryEdit, options)) as SchemaRecord<"story"> | null;
     });
   }
@@ -460,8 +459,7 @@ export class WorkModel {
     return this.#serially(async () => {
       const own = (await liveRecord(this.#records, id, ["contract"])) as SchemaRecord<"contract"> | null;
       if (own === null) return null;
-      this.#refusePlugins("contract", "capability", await this.#pluginOfCapability(own.fields.capability));
-      this.#refusePlugins("contract", "capability", await this.#pluginOfCapability(fields.capability));
+      await this.refusePluginEdit(own, fields);
       await checkReference(this.#records, "capability", fields.capability, "capability");
       if (fields.title !== undefined || fields.capability !== undefined) {
         const stored = (await this.#records.get(id)) as SchemaRecord<"contract">;
@@ -613,6 +611,23 @@ export class WorkModel {
     const holder = theirs.find((capability) => capability.id !== self && capabilityNumber(capability.fields.title) === number);
     if (holder !== undefined) {
       throw new SchemaError("capability", [{ field: "title", problem: `capability number ${number} is taken: ${holder.id} (${holder.fields.title}) carries it in this story; the next free number is ${nextFree(theirs)}` }]);
+    }
+  }
+
+  /**
+   * Refuse `fields`, an edit to live story, capability or contract `record`, when it would change a plugin's plan
+   * (ADR-1187): a SchemaError naming the plugin's plan file, as editStory, editCapability and editContract refuse it,
+   * and as a pending change is refused before it is staged, so none is held that its landing could only refuse.
+   */
+  async refusePluginEdit(record: SchemaRecord<"story"> | SchemaRecord<"capability"> | SchemaRecord<"contract">, fields: Readonly<Record<string, unknown>>): Promise<void> {
+    if (record.type === "story") {
+      if (PLUGIN_STORY_FIELDS.some((field) => field in fields)) this.#refusePlugins("story", "title", (record as SchemaRecord<"story">).fields.plugin);
+    } else if (record.type === "capability") {
+      if (PLUGIN_CAPABILITY_FIELDS.some((field) => field in fields)) this.#refusePlugins("capability", "story", await this.#pluginOfStory((record as SchemaRecord<"capability">).fields.story));
+      this.#refusePlugins("capability", "story", await this.#pluginOfStory(fields["story"]));
+    } else {
+      this.#refusePlugins("contract", "capability", await this.#pluginOfCapability((record as SchemaRecord<"contract">).fields.capability));
+      this.#refusePlugins("contract", "capability", await this.#pluginOfCapability(fields["capability"]));
     }
   }
 

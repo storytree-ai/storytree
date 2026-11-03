@@ -349,22 +349,28 @@ async function lostConnection({ log, err }) {
 /**
  * The command that runs storytree's `args` from the repository's root. pnpm is a .cmd on Windows, which execFile cannot start
  * without a shell that would mangle the arguments (a residue's text), so there it runs storytree's command line through node.
+ * Another project's repository has neither: its lane runs the `installed` storytree command, which reads the project from
+ * the checkout it runs in and is a program of its own on Windows too (ADR-0854).
  */
-export function storytreeCommand(args, platform = process.platform) {
+export function storytreeCommand(args, platform = process.platform, project = "storytree", installed = ["storytree"]) {
+  if (project !== "storytree") return [installed[0], [...installed.slice(1), ...args]];
   return platform === "win32"
     ? [process.execPath, ["--import", "tsx", "packages/cli/src/bins/storytree.ts", ...args]]
     : ["pnpm", ["-s", "storytree", ...args]];
 }
 
 /**
- * Which of the library and GitHub do not answer: a library read (any record proves it) and a GitHub API call, each within a
+ * Which of the library and GitHub do not answer: a library read (any record proves it; another project's library holds none
+ * of storytree's, so there its arc list) and a GitHub API call, each within a
  * minute. Each refusal is named with the first line it said (its error output, else its error), as "the library (…): …".
  */
-export async function refusals({ cwd, env, platform = process.platform, probe = (file, args) => run(file, args, { cwd, env, timeout: 60_000, maxBuffer: 16 * 1024 * 1024 }) }) {
+export async function refusals({ cwd, env, platform = process.platform, project = "storytree", installed,
+  probe = (file, args) => run(file, args, { cwd, env, timeout: 60_000, maxBuffer: 16 * 1024 * 1024 }) }) {
   const firstLine = (text) => String(text ?? "").split("\n").map((line) => line.trim()).find(Boolean);
   const refused = (name, file, args) => Promise.resolve().then(() => probe(file, args)).then(() => undefined,
     (error) => `${name}: ${firstLine(error?.stderr) ?? firstLine(error?.message) ?? "no answer"}`);
-  const said = await Promise.all([refused("the library (storytree library read)", ...storytreeCommand(["library", "read", TOKEN_ARC, "--field", "title"], platform)),
+  const read = project === "storytree" ? ["library", "read", TOKEN_ARC, "--field", "title"] : ["arc", "list"];
+  const said = await Promise.all([refused(`the library (storytree ${read.slice(0, 2).join(" ")})`, ...storytreeCommand(read, platform, project, installed)),
     refused("GitHub (gh api rate_limit)", "gh", ["api", "rate_limit"])]);
   return said.filter(Boolean);
 }
@@ -403,8 +409,8 @@ async function holdForNetwork({ reachable, sleep, now, offline }) {
 export async function runLane({ brief, log, err, addDirs = [], cwd = process.cwd(), home = homedir(), env = process.env,
   commands = { codex: ["codex"], claude: ["claude"] }, now = Date.now, say = console.log, increment, project = "storytree",
   heads = (id) => remoteHeads(id, cwd), failed = (failure, where) => recordLaneFailure(failure, where),
-  storytree = async (args) => (await run(...storytreeCommand(args), { cwd, env, maxBuffer: 16 * 1024 * 1024 })).stdout,
-  reachable = () => bothAnswer({ cwd, env }), sleep = (ms) => new Promise((done) => setTimeout(done, ms)), offline: limits = {}, reap, onSpawn }) {
+  storytree = async (args) => (await run(...storytreeCommand(args, process.platform, project, commands.storytree), { cwd, env, maxBuffer: 16 * 1024 * 1024 })).stdout,
+  reachable = () => bothAnswer({ cwd, env, project, installed: commands.storytree }), sleep = (ms) => new Promise((done) => setTimeout(done, ms)), offline: limits = {}, reap, onSpawn }) {
   const original = await readFile(brief, "utf8");
   if (!original.trim()) throw new Error(`brief ${brief} is empty`);
   const settings = laneSettings({ home, env });

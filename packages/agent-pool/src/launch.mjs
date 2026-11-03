@@ -47,15 +47,27 @@ export function whyNotStart(found, id) {
 /** A push URL that already reaches the repository over SSH, through the account's host or an alias of it (the box's deploy key, github.com-storytree). */
 const SSH_PUSH = /^git@github\.com(-[\w.-]+)?:storytree-ai\/storytree(\.git)?$/;
 
+/** A GitHub repository's owner/name from a remote URL (https or SSH, through an alias or not), else undefined. */
+const githubRepository = (url) => /github\.com(?:-[\w.-]+)?[:/]([\w.-]+\/[\w.-]+?)(?:\.git)?\/?$/.exec(url)?.[1];
+
 /**
  * Bring the shared checkout to origin/main, point its pushes at SSH unless they already go there over SSH (the owner's
- * deploy-key URL is kept), and install from its lockfile unchanged; every lane's worktree is cut from it.
+ * deploy-key URL is kept), and install from its lockfile unchanged; every lane's worktree is cut from it. Another
+ * `project`'s checkout pushes to its own repository, named by its origin, and installs nothing: its lane's checks do.
  */
-export async function prepareCheckout({ repo, platform = process.platform, exec = (command, args, options) => run(command, args, options) }) {
+export async function prepareCheckout({ repo, project = "storytree", platform = process.platform, exec = (command, args, options) => run(command, args, options) }) {
   await exec("git", ["fetch", "-q", "origin"], { cwd: repo });
   await exec("git", ["merge", "-q", "--ff-only", "origin/main"], { cwd: repo });
   // git config --get exits 1 when no push URL is set.
-  const pushUrl = await exec("git", ["config", "--get", "remote.origin.pushurl"], { cwd: repo }).then(({ stdout }) => String(stdout).trim(), () => "");
+  const read = (key) => exec("git", ["config", "--get", key], { cwd: repo }).then(({ stdout }) => String(stdout).trim(), () => "");
+  const pushUrl = await read("remote.origin.pushurl");
+  if (project !== "storytree") {
+    const url = await read("remote.origin.url");
+    const own = githubRepository(url);
+    const ssh = (one) => one.startsWith("git@") && githubRepository(one) === own;
+    if (own && !ssh(pushUrl) && !(!pushUrl && ssh(url))) await exec("git", ["config", "remote.origin.pushurl", `git@github.com:${own}.git`], { cwd: repo });
+    return;
+  }
   if (!SSH_PUSH.test(pushUrl)) await exec("git", ["config", "remote.origin.pushurl", PUSH_URL], { cwd: repo });
   // pnpm is a .cmd on Windows, which only a shell runs; these words need no quoting.
   await exec("pnpm", ["install", "--frozen-lockfile", "--silent"], { cwd: repo, maxBuffer: 64 * 1024 * 1024, ...(platform === "win32" ? { shell: true } : {}) });
@@ -229,7 +241,7 @@ export async function runPool({ survey, maxLanes, count, launch, stopFile, exist
         try { await plans.save(planned); }
         catch (error) { dated(`planned arcs not saved (${String(error.message).split("\n")[0]}); a restart may plan ${arc.id} again`); }
         dated(`nothing ready: planning ${arc.id} (${arc.title})`);
-        start({ id: arc.id, title: arc.title, plan: true });
+        start({ id: arc.id, title: arc.title, plan: true, ...(arc.project ? { project: arc.project } : {}) });
         await pause(pollMs);
         continue;
       }
@@ -260,6 +272,16 @@ export async function planRules(briefsDir) {
 /** The pool's brief rules: the read-only rules for read-only or blind work, else the build rules. */
 export async function poolRules(body, briefsDir) {
   return rulesFile(readOnly(body) || blind(body) ? "pool-brief-read-only.md" : "pool-brief.md", briefsDir);
+}
+
+/** The read-only (or blind) rules for a lane of `project`, a project other than storytree, with its name filled in. */
+export async function projectReadOnlyRules({ name }, briefsDir) {
+  return (await rulesFile("pool-brief-project-read-only.md", briefsDir)).replaceAll("{project}", () => name);
+}
+
+/** The planning rules for an arc of `project`, a project other than storytree, with its name filled in. */
+export async function projectPlanRules({ name }, briefsDir) {
+  return (await rulesFile("pool-brief-project-plan.md", briefsDir)).replaceAll("{project}", () => name);
 }
 
 /**
@@ -311,7 +333,7 @@ function boxDefaults({ home = homedir(), env = process.env } = {}) {
     count: async () => countEngines(await processes()),
     power: () => readPowerLine(), refusals: (cwd = repo) => refusals({ cwd, env }), kill: (pid) => process.kill(pid),
     lock: checkoutLock(join(lanesDir, "night-checkout.lock")),
-    prepare: () => prepareCheckout({ repo }),
+    prepare: (checkout = repo, project) => prepareCheckout({ repo: checkout, project }),
     sleep: (ms, options) => wait(ms, undefined, options), argsOf, runLane: runEngineLane, survey: surveyLibrary, now: Date.now,
   };
 }
@@ -410,16 +432,22 @@ async function pool(b) {
     refresh: () => b.lock(b.prepare),
     launch: async (one, { engineUp }) => {
       const at = new Date(b.now()).toISOString().replace(/[-:]|\.\d{3}Z$/g, "");
-      const role = !one.plan && blind(one.body) ? " You are a blind reviewer: follow .claude/agents/blind-reviewer.md (ADR-0950)." : "";
-      // Another project's build lane is briefed for its own repository; storytree's, and every read-only or blind lane, as before.
-      const other = !one.plan && !readOnly(one.body) && !blind(one.body) && one.project && one.project !== "storytree" && b.projects.find((p) => p.name === one.project);
+      // Another project's lane is briefed for its own repository, whatever its kind; storytree's as before.
+      const other = one.project && one.project !== "storytree" && b.projects.find((p) => p.name === one.project);
+      const looks = !one.plan && (readOnly(one.body) || blind(one.body));
+      const role = !one.plan && blind(one.body) ? ` You are a blind reviewer: follow ${other ? "this brief's blind rules" : ".claude/agents/blind-reviewer.md"} (ADR-0950).` : "";
+      const rules = one.plan ? () => (other ? projectPlanRules(other, b.briefsDir) : planRules(b.briefsDir))
+        : !other ? () => (b.rules ?? poolRules)(one.body, b.briefsDir)
+        : looks ? () => projectReadOnlyRules(other, b.briefsDir) : () => projectRules(other, b.briefsDir);
       const brief = one.plan
-        ? { title: `Planning lane: ${one.id}`, intro: `Your arc: ${one.id} (${one.title}).`, notes: "", common: await planRules(b.briefsDir) }
+        ? { title: `Planning lane: ${one.id}`, intro: `Your arc: ${one.id} (${one.title}).`, notes: "", common: await rules() }
         : { title: `Pool lane: ${one.id}`, intro: `Your increment: ${one.id}.${role}`,
-          notes: await readFile(join(L, `pool-notes-${one.id}.md`), "utf8").catch(() => ""), common: other ? await projectRules(other, b.briefsDir) : await (b.rules ?? poolRules)(one.body, b.briefsDir) };
+          notes: await readFile(join(L, `pool-notes-${one.id}.md`), "utf8").catch(() => ""), common: await rules() };
       const checkout = checkoutOf(one.project);
       return laneOnce({
-        increment: one.id, project: one.project, addDirs: b.addDirs, repo: checkout ?? b.laneRepo ?? b.repo, maxLanes: b.maxLanes, lock: b.lock, count: b.count, slots: join(L, ENGINE_SLOTS), prepare: b.prepare,
+        increment: one.id, project: one.project, addDirs: b.addDirs, repo: checkout ?? b.laneRepo ?? b.repo, maxLanes: b.maxLanes, lock: b.lock, count: b.count, slots: join(L, ENGINE_SLOTS),
+        // Another project's lane refreshes its own checkout; storytree's, the dispatcher's, as before.
+        prepare: checkout ? () => b.prepare(checkout, one.project) : () => b.prepare(),
         sleep: b.sleep, runLane: b.runLane, now: b.now, follow: !one.plan,
         ...(one.plan ? {} : { recheck: async () => whyNotStart(await survey(), one.id) }),
         say: (line) => { if (/^\S+ engine \w+ /.test(line) && !/ exit -?\d+$/.test(line)) engineUp(); say(line); },

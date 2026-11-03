@@ -9,7 +9,7 @@ import { promisify } from "node:util";
 import type { SurveyPackage } from "./code-survey.js";
 
 /** The folders a survey never reads into. */
-export const SKIPPED = new Set(["node_modules", "dist", "out", "evidence"]);
+export const SKIPPED = new Set(["node_modules", "dist", "out", "evidence", "__pycache__", ".venv", "venv"]);
 
 /** The dependency fields of a package.json, in the order their names are listed. */
 const DEPENDENCY_FIELDS = ["dependencies", "devDependencies", "optionalDependencies", "peerDependencies"] as const;

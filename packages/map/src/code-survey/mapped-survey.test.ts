@@ -237,3 +237,35 @@ test("8.26 a mapped story's file under the folders or files an explored capabili
     await removeTemp(trunk);
   }
 });
+
+test("8.49 a mapped Python package's .py files are drawn on its island through the survey's Python reader, each with its non-blank lines, its test files and conftest.py among them; nothing parses them", async () => {
+  const shop = await mkdtemp(path.join(tmpdir(), "mapped-python-"));
+  const trunk = await mkdtemp(path.join(tmpdir(), "mapped-trunk-"));
+  try {
+    await write(shop, {
+      "pyproject.toml": "[tool.uv.workspace]\nmembers = [\"packages/*\"]\n",
+      "packages/cart/pyproject.toml": "[project]\nname = \"cart\"\n",
+      "packages/cart/src/cart/__init__.py": "from .total import total\n\n\n__all__ = [\"total\"]\n",
+      "packages/cart/src/cart/total.py": "def total(lines):\n    return sum(lines)\n",
+      "packages/cart/tests/test_total.py": "def test_1_1_totals():\n    assert True\n",
+      "packages/cart/tests/conftest.py": "import pytest\n",
+      "packages/cart/src/cart/__pycache__/total.cpython-312.pyc": "compiled",
+      "packages/cart/README.md": "# Cart\n",
+    });
+    git(shop, "init", "-q", "-b", "main");
+    commit(shop);
+    await write(shop, { "packages/cart/.venv/lib/site.py": "x = 1\n" });
+    const python = { arcs: [], stories: [mappedStory("story-cart", "cart", "packages/cart")] } as unknown as AnnotatedTree;
+    const survey = await codeSurveyReader({ checkout: "current" }).read(trunk, python, [{ folder: shop, repository: REPOSITORY }]);
+    assert.deepEqual(survey["story-cart"]?.files, [
+      { path: "packages/cart/src/cart/__init__.py", lines: 2 },
+      { path: "packages/cart/src/cart/total.py", lines: 2 },
+      { path: "packages/cart/tests/conftest.py", lines: 1 },
+      { path: "packages/cart/tests/test_total.py", lines: 2 },
+    ], "the .py files, a test and conftest.py among them; no compiled file, no README, no virtualenv");
+    assert.deepEqual(survey["story-cart"]?.imports, [], "a black box has no imports");
+  } finally {
+    await removeTemp(shop);
+    await removeTemp(trunk);
+  }
+});

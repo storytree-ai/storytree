@@ -2,6 +2,20 @@
 export const appMenuStyles = `
 :root:has(.app-menu-mount) { --app-bar-height: 48px; }
 body:has(> .app-menu-mount) > main { margin-top: var(--app-bar-height); }
+/* The left rail (ADR-1219): full height under the app bar, the forest and its popped-out tree beside it, never under it. */
+:root:has(.side-rail) { --rail-width: min(24rem, 40vw); }
+.side-rail { position: absolute; inset: 0 auto 0 0; z-index: 52; width: var(--rail-width); display: flex; flex-direction: column; box-sizing: border-box; background: #12171a; border-right: 1px solid #3d4748; color: #d9dedb; font: 13px/1.45 "Segoe UI", system-ui, sans-serif; }
+main:has(> .side-rail) > .forest { margin-left: var(--rail-width); width: calc(100% - var(--rail-width)); }
+main:has(> .side-rail) > .tree-space { left: calc(var(--rail-width) + 0.75rem); }
+.side-rail-tabs { flex: 0 0 auto; display: flex; gap: 4px; padding: 0 8px; border-bottom: 1px solid #3d4748; }
+.side-rail-tabs button { display: inline-flex; align-items: center; gap: 6px; padding: 10px 10px 8px; border: 0; border-bottom: 2px solid transparent; background: transparent; color: #a9b0ba; font: inherit; font-weight: 600; cursor: pointer; }
+.side-rail-tabs button:hover { color: #eceae3; }
+.side-rail-tabs button[aria-selected="true"] { color: #eceae3; border-bottom-color: #79af95; }
+.side-rail-tabs button:focus-visible { outline: 2px solid #a9b0ba; outline-offset: -2px; }
+.side-rail-badge { min-width: 18px; padding: 0 5px; border-radius: 9px; background: #d3a84c; color: #101418; font-size: 11px; line-height: 18px; text-align: center; }
+.side-rail-badge[hidden] { display: none; }
+.side-rail-panel { flex: 1; min-height: 0; overflow: hidden; }
+.side-rail-panel[hidden] { display: none; }
 .app-bar { position: fixed; inset: 0 0 auto; height: var(--app-bar-height); z-index: 7; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 0 12px; background: #101418; border-bottom: 1px solid #485159; }
 .app-factory { display: flex; align-items: center; gap: 10px; min-width: 0; font-size: 13px; color: #a9b0ba; }
 .app-gear { display: grid; place-items: center; width: 36px; height: 36px; padding: 0; border: 0; border-radius: 6px; background: transparent; color: #eceae3; cursor: pointer; }

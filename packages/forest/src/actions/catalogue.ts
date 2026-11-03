@@ -133,7 +133,7 @@ export const CATALOGUE: readonly LagAction[] = [
     settled: { mode: "forest", still: true }, budget: DEFAULT_BUDGET, limitMs: 10_000, owner: STORY_NODE_RENDER },
   { name: "open-library-note", setup: [...RESET, { kind: "click", selector: "[data-globe-switch=library]" }, { kind: "wait", until: { mode: "library", still: true } }],
     perform: [{ kind: "note" }], settled: { note: "any", panel: "open" }, budget: DEFAULT_BUDGET, limitMs: 10_000, field: "open-library-note", owner: INSPECT_ARTIFACT },
-  { name: "open-session-row", setup: [...RESET, { kind: "click", selector: ".sessions-handle[aria-expanded=false]", optional: true },
+  { name: "open-session-row", setup: [...RESET, { kind: "click", selector: "[data-rail-tab=sessions][aria-selected=false]", optional: true },
     { kind: "click", selector: ".session-row[data-selected]", optional: true }],
     perform: [{ kind: "click", selector: ".session-row" }], settled: { session: "selected" }, budget: DEFAULT_BUDGET, limitMs: 10_000, field: "open-session-row", owner: RUNNING_SESSIONS },
   { name: "hover-sweep", setup: RESET, perform: [{ kind: "hover-sweep" }], settled: {}, budget: DEFAULT_BUDGET, limitMs: 10_000, owner: STORY_NODE_RENDER },

@@ -1,6 +1,6 @@
 /**
  * Capability 2 · Storytree projects. Where a teaching card's target is on the desktop page (Learning as you build places the card
- * beside it): a story or capability at its island, a decision at its note on the globe, a plan or a question at the arcs drawer,
+ * beside it): a story or capability at its island, a decision at its note on the globe, a plan or a question at the rail's Arcs tab,
  * the factory beside the app bar's project dropdown; undefined when it is not on show. And what the user is reading near it, which
  * the card keeps clear of: the open story panel, and a story's or capability's nameplate.
  */
@@ -26,8 +26,8 @@ export function locateTarget(target: CardTarget, page: { document: Document; glo
     return box === undefined || box.width === 0 ? undefined : { x: x(box), y: box.top + box.height / 2, visible: true };
   };
   if (target.kind === "switch") return beside(".app-factory", (box) => box.right);
-  // Just past the Arcs bar's label, on the bar.
-  if (target.kind === "arc" || target.kind === "question") return beside(".arc-surface-mount [data-open-arcs]", (box) => box.left + 60);
+  // At the right of the rail's Arcs tab.
+  if (target.kind === "arc" || target.kind === "question") return beside('[data-rail-tab="arcs"]', (box) => box.right);
   return undefined;
 }
 

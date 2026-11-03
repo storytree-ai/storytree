@@ -3,7 +3,6 @@ import { logReading, type LogReading } from "@storytree/session-management/readi
 import type { BoardArcView, Hold, Line, NoteWait, PrCutover } from "@storytree/library";
 import type { ClosedRange } from "./closed-range.js";
 import { agentsOnBoard, type BoardAgent } from "../agents/agents.js";
-import { firstBriefing } from "../briefing/briefing.js";
 import { arcQueues, waitsOnBoard, type ArcQueue, type NamedWait, type WorkName } from "../waits/waits.js";
 import { arcState, incrementState, questionsBehind, type ArcState, type IncrementReading } from "../work-states/board-states.js";
 
@@ -61,7 +60,6 @@ export interface BoardView {
   scope: BoardScope;
   lanes: Lane[];
   queues: ArcQueue[];
-  selected: string | undefined;
   /** On the Closed tab, its range and the days it covers, both ends included, and whether a wider range is still being read (3.12). */
   closed?: { range: ClosedRange; from: string; to: string; reading: boolean };
 }
@@ -134,5 +132,5 @@ export function boardView(snapshot: BoardSnapshot, log: readonly Line[] | LogRea
     return { id: arc.id, title: arc.fields.title, ...(arc.fields.priority === undefined ? {} : { priority: arc.fields.priority }), view, bars, agents: holders, state, chip, ...(state === "ready" && idleHolders.length ? { idle: { chip: idleChip(idleHolders), agents: idleHolders } } : {}), count, lastActivity, waits: laneWaits, noteWaits, holdsUp: waits.heldUpBy(arc.id), ...(snapshot.cutover ? { cutover: snapshot.cutover } : {}) };
   // ADR-0963 D2: ranked arcs first, 1 first, unranked last; one priority keeps the state and activity order.
   }).sort((a, b) => (a.priority ?? Infinity) - (b.priority ?? Infinity) || rank[a.state] - rank[b.state] || b.lastActivity - a.lastActivity || a.id.localeCompare(b.id));
-  return { scope, lanes, queues: arcQueues(lanes), selected: firstBriefing(lanes.map((lane) => ({ id: lane.id, parked: lane.view.state === "parked", questions: lane.view.questions }))) };
+  return { scope, lanes, queues: arcQueues(lanes) };
 }

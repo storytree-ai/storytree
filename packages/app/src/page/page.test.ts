@@ -46,6 +46,9 @@ interface Drawn {
   treeOpen: boolean;
   kept: AnnotatedTree | undefined;
   timed: { read(): Promise<unknown> } | undefined;
+  /** Where the arcs and the sessions list were mounted, and how the arcs speak to their tab's badge. */
+  hosts: { arcs?: HTMLElement; sessions?: HTMLElement };
+  waiting: ((count: number) => void) | undefined;
 }
 
 /** The page on stand-in surfaces; `answers` overrides the bridge and how each project's surfaces answer. */
@@ -85,7 +88,7 @@ function page(t: TestContext, answers: Partial<Pick<PageParts, "problem" | "proj
     project(name, timed) {
       const mine: Drawn = {
         name, mounted: [], stopped: [], reading: undefined, teaching: [], locate: undefined, readingNear: undefined, rendered: [], spaces: [], treeShown: 0, treeOpen: false,
-        kept: answers.kept, timed: undefined,
+        kept: answers.kept, timed: undefined, hosts: {}, waiting: undefined,
         view: {
           scenes: 0, disposed: false, onSelect: () => {}, painted: deferred<void>(),
           show() { mine.view.scenes++; }, drawn: () => mine.view.painted.promise, select() {}, dispose() { mine.view.disposed = true; },
@@ -100,7 +103,7 @@ function page(t: TestContext, answers: Partial<Pick<PageParts, "problem" | "proj
         states: { part: () => "planned", add() {} },
         kept: { read: () => mine.kept, write: (written) => { mine.kept = written; } },
         drawing: { read: () => kept as never, write: (written) => { kept = written; } },
-        arcs: () => surface("arcs"),
+        arcs: (host, on) => { mine.hosts.arcs = host; mine.waiting = on.onWaiting; return surface("arcs"); },
         treeSpace: () => {
           mine.mounted.push("capability-tree");
           return {
@@ -116,7 +119,7 @@ function page(t: TestContext, answers: Partial<Pick<PageParts, "problem" | "proj
           await answers.openView?.(name);
           return mine.view;
         },
-        sessions: () => surface("sessions"),
+        sessions: (_view, host) => { mine.hosts.sessions = host; return surface("sessions"); },
         take() {},
         libraryCard: () => () => {},
         teaching: (locate, readingNear) => {
@@ -373,12 +376,12 @@ test("2.29 · teaching cards hear whether the project on show is the factory, an
   tab.className = "app-factory";
   tab.getBoundingClientRect = () => ({ left: 100, right: 140, top: 4, width: 40, height: 40 }) as DOMRect;
   const arcs = on.document.createElement("div");
-  arcs.className = "arc-surface-mount";
-  arcs.innerHTML = "<button data-open-arcs></button>";
-  arcs.querySelector<HTMLElement>("[data-open-arcs]")!.getBoundingClientRect = () => ({ left: 8, right: 300, top: 48, width: 292, height: 48 }) as DOMRect;
+  arcs.innerHTML = '<button data-rail-tab="arcs"></button>';
+  arcs.querySelector<HTMLElement>('[data-rail-tab="arcs"]')!.getBoundingClientRect = () => ({ left: 8, right: 300, top: 48, width: 292, height: 48 }) as DOMRect;
   on.document.body.append(tab, arcs);
+  on.content.querySelector(".side-rail")?.remove();
   assert.deepEqual(locate({ kind: "switch" }), { x: 140, y: 24, visible: true });
-  assert.deepEqual(locate({ kind: "question" }), { x: 68, y: 72, visible: true });
+  assert.deepEqual(locate({ kind: "question" }), { x: 300, y: 72, visible: true }, "at the right of the rail's Arcs tab");
   assert.equal(locate({ kind: "map" }), undefined);
 
   // What is being read near a card's target, which the card keeps clear of: the open story panel and the target's nameplates.
@@ -420,4 +423,53 @@ test("2.30 · each start mark is sent once, and what the forest drew joins the p
   assert.deepEqual(drew.arcs, ["arc_1"], "another surface's reading stays");
   assert.equal(drew.surface, "forest");
   assert.ok(Array.isArray(drew.stories) && drew.stories.includes(story.id));
+});
+
+test("2.39 · the sessions list and the arcs each mount in their tab of one left rail, Arcs on show at first, the tab chosen kept per project, and the Arcs tab badges what waits on the owner", async (t) => {
+  const on = page(t);
+  await settled();
+  const rail = () => on.content.querySelector<HTMLElement>(".side-rail")!;
+  const tabs = () => [...rail().querySelectorAll<HTMLButtonElement>("[role=tab]")];
+  const shown = () => tabs().filter((tab) => tab.getAttribute("aria-selected") === "true").map((tab) => tab.dataset.railTab);
+  assert.equal(on.content.firstElementChild, rail(), "the rail leads the page, down its left");
+  assert.deepEqual(tabs().map((tab) => tab.textContent), ["Sessions", "Arcs"]);
+  assert.deepEqual(shown(), ["arcs"], "a project with no tab kept opens on Arcs");
+  const first = on.last();
+  assert.equal(first.hosts.arcs, rail().querySelector("#rail-arcs"));
+  assert.equal(first.hosts.sessions, rail().querySelector("#rail-sessions"));
+  assert.equal(first.hosts.sessions!.hidden, true);
+
+  const badge = () => rail().querySelector<HTMLElement>("[data-rail-badge]")!;
+  assert.equal(badge().hidden, true);
+  first.waiting!(3);
+  assert.equal(badge().hidden, false);
+  assert.equal(badge().textContent, "3");
+  assert.equal(tabs()[1]!.getAttribute("aria-label"), "Arcs, 3 waiting on you");
+  first.waiting!(0);
+  assert.equal(badge().hidden, true, "nothing waiting, no badge");
+
+  assert.equal(rail().dataset.surfaceId, "arcs", "the rail is the surface of the tab on show");
+  tabs()[0]!.click();
+  assert.deepEqual(shown(), ["sessions"]);
+  assert.equal(rail().dataset.surfaceId, "sessions");
+  assert.equal(first.hosts.sessions!.hidden, false);
+  assert.equal(first.hosts.arcs!.hidden, true);
+  tabs()[0]!.dispatchEvent(new (on.document.defaultView as unknown as { KeyboardEvent: typeof KeyboardEvent }).KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }));
+  assert.deepEqual(shown(), ["arcs"], "the arrow keys move between the tabs");
+  tabs()[0]!.click();
+
+  await on.page.surfacesChanged();
+  assert.deepEqual(shown(), ["sessions"], "drawn again, the project keeps the tab chosen");
+  assert.equal(on.content.querySelectorAll(".side-rail").length, 1, "the old drawing's rail is let go");
+  on.choose({ projects: ["site", "shop"], current: "shop" });
+  await on.page.refresh();
+  assert.deepEqual(shown(), ["arcs"], "another project keeps its own");
+
+  on.surfaces({ ok: true, value: [{ id: "arcs", on: false, settings: [] }] as never });
+  await on.page.surfacesChanged();
+  assert.deepEqual(tabs().map((tab) => tab.dataset.railTab), ["sessions"], "a surface switched off has no tab");
+  assert.deepEqual(shown(), ["sessions"]);
+  on.surfaces({ ok: true, value: [{ id: "arcs", on: false, settings: [] }, { id: "sessions", on: false, settings: [] }] as never });
+  await on.page.surfacesChanged();
+  assert.equal(on.content.querySelector(".side-rail"), null, "with both off there is no rail");
 });

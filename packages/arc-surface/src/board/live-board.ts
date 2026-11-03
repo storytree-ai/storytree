@@ -61,11 +61,14 @@ export function watchBoard({ project, reads, timers, kept, scope: startScope = "
     const window = windowOf(range, now);
     return { ...boardView({ ...shown, arcs }, log, new Date(now), scope, quietMs), closed: { range, from: window.from, to: dayOf(Date.parse(`${window.to}T12:00:00`), -1), reading } };
   };
+  /** The board on show, and what waits on the owner across the active arcs whatever the scope on show (3.1). */
+  const withWaiting = (shown: BoardSnapshot) => {
+    const board = viewOf(shown);
+    return { board, waiting: waitingOnYou(scope === "active" ? board : boardView(shown, log, new Date(now), "active", quietMs)) };
+  };
   const draw = () => {
     if (stopped) return;
-    const shown = snapshot ? viewOf(snapshot) : undefined;
-    const active = snapshot && scope !== "active" ? boardView(snapshot, log, new Date(now), "active", quietMs) : shown;
-    const board = shown && active ? { board: shown, waiting: waitingOnYou(active) } : {};
+    const board = snapshot ? withWaiting(snapshot) : {};
     onState(error ? { status: "error", ...board, error } : !snapshot ? { status: "loading" } : { status: fresh ? "ready" : "refreshing", ...board });
   };
   draw();

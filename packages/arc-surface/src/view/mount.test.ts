@@ -363,6 +363,7 @@ test("3.21 · a question's row under an opened arc opens that arc's card on the 
   document.querySelector<HTMLButtonElement>('[data-rail-question="q1"]')!.click();
   assert.equal(card.hidden, false);
   assert.match(card.textContent ?? "", /Pick the vendor for the board/, "the card opens on that question's reading");
+  assert.equal(page.document.activeElement, card.querySelector("[data-question-back]"), "the focus goes to the reading's way back");
   title = "Ship the whole board";
   reads.changesSince = async () => ({ changes: [{ seq: 1, recordId: "arc_1", type: "arc", action: "updated" as const, record: arc() }], cursor: 1 });
   for (const tick of ticks) tick();

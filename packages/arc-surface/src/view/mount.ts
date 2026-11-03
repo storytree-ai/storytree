@@ -128,14 +128,11 @@ export function mountArcSurface(host: HTMLElement, options: { project: string; r
       if (queues.has(id)) queues.delete(id); else queues.add(id);
       if (state) draw(state);
     }
-    // 3.21: a question's row under an arc opens that arc's card on the question.
-    if (button.dataset.railQuestion) {
-      opened = button.dataset.questionArc; question = button.dataset.railQuestion;
-      if (state) draw(state);
-      card.querySelector<HTMLButtonElement>("[data-question-back]")?.focus({ preventScroll: true });
-    }
-    if (button.dataset.questionOpen) {
-      question = button.dataset.questionOpen;
+    // 3.21: a question's row under an arc opens that arc's card on the question, as the card's own row opens it.
+    if (button.dataset.railQuestion) opened = button.dataset.questionArc;
+    const asked = button.dataset.questionOpen ?? button.dataset.railQuestion;
+    if (asked) {
+      question = asked;
       if (state) draw(state);
       card.querySelector<HTMLButtonElement>("[data-question-back]")?.focus({ preventScroll: true });
     }

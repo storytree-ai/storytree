@@ -154,6 +154,8 @@ test("3.21 · an arc row's caret opens under the row its questions, then its inc
   const opened = renderBoard(shown, undefined, new Set(["a", "b"]));
   const a = rowOf(opened, "a"), b = rowOf(opened, "b");
   assert.match(a, /data-arc-queue="a"[^>]*aria-expanded="true"/);
+  assert.match(a, /data-arc-queue="a"[^>]*aria-label="Hide 2 questions, 2 increments, 1 queued arc under Arc a"/, "the caret names what it opens, each counted");
+  assert.match(b, /data-arc-queue="b"[^>]*aria-label="Hide 1 increment under Arc b"/);
   assert.ok(a.indexOf('data-rail-question="open1"') < a.indexOf('data-rail-question="settled1"'), "open questions first");
   assert.match(a, /data-rail-question="open1"[^>]*data-question-arc="a"/, "a question's row names its arc, so it can open that arc's card");
   assert.ok(a.indexOf('data-rail-question="settled1"') < a.indexOf("rail:a:increment:o1"), "questions before increments");

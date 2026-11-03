@@ -9,7 +9,7 @@ import { promisify } from "node:util";
 import { removeTemp } from "@storytree/test-waits";
 
 import { countEngines } from "./queue.mjs";
-import { adoptRequests, asRun, ensureWatcher, forget, hand, handedOff, handOver, handThroughLibrary, isFixSession, main, ownerOf, projectOf, readFailures, readPull, reachOf, recordVerdict, remoteCommand, RESTART, watchOnce } from "./watch.mjs";
+import { adoptRequests, asRun, ensureWatcher, forget, hand, handedOff, handOver, handThroughLibrary, homeOf, isFixSession, main, ownerOf, projectOf, readFailures, readPull, reachOf, recordVerdict, remoteCommand, RESTART, watchOnce } from "./watch.mjs";
 
 const at = Date.parse("2026-10-10T12:00:00Z");
 const minutes = (n) => new Date(at + n * 60_000).toISOString();
@@ -1272,18 +1272,24 @@ test("4.46 · a saturated box holds new pull request and release fix sessions, s
   assert.equal(b.lines.filter((line) => /box readings unread \(no \/proc here\)/.test(line)).length, 1);
 });
 
-test("4.49 · a hand-over of another project's increment records that project's repository and checkout, and the watcher's merge, close and fix act on them, while storytree's own act as before", async (t) => {
+test("4.50 · a hand-over finds which project its increment belongs to: another project the pool names, whose library holds it, with that project's checkout and repository", async () => {
   const website = { name: "storytree-website", checkout: "/srv/web", checks: ["pnpm test", "pnpm build"], review: "Ask a fresh-context subagent to review the diff." };
   const projects = [{ name: "storytree" }, website];
   const holds = { storytree: new Set(["increment_one"]), "/srv/web": new Set(["increment_web"]) };
   const has = async (increment, project) => holds[project?.folder ?? "storytree"].has(increment);
   const repoOf = async (folder) => folder === "/srv/web" ? "storytree-ai/storytree-website" : "storytree-ai/storytree";
-  const web = await ownerOf({ increment: "increment_web", projects, home: "/h", has, repoOf });
-  assert.deepEqual(web, { folder: "/srv/web", home: "/h", name: "storytree-website", repo: "storytree-ai/storytree-website", checks: website.checks, review: website.review },
+  assert.deepEqual(await ownerOf({ increment: "increment_web", projects, home: "/h", has, repoOf }),
+    { folder: "/srv/web", home: "/h", name: "storytree-website", repo: "storytree-ai/storytree-website", checks: website.checks, review: website.review },
     "an increment only another project's library holds belongs to that project");
   assert.equal(await ownerOf({ increment: "increment_one", projects, home: "/h", has, repoOf }), undefined, "storytree's own increment needs no routing");
   assert.equal(await ownerOf({ increment: "increment_none", projects, home: "/h", has, repoOf }), undefined, "one no project holds is storytree's, as before");
   assert.equal(await ownerOf({ increment: "increment_web", projects: [{ name: "storytree" }], home: "/h", has, repoOf }), undefined, "a pool serving storytree alone asks nothing");
+  assert.equal(homeOf({ env: { STORYTREE_HOME: "/arm/.home" }, home: "/home/m" }), "/arm/.home", "its library is read under the home this process runs under");
+  assert.equal(homeOf({ env: {}, home: "/home/m" }), join("/home/m", ".storytree", "0.3"), "else the machine's default");
+});
+
+test("4.49 · a hand-over of another project's increment records that project's repository and checkout, and the watcher's merge, close and fix act on them, while storytree's own act as before", async (t) => {
+  const web = { folder: "/srv/web", home: "/h", name: "storytree-website", repo: "storytree-ai/storytree-website", checks: ["pnpm test", "pnpm build"], review: "Ask a fresh-context subagent to review the diff." };
 
   const options = { since: minutes(-60), now: at, graceMs: 0 };
   const theirs = { from: "storytree-ai/storytree-website" };

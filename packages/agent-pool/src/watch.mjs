@@ -886,6 +886,9 @@ export async function ownerOf({ increment, projects, home, has, repoOf }) {
   return undefined;
 }
 
+/** The storytree home a hand-off's own project is read and written under: the one this process runs under, else the machine's default (4.50). */
+export const homeOf = ({ env, home }) => env.STORYTREE_HOME || join(home, ".storytree", "0.3");
+
 /** The library a hand-off's increment and claims are in: its project's when that is another repository's (4.49); storytree's (nothing) for its own and an experiment arm's. */
 export const libraryOf = (record) => (record.project?.repo ? record.project : undefined);
 /** The repository a hand-off's pull request is on. */
@@ -911,8 +914,7 @@ function boxDefaults({ home = homedir(), env = process.env, platform = process.p
   const dir = join(lanesDir, "watch");
   const script = fileURLToPath(import.meta.url);
   const free = freeOf(env);
-  // The storytree home a hand-off's own project is read and written under.
-  const storytreeHome = env.STORYTREE_HOME || join(home, ".storytree", "0.3");
+  const storytreeHome = homeOf({ env, home });
   const onBox = existsSync(join(lanesDir, "run-lane.sh"));
   const own = join(repo, "packages", "agent-pool", "src", "watch.mjs");
   const detached = (args, log, cwd) => {

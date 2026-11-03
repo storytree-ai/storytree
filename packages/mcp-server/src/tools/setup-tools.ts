@@ -13,6 +13,8 @@ import { habitsCard } from "../instructions/habits.js";
 import { hookFailures, type HookFailure } from "@storytree/session-management";
 import { findProject, storytreeHome } from "@storytree/project-and-caller";
 import { missingProjectReading } from "@storytree/project-and-caller/routing";
+import { folderLanguages } from "@storytree/map/folder-languages";
+import { languageList, SURVEYED_LANGUAGES } from "@storytree/map/languages";
 import { COMMIT_STORYTREE, IDENTITY_FIX, makeRepository, notAProjectYet, setUpProject, starterPackStatus, starterRolesIn, suggestProjectName, type RepositoryMade, type StarterPackStatus } from "@storytree/app-setup/project";
 import { checkFile, checkFilesWritten, codexHooksState, FIX_SENTENCES, fixSentence, HOOK_TESTS, openStorytree, runSetupCheck, verifyHooks, type Fix, type SetupOptions } from "@storytree/app-setup/setup";
 import { isUnreachable, NOT_RUNNING_ANSWER, refusalOf, result } from "./answers.js";
@@ -176,8 +178,12 @@ export function registerSetupTools({ server, folder, setup, connections, callerO
         // A first commit storytree made, or will make once git has an identity, already holds the folder (ADR-1191 D3).
         if (repository?.state !== "made" && repository?.state !== "no identity") said.push(COMMIT_STORYTREE);
         if (starterRoles.length > 0) said.push(rolesSentence(starterRoles));
+        // Code only in languages the survey cannot read leaves the map empty of it: say so now, not at the first map (6.115).
+        const languages = await folderLanguages(folder).catch(() => undefined);
+        const unreadable = languages !== undefined && languages.read.length === 0 && languages.unread.length > 0 ? languages.unread : undefined;
+        if (unreadable !== undefined) said.push(`storytree's map reads ${languageList(SURVEYED_LANGUAGES)}, and this folder's code is in ${languageList(unreadable)}, so the map will not draw that code: planning by hand still works, and so does health from what the agent reports.`);
         said.push(fixes[0] === "codex-approval" ? FIX_SENTENCES["codex-approval"] : SET_UP_THIS_SESSION);
-        return result({ text: withCard(said.join(" ")), data: { project: name, starterRoles, fixes, ...(repository === undefined ? {} : { repository }), ...(replaced === undefined ? {} : { replaced }) } });
+        return result({ text: withCard(said.join(" ")), data: { project: name, starterRoles, fixes, ...(repository === undefined ? {} : { repository }), ...(unreadable === undefined ? {} : { unreadable }), ...(replaced === undefined ? {} : { replaced }) } });
       } catch (error) {
         if (isUnreachable(error)) {
           await connections.close();

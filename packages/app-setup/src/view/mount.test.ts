@@ -6,6 +6,7 @@ import { Window } from "happy-dom";
 import type { SetupHelpBridge } from "../help/bridge.js";
 import { mountAddProject, mountDeleteProject, mountRemoveProject, mountSetupHelp } from "./index.js";
 import { platformOf } from "./guide.js";
+import { languageList, SURVEYED_LANGUAGES } from "@storytree/map/languages";
 
 let window: Window;
 let originals: Record<string, PropertyDescriptor | undefined>;
@@ -236,6 +237,16 @@ test("3.8 the mounted guide explains a Smart App Control block: what it is, wher
     assert.match(text, /turn it off/i);
     assert.match(text, /April 2026/);
     assert.match(text, /reset/i);
+  } finally { mounted.stop(); }
+});
+
+test("3.18 · before a project is added, the guide names the languages the map reads, from the code survey's list, and says a project in another language shows only what its agent plans", () => {
+  const mounted = mountSetupHelp(document.body, helpBridge(), { platform: "linux" });
+  try {
+    const text = document.querySelector("#setup-help-panel")!.textContent!;
+    const before = text.slice(0, text.indexOf("Add a project…"));
+    assert.match(before, new RegExp(`map reads ${languageList(SURVEYED_LANGUAGES)} code`));
+    assert.match(before, /another language shows only what its agent plans/);
   } finally { mounted.stop(); }
 });
 

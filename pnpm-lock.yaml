@@ -150,6 +150,9 @@ importers:
       '@storytree/library':
         specifier: workspace:*
         version: link:../library
+      '@storytree/plugin-loader':
+        specifier: workspace:*
+        version: link:../plugin-loader
       '@storytree/project-and-caller':
         specifier: workspace:*
         version: link:../project-and-caller
@@ -904,6 +907,9 @@ importers:
         specifier: ^4.23.15
         version: 4.23.15
     devDependencies:
+      '@storytree/agent-pool':
+        specifier: workspace:*
+        version: link:../agent-pool
       '@storytree/test-waits':
         specifier: workspace:*
         version: link:../test-waits

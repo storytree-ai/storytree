@@ -6,17 +6,40 @@
   "dependencies": {
     "@storytree/claude-code-mod": "workspace:*",
     "@storytree/library": "workspace:*",
+    "@storytree/plugin-loader": "workspace:*",
     "@storytree/project-and-caller": "workspace:*",
     "@storytree/session-management": "workspace:*"
   },
   "exports": {
     "./feed": "./src/feed.mjs",
+    "./interface": "./src/interface.mjs",
     "./launch": "./src/launch.mjs",
     "./runner": "./src/runner.mjs",
+    "./services": "./src/services.mjs",
     "./watch": "./src/watch.mjs"
   },
   "devDependencies": {
     "@storytree/test-waits": "workspace:*",
     "tsx": "^4.23.15"
+  },
+  "storytree": {
+    "services": [
+      {
+        "name": "dispatcher",
+        "from": "./services",
+        "export": "dispatcher",
+        "run": "always"
+      },
+      {
+        "name": "watcher",
+        "from": "./services",
+        "export": "watcher",
+        "run": "always"
+      }
+    ],
+    "declares": [
+      "./launch",
+      "./runner"
+    ]
   }
 }

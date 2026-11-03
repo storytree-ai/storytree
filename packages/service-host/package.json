@@ -16,6 +16,7 @@
     "tsx": "^4.23.15"
   },
   "devDependencies": {
+    "@storytree/agent-pool": "workspace:*",
     "@storytree/test-waits": "workspace:*",
     "@types/node": "^24.13.6",
     "typescript": "~7.0.2"

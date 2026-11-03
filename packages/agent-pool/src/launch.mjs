@@ -30,7 +30,7 @@ const stamp = (now) => new Date(now()).toISOString().replace(/\.\d{3}Z$/, "Z");
 /** What laneOnce returns when the re-read before its start found the increment no longer ready: no lane ran. */
 export const NOT_STARTED = "not started";
 /** A dispatcher's command line, as pool.pid's holder is judged by. */
-const DISPATCHER = /launch\.mjs pool( |$)/;
+export const DISPATCHER = /launch\.mjs pool( |$)/;
 
 /**
  * Why increment `id` should not start now, read from a fresh survey (undefined when it is still ready): closed, gone,
@@ -269,7 +269,7 @@ async function processes() {
   return (await run("ps", ["-eo", "pid=,ppid=,args="], { maxBuffer: 64 * 1024 * 1024 })).stdout;
 }
 
-async function argsOf(pid) {
+export async function argsOf(pid) {
   if (windows) return (await processes().catch(() => "")).split("\n").find((row) => row.startsWith(`${pid} `))?.replace(/^\d+ \d+ /, "") ?? "";
   return (await readFile(`/proc/${pid}/cmdline`, "utf8").catch(() => "")).split("\0").join(" ").trim();
 }

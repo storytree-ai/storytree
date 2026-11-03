@@ -71,7 +71,8 @@ function pytestTests(text: string): PytestTest[] {
       tests.push({ name: defined[1]!, line: at + 1, from: decorated?.from ?? at + 1 });
       decorated = undefined;
     } else if (code.startsWith("@")) decorated ??= { from: at + 1, indent };
-    else if (/^(?:async\s+)?def\s|^class\s/.test(code) || (code !== "" && !code.startsWith("#") && decorated !== undefined && indent <= decorated.indent && !/^[)\]}]/.test(code))) decorated = undefined;
+    // Code back at the decorators' indent that is not a test's definition (a fixture's, a class's) ends them.
+    else if (code !== "" && !code.startsWith("#") && decorated !== undefined && indent <= decorated.indent && !/^[)\]}]/.test(code)) decorated = undefined;
   });
   return tests;
 }

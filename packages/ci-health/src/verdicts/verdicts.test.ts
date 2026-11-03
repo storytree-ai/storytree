@@ -150,6 +150,7 @@ const CART_PYTEST = [
   `import pytest`,
   ``,
   `class TestTotals:`,
+  `    @pytest.mark.skipif(sys.platform == "win32", reason="platform:posix: needs a POSIX shell")`,
   `    def test_1_1_shell(self):`,
   `        assert True`,
   ``,
@@ -204,6 +205,15 @@ test("2.7 · a skipped pytest test, which -rA names only by its file and line, i
     [["passing", 2]],
     "the skip at the decorator is test_1_2_lists's, proved by the Linux job",
   );
+  const classSkip: TestResult = { ...platformSkip, line: lineOf("    @pytest.mark.skipif(") };
+  const classPassedOnLinux: TestResult = { ...ran(cart, "test_1_1_shell", ["TestTotals"]), platform: "linux" };
+  assert.deepEqual(
+    [judgeRun(proofs, [classSkip, classPassedOnLinux]).verdicts.get("c_cart_11")].map((verdict) => [verdict?.state, verdict?.total]),
+    [["passing", 2]],
+    "a skip names no class, yet it is the class's test_1_1_shell, proved by the Linux job",
+  );
+  const bodySkip: TestResult = { ...platformSkip, line: lineOf(`    """1.2 · cart lists`) };
+  assert.deepEqual(judgeRun(proofs, [bodySkip]).unmatched.map(({ name }) => name), ["test_lists_inside"], "a skip two lines above the next test's decorators is the test whose body it is in");
   const ownerSkip: TestResult = { name: "", suites: [], status: "skipped", file: cart, line: lineOf(`        pytest.skip(`), message: "owner: needs a key" };
   const { verdicts, unmatched } = judgeRun(proofs, [platformSkip, passedOnLinux, ownerSkip]);
   assert.deepEqual([verdicts.get("c_cart_12")!.state, verdicts.get("c_cart_12")!.skip], ["not-checked", "owner"], "the skip in test_1_2_keeps's body is its own");

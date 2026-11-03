@@ -127,7 +127,7 @@ writeFileSync(lanes + "/pids", JSON.stringify({ run: process.pid, loop: loop.pid
 setInterval(() => {}, 1000);
 `;
 
-test("3.33 · stopping the watcher's service ends the watcher and its look loop, and leaves a fix session it started running", { skip: process.platform === "win32" && "the watcher runs on a POSIX pool machine; Windows ends no process group" }, async (t) => {
+test("3.33 · stopping the watcher's service ends the watcher and its look loop, and leaves a fix session it started running", { skip: process.platform === "win32" && "platform:posix: the watcher runs on a POSIX pool machine; Windows ends no process group" }, async (t) => {
   const lanesDir = await folder(t);
   const script = join(lanesDir, "watch.mjs");
   await writeFile(script, FAKE_WATCHER);

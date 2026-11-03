@@ -11,6 +11,7 @@ import type { SessionRow } from "../sessions-list/sessions-list.js";
 
 const row: SessionRow = { id: "lane", label: "Session row labels where owner chose", agent: "Claude Code", state: "working", idle: false,
   lastSeenAt: "2026-11-04T12:00:00Z", totalTokens: 120_000, stories: [], worktrees: [], running: [], description: [], children: [], machine: "mint" };
+const { machine: _, ...plain } = { ...row, id: "plain" };
 
 /** With the list `width` wide: whether the machine is in sight inside its row, that row's name and context bar widths, and the name's width on the same row without a machine. */
 type Fit = { machineShown: boolean; label: number; plainLabel: number; context: number };
@@ -21,7 +22,7 @@ test("7.13 a row's machine name shows beside its name while the row has room; on
   t.after(() => browser.close());
   const page = await browser.newPage({ viewport: { width: 800, height: 600 } });
   const css = await readFile(path.join(import.meta.dirname, "styles.css"), "utf8");
-  await page.setContent(`<style>${css}</style><div id="rail" style="width:384px;height:400px">${renderToStaticMarkup(createElement(SessionsList, { rows: [row, { ...row, id: "plain", machine: undefined }], onHighlight() {} }))}</div>`);
+  await page.setContent(`<style>${css}</style><div id="rail" style="width:384px;height:400px">${renderToStaticMarkup(createElement(SessionsList, { rows: [row, plain], onHighlight() {} }))}</div>`);
   const fit = (width: number): Promise<Fit> => page.evaluate(width => {
     document.querySelector<HTMLElement>("#rail")!.style.width = `${width}px`;
     // No named helper in here: the test runner's transform would name it with a function the page does not have.

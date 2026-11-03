@@ -3,7 +3,7 @@
  * renderer hands it as parts: which project is on show and when it is drawn again; what the page says while it loads, has nothing
  * to show or fails (`data-state`: loading, ready, empty, missing, error); the forest drawn at once from the tree kept at the last
  * start (`data-fresh="no"`) and the notice over it while the first read fails; which surfaces are mounted as the settings say
- * (every one when they cannot be read), the sessions list and the arcs each in its tab of the left rail, the arcs reading once the start settled; the start-timing marks, each sent once (lifecycle 1.33); and that a read landing after
+ * (every one when they cannot be read), the sessions list and the arcs each in its tab of the left rail, the arcs mounted once the forest has asked its first read and reading once the start settled; the start-timing marks, each sent once (lifecycle 1.33); and that a read landing after
  * the user switched project changes nothing on show.
  */
 import { drawingOf, drillDown, forestDrawn, forestScene, storyNodes, type ForestReadingOptions, type ForestScene, type KeptDrawing, type StoryPanel } from "@storytree/forest";
@@ -218,7 +218,6 @@ export function openProjectPage<View extends ForestGlobe>(parts: PageParts<View>
     if (rail) mine.rail = rail;
     let started!: () => void;
     const startAfter = new Promise<void>((resolve) => { started = resolve; });
-    if (rail && surfaceOn(surfaces, "arcs")) mine.arcs = project.arcs(rail.panel("arcs"), { onFreshDraw: () => startMark("arcs first fresh draw"), onWaiting: (count) => rail.badge(count), startAfter });
     let tree: AnnotatedTree | undefined;
     /** The code survey last read, which counts a mapped story's files and lines for its panel. */
     let surveyed: Survey = {};
@@ -308,6 +307,20 @@ export function openProjectPage<View extends ForestGlobe>(parts: PageParts<View>
       },
     };
     mine.reading = project.reading(drawnWith === undefined ? reading : { ...reading, survey: drawnWith.survey });
+    // The arcs mount at the page reading's first news or first failure, heard after the forest's reading, which has asked its
+    // tree by then: drawing the board kept at the last start (about 40 ms on the large seed) never holds that read back (2.41).
+    if (rail && surfaceOn(surfaces, "arcs")) {
+      let stopWaiting: (() => void) | undefined;
+      let mounted = false;
+      const mountArcs = (): void => {
+        if (mounted) return;
+        mounted = true;
+        stopWaiting?.();
+        if (showing === mine) mine.arcs = project.arcs(rail.panel("arcs"), { onFreshDraw: () => startMark("arcs first fresh draw"), onWaiting: (count) => rail.badge(count), startAfter });
+      };
+      stopWaiting = page.subscribe({ onNews: mountArcs, onError: mountArcs });
+      if (mounted) stopWaiting();
+    }
   };
 
   /** Draw project `name` again from the start, as the surfaces now say. */

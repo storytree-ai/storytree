@@ -215,6 +215,7 @@ test("5.21 · the factory plugin this computer's setting does not name that decl
   assert.equal(unnamedOwnerOf({ folder, plugins: { "micks-dev-loop": "micks-dev-loop" } }, "verbs", "quality"), undefined, "a plugin the setting names is mounted, not unnamed");
   assert.equal(unnamedOwnerOf({ folder, plugins: {} }, "verbs", "nowhere"), undefined);
   assert.equal(unnamedOwnerOf({ plugins: {} }, "verbs", "quality"), undefined);
+  assert.equal(unnamedOwnerOf({ folder: path.join(folder, "plugins", "broken"), plugins: {} }, "verbs", "quality"), undefined, "a folder with no plugins in it finds none");
 });
 
 test("5.3 a factory plugin's manifest names the version of storytree's plugin interface it was written for: one this host honours is mounted, and one naming another version, or none, is left unmounted with its part off, said with the version it named and the one this host honours", (t) => {

@@ -265,6 +265,10 @@ test("1.47 · a family only a factory plugin this computer does not name declare
 
   assert.equal((await invoke(["settings", "set", "part", "my-extra", "plugin", "my-extra"])).code, 0);
   assert.equal((await invoke(["my-extra", "hello"])).code, 0);
+
+  writeFileSync(path.join(home, "settings.json"), "{ not json");
+  const unread = await invoke(["my-extra", "hello"]);
+  assert.match(unread.stderr, /storytree has no "my-extra"\n/, "a settings file that cannot be read names no plugin, and the word is refused as before");
 });
 
 test("1.40 · with a factory folder chosen and `settings set part ci-health plugin my-health`, the command line lists and runs the factory plugin's family where ci-health's was, its verb handed the door's place; `settings set part ci-health on` mounts ci-health's own again", async (t) => {

@@ -12,7 +12,8 @@ import { connect } from "@storytree/library";
 import { dropTestDatabases } from "@storytree/local-postgres/testing";
 import { openActivityLog } from "@storytree/session-management";
 
-import { browserProcess, closeBrowser, fakeBridge, liveAnswers, outputFolder, runCapture, settle, withCapture } from "./index.js";
+import { browserProcess, closeBrowser, fakeBridge, outputFolder, runCapture, settle, withCapture } from "./index.js";
+import { liveAnswers } from "./live.js";
 
 test("2.9 · capture settling awaits each requested frame after invalidating the globe", async t => {
   // Chrome is installed on the three CI runner images; no browser download during tests.
@@ -180,7 +181,12 @@ test("2.38 · a capture on a live library answers the page with the app's own re
   const browser = Object.assign(new EventEmitter(), { isConnected: () => true, async newPage() { return page; }, async close() {} }) as unknown as Browser;
   t.mock.method(chromium, "launch", async () => browser);
 
-  await runCapture({ folder, dist: folder, live: { storytree, project, lines: 3 }, views: [] });
+  const live = await liveAnswers({ storytree, project, lines: 3 });
+  try {
+    await runCapture({ folder, dist: folder, answers: live.answers, views: [] });
+  } finally {
+    await live.close();
+  }
 
   assert.deepEqual((read.selection as { current: string }).current, project, "the page opens on the project the capture names");
   assert.deepEqual((read.chosen as { current: string }).current, project, "a project the page chooses is on show");
@@ -195,7 +201,6 @@ test("2.38 · a capture on a live library answers the page with the app's own re
   t.after(() => unnamed.close());
   assert.equal((await unnamed.answers.projectSelection!()).current, projects[0], "a capture naming no project opens on the library's first");
   await assert.rejects(liveAnswers({ storytree, project: "t-absent" }), /no project called "t-absent"/, "a project the library lacks is refused, naming it");
-  await assert.rejects(runCapture({ folder, dist: folder, views: [] }), /either a seed or a live library/, "a capture given neither a seed nor a live library is refused");
 });
 
 // PR #1279's macOS run: the browser disconnected, then browser.close() never returned and 3.35 hit its timeout.

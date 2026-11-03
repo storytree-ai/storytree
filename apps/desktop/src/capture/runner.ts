@@ -8,7 +8,6 @@ import type { Browser, Page, ViewportSize } from "playwright-core";
 import type { StorytreeBridge } from "../bridge.js";
 import { fakeBridge, type FakeBridge, type FakeBridgeOptions } from "./fake-bridge.js";
 import { closeBrowser, launch } from "./launch.js";
-import { liveAnswers, type LiveLibrary } from "./live.js";
 import { captureOutput } from "./output.js";
 
 export interface CaptureSeed {
@@ -55,10 +54,8 @@ interface CaptureOptions {
 
 export interface SeededCaptureOptions extends CaptureOptions {
   dist: string;
-  /** What the page reads, unless it reads a live library. */
+  /** What the page reads; none for a capture whose `answers` read a live library (live.ts's liveAnswers). */
   seed?: CaptureSeed;
-  /** A live library the page reads through the app's own reads, in place of a seed (see live.ts). */
-  live?: LiveLibrary;
   survey?: Awaited<ReturnType<StorytreeBridge["codeSurvey"]>>;
   answers?: Partial<StorytreeBridge>;
   /** The first-run guide is already seen unless "unseen", for a capture of the guide itself. */
@@ -122,19 +119,13 @@ export async function withCapture<T>({ folder, dist, softwareGL = true, closeGra
 /** The common seeded page, followed by just the views that make this look's evidence. */
 export async function runCapture(options: SeededCaptureOptions): Promise<unknown[]> {
   return withCapture(options, async context => {
-    const { seed, live, survey, answers = {} } = options;
-    if ((seed === undefined) === (live === undefined)) throw new Error("a capture reads either a seed or a live library: hand runCapture one of them");
-    const reads = live === undefined ? { answers: seeded(seed!), close: async () => {} } : await liveAnswers(live);
-    try {
-      const bridge = fakeBridge({
-        ...reads.answers,
-        ...(survey === undefined ? {} : { codeSurvey: async () => survey }),
-        ...answers,
-      }, { guide: options.guide, teaching: options.teaching });
-      return await views(context, bridge, options);
-    } finally {
-      await reads.close();
-    }
+    const { seed, survey, answers = {} } = options;
+    const bridge = fakeBridge({
+      ...(seed === undefined ? {} : seeded(seed)),
+      ...(survey === undefined ? {} : { codeSurvey: async () => survey }),
+      ...answers,
+    }, { guide: options.guide, teaching: options.teaching });
+    return views(context, bridge, options);
   });
 }
 

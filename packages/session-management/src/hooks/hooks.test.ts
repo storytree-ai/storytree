@@ -985,6 +985,24 @@ test("3.15 recorded prompt inputs make a prompt line on their session, for Claud
   });
 });
 
+test("3.54 a Claude Code turn that ends in print mode (`claude -p`) says its process ends with it; an interactive session's, or an SDK host's that may run more turns, does not", async () => {
+  const project = uniqueProjectName();
+  await withTempDir(async (dir) => {
+    const folder = await projectFolder(dir, project);
+    const home = storytreeHome(dir, true);
+    const stop = JSON.parse(recorded("claude-code", "stop", folder));
+    for (const entrypoint of ["sdk-cli", "cli", "sdk-ts"]) {
+      const ran = await runHook("claude-code", JSON.stringify({ ...stop, session_id: entrypoint }), home, [], { CLAUDE_CODE_ENTRYPOINT: entrypoint });
+      assert.deepEqual({ code: ran.code, stderr: ran.stderr }, { code: 0, stderr: "" }, entrypoint);
+    }
+    assert.deepEqual((await linesOf(project)).map((line) => ({ session: line.session, kind: line.kind, exits: (line as { exits?: boolean }).exits })), [
+      { session: "sdk-cli", kind: "turn-ended", exits: true },
+      { session: "cli", kind: "turn-ended", exits: undefined },
+      { session: "sdk-ts", kind: "turn-ended", exits: undefined },
+    ]);
+  });
+});
+
 test("3.16 every line a hook writes records the git branch its folder is on, beside the folder; a folder on no branch records none (ADR-0754 D4)", async () => {
   const project = uniqueProjectName();
   await withTempDir(async (dir) => {

@@ -97,8 +97,9 @@ export const NEW_LINE = z.discriminatedUnion("kind", [
   /**
    * The agent finished its turn, with how many background tasks it left running, where the harness
    * says (ADR-0754 D5). With none left running, no command it started in that turn still runs.
+   * `exits`: the harness's process ends with this turn (Claude Code in print mode, which cuts its end hook short).
    */
-  z.object({ ...common, kind: z.literal("turn-ended"), background: z.number().int().nonnegative().optional() }).strict(),
+  z.object({ ...common, kind: z.literal("turn-ended"), background: z.number().int().nonnegative().optional(), exits: z.literal(true).optional() }).strict(),
   /**
    * The session ended its work, saying whether it is safe to close and why (ADR-0758 D2). `running`
    * is how many of its own runs still ran on its machine, counted by the command that wrote the line,

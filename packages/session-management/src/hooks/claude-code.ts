@@ -18,7 +18,9 @@
  * - A command that exits with an error fires PostToolUseFailure instead of PostToolUse (seen
  *   2026-09-27 in Claude Code 2.1.283), with the same `tool_input` and `tool_use_id`, and `error`.
  * - UserPromptSubmit carries the `prompt`: its line says the session's turn began, without the words.
- * - Stop fires when the agent finishes its turn, and lists the `background_tasks` still running.
+ * - Stop fires when the agent finishes its turn, and lists the `background_tasks` still running. In print mode (`claude -p`,
+ *   CLAUDE_CODE_ENTRYPOINT exactly "sdk-cli") the process exits with the turn and cuts SessionEnd short, so its line says so (3.54);
+ *   an SDK host (sdk-ts, sdk-py) may run more turns.
  * - SessionEnd carries `reason`.
  * - Two events only Claude Code's mod sends (ADR-1056 D3), each with the session's `usage` as its status line has it
  *   (`context`, `rateLimits`, `cost`): UsageMeasured, while the figures move, and TurnComplete, at a main-loop turn's end, with
@@ -34,7 +36,7 @@ const STARTS_SUBAGENT = new Set(["Agent", "Task"]);
 /** The tools that run a command line. */
 const RUNS_COMMAND = new Set(["Bash", "PowerShell"]);
 
-export function claudeCodeLines(input: Record<string, unknown>): HookLines | undefined {
+export function claudeCodeLines(input: Record<string, unknown>, env: NodeJS.ProcessEnv = process.env): HookLines | undefined {
   const { session_id: session, cwd: folder, hook_event_name: event } = input;
   if (!isText(session) || !isText(folder) || !isText(event)) return undefined;
   // The transcript the harness named, on every line: where the session's context is read from (capability 9).
@@ -61,7 +63,8 @@ export function claudeCodeLines(input: Record<string, unknown>): HookLines | und
       return line({ ...common, kind: "prompt-submitted" });
     case "Stop":
       // A turn that leaves tasks running in the background may leave a command of theirs running too: its line says how many.
-      return line({ ...common, kind: "turn-ended", ...(Array.isArray(input.background_tasks) ? { background: input.background_tasks.length } : {}) });
+      return line({ ...common, kind: "turn-ended", ...(Array.isArray(input.background_tasks) ? { background: input.background_tasks.length } : {}),
+        ...(env.CLAUDE_CODE_ENTRYPOINT === "sdk-cli" ? { exits: true } : {}) });
     case "UsageMeasured":
     case "TurnComplete": {
       const usage = usageOf(input.usage);

@@ -60,13 +60,13 @@ export const PLUGIN_FAMILIES = [
 }
 
 /**
- * The test a new plugin starts with: numbered 1.1, so once a story is titled after the plugin, with a promise 1.1,
+ * The test a new plugin starts with: numbered 1.1, so once a story is titled after the plugin, with a contract 1.1,
  * `storytree health plugin <name>` records it there. It imports only the plugin's own module, as the plugin does nothing
  * of storytree's (ADR-1112).
  */
 function testModule(name: string): string {
-  return `// The plugin's own tests, run by its package's test command (node --test). A test titled with a promise's number
-// ("1.1 · …") proves that promise of the story titled after this plugin: storytree health plugin ${name} records it.
+  return `// The plugin's own tests, run by its package's test command (node --test). A test titled with a contract's number
+// ("1.1 · …") proves that contract of the story titled after this plugin: storytree health plugin ${name} records it.
 import assert from "node:assert/strict";
 import { test } from "node:test";
 

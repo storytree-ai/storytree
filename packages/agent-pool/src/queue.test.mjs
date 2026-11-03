@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 
-import { countEngines, holdRunner, processTable, reserveSlot, waitForSlot } from "./queue.mjs";
+import { countEngines, holdRunner, processTable, reserveSlot, runningLanes, waitForSlot } from "./queue.mjs";
 
 async function folder(t) {
   const path = await mkdtemp(join(tmpdir(), "lane-queue-"));
@@ -109,4 +109,16 @@ test("3.32 · two engine starters racing for the last slot under the cap start o
   const freed = await reserveSlot({ dir, max: 2, count: async () => 1, pid: 22, alive: (pid) => pid !== 21, onWait: () => assert.fail("a dead starter's reservation held the slot"), sleep: async () => {} });
   assert.equal(freed.running, 1);
   assert.deepEqual((await readdir(dir)).map((name) => name.split("-")[0]), ["22"], "only the live starter's reservation is left");
+});
+
+test("3.8 · the increments whose lanes run on the machine are read from each engine's brief, once a lane, never from a process that only mentions one", () => {
+  const table = [
+    "  100     1 /home/m/.local/bin/claude -p # Pool lane: increment_7fe8b4e4567b  Your increment: increment_7fe8b4e4567b.  --- Rules for every pool lane",
+    "  200     1 node /home/m/.nvm/versions/node/v24.19.0/bin/codex exec # Pool lane: increment_ec24bf955632  Your increment: increment_ec24bf955632. You are a blind reviewer",
+    "  201   200 /home/m/codex/vendor/bin/codex exec # Pool lane: increment_ec24bf955632  Your increment: increment_ec24bf955632. You are a blind reviewer",
+    "  300     1 /home/m/.local/bin/claude -p # Planning lane: arc_ba22a8a2871c  Your arc: arc_ba22a8a2871c (A title).",
+    "  400   399 grep Your increment: increment_dcacc3d41eb8.",
+  ].join("\n");
+  assert.deepEqual(runningLanes(table), ["increment_7fe8b4e4567b", "increment_ec24bf955632"]);
+  assert.deepEqual(runningLanes(""), []);
 });

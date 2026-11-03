@@ -17,7 +17,7 @@ import { composeParts, mount, offSaid, PLUGIN_INTERFACE, pluginExport, recordKin
 /** The loader's own entry, as a fixture host's composing module imports it (the fixture installs no loader of its own). */
 const LOADER = JSON.stringify(new URL("./index.ts", import.meta.url).href);
 
-interface Story { readonly name: string; readonly manifest?: unknown; readonly exports?: Record<string, string>; readonly files?: Record<string, string>; readonly dependencies?: readonly string[] }
+interface Story { readonly name: string; readonly manifest?: unknown; readonly exports?: Record<string, string>; readonly files?: Record<string, string>; readonly dependencies?: readonly string[]; readonly devDependencies?: readonly string[] }
 
 /** A host folder depending on the given story packages, each installed in its node_modules. */
 function host(t: TestContext, stories: readonly Story[], dependencies = stories.map((story) => story.name)): string {
@@ -27,7 +27,7 @@ function host(t: TestContext, stories: readonly Story[], dependencies = stories.
   for (const story of stories) {
     const dir = path.join(root, "node_modules", ...story.name.split("/"));
     mkdirSync(dir, { recursive: true });
-    writeFileSync(path.join(dir, "package.json"), JSON.stringify({ name: story.name, type: "module", exports: story.exports ?? {}, dependencies: Object.fromEntries((story.dependencies ?? []).map((name) => [name, "*"])), ...(story.manifest === undefined ? {} : { storytree: story.manifest }) }));
+    writeFileSync(path.join(dir, "package.json"), JSON.stringify({ name: story.name, type: "module", exports: story.exports ?? {}, dependencies: Object.fromEntries((story.dependencies ?? []).map((name) => [name, "*"])), devDependencies: Object.fromEntries((story.devDependencies ?? []).map((name) => [name, "*"])), ...(story.manifest === undefined ? {} : { storytree: story.manifest }) }));
     for (const [file, text] of Object.entries(story.files ?? {})) writeFileSync(path.join(dir, file), text);
   }
   return root;
@@ -123,6 +123,21 @@ test("4.1 a composed list names the part each declaration came from, by package 
   const composed = await composeParts(path.join(dir, "entry.js"), "surfaces");
   assert.deepEqual(composed.owners, ["forest", "forest", "arcs"]);
   assert.deepEqual(composed.graph, { arcs: ["forest"], forest: ["friction", "library"], friction: ["library"], library: [] });
+});
+
+test("4.4 · a host's parts graph names a part another part takes only as a development dependency and whose manifest declares services, standing on its own parts with no edge from the one taking it, so switching it off leaves that one mounted; a development dependency declaring no services adds nothing", async (t) => {
+  const service = { name: "dispatcher", from: "./services", export: "dispatcher", run: "always" };
+  const dir = host(t, [
+    { ...surfaces("@s/host", "hostSurfaces", ["services"], 1, ["@s/library"]), devDependencies: ["@s/runner", "@s/fixtures"] },
+    { name: "@s/runner", exports: { "./services": "./services.js" }, manifest: { services: [service] }, dependencies: ["@s/library"] },
+    { name: "@s/fixtures", exports: { ".": "./index.js" }, manifest: {} },
+    { name: "@s/library", exports: { ".": "./index.js" }, manifest: {} },
+  ], ["@s/host"]);
+  const composed = await composeParts(path.join(dir, "entry.js"), "surfaces");
+  assert.deepEqual(composed.graph, { host: ["library"], library: [], runner: ["library"] });
+  const { mounted, off } = mount(composed, ["runner"]);
+  assert.deepEqual(mounted, [{ id: "services" }]);
+  assert.deepEqual(off, [{ part: "runner", because: "runner" }]);
 });
 
 test("4.2 a host mounts every declaration but those of a part the setting names off and of every part standing on it, however deep, each said off because of the named one; the core and names the host lacks are ignored", () => {

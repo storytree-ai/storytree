@@ -832,6 +832,8 @@
 .session-dot[data-dot="idle"] { border:1.5px solid #8a948f; }
 .session-row { cursor:pointer; }
 .session-row[data-selected] { background:#ffffff17; }
+/* A finished child of a parent still at work stays listed, greyed, until the parent ends and its tree folds into it (7.2). */
+.session-row[data-done] { opacity:.5; }
 .session-row[data-selected] .session-colour { box-shadow:0 0 0 2px #ffffffcc; }
 .session-row:focus-visible,.sessions-list button:focus-visible { outline:1px solid #d9dedb; outline-offset:2px; }
 .session-label { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; min-width:60px; }

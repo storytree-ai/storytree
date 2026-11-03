@@ -6,7 +6,7 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { mkdtempSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { homedir, tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 import { removeTemp, waitUntil } from "@storytree/test-waits";
@@ -118,6 +118,42 @@ test("17.18 · Session management declares record_friction, reinforce, record_re
       const record = FRICTION_TOOLS.find((one) => mounted(one.tool) && one.tool.name === "record_friction")!;
       await assert.rejects(record.act({ title: "Slow", description: "Slow", statement: "Slow", evidence: "it was slow", impact: "Slow" }, context, WORDS), VerbRefusal);
       assert.deepEqual(await library.history(), []);
+    });
+  });
+});
+
+test("17.19 · Friction marked about storytree answers with a pre-filled GitHub issue draft for the user to review and submit, the paths and project name stripped; storytree sends nothing", async () => {
+  await withLibrary(async (library) => {
+    await onBranch(library, "main", async (context) => {
+      const project = { ...context, project: "acme-shop" };
+      const filed = await verbNamed("new").act({
+        title: "acme-shop: the red agent had no shell",
+        description: "The red agent could not run tests",
+        statement: `In acme-shop the red agent's Bash was refused at ${path.join(context.folder, ".claude", "agents", "red.md")}`,
+        evidence: `Error: no shell tool, seen in ${path.join(homedir(), "notes", "run.log")} and /opt/acme-shop/logs/red.txt`,
+        impact: "Tests were written blind",
+        "about-storytree": true,
+      }, project, WORDS);
+      const [note] = await library.list("friction");
+      assert.equal(note!.fields.title, "acme-shop: the red agent had no shell", "the user's own library keeps the friction as written");
+      const link = filed.text.match(/https:\/\/github\.com\/\S+/)?.[0];
+      assert.ok(link, "the reply carries the draft's link");
+      const draft = new URL(link);
+      assert.equal(`${draft.origin}${draft.pathname}`, "https://github.com/storytree-ai/storytree/issues/new");
+      const [title, body] = [draft.searchParams.get("title")!, draft.searchParams.get("body")!];
+      assert.match(title, /the red agent had no shell/);
+      assert.match(body, /Error: no shell tool/);
+      assert.match(body, /Tests were written blind/);
+      for (const told of [title, body]) {
+        assert.doesNotMatch(told, /acme-shop/i, "the project's name is stripped");
+        assert.ok(!told.includes(context.folder) && !told.includes(homedir()), "the project's folder and the home folder are stripped");
+        assert.doesNotMatch(told, /\/opt\//, "other absolute paths are stripped");
+      }
+      assert.match(filed.text, /submit/i, "the agent is told the user submits it");
+      assert.deepEqual((filed.data as { issueDraft?: string }).issueDraft, link);
+
+      const plain = await verbNamed("new").act({ title: "Plain", description: "Plain", statement: "Plain", evidence: "src/mail.ts: TimeoutError after 30 seconds", impact: "Plain" }, project, WORDS);
+      assert.doesNotMatch(plain.text, /github\.com/, "friction not marked about storytree offers no draft");
     });
   });
 });

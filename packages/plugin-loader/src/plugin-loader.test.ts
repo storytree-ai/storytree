@@ -11,7 +11,7 @@ import { pluginSchema, type PluginRecords } from "@storytree/library";
 
 import { writePartsList } from "./compose/parts-list.js";
 import { checkPlugin } from "./factory/contract.js";
-import { pluginServices, unnamedOwnerOf, type ServiceHost } from "./factory/factory.js";
+import { pluginServices, unnamedOwnerOf, unnamedPlugins, type ServiceHost } from "./factory/factory.js";
 import { composeParts, mount, offSaid, PLUGIN_INTERFACE, pluginExport, recordKinds, standIn, storyParts, storyServices } from "./index.js";
 
 /** The loader's own entry, as a fixture host's composing module imports it (the fixture installs no loader of its own). */
@@ -209,6 +209,8 @@ test("5.21 · the factory plugin this computer's setting does not name that decl
     "micks-dev-loop": quality,
     "my-runner": { ...quality, manifest: { ...verbsPlugin.manifest, for: "agent-pool" }, files: { "verbs.js": `export const verbs = [{ name: "pool" }];\n` } },
     broken: { ...quality, manifest: { ...verbsPlugin.manifest, interface: 99 } },
+    // Read first, and its manifest is readable, but its verbs cannot be loaded.
+    "a-unexported": { ...quality, exports: {} },
   });
   assert.deepEqual(unnamedOwnerOf({ folder, plugins: {} }, "verbs", "quality"), { plugin: "micks-dev-loop", part: "micks-dev-loop" });
   assert.deepEqual(unnamedOwnerOf({ folder, plugins: {} }, "verbs", "pool"), { plugin: "my-runner", part: "agent-pool" });
@@ -216,6 +218,23 @@ test("5.21 · the factory plugin this computer's setting does not name that decl
   assert.equal(unnamedOwnerOf({ folder, plugins: {} }, "verbs", "nowhere"), undefined);
   assert.equal(unnamedOwnerOf({ plugins: {} }, "verbs", "quality"), undefined);
   assert.equal(unnamedOwnerOf({ folder: path.join(folder, "plugins", "broken"), plugins: {} }, "verbs", "quality"), undefined, "a folder with no plugins in it finds none");
+});
+
+test("5.22 · every factory plugin with a storytree manifest this computer's setting does not name is listed, in name order, with the part `settings set part` names it as; a named plugin, one with no manifest or one that cannot be read, and no factory folder list none", (t) => {
+  const folder = factory(t, {
+    "micks-dev-loop": verbsPlugin,
+    "my-runner": { ...verbsPlugin, manifest: { ...verbsPlugin.manifest, for: "agent-pool" } },
+    "ci-health": verbsPlugin,
+    broken: { ...verbsPlugin, manifest: { ...verbsPlugin.manifest, interface: 99 } },
+  });
+  mkdirSync(path.join(folder, "plugins", "plain"), { recursive: true });
+  writeFileSync(path.join(folder, "plugins", "plain", "package.json"), JSON.stringify({ name: "plain" }));
+  assert.deepEqual(unnamedPlugins({ folder, plugins: { "ci-health": "ci-health" } }), [
+    { plugin: "micks-dev-loop", part: "micks-dev-loop" },
+    { plugin: "my-runner", part: "agent-pool" },
+  ]);
+  assert.deepEqual(unnamedPlugins({ plugins: {} }), []);
+  assert.deepEqual(unnamedPlugins({ folder: path.join(folder, "plugins", "broken"), plugins: {} }), [], "a folder with no plugins in it lists none");
 });
 
 test("5.3 a factory plugin's manifest names the version of storytree's plugin interface it was written for: one this host honours is mounted, and one naming another version, or none, is left unmounted with its part off, said with the version it named and the one this host honours", (t) => {

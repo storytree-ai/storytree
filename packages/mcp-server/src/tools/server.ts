@@ -42,6 +42,7 @@ import { callLines, endMergedClaims, outsideTextReads, type ActivityLog, type Me
 import { agentOf, harnessOfClient, SESSION_ENV, lineOf, requestOf, seenCaller, type Caller } from "@storytree/project-and-caller/caller";
 import { findProject, idleAfterMs, importsOf, machineOf, readPartsOff, readStandIns, route, storytreeHome, type ImportedFolder, type LocateOptions, type Route } from "@storytree/project-and-caller";
 import { mount, offSaid, recordKinds, standIn, switchedOff } from "@storytree/plugin-loader";
+import { unnamedPlugins } from "@storytree/plugin-loader/factory";
 import { heldBack, type Agent, type HealthWorkItem, type Library, type Storytree, type WriteOptions } from "@storytree/library";
 import type { Consumer } from "@storytree/library/verbs";
 import { NOTE_TOOLS } from "@storytree/library/commands";
@@ -438,7 +439,8 @@ export function createAgentTools(options: AgentToolOptions): AgentTools {
     server,
     folder: options.folder,
     // The storytree home is where the data directory routing reads sits, unless it is named.
-    setup: { ...(options.dataDir === undefined ? {} : { storytreeHome: path.dirname(options.dataDir) }), ...options.setup },
+    // The factory plugins no part names, read from the stand-ins this server mounted (friction_f1d8f14c01e2).
+    setup: { ...(options.dataDir === undefined ? {} : { storytreeHome: path.dirname(options.dataDir) }), unnamedPlugins: () => unnamedPlugins(standIns), ...options.setup },
     connections,
     callerOf,
     card,

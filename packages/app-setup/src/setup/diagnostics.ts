@@ -9,7 +9,7 @@ import { compareVersions } from "./hooks-release.js";
 import { IDENTITY_FIX } from "../project/making.js";
 
 export interface SetupLine {
-  readonly check: "storytree" | "hooks" | "hooks-release" | "codex-server" | "codex-hooks" | "elevated" | "transcripts" | "status-line" | "command" | "gh" | "agent-cli" | "git" | "node" | "archives" | "project" | "repository" | "marker";
+  readonly check: "storytree" | "hooks" | "hooks-release" | "codex-server" | "codex-hooks" | "elevated" | "transcripts" | "status-line" | "command" | "gh" | "agent-cli" | "git" | "node" | "archives" | "project" | "repository" | "marker" | "factory";
   /** A `note` names an optional tool that is missing: never a fix, so no agent is asked to install it (question_bb3efa1e3191). */
   readonly state: "ok" | "fixed" | "needs-attention" | "skipped" | "note";
   readonly message: string;
@@ -149,6 +149,13 @@ export function setupLines(report: Omit<SetupReport, "lines">): SetupLine[] {
     : { check: "gh", state: "note", message: `GitHub's gh command ${ghNow}. storytree works without it: only a claim ending by itself when its pull request merges needs it.` });
   lines.push(...machineLines(machine, report.serverEntry, report.connected));
   lines.push(archivesLine(report.archives));
+  // A factory plugin no part setting names mounts nothing, and nothing else at a session's start says so (friction_f1d8f14c01e2).
+  for (const { plugin, part } of report.unnamedPlugins ?? []) lines.push({
+    check: "factory",
+    state: "needs-attention",
+    message: `This computer's factory holds the plugin ${plugin}, which no part setting names, so nothing of it is mounted.`,
+    fix: `Only after the user says yes, name it with \`storytree settings set part ${part} plugin ${plugin}\`, then start a new session.`,
+  });
   lines.push(project.status === "set up"
     ? { check: "project", state: "ok", message: `This folder is storytree project ${JSON.stringify(project.name)}.` }
     : project.status === "missing"

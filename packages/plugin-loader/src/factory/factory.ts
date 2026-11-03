@@ -114,29 +114,44 @@ export interface UnnamedPlugin {
 }
 
 /**
- * The plugin in this computer's factory folder that no stand-in names whose declarations of `kind` include one called
- * `name`, so a host asked for it can say which plugin holds it and how to name it; none without a folder, and a plugin
- * that cannot be loaded is passed over.
+ * Every plugin in this computer's factory folder, in name order, with a storytree manifest this storytree can read and
+ * that no stand-in names, so a host can say which plugins nothing mounts and how to name each; none without a folder.
  */
-export function unnamedOwnerOf(standIns: StandIns, kind: string, name: string): UnnamedPlugin | undefined {
+export function unnamedPlugins(standIns: StandIns): UnnamedPlugin[] {
   const { folder } = standIns;
-  if (folder === undefined) return undefined;
+  if (folder === undefined) return [];
   const named = new Set(Object.values(standIns.plugins));
   let plugins: string[];
   try {
     plugins = readdirSync(path.join(folder, "plugins")).sort();
   } catch {
-    return undefined;
+    return [];
   }
-  for (const plugin of plugins.filter((one) => !named.has(one))) {
+  return plugins.filter((plugin) => !named.has(plugin)).flatMap((plugin) => {
     try {
-      const declared = pluginParts(folder, plugin, kind);
-      if (declared.some((one) => typeof one === "object" && one !== null && (one as { name?: unknown }).name === name)) return { plugin, part: pluginFor(folder, plugin) ?? plugin };
+      pluginManifest(folder, plugin);
+      return [{ plugin, part: pluginFor(folder, plugin) ?? plugin }];
+    } catch {
+      // No manifest, or one this storytree cannot read: nothing a setting could mount.
+      return [];
+    }
+  });
+}
+
+/**
+ * The plugin in this computer's factory folder that no stand-in names whose declarations of `kind` include one called
+ * `name`, so a host asked for it can say which plugin holds it and how to name it; none without a folder, and a plugin
+ * that cannot be loaded is passed over.
+ */
+export function unnamedOwnerOf(standIns: StandIns, kind: string, name: string): UnnamedPlugin | undefined {
+  return unnamedPlugins(standIns).find(({ plugin }) => {
+    try {
+      return pluginParts(standIns.folder, plugin, kind).some((one) => typeof one === "object" && one !== null && (one as { name?: unknown }).name === name);
     } catch {
       // A plugin that cannot be loaded holds nothing a host could mount.
+      return false;
     }
-  }
-  return undefined;
+  });
 }
 
 /**

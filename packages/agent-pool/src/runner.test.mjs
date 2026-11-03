@@ -358,7 +358,7 @@ test("1.17 · a lane that ends by its engine's own exit with no report or push i
   options.storytree = async (args) => { told.push(args); return args[0] === "library" ? "The breakdown." : ""; };
   const recorded = [];
   let earlier = [];
-  options.failed = async (failure) => { recorded.push(failure); return [...earlier, { ...failure, at: "2026-10-06T00:00:00.000Z" }]; };
+  options.failed = async (failure, project) => { recorded.push({ ...failure, project }); return [...earlier, { ...failure, at: "2026-10-06T00:00:00.000Z" }]; };
   let clock = start;
   options.now = () => clock;
   options.say = (line) => { if (line.includes(" exit ")) clock += 600_000; };
@@ -366,6 +366,7 @@ test("1.17 · a lane that ends by its engine's own exit with no report or push i
   assert.equal(await runLane(options), 1);
   assert.equal(recorded.length, 1, "left nothing twice: recorded failed");
   assert.equal(recorded[0].increment, "increment_abc");
+  assert.equal(recorded[0].project, "storytree", "a lane of no named project is counted in storytree's");
   assert.equal(recorded[0].lane, session);
   assert.equal(recorded[0].started, new Date(start).toISOString());
   assert.match(recorded[0].why, /exit 0.*no report.*no push.*twice/);
@@ -388,6 +389,14 @@ test("1.17 · a lane that ends by its engine's own exit with no report or push i
   assert.match(edit[5], /reoffer increment_\w+ --reason "what was fixed" \(2\.28\)\. Each failure: 1\. 2026-10-04T00:00:00.000Z: exit 0 with no report and no push, twice \(\/lanes\/one\.log\); 2\. /);
   assert.match(edit[5], /2026-10-05T00:00:00.000Z: exit 2/);
   assert.match(edit[5], /exit 3/);
+
+  // Another project's lane is counted in its own project, and its residue re-offers it there.
+  recorded.length = 0; told.length = 0;
+  options.project = "storytree-website";
+  assert.equal(await runLane(options), 3);
+  assert.equal(recorded[0].project, "storytree-website");
+  assert.match(told.find((args) => args[0] === "arc" && args[2] === "edit")[5], /reoffer increment_abc --project storytree-website --reason "what was fixed"/);
+  delete options.project;
   earlier = [];
 
   for (const [what, set] of [["a report", () => { options.commands.claude = command(`require('node:fs').writeFileSync(${JSON.stringify(join(options.lanesDir, "pool-increment_abc.report.md"))}, 'r'); process.exitCode=3;`); }],

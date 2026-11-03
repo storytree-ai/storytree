@@ -313,7 +313,7 @@ function boxDefaults({ home = homedir(), env = process.env } = {}) {
  * drained of its work (closed, no question open) after them, as an experiment arm plans its one arc. The library is the
  * one this process's storytree home names.
  */
-async function ready(b, project, { drained = false } = {}) {
+async function ready(b, project, { drained }) {
   const projects = project ? [project] : b.projects.map((one) => one.name);
   const found = withHandOffs(await surveyProjects(projects, b.survey), await handedOff(join(b.lanesDir, "watch")));
   const { picks } = pickPool(found, { max: Infinity, now: b.now() });

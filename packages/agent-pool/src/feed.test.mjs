@@ -477,6 +477,7 @@ test("2.30 · one survey of every project the machine names offers each one's re
   assert.deepEqual(picks.map((one) => one.id), ["w_free", "i_free"], "the second project's ready work is offered beside storytree's");
   assert.deepEqual(skipped.map((one) => [one.id, one.why.split(" ").slice(0, 3).join(" ")]),
     [["i_claimed", "held by live"], ["w_waits", "waits on w_free"], ["w_tripped", "its lanes failed"]]);
+  assert.match(skipped[2].why, /feed\.mjs reoffer w_tripped --project storytree-website --reason/, "the tripped one is re-offered in its own project");
 
   asked.length = 0;
   const alone = await surveyProjects(["storytree"], surveyOne);

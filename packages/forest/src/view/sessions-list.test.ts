@@ -16,21 +16,41 @@ const row: SessionRow = { id: "parent", label: "Build <signup>", agent: "Codex",
       totalTokens: undefined, stories: [], worktrees: [], running: [], description: [], children: [] },
   ] };
 
-test("7.1–7.5 rows start collapsed, showing neither detail nor children; a row the user opened shows its detail and its children below it; rows show safe words and available total beside its bar", () => {
+test("7.1–7.5 rows start with their detail closed; a running row's children show beneath it without a click, with no \"+N\"; a row the user opened shows its detail before its children; rows show safe words and available total beside its bar", () => {
   const fresh = renderToStaticMarkup(createElement(SessionsList, { rows: [row], onHighlight() {} }));
   assert.match(fresh, /Build &lt;signup&gt;/);
   assert.match(fresh, /aria-expanded="false"/);
-  assert.match(fresh, /class="session-children"[^>]*>\+1<\/span>/, "the count stays on a collapsed row");
-  assert.doesNotMatch(fresh, /data-session-id="child"|session-detail/);
+  assert.doesNotMatch(fresh, /session-detail/);
+  assert.match(fresh, /data-session-id="child"/, "a running parent's child shows without a click");
+  assert.doesNotMatch(fresh, /class="session-children"/, "no count while the children show");
+  assert.match(fresh, /aria-label="Show detail of Build &lt;signup&gt;"/, "the expander opens only the row's own detail");
   const html = renderToStaticMarkup(createElement(SessionsList, { rows: [row], expanded: new Set(["parent"]), onHighlight() {} }));
   assert.match(html, /aria-expanded="true"/);
-  assert.match(html, /data-session-id="child"/);
   assert.match(html, /class="session-detail"/);
+  assert.ok(html.indexOf("session-detail") < html.indexOf('data-session-id="child"'), "children follow the detail");
   assert.match(html, /class="session-context-slot" title="120,000 tokens"/);
   assert.match(html, /120,000 context tokens/);
   assert.match(html, />120K<\/span>/);
   const unavailable = renderToStaticMarkup(createElement(SessionsList, { rows: [{ ...row, totalTokens: undefined }], onHighlight() {} }));
   assert.match(unavailable, /Context total unavailable">—/);
+});
+
+test("7.2 a finished child of a running parent stays listed, greyed; an idle parent folds its whole tree behind its \"+N\", which its expander opens", () => {
+  const finished: SessionRow = { ...row, id: "lane", label: "Supervised lane", state: "waiting", idle: true, children: [] };
+  const running: SessionRow = { ...row, state: "working", children: [row.children[0]!, finished] };
+  const live = renderToStaticMarkup(createElement(SessionsList, { rows: [running], onHighlight() {} }));
+  assert.match(live, /data-session-id="lane"[^>]*data-done="true"/, "the finished child is greyed");
+  assert.doesNotMatch(live, /data-session-id="child"[^>]*data-done/, "a child not known to be finished is not");
+  assert.doesNotMatch(live, /data-session-id="parent"[^>]*data-done/);
+  const idle: SessionRow = { ...running, state: "waiting", idle: true, children: [{ ...row.children[0]!, state: "waiting", idle: true }, finished] };
+  const folded = renderToStaticMarkup(createElement(SessionsList, { rows: [idle], tab: "history", onHighlight() {} }));
+  assert.match(folded, /data-session-id="parent"/);
+  assert.doesNotMatch(folded, /data-session-id="(child|lane)"/, "the ended parent's tree folds into it");
+  assert.match(folded, /class="session-children"[^>]*>\+2<\/span>/);
+  assert.match(folded, /aria-label="Show detail and 2 children of Build &lt;signup&gt;"/);
+  const opened = renderToStaticMarkup(createElement(SessionsList, { rows: [idle], tab: "history", expanded: new Set(["parent"]), onHighlight() {} }));
+  assert.match(opened, /data-session-id="child"/);
+  assert.match(opened, /data-session-id="lane"/);
 });
 
 test("5.5 a row wears its session's colour, the one its outlines wear", () => {
@@ -73,7 +93,7 @@ test("the list draws its kept last rows at once, marked as refreshing; a kept va
   assert.equal(isSessionRows({ rows: [row] }), false);
 });
 
-test("7.8 one expander per row, counting its children; expanded, a row lists its labelled worktrees by folder name (full path on hover), its labelled window's files (gone ones muted) and then its children", () => {
+test("7.8 one expander per row; expanded, a row lists its labelled worktrees by folder name (full path on hover), its labelled window's files (gone ones muted) and then its children", () => {
   const busy: SessionRow = { ...row, worktrees: [{ path: "/home/me/code/app/.claude/worktrees/one", branches: [] }, { path: "/home/me/code/app/.claude/worktrees/two", branches: [] }] };
   const folded = renderToStaticMarkup(createElement(SessionsList, { rows: [busy, { ...row, id: "lone", children: [] }], onHighlight() {} }));
   assert.equal(folded.match(/<button[^>]*session-children-toggle/g)?.length, 2, "every row has one expander, a childless one too");
@@ -83,7 +103,6 @@ test("7.8 one expander per row, counting its children; expanded, a row lists its
   const parentRow = html.match(/data-session-id="parent".*?<\/div>/s)?.[0] ?? "";
   assert.equal(parentRow.match(/<button/g)?.length, 1, "the children do not bring a second control to the row");
   assert.match(parentRow, /^data-session-id="parent"[^>]*><button[^>]*session-children-toggle/, "the expander opens the row");
-  assert.match(parentRow, /class="session-children"[^>]*>\+1<\/span>/);
   assert.match(html, /aria-expanded="true"/);
   const detail = html.match(/class="session-detail".*?<\/div>/s)?.[0] ?? "";
   assert.ok(detail.indexOf(">Worktrees<") < detail.indexOf(">one<") && detail.indexOf(">one<") < detail.indexOf(">two<")

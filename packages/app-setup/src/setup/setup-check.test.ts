@@ -135,11 +135,13 @@ function runsFor(entry: Registered | undefined, tool: string, anchored: boolean)
   return entry !== undefined && new RegExp(anchored ? `^(${entry.matcher})$` : entry.matcher).test(tool);
 }
 
-test("8.1 in a throwaway home with only the tool server installed, the first session start registers the hooks for Claude Code and for Codex without touching any other setting", async () => {
+test("8.1 in a throwaway home with only the tool server installed, the first session start in Claude Code and in Codex registers that agent's hooks without touching any other setting", async () => {
   await withTempDir(async (dir) => {
     const home = throwawayHome(dir);
-    const report = await runSetupCheck({ ...ANSWERED, folder: dir, hook: HOOK, homes: home.homes, storytreeHome: home.storytreeHome });
-    assert.deepEqual(report.hooks, { "claude-code": "registered", codex: "registered", cursor: "not here", pi: "not here", antigravity: "not here", statusLine: "installed" });
+    const report = await runSetupCheck({ ...ANSWERED, folder: dir, hook: HOOK, homes: home.homes, storytreeHome: home.storytreeHome, calling: "claude-code" });
+    assert.deepEqual(report.hooks, { "claude-code": "registered", codex: "not connected", cursor: "not here", pi: "not here", antigravity: "not here", statusLine: "installed" });
+    const codex = await runSetupCheck({ ...ANSWERED, folder: dir, hook: HOOK, homes: home.homes, storytreeHome: home.storytreeHome, calling: "codex" });
+    assert.deepEqual(codex.hooks, { "claude-code": "already registered", codex: "registered", cursor: "not here", pi: "not here", antigravity: "not here", statusLine: "already installed" });
 
     const claude = readJson(home.claudeSettings);
     assert.deepEqual({ ...claude, hooks: undefined, statusLine: undefined }, { ...CLAUDE_SETTINGS, hooks: undefined, statusLine: undefined }, "Claude Code's other settings are as they were");
@@ -199,7 +201,8 @@ test("8.1 in a throwaway home with only the tool server installed, the first ses
 test("8.2 a second start changes nothing, and removing storytree takes out exactly what it added", async () => {
   await withTempDir(async (dir) => {
     const home = throwawayHome(dir);
-    await runSetupCheck({ ...ANSWERED, folder: dir, hook: HOOK, homes: home.homes, storytreeHome: home.storytreeHome });
+    await runSetupCheck({ ...ANSWERED, folder: dir, hook: HOOK, homes: home.homes, storytreeHome: home.storytreeHome, calling: "claude-code" });
+    await runSetupCheck({ ...ANSWERED, folder: dir, hook: HOOK, homes: home.homes, storytreeHome: home.storytreeHome, calling: "codex" });
     const first = { claude: readFileSync(home.claudeSettings, "utf8"), codex: readFileSync(home.codexHooks, "utf8") };
 
     const again = await runSetupCheck({ ...ANSWERED, folder: dir, hook: HOOK, homes: home.homes, storytreeHome: home.storytreeHome });
@@ -231,6 +234,49 @@ test("8.2 a second start changes nothing, and removing storytree takes out exact
     assert.ok(moved.lines.find((line) => line.check === "hooks")?.message.includes(old), JSON.stringify(moved.lines));
     assert.deepEqual(Object.keys(storytreeHooks(readJson(home.claudeSettings), path.join(dir, "old", "storytree-hook.mjs"), "claude-code")), []);
     assert.equal(Object.keys(storytreeHooks(readJson(home.claudeSettings), HOOK.script, "claude-code")).length, 7);
+  });
+});
+
+test("8.43 the check registers hooks only for an agent already connected, or the one whose session asks; another agent on this computer has none of its files written, and is named as not connected with how to connect it, never as a fix (regression: the old test laptop's Codex wired from a Claude Code session, 2026-11-03)", async () => {
+  await withTempDir(async (dir) => {
+    const home = throwawayHome(dir);
+    writeFileSync(home.codexConfig, 'model = "gpt-5"\n');
+    const settings = readFileSync(home.claudeSettings, "utf8");
+
+    // The tool server's own start-up check asks for no session: neither agent has storytree's hooks, so neither gets them.
+    const start = await runSetupCheck({ ...ANSWERED, folder: dir, hook: HOOK, homes: home.homes, storytreeHome: home.storytreeHome });
+    assert.deepEqual(start.hooks, { "claude-code": "not connected", codex: "not connected", cursor: "not here", pi: "not here", antigravity: "not here", statusLine: "not here" });
+    assert.equal(readFileSync(home.claudeSettings, "utf8"), settings, "Claude Code's settings are untouched");
+    assert.equal(existsSync(path.join(home.homes.claude, "agents")), false, "and no builder agents are installed");
+
+    // A Claude Code session asking connects Claude Code; Codex, never connected, is left alone and only named.
+    const asked = await runSetupCheck({ ...ANSWERED, folder: dir, hook: HOOK, homes: home.homes, storytreeHome: home.storytreeHome, calling: "claude-code" });
+    assert.equal(asked.hooks?.["claude-code"], "registered");
+    assert.equal(asked.hooks?.codex, "not connected");
+    assert.equal(existsSync(home.codexHooks), false, "no hooks file is made for Codex");
+    assert.equal(asked.codexServer, undefined, "and a Codex not connected is not told it lacks storytree's tool server");
+    const codexLines = asked.lines.filter((line) => line.check === "hooks" && line.message.includes("Codex"));
+    assert.deepEqual(codexLines.map((line) => line.state), ["note"], JSON.stringify(asked.lines));
+    assert.match(codexLines[0]!.message, /Codex is on this computer and not connected to storytree.*Connect Codex.*storytree setup connect --codex/);
+
+    // Once Codex carries storytree's hooks, any build's, the check keeps them current from any session.
+    const old = path.join(dir, "old", "storytree-hook.mjs");
+    registerHooks({ codex: home.homes.codex }, { ...HOOK, script: old });
+    const later = await runSetupCheck({ ...ANSWERED, folder: dir, hook: HOOK, homes: home.homes, storytreeHome: home.storytreeHome });
+    assert.deepEqual([later.hooks?.["claude-code"], later.hooks?.codex, later.hooks?.replaced], ["already registered", "registered", { codex: [old] }]);
+
+    // Pi and Antigravity CLI keep storytree's hooks in their own shapes: an extension, and a named hook. Antigravity's, an
+    // older build's, makes it connected; a Pi with none is left alone and named.
+    const homes = { ...home.homes, pi: path.join(dir, ".pi", "agent"), antigravity: path.join(dir, ".gemini") };
+    for (const folder of [homes.pi, homes.antigravity]) mkdirSync(folder, { recursive: true });
+    registerHooks({ antigravity: homes.antigravity }, { ...HOOK, script: old });
+    const others = await runSetupCheck({ ...ANSWERED, folder: dir, hook: HOOK, homes, storytreeHome: home.storytreeHome });
+    assert.deepEqual([others.hooks?.pi, others.hooks?.antigravity, others.hooks?.replaced], ["not connected", "registered", { antigravity: [old] }]);
+    assert.deepEqual(readdirSync(homes.pi), [], "nothing is written for Pi");
+    assert.ok(others.lines.some((line) => line.state === "note" && line.message.includes("Pi is on this computer and not connected") && line.message.includes("storytree setup connect --pi")), JSON.stringify(others.lines));
+    // Once Pi has storytree's extension, it is connected too.
+    registerHooks({ pi: homes.pi }, { ...HOOK, script: old });
+    assert.equal((await runSetupCheck({ ...ANSWERED, folder: dir, hook: HOOK, homes, storytreeHome: home.storytreeHome })).hooks?.pi, "registered");
   });
 });
 
@@ -362,7 +408,7 @@ test("8.10 a terminal runs the shared setup check with diagnostic lines and fixe
     const name = uniqueProjectName();
     const folder = path.join(dir, name);
     mkdirSync(folder);
-    const options = { ...ANSWERED, folder, hook: HOOK, homes: home.homes, storytreeHome: home.storytreeHome, gh: async () => "signed out" as const };
+    const options = { ...ANSWERED, folder, hook: HOOK, homes: home.homes, storytreeHome: home.storytreeHome, gh: async () => "signed out" as const, calling: "claude-code" as const };
     const storytree = await connect({ url: testServerUrl() });
     try {
       const report = await runSetupCheck(options);
@@ -575,7 +621,7 @@ test("8.7 a status line of the user's own is kept: storytree's is installed only
     const home = throwawayHome(dir);
     const theirs = { type: "command", command: "echo my own line" };
     writeFileSync(home.claudeSettings, `${JSON.stringify({ ...CLAUDE_SETTINGS, statusLine: theirs }, null, 2)}\n`);
-    const report = await runSetupCheck({ ...ANSWERED, folder: dir, hook: HOOK, homes: home.homes, storytreeHome: home.storytreeHome });
+    const report = await runSetupCheck({ ...ANSWERED, folder: dir, hook: HOOK, homes: home.homes, storytreeHome: home.storytreeHome, calling: "claude-code" });
     assert.equal(report.hooks?.statusLine, "the user's own kept");
     assert.deepEqual(readJson(home.claudeSettings).statusLine, theirs, "theirs, untouched");
     assert.equal(removeHooks(home.homes).statusLine, "none");
@@ -745,7 +791,7 @@ test("8.11 on a Mac, a Codex installed only as its desktop app is found inside t
 test("8.23 the check's codex-server line judges the tool server a Codex session in this folder starts: missing where none is named, ok from the project's own .codex/config.toml, and not ok where Codex's entry names a removed install (regression: the owner's Windows laptop and the Mint box, 2026-09-29 and 2026-10-05)", async () => {
   await withTempDir(async (dir) => {
     const home = throwawayHome(dir);
-    const options = { ...ANSWERED, folder: dir, hook: HOOK, homes: home.homes, storytreeHome: home.storytreeHome };
+    const options = { ...ANSWERED, folder: dir, hook: HOOK, homes: home.homes, storytreeHome: home.storytreeHome, calling: "codex" as const };
     const codexServer = async (folder = dir) => (await runSetupCheck({ ...options, folder })).lines.find((line) => line.check === "codex-server");
     assert.equal((await codexServer())?.state, "ok");
 
@@ -782,7 +828,7 @@ test("8.16 until one of Codex's hooks has run, the check says Codex is waiting f
     const options = { ...ANSWERED, folder: dir, homes: home.homes, storytreeHome: home.storytreeHome };
     assert.equal((await runSetupCheck(options)).lines.find((line) => line.check === "codex-hooks"), undefined, "no line where Codex has none of storytree's hooks");
 
-    await runSetupCheck({ ...options, hook: HOOK });
+    await runSetupCheck({ ...options, hook: HOOK, calling: "codex" });
     for (const check of [{ ...options, hook: HOOK }, options]) {
       const line = (await runSetupCheck(check)).lines.find((each) => each.check === "codex-hooks");
       assert.equal(line?.state, "needs-attention");
@@ -906,7 +952,7 @@ test("8.28 the setup check registers storytree's hooks for Cursor where Cursor's
     // Cursor's command line, as measured on the owner's laptop (2026-10-12): it says it is logged in whether or not it is.
     fakeTool(bin, "cursor-agent", { "--version": { out: "2026.07.09", code: 0 }, status: { out: "Logged in", code: 0 } });
     const check = () => runSetupCheck({
-      folder: dir, hook: HOOK, homes: { ...home.homes, cursor }, storytreeHome: home.storytreeHome, gh: async () => "signed in" as const,
+      folder: dir, hook: HOOK, homes: { ...home.homes, cursor }, storytreeHome: home.storytreeHome, gh: async () => "signed in" as const, calling: "cursor",
       machine: () => machineState({ path: bin, waitMs: 15_000, codexHome: home.homes.codex, localAppData: dir, applications: [] }),
     });
 
@@ -947,7 +993,7 @@ test("8.30 the setup check registers storytree's named hook in Antigravity CLI's
     // Antigravity CLI's command line, as measured on the Mint box (2026-10-12): it answers its version signed in or not.
     fakeTool(bin, "agy", { "--version": { out: "1.3.3", code: 0 } });
     const check = () => runSetupCheck({
-      folder: dir, hook: HOOK, homes: { ...home.homes, antigravity: gemini }, storytreeHome: home.storytreeHome, gh: async () => "signed in" as const,
+      folder: dir, hook: HOOK, homes: { ...home.homes, antigravity: gemini }, storytreeHome: home.storytreeHome, gh: async () => "signed in" as const, calling: "antigravity",
       machine: () => machineState({ path: bin, waitMs: 15_000, codexHome: home.homes.codex, localAppData: dir, applications: [] }),
     });
 
@@ -999,7 +1045,7 @@ if (process.argv.includes("--close-out-reminder")) process.stdout.write(JSON.str
     const hook = { node: process.execPath, script };
     fakeTool(bin, "pi", { "--version": { out: "1.1.0", code: 0 } });
     const check = () => runSetupCheck({
-      folder: dir, hook, homes: { ...home.homes, pi }, storytreeHome: home.storytreeHome, gh: async () => "signed in" as const,
+      folder: dir, hook, homes: { ...home.homes, pi }, storytreeHome: home.storytreeHome, gh: async () => "signed in" as const, calling: "pi",
       machine: () => machineState({ path: bin, waitMs: 15_000, codexHome: home.homes.codex, localAppData: dir, applications: [] }),
     });
 
@@ -1134,7 +1180,7 @@ test("8.15 with no desktop app, a session whose tool server runs from a checkout
     assert.ok(hook !== undefined, "a checkout at origin/main gives a hook to register");
     assert.equal(path.dirname(hook.script), path.join(home.storytreeHome, "agent-tools", commit), "built from main's commit, in the storytree home");
     assert.ok(existsSync(hook.script));
-    await runSetupCheck({ ...ANSWERED, folder: dir, hook, homes: home.homes, storytreeHome: home.storytreeHome });
+    await runSetupCheck({ ...ANSWERED, folder: dir, hook, homes: home.homes, storytreeHome: home.storytreeHome, calling: "claude-code" });
     assert.ok(Object.keys(storytreeHooks(readJson(home.claudeSettings), hook.script, "claude-code")).length > 0, "Claude Code runs that build");
 
     // A branch with work on it is not main: its hooks are not what every session on the machine should run.
@@ -1198,7 +1244,7 @@ test("8.18 the check says when the hooks run an older release than the latest, s
     writeFileSync(hook.script, "");
     const hooksLine = async (running: string) => {
       writeFileSync(path.join(tools, "release.json"), JSON.stringify({ version: running, commit: "abc1234" }));
-      const report = await runSetupCheck({ ...ANSWERED, latestRelease: async () => "0.3.333", folder: dir, hook, homes: home.homes, storytreeHome: home.storytreeHome, openWaitMs: 0 });
+      const report = await runSetupCheck({ ...ANSWERED, latestRelease: async () => "0.3.333", folder: dir, hook, homes: home.homes, storytreeHome: home.storytreeHome, openWaitMs: 0, calling: "claude-code" });
       return report.lines.find((line) => line.check === "hooks-release");
     };
 
@@ -1217,7 +1263,7 @@ test("8.32 with a Codex that runs tool handlers (0.148 or later), each event the
     type Group = { matcher?: string; hooks: Hook[] };
     const registered = async (codexVersion: string | undefined) => {
       const home = throwawayHome(path.join(dir, codexVersion ?? "unknown"));
-      await runSetupCheck({ ...ANSWERED, folder: dir, hook: HOOK, homes: home.homes, storytreeHome: home.storytreeHome, ...(codexVersion === undefined ? {} : { codexVersion }) });
+      await runSetupCheck({ ...ANSWERED, folder: dir, hook: HOOK, homes: home.homes, storytreeHome: home.storytreeHome, calling: "codex", ...(codexVersion === undefined ? {} : { codexVersion }) });
       return { home, events: (readJson(home.codexHooks).hooks ?? {}) as Record<string, Group[]> };
     };
     const handlers = (events: Record<string, Group[]>) => Object.values(events).flat().flatMap((group) => group.hooks).filter((hook) => hook.type === "mcp_tool");
@@ -1265,7 +1311,7 @@ test("8.32 with a Codex that runs tool handlers (0.148 or later), each event the
 test("8.33 Claude Code's registration leaves the mod's own tool calls (hook_event, heartbeat) out of the storytree-tools hook, and its background hooks wait for the tool's note (--after-tool), so a session with the Claude Code mod spawns no recording hook for its own deliveries", async () => {
   await withTempDir(async (dir) => {
     const home = throwawayHome(dir);
-    await runSetupCheck({ ...ANSWERED, folder: dir, hook: HOOK, homes: home.homes, storytreeHome: home.storytreeHome });
+    await runSetupCheck({ ...ANSWERED, folder: dir, hook: HOOK, homes: home.homes, storytreeHome: home.storytreeHome, calling: "claude-code" });
     const groups = (readJson(home.claudeSettings).hooks ?? {}) as Record<string, HookEntry[]>;
     const ours = (event: string) => (groups[event] ?? []).flatMap((group) => group.hooks.filter((hook) => hook.args?.[0] === HOOK.script).map((hook) => ({ matcher: group.matcher ?? "", hook })));
     // Claude Code matches a tool's name against the whole matcher, as a regular expression.
@@ -1283,7 +1329,7 @@ test("8.33 Claude Code's registration leaves the mod's own tool calls (hook_even
   });
 });
 
-test("8.37 a look (the doctor without --repair) writes no file: each harness, the status line and the command say what registering would change, and the check's lines name --repair", async () => {
+test("8.37 a look (the doctor without --repair) writes no file: each connected harness, the status line and the command say what registering would change, and the check's lines name --repair", async () => {
   await withTempDir(async (dir) => {
     const home = throwawayHome(dir);
     const homes = { ...home.homes, cursor: path.join(dir, ".cursor"), pi: path.join(dir, ".pi", "agent"), antigravity: path.join(dir, ".gemini") };
@@ -1294,7 +1340,8 @@ test("8.37 a look (the doctor without --repair) writes no file: each harness, th
     const bin = path.join(dir, ".local", "bin");
     mkdirSync(bin, { recursive: true });
     const hook: HookCommand = { node: process.execPath, script: hookScript };
-    const check = (look: boolean) => runSetupCheck({ ...ANSWERED, folder: dir, hook, homes, storytreeHome: home.storytreeHome, command: { path: bin, home: dir }, look });
+    // Run from a Claude Code session's shell: Claude Code is the asking harness, and Cursor is connected by its older hooks (8.43).
+    const check = (look: boolean) => runSetupCheck({ ...ANSWERED, folder: dir, hook, homes, storytreeHome: home.storytreeHome, command: { path: bin, home: dir }, look, calling: "claude-code" });
     const files = () => Object.fromEntries([homes.claude, homes.codex, homes.cursor, homes.pi, homes.antigravity, bin]
       .flatMap((folder) => readdirSync(folder, { recursive: true, withFileTypes: true }).filter((entry) => entry.isFile()).map((entry) => path.join(entry.parentPath, entry.name)))
       .map((file) => [file, readFileSync(file, "utf8")]));
@@ -1304,7 +1351,7 @@ test("8.37 a look (the doctor without --repair) writes no file: each harness, th
 
     assert.deepEqual(files(), before, "a look changes no file");
     assert.deepEqual(looked.hooks, {
-      "claude-code": "would register", codex: "would register", cursor: "would register", pi: "would register", antigravity: "would register",
+      "claude-code": "would register", codex: "not connected", cursor: "would register", pi: "not connected", antigravity: "not connected",
       statusLine: "would install", replaced: { cursor: [other] },
     });
     assert.equal(looked.command, "would install");

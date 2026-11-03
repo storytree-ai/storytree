@@ -196,6 +196,24 @@ test("app-setup 8.5 the agent fires a test of each hook, and the connection show
   });
 });
 
+test("app-setup 8.43 check_setup registers the hooks of the agent whose session calls it and no other's: a Codex never connected keeps no hooks file, and the answer tells the agent nothing of connecting it (regression: the old test laptop's Codex wired from a Claude Code session, 2026-11-03)", async () => {
+  await withTempDir(async (dir) => {
+    const home = throwawayHome(dir);
+    const setup = { dataDir: path.join(home.storytreeHome, "pgdata"), setup: { ...ANSWERED, hook: HOOK, homes: home.homes, storytreeHome: home.storytreeHome } };
+    await withAgent(dir, claudeCode("claude-1", setup), async (agent) => {
+      const answer = await agent.call("check_setup");
+      const hooks = answer.data.hooks as Record<string, string>;
+      assert.deepEqual([hooks["claude-code"], hooks.codex], ["registered", "not connected"]);
+      assert.equal(existsSync(home.codexHooks), false, "nothing is written for Codex");
+      assert.doesNotMatch(answer.text, /not connected|Connect Codex|setup connect/, "the note is not work for the agent");
+    });
+    await withAgent(dir, codex("codex-1", setup), async (agent) => {
+      const hooks = (await agent.call("check_setup")).data.hooks as Record<string, string>;
+      assert.deepEqual([hooks["claude-code"], hooks.codex], ["already registered", "registered"], "a Codex session connects Codex");
+    });
+  });
+});
+
 test("6.64 check_setup from an MCP client storytree has no hooks for passes as connected, says what storytree does not do for it and names the session id for its shells; a watched harness whose hooks are missing still needs attention", async () => {
   const project = uniqueProjectName();
   await withTempDir(async (dir) => {

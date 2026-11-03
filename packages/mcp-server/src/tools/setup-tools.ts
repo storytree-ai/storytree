@@ -20,7 +20,7 @@ import { checkFile, checkFilesWritten, codexHooksState, FIX_SENTENCES, fixSenten
 import { isUnreachable, NOT_RUNNING_ANSWER, refusalOf, result } from "./answers.js";
 import type { Connections } from "./connections.js";
 import { callLines, labelOf } from "@storytree/session-management";
-import { lineOf, seenCaller, SESSION_ENV, tierOf, type Caller } from "@storytree/project-and-caller/caller";
+import { HARNESS_IDS, lineOf, seenCaller, SESSION_ENV, tierOf, type Caller } from "@storytree/project-and-caller/caller";
 import { metaOf, type JourneyMilestones } from "./server.js";
 import { quoted } from "./text.js";
 
@@ -55,7 +55,9 @@ export function registerSetupTools({ server, folder, setup, connections, callerO
       const connected = tierOf(heard.harness) === "connected";
       // The session calling is signed in to its own harness, whatever the tool server's ask of its CLI says (8.11).
       const asking = heard.harness === "claude-code" ? "claude" : heard.harness === "codex" ? "codex" : undefined;
-      const report = await runSetupCheck({ ...setup, folder, ...(connected ? { connected: labelOf(heard.harness) } : {}), ...(asking === undefined ? {} : { asking }) });
+      // The harness calling is connected by calling: its hooks are registered, and no other's that has none yet (8.43).
+      const calling = HARNESS_IDS.find((harness) => harness === heard.harness);
+      const report = await runSetupCheck({ ...setup, folder, ...(connected ? { connected: labelOf(heard.harness) } : {}), ...(asking === undefined ? {} : { asking }), ...(calling === undefined ? {} : { calling }) });
       // A note (an optional tool missing) reaches the agent neither in the text nor in the data, so it is
       // never taken as work to do; storytree doctor and the app's diagnostics still show it.
       const told = report.lines.filter((line) => line.state !== "note" && !(line.check === "gh" && line.state === "ok"));

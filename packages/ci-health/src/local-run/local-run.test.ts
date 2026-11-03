@@ -4,7 +4,7 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
@@ -15,6 +15,7 @@ import { connect } from "@storytree/library";
 import { mounted, type DoorWords } from "@storytree/library/verbs";
 
 import { HEALTH_FAMILIES } from "../verbs.js";
+import { recordLocalTests } from "./local-run.js";
 
 const WORDS: DoorWords = { door: "command", say: (step) => `storytree ${step.command}` };
 
@@ -72,4 +73,43 @@ test("5.1, 3.17 · `health local`, on the command line only (no tool), runs a pr
   writeFileSync(path.join(bare, "package.json"), JSON.stringify({ name: "bare" }));
   assert.match((await local.act({} as never, { ...place, folder: bare } as never, WORDS)).text, /no test command/);
   assert.equal((await library.healthHistory(contract.id)).length, 2, "nothing more was written");
+});
+
+test("5.2 · `health local` runs a Python project's own tests by pytest -rA (through uv run or poetry run when its lockfile is uv's or Poetry's), crediting its numbered pytest tests from its .py files as CI does; a run with no results names pytest -rA", async (t) => {
+  const url = process.env.STORYTREE_TEST_PG_URL;
+  if (url === undefined) throw new Error("run the tests via `pnpm test`, which starts a local Postgres");
+  const storytree = await connect({ url });
+  const name = `t-${randomBytes(4).toString("hex")}`;
+  const library = await storytree.openProject(name);
+  const folder = mkdtempSync(path.join(tmpdir(), "storytree-local-"));
+  t.after(async () => {
+    try {
+      await storytree.dropProject(name);
+    } finally {
+      await storytree.close();
+      await removeTemp(folder);
+    }
+  });
+  const story = await library.addStory({ title: "Check out" });
+  const capability = await library.addCapability({ story: story.id, title: "1 · Checkout form" });
+  const contract = await library.addContract({ capability: capability.id, title: "1.1 · the form shows" });
+  writeFileSync(path.join(folder, "pyproject.toml"), `[tool.uv.workspace]\nmembers = ["packages/*"]\n`);
+  mkdirSync(path.join(folder, "packages", "check-out", "tests"), { recursive: true });
+  writeFileSync(path.join(folder, "packages", "check-out", "tests", "test_checkout.py"), "def test_1_1_shows_the_form():\n    pass\n");
+  const commands: string[] = [];
+  const pytest = (log: string) => async (command: string) => (commands.push(command), log);
+
+  const read = await recordLocalTests({ library, folder, run: pytest("PASSED packages/check-out/tests/test_checkout.py::test_1_1_shows_the_form\n") });
+  assert.equal(read.written, true, read.written ? "" : read.why);
+  assert.deepEqual(commands, ["pytest -rA"]);
+  assert.equal((await library.health(contract.id)).verified.state, "passing", "credited from packages/check-out/tests/test_checkout.py");
+
+  writeFileSync(path.join(folder, "uv.lock"), "version = 1\n");
+  const empty = await recordLocalTests({ library, folder, run: pytest("no tests ran in 0.01s\n") });
+  assert.equal(commands.at(-1), "uv run pytest -rA");
+  assert.ok(!empty.written && /pytest -rA/.test(empty.why), empty.written ? "" : empty.why);
+  rmSync(path.join(folder, "uv.lock"));
+  writeFileSync(path.join(folder, "poetry.lock"), "");
+  await recordLocalTests({ library, folder, run: pytest("") });
+  assert.equal(commands.at(-1), "poetry run pytest -rA");
 });

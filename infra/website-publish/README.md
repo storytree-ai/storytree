@@ -1,7 +1,7 @@
 # The website's identity for publishing
 
-After each merge that changes the website, the **Publish website** workflow
-(`.github/workflows/website.yml`) builds `packages/website` and uploads it to the here.now site
+After each merge that changes the website, the **Publish website** workflow of the website's own
+repository (`storytree-ai/storytree-website`'s `.github/workflows/website.yml`, ADR-1171) builds the site and uploads it to the here.now site
 `crisp-globe-bf6v`, served at https://storytree.dev. The upload needs the here.now API key, which lives in Secret
 Manager as `heredotnow_api_key` in the cloud project. To read it the workflow needs a Google
 identity of its own. This folder is that identity, written down; **the owner applies it by hand**.
@@ -12,23 +12,23 @@ and names the two repository variables below; the build and its tests still run.
 
 | File | What it makes |
 | --- | --- |
-| [`main.tf`](main.tf) | The service account `storytree-website-publish`, with Secret Accessor on the one secret `heredotnow_api_key` (a binding on that secret, not on the project), and leave for this repository's website workflow, on main, to act as it. |
+| [`main.tf`](main.tf) | The service account `storytree-website-publish`, with Secret Accessor on the one secret `heredotnow_api_key` (a binding on that secret, not on the project), and leave for the website repository's website workflow, on main, to act as it. |
 
 It makes no sign-in route of its own: it reuses [infra/ci-health](../ci-health/README.md)'s
 `storytree-0-3-main`, whose condition is already exactly "the trusted repositories, only on main"
-(today `(assertion.repository_id == '1388231144' || assertion.repository_id == '1433007599') && assertion.ref == 'refs/heads/main'`; ci-health's
+(today `(assertion.repository_id == '1433007599' || assertion.repository_id == '1440801072') && assertion.ref == 'refs/heads/main'`; ci-health's
 `repository_ids` sets which ids, so trusting another repository is done there, not here). So
-ci-health must be applied first; it is. The binding below names the workflow by the repository's
-name (`storytree-ai/storytree`), so it follows whichever trusted repository holds that name.
+ci-health must be applied first; it is. The binding names the workflow by the repository's
+name (`storytree-ai/storytree-website`), so it follows whichever trusted repository holds that name.
 
 ## What the account can and cannot do
 
 It **can** read the versions of the secret `heredotnow_api_key`. It **cannot** read any other
 secret, change or delete that one, or touch anything else in the project. Only
-`.github/workflows/website.yml` running on main can act as it: the binding names that workflow by
+the website repository's `.github/workflows/website.yml` running on main can act as it: the binding names that workflow by
 its `job_workflow_ref`, the one attribute the shared route maps for it (mappings are limited to what
-bindings use). Another workflow on main is refused by the binding; a pull request's run, a fork, or
-another repository is refused by the sign-in route before any account is in question. The publish
+bindings use). Another workflow on main, storytree's own among them, is refused by the binding; a pull request's
+run, a fork, or another repository is refused by the sign-in route before any account is in question. The publish
 job runs in its own GitHub environment, `website`.
 
 The workflow puts the key into the publish step's environment only, masked (`::add-mask::`) before
@@ -66,16 +66,16 @@ binding keeps working until the new one is in.
 variables > Actions > Variables, or with `gh`):
 
 ```bash
-gh variable set WEBSITE_WIF_PROVIDER    --repo storytree-ai/storytree --body "$(terraform output -raw WEBSITE_WIF_PROVIDER)"
-gh variable set WEBSITE_SERVICE_ACCOUNT --repo storytree-ai/storytree --body "$(terraform output -raw WEBSITE_SERVICE_ACCOUNT)"
+gh variable set WEBSITE_WIF_PROVIDER    --repo storytree-ai/storytree-website --body "$(terraform output -raw WEBSITE_WIF_PROVIDER)"
+gh variable set WEBSITE_SERVICE_ACCOUNT --repo storytree-ai/storytree-website --body "$(terraform output -raw WEBSITE_SERVICE_ACCOUNT)"
 ```
 
 `WEBSITE_WIF_PROVIDER` comes out the same as infra/ci-health's `WIF_PROVIDER` output, because the
 route is shared. They are variables, not secrets: neither is a credential. The sign-in itself is GitHub's
 short-lived token, exchanged each run.
 
-**3. Publish once.** `gh workflow run website.yml --repo storytree-ai/storytree --ref main` (or
-Actions > Publish website > Run workflow), and watch it: `gh run watch --repo storytree-ai/storytree`.
+**3. Publish once.** `gh workflow run website.yml --repo storytree-ai/storytree-website --ref main` (or
+Actions > Publish website > Run workflow), and watch it: `gh run watch --repo storytree-ai/storytree-website`.
 
 ## How to verify it worked
 
@@ -92,37 +92,38 @@ route refused the run (a run not on main always is). `PERMISSION_DENIED` from
 publish manifest failed (HTTP 401)` or `403` means here.now refused the key: put a key for the
 account that owns `crisp-globe-bf6v` as a new version of the secret and run step 3 again.
 
-## Publishing from the website's own repository
+## Publishing moved to the website's own repository
 
-storytree.dev moves to `storytree-ai/storytree-website` (ADR-1171 D3 step 3), whose own
-`.github/workflows/website.yml` publishes the same site. Its runs sign in through the same route and
-account; two changes let them, each beside what is there, never instead of it:
+storytree.dev publishes from `storytree-ai/storytree-website` since 2026-11-03 (ADR-1171 D3 step 3),
+and storytree's repository dropped its website package and workflow in step 4. Step 4 leaves two
+changes for the owner to apply, both narrowing what is trusted:
 
-- infra/ci-health's `repository_ids` default gains the website repository's id, `1440801072`, so
-  the route accepts its runs on main.
-- `main.tf` here gains a second binding, for that repository's `website.yml` on main.
+- `main.tf` here loses storytree's own binding (for `storytree-ai/storytree`'s `website.yml` on main),
+  keeping only the website repository's.
+- infra/ci-health's `repository_ids` default loses the archived `storytree-ai/storytree-history`'s
+  id, which the live route has not trusted since 2026-10-26, so a plain plan there changes nothing.
 
 Run in PowerShell from the checkout's root, on a `main` that holds both changes, signed in as above:
 
 ```powershell
 $env:TF_VAR_project_id = (gcloud config get-value project)
+Remove-Item Env:TF_VAR_repository_ids -ErrorAction SilentlyContinue
 cd infra/ci-health
 terraform init -backend-config="bucket=$($env:TF_VAR_project_id)-tfstate"
-terraform plan     # expect 0 to add, 1 to change, 0 to destroy: the provider's attribute_condition
-terraform apply
+terraform plan     # expect 0 to add, 0 to change, 0 to destroy: the default now matches the live route
 cd ../website-publish
 terraform init -backend-config="bucket=$($env:TF_VAR_project_id)-tfstate"
-terraform plan     # expect 1 to add, 0 to change, 0 to destroy: the new repository's binding
+terraform plan     # expect 0 to add, 0 to change, 1 to destroy: storytree's own binding
 terraform apply
-gh variable set WEBSITE_WIF_PROVIDER    --repo storytree-ai/storytree-website --body (terraform output -raw WEBSITE_WIF_PROVIDER)
-gh variable set WEBSITE_SERVICE_ACCOUNT --repo storytree-ai/storytree-website --body (terraform output -raw WEBSITE_SERVICE_ACCOUNT)
 cd ../..
 ```
 
-A publish from the new repository is then proven with
-`gh workflow run website.yml --repo storytree-ai/storytree-website --ref main`, verified as above.
-Only after that does storytree stop publishing, and its binding and id go when storytree drops its
-website workflow (step 4).
+Then remove what storytree's repository kept for its publish job, which no workflow there reads
+any more: `gh variable delete WEBSITE_WIF_PROVIDER --repo storytree-ai/storytree`, the same for
+`WEBSITE_SERVICE_ACCOUNT`, and its `website` environment
+(`gh api -X DELETE repos/storytree-ai/storytree/environments/website`). A publish from the website
+repository is unaffected; `gh workflow run website.yml --repo storytree-ai/storytree-website --ref main`
+proves it, verified as above.
 
 ## Undoing it
 

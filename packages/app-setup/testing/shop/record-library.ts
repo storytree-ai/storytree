@@ -1,6 +1,6 @@
 // Saves the shop's whole library record, raw, as it stands: its plan, every change with its time, its
 // activity lines (claims, landings, sessions), and its arcs and holds as the library reads them. Run after each build session; the time-lapse export reads these
-// same record (packages/website/src/refresh-shop.ts), with no library to restore it into. The output holds machine details, so it is kept
+// same record (the website repository's src/refresh-shop.ts), with no library to restore it into. The output holds machine details, so it is kept
 // outside the public repository; only its counts are committed.
 // From the checkout root, with the laptop's library tunnelled to <port> (record-library.sh does both):
 // node --import tsx packages/app-setup/testing/shop/record-library.ts (--port <p> | --library <postgres url>) --out <file> [--project shop]

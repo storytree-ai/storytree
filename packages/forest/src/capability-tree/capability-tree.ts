@@ -13,8 +13,8 @@
  * ⚠ NO TREE IS DRAWN (noted in place 2026-10-05, ADR-0804 D1). The grove is now data: the story's
  * capabilities in build order, each with its form. The globe draws an island as a flat surface cut
  * into capability territories, filled by each capability's verified word (ADR-0825 D3), not by its
- * form; the form survives in the smoke check's report (`forestDrawn`), the island's landed count
- * (`islandProgress`) and the engine's parcel statuses, none of which draws a tree.
+ * form; the form survives in the smoke check's report (`forestDrawn`) and the engine's parcel
+ * statuses, neither of which draws a tree.
  */
 import type { AnnotatedCapability, AnnotatedStory, HealthState } from "@storytree/library";
 

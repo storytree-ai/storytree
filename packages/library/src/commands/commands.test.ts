@@ -246,7 +246,7 @@ test("17.6 · library read says a record of a plugin's kind no mounted plugin de
   assert.match(dormant, /words: park the globe idea/, "read as stored");
 });
 
-test("17.14 · library list, search and phrase say how many records of a plugin's kind no mounted plugin declares the library holds, that they are dormant here, and the command that mounts the plugin, or that this computer's factory has no such plugin; with it mounted, nothing changes (ADR-1178 D3)", async (t) => {
+test("17.14 · library list, search, phrase and exact say how many records of a plugin's kind no mounted plugin declares the library holds, that they are dormant here, and the command that mounts the plugin, or that this computer's factory has no such plugin; with it mounted, nothing changes (ADR-1178 D3)", async (t) => {
   const storytree = await connect({ url: testServerUrl() });
   const project = uniqueProjectName();
   t.after(async () => {
@@ -278,6 +278,10 @@ test("17.14 · library list, search and phrase say how many records of a plugin'
   assert.ok(searched.text.split("\n").includes(said), searched.text);
   await assert.rejects(
     verbOf("phrase").act({ phrase: ["globe"], kind: ["voice.note"], field: [], limit: undefined, after: undefined } as never, here, WORDS),
+    (error: unknown) => error instanceof VerbRefusal && error.message === said,
+  );
+  await assert.rejects(
+    verbOf("exact").act({ phrase: ["globe"], kind: ["voice.note"], field: [] } as never, here, WORDS),
     (error: unknown) => error instanceof VerbRefusal && error.message === said,
   );
   const absent = await verbOf("list").act({ kind: "voice.note", where: [], all: false } as never, contextOf(unmounted, false), WORDS);
@@ -680,6 +684,7 @@ test("17.17 · library exact and the find_text tool list every live record holdi
   assert.match(titled.text, /^1 record holds "README\.md#keys" exactly:/);
   assert.ok(titled.text.includes(increment.id) && !titled.text.includes(term.id), "kinds and fields narrow the sweep");
   assert.match((await exact.act({ phrase: ["no such words"], kind: [], field: [] }, context, WORDS)).text, /^No record holds "no such words" exactly\./);
+  await assert.rejects(exact.act({ phrase: ["README.md", "#keys"], kind: [], field: [] }, context, WORDS), (error: unknown) => error instanceof VerbRefusal && /one argument/.test(error.message), "a phrase the shell split is refused, not joined");
 
   const found = await findText.act({ phrase: link, kinds: [], fields: [] }, context, WORDS);
   assert.deepEqual((found.data as { records: { id: string }[] }).records.map((record) => record.id).sort(), [...every].sort(), "the tool follows the cursor too");

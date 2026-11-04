@@ -198,6 +198,16 @@ test("1.17 an acceptance user whose Claude Code is signed in goes on to install 
   } finally { await removeTemp(r.root); }
 });
 
+test("1.17 the acceptance run sweeps a stopped run's leftover users before it notes the laptop's state, so their removal is not read as this run's change", { skip }, async () => {
+  const r = acceptance("", ["before"]);
+  try {
+    assert.equal(r.status, 0, r.log);
+    const at = (pattern: RegExp) => r.calls.findIndex((call) => pattern.test(call));
+    const swept = at(/^ssh .*user\.ps1 sweep/), noted = at(/^ssh .*st-acc\\state\.ps1/);
+    assert.ok(swept >= 0 && noted > swept, "the sweep comes before the state is noted: " + r.calls.join("\n"));
+  } finally { await removeTemp(r.root); }
+});
+
 test("1.17 the acceptance run reads the user's feedback and test command from a reply that sets them in markdown bold, and runs its evidence in the folder the user's turns built", { skip }, async () => {
   const reply = "Done.\n\n**FEEDBACK TITLE:** Setup was smooth\n**FEEDBACK:** The doctor said I was signed out.\n**TEST COMMAND:** `npm test`";
   const r = acceptance("", ["feedback", "verify"], {
@@ -244,7 +254,7 @@ test("1.17 the run's evidence step enters the project its user's turns built whe
   } finally { await removeTemp(root); }
 });
 
-test("1.17 a turn's summary names the project folder its writes went to, wherever the turn itself ran, its own settings' folder aside", async () => {
+test("1.17 a turn's summary names the project folder its writes went to, wherever the turn itself ran, its own settings' folder and the temp folder aside", async () => {
   const root = mkdtempSync(path.join(tmpdir(), "storytree-stable-sum-"));
   try {
     const write = (file_path: string) => ({ type: "assistant", message: { content: [{ type: "tool_use", name: "Write", input: { file_path } }] } });
@@ -253,6 +263,8 @@ test("1.17 a turn's summary names the project folder its writes went to, whereve
       write("D:\\work\\tip-calculator\\index.html"),
       write("D:\\work\\tip-calculator\\tests\\tip.test.js"),
       write("D:\\work\\.claude\\settings.json"),
+      // check_setup's connection check, which a connected user's agent writes into its temp folder.
+      write("D:\\Users\\u\\AppData\\Local\\Temp\\storytree-check-2b7a7426"),
       { type: "assistant", message: { content: [{ type: "tool_use", name: "Edit", input: { file_path: "D:\\work\\tip-calculator\\app.js" } }] } },
       { type: "result", subtype: "success", duration_ms: 1000, result: "done", usage: {} },
     ];

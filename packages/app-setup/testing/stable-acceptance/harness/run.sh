@@ -74,8 +74,10 @@ for phase in $PHASES; do
     before)
       [[ -s $TOKEN ]] || { log "no Claude Code token at $TOKEN: the owner makes one with claude setup-token (README)"; exit 3; }
       echo "$VERSION" > "$OUT/version"; echo "$INSTALLER" > "$OUT/installer"
-      admin state.ps1 > "$OUT/state-before.txt"
-      admin "user.ps1 sweep" | tee -a "$OUT/run.log" ;;
+      # A stopped run's leftover user is swept first, so the laptop as found is noted without it and its removal is
+      # not read as this run's change (on 2026-11-04 a run after a stopped one failed criterion 7 so).
+      admin "user.ps1 sweep" | tee -a "$OUT/run.log"
+      admin state.ps1 > "$OUT/state-before.txt" ;;
     user) admin "user.ps1 create $NAME" | tee -a "$OUT/run.log" ;;
     prepare)
       step prepare 10

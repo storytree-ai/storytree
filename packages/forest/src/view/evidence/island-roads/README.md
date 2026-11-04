@@ -19,7 +19,4 @@ Routing takes about 0.7 s for The library (188 lanes ashore), 0.3 to 0.4 s for t
 Taken with rollout 1's kit: `node docs/design/capability-tree-3d/q-all-islands/tools/build.mjs`, then
 `node --import tsx docs/design/capability-tree-3d/q-all-islands/tools/docks.mjs --stills <story>...`.
 
-![The library](the-library.png)
-![Session management](session-management.png)
-![The command line](the-command-line.png)
-![Setup](setup.png)
+In the evidence bucket for #434, linked from the pull request body (ADR-1234; deleted after 90 days or when its arc closes): `434/island-roads/the-library.png`, `434/island-roads/session-management.png`, `434/island-roads/the-command-line.png`, `434/island-roads/setup.png`.

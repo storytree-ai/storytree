@@ -14,5 +14,9 @@ island (4.37) is shown by its test in `packages/forest-world/src/planet/road-rou
 Taken with `node --import tsx packages/forest/testing/view/pathway-repair/build.mjs <checkout> before|after`, then
 `node --import tsx packages/forest/testing/view/pathway-repair/grow-capture.mjs before|after --retake`.
 
-![Main, just after the island grows](before/just-after-grow.png)
-![This branch, just after the island grows](after/just-after-grow.png)
+![Main, just after the island grows](https://storage.cloud.google.com/storytree-498613-evidence/421/before/just-after-grow.png)
+![This branch, just after the island grows](https://storage.cloud.google.com/storytree-498613-evidence/421/after/just-after-grow.png)
+
+`before/` in the evidence bucket for #421 (ADR-1234; deleted after 90 days or when its arc closes): [after-grow.png](https://storage.cloud.google.com/storytree-498613-evidence/421/before/after-grow.png), [before-grow.png](https://storage.cloud.google.com/storytree-498613-evidence/421/before/before-grow.png), [just-after-grow.png](https://storage.cloud.google.com/storytree-498613-evidence/421/before/just-after-grow.png).
+
+`after/` in the evidence bucket for #421 (ADR-1234; deleted after 90 days or when its arc closes): [after-grow.png](https://storage.cloud.google.com/storytree-498613-evidence/421/after/after-grow.png), [before-grow.png](https://storage.cloud.google.com/storytree-498613-evidence/421/after/before-grow.png), [just-after-grow.png](https://storage.cloud.google.com/storytree-498613-evidence/421/after/just-after-grow.png).

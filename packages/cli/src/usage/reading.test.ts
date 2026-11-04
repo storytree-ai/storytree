@@ -78,6 +78,8 @@ test("14.4 · each call is on a step, each step gives its calls through each doo
     line("a", "command", "storytree library search"),
     line("a", "tool", "search_notes"),
     line("a", "tool", "search_notes"),
+    line("a", "command", "storytree library exact"),
+    line("a", "tool", "find_text"),
     line("a", "command", "storytree arc show", { outcome: "failed", class: "TypeError" }),
     line("b", "command", "storytree arc show", { outcome: "failed", class: "TypeError" }),
     line("b", "tool", "show_plan", { outcome: "failed" }),
@@ -85,7 +87,7 @@ test("14.4 · each call is on a step, each step gives its calls through each doo
     line("b", "tool", "made_up_tool"),
   ], declared, new Map(), window);
   const step = (name: string) => reading.steps.find((one) => one.step === name);
-  assert.deepEqual(step("search"), { step: "search", command: 1, tool: 2 });
+  assert.deepEqual(step("search"), { step: "search", command: 2, tool: 3 });
   assert.deepEqual(step("orient"), { step: "orient", command: 2, tool: 2 });
   assert.deepEqual(step("other"), { step: "other", command: 0, tool: 1 });
   assert.deepEqual(reading.failures, [

@@ -30,6 +30,7 @@ export const TOOLS = [
   "edit_plan",
   "fence_plugin",
   "file_owners",
+  "find_text",
   "focus",
   "friction_drain",
   "health_worklist",

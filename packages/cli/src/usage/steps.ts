@@ -11,7 +11,7 @@ export type Step = (typeof STEPS)[number];
 
 const TOOLS: Readonly<Record<Exclude<Step, "other">, string>> = {
   orient: "check_setup show_plan open read_context focus list_all_runs stale_claims",
-  search: "search_notes",
+  search: "search_notes find_text",
   claim: "claim make_workspace release attach_workspace",
   write: "plan_story plan_capability plan_contract plan_arc park_increment park park_arc edit_plan write_note correct correct_note "
     + "correct_question record_friction record_resteer raise_question set_wait clear_wait annotate link reinforce retire "
@@ -24,7 +24,7 @@ const TOOL_STEP = new Map(Object.entries(TOOLS).flatMap(([step, tools]) => tools
 
 /** Command prefixes after `storytree `, the first that matches winning. */
 const COMMANDS: readonly (readonly [Step, string])[] = [
-  ["search", "library search"], ["search", "library phrase"],
+  ["search", "library search"], ["search", "library phrase"], ["search", "library exact"],
   ["claim", "workspace"], ["claim", "noticeboard claim"],
   ["close", "arc increment close"], ["close", "session close-out"], ["close", "processes"],
   ["land", "friction drain"], ["land", "friction route"], ["land", "health worklist"],

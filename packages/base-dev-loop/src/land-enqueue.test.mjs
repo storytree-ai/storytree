@@ -81,4 +81,5 @@ test("5.3 the land job's command line exits 2 when the pull request is already i
   assert.doesNotMatch(run(["10", "AWAITING_CHECKS"]).out, /::error::/);
   assert.equal(run(["10", ""]).code, 0);
   assert.equal(run(["10"]).code, 0);
+  assert.equal(run([String(RETRY_WINDOW_SECONDS)]).code, 1, "past the window the command line stops");
 });

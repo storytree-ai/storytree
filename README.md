@@ -1,8 +1,10 @@
 # storytree
 
-A living map of your project, for you and your agents. Here is storytree's own map, growing as its agents built it:
+A living map of your project, for you and your agents. Here is storytree's own map, grown by its agents:
 
-https://github.com/user-attachments/assets/ce6b08a0-4aa3-49a8-9ccc-cdc2ba79025d
+![Storytree's desktop app on its own library: each island on the map is one story of storytree's code, and the arcs on the left are the work planned, in progress and done](docs/media/app-forest.png)
+
+*Storytree's own map, grown by its agents: each island is one part of the code, and the left rail lists the work on it.*
 
 > **Early alpha: not ready for use yet.** Storytree is built in the open, and this repository is where you can
 > follow it. It changes daily, its releases are unsigned, and things break. Watch or star the repository to follow

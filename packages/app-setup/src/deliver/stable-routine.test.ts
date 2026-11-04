@@ -230,7 +230,7 @@ test("1.17 the acceptance run's user connects Claude Code and adds its project i
 /** A PowerShell to run the laptop's step scripts with: Windows PowerShell on Windows, elsewhere pwsh when it is installed. */
 const powershell = process.platform === "win32" ? "powershell.exe" : spawnSync("pwsh", ["-NoProfile", "-Command", "exit 0"]).status === 0 ? "pwsh" : undefined;
 
-test("1.17 the run's evidence step enters the project its user's turns built when the scrubbed transcript names it under <home>, the user's own profile folder", { skip: powershell === undefined && "PowerShell is not installed here" }, async () => {
+test("1.17 the run's evidence step enters the project its user's turns built when the scrubbed transcript names it under <home>, the user's own profile folder", { skip: powershell === undefined && "other: PowerShell is not installed here; Windows CI runs it under Windows PowerShell" }, async () => {
   const root = mkdtempSync(path.join(tmpdir(), "storytree-stable-verify-"));
   try {
     const profile = path.join(root, "profile"), local = path.join(root, "local");

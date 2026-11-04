@@ -97,6 +97,11 @@ const get = verb({
   },
 });
 
+/** Its section of the habits card (ADR-1021, the guidance kind): where a file worth keeping goes. */
+export const mediaGuidance: readonly string[] = [
+  "Keep a file worth keeping in the library: `attach_media` keeps an approved look or an input a build or test reads (never evidence) beside the note that cites it; `list_media` names a note's files and `fetch_media` saves one back.",
+];
+
 export const MEDIA_FAMILY: VerbFamily = {
   name: "media",
   summary: "durable media kept beside the records that cite them: attach, list, get",

@@ -40,6 +40,7 @@ import { changes, count, decisionNamed, find } from "../data/commands.js";
 import { ADR_FAMILY } from "./adr.js";
 import { FYI_FAMILY } from "./fyi.js";
 import { MEDIA_FAMILY } from "./media.js";
+export { mediaGuidance } from "./media.js";
 import { editDecision, recordDecision } from "../librarian/decision-log/index.js";
 import { LaterWriterError, StaleRevertError } from "../transactions/index.js";
 

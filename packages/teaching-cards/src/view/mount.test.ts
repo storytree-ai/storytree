@@ -34,7 +34,7 @@ test("3.1 · a fired card shows beside its thing, takes no focus and blocks noth
   assert.equal(card.style.top, "80px");
   assert.equal(card.getAttribute("role"), "status", "announced politely, not a dialog");
   assert.equal(card.getAttribute("aria-modal"), null);
-  assert.equal(document.activeElement, button, "focus stays where the user had it");
+  assert.ok(document.activeElement === button, "focus stays where the user had it");
   const depth = card.querySelector<HTMLElement>("[data-depth]")!;
   assert.equal(depth.hidden, true);
   card.querySelector<HTMLButtonElement>("[data-more]")!.click();
@@ -42,10 +42,10 @@ test("3.1 · a fired card shows beside its thing, takes no focus and blocks noth
   assert.match(depth.textContent ?? "", /Why/);
   assert.match(depth.textContent ?? "", /Decision 819: A package for each story/, "More names the decisions behind it");
   card.querySelector<HTMLButtonElement>("[data-dismiss]")!.click();
-  assert.equal(host.querySelector(".teaching-card"), null);
+  assert.ok(host.querySelector(".teaching-card") === null);
   // Seen once, it does not come back for the same reading.
   teaching.take(oneStory);
-  assert.equal(host.querySelector(".teaching-card"), null);
+  assert.ok(host.querySelector(".teaching-card") === null);
   teaching.stop();
 });
 
@@ -78,9 +78,9 @@ test("3.1 · a target off screen puts its card in the corner, and the next card 
   card.querySelector<HTMLButtonElement>("[data-dismiss]")!.click();
   assert.equal(host.querySelector<HTMLElement>(".teaching-card")!.dataset.kind, "capability");
   host.querySelector<HTMLButtonElement>(".teaching-card [data-dismiss]")!.click();
-  assert.equal(host.querySelector(".teaching-card"), null, "each card shows once");
+  assert.ok(host.querySelector(".teaching-card") === null, "each card shows once");
   teaching.stop();
-  assert.equal(host.querySelector(".teaching-card"), null);
+  assert.ok(host.querySelector(".teaching-card") === null);
 });
 
 test("3.2 · the journal lists every card seen, in order, and choosing one shows it again with its depth", () => {
@@ -113,10 +113,10 @@ test("3.3 · the decision card's depth draws a decision glued beneath its island
     host.querySelector<HTMLButtonElement>(`[data-journal-entry="${kind}"]`)!.click();
     return host.querySelector<HTMLElement>("[data-journal-card]")!;
   };
-  assert.equal(show("story").querySelector("svg"), null);
+  assert.ok(show("story").querySelector("svg") === null);
   const drawing = show("decision").querySelector("svg")!;
   assert.ok(drawing, "the decision's depth has the drawing");
-  assert.equal(drawing.closest("[data-journal-card]")!.querySelector("[style]"), null, "still, with no style attribute for the app's style-src 'self' to refuse");
+  assert.ok(drawing.closest("[data-journal-card]")!.querySelector("[style]") === null, "still, with no style attribute for the app's style-src 'self' to refuse");
   const at = (circle: Element) => ({ x: Number(circle.getAttribute("cx")), y: Number(circle.getAttribute("cy")) });
   const [cover, ...deeper] = [...drawing.querySelectorAll(".diagram-decision")].map(at);
   const core = drawing.querySelector(".diagram-core")!;

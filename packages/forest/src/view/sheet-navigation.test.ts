@@ -8,7 +8,7 @@ import type { AnnotatedTree, Change } from "@storytree/library";
 import { applySheetEye, plateTransform, SHEET_FOV, SHEET_RADIUS, SHEET_TILT, sheetEyeZoom, sheetSpot, SHIPPED_ELEVATION_DEG, type SheetPoint } from "@storytree/forest-world/planet";
 import { createGlobeGuide, type GlobePose } from "./globe-guide.js";
 import { focusRotation, markerSpot } from "./planet-navigation.js";
-import { compassNorth, headingHome, opensBare, seesUnderside, sheetCentre, sheetDrag, sheetHome, sheetKey, sheetKeyPan, sheetLayout, sheetMarkers, sheetOpening, sheetPan, sheetSpin, sheetPanUnder, sheetSpinTilt, sheetTilted, sheetTiltBy, sheetTwist, sheetUnder, TILT_STEP } from "./sheet-navigation.js";
+import { compassNorth, headingHome, laidIsland, opensBare, seesUnderside, sheetCentre, sheetDrag, sheetHome, sheetKey, sheetKeyPan, sheetLayout, sheetMarkers, sheetOpening, sheetPan, sheetSpin, sheetPanUnder, sheetSpinTilt, sheetTilted, sheetTiltBy, sheetTwist, sheetUnder, TILT_STEP } from "./sheet-navigation.js";
 import { sheetPoint } from "@storytree/forest-world/planet";
 
 const health = { reported: { state: "not-checked" as const }, verified: { state: "not-checked" as const } };
@@ -435,4 +435,41 @@ test("3.28 on the glass sheet, a plan still growing, framed by its full plan, ke
   for (const [story, spot] of framed.spots) assert.deepEqual(spot, whole.spots.get(story), `${story} sits where the full plan puts it`);
   assert.deepEqual(framed.extent, whole.extent, "the glass is the full plan's");
   assert.notDeepEqual(sheetLayout(growing, places).spots.get("s0"), whole.spots.get("s0"), "unframed, the growing plan would sit elsewhere");
+});
+
+test("3.76 under the selected island each capability's knowledge shelf hangs beneath its territory as laid out by its links; under any other island beneath the map's own cut", async () => {
+  const { islandCoast } = await import("@storytree/forest-world/geometry");
+  const { islandLayout } = await import("../territories/link-layout.js");
+  const { islandTerritories } = await import("../territories/territories.js");
+  const capabilities = ["a1", "a2", "a3", "a4", "a5"];
+  const land = { territories: capabilities.map((capability, i) => ({ capability, lines: 100 * (i + 1) })), files: [] };
+  const island = { story: "a", title: "a", x: 0, z: 0, key: "a", land, trees: capabilities.map((capability, i) => ({ capability, form: "green" as const, status: "healthy" as const, contracts: 1, x: i, z: 0, scale: 1, turn: 0 })) };
+  const coast = islandCoast(island), links = [{ from: "z1", to: "a1" }, { from: "a2", to: "a1" }, { from: "a3", to: "a2" }];
+  const docks = [{ local: coast[0]![0]!, links: ["z1->a1"] }];
+  const scene = { islands: [island], links }, places = new Map([["a", 0]]);
+  const middleOf = (map: ReturnType<typeof islandTerritories>, capability: string) => {
+    const cells = map.cells.filter(cell => map.territories[cell.territory]?.capability === capability);
+    return { x: cells.reduce((sum, cell) => sum + cell.site.x, 0) / cells.length, z: cells.reduce((sum, cell) => sum + cell.site.z, 0) / cells.length };
+  };
+  const shelfOf = (laid: Parameters<typeof sheetLayout>[3], capability: string) => {
+    const layout = sheetLayout(scene, places, undefined, laid), middle = layout.under.shelfAt("a")!, shelf = layout.under.shelfAt(capability)!;
+    return { x: shelf.x - middle.x, z: middle.y - shelf.y };
+  };
+  const laid = islandLayout(land.territories, coast, links, docks), own = islandTerritories(land.territories, coast);
+  const close = (p: { x: number; z: number }, q: { x: number; z: number }) => Math.hypot(p.x - q.x, p.z - q.z) < 1e-9;
+  for (const capability of capabilities) {
+    assert.ok(close(shelfOf({ story: "a", docks }, capability), middleOf(laid, capability)), `${capability} hangs under its laid-out territory on the selected island`);
+    assert.ok(close(shelfOf({ story: "b", docks }, capability), middleOf(own, capability)), `${capability} hangs under the map's own cut on an island not selected`);
+    assert.ok(close(shelfOf(undefined, capability), middleOf(own, capability)), `${capability} hangs under the map's own cut with no selection`);
+  }
+  assert.ok(capabilities.some(capability => !close(middleOf(laid, capability), middleOf(own, capability))), "the two layouts put some territory elsewhere");
+});
+
+test("3.76 the island laid out by its links is the selected one, once its docks are known; docks seen on an island since let go lay out none", () => {
+  const docks = [{ local: { x: 1, z: 0 }, links: ["z1->a1"] }];
+  assert.deepEqual(laidIsland({ story: "a", docks }, "a"), { story: "a", docks }, "the selected island with its docks");
+  assert.equal(laidIsland({ story: "a", docks }, "b"), undefined, "another island is selected now");
+  assert.equal(laidIsland({ story: "a", docks }, undefined), undefined, "nothing is selected");
+  assert.equal(laidIsland({ story: "a", docks: undefined }, "a"), undefined, "its roads still route");
+  assert.equal(laidIsland(undefined, "a"), undefined, "its plate has seen no docks yet");
 });

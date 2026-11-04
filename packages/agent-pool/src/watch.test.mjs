@@ -1443,6 +1443,18 @@ test("4.51 · a hand-over never takes another repository's pull request number a
   // A machine that knows neither library leaves the check to the box, asking GitHub of the repository named.
   assert.equal(await main(["handover", "9", "increment_web", "--repo", WEB], away({ holds: async () => false })), 0, lines.join("\n"));
   assert.deepEqual([asked.at(-1), sshed.at(-1).slice(-2)], [WEB, ["--repo", WEB]]);
+  // By default whether storytree's library holds the increment is read in storytree's checkout: a read that finds it refuses, one that fails leaves it to the box.
+  const home = await mkdtemp(join(tmpdir(), "lane-watch-holds-"));
+  t.after(() => removeTemp(home));
+  await writeFile(join(home, "agent-pool.json"), JSON.stringify({ lanes: join(home, "lanes") }));
+  const read = [];
+  const reading = (found) => ({ home, env: { AGENT_POOL_CONFIG: join(home, "agent-pool.json") }, onBox: false, session: SESSION, out: (line) => lines.push(line),
+    remote: async (args) => { sshed.push(args); return ""; }, ownViewOf: async (pr, repo) => opened(pr, repo),
+    exec: async (command, args) => { read.push(args); if (found) return { stdout: "The site\n" }; throw new Error("no increment_site"); } });
+  assert.equal(await main(["handover", "5", "increment_site", "--repo", WEB], reading(true)), 1);
+  assert.match(lines.at(-1), /not handed over: increment_site is in storytree's library/);
+  assert.ok(read.some((args) => args.join(" ").includes("library read increment_site")), "it asked storytree's library");
+  assert.equal(await main(["handover", "5", "increment_site", "--repo", WEB], reading(false)), 0, lines.join("\n"));
 
   // On the box, `hand` refuses a repository other than its increment's, and a pull request that is not open; it writes nothing.
   const b = await box(t);

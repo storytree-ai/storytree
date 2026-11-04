@@ -222,7 +222,7 @@ function fittedAtWord(reason: string): string {
   const chars = [...reason];
   if (chars.length <= LABEL_LIMIT) return reason;
   const room = chars.slice(0, LABEL_LIMIT).join("");
-  const words = room.slice(0, Math.max(0, room.search(/\s\S*$/))).replace(/[\s,;:.]+$/, "");
+  const words = room.slice(0, Math.max(0, room.search(/\s\S*$/)));
   return words ? `${words}…` : `${chars.slice(0, LABEL_LIMIT - 1).join("")}…`;
 }
 

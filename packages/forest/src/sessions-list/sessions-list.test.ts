@@ -120,6 +120,7 @@ test("7.35 a row named by its claim's reason shows one of 40 characters or fewer
   const cut = reasoned("Claims take a reason of any length; the session name is its first 40 characters");
   assert.equal(cut, "Claims take a reason of any length; the…");
   assert.ok([...cut].length <= 40, "the cut reason fits 40 with its ellipsis");
+  assert.equal(reasoned("x".repeat(60)), `${"x".repeat(39)}…`, "a reason with no word boundary in reach is cut at 39 characters");
 });
 
 test("7.13 each row names the machine its session runs on only when the listed sessions span more than one machine", () => {

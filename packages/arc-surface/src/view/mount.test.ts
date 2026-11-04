@@ -64,16 +64,16 @@ test("3.1 · the arcs fill the rail's tab and keep reading; an arc's card opens 
   assert.match(card.querySelector(".arc-briefing h3")?.textContent ?? "", /Tidy the docs/, "another row's click shows its arc in the card");
   row("arc_2").click();
   assert.equal(card.hidden, true, "the open arc's row closes its card");
-  assert.ok(page.document.activeElement === row("arc_2"));
+  assert.ok((page.document.activeElement as unknown) === row("arc_2"));
 
   row("arc_1").click();
   page.document.dispatchEvent(new page.KeyboardEvent("keydown", { key: "Escape" }));
   assert.equal(card.hidden, true);
-  assert.ok(page.document.activeElement === row("arc_1"));
+  assert.ok((page.document.activeElement as unknown) === row("arc_1"));
   row("arc_1").click();
   card.querySelector<HTMLButtonElement>("[data-close-card]")!.click();
   assert.equal(card.hidden, true);
-  assert.ok(page.document.activeElement === row("arc_1"));
+  assert.ok((page.document.activeElement as unknown) === row("arc_1"));
   assert.equal(row("arc_1").getAttribute("aria-pressed"), "false");
 
   // An arc changed, so the board is read again, and that read fails.
@@ -318,10 +318,10 @@ test("5.2 · opening a question row swaps the card's briefing for its reading, a
   card.querySelector<HTMLButtonElement>('[data-question-open="q1"]')!.click();
   assert.match(card.textContent ?? "", /Pick the vendor for the board/);
   assert.ok(card.querySelector("[data-question-open]") === null, "the reading replaces the briefing");
-  assert.ok(page.document.activeElement === card.querySelector("[data-question-back]"));
+  assert.ok((page.document.activeElement as unknown) === card.querySelector("[data-question-back]"));
   card.querySelector<HTMLButtonElement>("[data-question-back]")!.click();
   assert.doesNotMatch(card.textContent ?? "", /Pick the vendor for the board/);
-  assert.ok(page.document.activeElement === card.querySelector('[data-question-open="q1"]'));
+  assert.ok((page.document.activeElement as unknown) === card.querySelector('[data-question-open="q1"]'));
   assert.equal(card.hidden, false, "the card stays open");
 });
 
@@ -363,7 +363,7 @@ test("3.21 · a question's row under an opened arc opens that arc's card on the 
   document.querySelector<HTMLButtonElement>('[data-rail-question="q1"]')!.click();
   assert.equal(card.hidden, false);
   assert.match(card.textContent ?? "", /Pick the vendor for the board/, "the card opens on that question's reading");
-  assert.ok(page.document.activeElement === card.querySelector("[data-question-back]"), "the focus goes to the reading's way back");
+  assert.ok((page.document.activeElement as unknown) === card.querySelector("[data-question-back]"), "the focus goes to the reading's way back");
   title = "Ship the whole board";
   reads.changesSince = async () => ({ changes: [{ seq: 1, recordId: "arc_1", type: "arc", action: "updated" as const, record: arc() }], cursor: 1 });
   for (const tick of ticks) tick();

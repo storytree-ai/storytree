@@ -162,3 +162,30 @@ test("17.19 · Friction marked about storytree answers with a pre-filled GitHub 
     });
   });
 });
+
+test("17.20 · record_resteer records the call an agent makes from its purpose: what the user redirected it to and their quoted words, its title, description, what it was doing, disposition and judge defaulted; a call missing either is refused in one line naming both", async () => {
+  const resteer = FRICTION_TOOLS.find((one) => mounted(one.tool) && one.tool.name === "record_resteer")!;
+  assert.deepEqual(Object.entries(resteer.inputs).filter(([, input]) => !("optional" in input)).map(([name]) => name), [], "a door asks for no field up front");
+  await withLibrary(async (library) => {
+    await onBranch(library, "main", async (context) => {
+      const quote = '"Remove the cache in this task, as you suggest"';
+      await resteer.act({ statement: "Remove the cache in this task, not the next one", quote } as never, context, WORDS);
+      const [note] = await library.list("resteer");
+      assert.equal(note!.fields.redirect, "Remove the cache in this task, not the next one");
+      assert.equal(note!.fields.evidence, quote);
+      assert.equal(note!.fields.disposition, "taste");
+      assert.equal(note!.fields.dispositionBy, "agent");
+      assert.ok(note!.fields.title.length > 0 && note!.fields.doing.length > 0);
+
+      const before = await library.history();
+      for (const given of [{ statement: "Remove the cache" }, { quote }]) {
+        const refused = await resteer.act(given as never, context, WORDS).then(() => undefined, (error: unknown) => error);
+        assert.ok(refused instanceof VerbRefusal, String(refused));
+        assert.doesNotMatch(refused.message, /\n/, "the refusal is one line");
+        assert.match(refused.message, /redirect/);
+        assert.match(refused.message, /evidence/);
+      }
+      assert.deepEqual(await library.history(), before, "a refused call writes nothing");
+    });
+  });
+});

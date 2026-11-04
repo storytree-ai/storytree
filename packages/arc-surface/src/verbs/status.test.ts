@@ -1,6 +1,7 @@
 /**
- * Capability 3 · Arc surface: contracts 3.13 and 3.14, `arc status`, run with a caller on a fresh project's library and
- * activity log on the real Postgres `pnpm test` provides.
+ * Capability 3 · Arc surface: contracts 3.13, 3.14 and 3.24, `arc status`, and 3.25, a wait on a capability's claim as the
+ * board, `arc show` and `arc waits` read it, run with a caller on a fresh project's library and activity log on the real
+ * Postgres `pnpm test` provides.
  */
 import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
@@ -10,6 +11,8 @@ import { connect, type Library } from "@storytree/library";
 import { claim, openActivityLog, readClaims, release, type ActivityLog } from "@storytree/session-management";
 import { VerbRefusal, type DoorWords, type Verb, type VerbInputs } from "@storytree/library/verbs";
 
+import { boardView } from "../board/board.js";
+import { recentWindow } from "../board/closed-range.js";
 import { ARC_FAMILIES, type ArcVerbContext } from "./index.js";
 
 const WORDS: DoorWords = { door: "command", say: (step) => `storytree ${step.command}` };
@@ -157,4 +160,46 @@ test("3.24 · `arc status` reads a wait on a capability's claim against the clai
   await library.addWait(fix.id, queue.id, "queue was taken");
   assert.equal((await claim({ ...holder, session: "claude-lane", harness: "claude-code" as const }, panel.id, "building the panel")).ok, true);
   assert.equal(await line(), `  Blocked         ${arc.id}  Speed — ${fix.id} Open-app speed fix: waits on ${board.id} ${board.fields.title} (board is taken)`);
+});
+
+test("3.25 · the board, `arc show` and `arc waits` read a wait on a capability's claim against the claims live sessions hold now: holding while one holds it, cleared once none does", async (t) => {
+  const { library, log, project } = await aProject(t);
+  const context: ArcVerbContext = { library, log, project, session: "person:test", folder: "/work", writer: { actor: "person:test" } };
+  const arcVerbs = ARC_FAMILIES.find((family) => family.name === "arc")!.verbs;
+  const verbNamed = (name: string) => arcVerbs.find((one) => "name" in one.command && one.command.name === name) as Verb<VerbInputs, ArcVerbContext>;
+  const story = await library.addStory({ title: "Visitor sees the arcs" });
+  const surface = await library.addCapability({ title: "Arc surface", story: story.id });
+  const arc = await anArc(library, "Speed");
+  const fix = await work(library, arc.id, "Open-app speed fix");
+  await library.addWait(fix.id, surface.id, "refused: another session holds it");
+  await library.addWaitFor(fix.id, { releaser: "owner", note: "Sign the Apple agreement", why: "it unblocks the work" });
+  const holder = { log, library, project, session: "codex-lane", harness: "codex" as const };
+  assert.equal((await claim(holder, surface.id, "building the surface")).ok, true);
+
+  const shown = async () => (await verbNamed("show").act({ arc: arc.id }, context, WORDS)).text;
+  const waiting = async () => (await verbNamed("waits").act({}, context, WORDS)).text;
+  const bar = async () => {
+    const [arcs, holds, { lines }] = await Promise.all([library.boardArcs(recentWindow(Date.now())), library.holds(), log.since(project, 0)]);
+    const board = boardView({ arcs: [...arcs], waits: { ...holds.waits }, heldOn: { ...holds.heldOn }, waitsFor: { ...holds.waitsFor } }, lines, new Date());
+    return board.lanes.flatMap(({ bars }) => bars).find(({ id }) => id === fix.id)!;
+  };
+  assert.match(await shown(), new RegExp(`waits on ${surface.id}: refused: another session holds it`));
+  assert.equal(await waiting(), "No waits for you or an outside event.", "an owner wait on work still waiting is not his yet");
+  assert.deepEqual((await bar()).waits.map(({ id }) => id), [surface.id]);
+  assert.equal((await bar()).reading.state, "queued");
+
+  // The holder lets the claim go: nothing is written to the wait, and every reader reads it cleared.
+  assert.equal((await release(holder, surface.id)).ok, true);
+  assert.doesNotMatch(await shown(), /waits on capability_/);
+  assert.match(await waiting(), /Sign the Apple agreement/);
+  assert.deepEqual((await bar()).waits, []);
+  assert.equal((await bar()).reading.state, "waiting-on-you");
+
+  // A capability on the list of an increment a live session holds is held.
+  const other = await anArc(library, "Panels");
+  const panel = await work(library, other.id, "Panel");
+  await library.editIncrement(panel.id, { capabilities: [surface.id] });
+  assert.equal((await claim({ ...holder, session: "claude-lane", harness: "claude-code" as const }, panel.id, "building the panel")).ok, true);
+  assert.match(await shown(), new RegExp(`waits on ${surface.id}`));
+  assert.deepEqual((await bar()).waits.map(({ id }) => id), [surface.id]);
 });

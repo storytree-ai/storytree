@@ -2,7 +2,7 @@
 import { logReading, type LogReading } from "@storytree/session-management/readings";
 import type { BoardArcView, Hold, Line, NoteWait, PrCutover } from "@storytree/library";
 import type { ClosedRange } from "./closed-range.js";
-import { agentsOnBoard, type BoardAgent } from "../agents/agents.js";
+import { agentsOnBoard, type ArcWork, type BoardAgent } from "../agents/agents.js";
 import { arcQueues, waitsOnBoard, type ArcQueue, type NamedWait, type WorkName } from "../waits/waits.js";
 import { arcState, incrementState, questionsBehind, type ArcState, type IncrementReading } from "../work-states/board-states.js";
 
@@ -76,11 +76,27 @@ function readyChip(machines: readonly (string | undefined)[]): string {
   return ["ready", ...(untagged ? [`${untagged} to take`] : []), ...tagged.map((machine) => `on ${machine}`)].join(" · ");
 }
 
+/**
+ * The capabilities live sessions hold now (ADR-0949 D3): each one claimed directly, and each on the list of an increment a live
+ * session holds (closing it ends the claim). What a wait on a capability's claim is read against (ADR-1228 D1, library 11.12).
+ */
+export function claimedNow(agents: readonly BoardAgent[], increments: readonly ArcWork[]): Set<string> {
+  const live = agents.filter(({ holder }) => holder === "live");
+  const held = new Set(live.flatMap(({ increment }) => (increment === undefined ? [] : [increment])));
+  return new Set([
+    ...live.flatMap(({ capability }) => (capability === undefined ? [] : [capability])),
+    ...increments.filter(({ id }) => held.has(id)).flatMap(({ fields }) => fields.capabilities ?? []),
+  ]);
+}
+
 /** The log is the lines themselves, or a reading that holds its claims folded and keeps its claim lines. */
 export function boardView(snapshot: BoardSnapshot, log: readonly Line[] | LogReading, now: Date, scope: BoardScope = "active", quietMs?: number): BoardView {
   const reading = logReading(log);
   const { lines } = reading;
   const agents = agentsOnBoard(reading, now, quietMs);
+  // The library read with no claims reads every wait on a capability's claim as holding; it holds only while a live session holds that capability (ADR-1228 D1, library 11.12).
+  const claimed = claimedNow(agents.all, snapshot.arcs.flatMap(({ increments }) => increments));
+  snapshot = { ...snapshot, waits: Object.fromEntries(Object.entries(snapshot.waits).map(([id, holds]) => [id, holds.filter(({ claim, on }) => claim !== true || claimed.has(on))])) };
   const names = snapshot.arcs.flatMap(({ arc, increments }): WorkName[] => [
     { id: arc.id, title: arc.fields.title },
     ...increments.map((increment) => ({ id: increment.id, title: increment.fields.title, arc: { id: arc.id, title: arc.fields.title } })),

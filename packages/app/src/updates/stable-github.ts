@@ -5,7 +5,7 @@ import { STABLE_BRANCH } from "./release-channel.js";
 import { type Git, versionAt } from "./release-source.js";
 import { stableCandidate, type PublishedBuild, type StableCandidate } from "./stable-candidate.js";
 import {
-  FEED_PLATFORMS, mergedPullRequests, moveStableBack, pinCoverage, pinStable, readStableManifest, windowsInstallers,
+  FEED_PLATFORMS, mergedPullRequests, moveStableBack, pinCoverage, pinStable, readStableManifest, stableAge, windowsInstallers,
   type Bootstraps, type FeedPlatform, type PinPorts, type PlatformFeed, type PlatformFeeds, type StableManifest,
 } from "./stable-pin.js";
 
@@ -27,7 +27,7 @@ export async function publishStable(manifest: StableManifest, bootstrap: Bootstr
     ...(bootstrap.sh === undefined ? [] : [{ path: "install-storytree.sh", mode: "100644", type: "blob", content: bootstrap.sh }]),
     ...Object.entries(manifest.feeds ?? {}).map(([platform, feed]) => (
       { path: FEED_PLATFORMS[platform as FeedPlatform].file, mode: "100644", type: "blob", content: JSON.stringify(feed, null, 2) + "\n" })),
-    { path: "README.md", mode: "100644", type: "blob", content: `${manifest.releaseNotes}\n\n${pinCoverage(manifest)}\n\nPinned from ${manifest.pin.commit}. Installer bytes remain on their original alpha releases.\n` },
+    { path: "README.md", mode: "100644", type: "blob", content: `${manifest.releaseNotes}\n\n${pinCoverage(manifest)}\n\n${stableAge(manifest) && `${stableAge(manifest)}\n\n`}Pinned from ${manifest.pin.commit}. Installer bytes remain on their original alpha releases.\n` },
   ] }) as { sha: string };
   const back = manifest.pin.movedBackFrom;
   const commit = await api("git/commits", "POST", {
@@ -78,6 +78,7 @@ interface Release {
   tag_name: string;
   draft: boolean;
   prerelease: boolean;
+  published_at: string | null;
   assets: { name: string; browser_download_url: string; id: number; size: number }[];
 }
 
@@ -166,7 +167,7 @@ export async function findStableCandidate(options: { library: Pick<Library, "lis
       const floor = after ? Number(after.slice(4)) : 0;
       const builds: PublishedBuild[] = [];
       for (let page = 1; ; page++) {
-        const releases = await api(`releases?per_page=100&page=${page}`) as (Release & { published_at: string | null })[];
+        const releases = await api(`releases?per_page=100&page=${page}`) as Release[];
         for (const r of releases) {
           if (r.draft || r.prerelease || !r.published_at || !/^v0\.3\.[1-9]\d*$/.test(r.tag_name)) continue;
           if (Number(r.tag_name.slice(5)) > floor) builds.push({ version: r.tag_name.slice(1), publishedAt: r.published_at, platforms: releasePlatforms(r) });
@@ -259,7 +260,7 @@ export async function pinRelease(version: string, options: { library: Pick<Libra
         }
       }
       return { version: wanted, commit, channelSchema: delivery.channelSchema, draft: release.draft, prerelease: release.prerelease,
-        installers, feeds, bootstrap: {
+        ...(release.published_at ? { published: release.published_at } : {}), installers, feeds, bootstrap: {
           ps1: download(release, "install-storytree.ps1"),
           ...(release.assets.some(a => a.name === "install-storytree.sh") ? { sh: download(release, "install-storytree.sh") } : {}),
         } };

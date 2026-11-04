@@ -139,7 +139,7 @@ st_download() {
 # for this system's app: the Mac's zip, or Linux's AppImage. An acceptance run names the build to install as stable,
 # before the pin moves to it, in STORYTREE_ACCEPTANCE_VERSION; the published one-liner never sets it.
 st_release() {
-  st_pinned=
+  st_pinned=; ST_STABLE_DAY=
   if [ -n "${STORYTREE_ACCEPTANCE_VERSION:-}" ]; then
     [ "$1" = stable ] || { st_fail 'An acceptance version installs as stable; this installation uses alpha'; return; }
     st_pinned=$STORYTREE_ACCEPTANCE_VERSION
@@ -147,6 +147,9 @@ st_release() {
   elif [ "$1" = stable ]; then
     st_fetch "https://raw.githubusercontent.com/$ST_REPO/release-channel-stable/latest.yml" "$3" || { st_fail 'the stable release pin could not be read'; return; }
     st_pinned=$(st_json version < "$3")
+    # The day the pinned build was published, said before its download (1.18); a pin from before pins recorded it has none.
+    st_day=$(st_json releaseDate < "$3") || st_day=
+    case "$st_day" in [0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T*) ST_STABLE_DAY=${st_day%%T*} ;; esac
     st_bad='The stable release pin is invalid. No alpha release was selected; retry after the stable pin is repaired'
     case "$(st_json schema < "$3")/$(st_json channel < "$3")" in 1/stable) ;; *) st_fail "$st_bad"; return ;; esac
   fi
@@ -353,6 +356,12 @@ st_install_appimage() {
   if command -v update-desktop-database >/dev/null 2>&1; then update-desktop-database "$st_apps" >/dev/null 2>&1 || :; fi
 }
 
+# st_stable_age: how old stable's build is, and where later work is (1.18); nothing for alpha or a pin without its day.
+st_stable_age() {
+  [ -n "${ST_STABLE_DAY:-}" ] || return 0
+  echo "Stable is storytree $st_version, published on $ST_STABLE_DAY. Work that landed after that day is only in alpha: see Stable or alpha in https://github.com/$ST_REPO/blob/main/INSTALL.md for how to choose it."
+}
+
 # st_profile_file: the login shell's profile the PATH line goes in: zsh's on a Mac, ~/.profile on Linux.
 st_profile_file() { if [ "$ST_SYSTEM" = linux ]; then printf '%s' "$HOME/.profile"; else printf '%s' "${ZDOTDIR:-$HOME}/.zprofile"; fi; }
 
@@ -400,6 +409,7 @@ st_op_release() { st_release "$ST_CHANNEL" "$1" "$ST_TMP/storytree-delivery.json
 
 st_op_download() {
   if [ "$ST_SYSTEM" = linux ]; then echo "Downloading storytree $st_version for x64 Linux."; else echo "Downloading storytree $st_version for an Apple Silicon Mac."; fi
+  st_stable_age
   st_download "$ST_PAYLOAD_URL" "$ST_TMP/$ST_PAYLOAD_NAME" || { st_fail 'the download did not finish'; return; }
   st_verify "$ST_TMP/$ST_PAYLOAD_NAME" "$ST_PAYLOAD_SHA" || return
   ST_ARCHIVE="$ST_TMP/$ST_PAYLOAD_NAME"

@@ -2,7 +2,8 @@
 // is open and its gate is green, and hands the pull request here; this script, not a model, watches CI and the merge
 // queue: on MERGED it closes the increment and releases the session's claims, on a red it starts one fix session.
 // node packages/agent-pool/src/watch.mjs hand <pr> <increment> [--session <id>] [--keep-open] [--refused [--holder <session>]]   (records it and starts the watcher)
-// node packages/agent-pool/src/watch.mjs handover <pr> <increment> [--keep-open]               (from any machine: `hand` on the box, else over ssh, else through the library)
+// node packages/agent-pool/src/watch.mjs handover <pr> <increment> [--keep-open] [--repo <owner/name>]   (from any machine: `hand` on the box, else over ssh, else through the library)
+// --repo: the repository the pull request is on, refused when it is not the one its increment's library lands on (4.51).
 // --keep-open: one of several pull requests for its increment, so on MERGED the watcher leaves the increment open (4.11).
 // --refused: a fix session hands back untouched because a claim refused it, so it does not count against the limit (4.14);
 // --holder names the session the refusal said holds the work, and the retry waits until that session holds no claim (4.14).
@@ -109,15 +110,32 @@ export const ownPull = (pull, home = HOME) => pull?.isCrossRepository === false 
 /**
  * The branch of pull request `pr`, from `gh pr view`'s `view` of it, when its head is on `home` (HOME, or another
  * project's repository, 4.49); otherwise it throws, so a fork's pull request, or one GitHub does not say the head of, is never handed over or adopted.
+ * One GitHub says is merged or closed throws too: a number that names some other, older pull request on `home` is never watched as this one (4.51).
  */
 export function ownBranch(pr, view, home = HOME) {
   const own = view?.isCrossRepository === false && `${view.headRepositoryOwner?.login}/${view.headRepository?.name}` === home;
-  if (own && typeof view.headRefName === "string" && view.headRefName) return view.headRefName;
-  throw new Error(`not handed over: PR #${pr}'s head is not on ${home}, or GitHub did not say where it is; the watcher takes only this repository's pull requests`);
+  if (!own || typeof view.headRefName !== "string" || !view.headRefName) {
+    throw new Error(`not handed over: PR #${pr}'s head is not on ${home}, or GitHub did not say where it is; the watcher takes only this repository's pull requests`);
+  }
+  if (view.state && view.state !== "OPEN") {
+    throw new Error(`not handed over: PR #${pr} on ${home} is ${view.state.toLowerCase()}, not open; a pull request on another repository is handed over with --repo <owner/name>, from an increment in that repository's library`);
+  }
+  return view.headRefName;
+}
+
+/**
+ * Why a hand-over naming `named` as its pull request's repository is refused, when its increment's library lands on
+ * another (4.51): `owner` is the project ownerOf found, else the increment is storytree's when `ours`. Nothing when they agree, or neither is known here.
+ */
+export function wrongRepo({ pr, increment, named, owner, ours }) {
+  const home = owner?.repo ?? HOME;
+  if (!named || named === home || (!owner && !ours)) return undefined;
+  return `not handed over: ${increment} is in ${owner?.name ?? "storytree"}'s library, whose pull requests are on ${home}, and PR #${pr} is on ${named};`
+    + ` the watcher would read PR #${pr} as ${home}'s. Plan the increment in the library of the repository its pull request is on, and hand that one over.`;
 }
 
 /** What `gh pr view` is asked, for ownBranch. */
-const VIEW = ["--json", "headRefName,isCrossRepository,headRepository,headRepositoryOwner"];
+const VIEW = ["--json", "headRefName,isCrossRepository,headRepository,headRepositoryOwner,state"];
 
 const QUERY = `query($owner: String!, $name: String!, $pr: Int!) { repository(owner: $owner, name: $name) { pullRequest(number: $pr) {
   id state isDraft headRefOid headRefName isCrossRepository headRepository { nameWithOwner } mergeable mergeQueueEntry { state } labels(first: 100) { nodes { name } }
@@ -329,10 +347,10 @@ export async function hand({ dir, pr, increment, session, branch, keepOpen = fal
  * box (a cloud container has neither ssh nor the tailnet) it writes the request through `library` (4.30). When neither
  * reaches the watcher it refuses with the reasons, and the session lands the pull request itself.
  */
-export async function handOver({ pr, increment, session, keepOpen = false, onBox, local, remote, library }) {
+export async function handOver({ pr, increment, session, keepOpen = false, repo, onBox, local, remote, library }) {
   const fallback = `Wait for the merge yourself: watch \`gh pr checks ${pr}\` for MERGED, then close ${increment} with --disposition landed --pr ${pr}.`;
   if (!session) return { code: 1, lines: ["no session id (CLAUDE_CODE_SESSION_ID or CODEX_THREAD_ID): the watcher could not release this session's claims, so it is not handed over.", fallback] };
-  const args = ["hand", String(pr), increment, "--session", session, ...(keepOpen ? ["--keep-open"] : [])];
+  const args = ["hand", String(pr), increment, "--session", session, ...(keepOpen ? ["--keep-open"] : []), ...(repo ? ["--repo", repo] : [])];
   // On the box `hand` says its own words; its refusal is this hand-over's too (4.44).
   if (onBox) return { code: await local(args) ?? 0, lines: [] };
   const last = (error) => error.message.trim().split("\n").at(-1);
@@ -400,7 +418,7 @@ export async function adoptRequests({ dir, storytree, viewOf, now = Date.now, sa
     if (view === undefined) continue;
     try { ownBranch(pr, view); } catch (error) {
       await storytree(["arc", "increment", "unwait", increment, "--for", "event"]).catch(() => "");
-      await storytree(["workspace", "let-go", pr, "--reason", `PR #${pr}'s head is not on ${HOME}; released by the watcher`]).catch(() => "");
+      await storytree(["workspace", "let-go", pr, "--reason", `PR #${pr} is not watched (${error.message.replace(/^not handed over: /, "").split(";")[0]}); released by the watcher`]).catch(() => "");
       known.set(Number(pr), null);
       say(`${new Date(now()).toISOString().replace(/\.\d{3}Z$/, "Z")} PR #${pr}: ${error.message}; ${increment} no longer waits on it`);
       continue;
@@ -939,6 +957,8 @@ function boxDefaults({ home = homedir(), env = process.env, platform = process.p
     storytree,
     project: () => projectOf({ cwd: process.cwd(), repo, home: storytreeHome }),
     // Which of the pool's other projects a handed-over increment is in, read from each one's checkout (4.49).
+    // Whether storytree's own library holds a handed-over increment, read in the shared checkout; unreadable is unknown (4.51).
+    holds: (increment) => storytree(["library", "read", increment, "--field", "title"]).then(() => true, () => false),
     ownerOf: (increment) => ownerOf({ increment, projects: config.projects, home: storytreeHome,
       has: (one, project) => storytree(["library", "read", one, "--field", "title"], project).then(() => true, () => false),
       repoOf: async (folder) => (await run("gh", ["repo", "view", "--json", "nameWithOwner", "--jq", ".nameWithOwner"], { cwd: folder })).stdout.trim() }),
@@ -1068,18 +1088,24 @@ export async function main(args, box = {}) {
   if (!box.readExemptions && b.dir !== defaults.dir) b.readExemptions = undefined;
   // And its projects: a hand-over in another folder would ask the real library whose increment it hands over.
   if (!box.ownerOf && b.dir !== defaults.dir) b.ownerOf = async () => undefined;
+  if (!box.holds && b.dir !== defaults.dir) b.holds = async () => false;
   const out = b.out ?? console.log;
   const keepOpen = args.includes("--keep-open"), refused = args.includes("--refused");
+  const named = args.includes("--repo") ? args[args.indexOf("--repo") + 1] ?? "" : undefined;
+  if (named !== undefined && !/^[\w.-]+\/[\w.-]+$/.test(named)) { out(`--repo takes a repository as <owner/name>, not "${named}"`); return 2; }
   if (args[0] === "handover" && /^\d+$/.test(args[1] ?? "") && /^increment_\w+$/.test(args[2] ?? "")) {
     // A fork's pull request is refused here (4.32); one GitHub cannot be asked about from here is checked by the box, which refuses it too.
-    // Another project's increment's pull request is asked of its own repository (4.49).
-    const on = (await Promise.resolve().then(() => b.ownerOf(args[2])).catch(() => undefined))?.repo;
+    // Another project's increment's pull request is asked of its own repository (4.49), and one named on another repository is refused (4.51).
+    const owner = await Promise.resolve().then(() => b.ownerOf(args[2])).catch(() => undefined);
+    const wrong = named && wrongRepo({ pr: args[1], increment: args[2], named, owner, ours: !owner && await Promise.resolve().then(() => b.holds(args[2])).catch(() => false) });
+    if (wrong) { out(wrong); return 1; }
+    const on = named ?? owner?.repo;
     const view = await b.ownViewOf(Number(args[1]), on).catch(() => undefined);
     let branch;
     if (view !== undefined) {
       try { branch = ownBranch(args[1], view, on); } catch (error) { out(error.message); return 1; }
     }
-    const { code, lines } = await handOver({ pr: Number(args[1]), increment: args[2], session: b.session, keepOpen, onBox: b.onBox,
+    const { code, lines } = await handOver({ pr: Number(args[1]), increment: args[2], session: b.session, keepOpen, repo: named, onBox: b.onBox,
       local: (hand) => main(hand, box), remote: b.remote,
       library: async (request) => handThroughLibrary({ ...request, branch: branch ?? await b.ownBranchOf().catch(() => ""), storytree: b.here, now: b.now }) });
     for (const line of lines) out(line);
@@ -1093,6 +1119,8 @@ export async function main(args, box = {}) {
     let view, branch;
     // Another project's increment belongs to its repository and library (4.49); else the folder's own, an experiment arm's (4.25).
     const project = await b.ownerOf(args[2]) ?? await b.project();
+    const wrong = wrongRepo({ pr: args[1], increment: args[2], named, owner: project?.repo ? project : undefined, ours: true });
+    if (wrong) { out(wrong); return 1; }
     // GitHub not answering is said as itself, so only a real fork's pull request reads as one (4.44).
     try { view = await b.viewOf(Number(args[1]), project?.repo ?? HOME); } catch (error) {
       out(`not handed over: GitHub could not be asked about PR #${args[1]}: ${(error.stderr?.trim() || error.message).split("\n").join("; ")}`);
@@ -1145,7 +1173,7 @@ export async function main(args, box = {}) {
     if (!found.length) out("no hand-offs");
     return 0;
   }
-  if (args[0] !== "run" && args[0] !== "watch") { out(`usage: watch.mjs handover <pr> <increment> [--keep-open] | hand <pr> <increment> [--session <id>] [--keep-open] [--refused [--holder <session>]] | verdict <pr> ${VERDICTS.join("|")} --summary <text> | release-fix --pr <n> | --question <id> | forget | run | status`); return 2; }
+  if (args[0] !== "run" && args[0] !== "watch") { out(`usage: watch.mjs handover <pr> <increment> [--keep-open] [--repo <owner/name>] | hand <pr> <increment> [--session <id>] [--keep-open] [--repo <owner/name>] [--refused [--holder <session>]] | verdict <pr> ${VERDICTS.join("|")} --summary <text> | release-fix --pr <n> | --question <id> | forget | run | status`); return 2; }
   const say = b.say ?? ((line) => out(line));
   const dated = (message) => say(`${new Date(b.now()).toISOString()} ${message}`);
   if (args[0] === "run") {

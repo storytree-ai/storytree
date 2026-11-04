@@ -44,9 +44,10 @@ export interface ArcFacts {
 export function incrementState(increment: BoardIncrement["fields"], facts: IncrementFacts = {}): IncrementReading {
   if (increment.status === "closed") {
     const landed = increment.outcome?.disposition === "landed" || Boolean(increment.outcome?.pr);
+    // A withdrawal is not a failure, so only a failed or unrecorded close reads red.
     return {
       state: landed ? "landed" : "not-completed",
-      color: landed ? "green" : "red",
+      color: landed ? "green" : increment.outcome?.disposition === "withdrawn" ? "grey" : "red",
       progress: landed ? "landed" : "not-completed",
       close: increment.outcome?.disposition ?? "unrecorded",
     };

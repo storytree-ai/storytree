@@ -8,14 +8,14 @@ const open: FieldsOf<"increment"> = { arc: "a", title: "Build", objective: "Buil
 const held: Claim = { increment: "i", session: "s", label: "Codex", reason: "building", since: "2026-09-27T00:00:00Z", holder: "idle" };
 const waits: Hold[] = [{ on: "other", reason: "needs it", forGood: false }];
 
-test("1.4 only a recorded landing or pull request makes a closed increment green; every other close keeps its reason", () => {
+test("1.4 only a recorded landing or pull request makes a closed increment green; every other close keeps its reason, a withdrawal grey and a failed or unrecorded close red", () => {
   const closed = { ...open, status: "closed" as const };
   assert.deepEqual(incrementState(closed), { state: "not-completed", color: "red", progress: "not-completed", close: "unrecorded" });
   for (const disposition of ["landed", "failed", "withdrawn"] as const) {
     const outcome = { date: "2026-09-27", disposition, note: "why" };
     const reading = incrementState({ ...closed, outcome }, { heldOn: ["q"], waits, claim: held });
     assert.equal(reading.state, disposition === "landed" ? "landed" : "not-completed");
-    assert.equal(reading.color, disposition === "landed" ? "green" : "red");
+    assert.equal(reading.color, { landed: "green", failed: "red", withdrawn: "grey" }[disposition]);
     assert.equal(reading.close, disposition);
     assert.equal(incrementState({ ...closed, outcome: { ...outcome, pr: "42" } }).state, "landed");
   }

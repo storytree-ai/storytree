@@ -9,7 +9,7 @@ import { promisify } from "node:util";
 import { removeTemp } from "@storytree/test-waits";
 
 import { countEngines } from "./queue.mjs";
-import { adoptRequests, asRun, ensureWatcher, forget, hand, handedOff, handOver, handThroughLibrary, homeOf, isFixSession, main, ownerOf, projectOf, readFailures, readPull, reachOf, recordVerdict, remoteCommand, RESTART, watchOnce } from "./watch.mjs";
+import { adoptRequests, asRun, ensureWatcher, forget, hand, handedOff, handOver, handThroughLibrary, HOME, homeOf, isFixSession, main, ownerOf, projectOf, readFailures, readPull, reachOf, recordVerdict, remoteCommand, RESTART, watchOnce } from "./watch.mjs";
 
 const at = Date.parse("2026-10-10T12:00:00Z");
 const minutes = (n) => new Date(at + n * 60_000).toISOString();
@@ -1414,4 +1414,53 @@ test("4.49 · another project's hand-off is handed over on its repository, and i
   await watchOnce(s.b.options);
   assert.equal(s.b.fixes.length, 1);
   assert.deepEqual(s.steps(), [["workspace red 7", "/srv/web"]], "no unwait for a closed increment");
+});
+
+test("4.51 · a hand-over never takes another repository's pull request number as its increment's: a pull request that is not open, or one named on a repository other than its increment's library's, is refused", async (t) => {
+  const web = { folder: "/srv/web", home: "/h", name: "storytree-website", repo: "storytree-ai/storytree-website" };
+  const WEB = "storytree-ai/storytree-website";
+  const opened = async (pr, asked = HOME) => ({ ...view(pr), state: "OPEN", headRepository: { name: asked.split("/")[1] } });
+  const lines = [], sshed = [], written = [], asked = [];
+  const away = (more = {}) => ({ onBox: false, session: SESSION, out: (line) => lines.push(line), ownerOf: async () => undefined, holds: async () => true,
+    remote: async (args) => { sshed.push(args); return ""; }, here: async (args) => { written.push(args); return ""; },
+    ownViewOf: async (pr, repo) => { asked.push(repo); return opened(pr, repo); }, ...more });
+
+  // A bare number for a website pull request, on an increment in storytree's library, names storytree's long-merged PR #5.
+  assert.equal(await main(["handover", "5", "increment_site"], away({ ownViewOf: async (pr) => ({ ...view(pr), state: "MERGED" }) })), 1);
+  assert.match(lines.at(-1), /not handed over: PR #5 on storytree-ai\/storytree is merged, not open/);
+  assert.match(lines.at(-1), /--repo/, "the refusal says how to name another repository");
+  assert.deepEqual([sshed, written], [[], []], "neither the box nor the library is asked");
+
+  // Named on the website's repository while its increment is in storytree's library: refused, before GitHub is asked.
+  assert.equal(await main(["handover", "5", "increment_site", "--repo", WEB], away()), 1);
+  assert.match(lines.at(-1), /not handed over: increment_site is in storytree's library, whose pull requests are on storytree-ai\/storytree, and PR #5 is on storytree-ai\/storytree-website/);
+  assert.deepEqual([sshed, written, asked], [[], [], []]);
+
+  // Named on its own project's repository, it is handed over, and the box is told the repository too.
+  assert.equal(await main(["handover", "8", "increment_web", "--repo", WEB], away({ ownerOf: async () => web })), 0, lines.join("\n"));
+  assert.deepEqual(asked, [WEB]);
+  assert.deepEqual(sshed.at(-1), ["hand", "8", "increment_web", "--session", SESSION, "--repo", WEB]);
+  // A machine that knows neither library leaves the check to the box, asking GitHub of the repository named.
+  assert.equal(await main(["handover", "9", "increment_web", "--repo", WEB], away({ holds: async () => false })), 0, lines.join("\n"));
+  assert.deepEqual([asked.at(-1), sshed.at(-1).slice(-2)], [WEB, ["--repo", WEB]]);
+
+  // On the box, `hand` refuses a repository other than its increment's, and a pull request that is not open; it writes nothing.
+  const b = await box(t);
+  const handBox = (more) => ({ dir: b.dir, now: b.options.now, out: (line) => lines.push(line), storytree: b.options.storytree, viewOf: opened,
+    ownerOf: async () => undefined, project: async () => undefined, pidFile: join(b.dir, "pid"), argsOf: async () => "", startWatcher: async () => 1, ...more });
+  b.calls.length = 0;
+  assert.equal(await main(["hand", "5", "increment_site", "--session", SESSION, "--repo", WEB], handBox()), 1);
+  assert.match(lines.at(-1), /not handed over: increment_site is in storytree's library/);
+  assert.equal(await main(["hand", "5", "increment_site", "--session", SESSION], handBox({ viewOf: async (pr) => ({ ...view(pr), state: "CLOSED" }) })), 1);
+  assert.match(lines.at(-1), /PR #5 on storytree-ai\/storytree is closed, not open/);
+  assert.deepEqual([b.calls, await readdir(b.dir)], [[], []]);
+  assert.equal(await main(["hand", "8", "increment_web", "--session", SESSION, "--repo", WEB], handBox({ ownerOf: async () => web })), 0, lines.join("\n"));
+
+  // A request written through the library for a merged pull request is not adopted: its wait and held claims are let go.
+  const waits = `  - event  PR #5 is open and green and handed to the box's watcher through the library by session ${SESSION}, which closes this on its merge or starts a fix session on a red. — increment_site  The site, on arc_a  An arc; check back 2026-10-13\n`;
+  const adopt = await box(t);
+  adopt.options.storytree = async (args) => { adopt.calls.push(args); return args[1] === "waits" ? waits : ""; };
+  await adoptRequests({ ...adopt.options, viewOf: async (pr) => ({ ...view(pr), state: "MERGED" }) });
+  assert.deepEqual(await readdir(adopt.dir), [], "a merged pull request is not watched");
+  assert.deepEqual(adopt.calls.filter(([, verb]) => verb !== "waits").map((args) => args.slice(0, 3)), [["arc", "increment", "unwait"], ["workspace", "let-go", "5"]]);
 });

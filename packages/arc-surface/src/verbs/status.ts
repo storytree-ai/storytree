@@ -8,6 +8,7 @@
 import { holdersOf, LogFold, LONGEST_COMMAND_MS } from "@storytree/session-management/readings";
 import { verb, VerbRefusal } from "@storytree/library/verbs";
 
+import { agentsOnBoard, type ArcWork, type BoardAgent } from "../agents/agents.js";
 import { boardView, type Bar, type Lane } from "../board/board.js";
 import { recentWindow } from "../board/closed-range.js";
 import type { ArcVerbContext } from "./context.js";
@@ -27,6 +28,19 @@ export function sinceOf(given: string | undefined, now: number, fallback = 2 * U
   const at = /^\d{4}-\d{2}-\d{2}/.test(given) ? Date.parse(given) : NaN;
   if (Number.isNaN(at)) throw new VerbRefusal(`--since is a time (2026-10-21T09:00Z) or a span back from now (30m, 2h, 1d); not "${given}"`);
   return at;
+}
+
+/**
+ * The capabilities live sessions hold now (ADR-0949 D3): each one claimed directly, and each on the list of an open increment a
+ * live session holds. What a wait on a capability's claim is read against (ADR-1228 D1, library 11.12).
+ */
+function claimedNow(agents: readonly BoardAgent[], increments: readonly ArcWork[]): Set<string> {
+  const live = agents.filter(({ holder }) => holder === "live");
+  const held = new Set(live.flatMap(({ increment }) => (increment === undefined ? [] : [increment])));
+  return new Set([
+    ...live.flatMap(({ capability }) => (capability === undefined ? [] : [capability])),
+    ...increments.filter(({ id, fields }) => held.has(id) && fields.status !== "closed").flatMap(({ fields }) => fields.capabilities ?? []),
+  ]);
 }
 
 /** A time as the line says it: to the minute, in UTC. */
@@ -111,13 +125,19 @@ export const status = verb({
   async act({ since: given }, { library, log, project }: ArcVerbContext) {
     const now = Date.now();
     const since = sinceOf(given, now);
-    // One read of the board's arcs, one of every hold, and the claims standing with their holders' recent lines.
-    const [arcs, { waits, heldOn, waitsFor }, claimLines] = await Promise.all([library.boardArcs(recentWindow(now)), library.holds(), log.standing(project)]);
+    // One read of the board's arcs, and the claims standing with their holders' recent lines.
+    const [arcs, claimLines] = await Promise.all([library.boardArcs(recentWindow(now)), log.standing(project)]);
     const holders = holdersOf(claimLines);
     const lines = holders.length === 0 ? [] : await log.foldLines(project, holders, new Date(now - LONGEST_COMMAND_MS - 60_000).toISOString());
     const fold = LogFold.fromBounded(lines, claimLines);
     const machines = new Map(fold.sessions({ now: new Date(now) }).flatMap(({ session, machine }): [string, string][] => (machine === undefined ? [] : [[session, machine]])));
-    const board = boardView({ arcs: [...arcs], waits: { ...waits }, heldOn: { ...heldOn }, waitsFor: { ...waitsFor } }, { fold, lines }, new Date(now), "active");
+    // Then one of every hold, a wait on a capability's claim read against the capabilities live sessions hold now (ADR-1228 D1), and the titles of those it names.
+    const claimed = claimedNow(agentsOnBoard({ fold, lines }, new Date(now)).all, arcs.flatMap(({ increments }) => increments));
+    const { waits, heldOn, waitsFor } = await library.holds(new Date(now), { claimed });
+    const named = [...new Set(Object.values(waits).flat().filter(({ claim }) => claim === true).map(({ on }) => on))];
+    const capabilities = (await Promise.all(named.map((id) => library.get(id)))).flatMap((record) =>
+      (record === null ? [] : [{ id: record.id, title: (record.fields as { title?: string }).title ?? record.id }]));
+    const board = boardView({ arcs: [...arcs], waits: { ...waits }, heldOn: { ...heldOn }, waitsFor: { ...waitsFor }, capabilities }, { fold, lines }, new Date(now), "active");
     const questionTitles = new Map(arcs.flatMap(({ questions }) => questions.map((question): [string, string] => [question.id, question.fields.title])));
     const said = board.lanes.map((lane) => ({ lane, ...statusOf(lane, since, { machines, questionTitles, heldOn }) }));
     // The board's order (priority first) within each state; a stable sort keeps it.

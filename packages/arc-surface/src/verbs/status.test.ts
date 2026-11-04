@@ -7,7 +7,7 @@ import { randomBytes } from "node:crypto";
 import { test, type TestContext } from "node:test";
 
 import { connect, type Library } from "@storytree/library";
-import { claim, openActivityLog, readClaims, type ActivityLog } from "@storytree/session-management";
+import { claim, openActivityLog, readClaims, release, type ActivityLog } from "@storytree/session-management";
 import { VerbRefusal, type DoorWords, type Verb, type VerbInputs } from "@storytree/library/verbs";
 
 import { ARC_FAMILIES, type ArcVerbContext } from "./index.js";
@@ -125,4 +125,23 @@ test("3.14 · `arc status` reads the board's arcs and the holds once each howeve
   for (const wrong of ["yesterday", "2 hours", "5w", "h2"]) {
     await assert.rejects(status.act({ since: wrong }, context, WORDS), (error: unknown) => error instanceof VerbRefusal && error.message.includes("--since"), wrong);
   }
+});
+
+test("3.24 · `arc status` reads a wait on a capability's claim against the claims live sessions hold now: blocked, naming the capability by its title, while one holds it, and cleared once none does", async (t) => {
+  const { library, log, project } = await aProject(t);
+  const context: ArcVerbContext = { library, log, project, session: "person:test", folder: "/work", writer: { actor: "person:test" } };
+  const story = await library.addStory({ title: "Visitor sees the arcs" });
+  const surface = await library.addCapability({ title: "Arc surface", story: story.id });
+  const arc = await anArc(library, "Speed");
+  const fix = await work(library, arc.id, "Open-app speed fix");
+  await library.addWait(fix.id, surface.id, "refused: another session holds it");
+  const holder = { log, library, project, session: "codex-lane", harness: "codex" as const };
+  assert.equal((await claim(holder, surface.id, "building the surface")).ok, true);
+
+  const line = async () => (await status.act({}, context, WORDS)).text.split("\n").find((one) => one.includes(arc.id))!;
+  assert.equal(await line(), `  Blocked         ${arc.id}  Speed — ${fix.id} Open-app speed fix: waits on ${surface.id} ${surface.fields.title} (refused: another session holds it)`);
+
+  // The holder lets the claim go: nothing is written to the wait, and it no longer holds.
+  assert.equal((await release(holder, surface.id)).ok, true);
+  assert.equal(await line(), `  Ready           ${arc.id}  Speed — nobody holds ${fix.id} Open-app speed fix`);
 });

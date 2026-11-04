@@ -230,7 +230,7 @@ export const FRICTION_FAMILIES: readonly VerbFamily[] = [
 
 /** Its section of the habits card (ADR-1021, the guidance kind): filing what fought you, and draining what others filed. */
 export const frictionGuidance: readonly string[] = [
-  "File what fought you: `record_friction` when something got in your way, with concrete evidence (marked about storytree when the defect is storytree's own, so the user can choose to send it on), and `reinforce` the existing item when it happens again, with its own (filing first shows the closest earlier reports: reinforce the one that is the same problem, or file again with `none-match`); `record_resteer` when the owner redirects you, quoting their own words. Before landing, `friction_drain` hands you up to three reports other sessions filed: read each, then `route` it with its reason.",
+  "File what fought you: `record_friction` when something got in your way, with concrete evidence (marked about storytree when the defect is storytree's own, so the user can choose to send it on), and `reinforce` the existing item when it happens again, with its own (filing first shows the closest earlier reports: reinforce the one that is the same problem, or file it again marked none-match); `record_resteer` when the owner redirects you, quoting their own words. Before landing, `friction_drain` hands you up to three reports other sessions filed: read each, then `route` it with its reason.",
 ];
 
 /** Friction's verbs that are tools, which the MCP server mounts (17.18). */

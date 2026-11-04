@@ -16,6 +16,8 @@ export function laneSettings({ home = homedir(), env = process.env, config = poo
     stopAt: config.switchAt,
     models: config.models,
     identity: config.identity,
+    sessions: config.sessions,
+    laneMemory: config.laneMemory,
   };
 }
 

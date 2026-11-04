@@ -1,0 +1,600 @@
+{
+ "note": "Round 13's arrangements measured: `ground` by tools/layout.ts on the ground plan (routes between the names), `page` by tools/crowd.mjs on the built page at rest (routes between the settlements, as drawn). Layouts not kept in layouts/ (min3, min4, net6) are recorded here only; net6c, searched again from net6b, came back unchanged.",
+ "ground": {
+  "r11": {
+   "min": 1,
+   "net": {},
+   "ground": {
+    "roadDrawn": 1400,
+    "overThird": 12,
+    "overThirdBorders": 27,
+    "neighbours": 24,
+    "insideLinks": 35,
+    "crossings": 0,
+    "segments": 139,
+    "junctions": 81,
+    "smallestRoom": [
+     "Lapsed questions",
+     4.4
+    ],
+    "worstSizeGap": 1.1
+   }
+  },
+  "min3": {
+   "min": 1,
+   "net": {},
+   "ground": {
+    "roadDrawn": 1370,
+    "overThird": 12,
+    "overThirdBorders": 29,
+    "neighbours": 22,
+    "insideLinks": 35,
+    "crossings": 0,
+    "segments": 130,
+    "junctions": 74,
+    "smallestRoom": [
+     "16 · The command schema",
+     4.9
+    ],
+    "worstSizeGap": 2.2
+   }
+  },
+  "min4": {
+   "min": 1,
+   "net": {},
+   "ground": {
+    "roadDrawn": 1313,
+    "overThird": 17,
+    "overThirdBorders": 51,
+    "neighbours": 20,
+    "insideLinks": 35,
+    "crossings": 0,
+    "segments": 140,
+    "junctions": 81,
+    "smallestRoom": [
+     "27 · Fixed data questions",
+     5.1
+    ],
+    "worstSizeGap": 3
+   }
+  },
+  "min5": {
+   "min": 1,
+   "net": {},
+   "ground": {
+    "roadDrawn": 1299,
+    "overThird": 18,
+    "overThirdBorders": 44,
+    "neighbours": 19,
+    "insideLinks": 35,
+    "crossings": 0,
+    "segments": 129,
+    "junctions": 73,
+    "smallestRoom": [
+     "13 · Decision log",
+     5.4
+    ],
+    "worstSizeGap": 4.2
+   }
+  },
+  "min6": {
+   "min": 1,
+   "net": {},
+   "ground": {
+    "roadDrawn": 1376,
+    "overThird": 19,
+    "overThirdBorders": 48,
+    "neighbours": 18,
+    "insideLinks": 35,
+    "crossings": 0,
+    "segments": 137,
+    "junctions": 80,
+    "smallestRoom": [
+     "21 · Links",
+     5.9
+    ],
+    "worstSizeGap": 5.4
+   }
+  },
+  "net5": {
+   "min": 5,
+   "net": {
+    "shareEntrance": 1,
+    "edge": 0.8
+   },
+   "ground": {
+    "roadDrawn": 1219,
+    "overThird": 11,
+    "overThirdBorders": 30,
+    "neighbours": 24,
+    "insideLinks": 35,
+    "crossings": 0,
+    "segments": 103,
+    "junctions": 56,
+    "smallestRoom": [
+     "9 · Knowledge entrances",
+     5.2
+    ],
+    "worstSizeGap": 4.2
+   }
+  },
+  "net6": {
+   "min": 6,
+   "net": {
+    "shareEntrance": 1,
+    "edge": 0.8
+   },
+   "ground": {
+    "roadDrawn": 1267,
+    "overThird": 14,
+    "overThirdBorders": 31,
+    "neighbours": 21,
+    "insideLinks": 35,
+    "crossings": 0,
+    "segments": 95,
+    "junctions": 52,
+    "smallestRoom": [
+     "25 · Lapsed questions",
+     5.5
+    ],
+    "worstSizeGap": 5.4
+   }
+  },
+  "net6b": {
+   "min": 6,
+   "net": {
+    "shareEntrance": 1,
+    "edge": 0.8
+   },
+   "ground": {
+    "roadDrawn": 1219,
+    "overThird": 12,
+    "overThirdBorders": 31,
+    "neighbours": 22,
+    "insideLinks": 35,
+    "crossings": 0,
+    "segments": 95,
+    "junctions": 50,
+    "smallestRoom": [
+     "22 · Decision log",
+     5.5
+    ],
+    "worstSizeGap": 5.4
+   }
+  },
+  "chosen": {
+   "min": 5,
+   "net": {
+    "shareEntrance": 1,
+    "edge": 0.8
+   },
+   "ground": {
+    "roadDrawn": 1222,
+    "overThird": 11,
+    "overThirdBorders": 27,
+    "neighbours": 24,
+    "insideLinks": 35,
+    "crossings": 0,
+    "segments": 92,
+    "junctions": 50,
+    "smallestRoom": [
+     "24 · Graduation",
+     5.5
+    ],
+    "worstSizeGap": 4.2
+   }
+  }
+ },
+ "page": [
+  {
+   "name": "round 12 (round 11's arrangement)",
+   "query": "?layout=r11&net={\"shareEntrance\":0,\"edge\":0}",
+   "roadDrawn": 1331,
+   "roadOnEdge": 8,
+   "noEntrance": 0,
+   "segments": 135,
+   "gates": 58,
+   "entranceGates": 54,
+   "passGates": 4,
+   "gatesOnOpenLand": 6,
+   "sharedEntrances": [],
+   "overThird": 13,
+   "crowding": {
+    "island": {
+     "marks": 108,
+     "overlaps": 44,
+     "byKind": {
+      "name+symbol": 9,
+      "gate+name": 14,
+      "name+name": 1,
+      "gate+symbol": 7,
+      "gate+gate": 11,
+      "gate+wrench": 2
+     },
+     "nearestApart": 0.2,
+     "within4px": 26
+    },
+    "knot": {
+     "marks": 42,
+     "overlaps": 23,
+     "byKind": {
+      "gate+name": 11,
+      "name+symbol": 2,
+      "name+name": 1,
+      "gate+symbol": 4,
+      "gate+gate": 5
+     },
+     "nearestApart": 0.3,
+     "within4px": 17
+    }
+   },
+   "errors": []
+  },
+  {
+   "name": "round 12 with the coast price",
+   "query": "?layout=r11&net={\"shareEntrance\":0,\"edge\":0.8}",
+   "roadDrawn": 1277,
+   "roadOnEdge": 5,
+   "noEntrance": 0,
+   "segments": 138,
+   "gates": 59,
+   "entranceGates": 54,
+   "passGates": 5,
+   "gatesOnOpenLand": 7,
+   "sharedEntrances": [],
+   "overThird": 14,
+   "crowding": {
+    "island": {
+     "marks": 109,
+     "overlaps": 46,
+     "byKind": {
+      "name+symbol": 9,
+      "gate+name": 12,
+      "name+name": 1,
+      "gate+symbol": 7,
+      "gate+gate": 15,
+      "gate+wrench": 2
+     },
+     "nearestApart": 0.2,
+     "within4px": 29
+    },
+    "knot": {
+     "marks": 42,
+     "overlaps": 22,
+     "byKind": {
+      "name+symbol": 2,
+      "gate+name": 9,
+      "name+name": 1,
+      "gate+symbol": 4,
+      "gate+gate": 6
+     },
+     "nearestApart": 0.2,
+     "within4px": 22
+    }
+   },
+   "errors": []
+  },
+  {
+   "name": "(a) minimum size 5, regrown",
+   "query": "?layout=min5&net={\"shareEntrance\":0,\"edge\":0}",
+   "roadDrawn": 1202,
+   "roadOnEdge": 0,
+   "noEntrance": 0,
+   "segments": 136,
+   "gates": 57,
+   "entranceGates": 54,
+   "passGates": 3,
+   "gatesOnOpenLand": 5,
+   "sharedEntrances": [],
+   "overThird": 19,
+   "crowding": {
+    "island": {
+     "marks": 107,
+     "overlaps": 44,
+     "byKind": {
+      "name+symbol": 14,
+      "gate+name": 2,
+      "name+name": 2,
+      "name+wrench": 1,
+      "gate+symbol": 11,
+      "symbol+wrench": 1,
+      "gate+gate": 12,
+      "gate+wrench": 1
+     },
+     "nearestApart": 0.1,
+     "within4px": 22
+    },
+    "knot": {
+     "marks": 38,
+     "overlaps": 18,
+     "byKind": {
+      "name+symbol": 6,
+      "gate+name": 1,
+      "name+name": 1,
+      "gate+symbol": 5,
+      "gate+gate": 5
+     },
+     "nearestApart": 0.2,
+     "within4px": 4
+    }
+   },
+   "errors": []
+  },
+  {
+   "name": "(c) shared entrances on round 11's",
+   "query": "?layout=r11&net={\"shareEntrance\":1,\"edge\":0}",
+   "roadDrawn": 1103,
+   "roadOnEdge": 8,
+   "noEntrance": 0,
+   "segments": 94,
+   "gates": 42,
+   "entranceGates": 54,
+   "passGates": 2,
+   "gatesOnOpenLand": 5,
+   "sharedEntrances": [
+    2,
+    2,
+    4,
+    2,
+    2,
+    2,
+    2,
+    2,
+    3,
+    2,
+    2
+   ],
+   "overThird": 12,
+   "crowding": {
+    "island": {
+     "marks": 92,
+     "overlaps": 35,
+     "byKind": {
+      "name+symbol": 9,
+      "gate+name": 11,
+      "name+name": 1,
+      "gate+symbol": 8,
+      "gate+gate": 5,
+      "gate+wrench": 1
+     },
+     "nearestApart": 0.2,
+     "within4px": 13
+    },
+    "knot": {
+     "marks": 30,
+     "overlaps": 17,
+     "byKind": {
+      "name+symbol": 2,
+      "gate+name": 8,
+      "name+name": 1,
+      "gate+symbol": 5,
+      "gate+gate": 1
+     },
+     "nearestApart": 0.9,
+     "within4px": 7
+    }
+   },
+   "errors": []
+  },
+  {
+   "name": "(a) + (c) + coast price, regrown",
+   "query": "?layout=min5&net={\"shareEntrance\":1,\"edge\":0.8}",
+   "roadDrawn": 1090,
+   "roadOnEdge": 0,
+   "noEntrance": 0,
+   "segments": 94,
+   "gates": 46,
+   "entranceGates": 54,
+   "passGates": 6,
+   "gatesOnOpenLand": 4,
+   "sharedEntrances": [
+    3,
+    2,
+    3,
+    3,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2
+   ],
+   "overThird": 20,
+   "crowding": {
+    "island": {
+     "marks": 96,
+     "overlaps": 31,
+     "byKind": {
+      "name+symbol": 14,
+      "gate+name": 4,
+      "name+name": 2,
+      "name+wrench": 1,
+      "gate+symbol": 6,
+      "symbol+wrench": 1,
+      "gate+gate": 2,
+      "gate+wrench": 1
+     },
+     "nearestApart": 0.2,
+     "within4px": 13
+    },
+    "knot": {
+     "marks": 32,
+     "overlaps": 12,
+     "byKind": {
+      "name+symbol": 6,
+      "gate+name": 2,
+      "name+name": 1,
+      "gate+symbol": 2,
+      "gate+gate": 1
+     },
+     "nearestApart": 0.2,
+     "within4px": 1
+    }
+   },
+   "errors": []
+  },
+  {
+   "name": "searched on the network, minimum 5 (first run)",
+   "query": "?layout=net5",
+   "roadDrawn": 1173,
+   "roadOnEdge": 0,
+   "noEntrance": 0,
+   "segments": 108,
+   "gates": 48,
+   "entranceGates": 54,
+   "passGates": 4,
+   "gatesOnOpenLand": 5,
+   "sharedEntrances": [
+    3,
+    2,
+    2,
+    2,
+    2,
+    4,
+    2
+   ],
+   "overThird": 12,
+   "crowding": {
+    "island": {
+     "marks": 98,
+     "overlaps": 39,
+     "byKind": {
+      "name+symbol": 16,
+      "name+wrench": 3,
+      "name+name": 2,
+      "gate+name": 4,
+      "symbol+wrench": 2,
+      "gate+symbol": 7,
+      "gate+gate": 5
+     },
+     "nearestApart": 0.3,
+     "within4px": 16
+    },
+    "knot": {
+     "marks": 34,
+     "overlaps": 10,
+     "byKind": {
+      "name+symbol": 4,
+      "gate+name": 1,
+      "gate+symbol": 4,
+      "gate+gate": 1
+     },
+     "nearestApart": 1,
+     "within4px": 7
+    }
+   },
+   "errors": []
+  },
+  {
+   "name": "searched on the network, minimum 6",
+   "query": "?layout=net6b",
+   "roadDrawn": 1128,
+   "roadOnEdge": 0,
+   "noEntrance": 0,
+   "segments": 96,
+   "gates": 47,
+   "entranceGates": 54,
+   "passGates": 5,
+   "gatesOnOpenLand": 4,
+   "sharedEntrances": [
+    3,
+    2,
+    2,
+    3,
+    4,
+    2,
+    2,
+    2
+   ],
+   "overThird": 15,
+   "crowding": {
+    "island": {
+     "marks": 97,
+     "overlaps": 32,
+     "byKind": {
+      "name+symbol": 12,
+      "name+wrench": 1,
+      "gate+name": 6,
+      "symbol+wrench": 1,
+      "gate+symbol": 7,
+      "gate+gate": 5
+     },
+     "nearestApart": 0.8,
+     "within4px": 20
+    },
+    "knot": {
+     "marks": 34,
+     "overlaps": 7,
+     "byKind": {
+      "name+symbol": 4,
+      "gate+name": 1,
+      "gate+symbol": 1,
+      "gate+gate": 1
+     },
+     "nearestApart": 0.8,
+     "within4px": 8
+    }
+   },
+   "errors": []
+  },
+  {
+   "name": "chosen: searched again, minimum 5",
+   "query": "?layout=chosen",
+   "roadDrawn": 1173,
+   "roadOnEdge": 0,
+   "noEntrance": 0,
+   "segments": 94,
+   "gates": 39,
+   "entranceGates": 54,
+   "passGates": 1,
+   "gatesOnOpenLand": 6,
+   "sharedEntrances": [
+    2,
+    2,
+    3,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    4,
+    2,
+    2,
+    2
+   ],
+   "overThird": 14,
+   "crowding": {
+    "island": {
+     "marks": 89,
+     "overlaps": 25,
+     "byKind": {
+      "name+symbol": 15,
+      "name+wrench": 1,
+      "name+name": 2,
+      "gate+name": 2,
+      "symbol+wrench": 1,
+      "gate+gate": 3,
+      "gate+wrench": 1
+     },
+     "nearestApart": 0.2,
+     "within4px": 11
+    },
+    "knot": {
+     "marks": 31,
+     "overlaps": 7,
+     "byKind": {
+      "name+name": 1,
+      "name+symbol": 4,
+      "gate+name": 1,
+      "gate+gate": 1
+     },
+     "nearestApart": 0.2,
+     "within4px": 3
+    }
+   },
+   "errors": []
+  }
+ ]
+}

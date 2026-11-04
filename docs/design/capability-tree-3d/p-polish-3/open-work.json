@@ -1,0 +1,27 @@
+{
+ "readAt": "2026-11-03T14:11:04.094Z",
+ "openWork": [
+  {
+   "arc": "arc_238ac88fdb14",
+   "arcTitle": "Cloud SQL sign-in, kept in the back pocket",
+   "increment": "increment_dc514c1a7edb",
+   "title": "Run the live Cloud SQL checks and record their health",
+   "status": "proposal",
+   "parked": "2026-10-01T04:57:48.727Z",
+   "capabilities": [
+    "capability_a954e1eb16f6"
+   ]
+  },
+  {
+   "arc": "arc_d94b7ab67047",
+   "arcTitle": "A simpler, familiar UI: the sessions list and the arcs surface",
+   "increment": "increment_3bebfbfde878",
+   "title": "A subagent's end is recorded, so a finished one shows greyed under its parent",
+   "status": "active",
+   "parked": "2026-11-03T09:10:43.837Z",
+   "capabilities": [
+    "capability_a1d4fadbec3e"
+   ]
+  }
+ ]
+}

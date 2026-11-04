@@ -19,7 +19,7 @@ under its name is not storytree's, so never install one (see [Official sources](
 - **No clone.** The install needs no checkout of this repository, no npm and no global Node. Do not clone it
   to install: an agent opened in a clone takes on storytree's own development guidance (its CLAUDE.md and
   AGENTS.md, a session-start hook and a tool server). Cloning is for working on storytree itself; see
-  [How changes land](README.md#how-changes-land).
+  [How changes land](CONTRIBUTING.md#how-changes-land).
 
 ## Windows
 

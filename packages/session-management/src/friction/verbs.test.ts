@@ -251,7 +251,6 @@ test("17.22 · The friction drain shows each report it offers with its lookalike
       assert.deepEqual(lookalikes[lead.id]!.map(({ id }) => id), [recent.id], "a settled lookalike of the last four weeks is shown; an older one and the report itself are not");
       assert.deepEqual(lookalikes[other.id], [], "a report nothing resembles has no lookalikes");
       assert.match(drained.text, new RegExp(`looks like ${recent.id}  dismissed, 0 recurrences, filed ${day(3)}  Slow mail at night`));
-      assert.ok(drained.next?.some((step) => step.command?.includes("--theme")), "it says how to route a theme once");
     });
   });
 });

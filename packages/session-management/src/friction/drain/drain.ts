@@ -148,9 +148,9 @@ export async function route(library: Library, id: string, to: Route, reason: str
     if (owed.length > 0) throw new RouteRefusal(`routing to ${to} needs a live increment whose remedies names ${owed.join(", ")}; park the fix on its owning arc, or supply dischargedBy when the remedy has already landed`);
   }
   const judgement = { route: to, routeReason: reason, lease: undefined, ...(dischargedBy === undefined ? {} : { dischargedBy }) };
-  // Checked again inside the write (17.14): another pass may have routed it since this one read it.
-  const routed = (await library.editNote(id, judgement, { ...writer, checkCurrent: (current) => refuseAnotherRoute(current, to) })) as SchemaRecord<"friction">;
-  // Each links the one routed, never the reverse too: artifacts' links form no loop.
+  // Each checked again inside its write (17.14): another pass may have routed it since this one read it. The theme is
+  // written before the report routed, so a refusal leaves that one open for the drain to offer again. Each links the one
+  // routed, never the reverse too: artifacts' links form no loop.
   for (const report of reports.slice(1) as SchemaRecord<"friction">[]) {
     await library.editNote(report.id, { ...judgement, links: [...new Set([...(report.fields.links ?? []), id])] }, {
       ...writer,
@@ -159,7 +159,7 @@ export async function route(library: Library, id: string, to: Route, reason: str
       },
     });
   }
-  return routed;
+  return (await library.editNote(id, judgement, { ...writer, checkCurrent: (current) => refuseAnotherRoute(current, to) })) as SchemaRecord<"friction">;
 }
 
 /** Another pass's route is not replaced in silence: a routed report is routed again only the same way (17.11). */

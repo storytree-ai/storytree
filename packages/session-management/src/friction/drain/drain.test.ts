@@ -206,5 +206,21 @@ test("17.23 · routing a report with a theme records the route and reason on eve
       assert.deepEqual(after.fields.links, [lead.id], "and links the report routed");
     }
     assert.deepEqual((await frictionDrain(library, { branch: "claude/me" })).map(({ id }) => id), [], "the theme leaves nothing to drain");
+
+    // A pass that read the theme before another pass routed one of its reports elsewhere is refused inside that write.
+    const next = await friction(library, "Push refused at night", "claude/other");
+    const raced = await friction(library, "Push refused at dawn", "claude/other");
+    await library.addIncrement({ arc: arc.id, title: "Let the box push at night", objective: "Push", body: "Push", remedies: [next.id, raced.id] });
+    const read = await library.search("");
+    const late = new Proxy(library, {
+      get(target, key) {
+        if (key === "search") return async () => read;
+        const value = Reflect.get(target, key) as unknown;
+        return typeof value === "function" ? value.bind(target) : value;
+      },
+    });
+    await route(library, raced.id, "edit-existing", "Edited the push note.", { dischargedBy: "#9" });
+    await assert.rejects(route(late, next.id, "tool", "The deploy key lacks the workflow scope.", { theme: [raced.id] }), /already routed to edit-existing/);
+    assert.equal((await library.get(next.id))?.fields.state, "open", "the report routed is left open for the drain");
   });
 });

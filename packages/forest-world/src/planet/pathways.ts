@@ -74,8 +74,52 @@ interface Dock { story: string; local: CoastPoint; point: Vector3; links: Set<st
 
 // Polls preserve unchanged island objects; retain their ground input and relief through routing.
 const preparedGrounds = new WeakMap<Island, PreparedGround>();
-// Routing is the costly part (ADR-0836 D1): the routes between islands are kept while every island's place and size are.
-let crossRoutes: { key: string; network: TrailNetwork } | undefined;
+// Routing is the costly part (ADR-0836 D1): the routes between islands are kept while every island's place and size
+// are, and moved with them when every island moved by one shift on the chart.
+let crossRoutes: { key: string; routing: CrossRouting; network: TrailNetwork } | undefined;
+/** How far a charted point may stray from the one shift and still count as moved by it, in ground units: well under
+ * the router's 2-unit cell. A desktop sheet shift of tens of units bends a chart point by under 1e-3. */
+const SHIFT_TOLERANCE = 0.01;
+
+/** The routes kept for a layout's routing: the last routing's when nothing changed, or the last routing's moved by one
+ * shift when its islands all moved by that shift on the chart, with the same sizes, outlines, edges and tuning (the
+ * drawing engine 4.37). A moved network is kept as this layout's. */
+function keptNetwork(key: string, routing: CrossRouting): TrailNetwork | undefined {
+  if (crossRoutes === undefined) return undefined;
+  if (crossRoutes.key === key) return crossRoutes.network;
+  const shift = chartShift(crossRoutes.routing, routing);
+  if (shift === undefined) return undefined;
+  const network = shiftedNetwork(crossRoutes.network, shift);
+  crossRoutes = { key, routing, network };
+  return network;
+}
+
+function chartShift(was: CrossRouting, now: CrossRouting): Point | undefined {
+  if (was.seed !== now.seed || JSON.stringify([was.edges, was.tuning]) !== JSON.stringify([now.edges, now.tuning])) return undefined;
+  if (was.islands.length !== now.islands.length || was.islands.length === 0) return undefined;
+  const shift = { x: now.islands[0]!.x - was.islands[0]!.x, y: now.islands[0]!.y - was.islands[0]!.y };
+  const moved = (a: Point, b: Point) => Math.abs(b.x - a.x - shift.x) <= SHIFT_TOLERANCE && Math.abs(b.y - a.y - shift.y) <= SHIFT_TOLERANCE;
+  return was.islands.every((a, i) => {
+    const b = now.islands[i]!, rings = a.outline ?? [], to = b.outline ?? [];
+    return a.id === b.id && Math.abs(a.r - b.r) <= SHIFT_TOLERANCE && moved(a, b) && rings.length === to.length
+      && rings.every((ring, j) => ring.length === to[j]!.length && ring.every((point, k) => moved(point, to[j]![k]!)));
+  }) ? shift : undefined;
+}
+
+/** The network moved by `shift` on the chart: its curves (`d`, alternating x and y), polylines and caves. */
+function shiftedNetwork(network: TrailNetwork, shift: Point): TrailNetwork {
+  const along = <P extends Point>(p: P): P => ({ ...p, x: p.x + shift.x, y: p.y + shift.y });
+  return {
+    ...network,
+    segments: network.segments.map(segment => {
+      let i = 0;
+      const d = segment.d.replace(/-?\d+(?:\.\d+)?/g, n => String(Math.round((Number(n) + (i++ % 2 === 0 ? shift.x : shift.y)) * 100) / 100));
+      return { ...segment, d, points: segment.points.map(along) };
+    }),
+    caves: network.caves.map(along),
+  };
+}
+
 function prepareGround(island: Island): PreparedGround {
   const old = preparedGrounds.get(island);
   if (old) return old;
@@ -275,10 +319,9 @@ function chartPathways(scene: ForestScene, spots: ReadonlyMap<string, PlanetSpot
 export function buildPlanetPathways(scene: ForestScene, spots: ReadonlyMap<string, PlanetSpot>, radius: number, route: typeof routeTrails = routeTrails): PlanetPathways {
   const plan: PlanetPathways = { plates: new Map(), segments: [], edges: [], docks: [] };
   const { grounds, cross, plumbing, chart, sphere, routing, key: crossKey } = chartPathways(scene, spots, radius);
-  const network = crossRoutes?.key === crossKey ? crossRoutes.network
-    : route(routing.islands, routing.edges, routing.seed, routing.tuning);
+  const network = keptNetwork(crossKey, routing) ?? route(routing.islands, routing.edges, routing.seed, routing.tuning);
   // A drawing with no roads between islands leaves the last routing kept.
-  if (routing.edges.length > 0) crossRoutes = { key: crossKey, network };
+  if (routing.edges.length > 0) crossRoutes = { key: crossKey, routing, network };
   requireNetwork(network);
   const crossSegments = new Map(network.segments.map(segment => [segment.id, segment]));
   const crossEdges = new Map(network.edges.map(edge => [keyOf(edge), edge]));
@@ -413,12 +456,17 @@ export function pathwayRouting(scene: ForestScene, spots: ReadonlyMap<string, Pl
     // Not logged here: planetPathwayDrawing, which the drawing falls back to, meets the same failure and logs it.
     return undefined;
   }
-  return charted.routing.edges.length === 0 || crossRoutes?.key === charted.key ? undefined : { key: charted.key, routing: charted.routing };
+  return charted.routing.edges.length === 0 || keptNetwork(charted.key, charted.routing) !== undefined ? undefined : { key: charted.key, routing: charted.routing };
 }
 
 /** Keeps a network routed elsewhere (in a worker) as this page's last routing, so its drawing routes nothing. */
-export function keepRoutes(key: string, network: TrailNetwork): void {
-  crossRoutes = { key, network };
+export function keepRoutes({ key, routing }: { key: string; routing: CrossRouting }, network: TrailNetwork): void {
+  crossRoutes = { key, routing, network };
+}
+
+/** Whether `key`'s routes are the ones kept from the last routing. */
+export function routesKept(key: string): boolean {
+  return crossRoutes?.key === key;
 }
 
 /** Every island's plate and no roads: what is on show while the roads are routed. */

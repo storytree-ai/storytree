@@ -2,8 +2,10 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { ForestScene, Island } from '../scene.js';
 import { routeTrails, type TrailNetwork } from '../core/routing.js';
-import { planetPathwayDrawing, type CrossRouting } from './pathways.js';
-import { drawnAtOnce, islandDocks, routedDrawing, routeInWorker, type RoadRouter, type RoadWorker } from './road-routing.js';
+import { planetPathwayDrawing, type CrossRouting, type PathwayDrawing } from './pathways.js';
+import { drawnAtOnce, islandDocks, roadsWhenRouted, routedDrawing, routeInWorker, type RoadRouter, type RoadWorker } from './road-routing.js';
+import { SHEET_RADIUS, sheetSpot } from './sheet.js';
+import { plateTransform, type PlanetSpot } from './planet.js';
 import { answerRouting } from './road-worker.js';
 import { roadSegmentWindows } from './growth.js';
 import { liveRoadProgress, liveRoadsGrowing, nextLiveRoads } from './live-roads.js';
@@ -130,8 +132,92 @@ test('4.21 a dependency added with no island moved keeps every road on show whil
   const added = drawnAtOnce(scene, layout(0.73), R, { spots, radius: R, drawing: drawn });
   assert.ok(added.routing, 'the added dependency waits on a routing');
   assert.equal(roads(added.drawing), roads(drawn), 'the roads already drawn stay on show meanwhile');
-  const moved = drawnAtOnce(scene, layout(0.75), R, { spots, radius: R, drawing: drawn });
-  assert.equal(moved.drawing.plan.segments.length, 0, 'roads drawn for islands that have since moved are not');
+});
+
+test('4.38 a layout whose islands moved relative to each other keeps the roads on show, as they were drawn, until its own are routed', async () => {
+  const spots = layout(0.75);
+  const { router, asked } = heldRouter();
+  const first = routedDrawing(scene, spots, R, drawnAtOnce(scene, spots, R).routing!, router, new AbortController().signal);
+  asked[0]!.answer();
+  const drawn = (await first)!;
+  const moved = drawnAtOnce(scene, layout(0.85), R, { spots, radius: R, drawing: drawn });
+  assert.ok(moved.routing, 'the moved layout waits on its own routing');
+  assert.equal(roads(moved.drawing), roads(drawn), 'the roads drawn before stay on show, as they were');
+  const again = drawnAtOnce(scene, layout(0.87), R, { spots: layout(0.85), radius: R, drawing: moved.drawing });
+  assert.equal(roads(again.drawing), roads(drawn), 'and through a second move before the first is routed');
+  const rescaled = drawnAtOnce(scene, layout(0.85), R * 2, { spots, radius: R, drawing: drawn });
+  assert.equal(rescaled.drawing.plan.segments.length, 0, 'roads at another radius would float or sink, so a new radius shows islands only');
+});
+
+/** The two islands on the desktop's glass sheet, `shift` along it from where they first stood. */
+const onSheet = (shift: { x: number; y: number }, apart = 60) => new Map([['a', sheetSpot({ x: apart + shift.x, y: shift.y })], ['b', sheetSpot({ x: -apart + shift.x, y: shift.y })]]);
+const dockOffsets = (plan: { docks: { story: string; point: { x: number; y: number; z: number } }[] }, spots: ReadonlyMap<string, PlanetSpot>) =>
+  plan.docks.map(dock => {
+    const [x, y, z] = plateTransform(spots.get(dock.story)!, SHEET_RADIUS).position;
+    return [dock.story, Math.hypot(dock.point.x - x, dock.point.y - y, dock.point.z - z)] as const;
+  });
+
+test('4.37 a layout whose islands all moved by one shift draws the roads at once, moved with them, routes nothing, and draws none of them on again', async () => {
+  const spots = onSheet({ x: 0, y: 0 });
+  const { router, asked } = heldRouter();
+  const first = routedDrawing(scene, spots, SHEET_RADIUS, drawnAtOnce(scene, spots, SHEET_RADIUS).routing!, router, new AbortController().signal);
+  asked[0]!.answer();
+  const drawn = (await first)!;
+  assert.deepEqual(drawn.plan.edges.map(edge => `${edge.from}->${edge.to}`), ['b1->a1', 'b2->a2'], 'every link has its road');
+  const shifted = onSheet({ x: 23, y: -11 });
+  const now = drawnAtOnce(scene, shifted, SHEET_RADIUS, { spots, radius: SHEET_RADIUS, drawing: drawn });
+  assert.equal(now.routing, undefined, 'nothing waits on a routing');
+  assert.equal(asked.length, 1, 'the router was asked once');
+  assert.equal(now.drawing.plan.segments.length, drawn.plan.segments.length, 'the roads are drawn at once');
+  assert.deepEqual(now.drawing.plan.edges, drawn.plan.edges);
+  const before = dockOffsets(drawn.plan, spots), after = dockOffsets(now.drawing.plan, shifted);
+  assert.equal(after.length, before.length);
+  after.forEach(([story, reach], i) => {
+    assert.equal(story, before[i]![0]);
+    assert.ok(Math.abs(reach - before[i]![1]) < 0.1, `each dock still stands on its island's coast (${reach} against ${before[i]![1]})`);
+  });
+  const arrived = nextLiveRoads(new Map(), drawn.plan, 0);
+  assert.equal(nextLiveRoads(arrived, now.drawing.plan, 5), arrived, 'a live globe draws none of the moved roads on again');
+  const apart = drawnAtOnce(scene, onSheet({ x: 23, y: -11 }, 90), SHEET_RADIUS, { spots: shifted, radius: SHEET_RADIUS, drawing: now.drawing });
+  assert.ok(apart.routing, 'islands moved apart are routed afresh');
+});
+
+test('4.39 a routing in flight is kept while new layouts with the same routing key arrive, and its answer is drawn for the latest', async () => {
+  const spots = layout(0.89);
+  const { router, asked } = heldRouter();
+  const drawn: { layout: unknown; drawing: PathwayDrawing }[] = [];
+  let answered!: () => void;
+  const firstDraw = new Promise<void>(resolve => { answered = resolve; });
+  const roadsOf = roadsWhenRouted(router, (layout, drawing) => { drawn.push({ layout, drawing }); answered(); });
+  const first = { scene, spots, radius: R, routing: drawnAtOnce(scene, spots, R).routing };
+  roadsOf.show(first);
+  // An island's health changes while its roads are routed: a new scene, the same routing.
+  const healthier: ForestScene = { ...scene, islands: [{ ...scene.islands[0]!, trees: scene.islands[0]!.trees.map(tree => ({ ...tree, status: 'unhealthy' as const })) }, scene.islands[1]!] };
+  const second = { scene: healthier, spots: layout(0.89), radius: R, routing: drawnAtOnce(healthier, layout(0.89), R).routing };
+  assert.equal(second.routing?.key, first.routing?.key);
+  roadsOf.show(second);
+  assert.equal(asked.length, 1, 'the routing in flight is not started over');
+  assert.equal(asked[0]!.signal.aborted, false, 'nor aborted');
+  asked[0]!.answer();
+  await firstDraw;
+  assert.equal(drawn.length, 1);
+  assert.equal(drawn[0]!.layout, second, 'its answer is drawn for the latest layout');
+  assert.deepEqual(drawn[0]!.drawing.plan.edges.map(edge => `${edge.from}->${edge.to}`), ['b1->a1', 'b2->a2'], 'with every link\'s road');
+  // A layout computed before the answer landed, shown after it: its roads are drawn at once.
+  const third = { scene, spots, radius: R, routing: first.routing };
+  roadsOf.show(third);
+  assert.equal(asked.length, 1, 'a routing already answered is not asked again');
+  assert.equal(drawn.at(-1)!.layout, third);
+  assert.equal(roads(drawn.at(-1)!.drawing), roads(drawn[0]!.drawing));
+  // A new key overtakes the routing in flight.
+  const fourth = { scene, spots: layout(0.91), radius: R, routing: drawnAtOnce(scene, layout(0.91), R).routing };
+  roadsOf.show(fourth);
+  const fifth = { scene, spots: layout(0.93), radius: R, routing: drawnAtOnce(scene, layout(0.93), R).routing };
+  roadsOf.show(fifth);
+  assert.equal(asked.length, 3);
+  assert.equal(asked[1]!.signal.aborted, true, 'a routing for another key is overtaken');
+  roadsOf.stop();
+  assert.equal(asked[2]!.signal.aborted, true, 'and stopping ends the one in flight');
 });
 
 test('4.21 while a moved layout\'s roads are routed, a live globe forgets no road it drew, and draws on only the new one', async () => {
@@ -142,9 +228,8 @@ test('4.21 while a moved layout\'s roads are routed, a live globe forgets no roa
   asked[0]!.answer();
   const drawn = (await routedBefore)!;
   const arrived = nextLiveRoads(new Map(), drawn.plan, 0);
-  // A dependency is added and the globe is laid out again: its islands move, so nothing can be kept on show.
+  // A dependency is added and the globe is laid out again: its islands move relative to each other.
   const moved = drawnAtOnce(scene, layout(0.79), R, { spots: layout(0.77), radius: R, drawing: drawn });
-  assert.equal(moved.drawing.plan.edges.length, 0);
   assert.equal(nextLiveRoads(arrived, moved.drawing.plan, 0, true).size, 0, 'a road still drawing when its roads were taken away draws on afresh');
   const waiting = nextLiveRoads(arrived, moved.drawing.plan, 5, true);
   assert.equal(waiting, arrived, 'the roads drawn are kept while the new ones are routed');

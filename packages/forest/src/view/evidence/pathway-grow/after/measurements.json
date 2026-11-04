@@ -1,0 +1,338 @@
+{
+  "summary": {
+    "label": "after",
+    "grownStory": "The command line",
+    "grownBy": 4,
+    "otherIslandsMoved": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "roadsBefore": 30,
+    "framesAfter": 15,
+    "framesWithoutRoads": 0,
+    "roadsAtEnd": 30,
+    "pageErrors": []
+  },
+  "frames": [
+    {
+      "phase": "initial",
+      "at": 1320.8000001907349,
+      "roads": 0,
+      "links": 0,
+      "roadsVisible": true
+    },
+    {
+      "phase": "initial",
+      "at": 1575.2000000476837,
+      "roads": 0,
+      "links": 0,
+      "roadsVisible": true
+    },
+    {
+      "phase": "initial",
+      "at": 2455.7000000476837,
+      "roads": 0,
+      "links": 37,
+      "roadsVisible": true
+    },
+    {
+      "phase": "initial",
+      "at": 2509.100000143051,
+      "roads": 11,
+      "links": 37,
+      "roadsVisible": true
+    },
+    {
+      "phase": "initial",
+      "at": 2566.9000000953674,
+      "roads": 15,
+      "links": 37,
+      "roadsVisible": true
+    },
+    {
+      "phase": "initial",
+      "at": 2615.4000000953674,
+      "roads": 15,
+      "links": 37,
+      "roadsVisible": true
+    },
+    {
+      "phase": "initial",
+      "at": 2668,
+      "roads": 15,
+      "links": 37,
+      "roadsVisible": true
+    },
+    {
+      "phase": "initial",
+      "at": 2713.800000190735,
+      "roads": 16,
+      "links": 37,
+      "roadsVisible": true
+    },
+    {
+      "phase": "initial",
+      "at": 2757.4000000953674,
+      "roads": 19,
+      "links": 37,
+      "roadsVisible": true
+    },
+    {
+      "phase": "initial",
+      "at": 2802.800000190735,
+      "roads": 21,
+      "links": 37,
+      "roadsVisible": true
+    },
+    {
+      "phase": "initial",
+      "at": 2866.300000190735,
+      "roads": 23,
+      "links": 37,
+      "roadsVisible": true
+    },
+    {
+      "phase": "initial",
+      "at": 2925.4000000953674,
+      "roads": 24,
+      "links": 37,
+      "roadsVisible": true
+    },
+    {
+      "phase": "initial",
+      "at": 2980.300000190735,
+      "roads": 24,
+      "links": 37,
+      "roadsVisible": true
+    },
+    {
+      "phase": "initial",
+      "at": 3029.600000143051,
+      "roads": 24,
+      "links": 37,
+      "roadsVisible": true
+    },
+    {
+      "phase": "initial",
+      "at": 3097.7000000476837,
+      "roads": 25,
+      "links": 37,
+      "roadsVisible": true
+    },
+    {
+      "phase": "initial",
+      "at": 3150.2000000476837,
+      "roads": 25,
+      "links": 37,
+      "roadsVisible": true
+    },
+    {
+      "phase": "initial",
+      "at": 3198.100000143051,
+      "roads": 27,
+      "links": 37,
+      "roadsVisible": true
+    },
+    {
+      "phase": "initial",
+      "at": 3243.300000190735,
+      "roads": 28,
+      "links": 37,
+      "roadsVisible": true
+    },
+    {
+      "phase": "initial",
+      "at": 3296,
+      "roads": 29,
+      "links": 37,
+      "roadsVisible": true
+    },
+    {
+      "phase": "initial",
+      "at": 3347.800000190735,
+      "roads": 30,
+      "links": 37,
+      "roadsVisible": true
+    },
+    {
+      "phase": "initial",
+      "at": 3410.9000000953674,
+      "roads": 30,
+      "links": 37,
+      "roadsVisible": true
+    },
+    {
+      "phase": "initial",
+      "at": 3480.7000000476837,
+      "roads": 30,
+      "links": 37,
+      "roadsVisible": true
+    },
+    {
+      "phase": "initial",
+      "at": 3579.800000190735,
+      "roads": 30,
+      "links": 37,
+      "roadsVisible": true
+    },
+    {
+      "phase": "initial",
+      "at": 3668.800000190735,
+      "roads": 30,
+      "links": 37,
+      "roadsVisible": true
+    },
+    {
+      "phase": "initial",
+      "at": 3760,
+      "roads": 30,
+      "links": 37,
+      "roadsVisible": true
+    },
+    {
+      "phase": "initial",
+      "at": 8571.5,
+      "roads": 30,
+      "links": 37,
+      "roadsVisible": true
+    },
+    {
+      "phase": "initial",
+      "at": 8671.400000095367,
+      "roads": 30,
+      "links": 37,
+      "roadsVisible": true
+    },
+    {
+      "phase": "grown",
+      "at": 10754.100000143051,
+      "roads": 30,
+      "links": 37,
+      "roadsVisible": true
+    },
+    {
+      "phase": "grown",
+      "at": 10870.400000095367,
+      "roads": 30,
+      "links": 37,
+      "roadsVisible": true
+    },
+    {
+      "phase": "grown",
+      "at": 10988.700000047684,
+      "roads": 30,
+      "links": 37,
+      "roadsVisible": true
+    },
+    {
+      "phase": "grown",
+      "at": 11094.5,
+      "roads": 30,
+      "links": 37,
+      "roadsVisible": true
+    },
+    {
+      "phase": "grown",
+      "at": 11183.400000095367,
+      "roads": 30,
+      "links": 37,
+      "roadsVisible": true
+    },
+    {
+      "phase": "grown",
+      "at": 11288.5,
+      "roads": 30,
+      "links": 37,
+      "roadsVisible": true
+    },
+    {
+      "phase": "grown",
+      "at": 11400.800000190735,
+      "roads": 30,
+      "links": 37,
+      "roadsVisible": true
+    },
+    {
+      "phase": "grown",
+      "at": 11514.100000143051,
+      "roads": 30,
+      "links": 37,
+      "roadsVisible": true
+    },
+    {
+      "phase": "grown",
+      "at": 11638.600000143051,
+      "roads": 30,
+      "links": 37,
+      "roadsVisible": true
+    },
+    {
+      "phase": "grown",
+      "at": 11810.5,
+      "roads": 30,
+      "links": 37,
+      "roadsVisible": true
+    },
+    {
+      "phase": "grown",
+      "at": 11948.800000190735,
+      "roads": 30,
+      "links": 37,
+      "roadsVisible": true
+    },
+    {
+      "phase": "grown",
+      "at": 12108.700000047684,
+      "roads": 30,
+      "links": 37,
+      "roadsVisible": true
+    },
+    {
+      "phase": "grown",
+      "at": 12228.100000143051,
+      "roads": 30,
+      "links": 37,
+      "roadsVisible": true
+    },
+    {
+      "phase": "grown",
+      "at": 12876.200000047684,
+      "roads": 30,
+      "links": 37,
+      "roadsVisible": true
+    },
+    {
+      "phase": "grown",
+      "at": 13040.700000047684,
+      "roads": 30,
+      "links": 37,
+      "roadsVisible": true
+    },
+    {
+      "phase": "grown",
+      "at": 32113.5,
+      "roads": 30,
+      "links": 37,
+      "roadsVisible": true
+    },
+    {
+      "phase": "grown",
+      "at": 32164.5,
+      "roads": 30,
+      "links": 37,
+      "roadsVisible": true
+    }
+  ]
+}

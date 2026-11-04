@@ -51,10 +51,6 @@ export interface IslandLand {
    */
   territories: readonly { capability?: string; title?: string; description?: string; status?: CapabilityWord; parked?: true; mapped?: true; lines: number }[];
   files: readonly { path: string; lines: number; capability?: string }[];
-  /** The package its story's code lives in, so a file's path in the package can be named from the repository's root (ADR-0804 D5). */
-  package?: string;
-  /** Which of its files imports which, by their paths in the package. */
-  imports?: readonly { from: string; to: string }[];
 }
 
 export interface ForestScene {

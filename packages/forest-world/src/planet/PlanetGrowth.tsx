@@ -1,7 +1,7 @@
 /** Capability 4 · The planet. The globe's growth clock (The drawing engine 5.4): what the canvas and the host's marks read to draw a growth as it stands. */
 import { createContext, useContext, useEffect, useMemo, useRef, type ReactNode } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
-import { fileKey, growthMoment, growthNow, growthProgress, type GrowthPlan } from './growth.js';
+import { growthMoment, growthNow, growthProgress, type GrowthPlan } from './growth.js';
 
 /** A growth to replay: its plan, and either a fixed moment (a host scrubbing it) or the canvas's own clock from when it was given. */
 export interface PlanetGrowth { plan: GrowthPlan; at?: number | undefined }
@@ -13,14 +13,13 @@ export interface GrowthReader {
   globe(): number;
   island(story: string): number;
   capability(capability: string): number;
-  file(story: string, path: string): number;
   /** Where a recorded date falls in the growth, in its seconds (The drawing engine 5.5); 0 when there is none. */
   moment(date: string): number;
 }
 
 const reducedMotion = () => typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-const WHOLE: GrowthReader = { now: () => Infinity, globe: () => 1, island: () => 1, capability: () => 1, file: () => 1, moment: () => 0 };
+const WHOLE: GrowthReader = { now: () => Infinity, globe: () => 1, island: () => 1, capability: () => 1, moment: () => 0 };
 const GrowthContext = createContext<GrowthReader>(WHOLE);
 
 /** Read inside the globe (a plate's children, say) to fade a mark in with its island; read it in `useFrame`. */
@@ -39,7 +38,7 @@ export function GrowthProvider({ growth, children }: { growth: PlanetGrowth | un
     const now = () => growthNow(at, clock.getElapsedTime() - started.current.at, started.current.reduced);
     const of = (window: Parameters<typeof growthProgress>[0]) => growthProgress(window, now(), false);
     return { now, globe: () => of(plan.globe), island: story => of(plan.islands.get(story)),
-      capability: capability => of(plan.capabilities.get(capability)), file: (story, path) => of(plan.files.get(fileKey(story, path))),
+      capability: capability => of(plan.capabilities.get(capability)),
       moment: date => growthMoment(plan, date) };
   }, [plan, at, clock]);
   useFrame(() => { if (plan !== undefined && at === undefined && reader.now() < plan.seconds) invalidate(); });

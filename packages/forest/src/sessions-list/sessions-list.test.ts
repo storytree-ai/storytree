@@ -112,6 +112,16 @@ test("7.18 a session that has named itself is listed by its own name, its latest
   assert.equal(sessionRows(tree, lines, [arc], now)[0]!.label, "Building the signup form");
 });
 
+test("7.35 a row named by its claim's reason shows one of 40 characters or fewer whole, and cuts a longer one at a word boundary to fit 40, ending in an ellipsis", () => {
+  const reasoned = (reason: string): string => sessionRows(tree, log({ ...off, kind: "claimed", increment: "tidy", reason }), [], now)[0]!.label;
+  const forty = "Claims take a reason of any length, kept";
+  assert.equal(forty.length, 40);
+  assert.equal(reasoned(forty), forty, "40 characters is shown whole");
+  const cut = reasoned("Claims take a reason of any length; the session name is its first 40 characters");
+  assert.equal(cut, "Claims take a reason of any length; the…");
+  assert.ok([...cut].length <= 40, "the cut reason fits 40 with its ellipsis");
+});
+
 test("7.13 each row names the machine its session runs on only when the listed sessions span more than one machine", () => {
   const lines = log({ ...parent, kind: "session-started", machine: "laptop" }, { ...off, kind: "session-started", machine: "mint" },
     { session: "quiet", harness: "codex", source: "hook", kind: "session-started" });

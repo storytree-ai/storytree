@@ -74,7 +74,7 @@ export interface SessionRow {
   children: SessionRow[];
 }
 
-/** The longest a row's name runs, as a claim reason is held (ADR-0737 D2). */
+/** The longest a row's name runs (ADR-0737 D2): a session's own name is held to it, a longer claim reason cut to it at a word (ADR-1237 D2). */
 const LABEL_LIMIT = 40;
 
 /**
@@ -109,7 +109,7 @@ export function sessionRows(tree: AnnotatedTree, log: readonly Line[] | LogReadi
     const detail = details.get(session.session);
     if (detail?.parentSession) parents.set(session.session, detail.parentSession);
     // The name a session gave itself comes first (7.18): eventually consistent, the row reads as before until it does.
-    const label = (session.name === undefined ? undefined : fitted(session.name)) || own.find(claim => claim.reason.trim())?.reason.trim() || heldIncrements[0]?.fields.title
+    const label = (session.name === undefined ? undefined : fitted(session.name)) || fittedAtWord(own.find(claim => claim.reason.trim())?.reason.trim() ?? "") || heldIncrements[0]?.fields.title
       || (session.title === undefined ? workingIn(session.label, lines, session.session, session.worktrees) : fitted(session.title));
     const objective = (heldIncrements[0]?.fields as { objective?: string } | undefined)?.objective?.trim();
     rows.set(session.session, { id: session.session, label,
@@ -215,6 +215,15 @@ function workingIn(harness: string, lines: readonly Line[], session: string, wor
 /** A name held to the label limit. */
 function fitted(label: string): string {
   return label.length > LABEL_LIMIT ? `${label.slice(0, LABEL_LIMIT - 1)}…` : label;
+}
+
+/** A claim reason as a row's name (7.35): whole at 40 characters or fewer, else cut at the last word that fits with its ellipsis. */
+function fittedAtWord(reason: string): string {
+  const chars = [...reason];
+  if (chars.length <= LABEL_LIMIT) return reason;
+  const room = chars.slice(0, LABEL_LIMIT).join("");
+  const words = room.slice(0, Math.max(0, room.search(/\s\S*$/))).replace(/[\s,;:.]+$/, "");
+  return words ? `${words}…` : `${chars.slice(0, LABEL_LIMIT - 1).join("")}…`;
 }
 
 /**

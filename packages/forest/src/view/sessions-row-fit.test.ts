@@ -47,8 +47,8 @@ test("7.1, 7.13 a row working in two worktrees counts them by a number beside a 
   t.after(() => browser.close());
   const page = await browser.newPage({ viewport: { width: 800, height: 600 } });
   const css = await readFile(path.join(import.meta.dirname, "styles.css"), "utf8");
-  // At the rail's default width (the app's RAIL_DEFAULT, 432px): a name of the longest a row runs (40 characters), a machine name like the laptop's, and a total.
-  const trees: SessionRow = { ...row, label: "A session row counts its worktrees by a…", machine: "MicksMSpro", totalTokens: 412_000,
+  // At the rail's default width (the app's RAIL_DEFAULT, 432px): a name of the longest a row runs (40 characters), a machine name of ten characters, and a total.
+  const trees: SessionRow = { ...row, label: "A session row counts its worktrees by a…", machine: "studio-mac", totalTokens: 412_000,
     worktrees: [{ path: "/code/storytree03/.claude/worktrees/one", branches: [] }, { path: "/code/storytree03/.claude/worktrees/two", branches: [] }] };
   await page.setContent(`<style>${css}</style><div style="width:432px;height:400px">${renderToStaticMarkup(createElement(SessionsList, { rows: [trees], onHighlight() {} }))}</div>`);
   const seen = await page.evaluate(() => {

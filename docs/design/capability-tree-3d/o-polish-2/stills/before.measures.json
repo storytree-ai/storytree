@@ -1,0 +1,51 @@
+{
+ "query": "",
+ "roadDrawn": 1120,
+ "roadOnEdge": 0,
+ "segments": 95,
+ "gates": 40,
+ "overThird": 14,
+ "crowding": {
+  "island": {
+   "marks": 90,
+   "overlaps": 8,
+   "byKind": {
+    "name+name": 2,
+    "gate+name": 2,
+    "gate+symbol": 2,
+    "gate+gate": 2
+   },
+   "pairs": [
+    "name:Links + name:Catalogue",
+    "name:Graduation + gate:6",
+    "name:Owner questions + name:Connection by address",
+    "name:The command schema + gate:11",
+    "symbol:Cloud connection (GCP) + gate:28",
+    "symbol:Catalogue + gate:33",
+    "gate:2 + gate:37",
+    "gate:26 + gate:27"
+   ],
+   "nearestApart": 0.1,
+   "within4px": 15
+  },
+  "knot": {
+   "marks": 32,
+   "overlaps": 4,
+   "byKind": {
+    "name+name": 1,
+    "gate+name": 1,
+    "gate+symbol": 1,
+    "gate+gate": 1
+   },
+   "pairs": [
+    "name:Links + name:Catalogue",
+    "name:Graduation + gate:6",
+    "symbol:Catalogue + gate:33",
+    "gate:2 + gate:37"
+   ],
+   "nearestApart": 0.3,
+   "within4px": 9
+  }
+ },
+ "errors": []
+}

@@ -535,8 +535,8 @@ export class LogFold {
     // The background tasks a turn left running (a gate queued behind the heavy-run lock, say) run on with no line of their
     // own, until a later turn ends with none, or the session starts again, within LONGEST_COMMAND_MS (5.66). Its end needs
     // no clearing here: a session's end ends its claims.
-    if (line.kind === "turn-ended") own.backgroundUntil = (line.background ?? 0) > 0 ? Date.parse(line.at) + LONGEST_COMMAND_MS : undefined;
-    else if (line.kind === "session-started" && line.how !== "compact") own.backgroundUntil = undefined;
+    if (line.kind === "turn-ended" && (line.background ?? 0) > 0) own.backgroundUntil = Date.parse(line.at) + LONGEST_COMMAND_MS;
+    else if (line.kind === "turn-ended" || (line.kind === "session-started" && line.how !== "compact")) delete own.backgroundUntil;
     // Its close-out, and what came after it.
     if (line.kind === "closed-out") own.closedOut = { line, reopened: false };
     else if (own.closedOut !== undefined && (line.kind === "claimed" || line.kind === "prompt-submitted" || (line.kind === "session-started" && line.how !== "compact"))) own.closedOut.reopened = true;

@@ -7,10 +7,13 @@
  * again (ADR-1016 D2). What the drain hands a session is leased to it for a few minutes, so sessions
  * draining at once judge different reports, and route checks a report's earlier route inside its
  * write (question_5237b54da066). Every route but nothing names its remedy (ADR-1016 D3). The report's state machine is
- * the library core's (ADR-1077 D4).
+ * the library core's (ADR-1077 D4). Each report the drain offers comes with its lookalikes of the last four weeks, so
+ * the adjudicating session judges the reports sharing a root cause as one theme and routes the theme once (ADR-1241).
  */
 import type { FieldsOf, Library, Note, SchemaRecord, WriteOptions } from "@storytree/library";
 import { VerbRefusal } from "@storytree/library/verbs";
+
+import { closestFriction, type EarlierFriction } from "../filing/capture.js";
 
 /** A route refused before anything is written: its message says why, and each door answers it as a refusal. */
 export class RouteRefusal extends VerbRefusal {
@@ -26,6 +29,8 @@ export type Route = NonNullable<FieldsOf<"friction">["route"]>;
 /** A delivery reference can be added when routing, or later when the remedy has landed. */
 export interface RouteOptions extends WriteOptions {
   readonly dischargedBy?: string;
+  /** The other reports the adjudicator judged to share this one's root cause: the route is recorded on each (ADR-1241). */
+  readonly theme?: readonly string[];
 }
 
 /** How many friction reports one pass drains, at most. */
@@ -37,6 +42,18 @@ export const DRAIN = 3;
  * routing frees them soon, and a judgement that outlasts its lease is still guarded by route (17.14).
  */
 export const LEASE_MINUTES = 10;
+
+/** How far back the drain looks for a report's lookalikes, in days: four weeks (ADR-1241). */
+export const LOOKALIKE_DAYS = 28;
+
+/**
+ * The reports closest in meaning to `report` filed in the LOOKALIKE_DAYS before `now`, open, routed and settled alike,
+ * best first, never the report itself: what the adjudicator judges with it, keeping those that share its root cause.
+ */
+export function lookalikes(library: Library, report: SchemaRecord<"friction">, now = new Date()): Promise<EarlierFriction[]> {
+  const since = new Date(now.getTime() - LOOKALIKE_DAYS * 86_400_000).toISOString().slice(0, 10);
+  return closestFriction(library, report.fields, { except: report.id, since });
+}
 
 /** Who asks the drain: the branch it never hands back its own reports from, and the writer it leases them to. */
 export interface DrainOptions {
@@ -105,26 +122,44 @@ export async function openFriction(library: Library, { branch }: { branch?: stri
 /**
  * Route with a reason and optional delivery stamp; the library moves its state (ADR-1016 D2).
  * Every route but nothing needs a live remedy or a stamp (D3), and a routed report keeps its route.
+ * Given a theme, the route is recorded on every report in it, each linked to `id`, after every one is checked:
+ * a report in it already dismissed is judged again, since the theme says it was no one-off (ADR-1241).
  */
 export async function route(library: Library, id: string, to: Route, reason: string, options: RouteOptions = {}): Promise<SchemaRecord<"friction">> {
   if (reason.trim() === "") throw new RouteRefusal("a friction report is routed with its reason: nothing is closed without one");
-  const { dischargedBy: supplied, ...writer } = options;
+  const { dischargedBy: supplied, theme = [], ...writer } = options;
   const dischargedBy = supplied?.trim();
   if (dischargedBy === "") throw new RouteRefusal("dischargedBy needs a non-empty reference to the delivered remedy, such as a PR or decision; omit it when the remedy has not landed");
-  const report = (await liveNotes(library)).find((note) => note.id === id);
-  if (report?.type !== "friction") throw new RouteRefusal(`${id} is not a live friction report`);
-  refuseAnotherRoute(report, to);
-  if (to !== "nothing" && !(dischargedBy ?? report.fields.dischargedBy?.trim())) {
-    const remedy = (await library.list("increment")).some((increment) =>
-      increment.fields.status !== "closed" && increment.fields.remedies?.includes(id),
-    );
-    if (!remedy) throw new RouteRefusal(`routing to ${to} needs a live increment whose remedies names ${id}; park the fix on its owning arc, or supply dischargedBy when the remedy has already landed`);
+  const live = await liveNotes(library);
+  const members = [...new Set(theme)].filter((member) => member !== id);
+  const reports = [id, ...members].map((one) => live.find((note) => note.id === one));
+  for (const [index, report] of reports.entries()) {
+    if (report?.type !== "friction") throw new RouteRefusal(`${[id, ...members][index]} is not a live friction report`);
+    if (index > 0 && report.fields.state === "dismissed") continue;
+    refuseAnotherRoute(report, to);
   }
-  // Checked again inside the write (17.14): another pass may have routed it since this one read it.
-  return (await library.editNote(id, {
-    route: to, routeReason: reason, lease: undefined,
-    ...(dischargedBy === undefined ? {} : { dischargedBy }),
-  }, { ...writer, checkCurrent: (current) => refuseAnotherRoute(current, to) })) as SchemaRecord<"friction">;
+  if (to !== "nothing") {
+    const remedied = new Set((await library.list("increment"))
+      .filter((increment) => increment.fields.status !== "closed")
+      .flatMap((increment) => increment.fields.remedies ?? []));
+    const owed = (reports as SchemaRecord<"friction">[])
+      .filter((report) => !(dischargedBy ?? report.fields.dischargedBy?.trim()) && !remedied.has(report.id))
+      .map((report) => report.id);
+    if (owed.length > 0) throw new RouteRefusal(`routing to ${to} needs a live increment whose remedies names ${owed.join(", ")}; park the fix on its owning arc, or supply dischargedBy when the remedy has already landed`);
+  }
+  const judgement = { route: to, routeReason: reason, lease: undefined, ...(dischargedBy === undefined ? {} : { dischargedBy }) };
+  // Each checked again inside its write (17.14): another pass may have routed it since this one read it. The theme is
+  // written before the report routed, so a refusal leaves that one open for the drain to offer again. Each links the one
+  // routed, never the reverse too: artifacts' links form no loop.
+  for (const report of reports.slice(1) as SchemaRecord<"friction">[]) {
+    await library.editNote(report.id, { ...judgement, links: [...new Set([...(report.fields.links ?? []), id])] }, {
+      ...writer,
+      checkCurrent: (current) => {
+        if (current.type !== "friction" || current.fields.state !== "dismissed") refuseAnotherRoute(current, to);
+      },
+    });
+  }
+  return (await library.editNote(id, judgement, { ...writer, checkCurrent: (current) => refuseAnotherRoute(current, to) })) as SchemaRecord<"friction">;
 }
 
 /** Another pass's route is not replaced in silence: a routed report is routed again only the same way (17.11). */

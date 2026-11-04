@@ -11,8 +11,23 @@ test("5.35 the command line's wording of a refused claim names the increments it
   const holder = { capability: "capability_form", session: "s1", label: "Codex", reason: "build form", since: "2026-10-10T00:00:00.000Z", holder: "live" } as const;
   const refused = workspaceRefusalText("capability_form", { ok: false, refused: "held", holder, heldFor: ["increment_form", "increment_mail"] });
   assert.ok(refused.includes("Codex session s1 for increment_form, increment_mail: build form"), refused);
-  assert.ok(refused.includes("once increment_form closes"), refused);
-  assert.doesNotMatch(workspaceRefusalText("capability_form", { ok: false, refused: "held", holder, heldFor: [] }), / for |closes/);
+  assert.doesNotMatch(workspaceRefusalText("capability_form", { ok: false, refused: "held", holder, heldFor: [] }), /session s1 for |closes/);
+  const increment = workspaceRefusalText("increment_form", { ok: false, refused: "held", holder: { ...holder, capability: undefined, increment: "increment_form" }, heldFor: ["increment_form"] });
+  assert.ok(increment.includes("once increment_form closes"), increment);
+});
+
+test("5.64 the command line's wording of a refused capability, held directly or on a held increment's list, says to wait on its claim, which clears when its holder releases it; a refused increment's does not", () => {
+  const holder = { capability: "capability_form", session: "s1", label: "Codex", reason: "build form", since: "2026-10-10T00:00:00.000Z", holder: "live" } as const;
+  const waitOn = (capability: string) => `storytree arc increment wait <increment> --on ${capability} --reason …), which clears the moment its holder releases it`;
+  for (const heldFor of [[], ["increment_form"]]) {
+    const direct = workspaceRefusalText("capability_form", { ok: false, refused: "held", holder, heldFor });
+    assert.ok(direct.includes(waitOn("capability_form")), direct);
+    assert.doesNotMatch(direct, /closes/);
+  }
+  const listed = workspaceRefusalText("increment_speed", { ok: false, refused: "held", listed: "capability_surface", holder: { ...holder, capability: undefined, increment: "increment_tab" }, heldFor: ["increment_tab"] });
+  assert.ok(listed.includes(waitOn("capability_surface")), listed);
+  const increment = workspaceRefusalText("increment_form", { ok: false, refused: "held", holder: { ...holder, capability: undefined, increment: "increment_form" }, heldFor: ["increment_form"] });
+  assert.doesNotMatch(increment, /wait on its claim/);
 });
 
 test("5.25 the command line's wording of a refused workspace offers --despite-open-pulls from the refusal's pull data regardless of its wording", () => {

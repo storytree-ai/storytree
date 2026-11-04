@@ -273,9 +273,9 @@ function Territories({ land: given, coast: givenCoast, links, docks: givenDocks,
   const drawn = useMemo(() => {
     const group = territoryLand(map, onLand, coast, tints, roads?.gates);
     // The roads and the relief lie on the land, so they show and hide with the territories (3.22).
-    if (roads !== undefined) {
+    if (roads !== undefined && relief !== undefined) {
       const fill = landFill(map, group);
-      if (relief !== undefined) group.add(islandReliefMarks(relief, onIslandSurface(radius, TERRITORY_LIFT), fill));
+      group.add(islandReliefMarks(relief, onIslandSurface(radius, TERRITORY_LIFT), fill));
       group.add(islandRoadMarks(roads, onIslandSurface(radius, ROAD_LIFT), fill, relief));
     }
     return { group, map };

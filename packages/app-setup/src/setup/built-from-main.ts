@@ -20,7 +20,13 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { storytreeHome } from "@storytree/project-and-caller";
-import { defaultHomes, registeredHookScripts, type HookCommand, type Homes } from "./hooks-config.js";
+import { defaultHomes, registeredHookScripts, type Homes } from "./hooks-config.js";
+
+/** The command a harness runs as storytree's hook: a Node and the built hook script. */
+export interface HookCommand {
+  readonly node: string;
+  readonly script: string;
+}
 
 export interface FollowMainOptions {
   /** The checkout the tool server runs from. */

@@ -52,15 +52,10 @@ import { HARNESS_IDS } from "@storytree/project-and-caller/caller";
 
 import { read, save } from "../connect/harness.js";
 import { installBuilderAgents, removeBuilderAgents } from "./builder-agents.js";
+import type { HookCommand } from "./built-from-main.js";
 import { piExtension } from "./pi-extension.js";
 
-export { defaultHomes, registeredHookScripts, type Homes };
-
-/** The command a harness runs as storytree's hook: a Node and the built hook script. */
-export interface HookCommand {
-  readonly node: string;
-  readonly script: string;
-}
+export { defaultHomes, registeredHookScripts, type HookCommand, type Homes };
 
 /**
  * What registering found: storytree's hooks added now, already there, no such harness on this

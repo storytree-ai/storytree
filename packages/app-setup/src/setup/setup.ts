@@ -37,7 +37,8 @@ export { putCommandOnPath, removeCommand } from "./command.js";
 export type { CommandInstall, CommandPath } from "./command.js";
 
 export { connectedHarnesses, defaultHomes, disconnectedHarnesses, markDisconnected, registerHooks, removeHooks } from "./hooks-config.js";
-export type { Harness, HookCommand, HookRegistration, Homes, HooksReport, RemovalReport } from "./hooks-config.js";
+export type { Harness, HookRegistration, Homes, HooksReport, RemovalReport } from "./hooks-config.js";
+export type { HookCommand } from "./built-from-main.js";
 export { openStorytree } from "./open-storytree.js";
 export type { StorytreeOpened } from "./open-storytree.js";
 

@@ -414,7 +414,7 @@ test("app-setup 8.45 check_setup names each plugin in this computer's factory th
     const plugins = path.join(dir, ".storytree", "your-factory", "plugins");
     const plugin = (name: string, manifest: Record<string, unknown>) => {
       mkdirSync(path.join(plugins, name), { recursive: true });
-      writeFileSync(path.join(plugins, name, "package.json"), JSON.stringify({ name, storytree: { interface: 1, ...manifest } }));
+      writeFileSync(path.join(plugins, name, "package.json"), JSON.stringify({ name, storytree: { interface: 1, verbs: [{ from: "./verbs", export: "PLUGIN_FAMILIES" }], ...manifest } }));
     };
     plugin("micks-dev-loop", {});
     plugin("my-runner", { for: "agent-pool" });

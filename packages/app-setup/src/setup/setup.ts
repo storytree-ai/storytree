@@ -24,17 +24,17 @@ import { firstCommit, suggestedName } from "../project/making.js";
 import { connectedHarnesses, defaultHomes, disconnectedHarnesses, registeredHookScripts, registerHooks, type Harness, type HookCommand, type Homes, type HooksReport } from "./hooks-config.js";
 import { hooksRelease, type HooksRelease, type LatestRelease } from "./hooks-release.js";
 import { openStorytree, type StorytreeOpened } from "./open-storytree.js";
-import { ghState, putCommandOnPath, type CommandInstall, type CommandPath, type GhState } from "./command.js";
+import { putCommandOnPath, type CommandInstall, type CommandPath } from "./command.js";
 import { setupLines, type SetupLine } from "./diagnostics.js";
-import { installedCodexVersion, machineState, type MachineState } from "./machine.js";
+import { ghState, installedCodexVersion, machineState, type GhState, type MachineState } from "./machine.js";
 
 
 export type { SetupLine } from "./diagnostics.js";
-export { installedCodexVersion, machineState, NODE_FLOOR, runsElevated } from "./machine.js";
-export type { AgentCliState, MachineOptions, MachineState, ToolState } from "./machine.js";
+export { ghState, installedCodexVersion, machineState, NODE_FLOOR, runsElevated } from "./machine.js";
+export type { AgentCliState, GhState, MachineOptions, MachineState, ToolState } from "./machine.js";
 
-export { ghState, putCommandOnPath, removeCommand } from "./command.js";
-export type { CommandInstall, CommandPath, GhState } from "./command.js";
+export { putCommandOnPath, removeCommand } from "./command.js";
+export type { CommandInstall, CommandPath } from "./command.js";
 
 export { connectedHarnesses, defaultHomes, disconnectedHarnesses, markDisconnected, registerHooks, removeHooks } from "./hooks-config.js";
 export type { Harness, HookCommand, HookRegistration, Homes, HooksReport, RemovalReport } from "./hooks-config.js";

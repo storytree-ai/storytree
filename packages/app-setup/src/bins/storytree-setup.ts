@@ -1,6 +1,6 @@
 /**
- * Capability 8 · Setup check. `storytree-setup install | remove`: register storytree's hooks for Claude Code, Codex, Cursor, Pi and Antigravity CLI now,
- * outside any session, or take out exactly what storytree added (capability 8 · Setup check,
+ * Capability 2 · Connect an agent. `storytree-setup install | remove`: register storytree's hooks for Claude Code, Codex, Cursor, Pi and Antigravity CLI now,
+ * outside any session, or take out exactly what storytree added (hook registration,
  * the app setup story). The hook registered is the `storytree-hook.mjs` built beside this script.
  * Claude Code's settings are CLAUDE_CONFIG_DIR's or ~/.claude's, Codex's CODEX_HOME's or ~/.codex's, Cursor's ~/.cursor's, Pi's PI_CODING_AGENT_DIR or ~/.pi/agent, Antigravity CLI's ~/.gemini/config.
  */

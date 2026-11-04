@@ -1,5 +1,5 @@
 /**
- * Capability 8 · Setup check. Registering storytree's hooks in each harness's own user-level settings, and taking them out
+ * Capability 2 · Connect an agent (hook registration, ADR-1242 D1). Registering storytree's hooks in each harness's own user-level settings, and taking them out
  * again: only ever storytree's entries, recognised by the hook script they run
  * (`storytree-hook.mjs`), so every other setting is left exactly as it was.
  *
@@ -127,7 +127,7 @@ export function registerHooks(homes: Homes, hook: HookCommand, disconnected: Rea
       : unconnected.has(harness) ? { registration: isFolder(home[harness]) ? "not connected" : "not here", replaced: [] }
         : undefined;
   const claude = left("claude-code") ?? register(homes.claude, "settings.json", claudeEntries(hook), hook.script, {}, look);
-  // storytree's red and green builder agents go with Claude Code's hooks (8.38).
+  // storytree's red and green builder agents go with Claude Code's hooks (2.24).
   if (left("claude-code") === undefined) installBuilderAgents(homes.claude, hook, look);
   const codex = left("codex") ?? register(homes.codex, "hooks.json", codexEntries(hook, codexVersion), hook.script, {}, look);
   // Cursor's hooks file must name its version: a new file gets 1, and one the user wrote keeps its own.

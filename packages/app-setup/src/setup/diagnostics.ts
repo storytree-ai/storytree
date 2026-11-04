@@ -245,8 +245,8 @@ function machineLines(machine: MachineState, entry: ServerEntry | undefined, con
       : state === "signed out" ? `${name} is installed and not signed in`
         : state === "missing" ? `${name} is not installed`
           : `${name} did not answer within ${seconds}`;
-  // Cursor and Pi are only ever there or not: Cursor's command line reports a lapsed sign-in as logged in (8.28),
-  // and Pi signs in to each model provider on its own, with nothing to ask (8.29).
+  // Cursor and Pi are only ever there or not: Cursor's command line reports a lapsed sign-in as logged in (8.46),
+  // and Pi signs in to each model provider on its own, with nothing to ask (8.46).
   const there = (name: string, state: ToolState | undefined): string => state === undefined ? "" : `; ${state === "present" ? `${name} is installed` : state === "missing" ? `${name} is not installed` : `${name} did not answer within ${seconds}`}`;
   const clis = `${cli("Claude Code", machine.claude)}; ${cli("Codex", machine.codex)}${there("Cursor", machine.cursor)}${there("Pi", machine.pi)}${there("Antigravity CLI", machine.antigravity)}`;
   const agentReady = machine.claude === "signed in" || machine.codex === "signed in";

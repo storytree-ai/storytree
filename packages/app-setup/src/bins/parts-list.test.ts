@@ -1,4 +1,4 @@
-/** Setup's builds pack each host's parts from the list Plugin loader's step writes, never from its code. */
+/** Capability 18 · Built commands: contract 18.6. Setup's builds pack each host's parts from the list Plugin loader's step writes, never from its code. */
 import assert from "node:assert/strict";
 import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -50,7 +50,7 @@ async function bundle<T>(dir: string, entry: string, plugin = partsFromList()): 
 const arcs: Story = { name: "@s/arcs", surfaces: { ids: ["arcs"], order: 2 } };
 const forest: Story = { name: "@s/forest", surfaces: { ids: ["globe", "library"], order: 1 } };
 
-test("8.41 · a build packs each #parts/<kind> from the parts list Plugin loader's step writes for the importing file's package, in its order with each part's owner and the host's parts graph", async (t) => {
+test("18.6 · a build packs each #parts/<kind> from the parts list Plugin loader's step writes for the importing file's package, in its order with each part's owner and the host's parts graph", async (t) => {
   const dir = host(t, [arcs, forest]);
   const bundled = await bundle<{ surfaces: { parts: unknown; owners: unknown; graph: unknown } }>(dir, `import surfaces from "#parts/surfaces";\nexport { surfaces };\n`);
   assert.deepEqual(bundled.surfaces.parts, [{ id: "globe" }, { id: "library" }, { id: "arcs" }]);
@@ -58,7 +58,7 @@ test("8.41 · a build packs each #parts/<kind> from the parts list Plugin loader
   assert.deepEqual(bundled.surfaces.graph, { arcs: [], forest: [] });
 });
 
-test("8.41 · two hosts in one bundle importing the same #parts/<kind> each get their own parts list's parts", async (t) => {
+test("18.6 · two hosts in one bundle importing the same #parts/<kind> each get their own parts list's parts", async (t) => {
   // A story package that is itself a host, mounting its own dependencies' parts, bundled into another host.
   const inner: Story = { name: "@s/inner", dependencies: ["@s/arcs"], files: { "index.js": `import surfaces from "#parts/surfaces";\nexport { surfaces };\n` } };
   const dir = host(t, [arcs, forest, inner]);
@@ -67,7 +67,7 @@ test("8.41 · two hosts in one bundle importing the same #parts/<kind> each get 
   assert.deepEqual(bundled.inner.parts, [{ id: "arcs" }], "the inner host's own dependencies' parts, not the outer's");
 });
 
-test("8.41 · a build whose parts list is missing, or out of date with a package.json it was written from, fails naming it rather than pack the wrong parts, and so does one importing a kind its package.json maps no list for", async (t) => {
+test("18.6 · a build whose parts list is missing, or out of date with a package.json it was written from, fails naming it rather than pack the wrong parts, and so does one importing a kind its package.json maps no list for", async (t) => {
   const entry = `import surfaces from "#parts/surfaces";\nexport { surfaces };\n`;
   const missing = host(t, [arcs, forest]);
   await assert.rejects(bundle(missing, entry, partsFromList({ write: async () => {} })), /no parts list for .*: Plugin loader's step wrote none/);

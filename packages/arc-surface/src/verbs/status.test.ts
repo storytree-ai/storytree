@@ -162,7 +162,7 @@ test("3.24 · `arc status` reads a wait on a capability's claim against the clai
   assert.equal(await line(), `  Blocked         ${arc.id}  Speed — ${fix.id} Open-app speed fix: waits on ${board.id} ${board.fields.title} (board is taken)`);
 });
 
-test("3.25 · the board, `arc show` and `arc waits` read a wait on a capability's claim against the claims live sessions hold now: holding while one holds it, cleared once none does", async (t) => {
+test("3.25 · the board, `arc show` and `arc waits` read a wait on a capability's claim against the claims live sessions hold now: holding, naming the capability by its title, while one holds it, cleared once none does", async (t) => {
   const { library, log, project } = await aProject(t);
   const context: ArcVerbContext = { library, log, project, session: "person:test", folder: "/work", writer: { actor: "person:test" } };
   const arcVerbs = ARC_FAMILIES.find((family) => family.name === "arc")!.verbs;
@@ -185,7 +185,7 @@ test("3.25 · the board, `arc show` and `arc waits` read a wait on a capability'
   };
   assert.match(await shown(), new RegExp(`waits on ${surface.id}: refused: another session holds it`));
   assert.equal(await waiting(), "No waits for you or an outside event.", "an owner wait on work still waiting is not his yet");
-  assert.deepEqual((await bar()).waits.map(({ id }) => id), [surface.id]);
+  assert.deepEqual((await bar()).waits.map(({ id, title }) => [id, title]), [[surface.id, surface.fields.title]], "the board names the capability by its title from the library's holds alone");
   assert.equal((await bar()).reading.state, "queued");
 
   // The holder lets the claim go: nothing is written to the wait, and every reader reads it cleared.

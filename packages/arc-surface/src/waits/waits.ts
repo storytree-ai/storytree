@@ -90,7 +90,7 @@ export interface WorkName {
   title: string;
   arc?: { id: string; title: string };
 }
-export interface NamedWait extends WorkName, Hold {
+export interface NamedWait extends WorkName, Omit<Hold, "title"> {
   warning?: string;
 }
 export interface BoardWaits {

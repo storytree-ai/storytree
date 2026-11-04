@@ -858,7 +858,8 @@ test("5.64 claiming an increment that waits on a capability's claim is refused w
     const expansion = await park("arcs tab expansion", [emailForm]);
     const fix = await park("speed fix");
     await library.addWait(fix, emailForm, "refused: another session holds it");
-    const waiting = [{ increment: fix, on: emailForm, reason: "refused: another session holds it", forGood: false, claim: true }];
+    const { title } = (await library.get(emailForm))?.fields as { title: string };
+    const waiting = [{ increment: fix, on: emailForm, reason: "refused: another session holds it", forGood: false, claim: true, title }];
 
     assert.equal((await claim(as("A"), expansion, "expanding the tab")).ok, true);
     assert.deepEqual(await claim(as("B"), fix, "fixing speed"), { ok: false, refused: "waiting", waits: waiting }, "held on the list of the increment A holds");

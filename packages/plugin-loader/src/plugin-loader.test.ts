@@ -220,12 +220,13 @@ test("5.21 · the factory plugin this computer's setting does not name that decl
   assert.equal(unnamedOwnerOf({ folder: path.join(folder, "plugins", "broken"), plugins: {} }, "verbs", "quality"), undefined, "a folder with no plugins in it finds none");
 });
 
-test("5.22 · every factory plugin with a storytree manifest this computer's setting does not name is listed, in name order, with the part `settings set part` names it as; a named plugin, one with no manifest or one that cannot be read, and no factory folder list none", (t) => {
+test("5.22 · every factory plugin with a storytree manifest this computer's setting does not name is listed, in name order, with the part `settings set part` names it as; a named plugin, one with no manifest or one that cannot be read, one whose manifest declares nothing to mount (only a plan), and no factory folder list none", (t) => {
   const folder = factory(t, {
     "micks-dev-loop": verbsPlugin,
     "my-runner": { ...verbsPlugin, manifest: { ...verbsPlugin.manifest, for: "agent-pool" } },
     "ci-health": verbsPlugin,
     broken: { ...verbsPlugin, manifest: { ...verbsPlugin.manifest, interface: 99 } },
+    "session-manager": { ...verbsPlugin, manifest: { interface: PLUGIN_INTERFACE, plan: "./plan.json" } },
   });
   mkdirSync(path.join(folder, "plugins", "plain"), { recursive: true });
   writeFileSync(path.join(folder, "plugins", "plain", "package.json"), JSON.stringify({ name: "plain" }));

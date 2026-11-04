@@ -234,7 +234,10 @@ export class WorkInFlight {
    * Add an increment to a live arc (MissingReferenceError otherwise, as for any capability, link,
    * remedies or increment it waits on that is not live). A wait given at birth needs no loop check,
    * since nothing can wait on a record not yet written. It is a proposal, stamped with when it was parked, or, given an
-   * `outcome`, born closed.
+   * `outcome`, born closed. A proposal whose capabilities list names a capability already on another open increment's
+   * list is refused, naming that increment and its arc, so a second drain routes to the one already parked: unless it is
+   * born waiting on that increment or on that capability's claim, as a later step of a split, or a lane following the
+   * one that holds it, is (ADR-1228).
    */
   addIncrement(increment: NewIncrement, options?: WriteOptions): Promise<SchemaRecord<"increment">> {
     return this.#serially(async () => {
@@ -242,6 +245,18 @@ export class WorkInFlight {
       await checkReference(this.#records, "arc", fields.arc, "arc");
       await this.#checkNames(fields);
       for (const { on } of fields.waits ?? []) await checkReference(this.#records, "on", on, "increment");
+      if (outcome === undefined) {
+        const follows = new Set((fields.waits ?? []).map(({ on }) => on));
+        const [shared] = (await this.openListing(fields.capabilities ?? []))
+          .map((other) => ({ ...other, capabilities: other.capabilities.filter((capability) => !follows.has(capability)) }))
+          .filter((other) => !follows.has(other.increment) && other.capabilities.length > 0);
+        if (shared !== undefined) {
+          throw new RangeError(
+            `${shared.capabilities.join(", ")} ${shared.capabilities.length === 1 ? "is" : "are"} already on the capabilities list of open increment ${shared.increment} ` +
+              `(${JSON.stringify(shared.title)}, on arc ${shared.arc}): route this work to that increment, or, if it follows that one, park it waiting on it`,
+          );
+        }
+      }
       const waitsFor = fields.waitsFor?.map(checkedWaitFor);
       if (waitsFor !== undefined && outcome !== undefined) throw new RangeError("an increment born closed waits for nothing");
       if (new Set(waitsFor?.map(({ releaser }) => releaser)).size !== (waitsFor?.length ?? 0)) throw new RangeError("an increment waits with one note per releaser");
@@ -250,6 +265,19 @@ export class WorkInFlight {
         : { status: "closed" as const, outcome: outcomeOf(outcome), ...escapeAnswer(fields.escape, outcome) };
       return this.#records.create("increment", { ...fields, ...(waitsFor === undefined || waitsFor.length === 0 ? { waitsFor: undefined } : { waitsFor }), ...lifecycle }, options);
     });
+  }
+
+  /**
+   * The open increments, other than `except`, whose capabilities lists name any of `capabilities`, oldest first, each
+   * with its title, its arc and the capabilities it shares: what a park refuses and an edit of a list is told.
+   */
+  async openListing(capabilities: readonly string[], except?: string): Promise<{ increment: string; title: string; arc: string; capabilities: string[] }[]> {
+    if (capabilities.length === 0) return [];
+    const open = await this.#records.select("increment", ["title", "arc", "capabilities"], { not: { status: "closed" } });
+    return open
+      .filter((other) => other.id !== except)
+      .map((other) => ({ increment: other.id, title: other.fields.title, arc: other.fields.arc, capabilities: capabilities.filter((id) => (other.fields.capabilities ?? []).includes(id)) }))
+      .filter((other) => other.capabilities.length > 0);
   }
 
   /**

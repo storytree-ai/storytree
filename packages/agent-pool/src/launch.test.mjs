@@ -502,6 +502,17 @@ test("3.26 · the lock file's own liveness check: a live holder, or one it may n
   assert.equal(await withLockFile(path, async () => "ran", { pid: 3, sleep: async () => assert.fail("a gone holder's lock blocked") }), "ran");
 });
 
+test("3.26 · a lock file Windows refuses with EPERM, as while a holder's file is being removed, is waited on and taken", async (t) => {
+  const path = join(await folder(t), "lock");
+  let refusals = 1, waited = 0;
+  const write = async (...args) => {
+    if (refusals-- > 0) throw Object.assign(new Error("EPERM: operation not permitted"), { code: "EPERM" });
+    return writeFile(...args);
+  };
+  assert.equal(await withLockFile(path, async () => "ran", { pid: 3, write, sleep: async () => { waited += 1; } }), "ran");
+  assert.equal(waited, 1, "refused once, it waited once, then took the lock");
+});
+
 test("3.26 · on Windows the checkout's pnpm install runs through a shell, since pnpm is a .cmd there; git never does, and on Linux nothing does", async () => {
   for (const platform of ["win32", "linux"]) {
     const calls = [];

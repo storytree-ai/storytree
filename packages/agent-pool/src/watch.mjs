@@ -148,10 +148,10 @@ const QUERY = `query($owner: String!, $name: String!, $pr: Int!) { repository(ow
 /**
  * The merge queue's removals of `pull` for failed checks, from its timeline as GitHub's GraphQL gives it (4.52): each
  * with when it was removed, the queue's commit its checks failed on, and that commit's parents (main or the queue
- * commit of the entry ahead of it, then the pull request's head it was red at).
+ * commit of the entry ahead of it, then the pull request's head it was red at). One removed at a time in `seen` is left out.
  */
-export const queueRemovals = (pull) => (pull?.timelineItems?.nodes ?? [])
-  .filter((removal) => removal?.reason?.toUpperCase() === "FAILED_CHECKS" && removal.createdAt && removal.beforeCommit?.oid)
+export const queueRemovals = (pull, seen = new Set()) => (pull?.timelineItems?.nodes ?? [])
+  .filter((removal) => removal?.reason?.toUpperCase() === "FAILED_CHECKS" && removal.createdAt && removal.beforeCommit?.oid && !seen.has(removal.createdAt))
   .map((removal) => ({ at: removal.createdAt, commit: removal.beforeCommit.oid, parents: (removal.beforeCommit.parents?.nodes ?? []).map((one) => one.oid) }));
 
 /**
@@ -203,7 +203,7 @@ export async function lookOnGitHub(pr, { repo, since, now = Date.now, graceMs = 
     { cwd: repo, maxBuffer: 16 * 1024 * 1024 });
   const found = JSON.parse(stdout).data.repository.pullRequest;
   const queueReds = [];
-  for (const red of queueRemovals(found).filter((one) => !seen.has(one.at))) {
+  for (const red of queueRemovals(found, seen)) {
     // A red whose checks cannot be read is still kept, naming none.
     queueReds.push({ ...red, ...await queueFailures(repo, red.commit, home).catch(() => ({ checks: [], tests: [] })) });
   }

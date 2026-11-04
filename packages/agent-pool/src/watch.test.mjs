@@ -431,15 +431,17 @@ test("4.45 · on MERGED the watcher lets go of a pull request's claims as a merg
 
 test("4.52 · the merge queue's removals for failed checks are read from the timeline with the queue's commit and its parents; a removal on merging, or one naming no commit, is not one", () => {
   const removal = (createdAt, reason, oid, parents) => ({ createdAt, reason, beforeCommit: oid ? { oid, parents: { nodes: parents.map((one) => ({ oid: one })) } } : null });
-  assert.deepEqual(queueRemovals(pull({ removed: [
+  const removed = [
     removal(minutes(-50), "failed_checks", "q1", ["main1", "h1"]),
     removal(minutes(-40), "FAILED_CHECKS", "q2", ["q0", "h2"]),
     removal(minutes(-30), "failed_checks", null, []),
     removal(minutes(-20), "merged", "q3", ["main2", "h2"]),
-  ] })), [
+  ];
+  assert.deepEqual(queueRemovals(pull({ removed })), [
     { at: minutes(-50), commit: "q1", parents: ["main1", "h1"] },
     { at: minutes(-40), commit: "q2", parents: ["q0", "h2"] },
   ]);
+  assert.deepEqual(queueRemovals(pull({ removed }), new Set([minutes(-50)])), [{ at: minutes(-40), commit: "q2", parents: ["q0", "h2"] }], "one already seen is left out");
 });
 
 test("4.52 · a kept queue red is caused by the entry ahead when the queue commit's first parent never reached main; else, merged, a flake at the head it was red at and real after a new head; unknown when it never merged or that is unread", () => {
@@ -488,6 +490,18 @@ test("4.52 · each merge-queue red the watcher sees is kept on its hand-off once
   await watchOnce(b.options);
   assert.deepEqual(b.calls.filter(([, verb]) => verb === "queue-red"), [
     ["workspace", "queue-red", "44", "--increment", "increment_four", "--removed-at", minutes(-30), "--commit", "q2", "--outcome", "unknown"],
+  ]);
+
+  // With no way to ask whether a commit is on main, a merged pull request's reds are unknown too.
+  await handOff(b, 45, "increment_five");
+  b.looks[45] = { state: "pending", head: "h1", queueReds: [later] };
+  await watchOnce(b.options);
+  b.calls.length = 0;
+  delete b.options.reached;
+  b.looks[45] = { state: "merged", head: "h2" };
+  await watchOnce(b.options);
+  assert.deepEqual(b.calls.filter(([, verb]) => verb === "queue-red"), [
+    ["workspace", "queue-red", "45", "--increment", "increment_five", "--removed-at", minutes(-30), "--commit", "q2", "--outcome", "unknown"],
   ]);
 
   // A hand-off forgotten at a cut-over has no pull request read, so each red it kept is unknown.

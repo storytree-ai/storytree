@@ -8,7 +8,7 @@ that read; `measurements.json` holds every frame drawn after it, with how many r
 - `after/` (this branch): none of 15 frames is without roads; the roads drawn before stay on show, as they were, until the
   new ones are routed (4.38), and a routing in flight is not started over by the next layout with the same key (4.39).
 
-In this snapshot growing The command line moves it alone, so the capture shows 4.38 and 4.39; a uniform shift of every
+In this snapshot growing The command line moves no other island, so the capture shows 4.38 and 4.39; a uniform shift of every
 island (4.37) is shown by its test in `packages/forest-world/src/planet/road-routing.test.ts`.
 
 Taken with `node --import tsx packages/forest/testing/view/pathway-repair/build.mjs <checkout> before|after`, then

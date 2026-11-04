@@ -6,7 +6,8 @@
  */
 import { islandCoast } from "@storytree/forest-world/geometry";
 import type { Island } from "@storytree/forest-world/scene";
-import { islandTerritories, type Point, type TerritoryMap } from "../territories/territories.js";
+import type { Point, TerritoryMap } from "../territories/territories.js";
+import { islandLayout, type Link, type LinkDock } from "../territories/link-layout.js";
 import { insideOf } from "./territory-land.js";
 
 const key = (p: Point) => `${Math.round(p.x * 1e6)},${Math.round(p.z * 1e6)}`;
@@ -107,18 +108,17 @@ export function borderRoute(map: TerritoryMap, capability: string, dock: Point):
 }
 
 /** The globe's ways inland (its `laneWays`): from a dock on a story's island to a capability's territory, on the
- * territories as the island draws them, each island cut once and each way found once. */
-export function laneWays(islands: readonly Island[]): (story: string, capability: string, dock: Point) => Point[] | undefined {
-  const maps = new Map<string, TerritoryMap | undefined>(), found = new Map<string, Point[] | undefined>();
-  return (story, capability, dock) => {
-    if (!maps.has(story)) {
-      const island = islands.find((one) => one.story === story);
-      maps.set(story, island?.land === undefined ? undefined : islandTerritories(island.land.territories, islandCoast(island)));
-    }
-    const map = maps.get(story), asked = `${story}|${capability}|${key(dock)}`;
-    if (map === undefined) return undefined;
-    if (!found.has(asked)) found.set(asked, borderRoute(map, capability, dock));
-    return found.get(asked);
+ * territories as the island draws them (the `selected` island's laid out by `links` and its `docks`, ADR-1236 D1),
+ * each way found once on each cut. */
+export function laneWays(islands: readonly Island[], links: readonly Link[] = [], selected?: string): (story: string, capability: string, dock: Point, docks?: readonly LinkDock[]) => Point[] | undefined {
+  const found = new WeakMap<TerritoryMap, Map<string, Point[] | undefined>>();
+  return (story, capability, dock, docks) => {
+    const island = islands.find((one) => one.story === story);
+    if (island?.land === undefined) return undefined;
+    const map = islandLayout(island.land.territories, islandCoast(island), links, story === selected ? docks : undefined);
+    const ways = found.get(map) ?? found.set(map, new Map()).get(map)!, asked = `${capability}|${key(dock)}`;
+    if (!ways.has(asked)) ways.set(asked, borderRoute(map, capability, dock));
+    return ways.get(asked);
   };
 }
 

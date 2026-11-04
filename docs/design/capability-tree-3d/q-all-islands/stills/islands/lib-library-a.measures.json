@@ -1,0 +1,60 @@
+{
+ "story_754e87e7d531": {
+  "story": "The library",
+  "query": "?story=story_754e87e7d531&layout=library-a",
+  "roadDrawn": 1077,
+  "roadOnEdge": 0,
+  "gates": 36,
+  "gatesOnOpenLand": 4,
+  "overThird": 17,
+  "inside": 35,
+  "ways": 54,
+  "unplaced": [],
+  "noEntrance": 0,
+  "hub": "7 · Library API",
+  "busiest": [
+   "7 · Library API",
+   "24 · Graduation",
+   "3 · Data schema",
+   "4 · Work model",
+   "26 · Rounds",
+   "5 · Health record"
+  ],
+  "island": {
+   "overlaps": 13,
+   "within4px": 12,
+   "byKind": {
+    "name+wrench": 4,
+    "name+name": 1,
+    "symbol+wrench": 2,
+    "gate+symbol": 1,
+    "gate+wrench": 2,
+    "gate+gate": 3
+   },
+   "pairs": [
+    "name:Work model + wrench:Decision log",
+    "name:Cloud connection (GCP) + wrench:Cloud connection (GCP)",
+    "name:Links + wrench:Decision log",
+    "name:Lapsed questions + name:Rounds",
+    "name:The library's commands + wrench:The library's commands",
+    "symbol:Work model + wrench:Decision log",
+    "symbol:Cloud connection (GCP) + wrench:Cloud connection (GCP)",
+    "symbol:Links + gate:28",
+    "gate:21 + wrench:Links",
+    "gate:30 + wrench:Decision log",
+    "gate:31 + gate:32",
+    "gate:31 + gate:34",
+    "gate:32 + gate:34"
+   ]
+  },
+  "busy": {
+   "overlaps": 1,
+   "within4px": 6
+  },
+  "round13Knot": {
+   "overlaps": 7,
+   "within4px": 7
+  },
+  "errors": []
+ }
+}

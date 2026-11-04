@@ -43,13 +43,13 @@ export interface BuildOptions {
   readonly appPath: string;
   /** The commit it was built from, when known. */
   readonly sha?: string;
-  /** Set when the app is a packaged build. */
-  readonly packaged?: { readonly version: string };
+  /** Set when the app is a packaged build, with the commit it was bundled from when known. */
+  readonly packaged?: { readonly version: string; readonly commit?: string };
 }
 
-/** Which build this is, in a few words: `version 0.3.0`, or the development checkout it runs from. */
+/** Which build this is, in a few words: `version 0.3.0 (commit 9fa208b)`, or the development checkout it runs from. */
 export function buildLabel({ appPath, sha, packaged }: BuildOptions): string {
-  if (packaged !== undefined) return `version ${packaged.version}`;
+  if (packaged !== undefined) return `version ${packaged.version}${packaged.commit === undefined ? "" : ` (commit ${packaged.commit.slice(0, 7)})`}`;
   const short = sha === undefined ? "" : ` ${sha.slice(0, 7)}`;
   return `development build${short} from ${path.resolve(appPath, "..", "..")} (does not update itself)`;
 }

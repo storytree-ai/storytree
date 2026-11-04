@@ -117,6 +117,7 @@ import { createTrayIcon, createWindowIcon } from "./tray-icon.js";
 import { channelChoice, followReleases, installedApp, releasesInstall } from "./releases.js";
 import { keepDrawingThroughGpuResets } from "./gpu-resets.js";
 import { askToReportErrors, mainErrorRecords, reportBox } from "./main-error-records.js";
+import { packagedBuild } from "./packaged-build.js";
 import { logMainErrors } from "./main-errors.js";
 import { logPageErrors } from "./page-errors.js";
 import { smokeElectronFiles, smokePhases } from "./smoke-phases.js";
@@ -139,10 +140,10 @@ declare const STORYTREE_WORKOS_CLIENT_ID: string | undefined;
 
 // The main process's own uncaught errors reach the log (app.log once teeConsole runs below, stderr in the checks), before startup work can throw.
 // The box then offers Keep going or Restart; before the app is ready only the error box can show, so it keeps going.
-// Each is also kept in the user's own library on every install, held until it opens (lifecycle 1.25), naming the build
-// once it is known and the app's version before.
-/** Which build this is (`main 80bcc63`, or the development checkout), shown in the title and the tray. */
-let build = "";
+// Each is also kept in the user's own library on every install, held until it opens (lifecycle 1.25), naming the build:
+// a packaged one's version and commit from the first moment (1.49), a development checkout's once it is known.
+/** Which build this is (`version 0.3.0 (commit 80bcc63)`, or the development checkout), shown in the title and the tray. */
+let build = app.isPackaged ? packagedBuild(app.getVersion()) : "";
 const args = parseArgs(process.argv, { packaged: app.isPackaged, env: process.env });
 // In a smoke check, every main-process error logged turns its exit red, and no error box waits for a person (lifecycle 1.30).
 const verdict = smokeVerdict({ smoke: args.smoke, log: line => console.error(line) });
@@ -555,7 +556,7 @@ function recordLaunch(): void {
 
 /** Which build this is, for the title and the tray: a version, or the checkout. */
 async function whichBuild(): Promise<string> {
-  if (app.isPackaged) return buildLabel({ appPath: app.getAppPath(), packaged: { version: app.getVersion() } });
+  if (app.isPackaged) return packagedBuild(app.getVersion());
   const sha = await checkoutSha(app.getAppPath()).catch(() => undefined);
   return buildLabel({ appPath: app.getAppPath(), ...(sha === undefined ? {} : { sha }) });
 }

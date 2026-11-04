@@ -124,6 +124,7 @@ const LIBRARY_API = [
   "composeStatement",
   "refile",
   "retire",
+  "inOneWrite",
   "retireQuestion",
   "returnIncrement",
   "revert",

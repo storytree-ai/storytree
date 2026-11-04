@@ -559,14 +559,13 @@ reviewed again (4.37). At the cap the increment waits on the owner with the last
  * closed has no wait to clear and nothing to close, and past its limit is only said (4.13). A red only the runner
  * caused (`pull.runner`, from runnerReruns) is rerun instead of fixed, bounded by its runs' attempts (4.29). A stranded
  * one (green and unheld, out of the merge queue) is enqueued at its head, as automerge would, once a head and a refusal
- * tried at most ENQUEUE_TRIES times (4.31). A look that saw any merge reads every story's risk reading again, once, from
- * main (`readRisks`), and says the readings that changed since the last (4.33). A hand-off made before its project's
+ * tried at most ENQUEUE_TRIES times (4.31). A hand-off made before its project's
  * repository cut-over (`cutover`, its time) is the old repository's pull request, whose number now names another: it is
  * never looked up, only forgotten, its wait cleared and its claims let go (4.39). A hand-off on another project's repository
  * (`record.project.repo`, 4.49) is all that project's: every library step is taken in its library, its fix and review sessions
- * start in its checkout with its own commands, and its merge reads none of storytree's risks.
+ * start in its checkout with its own commands.
  */
-export async function watchOnce({ dir, look, storytree, cutover = async () => undefined, startFix, startReview, rerun, refresh, behind, enqueue, alive, room, readRisks, limit, cap = 6, backoff = 15 * 60_000, folders = {}, now = Date.now, say }) {
+export async function watchOnce({ dir, look, storytree, cutover = async () => undefined, startFix, startReview, rerun, refresh, behind, enqueue, alive, room, limit, cap = 6, backoff = 15 * 60_000, folders = {}, now = Date.now, say }) {
   const dated = (message) => say(`${new Date(now()).toISOString().replace(/\.\d{3}Z$/, "Z")} ${message}`);
   // A step the library refuses (a wait already cleared, an increment closed by hand) is said, not retried forever.
   const tell = (args, project) => storytree(args, project).catch((error) => { dated(`storytree ${args.slice(0, 3).join(" ")} refused: ${error.message.split("\n")[0]}`); return ""; });
@@ -628,7 +627,6 @@ export async function watchOnce({ dir, look, storytree, cutover = async () => un
     if (!boards.has(at?.folder)) boards.set(at?.folder, await tell(["noticeboard"], at));
     return boards.get(at?.folder).split("\n").some((line) => /^\s*- (?:increment|capability) /.test(line) && line.includes(` ${session} `));
   };
-  let merged = false;
   // Each project's repository cut-over, read once a look and only when a hand-off is watched.
   const cutovers = new Map();
   const cutoverOf = async (project) => {
@@ -660,7 +658,6 @@ export async function watchOnce({ dir, look, storytree, cutover = async () => un
       const marked = pull.state === "merged" && record.keepOpen ? ["--merged", String(pr)] : [];
       if (!record.closed) await tell(["arc", "increment", "unwait", increment, "--for", "event", ...marked], at);
       if (pull.state === "merged") {
-        if (!at) merged = true;
         if (!record.keepOpen && !record.closed) await tell(["arc", "increment", "close", increment, "--disposition", "landed", "--pr", String(pr)], at);
         await letGo(record, `PR #${pr} merged; released by the watcher`, true);
         dated(record.closed ? `PR #${pr} merged: ${increment} had already closed`
@@ -825,24 +822,6 @@ export async function watchOnce({ dir, look, storytree, cutover = async () => un
     dated(reviewing ? `PR #${pr} red (${pull.why}) past its ${allowed} fix sessions: review session started, log ${session.log}`
       : `PR #${pr} red (${pull.why}): fix session ${counted + 1}${verdict ? ", after its review," : ` of ${allowed}`} started, log ${session.log}`);
   }
-  if (merged && readRisks) await refreshRisks({ dir, readRisks, dated });
-}
-
-/**
- * Every story's standing risk reading, read again from main after a merge (4.33): `readRisks` runs `quality
- * story-risks` there and returns what it printed, one line a story. The lines that differ from the last reading's,
- * kept in `dir`, are said; a reading that fails is said and tried again at the next merge.
- */
-async function refreshRisks({ dir, readRisks, dated }) {
-  const lines = (text) => new Map(text.split("\n").filter((line) => /^\s+story_\w+\s/.test(line)).map((line) => [line.trim().split(/\s/)[0], line.trim()]));
-  let text;
-  try { text = await readRisks(); }
-  catch (error) { dated(`story risk readings: reading main failed (${error.message.split("\n")[0]}); reading again at the next merge`); return; }
-  const kept = join(dir, "story-risks.txt");
-  const last = lines(await readFile(kept, "utf8").catch(() => ""));
-  const changed = [...lines(text)].filter(([id, line]) => last.get(id) !== line).map(([, line]) => line);
-  await writeFile(kept, text);
-  dated(changed.length ? `story risk readings read from main; ${changed.length} changed:\n  ${changed.join("\n  ")}` : "story risk readings read from main; none changed");
 }
 
 /** Start the watcher unless a live one holds its pid file; `spawn` starts it and returns its pid, written at once. */
@@ -965,18 +944,6 @@ function boxDefaults({ home = homedir(), env = process.env, platform = process.p
     // The time of a project's repository cut-over, or nothing while it has none (the read refuses).
     cutover: async (project) => (await storytree(["library", "read", "pr-cutover", "--field", "at"], project)).trim(),
     look: (pr, record) => lookOnGitHub(pr, { repo, since: record.fixes.at(-1)?.at ?? record.handedAt, home: repoOf(record) }),
-    // From a checkout of freshly fetched origin/main kept in the watch folder, locked so no reaper takes it, never a merged branch's worktree (4.33).
-    readRisks: async () => {
-      const main = join(dir, "main");
-      await run("git", ["fetch", "--quiet", "origin", "main"], { cwd: repo });
-      if (existsSync(main)) await run("git", ["checkout", "--quiet", "--force", "--detach", "origin/main"], { cwd: main });
-      else {
-        await run("git", ["worktree", "prune"], { cwd: repo });
-        await run("git", ["worktree", "add", "--quiet", "--lock", "--detach", main, "origin/main"], { cwd: repo });
-      }
-      return (await run(process.execPath, ["--import", import.meta.resolve("tsx"), join(repo, "packages", "cli", "src", "bins", "storytree.ts"), "quality", "story-risks"],
-        { cwd: main, env: free, maxBuffer: 16 * 1024 * 1024 })).stdout;
-    },
     // Off the box the shared checkout may not exist, and gh would be started in no folder at all (4.44).
     viewOf: async (pr, on = HOME) => {
       if (!existsSync(repo)) throw new Error(`the shared checkout ${repo} is not on this machine; off the box, hand over with \`watch.mjs handover\``);

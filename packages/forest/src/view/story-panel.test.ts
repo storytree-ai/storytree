@@ -203,23 +203,18 @@ test("4.15 a mapped story's panel says it was here before storytree and is assum
   assert.doesNotMatch(renderStoryPanel(panel, "base"), /panel-mapped/, "a built story's panel says nothing of it");
 });
 
-test("4.36 a story's risk bar shows its rating out of ten, the users it could reach and its extra checks with what sets each off, and no graph; a story without one shows none", () => {
-  const checks: NonNullable<StoryPanel["risk"]>["checks"] = [
+test("4.36 a story's panel lists its extra checks with what sets each off, and shows no risk rating and no graph; a story without extra checks shows none", () => {
+  const checks: NonNullable<StoryPanel["checks"]> = [
     { check: "a real-app run", trigger: "change" },
     { check: "a fresh-install sweep", trigger: "release", capability: "Install & update" },
   ];
-  const html = renderStoryPanel({ ...panel, risk: { rating: 8, audience: "invited", checks } }, undefined);
-  const bar = /<section class="panel-risk"[\s\S]*?<\/section>/.exec(html)?.[0] ?? "";
-  assert.match(bar, /Risk rating[\s\S]*8<\/strong> of 10/);
-  assert.match(bar, /Users potentially impacted[\s\S]*the invited users \(not counted yet\)/);
-  assert.match(bar, /a real-app run[\s\S]*on every change/);
-  assert.match(bar, /a fresh-install sweep[\s\S]*Install &amp; update[\s\S]*before each formal release/, "a capability's check is named with it, as text");
-  assert.doesNotMatch(bar, /<svg|<canvas/, "no graph");
-  const counted = renderStoryPanel({ ...panel, risk: { rating: 9, audience: "public", users: 40, checks: [] } }, undefined);
-  assert.match(counted, /Users potentially impacted[\s\S]*40/);
-  assert.match(counted, /Extra checks[\s\S]*none beyond the standard tests/);
-  assert.match(renderStoryPanel({ ...panel, risk: { checks } }, undefined), /Risk rating[\s\S]*not read yet/, "checks without a reading");
-  assert.doesNotMatch(renderStoryPanel(panel, undefined), /panel-risk/);
+  const html = renderStoryPanel({ ...panel, checks }, undefined);
+  const listed = /<section class="panel-checks"[\s\S]*?<\/section>/.exec(html)?.[0] ?? "";
+  assert.match(listed, /Extra checks[\s\S]*a real-app run[\s\S]*on every change/);
+  assert.match(listed, /a fresh-install sweep[\s\S]*Install &amp; update[\s\S]*before each formal release/, "a capability's check is named with it, as text");
+  assert.doesNotMatch(listed, /<svg|<canvas/, "no graph");
+  assert.doesNotMatch(html, /Risk rating|of 10|Users potentially impacted/, "the rating is switched off (question_0de2b8280384)");
+  assert.doesNotMatch(renderStoryPanel(panel, undefined), /panel-checks/);
 });
 
 test("4.37 storytree's mark names its source on the card, in the detail and on each contract: verified locally, from CI, or both (short on the card); the reason says the source of what carries it; no source recorded, it says none", () => {

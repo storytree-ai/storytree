@@ -12,8 +12,8 @@ The text above that marker is written by hand, and it counts toward the file's 4
   generated roles changed (otherwise NOT RUN with the reason; after editing a role or note in the library,
   use `pnpm run gate --guidance`, even if regeneration left no Git diff), check:plan-edges every time
   (a capability depending on another story's against the code's package direction fails it when the branch
-  changes both stories' packages, and is printed as a note otherwise, ADR-0840 D2), check:owner-applies and
-  the change's risk line. A failure does not stop the remaining checks.
+  changes both stories' packages, and is printed as a note otherwise, ADR-0840 D2) and check:owner-applies.
+  A failure does not stop the remaining checks.
 - `pnpm test` runs the packages a change can reach (its first line, `scope: ...`, says which) against a
   throwaway local Postgres; `pnpm run test --full` runs everything, `pnpm run test --rerun-failed` only
   what failed. Give flags in that `pnpm run <script> --flag` form: Windows PowerShell 5.1 drops a bare `--`.

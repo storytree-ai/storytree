@@ -508,7 +508,7 @@ test("11.14 `workspace claim` from the main checkout, then `workspace <increment
   });
 });
 
-test("11.17 `workspace claim` and `workspace attach` from a worktree on a handed-over pull request's branch take over the claim held for it; from the main checkout or another branch they are refused (ADR-1037 D2)", async () => {
+test("11.17 `workspace claim` and `workspace attach` from (or `attach --folder` naming) a worktree on a handed-over pull request's branch take over the claim held for it; from the main checkout or another branch they are refused (ADR-1037 D2)", async () => {
   await inWorld(command, async (world) => {
     const increment = await withRepository(world);
     const branch = "claude/email-form-a1b2c3";
@@ -542,6 +542,12 @@ test("11.17 `workspace claim` and `workspace attach` from a worktree on a handed
       const attached = await run(["workspace", "attach", increment, "--reason", "fix PR #12 again"], fixing, "claude-fix-2");
       assert.equal(attached.code, 0, attached.stderr);
       assert.deepEqual((await readClaims(log, world.project)).map(({ session, branch: on }) => [session, on]), [["claude-fix-2", branch]]);
+
+      // A fix session started in the main checkout names the fix worktree with --folder: the branch it takes over is that worktree's.
+      await holdFor("claude-fix-2");
+      const named = await run(["workspace", "attach", increment, "--folder", fixing, "--reason", "fix PR #12 from main"], world.folder, "claude-fix-3");
+      assert.equal(named.code, 0, named.stderr || named.stdout);
+      assert.deepEqual((await readClaims(log, world.project)).map(({ session, branch: on }) => [session, on]), [["claude-fix-3", branch]]);
     } finally {
       await log.close();
     }

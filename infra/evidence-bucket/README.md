@@ -46,6 +46,7 @@ signed in to Google as the project owner (`gcloud auth application-default login
 ```bash
 PROJECT="$(gcloud config get-value project)"   # the cloud project's id
 export TF_VAR_project_id="$PROJECT"
+gcloud services enable cloudbilling.googleapis.com --project "$PROJECT"
 terraform init -backend-config="bucket=$PROJECT-tfstate"
 terraform plan     # expect 5 to add, 0 to change, 0 to destroy
 terraform apply
@@ -54,17 +55,23 @@ terraform apply
 The five are the bucket, the service account, its Object User binding on the bucket, the budget
 API turned on in the project (it is left on if this is ever destroyed), and the budget. It keeps
 its own state (`evidence-bucket-0.3`, beside ci-health's and website-publish's in the same bucket)
-and changes nothing of theirs or 0.2's. `PROJECT` is the cloud project's id, as in
+and changes nothing of theirs or 0.2's. The Cloud Billing API must be on before the plan: the budget
+reads the project's billing account through it, and without it that comes back empty and the plan
+fails with `Missing required argument` on `billing_account`. `PROJECT` is the cloud project's id, as in
 [infra/ci-health](../ci-health/README.md#applying-it). A budget refused for a quota project means
 the login's application-default credentials have none: `gcloud auth application-default
 set-quota-project "$PROJECT"`, then apply again.
 
-**2. Give the Mint box the account's key.** On the box, with the owner's gcloud login (it has one):
+**2. Give the Mint box the account's key.** On the box, with the owner's gcloud login (it has one).
+The box's gcloud is `~/google-cloud-sdk/bin/gcloud` and has no default project, so
+`gcloud config get-value project` comes out empty there and the key would name
+`storytree-evidence@.iam.gserviceaccount.com`: set `PROJECT` to the project's id as step 1 read it on
+the laptop (`gcloud config get-value project` there):
 
 ```bash
-PROJECT="$(gcloud config get-value project)"
+PROJECT="<the project's id, as read on the laptop>"
 install -d -m 700 ~/.storytree/evidence
-gcloud iam service-accounts keys create ~/.storytree/evidence/uploader.json \
+~/google-cloud-sdk/bin/gcloud iam service-accounts keys create ~/.storytree/evidence/uploader.json \
   --iam-account="storytree-evidence@$PROJECT.iam.gserviceaccount.com"
 chmod 600 ~/.storytree/evidence/uploader.json
 ```
@@ -88,7 +95,7 @@ gcloud projects get-iam-policy "$PROJECT" --format=json | grep -c storytree-evid
 # 0: no role on the project
 ```
 
-On the box, the key uploads and the object can be removed again:
+On the box, with `PROJECT` set as in step 2, the key uploads and the object can be removed again:
 
 ```bash
 echo ok > /tmp/evidence-check.txt

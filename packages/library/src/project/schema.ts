@@ -148,4 +148,19 @@ export const PROJECT_SCHEMA: readonly string[] = [
   // Capability 2 · Library transactions (2.20). The outside text a write's session had read before it wrote, as a JSON list
   // of what it read: a mark that observes, never refuses (increment_572ffca14851). Null on an unmarked write.
   `ALTER TABLE record_event ADD COLUMN IF NOT EXISTS outside_read jsonb`,
+
+  // Capability 7 · Library API (7.26, ADR-1234 D3). Durable media (an approved look, a build's input) kept beside the
+  // record that cites it, by name, out of `record` and `record_event` as feedback_screenshot is; unlike it, a snapshot
+  // carries it (1.30), since it is the only copy once it leaves git.
+  `CREATE TABLE IF NOT EXISTS media (
+    record_id text NOT NULL,
+    name      text NOT NULL,
+    type      text NOT NULL,
+    size      int NOT NULL,
+    sha256    text NOT NULL,
+    bytes     bytea NOT NULL,
+    added_at  timestamptz NOT NULL DEFAULT now(),
+    added_by  text,
+    PRIMARY KEY (record_id, name)
+  )`,
 ];

@@ -14,7 +14,7 @@ import type { Pool } from "pg";
 import { InheritedRecords } from "../project/factory.js";
 import { DataQuestions } from "../data/data-questions.js";
 import { couldBeId } from "../references.js";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 
 import { isPluginKind, UnknownTypeError, type FieldEdit, type FieldsOf, type RecordType, type SchemaRecord, type WriteOptions } from "../schema/index.js";
 import type { HistoryEntry, RecordEnvelope } from "../transactions/index.js";
@@ -229,8 +229,69 @@ export interface Library
    * how many, in name order: what reads dormant here, which a list leaves out.
    */
   dormantKinds(): Promise<readonly DormantKind[]>;
+  /**
+   * Keep a file beside the live record that cites it (7.26, ADR-1234 D3): durable media, such as an approved look or a
+   * build's input, stored as its bytes with its type, size and SHA-256 under `name`, out of the record and its history.
+   * The same bytes under the name again change nothing (`same`); other bytes are refused unless `replace`. A record
+   * that is not live, a file past MEDIA_MAX_BYTES (10 MB), a name that is not a plain file name and a type that is not
+   * a media type are refused, with nothing written.
+   */
+  attachMedia(id: string, file: NewMedia, options?: WriteOptions & { readonly replace?: boolean }): Promise<AttachedMedia>;
+  /** The files kept beside the record `id`, in name order, without their bytes; none for a record that holds none. */
+  media(id: string): Promise<MediaEntry[]>;
+  /** The file kept beside the record `id` as `name`, with its bytes exactly as attached; null when it holds none by that name. */
+  mediaFile(id: string, name: string): Promise<MediaFile | null>;
   /** Close this library's connections. */
   close(): Promise<void>;
+}
+
+/** A file to keep beside a record: its name, its media type (image/png, video/mp4) and its bytes. */
+export interface NewMedia {
+  readonly name: string;
+  readonly type: string;
+  readonly bytes: Uint8Array;
+}
+
+/** A file kept beside a record, as media lists it: when it was added and, when the writer named one, by whom. */
+export interface MediaEntry {
+  readonly recordId: string;
+  readonly name: string;
+  readonly type: string;
+  readonly size: number;
+  readonly sha256: string;
+  readonly addedAt: string;
+  readonly addedBy?: string;
+}
+
+/** A kept file with its bytes, as mediaFile reads it. */
+export interface MediaFile extends MediaEntry {
+  readonly bytes: Uint8Array;
+}
+
+/** What attachMedia kept, and whether it was added, already held as it is (`same`), or replaced other bytes. */
+export interface AttachedMedia extends MediaEntry {
+  readonly outcome: "added" | "same" | "replaced";
+}
+
+/** The most a file kept in the library may hold (7.26): 10 MB, room for a short clip; the largest durable file in git was 0.88 MB. */
+const MEDIA_MAX_BYTES = 10 * 1024 * 1024;
+const MEDIA_NAME = /^[A-Za-z0-9][A-Za-z0-9._-]{0,199}$/;
+const MEDIA_TYPE = /^[a-z]+\/[a-z0-9][a-z0-9.+-]*$/i;
+const MEDIA_COLUMNS = "record_id, name, type, size, sha256, to_json(added_at) #>> '{}' AS added_at, added_by";
+
+interface MediaRow {
+  record_id: string;
+  name: string;
+  type: string;
+  size: number;
+  sha256: string;
+  added_at: string;
+  added_by: string | null;
+  bytes?: Buffer;
+}
+
+function mediaEntryOf(row: MediaRow): MediaEntry {
+  return { recordId: row.record_id, name: row.name, type: row.type, size: row.size, sha256: row.sha256, addedAt: row.added_at, ...(row.added_by === null ? {} : { addedBy: row.added_by }) };
 }
 
 /** A plugin's records, as pluginRecords lists them. */
@@ -478,6 +539,38 @@ function libraryOf(project: Project): Library {
     async dormantKinds() {
       const { rows } = await project.pool.query<{ type: string; count: string }>("SELECT type, count(*) AS count FROM record WHERE strpos(type, '.') > 0 GROUP BY type ORDER BY type");
       return rows.filter(({ type }) => project.records.isDormant(type)).map(({ type, count }) => ({ kind: type, count: Number(count) }));
+    },
+    async attachMedia(id, { name, type, bytes }, { replace = false, ...write } = {}) {
+      if (typeof name !== "string" || !MEDIA_NAME.test(name)) {
+        throw new Error(`${JSON.stringify(name)} is not a file name media is kept under: letters, digits, dots, dashes and underscores, starting with a letter or digit, at most 200 characters`);
+      }
+      if (typeof type !== "string" || !MEDIA_TYPE.test(type)) throw new Error(`${JSON.stringify(type)} is not a media type, such as image/png or video/mp4`);
+      if (!(bytes instanceof Uint8Array)) throw new Error(`${name}'s bytes are not bytes`);
+      if (bytes.length > MEDIA_MAX_BYTES) throw new Error(`${name} is ${bytes.length.toLocaleString("en")} bytes; a file kept in the library is at most 10 MB (${MEDIA_MAX_BYTES.toLocaleString("en")} bytes)`);
+      const live = couldBeId(id) && (await project.pool.query("SELECT 1 FROM record WHERE id = $1", [id])).rowCount === 1;
+      if (!live) throw new Error(`no live record ${id}: a file is kept only beside a live record`);
+      const sha256 = createHash("sha256").update(bytes).digest("hex");
+      const held = (await project.pool.query<MediaRow>(`SELECT ${MEDIA_COLUMNS} FROM media WHERE record_id = $1 AND name = $2`, [id, name])).rows[0];
+      if (held?.sha256 === sha256) return { ...mediaEntryOf(held), outcome: "same" };
+      if (held !== undefined && !replace) {
+        throw new Error(`${id} already holds other bytes as ${name} (sha256 ${held.sha256.slice(0, 12)}…); attach these with replace to keep them instead`);
+      }
+      const values = [id, name, type, bytes.length, sha256, Buffer.from(bytes), write.actor ?? null];
+      const { rows } = held === undefined
+        ? await project.pool.query<MediaRow>(`INSERT INTO media (record_id, name, type, size, sha256, bytes, added_by) VALUES ($1, $2, $3, $4, $5, $6, $7) ON CONFLICT (record_id, name) DO NOTHING RETURNING ${MEDIA_COLUMNS}`, values)
+        : await project.pool.query<MediaRow>(`UPDATE media SET type = $3, size = $4, sha256 = $5, bytes = $6, added_by = $7, added_at = now() WHERE record_id = $1 AND name = $2 RETURNING ${MEDIA_COLUMNS}`, values);
+      if (rows[0] === undefined) throw new Error(`${name} was attached to ${id} by another writer meanwhile; nothing was written. List its media and try again.`);
+      return { ...mediaEntryOf(rows[0]), outcome: held === undefined ? "added" : "replaced" };
+    },
+    async media(id) {
+      if (!couldBeId(id)) return [];
+      const { rows } = await project.pool.query<MediaRow>(`SELECT ${MEDIA_COLUMNS} FROM media WHERE record_id = $1 ORDER BY name COLLATE "C"`, [id]);
+      return rows.map(mediaEntryOf);
+    },
+    async mediaFile(id, name) {
+      if (!couldBeId(id)) return null;
+      const { rows } = await project.pool.query<MediaRow>(`SELECT ${MEDIA_COLUMNS}, bytes FROM media WHERE record_id = $1 AND name = $2`, [id, name]);
+      return rows[0] === undefined ? null : { ...mediaEntryOf(rows[0]), bytes: new Uint8Array(rows[0].bytes!) };
     },
     close: () => project.close(),
   };

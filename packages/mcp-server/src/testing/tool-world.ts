@@ -17,6 +17,7 @@ import { approveCheckout, dropTestProjects, testServerUrl, uniqueProjectName } f
 export const TOOLS = [
   "add_remedies",
   "apply_pending",
+  "attach_media",
   "attach_workspace",
   "check_plugin",
   "check_setup",
@@ -29,6 +30,7 @@ export const TOOLS = [
   "correct_question",
   "edit_plan",
   "fence_plugin",
+  "fetch_media",
   "file_owners",
   "find_text",
   "focus",
@@ -40,6 +42,7 @@ export const TOOLS = [
   "import_project",
   "land",
   "list_all_runs",
+  "list_media",
   "list_own_runs",
   "make_workspace",
   "mark_built",

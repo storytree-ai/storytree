@@ -142,3 +142,41 @@ test("3.10 an explored capability named cap:<id|number> in place of folders draw
     await done();
   }
 });
+
+test("3.9 a mapped Python island's imports cross a line too: a src.-prefixed import from the project's top, where src/ is itself a package, reaches src/x.py or src/x/__init__.py", async () => {
+  const checkbox = await mkdtemp(path.join(tmpdir(), "crossing-checkbox-"));
+  const trunk = await mkdtemp(path.join(tmpdir(), "crossing-trunk-"));
+  const python = { arcs: [], stories: [{ id: "story-interview", title: "data-interview", capabilities: [], mapped: { from: checkbox, package: ".", folders: ["."] } }] } as unknown as AnnotatedTree;
+  try {
+    await write(checkbox, {
+      "pyproject.toml": "[project]\nname = \"data-interview\"\n\n[tool.pytest.ini_options]\npythonpath = [\".\"]\n",
+      "src/__init__.py": "",
+      "src/auth.py": "def user():\n    return 1\n",
+      "src/db.py": "def connect():\n    return 1\n",
+      "src/embed/__init__.py": "def embed(text):\n    return text\n",
+      "src/packet.py": "PACKET = 1\n",
+      "src/retrieve.py": "from src.db import connect\nfrom src.embed import embed\n\n\ndef search():\n    return embed(connect())\n",
+      "src/main.py": "from src.auth import user\nfrom src.db import connect\nimport src.packet\nfrom src.retrieve import search\n",
+      "tests/test_retrieve.py": "from src.retrieve import search\n\n\ndef test_search():\n    assert search()\n",
+    });
+    const survey = await codeSurveyReader({ checkout: "current" }).read(trunk, python, [{ folder: checkbox }]);
+
+    const db = await crossingsOf(python, survey, trunk, { patterns: ["src/db.py"], mode: "show" });
+    assert.deepEqual(db.rows?.map(({ from, to }) => `${from} -> ${to}`), ["src/main.py -> src/db.py", "src/retrieve.py -> src/db.py"], "db.py's importers");
+    const main = await crossingsOf(python, survey, trunk, { patterns: ["src/main.py"], mode: "show" });
+    assert.deepEqual(main.rows?.map(({ to }) => to), ["src/auth.py", "src/db.py", "src/packet.py", "src/retrieve.py"], "main.py's imports, import src.packet among them");
+    const retrieve = await crossingsOf(python, survey, trunk, { patterns: ["src/retrieve.py"] });
+    assert.deepEqual(retrieve.out.island, { files: 1, imports: 2 }, "retrieve.py reaches db.py and the embed package's __init__.py");
+    const src = await crossingsOf(python, survey, trunk, { patterns: ["src"] });
+    assert.deepEqual(src.in.island, { files: 1, imports: 1 }, "the test outside src imports retrieve.py");
+
+    // A package mapped in a subfolder of its import resolves from that folder, not the import's top.
+    await write(checkbox, { "services/api/src/__init__.py": "", "services/api/src/store.py": "X = 1\n", "services/api/src/app.py": "from src.store import X\n" });
+    const nested = { arcs: [], stories: [{ id: "story-api", title: "api", capabilities: [], mapped: { from: checkbox, package: "services/api", folders: ["services/api"] } }] } as unknown as AnnotatedTree;
+    const store = await crossingsOf(nested, await codeSurveyReader({ checkout: "current" }).read(trunk, nested, [{ folder: checkbox }]), trunk, { patterns: ["services/api/src/store.py"], mode: "show" });
+    assert.deepEqual(store.rows?.map(({ from, to }) => `${from} -> ${to}`), ["services/api/src/app.py -> services/api/src/store.py"]);
+  } finally {
+    await rm(checkbox, { recursive: true, force: true });
+    await rm(trunk, { recursive: true, force: true });
+  }
+});

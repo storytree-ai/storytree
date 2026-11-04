@@ -64,8 +64,8 @@ export function forestScene(tree: AnnotatedTree, history: readonly Pick<Change, 
     }));
     const land = story.mapped === undefined ? landOf(story.capabilities, survey[story.id], tree.unverified !== true) : mappedLand(story.capabilities, survey[story.id]);
     // ADR-0993 D3: a mapped island's land follows its lines, capped; before its survey, it is the least an island has.
-    // ADR-0804 D3, D7, ADR-1212 D2: a surveyed story's land follows its lines of code alone; unsurveyed, it follows its capabilities, a one-capability floor's worth of land each, so it grows in step with the surveyed ones.
-    const area = story.mapped !== undefined ? mappedArea(land!.territories.reduce((sum, { lines }) => sum + lines, 0)) : land === undefined || land.files.length === 0 ? unsurveyedArea(story.capabilities.length) : islandArea(land.territories.reduce((sum, { lines }) => sum + lines, 0));
+    // ADR-0804 D3, D7, ADR-1212 D2: a surveyed story's land follows its lines of code alone (its files', not the line a capability with no code holds); unsurveyed, it follows its capabilities, a one-capability floor's worth of land each, so it grows in step with the surveyed ones.
+    const area = story.mapped !== undefined ? mappedArea(land!.territories.reduce((sum, { lines }) => sum + lines, 0)) : land === undefined || land.files.length === 0 ? unsurveyedArea(story.capabilities.length) : islandArea(land.files.reduce((sum, { lines }) => sum + lines, 0));
     const key = JSON.stringify([story.title, x, z, placed.map(({ capability, form, status, contracts }) => [capability, form, status, contracts]), land?.territories, area]);
     return { story: story.id, title: story.title, x, z, trees: placed, ...(land === undefined ? {} : { land }), area, key };
   });
@@ -153,8 +153,9 @@ function mappedLand(capabilities: readonly { id: string; title: string; descript
 }
 
 /**
- * A surveyed story's land: one territory per capability with code, in the story's order, then Unclaimed
- * code, and its files. Before a survey, a verified project's capabilities get equal shares (weight 1),
+ * A surveyed story's land: one territory per capability, in the story's order, then Unclaimed code, and
+ * its files. A capability with no code yet holds a share of one line, so it gets the least land a territory
+ * has (rollout 1's every capability holds land): its links have somewhere to reach. Before a survey, a verified project's capabilities get equal shares (weight 1),
  * with no files asserted. A project never verified keeps its existing bare land.
  * The page cuts it to the island's coast, which only the drawing knows.
  */
@@ -168,7 +169,7 @@ function landOf(capabilities: readonly { id: string; title: string; description?
   };
   const linesOf = (capability: string | undefined) => survey.files.filter((file) => file.capability === capability).reduce((sum, file) => sum + file.lines, 0);
   return {
-    territories: [...capabilities.map((capability) => territory(capability, linesOf(capability.id))), { lines: linesOf(undefined) }].filter(({ lines }) => lines > 0),
+    territories: [...capabilities.map((capability) => territory(capability, Math.max(1, linesOf(capability.id)))), { lines: linesOf(undefined) }].filter(({ lines }) => lines > 0),
     files: survey.files,
   };
 }

@@ -16,6 +16,9 @@
  * `present` marks a question as being put to the owner by the calling session, through Session management's
  * presentQuestion, which refuses it while another live session is (its 5.36), and `--done` clears the mark; `list`
  * flags each question a live session is presenting.
+ * For the assistant pass (ADR-1231 D3, contracts 3.22 and 3.23): `predict` records its would-be answer, which only
+ * `prediction` reads while the question is open (show and list never carry it); `prep` marks it prepped, which `list`
+ * flags; `score` scores a settled one; `deviation` counts the scores per confidence band over a window.
  */
 import { verb, VerbRefusal } from "@storytree/library/verbs";
 import type { SchemaRecord } from "@storytree/library";
@@ -190,7 +193,10 @@ const list = verb({
       const by = presenters.get(id);
       return by === undefined ? "" : `  (being put to the owner by ${by.label} session ${by.session})`;
     };
-    const line = (question: (typeof open)[number]) => `  - ${question.id}  [${question.fields.arc}]  ${labelOf(question.fields)}${flag(question.id)}`;
+    // A prepped question says the pass's stance; one reworded since its prep reads unprepared (Owner questions 12.15).
+    const prepFlag = ({ fields: { prep } }: (typeof open)[number]) =>
+      prep === undefined ? "" : prep.editedAt !== undefined ? "  (unprepared: edited since its prep)" : `  (prepped: ${prep.stance === "retire" ? "proposes retire" : prep.stance})`;
+    const line = (question: (typeof open)[number]) => `  - ${question.id}  [${question.fields.arc}]  ${labelOf(question.fields)}${prepFlag(question)}${flag(question.id)}`;
     const where = arc === undefined ? "across arcs" : `on ${arc}`;
     // Across arcs they stay off the list, but the arcs that hold them are named; one arc's own listing names them.
     const holding = [...new Set(parked.map((question) => question.fields.arc))];
@@ -252,8 +258,155 @@ const move = verb({
   },
 });
 
+/** A library step's refusal of a question's state (settled, open, already scored) as the verb's own. */
+function refused(error: unknown): never {
+  throw error instanceof RangeError ? new VerbRefusal(error.message) : error;
+}
+
+/** One of `allowed` as `name` was given, or a refusal naming them. */
+function oneOf<T extends string>(given: string, allowed: readonly T[], name: string): T {
+  if ((allowed as readonly string[]).includes(given)) return given as T;
+  throw new VerbRefusal(`${name} is ${allowed.slice(0, -1).join(", ")} or ${allowed.at(-1)}, not "${given}"`);
+}
+
+const CONFIDENCES = ["high", "medium", "low"] as const;
+const VERDICTS = ["match", "match-with-changes", "different", "rejected"] as const;
+const STANCES = ["agrees", "differs", "retire"] as const;
+
+/** A would-be answer's pick in words: an option by its number, retire or defer. */
+const pickWords = (pick: number | string): string => (typeof pick === "number" ? `option ${pick}` : pick);
+
+const predict = verb({
+  command: {
+    family: "question",
+    name: "predict",
+    summary: "record the assistant pass's would-be answer to an open question, sealed from every read of it the owner hears; a later one replaces it",
+    usage: "question predict <question> --pick <option number|retire|defer> --confidence high|medium|low --why <one line>",
+  },
+  tool: { absent: NO_TOOL },
+  inputs: {
+    question: { kind: "text", word: 0, describe: "the question's id" },
+    pick: { kind: "text", describe: "the option it would pick, by number, or retire or defer" },
+    confidence: { kind: "text", describe: "high, medium or low" },
+    why: { kind: "text", describe: "why, in one line" },
+  },
+  writes: true,
+  async act({ question: id, pick: given, confidence, why }, context: ArcVerbContext) {
+    const pick = /^[1-9]\d*$/.test(given.trim()) ? Number(given) : given.trim();
+    if (typeof pick === "string" && pick !== "retire" && pick !== "defer") throw new VerbRefusal(`--pick is an option's number, retire or defer, not "${given}"`);
+    const answer = { pick, confidence: oneOf(confidence, CONFIDENCES, "--confidence"), why };
+    const recorded = await context.library.predictQuestion(id, answer, context.writer).catch(refused);
+    if (recorded === null) throw new VerbRefusal(`no question "${id}" in this project`);
+    return {
+      text: `Recorded a would-be answer for ${id}: ${pickWords(recorded.fields.pick)}, ${recorded.fields.confidence} confidence, at ${recorded.fields.at}. No read of the question shows it while it is open.`,
+      next: [{ command: `question prep ${id} --stance agrees|differs|retire`, why: "mark it prepped" }],
+    };
+  },
+});
+
+const prediction = verb({
+  command: { family: "question", name: "prediction", summary: "read a question's would-be answer: the one read that shows it while the question is open" },
+  tool: { absent: NO_TOOL },
+  inputs: { question: { kind: "text", word: 0, describe: "the question's id" } },
+  async act({ question: id }, { library }: ArcVerbContext) {
+    const record = await library.get(id);
+    if (record?.type !== "question") throw new VerbRefusal(`no question "${id}" in this project`);
+    const recorded = await library.questionPrediction(id);
+    if (recorded === null) return { text: `${id} has no would-be answer.` };
+    const { pick, confidence, why, at } = recorded.fields;
+    return { text: `${id}'s would-be answer, recorded ${at}: ${pickWords(pick)}, ${confidence} confidence: ${why}` };
+  },
+});
+
+const score = verb({
+  command: {
+    family: "question",
+    name: "score",
+    summary: "score a settled question once: its would-be answer and its raiser's recommendation against the owner's answer",
+    usage: "question score <question> [--prediction <verdict>] [--recommendation <verdict>] [--by <who>], each verdict match, match-with-changes, different or rejected",
+  },
+  tool: { absent: NO_TOOL },
+  inputs: {
+    question: { kind: "text", word: 0, describe: "the question's id" },
+    prediction: { kind: "text", optional: true, describe: "how its would-be answer compares with his" },
+    recommendation: { kind: "text", optional: true, describe: "how its raiser's recommendation compares with his" },
+    by: { kind: "text", optional: true, describe: "who scored it, the caller unless given" },
+  },
+  writes: true,
+  async act({ question: id, prediction: forPrediction, recommendation: forRecommendation, by }, context: ArcVerbContext) {
+    const given = {
+      ...(forPrediction === undefined ? {} : { prediction: oneOf(forPrediction, VERDICTS, "--prediction") }),
+      ...(forRecommendation === undefined ? {} : { recommendation: oneOf(forRecommendation, VERDICTS, "--recommendation") }),
+      by: by ?? context.writer.actor ?? context.session,
+    };
+    const scored = await context.library.scoreQuestion(id, given, context.writer).catch(refused);
+    if (scored === null) throw new VerbRefusal(`no question "${id}" in this project`);
+    const sides = [
+      ...(given.prediction === undefined ? [] : [`would-be answer ${given.prediction}`]),
+      ...(given.recommendation === undefined ? [] : [`raiser's recommendation ${given.recommendation}`]),
+    ];
+    return { text: `Scored ${id} by ${given.by}: ${sides.join(", ")}.`, next: [{ command: "question deviation", why: "see the match rate per confidence band" }] };
+  },
+});
+
+const prep = verb({
+  command: {
+    family: "question",
+    name: "prep",
+    summary: "mark an open question prepped, with the pass's stance on the raiser's recommendation; editing its wording afterwards makes it unprepared",
+    usage: "question prep <question> --stance agrees|differs|retire [--reason <why>]",
+  },
+  tool: { absent: NO_TOOL },
+  inputs: {
+    question: { kind: "text", word: 0, describe: "the question's id" },
+    stance: { kind: "text", describe: "agrees, differs or retire" },
+    reason: { kind: "text", optional: true, describe: "why, needed when it differs or proposes retire" },
+  },
+  writes: true,
+  async act({ question: id, stance, reason }, context: ArcVerbContext) {
+    const mark = { stance: oneOf(stance, STANCES, "--stance"), ...(reason === undefined ? {} : { reason }) };
+    if (mark.stance !== "agrees" && reason === undefined) throw new VerbRefusal(`a prep mark that ${mark.stance === "differs" ? "differs" : "proposes retire"} needs --reason`);
+    const prepped = await context.library.prepQuestion(id, mark, context.writer).catch(refused);
+    if (prepped === null) throw new VerbRefusal(`no question "${id}" in this project`);
+    return { text: `Prepped ${id}: ${STANCE_WORDS[mark.stance]}${reason === undefined ? "" : `, because ${reason}`}.` };
+  },
+});
+
+/** A prep mark's stance in words. */
+const STANCE_WORDS: Readonly<Record<(typeof STANCES)[number], string>> = { agrees: "agrees with the raiser", differs: "differs from the raiser", retire: "proposes retire" };
+
+/** A band's verdicts, each counted. */
+const counted = (tally: Readonly<Record<string, number>>): string => VERDICTS.map((verdict) => `${tally[verdict] ?? 0} ${verdict.replaceAll("-", " ")}`).join(", ");
+
+const deviation = verb({
+  command: {
+    family: "question",
+    name: "deviation",
+    summary: "for questions settled in a window, how the would-be answers scored per confidence band, beside the raisers' recommendations",
+    usage: "question deviation [--days <n>, 14 unless given]",
+  },
+  tool: { absent: NO_TOOL },
+  inputs: { days: { kind: "text", optional: true, describe: "how many days back the window reaches, 14 unless given" } },
+  async act({ days: given }, { library }: ArcVerbContext) {
+    if (given !== undefined && !/^[1-9]\d*$/.test(given.trim())) throw new VerbRefusal(`--days is a whole number of days, not "${given}"`);
+    const days = given === undefined ? 14 : Number(given);
+    const window = `the last ${days} day${days === 1 ? "" : "s"}`;
+    const report = await library.questionDeviation(new Date(Date.now() - days * 86_400_000));
+    if (report.bands.length === 0) {
+      return { text: `No question settled in ${window} has been scored.${report.settled === 0 ? "" : ` ${report.settled} settled unscored.`}` };
+    }
+    const lines = [`Questions settled in ${window}: ${report.settled}, ${report.unscored} of them unscored.`];
+    for (const band of report.bands) {
+      const name = band.band === "none" ? "no would-be answer" : band.band;
+      const predicted = band.prediction === undefined ? "" : `would-be answer ${counted(band.prediction)}; `;
+      lines.push(`  ${name} (${band.questions}): ${predicted}raiser's recommendation ${counted(band.recommendation)}`);
+    }
+    return { text: lines.join("\n") };
+  },
+});
+
 /** The question verbs, as the command line's `question` family lists them. */
-export const QUESTION_VERBS = [raise, show, present, settle, retire, move, list, check, renew];
+export const QUESTION_VERBS = [raise, show, present, settle, retire, move, list, check, renew, predict, prediction, score, prep, deviation];
 
 /** Words agents try for reading one question. */
 export const QUESTION_GUESSES: Readonly<Record<string, string>> = { read: "question show <id>", get: "question show <id>", open: "question show <id>" };

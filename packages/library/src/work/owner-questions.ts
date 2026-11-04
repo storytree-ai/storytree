@@ -7,6 +7,9 @@
  * still hold and how many days that is trusted for, 7 unless given. checkQuestion reads it fresh or
  * lapsed, renewQuestion re-stamps it, refusing a settled question, and lapsedQuestions is the
  * librarian's drain.
+ * For the assistant pass (ADR-1231 D3), an open question takes a would-be answer (predictQuestion, 12.12), kept in its
+ * own prediction record so no read of the question carries it (12.14), and a prep mark (prepQuestion, 12.15); settled,
+ * it takes one score (scoreQuestion, 12.13), and questionDeviation counts the scores per confidence band (3.23).
  *
  * WorkInFlight (capability 10) serializes each write; the rules for raising, reading, renewing,
  * correcting, moving and settling a question are here.
@@ -14,7 +17,7 @@
 import { byCreation } from "../creation-order.js";
 import { checkReference, liveRecord } from "../references.js";
 import type { SchemaRecord, SchemaRecords, WriteOptions } from "../schema/index.js";
-import type { FieldsOf } from "../schema/types.js";
+import { VERDICTS, type FieldsOf } from "../schema/types.js";
 
 /** A new question for the owner, on a live arc (capability 12). */
 export type NewQuestion = Omit<FieldsOf<"question">, "lifecycle" | "answer" | "settledAt" | "settledBy" | "verifiedAt">;
@@ -41,6 +44,44 @@ export interface Settlement {
   readonly answer: string;
   /** A live decision. */
   readonly decision?: string;
+}
+
+/** A would-be answer as it is given (12.12): its pick, confidence and why; it is stamped with its time. */
+export type WouldBeAnswer = Omit<FieldsOf<"prediction">, "question" | "at">;
+
+/** How an answer given ahead of the owner compares with his (12.13). */
+export type Verdict = (typeof VERDICTS)[number];
+
+/** A settled question's score (12.13): one verdict for its would-be answer and one for its raiser's recommendation, each where it had one, and who scored it. */
+export interface Score {
+  readonly prediction?: Verdict;
+  readonly recommendation?: Verdict;
+  readonly by: string;
+}
+
+/** A prep mark as it is given (12.15): the stance on the raiser's recommendation, with the reason when it differs or proposes retire. */
+export interface Prep {
+  readonly stance: "agrees" | "differs" | "retire";
+  readonly reason?: string;
+}
+
+/** One confidence band of a deviation report (3.23): "none" holds the questions scored with no would-be answer. */
+export interface DeviationBand {
+  readonly band: "high" | "medium" | "low" | "none";
+  /** The scored questions in it. */
+  readonly questions: number;
+  /** How its would-be answers scored; absent for "none". */
+  readonly prediction?: Readonly<Record<Verdict, number>>;
+  /** How the raisers' recommendations on the same questions scored. */
+  readonly recommendation: Readonly<Record<Verdict, number>>;
+}
+
+/** The questions settled in a window, scored per confidence band beside their raisers' recommendations (3.23). */
+export interface QuestionDeviation {
+  readonly settled: number;
+  readonly unscored: number;
+  /** The bands with a scored question in them: high, medium, low, then none. */
+  readonly bands: readonly DeviationBand[];
 }
 
 /** How long a question's review is trusted for, in days, unless it is raised with its own (12-a). */
@@ -153,7 +194,100 @@ export async function editQuestion(records: SchemaRecords, id: string, fields: Q
   if (question.fields.lifecycle === "settled") {
     throw new RangeError(`question ${JSON.stringify(id)} is settled, so its wording cannot change: its answer stands`);
   }
-  return (await records.edit(id, fields, options)) as SchemaRecord<"question"> | null;
+  // Its wording corrected after its prep mark, it reads unprepared until it is prepped again (12.15).
+  const { prep } = question.fields;
+  const reworded = prep !== undefined && Object.keys(fields).some((key) => key !== "presenting");
+  return (await records.edit(id, reworded ? { ...fields, prep: { ...prep, editedAt: new Date().toISOString() } } : fields, options)) as SchemaRecord<"question"> | null;
+}
+
+/** Question `id`'s would-be answer (12.12), the one read that gives it while the question is open (12.14); null if it has none. */
+export async function questionPrediction(records: SchemaRecords, id: string): Promise<SchemaRecord<"prediction"> | null> {
+  return (await records.list("prediction")).find((prediction) => prediction.fields.question === id) ?? null;
+}
+
+/**
+ * Record the assistant pass's would-be answer to open question `id`, stamped now (12.12), in its own record so no read
+ * of the question carries it (12.14); a later one replaces it in place. A settled question refuses one (RangeError),
+ * and a pick that is no option's number, retire or defer is refused (SchemaError), both with nothing written. Null,
+ * with nothing written, if `id` is not a live question.
+ */
+export async function predictQuestion(records: SchemaRecords, id: string, answer: WouldBeAnswer, options?: WriteOptions): Promise<SchemaRecord<"prediction"> | null> {
+  const question = await liveRecord(records, id, ["question"]);
+  if (question === null) return null;
+  if (question.fields.lifecycle === "settled") {
+    throw new RangeError(`question ${JSON.stringify(id)} is settled, so it takes no would-be answer: the owner has answered it`);
+  }
+  const fields = { pick: answer.pick, confidence: answer.confidence, why: answer.why, at: new Date().toISOString() };
+  const earlier = await questionPrediction(records, id);
+  if (earlier !== null) return (await records.edit(earlier.id, fields, options)) as SchemaRecord<"prediction"> | null;
+  return records.create("prediction", { question: id, ...fields }, options);
+}
+
+/**
+ * Score settled question `id` once, now (12.13): a verdict for its would-be answer if it has one, and for its raiser's
+ * recommendation if it has one, each required where there is one and refused where there is none, with who scored it.
+ * An open question, one already scored, or a verdict that is not match, match-with-changes, different or rejected is
+ * refused (RangeError, SchemaError), with nothing written. Null, with nothing written, if `id` is not a live question.
+ */
+export async function scoreQuestion(records: SchemaRecords, id: string, score: Score, options?: WriteOptions): Promise<SchemaRecord<"question"> | null> {
+  const question = await liveRecord(records, id, ["question"]);
+  if (question === null) return null;
+  const name = JSON.stringify(id);
+  if (question.fields.lifecycle === "open") throw new RangeError(`question ${name} is open: it is scored once settled, against the owner's answer`);
+  if (question.fields.score !== undefined) throw new RangeError(`question ${name} is already scored: it takes one score`);
+  const predicted = (await questionPrediction(records, id)) !== null;
+  const recommended = question.fields.recommendation !== undefined;
+  for (const [side, has, given] of [["a would-be answer", predicted, score.prediction], ["a recommendation", recommended, score.recommendation]] as const) {
+    if (has && given === undefined) throw new RangeError(`question ${name} has ${side}, so its score needs a verdict for it`);
+    if (!has && given !== undefined) throw new RangeError(`question ${name} has no ${side.slice(2)} to score`);
+  }
+  if (!predicted && !recommended) throw new RangeError(`question ${name} has no would-be answer and no recommendation: there is nothing to score`);
+  const fields = {
+    ...(score.prediction === undefined ? {} : { prediction: score.prediction }),
+    ...(score.recommendation === undefined ? {} : { recommendation: score.recommendation }),
+    by: score.by,
+    at: new Date().toISOString(),
+  };
+  return (await records.edit(id, { score: fields }, options)) as SchemaRecord<"question"> | null;
+}
+
+/**
+ * Mark open question `id` prepped now, with its stance on the raiser's recommendation (12.15), replacing any earlier
+ * mark, so it reads prepared again. A stance that differs or proposes retire needs its reason (SchemaError), and a
+ * settled question refuses a mark (RangeError), both with nothing written. Null, with nothing written, if `id` is not
+ * a live question.
+ */
+export async function prepQuestion(records: SchemaRecords, id: string, prep: Prep, options?: WriteOptions): Promise<SchemaRecord<"question"> | null> {
+  const question = await liveRecord(records, id, ["question"]);
+  if (question === null) return null;
+  if (question.fields.lifecycle === "settled") throw new RangeError(`question ${JSON.stringify(id)} is settled, so it takes no prep mark: the one it has is the record of its prep`);
+  const mark = { at: new Date().toISOString(), stance: prep.stance, ...(prep.reason === undefined ? {} : { reason: prep.reason }) };
+  return (await records.edit(id, { prep: mark }, options)) as SchemaRecord<"question"> | null;
+}
+
+/**
+ * The questions settled at or after `since` (3.23): how many, how many are unscored, and the scored ones per
+ * confidence band of their would-be answer, each band's verdicts beside its raisers' recommendations on the same
+ * questions. A read: it writes nothing.
+ */
+export async function questionDeviation(records: SchemaRecords, since: Date): Promise<QuestionDeviation> {
+  const settled = (await records.list("question")).filter(({ fields }) => fields.settledAt !== undefined && Date.parse(fields.settledAt) >= since.getTime());
+  const confidence = new Map((await records.list("prediction")).map(({ fields }) => [fields.question, fields.confidence]));
+  const tally = (): Record<Verdict, number> => Object.fromEntries(VERDICTS.map((verdict) => [verdict, 0])) as Record<Verdict, number>;
+  const bands = (["high", "medium", "low", "none"] as const).map((band) => ({ band, questions: 0, prediction: tally(), recommendation: tally() }));
+  for (const { id, fields } of settled) {
+    const { score } = fields;
+    if (score === undefined) continue;
+    const band = bands.find((one) => one.band === (score.prediction === undefined ? "none" : (confidence.get(id) ?? "none")))!;
+    band.questions += 1;
+    if (score.prediction !== undefined) band.prediction[score.prediction] += 1;
+    if (score.recommendation !== undefined) band.recommendation[score.recommendation] += 1;
+  }
+  return {
+    settled: settled.length,
+    unscored: settled.filter(({ fields }) => fields.score === undefined).length,
+    bands: bands.filter(({ questions }) => questions > 0).map(({ band, questions, prediction, recommendation }) => ({ band, questions, ...(band === "none" ? {} : { prediction }), recommendation })),
+  };
 }
 
 /**

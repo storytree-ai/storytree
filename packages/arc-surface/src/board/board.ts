@@ -15,6 +15,8 @@ export interface BoardSnapshot {
   waitsFor?: Record<string, NoteWait[]>;
   /** The project's repository cut-over, when it has one: a closure before it names the old repository's pull request. */
   cutover?: PrCutover;
+  /** The capabilities its waits on a claim name, by title (ADR-1228 D1); a wait naming one not here reads it missing. */
+  capabilities?: WorkName[];
 }
 export interface Bar {
   id: string;
@@ -82,7 +84,7 @@ export function boardView(snapshot: BoardSnapshot, log: readonly Line[] | LogRea
   const names = snapshot.arcs.flatMap(({ arc, increments }): WorkName[] => [
     { id: arc.id, title: arc.fields.title },
     ...increments.map((increment) => ({ id: increment.id, title: increment.fields.title, arc: { id: arc.id, title: arc.fields.title } })),
-  ]);
+  ]).concat(snapshot.capabilities ?? []);
   const waits = waitsOnBoard(names, new Map(Object.entries(snapshot.waits)));
   // ADR-0949 D3: each capability a live session holds for an open increment, by that increment: its own claim lights its list, a capability claim counts for the increment it was taken under.
   const openWork = snapshot.arcs.flatMap(({ increments }) => increments).filter(({ fields }) => fields.status !== "closed");

@@ -19,16 +19,16 @@ import { insideOf } from "../view/territory-land.js";
 
 /** A road segment: its way, the links it carries, and its width by how many (1, 2-3, 4-7, 8 or more). */
 export type RoadSegment = { readonly pts: readonly Point[]; readonly links: readonly string[]; readonly width: number };
-/** A gate: where a road crosses a border, the border's direction there, the opening cut in it, and its posts. */
-export type RoadGate = { readonly at: Point; readonly along: Point; readonly links: readonly string[]; readonly entrance: boolean; readonly opening: number; readonly post: number; readonly face: number };
+/** A gate: where a road crosses a border, the border's direction there, the links through it, and the opening cut in it. */
+export type RoadGate = { readonly at: Point; readonly along: Point; readonly links: readonly string[]; readonly entrance: boolean; readonly opening: number };
 export type IslandRoads = { readonly segments: readonly RoadSegment[]; readonly junctions: readonly { at: Point; width: number }[]; readonly gates: readonly RoadGate[]; readonly towns: ReadonlyMap<string, Point> };
 /** A capability's name on the island, where the map writes it. */
 export type NameAnchor = { readonly capability: string; readonly title: string; readonly x: number; readonly z: number };
 
 /** Round 11's `sand-faint` widths, by the links a road carries: 1, 2-3, 4-7, 8 or more. */
 const WIDTHS = [0.5, 0.7, 0.95, 1.3] as const;
-/** The least gate opening, a post's ink square and its paper face, an entrance's larger ones. */
-const GATE = { opening: 3, post: 1.45, face: 0.9, entrancePost: 1.8, entranceFace: 1.15 };
+/** The least gate opening (its posts stand on the relief, island-relief.ts). */
+const GATE_OPENING = 3;
 /** The mock measured names on the page at about 2.6 pixels per ground unit: a name's box, and its padding in pixels. */
 const PX = 2.6;
 const nameBox = (title: string) => ({ w: (title.length * 6.5 + 12) / PX, h: 7 });
@@ -162,7 +162,7 @@ function route(map: TerritoryMap, links: readonly Link[], docks: readonly LinkDo
     segments: net.segments.map((s) => ({ pts: s.pts.map((p) => times(p, S)), links: s.links, width: widthOf(s.links.length) * S })),
     junctions: net.junctions.map((at) => ({ at: times(at, S), width: Math.max(...net.segments.filter((s) => s.pts.some((p) => far(p, at) < 1e-6)).map((s) => widthOf(s.links.length)), WIDTHS[0]) * S })),
     gates: gates.map((g) => ({ at: times(g.at, S), along: g.along, links: g.links, entrance: g.entrance,
-      opening: Math.max(GATE.opening, widthOf(g.links.length) + 2) * S, post: (g.entrance ? GATE.entrancePost : GATE.post) * S, face: (g.entrance ? GATE.entranceFace : GATE.face) * S })),
+      opening: Math.max(GATE_OPENING, widthOf(g.links.length) + 2) * S })),
     towns: scaled(towns, S),
   };
 }

@@ -87,6 +87,8 @@ test("1.49 · a packaged build names the commit its checkout had when it was bun
   };
   assert.equal(await label(head), `version 0.3.2001 (commit ${head.slice(0, 7)})`);
   assert.equal(await label(null), "version 0.3.2001");
+  const app = execFileSync("git", ["rev-parse", "HEAD"], { cwd: import.meta.dirname, encoding: "utf8" }).trim();
+  assert.equal(mainBuild(dist).define.STORYTREE_BUILD_COMMIT, JSON.stringify(app), "the app's own build is stamped with its checkout's commit");
 });
 
 test("4.10 · in a copy that does not install releases, the main process makes no updater, so an update request can neither fetch a build nor restart the app", { timeout: 120_000 }, async (t) => {

@@ -9,6 +9,17 @@ body:has(> .app-menu-mount) > main { margin-top: var(--app-bar-height); }
 .side-rail { position: absolute; inset: 0 auto 0 0; z-index: 3; width: var(--rail-width); display: flex; flex-direction: column; box-sizing: border-box; background: #12171a; border-right: 1px solid #3d4748; color: #d9dedb; font: 13px/1.45 "Segoe UI", system-ui, sans-serif; }
 main:has(> .side-rail) > .forest { margin-left: var(--rail-width); width: calc(100% - var(--rail-width)); }
 main:has(> .side-rail) > .tree-space { left: calc(var(--rail-width) + 0.75rem); }
+.side-rail[hidden] { display: none; }
+/* The rail's right edge, a handle a few pixels wide over the border, that sets its width; collapsed, it stays at the window's left
+   edge, so dragging it right brings the rail back. */
+.side-rail-handle { position: absolute; top: 0; bottom: 0; left: calc(var(--rail-width) - 3px); z-index: 4; width: 6px; cursor: col-resize; touch-action: none; }
+main[data-rail-collapsed] > .side-rail-handle { left: 0; }
+.side-rail-handle:hover, .side-rail-handle:focus-visible, main[data-rail-dragging] > .side-rail-handle { background: #79af95; opacity: .6; outline: none; }
+main[data-rail-dragging] { cursor: col-resize; user-select: none; }
+.side-rail-toggle { display: grid; place-items: center; flex: 0 0 auto; width: 36px; height: 36px; padding: 0; border: 0; border-radius: 6px; background: transparent; color: #eceae3; cursor: pointer; }
+.side-rail-toggle:hover { background: #262a2f; }
+.side-rail-toggle[aria-expanded="false"] { color: #a9b0ba; }
+.side-rail-toggle:focus-visible { outline: 2px solid #a9b0ba; outline-offset: 2px; }
 .side-rail-tabs { flex: 0 0 auto; display: flex; gap: 4px; padding: 0 8px; border-bottom: 1px solid #3d4748; }
 .side-rail-tabs button { display: inline-flex; align-items: center; gap: 6px; padding: 10px 10px 8px; border: 0; border-bottom: 2px solid transparent; background: transparent; color: #a9b0ba; font: inherit; font-weight: 600; cursor: pointer; }
 .side-rail-tabs button:hover { color: #eceae3; }

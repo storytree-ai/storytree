@@ -214,7 +214,9 @@ export function openProjectPage<View extends ForestGlobe>(parts: PageParts<View>
     const history = () => page.held().changes;
     const states = project.states;
     // The left rail, a tab for each of the sessions list and the arcs that is on (ADR-1219).
-    const rail = mountRail(content, { project: name, tabs: (["sessions", "arcs"] as const).filter((tab: RailTab) => surfaceOn(surfaces, tab)) });
+    // Its toggle leads the app bar, where it stays reachable while the rail is collapsed.
+    const toggleHost = content.ownerDocument.querySelector<HTMLElement>(".app-bar > .app-factory") ?? undefined;
+    const rail = mountRail(content, { project: name, tabs: (["sessions", "arcs"] as const).filter((tab: RailTab) => surfaceOn(surfaces, tab)), ...(toggleHost ? { toggleHost } : {}) });
     if (rail) mine.rail = rail;
     let started!: () => void;
     const startAfter = new Promise<void>((resolve) => { started = resolve; });

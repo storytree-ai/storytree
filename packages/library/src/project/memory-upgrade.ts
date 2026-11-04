@@ -3,7 +3,7 @@ import type { PoolClient } from "pg";
 
 import { RECORD_SCHEMAS, SCHEMA_VERSIONS } from "../schema/types.js";
 import type { NoteType } from "../knowledge/knowledge.js";
-import { KNOWLEDGE_KINDS } from "../knowledge/knowledge.js";
+import { KNOWLEDGE_KINDS, REFERENCE_FIELD_NAMES } from "../knowledge/knowledge.js";
 import type { RecordEnvelope } from "../transactions/types.js";
 
 const KINDS: readonly string[] = ["decision", "definition", ...KNOWLEDGE_KINDS];
@@ -86,7 +86,7 @@ function classify(record: RecordEnvelope): Pick<RecordEnvelope, "type" | "versio
     fields.links = record.fields.links;
   }
   // Classification cannot invent a front cover, a number or further references and graph edges.
-  if (["frontCoverOf", "number", "supersedes", "context", "rules", "antiPatterns", "stepRefs", "branchEdges"].some((key) => key in fields)) return undefined;
+  if (["frontCoverOf", "number", ...REFERENCE_FIELD_NAMES.filter((key) => key !== "links")].some((key) => key in fields)) return undefined;
   if (fields.links !== undefined && JSON.stringify(fields.links) !== JSON.stringify(record.fields.links)) return undefined;
   const type = kind as NoteType;
   if (!RECORD_SCHEMAS[type].safeParse(fields).success) return undefined;

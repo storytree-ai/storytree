@@ -292,8 +292,9 @@ const predict = verb({
   },
   writes: true,
   async act({ question: id, pick: given, confidence, why }, context: ArcVerbContext) {
-    const pick = /^[1-9]\d*$/.test(given.trim()) ? Number(given) : given.trim();
-    if (typeof pick === "string" && pick !== "retire" && pick !== "defer") throw new VerbRefusal(`--pick is an option's number, retire or defer, not "${given}"`);
+    const word = given.trim();
+    const pick: number | "retire" | "defer" | undefined = /^[1-9]\d*$/.test(word) ? Number(word) : word === "retire" ? "retire" : word === "defer" ? "defer" : undefined;
+    if (pick === undefined) throw new VerbRefusal(`--pick is an option's number, retire or defer, not "${given}"`);
     const answer = { pick, confidence: oneOf(confidence, CONFIDENCES, "--confidence"), why };
     const recorded = await context.library.predictQuestion(id, answer, context.writer).catch(refused);
     if (recorded === null) throw new VerbRefusal(`no question "${id}" in this project`);
@@ -337,7 +338,7 @@ const score = verb({
     const given = {
       ...(forPrediction === undefined ? {} : { prediction: oneOf(forPrediction, VERDICTS, "--prediction") }),
       ...(forRecommendation === undefined ? {} : { recommendation: oneOf(forRecommendation, VERDICTS, "--recommendation") }),
-      by: by ?? context.writer.actor ?? context.session,
+      by: by ?? context.writer?.actor ?? context.session,
     };
     const scored = await context.library.scoreQuestion(id, given, context.writer).catch(refused);
     if (scored === null) throw new VerbRefusal(`no question "${id}" in this project`);

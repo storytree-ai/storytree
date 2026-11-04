@@ -507,7 +507,15 @@ test("6.117 · check_setup in a project whose folder declares packages no story 
       writeMarker(folder, `${JSON.stringify({ project: name })}\n`);
       await approveCheckout(folder, name, home.storytreeHome);
       writeFileSync(path.join(folder, "pyproject.toml"), "[project]\nname = \"checkbox\"\nversion = \"0.1.0\"\n");
-      await withAgent(folder, claudeCode("claude-1", { dataDir: path.join(home.storytreeHome, "pgdata"), setup: { homes: home.homes, storytreeHome: home.storytreeHome } }), async (agent) => {
+      const setup = { dataDir: path.join(home.storytreeHome, "pgdata"), setup: { ...ANSWERED, homes: home.homes, storytreeHome: home.storytreeHome } };
+      // A client storytree has no hooks for is told it too.
+      await withAgent(folder, { client: "zed", env: { STORYTREE_SESSION_ID: "zed-chat-1" }, ...setup }, async (agent) => {
+        const checked = await agent.call("check_setup");
+        assert.equal(checked.data.tier, "connected");
+        assert.match(checked.text, /not yet imported[^.]*"checkbox"/);
+        assert.deepEqual(checked.data.unimported, ["checkbox"]);
+      });
+      await withAgent(folder, claudeCode("claude-1", setup), async (agent) => {
         const checked = await agent.call("check_setup");
         assert.equal(checked.isError, false, checked.text);
         assert.match(checked.text, /not yet imported[^.]*"checkbox"/);

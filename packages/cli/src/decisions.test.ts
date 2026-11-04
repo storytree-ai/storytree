@@ -67,7 +67,7 @@ test("6.1 two `adr new` run at once get different, increasing numbers", async ()
 
     const [a, b] = await Promise.all([
       world.run(["adr", "new", "--title", "Send through Mailgun", "--text", "Simplest API", "--status", "accepted"]),
-      world.run(["adr", "new", "--title", "Ship on Tuesdays", "--text", "Quietest day", "--status", "proposed"]),
+      world.run(["adr", "new", "--title", "Ship on Tuesdays", "--text", "Quietest day", "--status", "accepted"]),
     ]);
 
     assert.equal(a.code, 0, a.stderr);

@@ -18,7 +18,7 @@ for (const flag of ["links", "capabilities", "stories"] as const) {
       const arc = await library.createArc({ title: "Launch", intent: "Ship the site", endState: "The site is live" });
       const ids = (flag === "links" ? decisions : flag === "capabilities" ? capabilities : stories).map(({ id }) => id);
       const args = flag === "links"
-        ? ["adr", "new", "--title", "Launch choices", "--text", "Use these services", "--status", "proposed"]
+        ? ["adr", "new", "--title", "Launch choices", "--text", "Use these services", "--status", "accepted"]
         : flag === "capabilities"
           ? ["arc", "increment", "new", "--arc", arc.id, "--title", "Forms", "--objective", "People can enter", "--body", "Build both forms"]
           : ["arc", "new", "--title", "Entry", "--intent", "People can enter", "--end-state", "Both forms work"];

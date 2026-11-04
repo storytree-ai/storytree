@@ -191,12 +191,13 @@ function rootMarkerLine({ both, tracked }: RootMarker): SetupLine {
 
 /**
  * What a project lacking a repository or its origin remote is told (8.31). No repository: make one locally. No origin: an ok
- * setup that names what a remote would add and the local route; storytree never proposes making or pushing a remote.
+ * setup that names what a remote would add and the local route, verified health included as `health local` (ADR-1193 D2's
+ * local rung), which the agent runs in its shell; storytree never proposes making or pushing a remote.
  */
 function repositoryLine(lack: "no repository" | "no origin"): SetupLine {
-  const local = "a review reads a change against the local main branch and land needs no remote, but verified health reads a remote's CI, so it is unavailable here; work locally: review each change on git diff, land it as a local commit, and close the increment with a note giving the commit's sha.";
+  const local = "a review reads a change against the local main branch and land needs no remote, and verified health, which a remote's CI would give, comes from a local run of this project's own tests instead: `storytree health local` in this folder runs its test command (pytest -rA for a Python project) and credits each numbered test to its contract, so the map shows its verified health. Work locally: review each change on git diff, land it as a local commit, run `storytree health local`, and close the increment with a note giving the commit's sha.";
   return lack === "no repository"
-    ? { check: "repository", state: "needs-attention", message: "This project's folder is in no git repository, so storytree cannot review this project's changes, land them or verify its health.", fix: `Make it one with a first commit (git init, then commit the .storytree folder). It needs no remote: ${local}` }
+    ? { check: "repository", state: "needs-attention", message: "This project's folder is in no git repository, so storytree cannot review this project's changes or land them.", fix: `Make it one with a first commit (git init, then commit the .storytree folder). It needs no remote: ${local}` }
     : { check: "repository", state: "ok", message: `This project's git repository has no origin remote: ${local}` };
 }
 

@@ -56,6 +56,16 @@ function Get-StorytreeRelease([string]$SelectedChannel, [scriptblock]$Fetch, [st
   return $release
 }
 
+# How old stable's build is, and where later work is (1.18); nothing for alpha or a release without its day.
+function Get-StorytreeStableAge($Release, [string]$SelectedChannel) {
+  if ($SelectedChannel -cne 'stable' -or -not $Release.published_at) { return $null }
+  $at = $Release.published_at
+  if ($at -is [datetime]) { $day = $at.ToUniversalTime().ToString('yyyy-MM-dd', [Globalization.CultureInfo]::InvariantCulture) }
+  elseif ([string]$at -match '^(\d{4}-\d{2}-\d{2})T') { $day = $Matches[1] }
+  else { return $null }
+  return "Stable is storytree $($Release.tag_name.Substring(1)), published on $day. Work that landed after that day is only in alpha: see Stable or alpha in https://github.com/storytree-ai/storytree/blob/main/INSTALL.md for how to choose it."
+}
+
 function Get-StorytreeArchitecture([string]$ProcessArchitecture, [string]$NativeArchitecture) {
   $native = if ($NativeArchitecture) { $NativeArchitecture } else { $ProcessArchitecture }
   switch ($native.ToUpperInvariant()) {
@@ -267,6 +277,8 @@ try {
       New-Item -ItemType Directory -Path $script:downloadDir | Out-Null
       $file = Join-Path $script:downloadDir $asset.name
       Write-Host "Downloading storytree for Windows $Arch. The installer is unsigned; Windows may ask whether to run it."
+      $age = Get-StorytreeStableAge $release $selectedChannel
+      if ($age) { Write-Host $age }
       Save-StorytreeFile $asset.url "$file.download"
       Assert-StorytreeDownload "$file.download" $asset.sha256
       Move-Item -LiteralPath "$file.download" -Destination $file

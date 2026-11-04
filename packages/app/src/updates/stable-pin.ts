@@ -22,6 +22,8 @@ export interface StableManifest {
   version: string;
   files: { url: string; sha512: string; size: number }[];
   releaseNotes: string;
+  /** When the pinned build was published, electron-updater's name for it; absent on a pin made before pins recorded it. */
+  releaseDate?: string;
   /** Mac and Linux feeds; a platform this pin's release lacks keeps the build an earlier pin gave it. */
   feeds?: PlatformFeeds;
   pin: {
@@ -53,6 +55,8 @@ export interface PinCandidate {
   bootstrap: Bootstraps;
   /** Each platform feed the release itself published. */
   feeds: PlatformFeeds;
+  /** When the release was published. */
+  published?: string;
 }
 export interface Bootstraps { ps1: string; sh?: string }
 export interface PinPorts {
@@ -131,6 +135,13 @@ export function pinCoverage(manifest: StableManifest): string {
   })].join(" ");
 }
 
+/** How old stable is, for the stable branch's README: work after the build's day is only in alpha (4.34). */
+export function stableAge(manifest: StableManifest): string {
+  if (!manifest.releaseDate) return "";
+  return `storytree ${manifest.version} was published on ${manifest.releaseDate.slice(0, 10)}. Work that landed after that day is only in alpha: ` +
+    `see https://github.com/${REPOSITORY}/blob/main/INSTALL.md#stable-or-alpha for how to choose it.`;
+}
+
 /**
  * Stops a bad pin spreading: stable goes back to a build it was pinned to before, with that pin's installer, feeds and
  * recorded increments, so the next pin lists again what only the bad build carried. Installs that already took the bad
@@ -148,8 +159,9 @@ export async function moveStableBack(version: string, ports: PinPorts, preview =
   readStableManifest(former);
   const candidate = await ports.candidate(version);
   if (candidate.version !== version || candidate.commit !== former.pin.commit) throw new Error("The formerly pinned release identity changed");
+  const releaseDate = former.releaseDate ?? candidate.published;
   const manifest: StableManifest = {
-    ...former,
+    ...former, ...(releaseDate ? { releaseDate } : {}),
     releaseNotes: `${former.releaseNotes}\n\nStable moved back from ${from} to ${version} to stop ${from} spreading; installs that already took ${from} keep it.`,
     pin: { ...former.pin, at: ports.now(), previous: from, movedBackFrom: from },
   };
@@ -212,7 +224,7 @@ export async function pinStable(version: string, ports: PinPorts, preview = fals
     if (feed) feeds[p] = feed;
   }
   const manifest: StableManifest = {
-    schema: 1, channel: "stable", version,
+    schema: 1, channel: "stable", version, ...(candidate.published ? { releaseDate: candidate.published } : {}),
     files: installers.map(({ url, sha512, size }) => ({ url, sha512, size })), releaseNotes, feeds,
     pin: { commit: candidate.commit, at: ports.now(), ...(previous ? { previous: previous.manifest.version } : {}), ...(expedited ? { expedited } : {}), ...(swept ? { swept } : {}),
       covers: ["windows", ...platforms],

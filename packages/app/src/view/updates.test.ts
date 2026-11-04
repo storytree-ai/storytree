@@ -152,6 +152,35 @@ test("4.24 the Updates section shows the update channel, stable by default, save
   elsewhere.stop();
 });
 
+test("4.34 the Update channel names the stable build and the day it was published, and says later work is only in alpha", async () => {
+  const window = new Window();
+  const host = window.document.createElement("div");
+  host.innerHTML = renderAppMenu();
+  const stable = { version: "0.3.2259", published: "2026-11-02" };
+  const mounted = mountReleaseChannel(host as unknown as HTMLElement, {
+    async read() { return { available: true, channel: "alpha", stable }; },
+    async set(channel) { return { available: true, channel }; },
+  });
+  await setImmediate();
+  const line = host.querySelector("[data-app-stable-build]")!;
+  assert.equal(line.hasAttribute("hidden"), false);
+  assert.match(line.textContent, /0\.3\.2259.*2026-11-02.*after that day is only in alpha/);
+  // A change, whose answer does not read the pin again, keeps the line.
+  const radio = host.querySelector('input[value="stable"]') as HTMLInputElement;
+  radio.checked = true;
+  radio.dispatchEvent(new window.Event("change", { bubbles: true }));
+  await setImmediate();
+  assert.match(line.textContent, /0\.3\.2259/);
+  mounted.stop();
+
+  const unknown = window.document.createElement("div");
+  unknown.innerHTML = renderAppMenu();
+  const without = mountReleaseChannel(unknown as unknown as HTMLElement, { async read() { return { available: true, channel: "stable" }; }, async set() { throw new Error("unused"); } });
+  await setImmediate();
+  assert.equal(unknown.querySelector("[data-app-stable-build]")!.hasAttribute("hidden"), true);
+  without.stop();
+});
+
 /** The menu's Updates section in a fresh window, and every console error the page writes (app.log, lifecycle 1.19). */
 function updatesSection(t: TestContext) {
   const window = new Window();

@@ -79,6 +79,16 @@ check "$ST_PAYLOAD_SHA" bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
 check "$(cat "$root/fetched")" "https://raw.githubusercontent.com/storytree-ai/storytree/release-channel-stable/latest.yml
 https://github.com/storytree-ai/storytree/releases/download/v0.3.123/storytree-delivery.json" "stable reads the pin, then that release"
 rm "$root/fetched"
+# How old stable is (1.18): the pin's day is said, with where alpha is; alpha, and a pin without the day, say nothing of it.
+pin='{"schema":1,"channel":"stable","version":"0.3.123","releaseDate":"2026-11-02T22:10:00Z"}'
+st_release stable arm64 "$root/manifest.json"
+check "$(st_stable_age)" "Stable is storytree 0.3.123, published on 2026-11-02. Work that landed after that day is only in alpha: see Stable or alpha in https://github.com/storytree-ai/storytree/blob/main/INSTALL.md for how to choose it." "stable names its build's day and points to alpha"
+st_release alpha arm64 "$root/manifest.json"; check "$(st_stable_age)" "" "alpha says nothing of stable's day"
+pin='{"schema":1,"channel":"stable","version":"0.3.123","releaseDate":"yesterday"}'
+st_release stable arm64 "$root/manifest.json"; check "$(st_stable_age)" "" "a day that is not one is not said"
+pin='{"schema":1,"channel":"stable","version":"0.3.123"}'
+st_release stable arm64 "$root/manifest.json"; check "$(st_stable_age)" "" "a pin from before pins recorded the day says nothing of it"
+rm "$root/fetched"
 st_release development arm64 "$root/manifest.json"
 check "$(cat "$root/fetched")" "https://github.com/storytree-ai/storytree/releases/latest/download/storytree-delivery.json" "development reads the latest release"
 pin='{"schema":1,"channel":"stable","version":"latest"}'

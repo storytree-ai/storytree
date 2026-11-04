@@ -162,3 +162,40 @@ test("17.19 · Friction marked about storytree answers with a pre-filled GitHub 
     });
   });
 });
+
+test("17.20 · record_resteer records the call an agent makes from its purpose: what the user redirected it to and their quoted words, its title, description, what it was doing, disposition and judge defaulted; a call missing either is refused in one line naming both", async () => {
+  const resteer = FRICTION_TOOLS.find((one) => mounted(one.tool) && one.tool.name === "record_resteer")!;
+  assert.deepEqual(Object.entries(resteer.inputs).filter(([, input]) => !("optional" in input && input.optional === true)).map(([name]) => name), [], "a door asks for no field up front");
+  await withLibrary(async (library) => {
+    await onBranch(library, "main", async (context) => {
+      const quote = '"Remove the cache in this task, as you suggest"';
+      await resteer.act({ statement: "Remove the cache in this task, not the next one", quote } as never, context, WORDS);
+      const [note] = await library.list("resteer");
+      assert.equal(note!.fields.redirect, "Remove the cache in this task, not the next one");
+      assert.equal(note!.fields.evidence, quote);
+      assert.equal(note!.fields.disposition, "taste");
+      assert.equal(note!.fields.dispositionBy, "agent");
+      assert.equal(note!.fields.title, "Remove the cache in this task, not the next one", "its title is what the user redirected it to");
+      assert.equal(note!.fields.description, "Remove the cache in this task, not the next one");
+      assert.equal(note!.fields.doing, "not said");
+
+      const long = `${"Keep the cache, but move its eviction into the store instead of the request handler ".repeat(2)}\nand say why`;
+      await resteer.act({ redirect: long, evidence: quote } as never, context, WORDS);
+      const titled = (await library.list("resteer")).find((one) => one.fields.redirect === long)!;
+      assert.equal(titled.fields.title, `${long.slice(0, 79)}…`, "a long redirect's title is its first line cut to 80 characters");
+      const exact = "x".repeat(80);
+      await resteer.act({ redirect: `${exact}\nmore`, evidence: quote } as never, context, WORDS);
+      assert.ok((await library.list("resteer")).some((one) => one.fields.title === exact), "a first line of 80 characters is kept whole");
+
+      const before = await library.history();
+      for (const given of [{ statement: "Remove the cache" }, { quote }]) {
+        const refused = await resteer.act(given as never, context, WORDS).then(() => undefined, (error: unknown) => error);
+        assert.ok(refused instanceof VerbRefusal, String(refused));
+        assert.doesNotMatch(refused.message, /\n/, "the refusal is one line");
+        assert.match(refused.message, /redirect/);
+        assert.match(refused.message, /evidence/);
+      }
+      assert.deepEqual(await library.history(), before, "a refused call writes nothing");
+    });
+  });
+});

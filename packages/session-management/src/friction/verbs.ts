@@ -5,7 +5,7 @@
  * File friction or a re-steer, add a recurrence, and drain and route the friction a landing's pass judges.
  */
 import type { FieldsOf } from "@storytree/library";
-import { verb, type VerbContext, type VerbFamily } from "@storytree/library/verbs";
+import { verb, VerbRefusal, type VerbContext, type VerbFamily } from "@storytree/library/verbs";
 
 /** A field's value as given: JSON for a list, else the text. */
 function listOf(text: string): string[] {
@@ -152,33 +152,55 @@ const routeVerb = verb({
   },
 });
 
+/** A re-steer's short name, from what the user redirected the session to: its first line, cut to 80 characters. */
+function titleOf(redirect: string): string {
+  const line = redirect.trim().split("\n")[0]!;
+  return line.length <= 80 ? line : `${line.slice(0, 79)}…`;
+}
+
 const resteerNew = verb({
   command: {
     family: "resteer",
     name: "new",
     summary: "file a re-steer with the owner's quoted words, keeping your account apart",
-    usage: "resteer new --title <t> --description … --doing … --redirect … --evidence <quote|@file> --disposition <defect|taste> --judged-by <owner|agent> [--mode <failure-mode>] [--self-report <text|@file>] [--links a,b]",
+    usage: "resteer new --redirect … --evidence <quote|@file> [--title <t>] [--description …] [--doing …] [--disposition <defect|taste>] [--judged-by <owner|agent>] [--mode <failure-mode>] [--self-report <text|@file>] [--links a,b]",
   },
   tool: {
     name: "record_resteer",
-    description: "Record a re-steer: the user (the project's owner) redirected what you were doing. Put their own words inside double quotation marks as the evidence; your own account of it goes in self-report. Say whether it was a defect or a matter of taste, and who judged that (judged-by): the owner, or you. A defect needs its failure mode (no-mast-home when none fits).",
+    description: "Record a re-steer: the user (the project's owner) redirected what you were doing. Two fields are needed: redirect (what they redirected you to; statement is taken for it) and evidence (their own words inside double quotation marks; quote is taken for it). The rest is optional: your own account goes in self-report; disposition is taste unless you say defect (which needs its failure mode, no-mast-home when none fits), and judged-by is agent unless the owner said which.",
   },
   inputs: {
-    title: { kind: "text", describe: "a short name for it" },
-    description: { kind: "text", describe: "one line on what it is" },
-    doing: { kind: "text", describe: "what you were doing" },
-    redirect: { kind: "text", describe: "what the owner redirected you to" },
-    evidence: { kind: "text", describe: "their own words, inside double quotation marks" },
-    disposition: { kind: "text", describe: "defect (something went wrong) or taste (a preference)" },
-    "judged-by": { kind: "text", describe: "who judged it a defect or taste: owner only when the owner said so, else agent" },
+    redirect: { kind: "text", optional: true, describe: "what the owner redirected you to" },
+    evidence: { kind: "text", optional: true, describe: "their own words, inside double quotation marks" },
+    statement: { kind: "text", optional: true, describe: "taken as redirect when redirect is not given" },
+    quote: { kind: "text", optional: true, describe: "taken as evidence when evidence is not given" },
+    title: { kind: "text", optional: true, describe: "a short name for it; left out, the first line of redirect" },
+    description: { kind: "text", optional: true, describe: "one line on what it is; left out, redirect" },
+    doing: { kind: "text", optional: true, describe: "what you were doing" },
+    disposition: { kind: "text", optional: true, describe: "defect (something went wrong) or taste (a preference); left out, taste" },
+    "judged-by": { kind: "text", optional: true, describe: "who judged it a defect or taste: owner only when the owner said so; left out, agent" },
     mode: { kind: "text", optional: true, describe: "a defect's failure mode" },
     "self-report": { kind: "text", optional: true, describe: "your own account of it, kept apart" },
     links: { kind: "text", optional: true, describe: "what it links to, comma-separated" },
   },
   writes: true,
-  async act({ "judged-by": judgedBy, ...given }, context: VerbContext) {
+  async act({ "judged-by": judgedBy, statement, quote, ...given }, context: VerbContext) {
+    const redirect = given.redirect ?? statement;
+    const evidence = given.evidence ?? quote;
+    if (redirect === undefined || evidence === undefined) {
+      throw new VerbRefusal("A re-steer needs redirect (what the user redirected you to) and evidence (their own words inside double quotation marks); every other field is optional.", { misuse: true });
+    }
     const { recordResteer } = await import("./filing/capture.js");
-    const note = await recordResteer(context.library, { ...fields(given), dispositionBy: judgedBy } as never, context.writer!);
+    const note = await recordResteer(context.library, {
+      ...fields(given),
+      redirect,
+      evidence,
+      title: given.title ?? titleOf(redirect),
+      description: given.description ?? redirect,
+      doing: given.doing ?? "not said",
+      disposition: given.disposition ?? "taste",
+      dispositionBy: judgedBy ?? "agent",
+    } as never, context.writer!);
     return { text: `Recorded re-steer ${note.id}.`, data: { id: note.id }, next: [{ command: `library read ${note.id}`, why: "read it whole" }] };
   },
 });

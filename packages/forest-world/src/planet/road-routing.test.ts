@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { ForestScene, Island } from '../scene.js';
 import { routeTrails, type TrailNetwork } from '../core/routing.js';
-import { planetPathwayDrawing, type CrossRouting } from './pathways.js';
+import { planetPathwayDrawing, type CrossRouting, type PathwayDrawing } from './pathways.js';
 import { drawnAtOnce, islandDocks, roadsWhenRouted, routedDrawing, routeInWorker, type RoadRouter, type RoadWorker } from './road-routing.js';
 import { SHEET_RADIUS, sheetSpot } from './sheet.js';
 import { plateTransform, type PlanetSpot } from './planet.js';
@@ -163,7 +163,7 @@ test('4.37 a layout whose islands all moved by one shift draws the roads at once
   const first = routedDrawing(scene, spots, SHEET_RADIUS, drawnAtOnce(scene, spots, SHEET_RADIUS).routing!, router, new AbortController().signal);
   asked[0]!.answer();
   const drawn = (await first)!;
-  assert.ok(drawn.plan.segments.length > 0);
+  assert.deepEqual(drawn.plan.edges.map(edge => `${edge.from}->${edge.to}`), ['b1->a1', 'b2->a2'], 'every link has its road');
   const shifted = onSheet({ x: 23, y: -11 });
   const now = drawnAtOnce(scene, shifted, SHEET_RADIUS, { spots, radius: SHEET_RADIUS, drawing: drawn });
   assert.equal(now.routing, undefined, 'nothing waits on a routing');
@@ -185,8 +185,10 @@ test('4.37 a layout whose islands all moved by one shift draws the roads at once
 test('4.39 a routing in flight is kept while new layouts with the same routing key arrive, and its answer is drawn for the latest', async () => {
   const spots = layout(0.89);
   const { router, asked } = heldRouter();
-  const drawn: { layout: unknown; drawing: { plan: { segments: unknown[]; edges: unknown[]; docks: unknown[] } } }[] = [];
-  const roadsOf = roadsWhenRouted(router, (layout, drawing) => { drawn.push({ layout, drawing }); });
+  const drawn: { layout: unknown; drawing: PathwayDrawing }[] = [];
+  let answered!: () => void;
+  const firstDraw = new Promise<void>(resolve => { answered = resolve; });
+  const roadsOf = roadsWhenRouted(router, (layout, drawing) => { drawn.push({ layout, drawing }); answered(); });
   const first = { scene, spots, radius: R, routing: drawnAtOnce(scene, spots, R).routing };
   roadsOf.show(first);
   // An island's health changes while its roads are routed: a new scene, the same routing.
@@ -197,10 +199,10 @@ test('4.39 a routing in flight is kept while new layouts with the same routing k
   assert.equal(asked.length, 1, 'the routing in flight is not started over');
   assert.equal(asked[0]!.signal.aborted, false, 'nor aborted');
   asked[0]!.answer();
-  await new Promise(resolve => setTimeout(resolve, 0));
+  await firstDraw;
   assert.equal(drawn.length, 1);
   assert.equal(drawn[0]!.layout, second, 'its answer is drawn for the latest layout');
-  assert.ok(drawn[0]!.drawing.plan.segments.length > 0);
+  assert.deepEqual(drawn[0]!.drawing.plan.edges.map(edge => `${edge.from}->${edge.to}`), ['b1->a1', 'b2->a2'], 'with every link\'s road');
   // A layout computed before the answer landed, shown after it: its roads are drawn at once.
   const third = { scene, spots, radius: R, routing: first.routing };
   roadsOf.show(third);

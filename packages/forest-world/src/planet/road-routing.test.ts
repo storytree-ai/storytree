@@ -3,7 +3,7 @@ import test from 'node:test';
 import type { ForestScene, Island } from '../scene.js';
 import { routeTrails, type TrailNetwork } from '../core/routing.js';
 import { planetPathwayDrawing, type CrossRouting } from './pathways.js';
-import { drawnAtOnce, routedDrawing, routeInWorker, type RoadRouter, type RoadWorker } from './road-routing.js';
+import { drawnAtOnce, islandDocks, routedDrawing, routeInWorker, type RoadRouter, type RoadWorker } from './road-routing.js';
 import { answerRouting } from './road-worker.js';
 import { roadSegmentWindows } from './growth.js';
 import { liveRoadProgress, liveRoadsGrowing, nextLiveRoads } from './live-roads.js';
@@ -180,4 +180,17 @@ test('4.21 a road whose spans an earlier road already drew whole is kept while a
   const windows = roadSegmentWindows(rerouted, after);
   for (const segment of rerouted.segments) assert.equal(liveRoadProgress(windows.get(segment.id), now, false), 1, 'every rerouted span is drawn whole');
   assert.equal(liveRoadsGrowing(after, now, false), false);
+});
+
+test('4.36 each island is handed the docks its roads come ashore at, with the links each carries, once its roads are routed', async () => {
+  const spots = layout(0.65);
+  const now = drawnAtOnce(scene, spots, R);
+  assert.equal(islandDocks(now.drawing.plan, true), undefined, 'none while the first routing is pending');
+  const { router, asked } = heldRouter();
+  const drawing = routedDrawing(scene, spots, R, now.routing!, router, new AbortController().signal);
+  asked[0]!.answer();
+  const docks = islandDocks((await drawing)!.plan, false)!;
+  assert.deepEqual([...docks.get('a') ?? []].flatMap(dock => dock.links).sort(), ['b1->a1', 'b2->a2']);
+  assert.deepEqual([...docks.get('b') ?? []].flatMap(dock => dock.links).sort(), ['b1->a1', 'b2->a2']);
+  for (const dock of docks.get('a')!) assert.ok(Number.isFinite(dock.local.x) && Number.isFinite(dock.local.z), 'in the island\'s own coordinates');
 });

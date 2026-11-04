@@ -5,7 +5,7 @@ import { OrbitControls } from '@react-three/drei';
 import { Vector3, type Group, type PerspectiveCamera } from 'three';
 import type { ForestScene, Island } from '../scene.js';
 import type { PathwayDrawing, PlanetPathwayPlate } from './pathways.js';
-import { drawnAtOnce, pageRoadRouter, routedDrawing } from './road-routing.js';
+import { drawnAtOnce, islandDocks, pageRoadRouter, routedDrawing, type IslandDock } from './road-routing.js';
 import { Pathways, SelectionLanes } from './PlanetTrailRibbons.js';
 import { PlumbingLabels } from './PlumbingLabels.js';
 import { Overlay } from './overlay.js';
@@ -32,6 +32,7 @@ export { applyPlanetSideOffset } from './camera.js';
 /** The eye's height above the sheet's level, in degrees, as the canvas makes it. */
 export { SHIPPED_ELEVATION_DEG } from './camera.js';
 export { Overlay } from './overlay.js';
+export type { IslandDock } from './road-routing.js';
 export { usePlanetGrowth, type GrowthReader, type PlanetGrowth } from './PlanetGrowth.js';
 export { crossingLength, growthMoment, growthPlan, type GrowthOptions, type GrowthPlan, type GrowthStage } from './growth.js';
 
@@ -51,8 +52,9 @@ export interface PlanetWorldCanvasProps {
   globe?: Ref<Group> | undefined;
   /** Where the big sphere's centre stands, at the origin by default: tilting the glass sheet moves it (ADR-1043 D3). */
   offset?: [number, number, number] | undefined;
-  /** Names, selection and claim markers mount in each plate's local ground coordinates. */
-  plateChildren?: (island: Island, descriptors: readonly Descriptor3D[], coast: readonly (readonly { x: number; z: number }[])[]) => ReactNode;
+  /** Names, selection and claim markers mount in each plate's local ground coordinates. They are handed the docks the
+   * island's roads come ashore at, once its roads are routed (undefined before). */
+  plateChildren?: (island: Island, descriptors: readonly Descriptor3D[], coast: readonly (readonly { x: number; z: number }[])[], docks: readonly IslandDock[] | undefined) => ReactNode;
   /** R3F children, drawn in the canvas with the host's own controls. */
   children?: ReactNode;
   /** False hides every plate, for looking at the knowledge under the glass alone (E1). */
@@ -70,7 +72,7 @@ export interface PlanetWorldCanvasProps {
   lanes?: readonly LitLink[];
   /** The way inland from a dock on `story`'s island to `capability`'s territory, in the island's own ground coordinates
    * and starting on the dock, along lines the host has drawn there (ADR-0991 D4); without it a lane ends at its docks. */
-  laneWays?: ((story: string, capability: string, dock: CoastPoint) => readonly CoastPoint[] | undefined) | undefined;
+  laneWays?: ((story: string, capability: string, dock: CoastPoint, docks: readonly IslandDock[] | undefined) => readonly CoastPoint[] | undefined) | undefined;
   /** A recorded growth to replay (capability 12): islands rise, roads draw on, and plate children read `usePlanetGrowth`. */
   growth?: PlanetGrowth | undefined;
   /** Draw first and newly arriving roads on in a live host; recorded growth takes precedence. */
@@ -84,14 +86,15 @@ export interface PlanetWorldCanvasProps {
 }
 
 const NO_LANES: readonly LitLink[] = [];
+const NO_DOCKS: readonly IslandDock[] = [];
 const ORIGIN: [number, number, number] = [0, 0, 0];
 
 /** How far below its resting place an island starts, in ground units: it rises out of the glass. */
 const RISE_DEPTH = 6;
 
 /** Each island a raised plate of the shared thickness with sides, on the glass sheet (ADR-1059 D2). */
-const Plate = memo(function Plate({ island, spot, radius, plate, visible, grounds, hollow, children }: {
-  island: Island; spot: PlanetSpot; radius: number; plate: PlanetPathwayPlate;
+const Plate = memo(function Plate({ island, spot, radius, plate, docks, visible, grounds, hollow, children }: {
+  island: Island; spot: PlanetSpot; radius: number; plate: PlanetPathwayPlate; docks: readonly IslandDock[] | undefined;
   visible: boolean; grounds: boolean; hollow: boolean;
   children: PlanetWorldCanvasProps['plateChildren'];
 }) {
@@ -121,7 +124,7 @@ const Plate = memo(function Plate({ island, spot, radius, plate, visible, ground
   return <group ref={group} position={transform.position} quaternion={transform.quaternion} name={`planet:${island.story}`} visible={visible && risen}>
     <primitive object={ground} visible={grounds} />
     {/* Html markers do not inherit Three's visibility: the legacy inside-only gate removes them. */}
-    {visible && risen && children?.(island, descriptors, coast)}
+    {visible && risen && children?.(island, descriptors, coast, docks)}
   </group>;
 });
 
@@ -188,11 +191,13 @@ const CAPTURE_SEAM = '__storytreeCaptureGlobe';
  * A lamp shades the islands' sides and the glass's edge, and the land's top keeps its exact colour (ADR-1062 D1). */
 export function PlanetWorldCanvas({ scene, spots, radius, rotation = [0, 0, 0, 1], offset, globe, plateChildren, children, surface = true, surfaces, inside, framing = 1.18, sideOffset = 0, lanes = NO_LANES, laneWays, growth, liveRoads = false, sheet, hollow = false }: PlanetWorldCanvasProps) {
   const drawing = useRoadsWhenRouted(scene, spots, radius);
-  const inland = useMemo((): InlandWay | undefined => laneWays && ((dock, capability) => {
-    const way = laneWays(dock.story, capability, dock.local), spot = spots.get(dock.story);
-    return way && spot && way.length > 1 ? onIsland(way, spot, radius, SHEET_LAND_LIFT) : undefined;
-  }), [laneWays, spots, radius]);
   const pathways = drawing.plan;
+  const docks = useMemo(() => islandDocks(pathways, drawing.routing), [pathways, drawing.routing]);
+  const docksOn = useCallback((story: string) => docks === undefined ? undefined : docks.get(story) ?? NO_DOCKS, [docks]);
+  const inland = useMemo((): InlandWay | undefined => laneWays && ((dock, capability) => {
+    const way = laneWays(dock.story, capability, dock.local, docksOn(dock.story)), spot = spots.get(dock.story);
+    return way && spot && way.length > 1 ? onIsland(way, spot, radius, SHEET_LAND_LIFT) : undefined;
+  }), [laneWays, spots, radius, docksOn]);
   const reveal = useMemo(() => growth === undefined ? undefined : roadSegmentWindows(pathways, growth.plan.roads), [pathways, growth?.plan]);
   const elevation = SHIPPED_ELEVATION_DEG * Math.PI / 180;
   const position: [number, number, number] = [0, Math.sin(elevation) * radius * 4, Math.cos(elevation) * radius * 4];
@@ -213,7 +218,7 @@ export function PlanetWorldCanvas({ scene, spots, radius, rotation = [0, 0, 0, 1
       {scene.islands.map(island => {
         const spot = spots.get(island.story);
         if (spot === undefined) throw new Error(`No planet spot for story ${island.story}`);
-        return <Plate key={island.story} island={island} spot={spot} radius={radius} plate={pathways.plates.get(island.story)!}
+        return <Plate key={island.story} island={island} spot={spot} radius={radius} plate={pathways.plates.get(island.story)!} docks={docksOn(island.story)}
           visible={exterior.plates} grounds={exterior.grounds} hollow={hollow} children={plateChildren} />;
       })}
       <group name="globe-roads" visible={exterior.roads}><Pathways plan={pathways} reveal={reveal} live={liveRoads && growth === undefined} visible={exterior.roads} routing={drawing.routing} /><SelectionLanes plan={pathways} lit={lanes} inland={inland} /><PlumbingLabels plan={pathways} visible={exterior.roads} /></group>

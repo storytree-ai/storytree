@@ -4,7 +4,8 @@
  * otherwise on the page once the islands are drawn. What is routed does not change, only when. */
 import { routeTrails, type TrailNetwork } from '../core/routing.js';
 import type { ForestScene } from '../scene.js';
-import { islandsOnly, keepRoutes, pathwayRouting, planetPathwayDrawing, type CrossRouting, type PathwayDrawing } from './pathways.js';
+import type { CoastPoint } from '../coast-clip.js';
+import { islandsOnly, keepRoutes, pathwayRouting, planetPathwayDrawing, type CrossRouting, type PathwayDrawing, type PlanetPathways } from './pathways.js';
 import type { PlanetSpot } from './planet.js';
 
 /** Routes a drawing's roads between islands somewhere, answering the network `routeTrails` would. An aborted signal
@@ -104,4 +105,16 @@ export function routeInWorker(start: () => RoadWorker, fallback: RoadRouter = ro
 export function pageRoadRouter(page: Pick<Document, 'querySelector'> | undefined = globalThis.document): RoadRouter {
   const script = page?.querySelector(`meta[name="${ROAD_WORKER_META}"]`)?.getAttribute('content');
   return script ? routeInWorker(() => new Worker(script) as unknown as RoadWorker) : routeOnThePage;
+}
+
+/** A dock on an island, in the island's own ground coordinates, with the links (`from->to`) its roads carry. */
+export interface IslandDock { local: CoastPoint; links: readonly string[] }
+
+/** Each island's docks, by story: where its roads between islands come ashore. Undefined while the drawing still
+ * waits on its first routing, so a host can tell an island with no docks from one whose docks are not yet known. */
+export function islandDocks(plan: PlanetPathways, routing: boolean): ReadonlyMap<string, readonly IslandDock[]> | undefined {
+  if (routing && plan.docks.length === 0) return undefined;
+  const out = new Map<string, IslandDock[]>();
+  for (const dock of plan.docks) (out.get(dock.story) ?? out.set(dock.story, []).get(dock.story)!).push({ local: dock.local, links: dock.links });
+  return out;
 }

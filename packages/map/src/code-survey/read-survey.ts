@@ -139,10 +139,10 @@ export interface FilePlace {
 export async function placeFiles(folder: string, paths: readonly string[], tree: AnnotatedTree, options: Parameters<typeof capabilitiesOfFiles>[3] = {}): Promise<FilePlace[]> {
   // Git names the top by its real path, so each path is read by its own. A path in a worktree nested in the folder's
   // checkout (a lane's under .claude/worktrees) is read against that worktree's top, never the folder's.
-  const root = await checkoutTop(realOf(folder));
+  const root = realOf(await checkoutTop(realOf(folder)));
   const tops = new Map<string, Promise<string>>();
   const topOf = (at: string): Promise<string> => {
-    if (!tops.has(at)) tops.set(at, gitText(at, ["rev-parse", "--show-toplevel"]).catch(() => root));
+    if (!tops.has(at)) tops.set(at, gitText(at, ["rev-parse", "--show-toplevel"]).then(realOf, () => root));
     return tops.get(at)!;
   };
   const located = await Promise.all(paths.map(async (given) => {
@@ -174,10 +174,13 @@ function existingFolder(folder: string): string {
   return at;
 }
 
-/** `file`'s real path, through its nearest folder that exists: a file not yet made has none of its own. */
+/**
+ * `file`'s real path, through its nearest folder that exists: a file not yet made has none of its own. It is the final
+ * path, as Git writes a top, so a Windows 8.3 short name (a runner's temp folder) is read by its long name.
+ */
 function realOf(file: string): string {
   try {
-    return realpathSync(file);
+    return realpathSync.native(file);
   } catch {
     const parent = path.dirname(file);
     return parent === file ? file : path.join(realOf(parent), path.basename(file));

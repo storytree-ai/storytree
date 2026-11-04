@@ -202,6 +202,9 @@ jobs:
       - run: pnpm check:seed-records
       # No file the branch adds or changes gains a personal path, name, address or link (leak-scan.mjs).
       - run: pnpm check:leaks
+      # No evidence media (a screenshot, clip or trace under an evidence folder or docs/design) is committed: it goes to
+      # the evidence bucket under its pull request (evidence-check.mjs, ADR-1234 D1).
+      - run: pnpm check:evidence
       # packages/repo-checks/src/test.mjs starts a throwaway Postgres from this machine's @embedded-postgres package
       # (linux-x64, darwin-arm64 or windows-x64). The live Cloud SQL proof (contract 8.1) is
       # skipped, visibly: CI holds no Google identity. Its first line is the `scope:` decision

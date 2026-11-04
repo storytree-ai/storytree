@@ -22,6 +22,7 @@
     "check:factory-health": "node --import tsx packages/repo-checks/src/check-own-health.mjs --factory",
     "record:acceptance": "pnpm -s storytree library-tools record-acceptance",
     "evidence:sweep": "pnpm -s storytree evidence sweep",
+    "evidence:upload": "pnpm -s storytree evidence upload",
     "library:export": "pnpm -s storytree library-tools export",
     "library:restore": "pnpm -s storytree library-tools restore",
     "desktop": "pnpm --filter @storytree/desktop start",
@@ -32,6 +33,7 @@
     "check:seed-records": "node --import tsx packages/repo-checks/src/seed-records.mjs",
     "check:leaks": "node --import tsx packages/repo-checks/src/leak-scan.mjs",
     "check:secrets": "node --import tsx packages/repo-checks/src/leak-scan.mjs --secrets",
+    "check:evidence": "node --import tsx packages/repo-checks/src/evidence-check.mjs",
     "scrub:evidence": "node --import tsx packages/repo-checks/src/seed-records.mjs --scrub"
   },
   "devDependencies": {

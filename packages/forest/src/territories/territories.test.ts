@@ -44,6 +44,14 @@ test("3.14 each capability is one connected territory whose share of the island 
   }
 });
 
+test("3.14 no territory is smaller than round 13's minimum, 5 of 246 cells, however few its lines", () => {
+  const cut = territories([{ capability: "big", lines: 10_000 }, { capability: "tiny", lines: 1 }, { capability: "small", lines: 40 }], 30, 246);
+  const held = cut.territories.map((_, at) => cut.cells.filter((cell) => cell.territory === at).length);
+  assert.equal(held.reduce((a, b) => a + b, 0), cut.cells.length, "every cell is held");
+  assert.ok(held[1]! >= Math.round((5 / 246) * cut.cells.length), `the tiny territory holds ${held[1]} cells`);
+  assert.ok(held[2]! >= Math.round((5 / 246) * cut.cells.length), `the small territory holds ${held[2]} cells`);
+});
+
 test("3.15 a point on a territory's land picks that capability; open sea picks none", () => {
   for (const cell of map.cells) assert.equal(territoryAt(map, cell.site.x, cell.site.z), map.territories[cell.territory]);
   assert.equal(territoryAt(map, 30, 0), undefined);

@@ -255,7 +255,7 @@ test("3.14, 3.20 an unsurveyed user project's land shows verified health, update
   assert.equal(changed.land!.territories[0]!.status, "unhealthy");
   const surveyed = read({ shop: { files: [{ path: "src/browse.ts", lines: 100, capability: "cap-0" }], imports: [] } });
   assert.notEqual(surveyed.key, changed.key);
-  assert.deepEqual(surveyed.land!.territories.map(({ capability, lines }) => [capability, lines]), [["cap-0", 100]], "real code replaces equal shares");
+  assert.deepEqual(surveyed.land!.territories.map(({ capability, lines }) => [capability, lines]), [["cap-0", 100], ["cap-1", 1], ["cap-2", 1]], "real code replaces equal shares, and a capability with no code yet keeps the least land");
   assert.equal(surveyed.land!.files.length, 1);
 });
 

@@ -4,8 +4,9 @@
  *
  * - The island is cut into near-equal cells: one per seed of a sunflower spiral, each cell the land
  *   nearer its seed than any other (a Voronoi cell), clipped to the island's round coast.
- * - Each territory is given cells in proportion to its lines of code (at least one), so its area
- *   follows its lines. Unclaimed code is a territory of its own, with no capability.
+ * - Each territory is given cells in proportion to its lines of code, so its area follows its lines,
+ *   but never fewer than round 13's minimum (MIN_SHARE of the cells), taken from the largest.
+ *   Unclaimed code is a territory of its own, with no capability.
  * - The cells are shared out by halving: the territories are split into two groups of near-equal
  *   weight, the cells along the longer axis in the same proportion, and each half again, so every
  *   territory is one connected run of cells.
@@ -48,6 +49,8 @@ export type TerritoryMap = {
 
 /** Enough cells that a territory's area follows its lines closely, at most a few hundred to cut. */
 const CELLS = 120;
+/** Round 13's minimum territory, as a share of the cells: 5 of the 246 The library's look was tuned on. */
+const MIN_SHARE = 5 / 246;
 /** The round coast, as a polygon of this many sides. */
 const COAST_SIDES = 64;
 const GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5));
@@ -75,7 +78,7 @@ export function territories(shares: readonly TerritoryShare[], outline: number |
   const neighbours = touching.map((set) => [...set].sort((a, b) => a - b));
 
   const owner = new Array<number>(count).fill(0);
-  const counts = apportion(held.map((share) => share.lines), count);
+  const counts = atLeast(apportion(held.map((share) => share.lines), count), Math.max(1, Math.min(Math.floor(count / Math.max(1, held.length)), Math.round(MIN_SHARE * count))));
   share(sites.map((_, at) => at), held.map((_, at) => at), counts, sites, neighbours, owner);
 
   const cells = sites.map((site, at): Cell => ({ index: at, site, polygon: outlines[at]!.map((edge) => edge.from), neighbours: neighbours[at]!, territory: owner[at]! }));
@@ -146,6 +149,16 @@ function apportion(weights: readonly number[], total: number): number[] {
   floors.forEach((floor, at) => { const take = Math.min(floor, left); counts[at]! += take; left -= take; });
   const order = exact.map((value, at) => ({ at, rest: value - Math.floor(Math.max(0, value)) })).sort((a, b) => b.rest - a.rest || a.at - b.at);
   for (let at = 0; left > 0; at = (at + 1) % order.length, left--) counts[order[at]!.at]! += 1;
+  return counts;
+}
+
+/** `counts` with every one raised to `least`, a cell at a time from the largest. */
+function atLeast(counts: number[], least: number): number[] {
+  for (let at = 0; at < counts.length; at++) while (counts[at]! < least) {
+    const largest = counts.reduce((best, n, i) => (n > counts[best]! ? i : best), 0);
+    counts[largest]! -= 1;
+    counts[at]! += 1;
+  }
   return counts;
 }
 

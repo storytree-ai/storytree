@@ -159,7 +159,7 @@ test("5.38 a refused capability claim's line names the increment the refused ses
 });
 
 test("5.2, 4.12 verified safe close-out permits takeover despite stale commands; unverified or resumed holders still bind", async () => {
-  for (const scenario of ["finished", "compacted", "unsafe", "unknown-runs", "running", "unmerged", "dirty-main", "background", "prompted", "restarted", "new-claim", "reclaimed"] as const) {
+  for (const scenario of ["finished", "compacted", "unsafe", "unknown-runs", "running", "unmerged", "background", "prompted", "restarted", "new-claim", "reclaimed"] as const) {
     await withWorld(async ({ log, project, emailForm, passwordReset, as }) => {
       const own = { session: "A", harness: "codex", source: "hook", machine: "mint", folder: "/work", branch: "main" } as const;
       const append = (line: NewLine) => log.append(project, line);
@@ -168,10 +168,6 @@ test("5.2, 4.12 verified safe close-out permits takeover despite stale commands;
       // A branch look can resolve the work without releasing a capability claimed on main.
       await append({ ...own, branch: "fix-login", kind: "file-edited", files: ["a.ts"] });
       if (scenario !== "unmerged") await append({ session: "observer", source: "hook", kind: "branch-state", of: "fix-login", open: false, how: "merged", pr: 3 });
-      if (scenario === "dirty-main") {
-        await append({ ...own, kind: "file-edited", files: ["a.ts"] });
-        await append({ session: "observer", source: "hook", kind: "main-state", machine: "mint", of: "/work", dirty: true });
-      }
       await append({ ...own, source: "tool", kind: "closed-out", safe: scenario !== "unsafe", why: "finished",
         ...(scenario === "unknown-runs" ? {} : { running: scenario === "running" ? 1 : 0 }) });
       if (scenario === "background") await append({ ...own, kind: "turn-ended", background: 1 });
@@ -200,7 +196,6 @@ test("5.2, 4.12 verified safe close-out permits takeover despite stale commands;
       else {
         assert.ok(contender.refused === "held" && contender.holder.session === "A", scenario);
         assert.ok(contender.holder.binds, scenario);
-        if (scenario === "dirty-main") assert.match(contender.holder.binds ?? "", /worked on main/, scenario);
         if (scenario === "unmerged") assert.match(contender.holder.binds ?? "", /fix-login is unmerged/, scenario);
       }
     });

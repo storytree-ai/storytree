@@ -304,54 +304,6 @@ test("4.23 a session reads the commands it started and has not seen finish, each
   });
 });
 
-test("4.26 work on main is never silently dropped (ADR-0906): an ended session that edited files on main, in a repository with no commit yet whose main a look found uncommitted, stays listed labelled first-commit pending; once committed, uncommitted work on main is flagged outside a workspace; a live session holding an increment claimed on main is flagged too; once the work is committed it leaves as 4.9 says", async () => {
-  await withProject(async (log, project) => {
-    const listing = async (session: string, now: Date) => (await readSessions(log, project, { now })).find((one) => one.session === session);
-    const observer = { session: "observer", harness: "claude-code", source: "hook", folder: "/elsewhere", branch: "main", machine: "mint" } as const;
-
-    // Conduit's incident (app-setup evidence, first-build/github.md): git init -b main, an increment claimed,
-    // files staged before the first commit, then the session ended with no close-out while GitHub's login waited.
-    const conduit = { session: "builder", harness: "codex", source: "hook", folder: "/home/u/conduit-codex", branch: "main", machine: "mint" } as const;
-    await log.append(project, { ...conduit, kind: "session-started", how: "startup" });
-    await log.append(project, { ...conduit, source: "tool", kind: "claimed", increment: "inc-ci", reason: "Review changes with official CI" });
-    await log.append(project, { ...conduit, kind: "file-edited", files: ["/home/u/conduit-codex/.github/workflows/ci.yml", "/home/u/.codex/notes.md"] });
-    await log.append(project, { ...observer, kind: "main-state", of: "/home/u/conduit-codex", dirty: true, unborn: true });
-    const ended = await log.append(project, { ...conduit, kind: "session-ended", reason: "other" });
-    const pending = await listing("builder", after(ended, 2 * LEAVE_MS));
-    assert.deepEqual([pending?.state, pending?.listing, pending?.onMain], ["ended", "listed", "first-commit-pending"], "unfinished first-commit work keeps it listed, labelled, not warned");
-
-    await log.append(project, { ...observer, kind: "main-state", of: "/home/u/conduit-codex", dirty: true });
-    assert.equal((await listing("builder", after(ended, 2 * LEAVE_MS)))?.onMain, "outside-workspace", "after its first commit, uncommitted work on main is a warning");
-    const clean = await log.append(project, { ...observer, kind: "main-state", of: "/home/u/conduit-codex", dirty: false });
-    const left = await listing("builder", after(clean, 1_000));
-    assert.deepEqual([left?.listing, left?.onMain], ["hidden", undefined], "committed: nothing left on main, so it ended and leaves");
-
-    // The same folder's main dirty on another machine says nothing of this one's.
-    await log.append(project, { ...observer, machine: "laptop", kind: "main-state", of: "/home/u/conduit-codex", dirty: true });
-    assert.equal((await listing("builder", after(clean, 1_000)))?.onMain, undefined);
-
-    // A file edited outside the folder (a memory note) is no work on main, however dirty main is.
-    const memo = { ...CLAUDE, session: "memo", branch: "main", machine: "mint" } as const;
-    await log.append(project, { ...memo, kind: "file-edited", files: ["/home/u/.claude/memory/note.md"] });
-    await log.append(project, { ...observer, kind: "main-state", of: "/work/site", dirty: true });
-    const memoEnd = await log.append(project, { ...memo, kind: "session-ended", reason: "other" });
-    assert.equal((await listing("memo", after(memoEnd, 1_000)))?.listing, "hidden");
-
-    // A live session holding an increment it claimed on main is flagged, a capability claimed there is not.
-    const lane = { ...CLAUDE, session: "lane", folder: "/work/clean", branch: "main", machine: "mint" } as const;
-    await log.append(project, { ...lane, source: "tool", kind: "claimed", capability: "cap-1", reason: "a capability" });
-    const capOnly = await log.append(project, { ...lane, kind: "turn-ended" });
-    assert.equal((await listing("lane", after(capOnly, 1_000)))?.onMain, undefined);
-    const claimed = await log.append(project, { ...lane, source: "tool", kind: "claimed", increment: "inc-2", reason: "on main" });
-    const flagged = await listing("lane", after(claimed, 2 * LEAVE_MS));
-    assert.deepEqual([flagged?.listing, flagged?.onMain], ["listed", "outside-workspace"], "the claim keeps it listed past the leave-after time");
-    await log.append(project, { ...lane, source: "tool", kind: "closed-out", safe: true, why: "all done", running: 0 });
-    assert.deepEqual((await listing("lane", after(claimed, 1_000)))?.closeOut?.needsYou, "says safe, but worked on main, outside a workspace", "a yes is not verified while work on main stands");
-    const released = await log.append(project, { ...lane, source: "tool", kind: "released", increment: "inc-2" });
-    assert.equal((await listing("lane", after(released, 1_000)))?.onMain, undefined);
-  });
-});
-
 test("4.28 the sessions read from the lines that decide them, and the claims read from those standing, are what a fold of the whole log gives at any time, from a share of its lines; the list's own read leaves out only sessions the list hides, and the status line's states agree (contract 2.7)", async () => {
   await withProject(async (log, project) => {
     const write = (line: Record<string, unknown>) => log.append(project, line as NewLine);
@@ -387,11 +339,10 @@ test("4.28 the sessions read from the lines that decide them, and the claims rea
     await write({ ...b, source: "tool", kind: "closed-out", safe: true, why: "done", running: 0 });
     await write({ ...watcher, kind: "branch-state", of: "feat-b", open: false, how: "merged", pr: 9 });
 
-    // c edits on main, and outside its folder; a look finds main dirty; it ends.
+    // c edits on main, and outside its folder; it ends.
     await write({ ...c, kind: "session-started", how: "startup" });
     await write({ ...c, kind: "file-edited", files: ["/w/main/readme.md"] });
     await write({ ...c, kind: "file-edited", files: ["/elsewhere/note.md"] });
-    await write({ ...watcher, kind: "main-state", of: "/w/main", dirty: true });
     await write({ ...c, kind: "session-ended", reason: "exit" });
 
     // d moves between two worktrees, compacts mid-turn, leaves a background task running, and takes a's claim over.

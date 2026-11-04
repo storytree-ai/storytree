@@ -32,21 +32,19 @@ import { git, withTempDir, writeMarker } from "@storytree/project-and-caller/tes
 import { approveCheckout, placeTestServer, testServerUrl, uniqueProjectName } from "@storytree/project-and-caller/testing/pg";
 import { FOUNDED, planned, TOOLS, withProject } from "../testing/tool-world.js";
 
-test("6.4 a held claim refusal explains the running command and dirty-main close-out disagreement", async () => {
+test("6.4 a held claim refusal explains the running command and the close-out disagreement", async () => {
   await withProject(async ({ folder, log, project }) => {
     await withAgent(folder, claudeCode("contender"), async (agent) => {
       const { capability } = await planned(agent);
       const own = { session: "holder", harness: "codex", source: "hook", folder, branch: "main", machine: "mint" } as const;
       await log.append(project, { ...own, kind: "claimed", capability, reason: "unfinished work" });
       await log.append(project, { ...own, kind: "command-started", call: "lost-finish", command: "pnpm test" });
-      await log.append(project, { ...own, kind: "file-edited", files: ["unfinished.ts"] });
-      await log.append(project, { ...own, kind: "main-state", of: folder, dirty: true });
-      await log.append(project, { ...own, kind: "closed-out", safe: true, why: "claimed done", running: 0 });
+      await log.append(project, { ...own, kind: "closed-out", safe: true, why: "claimed done", running: 1 });
       const refused = await agent.call("claim", { capability, reason: "next writer" });
       assert.equal(refused.isError, true);
       assert.match(refused.text, /session holder/);
       assert.match(refused.text, /binds:.*command is still recorded as running/);
-      assert.match(refused.text, /worked on main/);
+      assert.match(refused.text, /1 run of its own still runs/);
     });
   });
 });

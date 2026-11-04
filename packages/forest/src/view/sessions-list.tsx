@@ -3,7 +3,7 @@ import React, { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import type { AnnotatedTree, ArcView, Line } from "@storytree/library";
 import { outageSaidOnce, saysUnreachable, type OutageSaidOnce } from "@storytree/library/connection-error";
-import { ON_MAIN_LABELS, type LogReading, type OnMain } from "@storytree/session-management/readings";
+import type { LogReading } from "@storytree/session-management/readings";
 import { pageKept, pageReading, type LiveReads, type PageReading } from "@storytree/arc-surface";
 import { clickedSelection, listedRows, sessionRoster, sessionRows, windowFiles, type RosterEntry, type SessionDetails, type SessionFiles, type SessionRow, type SessionWindow } from "../sessions-list/sessions-list.js";
 import { sessionColour, sessionWisps, type SessionWisp } from "../agent-claims/agent-claims.js";
@@ -371,13 +371,10 @@ export function ranFor(ms: number): string {
   return minutes < 60 ? `${minutes}m` : minutes % 60 === 0 ? `${Math.floor(minutes / 60)}h` : `${Math.floor(minutes / 60)}h ${minutes % 60}m`;
 }
 
-/** An expanded row's detail (7.8): its description's lines (7.14), its work on main (7.20), then each worktree by its folder's name (full path on hover), then the files in its window, each block labelled. */
+/** An expanded row's detail (7.8): its description's lines (7.14), then each worktree by its folder's name (full path on hover), then the files in its window, each block labelled. */
 function SessionDetail({ row, files }: { row: SessionRow; files: SessionFiles | undefined }) {
   return <div className="session-detail">
     {row.description.length > 0 && <div className="session-description">{row.description.map(said => <p key={said}>{said}</p>)}</div>}
-    {row.onMain !== undefined && <section className="session-detail-block session-on-main" data-tone={ON_MAIN_TONES[row.onMain]}>
-      <p className="session-detail-label">Work on main</p>
-      <p className="session-on-main-words">{ON_MAIN_WORDS[row.onMain]}: {ON_MAIN_LABELS[row.onMain]}</p></section>}
     {row.worktrees.length > 0 && <section className="session-detail-block">
       <p className="session-detail-label">Worktrees</p>
       <ul className="session-detail-worktrees" aria-label="Worktrees">
@@ -407,10 +404,6 @@ function SessionDetail({ row, files }: { row: SessionRow; files: SessionFiles | 
 function busy(row: SessionRow): boolean {
   return !row.idle && row.state !== "observed" || row.children.some(busy);
 }
-
-/** Work on main in a row's detail (7.20, ADR-0906 as narrowed by the owner): outside a workspace is a warning, a new repository's first commit is not. */
-const ON_MAIN_WORDS: Readonly<Record<OnMain, string>> = { "outside-workspace": "on main", "first-commit-pending": "first commit" };
-const ON_MAIN_TONES: Readonly<Record<OnMain, "warning" | "neutral">> = { "outside-workspace": "warning", "first-commit-pending": "neutral" };
 
 export function SessionsList({ rows, loading = false, refreshing = false, error, errorDetail, selected, onHighlight, onSelect, files, ...control }: {
   rows: readonly SessionRow[];

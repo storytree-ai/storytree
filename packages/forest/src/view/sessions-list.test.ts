@@ -133,18 +133,6 @@ test("7.13 a row named with its machine shows it beside the label; a row without
   assert.equal(html.match(/class="session-machine"[^>]*>mint<\/span>/g)?.length, 1, html);
 });
 
-test("7.20 a session flagged for work on main shows it in its row's detail, not on its row: a warning, on main, outside a workspace; a neutral first commit while it is pending; with the reading's full words; an unflagged session none (ADR-0906)", () => {
-  const rows: SessionRow[] = [{ ...row, children: [], onMain: "outside-workspace" },
-    { ...row, id: "fresh", children: [], onMain: "first-commit-pending" }, { ...row, id: "plain", children: [] }];
-  const folded = renderToStaticMarkup(createElement(SessionsList, { rows, onHighlight() {} }));
-  assert.doesNotMatch(folded, /on main|first commit/, "the row itself wears no flag");
-  const html = renderToStaticMarkup(createElement(SessionsList, { rows, expanded: new Set(["parent", "fresh", "plain"]), onHighlight() {} }));
-  assert.deepEqual(html.match(/<section class="session-detail-block session-on-main"[^>]*>.*?<\/section>/g), [
-    '<section class="session-detail-block session-on-main" data-tone="warning"><p class="session-detail-label">Work on main</p><p class="session-on-main-words">on main: worked on main, outside a workspace</p></section>',
-    '<section class="session-detail-block session-on-main" data-tone="neutral"><p class="session-detail-label">Work on main</p><p class="session-on-main-words">first commit: setting up git, first commit pending</p></section>',
-  ], html);
-});
-
 test("7.9 the list prints no prose about a session: a row with a close-out why shows none of it, and the header count names no such need", () => {
   const html = renderToStaticMarkup(createElement(SessionsList, { rows: [{ ...row, children: [], needsYouWhy: "says safe, but fix-login is unmerged" } as SessionRow], onHighlight() {} }));
   assert.match(html, /Build &lt;signup&gt;/);

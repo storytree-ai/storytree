@@ -20,10 +20,6 @@
  *   since it resolved, so work added after a merge or a fresh start is seen as open again.
  * - A `branch-state` line is written only when the state changes, by whichever session saw it,
  *   never on the sessions that worked on the branch, so it makes none of them read as active.
- * - The same look reads, on this machine, each folder a session edited files in (or claimed an
- *   increment in) on the main line (ADR-0906, contract 4.27): whether its main holds uncommitted
- *   changes, and whether its repository has no commit yet, as a `main-state` line, written only
- *   when that changes. A folder found clean is looked at again only once someone works there again.
  * - It runs at most once a minute per project on each machine (the claims' stamp, under its own
  *   name), asking git for at most a few seconds once GitHub has answered, least recently looked-at
  *   branches first, and never fails a hook: `gh` or git missing, slow or refusing means nothing is learned this time.
@@ -63,8 +59,6 @@ export type GitRunner = (cwd: string, timeout: number, args: readonly string[]) 
 /** This machine's git, run without blocking this process (the app runs the look on its main process, ADR-0836 D3), with the repository's own commands off (3.46). */
 export const gitRunner: GitRunner = (cwd, timeout, args) => ask("git", [...NO_REPOSITORY_COMMANDS, ...args], process.env, timeout, { cwd, shell: false });
 
-/** Branches that are a project's main line, never a session's own work. */
-const MAIN_BRANCHES = new Set(["main", "master"]);
 const EVERY_MS = 60_000;
 const BUDGET_MS = 3_000;
 /**
@@ -75,8 +69,6 @@ export const BRANCH_GIT_STEP: Step = { name: "branch-git", floorMs: 2_000, ceili
 const ORIGIN_TIMEOUT_MS = 5_000;
 
 type BranchState = Extract<NewLine, { kind: "branch-state" }>;
-/** What a look found of a folder on the main line. */
-type MainFound = { of: string; dirty: boolean; unborn: boolean };
 /** What a line says of a branch's pull request: the one that merged it, or its open one with that one's state. */
 type Pull = Pick<BranchState, "pr" | "draft" | "checks" | "queued">;
 /**
@@ -94,12 +86,11 @@ interface Found {
 export async function resolveBranches(context: MergeContext, watch: BranchWatch = {}): Promise<Line[]> {
   if (!due(`${context.project}-branches`, watch.everyMs ?? EVERY_MS)) return [];
   const machine = watch.machine ?? thisMachine();
-  // What the log knows of the branches and folders worth a look, worked out on the server (contract 2.7).
-  const [facts, work] = await Promise.all([context.log.branchFacts(context.project, machine), context.log.mainWork(context.project, machine)]);
+  // What the log knows of the branches worth a look, worked out on the server (contract 2.7).
+  const facts = await context.log.branchFacts(context.project, machine);
   const looked = lookedAt(context.project);
   const candidates = toLookAt(facts, machine, looked);
-  const places = work.filter(({ folder }) => existsSync(folder)).map(({ folder }) => folder);
-  if (candidates.size === 0 && places.length === 0) return [];
+  if (candidates.size === 0) return [];
   const budget = watch.budgetMs ?? BUDGET_MS;
   const home = watch.home ?? storytreeHome();
   const limit = limitOf(home, BRANCH_GIT_STEP);
@@ -112,20 +103,13 @@ export async function resolveBranches(context: MergeContext, watch: BranchWatch 
     return answer;
   };
   const machineGit = timed(gitRunner);
-  let deadline = Date.now() + budget;
-  const mainFound: MainFound[] = [];
-  for (const folder of places) {
-    if (Date.now() > deadline) break;
-    const state = await mainState(folder, machineGit, limit);
-    if (state !== undefined) mainFound.push({ of: folder, ...state });
-  }
-  const [merged, opened] = candidates.size === 0 ? [new Map<string, MergedPull[]>(), undefined] : await Promise.all([
+  const [merged, opened] = await Promise.all([
     (watch.allMergedPulls ?? ghAllMergedPulls)(context.folder).catch(() => new Map<string, MergedPull[]>()),
     (watch.allOpenPulls ?? ghAllOpenPulls)(context.folder).catch(() => undefined),
   ]);
   const seen = [...candidates.values()].some((facts) => facts.folder === undefined && !facts.foundThere) ? await seenHere(context.folder, machineGit, limit) : undefined;
   // GitHub's answer for a long history can outlast the whole budget: the branches get a budget of their own.
-  deadline = Date.now() + budget;
+  const deadline = Date.now() + budget;
   const found: Found[] = [];
   for (const [branch, facts] of [...candidates].sort(([a], [b]) => (looked[a] ?? 0) - (looked[b] ?? 0))) {
     const pull = (merged.get(branch) ?? []).find((pull) => Date.parse(pull.mergedAt) >= Date.parse(facts.firstAt));
@@ -151,7 +135,7 @@ export async function resolveBranches(context: MergeContext, watch: BranchWatch 
   }
   remember(context.project, looked);
   if (slowest !== undefined) learn(home, BRANCH_GIT_STEP, slowest);
-  if (found.length === 0 && mainFound.length === 0) return [];
+  if (found.length === 0) return [];
 
   return context.log.locked(context.project, async (log) => {
     // Read again under the lock: another machine may have written a state since.
@@ -164,15 +148,6 @@ export async function resolveBranches(context: MergeContext, watch: BranchWatch 
       folder: context.folder,
       ...(machine === undefined ? {} : { machine }),
     };
-    if (mainFound.length > 0) {
-      const mains = latestMainStates(await log.lines({ kinds: ["main-state"], where: { of: mainFound.map((state) => state.of), machine: machine ?? null }, latestBy: ["of"] }), machine);
-      for (const state of mainFound) {
-        const now = mains.get(state.of);
-        // No line yet reads as nothing on main: a clean folder needs none.
-        if ((now?.dirty ?? false) === state.dirty && (now?.unborn ?? false) === state.unborn) continue;
-        written.push(await log.append({ ...by, kind: "main-state", of: state.of, dirty: state.dirty, ...(state.unborn ? { unborn: true } : {}) }));
-      }
-    }
     for (const state of found) {
       const now = current.get(state.of);
       // A branch no line has resolved reads as open.
@@ -280,26 +255,6 @@ function pullOf(pull: OpenPull | undefined): Pull {
 /** Whether `line` already says `pull`. */
 function samePull(pull: Pull, line: Pull | undefined): boolean {
   return pull.pr === line?.pr && pull.draft === line?.draft && pull.checks === line?.checks && pull.queued === line?.queued;
-}
-
-/** The latest `main-state` line for each folder on `machine`. */
-function latestMainStates(lines: readonly Line[], machine: string | undefined): Map<string, Line & { kind: "main-state" }> {
-  const states = new Map<string, Line & { kind: "main-state" }>();
-  for (const line of lines) if (line.kind === "main-state" && line.machine === machine) states.set(line.of, line);
-  return states;
-}
-
-/** What this machine's git says of `folder` on the main line; off the main line it holds nothing; undefined when git cannot say. */
-async function mainState(folder: string, runner: GitRunner, limit: number): Promise<{ dirty: boolean; unborn: boolean } | undefined> {
-  const run = async (...args: string[]) => outOf(await runner(folder, limit, args), args).trim();
-  try {
-    const branch = await run("symbolic-ref", "--short", "-q", "HEAD").catch(() => "");
-    if (!MAIN_BRANCHES.has(branch)) return { dirty: false, unborn: false };
-    const unborn = await run("rev-parse", "--verify", "-q", "HEAD").then(() => false, () => true);
-    return { dirty: (await run("status", "--porcelain")) !== "", unborn };
-  } catch {
-    return undefined;
-  }
 }
 
 /** The latest `branch-state` line for each branch. */

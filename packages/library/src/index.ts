@@ -10,8 +10,8 @@
 // connection's own database beside the projects (contract 7.7). The package exports
 // nothing but this entry, so the internals behind it cannot be imported at all.
 export { connect } from "./api/index.js";
-export type { Change, Changes, ChangesFilter, FeedbackNote, FeedbackRoute, FyiNote, Library, PluginRecords, Storytree } from "./api/index.js";
-export type { CloudSqlConfig, ConnectionProblem, ConnectOptions, FactoryLink, OpenOptions, OwnDatabaseOptions, ProjectSnapshot, SnapshotEvent, SnapshotRecord } from "./project/index.js";
+export type { AttachedMedia, Change, Changes, ChangesFilter, FeedbackNote, FeedbackRoute, FyiNote, Library, MediaEntry, MediaFile, NewMedia, PluginRecords, Storytree } from "./api/index.js";
+export type { CloudSqlConfig, ConnectionProblem, ConnectOptions, FactoryLink, OpenOptions, OwnDatabaseOptions, ProjectSnapshot, SnapshotEvent, SnapshotMedia, SnapshotRecord } from "./project/index.js";
 
 export { CONNECT_TIMEOUT_MS, ConnectionError, connectionString, explainConnectTimeout, ProjectGoneError, ProjectNameError, RestoreRefusedError, SEED_CONNECTION } from "./project/index.js";
 export { knowledgeGuidance, LinkLoopError, referenceEdgesOf, SupersessionLoopError } from "./knowledge/index.js";

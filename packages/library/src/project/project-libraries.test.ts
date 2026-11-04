@@ -495,7 +495,7 @@ test("1.11 an account that may not change a project's tables opens it set up, be
       opened = undefined;
 
       // A project never set up is refused, and nothing is attempted.
-      await withTestClient((client) => client.query("DROP TABLE library_meta, record_event, record, feedback_screenshot, history_repair CASCADE"), databaseOf(name));
+      await withTestClient((client) => client.query("DROP TABLE library_meta, record_event, record, feedback_screenshot, media, history_repair CASCADE"), databaseOf(name));
       opened = await connect({ url: as(reader) });
       await assert.rejects(opened.openProject(name), (error: unknown) => {
         assert.ok(error instanceof ConnectionError, `a ConnectionError, not ${String(error)}`);

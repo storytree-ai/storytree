@@ -108,6 +108,35 @@ test("1.8 restoring into a project that holds any record or history is refused, 
   });
 });
 
+test("1.30 a snapshot carries the media kept beside the project's records, and a restore gives each file back exactly, refusing one whose bytes do not match its SHA-256 with nothing written", async () => {
+  const [name, copy, bad] = [uniqueProjectName(), uniqueProjectName(), uniqueProjectName()];
+  await withServer([name, copy, bad], async (storytree) => {
+    const library = await storytree.openProject(name);
+    await fill(library);
+    const note = await library.defineTerm({ term: "Approved look", meaning: "The kettle, as approved." });
+    const png = Uint8Array.from([0x89, 0x50, 0x4e, 0x47, 1, 2, 3]);
+    const attached = await library.attachMedia(note.id, { name: "kettle.png", type: "image/png", bytes: png }, { actor: "tester" });
+    const plain = await storytree.snapshot(name);
+    assert.deepEqual(plain.media?.map(({ recordId, name: file, type, size, sha256, addedBy }) => ({ recordId, name: file, type, size, sha256, addedBy })),
+      [{ recordId: note.id, name: "kettle.png", type: "image/png", size: png.length, sha256: attached.sha256, addedBy: "tester" }]);
+    assert.deepEqual(JSON.parse(JSON.stringify(plain)), plain, "still plain data, the bytes as base64");
+
+    await storytree.restore(copy, plain);
+    const restored = await storytree.openProject(copy);
+    assert.deepEqual(await restored.media(note.id), await library.media(note.id), "the same files, added when and by whom they were");
+    assert.deepEqual((await restored.mediaFile(note.id, "kettle.png"))?.bytes, png, "the same bytes");
+    assert.deepEqual((await storytree.snapshot(copy)).media, plain.media);
+
+    // Bytes that are not what their hash says are refused, and the restore writes nothing at all.
+    const damaged: ProjectSnapshot = { ...plain, media: plain.media!.map((file) => ({ ...file, bytes: Buffer.from("not the kettle").toString("base64") })) };
+    await assert.rejects(storytree.restore(bad, damaged), /kettle\.png.*SHA-256/s);
+    const after = await storytree.snapshot(bad);
+    assert.deepEqual([after.records, after.history, after.media ?? []], [[], [], []], "nothing written");
+    await library.close();
+    await restored.close();
+  });
+});
+
 /**
  * A stand-in for a far-away server: a proxy to the test server that holds every packet it passes
  * each way for `delayMs`, as a network to another continent does. Its URL, and how to stop it.

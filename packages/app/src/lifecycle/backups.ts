@@ -5,8 +5,8 @@
  * missing or a day old, reusing one under a day old (increment_cdce468a4e1a: the development app
  * restarts on every merged build), and while it runs takes the next at each project's day mark.
  * backUp writes one snapshot of each project to <dir>/<project>/<time>.json (the library's
- * `snapshot`, records and history, one JSON object written a line per record or history entry and
- * read back by readBackup), under that name only once whole, and keeps that project's newest
+ * `snapshot`, records, history and any media, one JSON object written a line per record, history entry or file
+ * (1.46) and read back by readBackup), under that name only once whole, and keeps that project's newest
  * BACKUPS_KEPT. A file there that is not a snapshot is never touched. A snapshot restores only into
  * an empty project (the library's `restore`), so it can never overwrite live edits.
  */
@@ -159,11 +159,12 @@ const WRITE_CHUNK = 1 << 20;
 /**
  * Write a snapshot as one JSON object without ever building it as one string (V8's longest is about
  * 2^29 characters, which the storytree project's passed on 2026-10-25): a first line holding every
- * field but records and history, then one record per line, then one history entry per line, ending
- * "]}\n". A small file still reads with JSON.parse; readBackup reads any size line by line.
+ * field but records, history and media, then one record per line, then one history entry per line, then, when the
+ * project keeps any, one media file per line (1.46), ending "]}\n". A small file still reads with JSON.parse;
+ * readBackup reads any size line by line.
  */
 function writeSnapshot(partial: string, snapshot: ProjectSnapshot, stringify: (value: unknown) => string): void {
-  const { records, history, ...head } = snapshot;
+  const { records, history, media, ...head } = snapshot;
   const fd = openSync(partial, process.platform === "win32" ? "r+" : "wx", 0o600);
   try {
     let pending = "";
@@ -179,6 +180,10 @@ function writeSnapshot(partial: string, snapshot: ProjectSnapshot, stringify: (v
     list(records);
     put(`],"history":[\n`);
     list(history);
+    if (media !== undefined) {
+      put(`],"media":[\n`);
+      list(media);
+    }
     put("]}\n");
     if (pending.length > 0) writeSync(fd, pending);
   } finally {
@@ -189,15 +194,16 @@ function writeSnapshot(partial: string, snapshot: ProjectSnapshot, stringify: (v
 /** Read a snapshot file back, line by line, as the object the library's `restore` takes; reads a one-line file from before too. */
 export async function readBackup(file: string): Promise<ProjectSnapshot> {
   let snapshot: ProjectSnapshot | undefined;
-  let list: "records" | "history" | undefined;
+  let list: "records" | "history" | "media" | undefined;
   for await (const line of createInterface({ input: createReadStream(file, "utf8"), crlfDelay: Infinity })) {
     if (snapshot === undefined) {
       if (!line.endsWith(`"records":[`)) return JSON.parse(line) as ProjectSnapshot;
       snapshot = { ...JSON.parse(`${line.slice(0, -`"records":[`.length).replace(/,$/, "")}}`), records: [], history: [] } as ProjectSnapshot;
       list = "records";
     } else if (line === `],"history":[`) list = "history";
+    else if (line === `],"media":[`) [list, snapshot.media] = ["media", []];
     else if (line === "]}") list = undefined;
-    else if (list !== undefined) snapshot[list].push(JSON.parse(line.endsWith(",") ? line.slice(0, -1) : line));
+    else if (list !== undefined) snapshot[list]!.push(JSON.parse(line.endsWith(",") ? line.slice(0, -1) : line));
     else if (line !== "") throw new Error(`Not a snapshot file: ${file}`);
   }
   if (snapshot === undefined || list !== undefined) throw new Error(`Snapshot file is not whole: ${file}`);

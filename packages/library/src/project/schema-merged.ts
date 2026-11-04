@@ -20,7 +20,7 @@ export type SchemaMerged = { readonly merged: true } | { readonly merged: false;
 export function schemaMerged(schemaFile: string): SchemaMerged {
   if (!existsSync(schemaFile)) return { merged: true };
   const git = (...args: string[]): string => execFileSync("git", ["-C", path.dirname(schemaFile), ...args], {
-    encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], timeout: 2_000,
+    encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], timeout: 2_000, windowsHide: true,
   }).trim();
   const file = path.basename(schemaFile);
   try {

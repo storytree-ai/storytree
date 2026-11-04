@@ -60,6 +60,14 @@ test("5.3 a reply that will not parse, with the pull request not in the queue, i
   assert.equal(enqueueDecision(unparseable, RETRY_WINDOW_SECONDS, "").retry, false);
 });
 
+test("5.3 with no queue entry, no decision reads the pull request as enqueued", () => {
+  for (const reply of [unparseable, queued, expected, "some other refusal"]) {
+    for (const seconds of [0, 90, RETRY_WINDOW_SECONDS]) {
+      assert.equal(enqueueDecision(reply, seconds).enqueued, false, `${reply} at ${seconds} s`);
+    }
+  }
+});
+
 test("5.3 the land job's command line exits 2 when the pull request is already in the queue", () => {
   const script = fileURLToPath(new URL("./land-enqueue.mjs", import.meta.url));
   const run = (args) => {

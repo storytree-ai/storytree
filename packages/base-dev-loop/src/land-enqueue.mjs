@@ -74,7 +74,7 @@ export function enqueueDecision(refusal, elapsedSeconds, queueState = "") {
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
-  const decision = enqueueDecision(readFileSync(0, "utf8"), Number(process.argv[2] ?? 0), process.argv[3] ?? "");
+  const decision = enqueueDecision(readFileSync(0, "utf8"), Number(process.argv[2] ?? 0), process.argv[3]);
   console.log(decision.retry || decision.enqueued ? decision.reason : `::error::${decision.reason}`);
   process.exitCode = decision.enqueued ? 2 : decision.retry ? 0 : 1;
 }

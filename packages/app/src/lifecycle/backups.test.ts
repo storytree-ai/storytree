@@ -13,6 +13,7 @@ import { test } from "node:test";
 
 import { connect } from "@storytree/library";
 import { dropTestDatabases } from "@storytree/local-postgres/testing";
+import { quietFor, waitUntil } from "@storytree/test-waits";
 
 import type { ProjectSnapshot } from "@storytree/library";
 
@@ -116,21 +117,16 @@ test("1.8 a start reuses a project's successful snapshot under a day old, and ta
     snapshot: async (project) => { taken.push(project); return { format: "storytree-project-snapshot", version: 1, project, takenAt: new Date().toISOString(), records: [], history: [] }; },
   } });
   t.after(() => backups.stop());
-  // Each snapshot is written to disk, which Windows can take many turns to finish: wait for the count
-  // expected, then a few turns more so an extra one would show. setTimeout is not mocked here.
-  const settle = async (count: number): Promise<void> => {
-    for (let i = 0; i < 1000 && taken.length < count; i++) await new Promise(resolve => setTimeout(resolve, 5));
-    for (let i = 0; i < 5; i++) await new Promise(resolve => setImmediate(resolve));
-  };
-  await settle(3);
+  // Each snapshot is written to disk, which Windows can take many turns to finish (the waits' clock is not mocked here).
+  const untilTaken = (count: number) => waitUntil(() => taken.length >= count, 10_000, `${count} snapshots taken`);
+  await untilTaken(3);
   assert.deepEqual(taken, ["stale", "none", "partial"], "a start takes no new snapshot of a project whose newest successful one is under a day old");
   t.mock.timers.tick(hour - 1);
-  await settle(3);
-  assert.deepEqual(taken, ["stale", "none", "partial"]);
+  await quietFor(() => taken.length > 3, 200, "a snapshot before the day mark");
   t.mock.timers.tick(1);
-  await settle(4);
+  await untilTaken(4);
   assert.deepEqual(taken.slice(3), ["fresh"], "the reused snapshot's day mark takes the next");
   t.mock.timers.tick(23 * hour);
-  await settle(7);
+  await untilTaken(7);
   assert.deepEqual(taken.slice(4), ["stale", "none", "partial"], "while running, every project still gets one a day");
 });

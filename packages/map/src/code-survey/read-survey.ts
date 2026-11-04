@@ -30,7 +30,7 @@
  *   and plan the same, answers from it, reading no file but the keep (8.42). A folder with no Git keeps nothing.
  */
 import { createHash } from "node:crypto";
-import { readdirSync, readFileSync, realpathSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, realpathSync } from "node:fs";
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -137,21 +137,41 @@ export interface FilePlace {
  * yet made), and its capability as {@link capabilitiesOfFiles} places it. A path in no story's package is placed nowhere.
  */
 export async function placeFiles(folder: string, paths: readonly string[], tree: AnnotatedTree, options: Parameters<typeof capabilitiesOfFiles>[3] = {}): Promise<FilePlace[]> {
-  // Git names the top by its real path, so each path is read by its own.
+  // Git names the top by its real path, so each path is read by its own. A path in a worktree nested in the folder's
+  // checkout (a lane's under .claude/worktrees) is read against that worktree's top, never the folder's.
   const root = await checkoutTop(realOf(folder));
-  const relative = paths.map((given) => path.relative(root, realOf(path.resolve(folder, given))).split(path.sep).join("/"));
-  const owners = await capabilitiesOfFiles(root, relative, tree, options);
+  const tops = new Map<string, Promise<string>>();
+  const topOf = (at: string): Promise<string> => {
+    if (!tops.has(at)) tops.set(at, gitText(at, ["rev-parse", "--show-toplevel"]).catch(() => root));
+    return tops.get(at)!;
+  };
+  const located = await Promise.all(paths.map(async (given) => {
+    const real = realOf(path.resolve(folder, given));
+    const top = await topOf(existingFolder(path.dirname(real)));
+    return { top, at: path.relative(top, real).split(path.sep).join("/") };
+  }));
   const alsoOwned = options.alsoOwned ?? ALSO_OWNED;
+  const owners = new Map<string, Map<string, FileOwner>>();
+  for (const top of new Set(located.map(({ top }) => top))) {
+    owners.set(top, await capabilitiesOfFiles(top, located.filter((one) => one.top === top).map(({ at }) => at), tree, options));
+  }
   return paths.map((file, index) => {
-    const at = relative[index]!;
+    const { top, at } = located[index]!;
     const holding = storyHolding(tree, at, alsoOwned);
-    const owner = owners.get(at);
+    const owner = owners.get(top)!.get(at);
     return {
       file, path: at,
       ...(holding === undefined ? {} : { story: { id: holding.story.id, title: holding.story.title }, package: holding.folder }),
       ...(owner === undefined ? {} : { capability: owner.capability, inferred: owner.inferred }),
     };
   });
+}
+
+/** `folder`, or its nearest parent that exists: a file not yet made is in a checkout through it. */
+function existingFolder(folder: string): string {
+  if (existsSync(folder)) return folder;
+  const parent = path.dirname(folder);
+  return parent === folder ? folder : existingFolder(parent);
 }
 
 /** `file`'s real path, through its nearest folder that exists: a file not yet made has none of its own. */

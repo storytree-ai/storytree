@@ -1253,12 +1253,12 @@ function stampOf(increment: string, pr: string | undefined): string {
   return /^\d+$/.test(pr) ? `#${pr}` : pr;
 }
 
-/** The outcome a close stores: today unless a day is given, and only the parts given. */
 /** A landing says whether it fixed an escape (research_4bbec1b12097 4.1): one naming none fixes none. */
 function escapeAnswer(escape: Escape | undefined, close: CloseInput): { escape?: Escape } {
   return close.disposition === "landed" && escape === undefined ? { escape: "none" } : {};
 }
 
+/** The outcome a close stores: today unless a day is given, and only the parts given. */
 function outcomeOf(close: CloseInput): NonNullable<FieldsOf<"increment">["outcome"]> {
   return {
     date: close.date ?? new Date().toISOString().slice(0, 10),

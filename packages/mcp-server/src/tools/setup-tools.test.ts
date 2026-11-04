@@ -495,6 +495,45 @@ test("app-setup 8.19 in a project whose library holds the starter roles, the che
   });
 });
 
+test("6.117 · check_setup in a project whose folder declares packages no story stands for names each and says to call import_project before planning; once imported it says nothing of it (regression: checkbox planned without an import, 2026-11-04)", async () => {
+  await withTempDir(async (dir) => {
+    const home = throwawayHome(dir);
+    const name = uniqueProjectName();
+    const storytree = await connect({ url: testServerUrl() });
+    try {
+      const folder = path.join(dir, name);
+      mkdirSync(folder);
+      await (await storytree.openProject(name)).close();
+      writeMarker(folder, `${JSON.stringify({ project: name })}\n`);
+      await approveCheckout(folder, name, home.storytreeHome);
+      writeFileSync(path.join(folder, "pyproject.toml"), "[project]\nname = \"checkbox\"\nversion = \"0.1.0\"\n");
+      const setup = { dataDir: path.join(home.storytreeHome, "pgdata"), setup: { ...ANSWERED, homes: home.homes, storytreeHome: home.storytreeHome } };
+      // A client storytree has no hooks for is told it too.
+      await withAgent(folder, { client: "zed", env: { STORYTREE_SESSION_ID: "zed-chat-1" }, ...setup }, async (agent) => {
+        const checked = await agent.call("check_setup");
+        assert.equal(checked.data.tier, "connected");
+        assert.match(checked.text, /not yet imported[^.]*"checkbox"/);
+        assert.deepEqual(checked.data.unimported, ["checkbox"]);
+      });
+      await withAgent(folder, claudeCode("claude-1", setup), async (agent) => {
+        const checked = await agent.call("check_setup");
+        assert.equal(checked.isError, false, checked.text);
+        assert.match(checked.text, /not yet imported[^.]*"checkbox"/);
+        assert.match(checked.text, /call import_project[^.]*before you plan/i);
+        assert.deepEqual(checked.data.unimported, ["checkbox"]);
+
+        assert.equal((await agent.call("import_project", { folder: "." })).isError, false);
+        const after = await agent.call("check_setup");
+        assert.doesNotMatch(after.text, /not yet imported/);
+        assert.deepEqual(after.data.unimported, []);
+      });
+    } finally {
+      await storytree.close();
+      await dropTestProjects([name]);
+    }
+  });
+});
+
 test("app-setup 8.26 in a project an earlier starter pack seeded, or a product project whose factory it seeded, the check names the seeded and current versions and offers take_starter_pack while it would add or replace something and the server serves it, taken into the factory for the product; once taken, or in a project never seeded, it offers nothing", async () => {
   await withTempDir(async (dir) => {
     const home = throwawayHome(dir);

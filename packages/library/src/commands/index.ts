@@ -340,6 +340,10 @@ const create = verb({
     const write = WRITERS[kind];
     if (write === undefined) throw new VerbRefusal(`storytree library new writes ${Object.keys(WRITERS).join(", ")}; not "${kind}"`, { misuse: true });
     const fields = fieldsOf(values);
+    // An accepted decision says whose call it was (friction_b2b343a7a75e): `adr new` asks for it.
+    if (kind === "decision" && fields.status === "accepted" && fields.authority === undefined) {
+      throw new VerbRefusal("an accepted decision carries its authority, whose call it was: record it with `storytree adr new … --basis <owner-directed|owner-ratified|agent-derived|agent-flipped> [--owner-said …]`, or give --authority @file holding its JSON", { misuse: true });
+    }
     const numbers = kind === "contract" && typeof fields.capability === "string" ? await context.testedNumbers(fields.capability) : undefined;
     const pending = kind === "capability" ? { pending: await heldPending(context.library, await context.claims(), context.session) } : {};
     const options = numbers === undefined ? { ...context.writer!, ...pending } : { ...context.writer!, testedNumbers: [...numbers.tested] };

@@ -686,3 +686,28 @@ test("17.17 · library exact and the find_text tool list every live record holdi
   assert.equal(reads.length, 103, "each record the tool shows is a peek");
   assert.ok(reads.every((read) => read.found === "search" && read.read === "peek"));
 });
+
+test("17.18 · library new decision refuses an accepted decision with no authority, with nothing written, naming adr new; with an authority it writes it (friction_b2b343a7a75e)", async (t) => {
+  const storytree = await connect({ url: testServerUrl() });
+  const project = uniqueProjectName();
+  t.after(async () => {
+    try {
+      await storytree.dropProject(project);
+    } finally {
+      await storytree.close();
+    }
+  });
+  const library = await storytree.openProject(project);
+  const create = LIBRARY_FAMILIES.find((one) => one.name === "library")!.verbs.find((one) => mounted(one.command) && one.command.name === "new")!;
+  const context: LibraryVerbContext = { library, project, session: "lane", folder: tmpdir(), writer: { actor: "session:lane" }, claims: async () => [], testedNumbers: async () => ({ tested: [], untested: [] }) };
+  const decision = { title: "Ship nightly", text: "We ship every night.", status: "accepted", decided: "2026-11-04" };
+
+  await assert.rejects(create.act({ "<kind>": "decision", "<fields>": decision } as never, context, WORDS), (error: unknown) => error instanceof VerbRefusal && /authority/.test(error.message) && /adr new/.test(error.message));
+  assert.deepEqual(await library.list("decision"), [], "no decision was written");
+
+  const authority = JSON.stringify({ basis: "agent-derived", scribedBy: "lane", at: "2026-11-04T12:00:00.000Z" });
+  const written = await create.act({ "<kind>": "decision", "<fields>": { ...decision, authority } } as never, context, WORDS);
+  const [stored] = await library.list("decision");
+  assert.match(written.text, new RegExp(`Wrote decision ${stored!.id}`));
+  assert.equal((stored!.fields as { authority?: { basis: string } }).authority?.basis, "agent-derived", "its authority is stored");
+});

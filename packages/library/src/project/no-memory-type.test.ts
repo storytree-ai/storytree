@@ -14,6 +14,25 @@ test("6.8 saving memory is refused with the reason and writes nothing", async ()
   assert.deepEqual(await transactions.history(), []);
 });
 
+test("6.9 a memory whose fields name an enforced note is reported unclassified, not converted: classification invents no reference", async (t) => {
+  const name = uniqueProjectName();
+  const server = await connect({ url: testServerUrl() });
+  try {
+    const before = await server.openProject(name);
+    const check = { title: "Unverified sender", description: "A send from an unverified domain", question: "Does any send use an unverified domain?", howToAnswer: "Yes when a sender's domain has no verification record", enforces: ["principle_somewhere"], graduated: [] };
+    const memory = await before.transactions.save({ id: "old-check", type: "memory", fields: { text: JSON.stringify({ kind: "check", fields: check }) } });
+    await before.close();
+    const warnings = t.mock.method(console, "warn", () => {});
+    const after = await server.openProject(name);
+    assert.deepEqual(await after.transactions.get(memory.id), memory);
+    assert.match(warnings.mock.calls.map(({ arguments: args }) => args.join(" ")).join("\n"), /old-check.*not converted/i);
+    await after.close();
+  } finally {
+    await server.close();
+    await dropTestDatabases([`storytree_${name}`]);
+  }
+});
+
 test("6.9 opening an old project converts explicit kinds once and reports unclassified memories without losing history", async (t) => {
   const name = uniqueProjectName();
   const server = await connect({ url: testServerUrl() });

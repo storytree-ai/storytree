@@ -59,6 +59,30 @@ test("23.1 retire reads every arc's increments and questions in one ask, however
   });
 });
 
+test("23.1 retire refuses a principle a live check enforces, naming the check and its enforces field", async () => {
+  await withLibrary(async (library) => {
+    const principle = await library.writeKnowledge("principle", {
+      title: "Send from a verified domain",
+      description: "Mail from an unverified domain bounces.",
+      statement: "Every email is sent from a verified domain.",
+      why: "Providers refuse the rest.",
+      howToApply: "Verify the domain before the first send.",
+    });
+    const check = await library.writeKnowledge("check", {
+      title: "Unverified sender",
+      description: "A send from a domain nobody verified",
+      question: "Does any send use a domain that is not verified?",
+      howToAnswer: "Yes when a sender's domain has no verification record",
+      enforces: [principle.id],
+      graduated: [],
+    });
+    const { cursor } = await library.changesSince(0);
+
+    await assert.rejects(retire(library, principle.id, "overtaken"), new RegExp(`${check.id} \\(enforces\\)`));
+    assert.deepEqual((await library.changesSince(cursor)).changes, []);
+  });
+});
+
 test("23.2 the worklist lists each note written new since a cursor, with the live notes a plain search for any word of its title finds", async () => {
   await withLibrary(async (library) => {
     const principle = await library.writeKnowledge("principle", {

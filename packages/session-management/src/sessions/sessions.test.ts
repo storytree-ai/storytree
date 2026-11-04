@@ -239,6 +239,21 @@ test("4.41 a print-mode session whose turn ended, saying its process exits with 
   });
 });
 
+test("4.42 · the person row, where commands with no session id land, never reads working and is never listed, though its lines stay recorded against the person; an agent session alike reads working", async () => {
+  await withProject(async (log, project) => {
+    const person = { session: "person:mick", source: "tool", folder: "/work/site" } as const;
+    const ran = await log.append(project, { ...person, kind: "command-run", command: "storytree arc list" });
+    const agent = await log.append(project, { ...CLAUDE, kind: "file-edited", files: ["a.ts"] });
+    const sessions = await readSessions(log, project, { now: after(agent, 1_000) });
+    const row = sessions.find((one) => one.session === "person:mick");
+    assert.deepEqual({ state: row?.state, listing: row?.listing }, { state: "waiting", listing: "hidden" });
+    assert.equal(sessions.find((one) => one.session === "claude-1")?.state, "working", "an agent session with the same kind of line reads working");
+    const states = await readSessionStates(log, project, { now: after(agent, 1_000) });
+    assert.equal(states.find((one) => one.session === "person:mick")?.state, "waiting", "the status line's count of others working leaves it out");
+    assert.equal((await log.lines(project, { sessions: ["person:mick"] })).at(-1)?.seq, ran.seq, "its line is recorded against the person");
+  });
+});
+
 test("4.20 a line about other sessions (a branch's state, what an app keeps) never makes its writer a session: a person or the app that looked is not listed", async () => {
   await withProject(async (log, project) => {
     const worker = await log.append(project, { ...CLAUDE, branch: "fix-login", kind: "file-edited", files: ["a.ts"] });

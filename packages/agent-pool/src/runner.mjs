@@ -10,7 +10,7 @@ import { promisify } from "node:util";
 
 import { FUNCTION_HOOKS, PLUGIN_FOLDER, SESSION_FILE } from "@storytree/claude-code-mod";
 
-import { LANE_FAILURES, recordLaneFailure } from "./feed.mjs";
+import { LANE_FAILURES, recordLaneFailure, withLibrary } from "./feed.mjs";
 import { assessAllowance, detectLimitHit, engineControls, iso, laneSettings, pickEngine, pickFresh, readLatestAllowance, readOptional } from "./engine.mjs";
 import { laneMemoryMax, poolConfig, readCap } from "./pool-config.mjs";
 import { countEngines, ENGINE_SLOTS, processTable, reserveSlot, WINDOWS_PROCESSES } from "./queue.mjs";
@@ -87,6 +87,14 @@ const run = promisify(execFile);
  */
 const MOD = ["--plugin-dir", PLUGIN_FOLDER];
 const MOD_VARIABLES = [...Object.keys(FUNCTION_HOOKS), "CLAUDE_CODE_PLUGIN_DIRS", SESSION_FILE];
+/** Record `line`, the turn-ended line that leaves a lane's session reading exited (1.29), in the shared library where this computer's `library` setting says it is. */
+async function recordLaneExit(line, project) {
+  const { openActivityLog } = await import("@storytree/session-management");
+  return withLibrary(project, async (_library, storytree) => (await openActivityLog(storytree)).append(project, line));
+}
+
+/** The harness each engine's session lines are written under. */
+const HARNESSES = { claude: "claude-code", codex: "codex" };
 const sessionFile = (log) => `${log.replace(/\.log$/, "")}.session`;
 function engineEnvironment(engine, login, log) {
   // The pool configuration a dispatcher was started with (the laptop's, ADR-1179) is the runner's: the engine's own tools
@@ -440,7 +448,7 @@ async function holdForNetwork({ reachable, sleep, now, offline }) {
 
 export async function runLane({ brief, log, err, addDirs = [], cwd = process.cwd(), home = homedir(), env = process.env,
   commands = { codex: ["codex"], claude: ["claude"] }, now = Date.now, say = console.log, increment, project = "storytree",
-  heads = (id) => remoteHeads(id, cwd), failed = (failure, where) => recordLaneFailure(failure, where),
+  heads = (id) => remoteHeads(id, cwd), failed = (failure, where) => recordLaneFailure(failure, where), exited = (line) => recordLaneExit(line, project),
   storytree = async (args) => (await run(...storytreeCommand(args, process.platform, project, commands.storytree), { cwd, env, maxBuffer: 16 * 1024 * 1024 })).stdout,
   reachable = () => bothAnswer({ cwd, env, project, installed: commands.storytree }), sleep = (ms) => new Promise((done) => setTimeout(done, ms)), offline: limits = {}, reap, onSpawn }) {
   const original = await readFile(brief, "utf8");
@@ -457,7 +465,14 @@ export async function runLane({ brief, log, err, addDirs = [], cwd = process.cwd
   };
   // The first engine's start frees the slot its starter reserved (3.32): from then on the process table counts it.
   const memoryMax = await laneMemoryMax(settings);
-  const runEngine = (command, args, options) => runEngineOnce(command, args, { ...options, dated, reap, onSpawn, memoryMax });
+  // Every engine run, however it ended (a signal or out of memory included), leaves its session reading exited (1.29).
+  const runEngine = async (engine, args, options) => {
+    const result = await runEngineOnce(commands[engine], args, { ...options, dated, reap, onSpawn, memoryMax });
+    const session = await sessionOf(options.log);
+    try { if (session) await exited({ session, harness: HARNESSES[engine], source: "tool", kind: "turn-ended", background: 0, exits: true }); }
+    catch (error) { dated(`session ${session}'s exit not recorded: ${String(error.message).split("\n")[0]}`); }
+    return result;
+  };
   const login = await loginEnvironment(home, env, settings.identity).catch(async (error) => {
     if (error.code === "lane-token") await askForToken({ lanesDir: settings.lanesDir, increment, storytree, dated });
     throw error;
@@ -472,7 +487,7 @@ export async function runLane({ brief, log, err, addDirs = [], cwd = process.cwd
   const watch = { quietMs: offline.quietMs, everyMs: offline.everyMs, online: reachable };
   let last = { engine: picked.engine, log, err };
   let started = now();
-  let result = await runEngine(commands[picked.engine], argumentsFor(picked.engine, original, addDirs, undefined, settings.models[picked.engine]), { cwd, env: engineEnvironment(picked.engine, login, log), log, err, watch });
+  let result = await runEngine(picked.engine, argumentsFor(picked.engine, original, addDirs, undefined, settings.models[picked.engine]), { cwd, env: engineEnvironment(picked.engine, login, log), log, err, watch });
   dated(`engine ${picked.engine} exit ${result.code}`);
   // Read again: the just-finished Codex run can have spent the allowance since we picked it.
   if (picked.engine === "codex" && !result.interrupted && await detectLimitHit({ ...settings, log, err,
@@ -483,7 +498,7 @@ export async function runLane({ brief, log, err, addDirs = [], cwd = process.cwd
     dated(`engine claude (Codex stopped on its usage limit; handing over, log ${base}.claude.log)`);
     last = { engine: "claude", log: `${base}.claude.log`, err: `${base}.claude.err` };
     started = now();
-    result = await runEngine(commands.claude, argumentsFor("claude", handover, addDirs, undefined, settings.models.claude), { cwd, env: engineEnvironment("claude", login, last.log), log: last.log, err: last.err, watch });
+    result = await runEngine("claude", argumentsFor("claude", handover, addDirs, undefined, settings.models.claude), { cwd, env: engineEnvironment("claude", login, last.log), log: last.log, err: last.err, watch });
     dated(`engine claude exit ${result.code}`);
   }
   if (result.interrupted) return signaled();
@@ -510,7 +525,7 @@ export async function runLane({ brief, log, err, addDirs = [], cwd = process.cwd
       logs.push(resumed.log);
       dated(`connection back after ${Math.round(held.waited / 60_000)} min: resuming session ${session}, log ${resumed.log}`);
       started = now();
-      result = await runEngine(commands[last.engine], argumentsFor(last.engine, CONTINUE, addDirs, session, settings.models[last.engine]), { cwd, env: engineEnvironment(last.engine, login, resumed.log), ...resumed, watch });
+      result = await runEngine(last.engine, argumentsFor(last.engine, CONTINUE, addDirs, session, settings.models[last.engine]), { cwd, env: engineEnvironment(last.engine, login, resumed.log), ...resumed, watch });
       dated(`engine ${last.engine} exit ${result.code}`);
       if (result.interrupted) return signaled();
       if (result.oom) return outOfMemory(logs);
@@ -529,7 +544,7 @@ export async function runLane({ brief, log, err, addDirs = [], cwd = process.cwd
     dated(`handing the lane to a fresh ${fresh.engine} session, log ${fresh.log}`);
     last = fresh;
     started = now();
-    result = await runEngine(commands[fresh.engine], argumentsFor(fresh.engine, brief, addDirs, undefined, settings.models[fresh.engine]), { cwd, env: engineEnvironment(fresh.engine, login, fresh.log), log: fresh.log, err: fresh.err, watch });
+    result = await runEngine(fresh.engine, argumentsFor(fresh.engine, brief, addDirs, undefined, settings.models[fresh.engine]), { cwd, env: engineEnvironment(fresh.engine, login, fresh.log), log: fresh.log, err: fresh.err, watch });
     dated(`engine ${fresh.engine} exit ${result.code}`);
     if (result.interrupted) return signaled();
     if (result.oom) return outOfMemory([...logs, fresh.log]);
@@ -540,7 +555,7 @@ export async function runLane({ brief, log, err, addDirs = [], cwd = process.cwd
     const base = last.log.replace(/\.log$/, "");
     const resumed = { log: `${base}.resume.log`, err: `${base}.resume.err` };
     dated(`engine ${last.engine} exit 0 having left no report or push for ${increment}: ${session ? `resuming session ${session}` : "restarting"} once, log ${resumed.log}`);
-    result = await runEngine(commands[last.engine], argumentsFor(last.engine, session ? CONTINUE : `${CONTINUE}\n\n${original}`, addDirs, session, settings.models[last.engine]), { cwd, env: engineEnvironment(last.engine, login, resumed.log), ...resumed });
+    result = await runEngine(last.engine, argumentsFor(last.engine, session ? CONTINUE : `${CONTINUE}\n\n${original}`, addDirs, session, settings.models[last.engine]), { cwd, env: engineEnvironment(last.engine, login, resumed.log), ...resumed });
     dated(`engine ${last.engine} exit ${result.code}`);
     if (result.interrupted) return signaled();
     if (result.oom) return outOfMemory([last.log, resumed.log]);

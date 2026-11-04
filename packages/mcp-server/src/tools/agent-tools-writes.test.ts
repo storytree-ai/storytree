@@ -1085,6 +1085,36 @@ test("6.58 import_project imports a folder into the project as mapped stories, o
   });
 });
 
+test("6.116 · plan_story in a project whose folder declares a JavaScript, TypeScript or Python package no story stands for is refused, naming each and import_project; once imported it plans a story for a new package (regression: four task-shaped stories on checkbox, 2026-11-04)", async () => {
+  await withProject(async ({ folder, library }) => {
+    writeFileSync(path.join(folder, "pyproject.toml"), "[project]\nname = \"checkbox\"\nversion = \"0.1.0\"\n");
+    await withAgent(folder, claudeCode("claude-1"), async (agent) => {
+      const refused = await agent.call("plan_story", { title: "Task 1: ingest contracts", ...FOUNDED });
+      assert.equal(refused.isError, true, refused.text);
+      assert.match(refused.text, /"checkbox"/);
+      assert.match(refused.text, /import_project/);
+      assert.equal((await library.list("story")).length, 0, "nothing was written");
+
+      assert.equal((await agent.call("import_project", { folder: "." })).isError, false);
+      const planned = await agent.call("plan_story", { title: "Review dashboard", ...FOUNDED });
+      assert.equal(planned.isError, false, planned.text);
+    });
+  });
+  // A codebase with a story for one of its declared packages was imported, though a package was added since: it plans on.
+  await withProject(async ({ folder, library }) => {
+    writeFileSync(path.join(folder, "package.json"), JSON.stringify({ workspaces: ["packages/*"] }));
+    for (const name of ["cart", "till"]) {
+      mkdirSync(path.join(folder, "packages", name), { recursive: true });
+      writeFileSync(path.join(folder, "packages", name, "package.json"), JSON.stringify({ name }));
+    }
+    await library.mapStories(folder, [{ package: "packages/cart", title: "cart", folders: ["packages/cart"] }]);
+    await withAgent(folder, claudeCode("claude-1"), async (agent) => {
+      const planned = await agent.call("plan_story", { title: "Loyalty card", ...FOUNDED });
+      assert.equal(planned.isError, false, planned.text);
+    });
+  });
+});
+
 test("6.74 import_project on a folder already imported says the commit recorded before and now, counts the files changed between them naming up to ten of each, and names each explored capability whose files are gone", async () => {
   await withProject(async ({ folder, library }) => {
     const shop = path.join(folder, "..", "shop");

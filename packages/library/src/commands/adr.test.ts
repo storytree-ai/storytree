@@ -70,6 +70,7 @@ test("13.11 · `adr new --basis brought-across` takes the 0.2 record it points a
 
   const { cursor } = await library.changesSince(0);
   await assert.rejects(create.act(decision, context, WORDS), /brought-across[\s\S]*broughtFrom/);
+  await assert.rejects(create.act({ ...decision, basis: "agent-derived", "brought-from": "ADR-0138", "brought-basis": "owner-directed" }, context, WORDS), /--basis brought-across/);
   assert.deepEqual((await library.changesSince(cursor)).changes, [], "nothing was written");
 
   await create.act({ ...decision, "brought-from": "ADR-0138", "brought-basis": "owner-directed" }, context, WORDS);

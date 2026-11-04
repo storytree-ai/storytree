@@ -146,6 +146,7 @@ const create = verb({
     const basis = input.basis;
     const ownerSaid = input["owner-said"];
     const broughtFrom = input["brought-from"] === undefined && input["brought-basis"] === undefined ? undefined : { record: input["brought-from"], basis: input["brought-basis"] };
+    if (broughtFrom !== undefined && basis !== "brought-across") throw new VerbRefusal("--brought-from and --brought-basis point a --basis brought-across decision at its 0.2 record");
     const optional: Record<string, unknown> = {
       number: input.number === undefined ? undefined : decisionNumber(input.number),
       decided: input.decided,

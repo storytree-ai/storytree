@@ -51,8 +51,11 @@ export interface ImportedFolderPlace {
   readonly repository?: string;
 }
 
+/** A capability the session's increment lists on a story mapped from the imported folder, with the folders and files it covers now. */
+export type ListedCover = { readonly capability: string; readonly title: string; readonly covers: readonly string[] };
+
 export type EditRefusal =
-  | { readonly refused: "imported"; readonly file: string; readonly folder: string; readonly increment?: string; readonly covering?: { readonly capability: string; readonly title: string } }
+  | { readonly refused: "imported"; readonly file: string; readonly folder: string; readonly increment?: string; readonly covering?: { readonly capability: string; readonly title: string }; readonly listed?: readonly ListedCover[] }
   | { readonly refused: "ask"; readonly file: string; readonly folder: string; readonly capability: string; readonly title: string; readonly increment: string }
   | { readonly refused: "unlisted"; readonly capability: string; readonly title: string; readonly file: string; readonly increment: string; readonly listed: readonly string[] }
   | { readonly refused: "held"; readonly capability: string; readonly title: string; readonly file: string; readonly holder: Claim; readonly on?: string };
@@ -132,7 +135,8 @@ async function refusalsOf(context: GateContext, checkout: string, files: readonl
   let ask: EditRefusal | undefined;
   for (const { imported, file, covering } of explored) {
     if (driving === undefined || covering === undefined || !listedByMe(covering.capability)) {
-      return [{ refused: "imported", file, folder: imported.folder, ...(driving === undefined ? {} : { increment: driving }), ...(covering === undefined ? {} : { covering }) }];
+      const listed = driving === undefined || covering !== undefined ? [] : listedOf(tree, imported, lists.get(driving)!);
+      return [{ refused: "imported", file, folder: imported.folder, ...(driving === undefined ? {} : { increment: driving }), ...(covering === undefined ? {} : { covering }), ...(listed.length === 0 ? {} : { listed }) }];
     }
     yeses ??= yesesOn(context, [...new Set(mine.map((claim) => claim.increment!))]);
     if ((await yeses).some((yes) => yes.capability === covering.capability && covered(yes.covers, file))) continue;
@@ -276,10 +280,22 @@ function coveringOf(tree: AnnotatedTree, imported: ImportedFolderPlace, file: st
   return undefined;
 }
 
+/** Of `capabilities`, in their order, those on a story mapped from `imported`, each with its covers now. */
+function listedOf(tree: AnnotatedTree, imported: ImportedFolderPlace, capabilities: readonly string[]): ListedCover[] {
+  const mapped = tree.stories.filter(({ mapped: on }) => on?.from !== undefined && (on.from === imported.repository || path.resolve(on.from) === path.resolve(imported.folder)));
+  const found = new Map(mapped.flatMap((story) => story.capabilities.map(({ id, title, covers }) => [id, { capability: id, title, covers: [...(covers ?? [])] }] as const)));
+  return capabilities.flatMap((capability) => found.get(capability) ?? []);
+}
+
 /** What the agent is told when its edit is refused, or `after` its shell command made it: why, and the way through. */
 export function refusalMessage(refusal: EditRefusal, after = false): string {
   if (refusal.refused === "imported") {
     const where = `${refusal.file} in ${refusal.folder}, code the project imports`;
+    if (refusal.listed !== undefined && refusal.listed.length > 0) {
+      const named = refusal.listed.map(({ capability, title, covers }) => `"${title}" (${capability}), covering ${covers.length === 0 ? "nothing yet" : covers.join(", ")}`).join("; ");
+      const ids = refusal.listed.map(({ capability }) => capability).join(" or ");
+      return `[storytree] Your edit to ${where}, was refused before it happened: imported code is changed only when your increment names the explored capability covering it (ADR-0993 D4, ADR-1015), and no capability covers this file yet, though your increment ${refusal.increment} lists ${refusal.listed.length === 1 ? "one" : "these"}: ${named}. If it is part of what you are changing, add ${refusal.file} to the covers of one of them (edit_plan with id ${ids}, covers its covers now plus ${refusal.file}, and live: true, so the gate sees it before your branch merges), then edit again; or ask the user what to do.`;
+    }
     const covered = refusal.covering === undefined
       ? "No explored capability covers it yet: draw the capability you mean to change (plan_capability, with the folders and files it covers)"
       : `It is in the explored capability "${refusal.covering.title}" (${refusal.covering.capability})`;

@@ -234,7 +234,7 @@ test("22.5 a decision superseded through `library new`, `library edit` or `adr p
     };
 
     await superseded(async (old) => {
-      await verbOf("library", "new").act({ "<kind>": "decision", "<fields>": { title: "Send through Postmark", text: "Postmark replaces Mailgun.", status: "accepted", supersedes: old } }, context, words);
+      await verbOf("library", "new").act({ "<kind>": "decision", "<fields>": { title: "Send through Postmark", text: "Postmark replaces Mailgun.", status: "accepted", supersedes: old, authority: JSON.stringify({ basis: "agent-derived", scribedBy: "s", at: "2026-11-04T12:00:00.000Z" }) } }, context, words);
       return (await library.decisions()).find((view) => view.record.fields.title === "Send through Postmark")!.record.id;
     });
     await superseded(async (old) => {

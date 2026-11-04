@@ -687,7 +687,7 @@ test("17.17 · library exact and the find_text tool list every live record holdi
   assert.ok(reads.every((read) => read.found === "search" && read.read === "peek"));
 });
 
-test("17.18 · library new decision refuses an accepted decision with no authority, with nothing written, naming adr new; with an authority it writes it (friction_b2b343a7a75e)", async (t) => {
+test("17.19 · library new decision refuses an accepted decision with no authority, with nothing written, naming adr new; with an authority it writes it (friction_b2b343a7a75e)", async (t) => {
   const storytree = await connect({ url: testServerUrl() });
   const project = uniqueProjectName();
   t.after(async () => {

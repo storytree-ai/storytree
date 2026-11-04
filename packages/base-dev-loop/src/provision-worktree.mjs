@@ -61,6 +61,10 @@
 // on the session's path, through the file Claude Code names in CLAUDE_ENV_FILE and sources before each Bash
 // command (contract 3.8), so the tests run without the agent fetching a Node.js by hand; finding none, it says so.
 //
+// There too it fetches origin's main into refs/remotes/origin/main (no tags, bounded, contract 3.9), whatever branch the
+// checkout is on: a container's clone was cached when its image was made and fetches only the session's branch, so
+// test scoping (merge-base with origin/main) would otherwise measure against an old main and run nearly everything.
+//
 // Before anything else, it installs the push check (packages/repo-checks/src/push-check.mjs, contract 3.7) as git's pre-push hook, in the
 // hooks folder the repository's worktrees share, unless someone else's pre-push hook is already there.
 //
@@ -264,6 +268,20 @@ function cloudLibraryAddress(env) {
 /** True in a Claude Code cloud container. */
 function inCloud(env) {
   return env.CLAUDE_CODE_REMOTE === "true";
+}
+
+/**
+ * In a cloud container, fetch origin's main into refs/remotes/origin/main, without tags and within fetchMs, whatever
+ * branch root is on (contract 3.9): the container's clone was cached when its image was made, and test scoping
+ * measures against origin/main. A fetch that fails or runs past fetchMs is only logged. Elsewhere, nothing.
+ * @returns {{ fetched: boolean }}
+ */
+export function cloudMain({ root = repoRoot, env = process.env, fetchMs = 20_000, log = () => {} } = {}) {
+  if (!inCloud(env)) return { fetched: false };
+  const result = runGit(root, ["fetch", "--quiet", "--no-tags", "origin", "+refs/heads/main:refs/remotes/origin/main"], fetchMs);
+  if (result.status === 0) return { fetched: true };
+  log(`provision-worktree: cloud container; could not fetch origin's main within ${fetchMs} ms (${result.error?.message || result.stderr.trim() || `exit ${result.status}`}), so origin/main may be old`);
+  return { fetched: false };
 }
 
 /** Each Node.js binary installed under opt (opt/<name>/bin/node) or on env's PATH, in that order, without repeats. */
@@ -637,6 +655,7 @@ if (isEntry()) {
   } else {
     const log = (line) => process.stderr.write(`${line}\n`);
     const node = cloudNode({ root, log });
+    cloudMain({ root, log });
     const result = provision({ root, log });
     if (result.ok) connectCloud({ root, log });
     const output = hook ? hookOutput(result, root, node.message ? [node.message] : []) : "";

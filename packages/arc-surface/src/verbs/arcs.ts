@@ -27,6 +27,7 @@ import { beforeCutover, pullSaid, type ArcView, type Holds, type NoteWait, type 
 
 import { recentWindow, windowOf, type ClosedRange } from "../board/closed-range.js";
 import { questionsBehind } from "../work-states/board-states.js";
+import { holdsNow } from "./claimed.js";
 import { labelOf, listOf, releasedAsking, type ArcVerbContext } from "./context.js";
 import { recent } from "./recent.js";
 import { status } from "./status.js";
@@ -97,9 +98,11 @@ const show = verb({
   command: { family: "arc", name: "show", summary: "one arc whole: intent, end state, increments, what each waits for, and your questions" },
   tool: { absent: "the MCP server's own show_plan shows the plan" },
   inputs: { arc: { kind: "text", word: 0, describe: "the arc's id" } },
-  async act({ arc: id }, { library }: ArcVerbContext) {
-    // Every hold in one ask, never one per increment: each ask reads all the project's work (4.8).
-    const [view, holds, cutover] = await Promise.all([library.arcView(id), library.holds(), library.prCutover()]);
+  async act({ arc: id }, context: ArcVerbContext) {
+    const { library } = context;
+    // Every hold in one ask, never one per increment: each ask reads all the project's work (4.8); a second only when a wait on a capability's claim is read against the live claims (3.25).
+    const [view, unread, cutover] = await Promise.all([library.arcView(id), library.holds(), library.prCutover()]);
+    const holds = await holdsNow(context, unread);
     if (view === null) throw new VerbRefusal(`no arc "${id}" in this project`);
     const { arc, state, increments, questions } = view;
     const lines = [`${arc.fields.title}  [${arc.id}]  ${stateOf(view)}`, "", `Intent: ${arc.fields.intent}`, `End state: ${arc.fields.endState}`];
@@ -754,9 +757,11 @@ const waits = verb({
   },
   tool: { absent: "the MCP server's own show_plan names what waits" },
   inputs: { audit: { kind: "switch", describe: "list instead the actions of yours that need attention, oldest first, each with why" } },
-  async act({ audit }, { library }: ArcVerbContext) {
-    // Every hold in one ask and every arc in one more, never a read per increment (4.10).
-    const [views, holds] = await Promise.all([library.arcViews(), library.holds()]);
+  async act({ audit }, context: ArcVerbContext) {
+    const { library } = context;
+    // Every hold in one ask and every arc in one more, never a read per increment (4.10); the holds again only when a wait on a capability's claim is read against the live claims (3.25).
+    const [views, unread] = await Promise.all([library.arcViews(), library.holds()]);
+    const holds = await holdsNow(context, unread);
     if (audit) return auditOf(views, holds, new Date());
     const found = views.flatMap(({ arc, increments }) =>
       increments.flatMap((increment) => (holds.waitsFor?.[increment.id] ?? [])

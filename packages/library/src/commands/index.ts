@@ -21,6 +21,8 @@
  * - Run by a session holding an increment, `edit` and `retire` of a story, capability or contract
  *   planned before it hold the change on the increment as a pending change until its branch merges
  *   (ADR-0966 D1), and `read` of the increment lists them as before and after (D3).
+ * - `exact` sweeps every page of `phrase`'s search for a link sweep: each record holding the phrase, with the fields
+ *   that hold it (friction_45f8338e8931); the find_text tool sweeps the same way.
  * - A plugin kind no mounted plugin declares stays out of `list`, `search` and `phrase` (ADR-1178 D3), never in silence:
  *   each says how many of its records the library holds, that they are dormant here, and how to mount the plugin.
  * - Reads use `get`, `list` and `history`. Edits use the kind's public editor; question wording
@@ -30,7 +32,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { isDeepStrictEqual } from "node:util";
 
-import { ANCHOR_ID, CONTRACT_DEFINITION, LONG_CONTRACT_TITLE, SchemaError, type KnowledgeKind, type Library, type PendingChange, type PhraseKind, type PlanChange, type RecordType, type WriteOptions } from "../index.js";
+import { ANCHOR_ID, CONTRACT_DEFINITION, LONG_CONTRACT_TITLE, SchemaError, type KnowledgeKind, type Library, type PendingChange, type PhraseKind, type PlanChange, type RecordType, type SchemaRecord, type WriteOptions } from "../index.js";
 import { PR_CUTOVER_ID } from "../work/index.js";
 import { fieldValue, verb, VerbRefusal, type DoorWords, type VerbContext, type VerbFamily } from "../verbs/verb.js";
 import { changes, count, decisionNamed, find } from "../data/commands.js";
@@ -169,7 +171,7 @@ async function dormantSaid(context: LibraryVerbContext, words: DoorWords, kinds?
   }));
 }
 
-const NOT_A_TOOL = { absent: "an agent's artifact tools are search_notes, open, write_note and correct_note, which record its reads" } as const;
+const NOT_A_TOOL = { absent: "an agent's artifact tools are search_notes, find_text, open, write_note and correct_note, which record its reads" } as const;
 
 const search = verb({
   command: { family: "library", name: "search", summary: "the artifacts, stories, capabilities and contracts closest in meaning to the words, best first (10 unless --limit)", usage: "library search <words…> [--limit <n>]" },
@@ -221,6 +223,64 @@ const phrase = verb({
       ...(after === undefined ? {} : { after }),
     });
     return { text: JSON.stringify(page, null, 2) + "\n", raw: true };
+  },
+});
+
+/** One record holding a phrase, its title's first line, and its stored top-level string fields that hold it, by name. */
+export interface PhraseHit {
+  readonly record: SchemaRecord<PhraseKind>;
+  readonly title: string;
+  readonly fields: readonly string[];
+}
+
+/** Every live record holding `phrase` exactly, following findPhrase's cursor to the end, in id order. */
+export async function everyHolding(library: Library, phrase: string, options: { kinds?: readonly PhraseKind[]; fields?: readonly string[] } = {}): Promise<PhraseHit[]> {
+  const hits: PhraseHit[] = [];
+  let after: string | undefined;
+  do {
+    const page = await library.findPhrase(phrase, { ...options, limit: 100, ...(after === undefined ? {} : { after }) });
+    for (const record of page.records) {
+      const fields = Object.entries(record.fields)
+        .filter(([key, value]) => (options.fields === undefined || options.fields.includes(key)) && typeof value === "string" && value.includes(phrase))
+        .map(([key]) => key)
+        .sort();
+      hits.push({ record, title: labelOf(record.fields), fields });
+    }
+    after = page.next;
+  } while (after !== undefined);
+  return hits;
+}
+
+/** A sweep's answer: how many records hold the phrase, then a line for each. */
+export function holdingLines(phrase: string, hits: readonly PhraseHit[]): string {
+  if (hits.length === 0) return `No record holds ${JSON.stringify(phrase)} exactly.`;
+  const heading = `${hits.length} ${hits.length === 1 ? "record holds" : "records hold"} ${JSON.stringify(phrase)} exactly:`;
+  return [heading, ...hits.map(({ record, title, fields }) => `  ${record.id}  [${record.type}]  ${title}  (${fields.join(", ")})`)].join("\n");
+}
+
+const exact = verb({
+  command: {
+    family: "library",
+    name: "exact",
+    summary: "every live record holding a phrase exactly (case-sensitive, in stored top-level string fields), each with its id, kind, title and the fields that hold it, all pages; repeat kind/field to narrow; for a link sweep",
+    usage: "library exact <text|@file> [--kind <kind>] [--field <name>]",
+  },
+  tool: NOT_A_TOOL,
+  inputs: {
+    phrase: { kind: "text", word: 0, many: true, optional: true, verbatim: true, describe: "one quoted literal phrase" },
+    kind: { kind: "text", many: true, optional: true, describe: "a kind to search" },
+    field: { kind: "text", many: true, optional: true, describe: "a field to search" },
+  },
+  async act({ phrase: words, kind, field }, context: LibraryVerbContext, door) {
+    const query = readAt(needed(words[0], "one quoted literal phrase"), context.folder);
+    if (words.length !== 1) throw new VerbRefusal("quote the phrase as one argument", { misuse: true });
+    const dormant = kind.length === 0 ? [] : await dormantSaid(context, door, kind);
+    if (dormant.length > 0) throw new VerbRefusal(dormant.join("\n"));
+    const hits = await everyHolding(context.library, query, {
+      ...(kind.length > 0 ? { kinds: kind as PhraseKind[] } : {}),
+      ...(field.length > 0 ? { fields: [...field] } : {}),
+    });
+    return { text: holdingLines(query, hits), ...(hits.length === 0 ? {} : { next: [{ command: "library read <id>", why: "read one whole" }] }) };
   },
 });
 
@@ -656,5 +716,5 @@ export const LIBRARY_FAMILIES: readonly VerbFamily<LibraryVerbContext>[] = [{
   summary: "read, search and write the project's records",
   order: 1,
   guesses: { show: "library read <id>", get: "library read <id>", open: "library read <id>", view: "library read <id>", pull: "library read <id>", artifact: "library read <id>" },
-  verbs: [search, phrase, links, related, create, read, edit, refile, retire, list, history, revert, undo, count, changes, find],
+  verbs: [search, phrase, exact, links, related, create, read, edit, refile, retire, list, history, revert, undo, count, changes, find],
 }, ADR_FAMILY, FYI_FAMILY];

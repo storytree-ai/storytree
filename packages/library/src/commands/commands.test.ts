@@ -16,7 +16,7 @@ import { LIBRARY_FAMILIES, NOTE_TOOLS, type HeldClaim, type LibraryVerbContext, 
 
 const WORDS: DoorWords = { door: "command", say: (step) => `storytree ${step.command}` };
 
-test("17.1 · The library declares the library family first among storytree's families, its thirteen verbs as commands, then capability 27's three, and none as a tool; a verb reads a phrase from @file in the caller's folder, refile rewrites an artifact as another kind under its id, and edit run by a session holding an increment holds a planned record's change on it", async (t) => {
+test("17.1 · The library declares the library family first among storytree's families, its fourteen verbs as commands, then capability 27's three, and none as a tool; a verb reads a phrase from @file in the caller's folder, refile rewrites an artifact as another kind under its id, and edit run by a session holding an increment holds a planned record's change on it", async (t) => {
   const storytree = await connect({ url: testServerUrl() });
   const project = uniqueProjectName();
   const folder = mkdtempSync(path.join(tmpdir(), "storytree-library-verbs-"));
@@ -33,7 +33,7 @@ test("17.1 · The library declares the library family first among storytree's fa
   const family = LIBRARY_FAMILIES.find((one) => one.name === "library");
   assert.equal(family!.order, 1);
   const names = family!.verbs.map((one) => mounted(one.command) ? one.command.name : undefined);
-  assert.deepEqual(names.slice(0, 13), ["search", "phrase", "links", "related", "new", "read", "edit", "refile", "retire", "list", "history", "revert", "undo"], "its own thirteen first, capability 27's after them");
+  assert.deepEqual(names.slice(0, 14), ["search", "phrase", "exact", "links", "related", "new", "read", "edit", "refile", "retire", "list", "history", "revert", "undo"], "its own fourteen first, capability 27's after them");
   assert.ok(family!.verbs.every((one) => !mounted(one.tool)), "no verb is a tool");
   const verbOf = (name: string): Verb<VerbInputs, LibraryVerbContext> => family!.verbs[names.indexOf(name)]!;
 
@@ -133,7 +133,7 @@ test("17.5 · library edit pr-cutover --at … --repository … writes the repos
   assert.deepEqual(await library.prCutover(), { at: "2026-11-02T09:00:00Z", repository: "storytree-ai/storytree", before: null }, "a deleted old repository");
 });
 
-test("17.2 · The library declares search_notes, open, write_note and correct_note as tools and none as a command; each artifact they show is handed to the door as a read, found as the session last saw it, and an artifact written with no place goes onto the shelf of the capability the session claimed last, inside the cover it opened last", async (t) => {
+test("17.2 · The library declares search_notes, find_text, open, write_note and correct_note as tools and none as a command; each artifact they show is handed to the door as a read, found as the session last saw it, and an artifact written with no place goes onto the shelf of the capability the session claimed last, inside the cover it opened last", async (t) => {
   const storytree = await connect({ url: testServerUrl() });
   const project = uniqueProjectName();
   t.after(async () => {
@@ -146,7 +146,7 @@ test("17.2 · The library declares search_notes, open, write_note and correct_no
   const library = await storytree.openProject(project);
 
   const tools = NOTE_TOOLS.map((one) => mounted(one.tool) ? one.tool.name : undefined);
-  assert.deepEqual(tools, ["search_notes", "open", "write_note", "correct_note"]);
+  assert.deepEqual(tools, ["search_notes", "find_text", "open", "write_note", "correct_note"]);
   assert.ok(NOTE_TOOLS.every((one) => !mounted(one.command)), "no tool is a command");
   const toolOf = (name: string): Verb<VerbInputs, NoteToolContext> => NOTE_TOOLS[tools.indexOf(name)]!;
 
@@ -635,4 +635,55 @@ test("17.16 · library edit --live, run by a session holding an increment, edits
 
   await edit.act({ "<id>": form.id, "<fields>": { description: "Where they type it" }, live: false }, context, WORDS);
   assert.equal((await pendingOf()).length, 1, "without --live the edit still waits on the increment");
+});
+
+test("17.17 · library exact and the find_text tool list every live record holding a phrase exactly, each with its id, kind, title and the fields that hold it, following the cursor to the end", async (t) => {
+  const storytree = await connect({ url: testServerUrl() });
+  const project = uniqueProjectName();
+  t.after(async () => {
+    try {
+      await storytree.dropProject(project);
+    } finally {
+      await storytree.close();
+    }
+  });
+  const library = await storytree.openProject(project);
+  const exact = LIBRARY_FAMILIES.find((one) => one.name === "library")!.verbs.find((one) => mounted(one.command) && one.command.name === "exact")!;
+  const findText = NOTE_TOOLS.find((one) => mounted(one.tool) && one.tool.name === "find_text")!;
+  const reads: NoteRead[] = [];
+  const context: NoteToolContext & LibraryVerbContext = {
+    library, project, session: "lane", folder: tmpdir(), writer: { actor: "session:lane" },
+    claims: async () => [],
+    testedNumbers: async () => ({ tested: [], untested: [] }),
+    notesRead: async () => reads,
+    recordReads: async (more) => void reads.push(...more),
+    presenterOf: async () => undefined,
+  };
+
+  const link = "README.md#keys";
+  const term = await library.defineTerm({ term: "Keys", meaning: `See ${link} for the keys.` });
+  const arc = await library.createArc({ title: "Docs", intent: "Move headings", endState: "Links work" });
+  const increment = await library.addIncrement({ arc: arc.id, title: `Repoint ${link}`, objective: "Repoint", body: `Every ${link} moves.` });
+  await library.defineTerm({ term: "Other case", meaning: "See readme.md#keys." });
+  // More than one page of the store's: only following the cursor reaches them all.
+  const stories = [];
+  for (let n = 0; n < 101; n += 1) stories.push(await library.addStory({ title: `Story ${n} at ${link}` }));
+  const every = [term.id, increment.id, ...stories.map((story) => story.id)];
+
+  const listed = await exact.act({ phrase: [link], kind: [], field: [] }, context, WORDS);
+  assert.match(listed.text, /^103 records hold "README\.md#keys" exactly:/);
+  for (const id of every) assert.ok(listed.text.includes(id), `${id} is listed`);
+  assert.match(listed.text, new RegExp(`${term.id}  \\[definition\\]  Keys  \\(meaning\\)`), "a record's line names the field that holds it");
+  assert.match(listed.text, new RegExp(`${increment.id}  \\[increment\\]  Repoint README\\.md#keys  \\(body, title\\)`));
+
+  const titled = await exact.act({ phrase: [link], kind: ["increment", "definition"], field: ["title"] }, context, WORDS);
+  assert.match(titled.text, /^1 record holds "README\.md#keys" exactly:/);
+  assert.ok(titled.text.includes(increment.id) && !titled.text.includes(term.id), "kinds and fields narrow the sweep");
+  assert.match((await exact.act({ phrase: ["no such words"], kind: [], field: [] }, context, WORDS)).text, /^No record holds "no such words" exactly\./);
+
+  const found = await findText.act({ phrase: link, kinds: [], fields: [] }, context, WORDS);
+  assert.deepEqual((found.data as { records: { id: string }[] }).records.map((record) => record.id).sort(), [...every].sort(), "the tool follows the cursor too");
+  assert.deepEqual((found.data as { records: { id: string; fields: string[] }[] }).records.find((record) => record.id === increment.id)?.fields, ["body", "title"]);
+  assert.equal(reads.length, 103, "each record the tool shows is a peek");
+  assert.ok(reads.every((read) => read.found === "search" && read.read === "peek"));
 });

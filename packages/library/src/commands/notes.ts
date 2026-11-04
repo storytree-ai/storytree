@@ -2,7 +2,7 @@
  * Capability 17 · The library's commands (ADR-1035 D3): the artifact tools the library declares for the MCP server, on the
  * library's knowledge entrances (ADR-0627): search artifacts, open a story or capability (its shelf of front covers, as
  * spines) or an artifact (whole, with the titles of what it links to and what links to it), write an artifact, and
- * correct one's wording. They are tools only: a person does this work with `storytree library search`, `read`, `new`
+ * correct one's wording, and find every record holding a phrase exactly, for a link sweep. They are tools only: a person does this work with `storytree library search`, `exact`, `read`, `new`
  * and `edit`, which record no reads.
  *
  * - Every artifact a tool shows is a read, which the door records in the agent activity log (ADR-0624 D1, ADR-0627
@@ -18,11 +18,11 @@
  *   the session last opened on that shelf, else to the shelf's first book; with an empty shelf nothing is added, and
  *   the agent is told. A session holding no claim gets no default, and a place the agent names always wins.
  */
-import type { KnowledgeKind, Library, NewLine, Note, NoteEdit, SchemaRecord, WriteOptions } from "../index.js";
+import type { KnowledgeKind, Library, NewLine, Note, NoteEdit, PhraseKind, SchemaRecord, WriteOptions } from "../index.js";
 import { isPluginKind } from "../schema/index.js";
 import { KNOWLEDGE_KINDS } from "../knowledge/index.js";
 import { verb, VerbRefusal, type VerbAnswer, type VerbContext, type Verb, type VerbInputs } from "../verbs/verb.js";
-import { wholeRecord, type HeldClaim } from "./index.js";
+import { everyHolding, holdingLines, wholeRecord, type HeldClaim } from "./index.js";
 
 /** How a session came to an artifact it read. */
 export type Found = Extract<NewLine, { kind: "note-read" }>["found"];
@@ -82,6 +82,30 @@ const searchNotes = verb({
     return {
       text: [heading, ...notes.map(spineLine)].join("\n"),
       data: { by: ranked.by, notes: notes.map(spineData) },
+    };
+  },
+});
+
+const findText = verb({
+  command: NO_COMMAND("exact"),
+  tool: {
+    name: "find_text",
+    description: "Find every live record (artifacts, stories, capabilities, contracts, arcs, increments and questions) whose stored text holds a phrase exactly: case-sensitive, contiguous, no wildcards, every page. Each comes with its id, kind, title and the fields that hold it. Use it for a link sweep, when every literal occurrence matters; search_notes finds by meaning instead.",
+  },
+  inputs: {
+    phrase: { kind: "text", verbatim: true, describe: "The exact text to find, its spaces kept" },
+    kinds: { kind: "text", many: true, optional: true, describe: "Only these kinds; every kind unless given" },
+    fields: { kind: "text", many: true, optional: true, describe: "Only these stored top-level fields; every text field unless given" },
+  },
+  async act({ phrase, kinds, fields }, context: NoteToolContext) {
+    const hits = await everyHolding(context.library, phrase, {
+      ...(kinds.length > 0 ? { kinds: kinds as PhraseKind[] } : {}),
+      ...(fields.length > 0 ? { fields: [...fields] } : {}),
+    });
+    await context.recordReads(hits.map(({ record }) => ({ note: record.id, found: "search", read: "peek" })));
+    return {
+      text: holdingLines(phrase, hits),
+      data: { records: hits.map(({ record, title, fields: held }) => ({ id: record.id, kind: record.type, title, fields: held })) },
     };
   },
 });
@@ -147,7 +171,7 @@ const correctNote = verb({
 });
 
 /** The artifact tools the library declares for the MCP server, in the order it serves them. */
-export const NOTE_TOOLS: readonly Verb<VerbInputs, NoteToolContext>[] = [searchNotes, open, writeNote, correctNote];
+export const NOTE_TOOLS: readonly Verb<VerbInputs, NoteToolContext>[] = [searchNotes, findText, open, writeNote, correctNote];
 
 async function openRecord(id: string, context: NoteToolContext): Promise<VerbAnswer> {
   const { library } = context;

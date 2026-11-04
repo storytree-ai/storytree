@@ -3,10 +3,14 @@
  * fresh project's library on the real Postgres `pnpm test` provides.
  */
 import assert from "node:assert/strict";
+import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import { test } from "node:test";
 
 import type { Library } from "../../index.js";
 import { ADR_FAMILY } from "../../commands/adr.js";
+import { LIBRARY_FAMILIES, type LibraryVerbContext } from "../../commands/index.js";
 import type { DoorWords, VerbContext } from "../../verbs/verb.js";
 
 import { withLibrary } from "../testing/pg.js";
@@ -189,6 +193,40 @@ test("22.5 a decision superseded by `adr new --supersedes` leaves `adr list --lo
     const marks = Object.fromEntries((await library.decisions()).map((view) => [view.record.fields.title, view.record.fields.loadBearing === true]));
     assert.equal(marks["Log email for a month"], false, "a successor of decisions without the mark gets none");
     assert.equal(marks["Log and keep every email"], true, "and one marked load-bearing keeps it");
+  });
+});
+
+test("22.5 a decision superseded through `library new`, `library edit` or `adr push` leaves `adr list --load-bearing`, its successor carrying the mark and the shelf", async () => {
+  await withLibrary(async (library) => {
+    const words: DoorWords = { door: "command", say: (step) => `storytree ${step.command}` };
+    const context = { library, project: library.name, session: "s", folder: process.cwd(), writer: { actor: "session:s" } } as LibraryVerbContext;
+    const verbOf = (family: string, name: string) => LIBRARY_FAMILIES.find((one) => one.name === family)!.verbs.find((one) => "name" in one.command && one.command.name === name)!;
+    const superseded = async (doorWrites: (old: string) => Promise<string>) => {
+      const { capability, cover } = await shelf(library);
+      const successor = await doorWrites(cover.id);
+      const listed = (await verbOf("adr", "list").act({ "load-bearing": true }, context, words)).text;
+      assert.doesNotMatch(listed, new RegExp(cover.id), "the superseded decision is off the load-bearing list");
+      assert.match(listed, new RegExp(successor), "and its successor is on it");
+      assert.deepEqual((await library.frontCovers(capability.id)).map(({ id }) => id), [successor], "the successor takes the shelf");
+    };
+
+    await superseded(async (old) => {
+      await verbOf("library", "new").act({ "<kind>": "decision", "<fields>": { title: "Send through Postmark", text: "Postmark replaces Mailgun.", status: "accepted", supersedes: old } }, context, words);
+      return (await library.decisions()).find((view) => view.record.fields.title === "Send through Postmark")!.record.id;
+    });
+    await superseded(async (old) => {
+      const successor = await library.recordDecision({ title: "Send through Resend", text: "Resend replaces Mailgun.", status: "accepted" });
+      await verbOf("library", "edit").act({ "<id>": successor.id, "<fields>": { supersedes: old } }, context, words);
+      return successor.id;
+    });
+    await superseded(async (old) => {
+      const successor = await library.recordDecision({ title: "Send through SES", text: "SES replaces Mailgun.", status: "accepted" });
+      const file = path.join(mkdtempSync(path.join(tmpdir(), "adr-push-")), "successor.md");
+      await verbOf("adr", "pull").act({ decision: successor.id, out: file }, context, words);
+      writeFileSync(file, readFileSync(file, "utf8").replace('status: "accepted"', `status: "accepted"\nsupersedes: ${JSON.stringify([old])}`));
+      await verbOf("adr", "push").act({ decision: successor.id, file }, context, words);
+      return successor.id;
+    });
   });
 });
 

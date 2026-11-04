@@ -3,7 +3,7 @@ export { LifecycleError, WorkInFlight } from "./work-in-flight.js";
 export { BOARD_INCREMENT_FIELDS } from "./work-in-flight.js";
 export type { ArcState, ArcView, BoardArcView, BoardIncrement, CloseInput, DayWindow, Disposition, IncrementEdit, IncrementStatus, NewIncrement, ParkedOn, ParkOptions, Pended, PendingChange, PlanChange } from "./work-in-flight.js";
 export { RetireRefusedError } from "./owner-questions.js";
-export type { NewQuestion, QuestionEdit, QuestionLease, Settlement } from "./owner-questions.js";
+export type { DeviationBand, NewQuestion, Prep, QuestionDeviation, QuestionEdit, QuestionLease, Score, Settlement, Verdict, WouldBeAnswer } from "./owner-questions.js";
 export { WaitLoopError } from "./waits.js";
 export type { Hold, Holds, NoteWait, WaitFor } from "./waits.js";
 export { beforeCutover, PR_CUTOVER_ID, pullRepository, pullSaid } from "./pr-cutover.js";

@@ -86,6 +86,7 @@ const FROM_FLIGHT = [
   "parkArc", "unparkArc", "arcView", "arcViews", "boardArcs", "closedArcs",
   "addWait", "removeWait", "waitHolds", "addWaitFor", "removeWaitFor", "waitsFor", "holds",
   "raiseQuestion", "settleQuestion", "questions", "heldOnQuestion", "checkQuestion", "renewQuestion", "editQuestion", "moveQuestion", "lapsedQuestions",
+  "predictQuestion", "questionPrediction", "scoreQuestion", "prepQuestion", "questionDeviation",
 ] as const satisfies readonly (keyof Project["flight"])[];
 const FROM_HEALTH = ["reportHealth", "recordVerified", "markVerifiedPending", "health", "healthHistory"] as const satisfies readonly (keyof Project["health"])[];
 const FROM_KNOWLEDGE = [

@@ -32,6 +32,7 @@ export type RecordType =
   | KnowledgeKind
   | "increment"
   | "question"
+  | "prediction"
   | "feedback"
   | "fyi";
 
@@ -133,6 +134,12 @@ export const RISK_AUDIENCES = ["owner", "invited", "public"] as const;
 
 /** A change's risk tier (question_0f21964e8ce0), lowest first. */
 export const RISK_TIERS = ["low", "medium", "high"] as const;
+
+/**
+ * How an answer given ahead of the owner compares with his, once he has answered (12.13): it matched, matched with
+ * changes, was different, or he rejected the question itself.
+ */
+export const VERDICTS = ["match", "match-with-changes", "different", "rejected"] as const;
 
 /** A reading's whole-number value from `min` to `max`. */
 const scale = (min: number, max: number) => z.number().int().min(min).max(max);
@@ -698,6 +705,25 @@ export const RECORD_SCHEMAS = {
        * ask him the same thing at once. Whether that session is still live is Session management's reading.
        */
       presenting: z.object({ session: nonEmpty, since: nonEmpty }).strict().optional(),
+      /**
+       * Its prep mark (12.15): when the assistant pass prepped it and its stance on the raiser's recommendation, with
+       * the reason when it differs or proposes retiring it. `editedAt` is when its wording was corrected after the mark:
+       * then it reads unprepared until it is prepped again. Settling keeps it, as the record of its prep.
+       */
+      prep: z
+        .object({ at: nonEmpty, stance: z.enum(["agrees", "differs", "retire"]), reason: nonEmpty.optional(), editedAt: nonEmpty.optional() })
+        .strict()
+        .superRefine((prep, context) => {
+          if (prep.stance !== "agrees" && prep.reason === undefined) {
+            context.addIssue({ code: "custom", path: ["reason"], message: `a prep mark that ${prep.stance === "differs" ? "differs from the raiser" : "proposes retiring it"} needs field "reason": why` });
+          }
+        })
+        .optional(),
+      /**
+       * Its score, once settled (12.13): how its would-be answer and its raiser's recommendation compare with the
+       * owner's answer, who scored it and when. Either side is absent when the question had none to score.
+       */
+      score: z.object({ prediction: z.enum(VERDICTS).optional(), recommendation: z.enum(VERDICTS).optional(), by: nonEmpty, at: nonEmpty }).strict().optional(),
     })
     .strict()
     .superRefine((fields, context) => {
@@ -707,11 +733,25 @@ export const RECORD_SCHEMAS = {
         if (fields.settledAt === undefined) problem(["settledAt"], 'a settled question needs field "settledAt": when it was settled');
         if (fields.presenting !== undefined) problem(["presenting"], "a settled question is no longer being put to the owner");
       } else {
-        for (const field of ["answer", "settledAt", "settledBy"] as const) {
+        for (const field of ["answer", "settledAt", "settledBy", "score"] as const) {
           if (fields[field] !== undefined) problem([field], `an open question has no "${field}" yet`);
         }
       }
     }),
+  /**
+   * The assistant pass's would-be answer to a question (12.12, ADR-1231 D3): its pick (an option by number, retire or
+   * defer), its confidence, a one-line why, and when. Its own record, one per question, so no read of the question
+   * carries it (12.14): it is sealed from what the owner hears.
+   */
+  prediction: z
+    .object({
+      question: z.string(),
+      pick: z.union([z.number().int().positive(), z.enum(["retire", "defer"])]),
+      confidence: z.enum(["high", "medium", "low"]),
+      why: nonEmpty,
+      at: nonEmpty,
+    })
+    .strict(),
   /**
    * A note the owner sent from the desktop app's feedback corner (Surface feedback, capability 3): what he wrote, the
    * named surface in front of him and the story that declares it, what he had selected and the project on show, the
@@ -801,6 +841,7 @@ export const SCHEMA_VERSIONS: Readonly<Record<RecordType, number>> = {
   experiment: 1,
   increment: 3,
   question: 1,
+  prediction: 1,
   feedback: 1,
   fyi: 1,
 };

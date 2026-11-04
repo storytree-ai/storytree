@@ -1,5 +1,5 @@
 /**
- * Capability 12 · Owner questions (ADR-0640): one test per contract 12.1-12.11 in the library story,
+ * Capability 12 · Owner questions (ADR-0640): one test per contract 12.1-12.13 and 12.15 in the library story (12.14 is in commands.test.ts),
  * and the half of 10.3 that waits for questions, each run on BOTH backends: a WorkModel, a
  * WorkInFlight and a Knowledge over a fresh MemoryTransactions, and those of a fresh Postgres
  * project, dropped afterwards, pass or fail.
@@ -368,5 +368,95 @@ for (const backend of [memory, postgres]) {
     await assert.rejects(flight.moveQuestion(question.id, "arc_000000000000", "nowhere"), MissingReferenceError);
     assert.deepEqual(await transactions.history(), history, "nothing was written");
     assert.equal(await flight.moveQuestion("question_000000000000", to.id, "ghost"), null, "null for no question");
+  });
+
+  contract("12.12", "an open question takes a would-be answer, stamped with its time; a later one replaces it while open, and a settled question refuses one", async ({ work, flight, transactions }) => {
+    const arc = await work.createArc(ARC);
+    const question = await flight.raiseQuestion({ arc: arc.id, ...ASK, recommendation: "Mailgun" });
+    assert.equal(await flight.questionPrediction(question.id), null, "none until one is recorded");
+
+    const first = await flight.predictQuestion(question.id, { pick: 1, confidence: "high", why: "Its API is the simplest" });
+    const read = await flight.questionPrediction(question.id);
+    assert.deepEqual(
+      { pick: read?.fields.pick, confidence: read?.fields.confidence, why: read?.fields.why },
+      { pick: 1, confidence: "high", why: "Its API is the simplest" },
+    );
+    assert.ok(!Number.isNaN(Date.parse(read?.fields.at ?? "")), "stamped with its time");
+
+    const second = await flight.predictQuestion(question.id, { pick: "defer", confidence: "low", why: "Neither is set up yet" });
+    assert.equal(second?.id, first?.id, "the later one replaces it, not beside it");
+    const replaced = await flight.questionPrediction(question.id);
+    assert.deepEqual({ pick: replaced?.fields.pick, confidence: replaced?.fields.confidence, why: replaced?.fields.why }, { pick: "defer", confidence: "low", why: "Neither is set up yet" });
+
+    await assert.rejects(flight.predictQuestion(question.id, { pick: 0, confidence: "high", why: "x" }), SchemaError, "a pick is an option by number, retire or defer");
+    await assert.rejects(flight.predictQuestion(question.id, { pick: 1, confidence: "sure" as never, why: "x" }), SchemaError, "confidence is high, medium or low");
+
+    await flight.settleQuestion(question.id, { answer: "Mailgun" });
+    const history = await transactions.history();
+    await assert.rejects(
+      flight.predictQuestion(question.id, { pick: 2, confidence: "medium", why: "Too late" }),
+      (error: unknown) => error instanceof RangeError && error.message.includes(question.id) && /settled/.test(error.message),
+      "a settled question refuses one, naming it",
+    );
+    assert.deepEqual(await transactions.history(), history, "nothing was written");
+    assert.equal(await flight.predictQuestion("question_000000000000", { pick: 1, confidence: "high", why: "x" }), null, "null for no question");
+  });
+
+  contract("12.13", "a settled question takes one score, for its would-be answer and its raiser's recommendation, with who scored it and when; an open or already scored question refuses it", async ({ work, flight, transactions }) => {
+    const arc = await work.createArc(ARC);
+    const question = await flight.raiseQuestion({ arc: arc.id, ...ASK, recommendation: "Mailgun" });
+    await flight.predictQuestion(question.id, { pick: 2, confidence: "medium", why: "SES is cheaper" });
+
+    const open = await transactions.history();
+    await assert.rejects(flight.scoreQuestion(question.id, { prediction: "different", recommendation: "match", by: "lane" }), (error: unknown) => error instanceof RangeError && /open/.test(error.message), "an open question refuses a score");
+    assert.deepEqual(await transactions.history(), open, "nothing was written");
+
+    await flight.settleQuestion(question.id, { answer: "Mailgun" });
+    await assert.rejects(flight.scoreQuestion(question.id, { recommendation: "match", by: "lane" }), RangeError, "a question with a would-be answer is scored for it too");
+    await assert.rejects(flight.scoreQuestion(question.id, { prediction: "different", recommendation: "sort of" as never, by: "lane" }), SchemaError, "each is match, match with changes, different or rejected");
+    const scored = await flight.scoreQuestion(question.id, { prediction: "different", recommendation: "match", by: "lane" });
+    assert.deepEqual({ ...scored?.fields.score, at: undefined }, { prediction: "different", recommendation: "match", by: "lane", at: undefined });
+    assert.ok(!Number.isNaN(Date.parse(scored?.fields.score?.at ?? "")), "stamped with when it was scored");
+
+    const once = await transactions.history();
+    await assert.rejects(flight.scoreQuestion(question.id, { prediction: "match", recommendation: "match", by: "lane" }), (error: unknown) => error instanceof RangeError && /already scored/.test(error.message), "it takes one score");
+    assert.deepEqual(await transactions.history(), once, "nothing was written");
+
+    // A question with no would-be answer still takes the raiser's score alone, so the baseline keeps counting.
+    const unpredicted = await flight.raiseQuestion({ arc: arc.id, ...ASK, recommendation: "SES" });
+    await flight.settleQuestion(unpredicted.id, { answer: "SES, with changes" });
+    await assert.rejects(flight.scoreQuestion(unpredicted.id, { prediction: "match", recommendation: "match", by: "lane" }), RangeError, "no would-be answer, nothing to score for it");
+    const alone = await flight.scoreQuestion(unpredicted.id, { recommendation: "match-with-changes", by: "lane" });
+    assert.equal(alone?.fields.score?.recommendation, "match-with-changes");
+    assert.equal(alone?.fields.score?.prediction, undefined);
+    assert.equal(await flight.scoreQuestion("question_000000000000", { recommendation: "match", by: "lane" }), null, "null for no question");
+  });
+
+  contract("12.15", "an open question carries a prep mark, set in place: when and its stance, with the reason; edited after its mark it reads unprepared, and settling keeps the mark", async ({ work, flight, transactions }) => {
+    const arc = await work.createArc(ARC);
+    const question = await flight.raiseQuestion({ arc: arc.id, ...ASK, recommendation: "Mailgun" });
+
+    const history = await transactions.history();
+    await assert.rejects(flight.prepQuestion(question.id, { stance: "differs" }), SchemaError, "a stance that differs or proposes retire says why");
+    assert.deepEqual(await transactions.history(), history, "nothing was written");
+
+    const agreed = await flight.prepQuestion(question.id, { stance: "agrees" });
+    assert.equal(agreed?.fields.prep?.stance, "agrees");
+    assert.ok(!Number.isNaN(Date.parse(agreed?.fields.prep?.at ?? "")), "stamped with when it was prepped");
+    assert.equal(agreed?.fields.prep?.editedAt, undefined, "prepped on its current wording");
+
+    const presented = await flight.editQuestion(question.id, { presenting: { session: "s", since: "2026-11-04T00:00:00.000Z" } });
+    assert.equal(presented?.fields.prep?.editedAt, undefined, "being put to him is no edit of what it asks");
+    const edited = await flight.editQuestion(question.id, { options: "Mailgun, SES or Postmark" });
+    assert.ok(edited?.fields.prep?.editedAt !== undefined, "edited after its mark, it reads unprepared");
+    assert.equal(edited?.fields.prep?.stance, "agrees", "the mark itself stays");
+
+    const retire = await flight.prepQuestion(question.id, { stance: "retire", reason: "Postmark settles it already" });
+    assert.deepEqual({ ...retire?.fields.prep, at: undefined }, { stance: "retire", reason: "Postmark settles it already", at: undefined }, "a new mark replaces it, prepared again");
+
+    const settled = await flight.settleQuestion(question.id, { answer: "Mailgun" });
+    assert.equal(settled?.fields.prep?.stance, "retire", "settling keeps the mark as the record of its prep");
+    await assert.rejects(flight.prepQuestion(question.id, { stance: "agrees" }), (error: unknown) => error instanceof RangeError && /settled/.test(error.message));
+    assert.equal(await flight.prepQuestion("question_000000000000", { stance: "agrees" }), null, "null for no question");
   });
 }

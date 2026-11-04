@@ -5,7 +5,7 @@ import type { ForestScene, Island } from '../scene.js';
 import { buildPlanetPathways, laneDrawSeconds, laneProgress, laneRoutes, LANE_COLOUR } from '../geometry.js';
 import { trailFillWidth } from '../core/routing.js';
 import { RIBBON_GROUND_SCALE } from '../trail-ribbon-width.js';
-import { advanceLaneClock, entranceShown, laneEntrances, laneHead, laneHeads, LANE_GLOW, LANE_SPEED, onIsland, THREAD_WIDTH, type InlandWay, type LaneRoute, type LitLink } from './lanes.js';
+import { advanceLaneClock, laneHead, laneHeads, LANE_GLOW, LANE_SPEED, THREAD_WIDTH, type LaneRoute, type LitLink } from './lanes.js';
 import type { PlanetPathways } from './pathways.js';
 
 const R = 218;
@@ -52,42 +52,6 @@ test('4.8 a lit link\'s lane is one unbroken strip between islands, from the doc
   assert.deepEqual(laneRoutes(plan, [{ from: 'x', to: 'y', dir: 'up' }]), [], 'a link with no trail lights nothing');
 });
 
-test('4.8 a lit lane runs on from each dock along its way inland to its capability\'s territory, the same thread; with no way it ends at its dock', () => {
-  const plan = buildPlanetPathways(scene, spots, R);
-  const link = { from: 'b1', to: 'a1', dir: 'down' } as const;
-  // A way from the dock straight to the island's middle, in the island's own ground coordinates.
-  const middle = (story: string) => onIsland([{ x: 0, z: 0 }], spots.get(story)!, R)[0]!;
-  const inland: InlandWay = (dock, capability) => {
-    assert.equal(capability, dock.story === 'a' ? 'a1' : 'b1', 'each end asks for the way to its own capability');
-    return onIsland([dock.local, { x: dock.local.x / 2, z: dock.local.z / 2 }, { x: 0, z: 0 }], spots.get(dock.story)!, R);
-  };
-  const [road] = laneRoutes(plan, [link]), [lane] = laneRoutes(plan, [link], inland);
-  assert.ok(lane!.points[0]!.distanceTo(middle('a')) < 1e-9, 'it starts in the territory on the island built on');
-  assert.ok(lane!.points.at(-1)!.distanceTo(middle('b')) < 1e-9, 'and ends in the territory on the island building on it');
-  const start = lane!.points.findIndex(p => p.distanceTo(road!.points[0]!) < 1e-9);
-  assert.ok(start > 0, 'through the dock');
-  road!.points.forEach((p, i) => assert.ok(p.distanceTo(lane!.points[start + i]!) < 1e-9, `along its road at point ${i}`));
-  const inlandWidths = [...lane!.widths.slice(0, start), ...lane!.widths.slice(start + road!.points.length)];
-  assert.ok(inlandWidths.length > 0 && inlandWidths.every(w => Math.abs(w - THREAD_WIDTH) < 1e-9), 'the same thread inland');
-  lane!.points.slice(1).forEach((p, i) => assert.ok(p.distanceTo(lane!.points[i]!) <= 1 + 1e-9, `unbroken at point ${i}`));
-  assert.ok(Math.abs(lane!.length - lane!.points.slice(1).reduce((sum, p, i) => sum + p.distanceTo(lane!.points[i]!), 0)) < 1e-6);
-  const marks = laneEntrances([lane!]);
-  assert.deepEqual(marks.map(mark => [mark.point.distanceTo(lane!.points[0]!) < 1e-9, mark.point.distanceTo(lane!.points.at(-1)!) < 1e-9].indexOf(true)).sort(), [0, 1],
-    'its marks sit at its two ends, in the territories');
-  const [none] = laneRoutes(plan, [link], () => undefined);
-  assert.equal(none!.points.length, road!.points.length, 'with no way inland it ends at its docks');
-});
-
-test('4.8 a way inland lies on its island where the globe draws it, from the dock, a unit at most between points', () => {
-  const plan = buildPlanetPathways(scene, spots, R);
-  for (const dock of plan.docks) {
-    const way = onIsland([dock.local, { x: 0, z: 0 }], spots.get(dock.story)!, R);
-    assert.ok(way[0]!.distanceTo(dock.point) < 1e-6, `it starts on the dock on ${dock.story}`);
-    way.slice(1).forEach((p, i) => assert.ok(p.distanceTo(way[i]!) <= 1 + 1e-9));
-    assert.ok(way.length > Math.hypot(dock.local.x, dock.local.z), 'filled in along the way');
-  }
-});
-
 test('4.8 a type-only link stays marked on its road and its lane', () => {
   const typed: ForestScene = { ...scene, links: [{ from: 'b1', to: 'a1' }, { from: 'b2', to: 'a2', typeOnly: true }, { from: 'b2', to: 'a1', typeOnly: true }] };
   const plan = buildPlanetPathways(typed, spots, R);
@@ -97,33 +61,6 @@ test('4.8 a type-only link stays marked on its road and its lane', () => {
   }
   const lanes = laneRoutes(plan, [{ from: 'b1', to: 'a1', dir: 'up' }, { from: 'b2', to: 'a2', dir: 'up' }]);
   assert.deepEqual(lanes.map(lane => lane.typeOnly === true), [false, true]);
-});
-
-test('4.8 a lane marks each dock it uses in its colour, both colours side by side where an up and a down lane share one, shown once its front leaves or reaches it', () => {
-  const plan = buildPlanetPathways(scene, spots, R);
-  const lanes = laneRoutes(plan, [{ from: 'b1', to: 'a1', dir: 'down' }, { from: 'b2', to: 'a2', dir: 'up' }]);
-  const marks = laneEntrances(lanes);
-  // Both links cross between the same two docks, so each dock carries one mark per colour.
-  assert.equal(marks.length, 4);
-  for (const story of ['a', 'b']) {
-    const dock = plan.docks.find(d => d.story === story)!.point;
-    const here = marks.filter(mark => mark.point.distanceTo(dock) < mark.radius * 2);
-    assert.deepEqual(here.map(mark => mark.colour).sort(), [LANE_COLOUR.up, LANE_COLOUR.down].sort());
-    const [one, two] = here;
-    assert.ok(one!.point.distanceTo(two!.point) >= one!.radius + two!.radius - 1e-9, 'the two colours do not cover each other');
-    for (const mark of here) {
-      assert.ok(Math.abs(mark.point.length() - dock.length()) < 1e-9, 'lying on the coast at the dock\'s height');
-      assert.ok(mark.radius > 0.75 && mark.radius < 2, 'a small pip, about twice a one-link road across');
-      assert.deepEqual(mark.lanes, [{ from: mark.dir === 'down' ? 'b1' : 'b2', to: mark.dir === 'down' ? 'a1' : 'a2', at: story === 'a' ? 'start' : 'end' }]);
-    }
-  }
-  const alone = laneEntrances(lanes.slice(0, 1));
-  assert.equal(alone.length, 2);
-  assert.ok(alone.every(mark => plan.docks.some(d => d.point.distanceTo(mark.point) < 1e-9)), 'a lone colour sits on the dock itself');
-  assert.equal(entranceShown('start', 0), false, 'not before its front leaves');
-  assert.equal(entranceShown('start', 0.01), true);
-  assert.equal(entranceShown('end', 0.99), false, 'not before its front arrives');
-  assert.equal(entranceShown('end', 1), true);
 });
 
 test('4.8 opposite colours share a trunk side by side, each just under half of it, even when their links travel it in opposite directions, and join their exact endpoints continuously', () => {

@@ -9,8 +9,7 @@ import { drawnAtOnce, islandDocks, pageRoadRouter, roadsWhenRouted, type IslandD
 import { Pathways, SelectionLanes } from './PlanetTrailRibbons.js';
 import { PlumbingLabels } from './PlumbingLabels.js';
 import { Overlay } from './overlay.js';
-import { onIsland, type InlandWay, type LitLink } from './lanes.js';
-import type { CoastPoint } from '../coast-clip.js';
+import type { LitLink } from './lanes.js';
 import type { Descriptor3D } from '../descriptors.js';
 import { EXACT_COLOUR_CANVAS_PROPS } from '../exact-colour.js';
 import { SHIPPED_ELEVATION_DEG } from './camera.js';
@@ -70,9 +69,6 @@ export interface PlanetWorldCanvasProps {
   sideOffset?: number | undefined;
   /** The selection's lit links, drawn as lanes over their roads; none by default. */
   lanes?: readonly LitLink[];
-  /** The way inland from a dock on `story`'s island to `capability`'s territory, in the island's own ground coordinates
-   * and starting on the dock, along lines the host has drawn there (ADR-0991 D4); without it a lane ends at its docks. */
-  laneWays?: ((story: string, capability: string, dock: CoastPoint, docks: readonly IslandDock[] | undefined) => readonly CoastPoint[] | undefined) | undefined;
   /** A recorded growth to replay (capability 12): islands rise, roads draw on, and plate children read `usePlanetGrowth`. */
   growth?: PlanetGrowth | undefined;
   /** Draw first and newly arriving roads on in a live host; recorded growth takes precedence. */
@@ -186,15 +182,11 @@ const CAPTURE_SEAM = '__storytreeCaptureGlobe';
 
 /** The map: one Canvas, the glass sheet, and each story's island as a raised plate with a coast (ADR-0804 D1, ADR-1059 D2).
  * A lamp shades the islands' sides and the glass's edge, and the land's top keeps its exact colour (ADR-1062 D1). */
-export function PlanetWorldCanvas({ scene, spots, radius, rotation = [0, 0, 0, 1], offset, globe, plateChildren, children, surface = true, surfaces, inside, framing = 1.18, sideOffset = 0, lanes = NO_LANES, laneWays, growth, liveRoads = false, sheet, hollow = false }: PlanetWorldCanvasProps) {
+export function PlanetWorldCanvas({ scene, spots, radius, rotation = [0, 0, 0, 1], offset, globe, plateChildren, children, surface = true, surfaces, inside, framing = 1.18, sideOffset = 0, lanes = NO_LANES, growth, liveRoads = false, sheet, hollow = false }: PlanetWorldCanvasProps) {
   const drawing = useRoadsWhenRouted(scene, spots, radius);
   const pathways = drawing.plan;
   const docks = useMemo(() => islandDocks(pathways, drawing.routing), [pathways, drawing.routing]);
   const docksOn = useCallback((story: string) => docks === undefined ? undefined : docks.get(story) ?? NO_DOCKS, [docks]);
-  const inland = useMemo((): InlandWay | undefined => laneWays && ((dock, capability) => {
-    const way = laneWays(dock.story, capability, dock.local, docksOn(dock.story)), spot = spots.get(dock.story);
-    return way && spot && way.length > 1 ? onIsland(way, spot, radius, SHEET_LAND_LIFT) : undefined;
-  }), [laneWays, spots, radius, docksOn]);
   const reveal = useMemo(() => growth === undefined ? undefined : roadSegmentWindows(pathways, growth.plan.roads), [pathways, growth?.plan]);
   const elevation = SHIPPED_ELEVATION_DEG * Math.PI / 180;
   const position: [number, number, number] = [0, Math.sin(elevation) * radius * 4, Math.cos(elevation) * radius * 4];
@@ -218,7 +210,7 @@ export function PlanetWorldCanvas({ scene, spots, radius, rotation = [0, 0, 0, 1
         return <Plate key={island.story} island={island} spot={spot} radius={radius} plate={pathways.plates.get(island.story)!} docks={docksOn(island.story)}
           visible={exterior.plates} grounds={exterior.grounds} hollow={hollow} children={plateChildren} />;
       })}
-      <group name="globe-roads" visible={exterior.roads}><Pathways plan={pathways} reveal={reveal} live={liveRoads && growth === undefined} visible={exterior.roads} routing={drawing.routing} /><SelectionLanes plan={pathways} lit={lanes} inland={inland} /><PlumbingLabels plan={pathways} visible={exterior.roads} /></group>
+      <group name="globe-roads" visible={exterior.roads}><Pathways plan={pathways} reveal={reveal} live={liveRoads && growth === undefined} visible={exterior.roads} routing={drawing.routing} /><SelectionLanes plan={pathways} lit={lanes} /><PlumbingLabels plan={pathways} visible={exterior.roads} /></group>
       {inside}
     </group>
     <SheetLights />

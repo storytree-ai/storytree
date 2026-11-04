@@ -71,6 +71,11 @@ export function linkLayout(shares: readonly TerritoryShare[], coast: Coast, link
   return { radius: fine.radius * scale, coast, territories: fine.territories, cells, borders };
 }
 
+/** How far the open land reaches round a dock whose lanes reach `n` links here, in The library's units. */
+export function openReach(n: number): number {
+  return n <= 0 ? 0 : KEYS_OPEN + (MOUTH - KEYS_OPEN) * Math.min(1, Math.log(n) / Math.log(64));
+}
+
 /** Each cell's territory (its index in `map.territories`, -1 for open land), or undefined when none grows. */
 function arrange(map: TerritoryMap, coast: Coast, links: readonly Link[], docks: readonly LinkDock[]): number[] | undefined {
   const { cells, territories: held } = map;
@@ -88,8 +93,7 @@ function arrange(map: TerritoryMap, coast: Coast, links: readonly Link[], docks:
     return reached;
   });
   const loads = lands.map((reached) => [...reached.values()].reduce((s, n) => s + n, 0));
-  const reach = (n: number) => n <= 0 ? 0 : KEYS_OPEN + (MOUTH - KEYS_OPEN) * Math.min(1, Math.log(n) / Math.log(64));
-  const open = cells.map((cell) => docks.some((dock, k) => far(cell.site, dock.local) < reach(loads[k]!)));
+  const open = cells.map((cell) => docks.some((dock, k) => far(cell.site, dock.local) < openReach(loads[k]!)));
   // Land the open land cuts off from the rest is open land too, so the territories share one piece of land.
   const pieces = piecesOf(cells.map((_, c) => c).filter((c) => !open[c]), cells);
   if (pieces.length === 0) return undefined;
@@ -265,7 +269,7 @@ function sharedEdge(a: Cell, b: Cell): [Point, Point] | undefined {
 }
 
 /** The nearest point of the coast: a dock is read where its lane comes ashore, a little off the coast. */
-function ontoCoast(p: Point, coast: Coast): Point {
+export function ontoCoast(p: Point, coast: Coast): Point {
   let best = p, d = Infinity;
   for (const ring of coast) ring.forEach((a, i) => {
     const b = ring[(i + 1) % ring.length]!, dx = b.x - a.x, dz = b.z - a.z;

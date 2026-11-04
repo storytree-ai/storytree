@@ -319,8 +319,9 @@ export class WorkInFlight {
    * history (10.2). The closure date stays unless supplied; the other outcome fields are replaced.
    * Open work is refused (RangeError), and the usual outcome validation still applies (SchemaError).
    * Null, with nothing written, if `id` is not a live increment. Its lifecycle never changes. A
-   * correction to landed clears the waits on it (11.8), and the friction it remedies follows the
-   * corrected outcome (ADR-1016 D2).
+   * correction to landed clears the waits on it (11.8) and answers whether it fixed an escape as a
+   * landing does, a correction away from landed drops that answer (10.30), and the friction it
+   * remedies follows the corrected outcome (ADR-1016 D2).
    */
   correctIncrementClosure(id: string, close: CloseInput, reason: string, options?: WriteOptions): Promise<SchemaRecord<"increment"> | null> {
     return this.#serially(async () => {
@@ -329,7 +330,8 @@ export class WorkInFlight {
       if (increment.fields.status !== "closed") throw new RangeError(`increment ${JSON.stringify(id)} must be closed before its closure can be corrected`);
       if (typeof reason !== "string" || reason.trim() === "") throw new RangeError("correcting an increment's closure requires a nonblank reason");
       const outcome = outcomeOf({ ...close, date: close.date ?? increment.fields.outcome!.date });
-      const corrected = (await this.#records.edit(id, { outcome }, { ...options, reason })) as SchemaRecord<"increment"> | null;
+      const escape = increment.fields.escape === "none" && close.disposition !== "landed" ? { escape: undefined } : escapeAnswer(increment.fields.escape, close);
+      const corrected = (await this.#records.edit(id, { outcome, ...escape }, { ...options, reason })) as SchemaRecord<"increment"> | null;
       if (close.disposition === "landed") await this.#clearAfter(() => waits.clearWaitsOn(this.#records, "increment", id, `its blocker ${id} landed, so the wait on it is cleared`, options));
       await this.#clearAfter(() => this.#settleRemedies(increment, close, increment.fields.outcome, options));
       return corrected;

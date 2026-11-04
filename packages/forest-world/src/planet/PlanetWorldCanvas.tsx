@@ -9,7 +9,8 @@ import { drawnAtOnce, islandDocks, pageRoadRouter, roadsWhenRouted, type IslandD
 import { Pathways, SelectionLanes } from './PlanetTrailRibbons.js';
 import { PlumbingLabels } from './PlumbingLabels.js';
 import { Overlay } from './overlay.js';
-import type { LitLink } from './lanes.js';
+import { roadsUnderLanes, type LitLink } from './lanes.js';
+import { portMarks, seaLanes, type SeaPort } from './ports.js';
 import type { Descriptor3D } from '../descriptors.js';
 import { EXACT_COLOUR_CANVAS_PROPS } from '../exact-colour.js';
 import { SHIPPED_ELEVATION_DEG } from './camera.js';
@@ -67,7 +68,8 @@ export interface PlanetWorldCanvasProps {
   framing?: number | undefined;
   /** Positive moves the rendered sheet right in CSS pixels, leaving room for an adjacent card. */
   sideOffset?: number | undefined;
-  /** The selection's lit links, drawn as lanes over their roads; none by default. */
+  /** The selection's lit links, drawn as pale-blue lanes at sea in place of their roads, with a port at each dock they
+   * come ashore at on the selected island; none by default. */
   lanes?: readonly LitLink[];
   /** A recorded growth to replay (capability 12): islands rise, roads draw on, and plate children read `usePlanetGrowth`. */
   growth?: PlanetGrowth | undefined;
@@ -83,14 +85,17 @@ export interface PlanetWorldCanvasProps {
 
 const NO_LANES: readonly LitLink[] = [];
 const NO_DOCKS: readonly IslandDock[] = [];
+const NO_PORTS: readonly SeaPort[] = [];
 const ORIGIN: [number, number, number] = [0, 0, 0];
 
 /** How far below its resting place an island starts, in ground units: it rises out of the glass. */
 const RISE_DEPTH = 6;
 
 /** Each island a raised plate of the shared thickness with sides, on the glass sheet (ADR-1059 D2). */
-const Plate = memo(function Plate({ island, spot, radius, plate, docks, visible, grounds, hollow, children }: {
+const Plate = memo(function Plate({ island, spot, radius, plate, docks, ports, visible, grounds, hollow, children }: {
   island: Island; spot: PlanetSpot; radius: number; plate: PlanetPathwayPlate; docks: readonly IslandDock[] | undefined;
+  /** Its ports, when it is the selected island (4.40). */
+  ports: readonly SeaPort[];
   visible: boolean; grounds: boolean; hollow: boolean;
   children: PlanetWorldCanvasProps['plateChildren'];
 }) {
@@ -102,6 +107,8 @@ const Plate = memo(function Plate({ island, spot, radius, plate, docks, visible,
   // Hollowed and filled in again in place, so turning the sheet over rebuilds no island.
   const invalidate = useThree(state => state.invalidate);
   useLayoutEffect(() => { hollowIsland(ground, hollow); invalidate(); }, [ground, hollow, invalidate]);
+  const portGroup = useMemo(() => ports.length === 0 ? undefined : portMarks(ports, radius), [ports, radius]);
+  useEffect(() => () => portGroup?.traverse(o => { if ('geometry' in o) (o as { geometry: { dispose(): void } }).geometry.dispose(); }), [portGroup]);
   // The drawing engine 5.4: an island not yet risen is hidden with its marks; a rising one swells from its middle out of the glass.
   const growth = usePlanetGrowth();
   const group = useRef<Group>(null);
@@ -119,10 +126,19 @@ const Plate = memo(function Plate({ island, spot, radius, plate, docks, visible,
   });
   return <group ref={group} position={transform.position} quaternion={transform.quaternion} name={`planet:${island.story}`} visible={visible && risen}>
     <primitive object={ground} visible={grounds} />
+    {portGroup && <primitive object={portGroup} visible={grounds} />}
     {/* Html markers do not inherit Three's visibility: the legacy inside-only gate removes them. */}
     {visible && risen && children?.(island, descriptors, coast, docks)}
   </group>;
 });
+
+/** The island a selection's lanes are lit for: the one holding each lit link's own end (`from` going up, `to` going down). */
+function selectedStory(scene: ForestScene, lanes: readonly LitLink[]): string | undefined {
+  const lane = lanes[0];
+  if (lane === undefined) return undefined;
+  const own = lane.dir === 'up' ? lane.from : lane.to;
+  return scene.islands.find(island => island.story === own || island.trees.some(tree => tree.capability === own))?.story;
+}
 
 function Framing({ radius, framing, sideOffset, sheet }: { radius: number; framing: number; sideOffset: number; sheet: SheetExtent }) {
   const { camera, size, invalidate } = useThree();
@@ -188,6 +204,13 @@ export function PlanetWorldCanvas({ scene, spots, radius, rotation = [0, 0, 0, 1
   const docks = useMemo(() => islandDocks(pathways, drawing.routing), [pathways, drawing.routing]);
   const docksOn = useCallback((story: string) => docks === undefined ? undefined : docks.get(story) ?? NO_DOCKS, [docks]);
   const reveal = useMemo(() => growth === undefined ? undefined : roadSegmentWindows(pathways, growth.plan.roads), [pathways, growth?.plan]);
+  // 4.8, 4.40: the lanes end just off the selected island's ports, and the roads under them give way to them.
+  const selected = useMemo(() => selectedStory(scene, lanes), [scene, lanes]);
+  const sea = useMemo(() => {
+    const spot = selected === undefined ? undefined : spots.get(selected);
+    return seaLanes(pathways, lanes, selected === undefined || spot === undefined ? undefined : { story: selected, spot, radius });
+  }, [pathways, lanes, selected, spots, radius]);
+  const under = useMemo(() => roadsUnderLanes(pathways, lanes), [pathways, lanes]);
   const elevation = SHIPPED_ELEVATION_DEG * Math.PI / 180;
   const position: [number, number, number] = [0, Math.sin(elevation) * radius * 4, Math.cos(elevation) * radius * 4];
   const onCreated = useCallback(({ camera, get }: RootState) => {
@@ -208,9 +231,9 @@ export function PlanetWorldCanvas({ scene, spots, radius, rotation = [0, 0, 0, 1
         const spot = spots.get(island.story);
         if (spot === undefined) throw new Error(`No planet spot for story ${island.story}`);
         return <Plate key={island.story} island={island} spot={spot} radius={radius} plate={pathways.plates.get(island.story)!} docks={docksOn(island.story)}
-          visible={exterior.plates} grounds={exterior.grounds} hollow={hollow} children={plateChildren} />;
+          ports={island.story === selected ? sea.ports : NO_PORTS} visible={exterior.plates} grounds={exterior.grounds} hollow={hollow} children={plateChildren} />;
       })}
-      <group name="globe-roads" visible={exterior.roads}><Pathways plan={pathways} reveal={reveal} live={liveRoads && growth === undefined} visible={exterior.roads} routing={drawing.routing} /><SelectionLanes plan={pathways} lit={lanes} /><PlumbingLabels plan={pathways} visible={exterior.roads} /></group>
+      <group name="globe-roads" visible={exterior.roads}><Pathways plan={pathways} reveal={reveal} live={liveRoads && growth === undefined} visible={exterior.roads} routing={drawing.routing} under={under} /><SelectionLanes routes={sea.lanes} /><PlumbingLabels plan={pathways} visible={exterior.roads} /></group>
       {inside}
     </group>
     <SheetLights />

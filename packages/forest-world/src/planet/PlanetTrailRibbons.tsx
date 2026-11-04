@@ -5,7 +5,7 @@ import { BufferGeometry, Color, DoubleSide, Float32BufferAttribute, ShaderMateri
 import type { PlanetPathways } from './pathways.js';
 import { growthProgress, linkKey, roadSegmentWindows, segmentDrawRange, type GrowthWindow } from './growth.js';
 import { usePlanetGrowth } from './PlanetGrowth.js';
-import { advanceLaneClock, laneDrawSeconds, laneHead, laneHeads, LANE_GLOW, laneProgress, laneRoutes, type HeadRange, type LitLink } from './lanes.js';
+import { advanceLaneClock, laneDrawSeconds, laneHead, laneHeads, laneProgress, type LaneRoute } from './lanes.js';
 import { liveRoadProgress, liveRoadsGrowing, nextLiveRoads } from './live-roads.js';
 import { plumbingSegmentsShown, roadLook } from './plumbing.js';
 
@@ -73,66 +73,59 @@ export function revealRibbon(geometry: BufferGeometry, progress: number, fromEnd
   geometry.setDrawRange(fromEnd ? frontPair * 6 : 0, fromEnd ? (geometry.index?.count ?? 0) - frontPair * 6 : lo * 6);
 }
 
-/** A lane's strip: at each vertex its physical distance along the route (`along`), its side (`across`, -1 or 1)
- * and the way out to that side at half the strip's width (`sideways`), so a shader can draw its front and head. Given
- * `only`, it covers just those stretches of the route: lanes sharing a road then lay one glow on it, not one each. */
-export function laneRibbon(route: { points: Vector3[]; widths: readonly number[] }, spread = 1, lift = 0, only?: readonly HeadRange[]): BufferGeometry {
-  const position: number[] = [], sideways: number[] = [], along: number[] = [], across: number[] = [], index: number[] = [];
+/** A lane's strip: at each vertex its physical distance along the route (`along`) and the way out to its side at half
+ * the strip's width (`sideways`), so a shader can draw its front and head. */
+export function laneRibbon(route: { points: Vector3[]; widths: readonly number[] }, lift = 0): BufferGeometry {
+  const position: number[] = [], sideways: number[] = [], along: number[] = [], index: number[] = [];
   let distance = 0;
   for (let i = 0; i < route.points.length; i++) {
-    const from = distance;
     if (i) distance += route.points[i]!.distanceTo(route.points[i - 1]!);
-    const middle = (from + distance) / 2;
     const radial = route.points[i]!.clone().normalize(), p = route.points[i]!.clone().addScaledVector(radial, lift);
     const tangent = route.points[Math.min(route.points.length - 1, i + 1)]!.clone().sub(route.points[Math.max(0, i - 1)]!);
-    const side = radial.clone().cross(tangent).normalize().multiplyScalar(route.widths[i]! * spread / 2);
+    const side = radial.clone().cross(tangent).normalize().multiplyScalar(route.widths[i]! / 2);
     for (const sign of [-1, 1]) {
       position.push(...p.clone().addScaledVector(side, sign).toArray());
       sideways.push(...side.clone().multiplyScalar(sign).toArray());
       along.push(distance);
-      across.push(sign);
     }
-    if (i && (!only || only.some(([a, b]) => a <= middle && middle <= b))) index.push(2 * i - 2, 2 * i - 1, 2 * i, 2 * i - 1, 2 * i + 1, 2 * i);
+    if (i) index.push(2 * i - 2, 2 * i - 1, 2 * i, 2 * i - 1, 2 * i + 1, 2 * i);
   }
   const geometry = new BufferGeometry();
   geometry.setAttribute('position', new Float32BufferAttribute(position, 3));
   geometry.setAttribute('sideways', new Float32BufferAttribute(sideways, 3));
   geometry.setAttribute('along', new Float32BufferAttribute(along, 1));
-  geometry.setAttribute('across', new Float32BufferAttribute(across, 1));
   geometry.setIndex(index);
   geometry.computeBoundingSphere();
   return geometry;
 }
 
 /** The head (ADR-1000 D2), warm lamplight rather than a white spark: how far behind the front its brightness fades, how
- * much wider than the body it runs, the cream it is tinted towards and how far, and how much it lifts the glow. */
-export const LANE_HEAD = { tail: 34, widen: 0.2, tint: '#ffe2b0', mix: 0.55, lift: 1 } as const;
+ * much wider than the body it runs, and the cream it is tinted towards and how far. */
+export const LANE_HEAD = { tail: 34, widen: 0.2, tint: '#ffe2b0', mix: 0.55 } as const;
 
 /** Drawn where a fragment's distance along the route is at most `uDrawn`: the front lies at its exact physical
- * distance wherever it falls between samples. Near the front the strip warms towards cream and widens a little (the head); a glow
- * strip fades out towards its edges. Colours are written as authored (the globe's
- * exact-colour mode). */
-export function laneMaterial(colour: string, glow: boolean, opacity: number): ShaderMaterial {
+ * distance wherever it falls between samples. Near the front the strip warms towards cream and widens a little (the head).
+ * Colours are written as authored (the globe's exact-colour mode). */
+export function laneMaterial(colour: string, opacity: number): ShaderMaterial {
   return new ShaderMaterial({
     uniforms: { uColour: { value: new Color(colour) }, uOpacity: { value: opacity }, uDrawn: { value: -1 }, uHead: { value: 0 },
       uTail: { value: LANE_HEAD.tail }, uWiden: { value: LANE_HEAD.widen },
-      uTint: { value: new Color(LANE_HEAD.tint) }, uMix: { value: LANE_HEAD.mix }, uLift: { value: LANE_HEAD.lift }, uGlow: { value: glow ? 1 : 0 } },
-    vertexShader: `attribute float along; attribute float across; attribute vec3 sideways;
+      uTint: { value: new Color(LANE_HEAD.tint) }, uMix: { value: LANE_HEAD.mix } },
+    vertexShader: `attribute float along; attribute vec3 sideways;
 uniform float uDrawn; uniform float uHead; uniform float uTail; uniform float uWiden;
-varying float vAlong; varying float vAcross;
+varying float vAlong;
 void main() {
   float head = uHead * (1.0 - smoothstep(0.0, uTail * 0.4, abs(uDrawn - along)));
-  vAlong = along; vAcross = across;
+  vAlong = along;
   gl_Position = projectionMatrix * modelViewMatrix * vec4(position + sideways * uWiden * head, 1.0);
 }`,
-    fragmentShader: `uniform vec3 uColour; uniform vec3 uTint; uniform float uMix; uniform float uLift; uniform float uOpacity; uniform float uDrawn; uniform float uHead; uniform float uTail; uniform float uGlow;
-varying float vAlong; varying float vAcross;
+    fragmentShader: `uniform vec3 uColour; uniform vec3 uTint; uniform float uMix; uniform float uOpacity; uniform float uDrawn; uniform float uHead; uniform float uTail;
+varying float vAlong;
 void main() {
   float behind = uDrawn - vAlong;
   if (behind < 0.0) discard;
   float head = uHead * (1.0 - smoothstep(0.0, uTail, behind));
-  float edge = uGlow > 0.5 ? pow(1.0 - abs(vAcross), 1.2) : 1.0;
-  gl_FragColor = vec4(mix(uColour, uTint, uMix * head), min(1.0, uOpacity * edge * (1.0 + uLift * head * uGlow)));
+  gl_FragColor = vec4(mix(uColour, uTint, uMix * head), uOpacity);
 }`,
     transparent: true, depthWrite: false, side: DoubleSide, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2,
   });
@@ -148,9 +141,11 @@ export function drawLane(material: ShaderMaterial, progress: number, head: numbe
 const ignoreRay = () => {};
 
 /** The roads between islands: a recorded growth (5.4), or the live host's real arrivals (4.16). */
-export function Pathways({ plan, reveal, live = false, visible = true, routing = false }: { plan: PlanetPathways; reveal?: ReadonlyMap<string, GrowthWindow & { fromEnd: boolean }> | undefined; live?: boolean; visible?: boolean;
+export function Pathways({ plan, reveal, live = false, visible = true, routing = false, under }: { plan: PlanetPathways; reveal?: ReadonlyMap<string, GrowthWindow & { fromEnd: boolean }> | undefined; live?: boolean; visible?: boolean;
   /** The plan's roads are still being routed (The drawing engine 4.21): the live arrivals are kept for them. */
-  routing?: boolean }) {
+  routing?: boolean;
+  /** The roads the selection's lanes are drawn in place of (4.8): not drawn. */
+  under?: ReadonlySet<string> | undefined }) {
   // Showing a surface is independent of the host's arrival clock (4.17). Mounting an already
   // visible globe keeps its usual view; only a hidden-to-visible transition starts this reveal.
   const showing = useRef({ visible, elapsed: undefined as number | undefined, started: false, reduced: reducedMotion() });
@@ -230,7 +225,7 @@ export function Pathways({ plan, reveal, live = false, visible = true, routing =
     links: plan.edges.map(edge => ({ from: edge.from, to: edge.to })),
     plumbing: (plan.plumbing ?? []).map(road => ({ from: road.from, to: road.to, kind: road.kind })),
     segmentCount: plan.segments.length,
-  }}>{meshes.map(({ route, look, geometry, halo, thread }) => <group key={route.id}>
+  }}>{meshes.map(({ route, look, geometry, halo, thread }) => <group key={route.id} visible={!under?.has(route.id)}>
     <mesh name={`pathway:${route.id}`} geometry={geometry} raycast={ignoreRay}
       userData={{ links: route.links, widthGround: route.width, unrouted: route.unrouted, ...route.typeOnlyLinks ? { typeOnlyLinks: route.typeOnlyLinks } : {}, ...route.plumbing ? { plumbing: route.plumbing } : {} }}>
       <meshBasicMaterial color={look.road} side={DoubleSide} />
@@ -246,28 +241,25 @@ export function Pathways({ plan, reveal, live = false, visible = true, routing =
 
 const reducedMotion = () => typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-/** A selected story's lit links (The drawing engine 4.8–4.9): each lane is a thread down the middle of its road between islands, with a glow
- * in its colour that lanes sharing a stretch lay once between them, ending at its docks (inland, the selected island's
- * own roads take over, ADR-1236 D2), and draws on from the island built on, every lane starting together at one pace,
- * with a warm head at the front of each stretch it leads. A new selection draws its lanes again. */
-export function SelectionLanes({ plan, lit }: { plan: PlanetPathways; lit: readonly LitLink[] }) {
-  const key = lit.map(link => `${link.dir}:${link.from}->${link.to}`).sort().join('\n');
+/** A selected story's lit links (The drawing engine 4.8–4.9, ADR-1236 D1): each lane one solid pale sea-blue line at
+ * sea in place of its road, lanes sharing a stretch one line there a step wider, ending at the far island's dock and just
+ * off the selected island's port (`seaLanes`); it draws on from the island built on, every lane starting together at
+ * one pace, with a warm head at the front of each stretch it leads. A new selection draws its lanes again. */
+export function SelectionLanes({ routes }: { routes: readonly LaneRoute[] }) {
+  const key = routes.map(lane => `${lane.dir}:${lane.from}->${lane.to}`).sort().join('\n');
   const animation = useRef({ key, elapsed: 0, started: false, reduced: reducedMotion() });
   if (animation.current.key !== key) animation.current = { key, elapsed: 0, started: false, reduced: reducedMotion() };
   const lanes = useMemo(() => {
-    const routes = laneRoutes(plan, lit), heads = laneHeads(routes);
+    const heads = laneHeads(routes);
     return routes.map((lane, i) => ({ lane, seconds: laneDrawSeconds(lane.length), heads: heads[i]!,
-      strip: { geometry: laneRibbon(lane, 1, 0.12), material: laneMaterial(lane.colour, false, 0.95) },
-      glow: { geometry: laneRibbon(lane, LANE_GLOW, 0.1, heads[i]!), material: laneMaterial(lane.colour, true, 0.45) } }));
-  }, [plan, lit]);
-  useEffect(() => () => lanes.forEach(({ strip, glow }) => { for (const part of [strip, glow]) { part.geometry.dispose(); part.material.dispose(); } }), [lanes]);
+      strip: { geometry: laneRibbon(lane, 0.12), material: laneMaterial(lane.colour, 1) } }));
+  }, [routes]);
+  useEffect(() => () => lanes.forEach(({ strip }) => { strip.geometry.dispose(); strip.material.dispose(); }), [lanes]);
   const { invalidate } = useThree();
   useEffect(() => { invalidate(); }, [lanes, invalidate]);
   const draw = (elapsed: number, reduced: boolean) => {
-    for (const { lane, strip, glow, seconds, heads } of lanes) {
-      const progress = laneProgress(elapsed, seconds, reduced), head = laneHead(elapsed, lane.length, heads, reduced);
-      drawLane(strip.material, progress, head, lane.length);
-      drawLane(glow.material, progress, head, lane.length);
+    for (const { lane, strip, seconds, heads } of lanes) {
+      drawLane(strip.material, laneProgress(elapsed, seconds, reduced), laneHead(elapsed, lane.length, heads, reduced), lane.length);
     }
   };
   draw(animation.current.elapsed, animation.current.reduced);
@@ -286,10 +278,7 @@ export function SelectionLanes({ plan, lit }: { plan: PlanetPathways; lit: reado
   });
   return <group name="pathways:selection-lanes" userData={{ lanes: lanes.map(({ lane, seconds, heads }) =>
     ({ from: lane.from, to: lane.to, dir: lane.dir, length: lane.length, seconds, heads })) }}>
-    {lanes.map(({ lane, strip, glow }) => <group key={`${lane.from}->${lane.to}`}>
-      <mesh name={`lane-glow:${lane.dir}:${lane.from}->${lane.to}`} geometry={glow.geometry} material={glow.material} raycast={ignoreRay} renderOrder={1} />
-      <mesh name={`lane:${lane.dir}:${lane.from}->${lane.to}`} geometry={strip.geometry} material={strip.material}
-        raycast={ignoreRay} renderOrder={2} userData={{ from: lane.from, to: lane.to, dir: lane.dir, length: lane.length, ...lane.typeOnly ? { typeOnly: true } : {} }} />
-    </group>)}
+    {lanes.map(({ lane, strip }) => <mesh key={`${lane.from}->${lane.to}`} name={`lane:${lane.dir}:${lane.from}->${lane.to}`} geometry={strip.geometry} material={strip.material}
+      raycast={ignoreRay} renderOrder={2} userData={{ from: lane.from, to: lane.to, dir: lane.dir, length: lane.length, ...lane.typeOnly ? { typeOnly: true } : {} }} />)}
   </group>;
 }

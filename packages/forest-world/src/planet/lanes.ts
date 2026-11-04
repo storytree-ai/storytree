@@ -1,19 +1,17 @@
-/** Capability 4 · The planet. Selection lanes over the globe's roads (contracts 4.8–4.9), ported from 0.2's laneLayout and lane draw-on. */
+/** Capability 4 · The planet. Selection lanes at sea, in place of their roads (contracts 4.8–4.9), ported from 0.2's laneLayout and lane draw-on. */
 import { Vector3 } from 'three';
-import { trailFillWidth } from '../core/routing.js';
-import { RIBBON_GROUND_SCALE } from '../trail-ribbon-width.js';
-import type { PlanetPathways, PlanetPathwaySegment } from './pathways.js';
+import type { PlanetPathways } from './pathways.js';
 
-/** 0.2's lane inks: what the selection builds on, and what builds on it. */
-export const LANE_COLOUR = { up: '#0d8fb0', down: '#6a5fee' } as const;
+/** At sea every lane is one solid pale sea-blue line, in and out alike (ADR-1236 D1, overtaking 0.2's teal and violet,
+ * ADR-1236 D2): the capability tree mock's #8fbfd4 mixed into its sea (#17222b) at 0.78, as it shows there. */
+export const SEA_LANE = '#80acbf';
 
 export interface LitLink { from: string; to: string; dir: 'up' | 'down' }
 export interface LaneRoute extends LitLink {
   /** From the dock of the island built on (`to`'s), along the road to the dock of the island building on it: dependency order. */
   points: Vector3[];
   length: number;
-  /** Across the lane at each point: the thread's width, or just under half its road where an up and a down lane share
-   * one narrower than two threads. */
+  /** Across the lane at each point: a step wider by how many lit lanes share its stretch (`seaLaneWidth`). */
   widths: number[];
   /** The narrowest of `widths`. */
   width: number;
@@ -22,33 +20,15 @@ export interface LaneRoute extends LitLink {
   typeOnly?: true;
 }
 
-/** A lane is a thread of one width wherever it runs, laid down the middle of its road: two thirds of a road one link
- * uses, so the road shows either side of it (by the owner's direction, 2026-10-12). */
-export const THREAD_WIDTH = trailFillWidth(1) * RIBBON_GROUND_SCALE * 2 / 3;
-/** Each of two colours sharing a road takes just under half of it, so a hairline of road parts them. */
-const SHARED_WIDTH = 0.48;
-/** A lane's glow spreads this many times its width, beyond the road's edge. */
-export const LANE_GLOW = 2.6;
-
-/** Choose the side in the segment's stored orientation, before walking it in either direction.
- * Meeting the centreline smoothly at each junction leaves every connecting strip unbroken. */
-function sharedStrip(segment: PlanetPathwaySegment, dir: LitLink['dir']): Vector3[] {
-  const walk = [0];
-  for (let i = 1; i < segment.points.length; i++) walk.push(walk[i - 1]! + segment.points[i]!.distanceTo(segment.points[i - 1]!));
-  const length = walk.at(-1)!, taper = Math.min(length / 2, segment.width * 2);
-  return segment.points.map((point, i, points) => {
-    if (i === 0 || i === points.length - 1 || taper === 0) return point;
-    const t = Math.min(1, walk[i]! / taper, (length - walk[i]!) / taper);
-    const tangent = points[Math.min(points.length - 1, i + 1)]!.clone().sub(points[Math.max(0, i - 1)]!);
-    const side = point.clone().normalize().cross(tangent).normalize();
-    const offset = segment.width * 0.25 * (dir === 'up' ? 1 : -1) * t * t * (3 - 2 * t);
-    // Preserve the height over the globe while moving sideways across the road.
-    return point.clone().addScaledVector(side, offset).normalize().multiplyScalar(point.length());
-  });
+/** A lane's width in ground units by how many lit lanes share its stretch: 1, 2-7, 8-31, 32 or more (the mock's). */
+const SEA_LANE_WIDTHS = [0.32, 0.5, 0.78, 1.15] as const;
+export function seaLaneWidth(sharing: number): number {
+  return SEA_LANE_WIDTHS[sharing >= 32 ? 3 : sharing >= 8 ? 2 : sharing >= 2 ? 1 : 0];
 }
 
-/** Each lit link's road between islands as one strip in dependency order, from dock to dock: inland, the selected
- * island's own roads take over (ADR-1236 D2); a link with no trail (one within an island) lights nothing. */
+/** Each lit link's road between islands as one line in dependency order, from dock to dock, down the middle of its
+ * road: inland, the selected island's own roads take over (ADR-1236 D2); a link with no trail (one within an island)
+ * lights nothing. Lanes sharing a stretch, in and out alike, are one line there, a step wider by how many share it. */
 export function laneRoutes(plan: PlanetPathways, lit: readonly LitLink[]): LaneRoute[] {
   const segments = new Map(plan.segments.map(segment => [segment.id, segment]));
   const selected = lit.flatMap(link => {
@@ -56,26 +36,29 @@ export function laneRoutes(plan: PlanetPathways, lit: readonly LitLink[]): LaneR
     const chain = edge?.segments ?? [];
     return chain.length === 0 ? [] : [{ link, chain, typeOnly: edge?.typeOnly }];
   });
-  const colours = new Map<string, number>();
-  for (const { link, chain } of selected) for (const ref of chain) {
-    colours.set(ref.id, (colours.get(ref.id) ?? 0) | (link.dir === 'up' ? 1 : 2));
-  }
+  const sharing = new Map<string, number>();
+  for (const { chain } of selected) for (const ref of chain) sharing.set(ref.id, (sharing.get(ref.id) ?? 0) + 1);
   return selected.map(({ link, chain, typeOnly }): LaneRoute => {
     const points: Vector3[] = [], widths: number[] = [];
     // The chain runs from the building capability to the one built on; the lane runs back along it.
     for (const ref of [...chain].reverse()) {
-      const segment = segments.get(ref.id)!, shared = colours.get(ref.id) === 3;
-      const along = shared ? sharedStrip(segment, link.dir) : segment.points;
-      for (const point of ref.reversed ? along : [...along].reverse()) {
+      const segment = segments.get(ref.id)!, width = seaLaneWidth(sharing.get(ref.id)!);
+      for (const point of ref.reversed ? segment.points : [...segment.points].reverse()) {
         if (points.length === 0 || points.at(-1)!.distanceTo(point) > 1e-9) {
           points.push(point);
-          widths.push(Math.min(THREAD_WIDTH, segment.width * (shared ? SHARED_WIDTH : 1)));
+          widths.push(width);
         }
       }
     }
     const length = points.slice(1).reduce((sum, point, i) => sum + point.distanceTo(points[i]!), 0);
-    return { ...link, points, length, widths, width: Math.min(...widths), colour: LANE_COLOUR[link.dir], ...typeOnly ? { typeOnly } : {} };
+    return { ...link, points, length, widths, width: Math.min(...widths), colour: SEA_LANE, ...typeOnly ? { typeOnly } : {} };
   });
+}
+
+/** The roads between islands a selection's lanes run along: the lane is drawn in their place (ADR-1236 D1), so they are not. */
+export function roadsUnderLanes(plan: PlanetPathways, lit: readonly LitLink[]): ReadonlySet<string> {
+  const keys = new Set(lit.map(link => `${link.from}->${link.to}`));
+  return new Set(plan.segments.filter(segment => segment.links.some(link => keys.has(link))).map(segment => segment.id));
 }
 
 /** Every front of a selection moves at this ground speed (ADR-1000 D1), so fronts sharing a road travel as one and The
@@ -102,7 +85,7 @@ export function laneProgress(elapsed: number, seconds: number, reducedMotion: bo
 /** Where along a lane (from, to, in ground units) its head shows. */
 export type HeadRange = readonly [number, number];
 
-/** A stretch of route, the same whichever way a lane walks it, kept apart by colour. */
+/** A stretch of route, the same whichever way a lane walks it. */
 const stretchKey = (colour: string, a: Vector3, b: Vector3) => {
   const at = (p: Vector3) => `${p.x.toFixed(4)},${p.y.toFixed(4)},${p.z.toFixed(4)}`;
   return [colour, ...[at(a), at(b)].sort()].join('|');

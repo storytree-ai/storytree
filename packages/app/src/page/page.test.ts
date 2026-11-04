@@ -379,12 +379,12 @@ test("2.27 · the kept forest is drawn at once, marked not fresh; a first read t
   assert.equal(none.document.getElementById("read-error")?.textContent, "The forest could not be readthe tree could not be read. Retrying…");
   none.land();
   assert.equal(none.body.dataset.state, "ready");
-  assert.equal(none.document.getElementById("read-error"), null);
+  assert.ok(none.document.getElementById("read-error") === null, "no read error is said");
   assert.equal(none.body.dataset.fresh, undefined);
   assert.equal(none.last().kept, tree, "the fresh tree is kept for the next start");
   none.last().reading!.onError(new Error("the library stopped answering"));
   assert.equal(none.body.dataset.state, "ready");
-  assert.equal(none.document.getElementById("read-error"), null);
+  assert.ok(none.document.getElementById("read-error") === null, "no read error is said");
   assert.equal(none.failures.filter((line) => line.startsWith("the forest of site could not be read")).length, 2);
 });
 
@@ -484,13 +484,13 @@ test("2.39 · the sessions list and the arcs each mount in their tab of one left
   const rail = () => on.content.querySelector<HTMLElement>(".side-rail")!;
   const tabs = () => [...rail().querySelectorAll<HTMLButtonElement>("[role=tab]")];
   const shown = () => tabs().filter((tab) => tab.getAttribute("aria-selected") === "true").map((tab) => tab.dataset.railTab);
-  assert.equal(on.content.firstElementChild, rail(), "the rail leads the page, down its left");
+  assert.ok(on.content.firstElementChild === rail(), "the rail leads the page, down its left");
   assert.deepEqual(tabs().map((tab) => tab.textContent), ["Sessions", "Arcs"]);
   assert.deepEqual(shown(), ["arcs"], "a project with no tab kept opens on Arcs");
   on.heard();
   const first = on.last();
-  assert.equal(first.hosts.arcs, rail().querySelector("#rail-arcs"));
-  assert.equal(first.hosts.sessions, rail().querySelector("#rail-sessions"));
+  assert.ok(first.hosts.arcs === rail().querySelector("#rail-arcs"), "the arcs mount in their tab");
+  assert.ok(first.hosts.sessions === rail().querySelector("#rail-sessions"), "the sessions list mounts in its tab");
   assert.equal(first.hosts.sessions!.hidden, true);
 
   const badge = () => rail().querySelector<HTMLElement>("[data-rail-badge]")!;
@@ -525,7 +525,7 @@ test("2.39 · the sessions list and the arcs each mount in their tab of one left
   assert.deepEqual(shown(), ["sessions"]);
   on.surfaces({ ok: true, value: [{ id: "arcs", on: false, settings: [] }, { id: "sessions", on: false, settings: [] }] as never });
   await on.page.surfacesChanged();
-  assert.equal(on.content.querySelector(".side-rail"), null, "with both off there is no rail");
+  assert.ok(on.content.querySelector(".side-rail") === null, "with both off there is no rail");
 });
 
 test("2.41 · the arcs mount once the forest has asked its first tree read, at its first news or its first failed read, so their drawing never holds that read back", async (t) => {

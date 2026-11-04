@@ -1,4 +1,5 @@
-// Capability 8 · Storytree's own test and gate entries. `pnpm lint`: storytree's three code-structure rules as one lint
+// Capability 8 · Storytree's own test and gate entries. `pnpm lint`: storytree's three code-structure rules, and the
+// happy-dom assertion rule (happy-dom-asserts.mjs, friction_edc7a93a10fe), as one lint
 // step (ADR-1199 D2), run by `pnpm gate` (gate-steps.mjs) and by CI on every pull request. The rules are the existing
 // checks, storytree's own house rules rather than base ones: a type-only import ends only at the library
 // (type-imports.mjs, ADR-1017 D2), each story keeps its code in its own package behind a thin frame and front door
@@ -7,14 +8,16 @@
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { allocationProblems } from "./allocation.mjs";
+import { happyDomAssertProblems } from "./happy-dom-asserts.mjs";
 import { boundaryProblems } from "./package-boundaries.mjs";
 import { typeImportProblems } from "./type-imports.mjs";
 
-/** The three rules, each `{ name, problems(root) }`, its problems one sentence each naming the file that breaks it. */
+/** The rules, each `{ name, problems(root) }`, its problems one sentence each naming the file that breaks it. */
 export const RULES = [
   { name: "type-imports", problems: typeImportProblems },
   { name: "package-boundaries", problems: boundaryProblems },
   { name: "allocation", problems: allocationProblems },
+  { name: "happy-dom-asserts", problems: happyDomAssertProblems },
 ];
 
 /** Run `rules` over the checkout at `root`, logging each problem under its rule's name; 1 when any rule breaks, else 0. */

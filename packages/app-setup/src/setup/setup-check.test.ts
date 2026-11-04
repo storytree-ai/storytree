@@ -439,7 +439,7 @@ test("8.10 a terminal runs the shared setup check with diagnostic lines and fixe
   });
 });
 
-test("8.31 in a project with no git repository the check asks for one, made locally; with no origin remote it is ok: it names the steps that need one and the local route, verified health by a local run of its own tests, and never proposes making or pushing a remote; with origin there, it says nothing of it", async () => {
+test("8.31 in a project with no git repository the check asks for one, made locally; with no origin remote it is ok: it names the steps that need one and the local route, verified health by a local run of its own tests, and never proposes making or pushing a remote; with an origin but no CI workflow storytree reads it names the local run too; with GitHub CI there, it says nothing of it", async () => {
   await withTempDir(async (dir) => {
     const home = throwawayHome(dir);
     const name = uniqueProjectName();
@@ -477,7 +477,18 @@ test("8.31 in a project with no git repository the check asks for one, made loca
       assert.equal(git("remote").stdout.trim(), "", "the check makes no remote");
 
       git("remote", "add", "origin", "https://github.com/someone/somewhere.git");
-      assert.equal((await runSetupCheck(options)).lines.find((line) => line.check === "repository"), undefined);
+      const uncovered = (await runSetupCheck(options)).lines.find((line) => line.check === "repository");
+      assert.equal(uncovered?.state, "ok", "an origin with no CI workflow is a working setup");
+      assert.match(uncovered?.message ?? "", /no CI workflow/);
+      assert.match(uncovered?.message ?? "", /storytree health local/, "its verified health comes from a local run of its own tests");
+      assert.doesNotMatch(uncovered?.message ?? "", /no origin remote/);
+
+      mkdirSync(path.join(folder, ".github", "workflows"), { recursive: true });
+      writeFileSync(path.join(folder, ".github", "workflows", "ci.yml"), "on: push\n");
+      assert.equal((await runSetupCheck(options)).lines.find((line) => line.check === "repository"), undefined, "a GitHub origin with a workflow is read from its CI, so nothing is said");
+
+      git("remote", "set-url", "origin", "https://gitlab.com/someone/somewhere.git");
+      assert.match((await runSetupCheck(options)).lines.find((line) => line.check === "repository")?.message ?? "", /storytree health local/, "a CI storytree cannot read, off GitHub, is no CI it reads");
     } finally {
       await storytree.close();
       await dropTestProjects([name]);

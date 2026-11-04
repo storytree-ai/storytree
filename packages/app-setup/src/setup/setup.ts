@@ -12,7 +12,7 @@
  * agent's part (firing each hook to verify it) goes through check_setup's answer.
  */
 import { execFileSync } from "node:child_process";
-import { existsSync, readFileSync, statSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 
 import { connect, type ConnectOptions } from "@storytree/library";
@@ -121,10 +121,10 @@ export interface SetupReport {
   /** The harness of the session asking, when it is a connected one: an MCP client storytree has no hooks for (6.64). */
   readonly connected?: string;
   /**
-   * What a project's folder lacks that review, landing and verified health read (8.31): a git repository, or its
-   * origin remote. Undefined outside a project, where git cannot be asked, or when nothing is missing.
+   * What a project's folder lacks that review, landing and verified health read (8.31): a git repository, its
+   * origin remote, or a CI workflow storytree reads. Undefined outside a project, where git cannot be asked, or when nothing is missing.
    */
-  readonly repository?: "no repository" | "no origin";
+  readonly repository?: "no repository" | "no origin" | "no CI";
   /**
    * The first commit of a repository set_up_project began with no git identity (8.31): made by this check, now that
    * git has one, or still waiting for one. Undefined for every other folder.
@@ -232,7 +232,8 @@ function rootMarkerIn(folder: string): RootMarker | undefined {
 
 /**
  * What `folder`, a project's, lacks that review, landing and verified health read (8.31): a review diffs against
- * origin's default branch, and land and the health record read fetched origin/main. Undefined when git cannot be asked.
+ * origin's default branch, land and the health record read fetched origin/main, and `health ci` reads a GitHub
+ * origin's workflow runs. Undefined when git cannot be asked.
  */
 function repositoryLack(folder: string): SetupReport["repository"] {
   const git = (...args: string[]) => execFileSync("git", args, { cwd: folder, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"], windowsHide: true });
@@ -241,12 +242,16 @@ function repositoryLack(folder: string): SetupReport["repository"] {
   } catch (error) {
     return (error as NodeJS.ErrnoException).code === "ENOENT" ? undefined : "no repository";
   }
+  let origin: string;
   try {
-    git("remote", "get-url", "origin");
-    return undefined;
+    origin = git("remote", "get-url", "origin");
   } catch (error) {
     return (error as NodeJS.ErrnoException).code === "ENOENT" ? undefined : "no origin";
   }
+  // The CI `health local` defers to (ci-health's ciOf): a GitHub origin and a workflow under the folder's .github/workflows.
+  const workflows = path.join(folder, ".github", "workflows");
+  const read = /github\.com[:/]/.test(origin) && existsSync(workflows) && readdirSync(workflows).some((file) => /\.ya?ml$/.test(file));
+  return read ? undefined : "no CI";
 }
 
 /**

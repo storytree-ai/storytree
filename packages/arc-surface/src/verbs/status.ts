@@ -5,12 +5,12 @@
  * standing in the activity log): this only sorts its lanes into Working, Landed, Ready, Waiting on you, Blocked and
  * Idle, and says why in words.
  */
-import { holdersOf, LogFold, LONGEST_COMMAND_MS } from "@storytree/session-management/readings";
 import { verb, VerbRefusal } from "@storytree/library/verbs";
 
-import { agentsOnBoard, type ArcWork, type BoardAgent } from "../agents/agents.js";
-import { boardView, type Bar, type Lane } from "../board/board.js";
+import { agentsOnBoard } from "../agents/agents.js";
+import { boardView, claimedNow, type Bar, type Lane } from "../board/board.js";
 import { recentWindow } from "../board/closed-range.js";
+import { claimsReading } from "./claimed.js";
 import type { ArcVerbContext } from "./context.js";
 
 /** The states, strongest first: the order the lines print in. */
@@ -28,19 +28,6 @@ export function sinceOf(given: string | undefined, now: number, fallback = 2 * U
   const at = /^\d{4}-\d{2}-\d{2}/.test(given) ? Date.parse(given) : NaN;
   if (Number.isNaN(at)) throw new VerbRefusal(`--since is a time (2026-10-21T09:00Z) or a span back from now (30m, 2h, 1d); not "${given}"`);
   return at;
-}
-
-/**
- * The capabilities live sessions hold now (ADR-0949 D3): each one claimed directly, and each on the list of an increment a live
- * session holds (closing it ends the claim). What a wait on a capability's claim is read against (ADR-1228 D1, library 11.12).
- */
-function claimedNow(agents: readonly BoardAgent[], increments: readonly ArcWork[]): Set<string> {
-  const live = agents.filter(({ holder }) => holder === "live");
-  const held = new Set(live.flatMap(({ increment }) => (increment === undefined ? [] : [increment])));
-  return new Set([
-    ...live.flatMap(({ capability }) => (capability === undefined ? [] : [capability])),
-    ...increments.filter(({ id }) => held.has(id)).flatMap(({ fields }) => fields.capabilities ?? []),
-  ]);
 }
 
 /** A time as the line says it: to the minute, in UTC. */
@@ -126,10 +113,7 @@ export const status = verb({
     const now = Date.now();
     const since = sinceOf(given, now);
     // One read of the board's arcs, and the claims standing with their holders' recent lines.
-    const [arcs, claimLines] = await Promise.all([library.boardArcs(recentWindow(now)), log.standing(project)]);
-    const holders = holdersOf(claimLines);
-    const lines = holders.length === 0 ? [] : await log.foldLines(project, holders, new Date(now - LONGEST_COMMAND_MS - 60_000).toISOString());
-    const fold = LogFold.fromBounded(lines, claimLines);
+    const [arcs, { fold, lines }] = await Promise.all([library.boardArcs(recentWindow(now)), claimsReading({ log, project }, now)]);
     const machines = new Map(fold.sessions({ now: new Date(now) }).flatMap(({ session, machine }): [string, string][] => (machine === undefined ? [] : [[session, machine]])));
     // Then one of every hold, a wait on a capability's claim read against the capabilities live sessions hold now (ADR-1228 D1), and the titles of those it names.
     const claimed = claimedNow(agentsOnBoard({ fold, lines }, new Date(now)).all, arcs.flatMap(({ increments }) => increments));

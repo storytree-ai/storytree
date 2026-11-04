@@ -1,0 +1,63 @@
+{
+ "story_754e87e7d531": {
+  "story": "The library",
+  "query": "?story=story_754e87e7d531&layout=story_754e87e7d531",
+  "roadDrawn": 1009,
+  "roadOnEdge": 6,
+  "gates": 32,
+  "gatesOnOpenLand": 3,
+  "overThird": 20,
+  "inside": 35,
+  "ways": 54,
+  "unplaced": [
+   "27 · Fixed data questions"
+  ],
+  "noEntrance": 0,
+  "hub": "7 · Library API",
+  "busiest": [
+   "7 · Library API",
+   "3 · Data schema",
+   "22 · Decision log",
+   "23 · Catalogue",
+   "6 · Knowledge artifacts",
+   "26 · Rounds",
+   "27 · Fixed data questions"
+  ],
+  "island": {
+   "overlaps": 11,
+   "within4px": 11,
+   "byKind": {
+    "name+wrench": 3,
+    "name+name": 1,
+    "gate+name": 1,
+    "name+symbol": 1,
+    "symbol+wrench": 1,
+    "gate+symbol": 1,
+    "gate+gate": 2,
+    "wrench+wrench": 1
+   },
+   "pairs": [
+    "name:Work model + wrench:Work model",
+    "name:Knowledge artifacts + wrench:Decision log",
+    "name:Cloud connection (GCP) + name:The command schema",
+    "name:Decision log + wrench:Decision log",
+    "name:Connection by address + gate:23",
+    "name:Fixed data questions + symbol:Fixed data questions",
+    "symbol:Decision log + wrench:Decision log",
+    "symbol:Rounds + gate:2",
+    "gate:8 + gate:12",
+    "gate:9 + gate:24",
+    "wrench:Owner questions + wrench:Work in flight"
+   ]
+  },
+  "busy": {
+   "overlaps": 5,
+   "within4px": 4
+  },
+  "round13Knot": {
+   "overlaps": 3,
+   "within4px": 4
+  },
+  "errors": []
+ }
+}

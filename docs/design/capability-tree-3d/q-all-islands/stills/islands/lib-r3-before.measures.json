@@ -1,0 +1,54 @@
+{
+ "story_754e87e7d531": {
+  "story": "The library",
+  "query": "?story=story_754e87e7d531&layout=story_754e87e7d531.before&wrenchClear=names&crowd=0&work=round3",
+  "roadDrawn": 1133,
+  "roadOnEdge": 0,
+  "gates": 34,
+  "gatesOnOpenLand": 3,
+  "overThird": 15,
+  "inside": 35,
+  "ways": 54,
+  "unplaced": [
+   "5 · Health record"
+  ],
+  "noEntrance": 0,
+  "hub": "7 · Library API",
+  "busiest": [
+   "7 · Library API",
+   "24 · Graduation",
+   "26 · Rounds",
+   "2 · Library transactions",
+   "4 · Work model",
+   "5 · Health record",
+   "27 · Fixed data questions"
+  ],
+  "island": {
+   "overlaps": 5,
+   "within4px": 8,
+   "byKind": {
+    "name+symbol": 1,
+    "name+wrench": 1,
+    "name+name": 1,
+    "gate+name": 1,
+    "symbol+wrench": 1
+   },
+   "pairs": [
+    "name:Health record + symbol:Health record",
+    "name:Cloud connection (GCP) + wrench:Cloud connection (GCP)",
+    "name:Lapsed questions + name:Rounds",
+    "name:Rounds + gate:28",
+    "symbol:Cloud connection (GCP) + wrench:Cloud connection (GCP)"
+   ]
+  },
+  "busy": {
+   "overlaps": 2,
+   "within4px": 1
+  },
+  "round13Knot": {
+   "overlaps": 2,
+   "within4px": 3
+  },
+  "errors": []
+ }
+}

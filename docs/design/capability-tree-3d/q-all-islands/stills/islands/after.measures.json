@@ -1,0 +1,925 @@
+{
+ "story_754e87e7d531": {
+  "story": "The library",
+  "query": "?story=story_754e87e7d531",
+  "roadDrawn": 993,
+  "roadOnEdge": 0,
+  "gates": 32,
+  "gatesOnOpenLand": 4,
+  "overThird": 14,
+  "inside": 35,
+  "ways": 54,
+  "unplaced": [],
+  "noEntrance": 0,
+  "hub": "7 · Library API",
+  "busiest": [
+   "7 · Library API",
+   "23 · Catalogue",
+   "26 · Rounds",
+   "3 · Data schema",
+   "4 · Work model",
+   "5 · Health record"
+  ],
+  "island": {
+   "overlaps": 8,
+   "within4px": 9,
+   "byKind": {
+    "gate+name": 1,
+    "name+wrench": 4,
+    "gate+wrench": 2,
+    "wrench+wrench": 1
+   },
+   "pairs": [
+    "name:Decision log + gate:22",
+    "name:Decision log + wrench:Decision log",
+    "name:Lapsed questions + wrench:Links",
+    "name:Work in flight + wrench:Owner questions",
+    "name:Owner questions + wrench:Owner questions",
+    "gate:25 + wrench:Decision log",
+    "gate:28 + wrench:Decision log",
+    "wrench:Cloud connection (GCP) + wrench:The library's commands"
+   ]
+  },
+  "busy": {
+   "overlaps": 0,
+   "within4px": 5
+  },
+  "round13Knot": {
+   "overlaps": 5,
+   "within4px": 7
+  },
+  "errors": []
+ },
+ "story_609c3b171b3f": {
+  "story": "Session management",
+  "query": "?story=story_609c3b171b3f",
+  "roadDrawn": 567,
+  "roadOnEdge": 0,
+  "gates": 14,
+  "gatesOnOpenLand": 2,
+  "overThird": 1,
+  "inside": 5,
+  "ways": 24,
+  "unplaced": [],
+  "noEntrance": 0,
+  "hub": "2 · Agent activity log",
+  "busiest": [
+   "2 · Agent activity log",
+   "4 · Sessions",
+   "5 · Claims",
+   "9 · Context readings",
+   "15 · Stop the work I own"
+  ],
+  "island": {
+   "overlaps": 3,
+   "within4px": 0,
+   "byKind": {
+    "name+name": 2,
+    "name+wrench": 1
+   },
+   "pairs": [
+    "name:Keep sight of unfinished runs + name:Stop the work I own",
+    "name:Finish with an honest inventory + name:Friction",
+    "name:Scheduled processes + wrench:Scheduled processes"
+   ]
+  },
+  "busy": {
+   "overlaps": 0,
+   "within4px": 0
+  },
+  "errors": []
+ },
+ "story_a93c6fb1a257": {
+  "story": "Desktop app",
+  "query": "?story=story_a93c6fb1a257",
+  "roadDrawn": 272,
+  "roadOnEdge": 0,
+  "gates": 8,
+  "gatesOnOpenLand": 2,
+  "overThird": 0,
+  "inside": 4,
+  "ways": 14,
+  "unplaced": [],
+  "noEntrance": 0,
+  "hub": "1 · Lifecycle",
+  "busiest": [
+   "1 · Lifecycle",
+   "2 · Storytree projects",
+   "4 · Updates",
+   "3 · Surfaces",
+   "5 · Recorder"
+  ],
+  "island": {
+   "overlaps": 0,
+   "within4px": 0,
+   "byKind": {},
+   "pairs": []
+  },
+  "busy": {
+   "overlaps": 0,
+   "within4px": 0
+  },
+  "errors": []
+ },
+ "story_deee4230348c": {
+  "story": "Map view",
+  "query": "?story=story_deee4230348c",
+  "roadDrawn": 301,
+  "roadOnEdge": 0,
+  "gates": 9,
+  "gatesOnOpenLand": 2,
+  "overThird": 3,
+  "inside": 8,
+  "ways": 18,
+  "unplaced": [],
+  "noEntrance": 0,
+  "hub": "3 · Story node render",
+  "busiest": [
+   "3 · Story node render",
+   "4 · Drill-down",
+   "5 · Agent capability claims",
+   "7 · Running sessions",
+   "1 · Story nodes",
+   "2 · Capability tree"
+  ],
+  "island": {
+   "overlaps": 0,
+   "within4px": 1,
+   "byKind": {},
+   "pairs": []
+  },
+  "busy": {
+   "overlaps": 0,
+   "within4px": 1
+  },
+  "errors": []
+ },
+ "story_7722ddb5461e": {
+  "story": "Work board",
+  "query": "?story=story_7722ddb5461e",
+  "roadDrawn": 169,
+  "roadOnEdge": 0,
+  "gates": 8,
+  "gatesOnOpenLand": 2,
+  "overThird": 1,
+  "inside": 6,
+  "ways": 13,
+  "unplaced": [],
+  "noEntrance": 0,
+  "hub": "3 · Arc surface",
+  "busiest": [
+   "3 · Arc surface",
+   "4 · Waits",
+   "5 · Briefing",
+   "1 · Work states",
+   "2 · Agents on the board"
+  ],
+  "island": {
+   "overlaps": 1,
+   "within4px": 1,
+   "byKind": {
+    "gate+symbol": 1
+   },
+   "pairs": [
+    "symbol:Agents on the board + gate:6"
+   ]
+  },
+  "busy": {
+   "overlaps": 1,
+   "within4px": 1
+  },
+  "errors": []
+ },
+ "story_f9fb5136c28f": {
+  "story": "The command line",
+  "query": "?story=story_f9fb5136c28f",
+  "roadDrawn": 235,
+  "roadOnEdge": 0,
+  "gates": 16,
+  "gatesOnOpenLand": 1,
+  "overThird": 5,
+  "inside": 13,
+  "ways": 25,
+  "unplaced": [
+   "2 · Who wrote it"
+  ],
+  "noEntrance": 0,
+  "hub": "1 · Front door",
+  "busiest": [
+   "1 · Front door",
+   "10 · Plan view",
+   "11 · Workspace",
+   "8 · Doctor",
+   "3 · Library",
+   "14 · Reading the doors' use",
+   "5 · Questions",
+   "4 · Arcs and increments",
+   "2 · Who wrote it",
+   "6 · Decisions",
+   "15 · The printed table"
+  ],
+  "island": {
+   "overlaps": 1,
+   "within4px": 2,
+   "byKind": {
+    "name+symbol": 1
+   },
+   "pairs": [
+    "name:Who wrote it + symbol:Who wrote it"
+   ]
+  },
+  "busy": {
+   "overlaps": 1,
+   "within4px": 2
+  },
+  "errors": []
+ },
+ "story_d754d997f22a": {
+  "story": "Knowledge graph",
+  "query": "?story=story_d754d997f22a",
+  "roadDrawn": 161,
+  "roadOnEdge": 0,
+  "gates": 8,
+  "gatesOnOpenLand": 2,
+  "overThird": 1,
+  "inside": 6,
+  "ways": 13,
+  "unplaced": [],
+  "noEntrance": 0,
+  "hub": "1 · Knowledge under its shelves",
+  "busiest": [
+   "1 · Knowledge under its shelves",
+   "4 · Look inside and inspect an artifact",
+   "5 · Show and filter by artifact kind",
+   "3 · Reads by session and agent"
+  ],
+  "island": {
+   "overlaps": 0,
+   "within4px": 1,
+   "byKind": {},
+   "pairs": []
+  },
+  "busy": {
+   "overlaps": 0,
+   "within4px": 1
+  },
+  "errors": []
+ },
+ "story_b91056a06337": {
+  "story": "Setup",
+  "query": "?story=story_b91056a06337",
+  "roadDrawn": 393,
+  "roadOnEdge": 0,
+  "gates": 13,
+  "gatesOnOpenLand": 3,
+  "overThird": 2,
+  "inside": 5,
+  "ways": 20,
+  "unplaced": [],
+  "noEntrance": 0,
+  "hub": "13 · Consent and allowed milestones",
+  "busiest": [
+   "13 · Consent and allowed milestones",
+   "16 · Requested event deletion",
+   "17 · Aggregate journey reading",
+   "3 · First-run guide",
+   "6 · Make a folder a project"
+  ],
+  "island": {
+   "overlaps": 1,
+   "within4px": 2,
+   "byKind": {
+    "name+name": 1
+   },
+   "pairs": [
+    "name:PostHog delivery + name:Import an existing project"
+   ]
+  },
+  "busy": {
+   "overlaps": 0,
+   "within4px": 1
+  },
+  "errors": []
+ },
+ "story_95ed402f9bd3": {
+  "story": "Mick's dev loop",
+  "query": "?story=story_95ed402f9bd3",
+  "roadDrawn": 260,
+  "roadOnEdge": 0,
+  "gates": 9,
+  "gatesOnOpenLand": 1,
+  "overThird": 0,
+  "inside": 1,
+  "ways": 8,
+  "unplaced": [],
+  "noEntrance": 0,
+  "hub": "7 · The gate",
+  "busiest": [
+   "7 · The gate",
+   "21 · Verified test run",
+   "4 · Agent guidance",
+   "19 · Risk reading"
+  ],
+  "island": {
+   "overlaps": 0,
+   "within4px": 0,
+   "byKind": {},
+   "pairs": []
+  },
+  "busy": {
+   "overlaps": 0,
+   "within4px": 0
+  },
+  "errors": []
+ },
+ "story_73dad81ba7a7": {
+  "story": "Code map",
+  "query": "?story=story_73dad81ba7a7",
+  "roadDrawn": 188,
+  "roadOnEdge": 0,
+  "gates": 7,
+  "gatesOnOpenLand": 2,
+  "overThird": 0,
+  "inside": 4,
+  "ways": 12,
+  "unplaced": [],
+  "noEntrance": 0,
+  "hub": "2 · Focus selection",
+  "busiest": [
+   "2 · Focus selection",
+   "1 · Joined graph",
+   "3 · Counts before detail"
+  ],
+  "island": {
+   "overlaps": 0,
+   "within4px": 0,
+   "byKind": {},
+   "pairs": []
+  },
+  "busy": {
+   "overlaps": 0,
+   "within4px": 0
+  },
+  "errors": []
+ },
+ "story_5c212e7a9a6c": {
+  "story": "CI health",
+  "query": "?story=story_5c212e7a9a6c",
+  "roadDrawn": 72,
+  "roadOnEdge": 0,
+  "gates": 5,
+  "gatesOnOpenLand": 2,
+  "overThird": 0,
+  "inside": 0,
+  "ways": 6,
+  "unplaced": [],
+  "noEntrance": 0,
+  "hub": "2 · Contract verdicts",
+  "busiest": [
+   "2 · Contract verdicts",
+   "3 · Reading the project's CI",
+   "1 · Run results"
+  ],
+  "island": {
+   "overlaps": 1,
+   "within4px": 0,
+   "byKind": {
+    "name+name": 1
+   },
+   "pairs": [
+    "name:A factory plugin's own tests + name:A project's own tests, run locally"
+   ]
+  },
+  "busy": {
+   "overlaps": 0,
+   "within4px": 0
+  },
+  "errors": []
+ },
+ "story_a310ca42460e": {
+  "story": "The MCP server",
+  "query": "?story=story_a310ca42460e",
+  "roadDrawn": 100,
+  "roadOnEdge": 0,
+  "gates": 5,
+  "gatesOnOpenLand": 2,
+  "overThird": 0,
+  "inside": 1,
+  "ways": 6,
+  "unplaced": [],
+  "noEntrance": 0,
+  "hub": "6 · Agent tools (the MCP server)",
+  "busiest": [
+   "6 · Agent tools (the MCP server)",
+   "7 · Instructions (the habits card)",
+   "8 · Reading the tools' use"
+  ],
+  "island": {
+   "overlaps": 0,
+   "within4px": 1,
+   "byKind": {},
+   "pairs": []
+  },
+  "busy": {
+   "overlaps": 0,
+   "within4px": 1
+  },
+  "errors": []
+ },
+ "story_09e58d68f87c": {
+  "story": "Plugin loader",
+  "query": "?story=story_09e58d68f87c",
+  "roadDrawn": 78,
+  "roadOnEdge": 2,
+  "gates": 7,
+  "gatesOnOpenLand": 3,
+  "overThird": 0,
+  "inside": 0,
+  "ways": 5,
+  "unplaced": [],
+  "noEntrance": 0,
+  "hub": "5 · Factory plugins",
+  "busiest": [
+   "5 · Factory plugins",
+   "4 · Switching a part off",
+   "1 · Manifests"
+  ],
+  "island": {
+   "overlaps": 1,
+   "within4px": 0,
+   "byKind": {
+    "gate+name": 1
+   },
+   "pairs": [
+    "name:Run-time composition + gate:5"
+   ]
+  },
+  "busy": {
+   "overlaps": 0,
+   "within4px": 0
+  },
+  "errors": []
+ },
+ "story_6def59292b78": {
+  "story": "Context",
+  "query": "?story=story_6def59292b78",
+  "roadDrawn": 128,
+  "roadOnEdge": 0,
+  "gates": 6,
+  "gatesOnOpenLand": 2,
+  "overThird": 0,
+  "inside": 2,
+  "ways": 10,
+  "unplaced": [],
+  "noEntrance": 0,
+  "hub": "2 · Settings",
+  "busiest": [
+   "2 · Settings",
+   "1 · Project routing",
+   "5 · Portable user identity",
+   "6 · Social sign-in and session"
+  ],
+  "island": {
+   "overlaps": 1,
+   "within4px": 2,
+   "byKind": {
+    "name+wrench": 1
+   },
+   "pairs": [
+    "name:Portable user identity + wrench:Portable user identity"
+   ]
+  },
+  "busy": {
+   "overlaps": 1,
+   "within4px": 2
+  },
+  "errors": []
+ },
+ "story_c2dbcf855db2": {
+  "story": "Experiments",
+  "query": "?story=story_c2dbcf855db2",
+  "roadDrawn": 305,
+  "roadOnEdge": 0,
+  "gates": 11,
+  "gatesOnOpenLand": 1,
+  "overThird": 1,
+  "inside": 10,
+  "ways": 12,
+  "unplaced": [],
+  "noEntrance": 0,
+  "hub": "2 · Arm workspaces",
+  "busiest": [
+   "2 · Arm workspaces",
+   "6 · Stop rules",
+   "8 · Harbor task adapter",
+   "7 · Experiment dispatcher"
+  ],
+  "island": {
+   "overlaps": 0,
+   "within4px": 0,
+   "byKind": {},
+   "pairs": []
+  },
+  "busy": {
+   "overlaps": 0,
+   "within4px": 0
+  },
+  "errors": []
+ },
+ "story_b2051c0f7372": {
+  "story": "Agent runner",
+  "query": "?story=story_b2051c0f7372",
+  "roadDrawn": 83,
+  "roadOnEdge": 0,
+  "gates": 4,
+  "gatesOnOpenLand": 1,
+  "overThird": 0,
+  "inside": 0,
+  "ways": 4,
+  "unplaced": [],
+  "noEntrance": 0,
+  "hub": "1 · A lane runs on the engine its allowance allows",
+  "busiest": [
+   "1 · A lane runs on the engine its allowance allows",
+   "4 · A watcher lands a handed-over pull request",
+   "3 · The pool's dispatcher runs its lanes under the machine's cap",
+   "2 · The pool keeps its lanes fed",
+   "8 · Reports the pool's health, concerns first"
+  ],
+  "island": {
+   "overlaps": 0,
+   "within4px": 1,
+   "byKind": {},
+   "pairs": []
+  },
+  "busy": {
+   "overlaps": 0,
+   "within4px": 1
+  },
+  "errors": []
+ },
+ "story_08790ee19bbf": {
+  "story": "Marketing artifacts",
+  "query": "?story=story_08790ee19bbf",
+  "roadDrawn": 26,
+  "roadOnEdge": 0,
+  "gates": 2,
+  "gatesOnOpenLand": 1,
+  "overThird": 0,
+  "inside": 0,
+  "ways": 2,
+  "unplaced": [],
+  "noEntrance": 0,
+  "hub": "2 · Fixed-colour icon files",
+  "busiest": [
+   "2 · Fixed-colour icon files",
+   "1 · Master drawing and colour roles"
+  ],
+  "island": {
+   "overlaps": 0,
+   "within4px": 0,
+   "byKind": {},
+   "pairs": []
+  },
+  "busy": {
+   "overlaps": 0,
+   "within4px": 0
+  },
+  "errors": []
+ },
+ "story_d47051f035f0": {
+  "story": "Keys",
+  "query": "?story=story_d47051f035f0",
+  "roadDrawn": 21,
+  "roadOnEdge": 0,
+  "gates": 1,
+  "gatesOnOpenLand": 1,
+  "overThird": 0,
+  "inside": 0,
+  "ways": 1,
+  "unplaced": [],
+  "noEntrance": 0,
+  "hub": "1 · Key store and resolver",
+  "busiest": [
+   "1 · Key store and resolver"
+  ],
+  "island": {
+   "overlaps": 0,
+   "within4px": 0,
+   "byKind": {},
+   "pairs": []
+  },
+  "busy": {
+   "overlaps": 0,
+   "within4px": 0
+  },
+  "errors": []
+ },
+ "story_5e19e65c3433": {
+  "story": "The local database",
+  "query": "?story=story_5e19e65c3433",
+  "roadDrawn": 23,
+  "roadOnEdge": 0,
+  "gates": 2,
+  "gatesOnOpenLand": 1,
+  "overThird": 0,
+  "inside": 1,
+  "ways": 3,
+  "unplaced": [],
+  "noEntrance": 0,
+  "hub": "2 · A server on a data directory",
+  "busiest": [
+   "2 · A server on a data directory",
+   "3 · Dropping a throwaway test database",
+   "1 · Postgres binaries"
+  ],
+  "island": {
+   "overlaps": 0,
+   "within4px": 0,
+   "byKind": {},
+   "pairs": []
+  },
+  "busy": {
+   "overlaps": 0,
+   "within4px": 0
+  },
+  "errors": []
+ },
+ "story_ed2c6b55715d": {
+  "story": "The drawing engine",
+  "query": "?story=story_ed2c6b55715d",
+  "roadDrawn": 127,
+  "roadOnEdge": 0,
+  "gates": 4,
+  "gatesOnOpenLand": 1,
+  "overThird": 0,
+  "inside": 2,
+  "ways": 4,
+  "unplaced": [],
+  "noEntrance": 0,
+  "hub": "1 · Scene layout",
+  "busiest": [
+   "1 · Scene layout",
+   "4 · The planet",
+   "5 · Growth",
+   "2 · Island ground"
+  ],
+  "island": {
+   "overlaps": 2,
+   "within4px": 0,
+   "byKind": {
+    "gate+name": 1,
+    "gate+symbol": 1
+   },
+   "pairs": [
+    "name:The planet + gate:3",
+    "symbol:The canvas + gate:3"
+   ]
+  },
+  "busy": {
+   "overlaps": 1,
+   "within4px": 0
+  },
+  "errors": []
+ },
+ "story_6c75e0587cc6": {
+  "story": "Surface feedback",
+  "query": "?story=story_6c75e0587cc6",
+  "roadDrawn": 45,
+  "roadOnEdge": 0,
+  "gates": 4,
+  "gatesOnOpenLand": 2,
+  "overThird": 0,
+  "inside": 0,
+  "ways": 5,
+  "unplaced": [],
+  "noEntrance": 0,
+  "hub": "3 · Feedback record",
+  "busiest": [
+   "3 · Feedback record",
+   "4 · Triage",
+   "1 · Button and composer",
+   "2 · Surface naming"
+  ],
+  "island": {
+   "overlaps": 0,
+   "within4px": 0,
+   "byKind": {},
+   "pairs": []
+  },
+  "busy": {
+   "overlaps": 0,
+   "within4px": 0
+  },
+  "errors": []
+ },
+ "story_28e1eb40e8c1": {
+  "story": "Talk to storytree by voice",
+  "query": "?story=story_28e1eb40e8c1",
+  "roadDrawn": 161,
+  "roadOnEdge": 0,
+  "gates": 7,
+  "gatesOnOpenLand": 1,
+  "overThird": 0,
+  "inside": 6,
+  "ways": 7,
+  "unplaced": [],
+  "noEntrance": 0,
+  "hub": "2 · The read tools",
+  "busiest": [
+   "2 · The read tools",
+   "1 · The address and its guards",
+   "3 · The speech layer"
+  ],
+  "island": {
+   "overlaps": 0,
+   "within4px": 2,
+   "byKind": {},
+   "pairs": []
+  },
+  "busy": {
+   "overlaps": 0,
+   "within4px": 1
+  },
+  "errors": []
+ },
+ "story_9299f25282ad": {
+  "story": "Test waits",
+  "query": "?story=story_9299f25282ad",
+  "roadDrawn": 0,
+  "roadOnEdge": 0,
+  "gates": 0,
+  "gatesOnOpenLand": 0,
+  "overThird": 0,
+  "inside": 0,
+  "ways": 0,
+  "unplaced": [],
+  "noEntrance": 0,
+  "busiest": [],
+  "island": {
+   "overlaps": 0,
+   "within4px": 0,
+   "byKind": {},
+   "pairs": []
+  },
+  "busy": {
+   "overlaps": 0,
+   "within4px": 0
+  },
+  "errors": []
+ },
+ "story_4aeaccd76a1a": {
+  "story": "Base dev loop",
+  "query": "?story=story_4aeaccd76a1a",
+  "roadDrawn": 74,
+  "roadOnEdge": 0,
+  "gates": 4,
+  "gatesOnOpenLand": 1,
+  "overThird": 0,
+  "inside": 1,
+  "ways": 7,
+  "unplaced": [],
+  "noEntrance": 0,
+  "hub": "4 · Running the tests",
+  "busiest": [
+   "4 · Running the tests",
+   "1 · The gate runner",
+   "2 · Test scoping",
+   "5 · The merge queue's CI scripts"
+  ],
+  "island": {
+   "overlaps": 0,
+   "within4px": 0,
+   "byKind": {},
+   "pairs": []
+  },
+  "busy": {
+   "overlaps": 0,
+   "within4px": 0
+  },
+  "errors": []
+ },
+ "story_44a8cd58a7cf": {
+  "story": "Service host",
+  "query": "?story=story_44a8cd58a7cf",
+  "roadDrawn": 25,
+  "roadOnEdge": 0,
+  "gates": 2,
+  "gatesOnOpenLand": 1,
+  "overThird": 0,
+  "inside": 0,
+  "ways": 3,
+  "unplaced": [],
+  "noEntrance": 0,
+  "hub": "2 · Listing and restarting services",
+  "busiest": [
+   "2 · Listing and restarting services",
+   "1 · Running services"
+  ],
+  "island": {
+   "overlaps": 1,
+   "within4px": 0,
+   "byKind": {
+    "gate+name": 1
+   },
+   "pairs": [
+    "name:Listing and restarting services + gate:1"
+   ]
+  },
+  "busy": {
+   "overlaps": 1,
+   "within4px": 0
+  },
+  "errors": []
+ },
+ "story_4b5db00e51a0": {
+  "story": "Teaching cards",
+  "query": "?story=story_4b5db00e51a0",
+  "roadDrawn": 17,
+  "roadOnEdge": 0,
+  "gates": 2,
+  "gatesOnOpenLand": 1,
+  "overThird": 0,
+  "inside": 0,
+  "ways": 2,
+  "unplaced": [],
+  "noEntrance": 0,
+  "hub": "3 · Cards and journal on screen",
+  "busiest": [
+   "3 · Cards and journal on screen",
+   "2 · First encounters",
+   "1 · Teaching cards"
+  ],
+  "island": {
+   "overlaps": 0,
+   "within4px": 0,
+   "byKind": {},
+   "pairs": []
+  },
+  "busy": {
+   "overlaps": 0,
+   "within4px": 0
+  },
+  "errors": []
+ },
+ "story_c27bd2a8f61e": {
+  "story": "Storytree's own repository checks",
+  "query": "?story=story_c27bd2a8f61e",
+  "roadDrawn": 198,
+  "roadOnEdge": 0,
+  "gates": 9,
+  "gatesOnOpenLand": 1,
+  "overThird": 0,
+  "inside": 2,
+  "ways": 9,
+  "unplaced": [],
+  "noEntrance": 0,
+  "hub": "5 · Package boundaries",
+  "busiest": [
+   "5 · Package boundaries",
+   "9 · The package rule",
+   "8 · Storytree's own test and gate entries",
+   "4 · Capability-list check"
+  ],
+  "island": {
+   "overlaps": 0,
+   "within4px": 0,
+   "byKind": {},
+   "pairs": []
+  },
+  "busy": {
+   "overlaps": 0,
+   "within4px": 0
+  },
+  "errors": []
+ },
+ "story_5da0dcea1405": {
+  "story": "Claude Code mod",
+  "query": "?story=story_5da0dcea1405",
+  "roadDrawn": 4,
+  "roadOnEdge": 0,
+  "gates": 1,
+  "gatesOnOpenLand": 1,
+  "overThird": 0,
+  "inside": 0,
+  "ways": 1,
+  "unplaced": [],
+  "noEntrance": 0,
+  "hub": "2 · Loads in the runner's lanes and in interactive sessions",
+  "busiest": [
+   "2 · Loads in the runner's lanes and in interactive sessions",
+   "1 · Forwards hook events through the tool server"
+  ],
+  "island": {
+   "overlaps": 0,
+   "within4px": 0,
+   "byKind": {},
+   "pairs": []
+  },
+  "busy": {
+   "overlaps": 0,
+   "within4px": 0
+  },
+  "errors": []
+ }
+}

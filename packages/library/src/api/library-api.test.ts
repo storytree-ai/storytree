@@ -93,6 +93,11 @@ const LIBRARY_API = [
   "editQuestion",
   "moveQuestion",
   "lapsedQuestions",
+  "predictQuestion",
+  "questionPrediction",
+  "scoreQuestion",
+  "prepQuestion",
+  "questionDeviation",
   "reportHealth",
   "recordVerified",
   "markVerifiedPending",
@@ -171,6 +176,7 @@ const LIBRARY_API = [
  * parseSchedule and OWNER_TIME_ZONE joined it with ADR-1105 D1: the one reader of a process's schedule, which `schedule due` reads it with.
  * CONNECT_TIMEOUT_MS and explainConnectTimeout joined it with ADR-1163 D1: the default connect limit and the one wording of its refusal, which the MCP server gives too.
  * pluginSchema joined it with ADR-1178 D3: the one reader of a plugin's declared record kinds, which the plugin loader checks a manifest's with.
+ * referenceEdgesOf joined it with increment_895979551c68: the one list of a note's reference fields, which the librarian's curation reads.
  */
 const RUNTIME_EXPORTS = [
   "ANCHOR_ID",
@@ -208,6 +214,7 @@ const RUNTIME_EXPORTS = [
   "planGuidance",
   "pluginSchema",
   "pullSaid",
+  "referenceEdgesOf",
   "wordAndWhy",
 ];
 

@@ -832,7 +832,8 @@ test("1.27 · a lane whose engine runs out of its scope's memory is killed alone
   const told = [];
   options.storytree = async (args) => (told.push(args), args[0] === "noticeboard"
     ? `1 claim now:\n  - increment increment_abc  Claude Code ${session} (gone, on claude/increment-abc-x), since 2026-10-06T00:00:00Z: build\n` : "");
-  options.commands.claude = command(`console.log(JSON.stringify({type:'system',subtype:'init',session_id:${JSON.stringify(session)}})); const held = []; for (;;) held.push(Buffer.alloc(1e6, 1));`);
+  // The kernel log names this kill's victim oom-probe-1.27, not MainThread, so it never reads as a lane's (friction_895888dd4011).
+  options.commands.claude = command(`process.title = 'oom-probe-1.27'; console.log(JSON.stringify({type:'system',subtype:'init',session_id:${JSON.stringify(session)}})); const held = []; for (;;) held.push(Buffer.alloc(1e6, 1));`);
   const code = await runLane(options);
   assert.equal(code, OUT_OF_MEMORY);
   assert.ok(![SIGNALED, 75, 0].includes(OUT_OF_MEMORY));

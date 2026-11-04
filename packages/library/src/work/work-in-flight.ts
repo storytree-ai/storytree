@@ -24,7 +24,7 @@ import type { SchemaRecord, SchemaRecords, WriteOptions } from "../schema/index.
 import { INCREMENT_STATUSES, type FieldsOf } from "../schema/types.js";
 import type { HistoryEntry } from "../transactions/index.js";
 import * as questions from "./owner-questions.js";
-import { heldOnOpen, type NewQuestion, type QuestionEdit, type QuestionLease, type Settlement } from "./owner-questions.js";
+import { heldOnOpen, type NewQuestion, type Prep, type QuestionDeviation, type QuestionEdit, type QuestionLease, type Score, type Settlement, type WouldBeAnswer } from "./owner-questions.js";
 import * as waits from "./waits.js";
 import { WorkModel, type CapabilityNode, type ProjectTree, type StoryNode } from "./work-model.js";
 import { arcHold, checkedWaitFor, claimHold, holdsOf, incrementHold, noteWaits, onClaim, type ClaimReading, type Hold, type Holds, type NoteWait, type Wait, type WaitFor, type WaitWrite } from "./waits.js";
@@ -646,6 +646,42 @@ export class WorkInFlight {
       if (question !== null && moved !== null) await this.#clearAfter(() => this.#clearIfClosed(question.fields.arc, options));
       return moved;
     });
+  }
+
+  /**
+   * Record the assistant pass's would-be answer to open question `id`, stamped now, replacing an earlier one (12.12);
+   * it is sealed from every read of the question (12.14). A settled question refuses one (RangeError). Null if `id`
+   * is not a live question.
+   */
+  predictQuestion(id: string, answer: WouldBeAnswer, options?: WriteOptions): Promise<SchemaRecord<"prediction"> | null> {
+    return this.#serially(() => questions.predictQuestion(this.#records, id, answer, options));
+  }
+
+  /** Question `id`'s would-be answer, the one read that gives it (12.12, 12.14); null if it has none. */
+  questionPrediction(id: string): Promise<SchemaRecord<"prediction"> | null> {
+    return questions.questionPrediction(this.#records, id);
+  }
+
+  /**
+   * Score settled question `id` once (12.13): a verdict for its would-be answer and for its raiser's recommendation,
+   * each where it has one, with who scored it, stamped now. An open or already scored question is refused
+   * (RangeError). Null if `id` is not a live question.
+   */
+  scoreQuestion(id: string, score: Score, options?: WriteOptions): Promise<SchemaRecord<"question"> | null> {
+    return this.#serially(() => questions.scoreQuestion(this.#records, id, score, options));
+  }
+
+  /**
+   * Mark open question `id` prepped now, with its stance on the raiser's recommendation (12.15); its wording corrected
+   * afterwards, it reads unprepared. A settled question is refused (RangeError). Null if `id` is not a live question.
+   */
+  prepQuestion(id: string, prep: Prep, options?: WriteOptions): Promise<SchemaRecord<"question"> | null> {
+    return this.#serially(() => questions.prepQuestion(this.#records, id, prep, options));
+  }
+
+  /** The questions settled at or after `since`, their scores counted per confidence band beside their raisers' recommendations (3.23). */
+  questionDeviation(since: Date): Promise<QuestionDeviation> {
+    return questions.questionDeviation(this.#records, since);
   }
 
   /** The open questions whose lease has lapsed at `at` (now, unless given), longest lapsed first (12-a). */

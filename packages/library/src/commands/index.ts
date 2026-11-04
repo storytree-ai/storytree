@@ -34,10 +34,12 @@ import { isDeepStrictEqual } from "node:util";
 
 import { ANCHOR_ID, CONTRACT_DEFINITION, LONG_CONTRACT_TITLE, SchemaError, type KnowledgeKind, type Library, type PendingChange, type PhraseKind, type PlanChange, type RecordType, type SchemaRecord, type WriteOptions } from "../index.js";
 import { PR_CUTOVER_ID } from "../work/index.js";
+import { editPlanRecord, heldIncrement, heldPending, heldSaid, holdPlanChange, isPlanRecordType, PLAN_TYPES, type PlanEdit } from "../work/plan-hold.js";
 import { fieldValue, verb, VerbRefusal, type DoorWords, type VerbContext, type VerbFamily } from "../verbs/verb.js";
 import { changes, count, decisionNamed, find } from "../data/commands.js";
 import { ADR_FAMILY } from "./adr.js";
 import { FYI_FAMILY } from "./fyi.js";
+import { editDecision, recordDecision } from "../librarian/decision-log/index.js";
 import { LaterWriterError, StaleRevertError } from "../transactions/index.js";
 
 /** A claim as the door reads it: the session holding it, the increment or capability it is for, and since when. */
@@ -140,7 +142,7 @@ const WRITERS: Readonly<Record<string, Writer>> = {
   arc: (library, fields, options) => library.createArc(fields as never, options),
   increment: (library, fields, options) => library.addIncrement(fields as never, options),
   question: (library, fields, options) => library.raiseQuestion(fields as never, options),
-  decision: (library, fields, options) => library.recordDecision(fields as never, options),
+  decision: (library, fields, options) => recordDecision(library, fields as never, options),
   definition: (library, fields, options) => library.defineTerm(fields as never, options),
   ...Object.fromEntries(
     (["principle", "guardrail", "pattern", "process", "agent", "techstack", "check", "research", "experiment"] as const satisfies readonly KnowledgeKind[]).map((kind) => [
@@ -339,7 +341,7 @@ const create = verb({
     if (write === undefined) throw new VerbRefusal(`storytree library new writes ${Object.keys(WRITERS).join(", ")}; not "${kind}"`, { misuse: true });
     const fields = fieldsOf(values);
     const numbers = kind === "contract" && typeof fields.capability === "string" ? await context.testedNumbers(fields.capability) : undefined;
-    const pending = kind === "capability" ? { pending: await heldPending(context) } : {};
+    const pending = kind === "capability" ? { pending: await heldPending(context.library, await context.claims(), context.session) } : {};
     const options = numbers === undefined ? { ...context.writer!, ...pending } : { ...context.writer!, testedNumbers: [...numbers.tested] };
     const written = await withIdLists(fields, (fields) => write(context.library, fields, options));
     const untested = numbers?.untested ?? [];
@@ -410,35 +412,10 @@ const read = verb({
   },
 });
 
-/** The kinds whose edits and retirements wait on the caller's increment until its branch merges (ADR-0966 D1). */
-const PLAN_TYPES: ReadonlySet<string> = new Set(["story", "capability", "contract"]);
-
-/**
- * Hold `change` on the increment the calling session holds, as a pending change (ADR-0966 D1), and
- * say so; undefined when it holds none (a person's shell holds none), or the increment planned the record itself, and
- * the change is made live. Of several, the one it claimed last.
- */
+/** Hold `change` on the increment the calling session holds (ADR-0966 D1), and say so; undefined when the change is made live. */
 async function heldOnIncrement(context: LibraryVerbContext, change: PlanChange): Promise<string | undefined> {
-  const increment = heldIncrement(await context.claims(), context.session);
-  if (increment === undefined) return undefined;
-  const pended = await context.library.pendChange(increment, change, context.writer!);
-  if (pended === null || !("pending" in pended)) return undefined;
-  return `pending on increment ${increment} until its branch merges; the live plan is unchanged.`;
-}
-
-/** The pending changes of the increment the calling session holds, which its branch's new capabilities are numbered against (ADR-0966 D3). */
-async function heldPending(context: LibraryVerbContext): Promise<readonly PendingChange[]> {
-  const increment = heldIncrement(await context.claims(), context.session);
-  const record = increment === undefined ? null : await context.library.get(increment);
-  return record?.type === "increment" ? ((record.fields as { pending?: PendingChange[] }).pending ?? []) : [];
-}
-
-/** The increment `session` claimed last of those it holds, if any. */
-function heldIncrement(claims: Awaited<ReturnType<LibraryVerbContext["claims"]>>, session: string): string | undefined {
-  return claims
-    .filter((claim) => claim.session === session && claim.increment !== undefined)
-    .sort((one, other) => one.since.localeCompare(other.since))
-    .at(-1)?.increment;
+  const increment = await holdPlanChange(context.library, await context.claims(), context.session, change, context.writer!);
+  return increment === undefined ? undefined : heldSaid(increment);
 }
 
 /** An increment's pending changes (ADR-0966 D3): each record, then each field as before -> after, or its retirement. */
@@ -480,24 +457,20 @@ const edit = verb({
     // The store removes a field given as undefined, and the kind's schema refuses removing one it requires.
     const fields: Fields = { ...fieldsOf(values), ...Object.fromEntries(remove.map((field) => [field, undefined])) };
     if (Object.keys(fields).length === 0) return { text: `No fields given: ${id} is unchanged.` };
-    // --live names a correction the increment does not change, made live with its claim kept (ADR-0966 D1's note).
-    if (PLAN_TYPES.has(record.type) && !live) {
-      const held = await withIdLists(fields, (fields) => heldOnIncrement(context, { record: id, fields }));
-      if (held !== undefined) return { text: `Your edit of ${record.type} ${id} (${Object.keys(fields).join(", ")}) is ${held}`, next: [{ command: "library read <increment>", why: "see its pending changes" }] };
-    }
     const writer = context.writer!;
-    const edited = await withIdLists(fields, async (fields) => {
-      switch (record.type) {
-        case "story": return library.editStory(id, fields as never, writer);
-        case "capability": return library.editCapability(id, fields as never, writer);
-        case "contract": return library.editContract(id, fields as never, writer);
-        case "arc": return library.editArc(id, fields as never, writer);
-        case "increment": return library.editIncrement(id, fields as never, writer);
-        case "question": return library.editQuestion(id, fields as never, writer);
-        default: return library.editNote(id, fields as never, writer);
-      }
+    // --live names a correction the increment does not change, made live with its claim kept (ADR-0966 D1's note).
+    const done = await withIdLists(fields, async (fields): Promise<PlanEdit | null> => {
+      if (isPlanRecordType(record.type)) return editPlanRecord(library, await context.claims(), context.session, { type: record.type, id, fields, live }, writer);
+      const edited =
+        record.type === "question"
+          ? await library.editQuestion(id, fields as never, writer)
+          : record.type === "decision"
+            ? await editDecision(library, id, fields as never, writer)
+            : await library.editNote(id, fields as never, writer);
+      return edited === null ? null : { edited };
     });
-    if (edited === null) throw new VerbRefusal(`no live ${record.type} "${id}" in this project`);
+    if (done === null) throw new VerbRefusal(`no live ${record.type} "${id}" in this project`);
+    if ("held" in done) return { text: `Your edit of ${record.type} ${id} (${Object.keys(fields).join(", ")}) is ${heldSaid(done.held)}`, next: [{ command: "library read <increment>", why: "see its pending changes" }] };
     const changed = Object.keys(values).join(", ");
     const removed = remove.length === 0 ? "" : `${changed === "" ? "" : ", "}removed ${remove.join(", ")}`;
     return { text: `Edited ${record.type} ${id}: ${changed}${removed}.`, next: [{ command: `library read ${id}`, why: "read it back" }] };
@@ -709,6 +682,8 @@ const undo = verb({
 });
 
 export { NOTE_TOOLS, type Found, type NoteRead, type NoteToolContext, type Presenter } from "./notes.js";
+// The plan-edit rule both front doors call (ADR-0966 D1, ADR-0793).
+export { editPlanRecord, heldPending, heldSaid, holdPlanChange } from "../work/plan-hold.js";
 
 /** The library's command family, which the package's manifest names under `verbs` (ADR-1033), first among `storytree`'s. */
 export const LIBRARY_FAMILIES: readonly VerbFamily<LibraryVerbContext>[] = [{

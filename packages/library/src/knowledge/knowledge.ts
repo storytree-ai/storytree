@@ -32,11 +32,15 @@ import { relatedEach, relatedTo, type Related, type RelatedOptions, type Similar
 import { holdsName, normalisedWords } from "./whole-words.js";
 
 /**
- * The fields that link an artifact to other artifacts (6-a), which the loop check follows: its links,
- * and an agent role's required reading, rules, anti-patterns and step reading, a process's branch
- * edges, and the notes a check enforces.
+ * The fields of an artifact that name other records: its links, an agent role's required reading,
+ * rules, anti-patterns and step reading (`stepRefs[].refs`), a process's branch edges
+ * (`branchEdges[].to`), the notes a check enforces and the decisions it supersedes. The one list:
+ * the librarian's curation and the memory upgrade read it through `referenceEdgesOf` and this.
  */
-const LINK_FIELDS = ["links", "context", "rules", "antiPatterns", "stepRefs", "branchEdges", "enforces"] as const;
+export const REFERENCE_FIELD_NAMES = ["links", "context", "rules", "antiPatterns", "enforces", "supersedes", "stepRefs", "branchEdges"] as const;
+
+/** The fields that link an artifact to other artifacts (6-a), which the loop check follows: every reference field but supersessions, which the supersession check follows. */
+const LINK_FIELDS = REFERENCE_FIELD_NAMES.filter((field) => field !== "supersedes");
 
 /** The kinds of artifact: decisions, definitions, the eight kinds of ADR-0640, ADR-0956's check and ADR-1058's research. */
 export type NoteType = "decision" | "definition" | KnowledgeKind;
@@ -116,7 +120,8 @@ const PHRASE_KINDS: readonly PhraseKind[] = [...NOTE_TYPES, ...PLAN_KINDS, "arc"
 
 /**
  * The fields that name other artifacts rather than hold words: never searched. (`refs` sits inside an
- * agent role's `stepRefs`, `to` inside a process's `branchEdges`.)
+ * agent role's `stepRefs`, `to` inside a process's `branchEdges`.) Not REFERENCE_FIELD_NAMES: it is
+ * matched against keys at every depth, so it names the nested keys and the plan's id fields too.
  */
 const REFERENCE_FIELDS: ReadonlySet<string> = new Set([
   "links",
@@ -482,7 +487,9 @@ export class Knowledge {
 
   /**
    * Every reference an artifact's fields hold must name a live artifact: its links, and an agent role's
-   * required reading, rules, anti-patterns and step reading, and a process's branch edges.
+   * required reading, rules, anti-patterns and step reading, and a process's branch edges. Not one loop
+   * over REFERENCE_FIELD_NAMES: `enforces` must name a principle or guardrail, not any note, and
+   * `supersedes` is checked against decisions by the decision log.
    */
   async #checkNoteReferences(fields: object): Promise<void> {
     const at = fields as Record<string, unknown>;
@@ -568,30 +575,23 @@ function similarityDocOf(note: Note): SimilarityDoc {
     title: heading,
     ...(typeof description === "string" ? { description } : {}),
     body: textsIn(rest).join("\n"),
-    links: linkEdgesOf(note.fields),
+    links: referenceEdgesOf(note.fields),
   };
 }
 
-/** Every link an artifact's fields hold, with the field it is in: LINK_FIELDS, and the decisions it supersedes. */
-function linkEdgesOf(fields: object): { field: string; to: string }[] {
+/** Every record an artifact's fields name, with the field it is in: each of REFERENCE_FIELD_NAMES. */
+export function referenceEdgesOf(fields: object): { field: string; to: string }[] {
   const at = fields as Record<string, unknown>;
-  const edges = (field: string, ids: unknown[]): { field: string; to: string }[] =>
-    ids.filter((id): id is string => typeof id === "string").map((to) => ({ field, to }));
-  return [
-    ...["links", "context", "rules", "antiPatterns", "enforces", "supersedes"].flatMap((field) => edges(field, listOf(at[field]))),
-    ...edges("stepRefs", listOf(at["stepRefs"]).flatMap((step) => listOf(fieldOf(step, "refs")))),
-    ...edges("branchEdges", listOf(at["branchEdges"]).map((edge) => fieldOf(edge, "to"))),
-  ];
+  return REFERENCE_FIELD_NAMES.flatMap((field) => {
+    const ids =
+      field === "stepRefs" ? listOf(at[field]).flatMap((step) => listOf(fieldOf(step, "refs"))) : field === "branchEdges" ? listOf(at[field]).map((edge) => fieldOf(edge, "to")) : listOf(at[field]);
+    return ids.filter((id): id is string => typeof id === "string").map((to) => ({ field, to }));
+  });
 }
 
 /** Every artifact id an artifact's fields link it to, through each of LINK_FIELDS. */
-function linksOf(fields: object): unknown[] {
-  const at = fields as Record<string, unknown>;
-  return [
-    ...["links", "context", "rules", "antiPatterns", "enforces"].flatMap((field) => listOf(at[field])),
-    ...listOf(at["stepRefs"]).flatMap((step) => listOf(fieldOf(step, "refs"))),
-    ...listOf(at["branchEdges"]).map((edge) => fieldOf(edge, "to")),
-  ];
+function linksOf(fields: object): string[] {
+  return referenceEdgesOf(fields).flatMap(({ field, to }) => (field === "supersedes" ? [] : [to]));
 }
 
 /**

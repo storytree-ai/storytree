@@ -43,7 +43,12 @@ export interface AgentOnOffer {
   harness: string;
   agent: string;
   connected: boolean;
+  /** Why it is offered unconfirmed: it did not answer within the search's bound. */
+  note?: string;
 }
+
+/** How long the guide's search waits on one agent before offering it anyway; the guide says so while it waits. */
+export const AGENT_SEARCH_SECONDS = 15;
 
 /** One agent connected from the guide: whether its tools are now registered, and what to do next. */
 export interface AgentConnected {

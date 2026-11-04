@@ -22,6 +22,9 @@ import { poolConfig, readCap } from "./pool-config.mjs";
 import { handedOff } from "./watch.mjs";
 
 const run = promisify(execFile);
+/** The machine file's fields the dispatcher reads again as it runs (3.39), so an edit to one restarts nothing. */
+export const LIVE_CONFIG = ["projects", "sessions"];
+
 /** The dispatcher's exit when its own code changed on origin/main: the box wrapper starts it again, on the new code. */
 export const RESTART = 3;
 /** Lanes push over SSH: the https origin's OAuth token lacks the workflow scope (increment_ecdbefcd7fa1). */
@@ -325,13 +328,15 @@ export function mainCheckout(checkout) {
 function boxDefaults({ home = homedir(), env = process.env } = {}) {
   const config = poolConfig({ home, env });
   const { lanesDir, checkout: repo, addDirs } = config;
+  // The machine file read again (3.39): its projects at each survey, and its sessions at each look at the cap, the start's when it no longer reads.
+  const fresh = () => { try { return poolConfig({ home, env }); } catch { return config; } };
   const { sessionsDir, stopAt } = laneSettings({ home, env, config });
   // Lanes work from the main worktree, where make_workspace cuts theirs; the dispatcher updates its own checkout.
   const laneRepo = mainCheckout(repo);
   return {
     lanesDir, repo, laneRepo, addDirs, sessionsDir, stopAt, machineOnly: config.machineOnly, briefPaths: { checkout: laneRepo, lanes: lanesDir }, briefsDir: config.briefsDir,
-    configFile: config.file, projects: config.projects,
-    maxLanes: () => readCap({ lanesDir, sessions: config.sessions }),
+    configFile: config.file, projects: () => poolConfig({ home, env }).projects,
+    maxLanes: () => readCap({ lanesDir, sessions: fresh().sessions }),
     count: async () => countEngines(await processes()),
     lanes: async () => runningLanes(await processes()),
     power: () => readPowerLine(), refusals: (cwd = repo) => refusals({ cwd, env }), kill: (pid) => process.kill(pid),
@@ -350,7 +355,7 @@ function boxDefaults({ home = homedir(), env = process.env } = {}) {
  * one this process's storytree home names.
  */
 async function ready(b, project, { drained }) {
-  const projects = project ? [project] : b.projects.map((one) => one.name);
+  const projects = project ? [project] : b.projects().map((one) => one.name);
   const found = withHandOffs(await surveyProjects(projects, b.survey), await handedOff(join(b.lanesDir, "watch")));
   const { picks } = pickPool(found, { max: Infinity, now: b.now() });
   const work = picks.map((one) => ({ id: one.id, title: one.title, ...(one.priority === undefined ? {} : { priority: one.priority }),
@@ -423,20 +428,24 @@ async function pool(b) {
   const runner = await holdRunner({ pidFile: join(L, "pool.pid"), pid: b.pid ?? process.pid, marks: [DISPATCHER], argsOf: b.argsOf });
   if (!runner.held) { dated(`dispatcher ${runner.by} is running: not starting`); return 1; }
   dated("dispatcher started");
-  // Every project the machine names (pool-config.mjs), each surveyed in its own project in the library.
-  const survey = async () => withHandOffs(await surveyProjects(b.projects.map((one) => one.name), b.survey), await handedOff(join(L, "watch")));
+  // Every project the machine names (pool-config.mjs), read again at each survey (3.39), each surveyed in its own project in the library.
+  let projects = b.projects();
+  const survey = async () => {
+    projects = b.projects();
+    return withHandOffs(await surveyProjects(projects.map((one) => one.name), b.survey), await handedOff(join(L, "watch")));
+  };
   // A lane starts in its project's checkout (the main worktree, where make_workspace cuts its own); storytree's, by default, where it always has.
-  const checkoutOf = (name) => { const own = b.projects.find((one) => one.name === name)?.checkout; return own && mainCheckout(own); };
+  const checkoutOf = (name) => { const own = projects.find((one) => one.name === name)?.checkout; return own && mainCheckout(own); };
   const code = await runPool({
     survey, maxLanes: b.maxLanes, count: b.count, lanes: b.lanes, machineOnly: b.machineOnly, stopFile: join(L, "pool-stop"), plans: planFile(join(L, "pool-planned.json")), sleep: b.sleep, now: b.now, say,
     // A machine-only dispatcher (the laptop's) first holds for its start rule, plugged in and online (ADR-1179 D3).
     pace: async () => (b.machineOnly ? await startHold({ power: b.power, refusals: () => b.refusals() }) : undefined) ?? (b.pace ?? readBoxPace)(),
-    codeVersion: b.codeVersion ?? (() => codeVersion({ repo: b.repo, config: b.configFile })),
+    codeVersion: b.codeVersion ?? (() => codeVersion({ repo: b.repo, config: b.configFile, live: LIVE_CONFIG })),
     refresh: () => b.lock(b.prepare),
     launch: async (one, { engineUp }) => {
       const at = new Date(b.now()).toISOString().replace(/[-:]|\.\d{3}Z$/g, "");
       // Another project's lane is briefed for its own repository, whatever its kind; storytree's as before.
-      const other = one.project && one.project !== "storytree" && b.projects.find((p) => p.name === one.project);
+      const other = one.project && one.project !== "storytree" && projects.find((p) => p.name === one.project);
       const looks = !one.plan && (readOnly(one.body) || blind(one.body));
       const role = !one.plan && blind(one.body) ? ` You are a blind reviewer: follow ${other ? "this brief's blind rules" : ".claude/agents/blind-reviewer.md"} (ADR-0950).` : "";
       const rules = one.plan ? () => (other ? projectPlanRules(other, b.briefsDir) : planRules(b.briefsDir))

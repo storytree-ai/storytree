@@ -7,7 +7,7 @@
  * is still true. The health report (the owner's G1) is what a write cannot refuse: an edge to a
  * record retired since.
  */
-import type { Library, NewDecision, Note, SchemaRecord, WriteOptions } from "../../index.js";
+import type { Library, NewDecision, Note, NoteEdit, SchemaRecord, WriteOptions } from "../../index.js";
 
 import { allNotes, LibrarianRefusal, referencesOf, type Reference } from "../notes.js";
 
@@ -42,8 +42,8 @@ export type BrokenEdge = Reference;
  * them covered, unless it has its own, and the load-bearing mark if any of them carried it; the
  * old ones leave the reading list, and stay readable as superseded. The library refuses an old one
  * that is not a live decision, and a supersession loop. It is the one way a decision is superseded
- * (`adr new --supersedes` comes here too), and all of it is one write: one that fails part-way
- * leaves every decision as it was.
+ * (every door that records or edits one comes here, through `recordDecision` and `editDecision`),
+ * and all of it is one write: one that fails part-way leaves every decision as it was.
  */
 export function supersede(library: Library, olds: readonly string[], successor: Successor | string, writer?: WriteOptions): Promise<SchemaRecord<"decision">> {
   return library.inOneWrite(async () => {
@@ -67,6 +67,31 @@ export function supersede(library: Library, olds: readonly string[], successor: 
     if (recorded === null) throw new LibrarianRefusal(`${successor} is not a live decision`);
     for (const old of replaced) if (old?.fields.loadBearing === true) await library.editNote(old.id, { loadBearing: undefined }, writer);
     return recorded;
+  }, writer?.signal === undefined ? undefined : { signal: writer.signal });
+}
+
+/**
+ * Record a new decision; an accepted one that supersedes others is recorded by `supersede`. A `supersedes` that is not
+ * a list goes to the library as given, which refuses it.
+ */
+export function recordDecision(library: Library, fields: NewDecision, writer?: WriteOptions): Promise<SchemaRecord<"decision">> {
+  const { status, supersedes, ...successor } = fields;
+  return status === "accepted" && Array.isArray(supersedes) && supersedes.length > 0
+    ? supersede(library, supersedes, successor, writer)
+    : library.recordDecision(fields, writer);
+}
+
+/**
+ * Edit note `id`'s fields, or null when it is not live. An edit of what a decision supersedes or its status that leaves
+ * it accepted and superseding others goes on to `supersede`, in the same write, so the ones it supersedes lose their
+ * load-bearing mark and shelf as they do there.
+ */
+export function editDecision(library: Library, id: string, changes: NoteEdit, writer?: WriteOptions): Promise<Note | null> {
+  return library.inOneWrite(async () => {
+    const edited = await library.editNote(id, changes, writer);
+    if (edited?.type !== "decision" || !("supersedes" in changes || "status" in changes)) return edited;
+    const supersedes = edited.fields.supersedes ?? [];
+    return edited.fields.status === "accepted" && supersedes.length > 0 ? supersede(library, supersedes, id, writer) : edited;
   }, writer?.signal === undefined ? undefined : { signal: writer.signal });
 }
 

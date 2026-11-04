@@ -7,7 +7,7 @@ import type { Agent, Line } from "@storytree/library";
 import { knowledge } from "../ghosts/ghosts.js";
 import { ReadRecord } from "../reads/reads.js";
 import { History } from "../testing/changes.js";
-import { DOT_CEILING, DOT_FLOOR, codeKey, curvePoint, dotSizes, fillAt, hopPoint, growthPlan, heldNotes, legend, lighting, noteCard, trails, replayAt, traversalTrails, windowView, type CodePlaces } from "./look-inside.js";
+import { DOT_CEILING, DOT_FLOOR, curvePoint, dotSizes, fillAt, growthPlan, heldNotes, legend, lighting, noteCard, trails, replayAt, traversalTrails, windowView, type CodePlaces } from "./look-inside.js";
 
 let seq = 0;
 const read = (session: string, note: string, how: "peek" | "whole", agent?: Agent): Line => ({
@@ -218,115 +218,50 @@ test("4.16 a selected session's window draws one step per move in reading order,
   assert.equal(view.status, undefined);
 
   const none = windowView({ absent: "no hook has named this session's transcript" }, new Set(), joined);
-  assert.deepEqual(none, { notes: new Set(), faded: new Set(), glimpsed: new Set(), files: [], steps: [], code: { files: new Map(), capabilities: new Map() }, status: "No window: no hook has named this session's transcript" });
+  assert.deepEqual(none, { notes: new Set(), faded: new Set(), glimpsed: new Set(), files: [], steps: [], code: { capabilities: new Map() }, status: "No window: no hook has named this session's transcript" });
 
   // Direction: a faint fill runs along each step from its earlier note to its later one, rests, then runs again.
   const timing = { run: 1000, pause: 500 };
   assert.deepEqual([0, 250, 999, 1200, 1750].map((ms) => fillAt(ms, timing)), [0, 0.25, 0.999, undefined, 0.25]);
 });
 
-/** Two files of Session management (b imports a), a third that imports nothing, one of the forest's, and a capability with land. */
-const SURFACE = 100;
-const places: CodePlaces = {
-  files: new Map([
-    ["packages/session-management/src/a.ts", { x: SURFACE, y: 0, z: 0 }],
-    ["packages/session-management/src/b.ts", { x: 0, y: SURFACE, z: 0 }],
-    ["packages/session-management/src/c.ts", { x: 0, y: 0, z: SURFACE }],
-    ["packages/forest/src/f.ts", { x: -SURFACE, y: 0, z: 0 }],
-  ]),
-  imports: [{ from: "packages/session-management/src/b.ts", to: "packages/session-management/src/a.ts" }],
-  capabilities: new Set(["cap-land"]),
-};
+/** A capability with land. */
+const places: CodePlaces = { capabilities: new Set(["cap-land"]) };
 const opened = (id: string, resident = true, kind: "note" | "file" = "note") => ({ kind, id, call: `open ${id}`, tool: "Read", resident });
 const windowOf = (opens: ReturnType<typeof opened>[]) => ({ session: "S", at: "-", compactions: 0, inView: [], glimpses: [], opens });
 const notJoined = () => false;
 
-test("4.20 a file path names a surveyed file by the package and src path it ends in, absolute, relative or from a worktree; anything else names none", () => {
-  assert.equal(codeKey("/home/me/code/storytree03/packages/session-management/src/a.ts"), "packages/session-management/src/a.ts");
-  assert.equal(codeKey("/home/me/code/storytree03/.claude/worktrees/increment-1/packages/session-management/src/x/y.ts"), "packages/session-management/src/x/y.ts");
-  assert.equal(codeKey("packages/session-management/src/a.ts"), "packages/session-management/src/a.ts");
-  assert.equal(codeKey("C:\\code\\storytree03\\packages\\forest\\src\\f.ts"), "packages/forest/src/f.ts");
-  for (const path of ["src/a.ts", "/etc/hosts", "/home/me/code/storytree03/scripts/gate.mjs", "/home/me/code/storytree03/packages/forest/package.json", "apps/desktop/src/main.ts"]) assert.equal(codeKey(path), undefined, path);
-});
-
-test("4.20 a window with two files, one importing the other, yields one solid file-to-file step; two with no import between them, a dotted one", () => {
-  const view = windowView(windowOf([
-    opened("/repo/packages/session-management/src/a.ts", true, "file"),
-    opened("/repo/packages/session-management/src/b.ts", true, "file"),
-    opened("packages/session-management/src/c.ts", true, "file"),
-  ]), new Set(), notJoined, places);
-  assert.deepEqual(view.steps, [
-    { from: "file:packages/session-management/src/a.ts", to: "file:packages/session-management/src/b.ts", edge: "solid", faded: false, kind: "hop" },
-    { from: "file:packages/session-management/src/b.ts", to: "file:packages/session-management/src/c.ts", edge: "dotted", faded: false, kind: "hop" },
-  ], "an import counts whichever way round the session read the two");
-  assert.deepEqual([...view.code.files], [["packages/session-management/src/a.ts", "in-window"], ["packages/session-management/src/b.ts", "in-window"], ["packages/session-management/src/c.ts", "in-window"]]);
-  const across = windowView(windowOf([opened("/repo/packages/session-management/src/a.ts", true, "file"), opened("/repo/packages/forest/src/f.ts", true, "file")]), new Set(), notJoined, places);
-  assert.deepEqual(across.steps.map(({ edge, kind }) => [edge, kind]), [["dotted", "hop"]], "a hop to another island is a jump");
-});
-
-test("4.20 a file then a note yields a dive step, a note then a file a rise, and a file between two notes no longer joins them past the surface", () => {
+test("4.20 a file read between two notes is stepped over: the chain runs note to note and nothing is drawn for the file", () => {
   const present = new Set(["deep", "cover"]);
   const joined = (a: string, b: string) => a === "deep" && b === "cover";
   const view = windowView(windowOf([opened("deep"), opened("/repo/packages/session-management/src/a.ts", true, "file"), opened("cover")]), present, joined, places);
-  assert.deepEqual(view.steps, [
-    { from: "deep", to: "file:packages/session-management/src/a.ts", edge: "dotted", faded: false, kind: "dive" },
-    { from: "file:packages/session-management/src/a.ts", to: "cover", edge: "dotted", faded: false, kind: "dive" },
-  ]);
-  const plain = windowView(windowOf([opened("deep"), opened("/repo/packages/session-management/src/a.ts", true, "file"), opened("cover")]), present, joined);
-  assert.deepEqual(plain.steps.map(({ from, to }) => [from, to]), [["deep", "cover"]], "with no places given, files still never break the chain");
+  assert.deepEqual(view.steps, [{ from: "deep", to: "cover", edge: "solid", faded: false }]);
+  assert.deepEqual(traversalTrails(view.steps, "#e69f00", "S").map(({ from, to, step }) => [from, to, step]), [["deep", "cover", { edge: "solid", faded: false }]]);
+  assert.deepEqual([...view.code.capabilities], [], "a file lights no territory");
 });
 
-test("4.20 opening a capability marks its territory and breaks no chain; an arc, an increment or a contract is drawn nowhere; a path that names no surveyed file is stepped over", () => {
+test("4.20 opening a capability marks its territory and breaks no chain; an arc, an increment or a contract is drawn nowhere", () => {
   const view = windowView(windowOf([
     opened("/repo/packages/session-management/src/a.ts", true, "file"),
     opened("cap-land"),
     opened("arc_f59eb2a8e34d"),
     opened("increment_d02249eaf5a4"),
     opened("contract_a47660471f08"),
-    opened("/repo/packages/session-management/src/not-surveyed.ts", true, "file"),
     opened("/repo/scripts/gate.mjs", true, "file"),
-    opened("/repo/packages/session-management/src/c.ts", true, "file"),
   ]), new Set(), notJoined, places);
   assert.deepEqual([...view.code.capabilities], [["cap-land", "in-window"]]);
-  assert.deepEqual(view.steps.map(({ from, to }) => [from, to]), [["file:packages/session-management/src/a.ts", "file:packages/session-management/src/c.ts"]]);
-  assert.deepEqual([...view.code.files.keys()], ["packages/session-management/src/a.ts", "packages/session-management/src/c.ts"]);
+  assert.deepEqual(view.steps, []);
   assert.equal(view.notes.size + view.faded.size + view.glimpsed.size, 0);
-
-  const plan = windowView(windowOf([opened("arc_f59eb2a8e34d"), opened("increment_d02249eaf5a4")]), new Set(), notJoined, places);
-  assert.deepEqual([plan.steps, [...plan.code.files], [...plan.code.capabilities], [...plan.notes]], [[], [], [], []]);
+  const between = windowView(windowOf([opened("deep"), opened("cap-land"), opened("cover")]), new Set(["deep", "cover"]), notJoined, places);
+  assert.deepEqual(between.steps.map(({ from, to }) => [from, to]), [["deep", "cover"]], "a capability between two notes breaks no chain");
+  assert.deepEqual([...windowView(windowOf([opened("cap-land")]), new Set(), notJoined).code.capabilities], [], "with no places given, nothing is lit");
 });
 
-test("4.20 a file read compacted out of the window is lighter, and the steps it touches fade with it", () => {
-  const view = windowView(windowOf([
-    opened("/repo/packages/session-management/src/a.ts", false, "file"),
-    opened("/repo/packages/session-management/src/b.ts", true, "file"),
-    opened("cap-land", false),
-  ]), new Set(), notJoined, places);
-  assert.deepEqual([...view.code.files], [["packages/session-management/src/a.ts", "faded"], ["packages/session-management/src/b.ts", "in-window"]]);
+test("4.20 a capability read compacted out of the window is lighter, and in the window again once read again", () => {
+  const view = windowView(windowOf([opened("cap-land", false)]), new Set(), notJoined, places);
   assert.deepEqual([...view.code.capabilities], [["cap-land", "faded"]]);
-  assert.equal(view.steps[0]!.faded, true);
-  const again = windowView(windowOf([opened("/repo/packages/session-management/src/a.ts", false, "file"), opened("/repo/packages/session-management/src/a.ts", true, "file")]), new Set(), notJoined, places);
-  assert.equal(again.code.files.get("packages/session-management/src/a.ts"), "in-window", "read again since, it is in the window now");
-});
-
-test("4.20 the traversal's trails carry what a step crosses; a hop arcs above the surface between two circles and a dive goes down through it into the core", () => {
-  const view = windowView(windowOf([opened("/repo/packages/session-management/src/a.ts", true, "file"), opened("/repo/packages/session-management/src/c.ts", true, "file"), opened("deep")]), new Set(["deep"]), notJoined, places);
-  const drawn = traversalTrails(view.steps, "#e69f00", "S");
-  assert.deepEqual(drawn.map(({ from, to, seq, colour, mover, step }) => [from, to, seq, colour, mover, step]), [
-    ["file:packages/session-management/src/a.ts", "file:packages/session-management/src/c.ts", 0, "#e69f00", "S", { edge: "dotted", faded: false, kind: "hop" }],
-    ["file:packages/session-management/src/c.ts", "deep", 1, "#e69f00", "S", { edge: "dotted", faded: false, kind: "dive" }],
-  ]);
-  const radius = ({ x, y, z }: { x: number; y: number; z: number }) => Math.hypot(x, y, z);
-  const [a, c] = [places.files.get("packages/session-management/src/a.ts")!, places.files.get("packages/session-management/src/c.ts")!];
-  const hop = [0, 0.1, 0.25, 0.5, 0.75, 0.9, 1].map((t) => radius(hopPoint(a, c, t)));
-  assert.deepEqual([hopPoint(a, c, 0), hopPoint(a, c, 1)], [a, c], "it leaves one circle and lands on the other");
-  assert.ok(hop.every((r) => r >= SURFACE - 1e-9), "a hop never sinks below the surface it hops across, even a quarter of the way round the globe");
-  assert.ok(Math.max(...hop) <= SURFACE * 1.12 + 1e-9 && hop[3]! > SURFACE, "and arcs just above it");
-  const near = { x: SURFACE * Math.cos(0.05), y: 0, z: SURFACE * Math.sin(0.05) };
-  assert.ok(radius(hopPoint(a, near, 0.5)) > SURFACE * 1.005, "even a short hop between two circles on one island lifts visibly");
-  const core = { x: 0, y: 0, z: SURFACE * 0.4 };
-  const dive = [0, 0.5, 1].map((t) => radius(curvePoint(places.files.get("packages/session-management/src/a.ts")!, core, t)));
-  assert.ok(dive[0]! >= SURFACE - 1e-9 && dive[2]! < SURFACE && dive[1]! < SURFACE, "a dive leaves the surface and ends inside the core");
+  const again = windowView(windowOf([opened("cap-land", false), opened("cap-land", true)]), new Set(), notJoined, places);
+  assert.equal(again.code.capabilities.get("cap-land"), "in-window", "read again since, it is in the window now");
 });
 
 

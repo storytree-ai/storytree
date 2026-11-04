@@ -439,7 +439,7 @@ test("8.10 a terminal runs the shared setup check with diagnostic lines and fixe
   });
 });
 
-test("8.31 in a project with no git repository the check asks for one, made locally; with no origin remote it is ok: it names the steps that need one and the local route, and never proposes making or pushing a remote; with origin there, it says nothing of it", async () => {
+test("8.31 in a project with no git repository the check asks for one, made locally; with no origin remote it is ok: it names the steps that need one and the local route, verified health by a local run of its own tests, and never proposes making or pushing a remote; with origin there, it says nothing of it", async () => {
   await withTempDir(async (dir) => {
     const home = throwawayHome(dir);
     const name = uniqueProjectName();
@@ -455,8 +455,9 @@ test("8.31 in a project with no git repository the check asks for one, made loca
       const none = (await runSetupCheck(options)).lines.find((line) => line.check === "repository");
       assert.equal(none?.state, "needs-attention");
       assert.match(none?.message ?? "", /no git repository/);
-      assert.match(none?.message ?? "", /review.*land.*health/s);
+      assert.match(none?.message ?? "", /review.*land/s);
       assert.match(none?.fix ?? "", /git init/);
+      assert.match(none?.fix ?? "", /storytree health local/, "verified health is named as a local run");
       assert.doesNotMatch(none?.fix ?? "", /push|gh repo create/, "a remote is never proposed");
 
       git("init", "-q");
@@ -470,6 +471,8 @@ test("8.31 in a project with no git repository the check asks for one, made loca
       assert.match(local?.message ?? "", /git diff/, "review goes on the local diff");
       assert.match(local?.message ?? "", /local commit/);
       assert.match(local?.message ?? "", /close the increment with a note/i);
+      assert.match(local?.message ?? "", /storytree health local/, "verified health comes from a local run of the project's own tests");
+      assert.doesNotMatch(local?.message ?? "", /unavailable/, "verified health is not said to be unavailable");
       assert.doesNotMatch(local?.message ?? "", /push|gh repo create|propose/, "a remote is never proposed");
       assert.equal(git("remote").stdout.trim(), "", "the check makes no remote");
 

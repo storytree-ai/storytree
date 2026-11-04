@@ -11,7 +11,7 @@
     "storytree": "node packages/base-dev-loop/src/provision-worktree.mjs --check && node --import tsx packages/cli/src/bins/storytree.ts",
     "test": "node packages/base-dev-loop/src/provision-worktree.mjs --check && node --import tsx packages/repo-checks/src/test.mjs",
     "gate": "node packages/repo-checks/src/gate.mjs",
-    "typecheck": "pnpm -r typecheck",
+    "typecheck": "pnpm -r --reporter=append-only typecheck",
     "lint": "node --import tsx packages/repo-checks/src/lint.mjs",
     "test-ratio": "pnpm -s storytree coverage ratio",
     "lag:reads": "pnpm -s storytree lag-instruments reads --",

@@ -42,9 +42,21 @@ To report a security problem, see [SECURITY.md](SECURITY.md).
 
 ## Install
 
-On every platform you need Claude Code or Codex, installed and signed in. Each platform's command
-below installs the app and opens it. What the commands do and check:
-[apps/desktop/README.md](apps/desktop/README.md).
+You need Claude Code or Codex, installed and signed in, on Windows x64 (an arm64 build is included but not
+yet tested), a Mac with Apple Silicon (M1 or later) or Linux x64 with a desktop session. Then ask your agent:
+
+```text
+Install storytree from https://github.com/storytree-ai/storytree
+```
+
+The ask names this address so your agent installs storytree's own release, not a package that borrows its
+name. Your agent follows [INSTALL.md](INSTALL.md): each platform's command, what its checks mean, and stable
+or alpha. Without an agent to hand, run the one-liner under [Official sources](#official-sources) yourself.
+Once it is installed, **Help → First-run guide** in the app covers setup, connection checks, the offline
+license and feedback. Anyone may clone this repository, but that is not the install: an agent opened in a
+clone takes on storytree's own development guidance (see [How changes land](#how-changes-land)).
+
+## What storytree is
 
 **Storytree 0.3.** Storytree is the observability layer beside your coding agent. You build a
 project with Claude Code or Codex, and storytree shows you what is being built: each project as a
@@ -56,79 +68,6 @@ itself: so far it checks only its own project's tests, and shows what it found s
 The map reads JavaScript, TypeScript and Python code. A project in another language (Go, Rust or
 SQL, say) still gets its plan, its activity and the health its agent reports, but its code never
 appears on the map.
-
-Once it is installed, **Help → First-run guide** in the app covers setup, connection checks, the
-offline license and feedback. Help is available before you have a project and while viewing any
-forest.
-
-### Windows
-
-You need Windows x64 (an arm64 build is included but not yet tested). In Windows PowerShell (5.1+)
-or PowerShell 7, run:
-
-```powershell
-& ([scriptblock]::Create((Invoke-RestMethod 'https://raw.githubusercontent.com/storytree-ai/storytree/release-channel-stable/install-storytree.ps1')))
-```
-
-This release is unsigned. If Windows shows a SmartScreen warning and you trust the download, use
-**More info → Run anyway**. If Windows says **Smart App Control** blocked it and offers no Run
-anyway, that is Windows 11's reputation check on unsigned apps. See whether it is on in Windows
-Security → App & browser control → Smart App Control settings. Turning it off there lets storytree
-install, but Smart App Control then stops checking every app on the computer (Defender antivirus
-keeps running). On Windows 11 with the April 2026 update or later you can turn it back on from the
-same page; before that update, turning it back on needs a reset or reinstall of Windows. If you
-would rather keep it on, wait for a signed release.
-
-### Mac
-
-You need a Mac with Apple Silicon (M1 or later); Intel Macs are not supported. In a terminal, run:
-
-```sh
-curl -fsSL https://raw.githubusercontent.com/storytree-ai/storytree/release-channel-stable/install-storytree.sh | sh
-```
-
-### Linux
-
-You need an x64 (x86_64) computer and the same command, run in a terminal:
-
-```sh
-curl -fsSL https://raw.githubusercontent.com/storytree-ai/storytree/release-channel-stable/install-storytree.sh | sh
-```
-
-- **libfuse2.** The app is an AppImage, and the installer stops if libfuse2 is missing. Add it with
-  `sudo apt install libfuse2t64` (on Ubuntu before 24.04, `sudo apt install libfuse2`); storytree
-  never runs sudo itself. Where FUSE is present but cannot be used (as in many containers), run the
-  command with `APPIMAGE_EXTRACT_AND_RUN=1` set, so the app runs without FUSE:
-
-  ```sh
-  curl -fsSL https://raw.githubusercontent.com/storytree-ai/storytree/release-channel-stable/install-storytree.sh | APPIMAGE_EXTRACT_AND_RUN=1 sh
-  ```
-
-- **An ordinary user.** Run it as yourself, not as root or with sudo: the app and its database both
-  refuse to run as root.
-- **A desktop session.** The installer opens the app's window to start its database, so it needs a
-  display (`DISPLAY` or `WAYLAND_DISPLAY` set). On a machine with no desktop (a server, a container,
-  WSL without its graphics layer, a box reached over ssh) the install cannot finish.
-
-### Stable or alpha
-
-The commands above install the stable channel: a build that was tried before it was offered, which
-can be weeks and hundreds of releases behind the newest. To follow every release as soon as it is
-published, install the alpha channel instead. On Windows:
-
-```powershell
-& ([scriptblock]::Create((Invoke-RestMethod 'https://github.com/storytree-ai/storytree/releases/latest/download/install-storytree.ps1'))) -Channel alpha
-```
-
-On a Mac or Linux:
-
-```sh
-curl -fsSL https://github.com/storytree-ai/storytree/releases/latest/download/install-storytree.sh | sh -s -- --channel alpha
-```
-
-An installation keeps its channel, so neither command switches one already installed. To switch,
-use **Updates → Update channel** in the app where your build has it; otherwise run
-`storytree setup uninstall` first, then the other channel's command.
 
 ## Keys
 

@@ -52,6 +52,10 @@ Install storytree from https://github.com/storytree-ai/storytree
 The ask names this address so your agent installs storytree's own release, not a package that borrows its
 name. Your agent follows [INSTALL.md](INSTALL.md): each platform's command, what its checks mean, and stable
 or alpha. Without an agent to hand, run the one-liner under [Official sources](#official-sources) yourself.
+The one-liner installs the stable channel: a build tried before it is offered, which can be weeks behind the newest.
+It says which build that is and the day it was published, as does the
+[stable channel's page](https://github.com/storytree-ai/storytree/tree/release-channel-stable); work that landed
+after that day is only in alpha, which [INSTALL.md](INSTALL.md#stable-or-alpha) says how to choose.
 Once it is installed, **Help → First-run guide** in the app covers setup, connection checks, the offline
 license and feedback. Anyone may clone this repository, but that is not the install: an agent opened in a
 clone takes on storytree's own development guidance (see [CONTRIBUTING.md](CONTRIBUTING.md)).

@@ -82,8 +82,11 @@ curl -fsSL https://raw.githubusercontent.com/storytree-ai/storytree/release-chan
 ## Stable or alpha
 
 The commands above install the stable channel: a build that was tried before it was offered, which can be
-weeks and hundreds of releases behind the newest. Install the alpha channel only when the user asks to follow
-every release as soon as it is published. On Windows:
+weeks and hundreds of releases behind the newest. As it downloads, the command says which stable build it installs
+and the day that build was published; the [stable channel's page](https://github.com/storytree-ai/storytree/tree/release-channel-stable)
+says the same. Work that landed after that day is only in alpha. Install the alpha channel only when the user asks to
+follow every release as soon as it is published, or needs work that landed after stable's day (a fix or a language
+they are waiting for): say that day and offer alpha, and let them choose. On Windows:
 
 ```powershell
 & ([scriptblock]::Create((Invoke-RestMethod 'https://github.com/storytree-ai/storytree/releases/latest/download/install-storytree.ps1'))) -Channel alpha

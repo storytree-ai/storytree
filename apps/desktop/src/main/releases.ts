@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 
 import { app } from "electron";
-import { ReleaseUpdater, installation, releaseChannel, releaseChannelChoice, type InstallChoice, type Installation, type ReleaseOptions } from "@storytree/app";
+import { ReleaseUpdater, installation, releaseChannel, releaseChannelChoice, stableBuild, type InstallChoice, type Installation, type ReleaseOptions } from "@storytree/app";
 import { channelOffered, keepCheckingReleases, refreshAgentTools } from "@storytree/app/updates/follow-releases";
 import { refreshTools } from "@storytree/app-setup/deliver";
 
@@ -33,10 +33,14 @@ function markerText(markerFile: string | undefined): string {
   return markerFile === undefined ? "" : readFileSync(markerFile, "utf8");
 }
 
-/** The gear's update channel (updates 4.24), offered where releases install (4.32); the updater reads it again on its next check. */
+/**
+ * The gear's update channel (updates 4.24), offered where releases install (4.32), with stable's build and its day (4.34);
+ * the updater reads it again on its next check.
+ */
 export function channelChoice(home: string, smoke: boolean) {
   const { followsReleases, markerFile } = thisInstallation();
-  return releaseChannelChoice({ available: channelOffered({ smoke, followsReleases }), home, marker: () => markerText(markerFile) });
+  const choice = releaseChannelChoice({ available: channelOffered({ smoke, followsReleases }), home, marker: () => markerText(markerFile), stable: () => stableBuild() });
+  return { read: () => choice.describe(), set: choice.set };
 }
 
 /** The updater, for the gear's Updates panel; undefined where the app does not update from releases (an ad-hoc signed Mac build among them). */

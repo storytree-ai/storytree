@@ -91,6 +91,14 @@ try { Get-StorytreeRelease 'stable' $fetchRelease 'latest'; throw 'accepted late
 catch { Assert ($_.Exception.Message -match '0\.3\.<n>') 'an acceptance version that names no release stops delivery' }
 try { Get-StorytreeRelease 'stable' $fetchRelease '0.3.124'; throw 'accepted another build' }
 catch { Assert ($_.Exception.Message -match 'does not match') 'an acceptance version whose release is another build stops delivery' }
+# How old stable is (1.18): the pinned release's day is said, with where alpha is; alpha, and no day, say nothing of it.
+$said = 'Stable is storytree 0.3.123, published on 2026-11-02. Work that landed after that day is only in alpha: see Stable or alpha in https://github.com/storytree-ai/storytree/blob/main/INSTALL.md for how to choose it.'
+Assert ((Get-StorytreeStableAge @{ tag_name = 'v0.3.123'; published_at = '2026-11-02T22:10:00Z' } 'stable') -ceq $said) 'stable names its build''s day and points to alpha'
+# PowerShell 7 reads the API's date as a DateTime, in local time; the day stays the release's own.
+$asDate = [datetime]::new(2026, 11, 2, 22, 10, 0, [DateTimeKind]::Utc).ToLocalTime()
+Assert ((Get-StorytreeStableAge @{ tag_name = 'v0.3.123'; published_at = $asDate } 'stable') -ceq $said) 'a date read as a DateTime names the same day'
+Assert ($null -eq (Get-StorytreeStableAge @{ tag_name = 'v0.3.123'; published_at = '2026-11-02T22:10:00Z' } 'alpha')) 'alpha says nothing of stable''s day'
+Assert ($null -eq (Get-StorytreeStableAge @{ tag_name = 'v0.3.123' } 'stable')) 'a release without its day says nothing of it'
 Assert ((Get-StorytreeArchitecture 'AMD64' '') -eq 'x64') 'x64 selection'
 Assert ((Get-StorytreeArchitecture 'x86' 'ARM64') -eq 'arm64') 'native arm64 selection under emulation'
 Assert ((Get-StorytreeArchitecture 'ARM64' '') -eq 'arm64') 'native arm64 selection'

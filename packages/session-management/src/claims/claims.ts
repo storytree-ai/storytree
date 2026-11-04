@@ -9,7 +9,8 @@
  *
  * - Claims are lines in the agent activity log (claimed, released, landed), and who holds what is
  *   worked out from them, with the holders' liveness from their sessions' latest lines. A holder
- *   whose command is still running is live however long the command takes (capability 4), unless
+ *   whose command is still running is live however long the command takes (capability 4), as is one whose latest
+ *   turn ended leaving a background task running, within the longest a command may run (5.66), unless
  *   its standing safe close-out is verified by the same branch and process facts as the session list.
  * - Taking a claim, landing and releasing each check and write under the project's lock
  *   (ActivityLog.locked), so two sessions claiming at once cannot both win.

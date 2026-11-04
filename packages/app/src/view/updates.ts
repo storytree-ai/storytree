@@ -182,12 +182,18 @@ export function mountReleaseChannel(host: HTMLElement, bridge: ReleaseChannelBri
   const field = host.querySelector<HTMLElement>("[data-app-release-channel]")!;
   const radios = [...field.querySelectorAll<HTMLInputElement>('input[name="app-release-channel"]')];
   const error = field.querySelector<HTMLElement>("[data-app-release-channel-error]")!;
+  const stableLine = field.querySelector<HTMLElement>("[data-app-stable-build]")!;
   let kept: ReleaseChannel | undefined;
   let stopped = false;
   const show = (state: ReleaseChannelState) => {
     if (stopped) return;
     kept = state.channel;
     field.hidden = !state.available;
+    // A change's answer does not read the pin again, so the line from the first read stays (4.34).
+    if (state.stable) {
+      stableLine.textContent = `Now storytree ${state.stable.version}, published on ${state.stable.published}. Work that landed after that day is only in alpha.`;
+      stableLine.hidden = false;
+    }
     for (const radio of radios) { radio.checked = radio.value === state.channel; radio.disabled = false; }
   };
   const change = () => {

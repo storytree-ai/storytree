@@ -41,7 +41,7 @@ async function opened(t: TestContext): Promise<{ library: Library; context: ArcV
 }
 
 test("3.22 · the question family declares predict, prediction, score and prep, each storing or reading through the library and printing it; question show and list carry no would-be answer, list flags the prep mark, and a refused step prints its reason", async (t) => {
-  const { library, run } = await opened(t);
+  const { library, context, run } = await opened(t);
   const arc = await library.createArc({ title: "Launch", intent: "Ship it", endState: "It is live" });
   const question = await library.raiseQuestion({ arc: arc.id, ...ASK });
   const reads = async (): Promise<string[]> => [await run("show", { question: question.id }), await run("list", { arc: undefined })];
@@ -69,6 +69,13 @@ test("3.22 · the question family declares predict, prediction, score and prep, 
   await assert.rejects(run("prep", { question: unpredicted.id, stance: "differs", reason: undefined }), (error: unknown) => error instanceof VerbRefusal && /--reason/.test(error.message));
   await library.settleQuestion(unpredicted.id, { answer: "Mailgun" });
   assert.equal(await run("score", { question: unpredicted.id, prediction: undefined, recommendation: "match", by: "lane" }), `Scored ${unpredicted.id} by lane: raiser's recommendation match.`);
+  // A caller with no writer is named by its session.
+  const unwritten = await library.raiseQuestion({ arc: arc.id, ...ASK });
+  await library.settleQuestion(unwritten.id, { answer: "Mailgun" });
+  const scoreVerb = ARC_FAMILIES.find((one) => one.name === "question")!.verbs.find((one) => "name" in one.command && one.command.name === "score") as Verb<VerbInputs, ArcVerbContext>;
+  const { writer: _writer, ...noWriter } = context;
+  assert.match((await scoreVerb.act({ question: unwritten.id, recommendation: "match" } as never, noWriter as ArcVerbContext, WORDS)).text, new RegExp(`^Scored ${unwritten.id} by person:test:`));
+  assert.equal(((await library.get(unwritten.id))?.fields as { score?: { by: string } } | undefined)?.score?.by, "person:test");
 
   const ghost = "question_000000000000";
   for (const [name, input] of [

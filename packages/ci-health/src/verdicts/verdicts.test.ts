@@ -225,3 +225,20 @@ test("2.7 · a skipped pytest test, which -rA names only by its file and line, i
   assert.deepEqual([verdicts.get("c_cart_12")!.state, verdicts.get("c_cart_12")!.skip], ["not-checked", "owner"], "the skip in test_1_2_keeps's body is its own");
   assert.deepEqual(unmatched, []);
 });
+
+test("2.8 · an imported story's pytest files are those under the folders its code was mapped from (`.` the project's top), each file the story's whose folder holding it is deepest, so a flat project's tests/ credit its one story and a workspace member's tests credit the member", () => {
+  const mapped = (id: string, title: string, folder: string, contract: string): PlanTree["stories"][number] =>
+    ({ id, title, mapped: { folders: [folder] }, capabilities: [{ id: `cap_${id}`, title: "1 · Api", contracts: [{ id: contract, title: "1.1 · it answers" }] }] });
+  const tree: PlanTree = { stories: [mapped("story_root", "checkbox", ".", "c_root_11"), mapped("story_sdk", "checkbox-sdk", "libs/sdk", "c_sdk_11")] };
+  const test = "def test_1_1_answers():\n    pass\n";
+  const { verdicts, unmatched } = judgeRun(proofsAt(tree, [{ path: "tests/test_api.py", text: test }, { path: "libs/sdk/tests/test_client.py", text: test }]), [
+    ran("tests/test_api.py", "test_1_1_answers"),
+    ran("libs/sdk/tests/test_client.py", "test_1_1_answers", [], "failed"),
+  ]);
+  assert.deepEqual(
+    Object.fromEntries([...verdicts].map(([id, verdict]) => [id, [verdict.state, verdict.total]])),
+    { c_root_11: ["passing", 1], c_sdk_11: ["failing", 1] },
+    "the top's tests/ is the root story's; libs/sdk's tests are the member's alone, though the root's folder holds them too",
+  );
+  assert.deepEqual(unmatched, []);
+});

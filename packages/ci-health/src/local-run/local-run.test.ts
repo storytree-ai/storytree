@@ -113,3 +113,32 @@ test("5.2 · `health local` runs a Python project's own tests by pytest -rA (thr
   await recordLocalTests({ library, folder, run: pytest("") });
   assert.equal(commands.at(-1), "poetry run pytest -rA");
 });
+
+test("5.3 · `health local` credits a flat Python project's numbered pytest tests (tests/ at its top, not under packages/<story>/) to the imported story whose folder holds them, by the number `land` credits", async (t) => {
+  const url = process.env.STORYTREE_TEST_PG_URL;
+  if (url === undefined) throw new Error("run the tests via `pnpm test`, which starts a local Postgres");
+  const storytree = await connect({ url });
+  const name = `t-${randomBytes(4).toString("hex")}`;
+  const library = await storytree.openProject(name);
+  const folder = mkdtempSync(path.join(tmpdir(), "storytree-local-"));
+  t.after(async () => {
+    try {
+      await storytree.dropProject(name);
+    } finally {
+      await storytree.close();
+      await removeTemp(folder);
+    }
+  });
+  const { added: [story] } = await library.mapStories(folder, [{ package: ".", title: "checkbox", folders: ["."] }]);
+  const capability = await library.addCapability({ story: story!.id, title: "1 · Todo API", covers: ["src"] });
+  const contract = await library.addContract({ capability: capability.id, title: "1.1 · a todo is created" });
+  writeFileSync(path.join(folder, "pyproject.toml"), `[project]\nname = "checkbox"\n`);
+  mkdirSync(path.join(folder, "src"));
+  writeFileSync(path.join(folder, "src", "__init__.py"), "");
+  mkdirSync(path.join(folder, "tests"));
+  writeFileSync(path.join(folder, "tests", "test_api.py"), "def test_1_1_creates_a_todo():\n    pass\n");
+
+  const read = await recordLocalTests({ library, folder, run: async () => "PASSED tests/test_api.py::test_1_1_creates_a_todo\n" });
+  assert.ok(read.written && read.unmatched === 0, JSON.stringify(read));
+  assert.equal((await library.health(contract.id)).verified.state, "passing", "credited from tests/test_api.py, in the imported story's folder");
+});

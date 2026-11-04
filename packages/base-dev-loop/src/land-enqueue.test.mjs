@@ -40,3 +40,37 @@ test("5.1 the land job's command line exits 0 to retry and 1 to stop, reading th
   assert.equal(run(90, "some other refusal").code, 1);
   assert.match(run(90, "some other refusal").out, /::error::/);
 });
+
+// PR #403, run 41814666825: gh got an HTML page, not JSON, back from the enqueue, although GitHub
+// had enqueued the pull request in that run.
+const unparseable = "invalid character '<' looking for beginning of value";
+
+test("5.3 a failed enqueue that left the pull request in the merge queue is taken as enqueued, whatever the reply", () => {
+  for (const reply of [unparseable, "some other refusal", queued]) {
+    const decision = enqueueDecision(reply, 0, "AWAITING_CHECKS");
+    assert.equal(decision.enqueued, true);
+    assert.equal(decision.retry, false);
+    assert.match(decision.reason, /AWAITING_CHECKS/);
+  }
+  assert.equal(enqueueDecision("some other refusal", 0, "").enqueued, false);
+});
+
+test("5.3 a reply that will not parse, with the pull request not in the queue, is tried again inside the window", () => {
+  assert.equal(enqueueDecision(unparseable, 30, "").retry, true);
+  assert.equal(enqueueDecision(unparseable, RETRY_WINDOW_SECONDS, "").retry, false);
+});
+
+test("5.3 the land job's command line exits 2 when the pull request is already in the queue", () => {
+  const script = fileURLToPath(new URL("./land-enqueue.mjs", import.meta.url));
+  const run = (args) => {
+    try {
+      return { code: 0, out: execFileSync(process.execPath, [script, ...args], { input: unparseable, encoding: "utf8" }) };
+    } catch (error) {
+      return { code: error.status, out: error.stdout };
+    }
+  };
+  assert.equal(run(["10", "AWAITING_CHECKS"]).code, 2);
+  assert.doesNotMatch(run(["10", "AWAITING_CHECKS"]).out, /::error::/);
+  assert.equal(run(["10", ""]).code, 0);
+  assert.equal(run(["10"]).code, 0);
+});

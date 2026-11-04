@@ -17,6 +17,4 @@ pale-blue sea lanes and ports (step 5). The mock's stills show all of those.
 Taken with rollout 1's kit: `node docs/design/capability-tree-3d/q-all-islands/tools/build.mjs`, then
 `node --import tsx docs/design/capability-tree-3d/q-all-islands/tools/docks.mjs --stills <story>...`.
 
-In the evidence bucket under the pull request's number, linked from its body (ADR-1234; deleted after 90 days or when
-its arc closes): `island-relief/the-library.png`, `island-relief/session-management.png`,
-`island-relief/the-command-line.png`, `island-relief/setup.png`.
+In the evidence bucket for #440, linked from the pull request body (ADR-1234; deleted after 90 days or when its arc closes): `440/island-relief/the-library.png`, `440/island-relief/session-management.png`, `440/island-relief/the-command-line.png`, `440/island-relief/setup.png`.

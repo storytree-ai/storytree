@@ -2,7 +2,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { AnnotatedTree, ArcView, Line, NewLine } from "@storytree/library";
-import { clickedSelection, listedRows, sessionRoster, sessionRows, windowFiles } from "./sessions-list.js";
+import { clickedSelection, listedRows, sessionRoster, sessionRows } from "./sessions-list.js";
 import { sessionColour } from "../agent-claims/agent-claims.js";
 
 const now = new Date("2026-09-28T12:00:00Z");
@@ -182,15 +182,6 @@ test("7.7 clicking a row selects its session, a child's row its parent, and clic
   assert.equal(clickedSelection(rows, "child", "parent"), undefined, "so does its child's row");
 });
 
-test("7.8 a row's files are its window's opened files, each once in the order first opened, those no longer in the window marked; no reading says why", () => {
-  const open = (id: string, resident: boolean, kind: "file" | "note" = "file") => ({ kind, id, call: id, tool: "Read", resident });
-  const files = windowFiles({
-    opens: [open("a.ts", false), open("note_0123456789ab", true, "note"), open("b.ts", true), open("a.ts", true), open("c.ts", false)] });
-  assert.deepEqual(files, { files: [{ path: "a.ts", resident: true }, { path: "b.ts", resident: true }, { path: "c.ts", resident: false }] });
-  assert.deepEqual(windowFiles({ absent: "no hook has named this session's transcript" }),
-    { absent: "no hook has named this session's transcript" });
-});
-
 test("7.10 only the sessions at work are listed: working, waiting for you within the idle-after time, or a parent whose child works; an idle one is not, whatever keeps Session management listing it, by the idle-after and leave-after it is given", () => {
   const minutes = (n: number) => new Date(now.getTime() - n * 60_000).toISOString();
   const hook = (session: string) => ({ session, harness: "claude-code", source: "hook" }) as const;
@@ -254,23 +245,3 @@ test("7.15 a worktree whose open branch has a pull request is labelled by it ins
   assert.deepEqual(row?.worktrees.map(({ state, label }) => label ?? state),
     ["PR #1 · in CI", "PR #2 · failing", "PR #3 · in merge queue", "PR #4 · draft", "PR #5", "unmerged"]);
 });
-
-test("7.16 a row lists the commands its session started and has not seen finish, background ones included, each as its first words (held to one short line) with its full command and how long it has run; a finished command is not listed", () => {
-  const hook = { session: "busy", harness: "claude-code", source: "hook" } as const;
-  const minutes = (n: number) => new Date(now.getTime() - n * 60_000).toISOString();
-  const long = "git push --force-with-lease origin claude/some-very-long-branch-name && gh pr create --fill";
-  const lines = log(
-    { ...hook, kind: "prompt-submitted", at: minutes(30) },
-    { ...hook, kind: "command-started", command: "pnpm run test --full", call: "a", at: minutes(8) },
-    { ...hook, kind: "command-started", command: long, call: "b", at: minutes(2) },
-    { ...hook, kind: "command-started", command: "git status", call: "c", at: minutes(1) },
-    { ...hook, kind: "command-run", command: "git status", call: "c", at: minutes(1) });
-  const [row] = sessionRows(tree, lines, [], now);
-  assert.deepEqual(row?.running.map(({ words, command, ranMs }) => [words, command, ranMs]), [
-    ["pnpm run test --full", "pnpm run test --full", 8 * 60_000],
-    [`${long.split(/\s+/).slice(0, 5).join(" ").slice(0, 47)}…`, long, 2 * 60_000],
-  ]);
-  assert.ok(row!.running[1]!.words.length <= 48, "one short line");
-  assert.deepEqual(sessionRows(tree, log({ ...hook, kind: "prompt-submitted" }), [], now)[0]?.running, [], "a session running nothing lists nothing");
-});
-

@@ -3,12 +3,6 @@ import { logReading, QUIET_MS, type LogReading, type PullState, type Session, ty
 import type { AnnotatedTree, ArcView, Line } from "@storytree/library";
 import { sessionColour } from "../agent-claims/agent-claims.js";
 
-/**
- * A session's window (Session management 9.10), as the list reads its files from it: the forest's own copy
- * of what it reads (ADR-1017 D2).
- */
-export type SessionWindow = { readonly absent: string } | { readonly opens: readonly { readonly kind: string; readonly id: string; readonly resident: boolean }[] };
-
 /** A session on the knowledge core's roster, as the forest hands it over: the forest's own copy (ADR-1017 D2). */
 export type RosterEntry = { session: string; label: string; colour: string; members: readonly string[] };
 
@@ -37,13 +31,6 @@ export interface WorktreeRow {
   label?: string;
 }
 
-/** A command a session started and has not seen finish (7.16): its first words, its full text, and how long it has run. */
-export interface RunningRow {
-  words: string;
-  command: string;
-  ranMs: number;
-}
-
 export interface SessionRow {
   id: string;
   label: string;
@@ -65,8 +52,6 @@ export interface SessionRow {
   stories: string[];
   /** Every folder the session has worked in, oldest first (ADR-0749 D2), each labelled by its branch (7.15); none for an observed subagent. */
   worktrees: WorktreeRow[];
-  /** The commands it has started and not seen finish, background ones included, oldest first (7.16). */
-  running: RunningRow[];
   /** Up to three lines saying what it is doing (7.14), from recorded words only: its app's title, its increment's objective, its app's latest status. */
   description: string[];
   /** The machine it runs on, named only when the listed sessions span more than one (7.13). */
@@ -118,7 +103,6 @@ export function sessionRows(tree: AnnotatedTree, log: readonly Line[] | LogReadi
       idle: session.state !== "working" && !(session.state === "waiting" && now.getTime() - Date.parse(session.lastSeenAt) <= quiet), lastSeenAt: session.lastSeenAt,
       totalTokens: contextTotal(detail), composition: detail?.composition, guidance: detail?.guidance,
       stories: [...new Set([...held].flatMap(id => storyOf.has(id) ? [storyOf.get(id)!] : []))], worktrees: worktreeRows(session),
-      running: session.running.map(({ command, since }) => ({ words: commandWords(command), command, ranMs: Math.max(0, now.getTime() - Date.parse(since)) })),
       children: [] });
   }
   // The activity API explicitly names parent and child; a task or matching folder never implies one.
@@ -129,7 +113,7 @@ export function sessionRows(tree: AnnotatedTree, log: readonly Line[] | LogReadi
     if (!parents.has(line.subagent)) parents.set(line.subagent, details.get(line.subagent)?.parentSession ?? line.session);
     if (!rows.has(line.subagent)) rows.set(line.subagent, { id: line.subagent, label: line.task ?? line.type ?? "Subagent",
       agent: line.type ?? "Subagent", ...(finished.has(line.subagent) ? { state: "ended", idle: true } : { state: "observed", idle: false }), lastSeenAt: line.at,
-      totalTokens: contextTotal(details.get(line.subagent)), composition: details.get(line.subagent)?.composition, stories: [], worktrees: [], running: [], description: [], children: [] });
+      totalTokens: contextTotal(details.get(line.subagent)), composition: details.get(line.subagent)?.composition, stories: [], worktrees: [], description: [], children: [] });
   }
   // Bad/missing relationship metadata must never lose a session or recurse forever.
   const roots: SessionRow[] = [];
@@ -164,18 +148,6 @@ export function sessionRows(tree: AnnotatedTree, log: readonly Line[] | LogReadi
  */
 export function listedRows(rows: readonly SessionRow[]): SessionRow[] {
   return rows.filter(row => !row.idle);
-}
-
-/** The longest a running command's words run, ellipsis included. */
-const WORDS_LIMIT = 48;
-const WORDS_SHOWN = 5;
-
-/** The first words of a command, held to one short line: cut with an ellipsis when it has more words, or they run past the limit. */
-function commandWords(command: string): string {
-  const all = command.trim().split(/\s+/);
-  const words = all.slice(0, WORDS_SHOWN).join(" ");
-  if (words.length > WORDS_LIMIT) return `${words.slice(0, WORDS_LIMIT - 1)}…`;
-  return all.length > WORDS_SHOWN ? `${words}…` : words;
 }
 
 /** A session's worktrees, each with the branches recorded there (7.15); a branch with no folder to fold under is listed by its own name. */
@@ -245,15 +217,4 @@ export function clickedSelection(rows: readonly SessionRow[], clicked: string, s
 function contextTotal(detail: SessionDetails | undefined): number | undefined {
   const total = detail?.totalTokens;
   return total !== undefined && Number.isFinite(total) && total >= 0 ? total : undefined;
-}
-
-/** A row's files, as its expansion lists them (7.8): each once, in the order first opened; or why there are none. */
-export type SessionFiles = { files: { path: string; resident: boolean }[] } | { absent: string };
-
-/** The files in a session's window reading (Session management 9.10), a file resident if any of its opens still is. */
-export function windowFiles(window: SessionWindow): SessionFiles {
-  if ("absent" in window) return { absent: window.absent };
-  const files = new Map<string, boolean>();
-  for (const open of window.opens) if (open.kind === "file") files.set(open.id, (files.get(open.id) ?? false) || open.resident);
-  return { files: [...files].map(([path, resident]) => ({ path, resident })) };
 }

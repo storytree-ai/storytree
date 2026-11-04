@@ -5,7 +5,7 @@ import type { AnnotatedTree, ArcView, Line } from "@storytree/library";
 import { outageSaidOnce, saysUnreachable, type OutageSaidOnce } from "@storytree/library/connection-error";
 import type { LogReading } from "@storytree/session-management/readings";
 import { pageKept, pageReading, type LiveReads, type PageReading } from "@storytree/arc-surface";
-import { clickedSelection, listedRows, sessionRoster, sessionRows, windowFiles, type RosterEntry, type SessionDetails, type SessionFiles, type SessionRow, type SessionWindow } from "../sessions-list/sessions-list.js";
+import { clickedSelection, listedRows, sessionRoster, sessionRows, type RosterEntry, type SessionDetails, type SessionRow } from "../sessions-list/sessions-list.js";
 import { sessionColour, sessionWisps, type SessionWisp } from "../agent-claims/agent-claims.js";
 import { treeAfter } from "../render/forest-reading.js";
 
@@ -22,10 +22,6 @@ export interface SessionsReads extends LiveReads {
   arcViews(project: string): Promise<readonly ArcView[]>;
   /** Session management's context readings (9.5, 9.8) for these sessions, read now; the rows' bars and totals. */
   contextReadings?(project: string, sessions: readonly string[]): Promise<readonly ContextReading[]>;
-  /** A session's window (Session management 9.10), read when its row is expanded: the files its expansion lists. */
-  windowReading?(project: string, session: string): Promise<SessionWindow>;
-  /** Several sessions' windows in one ask, in the order asked; preferred to windowReading when given. */
-  windowReadings?(project: string, sessions: readonly string[]): Promise<readonly SessionWindow[]>;
   /** The user's idle-after setting in milliseconds; without it the list judges idleness by the 30-minute default. */
   idleAfterMs?(): Promise<number>;
   /** The user's leave-after setting in milliseconds; without it a quiet session leaves the list by the 1-hour default. */
@@ -55,38 +51,6 @@ export async function arcsAfter(reads: Pick<SessionsReads, "arcViews">, project:
   news: { readonly changes: readonly { readonly type: string }[] }, last: readonly ArcView[] | undefined): Promise<readonly ArcView[]> {
   if (last !== undefined && !news.changes.some(change => WORK_TYPES.has(change.type))) return last;
   return reads.arcViews(project);
-}
-
-/**
- * Reads sessions' windows in one batched ask at a time: sessions asked while one is in flight wait
- * for the next ask, together, and a session already in flight is not asked again (ADR-0836 D2).
- * A failed ask answers each of its sessions as unreadable, and is logged; the next ask tries again.
- */
-export function windowsReader(read: (sessions: readonly string[]) => Promise<readonly SessionWindow[]>,
-  onFiles: (files: ReadonlyMap<string, SessionFiles>) => void) {
-  const queued = new Set<string>();
-  const inFlight = new Set<string>();
-  const flush = (): void => {
-    if (inFlight.size > 0 || queued.size === 0) return;
-    const sessions = [...queued];
-    queued.clear();
-    for (const session of sessions) inFlight.add(session);
-    read(sessions).then(windows => new Map<string, SessionFiles>(sessions.map((session, i) => [session, windowFiles(windows[i]!)])),
-      (error: unknown) => {
-        console.error("forest sessions list: the expanded rows' windows could not be read", error);
-        return new Map<string, SessionFiles>(sessions.map(session => [session, { absent: "the window could not be read" }]));
-      }).then(files => {
-      inFlight.clear();
-      onFiles(files);
-      flush();
-    });
-  };
-  return {
-    ask(sessions: readonly string[]): void {
-      for (const session of sessions) if (!inFlight.has(session)) queued.add(session);
-      flush();
-    },
-  };
 }
 
 /** The list's failed reads written to the console, so app.log: an unreachable library once per outage (8.11). */
@@ -175,7 +139,7 @@ export function refreshFailures(log: (line: string) => void, windowMs = FAILURES
 export function isSessionRows(value: unknown): value is SessionRow[] {
   return Array.isArray(value) && value.every((row: Partial<SessionRow> | null) => typeof row === "object" && row !== null
     && typeof row.id === "string" && typeof row.label === "string" && typeof row.agent === "string" && typeof row.state === "string"
-    && Array.isArray(row.stories) && Array.isArray(row.worktrees) && Array.isArray(row.running) && row.worktrees.every(tree => typeof tree?.path === "string") && Array.isArray(row.description) && isSessionRows(row.children));
+    && Array.isArray(row.stories) && Array.isArray(row.worktrees) && row.worktrees.every(tree => typeof tree?.path === "string") && Array.isArray(row.description) && isSessionRows(row.children));
 }
 
 function everyId(rows: readonly SessionRow[]): string[] {
@@ -217,7 +181,6 @@ export function mountSessionsList(container: HTMLElement, options: {
   let selected: string | undefined;
   // Every row starts collapsed; these are the ones the user opened.
   let expanded: ReadonlySet<string> = new Set();
-  let files: ReadonlyMap<string, SessionFiles> = new Map();
   let stopped = false;
   const failures = refreshFailures(line => console.error(line));
   const outage = sessionsOutage();
@@ -228,28 +191,15 @@ export function mountSessionsList(container: HTMLElement, options: {
     root.render(<SessionsList rows={rows} loading={tree === undefined && rows.length === 0}
     refreshing={tree === undefined && rows.length > 0}
     error={banner?.text} errorDetail={banner?.detail} selected={selected} onHighlight={options.onHighlight}
-    expanded={expanded} files={files} onToggle={toggle}
+    expanded={expanded} onToggle={toggle}
     {...(options.onSelect ? { onSelect: options.onSelect } : {})} />);
   };
   /** Supplied details (showDetails) keep their parent; a reading supplies the tokens and groups. */
   const merged = (): ReadonlyMap<string, SessionDetails> => new Map([...new Set([...details.keys(), ...readings.keys()])]
     .map(id => [id, { ...details.get(id), ...readings.get(id) }]));
-  const { windowReadings, windowReading } = options.reads;
-  const readWindows = windowReadings !== undefined ? (sessions: readonly string[]) => windowReadings.call(options.reads, options.project, sessions)
-    : windowReading !== undefined ? (sessions: readonly string[]) => Promise.all(sessions.map(session => windowReading.call(options.reads, options.project, session)))
-    : undefined;
-  /** Expanded rows' files, read in one batched ask at a time; a failed read says so and the next ask tries again. */
-  const windows = windowsReader(readWindows ?? (async () => []), answers => {
-    const shown = [...answers].filter(([session]) => expanded.has(session));
-    if (stopped || shown.length === 0) return;
-    files = new Map([...files, ...shown]);
-    draw();
-  });
-  const askFiles = (sessions: readonly string[]): void => { if (readWindows !== undefined && sessions.length > 0) windows.ask(sessions); };
   const toggle = (session: string): void => {
     const next = new Set(expanded);
-    if (next.delete(session)) files = new Map([...files].filter(([id]) => id !== session));
-    else { next.add(session); askFiles([session]); }
+    if (!next.delete(session)) next.add(session);
     expanded = next;
     draw();
   };
@@ -257,7 +207,6 @@ export function mountSessionsList(container: HTMLElement, options: {
     if (options.reads.contextReadings === undefined || asking || Date.now() - askedAt < READING_EVERY_MS || rows.length === 0) return;
     asking = true;
     askedAt = Date.now();
-    askFiles(everyId(rows).filter(session => expanded.has(session)));
     readContext(options.reads, options.project, everyId(rows), {
       idleAfterMs: ms => { quietMs = ms; },
       leaveAfterMs: ms => { leaveMs = ms; },
@@ -273,7 +222,6 @@ export function mountSessionsList(container: HTMLElement, options: {
     const all = sessionRows(tree, log, arcs, now, merged(), quietMs, leaveMs);
     rows = listedRows(all);
     kept.write(rows);
-    askFiles(everyId(rows).filter(session => expanded.has(session) && !files.has(session)));
     options.onWisps?.(sessionWisps(all, log, now, quietMs));
     options.onRoster?.(sessionRoster(rows));
     draw();
@@ -354,6 +302,14 @@ function ContextBar({ row }: { row: SessionRow }) {
   </span>;
 }
 
+/** A small branch: the worktree count's icon, drawn in the row's text colour. */
+function WorktreeIcon() {
+  return <svg className="session-worktrees-icon" viewBox="0 0 12 12" width={10} height={10} aria-hidden="true" fill="none" stroke="currentColor" strokeWidth={1.3}>
+    <circle cx="3" cy="2.5" r="1.4" /><circle cx="3" cy="9.5" r="1.4" /><circle cx="9" cy="4" r="1.4" />
+    <path d="M3 4v4M9 5.4c0 2-2 2.6-4.6 3.4" />
+  </svg>;
+}
+
 function toggle(set: ReadonlySet<string>, id: string): ReadonlySet<string> {
   const next = new Set(set);
   if (next.has(id)) next.delete(id); else next.add(id);
@@ -363,16 +319,8 @@ function toggle(set: ReadonlySet<string>, id: string): ReadonlySet<string> {
 /** A worktree's folder name, the trunk's too, from its full path on any platform. */
 const folderName = (path: string): string => path.replace(/[\\/]+$/, "").split(/[\\/]/).pop() || path;
 
-/** How long a command has run, in its largest two units: 12s, 1m, 1h 5m. */
-export function ranFor(ms: number): string {
-  const seconds = Math.floor(ms / 1000);
-  if (seconds < 60) return `${seconds}s`;
-  const minutes = Math.floor(seconds / 60);
-  return minutes < 60 ? `${minutes}m` : minutes % 60 === 0 ? `${Math.floor(minutes / 60)}h` : `${Math.floor(minutes / 60)}h ${minutes % 60}m`;
-}
-
-/** An expanded row's detail (7.8): its description's lines (7.14), then each worktree by its folder's name (full path on hover), then the files in its window, each block labelled. */
-function SessionDetail({ row, files }: { row: SessionRow; files: SessionFiles | undefined }) {
+/** An expanded row's detail (7.8): its description's lines (7.14), then each worktree by its folder's name (full path on hover), labelled. */
+function SessionDetail({ row }: { row: SessionRow }) {
   return <div className="session-detail">
     {row.description.length > 0 && <div className="session-description">{row.description.map(said => <p key={said}>{said}</p>)}</div>}
     {row.worktrees.length > 0 && <section className="session-detail-block">
@@ -380,20 +328,6 @@ function SessionDetail({ row, files }: { row: SessionRow; files: SessionFiles | 
       <ul className="session-detail-worktrees" aria-label="Worktrees">
         {row.worktrees.map(tree => <li key={tree.path} title={[tree.path, ...tree.branches].join("\n")}>{folderName(tree.path)}
           {tree.state !== undefined && <span className="session-worktree-state" data-state={tree.state}>{tree.label ?? tree.state}</span>}</li>)}</ul></section>}
-    {row.running.length > 0 && <section className="session-detail-block">
-      <p className="session-detail-label">Running</p>
-      <ul className="session-detail-running" aria-label="Running">
-        {row.running.map((run, index) => <li key={index} title={run.command.slice(0, 300)}><span className="session-run-command">{run.words}</span>
-          <span className="session-run-time">{ranFor(run.ranMs)}</span></li>)}</ul></section>}
-    <section className="session-detail-block">
-    <p className="session-detail-label">Files</p>
-    {files === undefined ? <p className="session-detail-note">Reading files…</p>
-      : "absent" in files ? <p className="session-detail-note">No files: {files.absent}</p>
-      : files.files.length === 0 ? <p className="session-detail-note">No files opened</p>
-      : <ul className="session-detail-files" aria-label="Files in its window">
-        {files.files.map(file => <li key={file.path} data-resident={file.resident ? undefined : "no"}
-          title={file.resident ? file.path : `${file.path}\nNo longer in its window`}>{file.path}</li>)}</ul>}
-    </section>
   </div>;
 }
 
@@ -405,7 +339,7 @@ function busy(row: SessionRow): boolean {
   return !row.idle && row.state !== "observed" || row.children.some(busy);
 }
 
-export function SessionsList({ rows, loading = false, refreshing = false, error, errorDetail, selected, onHighlight, onSelect, files, ...control }: {
+export function SessionsList({ rows, loading = false, refreshing = false, error, errorDetail, selected, onHighlight, onSelect, ...control }: {
   rows: readonly SessionRow[];
   loading?: boolean;
   /** The rows are the ones last kept, drawn before this start's first read lands. */
@@ -420,8 +354,6 @@ export function SessionsList({ rows, loading = false, refreshing = false, error,
   /** The rows opened, when the caller keeps them; otherwise the list keeps its own. Every other row is collapsed (7.8). */
   expanded?: ReadonlySet<string>;
   onToggle?(session: string): void;
-  /** Each expanded row's files, once read (7.8). */
-  files?: ReadonlyMap<string, SessionFiles>;
 }) {
   const [own, setOwn] = useState<ReadonlySet<string>>(new Set());
   const expanded = control.expanded ?? own;
@@ -469,13 +401,14 @@ export function SessionsList({ rows, loading = false, refreshing = false, error,
         <span className="session-name-fit"><span className="session-label" title={`${row.label}\n${row.agent} · ${row.id}${row.machine === undefined ? "" : ` · on ${row.machine}`}${row.state === "observed" ? "\nSubagent observed; current state unavailable" : ""}${row.worktrees.length > 0 ? `\n${row.worktrees.map(tree => tree.path).join("\n")}` : ""}`}>{row.label}</span>
         {row.machine !== undefined && <span className="session-machine" title={`Runs on ${row.machine}`}>{row.machine}</span>}</span>
         {row.children.length > 0 && !busy(row) && !isOpen(row.id) && <span className="session-children" aria-hidden="true">+{row.children.length}</span>}
+        {/* Its worktrees counted by a number beside a small branch icon (7.1), so the machine beside the name keeps its room (7.13). */}
         {row.worktrees.length > 1 && <span className="session-worktrees" title={row.worktrees.map(tree => tree.path).join("\n")}
-          aria-label={`works in ${row.worktrees.length} worktrees`}>{row.worktrees.length} worktrees</span>}
+          aria-label={`works in ${row.worktrees.length} worktrees`}><WorktreeIcon />{row.worktrees.length}</span>}
         <ContextBar row={row} />
         <span className="session-total" title={row.totalTokens === undefined ? "Context total unavailable" : `${row.totalTokens.toLocaleString("en-US")} context tokens`}>
           {row.totalTokens === undefined ? "—" : new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 1 }).format(row.totalTokens)}</span>
       </div>
-      {isOpen(row.id) && <SessionDetail row={row} files={files?.get(row.id)} />}
+      {isOpen(row.id) && <SessionDetail row={row} />}
     </li>);
   // The Sessions tab of the app's left rail (7.17): the list fills it, with no control of its own to hide or size it.
   return <aside className="sessions-list" data-fresh={refreshing ? "no" : undefined} aria-label="Running sessions">

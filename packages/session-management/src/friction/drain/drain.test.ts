@@ -221,6 +221,7 @@ test("17.23 · routing a report with a theme records the route and reason on eve
     });
     await route(library, raced.id, "edit-existing", "Edited the push note.", { dischargedBy: "#9" });
     await assert.rejects(route(late, next.id, "tool", "The deploy key lacks the workflow scope.", { theme: [raced.id] }), /already routed to edit-existing/);
-    assert.equal((await library.get(next.id))?.fields.state, "open", "the report routed is left open for the drain");
+    const left = await library.get(next.id);
+    assert.equal(left?.type === "friction" ? left.fields.state : undefined, "open", "the report routed is left open for the drain");
   });
 });

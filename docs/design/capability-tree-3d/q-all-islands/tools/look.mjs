@@ -5,10 +5,11 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { withCapture } from '../../../../../apps/desktop/src/capture/index.ts';
+import { pageFolder } from './page-folder.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url)), dist = path.dirname(here);
 const [name = 'look', query = '', steps = '[]'] = process.argv.slice(2);
-await withCapture({ dist, folder: process.env.LOOK_DIR ?? path.join(dist, 'stills', 'looks') }, async ({ browser, origin, out, settle }) => {
+await withCapture({ dist: pageFolder(), folder: process.env.LOOK_DIR ?? path.join(dist, 'stills', 'looks') }, async ({ browser, origin, out, settle }) => {
   const page = await browser.newPage({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 1, colorScheme: 'dark' });
   const errors = [];
   page.on('pageerror', e => errors.push(String(e.stack ?? e)));

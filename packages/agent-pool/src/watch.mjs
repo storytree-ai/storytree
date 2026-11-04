@@ -768,7 +768,7 @@ export async function watchOnce({ dir, look, storytree, cutover = async () => un
           "--description", `The watcher retried PR #${pr} ${record.fixes.filter((fix) => fix.flake).length} times for reds it judged random, and gave it to the owner at its cap.`,
           "--statement", "Tests outside a pull request's reach failed it at random, so it could not land.",
           "--evidence", `PR #${pr} (${increment}) failed on: ${flaky.join("; ")}.`,
-          "--impact", `PR #${pr} waits on the owner instead of landing; the Windows-flakes arc can take these tests.`], at);
+          "--impact", `PR #${pr} waits on the owner instead of landing; the Windows-flakes arc can take these tests.`, "--none-match"], at);
       }
       await tell(["arc", "increment", "unwait", increment, "--for", "event"], at);
       await letGo(record, `PR #${pr} still red after ${record.fixes.length} sessions; released by the watcher`);

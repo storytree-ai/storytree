@@ -41,6 +41,8 @@ async function inFolder(branch: string | undefined, body: (folder: string) => Pr
 }
 
 const report = (title: string, evidence = `src/${title}.ts: Error`) => ({ title, description: title, statement: title, evidence, impact: "Lost time" });
+/** A report filed through `friction new` as new, past the closest earlier reports it would show (17.21). */
+const filedNew = (title: string) => ({ ...report(title), "none-match": true });
 const resteer = { title: "Simpler", description: "Less UI", doing: "Many fields", redirect: "Just email", disposition: "taste", "judged-by": "owner" };
 
 test("17.1 · friction with vague evidence is refused and writes nothing; concrete evidence is captured with its writer", async () => {
@@ -105,19 +107,19 @@ test("17.4 · capture stamps the calling folder's branch and UTC date and refuse
         await library.writeKnowledge("friction", { ...report("Old"), provenance: { ...provenance, source: "retro" as const } });
       }
       const filed = [];
-      for (const title of ["one", "two", "three"]) filed.push((await run(library, folder, "session:s", "friction", "new", report(title))).data?.id as string);
+      for (const title of ["one", "two", "three"]) filed.push((await run(library, folder, "session:s", "friction", "new", filedNew(title))).data?.id as string);
       await library.editNote(filed[2]!, { route: "nothing", routeReason: "Outage passed" });
       const first = await library.get(filed[0]!);
       assert.ok(first?.type === "friction");
       assert.deepEqual(first.fields.provenance, { branch: "fix/mail", date: DAY, source: "retro" });
 
       const history = await library.history();
-      await assert.rejects(run(library, folder, "session:s", "friction", "new", report("four")), (error: Error) =>
+      await assert.rejects(run(library, folder, "session:s", "friction", "new", filedNew("four")), (error: Error) =>
         error instanceof CaptureError && /3 friction.*fix\/mail/.test(error.message) && error.message.includes(DAY) && /friction reinforce/.test(error.message));
       assert.deepEqual(await library.history(), history, "refusal writes nothing");
       await run(library, folder, "session:s", "friction", "reinforce", { friction: filed[0], evidence: "#81: again" });
       execFileSync("git", ["-C", folder, "symbolic-ref", "HEAD", "refs/heads/fix/other"]);
-      await run(library, folder, "session:s", "friction", "new", report("elsewhere"));
+      await run(library, folder, "session:s", "friction", "new", filedNew("elsewhere"));
 
       const before = await library.history();
       await assert.rejects(run(library, folder, "session:s", "resteer", "new", { ...resteer, evidence: '"not like that"', disposition: "defect", "judged-by": "agent" }), /mode/);
@@ -150,14 +152,14 @@ test("17.6 · the daily cap counts each writer's own reports: on a branch every 
   pinDay(t);
   await withLibrary(async (library) => {
     await inFolder("main", async (folder) => {
-      for (const title of ["one", "two", "three"]) await run(library, folder, "session:first", "friction", "new", report(title));
-      await assert.rejects(run(library, folder, "session:first", "friction", "new", report("four")), CaptureError);
-      for (const title of ["islands", "bridges", "tunnels"]) await run(library, folder, "session:second", "friction", "new", report(title));
-      await assert.rejects(run(library, folder, "session:second", "friction", "new", report("ferries")), CaptureError);
+      for (const title of ["one", "two", "three"]) await run(library, folder, "session:first", "friction", "new", filedNew(title));
+      await assert.rejects(run(library, folder, "session:first", "friction", "new", filedNew("four")), CaptureError);
+      for (const title of ["islands", "bridges", "tunnels"]) await run(library, folder, "session:second", "friction", "new", filedNew(title));
+      await assert.rejects(run(library, folder, "session:second", "friction", "new", filedNew("ferries")), CaptureError);
 
       await library.writeKnowledge("friction", { ...report("unsigned"), provenance: { branch: "main", date: DAY, source: "retro" as const } });
-      for (const title of ["roads", "rails"]) await run(library, folder, "session:third", "friction", "new", report(title));
-      await assert.rejects(run(library, folder, "session:third", "friction", "new", report("canals")), CaptureError, "the unsigned report counts toward the third session's three");
+      for (const title of ["roads", "rails"]) await run(library, folder, "session:third", "friction", "new", filedNew(title));
+      await assert.rejects(run(library, folder, "session:third", "friction", "new", filedNew("canals")), CaptureError, "the unsigned report counts toward the third session's three");
       assert.equal((await library.list("friction")).length, 9);
     });
   });

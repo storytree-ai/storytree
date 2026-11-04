@@ -1071,6 +1071,7 @@ test("4.36 · a pull request whose session cap is spent on flakes goes to the ow
   const friction = b.calls.find(([noun, verb]) => noun === "friction" && verb === "new");
   assert.ok(friction, "a friction is filed");
   for (const name of ["1.0 · flaky", "1.1 · flaky", "1.2 · flaky", "PR #41"]) assert.ok(friction.join(" ").includes(name), name);
+  assert.ok(friction.includes("--none-match"), "it files new past the closest earlier reports filing would show (ADR-1233), or nothing is filed");
   assert.deepEqual(await readdir(b.dir), [], "the hand-off is dropped");
   assert.match(b.lines.at(-1), /PR #41.*waits on the owner/);
 });

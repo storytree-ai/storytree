@@ -9,6 +9,8 @@
 // (leak-scan.mjs, the tree-wide scan the new repo's starting commit passes); CI runs it too, without the private names.
 // check:secrets refuses a file the branch adds or changes that gains a credential's shape (leak-scan.mjs), by pattern
 // only; CI runs it as its own secret-check job, whose failure the watcher takes to the owner.
+// check:evidence refuses a branch that adds or changes evidence media, which goes to the evidence bucket instead
+// (evidence-check.mjs, ADR-1234 D1); it reads only files, so CI runs it too.
 // check:capability-list (ADR-0949 D3) fails a branch that changes a capability its increment does not list; a
 // branch whose name carries no increment is NOT RUN with that reason.
 import { capabilityListFor } from "./capability-list.mjs";
@@ -22,5 +24,6 @@ export const gateSteps = [
   { name: "check:seed-records", command: () => node("packages/repo-checks/src/seed-records.mjs") },
   { name: "check:leaks", command: () => node("packages/repo-checks/src/leak-scan.mjs") },
   { name: "check:secrets", command: () => node("packages/repo-checks/src/leak-scan.mjs", "--secrets") },
+  { name: "check:evidence", command: () => node("packages/repo-checks/src/evidence-check.mjs") },
   { name: "check:capability-list", when: listed, command: () => node("packages/repo-checks/src/capability-list.mjs") },
 ];

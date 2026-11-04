@@ -84,3 +84,21 @@ test("3.13 a copy the installer did not deliver (no delivery record, no agent to
   assert.match(offered.notInstalled, /installed cop/);
   assert.match(offered.notInstalled, /dev-home/);
 });
+
+test("3.20 an agent that has not answered within the search's bound reaches the guide with its note", async (t) => {
+  const dir = mkdtempSync(path.join(tmpdir(), "storytree-app-connect-slow-"));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const user = path.join(dir, "user");
+  const own = path.join(dir, "app", "agent-tools");
+  mkdirSync(own, { recursive: true });
+  for (const file of [process.platform === "win32" ? "node.exe" : "node", "storytree-mcp.mjs"]) writeFileSync(path.join(own, file), "");
+  // Claude Code never answers its --version; no other agent runs here.
+  const run: RunHarness = (executable) => executable === "claude" ? new Promise<string>(() => {}) : Promise.reject(new Error("not installed"));
+  const unused = async () => { throw new Error("not used here"); };
+  const help = setupHelpActions({ licenseFile: "", storytreeHome: path.join(user, ".storytree", "0.3"), chooseFolder: unused, openExternal: unused, copyText: unused, library: () => { throw new Error("not used here"); }, agentTools: own, connections: { home: user, env: {}, run, probeTimeoutMs: 50 } });
+
+  const offered = await help.agentsToConnect();
+  assert.ok(Array.isArray(offered));
+  assert.deepEqual(offered.map(({ harness, connected }) => ({ harness, connected })), [{ harness: "claude-code", connected: false }]);
+  assert.match(offered[0]!.note ?? "", /did not answer claude --version/);
+});

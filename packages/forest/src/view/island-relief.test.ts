@@ -46,7 +46,7 @@ test("3.78 every territory on the selected island stands one plateau's height ab
 });
 
 test("3.78 a ramp only where a road climbs from the open land onto a territory, sloping from the plateau's edge down to the open land", () => {
-  const onto = roads.gates.filter((g) => { const n = { x: -g.along.z, z: g.along.x }; const sides = [territoryOf(at(g.at, n, 0.8)), territoryOf(at(g.at, n, -0.8))]; return sides.includes(-1) && sides.some((t) => t >= 0); });
+  const onto = roads.gates.filter((g) => { const n = { x: -g.along.z, z: g.along.x }; const sides = [territoryOf(at(g.at, n, 0.8)), territoryOf(at(g.at, n, -0.8))]; return sides.includes(-1) && sides.some((t) => t !== undefined && t >= 0); });
   assert.ok(onto.length > 0 && onto.length < roads.gates.length, "some gates between territories, some onto the open land");
   assert.equal(relief.ramps.length, onto.length, "a ramp at every gate onto the open land, and nowhere else");
   for (const r of relief.ramps) {

@@ -95,6 +95,43 @@ test("2.13 the agents this computer runs are found, each said connected to this 
   assert.deepEqual((await agentsOnThisComputer(options))[0], { harness: "claude-code", agent: "Claude Code", connected: false }, "settings it cannot read are offered, not said connected");
 });
 
+test("2.14 the agent search answers within its bound: the agents are asked side by side, a probe that never returns holds up no other, and its agent is offered with a note saying it did not answer", async (t) => {
+  const f = fixture(t);
+  // Claude Code's first --version after a restart never answers; Codex answers only once every agent has been asked,
+  // which a search asking one after another would never reach; nothing else is installed.
+  const asked: string[] = [];
+  let everyoneAsked: () => void = () => {};
+  const allAsked = new Promise<void>((resolve) => { everyoneAsked = resolve; });
+  const slow: RunHarness = async (executable, args, options) => {
+    if (args[0] === "--version" && asked.push(executable) === 5) everyoneAsked();
+    if (executable === "claude" && args[0] === "--version") return new Promise<string>(() => {});
+    if (args[0] === "--version" && executable !== "codex") throw new Error("not installed");
+    if (args[0] === "--version") await allAsked;
+    return run(executable, args, options);
+  };
+  const found = await agentsOnThisComputer({ ...f.options, run: slow, probeTimeoutMs: 200 });
+  assert.deepEqual(found.map(({ harness, connected }) => ({ harness, connected })), [
+    { harness: "claude-code", connected: false },
+    { harness: "codex", connected: false },
+  ]);
+  assert.match(found[0]!.note ?? "", /Claude Code did not answer claude --version within 0\.2 seconds/);
+  assert.equal(found[1]!.note, undefined, "an agent that answered carries no note: it was not held up behind Claude Code");
+});
+
+test("2.14 an agent that answers --version but whose settings are not read within the bound is offered with a note saying whether it is connected is not known", async (t) => {
+  const f = fixture(t);
+  writeFileSync(f.codexFile, legacy);
+  // Codex answers --version, then its codex mcp list never returns.
+  const stuck: RunHarness = async (executable, args, options) => {
+    if (args[0] === "--version") { if (executable === "codex") return "codex 1"; throw new Error("not installed"); }
+    if (args[1] === "list") return new Promise<string>(() => {});
+    return run(executable, args, options);
+  };
+  const found = await agentsOnThisComputer({ ...f.options, run: stuck, probeTimeoutMs: 100 });
+  assert.deepEqual(found.map(({ harness, connected }) => ({ harness, connected })), [{ harness: "codex", connected: false }]);
+  assert.match(found[0]!.note ?? "", /Codex answered, but its settings were not read within 0\.1 seconds/);
+});
+
 test("2.10 choosing Cursor registers the tool server in ~/.cursor/mcp.json and storytree's hooks in ~/.cursor/hooks.json, keeping every other server and hook; repeating changes nothing, disconnecting removes exactly what it added, and a machine without Cursor gets a recovery action, not a success", async (t) => {
   const f = fixture(t);
   const cursor = path.join(f.home, ".cursor");

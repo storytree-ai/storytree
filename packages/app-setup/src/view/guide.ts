@@ -2,6 +2,13 @@
 
 import { languageList, SURVEYED_LANGUAGES } from "@storytree/map/languages";
 
+import { HARNESS_IDS, watchedHarness } from "@storytree/project-and-caller/caller";
+
+import { AGENT_SEARCH_SECONDS } from "../help/bridge.js";
+
+/** The agents the search asks, named while it waits on them. */
+const AGENT_SEARCH_LABELS = languageList(HARNESS_IDS.map((id) => watchedHarness(id)?.label ?? id));
+
 /** The platform the guide's troubleshooting is for (3.15); undefined when the app cannot tell, which gets every platform's. */
 export type GuidePlatform = "windows" | "mac" | "linux";
 
@@ -54,7 +61,7 @@ export function guideFor(platform: GuidePlatform | undefined): string {
   <h3>Set up storytree on this computer</h3>
   <p>Both steps are optional, and you can come back to them here from Help.</p>
   <h4>Connect your coding agents</h4>
-  <div class="setup-help-connect" data-connect role="status"><p>Looking for the coding agents on this computer…</p></div>
+  <div class="setup-help-connect" data-connect role="status"><p>Asking each coding agent on this computer for its version (${AGENT_SEARCH_LABELS}); one that has not answered in ${AGENT_SEARCH_SECONDS} seconds is offered anyway…</p></div>
   <h4>Add your first project</h4>
   <p>Choose the folder of something you want to build. Storytree sets it up as a project and shows it. Its map reads ${languageList(SURVEYED_LANGUAGES)} code; a project in another language shows only what its agent plans.</p>
   <div class="setup-help-actions"><button type="button" data-guide-add-project>Add a project…</button></div>

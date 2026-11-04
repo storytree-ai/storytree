@@ -169,6 +169,29 @@ test("22.4 the health report names each link or supersession pointing at a recor
   });
 });
 
+test("22.4 the health report names a check's enforces edge pointing at a principle no longer live", async () => {
+  await withLibrary(async (library) => {
+    const principle = await library.writeKnowledge("principle", {
+      title: "Send from a verified domain",
+      description: "Mail from an unverified domain bounces.",
+      statement: "Every email is sent from a verified domain.",
+      why: "Providers refuse the rest.",
+      howToApply: "Verify the domain before the first send.",
+    });
+    const check = await library.writeKnowledge("check", {
+      title: "Unverified sender",
+      description: "A send from a domain nobody verified",
+      question: "Does any send use a domain that is not verified?",
+      howToAnswer: "Yes when a sender's domain has no verification record",
+      enforces: [principle.id],
+      graduated: [],
+    });
+
+    await library.retire(principle.id, "wrongly recorded");
+    assert.deepEqual(await brokenEdges(library), [{ from: check.id, field: "enforces", to: principle.id }]);
+  });
+});
+
 test("22.5 a decision superseded by `adr new --supersedes` leaves `adr list --load-bearing`, and its successor takes the mark and the shelf as supersede leaves them", async () => {
   await withLibrary(async (library) => {
     const { capability, cover } = await shelf(library);

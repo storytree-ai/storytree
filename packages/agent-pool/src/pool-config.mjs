@@ -29,6 +29,8 @@
 //   one. Another project's lanes are briefed with its `checks`, the commands its lane runs before it opens a pull request,
 //   in order, and its `review`, what its lane does to have its change reviewed (pool-brief-project.md). By default, or
 //   empty, storytree alone.
+// The running dispatcher reads projects and sessions again as it runs, so an edit to either reaches its next survey; an
+// edit to any other field restarts it once its running lanes end (3.39).
 // `~` is the home folder of the machine reading the file. The environment variables the pool read before
 // (LANES_DIR, CODEX_STOP_AT, WATCH_BOX_HOST, WATCH_FIX_LIMIT, WATCH_FIX_CAP, WATCH_INTERVAL_S) still override it.
 import { readFileSync } from "node:fs";

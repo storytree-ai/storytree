@@ -12,6 +12,8 @@
  * - A specifier resolves against the island's mapped files and every built file: a relative path, the importer's
  *   nearest tsconfig.json `compilerOptions.paths` (from its baseUrl, else its folder; `extends` is not followed),
  *   or a mapped package's name with or without a subpath (its literal exports, else main, else its folder's index).
+ * - An island's Python file is read by the survey's Python reader, against the island's files from the mapped
+ *   package's src/, then its top: `from src.db import x` at the top of a project whose src/ is a package reaches src/db.py.
  * - The island's files are read for their imports only here, when asked: the black box stays cheap until someone looks.
  *   Code that uses the files through the database, events or a name this cannot resolve is not counted, and the answer says so.
  */
@@ -19,7 +21,8 @@ import path from "node:path";
 
 import type { AnnotatedTree, StorySurvey } from "@storytree/library";
 
-import { packageOf, specifiersOf } from "./code-survey.js";
+import { dependenciesOf, packageOf, readersReady, specifiersOf } from "./code-survey.js";
+import { pythonReader } from "./python-reader.js";
 import { manifestFrom } from "./survey-source.js";
 
 export type CrossingOptions = {
@@ -209,6 +212,13 @@ export async function crossingsOf(
     return { dir, name: manifest.name, exports: manifest.exports, ...(typeof main === "string" ? { main } : {}) };
   }))).filter((one): one is MappedPackage => one !== undefined);
   const aliases = aliasReader(readText);
+  // A Python file's imports are read against the island's files, from each mapped package's root.
+  const islandPaths = new Set([...known.values()].filter(({ side }) => side === "island").map(({ shown }) => shown));
+  const pythonPackages = islandStories.map((story) => {
+    const dir = path.posix.normalize(story.mapped!.package);
+    return { root: dir === "." ? "" : `${dir}/`, name: story.id, exports: {} };
+  });
+  await readersReady(islandPaths);
 
   async function resolve(from: Known, specifier: string): Promise<string | undefined> {
     const dir = path.posix.dirname(from.full);
@@ -236,6 +246,9 @@ export async function crossingsOf(
   async function importsFrom(file: Known): Promise<string[]> {
     const text = await readText(file.full).catch(() => undefined);
     if (text === undefined) return [];
+    if (pythonReader.files.test(file.full)) {
+      return file.side === "island" ? dependenciesOf({ path: file.shown, text }, islandPaths, pythonPackages).map((to) => `${island}/${to}`) : [];
+    }
     const found = await Promise.all(specifiersOf({ path: file.full, text }).map((specifier) => resolve(file, specifier)));
     return found.filter((to): to is string => to !== undefined);
   }

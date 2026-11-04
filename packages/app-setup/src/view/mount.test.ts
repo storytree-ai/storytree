@@ -139,6 +139,25 @@ test("3.16 before a Connect is pressed the guide says what connecting records: e
   } finally { mounted.stop(); }
 });
 
+test("3.20 while it searches the guide says what it waits on and for how long, and an agent offered with a note shows it beside its Connect", async () => {
+  let answer: (found: Awaited<ReturnType<SetupHelpBridge["agentsToConnect"]>>) => void = () => {};
+  const mounted = mountSetupHelp(document.body, helpBridge({
+    agentsToConnect: () => new Promise((resolve) => { answer = resolve; }),
+  }));
+  try {
+    await setImmediate();
+    const offer = document.querySelector<HTMLElement>("[data-connect]")!;
+    assert.match(offer.textContent!, /Asking each coding agent on this computer for its version/);
+    assert.match(offer.textContent!, /15 seconds/);
+    answer([{ harness: "claude-code", agent: "Claude Code", connected: false, note: "Claude Code did not answer claude --version within 15 seconds." }, { harness: "codex", agent: "Codex", connected: false }]);
+    await setImmediate();
+    const rows = [...offer.querySelectorAll<HTMLElement>(".setup-help-connect-agent")];
+    assert.ok(rows[0]!.querySelector("[data-connect-agent=claude-code]"), "the agent with a note is still offered");
+    assert.match(rows[0]!.querySelector("[data-connect-note]")?.textContent ?? "", /did not answer claude --version/);
+    assert.ok(rows[1]!.querySelector("[data-connect-note]") === null, "an agent that answered has no note");
+  } finally { mounted.stop(); }
+});
+
 test("3.13 when the agents cannot be read the guide says why", async () => {
   const mounted = mountSetupHelp(document.body, helpBridge({ agentsToConnect: async () => { throw new Error("No delivery record"); } }));
   try {

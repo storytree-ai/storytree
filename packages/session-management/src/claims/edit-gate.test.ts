@@ -174,6 +174,44 @@ test("5.40 an edit tool aimed at a file in an imported folder is refused before 
   }
 });
 
+test("5.65 a refused edit to an imported file no capability covers, under an increment that lists capabilities, names adding the file to one of them: each listed capability with its covers now and the edit_plan that widens them, not drawing a capability it already has", async () => {
+  const project = uniqueProjectName();
+  const storytree = await connect({ url: testServerUrl() });
+  const log = await openActivityLog(testServerUrl());
+  try {
+    await withTempDir(async (root) => {
+      const checkout = path.join(root, "project");
+      const viewer = path.join(root, "viewer");
+      const library = await storytree.openProject(project);
+      const { added: [mapped] } = await library.mapStories("https://github.com/someone/viewer.git", [{ package: ".", title: "viewer", folders: ["."] }]);
+      const stats = (await library.addCapability({ title: "Stats page", story: mapped!.id, covers: ["app/stats"] })).id;
+      const util = (await library.addCapability({ title: "Util", story: mapped!.id, covers: ["lib/util.ts"] })).id;
+      const arc = await library.createArc({ title: "Stats", intent: "A stats page", endState: "Stats shown", stories: [mapped!.id] });
+      const mine = (await library.addIncrement({ arc: arc.id, title: "stats tests", objective: "stats tests", body: "stats tests", capabilities: [stats, util] })).id;
+      const as = { log, library, project, session: "A", harness: "claude-code", folder: checkout };
+      assert.equal((await claim(as, mine, "testing the stats page")).ok, true);
+
+      const refusal = await editRefusal(as, checkout, [{ path: path.join(viewer, "tests/stats.test.ts") }], declaredInTests, [{ folder: viewer, repository: "https://github.com/someone/viewer.git" }]);
+      assert.deepEqual(refusal?.refused === "imported" ? refusal.listed : refusal, [
+        { capability: stats, title: "1 · Stats page", covers: ["app/stats"] },
+        { capability: util, title: "2 · Util", covers: ["lib/util.ts"] },
+      ], "the refusal carries the increment's listed capabilities with their covers");
+      const message = refusalMessage(refusal!);
+      assert.match(message, new RegExp(`add tests/stats\\.test\\.ts to the covers of one of them`), "it names the missing covers");
+      assert.match(message, new RegExp(`"1 · Stats page" \\(${stats}\\), covering app/stats`), "naming each listed capability with its covers now");
+      assert.match(message, new RegExp(`edit_plan with id ${stats} or ${util}, covers its covers now plus tests/stats\\.test\\.ts, and live: true`), "and the edit that widens them");
+      assert.doesNotMatch(message, /draw the capability you mean to change/, "not drawing a capability the increment already lists");
+    });
+  } finally {
+    try {
+      await log.close();
+      await storytree.close();
+    } finally {
+      await dropTestProjects([project]);
+    }
+  }
+});
+
 test("5.41 one yes from the user covers an increment's edits to imported code: given at the harness's prompt (recorded by the hook after the edit it let through) or typed at the user's own terminal, it covers what the increment listed and each capability covered then; a capability listed later or a cover widened since is asked again, and a yes an agent wrote is not one (ADR-1015)", async () => {
   const project = uniqueProjectName();
   const storytree = await connect({ url: testServerUrl() });

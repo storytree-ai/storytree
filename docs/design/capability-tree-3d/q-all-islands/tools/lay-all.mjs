@@ -1,7 +1,8 @@
 // Rollout 1: runs the layout tool (layout.ts) for every story with docks, a few at a time, each with the same search
 // settings; The library starts from round 3's arrangement (layouts/round3.json). Prints each island's line as it finishes.
 // Run from the checkout root: node docs/design/capability-tree-3d/q-all-islands/tools/lay-all.mjs [story ...]
-// (JOBS=3, ITER=200 and SEED=43 by default; any other layout.ts setting passes through the environment.)
+// (JOBS=3, ITER=200, SEED=43 and The library's LIB_ITER=400, as round 13 searched it, by default; any other layout.ts
+// setting, BEFORE=1 among them, passes through the environment.)
 import { spawn } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
@@ -15,7 +16,7 @@ const ids = (asked.length ? asked : Object.keys(data.stories));
 const jobs = Number(process.env.JOBS ?? 3);
 const one = id => new Promise(done => {
   const env = { ...process.env, STORY: id, ITER: process.env.ITER ?? '200', SEED: process.env.SEED ?? '43',
-    ...(id === LIBRARY && !process.env.START ? { START: path.join(path.relative(process.cwd(), dist), 'layouts/round3.json') } : {}) };
+    ...(id === LIBRARY && !process.env.START ? { START: path.join(path.relative(process.cwd(), dist), 'layouts/round3.json'), ITER: process.env.LIB_ITER ?? '400' } : {}) };
   const child = spawn(process.execPath, ['--import', 'tsx', path.join(here, 'layout.ts')], { env, stdio: ['ignore', 'pipe', 'pipe'] });
   let out = '', err = '';
   child.stdout.on('data', d => { out += d; });

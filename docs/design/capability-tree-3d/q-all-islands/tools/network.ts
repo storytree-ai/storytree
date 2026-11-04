@@ -37,7 +37,7 @@ export type NetInput = {
   cost?: Partial<typeof COST>;
 };
 export type Segment = { id: number; pts: P[]; links: string[]; ends: [number, number] };
-export type Net = { segments: Segment[]; ways: Map<string, P[]>; segmentsOf: Map<string, number[]>; junctions: P[]; nodes: number; cost: typeof COST;
+export type Net = { segments: Segment[]; ways: Map<string, P[]>; segmentsOf: Map<string, number[]>; junctions: P[]; nodes: number; cost: typeof COST; crowded: string[];
   /** Each link's own gate as routed: where it last enters the territory it calls (the way out: where it first leaves). */
   entrances: Map<string, P> };
 
@@ -68,6 +68,9 @@ export const COST = {
   /** Polish round 3: two links whose own gates are on the same border, between the same two territories, either way, may
    * share one gate (1), so they travel one road through it; or each keeps its own (0), and the two run side by side. */
   pairShare: 0,
+  /** Rollout 1: a link that finds no gate of its own may come in beside another link's entrance (1), listed in `crowded`,
+   * rather than have no road (0, round 3's rule: on a small territory every border can be within entranceApart of one). */
+  crowd: 0,
 };
 
 const dist = (a: P, b: P) => Math.hypot(a.x - b.x, a.z - b.z);
@@ -174,7 +177,10 @@ export function network(input: NetInput): Net {
     }
     return found;
   };
-  const route = (l: NetLink) => {
+  /** Rollout 1: links that found no gate of their own (every border into their territory within entranceApart of another
+   * link's entrance) and came in beside one; round 3's rule left them no road at all. */
+  const crowded = new Set<string>();
+  const route = (l: NetLink, relaxed = false): number[] => {
     const [s, t] = ends.get(l.key)!, mine = l.kind === "out" ? l.fromT : l.toT;
     // The entrances other links have taken, and whether each is into the territory this link enters (which, with
     // shareEntrance, it may come in through too).
@@ -194,7 +200,7 @@ export function network(input: NetInput): Net {
           const into = terr[b]!;
           // Its entrance is its own: never at (or beside) a gate that is another link's entrance, either way through.
           const own = l.kind === "out" ? terr[a] === l.fromT : into === l.toT;
-          if (own && taken.some(q => dist(q.p, e.gate!.p) < cost.entranceApart && !(((cost.shareEntrance && q.same) || (cost.pairShare && q.border === pairKey(e.gate!.pair))) && dist(q.p, e.gate!.p) < 0.05))) continue;
+          if (own && !relaxed && taken.some(q => dist(q.p, e.gate!.p) < cost.entranceApart && !(((cost.shareEntrance && q.same) || (cost.pairShare && q.border === pairKey(e.gate!.pair))) && dist(q.p, e.gate!.p) < 0.05))) continue;
           step += cost.gate + (input.gateExtra?.(e.gate.p, e.gate.pair) ?? 0);
           if (cost.openGate && e.gate.pair.includes("open")) step += cost.openGate;
           // An inside link over a third territory is a fault however many share the road; an arrival's trunk is not.
@@ -206,7 +212,11 @@ export function network(input: NetInput): Net {
         if (nc < best[b]!) { best[b] = nc; back[b] = a; heap.push(nc, b); }
       }
     }
-    if (back[t] === -1 && s !== t) throw new Error(`no road for ${l.key}`);
+    if (back[t] === -1 && s !== t) {
+      if (relaxed || !cost.crowd) throw new Error(`no road for ${l.key}${process.env.VERBOSE ? ` (${(() => { const seen = new Set([s]), q = [s]; while (q.length) for (const e of adj[q.pop()!]!) if (!seen.has(e.to)) { seen.add(e.to); q.push(e.to); } return `${seen.size} of ${pts.length} reachable, target ${seen.has(t)}, ends join ${adj[s]!.length} and ${adj[t]!.length}, target in ${terr[t]}`; })()})` : ""}`);
+      crowded.add(l.key);
+      return route(l, true);
+    }
     const path = [t];
     while (path[0] !== s) path.unshift(back[path[0]!]!);
     return path;
@@ -225,7 +235,7 @@ export function network(input: NetInput): Net {
   };
   const order = [...input.links].sort((a, b) => (a.kind === "inside" ? 1 : 0) - (b.kind === "inside" ? 1 : 0) || b.links - a.links);
   for (const l of order) lay(l, route(l));
-  for (let pass = 0; pass < 2; pass++) for (const l of order) { lift(l); lay(l, route(l)); }
+  for (let pass = 0; pass < 2; pass++) { crowded.clear(); for (const l of order) { lift(l); lay(l, route(l)); } }
 
   // ── Segments: maximal runs carrying one set of links, between junctions ─────────────────────────────────────────────
   const setOf = (a: number, b: number) => [...usage.get(ekey(a, b)) ?? []].sort().join("|");
@@ -296,5 +306,5 @@ export function network(input: NetInput): Net {
   const degree = new Map<number, number>();
   for (const s of segments) for (const e of s.ends) degree.set(e, (degree.get(e) ?? 0) + 1);
   const junctions = [...degree].filter(([n, d]) => d >= 3 && !endNodes.has(n)).map(([n]) => pts[n]!);
-  return { segments, ways, segmentsOf, junctions, nodes: pts.length, cost, entrances: new Map([...entrances.values()].flatMap(m => [...m])) };
+  return { segments, ways, segmentsOf, junctions, nodes: pts.length, cost, crowded: [...crowded], entrances: new Map([...entrances.values()].flatMap(m => [...m])) };
 }

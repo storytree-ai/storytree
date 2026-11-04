@@ -1,112 +1,126 @@
-# Capability tree map, polish round 3 of 3: one road between neighbours, gates priced off the names, a smooth way in
+# Capability tree map, rollout 1 of 2: the look checked on every island
 
-Polish round 2 (`../o-polish-2/`, copied whole), polished one round further. A mock only (increment_5a6f05cbb8d2 on
-arc_9bbaa3497530): it changes no product code. Everything Mick picked stands as he picked it: the sandy faint roads, the
-plateaus, ramps only from open land, standing posts, bevel rims, round 12's flat symbols, round 13's minimum size, shared
-entrances and wrench queue, one solid pale sea-blue lane wider only where lanes merge, the port with its two capped towers
-and no jetty, and islands 3 units thick.
+Polish round 3 (`../p-polish-3/`, copied whole), drawn on every story's island instead of The library's alone. A mock only
+(increment_4dcec77d7833 on arc_9bbaa3497530): it changes no product code. Every round so far was tuned on The library; this
+one takes a fresh snapshot of the plan for all 28 stories, draws each island with round 3's look, measures each the way
+round 13 did, and fixes what broke in the mock's general rules, never by special-casing an island. Step 2, the build into
+the map, starts from this folder.
 
-Like rounds 1 and 2, this round adds no new kind of mark, colour or effect. It takes marks away: five gates and the
-roads that ran beside each other to reach them, and the corner in the shipping lane just off the mouth's port.
+Everything Mick picked stands as he picked it: the sandy faint roads, the plateaus, ramps only from open land, standing
+posts, bevel rims, round 12's flat symbols, round 13's minimum territory size, shared entrances and wrench queue, one solid
+pale sea-blue lane wider only where lanes merge and ending just off a port, the port with its two capped towers and no
+jetty, islands 3 units thick, and rounds 1 to 3's gate pricing, shared gates and smooth ways in and out. This round adds no
+new kind of mark, colour or effect.
 
-**Open it:** `index.html`, straight from disk. Each change has a switch that draws it as before: `?pair=0`,
-`?gateClear=8`, `?inKink=1`. All three together draw round 2 exactly (the same measures).
+**Open it:** `index.html?story=<story id>`, straight from disk (The library with no `story`). Each fix has a switch that
+draws round 3's rule instead (below); `?layout=<story id>.before&wrenchClear=names&crowd=0` draws an island as round 3's
+rules lay it out, where they lay it out at all.
 
-![At rest, before and after](stills/sheet-rest.png)
+![Every island at rest, before and after](stills/contact.png)
 
-## What changed
+## What broke, worst first, and how each fix generalises
 
-| Polish round 2 | Polish round 3 |
-| --- | --- |
-| Two links that crossed the same border, one each way, each had to have its own gate, 6 units from any other link's. So where Waits calls Work in flight and an arrival reaches Waits through Work in flight, two roads ran side by side to two gates whose posts touched; Connection by address had the same pair | **Links whose own gates stand on the same border, between the same two territories, may share one gate, either way through.** The two roads become one road through one gate, the way round 13 already let links into one territory share an entrance. Five gates go (39 to 34) and 69 units of road (1092 to 1023) |
-| A gate under a name or beside a settlement cost the road 8 more | **It costs 18.** With fewer gates competing for each border the router has room to move one, and 18 was the best of a sweep from 6 to 30: the gates under The command schema's name and on Cloud connection's symbol move off them |
-| The way in from the sea followed the map's lane until it came within 10 units of the mouth's berth, then ran straight onto it: a corner just off the port, the kink round 1 took out of the way out at Keys | **It eases off the lane** (a curve tangent to the lane where it leaves it) **and comes onto the berth straight in from the sea**, as wide as the lane it leaves |
+| What broke | Where | The fix, in the mock's rules | Switch back |
+| --- | --- | --- | --- |
+| **No arrangement at all.** The map cuts every island into about 260 cells whatever its size, but a gate needs a border segment 4.2 units long and stands 6 from the next: on a small island no border is long enough, so a link cannot get into the territory it calls | 17 of the 28 islands, from Keys (1 capability) to Storytree's own repository checks (10) and Context (5) | **The look is laid out at The library's size and drawn at the island's** (`layout-core.ts`, `islandScale`): the island is scaled by the square root of The library's land over its own, laid out and routed exactly as round 3 lays out The library, and the layer is drawn back at its own size. At rest each island fills the window, so every gate, post, symbol, road and port stands on the page as large as on The library, and its cells give a gate the room they give it there. The library itself is unchanged (scale 1) | layout tool `BEFORE=1` |
+| **Marks too big at rest** on the islands that did lay out: their ground sizes were The library's, and a smaller island is framed larger | Map view (1.7 times), Code map, Agent runner | The same fix | the same |
+| **A capability with no code has no land**, so its links have no settlement to reach. The map gives land only to code | The command line (7 of 13 capabilities, 24 links), Mick's dev loop (all 18: its code is in the factory), The local database, Claude Code mod | **Every capability holds land** (`withCodeless`): one with no code gets the smallest territory round 13's minimum allows, coloured by its word as the map colours any | layout tool `CODELESS=0` |
+| **The page drew no roads** where the layout tool had routed them: the tool searched with round 13's prices, the page routes with polish rounds 2 and 3's (entrances 6 apart, one ramp off the open land, shared gates), and an arrangement could route under one and not the other | The command line | **The search routes with the page's own prices**, so it scores the network the page draws; and **a link with no gate of its own comes in beside another link's entrance** (`crowd`), listed in `stats.crowded`, rather than having no road. No island needs it at the arrangements kept (0 crowded) | `?crowd=0` |
+| **Wrenches crowd** as open work grows: the fresh snapshot has 5 open increments on 10 of The library's capabilities (round 3's had 2), and 9 of the island's 12 overlaps under round 3's rules are a wrench's plate on a name, a symbol, a gate or another plate | The library | **A wrench's plate keeps clear of every mark**, not only the names: symbols, gates and the plates already standing; and every gate of its capability (its ways out too) is tried, upright and then leaning, before the nearest is taken as it stands | `?wrenchClear=names` |
+| **Ports where the lanes hug the coast.** The map's lanes skim a coast before they dock, and from the dock the map's way inland often rides along the coast or across a bay, so "where the lane comes ashore" read naively gave ports in the wrong places: 5 on Desktop app, where the map docks twice; The library's mouth 32 units from its own | Desktop app, Session management, The library and most others | **Every island meets the sea at a port at each of the map's own docks**, read where the lane climbs from its height at sea to the land's (`docks.ts`), and snapped onto the coast. Docks within a port's width share the busier one's port. Every island reads one or two (Test waits, with no outside links, none): usually one for its arrivals and one for its ways out, as The library's mouth and Keys' landfall, which the reading now finds where round 7 read them by hand (62.7, 33.3 and -51.1, 71.5; round 7: 62.5, 35.5 and -51.7, 70.6) | none: round 3 had no reading |
+| **An island's unclaimed code read as open land**: a territory with no capability was taken for no territory, so it drew flat with ramps | any island with code no capability claims | It is its own territory (`UNCLAIMED`), with no links | none |
 
-| | |
-| --- | --- |
-| ![Waits, before and after](stills/sheet-waits.png) | ![The way in, before and after](stills/sheet-sea.png) |
-
-![The knot round Library API, before and after](stills/sheet-knot.png)
+How the islands meet the sea, decided with the pictures: each island draws a port at each dock the map lands its lanes at,
+and only the selected island's (round 1 dropped other islands' ports, and nothing here brings them back). Islands with
+many outside links (Desktop app 78, Context 76, The MCP server 54, The command line 63) take them all through one port and
+one sandy trunk, as The library's 188 arrivals do: nothing broke there.
 
 ## The measures, at rest
 
-Round 13's page measures, as rounds 1 and 2 took them (`tools/shots.mjs` reads `overlay.ts`'s `crowding` and `stats` at
-rest): each name's box, each settlement's symbol, each gate's opening with its posts and each wrench's plate; how many
-pairs overlap and how many more stand within 4 pixels, across the island and in the knot (Library API, Links, Catalogue,
-Graduation, Rounds, Lapsed questions, Decision log). The numbers are in `stills/before.measures.json` and
-`after.measures.json`; the rows between are from `tools/crowd.mjs` with the query shown.
+Round 13's page measures, as rounds 1 to 3 took them (`tools/islands.mjs` reads `overlay.ts`'s `crowding` and `stats` at
+rest): marks overlapping and within 4 pixels across the island and in its busiest part (the settlement most links meet at
+and every territory bordering it: on The library, Library API's), gates, road drawn (in the island's own ground units),
+inside links over a third territory, road on the coast's edge, and links the layer could not place. Before is round 3's
+rules (`?layout=<id>.before&wrenchClear=names&crowd=0`); after is this round's. The numbers are in
+`stills/islands/before.measures.json` and `after.measures.json`; the stills, each island at rest and close on its busiest
+part, in `stills/islands/before/` and `after/`.
 
-| On the page, at rest | Marks overlapping (island) | Within 4 px | Overlapping (knot) | Within 4 px (knot) | Gates | On the open land's edge | Road drawn | Inside links over a third territory | Road on the coast's edge |
-| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| Polish round 2 (as landed, `?pair=0&gateClear=8&inKink=1`) | 5 | 11 | 1 | 5 | 39 | 2 | 1092 | 14 | 0 |
-| Shared gates alone (`?gateClear=8`) | 5 | 8 | 2 | 4 | 34 | 2 | 1023 | 14 | 0 |
-| Gate price 18 alone (`?pair=0`) | 4 | 10 | 2 | 4 | 39 | 2 | 1126 | 14 | 0 |
-| **Both (after; the smooth way in changes none of these)** | **3** | **8** | **2** | **4** | **34** | **2** | **1045** | **14** | **0** |
+TABLE
 
-What they showed:
+### The library against round 3
 
-1. **Of the 3 left, 2 are the map's own names** (Links over Catalogue, Owner questions over Connection by address), which
-   the mock cannot move. The third is the gate into Graduation from Library API, which three links share. It stood in
-   the same place in round 2, then a hair clear of the name; it now just touches it, and it is the knot's second overlap.
-   It is the only border those links can enter Graduation by without crossing a third territory.
-2. **Shared gates are what take marks away**: 5 gates, 69 units of road, and the touching pair at Waits. Alone, they let
-   the router put a gate under Graduation's name (the price was too low to keep it off once two roads became one).
-3. **The price alone does little** (4 overlapping, and more road): with every link still needing its own gate the router
-   has few other borders to take. Together, the two take the island from 5 to 3.
-4. **The router is touchy, as round 2 found.** Prices either side of 18 swap one overlap for another (14 and 20 also gave
-   3; 24 put a gate on Rounds' symbol; 30 gave 7). Every setting with shared gates beat round 2's gate count.
-5. **The router reads the names' boxes as the page lays them out**, so on a heavily loaded machine one run caught them
-   mid-layout and routed differently (4 overlapping, 1049 road). Re-run, the measures repeat exactly; the kept numbers are
-   from runs that agree.
+The fresh snapshot is not round 3's: The library's territories are sized by today's lines of code, its lanes land where the
+map now docks them, and it carries 5 open increments to round 3's 2. So it was measured twice: on this snapshot's open work, and
+on round 3's (`?work=round3`, round 3's own `open-work.json`), which is the like-for-like comparison.
+
+| The library, at rest | Overlapping | Within 4 px | Knot overlapping | Knot within 4 px | Gates | Road drawn | Over a third | Road on the edge |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| Polish round 3, as landed (its snapshot) | 3 | 8 | 2 | 4 | 34 | 1045 | 14 | 0 |
+| Round 3's rules on this snapshot, round 3's open work | 5 | 8 | 2 | 3 | 34 | 1133 | 15 | 0 |
+| **This round, round 3's open work** | **1** | **8** | **1** | **6** | **32** | **993** | **14** | **0** |
+| Round 3's rules on this snapshot, today's open work | 12 | 11 | 7 | 4 | 34 | 1133 | 15 | 0 |
+| This round, today's open work | LIBNOW |
+
+(The knot is round 13's list: Library API, Links, Catalogue, Graduation, Rounds, Lapsed questions, Decision log.) On round
+3's open work every number but one is round 3's or better; the knot's marks within 4 px go from 4 to 6, all pairs of gates
+and names standing a few pixels apart rather than overlapping. The one overlap left is a gate under Decision log's name.
+On today's open work the wrenches are what overlaps: see the next things to look at.
+
+![The library: round 3, and this round on round 3's open work](stills/library.png)
 
 ## Tried and dropped
 
-- **A wider name test round a gate** (`gateReach`, from round 2's 3.2 units to 4, 4.5 and 5, rings at full and 0.6 of
-  the reach). A gate three links share is wider than 3.2 units each side, so the test seemed to miss the Graduation gate.
-  It moved that gate at 4.5, but put another on Rounds' symbol and sent one more link over a third territory; at 5 it
-  gave 5 overlapping. Its code is gone.
-- **Entrances held 5 or 7 units apart** (round 2 keeps 6) with shared gates, at round 2's gate price: each gave 6 overlapping.
-- **A dearer gate (6, 8, 12) or a cheaper shared road (`share` 0.2)** before shared gates: neither moved the gate count
-  from 38 to 40. The gates are where the links' own entrances must be, not where the prices put them.
+- **The last place a lane comes ashore** as its dock: on Session management the map's way inland crosses the south bay, so
+  the bay's far shore read as two docks with no lane to them.
+- **The first place it comes ashore**: lanes skimming a coast before they dock read as docks there (Desktop app's three
+  extra ports, The library's mouth 32 units south of its own).
+- **The first point on the land after the lane climbs**: on Desktop app the way inland rides just off the coast from the
+  east dock to the north-east, so that read the north-east. The dock is where the climb starts, snapped to the coast.
+- **The minimum as a share of the land** instead of a cell count: every island is cut into about 260 cells, so 5 cells is
+  already the same share everywhere; it changed nothing, and the scale fix is what gives a small island's territory room.
+- **The library from round 3's arrangement**, searched under the page's prices (two seeds, 800 steps each): on the page,
+  13 marks overlapping and 17 links over a third territory, and 12 overlapping (22 within 4 px) and 12 over a third.
+  Searched from round 3's rules' own arrangement instead, it found 8 overlapping and 14 over a third, the one kept
+  (`layouts/library-a.json`, `library-b.json`, `library-c.json`, kept as `story_754e87e7d531.json`; `library-search1.json`
+  is the 400-step first try, at 20 over a third).
 
 ## The stills
 
 | | |
 | --- | --- |
-| ![At rest](stills/after-rest.png) | ![The mouth, close](stills/after-mouth.png) |
-| At rest, the whole island | The mouth, close |
-| ![Keys' landfall, close](stills/after-keys.png) | ![The knot, close](stills/after-knot.png) |
-| Keys' landfall, close | The Library API knot, close |
-| ![A link lit](stills/after-link-lit.png) | ![A second angle](stills/after-orbited.png) |
-| Rounds calls Library API, lit | Turned and tilted nearer level |
+| ![Context, close](stills/islands/after/story_6def59292b78-busy.png) | ![Setup at rest](stills/islands/after/story_b91056a06337-rest.png) |
+| Context's busiest part, close (Settings) | Setup at rest: two ports, at the map's two docks |
+| ![Keys at rest](stills/islands/after/story_d47051f035f0-rest.png) | ![The command line at rest](stills/islands/after/story_f9fb5136c28f-rest.png) |
+| Keys, the smallest, at rest: the look at The library's size on the page | The command line, every capability with land |
 
-The same six views of polish round 2 as landed are `stills/before-*.png`.
+Every island's close-up of its busiest part is `stills/islands/after/<story>-busy.png` (and `before/`), laid out in
+`stills/contact-busy.png`; each island as the map draws it today is `stills/today/<story>.png`.
 
 ## How it was made
 
 Run from the checkout root.
 
-1. `node docs/design/capability-tree-3d/p-polish-3/tools/build.mjs` builds `index.html`, `page.js` and `page.css` from the
-   real map code (packages/forest's view, on `../h-quiet-roads/data.json`).
-2. `node --import tsx docs/design/capability-tree-3d/p-polish-3/tools/shots.mjs <tag> [query] --retake` takes the six
-   stills as `stills/<tag>-*.png` and writes the measures at rest to `<tag>.measures.json` (in the capture kit's scratch
-   folder without `--retake`).
-3. `node --import tsx docs/design/capability-tree-3d/p-polish-3/tools/crowd.mjs '' '?pair=0' …` prints the measures for
-   each query, faster, with no stills. `stats.gateList` (new) lists each gate, where it stands, its border and how many
-   links it carries, which is how the side-by-side pairs were found.
-4. `node --import tsx docs/design/capability-tree-3d/p-polish-3/tools/sheet.mjs --retake` lays the before-and-after sheets.
+1. `node --import tsx docs/design/capability-tree-3d/q-all-islands/tools/measure.mjs` snapshots the plan, code survey and
+   open work for every story into `data.json`; `tools/survey.ts` writes each island's size and links to `survey.json`.
+2. `node docs/design/capability-tree-3d/q-all-islands/tools/build.mjs` builds `index.html`, `page.js` and `page.css` from the
+   real map code (packages/forest's view) with every arrangement in `layouts/`.
+3. `node --import tsx docs/design/capability-tree-3d/q-all-islands/tools/docks.mjs --stills` reads where the map docks each
+   island's lanes into `docks.json`, and takes each island as the map draws it today into `stills/today/`.
+4. `node docs/design/capability-tree-3d/q-all-islands/tools/lay-all.mjs` runs the layout tool (`tools/layout.ts`) for every
+   story into `layouts/<story>.json`; `BEFORE=1` for round 3's rules, into `<story>.before.json`. Build again after.
+5. `node --import tsx docs/design/capability-tree-3d/q-all-islands/tools/islands.mjs <tag> [query] --retake` takes every
+   island at rest and close on its busiest part, with its measures; `?layout={id}.before&wrenchClear=names&crowd=0` for the
+   before. `tools/contact.mjs <name> before after` lays the contact sheets, `tools/table.mjs before after` the table above.
 
 ## Next things to look at
 
-1. **The Graduation gate.** Three links share it and it just touches Graduation's name at rest. Placing a gate at its
-   border segment's clearest point, rather than where the lattice step crosses it (round 2's note 2), would slide it clear.
-2. **Where three territories meet.** West of Health record, Library API, Work model, Health record and Knowledge entrances
-   meet, and six gates stand within a few units of one another. A road that crosses at the meeting point's far side, or a
-   price on a gate within a gate's width of another border's, might thin them.
-3. **The lit link's detour.** Rounds to Library API now runs down to the junction inside the ramp and back west, sharing
-   the arrivals' road; round 2's ran up through Graduation. Neither is direct: the knot leaves Rounds no straight border
-   with Library API.
-4. **The map's own names** (Links over Catalogue, Owner questions over Connection by address) still collide; the mock
-   cannot move them without changing the map's label layout.
-5. **Round 2's other next steps** still stand: a leaned wrench at other angles, round 13's sizes against room, a link's
-   direction at rest, the panel's selection on the map, and the queue at scale.
+1. **The library's wrenches on today's queue.** Ten wrenches on one island leave 7 overlaps on the page even clear of every
+   mark they can find; the queue of 5 is real. A wrench that cannot clear might stand off its gate on a short leader, or
+   one plate might serve a territory's whole queue where wrenches stand side by side.
+2. **Parked territories read close to open land** where both meet (Context's Social sign-in and session, Session
+   management's Agent activity log): the map's parked slate and the open land's grey are near each other under the relief.
+3. **Two capabilities called "Decision log"** on The library (round 11's note 1) still draw two names the same.
+4. **The knot's marks within 4 px** (4 to 6 on round 3's queue): gates standing a few pixels from Decision log's and Rounds'
+   names, where round 3's price on a gate under a name stops short of the pixels just beside it.
+5. **Step 2 inherits the dock reading**: the map knows its docks (`plan.docks` in forest-world's pathways), so the build
+   can take them from there rather than reading them off the lanes.

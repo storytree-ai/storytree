@@ -1,4 +1,5 @@
 // Lays a before and an after still side by side, each cropped the same way, with a caption under each, into stills/.
+// Rollout 1: The library, polish round 3 as landed beside this round on round 3's open work (islands.mjs lib-r3-after).
 // Run from the checkout root: node --import tsx docs/design/capability-tree-3d/q-all-islands/tools/sheet.mjs
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
@@ -8,10 +9,7 @@ import { withCapture } from '../../../../../apps/desktop/src/capture/index.ts';
 const here = path.dirname(fileURLToPath(import.meta.url)), dist = path.dirname(here), stills = path.join(dist, 'stills');
 /** name: [before file, its caption], [after file, its caption], the crop (a scale and the corner it keeps). */
 const SHEETS = {
-  'sheet-rest': [['before-rest.png', 'Before (polish round 2): 5 marks overlapping, 11 within 4 px, 39 gates'], ['after-rest.png', 'After: 3 overlapping (2 the map\'s own names), 8 within 4 px, 34 gates'], { scale: 0.64, origin: '-40px -110px' }],
-  'sheet-waits': [['before-rest.png', 'Before: Waits and Work in flight joined by two roads, side by side'], ['after-rest.png', 'After: one road, through one gate'], { scale: 2, origin: '300px 760px' }],
-  'sheet-sea': [['before-mouth.png', 'Before: the way in turns a corner just off the port'], ['after-mouth.png', 'After: it eases off its line and comes straight in'], { scale: 1.5, origin: '1620px 1140px' }],
-  'sheet-knot': [['before-knot.png', 'Before, round Library API: 1 overlapping, 5 within 4 px'], ['after-knot.png', 'After, round Library API: 2 overlapping, 4 within 4 px'], { scale: 0.8, origin: '0px 0px' }],
+  library: [['../../p-polish-3/stills/after-rest.png', 'Polish round 3 as landed (its snapshot): 3 overlapping, 8 within 4 px, 34 gates'], ['islands/lib-r3-after/story_754e87e7d531-rest.png', 'This round, on round 3\'s open work: 1 overlapping, 8 within 4 px, 32 gates'], { scale: 0.64, origin: '-40px -110px' }],
 };
 await withCapture({ folder: stills, dist }, async ({ browser, out }) => {
   const img = file => `data:image/png;base64,${readFileSync(path.join(stills, file)).toString('base64')}`;

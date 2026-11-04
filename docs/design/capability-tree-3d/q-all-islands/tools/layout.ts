@@ -38,7 +38,8 @@ const STORY = process.env.STORY ?? LIBRARY;
 /** BEFORE=1: round 3's rules as they stood, for the check's before: no island scale, no land for a capability with no code,
  * the search routed with round 13's prices alone; written as layouts/<story>.before.json (`?layout=<story>.before`). */
 const BEFORE = process.env.BEFORE === "1";
-const NAME = `${STORY}${BEFORE ? ".before" : ""}`;
+/** NAME=<name> writes layouts/<name>.json instead, to search more than one arrangement and pick by the page's measures. */
+const NAME = process.env.NAME ?? `${STORY}${BEFORE ? ".before" : ""}`;
 const story = data.stories[STORY];
 if (!story) throw new Error(`no story ${STORY} in the snapshot`);
 type Lane = { key: string; dir: "up" | "down" };
@@ -48,7 +49,10 @@ const scene = forestScene(data.map.tree, data.map.changes, workStates([]), data.
 const island = scene.islands.find((one: { story: string }) => one.story === STORY)!;
 // The island, scaled to The library's size (layout-core.ts's islandScale): everything below is in The library's units.
 const realCoast = islandCoast(island), SCALE = BEFORE ? 1 : islandScale(realCoast), coast = scaleCoast(realCoast, 1 / SCALE);
-const read = readReal.map(d => ({ ...d, at: { x: d.at.x / SCALE, z: d.at.z / SCALE }, sea: { x: d.sea.x / SCALE, z: d.sea.z / SCALE } }));
+/** The nearest point of the coast: docks.mjs reads a dock where its lane starts to climb ashore, up to a few units out. */
+const ontoCoast = (p: P) => coast.flatMap(l => l.map((a, i) => { const b = l[(i + 1) % l.length]!, dx = b.x - a.x, dz = b.z - a.z, t = Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.z - a.z) * dz) / (dx * dx + dz * dz || 1))); return { x: a.x + t * dx, z: a.z + t * dz }; }))
+  .reduce((b, q) => Math.hypot(q.x - p.x, q.z - p.z) < Math.hypot(b.x - p.x, b.z - p.z) ? q : b);
+const read = readReal.map(d => ({ ...d, at: ontoCoast({ x: d.at.x / SCALE, z: d.at.z / SCALE }), sea: { x: d.sea.x / SCALE, z: d.sea.z / SCALE } }));
 const caps: { id: string; title: string; dependsOn: { id: string }[] }[] = story.capabilities;
 const titleOf = new Map(caps.map(c => [c.id, c.title]));
 const short = (id: string) => (titleOf.get(id) ?? id).replace(/^\d+ · /, "");
@@ -197,7 +201,7 @@ function balance(owner: string[], seeds: Map<string, number>): void {
  * page's own from polish rounds 2 and 3 (overlay.ts's ROUND2_NET and ROUND3_NET), so it scores the network the page draws.
  * Rollout 1: round 13's tool routed without the polish rounds' prices, so an arrangement could route here and not there. */
 const NET = JSON.parse(process.env.NET_COST ?? '{"shareEntrance":1,"edge":0.8}');
-const ROUTE = BEFORE ? NET : { ...NET, entranceApart: 6, openGate: 30, thirdArrival: 0.5, pairShare: 1 };
+const ROUTE = BEFORE ? NET : { ...NET, entranceApart: 6, openGate: 30, thirdArrival: 0.5, pairShare: 1, crowd: 1 };
 export function measureNet(map: TerritoryMap) {
   const plates = capabilityPlates(map), plate = new Map(plates.map(p => [p.capability, { x: p.x, z: p.z } as P]));
   // The unclaimed code has no name, so no plate; its middle cell stands in (it has no links, so nothing routes to it).
@@ -230,7 +234,7 @@ export function measureNet(map: TerritoryMap) {
     row: {
       roadDrawn: Math.round(segs.reduce((s, x) => s + lengthOf(x.pts), 0)),
       overThird: ins.filter(p => p.third.length).length, overThirdBorders: ins.filter(p => p.third.length).reduce((s, p) => s + p.borders, 0),
-      neighbours: ins.filter(p => p.neighbours).length, insideLinks: ins.length, segments: segs.length, junctions: net.junctions.length,
+      neighbours: ins.filter(p => p.neighbours).length, insideLinks: ins.length, segments: segs.length, junctions: net.junctions.length, crowded: net.crowded.length,
     },
   };
 }
@@ -245,7 +249,7 @@ const inlandCells = cells.filter((_, c) => !isFrontier[c] && !isOpen[c]).map(c =
 type Gene = Map<string, number>;
 function score(r: NetRow, owners: readonly string[]): number {
   const offCoast = coastal.filter(id => !owners.some((o, c) => o === id && isFrontier[c])).length;
-  return 10 * r.overThird + 3 * r.overThirdBorders + 0.05 * r.roadDrawn - 4 * r.neighbours + 500 * offCoast;
+  return 10 * r.overThird + 3 * r.overThirdBorders + 0.05 * r.roadDrawn - 4 * r.neighbours + 8 * r.crowded + 500 * offCoast;
 }
 /** Why arrangements were turned down, for the error when none grows. */
 const refused: Record<string, number> = {};
@@ -260,7 +264,7 @@ function evaluate(g: Gene): { owners: string[]; s: number; net: NetRow } | undef
   // An arrangement the network cannot route every link over (a settlement walled in by borders too short for a gate) is
   // no arrangement.
   let r: NetRow;
-  try { r = measureNet(relayout(fine, owners)).row; } catch (error) { if (String(error).includes("no road")) return no("no road"); throw error; }
+  try { r = measureNet(relayout(fine, owners)).row; } catch (error) { if (String(error).includes("no road")) { if (process.env.VERBOSE && !refused["no road"]) console.error(String(error)); return no("no road"); } throw error; }
   return { owners, s: score(r, owners), net: r };
 }
 function mutate(g: Gene): Gene {
@@ -280,6 +284,7 @@ function mutate(g: Gene): Gene {
 }
 /** The start: each interface on the coast nearest the dock that carries most of its lanes, each internal inland, nearest
  * the middle of the interfaces it links to (or the island's middle), every seed on its own cell. */
+const partnersOf = (id: string) => inside.flatMap(l => l.from === id ? [l.to] : l.to === id ? [l.from] : []);
 function start(): Gene {
   const g: Gene = new Map(), used = new Set<number>();
   // Seeds keep apart where they can (half the side of a territory's even share), so neighbours all have room to grow.
@@ -289,16 +294,23 @@ function start(): Gene {
     const mine = [...arriving, ...leaving].filter(([key]) => key.endsWith(`|${id}`)).sort((a, b) => b[1] - a[1])[0]![0];
     g.set(id, take(frontierCells, docks[+mine.split("|")[0]!]!.at));
   }
-  for (const id of inland) {
-    const partners = inside.flatMap(l => l.from === id ? [l.to] : l.to === id ? [l.from] : []).filter(p => g.has(p)).map(p => cells[g.get(p)!]!.site);
-    const toward = partners.length ? { x: partners.reduce((s, p) => s + p.x, 0) / partners.length * 0.6, z: partners.reduce((s, p) => s + p.z, 0) / partners.length * 0.6 } : { x: 0, z: 0 };
-    g.set(id, take(inlandCells.length ? inlandCells : frontierCells, toward));
+  // Internals linked to placed territories go near them; the rest spread out, each on the free inland cell farthest from
+  // every seed placed (with many internals, round them all into the middle and the largest cannot grow to its size).
+  for (const id of [...inland].sort((a, b) => partnersOf(b).length - partnersOf(a).length)) {
+    const partners = partnersOf(id).filter(p => g.has(p)).map(p => cells[g.get(p)!]!.site);
+    const pool = inlandCells.length ? inlandCells : frontierCells;
+    if (partners.length) { g.set(id, take(pool, { x: partners.reduce((s, p) => s + p.x, 0) / partners.length * 0.6, z: partners.reduce((s, p) => s + p.z, 0) / partners.length * 0.6 })); continue; }
+    const free = pool.filter(c => !used.has(c)), far = (c: number) => Math.min(Infinity, ...[...used].map(u => dist(cells[u]!.site, cells[c]!.site)));
+    const c = free.reduce((b, x) => far(x) > far(b) ? x : b);
+    used.add(c); g.set(id, c);
   }
   return g;
 }
 /** Round 13's arrangement (START), its ring order and turn turned into seed cells on this land as its tool placed them. */
 function fromRound13(file: string): Gene {
-  const prev = JSON.parse(readFileSync(file, "utf8")) as { ring: string[]; turn: number; inland: Record<string, number> };
+  const prev = JSON.parse(readFileSync(file, "utf8")) as { ring: string[]; turn: number; inland: Record<string, number>; seeds?: Record<string, number> };
+  // An arrangement this tool wrote carries its seeds: start from them as they are.
+  if (prev.seeds) return new Map(Object.entries(prev.seeds).filter(([id, cell]) => held.has(id) && cell < N && !isOpen[cell]));
   const g: Gene = new Map(), weight = (id: string) => Math.pow(counts.get(id) ?? 1, 0.6);
   const ring = prev.ring.filter(id => held.has(id)), total = ring.reduce((s, id) => s + weight(id), 0);
   let at = 0;

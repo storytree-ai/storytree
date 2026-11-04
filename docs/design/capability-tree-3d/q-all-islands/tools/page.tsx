@@ -16,6 +16,7 @@ import { Vector3, type Camera } from "three";
 import "@storytree/forest/view/styles.css";
 import "./page.css";
 import snapshot from "../data.json" with { type: "json" };
+import round3Work from "../../p-polish-3/open-work.json" with { type: "json" };
 import { layout } from "./layouts.js";
 import { STORY } from "./story.js";
 import { overlayLayer, type Layer, type Picked } from "./overlay.js";
@@ -27,6 +28,9 @@ import { laneLine, readDocks } from "./docks.js";
 type One = (typeof snapshot.stories)[keyof typeof snapshot.stories];
 type Data = One & { measuredAt: string; workReadAt: string; map: { tree: AnnotatedTree; changes: { type: string; action: string; recordId: string }[]; survey: Record<string, never> } };
 const data = { ...(snapshot.stories as Record<string, One>)[STORY]!, measuredAt: snapshot.measuredAt, workReadAt: snapshot.measuredAt, map: snapshot.map } as unknown as Data;
+/** `?work=round3`: polish round 3's open work (../p-polish-3/open-work.json, read 2026-11-03) in place of this snapshot's, to
+ * measure The library against round 3 on the same queue. */
+if (new URLSearchParams(location.search).get("work") === "round3") Object.assign(data, { openWork: round3Work.openWork, workReadAt: round3Work.readAt });
 /** Round 13: the open work, lined up on each capability by the wrench. `?queue=demo` adds made-up increments, marked as
  * such, to show a queue longer than the library holds today (on The library's capabilities). */
 const DEMO_QUEUE: Record<string, number> = { "7 · Library API": 3, "21 · Links": 2, "26 · Rounds": 4, "10 · Work in flight": 6 };

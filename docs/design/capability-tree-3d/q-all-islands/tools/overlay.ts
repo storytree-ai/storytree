@@ -317,6 +317,8 @@ export function overlayLayer(state: RootState, story: string, data: Data, host: 
   const ROUND2_NET = { entranceApart: 6, ...(QUERY.get("ramp") === "0" ? {} : { openGate: 30, thirdArrival: 0.5 }) };
   /** Polish round 3: two neighbours that call each other share one road and one gate (`?pair=0`, as before: two roads). */
   const ROUND3_NET = { pairShare: QUERY.get("pair") === "0" ? 0 : 1 };
+  /** Rollout 1: a link with no gate of its own comes in beside another's rather than having no road (`?crowd=0`: none). */
+  const ROLLOUT_NET = { crowd: QUERY.get("crowd") === "0" ? 0 : 1 };
   /** And the symbol's edge stands this far (ground units) from any border, so the gates on it do not touch the symbol. */
   const SYMBOL_EDGE = Number(QUERY.get("symbolEdge") ?? 1.5);
   const clearOfNames = (p: P, half: number) => !underName(p, 7) && (SYMBOL_CLEAR < 0 || [[-1, -1], [1, -1], [1, 1], [-1, 1]].every(([a, b]) => !underName({ x: p.x + a! * half, z: p.z + b! * half }, SYMBOL_CLEAR, (RELIEF?.height ?? 0) + SIZE.lift)));
@@ -371,7 +373,7 @@ export function overlayLayer(state: RootState, story: string, data: Data, host: 
       .some(q => underName(q, 3, (RELIEF?.post.height ?? 0) + SIZE.lift)) || [...towns.values()].some(t => dist(t, p) < 5.5) ? GATE_CLEAR : 0,
     // Round 13: the arrangement's own prices (layout.json's `net`, as the layout tool routed it), and any the query sets
     // (`?net={"edge":0}`).
-    cost: { ...layout.net, ...ROUND2_NET, ...ROUND3_NET, ...JSON.parse(QUERY.get("net") ?? "{}") },
+    cost: { ...layout.net, ...ROUND2_NET, ...ROUND3_NET, ...ROLLOUT_NET, ...JSON.parse(QUERY.get("net") ?? "{}") },
   });
   type Way = { key: string; pts: P[]; from: string; to: string; crossings: { p: P; along: P; coast: boolean; pair?: [string, string] }[] };
   /** Every border a line crosses (and the coast): where, and the border's direction there, in order along it. */
@@ -720,9 +722,13 @@ export function overlayLayer(state: RootState, story: string, data: Data, host: 
     // tabs to the right) stands clear of every name; the nearest, as before, when none does.
     // Where none does, the stem leans (a few pixels either way) until the plate clears.
     const plateClear = ([, gate]: [string, { at: P }], dx = 0) => { const q = project(liftTop(gate.at, SIZE.lift)).page, l = q.x + dx - 13, r = q.x + dx + 13 + (QUEUE.x + QUEUE.step * 2), t = q.y - 40, b = q.y - 14; return ![...nameBoxes, ...(WRENCH_CLEAR_ALL ? markBoxes : [])].some(n => l < n.r && r > n.l && t < n.b && b > n.t); };
-    const [via, g] = (WRENCH_CLEAR ? (ins.length ? ins : outs).find(e => plateClear(e)) : undefined) ?? ins[0] ?? outs[0] ?? [];
+    // Rollout 1: with every mark to keep clear of, every gate of its own (its ways out too) is tried, upright first, then
+    // each leaning, before the nearest entrance is taken as it stands.
+    const LEANS = [0, -14, 14, -22, 22, -30, 30, -40, 40];
+    const found = WRENCH_CLEAR_ALL ? LEANS.flatMap(dx => [...ins, ...outs].map(e => [e, dx] as const)).find(([e, dx]) => plateClear(e, dx)) : undefined;
+    const [via, g] = found?.[0] ?? (WRENCH_CLEAR ? (ins.length ? ins : outs).find(e => plateClear(e)) : undefined) ?? ins[0] ?? outs[0] ?? [];
     if (!via || !g) continue;
-    const lean = WRENCH_CLEAR && !plateClear([via, g]) ? [-14, 14, -22, 22, -30, 30, -40, 40].find(dx => plateClear([via, g], dx)) ?? 0 : 0;
+    const lean = found ? found[1] : WRENCH_CLEAR && !plateClear([via, g]) ? LEANS.slice(1).find(dx => plateClear([via, g], dx)) ?? 0 : 0;
     { const q = project(liftTop(g.at, SIZE.lift)).page; markBoxes.push({ l: q.x + lean - 13, r: q.x + lean + 13 + QUEUE.x + QUEUE.step * Math.min(QUEUE.most, data.openWork.filter(w => w.capabilities.includes(id)).length), t: q.y - 40, b: q.y - 14 }); }
     const el = document.createElement("div");
     el.className = "mock-wrench"; el.dataset.capability = id;
@@ -878,16 +884,17 @@ export function overlayLayer(state: RootState, story: string, data: Data, host: 
     insideBorders: insideWays.map(w => w.crossings.filter(c => !c.coast).length),
     overThird: insideWays.filter(w => w.crossings.filter(c => !c.coast).length > 1).map(w => `${links.get(w.key)!.fromTitle} -> ${links.get(w.key)!.toTitle}: ${w.crossings.length} borders`),
     unplaced, landings: layout.landings.length, segments: segments.length, junctions: net.junctions.length,
-    roadDrawn: Math.round(segments.reduce((sum, r) => sum + r.pts.reduce((s, p, i) => i ? s + dist(r.pts[i - 1]!, p) : 0, 0), 0)),
+    /** In the island's own ground units (rollout 1: the layer lays out in The library's, scaled by S). */
+    roadDrawn: Math.round(S * segments.reduce((sum, r) => sum + r.pts.reduce((s, p, i) => i ? s + dist(r.pts[i - 1]!, p) : 0, 0), 0)),
     waysPerSegment: { mean: +(segments.reduce((s, x) => s + x.links.length, 0) / segments.length).toFixed(2), most: Math.max(...segments.map(x => x.links.length)) },
     shared: segments.filter(s => s.links.length > 1).map(s => ({ id: s.id, links: s.links.length })).sort((a, b) => b.links - a.links).slice(0, 8),
     towns: [...towns.keys()].map(id => ({ capability: byId.get(id)?.title, roads: degree.get(id) ?? 0 })),
     gatesOnOpenLand: gates.filter(g => g.open).length, /** Polish round 3: each gate, where it stands and what it carries, to find the ones that crowd. */ gateList: gates.map((g, i) => ({ i, x: +g.at.x.toFixed(1), z: +g.at.z.toFixed(1), pair: (g.pair ?? []).map(t => t === "open" ? t : byId.get(t)?.title ?? t), links: g.links.length, entrance: g.entrances.length })), sea: sea.stats, relief: reliefStats, road: ROAD_KEY, icons: ICONS, kinds: Object.fromEntries(kinds),
-    noEntrance: ways.filter(w => !entranceGate.has(w.key)).map(w => w.key),
+    noEntrance: ways.filter(w => !entranceGate.has(w.key)).map(w => w.key), crowded: net.crowded,
     wrenches: [...wrenches].map(([id, w]) => ({ capability: byId.get(id)?.title, via: w.via })),
     sharedEntrances: sharedGates.map(g => g.entrances.length),
     /** Round 13's note 3: road on a territory's land within 3 units of the coast, outside the mouth. */
-    roadOnEdge: Math.round(segments.reduce((sum, r) => { let l = 0; for (let i = 0; i + 1 < r.pts.length; i++) { const a = r.pts[i]!, b = r.pts[i + 1]!, m = { x: (a.x + b.x) / 2, z: (a.z + b.z) / 2 }, t = territoryAt(m); if (t && t !== "open" && toCoast(m) < 3 && layout.docks.every(d => dist(m, d.at) > d.reach)) l += dist(a, b); } return sum + l; }, 0)), net: net.cost, crowding: crowding(), hub: hub && byId.get(hub)?.title, busiest, ...(data.story.id === "story_754e87e7d531" ? { crowdingRound13Knot: crowding(KNOT) } : {}),
+    roadOnEdge: Math.round(S * segments.reduce((sum, r) => { let l = 0; for (let i = 0; i + 1 < r.pts.length; i++) { const a = r.pts[i]!, b = r.pts[i + 1]!, m = { x: (a.x + b.x) / 2, z: (a.z + b.z) / 2 }, t = territoryAt(m); if (t && t !== "open" && toCoast(m) < 3 && layout.docks.every(d => dist(m, d.at) > d.reach)) l += dist(a, b); } return sum + l; }, 0)), net: net.cost, crowding: crowding(), hub: hub && byId.get(hub)?.title, busiest, ...(data.story.id === "story_754e87e7d531" ? { crowdingRound13Knot: crowding(KNOT) } : {}),
   };
   return {
     pick, find, highlight, point, links, fills, stats, roads: new Map([...segments.map(s => [String(s.id), s.links] as [string, string[]]), ...sharedGates.map((g, i) => [`gate:${i}`, g.entrances] as [string, string[]])]),

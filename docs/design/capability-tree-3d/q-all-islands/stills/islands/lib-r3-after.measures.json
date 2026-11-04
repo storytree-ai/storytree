@@ -1,0 +1,43 @@
+{
+ "story_754e87e7d531": {
+  "story": "The library",
+  "query": "?story=story_754e87e7d531&work=round3",
+  "roadDrawn": 993,
+  "roadOnEdge": 0,
+  "gates": 32,
+  "gatesOnOpenLand": 4,
+  "overThird": 14,
+  "inside": 35,
+  "ways": 54,
+  "unplaced": [],
+  "noEntrance": 0,
+  "hub": "7 · Library API",
+  "busiest": [
+   "7 · Library API",
+   "23 · Catalogue",
+   "26 · Rounds",
+   "3 · Data schema",
+   "4 · Work model",
+   "5 · Health record"
+  ],
+  "island": {
+   "overlaps": 1,
+   "within4px": 8,
+   "byKind": {
+    "gate+name": 1
+   },
+   "pairs": [
+    "name:Decision log + gate:22"
+   ]
+  },
+  "busy": {
+   "overlaps": 0,
+   "within4px": 5
+  },
+  "round13Knot": {
+   "overlaps": 1,
+   "within4px": 6
+  },
+  "errors": []
+ }
+}

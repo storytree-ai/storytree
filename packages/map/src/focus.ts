@@ -44,6 +44,8 @@ export interface FocusAnswer {
   readonly loops?: readonly (readonly string[])[];
   readonly rows?: readonly FocusRow[];
   readonly diff?: DiffSummary;
+  /** A mapped island's file: its imports are read only by a crossing, which this names (contract 3.14, ADR-0993 D6). */
+  readonly blackBox?: { readonly path: string; readonly crossing: readonly string[]; readonly mode: "show" };
 }
 
 export const SHOW_CEILING = 200;
@@ -113,7 +115,11 @@ export function mapDepth(value: number | undefined, fallback: number): number {
 }
 
 export function focus(graph: ProjectGraph, options: FocusOptions, limits: { ceiling?: number; exists?: OnDisk } = {}): FocusAnswer {
-  return focusNodes(graph, [selectNode(graph, options.select, limits.exists).id], options, limits);
+  const node = selectNode(graph, options.select, limits.exists);
+  const answer = focusNodes(graph, [node.id], options, limits);
+  // A mapped story's survey carries no imports, so its file's 0 importers would read as a missing edge.
+  if (node.health !== "mapped" || (node.kind !== "file" && node.kind !== "test") || node.path === undefined) return answer;
+  return { ...answer, blackBox: { path: node.path, crossing: [node.path], mode: "show" } };
 }
 
 /** Shared traversal for one focused node or the changed nodes of a diff. Filters never block traversal. */
@@ -193,6 +199,10 @@ export function formatFocus(answer: FocusAnswer): string {
   for (const [depth, kinds] of Object.entries(answer.counts.byDepth)) lines.push(`Depth ${depth}: ${Object.entries(kinds).map(([kind, count]) => `${kind} ${count}`).join(", ")}`);
   if (health) lines.push(`Health: ${Object.entries(answer.counts.health).map(([state, count]) => `${state} ${count}`).join(", ")}`);
   if (answer.counts.mapped > 0) lines.push(`Mapped: ${answer.counts.mapped}`);
+  if (answer.blackBox) {
+    const { path, crossing } = answer.blackBox;
+    lines.push(`${path} is in a mapped island, a black box: its imports are read only through a crossing, so this answer shows no file that imports it or that it imports. To list its importers: crossing: ${JSON.stringify(crossing)}, mode: show (map --crossing ${crossing.join(",")} --show).`);
+  }
   for (const loop of answer.loops ?? []) lines.push(`Loop of roads among mapped stories, reported, refusing nothing: ${[...loop, loop[0]].join(" → ")}`);
   for (const row of answer.rows ?? []) lines.push(`${row.depth}  ${row.kind}  ${row.id}  ${row.title}  [${row.health}]${row.snapshot ? ` [${row.snapshot}]` : ""}${row.changes ? ` [${row.changes.join(", ")}]` : ""}${row.unresolved ? ` unresolved: ${row.unresolved}` : ""}${row.edge.length ? `  ${row.edge.map(edge => `${edge.kind} (${edge.provenance}${edge.snapshot ? `, ${edge.snapshot}` : ""}): ${edge.from} -> ${edge.to}`).join("; ")}` : ""}`);
   if (!answer.rows) lines.push(...answer.hints);

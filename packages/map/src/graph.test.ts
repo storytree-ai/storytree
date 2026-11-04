@@ -187,3 +187,16 @@ test("1.3 a mapped file an explored capability covers implements it, and the map
   const later = buildGraph({ ...plan, stories: [{ ...plan.stories[0]!, capabilities: [promised] }] } as unknown as AnnotatedTree, survey);
   assert.equal(later.nodes.find(node => node.id === "stats")?.health, "untested", "given a contract, it is read as any capability");
 });
+
+test("3.14 focus on a mapped island's file says the island is a black box read only through a crossing, and names the crossing that lists its importers", () => {
+  const plan = { arcs: [], stories: [{ id: "shop", title: "shop", health, capabilities: [], mapped: { from: "/code/shop", package: ".", folders: ["."] } }] } as unknown as AnnotatedTree;
+  const built = buildGraph(plan, { shop: { files: [{ path: "src/db.py", lines: 9 }, { path: "src/app.py", lines: 4 }], imports: [], tests: [], mapped: { folder: "/code/shop" } } });
+  const answer = focus(built, { select: "file:src/db.py" });
+  assert.deepEqual(answer.blackBox, { path: "src/db.py", crossing: ["src/db.py"], mode: "show" });
+  const text = formatFocus(answer);
+  assert.match(text, /black box/);
+  assert.match(text, /crossing: \["src\/db\.py"\], mode: show/);
+  assert.match(text, /map --crossing src\/db\.py --show/);
+  assert.equal(focus(built, { select: "story:shop" }).blackBox, undefined, "a story's focus is not a file's");
+  assert.equal(focus(graph(), { select: `file:${view}` }).blackBox, undefined, "a built story's file has its imports read");
+});

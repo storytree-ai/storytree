@@ -154,7 +154,7 @@ test("3.20 while it searches the guide says what it waits on and for how long, a
     const rows = [...offer.querySelectorAll<HTMLElement>(".setup-help-connect-agent")];
     assert.ok(rows[0]!.querySelector("[data-connect-agent=claude-code]"), "the agent with a note is still offered");
     assert.match(rows[0]!.querySelector("[data-connect-note]")?.textContent ?? "", /did not answer claude --version/);
-    assert.equal(rows[1]!.querySelector("[data-connect-note]"), null, "an agent that answered has no note");
+    assert.ok(rows[1]!.querySelector("[data-connect-note]") === null, "an agent that answered has no note");
   } finally { mounted.stop(); }
 });
 

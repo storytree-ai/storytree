@@ -173,7 +173,7 @@ export interface FoundAgent {
 
 /**
  * How long the search waits on one agent before offering it anyway. execFile's own timeout is not the bound:
- * on Windows it kills the .cmd shim's shell, and the agent it started can keep the output open (winlap, 0.3.2354).
+ * on Windows it kills the .cmd shim's shell, and the agent it started can keep the output open (seen on Windows, 0.3.2354).
  */
 export const PROBE_TIMEOUT_MS = 15_000;
 

@@ -14,7 +14,7 @@ export type { Change, Changes, ChangesFilter, FeedbackNote, FeedbackRoute, FyiNo
 export type { CloudSqlConfig, ConnectionProblem, ConnectOptions, FactoryLink, OpenOptions, OwnDatabaseOptions, ProjectSnapshot, SnapshotEvent, SnapshotRecord } from "./project/index.js";
 
 export { CONNECT_TIMEOUT_MS, ConnectionError, connectionString, explainConnectTimeout, ProjectGoneError, ProjectNameError, RestoreRefusedError, SEED_CONNECTION } from "./project/index.js";
-export { knowledgeGuidance, LinkLoopError, REFERENCE_FIELD_NAMES, referenceEdgesOf, SupersessionLoopError } from "./knowledge/index.js";
+export { knowledgeGuidance, LinkLoopError, referenceEdgesOf, SupersessionLoopError } from "./knowledge/index.js";
 export { DependencyLoopError, MissingReferenceError } from "./references.js";
 export { NumberTakenError } from "./transactions/index.js";
 export type { Counts, KindCount, RecentChange, TitleHit } from "./data/data-questions.js";

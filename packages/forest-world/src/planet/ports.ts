@@ -11,6 +11,7 @@
  */
 import { BufferGeometry, Color, DoubleSide, Float32BufferAttribute, Group, Mesh, MeshBasicMaterial, Vector3 } from 'three';
 import type { CoastPoint } from '../coast-clip.js';
+import type { ForestScene } from '../scene.js';
 import { onIslandSurface } from './island-surface.js';
 import { laneRoutes, type LaneRoute, type LitLink } from './lanes.js';
 import type { PlanetPathways } from './pathways.js';
@@ -48,6 +49,14 @@ export interface SeaPort {
   links: string[];
 }
 export interface SelectedIsland { story: string; spot: PlanetSpot; radius: number }
+
+/** The island a selection's lanes are lit for: the one holding a lit link's own end (`from` going up, `to` going down). */
+export function litIsland(scene: ForestScene, lit: readonly LitLink[]): string | undefined {
+  const lane = lit[0];
+  if (lane === undefined) return undefined;
+  const own = lane.dir === 'up' ? lane.from : lane.to;
+  return scene.islands.find(island => island.story === own || island.trees.some(tree => tree.capability === own))?.story;
+}
 
 /** The selection's lanes and the selected island's ports: with no island selected, every lane runs dock to dock. */
 export function seaLanes(plan: PlanetPathways, lit: readonly LitLink[], selected: SelectedIsland | undefined): { lanes: LaneRoute[]; ports: SeaPort[] } {

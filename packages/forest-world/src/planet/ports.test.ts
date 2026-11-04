@@ -5,7 +5,8 @@ import { onIslandSurface } from './island-surface.js';
 import { laneRoutes } from './lanes.js';
 import { plateTransform } from './planet.js';
 import type { PlanetPathways } from './pathways.js';
-import { PORT, portMarks, seaLanes } from './ports.js';
+import { litIsland, PORT, portMarks, seaLanes } from './ports.js';
+import type { ForestScene } from '../scene.js';
 
 const R = 218;
 const spot = new Vector3(0, 0, R);
@@ -56,6 +57,15 @@ const inside = (p: P, ring: readonly P[]) => {
   }
   return into;
 };
+
+test('4.40 the ports go on the island the lanes are lit for: the one building on a lane going up, the one built on going down', () => {
+  const tree = (capability: string) => ({ capability, form: 'green' as const, status: 'healthy' as const, contracts: 1, x: 0, z: 0, scale: 1, turn: 0 });
+  const scene: ForestScene = { islands: [{ story: 'a', title: 'a', x: 0, z: 0, key: 'a', trees: [tree('a1')] }, { story: 'b', title: 'b', x: 0, z: 0, key: 'b', trees: [tree('b1')] }] };
+  assert.equal(litIsland(scene, [{ from: 'b1', to: 'a1', dir: 'down' }]), 'a');
+  assert.equal(litIsland(scene, [{ from: 'b1', to: 'a1', dir: 'up' }]), 'b');
+  assert.equal(litIsland(scene, [{ from: 'b', to: 'a1', dir: 'up' }]), 'b', 'a lane may end on an island as a whole (4.19)');
+  assert.equal(litIsland(scene, []), undefined, 'nothing lit, no island');
+});
 
 test('4.40 the selected island has a port at each dock its lit lanes come ashore at, docks within a port\'s width sharing the busier one\'s, sized by the island against The library', () => {
   const { ports } = seaLanes(plan(), lit, { story: 'a', spot, radius: R });

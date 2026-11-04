@@ -10,7 +10,7 @@ import { Pathways, SelectionLanes } from './PlanetTrailRibbons.js';
 import { PlumbingLabels } from './PlumbingLabels.js';
 import { Overlay } from './overlay.js';
 import { roadsUnderLanes, type LitLink } from './lanes.js';
-import { portMarks, seaLanes, type SeaPort } from './ports.js';
+import { litIsland, portMarks, seaLanes, type SeaPort } from './ports.js';
 import type { Descriptor3D } from '../descriptors.js';
 import { EXACT_COLOUR_CANVAS_PROPS } from '../exact-colour.js';
 import { SHIPPED_ELEVATION_DEG } from './camera.js';
@@ -132,14 +132,6 @@ const Plate = memo(function Plate({ island, spot, radius, plate, docks, ports, v
   </group>;
 });
 
-/** The island a selection's lanes are lit for: the one holding each lit link's own end (`from` going up, `to` going down). */
-function selectedStory(scene: ForestScene, lanes: readonly LitLink[]): string | undefined {
-  const lane = lanes[0];
-  if (lane === undefined) return undefined;
-  const own = lane.dir === 'up' ? lane.from : lane.to;
-  return scene.islands.find(island => island.story === own || island.trees.some(tree => tree.capability === own))?.story;
-}
-
 function Framing({ radius, framing, sideOffset, sheet }: { radius: number; framing: number; sideOffset: number; sheet: SheetExtent }) {
   const { camera, size, invalidate } = useThree();
   useLayoutEffect(() => {
@@ -205,7 +197,7 @@ export function PlanetWorldCanvas({ scene, spots, radius, rotation = [0, 0, 0, 1
   const docksOn = useCallback((story: string) => docks === undefined ? undefined : docks.get(story) ?? NO_DOCKS, [docks]);
   const reveal = useMemo(() => growth === undefined ? undefined : roadSegmentWindows(pathways, growth.plan.roads), [pathways, growth?.plan]);
   // 4.8, 4.40: the lanes end just off the selected island's ports, and the roads under them give way to them.
-  const selected = useMemo(() => selectedStory(scene, lanes), [scene, lanes]);
+  const selected = useMemo(() => litIsland(scene, lanes), [scene, lanes]);
   const sea = useMemo(() => {
     const spot = selected === undefined ? undefined : spots.get(selected);
     return seaLanes(pathways, lanes, selected === undefined || spot === undefined ? undefined : { story: selected, spot, radius });

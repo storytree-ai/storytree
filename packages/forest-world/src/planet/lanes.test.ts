@@ -38,7 +38,7 @@ test('4.8 a lit link\'s lane is one unbroken line at sea between islands, from t
     assert.ok(Math.abs(lane.length - lane.points.slice(1).reduce((sum, p, i) => sum + p.distanceTo(lane.points[i]!), 0)) < 1e-6);
   }
   const [alone] = laneRoutes(plan, [{ from: 'b1', to: 'a1', dir: 'down' }]);
-  assert.ok(alone!.widths.every(w => w === seaLaneWidth(1)), 'a lane alone is the narrowest line');
+  assert.ok(alone!.widths.every(w => w === 0.32), 'a lane alone is the narrowest line');
   assert.deepEqual(laneRoutes(plan, [{ from: 'x', to: 'y', dir: 'up' }]), [], 'a link with no trail lights nothing');
 });
 
@@ -81,13 +81,12 @@ test('4.8 lanes sharing a stretch, in and out alike, are one line down the middl
   for (const lane of [down!, up!]) lane.points.forEach((p, i) => {
     if (Math.abs(p.x) < 9.99) {
       assert.equal(p.y, 0, 'on the shared trunk both run down its middle');
-      assert.equal(lane.widths[i], seaLaneWidth(2), 'a step wider where two share it');
-    } else if (Math.abs(p.x) > 10.01) assert.equal(lane.widths[i], seaLaneWidth(1), 'the narrowest line where it runs alone');
+      assert.equal(lane.widths[i], 0.5, 'a step wider where two share it');
+    } else if (Math.abs(p.x) > 10.01) assert.equal(lane.widths[i], 0.32, 'the narrowest line where it runs alone');
   });
-  assert.ok(seaLaneWidth(1) < seaLaneWidth(2) && seaLaneWidth(7) === seaLaneWidth(2) && seaLaneWidth(8) > seaLaneWidth(7)
-    && seaLaneWidth(32) > seaLaneWidth(31) && seaLaneWidth(100) === seaLaneWidth(32), 'one, two to seven, eight to thirty-one, thirty-two or more');
+  assert.deepEqual([1, 2, 7, 8, 31, 32, 100].map(seaLaneWidth), [0.32, 0.5, 0.5, 0.78, 0.78, 1.15, 1.15], 'one, two to seven, eight to thirty-one, thirty-two or more');
   const eight = fork(Array.from({ length: 8 }, (_, i) => ({ from: `e${i}`, arm: 'east' as const, dir: i % 2 ? 'up' as const : 'down' as const })));
-  assert.equal(eight[0]!.widths[0], seaLaneWidth(8), 'eight on the trunk, in and out alike, count as eight');
+  assert.equal(eight[0]!.widths[0], 0.78, 'eight on the trunk, in and out alike, count as eight');
 });
 
 test('4.9 lit lanes start together and their fronts keep one steady pace, so the selection settles in its longest lane\'s time; whole at once under reduced motion', () => {

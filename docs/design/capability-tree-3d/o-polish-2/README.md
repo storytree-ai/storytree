@@ -89,9 +89,10 @@ Run from the checkout root.
 
 1. `node docs/design/capability-tree-3d/o-polish-2/tools/build.mjs` builds `index.html`, `page.js` and `page.css` from the
    real map code (packages/forest's view, on `../h-quiet-roads/data.json`).
-2. `node --import tsx docs/design/capability-tree-3d/o-polish-2/tools/shots.mjs <tag> '' --retake` takes the six stills as
-   `stills/<tag>-*.png` and writes the measures at rest to `<tag>.measures.json`. The query comes before `--retake`, even
-   when empty: given straight after the tag, `--retake` is read as the query, and the page never opens.
+2. `node --import tsx docs/design/capability-tree-3d/o-polish-2/tools/shots.mjs <tag> [query] --retake` takes the six
+   stills as `stills/<tag>-*.png` and writes the measures at rest to `<tag>.measures.json` (in the capture kit's scratch
+   folder without `--retake`). Round 1's tool read a `--retake` given straight after the tag as the query, so the page
+   never opened; it now skips flags.
 3. `node --import tsx docs/design/capability-tree-3d/o-polish-2/tools/crowd.mjs '' '?gateClear=12' …` prints the measures
    for each query, faster, with no stills.
 4. `NAME=after node docs/design/capability-tree-3d/o-polish-2/tools/stills.mjs '' mouth-near` takes the near mouth view.

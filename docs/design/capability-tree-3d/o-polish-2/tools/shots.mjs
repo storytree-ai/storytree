@@ -12,7 +12,8 @@ import { fileURLToPath } from 'node:url';
 import { withCapture } from '../../../../../apps/desktop/src/capture/index.ts';
 
 const here = path.dirname(fileURLToPath(import.meta.url)), dist = path.dirname(here);
-const [tag = 'look', query = ''] = process.argv.slice(2);
+// Flags (the capture kit's --retake) are not the query, wherever they stand.
+const [tag = 'look', query = ''] = process.argv.slice(2).filter(a => !a.startsWith('--'));
 const VIEW = { width: 1440, height: 900 };
 await withCapture({ folder: path.join(dist, 'stills'), dist }, async ({ browser, origin, out, settle }) => {
   const errors = [];

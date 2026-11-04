@@ -124,11 +124,6 @@ WHERE project = $1 AND (
   OR (kind = 'session-ended' AND session IN (SELECT session FROM claimers)))
 ORDER BY seq`;
 
-/** Whether a file named on a line ($file) lies inside its folder (readings.ts `inside`): a relative name always does. */
-const INSIDE = `(left(f.file, 1) IN ('/', '\\') OR f.file ~ '^[A-Za-z]:') IS NOT TRUE
-  OR left(regexp_replace(replace(f.file, '\\', '/'), '/+$', ''), length(regexp_replace(replace(o.folder, '\\', '/'), '/+$', '')) + 1)
-     = regexp_replace(replace(o.folder, '\\', '/'), '/+$', '') || '/'`;
-
 /** The latest start each machine recorded (Session management 4.29): one line a machine, however often it started. */
 const MACHINE_STARTS = `SELECT DISTINCT ON (detail->>'machine') seq FROM activity WHERE project = $1 AND kind = 'machine-started'
     ORDER BY detail->>'machine', (detail->>'startedAt')::timestamptz DESC, seq DESC`;
@@ -138,9 +133,8 @@ const MACHINE_STARTS = `SELECT DISTINCT ON (detail->>'machine') seq FROM activit
  * reads their whole history: the first and the last line each session wrote from each place (folder,
  * branch, machine, harness, source; about others or not), and the finish of any command among them;
  * the latest line of each kind that turns, ends, closes out, names or claims, and its first start
- * naming a folder; its latest work on the main line in each folder (ADR-0906); its commands started
- * since $3 with no finish, and every turn's end, start and end after the first of them; and what
- * others' lines last said of its branches, of each folder on the main line, and of it in the apps;
+ * naming a folder; its commands started since $3 with no finish, and every turn's end, start and
+ * end after the first of them; and what others' lines last said of its branches and of it in the apps;
  * and each machine's latest start.
  * Lines kept only to place a session leave out what the fold never reads ($5): a command's text, an
  * edit's files (kept as none), a transcript's path, a subagent's task.
@@ -148,8 +142,7 @@ const MACHINE_STARTS = `SELECT DISTINCT ON (detail->>'machine') seq FROM activit
 export const FOLD_LINES = `
 WITH own AS (
   SELECT seq, session, at, kind, folder, harness, source, detail->>'branch' AS branch, detail->>'machine' AS machine,
-    detail->>'how' AS how, detail->>'call' AS call, detail ? 'increment' AS on_increment,
-    CASE WHEN kind = 'file-edited' AND detail->>'branch' IN ('main', 'master') THEN detail->'files' END AS files
+    detail->>'how' AS how, detail->>'call' AS call
   FROM activity WHERE project = $1 AND session = ANY($2::text[])
 ), unfinished AS (
   SELECT s.seq, s.session FROM own s
@@ -173,13 +166,6 @@ WITH own AS (
   SELECT seq, true FROM (
     SELECT DISTINCT ON (session) seq FROM own WHERE kind = 'session-started' AND folder IS NOT NULL ORDER BY session, seq) AS first_start
   UNION ALL
-  SELECT seq, true FROM (
-    SELECT DISTINCT ON (o.session, o.machine, o.folder, o.kind) o.seq FROM own o
-    WHERE o.branch IN ('main', 'master') AND o.folder IS NOT NULL AND (
-      (o.kind = 'claimed' AND o.on_increment)
-      OR (o.kind = 'file-edited' AND EXISTS (SELECT 1 FROM jsonb_array_elements_text(o.files) AS f(file) WHERE ${INSIDE})))
-    ORDER BY o.session, o.machine, o.folder, o.kind, o.seq DESC) AS on_main
-  UNION ALL
   SELECT seq, true FROM unfinished
   UNION ALL
   SELECT o.seq, true FROM own o JOIN (SELECT session, min(seq) AS first FROM unfinished GROUP BY session) u ON u.session = o.session AND o.seq > u.first
@@ -190,10 +176,6 @@ WITH own AS (
     WHERE project = $1 AND kind IN ('branch-state', 'merged')
       AND coalesce(detail->>'of', detail->>'branch') IN (SELECT branch FROM own WHERE kind <> ALL($4::text[]) AND branch IS NOT NULL)
     ORDER BY coalesce(detail->>'of', detail->>'branch'), seq DESC) AS branches
-  UNION ALL
-  SELECT seq, true FROM (
-    SELECT DISTINCT ON (detail->>'machine', detail->>'of') seq FROM activity WHERE project = $1 AND kind = 'main-state'
-    ORDER BY detail->>'machine', detail->>'of', seq DESC) AS mains
   UNION ALL
   SELECT seq, true FROM (
     SELECT DISTINCT ON (kind = 'session-described', detail->>'of') seq FROM activity
@@ -277,9 +259,6 @@ WITH branch_states AS (
 ), pairs AS (
   SELECT DISTINCT session, detail->>'branch' AS branch FROM activity
   WHERE project = $1 AND kind <> ALL($3::text[]) AND detail ? 'branch' AND detail->>'branch' NOT IN ('main', 'master')
-), main_states AS (
-  SELECT DISTINCT ON (detail->>'machine', detail->>'of') detail->>'machine' AS machine, detail->>'of' AS folder, at, detail->>'dirty' AS dirty
-  FROM activity WHERE project = $1 AND kind = 'main-state' ORDER BY detail->>'machine', detail->>'of', seq DESC
 ), closes AS (
   SELECT DISTINCT ON (session) session, seq, detail->>'safe' AS safe, detail->>'running' AS running
   FROM activity WHERE project = $1 AND kind = 'closed-out' ORDER BY session, seq DESC
@@ -297,9 +276,6 @@ WHERE NOT EXISTS (SELECT 1 FROM activity r WHERE r.project = $1 AND r.session = 
     AND (r.kind IN ('claimed', 'prompt-submitted') OR (r.kind = 'session-started' AND r.detail->>'how' IS DISTINCT FROM 'compact')))
   AND (c.safe IS DISTINCT FROM 'true' OR c.running IS DISTINCT FROM '0'
     OR EXISTS (SELECT 1 FROM activity t WHERE t.project = $1 AND t.session = c.session AND t.seq > c.seq AND t.kind = 'turn-ended' AND (t.detail->>'background')::int > 0))
-UNION
-SELECT o.session FROM activity o JOIN main_states m ON m.folder = o.folder AND m.machine IS NOT DISTINCT FROM o.detail->>'machine'
-WHERE o.project = $1 AND o.kind = 'file-edited' AND o.detail->>'branch' IN ('main', 'master') AND (m.dirty = 'true' OR m.at >= $2::timestamptz)
 UNION
 SELECT session FROM records WHERE kind = 'session-unarchived'`;
 
@@ -330,27 +306,6 @@ SELECT w.branch, w.first_at, w.last_at, w.worked_in, a.${ROW.split(", ").join(",
 FROM worked w LEFT JOIN states s ON s.branch = w.branch LEFT JOIN activity a ON a.seq = s.seq
 WHERE s.seq IS NULL OR a.detail->>'open' = 'true' OR w.last_at > a.at
   OR (a.detail->>'how' = 'deleted' AND w.worked_in IS NOT NULL AND a.detail ? 'machine' AND a.detail->>'machine' IS DISTINCT FROM $2::text)
-ORDER BY w.first_seq`;
-
-/**
- * The folders on machine $2 a session edited files inside, or claimed an increment in, on the main
- * line (ADR-0906), each with when it was last worked in, for those no look has found clean, or
- * worked in since one did. The caller keeps those still there.
- */
-export const MAIN_WORK = `
-WITH worked AS (
-  SELECT o.folder, min(o.seq) AS first_seq, (array_agg(o.at ORDER BY o.seq DESC))[1] AS at FROM activity o
-  WHERE o.project = $1 AND o.detail->>'machine' IS NOT DISTINCT FROM $2::text AND o.folder IS NOT NULL AND o.detail->>'branch' IN ('main', 'master')
-    AND ((o.kind = 'claimed' AND o.detail ? 'increment')
-      OR (o.kind = 'file-edited' AND EXISTS (SELECT 1 FROM jsonb_array_elements_text(o.detail->'files') AS f(file) WHERE ${INSIDE})))
-  GROUP BY o.folder
-), states AS (
-  SELECT DISTINCT ON (detail->>'of') detail->>'of' AS folder, at, detail->>'dirty' AS dirty FROM activity
-  WHERE project = $1 AND kind = 'main-state' AND detail->>'machine' IS NOT DISTINCT FROM $2::text
-  ORDER BY detail->>'of', seq DESC
-)
-SELECT w.folder, w.at FROM worked w LEFT JOIN states s ON s.folder = w.folder
-WHERE s.folder IS NULL OR s.dirty = 'true' OR w.at > s.at
 ORDER BY w.first_seq`;
 
 /** Every session that wrote a line of its own: how many there are, for a list that says how many it hides. */

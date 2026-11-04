@@ -47,7 +47,6 @@ test("4.11 close-out releases every own claim across branches and sources, leavi
     await log.append(project, { session: "observer", source: "hook", kind: "merged", holder: CLAUDE.session, capability: "merged-cap", branch: "landed", pr: 3 });
     await log.append(project, { ...CLAUDE, session: "other", kind: "claimed", capability: "other-cap", reason: "another session" });
     await log.append(project, { ...CLAUDE, kind: "file-edited", files: ["unfinished.ts"] });
-    await log.append(project, { ...CLAUDE, kind: "main-state", of: CLAUDE.folder, dirty: true });
     const context = { log, project, ...CLAUDE };
     assert.deepEqual((await readClaims(log, project)).filter((one) => one.session === CLAUDE.session).map((one) => one.increment ?? one.capability), ["hook-cap", "main-inc", "tool-cap"], "a merge preserves claims on other branches, including unfinished main work");
     const answer = await closeOut(context, { safe, why: "handoff" }, { home });
@@ -55,7 +54,6 @@ test("4.11 close-out releases every own claim across branches and sources, leavi
     assert.deepEqual(answer.released, ["hook-cap", "main-inc", "tool-cap"]);
     const session = (await readSessions(log, project)).find((one) => one.session === CLAUDE.session);
     assert.equal(session?.closeOut?.verified, false, "releasing claims does not certify unfinished work");
-    assert.equal(session?.onMain, "outside-workspace");
     assert.deepEqual((await closeOut(context, { safe, why: "again" }, { home })).released, []);
   });
 });

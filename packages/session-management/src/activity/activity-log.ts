@@ -23,7 +23,7 @@ import { z } from "zod";
 import { connect, NEW_LINE, type Line, type LineKind, type LinesSince, type NewLine, type Storytree } from "@storytree/library";
 import { readExperiment } from "@storytree/project-and-caller";
 
-import { BRANCH_FACTS, countValues, FOLD_LINES, foldValues, inViewValues, MAIN_WORK, selectLines, SESSION_COUNT, SESSIONS_IN_VIEW, STANDING_CLAIMS, STATE_LINES, stateValues, type LineFilter } from "./bounded.js";
+import { BRANCH_FACTS, countValues, FOLD_LINES, foldValues, inViewValues, selectLines, SESSION_COUNT, SESSIONS_IN_VIEW, STANDING_CLAIMS, STATE_LINES, stateValues, type LineFilter } from "./bounded.js";
 import type { Beat } from "../readings.js";
 import { BEATS_SCHEMA, BEATS_SCHEMA_FILE, beatsOf, PgSessionBeats, type SessionBeats } from "./session-beats.js";
 import { PgTranscriptRecords, TRANSCRIPT_SCHEMA, TRANSCRIPT_SCHEMA_FILE, type TranscriptRecords } from "./transcript-records.js";
@@ -67,8 +67,6 @@ export interface ActivityLog {
   sessionCount(project: string): Promise<number>;
   /** The branches worth a look from `machine`, with what the log knows of each (bounded.ts BRANCH_FACTS). */
   branchFacts(project: string, machine: string | undefined): Promise<BranchFacts[]>;
-  /** The folders on the main line worth a look on `machine`, with when each was last worked in (bounded.ts MAIN_WORK). */
-  mainWork(project: string, machine: string | undefined): Promise<{ folder: string; at: string }[]>;
   /**
    * Run `work` holding `project`'s lock: what it reads through the LockedLog it is handed, and any
    * line it adds, happen with no other write to the project in between. It is how a claim checks
@@ -350,12 +348,6 @@ class PgActivityLog implements ActivityLog {
       ...(worked_in === null ? {} : { folder: worked_in }),
       ...(state.seq === null || state.seq === undefined ? {} : { state: lineOf(state as ActivityRow) as Line & { kind: "branch-state" } }),
     }));
-  }
-
-  async mainWork(project: string, machine: string | undefined): Promise<{ folder: string; at: string }[]> {
-    assertProject(project);
-    const { rows } = await this.#pool.query<{ folder: string; at: Date }>(MAIN_WORK, [project, machine ?? null]);
-    return rows.map(({ folder, at }) => ({ folder, at: at.toISOString() }));
   }
 
   async sessionCount(project: string): Promise<number> {

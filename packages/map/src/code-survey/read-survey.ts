@@ -167,11 +167,11 @@ export async function placeFiles(folder: string, paths: readonly string[], tree:
   });
 }
 
-/** `folder`, or its nearest parent that exists: a file not yet made is in a checkout through it. */
+/** `folder`, or its nearest parent that exists (the file system's root always does): a file not yet made is in a checkout through it. */
 function existingFolder(folder: string): string {
-  if (existsSync(folder)) return folder;
-  const parent = path.dirname(folder);
-  return parent === folder ? folder : existingFolder(parent);
+  let at = folder;
+  while (!existsSync(at)) at = path.dirname(at);
+  return at;
 }
 
 /** `file`'s real path, through its nearest folder that exists: a file not yet made has none of its own. */

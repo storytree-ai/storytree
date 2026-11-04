@@ -22,7 +22,8 @@ const shares = [
 const links = [{ from: "z1", to: "a" }, { from: "z2", to: "a" }, { from: "z3", to: "a" }, { from: "b", to: "y" },
   { from: "c", to: "a" }, { from: "d", to: "c" }, { from: "e", to: "d" }, { from: "f", to: "e" }];
 const east = (r: number) => ({ local: { x: r, z: 0 }, links: ["z1->a", "z2->a", "z3->a"] });
-const west = (r: number) => ({ local: { x: -r, z: 0 }, links: ["b->y"] });
+// The west dock also lists links with both ends at home, which are no lanes and open no land.
+const west = (r: number) => ({ local: { x: -r, z: 0 }, links: ["b->y", "c->a", "d->c", "e->d"] });
 const far = (p: { x: number; z: number }, q: { x: number; z: number }) => Math.hypot(p.x - q.x, p.z - q.z);
 const cellsOf = (map: TerritoryMap, capability: string | undefined) => {
   const at = map.territories.findIndex((t) => t.capability === capability);
@@ -73,4 +74,20 @@ test("3.76 only an island given its docks is laid out by its links; any other ke
   const laid = islandLayout(shares, coast, links, [east(40)]);
   assert.notEqual(laid, islandTerritories(shares, coast));
   assert.equal(islandLayout(shares, coast, links, [east(40)]), laid, "laid out once for the same docks");
+});
+
+test("3.76 land the open land cuts off from the rest of the island is open land too", () => {
+  // A long thin island, cut across off its middle by the open land round two docks facing each other.
+  const coast: Coast = [[{ x: -200, z: -18 }, { x: 200, z: -18 }, { x: 200, z: 18 }, { x: -200, z: 18 }]];
+  const many = Array.from({ length: 64 }, (_, i) => `z${i}->a`);
+  const map = linkLayout(shares, coast, links, [90, 100, 110].flatMap((x) => [{ local: { x, z: -18 }, links: many }, { local: { x, z: 18 }, links: many }]));
+  const beyond = map.cells.filter((cell) => cell.site.x > 140);
+  assert.ok(beyond.length > 0);
+  for (const cell of beyond) assert.equal(cell.territory, -1, "the end beyond the cut is open land");
+  assert.ok(map.cells.filter((cell) => cell.site.x < 50).every((cell) => cell.territory >= 0), "the rest is held");
+});
+
+test("3.76 an island whose open land leaves fewer cells than it has territories keeps the map's own cut", () => {
+  const coast = round(LIBRARY_RADIUS), crowd = Array.from({ length: 300 }, (_, i) => ({ capability: `c${i}`, lines: 1 }));
+  assert.equal(linkLayout(crowd, coast, [], [{ local: { x: LIBRARY_RADIUS, z: 0 }, links: ["z->c0"] }]), islandTerritories(crowd, coast));
 });

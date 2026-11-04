@@ -66,3 +66,23 @@ test("3.7 a lit link's way inland runs from its dock only along drawn lines, the
   assert.ok(inland > docks.length, "most ways go inland");
   assert.equal(borderRoute(map, "cap-z", docks[0]!), undefined, "a capability with no territory here has no way inland");
 });
+
+test("3.76 a lit lane's way inland on the selected island runs over its territories as laid out by its links; on any other island over the map's own cut", async () => {
+  const { islandCoast } = await import("@storytree/forest-world/geometry");
+  const { laneWays } = await import("./border-route.js");
+  const { islandLayout } = await import("../territories/link-layout.js");
+  const { islandTerritories } = await import("../territories/territories.js");
+  const capabilities = ["a1", "a2", "a3", "a4", "a5"];
+  const land = { territories: capabilities.map((capability, i) => ({ capability, lines: 100 * (i + 1) })), files: [] };
+  const island = { story: "a", title: "a", x: 0, z: 0, key: "a", land, trees: capabilities.map((capability, i) => ({ capability, form: "green" as const, status: "healthy" as const, contracts: 1, x: i, z: 0, scale: 1, turn: 0 })) };
+  const coastOf = islandCoast(island), ring = coastOf[0]!;
+  const dock = ring[0]!, links = [{ from: "z1", to: "a1" }, { from: "a2", to: "a1" }, { from: "a3", to: "a2" }];
+  const docks = [{ local: dock, links: ["z1->a1"] }];
+  const laid = islandLayout(land.territories, coastOf, links, docks), own = islandTerritories(land.territories, coastOf);
+  assert.notEqual(laid, own);
+  for (const capability of capabilities) {
+    assert.deepEqual(laneWays([island], links, "a")("a", capability, dock, docks), borderRoute(laid, capability, dock), `${capability} on the selected island`);
+    assert.deepEqual(laneWays([island], links, "b")("a", capability, dock, docks), borderRoute(own, capability, dock), `${capability} on an island not selected`);
+  }
+  assert.ok(capabilities.some((capability) => JSON.stringify(borderRoute(laid, capability, dock)) !== JSON.stringify(borderRoute(own, capability, dock))), "the two layouts give different ways");
+});

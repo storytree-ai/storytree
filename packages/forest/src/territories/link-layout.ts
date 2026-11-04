@@ -24,7 +24,7 @@ const KEYS_OPEN = 11, MOUTH = 25;
 /** How far inside the coast an interface's seed may lie. */
 const FRONT = 9;
 /** How many seed moves to try before an arrangement that will not grow gives way to the map's own cut. */
-const TRIES = 200;
+const TRIES = 50;
 
 /** Where sea lanes come ashore, in the island's own coordinates, with the links (`from->to`) they carry. */
 export type LinkDock = { readonly local: Point; readonly links: readonly string[] };

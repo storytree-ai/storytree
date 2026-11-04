@@ -198,6 +198,16 @@ test("1.17 an acceptance user whose Claude Code is signed in goes on to install 
   } finally { await removeTemp(r.root); }
 });
 
+test("1.17 the acceptance run sweeps a stopped run's leftover users before it notes the laptop's state, so their removal is not read as this run's change", { skip }, async () => {
+  const r = acceptance("", ["before"]);
+  try {
+    assert.equal(r.status, 0, r.log);
+    const at = (pattern: RegExp) => r.calls.findIndex((call) => pattern.test(call));
+    const swept = at(/^ssh .*user\.ps1 sweep/), noted = at(/^ssh .*st-acc\\state\.ps1/);
+    assert.ok(swept >= 0 && noted > swept, "the sweep comes before the state is noted: " + r.calls.join("\n"));
+  } finally { await removeTemp(r.root); }
+});
+
 test("1.17 the acceptance run reads the user's feedback and test command from a reply that sets them in markdown bold, and runs its evidence in the folder the user's turns built", { skip }, async () => {
   const reply = "Done.\n\n**FEEDBACK TITLE:** Setup was smooth\n**FEEDBACK:** The doctor said I was signed out.\n**TEST COMMAND:** `npm test`";
   const r = acceptance("", ["feedback", "verify"], {

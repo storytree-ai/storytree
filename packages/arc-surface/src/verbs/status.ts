@@ -31,15 +31,15 @@ export function sinceOf(given: string | undefined, now: number, fallback = 2 * U
 }
 
 /**
- * The capabilities live sessions hold now (ADR-0949 D3): each one claimed directly, and each on the list of an open increment a
- * live session holds. What a wait on a capability's claim is read against (ADR-1228 D1, library 11.12).
+ * The capabilities live sessions hold now (ADR-0949 D3): each one claimed directly, and each on the list of an increment a live
+ * session holds (closing it ends the claim). What a wait on a capability's claim is read against (ADR-1228 D1, library 11.12).
  */
 function claimedNow(agents: readonly BoardAgent[], increments: readonly ArcWork[]): Set<string> {
   const live = agents.filter(({ holder }) => holder === "live");
   const held = new Set(live.flatMap(({ increment }) => (increment === undefined ? [] : [increment])));
   return new Set([
     ...live.flatMap(({ capability }) => (capability === undefined ? [] : [capability])),
-    ...increments.filter(({ id, fields }) => held.has(id) && fields.status !== "closed").flatMap(({ fields }) => fields.capabilities ?? []),
+    ...increments.filter(({ id }) => held.has(id)).flatMap(({ fields }) => fields.capabilities ?? []),
   ]);
 }
 

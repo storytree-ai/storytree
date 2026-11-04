@@ -144,4 +144,17 @@ test("3.24 · `arc status` reads a wait on a capability's claim against the clai
   // The holder lets the claim go: nothing is written to the wait, and it no longer holds.
   assert.equal((await release(holder, surface.id)).ok, true);
   assert.equal(await line(), `  Ready           ${arc.id}  Speed — nobody holds ${fix.id} Open-app speed fix`);
+
+  // A capability on the list of an increment a live session holds is held; one listed only by an increment nobody holds is not.
+  const board = await library.addCapability({ title: "Board", story: story.id });
+  const queue = await library.addCapability({ title: "Queue", story: story.id });
+  const other = await anArc(library, "Panels");
+  const panel = await work(library, other.id, "Panel");
+  const parkedWork = await work(library, other.id, "Queue work");
+  await library.editIncrement(panel.id, { capabilities: [board.id] });
+  await library.editIncrement(parkedWork.id, { capabilities: [queue.id] });
+  await library.addWait(fix.id, board.id, "board is taken");
+  await library.addWait(fix.id, queue.id, "queue was taken");
+  assert.equal((await claim({ ...holder, session: "claude-lane", harness: "claude-code" as const }, panel.id, "building the panel")).ok, true);
+  assert.equal(await line(), `  Blocked         ${arc.id}  Speed — ${fix.id} Open-app speed fix: waits on ${board.id} ${board.fields.title} (board is taken)`);
 });

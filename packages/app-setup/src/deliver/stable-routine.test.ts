@@ -254,6 +254,24 @@ test("1.17 the run's evidence step enters the project its user's turns built whe
   } finally { await removeTemp(root); }
 });
 
+test("1.17 the run's evidence step keeps the project it set up when the transcript's folder only holds it, as a stray write elsewhere in the profile makes it <home>", { skip: powershell === undefined && "other: PowerShell is not installed here; Windows CI runs it under Windows PowerShell" }, async () => {
+  const root = mkdtempSync(path.join(tmpdir(), "storytree-stable-verify-"));
+  try {
+    const profile = path.join(root, "profile"), local = path.join(root, "local");
+    for (const dir of [path.join(root, "ev"), path.join(profile, "tipjar"), local]) mkdirSync(dir, { recursive: true });
+    writeFileSync(path.join(profile, "tipjar", "tip.js"), "");
+    writeFileSync(path.join(profile, "notes.txt"), "");
+    copyFileSync(path.join(harness, "steps", "verify.ps1"), path.join(root, "verify.ps1"));
+    writeFileSync(path.join(root, "project.txt"), "<home>\n");
+    writeFileSync(path.join(root, "test-command.txt"), "echo ok\n");
+    const result = spawnSync(powershell!, ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", path.join(root, "verify.ps1")], { encoding: "utf8", env: { ...process.env, USERPROFILE: profile, LOCALAPPDATA: local } });
+    assert.equal(readFileSync(path.join(root, "ev", "project.txt"), "utf8").trim(), `project: ${path.join(profile, "tipjar")}`, result.stdout + result.stderr);
+    const files = readFileSync(path.join(root, "ev", "project-files.txt"), "utf8");
+    assert.match(files, /tip\.js/, "the project's files are listed from the set-up folder: " + files);
+    assert.doesNotMatch(files, /notes\.txt/, "the profile's other files are not the project's: " + files);
+  } finally { await removeTemp(root); }
+});
+
 test("1.17 a turn's summary names the project folder its writes went to, wherever the turn itself ran, its own settings' folder and the temp folder aside", async () => {
   const root = mkdtempSync(path.join(tmpdir(), "storytree-stable-sum-"));
   try {

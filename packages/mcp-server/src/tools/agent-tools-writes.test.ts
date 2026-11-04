@@ -996,10 +996,10 @@ test("6.39 a tool call's reads do not grow with the log's length: the same calls
   assert.ok(taken[1]! - taken[0]! < 128 * 1024, `the calls took ${taken[0]} bytes from a short log and ${taken[1]} from one ${history} bytes longer: no more than 128 KiB apart`);
 });
 
-test("6.56 edit_plan and retire_from_plan, under an increment's claim, hold a change to a record planned before it as a pending change on the increment, leaving the live record alone; one the increment planned, or a call holding no increment, changes it live (ADR-0966 D1)", async () => {
+test("6.56 edit_plan and retire_from_plan, under an increment's claim, hold a change to a record planned before it as a pending change on the increment, leaving the live record alone (ADR-0966 D1; the rule itself is 10.29's)", async () => {
   await withProject(async ({ folder, library }) => {
     await withAgent(folder, claudeCode("claude-1"), async (agent) => {
-      const { arc, story, capability } = await planned(agent);
+      const { arc, capability } = await planned(agent);
       const contract = idOf(await agent.call("plan_contract", { capability, title: "Accepts a valid address" }));
       const increment = idOf(await agent.call("park_increment", { arc, title: "Address form", objective: "Rename it", body: "Red then green" }));
       assert.equal((await agent.call("claim", { increment, reason: "driving the address form" })).isError, false);
@@ -1018,15 +1018,6 @@ test("6.56 edit_plan and retire_from_plan, under an increment's claim, hold a ch
         [capability, { title: "Address form", description: "Where they type it" }, undefined],
         [contract, undefined, "overtaken by the address form"],
       ]);
-
-      const own = idOf(await agent.call("plan_capability", { story, title: "Confirmation link", ...FOUNDED }));
-      assert.equal((await agent.call("edit_plan", { id: own, description: "Sent by mail" })).isError, false);
-      assert.equal((await library.get(own))?.fields["description" as never], "Sent by mail", "one the increment planned is edited live");
-    });
-    await withAgent(folder, claudeCode("claude-2"), async (agent) => {
-      const { capability } = await planned(agent);
-      assert.equal((await agent.call("edit_plan", { id: capability, description: "Typed by hand" })).isError, false);
-      assert.equal((await library.get(capability))?.fields["description" as never], "Typed by hand", "with no increment held, the edit is live");
     });
   });
 });

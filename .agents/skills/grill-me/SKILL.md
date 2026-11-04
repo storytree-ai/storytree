@@ -101,10 +101,10 @@ Library edits need no worktree.
 5. **Retire what should not exist** (`storytree question retire <q> --reason …`), keeping its substance on the arc. Never retire an answered question: settle it.
 6. **Dispatch** (step 6). Message any session that was blocked on what he just fixed, once the fix is proven to work.
 
-### 5. Writing up decisions: accepted or proposed
+### 5. Writing up decisions: accepted, or his thinking parked as an arc
 
 - **Accepted** when he decided: he picked an option, said "record it that way" or "go with your recommendation", or stated a rule. Born accepted (ADR-0829): `storytree adr new --title … --text @adr.md --status accepted --basis owner-directed --owner-said @said.txt`. Never ask him to ratify what he already decided.
-- **Proposed** when he is thinking aloud: "I imagine…", "in the future we would…", "not sure yet", a model of how something should work that no increment builds yet (his collaboration model, ADR-0830, is the example). Write it `--status proposed`, say in the text that it is his current thinking recorded while he explores and not a build commitment, list the open points, and link the arc where it would be shaped. Do this unprompted: he expects his thinking kept for future sessions.
+- **His thinking, parked as an arc** when he is thinking aloud: "I imagine…", "in the future we would…", "not sure yet", a model of how something should work that no increment builds yet. Never write it as a proposed decision (ADR-1232 D2): park an arc (`storytree arc new …` then `storytree arc park <arc>`, or `park_arc`) whose intent quotes his words, says it is his current thinking and not a build commitment, and lists the open points, with nothing ready on it. Do this unprompted: he expects his thinking kept for future sessions, and the parked list is where he looks for it.
 - Not every answer needs a decision: a pick among options inside a standing decision lives on the settled question and the increment body.
 - His words go verbatim in `ownerSaid`, the answer and re-steer evidence; a paraphrase there is a defect. Keep accepted text free of meeting minutes: the decision, its reasons, what it narrows.
 - Read the why of any decision an answer collides with. Decisions are not law: if his answer overturns one, write a new decision that supersedes it, not a workaround.

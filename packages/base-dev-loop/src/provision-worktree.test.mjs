@@ -13,7 +13,7 @@ import { fileURLToPath } from "node:url";
 
 import { quietFor, removeTemp } from "@storytree/test-waits";
 
-import { check, cloudNode, connectCloud, hookOutput, installEnvironment, installedNodes, pnpmInstall, provision, serve } from "./provision-worktree.mjs";
+import { check, cloudMain, cloudNode, connectCloud, hookOutput, installEnvironment, installedNodes, pnpmInstall, provision, serve } from "./provision-worktree.mjs";
 
 const script = fileURLToPath(new URL("./provision-worktree.mjs", import.meta.url));
 
@@ -643,4 +643,48 @@ test("3.8 the Node.js binaries searched are each /opt/<name>/bin/node, then each
   const PATH = ["", onPath, path.join(opt, "node24", "bin"), onPath, path.join(root, "nowhere")].join(path.delimiter);
   assert.deepEqual(installedNodes({ PATH }, opt), [path.join(opt, "node24", "bin", "node"), path.join(onPath, "node")]);
   assert.deepEqual(installedNodes({}, path.join(root, "no-opt")), [], "no /opt and no PATH finds none");
+});
+
+/** This process's environment as a cloud container's, without the route's Access token, so no library setting is made. */
+function cloudEnv() {
+  const env = { ...process.env, CLAUDE_CODE_REMOTE: "true" };
+  delete env.CF_ACCESS_CLIENT_ID;
+  delete env.CLAUDE_ENV_FILE;
+  return env;
+}
+
+test("3.9 a cloud container's session-start hook fetches origin's main, without its tags, whatever branch the checkout is on", async (t) => {
+  const { root, remote } = await repoPair(t);
+  await git(root, "switch", "-c", "claude/session");
+  await git(remote, "commit", "--allow-empty", "-m", "main moved on");
+  await git(remote, "tag", "v9");
+  const head = await git(remote, "rev-parse", "HEAD");
+  const hook = await run(process.execPath, [script, "--hook", "--root", root], { env: cloudEnv() });
+  assert.equal(hook.status, 0);
+  assert.equal(await git(root, "rev-parse", "refs/remotes/origin/main"), head, "origin/main is today's main");
+  assert.equal(await git(root, "tag", "--list"), "", "no tags are fetched");
+  assert.equal(await git(root, "branch", "--show-current"), "claude/session", "the checkout is left on its branch");
+});
+
+test("3.9 outside a cloud container origin/main is not fetched", async (t) => {
+  const { root, remote } = await repoPair(t);
+  await git(root, "switch", "-c", "feature");
+  const before = await git(root, "rev-parse", "refs/remotes/origin/main");
+  await git(remote, "commit", "--allow-empty", "-m", "main moved on");
+  assert.deepEqual(cloudMain({ root, env: {} }), { fetched: false });
+  assert.equal(await git(root, "rev-parse", "refs/remotes/origin/main"), before);
+});
+
+test("3.9 a cloud fetch that fails or runs past its time limit is logged, never thrown, and the hook still exits 0", async (t) => {
+  const { root } = await repoPair(t);
+  await git(root, "switch", "-c", "claude/session");
+  await git(root, "remote", "set-url", "origin", path.join(root, "no-such-remote"));
+  const lines = [];
+  assert.deepEqual(cloudMain({ root, env: { CLAUDE_CODE_REMOTE: "true" }, log: (line) => lines.push(line) }), { fetched: false });
+  assert.match(lines.join("\n"), /could not fetch origin's main/);
+  const slow = [];
+  cloudMain({ root, env: { CLAUDE_CODE_REMOTE: "true" }, fetchMs: 1, log: (line) => slow.push(line) });
+  assert.match(slow.join("\n"), /could not fetch origin's main.*1 ms/);
+  const hook = await run(process.execPath, [script, "--hook", "--root", root], { env: cloudEnv() });
+  assert.equal(hook.status, 0);
 });

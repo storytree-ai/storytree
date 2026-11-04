@@ -3,9 +3,10 @@
  * a capability or a contract (ADR-0641 D2 step 3), and see the plan with its health, who holds what and which sessions are about. A story or capability is planned with its founding decision, the
  * first book on its shelf, so none planned here starts with an empty shelf (ADR-0627 D5).
  */
-import { ANCHOR_ID, anchorGaps, CONTRACT_DEFINITION, LONG_CONTRACT_TITLE as LONG_CONTRACT, wordAndWhy, type AnnotatedTree, type DayWindow, type HealthState, type NodeHealth, type PendingChange, type PlanChange } from "@storytree/library";
+import { ANCHOR_ID, anchorGaps, CONTRACT_DEFINITION, LONG_CONTRACT_TITLE as LONG_CONTRACT, wordAndWhy, type AnnotatedTree, type DayWindow, type HealthState, type NodeHealth } from "@storytree/library";
 import { z } from "zod";
 
+import { editPlanRecord, heldPending, heldSaid, holdPlanChange } from "@storytree/library/commands";
 import { untestedContracts } from "@storytree/map/code-survey";
 import { readClaims } from "@storytree/session-management";
 import { readSessions } from "@storytree/session-management";
@@ -81,7 +82,7 @@ export function registerPlanTools(define: Define): void {
     }),
     async ({ story, title: name, description: about, depends_on: dependsOn, covers: paths, founding: decision }, call) => {
       const { library, writer } = call;
-      const capability = await library.addCapability({ title: name, story, ...optional({ description: about, dependsOn, covers: paths }) }, { ...writer, pending: await heldPending(call) });
+      const capability = await library.addCapability({ title: name, story, ...optional({ description: about, dependsOn, covers: paths }) }, { ...writer, pending: await heldPending(library, await claimsOf(call), call.caller.session) });
       const book = await library.recordDecision({ ...decision, status: "accepted", frontCoverOf: capability.id }, writer);
       return {
         text: `Planned capability ${quoted(name)} (${capability.id}), founded on ${quoted(decision.title)} (${book.id}). Plan its contracts, then claim it before you build it.`,
@@ -150,8 +151,8 @@ export function registerPlanTools(define: Define): void {
       const { library, writer } = call;
       const found = partOf(await library.projectTree(), target);
       if (found === undefined) return { text: `${target} is not a capability or a contract in this project's plan: only those are retired here.`, refused: true };
-      const held = await heldOnIncrement(call, { record: target, retire: reason });
-      if (held !== undefined) return { text: `Retiring ${found.kind} ${quoted(found.title)} (${target}) is ${held}`, data: { id: target } };
+      const held = await holdPlanChange(library, await claimsOf(call), call.caller.session, { record: target, retire: reason }, writer);
+      if (held !== undefined) return { text: `Retiring ${found.kind} ${quoted(found.title)} (${target}) is ${heldSaid(held)}`, data: { id: target } };
       await library.retire(target, reason, writer);
       return { text: `Retired ${found.kind} ${quoted(found.title)} (${target}): ${reason}.`, data: { id: target } };
     },
@@ -240,51 +241,15 @@ async function editPlan(target: string, changes: Changes, call: Call, live = fal
     ...(named ?? {}),
     ...(escape === undefined ? {} : { escape: escape === "none" ? undefined : { causedBy: escape.caused_by, story: escape.story } }),
   };
-  if (!live && (kind === "story" || kind === "capability" || kind === "contract")) {
-    const held = await heldOnIncrement(call, { record: target, fields });
-    if (held !== undefined) return { text: `Your change to ${kind} ${quoted(String(((await library.get(target))?.fields as { title?: string } | undefined)?.title))} (${target}) is ${held}`, data: { id: target } };
-  }
-  const edited =
-    kind === "story"
-      ? await library.editStory(target, fields, writer)
-      : kind === "capability"
-        ? await library.editCapability(target, fields, writer)
-        : kind === "contract"
-          ? await library.editContract(target, fields, writer)
-          : kind === "increment"
-            ? await library.editIncrement(target, fields, writer)
-            : await library.editArc(target, fields, writer);
-  if (edited === null) return { text: `Nothing in the plan has the id ${target} any more.`, refused: true };
-  return { text: `Corrected ${kind} ${quoted(edited.fields.title)} (${target}).`, data: { id: target } };
+  const done = await editPlanRecord(library, await claimsOf(call), call.caller.session, { type: kind, id: target, fields, live }, writer);
+  if (done === null) return { text: `Nothing in the plan has the id ${target} any more.`, refused: true };
+  if ("held" in done) return { text: `Your change to ${kind} ${quoted(String(((await library.get(target))?.fields as { title?: string } | undefined)?.title))} (${target}) is ${heldSaid(done.held)}`, data: { id: target } };
+  return { text: `Corrected ${kind} ${quoted((done.edited.fields as { title: string }).title)} (${target}).`, data: { id: target } };
 }
 
-/**
- * Hold `change` on the increment the calling session holds, as a pending change that waits for its
- * branch to merge (ADR-0966 D1), and say so; undefined when it holds none, or the increment planned
- * the record itself, and the change is made live. Of several, the one it claimed last.
- */
-async function heldOnIncrement(call: Call, change: PlanChange): Promise<string | undefined> {
-  const { library, writer } = call;
-  const increment = await heldIncrement(call);
-  if (increment === undefined) return undefined;
-  const pended = await library.pendChange(increment, change, writer);
-  if (pended === null || !("pending" in pended)) return undefined;
-  return `pending on increment ${increment} until its branch merges; the live plan is unchanged. Reading the increment lists it.`;
-}
-
-/** The increment the calling session claimed last of those it holds, if any. */
-async function heldIncrement({ log, project, quietMs, caller }: Call): Promise<string | undefined> {
-  return (await readClaims(log, project, { quietMs }))
-    .filter((claim) => claim.session === caller.session && claim.increment !== undefined)
-    .sort((one, other) => one.since.localeCompare(other.since))
-    .at(-1)?.increment;
-}
-
-/** The pending changes of the increment the calling session holds, which its branch's new capabilities are numbered against (ADR-0966 D3). */
-async function heldPending(call: Call): Promise<readonly PendingChange[]> {
-  const increment = await heldIncrement(call);
-  const record = increment === undefined ? null : await call.library.get(increment);
-  return record?.type === "increment" ? ((record.fields as { pending?: PendingChange[] }).pending ?? []) : [];
+/** The project's claims, as the calling door reads them. */
+function claimsOf({ log, project, quietMs }: Call): ReturnType<typeof readClaims> {
+  return readClaims(log, project, { quietMs });
 }
 
 /**

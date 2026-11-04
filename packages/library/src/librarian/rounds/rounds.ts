@@ -13,11 +13,9 @@
 import type { Library, Related, SchemaRecord } from "../../index.js";
 
 import { markedWrites, newNotes, type MarkedWrite, type NewNote } from "../catalogue/index.js";
-import { brokenEdges, type BrokenEdge } from "../decision-log/index.js";
 import { memoryWorklist, processGaps, type MemoryItem, type ProcessGaps } from "../graduation/index.js";
-import { relatedUnlinked, unrestedDecisions } from "../links/index.js";
+import { brokenEdges, relatedUnlinked, unrestedDecisions, type BrokenEdge } from "../links/index.js";
 import { allNotes } from "../notes.js";
-import { openQuestions } from "../lapsed-questions/index.js";
 
 /** The curated kinds: a write to any of them since the session started makes the whole pass due. */
 export const CURATED: readonly string[] = ["decision", "question", "principle", "guardrail", "pattern", "process", "definition", "agent"];
@@ -156,7 +154,7 @@ export async function worklist(library: Library, options: WorklistOptions): Prom
   if (options.tools !== undefined) await phase("processes");
   const processes = options.tools === undefined ? undefined : await processGaps(library, options.tools, notes);
   await phase("questions");
-  const questions = await openQuestions(library, options.now);
+  const questions = await library.lapsedQuestions(options.now);
   const offered = await plugins();
   return {
     graduation,

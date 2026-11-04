@@ -1,11 +1,11 @@
 /**
- * Capability 10 · Work in flight. The one rule both front doors call for a change to the plan (ADR-0966 D1, ADR-0793):
+ * Capability 4 · Work model, its pending plan changes. The one rule both front doors call for a change to the plan (ADR-0966 D1, ADR-0793):
  * an edit or retirement of a story, capability or contract made by a session holding an increment waits on that
  * increment as a pending change until its branch merges; one made by a session holding none is made live.
  */
 import type { Library } from "../api/library.js";
 import type { SchemaRecord, WriteOptions } from "../schema/index.js";
-import type { PendingChange, PlanChange } from "./work-in-flight.js";
+import type { PendingChange, PlanChange } from "./pending-changes.js";
 
 /** The kinds whose edits and retirements wait on the caller's increment until its branch merges (ADR-0966 D1). */
 export const PLAN_TYPES: ReadonlySet<string> = new Set(["story", "capability", "contract"]);

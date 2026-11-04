@@ -1,5 +1,5 @@
 /**
- * Capability 1 · Project libraries, contract 1.21: the system switches (ADR-1092 D2). A project opened with them leaves
+ * Capability 29 · Factory and product, contract 29.6: the system switches (ADR-1092 D2). A project opened with them leaves
  * each switched-off role, check and note out of what it lists and selects, and so out of every search, which reads
  * through its lists. Reading one by its id still finds it, as following a link does, and writes are unchanged.
  */

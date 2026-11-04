@@ -1,5 +1,5 @@
 /**
- * Capability 21 · Links: one test per contract 21.1-21.4 in The library story, each in a fresh
+ * Capability 21 · Links: one test per contract 21.1-21.5 in The library story, each in a fresh
  * project's library on the real Postgres `pnpm test` provides.
  */
 import assert from "node:assert/strict";
@@ -9,7 +9,7 @@ import type { Library } from "../../index.js";
 
 import { withLibrary } from "../testing/pg.js";
 import { worklist } from "../rounds/index.js";
-import { link, unrestedDecisions } from "./index.js";
+import { brokenEdges, link, unrestedDecisions } from "./index.js";
 
 /** A story with one capability, and a decision on its shelf. */
 async function shelf(library: Library) {
@@ -105,5 +105,45 @@ test("21.4 the worklist finds related but unlinked neighbours for live notes wri
     await link(library, source.id, neighbour.id);
     const linked = await worklist(library, { since: cursor });
     assert.ok(!linked.rest?.related?.find((result) => result.source === source.id)?.hits.some(({ id }) => id === neighbour.id));
+  });
+});
+
+test("21.5 the health report names each link or supersession pointing at a record no longer live, with both ends", async () => {
+  await withLibrary(async (library) => {
+    const { cover } = await shelf(library);
+    const definition = await library.defineTerm({ term: "Verified domain", meaning: "Mailgun needs a verified domain.", links: [cover.id] });
+    const old = await library.recordDecision({ title: "Send nothing", text: "No email yet.", status: "accepted" });
+    const successor = await library.recordDecision({ title: "Send email", text: "Email is sent.", status: "accepted", supersedes: [old.id] });
+    assert.deepEqual(await brokenEdges(library), []);
+
+    await library.retire(cover.id, "wrongly recorded");
+    await library.retire(old.id, "finished business");
+    assert.deepEqual(await brokenEdges(library), [
+      { from: definition.id, field: "links", to: cover.id },
+      { from: successor.id, field: "supersedes", to: old.id },
+    ]);
+  });
+});
+
+test("21.5 the health report names a check's enforces edge pointing at a principle no longer live", async () => {
+  await withLibrary(async (library) => {
+    const principle = await library.writeKnowledge("principle", {
+      title: "Send from a verified domain",
+      description: "Mail from an unverified domain bounces.",
+      statement: "Every email is sent from a verified domain.",
+      why: "Providers refuse the rest.",
+      howToApply: "Verify the domain before the first send.",
+    });
+    const check = await library.writeKnowledge("check", {
+      title: "Unverified sender",
+      description: "A send from a domain nobody verified",
+      question: "Does any send use a domain that is not verified?",
+      howToAnswer: "Yes when a sender's domain has no verification record",
+      enforces: [principle.id],
+      graduated: [],
+    });
+
+    await library.retire(principle.id, "wrongly recorded");
+    assert.deepEqual(await brokenEdges(library), [{ from: check.id, field: "enforces", to: principle.id }]);
   });
 });

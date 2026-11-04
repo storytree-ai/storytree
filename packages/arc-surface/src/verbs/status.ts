@@ -115,13 +115,10 @@ export const status = verb({
     // One read of the board's arcs, and the claims standing with their holders' recent lines.
     const [arcs, { fold, lines }] = await Promise.all([library.boardArcs(recentWindow(now)), claimsReading({ log, project }, now)]);
     const machines = new Map(fold.sessions({ now: new Date(now) }).flatMap(({ session, machine }): [string, string][] => (machine === undefined ? [] : [[session, machine]])));
-    // Then one of every hold, a wait on a capability's claim read against the capabilities live sessions hold now (ADR-1228 D1), and the titles of those it names.
+    // Then one of every hold, a wait on a capability's claim read against the capabilities live sessions hold now (ADR-1228 D1), naming its capability by title.
     const claimed = claimedNow(agentsOnBoard({ fold, lines }, new Date(now)).all, arcs.flatMap(({ increments }) => increments));
     const { waits, heldOn, waitsFor } = await library.holds(new Date(now), { claimed });
-    const named = [...new Set(Object.values(waits).flat().filter(({ claim }) => claim === true).map(({ on }) => on))];
-    const capabilities = (await Promise.all(named.map((id) => library.get(id)))).flatMap((record) =>
-      (record === null ? [] : [{ id: record.id, title: (record.fields as { title?: string }).title ?? record.id }]));
-    const board = boardView({ arcs: [...arcs], waits: { ...waits }, heldOn: { ...heldOn }, waitsFor: { ...waitsFor }, capabilities }, { fold, lines }, new Date(now), "active");
+    const board = boardView({ arcs: [...arcs], waits: { ...waits }, heldOn: { ...heldOn }, waitsFor: { ...waitsFor } }, { fold, lines }, new Date(now), "active");
     const questionTitles = new Map(arcs.flatMap(({ questions }) => questions.map((question): [string, string] => [question.id, question.fields.title])));
     const said = board.lanes.map((lane) => ({ lane, ...statusOf(lane, since, { machines, questionTitles, heldOn }) }));
     // The board's order (priority first) within each state; a stable sort keeps it.

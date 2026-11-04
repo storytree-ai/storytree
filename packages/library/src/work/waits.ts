@@ -27,6 +27,8 @@ export interface Hold {
    * that capability, so its holder releasing it, however it does, clears it.
    */
   readonly claim?: true;
+  /** A claim wait's capability, by its title, when the library has that capability (ADR-1228 D1). */
+  readonly title?: string;
 }
 
 /** The capabilities live sessions hold now, as session management reads its claims: what a claim wait is read against (11.12). */
@@ -246,7 +248,7 @@ export function noteWaits(waitsFor: readonly WaitFor[] | undefined, at: Date): N
 export function holdsOf(waits: readonly Wait[] | undefined, hold: (wait: Wait) => Hold | undefined): Hold[] {
   return (waits ?? []).flatMap((wait) => {
     const held = hold(wait);
-    return held === undefined ? [] : [{ on: held.on, reason: held.reason, forGood: held.forGood, ...(held.claim === true ? { claim: true as const } : {}) }];
+    return held === undefined ? [] : [{ on: held.on, reason: held.reason, forGood: held.forGood, ...(held.claim === true ? { claim: true as const } : {}), ...(held.title === undefined ? {} : { title: held.title }) }];
   });
 }
 
@@ -275,10 +277,10 @@ export function onClaim(wait: Wait): boolean {
 /**
  * Whether a claim wait holds (11.12, ADR-1228 D1): while `claimed`, the capabilities live sessions
  * hold now, has it; never for good, since a claim always ends. A reader not given `claimed` cannot
- * see claims, and reads it as holding.
+ * see claims, and reads it as holding. It names the capability by `title`, when given.
  */
-export function claimHold(wait: Wait, claimed: ReadonlySet<string> | undefined): Hold | undefined {
-  return claimed === undefined || claimed.has(wait.on) ? { ...wait, forGood: false, claim: true } : undefined;
+export function claimHold(wait: Wait, claimed: ReadonlySet<string> | undefined, title?: string): Hold | undefined {
+  return claimed === undefined || claimed.has(wait.on) ? { ...wait, forGood: false, claim: true, ...(title === undefined ? {} : { title }) } : undefined;
 }
 
 /**

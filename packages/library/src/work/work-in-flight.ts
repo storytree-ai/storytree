@@ -956,13 +956,17 @@ export class WorkInFlight {
     // increment, with no fields, only for named arc blockers whose existence matters.
     const needsExistence = [...namedArcs].filter((id) => arcIds.has(id) && !hasIncrements.has(id));
     const blockerIds = [...new Set(increments.flatMap(({ fields }) => (fields.waits ?? []).map(({ on }) => on)))];
-    const [landed] = await Promise.all([
+    // A wait on a capability's claim names the capability by its title: read only when one exists (ADR-1228 D1).
+    const claimIds = blockerIds.filter((on) => onClaim({ on, reason: "" }));
+    const [landed, capabilities] = await Promise.all([
       blockerIds.length === 0 ? [] : this.#records.select("increment", [], { ids: blockerIds, where: { status: "closed", "outcome.disposition": "landed" } }),
+      claimIds.length === 0 ? [] : this.#records.select("capability", ["title"], { ids: claimIds }),
       ...needsExistence.map(async (arc) => {
         if ((await this.#records.select("increment", [], { where: { arc }, limit: 1 })).length > 0) hasIncrements.add(arc);
       }),
     ]);
-    return new Snapshot(arcs, increments, questions, hasIncrements, new Set(landed.map(({ id }) => id)));
+    const titles = new Map(capabilities.map(({ id, fields }) => [id, fields.title]));
+    return new Snapshot(arcs, increments, questions, hasIncrements, new Set(landed.map(({ id }) => id)), titles);
   }
 
 
@@ -1074,6 +1078,8 @@ class Snapshot {
     questions: readonly QuestionFacts[],
     readonly hasIncrements: ReadonlySet<string>,
     readonly landed: ReadonlySet<string>,
+    /** The titles of the capabilities its claim waits name. */
+    readonly capabilityTitles: ReadonlyMap<string, string>,
   ) {
     this.arcs = new Map(arcs.map((arc) => [arc.id, arc]));
     this.#questions = questions;
@@ -1100,7 +1106,7 @@ class Snapshot {
     const increment = record as IncrementFacts;
     if (increment.fields.status === "closed") return [];
     return [
-      ...holdsOf(increment.fields.waits, (wait) => (onClaim(wait) ? claimHold(wait, claimed) : this.incrementHold(wait))),
+      ...holdsOf(increment.fields.waits, (wait) => (onClaim(wait) ? claimHold(wait, claimed, this.capabilityTitles.get(wait.on)) : this.incrementHold(wait))),
       ...holdsOf(this.arcs.get(increment.fields.arc)?.fields.waits, (wait) => this.arcWaitHold(wait)),
     ];
   }

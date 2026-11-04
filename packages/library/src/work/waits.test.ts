@@ -347,7 +347,7 @@ for (const backend of [memory, postgres]) {
     const expansion = await flight.addIncrement({ arc: arc.id, title: "Arcs tab expansion", ...WORK });
     const fix = await flight.addIncrement({ arc: arc.id, title: "Open-app speed fix", ...WORK });
     await flight.addWait(fix.id, surface.id, "refused: another session holds it");
-    const claim = { on: surface.id, reason: "refused: another session holds it", forGood: false, claim: true };
+    const claim = { on: surface.id, reason: "refused: another session holds it", forGood: false, claim: true, title: surface.fields.title };
 
     assert.deepEqual(await flight.waitHolds(fix.id, { claimed: new Set([surface.id]) }), [claim], "held while a live session holds the capability");
     assert.deepEqual((await flight.holds(new Date(), { claimed: new Set([surface.id]) })).waits[fix.id], [claim]);

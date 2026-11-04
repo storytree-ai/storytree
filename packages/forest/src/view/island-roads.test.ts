@@ -13,7 +13,7 @@ import type { Coast, Point } from "../territories/territories.js";
 import { capabilityPlates } from "./nameplates.js";
 import { presentTerritories } from "./globe-surfaces.js";
 import { islandRoadMarks, landFill, ROAD } from "./island-roads.js";
-import { kindOf, settlementSymbols, SYMBOL_INK } from "./settlement-symbols.js";
+import { GLYPHS, kindOf, settlementSymbols, SYMBOL_INK } from "./settlement-symbols.js";
 import { territoryLand } from "./territory-land.js";
 
 const R = Math.sqrt(LIBRARY_LAND / Math.PI);
@@ -113,4 +113,20 @@ test("3.79 The library's capabilities are drawn as their kinds, each kind its ow
   const shapes = symbols.map((s) => s.children.map((m) => `${m.name}:${(m as Mesh).geometry.getAttribute("position").count}`).join());
   assert.equal(new Set(shapes).size, ids.length, "six kinds, six different symbols");
   assert.deepEqual(symbols.map((s) => s.userData.kind), ["store", "queue", "index", "link", "log", "service"]);
+});
+
+test("3.79 each kind's symbol keeps the mock's outline in its 24-unit box", () => {
+  const box = (lines: readonly (readonly (readonly [number, number])[])[]) => {
+    const pts = lines.flat(), r = (v: number) => Math.round(v * 100) / 100;
+    return [r(Math.min(...pts.map((p) => p[0]))), r(Math.min(...pts.map((p) => p[1]))), r(Math.max(...pts.map((p) => p[0]))), r(Math.max(...pts.map((p) => p[1])))];
+  };
+  // Worked from kinds.mjs's paths: the cylinder's ends bulge 3 past its sides' 6.5, and its two bands sag 3 below their ends.
+  assert.deepEqual(box(GLYPHS.store.parts), [-8, -9.5, 8, 9.5], "a store's cylinder");
+  assert.deepEqual(GLYPHS.store.lines.map((l) => box([l])), [[-8, -6.5, 8, -3.5], [-8, 0, 8, 3]], "its rim and its band");
+  assert.deepEqual(box(GLYPHS.service.parts), [-10, -8, 9, 8], "a service's box and tabs");
+  assert.deepEqual(box(GLYPHS.queue.parts), [-10.5, -5, 10.5, 5], "a queue's row");
+  assert.equal(GLYPHS.queue.lines.length, 3, "of four cells");
+  assert.deepEqual(box(GLYPHS.index.parts), [-8, -8, 4, 4], "an index's lens, 6 round about (-2, -2)");
+  assert.deepEqual(box(GLYPHS.link.parts), [-6.5, -3, 6.5, 7.5], "a connection's plug, rounded below");
+  assert.deepEqual(box(GLYPHS.log.parts), [-9, -10, 9, 10], "a record's two pages");
 });

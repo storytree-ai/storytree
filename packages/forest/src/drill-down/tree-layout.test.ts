@@ -12,7 +12,7 @@ import { CARD, layoutTree, OUTSIDE_CARD } from "./tree-layout.js";
 import { fitted } from "../view/pan-zoom.js";
 
 function line(id: string): CapabilityLine {
-  return { id, title: `The ${id}`, description: "", reported: "not-checked", state: "planned", status: "proposed", contracts: [] };
+  return { id, title: `The ${id}`, description: "", reported: "not-checked", status: "proposed", contracts: [] };
 }
 
 // a ← b ← c inside the story; a builds on x and c on y, both in another story.
@@ -22,10 +22,10 @@ const panel: StoryPanel = {
   description: "",
   capabilities: [line("a"), line("b"), line("c")],
   arrows: [
-    { from: "b", to: "a", toTitle: "The a", landed: false, toStatus: "proposed" },
-    { from: "c", to: "b", toTitle: "The b", landed: false, toStatus: "proposed" },
-    { from: "a", to: "x", toTitle: "The x", toStory: "Story t", landed: true, toStatus: "proposed" },
-    { from: "c", to: "y", toTitle: "The y", toStory: "Story t", landed: false, toStatus: "proposed" },
+    { from: "b", to: "a", toTitle: "The a", toStatus: "proposed" },
+    { from: "c", to: "b", toTitle: "The b", toStatus: "proposed" },
+    { from: "a", to: "x", toTitle: "The x", toStory: "Story t", toStatus: "proposed" },
+    { from: "c", to: "y", toTitle: "The y", toStory: "Story t", toStatus: "proposed" },
   ],
 };
 
@@ -67,7 +67,7 @@ test("4.9 dependency curves stay inside the tree when unrelated groups are packe
   const layout = layoutTree({ ...panel,
     capabilities: ["a", "b", "c", "d", "e"].map(line),
     arrows: [["a", "b"], ["a", "c"], ["a", "d"], ["b", "d"]].map(([from, to]) => ({
-      from: from!, to: to!, toTitle: to!, landed: false, toStatus: "proposed" as const,
+      from: from!, to: to!, toTitle: to!, toStatus: "proposed" as const,
     })),
   });
   for (const link of layout.links) {

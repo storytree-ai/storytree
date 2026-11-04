@@ -2,7 +2,7 @@
  * Capability 4 · Drill-down (the forest story): what the panel a click on a story node opens says.
  * It explains the story in plain words: its sentences, and a small diagram of how the capabilities
  * connect, each pointing at the ones it builds on, including any in other stories, named with their
- * story and marked if not yet landed. Below the diagram it shows one capability, the one selected:
+ * story and their word. Below the diagram it shows one capability, the one selected:
  * its sentences, its health as the agent reports it, and its contracts on request (ADR-0659).
  *
  * Its shelf: the user's agent writes every description, and storytree writes none (ADR-0625 D1),
@@ -16,7 +16,7 @@
 import type { AnnotatedContract, AnnotatedStory, AnnotatedTree, CapabilityStatus, CapabilityWhy, Change, EarlierVerdict, HealthColumn, HealthSource, HealthState } from "@storytree/library";
 
 
-import { grove, type PartState, type PartStates } from "../capability-tree/capability-tree.js";
+import { grove, type PartStates } from "../capability-tree/capability-tree.js";
 
 /** One contract, as the panel lists it on request. */
 export interface ContractLine {
@@ -58,8 +58,6 @@ export interface CapabilityLine {
   verified?: HealthState;
   /** Where storytree saw its contracts, local before CI, when their entries say (ADR-1193 D3). */
   sources?: HealthSource[];
-  /** Where it stands, by the arc surface's work states: for choosing which to show, not for its card. */
-  state: PartState;
   /** Its word, as the library gives it: proposed, healthy, unhealthy or untested (ADR-0744). */
   status: CapabilityStatus;
   contracts: ContractLine[];
@@ -79,8 +77,6 @@ export interface Arrow {
   toTitle: string;
   /** The title of its story, when it is in another story. */
   toStory?: string;
-  /** Whether the capability pointed at has landed. */
-  landed: boolean;
   /** The word for the capability pointed at, as the library gives it (ADR-0744). */
   toStatus: CapabilityStatus;
   /** The agent's report for the capability pointed at, when it is report-only: its card says that instead of its word. */
@@ -135,7 +131,7 @@ export function drillDown(tree: AnnotatedTree, story: string, states: PartStates
   const byId = new Map(found.capabilities.map((capability) => [capability.id, capability]));
   const trails = reportedTrails(history);
 
-  const capabilities = grove(found, states).flatMap(({ capability: id, state }): CapabilityLine[] => {
+  const capabilities = grove(found, states).flatMap(({ capability: id }): CapabilityLine[] => {
     const capability = id === undefined ? undefined : byId.get(id);
     if (capability === undefined) return [];
     const contracts = capability.contracts.map((contract) => contractLine(contract, trails.get(contract.id) ?? []));
@@ -149,7 +145,6 @@ export function drillDown(tree: AnnotatedTree, story: string, states: PartStates
         reported: capability.health.reported.state,
         ...(seen.length === 0 ? {} : { verified: capability.health.verified.state }),
         ...(sources === undefined ? {} : { sources }),
-        state,
         status: capability.status,
         contracts,
         ...(capability.why === undefined ? {} : { why: whyLine(capability.why, capability.contracts, contracts) }),
@@ -167,7 +162,6 @@ export function drillDown(tree: AnnotatedTree, story: string, states: PartStates
         to,
         toTitle: target?.capability.title ?? to,
         ...(target === undefined || target.owner.id === story ? {} : { toStory: target.owner.title }),
-        landed: states.part(to) === "landed",
         toStatus: target?.capability.status ?? "untested",
         ...(target?.capability.reportOnly ? { toReported: target.capability.health.reported.state } : {}),
       };
@@ -256,11 +250,12 @@ function sentences(description: string | undefined): string {
 
 /**
  * The capability the panel shows below its diagram (ADR-0659 D2): `chosen`, when it is one of the
- * story's own; otherwise the first in build order that has not landed, or the first if all have.
+ * story's own; otherwise the first in build order that is not healthy, or the first if all are. Its
+ * word, not the work state, says what has landed: no session writes the activity log's landed lines.
  * Undefined for a story with no capabilities.
  */
 export function selectedCapability(panel: StoryPanel, chosen?: string): string | undefined {
   const own = panel.capabilities;
   if (chosen !== undefined && own.some(({ id }) => id === chosen)) return chosen;
-  return (own.find(({ state }) => state !== "landed") ?? own[0])?.id;
+  return (own.find(({ status }) => status !== "healthy") ?? own[0])?.id;
 }

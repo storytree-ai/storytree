@@ -11,13 +11,12 @@ import type { CapabilityLine, StoryPanel } from "@storytree/forest";
 
 import { renderStoryPanel } from "./story-panel.js";
 
-function line(id: string, state: CapabilityLine["state"], reported: CapabilityLine["reported"], status: CapabilityLine["status"] = "proposed"): CapabilityLine {
+function line(id: string, reported: CapabilityLine["reported"], status: CapabilityLine["status"] = "proposed"): CapabilityLine {
   return {
     id,
     title: `The ${id}`,
     description: `What ${id} does.`,
     reported,
-    state,
     status,
     contracts: [{ id: `${id}-k`, title: `${id} keeps its promise`, reported, trail: "green only" }],
   };
@@ -27,10 +26,10 @@ const panel: StoryPanel = {
   story: "s",
   title: "Story s",
   description: "What s is. Why.",
-  capabilities: [line("base", "landed", "passing", "healthy"), line("next", "in-progress", "failing")],
+  capabilities: [line("base", "passing", "healthy"), line("next", "failing")],
   arrows: [
-    { from: "next", to: "base", toTitle: "The base", landed: true, toStatus: "healthy" },
-    { from: "base", to: "away", toTitle: "The away", toStory: "Story t", landed: false, toStatus: "untested" },
+    { from: "next", to: "base", toTitle: "The base", toStatus: "healthy" },
+    { from: "base", to: "away", toTitle: "The away", toStory: "Story t", toStatus: "untested" },
   ],
 };
 
@@ -81,10 +80,10 @@ test("4.8 each of the story's capabilities is a box you can click, marked when s
 
 test("4.10 each card has a strip saying proposed, healthy, unhealthy or untested, coloured by it, and the agent's report and storytree's as labelled marks", () => {
   const capabilities = [
-    { ...line("base", "landed", "passing", "unhealthy"), verified: "failing" as const },
-    line("next", "in-progress", "failing", "proposed"),
-    line("done", "landed", "failing", "healthy"),
-    line("bare", "planned", "passing", "untested"),
+    { ...line("base", "passing", "unhealthy"), verified: "failing" as const },
+    line("next", "failing", "proposed"),
+    line("done", "failing", "healthy"),
+    line("bare", "passing", "untested"),
   ];
   const html = renderStoryPanel({ ...panel, capabilities }, "next");
   const base = box(html, "The base");
@@ -132,7 +131,7 @@ test("with the capability tree switched off, the panel is the story's sentences 
 });
 
 function notGreen(why: CapabilityLine["why"], lastSeen?: { state: "passing" | "failing"; at: string }): StoryPanel {
-  const base = line("cap", "in-progress", "not-checked", "untested");
+  const base = line("cap", "not-checked", "untested");
   const contract = { ...base.contracts[0]!, ...(lastSeen === undefined ? {} : { lastSeen }) };
   return { ...panel, capabilities: [{ ...base, contracts: [contract], ...(why === undefined ? {} : { why }) }] };
 }
@@ -172,8 +171,8 @@ test("4.12 a capability that is not healthy says why under its word, who moves i
 });
 
 test("4.13 in a project nothing verifies, a built capability's card and detail lead with the agent's report and say storytree does not check this project's tests yet", () => {
-  const cap: CapabilityLine = { ...line("cap", "landed", "passing", "untested"), reportOnly: true };
-  const html = renderStoryPanel({ ...panel, capabilities: [cap], arrows: [{ from: "cap", to: "away", toTitle: "The away", toStory: "Story t", landed: true, toStatus: "untested", toReported: "failing" }] }, "cap");
+  const cap: CapabilityLine = { ...line("cap", "passing", "untested"), reportOnly: true };
+  const html = renderStoryPanel({ ...panel, capabilities: [cap], arrows: [{ from: "cap", to: "away", toTitle: "The away", toStory: "Story t", toStatus: "untested", toReported: "failing" }] }, "cap");
   const shown = (part: string): string => part.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
   assert.match(shown(box(html, "The cap")), /^The cap agent: passing/, "its strip says the agent's report");
   assert.match(shown(box(html, "Story t · The away")), /agent: failing/);
@@ -225,16 +224,16 @@ test("4.36 a story's risk bar shows its rating out of ten, the users it could re
 
 test("4.37 storytree's mark names its source on the card, in the detail and on each contract: verified locally, from CI, or both (short on the card); the reason says the source of what carries it; no source recorded, it says none", () => {
   const shown = (part: string): string => part.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
-  const base = line("base", "landed", "passing", "unhealthy");
+  const base = line("base", "passing", "unhealthy");
   const local: CapabilityLine = { ...base, verified: "passing", sources: ["local"], contracts: [{ ...base.contracts[0]!, verified: "passing", source: "local" }] };
   const both: CapabilityLine = {
-    ...line("both", "landed", "passing", "unhealthy"),
+    ...line("both", "passing", "unhealthy"),
     verified: "failing",
     sources: ["local", "ci"],
     why: { reason: "failing", mover: "agent", contracts: ["2.1"], sources: ["ci"] },
     contracts: [{ id: "k1", title: "2.1 · On CI", reported: "passing", trail: "green only", verified: "failing", source: "ci" }, { id: "k2", title: "2.2 · Local", reported: "passing", trail: "green only", verified: "passing", source: "local" }],
   };
-  const older: CapabilityLine = { ...line("older", "landed", "passing", "unhealthy"), verified: "failing", why: { reason: "failing", mover: "agent", contracts: ["3.1"] } };
+  const older: CapabilityLine = { ...line("older", "passing", "unhealthy"), verified: "failing", why: { reason: "failing", mover: "agent", contracts: ["3.1"] } };
   const html = (selected: string) => renderStoryPanel({ ...panel, capabilities: [local, both, older], arrows: [] }, selected);
 
   assert.match(shown(box(html("base"), "The base")), /storytree saw: passing · local\b/, "the card, short of room, says it short");

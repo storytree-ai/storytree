@@ -17,7 +17,7 @@ import { z } from "zod";
 
 import { runGit } from "./activity/git.js";
 import type { ActivityLog } from "./activity/index.js";
-import { claim, claimAll, CLAIM_REASON_LIMIT, closeRefusal, increments, land, release, type Claim, type ClaimAnswer, type ClaimContext } from "./claims/claims.js";
+import { claim, claimAll, closeRefusal, increments, land, release, type Claim, type ClaimAnswer, type ClaimContext } from "./claims/claims.js";
 import { currentBranch, type MergeWatch } from "./claims/merges.js";
 import { presentQuestion, stopPresenting } from "./claims/presenting.js";
 import { staleClaims } from "./claims/stale-claims.js";
@@ -141,7 +141,7 @@ function registerClaimTools(define: Define, merges: MergeWatch): void {
     z.object({
       ...part,
       capabilities: z.array(capabilityId).min(1).optional().describe("Several capabilities' ids, claimed in ascending id order, all or nothing: at the first refusal none is held"),
-      reason: z.string().min(1).describe(`What you are about to do, in ${CLAIM_REASON_LIMIT} characters or fewer: it names your session in the sessions list`),
+      reason: z.string().min(1).describe("What you are about to do, of any length: until you name your session, its row in the sessions list reads this, cut at a word to 40 characters"),
     }),
     async ({ capability, capabilities, increment, reason }, call) => {
       const id = capability ?? increment;
@@ -171,7 +171,7 @@ function registerClaimTools(define: Define, merges: MergeWatch): void {
     "Make a claimed Claude Code workspace, or prepare a Codex app workspace: check the work is free and fetch main. For Codex, pass the returned ref and name to the app's create_worktree, then call attach_workspace with its returned folder. Refused if held, waiting or already yours; pick other work. Refused too if an open pull request was already made for the work, naming it: carry that one on, or close it, or pass despite_open_pulls to build beside it.",
     z.object({
       ...part,
-      reason: z.string().min(1).describe(`What you are about to do, in ${CLAIM_REASON_LIMIT} characters or fewer: it names your session in the sessions list`),
+      reason: z.string().min(1).describe("What you are about to do, of any length: until you name your session, its row in the sessions list reads this, cut at a word to 40 characters"),
       despite_open_pulls: z.boolean().optional().describe("Make it even though open pull requests were already made for this work; only once you have read them and know why"),
     }),
     async ({ capability, increment, reason, despite_open_pulls }, call) => {
@@ -457,8 +457,6 @@ export async function refusalText(library: Library, id: string, answer: Exclude<
     }
     case "unknown-capability":
       return `There is no capability or increment ${id} in this project's plan; plan it first, or find its id with show_plan.`;
-    case "reason-too-long":
-      return `Your reason is ${answer.length} characters; a claim's reason is the session's name in the sessions list, so keep it to ${answer.limit} or fewer and claim again.`;
   }
 }
 

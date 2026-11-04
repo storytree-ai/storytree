@@ -16,7 +16,7 @@ import { existsSync, mkdirSync, realpathSync } from "node:fs";
 import path from "node:path";
 
 import { NO_REPOSITORY_COMMANDS } from "../activity/git.js";
-import { claim, claimAll, claimRefusal, reasonRefusal, readClaim, readClaims, release, type Claim, type ClaimAllAnswer, type ClaimAnswer, type ClaimContext, type Held } from "./claims.js";
+import { claim, claimAll, claimRefusal, readClaim, readClaims, release, type Claim, type ClaimAllAnswer, type ClaimAnswer, type ClaimContext, type Held } from "./claims.js";
 import { endIfMerged, ghAllOpenPulls, inMergeQueue, type MergeWatch } from "./merges.js";
 import { setUpWorktree, wasSetUp, type SetupLimits, type WorktreeSetup } from "./worktree-setup.js";
 
@@ -80,7 +80,7 @@ const NAME_PART_MAX = 32;
 
 /** Create and claim for Claude Code; for Codex return the app's creation arguments without a claim. */
 export async function makeWorkspace(context: WorkspaceContext, id: string, reason: string, watch: MergeWatch = {}, options: WorkspaceOptions = {}): Promise<WorkspaceAnswer> {
-  const refused = reasonRefusal(reason) ?? await workspaceRefusal(context, id, reason, watch);
+  const refused = await workspaceRefusal(context, id, reason, watch);
   if (refused !== undefined) return refused;
   const listed = await listedCapabilities(context, id, reason);
   if (!Array.isArray(listed)) return listed;
@@ -151,7 +151,7 @@ export async function makeWorkspace(context: WorkspaceContext, id: string, reaso
 
 /** Attach an app-created worktree (Codex's, or the one a Claude Code session is already in) to this session's work, leaving its lifetime to the app. */
 export async function attachWorkspace(context: WorkspaceContext, id: string, reason: string, attachment: WorkspaceAttachment, watch: MergeWatch = {}): Promise<ClaimedWorkspace | WorkspaceRefusal> {
-  const refused = reasonRefusal(reason) ?? await workspaceRefusal(context, id, reason, watch);
+  const refused = await workspaceRefusal(context, id, reason, watch);
   if (refused !== undefined) return refused;
   const listed = await listedCapabilities(context, id, reason);
   if (!Array.isArray(listed)) return listed;

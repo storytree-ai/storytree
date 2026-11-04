@@ -81,8 +81,7 @@ export type ClaimAnswer =
   | Held
   | { ok: false; refused: "unknown-capability"; capability: string }
   | { ok: false; refused: "closed"; increment: string }
-  | { ok: false; refused: "waiting"; waits: Waiting[] }
-  | { ok: false; refused: "reason-too-long"; limit: number; length: number };
+  | { ok: false; refused: "waiting"; waits: Waiting[] };
 
 /**
  * A claim refused because another live session holds the work, and the increments that session holds it for:
@@ -90,19 +89,6 @@ export type ClaimAnswer =
  * close, which a dispatcher chains it after (ADR-0955 D2).
  */
 export type Held = { ok: false; refused: "held"; holder: Claim; heldFor: string[] };
-
-/**
- * A claim's reason is its session's name in the forest's running-sessions list, so it is held to
- * what that list's label column shows at its default width (ADR-0737 D2): measured in Chromium at
- * 13px system-ui, 40 characters of ordinary words fit its 290px unclipped.
- */
-export const CLAIM_REASON_LIMIT = 40;
-
-/** Why `reason` cannot be a claim's reason, or undefined when it can. */
-export function reasonRefusal(reason: string): Extract<ClaimAnswer, { refused: "reason-too-long" }> | undefined {
-  const length = [...reason.trim()].length;
-  return length > CLAIM_REASON_LIMIT ? { ok: false, refused: "reason-too-long", limit: CLAIM_REASON_LIMIT, length } : undefined;
-}
 
 /**
  * An increment that waits (ADR-0643 D2), and what still holds it: a blocker, as the library's
@@ -147,8 +133,6 @@ type ClaimOptions = { readonly moveBranch?: true; readonly keepBranch?: true; re
 export async function claim(context: ClaimContext, id: string, reason: string, given: ClaimOptions = {}): Promise<ClaimAnswer> {
   const options: ClaimOptions = given.moveBranch || given.keepBranch || !inLinkedWorktree(context.folder) ? given : { ...given, moveBranch: true };
   const file = options.file === undefined ? {} : { file: options.file };
-  const tooLong = reasonRefusal(reason);
-  if (tooLong !== undefined) return tooLong;
   // What this session already holds is answered before the library is read (5.23).
   // A finished holder claiming again must write an admitted claim to reopen its session.
   const standing = await readClaim(context.log, context.project, id, context);
@@ -572,7 +556,7 @@ export async function increments(library: Library): Promise<SchemaRecord<"increm
 export const claimsGuidance: readonly string[] = [
   [
   "Claim, and open the knowledge you need.",
-  "- `claim` the increment you drive: that starts it. `claim` a capability before you touch it; `file_owners` names each file's capability and holder. Your reason, 40 characters or fewer, names your session's row. If another session holds it, or it waits on other work, pick other work: nobody queues. A capability you need already held means you are late: push unfinished work to a branch named on the increment, `release` all your claims, the increment's too, and pick other work. A session manager reads `stale_claims`: claimed increments whose holder went quiet, with routes.",
+  "- `claim` the increment you drive: that starts it. `claim` a capability before you touch it; `file_owners` names each file's capability and holder. Your reason, of any length, is kept whole on the claim; until you name your session, its row reads the reason cut at a word to 40 characters. If another session holds it, or it waits on other work, pick other work: nobody queues. A capability you need already held means you are late: push unfinished work to a branch named on the increment, `release` all your claims, the increment's too, and pick other work. A session manager reads `stale_claims`: claimed increments whose holder went quiet, with routes.",
   "- Once you know what you are doing, `name_session` names your row in the sessions list, in 40 characters or fewer; name it again when your work shifts. Until you do, the row reads your claim's reason, or your harness and folder.",
   "- Only when the user asks for a separate workspace, call `make_workspace` before claiming: Claude Code gets a claimed worktree to enter. For Codex, call the desktop app’s create_worktree with the ref and name it returns, then `attach_workspace` with the folder, ref, name and your reason; attach a folder returned with a registration error rather than create another.",
   "- `open` the capability to see its shelf: the decisions that are its way into the project's knowledge, as spines. Start at the shelf, open what matches your task, and stop when you can act. `search_notes` finds the artifacts closest in meaning to a question.",

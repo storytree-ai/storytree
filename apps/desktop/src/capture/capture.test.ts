@@ -17,7 +17,7 @@ import type { Line, NewLine } from "@storytree/library";
 import { workStates } from "@storytree/arc-surface";
 import { removeTemp } from "@storytree/test-waits";
 
-import { buildCapture, buildFolder, fakeBridge, fallbackChromium, launch, launchFailure, launchPlan, outputFolder, seedWorkStates, visibleGlobeTargets, zoomGlobe } from "./index.js";
+import { buildCapture, buildFolder, captureOutput, fakeBridge, fallbackChromium, launch, launchFailure, launchPlan, outputFolder, seedWorkStates, visibleGlobeTargets, zoomGlobe } from "./index.js";
 
 const checkout = path.resolve(import.meta.dirname, "../../../..");
 
@@ -189,6 +189,19 @@ test("a capture run to check it writes to a scratch folder, and re-takes into it
   assert.ok(scratch.startsWith(path.join("/scratch", "")), scratch);
   assert.notEqual(outputFolder(path.join(checkout, "packages", "forest", "evidence", "wisps"), { argv: [], tmp: "/scratch" }), scratch, "two evidence folders get two scratch folders");
   assert.equal(outputFolder(folder, { argv: ["node", "capture.mjs", "--retake"], tmp: "/scratch" }), folder);
+});
+
+test("a retaken capture names the evidence upload for its pictures, never a commit, as a check run names --retake", t => {
+  const folder = mkdtempSync(path.join(tmpdir(), "storytree-retake-"));
+  t.after(() => removeTemp(folder));
+  const said: string[] = [];
+  t.mock.method(console, "error", (line: string) => { said.push(line); });
+  assert.equal(captureOutput(folder, { argv: ["node", "capture.mjs", "--retake"], tmp: folder }), folder);
+  assert.match(said.join("\n"), /pnpm evidence:upload --pr <n>/, "a retake says its pictures go up with the evidence upload");
+  said.length = 0;
+  captureOutput(folder, { argv: ["node", "capture.mjs"], tmp: folder });
+  assert.match(said.join("\n"), /--retake/, "a check run says how to retake");
+  assert.match(said.join("\n"), /pnpm evidence:upload --pr <n>/, "and that a retake's pictures are uploaded");
 });
 
 test("2.18 an evidence build writes its bundle to the checkout's ignored build folder, leaving nothing new beside the evidence it serves", () => {

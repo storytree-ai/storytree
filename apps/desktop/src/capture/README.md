@@ -92,7 +92,8 @@ abandoned and the browser's process killed, so a slow shutdown on a loaded runne
 cannot hold the run open. `withCapture` closes its own browser this way.
 
 Outputs go through `captureOutput`: scratch by default, the evidence folder only
-with `--retake`. A capture's bundled page goes to `buildFolder(folder, …)`, under the
+with `--retake`. A retake's pictures are uploaded with `pnpm evidence:upload --pr <n>`
+and linked, never committed (check:evidence refuses them, ADR-1234 D1). A capture's bundled page goes to `buildFolder(folder, …)`, under the
 checkout's ignored `.evidence-builds/`, never to a `dist/` beside the evidence, so a
 build leaves nothing untracked in a package's source or evidence folders. `CAPTURE_PLAYWRIGHT` and `CAPTURE_CHROMIUM` override the workspace
 module and installed browser; older `PLANET_*` and `STORYTREE_PLAYWRIGHT` names are

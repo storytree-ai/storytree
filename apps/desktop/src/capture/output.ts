@@ -1,7 +1,8 @@
 /**
  * Capability 2 · Storytree projects. Where a capture writes its pictures and measurements. A run to check that a capture still works
- * writes to a scratch folder, so the landing's committed evidence stays as it was; re-taking the
- * evidence into its own folder is a deliberate act, named on the command line with --retake.
+ * writes to a scratch folder, so the evidence folder stays as it was; re-taking the evidence into its own
+ * folder is a deliberate act, named on the command line with --retake. A retake's pictures are not committed:
+ * check:evidence refuses them (ADR-1234 D1), so they go to the evidence bucket with `pnpm evidence:upload --pr <n>`.
  */
 import { mkdirSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -34,10 +35,17 @@ export function buildFolder(folder: string, ...parts: string[]): string {
   return path.join(CHECKOUT, ".evidence-builds", name, ...parts);
 }
 
-/** outputFolder for this run, made if it is missing and said on stderr, so the capture's reader knows where to look. */
-export function captureOutput(folder: string): string {
-  const out = outputFolder(folder);
+const UPLOAD = "pnpm evidence:upload --pr <n> --readme <the evidence folder's README> <file…>";
+
+/**
+ * outputFolder for this run, made if it is missing and said on stderr, so the capture's reader knows where to look
+ * and that a retake's pictures go to the evidence bucket, not into a commit.
+ */
+export function captureOutput(folder: string, run?: CaptureRun): string {
+  const out = outputFolder(folder, run);
   mkdirSync(out, { recursive: true });
-  console.error(out === folder ? `re-taking the evidence in ${out}` : `writing to the scratch folder ${out} (--retake writes into the evidence folder)`);
+  console.error(out === folder
+    ? `re-taking the evidence in ${out}: upload its pictures with ${UPLOAD} on the Mint box and link them, never commit them`
+    : `writing to the scratch folder ${out} (--retake writes into the evidence folder, whose pictures go up with ${UPLOAD})`);
   return out;
 }

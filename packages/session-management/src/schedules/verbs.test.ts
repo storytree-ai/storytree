@@ -174,3 +174,45 @@ test("18.3 · `schedule due` lists a plugin librarian's run on its trigger: a sc
     assert.equal((await due.act({}, context, WORDS)).text.includes(tidy.id), false, "not due before its trigger comes round again");
   });
 });
+
+test("18.4 · a process with the precheck questions-to-prep is due only while an open question on an active arc has no prep mark or was edited after it, or a settled question that carries a would-be answer is unscored; with none, its run is recorded skipped", async () => {
+  await withRunner(async (context, library) => {
+    const prep = await library.writeKnowledge("process", { ...PROCESS, title: "Prep the questions", schedule: "every run", precheck: "questions-to-prep" });
+    const isDue = async (): Promise<boolean> => ((await due.act({}, context, WORDS)).data?.due as { id: string }[]).some((one) => one.id === prep.id);
+    const skippedFor = async (): Promise<string | undefined> => ((await due.act({}, context, WORDS)).data?.skipped as { id: string; found: string }[]).find((one) => one.id === prep.id)?.found;
+    assert.equal(await isDue(), false, "nothing waits, so no prep session starts");
+    assert.equal(await skippedFor(), "no question waits to be prepped or scored");
+
+    const ask = { stakes: "Cost", statement: "Which provider?", context: "We send mail", options: "1. Mailgun 2. SES", recommendation: "Mailgun" };
+    const parkedArc = await library.createArc({ title: "Later", intent: "Some day", endState: "Done" });
+    await library.raiseQuestion({ ...ask, arc: parkedArc.id, title: "Parked provider" });
+    assert.equal(await isDue(), true, "an open question with no prep mark is work");
+    await library.parkArc(parkedArc.id);
+    assert.equal(await isDue(), false, "a question on a parked arc waits for no prep");
+
+    const arc = await library.createArc({ title: "Email", intent: "Send mail", endState: "Mail is sent" });
+    const question = (await library.raiseQuestion({ ...ask, arc: arc.id, title: "Provider" })).id;
+    assert.equal(await isDue(), true);
+    await assert.rejects(ran.act({ process: prep.id, outcome: "skipped" }, context, WORDS), VerbRefusal, "skipped is refused while a question waits");
+    await library.prepQuestion(question, { stance: "agrees" });
+    assert.equal(await isDue(), false, "a prepped question is not work again");
+    await library.editQuestion(question, { context: "We send mail, and SES is already set up" });
+    assert.equal(await isDue(), true, "a question edited after its mark reads unprepared");
+    await library.predictQuestion(question, { pick: 1, confidence: "high", why: "Simplest" });
+    await library.prepQuestion(question, { stance: "agrees" });
+    assert.equal(await isDue(), false);
+
+    await library.settleQuestion(question, { answer: "Mailgun" });
+    assert.equal(await isDue(), true, "a settled question carrying a would-be answer is unscored, so it is work");
+    const scoring = await due.act({}, context, WORDS);
+    assert.equal((scoring.data?.due as { id: string; found?: string }[]).find((one) => one.id === prep.id)?.found, `1 question to score (${question})`, "it names the questions waiting, for the prep session to take");
+    assert.match(scoring.text, new RegExp(`\\n  ${prep.id}  Prep the questions  \\(never run; its precheck found 1 question to score \\(${question}\\)\\)`));
+    await library.scoreQuestion(question, { prediction: "match", recommendation: "match", by: "runner" });
+    assert.equal(await isDue(), false, "once scored, nothing waits");
+    const unpredicted = (await library.raiseQuestion({ ...ask, arc: arc.id, title: "Sender" })).id;
+    await library.prepQuestion(unpredicted, { stance: "agrees" });
+    await library.settleQuestion(unpredicted, { answer: "Mick" });
+    assert.equal(await isDue(), false, "a settled question with no would-be answer is left to its raiser's score");
+    assert.match((await ran.act({ process: prep.id, outcome: "skipped" }, context, WORDS)).text, /: skipped, no question waits to be prepped or scored\.$/);
+  });
+});

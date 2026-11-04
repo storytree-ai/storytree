@@ -49,6 +49,11 @@
         "from": ".",
         "export": "knowledgeGuidance",
         "order": 80
+      },
+      {
+        "from": "./commands",
+        "export": "mediaGuidance",
+        "order": 81
       }
     ],
     "verbs": [

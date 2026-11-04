@@ -8,6 +8,7 @@
  * fail. Other test files share the server, so a test only ever reads its own project.
  */
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { test } from "node:test";
 
 import { connect, MissingReferenceError, RetireRefusedError, type Change, type NodeHealth, type RecordEnvelope, type Storytree } from "@storytree/library";
@@ -147,6 +148,9 @@ const LIBRARY_API = [
   "pluginRecords",
   "removePluginRecords",
   "dormantKinds",
+  "attachMedia",
+  "media",
+  "mediaFile",
   // Capability 27's fixed data questions.
   "counts",
   "latestChanges",
@@ -910,5 +914,49 @@ test("7.25 changesSince(n, { types, actions }) hands out only the changes of tho
     assert.deepEqual((await lib.changesSince(0, { actions: ["updated"] })).changes.map((change) => change.recordId), [first.id], "actions alone");
     assert.deepEqual(await lib.changesSince(created.cursor, { types: ["story"], actions: ["created"] }), { changes: [], cursor: created.cursor }, "nothing kept: the cursor given");
     await assert.rejects(lib.changesSince(0, { actions: untyped(["deleted"]) }), RangeError, "an action no change has is refused");
+  });
+});
+
+test("7.26 attachMedia keeps a file beside a live record, with its type, size and SHA-256, out of the record's history; media lists them and mediaFile reads one back exactly; a record that is not live, a file past 10 MB and a name taken by other bytes are refused, unless replacing", async () => {
+  const name = uniqueProjectName();
+  await withStorytree([name], async (storytree) => {
+    const lib = await storytree.openProject(name);
+    const note = await lib.defineTerm({ term: "Approved look", meaning: "The forest at dusk, as the owner approved it." });
+    const png = Uint8Array.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 1, 2, 0xff]);
+    const sha256 = createHash("sha256").update(png).digest("hex");
+    const before = (await lib.history()).length;
+
+    const attached = await lib.attachMedia(note.id, { name: "dusk.png", type: "image/png", bytes: png }, { actor: "session:media-test" });
+    assert.equal(attached.outcome, "added");
+    assert.deepEqual([attached.recordId, attached.name, attached.type, attached.size, attached.sha256, attached.addedBy], [note.id, "dusk.png", "image/png", png.length, sha256, "session:media-test"]);
+    assert.equal((await lib.history()).length, before, "the bytes are not written into the record's history");
+    const listed = await lib.media(note.id);
+    assert.deepEqual(listed, [{ recordId: note.id, name: "dusk.png", type: "image/png", size: png.length, sha256, addedAt: attached.addedAt, addedBy: "session:media-test" }]);
+    const file = await lib.mediaFile(note.id, "dusk.png");
+    assert.deepEqual(file?.bytes, png, "read back exactly");
+    assert.equal(file?.sha256, sha256);
+    assert.equal(await lib.mediaFile(note.id, "other.png"), null);
+    assert.deepEqual(await lib.media("glossary_000000000000"), []);
+
+    // The same bytes again change nothing; other bytes under the name are refused, or replace it when asked.
+    assert.equal((await lib.attachMedia(note.id, { name: "dusk.png", type: "image/png", bytes: png })).outcome, "same");
+    const redrawn = Uint8Array.from([...png, 7]);
+    await assert.rejects(lib.attachMedia(note.id, { name: "dusk.png", type: "image/png", bytes: redrawn }), /already holds other bytes.*replace/s);
+    assert.deepEqual((await lib.mediaFile(note.id, "dusk.png"))?.bytes, png, "a refusal changes nothing");
+    const replaced = await lib.attachMedia(note.id, { name: "dusk.png", type: "image/png", bytes: redrawn }, { replace: true });
+    assert.deepEqual([replaced.outcome, replaced.size], ["replaced", redrawn.length]);
+    assert.deepEqual((await lib.mediaFile(note.id, "dusk.png"))?.bytes, redrawn);
+
+    // Up to 10 MB is kept; past it, a missing or retired record, and a name or type that is not a file's are refused.
+    const cap = new Uint8Array(10 * 1024 * 1024);
+    assert.equal((await lib.attachMedia(note.id, { name: "clip.mp4", type: "video/mp4", bytes: cap })).size, cap.length);
+    await assert.rejects(lib.attachMedia(note.id, { name: "long.mp4", type: "video/mp4", bytes: new Uint8Array(cap.length + 1) }), /10 MB/);
+    await assert.rejects(lib.attachMedia("glossary_000000000000", { name: "dusk.png", type: "image/png", bytes: png }), /no live record/);
+    const gone = await lib.defineTerm({ term: "Old look", meaning: "Retired." });
+    await lib.retire(gone.id, "overtaken");
+    await assert.rejects(lib.attachMedia(gone.id, { name: "dusk.png", type: "image/png", bytes: png }), /no live record/);
+    await assert.rejects(lib.attachMedia(note.id, { name: "../dusk.png", type: "image/png", bytes: png }), /file name/);
+    await assert.rejects(lib.attachMedia(note.id, { name: "dusk.png", type: "a png", bytes: png }), /media type/);
+    assert.deepEqual((await lib.media(note.id)).map((entry) => entry.name), ["clip.mp4", "dusk.png"], "in name order, the refused ones not kept");
   });
 });

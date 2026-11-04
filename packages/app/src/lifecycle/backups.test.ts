@@ -97,6 +97,39 @@ test("1.8 a snapshot past the longest string JavaScript can build is written who
   assert.deepEqual(await readBackup(none!), empty);
 });
 
+test("1.50 a daily snapshot carries the project's media, a line per file after its history, and restores each file exactly; a snapshot holding none is written as before", { timeout: 300_000 }, async () => {
+  const url = process.env.STORYTREE_TEST_PG_URL;
+  assert.ok(url, "STORYTREE_TEST_PG_URL is not set: run the tests via `pnpm test`");
+  const [site, copy] = [`t-${randomBytes(4).toString("hex")}`, `t-${randomBytes(4).toString("hex")}`];
+  const dir = mkdtempSync(path.join(tmpdir(), "storytree-backups-media-"));
+  const storytree = await connect({ url });
+  try {
+    const library = await storytree.openProject(site);
+    const note = await library.defineTerm({ term: "Approved look", meaning: "The forest at dusk." });
+    const [png, clip] = [randomBytes(2_000), randomBytes(300_000)];
+    await library.attachMedia(note.id, { name: "dusk.png", type: "image/png", bytes: png });
+    await library.attachMedia(note.id, { name: "dusk.webm", type: "video/webm", bytes: clip });
+    await library.close();
+
+    const [file] = await backUp({ storytree, projects: [site], dir, now: new Date("2026-11-05T00:00:00.000Z") });
+    const lines = readFileSync(file!, "utf8").split("\n");
+    assert.ok(!lines[0]!.includes("dusk"), "the first line holds no media");
+    assert.equal(lines.filter((line) => line.includes(`"name":"dusk.`)).length, 2, "a line per file");
+    const snapshot = await readBackup(file!);
+    assert.deepEqual(snapshot, await storytree.snapshot(site).then((now) => ({ ...now, takenAt: snapshot.takenAt })), "it reads back as the snapshot it was written from");
+
+    await storytree.restore(copy, snapshot);
+    const restored = await storytree.openProject(copy);
+    assert.deepEqual((await restored.mediaFile(note.id, "dusk.png"))?.bytes, new Uint8Array(png));
+    assert.deepEqual((await restored.mediaFile(note.id, "dusk.webm"))?.bytes, new Uint8Array(clip));
+    await restored.close();
+  } finally {
+    await storytree.close();
+    rmSync(dir, { recursive: true, force: true });
+    await dropTestDatabases([site, copy].map((name) => `storytree_${name}`));
+  }
+});
+
 test("1.8 a start reuses a project's successful snapshot under a day old, and takes the next at its day mark", { timeout: 300_000 }, async (t) => {
   t.mock.timers.enable({ apis: ["setInterval", "Date"], now: Date.parse("2026-10-06T12:00:00.000Z") });
   const dir = mkdtempSync(path.join(tmpdir(), "storytree-backups-due-"));

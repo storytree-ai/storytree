@@ -11,6 +11,6 @@ export { fenceOutsideWriter } from "./outside-writer.js";
 export type { OutsideWriter } from "./outside-writer.js";
 export { RestoreRefusedError } from "./snapshot.js";
 export { CONNECT_TIMEOUT_MS, explainConnectTimeout } from "./server.js";
-export type { ProjectSnapshot, SnapshotEvent, SnapshotRecord } from "./snapshot.js";
+export type { ProjectSnapshot, SnapshotEvent, SnapshotMedia, SnapshotRecord } from "./snapshot.js";
 export { connect } from "./storytree.js";
 export type { ConnectOptions, OpenOptions, OwnDatabaseOptions, Project, Storytree } from "./storytree.js";

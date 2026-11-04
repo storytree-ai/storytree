@@ -3,8 +3,10 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
 export type ReleaseChannel = "stable" | "alpha";
-/** Whether this app installs releases, so the channel means something here, and the channel it follows. */
-export interface ReleaseChannelState { readonly available: boolean; readonly channel: ReleaseChannel }
+/** The build stable offers, and the day it was published (4.34). */
+export interface StableBuild { readonly version: string; readonly published: string }
+/** Whether this app installs releases, so the channel means something here, the channel it follows, and stable's build when read. */
+export interface ReleaseChannelState { readonly available: boolean; readonly channel: ReleaseChannel; readonly stable?: StableBuild }
 export const STABLE_BRANCH = "release-channel-stable";
 export const STABLE_FEED = `https://raw.githubusercontent.com/storytree-ai/storytree/${STABLE_BRANCH}/`;
 
@@ -29,14 +31,38 @@ export function releaseChannel(home: string, marker: string): ReleaseChannel {
   return channel;
 }
 
+async function fetchText(url: string): Promise<string> {
+  const response = await fetch(url);
+  if (!response.ok) throw new Error(`${url} answered ${response.status}`);
+  return response.text();
+}
+
+/** Stable's build and its day, from the pin's latest.yml; nothing when the pin predates recording the day or cannot be read. */
+export async function stableBuild(read: (url: string) => Promise<string> = fetchText): Promise<StableBuild | undefined> {
+  try {
+    const pin = JSON.parse(await read(`${STABLE_FEED}latest.yml`)) as { version?: unknown; releaseDate?: unknown };
+    if (typeof pin.version !== "string" || typeof pin.releaseDate !== "string" || !/^\d{4}-\d{2}-\d{2}T/.test(pin.releaseDate)) return undefined;
+    return { version: pin.version, published: pin.releaseDate.slice(0, 10) };
+  } catch (error) {
+    console.error("app updates: the stable build could not be read", error);
+    return undefined;
+  }
+}
+
 /**
  * The gear's update channel (4.24): read as releaseChannel decides, so a first user reads stable, and kept by
  * rewriting release-channel.json, which the updater reads again on its next check. `marker` is the installer's.
  */
-export function releaseChannelChoice(options: { available: boolean; home: string; marker: () => string }) {
+export function releaseChannelChoice(options: { available: boolean; home: string; marker: () => string; stable?: () => Promise<StableBuild | undefined> }) {
   const read = (): ReleaseChannelState => ({ available: options.available, channel: releaseChannel(options.home, options.marker()) });
   return {
     read,
+    /** The channel with stable's build (4.34), read only where the channel is offered. */
+    async describe(): Promise<ReleaseChannelState> {
+      const state = read();
+      const stable = state.available ? await options.stable?.() : undefined;
+      return stable ? { ...state, stable } : state;
+    },
     /** Refused unless the app installs releases here and the channel is one. */
     set(value: unknown): ReleaseChannelState {
       if (!options.available) throw new Error("Only the installed app follows an update channel.");

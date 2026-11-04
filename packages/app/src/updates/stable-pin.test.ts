@@ -19,7 +19,7 @@ function installers(version: string, combined = false): PinCandidate["installers
 function fixture() {
   let current: { ref: string; manifest: StableManifest } | undefined;
   const state = {
-    candidate: { version: "0.3.2", commit: "a".repeat(40), channelSchema: 1, draft: false, prerelease: false, installers: installers("0.3.2"), bootstrap: { ps1: "published bootstrap" }, feeds: platformFeeds("0.3.2") as PinCandidateFeeds },
+    candidate: { version: "0.3.2", commit: "a".repeat(40), channelSchema: 1, draft: false, prerelease: false, installers: installers("0.3.2"), bootstrap: { ps1: "published bootstrap" }, feeds: platformFeeds("0.3.2") as PinCandidateFeeds, published: "2026-10-01T09:30:00Z" },
     increments: [
       { id: "one", fields: { title: "Choose update timing", status: "closed", outcome: { disposition: "landed", pr: "531", note: "Quiet hours and manual installs." } } },
       { id: "future", fields: { title: "Unreleased work", status: "closed", outcome: { disposition: "landed", pr: "600" } } },
@@ -312,4 +312,23 @@ test("4.26 after a repository cut-over, the notes leave out work closed before i
   assert.deepEqual(pinned.pin.increments.map(i => i.id), ["new"]);
   assert.match(pinned.releaseNotes, /New work \(\[#532\]\(https:\/\/github\.com\/storytree-ai\/storytree\/pull\/532\)\)/);
   assert.doesNotMatch(pinned.releaseNotes, /Old work/);
+});
+
+test("4.34 a pin records the day its build was published, and the stable branch's page names the build and that day and sends later work to alpha", async () => {
+  const { ports } = fixture();
+  const pinned = await pinStable("0.3.2", ports);
+  assert.equal(pinned.releaseDate, "2026-10-01T09:30:00Z");
+  const trees: { path: string; content: string }[][] = [];
+  const api: GithubRequest = async (endpoint, _method, body) => {
+    if (endpoint === "git/trees") trees.push((body as { tree: { path: string; content: string }[] }).tree);
+    return { sha: "sha" };
+  };
+  await publishStable(pinned, { ps1: "published bootstrap" }, undefined, api);
+  const page = trees[0]!.find(f => f.path === "README.md")!.content;
+  assert.match(page, /storytree 0\.3\.2 was published on 2026-10-01\. Work that landed after that day is only in alpha: .*INSTALL\.md#stable-or-alpha/);
+  // A pin made before builds carried the day says nothing of it, rather than a wrong one.
+  const { releaseDate: _, ...older } = pinned;
+  trees.length = 0;
+  await publishStable(older, { ps1: "published bootstrap" }, undefined, api);
+  assert.doesNotMatch(trees[0]!.find(f => f.path === "README.md")!.content, /was published on/);
 });

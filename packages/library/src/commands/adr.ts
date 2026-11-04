@@ -123,7 +123,7 @@ const create = verb({
     family: "adr",
     name: "new",
     summary: "record a decision with a supplied or next number, its status, who decided it, and what it supersedes",
-    usage: "adr new --title <t> --text <text|@file> --status accepted [--number <n>] [--decided YYYY-MM-DD] [--basis <owner-directed|owner-ratified|agent-derived|agent-flipped> --owner-said <his words|@file>] [--supersedes a,b] [--links a,b] [--front-cover-of <node>] [--load-bearing]",
+    usage: "adr new --title <t> --text <text|@file> --status accepted [--number <n>] [--decided YYYY-MM-DD] [--basis <owner-directed|owner-ratified|agent-derived|agent-flipped> --owner-said <his words|@file> | --basis brought-across --brought-from <0.2 record> --brought-basis <0.2's basis>] [--supersedes a,b] [--links a,b] [--front-cover-of <node>] [--load-bearing]",
   },
   tool: { absent: NO_TOOL },
   inputs: {
@@ -132,8 +132,10 @@ const create = verb({
     status: { kind: "text", optional: true, describe: "accepted; a new decision written proposed is refused (ADR-1232 D1)" },
     number: { kind: "text", optional: true, describe: "its number, when not the next" },
     decided: { kind: "text", optional: true, describe: "the day it was decided, YYYY-MM-DD" },
-    basis: { kind: "text", optional: true, describe: "who decided it: owner-directed, owner-ratified, agent-derived or agent-flipped" },
+    basis: { kind: "text", optional: true, describe: "who decided it: owner-directed, owner-ratified, agent-derived, agent-flipped or brought-across" },
     "owner-said": { kind: "text", optional: true, describe: "the owner's own words, when he decided it" },
+    "brought-from": { kind: "text", optional: true, describe: "the 0.2 record a brought-across decision was carried over from, such as ADR-0138" },
+    "brought-basis": { kind: "text", optional: true, describe: "who decided it in 0.2, for a brought-across decision: one of the other four bases" },
     supersedes: { kind: "text", optional: true, describe: "the decisions it supersedes, comma-separated" },
     links: { kind: "text", optional: true, describe: "what it links to, comma-separated" },
     "front-cover-of": { kind: "text", optional: true, describe: "the node it is the front cover of" },
@@ -143,6 +145,7 @@ const create = verb({
   async act(input, context: VerbContext) {
     const basis = input.basis;
     const ownerSaid = input["owner-said"];
+    const broughtFrom = input["brought-from"] === undefined && input["brought-basis"] === undefined ? undefined : { record: input["brought-from"], basis: input["brought-basis"] };
     const optional: Record<string, unknown> = {
       number: input.number === undefined ? undefined : decisionNumber(input.number),
       decided: input.decided,
@@ -150,7 +153,7 @@ const create = verb({
       links: idList(input.links, "links"),
       frontCoverOf: input["front-cover-of"],
       loadBearing: input["load-bearing"] ? true : undefined,
-      authority: basis === undefined ? undefined : { basis, scribedBy: await person(), at: new Date().toISOString(), ...(ownerSaid === undefined ? {} : { ownerSaid }) },
+      authority: basis === undefined ? undefined : { basis, scribedBy: await person(), at: new Date().toISOString(), ...(ownerSaid === undefined ? {} : { ownerSaid }), ...(broughtFrom === undefined ? {} : { broughtFrom }) },
     };
     const fields = { title: input.title, text: input.text, status: input.status, ...Object.fromEntries(Object.entries(optional).filter(([, value]) => value !== undefined)) };
     const decision = await recordDecision(context.library, fields as never, context.writer);

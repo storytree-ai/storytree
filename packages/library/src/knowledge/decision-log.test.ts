@@ -418,4 +418,27 @@ for (const backend of [memory, postgres]) {
     assert.equal(stale?.record.fields.text, "Its API is the simplest, and it is cheap.", "and the full text reads as it is");
     assert.equal(await knowledge.composeStatement("decision_000000000000", "?"), null);
   });
+
+  contract("13.11", "a decision carried over from 0.2 is stamped brought-across, pointing at its 0.2 record and the basis 0.2 gave, in place of the owner's words", async ({ knowledge, records, transactions }) => {
+    const stamp = { scribedBy: "cli@main", at: "2026-11-05" };
+    const carried = await knowledge.recordDecision({
+      ...DECIDE,
+      authority: { basis: "brought-across", ...stamp, broughtFrom: { record: "ADR-0138", basis: "owner-directed" } },
+    });
+    const read = await records.get(carried.id);
+    assert.deepEqual(read?.type === "decision" && read.fields.authority?.broughtFrom, { record: "ADR-0138", basis: "owner-directed" });
+
+    const history = await transactions.history();
+    await assert.rejects(
+      knowledge.recordDecision({ ...DECIDE, authority: { basis: "brought-across", ...stamp } }),
+      (error: unknown) => error instanceof SchemaError && error.fields.includes("authority") && /brought-across[\s\S]*broughtFrom/.test(error.message),
+      "brought-across points at its 0.2 record",
+    );
+    await assert.rejects(
+      knowledge.recordDecision({ ...DECIDE, authority: { basis: "carried", ...stamp } } as never),
+      (error: unknown) => error instanceof SchemaError && /brought-across/.test(error.message),
+      "the refusal of an unknown basis names brought-across among the five",
+    );
+    assert.deepEqual(await transactions.history(), history, "nothing was written");
+  });
 }

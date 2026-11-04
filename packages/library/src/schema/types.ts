@@ -358,13 +358,21 @@ export const RECORD_SCHEMAS = {
       loadBearing: z.boolean().optional(),
       /** The day it was decided (YYYY-MM-DD). */
       decided: nonEmpty.optional(),
-      /** Whose call it was (0.2's ADR-0519): a stamp claiming the owner quotes him, verbatim. */
+      /**
+       * Whose call it was (0.2's ADR-0519): a stamp claiming the owner quotes him, verbatim. A decision carried over
+       * from 0.2 (ADR-0759 D4) is `brought-across`, pointing at its 0.2 record and the basis 0.2 gave in place of his
+       * words, so an owner stamp still always quotes him.
+       */
       authority: z
         .object({
-          basis: z.enum(["owner-directed", "owner-ratified", "agent-derived", "agent-flipped"]),
+          basis: z.enum(["owner-directed", "owner-ratified", "agent-derived", "agent-flipped", "brought-across"]),
           scribedBy: nonEmpty,
           at: nonEmpty,
           ownerSaid: nonEmpty.optional(),
+          broughtFrom: z
+            .object({ record: nonEmpty, basis: z.enum(["owner-directed", "owner-ratified", "agent-derived", "agent-flipped"]) })
+            .strict()
+            .optional(),
         })
         .strict()
         .optional(),
@@ -383,6 +391,13 @@ export const RECORD_SCHEMAS = {
           code: "custom",
           path: ["authority"],
           message: `an "${authority.basis}" authority quotes the owner in "ownerSaid"; with no words of his to quote, the basis is "agent-derived"`,
+        });
+      }
+      if (authority?.basis === "brought-across" && authority.broughtFrom === undefined) {
+        context.addIssue({
+          code: "custom",
+          path: ["authority"],
+          message: `a "brought-across" authority points at its 0.2 record and the basis 0.2 gave in "broughtFrom"`,
         });
       }
     }),

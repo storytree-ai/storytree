@@ -141,15 +141,60 @@ const QUERY = `query($owner: String!, $name: String!, $pr: Int!) { repository(ow
   id state isDraft headRefOid headRefName isCrossRepository headRepository { nameWithOwner } mergeable mergeQueueEntry { state } labels(first: 100) { nodes { name } }
   commits(last: 1) { nodes { commit { statusCheckRollup { contexts(first: 100) { nodes {
     __typename ... on CheckRun { name status conclusion detailsUrl } ... on StatusContext { context state targetUrl } } } } } } }
-  timelineItems(itemTypes: [REMOVED_FROM_MERGE_QUEUE_EVENT], last: 1) { nodes { ... on RemovedFromMergeQueueEvent { createdAt reason } } }
+  timelineItems(itemTypes: [REMOVED_FROM_MERGE_QUEUE_EVENT], last: 20) { nodes { ... on RemovedFromMergeQueueEvent { createdAt reason
+    beforeCommit { oid parents(first: 2) { nodes { oid } } } } } }
 } } }`;
 
-/** One pull request from GitHub through `gh`, the box's signed-in GitHub command line, on repository `home` (4.49). */
-export async function lookOnGitHub(pr, { repo, since, now = Date.now, graceMs = 10 * 60_000, home = HOME }) {
+/**
+ * The merge queue's removals of `pull` for failed checks, from its timeline as GitHub's GraphQL gives it (4.52): each
+ * with when it was removed, the queue's commit its checks failed on, and that commit's parents (main or the queue
+ * commit of the entry ahead of it, then the pull request's head it was red at).
+ */
+export const queueRemovals = (pull) => (pull?.timelineItems?.nodes ?? [])
+  .filter((removal) => removal?.reason?.toUpperCase() === "FAILED_CHECKS" && removal.createdAt && removal.beforeCommit?.oid)
+  .map((removal) => ({ at: removal.createdAt, commit: removal.beforeCommit.oid, parents: (removal.beforeCommit.parents?.nodes ?? []).map((one) => one.oid) }));
+
+/**
+ * What a kept merge-queue red was (4.52), once its watch ends: `ahead` when its queue commit's first parent never
+ * reached main (`reached` false: the entry ahead of it did not land, so the red may be that entry's); else, `merged`, a
+ * `flake` when it merged at the head it was red at (the queue commit's second parent) and `real` when a new head was
+ * pushed first; `unknown` when it never merged, or whether the entry ahead landed is unread.
+ */
+export function queueOutcome(red, { merged, head, reached }) {
+  if (reached === false) return "ahead";
+  if (!merged || reached !== true || !red.parents?.[1]) return "unknown";
+  return red.parents[1] === head ? "flake" : "real";
+}
+
+/** The checks that failed on queue commit `commit` and the tests their red jobs' logs name, read while GitHub still keeps them (4.52). */
+async function queueFailures(repo, commit, home = HOME) {
+  const api = `repos/${home}`;
+  const checks = (await ghJson(repo, `${api}/commits/${commit}/check-runs?per_page=100`)).check_runs
+    .filter((check) => RED.has(check.conclusion?.toUpperCase()));
+  const runs = [];
+  for (const id of new Set(checks.map((check) => /\/actions\/runs\/(\d+)\//.exec(check.details_url ?? "")?.[1]).filter(Boolean))) {
+    const one = await ghJson(repo, `${api}/actions/runs/${id}`);
+    const jobs = await Promise.all((await jobsOf(repo, one, api)).map(async (job) => ({ ...job, log: redJob(job) ? await jobLog(repo, job.id, api) : "" })));
+    runs.push({ id: Number(id), attempt: one.run_attempt, repo: home, jobs });
+  }
+  return { checks: [...new Set(checks.map((check) => check.name))], tests: readFailures(runs, new Set()).tests };
+}
+
+/**
+ * One pull request from GitHub through `gh`, the box's signed-in GitHub command line, on repository `home` (4.49),
+ * with the merge queue's removals of it for failed checks not yet `seen` (their times) and what failed on each (4.52).
+ */
+export async function lookOnGitHub(pr, { repo, since, now = Date.now, graceMs = 10 * 60_000, home = HOME, seen = new Set() }) {
   const [owner, name] = home.split("/"), api = `repos/${home}`;
   const { stdout } = await run("gh", ["api", "graphql", "-f", `owner=${owner}`, "-f", `name=${name}`, "-F", `pr=${pr}`, "-f", `query=${QUERY}`],
     { cwd: repo, maxBuffer: 16 * 1024 * 1024 });
-  const pull = readPull(JSON.parse(stdout).data.repository.pullRequest, { since, now: now(), graceMs, home });
+  const found = JSON.parse(stdout).data.repository.pullRequest;
+  const queueReds = [];
+  for (const red of queueRemovals(found).filter((one) => !seen.has(one.at))) {
+    // A red whose checks cannot be read is still kept, naming none.
+    queueReds.push({ ...red, ...await queueFailures(repo, red.commit, home).catch(() => ({ checks: [], tests: [] })) });
+  }
+  const pull = { ...readPull(found, { since, now: now(), graceMs, home }), ...(queueReds.length ? { queueReds } : {}) };
   if (pull.state !== "red" || pull.conflict || !pull.runs) return pull;
   const runs = [];
   for (const id of pull.runs) {
@@ -565,13 +610,25 @@ reviewed again (4.37). At the cap the increment waits on the owner with the last
  * (`record.project.repo`, 4.49) is all that project's: every library step is taken in its library, its fix and review sessions
  * start in its checkout with its own commands.
  */
-export async function watchOnce({ dir, look, storytree, cutover = async () => undefined, startFix, startReview, rerun, refresh, behind, enqueue, alive, room, limit, cap = 6, backoff = 15 * 60_000, folders = {}, now = Date.now, say }) {
+export async function watchOnce({ dir, look, storytree, cutover = async () => undefined, startFix, startReview, rerun, refresh, behind, enqueue, reached, alive, room, limit, cap = 6, backoff = 15 * 60_000, folders = {}, now = Date.now, say }) {
   const dated = (message) => say(`${new Date(now()).toISOString().replace(/\.\d{3}Z$/, "Z")} ${message}`);
   // A step the library refuses (a wait already cleared, an increment closed by hand) is said, not retried forever.
   const tell = (args, project) => storytree(args, project).catch((error) => { dated(`storytree ${args.slice(0, 3).join(" ")} refused: ${error.message.split("\n")[0]}`); return ""; });
   // The claims held for a pull request end with its watch (ADR-1037 D1, D3).
   // On a merge, its increment's pending plan changes are applied before they end, keep-open or not (4.45).
   const letGo = (record, reason, merged = false) => tell(["workspace", "let-go", String(record.pr), "--reason", reason, ...(merged ? ["--merged"] : [])], libraryOf(record));
+  // Every end of a watch writes each merge-queue red kept on its hand-off as a queue-red line with its outcome, then
+  // forgets the hand-off (4.52). `reached` says whether a commit is on main; with no pull request read (a cut-over), each is unknown.
+  const ended = async (record, pull) => {
+    for (const red of record.queueReds ?? []) {
+      const base = red.parents?.[0];
+      const onMain = pull && reached && base ? await reached(base, repoOf(record)).catch(() => undefined) : undefined;
+      await tell(["workspace", "queue-red", String(record.pr), "--increment", record.increment, "--removed-at", red.at, "--commit", red.commit,
+        ...(red.checks ?? []).flatMap((check) => ["--check", check]), ...(red.tests ?? []).flatMap((one) => ["--test", one]),
+        "--outcome", queueOutcome(red, { merged: pull?.state === "merged", head: pull?.head, reached: onMain })], record.project);
+    }
+    await rm(recordPath(dir, record.pr), { force: true });
+  };
   // A pull request given up goes back on its arc as ready work, its body naming the pull request and its branch, never to the owner (4.20, 4.23).
   const backOnArc = async (record, pull, why) => {
     const { pr, increment } = record, at = libraryOf(record);
@@ -587,7 +644,7 @@ export async function watchOnce({ dir, look, storytree, cutover = async () => un
       await tell(["arc", "increment", "unwait", increment, "--for", "event"], at);
     }
     await letGo(record, `PR #${pr} ${why}; released by the watcher`);
-    await rm(recordPath(dir, pr), { force: true });
+    await ended(record, pull);
   };
   // A red retried with no model session: main merged into its branch when main has moved, else its failed runs rerun,
   // recorded as a flake that counts nothing against the limit (4.34); false, said, when neither was taken.
@@ -638,18 +695,24 @@ export async function watchOnce({ dir, look, storytree, cutover = async () => un
     if (Date.parse(record.handedAt) < await cutoverOf(record.project)) {
       if (!record.closed) await tell(["arc", "increment", "unwait", increment, "--for", "event"], record.project);
       await letGo(record, `PR #${pr} was handed over before the repository cut-over; released by the watcher`);
-      await rm(recordPath(dir, pr), { force: true });
+      await ended(record);
       dated(`PR #${pr}: handed over before the repository cut-over, so its number is the old repository's: no longer watched, and ${increment} no longer waits on it`);
       continue;
     }
     let pull;
     try { pull = await look(pr, record); }
     catch (error) { dated(`PR #${pr}: could not read it (${error.message.split("\n")[0]}); looking again next time`); continue; }
+    // Each merge-queue red is kept as it is first seen, with what failed on it, while GitHub still has that (4.52).
+    const fresh = (pull.queueReds ?? []).filter((red) => !(record.queueReds ?? []).some((kept) => kept.at === red.at));
+    if (fresh.length) {
+      record.queueReds = [...(record.queueReds ?? []), ...fresh];
+      await save(dir, record);
+    }
     if (pull.state === "foreign") {
       // A fork's pull request, or one GitHub no longer says the head of, is never landed, closed on or fixed (4.32).
       if (!record.closed) await tell(["arc", "increment", "unwait", increment, "--for", "event"], at);
       await letGo(record, `PR #${pr}'s head is not on ${repoOf(record)}; released by the watcher`);
-      await rm(recordPath(dir, pr), { force: true });
+      await ended(record, pull);
       dated(`PR #${pr}: its head is not on ${repoOf(record)}, or GitHub did not say where it is: no longer watched, and ${increment} no longer waits on it`);
       continue;
     }
@@ -666,7 +729,7 @@ export async function watchOnce({ dir, look, storytree, cutover = async () => un
         await letGo(record, `PR #${pr} closed without merging; released by the watcher`);
         dated(`PR #${pr} closed without merging: ${increment} no longer waits on it`);
       }
-      await rm(recordPath(dir, pr), { force: true });
+      await ended(record, pull);
       continue;
     }
     if (running.has(pr)) continue;
@@ -683,7 +746,7 @@ export async function watchOnce({ dir, look, storytree, cutover = async () => un
         "--options", "A. Fix it yourself, privately, then hand the pull request to the watcher again. B. Judge it a false alarm, dismiss it on GitHub and hand it over again. C. Close the pull request.",
         ...(record.closed ? [] : ["--hold", increment])], record.project);
       await letGo(record, `PR #${pr} failed a security check, which is the owner's; released by the watcher`);
-      await rm(recordPath(dir, pr), { force: true });
+      await ended(record, pull);
       dated(`PR #${pr} failed the security check ${checks}: asked the owner on ${arc}, with no fix session`);
       continue;
     }
@@ -749,7 +812,7 @@ export async function watchOnce({ dir, look, storytree, cutover = async () => un
     const spent = counted >= allowed || record.fixes.length >= cap;
     if (spent && record.closed) {
       await letGo(record, `PR #${pr} still red after ${record.fixes.length} sessions; released by the watcher`);
-      await rm(recordPath(dir, pr), { force: true });
+      await ended(record, pull);
       dated(`PR #${pr} still red after ${record.fixes.length} sessions, and ${increment} had already closed, so nothing can wait on the owner: ${pull.why}`);
       continue;
     }
@@ -778,7 +841,7 @@ export async function watchOnce({ dir, look, storytree, cutover = async () => un
         + ` Sessions' logs: ${record.fixes.filter((fix) => fix.log).map((fix) => fix.log).join(", ") || "none"}.`
         + (review ? ` The last review judged it "${review.kind}": ${review.summary}` : " No review ran.")
         + `${flaky.length ? ` Flaky outside it: ${flaky.join("; ")}.` : ""} Retry it (hand PR #${pr} to the watcher again), fix it yourself, or withdraw it.`], at);
-      await rm(recordPath(dir, pr), { force: true });
+      await ended(record, pull);
       dated(`PR #${pr} still red after ${record.fixes.length} sessions: ${increment} waits on the owner`);
       continue;
     }
@@ -787,7 +850,7 @@ export async function watchOnce({ dir, look, storytree, cutover = async () => un
     if (verdict?.kind === "owner") {
       if (!record.closed) await tell(["arc", "increment", "unwait", increment, "--for", "event"], at);
       await letGo(record, `PR #${pr} waits on the owner's answer to ${verdict.question}; released by the watcher`);
-      await rm(recordPath(dir, pr), { force: true });
+      await ended(record, pull);
       dated(`PR #${pr} still red: its review put it to the owner in ${verdict.question} (${verdict.summary})`);
       continue;
     }
@@ -943,7 +1006,15 @@ function boxDefaults({ home = homedir(), env = process.env, platform = process.p
       repoOf: async (folder) => (await run("gh", ["repo", "view", "--json", "nameWithOwner", "--jq", ".nameWithOwner"], { cwd: folder })).stdout.trim() }),
     // The time of a project's repository cut-over, or nothing while it has none (the read refuses).
     cutover: async (project) => (await storytree(["library", "read", "pr-cutover", "--field", "at"], project)).trim(),
-    look: (pr, record) => lookOnGitHub(pr, { repo, since: record.fixes.at(-1)?.at ?? record.handedAt, home: repoOf(record) }),
+    look: (pr, record) => lookOnGitHub(pr, { repo, since: record.fixes.at(-1)?.at ?? record.handedAt, home: repoOf(record),
+      seen: new Set((record.queueReds ?? []).map((red) => red.at)) }),
+    // Whether commit `sha` is on main: main is at or past it, never diverged from it or behind it (4.52).
+    reached: async (sha, on = HOME) => {
+      const status = (await run("gh", ["api", `repos/${on}/compare/main...${sha}`, "--jq", ".status"], { cwd: repo })).stdout.trim();
+      if (status === "behind" || status === "identical") return true;
+      if (status === "diverged" || status === "ahead") return false;
+      throw new Error(`GitHub's compare of main with ${sha} read ${status || "nothing"}`);
+    },
     // Off the box the shared checkout may not exist, and gh would be started in no folder at all (4.44).
     viewOf: async (pr, on = HOME) => {
       if (!existsSync(repo)) throw new Error(`the shared checkout ${repo} is not on this machine; off the box, hand over with \`watch.mjs handover\``);

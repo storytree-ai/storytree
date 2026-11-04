@@ -359,6 +359,17 @@ export async function recordRerun(context: ClaimContext, rerun: { repo: string; 
   await context.log.append(context.project, { session: WATCHER_SESSION, harness: "watcher", source: context.source ?? "tool", kind: "ci-rerun", ...rerun });
 }
 
+/** A merge-queue red the watcher kept for pull request `pr`, as a queue-red line on the watcher (Agent runner 4.52). */
+export interface QueueRed { pr: number; increment: string; removedAt: string; commit: string; checks: string[]; tests: string[]; outcome: "real" | "flake" | "ahead" | "unknown" }
+
+/**
+ * The watcher's watch of a handed-over pull request ended, and it had seen the merge queue remove it for failed checks
+ * (Agent runner 4.52): a queue-red line on the watcher, so each such red is kept with its outcome, which GitHub's run list keeps only for a while.
+ */
+export async function recordQueueRed(context: ClaimContext, red: QueueRed): Promise<void> {
+  await context.log.append(context.project, { session: WATCHER_SESSION, harness: "watcher", source: context.source ?? "tool", kind: "queue-red", ...red });
+}
+
 /**
  * Asking the owner about `increment` releases the work it holds (ADR-0944 D4): when the context's session holds it,
  * its claim ends, and so do the session's capability claims taken under it; an active increment is a proposal again,

@@ -343,12 +343,42 @@ const rerunCi = verb({
   },
 });
 
+const QUEUE_OUTCOMES = ["real", "flake", "ahead", "unknown"] as const;
+
+const queueRed = verb({
+  consumers: ["agent"],
+  command: {
+    family: "workspace",
+    name: "queue-red",
+    summary: "the watcher's: record a merge-queue red it kept for a handed-over pull request, with its outcome, a queue-red activity line, as the watch ends",
+    usage: "workspace queue-red <pr> --increment <id> --removed-at <time> --commit <sha> [--check <name> ...] [--test <name> ...] --outcome real|flake|ahead|unknown",
+  },
+  tool: { absent: "the Mint box's watcher runs it when its watch of a pull request the merge queue removed for failed checks ends" },
+  inputs: {
+    pr,
+    increment: { kind: "text", describe: "the increment the pull request was handed over for" },
+    "removed-at": { kind: "text", describe: "when the merge queue removed it, as an ISO 8601 time" },
+    commit: { kind: "text", describe: "the queue's commit its checks failed on" },
+    check: { kind: "text", many: true, optional: true, describe: "a check's name that failed on the queue's commit" },
+    test: { kind: "text", many: true, optional: true, describe: "a failing test's name" },
+    outcome: { kind: "text", describe: "real, flake, ahead or unknown" },
+  },
+  async act({ pr: typed, increment, "removed-at": removedAt, commit, check, test, outcome }, context: SessionVerbContext) {
+    if (!/^\d{4}-\d\d-\d\dT[\d:.]+(?:Z|[+-]\d\d:\d\d)$/.test(removedAt) || Number.isNaN(Date.parse(removedAt))) throw new VerbRefusal(`${removedAt} is not an ISO 8601 time`, { misuse: true });
+    const known = QUEUE_OUTCOMES.find((one) => one === outcome);
+    if (!known) throw new VerbRefusal(`--outcome is real, flake, ahead or unknown, not ${outcome}`, { misuse: true });
+    const { recordQueueRed } = await import("./claims.js");
+    await recordQueueRed(context, { pr: prNumber(typed), increment, removedAt, commit, checks: [...check], tests: [...test], outcome: known });
+    return { text: `Recorded PR #${typed}'s merge-queue red of ${removedAt} as ${known}.` };
+  },
+});
+
 /** The command line's `workspace` family, which the package's manifest names under `verbs` (ADR-1033): its bare name makes a workspace. */
 export const WORKSPACE_FAMILIES: readonly VerbFamily<SessionVerbContext>[] = [{
   name: "workspace",
   summary: "prepare or attach a workspace, claim or release work for this agent session, list stale claims, allow an increment's changes to imported code, or approve a project's checked-in worktree setup",
   order: 23,
-  verbs: [attach, claimOnly, owners, releaseClaim, stale, allow, approveSetup, holdForPr, letGoOfPr, redPr, rerunCi],
+  verbs: [attach, claimOnly, owners, releaseClaim, stale, allow, approveSetup, holdForPr, letGoOfPr, redPr, rerunCi, queueRed],
   bare: make,
 }];
 

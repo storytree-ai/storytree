@@ -174,7 +174,7 @@ export function lotDashes(land: DrawnLand, at: number, coast: readonly (readonly
 }
 
 /** How far `p` is from the segment from `a` to `b`. */
-function toSegment(p: Point, a: Point, b: Point): number {
+export function toSegment(p: Point, a: Point, b: Point): number {
   const [dx, dz] = [b.x - a.x, b.z - a.z];
   const t = Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.z - a.z) * dz) / (dx * dx + dz * dz || 1)));
   return Math.hypot(p.x - a.x - t * dx, p.z - a.z - t * dz);
@@ -194,7 +194,7 @@ function inConvex(p: Point, loop: readonly Point[]): boolean {
 }
 
 /** The part of the segment from `from` to `to` inside the convex loop `loop`: Cyrus and Beck's clipping. */
-function segmentInConvex(from: Point, to: Point, loop: readonly Point[]): { from: Point; to: Point }[] {
+export function segmentInConvex(from: Point, to: Point, loop: readonly Point[]): { from: Point; to: Point }[] {
   const turn = Math.sign(loop.reduce((sum, p, at) => { const q = loop[(at + 1) % loop.length]!; return sum + p.x * q.z - q.x * p.z; }, 0));
   let [enter, leave] = [0, 1];
   for (let i = 0; i < loop.length; i++) {

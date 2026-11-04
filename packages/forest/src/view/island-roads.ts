@@ -1,12 +1,12 @@
 /**
  * Capability 3 · Story node render: the selected island's roads and gates as drawn (ADR-1236 D1, rollout 2 step 3),
  * round 11's `sand-faint` look: each road a sandy ribbon on the land, a step wider by the links it carries, its colour
- * mixed into the land under it so the joins stay one road; a disc at each junction; and at each gate a flat ink post
- * with a paper face either side of its opening (the mock's flat posts). No arrowheads. Plain three.js, so the marks
- * are read without a browser.
+ * mixed into the land under it so the joins stay one road; a disc at each junction; and at each gate a post standing
+ * either side of its opening (3.78, step 3b), all following the island's relief. No arrowheads. Plain three.js, so the marks are read without a browser.
  */
 import { BufferGeometry, CircleGeometry, Color, DoubleSide, Float32BufferAttribute, Group, Mesh, MeshBasicMaterial, type Vector3 } from "three";
 import type { IslandRoads } from "../territories/island-roads.js";
+import { LIGHT, type IslandRelief } from "../territories/island-relief.js";
 
 type Point = { readonly x: number; readonly z: number };
 
@@ -22,12 +22,30 @@ const GROUND = "#686d70";
 /** The fill a point of the land shows: a territory's colour at its opacity, or none on open land. */
 export type FillAt = (p: Point) => { colour: Color; opacity: number } | undefined;
 
-/** The roads, junctions and gate posts of `roads`, each point placed on the island by `onSurface`. */
-export function islandRoadMarks(roads: IslandRoads, onSurface: (p: Point) => Vector3, fillAt: FillAt): Group {
+/** The colour each point of the land shows: its territory's fill over the island's bare ground, or the bare ground. */
+export function landColour(fillAt: FillAt): (p: Point) => Color {
+  const ground = new Color(GROUND);
+  return (p) => { const f = fillAt(p); return f === undefined ? ground.clone() : ground.clone().lerp(f.colour, f.opacity); };
+}
+
+/** A standing face's shade, turned away from the light and toward it (round 11's walls and posts). */
+export const WALL_SHADE = { lit: 0.84, away: 0.56 } as const;
+
+/** A colour `c` on a standing face looking `facing` on the ground, shaded by how far it turns to the light. */
+export function shade(c: Color, facing: Point): Color {
+  const l = Math.hypot(facing.x, facing.z) || 1, k = ((facing.x * LIGHT.x + facing.z * LIGHT.z) / l + 1) / 2;
+  return c.clone().multiplyScalar(WALL_SHADE.away + (WALL_SHADE.lit - WALL_SHADE.away) * k);
+}
+
+/**
+ * The roads, junctions and gate posts of `roads`, each point placed on the island's open land by `onGround` and raised
+ * as far as the land under it stands in `relief` (3.78), the posts standing up from it.
+ */
+export function islandRoadMarks(roads: IslandRoads, onGround: (p: Point) => Vector3, fillAt: FillAt, relief: IslandRelief): Group {
   const group = new Group();
   group.name = "island-roads";
-  const ground = new Color(GROUND), sand = new Color(ROAD.colour);
-  const under = (p: Point) => { const f = fillAt(p); return f === undefined ? ground.clone() : ground.clone().lerp(f.colour, f.opacity); };
+  const sand = new Color(ROAD.colour), under = landColour(fillAt);
+  const onSurface = (p: Point) => { const v = onGround(p); v.y += relief.raise(p); return v; };
   const mix = (p: Point) => under(p).lerp(sand, ROAD.alpha);
   const flat = (geometry: BufferGeometry, material: MeshBasicMaterial, name: string, order: number) => {
     const mesh = new Mesh(geometry, material);
@@ -52,16 +70,67 @@ export function islandRoadMarks(roads: IslandRoads, onSurface: (p: Point) => Vec
     }
     flat(disc, material(mix(at)), `road-junction:${i}`, 3);
   });
-  const ink = material(POST.ink), paper = material(POST.paper);
+  standingPosts(group, roads, relief, onGround, under);
+  return group;
+}
+
+/** A standing post's paper face across its top, and its shadow's darkness and reach by its height (round 11's). */
+const STANDING = { faceRatio: 0.62, body: "#9aa2a8", shadow: 0.22, reach: 0.8 } as const;
+
+/**
+ * The gates' posts standing up (round 11's relief): either side of each opening a slate post shaded by the light, an ink
+ * top with a paper face, and a soft shadow on the land away from the light; at a gate with a ramp the posts stand beside
+ * it, on the plateau's edge.
+ */
+function standingPosts(group: Group, roads: IslandRoads, relief: IslandRelief, onGround: (p: Point) => Vector3, under: (p: Point) => Color): void {
+  const at = (p: Point, d: Point, k: number): Point => ({ x: p.x + d.x * k, z: p.z + d.z * k });
+  const solidMaterial = new MeshBasicMaterial({ vertexColors: true, transparent: true, opacity: 1, side: DoubleSide, forceSinglePass: true });
+  const shadowMaterial = new MeshBasicMaterial({ vertexColors: true, transparent: true, opacity: 1, side: DoubleSide, forceSinglePass: true, depthWrite: false });
+  const faceMaterial = new MeshBasicMaterial({ color: POST.paper, transparent: true, opacity: 1, side: DoubleSide, forceSinglePass: true });
+  const body = new Color(STANDING.body), ink = new Color(POST.ink), black = new Color("#000");
+  const mesh = (positions: number[], colours: number[] | undefined, material: MeshBasicMaterial, name: string, order: number) => {
+    const geometry = new BufferGeometry();
+    geometry.setAttribute("position", new Float32BufferAttribute(positions, 3));
+    if (colours !== undefined) geometry.setAttribute("color", new Float32BufferAttribute(colours, 3));
+    const made = new Mesh(geometry, material);
+    made.name = name;
+    made.renderOrder = order;
+    made.raycast = () => {};
+    group.add(made);
+    return made;
+  };
   roads.gates.forEach((gate, i) => {
-    for (const side of [-1, 1]) {
-      const c = { x: gate.at.x + gate.along.x * (gate.opening / 2 + gate.post / 2) * side, z: gate.at.z + gate.along.z * (gate.opening / 2 + gate.post / 2) * side };
-      const square = (size: number) => ribbon([{ x: c.x - gate.along.x * size / 2, z: c.z - gate.along.z * size / 2 }, { x: c.x + gate.along.x * size / 2, z: c.z + gate.along.z * size / 2 }], size, onSurface);
-      flat(square(gate.post), ink, `gate-post:${i}:${side}`, 4).userData = { gate: true, entrance: gate.entrance, links: gate.links };
-      flat(square(gate.face), paper, `gate-face:${i}:${side}`, 5);
+    const ramp = relief.ramps.find((r) => r.gate === gate), side = gate.entrance ? relief.post.entrance : relief.post.side;
+    const tall = gate.entrance ? relief.post.entranceHeight : relief.post.height, across = { x: -gate.along.z, z: gate.along.x };
+    const gap = ramp === undefined ? gate.opening : Math.max(gate.opening, relief.rampWidth);
+    for (const sign of [-1, 1]) {
+      let c = at(gate.at, gate.along, (gap / 2 + side / 2) * sign);
+      if (ramp !== undefined) c = at(c, ramp.out, -(side / 2 + 0.15 * relief.scale));
+      const base = Math.max(relief.raise(at(c, across, 0.3 * relief.scale)), relief.raise(at(c, across, -0.3 * relief.scale)));
+      const ground = onGround(c).y + base, v = (q: Point, up: number) => [q.x, ground + up, q.z];
+      const square = (half: number) => [at(at(c, gate.along, -half), across, -half), at(at(c, gate.along, half), across, -half), at(at(c, gate.along, half), across, half), at(at(c, gate.along, -half), across, half)];
+      const foot = square(side / 2), positions: number[] = [], colours: number[] = [];
+      const push = (points: number[][], colour: Color) => { for (const p of points) { positions.push(...p); colours.push(colour.r, colour.g, colour.b); } };
+      for (let k = 0; k < 4; k++) {
+        const a = foot[k]!, b = foot[(k + 1) % 4]!, out = { x: (a.x + b.x) / 2 - c.x, z: (a.z + b.z) / 2 - c.z };
+        const lit = shade(body, out);
+        push([v(a, 0), v(b, 0), v(b, tall), v(a, 0), v(b, tall), v(a, tall)], lit);
+      }
+      push([v(foot[0]!, tall), v(foot[1]!, tall), v(foot[2]!, tall), v(foot[0]!, tall), v(foot[2]!, tall), v(foot[3]!, tall)], ink);
+      const post = mesh(positions, colours, solidMaterial, `gate-post:${i}:${sign}`, 4);
+      post.userData = { gate: true, entrance: gate.entrance, links: gate.links, standing: true, height: tall, base };
+      const face = square(side * STANDING.faceRatio / 2);
+      mesh([face[0]!, face[1]!, face[2]!, face[0]!, face[2]!, face[3]!].flatMap((q) => v(q, tall + 0.02 * relief.scale)), undefined, faceMaterial, `gate-face:${i}:${sign}`, 5);
+      // Its shadow: the footprint swept away from the light, flat on the land beside it.
+      const away = { x: -LIGHT.x * tall * STANDING.reach, z: -LIGHT.z * tall * STANDING.reach };
+      const hull = [...foot, ...foot.map((q) => ({ x: q.x + away.x, z: q.z + away.z }))];
+      const mid = { x: hull.reduce((s, q) => s + q.x, 0) / hull.length, z: hull.reduce((s, q) => s + q.z, 0) / hull.length };
+      hull.sort((a, b) => Math.atan2(a.z - mid.z, a.x - mid.x) - Math.atan2(b.z - mid.z, b.x - mid.x));
+      const dark = under(mid).lerp(black, STANDING.shadow), shadow: number[][] = [];
+      hull.forEach((a, k) => shadow.push(v(mid, 0.04 * relief.scale), v(a, 0.04 * relief.scale), v(hull[(k + 1) % hull.length]!, 0.04 * relief.scale)));
+      mesh(shadow.flat(), shadow.flatMap(() => [dark.r, dark.g, dark.b]), shadowMaterial, `gate-shadow:${i}:${sign}`, 3.5);
     }
   });
-  return group;
 }
 
 /** A way resampled every half unit, so its colour follows the land under it. */

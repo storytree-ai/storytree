@@ -12,6 +12,8 @@ import { lightTerritories, territoryLand } from "./territory-land.js";
 import { islandRoadMarks, landFill } from "./island-roads.js";
 import { capabilityPlates } from "./nameplates.js";
 import { islandRoads } from "../territories/island-roads.js";
+import { islandRelief } from "../territories/island-relief.js";
+import { islandReliefMarks } from "./island-relief.js";
 import { ClaimMarks } from "./claim-flag.js";
 import { islandLayout, type Link } from "../territories/link-layout.js";
 import { NameplateCrowd, Nameplates, reducedMotion, SelectionRing } from "./island-overlays.js";
@@ -265,20 +267,27 @@ function Territories({ land: given, coast: givenCoast, links, docks: givenDocks,
   const map = useMemo(() => islandLayout(land.territories, coast, links, docks), [land, coast, links, docks]);
   // ADR-1236 D1: the selected island's links are one shared road network, with a gate wherever a road crosses a border.
   const roads = useMemo(() => docks === undefined ? undefined : islandRoads(map, links, docks, capabilityPlates(map)), [map, links, docks]);
+  // 3.78: and every territory a plateau above its open land, a ramp where a road climbs onto one.
+  const relief = useMemo(() => roads === undefined ? undefined : islandRelief(map, roads), [map, roads]);
+  const onLand = useMemo(() => onIslandSurface(radius, TERRITORY_LIFT + (relief?.height ?? 0)), [radius, relief]);
   const drawn = useMemo(() => {
-    const group = territoryLand(map, onIslandSurface(radius, TERRITORY_LIFT), coast, tints, roads?.gates);
-    // The roads lie on the land, so they show and hide with the territories (3.22).
-    if (roads !== undefined) group.add(islandRoadMarks(roads, onIslandSurface(radius, ROAD_LIFT), landFill(map, group)));
+    const group = territoryLand(map, onLand, coast, tints, roads?.gates);
+    // The roads and the relief lie on the land, so they show and hide with the territories (3.22).
+    if (roads !== undefined) {
+      const fill = landFill(map, group);
+      if (relief !== undefined) group.add(islandReliefMarks(relief, onIslandSurface(radius, TERRITORY_LIFT), fill));
+      group.add(islandRoadMarks(roads, onIslandSurface(radius, ROAD_LIFT), fill, relief));
+    }
     return { group, map };
-  }, [map, coast, tints, radius, roads]);
+  }, [map, coast, tints, radius, roads, relief, onLand]);
   // ADR-0968: each claim's flag, and on an island with no code its lot, kept across claim changes so each plays its life.
   const marks = useMemo(() => new ClaimMarks(), []);
   useEffect(() => () => marks.dispose(), [marks]);
   const first = useRef(true);
   useEffect(() => {
-    marks.setLand(drawn.map, onIslandSurface(radius, TERRITORY_LIFT), islandNormal(radius), land.files.length === 0, coast);
+    marks.setLand(drawn.map, onLand, islandNormal(radius), land.files.length === 0, coast);
     invalidate();
-  }, [marks, drawn, land.files.length, coast, radius, invalidate]);
+  }, [marks, drawn, land.files.length, coast, radius, onLand, invalidate]);
   useEffect(() => {
     // Claims already held when the sheet first draws stand; any later one, a replay's included, arrives.
     marks.claims(tints, clock.getElapsedTime(), { standing: first.current && clock.getElapsedTime() < 1, reduced: reducedMotion() });

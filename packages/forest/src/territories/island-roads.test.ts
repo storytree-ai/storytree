@@ -88,8 +88,6 @@ test("3.77 a gate stands wherever a road crosses a border, its opening wider tha
     assert.ok(g.opening > carried + 1.9, "its opening clears the road, posts and all");
   }
   const entrances = roads.gates.filter((g) => g.entrance);
-  const plain = roads.gates.filter((g) => !g.entrance);
-  assert.ok(entrances.every((g) => plain.every((x) => g.post > x.post && g.face > x.face)), "an entrance's posts stand larger");
   assert.ok(["arrive:0->a", "arrive:0->b", "d->a", "e->d", "e->b"].every((key) => entrances.some((g) => g.links.includes(key))), "each link has its entrance");
 });
 

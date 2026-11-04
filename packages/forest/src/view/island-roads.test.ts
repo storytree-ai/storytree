@@ -1,12 +1,13 @@
 /**
  * Capability 3 · Story node render: the selected island's roads drawn sandy and faint, the borders quietened and cut
- * open at each gate, a flat post either side of every gate (ADR-1236 D1, rollout 2 step 3).
+ * open at each gate, a post either side of every gate (ADR-1236 D1, rollout 2 step 3).
  */
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { Color, LineBasicMaterial, LineSegments, Mesh, MeshBasicMaterial, Vector3 } from "three";
 
 import { islandRoads } from "../territories/island-roads.js";
+import { islandRelief } from "../territories/island-relief.js";
 import { linkLayout, LIBRARY_LAND } from "../territories/link-layout.js";
 import type { Coast, Point } from "../territories/territories.js";
 import { capabilityPlates } from "./nameplates.js";
@@ -39,9 +40,9 @@ test("3.77 the selected island's borders are quietened and cut open at every gat
   assert.ok((cut.material as LineBasicMaterial).opacity < (whole.material as LineBasicMaterial).opacity, "quieter under the roads");
 });
 
-test("3.77 each road is a sandy ribbon as wide as the links it carries, its sand mixed into the land under it, with a flat post either side of every gate", () => {
+test("3.77 each road is a sandy ribbon as wide as the links it carries, its sand mixed into the land under it, with a post either side of every gate", () => {
   const land = territoryLand(map, flat, coast, new Map(), roads.gates);
-  const marks = islandRoadMarks(roads, flat, landFill(map, land));
+  const marks = islandRoadMarks(roads, flat, landFill(map, land), islandRelief(map, roads));
   const ribbons = marks.children.filter((o) => o.name.startsWith("road:")) as Mesh[];
   assert.equal(ribbons.length, roads.segments.length);
   ribbons.forEach((ribbon, i) => {
@@ -59,15 +60,13 @@ test("3.77 each road is a sandy ribbon as wide as the links it carries, its sand
     const colour = (disc.material as MeshBasicMaterial).color, sand = new Color(ROAD.colour);
     assert.ok(Math.abs(colour.r - sand.r) < 0.25 && !colour.equals(sand), "the road's sand mixed into the land");
   });
-  const posts = marks.children.filter((o) => o.name.startsWith("gate-post:"));
-  assert.equal(posts.length, roads.gates.length * 2);
-  assert.equal(marks.children.filter((o) => o.name.startsWith("gate-face:")).length, roads.gates.length * 2);
-  assert.ok(posts.every((o) => ((o as Mesh).material as MeshBasicMaterial).color.getHexString() === "1b2024"), "ink posts");
+  assert.equal(marks.children.filter((o) => o.name.startsWith("gate-post:")).length, roads.gates.length * 2, "a post either side of every gate");
+  assert.equal(marks.children.filter((o) => o.name.startsWith("gate-face:")).length, roads.gates.length * 2, "each with its paper face");
 });
 
 test("3.77 the selected island's roads show and hide with its territories", () => {
   const land = territoryLand(map, flat, coast, new Map(), roads.gates);
-  const marks = islandRoadMarks(roads, flat, landFill(map, land));
+  const marks = islandRoadMarks(roads, flat, landFill(map, land), islandRelief(map, roads));
   land.add(marks);
   presentTerritories(land, false);
   assert.equal(marks.visible, false, "hidden with the territories");

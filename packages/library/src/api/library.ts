@@ -153,6 +153,11 @@ export interface Library
    */
   retire(id: string, reason: string, options?: WriteOptions): Promise<void>;
   /**
+   * Run `work` as one write (capability 2's inOneWrite): every write it makes through this library, until it settles,
+   * commits together, or none of them does when it throws. Its reads see its own writes; a call inside another joins it.
+   */
+  inOneWrite<T>(work: () => Promise<T>, options?: { readonly signal?: AbortSignal }): Promise<T>;
+  /**
    * The changes after `cursor`, oldest first, and the cursor to pass next time. Start from 0; pass
    * back each cursor handed out and no change is ever missed or seen twice. `types` and `actions`
    * keep only the changes of those record types and actions, read on the server, and the cursor is
@@ -370,6 +375,7 @@ function libraryOf(project: Project): Library {
         },
       });
     },
+    inOneWrite: (work, options) => project.transactions.inOneWrite(work, options?.signal),
     async retireQuestion(id, reason, options) {
       if (!couldBeId(id)) return null;
       return project.flight.retireQuestion(id, reason, options);

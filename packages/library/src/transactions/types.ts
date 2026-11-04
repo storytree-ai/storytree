@@ -198,7 +198,7 @@ export interface ListFilter {
   readonly projection?: { readonly version: number; readonly fields: readonly string[] };
 }
 
-/** A project's records. These eight verbs are the only data actions the library allows. */
+/** A project's records. These nine verbs are the only data actions the library allows. */
 export interface Transactions {
   /** Create the record, or replace it whole if the id exists. Appends one history entry. */
   save(input: SaveInput): Promise<RecordEnvelope>;
@@ -231,4 +231,11 @@ export interface Transactions {
   revertWrites(input: RevertWritesInput): Promise<RevertedWrite[]>;
   /** The history, oldest first. */
   history(filter?: HistoryFilter): Promise<HistoryEntry[]>;
+  /**
+   * Run `work` as one write: every write it makes on this store, until it settles, commits together, or none of them
+   * does when it throws, and the throw comes back. Its reads see its own writes, and other writers wait for it. A call
+   * inside another joins that one. What joins is decided by async context: anything `work` starts, even unawaited,
+   * writes inside it, so `work` awaits all it starts.
+   */
+  inOneWrite<T>(work: () => Promise<T>, signal?: AbortSignal): Promise<T>;
 }

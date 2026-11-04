@@ -23,12 +23,11 @@ test('5.1 a growth replays only what the recording holds, in its stages\' order,
   assert.deepEqual([...plan.islands.keys()].sort(), ['a', 'b', 'c']);
   assert.deepEqual([...plan.roads.keys()].sort(), ['b1->a1', 'c1->b1']);
   assert.deepEqual([...plan.capabilities.keys()].sort(), ['a1', 'a2', 'b1', 'c1']);
-  assert.deepEqual([...plan.files.keys()], ['a\nsrc/a.ts']);
   // A stage that adds nothing takes no time; the next stage starts after everything earlier has finished.
   assert.deepEqual(plan.stages.map(s => s.id), ['stories', 'linked']);
   const linked = plan.stages[1]!.start;
   for (const story of ['a', 'b']) assert.ok(end(plan.islands.get(story)!) <= linked, `${story} rose in its own stage`);
-  for (const w of [...plan.roads.values(), plan.capabilities.get('a2')!, plan.files.get('a\nsrc/a.ts')!, plan.islands.get('c')!]) assert.ok(w.start >= linked);
+  for (const w of [...plan.roads.values(), plan.capabilities.get('a2')!, plan.islands.get('c')!]) assert.ok(w.start >= linked);
   // Causal: a road leaves its built-on island once settled; the dependent rises when it arrives.
   const road = plan.roads.get('c1->b1')!;
   assert.ok(road.start >= end(plan.islands.get('b')!));
@@ -117,7 +116,7 @@ test('5.2 a road draws on at constant speed from its built-on end, split by leng
   for (const s of shared) assert.ok(windows.get(s.id)!.start < 3, 'a shared segment keeps its earliest road');
 });
 
-test('5.3 an island rises from its middle without overshoot, its parts and files filling in behind it; reduced motion shows the end at once', () => {
+test('5.3 an island rises from its middle without overshoot, its parts filling in behind it; reduced motion shows the end at once', () => {
   const w = { start: 2, seconds: 1 };
   let last = 0;
   for (let t = 0; t <= 4; t += 0.01) {
@@ -132,7 +131,7 @@ test('5.3 an island rises from its middle without overshoot, its parts and files
   assert.equal(growthProgress(undefined, 0, false), 1, 'what no growth schedules is shown whole');
   const plan = growthPlan([stages[2]!]);
   const a = plan.islands.get('a')!;
-  for (const part of [plan.capabilities.get('a1')!, plan.capabilities.get('a2')!, plan.files.get('a\nsrc/a.ts')!]) {
+  for (const part of [plan.capabilities.get('a1')!, plan.capabilities.get('a2')!]) {
     assert.ok(part.start > a.start && end(part) >= end(a), 'after its island, finishing with or after it');
   }
 });

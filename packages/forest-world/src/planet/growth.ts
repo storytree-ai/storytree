@@ -29,8 +29,6 @@ export interface GrowthPlan {
   /** Keyed `from->to`, as the capability links are recorded. */
   roads: Map<string, GrowthWindow>;
   capabilities: Map<string, GrowthWindow>;
-  /** Keyed by story and path, joined by a newline. */
-  files: Map<string, GrowthWindow>;
   /** The stages that added something, when each began, and when each was recorded. */
   stages: { id: string; start: number; at?: string }[];
   /** When the recording ends, if it says. */
@@ -48,11 +46,10 @@ const GLOBE_SWELL = 1.2;
 const TYPICAL_ROAD = 300;
 
 export const linkKey = (link: { from: string; to: string }) => `${link.from}->${link.to}`;
-export const fileKey = (story: string, path: string) => `${story}\n${path}`;
 
 /** Replay `stages` as growth: what appears first in each stage, and when, never anything no stage holds. */
 export function growthPlan(stages: readonly GrowthStage[], options: GrowthOptions = {}): GrowthPlan {
-  const plan: GrowthPlan = { seconds: 0, islands: new Map(), roads: new Map(), capabilities: new Map(), files: new Map(), stages: [] };
+  const plan: GrowthPlan = { seconds: 0, islands: new Map(), roads: new Map(), capabilities: new Map(), stages: [] };
   const roadSeconds = (link: string) => roadDrawSeconds(options.roadLength?.(link) ?? TYPICAL_ROAD);
   const end = (w: GrowthWindow) => w.start + w.seconds;
   let at = 0;
@@ -101,14 +98,12 @@ export function growthPlan(stages: readonly GrowthStage[], options: GrowthOption
     const put = <K>(map: Map<K, GrowthWindow>, key: K, w: GrowthWindow) => { map.set(key, w); windows.push(w); };
     for (const story of fresh) put(plan.islands, story, { start: start.get(story)!, seconds: RISE });
     for (const l of links) put(plan.roads, linkKey(l), { start: settled.get(storyOf.get(l.to)!)!, seconds: roadSeconds(linkKey(l)) });
-    // Parts and files fill in behind a rising island, or join a standing one at the stage's start, staggered.
+    // Parts fill in behind a rising island, or join a standing one at the stage's start, staggered.
     for (const island of islands) {
       const rising = fresh.includes(island.story);
       const from = rising ? plan.islands.get(island.story)!.start + FILL_DELAY : at;
       const parts = island.trees.flatMap(t => t.capability === undefined || partOn.get(t.capability) === island.story ? [] : [t.capability]);
       parts.forEach((capability, i) => { put(plan.capabilities, capability, { start: from + (rising ? 0 : PART_STAGGER * i), seconds: RISE }); partOn.set(capability, island.story); });
-      const files = (island.land?.files ?? []).map(f => fileKey(island.story, f.path)).filter(key => !plan.files.has(key));
-      files.forEach(key => put(plan.files, key, { start: rising ? from : at + FILL_DELAY, seconds: RISE }));
     }
     for (const l of links) roadOn.set(linkKey(l), ends(l));
     const hold = stage.hold ?? 0;
@@ -118,7 +113,7 @@ export function growthPlan(stages: readonly GrowthStage[], options: GrowthOption
     at = Math.max(heldTo, ...windows.map(end)) + STAGE_GAP;
   });
   const natural = Math.max(heldTo, plan.globe ? end(plan.globe) : 0, ...[...plan.islands.values(), ...plan.roads.values(),
-    ...plan.capabilities.values(), ...plan.files.values()].map(end));
+    ...plan.capabilities.values()].map(end));
   plan.seconds = natural;
   if (options.until !== undefined) plan.until = options.until;
   if (options.seconds !== undefined && natural > 0) scale(plan, options.seconds / natural);
@@ -129,7 +124,7 @@ export function growthPlan(stages: readonly GrowthStage[], options: GrowthOption
 function scale(plan: GrowthPlan, k: number) {
   const each = (w: GrowthWindow) => { w.start *= k; w.seconds *= k; };
   if (plan.globe) each(plan.globe);
-  for (const map of [plan.islands, plan.roads, plan.capabilities, plan.files]) map.forEach(each);
+  for (const map of [plan.islands, plan.roads, plan.capabilities]) map.forEach(each);
   for (const stage of plan.stages) stage.start *= k;
   plan.seconds *= k;
 }

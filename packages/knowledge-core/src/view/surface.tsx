@@ -11,7 +11,7 @@ import type { Change, Line, RecordEnvelope, SchemaRecord } from "@storytree/libr
 
 import { knowledge, storedEdges } from "../ghosts/ghosts.js";
 import { HIDDEN_AT_START, drawnPoints, kindRows } from "../kinds/kinds.js";
-import { ORCHESTRATOR, dotSizes, lighting, noteCard, trails as readingPaths, traversalTrails, windowView, fileStop, type CodePlaces, type WindowState, type Point, type RosterEntry, type SessionWindow } from "../look-inside/look-inside.js";
+import { ORCHESTRATOR, dotSizes, lighting, noteCard, trails as readingPaths, traversalTrails, windowView, type CodePlaces, type WindowState, type Point, type RosterEntry, type SessionWindow } from "../look-inside/look-inside.js";
 import { ReadRecord } from "../reads/reads.js";
 import { underShelves } from "../shelves/shelves.js";
 import { globePoints, type Point as ShelfPoint } from "../shelves/positions.js";
@@ -221,7 +221,7 @@ export function KnowledgeGlobePoints({ core, spots, radius, places, growth, shee
   sheet?: CoreUnderSheet | undefined;
   /** A replay to grow with (capability 1.9): the globe's growth reader, read inside the globe. */
   growth?: CoreGrowth | undefined;
-  /** The code's surface, as the forest lays it on the globe (ADR-0804 D5): a selected session's file opens are stops on it, and a step to or from one crosses it. */
+  /** The code's surface, as the forest lays it on the globe: the territories a selected session's window lights (ADR-1212 D3). */
   places?: CodePlaces;
 }) {
   const store = core as Store;
@@ -258,7 +258,6 @@ export function KnowledgeGlobePoints({ core, spots, radius, places, growth, shee
   }, [placed, known, state.hidden, lit, paths, window]);
   // Sized by how widely each note was read in the last 90 days, whoever is selected (ADR-0926); no reads leave every dot at the floor.
   const sizes = useMemo(() => dotSizes(store.reads.reach(Date.now()), points.map(({ id }) => id)), [store.reads, state.version, points]);
-  const stops = useMemo(() => places === undefined ? undefined : new Map([...places.files].map(([key, at]) => [fileStop(key), at] as const)), [places]);
   // A selected session is drawn as its window's traversal, one line per step (ADR-0756); its log's reading-path
   // curves and their glow draw only when it has no window to read, and nothing is drawn while the window is read.
   const traversal = useMemo(() => window === undefined ? undefined : traversalTrails(window.steps, colour, state.session!), [window, colour, state.session]);
@@ -273,7 +272,7 @@ export function KnowledgeGlobePoints({ core, spots, radius, places, growth, shee
     return [new Set(points.filter(({ id }) => own.has(id)).map(({ id }) => id)), new Set(points.filter(({ id }) => !own.has(id)).map(({ id }) => id))];
   }, [points, hung, selected, storyOf]);
   const at = useMemo(() => new Map(points.map(point => [point.id, point.at])), [points]);
-  const drawn = <GlobePoints key={state.session ?? ""} points={points} radius={sheet === undefined ? radius : SHEET_DOT_SCALE} notes={known.notes} sizes={sizes} lit={lit} trails={drawnPaths} window={window} replay={state.session !== undefined} stops={stops} growth={growth} quiet={quiet} />;
+  const drawn = <GlobePoints key={state.session ?? ""} points={points} radius={sheet === undefined ? radius : SHEET_DOT_SCALE} notes={known.notes} sizes={sizes} lit={lit} trails={drawnPaths} window={window} replay={state.session !== undefined} growth={growth} quiet={quiet} />;
   // A switched-off kind's links go with its dots.
   const links = useMemo(() => hung?.links.filter(([a, b]) => at.has(a) && at.has(b)), [hung, at]);
   return links === undefined ? drawn : <>{drawn}<NoteLinks links={links} at={at} bright={bright} />{hung?.floor && <SeaFloor {...hung.floor} />}</>;
@@ -288,22 +287,21 @@ export function KnowledgeKinds({ core }: { core: KnowledgeCore }) {
   return <KindList rows={rows} onShow={core.showKind} />;
 }
 
-/** The land the selected session's window has opened (ADR-0804 D5), for the forest to light: the files and capabilities opened, and the colour they wear. */
+/** The land the selected session's window has opened (ADR-1212 D3), for the forest to light: the capabilities opened, and the colour they wear. */
 export interface CodeLighting {
-  files: ReadonlyMap<string, WindowState>;
   capabilities: ReadonlyMap<string, WindowState>;
   colour: string;
 }
 
 const NOTHING_LIT: ReadonlyMap<string, never> = new Map<string, never>();
 
-/** What the selected session's window has lit on the land: its files and capabilities, nothing until its window is read, and nothing with none selected (ADR-0921). */
+/** What the selected session's window has lit on the land: its capabilities, nothing until its window is read, and nothing with none selected (ADR-0921). */
 export function useCodeLighting(core: KnowledgeCore, places: CodePlaces | undefined): CodeLighting {
   const store = core as Store;
   const state = useSyncExternalStore(store.subscribe, store.get);
   const colour = colourOf(state.roster, state.session) ?? ORCHESTRATOR;
   return useMemo(() => {
-    if (places === undefined || state.session === undefined || state.window === undefined) return { files: NOTHING_LIT, capabilities: NOTHING_LIT, colour };
+    if (places === undefined || state.session === undefined || state.window === undefined) return { capabilities: NOTHING_LIT, colour };
     const { code } = windowView(state.window, new Set(), () => false, places);
     return { ...code, colour };
   }, [places, state.session, state.window, colour]);

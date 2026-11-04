@@ -101,7 +101,7 @@ export function PlanetView({ core, scene, places, wisps: live, selected, highlig
   const claimed = useMemo(() => claimTints(wisps), [wisps]);
   // ADR-1212 D3: no file is drawn on the land, so the core's traversal has no stops there; a capability a session opened still lights its territory.
   const capabilities = useKept(useMemo(() => scene.islands.flatMap(({ land }) => land === undefined ? [] : land.territories.flatMap(({ capability }) => capability === undefined ? [] : [capability])), [scene]), JSON.stringify);
-  const codePlaces = useMemo((): CodePlaces => ({ files: new Map(), imports: [], capabilities: new Set(capabilities) }), [capabilities]);
+  const codePlaces = useMemo((): CodePlaces => ({ capabilities: new Set(capabilities) }), [capabilities]);
   const lighting = useCodeLighting(core, codePlaces);
   // Contract 3.26: the selected story's links to other stories light as lanes, on both the sheet's faces (ADR-1043 D3).
   const lanes = useKept(useMemo(() => selectionLanes(scene, selected), [scene, selected]), JSON.stringify);

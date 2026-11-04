@@ -18,7 +18,6 @@ import { PLACE_WIDTH, type CapabilityWord, type ForestScene as WorldScene, type 
 import type { AnnotatedTree, Change, StorySurvey } from "@storytree/library";
 
 import { grove, type PartStates } from "../capability-tree/capability-tree.js";
-import { packageOf } from "@storytree/map";
 import { islandArea, mappedArea, MIN_ISLAND_AREA, unsurveyedArea } from "../planet-places/island-growth.js";
 import { storyNodes } from "../story-nodes/story-nodes.js";
 
@@ -63,7 +62,7 @@ export function forestScene(tree: AnnotatedTree, history: readonly Pick<Change, 
       ...(status === undefined ? {} : { status }),
       contracts: capability === undefined ? 0 : (contractsOf.get(capability) ?? 0),
     }));
-    const land = story.mapped === undefined ? landOf(story.capabilities, survey[story.id], packageOf(story), tree.unverified !== true) : mappedLand(story.capabilities, survey[story.id]);
+    const land = story.mapped === undefined ? landOf(story.capabilities, survey[story.id], tree.unverified !== true) : mappedLand(story.capabilities, survey[story.id]);
     // ADR-0993 D3: a mapped island's land follows its lines, capped; before its survey, it is the least an island has.
     // ADR-0804 D3, D7, ADR-1212 D2: a surveyed story's land follows its lines of code alone; unsurveyed, it follows its capabilities, a one-capability floor's worth of land each, so it grows in step with the surveyed ones.
     const area = story.mapped !== undefined ? mappedArea(land!.territories.reduce((sum, { lines }) => sum + lines, 0)) : land === undefined || land.files.length === 0 ? unsurveyedArea(story.capabilities.length) : islandArea(land.territories.reduce((sum, { lines }) => sum + lines, 0));
@@ -156,10 +155,10 @@ function mappedLand(capabilities: readonly { id: string; title: string; descript
 /**
  * A surveyed story's land: one territory per capability with code, in the story's order, then Unclaimed
  * code, and its files. Before a survey, a verified project's capabilities get equal shares (weight 1),
- * with no files or package asserted. A project never verified keeps its existing bare land.
+ * with no files asserted. A project never verified keeps its existing bare land.
  * The page cuts it to the island's coast, which only the drawing knows.
  */
-function landOf(capabilities: readonly { id: string; title: string; description?: string; status: CapabilityWord; parkedOn?: readonly unknown[] }[], survey: StorySurvey | undefined, pkg: string, verified: boolean): Island["land"] {
+function landOf(capabilities: readonly { id: string; title: string; description?: string; status: CapabilityWord; parkedOn?: readonly unknown[] }[], survey: StorySurvey | undefined, verified: boolean): Island["land"] {
   // A capability not proven and parked on purpose is drawn grey (ADR-0992); the library decides which.
   const territory = ({ id, title, description, status, parkedOn }: (typeof capabilities)[number], lines: number) =>
     ({ capability: id, title, ...(description === undefined ? {} : { description }), status, ...(parkedOn === undefined ? {} : { parked: true as const }), lines });
@@ -171,7 +170,5 @@ function landOf(capabilities: readonly { id: string; title: string; description?
   return {
     territories: [...capabilities.map((capability) => territory(capability, linesOf(capability.id))), { lines: linesOf(undefined) }].filter(({ lines }) => lines > 0),
     files: survey.files,
-    package: pkg,
-    imports: survey.imports,
   };
 }

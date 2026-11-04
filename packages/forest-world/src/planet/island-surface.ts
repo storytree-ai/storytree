@@ -2,7 +2,7 @@
  * No pines, plants or banded land colour. The surface is the island's coast filled in and bent onto
  * the globe's sphere (so it lies on the glass, not on a tangent plane that lifts off at its edges),
  * in the plate's local frame: origin at PLATE_CLEARANCE above the shell, +y out of the sphere.
- * Capability territories and file circles are laid on it, so the ground itself writes no depth and stays
+ * Capability territories are laid on it, so the ground itself writes no depth and stays
  * faint; a depth layer just under it hides what lies behind the island (ADR-0919 D2). */
 import { BufferGeometry, DoubleSide, Float32BufferAttribute, FrontSide, Group, Mesh, MeshBasicMaterial, MeshLambertMaterial, ShapeUtils, Vector2, Vector3 } from 'three';
 import type { CoastPoint } from '../coast-clip.js';

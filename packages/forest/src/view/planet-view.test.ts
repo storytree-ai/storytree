@@ -237,7 +237,6 @@ test("3.14, 3.20 an unsurveyed user project's land shows verified health, update
   assert.ok(island.land, "health has land to colour before a code survey is available");
   assert.notEqual(island.key, beforeCI.key, "the first CI health creates the territories without a reload");
   assert.deepEqual(island.land.files, [], "no files are invented");
-  assert.equal(island.land.package, undefined, "no package is inferred without a survey");
   assert.deepEqual(read({ shop: { files: [], imports: [] } }).land, island.land, "an empty survey still draws health");
   const map = territories(island.land.territories, 20);
   const drawn = territoryLand(map, p => new Vector3(p.x, 0, p.z));

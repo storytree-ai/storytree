@@ -19,7 +19,7 @@ function installers(version: string, combined = false): PinCandidate["installers
 function fixture() {
   let current: { ref: string; manifest: StableManifest } | undefined;
   const state = {
-    candidate: { version: "0.3.2", commit: "a".repeat(40), channelSchema: 1, draft: false, prerelease: false, installers: installers("0.3.2"), bootstrap: { ps1: "published bootstrap" }, feeds: platformFeeds("0.3.2") as PinCandidateFeeds, published: "2026-10-01T09:30:00Z" },
+    candidate: { version: "0.3.2", commit: "a".repeat(40), channelSchema: 1, draft: false, prerelease: false, installers: installers("0.3.2"), bootstrap: { ps1: "published bootstrap" }, feeds: platformFeeds("0.3.2") as PinCandidateFeeds, published: "2026-10-01T09:30:00Z" } as PinCandidate,
     increments: [
       { id: "one", fields: { title: "Choose update timing", status: "closed", outcome: { disposition: "landed", pr: "531", note: "Quiet hours and manual installs." } } },
       { id: "future", fields: { title: "Unreleased work", status: "closed", outcome: { disposition: "landed", pr: "600" } } },

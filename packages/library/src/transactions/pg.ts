@@ -2,6 +2,8 @@
  * Capability 2 · Library transactions. PgTransactions: a project's records in its own Postgres database (capability 1), in the tables
  * `record` (each record as it is now) and `record_event` (the append-only history).
  */
+import { AsyncLocalStorage } from "node:async_hooks";
+
 import type { Pool, PoolClient } from "pg";
 
 import { sqlState } from "../project/connection-error.js";
@@ -92,6 +94,8 @@ interface EventRow {
 
 export class PgTransactions implements Transactions {
   readonly #pool: Pool;
+  /** The connection an inOneWrite's work writes and reads on, inside that work. */
+  readonly #open = new AsyncLocalStorage<PoolClient>();
   /** Whether the history has the mark's column: looked up once, at the first write or history read. */
   #marks: Promise<boolean> | undefined;
 
@@ -115,7 +119,7 @@ export class PgTransactions implements Transactions {
   }
 
   async get(id: string): Promise<RecordEnvelope | null> {
-    const { rows } = await this.#pool.query<RecordRow>(`SELECT ${RECORD_COLUMNS} FROM record WHERE id = $1`, [id]);
+    const { rows } = await this.#reader().query<RecordRow>(`SELECT ${RECORD_COLUMNS} FROM record WHERE id = $1`, [id]);
     const row = rows[0];
     return row === undefined ? null : recordOf(row);
   }
@@ -148,7 +152,7 @@ export class PgTransactions implements Transactions {
     }
     const limit = filter.limit === undefined ? "" : ` LIMIT ${bind(filter.limit)}`;
     // Every path, field name and value is bound; caller text never becomes SQL.
-    const { rows } = await this.#pool.query<RecordRow>(
+    const { rows } = await this.#reader().query<RecordRow>(
       `SELECT ${columns} FROM record WHERE ${clauses.join(" AND ")} ORDER BY id COLLATE "C"${limit}`, params,
     );
     return rows.map(recordOf);
@@ -243,13 +247,23 @@ export class PgTransactions implements Transactions {
       filter.oldest !== undefined ? `SELECT ${columns} FROM record_event ${where} ORDER BY seq LIMIT $${params.length}`
       : filter.newest !== undefined ? `SELECT * FROM (SELECT ${columns} FROM record_event ${where} ORDER BY seq DESC LIMIT $${params.length}) AS newest ORDER BY seq`
       : `SELECT ${columns} FROM record_event ${where} ORDER BY seq`;
-    const { rows } = await this.#pool.query<EventRow>(query, params);
+    const { rows } = await this.#reader().query<EventRow>(query, params);
     return rows.map(entryOf);
+  }
+
+  inOneWrite<T>(work: () => Promise<T>, signal?: AbortSignal): Promise<T> {
+    if (this.#open.getStore() !== undefined) return work();
+    return this.#write((client) => this.#open.run(client, work), signal);
+  }
+
+  /** Where a read goes: the open inOneWrite's connection inside its work, so it sees that work's writes; else the pool. */
+  #reader(): Pool | PoolClient {
+    return this.#open.getStore() ?? this.#pool;
   }
 
   /** Whether the history has the mark's column, looked up once. */
   #marksIt(): Promise<boolean> {
-    return (this.#marks ??= marksOutsideRead(this.#pool).catch((error: unknown) => {
+    return (this.#marks ??= marksOutsideRead(this.#reader()).catch((error: unknown) => {
       this.#marks = undefined;
       throw error;
     }));
@@ -274,8 +288,12 @@ export class PgTransactions implements Transactions {
    *   to different records could commit out of order, and a reader following along with `since`
    *   would miss the entry that committed late (2.8). One writer at a time makes seq order commit
    *   order.
+   *
+   * Inside an inOneWrite's work, a write runs on that work's connection, in its transaction.
    */
   async #write<T>(work: (client: PoolClient) => Promise<T>, signal?: AbortSignal): Promise<T> {
+    const open = this.#open.getStore();
+    if (open !== undefined) return work(open);
     signal?.throwIfAborted();
     const client = await this.#pool.connect();
     let broken = false;

@@ -7,17 +7,16 @@
  * is still true. The health report (the owner's G1) is what a write cannot refuse: an edge to a
  * record retired since.
  */
-import type { Library, Note, SchemaRecord, WriteOptions } from "../../index.js";
+import type { Library, NewDecision, Note, SchemaRecord, WriteOptions } from "../../index.js";
 
 import { allNotes, LibrarianRefusal, referencesOf, type Reference } from "../notes.js";
 
-/** A successor's own words; it is recorded accepted, superseding the decisions it replaces. */
-export interface Successor {
-  readonly title: string;
-  readonly text: string;
-  /** The story or capability it is a front cover of. By default, the shelf the first one it replaces covered. */
-  readonly frontCoverOf?: string;
-}
+/**
+ * A successor's own words, and any other field a new decision takes (its number, the day it was decided, who decided
+ * it, its links); it is recorded accepted, superseding the decisions it replaces. `frontCoverOf` is the story or
+ * capability it is a front cover of: by default, the shelf the first one it replaces covered.
+ */
+export type Successor = Omit<NewDecision, "status" | "supersedes">;
 
 /** What a correction in place may change. */
 export interface Correction {
@@ -42,28 +41,33 @@ export type BrokenEdge = Reference;
  * decision's ID, preserving its fields and earlier supersession links. It takes the shelf the first of
  * them covered, unless it has its own, and the load-bearing mark if any of them carried it; the
  * old ones leave the reading list, and stay readable as superseded. The library refuses an old one
- * that is not a live decision, and a supersession loop.
+ * that is not a live decision, and a supersession loop. It is the one way a decision is superseded
+ * (`adr new --supersedes` comes here too), and all of it is one write: one that fails part-way
+ * leaves every decision as it was.
  */
-export async function supersede(library: Library, olds: readonly string[], successor: Successor | string, writer?: WriteOptions): Promise<SchemaRecord<"decision">> {
-  const existing = typeof successor === "string" ? await library.decision(successor) : undefined;
-  if (existing === null) throw new LibrarianRefusal(`${successor} is not a live decision`);
-  if (existing !== undefined && existing.status !== "accepted") {
-    throw new LibrarianRefusal(`${label(existing.record)} must be accepted to supersede other decisions; it reads ${existing.status}`);
-  }
-  const replaced = await Promise.all([...new Set(olds)].map(async (id) => (await library.decision(id))?.record));
-  const frontCoverOf = (typeof successor === "string" ? existing?.record.fields.frontCoverOf : successor.frontCoverOf) ?? replaced[0]?.fields.frontCoverOf;
-  const loadBearing = replaced.some((old) => old?.fields.loadBearing === true);
-  const fields = {
-    supersedes: [...new Set([...(existing?.record.fields.supersedes ?? []), ...olds])],
-    ...(frontCoverOf === undefined ? {} : { frontCoverOf }),
-    ...(loadBearing ? { loadBearing } : {}),
-  };
-  const recorded = typeof successor === "string"
-    ? await library.editNote(successor, fields, writer) as SchemaRecord<"decision"> | null
-    : await library.recordDecision({ title: successor.title, text: successor.text, status: "accepted", ...fields }, writer);
-  if (recorded === null) throw new LibrarianRefusal(`${successor} is not a live decision`);
-  for (const old of replaced) if (old?.fields.loadBearing === true) await library.editNote(old.id, { loadBearing: undefined }, writer);
-  return recorded;
+export function supersede(library: Library, olds: readonly string[], successor: Successor | string, writer?: WriteOptions): Promise<SchemaRecord<"decision">> {
+  return library.inOneWrite(async () => {
+    const existing = typeof successor === "string" ? await library.decision(successor) : undefined;
+    if (existing === null) throw new LibrarianRefusal(`${successor} is not a live decision`);
+    if (existing !== undefined && existing.status !== "accepted") {
+      throw new LibrarianRefusal(`${label(existing.record)} must be accepted to supersede other decisions; it reads ${existing.status}`);
+    }
+    const replaced = await Promise.all([...new Set(olds)].map(async (id) => (await library.decision(id))?.record));
+    const own = typeof successor === "string" ? existing?.record.fields : successor;
+    const frontCoverOf = own?.frontCoverOf ?? replaced[0]?.fields.frontCoverOf;
+    const loadBearing = own?.loadBearing === true || replaced.some((old) => old?.fields.loadBearing === true);
+    const fields = {
+      supersedes: [...new Set([...(existing?.record.fields.supersedes ?? []), ...olds])],
+      ...(frontCoverOf === undefined ? {} : { frontCoverOf }),
+      ...(loadBearing ? { loadBearing } : {}),
+    };
+    const recorded = typeof successor === "string"
+      ? await library.editNote(successor, fields, writer) as SchemaRecord<"decision"> | null
+      : await library.recordDecision({ ...successor, status: "accepted", ...fields }, writer);
+    if (recorded === null) throw new LibrarianRefusal(`${successor} is not a live decision`);
+    for (const old of replaced) if (old?.fields.loadBearing === true) await library.editNote(old.id, { loadBearing: undefined }, writer);
+    return recorded;
+  }, writer?.signal === undefined ? undefined : { signal: writer.signal });
 }
 
 /**

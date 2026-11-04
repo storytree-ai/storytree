@@ -1,5 +1,5 @@
 /**
- * Capability 2 · Library transactions: ONE behaviour suite, one test per contract 2.1-2.9, 2.12, 2.14-2.20 and 2.23 in
+ * Capability 2 · Library transactions: ONE behaviour suite, one test per contract 2.1-2.9, 2.12, 2.14-2.20, 2.23 and 2.24 in
  * the library story. Each backend registers it (memory.test.ts, pg.test.ts) and it must pass
  * unchanged on every one. Parity is the point: later stories test against the in-memory twin, so
  * the twin has to behave exactly as Postgres does.
@@ -721,6 +721,41 @@ export function transactionsBehaviourSuite(label: string, makeStore: () => Promi
     assert.deepEqual(await store.history({ actions: [] }), [], "none for no actions");
     assert.deepEqual((await store.history({ types: ["story"], actions: ["created"], since: all[0]!.seq })).map((entry) => entry.recordId), ["s-2"], "combined with types and since");
     await assert.rejects(store.history({ actions: ["deleted" as "created"] }), RangeError, "an action no change has is refused before anything is read");
+  });
+
+  contract("2.24", "inOneWrite commits every write its work makes together, or none when the work throws", async (store) => {
+    await store.save({ id: "o-1", type: "note", fields: { v: 1 } });
+    await store.save({ id: "o-2", type: "note", fields: { v: 1 } });
+    const before = { history: await store.history(), records: await store.list("note") };
+
+    await assert.rejects(store.inOneWrite(async () => {
+      await store.edit({ id: "o-1", fields: { v: 2 } });
+      assert.equal((await store.get("o-1"))?.fields.v, 2, "a read inside the work sees its own write");
+      await store.save({ id: "o-3", type: "note", fields: { v: 1 } });
+      await store.retire({ id: "o-2", reason: "gone" });
+      throw new Error("part-way");
+    }), /part-way/);
+    assert.deepEqual(await store.list("note"), before.records, "no write the work made stands");
+    assert.deepEqual(await store.history(), before.history, "and no history entry was written");
+
+    let entered!: () => void;
+    const inside = new Promise<void>((resolve) => { entered = resolve; });
+    const work = store.inOneWrite(async () => {
+      await store.edit({ id: "o-1", fields: { v: 2 } });
+      await assert.rejects(store.edit({ id: "o-2", fields: { v: 2 }, validate: () => { throw new Error("refused"); } }), /refused/);
+      entered();
+      await sleep(50);
+      await store.inOneWrite(() => store.edit({ id: "o-2", fields: { v: 3 } }));
+      assert.equal((await store.get("o-1"))?.fields.v, 2, "another writer waits for the work to finish");
+      return "done";
+    });
+    await inside;
+    const outsider = store.edit({ id: "o-1", fields: { v: 9 } });
+    const done = await work;
+    assert.equal(done, "done", "the work's result comes back");
+    assert.equal((await store.get("o-2"))?.fields.v, 3, "a nested one joins it, and a refused write inside it writes nothing while the work goes on");
+    await outsider;
+    assert.deepEqual((await store.history({ id: "o-1" })).map((entry) => entry.record.fields.v), [1, 2, 9], "the other writer's write comes after");
   });
 
 }

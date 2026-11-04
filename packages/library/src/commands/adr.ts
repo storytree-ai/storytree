@@ -7,7 +7,8 @@
  *
  * - Every rule is the library's own (knowledge/decision-log.ts): numbers handed out inside the write, status,
  *   supersession and its loop check, the owner's words a stamp claiming his authority must quote, and whether a composed
- *   statement is stale.
+ *   statement is stale. An accepted decision that supersedes others is recorded by the librarian's `supersede`, which
+ *   moves their shelf and load-bearing mark in one write.
  * - The file `adr pull` writes: a front matter of `key: <JSON value>` lines, then `# <title>`, a blank line, and the
  *   text. `push` hands the library's `editNote` only what differs from the stored decision, so a push with no edit
  *   writes nothing, and names no writer. The lines below `# read only` (its id, number, how it reads, its authority and
@@ -17,6 +18,7 @@
  */
 import { verb, VerbRefusal, type VerbContext, type VerbFamily } from "../verbs/verb.js";
 import type { DecisionView, Library } from "../index.js";
+import { supersede } from "../librarian/decision-log/index.js";
 
 /** The fields a pushed file may change, in the order the file shows them. */
 const EDITABLE = ["status", "decided", "loadBearing", "supersedes", "links", "frontCoverOf"] as const;
@@ -151,7 +153,11 @@ const create = verb({
       authority: basis === undefined ? undefined : { basis, scribedBy: await person(), at: new Date().toISOString(), ...(ownerSaid === undefined ? {} : { ownerSaid }) },
     };
     const fields = { title: input.title, text: input.text, status: input.status, ...Object.fromEntries(Object.entries(optional).filter(([, value]) => value !== undefined)) };
-    const decision = await context.library.recordDecision(fields as never, context.writer);
+    const supersedes = optional.supersedes as string[] | undefined;
+    // An accepted decision that supersedes others is the librarian's supersede: it moves their shelf and load-bearing mark.
+    const decision = input.status === "accepted" && supersedes !== undefined && supersedes.length > 0
+      ? await supersede(context.library, supersedes, Object.fromEntries(Object.entries(fields).filter(([key]) => key !== "status" && key !== "supersedes")) as never, context.writer)
+      : await context.library.recordDecision(fields as never, context.writer);
     return {
       text: `Recorded ${adr(decision.fields.number)} (${decision.id}), ${decision.fields.status}.`,
       next: [{ command: `adr pull ${decision.id} --out ${decision.id}.md`, why: "read or edit it as a file" }],

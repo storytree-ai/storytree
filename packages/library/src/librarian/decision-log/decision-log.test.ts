@@ -1,11 +1,13 @@
 /**
- * Capability 22 · Decision log: one test per contract 22.1-22.4 in The library story, each in a
+ * Capability 22 · Decision log: one test per contract 22.1-22.5 in The library story, each in a
  * fresh project's library on the real Postgres `pnpm test` provides.
  */
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import type { Library } from "../../index.js";
+import { ADR_FAMILY } from "../../commands/adr.js";
+import type { DoorWords, VerbContext } from "../../verbs/verb.js";
 
 import { withLibrary } from "../testing/pg.js";
 import type { ToolAnswer, ToolCall } from "../rounds/host.js";
@@ -160,5 +162,45 @@ test("22.4 the health report names each link or supersession pointing at a recor
       { from: definition.id, field: "links", to: cover.id },
       { from: successor.id, field: "supersedes", to: old.id },
     ]);
+  });
+});
+
+test("22.5 a decision superseded by `adr new --supersedes` leaves `adr list --load-bearing`, and its successor takes the mark and the shelf as supersede leaves them", async () => {
+  await withLibrary(async (library) => {
+    const { capability, cover } = await shelf(library);
+    const words: DoorWords = { door: "command", say: (step) => `storytree ${step.command}` };
+    const context = { library, project: library.name, session: "s", folder: ".", writer: { actor: "session:s" } } as VerbContext;
+    const adr = (name: string) => ADR_FAMILY.verbs.find((one) => "name" in one.command && one.command.name === name)!;
+
+    await adr("new").act({ title: "Send through Postmark", text: "Postmark replaces Mailgun.", status: "accepted", supersedes: cover.id, decided: "2026-11-04" }, context, words);
+
+    const [successor] = (await library.decisions()).filter((view) => view.record.fields.title === "Send through Postmark");
+    const listed = (await adr("list").act({ "load-bearing": true }, context, words)).text;
+    assert.doesNotMatch(listed, new RegExp(cover.id), "the superseded decision is off the load-bearing list");
+    assert.match(listed, new RegExp(successor!.record.id), "and its successor is on it");
+    assert.equal(successor?.record.fields.loadBearing, true);
+    assert.equal(successor?.record.fields.decided, "2026-11-04", "the successor keeps the fields adr new gave it");
+    assert.deepEqual((await library.frontCovers(capability.id)).map(({ id }) => id), [successor!.record.id]);
+    assert.equal((await library.decision(cover.id))?.status, "superseded");
+  });
+});
+
+test("22.5 a supersede that fails part-way leaves neither the successor nor the old decision changed", async () => {
+  await withLibrary(async (library) => {
+    const { capability, cover } = await shelf(library);
+    const { cursor } = await library.changesSince(0);
+    let asked = 0;
+    const failing = { actor: "curator", outsideRead: async () => {
+      asked += 1;
+      if (asked > 1) throw new Error("the connection dropped");
+      return [];
+    } };
+
+    await assert.rejects(supersede(library, [cover.id], { title: "Send through Postmark", text: "Postmark replaces Mailgun." }, failing), /connection dropped/);
+
+    assert.equal(asked, 2, "it failed after the successor's write, before the old decision's");
+    assert.deepEqual((await library.changesSince(cursor)).changes, [], "nothing was written");
+    assert.equal((await library.decision(cover.id))?.record.fields.loadBearing, true);
+    assert.deepEqual((await library.frontCovers(capability.id)).map(({ id }) => id), [cover.id]);
   });
 });

@@ -2,6 +2,8 @@
  * Capability 2 · Library transactions. MemoryTransactions: the in-memory twin of PgTransactions. The behaviour suite runs unchanged on
  * both, so later stories can test against this one without a database.
  */
+import { AsyncLocalStorage } from "node:async_hooks";
+
 import { check, fieldAt, listFilter, pickFields, editedRecord, historyEntry, historyFilter, jsonCopy, now, numbered, outsideReadOf, revertedRecord, revertInput, revertReason, savedRecord, writesReverted, writtenBy } from "./records.js";
 import type {
   EditInput,
@@ -21,16 +23,22 @@ import type {
  * Every write reads what is stored, builds and checks the new record, and writes it, with no
  * `await` in between: nothing else can run between its read and its write, so each write is
  * atomic, as a Postgres transaction is. What is stored is only ever replaced, never changed in
- * place, and callers only ever get copies.
+ * place, and callers only ever get copies. inOneWrite keeps what was stored when it began, puts it
+ * back if its work throws, and holds every other writer until it settles.
  */
 export class MemoryTransactions implements Transactions {
   /** The current records by id. A retired record is not here; its history is. */
   readonly #records = new Map<string, RecordEnvelope>();
   readonly #history: HistoryEntry[] = [];
   #lastSeq = 0;
+  /** Set inside an inOneWrite's work. */
+  readonly #inside = new AsyncLocalStorage<true>();
+  /** Settles when the open inOneWrite does; undefined while none is open. */
+  #open: Promise<unknown> | undefined;
 
   async save(input: SaveInput): Promise<RecordEnvelope> {
     input.signal?.throwIfAborted();
+    while (this.#waits()) await this.#open;
     if (input.onlyIfNew && this.#history.some((entry) => entry.recordId === input.id && entry.type !== "health")) {
       throw new RangeError(`${input.id} already exists in history; this setting can only be written once`);
     }
@@ -66,6 +74,7 @@ export class MemoryTransactions implements Transactions {
 
   async edit(input: EditInput): Promise<RecordEnvelope | null> {
     input.signal?.throwIfAborted();
+    while (this.#waits()) await this.#open;
     const current = this.#records.get(input.id);
     if (current === undefined) return null;
     const record = editedRecord(current, input.fields, now(), input.upgrade);
@@ -80,6 +89,7 @@ export class MemoryTransactions implements Transactions {
 
   async retire(input: RetireInput): Promise<void> {
     input.signal?.throwIfAborted();
+    while (this.#waits()) await this.#open;
     const current = this.#records.get(input.id);
     if (current === undefined) return;
     this.#append("retired", current, now(), input.actor, input.reason, outsideReadOf(input.outsideRead, current.type));
@@ -88,6 +98,7 @@ export class MemoryTransactions implements Transactions {
 
   async revert(given: RevertInput): Promise<RecordEnvelope> {
     given.signal?.throwIfAborted();
+    while (this.#waits()) await this.#open;
     const input = revertInput(given);
     const own = this.#history.filter((entry) => entry.recordId === input.id);
     const current = this.#records.get(input.id);
@@ -100,6 +111,7 @@ export class MemoryTransactions implements Transactions {
 
   async revertWrites(input: RevertWritesInput): Promise<RevertedWrite[]> {
     input.signal?.throwIfAborted();
+    while (this.#waits()) await this.#open;
     const ids = new Set(this.#history.filter((entry) => entry.actor === input.of).map((entry) => entry.recordId));
     const written = writtenBy(input.of, this.#history.filter((entry) => ids.has(entry.recordId)));
     const at = now();
@@ -120,6 +132,36 @@ export class MemoryTransactions implements Transactions {
       && (actions === undefined || actions.includes(entry.action)));
     const limited = oldest !== undefined ? kept.slice(0, oldest) : newest !== undefined ? kept.slice(-newest) : kept;
     return limited.map((entry) => jsonCopy(entry));
+  }
+
+  async inOneWrite<T>(work: () => Promise<T>, signal?: AbortSignal): Promise<T> {
+    if (this.#inside.getStore() === true) return work();
+    signal?.throwIfAborted();
+    while (this.#open !== undefined) await this.#open;
+    const records = new Map(this.#records);
+    const { length } = this.#history;
+    const lastSeq = this.#lastSeq;
+    const run = this.#inside.run(true, work);
+    this.#open = run.catch(() => undefined);
+    try {
+      return await run;
+    } catch (error) {
+      this.#records.clear();
+      for (const [id, record] of records) this.#records.set(id, record);
+      this.#history.length = length;
+      this.#lastSeq = lastSeq;
+      throw error;
+    } finally {
+      this.#open = undefined;
+    }
+  }
+
+  /**
+   * Whether a write must wait for an open inOneWrite it is not inside, as Postgres's write lock makes it wait. Each
+   * waiter checks again right before it writes, with no await between, so none slips in as one settles.
+   */
+  #waits(): boolean {
+    return this.#open !== undefined && this.#inside.getStore() !== true;
   }
 
   /** `input` numbered from every number its type's records have held, as the history keeps them. */

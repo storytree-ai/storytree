@@ -9,7 +9,7 @@ import { promisify } from "node:util";
 import { removeTemp } from "@storytree/test-waits";
 
 import { countEngines } from "./queue.mjs";
-import { adoptRequests, asRun, ensureWatcher, forget, hand, handedOff, handOver, handThroughLibrary, HOME, homeOf, isFixSession, main, ownerOf, projectOf, readFailures, readPull, reachOf, recordVerdict, remoteCommand, RESTART, watchOnce } from "./watch.mjs";
+import { adoptRequests, asRun, ensureWatcher, forget, hand, handedOff, handOver, handThroughLibrary, HOME, homeOf, isFixSession, main, ownerOf, onMain, failedOnQueue, projectOf, queueOutcome, queueRemovals, readFailures, readPull, reachOf, recordVerdict, remoteCommand, RESTART, watchOnce } from "./watch.mjs";
 
 const at = Date.parse("2026-10-10T12:00:00Z");
 const minutes = (n) => new Date(at + n * 60_000).toISOString();
@@ -427,6 +427,107 @@ test("4.45 · on MERGED the watcher lets go of a pull request's claims as a merg
     ["workspace", "let-go", "42", "--reason", "PR #42 merged; released by the watcher", "--merged"],
     ["workspace", "let-go", "43", "--reason", "PR #43 closed without merging; released by the watcher"],
   ]);
+});
+
+test("4.52 · the merge queue's removals for failed checks are read from the timeline with the queue's commit and its parents; a removal on merging, or one naming no commit, is not one", () => {
+  const removal = (createdAt, reason, oid, parents) => ({ createdAt, reason, beforeCommit: oid ? { oid, parents: { nodes: parents.map((one) => ({ oid: one })) } } : null });
+  const removed = [
+    removal(minutes(-50), "failed_checks", "q1", ["main1", "h1"]),
+    removal(minutes(-40), "FAILED_CHECKS", "q2", ["q0", "h2"]),
+    removal(minutes(-30), "failed_checks", null, []),
+    removal(minutes(-20), "merged", "q3", ["main2", "h2"]),
+  ];
+  assert.deepEqual(queueRemovals(pull({ removed })), [
+    { at: minutes(-50), commit: "q1", parents: ["main1", "h1"] },
+    { at: minutes(-40), commit: "q2", parents: ["q0", "h2"] },
+  ]);
+  assert.deepEqual(queueRemovals(pull({ removed }), new Set([minutes(-50)])), [{ at: minutes(-40), commit: "q2", parents: ["q0", "h2"] }], "one already seen is left out");
+});
+
+test("4.52 · a kept queue red is caused by the entry ahead when the queue commit's first parent never reached main; else, merged, a flake at the head it was red at and real after a new head; unknown when it never merged or that is unread", () => {
+  const red = { at: minutes(-50), commit: "q1", parents: ["ahead1", "h1"] };
+  assert.equal(queueOutcome(red, { merged: true, head: "h1", reached: false }), "ahead");
+  assert.equal(queueOutcome(red, { merged: false, head: "h1", reached: false }), "ahead");
+  assert.equal(queueOutcome(red, { merged: true, head: "h1", reached: true }), "flake");
+  assert.equal(queueOutcome(red, { merged: true, head: "h2", reached: true }), "real");
+  assert.equal(queueOutcome(red, { merged: false, head: "h1", reached: true }), "unknown");
+  assert.equal(queueOutcome(red, { merged: true, head: "h1", reached: undefined }), "unknown");
+});
+
+test("4.52 · each merge-queue red the watcher sees is kept on its hand-off once, and when the watch ends each is written as a queue-red line with its outcome", async (t) => {
+  const b = await box(t);
+  await handOff(b, 41, "increment_one");
+  await handOff(b, 42, "increment_two");
+  const seen = { at: minutes(-50), commit: "q1", parents: ["main1", "h1"], checks: ["verify on Windows"], tests: ["4.2 · a red check"] };
+  const later = { at: minutes(-30), commit: "q2", parents: ["ahead1", "h2"], checks: [], tests: [] };
+  b.calls.length = 0;
+  b.looks[41] = { state: "pending", head: "h1", queueReds: [seen] };
+  b.looks[42] = { state: "pending", head: "h1", queueReds: [later] };
+  await watchOnce(b.options);
+  b.looks[41] = { state: "pending", head: "h2", queueReds: [seen, later] };
+  await watchOnce(b.options);
+  assert.deepEqual((await saved(b, 41)).queueReds.map((one) => one.commit), ["q1", "q2"], "kept once each, as it is seen");
+  assert.deepEqual(b.calls, [], "nothing is written while the watch goes on");
+
+  b.options.reached = async (sha) => sha === "main1";
+  b.looks[41] = { state: "merged", head: "h2" };
+  b.looks[42] = { state: "closed", head: "h2" };
+  await watchOnce(b.options);
+  assert.deepEqual(b.calls.filter(([, verb]) => verb === "queue-red"), [
+    ["workspace", "queue-red", "41", "--increment", "increment_one", "--removed-at", minutes(-50), "--commit", "q1", "--check", "verify on Windows", "--test", "4.2 · a red check", "--outcome", "real"],
+    ["workspace", "queue-red", "41", "--increment", "increment_one", "--removed-at", minutes(-30), "--commit", "q2", "--outcome", "ahead"],
+    ["workspace", "queue-red", "42", "--increment", "increment_two", "--removed-at", minutes(-30), "--commit", "q2", "--outcome", "ahead"],
+  ]);
+  assert.deepEqual(await readdir(b.dir), [], "then forgotten");
+
+  // A compare with main that GitHub refuses leaves whether the entry ahead landed unread: unknown.
+  await handOff(b, 44, "increment_four");
+  b.looks[44] = { state: "pending", head: "h1", queueReds: [later] };
+  await watchOnce(b.options);
+  b.calls.length = 0;
+  b.options.reached = async () => { throw new Error("gh: HTTP 502"); };
+  b.looks[44] = { state: "merged", head: "h2" };
+  await watchOnce(b.options);
+  assert.deepEqual(b.calls.filter(([, verb]) => verb === "queue-red"), [
+    ["workspace", "queue-red", "44", "--increment", "increment_four", "--removed-at", minutes(-30), "--commit", "q2", "--outcome", "unknown"],
+  ]);
+
+  // With no way to ask whether a commit is on main, a merged pull request's reds are unknown too.
+  await handOff(b, 45, "increment_five");
+  b.looks[45] = { state: "pending", head: "h1", queueReds: [later] };
+  await watchOnce(b.options);
+  b.calls.length = 0;
+  delete b.options.reached;
+  b.looks[45] = { state: "merged", head: "h2" };
+  await watchOnce(b.options);
+  assert.deepEqual(b.calls.filter(([, verb]) => verb === "queue-red"), [
+    ["workspace", "queue-red", "45", "--increment", "increment_five", "--removed-at", minutes(-30), "--commit", "q2", "--outcome", "unknown"],
+  ]);
+
+  // A hand-off forgotten at a cut-over has no pull request read, so each red it kept is unknown.
+  await handOff(b, 43, "increment_three");
+  b.looks[43] = { state: "pending", head: "h1", queueReds: [seen] };
+  await watchOnce(b.options);
+  b.calls.length = 0;
+  b.options.cutover = async () => minutes(60);
+  await watchOnce(b.options);
+  assert.deepEqual(b.calls.filter(([, verb]) => verb === "queue-red"), [
+    ["workspace", "queue-red", "43", "--increment", "increment_three", "--removed-at", minutes(-50), "--commit", "q1", "--check", "verify on Windows", "--test", "4.2 · a red check", "--outcome", "unknown"],
+  ]);
+});
+
+test("4.52 · a queue commit's red check runs are named with their Actions runs, and GitHub's compare of main with a commit says whether it is on main", () => {
+  assert.deepEqual(failedOnQueue([
+    { name: "verify", conclusion: "failure", details_url: "https://github.com/o/r/actions/runs/41/job/1" },
+    { name: "verify on macOS", conclusion: "cancelled", details_url: "https://github.com/o/r/actions/runs/41/job/2" },
+    { name: "verify on Linux", conclusion: "success", details_url: "https://github.com/o/r/actions/runs/41/job/3" },
+    { name: "CodeQL", conclusion: "failure", details_url: "https://github.com/o/r/runs/7" },
+  ]), { checks: ["verify", "verify on macOS", "CodeQL"], runs: [41] });
+  assert.equal(onMain("behind"), true);
+  assert.equal(onMain("identical"), true);
+  assert.equal(onMain("diverged"), false);
+  assert.equal(onMain("ahead"), false);
+  assert.throws(() => onMain(""), /read nothing/);
 });
 
 test("4.47 · on MERGED a pull request handed over to keep its increment open clears its event wait marked with that pull request, so the increment's wait for the owner is listed for reading again; a merge that closes the increment marks nothing", async (t) => {

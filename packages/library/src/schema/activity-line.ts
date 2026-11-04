@@ -196,6 +196,16 @@ export const NEW_LINE = z.discriminatedUnion("kind", [
    */
   z.object({ ...common, kind: z.literal("pr-red"), pr: z.number().int().positive(), increment: z.string().min(1), conflict: z.boolean(), checks: z.array(z.string().min(1)) }).strict(),
   /**
+   * A merge-queue removal for failed checks of a handed-over pull request (`pr`, for `increment`), kept by the watcher
+   * from the time it saw it and written when the watch ends (Agent runner 4.52): when it was removed (`removedAt`), the
+   * queue's commit it failed on, the names of the checks that failed there and the tests they name, when readable, and
+   * whether it was `real` (a new head was pushed before it merged), a `flake` (it merged at the head it was red at),
+   * caused by the entry `ahead` of it in the queue (which never landed), or `unknown` (it never merged, or that could
+   * not be read). Written on the watcher, which is no session.
+   */
+  z.object({ ...common, kind: z.literal("queue-red"), pr: z.number().int().positive(), increment: z.string().min(1), removedAt: z.string().datetime({ offset: true }),
+    commit: z.string().min(1), checks: z.array(z.string().min(1)), tests: z.array(z.string().min(1)), outcome: z.enum(["real", "flake", "ahead", "unknown"]) }).strict(),
+  /**
    * A CI run (`run`, in the GitHub repository `repo`, as owner/name) the watcher reran, and the `attempt` the rerun starts:
    * main's newest CI run, a release run or a handed-over pull request's run, `what` (Agent runner 4.27). GitHub names
    * the owner as its actor, since the watcher signs in as him, so this line is how its reruns are told from his. Written

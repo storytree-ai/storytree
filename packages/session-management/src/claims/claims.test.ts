@@ -20,7 +20,7 @@ import { countingStore } from "@storytree/project-and-caller/testing/egress";
 import { withTempDir, writeMarker } from "@storytree/project-and-caller/testing/folders";
 import { approveCheckout, dropTestProjects, testServerDataDir, testServerUrl, uniqueProjectName } from "@storytree/project-and-caller/testing/pg";
 import { closeOut, readSessions } from "../sessions/index.js";
-import { claim, claimAll, claimClearingOwnerWait, claimRefusal, closed, closeRefusal, holdForPull, land, letGo, readAttribution, recordRed, recordRerun, release, releaseFor, type ClaimContext, type MergedPull, type MergeWatch } from "./index.js";
+import { claim, claimAll, claimClearingOwnerWait, claimRefusal, closed, closeRefusal, holdForPull, land, letGo, readAttribution, recordQueueRed, recordRed, recordRerun, release, releaseFor, type ClaimContext, type MergedPull, type MergeWatch } from "./index.js";
 import { allMergedPullsThrough, allOpenPullsThrough, boardClaims, queuedPullsThrough, due, endMergedClaims, mergedPullsThrough, projectTempFile, type OpenPull } from "./merges.js";
 import { staleClaims } from "./stale-claims.js";
 import { WORKSPACE_FAMILIES } from "./verbs.js";
@@ -1249,6 +1249,28 @@ test("5.54 a CI rerun the watcher starts (of main, a release or a pull request) 
       ["watcher", "watcher", "storytree-ai/storytree", 39100000001, 3, "pr"],
     ]);
     assert.deepEqual((await readSessions(log, project)).map((session) => session.session), [], "the watcher is no session");
+  });
+});
+
+test("5.67 a merge-queue red the watcher kept is a queue-red line naming its pull request, increment, removal time, queue commit, failed checks and tests and its outcome, on the watcher, and makes no session read live", async () => {
+  await withWorld(async ({ log, project, as }) => {
+    await recordQueueRed(as("C"), { pr: 12, increment: "increment_signup", removedAt: "2026-11-01T10:00:00Z", commit: "q1", checks: ["verify on Windows"], tests: ["4.2 · a red check"], outcome: "flake" });
+    await recordQueueRed(as("C"), { pr: 12, increment: "increment_signup", removedAt: "2026-11-01T11:00:00Z", commit: "q2", checks: [], tests: [], outcome: "ahead" });
+    const reds = await log.lines(project, { kinds: ["queue-red"] });
+    assert.deepEqual(reds.map((line) => line.kind === "queue-red" && [line.session, line.harness, line.pr, line.increment, line.removedAt, line.commit, line.checks, line.tests, line.outcome]), [
+      ["watcher", "watcher", 12, "increment_signup", "2026-11-01T10:00:00Z", "q1", ["verify on Windows"], ["4.2 · a red check"], "flake"],
+      ["watcher", "watcher", 12, "increment_signup", "2026-11-01T11:00:00Z", "q2", [], [], "ahead"],
+    ]);
+    assert.deepEqual((await readSessions(log, project)).map((session) => session.session), [], "the watcher is no session");
+
+    const queueRedVerb = WORKSPACE_FAMILIES[0]!.verbs.find((verb) => (verb.command as { name?: string }).name === "queue-red")!;
+    const words = { door: "command" as const, say: (step: { command?: string; tool?: string }) => step.command ?? step.tool! };
+    const typed = { pr: "13", increment: "increment_signup", "removed-at": "2026-11-01T12:00:00Z", commit: "q3", check: ["verify"], test: [], outcome: "real" };
+    await queueRedVerb.act(typed, as("C") as never, words);
+    await assert.rejects(queueRedVerb.act({ ...typed, outcome: "maybe" }, as("C") as never, words), /real, flake, ahead or unknown, not maybe/, "an outcome outside the four is refused");
+    await assert.rejects(queueRedVerb.act({ ...typed, "removed-at": "yesterday" }, as("C") as never, words), /not an ISO 8601 time/, "a removal time that is no time is refused");
+    assert.deepEqual((await log.lines(project, { kinds: ["queue-red"] })).slice(2).map((line) => line.kind === "queue-red" && [line.pr, line.commit, line.checks, line.outcome]),
+      [[13, "q3", ["verify"], "real"]], "the command writes its line, and a refused one writes none");
   });
 });
 

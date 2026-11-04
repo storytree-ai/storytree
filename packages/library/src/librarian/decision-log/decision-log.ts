@@ -72,10 +72,14 @@ export function supersede(library: Library, olds: readonly string[], successor: 
 
 /**
  * Record a new decision; an accepted one that supersedes others is recorded by `supersede`. A `supersedes` that is not
- * a list goes to the library as given, which refuses it.
+ * a list goes to the library as given, which refuses it. A new one written proposed is refused before anything is
+ * written (ADR-1232 D1): what needs the owner's call is an open question.
  */
-export function recordDecision(library: Library, fields: NewDecision, writer?: WriteOptions): Promise<SchemaRecord<"decision">> {
+export async function recordDecision(library: Library, fields: NewDecision, writer?: WriteOptions): Promise<SchemaRecord<"decision">> {
   const { status, supersedes, ...successor } = fields;
+  if (status === "proposed") {
+    throw new LibrarianRefusal("A decision is no longer born proposed (ADR-1232 D1): record it accepted only when the owner directed it, and raise what needs his call as an open question on its arc (storytree question new, or the raise_question tool), with the drafted decision in its context");
+  }
   return status === "accepted" && Array.isArray(supersedes) && supersedes.length > 0
     ? supersede(library, supersedes, successor, writer)
     : library.recordDecision(fields, writer);

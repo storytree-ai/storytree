@@ -1,5 +1,5 @@
 /**
- * Capability 22 · Decision log: one test per contract 22.1-22.5 in The library story, each in a
+ * Capability 22 · Decision log: one test per contract 22.1-22.6 in The library story, each in a
  * fresh project's library on the real Postgres `pnpm test` provides.
  */
 import assert from "node:assert/strict";
@@ -270,5 +270,19 @@ test("22.5 a supersede that fails part-way leaves neither the successor nor the 
     assert.deepEqual((await library.changesSince(cursor)).changes, [], "nothing was written");
     assert.equal((await library.decision(cover.id))?.record.fields.loadBearing, true);
     assert.deepEqual((await library.frontCovers(capability.id)).map(({ id }) => id), [cover.id]);
+  });
+});
+
+test("22.6 a new decision written proposed, through `adr new` or `library new decision`, is refused pointing to an open question, and nothing is written", async () => {
+  await withLibrary(async (library) => {
+    const words: DoorWords = { door: "command", say: (step) => `storytree ${step.command}` };
+    const context = { library, project: library.name, session: "s", folder: process.cwd(), writer: { actor: "session:s" } } as LibraryVerbContext;
+    const verbOf = (family: string, name: string) => LIBRARY_FAMILIES.find((one) => one.name === family)!.verbs.find((one) => "name" in one.command && one.command.name === name)!;
+    const { cursor } = await library.changesSince(0);
+
+    await assert.rejects(verbOf("adr", "new").act({ title: "Ship on Tuesdays", text: "Quietest day.", status: "proposed" }, context, words), /ADR-1232[\s\S]*question new/);
+    await assert.rejects(verbOf("library", "new").act({ "<kind>": "decision", "<fields>": { title: "Ship on Tuesdays", text: "Quietest day.", status: "proposed" } }, context, words), /ADR-1232[\s\S]*question new/);
+
+    assert.deepEqual((await library.changesSince(cursor)).changes, [], "nothing was written");
   });
 });

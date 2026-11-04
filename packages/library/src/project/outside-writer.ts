@@ -1,5 +1,5 @@
 /**
- * Capability 1 · Project libraries (1.23-1.25, ADR-1178 D1 and D5). The role template for a writer that runs outside
+ * Capability 30 · Outside writers (30.1-30.3, ADR-1178 D1 and D5). The role template for a writer that runs outside
  * storytree and connects to a project's library as its own database role, generalised from CI's (infra/library-host/
  * grants.sql): row-level security lets it insert only records of its plugin's declared kinds, update them only when
  * its plugin declares so, and read only those kinds and the ones its grant names. It deletes nothing and changes no

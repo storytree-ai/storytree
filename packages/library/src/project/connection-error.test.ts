@@ -1,4 +1,4 @@
-/** Capability 8 · Cloud connection: telling a failure apart as the library being unreachable (contract 8.10), and saying it once per outage (8.11). */
+/** Capability 28 · Shared server: telling a failure apart as the library being unreachable (contract 28.7), and saying it once per outage (28.8). */
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
@@ -6,7 +6,7 @@ import pg from "pg";
 
 import { ConnectionError, isUnreachable, LIBRARY_UNREACHABLE, outageSaidOnce, saysUnreachable } from "./connection-error.js";
 
-test("8.10 · a failure is told apart as the library being unreachable: a refusal for an unreachable or silent server, a network code, or pg's words for a connection timed out, lost or ended; one the user must fix is not", async () => {
+test("28.7 · a failure is told apart as the library being unreachable: a refusal for an unreachable or silent server, a network code, or pg's words for a connection timed out, lost or ended; one the user must fix is not", async () => {
   const pool = new pg.Pool();
   await pool.end();
   const ended = await pool.query("select 1").then(() => undefined, (error: unknown) => error);
@@ -24,7 +24,7 @@ test("8.10 · a failure is told apart as the library being unreachable: a refusa
   assert.ok(!saysUnreachable(new Error("fetch failed")));
 });
 
-test("8.11 · a polling surface says an unreachable library once per outage, as one line with no error, and its recovery once; any other failure each time, with its error", () => {
+test("28.8 · a polling surface says an unreachable library once per outage, as one line with no error, and its recovery once; any other failure each time, with its error", () => {
   const said: unknown[][] = [];
   const outage = outageSaidOnce((...parts) => { said.push(parts); });
   outage.answered();

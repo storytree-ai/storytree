@@ -1,5 +1,6 @@
 /**
- * Capability 1 · Project libraries: one test per contract in the library story.
+ * Capability 1 · Project libraries: one test per contract in the library story; and capability 29 · Factory and
+ * product (29.1-29.6) and capability 30 · Outside writers' 30.4, whose tests share this file's fixtures.
  *
  * These run against the real Postgres that `pnpm test` provides. Every project a test makes is
  * named with uniqueProjectName() and its databases are dropped at the end, pass or fail, so tests
@@ -516,7 +517,7 @@ test("1.11 an account that may not change a project's tables opens it set up, be
   }
 });
 
-test("1.15 a project records whether it is the user's factory or a product naming its factory, and refuses to be both (ADR-1040)", async () => {
+test("29.1 a project records whether it is the user's factory or a product naming its factory, and refuses to be both (ADR-1040)", async () => {
   const [factory, product] = [uniqueProjectName(), uniqueProjectName()];
   await withStorytree([databaseOf(factory), databaseOf(product)], async (storytree) => {
     const made = await storytree.openProject(factory);
@@ -540,7 +541,7 @@ test("1.15 a project records whether it is the user's factory or a product namin
   });
 });
 
-test("1.16 a product project reads its factory's roles, notes and checks, and its own record of the same kind and title wins (ADR-1040)", async () => {
+test("29.2 a product project reads its factory's roles, notes and checks, and its own record of the same kind and title wins (ADR-1040)", async () => {
   const [factory, product] = [uniqueProjectName(), uniqueProjectName()];
   await withStorytree([databaseOf(factory), databaseOf(product)], async (storytree) => {
     const made = await storytree.openProject(factory);
@@ -590,7 +591,7 @@ test("1.16 a product project reads its factory's roles, notes and checks, and it
   });
 });
 
-test("1.17 a product's link to a system record it retired, as moving onto its factory drops a copy, reads the record of that kind and title: its own, else the factory's (ADR-1040)", async () => {
+test("29.3 a product's link to a system record it retired, as moving onto its factory drops a copy, reads the record of that kind and title: its own, else the factory's (ADR-1040)", async () => {
   const [factory, product] = [uniqueProjectName(), uniqueProjectName()];
   await withStorytree([databaseOf(factory), databaseOf(product)], async (storytree) => {
     const made = await storytree.openProject(factory);
@@ -618,7 +619,7 @@ test("1.17 a product's link to a system record it retired, as moving onto its fa
   });
 });
 
-test("1.16 a change to the factory's system after a product was set up is in the factory's history and reaches the product's next session, the product's own edits still winning (ADR-1040)", async () => {
+test("29.2 a change to the factory's system after a product was set up is in the factory's history and reaches the product's next session, the product's own edits still winning (ADR-1040)", async () => {
   const [factory, product] = [uniqueProjectName(), uniqueProjectName()];
   await withStorytree([databaseOf(factory), databaseOf(product)], async (storytree) => {
     const made = await storytree.openProject(factory);
@@ -656,7 +657,7 @@ test("1.16 a change to the factory's system after a product was set up is in the
   });
 });
 
-test("1.18 an edit through a product of a system record it reads from its factory writes the product's own copy, which wins, and retiring one hides it from the product; the factory is unchanged (ADR-1040)", async () => {
+test("29.4 an edit through a product of a system record it reads from its factory writes the product's own copy, which wins, and retiring one hides it from the product; the factory is unchanged (ADR-1040)", async () => {
   const [factory, product] = [uniqueProjectName(), uniqueProjectName()];
   await withStorytree([databaseOf(factory), databaseOf(product)], async (storytree) => {
     const made = await storytree.openProject(factory);
@@ -704,7 +705,7 @@ test("1.18 an edit through a product of a system record it reads from its factor
   });
 });
 
-test("1.19 a product's inherited records are the factory's system records it reads and holds no record of its own for: its copies, shadows, retirements and the factory's memory left out (ADR-1040)", async () => {
+test("29.5 a product's inherited records are the factory's system records it reads and holds no record of its own for: its copies, shadows, retirements and the factory's memory left out (ADR-1040)", async () => {
   const [factory, product] = [uniqueProjectName(), uniqueProjectName()];
   await withStorytree([databaseOf(factory), databaseOf(product)], async (storytree) => {
     const made = await storytree.openProject(factory);
@@ -736,7 +737,7 @@ test("1.19 a product's inherited records are the factory's system records it rea
   });
 });
 
-test("1.21 a project opened with system switches leaves each switched-off role, check and note out of its lists, selections and searches, a record's own title or id beating its group and a group beating all, while reading one by id still finds it and the plan stays whole (ADR-1092 D2)", async () => {
+test("29.6 a project opened with system switches leaves each switched-off role, check and note out of its lists, selections and searches, a record's own title or id beating its group and a group beating all, while reading one by id still finds it and the plan stays whole (ADR-1092 D2)", async () => {
   const [factory, product] = [uniqueProjectName(), uniqueProjectName()];
   await withStorytree([databaseOf(factory), databaseOf(product)], async (storytree) => {
     const made = await storytree.openProject(factory);
@@ -790,7 +791,7 @@ test("1.21 a project opened with system switches leaves each switched-off role, 
   });
 });
 
-test("1.26 a project opened with a plugin's kinds writes and reads them, its system switches and its factory beside; opened without them, a record of that kind reads dormant, as stored, in no list, and a write of it is refused (ADR-1178 D3)", async () => {
+test("30.4 a project opened with a plugin's kinds writes and reads them, its system switches and its factory beside; opened without them, a record of that kind reads dormant, as stored, in no list, and a write of it is refused (ADR-1178 D3)", async () => {
   const [factory, product] = [uniqueProjectName(), uniqueProjectName()];
   const note = { kind: "voice.note", version: 1, fields: { type: "object", properties: { words: { type: "string" } }, required: ["words"] }, writers: ["storytree_voice"] };
   const voice = "voice.note" as RecordType; // a plugin's kind is no core RecordType

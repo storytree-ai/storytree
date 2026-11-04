@@ -1,5 +1,5 @@
 /**
- * Capability 10 · Work in flight: the one rule both front doors call for a plan edit (ADR-0966 D1), run on the
+ * Capability 4 · Work model, its pending plan changes: the one rule both front doors call for a plan edit (ADR-0966 D1), run on the
  * server `pnpm test` provides, its project dropped afterwards.
  */
 import assert from "node:assert/strict";
@@ -9,7 +9,7 @@ import { connect } from "../index.js";
 import { testServerUrl, uniqueProjectName } from "../testing/pg.js";
 import { editPlanRecord } from "./plan-hold.js";
 
-test("10.29 · a plan edit made from a session holding an increment waits on it as a pending change until its branch merges, the live record unchanged; one made from a session holding none, or to a record the increment planned, is applied live", async (t) => {
+test("4.36 · a plan edit made from a session holding an increment waits on it as a pending change until its branch merges, the live record unchanged; one made from a session holding none, or to a record the increment planned, is applied live", async (t) => {
   const storytree = await connect({ url: testServerUrl() });
   const project = uniqueProjectName();
   t.after(async () => {

@@ -112,7 +112,7 @@ test("15.1 a library at a Postgres address, its password the postgres key, opens
   }
 });
 
-test("1.14 a local password URL still opens admin and project connections through SCRAM", async () => {
+test("28.10 a local password URL still opens admin and project connections through SCRAM", async () => {
   const run = uniqueProjectName();
   const [role, project] = [`${run}-local`, `${run}-scram`];
   let storytree: Storytree | undefined;

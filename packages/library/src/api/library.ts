@@ -121,7 +121,7 @@ export interface Library
   /** Every live record of this kind, upgraded, in id order. An unknown kind is refused. */
   list<K extends RecordType>(kind: K): Promise<SchemaRecord<K>[]>;
   /**
-   * The system records a product project reads from its factory and holds none of its own for (1.19), in id order: what
+   * The system records a product project reads from its factory and holds none of its own for (29.5), in id order: what
    * its globe draws beside its own history. A project with no factory inherits none.
    */
   inherited(): Promise<SchemaRecord[]>;

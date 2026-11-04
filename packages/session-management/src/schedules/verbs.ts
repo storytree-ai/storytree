@@ -66,7 +66,7 @@ const due = verb({
   command: { family: "schedule", name: "due", summary: "the scheduled processes due now (or --at a time), each with how overdue, those missed past their grace or with nothing to do by their precheck, and the last runs that were not ok", usage: "schedule due [--at <time>]" },
   tool: {
     name: "schedule_due",
-    description: "The scheduled process records due now: each one's id, title and how overdue, its schedule having come round since its latest recorded run (or it never ran). Run each due one through a subagent (one listed with a librarian runs that plugin's librarian-<plugin>, connected as the database role its manifest names, which check_plugin says), then record it with schedule_ran. Listed apart, and never run: those whose time is past their schedule's grace (record each missed) and those whose precheck found nothing to do (record each skipped). Also lists the scheduled processes whose latest run was a concern, a failure or a miss, with its note, for the report.",
+    description: "The scheduled process records due now: each one's id, title and how overdue, with what its precheck found if it has one, its schedule having come round since its latest recorded run (or it never ran). Run each due one through a subagent (one listed with a librarian runs that plugin's librarian-<plugin>, connected as the database role its manifest names, which check_plugin says), then record it with schedule_ran. Listed apart, and never run: those whose time is past their schedule's grace (record each missed) and those whose precheck found nothing to do (record each skipped). Also lists the scheduled processes whose latest run was a concern, a failure or a miss, with its note, for the report.",
   },
   inputs: { at: { kind: "text", optional: true, describe: "the time to judge at, as ISO 8601; now unless given" } },
   async act({ at: given }, context: SessionVerbContext) {
@@ -75,7 +75,7 @@ const due = verb({
     const { processes, last } = await scheduled(context);
     const linked = processes.some((one) => (one.fields.links ?? []).some((link) => link.startsWith("agent_")));
     const agents = new Map(linked ? (await context.library.list("agent")).map((one) => [one.id, one] as const) : []);
-    const listed: { id: string; title: string; overdueMinutes: number | null; how: string; librarian?: { agent: string; plugin: string } }[] = [];
+    const listed: { id: string; title: string; overdueMinutes: number | null; how: string; found?: string; librarian?: { agent: string; plugin: string } }[] = [];
     const missed: { id: string; title: string; overdueMinutes: number; graceMinutes: number }[] = [];
     const skipped: { id: string; title: string; precheck: string; found: string }[] = [];
     for (const one of processes) {
@@ -95,13 +95,13 @@ const due = verb({
       }
       const how = ran === undefined ? "never run" : overdueMinutes === null ? "every run" : `overdue ${span(overdueMinutes)}`;
       const librarian = librarianOf(one, agents);
-      listed.push({ id: one.id, title: one.fields.title, overdueMinutes, how, ...(librarian === undefined ? {} : { librarian }) });
+      listed.push({ id: one.id, title: one.fields.title, overdueMinutes, how, ...(check === undefined ? {} : { found: check.found }), ...(librarian === undefined ? {} : { librarian }) });
     }
     const notOk = processes.flatMap((one) => {
       const ran = last.get(one.id);
       return ran === undefined || ran.outcome === "ok" || ran.outcome === "skipped" ? [] : [{ id: one.id, title: one.fields.title, outcome: ran.outcome, at: ran.at, ...(ran.note === undefined ? {} : { note: ran.note }) }];
     });
-    const head = listed.length === 0 ? ["No scheduled process is due."] : [`${listed.length} scheduled process${listed.length === 1 ? "" : "es"} due:`, ...listed.map((one) => `  ${one.id}  ${one.title}  (${one.how})${one.librarian === undefined ? "" : `: runs librarian-${one.librarian.plugin}, the ${one.librarian.plugin} plugin's own librarian, connected as the database role the ${one.librarian.plugin} plugin's manifest names for it (\`storytree plugin check ${one.librarian.plugin}\` says which), never the core librarian's`}`)];
+    const head = listed.length === 0 ? ["No scheduled process is due."] : [`${listed.length} scheduled process${listed.length === 1 ? "" : "es"} due:`, ...listed.map((one) => `  ${one.id}  ${one.title}  (${one.how}${one.found === undefined ? "" : `; its precheck found ${one.found}`})${one.librarian === undefined ? "" : `: runs librarian-${one.librarian.plugin}, the ${one.librarian.plugin} plugin's own librarian, connected as the database role the ${one.librarian.plugin} plugin's manifest names for it (\`storytree plugin check ${one.librarian.plugin}\` says which), never the core librarian's`}`)];
     const late = missed.length === 0 ? [] : ["Missed, past their grace (record each missed; never run it late):", ...missed.map((one) => `  ${one.id}  ${one.title}  (slot ${span(one.overdueMinutes)} ago, grace ${span(one.graceMinutes)})`)];
     const idle = skipped.length === 0 ? [] : ["Nothing to do, by their precheck (record each skipped; start no subagent):", ...skipped.map((one) => `  ${one.id}  ${one.title}  (${one.found})`)];
     const tail = notOk.length === 0 ? [] : ["Last runs not ok:", ...notOk.map((one) => `  ${one.id}  ${one.title}  ${one.outcome} at ${one.at}${one.note === undefined ? "" : `: ${one.note}`}`)];

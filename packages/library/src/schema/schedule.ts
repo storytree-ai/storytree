@@ -23,9 +23,10 @@ export type ScheduleRule =
 
 /**
  * The cheap checks a process's `precheck` may name, which its runner makes before starting a subagent for it (no shell
- * string, because voice sessions edit process records): `feedback-waiting` asks whether a feedback note waits to be routed.
+ * string, because voice sessions edit process records): `feedback-waiting` asks whether a feedback note waits to be routed;
+ * `questions-to-prep` whether an owner question waits for the assistant pass's prep or score (ADR-1231).
  */
-export const PRECHECKS = ["feedback-waiting"] as const;
+export const PRECHECKS = ["feedback-waiting", "questions-to-prep"] as const;
 /** One of the checks a process's precheck may name. */
 export type Precheck = (typeof PRECHECKS)[number];
 

@@ -14,6 +14,9 @@ import type { ProjectSelection } from "../projects/selection.js";
 import type { SurfacesResult } from "../surfaces/bridge.js";
 import { openProjectPage, type ForestGlobe, type ForestSelection, type PageParts, type ProjectParts } from "./page.js";
 
+/** Who hears the page's one reading, as the page reading takes them. */
+type NewsListener = Parameters<ProjectParts["page"]["subscribe"]>[0];
+
 const { seed } = captureSeed("forest");
 const tree = seed.tree as AnnotatedTree;
 const story = tree.stories.find((each) => each.capabilities.length >= 2)!;
@@ -51,6 +54,10 @@ interface Drawn {
   waiting: ((count: number) => void) | undefined;
   /** What the arcs were told to start reading after. */
   arcsStart: PromiseLike<unknown> | undefined;
+  /** Who hears the page's one reading, in the order they subscribed: the forest's reading among them, as in the app. */
+  listeners: NewsListener[];
+  /** What the forest and the arcs did, in order: the forest asking its tree on its first news, the arcs mounting. */
+  events: string[];
 }
 
 /** The page on stand-in surfaces; `answers` overrides the bridge and how each project's surfaces answer. */
@@ -90,7 +97,7 @@ function page(t: TestContext, answers: Partial<Pick<PageParts, "problem" | "proj
     project(name, timed) {
       const mine: Drawn = {
         name, mounted: [], stopped: [], reading: undefined, teaching: [], locate: undefined, readingNear: undefined, rendered: [], spaces: [], treeShown: 0, treeOpen: false,
-        kept: answers.kept, timed: undefined, hosts: {}, waiting: undefined, arcsStart: undefined,
+        kept: answers.kept, timed: undefined, hosts: {}, waiting: undefined, arcsStart: undefined, listeners: [], events: [],
         view: {
           scenes: 0, disposed: false, onSelect: () => {}, painted: deferred<void>(),
           show() { mine.view.scenes++; }, drawn: () => mine.view.painted.promise, select() {}, dispose() { mine.view.disposed = true; },
@@ -101,11 +108,15 @@ function page(t: TestContext, answers: Partial<Pick<PageParts, "problem" | "proj
       mine.timed = timed({ read: async () => undefined });
       let kept: unknown;
       return {
-        page: { held: () => ({ changes: [], lines: [] }), stop: () => { mine.stopped.push("page"); } } as unknown as ProjectParts["page"],
+        page: {
+          held: () => ({ changes: [], lines: [] }),
+          subscribe: (listener: NewsListener) => { mine.listeners.push(listener); return () => { mine.listeners.splice(mine.listeners.indexOf(listener), 1); }; },
+          stop: () => { mine.stopped.push("page"); },
+        } as unknown as ProjectParts["page"],
         states: { part: () => "planned", add() {} },
         kept: { read: () => mine.kept, write: (written) => { mine.kept = written; } },
         drawing: { read: () => kept as never, write: (written) => { kept = written; } },
-        arcs: (host, on) => { mine.hosts.arcs = host; mine.waiting = on.onWaiting; mine.arcsStart = on.startAfter; return surface("arcs"); },
+        arcs: (host, on) => { mine.events.push("arcs mounted"); mine.hosts.arcs = host; mine.waiting = on.onWaiting; mine.arcsStart = on.startAfter; return surface("arcs"); },
         treeSpace: () => {
           mine.mounted.push("capability-tree");
           return {
@@ -130,7 +141,13 @@ function page(t: TestContext, answers: Partial<Pick<PageParts, "problem" | "proj
           return { take: (reading) => { mine.teaching.push({ factory: reading.factory }); }, stop: () => { mine.stopped.push("teaching"); } };
         },
         plugins: (on) => answers.plugins!(on),
-        reading: (options) => { mine.reading = options; return { stop: () => { mine.stopped.push("reading"); } }; },
+        // The forest's reading hears the page's reading and asks its tree on its first news, as forestReading does.
+        reading: (options) => {
+          mine.reading = options;
+          let asked = false;
+          mine.listeners.push({ onNews: () => { if (!asked) mine.events.push("tree asked"); asked = true; }, onError: () => {} });
+          return { stop: () => { mine.stopped.push("reading"); } };
+        },
         space: () => {
           const space = { opened: 0, placed: [] as unknown[], view: { at: mine.spaces.length } };
           mine.spaces.push(space);
@@ -153,6 +170,9 @@ function page(t: TestContext, answers: Partial<Pick<PageParts, "problem" | "proj
     surfaces(next: SurfacesResult) { surfaces = next; },
     /** The project last drawn, once its forest has opened. */
     last: () => drawn.at(-1)!,
+    /** The page's reading handing news, or failing, to everyone who hears it, in the order they subscribed. */
+    heard: (on = drawn.at(-1)!) => { for (const listener of [...on.listeners]) void listener.onNews({ changes: [], lines: [] }); },
+    readFailed: (error: Error, on = drawn.at(-1)!) => { for (const listener of [...on.listeners]) listener.onError?.(error); },
     /** The fresh tree landing for the project last drawn. */
     land: (on = drawn.at(-1)!) => on.reading!.onTree(tree, { changes: [], lines: [] }, {}),
     heading: () => content.querySelector("h1")?.textContent,
@@ -215,6 +235,7 @@ test("2.23 · a failed projects read is said only while nothing is on show; a dr
 test("2.24 · a failed choice is said in place of the project and the projects are read again; a failed surfaces read mounts every surface", async (t) => {
   const on = page(t, { readSurfaces: async () => { throw new Error("the main process did not answer"); } });
   await settled();
+  on.heard();
   assert.deepEqual(on.last().mounted.sort(), ["arcs", "capability-tree", "library", "sessions"]);
   assert.ok(on.failures.some((line) => line === "the surfaces could not be read, so every surface is on: the main process did not answer"));
 
@@ -232,6 +253,7 @@ test("2.24 · a failed choice is said in place of the project and the projects a
 test("2.25 · a surface switched in the Surfaces menu draws the project on show again, as the settings now say", async (t) => {
   const on = page(t);
   await settled();
+  on.heard();
   const first = on.last();
   assert.ok(first.mounted.includes("arcs"));
   on.surfaces({ ok: true, value: [{ id: "arcs", on: false, settings: [] }] as never });
@@ -319,6 +341,7 @@ test("2.40 · the arcs read nothing until the page's start is settled, or until 
   const kept = page(t, { kept: tree });
   await settled();
   const project = kept.last();
+  kept.heard();
   const started = told(project.arcsStart);
   await kept.land();
   project.reading!.onSettled!();
@@ -331,6 +354,7 @@ test("2.40 · the arcs read nothing until the page's start is settled, or until 
 
   const failing = page(t);
   await settled();
+  failing.heard();
   const fails = told(failing.last().arcsStart);
   await settled();
   assert.equal(fails(), false);
@@ -357,12 +381,12 @@ test("2.27 · the kept forest is drawn at once, marked not fresh; a first read t
   assert.equal(none.document.getElementById("read-error")?.textContent, "The forest could not be readthe tree could not be read. Retrying…");
   none.land();
   assert.equal(none.body.dataset.state, "ready");
-  assert.equal(none.document.getElementById("read-error"), null);
+  assert.ok(none.document.getElementById("read-error") === null, "no read error is said");
   assert.equal(none.body.dataset.fresh, undefined);
   assert.equal(none.last().kept, tree, "the fresh tree is kept for the next start");
   none.last().reading!.onError(new Error("the library stopped answering"));
   assert.equal(none.body.dataset.state, "ready");
-  assert.equal(none.document.getElementById("read-error"), null);
+  assert.ok(none.document.getElementById("read-error") === null, "no read error is said");
   assert.equal(none.failures.filter((line) => line.startsWith("the forest of site could not be read")).length, 2);
 });
 
@@ -462,12 +486,13 @@ test("2.39 · the sessions list and the arcs each mount in their tab of one left
   const rail = () => on.content.querySelector<HTMLElement>(".side-rail")!;
   const tabs = () => [...rail().querySelectorAll<HTMLButtonElement>("[role=tab]")];
   const shown = () => tabs().filter((tab) => tab.getAttribute("aria-selected") === "true").map((tab) => tab.dataset.railTab);
-  assert.equal(on.content.firstElementChild, rail(), "the rail leads the page, down its left");
+  assert.ok(on.content.firstElementChild === rail(), "the rail leads the page, down its left");
   assert.deepEqual(tabs().map((tab) => tab.textContent), ["Sessions", "Arcs"]);
   assert.deepEqual(shown(), ["arcs"], "a project with no tab kept opens on Arcs");
+  on.heard();
   const first = on.last();
-  assert.equal(first.hosts.arcs, rail().querySelector("#rail-arcs"));
-  assert.equal(first.hosts.sessions, rail().querySelector("#rail-sessions"));
+  assert.ok(first.hosts.arcs === rail().querySelector("#rail-arcs"), "the arcs mount in their tab");
+  assert.ok(first.hosts.sessions === rail().querySelector("#rail-sessions"), "the sessions list mounts in its tab");
   assert.equal(first.hosts.sessions!.hidden, true);
 
   const badge = () => rail().querySelector<HTMLElement>("[data-rail-badge]")!;
@@ -502,5 +527,36 @@ test("2.39 · the sessions list and the arcs each mount in their tab of one left
   assert.deepEqual(shown(), ["sessions"]);
   on.surfaces({ ok: true, value: [{ id: "arcs", on: false, settings: [] }, { id: "sessions", on: false, settings: [] }] as never });
   await on.page.surfacesChanged();
-  assert.equal(on.content.querySelector(".side-rail"), null, "with both off there is no rail");
+  assert.ok(on.content.querySelector(".side-rail") === null, "with both off there is no rail");
+});
+
+test("2.41 · the arcs mount once the forest has asked its first tree read, at its first news or its first failed read, so their drawing never holds that read back", async (t) => {
+  const on = page(t);
+  await settled();
+  const project = on.last();
+  assert.ok(project.reading !== undefined, "the forest's reading has started");
+  assert.ok(project.hosts.arcs === undefined, "nothing mounts the arcs while the forest's first read is on the way");
+  on.heard();
+  await settled();
+  assert.deepEqual(project.events, ["tree asked", "arcs mounted"], "the forest asks its tree before the arcs draw");
+  assert.ok(project.hosts.arcs === on.content.querySelector("#rail-arcs"), "the arcs mount in their tab");
+  on.heard();
+  await settled();
+  assert.deepEqual(project.mounted.filter((id) => id === "arcs"), ["arcs"], "later news mounts nothing again");
+
+  const failing = page(t);
+  await settled();
+  failing.readFailed(new Error("the library is away"));
+  await settled();
+  assert.deepEqual(failing.last().mounted.filter((id) => id === "arcs"), ["arcs"], "a first read that fails mounts the arcs, which keep their own reading");
+
+  const left = page(t);
+  await settled();
+  const site = left.last();
+  left.choose({ projects: ["site", "shop"], current: "shop" });
+  await left.page.refresh();
+  assert.notEqual(left.last(), site, "another project is on show");
+  left.heard(site);
+  await settled();
+  assert.ok(site.hosts.arcs === undefined, "news reaching a project the user has left mounts no arcs in it");
 });

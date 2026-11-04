@@ -12,7 +12,7 @@ import { deliveredCommand, deliveredCommandIfAny } from "../connect/installed.js
 import { CODEX_TRUST_STEP, runSetupCheck } from "../setup/index.js";
 import type { Library, Storytree } from "@storytree/library";
 import { addProject, deleteProject, projectFolder, projectInView, removeProject, whoLoses, type ProjectRecords } from "../project/index.js";
-import type { AgentConnection, ProjectSentence, SetupHelpBridge } from "./bridge.js";
+import { AGENT_SEARCH_SECONDS, type AgentConnection, type ProjectSentence, type SetupHelpBridge } from "./bridge.js";
 import { openFeedbackDraft } from "../journey-events/feedback.js";
 import { readShippedLicense } from "./license.js";
 
@@ -49,7 +49,7 @@ export function setupHelpActions(options: {
   /** The installed app's own agent tools, used when the installer has recorded none in delivery.json. */
   agentTools?: string;
   /** Where the agents are looked for and connected. By default, this user's home and environment. */
-  connections?: Pick<ConnectionOptions, "home" | "env" | "run">;
+  connections?: Pick<ConnectionOptions, "home" | "env" | "run"> & { probeTimeoutMs?: number };
   /** The project records the parts the frame mounts contribute, which Delete forgets with a project. */
   projectRecords?: readonly ProjectRecords[];
 }): SetupHelpBridge {
@@ -72,7 +72,8 @@ export function setupHelpActions(options: {
       // A development copy is told so, not handed the installer's error: its own tools stay out of the user's real home.
       const command = deliveredCommandIfAny(options.storytreeHome, options.agentTools ?? options.storytreeHome);
       if (command === undefined) return { notInstalled: NOT_INSTALLED };
-      return (await agentsOnThisComputer({ ...options.connections, installed: command })).map(({ harness, agent, connected }) => ({ harness, agent, connected }));
+      const found = await agentsOnThisComputer({ probeTimeoutMs: AGENT_SEARCH_SECONDS * 1000, ...options.connections, installed: command });
+      return found.map(({ harness, agent, connected, note }) => note === undefined ? { harness, agent, connected } : { harness, agent, connected, note });
     },
     async connectAgent(harness) {
       if (typeof harness !== "string" || !(HARNESS_IDS as readonly string[]).includes(harness)) throw new Error("Choose an agent this computer runs.");

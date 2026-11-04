@@ -167,26 +167,48 @@ export interface FoundAgent {
   readonly harness: Harness;
   readonly agent: string;
   readonly connected: boolean;
+  /** Why it is offered unconfirmed: it did not answer within the search's bound. */
+  readonly note?: string;
 }
+
+/**
+ * How long the search waits on one agent before offering it anyway. execFile's own timeout is not the bound:
+ * on Windows it kills the .cmd shim's shell, and the agent it started can keep the output open (winlap, 0.3.2354).
+ */
+export const PROBE_TIMEOUT_MS = 15_000;
 
 /**
  * The agents whose command runs here (its `--version`), each said connected or not, so the app's first run can offer
  * to connect the rest (ADR-1162 D3). An agent whose settings cannot be read is said not connected; connecting it names the fix.
+ * The agents are asked side by side, each within the bound: one that has not answered by then is offered with a note.
  */
-export async function agentsOnThisComputer(options: Omit<ConnectionOptions, "harnesses">): Promise<FoundAgent[]> {
+export async function agentsOnThisComputer(options: Omit<ConnectionOptions, "harnesses"> & { readonly probeTimeoutMs?: number }): Promise<FoundAgent[]> {
   const where = locations({ ...options, harnesses: [] });
-  const found: FoundAgent[] = [];
-  for (const harness of HARNESS_IDS) {
-    try { await (options.run ?? runHarness)(executable(harness), ["--version"], { cwd: where.home, env: where.env }); } catch { continue; }
-    let settings: Settings | undefined;
-    let connected = false;
-    try {
-      settings = await openSettings(harness, { ...options, harnesses: [harness] });
-      connected = settings.current !== undefined && settings.compatible(options.installed);
-    } catch { /* Unreadable settings: offered, and Connect says how to repair them. */ } finally { settings?.close(); }
-    found.push({ harness, agent: label(harness), connected });
-  }
-  return found;
+  const bound = options.probeTimeoutMs ?? PROBE_TIMEOUT_MS;
+  const seconds = `${bound / 1000} second${bound === 1000 ? "" : "s"}`;
+  const ask = async (harness: Harness): Promise<FoundAgent | undefined> => {
+    let answered = false;
+    const probe = (async () => {
+      try { await (options.run ?? runHarness)(executable(harness), ["--version"], { cwd: where.home, env: where.env }); } catch { return undefined; }
+      answered = true;
+      let settings: Settings | undefined;
+      let connected = false;
+      try {
+        settings = await openSettings(harness, { ...options, harnesses: [harness] });
+        connected = settings.current !== undefined && settings.compatible(options.installed);
+      } catch { /* Unreadable settings: offered, and Connect says how to repair them. */ } finally { settings?.close(); }
+      return { harness, agent: label(harness), connected };
+    })();
+    let timer: NodeJS.Timeout | undefined;
+    const late = new Promise<FoundAgent>((resolve) => {
+      timer = setTimeout(() => resolve({ harness, agent: label(harness), connected: false, note: answered
+        ? `${label(harness)} answered, but its settings were not read within ${seconds}, so whether it is connected is not known. Connect it to check.`
+        : `${label(harness)} did not answer ${executable(harness)} --version within ${seconds}, so it is offered without being confirmed. If it is installed, Connect it; if not, Connect says how to install it.` }), bound);
+    });
+    try { return await Promise.race([probe, late]); } finally { clearTimeout(timer); }
+  };
+  const found = await Promise.all(HARNESS_IDS.map(ask));
+  return found.filter((each): each is FoundAgent => each !== undefined);
 }
 
 /** Remove only the selected registration and this installation's hooks. Keep the command while another registration may need it. */

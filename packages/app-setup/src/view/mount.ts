@@ -144,6 +144,7 @@ export function mountSetupHelp(host: HTMLElement, bridge: SetupHelpBridge, optio
         });
       });
       row.append(name, " ", button, " ", said);
+      if (each.note !== undefined) { const note = document.createElement("span"); note.dataset.connectNote = ""; note.className = "setup-help-connect-note"; note.textContent = each.note; row.append(" ", note); }
       return row;
     }));
   }

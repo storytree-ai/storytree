@@ -95,6 +95,29 @@ test("2.13 the agents this computer runs are found, each said connected to this 
   assert.deepEqual((await agentsOnThisComputer(options))[0], { harness: "claude-code", agent: "Claude Code", connected: false }, "settings it cannot read are offered, not said connected");
 });
 
+test("2.14 the agent search answers within its bound: a probe that never returns holds up no other agent, and its agent is offered with a note saying it did not answer", async (t) => {
+  const f = fixture(t);
+  // Claude Code's first --version after a restart never answers; Codex answers; nothing else is installed.
+  const asked: string[] = [];
+  const slow: RunHarness = async (executable, args, options) => {
+    if (args[0] === "--version") asked.push(executable);
+    if (executable === "claude" && args[0] === "--version") return new Promise<string>(() => {});
+    if (args[0] === "--version" && executable !== "codex") throw new Error("not installed");
+    return run(executable, args, options);
+  };
+  const started = Date.now();
+  const found = await agentsOnThisComputer({ ...f.options, run: slow, probeTimeoutMs: 200 });
+  const took = Date.now() - started;
+  assert.ok(took < 1_000, `answered in ${took} ms, within one bound rather than one per agent`);
+  assert.deepEqual(asked.length, 5, "every agent is asked");
+  assert.deepEqual(found.map(({ harness, connected }) => ({ harness, connected })), [
+    { harness: "claude-code", connected: false },
+    { harness: "codex", connected: false },
+  ]);
+  assert.match(found[0]!.note ?? "", /Claude Code did not answer claude --version within 0\.2 seconds/);
+  assert.equal(found[1]!.note, undefined, "an agent that answered carries no note");
+});
+
 test("2.10 choosing Cursor registers the tool server in ~/.cursor/mcp.json and storytree's hooks in ~/.cursor/hooks.json, keeping every other server and hook; repeating changes nothing, disconnecting removes exactly what it added, and a machine without Cursor gets a recovery action, not a success", async (t) => {
   const f = fixture(t);
   const cursor = path.join(f.home, ".cursor");

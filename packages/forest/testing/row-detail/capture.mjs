@@ -1,11 +1,11 @@
-// Pictures for the owner's look at contracts 7.2 and 7.8: a running session with its subagent beneath it before any click, then expanded to its worktrees and window files.
+// Pictures for the owner's look at contracts 7.2 and 7.8: a running session with its subagent beneath it before any click, then expanded to its worktrees, with no Running or Files block.
 // The actual desktop page, built by ../sessions-list/build.mjs; all activity here is synthetic.
 // Run both through `node ~/.storytree/your-factory/plugins/micks-dev-loop/src/heavy-lock.mjs --`, from storytree's checkout root. --smoke builds its own page
 // into its build folder's smoke/, takes no pictures and skips the fixed rests, so a test proves every wait below still resolves in a real browser.
 import assert from 'node:assert/strict';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { buildCapture, buildFolder, captureSeed, fakeBridge, seedFile, withCapture } from '../../../../apps/desktop/src/capture/index.ts'; // run with node --import tsx
+import { buildCapture, buildFolder, captureSeed, fakeBridge, withCapture } from '../../../../apps/desktop/src/capture/index.ts'; // run with node --import tsx
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 // Pictures and measurements go to the package's evidence set of this name (a scratch folder unless --retake); nothing here reads them.
@@ -31,13 +31,6 @@ line(ids.builder, 2, { kind: 'file-edited', files: ['a.ts'], folder: trees[2] })
 line(ids.builder, 30, { kind: 'subagent-started', subagent: ids.helper, type: 'explorer', task: 'Find the window reading' });
 line(ids.quiet, 6, { kind: 'session-started', harness: 'codex', folder: `${home}/.claude/worktrees/tidy-readme` });
 seed.lines = { lines, cursor: lines.length };
-// The window's files, named by the seed's story titles so a package rename cannot desync them.
-const opened = [
-  ['The forest', 'src/view/sessions-list.tsx', true], ['The agent link', 'src/context/window.ts', false],
-  ['The forest', 'src/sessions-list/sessions-list.ts', true], ['The app', 'src/surfaces/reads.ts', true],
-  ['The forest', 'src/view/styles.css', true],
-].map(([story, file, resident]) => [seedFile(seed, story, file), resident]).map(([id, resident]) => ({ kind: 'file', id, call: id, tool: 'Read', resident, inViewFrom: [] }));
-seed.window = { session: ids.builder, at: new Date(now).toISOString(), inView: [], compactions: 1, opens: opened };
 seed.tree.arcs = [];
 
 await withCapture({ folder: evidence, dist }, async ({ browser, origin, out, settle }) => {
@@ -60,9 +53,6 @@ await withCapture({ folder: evidence, dist }, async ({ browser, origin, out, set
         composition: { injected: 40_000, grounding: 150_000, implementation: 90_000, other: 30_000 }, guidance: { value: 700_000 } })),
       idleAfterMs: async () => 60 * 60_000,
       readSurfaces: async () => ({ ok: false }), holds: async () => [],
-      // The list reads every row's window in one batch (forest 7.17), answered as one read per session.
-      windowReadings(project, sessions) { return Promise.all(sessions.map(one => this.windowReading(project, one))); },
-      windowReading: async (_, session) => session === data.window.session ? copy(data.window) : { session, at: data.window.at, absent: "no hook has named this session's transcript" },
     };
   }, seed);
   await page.goto(`${origin}/index.html`, { waitUntil: 'domcontentloaded' });
@@ -84,17 +74,14 @@ await withCapture({ folder: evidence, dist }, async ({ browser, origin, out, set
   assert.equal(await list.locator('.session-detail').count(), 0, 'no detail drawn while collapsed');
   await row.getByRole('button', { name: /^Show detail/ }).click();
   const detail = list.locator('li', { has: page.locator(`.session-row[data-session-id="${ids.builder}"]`) }).locator('.session-detail');
-  await detail.locator('.session-detail-files li').first().waitFor();
-  const text = await detail.innerText();
-  assert.ok(text.includes('Worktrees') && text.includes('Files'), 'labels both blocks');
+  await detail.locator('.session-detail-worktrees li').first().waitFor();
+  // Its detail is its words, its worktrees and its children: no Running or Files block (7.8).
+  const blocks = await detail.locator('.session-detail-label').allTextContents();
   assert.deepEqual(await detail.locator('.session-detail-worktrees li').evaluateAll(items => items.map(item => [item.textContent, item.title])),
     trees.map(tree => [path.basename(tree), tree]), 'each worktree by its folder name, its full path on hover');
-  assert.equal(await detail.locator('.session-detail-files li').count(), opened.length);
-  assert.equal(await detail.locator('li[data-resident="no"]').count(), 1);
   assert.ok(await helper.isVisible(), 'the subagent stays beneath the opened row');
   if (!smoke) { await page.waitForTimeout(300); await list.screenshot({ path: path.join(out, 'expanded.png') }); }
   assert.deepEqual(errors, []);
   console.log(smoke ? 'Smoke run: no pictures' : 'Captured tree.png and expanded.png');
-  console.log(JSON.stringify({ closed: toggles.length, children: await helper.count(), worktrees: await detail.locator('.session-detail-worktrees li').count(),
-    files: await detail.locator('.session-detail-files li').count(), muted: await detail.locator('li[data-resident="no"]').count() }));
+  console.log(JSON.stringify({ closed: toggles.length, children: await helper.count(), worktrees: await detail.locator('.session-detail-worktrees li').count(), blocks }));
 });

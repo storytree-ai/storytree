@@ -39,8 +39,8 @@ test("2.42 · the left rail's right edge is a handle that resizes it, by draggin
   const on = open();
   assert.equal(on.handle.tabIndex, 0, "the handle takes the focus");
   assert.equal(on.handle.getAttribute("aria-orientation"), "vertical");
-  assert.equal(on.width(), "384px", "it opens at its default width");
-  assert.equal(on.now(), 384);
+  assert.equal(on.width(), "432px", "it opens at its default width, wide enough for a session row to keep its machine name");
+  assert.equal(on.now(), 432);
   const max = Number(on.handle.getAttribute("aria-valuemax"));
   assert.equal(Number(on.handle.getAttribute("aria-valuemin")), RAIL_MIN);
   assert.ok(max > RAIL_MIN && max <= 1440 - 360, "the widest leaves the map room");
@@ -150,9 +150,9 @@ test("2.45 · the left rail's width and whether it is collapsed are kept in the 
   const throwing = { getItem: () => { throw new Error("no storage"); }, setItem: () => { throw new Error("no storage"); } };
   const fallen = open(throwing);
   assert.equal(fallen.side().hidden, false, "a storage that throws opens it shown");
-  assert.equal(fallen.now(), 384, "at the default width");
+  assert.equal(fallen.now(), 432, "at the default width");
   fallen.drag(384, 300);
   assert.equal(fallen.now(), 300, "and it still resizes for this launch");
   const garbled = open(memory({ "storytree.app.rail.v1": "{not json" }));
-  assert.deepEqual([garbled.side().hidden, garbled.now()], [false, 384], "a kept value it cannot read is the default");
+  assert.deepEqual([garbled.side().hidden, garbled.now()], [false, 432], "a kept value it cannot read is the default");
 });

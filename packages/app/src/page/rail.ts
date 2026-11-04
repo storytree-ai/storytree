@@ -19,6 +19,8 @@ const SIZE_KEY = "storytree.app.rail.v1";
 /** The least width the rail's rows stay readable at; dragged left of half of it, the rail collapses away. */
 export const RAIL_MIN = 220;
 const RAIL_MOST = 720;
+/** The width it opens at in a wide window: room for a session row's name, its machine and its context bar on one line (forest 7.13). */
+export const RAIL_DEFAULT = 432;
 /** The map keeps at least this much of the window beside the rail. */
 const MAP_LEAST = 360;
 const STEP = 16;
@@ -26,7 +28,7 @@ const STEP = 16;
 /** The width the rail may take in a window `windowWidth` wide: never under its least, never so wide the map is unusable. */
 export function railBounds(windowWidth: number): { min: number; max: number; initial: number } {
   const max = Math.max(RAIL_MIN, Math.min(RAIL_MOST, windowWidth - MAP_LEAST));
-  return { min: RAIL_MIN, max, initial: Math.min(max, Math.max(RAIL_MIN, Math.round(Math.min(384, windowWidth * 0.4)))) };
+  return { min: RAIL_MIN, max, initial: Math.min(max, Math.max(RAIL_MIN, Math.round(Math.min(RAIL_DEFAULT, windowWidth * 0.4)))) };
 }
 
 /** What a drag released at `x` (the pointer's distance from the rail's left) leaves: collapsed past half the least width, else the width clamped. */

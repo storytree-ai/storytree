@@ -244,7 +244,7 @@ test("1.17 the run's evidence step enters the project its user's turns built whe
   } finally { await removeTemp(root); }
 });
 
-test("1.17 a turn's summary names the project folder its writes went to, wherever the turn itself ran, its own settings' folder aside", async () => {
+test("1.17 a turn's summary names the project folder its writes went to, wherever the turn itself ran, its own settings' folder and the temp folder aside", async () => {
   const root = mkdtempSync(path.join(tmpdir(), "storytree-stable-sum-"));
   try {
     const write = (file_path: string) => ({ type: "assistant", message: { content: [{ type: "tool_use", name: "Write", input: { file_path } }] } });
@@ -253,6 +253,8 @@ test("1.17 a turn's summary names the project folder its writes went to, whereve
       write("D:\\work\\tip-calculator\\index.html"),
       write("D:\\work\\tip-calculator\\tests\\tip.test.js"),
       write("D:\\work\\.claude\\settings.json"),
+      // check_setup's connection check, which a connected user's agent writes into its temp folder.
+      write("D:\\Users\\u\\AppData\\Local\\Temp\\storytree-check-2b7a7426"),
       { type: "assistant", message: { content: [{ type: "tool_use", name: "Edit", input: { file_path: "D:\\work\\tip-calculator\\app.js" } }] } },
       { type: "result", subtype: "success", duration_ms: 1000, result: "done", usage: {} },
     ];

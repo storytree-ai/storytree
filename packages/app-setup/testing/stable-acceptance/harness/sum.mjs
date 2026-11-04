@@ -18,9 +18,11 @@ for (const e of events) {
 }
 // The project is the folder the turn's writes went to, which need not be the folder the turn ran in: on 2026-11-02 a
 // turn ran in C:\Windows\System32 and built in Documents\tip-calculator, and the run's evidence looked in neither. A
-// write into a dot folder (the agent's own settings, as .claude\) is not the project's.
+// write into a dot folder (the agent's own settings, as .claude\) is not the project's, nor one into a temp folder: on
+// 2026-11-04 the connected agent wrote check_setup's connection check into AppData\Local\Temp, and the project read as
+// the whole profile folder.
 function project(all) {
-  const paths = all.filter((p) => !p.split(/[\\/]/).some((part) => part.startsWith(".")));
+  const paths = all.filter((p) => !p.split(/[\\/]/).some((part) => part.startsWith(".") || /^te?mp$/i.test(part)));
   if (!paths.length) return "";
   const sep = paths[0].includes("\\") ? "\\" : "/";
   const folders = paths.map((p) => p.split(/[\\/]/).slice(0, -1));

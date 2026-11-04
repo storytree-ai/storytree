@@ -547,4 +547,14 @@ test("2.41 · the arcs mount once the forest has asked its first tree read, at i
   failing.readFailed(new Error("the library is away"));
   await settled();
   assert.deepEqual(failing.last().mounted.filter((id) => id === "arcs"), ["arcs"], "a first read that fails mounts the arcs, which keep their own reading");
+
+  const left = page(t);
+  await settled();
+  const site = left.last();
+  left.choose({ projects: ["site", "shop"], current: "shop" });
+  await left.page.refresh();
+  assert.notEqual(left.last(), site, "another project is on show");
+  left.heard(site);
+  await settled();
+  assert.ok(site.hosts.arcs === undefined, "news reaching a project the user has left mounts no arcs in it");
 });

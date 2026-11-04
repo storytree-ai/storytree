@@ -319,7 +319,6 @@ export function openProjectPage<View extends ForestGlobe>(parts: PageParts<View>
         if (showing === mine) mine.arcs = project.arcs(rail.panel("arcs"), { onFreshDraw: () => startMark("arcs first fresh draw"), onWaiting: (count) => rail.badge(count), startAfter });
       };
       stopWaiting = page.subscribe({ onNews: mountArcs, onError: mountArcs });
-      if (mounted) stopWaiting();
     }
   };
 

@@ -105,11 +105,12 @@ export const isAlive = (pid) => {
 /**
  * Hold the lock file `path` while `fn` runs, where flock(1) is absent (Windows, ADR-1179 D1): it is created exclusively with the
  * holder's pid, waited on a second at a time while a live process holds it, taken over from a dead holder, and removed after.
+ * Windows refuses the create with EPERM while a holder's file is still being removed; that is waited on as a held lock.
  */
-export async function withLockFile(path, fn, { pid = process.pid, alive = isAlive, sleep = (ms) => wait(ms) } = {}) {
+export async function withLockFile(path, fn, { pid = process.pid, alive = isAlive, sleep = (ms) => wait(ms), write = writeFile } = {}) {
   for (;;) {
-    try { await writeFile(path, `${pid}\n`, { flag: "wx" }); break; }
-    catch (error) { if (error.code !== "EEXIST") throw error; }
+    try { await write(path, `${pid}\n`, { flag: "wx" }); break; }
+    catch (error) { if (error.code !== "EEXIST" && error.code !== "EPERM") throw error; }
     const holder = Number((await readFile(path, "utf8").catch(() => "")).trim());
     if (holder && !alive(holder)) { await rm(path, { force: true }); continue; }
     await sleep(1000);

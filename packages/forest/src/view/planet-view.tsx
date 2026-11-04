@@ -17,7 +17,7 @@ import { focusRotation, globeHover, isGlobeDrag, markerSpot, movingSpots, MOVE_S
 import { claimsOn } from "./planet-update.js";
 import { createGlobeGuide, type GlobePose, type PlacedGlobeControls } from "./globe-guide.js";
 import { createGlobeAside } from "./globe-aside.js";
-import { compassNorth, opensBare, seesUnderside, sheetDrag, sheetHome, sheetKey, sheetKeyPan, sheetLayout, sheetMarkers, sheetOpening, sheetPan, sheetPanUnder, sheetSpin, sheetSpinTilt, sheetTilted, sheetTiltBy, sheetTwist, sheetUnder, TILT_PER_PIXEL, TILT_STEP } from "./sheet-navigation.js";
+import { compassNorth, laidIsland, opensBare, seesUnderside, sheetDrag, sheetHome, sheetKey, sheetKeyPan, sheetLayout, sheetMarkers, sheetOpening, sheetPan, sheetPanUnder, sheetSpin, sheetSpinTilt, sheetTilted, sheetTiltBy, sheetTwist, sheetUnder, TILT_PER_PIXEL, TILT_STEP } from "./sheet-navigation.js";
 import { growLand, shownSurfaces as surfacesFor, TerritoryDrawOn, type GlobeSurfaces } from "./globe-surfaces.js";
 
 export type PlanetViewProps = {
@@ -106,7 +106,12 @@ export function PlanetView({ core, scene, places, wisps: live, selected, highlig
   // Contract 3.26: the selected story's links to other stories light as lanes, on both the sheet's faces (ADR-1043 D3).
   const lanes = useKept(useMemo(() => selectionLanes(scene, selected), [scene, selected]), JSON.stringify);
   // The knowledge graph under the glass sheet: each shelf's notes under its place, the selected story's lit (ADR-1043 D5).
-  const under = layout.under;
+  // 3.76: once the selected island's plate has seen its docks, its shelves hang under its territories as laid out by its links.
+  const [seenDocks, setSeenDocks] = useState<{ story: string; docks: readonly IslandDock[] | undefined }>();
+  const under = useMemo(() => {
+    const laid = laidIsland(seenDocks, selected);
+    return laid === undefined ? layout.under : sheetLayout(scene, places, frame, laid).under;
+  }, [layout, seenDocks, selected, scene, places, frame]);
   const underSheet = useMemo((): CoreUnderSheet => ({ ...under, selected }), [under, selected]);
   // ADR-0991 D4: a lit lane runs on from its dock along the territories' borders to its capability.
   const links = useKept(layout.scene.links ?? NO_LINKS, JSON.stringify);
@@ -124,6 +129,7 @@ export function PlanetView({ core, scene, places, wisps: live, selected, highlig
       {emphasis === "held" && <SelectionRing island={local} descriptors={descriptors} onGlobe emphasis />}
       {shownSurfaces.nameplates && <Nameplates island={island} spot={layout.spots.get(island.story)!} coast={coast} links={links} docks={laidBy} radius={layout.radius} selected={selected} dimmed={emphasis === "dimmed"} claimed={claimed} />}
       <SelectionRing island={island.story === selected ? local : undefined} descriptors={descriptors} onGlobe />
+      {island.story === selected && <DocksSeen story={island.story} docks={docks} onDocks={setSeenDocks} />}
     </>;
   }, [wisps, claimed, selected, highlighted, layout.spots, layout.radius, lighting, shownSurfaces, links]);
   const titles = useMemo(() => new Map(scene.islands.map(i => [i.story, i.title])), [scene]);
@@ -142,6 +148,13 @@ export function PlanetView({ core, scene, places, wisps: live, selected, highlig
     {onPainted !== undefined && <PaintedReport scene={scene} onPainted={onPainted} />}
     {growth !== undefined && recordedSessions !== undefined && <ReplaySessions recorded={recordedSessions} onWisps={setReplayed} />}
   </PlanetWorldCanvas>;
+}
+
+/** 3.76: tells the view the docks the selected island's plate was handed, each time they change. */
+function DocksSeen({ story, docks: given, onDocks }: { story: string; docks: readonly IslandDock[] | undefined; onDocks: (seen: { story: string; docks: readonly IslandDock[] | undefined }) => void }) {
+  const docks = useKept(given, (docks) => JSON.stringify(docks ?? null));
+  useEffect(() => { onDocks({ story, docks }); }, [story, docks, onDocks]);
+  return null;
 }
 
 /** 3.73: once the map has drawn its first frame, every material on it is compiled, hidden ones too, so no turn that shows one stalls on its shader. */

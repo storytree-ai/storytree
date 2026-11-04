@@ -478,6 +478,18 @@ test("4.52 · each merge-queue red the watcher sees is kept on its hand-off once
   ]);
   assert.deepEqual(await readdir(b.dir), [], "then forgotten");
 
+  // A compare with main that GitHub refuses leaves whether the entry ahead landed unread: unknown.
+  await handOff(b, 44, "increment_four");
+  b.looks[44] = { state: "pending", head: "h1", queueReds: [later] };
+  await watchOnce(b.options);
+  b.calls.length = 0;
+  b.options.reached = async () => { throw new Error("gh: HTTP 502"); };
+  b.looks[44] = { state: "merged", head: "h2" };
+  await watchOnce(b.options);
+  assert.deepEqual(b.calls.filter(([, verb]) => verb === "queue-red"), [
+    ["workspace", "queue-red", "44", "--increment", "increment_four", "--removed-at", minutes(-30), "--commit", "q2", "--outcome", "unknown"],
+  ]);
+
   // A hand-off forgotten at a cut-over has no pull request read, so each red it kept is unknown.
   await handOff(b, 43, "increment_three");
   b.looks[43] = { state: "pending", head: "h1", queueReds: [seen] };

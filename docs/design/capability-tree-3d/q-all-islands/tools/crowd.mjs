@@ -6,11 +6,12 @@ import { writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { withCapture } from '../../../../../apps/desktop/src/capture/index.ts';
+import { pageFolder } from './page-folder.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url)), dist = path.dirname(here);
 const args = process.argv.slice(2), outAt = args.indexOf('--out'), outFile = outAt >= 0 ? args.splice(outAt, 2)[1] : undefined;
 const rows = [];
-await withCapture({ dist, folder: path.join(dist, 'stills', 'looks') }, async ({ browser, origin, settle }) => {
+await withCapture({ dist: pageFolder(), folder: path.join(dist, 'stills', 'looks') }, async ({ browser, origin, settle }) => {
   for (const query of args) {
     const page = await browser.newPage({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 1, colorScheme: 'dark' });
     const errors = [];

@@ -989,41 +989,6 @@ test("4.32 · a pull request whose head is not on this repository, or whose head
     [["arc", "increment", "unwait"], ["workspace", "let-go", "44"]], "its wait and held claims are let go");
 });
 
-test("4.33 · a merged pull request has every story's risk reading read again once from main, the changed ones said, and a red one has none read", async (t) => {
-  const b = await box(t);
-  const readings = [];
-  let text = "Wrote 2 stories' risk readings:\n  story_a  A: 3 · depth 1 (one dependent) · radius 1 (owner only)\n  story_b  B: 1 · depth 0 (a leaf) · radius 1 (owner only)";
-  b.options.readRisks = async () => { readings.push(text); return text; };
-  await handOff(b, 41, "increment_one");
-  await handOff(b, 42, "increment_two");
-  b.looks[41] = red;
-  b.looks[42] = red;
-  await watchOnce(b.options);
-  assert.equal(readings.length, 0, "a red pull request reads no story");
-
-  b.looks[41] = { state: "merged", head: "h1" };
-  b.looks[42] = { state: "merged", head: "h1" };
-  await watchOnce(b.options);
-  assert.equal(readings.length, 1, "two merges in one look read main once");
-  assert.ok(b.lines.some((line) => line.includes("story_a  A: 3")) && b.lines.some((line) => line.includes("story_b  B: 1")), "a first reading says every story");
-
-  text = text.replace("story_b  B: 1 · depth 0 (a leaf)", "story_b  B: 3 · depth 1 (one dependent)");
-  b.lines.length = 0;
-  await handOff(b, 43, "increment_three");
-  b.looks[43] = { state: "merged", head: "h1" };
-  await watchOnce(b.options);
-  assert.equal(readings.length, 2);
-  assert.ok(b.lines.some((line) => line.includes("story_b  B: 3")), "the changed reading is said");
-  assert.ok(!b.lines.some((line) => line.includes("story_a")), "an unchanged reading is not");
-
-  b.options.readRisks = async () => { throw new Error("origin unreachable"); };
-  await handOff(b, 44, "increment_four");
-  b.looks[44] = { state: "merged", head: "h1" };
-  await watchOnce(b.options);
-  assert.ok(b.lines.some((line) => line.includes("origin unreachable")), "a reading that fails is said, and the look goes on");
-  assert.ok(!(await readdir(b.dir)).includes("44.json"), "the merge was still handled");
-});
-
 /** A job's log line as `gh api …/jobs/<id>/logs` gives it, led by its timestamp. */
 const logged = (...lines) => lines.map((line) => `2026-10-24T01:41:17.7416938Z ${line}`).join("\n");
 const job = (name, log, conclusion = "failure") => ({ name, conclusion, steps: 9, log });
@@ -1331,13 +1296,10 @@ test("4.49 · a hand-over of another project's increment records that project's 
   b.calls.length = 0; where.length = 0;
   b.live.clear();
   b.looks[7] = { state: "merged", head: "w2" };
-  let risks = 0;
-  b.options.readRisks = async () => { risks++; return ""; };
   await watchOnce(b.options);
   assert.deepEqual(b.calls.map((args, i) => [args.slice(0, 3), where[i]]), [
     [["arc", "increment", "unwait"], web], [["arc", "increment", "close"], web], [["workspace", "let-go", "7"], web]],
     "its merge closes the increment and lets go of its claims in its own library");
-  assert.equal(risks, 0, "a merge on another repository reads none of storytree's risks");
   assert.ok(!(await readdir(b.dir)).includes("7.json"), "and it is forgotten");
 });
 

@@ -3,6 +3,7 @@
  * (contracts 1.46, 1.47): each one CommonJS file, so a packaged app needs no node_modules. The library, local-postgres and pg
  * are bundled into main.cjs; it loads nothing from outside it but Electron and the optional modules it loads lazily.
  */
+import { execFileSync } from "node:child_process";
 import path from "node:path";
 
 import { PATH_ONLY } from "@storytree/app-setup/bins";
@@ -13,6 +14,15 @@ import { partsFromList } from "./parts-list.js";
 
 /** A public setting from the build's environment, as an esbuild define: its value, or undefined when it is not set. */
 const stamped = (name: string) => (process.env[name] ? JSON.stringify(process.env[name]) : "undefined");
+
+/** The commit the checkout in `dir` has (git HEAD), which a build is stamped with (contract 1.49); undefined outside a checkout. */
+export function buildCommit(dir: string): string | undefined {
+  try {
+    return execFileSync("git", ["-C", dir, "rev-parse", "HEAD"], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"], windowsHide: true }).trim();
+  } catch {
+    return undefined;
+  }
+}
 
 /** The modules main.cjs leaves outside it: Electron, and optional ones it never loads or loads only lazily, from node_modules. */
 export const MAIN_EXTERNAL = [
@@ -30,8 +40,11 @@ export const MAIN_EXTERNAL = [
   "@huggingface/transformers",
 ];
 
-/** The esbuild options that bundle the main process into `dist`'s main.cjs, from the desktop app in `desktop`. */
-export function mainBuild(dist: string, desktop = path.resolve(import.meta.dirname, "../..")) {
+/**
+ * The esbuild options that bundle the main process into `dist`'s main.cjs, from the desktop app in `desktop`, stamped
+ * with `commit`, the one its checkout has (null outside a checkout).
+ */
+export function mainBuild(dist: string, desktop = path.resolve(import.meta.dirname, "../.."), commit: string | null = buildCommit(desktop) ?? null) {
   return {
     entryPoints: [path.join(desktop, "src", "main", "main.ts")],
     outfile: path.join(dist, "main.cjs"),
@@ -51,6 +64,8 @@ export function mainBuild(dist: string, desktop = path.resolve(import.meta.dirna
     define: {
       ...journeyDefine(),
       STORYTREE_WORKOS_CLIENT_ID: stamped("STORYTREE_WORKOS_CLIENT_ID"),
+      // The commit it was built from, so a packaged build's label and its recorded errors name it (contract 1.49).
+      STORYTREE_BUILD_COMMIT: commit === null ? "undefined" : JSON.stringify(commit),
     },
     external: MAIN_EXTERNAL,
   };

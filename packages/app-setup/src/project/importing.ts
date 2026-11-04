@@ -122,6 +122,38 @@ export async function importProject({ folder, library, storytree, storytreeHome:
   };
 }
 
+/**
+ * The packages a storytree project's own folder (the one its marker is in, found from `folder`) declares, while the codebase
+ * there was never imported: no story stands for any of them, neither mapped by an import nor built in the project
+ * (ADR-0993 D2). An existing codebase is imported before its stories are planned, so plan_story refuses while these are
+ * left and check_setup names them. None once any declared package has a story, so a project that built its own stories, or
+ * imported once and later added a package, plans on; none when the folder holds no JavaScript, TypeScript or Python
+ * package at its top, or declares its packages in a way the import refuses.
+ */
+export async function unimportedPackages(folder: string, library: Library): Promise<MappedPackage[]> {
+  const found = findProject(path.resolve(folder));
+  if (found.project !== library.name) return [];
+  const at = found.folder;
+  if (!existsSync(path.join(at, "package.json")) && !holdsPython(at)) return [];
+  let packages: MappedPackage[];
+  try {
+    packages = packagesOf(at);
+  } catch (error) {
+    if (error instanceof ImportRefusedError) return [];
+    throw error;
+  }
+  const mapped = new Set((await library.list("story")).flatMap((story) => (story.fields.mapped === undefined ? [] : [story.fields.mapped.package])));
+  const left = (await unbuilt(library, packages)).filter((one) => !mapped.has(one.package));
+  return left.length === packages.length ? left : [];
+}
+
+/** What the folder declares, as check_setup and plan_story's refusal say it: the packages, quoted, of a codebase not yet imported. */
+export function unimportedSentence(packages: readonly MappedPackage[]): string {
+  const named = packages.map((one) => `"${one.title}"`);
+  const list = named.length === 1 ? `the package ${named[0]}` : `the packages ${named.slice(0, -1).join(", ")} and ${named.at(-1)}`;
+  return `This folder holds an existing codebase not yet imported: it declares ${list}.`;
+}
+
 /** The most file names of each kind importLines lists; the rest are counted. */
 const NAMED = 10;
 

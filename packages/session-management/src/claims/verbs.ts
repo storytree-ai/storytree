@@ -379,8 +379,6 @@ export function workspaceRefusalText(id: string, answer: WorkspaceRefusal): stri
       return `${id} is closed: there is nothing left to claim. Pick other work.`;
     case "unknown-capability":
       return `There is no capability or increment ${id} in this project's plan. Find its id with storytree tree.`;
-    case "reason-too-long":
-      return `--reason is ${answer.length} characters; it is the session's name in the sessions list, so keep it to ${answer.limit} or fewer.`;
     case "no-workspace":
       // The refusal words the open pull requests; the command line names its own way past them (5.25).
       if (answer.openPulls !== undefined) {

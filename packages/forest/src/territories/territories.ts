@@ -50,7 +50,7 @@ export type TerritoryMap = {
 /** Enough cells that a territory's area follows its lines closely, at most a few hundred to cut. */
 const CELLS = 120;
 /** Round 13's minimum territory, as a share of the cells: 5 of the 246 The library's look was tuned on. */
-const MIN_SHARE = 5 / 246;
+export const MIN_SHARE = 5 / 246;
 /** The round coast, as a polygon of this many sides. */
 const COAST_SIDES = 64;
 const GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5));
@@ -120,7 +120,7 @@ export function onLand(p: Point, coast: Coast): boolean {
 }
 
 /** The land's area: its outer loops less its lakes. */
-function landArea(coast: Coast): number {
+export function landArea(coast: Coast): number {
   const area = (ring: readonly Point[]) => Math.abs(ring.reduce((sum, p, at) => { const q = ring[(at + 1) % ring.length]!; return sum + p.x * q.z - q.x * p.z; }, 0)) / 2;
   return coast.reduce((sum, ring) => {
     const depth = coast.filter((other) => other !== ring && onLand(ring[0]!, [other])).length;
@@ -140,7 +140,7 @@ export function territoryAt(map: TerritoryMap, x: number, z: number): Territory 
 }
 
 /** `total` cells shared in proportion to `weights`, each at least one, by largest remainder. */
-function apportion(weights: readonly number[], total: number): number[] {
+export function apportion(weights: readonly number[], total: number): number[] {
   const sum = weights.reduce((a, b) => a + b, 0);
   const counts = weights.map(() => 1);
   let left = total - weights.length;
@@ -153,7 +153,7 @@ function apportion(weights: readonly number[], total: number): number[] {
 }
 
 /** `counts` with every one raised to `least`, a cell at a time from the largest. */
-function atLeast(counts: number[], least: number): number[] {
+export function atLeast(counts: number[], least: number): number[] {
   for (let at = 0; at < counts.length; at++) while (counts[at]! < least) {
     const largest = counts.reduce((best, n, i) => (n > counts[best]! ? i : best), 0);
     counts[largest]! -= 1;

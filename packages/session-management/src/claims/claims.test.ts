@@ -839,13 +839,12 @@ test("5.9 a capability claim is never refused because the open increments listin
   });
 });
 
-test("5.16 a reason longer than 40 characters is refused naming the limit and its length, with nothing written or started; 40 characters is claimed", async () => {
+test("5.16 a reason of any length is claimed and kept whole on the claim", async () => {
   await withWorld(async ({ log, project, emailForm, as }) => {
-    const long = "Build the email form and its validation!!";
-    assert.equal(long.length, 41);
-    assert.deepEqual(await claim(as("A"), emailForm, long), { ok: false, refused: "reason-too-long", limit: 40, length: 41 });
-    assert.deepEqual(await readClaims(log, project), []);
-    assert.equal((await claim(as("A"), emailForm, long.slice(0, 40))).ok, true);
+    const long = "Build the email form and its validation, then wire its errors into the signup page so a bad address is said before submit";
+    assert.ok(long.length > 40);
+    assert.equal((await claim(as("A"), emailForm, long)).ok, true);
+    assert.deepEqual((await readClaims(log, project)).map((held) => held.reason), [long]);
   });
 });
 

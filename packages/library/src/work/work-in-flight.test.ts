@@ -765,6 +765,21 @@ for (const backend of [memory, postgres]) {
     assert.deepEqual((await records.get(fix.id))?.fields, cleared?.fields);
   });
 
+  contract("10.30", "a landed increment says whether it fixed an escape: one naming none is recorded as fixing none when it lands, closed or parked closed, while one naming its escape keeps it and a close that does not land says nothing", async ({ work, flight, records }) => {
+    const arc = await work.createArc(ARC);
+    const story = await work.addStory({ title: "Visitor can sign up" });
+    const plain = await flight.addIncrement({ arc: arc.id, ...WORK });
+    assert.equal((await flight.closeIncrement(plain.id, { pr: "#5", disposition: "landed" }))?.fields.escape, "none");
+    assert.equal(((await records.get(plain.id))?.fields as { escape?: unknown }).escape, "none");
+    const fix = await flight.addIncrement({ arc: arc.id, ...WORK, escape: { causedBy: "#4", story: story.id } });
+    assert.deepEqual((await flight.closeIncrement(fix.id, { pr: "#6", disposition: "landed" }))?.fields.escape, { causedBy: "#4", story: story.id });
+    const born = await flight.addIncrement({ arc: arc.id, ...WORK, outcome: { pr: "#7", disposition: "landed" } });
+    assert.equal(born.fields.escape, "none");
+    const dropped = await flight.addIncrement({ arc: arc.id, ...WORK });
+    const withdrawn = await flight.closeIncrement(dropped.id, { note: "Overtaken", disposition: "withdrawn" });
+    assert.equal("escape" in (withdrawn?.fields ?? {}), false, "work that did not land answers nothing");
+  });
+
   contract("10.24", "an increment carries a risk line: its tier, rating, depth, radius, depth flags, the stories it touches and the day read, set and cleared by an edit; a tier, number or day out of range, or a story that is not one, is refused with nothing written", async ({ work, flight, records, transactions }) => {
     const arc = await work.createArc(ARC);
     const story = await work.addStory({ title: "Visitor can sign up" });

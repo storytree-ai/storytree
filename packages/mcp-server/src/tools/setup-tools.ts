@@ -15,7 +15,7 @@ import { findProject, storytreeHome } from "@storytree/project-and-caller";
 import { missingProjectReading } from "@storytree/project-and-caller/routing";
 import { folderLanguages } from "@storytree/map/folder-languages";
 import { unreadableOf, unreadableSentence } from "@storytree/map/languages";
-import { COMMIT_STORYTREE, IDENTITY_FIX, makeRepository, notAProjectYet, setUpProject, starterPackStatus, starterRolesIn, suggestProjectName, type RepositoryMade, type StarterPackStatus } from "@storytree/app-setup/project";
+import { COMMIT_STORYTREE, IDENTITY_FIX, makeRepository, notAProjectYet, setUpProject, starterPackStatus, starterRolesIn, suggestProjectName, unimportedPackages, unimportedSentence, type RepositoryMade, type StarterPackStatus } from "@storytree/app-setup/project";
 import { checkFile, checkFilesWritten, codexHooksState, FIX_SENTENCES, fixSentence, HOOK_TESTS, openStorytree, runSetupCheck, verifyHooks, type Fix, type SetupOptions } from "@storytree/app-setup/setup";
 import { isUnreachable, NOT_RUNNING_ANSWER, refusalOf, result } from "./answers.js";
 import type { Connections } from "./connections.js";
@@ -91,12 +91,16 @@ export function registerSetupTools({ server, folder, setup, connections, callerO
         // A library an earlier pack seeded is offered the newer one, for the user to take (8.26); a product's is its factory's.
         const starterPack = await starterPackStatus(library, storytree);
         if (starterPack.offered && served().includes("take_starter_pack")) said.push(newerPackSentence(starterPack));
+        // An existing codebase here, never imported, is imported before any story is planned (6.117).
+        const declared = await unimportedPackages(folder, library);
+        const unimported = declared.map((one) => one.title);
+        if (declared.length > 0) said.push(`${unimportedSentence(declared)} Call import_project with this project's folder before you plan stories: each package it declares becomes a mapped story, and plan_story refuses until it is imported.`);
         // The session as the hook before this call named it: after Claude Code's /clear, the new one.
         const caller = seenCaller(await callLines(log, report.project.name, metaOf(context), { harness: heard.harness, tool: "check_setup" }), heard, metaOf(context));
         await log.append(report.project.name, { ...lineOf(caller), source: "tool", folder, kind: "tool-called", tool: "check_setup" });
         if (connected) {
           said.push(connectedSentence(caller));
-          return result({ text: withCard(said.join(" ")), data: { ...data, starterRoles, starterPack, verified: false, passed: true, missing: [], fixes: [], session: caller.session } });
+          return result({ text: withCard(said.join(" ")), data: { ...data, starterRoles, starterPack, unimported, verified: false, passed: true, missing: [], fixes: [], session: caller.session } });
         }
         // This session's hook lines alone: the latest of each kind, and its edits for the check file (contract 2.7).
         const [fired, edits] = await Promise.all([
@@ -122,7 +126,7 @@ export function registerSetupTools({ server, folder, setup, connections, callerO
         // What this machine's hooks traced of their failures for this session (contract 3.23), so a gap in its lines can be read.
         const failures = hookFailures(setup.storytreeHome ?? storytreeHome(), caller.session);
         if (failures.length > 0) said.push(failuresSentence(failures));
-        return result({ text: withCard(said.join(" ")), data: { ...data, starterRoles, starterPack, ...verification, ...(verification.fixes.includes("edit-check-file") ? { checkFile: checkFile(caller.session) } : {}), passed: verification.verified, hookFailures: failures } });
+        return result({ text: withCard(said.join(" ")), data: { ...data, starterRoles, starterPack, unimported, ...verification, ...(verification.fixes.includes("edit-check-file") ? { checkFile: checkFile(caller.session) } : {}), passed: verification.verified, hookFailures: failures } });
       } catch (error) {
         if (isUnreachable(error)) {
           await connections.close();

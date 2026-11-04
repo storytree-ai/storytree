@@ -4,7 +4,8 @@ import { useMemo, useRef, type CSSProperties } from "react";
 import { DoubleSide, Quaternion, type Group } from "three";
 import type { Island } from "@storytree/forest";
 import { onIslandSurface, Overlay, plateTransform, type PlanetSpot } from "@storytree/forest-world/planet";
-import { islandTerritories, type Coast } from "../territories/territories.js";
+import type { Coast } from "../territories/territories.js";
+import { islandLayout, type Link, type LinkDock } from "../territories/link-layout.js";
 import { capabilityPlates, facing, fadedCapabilities, fadedPlates, southOnPlate, STORY_PLATE_WIDTH, storyPlate } from "./nameplates.js";
 import { GROUND_PER_WORLD_UNIT, islandReach, type Descriptor3D } from "@storytree/forest-world";
 
@@ -18,8 +19,10 @@ const PLATE_LIFT = 2;
  * A story's nameplate, its top edge at a fixed point just south of the island's coast, turning with the island; while the story is
  * selected, a smaller nameplate on each of its capabilities' territories (below a claimed one's flag), and the other stories' plates dim. No plate takes a pointer from the land beneath it.
  */
-export function Nameplates({ island, spot, coast, radius, selected, dimmed = false, claimed = new Map() }: {
+export function Nameplates({ island, spot, coast, links = [], docks, radius, selected, dimmed = false, claimed = new Map() }: {
   island: Island; spot: PlanetSpot; coast: Coast; radius: number; selected: string | undefined; dimmed?: boolean;
+  /** The scene's links, and the docks the island's lanes come ashore at when it is laid out by them (ADR-1236 D1). */
+  links?: readonly Link[]; docks?: readonly LinkDock[] | undefined;
   /** Claimed capabilities: their flags stand where their nameplates would, so those nameplates hang just below (ADR-0968 D1). */
   claimed?: ReadonlyMap<string, unknown>;
 }) {
@@ -39,7 +42,7 @@ export function Nameplates({ island, spot, coast, radius, selected, dimmed = fal
     label.current.dataset.facing = String(facing(turned, camera.quaternion));
   }, -1);
   const chosen = island.story === selected;
-  const plates = useMemo(() => chosen && island.land !== undefined ? capabilityPlates(islandTerritories(island.land.territories, coast)) : [], [chosen, island.land, coast]);
+  const plates = useMemo(() => chosen && island.land !== undefined ? capabilityPlates(islandLayout(island.land.territories, coast, links, docks)) : [], [chosen, island.land, coast, links, docks]);
   const opacity = dimmed ? 0.24 : selected !== undefined && !chosen ? 0.5 : 1;
   // Its opacity is a variable, so a crowded plate's fade (styles.css) can take it to nothing and back.
   const plateStyle = { "--plate-opacity": opacity, maxWidth: STORY_PLATE_WIDTH } as CSSProperties;

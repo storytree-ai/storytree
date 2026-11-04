@@ -4,14 +4,14 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { Group, Quaternion, Vector3, type Camera, type Object3D } from "three";
 import { claimTints, replayWisps, selectionLanes, type ClaimTint, type FacingIsland, type ForestScene, type GlobeTurn, type Island, type SessionWisp } from "@storytree/forest";
 import type { Descriptor3D } from "@storytree/forest-world";
-import { islandNormal, onIslandSurface, Overlay, PlanetWorldCanvas, PLATE_CLEARANCE, SHEET_RADIUS, SHEET_TILT, sheetEyeZoom, UnderTheGlass, usePlanetGrowth, type PlanetGrowth, type SheetExtent } from "@storytree/forest-world/planet";
+import { islandNormal, onIslandSurface, Overlay, PlanetWorldCanvas, PLATE_CLEARANCE, SHEET_RADIUS, SHEET_TILT, sheetEyeZoom, UnderTheGlass, usePlanetGrowth, type IslandDock, type PlanetGrowth, type SheetExtent } from "@storytree/forest-world/planet";
 import type { CodePlaces } from "@storytree/knowledge-core";
 import { KnowledgeGlobePoints, useCodeLighting, type CodeLighting, type CoreUnderSheet, type KnowledgeCore } from "@storytree/knowledge-core/view";
 import { SessionIslandEmphasis } from "./session-emphasis.js";
 import { lightTerritories, territoryLand } from "./territory-land.js";
 import { laneWays } from "./border-route.js";
 import { ClaimMarks } from "./claim-flag.js";
-import { islandTerritories } from "../territories/territories.js";
+import { islandLayout, type Link } from "../territories/link-layout.js";
 import { NameplateCrowd, Nameplates, reducedMotion, SelectionRing } from "./island-overlays.js";
 import { focusRotation, globeHover, isGlobeDrag, markerSpot, movingSpots, MOVE_SECONDS, oncePerFrame, pickGlobe, type ForestMode } from "./planet-navigation.js";
 import { claimsOn } from "./planet-update.js";
@@ -109,20 +109,23 @@ export function PlanetView({ core, scene, places, wisps: live, selected, highlig
   const under = layout.under;
   const underSheet = useMemo((): CoreUnderSheet => ({ ...under, selected }), [under, selected]);
   // ADR-0991 D4: a lit lane runs on from its dock along the territories' borders to its capability.
-  const ways = useMemo(() => laneWays(layout.scene.islands), [layout.scene]);
-  const overlays = useCallback((island: Island, descriptors: readonly Descriptor3D[], coast: readonly (readonly { x: number; z: number }[])[]) => {
+  const links = useKept(layout.scene.links ?? NO_LINKS, JSON.stringify);
+  const ways = useMemo(() => laneWays(layout.scene.islands, links, selected), [layout.scene, links, selected]);
+  const overlays = useCallback((island: Island, descriptors: readonly Descriptor3D[], coast: readonly (readonly { x: number; z: number }[])[], docks: readonly IslandDock[] | undefined) => {
+    // ADR-1236 D1: the selected island's territories are laid out by its links, once its docks are known.
+    const laidBy = island.story === selected ? docks : undefined;
     // Lane B has already centred the descriptors in the plate's own ground coordinates.
     const local = { ...island, x: 0, z: 0 };
     const emphasis = shownSurfaces.sessionTints && highlighted?.length ? (highlighted.includes(island.story) ? "held" : "dimmed") : undefined;
     return <>
-      {island.land !== undefined && layout.spots.has(island.story) && <Territories land={island.land} coast={coast} claimed={claimed} radius={layout.radius}
+      {island.land !== undefined && layout.spots.has(island.story) && <Territories land={island.land} coast={coast} links={links} docks={laidBy} claimed={claimed} radius={layout.radius}
         lighting={lighting} surfaces={shownSurfaces} />}
       <SessionIslandEmphasis emphasis={emphasis} />
       {emphasis === "held" && <SelectionRing island={local} descriptors={descriptors} onGlobe emphasis />}
-      {shownSurfaces.nameplates && <Nameplates island={island} spot={layout.spots.get(island.story)!} coast={coast} radius={layout.radius} selected={selected} dimmed={emphasis === "dimmed"} claimed={claimed} />}
+      {shownSurfaces.nameplates && <Nameplates island={island} spot={layout.spots.get(island.story)!} coast={coast} links={links} docks={laidBy} radius={layout.radius} selected={selected} dimmed={emphasis === "dimmed"} claimed={claimed} />}
       <SelectionRing island={island.story === selected ? local : undefined} descriptors={descriptors} onGlobe />
     </>;
-  }, [wisps, claimed, selected, highlighted, layout.spots, layout.radius, lighting, shownSurfaces]);
+  }, [wisps, claimed, selected, highlighted, layout.spots, layout.radius, lighting, shownSurfaces, links]);
   const titles = useMemo(() => new Map(scene.islands.map(i => [i.story, i.title])), [scene]);
   const inside = useMemo(() => library && <UnderTheGlass clear={outlines}><GrowingCore core={core} spots={layout.spots} radius={layout.radius} places={codePlaces} sheet={underSheet} growing={growth !== undefined} /></UnderTheGlass>,
     [library, outlines, core, layout.spots, layout.radius, codePlaces, underSheet, growth]);
@@ -218,6 +221,8 @@ function useKept<T>(value: T, keyOf: (value: T) => string): T {
   return kept.current.value;
 }
 
+const NO_LINKS: readonly Link[] = [];
+
 /** Lifted just off the surface, so a territory's tint never fights the ground it lies on. */
 const TERRITORY_LIFT = 0.05;
 
@@ -225,9 +230,12 @@ const TERRITORY_LIFT = 0.05;
  * An island's territories (3.14), cut to its coast and laid on its surface, all in the plate's own units; it lights
  * the territories the selected session's window opened (3.18). No file is drawn on them (ADR-1212).
  */
-function Territories({ land: given, coast: givenCoast, claimed, radius, lighting, surfaces }: {
+function Territories({ land: given, coast: givenCoast, links, docks: givenDocks, claimed, radius, lighting, surfaces }: {
   land: NonNullable<Island["land"]>;
   coast: readonly (readonly { x: number; z: number }[])[];
+  links: readonly Link[];
+  /** The docks the island's lanes come ashore at, when it is laid out by its links. */
+  docks: readonly IslandDock[] | undefined;
   claimed: ReadonlyMap<string, ClaimTint>;
   radius: number;
   lighting: CodeLighting;
@@ -236,14 +244,14 @@ function Territories({ land: given, coast: givenCoast, claimed, radius, lighting
   const { invalidate, clock, camera, size } = useThree();
   // 3.72: an update that redraws the island for anything else (its name, its trees) hands it new land and coast that read
   // the same; the territories already cut for them stay.
-  const land = useKept(given, JSON.stringify), coast = useKept(givenCoast, JSON.stringify);
+  const land = useKept(given, JSON.stringify), coast = useKept(givenCoast, JSON.stringify), docks = useKept(givenDocks, (docks) => JSON.stringify(docks ?? null));
   // A claim on another island leaves this one's territories as they were.
   const tints = useKept(claimed, tints => claimsOn(tints, land));
   const drawn = useMemo(() => {
-    const map = islandTerritories(land.territories, coast);
+    const map = islandLayout(land.territories, coast, links, docks);
     const group = territoryLand(map, onIslandSurface(radius, TERRITORY_LIFT), coast, tints);
     return { group, map };
-  }, [land, coast, tints, radius]);
+  }, [land, coast, links, docks, tints, radius]);
   // ADR-0968: each claim's flag, and on an island with no code its lot, kept across claim changes so each plays its life.
   const marks = useMemo(() => new ClaimMarks(), []);
   useEffect(() => () => marks.dispose(), [marks]);

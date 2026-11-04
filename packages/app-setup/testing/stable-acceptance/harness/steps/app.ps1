@@ -6,9 +6,9 @@ $app = "$env:LOCALAPPDATA\Programs\storytree-0.3"
 $running = @(Get-Process | Where-Object { $_.Path -like "$app\*" })
 $running | Stop-Process -Force -ErrorAction SilentlyContinue
 $running | Wait-Process -Timeout 60 -ErrorAction SilentlyContinue
-Start-Process -FilePath "$app\storytree-0.3.exe" -ArgumentList '--remote-debugging-port=9333'
+Start-Process -FilePath "$app\storytree-0.3.exe" -ArgumentList '--remote-debugging-port=@PORT@'
 $deadline = (Get-Date).AddMinutes(2)
-do { Start-Sleep 3; try { $page = (Invoke-RestMethod 'http://127.0.0.1:9333/json') | Where-Object type -eq 'page' } catch { $page = $null } } while (-not $page -and (Get-Date) -lt $deadline)
+do { Start-Sleep 3; try { $page = (Invoke-RestMethod 'http://127.0.0.1:@PORT@/json') | Where-Object type -eq 'page' } catch { $page = $null } } while (-not $page -and (Get-Date) -lt $deadline)
 "app: $((Get-Item "$app\storytree-0.3.exe").VersionInfo.ProductVersion); page: $(if ($page) { $page[0].url } else { 'none' })"
 # A page that opened on a problem keeps the library's own logs as evidence: the user, and its logs, are removed after.
 if ($page -and $page[0].url -match 'problem=') {

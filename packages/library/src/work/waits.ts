@@ -22,6 +22,16 @@ export interface Hold {
    * withdrawn), or the blocker is missing or retired (11-a).
    */
   readonly forGood: boolean;
+  /**
+   * A wait on a capability's claim (11.12, ADR-1228 D1): it holds only while a live session holds
+   * that capability, so its holder releasing it, however it does, clears it.
+   */
+  readonly claim?: true;
+}
+
+/** The capabilities live sessions hold now, as session management reads its claims: what a claim wait is read against (11.12). */
+export interface ClaimReading {
+  readonly claimed?: ReadonlySet<string>;
 }
 
 /** What an increment waits for outside the library, as stored (11.6, ADR-0938 D1). */
@@ -85,6 +95,9 @@ export class WaitLoopError extends Error {
 /** What an arc may wait on (11.9): an arc, or an increment, whose landing releases it. */
 const ARC_BLOCKER = { name: "arc or increment", types: ["arc", "increment"] } as const;
 
+/** What an increment may wait on: an increment, whose landing releases it, or a capability, whose claim's release does (11.12). */
+const INCREMENT_BLOCKER = { name: "increment or capability", types: ["increment", "capability"] } as const;
+
 /** One wait, as an arc or increment stores it. */
 export type Wait = { readonly on: string; readonly reason: string };
 
@@ -98,7 +111,7 @@ export interface WaitGraph {
 
 /**
  * Make `waiter` wait on `blocker`, with a reason: an arc on a live arc or increment (11.9), an
- * increment on a live increment, on any arc (MissingReferenceError otherwise). Waiting again on the same blocker replaces
+ * increment on a live increment, on any arc, or on a live capability's claim (11.12; MissingReferenceError otherwise). Waiting again on the same blocker replaces
  * the reason. A wait that would close a loop in the work `read` gives is refused with a WaitLoopError
  * naming it. Null, with nothing written, if `waiter` is not a live arc or increment.
  */
@@ -112,7 +125,7 @@ export async function addWait(
 ): Promise<SchemaRecord<"arc" | "increment"> | null> {
   const record = await liveRecord(records, waiter, ["arc", "increment"]);
   if (record === null) return null;
-  await checkReference(records, "on", blocker, record.type === "arc" ? ARC_BLOCKER : "increment");
+  await checkReference(records, "on", blocker, record.type === "arc" ? ARC_BLOCKER : INCREMENT_BLOCKER);
   const stored: readonly Wait[] = record.fields.waits ?? [];
   const waits = stored.some((wait) => wait.on === blocker)
     ? stored.map((wait) => (wait.on === blocker ? { on: blocker, reason } : wait))
@@ -233,7 +246,7 @@ export function noteWaits(waitsFor: readonly WaitFor[] | undefined, at: Date): N
 export function holdsOf(waits: readonly Wait[] | undefined, hold: (wait: Wait) => Hold | undefined): Hold[] {
   return (waits ?? []).flatMap((wait) => {
     const held = hold(wait);
-    return held === undefined ? [] : [{ on: held.on, reason: held.reason, forGood: held.forGood }];
+    return held === undefined ? [] : [{ on: held.on, reason: held.reason, forGood: held.forGood, ...(held.claim === true ? { claim: true as const } : {}) }];
   });
 }
 
@@ -252,6 +265,20 @@ export function arcHold(wait: Wait, closed: boolean | undefined): Hold | undefin
  */
 export function incrementHold(wait: Wait, landed: boolean, open: boolean): Hold | undefined {
   return landed ? undefined : { ...wait, forGood: !open };
+}
+
+/** Whether a wait names a capability, so is a claim wait (11.12): an id is its record type's prefix and a hex tail. */
+export function onClaim(wait: Wait): boolean {
+  return wait.on.startsWith("capability_");
+}
+
+/**
+ * Whether a claim wait holds (11.12, ADR-1228 D1): while `claimed`, the capabilities live sessions
+ * hold now, has it; never for good, since a claim always ends. A reader not given `claimed` cannot
+ * see claims, and reads it as holding.
+ */
+export function claimHold(wait: Wait, claimed: ReadonlySet<string> | undefined): Hold | undefined {
+  return claimed === undefined || claimed.has(wait.on) ? { ...wait, forGood: false, claim: true } : undefined;
 }
 
 /**

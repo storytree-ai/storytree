@@ -64,7 +64,7 @@ test("6.4 a held claim refusal names the increment its holder holds the work for
       const refused = await agent.call("claim", { capability, reason: "next writer" });
       assert.equal(refused.isError, true);
       assert.match(refused.text, new RegExp(`session holder for ${increment} \\(building the form\\)`));
-      assert.match(refused.text, new RegExp(`free once ${increment} closes`));
+      assert.match(refused.text, new RegExp(`wait on its claim \\(set_wait with on: ${capability}\\), which clears the moment its holder releases it`), "a refused capability is waited on by its claim (ADR-1228 D1)");
       const alone = await agent.call("claim", { capability: loose, reason: "next writer" });
       assert.equal(alone.isError, true);
       assert.match(alone.text, /session loner \(writing the mail\)/);

@@ -170,7 +170,8 @@ export function pickPlan(survey, { planned = new Map(), now = Date.now(), freshM
 }
 
 /**
- * One survey of the library: every arc with its open questions counted, its increments with their holds and machine fields (one `arcViews` and one `holds` read),
+ * One survey of the library: every arc with its open questions counted, its increments with their holds and machine fields (one `arcViews` and one `holds` read,
+ * the holds read against the capabilities the standing claims hold, so a wait on a released claim no longer holds: 2.31),
  * this machine's short name (`here`, undefined while it has none), the standing claims,
  * the refusals under every open increment on an active arc, whoever holds the capability now, each under the increment its refused session held (`refusals`, given those increments),
  * and the failed lanes on those increments (`failures`, given them).
@@ -182,11 +183,13 @@ const iso = (at) => {
 };
 
 export async function readSurvey({ library, claims, refusals = async () => [], failures = async () => [], here = async () => undefined }) {
-  const [views, holds, held, name] = await Promise.all([library.arcViews(), library.holds(), claims(), here()]);
+  const [views, held, name] = await Promise.all([library.arcViews(), claims(), here()]);
   const increments = views.flatMap((view) => view.increments.map((record) => ({
     id: record.id, arc: view.arc.id, arcState: view.state, title: record.fields.title, body: record.fields.body ?? "",
     status: record.fields.status, capabilities: record.fields.capabilities ?? [], machine: record.fields.machine, parked: record.fields.parked ?? iso(record.createdAt), priority: view.arc.fields?.priority,
   })));
+  // A wait on a capability's claim holds only while a live session holds that capability (2.31, ADR-1228 D1): the library reads it against these.
+  const holds = await library.holds(new Date(), { claimed: new Set(liveCapabilities(held, increments).keys()) });
   const arcs = views.map((view) => ({
     id: view.arc.id, state: view.state, title: view.arc.fields?.title ?? view.arc.id, created: iso(view.arc.createdAt),
     openQuestions: (view.questions ?? []).filter((question) => question.fields.lifecycle === "open").length,

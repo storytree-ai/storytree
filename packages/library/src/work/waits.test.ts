@@ -339,4 +339,26 @@ for (const backend of [memory, postgres]) {
     assert.equal(((await records.get(alone.id))?.fields as { waitsFor?: unknown } | undefined)?.waitsFor, undefined, "with no owner wait, nothing is stamped");
     await assert.rejects(records.edit(alone.id, { waitsFor: [{ releaser: "event", note: "it lands", checkBack: tomorrow, merged: 1 }] } as never), /only an owner wait/);
   });
+
+  contract("11.12", "an increment waits on a capability's claim: it holds only while a live session holds that capability, and an increment wait still holds until its blocker lands", async ({ work, flight }) => {
+    const arc = await work.createArc({ title: "Speed", ...ARC });
+    const story = await work.addStory({ title: "Visitor sees the arcs" });
+    const surface = await work.addCapability({ title: "Arc surface", story: story.id });
+    const expansion = await flight.addIncrement({ arc: arc.id, title: "Arcs tab expansion", ...WORK });
+    const fix = await flight.addIncrement({ arc: arc.id, title: "Open-app speed fix", ...WORK });
+    await flight.addWait(fix.id, surface.id, "refused: another session holds it");
+    const claim = { on: surface.id, reason: "refused: another session holds it", forGood: false, claim: true };
+
+    assert.deepEqual(await flight.waitHolds(fix.id, { claimed: new Set([surface.id]) }), [claim], "held while a live session holds the capability");
+    assert.deepEqual((await flight.holds(new Date(), { claimed: new Set([surface.id]) })).waits[fix.id], [claim]);
+    assert.deepEqual(await flight.waitHolds(fix.id, { claimed: new Set() }), [], "the holder released it: the wait no longer holds, with nothing written");
+    assert.deepEqual((await flight.holds(new Date(), { claimed: new Set() })).waits[fix.id], []);
+    assert.deepEqual(await flight.waitHolds(fix.id), [claim], "a reader that cannot see claims reads it as holding");
+
+    // A wait on the increment, recorded on purpose, is unchanged: it holds until that increment lands, whoever holds what (D3).
+    await flight.removeWait(fix.id, surface.id);
+    await flight.addWait(fix.id, expansion.id, "goes after it");
+    assert.deepEqual(await flight.waitHolds(fix.id, { claimed: new Set() }), [{ on: expansion.id, reason: "goes after it", forGood: false }]);
+    await assert.rejects(flight.addWait(arc.id, surface.id, "?"), MissingReferenceError, "an arc waits on no claim");
+  });
 }

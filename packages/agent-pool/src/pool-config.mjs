@@ -13,6 +13,8 @@
 // - addDirs: folders each engine may write besides its worktree (the lanes folder is always one).
 // - sessions: pins the cap on engines running at once (the lanes folder's night-max-lanes overrides it live); by default
 //   none, and the cap is what the machine's cores and memory allow (readCap, ADR-1142).
+// - laneMemory: the memory each lane's scope may use (systemd's MemoryMax: bytes, or a size such as "12G"), past which
+//   the kernel kills that lane alone (runner 1.27); by default the machine's memory less every other lane's share (laneMemoryMax).
 // - engines: { codex: { model }, claude: { model }, switchAt }: the model each engine runs (none, the engine's own
 //   default) and the share of Codex's weekly allowance at which lanes switch to Claude (by default 100, when it is spent).
 // - identity: { name, email }: who a lane's commits are by when its environment sets no git identity; by default none,
@@ -72,6 +74,7 @@ export function poolConfig({ home = homedir(), env = process.env, file = env.AGE
     briefsDir: raw.briefs ? local(raw.briefs) : undefined,
     addDirs: [...(raw.addDirs ?? []).map(local), lanesDir],
     sessions: number(raw.sessions),
+    ...(raw.laneMemory ? { laneMemory: raw.laneMemory } : {}),
     models: { codex: raw.engines?.codex?.model, claude: raw.engines?.claude?.model },
     switchAt: number(env.CODEX_STOP_AT, raw.engines?.switchAt) ?? 100,
     identity: raw.identity?.name && raw.identity?.email ? { name: raw.identity.name, email: raw.identity.email } : undefined,
@@ -102,4 +105,15 @@ export async function readCap({ lanesDir, sessions, box = { cores: availablePara
   readText = (path) => readFile(path, "utf8") }) {
   const pinned = Number((await readText(join(lanesDir, "night-max-lanes")).catch(() => "")).trim());
   return pinned || sessions || Math.max(1, Math.min(Math.floor(box.cores / lane.cores), Math.floor(box.memoryBytes / lane.memoryBytes)));
+}
+
+/**
+ * The memory one lane's scope may use (runner 1.27): `laneMemory` when the configuration names it, else the machine's
+ * memory less what every other lane under the cap takes at its peak, and never less than one lane's peak.
+ */
+export async function laneMemoryMax({ laneMemory, lanesDir, sessions, box = { cores: availableParallelism(), memoryBytes: totalmem() }, lane = LANE,
+  readText = (path) => readFile(path, "utf8") }) {
+  if (laneMemory) return String(laneMemory);
+  const cap = await readCap({ lanesDir, sessions, box, lane, readText });
+  return String(Math.max(lane.memoryBytes, box.memoryBytes - (cap - 1) * lane.memoryBytes));
 }

@@ -12,7 +12,8 @@ import { promisify } from "node:util";
 import { PLUGIN_FOLDER } from "@storytree/claude-code-mod";
 import { quietFor, removeTemp, waitUntil } from "@storytree/test-waits";
 
-import { bothAnswer, main, refusals, runLane, SIGNALED, storytreeCommand } from "./runner.mjs";
+import { bothAnswer, laneScope, main, OUT_OF_MEMORY, refusals, runLane, SIGNALED, storytreeCommand } from "./runner.mjs";
+import { laneMemoryMax } from "./pool-config.mjs";
 
 const exec = promisify(execFile);
 const start = Date.parse("2026-10-06T00:00:00Z");
@@ -31,8 +32,9 @@ async function lane(t) {
   const brief = join(home, "brief.md"), log = join(lanesDir, "lane.log"), err = join(lanesDir, "lane.err");
   await writeFile(brief, "Build this increment. Preserve `literal` $text and \"quotes\".\n");
   const lines = [];
-  // Run from a Claude lane, the runner's own environment already carries what it gives a Claude engine.
-  const { CLAUDE_CODE_ENABLE_FUNCTION_HOOKS: _hooks, STORYTREE_SESSION_FILE: _file, ...inherited } = process.env;
+  // Run from a Claude lane, the runner's own environment already carries what it gives a Claude engine; run under systemd
+  // on the box, it would start each engine in a scope of its own, which only 1.27 asks for.
+  const { CLAUDE_CODE_ENABLE_FUNCTION_HOOKS: _hooks, STORYTREE_SESSION_FILE: _file, INVOCATION_ID: _unit, ...inherited } = process.env;
   return { home, lanesDir, cwd, brief, log, err, addDirs: [join(home, "directory with spaces"), "another"],
     env: { ...inherited, LANES_DIR: lanesDir, CODEX_STOP_AT: "95", FAST_FAIL_S: "120", CLAUDE_CODE_OAUTH_TOKEN: "", OPENAI_API_KEY: "test-api", CODEX_API_KEY: "test-api", CODEX_ACCESS_TOKEN: "test-api", ANTHROPIC_API_KEY: "test-api" },
     commands: { codex: command(receipt), claude: command(receipt) }, now: () => start, say: (line) => lines.push(line), lines, failed: async () => [],
@@ -728,4 +730,46 @@ test("1.26 · a lane started from the command line in another project's checkout
   assert.equal(await main(["run", options.brief, options.log, options.err], options), 75);
   const calls = (await readFile(record, "utf8")).trim().split("\n").map((line) => JSON.parse(line));
   assert.deepEqual(calls.map((call) => call.args.slice(0, 2)), [["library", "read"], ["question", "new"]], "the lane-token question, asked in the checkout's own library");
+});
+
+test("1.27 · under systemd on Linux a lane's engine runs in a memory-limited scope of its own; elsewhere, or with no limit, as it is; the limit is the configured one, else the box's memory less every other lane's peak", async () => {
+  const engine = ["claude", "-p", "brief"];
+  assert.deepEqual(laneScope(engine, { unit: "storytree-lane-1.scope", memoryMax: "17179869184", env: { INVOCATION_ID: "x" }, platform: "linux" }),
+    { unit: "storytree-lane-1.scope", command: ["systemd-run", "--user", "--scope", "--quiet", "--unit=storytree-lane-1.scope", "-p", "MemoryMax=17179869184", "-p", "OOMPolicy=stop", ...engine] });
+  assert.deepEqual(laneScope(engine, { unit: "u", memoryMax: "1", env: {}, platform: "linux" }), { command: engine }, "not under systemd");
+  assert.deepEqual(laneScope(engine, { unit: "u", memoryMax: "1", env: { INVOCATION_ID: "x" }, platform: "win32" }), { command: engine });
+  assert.deepEqual(laneScope(engine, { unit: "u", env: { INVOCATION_ID: "x" }, platform: "linux" }), { command: engine }, "no limit");
+  const GiB = 1024 ** 3, unpinned = { lanesDir: "/none", readText: async () => "" };
+  assert.equal(await laneMemoryMax({ ...unpinned, laneMemory: "12G" }), "12G");
+  assert.equal(await laneMemoryMax({ ...unpinned, box: { cores: 12, memoryBytes: 32 * GiB } }), String(17 * GiB), "a cap of 6: 32 GB less 5 lanes' 3 GB");
+  assert.equal(await laneMemoryMax({ ...unpinned, sessions: 10, box: { cores: 12, memoryBytes: 16 * GiB } }), String(3 * GiB), "never less than one lane's peak");
+});
+
+test("1.27 · a lane whose engine runs out of its scope's memory is killed alone, recorded failed and ends OUT_OF_MEMORY, never as signalled or failing at once; one within its limit ends as usual", { skip: (process.platform !== "linux" || !process.env.INVOCATION_ID) && "platform:linux under systemd: the lane's scope is a systemd user scope" }, async (t) => {
+  const options = await lane(t);
+  options.env.INVOCATION_ID = process.env.INVOCATION_ID;
+  await writeFile(join(options.home, ".storytree", "agent-pool.json"), JSON.stringify({ laneMemory: "64M" }));
+  await writeFile(join(options.lanesDir, "engine-override"), "claude");
+  options.increment = "increment_abc";
+  options.heads = async () => ({});
+  options.storytree = async () => "";
+  const recorded = [];
+  options.failed = async (failure) => { recorded.push(failure); return [failure]; };
+
+  options.commands.claude = command("console.log(require('node:fs').readFileSync('/proc/self/cgroup', 'utf8').trim()); require('node:fs').writeFileSync(process.env.LANES_DIR + '/report.md', 'done');");
+  options.increment = undefined;
+  assert.equal(await runLane(options), 0, "within its limit the engine ends as usual");
+  assert.match(await readFile(options.log, "utf8"), /\/storytree-lane-[\w-]+\.scope$/m, "in a scope of its own");
+  assert.equal(recorded.length, 0);
+
+  options.increment = "increment_abc";
+  options.commands.claude = command("const held = []; for (;;) held.push(Buffer.alloc(1e6, 1));");
+  const code = await runLane(options);
+  assert.equal(code, OUT_OF_MEMORY);
+  assert.ok(![SIGNALED, 75, 0].includes(OUT_OF_MEMORY));
+  assert.equal(recorded.length, 1, "recorded failed, so the pool offers a runaway no more after its third");
+  assert.equal(recorded[0].increment, "increment_abc");
+  assert.match(recorded[0].why, /killed out of memory/);
+  assert.deepEqual(recorded[0].logs, [options.log]);
+  assert.ok(options.lines.some((line) => /lane killed out of memory .*exit 77, recorded failed$/.test(line)), options.lines.join("\n"));
 });

@@ -207,20 +207,28 @@ test("17.21 · Filing friction through either door first shows the closest earli
       const first = await verbNamed("new").act(mail, context, WORDS);
       const id = (first.data as { id: string }).id;
       await library.editNote(id, { route: "nothing", routeReason: "An upstream outage" });
+      for (const title of ["Slow mail at night", "Slow mail abroad", "Slow mail on Mondays"]) {
+        await library.writeKnowledge("friction", { ...mail, title, provenance: { branch: "another/branch", date: "2026-09-29", source: "retro" as const } });
+      }
+      await library.defineTerm({ term: "Slow mail", meaning: "Mail that takes over a minute to send" });
 
       const before = await library.history();
       const shown = await verbNamed("new").act({ ...mail, evidence: "src/mail.ts: TimeoutError again" }, context, WORDS);
       assert.deepEqual(await library.history(), before, "showing the closest reports writes nothing");
       assert.match(shown.text, new RegExp(`${id}  dismissed, 0 recurrences  Slow mail`), "the dismissed report is shown by id and title");
-      assert.deepEqual(shown.next?.map((step) => step.command), [`friction reinforce ${id} --evidence …`, "friction new … --none-match"], "it says how to add a recurrence instead, or file new");
+      const listed = shown.text.split("\n").filter((line) => line.startsWith("  "));
+      assert.equal(listed.length, 3, "at most three are shown");
+      assert.ok(listed.every((line) => /^  friction_[0-9a-f]+  /.test(line)), "only friction reports are shown, not other notes holding its words");
+      assert.ok(shown.next?.some((step) => step.command === `friction reinforce ${id} --evidence …`), "it says how to add a recurrence to it instead");
+      assert.equal(shown.next?.at(-1)?.command, "friction new … --none-match", "or how to file new");
 
       await verbNamed("reinforce").act({ friction: id, evidence: "src/mail.ts: TimeoutError again" }, context, WORDS);
       const reports = await library.list("friction");
-      assert.equal(reports.length, 1, "the repeat is a recurrence, not a second report");
-      assert.equal(reports[0]!.fields.reinforcedBy?.length, 1);
+      assert.equal(reports.length, 4, "the repeat is a recurrence, not another report");
+      assert.equal(reports.find((one) => one.id === id)!.fields.reinforcedBy?.length, 1);
 
       await verbNamed("new").act({ ...mail, title: "Slow mail on Sundays", "none-match": true }, context, WORDS);
-      assert.equal((await library.list("friction")).length, 2, "told none matches, it files new");
+      assert.equal((await library.list("friction")).length, 5, "told none matches, it files new");
     });
   });
 });

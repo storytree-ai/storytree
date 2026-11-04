@@ -63,7 +63,22 @@ test("3.22 · the question family declares predict, prediction, score and prep, 
   await library.settleQuestion(question.id, { answer: "SES" });
   await assert.rejects(run("predict", { question: question.id, pick: "1", confidence: "low", why: "x" }), (error: unknown) => error instanceof VerbRefusal && /settled/.test(error.message));
   assert.match(await run("score", { question: question.id, prediction: "match", recommendation: "different", by: undefined }), new RegExp(`Scored ${question.id} by person:test: would-be answer match, raiser's recommendation different`));
-  await assert.rejects(run("prediction", { question: "question_000000000000" }), VerbRefusal);
+
+  // A question with no would-be answer is scored for its raiser's recommendation alone.
+  const unpredicted = await library.raiseQuestion({ arc: arc.id, ...ASK });
+  await assert.rejects(run("prep", { question: unpredicted.id, stance: "differs", reason: undefined }), (error: unknown) => error instanceof VerbRefusal && /--reason/.test(error.message));
+  await library.settleQuestion(unpredicted.id, { answer: "Mailgun" });
+  assert.equal(await run("score", { question: unpredicted.id, prediction: undefined, recommendation: "match", by: "lane" }), `Scored ${unpredicted.id} by lane: raiser's recommendation match.`);
+
+  const ghost = "question_000000000000";
+  for (const [name, input] of [
+    ["prediction", {}],
+    ["predict", { pick: "1", confidence: "high", why: "x" }],
+    ["score", { recommendation: "match" }],
+    ["prep", { stance: "agrees" }],
+  ] as const) {
+    await assert.rejects(run(name, { question: ghost, ...input }), (error: unknown) => error instanceof VerbRefusal && error.message === `no question "${ghost}" in this project`, `${name} names the missing question`);
+  }
 });
 
 test("3.23 · question deviation counts, per confidence band, the would-be answers settled in its window by their score beside the raiser's recommendation on the same questions, and the questions settled unscored; a window with no scored question says so", async (t) => {
@@ -77,11 +92,12 @@ test("3.23 · question deviation counts, per confidence band, the would-be answe
     await library.settleQuestion(question.id, { answer: "Mailgun" });
     if (score !== undefined) await library.scoreQuestion(question.id, { ...score, by: "lane" });
   };
+  await settle({ confidence: "medium" }, undefined);
+  assert.equal(await run("deviation", { days: undefined }), "No question settled in the last 14 days has been scored. 1 settled unscored.");
   await settle({ confidence: "high" }, { prediction: "match", recommendation: "different" });
   await settle({ confidence: "high" }, { prediction: "match", recommendation: "match" });
   await settle({ confidence: "low" }, { prediction: "different", recommendation: "match" });
   await settle(undefined, { recommendation: "match" });
-  await settle({ confidence: "medium" }, undefined);
 
   const report = await run("deviation", { days: undefined });
   assert.match(report, /^Questions settled in the last 14 days: 5, 1 of them unscored\.$/m);

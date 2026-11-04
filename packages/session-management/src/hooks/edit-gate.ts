@@ -15,10 +15,10 @@
  * placed by the gate itself (claims/edit-gate.ts); when its edit may go ahead only on the user's yes (ADR-1015), Claude
  * Code is answered "ask", so the harness asks its user, and a harness with no such answer is refused, naming the command
  * the user types at their own terminal to say yes, or sends as their own message. After Claude Code runs an edit it was
- * told to ask about, the user allowed it: the hook after the edit records that yes on the increment (recordPromptYes),
- * so its next edits go through unasked (contract 5.41). A user who sends that command on its own line of a message has
- * said yes in the conversation: the prompt hook, which sees the user's words and never the agent's, records it for its
- * session (yesSaid, contract 5.42).
+ * told to ask about, the user allowed it: the hook after the edit records that yes on the increment (recordPromptYes,
+ * 3.34), so its next edits go through unasked. A user who sends that command on its own line of a message has said yes in
+ * the conversation: the prompt hook, which sees the user's words and never the agent's, records it for its session
+ * (yesSaid, 3.37). What a recorded yes covers, and for which session, is the claims' rule (claims/edit-gate.ts, 5.41, 5.42).
  *
  * Like every hook it never breaks the agent: outside a storytree project, in a checkout whose trunk is
  * not approved, when storytree cannot be reached in time, or on any failure, it says nothing and the
@@ -153,7 +153,7 @@ async function refusalFor(harness: string, edit: NonNullable<ReturnType<typeof e
 
 /**
  * After a Claude Code edit tool ran (its PostToolUse): record the user's yes when the gate would have asked for the
- * edit, which the harness then asked its user and they allowed (contract 5.41). Never throws; `failed` keeps why it gave up.
+ * edit, which the harness then asked its user and they allowed (contract 3.34). Never throws; `failed` keeps why it gave up.
  */
 export async function recordYesAfterEdit(harness: string, input: unknown, locate: LocateOptions | undefined, home: string, failed: (stage: HookFailure["stage"], error: unknown) => void): Promise<void> {
   if (harness !== "claude-code" || typeof input !== "object" || input === null || (input as Record<string, unknown>).hook_event_name !== "PostToolUse") return;
@@ -182,7 +182,7 @@ export function allowsSaidIn(prompt: string): string[] {
 
 /**
  * At a prompt: record the yes the user said for each increment the prompt names with the allow command on its own line
- * (contract 5.42), and what to tell the agent of each; undefined when it names none. Never throws; `failed` keeps why it gave up.
+ * (contract 3.37), and what to tell the agent of each; undefined when it names none. Never throws; `failed` keeps why it gave up.
  */
 export async function yesSaid(harness: string, prompted: { session: string; folder: string; prompt: string }, locate: LocateOptions | undefined, home: string, failed: (stage: HookFailure["stage"], error: unknown) => void): Promise<string[] | undefined> {
   const increments = allowsSaidIn(prompted.prompt);

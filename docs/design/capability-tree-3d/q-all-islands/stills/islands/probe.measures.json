@@ -1,0 +1,106 @@
+{
+ "story_609c3b171b3f": {
+  "story": "Session management",
+  "query": "?story=story_609c3b171b3f",
+  "roadDrawn": 602,
+  "roadOnEdge": 0,
+  "gates": 17,
+  "gatesOnOpenLand": 3,
+  "overThird": 1,
+  "inside": 5,
+  "ways": 22,
+  "unplaced": [],
+  "noEntrance": 0,
+  "hub": "2 · Agent activity log",
+  "busiest": [
+   "2 · Agent activity log",
+   "9 · Context readings",
+   "13 · Keep sight of unfinished runs",
+   "4 · Sessions",
+   "11 · Machines",
+   "3 · Hooks",
+   "5 · Claims"
+  ],
+  "island": {
+   "overlaps": 0,
+   "within4px": 1,
+   "byKind": {},
+   "pairs": []
+  },
+  "busy": {
+   "overlaps": 0,
+   "within4px": 1
+  },
+  "errors": []
+ },
+ "story_deee4230348c": {
+  "story": "Map view",
+  "query": "?story=story_deee4230348c",
+  "roadDrawn": 288,
+  "roadOnEdge": 0,
+  "gates": 8,
+  "gatesOnOpenLand": 3,
+  "overThird": 5,
+  "inside": 8,
+  "ways": 18,
+  "unplaced": [
+   "2 · Capability tree"
+  ],
+  "noEntrance": 0,
+  "hub": "3 · Story node render",
+  "busiest": [
+   "3 · Story node render",
+   "2 · Capability tree",
+   "7 · Running sessions",
+   "4 · Drill-down",
+   "5 · Agent capability claims"
+  ],
+  "island": {
+   "overlaps": 1,
+   "within4px": 0,
+   "byKind": {
+    "name+symbol": 1
+   },
+   "pairs": [
+    "name:Capability tree + symbol:Capability tree"
+   ]
+  },
+  "busy": {
+   "overlaps": 1,
+   "within4px": 0
+  },
+  "errors": []
+ },
+ "story_a93c6fb1a257": {
+  "story": "Desktop app",
+  "query": "?story=story_a93c6fb1a257",
+  "roadDrawn": 431,
+  "roadOnEdge": 0,
+  "gates": 11,
+  "gatesOnOpenLand": 4,
+  "overThird": 0,
+  "inside": 4,
+  "ways": 14,
+  "unplaced": [],
+  "noEntrance": 0,
+  "hub": "1 · Lifecycle",
+  "busiest": [
+   "1 · Lifecycle",
+   "4 · Updates",
+   "2 · Storytree projects",
+   "3 · Surfaces",
+   "6 · Readings file"
+  ],
+  "island": {
+   "overlaps": 0,
+   "within4px": 0,
+   "byKind": {},
+   "pairs": []
+  },
+  "busy": {
+   "overlaps": 0,
+   "within4px": 0
+  },
+  "errors": []
+ }
+}

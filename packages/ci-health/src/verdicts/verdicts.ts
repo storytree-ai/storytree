@@ -15,7 +15,9 @@
  * (`tests/test_total.py::TestTotals::test_cart_2_2_empty`), not the docstring the survey may title the test by. So it
  * counts through the number its test's name carries, `test_2_2_…`, for the one story whose package holds that test in a
  * file the node id's path names (from wherever pytest ran: `tests/test_total.py` names every package's), or, when the
- * name names a story's package first (`test_cart_2_2_…`, its hyphens as underscores), for that package's story. A
+ * name names a story's package first (`test_cart_2_2_…`, its hyphens as underscores), for that package's story. An
+ * imported story's package is the folders its code was mapped from, wherever they are (`.`, a flat project's top, holds
+ * its `tests/`); a file two of those folders hold is the deeper one's. A
  * number only a docstring carries credits nothing here. A skip, which pytest names only by its file and line, is the
  * test whose decorators or definition that line is in, else the test whose body it is in.
  *
@@ -33,7 +35,7 @@ import type { TestResult } from "../run-results/run-results.js";
 
 /** The plan as judging needs it: stories, their numbered capabilities and contracts ("1.2 · …"). */
 export type PlanTree = {
-  readonly stories: readonly { readonly id: string; readonly title: string; readonly plugin?: string; readonly capabilities: readonly { readonly id: string; readonly title: string; readonly contracts: readonly { readonly id: string; readonly title: string }[] }[] }[];
+  readonly stories: readonly { readonly id: string; readonly title: string; readonly plugin?: string; readonly mapped?: { readonly folders: readonly string[] }; readonly capabilities: readonly { readonly id: string; readonly title: string; readonly contracts: readonly { readonly id: string; readonly title: string }[] }[] }[];
 };
 
 /** A story's proofs at one commit: its contracts by number, and each numbered test title its package holds. */
@@ -84,13 +86,14 @@ export type Verdict = { state: "passing" | "failing" | "not-checked"; passed: nu
  * one, under `src/` or in a test folder beside it (`packages/<package>/test/…`), as users' projects lay them out.
  */
 export function proofsAt(tree: PlanTree, files: readonly SourceFile[]): StoryProofs[] {
+  const importedBy = importedPytest(tree, files);
   return tree.stories.map((story) => {
     const packages = packagesOf(story);
     const own = packages[0]!;
     const owned = files.filter((file) => packages.some((name) => file.path.startsWith(`packages/${name}/`)));
     // The survey reads only JavaScript and TypeScript here; pytest files are read by their tests' names below.
     const sources = owned.filter((file) => !file.path.endsWith(".py"));
-    const pytest = new Map(owned.filter((file) => PYTEST_FILE.test(file.path)).map((file) => [file.path, pytestTests(file.text)] as const));
+    const pytest = new Map([...owned, ...files.filter((file) => importedBy.get(file.path) === story.id)].filter((file) => PYTEST_FILE.test(file.path)).map((file) => [file.path, pytestTests(file.text)] as const));
     const titles = new Map<string, { numbers: string[]; package?: string }>();
     const helped: { number: string; title: string }[] = [];
     if (sources.length > 0) {
@@ -116,6 +119,25 @@ export function proofsAt(tree: PlanTree, files: readonly SourceFile[]): StoryPro
     }
     return { story: story.id, package: own, packages, contracts, titles, helped, pytest };
   });
+}
+
+/**
+ * The imported story each pytest file not in a built story's package is, by its path: the mapped story (ADR-0993 D2) whose
+ * folder holding it is deepest (`.` is the project's top, so a flat project's `tests/` is its root story's). Two stories
+ * mapped from one folder leave its files no story's.
+ */
+function importedPytest(tree: PlanTree, files: readonly SourceFile[]): Map<string, string> {
+  const built = tree.stories.filter(({ mapped }) => mapped === undefined).flatMap((story) => packagesOf(story));
+  const folders = tree.stories.flatMap(({ id, mapped }) => (mapped?.folders ?? []).map((folder) => ({ id, folder: folder.replace(/^\.\/?|\/$/g, "") })));
+  const owners = new Map<string, string>();
+  for (const { path } of files) {
+    if (!PYTEST_FILE.test(path) || built.some((name) => path.startsWith(`packages/${name}/`))) continue;
+    const holding = folders.filter(({ folder }) => folder === "" || path.startsWith(`${folder}/`));
+    const deepest = Math.max(...holding.map(({ folder }) => folder.length));
+    const at = holding.filter(({ folder }) => folder.length === deepest);
+    if (at.length > 0 && at.every(({ id }) => id === at[0]!.id)) owners.set(path, at[0]!.id);
+  }
+  return owners;
 }
 
 /** A title as the test runner prints it: the survey keeps its source text, escapes and all (`admin\\'s`). */

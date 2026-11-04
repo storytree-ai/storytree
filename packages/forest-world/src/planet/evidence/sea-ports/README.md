@@ -17,3 +17,5 @@ search has not landed.
 
 Taken with rollout 1's kit: `node docs/design/capability-tree-3d/q-all-islands/tools/build.mjs`, then
 `node --import tsx docs/design/capability-tree-3d/q-all-islands/tools/docks.mjs --stills <story>...`.
+
+In the evidence bucket for #441, linked from the pull request body (ADR-1234; deleted after 90 days or when its arc closes): `441/the-library.png`, `441/the-library-beside-mock.png`, `441/session-management.png`, `441/session-management-beside-mock.png`, `441/the-command-line.png`, `441/the-command-line-beside-mock.png`, `441/setup.png`, `441/setup-beside-mock.png`.

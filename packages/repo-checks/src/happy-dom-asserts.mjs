@@ -84,12 +84,12 @@ function problemsIn(file, text) {
   const parents = new WeakMap();
   const nodes = [];
   walk(ast.program, undefined, parents, nodes);
-  const imports = importsOf(ast.program);
+  const { imports, importedNames } = importsOf(ast.program);
   if (![...imports.values()].some((source) => HAPPY_DOM.test(source))) return [];
   const reader = domReader({ parents, nodes, imports });
   const problems = [];
   for (const node of nodes) {
-    if (node.type !== "CallExpression" || !isAssertion(node.callee, imports)) continue;
+    if (node.type !== "CallExpression" || !isAssertion(node.callee, imports, importedNames)) continue;
     const operand = node.arguments.slice(0, 2).find((argument) => reader.isDom(argument));
     if (operand === undefined) continue;
     const shown = text.slice(operand.start, operand.end).replace(/\s+/g, " ");
@@ -109,22 +109,26 @@ function walk(node, parent, parents, nodes) {
   }
 }
 
-/** Each name the file imports, mapped to the module it comes from. */
+/** Each name the file imports, mapped to the module it comes from, and each named import to the name it has there. */
 function importsOf(program) {
   const imports = new Map();
+  const importedNames = new Map();
   for (const statement of program.body) {
     if (statement.type !== "ImportDeclaration") continue;
-    for (const specifier of statement.specifiers) imports.set(specifier.local.name, statement.source.value);
+    for (const specifier of statement.specifiers) {
+      imports.set(specifier.local.name, statement.source.value);
+      if (specifier.type === "ImportSpecifier") importedNames.set(specifier.local.name, specifier.imported.name ?? specifier.imported.value);
+    }
   }
-  return imports;
+  return { imports, importedNames };
 }
 
 function isAssertModule(source) {
   return source === "assert" || source === "assert/strict" || source === "node:assert" || source === "node:assert/strict";
 }
 
-function isAssertion(callee, imports) {
-  if (callee.type === "Identifier") return FAMILY.has(callee.name) && isAssertModule(imports.get(callee.name) ?? "");
+function isAssertion(callee, imports, importedNames) {
+  if (callee.type === "Identifier") return FAMILY.has(importedNames.get(callee.name) ?? "") && isAssertModule(imports.get(callee.name) ?? "");
   if (callee.type !== "MemberExpression" || callee.computed || !FAMILY.has(callee.property.name)) return false;
   const object = callee.object;
   if (object.type === "Identifier") return object.name === "assert" || isAssertModule(imports.get(object.name) ?? "");

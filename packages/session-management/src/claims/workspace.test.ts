@@ -331,7 +331,7 @@ test("5.13 Codex checks held and waiting work before creation, and refuses a cla
   });
 });
 
-test("5.14 Codex refuses invalid returned directories and releases a claim if naming the branch fails, keeping the app worktree", async () => {
+test("5.14 Codex refuses invalid or missing returned directories and releases a claim if naming the branch fails, keeping the app worktree", async () => {
   await withWorld(async ({ dir, log, library, project, site, park, as }) => {
     const increment = await park("email form");
     const prepared = await makeWorkspace(as("B"), increment, "build form");
@@ -353,6 +353,9 @@ test("5.14 Codex refuses invalid returned directories and releases a claim if na
       assert.equal(await statusOf(library, increment), "proposal");
       assert.ok(existsSync(badFolder));
     }
+    const missing = await workspace.attachWorkspace(as("B"), increment, "build form", { folder: path.join(dir, "missing"), ref: prepared.ref, name: prepared.name });
+    assert.ok(!missing.ok && missing.refused === "no-workspace", JSON.stringify(missing));
+    assert.deepEqual(await readClaims(log, project), []);
     git(site, "branch", `codex/${prepared.name}`, prepared.ref);
     const failed = await workspace.attachWorkspace(as("B"), increment, "build form", { folder, ref: prepared.ref, name: prepared.name });
     assert.ok(!failed.ok && failed.refused === "no-workspace", JSON.stringify(failed));

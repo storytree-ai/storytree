@@ -151,9 +151,11 @@ export async function makeWorkspace(context: WorkspaceContext, id: string, reaso
 
 /** Attach an app-created worktree (Codex's, or the one a Claude Code session is already in) to this session's work, leaving its lifetime to the app. */
 export async function attachWorkspace(context: WorkspaceContext, id: string, reason: string, attachment: WorkspaceAttachment, watch: MergeWatch = {}): Promise<ClaimedWorkspace | WorkspaceRefusal> {
-  const refused = await workspaceRefusal(context, id, reason, watch);
+  // The attached worktree's branch, not the calling folder's, decides whether a pull request's held claim is taken over (11.17).
+  const checking = { ...context, ...attachedBranch(context.folder, attachment.folder) };
+  const refused = await workspaceRefusal(checking, id, reason, watch);
   if (refused !== undefined) return refused;
-  const listed = await listedCapabilities(context, id, reason);
+  const listed = await listedCapabilities(checking, id, reason);
   if (!Array.isArray(listed)) return listed;
   const codex = context.harness === "codex";
 
@@ -215,6 +217,16 @@ export async function attachWorkspace(context: WorkspaceContext, id: string, rea
     ...(claimed.takenOverFrom === undefined ? {} : { takenOverFrom: claimed.takenOverFrom }),
     ...(setup === undefined ? {} : { setup }),
   };
+}
+
+/** The branch the worktree at `folder` (resolved from `from`) has checked out, when it can be read; its full check comes later. */
+function attachedBranch(from: string, folder: string): { branch?: string } {
+  try {
+    const branch = run(path.resolve(from, folder), ["branch", "--show-current"]).trim();
+    return branch === "" ? {} : { branch };
+  } catch {
+    return {};
+  }
 }
 
 /**

@@ -10,7 +10,7 @@ import path from "node:path";
  */
 export function codeDistance(sourceFile: string): () => number | undefined {
   const git = (...args: string[]): string => execFileSync("git", ["-C", path.dirname(sourceFile), ...args], {
-    encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], timeout: 1_000,
+    encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], timeout: 1_000, windowsHide: true,
   }).trim();
   let revision: string;
   try {

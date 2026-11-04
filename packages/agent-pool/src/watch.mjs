@@ -10,7 +10,7 @@
 // node packages/agent-pool/src/watch.mjs run                                     (the watcher: one per box; keeps `watch` running)
 // node packages/agent-pool/src/watch.mjs watch                                   (its look loop, which `run` starts; exits 3 on its own code change)
 // node packages/agent-pool/src/watch.mjs status
-// node packages/agent-pool/src/watch.mjs release-fix --pr <n> | --question <id>   (a release fix session records what it left; release-watch.mjs)
+// node packages/agent-pool/src/watch.mjs release-fix --pr <n> | --wait <increment> | --question <id>   (a release fix session records what it left; release-watch.mjs)
 // node packages/agent-pool/src/watch.mjs forget                                  (at a cut-over to a new repository: sets every hand-off aside, since its pull request numbers start again, 4.40)
 // node packages/agent-pool/src/watch.mjs verdict <pr> flake|elsewhere|fix|owner --summary <text> [--parked <increment>] [--question <id>]   (a review session's one verdict, 4.37)
 import { execFile, spawn as spawnChild } from "node:child_process";
@@ -27,7 +27,7 @@ import { LANE_RUN, storytreeCommand } from "./runner.mjs";
 import { readBoxPace } from "./pace.mjs";
 import { codeVersion, countEngines, holdRunner, localBrief } from "./queue.mjs";
 import { EXEMPTIONS_EVERY_MS, exemptionChanges, watchExemptions } from "./exemptions-watch.mjs";
-import { attempted, failedJob, FOLLOWERS, isSecurityCheck, judgeReleases, recordFix, RELEASE_ARC, RELEASE_EVERY_MS, RUNNER_ATTEMPTS, runnerFault, runnerReruns, securityJobs, watchReleases } from "./release-watch.mjs";
+import { attempted, failedJob, FOLLOWERS, isSecurityCheck, judgeReleases, recordFix, RELEASE_ARC, RELEASE_EVERY_MS, RUNNER_ATTEMPTS, runnerFault, runnerReruns, securityJobs, waitHolding, watchReleases } from "./release-watch.mjs";
 
 /**
  * The code the watcher runs (4.10, ADR-0981 D3): what watch.mjs loads and what the fix sessions it starts load
@@ -1089,6 +1089,12 @@ function boxDefaults({ home = homedir(), env = process.env, platform = process.p
       .catch(() => run("gh", ["run", "rerun", String(one.id), "-R", one.repo ?? HOME], { cwd: repo })),
     tail: async (one) => (await run("gh", ["run", "view", String(one.id), "--log-failed"], { cwd: repo, maxBuffer: 64 * 1024 * 1024 }))
       .stdout.trimEnd().split("\n").slice(-30).join("\n"),
+    // An unreadable increment holds nothing, so the alarm is never muted by a record it cannot see.
+    waitHolds: async (id) => {
+      const read = (field) => storytree(["library", "read", id, "--field", field]).catch(() => "");
+      const [status, waits] = await Promise.all([read("status"), read("waitsFor")]);
+      return Boolean(status.trim()) && waitHolding({ status: status.trim(), waitsFor: waits.trim() ? JSON.parse(waits) : [] }, new Date().toISOString().slice(0, 10));
+    },
     questionOpen: async (id) => !/, (settled|retired)\b/.test((await run("pnpm", ["-s", "storytree", "question", "show", id], { cwd: repo })).stdout.split("\n")[1] ?? ""),
     raise: async (question) => {
       const { stdout } = await run("pnpm", ["-s", "storytree", "question", "new", "--arc", RELEASE_ARC,
@@ -1190,8 +1196,8 @@ export async function main(args, box = {}) {
     out(`PR #${args[1]}: verdict "${args[2]}" recorded; the watcher acts on it at its next look.`);
     return 0;
   }
-  if (args[0] === "release-fix" && /^--(pr|question)$/.test(args[1] ?? "") && args[2]) {
-    const recorded = await recordFix({ dir: b.dir, ...(args[1] === "--pr" ? { pr: Number(args[2]) } : { question: args[2] }) });
+  if (args[0] === "release-fix" && /^--(pr|wait|question)$/.test(args[1] ?? "") && args[2]) {
+    const recorded = await recordFix({ dir: b.dir, ...(args[1] === "--pr" ? { pr: Number(args[2]) } : { [args[1].slice(2)]: args[2] }) });
     out(recorded ? `Recorded ${args[2]} on the release stop: the watcher starts no other fix session while it is open.`
       : "No release stop is recorded: nothing to attach it to.");
     return recorded ? 0 : 1;
@@ -1219,7 +1225,7 @@ export async function main(args, box = {}) {
     if (!found.length) out("no hand-offs");
     return 0;
   }
-  if (args[0] !== "run" && args[0] !== "watch") { out(`usage: watch.mjs handover <pr> <increment> [--keep-open] [--repo <owner/name>] | hand <pr> <increment> [--session <id>] [--keep-open] [--repo <owner/name>] [--refused [--holder <session>]] | verdict <pr> ${VERDICTS.join("|")} --summary <text> | release-fix --pr <n> | --question <id> | forget | run | status`); return 2; }
+  if (args[0] !== "run" && args[0] !== "watch") { out(`usage: watch.mjs handover <pr> <increment> [--keep-open] [--repo <owner/name>] | hand <pr> <increment> [--session <id>] [--keep-open] [--repo <owner/name>] [--refused [--holder <session>]] | verdict <pr> ${VERDICTS.join("|")} --summary <text> | release-fix --pr <n> | --wait <increment> | --question <id> | forget | run | status`); return 2; }
   const say = b.say ?? ((line) => out(line));
   const dated = (message) => say(`${new Date(b.now()).toISOString()} ${message}`);
   if (args[0] === "run") {

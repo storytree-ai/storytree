@@ -147,27 +147,45 @@ Your job is to get releases moving and nothing else. Work from {checkout} and fo
   in the foreground, open a NON-DRAFT pull request and hand it over: \`node packages/agent-pool/src/watch.mjs hand <pr> <increment>\`.
   Then record it, so no second session starts while it lands: \`node packages/agent-pool/src/watch.mjs release-fix --pr <pr>\`.
   Never force-push, squash or \`gh pr merge\`.
-- A stop no session can move (an outside party such as Apple, a secret only the owner sets): raise the question on ${RELEASE_ARC}
-  (\`pnpm storytree question new --arc ${RELEASE_ARC} …\`), written so he can answer it cold, and record it:
-  \`node packages/agent-pool/src/watch.mjs release-fix --question <question>\`. The alarm stays quiet until it is settled.
+- A stop no session can move and no one chooses about (an outside outage, such as GitHub Actions or Apple down): park an
+  increment for it on ${RELEASE_ARC} and set an event wait on it, not an owner question (ADR-0938 D1):
+  \`pnpm storytree arc increment wait <increment> --for event --note "<what it waits on>" --check-back <day>\`. An act only the
+  owner can take with no choice in it (a secret only he sets, a sign-in) is an owner wait on it instead (\`--for owner --note … --why …\`).
+  Record it: \`node packages/agent-pool/src/watch.mjs release-fix --wait <increment>\`. The alarm stays quiet while the wait holds,
+  and the next release closes that increment.
+- A stop that needs the owner's choice: raise the question on ${RELEASE_ARC} (\`pnpm storytree question new --arc ${RELEASE_ARC} …\`),
+  written so he can answer it cold, and record it: \`node packages/agent-pool/src/watch.mjs release-fix --question <question>\`.
+  The alarm stays quiet until it is settled.
 - You exit when you end a turn, so run \`pnpm gate\` in the foreground until its table prints; never end a turn to wait.
 - Then \`pnpm storytree session close-out --safe yes --why "…"\`, and end.
 `;
 }
 
 /**
+ * Whether an increment's wait holds, from its status and waits as the library reads them (11.6): an owner wait until it
+ * is cleared, an event wait until UTC midnight of its check-back day; a closed increment holds nothing.
+ */
+export const waitHolding = ({ status, waitsFor = [] }, today) => status !== "closed"
+  && waitsFor.some(({ releaser, checkBack }) => releaser === "owner" || (releaser === "event" && today < checkBack));
+
+/**
  * One look at releases: forget a stop a new release ended, order the reruns, and on an alarm start one fix session
  * for the stop with an engine slot free. None starts while the last one lives, while the pull request it recorded is
- * still with the watcher, or while the question it (or the watcher) raised is open; a settled question lets the alarm
- * start sessions again. After `limit` sessions the watcher raises that question itself.
+ * still with the watcher, while the wait it parked an outside stop on holds, or while the question it (or the watcher)
+ * raised is open; a cleared wait or a settled question lets the alarm start sessions again. After `limit` sessions the
+ * watcher raises that question itself. A new release closes an increment a recorded wait parked, its stop over.
  */
-export async function watchReleases({ dir, readReleases, rerun, tail, alive, room, questionOpen, raise, startFix, limit, storytree, folders = {}, now = Date.now, say }) {
+export async function watchReleases({ dir, readReleases, rerun, tail, alive, room, questionOpen, waitHolds, raise, startFix, limit, storytree, folders = {}, now = Date.now, say }) {
   const dated = (message) => say(`${new Date(now()).toISOString().replace(/\.\d{3}Z$/, "Z")} releases: ${message}`);
   const { release, reruns, alarm } = await readReleases();
   let state = await load(dir);
   if (state && state.stop !== release.tag) {
     await rm(statePath(dir), { force: true });
     dated(`${release.tag} published: the stop after ${state.stop} ended`);
+    if (state.wait) {
+      try { await storytree?.(["arc", "increment", "close", state.wait, "--disposition", "withdrawn", "--note", `${release.tag} published: the outside stop it waited out is over`]); }
+      catch (error) { dated(`closing ${state.wait} failed (${error.message.split("\n")[0]})`); }
+    }
     state = null;
   }
   for (const { what, run, why } of reruns) {
@@ -178,11 +196,17 @@ export async function watchReleases({ dir, readReleases, rerun, tail, alive, roo
     catch (error) { dated(`recording the rerun of ${run.id} failed (${error.message.split("\n")[0]})`); }
   }
   if (!alarm) return;
-  state ??= { stop: release.tag, since: release.at, fixes: [], fixing: null, pr: null, question: null };
+  state ??= { stop: release.tag, since: release.at, fixes: [], fixing: null, pr: null, wait: null, question: null };
   if (state.fixing && await alive(state.fixing.pid)) return;
   if (state.fixing) { state.fixing = null; await save(dir, state); }
   if (state.pr && existsSync(join(dir, `${state.pr}.json`))) return;
   if (state.pr) { state.pr = null; await save(dir, state); }
+  if (state.wait) {
+    if (await waitHolds(state.wait)) return;
+    dated(`${state.wait}'s wait no longer holds: the alarm may start fix sessions again`);
+    Object.assign(state, { wait: null, fixes: [] });
+    await save(dir, state);
+  }
   if (state.question) {
     if (await questionOpen(state.question)) return;
     dated(`${state.question} is settled: the alarm may start fix sessions again`);
@@ -225,10 +249,10 @@ export async function watchReleases({ dir, readReleases, rerun, tail, alive, roo
   dated(`${alarm.why}: fix session ${n} of ${limit} started, log ${fix.log}`);
 }
 
-/** Record what the fix session left behind: the pull request it handed over, or the question it raised. */
-export async function recordFix({ dir, pr, question }) {
+/** Record what the fix session left behind: the pull request it handed over, the increment it parked on a wait, or the question it raised. */
+export async function recordFix({ dir, pr, wait, question }) {
   const state = await load(dir);
   if (!state) return false;
-  await save(dir, { ...state, ...(pr ? { pr } : {}), ...(question ? { question } : {}) });
+  await save(dir, { ...state, ...(pr ? { pr } : {}), ...(wait ? { wait } : {}), ...(question ? { question } : {}) });
   return true;
 }

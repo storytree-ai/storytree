@@ -6,7 +6,7 @@ import { test } from "node:test";
 
 import { removeTemp } from "@storytree/test-waits";
 
-import { attempted, judgeReleases, RELEASE_LIMIT_MS, RUNNER_ATTEMPTS, runnerFault, runnerReruns, watchReleases } from "./release-watch.mjs";
+import { attempted, judgeReleases, recordFix, RELEASE_LIMIT_MS, RUNNER_ATTEMPTS, runnerFault, runnerReruns, waitHolding, watchReleases } from "./release-watch.mjs";
 
 const at = Date.parse("2026-10-13T12:00:00Z");
 const minutes = (n) => new Date(at + n * 60_000).toISOString();
@@ -115,7 +115,7 @@ test("4.29 · a red only the runner caused (no runner took a job, the browser cr
 async function box(t, { judged, release: latest = release } = {}) {
   const dir = await mkdtemp(join(tmpdir(), "lane-release-"));
   t.after(() => removeTemp(dir));
-  const fixes = [], reruns = [], questions = [], lines = [], live = new Set(), open = new Set();
+  const fixes = [], reruns = [], questions = [], lines = [], live = new Set(), open = new Set(), held = new Set();
   let room = true, outcome = judged;
   const options = {
     dir, limit: 2, now: () => at, say: (line) => lines.push(line), folders: { checkout: "/srv/shop", lanes: "/srv/lanes" },
@@ -125,10 +125,11 @@ async function box(t, { judged, release: latest = release } = {}) {
     alive: async (pid) => live.has(pid),
     room: async () => room,
     questionOpen: async (id) => open.has(id),
+    waitHolds: async (id) => held.has(id),
     raise: async (brief) => { questions.push(brief); open.add("question_r"); return "question_r"; },
     startFix: async (fix) => { fixes.push(fix); const pid = 2000 + fixes.length; live.add(pid); return { pid, log: `/lanes/release-fix-${fix.n}.log` }; },
   };
-  return { dir, fixes, reruns, questions, lines, live, open, options, set: (next) => { outcome = next; }, noRoom: () => { room = false; } };
+  return { dir, fixes, reruns, questions, lines, live, open, held, options, set: (next) => { outcome = next; }, noRoom: () => { room = false; } };
 }
 
 const alarm = { why: "the last two release attempts both ended failed or cancelled", run: { id: 50, url: "https://ci/run/50", job: "package (macOS)" } };
@@ -182,6 +183,51 @@ test("4.17 · a release alarm starts one fix session per stop, quiet while it or
   await writeFile(join(next.dir, "release.json"), JSON.stringify({ stop: "v0.3.1355", fixes: [{ pid: 1 }], fixing: null }));
   await watchReleases(next.options);
   await assert.rejects(readFile(join(next.dir, "release.json"), "utf8"), { code: "ENOENT" });
+});
+
+test("4.17 · an outside stop the fix session parks on an event wait keeps the alarm quiet, with no owner question, while the wait holds; a new release closes it", async (t) => {
+  const b = await box(t, { judged: { reruns: [], alarm } });
+  const told = [];
+  b.options.storytree = async (args) => { told.push(args); return ""; };
+  await watchReleases(b.options);
+  assert.equal(b.fixes.length, 1);
+  assert.match(b.fixes[0].brief, /--for event --note/, "the brief routes an outside stop to an event wait");
+  assert.match(b.fixes[0].brief, /release-fix --wait <increment>/);
+
+  // The session parked the stop on an event wait and ended: no second session and no question while it holds.
+  b.live.clear();
+  assert.equal(await recordFix({ dir: b.dir, wait: "increment_outage" }), true);
+  b.held.add("increment_outage");
+  await watchReleases(b.options);
+  await watchReleases(b.options);
+  assert.equal(b.fixes.length, 1);
+  assert.equal(b.questions.length, 0);
+
+  // Its wait cleared or its check-back passed with releases still stopped: the alarm starts sessions again, counted afresh.
+  b.held.clear();
+  await watchReleases(b.options);
+  assert.equal(b.fixes.length, 2);
+  assert.equal(b.fixes[1].n, 1);
+  assert.ok(b.lines.some((line) => /increment_outage's wait no longer holds/.test(line)));
+
+  // Waited out: the next release ends the stop and closes the parked increment, so the pool never takes it up.
+  b.live.clear();
+  await recordFix({ dir: b.dir, wait: "increment_outage" });
+  b.held.add("increment_outage");
+  b.options.readReleases = async () => ({ release: { ...release, tag: "v0.3.1356" }, reruns: [], alarm: null });
+  await watchReleases(b.options);
+  const close = told.find((args) => args[2] === "close");
+  assert.deepEqual(close.slice(0, 6), ["arc", "increment", "close", "increment_outage", "--disposition", "withdrawn"]);
+  assert.match(close[7], /v0\.3\.1356 published/);
+  await assert.rejects(readFile(join(b.dir, "release.json"), "utf8"), { code: "ENOENT" });
+
+  // Whether a wait holds, read as the library does: an owner wait until cleared, an event wait until its check-back day.
+  const event = (checkBack) => ({ status: "proposal", waitsFor: [{ releaser: "event", note: "GitHub Actions recovers", checkBack }] });
+  assert.equal(waitHolding(event("2026-10-14"), "2026-10-13"), true);
+  assert.equal(waitHolding(event("2026-10-13"), "2026-10-13"), false, "from its check-back day it no longer holds");
+  assert.equal(waitHolding({ status: "active", waitsFor: [{ releaser: "owner", note: "set the secret", why: "a signed build" }] }, "2026-10-13"), true);
+  assert.equal(waitHolding({ ...event("2026-10-14"), status: "closed" }, "2026-10-13"), false);
+  assert.equal(waitHolding({ status: "proposal" }, "2026-10-13"), false);
 });
 
 test("4.27 · each rerun the watcher starts is recorded as a ci-rerun line naming the repository, the run and the attempt it starts; a refused one is not", async (t) => {

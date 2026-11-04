@@ -31,11 +31,12 @@ is installed on the Mint box (`stable-acceptance.timer`), counting the fortnight
 | signin | the fresh user | a one-word `claude -p` call on the run's token: a user its Claude Code does not answer (a bad or expired token, a usage limit) stops the run with `PRECONDITION:` in `run.log` and exit 4, removes the user and judges nothing |
 | install | the fresh user | the stable one-liner with `STORYTREE_ACCEPTANCE_VERSION`; it asks nothing |
 | app | the fresh user | the app reopened with a DevTools port on 127.0.0.1; a screenshot of first open |
+| setup | the fresh user | the app's first-open steps the installer leaves to it: Connect Claude Code on the guide, then `~\tipjar` added as the guide offers in a terminal (`storytree doctor --set-up tipjar`, `steps/project.ps1`: its Add a project… button opens Windows' folder picker, which DevTools cannot reach); a screenshot after each |
 | turn1 | the fresh user | the first-run guide's steps: the connection check, then a small tip calculator with tests (`prompts/turn-1.txt`) |
 | shots1 | the fresh user | the forest and stories after the build |
 | turn2 | the fresh user | the same session: feedback for storytree's makers and the test command (`prompts/turn-2.txt`) |
 | feedback | the fresh user | that feedback typed into Help → Send feedback, then Open GitHub draft (a browser draft; nothing is submitted) |
-| verify | the fresh user | in the folder turn 1 wrote the project into (`sum.mjs` reads it from the transcript), the tests run again by the named command and the project's library read |
+| verify | the fresh user | in the folder turn 1 wrote the project into (`sum.mjs` reads it from the transcript, whose profile folder comes back scrubbed as `<home>`, which `verify.ps1` reads as the user's own), the tests run again by the named command and the project's library read |
 | after | owner's SSH login | the user, its task, profile, run folder and logon right removed; `state.ps1` again and diffed |
 | judge | Mint box | `judge.sh`: a separate `claude -p` (Sonnet, read-only tools) against `criteria.md`; exit 0 only on PASS |
 

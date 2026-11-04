@@ -12,8 +12,10 @@ import { Window } from "happy-dom";
 import { captureSeed } from "../../../../apps/desktop/src/capture/index.js";
 import type { ProjectSelection } from "../projects/selection.js";
 import type { SurfacesResult } from "../surfaces/bridge.js";
-import type { NewsListener } from "@storytree/arc-surface";
 import { openProjectPage, type ForestGlobe, type ForestSelection, type PageParts, type ProjectParts } from "./page.js";
+
+/** Who hears the page's one reading, as the page reading takes them. */
+type NewsListener = Parameters<ProjectParts["page"]["subscribe"]>[0];
 
 const { seed } = captureSeed("forest");
 const tree = seed.tree as AnnotatedTree;

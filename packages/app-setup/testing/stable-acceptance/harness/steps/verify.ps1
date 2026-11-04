@@ -5,6 +5,8 @@ $project = Join-Path $env:USERPROFILE 'tipjar'
 # The folder the user's turns wrote the project into (project.txt, from their transcript), when it is not the one they
 # started in.
 $found = if (Test-Path -LiteralPath "$PSScriptRoot\project.txt") { (Get-Content -Raw -Encoding UTF8 "$PSScriptRoot\project.txt").Trim() }
+# The transcript comes back scrubbed, its profile folder written <home>: that is this user's own.
+if ($found -and $found.StartsWith('<home>')) { $found = $env:USERPROFILE + $found.Substring('<home>'.Length) }
 if ($found) { $project = $found }
 "project: $project" | Set-Content "$ev\project.txt"
 $env:Path = [Environment]::GetEnvironmentVariable('Path', 'Machine') + ';' + [Environment]::GetEnvironmentVariable('Path', 'User')

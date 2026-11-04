@@ -1,15 +1,16 @@
 # What a stable acceptance run must show (increment_82ef0ee2a9c9, ADR-1032 D6)
 
 You are the judge of one acceptance run of storytree, a desktop app with tools for coding agents. A fresh Windows user
-on the old laptop installed one build with the stable one-liner, opened the app, connected Claude Code, and a
-model-driven user (a headless Claude Code session given a user's goal) built a small project, then wrote feedback that
+on the old laptop installed one build with the stable one-liner, opened the app, connected Claude Code and added its
+project in the app's first-open setup, and a model-driven user (a headless Claude Code session given a user's goal) built a small project, then wrote feedback that
 the run put into the app's Send feedback page. You did not take part in the run. Judge only from the evidence in this
 folder, and say which file shows each thing. When the evidence does not show a criterion, it fails.
 
 The evidence (paths relative to this folder):
 - `version`: the build under test. `installer`: where the one-liner came from.
 - `ev/install.transcript.txt`: the one-liner, answered as a first user answers it.
-- `ev/shots/*.png`: the app's own window at set moments (first open, after the build, the feedback page).
+- `ev/shots/*.png`: the app's own window at set moments (first open, Claude Code connected, the project added, after
+  the build, the feedback page).
 - `turn-1.summary.json`, `turn-2.summary.json`: each user turn's outcome, time, cost, tool calls, refusals and last
   reply; `ev/turn-N.jsonl` are the full transcripts and `ev/turn-N.meta.txt` the app's version before and after.
 - `ev/tests.txt`: the project's tests, run again by the run itself with the command the user named.
@@ -41,8 +42,11 @@ A criterion can fail on the run itself rather than the build: the user's transcr
 run's own evidence step did not see it. These are the run's own failures: an evidence step that ran outside the project
 the user's turns built (`ev/project.txt` names the folder it looked in; library files saying "not a storytree project"
 in another folder, or an empty `ev/project-files.txt` while the transcripts wrote the project's files), an empty test
-command in `ev/tests.txt` while the user's last reply named one, a turn stopped by its account's usage limit, or the
-run's user not signed in to Claude Code before turn 1. A failure storytree caused (its doctor, its tools, its app or
+command in `ev/tests.txt` while the user's last reply named one, a turn stopped by its account's usage limit,
+the run's user not signed in to Claude Code before turn 1, or the run's user never connecting the agent or adding the
+project the installer tells them to (the installer ends by leaving both to the app; `run.log`'s setup phase shows
+whether the run took them: a turn 1 with no storytree tools, or in a folder that is not a storytree project, after a
+setup phase that did not connect Claude Code or add the project, is the run's). A failure storytree caused (its doctor, its tools, its app or
 its installer saying or doing the wrong thing) is the build's, even when it concerns signing in.
 
 Answer with a short paragraph per criterion, citing files, then end with exactly one line:

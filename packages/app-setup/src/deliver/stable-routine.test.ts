@@ -159,7 +159,7 @@ function acceptance(signin: string, phases: string[], seed: Record<string, strin
   const here = path.join(root, "harness"), bin = path.join(root, "bin"), out = path.join(root, "out");
   for (const dir of [here, path.join(here, "steps"), bin]) mkdirSync(dir, { recursive: true });
   spawnSync("git", ["init", "-q", here]);
-  for (const file of ["run.sh", "user.ps1", "state.ps1", "steps/prepare.ps1", "steps/signin.ps1", "steps/install.ps1", "steps/cdp.ps1", "steps/verify.ps1"]) copyFileSync(path.join(harness, file), path.join(here, file));
+  for (const file of ["run.sh", "user.ps1", "state.ps1", "steps/prepare.ps1", "steps/signin.ps1", "steps/install.ps1", "steps/cdp.ps1", "steps/project.ps1", "steps/verify.ps1"]) copyFileSync(path.join(harness, file), path.join(here, file));
   mkdirSync(out, { recursive: true });
   for (const [file, text] of Object.entries(seed)) writeFileSync(path.join(out, file), text);
   writeFileSync(path.join(here, "judge.sh"), `echo judged >> "${root}/calls"; echo "VERDICT: PASS" | tee -a "$1/run.log"`);
@@ -167,7 +167,8 @@ function acceptance(signin: string, phases: string[], seed: Record<string, strin
   writeFileSync(token, "sk-ant-oat01-abc\n");
   const script = (name: string, body: string) => { writeFileSync(path.join(bin, name), `#!/bin/bash\n${body}\n`); chmodSync(path.join(bin, name), 0o755); };
   script("ssh", `echo "ssh $*" >> "${root}/calls"; case "$*" in *signin.ps1*) printf '%s\\n' ${JSON.stringify(signin)} ;; esac; exit 0`);
-  script("scp", `echo "scp $*" >> "${root}/calls"; exit 0`);
+  // The DevTools steps sent to the laptop are recorded with the call, as the laptop would take them in turn.
+  script("scp", `echo "scp $*" >> "${root}/calls"; case "$2" in *cdp-steps.txt) sed 's/^/  cdp /' "$2" >> "${root}/calls" ;; esac; exit 0`);
   script("curl", "echo STORYTREE_ACCEPTANCE_VERSION");
   script("pnpm", "exit 0");
   const env = { ...process.env, STABLE_ACCEPTANCE_HOST: "laptop", STABLE_ACCEPTANCE_TOKEN_FILE: token, PATH: `${bin}${path.delimiter}${process.env.PATH ?? ""}` };
@@ -212,6 +213,35 @@ test("1.17 the acceptance run reads the user's feedback and test command from a 
     assert.equal(said("project.txt"), "D:\\work\\tip-calculator");
     assert.ok(r.calls.some((call) => /scp .*project\.txt/.test(call)), "the found folder goes to the laptop: " + r.calls.join("\n"));
   } finally { await removeTemp(r.root); }
+});
+
+test("1.17 the acceptance run's user connects Claude Code and adds its project in the app's first-open setup, as the installer now leaves them to, before its first turn", { skip }, async () => {
+  const r = acceptance("", ["setup"]);
+  try {
+    assert.equal(r.status, 0, r.log);
+    const at = (pattern: RegExp) => r.calls.findIndex((call) => pattern.test(call));
+    const connect = at(/^ {2}cdp mouse:Connect Claude Code$/), added = at(/^ssh .*user\.ps1 step .*project\.ps1/);
+    assert.ok(connect >= 0, "the app's Connect Claude Code is pressed: " + r.calls.join("\n"));
+    assert.ok(added > connect, "the project is added once Claude Code is connected: " + r.calls.join("\n"));
+    assert.ok(r.calls.slice(added).some((call) => /^ {2}cdp shot:/.test(call)), "the app is pictured with the project added: " + r.calls.join("\n"));
+  } finally { await removeTemp(r.root); }
+});
+
+/** A PowerShell to run the laptop's step scripts with: Windows PowerShell on Windows, elsewhere pwsh when it is installed. */
+const powershell = process.platform === "win32" ? "powershell.exe" : spawnSync("pwsh", ["-NoProfile", "-Command", "exit 0"]).status === 0 ? "pwsh" : undefined;
+
+test("1.17 the run's evidence step enters the project its user's turns built when the scrubbed transcript names it under <home>, the user's own profile folder", { skip: powershell === undefined && "PowerShell is not installed here" }, async () => {
+  const root = mkdtempSync(path.join(tmpdir(), "storytree-stable-verify-"));
+  try {
+    const profile = path.join(root, "profile"), local = path.join(root, "local");
+    for (const dir of [path.join(root, "ev"), path.join(profile, "tipjar"), local]) mkdirSync(dir, { recursive: true });
+    copyFileSync(path.join(harness, "steps", "verify.ps1"), path.join(root, "verify.ps1"));
+    writeFileSync(path.join(root, "project.txt"), `<home>${path.sep}tipjar\n`);
+    writeFileSync(path.join(root, "test-command.txt"), "echo ok\n");
+    const result = spawnSync(powershell!, ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", path.join(root, "verify.ps1")], { encoding: "utf8", env: { ...process.env, USERPROFILE: profile, LOCALAPPDATA: local } });
+    assert.equal(readFileSync(path.join(root, "ev", "project.txt"), "utf8").trim(), `project: ${path.join(profile, "tipjar")}`, result.stdout + result.stderr);
+    assert.ok(existsSync(path.join(root, "ev", "tests.txt")), "the tests are run in the project: " + result.stdout + result.stderr);
+  } finally { await removeTemp(root); }
 });
 
 test("1.17 a turn's summary names the project folder its writes went to, wherever the turn itself ran, its own settings' folder aside", async () => {

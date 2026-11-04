@@ -6,7 +6,7 @@
 # user and everything it made. Driven from the Mint box over ssh, as process_81a7122f6849 says.
 #
 # Usage: run.sh <0.3.N> [evidence folder] [phase...]
-#   phases, in order: before user prepare signin install app turn1 shots1 turn2 feedback verify after judge
+#   phases, in order: before user prepare signin install app setup turn1 shots1 turn2 feedback verify after judge
 #   (default all; naming some reruns only those, for a run's repair). Evidence stays out of the repository's
 #   history: by default ~/storytree-lanes/stable-acceptance/<UTC stamp>-<version>/.
 # Exit 0 only when the judge says PASS; 4 when the run's user is not signed in, which judges nothing (PRECONDITION:).
@@ -15,7 +15,7 @@ VERSION=${1:?usage: run.sh <0.3.N> [evidence folder] [phase...]}
 [[ $VERSION =~ ^0\.3\.[1-9][0-9]*$ ]] || { echo "not a 0.3.<n> version: $VERSION" >&2; exit 2; }
 OUT=${2:-$HOME/storytree-lanes/stable-acceptance/$(date -u +%Y%m%dT%H%M%SZ)-$VERSION}
 shift $(( $# >= 2 ? 2 : 1 ))
-PHASES=${*:-before user prepare signin install app turn1 shots1 turn2 feedback verify after judge}
+PHASES=${*:-before user prepare signin install app setup turn1 shots1 turn2 feedback verify after judge}
 # The laptop's ssh name, kept on this box beside the runs rather than in the repository.
 HOST=${STABLE_ACCEPTANCE_HOST:-$(cat "$HOME/storytree-lanes/stable-acceptance/host")}
 [[ -n $HOST ]] || { echo "no laptop to run on: set STABLE_ACCEPTANCE_HOST or write its ssh name to ~/storytree-lanes/stable-acceptance/host" >&2; exit 2; }
@@ -98,6 +98,13 @@ for phase in $PHASES; do
       put "$HERE/steps/cdp.mjs" cdp.mjs
       step app 5
       cdp wait:15000 shot:01-first-open buttons: "text:#setup-help-title" ;;
+    setup)
+      # The installer leaves connecting the agent and adding a project to the app ("In the app, connect your coding
+      # agents and, when you want one, add a project"), so the user takes both before turn 1, as a first user would:
+      # Connect Claude Code on the first-open guide, then ~\tipjar added as the guide offers it (project.ps1).
+      cdp "mouse:Connect Claude Code" wait:10000 "text:[data-connect]" shot:01b-connected
+      step project 5
+      cdp wait:5000 buttons: shot:01c-project-added ;;
     turn1)
       put "$HERE/prompts/turn-1.txt" prompt-1.txt
       N=1 step turn 75; fetch

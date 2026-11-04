@@ -1112,6 +1112,33 @@ test("8.38 each path given is placed in its checkout: its story and package, the
   }
 });
 
+test("8.38 a path inside a worktree nested in the folder's checkout is placed in that worktree, as it is in the main checkout", async () => {
+  const folder = await mkdtemp(path.join(tmpdir(), "code-survey-nested-"));
+  const shop = { id: "story-shop", title: "Shop", capabilities: [{ id: "cap-cart", title: "4 · Cart" }] };
+  const plan = { arcs: [], stories: [shop] } as unknown as AnnotatedTree;
+  try {
+    await mkdir(path.join(folder, "packages/shop/src"), { recursive: true });
+    await writeFile(path.join(folder, "packages/shop/src/cart.ts"), "// Capability 4 · Cart.\nexport const cart = 1;\n");
+    const git = (...args: string[]) => execFileSync("git", args, { cwd: folder, stdio: "pipe", windowsHide: true });
+    git("init");
+    git("add", ".");
+    git("-c", "user.name=Survey test", "-c", "user.email=survey@example.test", "-c", "commit.gpgsign=false", "commit", "-m", "survey fixture");
+    const worktree = path.join(folder, ".claude/worktrees/lane");
+    git("worktree", "add", "--detach", worktree, "HEAD");
+    const cart = path.join(worktree, "packages/shop/src/cart.ts");
+    const made = path.join(worktree, "packages/shop/src/new.ts");
+    const places = await placeFiles(folder, [cart, made, "packages/shop/src/cart.ts"], plan, { survey: async () => ({}) });
+    const story = { id: shop.id, title: shop.title };
+    assert.deepEqual(places, [
+      { file: cart, path: "packages/shop/src/cart.ts", story, package: "packages/shop", capability: "cap-cart", inferred: false },
+      { file: made, path: "packages/shop/src/new.ts", story, package: "packages/shop" },
+      { file: "packages/shop/src/cart.ts", path: "packages/shop/src/cart.ts", story, package: "packages/shop", capability: "cap-cart", inferred: false },
+    ]);
+  } finally {
+    await removeTemp(folder);
+  }
+});
+
 test("8.29 a source file whose header's title is not its number's capability in its story, as a file moved from another story keeps, declares nothing: it is placed by inference, or nowhere", async () => {
   const plan = { arcs: [], stories: [{ id: "story-shop", title: "Shop", capabilities: [{ id: "cap-settings", title: "2 · Settings" }, { id: "cap-caller", title: "3 · The caller" }] }] } as unknown as AnnotatedTree;
   const texts: Record<string, string> = {

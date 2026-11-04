@@ -30,7 +30,7 @@
  *   and plan the same, answers from it, reading no file but the keep (8.42). A folder with no Git keeps nothing.
  */
 import { createHash } from "node:crypto";
-import { readdirSync, readFileSync, realpathSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, realpathSync } from "node:fs";
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -137,15 +137,28 @@ export interface FilePlace {
  * yet made), and its capability as {@link capabilitiesOfFiles} places it. A path in no story's package is placed nowhere.
  */
 export async function placeFiles(folder: string, paths: readonly string[], tree: AnnotatedTree, options: Parameters<typeof capabilitiesOfFiles>[3] = {}): Promise<FilePlace[]> {
-  // Git names the top by its real path, so each path is read by its own.
-  const root = await checkoutTop(realOf(folder));
-  const relative = paths.map((given) => path.relative(root, realOf(path.resolve(folder, given))).split(path.sep).join("/"));
-  const owners = await capabilitiesOfFiles(root, relative, tree, options);
+  // Git names the top by its real path, so each path is read by its own. A path in a worktree nested in the folder's
+  // checkout (a lane's under .claude/worktrees) is read against that worktree's top, never the folder's.
+  const root = realOf(await checkoutTop(realOf(folder)));
+  const tops = new Map<string, Promise<string>>();
+  const topOf = (at: string): Promise<string> => {
+    if (!tops.has(at)) tops.set(at, gitText(at, ["rev-parse", "--show-toplevel"]).then(realOf, () => root));
+    return tops.get(at)!;
+  };
+  const located = await Promise.all(paths.map(async (given) => {
+    const real = realOf(path.resolve(folder, given));
+    const top = await topOf(existingFolder(path.dirname(real)));
+    return { top, at: path.relative(top, real).split(path.sep).join("/") };
+  }));
   const alsoOwned = options.alsoOwned ?? ALSO_OWNED;
+  const owners = new Map<string, Map<string, FileOwner>>();
+  for (const top of new Set(located.map(({ top }) => top))) {
+    owners.set(top, await capabilitiesOfFiles(top, located.filter((one) => one.top === top).map(({ at }) => at), tree, options));
+  }
   return paths.map((file, index) => {
-    const at = relative[index]!;
+    const { top, at } = located[index]!;
     const holding = storyHolding(tree, at, alsoOwned);
-    const owner = owners.get(at);
+    const owner = owners.get(top)!.get(at);
     return {
       file, path: at,
       ...(holding === undefined ? {} : { story: { id: holding.story.id, title: holding.story.title }, package: holding.folder }),
@@ -154,10 +167,20 @@ export async function placeFiles(folder: string, paths: readonly string[], tree:
   });
 }
 
-/** `file`'s real path, through its nearest folder that exists: a file not yet made has none of its own. */
+/** `folder`, or its nearest parent that exists (the file system's root always does): a file not yet made is in a checkout through it. */
+function existingFolder(folder: string): string {
+  let at = folder;
+  while (!existsSync(at)) at = path.dirname(at);
+  return at;
+}
+
+/**
+ * `file`'s real path, through its nearest folder that exists: a file not yet made has none of its own. It is the final
+ * path, as Git writes a top, so a Windows 8.3 short name (a runner's temp folder) is read by its long name.
+ */
 function realOf(file: string): string {
   try {
-    return realpathSync(file);
+    return realpathSync.native(file);
   } catch {
     const parent = path.dirname(file);
     return parent === file ? file : path.join(realOf(parent), path.basename(file));

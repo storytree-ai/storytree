@@ -103,7 +103,8 @@ jobs:
             # before it has taken the result in, naming required checks as not yet passed (`... is
             # queued`, `... is expected`, `... is in progress`, `... have not succeeded`). Whether a
             # refusal is tried again, for how long, is packages/base-dev-loop/src/land-enqueue.mjs's call
-            # (five minutes: PR #1684 was refused for 75 s and more). Every try is at expectedHeadOid,
+            # (five minutes: PR #1684 was refused for 75 s and more), and so is a reply that will not
+            # parse while the pull request is not in the queue. Every try is at expectedHeadOid,
             # and only while the pull request's head is still the commit `verify` passed: a newer
             # push has a run of its own.
             rule=packages/base-dev-loop/src/land-enqueue.mjs
@@ -116,7 +117,14 @@ jobs:
                 exit 0
               fi
               echo "$out"
-              if ! env -u QUEUE_TOKEN node "$rule" "$((SECONDS - start))" <<< "$out"; then exit 1; fi
+              # A failed reply can still have enqueued it (PR #403 got an HTML page back and was
+              # queued), so read its merge-queue entry before the rule decides: 2 is enqueued.
+              entry=$(gh api graphql -f owner="${GITHUB_REPOSITORY%/*}" -f name="${GITHUB_REPOSITORY#*/}" -F pr="$PR" \
+                -f query='query($owner: String!, $name: String!, $pr: Int!) { repository(owner: $owner, name: $name) { pullRequest(number: $pr) { mergeQueueEntry { state } } } }' \
+                --jq '.data.repository.pullRequest.mergeQueueEntry.state // ""' 2>/dev/null) || entry=""
+              env -u QUEUE_TOKEN node "$rule" "$((SECONDS - start))" "$entry" <<< "$out" && rc=0 || rc=$?
+              if [ "$rc" = 2 ]; then exit 0; fi
+              if [ "$rc" != 0 ]; then exit 1; fi
               head=$(gh pr view "$PR" --repo "$GITHUB_REPOSITORY" --json headRefOid --jq .headRefOid)
               if [ "$head" != "$SHA" ]; then
                 echo "::error::The pull request's head moved to $head after verify passed $SHA, so this run does not enqueue it: the newer push's run does."

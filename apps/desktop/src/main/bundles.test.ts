@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 import { mkdtempSync } from "node:fs";
 import { builtinModules, createRequire } from "node:module";
 import { tmpdir } from "node:os";
@@ -9,7 +10,7 @@ import { fileURLToPath } from "node:url";
 import { build, type BuildOptions } from "esbuild";
 import { removeTemp } from "@storytree/test-waits";
 
-import { mainBuild, preloadBuild } from "./bundles.js";
+import { buildCommit, mainBuild, preloadBuild } from "./bundles.js";
 
 const dist = path.join(tmpdir(), "storytree-bundles");
 
@@ -67,6 +68,25 @@ test("1.47 · the preload script, bundled as the app bundles it, gives the page 
   const signIn = opened({ [FEEDBACK_IDENTITY_OFFERED]: true });
   assert.equal(typeof signIn.exposed.storytree!.feedbackIdentity, "object");
   assert.deepEqual(signIn.exposed.storytree!.pluginViews, []);
+});
+
+test("1.49 · a packaged build names the commit its checkout had when it was bundled, in its label from the first moment, so each main-process error it records points at that commit", { timeout: 60_000 }, async (t) => {
+  const checkout = mkdtempSync(path.join(tmpdir(), "storytree-build-commit-"));
+  t.after(() => removeTemp(checkout));
+  const env = { ...process.env, GIT_AUTHOR_NAME: "t", GIT_AUTHOR_EMAIL: "t@t", GIT_COMMITTER_NAME: "t", GIT_COMMITTER_EMAIL: "t@t" };
+  const git = (...args: string[]) => execFileSync("git", ["-C", checkout, "-c", "commit.gpgsign=false", ...args], { encoding: "utf8", env }).trim();
+  git("init", "--quiet");
+  git("commit", "--quiet", "--allow-empty", "-m", "a commit");
+  const head = git("rev-parse", "HEAD");
+  assert.equal(buildCommit(checkout), head);
+  assert.equal(buildCommit(path.join(checkout, "..", "no-such-checkout")), undefined, "a build from no checkout names no commit");
+
+  const label = async (commit: string | null) => {
+    const { text } = await bundled({ ...mainBuild(dist, undefined, commit), entryPoints: [fileURLToPath(new URL("./packaged-build.ts", import.meta.url))] });
+    return (run(text, {}) as { packagedBuild: (version: string) => string }).packagedBuild("0.3.2001");
+  };
+  assert.equal(await label(head), `version 0.3.2001 (commit ${head.slice(0, 7)})`);
+  assert.equal(await label(null), "version 0.3.2001");
 });
 
 test("4.10 · in a copy that does not install releases, the main process makes no updater, so an update request can neither fetch a build nor restart the app", { timeout: 120_000 }, async (t) => {

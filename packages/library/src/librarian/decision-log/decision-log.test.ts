@@ -182,6 +182,13 @@ test("22.5 a decision superseded by `adr new --supersedes` leaves `adr list --lo
     assert.equal(successor?.record.fields.decided, "2026-11-04", "the successor keeps the fields adr new gave it");
     assert.deepEqual((await library.frontCovers(capability.id)).map(({ id }) => id), [successor!.record.id]);
     assert.equal((await library.decision(cover.id))?.status, "superseded");
+
+    const plain = await library.recordDecision({ title: "Log every email", text: "Every email sent is logged.", status: "accepted" });
+    await adr("new").act({ title: "Log email for a month", text: "Kept a month.", status: "accepted", supersedes: plain.id }, context, words);
+    await adr("new").act({ title: "Log and keep every email", text: "Kept a year.", status: "accepted", supersedes: plain.id, "load-bearing": true }, context, words);
+    const marks = Object.fromEntries((await library.decisions()).map((view) => [view.record.fields.title, view.record.fields.loadBearing === true]));
+    assert.equal(marks["Log email for a month"], false, "a successor of decisions without the mark gets none");
+    assert.equal(marks["Log and keep every email"], true, "and one marked load-bearing keeps it");
   });
 });
 

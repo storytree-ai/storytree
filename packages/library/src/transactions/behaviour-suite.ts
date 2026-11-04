@@ -744,7 +744,7 @@ export function transactionsBehaviourSuite(label: string, makeStore: () => Promi
       await store.edit({ id: "o-1", fields: { v: 2 } });
       await assert.rejects(store.edit({ id: "o-2", fields: { v: 2 }, validate: () => { throw new Error("refused"); } }), /refused/);
       entered();
-      await sleep(50);
+      await inside;
       await store.inOneWrite(() => store.edit({ id: "o-2", fields: { v: 3 } }));
       assert.equal((await store.get("o-1"))?.fields.v, 2, "another writer waits for the work to finish");
       return "done";

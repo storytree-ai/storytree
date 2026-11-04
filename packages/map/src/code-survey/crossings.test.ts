@@ -169,6 +169,12 @@ test("3.9 a mapped Python island's imports cross a line too: a src.-prefixed imp
     assert.deepEqual(retrieve.out.island, { files: 1, imports: 2 }, "retrieve.py reaches db.py and the embed package's __init__.py");
     const src = await crossingsOf(python, survey, trunk, { patterns: ["src"] });
     assert.deepEqual(src.in.island, { files: 1, imports: 1 }, "the test outside src imports retrieve.py");
+
+    // A package mapped in a subfolder of its import resolves from that folder, not the import's top.
+    await write(checkbox, { "services/api/src/__init__.py": "", "services/api/src/store.py": "X = 1\n", "services/api/src/app.py": "from src.store import X\n" });
+    const nested = { arcs: [], stories: [{ id: "story-api", title: "api", capabilities: [], mapped: { from: checkbox, package: "services/api", folders: ["services/api"] } }] } as unknown as AnnotatedTree;
+    const store = await crossingsOf(nested, await codeSurveyReader({ checkout: "current" }).read(trunk, nested, [{ folder: checkbox }]), trunk, { patterns: ["services/api/src/store.py"], mode: "show" });
+    assert.deepEqual(store.rows?.map(({ from, to }) => `${from} -> ${to}`), ["services/api/src/app.py -> services/api/src/store.py"]);
   } finally {
     await rm(checkbox, { recursive: true, force: true });
     await rm(trunk, { recursive: true, force: true });

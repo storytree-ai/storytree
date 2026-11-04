@@ -191,7 +191,7 @@ test("a capture run to check it writes to a scratch folder, and re-takes into it
   assert.equal(outputFolder(folder, { argv: ["node", "capture.mjs", "--retake"], tmp: "/scratch" }), folder);
 });
 
-test("a retaken capture names the evidence upload for its pictures, never a commit, as a check run names --retake", t => {
+test("2.18 · a retaken capture names the evidence upload for its pictures, never a commit, as a check run names --retake", t => {
   const folder = mkdtempSync(path.join(tmpdir(), "storytree-retake-"));
   t.after(() => removeTemp(folder));
   const said: string[] = [];

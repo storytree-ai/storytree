@@ -638,8 +638,11 @@ export class LogFold {
     const died = this.#diedWithMachine(session, latest.at);
     const running = died ? [] : [...own.running.values()].filter(({ until }) => now <= until);
     const quiet = now - Date.parse(latest.at) > quietMs && running.length === 0;
+    const person = session.startsWith("person:");
     const state: SessionState = latest.kind === "session-ended" || latest.exits === true ? "ended"
       : died || now - Date.parse(latest.at) > LONGEST_COMMAND_MS ? "gone"
+      // The person row, where commands with no session id land, is never a session at work (4.42).
+      : person ? "waiting"
       : own.prompted ? (own.inTurn || running.length > 0 ? "working" : "waiting")
       : quiet ? "waiting" : "working";
     const branches = [...own.branches];
@@ -654,7 +657,8 @@ export class LogFold {
     const settled = state === "ended" || now - settledSince > leaveMs;
     const closeOut = this.#closeOut(own, openWork, onMain);
     // A verified close-out leaves at once; one that needs you stays, whatever else says (ADR-0758 D3).
-    const listing: Listing = closeOut !== undefined ? (closeOut.verified ? "hidden" : "listed")
+    const listing: Listing = person ? "hidden"
+      : closeOut !== undefined ? (closeOut.verified ? "hidden" : "listed")
       : openWork.length > 0 || onMain !== undefined ? "listed"
       : record !== undefined ? (archived ? "hidden" : settled ? "done" : "listed")
       : settled ? "hidden" : "listed";

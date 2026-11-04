@@ -10,6 +10,7 @@ import { setTimeout as latency } from "node:timers/promises";
 import { promisify } from "node:util";
 
 import { PLUGIN_FOLDER } from "@storytree/claude-code-mod";
+import { sessionsFrom } from "@storytree/session-management";
 import { quietFor, removeTemp, waitUntil } from "@storytree/test-waits";
 
 import { bothAnswer, laneScope, main, OUT_OF_MEMORY, refusals, runLane, SIGNALED, storytreeCommand } from "./runner.mjs";
@@ -37,7 +38,7 @@ async function lane(t) {
   const { CLAUDE_CODE_ENABLE_FUNCTION_HOOKS: _hooks, STORYTREE_SESSION_FILE: _file, INVOCATION_ID: _unit, ...inherited } = process.env;
   return { home, lanesDir, cwd, brief, log, err, addDirs: [join(home, "directory with spaces"), "another"],
     env: { ...inherited, LANES_DIR: lanesDir, CODEX_STOP_AT: "95", FAST_FAIL_S: "120", CLAUDE_CODE_OAUTH_TOKEN: "", OPENAI_API_KEY: "test-api", CODEX_API_KEY: "test-api", CODEX_ACCESS_TOKEN: "test-api", ANTHROPIC_API_KEY: "test-api" },
-    commands: { codex: command(receipt), claude: command(receipt) }, now: () => start, say: (line) => lines.push(line), lines, failed: async () => [],
+    commands: { codex: command(receipt), claude: command(receipt) }, now: () => start, say: (line) => lines.push(line), lines, failed: async () => [], exited: async () => {},
     // The box's own engines never hold up a command-line lane under test (1.24 sets its own count).
     count: async () => 0 };
 }
@@ -451,6 +452,37 @@ test("1.28 · a lane the runner records failed releases every claim its session 
   options.say = () => {};
   assert.equal(await runLane(options), 75, "a fast failure is requeued");
   assert.deepEqual(released(), [], "and a requeued lane releases nothing");
+});
+
+test("1.29 · after every engine run, a signal's kill included, the runner records the lane's session as exited, so it reads ended at once; a run whose log names no session records nothing, and a refused record is said, never thrown", async (t) => {
+  const options = await lane(t);
+  const session = "7c1d2e3f-0000-4000-8000-0000000000bb";
+  const recorded = [];
+  options.exited = async (line) => { recorded.push(line); };
+  await writeFile(join(options.lanesDir, "engine-override"), "claude");
+  options.commands.claude = command(`console.log(JSON.stringify({type:'system',subtype:'init',session_id:${JSON.stringify(session)}})); process.kill(process.pid, 'SIGKILL');`);
+  await runLane(options);
+  assert.deepEqual(recorded, [{ session, harness: "claude-code", source: "tool", kind: "turn-ended", background: 0, exits: true }], "a killed Claude lane");
+  const at = (seq) => ({ seq, at: new Date(start + seq * 1_000).toISOString(), project: "storytree" });
+  const fold = [{ ...at(1), session, harness: "claude-code", source: "hook", kind: "prompt-submitted" }, { ...at(2), ...recorded[0] }];
+  assert.equal(sessionsFrom(fold, { now: new Date(start + 3_000) })[0].state, "ended", "Session management reads its line as the session ended");
+
+  recorded.length = 0;
+  await writeFile(join(options.lanesDir, "engine-override"), "codex");
+  options.commands.codex = command(`console.log(JSON.stringify({type:'thread.started',thread_id:'thread-9'}));`);
+  await runLane(options);
+  assert.deepEqual(recorded.map(({ session: id, harness }) => [id, harness]), [["thread-9", "codex"]], "a Codex lane that ended as usual");
+
+  recorded.length = 0;
+  options.commands.codex = command(receipt);
+  await runLane(options);
+  assert.deepEqual(recorded, [], "no session id in its log: nothing recorded");
+
+  options.commands.codex = command(`console.log(JSON.stringify({type:'thread.started',thread_id:'thread-9'}));`);
+  options.exited = async () => { throw new Error("library unreachable\nmore"); };
+  options.lines.length = 0;
+  assert.equal(await runLane(options), 0, "a refused record leaves the lane's exit as it was");
+  assert.ok(options.lines.some((line) => line.endsWith("session thread-9's exit not recorded: library unreachable")), options.lines.join("\n"));
 });
 
 test("1.18 · A lane with no lane token of its own does not start: no engine runs and it stays queued; an engine that starts is told to load no claude.ai tool servers", async (t) => {

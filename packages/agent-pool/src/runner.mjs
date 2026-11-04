@@ -312,19 +312,25 @@ async function sessionOf(log) {
   return (await readOptional(sessionFile(log)))?.trim() || /"(?:session_id|thread_id)":"([^"]+)"/.exec(await readOptional(log) ?? "")?.[1];
 }
 
+/** Release every claim a lane's session still holds (its noticeboard lines), giving the ids released; a refusal is said, never thrown. */
+async function releaseClaims({ session, reason, storytree, dated }) {
+  const tell = (args) => storytree(args).catch((error) => { dated(`storytree ${args.slice(0, 3).join(" ")} refused: ${String(error.message).split("\n")[0]}`); return ""; });
+  const released = [];
+  if (!session) return released;
+  for (const line of (await tell(["noticeboard"])).split("\n")) {
+    const held = /^\s*- (?:increment|capability) (\S+)\s/.exec(line);
+    if (held && line.includes(` ${session} `)) {
+      await tell(["workspace", "release", held[1], "--holder", session, "--reason", reason]);
+      released.push(held[1]);
+    }
+  }
+  return released;
+}
+
 /** The lane left nothing twice: release what its session holds, and write residue on its increment for the next lane. */
 async function leaveResidue({ increment, session, logs, storytree, day, dated }) {
   const tell = (args) => storytree(args).catch((error) => { dated(`storytree ${args.slice(0, 3).join(" ")} refused: ${String(error.message).split("\n")[0]}`); return ""; });
-  let released = [];
-  if (session) {
-    for (const line of (await tell(["noticeboard"])).split("\n")) {
-      const held = /^\s*- (?:increment|capability) (\S+)\s/.exec(line);
-      if (held && line.includes(` ${session} `)) {
-        await tell(["workspace", "release", held[1], "--holder", session, "--reason", "the lane ended twice having left nothing; released by the lane runner"]);
-        released.push(held[1]);
-      }
-    }
-  }
+  const released = await releaseClaims({ session, reason: "the lane ended twice having left nothing; released by the lane runner", storytree, dated });
   const body = (await tell(["library", "read", increment, "--field", "body"])).trimEnd();
   const residue = `Residue (lane runner, ${day}): a pool lane's engine exited 0 having left no report and pushed no branch for this increment, twice (started, then resumed once).`
     + ` ${session ? `Released its session ${session}'s claims${released.length ? ` (${released.join(", ")})` : " (none held)"}.` : "Its session id was not in its log, so no claim was released."}`
@@ -335,11 +341,14 @@ async function leaveResidue({ increment, session, logs, storytree, day, dated })
 
 /**
  * A lane that failed (1.17): recorded by `failed`, which gives back the increment's failures so far, or null for a lane refused a claim,
- * which is no failure. At the LANE_FAILURES-th, residue on the increment names each, since the pool offers it no more (2.27).
+ * which is no failure. Either way its dead session's claims are released (1.28), unless the caller has released them already.
+ * At the LANE_FAILURES-th, residue on the increment names each, since the pool offers it no more (2.27).
  */
-async function laneFailed({ increment, project, why, logs, lane, started, failed, storytree, day, dated }) {
+async function laneFailed({ increment, project, why, logs, lane, started, failed, storytree, day, dated, release = true }) {
   const failures = await Promise.resolve().then(() => failed({ increment, why, logs, ...(lane ? { lane } : {}), started }, project))
     .catch((error) => { dated(`failed lane on ${increment} not recorded: ${String(error.message).split("\n")[0]}`); return null; });
+  const released = release ? await releaseClaims({ session: lane, reason: `the lane failed (${why}); released by the lane runner`, storytree, dated }) : [];
+  if (released.length) dated(`released ${lane}'s claims: ${released.join(", ")}`);
   if (!failures) return;
   dated(`lane on ${increment} failed (${why}): ${failures.length} of ${LANE_FAILURES}`);
   if (failures.length !== LANE_FAILURES) return;
@@ -539,7 +548,7 @@ export async function runLane({ brief, log, err, addDirs = [], cwd = process.cwd
       await leaveResidue({ increment, session, logs: [last.log, resumed.log], storytree, day, dated });
       // A resume an operator stopped (a signal) is no failure of the lane's.
       if (!result.signaled) await laneFailed({ increment, project, why: `exit 0 with no report and no push, twice (started, then resumed once; the resume exited ${result.code})`, logs: [last.log, resumed.log],
-        lane: session, started: began, failed, storytree, day, dated });
+        lane: session, started: began, failed, storytree, day, dated, release: false });
       return 1;
     }
     return result.code;

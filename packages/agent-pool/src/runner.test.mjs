@@ -420,6 +420,39 @@ test("1.17 · a lane that ends by its engine's own exit with no report or push i
   assert.ok(!told.some((args) => args[0] === "arc"), "and leaves no residue");
 });
 
+test("1.28 · a lane the runner records failed releases every claim its session still holds, whatever the recorder answers; a lane it requeues releases none", async (t) => {
+  const options = await lane(t);
+  const session = "7c1d2e3f-0000-4000-8000-0000000000aa";
+  options.commands.claude = command(`console.log(JSON.stringify({type:'system',subtype:'init',session_id:${JSON.stringify(session)}})); process.exitCode=3;`);
+  await writeFile(join(options.lanesDir, "engine-override"), "claude");
+  options.increment = "increment_abc";
+  options.heads = async () => ({});
+  const told = [];
+  options.storytree = async (args) => {
+    told.push(args);
+    if (args[0] === "noticeboard") return `3 claims now:\n  - increment increment_abc  Claude Code ${session} (gone, on claude/increment-abc-x), since 2026-10-06T00:00:00Z: build\n`
+      + `  - capability capability_mine  Claude Code ${session} (gone), since 2026-10-06T00:00:00Z: build\n  - capability capability_other  Claude Code someone-else (live), since 2026-10-06T00:00:00Z: other\n`;
+    return "";
+  };
+  let clock = start;
+  options.now = () => clock;
+  options.say = (line) => { if (line.includes(" exit ")) clock += 600_000; };
+  const released = () => told.filter((args) => args[1] === "release").map((args) => args.slice(0, 5));
+
+  for (const answer of [[{ at: "2026-10-06T00:00:00.000Z" }], null]) {
+    told.length = 0;
+    options.failed = async () => answer;
+    assert.equal(await runLane(options), 3, "a slow failing exit that left nothing keeps its code");
+    assert.deepEqual(released(), [["workspace", "release", "increment_abc", "--holder", session], ["workspace", "release", "capability_mine", "--holder", session]],
+      `the dead session's claims are released, and only its own (recorder answered ${JSON.stringify(answer)})`);
+  }
+
+  told.length = 0;
+  options.say = () => {};
+  assert.equal(await runLane(options), 75, "a fast failure is requeued");
+  assert.deepEqual(released(), [], "and a requeued lane releases nothing");
+});
+
 test("1.18 · A lane with no lane token of its own does not start: no engine runs and it stays queued; an engine that starts is told to load no claude.ai tool servers", async (t) => {
   const options = await lane(t);
   const told = `console.log(JSON.stringify({token:process.env.CLAUDE_CODE_OAUTH_TOKEN,connectors:process.env.ENABLE_CLAUDEAI_MCP_SERVERS??null}));`;
@@ -763,7 +796,11 @@ test("1.27 · a lane whose engine runs out of its scope's memory is killed alone
   assert.equal(recorded.length, 0);
 
   options.increment = "increment_abc";
-  options.commands.claude = command("const held = []; for (;;) held.push(Buffer.alloc(1e6, 1));");
+  const session = "8d2e3f40-0000-4000-8000-0000000000bb";
+  const told = [];
+  options.storytree = async (args) => (told.push(args), args[0] === "noticeboard"
+    ? `1 claim now:\n  - increment increment_abc  Claude Code ${session} (gone, on claude/increment-abc-x), since 2026-10-06T00:00:00Z: build\n` : "");
+  options.commands.claude = command(`console.log(JSON.stringify({type:'system',subtype:'init',session_id:${JSON.stringify(session)}})); const held = []; for (;;) held.push(Buffer.alloc(1e6, 1));`);
   const code = await runLane(options);
   assert.equal(code, OUT_OF_MEMORY);
   assert.ok(![SIGNALED, 75, 0].includes(OUT_OF_MEMORY));
@@ -772,4 +809,6 @@ test("1.27 · a lane whose engine runs out of its scope's memory is killed alone
   assert.match(recorded[0].why, /killed out of memory/);
   assert.deepEqual(recorded[0].logs, [options.log]);
   assert.ok(options.lines.some((line) => /lane killed out of memory .*exit 77, recorded failed$/.test(line)), options.lines.join("\n"));
+  assert.deepEqual(told.filter((args) => args[1] === "release").map((args) => args.slice(0, 5)), [["workspace", "release", "increment_abc", "--holder", session]],
+    "its dead session's claim is released (1.28)");
 });

@@ -2,12 +2,13 @@
 # storytree 0.3's one-line install on an Apple Silicon Mac or x64 Linux, the twin of install.ps1:
 #   curl -fsSL https://raw.githubusercontent.com/storytree-ai/storytree/release-channel-stable/install-storytree.sh | sh
 # POSIX sh, also run under bash and zsh. Needs no Node, Homebrew, jq or checkout. Every step is a function and the
-# last line runs them, so a download cut short runs nothing. Choose development with: | sh -s -- --channel development
+# last line runs them, so a download cut short runs nothing. Choose alpha with: | sh -s -- --channel alpha
 # It is laid out by system and chip: Linux is a branch of it, not a second script.
 
 ST_REPO=storytree-ai/storytree
+# The Apple team that signs storytree's Mac app; the one-liner installs no app signed by any other.
+ST_TEAM=YTUG339DCT
 ST_MARKER="# storytree 0.3's command: added by its installer, taken out by storytree setup uninstall"
-ST_LATER='Add a project later with Add project in the storytree app, storytree doctor --set-up <name> in a terminal in its folder, or by asking your agent there.'
 
 # A step that fails says why in ST_ERROR and returns 1; the caller adds where it failed and how to retry.
 st_fail() { ST_ERROR=$1; return 1; }
@@ -29,11 +30,18 @@ st_platform() {
   esac
 }
 
-# st_fuse LIBRARIES: the AppImage runs through libfuse2. Its absence is named with the one command that adds it;
-# storytree never runs sudo itself.
+# st_fuse LIBRARIES DEVICE: the AppImage mounts itself through FUSE, which needs libfuse2 and a DEVICE (/dev/fuse) this
+# user can open. Where either is missing (no libfuse2, or a container that denies /dev/fuse), the app runs unpacked
+# instead (APPIMAGE_EXTRACT_AND_RUN=1, exported for the first launch and written into the menu entry), and says so.
+# A device is only opened when it is one, so no file is ever made in its place; storytree never runs sudo itself.
 st_fuse() {
-  case "$1" in *libfuse.so.2*) return 0 ;; esac
-  st_fail "storytree's Linux app needs libfuse2, which this computer does not have. Add it with: sudo apt install libfuse2t64 (on Ubuntu before 24.04: sudo apt install libfuse2), then run this command again. Nothing was installed"
+  [ "${APPIMAGE_EXTRACT_AND_RUN:-}" != 1 ] || return 0
+  case "$1" in
+    *libfuse.so.2*) if [ -c "$2" ] && (: <>"$2") 2>/dev/null; then return 0; fi; st_why="this user cannot open $2" ;;
+    *) st_why='this computer does not have libfuse2' ;;
+  esac
+  APPIMAGE_EXTRACT_AND_RUN=1; export APPIMAGE_EXTRACT_AND_RUN
+  echo "FUSE cannot be used here ($st_why), so the app will run unpacked each time it starts, which needs no FUSE (APPIMAGE_EXTRACT_AND_RUN=1, in its menu entry too)."
 }
 
 # st_json KEY < JSON: prints the value at a dotted key (array elements by index), or fails when it is absent.
@@ -93,26 +101,30 @@ st_install_dir() {
 }
 
 # st_channel HOME INSTALLDIR REQUESTED: chooses the release channel without writing it, so a failed download can be retried.
+# Alpha's old name, development, is read as alpha wherever it appears (ADR-1121).
 st_channel() {
-  case "$3" in "" | stable | development) ;; *) st_fail 'Choose a valid release channel: stable or development'; return ;; esac
+  st_wanted=$3
+  case "$st_wanted" in "" | stable | alpha) ;; development) st_wanted=alpha ;; *) st_fail 'Choose a valid release channel: stable or alpha'; return ;; esac
   st_existing=
   if [ -f "$1/release-channel.json" ]; then
     st_existing=$(st_json channel < "$1/release-channel.json")
     case "$(st_json schema < "$1/release-channel.json")/$st_existing" in
-      1/stable | 1/development) ;;
+      1/stable | 1/alpha) ;;
+      1/development) st_existing=alpha ;;
       *) st_fail "The saved release channel could not be read. Keep $1/release-channel.json for diagnosis; delivery will not replace it"; return ;;
     esac
     # With no app installed, the record is what a failed delivery left behind; an explicit choice replaces it.
-    if [ ! -e "$2" ] && [ -n "$3" ]; then st_existing=; fi
+    if [ ! -e "$2" ] && [ -n "$st_wanted" ]; then st_existing=; fi
   fi
-  if [ -n "$st_existing" ] && [ -n "$3" ] && [ "$st_existing" != "$3" ]; then
-    st_fail "This installation already uses $st_existing. Delivery cannot change its release channel to $3"; return
+  if [ -n "$st_existing" ] && [ -n "$st_wanted" ] && [ "$st_existing" != "$st_wanted" ]; then
+    st_fail "This installation already uses $st_existing. Delivery cannot change its release channel to $st_wanted"; return
   fi
-  ST_CHANNEL=${st_existing:-${3:-stable}}
+  ST_CHANNEL=${st_existing:-${st_wanted:-stable}}
 }
 
+# st_save_channel HOME CHANNEL: storytree's home and the record in it are the user's alone.
 st_save_channel() {
-  mkdir -p "$1" && printf '{"schema":1,"channel":"%s"}' "$2" > "$1/release-channel.json"
+  (umask 077 && mkdir -p -m 700 "$1" && printf '{"schema":1,"channel":"%s"}' "$2" > "$1/release-channel.json")
 }
 
 st_fetch() {
@@ -129,13 +141,13 @@ st_download() {
 st_release() {
   st_pinned=
   if [ -n "${STORYTREE_ACCEPTANCE_VERSION:-}" ]; then
-    [ "$1" = stable ] || { st_fail 'An acceptance version installs as stable; this installation uses development'; return; }
+    [ "$1" = stable ] || { st_fail 'An acceptance version installs as stable; this installation uses alpha'; return; }
     st_pinned=$STORYTREE_ACCEPTANCE_VERSION
     st_bad='STORYTREE_ACCEPTANCE_VERSION must name a 0.3.<n> release'
   elif [ "$1" = stable ]; then
     st_fetch "https://raw.githubusercontent.com/$ST_REPO/release-channel-stable/latest.yml" "$3" || { st_fail 'the stable release pin could not be read'; return; }
     st_pinned=$(st_json version < "$3")
-    st_bad='The stable release pin is invalid. No development release was selected; retry after the stable pin is repaired'
+    st_bad='The stable release pin is invalid. No alpha release was selected; retry after the stable pin is repaired'
     case "$(st_json schema < "$3")/$(st_json channel < "$3")" in 1/stable) ;; *) st_fail "$st_bad"; return ;; esac
   fi
   if [ "$1" = stable ]; then
@@ -184,12 +196,6 @@ st_profile_add() {
   printf '%s\n' "$st_line" >> "$st_kept" && cat "$st_kept" > "$1" && rm -f "$st_kept"
 }
 
-# The answer comes from the terminal: under curl | sh, standard input is the script itself.
-st_ask() {
-  printf '%s: ' "$1"
-  if ST_ANSWER=$( (IFS= read -r st_line && printf '%s' "$st_line") 2>/dev/null < /dev/tty); then :; else ST_ANSWER=; ST_NO_TTY=1; echo; fi
-}
-
 # st_newer INSTALLED RELEASE: succeeds when the release's version is newer, part by part; an unreadable one never is.
 st_newer() {
   awk -v a="$1" -v b="$2" 'BEGIN {
@@ -228,13 +234,25 @@ st_appimage_version() {
 st_userns_blocked() { [ "$(cat "${ST_USERNS:-/proc/sys/kernel/apparmor_restrict_unprivileged_userns}" 2>/dev/null)" = 1 ]; }
 
 # st_desktop_entry ENTRY APP ICON: the AppImage's own entry, started from the installed AppImage with the installed icon.
-# Exec keeps the arguments the release packaged after its AppRun, and turns the sandbox off only where the kernel blocks it.
+# Exec keeps the arguments the release packaged after its AppRun, turns the sandbox off only where the kernel blocks it,
+# and runs the app unpacked where FUSE cannot be used (st_fuse).
 st_desktop_entry() {
   if st_userns_blocked; then st_sandbox=' --no-sandbox'; else st_sandbox=; fi
-  ST_ENTRY_EXEC=$(printf '%s' "$2" | sed 's/[\\"`$]/\\&/g; s/\\/\\\\/g') ST_ENTRY_ICON=$3 ST_ENTRY_ARGS=$st_sandbox awk '
-    /^Exec=/ { rest = substr($0, 6); n = index(rest, " "); print "Exec=\"" ENVIRON["ST_ENTRY_EXEC"] "\"" ENVIRON["ST_ENTRY_ARGS"] (n ? substr(rest, n) : ""); next }
+  if [ "${APPIMAGE_EXTRACT_AND_RUN:-}" = 1 ]; then st_env='env APPIMAGE_EXTRACT_AND_RUN=1 '; else st_env=; fi
+  ST_ENTRY_EXEC=$(printf '%s' "$2" | sed 's/[\\"`$]/\\&/g; s/\\/\\\\/g') ST_ENTRY_ICON=$3 ST_ENTRY_ARGS=$st_sandbox ST_ENTRY_ENV=$st_env awk '
+    /^Exec=/ { rest = substr($0, 6); n = index(rest, " "); print "Exec=" ENVIRON["ST_ENTRY_ENV"] "\"" ENVIRON["ST_ENTRY_EXEC"] "\"" ENVIRON["ST_ENTRY_ARGS"] (n ? substr(rest, n) : ""); next }
     /^Icon=/ { print "Icon=" ENVIRON["ST_ENTRY_ICON"]; next }
     { print }' "$1"
+}
+
+# st_signed APP: the unpacked Mac app keeps an intact signature, is signed by storytree's own Apple team, and macOS's
+# Gatekeeper would open it. A zip whose checksum matches but whose app fails any of these is not storytree's.
+st_signed() {
+  st_unsigned="the downloaded app is not signed by storytree's Apple developer account, so it was not opened; nothing was installed"
+  codesign --verify --deep --strict "$1" >/dev/null 2>&1 || { st_fail "$st_unsigned"; return; }
+  [ "$(codesign -dv "$1" 2>&1 | sed -n 's/^TeamIdentifier=//p')" = "$ST_TEAM" ] || { st_fail "$st_unsigned"; return; }
+  spctl --assess --type execute "$1" >/dev/null 2>&1 ||
+    st_fail "macOS does not yet accept the downloaded app (Apple may still be checking a new release); nothing was installed. Retry in an hour"
 }
 
 # st_place NEW DEST: puts the new app where DEST is, moving an old one aside first so the new one never lands inside it;
@@ -284,60 +302,25 @@ st_delivery() {
   st_delivery_steps "$1" "$2" || st_fail "storytree delivery failed at $ST_STEP: $ST_ERROR. Retry: run the same command again. Your projects and agent settings have not been replaced"
 }
 
-st_connection() {
-  echo 'Connect your installed and signed-in agents: 1 Claude Code, 2 Codex, 3 both, S skip for now.'
-  st_ask 'Choose 1, 2, 3 or S'
-  if [ -n "$ST_NO_TTY" ]; then
-    echo 'No terminal to answer from, so no agent was connected. Later run storytree setup connect --claude or --codex (or both).'
-    return 0
+# st_opened DIR: what the one-liner says once the app is open. It asks nothing (ADR-1162 D1): connecting agents and adding
+# a project are the app's first run. Its first suggestion is opening storytree, with the command that does it (D2).
+st_opened() {
+  if [ "$ST_SYSTEM" = linux ]; then st_target="$1/storytree-0.3"; else st_target=$1; fi
+  st_quoted="'$(printf '%s' "$st_target" | sed "s/'/'\\\\''/g")'"
+  if [ "$ST_SYSTEM" = linux ]; then
+    if st_userns_blocked; then st_quoted="$st_quoted --no-sandbox"; fi
+    if [ "${APPIMAGE_EXTRACT_AND_RUN:-}" = 1 ]; then st_quoted="APPIMAGE_EXTRACT_AND_RUN=1 $st_quoted"; fi
+    echo "storytree is installed, and its app is open. To open it again, use your app menu, or run: $st_quoted"
+  else
+    echo "storytree is installed, and its app is open. To open it again, use Applications, or run: open $st_quoted"
   fi
-  case "$ST_ANSWER" in
-    1) set -- --claude ;;
-    2) set -- --codex ;;
-    3) set -- --claude --codex ;;
-    s | S) echo 'Skipped agent connection. Later run storytree setup connect --claude or --codex (or both).'; return 0 ;;
-    *) st_fail 'Choose 1, 2, 3 or S. The app is installed; retry connection with storytree setup connect --claude or --codex (or both)'; return ;;
-  esac
-  st_op_connect "$@"
-}
-
-# st_project_folder HERE USERHOME: the folder step of ADR-0752 D1, as install.ps1 asks it.
-st_project_folder() {
-  # The home folder or the root as a project would put every folder under it in that project.
-  st_offer=yes
-  if [ -z "$1" ] || [ "${1%/}" = "${2%/}" ] || [ "$1" = / ]; then st_offer=; fi
-  if [ -n "$st_offer" ]; then echo "Choose your project folder: press Enter for $1, type another folder (created if missing), or S to skip."
-  else echo 'Choose your project folder: type its path (created if missing), or press Enter or S to skip.'; fi
-  st_ask 'Project folder'
-  if [ -n "$ST_NO_TTY" ] || [ "$ST_ANSWER" = s ] || [ "$ST_ANSWER" = S ] || { [ -z "$ST_ANSWER" ] && [ -z "$st_offer" ]; }; then
-    echo "No project was set up. $ST_LATER"; return 0
+  echo 'In the app, connect your coding agents and, when you want one, add a project.'
+  if [ "$(printf '%s' "$ST_REPORT" | st_json command.status)" = conflict ]; then
+    echo "An existing storytree command was preserved: $(printf '%s' "$ST_REPORT" | st_json command.conflict)"
+    echo "Run this installation explicitly: '$(printf '%s' "$ST_REPORT" | st_json tools.node)' '$(printf '%s' "$ST_REPORT" | st_json tools.cli)'"
+  else
+    echo 'The storytree command is available in a new terminal window.'
   fi
-  case "$ST_ANSWER" in
-    "") st_folder=$1 ;;
-    "~") st_folder=$2 ;;
-    "~/"*) st_folder="$2/${ST_ANSWER#"~/"}" ;;
-    /*) st_folder=$ST_ANSWER ;;
-    *) st_folder="${1%/}/$ST_ANSWER" ;;
-  esac
-  st_status=$(st_op_inspect "$st_folder") || { st_fail "The project was not set up: the folder could not be read. The app and your agents are ready. $ST_LATER"; return; }
-  if st_name=$(printf '%s' "$st_status" | st_json project); then
-    echo "$st_folder is already storytree project '$st_name'. Nothing new was set up."; return 0
-  fi
-  st_suggestion=$(printf '%s' "$st_status" | st_json suggestion)
-  while :; do
-    echo "Project name: press Enter for '$st_suggestion', or type your own (lower-case letters, digits and single hyphens)."
-    st_ask 'Project name'
-    st_name=${ST_ANSWER:-$st_suggestion}
-    st_result=$(st_op_setup "$st_folder" "$st_name") || { st_fail "The project was not set up: the library did not take it. The app and your agents are ready. $ST_LATER"; return; }
-    [ "$(printf '%s' "$st_result" | st_json status)" = "name refused" ] || break
-    printf '%s' "$st_result" | st_json message; echo
-    st_suggestion=$(printf '%s' "$st_result" | st_json suggestion) || st_suggestion=$st_name
-  done
-  case "$(printf '%s' "$st_result" | st_json status)" in
-    "already a project") echo "$st_folder is already storytree project '$(printf '%s' "$st_result" | st_json project)'. Nothing new was set up." ;;
-    "folder refused") echo "$(printf '%s' "$st_result" | st_json message) No project was set up. $ST_LATER" ;;
-    *) echo "$st_folder is now storytree project '$st_name', and the app shows it. Start Claude Code or Codex in that folder to work in it." ;;
-  esac
 }
 
 # st_install_appimage APPIMAGE DEST: on Linux the installation is a folder holding the AppImage, its agent tools
@@ -379,7 +362,7 @@ st_tools() {
   ST_NODE="$st_res/node"; ST_HELPER="$st_res/storytree-deliver.mjs"
 }
 
-st_op_fuse() { st_fuse "$({ ldconfig -p || /sbin/ldconfig -p; ls /lib*/*/libfuse.so.2* /usr/lib*/*/libfuse.so.2* /lib*/libfuse.so.2* /usr/lib*/libfuse.so.2*; } 2>/dev/null)"; }
+st_op_fuse() { st_fuse "$({ ldconfig -p || /sbin/ldconfig -p; ls /lib*/*/libfuse.so.2* /usr/lib*/*/libfuse.so.2* /lib*/libfuse.so.2* /usr/lib*/libfuse.so.2*; } 2>/dev/null)" /dev/fuse; }
 
 st_op_stage() {
   case "$1" in
@@ -443,6 +426,7 @@ st_op_install() {
   # ditto keeps the bundle's signature and links as the release built them.
   if command -v ditto >/dev/null 2>&1; then ditto -x -k "$1" "$ST_TMP/app"; else unzip -q "$1" -d "$ST_TMP/app"; fi || { st_fail 'the downloaded app could not be unpacked'; return; }
   [ -d "$ST_TMP/app/storytree-0.3.app" ] || { st_fail 'the download holds no storytree-0.3.app'; return; }
+  st_signed "$ST_TMP/app/storytree-0.3.app" || return
   mkdir -p "$(dirname "$2")" || { st_fail "the folder for $2 could not be made"; return; }
   st_place "$ST_TMP/app/storytree-0.3.app" "$2"
 }
@@ -457,22 +441,13 @@ st_op_path() {
   st_profile_add "$(st_profile_file)" "$(printf '%s' "$ST_REPORT" | st_json command.pathEntry)" || st_fail "the storytree command could not be added to $(st_profile_file)"
 }
 
-st_op_connect() {
-  # The delivered command, run explicitly, even when an unrelated storytree is on PATH.
-  "$(printf '%s' "$ST_REPORT" | st_json tools.node)" "$(printf '%s' "$ST_REPORT" | st_json tools.cli)" setup connect "$@" ||
-    st_fail 'Agent connection needs attention; read each agent result above. The app remains installed. Retry with storytree setup connect --claude or --codex (or both)'
-}
-
-st_op_inspect() { "$(printf '%s' "$ST_REPORT" | st_json tools.node)" "$(printf '%s' "$ST_REPORT" | st_json tools.deliver)" project "$1"; }
-st_op_setup() { "$(printf '%s' "$ST_REPORT" | st_json tools.node)" "$(printf '%s' "$ST_REPORT" | st_json tools.deliver)" add-project "$1" "$2"; }
-
 st_main() {
   st_requested=
   while [ $# -gt 0 ]; do
     case "$1" in
       --channel) st_requested=${2:-}; shift ;;
       --channel=*) st_requested=${1#--channel=} ;;
-      *) st_fail "unknown option $1; the only option is --channel stable|development"; return ;;
+      *) st_fail "unknown option $1; the only option is --channel stable|alpha"; return ;;
     esac
     shift
   done
@@ -480,7 +455,7 @@ st_main() {
   # A terminal running under Rosetta reports an Intel chip on an Apple Silicon Mac.
   if [ "$st_system" = Darwin ] && [ "$st_chip" = x86_64 ] && [ "$(sysctl -n sysctl.proc_translated 2>/dev/null)" = 1 ]; then st_chip=arm64; fi
   st_platform "$st_system" "$st_chip" || return
-  if [ "$ST_SYSTEM" = linux ]; then st_op_fuse || return; fi
+  if [ "$ST_SYSTEM" = linux ]; then st_op_fuse; fi
   ST_HOME=${STORYTREE_HOME:-$HOME/.storytree/0.3}
   st_install_dir "$ST_HOME" "$HOME" || return
   st_channel "$ST_HOME" "$ST_DIR" "$st_requested" || return
@@ -488,15 +463,7 @@ st_main() {
   trap 'rm -rf "$ST_TMP"' EXIT
   trap 'exit 130' INT TERM
   st_delivery "$ST_DIR" "$ST_ARCH" || return
-  echo 'storytree is installed; its app is open and its database is ready.'
-  if [ "$(printf '%s' "$ST_REPORT" | st_json command.status)" = conflict ]; then
-    echo "An existing storytree command was preserved: $(printf '%s' "$ST_REPORT" | st_json command.conflict)"
-    echo "Run this installation explicitly: '$(printf '%s' "$ST_REPORT" | st_json tools.node)' '$(printf '%s' "$ST_REPORT" | st_json tools.cli)'"
-  else
-    echo 'The storytree command is available in a new terminal window.'
-  fi
-  st_connection || return
-  st_project_folder "$PWD" "$HOME"
+  st_opened "$ST_DIR"
 }
 
 if [ "${STORYTREE_INSTALL_LIBRARY:-}" != 1 ]; then

@@ -1,11 +1,11 @@
 {
-  "version": "0.3.1482",
+  "version": "0.3.2259",
   "files": [
     {
-      "sha512": "6mpArKONEj08WoLJWAhJe96UFbR2KLe3CHCWq3vtkELeQDXvodlz5tE8fAEKQZmDY700xfn7VGUqVNTQvwVmzA==",
-      "size": 224843791,
-      "blockMapSize": 235555,
-      "url": "https://github.com/storytree-ai/storytree/releases/download/v0.3.1482/storytree-0.3-0.3.1482-linux-x86_64.AppImage"
+      "sha512": "a+0C/Nuyk4lAGhaUrkywhLoaTBsIugv+UMYXZiy7hUpshHQbXsQy1YBcodCwbNdPJUW/hsUyFSwMojc082xGnA==",
+      "size": 225340151,
+      "blockMapSize": 236299,
+      "url": "https://github.com/storytree-ai/storytree/releases/download/v0.3.2259/storytree-0.3-0.3.2259-linux-x86_64.AppImage"
     }
   ]
 }

@@ -1,10 +1,12 @@
 # Windows PowerShell 5.1 and PowerShell 7. No Node/npm or checkout prerequisite.
-param([switch]$LibraryOnly, [ValidateSet('stable', 'development')][string]$Channel)
+param([switch]$LibraryOnly, [ValidateSet('stable', 'alpha', 'development')][string]$Channel)
 $ErrorActionPreference = 'Stop'
 
 # Choose the channel without writing it: a record written before anything installed would refuse a retry.
+# Alpha's old name, development, is read as alpha wherever it appears (ADR-1121).
 function Resolve-StorytreeChannel([string]$HomeDir, [string]$InstallDir, [string]$Requested) {
-  if ($Requested -and $Requested -cnotin @('stable', 'development')) { throw 'Choose a valid release channel: stable or development.' }
+  if ($Requested -and $Requested -cnotin @('stable', 'alpha', 'development')) { throw 'Choose a valid release channel: stable or alpha.' }
+  if ($Requested -ceq 'development') { $Requested = 'alpha' }
   $file = Join-Path $HomeDir 'release-channel.json'
   $markerFile = Join-Path $InstallDir 'resources/storytree-installed'
   $installed = (Test-Path -LiteralPath $markerFile) -or (Test-Path -LiteralPath (Join-Path $InstallDir 'storytree-0.3.exe'))
@@ -12,14 +14,14 @@ function Resolve-StorytreeChannel([string]$HomeDir, [string]$InstallDir, [string
   if (Test-Path -LiteralPath $file) {
     try {
       $saved = Get-Content -LiteralPath $file -Raw | ConvertFrom-Json
-      if ($saved.schema -ne 1 -or $saved.channel -cnotin @('stable', 'development')) { throw 'invalid schema or channel' }
-      $existing = [string]$saved.channel
+      if ($saved.schema -ne 1 -or $saved.channel -cnotin @('stable', 'alpha', 'development')) { throw 'invalid schema or channel' }
+      $existing = if ($saved.channel -ceq 'stable') { 'stable' } else { 'alpha' }
     } catch { throw "The saved release channel could not be read: $($_.Exception.Message). Keep $file for diagnosis; delivery will not replace it." }
     # With no app installed, the record is what a failed delivery left behind; an explicit choice replaces it.
     if (-not $installed -and $Requested) { $existing = $null }
   } elseif (Test-Path -LiteralPath $markerFile) {
     $marker = (Get-Content -LiteralPath $markerFile -Raw).Trim()
-    if ($marker -ceq 'nsis') { $existing = 'development' }
+    if ($marker -ceq 'nsis') { $existing = 'alpha' }
     elseif ($marker -ceq 'nsis-stable') { $existing = 'stable' }
     else { throw 'The installed app has an unknown release channel marker. Check it before retrying delivery.' }
   }
@@ -39,14 +41,14 @@ function Save-StorytreeChannel([string]$HomeDir, [string]$Selected) {
 function Get-StorytreeRelease([string]$SelectedChannel, [scriptblock]$Fetch, [string]$AcceptanceVersion) {
   $api = 'https://api.github.com/repos/storytree-ai/storytree/releases'
   if ($AcceptanceVersion) {
-    if ($SelectedChannel -cne 'stable') { throw 'An acceptance version installs as stable; this installation uses development.' }
+    if ($SelectedChannel -cne 'stable') { throw 'An acceptance version installs as stable; this installation uses alpha.' }
     if ($AcceptanceVersion -cnotmatch '^0\.3\.(0|[1-9]\d*)$') { throw 'STORYTREE_ACCEPTANCE_VERSION must name a 0.3.<n> release.' }
     $version = $AcceptanceVersion
   } else {
-    if ($SelectedChannel -ceq 'development') { return (& $Fetch "$api/latest") }
+    if ($SelectedChannel -ceq 'alpha') { return (& $Fetch "$api/latest") }
     if ($SelectedChannel -cne 'stable') { throw 'Unknown release channel.' }
     $pin = & $Fetch 'https://raw.githubusercontent.com/storytree-ai/storytree/release-channel-stable/latest.yml'
-    if ($pin.schema -ne 1 -or $pin.channel -cne 'stable' -or $pin.version -cnotmatch '^0\.3\.(0|[1-9]\d*)$') { throw 'The stable release pin is invalid. No development release was selected; retry after the stable pin is repaired.' }
+    if ($pin.schema -ne 1 -or $pin.channel -cne 'stable' -or $pin.version -cnotmatch '^0\.3\.(0|[1-9]\d*)$') { throw 'The stable release pin is invalid. No alpha release was selected; retry after the stable pin is repaired.' }
     $version = $pin.version
   }
   $release = & $Fetch "$api/tags/v$version"
@@ -71,46 +73,22 @@ function Add-StorytreePath([string]$Current, [string]$Entry) {
   return $Current.TrimEnd(';') + ';' + $Entry
 }
 
-function Invoke-StorytreeConnection($Report, [hashtable]$Operations) {
-  Write-Host 'Connect your installed and signed-in agents: 1 Claude Code, 2 Codex, 3 both, S skip for now.'
-  $choice = [string](& $Operations.Choose)
-  $flags = switch ($choice.Trim().ToLowerInvariant()) {
-    '1' { @('--claude') }
-    '2' { @('--codex') }
-    '3' { @('--claude', '--codex') }
-    's' { Write-Host 'Skipped agent connection. Later run storytree setup connect --claude or --codex (or both).'; return }
-    default { throw 'Choose 1, 2, 3 or S. The app is installed; retry connection with storytree setup connect --claude or --codex (or both).' }
-  }
-  & $Operations.Connect $Report.tools @($flags)
-}
-
-function Invoke-StorytreeProjectFolder([string]$Here, [string]$UserHome, [hashtable]$Operations) {
-  $later = 'Add a project later with Add project in the storytree app, storytree doctor --set-up <name> in a terminal in its folder, or by asking your agent there.'
-  # The home folder or a drive root as a project would put every folder under it in that project.
-  $offer = $Here -and ($Here.TrimEnd('\', '/') -ine $UserHome.TrimEnd('\', '/')) -and ($Here -ne [IO.Path]::GetPathRoot($Here))
-  if ($offer) { Write-Host "Choose your project folder: press Enter for $Here, type another folder (created if missing), or S to skip." }
-  else { Write-Host 'Choose your project folder: type its path (created if missing), or press Enter or S to skip.' }
-  $answer = ([string](& $Operations.Ask 'Project folder')).Trim().Trim('"').Trim()
-  if ($answer -ieq 's' -or (-not $answer -and -not $offer)) { Write-Host "No project was set up. $later"; return }
-  $folder = if ($answer) { [IO.Path]::GetFullPath([IO.Path]::Combine($Here, $answer)) } else { $Here }
-  try {
-    $status = & $Operations.Inspect $folder
-    if ($status.project) { Write-Host "$folder is already storytree project '$($status.project)'. Nothing new was set up."; return }
-    while ($true) {
-      Write-Host "Project name: press Enter for '$($status.suggestion)', or type your own (lower-case letters, digits and single hyphens)."
-      $name = ([string](& $Operations.Ask 'Project name')).Trim()
-      if (-not $name) { $name = $status.suggestion }
-      $result = & $Operations.SetUp $folder $name
-      if ($result.status -ne 'name refused') { break }
-      Write-Host $result.message
-      if ($result.suggestion) { $status.suggestion = $result.suggestion }
+# What the one-liner says once the app is open. It asks nothing (ADR-1162 D1): connecting agents and adding a project are
+# the app's first run. Its first suggestion is opening storytree, with the command that does it (D2).
+function Get-StorytreeOpenedLines([string]$InstallDir, $Report) {
+  $app = (Join-Path $InstallDir 'storytree-0.3.exe').Replace("'", "''")
+  $lines = @("storytree is installed, and its app is open. To open it again, use the Start menu, or run: & '$app'")
+  $lines += 'In the app, connect your coding agents and, when you want one, add a project.'
+  if ($Report.command.status -eq 'conflict') {
+    $lines += "An existing storytree command was preserved: $($Report.command.conflict)"
+    $lines += "Run this installation explicitly: & '$($Report.tools.node)' '$($Report.tools.cli)'"
+  } else {
+    $lines += 'The storytree command is available in a fresh Windows terminal.'
+    foreach ($older in @($Report.command.replaced)) {
+      if ($older) { $lines += "An older storytree command now runs this installation: $older" }
     }
-  } catch {
-    throw "The project was not set up: $($_.Exception.Message). The app and your agents are ready. $later"
   }
-  if ($result.status -eq 'already a project') { Write-Host "$folder is already storytree project '$($result.project)'. Nothing new was set up."; return }
-  if ($result.status -eq 'folder refused') { Write-Host "$($result.message) No project was set up. $later"; return }
-  Write-Host "$folder is now storytree project '$name', and the app shows it. Start Claude Code or Codex in that folder to work in it."
+  return $lines
 }
 
 function Invoke-StorytreeDelivery([string]$InstallDir, [string]$Architecture, [hashtable]$Operations) {
@@ -144,28 +122,35 @@ function Get-StorytreeAsset($Release, [string]$Name) {
   return $url
 }
 
-# A release whose Windows build failed names the last good installer, with that build's version (4.6). Its own release,
-# which built it, is read instead, once: that release names its installer as its own.
-function Get-StorytreeWindowsBuild($Release, $Manifest, [scriptblock]$Fetch, [scriptblock]$ReadManifest) {
-  $carried = [string]$Manifest.installer.version
+# Each architecture has its own installer; a release from before the split names one that carries both.
+function Get-StorytreeWindowsEntry($Manifest, [string]$Architecture) {
+  if ($Manifest.installers) { return $Manifest.installers.$Architecture }
+  return $Manifest.installer
+}
+
+# A release whose Windows build failed names the last good installers, with that build's version (4.6). Its own release,
+# which built them, is read instead, once: that release names its installers as its own.
+function Get-StorytreeWindowsBuild($Release, $Manifest, [string]$Architecture, [scriptblock]$Fetch, [scriptblock]$ReadManifest) {
+  $carried = [string](Get-StorytreeWindowsEntry $Manifest $Architecture).version
   if (-not $carried -or "v$carried" -ceq $Release.tag_name) { return @{ release = $Release; manifest = $Manifest } }
   if ($carried -cnotmatch '^0\.3\.(0|[1-9]\d*)$') { throw 'release manifest names no valid Windows build' }
   $earlier = & $Fetch "https://api.github.com/repos/storytree-ai/storytree/releases/tags/v$carried"
   if ($earlier.tag_name -cne "v$carried") { throw "the Windows build $carried was not found" }
   $earlierManifest = & $ReadManifest (Get-StorytreeAsset $earlier 'storytree-delivery.json')
-  $again = [string]$earlierManifest.installer.version
+  $again = [string](Get-StorytreeWindowsEntry $earlierManifest $Architecture).version
   if ($again -and $again -cne $carried) { throw "release $carried does not name its own Windows build" }
   return @{ release = $earlier; manifest = $earlierManifest }
 }
 
-function Select-StorytreeInstaller($Release, $Manifest, [string]$Architecture, [string]$SelectedChannel = 'development') {
+function Select-StorytreeInstaller($Release, $Manifest, [string]$Architecture, [string]$SelectedChannel = 'alpha') {
   if ($Release.draft -or $Release.prerelease -or $Release.tag_name -notmatch '^v\d+\.\d+\.\d+$') { throw 'release is not a stable storytree version' }
   $version = $Release.tag_name.Substring(1)
   if ($Manifest.schema -ne 1 -or $Manifest.version -cne $version -or $Architecture -notin $Manifest.architectures) { throw 'release manifest version or architecture does not match' }
   if ($SelectedChannel -ceq 'stable' -and $Manifest.channelSchema -ne 1) { throw 'The pinned installer cannot preserve the stable release channel. Pin a channel-aware build before installing.' }
-  $name = "storytree-0.3-$version-setup.exe"
-  if ($Manifest.installer.name -cne $name -or $Manifest.installer.sha256 -notmatch '^[a-fA-F0-9]{64}$') { throw 'release manifest has no valid installer checksum' }
-  return @{ url = (Get-StorytreeAsset $Release $name); sha256 = $Manifest.installer.sha256; name = $name }
+  $entry = Get-StorytreeWindowsEntry $Manifest $Architecture
+  $name = if ($Manifest.installers) { "storytree-0.3-$version-windows-$Architecture-setup.exe" } else { "storytree-0.3-$version-setup.exe" }
+  if (-not $entry -or $entry.name -cne $name -or $entry.sha256 -notmatch '^[a-fA-F0-9]{64}$') { throw "release manifest has no valid installer checksum for Windows $Architecture" }
+  return @{ url = (Get-StorytreeAsset $Release $name); sha256 = $entry.sha256; name = $name }
 }
 
 function Assert-StorytreeDownload([string]$File, [string]$Expected) {
@@ -276,7 +261,7 @@ try {
       $release = Get-StorytreeRelease $selectedChannel { param($Url) Invoke-RestMethod $Url -Headers $headers } $env:STORYTREE_ACCEPTANCE_VERSION
       $manifestUrl = Get-StorytreeAsset $release 'storytree-delivery.json'
       $manifest = Invoke-RestMethod $manifestUrl
-      $build = Get-StorytreeWindowsBuild $release $manifest { param($Url) Invoke-RestMethod $Url -Headers $headers } { param($Url) Invoke-RestMethod $Url }
+      $build = Get-StorytreeWindowsBuild $release $manifest $Arch { param($Url) Invoke-RestMethod $Url -Headers $headers } { param($Url) Invoke-RestMethod $Url }
       $asset = Select-StorytreeInstaller $build.release $build.manifest $Arch $selectedChannel
       $script:downloadDir = Join-Path ([IO.Path]::GetTempPath()) ('storytree-delivery-' + [Guid]::NewGuid().ToString('N'))
       New-Item -ItemType Directory -Path $script:downloadDir | Out-Null
@@ -337,41 +322,7 @@ namespace StorytreeDelivery {
     }
   }
   $answer = Invoke-StorytreeDelivery $installDir $architecture $operations
-  Write-Host 'storytree is installed; its app is open and its database is ready.'
-  if ($answer.report.command.status -eq 'conflict') {
-    Write-Host "An existing storytree command was preserved: $($answer.report.command.conflict)"
-    Write-Host "Run this installation explicitly: & '$($answer.report.tools.node)' '$($answer.report.tools.cli)'"
-  } else {
-    Write-Host 'The storytree command is available in a fresh Windows terminal.'
-    foreach ($older in @($answer.report.command.replaced)) {
-      if ($older) { Write-Host "An older storytree command now runs this installation: $older" }
-    }
-  }
-  Invoke-StorytreeConnection $answer.report @{
-    Choose = { Read-Host 'Choose 1, 2, 3 or S' }
-    Connect = {
-      param($Tools, $Flags)
-      # Use the delivered command explicitly, including when an unrelated storytree is on PATH.
-      & $Tools.node $Tools.cli setup connect @Flags | Out-Host
-      if ($LASTEXITCODE -ne 0) { throw 'Agent connection needs attention; read each agent result above. The app remains installed. Retry with storytree setup connect --claude or --codex (or both).' }
-    }
-  }
-  $tools = $answer.report.tools
-  Invoke-StorytreeProjectFolder (Get-Location).ProviderPath $env:USERPROFILE @{
-    Ask = { param($Prompt) Read-Host $Prompt }
-    Inspect = {
-      param($Folder)
-      $out = & $tools.node $tools.deliver project $Folder
-      if ($LASTEXITCODE -ne 0) { throw 'the folder could not be read' }
-      return ($out | ConvertFrom-Json)
-    }
-    SetUp = {
-      param($Folder, $Name)
-      $out = & $tools.node $tools.deliver add-project $Folder $Name
-      if ($LASTEXITCODE -ne 0) { throw 'the library did not take the project; read the error above' }
-      return ($out | ConvertFrom-Json)
-    }
-  }
+  foreach ($line in (Get-StorytreeOpenedLines $installDir $answer.report)) { Write-Host $line }
 } catch {
   Write-Error "$_ Retry: run the same delivery command again after resolving the named step."
   exit 1

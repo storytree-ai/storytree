@@ -52,3 +52,30 @@ test("13.10 · the library declares the `adr` family the command line lists 4th:
   assert.equal((await library.decision(decision.id))?.record.fields.title, "Mail from a queue");
   assert.equal(asked, 1);
 });
+
+test("13.11 · `adr new --basis brought-across` takes the 0.2 record it points at and the basis 0.2 gave, and refuses the label without them", async (t) => {
+  const storytree = await connect({ url: testServerUrl() });
+  const project = uniqueProjectName();
+  t.after(async () => {
+    try {
+      await storytree.dropProject(project);
+    } finally {
+      await storytree.close();
+    }
+  });
+  const library = await storytree.openProject(project);
+  const create = ADR_FAMILY.verbs.find((one) => "name" in one.command && one.command.name === "new")!;
+  const context = { library, project: "p", session: "s", folder: process.cwd(), writer: { actor: "session:s" } } as VerbContext;
+  const decision = { title: "Claims are forced", text: "0.2's claim, carried over.", status: "accepted", basis: "brought-across" };
+
+  const { cursor } = await library.changesSince(0);
+  await assert.rejects(create.act(decision, context, WORDS), /brought-across[\s\S]*broughtFrom/);
+  await assert.rejects(create.act({ ...decision, basis: "agent-derived", "brought-from": "ADR-0138", "brought-basis": "owner-directed" }, context, WORDS), /--basis brought-across/);
+  assert.deepEqual((await library.changesSince(cursor)).changes, [], "nothing was written");
+
+  await create.act({ ...decision, "brought-from": "ADR-0138", "brought-basis": "owner-directed" }, context, WORDS);
+  const [recorded] = await library.decisions();
+  assert.equal(recorded?.record.fields.authority?.basis, "brought-across");
+  assert.deepEqual(recorded?.record.fields.authority?.broughtFrom, { record: "ADR-0138", basis: "owner-directed" });
+  assert.equal(recorded?.record.fields.authority?.ownerSaid, undefined);
+});

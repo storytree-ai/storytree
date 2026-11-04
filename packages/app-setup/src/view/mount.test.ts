@@ -40,16 +40,16 @@ test("3.1 the mounted guide opens with no project and its Help entry reopens it 
     const panel = document.querySelector<HTMLElement>("#setup-help-panel")!;
     const launch = document.querySelector<HTMLButtonElement>("[aria-controls=setup-help-panel]")!;
     assert.equal(panel.hidden, false);
-    assert.equal(document.activeElement, panel.querySelector("h2"));
+    assert.ok(document.activeElement === panel.querySelector("h2"));
     assert.match(panel.textContent!, /Start your first project/);
 
     panel.querySelector<HTMLButtonElement>("[data-close-help]")!.click();
     assert.equal(panel.hidden, true);
-    assert.equal(document.activeElement, launch);
+    assert.ok(document.activeElement === launch);
     launch.click();
     assert.equal(panel.hidden, false);
     assert.equal(launch.getAttribute("aria-expanded"), "true");
-    assert.equal(document.activeElement, panel.querySelector("h2"));
+    assert.ok(document.activeElement === panel.querySelector("h2"));
   } finally { mounted.stop(); }
 });
 
@@ -72,7 +72,7 @@ test("3.13 the guide's first run offers to connect each agent this computer runs
     await setImmediate();
     assert.deepEqual(connected, ["claude-code"]);
     assert.match(offer.textContent!, /Claude Code is connected\. Start a new agent session/);
-    assert.equal(offer.querySelector("button"), null);
+    assert.ok(offer.querySelector("button") === null);
 
     document.querySelector<HTMLButtonElement>("[data-guide-add-project]")!.click();
     await setImmediate();
@@ -156,7 +156,7 @@ test("3.13 a copy the installer did not deliver is told so plainly, as a status,
     const offer = document.querySelector<HTMLElement>("[data-connect]")!;
     assert.equal(offer.textContent, "Connecting your coding agents is for installed copies.");
     assert.equal(offer.getAttribute("role"), "status");
-    assert.equal(offer.querySelector("button"), null);
+    assert.ok(offer.querySelector("button") === null);
   } finally { mounted.stop(); }
 });
 

@@ -40,7 +40,7 @@ test("3.12 Your factory (app menu): shows the factory folder in use by its path 
   await setImmediate(); await setImmediate();
   assert.equal(host.querySelector("[data-factory-folder]")!.textContent, "/work/my-factory", "the folder in use is shown at once");
   assert.match(host.querySelector("[data-factory-status]")!.textContent!, /now your factory, set up for your plugins/);
-  assert.equal(host.querySelector("[role=dialog], [data-approve]"), null, "no approval step");
+  assert.ok(host.querySelector("[role=dialog], [data-approve]") === null, "no approval step");
 
   answer = async () => { throw new Error("/work/notes holds other files and no plugins folder, so it is not a factory"); };
   button.click();

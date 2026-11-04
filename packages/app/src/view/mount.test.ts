@@ -174,7 +174,7 @@ test("2.15 the app bar's factory icon switches straight to the factory, its Proj
   assert.equal(factoryTab().getAttribute("aria-current"), "true");
   assert.equal(projectsTab().hasAttribute("aria-current"), false);
   assert.equal(select().selectedIndex, -1);
-  assert.equal(bar().querySelector("[data-app-project-name]"), null, "no name on the factory");
+  assert.ok(bar().querySelector("[data-app-project-name]") === null, "no name on the factory");
   factoryTab().click();
   await setImmediate();
   assert.deepEqual(chosen, ["my-factory"], "the factory icon on the factory switches nothing");

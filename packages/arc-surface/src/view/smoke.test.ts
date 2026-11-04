@@ -77,8 +77,8 @@ test("3.6 the public smoke check visits the mounted scopes and opens every root 
   assert.equal(document.querySelector('[data-arc-queue="build"]')!.getAttribute("aria-expanded"), "true");
   assert.equal(document.querySelector('[data-arc-queue="other"]')!.getAttribute("aria-expanded"), "true");
   assert.equal(document.querySelector(".arc-queue-more")!.textContent, "+1");
-  assert.equal(document.querySelector('[data-arc-id="hidden"]'), null);
-  assert.equal(document.querySelector('[data-increment-id="release-work"]'), null);
+  assert.ok(document.querySelector('[data-arc-id="hidden"]') === null);
+  assert.ok(document.querySelector('[data-increment-id="release-work"]') === null);
   assert.ok(document.querySelector('details[data-fold-key="rail:build:increment:build-work"]'), "an open caret's increment rows are there, yet not counted as drawn bars");
 
   const missing = arc("missing");

@@ -29,7 +29,7 @@ test("15.1 first launch has no preselected consent, disables unavailable sharing
   const mounted = mountJourneyConsent(s.element, s.bridge);
   await setImmediate();
   assert.equal(s.element.querySelector<HTMLButtonElement>('[data-journey-on]')!.disabled, true);
-  assert.equal(s.element.querySelector('[checked]'), null);
+  assert.ok(s.element.querySelector('[checked]') === null);
   assert.match(s.element.querySelector<HTMLElement>('.journey-panel')!.textContent ?? "", /PostHog in the US/);
   assert.equal(s.element.querySelector<HTMLElement>('[data-journey-status]')!.textContent?.includes("unavailable"), true);
   assert.deepEqual(s.choices, []);
@@ -135,6 +135,6 @@ test("15.4 · the first launch's consent marks itself with the surface id it dec
 
   const later = setup("off");
   const settings = mountJourneySettings(later.element, later.bridge);
-  assert.equal(later.element.querySelector("[data-surface-id]"), null, "in the gear menu, the Sharing tab is the surface");
+  assert.ok(later.element.querySelector("[data-surface-id]") === null, "in the gear menu, the Sharing tab is the surface");
   settings.stop();
 });

@@ -7,10 +7,10 @@
  *
  * - Every rule is the library's own (knowledge/decision-log.ts): numbers handed out inside the write, status,
  *   supersession and its loop check, the owner's words a stamp claiming his authority must quote, and whether a composed
- *   statement is stale. An accepted decision that supersedes others is recorded by the librarian's `supersede`, which
- *   moves their shelf and load-bearing mark in one write.
+ *   statement is stale. A decision that comes to supersede others while accepted goes through the librarian's
+ *   `supersede` (its `recordDecision` and `editDecision`), which moves their shelf and load-bearing mark in one write.
  * - The file `adr pull` writes: a front matter of `key: <JSON value>` lines, then `# <title>`, a blank line, and the
- *   text. `push` hands the library's `editNote` only what differs from the stored decision, so a push with no edit
+ *   text. `push` hands `editDecision` only what differs from the stored decision, so a push with no edit
  *   writes nothing, and names no writer. The lines below `# read only` (its id, number, how it reads, its authority and
  *   composed statement) are shown, never pushed.
  * - A decision is named by its id or number. Listing uses list(kind), then decision(id) so the library owns
@@ -18,7 +18,7 @@
  */
 import { verb, VerbRefusal, type VerbContext, type VerbFamily } from "../verbs/verb.js";
 import type { DecisionView, Library } from "../index.js";
-import { supersede } from "../librarian/decision-log/index.js";
+import { editDecision, recordDecision } from "../librarian/decision-log/index.js";
 
 /** The fields a pushed file may change, in the order the file shows them. */
 const EDITABLE = ["status", "decided", "loadBearing", "supersedes", "links", "frontCoverOf"] as const;
@@ -153,11 +153,7 @@ const create = verb({
       authority: basis === undefined ? undefined : { basis, scribedBy: await person(), at: new Date().toISOString(), ...(ownerSaid === undefined ? {} : { ownerSaid }) },
     };
     const fields = { title: input.title, text: input.text, status: input.status, ...Object.fromEntries(Object.entries(optional).filter(([, value]) => value !== undefined)) };
-    const supersedes = optional.supersedes as string[] | undefined;
-    // An accepted decision that supersedes others is the librarian's supersede: it moves their shelf and load-bearing mark.
-    const decision = input.status === "accepted" && supersedes !== undefined && supersedes.length > 0
-      ? await supersede(context.library, supersedes, Object.fromEntries(Object.entries(fields).filter(([key]) => key !== "status" && key !== "supersedes")) as never, context.writer)
-      : await context.library.recordDecision(fields as never, context.writer);
+    const decision = await recordDecision(context.library, fields as never, context.writer);
     return {
       text: `Recorded ${adr(decision.fields.number)} (${decision.id}), ${decision.fields.status}.`,
       next: [{ command: `adr pull ${decision.id} --out ${decision.id}.md`, why: "read or edit it as a file" }],
@@ -203,7 +199,7 @@ const push = verb({
     }
     const names = Object.keys(changes);
     if (names.length === 0) return { text: `No change: ${file} says what ${id} already says.` };
-    await context.library.editNote(id, changes as never, context.writer);
+    await editDecision(context.library, id, changes as never, context.writer);
     return { text: `Pushed ${id}: ${names.join(", ")}.`, next: [{ command: `adr pull ${id}`, why: "read it back" }] };
   },
 });

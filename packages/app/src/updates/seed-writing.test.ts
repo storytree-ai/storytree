@@ -12,6 +12,7 @@ import pg from "pg";
 
 import { SEED_CONNECTION } from "@storytree/library";
 import { dropTestDatabases } from "@storytree/local-postgres/testing";
+import { waitUntil } from "@storytree/test-waits";
 import { seedWriting } from "./seed-writing.js";
 
 test("4.8 the restart into a new build waits while a seed is writing the app's library", async () => {
@@ -38,9 +39,7 @@ test("4.8 the restart into a new build waits while a seed is writing the app's l
       await seed.end();
     }
     // The server lists a backend until it has finished leaving, a moment after its client's end().
-    const deadline = Date.now() + 10_000;
-    while (await seedWriting(app) && Date.now() < deadline) await new Promise((resolve) => setTimeout(resolve, 50));
-    assert.equal(await seedWriting(app), false, "and once it has gone, it may go ahead");
+    await waitUntil(async () => !(await seedWriting(app)), 10_000, "the restart to go ahead once the seed has gone");
   } finally {
     await stranger.end();
     await admin.end();

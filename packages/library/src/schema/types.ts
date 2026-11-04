@@ -620,11 +620,15 @@ export const RECORD_SCHEMAS = {
       /**
        * The escape it fixes, a defect that reached main: the change that caused it (a pull request, as
        * `#123` or `123`, or an increment) and the story it hit, the link risk cut-offs and a likelihood
-       * term are calibrated against (research_9860f6546277). Optional, so no version bump.
+       * term are calibrated against (research_9860f6546277); `none` when it landed fixing none, so a
+       * landing that names no escape is a negative, not unknown (research_4bbec1b12097 4.1). Absent on
+       * work not landed, and on work landed before landings said. Optional, so no version bump.
        */
       escape: z
-        .object({ causedBy: z.string().regex(/^#?\d+$|^increment_/, "a pull request (#123) or an increment"), story: z.string() })
-        .strict()
+        .union([
+          z.object({ causedBy: z.string().regex(/^#?\d+$|^increment_/, "a pull request (#123) or an increment"), story: z.string() }).strict(),
+          z.literal("none"),
+        ])
         .optional(),
       /**
        * Its risk line (question_0f21964e8ce0), read from the paths it changes: its tier, rating (2 x depth

@@ -100,7 +100,7 @@ export interface IncrementEdit {
 /** An increment's risk line: its tier, rating, depth, radius, flags, the stories it touches and the day read. */
 export type RiskLine = NonNullable<FieldsOf<"increment">["risk"]>;
 
-/** An escape an increment fixes: the change that caused it and the story it hit. */
+/** An escape an increment fixes: the change that caused it and the story it hit, or `none` when it fixes none. */
 export type Escape = NonNullable<FieldsOf<"increment">["escape"]>;
 
 /** A pending plan change, as its increment keeps it (ADR-0966 D1). */
@@ -247,7 +247,7 @@ export class WorkInFlight {
       if (new Set(waitsFor?.map(({ releaser }) => releaser)).size !== (waitsFor?.length ?? 0)) throw new RangeError("an increment waits with one note per releaser");
       const lifecycle = outcome === undefined
         ? { status: "proposal" as const, parked: new Date().toISOString() }
-        : { status: "closed" as const, outcome: outcomeOf(outcome) };
+        : { status: "closed" as const, outcome: outcomeOf(outcome), ...escapeAnswer(fields.escape, outcome) };
       return this.#records.create("increment", { ...fields, ...(waitsFor === undefined || waitsFor.length === 0 ? { waitsFor: undefined } : { waitsFor }), ...lifecycle }, options);
     });
   }
@@ -302,7 +302,7 @@ export class WorkInFlight {
         increment = (await liveRecord(this.#records, id, ["increment"]))!;
       }
       const dropped = increment.fields.pending?.length ?? 0;
-      const fields = { status: "closed" as const, outcome: outcomeOf(close), ...(dropped === 0 ? {} : { pending: undefined }) };
+      const fields = { status: "closed" as const, outcome: outcomeOf(close), ...escapeAnswer(increment.fields.escape, close), ...(dropped === 0 ? {} : { pending: undefined }) };
       const write = dropped === 0 ? options : { ...options, reason: droppedReason(dropped, close.disposition) };
       const closed = (await this.#records.edit(id, fields, write)) as SchemaRecord<"increment"> | null;
       await this.#clearAfter(async () => {
@@ -1040,8 +1040,9 @@ export class WorkInFlight {
     await checkReferences(this.#records, "remedies", fields.remedies, "friction");
     await checkReferences(this.#records, "heldOn", fields.heldOn, "question");
     // A cause that is neither a pull request nor an increment's id is the schema's to refuse.
-    if (fields.escape?.causedBy.startsWith("increment_") === true) await checkReference(this.#records, "escape.causedBy", fields.escape.causedBy, "increment");
-    await checkReference(this.#records, "escape.story", fields.escape?.story, "story");
+    const escape = fields.escape === "none" ? undefined : fields.escape;
+    if (escape?.causedBy.startsWith("increment_") === true) await checkReference(this.#records, "escape.causedBy", escape.causedBy, "increment");
+    await checkReference(this.#records, "escape.story", escape?.story, "story");
     await checkReferences(this.#records, "risk.stories", fields.risk?.stories, "story");
   }
 
@@ -1253,6 +1254,11 @@ function stampOf(increment: string, pr: string | undefined): string {
 }
 
 /** The outcome a close stores: today unless a day is given, and only the parts given. */
+/** A landing says whether it fixed an escape (research_4bbec1b12097 4.1): one naming none fixes none. */
+function escapeAnswer(escape: Escape | undefined, close: CloseInput): { escape?: Escape } {
+  return close.disposition === "landed" && escape === undefined ? { escape: "none" } : {};
+}
+
 function outcomeOf(close: CloseInput): NonNullable<FieldsOf<"increment">["outcome"]> {
   return {
     date: close.date ?? new Date().toISOString().slice(0, 10),

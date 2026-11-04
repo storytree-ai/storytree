@@ -442,7 +442,9 @@ function landsByPullRequest(folder: string): boolean {
 export async function refusalText(library: Library, id: string, answer: Exclude<ClaimAnswer, { ok: true }>): Promise<string> {
   switch (answer.refused) {
     case "held":
-      return `${await titleOf(library, id)} is held by ${holderOf(answer.holder, answer.heldFor)}. Pick other work: nobody queues${answer.heldFor.length === 0 ? "" : `; this is free once ${answer.heldFor[0]} closes`}.`;
+      return `${await titleOf(library, id)} is held by ${holderOf(answer.holder, answer.heldFor)}. Pick other work: nobody queues${
+        id.startsWith("capability_") ? `. To have your increment wait for it, wait on its claim (set_wait with on: ${id}), which clears the moment its holder releases it (ADR-1228)`
+          : answer.heldFor.length === 0 ? "" : `; this is free once ${answer.heldFor[0]} closes`}.`;
     case "closed":
       return `${await titleOf(library, id)} is closed: there is nothing left to claim. Pick other work.`;
     case "waiting": {

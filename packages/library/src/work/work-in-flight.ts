@@ -27,7 +27,7 @@ import * as questions from "./owner-questions.js";
 import { heldOnOpen, type NewQuestion, type QuestionEdit, type QuestionLease, type Settlement } from "./owner-questions.js";
 import * as waits from "./waits.js";
 import { WorkModel, type CapabilityNode, type ProjectTree, type StoryNode } from "./work-model.js";
-import { arcHold, checkedWaitFor, holdsOf, incrementHold, noteWaits, type Hold, type Holds, type NoteWait, type Wait, type WaitFor, type WaitWrite } from "./waits.js";
+import { arcHold, checkedWaitFor, claimHold, holdsOf, incrementHold, noteWaits, onClaim, type ClaimReading, type Hold, type Holds, type NoteWait, type Wait, type WaitFor, type WaitWrite } from "./waits.js";
 
 /** Where an increment is in its lifecycle. */
 export type IncrementStatus = (typeof INCREMENT_STATUSES)[number];
@@ -573,28 +573,30 @@ export class WorkInFlight {
    * The blockers still holding `id`'s waits, in the order its waits were written, each with its
    * reason and whether it can never release. An increment wait holds until its blocker closes as
    * landed; an arc wait until that arc closes. An open increment is also held by its arc's waits,
-   * after its own, since its arc's work cannot start; a closed increment is held by nothing. Empty
+   * after its own, since its arc's work cannot start; a closed increment is held by nothing. A wait
+   * on a capability's claim holds while `claimed` has that capability (11.12). Empty
    * when nothing holds, and for an id that is not a live arc or increment.
    */
-  async waitHolds(id: string): Promise<Hold[]> {
+  async waitHolds(id: string, { claimed }: ClaimReading = {}): Promise<Hold[]> {
     const work = await this.#snapshot();
     const record = work.arcs.get(id) ?? work.increments.get(id);
-    return record === undefined ? [] : work.waitHolds(record);
+    return record === undefined ? [] : work.waitHolds(record, claimed);
   }
 
   /**
    * Every live arc's and open increment's wait holds, and every open increment's owner holds and
    * waits for the owner or an event (read at `at`, now unless given), from one reading of the
    * project's work (11.5): what a surface showing all of it asks, in place of a waitHolds, a
-   * heldOnQuestion and a waitsFor per id, each of which reads the work again. Closed increments have
+   * heldOnQuestion and a waitsFor per id, each of which reads the work again. A wait on a
+   * capability's claim holds while `claimed` has that capability (11.12). Closed increments have
    * no holds and are omitted.
    */
-  async holds(at: Date = new Date()): Promise<Holds> {
+  async holds(at: Date = new Date(), { claimed }: ClaimReading = {}): Promise<Holds> {
     const work = await this.#snapshot();
     const live = [...work.arcs.values(), ...work.increments.values()];
     const open = [...work.increments.values()];
     return {
-      waits: Object.fromEntries(live.map((record) => [record.id, work.waitHolds(record)])),
+      waits: Object.fromEntries(live.map((record) => [record.id, work.waitHolds(record, claimed)])),
       heldOn: Object.fromEntries(open.map((increment) => [increment.id, work.heldOn(increment)])),
       waitsFor: Object.fromEntries(open.map((increment) => [increment.id, noteWaits(increment.fields.waitsFor, at)])),
     };
@@ -1051,14 +1053,15 @@ class Snapshot {
 
   /**
    * The blockers still holding `record`'s waits: an arc's own; an open increment's own, then its
-   * arc's; a closed increment's none (11.4).
+   * arc's; a closed increment's none (11.4). An increment's wait on a capability's claim holds
+   * while `claimed` has it (11.12).
    */
-  waitHolds(record: ArcFacts | IncrementFacts): Hold[] {
+  waitHolds(record: ArcFacts | IncrementFacts, claimed?: ReadonlySet<string>): Hold[] {
     if (record.type === "arc") return holdsOf(record.fields.waits, (wait) => this.arcWaitHold(wait));
     const increment = record as IncrementFacts;
     if (increment.fields.status === "closed") return [];
     return [
-      ...holdsOf(increment.fields.waits, (wait) => this.incrementHold(wait)),
+      ...holdsOf(increment.fields.waits, (wait) => (onClaim(wait) ? claimHold(wait, claimed) : this.incrementHold(wait))),
       ...holdsOf(this.arcs.get(increment.fields.arc)?.fields.waits, (wait) => this.arcWaitHold(wait)),
     ];
   }

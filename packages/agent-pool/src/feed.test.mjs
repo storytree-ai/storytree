@@ -491,3 +491,36 @@ test("2.30 · one survey of every project the machine names offers each one's re
   assert.equal(await main(["reoffer", "w_tripped", "--project", "storytree-website", "--reason", "the website's brief is fixed"], options), 0);
   assert.equal(offered[0].project, "storytree-website");
 });
+
+test("2.31 · work that waits only on a released claim is ready at the next survey: the survey reads the library's holds with the capabilities live sessions hold", async () => {
+  const { connect } = await import("@storytree/library");
+  const { dropTestDatabases, testServerUrl, uniqueProjectName } = await import("@storytree/library/testing/pg");
+  const name = uniqueProjectName();
+  const storytree = await connect({ url: testServerUrl() });
+  try {
+    const library = await storytree.openProject(name);
+    // The 2026-11-03 case: the speed fix's lane was refused the Arc surface, on the list of the Arcs tab expansion another session held.
+    const arc = await library.createArc({ title: "Board", intent: "An intent", endState: "An end state" });
+    const story = await library.addStory({ title: "Visitor sees the arcs" });
+    const surface = await library.addCapability({ title: "Arc surface", story: story.id });
+    const expansion = await library.addIncrement({ arc: arc.id, title: "Arcs tab expansion", objective: "Do it", body: "The steps.", capabilities: [surface.id] });
+    const fix = await library.addIncrement({ arc: arc.id, title: "Open-app speed fix", objective: "Do it", body: "The steps." });
+    await library.addWait(fix.id, surface.id, "refused: the Arcs tab expansion's session holds it");
+    const pick = async (claims) => pickPool(await readSurvey({ library, claims: async () => claims }), { max: Infinity, now });
+    const live = { session: "arcs-tab", holder: "live", since: "2026-11-03T09:00:00Z" };
+
+    const listed = await pick([{ ...live, increment: expansion.id }]);
+    assert.deepEqual(listed.picks.map((one) => one.id), [], "held while a live session holds the increment whose list names it");
+    assert.match(listed.skipped.find((one) => one.id === fix.id).why, new RegExp(`waits on ${surface.id}`));
+    const direct = await pick([{ ...live, capability: surface.id }]);
+    assert.match(direct.skipped.find((one) => one.id === fix.id).why, new RegExp(`waits on ${surface.id}`), "and while one holds it directly");
+
+    // That session asked the owner, which released its claims; the expansion stays open, held on his question.
+    const released = await pick([]);
+    assert.deepEqual(released.picks.map((one) => one.id).sort(), [expansion.id, fix.id].sort(), "the fix is ready at the next survey");
+    await library.close();
+  } finally {
+    await storytree.close();
+    await dropTestDatabases([`storytree_${name}`]);
+  }
+});

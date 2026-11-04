@@ -134,10 +134,10 @@ export function registerWorkTools(define: Define): void {
 
   define(
     "set_wait",
-    "Make an increment wait on another increment, on any arc, or an arc on another arc, with the reason (`on`, `reason`). Or make an increment wait for something outside the plan, with a note (`for`, `note`): the owner, for an action only they can take that is not a decision (a decision is a question), with its `why` and any `rank`; or an outside event, with the day to check back, from which it reads ready again. Set again for the owner, a wait keeps the note, why and rank you leave out, and reads as read again today. Waiting work cannot be claimed or started until the wait releases; a wait for the owner releases your claims on the increment and the capabilities you took for it.",
+    "Make an increment wait on another increment, on any arc, or an arc on another arc, with the reason (`on`, `reason`). An increment refused a capability another live session holds waits on that capability's claim (`on` the capability): the wait holds only while a live session holds it, and clears the moment its holder releases it (ADR-1228). Or make an increment wait for something outside the plan, with a note (`for`, `note`): the owner, for an action only they can take that is not a decision (a decision is a question), with its `why` and any `rank`; or an outside event, with the day to check back, from which it reads ready again. Set again for the owner, a wait keeps the note, why and rank you leave out, and reads as read again today. Waiting work cannot be claimed or started until the wait releases; a wait for the owner releases your claims on the increment and the capabilities you took for it.",
     z.object({
       waiter: z.string().min(1).describe("The id of the increment or arc that waits"),
-      on: z.string().min(1).optional().describe("The id of the increment or arc it waits on; or give `for` instead"),
+      on: z.string().min(1).optional().describe("The id of the increment or arc it waits on, or of the capability whose claim it waits on; or give `for` instead"),
       reason: z.string().min(1).optional().describe("With `on`: why it waits, in a line"),
       for: z.enum(["owner", "event"]).optional().describe("Instead of `on`, for an increment: what outside the plan it waits for: the owner, or an outside event"),
       note: z.string().min(1).optional().describe("With `for`: what the owner must do, or what must happen, in a line; set again for the owner, left out it keeps the one it has"),

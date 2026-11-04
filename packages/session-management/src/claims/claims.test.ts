@@ -807,6 +807,28 @@ test("5.8 claiming an increment whose own wait holds, or whose arc's wait holds,
   });
 });
 
+test("5.64 claiming an increment that waits on a capability's claim is refused while another live session holds that capability, directly or on its increment's list, and succeeds once it is released; the claimer's own claim never holds it (ADR-1228 D1)", async () => {
+  await withWorld(async ({ library, emailForm, as }) => {
+    const { arc, park } = await arcOf(library);
+    const expansion = await park("arcs tab expansion", [emailForm]);
+    const fix = await park("speed fix");
+    await library.addWait(fix, emailForm, "refused: another session holds it");
+    const waiting = [{ increment: fix, on: emailForm, reason: "refused: another session holds it", forGood: false, claim: true }];
+
+    assert.equal((await claim(as("A"), expansion, "expanding the tab")).ok, true);
+    assert.deepEqual(await claim(as("B"), fix, "fixing speed"), { ok: false, refused: "waiting", waits: waiting }, "held on the list of the increment A holds");
+    await release(as("A"), expansion);
+    assert.equal((await claim(as("C"), emailForm, "building the form")).ok, true);
+    assert.deepEqual(await claim(as("B"), fix, "fixing speed"), { ok: false, refused: "waiting", waits: waiting }, "held directly");
+    assert.equal(await statusOf(library, arc, fix), "proposal", "not started");
+
+    assert.equal((await claim(as("C"), fix, "fixing it myself")).ok, true, "the holder's own claim does not hold its own work");
+    await release(as("C"), fix);
+    await release(as("C"), emailForm);
+    assert.equal((await claim(as("B"), fix, "fixing speed")).ok, true, "released, the wait no longer holds");
+  });
+});
+
 test("5.9 a capability claim is never refused because the open increments listing it among their capabilities wait: the list is a plan, never a lock (ADR-0944 D2)", async () => {
   await withWorld(async ({ library, emailForm, as }) => {
     const { park } = await arcOf(library);

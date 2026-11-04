@@ -357,11 +357,20 @@ function returnedSaid(answer: { returned?: true }): string {
   return answer.returned ? "; nobody holds it, so it is a proposal again." : ".";
 }
 
+/**
+ * What a refused claim's holder leaves the late session: for a capability, a wait on its claim, which clears the moment
+ * its holder releases it (ADR-1228 D1); for an increment, when it is free.
+ */
+function backOffSaid(id: string, heldFor: readonly string[]): string {
+  if (id.startsWith("capability_")) return `. To have your increment wait for it, wait on its claim (storytree arc increment wait <increment> --on ${id} --reason …), which clears the moment its holder releases it (ADR-1228)`;
+  return heldFor.length === 0 ? "" : `; this is free once ${heldFor[0]} closes`;
+}
+
 /** A refused claim or workspace, as the command line words it. */
 export function workspaceRefusalText(id: string, answer: WorkspaceRefusal): string {
   switch (answer.refused) {
     case "held":
-      return `${"listed" in answer ? `${answer.listed}, on ${id}'s capabilities list,` : id} is held by ${answer.holder.label} session ${answer.holder.session}${answer.heldFor.length === 0 ? "" : ` for ${answer.heldFor.join(", ")}`}: ${answer.holder.reason}${answer.holder.binds === undefined ? "" : `; binds: ${answer.holder.binds}`}. Pick other work${answer.heldFor.length === 0 ? "" : `; this is free once ${answer.heldFor[0]} closes`}.`;
+      return `${"listed" in answer ? `${answer.listed}, on ${id}'s capabilities list,` : id} is held by ${answer.holder.label} session ${answer.holder.session}${answer.heldFor.length === 0 ? "" : ` for ${answer.heldFor.join(", ")}`}: ${answer.holder.reason}${answer.holder.binds === undefined ? "" : `; binds: ${answer.holder.binds}`}. Pick other work${backOffSaid("listed" in answer ? answer.listed : id, answer.heldFor)}.`;
     case "yours":
       return `You already hold ${id}${answer.claim.branch === undefined ? "" : ` on branch ${answer.claim.branch}`}. Work there, or release it first.`;
     case "waiting":

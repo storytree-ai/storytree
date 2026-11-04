@@ -295,7 +295,7 @@ async function claimable(context: ClaimContext, id: string, throughOwnerWait = f
   const found = await partNamed(library, id);
   if (found === undefined) return { ok: false, refused: "unknown-capability", capability: id };
   if (found.status === "closed") return { ok: false, refused: "closed", increment: id };
-  const waits = (await waitingOn(library, found)).filter((wait) => !(throughOwnerWait && wait.waitsFor === "owner"));
+  const waits = (await waitingOn(context, found)).filter((wait) => !(throughOwnerWait && wait.waitsFor === "owner"));
   return waits.length === 0 ? found : { ok: false, refused: "waiting", waits };
 }
 
@@ -472,12 +472,16 @@ export async function readAttribution(log: ActivityLog, project: string): Promis
  * waits too), and whether an increment is held on an open question (`heldOnQuestion`). Only an
  * increment waits: its blockers still holding it, and the open questions it is held on. A
  * capability never does, whatever the increments listing it among their capabilities wait on, since
- * that list does not refuse a capability claim (ADR-0944 D2). Session management keeps no copy of the rule for whether a wait holds.
+ * that list does not refuse a capability claim (ADR-0944 D2). A wait on a capability's claim is read against
+ * the capabilities other live sessions hold (5.64, ADR-1228 D1), read only when the increment has one.
+ * Session management keeps no copy of the rule for whether a wait holds.
  */
-async function waitingOn(library: Library, found: Found): Promise<Waiting[]> {
+async function waitingOn(context: ClaimContext, found: Found): Promise<Waiting[]> {
+  const { library } = context;
   const { increment } = found.part;
   if (increment === undefined) return [];
-  const holds = await library.holds();
+  const unread = await library.holds();
+  const holds = (unread.waits[increment] ?? []).some((hold) => hold.claim === true) ? await library.holds(new Date(), { claimed: await claimedByOthers(context) }) : unread;
   return [
     ...(holds.waits[increment] ?? []).map((hold): Waiting => ({ increment, ...hold })),
     ...(holds.heldOn[increment] ?? []).map((question): Waiting => ({ increment, on: question, reason: "waiting on the owner's answer", forGood: false, onOwner: true })),
@@ -485,6 +489,14 @@ async function waitingOn(library: Library, found: Found): Promise<Waiting[]> {
       increment, on: releaser === "owner" ? "the owner" : "an outside event", reason: note, forGood: false, waitsFor: releaser, ...(checkBack === undefined ? {} : { checkBack }),
     })),
   ];
+}
+
+/** The capabilities other live sessions hold now: by their own claim, or on the list of an increment they hold (ADR-0949 D3). */
+async function claimedByOthers(context: ClaimContext): Promise<Set<string>> {
+  const others = (await readClaims(context.log, context.project, context)).filter((claim) => claim.holder === "live" && claim.session !== context.session);
+  const listed = await Promise.all(others.flatMap((claim) => (claim.increment === undefined ? [] : [claim.increment])).map(async (increment) =>
+    ((await context.library.get(increment))?.fields as { capabilities?: string[] } | undefined)?.capabilities ?? []));
+  return new Set([...others.flatMap((claim) => (claim.capability === undefined ? [] : [claim.capability])), ...listed.flat()]);
 }
 
 /** For a capability claim, the increment `session` holds that it was claimed most recently of, which closing or releasing ends it with (ADR-0949 D4). */

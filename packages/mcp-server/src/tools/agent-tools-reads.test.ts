@@ -181,6 +181,7 @@ test('6.4 a bad call gets a readable refusal rather than a crash, and with story
         ["report", { contract: "contract_000000000000", result: "red" }],
         ["land", { capability: "capability_000000000000" }],
         ["search_notes", { query: "mailgun" }],
+        ["find_text", { phrase: "mailgun" }],
         ["open", { id: "decision_000000000000" }],
         ["write_note", { kind: "definition", term: "Delivery", meaning: "Mailgun needs a verified domain" }],
         ["correct_note", { id: "memory_000000000000", text: "Mailgun needs a verified sending domain" }],

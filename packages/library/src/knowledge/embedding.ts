@@ -56,7 +56,11 @@ export class MemoryVectors implements VectorStore {
  */
 export const CHUNK = 1600;
 
-/** The fields that name other artifacts or bookkeeping, not words: never rendered. */
+/**
+ * The fields that name other artifacts or bookkeeping, not words: never rendered. Matched at every
+ * depth, so it names `refs` and `to` inside a role's `stepRefs` and a process's `branchEdges`, whose
+ * steps and labels are words; not REFERENCE_FIELD_NAMES, which knowledge.ts, importing this, holds.
+ */
 const UNRENDERED: ReadonlySet<string> = new Set([
   "title",
   "term",
@@ -66,6 +70,7 @@ const UNRENDERED: ReadonlySet<string> = new Set([
   "context",
   "rules",
   "antiPatterns",
+  "enforces",
   "refs",
   "to",
   "supersedes",

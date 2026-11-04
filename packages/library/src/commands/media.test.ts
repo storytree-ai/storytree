@@ -46,6 +46,9 @@ test("17.18 · media attach keeps a file from the caller's folder beside a recor
   assert.deepEqual([entry?.name, entry?.type, entry?.addedBy], ["dusk.png", "image/png", "session:lane"]);
   await verbOf("attach").act({ record: note.id, file: "notes.bin", name: "notes.json", type: "application/json", replace: false }, context, WORDS);
   assert.equal((await library.media(note.id)).find((one) => one.name === "notes.json")?.type, "application/json", "a given name and type are kept");
+  await verbOf("attach").act({ record: note.id, file: "notes.bin", name: undefined, type: undefined, replace: false }, context, WORDS);
+  assert.equal((await library.media(note.id)).find((one) => one.name === "notes.bin")?.type, "application/octet-stream", "an extension that says no type reads as plain bytes");
+  assert.match((await verbOf("attach").act({ record: note.id, file: "dusk.png", name: undefined, type: undefined, replace: false }, context, WORDS)).text, /^Already held, unchanged: dusk\.png/, "the same bytes again are said to change nothing");
 
   const listed = await verbOf("list").act({ record: note.id }, context, WORDS);
   assert.ok(listed.text.includes(`dusk.png  image/png  11 bytes  ${entry!.sha256.slice(0, 12)}`), listed.text);

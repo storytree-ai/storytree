@@ -6,7 +6,7 @@
  * restarts on every merged build), and while it runs takes the next at each project's day mark.
  * backUp writes one snapshot of each project to <dir>/<project>/<time>.json (the library's
  * `snapshot`, records, history and any media, one JSON object written a line per record, history entry or file
- * (1.46) and read back by readBackup), under that name only once whole, and keeps that project's newest
+ * (1.50) and read back by readBackup), under that name only once whole, and keeps that project's newest
  * BACKUPS_KEPT. A file there that is not a snapshot is never touched. A snapshot restores only into
  * an empty project (the library's `restore`), so it can never overwrite live edits.
  */
@@ -160,7 +160,7 @@ const WRITE_CHUNK = 1 << 20;
  * Write a snapshot as one JSON object without ever building it as one string (V8's longest is about
  * 2^29 characters, which the storytree project's passed on 2026-10-25): a first line holding every
  * field but records, history and media, then one record per line, then one history entry per line, then, when the
- * project keeps any, one media file per line (1.46), ending "]}\n". A small file still reads with JSON.parse;
+ * project keeps any, one media file per line (1.50), ending "]}\n". A small file still reads with JSON.parse;
  * readBackup reads any size line by line.
  */
 function writeSnapshot(partial: string, snapshot: ProjectSnapshot, stringify: (value: unknown) => string): void {

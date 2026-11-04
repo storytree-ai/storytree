@@ -132,6 +132,12 @@ test("1.30 a snapshot carries the media kept beside the project's records, and a
     await assert.rejects(storytree.restore(bad, damaged), /kettle\.png.*SHA-256/s);
     const after = await storytree.snapshot(bad);
     assert.deepEqual([after.records, after.history, after.media ?? []], [[], [], []], "nothing written");
+
+    // A project holding only media is not empty either: a restore into it is refused (1.8), writing nothing.
+    const onlyMedia: ProjectSnapshot = { ...plain, project: bad, records: [], history: [] };
+    await storytree.restore(bad, onlyMedia);
+    await assert.rejects(storytree.restore(bad, { ...plain, project: bad }), (error: unknown) => error instanceof RestoreRefusedError && error.message.includes(bad));
+    assert.deepEqual((await storytree.snapshot(bad)).records, [], "nothing written");
     await library.close();
     await restored.close();
   });

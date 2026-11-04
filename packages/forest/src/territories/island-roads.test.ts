@@ -101,3 +101,18 @@ test("3.77 a small island's roads are routed at The library's size and drawn at 
   assert.ok(Math.abs(Math.min(...small.roads.gates.map((g) => g.opening)) - Math.min(...library.roads.gates.map((g) => g.opening)) / 2) < 0.02);
   assert.ok(small.roads.segments.every((s) => s.pts.every((p) => Math.hypot(p.x, p.z) <= LIBRARY_RADIUS / 2 + 1e-6)), "on its own land");
 });
+
+test("3.77 each settlement stands in its own territory beside its name, clear of every name on the island", () => {
+  const { map, roads } = library, plates = names(map);
+  assert.ok(roads.towns.size > 0);
+  for (const [id, town] of roads.towns) {
+    const own = plates.find((p) => p.capability === id)!, at = map.territories.findIndex((t) => t.capability === id);
+    const cell = map.cells.reduce((b, c) => (far(c.site, town) < far(b.site, town) ? c : b));
+    assert.equal(cell.territory, at, `${id}'s settlement on its own land`);
+    assert.ok(far(town, own) < 40, `${id}'s settlement beside its name`);
+    for (const name of plates) {
+      const w = (name.title.length * 6.5 + 12) / 2.6, h = 7;
+      assert.ok(Math.abs(town.x - name.x) > w / 2 || Math.abs(town.z - name.z) > h / 2, `${id}'s settlement off ${name.capability}'s name`);
+    }
+  }
+});

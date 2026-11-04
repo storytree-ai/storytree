@@ -267,8 +267,9 @@ function Territories({ land: given, coast: givenCoast, links, docks: givenDocks,
   const roads = useMemo(() => docks === undefined ? undefined : islandRoads(map, links, docks, capabilityPlates(map)), [map, links, docks]);
   const drawn = useMemo(() => {
     const group = territoryLand(map, onIslandSurface(radius, TERRITORY_LIFT), coast, tints, roads?.gates);
-    const roadMarks = roads === undefined ? undefined : islandRoadMarks(roads, onIslandSurface(radius, ROAD_LIFT), landFill(map, group));
-    return { group, map, roadMarks };
+    // The roads lie on the land, so they show and hide with the territories (3.22).
+    if (roads !== undefined) group.add(islandRoadMarks(roads, onIslandSurface(radius, ROAD_LIFT), landFill(map, group)));
+    return { group, map };
   }, [map, coast, tints, radius, roads]);
   // ADR-0968: each claim's flag, and on an island with no code its lot, kept across claim changes so each plays its life.
   const marks = useMemo(() => new ClaimMarks(), []);
@@ -302,7 +303,6 @@ function Territories({ land: given, coast: givenCoast, links, docks: givenDocks,
     drawOn.take(drawn.group, surfaces.territories, clock.getElapsedTime(), { standing: opened.current && clock.getElapsedTime() < 1, reduced: reducedMotion() });
     opened.current = false;
     marks.root.visible = surfaces.sessionTints;
-    if (drawn.roadMarks !== undefined) drawn.roadMarks.visible = surfaces.territories !== false;
     whole.current = grow();
     invalidate();
   }, [drawn, marks, drawOn, lighting, surfaces, clock, grow, invalidate]);
@@ -310,12 +310,12 @@ function Territories({ land: given, coast: givenCoast, links, docks: givenDocks,
     if (drawOn.frame(clock.getElapsedTime(), reducedMotion())) invalidate();
     if (!whole.current) whole.current = grow();
   });
-  useEffect(() => () => [drawn.group, drawn.roadMarks].forEach((group) => group?.traverse((object) => {
+  useEffect(() => () => drawn.group.traverse((object) => {
     const mark = object as { geometry?: { dispose(): void }; material?: { dispose(): void } };
     mark.geometry?.dispose();
     mark.material?.dispose();
-  })), [drawn]);
-  return <><primitive object={drawn.group} />{drawn.roadMarks !== undefined && <primitive object={drawn.roadMarks} />}<primitive object={marks.root} /></>;
+  }), [drawn]);
+  return <><primitive object={drawn.group} /><primitive object={marks.root} /></>;
 }
 
 /** A failing island's marker at the window's edge, in CSS pixels, with the turn that brings it into view (3.11). */

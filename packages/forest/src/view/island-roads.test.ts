@@ -10,6 +10,7 @@ import { islandRoads } from "../territories/island-roads.js";
 import { linkLayout, LIBRARY_LAND } from "../territories/link-layout.js";
 import type { Coast, Point } from "../territories/territories.js";
 import { capabilityPlates } from "./nameplates.js";
+import { presentTerritories } from "./globe-surfaces.js";
 import { islandRoadMarks, landFill, ROAD } from "./island-roads.js";
 import { territoryLand } from "./territory-land.js";
 
@@ -49,8 +50,29 @@ test("3.77 each road is a sandy ribbon as wide as the links it carries, its sand
     const shown = new Color(colour.getX(0), colour.getY(0), colour.getZ(0)), sand = new Color(ROAD.colour);
     assert.ok(Math.abs(shown.r - sand.r) < 0.25 && Math.abs(shown.g - sand.g) < 0.25 && !shown.equals(sand), "sand mixed into the land");
   });
+  const discs = marks.children.filter((o) => o.name.startsWith("road-junction:")) as Mesh[];
+  assert.ok(roads.junctions.length > 0 && discs.length === roads.junctions.length, "a disc at each junction");
+  discs.forEach((disc, i) => {
+    const { at, width } = roads.junctions[i]!, rim = disc.geometry.getAttribute("position");
+    assert.ok(Math.abs(Math.hypot(rim.getX(1) - at.x, rim.getZ(1) - at.z) - width / 2) < 1e-4, "as wide as the widest road meeting there");
+    assert.ok(roads.segments.some((s) => s.width >= width - 1e-9 && s.pts.some((p) => Math.hypot(p.x - at.x, p.z - at.z) < 1e-6)));
+    const colour = (disc.material as MeshBasicMaterial).color, sand = new Color(ROAD.colour);
+    assert.ok(Math.abs(colour.r - sand.r) < 0.25 && !colour.equals(sand), "the road's sand mixed into the land");
+  });
   const posts = marks.children.filter((o) => o.name.startsWith("gate-post:"));
   assert.equal(posts.length, roads.gates.length * 2);
   assert.equal(marks.children.filter((o) => o.name.startsWith("gate-face:")).length, roads.gates.length * 2);
   assert.ok(posts.every((o) => ((o as Mesh).material as MeshBasicMaterial).color.getHexString() === "1b2024"), "ink posts");
+});
+
+test("3.77 the selected island's roads show and hide with its territories", () => {
+  const land = territoryLand(map, flat, coast, new Map(), roads.gates);
+  const marks = islandRoadMarks(roads, flat, landFill(map, land));
+  land.add(marks);
+  presentTerritories(land, false);
+  assert.equal(marks.visible, false, "hidden with the territories");
+  presentTerritories(land, "plain");
+  assert.equal(marks.visible, true);
+  presentTerritories(land, "health");
+  assert.equal(marks.visible, true);
 });

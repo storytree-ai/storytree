@@ -363,6 +363,8 @@ interface SessionFold {
   /** Its commands started and not seen finish, by call, in the order started; and finishes no running command took. */
   running: Map<string, CommandRunning>;
   finished: Set<string>;
+  /** Until when the background tasks its latest turn left running keep it live, when that turn left any (5.66). */
+  backgroundUntil?: number;
   closedOut?: { line: Line & { kind: "closed-out" }; reopened: boolean };
   name?: string;
   lastTurnEnded?: { seq: number; background: number };
@@ -530,6 +532,10 @@ export class LogFold {
     } else if (line.kind === "turn-ended" && line.background !== undefined && line.background > 0) {
       for (const one of own.running.values()) one.until = Date.parse(one.since) + LONGEST_COMMAND_MS;
     } else if (line.kind === "turn-ended" || line.kind === "session-started" || line.kind === "session-ended") own.running.clear();
+    // The background tasks a turn left running (a gate queued behind the heavy-run lock, say) run on with no line of their
+    // own, until a later turn ends with none, or the session ends or starts again, within LONGEST_COMMAND_MS (5.66).
+    if (line.kind === "turn-ended") own.backgroundUntil = (line.background ?? 0) > 0 ? Date.parse(line.at) + LONGEST_COMMAND_MS : undefined;
+    else if (line.kind === "session-ended" || (line.kind === "session-started" && line.how !== "compact")) own.backgroundUntil = undefined;
     // Its close-out, and what came after it.
     if (line.kind === "closed-out") own.closedOut = { line, reopened: false };
     else if (own.closedOut !== undefined && (line.kind === "claimed" || line.kind === "prompt-submitted" || (line.kind === "session-started" && line.how !== "compact"))) own.closedOut.reopened = true;
@@ -641,15 +647,21 @@ export class LogFold {
       const pull = pullOf(holder.session);
       if (pull !== undefined) return { ...holder, holder: "live", binds: `held for PR #${pull} until it merges or closes (ADR-1037)` } as Claim;
       const seen = this.#lastSeen.get(holder.session) ?? holder.since;
-      const running = [...(this.#sessions.get(holder.session)?.running.values() ?? [])].some(({ until }) => now <= until);
+      const own = this.#sessions.get(holder.session);
+      const running = [...(own?.running.values() ?? [])].some(({ until }) => now <= until);
+      // A background task its turn left running keeps it live past the quiet time (5.66). Its harness's timer beats on
+      // between turns, so a stopped heartbeat still frees it: the task went with its process.
+      const background = own?.backgroundUntil !== undefined && now <= own.backgroundUntil;
       const closeOut = sessions.get(holder.session)?.closeOut;
       const because: QuietBecause | undefined = closeOut?.verified === true ? "closed-out"
         : diedIn(options.restarted, this.#machines.get(holder.session), seen) || this.#diedWithMachine(holder.session, seen) ? "restart"
         : stoppedBy(options.beats?.get(holder.session), seen, now, running) ? "stopped"
-        : now - Date.parse(seen) > quietMs && !running ? (now - Date.parse(seen) > LONGEST_COMMAND_MS ? "gone" : "idle")
+        : now - Date.parse(seen) > quietMs && !running && !background ? (now - Date.parse(seen) > LONGEST_COMMAND_MS ? "gone" : "idle")
         : undefined;
       if (because !== undefined) return { ...holder, holder: "idle", quiet: { since: seen, because } } as Claim;
-      const binds = running ? "a command is still recorded as running" : "activity is within the claim quiet time";
+      const binds = running ? "a command is still recorded as running"
+        : background && now - Date.parse(seen) > quietMs ? "a background task its turn left running still runs"
+        : "activity is within the claim quiet time";
       return { ...holder, holder: "live", binds: `${binds}${closeOut?.needsYou === undefined ? "" : `; close-out ${closeOut.needsYou}`}` } as Claim;
     });
   }

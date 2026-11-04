@@ -428,6 +428,56 @@ test("5.6 a Claude Code command with no finish line keeps its holder live only u
   });
 });
 
+test("5.66 a turn that ends leaving its gate running in the background keeps its holder's increment claim live past the quiet time, until a later turn ends with nothing left running (regression: a pool lane took over a laptop session's increment 31 minutes into its backgrounded gate and landed it as PR #401, friction_6938ff3fb0ab, 2026-11-04)", async () => {
+  await withWorld(async ({ library, log, project, as }) => {
+    const { park } = await arcOf(library);
+    const increment = await park("windowsHide on the library's git reads");
+    const quietMs = 30 * 60 * 1000;
+    assert.ok((await claim(as("A"), increment, "windowsHide on the library's git reads")).ok);
+    // The gate is started as a background task: its launch returns at once, so its finish line follows its start.
+    const own = { session: "A", harness: "claude-code", source: "hook", machine: "laptop" } as const;
+    const started = await log.append(project, { ...own, kind: "command-started", command: "pnpm gate", call: "gate" });
+    const at = (ms: number) => new Date(Date.parse(started.at) + ms).toISOString();
+    await log.append(project, { ...own, kind: "command-run", command: "pnpm gate", call: "gate" }, { at: at(1_000) });
+    await log.append(project, { ...own, kind: "turn-ended", background: 1 }, { at: at(8 * 60 * 1000) });
+    const reading = async (ms: number) => {
+      const options = { quietMs, now: new Date(at(ms)) };
+      const bounded = (await readClaims(log, project, options)).find((one) => one.increment === increment);
+      const whole = claimsFrom((await log.since(project, 0)).lines, options).find((one) => one.increment === increment);
+      assert.deepEqual(bounded, whole, "the board and the bounded reader agree");
+      return bounded;
+    };
+
+    const waiting = await reading(39 * 60 * 1000);
+    assert.equal(waiting?.holder, "live", "the gate still waits on the heavy-run lock, so the pool must pass the increment by");
+    assert.match(waiting?.binds ?? "", /background/);
+
+    // The owner's next turn ends with nothing left in the background: from then on the quiet time judges A again.
+    await log.append(project, { ...own, kind: "prompt-submitted" }, { at: at(60 * 60 * 1000) });
+    await log.append(project, { ...own, kind: "turn-ended", background: 0 }, { at: at(61 * 60 * 1000) });
+    assert.equal((await reading(80 * 60 * 1000))?.holder, "live", "within the quiet time of its last line");
+    assert.equal((await reading(92 * 60 * 1000))?.holder, "idle", "quiet for longer than the quiet time, with nothing running");
+  });
+});
+
+test("5.66 a background task a turn left running keeps its holder live only as long as a command may run, and never past a fresh start of its session", async () => {
+  for (const after of ["limit", "session-started"] as const) {
+    await withWorld(async ({ log, project, emailForm, as }) => {
+      const quietMs = 30 * 60 * 1000;
+      assert.ok((await claim(as("A"), emailForm, "building the email form")).ok);
+      const own = { session: "A", harness: "claude-code", source: "hook", machine: "laptop" } as const;
+      const ended = await log.append(project, { ...own, kind: "turn-ended", background: 1 });
+      const at = (ms: number) => new Date(Date.parse(ended.at) + ms);
+      if (after === "session-started") await log.append(project, { ...own, kind: "session-started", how: "resume" }, { at: at(1_000).toISOString() });
+      const holder = (ms: number) => readClaims(log, project, { quietMs, now: at(ms) }).then((claims) => claims[0]?.holder);
+      if (after === "limit") {
+        assert.equal(await holder(LONGEST_COMMAND_MS - 60_000), "live", "within the longest a command may run");
+        assert.equal(await holder(LONGEST_COMMAND_MS + 60_000), "idle", "past it, the task is taken to have died with its window");
+      } else assert.equal(await holder(31 * 60 * 1000), "idle", `${after}: the session's background tasks went with it`);
+    });
+  }
+});
+
 test("5.17 a holder last seen on this machine before it restarted is taken over at once; one seen since, or on another machine, stays protected (regression: a resuming lane waited 30 minutes behind its dead predecessor, 2026-10-01)", async () => {
   await withWorld(async ({ log, project, emailForm, passwordReset, as }) => {
     const mint = await openActivityLog(testServerUrl(), { machine: "mint" });

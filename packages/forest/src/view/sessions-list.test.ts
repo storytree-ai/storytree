@@ -15,14 +15,14 @@ const row: SessionRow = { id: "parent", label: "Build <signup>", agent: "Codex",
       totalTokens: undefined, stories: [], worktrees: [], description: [], children: [] },
   ] };
 
-test("7.1–7.5 rows start with their detail closed; a running row's children show beneath it without a click, with no \"+N\"; a row the user opened shows its detail before its children; rows show safe words and available total beside its bar", () => {
+test("7.1–7.5 rows start with their detail closed; a running row's children stay folded behind its \"+N\" until the user opens it; opened, a row shows its detail before its children; rows show safe words and available total beside its bar", () => {
   const fresh = renderToStaticMarkup(createElement(SessionsList, { rows: [row], onHighlight() {} }));
   assert.match(fresh, /Build &lt;signup&gt;/);
   assert.match(fresh, /aria-expanded="false"/);
   assert.doesNotMatch(fresh, /session-detail/);
-  assert.match(fresh, /data-session-id="child"/, "a running parent's child shows without a click");
-  assert.doesNotMatch(fresh, /class="session-children"/, "no count while the children show");
-  assert.match(fresh, /aria-label="Show detail of Build &lt;signup&gt;"/, "the expander opens only the row's own detail");
+  assert.doesNotMatch(fresh, /data-session-id="child"/, "a running parent's child waits for the click");
+  assert.match(fresh, /class="session-children"[^>]*>\+1<\/span>/, "the folded children are counted while the parent works");
+  assert.match(fresh, /aria-label="Show detail and 1 children of Build &lt;signup&gt;"/, "the expander opens the row's detail and its children");
   const html = renderToStaticMarkup(createElement(SessionsList, { rows: [row], expanded: new Set(["parent"]), onHighlight() {} }));
   assert.match(html, /aria-expanded="true"/);
   assert.match(html, /class="session-detail"/);
@@ -34,10 +34,10 @@ test("7.1–7.5 rows start with their detail closed; a running row's children sh
   assert.match(unavailable, /Context total unavailable">—/);
 });
 
-test("7.2 a finished child of a running parent stays listed, greyed; an idle parent folds its whole tree behind its \"+N\", which its expander opens", () => {
+test("7.2 opened, a running parent lists a finished child greyed; a parent working or not folds its tree behind its \"+N\", which its expander opens", () => {
   const finished: SessionRow = { ...row, id: "lane", label: "Supervised lane", state: "waiting", idle: true, children: [] };
   const running: SessionRow = { ...row, state: "working", children: [row.children[0]!, finished] };
-  const live = renderToStaticMarkup(createElement(SessionsList, { rows: [running], onHighlight() {} }));
+  const live = renderToStaticMarkup(createElement(SessionsList, { rows: [running], expanded: new Set(["parent"]), onHighlight() {} }));
   assert.match(live, /data-session-id="lane"[^>]*data-done="true"/, "the finished child is greyed");
   assert.doesNotMatch(live, /data-session-id="child"[^>]*data-done/, "a child not known to be finished is not");
   assert.doesNotMatch(live, /data-session-id="parent"[^>]*data-done/);
@@ -95,9 +95,9 @@ test("the list draws its kept last rows at once, marked as refreshing; a kept va
 
 test("7.8 one expander per row; expanded, a row lists its labelled worktrees by folder name (full path on hover) and then its children, with no Running or Files block", () => {
   const busy: SessionRow = { ...row, worktrees: [{ path: "/home/me/code/app/.claude/worktrees/one", branches: [] }, { path: "/home/me/code/app/.claude/worktrees/two", branches: [] }] };
-  const folded = renderToStaticMarkup(createElement(SessionsList, { rows: [busy, { ...row, id: "lone", children: [] }], onHighlight() {} }));
-  assert.equal(folded.match(/<button[^>]*session-children-toggle/g)?.length, 3, "every row has one expander, a childless one and a running parent's child too");
-  assert.doesNotMatch(folded, /session-detail/);
+  const folded = renderToStaticMarkup(createElement(SessionsList, { rows: [busy, { ...row, id: "lone", children: [] }], expanded: new Set(["parent"]), onHighlight() {} }));
+  assert.equal(folded.match(/<button[^>]*session-children-toggle/g)?.length, 3, "every row has one expander, a childless one and an opened parent's child too");
+  assert.equal(folded.match(/class="session-detail"/g)?.length, 1, "only the opened row's detail shows");
   const html = renderToStaticMarkup(createElement(SessionsList, { rows: [busy], expanded: new Set(["parent"]), onHighlight() {} }));
   const parentRow = html.match(/data-session-id="parent".*?<\/div>/s)?.[0] ?? "";
   assert.equal(parentRow.match(/<button/g)?.length, 1, "the children do not bring a second control to the row");

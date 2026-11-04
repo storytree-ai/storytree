@@ -1,4 +1,4 @@
-// Pictures for the owner's look at contracts 7.2 and 7.8: a running session with its subagent beneath it before any click, then expanded to its worktrees, with no Running or Files block.
+// Pictures for the owner's look at contracts 7.2 and 7.8: a running session folded, its subagent counted by its "+N", then expanded to its worktrees and its subagent, with no Running or Files block.
 // The actual desktop page, built by ../sessions-list/build.mjs; all activity here is synthetic.
 // Run both through `node ~/.storytree/your-factory/plugins/micks-dev-loop/src/heavy-lock.mjs --`, from storytree's checkout root. --smoke builds its own page
 // into its build folder's smoke/, takes no pictures and skips the fixed rests, so a test proves every wait below still resolves in a real browser.
@@ -63,14 +63,13 @@ await withCapture({ folder: evidence, dist }, async ({ browser, origin, out, set
   const list = page.getByRole('complementary', { name: 'Running sessions', exact: true });
   const row = list.locator(`.session-row[data-session-id="${ids.builder}"]`);
   await row.waitFor();
-  // Every row's detail starts closed (forest 7.8), and the running builder's subagent shows beneath it without a click (7.2), as the tree picture shows it.
-  await row.getByRole('button', { name: /^Show detail/ }).waitFor();
+  // Every row's detail starts closed (forest 7.8), and the running builder's subagent waits behind its "+1" until it is expanded (7.2), as the folded picture shows it.
+  await row.locator('.session-children', { hasText: '+1' }).waitFor();
   const helper = list.locator(`.session-row[data-session-id="${ids.helper}"]`);
-  await helper.waitFor();
-  if (!smoke) { await page.waitForTimeout(500); await list.screenshot({ path: path.join(out, 'tree.png') }); }
+  if (!smoke) { await page.waitForTimeout(500); await list.screenshot({ path: path.join(out, 'folded.png') }); }
   const toggles = await list.locator('.session-children-toggle').evaluateAll(items => items.map(item => item.getAttribute('aria-expanded')));
   assert.ok(toggles.length > 0 && toggles.every(open => open === 'false'), `every row's detail starts closed: ${toggles}`);
-  assert.equal(await row.locator('.session-children').count(), 0, 'no "+N" while the children show');
+  const folded = await helper.count();
   assert.equal(await list.locator('.session-detail').count(), 0, 'no detail drawn while collapsed');
   await row.getByRole('button', { name: /^Show detail/ }).click();
   const detail = list.locator('li', { has: page.locator(`.session-row[data-session-id="${ids.builder}"]`) }).locator('.session-detail');
@@ -79,9 +78,10 @@ await withCapture({ folder: evidence, dist }, async ({ browser, origin, out, set
   const blocks = await detail.locator('.session-detail-label').allTextContents();
   assert.deepEqual(await detail.locator('.session-detail-worktrees li').evaluateAll(items => items.map(item => [item.textContent, item.title])),
     trees.map(tree => [path.basename(tree), tree]), 'each worktree by its folder name, its full path on hover');
-  assert.ok(await helper.isVisible(), 'the subagent stays beneath the opened row');
+  await helper.waitFor();
+  assert.equal(await row.locator('.session-children').count(), 0, 'no "+N" once the children show');
   if (!smoke) { await page.waitForTimeout(300); await list.screenshot({ path: path.join(out, 'expanded.png') }); }
   assert.deepEqual(errors, []);
-  console.log(smoke ? 'Smoke run: no pictures' : 'Captured tree.png and expanded.png');
-  console.log(JSON.stringify({ closed: toggles.length, children: await helper.count(), worktrees: await detail.locator('.session-detail-worktrees li').count(), blocks }));
+  console.log(smoke ? 'Smoke run: no pictures' : 'Captured folded.png and expanded.png');
+  console.log(JSON.stringify({ closed: toggles.length, folded, children: await helper.count(), worktrees: await detail.locator('.session-detail-worktrees li').count(), blocks }));
 });

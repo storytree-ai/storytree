@@ -7,9 +7,9 @@ import { join } from "node:path";
 import { test } from "node:test";
 import { promisify } from "node:util";
 
-import { removeTemp } from "@storytree/test-waits";
+import { removeTemp, waitUntil } from "@storytree/test-waits";
 
-import { main, planRules, poolRules, prepareCheckout, PUSH_URL, runPool, startHold } from "./launch.mjs";
+import { LIVE_CONFIG, main, planRules, poolRules, prepareCheckout, PUSH_URL, runPool, startHold } from "./launch.mjs";
 import { codeVersion, localBrief, withLockFile } from "./queue.mjs";
 import { SIGNALED } from "./runner.mjs";
 
@@ -29,7 +29,7 @@ async function box(t, extra = {}) {
     lanesDir, events, lines, briefs, repo: join(lanesDir, "repo"), addDirs: ["/wt", lanesDir], pid: 4242, now,
     say: (line) => lines.push(line), argsOf: async () => "", maxLanes: async () => 5,
     // A clear box: the real reading (/proc on a busy CI runner) would hold dispatch back (pace.mjs).
-    pace: async () => undefined, briefPaths: undefined, laneRepo: undefined, projects: [{ name: "storytree" }],
+    pace: async () => undefined, briefPaths: undefined, laneRepo: undefined, projects: () => [{ name: "storytree" }],
     // Plugged in and online: the real readings (the power line, the library and GitHub) are the start rule's tests' own (3.27).
     power: async () => "Online", refusals: async () => [],
     count: async () => { events.push("count"); return counts.length ? counts.shift() : 0; },
@@ -303,9 +303,9 @@ test("3.10 · its own code is the code it runs: a merge touching only other dev 
 
   // A dispatcher given no version of its own reads its checkout's code and the configuration file it was started with.
   const pooled = await box(t, { survey: async () => poolWork(["a", "b"]), count: async () => 0, maxLanes: async () => 1, rules: async () => "Pool rules.\n",
-    repo, configFile: config, runLane: async (options) => { pooled.briefs.push(await readFile(options.brief, "utf8")); await writeFile(config, "{\"sessions\": 5}"); return 0; } });
+    repo, configFile: config, runLane: async (options) => { pooled.briefs.push(await readFile(options.brief, "utf8")); await writeFile(config, "{\"sessions\": 4, \"addDirs\": [\"/wt\"]}"); return 0; } });
   pooled.sleep = async () => { await new Promise((go) => setImmediate(go)); if (pooled.briefs.length > 1) await writeFile(join(pooled.lanesDir, "pool-stop"), ""); };
-  assert.equal(await main(["pool"], pooled), 3, "its configuration changed under it: it restarts");
+  assert.equal(await main(["pool"], pooled), 3, "its configuration changed under it, past what it reads live (3.39): it restarts");
   assert.equal(pooled.briefs.length, 1, "starting nothing more");
 });
 
@@ -708,6 +708,49 @@ test("3.38 · another project's read-only, blind and planning lanes start in its
   assert.match(lanes.plan.brief, /^# Planning lane: arc_plan\n/);
   assert.match(lanes.increment_look.brief, /Rules for every read-only pool lane of project storytree-website/);
   assert.match(lanes.increment_eye.brief, /^# Pool lane: increment_eye\n\nYour increment: increment_eye\. You are a blind reviewer/);
+});
+
+test("3.39 · an edit to the machine file's projects or sessions reaches the running dispatcher at its next survey, with no restart; an edit to any other field still restarts it", async (t) => {
+  const website = await folder(t);
+  const b = await box(t, { count: async () => 0,
+    survey: async (project) => poolWork(project === "storytree" ? ["increment_a", "increment_b", "increment_c"] : ["increment_site"]) });
+  b.home = b.lanesDir;
+  b.env = { AGENT_POOL_CONFIG: join(b.lanesDir, "agent-pool.json") };
+  const configure = (fields) => writeFile(b.env.AGENT_POOL_CONFIG, JSON.stringify({ checkout: "/srv/storytree03", lanes: b.lanesDir, ...fields }));
+  await configure({ sessions: 1, projects: [{ name: "storytree" }] });
+  delete b.briefPaths; delete b.projects; delete b.maxLanes;
+  const started = [];
+  let running = 0, most = 0;
+  b.runLane = async (options) => {
+    started.push({ increment: options.increment, cwd: options.cwd });
+    most = Math.max(most, ++running);
+    // The first lane, alone under a cap of one, is where the owner edits the file: a second project and a cap of four.
+    if (started.length === 1) await configure({ sessions: 4, projects: [{ name: "storytree" }, { name: "storytree-website", checkout: website }] });
+    // Each later lane runs until three have been up at once; under a cap still one the wait gives up, and the lane fails.
+    else await waitUntil(() => most >= 3, 30_000, "three lanes running at once");
+    running--;
+    b.briefs.push(options.brief);
+    return 0;
+  };
+  b.sleep = async () => { await new Promise((go) => setImmediate(go)); if (b.briefs.length === 4) await writeFile(join(b.lanesDir, "pool-stop"), ""); };
+  assert.equal(await main(["pool"], b), 0);
+  assert.deepEqual(started.map((one) => one.increment).sort(), ["increment_a", "increment_b", "increment_c", "increment_site"], "the same dispatcher starts the new project's work");
+  assert.equal(started.find((one) => one.increment === "increment_site").cwd, website, "in the project's own checkout");
+  assert.ok(most >= 3, `the three after the edit ran at once, under the new cap of four (at most ${most} did)`);
+
+  // What the dispatcher runs on: an edit to its projects or cap leaves its version as it was, one to any other field moves it.
+  const repo = await folder(t);
+  await run("git", ["init", "-q"], { cwd: repo });
+  await mkdir(join(repo, "packages/agent-pool/src"), { recursive: true });
+  await writeFile(join(repo, "packages/agent-pool/src/launch.mjs"), "pool v1");
+  await run("git", ["-c", "user.name=t", "-c", "user.email=t@t", "add", "-A"], { cwd: repo });
+  await run("git", ["-c", "user.name=t", "-c", "user.email=t@t", "commit", "-qm", "v1"], { cwd: repo });
+  const version = () => codeVersion({ repo, config: b.env.AGENT_POOL_CONFIG, live: LIVE_CONFIG });
+  const before = await version();
+  await configure({ sessions: 2, projects: [{ name: "storytree" }] });
+  assert.equal(await version(), before, "projects and sessions are read live");
+  await configure({ sessions: 2, projects: [{ name: "storytree" }], addDirs: ["/wt"] });
+  assert.notEqual(await version(), before, "any other field restarts it");
 });
 
 test("3.28 · a dispatcher whose machine names its own brief folder briefs its lanes from the copy there, and from the base's where it holds none", async (t) => {

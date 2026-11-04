@@ -12,7 +12,8 @@ import { promisify } from "node:util";
  * composes. A change to one of these restarts the dispatcher; a change anywhere else in the dev loop (the test runner,
  * the gate, the health readers, a test) leaves it starting work. When one of these files comes to import another file,
  * name that file here. The pool's configuration reader (pool-config.mjs) is read once at start, so it is here too; the
- * machine's own configuration file is outside the repository (ADR-1216 D1), so codeVersion reads it beside these.
+ * machine's own configuration file is outside the repository (ADR-1216 D1), so codeVersion reads it beside these, less
+ * the fields its reader reads again as it runs (`live`, the dispatcher's projects and sessions, 3.39).
  */
 export const POOL_CODE = ["launch.mjs", "feed.mjs", "queue.mjs", "runner.mjs", "engine.mjs", "watch.mjs", "pool-config.mjs",
   "pool-brief.md", "pool-brief-plan.md", "pool-brief-read-only.md"].map((name) => `packages/agent-pool/src/${name}`);
@@ -21,11 +22,21 @@ export const POOL_CODE = ["launch.mjs", "feed.mjs", "queue.mjs", "runner.mjs", "
  * The version of `paths` (repository-relative) at the checkout's HEAD: one hash of their blob ids, so it moves only
  * when one of them changes. A path HEAD lacks is left out; with none of them there it is undefined.
  */
-export async function codeVersion({ repo, paths = POOL_CODE, config, exec = promisify(execFile) }) {
+export async function codeVersion({ repo, paths = POOL_CODE, config, live = [], exec = promisify(execFile) }) {
   const { stdout } = await exec("git", ["ls-tree", "HEAD", "--", ...paths], { cwd: repo });
   // The machine's configuration file, read once at start, is part of what it runs: a change to it restarts it too.
-  const configured = config ? await readFile(config, "utf8").catch(() => "") : "";
+  const configured = config ? settled(await readFile(config, "utf8").catch(() => ""), live) : "";
   return stdout.trim() ? createHash("sha1").update(stdout).update(configured).digest("hex").slice(0, 12) : undefined;
+}
+
+/** A machine file's text less its `live` fields, or the text as it is when it names none or does not parse. */
+function settled(text, live) {
+  if (!live.length) return text;
+  try {
+    const fields = JSON.parse(text);
+    for (const name of live) delete fields[name];
+    return JSON.stringify(fields);
+  } catch { return text; }
 }
 
 const ENGINES = [["codex", "exec"], ["codex", "e"], ["claude", "-p"], ["claude", "--print"]];

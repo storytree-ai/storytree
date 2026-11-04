@@ -62,6 +62,12 @@ test("2.42 · the left rail's right edge is a handle that resizes it, by draggin
   assert.equal(on.now(), RAIL_MIN, "the left arrow narrows it, never under the least");
   assert.equal(on.side().hidden, false);
 
+  on.drag(RAIL_MIN, 1400);
+  (on.window as unknown as { happyDOM: { setViewport(size: { width: number; height: number }): void } }).happyDOM.setViewport({ width: 900, height: 900 });
+  on.window.dispatchEvent(new on.window.Event("resize"));
+  assert.equal(on.now(), 900 - 360, "the window narrowed, the rail narrows with it to leave the map its room");
+  assert.equal(on.width(), `${900 - 360}px`);
+
   const narrow = open(memory(), 800);
   assert.ok(narrow.now() <= Number(narrow.handle.getAttribute("aria-valuemax")), "a narrow window opens it no wider than the map allows");
 });

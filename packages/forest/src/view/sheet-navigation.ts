@@ -12,7 +12,7 @@
 import { Euler, Plane, Quaternion, Raycaster, Vector2, Vector3, type Camera, type Object3D } from "three";
 import { sheetPlaces, turnToIsland, type FacingIsland, type ForestScene, type GlobeTurn } from "@storytree/forest";
 import { islandCoast, islandCoastReach } from "@storytree/forest-world/geometry";
-import { islandTerritories } from "../territories/territories.js";
+import { islandLayout, type LinkDock } from "../territories/link-layout.js";
 import { PLATE_CLEARANCE, SHEET_FOV, SHEET_RADIUS, SHEET_TILT, sheetPoint, sheetSpot, type SheetExtent, type SheetPoint } from "@storytree/forest-world/planet";
 import type { GlobePose } from "./globe-guide.js";
 import type { ForestMode } from "./planet-navigation.js";
@@ -35,9 +35,10 @@ export function opensBare(mode: ForestMode): boolean {
 /**
  * The islands at their places on the sheet (`sheetPlaces`), centred on the pole, and the glass they stand on. `under` says
  * where the knowledge graph hangs: each story's shelf under its island's middle, each capability's under its territory's,
- * and the sea floor across the islands' footprint, where notes with no links lie (ADR-1063 D3).
+ * and the sea floor across the islands' footprint, where notes with no links lie (ADR-1063 D3). `laid` names the selected
+ * island and its docks, once known: its territories are laid out by their links (3.76), so its shelves hang under them as drawn.
  */
-export function sheetLayout(scene: ForestScene, places: ReadonlyMap<string, number>, frame?: ForestScene) {
+export function sheetLayout(scene: ForestScene, places: ReadonlyMap<string, number>, frame?: ForestScene, laid?: { story: string; docks: readonly LinkDock[] | undefined }) {
   // A plan still growing, framed by its full plan, keeps every island where the full plan puts it, on its glass (3.28).
   const placed = sheetPlaces((frame ?? scene).islands.map(island => {
     const place = places.get(island.story);
@@ -58,7 +59,7 @@ export function sheetLayout(scene: ForestScene, places: ReadonlyMap<string, numb
     for (const tree of island.trees) if (tree.capability !== undefined) { stories.set(tree.capability, island.story); shelves.set(tree.capability, middle); }
     if (island.land === undefined) continue;
     // A capability's shelf hangs under its territory's middle: on the plate x runs east and z south.
-    const map = islandTerritories(island.land.territories, islandCoast(island));
+    const map = islandLayout(island.land.territories, islandCoast(island), scene.links ?? [], island.story === laid?.story ? laid.docks : undefined);
     map.territories.forEach((territory, index) => {
       if (territory.capability === undefined) return;
       const cells = map.cells.filter(cell => cell.territory === index);

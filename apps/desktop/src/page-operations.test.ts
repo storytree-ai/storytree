@@ -31,9 +31,9 @@ test("1.16 a page operation a story declares reaches that story's answer in the 
   assert.equal(await page.saveSetting!("idle-after", ["30m"]), "saveSetting answered");
   assert.equal(await page.saveSurface!(["arcs", "off"]), "saveSurface answered");
   assert.equal(await page.readJourney!(), "readJourney answered");
-  assert.equal(await page.windowReadings!("storytree", ["s1", "s2"]), "windowReadings answered");
+  assert.equal(await page.windowReading!("storytree", "s1"), "windowReading answered");
   assert.equal(await page.codeSurvey!("storytree"), "codeSurvey answered");
-  assert.deepEqual(heard, [["chooseJourney", true], ["saveSetting", "idle-after", ["30m"]], ["saveSurface", ["arcs", "off"]], ["readJourney"], ["windowReadings", "storytree", ["s1", "s2"]], ["codeSurvey", "storytree"]]);
+  assert.deepEqual(heard, [["chooseJourney", true], ["saveSetting", "idle-after", ["30m"]], ["saveSurface", ["arcs", "off"]], ["readJourney"], ["windowReading", "storytree", "s1"], ["codeSurvey", "storytree"]]);
 });
 
 test("1.16 the app's own operations and the setup help's travel on the channels their stories declare, and reach those answers", async () => {

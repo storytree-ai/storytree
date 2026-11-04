@@ -94,10 +94,10 @@ test("a bridge method the capture left unanswered gets a safe answer, and the fa
   const bridge = fakeBridge({ listProjects: async () => ["storytree"] });
   await bridge.call("listProjects", []);
   assert.deepEqual(await bridge.call("readSignIn", []), { available: false, on: false });
-  const [window] = await bridge.call("windowReadings", ["storytree", ["s1"]]) as { session: string; absent?: string }[];
+  const window = await bridge.call("windowReading", ["storytree", "s1"]) as { session: string; absent?: string };
   assert.equal(window?.session, "s1");
   assert.ok(window?.absent);
-  assert.deepEqual(bridge.defaulted, ["readSignIn", "windowReadings"]);
+  assert.deepEqual(bridge.defaulted, ["readSignIn", "windowReading"]);
 });
 
 test("on Windows, launch finds Playwright and Chromium from the checkout, with no /home path", () => {

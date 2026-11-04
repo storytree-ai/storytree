@@ -55,8 +55,6 @@ export interface PageReadsBridge {
   leaveAfterMs(): Promise<number>;
   /** A session's window in a project (Session management 9.10), read now. */
   windowReading(name: string, session: string): Promise<SessionWindow>;
-  /** Several sessions' windows in a project, in one read of the log, in the order asked. */
-  windowReadings(name: string, sessions: readonly string[]): Promise<SessionWindow[]>;
 }
 
 export const PAGE_READS_CHANNELS = {
@@ -76,7 +74,6 @@ export const PAGE_READS_CHANNELS = {
   idleAfterMs: "storytree:idle-after-ms",
   leaveAfterMs: "storytree:leave-after-ms",
   windowReading: "storytree:window-reading",
-  windowReadings: "storytree:window-readings",
 } as const;
 
 /** The value of surface `id`'s `setting` in `readings`, undefined when the list does not name it. */

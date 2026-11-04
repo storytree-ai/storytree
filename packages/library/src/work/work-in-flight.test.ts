@@ -175,7 +175,7 @@ for (const backend of [memory, postgres]) {
     assert.deepEqual(await transactions.history(), before, "every refused correction leaves history unchanged");
 
     const corrected = await flight.correctIncrementClosure(increment.id, landed, reason, { actor: "session:correction" });
-    assert.deepEqual(corrected?.fields, { ...closed?.fields, outcome: { ...landed, date: original.date } });
+    assert.deepEqual(corrected?.fields, { ...closed?.fields, outcome: { ...landed, date: original.date }, escape: "none" });
     assert.deepEqual(await records.get(increment.id), corrected);
     assert.equal((await flight.arcView(arc.id))?.state, "closed");
     const history = await transactions.history();
@@ -778,6 +778,13 @@ for (const backend of [memory, postgres]) {
     const dropped = await flight.addIncrement({ arc: arc.id, ...WORK });
     const withdrawn = await flight.closeIncrement(dropped.id, { note: "Overtaken", disposition: "withdrawn" });
     assert.equal("escape" in (withdrawn?.fields ?? {}), false, "work that did not land answers nothing");
+    const relanded = await flight.correctIncrementClosure(dropped.id, { pr: "#8", disposition: "landed" }, "It landed after all");
+    assert.equal(relanded?.fields.escape, "none", "a closure corrected to landed answers as a landing does");
+    assert.equal(((await records.get(dropped.id))?.fields as { escape?: unknown }).escape, "none");
+    const unlanded = await flight.correctIncrementClosure(dropped.id, { note: "Reverted", disposition: "failed" }, "It was reverted");
+    assert.equal("escape" in (unlanded?.fields ?? {}), false, "corrected away from landed, it answers nothing again");
+    const refixed = await flight.correctIncrementClosure(fix.id, { note: "Reverted", disposition: "failed" }, "It was reverted");
+    assert.deepEqual(refixed?.fields.escape, { causedBy: "#4", story: story.id }, "a named escape is kept");
   });
 
   contract("10.24", "an increment carries a risk line: its tier, rating, depth, radius, depth flags, the stories it touches and the day read, set and cleared by an edit; a tier, number or day out of range, or a story that is not one, is refused with nothing written", async ({ work, flight, records, transactions }) => {

@@ -5,7 +5,7 @@ import { OrbitControls } from '@react-three/drei';
 import { Vector3, type Group, type PerspectiveCamera } from 'three';
 import type { ForestScene, Island } from '../scene.js';
 import type { PathwayDrawing, PlanetPathwayPlate } from './pathways.js';
-import { drawnAtOnce, islandDocks, pageRoadRouter, routedDrawing, type IslandDock } from './road-routing.js';
+import { drawnAtOnce, islandDocks, pageRoadRouter, roadsWhenRouted, type IslandDock } from './road-routing.js';
 import { Pathways, SelectionLanes } from './PlanetTrailRibbons.js';
 import { PlumbingLabels } from './PlumbingLabels.js';
 import { Overlay } from './overlay.js';
@@ -166,18 +166,15 @@ function PaintWhileSeen({ watch }: { watch: ViewportWatch | undefined }) {
 }
 
 /** The drawing engine 4.21: the islands are drawn at once and the roads when routed, off the page's main thread where the page
- * offers a road worker; a routing its layout has overtaken draws nothing. */
+ * offers a road worker; a routing its layout has overtaken draws nothing, and one a new layout with the same routing
+ * key arrives during runs on (4.39). */
 function useRoadsWhenRouted(scene: ForestScene, spots: ReadonlyMap<string, PlanetSpot>, radius: number): PathwayDrawing & { routing: boolean } {
-  const router = useMemo(() => pageRoadRouter(), []);
   const shown = useRef<{ spots: ReadonlyMap<string, PlanetSpot>; radius: number; drawing: PathwayDrawing }>(undefined);
-  const now = useMemo(() => drawnAtOnce(scene, spots, radius, shown.current), [scene, spots, radius]);
+  const now = useMemo(() => ({ scene, spots, radius, ...drawnAtOnce(scene, spots, radius, shown.current) }), [scene, spots, radius]);
   const [routed, setRouted] = useState<{ now: typeof now; drawing: PathwayDrawing }>();
-  useEffect(() => {
-    if (now.routing === undefined) return;
-    const layout = new AbortController();
-    void routedDrawing(scene, spots, radius, now.routing, router, layout.signal).then(drawing => { if (drawing) setRouted({ now, drawing }); });
-    return () => layout.abort();
-  }, [now, router]);
+  const roads = useMemo(() => roadsWhenRouted<typeof now>(pageRoadRouter(), (layout, drawing) => setRouted({ now: layout, drawing })), []);
+  useEffect(() => roads.stop, [roads]);
+  useEffect(() => roads.show(now), [roads, now]);
   const drawing = routed?.now === now ? routed.drawing : now.drawing;
   shown.current = { spots, radius, drawing };
   return { ...drawing, routing: routed?.now !== now && now.routing !== undefined };

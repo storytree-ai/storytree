@@ -5,7 +5,7 @@
 import { routeTrails, type TrailNetwork } from '../core/routing.js';
 import type { ForestScene } from '../scene.js';
 import type { CoastPoint } from '../coast-clip.js';
-import { islandsOnly, keepRoutes, pathwayRouting, planetPathwayDrawing, type CrossRouting, type PathwayDrawing, type PlanetPathways } from './pathways.js';
+import { islandsOnly, keepRoutes, pathwayRouting, planetPathwayDrawing, routesKept, type CrossRouting, type PathwayDrawing, type PlanetPathways } from './pathways.js';
 import type { PlanetSpot } from './planet.js';
 
 /** Routes a drawing's roads between islands somewhere, answering the network `routeTrails` would. An aborted signal
@@ -16,9 +16,11 @@ export type RoadRouter = (routing: CrossRouting, signal: AbortSignal) => Promise
 export const ROAD_WORKER_META = 'storytree-road-worker';
 
 /** What a layout draws at once, and the routing its roads still wait on, if any. A layout whose routes are kept from
- * the last routing (an island's health changed, say, and nothing moved) draws its roads at once. One whose islands
- * stand where `before` drew them (a dependency was added, say) keeps `before`'s roads on show until its own are routed,
- * so a road already drawn is not drawn on again. */
+ * the last routing (an island's health changed, say, and nothing moved, or every island moved by one shift) draws its
+ * roads at once. Any other layout at `before`'s radius (a dependency was added, or an island grew and the rest moved)
+ * keeps `before`'s roads on show, as they were drawn, until its own are routed (the drawing engine 4.38), so the map is
+ * never left without roads and a road already drawn is not drawn on again. At another radius the old roads would float
+ * or sink, so it shows its islands only. */
 export function drawnAtOnce(scene: ForestScene, spots: ReadonlyMap<string, PlanetSpot>, radius: number,
   before?: { spots: ReadonlyMap<string, PlanetSpot>; radius: number; drawing: PathwayDrawing }): {
   drawing: PathwayDrawing; routing: { key: string; routing: CrossRouting } | undefined;
@@ -26,16 +28,9 @@ export function drawnAtOnce(scene: ForestScene, spots: ReadonlyMap<string, Plane
   const routing = pathwayRouting(scene, spots, radius);
   if (routing === undefined) return { drawing: planetPathwayDrawing(scene, spots, radius), routing };
   const islands = islandsOnly(scene);
-  if (before === undefined || before.radius !== radius || !samePlaces(before.spots, spots)) return { drawing: islands, routing };
+  if (before === undefined || before.radius !== radius) return { drawing: islands, routing };
   const { segments, edges, docks, plumbing } = before.drawing.plan;
   return { drawing: { plan: { ...islands.plan, segments, edges, docks, ...plumbing ? { plumbing } : {} }, issue: before.drawing.issue }, routing };
-}
-
-function samePlaces(a: ReadonlyMap<string, PlanetSpot>, b: ReadonlyMap<string, PlanetSpot>): boolean {
-  return a === b || (a.size === b.size && [...b].every(([story, spot]) => {
-    const old = a.get(story);
-    return old !== undefined && old.x === spot.x && old.y === spot.y && old.z === spot.z;
-  }));
 }
 
 /** The drawing with its roads, once `router` has routed them; undefined when `signal` aborts first, so an overtaken
@@ -49,8 +44,49 @@ export async function routedDrawing(scene: ForestScene, spots: ReadonlyMap<strin
     return signal.aborted ? undefined : planetPathwayDrawing(scene, spots, radius, () => { throw error; });
   }
   if (signal.aborted) return undefined;
-  keepRoutes(pending.key, network);
+  keepRoutes(pending, network);
   return planetPathwayDrawing(scene, spots, radius);
+}
+
+/** A layout to draw, with the routing its roads wait on (`drawnAtOnce`'s), if any. */
+export interface RoadLayout {
+  scene: ForestScene; spots: ReadonlyMap<string, PlanetSpot>; radius: number;
+  routing: { key: string; routing: CrossRouting } | undefined;
+}
+
+/** Routes each layout shown's roads and hands `draw` the drawing with them (the drawing engine 4.39). A layout with the
+ * same routing key as the one in flight (a new scene with nothing moved, say) leaves that routing running, and its
+ * answer is drawn for the latest layout shown; a layout with another key overtakes it, and one waiting on nothing ends
+ * it. A layout whose routing was answered since it was laid out is drawn at once. */
+export function roadsWhenRouted<L extends RoadLayout>(router: RoadRouter, draw: (layout: L, drawing: PathwayDrawing) => void): { show(layout: L): void; stop(): void } {
+  let inFlight: { key: string; overtaken: AbortController } | undefined;
+  let latest: L | undefined;
+  const stop = () => { inFlight?.overtaken.abort(); inFlight = undefined; };
+  return {
+    show(layout) {
+      latest = layout;
+      const pending = layout.routing;
+      if (pending !== undefined && inFlight?.key === pending.key) return;
+      stop();
+      if (pending === undefined) return;
+      if (routesKept(pending.key)) { draw(layout, planetPathwayDrawing(layout.scene, layout.spots, layout.radius)); return; }
+      const overtaken = new AbortController(), { signal } = overtaken;
+      inFlight = { key: pending.key, overtaken };
+      void router(pending.routing, signal).then(network => {
+        if (signal.aborted) return;
+        inFlight = undefined;
+        keepRoutes(pending, network);
+        const shown = latest!;
+        draw(shown, planetPathwayDrawing(shown.scene, shown.spots, shown.radius));
+      }, error => {
+        if (signal.aborted) return;
+        inFlight = undefined;
+        const shown = latest!;
+        draw(shown, planetPathwayDrawing(shown.scene, shown.spots, shown.radius, () => { throw error; }));
+      });
+    },
+    stop,
+  };
 }
 
 /** Routes on the page itself, once the islands have had a frame to be drawn: for a host that offers no worker. */

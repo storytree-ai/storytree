@@ -1,0 +1,375 @@
+{
+  "summary": {
+    "label": "before",
+    "grownStory": "The command line",
+    "grownBy": 4,
+    "otherIslandsMoved": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "roadsBefore": 30,
+    "framesAfter": 24,
+    "framesWithoutRoads": 20,
+    "firstFrameWithoutRoadsMs": 1,
+    "lastFrameWithoutRoadsMs": 1370,
+    "roadsAtEnd": 30,
+    "pageErrors": []
+  },
+  "frames": [
+    {
+      "phase": "initial",
+      "at": 1437.5999999046326,
+      "roads": 0,
+      "links": 0,
+      "roadsVisible": true
+    },
+    {
+      "phase": "initial",
+      "at": 1792.7000000476837,
+      "roads": 0,
+      "links": 0,
+      "roadsVisible": true
+    },
+    {
+      "phase": "initial",
+      "at": 3068.5,
+      "roads": 0,
+      "links": 37,
+      "roadsVisible": true
+    },
+    {
+      "phase": "initial",
+      "at": 3112,
+      "roads": 11,
+      "links": 37,
+      "roadsVisible": true
+    },
+    {
+      "phase": "initial",
+      "at": 3161,
+      "roads": 14,
+      "links": 37,
+      "roadsVisible": true
+    },
+    {
+      "phase": "initial",
+      "at": 3200.7999999523163,
+      "roads": 15,
+      "links": 37,
+      "roadsVisible": true
+    },
+    {
+      "phase": "initial",
+      "at": 3272,
+      "roads": 15,
+      "links": 37,
+      "roadsVisible": true
+    },
+    {
+      "phase": "initial",
+      "at": 3344.2999999523163,
+      "roads": 18,
+      "links": 37,
+      "roadsVisible": true
+    },
+    {
+      "phase": "initial",
+      "at": 3443.7000000476837,
+      "roads": 22,
+      "links": 37,
+      "roadsVisible": true
+    },
+    {
+      "phase": "initial",
+      "at": 3527.5999999046326,
+      "roads": 23,
+      "links": 37,
+      "roadsVisible": true
+    },
+    {
+      "phase": "initial",
+      "at": 3597.5999999046326,
+      "roads": 24,
+      "links": 37,
+      "roadsVisible": true
+    },
+    {
+      "phase": "initial",
+      "at": 3686,
+      "roads": 24,
+      "links": 37,
+      "roadsVisible": true
+    },
+    {
+      "phase": "initial",
+      "at": 3770.7999999523163,
+      "roads": 25,
+      "links": 37,
+      "roadsVisible": true
+    },
+    {
+      "phase": "initial",
+      "at": 3835.2000000476837,
+      "roads": 26,
+      "links": 37,
+      "roadsVisible": true
+    },
+    {
+      "phase": "initial",
+      "at": 3910.0999999046326,
+      "roads": 29,
+      "links": 37,
+      "roadsVisible": true
+    },
+    {
+      "phase": "initial",
+      "at": 3993.7999999523163,
+      "roads": 30,
+      "links": 37,
+      "roadsVisible": true
+    },
+    {
+      "phase": "initial",
+      "at": 4061.399999856949,
+      "roads": 30,
+      "links": 37,
+      "roadsVisible": true
+    },
+    {
+      "phase": "initial",
+      "at": 4129.200000047684,
+      "roads": 30,
+      "links": 37,
+      "roadsVisible": true
+    },
+    {
+      "phase": "initial",
+      "at": 4210.5,
+      "roads": 30,
+      "links": 37,
+      "roadsVisible": true
+    },
+    {
+      "phase": "initial",
+      "at": 4301.399999856949,
+      "roads": 30,
+      "links": 37,
+      "roadsVisible": true
+    },
+    {
+      "phase": "initial",
+      "at": 4391.299999952316,
+      "roads": 30,
+      "links": 37,
+      "roadsVisible": true
+    },
+    {
+      "phase": "initial",
+      "at": 9205.5,
+      "roads": 30,
+      "links": 37,
+      "roadsVisible": true
+    },
+    {
+      "phase": "initial",
+      "at": 9307.399999856949,
+      "roads": 30,
+      "links": 37,
+      "roadsVisible": true
+    },
+    {
+      "phase": "grown",
+      "at": 10504.099999904633,
+      "roads": 0,
+      "links": 0,
+      "roadsVisible": true
+    },
+    {
+      "phase": "grown",
+      "at": 10555.899999856949,
+      "roads": 0,
+      "links": 0,
+      "roadsVisible": true
+    },
+    {
+      "phase": "grown",
+      "at": 10599.099999904633,
+      "roads": 0,
+      "links": 0,
+      "roadsVisible": true
+    },
+    {
+      "phase": "grown",
+      "at": 10637.700000047684,
+      "roads": 0,
+      "links": 0,
+      "roadsVisible": true
+    },
+    {
+      "phase": "grown",
+      "at": 10684.299999952316,
+      "roads": 0,
+      "links": 0,
+      "roadsVisible": true
+    },
+    {
+      "phase": "grown",
+      "at": 10725.899999856949,
+      "roads": 0,
+      "links": 0,
+      "roadsVisible": true
+    },
+    {
+      "phase": "grown",
+      "at": 10765.899999856949,
+      "roads": 0,
+      "links": 0,
+      "roadsVisible": true
+    },
+    {
+      "phase": "grown",
+      "at": 10819.200000047684,
+      "roads": 0,
+      "links": 0,
+      "roadsVisible": true
+    },
+    {
+      "phase": "grown",
+      "at": 10887.799999952316,
+      "roads": 0,
+      "links": 0,
+      "roadsVisible": true
+    },
+    {
+      "phase": "grown",
+      "at": 10944.299999952316,
+      "roads": 0,
+      "links": 0,
+      "roadsVisible": true
+    },
+    {
+      "phase": "grown",
+      "at": 11019.599999904633,
+      "roads": 0,
+      "links": 0,
+      "roadsVisible": true
+    },
+    {
+      "phase": "grown",
+      "at": 11105,
+      "roads": 0,
+      "links": 0,
+      "roadsVisible": true
+    },
+    {
+      "phase": "grown",
+      "at": 11195.700000047684,
+      "roads": 0,
+      "links": 0,
+      "roadsVisible": true
+    },
+    {
+      "phase": "grown",
+      "at": 11277.700000047684,
+      "roads": 0,
+      "links": 0,
+      "roadsVisible": true
+    },
+    {
+      "phase": "grown",
+      "at": 11358.5,
+      "roads": 0,
+      "links": 0,
+      "roadsVisible": true
+    },
+    {
+      "phase": "grown",
+      "at": 11431.700000047684,
+      "roads": 0,
+      "links": 0,
+      "roadsVisible": true
+    },
+    {
+      "phase": "grown",
+      "at": 11516.399999856949,
+      "roads": 0,
+      "links": 0,
+      "roadsVisible": true
+    },
+    {
+      "phase": "grown",
+      "at": 11601.700000047684,
+      "roads": 0,
+      "links": 0,
+      "roadsVisible": true
+    },
+    {
+      "phase": "grown",
+      "at": 11682.899999856949,
+      "roads": 0,
+      "links": 0,
+      "roadsVisible": true
+    },
+    {
+      "phase": "grown",
+      "at": 11779.200000047684,
+      "roads": 0,
+      "links": 0,
+      "roadsVisible": true
+    },
+    {
+      "phase": "grown",
+      "at": 11875.200000047684,
+      "roads": 0,
+      "links": 0,
+      "roadsVisible": true
+    },
+    {
+      "phase": "grown",
+      "at": 11967.799999952316,
+      "roads": 0,
+      "links": 0,
+      "roadsVisible": true
+    },
+    {
+      "phase": "grown",
+      "at": 12166.700000047684,
+      "roads": 30,
+      "links": 37,
+      "roadsVisible": true
+    },
+    {
+      "phase": "grown",
+      "at": 12262.700000047684,
+      "roads": 30,
+      "links": 37,
+      "roadsVisible": true
+    },
+    {
+      "phase": "grown",
+      "at": 31526.799999952316,
+      "roads": 30,
+      "links": 37,
+      "roadsVisible": true
+    },
+    {
+      "phase": "grown",
+      "at": 31565.299999952316,
+      "roads": 30,
+      "links": 37,
+      "roadsVisible": true
+    }
+  ]
+}

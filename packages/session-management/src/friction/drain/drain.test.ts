@@ -179,3 +179,32 @@ test("17.14 · route checks whether a report is already routed inside its write:
     assert.deepEqual((await library.changesSince(cursor)).changes, [], "nothing was written");
   });
 });
+
+test("17.23 · routing a report with a theme records the route and reason on every report in it, each linked to the one routed, judging a dismissed one again; a report in it routed another way, or a forward route with no live remedy naming each report, is refused and nothing is written (ADR-1241)", async () => {
+  await withLibrary(async (library) => {
+    const lead = await friction(library, "Push refused", "claude/other");
+    const repeat = await friction(library, "Push refused again", "codex/third");
+    const dismissed = await friction(library, "Push refused once", "claude/other");
+    await route(library, dismissed.id, "nothing", "A one-off.");
+    const elsewhere = await friction(library, "Push refused on Fridays", "claude/other");
+    await route(library, elsewhere.id, "edit-existing", "Edited the push note.", { dischargedBy: "#8" });
+    const arc = await library.createArc({ title: "Pushing", intent: "Push works", endState: "Pushes land" });
+    await library.addIncrement({ arc: arc.id, title: "Let the box push", objective: "Push", body: "Push", remedies: [lead.id, repeat.id] });
+
+    const history = await library.history();
+    await assert.rejects(route(library, lead.id, "tool", "The deploy key lacks the workflow scope.", { theme: [repeat.id, elsewhere.id] }), /already routed to edit-existing/);
+    await assert.rejects(route(library, lead.id, "tool", "The deploy key lacks the workflow scope.", { theme: [repeat.id, dismissed.id] }), new RegExp(`remedies names ${dismissed.id}`));
+    assert.deepEqual(await library.history(), history, "a refused theme writes nothing");
+
+    await library.addIncrement({ arc: arc.id, title: "Let the box push, once more", objective: "Push", body: "Push", remedies: [dismissed.id] });
+    const routed = await route(library, lead.id, "tool", "The deploy key lacks the workflow scope.", { theme: [repeat.id, dismissed.id] });
+    assert.equal(routed.fields.route, "tool");
+    for (const member of [repeat, dismissed]) {
+      const after = await library.get(member.id);
+      assert.ok(after?.type === "friction");
+      assert.deepEqual([after.fields.route, after.fields.routeReason, after.fields.state], ["tool", "The deploy key lacks the workflow scope.", "routed"], `${member.fields.title} carries the theme's route`);
+      assert.deepEqual(after.fields.links, [lead.id], "and links the report routed");
+    }
+    assert.deepEqual((await frictionDrain(library, { branch: "claude/me" })).map(({ id }) => id), [], "the theme leaves nothing to drain");
+  });
+});

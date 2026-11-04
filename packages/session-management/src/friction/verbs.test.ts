@@ -46,7 +46,7 @@ test("17.17 · Session management declares the `friction` and `resteer` families
 
       assert.match((await verbOf("drain").act({}, context, WORDS)).text, /^No friction is due/, "its own branch's report is not drained");
       execFileSync("git", ["-C", folder, "checkout", "-q", "-b", "main"]);
-      assert.match((await verbOf("drain").act({}, context, WORDS)).text, new RegExp(`^1 friction report due for routing:\\n  ${note!.id}  \\(0 recurrences\\)  Slow mail$`));
+      assert.match((await verbOf("drain").act({}, context, WORDS)).text, new RegExp(`^1 friction report due for routing, each with its lookalikes from the last four weeks:\\n  ${note!.id}  \\(0 recurrences\\)  Slow mail\\n`));
     } finally {
       await removeTemp(folder);
     }
@@ -229,6 +229,29 @@ test("17.21 · Filing friction through either door first shows the closest earli
 
       await verbNamed("new").act({ ...mail, title: "Slow mail on Sundays", "none-match": true }, context, WORDS);
       assert.equal((await library.list("friction")).length, 5, "told none matches, it files new");
+    });
+  });
+});
+
+test("17.22 · The friction drain shows each report it offers with its lookalikes: the closest reports filed in the last four weeks, open, routed and settled alike, never itself, by id, state, recurrences and filing day (ADR-1241)", async () => {
+  await withLibrary(async (library) => {
+    const day = (ago: number) => new Date(Date.now() - ago * 86_400_000).toISOString().slice(0, 10);
+    const mail = { description: "Mail is delayed", statement: "Sending times out", evidence: "src/mail.ts: TimeoutError after 30 seconds", impact: "Readers cannot join" };
+    const filed = (title: string, ago: number) => library.writeKnowledge("friction", { ...mail, title, provenance: { branch: "another/branch", date: day(ago), source: "retro" as const } });
+    const lead = await filed("Slow mail", 1);
+    const recent = await filed("Slow mail at night", 3);
+    await library.editNote(recent.id, { route: "nothing", routeReason: "An upstream outage" });
+    const old = await filed("Slow mail abroad", 40);
+    await library.editNote(old.id, { route: "nothing", routeReason: "An upstream outage" });
+    const other = await library.writeKnowledge("friction", { title: "Seed refused", description: "Seeding", statement: "The seed is refused", evidence: "`pnpm seed` refused", impact: "No library", provenance: { branch: "another/branch", date: day(1), source: "retro" as const } });
+
+    await onBranch(library, "fix/mail", async (context) => {
+      const drained = await verbNamed("drain").act({}, context, WORDS);
+      const lookalikes = (drained.data as { lookalikes: Record<string, { id: string }[]> }).lookalikes;
+      assert.deepEqual(lookalikes[lead.id]!.map(({ id }) => id), [recent.id], "a settled lookalike of the last four weeks is shown; an older one and the report itself are not");
+      assert.deepEqual(lookalikes[other.id], [], "a report nothing resembles has no lookalikes");
+      assert.match(drained.text, new RegExp(`looks like ${recent.id}  dismissed, 0 recurrences, filed ${day(3)}  Slow mail at night`));
+      assert.ok(drained.next?.some((step) => step.command?.includes("--theme")), "it says how to route a theme once");
     });
   });
 });

@@ -83,8 +83,9 @@ export function islandRelief(map: TerritoryMap, roads: IslandRoads): IslandRelie
   const rampHoles = ramps.map((r) => ({ at: r.at, half: rampWidth / 2 }));
   const walls: Wall[] = [];
   for (const b of borders) {
-    const [t, open] = b.pair[0] >= 0 && b.pair[1] === -1 ? [b.pair[0], true] : b.pair[1] >= 0 && b.pair[0] === -1 ? [b.pair[1], true] : [-1, false];
-    if (!open) continue;
+    // A border between a territory and the open land: one side -1, the other a territory.
+    const t = Math.max(...b.pair);
+    if (Math.min(...b.pair) !== -1 || t < 0) continue;
     const out = sideOf(b.from, b.to, -1);
     for (const s of cut(b.from, b.to, rampHoles, 0.6 * S)) walls.push({ ...s, out, territory: t, onto: "open" });
   }

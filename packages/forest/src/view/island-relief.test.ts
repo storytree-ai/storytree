@@ -13,7 +13,7 @@ import { linkLayout, LIBRARY_LAND } from "../territories/link-layout.js";
 import type { Coast, Point } from "../territories/territories.js";
 import { presentTerritories } from "./globe-surfaces.js";
 import { islandReliefMarks } from "./island-relief.js";
-import { islandRoadMarks, landFill, shade } from "./island-roads.js";
+import { islandRoadMarks, landColour, landFill, shade } from "./island-roads.js";
 import { capabilityPlates } from "./nameplates.js";
 import { territoryLand } from "./territory-land.js";
 
@@ -32,7 +32,8 @@ const toSegment = (p: Point, a: Point, b: Point) => {
   return Math.hypot(p.x - a.x - t * dx, p.z - a.z - t * dz);
 };
 const at = (p: Point, d: Point, k: number): Point => ({ x: p.x + d.x * k, z: p.z + d.z * k });
-const territoryOf = (p: Point) => map.cells.reduce((b, c) => (far(c.site, p) < far(b.site, p) ? c : b)).territory;
+/** The territory whose cell outline holds `p` (-1 open land), read from the outlines, not the sites. */
+const territoryOf = (p: Point) => map.cells.find((c) => c.polygon.every((a, i) => { const b = c.polygon[(i + 1) % c.polygon.length]!; return (b.x - a.x) * (p.z - a.z) - (b.z - a.z) * (p.x - a.x) >= -1e-9; }))?.territory;
 const open = map.cells.filter((c) => c.territory < 0);
 
 test("3.78 every territory on the selected island stands one plateau's height above its open land, all at one height", () => {
@@ -64,6 +65,13 @@ test("3.78 a wall wherever a plateau meets the open land or the coast, open at e
     assert.equal(w.onto === "open" ? territoryOf(mid) : Math.hypot(mid.x, mid.z) > R - 0.5, w.onto === "open" ? -1 : true, "it faces off the plateau");
     for (const r of relief.ramps) assert.ok(toSegment(r.at, w.from, w.to) > 0.6 || [w.from, w.to].every((p) => far(p, r.at) >= relief.rampWidth / 2 - 1e-6), "no wall across a ramp");
   }
+  const onto = map.borders.filter((b) => { const t = b.between.map((c) => map.cells[c]!.territory); return t.includes(-1) && t.some((x) => x >= 0); });
+  assert.ok(onto.length > 0);
+  for (const b of onto) {
+    const mid = { x: (b.from.x + b.to.x) / 2, z: (b.from.z + b.to.z) / 2 };
+    if (Math.hypot(mid.x, mid.z) > R - 1 || relief.ramps.some((r) => far(r.at, mid) < relief.rampWidth)) continue;
+    assert.ok(relief.walls.some((w) => w.onto === "open" && toSegment(mid, w.from, w.to) < 1e-6), "a wall on every border between a territory and the open land");
+  }
   assert.ok(relief.rims.length > 0);
   for (const rim of relief.rims) {
     assert.equal(territoryOf(at({ x: (rim.from.x + rim.to.x) / 2, z: (rim.from.z + rim.to.z) / 2 }, rim.into, 0.4)), rim.territory, "inside its territory");
@@ -76,12 +84,26 @@ test("3.78 a wall wherever a plateau meets the open land or the coast, open at e
 test("3.78 the walls, ramps and rims are drawn, a face toward the light lighter than one turned away, and they show and hide with the territories", () => {
   const land = territoryLand(map, flat, coast, new Map(), roads.gates);
   const marks = islandReliefMarks(relief, flat, landFill(map, land));
-  const walls = marks.getObjectByName("relief-walls") as Mesh, ramps = marks.getObjectByName("relief-ramps") as Mesh, rims = marks.getObjectByName("relief-rims") as Mesh;
-  assert.equal(walls.geometry.getAttribute("position").count, relief.walls.length * 6);
-  const heights = Array.from({ length: walls.geometry.getAttribute("position").count }, (_, i) => walls.geometry.getAttribute("position").getY(i));
-  assert.ok(Math.abs(Math.max(...heights) - relief.height) < 1e-6 && Math.min(...heights) <= 0, "from the open land up to the plateau");
-  assert.equal(ramps.geometry.getAttribute("position").count, relief.ramps.length * 6);
-  assert.equal(rims.geometry.getAttribute("position").count, relief.rims.length * 12);
+  const vertices = (name: string) => {
+    const mesh = marks.getObjectByName(name) as Mesh, p = mesh.geometry.getAttribute("position"), c = mesh.geometry.getAttribute("color");
+    return Array.from({ length: p.count }, (_, i) => ({ x: p.getX(i), y: p.getY(i), z: p.getZ(i), colour: new Color(c.getX(i), c.getY(i), c.getZ(i)) }));
+  };
+  const H = relief.height, near = (a: number, b: number) => Math.abs(a - b) < 1e-4;
+  const walls = vertices("relief-walls");
+  assert.ok(walls.every((v) => relief.walls.some((w) => toSegment(v, w.from, w.to) < 1e-4) && (near(v.y, H) || v.y < 0)), "each wall standing on its edge, from the open land up to the plateau");
+  for (const w of relief.walls) assert.ok([w.from, w.to].every((e) => walls.some((v) => far(v, e) < 1e-4 && near(v.y, H)) && walls.some((v) => far(v, e) < 1e-4 && v.y < 0)), "every wall drawn");
+  const slopes = vertices("relief-ramps");
+  for (const r of relief.ramps) for (const s of [-1, 1]) {
+    const top = at(r.at, r.along, s * relief.rampWidth / 2), foot = at(top, r.out, relief.rampDepth);
+    assert.ok(slopes.some((v) => far(v, top) < 1e-4 && near(v.y, H)) && slopes.some((v) => far(v, foot) < 1e-4 && v.y < 0.05), "a slope from the plateau's edge down to the open land");
+  }
+  const rims = vertices("relief-rims");
+  assert.ok(rims.every((v) => v.y > H && relief.rims.some((r) => toSegment(v, r.from, r.to) < 1e-4 || near(toSegment(v, at(r.from, r.into, relief.rimWidth * 0.45), at(r.to, r.into, relief.rimWidth * 0.45)), 0) || near(toSegment(v, at(r.from, r.into, relief.rimWidth), at(r.to, r.into, relief.rimWidth)), 0))), "each rim on the plateau, a band inside its border");
+  // The shadows: on the open land, beside the walls that face away from the light, darker than the bare ground.
+  const ground = new Color("#686d70"), shadows = vertices("relief-shadows"), shadowed = relief.walls.filter((w) => w.onto === "open" && w.out.x * LIGHT.x + w.out.z * LIGHT.z < 0);
+  assert.ok(shadowed.length > 0 && shadows.length > 0);
+  assert.ok(shadows.every((v) => near(v.y, 0.02) && shadowed.some((w) => toSegment(v, w.from, w.to) < 1.9 + 1e-4 && (v.x - w.from.x) * w.out.x + (v.z - w.from.z) * w.out.z > -1e-4)), "beside a wall turned from the light, on its open land's side");
+  assert.ok(shadows.every((v) => v.colour.r <= ground.r + 1e-6) && shadows.some((v) => v.colour.r < ground.r - 0.02), "darker than the ground");
   const grey = new Color("#808080"), lit = shade(grey, LIGHT), away = shade(grey, { x: -LIGHT.x, z: -LIGHT.z });
   assert.ok(lit.r > away.r, "a face toward the light shows lighter");
   land.add(marks);
@@ -110,6 +132,12 @@ test("3.78 the roads follow the relief, and every gate's posts stand up from the
     const [, gate, sign] = post.name.split(":"), g = roads.gates[Number(gate)]!, ramp = relief.ramps.find((r) => r.gate === g);
     const middle = { x: (Math.max(...Array.from({ length: p.count }, (_, i) => p.getX(i))) + Math.min(...Array.from({ length: p.count }, (_, i) => p.getX(i)))) / 2, z: (Math.max(...Array.from({ length: p.count }, (_, i) => p.getZ(i))) + Math.min(...Array.from({ length: p.count }, (_, i) => p.getZ(i)))) / 2 };
     if (ramp !== undefined) assert.ok(Math.abs((middle.x - g.at.x) * g.along.x + (middle.z - g.at.z) * g.along.z) > relief.rampWidth / 2, `post ${gate}:${sign} beside its ramp`);
+    // Its shadow lies away from the light, darker than the land it falls on.
+    const shadow = marks.getObjectByName(`gate-shadow:${gate}:${sign}`) as Mesh, s = shadow.geometry.getAttribute("position"), c = shadow.geometry.getAttribute("color");
+    const centre = { x: Array.from({ length: s.count }, (_, i) => s.getX(i)).reduce((a, b) => a + b) / s.count, z: Array.from({ length: s.count }, (_, i) => s.getZ(i)).reduce((a, b) => a + b) / s.count };
+    assert.ok((centre.x - middle.x) * LIGHT.x + (centre.z - middle.z) * LIGHT.z < 0, "its shadow away from the light");
+    const land = landColour(landFill(map, territoryLand(map, flat, coast)))(centre);
+    assert.ok(c.getX(0) < land.r && c.getY(0) < land.g, "a shadow darker than the land under it");
   }
   assert.ok(relief.post.entranceHeight > relief.post.height && relief.post.entrance > relief.post.side);
   for (const post of posts) assert.equal(post.userData.height, post.userData.entrance ? relief.post.entranceHeight : relief.post.height, "an entrance's posts stand taller");

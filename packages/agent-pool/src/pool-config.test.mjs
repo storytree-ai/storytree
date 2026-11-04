@@ -20,15 +20,15 @@ async function configFile(t, fields) {
   return file;
 }
 
-test("3.15 · the pool reads its machine, checkout, lanes, briefs, session cap, models, identity and watcher limits from this machine's own file, ~ as this machine's home", async (t) => {
-  const fields = { machine: "box", checkout: "~/src/shop", lanes: "~/pool", briefs: "~/pool/briefs", addDirs: ["~/src/shop-wt", "/srv/shared"], sessions: 3,
+test("3.15 · the pool reads its machine, checkout, lanes, briefs, session cap, lane memory, models, identity and watcher limits from this machine's own file, ~ as this machine's home", async (t) => {
+  const fields = { machine: "box", checkout: "~/src/shop", lanes: "~/pool", briefs: "~/pool/briefs", addDirs: ["~/src/shop-wt", "/srv/shared"], sessions: 3, laneMemory: "12G",
     engines: { codex: { model: "codex-model" }, claude: { model: "claude-model" }, switchAt: 80 },
     identity: { name: "Lane Owner", email: "owner@example.com" },
     watcher: { fixesPerRed: 1, fixesPerPullRequest: 4, intervalSeconds: 30 } };
   const file = await configFile(t, fields);
   const expected = {
     file, machine: "box", checkout: join("/home/u", "src/shop"), remoteCheckout: "~/src/shop", lanesDir: join("/home/u", "pool"),
-    briefsDir: join("/home/u", "pool/briefs"), addDirs: [join("/home/u", "src/shop-wt"), "/srv/shared", join("/home/u", "pool")], sessions: 3,
+    briefsDir: join("/home/u", "pool/briefs"), addDirs: [join("/home/u", "src/shop-wt"), "/srv/shared", join("/home/u", "pool")], sessions: 3, laneMemory: "12G",
     models: { codex: "codex-model", claude: "claude-model" }, switchAt: 80, identity: { name: "Lane Owner", email: "owner@example.com" },
     watcher: { fixesPerRed: 1, fixesPerPullRequest: 4, intervalMs: 30_000 }, machineOnly: false, projects: [{ name: "storytree" }],
   };

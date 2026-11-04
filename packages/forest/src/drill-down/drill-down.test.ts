@@ -1,13 +1,13 @@
 /**
  * Capability 4 · Drill-down (the forest story): what the panel a click opens says about a story,
  * and which of its capabilities it shows below the diagram (ADR-0659).
- * The library's tree and history, and the agent log's lines, are written out here as the app hands
+ * The library's tree and history are written out here as the app hands
  * them to the page, so no database is needed.
  */
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import type { AnnotatedCapability, AnnotatedContract, AnnotatedStory, AnnotatedTree, Change, HealthColumn, HealthState, Line, NewLine } from "@storytree/library";
+import type { AnnotatedCapability, AnnotatedContract, AnnotatedStory, AnnotatedTree, Change, HealthColumn, HealthState } from "@storytree/library";
 import { workStates } from "@storytree/arc-surface";
 
 import { drillDown, NO_DESCRIPTION, selectedCapability } from "./drill-down.js";
@@ -43,12 +43,6 @@ function reports(contractId: string, ...states: HealthState[]): Change[] {
   });
 }
 
-function log(...written: NewLine[]): Line[] {
-  return written.map((line, index) => ({ ...line, seq: index + 1, project: "shop", at: new Date(0).toISOString() }));
-}
-const claimed = (capability: string): NewLine => ({ kind: "claimed", session: "s1", source: "tool", capability, reason: "building it" });
-const landed = (capability: string): NewLine => ({ kind: "landed", session: "s1", source: "tool", capability });
-
 test("4.1 a story whose third capability builds on the first two opens in build order, with the agent's health, and a diagram of exactly two arrows", () => {
   const tree: AnnotatedTree = {
     stories: [story("s", capability("third", ["first", "second"]), capability("first", [], [contract("k1", "passing")]), capability("second", []))],
@@ -65,12 +59,10 @@ test("4.1 a story whose third capability builds on the first two opens in build 
   assert.deepEqual(panel?.arrows.map(({ from, to }) => `${from} -> ${to}`), ["third -> first", "third -> second"]);
 });
 
-test("4.2 a capability that builds on one in another story points at it, named with that story, with its word and whether it landed", () => {
+test("4.2 a capability that builds on one in another story points at it, named with that story, with its word", () => {
   const tree: AnnotatedTree = { stories: [story("a", capability("login", ["accounts"])), story("b", capability("accounts", []))], arcs: [] };
-  const [before] = drillDown(tree, "a", workStates([]), [])?.arrows ?? [];
-  assert.deepEqual(before, { from: "login", to: "accounts", toTitle: "The accounts", toStory: "Story b", landed: false, toStatus: "proposed" });
-  const [after] = drillDown(tree, "a", workStates(log(claimed("accounts"), landed("accounts"))), [])?.arrows ?? [];
-  assert.equal(after?.landed, true);
+  const [arrow] = drillDown(tree, "a", workStates([]), [])?.arrows ?? [];
+  assert.deepEqual(arrow, { from: "login", to: "accounts", toTitle: "The accounts", toStory: "Story b", toStatus: "proposed" });
 });
 
 test("4.3 a capability with no description says so instead of leaving a blank", () => {
@@ -100,21 +92,24 @@ test("4.5 storytree's own column shows beside the agent's only where something w
   assert.equal(bare?.capabilities[0]?.verified, undefined);
 });
 
-test("4.7 the panel shows one capability below its diagram: the one chosen, else the first in build order not yet landed", () => {
-  const tree: AnnotatedTree = { stories: [story("s", capability("base", []), capability("next", ["base"]), capability("last", ["next"])), story("t", capability("away", []))], arcs: [] };
-  const opened = (lines: Line[]) => drillDown(tree, "s", workStates(lines), []);
-  const fresh = opened([]);
-  assert.ok(fresh !== undefined);
-  assert.equal(selectedCapability(fresh), "base", "nothing landed: the first in build order");
-  const part = opened(log(claimed("base"), landed("base")));
-  assert.ok(part !== undefined);
-  assert.equal(selectedCapability(part), "next", "the first not yet landed");
+test("4.7 the panel shows one capability below its diagram: the one chosen, else the first in build order not yet healthy", () => {
+  const opened = (...words: AnnotatedCapability["status"][]) => {
+    const [base, next, last] = words;
+    const tree: AnnotatedTree = {
+      stories: [story("s", capability("base", [], [], undefined, base), capability("next", ["base"], [], undefined, next), capability("last", ["next"], [], undefined, last)), story("t", capability("away", []))],
+      arcs: [],
+    };
+    const panel = drillDown(tree, "s", workStates([]), []);
+    assert.ok(panel !== undefined);
+    return panel;
+  };
+  assert.equal(selectedCapability(opened("proposed", "proposed", "proposed")), "base", "nothing healthy: the first in build order");
+  const part = opened("healthy", "untested", "unhealthy");
+  assert.equal(selectedCapability(part), "next", "the first not yet healthy");
   assert.equal(selectedCapability(part, "last"), "last", "a chosen capability of the story stays chosen");
   assert.equal(selectedCapability(part, "away"), "next", "another story's capability is never chosen here");
   assert.equal(selectedCapability(part, "gone"), "next", "a choice that has left the story falls back");
-  const done = opened(log(...["base", "next", "last"].flatMap((id) => [claimed(id), landed(id)])));
-  assert.ok(done !== undefined);
-  assert.equal(selectedCapability(done), "base", "everything landed: the first");
+  assert.equal(selectedCapability(opened("healthy", "healthy", "healthy")), "base", "everything healthy: the first");
   const empty = drillDown({ stories: [story("e")], arcs: [] }, "e", workStates([]), []);
   assert.ok(empty !== undefined);
   assert.equal(selectedCapability(empty), undefined, "a story with no capabilities selects none");

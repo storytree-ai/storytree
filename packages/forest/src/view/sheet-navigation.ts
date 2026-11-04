@@ -82,6 +82,12 @@ export function sheetLayout(scene: ForestScene, places: ReadonlyMap<string, numb
   return { scene, islands, spots: new Map(islands.map(island => [island.story, island.spot])), radius: SHEET_RADIUS, extent, under };
 }
 
+/** The island `sheetLayout` lays out by its links (3.76): the selected one, once its plate has seen its docks; none for docks
+ * seen on an island no longer selected, or not yet known while its roads still route. */
+export function laidIsland<Docks>(seen: { story: string; docks: Docks | undefined } | undefined, selected: string | undefined): { story: string; docks: Docks } | undefined {
+  return seen !== undefined && seen.story === selected && seen.docks !== undefined ? { story: seen.story, docks: seen.docks } : undefined;
+}
+
 /** How much deeper under the glass each depth of the knowledge graph hangs than the one above it, in ground units: at the
  * tilt, far enough that each depth is seen hanging lower than the one above it (ADR-1059 D3). */
 const DEPTH_STEP = 20;

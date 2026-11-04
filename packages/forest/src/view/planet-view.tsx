@@ -17,7 +17,7 @@ import { focusRotation, globeHover, isGlobeDrag, markerSpot, movingSpots, MOVE_S
 import { claimsOn } from "./planet-update.js";
 import { createGlobeGuide, type GlobePose, type PlacedGlobeControls } from "./globe-guide.js";
 import { createGlobeAside } from "./globe-aside.js";
-import { compassNorth, opensBare, seesUnderside, sheetDrag, sheetHome, sheetKey, sheetKeyPan, sheetLayout, sheetMarkers, sheetOpening, sheetPan, sheetPanUnder, sheetSpin, sheetSpinTilt, sheetTilted, sheetTiltBy, sheetTwist, sheetUnder, TILT_PER_PIXEL, TILT_STEP } from "./sheet-navigation.js";
+import { compassNorth, laidIsland, opensBare, seesUnderside, sheetDrag, sheetHome, sheetKey, sheetKeyPan, sheetLayout, sheetMarkers, sheetOpening, sheetPan, sheetPanUnder, sheetSpin, sheetSpinTilt, sheetTilted, sheetTiltBy, sheetTwist, sheetUnder, TILT_PER_PIXEL, TILT_STEP } from "./sheet-navigation.js";
 import { growLand, shownSurfaces as surfacesFor, TerritoryDrawOn, type GlobeSurfaces } from "./globe-surfaces.js";
 
 export type PlanetViewProps = {
@@ -108,8 +108,10 @@ export function PlanetView({ core, scene, places, wisps: live, selected, highlig
   // The knowledge graph under the glass sheet: each shelf's notes under its place, the selected story's lit (ADR-1043 D5).
   // 3.76: once the selected island's plate has seen its docks, its shelves hang under its territories as laid out by its links.
   const [seenDocks, setSeenDocks] = useState<{ story: string; docks: readonly IslandDock[] | undefined }>();
-  const laid = seenDocks !== undefined && seenDocks.story === selected && seenDocks.docks !== undefined ? seenDocks : undefined;
-  const under = useMemo(() => laid === undefined ? layout.under : sheetLayout(scene, places, frame, laid).under, [layout, laid, scene, places, frame]);
+  const under = useMemo(() => {
+    const laid = laidIsland(seenDocks, selected);
+    return laid === undefined ? layout.under : sheetLayout(scene, places, frame, laid).under;
+  }, [layout, seenDocks, selected, scene, places, frame]);
   const underSheet = useMemo((): CoreUnderSheet => ({ ...under, selected }), [under, selected]);
   // ADR-0991 D4: a lit lane runs on from its dock along the territories' borders to its capability.
   const links = useKept(layout.scene.links ?? NO_LINKS, JSON.stringify);

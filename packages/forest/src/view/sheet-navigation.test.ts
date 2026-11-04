@@ -8,7 +8,7 @@ import type { AnnotatedTree, Change } from "@storytree/library";
 import { applySheetEye, plateTransform, SHEET_FOV, SHEET_RADIUS, SHEET_TILT, sheetEyeZoom, sheetSpot, SHIPPED_ELEVATION_DEG, type SheetPoint } from "@storytree/forest-world/planet";
 import { createGlobeGuide, type GlobePose } from "./globe-guide.js";
 import { focusRotation, markerSpot } from "./planet-navigation.js";
-import { compassNorth, headingHome, opensBare, seesUnderside, sheetCentre, sheetDrag, sheetHome, sheetKey, sheetKeyPan, sheetLayout, sheetMarkers, sheetOpening, sheetPan, sheetSpin, sheetPanUnder, sheetSpinTilt, sheetTilted, sheetTiltBy, sheetTwist, sheetUnder, TILT_STEP } from "./sheet-navigation.js";
+import { compassNorth, headingHome, laidIsland, opensBare, seesUnderside, sheetCentre, sheetDrag, sheetHome, sheetKey, sheetKeyPan, sheetLayout, sheetMarkers, sheetOpening, sheetPan, sheetSpin, sheetPanUnder, sheetSpinTilt, sheetTilted, sheetTiltBy, sheetTwist, sheetUnder, TILT_STEP } from "./sheet-navigation.js";
 import { sheetPoint } from "@storytree/forest-world/planet";
 
 const health = { reported: { state: "not-checked" as const }, verified: { state: "not-checked" as const } };
@@ -463,4 +463,13 @@ test("3.76 under the selected island each capability's knowledge shelf hangs ben
     assert.ok(close(shelfOf(undefined, capability), middleOf(own, capability)), `${capability} hangs under the map's own cut with no selection`);
   }
   assert.ok(capabilities.some(capability => !close(middleOf(laid, capability), middleOf(own, capability))), "the two layouts put some territory elsewhere");
+});
+
+test("3.76 the island laid out by its links is the selected one, once its docks are known; docks seen on an island since let go lay out none", () => {
+  const docks = [{ local: { x: 1, z: 0 }, links: ["z1->a1"] }];
+  assert.deepEqual(laidIsland({ story: "a", docks }, "a"), { story: "a", docks }, "the selected island with its docks");
+  assert.equal(laidIsland({ story: "a", docks }, "b"), undefined, "another island is selected now");
+  assert.equal(laidIsland({ story: "a", docks }, undefined), undefined, "nothing is selected");
+  assert.equal(laidIsland({ story: "a", docks: undefined }, "a"), undefined, "its roads still route");
+  assert.equal(laidIsland(undefined, "a"), undefined, "its plate has seen no docks yet");
 });

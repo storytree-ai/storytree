@@ -187,23 +187,20 @@ test("4.15 a mapped story's panel says it is mapped, with its files and lines fr
   assert.equal("mapped" in (drillDown(tree, "new", workStates([]), [], survey) ?? {}), false);
 });
 
-test("4.36 a story's panel carries its risk: the rating read from its depth and radius, who it reaches, and its own and its capabilities' extra checks; a story with neither carries none", () => {
+test("4.36 a story's panel carries its own and its capabilities' extra checks and no risk rating, even when the story has a reading; a story with no extra checks carries none", () => {
   const read = "2026-10-24";
   const risk = { depth: { value: 3 as const, read, reason: "flags: screen" }, radius: { value: 2 as const, downstream: 1, audience: "invited" as const, read, reason: "serves invited users itself" } };
   const install = { ...capability("install", []), guardrails: [{ check: "a fresh-install sweep", trigger: "release" as const }] };
   const rated: AnnotatedStory = { ...story("desktop", install, capability("window", [])), risk, guardrails: [{ check: "a real-app run", trigger: "change" }] };
-  const counted: AnnotatedStory = { ...story("site"), risk: { ...risk, radius: { ...risk.radius, audience: "public", users: 40 } } };
-  const tree: AnnotatedTree = { stories: [rated, counted, story("plain", capability("a", []))], arcs: [] };
-  assert.deepEqual(drillDown(tree, "desktop", workStates([]), [])?.risk, {
-    rating: 8,
-    audience: "invited",
-    checks: [
-      { check: "a real-app run", trigger: "change" },
-      { check: "a fresh-install sweep", trigger: "release", capability: "The install" },
-    ],
-  });
-  assert.deepEqual(drillDown(tree, "site", workStates([]), [])?.risk, { rating: 8, audience: "public", users: 40, checks: [] }, "a counted audience carries its users");
-  assert.equal("risk" in (drillDown(tree, "plain", workStates([]), []) ?? {}), false);
+  const tree: AnnotatedTree = { stories: [rated, { ...story("site"), risk }, story("plain", capability("a", []))], arcs: [] };
+  const desktop = drillDown(tree, "desktop", workStates([]), []);
+  assert.deepEqual(desktop?.checks, [
+    { check: "a real-app run", trigger: "change" },
+    { check: "a fresh-install sweep", trigger: "release", capability: "The install" },
+  ]);
+  assert.equal("risk" in (desktop ?? {}), false, "the rating is switched off (question_0de2b8280384)");
+  assert.equal("checks" in (drillDown(tree, "site", workStates([]), []) ?? {}), false, "a reading alone carries nothing");
+  assert.equal("checks" in (drillDown(tree, "plain", workStates([]), []) ?? {}), false);
 });
 
 test("4.37 each contract storytree saw carries the source of its verdict, its capability the sources of its contracts', and its reason the sources of the contracts carrying it", () => {

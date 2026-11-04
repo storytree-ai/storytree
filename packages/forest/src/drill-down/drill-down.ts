@@ -93,22 +93,18 @@ export interface StoryPanel {
   arrows: Arrow[];
   /** Present for a mapped story (ADR-0993 D3), which shows no health: its file and line counts once its survey has read them. */
   mapped?: { files?: number; lines?: number };
-  /** Its risk bar, present when it carries a risk reading or extra checks of its own or its capabilities'. */
-  risk?: RiskBar;
+  /**
+   * The story's own extra checks, then each capability's, named with its capability; present when it has any. Its
+   * risk rating is switched off (question_0de2b8280384), so the panel carries none.
+   */
+  checks?: ExtraCheck[];
 }
 
-/**
- * A story's risk at a glance (question_1740edf77e9e): its rating, who a fault in it reaches, and the
- * extra checks only it carries. No graphs, and standard unit and integration tests are not listed.
- */
-export interface RiskBar {
-  /** 2 x depth + radius, 3 to 10 (ADR-1144), when the story has a reading. */
-  rating?: number;
-  /** Who it reaches, with the users that audience counts once one is measured. */
-  audience?: NonNullable<AnnotatedStory["risk"]>["radius"]["audience"];
-  users?: number;
-  /** The story's own extra checks, then each capability's, named with its capability. */
-  checks: { check: string; trigger: NonNullable<AnnotatedStory["guardrails"]>[number]["trigger"]; capability?: string }[];
+/** An extra check only this story or one of its capabilities carries; standard unit and integration tests are not listed. */
+export interface ExtraCheck {
+  check: string;
+  trigger: NonNullable<AnnotatedStory["guardrails"]>[number]["trigger"];
+  capability?: string;
 }
 
 /** What stands in for a description nobody has written. */
@@ -170,21 +166,16 @@ export function drillDown(tree: AnnotatedTree, story: string, states: PartStates
 
   const files = survey[found.id]?.files ?? [];
   const mapped = found.mapped === undefined ? undefined : files.length === 0 ? {} : { files: files.length, lines: files.reduce((sum, file) => sum + file.lines, 0) };
-  const risk = riskBar(found);
-  return { story: found.id, title: found.title, description: sentences(found.description), capabilities, arrows, ...(mapped === undefined ? {} : { mapped }), ...(risk === undefined ? {} : { risk }) };
+  const checks = extraChecks(found);
+  return { story: found.id, title: found.title, description: sentences(found.description), capabilities, arrows, ...(mapped === undefined ? {} : { mapped }), ...(checks.length === 0 ? {} : { checks }) };
 }
 
-/** `story`'s risk bar, or undefined when it has no reading and no extra checks. */
-function riskBar(story: AnnotatedStory): RiskBar | undefined {
-  const checks = [
+/** `story`'s own extra checks, then each of its capabilities'. */
+function extraChecks(story: AnnotatedStory): ExtraCheck[] {
+  return [
     ...(story.guardrails ?? []).map(({ check, trigger }) => ({ check, trigger })),
     ...story.capabilities.flatMap(({ title, guardrails }) => (guardrails ?? []).map(({ check, trigger }) => ({ check, trigger, capability: title }))),
   ];
-  const { risk } = story;
-  if (risk === undefined && checks.length === 0) return undefined;
-  if (risk === undefined) return { checks };
-  const { audience, users } = risk.radius;
-  return { rating: 2 * risk.depth.value + risk.radius.value, audience, ...(users === undefined ? {} : { users }), checks };
 }
 
 function contractLine(contract: AnnotatedContract, trail: readonly HealthState[]): ContractLine {

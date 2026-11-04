@@ -113,9 +113,13 @@ export interface UnnamedPlugin {
   readonly part: string;
 }
 
+// Manifest fields that say what a plugin is, not what a host mounts: a plugin declaring only these mounts nothing.
+const UNMOUNTED_FIELDS = new Set(["interface", "for", "plan"]);
+
 /**
- * Every plugin in this computer's factory folder, in name order, with a storytree manifest this storytree can read and
- * that no stand-in names, so a host can say which plugins nothing mounts and how to name each; none without a folder.
+ * Every plugin in this computer's factory folder, in name order, with a storytree manifest this storytree can read,
+ * that declares something to mount (more than its interface, `for` and plan), and that no stand-in names, so a host
+ * can say which plugins nothing mounts and how to name each; none without a folder.
  */
 export function unnamedPlugins(standIns: StandIns): UnnamedPlugin[] {
   const { folder } = standIns;
@@ -129,7 +133,8 @@ export function unnamedPlugins(standIns: StandIns): UnnamedPlugin[] {
   }
   return plugins.filter((plugin) => !named.has(plugin)).flatMap((plugin) => {
     try {
-      pluginManifest(folder, plugin);
+      const { manifest } = pluginManifest(folder, plugin);
+      if (Object.keys(manifest).every((field) => UNMOUNTED_FIELDS.has(field))) return [];
       return [{ plugin, part: pluginFor(folder, plugin) ?? plugin }];
     } catch {
       // No manifest, or one this storytree cannot read: nothing a setting could mount.

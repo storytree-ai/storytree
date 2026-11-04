@@ -289,7 +289,7 @@ test("app-setup 8.45 the doctor names each plugin in this computer's factory tha
     const user = aUser(world);
     const plugin = (name: string, manifest: Record<string, unknown>) => {
       mkdirSync(path.join(world.home, "your-factory", "plugins", name), { recursive: true });
-      writeFileSync(path.join(world.home, "your-factory", "plugins", name, "package.json"), JSON.stringify({ name, storytree: { interface: 1, ...manifest } }));
+      writeFileSync(path.join(world.home, "your-factory", "plugins", name, "package.json"), JSON.stringify({ name, storytree: { interface: 1, verbs: [{ from: "./verbs", export: "PLUGIN_FAMILIES" }], ...manifest } }));
     };
     plugin("micks-dev-loop", {});
     plugin("my-runner", { for: "agent-pool" });

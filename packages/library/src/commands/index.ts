@@ -38,6 +38,7 @@ import { fieldValue, verb, VerbRefusal, type DoorWords, type VerbContext, type V
 import { changes, count, decisionNamed, find } from "../data/commands.js";
 import { ADR_FAMILY } from "./adr.js";
 import { FYI_FAMILY } from "./fyi.js";
+import { editDecision, recordDecision } from "../librarian/decision-log/index.js";
 import { LaterWriterError, StaleRevertError } from "../transactions/index.js";
 
 /** A claim as the door reads it: the session holding it, the increment or capability it is for, and since when. */
@@ -140,7 +141,7 @@ const WRITERS: Readonly<Record<string, Writer>> = {
   arc: (library, fields, options) => library.createArc(fields as never, options),
   increment: (library, fields, options) => library.addIncrement(fields as never, options),
   question: (library, fields, options) => library.raiseQuestion(fields as never, options),
-  decision: (library, fields, options) => library.recordDecision(fields as never, options),
+  decision: (library, fields, options) => recordDecision(library, fields as never, options),
   definition: (library, fields, options) => library.defineTerm(fields as never, options),
   ...Object.fromEntries(
     (["principle", "guardrail", "pattern", "process", "agent", "techstack", "check", "research", "experiment"] as const satisfies readonly KnowledgeKind[]).map((kind) => [
@@ -494,6 +495,7 @@ const edit = verb({
         case "arc": return library.editArc(id, fields as never, writer);
         case "increment": return library.editIncrement(id, fields as never, writer);
         case "question": return library.editQuestion(id, fields as never, writer);
+        case "decision": return editDecision(library, id, fields as never, writer);
         default: return library.editNote(id, fields as never, writer);
       }
     });

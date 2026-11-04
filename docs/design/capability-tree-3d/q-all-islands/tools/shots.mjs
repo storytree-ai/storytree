@@ -10,12 +10,13 @@ import { writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { withCapture } from '../../../../../apps/desktop/src/capture/index.ts';
+import { pageFolder } from './page-folder.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url)), dist = path.dirname(here);
 // Flags (the capture kit's --retake) are not the query, wherever they stand.
 const [tag = 'look', query = ''] = process.argv.slice(2).filter(a => !a.startsWith('--'));
 const VIEW = { width: 1440, height: 900 };
-await withCapture({ folder: path.join(dist, 'stills'), dist }, async ({ browser, origin, out, settle }) => {
+await withCapture({ folder: path.join(dist, 'stills'), dist: pageFolder() }, async ({ browser, origin, out, settle }) => {
   const errors = [];
   const open = async () => {
     const page = await browser.newPage({ viewport: VIEW, deviceScaleFactor: 1, colorScheme: 'dark' });

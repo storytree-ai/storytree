@@ -131,10 +131,13 @@ Run from the checkout root.
 
 1. `node --import tsx docs/design/capability-tree-3d/q-all-islands/tools/measure.mjs` snapshots the plan, code survey and
    open work for every story into `data.json`; `tools/survey.ts` writes each island's size and links to `survey.json`.
-2. `node docs/design/capability-tree-3d/q-all-islands/tools/build.mjs` builds `index.html`, `page.js` and `page.css` from the
-   real map code (packages/forest's view) with every arrangement in `layouts/`.
-3. `node --import tsx docs/design/capability-tree-3d/q-all-islands/tools/docks.mjs --stills` reads where the map docks each
-   island's lanes into `docks.json`, and takes each island as the map draws it today into `stills/today/`.
+2. `node docs/design/capability-tree-3d/q-all-islands/tools/build.mjs --retake` builds `index.html`, `page.js` and `page.css`
+   from the real map code (packages/forest's view) with every arrangement in `layouts/`. Without `--retake` the build goes to
+   the checkout's ignored `.evidence-builds/`, which the tools serve until a `--retake` build clears it, so a lane taking
+   stills of its own branch's map leaves this folder's files as they were (`tools/page-folder.mjs`).
+3. `node --import tsx docs/design/capability-tree-3d/q-all-islands/tools/docks.mjs --stills --retake` reads where the map
+   docks each island's lanes into `docks.json`, and takes each island as the map draws it today into `stills/today/`;
+   without `--retake` both go to the capture kit's scratch folder, which it names.
 4. `node docs/design/capability-tree-3d/q-all-islands/tools/lay-all.mjs` runs the layout tool (`tools/layout.ts`) for every
    story into `layouts/<story>.json`; `BEFORE=1` for round 3's rules, into `<story>.before.json`. Build again after.
 5. `node --import tsx docs/design/capability-tree-3d/q-all-islands/tools/islands.mjs <tag> [query] --retake` takes every

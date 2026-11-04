@@ -9,7 +9,7 @@ import { promisify } from "node:util";
 import { removeTemp } from "@storytree/test-waits";
 
 import { countEngines } from "./queue.mjs";
-import { adoptRequests, asRun, ensureWatcher, forget, hand, handedOff, handOver, handThroughLibrary, HOME, homeOf, isFixSession, main, ownerOf, projectOf, queueOutcome, queueRemovals, readFailures, readPull, reachOf, recordVerdict, remoteCommand, RESTART, watchOnce } from "./watch.mjs";
+import { adoptRequests, asRun, ensureWatcher, forget, hand, handedOff, handOver, handThroughLibrary, HOME, homeOf, isFixSession, main, ownerOf, onMain, failedOnQueue, projectOf, queueOutcome, queueRemovals, readFailures, readPull, reachOf, recordVerdict, remoteCommand, RESTART, watchOnce } from "./watch.mjs";
 
 const at = Date.parse("2026-10-10T12:00:00Z");
 const minutes = (n) => new Date(at + n * 60_000).toISOString();
@@ -477,9 +477,34 @@ test("4.52 · each merge-queue red the watcher sees is kept on its hand-off once
     ["workspace", "queue-red", "42", "--increment", "increment_two", "--removed-at", minutes(-30), "--commit", "q2", "--outcome", "ahead"],
   ]);
   assert.deepEqual(await readdir(b.dir), [], "then forgotten");
+
+  // A hand-off forgotten at a cut-over has no pull request read, so each red it kept is unknown.
+  await handOff(b, 43, "increment_three");
+  b.looks[43] = { state: "pending", head: "h1", queueReds: [seen] };
+  await watchOnce(b.options);
+  b.calls.length = 0;
+  b.options.cutover = async () => minutes(60);
+  await watchOnce(b.options);
+  assert.deepEqual(b.calls.filter(([, verb]) => verb === "queue-red"), [
+    ["workspace", "queue-red", "43", "--increment", "increment_three", "--removed-at", minutes(-50), "--commit", "q1", "--check", "verify on Windows", "--test", "4.2 · a red check", "--outcome", "unknown"],
+  ]);
 });
 
-test("4.47 ·on MERGED a pull request handed over to keep its increment open clears its event wait marked with that pull request, so the increment's wait for the owner is listed for reading again; a merge that closes the increment marks nothing", async (t) => {
+test("4.52 · a queue commit's red check runs are named with their Actions runs, and GitHub's compare of main with a commit says whether it is on main", () => {
+  assert.deepEqual(failedOnQueue([
+    { name: "verify", conclusion: "failure", details_url: "https://github.com/o/r/actions/runs/41/job/1" },
+    { name: "verify on macOS", conclusion: "cancelled", details_url: "https://github.com/o/r/actions/runs/41/job/2" },
+    { name: "verify on Linux", conclusion: "success", details_url: "https://github.com/o/r/actions/runs/41/job/3" },
+    { name: "CodeQL", conclusion: "failure", details_url: "https://github.com/o/r/runs/7" },
+  ]), { checks: ["verify", "verify on macOS", "CodeQL"], runs: [41] });
+  assert.equal(onMain("behind"), true);
+  assert.equal(onMain("identical"), true);
+  assert.equal(onMain("diverged"), false);
+  assert.equal(onMain("ahead"), false);
+  assert.throws(() => onMain(""), /read nothing/);
+});
+
+test("4.47 · on MERGED a pull request handed over to keep its increment open clears its event wait marked with that pull request, so the increment's wait for the owner is listed for reading again; a merge that closes the increment marks nothing", async (t) => {
   const b = await box(t);
   await hand({ ...b.options, pr: 41, increment: "increment_one", session: SESSION, keepOpen: true, startWatcher: async () => {} });
   await handOff(b, 42, "increment_two");

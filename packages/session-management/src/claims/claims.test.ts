@@ -1262,6 +1262,15 @@ test("5.67 a merge-queue red the watcher kept is a queue-red line naming its pul
       ["watcher", "watcher", 12, "increment_signup", "2026-11-01T11:00:00Z", "q2", [], [], "ahead"],
     ]);
     assert.deepEqual((await readSessions(log, project)).map((session) => session.session), [], "the watcher is no session");
+
+    const queueRedVerb = WORKSPACE_FAMILIES[0]!.verbs.find((verb) => (verb.command as { name?: string }).name === "queue-red")!;
+    const words = { door: "command" as const, say: (step: { command?: string; tool?: string }) => step.command ?? step.tool! };
+    const typed = { pr: "13", increment: "increment_signup", "removed-at": "2026-11-01T12:00:00Z", commit: "q3", check: ["verify"], test: [], outcome: "real" };
+    await queueRedVerb.act(typed, as("C") as never, words);
+    await assert.rejects(queueRedVerb.act({ ...typed, outcome: "maybe" }, as("C") as never, words), /real, flake, ahead or unknown, not maybe/, "an outcome outside the four is refused");
+    await assert.rejects(queueRedVerb.act({ ...typed, "removed-at": "yesterday" }, as("C") as never, words), /not an ISO 8601 time/, "a removal time that is no time is refused");
+    assert.deepEqual((await log.lines(project, { kinds: ["queue-red"] })).slice(2).map((line) => line.kind === "queue-red" && [line.pr, line.commit, line.checks, line.outcome]),
+      [[13, "q3", ["verify"], "real"]], "the command writes its line, and a refused one writes none");
   });
 });
 

@@ -166,18 +166,31 @@ export function queueOutcome(red, { merged, head, reached }) {
   return red.parents[1] === head ? "flake" : "real";
 }
 
+/** Of a queue commit's check runs, as GitHub's REST API lists them, the names of those that ended red and the Actions runs they belong to (4.52). */
+export function failedOnQueue(checkRuns) {
+  const failed = checkRuns.filter((check) => RED.has(check.conclusion?.toUpperCase()));
+  return { checks: [...new Set(failed.map((check) => check.name))],
+    runs: [...new Set(failed.map((check) => /\/actions\/runs\/(\d+)\//.exec(check.details_url ?? "")?.[1]).filter(Boolean).map(Number))] };
+}
+
+/** Whether a commit is on main, from GitHub's compare of main with it: main is at or past it, never diverged from it or behind it (4.52). */
+export function onMain(status) {
+  if (status === "behind" || status === "identical") return true;
+  if (status === "diverged" || status === "ahead") return false;
+  throw new Error(`GitHub's compare with main read ${status || "nothing"}`);
+}
+
 /** The checks that failed on queue commit `commit` and the tests their red jobs' logs name, read while GitHub still keeps them (4.52). */
 async function queueFailures(repo, commit, home = HOME) {
   const api = `repos/${home}`;
-  const checks = (await ghJson(repo, `${api}/commits/${commit}/check-runs?per_page=100`)).check_runs
-    .filter((check) => RED.has(check.conclusion?.toUpperCase()));
+  const { checks, runs: ids } = failedOnQueue((await ghJson(repo, `${api}/commits/${commit}/check-runs?per_page=100`)).check_runs);
   const runs = [];
-  for (const id of new Set(checks.map((check) => /\/actions\/runs\/(\d+)\//.exec(check.details_url ?? "")?.[1]).filter(Boolean))) {
+  for (const id of ids) {
     const one = await ghJson(repo, `${api}/actions/runs/${id}`);
     const jobs = await Promise.all((await jobsOf(repo, one, api)).map(async (job) => ({ ...job, log: redJob(job) ? await jobLog(repo, job.id, api) : "" })));
-    runs.push({ id: Number(id), attempt: one.run_attempt, repo: home, jobs });
+    runs.push({ id, attempt: one.run_attempt, repo: home, jobs });
   }
-  return { checks: [...new Set(checks.map((check) => check.name))], tests: readFailures(runs, new Set()).tests };
+  return { checks, tests: readFailures(runs, new Set()).tests };
 }
 
 /**
@@ -1008,13 +1021,8 @@ function boxDefaults({ home = homedir(), env = process.env, platform = process.p
     cutover: async (project) => (await storytree(["library", "read", "pr-cutover", "--field", "at"], project)).trim(),
     look: (pr, record) => lookOnGitHub(pr, { repo, since: record.fixes.at(-1)?.at ?? record.handedAt, home: repoOf(record),
       seen: new Set((record.queueReds ?? []).map((red) => red.at)) }),
-    // Whether commit `sha` is on main: main is at or past it, never diverged from it or behind it (4.52).
-    reached: async (sha, on = HOME) => {
-      const status = (await run("gh", ["api", `repos/${on}/compare/main...${sha}`, "--jq", ".status"], { cwd: repo })).stdout.trim();
-      if (status === "behind" || status === "identical") return true;
-      if (status === "diverged" || status === "ahead") return false;
-      throw new Error(`GitHub's compare of main with ${sha} read ${status || "nothing"}`);
-    },
+    // Whether commit `sha` is on main (4.52).
+    reached: async (sha, on = HOME) => onMain((await run("gh", ["api", `repos/${on}/compare/main...${sha}`, "--jq", ".status"], { cwd: repo })).stdout.trim()),
     // Off the box the shared checkout may not exist, and gh would be started in no folder at all (4.44).
     viewOf: async (pr, on = HOME) => {
       if (!existsSync(repo)) throw new Error(`the shared checkout ${repo} is not on this machine; off the box, hand over with \`watch.mjs handover\``);

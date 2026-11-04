@@ -292,9 +292,9 @@ export function refusalMessage(refusal: EditRefusal, after = false): string {
   if (refusal.refused === "imported") {
     const where = `${refusal.file} in ${refusal.folder}, code the project imports`;
     if (refusal.listed !== undefined && refusal.listed.length > 0) {
-      const named = refusal.listed.map(({ capability, title, covers }) => `"${title}" (${capability}), covering ${covers.length === 0 ? "nothing yet" : covers.join(", ")}`).join("; ");
+      const named = refusal.listed.map(({ capability, title, covers }) => `"${title}" (${capability}), covering ${covers.join(", ")}`).join("; ");
       const ids = refusal.listed.map(({ capability }) => capability).join(" or ");
-      return `[storytree] Your edit to ${where}, was refused before it happened: imported code is changed only when your increment names the explored capability covering it (ADR-0993 D4, ADR-1015), and no capability covers this file yet, though your increment ${refusal.increment} lists ${refusal.listed.length === 1 ? "one" : "these"}: ${named}. If it is part of what you are changing, add ${refusal.file} to the covers of one of them (edit_plan with id ${ids}, covers its covers now plus ${refusal.file}, and live: true, so the gate sees it before your branch merges), then edit again; or ask the user what to do.`;
+      return `[storytree] Your edit to ${where}, was refused before it happened: imported code is changed only when your increment names the explored capability covering it (ADR-0993 D4, ADR-1015), and no capability covers this file yet, though your increment ${refusal.increment} lists ${named}. If it is part of what you are changing, add ${refusal.file} to the covers of one of them (edit_plan with id ${ids}, covers its covers now plus ${refusal.file}, and live: true, so the gate sees it before your branch merges), then edit again; or ask the user what to do.`;
     }
     const covered = refusal.covering === undefined
       ? "No explored capability covers it yet: draw the capability you mean to change (plan_capability, with the folders and files it covers)"

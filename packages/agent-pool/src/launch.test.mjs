@@ -738,6 +738,21 @@ test("3.39 · an edit to the machine file's projects or sessions reaches the run
   assert.equal(started.find((one) => one.increment === "increment_site").cwd, website, "in the project's own checkout");
   assert.ok(most >= 3, `the three after the edit ran at once, under the new cap of four (at most ${most} did)`);
 
+  // A file that no longer reads leaves the cap at the start's, and fails the survey with its reason.
+  const broken = await box(t, { count: async () => 0, survey: async () => poolWork(["increment_a", "increment_b"]) });
+  broken.home = broken.lanesDir;
+  broken.env = { AGENT_POOL_CONFIG: join(broken.lanesDir, "agent-pool.json") };
+  await writeFile(broken.env.AGENT_POOL_CONFIG, JSON.stringify({ checkout: "/srv/storytree03", lanes: broken.lanesDir, sessions: 1 }));
+  delete broken.briefPaths; delete broken.projects; delete broken.maxLanes;
+  broken.runLane = async (options) => { broken.briefs.push(options.increment); await writeFile(broken.env.AGENT_POOL_CONFIG, "{ not json"); return 0; };
+  broken.sleep = async () => {
+    await new Promise((go) => setImmediate(go));
+    if (broken.lines.some((line) => line.includes("library survey failed"))) await writeFile(join(broken.lanesDir, "pool-stop"), "");
+  };
+  assert.equal(await main(["pool"], broken), 0, "the cap still reads: the dispatcher runs on");
+  assert.deepEqual(broken.briefs, ["increment_a"], "one lane under the start's cap of one");
+  assert.ok(broken.lines.some((line) => /library survey failed \(could not read the agent pool's configuration /.test(line)), broken.lines.join("\n"));
+
   // What the dispatcher runs on: an edit to its projects or cap leaves its version as it was, one to any other field moves it.
   const repo = await folder(t);
   await run("git", ["init", "-q"], { cwd: repo });

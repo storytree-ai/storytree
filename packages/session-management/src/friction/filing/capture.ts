@@ -113,20 +113,35 @@ export interface EarlierFriction {
   readonly title: string;
   readonly state: string;
   readonly recurrences: number;
+  /** The day it was filed (YYYY-MM-DD). */
+  readonly filed: string;
+}
+
+/** Which earlier reports closestFriction may give: at most `limit` (three unless told), never `except`, none filed before `since` (YYYY-MM-DD). */
+export interface Closest {
+  readonly limit?: number;
+  readonly except?: string;
+  readonly since?: string;
+}
+
+/** The day a report was filed: its capture's date, or the day it was saved when it carries none. */
+function filedOn(note: SchemaRecord<"friction">): string {
+  return note.fields.provenance?.date ?? note.createdAt.slice(0, 10);
 }
 
 /**
  * The earlier friction reports closest in meaning to `friction`'s title and statement, best first, open, resolved
- * and dismissed alike (ADR-1233 D1; ADR-1016 D4 keeps them findable): at most `limit`, three unless told. With no
- * embedding model to hand, the reports holding every word of its title instead. None when the library holds no friction.
+ * and dismissed alike (ADR-1233 D1; ADR-1016 D4 keeps them findable). With no embedding model to hand, the reports
+ * holding every word of its title instead. None when the library holds no friction. The drain asks the same, for a
+ * report's lookalikes of the last four weeks (ADR-1241).
  */
-export async function closestFriction(library: Library, friction: Pick<NewFriction, "title" | "statement">, limit = 3): Promise<EarlierFriction[]> {
+export async function closestFriction(library: Library, friction: Pick<NewFriction, "title" | "statement">, { limit = 3, except, since }: Closest = {}): Promise<EarlierFriction[]> {
   if ((await library.list("friction")).length === 0) return [];
   const all = { limit: Number.MAX_SAFE_INTEGER };
   let ranked = await library.rank(`${friction.title}\n${friction.statement}`, all);
   if (ranked.by === "words") ranked = await library.rank(friction.title, all);
-  return ranked.hits.flatMap(({ note }) => note.type === "friction"
-    ? [{ id: note.id, title: note.fields.title, state: note.fields.state ?? "open", recurrences: note.fields.reinforcedBy?.length ?? 0 }]
+  return ranked.hits.flatMap(({ note }) => note.type === "friction" && note.id !== except && (since === undefined || filedOn(note) >= since)
+    ? [{ id: note.id, title: note.fields.title, state: note.fields.state ?? "open", recurrences: note.fields.reinforcedBy?.length ?? 0, filed: filedOn(note) }]
     : []).slice(0, limit);
 }
 

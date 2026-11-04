@@ -173,14 +173,6 @@ export function pageReads({ storytree, transcriptCacheHome, home, kinds }: PageR
       const lines = await readingLines(opened, known, [session]);
       return storedSessionWindow(opened, known, lines, session, { cache: await transcripts(known) });
     },
-    windowReadings: async (name, sessions) => {
-      const known = await project(name);
-      if (!Array.isArray(sessions) || !sessions.every((one) => typeof one === "string")) throw new Error("sessions must be a list of session ids");
-      const opened = await activityLog();
-      const lines = await readingLines(opened, known, sessions);
-      const cache = await transcripts(known);
-      return Promise.all(sessions.map((session: string) => storedSessionWindow(opened, known, lines, session, { cache })));
-    },
     projectFolder: async (name) => projectFolder(await activityLog(), await project(name)),
     projectLineage: (name) => read(name, (library) => library.factory()),
     projectBuildsItself: async (name) => (await trunkedProjects(storytree)).has(await project(name)),

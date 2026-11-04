@@ -120,25 +120,42 @@ const reinforce = verb({
 
 const drain = verb({
   consumers: ["agent"],
-  command: { family: "friction", name: "drain", summary: "the reports a landing's pass routes: up to three from other branches, most recurrences first" },
+  command: { family: "friction", name: "drain", summary: "the reports a landing's pass routes: up to three from other branches, most recurrences first, each with its lookalikes" },
   tool: {
     name: "friction_drain",
-    description: "Drain friction for the landing's pass: up to three open reports other branches filed, most recurrences first, leased to this session for a few minutes. Read each whole, then route it.",
+    description: "Drain friction for the landing's pass: up to three open reports other branches filed, most recurrences first, leased to this session for a few minutes, each with its lookalikes from the last four weeks (settled ones too). Read each whole, judge those sharing its root cause as one theme, then route it once, naming the theme.",
   },
   inputs: {},
   // It leases what it lists to the asking session (17.13).
   writes: true,
   async act(_input, context: VerbContext) {
-    const { leaseFriction, openFriction } = await import("./drain/drain.js");
+    const { leaseFriction, lookalikes, openFriction } = await import("./drain/drain.js");
     const open = await openFriction(context.library, { branch: await branchIn(context.folder) });
     const { taken: due, free } = await leaseFriction(context.library, open, context.writer === undefined ? {} : { writer: context.writer });
     if (due.length === 0) return { text: "No friction is due: every report from another branch is routed." };
-    const lines = due.map((note) => `  ${note.id}  (${note.fields.reinforcedBy?.length ?? 0} recurrences)  ${note.fields.title}`);
+    // Judged together, reports sharing a root cause are routed once as a theme (ADR-1241).
+    const alike = await Promise.all(due.map((note) => lookalikes(context.library, note)));
+    const lines = due.flatMap((note, index) => [
+      `  ${note.id}  (${note.fields.reinforcedBy?.length ?? 0} recurrences)  ${note.fields.title}`,
+      ...alike[index]!.map((one) => `      looks like ${one.id}  ${one.state}, ${one.recurrences} recurrences, filed ${one.filed}  ${one.title}`),
+    ]);
     const more = free > due.length ? [`${free - due.length} more wait.`] : [];
     return {
-      text: [`${due.length} friction report${due.length === 1 ? "" : "s"} due for routing:`, ...lines, ...more].join("\n"),
-      data: { due: due.map((note) => note.id), ...(more.length === 0 ? {} : { more: free - due.length }) },
-      next: [{ tool: "open", command: "library read <friction>", why: "read one whole before judging it" }],
+      text: [
+        `${due.length} friction report${due.length === 1 ? "" : "s"} due for routing, each with its lookalikes from the last four weeks:`,
+        ...lines,
+        ...more,
+        "Judge each with its lookalikes: those sharing its root cause (not merely a similar fix) are one theme, routed once with --theme naming the rest.",
+      ].join("\n"),
+      data: {
+        due: due.map((note) => note.id),
+        lookalikes: Object.fromEntries(due.map((note, index) => [note.id, alike[index]])),
+        ...(more.length === 0 ? {} : { more: free - due.length }),
+      },
+      next: [
+        { tool: "open", command: "library read <friction>", why: "read one whole before judging it" },
+        { tool: "route", command: "friction route <friction> --to … --reason … --theme <lookalike,…>", why: "route a theme sharing one root cause once" },
+      ],
     };
   },
 });
@@ -148,24 +165,29 @@ const routeVerb = verb({
     family: "friction",
     name: "route",
     summary: "record a report's route and reason, or stamp the remedy that landed",
-    usage: "friction route <friction> --to <adr|tool|principle|guardrail|process|definition|edit-existing|nothing> --reason <text|@file> [--discharged-by <pr or decision>]",
+    usage: "friction route <friction> --to <adr|tool|principle|guardrail|process|definition|edit-existing|nothing> --reason <text|@file> [--theme a,b] [--discharged-by <pr or decision>]",
   },
   tool: {
     name: "route",
-    description: "Record the routing judgement and reason on friction, or add its delivery stamp later. Every route but nothing needs an open increment naming this friction in remedies, unless the remedy is already stamped as delivered.",
+    description: "Record the routing judgement and reason on friction, or add its delivery stamp later. Every route but nothing needs an open increment naming each routed report in remedies, unless the remedy is already stamped as delivered. Name in theme the other reports that share its root cause: the route is recorded on every one.",
   },
   inputs: {
     friction: { kind: "text", word: 0, describe: "the friction's id" },
     to: { kind: "text", describe: "the route: adr, tool, principle, guardrail, process, definition, edit-existing or nothing" },
     reason: { kind: "text", describe: "why that route" },
+    theme: { kind: "text", optional: true, describe: "the other reports sharing its root cause, comma-separated: each is routed the same way and linked to it" },
     "discharged-by": { kind: "text", optional: true, describe: "the pull request or decision that discharged it" },
   },
   writes: true,
-  async act({ friction, to, reason, "discharged-by": dischargedBy }, context: VerbContext) {
+  async act({ friction, to, reason, theme, "discharged-by": dischargedBy }, context: VerbContext) {
     const { route } = await import("./drain/drain.js");
     const routed = to as NonNullable<FieldsOf<"friction">["route"]>;
-    const note = await route(context.library, friction, routed, reason, { ...context.writer, ...(dischargedBy === undefined ? {} : { dischargedBy }) });
-    return { text: `Routed ${note.id} to ${routed}.`, data: { id: note.id }, next: [{ command: `library read ${note.id}`, why: "read it back" }] };
+    const members = theme === undefined ? [] : listOf(theme).filter((member) => member !== friction);
+    const note = await route(context.library, friction, routed, reason, {
+      ...context.writer, ...(dischargedBy === undefined ? {} : { dischargedBy }), ...(members.length === 0 ? {} : { theme: members }),
+    });
+    const text = members.length === 0 ? `Routed ${note.id} to ${routed}.` : `Routed ${note.id} and its theme (${members.join(", ")}) to ${routed}.`;
+    return { text, data: { id: note.id, ...(members.length === 0 ? {} : { theme: members }) }, next: [{ command: `library read ${note.id}`, why: "read it back" }] };
   },
 });
 
@@ -230,7 +252,7 @@ export const FRICTION_FAMILIES: readonly VerbFamily[] = [
 
 /** Its section of the habits card (ADR-1021, the guidance kind): filing what fought you, and draining what others filed. */
 export const frictionGuidance: readonly string[] = [
-  "File what fought you: `record_friction` when something got in your way, with concrete evidence (marked about storytree when the defect is storytree's own, so the user can choose to send it on), and `reinforce` the existing item when it happens again, with its own (filing first shows the closest earlier reports: reinforce the one that is the same problem, or file it again marked none-match); `record_resteer` when the owner redirects you, quoting their own words. Before landing, `friction_drain` hands you up to three reports other sessions filed: read each, then `route` it with its reason.",
+  "File what fought you: `record_friction` when something got in your way, with concrete evidence (marked about storytree when the defect is storytree's own, so the user can choose to send it on), and `reinforce` the existing item when it happens again, with its own (filing first shows the closest earlier reports: reinforce the one that is the same problem, or file it again marked none-match); `record_resteer` when the owner redirects you, quoting their own words. Before landing, `friction_drain` hands you up to three reports other sessions filed, each with its lookalikes: read each, judge those sharing its root cause as one theme, then `route` it once with its reason, naming the theme.",
 ];
 
 /** Friction's verbs that are tools, which the MCP server mounts (17.18). */

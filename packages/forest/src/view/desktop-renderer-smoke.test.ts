@@ -84,12 +84,12 @@ test('3.35 · live desktop roads grow on first display and on a polled dependenc
 
 // The row-detail capture run in a real browser, so a session-row control it waits for that the strip no longer draws fails here,
 // on the changing branch, rather than at the next retake.
-test("7.2, 7.8 · in a real browser, a running session's subagent shows beneath it before any click while every row's detail starts closed, and its expander shows its worktrees and no Running or Files block", { timeout: 200_000 }, async () => {
+test("7.2, 7.8 · in a real browser, a running session's subagent waits behind its \"+N\" while every row's detail starts closed, and its expander shows its worktrees, no Running or Files block, and the subagent beneath it", { timeout: 200_000 }, async () => {
   const { stdout } = await run(process.execPath, ["--import", "tsx", path.join(rowDetailFolder, "capture.mjs"), "--smoke"],
     { cwd: checkout, timeout: 180_000, env: { ...process.env, CAPTURE_CHANNEL: process.env.CAPTURE_CHANNEL ?? "chrome" } });
   const summary = JSON.parse(stdout.trim().split("\n").findLast(line => line.startsWith("{"))!);
-  // Three rows, every detail closed: the two at work and the builder's subagent beneath it.
-  assert.deepEqual(summary, { closed: 3, children: 1, worktrees: 3, blocks: ["Worktrees"] });
+  // Two rows, every detail closed, the builder's subagent folded into it; expanded, the subagent shows beneath it.
+  assert.deepEqual(summary, { closed: 2, folded: 0, children: 1, worktrees: 3, blocks: ["Worktrees"] });
 });
 
 test("3.55 · in a real browser, pressing Library or Stories leaves the eye and the sheet exactly where the user tilted them, from above, side on and from below; the look follows the button, never the tilt", { timeout: 200_000 }, async () => {

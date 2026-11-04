@@ -332,8 +332,8 @@ function SessionDetail({ row }: { row: SessionRow }) {
 }
 
 /**
- * Whether a row is known to be at work, itself or through a child (7.2): its children then show beneath it without a click,
- * and once it is not, its tree folds into it. An observed subagent's state is not known, so it keeps no tree open by itself.
+ * Whether a row is known to be at work, itself or through a child (7.2): a child of it known to be idle is then greyed.
+ * An observed subagent's state is not known, so it makes no parent read at work by itself.
  */
 function busy(row: SessionRow): boolean {
   return !row.idle && row.state !== "observed" || row.children.some(busy);
@@ -364,7 +364,7 @@ export function SessionsList({ rows, loading = false, refreshing = false, error,
   const visit = (list: readonly SessionRow[], depth: number, into: { row: SessionRow; depth: number }[] = []): { row: SessionRow; depth: number }[] => {
     for (const row of list) {
       into.push({ row, depth });
-      if (isOpen(row.id) || busy(row)) visit(row.children, depth + 1, into);
+      if (isOpen(row.id)) visit(row.children, depth + 1, into);
     }
     return into;
   };
@@ -380,7 +380,7 @@ export function SessionsList({ rows, loading = false, refreshing = false, error,
     document.body.dataset.drew = JSON.stringify({ ...JSON.parse(document.body.dataset.drew ?? "{}"),
       sessions: visible.map(({ row }) => row.id) });
   });
-  /** A listed session's row, its children beneath it while it is at work (7.2) and, opened, its detail and children (7.8). */
+  /** A listed session's row and, opened, its detail and children (7.2, 7.8). */
   const sessionItem = ({ row, depth }: { row: SessionRow; depth: number }) => (
     <li key={row.id} style={{ marginLeft: Math.min(depth, 5) * 14 }}>
       <div className="session-row" data-session-id={row.id} data-state={row.state} data-idle={row.idle || undefined} data-done={depth > 0 && row.idle && !busy(row) || undefined}
@@ -391,16 +391,16 @@ export function SessionsList({ rows, loading = false, refreshing = false, error,
         aria-label={`${row.label} · ${row.agent}${row.machine === undefined ? "" : ` on ${row.machine}`}`}
         onPointerEnter={() => setHovered(row.id)} onPointerLeave={() => setHovered(undefined)}
         onFocus={() => setFocused(row.id)} onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget)) setFocused(undefined); }}>
-        {/* One expander per row, at its start (7.8): its detail, and its children while they are folded (7.2), counted by the "+N" after its name. */}
+        {/* One expander per row, at its start (7.8): its detail and its children (7.2), counted while folded by the "+N" after its name. */}
         <button type="button" className="session-children-toggle" aria-expanded={isOpen(row.id)}
-          aria-label={`${isOpen(row.id) ? "Hide" : "Show"} detail${row.children.length > 0 && !busy(row) ? ` and ${row.children.length} children` : ""} of ${row.label}`}
+          aria-label={`${isOpen(row.id) ? "Hide" : "Show"} detail${row.children.length > 0 ? ` and ${row.children.length} children` : ""} of ${row.label}`}
           onClick={event => { event.stopPropagation(); onToggle(row.id); }} />
         <span className="session-dot" data-dot={dotOf(row)} title={dotWords(row)} aria-hidden="true" />
         {depth === 0 && <span className="session-colour" style={{ background: sessionColour(row.id) }} aria-hidden="true" />}
         {/* The name and its machine (7.13): the machine wraps onto a hidden second line, so a narrow row drops it before the name is cut. */}
         <span className="session-name-fit"><span className="session-label" title={`${row.label}\n${row.agent} · ${row.id}${row.machine === undefined ? "" : ` · on ${row.machine}`}${row.state === "observed" ? "\nSubagent observed; current state unavailable" : ""}${row.worktrees.length > 0 ? `\n${row.worktrees.map(tree => tree.path).join("\n")}` : ""}`}>{row.label}</span>
         {row.machine !== undefined && <span className="session-machine" title={`Runs on ${row.machine}`}>{row.machine}</span>}</span>
-        {row.children.length > 0 && !busy(row) && !isOpen(row.id) && <span className="session-children" aria-hidden="true">+{row.children.length}</span>}
+        {row.children.length > 0 && !isOpen(row.id) && <span className="session-children" aria-hidden="true">+{row.children.length}</span>}
         {/* Its worktrees counted by a number beside a small branch icon (7.1), so the machine beside the name keeps its room (7.13). */}
         {row.worktrees.length > 1 && <span className="session-worktrees" title={row.worktrees.map(tree => tree.path).join("\n")}
           aria-label={`works in ${row.worktrees.length} worktrees`}><WorktreeIcon />{row.worktrees.length}</span>}

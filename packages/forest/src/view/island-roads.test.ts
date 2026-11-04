@@ -13,6 +13,7 @@ import type { Coast, Point } from "../territories/territories.js";
 import { capabilityPlates } from "./nameplates.js";
 import { presentTerritories } from "./globe-surfaces.js";
 import { islandRoadMarks, landFill, ROAD } from "./island-roads.js";
+import { kindOf, settlementSymbols, SYMBOL_INK } from "./settlement-symbols.js";
 import { territoryLand } from "./territory-land.js";
 
 const R = Math.sqrt(LIBRARY_LAND / Math.PI);
@@ -74,4 +75,42 @@ test("3.77 the selected island's roads show and hide with its territories", () =
   assert.equal(marks.visible, true);
   presentTerritories(land, "health");
   assert.equal(marks.visible, true);
+});
+
+test("3.79 each settlement is drawn flat on the land as its kind's symbol, ink on paper over a faint casing, as large as its settlement", () => {
+  const land = territoryLand(map, flat, coast, new Map(), roads.gates);
+  const marks = islandRoadMarks(roads, flat, landFill(map, land), islandRelief(map, roads));
+  const drawn = marks.getObjectByName("settlements")!.children;
+  assert.ok(roads.settlements.size > 0);
+  assert.deepEqual(drawn.map((o) => o.name).sort(), [...roads.settlements.keys()].map((id) => `settlement:${id}`).sort(), "one symbol per settlement");
+  for (const symbol of drawn) {
+    const { at, size } = roads.settlements.get(symbol.userData.capability)!;
+    assert.equal(symbol.userData.kind, "service", "a capability outside The library is a service");
+    const meshes = symbol.children as Mesh[];
+    const colours = meshes.map((m) => `#${(m.material as MeshBasicMaterial).color.getHexString()}`);
+    assert.deepEqual([colours[0], colours[1], colours[2]], [SYMBOL_INK.casing, SYMBOL_INK.paper, SYMBOL_INK.ink], "casing, then paper, then its ink");
+    assert.ok((meshes[0]!.material as MeshBasicMaterial).opacity < 1, "the casing faint");
+    meshes.slice(1).forEach((m, i) => assert.ok(m.renderOrder > meshes[i]!.renderOrder, "each layer drawn over the one before"));
+    let reach = 0;
+    for (const m of meshes) {
+      const p = m.geometry.getAttribute("position");
+      for (let k = 0; k < p.count; k++) { reach = Math.max(reach, Math.abs(p.getX(k) - at.x), Math.abs(p.getZ(k) - at.z)); assert.ok(p.getY(k) > 0, "above the land"); }
+    }
+    assert.ok(reach > size * 0.4 && reach < size * 28 / 48, `${symbol.name} as large as its settlement, ${size} across`);
+  }
+});
+
+test("3.79 The library's capabilities are drawn as their kinds, each kind its own symbol", () => {
+  assert.equal(kindOf("capability_5e0362aae607"), "store", "Project libraries");
+  assert.equal(kindOf("capability_a7f068502213"), "queue", "Work in flight");
+  assert.equal(kindOf("capability_556e276756c9"), "index", "Ranked search");
+  assert.equal(kindOf("capability_a954e1eb16f6"), "link", "Cloud connection");
+  assert.equal(kindOf("capability_f27ac2abb10b"), "log", "Health record");
+  assert.equal(kindOf("capability_75d059640d9d"), "service", "Library API");
+  const ids = ["capability_5e0362aae607", "capability_a7f068502213", "capability_556e276756c9", "capability_a954e1eb16f6", "capability_f27ac2abb10b", "capability_75d059640d9d"];
+  const one = { ...roads, settlements: new Map(ids.map((id, i) => [id, { at: { x: i * 10, z: 0 }, roads: 1, size: 3.4 }])) };
+  const symbols = settlementSymbols(one, flat, 0.1).children;
+  const shapes = symbols.map((s) => s.children.map((m) => `${m.name}:${(m as Mesh).geometry.getAttribute("position").count}`).join());
+  assert.equal(new Set(shapes).size, ids.length, "six kinds, six different symbols");
+  assert.deepEqual(symbols.map((s) => s.userData.kind), ["store", "queue", "index", "link", "log", "service"]);
 });

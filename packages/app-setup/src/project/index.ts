@@ -22,7 +22,7 @@ export { COMMIT_STORYTREE, IGNORE_FILE, STORYTREE_FOLDER } from "./storytree-fol
 export { firstCommit, IDENTITY_FIX, makeRepository, notAProjectYet, setUpProject, suggestedName, suggestProjectName } from "./making.js";
 export type { RepositoryMade, SetUpOptions } from "./making.js";
 export { moveOntoFactory, type Moved, type MoveOptions } from "./factory-move.js";
-export { ImportRefusedError, importLines, importProject } from "./importing.js";
+export { ImportRefusedError, importLines, importProject, unimportedPackages, unimportedSentence } from "./importing.js";
 export type { FileChanges, Imported, ImportOptions, Stranded } from "./importing.js";
 export { seedStarterPack, STARTER_CHECKS, STARTER_PACK_VERSION, STARTER_ROLES, starterPackStatus, starterRolesIn, takeStarterPack, type StarterPackRecord, type StarterPackStatus, type StarterPackTake } from "./starter-pack.js";
 

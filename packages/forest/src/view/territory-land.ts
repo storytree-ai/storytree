@@ -9,6 +9,8 @@
  * Plain three.js, so the marks are read without a browser.
  */
 import type { CapabilityWord } from "@storytree/forest-world/scene";
+import type { IslandRoads } from "../territories/island-roads.js";
+import { cutOpenings, QUIET_BORDER } from "./island-roads.js";
 import { BufferGeometry, Color, DoubleSide, Float32BufferAttribute, Group, LineBasicMaterial, LineSegments, Mesh, MeshBasicMaterial, ShapeUtils, Vector2, type Vector3 } from "three";
 
 /**
@@ -55,9 +57,10 @@ export type DrawnLand = {
 
 /**
  * The territories of `land`, each point placed on the island's surface by `onSurface`, cut to `coast`
- * (its loops, in the same coordinates as the land) when given.
+ * (its loops, in the same coordinates as the land) when given. Given the island's road `gates` (the selected island,
+ * ADR-1236 D1), each gate's opening is cut out of its border and the borders are quietened under the roads.
  */
-export function territoryLand(land: DrawnLand, onSurface: (point: Point) => Vector3, coast?: readonly (readonly Point[])[], claimed: ReadonlyMap<string, { colour: string; faded: boolean }> = new Map()): Group {
+export function territoryLand(land: DrawnLand, onSurface: (point: Point) => Vector3, coast?: readonly (readonly Point[])[], claimed: ReadonlyMap<string, { colour: string; faded: boolean }> = new Map(), gates?: IslandRoads["gates"]): Group {
   const group = new Group();
   group.name = "territory-land";
   // The land as triangles, so each cell (convex) cuts each triangle exactly, whatever bays the coast has.
@@ -76,11 +79,13 @@ export function territoryLand(land: DrawnLand, onSurface: (point: Point) => Vect
     group.add(mesh);
     if (territory.capability === undefined && territory.mapped !== true) group.add(hatch(pieces, onSurface));
   });
-  const kept = coast === undefined ? land.borders : land.borders.flatMap(({ from, to }) => insideOf(from, to, coast));
+  const ashore = coast === undefined ? land.borders : land.borders.flatMap(({ from, to }) => insideOf(from, to, coast));
+  const kept = gates === undefined ? ashore : cutOpenings(ashore, gates);
   const segments = kept.flatMap(({ from, to }) => [onSurface(from), onSurface(to)]).flatMap((point) => [point.x, point.y, point.z]);
   const borders = new BufferGeometry();
   borders.setAttribute("position", new Float32BufferAttribute(segments, 3));
-  const lines = new LineSegments(borders, new LineBasicMaterial({ color: BORDER_COLOUR, transparent: true, opacity: BORDER_OPACITY, depthWrite: false }));
+  const ink = gates === undefined ? { colour: BORDER_COLOUR, opacity: BORDER_OPACITY } : QUIET_BORDER;
+  const lines = new LineSegments(borders, new LineBasicMaterial({ color: ink.colour, transparent: true, opacity: ink.opacity, depthWrite: false }));
   lines.name = "territory-borders";
   // Each segment's ends on the ground, so a rebuilt island knows which borders it already drew (3.46).
   lines.userData = { borders: kept.length, ground: kept.flatMap(({ from, to }) => [from.x, from.z, to.x, to.z]) };

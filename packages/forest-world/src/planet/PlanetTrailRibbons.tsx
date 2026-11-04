@@ -1,11 +1,11 @@
 /** Capability 4 · The planet. */
 import { useEffect, useMemo, useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
-import { BufferGeometry, CircleGeometry, Color, DoubleSide, Float32BufferAttribute, type Mesh, Quaternion, ShaderMaterial, Vector3 } from 'three';
+import { BufferGeometry, Color, DoubleSide, Float32BufferAttribute, ShaderMaterial, Vector3 } from 'three';
 import type { PlanetPathways } from './pathways.js';
 import { growthProgress, linkKey, roadSegmentWindows, segmentDrawRange, type GrowthWindow } from './growth.js';
 import { usePlanetGrowth } from './PlanetGrowth.js';
-import { advanceLaneClock, entranceShown, laneDrawSeconds, laneEntrances, laneHead, laneHeads, LANE_GLOW, laneProgress, laneRoutes, type HeadRange, type InlandWay, type LitLink } from './lanes.js';
+import { advanceLaneClock, laneDrawSeconds, laneHead, laneHeads, LANE_GLOW, laneProgress, laneRoutes, type HeadRange, type LitLink } from './lanes.js';
 import { liveRoadProgress, liveRoadsGrowing, nextLiveRoads } from './live-roads.js';
 import { plumbingSegmentsShown, roadLook } from './plumbing.js';
 
@@ -246,30 +246,20 @@ export function Pathways({ plan, reveal, live = false, visible = true, routing =
 
 const reducedMotion = () => typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-/** A mark's disc faces out from the globe, like the ground it lies on. */
-const pip = new CircleGeometry(1, 24), up = new Vector3(0, 0, 1);
-
 /** A selected story's lit links (The drawing engine 4.8–4.9): each lane is a thread down the middle of its road between islands, with a glow
- * in its colour that lanes sharing a stretch lay once between them,
- * runs on inland along `inland`'s way to its capability's territory at each end, and draws on from the island built on,
- * every lane starting together at one pace, with a warm head at the front of each stretch it leads. It marks each end as
- * its front leaves or reaches it. A new selection draws its lanes again. */
-export function SelectionLanes({ plan, lit, inland }: { plan: PlanetPathways; lit: readonly LitLink[]; inland?: InlandWay | undefined }) {
+ * in its colour that lanes sharing a stretch lay once between them, ending at its docks (inland, the selected island's
+ * own roads take over, ADR-1236 D2), and draws on from the island built on, every lane starting together at one pace,
+ * with a warm head at the front of each stretch it leads. A new selection draws its lanes again. */
+export function SelectionLanes({ plan, lit }: { plan: PlanetPathways; lit: readonly LitLink[] }) {
   const key = lit.map(link => `${link.dir}:${link.from}->${link.to}`).sort().join('\n');
   const animation = useRef({ key, elapsed: 0, started: false, reduced: reducedMotion() });
   if (animation.current.key !== key) animation.current = { key, elapsed: 0, started: false, reduced: reducedMotion() };
   const lanes = useMemo(() => {
-    const routes = laneRoutes(plan, lit, inland), heads = laneHeads(routes);
+    const routes = laneRoutes(plan, lit), heads = laneHeads(routes);
     return routes.map((lane, i) => ({ lane, seconds: laneDrawSeconds(lane.length), heads: heads[i]!,
       strip: { geometry: laneRibbon(lane, 1, 0.12), material: laneMaterial(lane.colour, false, 0.95) },
       glow: { geometry: laneRibbon(lane, LANE_GLOW, 0.1, heads[i]!), material: laneMaterial(lane.colour, true, 0.45) } }));
-  }, [plan, lit, inland]);
-  const entrances = useMemo(() => laneEntrances(lanes.map(({ lane }) => lane)).map(mark => {
-    const radial = mark.point.clone().normalize();
-    return { mark, position: mark.point.clone().addScaledVector(radial, 0.14), quaternion: new Quaternion().setFromUnitVectors(up, radial),
-      timing: mark.lanes.map(ref => ({ at: ref.at, ...lanes.find(({ lane }) => lane.from === ref.from && lane.to === ref.to)! })) };
-  }), [lanes]);
-  const marks = useRef<(Mesh | null)[]>([]);
+  }, [plan, lit]);
   useEffect(() => () => lanes.forEach(({ strip, glow }) => { for (const part of [strip, glow]) { part.geometry.dispose(); part.material.dispose(); } }), [lanes]);
   const { invalidate } = useThree();
   useEffect(() => { invalidate(); }, [lanes, invalidate]);
@@ -280,8 +270,6 @@ export function SelectionLanes({ plan, lit, inland }: { plan: PlanetPathways; li
       drawLane(glow.material, progress, head, lane.length);
     }
   };
-  const shown = (elapsed: number, reduced: boolean) => entrances.map(({ timing }) =>
-    timing.some(({ at, seconds }) => entranceShown(at, laneProgress(elapsed, seconds, reduced))));
   draw(animation.current.elapsed, animation.current.reduced);
   useFrame((_, delta) => {
     const state = animation.current;
@@ -293,11 +281,9 @@ export function SelectionLanes({ plan, lit, inland }: { plan: PlanetPathways; li
     for (const { lane, seconds, heads } of lanes) {
       drawing ||= laneProgress(state.elapsed, seconds, state.reduced) < 1 || laneHead(state.elapsed, lane.length, heads, state.reduced) > 0;
     }
-    shown(state.elapsed, state.reduced).forEach((visible, i) => { if (marks.current[i]) marks.current[i]!.visible = visible; });
     // The canvas draws on demand: keep asking for frames only while a lane is still drawing or its head fading.
     if (drawing) invalidate();
   });
-  const initially = shown(animation.current.elapsed, animation.current.reduced);
   return <group name="pathways:selection-lanes" userData={{ lanes: lanes.map(({ lane, seconds, heads }) =>
     ({ from: lane.from, to: lane.to, dir: lane.dir, length: lane.length, seconds, heads })) }}>
     {lanes.map(({ lane, strip, glow }) => <group key={`${lane.from}->${lane.to}`}>
@@ -305,11 +291,5 @@ export function SelectionLanes({ plan, lit, inland }: { plan: PlanetPathways; li
       <mesh name={`lane:${lane.dir}:${lane.from}->${lane.to}`} geometry={strip.geometry} material={strip.material}
         raycast={ignoreRay} renderOrder={2} userData={{ from: lane.from, to: lane.to, dir: lane.dir, length: lane.length, ...lane.typeOnly ? { typeOnly: true } : {} }} />
     </group>)}
-    {entrances.map(({ mark, position, quaternion }, i) => <mesh key={`${mark.dir}:${i}`} name={`lane-entrance:${mark.dir}:${i}`}
-      ref={mesh => { marks.current[i] = mesh; }} geometry={pip} position={position} quaternion={quaternion}
-      scale={mark.radius} visible={initially[i] === true} raycast={ignoreRay} renderOrder={3} userData={{ dir: mark.dir, lanes: mark.lanes }}>
-      <meshBasicMaterial color={mark.colour} transparent opacity={0.95} depthWrite={false} side={DoubleSide}
-        polygonOffset polygonOffsetFactor={-3} polygonOffsetUnits={-3} />
-    </mesh>)}
   </group>;
 }

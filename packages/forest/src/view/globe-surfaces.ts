@@ -38,7 +38,7 @@ export function presentTerritories(group: Group, mode: GlobeSurfaces["territorie
       const mesh = mark as Mesh, material = mesh.material as MeshBasicMaterial;
       if (!healthOpacity.has(mesh)) healthOpacity.set(mesh, material.opacity);
       material.opacity = mode === "plain" ? 0 : healthOpacity.get(mesh)! * grown * (drawnBy.get(mark) ?? 1);
-    } else if (mark.name === "territory-borders" || mark.name.startsWith("territory-hatch:")) {
+    } else if (mark.name === "territory-borders" || mark.name.startsWith("territory-hatch:") || mark.name === "island-roads") {
       mark.visible = mode !== false;
     }
   }

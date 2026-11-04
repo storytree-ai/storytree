@@ -9,7 +9,9 @@ import type { CodePlaces } from "@storytree/knowledge-core";
 import { KnowledgeGlobePoints, useCodeLighting, type CodeLighting, type CoreUnderSheet, type KnowledgeCore } from "@storytree/knowledge-core/view";
 import { SessionIslandEmphasis } from "./session-emphasis.js";
 import { lightTerritories, territoryLand } from "./territory-land.js";
-import { laneWays } from "./border-route.js";
+import { islandRoadMarks, landFill } from "./island-roads.js";
+import { capabilityPlates } from "./nameplates.js";
+import { islandRoads } from "../territories/island-roads.js";
 import { ClaimMarks } from "./claim-flag.js";
 import { islandLayout, type Link } from "../territories/link-layout.js";
 import { NameplateCrowd, Nameplates, reducedMotion, SelectionRing } from "./island-overlays.js";
@@ -113,9 +115,7 @@ export function PlanetView({ core, scene, places, wisps: live, selected, highlig
     return laid === undefined ? layout.under : sheetLayout(scene, places, frame, laid).under;
   }, [layout, seenDocks, selected, scene, places, frame]);
   const underSheet = useMemo((): CoreUnderSheet => ({ ...under, selected }), [under, selected]);
-  // ADR-0991 D4: a lit lane runs on from its dock along the territories' borders to its capability.
   const links = useKept(layout.scene.links ?? NO_LINKS, JSON.stringify);
-  const ways = useMemo(() => laneWays(layout.scene.islands, links, selected), [layout.scene, links, selected]);
   const overlays = useCallback((island: Island, descriptors: readonly Descriptor3D[], coast: readonly (readonly { x: number; z: number }[])[], docks: readonly IslandDock[] | undefined) => {
     // ADR-1236 D1: the selected island's territories are laid out by its links, once its docks are known.
     const laidBy = island.story === selected ? docks : undefined;
@@ -138,7 +138,7 @@ export function PlanetView({ core, scene, places, wisps: live, selected, highlig
   return <PlanetWorldCanvas scene={travelling ? roadless : layout.scene} spots={moving} radius={layout.radius}
     surface surfaces={shownSurfaces} framing={cameraFraming} sideOffset={cameraOffset} sheet={layout.extent} hollow={outlines}
     globe={globe} offset={turned.current.centre} inside={inside}
-    rotation={turned.current.rotation.toArray()} plateChildren={overlays} lanes={lanes} laneWays={ways} growth={growth} liveRoads={liveRoads}>
+    rotation={turned.current.rotation.toArray()} plateChildren={overlays} lanes={lanes} growth={growth} liveRoads={liveRoads}>
     <Navigation islands={layout.islands} radius={layout.radius} titles={titles}
       rotation={turned.current.rotation} onRotate={onRotate} onPose={setPose} onControls={onControls} onPick={onPick} onNote={onNote} mode={mode} sheet={layout.extent}
       sideOffset={sideOffset ?? 0} aside={aside}
@@ -238,6 +238,8 @@ const NO_LINKS: readonly Link[] = [];
 
 /** Lifted just off the surface, so a territory's tint never fights the ground it lies on. */
 const TERRITORY_LIFT = 0.05;
+/** The selected island's roads and gate posts lie just above its territories. */
+const ROAD_LIFT = 0.08;
 
 /**
  * An island's territories (3.14), cut to its coast and laid on its surface, all in the plate's own units; it lights
@@ -260,11 +262,15 @@ function Territories({ land: given, coast: givenCoast, links, docks: givenDocks,
   const land = useKept(given, JSON.stringify), coast = useKept(givenCoast, JSON.stringify), docks = useKept(givenDocks, (docks) => JSON.stringify(docks ?? null));
   // A claim on another island leaves this one's territories as they were.
   const tints = useKept(claimed, tints => claimsOn(tints, land));
+  const map = useMemo(() => islandLayout(land.territories, coast, links, docks), [land, coast, links, docks]);
+  // ADR-1236 D1: the selected island's links are one shared road network, with a gate wherever a road crosses a border.
+  const roads = useMemo(() => docks === undefined ? undefined : islandRoads(map, links, docks, capabilityPlates(map)), [map, links, docks]);
   const drawn = useMemo(() => {
-    const map = islandLayout(land.territories, coast, links, docks);
-    const group = territoryLand(map, onIslandSurface(radius, TERRITORY_LIFT), coast, tints);
+    const group = territoryLand(map, onIslandSurface(radius, TERRITORY_LIFT), coast, tints, roads?.gates);
+    // The roads lie on the land, so they show and hide with the territories (3.22).
+    if (roads !== undefined) group.add(islandRoadMarks(roads, onIslandSurface(radius, ROAD_LIFT), landFill(map, group)));
     return { group, map };
-  }, [land, coast, links, docks, tints, radius]);
+  }, [map, coast, tints, radius, roads]);
   // ADR-0968: each claim's flag, and on an island with no code its lot, kept across claim changes so each plays its life.
   const marks = useMemo(() => new ClaimMarks(), []);
   useEffect(() => () => marks.dispose(), [marks]);

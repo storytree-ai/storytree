@@ -486,7 +486,7 @@ class ServerConnection implements Storytree {
 
   /**
    * The role that owns `database`, when this connection's user is not it and may take it on: the
-   * role its connections then act as (contract 8.3). Two accounts sharing one server both reach
+   * role its connections then act as (contract 28.1). Two accounts sharing one server both reach
    * each project's database through the role that created it, so every table either makes belongs
    * to that role, and neither ever needs the other's ownership to open the project again (a
    * CREATE INDEX IF NOT EXISTS checks the table's owner even when the index is there).
@@ -575,8 +575,8 @@ class ProjectLibrary implements Project {
 
   /**
    * Given `factory`, the product project reads its system from that factory's records, and closes it with its own; given
-   * `system`, it leaves out what those switches switch off, from its own and its factory's together (1.21); given
-   * `kinds`, it writes and reads those plugin kinds beside the core ones (1.26).
+   * `system`, it leaves out what those switches switch off, from its own and its factory's together (29.6); given
+   * `kinds`, it writes and reads those plugin kinds beside the core ones (30.4).
    */
   constructor(name: string, identity: string, pool: Pool, forget: () => void, vectorCache: string | null, domain: VectorDomain, embedder?: EmbedderSource, factory?: Project, system?: SystemSwitches, kinds: readonly PluginRecordKind[] = []) {
     this.name = name;

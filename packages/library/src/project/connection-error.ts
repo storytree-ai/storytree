@@ -1,5 +1,6 @@
 /**
- * Capability 8 · Cloud connection (GCP): the refusal to connect (contract 8.2 in the library story). A
+ * Capability 8 · Cloud connection (GCP): the refusal to connect (contract 8.2 in the library story), and capability
+ * 28 · Shared server's telling an unreachable library apart (28.7, 28.8). A
  * server storytree cannot reach or use as it is set up is refused with a message saying what to
  * fix: never a hang, and never a driver's raw error. It is one class, so a caller catches every
  * such refusal the same way, and its `problem` says which one it is.
@@ -89,7 +90,7 @@ export interface OutageSaidOnce {
 }
 
 /**
- * Failed reads told to `say` once per outage (contract 8.11), for a surface that polls: a failure saying the library
+ * Failed reads told to `say` once per outage (contract 28.8), for a surface that polls: a failure saying the library
  * cannot be reached, as the main process or the page receives it, is said as one line with no stack, the first time
  * only, and its recovery once; any other failure is said with its error each time.
  */

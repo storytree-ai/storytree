@@ -100,7 +100,6 @@ const QUIET: StorytreeBridge = {
   idleAfterMs: async () => 30 * 60_000,
   leaveAfterMs: async () => 60 * 60_000,
   windowReading: async (_, session) => unread(session),
-  windowReadings: async (_, sessions) => sessions.map(unread),
   projectTree: async () => ({ stories: [], arcs: [] }),
   changesSince: async (_, cursor) => ({ changes: [], cursor }),
   linesSince: async (_, cursor) => ({ lines: [], cursor }),

@@ -1,5 +1,5 @@
 /**
- * Capability 8 · Cloud connection (GCP), contract 8.3 (ADR-0734 D3): two accounts on one server,
+ * Capability 28 · Shared server, contract 28.1 (ADR-0734 D3), and 28.2-28.6: two accounts on one server,
  * each a member of the role that creates project databases (the laptop's owner and the Mint box's
  * service account on one Cloud SQL instance), both open, write and read one project. Tables made
  * through either belong to the database's owning role, so neither needs the other's ownership to
@@ -20,7 +20,7 @@ import { WRITE_LOCK } from "../transactions/pg.js";
 import { localServer } from "./server.js";
 import { createTestRole, dropTestDatabases, dropTestRoles, testRoleUrl as as, testServerUrl, uniqueProjectName, withTestClient } from "../testing/pg.js";
 
-test("8.3 two accounts sharing the creator role both open, write and read one project, and one's own database, on one server", async () => {
+test("28.1 two accounts sharing the creator role both open, write and read one project, and one's own database, on one server", async () => {
   const run = uniqueProjectName();
   const [laptop, mint, creator] = [`${run}-laptop@storytree.test`, `${run}-mint@storytree.test`, `${run}-creator`];
   const project = `${run}-shared`;
@@ -67,7 +67,7 @@ test("8.3 two accounts sharing the creator role both open, write and read one pr
   }
 });
 
-test("8.5 a library read refused for want of a connection slot waits for one and then succeeds", async () => {
+test("28.2 a library read refused for want of a connection slot waits for one and then succeeds", async () => {
   const run = uniqueProjectName();
   const lane = `${run}-lane@storytree.test`;
   const project = `${run}-busy`;
@@ -103,10 +103,10 @@ test("8.5 a library read refused for want of a connection slot waits for one and
 /**
  * On Windows, Postgres refusing a connection for want of a slot can reset the socket before its
  * refusal (SQLSTATE 53300) reaches pg, which then reports only `read ECONNRESET`: the Windows CI
- * runner did so in 8.5 above (run 36907270707). Here a stand-in in front of the test server resets
+ * runner did so in 28.2 above (run 36907270707). Here a stand-in in front of the test server resets
  * the first two connections as soon as they ask in, and passes the rest through.
  */
-test("8.5 a connection reset while it is being opened, as Windows delivers a full server's refusal, is asked for again and the read succeeds", async () => {
+test("28.2 a connection reset while it is being opened, as Windows delivers a full server's refusal, is asked for again and the read succeeds", async () => {
   const project = `${uniqueProjectName()}-reset`;
   const opened: Storytree[] = [];
   const target = new URL(testServerUrl());
@@ -146,7 +146,7 @@ test("8.5 a connection reset while it is being opened, as Windows delivers a ful
   }
 });
 
-test("8.6 on a shared server, each of a library's connections names the machine and process that hold it, in at most Postgres's 63 characters", async () => {
+test("28.3 on a shared server, each of a library's connections names the machine and process that hold it, in at most Postgres's 63 characters", async () => {
   const project = `${uniqueProjectName()}-named`;
   const opened: Storytree[] = [];
   try {
@@ -169,7 +169,7 @@ test("8.6 on a shared server, each of a library's connections names the machine 
   }
 });
 
-test("8.7 a caller that may be cut off bounds each statement, and the server ends one still running at the bound, so a cut-off process's slot comes free", async () => {
+test("28.4 a caller that may be cut off bounds each statement, and the server ends one still running at the bound, so a cut-off process's slot comes free", async () => {
   const own = `${uniqueProjectName()}-bounded`;
   const opened: Storytree[] = [];
   try {
@@ -216,7 +216,7 @@ async function withFullDatabase<T>(during: (url: string, project: string) => Pro
   }
 }
 
-test("8.8 a library call kept waiting for a connection slot says once what it waits for, then goes on when one comes free", async () => {
+test("28.5 a library call kept waiting for a connection slot says once what it waits for, then goes on when one comes free", async () => {
   await withFullDatabase(async (url, project) => {
     const said: string[] = [];
     const storytree = await connect({ url, onWait: (what) => said.push(what) });
@@ -238,7 +238,7 @@ test("8.8 a library call kept waiting for a connection slot says once what it wa
   });
 });
 
-test("8.8 a library call still refused a connection slot at its wait bound fails with the server's reason", async () => {
+test("28.5 a library call still refused a connection slot at its wait bound fails with the server's reason", async () => {
   await withFullDatabase(async (url, project) => {
     const said: string[] = [];
     const storytree = await connect({ url, waitMs: 300, onWait: (what) => said.push(what) });
@@ -268,7 +268,7 @@ async function withWriteLockHeld<T>(project: string, during: () => Promise<T>): 
   }, `storytree_${project}`);
 }
 
-test("8.8 a write kept waiting for another session's write says what it waits for, then is written when that ends", async () => {
+test("28.5 a write kept waiting for another session's write says what it waits for, then is written when that ends", async () => {
   const project = `${uniqueProjectName()}-turns`;
   const said: string[] = [];
   const storytree = await connect({ url: testServerUrl(), onWait: (what) => said.push(what) });
@@ -291,7 +291,7 @@ test("8.8 a write kept waiting for another session's write says what it waits fo
   }
 });
 
-test("8.8 a write still kept waiting for another session's write at its wait bound fails with the reason and writes nothing", async () => {
+test("28.5 a write still kept waiting for another session's write at its wait bound fails with the reason and writes nothing", async () => {
   const project = `${uniqueProjectName()}-stuck`;
   const storytree = await connect({ url: testServerUrl(), waitMs: 300, onWait: () => {} });
   try {
@@ -308,7 +308,7 @@ test("8.8 a write still kept waiting for another session's write at its wait bou
   }
 });
 
-test("8.9 a writer cut off holding the project's write lock holds it at most 10 s: the server ends its idle transaction, and another session's waiting write is written", async () => {
+test("28.6 a writer cut off holding the project's write lock holds it at most 10 s: the server ends its idle transaction, and another session's waiting write is written", async () => {
   const project = `${uniqueProjectName()}-orphan`;
   const storytree = await connect({ url: testServerUrl(), onWait: () => {} });
   // A library connection that takes the write lock mid-write and then goes silent, as one does

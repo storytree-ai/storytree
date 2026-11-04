@@ -6,7 +6,7 @@
  */
 import type { Library, Note, Related, SchemaRecord, WriteOptions } from "../../index.js";
 
-import { allNotes, LibrarianRefusal, noteOf, typesOf } from "../notes.js";
+import { allNotes, LibrarianRefusal, noteOf, referencesOf, typesOf, type Reference } from "../notes.js";
 
 /** The kinds that carry no links: signals to act on, not notes anyone reasons from. */
 const UNLINKED = { friction: "friction", resteer: "a re-steer" } as const;
@@ -50,4 +50,14 @@ export async function relatedUnlinked(library: Library, cursor: number, read: Pr
   const written = new Set((await library.history({ since: cursor, types: typesOf(notes) })).map((change) => change.recordId));
   // One reading of the notes for every note written, never one each (6.7).
   return library.relatedEach(notes.filter((note) => written.has(note.id)).map((note) => note.id), { unlinked: true });
+}
+
+/** An edge the health report found pointing at a record no longer live. */
+export type BrokenEdge = Reference;
+
+/** The health report: each note's link, supersession or other reference naming a record no longer live, in creation order. */
+export async function brokenEdges(library: Library, read: Promise<readonly Note[]> | readonly Note[] = allNotes(library)): Promise<BrokenEdge[]> {
+  const notes = await read;
+  const live = new Set(notes.map((note) => note.id));
+  return notes.flatMap(referencesOf).filter((reference) => !live.has(reference.to));
 }

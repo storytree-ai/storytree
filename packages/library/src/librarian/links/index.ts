@@ -1,2 +1,3 @@
 /** Capability 21 · Links. */
-export { link, relatedUnlinked, unrestedDecisions } from "./links.js";
+export { brokenEdges, link, relatedUnlinked, unrestedDecisions } from "./links.js";
+export type { BrokenEdge } from "./links.js";

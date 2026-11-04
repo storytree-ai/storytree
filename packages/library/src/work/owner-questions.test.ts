@@ -1,5 +1,5 @@
 /**
- * Capability 12 · Owner questions (ADR-0640): one test per contract 12.1-12.13 and 12.15 in the library story (12.14 is in commands.test.ts),
+ * Capability 12 · Owner questions (ADR-0640): one test per contract 12.1-12.13, 12.15 and 12.16 in the library story (12.14 is in commands.test.ts),
  * and the half of 10.3 that waits for questions, each run on BOTH backends: a WorkModel, a
  * WorkInFlight and a Knowledge over a fresh MemoryTransactions, and those of a fresh Postgres
  * project, dropped afterwards, pass or fail.
@@ -458,5 +458,21 @@ for (const backend of [memory, postgres]) {
     assert.equal(settled?.fields.prep?.stance, "retire", "settling keeps the mark as the record of its prep");
     await assert.rejects(flight.prepQuestion(question.id, { stance: "agrees" }), (error: unknown) => error instanceof RangeError && /settled/.test(error.message));
     assert.equal(await flight.prepQuestion("question_000000000000", { stance: "agrees" }), null, "null for no question");
+  });
+
+  contract("12.16", "the lapsed list holds only open questions whose lease has lapsed, across every arc, longest lapsed first; fresh and settled ones are left out, and gathering it neither settles nor renews one", async ({ work, flight, transactions }) => {
+    const launch = await work.createArc(ARC);
+    const polish = await work.createArc({ title: "Polish", intent: "Tidy", endState: "Tidy" });
+    const first = await flight.raiseQuestion({ arc: polish.id, ...ASK, title: "Which font?", leaseDays: 3 });
+    const settled = await flight.raiseQuestion({ arc: launch.id, ...ASK, leaseDays: 1 });
+    const second = await flight.raiseQuestion({ arc: launch.id, ...ASK, title: "Which host?", leaseDays: 1 });
+    await flight.raiseQuestion({ arc: polish.id, ...ASK, title: "Which colour?" });
+    await flight.settleQuestion(settled.id, { answer: "Mailgun" });
+
+    assert.deepEqual(await flight.lapsedQuestions(), [], "fresh questions are not due for review");
+    const history = await transactions.history();
+    const now = new Date(Date.parse(first.fields.verifiedAt ?? "") + 4 * DAY);
+    assert.deepEqual((await flight.lapsedQuestions(now)).map(({ id }) => id), [second.id, first.id], "ordered by lease expiry, not creation");
+    assert.deepEqual(await transactions.history(), history, "gathering the list neither settles nor renews");
   });
 }

@@ -3,7 +3,7 @@
  * exactly what each authored grants.sql grants, opens the project, records a contract's verified
  * health, and is refused any other record and any change to the tables; the project's owner is
  * unaffected. Run here as Cloud SQL runs it: a role that owns the project's database, an owner's
- * account acting as it (contract 8.3), and CI's account with no role to take on. grants.sql is run
+ * account acting as it (contract 28.1), and CI's account with no role to take on. grants.sql is run
  * as written for CI and the library host, with only its two names (the database, and CI's user,
  * the psql variable ci_role) filled in with this test's. Its health history cannot reserve or raise decision numbers.
  */

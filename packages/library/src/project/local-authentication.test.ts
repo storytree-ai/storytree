@@ -1,4 +1,4 @@
-/** Capability 1 · Local connections must not disclose credentials to a substituted listener. */
+/** Capability 28 · Shared server, contract 28.10: local connections must not disclose credentials to a substituted listener. */
 import assert from "node:assert/strict";
 import { createServer, type Socket } from "node:net";
 import { test } from "node:test";
@@ -10,7 +10,7 @@ import { localServer } from "./server.js";
 const password = "synthetic-local-password-:@/#?% with spaces";
 
 for (const method of ["cleartext", "MD5"] as const) {
-  test(`1.14 local admin and project pools reject ${method} authentication without sending credentials`, async () => {
+  test(`28.10 local admin and project pools reject ${method} authentication without sending credentials`, async () => {
     const sockets = new Set<Socket>();
     const closed: Promise<void>[] = [];
     const received: Buffer[] = [];
@@ -66,7 +66,7 @@ for (const method of ["cleartext", "MD5"] as const) {
   });
 }
 
-test("1.14 a local password URL refuses a listener that skips authentication, sending it no query", async () => {
+test("28.10 a local password URL refuses a listener that skips authentication, sending it no query", async () => {
   const sockets = new Set<Socket>();
   const received: Buffer[] = [];
   const peer = createServer((socket) => {

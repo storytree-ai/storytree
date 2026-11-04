@@ -207,7 +207,7 @@ test("3.5 the page can ask the app for the context readings of sessions in the p
   });
 });
 
-test("3.6 the page can ask the app for a session's window (Session management 9.10), or several sessions' in one ask, parsed from the transcript records in the shared log, with no access to the machine the session ran on; a session with none named reads as an absence", async () => {
+test("3.6 the page can ask the app for a session's window (Session management 9.10), parsed from the transcript records in the shared log, with no access to the machine the session ran on; a session with none named reads as an absence", async () => {
   const shown = uniqueProjectName();
   await withApp([shown], async ({ storytree, log, reads }) => {
     await storytree.openProject(shown);
@@ -221,9 +221,6 @@ test("3.6 the page can ask the app for a session's window (Session management 9.
     const none = await reads.windowReading(shown, "B");
     assert.deepEqual("absent" in none && none.absent, "no hook has named this session's transcript");
 
-    const both = await reads.windowReadings(shown, ["A", "B"]);
-    assert.deepEqual(both.map((one) => [one.session, "opens" in one ? one.opens.length : one.absent]), [["A", 1], ["B", "no hook has named this session's transcript"]]);
-    await assert.rejects(reads.windowReadings(shown, "A"), /sessions must be a list of session ids/);
 
     // A session named since the last read is still seen.
     await ranElsewhere(log, shown, "B", [{ type: "user", message: { content: "hello" } }]);
@@ -232,7 +229,7 @@ test("3.6 the page can ask the app for a session's window (Session management 9.
   });
 });
 
-test("3.9 after each app start, context readings and single or batched windows read no more activity history from a long log than a short one", { timeout: 120_000 }, async (t) => {
+test("3.9 after each app start, context readings and windows read no more activity history from a long log than a short one", { timeout: 120_000 }, async (t) => {
   const projects = [uniqueProjectName(), uniqueProjectName()];
   await withApp(projects, async ({ storytree, log }) => {
     const taken: number[][] = [];
@@ -258,7 +255,7 @@ test("3.9 after each app start, context readings and single or batched windows r
       const bytes: number[] = [];
       try {
         // Each entry point is the first read of a fresh main process, with no lines or transcripts cached.
-        for (const kind of ["context", "windows", "window"] as const) {
+        for (const kind of ["context", "window"] as const) {
           const reads = pageReads({ storytree: counted });
           const before = store.received();
           try {
@@ -269,13 +266,10 @@ test("3.9 after each app start, context readings and single or batched windows r
               ]);
               assert.deepEqual(await reads.contextReadings(project, []), []);
             } else {
-              const windows = kind === "windows" ? await reads.windowReadings(project, ["B", "A"]) : [await reads.windowReading(project, "A")];
-              assert.deepEqual(windows.map((one) => one.session), kind === "windows" ? ["B", "A"] : ["A"]);
-              for (const window of windows) {
-                assert.deepEqual("opens" in window && window.opens.map(({ id, resident }) => [id, resident]), [["decision_000000000001", true]]);
-                assert.notEqual(window.source, "/old/transcript.jsonl");
-              }
-              assert.deepEqual(await reads.windowReadings(project, []), []);
+              const window = await reads.windowReading(project, "A");
+              assert.equal(window.session, "A");
+              assert.deepEqual("opens" in window && window.opens.map(({ id, resident }) => [id, resident]), [["decision_000000000001", true]]);
+              assert.notEqual(window.source, "/old/transcript.jsonl");
             }
           } finally {
             await reads.close();
@@ -289,8 +283,8 @@ test("3.9 after each app start, context readings and single or batched windows r
       }
     }
     assert.ok(history > 20_000_000, `the long log has weeks of activity: ${history} bytes`);
-    t.diagnostic(`startup bytes (context, windows, window): short ${taken[0]}, long ${taken[1]}; long history ${history} bytes`);
-    for (let index = 0; index < 3; index++) {
+    t.diagnostic(`startup bytes (context, window): short ${taken[0]}, long ${taken[1]}; long history ${history} bytes`);
+    for (let index = 0; index < 2; index++) {
       assert.ok(taken[1]![index]! - taken[0]![index]! < 128 * 1024,
         `startup read ${index} took ${taken[0]![index]} bytes from the short log and ${taken[1]![index]} from one ${history} bytes longer: at most 128 KiB apart`);
     }
@@ -333,10 +327,9 @@ test("3.10 app restarts fetch only appended transcript records and preserve read
         const reads = pageReads({ storytree: counted, transcriptCacheHome: cacheHome });
         const before = store.received();
         try {
-          const [contexts, window, windows] = await Promise.all([
-            reads.contextReadings(project, ["session"]), reads.windowReading(project, "session"), reads.windowReadings(project, ["session"]),
+          const [contexts, window] = await Promise.all([
+            reads.contextReadings(project, ["session"]), reads.windowReading(project, "session"),
           ]);
-          assert.deepEqual(stable(window), stable(windows[0]!));
           return { context: contexts[0]!, window, bytes: store.received() - before };
         } finally { await reads.close(); }
       };

@@ -1,5 +1,5 @@
 /**
- * Capability 1 · Project libraries. A project's factory (ADR-1040): the user's factory is a project of its own holding
+ * Capability 29 · Factory and product. A project's factory (ADR-1040): the user's factory is a project of its own holding
  * the system their product projects build with, and each product project names it. Both facts are the library's own,
  * kept in library_meta beside the project's name: `kind` is `factory` or `product`, and a product's `factory` is the
  * name of the project it builds with. A project that says neither (one made before factories, or by a join) has none.
@@ -88,8 +88,8 @@ export class ProjectLineage {
  * order, and `get` of a factory record's id gives the product's own record of that kind and title when it holds one,
  * so a role's links, written as the factory's ids, read the product's edits; `get` of a system record the product
  * retired gives its own live record of that kind and title, else the factory's, so links to a copy it dropped still
- * read (1.17). An edit of a factory record the product holds no copy of writes its own copy under the factory's id,
- * which then wins, and retiring one retires that copy, which hides the factory's from the product (1.18). Every other
+ * read (29.3). An edit of a factory record the product holds no copy of writes its own copy under the factory's id,
+ * which then wins, and retiring one retires that copy, which hides the factory's from the product (29.4). Every other
  * kind, every write and the history are the product's own.
  */
 export class InheritedRecords extends SchemaRecords {
@@ -192,7 +192,7 @@ export class InheritedRecords extends SchemaRecords {
   }
 
   /**
-   * The factory's system records the product reads as its own (1.19): those whose kind and title it holds no record of,
+   * The factory's system records the product reads as its own (29.5): those whose kind and title it holds no record of,
    * and whose id it never retired a copy under, in id order. Its own copies and shadows are its own records, not these;
    * a product's globe draws these beside its history.
    */

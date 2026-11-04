@@ -459,12 +459,12 @@ test("8.2 a Cloud SQL instance that does not answer is refused after a bounded w
   }
 });
 
-test("1.9 a stalled local handshake is refused at ten seconds by default, or at the deadline the caller gives, on both admin and project pools, saying the computer may be busy, and the next call recovers", async () => {
+test("28.9 a stalled local handshake is refused at ten seconds by default, or at the deadline the caller gives, on both admin and project pools, saying the computer may be busy, and the next call recovers", async () => {
   await refusedAtDeadline({}, 10_000);
   await refusedAtDeadline({ connectTimeoutMs: 4_000 }, 4_000);
 });
 
-test("1.20 a local url naming a connect_timeout longer than the given deadline is given it, as a test run's throwaway server is; one naming a shorter one keeps the given deadline", async () => {
+test("28.11 a local url naming a connect_timeout longer than the given deadline is given it, as a test run's throwaway server is; one naming a shorter one keeps the given deadline", async () => {
   await refusedAtDeadline({ connectTimeout: "12" }, 12_000);
   await refusedAtDeadline({ connectTimeout: "5" }, 10_000);
 });
@@ -947,7 +947,7 @@ async function assertBorrowed(project: Project, user: string, creator: string): 
   const { rows: signedIn } = await project.pool.query<{ current: string; session: string; db: string }>(
     "SELECT current_user AS current, session_user AS session, current_database() AS db",
   );
-  // Signed in as the user itself, acting as the role that owns the database (contract 8.3), so a
+  // Signed in as the user itself, acting as the role that owns the database (contract 28.1), so a
   // second account sharing that role reaches the same tables.
   assert.deepEqual(signedIn, [{ current: creator, session: user, db: database }], "signed in as the user, acting as the owning role");
 

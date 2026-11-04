@@ -124,7 +124,7 @@ const results = { label, sessions: SESSIONS, selected: SELECTED, colours: colour
 phase('launch the browser and load the page');
 await runCapture({
   folder: pictures, dist: buildFolder(here, smoke ? 'smoke' : label), seed, survey,
-  answers: { windowReading, windowReadings: async (project, sessions) => Promise.all(sessions.map(one => windowReading(project, one))), idleAfterMs: async () => 30 * 60_000, leaveAfterMs: async () => 60 * 60_000 },
+  answers: { windowReading, idleAfterMs: async () => 30 * 60_000, leaveAfterMs: async () => 60 * 60_000 },
   prepare: async ({ page }) => {
     phase('page loaded');
     // The traversal is drawn on the knowledge graph under the glass sheet, which the Library face turns the sheet over to (ADR-1043 D3).

@@ -46,11 +46,11 @@ const frictionNew = verb({
     family: "friction",
     name: "new",
     summary: "file friction with concrete evidence and its impact",
-    usage: "friction new --title <t> --description … --statement … --evidence <text|@file> --impact … [--links a,b] [--about-storytree]",
+    usage: "friction new --title <t> --description … --statement … --evidence <text|@file> --impact … [--links a,b] [--about-storytree] [--none-match]",
   },
   tool: {
     name: "record_friction",
-    description: "Record friction: something that got in the way, with concrete evidence (a path, a pull request, a commit, a command and its output, an error, or a quoted excerpt) and what it cost. Record it; do not decide what to do about it.",
+    description: "Record friction: something that got in the way, with concrete evidence (a path, a pull request, a commit, a command and its output, an error, or a quoted excerpt) and what it cost. Record it; do not decide what to do about it. It first shows the closest earlier reports and writes nothing: reinforce the one that is the same problem, or call again with none-match to file it new.",
   },
   inputs: {
     title: { kind: "text", describe: "a short name for it" },
@@ -60,10 +60,27 @@ const frictionNew = verb({
     impact: { kind: "text", describe: "what it cost" },
     links: { kind: "text", optional: true, describe: "what it links to, comma-separated" },
     "about-storytree": { kind: "switch", describe: "it is a defect in storytree itself (its tools, app or guidance), not in this project: the reply carries a draft issue for the user to send storytree's maintainers" },
+    "none-match": { kind: "switch", describe: "none of the closest earlier reports filing showed is this problem: file it new" },
   },
   writes: true,
-  async act({ "about-storytree": aboutStorytree, ...input }, context: VerbContext) {
-    const { recordFriction } = await import("./filing/capture.js");
+  async act({ "about-storytree": aboutStorytree, "none-match": noneMatch, ...input }, context: VerbContext) {
+    const { closestFriction, recordFriction } = await import("./filing/capture.js");
+    // A repeat is a recurrence of the earlier report, so the filer sees the closest first (ADR-1233 D1).
+    const closest = noneMatch ? [] : await closestFriction(context.library, { title: input.title, statement: input.statement });
+    if (closest.length > 0) {
+      return {
+        text: [
+          `Not filed yet. The closest earlier friction reports (open, resolved and dismissed alike):`,
+          ...closest.map((one) => `  ${one.id}  ${one.state}, ${one.recurrences} recurrences  ${one.title}`),
+          `If one is this problem, add a recurrence to it instead (a resolved or dismissed one reopens): friction reinforce <id> --evidence …. If none is, file it again with --none-match.`,
+        ].join("\n"),
+        data: { closest },
+        next: [
+          ...closest.map((one) => ({ command: `friction reinforce ${one.id} --evidence …`, why: `it is the same problem as ${one.title}` })),
+          { command: "friction new … --none-match", why: "none of them is this problem" },
+        ],
+      };
+    }
     const note = await recordFriction(context.library, { ...fields(input), branch: await branchIn(context.folder) } as never, context.writer!);
     const next = [{ command: `library read ${note.id}`, why: "read it whole" }];
     if (!aboutStorytree) return { text: `Recorded friction ${note.id}.`, data: { id: note.id }, next };
@@ -213,7 +230,7 @@ export const FRICTION_FAMILIES: readonly VerbFamily[] = [
 
 /** Its section of the habits card (ADR-1021, the guidance kind): filing what fought you, and draining what others filed. */
 export const frictionGuidance: readonly string[] = [
-  "File what fought you: `record_friction` when something got in your way, with concrete evidence (marked about storytree when the defect is storytree's own, so the user can choose to send it on), and `reinforce` the existing item when it happens again, with its own; `record_resteer` when the owner redirects you, quoting their own words. Before landing, `friction_drain` hands you up to three reports other sessions filed: read each, then `route` it with its reason.",
+  "File what fought you: `record_friction` when something got in your way, with concrete evidence (marked about storytree when the defect is storytree's own, so the user can choose to send it on), and `reinforce` the existing item when it happens again, with its own (filing first shows the closest earlier reports: reinforce the one that is the same problem, or file again with `none-match`); `record_resteer` when the owner redirects you, quoting their own words. Before landing, `friction_drain` hands you up to three reports other sessions filed: read each, then `route` it with its reason.",
 ];
 
 /** Friction's verbs that are tools, which the MCP server mounts (17.18). */

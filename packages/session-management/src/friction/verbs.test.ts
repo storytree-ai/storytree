@@ -152,10 +152,10 @@ test("17.19 · Friction marked about storytree answers with a pre-filled GitHub 
       assert.match(filed.text, /submit/i, "the agent is told the user submits it");
       assert.deepEqual((filed.data as { issueDraft?: string }).issueDraft, link);
 
-      const plain = await verbNamed("new").act({ title: "Plain", description: "Plain", statement: "Plain", evidence: "src/mail.ts: TimeoutError after 30 seconds", impact: "Plain" }, project, WORDS);
+      const plain = await verbNamed("new").act({ title: "Plain", description: "Plain", statement: "Plain", evidence: "src/mail.ts: TimeoutError after 30 seconds", impact: "Plain", "none-match": true }, project, WORDS);
       assert.doesNotMatch(plain.text, /github\.com/, "friction not marked about storytree offers no draft");
 
-      const long = await verbNamed("new").act({ title: "Long", description: "Long", statement: "Long", evidence: `src/mail.ts: TimeoutError ${"x".repeat(5_000)}`, impact: "Long", "about-storytree": true }, project, WORDS);
+      const long = await verbNamed("new").act({ title: "Long", description: "Long", statement: "Long", evidence: `src/mail.ts: TimeoutError ${"x".repeat(5_000)}`, impact: "Long", "about-storytree": true, "none-match": true }, project, WORDS);
       const cut = new URL((long.data as { issueDraft: string }).issueDraft).searchParams.get("body")!;
       assert.equal(cut.length, 4_001, "a long body is cut short of GitHub's link limit");
       assert.ok(cut.endsWith("…"), "and says it was cut");
@@ -196,6 +196,31 @@ test("17.20 · record_resteer records the call an agent makes from its purpose: 
         assert.match(refused.message, /evidence/);
       }
       assert.deepEqual(await library.history(), before, "a refused call writes nothing");
+    });
+  });
+});
+
+test("17.21 · Filing friction through either door first shows the closest earlier reports, open, resolved and dismissed alike, by id, title, state and recurrences, writing nothing, with how to reinforce one; it files new only when told none matches (ADR-1233)", async () => {
+  await withLibrary(async (library) => {
+    await onBranch(library, "main", async (context) => {
+      const mail = { title: "Slow mail", description: "Mail is delayed", statement: "Sending times out", evidence: "src/mail.ts: TimeoutError after 30 seconds", impact: "Readers cannot join" };
+      const first = await verbNamed("new").act(mail, context, WORDS);
+      const id = (first.data as { id: string }).id;
+      await library.editNote(id, { route: "nothing", routeReason: "An upstream outage" });
+
+      const before = await library.history();
+      const shown = await verbNamed("new").act({ ...mail, evidence: "src/mail.ts: TimeoutError again" }, context, WORDS);
+      assert.deepEqual(await library.history(), before, "showing the closest reports writes nothing");
+      assert.match(shown.text, new RegExp(`${id}  dismissed, 0 recurrences  Slow mail`), "the dismissed report is shown by id and title");
+      assert.deepEqual(shown.next?.map((step) => step.command), [`friction reinforce ${id} --evidence …`, "friction new … --none-match"], "it says how to add a recurrence instead, or file new");
+
+      await verbNamed("reinforce").act({ friction: id, evidence: "src/mail.ts: TimeoutError again" }, context, WORDS);
+      const reports = await library.list("friction");
+      assert.equal(reports.length, 1, "the repeat is a recurrence, not a second report");
+      assert.equal(reports[0]!.fields.reinforcedBy?.length, 1);
+
+      await verbNamed("new").act({ ...mail, title: "Slow mail on Sundays", "none-match": true }, context, WORDS);
+      assert.equal((await library.list("friction")).length, 2, "told none matches, it files new");
     });
   });
 });

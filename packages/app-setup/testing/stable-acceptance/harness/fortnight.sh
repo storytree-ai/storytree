@@ -38,7 +38,7 @@ fi
 harness() {
   printf '%s' "$1" > "$HOME_DIR/friction-title.txt"; printf '%s\n' "$2" > "$HOME_DIR/friction-statement.txt"
   st friction new --title "@$HOME_DIR/friction-title.txt" --description "@$HOME_DIR/friction-statement.txt" --statement "@$HOME_DIR/friction-statement.txt" \
-    --evidence "@$3" --impact "No build is judged for stable until the routine runs again; the next timer tries again." --links "$NOTE" | tee -a "$LOG"
+    --evidence "@$3" --impact "No build is judged for stable until the routine runs again; the next timer tries again." --links "$NOTE" --none-match | tee -a "$LOG"
 }
 for attempt in 1 2 3; do
   found=$(st release candidate 2>&1); asked=$?
@@ -114,7 +114,7 @@ TXT
   { echo "The fortnightly acceptance run on the old laptop failed for $version, so it cannot be pinned as stable."; echo "$verdict"; } > "$out/library/statement.txt"
   { echo "Evidence folder on the Mint box: $out"; echo; tail -40 "$out/verdict.txt" 2>/dev/null || tail -40 "$out/run.log"; } > "$out/library/evidence.txt"
   st friction new --title "@$out/library/title.txt" --description "@$out/library/statement.txt" --statement "@$out/library/statement.txt" \
-    --evidence "@$out/library/evidence.txt" --impact "Stable stays on $pinned until a later build passes; fix forward and the next run takes the newer build." --links "$NOTE" \
+    --evidence "@$out/library/evidence.txt" --impact "Stable stays on $pinned until a later build passes; fix forward and the next run takes the newer build." --links "$NOTE" --none-match \
     > "$out/library/filed.txt" 2>&1; filed=$?
   tee -a "$LOG" < "$out/library/filed.txt"
   # Unfiled, the regression would not bar this build, and the next attempt would run it again.

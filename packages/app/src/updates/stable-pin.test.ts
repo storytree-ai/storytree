@@ -332,3 +332,22 @@ test("4.34 a pin records the day its build was published, and the stable branch'
   await publishStable(older, { ps1: "published bootstrap" }, undefined, api);
   assert.doesNotMatch(trees[0]!.find(f => f.path === "README.md")!.content, /was published on/);
 });
+
+test("4.34 moving stable back names the restored build's own day, taken from its release when its former pin predates recording it", async () => {
+  const { state, ports } = fixture();
+  const good = state.candidate;
+  const { published: _, ...undated } = good;
+  state.candidate = undated;
+  assert.equal((await pinStable("0.3.2", ports)).releaseDate, undefined);
+  release(state, "0.3.3", {});
+  state.candidate = { ...state.candidate, published: "2026-10-05T10:00:00Z" };
+  await pinStable("0.3.3", ports);
+  state.candidate = good;
+  assert.equal((await moveStableBack("0.3.2", ports)).releaseDate, "2026-10-01T09:30:00Z");
+  // A former pin that recorded its day keeps it.
+  release(state, "0.3.4", {});
+  state.candidate = { ...state.candidate, published: "2026-10-09T10:00:00Z" };
+  await pinStable("0.3.4", ports);
+  state.candidate = { ...good, published: "2026-12-31T00:00:00Z" };
+  assert.equal((await moveStableBack("0.3.2", ports)).releaseDate, "2026-10-01T09:30:00Z");
+});

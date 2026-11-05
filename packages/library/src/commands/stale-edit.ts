@@ -1,5 +1,5 @@
 /**
- * A whole-field edit built on a stale read (friction_90ff039d8cce): the writer would put back a field as it read it,
+ * Capability 17 · The library's commands: a whole-field edit built on a stale read (friction_90ff039d8cce): the writer would put back a field as it read it,
  * and a change another writer made since would vanish with no conflict raised.
  */
 import type { Library, WriteOptions } from "../index.js";

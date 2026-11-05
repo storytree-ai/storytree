@@ -12,6 +12,7 @@ import { test } from "node:test";
 import { connect } from "../index.js";
 import { testServerUrl, uniqueProjectName } from "../testing/pg.js";
 import { mounted, VerbRefusal, type DoorWords, type Verb, type VerbInputs } from "../verbs/verb.js";
+import { RECENT_MS, refuseStaleEdit } from "./stale-edit.js";
 import { LIBRARY_FAMILIES, NOTE_TOOLS, type HeldClaim, type LibraryVerbContext, type NoteRead, type NoteToolContext } from "./index.js";
 
 const WORDS: DoorWords = { door: "command", say: (step) => `storytree ${step.command}` };
@@ -784,4 +785,12 @@ test("17.21 · library edit and correct_note refuse, naming the newer change and
   await refused({ id: term.id, meaning: "A worker." }, toolContextOf("B"), correct, term.id);
   await correct.act({ id: term.id, meaning: "A session the pool starts on the Mint box.", read: String(await newest(term.id)) } as never, toolContextOf("B"), WORDS);
   assert.equal(((await library.get(term.id))?.fields as { meaning?: string } | undefined)?.meaning, "A session the pool starts on the Mint box.");
+
+  await assert.rejects(edit.act({ "<id>": term.id, "<fields>": { meaning: "A worker." }, read: "latest" }, contextOf("B"), WORDS), (error: unknown) => error instanceof VerbRefusal && error.misuse === true, "a --read that is no entry's seq");
+  await refuseStaleEdit(library, term.id, { actor: "session:A" }, undefined, Date.now() + RECENT_MS + 1000); // B's change, read or not, is older than the window
+  const story = await library.addStory({ title: "Sign up" });
+  const form = await library.addCapability({ story: story.id, title: "Form" });
+  await edit.act({ "<id>": form.id, "<fields>": { description: "Typed here" } }, contextOf("A"), WORDS);
+  await edit.act({ "<id>": form.id, "<fields>": { description: "Typed there" } }, contextOf("B"), WORDS);
+  assert.equal(((await library.get(form.id))?.fields as { description?: string } | undefined)?.description, "Typed there", "a planned record's edit is held with the entry it read, not refused here");
 });

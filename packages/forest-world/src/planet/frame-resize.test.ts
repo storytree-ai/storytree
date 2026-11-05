@@ -20,52 +20,55 @@ async function canvasBundle(): Promise<string> {
   return result.outputFiles[0]!.text;
 }
 
-type Step = { canvas: number; frame: number; drawn: number; before: number; after: number };
+type Step = { canvas: number; frame: number; drawn: number; before: { left: number; right: number }; after: { left: number; right: number } };
 
-test('4.43 · the sidebar beside the map hidden or shown, the canvas is at its frame\'s new size and drawn, the island kept from the right edge, before the frame is painted', { timeout: 120_000 }, async t => {
+test('4.43 · the sidebar beside the map hidden or shown, or the map narrowed from its right, the canvas is at its frame\'s new size and drawn, the island kept from the edge that did not move, before the frame is painted', { timeout: 120_000 }, async t => {
   // Chrome is installed on the three CI runner images; no browser download during tests.
   const browser = await chromium.launch({ channel: 'chrome', headless: true });
   t.after(() => browser.close());
   const page = await browser.newPage({ viewport: { width: 1200, height: 700 }, deviceScaleFactor: 1 });
   await page.setContent(`<div style="position:fixed;inset:0;display:flex"><div id="rail" style="width:280px;flex:none"></div>
-    <div id="globe" style="flex:1;min-width:0;position:relative"></div></div>`);
+    <div id="globe" style="flex:1;min-width:0;position:relative"></div><div id="aside" style="width:200px;flex:none;display:none"></div></div>`);
   await page.addScriptTag({ content: await canvasBundle() });
   await page.waitForFunction(() => {
     const state = (window as unknown as { __globe?: () => { gl: { info: { render: { frame: number } } }; scene: { getObjectByName(name: string): unknown } } }).__globe?.();
     return state !== undefined && state.scene.getObjectByName('planet:a') !== undefined && state.gl.info.render.frame > 0;
   }, undefined, { timeout: 60_000 });
 
-  // The rail is hidden or shown, and the page's own watch on the map's frame, made after the canvas's, reads the canvas in the
+  // A side of the page is hidden or shown, and the page's own watch on the map's frame, made after the canvas's, reads the canvas in the
   // same resize step, between laying the page out and painting it: what it reads is what that frame paints. As a script, since
   // a named function in an evaluated one would need the bundler's helper.
-  await page.addScriptTag({ content: `window.__toggle = shown => {
+  await page.addScriptTag({ content: `window.__toggle = (side, shown) => {
     const state = window.__globe(), canvas = state.gl.domElement, frame = document.querySelector('#globe');
-    const fromRight = () => {
+    const place = () => {
       const at = state.scene.getObjectByName('planet:a').getWorldPosition(state.camera.position.clone()).project(state.camera);
-      const box = canvas.getBoundingClientRect();
-      return frame.getBoundingClientRect().right - (box.left + (at.x + 1) / 2 * box.width);
+      const box = canvas.getBoundingClientRect(), edges = frame.getBoundingClientRect(), x = box.left + (at.x + 1) / 2 * box.width;
+      return { left: x - edges.left, right: edges.right - x };
     };
     let drawn = 0;
     const render = state.gl.render;
     state.gl.render = (scene, camera) => { render.call(state.gl, scene, camera); drawn++; };
-    const before = fromRight();
+    const before = place();
     return new Promise(done => {
       const watch = new ResizeObserver(() => {
         watch.disconnect();
         state.gl.render = render;
-        done({ canvas: canvas.getBoundingClientRect().width, frame: frame.getBoundingClientRect().width, drawn, before, after: fromRight() });
+        done({ canvas: canvas.getBoundingClientRect().width, frame: frame.getBoundingClientRect().width, drawn, before, after: place() });
       });
       watch.observe(frame);
-      document.querySelector('#rail').style.display = shown ? '' : 'none';
+      document.querySelector(side).style.display = shown ? '' : 'none';
     });
   };` });
-  const toggle = (shown: boolean) => page.evaluate(shown => (window as unknown as { __toggle(shown: boolean): Promise<Step> }).__toggle(shown), shown);
+  const toggle = (side: string, shown: boolean) => page.evaluate(([side, shown]) =>
+    (window as unknown as { __toggle(side: string, shown: boolean): Promise<Step> }).__toggle(side, shown), [side, shown] as const);
 
-  for (const [shown, width] of [[false, 1200], [true, 920]] as const) {
-    const step = await toggle(shown);
-    assert.equal(step.frame, width, 'the map\'s frame took its new width');
-    assert.equal(step.canvas, width, `the canvas is at its frame's new width on the frame the rail is ${shown ? 'shown' : 'hidden'}`);
-    assert.ok(step.drawn > 0, 'and drawn at it before that frame is painted');
-    assert.ok(Math.abs(step.after - step.before) < 0.5, `the island stays ${step.before} pixels from the right edge, not ${step.after}`);
+  // The rail on the left hidden and shown keeps the right edge; a panel on the right shown and hidden keeps the left one.
+  for (const [side, shown, width, kept] of [['#rail', false, 1200, 'right'], ['#rail', true, 920, 'right'], ['#aside', true, 720, 'left'], ['#aside', false, 920, 'left']] as const) {
+    const step = await toggle(side, shown);
+    const what = `${side} ${shown ? 'shown' : 'hidden'}`;
+    assert.equal(step.frame, width, `${what}: the map's frame took its new width`);
+    assert.equal(step.canvas, width, `${what}: the canvas is at its frame's new width on the frame it changed`);
+    assert.ok(step.drawn > 0, `${what}: and drawn at it before that frame is painted`);
+    assert.ok(Math.abs(step.after[kept] - step.before[kept]) < 0.5, `${what}: the island stays ${step.before[kept]} pixels from the ${kept} edge, not ${step.after[kept]}`);
   }
 });

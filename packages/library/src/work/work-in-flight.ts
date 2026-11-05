@@ -341,8 +341,10 @@ export class WorkInFlight {
       if (other !== undefined) {
         throw new RangeError(`editIncrement changes ${[...EDITABLE].join(", ")}, not ${JSON.stringify(other)}: an increment's arc, status and outcome move through their own verbs`);
       }
-      if ((await liveRecord(this.#records, id, ["increment"])) === null) return null;
-      await this.#checkNames(fields);
+      const increment = await liveRecord(this.#records, id, ["increment"]);
+      if (increment === null) return null;
+      const recorded = increment.fields.escape === "none" ? undefined : increment.fields.escape?.story;
+      await this.#checkNames(fields, recorded);
       return (await this.#records.edit(id, fields, options)) as SchemaRecord<"increment"> | null;
     });
   }
@@ -852,9 +854,10 @@ export class WorkInFlight {
   /**
    * What an increment lists as its capabilities must be live capabilities, and nothing else
    * (ADR-0949 D2); what it links to any live records; what it remedies live friction (10-a); and
-   * what it is held on live questions (12).
+   * what it is held on live questions (12). An escape's story is history (10.41): `recordedStory`, the one it already
+   * names, stays acceptable after that story is retired.
    */
-  async #checkNames(fields: { readonly capabilities?: unknown; readonly links?: unknown; readonly remedies?: unknown; readonly heldOn?: unknown; readonly escape?: Escape | undefined; readonly risk?: RiskLine | undefined }): Promise<void> {
+  async #checkNames(fields: { readonly capabilities?: unknown; readonly links?: unknown; readonly remedies?: unknown; readonly heldOn?: unknown; readonly escape?: Escape | undefined; readonly risk?: RiskLine | undefined }, recordedStory?: string): Promise<void> {
     await checkReferences(this.#records, "capabilities", fields.capabilities, "capability");
     await checkReferences(this.#records, "links", fields.links, "record");
     await checkReferences(this.#records, "remedies", fields.remedies, "friction");
@@ -866,7 +869,7 @@ export class WorkInFlight {
     else if (escape !== undefined && escape.commit === undefined) {
       throw new SchemaError("increment", [{ field: "escape", problem: `field "escape" names pull request ${escape.causedBy} without its merge commit: give the commit too, since pull-request numbers restarted at #2 on 2026-10-26` }]);
     }
-    await checkReference(this.#records, "escape.story", escape?.story, "story");
+    if (escape?.story !== recordedStory) await checkReference(this.#records, "escape.story", escape?.story, "story");
     await checkReferences(this.#records, "risk.stories", fields.risk?.stories, "story");
   }
 

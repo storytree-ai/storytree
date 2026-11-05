@@ -1,5 +1,5 @@
 /**
- * Capability 3 · Story node render (the forest story): the selected island's one shared road network (ADR-1236 D1,
+ * Capability 3 · Story node render (the forest story): each island's one shared road network (ADR-1236 D1 as narrowed by ADR-1253 D2,
  * rollout 2 step 3), ported from the capability tree mock's rules (docs/design/capability-tree-3d/q-all-islands/tools/network.ts).
  *
  * - Every link is routed over one graph of possible roads: a triangular lattice laid over the island, so two roads can

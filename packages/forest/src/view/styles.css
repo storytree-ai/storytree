@@ -326,6 +326,20 @@
 }
 
 /* A story's extra checks: a short list in a thin frame, no graph. */
+/* The map's legend, the panel's foot (4.39): each kind of mark beside what it means. */
+.panel-legend {
+  margin-top: 1rem;
+  padding-top: 0.6rem;
+  border-top: 1px solid var(--line);
+  font-size: 0.78rem;
+}
+.panel-legend ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.3rem; }
+.panel-legend li { display: flex; align-items: center; gap: 0.5rem; }
+.panel-legend li.legend-kinds { flex-wrap: wrap; gap: 0.25rem 0.7rem; }
+.legend-mark { flex: none; width: 26px; height: 14px; }
+.legend-kind { display: inline-flex; align-items: center; gap: 0.25rem; }
+.legend-kind .legend-mark { width: 22px; height: 22px; }
+
 .panel-checks {
   margin: 0.5rem 0 0.75rem;
   padding: 0.4rem 0.7rem;

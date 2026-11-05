@@ -11,7 +11,7 @@ import { linkLayout, LIBRARY_LAND } from "../territories/link-layout.js";
 import type { Coast, Point } from "../territories/territories.js";
 import { capabilityPlates } from "./nameplates.js";
 import { territoryLand } from "./territory-land.js";
-import { arcEmphasis, openWorkLayer, openWorkMarks } from "./open-work.js";
+import { arcEmphasis, openWorkLayer, openWorkMarks, presentOpenWork } from "./open-work.js";
 
 const R = Math.sqrt(LIBRARY_LAND / Math.PI);
 const coast: Coast = [Array.from({ length: 96 }, (_, i) => ({ x: R * Math.cos(i * Math.PI / 48), z: R * Math.sin(i * Math.PI / 48) }))];
@@ -97,4 +97,16 @@ test("3.83 · an arc selected dims every island none of whose territories it rin
   assert.equal(arcEmphasis(map.territories, new Set(["a"])), undefined);
   assert.equal(arcEmphasis(map.territories, new Set(["elsewhere"])), "dimmed");
   assert.equal(arcEmphasis(map.territories, undefined), undefined);
+});
+
+test("3.84, 3.86 · from far the open work keeps its dots and drops its rings and dims, which return with the territories", () => {
+  const land = territoryLand(map, flat, coast);
+  const layer = openWorkLayer(openWorkMarks(map, { circled: new Set(["a"]), open: new Set(["a", "b"]) }, roads, coast), land, flat, R);
+  const shown = () => layer.children.filter((mark) => mark.visible).map((mark) => mark.name.split(":")[0]).sort();
+  const kinds = [...new Set(shown())];
+  assert.ok(kinds.includes("open-work-dot") && kinds.includes("open-work-ring") && kinds.includes("open-work-dim"));
+  presentOpenWork(layer, "far");
+  assert.deepEqual([...new Set(shown())], ["open-work-dot"], "only the dots from far");
+  presentOpenWork(layer, "territories");
+  assert.deepEqual([...new Set(shown())], kinds, "rings and dims back with the territories");
 });

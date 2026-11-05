@@ -3,7 +3,7 @@
  * a capability or a contract (ADR-0641 D2 step 3), and see the plan with its health, who holds what and which sessions are about. A story or capability is planned with its founding decision, the
  * first book on its shelf, so none planned here starts with an empty shelf (ADR-0627 D5).
  */
-import { ANCHOR_ID, anchorGaps, CONTRACT_DEFINITION, LONG_CONTRACT_TITLE as LONG_CONTRACT, wordAndWhy, type AnnotatedTree, type Library, type DayWindow, type HealthState, type NodeHealth } from "@storytree/library";
+import { ANCHOR_ID, anchorGaps, CONTRACT_DEFINITION, LONG_CONTRACT_TITLE as LONG_CONTRACT, listedSaid, wordAndWhy, type AnnotatedTree, type Library, type DayWindow, type HealthState, type NodeHealth } from "@storytree/library";
 import { z } from "zod";
 
 import { editPlanRecord, heldPending, heldSaid, holdPlanChange } from "@storytree/library/commands";
@@ -245,10 +245,14 @@ async function editPlan(target: string, changes: Changes, call: Call, live = fal
     ...(priority === undefined ? {} : { priority: priority === "none" ? undefined : priority }),
     ...own.fields,
   };
+  const listing = (fields as { capabilities?: string[] }).capabilities;
+  const had = kind !== "increment" || listing === undefined ? [] : ((await library.get(target))?.fields as { capabilities?: string[] } | undefined)?.capabilities ?? [];
   const done = await editPlanRecord(library, await claimsOf(call), call.caller.session, { type: kind, id: target, fields, live }, writer);
   if (done === null) return { text: `Nothing in the plan has the id ${target} any more.`, refused: true };
   if ("held" in done) return { text: `Your change to ${kind} ${quoted(String(((await library.get(target))?.fields as { title?: string } | undefined)?.title))} (${target}) is ${heldSaid(done.held)}`, data: { id: target } };
-  return { text: `Corrected ${kind} ${quoted((done.edited.fields as { title: string }).title)} (${target}).`, data: { id: target } };
+  // Told, not refused, of another open increment already listing a capability this one newly lists (10.35, ADR-1228).
+  const shared = kind === "increment" ? await library.openListing((listing ?? []).filter((capability) => !had.includes(capability)), target) : [];
+  return { text: [`Corrected ${kind} ${quoted((done.edited.fields as { title: string }).title)} (${target}).`, ...shared.map((other) => `${listedSaid(other)}.`)].join("\n"), data: { id: target } };
 }
 
 /** The project's claims, as the calling door reads them. */

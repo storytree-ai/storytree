@@ -9,6 +9,7 @@ import { islandLayout, type Link, type LinkDock } from "../territories/link-layo
 import { keptVersion, subscribeKept } from "../territories/kept-layout.js";
 import { capabilityPlates, facing, fadedCapabilities, fadedPlates, southOnPlate, STORY_PLATE_WIDTH, storyPlate } from "./nameplates.js";
 import { GROUND_PER_WORLD_UNIT, islandReach, type Descriptor3D } from "@storytree/forest-world";
+import type { DetailStore } from "./zoom-detail.js";
 
 /** Where an island's middle is, in 0.2 ground units. */
 const centreOf = (island: Island): { x: number; z: number } => ({ x: island.x * GROUND_PER_WORLD_UNIT, z: island.z * GROUND_PER_WORLD_UNIT });
@@ -17,11 +18,14 @@ const centreOf = (island: Island): { x: number; z: number } => ({ x: island.x * 
 const PLATE_LIFT = 2;
 
 /**
- * A story's nameplate, its top edge at a fixed point just south of the island's coast, turning with the island; while the story is
- * selected, a smaller nameplate on each of its capabilities' territories (below a claimed one's flag), and the other stories' plates dim. No plate takes a pointer from the land beneath it.
+ * A story's nameplate, its top edge at a fixed point just south of the island's coast, turning with the island; once the
+ * eye is near (3.86), a smaller nameplate on each of its capabilities' territories (below a claimed one's flag); while a
+ * story is selected the other stories' plates dim. No plate takes a pointer from the land beneath it.
  */
-export function Nameplates({ island, spot, coast, links = [], docks, radius, selected, dimmed = false, claimed = new Map() }: {
+export function Nameplates({ island, spot, coast, links = [], docks, radius, selected, dimmed = false, claimed = new Map(), detail }: {
   island: Island; spot: PlanetSpot; coast: Coast; radius: number; selected: string | undefined; dimmed?: boolean;
+  /** How much of the island the eye's zoom shows; without one, all of it. */
+  detail?: DetailStore | undefined;
   /** The scene's links, and the docks the island's lanes come ashore at when it is laid out by them (ADR-1236 D1). */
   links?: readonly Link[]; docks?: readonly LinkDock[] | undefined;
   /** Claimed capabilities: their flags stand where their nameplates would, so those nameplates hang just below (ADR-0968 D1). */
@@ -45,7 +49,10 @@ export function Nameplates({ island, spot, coast, links = [], docks, radius, sel
   const chosen = island.story === selected;
   // 3.80: the plates follow the arrangement the search kept, as the territories do.
   const kept = useSyncExternalStore(subscribeKept, keptVersion);
-  const plates = useMemo(() => chosen && island.land !== undefined ? capabilityPlates(islandLayout(island.story, island.land.territories, coast, links, docks)) : [], [chosen, island.story, island.land, coast, links, docks, kept]);
+  const level = useSyncExternalStore(detail?.subscribe ?? NEVER, detail?.get ?? NEAR);
+  // Near only: every island's names at once, from the whole map's zoom, cost the page a frame in two (evidence/zoom-detail).
+  const named = level === "near";
+  const plates = useMemo(() => named && island.land !== undefined ? capabilityPlates(islandLayout(island.story, island.land.territories, coast, links, docks)) : [], [named, island.story, island.land, coast, links, docks, kept]);
   const opacity = dimmed ? 0.24 : selected !== undefined && !chosen ? 0.5 : 1;
   // Its opacity is a variable, so a crowded plate's fade (styles.css) can take it to nothing and back.
   const plateStyle = { "--plate-opacity": opacity, maxWidth: STORY_PLATE_WIDTH } as CSSProperties;
@@ -62,6 +69,9 @@ export function Nameplates({ island, spot, coast, links = [], docks, radius, sel
     </Overlay>)}
   </>;
 }
+
+const NEVER = () => () => {};
+const NEAR = () => "near" as const;
 
 /** Fade the names that overlap another whenever the globe draws: no name moves to clear another (ADR-0917). */
 export function NameplateCrowd({ selected }: { selected: string | undefined }) {

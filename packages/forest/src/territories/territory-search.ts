@@ -1,5 +1,5 @@
 /**
- * Capability 3 · Story node render (the forest story): the selected island's territories arranged by the capability
+ * Capability 3 · Story node render (the forest story): each island's territories arranged by the capability
  * tree mock's network-scored search (3.80, ADR-1236 D1, rollout 2 step 2b), ported from
  * docs/design/capability-tree-3d/q-all-islands/tools/layout.ts's search, score and mutate.
  *

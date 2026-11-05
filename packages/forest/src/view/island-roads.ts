@@ -1,5 +1,5 @@
 /**
- * Capability 3 · Story node render: the selected island's roads and gates as drawn (ADR-1236 D1, rollout 2 step 3),
+ * Capability 3 · Story node render: each island's roads and gates as drawn (ADR-1236 D1 as narrowed by ADR-1253 D2, rollout 2 step 3),
  * round 11's `sand-faint` look: each road a sandy ribbon on the land, a step wider by the links it carries, its colour
  * mixed into the land under it so the joins stay one road; a disc at each junction; and at each gate a post standing
  * either side of its opening (3.78, step 3b), and each settlement its kind's symbol (3.79, step 4a), all following the
@@ -14,14 +14,14 @@ type Point = { readonly x: number; readonly z: number };
 
 /** The road's sand, mixed into the land under it at this share. */
 export const ROAD = { colour: "#e2d3aa", alpha: 0.7 } as const;
-/** The borders on the selected island, quietened under the roads. */
+/** An island's borders, quietened under the roads. */
 export const QUIET_BORDER = { colour: "#f4f7f8", opacity: 0.4 } as const;
 /** A gate post's ink and its paper face (round 6C's). */
-const POST = { ink: "#1b2024", paper: "#f3efe4" } as const;
+export const POST = { ink: "#1b2024", paper: "#f3efe4" } as const;
 /** A picked link's gold, and the thin dark edge it lies on so it holds on yellow land (the mock's PALETTE.lit and casing). */
 export const LIT = { gold: "#ffd34d", edge: "#141a20", edgeOpacity: 0.75, edgeWidth: 0.6 } as const;
 /** The island's bare ground as it shows on the page under the see-through fills (the mock's round 11 still). */
-const GROUND = "#686d70";
+export const GROUND = "#686d70";
 
 /** The fill a point of the land shows: a territory's colour at its opacity, or none on open land. */
 export type FillAt = (p: Point) => { colour: Color; opacity: number } | undefined;
@@ -162,7 +162,7 @@ function standingPosts(group: Group, roads: IslandRoads, relief: IslandRelief, o
   });
 }
 
-/** What a pick on the selected island's roads lights (3.81): one or more links' whole ways, or one shared road. */
+/** What a pick on an island's roads lights (3.81): one or more links' whole ways, or one shared road. */
 export type RoutePick = { readonly kind: "link" | "road"; readonly links: readonly string[] };
 
 /**

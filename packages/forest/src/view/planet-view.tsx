@@ -8,12 +8,12 @@ import { islandNormal, onIslandSurface, Overlay, PlanetWorldCanvas, PLATE_CLEARA
 import type { CodePlaces } from "@storytree/knowledge-core";
 import { KnowledgeGlobePoints, useCodeLighting, type CodeLighting, type CoreUnderSheet, type KnowledgeCore } from "@storytree/knowledge-core/view";
 import { SessionIslandEmphasis } from "./session-emphasis.js";
-import { arcEmphasis, openWorkLayer, openWorkMarks } from "./open-work.js";
+import { arcEmphasis, openWorkLayer, openWorkMarks, presentOpenWork } from "./open-work.js";
 import { lightTerritories, territoryLand } from "./territory-land.js";
 import { islandRoadMarks, landFill, lightRoute, type RoutePick } from "./island-roads.js";
 import { capabilityPlates } from "./nameplates.js";
-import { islandRoadsWhenRouted, knownIslandRoads, pageIslandRouter, roadsVersion, subscribeRoads, type RoadsAsk } from "../territories/island-roads.js";
-import { islandRelief } from "../territories/island-relief.js";
+import { islandRoadsWhenRouted, knownIslandRoads, pageIslandRouter, roadsVersion, subscribeRoads, type IslandRoads, type RoadsAsk } from "../territories/island-roads.js";
+import { islandRelief, type IslandRelief } from "../territories/island-relief.js";
 import { islandReliefMarks } from "./island-relief.js";
 import { ClaimMarks } from "./claim-flag.js";
 import { islandLayout, type Link } from "../territories/link-layout.js";
@@ -22,9 +22,12 @@ import { NameplateCrowd, Nameplates, reducedMotion, SelectionRing } from "./isla
 import { focusRotation, globeHover, isGlobeDrag, markerSpot, movingSpots, MOVE_SECONDS, oncePerFrame, pickClick, type ForestMode } from "./planet-navigation.js";
 import { claimsOn } from "./planet-update.js";
 import { createGlobeGuide, type GlobePose, type PlacedGlobeControls } from "./globe-guide.js";
-import { createGlobeAside } from "./globe-aside.js";
-import { compassNorth, laidIsland, opensBare, seesUnderside, sheetDrag, sheetHome, sheetKey, sheetKeyPan, sheetLayout, sheetMarkers, sheetOpening, sheetPan, sheetPanUnder, sheetSpin, sheetSpinTilt, sheetTilted, sheetTiltBy, sheetTwist, sheetUnder, TILT_PER_PIXEL, TILT_STEP } from "./sheet-navigation.js";
-import { growLand, shownSurfaces as surfacesFor, TerritoryDrawOn, type GlobeSurfaces } from "./globe-surfaces.js";
+import { createGlobeAside, framedOnResize, type AsidePose } from "./globe-aside.js";
+import { compassNorth, opensBare, seesUnderside, sheetDrag, sheetHome, sheetKey, sheetKeyPan, sheetLayout, sheetMarkers, sheetOpening, sheetPan, sheetPanUnder, sheetSpin, sheetSpinTilt, sheetTilted, sheetTiltBy, sheetTwist, sheetUnder, TILT_PER_PIXEL, TILT_STEP, withDocks } from "./sheet-navigation.js";
+import { growLand, presentDetail, shownSurfaces as surfacesFor, TerritoryDrawOn, type GlobeSurfaces } from "./globe-surfaces.js";
+import { DetailStore } from "./zoom-detail.js";
+import { useBuiltInTurn } from "./build-turns.js";
+import type { TerritoryMap } from "../territories/territories.js";
 
 export type PlanetViewProps = {
   /** Receives the app-owned controls while the map is mounted. */
@@ -115,18 +118,19 @@ export function PlanetView({ core, scene, places, wisps: live, selected, highlig
   const lighting = useCodeLighting(core, codePlaces);
   // Contract 3.26: the selected story's links to other stories light as lanes, on both the sheet's faces (ADR-1043 D3).
   const lanes = useKept(useMemo(() => selectionLanes(scene, selected), [scene, selected]), JSON.stringify);
-  // 3.81: the road or gate picked on the selected island, its route lit in gold; another selection puts it out.
+  // 3.81: the road or gate picked on an island, its route lit in gold; another selection puts it out.
   const [route, setRoute] = useState<{ story: string; pick: RoutePick }>();
   useEffect(() => { setRoute(undefined); }, [selected]);
   // The knowledge graph under the glass sheet: each shelf's notes under its place, the selected story's lit (ADR-1043 D5).
-  // 3.76: once the selected island's plate has seen its docks, its shelves hang under its territories as laid out by its links.
-  const [seenDocks, setSeenDocks] = useState<{ story: string; docks: readonly IslandDock[] | undefined }>();
+  // 3.76: once an island's plate has seen its docks, its shelves hang under its territories as laid out by its links.
+  const [seenDocks, setSeenDocks] = useState<ReadonlyMap<string, readonly IslandDock[]>>(NO_DOCKS_SEEN);
+  const onDocks = useCallback((story: string, docks: readonly IslandDock[] | undefined) => setSeenDocks(seen => withDocks(seen, story, docks)), []);
   // 3.80: and once the search keeps an arrangement for it, under its territories as kept.
   const kept = useSyncExternalStore(subscribeKept, keptVersion);
-  const under = useMemo(() => {
-    const laid = laidIsland(seenDocks, selected);
-    return laid === undefined ? layout.under : sheetLayout(scene, places, frame, laid).under;
-  }, [layout, seenDocks, selected, scene, places, frame, kept]);
+  const under = useMemo(() => seenDocks.size === 0 ? layout.under : sheetLayout(scene, places, frame, seenDocks).under,
+    [layout, seenDocks, scene, places, frame, kept]);
+  // 3.86: how much of every island's detail the eye's zoom shows, read once a frame.
+  const detail = useMemo(() => new DetailStore(), []);
   const underSheet = useMemo((): CoreUnderSheet => ({ ...under, selected }), [under, selected]);
   const links = useKept(layout.scene.links ?? NO_LINKS, JSON.stringify);
   // ADR-1253 D1: the selected arc's open work ringed, and every open increment's capabilities dotted.
@@ -134,8 +138,8 @@ export function PlanetView({ core, scene, places, wisps: live, selected, highlig
   const circled = useMemo(() => circledList === undefined ? undefined : new Set(circledList), [circledKey]);
   const open = useMemo(() => new Set(openList ?? []), [openKey]);
   const overlays = useCallback((island: Island, descriptors: readonly Descriptor3D[], coast: readonly (readonly { x: number; z: number }[])[], docks: readonly IslandDock[] | undefined) => {
-    // ADR-1236 D1: the selected island's territories are laid out by its links, once its docks are known.
-    const laidBy = island.story === selected ? docks : undefined;
+    // ADR-1236 D1 as narrowed by ADR-1253 D2: every island's territories are laid out by its links, once its docks are known.
+    const laidBy = docks;
     // Lane B has already centred the descriptors in the plate's own ground coordinates.
     const local = { ...island, x: 0, z: 0 };
     // A session's hover outranks an arc's selection; an arc selected dims the islands it rings nothing on (3.83).
@@ -143,14 +147,14 @@ export function PlanetView({ core, scene, places, wisps: live, selected, highlig
       : arcEmphasis(island.land?.territories ?? [], circled);
     return <>
       {island.land !== undefined && layout.spots.has(island.story) && <Territories story={island.story} land={island.land} coast={coast} links={links} docks={laidBy} claimed={claimed} radius={layout.radius}
-        lighting={lighting} surfaces={shownSurfaces} lit={laidBy !== undefined && route?.story === island.story ? route.pick : undefined} circled={circled} open={open} />}
+        lighting={lighting} surfaces={shownSurfaces} lit={route?.story === island.story ? route.pick : undefined} circled={circled} open={open} detail={detail} />}
       <SessionIslandEmphasis emphasis={emphasis} />
       {emphasis === "held" && <SelectionRing island={local} descriptors={descriptors} onGlobe emphasis />}
-      {shownSurfaces.nameplates && <Nameplates island={island} spot={layout.spots.get(island.story)!} coast={coast} links={links} docks={laidBy} radius={layout.radius} selected={selected} dimmed={emphasis === "dimmed"} claimed={claimed} />}
+      {shownSurfaces.nameplates && <Nameplates island={island} spot={layout.spots.get(island.story)!} coast={coast} links={links} docks={laidBy} radius={layout.radius} selected={selected} dimmed={emphasis === "dimmed"} claimed={claimed} detail={detail} />}
       <SelectionRing island={island.story === selected ? local : undefined} descriptors={descriptors} onGlobe />
-      {island.story === selected && <DocksSeen story={island.story} docks={docks} onDocks={setSeenDocks} />}
+      <DocksSeen story={island.story} docks={docks} onDocks={onDocks} />
     </>;
-  }, [wisps, claimed, selected, highlighted, circled, open, layout.spots, layout.radius, lighting, shownSurfaces, links, route]);
+  }, [wisps, claimed, selected, highlighted, circled, open, layout.spots, layout.radius, lighting, shownSurfaces, links, route, detail, onDocks]);
   const titles = useMemo(() => new Map(scene.islands.map(i => [i.story, i.title])), [scene]);
   const inside = useMemo(() => library && <UnderTheGlass clear={outlines}><GrowingCore core={core} spots={layout.spots} radius={layout.radius} places={codePlaces} sheet={underSheet} growing={growth !== undefined} /></UnderTheGlass>,
     [library, outlines, core, layout.spots, layout.radius, codePlaces, underSheet, growth]);
@@ -163,26 +167,35 @@ export function PlanetView({ core, scene, places, wisps: live, selected, highlig
       sideOffset={sideOffset ?? 0} aside={aside}
       showFailures={shownSurfaces.grounds || shownSurfaces.territories !== false || shownSurfaces.nameplates || shownSurfaces.roads} />
     <NameplateCrowd selected={selected} />
-    <CompiledAtLoad />
+    <DetailFeed detail={detail} sheet={layout.extent} />
+    <CompiledAtLoad under={underSheet} />
     {onPainted !== undefined && <PaintedReport scene={scene} onPainted={onPainted} />}
     {growth !== undefined && recordedSessions !== undefined && <ReplaySessions recorded={recordedSessions} onWisps={setReplayed} />}
   </PlanetWorldCanvas>;
 }
 
-/** 3.76: tells the view the docks the selected island's plate was handed, each time they change. */
-function DocksSeen({ story, docks: given, onDocks }: { story: string; docks: readonly IslandDock[] | undefined; onDocks: (seen: { story: string; docks: readonly IslandDock[] | undefined }) => void }) {
+/** 3.76: tells the view the docks an island's plate was handed, each time they change. */
+function DocksSeen({ story, docks: given, onDocks }: { story: string; docks: readonly IslandDock[] | undefined; onDocks: (story: string, docks: readonly IslandDock[] | undefined) => void }) {
   const docks = useKept(given, (docks) => JSON.stringify(docks ?? null));
-  useEffect(() => { onDocks({ story, docks }); }, [story, docks, onDocks]);
+  useEffect(() => { onDocks(story, docks); }, [story, docks, onDocks]);
   return null;
 }
 
-/** 3.73: once the map has drawn its first frame, every material on it is compiled, hidden ones too, so no turn that shows one stalls on its shader. */
-function CompiledAtLoad() {
+/** 3.86: reads the eye's zoom on every frame drawn, and the zoom that frames the whole `sheet`, so the islands show the detail it asks for. */
+function DetailFeed({ detail, sheet }: { detail: DetailStore; sheet: SheetExtent }) {
+  useFrame(({ camera, size }) => { detail.zoom(sheetEyeZoom(camera, size), Math.min(size.width, size.height) / (2 * sheetOpening(sheet, size).framing * SHEET_RADIUS)); });
+  return null;
+}
+
+/** 3.73: once the map has drawn its first frame, every material on it is compiled, hidden ones too, so no turn that shows one
+ * stalls on its shader; and again whenever the notes hung under the islands (`under`) are drawn anew. Each island's land
+ * compiles its own marks as they are built (3.87), so a zoom that first shows them (3.86) stalls on none either. */
+function CompiledAtLoad({ under }: { under: CoreUnderSheet }) {
   const { gl, scene, camera } = useThree();
   useEffect(() => {
     const frame = requestAnimationFrame(() => gl.compile(scene, camera));
     return () => cancelAnimationFrame(frame);
-  }, [gl, scene, camera]);
+  }, [gl, scene, camera, under]);
   return null;
 }
 
@@ -254,20 +267,19 @@ function useKept<T>(value: T, keyOf: (value: T) => string): T {
 }
 
 const NO_LINKS: readonly Link[] = [];
+const NO_DOCKS_SEEN: ReadonlyMap<string, readonly IslandDock[]> = new Map();
 
 /** Lifted just off the surface, so a territory's tint never fights the ground it lies on. */
 const TERRITORY_LIFT = 0.05;
-/** The selected island's roads and gate posts lie just above its territories. */
+/** An island's roads and gate posts lie just above its territories. */
 const ROAD_LIFT = 0.08;
 /** The open work's rings and dots lie above the roads, the dims under them (3.83, 3.84). */
 const OPEN_WORK_LIFT = 0.1;
 
-/**
- * An island's territories (3.14), cut to its coast and laid on its surface, all in the plate's own units; it lights
- * the territories the selected session's window opened (3.18). No file is drawn on them (ADR-1212).
- */
-function Territories({ story, land: given, coast: givenCoast, links, docks: givenDocks, claimed, radius, lighting, surfaces, lit, circled, open }: {
+type TerritoriesProps = {
   story: string;
+  /** How much of the island the eye's zoom shows (3.86). */
+  detail: DetailStore;
   /** The selected arc's open work, ringed, the rest dimmed (3.83); and every open increment's, dotted (3.84). */
   circled: ReadonlySet<string> | undefined;
   open: ReadonlySet<string>;
@@ -282,18 +294,36 @@ function Territories({ story, land: given, coast: givenCoast, links, docks: give
   radius: number;
   lighting: CodeLighting;
   surfaces: GlobeSurfaces;
-}) {
-  const { invalidate, clock, camera, size } = useThree();
+};
+
+/**
+ * An island's territories (3.14), cut to its coast and laid on its surface, all in the plate's own units; it lights
+ * the territories the selected session's window opened (3.18). No file is drawn on them (ADR-1212).
+ */
+function Territories(props: TerritoriesProps) {
+  const { story, land: given, coast: givenCoast, links, docks: givenDocks, claimed } = props;
+  const { clock } = useThree();
   // 3.72: an update that redraws the island for anything else (its name, its trees) hands it new land and coast that read
   // the same; the territories already cut for them stay.
   const land = useKept(given, JSON.stringify), coast = useKept(givenCoast, JSON.stringify), docks = useKept(givenDocks, (docks) => JSON.stringify(docks ?? null));
   // A claim on another island leaves this one's territories as they were.
   const tints = useKept(claimed, tints => claimsOn(tints, land));
+  // When the island joined the map: one there as the sheet first draws stands, its land included, however late it is built.
+  const [joined] = useState(() => clock.getElapsedTime());
   // 3.80: laid out from the arrangement the search kept for it, and searched off the page when there is none for its structure.
   const kept = useSyncExternalStore(subscribeKept, keptVersion);
-  const map = useMemo(() => islandLayout(story, land.territories, coast, links, docks), [story, land, coast, links, docks, kept]);
+  // 3.87: settled in its turn, so opening a map of many islands never lays out several of them in one task.
+  const map = useBuiltInTurn(() => islandLayout(story, land.territories, coast, links, docks), [story, land, coast, links, docks, kept]);
   useEffect(() => { if (docks !== undefined) searchIsland(story, { shares: land.territories, coast, links, docks }, pageTerritorySearcher()); }, [story, land, coast, links, docks]);
-  // ADR-1236 D1: the selected island's links are one shared road network, with a gate wherever a road crosses a border.
+  return map === undefined ? null : <IslandLand {...props} land={land} coast={coast} docks={docks} tints={tints} map={map} joined={joined} />;
+}
+
+type IslandLandProps = Omit<TerritoriesProps, "claimed"> & { tints: ReadonlyMap<string, ClaimTint>; map: TerritoryMap; joined: number };
+
+/** The island's land as laid out (`map`), and its roads once routed. */
+function IslandLand(props: IslandLandProps) {
+  const { map, coast, links, docks, tints, radius } = props;
+  // ADR-1236 D1: an island's links are one shared road network, with a gate wherever a road crosses a border.
   // 3.82: routed off the page, so the territories draw at once and the roads when they arrive.
   const routedVersion = useSyncExternalStore(subscribeRoads, roadsVersion);
   const ask = useMemo((): RoadsAsk | undefined => docks === undefined ? undefined : { map, links, docks, names: capabilityPlates(map) }, [map, links, docks]);
@@ -304,10 +334,11 @@ function Territories({ story, land: given, coast: givenCoast, links, docks: give
     islandRoadsWhenRouted(ask, pageIslandRouter(), overtaken.signal);
     return () => overtaken.abort();
   }, [ask, roads]);
-  // 3.78: and every territory a plateau above its open land, a ramp where a road climbs onto one.
-  const relief = useMemo(() => roads === undefined ? undefined : islandRelief(map, roads), [map, roads]);
-  const onLand = useMemo(() => onIslandSurface(radius, TERRITORY_LIFT + (relief?.height ?? 0)), [radius, relief]);
-  const drawn = useMemo(() => {
+  // 3.87: its meshes built in their turn, the land's at once and again with its relief and roads when they arrive.
+  const drawn = useBuiltInTurn((): DrawnLand => {
+    // 3.78: and every territory a plateau above its open land, a ramp where a road climbs onto one.
+    const relief = roads === undefined ? undefined : islandRelief(map, roads);
+    const onLand = onIslandSurface(radius, TERRITORY_LIFT + (relief?.height ?? 0));
     const group = territoryLand(map, onLand, coast, tints, roads?.gates);
     // The roads and the relief lie on the land, so they show and hide with the territories (3.22).
     if (roads !== undefined && relief !== undefined) {
@@ -315,11 +346,27 @@ function Territories({ story, land: given, coast: givenCoast, links, docks: give
       group.add(islandReliefMarks(relief, onIslandSurface(radius, TERRITORY_LIFT), fill));
       group.add(islandRoadMarks(roads, onIslandSurface(radius, ROAD_LIFT), fill, relief));
     }
-    return { group, map, roads };
-  }, [map, coast, tints, radius, roads, relief, onLand]);
+    // 3.86: every island's marks stand where they were built, so the frame never recomputes their matrices, shown or hidden.
+    group.traverse((mark) => { if (mark !== group) { mark.updateMatrix(); mark.matrixAutoUpdate = false; } });
+    return { group, map, roads, relief, onLand };
+  }, [map, coast, tints, radius, roads]);
+  return drawn === undefined ? null : <DrawnIsland {...props} drawn={drawn} />;
+}
+
+/** An island's land as built: its territories' meshes, and its relief and roads once they are routed. */
+type DrawnLand = { group: Group; map: TerritoryMap; roads: IslandRoads | undefined; relief: IslandRelief | undefined; onLand: ReturnType<typeof onIslandSurface> };
+
+function DrawnIsland({ drawn, land, coast, tints, radius, lighting, surfaces, lit, circled, open, detail, joined }: IslandLandProps & { drawn: DrawnLand }) {
+  const { invalidate, clock, camera, size, gl, scene } = useThree();
+  const relief = drawn.relief, onLand = drawn.onLand;
   // 3.83, 3.84: the open work's rings, dims and dots, over the land as drawn now, clear of its names, settlements and gates.
   const openWork = useMemo(() => openWorkLayer(openWorkMarks(drawn.map, { circled, open }, drawn.roads, coast), drawn.group,
     onIslandSurface(radius, OPEN_WORK_LIFT + (relief?.height ?? 0)), drawn.map.radius), [drawn, circled, open, coast, radius, relief]);
+  // 3.73: its marks' shaders compiled as they are built, hidden ones too, so the zoom that first shows them stalls on none.
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => { gl.compile(drawn.group, camera, scene); gl.compile(openWork, camera, scene); });
+    return () => cancelAnimationFrame(frame);
+  }, [gl, camera, scene, drawn, openWork]);
   useEffect(() => { invalidate(); return () => openWork.traverse((object) => {
     const mark = object as { geometry?: { dispose(): void }; material?: { dispose(): void }; name: string };
     // A dim lies on its territory's own geometry, which the land disposes.
@@ -342,7 +389,7 @@ function Territories({ story, land: given, coast: givenCoast, links, docks: give
   }, [marks, drawn, land.files.length, coast, radius, onLand, invalidate]);
   useEffect(() => {
     // Claims already held when the sheet first draws stand; any later one, a replay's included, arrives.
-    marks.claims(tints, clock.getElapsedTime(), { standing: first.current && clock.getElapsedTime() < 1, reduced: reducedMotion() });
+    marks.claims(tints, clock.getElapsedTime(), { standing: first.current && joined < 1, reduced: reducedMotion() });
     first.current = false;
     invalidate();
   }, [marks, tints, clock, invalidate]);
@@ -361,7 +408,7 @@ function Territories({ story, land: given, coast: givenCoast, links, docks: give
   // Before the land is first drawn, so a rebuilt island never shows a frame in the wrong colours.
   useLayoutEffect(() => {
     lightTerritories(drawn.group, surfaces.sessionTints ? lighting.capabilities : new Map(), lighting.colour);
-    drawOn.take(drawn.group, surfaces.territories, clock.getElapsedTime(), { standing: opened.current && clock.getElapsedTime() < 1, reduced: reducedMotion() });
+    drawOn.take(drawn.group, surfaces.territories, clock.getElapsedTime(), { standing: opened.current && joined < 1, reduced: reducedMotion() });
     opened.current = false;
     marks.root.visible = surfaces.sessionTints;
     whole.current = grow();
@@ -371,6 +418,13 @@ function Territories({ story, land: given, coast: givenCoast, links, docks: give
     if (drawOn.frame(clock.getElapsedTime(), reducedMotion())) invalidate();
     if (!whole.current) whole.current = grow();
   });
+  // 3.86: what the zoom shows of the land as drawn, its shapes left as they are.
+  const level = useSyncExternalStore(detail.subscribe, detail.get);
+  useLayoutEffect(() => {
+    presentDetail(drawn.group, level);
+    presentOpenWork(openWork, level);
+    invalidate();
+  }, [drawn, openWork, level, surfaces, invalidate]);
   useEffect(() => () => drawn.group.traverse((object) => {
     const mark = object as { geometry?: { dispose(): void }; material?: { dispose(): void } };
     mark.geometry?.dispose();
@@ -378,6 +432,7 @@ function Territories({ story, land: given, coast: givenCoast, links, docks: give
   }), [drawn]);
   return <><primitive object={drawn.group} /><primitive object={marks.root} />{surfaces.territories !== false && <primitive object={openWork} />}</>;
 }
+
 
 /** A failing island's marker at the window's edge, in CSS pixels, with the turn that brings it into view (3.11). */
 type ScreenMarker = { story: string; turn: GlobeTurn; left: number; top: number };
@@ -420,7 +475,7 @@ function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onCon
   const opening = { framing: sheetOpening(sheet, size).framing, sideOffset };
   const [hover, setHover] = useState<{ title: string; detail?: string; x: number; y: number }>();
   const opened = useRef(false);
-  // Until the user or a guide moves the sheet, it keeps to its opening as the canvas or the sheet changes size.
+  // Until the user or a guide moves the sheet, it keeps to its opening as the sheet changes size.
   const touched = useRef(false);
   const lastMarkers = useRef("");
   const [markers, setMarkers] = useState<ScreenMarker[]>([]);
@@ -540,7 +595,15 @@ function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onCon
     // Beside the panel, while one is open (3.40).
     onPose({ turn: turn.current, ...besideAside.current!.home(size) });
   };
-  useEffect(() => { if (opened.current && !touched.current) openSheet(); }, [size.width, size.height, sheet.width, sheet.height]);
+  useEffect(() => { if (opened.current && !touched.current) openSheet(); }, [sheet.width, sheet.height]);
+  // 3.85: the frame changing size (the rail hidden, shown or dragged, the window resized) keeps the zoom and the place under
+  // its unchanged edge as last drawn, before the next paint.
+  const drawn = useRef<{ pose: AsidePose; size: { width: number; height: number; left: number } }>(undefined);
+  useFrame(() => { const { framing, sideOffset } = read(), { width, height, left } = host.current.size; drawn.current = { pose: { framing, sideOffset }, size: { width, height, left } }; });
+  useLayoutEffect(() => {
+    const kept = drawn.current && framedOnResize(drawn.current.pose, drawn.current.size, size);
+    if (kept !== undefined) onPose({ turn: turn.current, ...kept });
+  }, [size.width, size.height, size.left]);
   // 3.66: a stop at the whole map the guide aimed at the last map's sheet is aimed again at the sheet that replaced it.
   useEffect(() => { if (touched.current && guide.current!.reframe()) guideFrameAt.current = performance.now(); }, [sheet.width, sheet.height]);
   // 3.40: the sheet follows the right-hand panel into the free width, and back.

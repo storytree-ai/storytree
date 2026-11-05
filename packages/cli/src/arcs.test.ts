@@ -786,7 +786,8 @@ test("4.16 `arc increment edit --capabilities` refuses a capability already on t
       const theirs = await library.addIncrement({ arc, title: "Email form", objective: "Build it", body: "…", capabilities: [form.id] } as never);
       assert.equal((await claim(holder, theirs.id, "driving the email form")).ok, true);
       const mine = await library.addIncrement({ arc, title: "Form copy", objective: "Reword it", body: "…" });
-      const own = await library.addIncrement({ arc, title: "Form polish", objective: "Polish it", body: "…", capabilities: [form.id] } as never);
+      const own = await library.addIncrement({ arc, title: "Form polish", objective: "Polish it", body: "…" });
+      await library.editIncrement(own.id, { capabilities: [form.id] });
       for (const id of [mine.id, own.id]) assert.equal((await claim(caller, id, "rewording the form")).ok, true);
 
       const history = await library.history({ id: mine.id });

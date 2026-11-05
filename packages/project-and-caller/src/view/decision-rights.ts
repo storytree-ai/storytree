@@ -1,6 +1,7 @@
 /** Capability 2 · Settings: who decides what, shown read-only in the app (2.14). */
 /// <reference lib="dom" />
 import { decisionRights } from "../settings/decision-rights.js";
+import { escape } from "./render.js";
 import { decisionRightsStyles } from "./styles.js";
 
 /**
@@ -70,7 +71,3 @@ export function mountDecisionRights(host: HTMLElement, readDelegations: () => Pr
 }
 
 function capitalised(text: string): string { return text.charAt(0).toUpperCase() + text.slice(1); }
-
-function escape(text: string): string {
-  return text.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&#39;");
-}

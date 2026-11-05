@@ -26,15 +26,25 @@ async function git(folder: string, args: readonly string[], input?: string): Pro
 }
 const gitText = async (folder: string, args: readonly string[]) => (await git(folder, args)).toString("utf8").trim();
 
+/** A range's two refs at its first `..` or `...` with a ref on both sides, read without a backtracking regex. */
+function rangePair(range: string): { left: string; dots: ".." | "..."; right: string } | undefined {
+  if (/[\n\r\u2028\u2029]/.test(range)) return undefined;
+  for (let at = range.indexOf("..", 1); at > 0; at = range.indexOf("..", at + 1)) {
+    if (range[at + 2] === "." && at + 3 < range.length) return { left: range.slice(0, at), dots: "...", right: range.slice(at + 3) };
+    if (at + 2 < range.length) return { left: range.slice(0, at), dots: "..", right: range.slice(at + 2) };
+  }
+  return undefined;
+}
+
 async function comparison(folder: string, range: string): Promise<Pick<DiffSummary, "base" | "target" | "comparison">> {
   const resolve = async (ref: string) => {
     try { return await gitText(folder, ["rev-parse", "--verify", "--end-of-options", `${ref}^{commit}`]); }
     catch { throw new Error(`Cannot resolve git ref ${JSON.stringify(ref)} to a commit.`); }
   };
-  const pair = /^(.+?)(\.\.\.?)(.+)$/.exec(range);
+  const pair = rangePair(range);
   if (pair) {
-    const [left, right] = await Promise.all([resolve(pair[1]!), resolve(pair[3]!)]);
-    return { base: pair[2] === "..." ? await gitText(folder, ["merge-base", left, right]) : left, target: right, comparison: pair[2] === "..." ? "merge-base" : "commits" };
+    const [left, right] = await Promise.all([resolve(pair.left), resolve(pair.right)]);
+    return { base: pair.dots === "..." ? await gitText(folder, ["merge-base", left, right]) : left, target: right, comparison: pair.dots === "..." ? "merge-base" : "commits" };
   }
   if (range.includes("..")) throw new Error("A git range needs both refs: A..B or A...B.");
   const [ref, head] = await Promise.all([resolve(range), resolve("HEAD")]);

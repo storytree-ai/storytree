@@ -51,7 +51,7 @@ export function fadedPlates(plates: readonly ShownPlate[], selected?: string): S
   return new Set(fadeOverlaps(order).map(plate => plate.story));
 }
 
-/** Which of a selected island's capability names fade where they overlap on screen: the larger territory's name shows (ADR-0917). */
+/** Which of the islands' capability names fade where they overlap on screen: the larger territory's name shows (ADR-0917). */
 export function fadedCapabilities(names: readonly { capability: string; box: Box; size: number }[]): Set<string> {
   return new Set(fadeOverlaps([...names].sort((a, b) => b.size - a.size)).map(name => name.capability));
 }

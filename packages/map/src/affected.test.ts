@@ -97,6 +97,12 @@ test("4.1 historical ranges retain deleted and renamed proof, ignore dirty state
   assert.deepEqual(linked.rows!.map(row => row.path), ["linked note.md"]);
 });
 
+test("4.1 a range of hundreds of thousands of dots is refused without stalling, and a range missing a ref on one side is refused", { timeout: 20_000 }, async t => {
+  const repo = await repository(t);
+  await assert.rejects(focusProject(repo.library, repo.folder, { select: `diff:a${"..".repeat(200_000)}\n` }), /needs both refs/);
+  for (const range of ["main..", "..main"]) await assert.rejects(focusProject(repo.library, repo.folder, { select: `diff:${range}` }), /needs both refs/);
+});
+
 test("4.1 unsurveyed paths share the show ceiling and do not expand counts metadata", async t => {
   const repo = await repository(t);
   await Promise.all(Array.from({ length: 205 }, (_, i) => repo.write(`notes/${i}.md`, "new\n")));

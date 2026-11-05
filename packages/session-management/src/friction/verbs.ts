@@ -66,9 +66,10 @@ const frictionNew = verb({
   writes: true,
   async act({ "about-storytree": aboutStorytree, "none-match": noneMatch, ...input }, context: VerbContext) {
     const { closestFriction, recordFriction } = await import("./filing/capture.js");
-    // A repeat is a recurrence of the earlier report, so the filer sees the closest first (ADR-1233 D1).
-    const closest = noneMatch ? [] : await closestFriction(context.library, { title: input.title, statement: input.statement });
-    if (closest.length > 0) {
+    // A repeat is a recurrence of the earlier report, so the filer sees the closest first (ADR-1233 D1); filed new
+    // past them, the report records which it was shown, so a repeat filed as new can be found.
+    const closest = await closestFriction(context.library, { title: input.title, statement: input.statement });
+    if (!noneMatch && closest.length > 0) {
       return {
         text: [
           `Not filed yet. The closest earlier friction reports (open, resolved and dismissed alike):`,
@@ -82,7 +83,9 @@ const frictionNew = verb({
         ],
       };
     }
-    const note = await recordFriction(context.library, { ...fields(input), branch: await branchIn(context.folder) } as never, context.writer!);
+    const note = await recordFriction(context.library, {
+      ...fields(input), branch: await branchIn(context.folder), lookup: { shown: closest.map((one) => one.id), noneMatch: noneMatch === true },
+    } as never, context.writer!);
     const next = [{ command: `library read ${note.id}`, why: "read it whole" }];
     if (!aboutStorytree) return { text: `Recorded friction ${note.id}.`, data: { id: note.id }, next };
     // Settled by question_03c165b887c7 (option A): storytree sends nothing; the user reviews the draft and submits it.

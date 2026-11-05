@@ -17,7 +17,7 @@ import { BufferGeometry, Color, DoubleSide, Float32BufferAttribute, Group, LineB
  * Each word's fill (ADR-0825 D3, ADR-0992): healthy green, unhealthy red, and yellow while not proven yet, which
  * asks for attention. Strong enough that the grey island ground beneath does not turn yellow to tan.
  */
-const WORD_FILL: Readonly<Record<CapabilityWord, { colour: string; opacity: number }>> = {
+export const WORD_FILL: Readonly<Record<CapabilityWord, { colour: string; opacity: number }>> = {
   healthy: { colour: "#97C459", opacity: 0.8 },
   unhealthy: { colour: "#E24B4A", opacity: 0.85 },
   proposed: { colour: "#F2D16B", opacity: 0.8 },
@@ -27,20 +27,20 @@ const WORD_FILL: Readonly<Record<CapabilityWord, { colour: string; opacity: numb
  * A capability not proven and parked on purpose, asking nothing of anyone (ADR-0992 D1, D4): mid slate grey, cool so it
  * stays apart from mapped's brown when that comes, and dark enough to read as a territory on the island's near-white ground.
  */
-const PARKED_FILL = { colour: "#86939D", opacity: 0.8 };
+export const PARKED_FILL = { colour: "#86939D", opacity: 0.8 };
 /**
  * Mapped code, here before storytree and assumed to be working (ADR-0993 D3, ADR-0992 D5): brown, mapped's alone. Warm and
  * earthy, so it reads apart from parked's cool grey and from the health words' green, yellow and red; it carries no health.
  */
-const MAPPED_FILL = { colour: "#A9794E", opacity: 0.85 };
+export const MAPPED_FILL = { colour: "#A9794E", opacity: 0.85 };
 /**
  * Unclaimed code, land no contract has surveyed, is drawn as uncharted land: the cartographic no-data convention.
  * A region with no data gets no hue and is hatched, since green, yellow and red are health words and grey means
  * parked (ADR-0825 D3, ADR-0992). The fill is the globe's own background (`PlanetWorldCanvas`), dense enough that the
  * island's grey ground does not read through, and the hatch a faint cool light, far below the white borders.
  */
-const UNCHARTED_FILL = { colour: "#101418", opacity: 0.92 };
-const UNCHARTED_HATCH = { colour: "#8fa8b8", opacity: 0.35 };
+export const UNCHARTED_FILL = { colour: "#101418", opacity: 0.92 };
+export const UNCHARTED_HATCH = { colour: "#8fa8b8", opacity: 0.35 };
 /** The hatch lines lie this far apart, measured across them, in ground units. */
 const HATCH_SPACING = 0.35;
 const BORDER_COLOUR = "#f4f7f8";
@@ -57,7 +57,7 @@ export type DrawnLand = {
 
 /**
  * The territories of `land`, each point placed on the island's surface by `onSurface`, cut to `coast`
- * (its loops, in the same coordinates as the land) when given. Given the island's road `gates` (the selected island,
+ * (its loops, in the same coordinates as the land) when given. Given the island's road `gates` (every island once routed,
  * ADR-1236 D1), each gate's opening is cut out of its border and the borders are quietened under the roads.
  */
 export function territoryLand(land: DrawnLand, onSurface: (point: Point) => Vector3, coast?: readonly (readonly Point[])[], claimed: ReadonlyMap<string, { colour: string; faded: boolean }> = new Map(), gates?: IslandRoads["gates"]): Group {

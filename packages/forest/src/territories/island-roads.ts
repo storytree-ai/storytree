@@ -1,5 +1,5 @@
 /**
- * Capability 3 · Story node render (the forest story): the selected island's roads and gates (ADR-1236 D1, rollout 2
+ * Capability 3 · Story node render (the forest story): each island's roads and gates (ADR-1236 D1 as narrowed by ADR-1253 D2, rollout 2
  * step 3), from its territories as laid out by its links and the docks its sea lanes come ashore at, ported from the
  * capability tree mock's page (docs/design/capability-tree-3d/q-all-islands/tools/overlay.ts).
  *
@@ -93,22 +93,43 @@ export function subscribeRoads(listener: () => void): () => void {
 /** Changes whenever an island's roads arrive. */
 export const roadsVersion = (): number => version;
 
+/** How many islands' roads route at once: every island is laid out (ADR-1253 D2), and the rest wait their turn. */
+export const ROUTING_AT_ONCE = 2;
+let routing = 0;
+const waitingToRoute: (() => void)[] = [];
+/** Runs `route` once fewer than ROUTING_AT_ONCE routings are in flight; it is passed over if `signal` aborts first. */
+function inTurn(route: () => Promise<unknown>, signal: AbortSignal): void {
+  const start = () => {
+    if (signal.aborted) { next(); return; }
+    routing++;
+    let ended = false;
+    const end = () => { if (ended) return; ended = true; routing--; signal.removeEventListener("abort", end); next(); };
+    signal.addEventListener("abort", end);
+    route().then(end, end);
+  };
+  if (routing < ROUTING_AT_ONCE) start(); else waitingToRoute.push(start);
+}
+function next(): void {
+  if (routing < ROUTING_AT_ONCE) waitingToRoute.shift()?.();
+}
+
 /**
- * The selected island's roads (3.82): those already routed for it at once, or undefined while `router` routes them
- * off the page, so its territories are drawn without waiting. When they arrive they are kept for the island as laid
- * out (`knownIslandRoads` has them) and every listener hears it; an island overtaken first (`signal` aborted) keeps nothing.
+ * An island's roads (3.82): those already routed for it at once, or undefined while `router` routes them off the page,
+ * so its territories are drawn without waiting. A few islands route at a time (ROUTING_AT_ONCE), the rest in the order
+ * asked. When they arrive they are kept for the island as laid out (`knownIslandRoads` has them) and every listener
+ * hears it; an island overtaken first (`signal` aborted) keeps nothing, and one overtaken while it waits is not routed.
  */
 export function islandRoadsWhenRouted(ask: RoadsAsk, router: IslandRouter, signal: AbortSignal): IslandRoads | undefined {
   const known = knownIslandRoads(ask);
   if (known !== undefined) return known;
-  router(ask, signal).then((roads) => {
+  inTurn(() => router(ask, signal).then((roads) => {
     if (signal.aborted) return;
     routed.set(ask.map, { key: JSON.stringify([ask.links, ask.docks, ask.names]), roads });
     version++;
     for (const listener of listeners) listener();
   }, (error: unknown) => {
     if (!signal.aborted) console.error("forest territories: routing the island's roads failed", error);
-  });
+  }), signal);
   return undefined;
 }
 

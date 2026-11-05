@@ -39,6 +39,8 @@ export interface NewFriction {
   readonly increment?: string;
   /** The calling folder's branch; callers outside a repository share the no-branch bucket. */
   readonly branch?: string;
+  /** What the filing was shown: the closest earlier reports' ids and whether it filed new past them; "none" (the default) when it ran no lookup. */
+  readonly lookup?: "none" | { readonly shown: string[]; readonly noneMatch: boolean };
 }
 
 /** What happened this time, on the branch that encountered it. Its date is stamped at capture. */
@@ -94,7 +96,7 @@ const QUOTED = /["“][^"”]{3,}["”]/;
 export async function recordFriction(library: Library, friction: NewFriction, options?: WriteOptions): Promise<SchemaRecord<"friction">> {
   requireConcreteEvidence(friction.evidence);
   await requireIncrement(library, friction);
-  const { branch = "(no branch)", ...fields } = friction;
+  const { branch = "(no branch)", lookup = "none", ...fields } = friction;
   const date = new Date().toISOString().slice(0, 10);
   const today = (await library.list("friction")).filter(({ fields }) =>
     fields.provenance?.branch === branch && fields.provenance.date === date,
@@ -107,7 +109,7 @@ export async function recordFriction(library: Library, friction: NewFriction, op
   if (filed >= 3) {
     throw new CaptureError(`Filing cap: 3 friction items already filed on "${branch}" for ${date} by this session (ADR-0716; ADR-0168 D3). Distil to the three that fought you hardest, or use storytree friction reinforce <id> --evidence ... for a recurrence.`);
   }
-  return library.writeKnowledge("friction", { ...fields, provenance: { branch, date, source: "retro" } }, options);
+  return library.writeKnowledge("friction", { ...fields, lookup, provenance: { branch, date, source: "retro" } }, options);
 }
 
 /**

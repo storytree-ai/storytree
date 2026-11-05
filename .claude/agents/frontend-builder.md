@@ -39,5 +39,5 @@ It keeps the visual vocabulary the owner set: one drawn element per signal, no i
 
 **Stands on:** notes in the library; find one by its title with the MCP server's `search_notes`.
 - **Required reading:** Observability-first · Render and witness a flag-guarded surface
-- **Rules:** Slow growth: the minimum to green · Red-green · Route structural forks to story-author, not the owner · Verify an edit persisted, or escalate · A contract that says "observable" must name its observer · Machine in the loop is the default; a human is the exception · One element per signal · Legible at the resting view · The resting view is designed, not fitted · Decide against a standard, not a budget · No claim without evidence
+- **Rules:** Slow growth: the minimum to green · Red-green · Route structural forks to story-author, not the owner · Verify an edit persisted, or escalate · A contract that says "observable" must name its observer · Machine in the loop is the default; a human is the exception · One element per signal · Legible at the resting view · The resting view is designed, not fitted · Decide against a standard, not a budget · No claim without evidence · Frame times are taken where a graphics card draws
 - **Refuse:** An agent never self-attests · The owner owns the outer loop · Escalate up when blocked or out of scope

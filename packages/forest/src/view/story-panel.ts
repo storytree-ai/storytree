@@ -3,10 +3,11 @@
  * It explains the story in plain words and draws its capability tree, which opens in its own space
  * (ADR-0743). Each of the story's own capabilities is a card you can click; the one selected shows
  * below the tree, with its health as the agent reports it and its contracts on request (ADR-0659).
- * Every word from the library is written as text, never as HTML.
+ * Its foot is the map's legend (4.39). Every word from the library is written as text, never as HTML.
  */
 import { CARD, layoutTree, OUTSIDE_CARD, type CapabilityLine, type Card, type StoryPanel, type WhyLine } from "@storytree/forest";
 import type { HealthSource, HealthState } from "@storytree/library";
+import { renderMapLegend } from "./map-legend.js";
 
 const HEALTH: Readonly<Record<HealthState, string>> = { passing: "passing", failing: "failing", "not-checked": "not checked" };
 
@@ -27,7 +28,8 @@ export function renderStoryPanel(panel: StoryPanel, selected: string | undefined
     ${panel.checks === undefined ? "" : extraChecks(panel.checks)}
     ${panel.mapped === undefined ? "" : mapped(panel.mapped)}
     ${!tree || panel.capabilities.length === 0 ? "" : diagram(panel, shown?.id)}
-    ${shown === undefined ? "" : capability(shown)}`;
+    ${shown === undefined ? "" : capability(shown)}
+    ${renderMapLegend()}`;
 }
 
 /** What a mapped story is (ADR-0993 D3), in place of a health it does not carry, with its counts once surveyed. */
@@ -174,11 +176,12 @@ const POP_OUT = "Open in a larger window";
 /** The capability tree of `panel` as an SVG of class `kind`, at its natural size: 1 unit is 1 pixel. */
 export function renderTree(panel: StoryPanel, selected: string | undefined, kind: string): string {
   const layout = layoutTree(panel);
-  const head = `${kind}-head`;
+  const name = attribute(kind);
+  const head = `${name}-head`;
   const cards = layout.cards.map((card) => cardOf(card, card.id === selected));
   const links = layout.links.map(({ d }) => `<path class="arrow" d="${d}" marker-end="url(#${head})" />`);
   return `
-    <svg class="${kind}" viewBox="0 0 ${layout.width} ${layout.height}" width="${layout.width}" height="${layout.height}" role="img" aria-label="How the capabilities connect">
+    <svg class="${name}" viewBox="0 0 ${layout.width} ${layout.height}" width="${layout.width}" height="${layout.height}" role="img" aria-label="How the capabilities connect">
       <defs><marker id="${head}" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L8,4 L0,8 z" /></marker></defs>
       ${links.join("")}
       ${cards.join("")}

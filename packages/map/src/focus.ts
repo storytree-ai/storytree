@@ -166,14 +166,17 @@ export function focusRows(graph: ProjectGraph, selected: readonly string[], rows
   const ceiling = limits.ceiling ?? SHOW_CEILING;
   const shown = rows.filter(node => !options.kind || options.kind.includes(node.kind))
     .sort((a, b) => a.depth - b.depth || a.kind.localeCompare(b.kind) || a.id.localeCompare(b.id));
-  const counts = { byDepth: {} as FocusAnswer["counts"]["byDepth"], byKind: {} as FocusAnswer["counts"]["byKind"], health: { healthy: 0, failing: 0, untested: 0 }, mapped: 0 };
+  const byDepth = new Map<number, Map<NodeKind, number>>();
+  const byKind = new Map<NodeKind, number>();
+  const tally = { health: { healthy: 0, failing: 0, untested: 0 }, mapped: 0 };
   for (const row of shown) {
-    const at = counts.byDepth[row.depth] ??= {};
-    at[row.kind] = (at[row.kind] ?? 0) + 1;
-    counts.byKind[row.kind] = (counts.byKind[row.kind] ?? 0) + 1;
-    if (row.health === "mapped") counts.mapped++;
-    else counts.health[row.health]++;
+    const at = byDepth.get(row.depth) ?? byDepth.set(row.depth, new Map()).get(row.depth)!;
+    at.set(row.kind, (at.get(row.kind) ?? 0) + 1);
+    byKind.set(row.kind, (byKind.get(row.kind) ?? 0) + 1);
+    if (row.health === "mapped") tally.mapped++;
+    else tally.health[row.health]++;
   }
+  const counts: FocusAnswer["counts"] = { byDepth: Object.fromEntries([...byDepth].map(([depth, kinds]) => [depth, Object.fromEntries(kinds)])), byKind: Object.fromEntries(byKind), ...tally };
   const loops = shown.flatMap(row => row.loop === undefined ? [] : [row.loop]);
   const refused = mode === "show" && shown.length > ceiling;
   return {

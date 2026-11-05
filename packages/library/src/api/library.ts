@@ -82,7 +82,7 @@ const FROM_WORK = [
   "addStory", "editStory", "mapStories", "importPluginPlan", "addCapability", "editCapability", "setProposed", "addContract", "editContract", "anchor", "setAnchor", "prCutover", "setPrCutover",
 ] as const satisfies readonly (keyof Project["work"])[];
 const FROM_FLIGHT = [
-  "addIncrement", "advanceIncrement", "returnIncrement", "closeIncrement", "correctIncrementClosure", "moveIncrement", "editIncrement", "pendChange", "stalePending", "applyPending", "dropPending", "settleClosedPending",
+  "addIncrement", "advanceIncrement", "returnIncrement", "closeIncrement", "correctIncrementClosure", "moveIncrement", "editIncrement", "pendChange", "stalePending", "applyPending", "dropPending", "settleClosedPending", "openListing",
   "createArc", "editArc", "arcsFor", "parkArc", "unparkArc", "arcView", "arcViews", "boardArcs", "closedArcs",
   "addWait", "removeWait", "waitHolds", "addWaitFor", "removeWaitFor", "waitsFor", "holds",
   "raiseQuestion", "settleQuestion", "questions", "heldOnQuestion", "checkQuestion", "renewQuestion", "editQuestion", "moveQuestion", "lapsedQuestions",

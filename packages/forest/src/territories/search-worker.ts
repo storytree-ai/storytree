@@ -1,6 +1,6 @@
 /** Capability 3 · Story node render. The territory search worker (3.80): a host bundles this as its own script and names
- * it in its page (kept-layout.ts, TERRITORY_WORKER_META); the page posts it the selected island and keeps what it answers.
- * It routes the selected island's roads too, asked `{ roads }` (island-roads.ts, 3.82). */
+ * it in its page (kept-layout.ts, TERRITORY_WORKER_META); the page posts it each island in turn and keeps what it answers.
+ * It routes each island's roads too, asked `{ roads }` (island-roads.ts, 3.82). */
 import { answerRoads, type RoadsAnswer, type RoadsAsk } from "./island-roads.js";
 import type { SearchAnswer, SearchAsk } from "./kept-layout.js";
 import { searchTerritories } from "./territory-search.js";

@@ -388,9 +388,12 @@ function registerLandingTools(define: Define, landing: Landing | undefined): voi
           `This checkout cannot see the tests of its story: it holds no package of that story's (no code here yet, or a story mapped from a folder of its own), so ${unchecked.length === 1 ? "this planned contract was" : `these ${unchecked.length} planned contracts were`} not checked against them.`,
           ...unchecked.map((title) => `- ${title}`),
         ];
+        // Whether it is built stays the agent's judgment (ADR-0744 D2), so land names the tool that records it, not marks it.
+        const proposed = (await capabilityNode(call.library, capability))?.proposed === true;
+        const unbuilt = proposed ? [`Its card still reads proposed ("not built yet"): once you consider it built, call mark_built with capability ${capability}.`] : [];
         return {
-          text: [`Landed ${await titleOf(call.library, capability)}. Your claim on it has ended.`, ...gaps, ...unseen, ...next.map((line) => `Next: ${line}`)].join("\n"),
-          data: { landed: true, ...(untested.length === 0 ? {} : { untested }), ...(unchecked.length === 0 ? {} : { unchecked }), ...(unchecked.length === 0 || unreadable === undefined ? {} : { unreadable: unreadable.languages }), ...(next.length === 0 ? {} : { next }) },
+          text: [`Landed ${await titleOf(call.library, capability)}. Your claim on it has ended.`, ...gaps, ...unseen, ...unbuilt, ...next.map((line) => `Next: ${line}`)].join("\n"),
+          data: { landed: true, ...(proposed ? { proposed } : {}), ...(untested.length === 0 ? {} : { untested }), ...(unchecked.length === 0 ? {} : { unchecked }), ...(unchecked.length === 0 || unreadable === undefined ? {} : { unreadable: unreadable.languages }), ...(next.length === 0 ? {} : { next }) },
         };
       }
       return answer.refused === "held"
@@ -479,12 +482,19 @@ export function holderOf(claim: Claim, heldFor: readonly string[] = []): string 
   return `${claim.label} session ${claim.session}${heldFor.length === 0 ? "" : ` for ${heldFor.join(", ")}`} (${claim.reason})${claim.binds === undefined ? "" : `; binds: ${claim.binds}`}`;
 }
 
-/** A capability's or an increment's title, quoted, or its id when the plan has no such thing. */
-export async function titleOf(library: Library, id: string): Promise<string> {
+/** A capability's node in the plan's tree, or undefined when the plan has no such capability. */
+async function capabilityNode(library: Library, id: string): Promise<{ readonly title: string; readonly proposed: boolean } | undefined> {
   for (const story of (await library.projectTree()).stories) {
     const found = story.capabilities.find((node) => node.id === id);
-    if (found !== undefined) return `"${found.title}" (${id})`;
+    if (found !== undefined) return found;
   }
+  return undefined;
+}
+
+/** A capability's or an increment's title, quoted, or its id when the plan has no such thing. */
+export async function titleOf(library: Library, id: string): Promise<string> {
+  const found = await capabilityNode(library, id);
+  if (found !== undefined) return `"${found.title}" (${id})`;
   const increment = (await increments(library)).find((one) => one.id === id);
   return increment === undefined ? id : `"${increment.fields.title}" (${id})`;
 }

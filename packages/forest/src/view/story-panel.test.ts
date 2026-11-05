@@ -9,7 +9,10 @@ import { test } from "node:test";
 
 import type { CapabilityLine, StoryPanel } from "@storytree/forest";
 
-import { renderStoryPanel } from "./story-panel.js";
+import { renderStoryPanel, renderTree } from "./story-panel.js";
+
+/** The panel without its foot, the map's legend (4.39), whose words name every health and count the map draws. */
+const story = (html: string): string => html.replace(/<footer class="panel-legend"[\s\S]*?<\/footer>/, "");
 
 function line(id: string, reported: CapabilityLine["reported"], status: CapabilityLine["status"] = "proposed"): CapabilityLine {
   return {
@@ -197,7 +200,7 @@ test("4.13 in a project nothing verifies, a built capability's card and detail l
   assert.match(shown(box(html, "Story t · The away")), /agent: failing/);
   const detail = /<section class="panel-detail[\s\S]*?<\/section>/.exec(html)?.[0] ?? "";
   assert.match(shown(detail), /^The cap the agent reports passing storytree does not check this project's tests yet\./);
-  assert.doesNotMatch(shown(html), /untested|no test names|moves this one|Why not green/);
+  assert.doesNotMatch(shown(story(html)), /untested|no test names|moves this one|Why not green/);
 });
 
 test("4.12 a healthy capability says nothing more, and a contract not re-run says what it last saw", () => {
@@ -215,10 +218,10 @@ test("4.15 a mapped story's panel says it was here before storytree and is assum
   assert.match(html, /here before storytree/i);
   assert.match(html, /assumed to be working/);
   assert.match(html, /2 files, 1,200 lines/);
-  assert.doesNotMatch(html, /panel-badge|panel-health|passing|failing|not checked/, "no health is shown");
+  assert.doesNotMatch(story(html), /panel-badge|panel-health|passing|failing|not checked/, "no health is shown");
   const uncounted = renderStoryPanel({ ...mapped, mapped: {} }, undefined);
   assert.match(uncounted, /assumed to be working/);
-  assert.doesNotMatch(uncounted, /files|lines/, "no counts before the survey reads it");
+  assert.doesNotMatch(story(uncounted), /files|lines/, "no counts before the survey reads it");
   assert.doesNotMatch(renderStoryPanel(panel, "base"), /panel-mapped/, "a built story's panel says nothing of it");
 });
 
@@ -262,4 +265,10 @@ test("4.37 storytree's mark names its source on the card, in the detail and on e
   assert.equal(whyLine(html("both")), "Why not green: 2.1 is failing, from CI. The agent moves this one.");
   assert.equal(whyLine(html("older")), "Why not green: 3.1 is failing. The agent moves this one.");
   assert.doesNotMatch(detail("older"), /locally|from CI/);
+});
+
+test("4.11 the tree's class name comes out escaped, so markup in it draws no element of its own", () => {
+  const html = renderTree(panel, undefined, '"><img src=x onerror=alert(1)>');
+  assert.doesNotMatch(html, /<img/);
+  assert.match(html, /class="&quot;&gt;&lt;img src=x onerror=alert\(1\)&gt;"/);
 });

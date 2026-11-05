@@ -53,7 +53,7 @@ test("3.11 · the arc surface declares the `arc` family, with `arc increment` wi
     error instanceof VerbRefusal && error.message === `${work.id} is a increment, not a question` && error.next[0]?.command === `library retire ${work.id} --reason <why>`);
 });
 
-test("3.17 · `arc increment edit --escape-of <pr|increment> --escape-story <story>` records the escape an increment fixes, `--escape-of none` clears it, and one flag without the other is refused with nothing written", async (t) => {
+test("3.17 · `arc increment edit --escape-of <pr|increment> --escape-commit <sha> --escape-story <story>` records the escape an increment fixes, a pull request with its merge commit, `--escape-of none` clears it, and one flag without the others it needs is refused with nothing written", async (t) => {
   const url = process.env.STORYTREE_TEST_PG_URL;
   if (url === undefined) throw new Error("run the tests via `pnpm test`, which starts a local Postgres");
   const storytree = await connect({ url });
@@ -75,13 +75,14 @@ test("3.17 · `arc increment edit --escape-of <pr|increment> --escape-story <sto
   const fix = await library.addIncrement({ arc: plan.id, title: "Fix sign-up", objective: "Mend it", body: "…" });
   const escapeOf = async () => ((await library.get(fix.id))?.fields as { escape?: unknown }).escape;
 
-  await verbOf(increment, "edit").act({ increment: fix.id, "escape-of": "#1234", "escape-story": story.id }, context, WORDS);
-  assert.deepEqual(await escapeOf(), { causedBy: "#1234", story: story.id });
+  await verbOf(increment, "edit").act({ increment: fix.id, "escape-of": "#1234", "escape-commit": "9807a1e", "escape-story": story.id }, context, WORDS);
+  assert.deepEqual(await escapeOf(), { causedBy: "#1234", commit: "9807a1e", story: story.id });
 
-  for (const given of [{ "escape-of": "#99" }, { "escape-story": story.id }]) {
-    await assert.rejects(verbOf(increment, "edit").act({ increment: fix.id, ...given }, context, WORDS), VerbRefusal);
+  for (const given of [{ "escape-of": "#99" }, { "escape-story": story.id }, { "escape-commit": "9807a1e" }, { "escape-of": "none", "escape-commit": "9807a1e" }]) {
+    await assert.rejects(verbOf(increment, "edit").act({ increment: fix.id, ...given }, context, WORDS), (error: unknown) => error instanceof VerbRefusal && error.misuse);
   }
-  assert.deepEqual(await escapeOf(), { causedBy: "#1234", story: story.id }, "nothing written");
+  await assert.rejects(verbOf(increment, "edit").act({ increment: fix.id, "escape-of": "#99", "escape-story": story.id }, context, WORDS));
+  assert.deepEqual(await escapeOf(), { causedBy: "#1234", commit: "9807a1e", story: story.id }, "nothing written");
 
   await verbOf(increment, "edit").act({ increment: fix.id, "escape-of": "none" }, context, WORDS);
   assert.equal(await escapeOf(), undefined);

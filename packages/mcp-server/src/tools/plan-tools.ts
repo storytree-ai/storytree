@@ -144,7 +144,7 @@ export function registerPlanTools(define: Define): void {
       links: z.array(z.string().min(1)).optional().describe("An increment's links, replacing them: its stories, notes or decisions"),
       machine: z.string().min(1).optional().describe("The one machine that can take an increment, by the short name Machines knows it by, \"cloud\" for work only a cloud container can prove (no dispatcher takes it), or \"none\" to clear it, so any machine can"),
       escape: z
-        .union([z.object({ caused_by: z.string().min(1).describe("The pull request (#123) or increment that caused it"), story: z.string().min(1).describe("The story it hit") }), z.literal("none")])
+        .union([z.object({ caused_by: z.string().min(1).describe("The pull request (#123) or increment that caused it"), commit: z.string().min(1).optional().describe("A pull request's merge commit, required with one, since pull-request numbers restarted at #2 on 2026-10-26"), story: z.string().min(1).describe("The story it hit") }), z.literal("none")])
         .optional()
         .describe("The escape an increment fixes, a defect that reached main: the change that caused it and the story it hit, or \"none\" to clear it"),
       live: z.boolean().optional().describe("While you hold an increment, make this change to a story, capability or contract live instead of pending, keeping the increment's claim: for a correction the increment does not change"),
@@ -208,7 +208,7 @@ interface Changes {
   capabilities?: string[] | undefined;
   links?: string[] | undefined;
   machine?: string | undefined;
-  escape?: { caused_by: string; story: string } | "none" | undefined;
+  escape?: { caused_by: string; commit?: string | undefined; story: string } | "none" | undefined;
   what?: string | undefined;
   audience?: string | undefined;
 }

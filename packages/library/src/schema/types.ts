@@ -643,10 +643,19 @@ export const RECORD_SCHEMAS = {
        * term are calibrated against (research_9860f6546277); `none` when it landed fixing none, so a
        * landing that names no escape is a negative, not unknown (research_4bbec1b12097 4.1). Absent on
        * work not landed, and on work landed before landings said. Optional, so no version bump.
+       * A pull request also names its merge commit (`commit`, 7 to 40 hex), since numbers restarted
+       * at #2 on 2026-10-26 and one number can name a change of either history; work-in-flight asks
+       * for it when one is written, and one recorded before it was asked for stays readable.
        */
       escape: z
         .union([
-          z.object({ causedBy: z.string().regex(/^#?\d+$|^increment_/, "a pull request (#123) or an increment"), story: z.string() }).strict(),
+          z
+            .object({
+              causedBy: z.string().regex(/^#?\d+$|^increment_/, "a pull request (#123) or an increment"),
+              commit: z.string().regex(/^[0-9a-f]{7,40}$/, "a merge commit, 7 to 40 hex characters").optional(),
+              story: z.string(),
+            })
+            .strict(),
           z.literal("none"),
         ])
         .optional(),

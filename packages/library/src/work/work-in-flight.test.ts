@@ -453,21 +453,23 @@ for (const backend of [memory, postgres]) {
     assert.deepEqual((await records.get(increment.id))?.fields, cleared?.fields);
   });
 
-  contract("10.23", "an increment names the escape it fixes: the pull request or increment that caused it and the story it hit, set by parking or editing and cleared by an edit; a cause or story that is not one is refused with nothing written", async ({ work, flight, records, transactions }) => {
+  contract("10.23", "an increment names the escape it fixes: the pull request or increment that caused it and the story it hit, a pull request also by its merge commit, so a number either repository history could hold names one change; set by parking or editing and cleared by an edit; a cause, commit or story that is not one, or a pull request without its commit, is refused with nothing written", async ({ work, flight, records, transactions }) => {
     const arc = await flight.createArc(ARC);
     const story = await work.addStory({ title: "Visitor can sign up" });
     const culprit = await flight.addIncrement({ arc: arc.id, ...WORK });
-    const fix = await flight.addIncrement({ arc: arc.id, ...WORK, escape: { causedBy: "#1234", story: story.id } });
-    assert.deepEqual(fix.fields.escape, { causedBy: "#1234", story: story.id });
+    const fix = await flight.addIncrement({ arc: arc.id, ...WORK, escape: { causedBy: "#1234", commit: "9807a1e", story: story.id } });
+    assert.deepEqual(fix.fields.escape, { causedBy: "#1234", commit: "9807a1e", story: story.id });
     assert.deepEqual((await flight.editIncrement(fix.id, { escape: { causedBy: culprit.id, story: story.id } }))?.fields.escape, { causedBy: culprit.id, story: story.id });
     const history = await transactions.history();
-    for (const escape of [{ causedBy: "last week", story: story.id }, { causedBy: "#", story: story.id }, { causedBy: story.id, story: story.id }]) {
+    for (const escape of [{ causedBy: "last week", story: story.id }, { causedBy: "#", story: story.id }, { causedBy: story.id, story: story.id }, { causedBy: "#9", story: story.id }, { causedBy: "9", story: story.id }, { causedBy: "#9", commit: "not-hex", story: story.id }, { causedBy: "#9", commit: "abc12", story: story.id }]) {
       await assert.rejects(flight.editIncrement(fix.id, { escape }), SchemaError);
     }
-    for (const [escape, field] of [[{ causedBy: "increment_000000000000", story: story.id }, "escape.causedBy"], [{ causedBy: "#9", story: culprit.id }, "escape.story"]] as const) {
+    for (const [escape, field] of [[{ causedBy: "increment_000000000000", story: story.id }, "escape.causedBy"], [{ causedBy: "#9", commit: "415afe5", story: culprit.id }, "escape.story"]] as const) {
       await assert.rejects(flight.editIncrement(fix.id, { escape }), (error: unknown) => error instanceof MissingReferenceError && error.field === field);
     }
     assert.deepEqual(await transactions.history(), history, "nothing was written");
+    await records.edit(fix.id, { escape: { causedBy: "#2", story: story.id } });
+    assert.deepEqual((await flight.editIncrement(fix.id, { title: "Mend sign-up" }))?.fields.escape, { causedBy: "#2", story: story.id }, "one recorded before commits were asked for stays readable and editable");
     const cleared = await flight.editIncrement(fix.id, { escape: undefined });
     assert.equal("escape" in (cleared?.fields ?? {}), false, "cleared, it names no escape");
     assert.deepEqual((await records.get(fix.id))?.fields, cleared?.fields);
@@ -479,8 +481,8 @@ for (const backend of [memory, postgres]) {
     const plain = await flight.addIncrement({ arc: arc.id, ...WORK });
     assert.equal((await flight.closeIncrement(plain.id, { pr: "#5", disposition: "landed" }))?.fields.escape, "none");
     assert.equal(((await records.get(plain.id))?.fields as { escape?: unknown }).escape, "none");
-    const fix = await flight.addIncrement({ arc: arc.id, ...WORK, escape: { causedBy: "#4", story: story.id } });
-    assert.deepEqual((await flight.closeIncrement(fix.id, { pr: "#6", disposition: "landed" }))?.fields.escape, { causedBy: "#4", story: story.id });
+    const fix = await flight.addIncrement({ arc: arc.id, ...WORK, escape: { causedBy: "#4", commit: "415afe5", story: story.id } });
+    assert.deepEqual((await flight.closeIncrement(fix.id, { pr: "#6", disposition: "landed" }))?.fields.escape, { causedBy: "#4", commit: "415afe5", story: story.id });
     const born = await flight.addIncrement({ arc: arc.id, ...WORK, outcome: { pr: "#7", disposition: "landed" } });
     assert.equal(born.fields.escape, "none");
     const dropped = await flight.addIncrement({ arc: arc.id, ...WORK });
@@ -492,7 +494,7 @@ for (const backend of [memory, postgres]) {
     const unlanded = await flight.correctIncrementClosure(dropped.id, { note: "Reverted", disposition: "failed" }, "It was reverted");
     assert.equal("escape" in (unlanded?.fields ?? {}), false, "corrected away from landed, it answers nothing again");
     const refixed = await flight.correctIncrementClosure(fix.id, { note: "Reverted", disposition: "failed" }, "It was reverted");
-    assert.deepEqual(refixed?.fields.escape, { causedBy: "#4", story: story.id }, "a named escape is kept");
+    assert.deepEqual(refixed?.fields.escape, { causedBy: "#4", commit: "415afe5", story: story.id }, "a named escape is kept");
   });
 
   contract("10.24", "an increment carries a risk line: its tier, rating, depth, radius, depth flags, the stories it touches and the day read, set and cleared by an edit; a tier, number or day out of range, or a story that is not one, is refused with nothing written", async ({ work, flight, records, transactions }) => {

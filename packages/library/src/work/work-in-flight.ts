@@ -21,7 +21,7 @@
  */
 import { byCreation } from "../creation-order.js";
 import { checkReference, checkReferences, liveRecord } from "../references.js";
-import type { SchemaRecord, SchemaRecords, WriteOptions } from "../schema/index.js";
+import { SchemaError, type SchemaRecord, type SchemaRecords, type WriteOptions } from "../schema/index.js";
 import { INCREMENT_STATUSES, type FieldsOf } from "../schema/types.js";
 import * as pending from "./pending-changes.js";
 import type { AppliedPending, Pended, PlanChange, SettledPending, StalePending } from "./pending-changes.js";
@@ -868,6 +868,10 @@ export class WorkInFlight {
     // A cause that is neither a pull request nor an increment's id is the schema's to refuse.
     const escape = fields.escape === "none" ? undefined : fields.escape;
     if (escape?.causedBy.startsWith("increment_") === true) await checkReference(this.#records, "escape.causedBy", escape.causedBy, "increment");
+    // A pull request's number alone may name a change of either history (they restarted at #2 on 2026-10-26).
+    else if (escape !== undefined && escape.commit === undefined) {
+      throw new SchemaError("increment", [{ field: "escape", problem: `field "escape" names pull request ${escape.causedBy} without its merge commit: give the commit too, since pull-request numbers restarted at #2 on 2026-10-26` }]);
+    }
     await checkReference(this.#records, "escape.story", escape?.story, "story");
     await checkReferences(this.#records, "risk.stories", fields.risk?.stories, "story");
   }

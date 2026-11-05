@@ -661,7 +661,7 @@ test("17.20 · library edit's answer for an edit held on the caller's increment 
   const held = await edit.act({ "<id>": form.id, "<fields>": { description: "Where they type it" }, live: false }, context, WORDS);
   const dropPending = `arc increment drop-pending ${increment.id} ${form.id}`;
   assert.ok(held.text.includes(dropPending) && held.text.includes("--live"), held.text);
-  const next = (held.next ?? []).map((step) => step.command);
+  const next = (held.next ?? []).map((step) => step.command ?? "");
   assert.ok(next.some((command) => command.startsWith(dropPending)), JSON.stringify(next));
   assert.ok(next.some((command) => command.startsWith(`library edit ${form.id}`) && command.includes("--live")), JSON.stringify(next));
 });

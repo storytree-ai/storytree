@@ -20,6 +20,7 @@
     "./surfaces/verbs": "./src/surfaces/verbs.ts",
     "./updates/bridge": "./src/updates/bridge.ts",
     "./updates/follow-releases": "./src/updates/follow-releases.ts",
+    "./updates/install-underway": "./src/updates/install-underway.ts",
     "./updates/release-carry": "./src/updates/release-carry.ts",
     "./updates/restart-allowed": "./src/updates/restart-allowed.ts",
     "./updates/restart-limit": "./src/updates/restart-limit.ts",

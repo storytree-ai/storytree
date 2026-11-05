@@ -266,6 +266,20 @@ test("4.40 win32: a release installs through its installer's own progress window
   assert.deepEqual(target?.args, ["--updated", "--force-run"]);
 });
 
+test("4.41 win32: before the handoff, the install is marked underway, naming the next build and its installer", async (t) => {
+  const feed = await fixture(t, "win32");
+  let target: Launch | undefined;
+  let marked: unknown;
+  const lifecycle = background({
+    stopDatabase: async () => { marked = JSON.parse(await readFile(path.join(path.dirname(feed.holds), "installing.json"), "utf8")); },
+    relaunch: (next) => { target = next; },
+    exit: () => {},
+  });
+  feed.version = "0.3.2";
+  assert.equal(await feed.updater(lifecycle.restart, async () => true).check(), "restarting");
+  assert.deepEqual(marked, { nextBuild: "0.3.2", installer: target?.execPath, at: (marked as { at: number }).at });
+});
+
 test("4.4 linux: an AppImage its menu entry started with --no-sandbox, where the kernel blocks the sandbox, restarts the replaced AppImage with it", hostRuns("linux"), async (t) => {
   const feed = await fixture(t, "linux");
   feed.sandboxOff = true;

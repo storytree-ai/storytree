@@ -9,7 +9,7 @@ import type { CodePlaces } from "@storytree/knowledge-core";
 import { KnowledgeGlobePoints, useCodeLighting, type CodeLighting, type CoreUnderSheet, type KnowledgeCore } from "@storytree/knowledge-core/view";
 import { SessionIslandEmphasis } from "./session-emphasis.js";
 import { lightTerritories, territoryLand } from "./territory-land.js";
-import { islandRoadMarks, landFill } from "./island-roads.js";
+import { islandRoadMarks, landFill, lightRoute, type RoutePick } from "./island-roads.js";
 import { capabilityPlates } from "./nameplates.js";
 import { islandRoads } from "../territories/island-roads.js";
 import { islandRelief } from "../territories/island-relief.js";
@@ -18,7 +18,7 @@ import { ClaimMarks } from "./claim-flag.js";
 import { islandLayout, type Link } from "../territories/link-layout.js";
 import { keptVersion, pageTerritorySearcher, searchIsland, subscribeKept } from "../territories/kept-layout.js";
 import { NameplateCrowd, Nameplates, reducedMotion, SelectionRing } from "./island-overlays.js";
-import { focusRotation, globeHover, isGlobeDrag, markerSpot, movingSpots, MOVE_SECONDS, oncePerFrame, pickGlobe, type ForestMode } from "./planet-navigation.js";
+import { focusRotation, globeHover, isGlobeDrag, markerSpot, movingSpots, MOVE_SECONDS, oncePerFrame, pickGlobe, pickRoute, type ForestMode } from "./planet-navigation.js";
 import { claimsOn } from "./planet-update.js";
 import { createGlobeGuide, type GlobePose, type PlacedGlobeControls } from "./globe-guide.js";
 import { createGlobeAside } from "./globe-aside.js";
@@ -110,6 +110,9 @@ export function PlanetView({ core, scene, places, wisps: live, selected, highlig
   const lighting = useCodeLighting(core, codePlaces);
   // Contract 3.26: the selected story's links to other stories light as lanes, on both the sheet's faces (ADR-1043 D3).
   const lanes = useKept(useMemo(() => selectionLanes(scene, selected), [scene, selected]), JSON.stringify);
+  // 3.81: the road or gate picked on the selected island, its route lit in gold; another selection puts it out.
+  const [route, setRoute] = useState<{ story: string; pick: RoutePick }>();
+  useEffect(() => { setRoute(undefined); }, [selected]);
   // The knowledge graph under the glass sheet: each shelf's notes under its place, the selected story's lit (ADR-1043 D5).
   // 3.76: once the selected island's plate has seen its docks, its shelves hang under its territories as laid out by its links.
   const [seenDocks, setSeenDocks] = useState<{ story: string; docks: readonly IslandDock[] | undefined }>();
@@ -129,14 +132,14 @@ export function PlanetView({ core, scene, places, wisps: live, selected, highlig
     const emphasis = shownSurfaces.sessionTints && highlighted?.length ? (highlighted.includes(island.story) ? "held" : "dimmed") : undefined;
     return <>
       {island.land !== undefined && layout.spots.has(island.story) && <Territories story={island.story} land={island.land} coast={coast} links={links} docks={laidBy} claimed={claimed} radius={layout.radius}
-        lighting={lighting} surfaces={shownSurfaces} />}
+        lighting={lighting} surfaces={shownSurfaces} lit={laidBy !== undefined && route?.story === island.story ? route.pick : undefined} />}
       <SessionIslandEmphasis emphasis={emphasis} />
       {emphasis === "held" && <SelectionRing island={local} descriptors={descriptors} onGlobe emphasis />}
       {shownSurfaces.nameplates && <Nameplates island={island} spot={layout.spots.get(island.story)!} coast={coast} links={links} docks={laidBy} radius={layout.radius} selected={selected} dimmed={emphasis === "dimmed"} claimed={claimed} />}
       <SelectionRing island={island.story === selected ? local : undefined} descriptors={descriptors} onGlobe />
       {island.story === selected && <DocksSeen story={island.story} docks={docks} onDocks={setSeenDocks} />}
     </>;
-  }, [wisps, claimed, selected, highlighted, layout.spots, layout.radius, lighting, shownSurfaces, links]);
+  }, [wisps, claimed, selected, highlighted, layout.spots, layout.radius, lighting, shownSurfaces, links, route]);
   const titles = useMemo(() => new Map(scene.islands.map(i => [i.story, i.title])), [scene]);
   const inside = useMemo(() => library && <UnderTheGlass clear={outlines}><GrowingCore core={core} spots={layout.spots} radius={layout.radius} places={codePlaces} sheet={underSheet} growing={growth !== undefined} /></UnderTheGlass>,
     [library, outlines, core, layout.spots, layout.radius, codePlaces, underSheet, growth]);
@@ -145,7 +148,7 @@ export function PlanetView({ core, scene, places, wisps: live, selected, highlig
     globe={globe} offset={turned.current.centre} inside={inside}
     rotation={turned.current.rotation.toArray()} plateChildren={overlays} lanes={lanes} growth={growth} liveRoads={liveRoads}>
     <Navigation islands={layout.islands} radius={layout.radius} titles={titles}
-      rotation={turned.current.rotation} onRotate={onRotate} onPose={setPose} onControls={onControls} onPick={onPick} onNote={onNote} mode={mode} sheet={layout.extent}
+      rotation={turned.current.rotation} onRotate={onRotate} onPose={setPose} onControls={onControls} onPick={onPick} onRoute={setRoute} onNote={onNote} mode={mode} sheet={layout.extent}
       sideOffset={sideOffset ?? 0} aside={aside}
       showFailures={shownSurfaces.grounds || shownSurfaces.territories !== false || shownSurfaces.nameplates || shownSurfaces.roads} />
     <NameplateCrowd selected={selected} />
@@ -250,8 +253,10 @@ const ROAD_LIFT = 0.08;
  * An island's territories (3.14), cut to its coast and laid on its surface, all in the plate's own units; it lights
  * the territories the selected session's window opened (3.18). No file is drawn on them (ADR-1212).
  */
-function Territories({ story, land: given, coast: givenCoast, links, docks: givenDocks, claimed, radius, lighting, surfaces }: {
+function Territories({ story, land: given, coast: givenCoast, links, docks: givenDocks, claimed, radius, lighting, surfaces, lit }: {
   story: string;
+  /** The road or gate picked on the island, whose route lights in gold (3.81). */
+  lit?: RoutePick | undefined;
   land: NonNullable<Island["land"]>;
   coast: readonly (readonly { x: number; z: number }[])[];
   links: readonly Link[];
@@ -285,8 +290,14 @@ function Territories({ story, land: given, coast: givenCoast, links, docks: give
       group.add(islandReliefMarks(relief, onIslandSurface(radius, TERRITORY_LIFT), fill));
       group.add(islandRoadMarks(roads, onIslandSurface(radius, ROAD_LIFT), fill, relief));
     }
-    return { group, map };
+    return { group, map, roads };
   }, [map, coast, tints, radius, roads, relief, onLand]);
+  // 3.81: the picked route in gold, on the roads as drawn now.
+  useLayoutEffect(() => {
+    if (drawn.roads === undefined) return;
+    lightRoute(drawn.group, drawn.roads, lit);
+    invalidate();
+  }, [drawn, lit, invalidate]);
   // ADR-0968: each claim's flag, and on an island with no code its lot, kept across claim changes so each plays its life.
   const marks = useMemo(() => new ClaimMarks(), []);
   useEffect(() => () => marks.dispose(), [marks]);
@@ -344,7 +355,9 @@ export const NAVIGATION_SEAM = "__storytreeCaptureNavigation";
 /** What Navigation hands a capture build's `NAVIGATION_SEAM`. */
 export type CapturedNavigation = { rotation: Quaternion; onRotate: (rotation: Quaternion, offset?: [number, number, number]) => void };
 
-function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onControls, onPick, onNote, mode, showFailures, sideOffset, aside, sheet }: {
+function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onControls, onPick, onRoute, onNote, mode, showFailures, sideOffset, aside, sheet }: {
+  /** Hears a click on a road or gate (3.81), and undefined for a click on anything else. */
+  onRoute: (route: { story: string; pick: RoutePick } | undefined) => void;
   onPose: (pose: GlobePose) => void;
   /** The glass sheet drawn (ADR-1043): a drag pans it, and it opens and goes Home to `sheetOpening`. */
   sheet: SheetExtent;
@@ -673,6 +686,10 @@ function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onCon
       down = undefined;
       if (twisted || from === undefined || from.id !== event.pointerId || from.dragged || from.spin || isGlobeDrag(from, { x: event.clientX, y: event.clientY })) return;
       clearHover();
+      // 3.81: a road or gate lights its route and changes no selection; any other click puts the gold out.
+      const route = modeNow.current === "forest" ? pickRoute(scene, camera, element.getBoundingClientRect(), { x: event.clientX, y: event.clientY }) : undefined;
+      onRoute(route);
+      if (route !== undefined) return;
       const hit = pick(event);
       if (hit?.kind === "note") onNote(hit.id);
       else onPick(hit?.id, hit?.capability);
@@ -704,7 +721,7 @@ function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onCon
       element.removeEventListener("contextmenu", onMenu);
       element.style.cursor = "";
     };
-  }, [camera, gl, scene, onPick, onNote, turnTo, sheet, spinBy, spinTiltBy]);
+  }, [camera, gl, scene, onPick, onRoute, onNote, turnTo, sheet, spinBy, spinTiltBy]);
 
   // Pinned to the canvas, not to the sheet's middle: under a side offset (3.40) the pointer's tooltip, the edge markers
   // and the compass would otherwise move twice.

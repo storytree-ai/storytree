@@ -7,7 +7,7 @@ import { test } from "node:test";
 import { connectAgents, installedToolServerCommand, type RunHarness } from "@storytree/app-setup/connect";
 
 import { toolPaths } from "./payload.js";
-import { openUninstaller, uninstall, uninstallAsks } from "./uninstall.js";
+import { openUninstaller, uninstall, uninstallAsks, withoutPathEntry } from "./uninstall.js";
 
 // Only Codex's command line is fake: it reads and writes the TOML it was pointed at, as the real one does.
 const run: RunHarness = async (_executable, args, options) => {
@@ -292,4 +292,13 @@ test("1.8: on a Mac the .zprofile line goes from ZDOTDIR when zsh reads it there
   assert.equal(readFileSync(m.profile, "utf8"), "# the user's own\nexport EDITOR=vi\n");
   assert.deepEqual(readdirSync(m.home), ["pgdata"]);
   assert.equal(existsSync(m.installDir), false);
+});
+
+test("1.8: taking storytree off a Windows PATH removes only its entry, however its slashes end, and a long run of slashes inside an entry does not stall it", () => {
+  const entry = "C:\\Users\\u\\.storytree\\bin";
+  assert.equal(withoutPathEntry(`C:\\Tools;"${entry}\\";c:\\users\\u\\.storytree\\BIN//;D:\\Other`, entry), "C:\\Tools;D:\\Other");
+  const slashes = `C:${"/".repeat(100_000)}x`;
+  const started = performance.now();
+  assert.equal(withoutPathEntry(`${slashes};${entry}`, entry), slashes);
+  assert.ok(performance.now() - started < 1000, `took ${Math.round(performance.now() - started)} ms`);
 });

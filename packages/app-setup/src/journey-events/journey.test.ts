@@ -129,3 +129,23 @@ test("16.1 preparing a deletion request switches sharing off and clears local ev
     assert.equal(a.state().queued, 0);
   } finally { f.close(); }
 });
+
+test("15.1 a deletion contact that is no email address leaves sharing unavailable, and a long hostile one is turned away at once", () => {
+  const home = mkdtempSync(path.join(os.tmpdir(), "storytree-journey-"));
+  try {
+    const open = (deletionContact: string) => openJourney({ home, appVersion: "0.3.42", configuration: { ...configuration, deletionContact } });
+    for (const contact of ["privacy@example", "privacy@.test", "privacy@example.", "pri vacy@example.test", "a@b@example.test"]) {
+      const journey = open(contact);
+      assert.equal(journey.state().available, false, contact);
+      journey.close();
+    }
+    const valid = open("privacy@mail.example.test");
+    assert.equal(valid.state().available, true);
+    valid.close();
+    const started = performance.now();
+    const hostile = open(`!@!${".".repeat(100_000)} `);
+    assert.ok(performance.now() - started < 1000, `took ${Math.round(performance.now() - started)} ms`);
+    assert.equal(hostile.state().available, false);
+    hostile.close();
+  } finally { rmSync(home, { recursive: true, force: true }); }
+});

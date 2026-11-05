@@ -6,6 +6,7 @@ import type { Selection } from "./panel-selection.js";
 import type { GlobeOpening } from "../surfaces/surfaces.js";
 import { isDrawn } from "./globe-guide.js";
 import { globeName } from "./nameplates.js";
+import { routeOf, type RoutePick } from "./island-roads.js";
 
 export type ForestMode = "forest" | "library";
 
@@ -89,6 +90,39 @@ function pickLand(ray: Raycaster, world: Object3D): { story: string; capability?
     }
   }
   return undefined;
+}
+
+/**
+ * The road or gate on an island's land under the pointer, and what it picks (3.81): only when it is the first of the
+ * land's marks the ray meets, so land standing before it hides it.
+ */
+export function pickRoute(world: Object3D, camera: Camera,
+  box: { left: number; top: number; width: number; height: number }, cursor: { x: number; y: number }): { story: string; pick: RoutePick } | undefined {
+  world.updateMatrixWorld(true);
+  camera.updateMatrixWorld(true);
+  const ray = new Raycaster();
+  ray.setFromCamera(new Vector2(2 * (cursor.x - box.left) / box.width - 1, 1 - 2 * (cursor.y - box.top) / box.height), camera);
+  for (const hit of ray.intersectObject(world, true)) {
+    if (!isDrawn(hit.object)) continue;
+    let story: string | undefined;
+    for (let object: Object3D | null = hit.object; object !== null && story === undefined; object = object.parent) {
+      if (object.name.startsWith("planet:")) story = object.name.slice("planet:".length);
+    }
+    if (story === undefined) continue;
+    const pick = routeOf(hit.object);
+    return pick === undefined ? undefined : { story, pick };
+  }
+  return undefined;
+}
+
+/**
+ * What a click picks (3.81): in Forest, a road or gate first, which lights its route and picks no selection; otherwise
+ * what `pickGlobe` picks, with no route, so any other click puts the gold out.
+ */
+export function pickClick(world: Object3D, camera: Camera,
+  box: { left: number; top: number; width: number; height: number }, cursor: { x: number; y: number }, mode: ForestMode): { route: { story: string; pick: RoutePick } } | { route: undefined; hit: Selection } {
+  const route = mode === "forest" ? pickRoute(world, camera, box, cursor) : undefined;
+  return route !== undefined ? { route } : { route: undefined, hit: pickGlobe(world, camera, box, cursor, mode) };
 }
 
 /** Project the drawn points; in Forest, solid land before a point occludes it. */

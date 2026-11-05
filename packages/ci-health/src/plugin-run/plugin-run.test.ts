@@ -14,6 +14,7 @@ import { connect } from "@storytree/library";
 import { mounted, type DoorWords, type VerbFamily } from "@storytree/library/verbs";
 
 import { HEALTH_FAMILIES } from "../verbs.js";
+import { recordPluginTests } from "./plugin-run.js";
 
 const WORDS: DoorWords = { door: "command", say: (step) => `storytree ${step.command}` };
 
@@ -90,4 +91,46 @@ test("4.1, 3.17 · `health plugin <plugin>`, on the command line only (no record
   assert.match((await record.act({ plugin: "stray" } as never, place as never, WORDS)).text, /no test command/);
   assert.equal((await library.healthHistory(contract.id)).length, 2, "nothing more was written");
   assert.equal((await library.healthHistory(nested.id)).length, 2);
+});
+
+test("4.2 · a factory plugin's run that skips a test for another platform than its own leaves that contract's earlier pass standing; one that skips it for its own platform marks the pass not re-run", async (t) => {
+  // The box's `health plugin micks-agent-runner` skipped 10.1 and 10.2 (platform:win32) and wrote over the laptop's passes (increment_530c1909a93d).
+  const url = process.env.STORYTREE_TEST_PG_URL;
+  if (url === undefined) throw new Error("run the tests via `pnpm test`, which starts a local Postgres");
+  const storytree = await connect({ url });
+  const name = `t-${randomBytes(4).toString("hex")}`;
+  const library = await storytree.openProject(name);
+  t.after(async () => {
+    try {
+      await storytree.dropProject(name);
+    } finally {
+      await storytree.close();
+    }
+  });
+  const factory = mkdtempSync(path.join(tmpdir(), "factory-"));
+  t.after(() => removeTemp(factory));
+  const folder = path.join(factory, "plugins", "runner");
+  mkdirSync(folder, { recursive: true });
+  writeFileSync(path.join(folder, "package.json"), JSON.stringify({ name: "runner", type: "module", scripts: { test: "node --test" } }));
+  const story = await library.addStory({ title: "runner" });
+  const capability = await library.addCapability({ story: story.id, title: "1 · The box's git rides out a refusal" });
+  const contract = await library.addContract({ capability: capability.id, title: "1.1 · The box's setup makes the retry git's ssh" });
+  const run = (skip?: string) => {
+    writeFileSync(path.join(folder, "setup.test.mjs"), `import { test } from "node:test";\ntest("1.1 · the box's setup makes the wrapper git's ssh", ${skip === undefined ? "" : `{ skip: ${JSON.stringify(`${skip}: the setup is the box's bash script`)} }, `}() => {});\n`);
+  };
+  const verified = async (platform: NodeJS.Platform) => {
+    const reading = await recordPluginTests({ library, factory, plugin: "runner", platform });
+    assert.ok(reading.written, JSON.stringify(reading));
+    return (await library.health(contract.id)).verified;
+  };
+
+  run();
+  assert.equal((await verified("linux")).state, "passing");
+  run("platform:linux");
+  assert.equal((await verified("win32")).state, "passing", "a Windows run cannot re-run a Linux-only test, so the box's pass stands");
+  assert.equal((await verified("linux")).state, "not-checked", "a Linux run that skips it did not reproduce the pass");
+  run();
+  assert.equal((await verified("win32")).state, "passing");
+  run("platform:win32");
+  assert.equal((await verified("linux")).state, "passing", "the box cannot re-run a Windows-only test, so the laptop's pass stands");
 });

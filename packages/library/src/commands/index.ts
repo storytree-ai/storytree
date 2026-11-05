@@ -479,7 +479,18 @@ const edit = verb({
       return edited === null ? null : { edited };
     });
     if (done === null) throw new VerbRefusal(`no live ${record.type} "${id}" in this project`);
-    if ("held" in done) return { text: `Your edit of ${record.type} ${id} (${Object.keys(fields).join(", ")}) is ${heldSaid(done.held)}`, next: [{ command: `library read ${done.held}`, why: "see its pending changes" }] };
+    if ("held" in done) {
+      // An increment that will have no branch (a library-only redo) never merges, so the way out is said (friction_f02365572601).
+      const drop = `arc increment drop-pending ${done.held} ${id} --reason <why>`;
+      return {
+        text: `Your edit of ${record.type} ${id} (${Object.keys(fields).join(", ")}) is ${heldSaid(done.held)} If ${done.held} will have no branch, run ${drop}, then this edit again with --live.`,
+        next: [
+          { command: `library read ${done.held}`, why: "see its pending changes" },
+          { command: drop, why: "drop it, when the increment will have no branch to merge" },
+          { command: `library edit ${id} … --live`, why: "then make the edit live, keeping the increment's claim" },
+        ],
+      };
+    }
     const changed = Object.keys(values).join(", ");
     const removed = remove.length === 0 ? "" : `${changed === "" ? "" : ", "}removed ${remove.join(", ")}`;
     return { text: `Edited ${record.type} ${id}: ${changed}${removed}.`, next: [{ command: `library read ${id}`, why: "read it back" }] };

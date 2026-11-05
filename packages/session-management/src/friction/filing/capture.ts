@@ -35,6 +35,8 @@ export interface NewFriction {
   readonly evidence: string;
   readonly impact: string;
   readonly links?: string[];
+  /** The increment it happened in, when the filer was driving one. */
+  readonly increment?: string;
   /** The calling folder's branch; callers outside a repository share the no-branch bucket. */
   readonly branch?: string;
 }
@@ -91,6 +93,7 @@ const QUOTED = /["“][^"”]{3,}["”]/;
  */
 export async function recordFriction(library: Library, friction: NewFriction, options?: WriteOptions): Promise<SchemaRecord<"friction">> {
   requireConcreteEvidence(friction.evidence);
+  await requireIncrement(library, friction);
   const { branch = "(no branch)", ...fields } = friction;
   const date = new Date().toISOString().slice(0, 10);
   const today = (await library.list("friction")).filter(({ fields }) =>
@@ -105,6 +108,21 @@ export async function recordFriction(library: Library, friction: NewFriction, op
     throw new CaptureError(`Filing cap: 3 friction items already filed on "${branch}" for ${date} by this session (ADR-0716; ADR-0168 D3). Distil to the three that fought you hardest, or use storytree friction reinforce <id> --evidence ... for a recurrence.`);
   }
   return library.writeKnowledge("friction", { ...fields, provenance: { branch, date, source: "retro" } }, options);
+}
+
+/**
+ * The increment friction names is a live increment, and none is in its links, which name only artifacts: the refusal
+ * names the field that takes it, so the filer keeps the pointer to where the friction happened.
+ */
+async function requireIncrement(library: Library, friction: NewFriction): Promise<void> {
+  for (const link of friction.links ?? []) {
+    if ((await library.get(link))?.type === "increment") {
+      throw new CaptureError(`links names ${JSON.stringify(link)}, an increment: links name only artifacts, so give the increment it happened in as "increment" instead.`);
+    }
+  }
+  if (friction.increment !== undefined && (await library.get(friction.increment))?.type !== "increment") {
+    throw new CaptureError(`increment names ${JSON.stringify(friction.increment)}: there is no live increment with that id.`);
+  }
 }
 
 /** An earlier friction report, as filing shows it: enough to judge whether it is the same problem. */

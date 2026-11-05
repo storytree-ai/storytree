@@ -34,3 +34,5 @@ Pictures, 1440 x 960:
 
 Taken with `node --import tsx packages/forest/testing/view/open-work/capture.mjs --retake`, which also counts every ring and
 dim shown from the scene into `measurements.json`.
+
+In the evidence bucket for #519, linked from the pull request body (ADR-1234; deleted after 90 days or when its arc closes): `519/no-arc-selected.png`, `519/no-arc-selected-the-library.png`, `519/arc-selected.png`, `519/arc-selected-far.png`, `519/arc-selected-the-library.png`, `519/arc-selected-the-arc-surface.png`, `519/before-dots-no-arc-selected-close.png`.

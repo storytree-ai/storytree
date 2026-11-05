@@ -20,6 +20,7 @@
  * and that an increment moves only forward. A refusal throws with nothing written.
  */
 import { byCreation } from "../creation-order.js";
+import { Knowledge } from "../knowledge/knowledge.js";
 import { checkReference, checkReferences, liveRecord } from "../references.js";
 import { SchemaError, type SchemaRecord, type SchemaRecords, type WriteOptions } from "../schema/index.js";
 import { INCREMENT_STATUSES, type FieldsOf } from "../schema/types.js";
@@ -192,10 +193,13 @@ export class WorkInFlight {
   readonly #work: WorkModel;
   /** The last write queued through this layer; the next one starts once it has settled. */
   #lastWrite: Promise<unknown> = Promise.resolve();
+  /** The friction record's writer, through which a close moves the reports it remedies (ADR-1242 D2). */
+  readonly #knowledge: Knowledge;
 
   constructor(records: SchemaRecords, work: WorkModel = new WorkModel(records)) {
     this.#records = records;
     this.#work = work;
+    this.#knowledge = new Knowledge(records);
   }
 
   /**
@@ -799,7 +803,8 @@ export class WorkInFlight {
   }
 
   /**
-   * Move the friction an increment remedies as its close says (ADR-1016 D2). Landed, each report
+   * Move the friction an increment remedies as its close says (ADR-1016 D2), through Knowledge
+   * artifacts' settleRemedy, the friction record's one writer (ADR-1242 D2). Landed, each report
    * not yet resolved is resolved, stamped with the pull request, or the increment when it has none.
    * Failed or withdrawn, each still owed its remedy goes back to the drain, open with its route
    * cleared, unless another open increment remedies it. A closure corrected from landed does that to
@@ -817,20 +822,9 @@ export class WorkInFlight {
         .flatMap(({ fields }) => fields.remedies ?? []),
     );
     const write = { ...options, reason: `increment ${increment.id} closed ${close.disposition} (ADR-1016 D2)` };
+    const undoing = landedBefore ? stampOf(increment.id, previous?.pr) : undefined;
     for (const id of remedies) {
-      const report = await liveRecord(this.#records, id, ["friction"]);
-      if (report === null) continue;
-      const { state, route, dischargedBy } = report.fields as FieldsOf<"friction">;
-      if (close.disposition === "landed") {
-        if (state !== "resolved") await this.#records.edit(id, { state: "resolved", dischargedBy: stamp }, write);
-        continue;
-      }
-      const owed = landedBefore ? state === "resolved" && dischargedBy === stampOf(increment.id, previous?.pr) : state === "routed";
-      if (!owed) continue;
-      const reopen = elsewhere.has(id) && route !== undefined
-        ? { state: "routed" as const, dischargedBy: undefined }
-        : { state: "open" as const, route: undefined, routeReason: undefined, dischargedBy: undefined };
-      await this.#records.edit(id, reopen, write);
+      await this.#knowledge.settleRemedy(id, close.disposition === "landed" ? { landed: true, stamp } : { landed: false, undoing, remediedElsewhere: elsewhere.has(id) }, write);
     }
   }
 

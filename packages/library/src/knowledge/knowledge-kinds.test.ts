@@ -1,5 +1,5 @@
 /**
- * Capability 6 · Knowledge and memory, grown by ADR-0640 and ADR-0956: contracts 6.6, 6.7, 6.12, 6.13, 6.14, 6.15 and 6.16
+ * Capability 6 · Knowledge and memory, grown by ADR-0640 and ADR-0956: contracts 6.6, 6.7, 6.12, 6.13, 6.14, 6.15 and 6.16 (6.18 and 6.19, the friction a close moves, in work-in-flight.test.ts)
  * in the library story, each run on BOTH backends, as 6.1-6.5 are (knowledge-memory.test.ts):
  *
  * - memory: a Knowledge over SchemaRecords over a fresh MemoryTransactions;

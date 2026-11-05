@@ -155,7 +155,7 @@ const dockOffsets = (plan: { docks: { story: string; point: { x: number; y: numb
     return [dock.story, Math.hypot(dock.point.x - x, dock.point.y - y, dock.point.z - z)] as const;
   });
 
-test('4.37 a layout whose islands all moved by one shift draws the roads at once, moved with them, routes nothing, and draws none of them on again', async () => {
+test('4.37 a layout whose islands all moved by one shift draws the roads and lanes at once, moved with them, routes nothing, and draws none of them on again', async () => {
   const spots = onSheet({ x: 0, y: 0 });
   const { router, asked } = heldRouter();
   const first = routedDrawing(scene, spots, SHEET_RADIUS, drawnAtOnce(scene, spots, SHEET_RADIUS).routing!, router, new AbortController().signal);
@@ -168,12 +168,15 @@ test('4.37 a layout whose islands all moved by one shift draws the roads at once
   assert.equal(asked.length, 1, 'the router was asked once');
   assert.equal(now.drawing.plan.segments.length, drawn.plan.segments.length, 'the roads are drawn at once');
   assert.deepEqual(now.drawing.plan.edges, drawn.plan.edges);
-  const before = dockOffsets(drawn.plan, spots), after = dockOffsets(now.drawing.plan, shifted);
-  assert.equal(after.length, before.length);
-  after.forEach(([story, reach], i) => {
-    assert.equal(story, before[i]![0]);
-    assert.ok(Math.abs(reach - before[i]![1]) < 0.1, `each dock still stands on its island's coast (${reach} against ${before[i]![1]})`);
-  });
+  assert.deepEqual(now.drawing.plan.lanes.edges, drawn.plan.lanes.edges, 'and the lanes, routed on their own, too');
+  for (const [was, is] of [[drawn.plan, now.drawing.plan], [drawn.plan.lanes, now.drawing.plan.lanes]] as const) {
+    const before = dockOffsets(was, spots), after = dockOffsets(is, shifted);
+    assert.ok(after.length > 0 && after.length === before.length);
+    after.forEach(([story, reach], i) => {
+      assert.equal(story, before[i]![0]);
+      assert.ok(Math.abs(reach - before[i]![1]) < 0.1, `each road's and lane's dock still stands on its island's coast (${reach} against ${before[i]![1]})`);
+    });
+  }
   const arrived = nextLiveRoads(new Map(), drawn.plan, 0);
   assert.equal(nextLiveRoads(arrived, now.drawing.plan, 5), arrived, 'a live globe draws none of the moved roads on again');
   const apart = drawnAtOnce(scene, onSheet({ x: 23, y: -11 }, 90), SHEET_RADIUS, { spots: shifted, radius: SHEET_RADIUS, drawing: now.drawing });

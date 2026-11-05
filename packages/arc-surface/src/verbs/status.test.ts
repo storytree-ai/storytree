@@ -1,5 +1,5 @@
 /**
- * Capability 3 · Arc surface: contracts 3.13, 3.14 and 3.24, `arc status`, and 3.25, a wait on a capability's claim as the
+ * Capability 3 · Arc surface: contracts 3.13, 3.14 and 3.24, `arc status`, and 3.25 and 3.26, a wait on a capability's claim as the
  * board, `arc show` and `arc waits` read it, run with a caller on a fresh project's library and activity log on the real
  * Postgres `pnpm test` provides.
  */
@@ -201,5 +201,45 @@ test("3.25 · the board, `arc show` and `arc waits` read a wait on a capability'
   await library.editIncrement(panel.id, { capabilities: [surface.id] });
   assert.equal((await claim({ ...holder, session: "claude-lane", harness: "claude-code" as const }, panel.id, "building the panel")).ok, true);
   assert.match(await shown(), new RegExp(`waits on ${surface.id}`));
+  assert.deepEqual((await bar()).waits.map(({ id }) => id), [surface.id]);
+});
+
+test("3.26 · a wait on a capability's claim reads cleared on the board, in `arc show` and in `arc status` while the only live session holding that capability holds it for the waiting increment itself, and holding while one holds it for other work", async (t) => {
+  const { library, log, project } = await aProject(t);
+  const context: ArcVerbContext = { library, log, project, session: "person:test", folder: "/work", writer: { actor: "person:test" } };
+  const arcVerbs = ARC_FAMILIES.find((family) => family.name === "arc")!.verbs;
+  const verbNamed = (name: string) => arcVerbs.find((one) => "name" in one.command && one.command.name === name) as Verb<VerbInputs, ArcVerbContext>;
+  const story = await library.addStory({ title: "Visitor sees the arcs" });
+  const surface = await library.addCapability({ title: "Arc surface", story: story.id });
+  const queue = await library.addCapability({ title: "Queue", story: story.id });
+  const arc = await anArc(library, "Speed");
+  const fix = await work(library, arc.id, "Open-app speed fix");
+  await library.editIncrement(fix.id, { capabilities: [surface.id] });
+  await library.addWait(fix.id, surface.id, "refused: another session holds it");
+  await library.addWait(fix.id, queue.id, "refused: queue is taken");
+
+  const shown = async () => (await verbNamed("show").act({ arc: arc.id }, context, WORDS)).text;
+  const line = async () => (await status.act({}, context, WORDS)).text.split("\n").find((one) => one.includes(arc.id))!;
+  const bar = async () => {
+    const [arcs, holds, { lines }] = await Promise.all([library.boardArcs(recentWindow(Date.now())), library.holds(), log.since(project, 0)]);
+    const board = boardView({ arcs: [...arcs], waits: { ...holds.waits }, heldOn: { ...holds.heldOn }, waitsFor: { ...holds.waitsFor } }, lines, new Date());
+    return board.lanes.flatMap(({ bars }) => bars).find(({ id }) => id === fix.id)!;
+  };
+
+  // The holder let both go and the waiting increment's own lane takes it: its list holds one, and it claims the other under it.
+  const lane = { log, library, project, session: "claude-lane", harness: "claude-code" as const };
+  assert.equal((await claim(lane, fix.id, "building the fix")).ok, true);
+  assert.equal((await claim(lane, queue.id, "the fix needs the queue")).ok, true);
+  assert.doesNotMatch(await shown(), /waits on capability_/);
+  assert.doesNotMatch(await line(), /waits on capability_/);
+  assert.deepEqual((await bar()).waits, []);
+
+  // Another session holding it for other work still holds the wait.
+  const other = await anArc(library, "Panels");
+  const panel = await work(library, other.id, "Panel");
+  await library.editIncrement(panel.id, { capabilities: [surface.id] });
+  assert.equal((await claim({ ...lane, session: "codex-lane", harness: "codex" as const }, panel.id, "building the panel")).ok, true);
+  assert.match(await shown(), new RegExp(`waits on ${surface.id}: refused: another session holds it`));
+  assert.doesNotMatch(await shown(), new RegExp(`waits on ${queue.id}`));
   assert.deepEqual((await bar()).waits.map(({ id }) => id), [surface.id]);
 });

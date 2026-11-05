@@ -267,7 +267,8 @@ async function dispatch(argv: readonly string[], heard: Heard, context: Context)
     throw new Refusal(`storytree ${family!.name} is not mounted: ${offSaid(off)}`, { next: [{ command: `storytree settings set part ${off.because} on`, why: "switch it on" }] });
   }
   if (family === undefined) {
-    if (Object.hasOwn(POINTERS, first)) return pointedBy(first, rest, heard, context);
+    const pointed = [`${first} ${rest[0]}`, first].find((words) => Object.hasOwn(POINTERS, words));
+    if (pointed !== undefined) return pointedBy(pointed, pointed === first ? rest : rest.slice(1), heard, context);
     const held = await unnamedHolderOf(first);
     if (held !== undefined) {
       const naming = `storytree settings set part ${held.part} plugin ${held.plugin}`;

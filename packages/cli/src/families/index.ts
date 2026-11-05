@@ -48,6 +48,8 @@ export const POINTERS: Readonly<Record<string, string>> = {
   "plan show": "plan",
   "contract new": "library new contract",
   "contract health": "contract show",
+  "story show": "tree",
+  "story list": "library list story",
 };
 
 /** The families still kept here, each at the place it takes among the declared ones in `storytree`'s list. */

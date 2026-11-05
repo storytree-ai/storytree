@@ -310,6 +310,8 @@ test("1.36 a word agents guess for a job a command already does runs that comman
     const waited = await world.run(["wait", "--help"]);
     const shown = await world.run(["adr", "show", "--help"]);
     const owned = await world.run(["file-owners", "README.md"]);
+    const story = await world.run(["story", "show", "--help"]);
+    const stories = await world.run(["story", "list", "--help"]);
 
     assert.equal(waited.code, 0, waited.stderr);
     assert.match(waited.stdout, /storytree wait is storytree arc increment wait\n/);
@@ -320,6 +322,12 @@ test("1.36 a word agents guess for a job a command already does runs that comman
     assert.equal(owned.code, 0, owned.stderr);
     assert.match(owned.stdout, /storytree file-owners is storytree workspace owners\n/);
     assert.match(owned.stdout, /README\.md: in no story's package/);
+    assert.equal(story.code, 0, story.stderr);
+    assert.match(story.stdout, /storytree story show is storytree tree\n/);
+    assert.equal(stories.code, 0, stories.stderr);
+    assert.match(stories.stdout, /storytree story list is storytree library list story\n/);
+    assert.match(stories.stdout, /storytree library list <kind>/);
+    assert.match(story.stdout, /storytree tree \[<story>\]/);
   });
 });
 

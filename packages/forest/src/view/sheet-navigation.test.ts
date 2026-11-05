@@ -455,7 +455,7 @@ test("3.76 under the selected island each capability's knowledge shelf hangs ben
     const layout = sheetLayout(scene, places, undefined, laid), middle = layout.under.shelfAt("a")!, shelf = layout.under.shelfAt(capability)!;
     return { x: shelf.x - middle.x, z: middle.y - shelf.y };
   };
-  const laid = islandLayout(land.territories, coast, links, docks), own = islandTerritories(land.territories, coast);
+  const laid = islandLayout("a", land.territories, coast, links, docks), own = islandTerritories(land.territories, coast);
   const close = (p: { x: number; z: number }, q: { x: number; z: number }) => Math.hypot(p.x - q.x, p.z - q.z) < 1e-9;
   for (const capability of capabilities) {
     assert.ok(close(shelfOf({ story: "a", docks }, capability), middleOf(laid, capability)), `${capability} hangs under its laid-out territory on the selected island`);

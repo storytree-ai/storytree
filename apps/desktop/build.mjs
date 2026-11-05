@@ -11,7 +11,7 @@ import { build } from "esbuild";
 import { embedTreeSitterWasm } from "@storytree/map/tree-sitter-bundle";
 import { mainBuild, preloadBuild } from "./src/main/bundles.ts";
 import { pageBuild } from "./src/renderer/page-build.ts";
-import { roadWorkerBuild } from "./src/renderer/road-worker.ts";
+import { roadWorkerBuild, territoryWorkerBuild } from "./src/renderer/road-worker.ts";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const dist = path.join(here, "dist");
@@ -44,6 +44,8 @@ await build({ ...common, ...pageBuild(path.join(dist, "renderer")) });
 
 // The map's roads are routed in this worker, off the page's main thread (contract 3.18).
 await build({ ...common, ...roadWorkerBuild(path.join(dist, "renderer")) });
+// The selected island's territory search runs in this one, never on the page (the forest's 3.80).
+await build({ ...common, ...territoryWorkerBuild(path.join(dist, "renderer")) });
 
 cpSync(fileURLToPath(import.meta.resolve("@storytree/arc-surface/view/styles.css")), path.join(dist, "renderer", "arc-surface.css"));
 cpSync(fileURLToPath(import.meta.resolve("@storytree/app-setup/view/styles.css")), path.join(dist, "renderer", "app-setup.css"));

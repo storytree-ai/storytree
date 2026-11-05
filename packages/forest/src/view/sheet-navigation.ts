@@ -59,7 +59,7 @@ export function sheetLayout(scene: ForestScene, places: ReadonlyMap<string, numb
     for (const tree of island.trees) if (tree.capability !== undefined) { stories.set(tree.capability, island.story); shelves.set(tree.capability, middle); }
     if (island.land === undefined) continue;
     // A capability's shelf hangs under its territory's middle: on the plate x runs east and z south.
-    const map = islandLayout(island.land.territories, islandCoast(island), scene.links ?? [], island.story === laid?.story ? laid.docks : undefined);
+    const map = islandLayout(island.story, island.land.territories, islandCoast(island), scene.links ?? [], island.story === laid?.story ? laid.docks : undefined);
     map.territories.forEach((territory, index) => {
       if (territory.capability === undefined) return;
       const cells = map.cells.filter(cell => cell.territory === index);

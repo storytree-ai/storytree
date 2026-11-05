@@ -37,5 +37,11 @@ await build({
   } }],
   loader: { '.glb': 'binary', '.png': 'dataurl', '.webp': 'dataurl', '.woff2': 'dataurl' },
 });
+// Rollout 2, step 2b: the map's territory search worker (the forest's 3.80), which the page names as the desktop's does,
+// so the selected island is searched off the page and drawn as the search keeps it (docks.mjs --searched waits for that).
+await build({
+  absWorkingDir: website, entryPoints: [path.join(website, 'src/territories/search-worker.ts')], outfile: path.join(to, 'territory-worker.js'),
+  bundle: true, minify: true, logLevel: 'warning', legalComments: 'none', platform: 'browser', format: 'iife', target: 'es2022',
+});
 copyFileSync(path.join(here, 'index.template.html'), path.join(to, 'index.html'));
-console.log(`Built index.html, page.js and page.css from the real map code into ${to}.`);
+console.log(`Built index.html, page.js, territory-worker.js and page.css from the real map code into ${to}.`);

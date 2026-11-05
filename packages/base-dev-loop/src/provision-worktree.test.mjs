@@ -13,7 +13,7 @@ import { fileURLToPath } from "node:url";
 
 import { quietFor, removeTemp } from "@storytree/test-waits";
 
-import { check, cloudMain, cloudNode, connectCloud, hookOutput, installEnvironment, installedNodes, pnpmInstall, provision, serve } from "./provision-worktree.mjs";
+import { check, cloudMain, cloudNode, connectCloud, hookOutput, installEnvironment, installedNodes, pinnedNode, pnpmInstall, provision, serve } from "./provision-worktree.mjs";
 
 const script = fileURLToPath(new URL("./provision-worktree.mjs", import.meta.url));
 
@@ -687,4 +687,37 @@ test("3.9 a cloud fetch that fails or runs past its time limit is logged, never 
   assert.match(slow.join("\n"), /could not fetch origin's main.*1 ms/);
   const hook = await run(process.execPath, [script, "--hook", "--root", root], { env: cloudEnv() });
   assert.equal(hook.status, 0);
+});
+
+/** A root pinning Node.js to `pin` in .node-version, or with no pin when `pin` is undefined. */
+function pinned(t, pin) {
+  const root = mkdtempSync(path.join(tmpdir(), "provision-pin-"));
+  t.after(() => removeTemp(root));
+  if (pin !== undefined) writeFileSync(path.join(root, ".node-version"), `${pin}\n`);
+  return root;
+}
+
+test("3.10 on Windows a Node.js other than the pin is named with winget's command for exactly the pinned version, never a bare upgrade", (t) => {
+  const root = pinned(t, "24.22.1");
+  const message = pinnedNode({ root, version: "v24.19.0", platform: "win32", env: {} });
+  assert.match(message, /Node\.js v24\.19\.0 runs here, but this project pins 24\.22\.1 \(\.node-version\)/);
+  assert.match(message, /`winget install --id OpenJS\.NodeJS\.LTS --exact --version 24\.22\.1 --force`/);
+  assert.doesNotMatch(message, /winget upgrade/);
+});
+
+test("3.10 where nvm is, the command installs the pinned version and makes it nvm's default", (t) => {
+  const root = pinned(t, "24.22.1");
+  const message = pinnedNode({ root, version: "v24.23.0", platform: "linux", env: { NVM_DIR: "/home/u/.nvm" } });
+  assert.match(message, /Node\.js v24\.23\.0 runs here, but this project pins 24\.22\.1/);
+  assert.match(message, /`nvm install 24\.22\.1 && nvm alias default 24\.22\.1`/);
+});
+
+test("3.10 with no version manager it knows, the session is told the exact version to install", (t) => {
+  const root = pinned(t, "24.22.1");
+  assert.match(pinnedNode({ root, version: "v26.13.0", platform: "darwin", env: {} }), /install Node\.js 24\.22\.1 exactly/);
+});
+
+test("3.10 the pinned Node.js, or a root with no pin, says nothing", (t) => {
+  assert.equal(pinnedNode({ root: pinned(t, "24.22.1"), version: "v24.22.1", platform: "win32", env: {} }), undefined);
+  assert.equal(pinnedNode({ root: pinned(t, undefined), version: "v24.19.0", platform: "win32", env: {} }), undefined);
 });

@@ -49,6 +49,12 @@ test("5.2 a question is read statement first with trade-offs, a non-binding reco
   const noDiagram = questionReading({ id: "q", fields: { ...fields, diagram: undefined } });
   assert.equal(noDiagram.diagram, "No diagram stored");
   assert.equal(noDiagram.hasDiagram, false);
+
+  const hostile = `A. Long FOR:${" ".repeat(400_000)}no case against`;
+  const started = performance.now();
+  const long = questionReading({ id: "q", fields: { ...fields, options: hostile } });
+  assert.ok(performance.now() - started < 1000, "an option with a long run of spaces and no AGAINST: is read in one pass");
+  assert.deepEqual(long.options, [{ summary: hostile, for: "", against: "" }]);
 });
 
 test("5.3 a settled question published with only its title and answer opens on those two, with no empty headings", () => {

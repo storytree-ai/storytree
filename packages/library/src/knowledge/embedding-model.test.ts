@@ -42,7 +42,7 @@ test("14.13 · behind HTTPS_PROXY the model's download goes through the proxy, a
     assert.match(error.message, /huggingface\.co/);
     assert.match(error.message, /cdn\.hf\.co/);
     assert.match(error.message, /Allowed domains/);
-    assert.doesNotMatch(error.message, new RegExp(proxy.url.replace(/[.:/]/g, "\\$&")), "the proxy's address, which may carry a password, is not repeated");
+    assert.ok(!error.message.includes(proxy.url), "the proxy's address, which may carry a password, is not repeated");
     return true;
   });
   assert.ok(proxy.asked.some((line) => line.startsWith("CONNECT huggingface.co:443")), `the download asked the proxy: ${proxy.asked.join(", ")}`);

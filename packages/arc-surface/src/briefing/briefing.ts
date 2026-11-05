@@ -50,11 +50,24 @@ export interface IncrementRow {
 
 const wordsIn = (text: string | undefined) => text?.trim() ? text.trim().split(/\s+/u).length : 0;
 
+/** The text cut at each marker's first match after the one before, without each marker, or undefined when one is missing: one pass, however the text repeats. */
+function splitAt(text: string, markers: readonly RegExp[]): string[] | undefined {
+  const parts: string[] = [];
+  let rest = text;
+  for (const marker of markers) {
+    const found = marker.exec(rest);
+    if (found === null) return undefined;
+    parts.push(rest.slice(0, found.index));
+    rest = rest.slice(found.index + found[0].length);
+  }
+  return [...parts, rest];
+}
+
 /** Options follow the existing FOR:/AGAINST: convention; older prose remains intact. */
 function optionsIn(text: string): Option[] {
   return text.split(/\n\s*\n/u).map((paragraph) => {
-    const parts = /^(.*?)\bFOR:\s*(.*?)\bAGAINST:\s*(.*)$/su.exec(paragraph.trim());
-    return parts ? { summary: parts[1]!.trim(), for: parts[2]!.trim(), against: parts[3]!.trim() } : { summary: paragraph.trim(), for: "", against: "" };
+    const parts = splitAt(paragraph.trim(), [/\bFOR:/u, /\bAGAINST:/u]);
+    return parts ? { summary: parts[0]!.trim(), for: parts[1]!.trim(), against: parts[2]!.trim() } : { summary: paragraph.trim(), for: "", against: "" };
   }).filter((option) => option.summary || option.for || option.against);
 }
 

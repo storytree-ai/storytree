@@ -3,7 +3,8 @@ import test from 'node:test';
 import { AmbientLight, BackSide, Box3, DirectionalLight, DoubleSide, FrontSide, Group, Mesh as ThreeMesh, MeshLambertMaterial, MeshStandardMaterial, PerspectiveCamera, Quaternion, Raycaster, Vector3, type BufferAttribute, type Mesh } from 'three';
 import { PLATE_CLEARANCE, plateTransform } from './planet.js';
 import { hollowIsland, islandSurface } from './island-surface.js';
-import { applySheetEye, clearGlass, hangUnderTheGlass, SHEET_FOV, SHEET_GLASS_THICKNESS, SHEET_LAND_LIFT, SHEET_LAND_THICKNESS, SHEET_RADIUS, SHEET_TILT, sheetEyeZoom, sheetGlass, sheetLights, sheetPoint, sheetSpot } from './sheet.js';
+import { applySheetEye, clearGlass, hangUnderTheGlass, SHEET_FOV, SHEET_GLASS_THICKNESS, SHEET_LAND_LIFT, SHEET_LAND_THICKNESS, SHEET_RADIUS, SHEET_TILT, sheetEyeZoom, sheetGlass, sheetKeptOnResize, sheetLights, sheetPoint, sheetSpot } from './sheet.js';
+import { applyPlanetSideOffset } from './camera.js';
 
 /** The page's eye on the sheet: a perspective one looking straight down at the glass's middle, framed to `zoom`. */
 function sheetEye(zoom: number, reach: number, size = { width: 1440, height: 960 }) {
@@ -192,4 +193,40 @@ test('3.9 an animating glass sheet redraws its panes and edge, far face then nea
     assert.deepEqual(part.geometry.groups.map(({ start, count, materialIndex }) => ({ start, count, side: materials[materialIndex!]!.side })),
       [{ start: 0, count: whole, side: BackSide }, { start: 0, count: whole, side: FrontSide }], `${name} draws both faces, far first`);
   }
+});
+
+test('4.43 a frame that changes size keeps the zoom and the place under the edge that did not move, as its canvas takes the new size', () => {
+  const reach = Math.hypot(3200, 900), before = { width: 920, height: 700, left: 280 };
+  const camera = sheetEye(0.5, reach, before);
+  applyPlanetSideOffset(camera, before, -120);
+  // Two places at the middle of the view's depth, where the zoom is read, in page pixels: across from the frame's left and right
+  // edges, and down from its top.
+  const drawn = (frame: typeof before) => [new Vector3(40, 20, SHEET_RADIUS + PLATE_CLEARANCE), new Vector3(-60, -10, SHEET_RADIUS + PLATE_CLEARANCE)].map(at => {
+    camera.updateMatrixWorld();
+    const seen = at.project(camera);
+    const x = frame.left + (seen.x + 1) / 2 * frame.width;
+    return { fromLeft: x, fromRight: frame.left + frame.width - x, y: (1 - seen.y) / 2 * frame.height };
+  });
+  const resize = (from: typeof before, to: typeof before) => {
+    // What the canvas's root does as it takes the new size, then what the sheet's eye keeps.
+    camera.aspect = to.width / to.height;
+    camera.updateProjectionMatrix();
+    sheetKeptOnResize(camera, reach, from, to);
+  };
+  const shown = drawn(before), spread = (at: { fromLeft: number }[]) => at[0]!.fromLeft - at[1]!.fromLeft;
+  const near = (a: number, b: number, what: string) => assert.ok(Math.abs(a - b) < 1e-6, `${what}: ${a} against ${b}`);
+
+  // The sidebar hides: the frame's left edge moves out to the window's, its right edge stays.
+  const hidden = { width: 1200, height: 700, left: 0 };
+  resize(before, hidden);
+  drawn(hidden).forEach((at, i) => { near(at.fromRight, shown[i]!.fromRight, 'from the right edge'); near(at.y, shown[i]!.y, 'from the top'); });
+  // Shown again, the view is as it was.
+  resize(hidden, before);
+  drawn(before).forEach((at, i) => near(at.fromLeft, shown[i]!.fromLeft, 'back where it was'));
+  // The window narrows and shortens from its right and bottom: the left edge stays, and so do the pixels per unit.
+  const smaller = { width: 700, height: 500, left: 280 };
+  resize(before, smaller);
+  const now = drawn(smaller);
+  near(now[0]!.fromLeft - now[1]!.fromLeft, spread(shown), 'the zoom');
+  near(now[0]!.y - now[1]!.y, shown[0]!.y - shown[1]!.y, 'the zoom down the frame');
 });

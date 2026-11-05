@@ -10,6 +10,7 @@ import { useEffect, useMemo, useRef, type ReactNode } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { AmbientLight, BackSide, BufferGeometry, DirectionalLight, Float32BufferAttribute, FrontSide, Group, LineBasicMaterial, LineSegments, Mesh, MeshBasicMaterial, MeshLambertMaterial, PlaneGeometry, Quaternion, Vector3, type Camera, type Light, type Object3D, type PerspectiveCamera } from 'three';
 import { PLATE_CLEARANCE, type PlanetSpot } from './planet.js';
+import { applyPlanetSideOffset } from './camera.js';
 
 /** The radius of the sphere whose near pole is the sheet, in ground units. */
 export const SHEET_RADIUS = 200_000;
@@ -86,6 +87,19 @@ export function applySheetEye(camera: PerspectiveCamera, reach: number, zoom: nu
   camera.zoom = 1;
   camera.position.setLength(SHEET_RADIUS + PLATE_CLEARANCE + focal(size) / Math.max(zoom, Number.EPSILON));
   sheetDepthRange(camera, reach);
+}
+
+/**
+ * 4.43: the eye kept as its frame changes size from `from` to `to` (CSS pixels, `left` the frame's page edge), as the canvas
+ * takes the new size: the same pixels per unit, and the middle of the view the same distance from the edge that did not move
+ * (the right one when the left moved, as a sidebar hides, shows or is dragged). It goes with the canvas's own resize, so no
+ * frame is drawn at the new size with the view the old size set; the pose the host sets afterwards for that size is its own.
+ */
+export function sheetKeptOnResize(camera: PerspectiveCamera, reach: number, from: { width: number; height: number; left: number }, to: { width: number; height: number; left: number }): void {
+  const zoom = sheetEyeZoom(camera, from), offset = camera.view?.enabled ? -camera.view.offsetX : 0;
+  const grown = (to.width - from.width) / 2;
+  applySheetEye(camera, reach, zoom, to);
+  applyPlanetSideOffset(camera, to, offset + (to.left !== from.left ? grown : -grown));
 }
 
 /**

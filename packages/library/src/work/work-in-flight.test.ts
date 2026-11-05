@@ -495,6 +495,30 @@ for (const backend of [memory, postgres]) {
     assert.deepEqual(((await records.get(fix.id))?.fields as { escape?: unknown }).escape, corrected?.fields.escape);
   });
 
+  contract("10.42", "an increment from the owner's answer, landed with a note and no pull request, records an FYI of what it found, so it is offered to him until heard; one with a pull request, not landed, or not from his answer records none", async ({ flight, transactions }) => {
+    const fyis = async () => (await transactions.list("fyi")).map(({ fields }) => fields);
+    const arc = await flight.createArc(ARC);
+    const findings = "Findings: all junk, no real change.";
+    const check = await flight.addIncrement({ arc: arc.id, ...BARE_WORK, title: "Check main", body: "From a voice note (note voice.note_c8ff1fd5c25c)." });
+    await flight.closeIncrement(check.id, { note: findings, disposition: "landed" }, { actor: "session:lane" });
+    const [fyi, ...more] = await fyis();
+    assert.deepEqual(more, []);
+    assert.deepEqual({ ...fyi, at: undefined }, { title: "What your answer found: Check main", what: findings, about: check.id, by: "session:lane", at: undefined }, "it carries the findings, about the increment, unheard");
+
+    const settled = await flight.addIncrement({ arc: arc.id, ...BARE_WORK, title: "Settled check", body: "Settled on question_0dd10e796878 (option A)." });
+    await flight.closeIncrement(settled.id, { note: "Nothing found", disposition: "landed" });
+    const born = await flight.addIncrement({ arc: arc.id, ...BARE_WORK, title: "Born closed", body: "From voice.note_aee6429a7a68.", outcome: { note: "Done by hand", disposition: "landed" } });
+    assert.deepEqual((await fyis()).map(({ about }) => about), [check.id, settled.id, born.id], "a question he settled, or work recorded already closed, counts too");
+
+    const built = await flight.addIncrement({ arc: arc.id, ...BARE_WORK, title: "Built", body: "From voice.note_c8ff1fd5c25c." });
+    await flight.closeIncrement(built.id, { pr: "#9", note: "Built it", disposition: "landed" });
+    const dropped = await flight.addIncrement({ arc: arc.id, ...BARE_WORK, title: "Dropped", body: "From voice.note_c8ff1fd5c25c." });
+    await flight.closeIncrement(dropped.id, { note: "Overtaken", disposition: "withdrawn" });
+    const plain = await flight.addIncrement({ arc: arc.id, ...WORK });
+    await flight.closeIncrement(plain.id, { note: "Checked", disposition: "landed" });
+    assert.equal((await fyis()).length, 3, "a pull request shows it, a close that did not land found nothing, and other work is not his answer");
+  });
+
   contract("10.30", "a landed increment says whether it fixed an escape: one naming none is recorded as fixing none when it lands, closed or parked closed, while one naming its escape keeps it and a close that does not land says nothing", async ({ work, flight, records }) => {
     const arc = await flight.createArc(ARC);
     const story = await work.addStory({ title: "Visitor can sign up" });

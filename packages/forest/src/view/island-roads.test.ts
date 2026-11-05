@@ -145,12 +145,11 @@ test("3.81 a road carrying one link, or the gate a link enters by, picks that li
   assert.equal(routeOf(marks.getObjectByName("settlements")!), undefined, "anything else picks nothing");
   // A link from d through c to a passes a gate it does not enter by.
   const through = [...links, { from: "d", to: "a" }], laid = linkLayout(shares, coast, through, docks), more = islandRoads(laid, through, docks, capabilityPlates(laid));
-  const passed = more.gates.findIndex((g) => g.entrances.length === 0);
-  assert.ok(passed >= 0, "a gate no link enters by");
-  for (const g of more.gates) assert.equal(g.entrance, g.entrances.length > 0, "a gate is an entrance when a link enters by it");
+  assert.deepEqual(more.gates.map((g) => [g.entrance, g.entrances]), [[true, ["arrive:0->a"]], [false, []], [true, ["arrive:0->b"]], [true, ["d->c"]], [true, ["c->a", "d->a"]]],
+    "an entrance where a link enters by it; the arrival to b crosses a border before the one it enters b by");
   const posts = islandRoadMarks(more, flat, landFill(laid, territoryLand(laid, flat, coast, new Map(), more.gates)), islandRelief(laid, more));
-  const { links: carried } = more.gates[passed]!;
-  assert.deepEqual(routeOf(posts.getObjectByName(`gate-post:${passed}:1`)!), { kind: carried.length === 1 ? "link" : "road", links: carried }, "it picks the road it stands on");
+  assert.deepEqual(routeOf(posts.getObjectByName("gate-post:1:1")!), { kind: "link", links: ["arrive:0->b"] }, "a gate no link enters by picks the road it stands on");
+  assert.deepEqual(routeOf(posts.getObjectByName("gate-post:4:1")!), { kind: "link", links: ["c->a", "d->a"] }, "a gate two links enter by picks both");
   assert.deepEqual(routeOf(marks.getObjectByName(`gate-post:${entrance}:1`)!), { kind: "link", links: roads.gates[entrance]!.entrances }, "its entrance gate picks it");
 });
 

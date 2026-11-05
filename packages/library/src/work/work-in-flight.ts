@@ -34,6 +34,9 @@ import { WorkModel, type ProjectTree } from "./work-model.js";
 import { arcHold, claimHold, holdsOf, incrementHold, noteWaits, onClaim, type ClaimReading, type Hold, type Holds, type NoteWait, type Wait, type WaitFor } from "./waits.js";
 import { checkedWaitFor, type WaitWrite } from "./wait-writes.js";
 
+/** The owner's voice note or one of his questions, named in an increment's body or links: work that came from his answer. */
+const FROM_HIS_ANSWER = /\b(?:voice\.note|question)_[0-9a-f]{12}\b/;
+
 /** Where an increment is in its lifecycle. */
 export type IncrementStatus = (typeof INCREMENT_STATUSES)[number];
 /** An arc's state: worked out from its increments, except for the owner's "parked". */
@@ -243,7 +246,9 @@ export class WorkInFlight {
       const lifecycle = outcome === undefined
         ? { status: "proposal" as const, parked: new Date().toISOString() }
         : { status: "closed" as const, outcome: outcomeOf(outcome), ...escapeAnswer(fields.escape, outcome) };
-      return this.#records.create("increment", { ...fields, ...(waitsFor === undefined || waitsFor.length === 0 ? { waitsFor: undefined } : { waitsFor }), ...lifecycle }, options);
+      const added = await this.#records.create("increment", { ...fields, ...(waitsFor === undefined || waitsFor.length === 0 ? { waitsFor: undefined } : { waitsFor }), ...lifecycle }, options);
+      if (outcome !== undefined) await this.#offerFindings(added, outcome, options);
+      return added;
     });
   }
 
@@ -318,8 +323,22 @@ export class WorkInFlight {
         await this.#clearIfClosed(increment.fields.arc, options);
       });
       await this.#clearAfter(() => this.#settleRemedies(increment, close, undefined, options));
+      await this.#offerFindings(increment, close, options);
       return closed;
     });
+  }
+
+  /**
+   * What a check run on the owner's answer found reaches him (ADR-1259, 10.42): an increment whose body or links name his
+   * voice note or a question of his, landed with a note and no pull request to show for it, records an FYI carrying that
+   * note, which `fyi list`, the shared briefing and voice offer until it is marked heard. A pull request is told as a
+   * landing already, and a close that did not land found nothing to tell.
+   */
+  async #offerFindings({ id, fields }: SchemaRecord<"increment">, close: CloseInput, options?: WriteOptions): Promise<void> {
+    if (close.disposition !== "landed" || close.pr !== undefined || close.note === undefined) return;
+    if (!FROM_HIS_ANSWER.test([fields.body, ...(fields.links ?? [])].join("\n"))) return;
+    const fyi = { title: `What your answer found: ${fields.title}`, what: close.note, about: id, by: options?.actor ?? "storytree", at: new Date().toISOString() };
+    await this.#records.create("fyi", fyi, options);
   }
 
   /**

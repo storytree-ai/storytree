@@ -49,7 +49,7 @@ export class UnknownCommand extends Refusal {
 /** An answer as the terminal shows it. */
 export function render(answer: Answer): string {
   if (answer.raw === true) return answer.text;
-  const text = answer.text.replace(/\s+$/, "");
+  const text = answer.text.trimEnd();
   const next = answer.next ?? [];
   if (next.length === 0) return `${text}\n`;
   const width = Math.max(...next.map((step) => step.command.length));

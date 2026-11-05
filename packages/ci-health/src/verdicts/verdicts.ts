@@ -171,7 +171,7 @@ function namedSkip(proofs: readonly StoryProofs[], result: TestResult): TestResu
 
 /** The story and contract numbers a pytest result credits, by the rules above, or undefined. */
 function pytestCredit(proofs: readonly StoryProofs[], result: TestResult): { story: StoryProofs; numbers: readonly string[] } | undefined {
-  const name = result.name.replace(/\[.*$/, "");
+  const name = result.name.split("[", 1)[0]!;
   const holders = pytestHolders(proofs, result.file!).filter(({ tests }) => tests.some((test) => test.name === name));
   const numbered = NUMBERED_NAME.exec(name);
   if (holders.length !== 1 || numbered === null) return undefined;

@@ -196,6 +196,11 @@ test("2.6 · a pytest result counts for contract N.M by the number its test's na
     "the cart's 1.1 by its file's path from the top; checkout's 1.2 by the package its name names; checkout's 1.1 by the one package whose tests/test_total.py holds test_1_1_form",
   );
   assert.deepEqual(unmatched.map(({ name }) => name), ["test_1_1_shell", "test_lists_inside", "test_1_2_gone"], "a path two packages hold, a number only a docstring carries, and a test the file does not hold credit nothing");
+
+  const started = performance.now();
+  const hostile = judgeRun(proofsAt(TREE, PY_FILES), [ran(cart, `${"[".repeat(60_000)}\n`)]);
+  assert.ok(performance.now() - started < 1000, "a result name of many brackets is cut at its first in one pass");
+  assert.equal(hostile.unmatched.length, 1);
 });
 
 test("2.7 · a skipped pytest test, which -rA names only by its file and line, is tied to the test at that line, its decorators' or its body's, so its skip leaves that test's contract not checked", () => {

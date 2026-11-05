@@ -24,3 +24,5 @@ Taken with `node --import tsx packages/knowledge-core/testing/traversal-when-sel
 `node --import tsx packages/knowledge-core/testing/selected-island-roots/capture.mjs before|after --retake`, which also
 counts from the scene the links and roots drawn, the shaded dots, and the faintest and brightest dot into
 `before-measurements.json` and `after-measurements.json`.
+
+In the evidence bucket for #509, linked from the pull request body (ADR-1234; deleted after 90 days or when its arc closes): `509/before-side-on-library-close.png`, `509/after-side-on-library-close.png`, `509/before-below-library-close.png`, `509/after-below-library-close.png`, `509/before-side-on.png`, `509/after-side-on.png`, `509/before-below-library.png`, `509/after-below-library.png`.

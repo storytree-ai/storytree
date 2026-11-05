@@ -128,6 +128,22 @@ test("3.80 a search asked for another island waits its turn behind the one in fl
   await waitUntil(() => keptArrangement("three")?.seeds.a?.x === 4, 2000, "the last island kept");
 });
 
+test("3.80 an island kept for its structure while it waits its turn is passed over, and the island behind it is searched; a new shelf ends the search in flight and forgets those waiting", async () => {
+  shelveOn(undefined);
+  const asked: { story: string; signal: AbortSignal; answer: (a: SearchAnswer) => void }[] = [];
+  const searcher = (story: string): TerritorySearcher => (_, signal) => new Promise((answer) => asked.push({ story, signal, answer }));
+  for (const story of ["one", "two", "three"]) searchIsland(story, ask, searcher(story));
+  keepArrangement("two", { key: structureKey(shares, links, docks), seeds: { a: { x: 2, z: 0 } } });
+  asked[0]!.answer({ found: undefined });
+  await waitUntil(() => asked.length === 2, 2000, "the island behind the one kept meanwhile searched");
+  assert.equal(asked[1]!.story, "three", "the island kept while it waited is passed over");
+  searchIsland("four", ask, searcher("four"));
+  shelveOn(undefined);
+  assert.equal(asked[1]!.signal.aborted, true, "a new shelf ends the search in flight");
+  asked[1]!.answer({ found: undefined });
+  await quietFor(() => asked.length > 2, 200, "an island forgotten with the old shelf searched");
+});
+
 test("3.80 a kept arrangement outlives the run, on the page's storage; storage it cannot read keeps nothing, storage that refuses a write keeps it for the run, and a page that refuses its storage keeps none", () => {
   const stored = new Map<string, string>();
   const storage = { getItem: (k: string) => stored.get(k) ?? null, setItem: (k: string, v: string) => void stored.set(k, v) };

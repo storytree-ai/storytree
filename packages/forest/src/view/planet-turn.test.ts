@@ -161,3 +161,26 @@ test("3.86 · an island nobody selected is laid out with its roads; zooming out 
   const back = await wheel(-240, now => now.roads === true && now.territories === true, "everything shown again, near");
   for (const seen of [territories, far, back]) assert.deepEqual(seen.borders, near.borders, "the territories' borders keep their shape at every zoom");
 });
+
+test("3.73 · roads that arrive hidden, after the map opened, have their shader programs too, so the zoom that first shows them stops to compile none", async t => {
+  // A window small enough that the map opens below the near marks' zoom, so every island's roads arrive hidden.
+  const { page } = await openedMap(t, true, { width: 400, height: 300 });
+  type Drawn = { name: string; visible: boolean; parent: Drawn | null; material?: object | object[]; isMesh?: boolean; isLine?: boolean };
+  type Globe = { gl: { properties: { get(material: object): { currentProgram?: unknown } } }; scene: { getObjectByName(name: string): { traverse(visit: (object: Drawn) => void): void; visible: boolean } | undefined } };
+  await waitUntil(() => page.evaluate(() => {
+    const roads = (window as unknown as { __globe: Globe }).__globe.scene.getObjectByName("island-roads");
+    return roads !== undefined && !roads.visible;
+  }), 30_000, "the roads to arrive hidden");
+  await page.evaluate(() => new Promise(requestAnimationFrame));
+  await page.evaluate(() => new Promise(requestAnimationFrame));
+  const uncompiled = await page.evaluate(() => {
+    const { __globe: globe } = window as unknown as { __globe: Globe };
+    const missing: string[] = [];
+    globe.scene.getObjectByName("island-roads")!.traverse(object => {
+      if (!(object.isMesh || object.isLine)) return;
+      for (const material of [object.material ?? []].flat()) if (globe.gl.properties.get(material).currentProgram === undefined) missing.push(object.name);
+    });
+    return missing;
+  });
+  assert.deepEqual(uncompiled, []);
+});

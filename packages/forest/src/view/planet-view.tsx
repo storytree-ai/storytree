@@ -8,7 +8,7 @@ import { islandNormal, onIslandSurface, Overlay, PlanetWorldCanvas, PLATE_CLEARA
 import type { CodePlaces } from "@storytree/knowledge-core";
 import { KnowledgeGlobePoints, useCodeLighting, type CodeLighting, type CoreUnderSheet, type KnowledgeCore } from "@storytree/knowledge-core/view";
 import { SessionIslandEmphasis } from "./session-emphasis.js";
-import { arcEmphasis, openWorkLayer, openWorkMarks } from "./open-work.js";
+import { arcEmphasis, openWorkLayer, openWorkMarks, presentOpenWork } from "./open-work.js";
 import { lightTerritories, territoryLand } from "./territory-land.js";
 import { islandRoadMarks, landFill, lightRoute, type RoutePick } from "./island-roads.js";
 import { capabilityPlates } from "./nameplates.js";
@@ -23,9 +23,9 @@ import { focusRotation, globeHover, isGlobeDrag, markerSpot, movingSpots, MOVE_S
 import { claimsOn } from "./planet-update.js";
 import { createGlobeGuide, type GlobePose, type PlacedGlobeControls } from "./globe-guide.js";
 import { createGlobeAside, framedOnResize, type AsidePose } from "./globe-aside.js";
-import { compassNorth, opensBare, seesUnderside, sheetDrag, sheetHome, sheetKey, sheetKeyPan, sheetLayout, sheetMarkers, sheetOpening, sheetPan, sheetPanUnder, sheetSpin, sheetSpinTilt, sheetTilted, sheetTiltBy, sheetTwist, sheetUnder, TILT_PER_PIXEL, TILT_STEP } from "./sheet-navigation.js";
+import { compassNorth, opensBare, seesUnderside, sheetDrag, sheetHome, sheetKey, sheetKeyPan, sheetLayout, sheetMarkers, sheetOpening, sheetPan, sheetPanUnder, sheetSpin, sheetSpinTilt, sheetTilted, sheetTiltBy, sheetTwist, sheetUnder, TILT_PER_PIXEL, TILT_STEP, withDocks } from "./sheet-navigation.js";
 import { growLand, presentDetail, shownSurfaces as surfacesFor, TerritoryDrawOn, type GlobeSurfaces } from "./globe-surfaces.js";
-import { DetailStore, shows } from "./zoom-detail.js";
+import { DetailStore } from "./zoom-detail.js";
 
 export type PlanetViewProps = {
   /** Receives the app-owned controls while the map is mounted. */
@@ -122,12 +122,7 @@ export function PlanetView({ core, scene, places, wisps: live, selected, highlig
   // The knowledge graph under the glass sheet: each shelf's notes under its place, the selected story's lit (ADR-1043 D5).
   // 3.76: once an island's plate has seen its docks, its shelves hang under its territories as laid out by its links.
   const [seenDocks, setSeenDocks] = useState<ReadonlyMap<string, readonly IslandDock[]>>(NO_DOCKS_SEEN);
-  const onDocks = useCallback((story: string, docks: readonly IslandDock[] | undefined) => setSeenDocks(seen => {
-    if (seen.get(story) === docks) return seen;
-    const next = new Map(seen);
-    if (docks === undefined) next.delete(story); else next.set(story, docks);
-    return next;
-  }), []);
+  const onDocks = useCallback((story: string, docks: readonly IslandDock[] | undefined) => setSeenDocks(seen => withDocks(seen, story, docks)), []);
   // 3.80: and once the search keeps an arrangement for it, under its territories as kept.
   const kept = useSyncExternalStore(subscribeKept, keptVersion);
   const under = useMemo(() => seenDocks.size === 0 ? layout.under : sheetLayout(scene, places, frame, seenDocks).under,
@@ -397,7 +392,7 @@ function Territories({ story, land: given, coast: givenCoast, links, docks: give
   const level = useSyncExternalStore(detail.subscribe, detail.get);
   useLayoutEffect(() => {
     presentDetail(drawn.group, level);
-    openWork.visible = shows(level, "territories");
+    presentOpenWork(openWork, level);
     invalidate();
   }, [drawn, openWork, level, surfaces, invalidate]);
   useEffect(() => () => drawn.group.traverse((object) => {

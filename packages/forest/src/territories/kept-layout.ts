@@ -122,8 +122,12 @@ export function searchIsland(story: string, ask: Omit<SearchAsk, "kept">, search
   const done = () => {
     if (inFlight?.overtaken !== overtaken) return;
     inFlight = undefined;
-    const next = waiting.entries().next().value;
-    if (next !== undefined) { waiting.delete(next[0]); searchIsland(next[0], next[1].ask, next[1].searcher); }
+    // The next island waiting that still needs its search: one kept meanwhile for its structure is passed over.
+    for (const [next, { ask, searcher }] of waiting) {
+      waiting.delete(next);
+      searchIsland(next, ask, searcher);
+      if (inFlight !== undefined) break;
+    }
   };
   void searcher({ ...ask, ...(was && { kept: was.seeds }) }, signal).then((answer) => {
     if (!signal.aborted) {

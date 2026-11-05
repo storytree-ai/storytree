@@ -8,7 +8,7 @@ import type { AnnotatedTree, Change } from "@storytree/library";
 import { applySheetEye, plateTransform, SHEET_FOV, SHEET_RADIUS, SHEET_TILT, sheetEyeZoom, sheetSpot, SHIPPED_ELEVATION_DEG, type SheetPoint } from "@storytree/forest-world/planet";
 import { createGlobeGuide, type GlobePose } from "./globe-guide.js";
 import { focusRotation, markerSpot } from "./planet-navigation.js";
-import { compassNorth, headingHome, opensBare, seesUnderside, sheetCentre, sheetDrag, sheetHome, sheetKey, sheetKeyPan, sheetLayout, sheetMarkers, sheetOpening, sheetPan, sheetSpin, sheetPanUnder, sheetSpinTilt, sheetTilted, sheetTiltBy, sheetTwist, sheetUnder, TILT_STEP } from "./sheet-navigation.js";
+import { compassNorth, headingHome, opensBare, seesUnderside, sheetCentre, sheetDrag, sheetHome, sheetKey, sheetKeyPan, sheetLayout, sheetMarkers, sheetOpening, sheetPan, sheetSpin, sheetPanUnder, sheetSpinTilt, sheetTilted, sheetTiltBy, sheetTwist, sheetUnder, TILT_STEP, withDocks } from "./sheet-navigation.js";
 import { sheetPoint } from "@storytree/forest-world/planet";
 
 const health = { reported: { state: "not-checked" as const }, verified: { state: "not-checked" as const } };
@@ -435,6 +435,15 @@ test("3.28 on the glass sheet, a plan still growing, framed by its full plan, ke
   for (const [story, spot] of framed.spots) assert.deepEqual(spot, whole.spots.get(story), `${story} sits where the full plan puts it`);
   assert.deepEqual(framed.extent, whole.extent, "the glass is the full plan's");
   assert.notDeepEqual(sheetLayout(growing, places).spots.get("s0"), whole.spots.get("s0"), "unframed, the growing plan would sit elsewhere");
+});
+
+test("3.76 each island's docks are kept as its plate sees them; a reading that changes nothing keeps the same docks, so nothing is laid out again", () => {
+  const docks = [{ local: { x: 1, z: 0 }, links: ["z1->a1"] }], none = new Map<string, typeof docks>();
+  const seen = withDocks(none, "a", docks);
+  assert.deepEqual([...seen], [["a", docks]]);
+  assert.equal(withDocks(seen, "a", docks), seen, "the same docks seen again");
+  assert.equal(withDocks(seen, "b", undefined), seen, "an island with none yet, seen without any");
+  assert.deepEqual([...withDocks(withDocks(seen, "b", docks), "a", undefined)], [["b", docks]], "an island whose docks are unknown again is dropped");
 });
 
 test("3.76 under every island whose docks are known each capability's knowledge shelf hangs beneath its territory as laid out by its links; under one whose docks are not yet known beneath the map's own cut", async () => {

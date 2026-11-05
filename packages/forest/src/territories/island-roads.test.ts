@@ -5,7 +5,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { waitUntil } from "@storytree/test-waits";
+import { quietFor, waitUntil } from "@storytree/test-waits";
 import { answerRoads, islandRoads, ROUTING_AT_ONCE, islandRoadsWhenRouted, knownIslandRoads, pageIslandRouter, routeIslandInWorker, subscribeRoads, type IslandRoads, type RoadsAsk, type RoadsWorker } from "./island-roads.js";
 import { answerAsk } from "./search-worker.js";
 import { linkLayout, LIBRARY_LAND } from "./link-layout.js";
@@ -224,8 +224,7 @@ test("3.82 every island's roads route a few at a time: the rest wait their turn,
   islands[1]!.shown.abort();
   answers[1]!.reject(new Error("overtaken"));
   answers[2]!.resolve(islandRoads(fresh().map, islands[3]!.ask.links, islands[3]!.ask.docks, islands[3]!.ask.names));
-  await new Promise((resolve) => setTimeout(resolve, 20));
-  assert.equal(asked.length, ROUTING_AT_ONCE + 1, "nothing is left to route");
+  await quietFor(() => asked.length > ROUTING_AT_ONCE + 1, 100, "an island let go routed");
 });
 
 test("3.82 the territory worker routes the island's roads it is asked for, every link on a road, in a form it can post; a search it is asked is searched", () => {

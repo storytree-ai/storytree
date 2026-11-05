@@ -338,9 +338,9 @@ export class HealthRecord {
 
   /** Each capability an open increment names, with those increments: the active ones first, then the rest in parked order (ADR-1253 D1). */
   async #openWork(): Promise<Map<string, OpenIncrement[]>> {
-    const increments = await this.#records.select("increment", ["title", "status", "parked", "capabilities"], { not: { status: "closed" } });
-    const parkedAt = ({ createdAt, fields }: (typeof increments)[number]): string => fields.parked ?? createdAt;
-    const ordered = increments.sort((a, b) => Number(b.fields.status === "active") - Number(a.fields.status === "active") || (parkedAt(a) < parkedAt(b) ? -1 : parkedAt(a) > parkedAt(b) ? 1 : byCreation(a, b)));
+    // An increment is parked as it is made, and keeps that time when returned to proposal, so parked order is creation order.
+    const increments = await this.#records.select("increment", ["title", "status", "capabilities"], { not: { status: "closed" } });
+    const ordered = increments.sort((a, b) => Number(b.fields.status === "active") - Number(a.fields.status === "active") || byCreation(a, b));
     const named = new Map<string, OpenIncrement[]>();
     for (const { id, fields } of ordered) {
       for (const capability of new Set(fields.capabilities ?? [])) {

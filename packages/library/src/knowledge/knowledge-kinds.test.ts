@@ -335,6 +335,30 @@ for (const backend of [memory, postgres]) {
     const written = (await transactions.history({ id: term.id })).map(({ record }) => record.type);
     assert.deepEqual(written, ["definition", "research"], "its history keeps what it was");
   });
+
+  contract("6.20", "a research note written, or refiled as research, also records an FYI about it, so it is offered to the owner until heard", async ({ knowledge, transactions }) => {
+    const fyis = async () => (await transactions.list("fyi")).map(({ fields }) => fields);
+    const research = { title: "Voice engines compared", description: "Three speech engines tried on the box", researched: "2026-11-05", findings: "One is fast enough" };
+    await assert.rejects(knowledge.writeKnowledge("research", { ...research, findings: "" }), SchemaError);
+    assert.deepEqual(await fyis(), [], "a refused write records no FYI");
+
+    const written = await knowledge.writeKnowledge("research", research, { actor: "session:lane" });
+    const [fyi, ...more] = await fyis();
+    assert.deepEqual(more, []);
+    assert.deepEqual(
+      { ...fyi, at: undefined },
+      { title: "Research report: Voice engines compared", what: "Three speech engines tried on the box", about: written.id, by: "session:lane", at: undefined },
+      "it is about the report, by its writer, and unheard",
+    );
+
+    const term = await knowledge.defineTerm({ term: "Dated research", meaning: "Specs kept beside code" });
+    await knowledge.refile(term.id, "research", { ...research, title: "OpenSpec" });
+    assert.deepEqual((await fyis()).map(({ about }) => about).sort(), [written.id, term.id].sort(), "a note refiled as research is offered too");
+    await knowledge.refile(term.id, "research", { ...research, title: "OpenSpec again" });
+    assert.equal((await fyis()).length, 2, "refiling research as research offers it no second time");
+    await knowledge.writeKnowledge("principle", { title: "A title", description: "One line", statement: "S", why: "W", howToApply: "H" } as never);
+    assert.equal((await fyis()).length, 2, "another kind records none");
+  });
 }
 
 for (const backend of [memory, postgres]) {

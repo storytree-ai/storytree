@@ -9,7 +9,8 @@
  *   again, so a change of lines only resizes its territories; another key draws from the kept seeds still, where they
  *   name a territory, and asks for a search.
  * - The search runs in the worker the page names (TERRITORY_WORKER_META), one at a time, never on the page: a page
- *   with no worker draws the start and searches nothing. A search asked for another island overtakes the one in flight.
+ *   with no worker draws the start and searches nothing. Every island is laid out (ADR-1253 D2), so a search asked for
+ *   another island waits its turn; one asked for a new structure of the island in flight overtakes it.
  */
 import type { Link, LinkDock, Seeds } from "./link-layout.js";
 import type { Coast, TerritoryShare } from "./territories.js";
@@ -36,8 +37,8 @@ export function structureKey(shares: readonly TerritoryShare[], links: readonly 
   return JSON.stringify([[...ids].sort(), home.sort(), docks.map((d) => [...d.links].sort()).sort()]);
 }
 
-/** The page's localStorage as a shelf, or none where the page has no storage (a test, a worker). */
-export function storageShelf(storage: Pick<Storage, "getItem" | "setItem"> | undefined = (globalThis as { localStorage?: Storage }).localStorage): ArrangementShelf | undefined {
+/** The page's localStorage as a shelf, or none where the page has no storage (a test, a worker) or refuses it. */
+export function storageShelf(storage: Pick<Storage, "getItem" | "setItem"> | undefined = pageStorage()): ArrangementShelf | undefined {
   if (storage === undefined) return undefined;
   return {
     read(story) {
@@ -52,6 +53,11 @@ export function storageShelf(storage: Pick<Storage, "getItem" | "setItem"> | und
   };
 }
 
+/** The page's localStorage, or none where reading it throws (a page with no origin, or storage switched off). */
+function pageStorage(): Storage | undefined {
+  try { return (globalThis as { localStorage?: Storage }).localStorage; } catch { return undefined; }
+}
+
 let shelf: ArrangementShelf | undefined | null = null;
 const kept = new Map<string, KeptArrangement | undefined>();
 const listeners = new Set<() => void>();
@@ -61,6 +67,7 @@ let version = 0;
  * every one read so far. */
 export function shelveOn(next: ArrangementShelf | undefined): void {
   shelf = next; kept.clear(); version++;
+  inFlight?.overtaken.abort(); inFlight = undefined; waiting.clear();
 }
 
 /** The arrangement kept for `story`, if any. */
@@ -90,29 +97,43 @@ export function subscribeKept(listener: () => void): () => void {
 export const keptVersion = (): number => version;
 
 let inFlight: { story: string; key: string; overtaken: AbortController } | undefined;
+/** The islands waiting their turn, in the order first asked, each with its latest ask. */
+const waiting = new Map<string, { ask: Omit<SearchAsk, "kept">; searcher: TerritorySearcher }>();
 
 /**
  * Asks `searcher` to search `story`'s island unless its kept arrangement was searched for this structure, or a search
- * for it is already in flight; a search for another island, or another structure, is overtaken. What the search finds
- * is kept; a search that fails, finds nothing or is overtaken keeps nothing.
+ * for it is already in flight. Searches run one at a time: another island's waits its turn, and a new structure of the
+ * island in flight overtakes it. What the search finds is kept; a search that fails, finds nothing or is overtaken keeps
+ * nothing.
  */
 export function searchIsland(story: string, ask: Omit<SearchAsk, "kept">, searcher: TerritorySearcher | undefined): void {
   if (searcher === undefined) return;
-  const key = structureKey(ask.shares, ask.links, ask.docks), was = keptArrangement(story);
-  if (was?.key === key) return;
-  if (inFlight?.story === story && inFlight.key === key) return;
-  inFlight?.overtaken.abort();
-  const overtaken = new AbortController(), { signal } = overtaken;
+  const key = structureKey(ask.shares, ask.links, ask.docks);
+  if (keptArrangement(story)?.key === key) { waiting.delete(story); return; }
+  if (inFlight?.story === story) {
+    if (inFlight.key === key) return;
+    inFlight.overtaken.abort();
+    inFlight = undefined;
+  }
+  if (inFlight !== undefined) { waiting.set(story, { ask, searcher }); return; }
+  waiting.delete(story);
+  const overtaken = new AbortController(), { signal } = overtaken, was = keptArrangement(story);
   inFlight = { story, key, overtaken };
-  const done = () => { if (inFlight?.overtaken === overtaken) inFlight = undefined; };
+  const done = () => {
+    if (inFlight?.overtaken !== overtaken) return;
+    inFlight = undefined;
+    const next = waiting.entries().next().value;
+    if (next !== undefined) { waiting.delete(next[0]); searchIsland(next[0], next[1].ask, next[1].searcher); }
+  };
   void searcher({ ...ask, ...(was && { kept: was.seeds }) }, signal).then((answer) => {
+    if (!signal.aborted) {
+      if ("error" in answer) console.error("forest territories: the territory search failed", answer.error);
+      else if (answer.found !== undefined) keepArrangement(story, { key, seeds: answer.found.seeds });
+    }
     done();
-    if (signal.aborted) return;
-    if ("error" in answer) { console.error("forest territories: the territory search failed", answer.error); return; }
-    if (answer.found !== undefined) keepArrangement(story, { key, seeds: answer.found.seeds });
   }, (error: unknown) => {
-    done();
     if (!signal.aborted) console.error("forest territories: the territory search failed", error);
+    done();
   });
 }
 

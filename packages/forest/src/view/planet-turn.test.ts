@@ -6,23 +6,30 @@ import { chromium } from "playwright-core";
 import { waitUntil } from "@storytree/test-waits";
 
 /** The real map view, bundled for the browser and mounted on a two-story plan: the capture seam counts its renders.
- * `__show(titles)` hands it the plan again, a live update, with the stories' titles as given. */
-async function mapBundle(): Promise<string> {
+ * `__show(titles)` hands it the plan again, a live update, with the stories' titles as given. `linked` gives each story a
+ * second capability its first depends on, and story one's first depends on story two's, so each island has roads.
+ * `__zoom()` reads the eye's zoom the map shows its detail by. */
+async function mapBundle(linked = false): Promise<string> {
   const entry = `import { createElement } from "react";
     import { createRoot } from "react-dom/client";
     import { workStates } from "@storytree/arc-surface";
     import { createKnowledgeCore } from "@storytree/knowledge-core/view";
     import { forestScene, storyNodes } from ${JSON.stringify(path.join(import.meta.dirname, "../index.ts"))};
     import { PlanetView } from ${JSON.stringify(path.join(import.meta.dirname, "planet-view.tsx"))};
+    import { sheetEyeZoom } from "@storytree/forest-world/planet";
+    const linked = ${JSON.stringify(linked)};
     const health = { reported: { state: "passing" }, verified: { state: "passing" } };
-    const capability = id => ({ id: id + "-cap", title: "1 · " + id, dependsOn: [], proposed: false, status: "healthy", contracts: [], health });
-    const plan = titles => ({ arcs: [], stories: ["one", "two"].map((id, index) => ({ id, title: titles[index], health, capabilities: [capability(id)] })) });
+    const capability = (id, dependsOn = []) => ({ id: id + "-cap", title: "1 · " + id, dependsOn, proposed: false, status: "healthy", contracts: [], health });
+    const capabilities = id => !linked ? [capability(id)]
+      : [capability(id, [id + "-b-cap", ...(id === "one" ? ["two-cap"] : [])]), { ...capability(id + "-b"), title: "2 · " + id }];
+    const plan = titles => ({ arcs: [], stories: ["one", "two"].map((id, index) => ({ id, title: titles[index], health, capabilities: capabilities(id) })) });
     const history = ["one", "two"].map((id, index) => ({ seq: index + 1, recordId: id, type: "story", action: "created",
       record: { id, type: "story", version: 1, fields: { title: id }, createdAt: new Date(index).toISOString(), updatedAt: new Date(index).toISOString() } }));
     const places = new Map(storyNodes(plan(["one", "two"]), history).map(node => [node.id, node.place]));
     const core = createKnowledgeCore("app"), root = createRoot(document.querySelector("#map"));
     globalThis.__show = titles => root.render(createElement(PlanetView, { core, scene: forestScene(plan(titles), history, workStates([])), places, wisps: [],
       selected: undefined, onPick: () => {}, onNote: () => {} }));
+    globalThis.__zoom = () => sheetEyeZoom(globalThis.__globe.camera, globalThis.__globe.size);
     globalThis.__show(["one", "two"]);`;
   const result = await build({
     stdin: { contents: entry, resolveDir: import.meta.dirname, loader: "js" }, bundle: true, write: false, format: "iife", jsx: "automatic",
@@ -33,13 +40,13 @@ async function mapBundle(): Promise<string> {
 }
 
 /** A page with the map mounted, once it has opened and stopped rendering. */
-async function openedMap(t: { after(run: () => Promise<void>): void }) {
+async function openedMap(t: { after(run: () => Promise<void>): void }, linked = false, viewport = { width: 800, height: 600 }) {
   // Chrome is installed on the three CI runner images; no browser download during tests.
   const browser = await chromium.launch({ channel: "chrome", headless: true });
   t.after(() => browser.close());
-  const page = await browser.newPage({ viewport: { width: 800, height: 600 } });
+  const page = await browser.newPage({ viewport });
   await page.setContent(`<div id="map" style="position:fixed;inset:0"></div>`);
-  await page.addScriptTag({ content: await mapBundle() });
+  await page.addScriptTag({ content: await mapBundle(linked) });
   await page.waitForFunction(() => {
     const { __globe: globe, __nav: nav } = window as unknown as { __globe?: { scene: { getObjectByName(name: string): unknown } }; __nav?: unknown };
     return nav !== undefined && globe?.scene.getObjectByName("planet:two") !== undefined;
@@ -115,4 +122,42 @@ test("3.73 · once the map has opened, every material on it has its shader progr
     return missing;
   });
   assert.deepEqual(uncompiled, []);
+});
+
+test("3.86 · an island nobody selected is laid out with its roads; zooming out past a threshold hides its roads and then its territories, zooming back shows them, and their shapes never change", async t => {
+  // A small window, so the whole map opens below the near marks' zoom and the wheel can draw back to far.
+  const { page } = await openedMap(t, true, { width: 400, height: 300 });
+  type Mark = { visible: boolean; parent: Mark | null; geometry?: { getAttribute(name: string): { array: ArrayLike<number> } } };
+  type Scene = { getObjectByName(name: string): { getObjectByName(name: string): Mark | undefined } | undefined };
+  const island = () => page.evaluate(() => {
+    const { __globe: globe, __zoom: zoom } = window as unknown as { __globe: { scene: Scene }; __zoom(): number };
+    const plate = globe.scene.getObjectByName("planet:one");
+    const roads = plate?.getObjectByName("island-roads"), borders = plate?.getObjectByName("territory-borders");
+    // Shown when it and everything it hangs from is visible (a named function here would need the bundler's helper).
+    const [roadsShown, bordersShown] = [roads, borders].map(mark => {
+      let shown = mark !== undefined;
+      for (let at: Mark | null | undefined = mark; at; at = at.parent) shown &&= at.visible;
+      return shown;
+    });
+    return { zoom: zoom(), roads: roads === undefined ? undefined : roadsShown, territories: bordersShown,
+      borders: Array.from(borders?.geometry?.getAttribute("position").array ?? []) };
+  });
+  const wheel = async (by: number, until: (now: Awaited<ReturnType<typeof island>>) => boolean, what: string) => {
+    await page.mouse.move(200, 150);
+    for (let step = 0; step < 80; step++) {
+      const now = await island();
+      if (until(now)) return now;
+      await page.mouse.wheel(0, by);
+      await page.evaluate(() => new Promise(requestAnimationFrame));
+      await page.evaluate(() => new Promise(requestAnimationFrame));
+    }
+    throw new Error(`the wheel never reached ${what}; ${JSON.stringify({ ...(await island()), borders: undefined })}`);
+  };
+  const near = await wheel(-240, now => now.roads === true, "an island not selected with its roads shown, near");
+  const territories = await wheel(240, now => now.roads === false, "the roads hidden");
+  assert.equal(territories.territories, true, "the territories still show where the roads hide");
+  const far = await wheel(240, now => !now.territories, "the territories hidden, far");
+  assert.ok(far.zoom < territories.zoom && territories.zoom < near.zoom, "hidden in order as the eye draws back");
+  const back = await wheel(-240, now => now.roads === true && now.territories === true, "everything shown again, near");
+  for (const seen of [territories, far, back]) assert.deepEqual(seen.borders, near.borders, "the territories' borders keep their shape at every zoom");
 });

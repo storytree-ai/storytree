@@ -35,10 +35,10 @@ export function opensBare(mode: ForestMode): boolean {
 /**
  * The islands at their places on the sheet (`sheetPlaces`), centred on the pole, and the glass they stand on. `under` says
  * where the knowledge graph hangs: each story's shelf under its island's middle, each capability's under its territory's,
- * and the sea floor across the islands' footprint, where notes with no links lie (ADR-1063 D3). `laid` names the selected
- * island and its docks, once known: its territories are laid out by their links (3.76), so its shelves hang under them as drawn.
+ * and the sea floor across the islands' footprint, where notes with no links lie (ADR-1063 D3). `laid` holds each island's
+ * docks, once known: its territories are laid out by their links (3.76), so its shelves hang under them as drawn.
  */
-export function sheetLayout(scene: ForestScene, places: ReadonlyMap<string, number>, frame?: ForestScene, laid?: { story: string; docks: readonly LinkDock[] | undefined }) {
+export function sheetLayout(scene: ForestScene, places: ReadonlyMap<string, number>, frame?: ForestScene, laid?: ReadonlyMap<string, readonly LinkDock[]>) {
   // A plan still growing, framed by its full plan, keeps every island where the full plan puts it, on its glass (3.28).
   const placed = sheetPlaces((frame ?? scene).islands.map(island => {
     const place = places.get(island.story);
@@ -59,7 +59,7 @@ export function sheetLayout(scene: ForestScene, places: ReadonlyMap<string, numb
     for (const tree of island.trees) if (tree.capability !== undefined) { stories.set(tree.capability, island.story); shelves.set(tree.capability, middle); }
     if (island.land === undefined) continue;
     // A capability's shelf hangs under its territory's middle: on the plate x runs east and z south.
-    const map = islandLayout(island.story, island.land.territories, islandCoast(island), scene.links ?? [], island.story === laid?.story ? laid.docks : undefined);
+    const map = islandLayout(island.story, island.land.territories, islandCoast(island), scene.links ?? [], laid?.get(island.story));
     map.territories.forEach((territory, index) => {
       if (territory.capability === undefined) return;
       const cells = map.cells.filter(cell => cell.territory === index);
@@ -80,12 +80,6 @@ export function sheetLayout(scene: ForestScene, places: ReadonlyMap<string, numb
     },
   };
   return { scene, islands, spots: new Map(islands.map(island => [island.story, island.spot])), radius: SHEET_RADIUS, extent, under };
-}
-
-/** The island `sheetLayout` lays out by its links (3.76): the selected one, once its plate has seen its docks; none for docks
- * seen on an island no longer selected, or not yet known while its roads still route. */
-export function laidIsland<Docks>(seen: { story: string; docks: Docks | undefined } | undefined, selected: string | undefined): { story: string; docks: Docks } | undefined {
-  return seen !== undefined && seen.story === selected && seen.docks !== undefined ? { story: seen.story, docks: seen.docks } : undefined;
 }
 
 /** How much deeper under the glass each depth of the knowledge graph hangs than the one above it, in ground units: at the

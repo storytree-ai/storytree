@@ -100,18 +100,35 @@ test("3.80 a kept arrangement for the island's structure draws from its seeds an
   assert.equal(now.key, structureKey(shares, more, docks), "kept under the new structure");
 });
 
-test("3.80 a search asked for another island overtakes the one in flight, whose answer is not kept", async () => {
+test("3.80 a search asked for another island waits its turn behind the one in flight, one at a time; a new structure of the island in flight overtakes it", async () => {
   shelveOn(undefined);
-  const signals: AbortSignal[] = [], answers: ((a: SearchAnswer) => void)[] = [];
-  const searcher: TerritorySearcher = (_, signal) => { signals.push(signal); return new Promise((resolve) => answers.push(resolve)); };
+  const asked: { links: number; signal: AbortSignal; answer: (a: SearchAnswer) => void }[] = [];
+  const searcher: TerritorySearcher = (given, signal) => new Promise((answer) => asked.push({ links: given.links.length, signal, answer }));
+  const found = (x: number) => ({ found: { seeds: { a: { x, z: 0 } }, score: 0, start: 0 } });
   searchIsland("one", ask, searcher);
   searchIsland("two", ask, searcher);
-  assert.equal(signals[0]!.aborted, true, "the first island's search is overtaken");
-  answers[0]!({ found: { seeds: { a: { x: 0, z: 0 } }, score: 0, start: 0 } });
-  await quietFor(() => keptArrangement("one") !== undefined, 200, "the overtaken search's answer kept");
+  searchIsland("three", ask, searcher);
+  assert.equal(asked.length, 1, "one search at a time");
+  assert.equal(asked[0]!.signal.aborted, false, "the island in flight is not overtaken by another island");
+  asked[0]!.answer(found(1));
+  await waitUntil(() => asked.length === 2, 2000, "the next island's search to start once the first answers");
+  assert.equal(keptArrangement("one")?.seeds.a?.x, 1, "the first island keeps what it found");
+  // "two" is in flight: a new structure for it overtakes it, and is searched in its place, ahead of "three".
+  const more = [...links, { from: "c", to: "b" }];
+  searchIsland("two", { ...ask, links: more }, searcher);
+  assert.equal(asked[1]!.signal.aborted, true, "the old structure's search is overtaken");
+  await waitUntil(() => asked.length === 3, 2000, "the new structure searched");
+  assert.equal(asked[2]!.links, more.length, "searched for the new structure");
+  asked[1]!.answer(found(2));
+  asked[2]!.answer(found(3));
+  await waitUntil(() => asked.length === 4, 2000, "the island waiting its turn searched last");
+  assert.equal(keptArrangement("two")?.seeds.a?.x, 3, "the overtaken search's answer is not kept");
+  assert.equal(keptArrangement("two")?.key, structureKey(shares, more, docks));
+  asked[3]!.answer(found(4));
+  await waitUntil(() => keptArrangement("three")?.seeds.a?.x === 4, 2000, "the last island kept");
 });
 
-test("3.80 a kept arrangement outlives the run, on the page's storage; storage it cannot read keeps nothing, and storage that refuses a write keeps it for the run", () => {
+test("3.80 a kept arrangement outlives the run, on the page's storage; storage it cannot read keeps nothing, storage that refuses a write keeps it for the run, and a page that refuses its storage keeps none", () => {
   const stored = new Map<string, string>();
   const storage = { getItem: (k: string) => stored.get(k) ?? null, setItem: (k: string, v: string) => void stored.set(k, v) };
   shelveOn(storageShelf(storage));
@@ -126,6 +143,8 @@ test("3.80 a kept arrangement outlives the run, on the page's storage; storage i
   keepArrangement("s", { key: "k2", seeds: {} });
   assert.equal(keptArrangement("s")?.key, "k2");
   assert.equal(storageShelf(undefined), undefined, "no storage, no shelf");
+  Object.defineProperty(globalThis, "localStorage", { configurable: true, get: () => { throw new Error("Access is denied for this document"); } });
+  try { assert.equal(storageShelf(), undefined, "a page that refuses its storage has no shelf, and still draws"); } finally { delete (globalThis as { localStorage?: unknown }).localStorage; }
 });
 
 test("3.80 the search runs only in the worker the page names: with none the page searches nothing", () => {

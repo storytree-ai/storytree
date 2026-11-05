@@ -23,8 +23,9 @@ import { focusRotation, globeHover, isGlobeDrag, markerSpot, movingSpots, MOVE_S
 import { claimsOn } from "./planet-update.js";
 import { createGlobeGuide, type GlobePose, type PlacedGlobeControls } from "./globe-guide.js";
 import { createGlobeAside, framedOnResize, type AsidePose } from "./globe-aside.js";
-import { compassNorth, laidIsland, opensBare, seesUnderside, sheetDrag, sheetHome, sheetKey, sheetKeyPan, sheetLayout, sheetMarkers, sheetOpening, sheetPan, sheetPanUnder, sheetSpin, sheetSpinTilt, sheetTilted, sheetTiltBy, sheetTwist, sheetUnder, TILT_PER_PIXEL, TILT_STEP } from "./sheet-navigation.js";
-import { growLand, shownSurfaces as surfacesFor, TerritoryDrawOn, type GlobeSurfaces } from "./globe-surfaces.js";
+import { compassNorth, opensBare, seesUnderside, sheetDrag, sheetHome, sheetKey, sheetKeyPan, sheetLayout, sheetMarkers, sheetOpening, sheetPan, sheetPanUnder, sheetSpin, sheetSpinTilt, sheetTilted, sheetTiltBy, sheetTwist, sheetUnder, TILT_PER_PIXEL, TILT_STEP } from "./sheet-navigation.js";
+import { growLand, presentDetail, shownSurfaces as surfacesFor, TerritoryDrawOn, type GlobeSurfaces } from "./globe-surfaces.js";
+import { DetailStore, shows } from "./zoom-detail.js";
 
 export type PlanetViewProps = {
   /** Receives the app-owned controls while the map is mounted. */
@@ -115,18 +116,24 @@ export function PlanetView({ core, scene, places, wisps: live, selected, highlig
   const lighting = useCodeLighting(core, codePlaces);
   // Contract 3.26: the selected story's links to other stories light as lanes, on both the sheet's faces (ADR-1043 D3).
   const lanes = useKept(useMemo(() => selectionLanes(scene, selected), [scene, selected]), JSON.stringify);
-  // 3.81: the road or gate picked on the selected island, its route lit in gold; another selection puts it out.
+  // 3.81: the road or gate picked on an island, its route lit in gold; another selection puts it out.
   const [route, setRoute] = useState<{ story: string; pick: RoutePick }>();
   useEffect(() => { setRoute(undefined); }, [selected]);
   // The knowledge graph under the glass sheet: each shelf's notes under its place, the selected story's lit (ADR-1043 D5).
-  // 3.76: once the selected island's plate has seen its docks, its shelves hang under its territories as laid out by its links.
-  const [seenDocks, setSeenDocks] = useState<{ story: string; docks: readonly IslandDock[] | undefined }>();
+  // 3.76: once an island's plate has seen its docks, its shelves hang under its territories as laid out by its links.
+  const [seenDocks, setSeenDocks] = useState<ReadonlyMap<string, readonly IslandDock[]>>(NO_DOCKS_SEEN);
+  const onDocks = useCallback((story: string, docks: readonly IslandDock[] | undefined) => setSeenDocks(seen => {
+    if (seen.get(story) === docks) return seen;
+    const next = new Map(seen);
+    if (docks === undefined) next.delete(story); else next.set(story, docks);
+    return next;
+  }), []);
   // 3.80: and once the search keeps an arrangement for it, under its territories as kept.
   const kept = useSyncExternalStore(subscribeKept, keptVersion);
-  const under = useMemo(() => {
-    const laid = laidIsland(seenDocks, selected);
-    return laid === undefined ? layout.under : sheetLayout(scene, places, frame, laid).under;
-  }, [layout, seenDocks, selected, scene, places, frame, kept]);
+  const under = useMemo(() => seenDocks.size === 0 ? layout.under : sheetLayout(scene, places, frame, seenDocks).under,
+    [layout, seenDocks, scene, places, frame, kept]);
+  // 3.86: how much of every island's detail the eye's zoom shows, read once a frame.
+  const detail = useMemo(() => new DetailStore(), []);
   const underSheet = useMemo((): CoreUnderSheet => ({ ...under, selected }), [under, selected]);
   const links = useKept(layout.scene.links ?? NO_LINKS, JSON.stringify);
   // ADR-1253 D1: the selected arc's open work ringed, and every open increment's capabilities dotted.
@@ -134,8 +141,8 @@ export function PlanetView({ core, scene, places, wisps: live, selected, highlig
   const circled = useMemo(() => circledList === undefined ? undefined : new Set(circledList), [circledKey]);
   const open = useMemo(() => new Set(openList ?? []), [openKey]);
   const overlays = useCallback((island: Island, descriptors: readonly Descriptor3D[], coast: readonly (readonly { x: number; z: number }[])[], docks: readonly IslandDock[] | undefined) => {
-    // ADR-1236 D1: the selected island's territories are laid out by its links, once its docks are known.
-    const laidBy = island.story === selected ? docks : undefined;
+    // ADR-1236 D1 as narrowed by ADR-1253 D2: every island's territories are laid out by its links, once its docks are known.
+    const laidBy = docks;
     // Lane B has already centred the descriptors in the plate's own ground coordinates.
     const local = { ...island, x: 0, z: 0 };
     // A session's hover outranks an arc's selection; an arc selected dims the islands it rings nothing on (3.83).
@@ -143,14 +150,14 @@ export function PlanetView({ core, scene, places, wisps: live, selected, highlig
       : arcEmphasis(island.land?.territories ?? [], circled);
     return <>
       {island.land !== undefined && layout.spots.has(island.story) && <Territories story={island.story} land={island.land} coast={coast} links={links} docks={laidBy} claimed={claimed} radius={layout.radius}
-        lighting={lighting} surfaces={shownSurfaces} lit={laidBy !== undefined && route?.story === island.story ? route.pick : undefined} circled={circled} open={open} />}
+        lighting={lighting} surfaces={shownSurfaces} lit={route?.story === island.story ? route.pick : undefined} circled={circled} open={open} detail={detail} />}
       <SessionIslandEmphasis emphasis={emphasis} />
       {emphasis === "held" && <SelectionRing island={local} descriptors={descriptors} onGlobe emphasis />}
-      {shownSurfaces.nameplates && <Nameplates island={island} spot={layout.spots.get(island.story)!} coast={coast} links={links} docks={laidBy} radius={layout.radius} selected={selected} dimmed={emphasis === "dimmed"} claimed={claimed} />}
+      {shownSurfaces.nameplates && <Nameplates island={island} spot={layout.spots.get(island.story)!} coast={coast} links={links} docks={laidBy} radius={layout.radius} selected={selected} dimmed={emphasis === "dimmed"} claimed={claimed} detail={detail} />}
       <SelectionRing island={island.story === selected ? local : undefined} descriptors={descriptors} onGlobe />
-      {island.story === selected && <DocksSeen story={island.story} docks={docks} onDocks={setSeenDocks} />}
+      <DocksSeen story={island.story} docks={docks} onDocks={onDocks} />
     </>;
-  }, [wisps, claimed, selected, highlighted, circled, open, layout.spots, layout.radius, lighting, shownSurfaces, links, route]);
+  }, [wisps, claimed, selected, highlighted, circled, open, layout.spots, layout.radius, lighting, shownSurfaces, links, route, detail, onDocks]);
   const titles = useMemo(() => new Map(scene.islands.map(i => [i.story, i.title])), [scene]);
   const inside = useMemo(() => library && <UnderTheGlass clear={outlines}><GrowingCore core={core} spots={layout.spots} radius={layout.radius} places={codePlaces} sheet={underSheet} growing={growth !== undefined} /></UnderTheGlass>,
     [library, outlines, core, layout.spots, layout.radius, codePlaces, underSheet, growth]);
@@ -163,26 +170,36 @@ export function PlanetView({ core, scene, places, wisps: live, selected, highlig
       sideOffset={sideOffset ?? 0} aside={aside}
       showFailures={shownSurfaces.grounds || shownSurfaces.territories !== false || shownSurfaces.nameplates || shownSurfaces.roads} />
     <NameplateCrowd selected={selected} />
-    <CompiledAtLoad />
+    <DetailFeed detail={detail} sheet={layout.extent} />
+    <CompiledAtLoad under={underSheet} />
     {onPainted !== undefined && <PaintedReport scene={scene} onPainted={onPainted} />}
     {growth !== undefined && recordedSessions !== undefined && <ReplaySessions recorded={recordedSessions} onWisps={setReplayed} />}
   </PlanetWorldCanvas>;
 }
 
-/** 3.76: tells the view the docks the selected island's plate was handed, each time they change. */
-function DocksSeen({ story, docks: given, onDocks }: { story: string; docks: readonly IslandDock[] | undefined; onDocks: (seen: { story: string; docks: readonly IslandDock[] | undefined }) => void }) {
+/** 3.76: tells the view the docks an island's plate was handed, each time they change. */
+function DocksSeen({ story, docks: given, onDocks }: { story: string; docks: readonly IslandDock[] | undefined; onDocks: (story: string, docks: readonly IslandDock[] | undefined) => void }) {
   const docks = useKept(given, (docks) => JSON.stringify(docks ?? null));
-  useEffect(() => { onDocks({ story, docks }); }, [story, docks, onDocks]);
+  useEffect(() => { onDocks(story, docks); }, [story, docks, onDocks]);
   return null;
 }
 
-/** 3.73: once the map has drawn its first frame, every material on it is compiled, hidden ones too, so no turn that shows one stalls on its shader. */
-function CompiledAtLoad() {
+/** 3.86: reads the eye's zoom on every frame drawn, and the zoom that frames the whole `sheet`, so the islands show the detail it asks for. */
+function DetailFeed({ detail, sheet }: { detail: DetailStore; sheet: SheetExtent }) {
+  useFrame(({ camera, size }) => { detail.zoom(sheetEyeZoom(camera, size), Math.min(size.width, size.height) / (2 * sheetOpening(sheet, size).framing * SHEET_RADIUS)); });
+  return null;
+}
+
+/** 3.73: once the map has drawn its first frame, every material on it is compiled, hidden ones too, so no turn that shows one
+ * stalls on its shader; and again whenever every island's roads or the notes hung under them (`under`) are drawn anew, as
+ * each island's docks and roads arrive, so a zoom that first shows them (3.86) stalls on none either. */
+function CompiledAtLoad({ under }: { under: CoreUnderSheet }) {
   const { gl, scene, camera } = useThree();
+  const routed = useSyncExternalStore(subscribeRoads, roadsVersion);
   useEffect(() => {
     const frame = requestAnimationFrame(() => gl.compile(scene, camera));
     return () => cancelAnimationFrame(frame);
-  }, [gl, scene, camera]);
+  }, [gl, scene, camera, under, routed]);
   return null;
 }
 
@@ -254,10 +271,11 @@ function useKept<T>(value: T, keyOf: (value: T) => string): T {
 }
 
 const NO_LINKS: readonly Link[] = [];
+const NO_DOCKS_SEEN: ReadonlyMap<string, readonly IslandDock[]> = new Map();
 
 /** Lifted just off the surface, so a territory's tint never fights the ground it lies on. */
 const TERRITORY_LIFT = 0.05;
-/** The selected island's roads and gate posts lie just above its territories. */
+/** An island's roads and gate posts lie just above its territories. */
 const ROAD_LIFT = 0.08;
 /** The open work's rings and dots lie above the roads, the dims under them (3.83, 3.84). */
 const OPEN_WORK_LIFT = 0.1;
@@ -266,8 +284,10 @@ const OPEN_WORK_LIFT = 0.1;
  * An island's territories (3.14), cut to its coast and laid on its surface, all in the plate's own units; it lights
  * the territories the selected session's window opened (3.18). No file is drawn on them (ADR-1212).
  */
-function Territories({ story, land: given, coast: givenCoast, links, docks: givenDocks, claimed, radius, lighting, surfaces, lit, circled, open }: {
+function Territories({ story, land: given, coast: givenCoast, links, docks: givenDocks, claimed, radius, lighting, surfaces, lit, circled, open, detail }: {
   story: string;
+  /** How much of the island the eye's zoom shows (3.86). */
+  detail: DetailStore;
   /** The selected arc's open work, ringed, the rest dimmed (3.83); and every open increment's, dotted (3.84). */
   circled: ReadonlySet<string> | undefined;
   open: ReadonlySet<string>;
@@ -293,7 +313,7 @@ function Territories({ story, land: given, coast: givenCoast, links, docks: give
   const kept = useSyncExternalStore(subscribeKept, keptVersion);
   const map = useMemo(() => islandLayout(story, land.territories, coast, links, docks), [story, land, coast, links, docks, kept]);
   useEffect(() => { if (docks !== undefined) searchIsland(story, { shares: land.territories, coast, links, docks }, pageTerritorySearcher()); }, [story, land, coast, links, docks]);
-  // ADR-1236 D1: the selected island's links are one shared road network, with a gate wherever a road crosses a border.
+  // ADR-1236 D1: an island's links are one shared road network, with a gate wherever a road crosses a border.
   // 3.82: routed off the page, so the territories draw at once and the roads when they arrive.
   const routedVersion = useSyncExternalStore(subscribeRoads, roadsVersion);
   const ask = useMemo((): RoadsAsk | undefined => docks === undefined ? undefined : { map, links, docks, names: capabilityPlates(map) }, [map, links, docks]);
@@ -315,6 +335,8 @@ function Territories({ story, land: given, coast: givenCoast, links, docks: give
       group.add(islandReliefMarks(relief, onIslandSurface(radius, TERRITORY_LIFT), fill));
       group.add(islandRoadMarks(roads, onIslandSurface(radius, ROAD_LIFT), fill, relief));
     }
+    // 3.86: every island's marks stand where they were built, so the frame never recomputes their matrices, shown or hidden.
+    group.traverse((mark) => { if (mark !== group) { mark.updateMatrix(); mark.matrixAutoUpdate = false; } });
     return { group, map, roads };
   }, [map, coast, tints, radius, roads, relief, onLand]);
   // 3.83, 3.84: the open work's rings, dims and dots, over the land as drawn now, clear of its names, settlements and gates.
@@ -371,6 +393,13 @@ function Territories({ story, land: given, coast: givenCoast, links, docks: give
     if (drawOn.frame(clock.getElapsedTime(), reducedMotion())) invalidate();
     if (!whole.current) whole.current = grow();
   });
+  // 3.86: what the zoom shows of the land as drawn, its shapes left as they are.
+  const level = useSyncExternalStore(detail.subscribe, detail.get);
+  useLayoutEffect(() => {
+    presentDetail(drawn.group, level);
+    openWork.visible = shows(level, "territories");
+    invalidate();
+  }, [drawn, openWork, level, surfaces, invalidate]);
   useEffect(() => () => drawn.group.traverse((object) => {
     const mark = object as { geometry?: { dispose(): void }; material?: { dispose(): void } };
     mark.geometry?.dispose();

@@ -6,7 +6,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import { waitUntil } from "@storytree/test-waits";
-import { answerRoads, islandRoads, islandRoadsWhenRouted, knownIslandRoads, pageIslandRouter, routeIslandInWorker, subscribeRoads, type IslandRoads, type RoadsAsk, type RoadsWorker } from "./island-roads.js";
+import { answerRoads, islandRoads, ROUTING_AT_ONCE, islandRoadsWhenRouted, knownIslandRoads, pageIslandRouter, routeIslandInWorker, subscribeRoads, type IslandRoads, type RoadsAsk, type RoadsWorker } from "./island-roads.js";
 import { answerAsk } from "./search-worker.js";
 import { linkLayout, LIBRARY_LAND } from "./link-layout.js";
 import { type Coast, type Point, type TerritoryMap } from "./territories.js";
@@ -210,6 +210,22 @@ test("3.82 an island overtaken before its roads arrive keeps none, and says noth
   await waitUntil(() => logged.mock.callCount() > 0 || undefined, 2000, "the failure to be logged");
   assert.equal(knownIslandRoads(other), undefined, "an overtaken island keeps no roads");
   assert.deepEqual(logged.mock.calls.map((c) => (c.arguments[1] as Error).message), ["no coast"], "only the failure of an island still shown is logged");
+});
+
+test("3.82 every island's roads route a few at a time: the rest wait their turn, and an island let go while it waits is never routed", async () => {
+  const { router, asked, answers } = byHand();
+  const islands = Array.from({ length: ROUTING_AT_ONCE + 2 }, () => ({ ask: fresh(), shown: new AbortController() }));
+  for (const { ask, shown } of islands) islandRoadsWhenRouted(ask, router, shown.signal);
+  assert.equal(asked.length, ROUTING_AT_ONCE, `${ROUTING_AT_ONCE} islands route at once`);
+  islands[ROUTING_AT_ONCE]!.shown.abort();
+  answers[0]!.resolve(islandRoads(fresh().map, islands[0]!.ask.links, islands[0]!.ask.docks, islands[0]!.ask.names));
+  await waitUntil(() => asked.length === ROUTING_AT_ONCE + 1 || undefined, 2000, "the next island waiting to route");
+  assert.equal(asked.at(-1), islands[ROUTING_AT_ONCE + 1]!.ask, "the island let go is passed over");
+  islands[1]!.shown.abort();
+  answers[1]!.reject(new Error("overtaken"));
+  answers[2]!.resolve(islandRoads(fresh().map, islands[3]!.ask.links, islands[3]!.ask.docks, islands[3]!.ask.names));
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  assert.equal(asked.length, ROUTING_AT_ONCE + 1, "nothing is left to route");
 });
 
 test("3.82 the territory worker routes the island's roads it is asked for, every link on a road, in a form it can post; a search it is asked is searched", () => {

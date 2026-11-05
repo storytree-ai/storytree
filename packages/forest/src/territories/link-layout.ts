@@ -1,5 +1,5 @@
 /**
- * Capability 3 · Story node render (the forest story): the selected island's territories laid out by their links
+ * Capability 3 · Story node render (the forest story): each island's territories laid out by their links
  * (ADR-1236 D1, rollout 2 step 2), ported from the capability tree mock's layout rules
  * (docs/design/capability-tree-3d/q-all-islands/tools/layout.ts); its search is territory-search.ts's (step 2b).
  *
@@ -46,7 +46,7 @@ const laid = new WeakMap<readonly TerritoryShare[], { coast: Coast; key: string;
 
 /**
  * The island's territories as the map draws them: laid out by its links when it is given the docks its lanes come
- * ashore at (the selected island, once its roads are routed), grown from the arrangement kept for `story` where there is
+ * ashore at (every island, once the sea's lanes are routed), grown from the arrangement kept for `story` where there is
  * one (3.80), else the map's own cut. Laid out once for the same shares, coast, links, docks and kept arrangement, whoever asks.
  */
 export function islandLayout(story: string, shares: readonly TerritoryShare[], coast: Coast, links: readonly Link[], docks: readonly LinkDock[] | undefined): TerritoryMap {

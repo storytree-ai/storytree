@@ -1,5 +1,5 @@
 /**
- * Capability 3 · Story node render (the forest story): the selected island's relief (ADR-1236 D1, rollout 2 step 3b),
+ * Capability 3 · Story node render (the forest story): each island's relief (ADR-1236 D1 as narrowed by ADR-1253 D2, rollout 2 step 3b),
  * ported from the capability tree mock's round 11 relief (docs/design/capability-tree-3d/q-all-islands/tools/overlay.ts,
  * `RELIEF`): every territory a plateau one height above the open land, a wall where a plateau stands over the open land
  * or the coast, a bevel rim inside each border broken at every gate, and a ramp only where a road climbs from the open
@@ -44,7 +44,7 @@ const unit = (a: Point): Point => { const l = Math.hypot(a.x, a.z) || 1; return 
 const perp = (a: Point): Point => ({ x: -a.z, z: a.x });
 const middle = (a: Point, b: Point): Point => ({ x: (a.x + b.x) / 2, z: (a.z + b.z) / 2 });
 
-/** The relief of `map` (the selected island as laid out by its links), its ramps at the open gates of `roads`. */
+/** The relief of `map` (an island as laid out by its links), its ramps at the open gates of `roads`. */
 export function islandRelief(map: TerritoryMap, roads: IslandRoads): IslandRelief {
   const coast = map.coast;
   const S = coast === undefined ? 1 : Math.sqrt(landArea(coast) / LIBRARY_LAND) || 1;

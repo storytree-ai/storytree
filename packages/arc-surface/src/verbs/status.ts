@@ -7,8 +7,7 @@
  */
 import { verb, VerbRefusal } from "@storytree/library/verbs";
 
-import { agentsOnBoard } from "../agents/agents.js";
-import { boardView, claimedNow, type Bar, type Lane } from "../board/board.js";
+import { boardView, type Bar, type Lane } from "../board/board.js";
 import { recentWindow } from "../board/closed-range.js";
 import { claimsReading } from "./claimed.js";
 import type { ArcVerbContext } from "./context.js";
@@ -115,9 +114,8 @@ export const status = verb({
     // One read of the board's arcs, and the claims standing with their holders' recent lines.
     const [arcs, { fold, lines }] = await Promise.all([library.boardArcs(recentWindow(now)), claimsReading({ log, project }, now)]);
     const machines = new Map(fold.sessions({ now: new Date(now) }).flatMap(({ session, machine }): [string, string][] => (machine === undefined ? [] : [[session, machine]])));
-    // Then one of every hold, a wait on a capability's claim read against the capabilities live sessions hold now (ADR-1228 D1), naming its capability by title.
-    const claimed = claimedNow(agentsOnBoard({ fold, lines }, new Date(now)).all, arcs.flatMap(({ increments }) => increments));
-    const { waits, heldOn, waitsFor } = await library.holds(new Date(now), { claimed });
+    // Then one of every hold, naming a claim wait's capability by title; the board reads a claim wait against the capabilities live sessions hold now (ADR-1228 D1, 3.26).
+    const { waits, heldOn, waitsFor } = await library.holds(new Date(now));
     const board = boardView({ arcs: [...arcs], waits: { ...waits }, heldOn: { ...heldOn }, waitsFor: { ...waitsFor } }, { fold, lines }, new Date(now), "active");
     const questionTitles = new Map(arcs.flatMap(({ questions }) => questions.map((question): [string, string] => [question.id, question.fields.title])));
     const said = board.lanes.map((lane) => ({ lane, ...statusOf(lane, since, { machines, questionTitles, heldOn }) }));

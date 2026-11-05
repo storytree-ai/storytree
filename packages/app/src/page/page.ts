@@ -78,7 +78,7 @@ export interface PageParts<View extends ForestGlobe = ForestGlobe> {
   projectSelection(): Promise<ProjectSelection>;
   readSurfaces(): Promise<SurfacesResult>;
   startMark(name: string): Promise<unknown>;
-  /** A failure the page caught, for the console (lifecycle 1.19 carries it to app.log), said once per outage (8.11). */
+  /** A failure the page caught, for the console (errors 9.1 carries it to app.log), said once per outage (8.11). */
   failed(what: string, error: unknown): void;
   /** The library answered again. */
   answered(): void;

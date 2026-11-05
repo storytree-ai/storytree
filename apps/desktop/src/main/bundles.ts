@@ -1,6 +1,6 @@
 /**
  * Capability 4 · Updates. The esbuild options that bundle the main process and its preload script for Electron
- * (contract 4.37; the preload's bridge is 1 · Lifecycle's 1.47): each one CommonJS file, so a packaged app needs no
+ * (contract 4.37; the preload's bridge is 8 · Page bridge's 8.10): each one CommonJS file, so a packaged app needs no
  * node_modules. The library, local-postgres and pg are bundled into main.cjs; it loads nothing from outside it but
  * Electron and the optional modules it loads lazily.
  */

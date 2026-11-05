@@ -44,7 +44,7 @@ export interface QuietMomentOptions {
   /** When someone last used the window; undefined while no window is showing. */
   readonly windowActiveAt: () => number | undefined;
   readonly agentActiveAt: () => Promise<number | undefined>;
-  /** Where a library that cannot be reached is said, once per outage, as one line (contract 1.40's promise for the main side). */
+  /** Where a library that cannot be reached is said, once per outage, as one line (contract 8.8's promise for the main side). */
   readonly log?: (line: string) => void;
 }
 

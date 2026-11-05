@@ -635,6 +635,37 @@ test("17.16 · library edit --live, run by a session holding an increment, edits
   assert.equal((await pendingOf()).length, 1, "without --live the edit still waits on the increment");
 });
 
+test("17.20 · library edit's answer for an edit held on the caller's increment names the way out when that increment will have no branch: arc increment drop-pending of that increment and record, then the edit again with --live, also given as its next steps (friction_f02365572601)", async (t) => {
+  const storytree = await connect({ url: testServerUrl() });
+  const project = uniqueProjectName();
+  t.after(async () => {
+    try {
+      await storytree.dropProject(project);
+    } finally {
+      await storytree.close();
+    }
+  });
+  const library = await storytree.openProject(project);
+  const edit = LIBRARY_FAMILIES.find((one) => one.name === "library")!.verbs.find((one) => mounted(one.command) && one.command.name === "edit")!;
+  const story = await library.addStory({ title: "Sign up" });
+  const form = await library.addCapability({ story: story.id, title: "Form" });
+  const arc = await library.createArc({ title: "Launch", intent: "Ship sign-up", endState: "Visitors sign up" });
+  const increment = await library.addIncrement({ arc: arc.id, title: "Redo the form's plan", objective: "Redo it", body: "Library only" });
+  await library.advanceIncrement(increment.id, "active"); // as claiming it does
+  const context: LibraryVerbContext = {
+    library, project, session: "lane", folder: tmpdir(), writer: { actor: "session:lane" },
+    claims: async () => [{ session: "lane", increment: increment.id, since: "2026-11-03T00:00:00.000Z" }],
+    testedNumbers: async () => ({ tested: [], untested: [] }),
+  };
+
+  const held = await edit.act({ "<id>": form.id, "<fields>": { description: "Where they type it" }, live: false }, context, WORDS);
+  const dropPending = `arc increment drop-pending ${increment.id} ${form.id}`;
+  assert.ok(held.text.includes(dropPending) && held.text.includes("--live"), held.text);
+  const next = (held.next ?? []).map((step) => step.command);
+  assert.ok(next.some((command) => command.startsWith(dropPending)), JSON.stringify(next));
+  assert.ok(next.some((command) => command.startsWith(`library edit ${form.id}`) && command.includes("--live")), JSON.stringify(next));
+});
+
 test("17.17 · library exact and the find_text tool list every live record holding a phrase exactly, each with its id, kind, title and the fields that hold it, following the cursor to the end", async (t) => {
   const storytree = await connect({ url: testServerUrl() });
   const project = uniqueProjectName();

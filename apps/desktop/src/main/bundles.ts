@@ -1,7 +1,8 @@
 /**
- * Capability 1 · Lifecycle. The esbuild options that bundle the main process and its preload script for Electron
- * (contracts 1.46, 1.47): each one CommonJS file, so a packaged app needs no node_modules. The library, local-postgres and pg
- * are bundled into main.cjs; it loads nothing from outside it but Electron and the optional modules it loads lazily.
+ * Capability 4 · Updates. The esbuild options that bundle the main process and its preload script for Electron
+ * (contract 4.37; the preload's bridge is 1 · Lifecycle's 1.47): each one CommonJS file, so a packaged app needs no
+ * node_modules. The library, local-postgres and pg are bundled into main.cjs; it loads nothing from outside it but
+ * Electron and the optional modules it loads lazily.
  */
 import { execFileSync } from "node:child_process";
 import path from "node:path";
@@ -15,7 +16,7 @@ import { partsFromList } from "./parts-list.js";
 /** A public setting from the build's environment, as an esbuild define: its value, or undefined when it is not set. */
 const stamped = (name: string) => (process.env[name] ? JSON.stringify(process.env[name]) : "undefined");
 
-/** The commit the checkout in `dir` has (git HEAD), which a build is stamped with (contract 1.49); undefined outside a checkout. */
+/** The commit the checkout in `dir` has (git HEAD), which a build is stamped with (contract 4.39); undefined outside a checkout. */
 export function buildCommit(dir: string): string | undefined {
   try {
     return execFileSync("git", ["-C", dir, "rev-parse", "HEAD"], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"], windowsHide: true }).trim();
@@ -64,7 +65,7 @@ export function mainBuild(dist: string, desktop = path.resolve(import.meta.dirna
     define: {
       ...journeyDefine(),
       STORYTREE_WORKOS_CLIENT_ID: stamped("STORYTREE_WORKOS_CLIENT_ID"),
-      // The commit it was built from, so a packaged build's label and its recorded errors name it (contract 1.49).
+      // The commit it was built from, so a packaged build's label and its recorded errors name it (contract 4.39).
       STORYTREE_BUILD_COMMIT: commit === null ? "undefined" : JSON.stringify(commit),
     },
     external: MAIN_EXTERNAL,

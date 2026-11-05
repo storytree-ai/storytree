@@ -1,5 +1,5 @@
 /**
- * Capability 1 · Lifecycle. A packaged build's label, naming the commit the bundle was stamped with (contract 1.49), so
+ * Capability 4 · Updates. A packaged build's label, naming the commit the bundle was stamped with (contract 4.39), so
  * it is known from the first moment: an error recorded before the app is ready names that commit too.
  */
 import { buildLabel } from "@storytree/app";

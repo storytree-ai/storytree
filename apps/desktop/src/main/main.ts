@@ -86,8 +86,9 @@ import { createJourneyRuntime, type JourneyRuntime } from "@storytree/app-setup/
 import { JOURNEY_CHANNELS } from "@storytree/app-setup/journey-events/bridge";
 import { LIFECYCLE_CHANNELS } from "@storytree/app/lifecycle/bridge";
 import { libraryProblem } from "@storytree/app/lifecycle/open-where-set";
-import { restartLimit } from "@storytree/app/lifecycle/restart-limit";
-import { appShutdown, restartAllowed } from "@storytree/app/lifecycle/stopping";
+import { restartLimit } from "@storytree/app/updates/restart-limit";
+import { appShutdown } from "@storytree/app/lifecycle/stopping";
+import { restartAllowed } from "@storytree/app/updates/restart-allowed";
 import { PROJECTS_CHANNELS } from "@storytree/app/projects/bridge";
 import { UPDATES_CHANNELS } from "@storytree/app/updates/bridge";
 import { appVersion as runningVersion } from "@storytree/app/version";
@@ -141,7 +142,7 @@ declare const STORYTREE_WORKOS_CLIENT_ID: string | undefined;
 // The main process's own uncaught errors reach the log (app.log once teeConsole runs below, stderr in the checks), before startup work can throw.
 // The box then offers Keep going or Restart; before the app is ready only the error box can show, so it keeps going.
 // Each is also kept in the user's own library on every install, held until it opens (lifecycle 1.25), naming the build:
-// a packaged one's version and commit from the first moment (1.49), a development checkout's once it is known.
+// a packaged one's version and commit from the first moment (4.39), a development checkout's once it is known.
 /** Which build this is (`version 0.3.0 (commit 80bcc63)`, or the development checkout), shown in the title and the tray. */
 let build = app.isPackaged ? packagedBuild(app.getVersion()) : "";
 const args = parseArgs(process.argv, { packaged: app.isPackaged, env: process.env });
@@ -232,7 +233,7 @@ const lifecycle = background({
     app.exit(verdict.exitCode(code));
   },
   relaunch,
-  // After five restarts in a row the app stops restarting itself, and the stop is an error the user is asked to report (lifecycle 1.32).
+  // After five restarts in a row the app stops restarting itself, and the stop is an error the user is asked to report (updates 4.35).
   ...(args.smoke || args.startCheck || args.callbackCheck ? {} : {
     limit: restartLimit({ file: path.join(home.dir, "restarts.json"), stopped: message => errorRecords.record("restarts-stopped", message) }),
   }),

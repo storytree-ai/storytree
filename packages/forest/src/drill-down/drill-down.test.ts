@@ -152,6 +152,14 @@ test("4.14 a parked capability carries its word, its reason and the arcs that pa
   assert.equal("parkedOn" in (b ?? {}), false);
 });
 
+test("4.38 a capability carries the open increments naming it in the library's order; one with no open work carries none", () => {
+  const open = [{ increment: "inc-2", title: "Started", active: true as const }, { increment: "inc-1", title: "Parked first" }];
+  const tree: AnnotatedTree = { stories: [story("s", { ...capability("busy", []), openWork: open }, capability("idle", []))], arcs: [] };
+  const [a, b] = drillDown(tree, "s", workStates([]), [])?.capabilities ?? [];
+  assert.deepEqual(a?.openWork, open);
+  assert.equal("openWork" in (b ?? {}), false);
+});
+
 test("4.13 in a project nothing verifies, each capability, and each other story's it points at, is marked as shown by the agent's report", () => {
   const reportOnly = (built: AnnotatedCapability): AnnotatedCapability => ({ ...built, reportOnly: true });
   const tree: AnnotatedTree = {

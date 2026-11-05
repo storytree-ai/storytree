@@ -682,6 +682,34 @@ for (const backend of [memory, postgres]) {
     assert.equal(await parkedOf(capability.id), undefined, "green is unchanged");
   });
 
+  contract("5.19", "each capability in the annotated tree carries the open increments naming it, the active ones first, then the rest in parked order; one no open increment names carries none (ADR-1253 D1)", async ({ health, work, flight }) => {
+    const { story, capability } = await smallPlan(work);
+    const other = await work.addCapability({ title: "Elsewhere", story: story.id });
+    const arc = await flight.createArc({ title: "Launch v1", intent: "An intent", endState: "An end state", stories: [story.id] });
+    const add = async (title: string, capabilities: string[]) => {
+      // Listed by an edit, which a park's one-open-increment-per-capability refusal (10.35) does not stop.
+      const increment = await flight.addIncrement({ arc: arc.id, title, objective: "Test it", body: "Red then green" });
+      await flight.editIncrement(increment.id, { capabilities });
+      await later();
+      return increment;
+    };
+    const first = await add("First parked", [capability.id]);
+    const second = await add("Second parked", [capability.id, other.id]);
+    const started = await add("Started last", [capability.id]);
+    const landed = await add("Already landed", [capability.id]);
+    await flight.advanceIncrement(started.id, "active");
+    await flight.closeIncrement(landed.id, { disposition: "landed", pr: "1" });
+    const openOf = async (id: string) => (await health.annotate()).stories[0]!.capabilities.find((one) => one.id === id)!.openWork;
+    assert.deepEqual(await openOf(capability.id), [
+      { increment: started.id, title: "Started last", active: true },
+      { increment: first.id, title: "First parked" },
+      { increment: second.id, title: "Second parked" },
+    ], "the active one first, then parked order; the closed one left off");
+    assert.deepEqual(await openOf(other.id), [{ increment: second.id, title: "Second parked" }]);
+    await flight.closeIncrement(second.id, { disposition: "withdrawn", note: "Not needed" });
+    assert.equal(await openOf(other.id), undefined, "no open increment names it");
+  });
+
   contract("5.14", "a proposed capability with at least one contract and every contract verified passing is on the worklist still not built and the agent's, marked that its contracts already pass; one with no contract or any contract not passing is not so marked", async ({ health, work }) => {
     const { story, capability, contract, sibling } = await smallPlan(work);
     const empty = await work.addCapability({ title: "Nothing promised", story: story.id });

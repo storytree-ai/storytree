@@ -139,24 +139,43 @@ function notGreen(why: CapabilityLine["why"], lastSeen?: { state: "passing" | "f
   return { ...panel, capabilities: [{ ...base, contracts: [contract], ...(why === undefined ? {} : { why }) }] };
 }
 
+/** A rendered fragment's words, its tags dropped and its spaces squeezed (split, not replace: the text stays escaped as rendered). */
+function plainText(fragment: string): string {
+  return fragment.split(/<[^>]*>/).join("").replace(/\s+/g, " ").trim();
+}
+
 /** The sentence under the selected capability's word. */
 function whyLine(html: string): string {
   const found = /<p class="panel-why[^"]*"[^>]*>([\s\S]*?)<\/p>/.exec(html);
   assert.ok(found !== null, "a line saying why");
-  return found[1]!.replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim();
+  return plainText(found[1]!);
 }
 
 test("4.14 a parked capability's detail keeps its word and reason and says it is parked, naming its arcs", () => {
   const base = notGreen({ reason: "not built", mover: "agent", contracts: [] });
   const parked = (titles: string[]): string => renderStoryPanel({ ...base, capabilities: [{ ...base.capabilities[0]!, parkedOn: titles.map((title, at) => ({ arc: `arc-${at}`, title })) }] }, "cap");
   const one = parked(["Identity <beta>"]);
-  const said = /<p class="panel-parked"[^>]*>([\s\S]*?)<\/p>/.exec(one)?.[1]?.replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim();
-  assert.equal(said, "Parked on Identity &lt;beta&gt;: shelved on purpose.");
+  const said = /<p class="panel-parked"[^>]*>([\s\S]*?)<\/p>/.exec(one)?.[1];
+  assert.ok(said !== undefined, "a line saying it is parked");
+  assert.equal(plainText(said), "Parked on Identity &lt;beta&gt;: shelved on purpose.");
   assert.match(one, /panel-state status-untested">untested</, "its word is kept");
   assert.equal(whyLine(one), "Why not green: it is not built yet. The agent moves this one.", "and its reason");
   assert.ok(one.indexOf("panel-parked") > one.indexOf("panel-why") && one.indexOf("panel-parked") < one.indexOf("<details>"));
   assert.match(parked(["Identity", "Journey events"]), /Parked on Identity and Journey events:/);
   assert.equal(renderStoryPanel(base, "cap").includes("panel-parked"), false, "one not parked says nothing of it");
+});
+
+test("4.38 a capability's detail lists its open work in the order given, each by title, the active one marked", () => {
+  const base = notGreen(undefined);
+  const html = renderStoryPanel({ ...base, capabilities: [{ ...base.capabilities[0]!, openWork: [
+    { increment: "inc-2", title: "Started <first>", active: true },
+    { increment: "inc-1", title: "Parked first" },
+    { increment: "inc-3", title: "Parked second" },
+  ] }] }, "cap");
+  const items = [...html.matchAll(/<li data-increment-id="([^"]+)"[^>]*>([\s\S]*?)<\/li>/g)].map(([, id, said]) => [id, plainText(said!)]);
+  assert.deepEqual(items, [["inc-2", "Started &lt;first&gt; (in progress)"], ["inc-1", "Parked first"], ["inc-3", "Parked second"]]);
+  assert.ok(html.indexOf("panel-open-work") < html.indexOf("<details>"), "above its contracts");
+  assert.equal(renderStoryPanel(base, "cap").includes("panel-open-work"), false, "one with no open work lists none");
 });
 
 test("4.12 a capability that is not healthy says why under its word, who moves it, and its contracts by number", () => {

@@ -79,6 +79,7 @@ function capability(line: CapabilityLine): string {
       ${line.why === undefined ? "" : why(line.why)}
       ${line.reportOnly ? `<p class="panel-why report-only">${text(NOT_VERIFIED)}.</p>` : ""}
       ${line.parkedOn === undefined ? "" : parked(line.parkedOn)}
+      ${line.openWork === undefined ? "" : openWork(line.openWork)}
       <p>${text(line.description)}</p>
       <p class="panel-health">
         ${badge("the agent reports", line.reported)}
@@ -113,6 +114,17 @@ function parked(arcs: NonNullable<CapabilityLine["parkedOn"]>): string {
   const titles = arcs.map(({ title }) => title);
   const named = titles.length < 2 ? (titles[0] ?? "") : `${titles.slice(0, -1).join(", ")} and ${titles.at(-1)}`;
   return `<p class="panel-parked">Parked on ${text(named)}: shelved on purpose.</p>`;
+}
+
+/** The open work naming it, in the library's order (ADR-1253 D1): read here, not drawn on the map. */
+function openWork(increments: NonNullable<CapabilityLine["openWork"]>): string {
+  return `
+      <section class="panel-open-work" aria-label="Open work">
+        <span class="panel-open-work-label">Open work</span>
+        <ol>${increments
+          .map(({ increment, title, active }) => `<li data-increment-id="${attribute(increment)}"${active ? ` class="active"` : ""}>${text(title)}${active ? ` <span class="panel-muted">(in progress)</span>` : ""}</li>`)
+          .join("")}</ol>
+      </section>`;
 }
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];

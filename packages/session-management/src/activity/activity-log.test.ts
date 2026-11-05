@@ -228,7 +228,7 @@ test("2.4 the log never shows up in the library's list of projects, and writing 
   }
 });
 
-test("2.7 a bounded read sends only the lines it asks for, oldest first: by kind, session, cursor and time, by a field's value, values or absence, by a field carried, the latest for each key, the newest or oldest few, and inside folders whatever their case or slashes, with the fields it never reads left out", async () => {
+test("2.7 a bounded read sends only the lines it asks for, oldest first: by kind, session, cursor and time window, by a field's value, values or absence, by a field carried, the latest for each key, the newest or oldest few, and inside folders whatever their case or slashes, with the fields it never reads left out", async () => {
   const project = uniqueProjectName();
   await withLog(async (log) => {
     const at = (minutes: number) => new Date(Date.now() - minutes * 60_000).toISOString();
@@ -245,6 +245,8 @@ test("2.7 a bounded read sends only the lines it asks for, oldest first: by kind
     assert.deepEqual(seqs(await log.lines(project, { kinds: ["branch-state"] })), [state1.seq, state2.seq, other.seq], "by kind, oldest first");
     assert.deepEqual(seqs(await log.lines(project, { sessions: ["A", "B"], after: old.seq })), [finish.seq, edit.seq, call.seq], "by session, after a cursor");
     assert.deepEqual(seqs(await log.lines(project, { since: at(25) })), [call.seq, state1.seq, state2.seq, other.seq], "written since a time");
+    assert.deepEqual(seqs(await log.lines(project, { until: at(10) })), [old.seq, finish.seq, edit.seq, call.seq, state1.seq], "written at a time or earlier");
+    assert.deepEqual(seqs(await log.lines(project, { since: at(25), until: at(10) })), [call.seq, state1.seq], "written inside a window");
     assert.deepEqual(seqs(await log.lines(project, { where: { call: "call-9" } })), [call.seq], "by a field's value");
     assert.deepEqual(seqs(await log.lines(project, { where: { of: ["fix", "none"] } })), [other.seq], "by one of a field's values");
     assert.deepEqual(seqs(await log.lines(project, { where: { machine: null, session: "B" } })), [call.seq], "by a field's absence");

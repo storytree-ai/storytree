@@ -72,7 +72,7 @@ test("7.2 an idle claim reads idle", async () => {
   });
 });
 
-test("7.4 `noticeboard log` keeps line identity and cause, with complete commands under --full and bounded session selection", async () => {
+test("7.4 `noticeboard log` keeps line identity and cause, with complete commands under --full and bounded selection by session, holder and time window", async () => {
   await inWorld(command, async (world) => {
     await withClaimable(world, async (_increment, log) => {
       const hook = { session: "claude-1", harness: "claude-code", source: "hook" } as const;
@@ -110,6 +110,29 @@ test("7.4 `noticeboard log` keeps line identity and cause, with complete command
       const empty = await world.run(["noticeboard", "log", "--full", "--session", "missing-session"]);
       assert.equal(empty.code, 0, empty.stderr);
       assert.equal(empty.stdout.trim(), "The activity log has no lines for missing-session.");
+
+      const at = (minutesAgo: number) => new Date(Date.now() - minutesAgo * 60_000).toISOString();
+      await log.append(world.project, { ...hook, session: "pull-request-9", kind: "tool-called", tool: "open" }, { at: at(90) });
+      const inside = await log.append(world.project, { ...hook, session: "pull-request-9", kind: "tool-called", tool: "show_plan" }, { at: at(60) });
+      const ended = await log.append(world.project, { ...hook, session: "watcher", source: "tool", kind: "merged", capability: "capability_1", holder: "pull-request-9", branch: "feat", pr: 9 }, { at: at(55) });
+      await log.append(world.project, { ...hook, session: "pull-request-9", kind: "tool-called", tool: "close_out" }, { at: at(30) });
+      const window = ["--since", at(70), "--until", at(50)];
+      const seqsOf = (stdout: string) => stdout.trim().split(/\r?\n/).map((one) => Number(/^#(\d+) /.exec(one)?.[1]));
+
+      const sessionWindow = await world.run(["noticeboard", "log", "--session", "pull-request-9", ...window]);
+      assert.equal(sessionWindow.code, 0, sessionWindow.stderr);
+      assert.deepEqual(seqsOf(sessionWindow.stdout), [inside.seq], "one session's lines inside the window, not before or after it");
+      const held = await world.run(["noticeboard", "log", "--holder", "pull-request-9", "--since", at(100)]);
+      assert.equal(held.code, 0, held.stderr);
+      assert.deepEqual(seqsOf(held.stdout), [ended.seq], "the lines naming that session as holder: what ended its claims");
+
+      const noHolder = await world.run(["noticeboard", "log", "--holder", "pull-request-10"]);
+      assert.equal(noHolder.code, 0, noHolder.stderr);
+      assert.equal(noHolder.stdout.trim(), "The activity log has no lines that match.");
+
+      const badTime = await world.run(["noticeboard", "log", "--until", "yesterday-ish"]);
+      assert.notEqual(badTime.code, 0);
+      assert.match(badTime.stderr, /--until takes a time/);
     });
   });
 });

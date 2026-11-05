@@ -264,10 +264,13 @@ test("4.37 a live process on a worktree's postmaster.pid whose name cannot be re
         await log.append(project, { ...here, session: "s-slow", folder, branch: "claude/slow-tasklist", kind: "closed-out", safe: true, why: "merged", running: 0 });
         const observer = { log, project, folder: repo, session: "observer", harness: "claude-code", source: "hook" } as const;
         const empty = (trash: string) => rmSync(trash, { recursive: true, force: true });
+        let asked = 0;
         const timedOut = () => {
+          asked += 1;
           throw new Error("spawnSync tasklist ETIMEDOUT");
         };
         assert.deepEqual(await reapWorktrees(observer, { everyMs: 0, budgetMs: 300, protect: [], empty, nameOf: timedOut }), []);
+        assert.ok(asked > 0, "the pass reached the process and asked its name");
         assert.equal(existsSync(folder), true, "a process of unknown name keeps its folder");
         assert.doesNotThrow(() => process.kill(server.pid!, 0), "and is never signalled");
 

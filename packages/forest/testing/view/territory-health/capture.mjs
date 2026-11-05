@@ -184,25 +184,28 @@ function measure(page) {
   phase('wait for territory and claim meshes');
   // Territories arrive with the survey, and the claim flags with the first read of the log: wait until both are drawn. Each
   // island's land is built in its own turn (3.87), so wait for every surveyed island's, not the first.
-  await page.waitForFunction(ids => {
-    let outlines = 0; window.__globe.scene.traverse(o => { if (o.name.startsWith('territory-claim:')) outlines++; });
+  // An island rebuilt when its roads arrive sets its flags again, so wait for every claim's flag, not the first.
+  await page.waitForFunction(({ ids, claimed }) => {
+    const flags = new Set(); window.__globe.scene.traverse(o => { if (o.name.startsWith('territory-claim:')) flags.add(o.name.slice(16)); });
     const landed = id => { let found = false; window.__globe.scene.getObjectByName(`planet:${id}`)?.traverse(o => { if (o.name.startsWith('territory:')) found = true; }); return found; };
-    return outlines > 0 && ids.every(landed);
-  }, seed.tree.stories.filter(s => s.capabilities.length > 0 && survey[s.id] !== undefined).map(s => s.id), { timeout: 30000, polling: 100 }).catch(error => failedWait('claim flags and territories', error));
+    return claimed.every(capability => flags.has(capability)) && ids.every(landed);
+  }, { ids: seed.tree.stories.filter(s => s.capabilities.length > 0 && survey[s.id] !== undefined).map(s => s.id), claimed: Object.values(CAP) }, { timeout: 30000, polling: 100 }).catch(error => failedWait('claim flags and territories', error));
   phase('wait for the land to finish drawing on');
   // Territories that arrive after the globe opens draw on (3.46): borders trace, then fills ease in. Measure them whole:
-  // every border drawn in full and every territory's opacity unchanged across three polls.
-  await page.waitForFunction(() => {
-    let full = true; const opacities = [];
+  // every border drawn in full, every claim's flag standing and every territory's opacity unchanged across three polls.
+  await page.waitForFunction(claimed => {
+    let full = true; const opacities = [], flags = new Set();
     window.__globe.scene.traverse(o => {
       if (o.name === 'territory-borders' && o.geometry.drawRange.count !== Infinity) full = false;
       if (o.name.startsWith('territory:')) opacities.push(o.material.opacity);
+      if (o.name.startsWith('territory-claim:')) flags.add(o.name.slice(16));
     });
+    if (!claimed.every(capability => flags.has(capability))) full = false;
     const key = full ? opacities.join() : '';
     window.__territoryDrawn = key !== '' && key === window.__territoryDrawnKey ? (window.__territoryDrawn ?? 0) + 1 : 0;
     window.__territoryDrawnKey = key;
     return window.__territoryDrawn >= 2;
-  }, undefined, { timeout: 30000, polling: 200 }).catch(error => failedWait('territories drawn on', error));
+  }, Object.values(CAP), { timeout: 30000, polling: 200 }).catch(error => failedWait('territories drawn on', error));
   await page.evaluate(() => { for (const menu of document.querySelectorAll('[popover]')) if (menu.matches(':popover-open')) menu.hidePopover(); });
   await settleView(page);
   const results = { now: new Date(NOW).toISOString(), sessions: SESSIONS, capabilities: CAP, logLines: lines.length };

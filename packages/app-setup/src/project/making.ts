@@ -76,8 +76,8 @@ export async function setUpProject({ folder, project, storytree, storytreeHome: 
     rememberApproval(home, machine.id, own ?? { project, folder: at });
     // A new project names the user's factory and reads its system from there, holding no copy (ADR-1040); one joined was set up where it was made.
     if (!join) await library.recordFactory(await userFactory(storytree, factory, [...projects, project]));
-    // The one home for its small fixes, made by storytree, never by the agent (6.15).
-    smallFixes = (await smallFixesArc(library))?.id;
+    // A new project's one home for its small fixes, made by storytree, never by the agent (6.15); one joined gains it at its check.
+    if (!join) smallFixes = (await smallFixesArc(library))?.id;
   } finally {
     await library.close();
   }

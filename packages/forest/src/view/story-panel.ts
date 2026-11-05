@@ -3,10 +3,11 @@
  * It explains the story in plain words and draws its capability tree, which opens in its own space
  * (ADR-0743). Each of the story's own capabilities is a card you can click; the one selected shows
  * below the tree, with its health as the agent reports it and its contracts on request (ADR-0659).
- * Every word from the library is written as text, never as HTML.
+ * Its foot is the map's legend (4.39). Every word from the library is written as text, never as HTML.
  */
 import { CARD, layoutTree, OUTSIDE_CARD, type CapabilityLine, type Card, type StoryPanel, type WhyLine } from "@storytree/forest";
 import type { HealthSource, HealthState } from "@storytree/library";
+import { renderMapLegend } from "./map-legend.js";
 
 const HEALTH: Readonly<Record<HealthState, string>> = { passing: "passing", failing: "failing", "not-checked": "not checked" };
 
@@ -27,7 +28,8 @@ export function renderStoryPanel(panel: StoryPanel, selected: string | undefined
     ${panel.checks === undefined ? "" : extraChecks(panel.checks)}
     ${panel.mapped === undefined ? "" : mapped(panel.mapped)}
     ${!tree || panel.capabilities.length === 0 ? "" : diagram(panel, shown?.id)}
-    ${shown === undefined ? "" : capability(shown)}`;
+    ${shown === undefined ? "" : capability(shown)}
+    ${renderMapLegend()}`;
 }
 
 /** What a mapped story is (ADR-0993 D3), in place of a health it does not carry, with its counts once surveyed. */

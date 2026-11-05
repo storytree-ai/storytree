@@ -8,6 +8,8 @@
  * - The plugin's files are read as the files of a package of that name (`packages/<plugin>/…`), so a story's tests are
  *   found where the map finds them in a project.
  * - A plugin missing, with no test command, with no story, or whose run reported no results writes nothing and says why.
+ * - A run re-runs only its own platform's tests: a `platform:<os>` skip of another platform leaves that contract's earlier
+ *   pass standing (4.2), so the Mint box keeps the laptop's Windows-only passes and the laptop the box's Linux-only ones.
  */
 import { execFile, spawn } from "node:child_process";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
@@ -17,7 +19,7 @@ import { promisify } from "node:util";
 import type { Library } from "@storytree/library";
 
 import { parseTestLog } from "../run-results/run-results.js";
-import { recordHealth } from "../read-ci/record.js";
+import { recordHealth, type RecordedVerdict } from "../read-ci/record.js";
 import { judgeRun, proofsAt, type Verdict } from "../verdicts/verdicts.js";
 
 /** Who writes a verdict from a run of a factory plugin's own tests. */
@@ -64,8 +66,8 @@ export async function commitOf(folder: string): Promise<string | undefined> {
   }
 }
 
-/** Run plugin `plugin`'s own tests in factory folder `factory` and write their verdicts to its stories' verified health. */
-export async function recordPluginTests({ library, factory, plugin, run = runTests }: { library: Library; factory: string; plugin: string; run?: RunTests }): Promise<PluginReading> {
+/** Run plugin `plugin`'s own tests in factory folder `factory`, on `platform` (this computer's), and write their verdicts to its stories' verified health. */
+export async function recordPluginTests({ library, factory, plugin, run = runTests, platform = process.platform }: { library: Library; factory: string; plugin: string; run?: RunTests; platform?: NodeJS.Platform }): Promise<PluginReading> {
   if (!/^[a-z0-9][a-z0-9-]*$/.test(plugin)) return { written: false, why: `${JSON.stringify(plugin)} is not a plugin's name: use lower-case letters, digits and dashes.` };
   const folder = path.join(factory, "plugins", plugin);
   const manifest = path.join(folder, "package.json");
@@ -81,7 +83,11 @@ export async function recordPluginTests({ library, factory, plugin, run = runTes
   if (results.length === 0) return { written: false, why: `${plugin}'s test command (${command}) reported no test results storytree can read (node --test's output); nothing was written.` };
   const { verdicts, unmatched } = judgeRun(proofs, results);
   const commit = await commitOf(factory);
-  const tested = new Map<string, Verdict>([...verdicts].filter(([, { total }]) => total > 0));
+  // A skip for another platform than this run's was never this run's to reach, so a pass from that platform stands.
+  const unrun = ({ skip }: Verdict) => /^platform:/.test(skip ?? "") && skip !== `platform:${platform}`;
+  const tested = new Map<string, Verdict & RecordedVerdict>(
+    [...verdicts].filter(([, { total }]) => total > 0).map(([id, verdict]) => [id, verdict.state === "not-checked" && unrun(verdict) ? { ...verdict, unrun: true } : verdict]),
+  );
   const written = await recordHealth(library, new Map([...tested.keys()].map((id) => [id, id])), tested, { by: VERIFIED_BY_PLUGIN_TESTS, source: "local", ...(commit === undefined ? {} : { commit: commit.slice(0, 12) }) });
   const notChecked = [...tested.values()].filter(({ state }) => state === "not-checked").length;
   return { written: true, ...(commit === undefined ? {} : { commit }), tests: results.length, unmatched: unmatched.length, passing: written.passing, failing: written.failing, notChecked };

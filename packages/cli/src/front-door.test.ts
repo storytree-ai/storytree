@@ -140,6 +140,7 @@ test("1.7 a command it does not have answers with the real command for that job,
       [["arc", "increment", "ready", "x"], /ADR-0909 retired[^\n]*claiming a proposal starts it[\s\S]*storytree workspace <increment\b/],
       [["claim", "x"], /storytree workspace <increment\b/],
       [["board"], /storytree noticeboard/],
+      [["sessions"], /storytree session list/],
       // `plan` reads the plan; its next word, when it names what to plan, points to the plan_* tools' twins.
       [["plan", "contract", "--help"], /: run storytree library new contract --capability <capability>/],
       [["plan", "story"], /: run storytree library new <story\|capability\|contract>/],

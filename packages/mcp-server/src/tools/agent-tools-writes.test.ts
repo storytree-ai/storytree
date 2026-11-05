@@ -1040,6 +1040,30 @@ test("9.22 edit_plan with live: true, under an increment's claim, corrects a sto
   });
 });
 
+test("9.25 park_increment naming a capability another open increment lists is refused, naming that increment and its arc, with nothing written; edit_plan newly listing it on an increment is not refused, and says that increment, its title and its arc", async () => {
+  await withProject(async ({ folder, library }) => {
+    await withAgent(folder, claudeCode("claude-1"), async (agent) => {
+      const { arc, capability } = await planned(agent);
+      const first = idOf(await agent.call("park_increment", { arc, title: "Route the form", objective: "Route it", body: "Red then green", capabilities: [capability] }));
+      const before = await library.history();
+      const refused = await agent.call("park_increment", { arc, title: "Route the form again", objective: "Route it", body: "Red then green", capabilities: [capability] });
+      assert.equal(refused.isError, true, refused.text);
+      assert.ok(refused.text.includes(first) && refused.text.includes(arc) && refused.text.includes(capability), refused.text);
+      assert.deepEqual(await library.history(), before, "nothing was written");
+
+      const second = idOf(await agent.call("park_increment", { arc, title: "Route the checks", objective: "Route them", body: "Red then green" }));
+      const told = await agent.call("edit_plan", { id: second, capabilities: [capability] });
+      assert.equal(told.isError, false, told.text);
+      assert.deepEqual(((await library.get(second))?.fields as { capabilities?: string[] }).capabilities, [capability], "the edit is written");
+      const [, line, ...more] = told.text.split("\n");
+      assert.ok(more.length === 0 && line !== undefined && line.includes(first) && line.includes("Route the form") && line.includes(arc) && line.includes(capability), told.text);
+
+      const again = await agent.call("edit_plan", { id: second, capabilities: [capability], title: "Route the checks and form" });
+      assert.equal(again.text.split("\n").length, 1, `a capability it already listed is not told of again: ${again.text}`);
+    });
+  });
+});
+
 test("9.17 plan_capability, under an increment's claim, judges the story's capability numbers as that increment's pending changes would leave it: a number a pending move out of the story frees is given, and one a pending move into the story brings is refused", async () => {
   await withProject(async ({ folder, library }) => {
     await withAgent(folder, claudeCode("claude-1"), async (agent) => {

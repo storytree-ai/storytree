@@ -909,7 +909,9 @@ test("5.9 a capability claim is never refused because the open increments listin
     const { park } = await arcOf(library);
     const design = await park("design");
     const first = await park("form, first cut", [emailForm]);
-    const second = await park("form, second cut", [emailForm]);
+    // Listed by an edit, since parking a second open increment on a capability is refused (10.35).
+    const second = await park("form, second cut");
+    await library.editIncrement(second, { capabilities: [emailForm] });
     await library.addWait(first, design, "the design comes first");
     await library.addWait(second, design, "the design comes first");
 
@@ -1019,8 +1021,10 @@ test("5.23 a claim takes from the library what deciding it needs and no more: on
       }
       // Open increments naming the capability, all but the last waiting: a capability claim reads none of them (ADR-0944 D2).
       const schema = await library.addIncrement({ arc, title: "Schema", objective: "Tables", body: "…" });
+      // All but the first list it by an edit, since parking a second open increment on a capability is refused (10.35).
       for (let n = 0; n < naming; n++) {
-        const part = await library.addIncrement({ arc, title: `Part ${n}`, objective: "A part", body: "…", capabilities: [emailForm] });
+        const part = await library.addIncrement({ arc, title: `Part ${n}`, objective: "A part", body: "…", ...(n === 0 ? { capabilities: [emailForm] } : {}) });
+        if (n > 0) await library.editIncrement(part.id, { capabilities: [emailForm] });
         if (n < naming - 1) await library.addWait(part.id, schema.id, "needs the tables");
       }
       const context: ClaimContext = { log, library, project, session: "A", harness: "claude-code" };

@@ -350,12 +350,15 @@ for (const backend of [memory, postgres]) {
     const live = await flight.createArc({ ...ARC, title: "Live" });
     await flight.parkArc(shelved.id);
     await flight.addIncrement({ arc: shelved.id, ...WORK, capabilities: [form!.id, mail!.id] });
-    const dated = await flight.addIncrement({ arc: later.id, ...WORK, capabilities: [form!.id] });
+    // A second open increment on one capability is listed by an edit, since parking it would be refused (10.35).
+    const dated = await flight.addIncrement({ arc: later.id, ...WORK });
+    await flight.editIncrement(dated.id, { capabilities: [form!.id] });
     await flight.addWaitFor(dated.id, { releaser: "event", note: "deletion finishes", checkBack: new Date(Date.now() + 4 * 86_400_000).toISOString().slice(0, 10) });
     const parked = async () => Object.fromEntries([...(await flight.parkedCapabilities()).entries()].map(([id, arcs]) => [id, arcs.map(({ title }) => title).sort()]));
     assert.deepEqual(await parked(), { [form!.id]: ["Later", "Shelved"], [mail!.id]: ["Shelved"] }, "parked by the owner, or asleep on a dated event; one no open increment names is not parked");
 
-    const now = await flight.addIncrement({ arc: live.id, ...WORK, capabilities: [mail!.id] });
+    const now = await flight.addIncrement({ arc: live.id, ...WORK });
+    await flight.editIncrement(now.id, { capabilities: [mail!.id] });
     assert.deepEqual(Object.keys(await parked()), [form!.id], "an open increment on an active arc keeps it out");
     await flight.closeIncrement(now.id, { note: "Not needed", disposition: "withdrawn" });
     assert.deepEqual(Object.keys(await parked()).sort(), [form!.id, mail!.id].sort(), "a closed one names nothing");
@@ -812,6 +815,31 @@ for (const backend of [memory, postgres]) {
     await flight.addWait(prune.id, again.id, "the second pass");
     await flight.closeIncrement(again.id, { note: "Dropped", disposition: "withdrawn" });
     assert.deepEqual(await flight.waitHolds(prune.id), [{ on: again.id, reason: "the second pass", forGood: true }], "a withdrawn blocker holds for good");
+  });
+
+  contract("10.35", "parking an increment whose capabilities list names one already on another open increment's list is refused, naming that increment, its title and its arc, unless it is born waiting on that increment", async ({ work, flight, transactions }) => {
+    const story = await work.addStory({ title: "Visitor can sign up" });
+    const form = await work.addCapability({ story: story.id, title: "Form" });
+    const checks = await work.addCapability({ story: story.id, title: "Checks" });
+    const arc = await flight.createArc(ARC);
+    const other = await flight.createArc({ title: "Drain", ...BARE_ARC });
+    const first = await flight.addIncrement({ arc: arc.id, title: "Route the form", ...BARE_WORK, capabilities: [form.id] });
+
+    const history = await transactions.history();
+    await assert.rejects(
+      flight.addIncrement({ arc: other.id, title: "Route the form again", ...BARE_WORK, capabilities: [checks.id, form.id] }),
+      (error: unknown) => error instanceof RangeError && error.message.includes(first.id) && error.message.includes("Route the form") && error.message.includes(arc.id) && error.message.includes(form.id) && !error.message.includes(checks.id),
+    );
+    assert.deepEqual(await transactions.history(), history, "nothing was written");
+
+    // A later step of a split, born waiting on the increment that holds the capability, parks.
+    const next = await flight.addIncrement({ arc: arc.id, title: "Then the form's checks", ...BARE_WORK, capabilities: [form.id], waits: [{ on: first.id, reason: "after the form" }] });
+    assert.equal(next.fields.status, "proposal");
+    // Born closed is a record of work done, never refused; and a capability whose increments have all closed is free.
+    await flight.addIncrement({ arc: other.id, title: "Done before", ...BARE_WORK, capabilities: [form.id], outcome: { pr: "#3", disposition: "landed" } });
+    await flight.closeIncrement(first.id, { pr: "#4", disposition: "landed" });
+    await flight.closeIncrement(next.id, { pr: "#5", disposition: "landed" });
+    assert.equal((await flight.addIncrement({ arc: other.id, title: "Route the form", ...BARE_WORK, capabilities: [form.id] })).fields.status, "proposal");
   });
 }
 

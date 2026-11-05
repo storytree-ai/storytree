@@ -183,6 +183,20 @@ export class LifecycleError extends Error {
 
 const EDITABLE: ReadonlySet<string> = new Set(["title", "objective", "body", "capabilities", "links", "remedies", "heldOn", "machine", "escape", "risk"]);
 
+/** An open increment whose capabilities list names some of the ones asked about: which, and where it is (10.35). */
+export interface OpenListing {
+  readonly increment: string;
+  readonly title: string;
+  readonly arc: string;
+  readonly capabilities: readonly string[];
+}
+
+/** What a park refuses, and an edit of a list is told, about `other`: the capabilities it already lists, and where it is. */
+export function listedSaid(other: OpenListing): string {
+  const verb = other.capabilities.length === 1 ? "is" : "are";
+  return `${other.capabilities.join(", ")} ${verb} already on the capabilities list of open increment ${other.increment} (${JSON.stringify(other.title)}, on arc ${other.arc})`;
+}
+
 export class WorkInFlight {
   readonly #records: SchemaRecords;
   /** The plan's editors, through which a landed increment's pending changes apply (ADR-0966 D4). */
@@ -199,7 +213,9 @@ export class WorkInFlight {
    * Add an increment to a live arc (MissingReferenceError otherwise, as for any capability, link,
    * remedies or increment it waits on that is not live). A wait given at birth needs no loop check,
    * since nothing can wait on a record not yet written. It is a proposal, stamped with when it was parked, or, given an
-   * `outcome`, born closed.
+   * `outcome`, born closed. A proposal whose capabilities list names a capability already on another open increment's
+   * list is refused (RangeError), naming that increment, its title and its arc, so a second drain routes to the one
+   * already parked (10.35): unless it is born waiting on that increment, as a later step of a split is.
    */
   addIncrement(increment: NewIncrement, options?: WriteOptions): Promise<SchemaRecord<"increment">> {
     return this.#serially(async () => {
@@ -207,6 +223,13 @@ export class WorkInFlight {
       await checkReference(this.#records, "arc", fields.arc, "arc");
       await this.#checkNames(fields);
       for (const { on } of fields.waits ?? []) await checkReference(this.#records, "on", on, "increment");
+      if (outcome === undefined) {
+        const follows = new Set((fields.waits ?? []).map(({ on }) => on));
+        const shared = (await this.openListing(fields.capabilities ?? [])).find((other) => !follows.has(other.increment));
+        if (shared !== undefined) {
+          throw new RangeError(`${listedSaid(shared)}: route this work to that increment, or, if it follows that one, park it waiting on it`);
+        }
+      }
       const waitsFor = fields.waitsFor?.map(checkedWaitFor);
       if (waitsFor !== undefined && outcome !== undefined) throw new RangeError("an increment born closed waits for nothing");
       if (new Set(waitsFor?.map(({ releaser }) => releaser)).size !== (waitsFor?.length ?? 0)) throw new RangeError("an increment waits with one note per releaser");
@@ -215,6 +238,19 @@ export class WorkInFlight {
         : { status: "closed" as const, outcome: outcomeOf(outcome), ...escapeAnswer(fields.escape, outcome) };
       return this.#records.create("increment", { ...fields, ...(waitsFor === undefined || waitsFor.length === 0 ? { waitsFor: undefined } : { waitsFor }), ...lifecycle }, options);
     });
+  }
+
+  /**
+   * The open increments, other than `except`, whose capabilities lists name any of `capabilities`, oldest first, each
+   * with its title, its arc and the capabilities it shares: what a park refuses and an edit of a list is told.
+   */
+  async openListing(capabilities: readonly string[], except?: string): Promise<OpenListing[]> {
+    if (capabilities.length === 0) return [];
+    const open = await this.#records.select("increment", ["title", "arc", "capabilities"], { not: { status: "closed" } });
+    return open
+      .filter((other) => other.id !== except)
+      .map((other) => ({ increment: other.id, title: other.fields.title, arc: other.fields.arc, capabilities: capabilities.filter((id) => (other.fields.capabilities ?? []).includes(id)) }))
+      .filter((other) => other.capabilities.length > 0);
   }
 
   /**

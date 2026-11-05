@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { BACKUP_EVERY_MS, keepBackups } from "./backups.js";
 
-test("1.8 a failed snapshot releases the restart hold, and stopping prevents later daily snapshots", async (t) => {
+test("10.1 a failed snapshot releases the restart hold, and stopping prevents later daily snapshots", async (t) => {
   t.mock.timers.enable({ apis: ["setInterval"] });
   const projects = deferred<string[]>();
   let reads = 0;

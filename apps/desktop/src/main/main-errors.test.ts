@@ -12,7 +12,7 @@ function entries(file: string): string[] {
   return readFileSync(file, "utf8").split(/^\d{4}-\d\d-\d\dT\S+Z /m).slice(1).map(entry => entry.replace(/\n$/, ""));
 }
 
-test("1.22 the main process's uncaught exceptions and unhandled rejections reach app.log with their stack", (t) => {
+test("9.2 the main process's uncaught exceptions and unhandled rejections reach app.log with their stack", (t) => {
   const dir = mkdtempSync(path.join(tmpdir(), "main-errors-"));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   const file = path.join(dir, "app.log");
@@ -33,7 +33,7 @@ test("1.22 the main process's uncaught exceptions and unhandled rejections reach
   assert.equal(logged[2], "main process unhandled rejection: not an error");
 });
 
-test("1.23 after an uncaught main-process error is logged, the app says so, asks the person to have their agent file a GitHub issue, and offers Keep going or Restart, one box at a time; only Restart restarts it", async () => {
+test("9.3 after an uncaught main-process error is logged, the app says so, asks the person to have their agent file a GitHub issue, and offers Keep going or Restart, one box at a time; only Restart restarts it", async () => {
   const heard = new Map<string, (reason: unknown) => void>();
   const main: MainProcess = { on: (event: string, listener: (reason: unknown) => void) => { heard.set(event, listener); } };
   const logged: string[] = [];

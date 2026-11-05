@@ -1,5 +1,5 @@
 /**
- * Capability 1 · Lifecycle, contract 1.8 in the app story (ADR-0641 D2 step 4, choice B1): the app
+ * Capability 10 · Daily snapshots, contract 10.1 in the app story (ADR-0641 D2 step 4, choice B1): the app
  * writes a snapshot of each project once a day (at start unless one under a day old is reused), keeping each project's newest 14.
  * Against the real Postgres `pnpm test` provides; apps/desktop wires the timing to the app.
  */
@@ -19,7 +19,7 @@ import type { ProjectSnapshot } from "@storytree/library";
 
 import { BACKUP_EVERY_MS, BACKUPS_KEPT, backUp, keepBackups, readBackup } from "./backups.js";
 
-test("1.8 the app writes a snapshot of each project to backups/<project>/, keeping that project's newest 14, and each restores", { timeout: 300_000 }, async () => {
+test("10.1 the app writes a snapshot of each project to backups/<project>/, keeping that project's newest 14, and each restores", { timeout: 300_000 }, async () => {
   const url = process.env.STORYTREE_TEST_PG_URL;
   assert.ok(url, "STORYTREE_TEST_PG_URL is not set: run the tests via `pnpm test`");
   const fresh = (): string => `t-${randomBytes(4).toString("hex")}`;
@@ -64,7 +64,7 @@ test("1.8 the app writes a snapshot of each project to backups/<project>/, keepi
   }
 });
 
-test("1.8 a snapshot past the longest string JavaScript can build is written whole, in pieces, and reads back", async (t) => {
+test("10.1 a snapshot past the longest string JavaScript can build is written whole, in pieces, and reads back", async (t) => {
   const dir = mkdtempSync(path.join(tmpdir(), "storytree-backups-large-"));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   const snapshot: ProjectSnapshot = {
@@ -97,7 +97,7 @@ test("1.8 a snapshot past the longest string JavaScript can build is written who
   assert.deepEqual(await readBackup(none!), empty);
 });
 
-test("1.50 a daily snapshot carries the project's media, a line per file after its history, and restores each file exactly; a snapshot holding none is written as before", { timeout: 300_000 }, async () => {
+test("10.2 a daily snapshot carries the project's media, a line per file after its history, and restores each file exactly; a snapshot holding none is written as before", { timeout: 300_000 }, async () => {
   const url = process.env.STORYTREE_TEST_PG_URL;
   assert.ok(url, "STORYTREE_TEST_PG_URL is not set: run the tests via `pnpm test`");
   const [site, copy] = [`t-${randomBytes(4).toString("hex")}`, `t-${randomBytes(4).toString("hex")}`];
@@ -130,7 +130,7 @@ test("1.50 a daily snapshot carries the project's media, a line per file after i
   }
 });
 
-test("1.8 a start reuses a project's successful snapshot under a day old, and takes the next at its day mark", { timeout: 300_000 }, async (t) => {
+test("10.1 a start reuses a project's successful snapshot under a day old, and takes the next at its day mark", { timeout: 300_000 }, async (t) => {
   t.mock.timers.enable({ apis: ["setInterval", "Date"], now: Date.parse("2026-10-06T12:00:00.000Z") });
   const dir = mkdtempSync(path.join(tmpdir(), "storytree-backups-due-"));
   t.after(() => rmSync(dir, { recursive: true, force: true }));

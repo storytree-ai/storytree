@@ -33,7 +33,7 @@ function failure(stack: string): Error {
   return error;
 }
 
-test("1.25 each uncaught main-process exception and unhandled rejection becomes one record in the user's own library, with its stack, build, time and count; a repeat adds to its count, and one before the library opens is recorded once it does", async () => {
+test("9.4 each uncaught main-process exception and unhandled rejection becomes one record in the user's own library, with its stack, build, time and count; a repeat adds to its count, and one before the library opens is recorded once it does", async () => {
   const database = `storytree-app-errors-t-${randomBytes(4).toString("hex")}`;
   const storytree: Storytree = await connect({ url: testServerUrl() });
   try {
@@ -69,7 +69,7 @@ test("1.25 each uncaught main-process exception and unhandled rejection becomes 
   }
 });
 
-test("1.26 when the library cannot take the errors, app.log keeps writing them as before, says the library missed them, and nothing more is thrown or rejected", async (t) => {
+test("9.5 when the library cannot take the errors, app.log keeps writing them as before, says the library missed them, and nothing more is thrown or rejected", async (t) => {
   const dir = mkdtempSync(path.join(tmpdir(), "main-error-records-"));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   const unhandled: unknown[] = [];
@@ -105,7 +105,7 @@ test("1.26 when the library cannot take the errors, app.log keeps writing them a
   }
 });
 
-test("1.31 while the user's library holds an app error not yet marked submitted, opening the app asks to have their agent submit a GitHub issue; \"It's been submitted\" marks it so and the box stops, and Keep going leaves it asking", async () => {
+test("9.6 while the user's library holds an app error not yet marked submitted, opening the app asks to have their agent submit a GitHub issue; \"It's been submitted\" marks it so and the box stops, and Keep going leaves it asking", async () => {
   const database = `storytree-app-errors-t-${randomBytes(4).toString("hex")}`;
   const storytree: Storytree = await connect({ url: testServerUrl() });
   try {

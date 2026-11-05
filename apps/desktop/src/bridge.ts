@@ -1,5 +1,5 @@
 /**
- * Capability 1 · Lifecycle. What the preload script hands the page, as `window.storytree`: these functions and nothing else.
+ * Capability 8 · Page bridge. What the preload script hands the page, as `window.storytree`: these functions and nothing else.
  * Each is answered by the main process, which alone holds the library (@storytree/app's pageReads).
  */
 import type { SettingsBridge } from "@storytree/project-and-caller/bridge";
@@ -60,7 +60,7 @@ export interface BridgeOptions {
 /** Electron's wrapper around a main-side failure: "Error invoking remote method '<channel>': <name>: <message>". */
 const REMOTE_FAILURE = /^Error invoking remote method '[^']*': (?:([A-Za-z]*Error): )?([\s\S]*)$/;
 
-/** The main side's failure as it was thrown there, its name and message, without Electron's wrapper (contract 1.38); any other rejection unchanged. */
+/** The main side's failure as it was thrown there, its name and message, without Electron's wrapper (contract 8.7); any other rejection unchanged. */
 function ownWords(error: unknown): unknown {
   const parts = error instanceof Error ? REMOTE_FAILURE.exec(error.message) : null;
   if (!parts) return error;

@@ -1,12 +1,12 @@
 /**
- * Capability 1 · Lifecycle, contract 1.8 (the app story; ADR-0641 D2 step 4, choice B1): once a
+ * Capability 10 · Daily snapshots, contract 10.1 (the app story; ADR-0641 D2 step 4, choice B1): once a
  * project's library is the only copy of its plan, the app keeps snapshots of it. keepBackups gives
  * each project one a day: at start it takes one of each project whose newest successful snapshot is
  * missing or a day old, reusing one under a day old (increment_cdce468a4e1a: the development app
  * restarts on every merged build), and while it runs takes the next at each project's day mark.
  * backUp writes one snapshot of each project to <dir>/<project>/<time>.json (the library's
  * `snapshot`, records, history and any media, one JSON object written a line per record, history entry or file
- * (1.50) and read back by readBackup), under that name only once whole, and keeps that project's newest
+ * (10.2) and read back by readBackup), under that name only once whole, and keeps that project's newest
  * BACKUPS_KEPT. A file there that is not a snapshot is never touched. A snapshot restores only into
  * an empty project (the library's `restore`), so it can never overwrite live edits.
  */
@@ -160,7 +160,7 @@ const WRITE_CHUNK = 1 << 20;
  * Write a snapshot as one JSON object without ever building it as one string (V8's longest is about
  * 2^29 characters, which the storytree project's passed on 2026-10-25): a first line holding every
  * field but records, history and media, then one record per line, then one history entry per line, then, when the
- * project keeps any, one media file per line (1.50), ending "]}\n". A small file still reads with JSON.parse;
+ * project keeps any, one media file per line (10.2), ending "]}\n". A small file still reads with JSON.parse;
  * readBackup reads any size line by line.
  */
 function writeSnapshot(partial: string, snapshot: ProjectSnapshot, stringify: (value: unknown) => string): void {

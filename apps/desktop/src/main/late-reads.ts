@@ -1,6 +1,6 @@
 /**
- * Capability 1 · Lifecycle. The page's answers that wait on the library: the page asks before it opens, and again after
- * it reopens, so each answer reaches for the library open at the time it is asked (contract 1.29).
+ * Capability 8 · Page bridge. The page's answers that wait on the library: the page asks before it opens, and again after
+ * it reopens, so each answer reaches for the library open at the time it is asked (contract 8.5).
  */
 
 /** Each of `methods` answered by the reads `open` gives when asked, which throws while the library is not open. */

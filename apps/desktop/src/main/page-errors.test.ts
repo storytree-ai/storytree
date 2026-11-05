@@ -12,7 +12,7 @@ function entries(file: string): string[] {
   return readFileSync(file, "utf8").split(/^\d{4}-\d\d-\d\dT\S+Z /m).slice(1).map(entry => entry.replace(/\n$/, ""));
 }
 
-test("1.19 the page's console errors and its renderer going away reach app.log with where they came from; its ordinary logging does not", (t) => {
+test("9.1 the page's console errors and its renderer going away reach app.log with where they came from; its ordinary logging does not", (t) => {
   const dir = mkdtempSync(path.join(tmpdir(), "page-errors-"));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   const file = path.join(dir, "app.log");

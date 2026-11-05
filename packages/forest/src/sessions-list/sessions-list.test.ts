@@ -2,7 +2,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { AnnotatedTree, ArcView, Line, NewLine } from "@storytree/library";
-import { clickedSelection, listedRows, openWork, sessionRoster, sessionRows } from "./sessions-list.js";
+import { clickedSelection, listedRows, sessionRoster, sessionRows } from "./sessions-list.js";
 import { sessionColour } from "../agent-claims/agent-claims.js";
 
 const now = new Date("2026-09-28T12:00:00Z");
@@ -246,12 +246,3 @@ test("7.15 a worktree whose open branch has a pull request is labelled by it ins
     ["PR #1 · in CI", "PR #2 · failing", "PR #3 · in merge queue", "PR #4 · draft", "PR #5", "unmerged"]);
 });
 
-test("7.36 · the map's open work is every capability an open increment of any arc read names, once each; a closed increment's are none", () => {
-  const work = (id: string, status: string, capabilities: string[]) => ({ id, fields: { title: id, status, capabilities } });
-  const arcs = [
-    { arc: { id: "a", fields: { title: "A" } }, state: "active", questions: [], increments: [work("i1", "proposal", ["cap-b", "cap-a"]), work("i2", "closed", ["cap-done"])] },
-    { arc: { id: "b", fields: { title: "B" } }, state: "parked", questions: [], increments: [work("i3", "active", ["cap-a", "cap-c"]), { id: "i4", fields: { title: "i4", status: "proposal" } }] },
-  ] as unknown as ArcView[];
-  assert.deepEqual(openWork(arcs), ["cap-a", "cap-b", "cap-c"]);
-  assert.deepEqual(openWork([]), []);
-});

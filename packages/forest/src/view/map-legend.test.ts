@@ -23,7 +23,7 @@ import { renderStoryPanel } from "./story-panel.js";
 import { lightTerritories, territoryLand } from "./territory-land.js";
 
 // One island drawing every mark: a capability of each of the six kinds (The library's ids), every word, a parked one, mapped
-// land and Unclaimed code, an arc selected and open work, a session's reads and a claim.
+// land and Unclaimed code, an arc selected, a session's reads and a claim.
 const R = Math.sqrt(LIBRARY_LAND / Math.PI);
 const coast: Coast = [Array.from({ length: 96 }, (_, i) => ({ x: R * Math.cos(i * Math.PI / 48), z: R * Math.sin(i * Math.PI / 48) }))];
 const kinds = ["capability_5e0362aae607", "capability_f27ac2abb10b", "capability_75d059640d9d", "capability_a954e1eb16f6", "capability_13b04e769a4b", "capability_a7f068502213"];
@@ -49,7 +49,7 @@ function drawnIsland(): Object3D {
   const relief = islandRelief(map, roads), fill = landFill(map, land);
   land.add(islandReliefMarks(relief, flat, fill), islandRoadMarks(roads, flat, fill, relief));
   lightTerritories(land, new Map([[kinds[0]!, "in-window" as const]]), "#56b4e9");
-  const work = openWorkLayer(openWorkMarks(map, { circled: new Set([kinds[0]!]), open: new Set([kinds[0]!, kinds[1]!]) }, roads, coast), land, flat, map.radius);
+  const work = openWorkLayer(openWorkMarks(map, new Set([kinds[0]!]), roads, coast), land, flat, 1);
   const claims = new ClaimMarks();
   claims.setLand(map, flat, () => new Vector3(0, 1, 0), true, coast);
   claims.claims(new Map([[kinds[2]!, { colour: "#e69f00", faded: false }]]), 0, { standing: false, reduced: false });

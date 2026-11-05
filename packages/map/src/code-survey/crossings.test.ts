@@ -47,11 +47,11 @@ const SHOP = {
   "packages/pay/lib/pay.mjs": "const menu = require(\"@shop/cart/src/ui/menu\");\nexport const pay = () => menu;\n",
 };
 
-async function fixture() {
+async function fixture(extra: Record<string, string> = {}) {
   const shop = await mkdtemp(path.join(tmpdir(), "crossing-shop-"));
   const desk = await mkdtemp(path.join(tmpdir(), "crossing-desk-"));
   const trunk = await mkdtemp(path.join(tmpdir(), "crossing-trunk-"));
-  await write(shop, SHOP);
+  await write(shop, { ...SHOP, ...extra });
   await write(desk, { "package.json": JSON.stringify({ name: "desk" }), "src/ui/panel.ts": "export const panel = 1;\n" });
   const old = path.relative(path.join(trunk, "packages/built"), path.join(shop, "packages/cart/src")).split(path.sep).join("/");
   await write(trunk, {
@@ -122,6 +122,22 @@ test("3.9 a pattern's empty segments are dropped, so a long run of slashes insid
   const { trunk, survey, done } = await fixture();
   try {
     await assert.rejects(crossingsOf(tree, survey, trunk, { patterns: [`x${"/".repeat(40_000)}y`] }), /No mapped file matches/);
+  } finally {
+    await done();
+  }
+});
+
+test("3.9 an alias's target takes the specifier's text for its star as written, and a target with no star is taken whole", async () => {
+  const { trunk, survey, done } = await fixture({
+    "tsconfig.json": JSON.stringify({ compilerOptions: { baseUrl: ".", paths: { "@/*": ["packages/cart/src/*"], "#fmt/*": ["packages/cart/src/lib/format.ts"] } } }),
+    "packages/cart/src/ui/$&.ts": "export const odd = 1;\n",
+    "packages/cart/src/odd.ts": "import { odd } from \"@/ui/$&\";\nimport { format } from \"#fmt/anything\";\nexport const shown = format(odd);\n",
+  });
+  try {
+    const into = (folder: string) => crossingsOf(tree, survey, trunk, { patterns: [folder], mode: "show" })
+      .then((answer) => answer.rows!.filter((row) => row.from === "packages/cart/src/odd.ts").map((row) => row.to));
+    assert.deepEqual(await into("packages/cart/src/ui"), ["packages/cart/src/ui/$&.ts"]);
+    assert.deepEqual(await into("packages/cart/src/lib"), ["packages/cart/src/lib/format.ts"]);
   } finally {
     await done();
   }

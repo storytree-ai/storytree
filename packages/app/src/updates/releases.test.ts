@@ -183,7 +183,6 @@ for (const platform of PLATFORMS) {
     assert.equal(await applying, "restarting");
     assert.deepEqual(events, ["stopping", "stopped", "installer", "exit"]);
     if (platform === "win32") {
-      assert.deepEqual(target?.args, ["--updated", "/S", "--force-run"]);
       assert.deepEqual(await readFile(target!.execPath), feed.installer);
     } else if (platform === "linux") {
       // The AppImage file was replaced in place, and the restart starts it; nothing ran it before the database stopped.
@@ -256,6 +255,22 @@ for (const platform of PLATFORMS) {
     });
   }
 }
+
+test("4.40 win32: a release installs through its installer's own progress window, as an update that starts the new build, and 4.41 marks the install as underway first", async (t) => {
+  const feed = await fixture(t, "win32");
+  let target: Launch | undefined;
+  let marked: unknown;
+  const lifecycle = background({
+    stopDatabase: async () => { marked = JSON.parse(await readFile(path.join(path.dirname(feed.holds), "installing.json"), "utf8")); },
+    relaunch: (next) => { target = next; },
+    exit: () => {},
+  });
+  feed.version = "0.3.2";
+  assert.equal(await feed.updater(lifecycle.restart, async () => true).check(), "restarting");
+  // Without /S the one-click installer shows its progress; --updated skips its "app is running" question.
+  assert.deepEqual(target?.args, ["--updated", "--force-run"]);
+  assert.deepEqual(marked, { nextBuild: "0.3.2", installer: target?.execPath, at: (marked as { at: number }).at });
+});
 
 test("4.4 linux: an AppImage its menu entry started with --no-sandbox, where the kernel blocks the sandbox, restarts the replaced AppImage with it", hostRuns("linux"), async (t) => {
   const feed = await fixture(t, "linux");

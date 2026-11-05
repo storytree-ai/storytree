@@ -7,6 +7,7 @@ import { AppImageUpdater, MacUpdater, NsisUpdater, type Logger, type UpdateInfo 
 import type { Launch } from "../lifecycle/background.js";
 import type { UpdateState } from "./update-state.js";
 import { heldUpdateRuns } from "./update-holds.js";
+import { markInstalling } from "./install-underway.js";
 import { STABLE_FEED, type ReleaseChannel } from "./release-channel.js";
 
 export interface ReleaseOptions {
@@ -48,7 +49,8 @@ class NsisRelease extends NsisUpdater {
 
   /** Resolves once the handoff has stopped the app; rejects if the install could not start. */
   async installRelease(): Promise<void> {
-    if (!this.install(true, true)) throw new Error("The downloaded release could not be installed");
+    // Not silent, so the one-click installer shows its progress window (4.40); --updated skips its "app is running" question.
+    if (!this.install(false, true)) throw new Error("The downloaded release could not be installed");
     await this.started;
   }
 
@@ -190,7 +192,10 @@ export class ReleaseUpdater {
   constructor(private readonly options: ReleaseOptions, app?: AppAdapter, platform: NodeJS.Platform = process.platform) {
     const Base = releaseBase(platform);
     if (Base === undefined) throw new Error(`Installed apps do not update from releases on ${platform}`);
-    this.base = new Base((target) => this.options.restart(target, true), app, options.bundle, options.sandboxOff);
+    this.base = new Base((target) => {
+      if (platform === "win32") this.markInstalling(target);
+      return this.options.restart(target, true);
+    }, app, options.bundle, options.sandboxOff);
     this.base.autoDownload = false;
     this.base.autoInstallOnAppQuit = false;
     this.base.allowPrerelease = false;
@@ -287,6 +292,16 @@ export class ReleaseUpdater {
     this.restarting = this.base.installRelease();
     await this.restarting;
     return "restarting";
+  }
+
+  /** A start while this installer runs says storytree is still updating (4.41); a marker that cannot be written never stops the install. */
+  private markInstalling(installer: Launch): void {
+    if (this.options.home === undefined || this.next === undefined) return;
+    try {
+      markInstalling(this.options.home, { nextBuild: this.next, installer: installer.execPath });
+    } catch (error) {
+      this.base.logger?.warn(`Could not mark the install as underway: ${error instanceof Error ? error.message : String(error)}`);
+    }
   }
 
   private set(phase: UpdateState["phase"], detail: Partial<UpdateState> = {}): void {

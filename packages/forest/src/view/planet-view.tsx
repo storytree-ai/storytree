@@ -1,6 +1,6 @@
 /** Capability 3 · Story node render. The forest on the glass sheet (ADR-1043): lane B's plates at their places on the sheet, with its failure markers. */
 import { useFrame, useThree } from "@react-three/fiber";
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { Group, Quaternion, Vector3, type Camera, type Object3D } from "three";
 import { claimTints, replayWisps, selectionLanes, type ClaimTint, type FacingIsland, type ForestScene, type GlobeTurn, type Island, type SessionWisp } from "@storytree/forest";
 import type { Descriptor3D } from "@storytree/forest-world";
@@ -16,6 +16,7 @@ import { islandRelief } from "../territories/island-relief.js";
 import { islandReliefMarks } from "./island-relief.js";
 import { ClaimMarks } from "./claim-flag.js";
 import { islandLayout, type Link } from "../territories/link-layout.js";
+import { keptVersion, pageTerritorySearcher, searchIsland, subscribeKept } from "../territories/kept-layout.js";
 import { NameplateCrowd, Nameplates, reducedMotion, SelectionRing } from "./island-overlays.js";
 import { focusRotation, globeHover, isGlobeDrag, markerSpot, movingSpots, MOVE_SECONDS, oncePerFrame, pickGlobe, type ForestMode } from "./planet-navigation.js";
 import { claimsOn } from "./planet-update.js";
@@ -112,10 +113,12 @@ export function PlanetView({ core, scene, places, wisps: live, selected, highlig
   // The knowledge graph under the glass sheet: each shelf's notes under its place, the selected story's lit (ADR-1043 D5).
   // 3.76: once the selected island's plate has seen its docks, its shelves hang under its territories as laid out by its links.
   const [seenDocks, setSeenDocks] = useState<{ story: string; docks: readonly IslandDock[] | undefined }>();
+  // 3.80: and once the search keeps an arrangement for it, under its territories as kept.
+  const kept = useSyncExternalStore(subscribeKept, keptVersion);
   const under = useMemo(() => {
     const laid = laidIsland(seenDocks, selected);
     return laid === undefined ? layout.under : sheetLayout(scene, places, frame, laid).under;
-  }, [layout, seenDocks, selected, scene, places, frame]);
+  }, [layout, seenDocks, selected, scene, places, frame, kept]);
   const underSheet = useMemo((): CoreUnderSheet => ({ ...under, selected }), [under, selected]);
   const links = useKept(layout.scene.links ?? NO_LINKS, JSON.stringify);
   const overlays = useCallback((island: Island, descriptors: readonly Descriptor3D[], coast: readonly (readonly { x: number; z: number }[])[], docks: readonly IslandDock[] | undefined) => {
@@ -125,7 +128,7 @@ export function PlanetView({ core, scene, places, wisps: live, selected, highlig
     const local = { ...island, x: 0, z: 0 };
     const emphasis = shownSurfaces.sessionTints && highlighted?.length ? (highlighted.includes(island.story) ? "held" : "dimmed") : undefined;
     return <>
-      {island.land !== undefined && layout.spots.has(island.story) && <Territories land={island.land} coast={coast} links={links} docks={laidBy} claimed={claimed} radius={layout.radius}
+      {island.land !== undefined && layout.spots.has(island.story) && <Territories story={island.story} land={island.land} coast={coast} links={links} docks={laidBy} claimed={claimed} radius={layout.radius}
         lighting={lighting} surfaces={shownSurfaces} />}
       <SessionIslandEmphasis emphasis={emphasis} />
       {emphasis === "held" && <SelectionRing island={local} descriptors={descriptors} onGlobe emphasis />}
@@ -247,7 +250,8 @@ const ROAD_LIFT = 0.08;
  * An island's territories (3.14), cut to its coast and laid on its surface, all in the plate's own units; it lights
  * the territories the selected session's window opened (3.18). No file is drawn on them (ADR-1212).
  */
-function Territories({ land: given, coast: givenCoast, links, docks: givenDocks, claimed, radius, lighting, surfaces }: {
+function Territories({ story, land: given, coast: givenCoast, links, docks: givenDocks, claimed, radius, lighting, surfaces }: {
+  story: string;
   land: NonNullable<Island["land"]>;
   coast: readonly (readonly { x: number; z: number }[])[];
   links: readonly Link[];
@@ -264,7 +268,10 @@ function Territories({ land: given, coast: givenCoast, links, docks: givenDocks,
   const land = useKept(given, JSON.stringify), coast = useKept(givenCoast, JSON.stringify), docks = useKept(givenDocks, (docks) => JSON.stringify(docks ?? null));
   // A claim on another island leaves this one's territories as they were.
   const tints = useKept(claimed, tints => claimsOn(tints, land));
-  const map = useMemo(() => islandLayout(land.territories, coast, links, docks), [land, coast, links, docks]);
+  // 3.80: laid out from the arrangement the search kept for it, and searched off the page when there is none for its structure.
+  const kept = useSyncExternalStore(subscribeKept, keptVersion);
+  const map = useMemo(() => islandLayout(story, land.territories, coast, links, docks), [story, land, coast, links, docks, kept]);
+  useEffect(() => { if (docks !== undefined) searchIsland(story, { shares: land.territories, coast, links, docks }, pageTerritorySearcher()); }, [story, land, coast, links, docks]);
   // ADR-1236 D1: the selected island's links are one shared road network, with a gate wherever a road crosses a border.
   const roads = useMemo(() => docks === undefined ? undefined : islandRoads(map, links, docks, capabilityPlates(map)), [map, links, docks]);
   // 3.78: and every territory a plateau above its open land, a ramp where a road climbs onto one.

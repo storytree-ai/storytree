@@ -1,11 +1,12 @@
 /** Capability 3 · Story node render. The globe's nameplates and selection rings, drawn on each island's plate. */
 import { useFrame, useThree } from "@react-three/fiber";
-import { useMemo, useRef, type CSSProperties } from "react";
+import { useMemo, useRef, useSyncExternalStore, type CSSProperties } from "react";
 import { DoubleSide, Quaternion, type Group } from "three";
 import type { Island } from "@storytree/forest";
 import { onIslandSurface, Overlay, plateTransform, type PlanetSpot } from "@storytree/forest-world/planet";
 import type { Coast } from "../territories/territories.js";
 import { islandLayout, type Link, type LinkDock } from "../territories/link-layout.js";
+import { keptVersion, subscribeKept } from "../territories/kept-layout.js";
 import { capabilityPlates, facing, fadedCapabilities, fadedPlates, southOnPlate, STORY_PLATE_WIDTH, storyPlate } from "./nameplates.js";
 import { GROUND_PER_WORLD_UNIT, islandReach, type Descriptor3D } from "@storytree/forest-world";
 
@@ -42,7 +43,9 @@ export function Nameplates({ island, spot, coast, links = [], docks, radius, sel
     label.current.dataset.facing = String(facing(turned, camera.quaternion));
   }, -1);
   const chosen = island.story === selected;
-  const plates = useMemo(() => chosen && island.land !== undefined ? capabilityPlates(islandLayout(island.land.territories, coast, links, docks)) : [], [chosen, island.land, coast, links, docks]);
+  // 3.80: the plates follow the arrangement the search kept, as the territories do.
+  const kept = useSyncExternalStore(subscribeKept, keptVersion);
+  const plates = useMemo(() => chosen && island.land !== undefined ? capabilityPlates(islandLayout(island.story, island.land.territories, coast, links, docks)) : [], [chosen, island.story, island.land, coast, links, docks, kept]);
   const opacity = dimmed ? 0.24 : selected !== undefined && !chosen ? 0.5 : 1;
   // Its opacity is a variable, so a crowded plate's fade (styles.css) can take it to nothing and back.
   const plateStyle = { "--plate-opacity": opacity, maxWidth: STORY_PLATE_WIDTH } as CSSProperties;

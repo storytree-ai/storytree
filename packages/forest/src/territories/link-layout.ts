@@ -1,18 +1,20 @@
 /**
  * Capability 3 · Story node render (the forest story): the selected island's territories laid out by their links
  * (ADR-1236 D1, rollout 2 step 2), ported from the capability tree mock's layout rules
- * (docs/design/capability-tree-3d/q-all-islands/tools/layout.ts) without its search.
+ * (docs/design/capability-tree-3d/q-all-islands/tools/layout.ts); its search is territory-search.ts's (step 2b).
  *
  * - The island is scaled to The library's size, the size every round of the look was tuned at, cut by the map's own
  *   cutter run finer (CUT cells), and drawn back at its own size, so its marks stand as large as The library's.
  * - Open land, held by no territory, lies round each dock the map lands sea lanes at: its reach grows with the lanes the
  *   dock carries, from KEYS_OPEN for one to MOUTH for 64 or more. Land the open land cuts off from the rest is open too.
  * - A capability a lane lands at (an interface) grows from the frontier cell nearest the dock carrying most of its
- *   lanes; one linked only at home (an internal) grows inland, near the territories it links to.
+ *   lanes; one linked only at home (an internal) grows inland, near the territories it links to. A territory with a
+ *   kept seed (3.80) grows from the free cell of its kind nearest it instead.
  * - Each territory grows to its share of the land left, by its lines, never under round 13's minimum, then the sizes
  *   are balanced cell by cell along neighbours, every territory kept in one piece.
  * An arrangement that cannot be grown even after moving its seeds leaves the island on the map's own cut.
  */
+import { keptArrangement } from "./kept-layout.js";
 import { apportion, atLeast, islandTerritories, landArea, MIN_SHARE, territories, type Border, type Cell, type Coast, type Point, type TerritoryMap, type TerritoryShare } from "./territories.js";
 
 /** The library's land in ground units², the size the look was tuned at. */
@@ -32,43 +34,38 @@ export type LinkDock = { readonly local: Point; readonly links: readonly string[
 export type Link = { readonly from: string; readonly to: string };
 
 /** The island's id for its Unclaimed code, which has no capability. */
-const UNCLAIMED = "";
+export const UNCLAIMED = "";
 const far = (a: Point, b: Point) => Math.hypot(a.x - b.x, a.z - b.z);
 const times = (p: Point, k: number): Point => ({ x: p.x * k, z: p.z * k });
 
-const laid = new WeakMap<readonly TerritoryShare[], { coast: Coast; key: string; map: TerritoryMap }>();
+/** Where each territory grows from, in The library's units, by its capability (UNCLAIMED for the Unclaimed code): points,
+ * not cells, so they still mean the same place when the coast grows and the cut moves. */
+export type Seeds = Readonly<Record<string, Point>>;
+
+const laid = new WeakMap<readonly TerritoryShare[], { coast: Coast; key: string; kept: Seeds | undefined; map: TerritoryMap }>();
 
 /**
  * The island's territories as the map draws them: laid out by its links when it is given the docks its lanes come
- * ashore at (the selected island, once its roads are routed), else the map's own cut. Laid out once for the same
- * shares, coast, links and docks, whoever asks.
+ * ashore at (the selected island, once its roads are routed), grown from the arrangement kept for `story` where there is
+ * one (3.80), else the map's own cut. Laid out once for the same shares, coast, links, docks and kept arrangement, whoever asks.
  */
-export function islandLayout(shares: readonly TerritoryShare[], coast: Coast, links: readonly Link[], docks: readonly LinkDock[] | undefined): TerritoryMap {
+export function islandLayout(story: string, shares: readonly TerritoryShare[], coast: Coast, links: readonly Link[], docks: readonly LinkDock[] | undefined): TerritoryMap {
   if (docks === undefined) return islandTerritories(shares, coast);
+  const kept = keptArrangement(story)?.seeds;
   const key = JSON.stringify([links, docks]), known = laid.get(shares);
-  if (known?.coast === coast && known.key === key) return known.map;
-  const map = linkLayout(shares, coast, links, docks);
-  laid.set(shares, { coast, key, map });
+  if (known?.coast === coast && known.key === key && known.kept === kept) return known.map;
+  const map = linkLayout(shares, coast, links, docks, kept);
+  laid.set(shares, { coast, key, kept, map });
   return map;
 }
 
-/** The island cut to `coast` with its territories laid out by `links` and the `docks` its lanes come ashore at. */
-export function linkLayout(shares: readonly TerritoryShare[], coast: Coast, links: readonly Link[], docks: readonly LinkDock[]): TerritoryMap {
-  const scale = Math.sqrt(landArea(coast) / LIBRARY_LAND);
-  if (!(scale > 0)) return islandTerritories(shares, coast);
-  const ground = coast.map((ring) => ring.map((p) => times(p, 1 / scale)));
-  const fine = territories(shares, ground, CUT);
-  const owners = arrange(fine, ground, links, docks.map((dock) => ({ local: ontoCoast(times(dock.local, 1 / scale), ground), links: dock.links })));
-  if (owners === undefined) return islandTerritories(shares, coast);
-  const cells = fine.cells.map((cell, at): Cell => ({ ...cell, site: times(cell.site, scale), polygon: cell.polygon.map((p) => times(p, scale)), territory: owners[at]! }));
-  const borders: Border[] = [];
-  fine.cells.forEach((cell, at) => {
-    for (const n of cell.neighbours) if (n > at && owners[n] !== owners[at]) {
-      const edge = sharedEdge(cells[at]!, cells[n]!);
-      if (edge) borders.push({ from: edge[0], to: edge[1], between: [at, n] });
-    }
-  });
-  return { radius: fine.radius * scale, coast, territories: fine.territories, cells, borders };
+/** The island cut to `coast` with its territories laid out by `links` and the `docks` its lanes come ashore at, grown
+ * from the `kept` seeds where given (3.80), every other territory placed as the start places it. */
+export function linkLayout(shares: readonly TerritoryShare[], coast: Coast, links: readonly Link[], docks: readonly LinkDock[], kept?: Seeds): TerritoryMap {
+  const island = prepareIsland(shares, coast, links, docks);
+  const seeds = island && startSeeds(island, kept);
+  const owners = island && seeds && settle(island, seeds)?.owners;
+  return island && owners ? drawnIsland(island, owners) : islandTerritories(shares, coast);
 }
 
 /** How far the open land reaches round a dock whose lanes reach `n` links here, in The library's units. */
@@ -76,10 +73,28 @@ export function openReach(n: number): number {
   return n <= 0 ? 0 : KEYS_OPEN + (MOUTH - KEYS_OPEN) * Math.min(1, Math.log(n) / Math.log(64));
 }
 
-/** Each cell's territory (its index in `map.territories`, -1 for open land), or undefined when none grows. */
-function arrange(map: TerritoryMap, coast: Coast, links: readonly Link[], docks: readonly LinkDock[]): number[] | undefined {
-  const { cells, territories: held } = map;
-  const N = cells.length, ids = held.map((t) => t.capability ?? UNCLAIMED), index = new Map(ids.map((id, at) => [id, at]));
+/** An island made ready to lay out: its fine cut at The library's size, its open land, the land each territory may
+ * grow on and how much of it each holds. */
+export type PreparedIsland = {
+  readonly coast: Coast; readonly scale: number; readonly fine: TerritoryMap; readonly ids: readonly string[];
+  readonly open: readonly boolean[]; readonly main: readonly number[]; readonly frontier: readonly boolean[];
+  readonly counts: readonly number[]; readonly least: number;
+  /** Each interface (a territory a lane lands at), by the dock carrying most of its lanes. */
+  readonly dockOf: ReadonlyMap<number, number>;
+  /** The docks, in The library's units, on its coast. */
+  readonly docks: readonly LinkDock[];
+  readonly partners: (t: number) => number[];
+};
+
+/** The island ready to lay out, or undefined when it cannot be (no land, or fewer cells left than territories). */
+export function prepareIsland(shares: readonly TerritoryShare[], coast: Coast, links: readonly Link[], given: readonly LinkDock[]): PreparedIsland | undefined {
+  const scale = Math.sqrt(landArea(coast) / LIBRARY_LAND);
+  if (!(scale > 0)) return undefined;
+  const ground = coast.map((ring) => ring.map((p) => times(p, 1 / scale)));
+  const fine = territories(shares, ground, CUT);
+  const docks = given.map((dock) => ({ local: ontoCoast(times(dock.local, 1 / scale), ground), links: dock.links }));
+  const { cells, territories: held } = fine;
+  const ids = held.map((t) => t.capability ?? UNCLAIMED), index = new Map(ids.map((id, at) => [id, at]));
   if (held.length < 2) return undefined;
   const here = (id: string) => id !== UNCLAIMED && index.has(id);
   // Each dock's lanes by the capability here they reach, and how many it carries.
@@ -106,28 +121,51 @@ function arrange(map: TerritoryMap, coast: Coast, links: readonly Link[], docks:
   const least = Math.max(1, Math.min(Math.floor(owned / held.length), Math.round(MIN_SHARE * owned)));
   const counts = atLeast(apportion(held.map((t) => t.lines), owned), least);
 
-  const toCoast = (p: Point) => Math.min(...coast.flatMap((ring) => ring.map((a, i) => toSegment(p, a, ring[(i + 1) % ring.length]!))));
+  const toCoast = (p: Point) => Math.min(...ground.flatMap((ring) => ring.map((a, i) => toSegment(p, a, ring[(i + 1) % ring.length]!))));
   const frontier = cells.map((cell, c) => !open[c] && (cell.neighbours.some((n) => open[n]) || toCoast(cell.site) < FRONT));
-  const frontierCells = main.filter((c) => frontier[c]), inlandCells = main.filter((c) => !frontier[c]);
   // Interfaces: each territory a lane lands at, by the dock carrying most of its lanes.
   const dockOf = new Map<number, number>();
   lands.forEach((reached, k) => reached.forEach((n, t) => { const best = dockOf.get(t); if (best === undefined || n > lands[best]!.get(t)!) dockOf.set(t, k); }));
   const own = links.filter((l) => here(l.from) && here(l.to) && l.from !== l.to).map((l) => [index.get(l.from)!, index.get(l.to)!] as const);
   const partners = (t: number) => own.flatMap(([a, b]) => (a === t ? [b] : b === t ? [a] : []));
+  return { coast, scale, fine, ids, open, main, frontier, counts, least, dockOf, docks, partners };
+}
 
-  // The start: each interface on the frontier nearest its dock, each internal inland, near the middle of the seeds it
-  // links to pulled toward the island's middle, or else as far as it can be from every seed placed.
-  const seeds = new Array<number>(held.length).fill(-1), used = new Set<number>();
+/** Each cell's fitness as territory `t`'s seed: an interface's on the frontier, an internal's anywhere held. */
+export function seedKind(island: PreparedIsland, t: number): boolean[] {
+  if (island.dockOf.has(t)) return [...island.frontier];
+  const held = new Set(island.main);
+  return island.open.map((o, c) => !o && held.has(c));
+}
+
+/**
+ * The cell each territory starts growing from: a kept seed's nearest free cell of its kind (3.80); else each interface
+ * on the frontier nearest its dock, each internal inland, near the middle of the seeds it links to pulled toward the
+ * island's middle, or else as far as it can be from every seed placed.
+ */
+export function startSeeds(island: PreparedIsland, kept?: Seeds): number[] | undefined {
+  const { fine: { cells }, ids, main, frontier, dockOf, docks, partners } = island;
+  const N = cells.length, owned = main.length;
+  const frontierCells = main.filter((c) => frontier[c]), inlandCells = main.filter((c) => !frontier[c]);
+  const seeds = new Array<number>(ids.length).fill(-1), used = new Set<number>();
+  ids.forEach((id, t) => {
+    const at = kept?.[id];
+    if (at === undefined) return;
+    const kind = seedKind(island, t), free = main.filter((c) => kind[c] && !used.has(c));
+    if (free.length === 0) return;
+    const c = free.reduce((b, x) => (far(cells[x]!.site, at) < far(cells[b]!.site, at) ? x : b));
+    seeds[t] = c; used.add(c);
+  });
   const area = cells.reduce((s, cell) => s + polygonArea(cell.polygon), 0) / N;
-  const apart = 0.5 * Math.sqrt(owned / held.length) * Math.sqrt(area);
+  const apart = 0.5 * Math.sqrt(owned / ids.length) * Math.sqrt(area);
   const take = (pool: readonly number[], toward: Point) => {
     const free = pool.filter((c) => !used.has(c)), spaced = free.filter((c) => [...used].every((u) => far(cells[u]!.site, cells[c]!.site) >= apart));
     const choice = spaced.length ? spaced : free;
     if (choice.length === 0) return -1;
     return choice.reduce((b, c) => (far(cells[c]!.site, toward) < far(cells[b]!.site, toward) ? c : b));
   };
-  for (const [t, k] of dockOf) { const c = take(frontierCells.length ? frontierCells : main, docks[k]!.local); seeds[t] = c; used.add(c); }
-  const inland = held.map((_, t) => t).filter((t) => !dockOf.has(t)).sort((a, b) => partners(b).length - partners(a).length || a - b);
+  for (const [t, k] of dockOf) if (seeds[t]! < 0) { const c = take(frontierCells.length ? frontierCells : main, docks[k]!.local); seeds[t] = c; used.add(c); }
+  const inland = ids.map((_, t) => t).filter((t) => !dockOf.has(t) && seeds[t]! < 0).sort((a, b) => partners(b).length - partners(a).length || a - b);
   for (const t of inland) {
     const placed = partners(t).filter((p) => seeds[p]! >= 0).map((p) => cells[seeds[p]!]!.site);
     const pool = inlandCells.filter((c) => !used.has(c)).length ? inlandCells : main;
@@ -139,23 +177,53 @@ function arrange(map: TerritoryMap, coast: Coast, links: readonly Link[], docks:
     }
     seeds[t] = c; used.add(c);
   }
-  if (seeds.some((c) => c < 0)) return undefined;
+  return seeds.some((c) => c < 0) ? undefined : seeds;
+}
 
-  // Seeds that will not grow are moved, a seeded walk so the island repeats: an interface along the frontier, an internal anywhere.
+/** Each cell's territory (its index in the island's territories, -1 for open land) grown from `seeds`, or undefined
+ * when none grows, with the seeds it grew from. Seeds that will not grow are moved, a seeded walk so the island repeats: an interface along the
+ * frontier, an internal anywhere. */
+export function settle(island: PreparedIsland, seeds: readonly number[]): { owners: number[]; seeds: readonly number[] } | undefined {
+  const { fine: { cells }, ids, main } = island;
   let state = 43;
   const random = () => { state = (state * 1103515245 + 12345) & 0x7fffffff; return state / 0x7fffffff; };
   let tried = seeds;
   for (let attempt = 0; attempt <= TRIES; attempt++) {
-    const grown = grow(tried, counts, least, open, cells);
-    if (Array.isArray(grown)) return grown;
+    const grown = grow(tried, island.counts, island.least, island.open, cells);
+    if (Array.isArray(grown)) return { owners: grown, seeds: tried };
     // The territory that fell furthest short moves, mostly; sometimes another, so the walk cannot stall on one.
-    const next = [...tried], t = grown.short >= 0 && random() < 0.8 ? grown.short : Math.floor(random() * held.length), taken = new Set(tried);
-    const kind = dockOf.has(t) ? frontier : open.map((o, c) => !o && main.includes(c));
+    const next = [...tried], t = grown.short >= 0 && random() < 0.8 ? grown.short : Math.floor(random() * ids.length), taken = new Set(tried);
+    const kind = seedKind(island, t);
     const near = (random() < 0.75 ? cells[tried[t]!]!.neighbours.filter((n) => kind[n]) : main.filter((c) => kind[c])).filter((c) => !taken.has(c));
     if (near.length) next[t] = near[Math.floor(random() * near.length)]!;
     tried = next;
   }
   return undefined;
+}
+
+/** The territories grown from exactly `seeds`, with no walk, or undefined when they do not grow: a step of the search. */
+export function grownFrom(island: PreparedIsland, seeds: readonly number[]): number[] | undefined {
+  const grown = grow(seeds, island.counts, island.least, island.open, island.fine.cells);
+  return Array.isArray(grown) ? grown : undefined;
+}
+
+/** The island as the map draws it, each cell held by `owners`' territory, at the island's own size. */
+export function drawnIsland(island: PreparedIsland, owners: readonly number[]): TerritoryMap {
+  const { fine, scale, coast } = island;
+  const cells = fine.cells.map((cell, at): Cell => ({ ...cell, site: times(cell.site, scale), polygon: cell.polygon.map((p) => times(p, scale)), territory: owners[at]! }));
+  const borders: Border[] = [];
+  fine.cells.forEach((cell, at) => {
+    for (const n of cell.neighbours) if (n > at && owners[n] !== owners[at]) {
+      const edge = sharedEdge(cells[at]!, cells[n]!);
+      if (edge) borders.push({ from: edge[0], to: edge[1], between: [at, n] });
+    }
+  });
+  return { radius: fine.radius * scale, coast, territories: fine.territories, cells, borders };
+}
+
+/** Seed cells as points to keep, in The library's units, by territory id. */
+export function seedPoints(island: PreparedIsland, seeds: readonly number[]): Seeds {
+  return Object.fromEntries(island.ids.map((id, t) => [id, island.fine.cells[seeds[t]!]!.site]));
 }
 
 /** The territories grown from `seeds` to `counts` over the land not `open`, each one connected; when they cannot be,

@@ -56,7 +56,7 @@ const held = [read[5], read[0], read[1], read[2], read[3]];
 const server = createServer((req, res) => {
   const name = new URL(req.url, 'http://localhost').pathname.slice(1);
   if (name === 'favicon.ico') { res.writeHead(204).end(); return; } // a full Chrome asks for one, as the shared runner answers
-  if (!['index.html', 'renderer.js', 'road-worker.js', 'styles.css', 'arc-surface.css', 'app-setup.css', 'forest.css'].includes(name)) { res.writeHead(404).end(); return; }
+  if (!['index.html', 'renderer.js', 'road-worker.js', 'territory-worker.js', 'styles.css', 'arc-surface.css', 'app-setup.css', 'forest.css'].includes(name)) { res.writeHead(404).end(); return; }
   res.setHeader('Content-Type', name.endsWith('.js') ? 'text/javascript' : name.endsWith('.css') ? 'text/css' : 'text/html');
   res.end(readFileSync(path.join(built, name)));
 });

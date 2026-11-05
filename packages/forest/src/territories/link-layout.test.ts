@@ -70,10 +70,10 @@ test("3.76 a small island is laid out at The library's size and drawn at its own
 
 test("3.76 only an island given its docks is laid out by its links; any other keeps the map's own cut", () => {
   const coast = round(40);
-  assert.equal(islandLayout(shares, coast, links, undefined), islandTerritories(shares, coast));
-  const laid = islandLayout(shares, coast, links, [east(40)]);
+  assert.equal(islandLayout("s", shares, coast, links, undefined), islandTerritories(shares, coast));
+  const laid = islandLayout("s", shares, coast, links, [east(40)]);
   assert.notEqual(laid, islandTerritories(shares, coast));
-  assert.equal(islandLayout(shares, coast, links, [east(40)]), laid, "laid out once for the same docks");
+  assert.equal(islandLayout("s", shares, coast, links, [east(40)]), laid, "laid out once for the same docks");
 });
 
 test("3.76 land the open land cuts off from the rest of the island is open land too", () => {

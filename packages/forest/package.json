@@ -11,7 +11,8 @@
     "./code-survey": "./src/code-survey/read-survey.ts",
     "./page": "./src/render/page.ts",
     "./snapshot": "./src/snapshot/forest-snapshot.ts",
-    "./evidence-seed": "./src/snapshot/evidence-seed.ts"
+    "./evidence-seed": "./src/snapshot/evidence-seed.ts",
+    "./territory-worker": "./src/territories/search-worker.ts"
   },
   "storytree": {
     "surfaces": [

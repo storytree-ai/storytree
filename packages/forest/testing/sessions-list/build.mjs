@@ -5,7 +5,7 @@ import { createRequire } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildFolder } from '../../../../apps/desktop/src/capture/output.ts';
-import { roadWorkerBuild } from '../../../../apps/desktop/src/renderer/road-worker.ts';
+import { roadWorkerBuild, territoryWorkerBuild } from '../../../../apps/desktop/src/renderer/road-worker.ts';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, '../../../..');
@@ -22,6 +22,7 @@ await build({
   banner: { js: "globalThis.__storytreeCaptureGlobe = get => Object.defineProperty(globalThis, '__globe', { get, configurable: true }); globalThis.__storytreeCaptureNavigation = nav => { globalThis.__nav = nav; };" },
 });
 await build({ ...roadWorkerBuild(out, path.join(root, 'apps/desktop')), absWorkingDir: path.join(root, 'apps/desktop'), logLevel: 'warning' });
+await build({ ...territoryWorkerBuild(out, path.join(root, 'apps/desktop')), absWorkingDir: path.join(root, 'apps/desktop'), logLevel: 'warning' });
 for (const name of ['index.html', 'styles.css']) {
   copyFileSync(path.join(root, 'apps/desktop/src/renderer', name), path.join(out, name));
 }

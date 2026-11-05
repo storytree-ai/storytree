@@ -57,14 +57,14 @@ export function registerPlanTools(define: Define): void {
 
   define(
     "plan_story",
-    "Plan a story: something a user of the project can do, one package of its own, with its founding decision: what it is for, and the one choice that shapes it. Plan its capabilities next. A story is never a task: a task or ticket is an increment, with contracts on the capabilities it changes. On an existing codebase, call import_project first: each package it declares becomes a mapped story, and this refuses while the project's folder declares packages none of which has a story; after it, plan a story only for a new package built on them.",
+    "Plan a story: something a user of the project can do, one package of its own, with its founding decision: what it is for, and the one choice that shapes it. Plan its capabilities next. A story is never a task: a task or ticket is an increment, with contracts on the capabilities it changes. On an existing codebase, call import_project first: each package it declares becomes a mapped story, and this refuses while the project's folder declares packages none of which has a story; after it, plan a story only for a new package built on them. Never move or restructure a user's code to fit storytree: a flat repository imports as it stands, as one mapped story.",
     z.object({ title, description, founding }),
     async ({ title: name, description: about, founding: decision }, { library, writer, folder }) => {
       // An existing codebase is imported before its stories are planned (9.23, ADR-0993, ADR-1071 D1).
       const unimported = await unimportedPackages(folder, library);
       if (unimported.length > 0) {
         return {
-          text: `Not planned: ${unimportedSentence(unimported)} Call import_project with this project's folder first: each package it declares becomes a mapped story, since a story is one package. Then plan a story only for a new package built on them; the work itself, such as a task, is an increment, with contracts on the capabilities it changes.`,
+          text: `Not planned: ${unimportedSentence(unimported)} Call import_project with this project's folder first: each package it declares becomes a mapped story, since a story is one package, and a flat repository with one manifest at its top is one story, mapped in place: never move its code to fit storytree. Then plan a story only for a new package built on them; the work itself, such as a task, is an increment, with contracts on the capabilities it changes.`,
           refused: true,
           data: { unimported: unimported.map((one) => one.title) },
         };

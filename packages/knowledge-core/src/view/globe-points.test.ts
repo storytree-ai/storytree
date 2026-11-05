@@ -4,7 +4,7 @@ import { test } from "node:test";
 import type { InterleavedBufferAttribute } from "three";
 import { LineGeometry } from "three/examples/jsm/lines/LineGeometry.js";
 
-import { dotOpacity, moveLine } from "./globe-points.js";
+import { dotDrawing, dotOpacity, moveLine } from "./globe-points.js";
 
 const along = (shift: number) => Array.from({ length: 20 }, (_, i) => [i + shift, 2 * i, -i]).flat();
 const colours = Array.from({ length: 20 }, (_, i) => [i / 20, 0.5, 1]).flat();
@@ -34,4 +34,20 @@ test("1.15 with a story selected, every other story's note fades to a faint back
   assert.ok(faded < own / 5, "far quieter than the selected story's own");
   assert.equal(dotOpacity({ state: null, lit: true, anyLit: true, quiet: true }), 1, "a note the selected session read keeps its light");
   assert.equal(dotOpacity({ state: "in-window", lit: false, anyLit: true, quiet: true }), 1, "and one in its window");
+});
+
+test("4.24 the sheet's 754 notes are drawn with one ball per look and one material per look, colour and opacity, each dot scaled to its size in its own colour and opacity", () => {
+  const radius = 40, colours = ["#5ab0f0", "#e69f00", "#009e73", "#cc79a7"], opacities = [1, 0.52, 0.0624];
+  const dots = Array.from({ length: 754 }, (_, i) => ({ shaded: i % 2 === 0, colour: colours[i % 4]!, opacity: opacities[i % 3]!, size: 0.01 + (i % 7) * 0.002, radius }));
+  const drawn = dots.map(dot => dotDrawing(dot));
+  assert.equal(new Set(drawn.map(({ geometry }) => geometry)).size, 2, "one ball for the flat look, one for the shaded");
+  assert.equal(new Set(drawn.map(({ material }) => material)).size, new Set(dots.map(({ shaded, colour, opacity }) => `${shaded} ${colour} ${opacity}`)).size,
+    "a material per look, colour and opacity, not one per note");
+  dots.forEach((dot, i) => {
+    const { geometry, material, scale } = drawn[i]!;
+    assert.equal(geometry.parameters.radius * scale, radius * dot.size, "drawn at its note's size");
+    assert.equal(material.opacity, dot.opacity);
+    assert.equal(material.type, dot.shaded ? "MeshLambertMaterial" : "MeshBasicMaterial");
+    if (!dot.shaded) assert.equal(`#${material.color.getHexString()}`, dot.colour);
+  });
 });

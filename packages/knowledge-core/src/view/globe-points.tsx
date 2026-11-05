@@ -5,7 +5,7 @@ import type { RecordEnvelope } from "@storytree/library";
 import { Billboard } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { AdditiveBlending, BufferGeometry, Color, DoubleSide, Float32BufferAttribute, Group, LineBasicMaterial, LineSegments, Mesh, MeshBasicMaterial, type InterleavedBufferAttribute } from "three";
+import { AdditiveBlending, BufferGeometry, Color, DoubleSide, Float32BufferAttribute, Group, LineBasicMaterial, LineSegments, Mesh, MeshBasicMaterial, MeshLambertMaterial, SphereGeometry, type InterleavedBufferAttribute } from "three";
 import { Line2 } from "three/examples/jsm/lines/Line2.js";
 import { LineGeometry } from "three/examples/jsm/lines/LineGeometry.js";
 import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
@@ -46,6 +46,27 @@ const SHADED = { body: 0.5, glow: 0.4 };
 const shadedBody = (colour: string): Color => new Color(colour).multiplyScalar(SHADED.body);
 const shadedGlow = (colour: string): Color => new Color(colour).multiplyScalar(SHADED.glow);
 
+/** A dot's unit ball for each look, a ball lit by the sheet's lights finer than a flat one, shared by every dot of that look. */
+const spheres = { flat: new SphereGeometry(1, 12, 8), shaded: new SphereGeometry(1, 20, 14) };
+const materials = new Map<string, MeshBasicMaterial | MeshLambertMaterial>();
+
+/**
+ * How one note's dot is drawn (4.24): its look's unit ball scaled to its size, and a material shared by every dot of its look,
+ * colour and opacity. Drawing the sheet's notes for the first time then builds a few materials, not a ball and a material per
+ * note (754 of each on storytree's own library, the one task over 50 ms left as the map opened).
+ */
+export function dotDrawing({ shaded, colour, opacity, size, radius }: { shaded: boolean; colour: string; opacity: number; size: number; radius: number }):
+  { geometry: SphereGeometry; material: MeshBasicMaterial | MeshLambertMaterial; scale: number } {
+  const key = `${shaded ? "shaded" : "flat"} ${colour} ${opacity}`;
+  let material = materials.get(key);
+  if (material === undefined) {
+    material = shaded ? new MeshLambertMaterial({ color: shadedBody(colour), emissive: shadedGlow(colour), transparent: true, opacity, depthWrite: false })
+      : new MeshBasicMaterial({ color: colour, transparent: true, opacity, depthWrite: false });
+    materials.set(key, material);
+  }
+  return { geometry: shaded ? spheres.shaded : spheres.flat, material, scale: radius * size };
+}
+
 const reducedMotion = (): boolean => typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
 const trailKey = (trail: Trail) => `${trail.colour} ${trail.from} ${trail.to}`;
 
@@ -77,7 +98,8 @@ export function GlobePoints({ points, radius, notes, sizes, lit = new Map(), tra
   const group = useRef<Group>(null);
   const moments = useMemo(() => grows === undefined ? undefined : noteMoments(points, notes, date => grows.moment(date)), [grows, points, notes]);
   const grownAt = useRef(Number.NaN);
-  useEffect(() => { grownAt.current = Number.NaN; }, [moments]);
+  // Grown again after every render: one that resizes a dot sets its full scale.
+  useEffect(() => { grownAt.current = Number.NaN; });
   useFrame(() => {
     const now = grows?.now();
     if (moments === undefined || now === undefined || group.current === null || now === grownAt.current) return;
@@ -87,7 +109,7 @@ export function GlobePoints({ points, radius, notes, sizes, lit = new Map(), tra
       if (!dot.name.startsWith("knowledge-point:")) continue;
       const shown = noteShown(moments.get(dot.userData.id as string), now);
       dot.visible = shown > 0;
-      dot.scale.setScalar(Math.max(shown, 0.001));
+      dot.scale.setScalar(Math.max(shown, 0.001) * radius * (dot.userData.size as number));
       growing ||= shown < 1;
     }
     // The globe asks for frames while it grows; a note still fading in after it is done asks for its own.
@@ -168,20 +190,15 @@ export function GlobePoints({ points, radius, notes, sizes, lit = new Map(), tra
       const opacity = dotOpacity({ state, lit: lighting !== undefined, anyLit: lit.size > 0, quiet: quiet?.has(point.id) === true });
       // A dot's size is its note's reach alone: a session's read shows in colour, brightness and rings, never in size (ADR-0926 D3).
       const size = sizes?.get(point.id) ?? DOT_FLOOR;
-      return <mesh key={point.id} name={`knowledge-point:${point.id}`}
+      const drawn = dotDrawing({ shaded, colour, opacity, size, radius });
+      return <mesh key={point.id} name={`knowledge-point:${point.id}`} geometry={drawn.geometry} material={drawn.material} scale={drawn.scale}
       position={[point.at.x, point.at.y, point.at.z]} raycast={noRaycast}
       userData={{ id: point.id, size, title: notes.has(point.id) ? noteTitle(notes.get(point.id)!) : point.id, depth: point.depth ?? null, home: point.home ?? null, toward: point.toward ?? null,
         lit: lighting?.colour ?? null, window: state, colour, opacity }}>
-      {shaded ? <>
-        <sphereGeometry args={[radius * size, 20, 14]} />
-        <meshLambertMaterial color={shadedBody(colour)} emissive={shadedGlow(colour)} transparent opacity={opacity} depthWrite={false} />
-      </> : <>
-        <sphereGeometry args={[radius * size, 12, 8]} />
-        <meshBasicMaterial color={colour} transparent opacity={opacity} depthWrite={false} />
-      </>}
+      {/* The ring is the dot's child, so it is drawn in the dot's scale: its sizes are given as fractions of the dot's. */}
       {state === "in-window" && <Billboard name={`knowledge-window:${point.id}`}>
         <mesh raycast={noRaycast}>
-          <torusGeometry args={[radius * Math.max(0.015, size + 0.006), radius * 0.0022, 8, 28]} />
+          <torusGeometry args={[Math.max(0.015, size + 0.006) / size, 0.0022 / size, 8, 28]} />
           <meshBasicMaterial color={IN_VIEW} transparent opacity={0.9} depthWrite={false} />
         </mesh>
       </Billboard>}

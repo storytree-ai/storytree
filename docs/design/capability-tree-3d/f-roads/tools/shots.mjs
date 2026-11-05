@@ -75,13 +75,13 @@ await withCapture({ folder: path.join(dist, 'stills'), dist }, async ({ browser,
   await settle(page, 12);
   // 4c. A settlement where six roads meet, close up, clicked for its territory.
   const town = report.layer.towns.reduce((a, b) => b.roads > a.roads ? b : a);
-  const townAt = await click(page, 'town', id(town.capability), new RegExp(`^${town.capability.replace(/[()]/g, '\\$&')}$`));
+  const townAt = await click(page, 'town', id(town.capability), new RegExp(`^${town.capability.replace(/[\\^$.*+?()[\]{}|]/g, '\\$&')}$`));
   await wheel(page, townAt, 15);
   await shot(page, 'town-close');
   await wheel(page, townAt, -15);
   // 5. A wrench open.
   const wrenched = await page.evaluate(() => [...window.mock.layer.wrenches.keys()]);
-  if (wrenched.length) { await click(page, 'wrench', wrenched[0], new RegExp(`^Work wanting ${title(wrenched[0]).replace(/[()]/g, '\\$&')}`)); await shot(page, 'wrench'); }
+  if (wrenched.length) { await click(page, 'wrench', wrenched[0], new RegExp(`^Work wanting ${title(wrenched[0]).replace(/[\\^$.*+?()[\]{}|]/g, '\\$&')}`)); await shot(page, 'wrench'); }
   // 6. Click a territory for its description and contracts.
   await click(page, 'territory', id('4 · Work model'), /^4 · Work model$/);
   await shot(page, 'territory');

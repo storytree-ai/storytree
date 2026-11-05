@@ -1,6 +1,6 @@
 /**
- * Capability 8 · Setup check. The `storytree` command on the user's path (ADR-0643 D1, 8), and whether GitHub's `gh` is signed
- * in, which release on merge needs (D3).
+ * Capability 18 · Built commands. The `storytree` command on the user's path (ADR-0643 D1, 8). Whether GitHub's `gh` is
+ * signed in, which release on merge needs (D3), is the setup check's (./machine.ts).
  *
  * - The command is a small launcher that runs the `storytree.mjs` built beside the hook and tool
  *   server scripts with the same Node: a shell script, `storytree`, or on Windows `storytree.exe`, a
@@ -21,8 +21,6 @@ import { spawn } from "node:child_process";
 import { accessSync, chmodSync, constants, existsSync, readdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
-import { ask, pathEnv, type MachineOptions } from "./machine.js";
-
 /** Where the `storytree` command may go: the PATH to look along, and the user's home, which the folder must be inside. */
 export interface CommandPath {
   /** The PATH, as the environment gives it. */
@@ -42,9 +40,6 @@ export type CommandInstall =
   | "already installed"
   | "another storytree kept"
   | "no folder of the user's on the path";
-
-/** Whether GitHub's `gh` is there and signed in. */
-export type GhState = "signed in" | "signed out" | "missing" | "not answering";
 
 /** What a launcher of storytree's runs. */
 export interface LauncherRuns {
@@ -180,19 +175,6 @@ export function removeCommand(where: CommandPath): "removed" | "none" {
     .filter((file) => existsSync(file) && isOurs(file) && inside(path.dirname(file), where.home));
   for (const file of ours) removeLauncher(file);
   return ours.length > 0 ? "removed" : "none";
-}
-
-/** Whether `gh` is installed and signed in, as `gh auth status` says. */
-export async function ghState(options: MachineOptions = {}): Promise<GhState> {
-  // `gh auth status` asks GitHub, which takes seconds (about ten on a Windows arm64 machine, 2026-09-28).
-  const env = pathEnv(options.path);
-  const waitMs = options.waitMs ?? 15_000;
-  const version = await ask("gh", ["--version"], env, waitMs);
-  if (!version.answered) return "not answering";
-  if (version.code !== 0) return "missing";
-  const status = await ask("gh", ["auth", "status"], env, waitMs);
-  if (!status.answered) return "not answering";
-  return status.code === 0 ? "signed in" : "signed out";
 }
 
 /** Rename a launcher off the path, and delete it once nothing runs it: a short-lived Node waits for that. */

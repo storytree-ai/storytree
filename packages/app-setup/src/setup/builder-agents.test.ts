@@ -1,5 +1,5 @@
 /**
- * Capability 8 · Setup check, contract 8.38: registering Claude Code's hooks writes storytree's red and green builder
+ * Capability 2 · Connect an agent, contract 2.24: registering Claude Code's hooks writes storytree's red and green builder
  * agents into Claude Code's user-level agents folder, each fenced by the test guard (Hooks 3.50) its frontmatter runs
  * with this build's Node and hook script; removing storytree takes them out, and a file of the user's own is never touched.
  */
@@ -21,7 +21,7 @@ function guardCommand(file: string): string {
   return match[1]!.replaceAll("''", "'");
 }
 
-test("8.38 registering Claude Code's hooks writes storytree-red and storytree-green, each running this build's test guard before an edit; another build rewrites them, a look or a disconnected Claude Code writes none, a user's own file of that name is kept, and removing storytree deletes only its own", async () => {
+test("2.24 registering Claude Code's hooks writes storytree-red and storytree-green, each running this build's test guard before an edit; another build rewrites them, a look or a disconnected Claude Code writes none, a user's own file of that name is kept, and removing storytree deletes only its own", async () => {
   await withTempDir(async (dir) => {
     const claude = path.join(dir, ".claude");
     mkdirSync(claude);
@@ -62,7 +62,7 @@ test("8.38 registering Claude Code's hooks writes storytree-red and storytree-gr
   });
 });
 
-test("8.38 the green builder agent runs the project's whole test command itself and lists no storytree tool, since base storytree serves no test runner", async () => {
+test("2.24 the green builder agent runs the project's whole test command itself and lists no storytree tool, since base storytree serves no test runner", async () => {
   await withTempDir(async (dir) => {
     const claude = path.join(dir, ".claude");
     mkdirSync(claude);
@@ -77,7 +77,7 @@ test("8.38 the green builder agent runs the project's whole test command itself 
   });
 });
 
-test("8.38 both builder agents carry the shell Claude Code gives them, Bash or, on Windows, PowerShell, so each can run the project's tests", async () => {
+test("2.24 both builder agents carry the shell Claude Code gives them, Bash or, on Windows, PowerShell, so each can run the project's tests", async () => {
   await withTempDir(async (dir) => {
     const claude = path.join(dir, ".claude");
     mkdirSync(claude);

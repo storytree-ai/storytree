@@ -23,6 +23,7 @@ import { closeOut, readSessions } from "../sessions/index.js";
 import { claim, claimAll, claimClearingOwnerWait, claimRefusal, closed, closeRefusal, holdForPull, land, letGo, readAttribution, recordQueueRed, recordRed, recordRerun, release, releaseFor, type ClaimContext, type MergedPull, type MergeWatch } from "./index.js";
 import { allMergedPullsThrough, allOpenPullsThrough, boardClaims, queuedPullsThrough, due, endMergedClaims, mergedPullsThrough, projectTempFile, type OpenPull } from "./merges.js";
 import { staleClaims } from "./stale-claims.js";
+import { NOTICEBOARD_BOARD } from "./board-verbs.js";
 import { WORKSPACE_FAMILIES } from "./verbs.js";
 
 interface World {
@@ -571,6 +572,34 @@ test("5.37 when a claim on an increment ends because its branch's pull request m
     assert.equal(entry?.reason, `applied at the merge of PR #7 (${increment.id})`);
     assert.equal(entry?.actor, "session:C", "the history names who applied it");
     assert.deepEqual(await readClaims(log, project), [], "and then the claim ended");
+  });
+});
+
+test("5.37 the noticeboard, which the box's runner and watcher read from the main checkout, applies a merged increment's pending plan changes before it ends the claim (regression: PR #426's change left unapplied, 2026-11-04)", { skip: process.platform === "win32" && "platform:posix: a stand-in gh on PATH must be an .exe on Windows" }, async () => {
+  await withWorld(async ({ log, library, project, emailForm, as }) => {
+    await withTempDir(async (dir) => {
+      const { park } = await arcOf(library);
+      const work = await park("email form", [emailForm]);
+      assert.ok((await claim(as("A", { branch: "feature/signup" }), work, "driving the email form")).ok);
+      await library.pendChange(work, { record: emailForm, fields: { title: "Address form" } });
+      await holdForPull(as("C"), "A", 12, "feature/signup");
+      // GitHub, as `gh` answers, saying feature/signup's pull request merged a minute after the claim was taken.
+      const bin = path.join(dir, "bin");
+      mkdirSync(bin);
+      const pulls = JSON.stringify([{ number: 12, mergedAt: new Date(Date.now() + 60_000).toISOString(), isCrossRepository: false }]);
+      writeFileSync(path.join(bin, "gh"), `#!${process.execPath}\nconsole.log(${JSON.stringify(pulls)});\n`, { mode: 0o755 });
+      const was = process.env.PATH;
+      process.env.PATH = `${bin}${path.delimiter}${was ?? ""}`;
+      try {
+        await NOTICEBOARD_BOARD.act({}, { ...as("C"), session: "person:owner", folder: dir } as never, { door: "command", say: (step) => step.command ?? step.tool! });
+      } finally {
+        process.env.PATH = was;
+      }
+      assert.deepEqual(await readClaims(log, project), [], "the board saw the merge and ended the claims");
+      assert.equal(((await library.get(emailForm))?.fields as { title?: string } | undefined)?.title, "Address form", "after applying the change");
+      const [entry] = await library.history({ id: emailForm, newest: 1 });
+      assert.equal(entry?.reason, `applied at the merge of PR #12 (${work})`);
+    });
   });
 });
 
@@ -1221,6 +1250,27 @@ test("5.61 letting go of a merged pull request applies each held increment's pen
     await holdForPull(as("C"), "B", 13, "feature/reset");
     await letGo(as("C"), 13, "PR #13 closed without merging");
     assert.notEqual(((await library.get(passwordReset))?.fields as { title?: string } | undefined)?.title, "Reset link", "a let-go that is no merge applies nothing");
+  });
+});
+
+test("5.61 letting go of a merged pull request also applies the pending plan changes of an increment whose held claim a merge line already ended, as a board or hook that could not apply them did (regression: PR #426, 2026-11-04)", async () => {
+  await withWorld(async ({ log, library, project, emailForm, as }) => {
+    const { park } = await arcOf(library);
+    const work = await park("email form", [emailForm]);
+    assert.ok((await claim(as("A", { branch: "feature/signup" }), work, "driving the email form")).ok);
+    await library.pendChange(work, { record: emailForm, fields: { title: "Address form" } });
+    await holdForPull(as("C"), "A", 12, "feature/signup");
+    await clockPastLastLine(log, project, 20, "the clock to pass the held claim, so a merge now comes after it");
+    // A session that saw the merge with no library to apply through ends the held claim first.
+    const merges: MergeWatch = { mergedPulls: async () => [{ number: 12, mergedAt: new Date().toISOString() }], everyMs: 0 };
+    await endMergedClaims({ log, project, folder: "/work/site", session: "person:owner", source: "tool" }, merges);
+    assert.deepEqual(await readClaims(log, project), [], "the merge line ended the held claim");
+    assert.notEqual(((await library.get(emailForm))?.fields as { title?: string } | undefined)?.title, "Address form", "with nothing applied");
+
+    assert.deepEqual(await letGo(as("C"), 12, "PR #12 merged", { merged: true }), [], "nothing is left to release");
+    assert.equal(((await library.get(emailForm))?.fields as { title?: string } | undefined)?.title, "Address form", "but the watcher's let-go applied the change");
+    const [entry] = await library.history({ id: emailForm, newest: 1 });
+    assert.equal(entry?.reason, `applied at the merge of PR #12 (${work})`);
   });
 });
 

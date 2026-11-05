@@ -24,10 +24,11 @@ const board = verb({
   command: { family: "noticeboard", name: "noticeboard", summary: "every claim now, or who holds one piece of work", usage: "noticeboard [<increment|capability>]" },
   tool: { absent: "an agent reads who holds what from show_plan" },
   inputs: { id: { kind: "text", word: 0, optional: true, describe: "an increment or a capability: who holds it" } },
-  async act({ id }, { log, project, folder, session, harness }: SessionVerbContext) {
-    // GitHub is asked first, so a claim whose branch has merged is never shown (ADR-0643 D3).
+  async act({ id }, { log, library, project, folder, session, harness }: SessionVerbContext) {
+    // GitHub is asked first, so a claim whose branch has merged is never shown (ADR-0643 D3), its increment's pending
+    // plan changes applied first through the board's library (5.37).
     const { boardClaims } = await import("./merges.js");
-    const claims = await boardClaims({ log, project, folder, session, ...(harness === undefined ? {} : { harness }), source: "tool" });
+    const claims = await boardClaims({ log, project, folder, session, ...(harness === undefined ? {} : { harness }), source: "tool", library });
     if (id !== undefined) {
       const held = claims.find((claim) => claim.increment === id || claim.capability === id);
       return { text: held === undefined ? `${id}: nobody holds it.` : `${id}: held by ${holderOf(held)}: ${held.reason}` };

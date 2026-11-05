@@ -1,18 +1,48 @@
 /**
- * Capability 1 · Front door. The words given to storytree, as they were handed on, so a word changed on its way is refused.
+ * Capability 16 · Build and launch. The words given to storytree, as they were handed on, so a word changed on its way is
+ * refused before the door runs.
  *
- * - `pnpm storytree` (ADR-0851 D2, front door contract 1.11): pnpm runs a package script by appending
+ * - `pnpm storytree` (ADR-0851 D2, contract 16.2): pnpm runs a package script by appending
  *   each word to the script's line and handing that line to a shell. On Windows pnpm 10 still appends
  *   each word as a JSON string, which the shell emulator this repository runs scripts through (.npmrc)
  *   can change on its way here: it expands a `$` and leaves a line break as `\n`. Elsewhere it
  *   single-quotes each word, which arrives as written, and the line is not read back. pnpm also leaves
  *   the line it built in `npm_lifecycle_script`, which no shell reads, so the words can be read back from it.
- * - The installed command on Windows (ADR-0856 D2, contract 1.12): its launcher passes the caller's line
+ * - The installed command on Windows (ADR-0856 D2, contract 16.3): its launcher passes the caller's line
  *   on in STORYTREE_COMMAND_LINE (ADR-0854), and a word whose quotes the caller's own quoting changed,
  *   as Windows PowerShell 5.1's does, shows in how that line is quoted.
  */
 import { readFileSync, realpathSync } from "node:fs";
 import path from "node:path";
+
+/**
+ * Why storytree does nothing with `argv`: a word pnpm was `handed` that its script shell changed on its way (contract
+ * 16.2), or a word whose double quotes the caller's own quoting changed, read from the line the Windows launcher was
+ * `launched` with (contract 16.3); undefined when every word arrived as written.
+ */
+export function changedOnItsWay(argv: readonly string[], handed: readonly string[] | undefined, launched: string | undefined): string | undefined {
+  const changed = handed === undefined ? -1 : changedWord(argv, handed);
+  if (changed !== -1) {
+    return `storytree did nothing: the shell pnpm runs scripts through changed word ${changed + 1} ("${preview(handed?.[changed] ?? "")}") on its way here, as it does a $ or a line break. Put that text in a file and pass @<file> in its place, as in --answer @answer.txt.`;
+  }
+  const requoted = launched === undefined ? undefined : changedByQuoting(launched, argv);
+  if (requoted !== undefined) {
+    return `storytree did nothing: word ${requoted + 1} ("${preview(argv[requoted] ?? "")}") arrived with its double quotes changed, as Windows PowerShell 5.1 hands on a word that holds a space and a double quote. Put that text in a file and pass @<file> in its place, as in --answer @answer.txt, or write each double quote inside it as \\".`;
+  }
+  return undefined;
+}
+
+/** A word as a refusal names it: its first line, cut at 40 characters. */
+function preview(word: string): string {
+  const line = word.split(/\r?\n/, 1)[0] ?? "";
+  return line.length > 40 || line.length < word.length ? `${line.slice(0, 40)}…` : line;
+}
+
+/** The index of the first handed word that did not arrive as handed, or -1 when every one did (contract 16.2). */
+function changedWord(argv: readonly string[], handed: readonly string[]): number {
+  const at = handed.findIndex((word, index) => argv[index] !== word);
+  return at !== -1 || argv.length === handed.length ? at : handed.length;
+}
 
 /**
  * The words pnpm appended to the script that ran `entry`, this command's own script; undefined when no
@@ -42,15 +72,15 @@ export function handedToPnpm(env: NodeJS.ProcessEnv, entry: string | undefined):
 }
 
 /**
- * The first word the installed command was handed changed by its caller's own quoting (ADR-0856 D2, front door
- * contract 1.12), or undefined when every word reads as written. On Windows the launcher passes the caller's line
+ * The first word the installed command was handed changed by its caller's own quoting (ADR-0856 D2, contract
+ * 16.3), or undefined when every word reads as written. On Windows the launcher passes the caller's line
  * on in STORYTREE_COMMAND_LINE (ADR-0854); read by Windows' rules, the ones Node's own words come from, it gives the
  * words that arrived. A standard quoter closes a word's quotes only at the word's end, and always closes them:
  * a closing quote with text right after it, or a quote never closed, is how Windows PowerShell 5.1 writes a word
  * that holds a space and a double quote. A line whose reading is not the words that arrived is not this command's
  * own, and says nothing.
  */
-export function changedByQuoting(line: string, argv: readonly string[]): number | undefined {
+function changedByQuoting(line: string, argv: readonly string[]): number | undefined {
   const read = windowsWords(line);
   if (read.words.length !== argv.length || read.words.some((word, index) => word !== argv[index])) return undefined;
   return read.odd;

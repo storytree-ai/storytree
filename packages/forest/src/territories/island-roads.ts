@@ -7,8 +7,9 @@
  *   so every mark stands as large on the page as The library's.
  * - The links: each one between two of the island's capabilities, between their settlements; and per dock and
  *   capability, one arrival carrying every lane in to it there and one way out carrying every lane out.
- * - Each road ends at its territory's settlement: a clear spot beside its name toward the roads it meets, kept off the
- *   name and back from every border and the coast.
+ * - Each road ends at its territory's settlement: a clear spot beside its name toward the roads it meets, its whole
+ *   symbol (3.4, 4.0 or 4.7 across by the roads meeting there) kept off every name and back from every border and the coast
+ *   (3.79, polish round 1).
  * - A gate wherever a road crosses a border, one for the links a shared road carries through it; each link's own
  *   entrance is the gate where it last enters the territory it calls (the way out: where it first leaves its own).
  */
@@ -21,7 +22,9 @@ import { insideOf } from "../view/territory-land.js";
 export type RoadSegment = { readonly pts: readonly Point[]; readonly links: readonly string[]; readonly width: number };
 /** A gate: where a road crosses a border, the border's direction there, the links through it, and the opening cut in it. */
 export type RoadGate = { readonly at: Point; readonly along: Point; readonly links: readonly string[]; readonly entrance: boolean; readonly opening: number };
-export type IslandRoads = { readonly segments: readonly RoadSegment[]; readonly junctions: readonly { at: Point; width: number }[]; readonly gates: readonly RoadGate[]; readonly towns: ReadonlyMap<string, Point> };
+/** A settlement: where it stands, how many roads meet there, and its symbol's size across. */
+export type Settlement = { readonly at: Point; readonly roads: number; readonly size: number };
+export type IslandRoads = { readonly segments: readonly RoadSegment[]; readonly junctions: readonly { at: Point; width: number }[]; readonly gates: readonly RoadGate[]; readonly towns: ReadonlyMap<string, Point>; readonly settlements: ReadonlyMap<string, Settlement> };
 /** A capability's name on the island, where the map writes it. */
 export type NameAnchor = { readonly capability: string; readonly title: string; readonly x: number; readonly z: number };
 
@@ -34,6 +37,9 @@ const PX = 2.6;
 const nameBox = (title: string) => ({ w: (title.length * 6.5 + 12) / PX, h: 7 });
 /** A settlement's symbol across, by how many roads it meets (1-2, 3-5, 6 or more), and how far its edge keeps from a border. */
 const SYMBOL = [3.4, 4.0, 4.7] as const, SYMBOL_EDGE = 1.5, CLEAR = 2.3;
+/** How far, in pixels, every corner of a settlement's symbol keeps from a name (polish round 1's SYMBOL_CLEAR). */
+const SYMBOL_CLEAR = 4;
+const symbolSize = (roads: number) => SYMBOL[roads >= 6 ? 2 : roads >= 3 ? 1 : 0];
 /** What a gate under a name or beside a settlement costs more (polish round 3), and a road under a name. */
 const GATE_CLEAR = 18, UNDER_NAME = 2.5;
 
@@ -54,7 +60,7 @@ export function islandRoads(map: TerritoryMap, links: readonly Link[], docks: re
 }
 
 function route(map: TerritoryMap, links: readonly Link[], docks: readonly LinkDock[], names: readonly NameAnchor[]): IslandRoads {
-  const empty: IslandRoads = { segments: [], junctions: [], gates: [], towns: new Map() };
+  const empty: IslandRoads = { segments: [], junctions: [], gates: [], towns: new Map(), settlements: new Map() };
   const drawnCoast = map.coast;
   if (drawnCoast === undefined) return empty;
   const S = Math.sqrt(landArea(drawnCoast) / LIBRARY_LAND);
@@ -79,6 +85,8 @@ function route(map: TerritoryMap, links: readonly Link[], docks: readonly LinkDo
   const boxes = names.filter((n) => here.has(n.capability)).map((n) => ({ ...nameBox(n.title), at: times(n, 1 / S), capability: n.capability }));
   const anchor = new Map(boxes.map((b) => [b.capability, b.at]));
   const underName = (p: Point, pad: number) => boxes.some((b) => Math.abs(p.x - b.at.x) < b.w / 2 + pad / PX && Math.abs(p.z - b.at.z) < b.h / 2 + pad / PX);
+  /** Whether a symbol `half` across each way at `p` keeps clear of every name: its middle, and its box by SYMBOL_CLEAR. */
+  const clearOfNames = (p: Point, half: number) => !underName(p, 7) && !boxes.some((b) => Math.abs(p.x - b.at.x) < b.w / 2 + half + SYMBOL_CLEAR / PX && Math.abs(p.z - b.at.z) < b.h / 2 + half + SYMBOL_CLEAR / PX);
 
   // The links: inside the island, and per dock and capability one arrival and one way out.
   const inside = links.filter((l) => here.has(l.from) && here.has(l.to) && l.from !== l.to);
@@ -104,7 +112,7 @@ function route(map: TerritoryMap, links: readonly Link[], docks: readonly LinkDo
       while (r < 30 && underName({ x: name.x + u.x * r, z: name.z + u.z * r }, 6)) r += 0.5;
       for (const extra of [0.8, 1.8, 3, 4.5]) {
         const p = { x: name.x + u.x * (r + extra), z: name.z + u.z * (r + extra) };
-        if (tAt(p) !== territory || clearance(p) < Math.max(CLEAR, half + SYMBOL_EDGE) || underName(p, 7)) continue;
+        if (tAt(p) !== territory || clearance(p) < Math.max(CLEAR, half * Math.SQRT2 + SYMBOL_EDGE) || !clearOfNames(p, half)) continue;
         const s = angle(u, want) * 6 + far(p, name) * 0.35;
         if (s < score) { score = s; best = p; }
         break;
@@ -112,11 +120,12 @@ function route(map: TerritoryMap, links: readonly Link[], docks: readonly LinkDo
     }
     return best ?? name;
   };
-  const towns = new Map<string, Point>();
+  const towns = new Map<string, Point>(), meeting = new Map<string, number>();
   for (const id of here) {
     const toward = [...inside.flatMap((l) => (l.from === id ? [l.to] : l.to === id ? [l.from] : [])).map((p) => anchor.get(p) ?? { x: 0, z: 0 }), ...landings.filter((l) => l.capability === id).map((l) => l.dock)];
     if (!toward.length || !anchor.has(id)) continue;
-    const n = toward.length, half = SYMBOL[n >= 6 ? 2 : n >= 3 ? 1 : 0] / 2;
+    const n = toward.length, half = symbolSize(n) / 2;
+    meeting.set(id, n);
     towns.set(id, spot(id, { x: toward.reduce((s, p) => s + p.x, 0) / n, z: toward.reduce((s, p) => s + p.z, 0) / n }, half));
   }
 
@@ -126,7 +135,8 @@ function route(map: TerritoryMap, links: readonly Link[], docks: readonly LinkDo
       ? { key: l.key, kind: "arrival", from: l.dock, to: towns.get(l.capability)!, fromT: "sea", toT: l.capability, links: l.links }
       : { key: l.key, kind: "out", from: towns.get(l.capability)!, to: l.dock, fromT: l.capability, toT: "sea", links: l.links }),
   ];
-  if (netLinks.length === 0) return { ...empty, towns: scaled(towns, S) };
+  const settlements = new Map([...towns].map(([id, at]) => [id, { at: times(at, S), roads: meeting.get(id)!, size: symbolSize(meeting.get(id)!) * S }]));
+  if (netLinks.length === 0) return { ...empty, towns: scaled(towns, S), settlements };
   const loads = ashore.map(({ lanes }) => lanes.length);
   const ring = (p: Point) => [p, ...Array.from({ length: 8 }, (_, k) => ({ x: p.x + 3.2 * Math.cos(k * Math.PI / 4), z: p.z + 3.2 * Math.sin(k * Math.PI / 4) }))];
   const net = roadNetwork({
@@ -164,6 +174,7 @@ function route(map: TerritoryMap, links: readonly Link[], docks: readonly LinkDo
     gates: gates.map((g) => ({ at: times(g.at, S), along: g.along, links: g.links, entrance: g.entrance,
       opening: Math.max(GATE_OPENING, widthOf(g.links.length) + 2) * S })),
     towns: scaled(towns, S),
+    settlements,
   };
 }
 

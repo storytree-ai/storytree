@@ -1,5 +1,5 @@
 /**
- * Capability 8 · Setup check: contract 8.35, on Windows a storytree command run in a project folder runs git from the
+ * Capability 18 · Built commands: contract 18.5, on Windows a storytree command run in a project folder runs git from the
  * path, never a git.exe planted in that folder.
  */
 import assert from "node:assert/strict";
@@ -12,7 +12,7 @@ import { promisify } from "node:util";
 
 import { buildBins } from "./build.js";
 
-test("8.35 on Windows, the hook command run in a project folder holding a planted git.exe runs git from the path, never the planted one, even when its caller did not set NoDefaultCurrentDirectoryInExePath", { skip: process.platform !== "win32" && "platform:win32: Windows alone searches the working folder for a bare program name", timeout: 240_000 }, async (t) => {
+test("18.5 on Windows, the hook command run in a project folder holding a planted git.exe runs git from the path, never the planted one, even when its caller did not set NoDefaultCurrentDirectoryInExePath", { skip: process.platform !== "win32" && "platform:win32: Windows alone searches the working folder for a bare program name", timeout: 240_000 }, async (t) => {
   const dir = mkdtempSync(path.join(tmpdir(), "storytree-path-only-"));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   const { "storytree-hook": hook } = await buildBins(path.join(dir, "bin"), { launcher: false });

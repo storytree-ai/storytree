@@ -1,5 +1,5 @@
 /**
- * Capability 1 · Front door, contracts 1.10 and 1.11: the words an agent gives `pnpm storytree` in a
+ * Capability 16 · Build and launch, contracts 16.1 and 16.2: the words an agent gives `pnpm storytree` in a
  * storytree checkout reach the command as written, or the command refuses them and does nothing.
  * Each runs the checkout's own `storytree` script through the pnpm running these tests, with no shell
  * of the test's own in between: pnpm appends each word to the script's line, as a JSON string on
@@ -23,9 +23,9 @@ function pnpmStorytree(...words: string[]) {
   return spawnSync(process.execPath, [pnpm, "-s", "storytree", ...words], { cwd: checkout, encoding: "utf8", timeout: 50_000 });
 }
 
-test("1.10 a word given to `pnpm storytree` arrives as written, holding double quotes, >, &, |, ^, %, backslashes or backticks, and nothing else runs or is written on its way", async () => {
-  const stray = "storytree-1-10-stray";
-  const word = `he said "a -> ${stray} & b | c ^ d" at 50% of %PATH% in C:\\code\\storytree, \`storytree-1-10-not-a-command\``;
+test("16.1 a word given to `pnpm storytree` arrives as written, holding double quotes, >, &, |, ^, %, backslashes or backticks, and nothing else runs or is written on its way", async () => {
+  const stray = "storytree-16-1-stray";
+  const word = `he said "a -> ${stray} & b | c ^ d" at 50% of %PATH% in C:\\code\\storytree, \`storytree-16-1-not-a-command\``;
   const strays = () => readdirSync(checkout).filter((name) => name.startsWith(stray));
   const answered: string[] = [];
   await run([word], { cwd: checkout, out: () => {}, err: (text) => answered.push(text) });
@@ -39,7 +39,7 @@ test("1.10 a word given to `pnpm storytree` arrives as written, holding double q
   }
 });
 
-test("1.11 a word the script shell would change on its way, a line break or a $, is refused on Windows before the command runs, saying to pass it from a file, and arrives as written elsewhere", () => {
+test("16.2 a word the script shell would change on its way, a line break or a $, is refused on Windows before the command runs, saying to pass it from a file, and arrives as written elsewhere", () => {
   const word = "a word that\nruns over $HOME two lines";
   const ran = pnpmStorytree(word);
 

@@ -1,5 +1,5 @@
 /**
- * Capability 8 · Setup check. Registering storytree's hooks in each harness's own user-level settings, and taking them out
+ * Capability 2 · Connect an agent (hook registration, ADR-1242 D1). Registering storytree's hooks in each harness's own user-level settings, and taking them out
  * again: only ever storytree's entries, recognised by the hook script they run
  * (`storytree-hook.mjs`), so every other setting is left exactly as it was.
  *
@@ -52,15 +52,10 @@ import { HARNESS_IDS } from "@storytree/project-and-caller/caller";
 
 import { read, save } from "../connect/harness.js";
 import { installBuilderAgents, removeBuilderAgents } from "./builder-agents.js";
+import type { HookCommand } from "./built-from-main.js";
 import { piExtension } from "./pi-extension.js";
 
-export { defaultHomes, registeredHookScripts, type Homes };
-
-/** The command a harness runs as storytree's hook: a Node and the built hook script. */
-export interface HookCommand {
-  readonly node: string;
-  readonly script: string;
-}
+export { defaultHomes, registeredHookScripts, type HookCommand, type Homes };
 
 /**
  * What registering found: storytree's hooks added now, already there, no such harness on this
@@ -127,7 +122,7 @@ export function registerHooks(homes: Homes, hook: HookCommand, disconnected: Rea
       : unconnected.has(harness) ? { registration: isFolder(home[harness]) ? "not connected" : "not here", replaced: [] }
         : undefined;
   const claude = left("claude-code") ?? register(homes.claude, "settings.json", claudeEntries(hook), hook.script, {}, look);
-  // storytree's red and green builder agents go with Claude Code's hooks (8.38).
+  // storytree's red and green builder agents go with Claude Code's hooks (2.24).
   if (left("claude-code") === undefined) installBuilderAgents(homes.claude, hook, look);
   const codex = left("codex") ?? register(homes.codex, "hooks.json", codexEntries(hook, codexVersion), hook.script, {}, look);
   // Cursor's hooks file must name its version: a new file gets 1, and one the user wrote keeps its own.

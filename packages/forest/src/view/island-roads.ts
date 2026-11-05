@@ -2,11 +2,13 @@
  * Capability 3 · Story node render: the selected island's roads and gates as drawn (ADR-1236 D1, rollout 2 step 3),
  * round 11's `sand-faint` look: each road a sandy ribbon on the land, a step wider by the links it carries, its colour
  * mixed into the land under it so the joins stay one road; a disc at each junction; and at each gate a post standing
- * either side of its opening (3.78, step 3b), all following the island's relief. No arrowheads. Plain three.js, so the marks are read without a browser.
+ * either side of its opening (3.78, step 3b), and each settlement its kind's symbol (3.79, step 4a), all following the
+ * island's relief. No arrowheads. Plain three.js, so the marks are read without a browser.
  */
 import { BufferGeometry, CircleGeometry, Color, DoubleSide, Float32BufferAttribute, Group, Mesh, MeshBasicMaterial, type Vector3 } from "three";
 import type { IslandRoads } from "../territories/island-roads.js";
 import { LIGHT, type IslandRelief } from "../territories/island-relief.js";
+import { settlementSymbols } from "./settlement-symbols.js";
 
 type Point = { readonly x: number; readonly z: number };
 
@@ -71,6 +73,8 @@ export function islandRoadMarks(roads: IslandRoads, onGround: (p: Point) => Vect
     flat(disc, material(mix(at)), `road-junction:${i}`, 3);
   });
   standingPosts(group, roads, relief, onGround, under);
+  // 3.79: each settlement its kind's symbol, laid flat just over the roads.
+  group.add(settlementSymbols(roads, onSurface, 0.05 * relief.scale));
   return group;
 }
 

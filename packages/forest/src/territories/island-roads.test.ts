@@ -28,9 +28,9 @@ const names = (map: TerritoryMap) => map.territories.flatMap((t, at) => {
   const sites = map.cells.filter((c) => c.territory === at).map((c) => c.site);
   return t.capability === undefined ? [] : [{ capability: t.capability, title: t.title ?? t.capability, x: sites.reduce((s, p) => s + p.x, 0) / sites.length, z: sites.reduce((s, p) => s + p.z, 0) / sites.length }];
 });
-const laid = (radius: number) => {
-  const coast = round(radius), map = linkLayout(shares, coast, links, docks(radius));
-  return { map, roads: islandRoads(map, links, docks(radius), names(map)) };
+const laid = (radius: number, among: typeof links = links) => {
+  const coast = round(radius), map = linkLayout(shares, coast, among, docks(radius));
+  return { map, roads: islandRoads(map, among, docks(radius), names(map)) };
 };
 const library = laid(LIBRARY_RADIUS);
 /** Each link's way, as the segments carrying it joined end to end. */
@@ -111,6 +111,51 @@ test("3.77 each settlement stands in its own territory beside its name, clear of
     for (const name of plates) {
       const w = (name.title.length * 6.5 + 12) / 2.6, h = 7;
       assert.ok(Math.abs(town.x - name.x) > w / 2 || Math.abs(town.z - name.z) > h / 2, `${id}'s settlement off ${name.capability}'s name`);
+    }
+  }
+});
+
+/** The roads that meet at each settlement: every link's way that ends there. */
+const meeting = (roads: IslandRoads) => {
+  const per = new Map<string, number>();
+  for (const key of new Set(roads.segments.flatMap((s) => s.links))) {
+    for (const end of key.split("->").filter((e) => !e.includes(":"))) per.set(end, (per.get(end) ?? 0) + 1);
+  }
+  return per;
+};
+
+test("3.79 each settlement's symbol is 3.4, 4.0 or 4.7 across by the roads meeting there (1-2, 3-5, 6 or more), at the island's own size", () => {
+  // And b and c calling on a too, so a meets four roads: its arrival, d's, b's and c's.
+  const busier = [...links, { from: "b", to: "a" }, { from: "c", to: "a" }];
+  for (const [{ roads }, S] of [[laid(LIBRARY_RADIUS, busier), 1], [laid(LIBRARY_RADIUS / 2, busier), 0.5]] as const) {
+    assert.deepEqual([...roads.settlements.keys()].sort(), [...roads.towns.keys()].sort(), "one settlement per town");
+    const per = meeting(roads);
+    for (const [id, s] of roads.settlements) {
+      assert.equal(s.roads, per.get(id), `${id}'s roads`);
+      assert.ok(far(s.at, roads.towns.get(id)!) < 1e-9, "at its town");
+      const across = s.roads >= 6 ? 4.7 : s.roads >= 3 ? 4.0 : 3.4;
+      assert.ok(Math.abs(s.size - across * S) < 0.01, `${id} is ${across} across at The library's size`);
+    }
+    assert.ok(new Set([...roads.settlements.values()].map((s) => s.size)).size > 1, "graded");
+  }
+});
+
+test("3.79 each settlement's whole symbol stands clear of every name and every border, so of every gate", () => {
+  for (const radius of [LIBRARY_RADIUS, LIBRARY_RADIUS / 2]) {
+    const { map, roads } = laid(radius), S = radius / LIBRARY_RADIUS;
+    for (const [id, { at, size }] of roads.settlements) {
+      const half = size / 2;
+      const inside = (p: Point) => Math.abs(p.x - at.x) <= half && Math.abs(p.z - at.z) <= half;
+      for (const name of names(map)) {
+        // A name's box at The library's size, padded by the mock's 4 pixels (2.6 to a ground unit).
+        const w = ((name.title.length * 6.5 + 12) / 2.6 + 8 / 2.6) * S, h = (7 + 8 / 2.6) * S;
+        assert.ok(Math.abs(at.x - name.x) > w / 2 + half || Math.abs(at.z - name.z) > h / 2 + half, `${id}'s symbol off ${name.capability}'s name`);
+      }
+      for (const b of map.borders) for (let k = 0; k <= 40; k++) {
+        const p = { x: b.from.x + (b.to.x - b.from.x) * k / 40, z: b.from.z + (b.to.z - b.from.z) * k / 40 };
+        if (Math.hypot(p.x, p.z) < radius) assert.ok(!inside(p), `no border under ${id}'s symbol`);
+      }
+      for (const g of roads.gates) assert.ok(!inside(g.at), `no gate under ${id}'s symbol`);
     }
   }
 });

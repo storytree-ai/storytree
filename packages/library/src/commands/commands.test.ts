@@ -582,9 +582,10 @@ test("17.15 · library list --where on a list field matches the records whose li
   const arc = await library.createArc({ title: "Launch", intent: "Ship sign-up", endState: "Visitors sign up" });
   const work = { arc: arc.id, objective: "Do it", body: "Red then green" };
   const both = await library.addIncrement({ ...work, title: "Both", capabilities: [form.id, mailer.id] });
-  const onlyMailer = await library.addIncrement({ ...work, title: "Only the mailer", capabilities: [mailer.id] });
-  const done = await library.addIncrement({ ...work, title: "Done", capabilities: [form.id] });
-  await library.closeIncrement(done.id, { pr: "#1", disposition: "landed" });
+  // A second open increment on a capability is listed by an edit, since parking it would be refused (10.35).
+  const onlyMailer = await library.addIncrement({ ...work, title: "Only the mailer" });
+  await library.editIncrement(onlyMailer.id, { capabilities: [mailer.id] });
+  const done = await library.addIncrement({ ...work, title: "Done", capabilities: [form.id], outcome: { pr: "#1", disposition: "landed" } });
   const family = LIBRARY_FAMILIES.find((one) => one.name === "library")!;
   const list = family.verbs.find((one) => mounted(one.command) && one.command.name === "list")! as Verb<VerbInputs, LibraryVerbContext>;
   const context: LibraryVerbContext = { library, project, session: "curator", folder: tmpdir(), writer: { actor: "session:curator" }, claims: async () => [], testedNumbers: async () => ({ tested: [], untested: [] }) };

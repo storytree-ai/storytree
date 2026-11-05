@@ -59,38 +59,52 @@ test("4.41 windows: a running program's installer reads as running, and one that
   assert.equal(installerRunning(path.join(tmpdir(), "storytree-no-such-installer-setup.exe")), false);
 });
 
-function start(over: Partial<StartWhileInstalling>, seen: string[]): StartWhileInstalling {
+const FLAGS = { smoke: false, startCheck: false, callbackCheck: false, quit: false, background: false };
+
+function start(over: Partial<StartWhileInstalling>, seen: unknown[]): StartWhileInstalling {
   return {
     platform: "win32",
-    installedStart: () => true,
-    unseen: false,
+    args: FLAGS,
+    installed: () => true,
     underway: () => ({ nextBuild: "0.3.2432" }),
     whenReady: async () => { seen.push("ready"); },
-    say: async ({ message, detail }) => { seen.push(`${message}: ${detail}`); },
+    say: async (box) => { seen.push(box); },
     exit: (code) => { seen.push(`exit ${code}`); },
     ...over,
   };
 }
 
 test("4.41 an installed Windows start while a release installs says storytree is still updating to that build once ready, then quits", async () => {
-  const seen: string[] = [];
+  const seen: unknown[] = [];
   let exited!: () => void;
   const quit = new Promise<void>((resolve) => { exited = resolve; });
   assert.equal(answerStartWhileInstalling(start({ exit: (code) => { seen.push(`exit ${code}`); exited(); } }, seen)), true);
   await quit;
-  assert.deepEqual(seen, ["ready", "storytree is still updating: It is installing 0.3.2432, and opens by itself when that is done.", "exit 0"]);
+  assert.deepEqual(seen, [
+    "ready",
+    { type: "info", title: "storytree", message: "storytree is still updating", detail: "It is installing 0.3.2432, and opens by itself when that is done.", buttons: ["OK"], noLink: true },
+    "exit 0",
+  ]);
 });
 
-test("4.41 a --quit or --background start while a release installs quits at once, saying nothing", () => {
-  const seen: string[] = [];
-  assert.equal(answerStartWhileInstalling(start({ unseen: true }, seen)), true);
-  assert.deepEqual(seen, ["exit 0"]);
+test("4.41 a --quit or a --background start while a release installs quits at once, saying nothing", () => {
+  for (const flag of ["quit", "background"] as const) {
+    const seen: unknown[] = [];
+    assert.equal(answerStartWhileInstalling(start({ args: { ...FLAGS, [flag]: true } }, seen)), true, flag);
+    assert.deepEqual(seen, ["exit 0"], flag);
+  }
 });
 
-test("4.41 a start goes ahead when no install is underway, off Windows, or when it is not the installed app (a check)", () => {
-  const seen: string[] = [];
+test("4.41 a start goes ahead when no install is underway, off Windows, when it is not the installed app, or when it is a check", () => {
+  const seen: unknown[] = [];
+  let read = 0;
+  const underway = () => { read += 1; return { nextBuild: "0.3.2432" }; };
   assert.equal(answerStartWhileInstalling(start({ underway: () => undefined }, seen)), false);
-  assert.equal(answerStartWhileInstalling(start({ platform: "darwin" }, seen)), false);
-  assert.equal(answerStartWhileInstalling(start({ installedStart: () => false }, seen)), false);
+  assert.equal(answerStartWhileInstalling(start({ platform: "darwin", underway }, seen)), false);
+  assert.equal(answerStartWhileInstalling(start({ installed: () => false, underway }, seen)), false);
+  for (const check of ["smoke", "startCheck", "callbackCheck"] as const) {
+    assert.equal(answerStartWhileInstalling(start({ args: { ...FLAGS, [check]: true }, underway }, seen)), false, check);
+  }
+  assert.equal(read, 0, "only an installed Windows start that is no check reads the marker");
   assert.deepEqual(seen, []);
 });

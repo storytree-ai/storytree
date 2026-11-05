@@ -244,11 +244,11 @@ const lifecycle = background({
 // being closed by that installer, which opens the new build itself when it is done (updates 4.41).
 const installing = answerStartWhileInstalling({
   platform: process.platform,
-  installedStart: () => !args.smoke && !args.startCheck && !args.callbackCheck && installedApp(),
-  unseen: args.quit || args.background,
+  args,
+  installed: installedApp,
   underway: () => installUnderway({ home: home.dir, runningBuild: app.getVersion() }),
   whenReady: () => app.whenReady(),
-  say: ({ message, detail }) => dialog.showMessageBox({ type: "info", title: "storytree", message, detail, buttons: ["OK"], noLink: true }),
+  say: (box) => dialog.showMessageBox(box),
   exit: (code) => app.exit(code),
 });
 

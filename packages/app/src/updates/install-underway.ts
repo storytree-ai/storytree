@@ -45,33 +45,60 @@ export function installUnderway(options: { home: string; runningBuild: string; n
   return { nextBuild: marker.nextBuild };
 }
 
+/** The desktop app's start flags this answer reads. */
+export interface StartFlags {
+  readonly smoke: boolean;
+  readonly startCheck: boolean;
+  readonly callbackCheck: boolean;
+  readonly quit: boolean;
+  readonly background: boolean;
+}
+
+/** The box a start shows while a release installs, in Electron's message box options. */
+export interface StillUpdatingBox {
+  readonly type: "info";
+  readonly title: string;
+  readonly message: string;
+  readonly detail: string;
+  readonly buttons: string[];
+  readonly noLink: boolean;
+}
+
 /** What a start needs to answer while a release installs, given by the desktop app's start-up. */
 export interface StartWhileInstalling {
   readonly platform: NodeJS.Platform;
-  /** The app the installer put here, and not a check (smoke, start or callback), which never reads the marker. */
-  readonly installedStart: () => boolean;
-  /** Started with --quit or --background, so nobody is waiting for a window. */
-  readonly unseen: boolean;
+  readonly args: StartFlags;
+  /** Whether this is the app the installer put here. */
+  readonly installed: () => boolean;
   readonly underway: () => { nextBuild: string } | undefined;
   readonly whenReady: () => Promise<unknown>;
-  readonly say: (message: { message: string; detail: string }) => Promise<unknown>;
+  readonly say: (box: StillUpdatingBox) => Promise<unknown>;
   readonly exit: (code: number) => void;
 }
 
 /**
- * True when this start was answered because a release is still installing: on Windows, an installed start quits at
- * once if unseen, else says storytree is still updating once the app is ready, then quits. False when it may start.
+ * True when this start was answered because a release is still installing: on Windows, an installed start that is no
+ * check (smoke, start or callback, which never read the marker) quits at once if started with --quit or --background,
+ * else says storytree is still updating once the app is ready, then quits. False when it may start.
  */
 export function answerStartWhileInstalling(start: StartWhileInstalling): boolean {
-  if (start.platform !== "win32" || !start.installedStart()) return false;
+  const { args } = start;
+  if (start.platform !== "win32" || args.smoke || args.startCheck || args.callbackCheck || !start.installed()) return false;
   const installing = start.underway();
   if (installing === undefined) return false;
-  if (start.unseen) {
+  if (args.quit || args.background) {
     start.exit(0);
     return true;
   }
   void start.whenReady()
-    .then(() => start.say({ message: "storytree is still updating", detail: `It is installing ${installing.nextBuild}, and opens by itself when that is done.` }))
+    .then(() => start.say({
+      type: "info",
+      title: "storytree",
+      message: "storytree is still updating",
+      detail: `It is installing ${installing.nextBuild}, and opens by itself when that is done.`,
+      buttons: ["OK"],
+      noLink: true,
+    }))
     .finally(() => start.exit(0));
   return true;
 }

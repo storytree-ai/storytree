@@ -177,6 +177,11 @@ test("4.30 `arc increment unwait` and `arc unwait` record the clear's `--reason`
       assert.equal(ran.code, 0, ran.stderr);
       assert.equal(await reasonOf(id), reason);
     }
+    // The watcher's event clear gives no reason yet, and still goes through (increment_cbeb277e8a16).
+    await library.addWaitFor(increment, { releaser: "event", note: "PR #9 lands", checkBack: "2099-01-01" });
+    const event = await world.run(["arc", "increment", "unwait", increment, "--for", "event"]);
+    assert.equal(event.code, 0, event.stderr);
+    assert.deepEqual(await library.waitsFor(increment), []);
     const history = await world.run(["library", "history", increment]);
     assert.match(history.stdout, /he re-registered it on 2026-11-05/, "library history shows why the state changed");
 
@@ -378,6 +383,7 @@ test("4.29 `arc increment unwait --for event --merged <pr>` clears the event wai
     const cleared = await world.run(["arc", "increment", "unwait", increment, "--for", "event", "--merged", "173"]);
     assert.equal(cleared.code, 0, cleared.stderr);
     assert.deepEqual((await library.waitsFor(increment)).map(({ releaser, merged }) => ({ releaser, merged })), [{ releaser: "owner", merged: 173 }]);
+    assert.equal((await library.history({ id: increment })).at(-1)?.reason, "pull request #173 merged", "the merged pull request is the clear's reason");
 
     const audit = await world.run(["arc", "waits", "--audit"]);
     assert.equal(audit.code, 0, audit.stderr);

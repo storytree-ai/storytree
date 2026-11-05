@@ -50,6 +50,7 @@ test("5.1, 3.17 · `health local`, on the command line only (no tool), runs a pr
   const place = { library, project: name, session: "test", folder };
   const passing = await local.act({} as never, place as never, WORDS);
   assert.match(passing.text, /1 contracts verified passing, 0 failing, 1 not checked; 1 results named no contract of one story\./);
+  assert.match(passing.text, /by `node --test`/, "it names the command it ran in the project");
   const verified = (await library.health(contract.id)).verified;
   assert.equal(verified.state, "passing");
   assert.equal(verified.by, "a local test run");
@@ -112,6 +113,36 @@ test("5.2 · `health local` runs a Python project's own tests by pytest -rA (thr
   writeFileSync(path.join(folder, "poetry.lock"), "");
   await recordLocalTests({ library, folder, run: pytest("") });
   assert.equal(commands.at(-1), "poetry run pytest -rA");
+});
+
+test("5.4 · `health local` on a uv project whose .venv already exists runs its tests in that environment as it stands (uv run --no-sync), and syncs it from uv.lock only when there is none yet; the reading names the command it ran", async (t) => {
+  const url = process.env.STORYTREE_TEST_PG_URL;
+  if (url === undefined) throw new Error("run the tests via `pnpm test`, which starts a local Postgres");
+  const storytree = await connect({ url });
+  const name = `t-${randomBytes(4).toString("hex")}`;
+  const library = await storytree.openProject(name);
+  const folder = mkdtempSync(path.join(tmpdir(), "storytree-local-"));
+  t.after(async () => {
+    try {
+      await storytree.dropProject(name);
+    } finally {
+      await storytree.close();
+      await removeTemp(folder);
+    }
+  });
+  writeFileSync(path.join(folder, "pyproject.toml"), "[project]\nname = \"island\"\n");
+  writeFileSync(path.join(folder, "uv.lock"), "version = 1\n");
+  const commands: string[] = [];
+  const run = async (command: string) => (commands.push(command), "PASSED tests/test_island.py::test_1_1_floats\n");
+
+  const fresh = await recordLocalTests({ library, folder, run });
+  assert.equal(commands.at(-1), "uv run pytest -rA", "a fresh checkout has no environment yet, so uv makes it from uv.lock");
+  assert.ok(fresh.written && fresh.command === "uv run pytest -rA");
+
+  mkdirSync(path.join(folder, ".venv"));
+  const existing = await recordLocalTests({ library, folder, run });
+  assert.equal(commands.at(-1), "uv run --no-sync pytest -rA", "an environment the user built is run as it stands, adding and removing nothing");
+  assert.ok(existing.written && existing.command === "uv run --no-sync pytest -rA");
 });
 
 test("5.3 · `health local` credits a flat Python project's numbered pytest tests (tests/ at its top, not under packages/<story>/) to the imported story whose folder holds them, by the number `land` credits", async (t) => {

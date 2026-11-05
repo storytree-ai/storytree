@@ -9,7 +9,9 @@
  *   of whatever the folder holds, so a local run writes nothing there and says so (ADR-1194 D2).
  * - A Python project (a pyproject.toml, setup.cfg or setup.py, and no package.json test command) has its tests run by
  *   `pytest -rA`, whose short test summary is what a CI log of it is read by, through `uv run` or `poetry run` when its
- *   lockfile is uv's or Poetry's; its .py files are read beside its JS and TS, as reading its CI reads them.
+ *   lockfile is uv's or Poetry's; its .py files are read beside its JS and TS, as reading its CI reads them. A uv project
+ *   whose .venv already exists runs `uv run --no-sync`, so the environment its user built is tested as it stands, with
+ *   nothing added or removed from uv.lock; with no .venv yet, `uv run` makes it.
  * - A project with no test command (neither), or whose run reported no results, writes nothing and says why.
  */
 import { existsSync, readdirSync, readFileSync } from "node:fs";
@@ -28,7 +30,7 @@ export const VERIFIED_BY_LOCAL_RUN = "a local test run";
 
 export type LocalReading =
   | { written: false; why: string }
-  | { written: true; commit?: string; tests: number; unmatched: number; passing: number; failing: number; notChecked: number };
+  | { written: true; command: string; commit?: string; tests: number; unmatched: number; passing: number; failing: number; notChecked: number };
 
 /** The GitHub repository whose CI storytree reads for `folder`: its origin's, when the folder holds a workflow; else undefined. */
 async function ciOf(folder: string): Promise<string | undefined> {
@@ -47,7 +49,8 @@ function testCommandOf(folder: string): { command: string; reads: string } | { w
   const script: unknown = existsSync(manifest) ? JSON.parse(readFileSync(manifest, "utf8")).scripts?.test : undefined;
   if (typeof script === "string" && script.trim() !== "") return { command: script, reads: "node --test's output" };
   if (PYTHON_MANIFESTS.some((file) => existsSync(path.join(folder, file)))) {
-    const runner = PYTHON_RUNNERS.find(([lockfile]) => existsSync(path.join(folder, lockfile)))?.[1] ?? "";
+    let runner = PYTHON_RUNNERS.find(([lockfile]) => existsSync(path.join(folder, lockfile)))?.[1] ?? "";
+    if (runner === "uv run " && existsSync(path.join(folder, ".venv"))) runner = "uv run --no-sync ";
     return { command: `${runner}pytest -rA`, reads: "pytest -rA's short test summary" };
   }
   if (!existsSync(manifest)) return { why: `This project's folder (${folder}) has no package.json and no pyproject.toml, so storytree has no test command of it to run; nothing was written.` };
@@ -70,5 +73,5 @@ export async function recordLocalTests({ library, folder, run = runTests }: { li
   const tested = new Map<string, Verdict>([...verdicts].filter(([, { total }]) => total > 0));
   const written = await recordHealth(library, new Map([...tested.keys()].map((id) => [id, id])), tested, { by: VERIFIED_BY_LOCAL_RUN, source: "local", ...(commit === undefined ? {} : { commit: commit.slice(0, 12) }) });
   const notChecked = [...tested.values()].filter(({ state }) => state === "not-checked").length;
-  return { written: true, ...(commit === undefined ? {} : { commit }), tests: results.length, unmatched: unmatched.length, passing: written.passing, failing: written.failing, notChecked };
+  return { written: true, command, ...(commit === undefined ? {} : { commit }), tests: results.length, unmatched: unmatched.length, passing: written.passing, failing: written.failing, notChecked };
 }

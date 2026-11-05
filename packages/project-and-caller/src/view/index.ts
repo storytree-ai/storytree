@@ -2,7 +2,7 @@
 /// <reference lib="dom" />
 /// <reference lib="dom.iterable" />
 import type { SettingsBridge } from "../settings/bridge.js";
-import { readState, saveState, settle, SETTING_GROUPS } from "./render.js";
+import { escape, readState, saveState, settle, SETTING_GROUPS } from "./render.js";
 import type { SettingGroup } from "../settings/settings.js";
 import { settingsStyles } from "./styles.js";
 
@@ -27,13 +27,13 @@ export function mountSettings(host: HTMLElement, bridge: SettingsBridge, options
   }
   const dialog = options.embedded ? null : document.createElement("dialog");
   const panel = dialog ?? document.createElement("section");
-  const key = options.group === undefined ? "" : `-${options.group}`;
+  const key = options.group === undefined ? "" : `-${escape(options.group)}`;
   const heading = options.group === undefined ? { title: "Settings", description: "Yours on this computer · all projects" } : SETTING_GROUPS[options.group];
   panel.id = `settings-panel${key}`;
   panel.className = `settings-panel${options.embedded ? " settings-panel-embedded" : ""}`;
   panel.setAttribute("aria-labelledby", `settings-title${key}`);
   panel.hidden = !!options.embedded;
-  panel.innerHTML = `<header><div><h2 id="settings-title${key}" data-settings-title tabindex="-1">${heading.title}</h2><p>${heading.description}</p></div>${options.embedded ? "" : '<button type="button" data-close aria-label="Close settings">Close</button>'}</header>
+  panel.innerHTML = `<header><div><h2 id="settings-title${key}" data-settings-title tabindex="-1">${escape(heading.title)}</h2><p>${escape(heading.description)}</p></div>${options.embedded ? "" : '<button type="button" data-close aria-label="Close settings">Close</button>'}</header>
     <p data-loading role="status">Reading settings…</p><p data-read-error role="alert" hidden></p><button type="button" data-retry hidden>Retry</button><div data-settings></div>`;
   (options.embedded ? host : document.body).append(panel);
   const get = <T extends HTMLElement = HTMLElement>(selector: string) => panel.querySelector<T>(selector)!;

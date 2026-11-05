@@ -164,11 +164,12 @@ const POP_OUT = "Open in a larger window";
 /** The capability tree of `panel` as an SVG of class `kind`, at its natural size: 1 unit is 1 pixel. */
 export function renderTree(panel: StoryPanel, selected: string | undefined, kind: string): string {
   const layout = layoutTree(panel);
-  const head = `${kind}-head`;
+  const name = attribute(kind);
+  const head = `${name}-head`;
   const cards = layout.cards.map((card) => cardOf(card, card.id === selected));
   const links = layout.links.map(({ d }) => `<path class="arrow" d="${d}" marker-end="url(#${head})" />`);
   return `
-    <svg class="${kind}" viewBox="0 0 ${layout.width} ${layout.height}" width="${layout.width}" height="${layout.height}" role="img" aria-label="How the capabilities connect">
+    <svg class="${name}" viewBox="0 0 ${layout.width} ${layout.height}" width="${layout.width}" height="${layout.height}" role="img" aria-label="How the capabilities connect">
       <defs><marker id="${head}" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L8,4 L0,8 z" /></marker></defs>
       ${links.join("")}
       ${cards.join("")}

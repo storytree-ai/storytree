@@ -61,6 +61,6 @@ export function saveState(name: string, result: SettingsResult<unknown>): { erro
   return { error: "", status: name === "library" ? "Saved · applies when storytree next opens" : "Saved", saveAvailable: false, set: true };
 }
 
-function escape(text: string): string {
-  return text.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&#39;");
+export function escape(text: string): string {
+  return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 }

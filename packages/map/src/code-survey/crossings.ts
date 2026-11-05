@@ -132,7 +132,7 @@ type MappedPackage = { readonly dir: string; readonly name: string; readonly exp
 
 /** The regex a pattern of the line matches paths from the import's folder with: a folder takes what is under it. */
 function patternOf(pattern: string): RegExp {
-  const parts = pattern.replace(/^\.\//, "").replace(/\/+$/, "").split("/").map((segment) => segment === "**" ? ".*" : segment.split("*").map((text) => text.replace(/[.+?^${}()|[\]\\]/g, "\\$&")).join("[^/]*"));
+  const parts = pattern.replace(/^\.\//, "").split("/").filter((segment) => segment !== "").map((segment) => segment === "**" ? ".*" : segment.split("*").map((text) => text.replace(/[.+?^${}()|[\]\\]/g, "\\$&")).join("[^/]*"));
   return new RegExp(`^${parts.join("/").replace(/^\.\*\//, "(?:.*/)?").replace(/\/\.\*\//g, "/(?:.*/)?")}(?:/.*)?$`);
 }
 
@@ -236,7 +236,8 @@ export async function crossingsOf(
         ? specifier.slice(alias.before.length, specifier.length - alias.after.length) : undefined;
       if (alias.after === undefined ? specifier !== alias.before : star === undefined) continue;
       for (const target of alias.targets) {
-        const found = fileAt(star === undefined ? target : target.replace("*", star), known);
+        const at = target.indexOf("*");
+        const found = fileAt(star === undefined || at < 0 ? target : `${target.slice(0, at)}${star}${target.slice(at + 1)}`, known);
         if (found !== undefined) return found;
       }
     }

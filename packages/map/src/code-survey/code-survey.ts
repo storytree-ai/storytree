@@ -172,12 +172,12 @@ function proofTitles(titles: readonly string[]): SurveyedTest["titles"] {
 }
 
 /** The opening comment's "Capability N · …", after a shebang: a comment that begins with it, before any code. */
-const DECLARED = /^(?:#![^\n]*\n)?\s*(?:\/\*+|\/\/)[\s*]*Capability\s+(\d+)\s*·[ \t]*([^\n]*)/;
+const DECLARED = /^(?:#![^\n]*\n)?\s*\/[/*][\s*]*Capability\s+(\d+)\s*·([^\n]*)/;
 
 /** The capability a source file declares in its opening comment (ADR-0925 D1), if any: its number and the words after the dot. */
 export const declarationOf = (text: string): { number: number; title: string } | undefined => {
   const match = DECLARED.exec(text);
-  return match === null ? undefined : { number: Number(match[1]), title: match[2]! };
+  return match === null ? undefined : { number: Number(match[1]), title: match[2]!.replace(/^[ \t]+/, "") };
 };
 
 /**

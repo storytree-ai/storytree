@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { AnnotatedTree } from "@storytree/library";
 import { buildGraph } from "./index.js";
-import { focus, formatFocus } from "./focus.js";
+import { focus, focusRows, formatFocus, type FocusRow } from "./focus.js";
 
 const health = { reported: { state: "not-checked" }, verified: { state: "passing" } } as const;
 const promise = { id: "projects-empty", title: "2.5 An empty project shows its next step", health };
@@ -100,6 +100,17 @@ test("3.1 counts by depth, kind and health first, with estimated tokens and narr
   assert.deepEqual(answer.counts.health, { healthy: 2, failing: 0, untested: 1 });
   assert.ok(answer.estimatedTokens > 0);
   assert.ok(answer.hints.length > 0);
+});
+
+test("3.1 counts keep each row's depth and kind as their own keys, so a row named __proto__ changes no other object", () => {
+  const row = { id: "odd", kind: "story", title: "Odd", depth: "__proto__", health: "healthy" } as unknown as FocusRow;
+  try {
+    const answer = focusRows(graph(), ["odd"], [row], {});
+    assert.equal(({} as Record<string, unknown>).story, undefined);
+    assert.deepEqual(Object.entries(answer.counts.byDepth), [["__proto__", { story: 1 }]]);
+  } finally {
+    delete (Object.prototype as Record<string, unknown>).story;
+  }
 });
 
 test("3.2 dry-run estimates the complete same answer without returning its rows", () => {

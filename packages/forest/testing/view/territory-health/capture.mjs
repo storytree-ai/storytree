@@ -182,8 +182,13 @@ function measure(page) {
     return ids.every(id => !!state.scene.getObjectByName(`planet:${id}`)?.getObjectByName('island-ground'));
   }, seed.tree.stories.map(s => s.id), { timeout: 60000, polling: 100 }).catch(error => failedWait('seeded islands', error));
   phase('wait for territory and claim meshes');
-  // Territories arrive with the survey, and the claim flags with the first read of the log: wait until both are drawn.
-  await page.waitForFunction(() => { let outlines = 0, territories = 0; window.__globe.scene.traverse(o => { if (o.name.startsWith('territory-claim:')) outlines++; if (o.name.startsWith('territory:')) territories++; }); return outlines > 0 && territories > 0; }, undefined, { timeout: 30000, polling: 100 }).catch(error => failedWait('claim flags and territories', error));
+  // Territories arrive with the survey, and the claim flags with the first read of the log: wait until both are drawn. Each
+  // island's land is built in its own turn (3.87), so wait for every surveyed island's, not the first.
+  await page.waitForFunction(ids => {
+    let outlines = 0; window.__globe.scene.traverse(o => { if (o.name.startsWith('territory-claim:')) outlines++; });
+    const landed = id => { let found = false; window.__globe.scene.getObjectByName(`planet:${id}`)?.traverse(o => { if (o.name.startsWith('territory:')) found = true; }); return found; };
+    return outlines > 0 && ids.every(landed);
+  }, seed.tree.stories.filter(s => s.capabilities.length > 0 && survey[s.id] !== undefined).map(s => s.id), { timeout: 30000, polling: 100 }).catch(error => failedWait('claim flags and territories', error));
   phase('wait for the land to finish drawing on');
   // Territories that arrive after the globe opens draw on (3.46): borders trace, then fills ease in. Measure them whole:
   // every border drawn in full and every territory's opacity unchanged across three polls.

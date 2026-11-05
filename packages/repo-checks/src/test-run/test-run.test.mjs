@@ -551,7 +551,7 @@ test("7.1 Windows CI at the same commit verifies Get storytree 1.9 and Front doo
           writeFileSync(path.join(directory, "unit-1", "result.json"), JSON.stringify(windows));
         }
         await checkStory(lib, planned, { by: "storytree test run on CI", commit }, {
-          root, ...quiet, evidence: [readCiEvidence(directory, { commit, run: windowsRun, platform: "win32" })], runTests: async () => ({ code: 0, results }),
+          root, platform: "linux", ...quiet, evidence: [readCiEvidence(directory, { commit, run: windowsRun, platform: "win32" })], runTests: async () => ({ code: 0, results }),
         });
         return (await lib.health(contract.id)).verified;
       };
@@ -612,7 +612,7 @@ test("7.1 macOS CI at the same commit verifies Get storytree 1.11's Apple Silico
         writeFileSync(path.join(directories[report.platform] ?? directories.darwin, "unit-1", "result.json"), JSON.stringify(report));
       }
       const evidence = Object.entries(directories).map(([platform, directory]) => readCiEvidence(directory, { commit, run: ciRun, platform }));
-      await checkStory(lib, planned, { by: "storytree test run on CI", commit }, { root, ...quiet, evidence, runTests: async () => ({ code: 0, results }) });
+      await checkStory(lib, planned, { by: "storytree test run on CI", commit }, { root, platform: "linux", ...quiet, evidence, runTests: async () => ({ code: 0, results }) });
       return (await lib.health(contract.id)).verified;
     };
     for (const reports of [[], [{ ...mac, platform: "win32" }], [{ ...mac, platform: "linux" }], [{ ...mac, results: [{ ...test, status: "skipped" }] }], [{ ...mac, commit: "d".repeat(40) }]]) {
@@ -628,6 +628,33 @@ test("7.1 macOS CI at the same commit verifies Get storytree 1.11's Apple Silico
     assert.equal((await record([])).state, "passing", "a run without macOS evidence cannot re-run it, so the macOS pass stands");
     assert.equal((await record([{ ...mac, platform: "win32", results: [{ ...test, status: "passed" }] }])).state, "passing", "Windows evidence alone does not take a macOS pass away");
     assert.equal((await record([{ ...mac, results: [{ ...test, status: "failed" }] }])).state, "not-checked", "macOS evidence that does not prove it takes the pass away");
+  });
+});
+
+test("7.15 · a Windows run that skips a Linux-only test leaves the Mint box's Linux pass of it standing; a Linux run that skips it takes the pass away", async (t) => {
+  // The laptop's factory run skipped micks-agent-runner's 11.2 and wrote over the box's pass of it (increment_55c151c7f0b4).
+  const root = mkdtempSync(path.join(tmpdir(), "own-health-linux-"));
+  t.after(() => removeTemp(root));
+  mkdirSync(path.join(root, "plugins", "runner", "src"), { recursive: true });
+  const quiet = { log: () => {}, error: () => {} };
+  await withLibrary(async (lib) => {
+    const story = await lib.addStory({ title: "Mick's agent runner" });
+    const capability = await lib.addCapability({ story: story.id, title: "11 · The box's git rides out a refusal" });
+    const contract = await lib.addContract({ capability: capability.id, title: "11.2 · The box's setup makes the retry git's ssh" });
+    const planned = (await lib.projectTree()).stories[0];
+    const test = { name: "11.2 · the box's setup makes the wrapper git's ssh", suites: [], file: path.join(root, "plugins/runner/src/ssh-retry.test.mjs") };
+    const record = async (platform, status) => {
+      await checkStory(lib, planned, { by: "factory test run", source: "local", commit: "e".repeat(40) }, {
+        root, folders: ["plugins/runner"], platform, ...quiet,
+        runTests: async () => ({ code: 0, results: [{ ...test, status, ...(status === "skipped" ? { message: "platform:linux: the setup is the box's bash script" } : {}) }] }),
+      });
+      return (await lib.health(contract.id)).verified;
+    };
+    assert.equal((await record("linux", "passed")).state, "passing");
+    assert.equal((await record("win32", "skipped")).state, "passing", "a Windows run cannot re-run a Linux-only test, so the box's pass stands");
+    const taken = await record("linux", "skipped");
+    assert.equal(taken.state, "not-checked", "a Linux run that skips it did not reproduce the pass");
+    assert.equal(taken.skip, "platform:linux");
   });
 });
 

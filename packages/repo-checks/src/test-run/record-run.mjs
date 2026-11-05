@@ -13,14 +13,14 @@ import { existsSync } from "node:fs";
 import path from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
 
-import { contractsCoveredBy, contractsOf, creditPlatforms, dependantTestsNaming, judge, packageOf, recordHealth, sourcesOf, unseenPlatform } from "./test-run.mjs";
+import { contractsCoveredBy, contractsOf, creditPlatforms, dependantTestsNaming, judge, packageOf, recordHealth, sourcesOf } from "./test-run.mjs";
 
 /**
  * Run `story`'s own tests (those of its packages under `root`, or the folders `folders` names there, through `runTests`, which gives the run's exit code and
  * its junit report's results) and record each of its contracts' verified health from what they showed. False if the run produced no report, so no
- * health could be recorded.
+ * health could be recorded. `platform` is the one the tests ran on (this computer's, by default).
  */
-export async function checkStory(library, story, writer, { root, folders, evidence = [], runTests, pause = sleep, log = (line) => console.log(line), error = (line) => console.error(line) }) {
+export async function checkStory(library, story, writer, { root, folders, evidence = [], runTests, platform = process.platform, pause = sleep, log = (line) => console.log(line), error = (line) => console.error(line) }) {
   const { numbers, contractIds } = contractsOf(story);
   const name = packageOf(story);
   const dirs = folders ?? sourcesOf(name);
@@ -57,6 +57,11 @@ export async function checkStory(library, story, writer, { root, folders, eviden
     prefix: name,
     dependant,
   });
+  // A run can re-run only its own platform's tests and those its CI evidence credits: a platform:<os> skip of any other
+  // was never reached, so a pass from that platform stands (7.15), as the laptop's factory run skipping a Linux-only test.
+  const platformsSeen = new Set([platform, ...evidence.filter(Boolean).map(({ platform: seen }) => seen)]);
+  const unreached = (verdict) => verdict.state === "not-checked" && /^platform:/.test(verdict.skip ?? "") && !platformsSeen.has(verdict.skip.slice("platform:".length));
+  for (const verdict of verdicts.values()) if (unreached(verdict)) verdict.unrun = true;
   for (const { file: crashed, contracts: held } of crashedFiles) {
     log(
       `\n${path.relative(root, crashed)} produced no results: its process died before running any test (a known flake).\n` +
@@ -73,8 +78,6 @@ export async function checkStory(library, story, writer, { root, folders, eviden
     for (const result of unmapped) log(`  ${result.status.padEnd(7)} ${result.name}`);
   }
 
-  // Without a CI system's evidence, a run cannot re-run a test that only runs there: that system's pass stands.
-  const platformsSeen = new Set(evidence.filter(Boolean).map(({ platform }) => platform));
   log(`\nverified health of "${story.title}", by "${writer.by}"${writer.commit === undefined ? "" : ` at commit ${writer.commit}`}:`);
   for (const capability of story.capabilities) {
     log(`  ${capability.title}`);
@@ -85,8 +88,8 @@ export async function checkStory(library, story, writer, { root, folders, eviden
       let line = `    ${number.padEnd(5)} ${verdict.state.padEnd(12)} ${verdict.note ?? verdict.reason ?? ""}`;
       if (verdict.state === "not-checked") {
         const earlier = (await retrying(() => library.health(contract.id), { pause, log })).verified;
-        if (verdict.unrun === true && earlier.state === "passing") line += `; its earlier pass (${earlier.at}) stands: the ${verdict.skip} CI run did not reach its tests`;
-        else if (unseenPlatform(verdict.skip, platformsSeen) && earlier.state === "passing") line += `; its earlier pass (${earlier.at}) stands: no ${verdict.skip} CI run to re-run it`;
+        if (unreached(verdict) && earlier.state === "passing") line += `; its earlier pass (${earlier.at}) stands: this ${platform} run cannot re-run a ${verdict.skip} test`;
+        else if (verdict.unrun === true && earlier.state === "passing") line += `; its earlier pass (${earlier.at}) stands: the ${verdict.skip} CI run did not reach its tests`;
         else if (earlier.state !== "not-checked") line += `; its earlier entry (${earlier.state}, ${earlier.at}) is marked not re-run`;
         if (verdict.skip !== undefined) line += ` [skip: ${verdict.skip}]`;
       }

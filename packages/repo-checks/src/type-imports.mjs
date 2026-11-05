@@ -33,9 +33,30 @@ export async function typeImportProblems(root, stories = STORIES) {
       for (const file of edge.files) {
         const from = path.posix.join("packages", story, file.from);
         const to = file.to === undefined ? `packages/${edge.story}` : path.posix.join("packages", edge.story, file.to);
-        problems.push(`${from} imports, type-only, a name ${to} defines: declare the fields you read in ${story}'s own package or, for a shape several stories read, move it into the library (ADR-1017 D2)`);
+        problems.push(`${from} imports, type-only, a name ${to} defines: ${valueSide(story, edges, edge, file) ?? ""}declare the fields you read in ${story}'s own package or, for a shape several stories read, move it into the library (ADR-1017 D2)`);
       }
     }
   }
   return problems.sort();
+}
+
+/** A capability id's number, as the tree above names it (`<story>:<number>`). */
+const numberOf = (capability) => capability?.slice(capability.lastIndexOf(":") + 1);
+
+/**
+ * When the importing file also imports `edge`'s story by value from another of its capabilities, which is what a re-cut
+ * leaves when it moves the defining file to a capability of its own, the sentence's opening clause that names both
+ * capabilities and the way out; otherwise undefined.
+ */
+function valueSide(story, edges, edge, file) {
+  if (edge.to === undefined || file.to === undefined) return undefined;
+  for (const other of edges) {
+    if (other.typeOnly || other.story !== edge.story || other.to === undefined || other.to === edge.to) continue;
+    const value = other.files.find((each) => each.from === file.from && each.to !== undefined);
+    if (value === undefined) continue;
+    const at = path.posix.join("packages", edge.story, file.to);
+    const there = path.posix.join("packages", edge.story, value.to);
+    return `${at} is ${edge.story}'s capability ${numberOf(edge.to)}, while ${path.posix.join("packages", story, file.from)} imports ${there} (capability ${numberOf(other.to)}) by value; if a re-cut moved ${at}, move the type to the value edge's side, into ${there}'s capability, or `;
+  }
+  return undefined;
 }

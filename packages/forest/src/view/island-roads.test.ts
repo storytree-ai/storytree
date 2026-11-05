@@ -43,9 +43,14 @@ test("3.77 the selected island's borders are quietened and cut open at every gat
   for (const [island, routed] of [[map, roads], [sixMap, sixRoads]] as const) {
     const whole = territoryLand(island, flat, coast).getObjectByName("territory-borders") as LineSegments;
     const cut = territoryLand(island, flat, coast, new Map(), routed).getObjectByName("territory-borders") as LineSegments;
-    for (const opening of [...routed.gates, ...routed.passes]) {
+    const openings = [...routed.gates, ...routed.passes], wholeEnds = ground(whole).flat();
+    for (const opening of openings) {
       assert.ok(ground(whole).some(([a, b]) => toSegment(opening.at, a, b) < 1e-6), "it stands on a border");
       for (const [a, b] of ground(cut)) assert.ok(toSegment(opening.at, a, b) > opening.opening / 2 - 1e-6, "no border line across its opening");
+    }
+    // A line cut short stops at an opening's edge, on the line it stands on or one meeting it at a corner, and no further back.
+    for (const end of ground(cut).flat()) if (!wholeEnds.some((p) => Math.hypot(p.x - end.x, p.z - end.z) < 1e-9)) {
+      assert.ok(openings.some((o) => Math.abs(Math.hypot(o.at.x - end.x, o.at.z - end.z) - o.opening / 2) < 1e-6), "a border line stops at the edge of an opening");
     }
     assert.ok((cut.material as LineBasicMaterial).opacity < (whole.material as LineBasicMaterial).opacity, "quieter under the roads");
   }

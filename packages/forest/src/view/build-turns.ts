@@ -60,16 +60,9 @@ export class BuildTurns {
 const pageTurns = new BuildTurns();
 
 /**
- * What `build` made when its turn came (3.87), and undefined until the first one has. Asked again whenever `deps` change; the
- * value built for the deps before stays meanwhile, and a build their next change overtakes before its turn is never run.
- */
-export function useBuiltInTurn<T>(build: () => T, deps: DependencyList, turns: BuildTurns = pageTurns): T | undefined {
-  return useBuiltInSteps(function* () { return build(); }, deps, turns);
-}
-
-/**
- * As `useBuiltInTurn`, for a build too long for one turn: each `yield` ends a step, and the next runs in a later turn. A build
- * overtaken between steps runs no more of them, and is returned (its `finally` blocks run) to let go of what it made.
+ * What `steps` built when its turns came (3.87), and undefined until the first build has: each `yield` ends a step, and the
+ * next runs in a later turn. Asked again whenever `deps` change; the value built for the deps before stays meanwhile, and a
+ * build overtaken between steps runs no more of them, and is returned (its `finally` blocks run) to let go of what it made.
  */
 export function useBuiltInSteps<T>(steps: () => Generator<void, T, void>, deps: DependencyList, turns: BuildTurns = pageTurns): T | undefined {
   const [built, setBuilt] = useState<{ value: T }>();

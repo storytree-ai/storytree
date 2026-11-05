@@ -78,7 +78,7 @@ const local = verb({
     const read = await recordLocalTests({ library, folder });
     if (!read.written) return { text: read.why };
     return {
-      text: `Ran this project's ${read.tests} tests locally${read.commit === undefined ? "" : ` (commit ${read.commit.slice(0, 12)})`}: ${read.passing} contracts verified passing, ${read.failing} failing, ${read.notChecked} not checked` +
+      text: `Ran this project's ${read.tests} tests locally by \`${read.command}\`${read.commit === undefined ? "" : ` (commit ${read.commit.slice(0, 12)})`}: ${read.passing} contracts verified passing, ${read.failing} failing, ${read.notChecked} not checked` +
         `${read.unmatched === 0 ? "." : `; ${read.unmatched} results named no contract of one story.`}`,
       next: [{ command: "tree", why: "see each contract's verified health beside the agent's report" }],
     };

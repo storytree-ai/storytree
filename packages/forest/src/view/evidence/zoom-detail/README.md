@@ -73,4 +73,21 @@ page busy long enough after it was ready to fail the left rail's drag (2.46, twi
 for frames), the left rail test's page drew 46 frames before it fell idle on this branch against main's 16. So a task now
 runs builds while the next is likely to fit 50 ms (its builds so far, plus the longest of them again): 29 and 33 frames.
 
+### The biggest island's land in steps (3.87, increment_ac6b6706ee92 step 2)
+
+An island's land with its relief and roads is now built in four turns: the relief, the territories' meshes, the relief's
+marks, then the roads' (`useBuiltInSteps`); each next step waits ahead of later builds, and a land overtaken between steps
+lets go of its meshes. Timed round each turn in the page (`performance.measure`, taken out again), main and this branch
+alternated on this box (load average about 20 from other lanes):
+
+| Build | builds | over 50 ms | longest (ms) | page tasks over 50 ms after ready |
+| --- | ---: | ---: | --- | ---: |
+| main | 74, 75 | 4, 8 | 193, 152, 90 / 189, 110, 106 | 89, 93 |
+| This branch | 120, 120 | 2, 2 | 86, 51 / 73, 63 | 83, 83 |
+
+The land no longer makes the long builds: a third, labelled run found the builds still over 50 ms are islands' layouts
+(the link layout settled from kept seeds, one build each, up to 156 ms on the loaded box). Settling that in steps, or off
+the page, is the next step. The page's own long tasks barely fall, as before: on this box they are frames and shader
+compiles that SwiftShader runs on the CPU.
+
 In the evidence bucket for #493, linked from the pull request body (ADR-1234; deleted after 90 days or when its arc closes): `493/far.png`, `493/opening-territories.png`, `493/near-the-library.png`.

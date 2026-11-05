@@ -5,7 +5,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { BuildTurns } from "./build-turns.js";
+import { BuildTurns, buildInSteps } from "./build-turns.js";
 
 /** A page whose tasks run only when the test says, one at a time, on a clock each build moves. */
 function tasks() {
@@ -36,11 +36,59 @@ test("3.87 · a build overtaken while it waits is passed over, and one that thro
   const page = tasks(), turns = new BuildTurns(page.nextTask, 50, page.now), ran: string[] = [];
   const overtaken = new AbortController();
   turns.ask(() => { throw new Error("a broken island"); }, new AbortController().signal);
-  turns.ask(() => ran.push("overtaken"), overtaken.signal);
-  turns.ask(() => ran.push("kept"), new AbortController().signal);
+  turns.ask(() => { ran.push("overtaken"); }, overtaken.signal);
+  turns.ask(() => { ran.push("kept"); }, new AbortController().signal);
   overtaken.abort();
   assert.throws(() => page.runOne(), /a broken island/);
   page.runOne();
   assert.deepEqual(ran, ["kept"], "the overtaken build never ran, and did not take the kept one's task");
+  assert.equal(page.count, 0);
+});
+
+test("3.87 · a build in steps takes a turn for each, its next step ahead of later builds, and one overtaken between steps runs no more", () => {
+  const page = tasks(), turns = new BuildTurns(page.nextTask, 50, page.now), ran: string[] = [];
+  const inSteps = (island: string, ms: number): (() => void) => {
+    const step = (n: number) => () => { ran.push(`${island}${n}`); page.takes(ms); return n < 3 ? step(n + 1) : undefined; };
+    return step(1);
+  };
+  const overtaken = new AbortController();
+  turns.ask(inSteps("big", 30), new AbortController().signal);
+  turns.ask(inSteps("small", 30), overtaken.signal);
+  turns.ask(() => { ran.push("later"); page.takes(30); }, new AbortController().signal);
+  page.runOne();
+  assert.deepEqual(ran, ["big1"], "a 30 ms step leaves no room for another in its task");
+  page.runOne();
+  page.runOne();
+  assert.deepEqual(ran, ["big1", "big2", "big3"], "each step in a turn of its own, ahead of the builds asked after it");
+  page.runOne();
+  overtaken.abort();
+  page.runOne();
+  page.runOne();
+  assert.deepEqual(ran.slice(3), ["small1", "later"], "the overtaken build's next steps never run");
+  assert.equal(page.count, 0);
+});
+
+test("3.87 · a build written in steps hands over what it built after its last step, and one overtaken midway lets go of what it made", () => {
+  const page = tasks(), turns = new BuildTurns(page.nextTask, 50, page.now), log: string[] = [];
+  const land = (island: string) => function* () {
+    log.push(`${island}: land`); page.takes(40);
+    let built = false;
+    try {
+      yield;
+      log.push(`${island}: roads`); page.takes(40);
+      built = true;
+      return island;
+    } finally { if (!built) log.push(`${island}: let go`); }
+  };
+  buildInSteps(turns, land("big"), (value) => log.push(`built ${value}`));
+  const overtake = buildInSteps(turns, land("small"), (value) => log.push(`built ${value}`));
+  page.runOne();
+  assert.deepEqual(log, ["big: land"], "nothing is handed over before the last step");
+  page.runOne();
+  assert.deepEqual(log.slice(1), ["big: roads", "built big"]);
+  page.runOne();
+  overtake();
+  page.runOne();
+  assert.deepEqual(log.slice(3), ["small: land", "small: let go"], "the overtaken land never gets its roads, nor is handed over");
   assert.equal(page.count, 0);
 });

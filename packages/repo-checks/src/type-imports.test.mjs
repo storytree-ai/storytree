@@ -50,3 +50,25 @@ test("5.2 a type-only import ending at a story other than the library is refused
   assert.match(problems[0], /packages\/shop\/src\/cart\.ts/);
   assert.match(problems[0], /move it into the library/);
 });
+
+test("5.3 a type-only import whose importer also imports the same story by value from another capability names both capabilities and says the type may move to the value edge's side", async (t) => {
+  const root = plant({
+    "packages/shop/package.json": manifest("@t/shop"),
+    "packages/shop/src/index.ts": 'export type { Cart } from "./cart.js";\nexport { price } from "./price.js";\n',
+    // A re-cut moved the cart to capability 2, leaving the price in capability 1.
+    "packages/shop/src/cart.ts": "export type Cart = { items: string[] };\nexport const empty: Cart = { items: [] };\n",
+    "packages/shop/src/price.ts": "export const price = 1;\n",
+    "packages/shop/src/cart.test.ts": 'import { test } from "node:test";\nimport { empty } from "./cart.js";\ntest("2.1 empty", () => { void empty; });\n',
+    "packages/shop/src/price.test.ts": 'import { test } from "node:test";\nimport { price } from "./price.js";\ntest("1.1 price", () => { void price; });\n',
+    "packages/till/package.json": { ...manifest("@t/till"), dependencies: { "@t/shop": "workspace:*" } },
+    "packages/till/src/total.ts": 'import type { Cart } from "@t/shop";\nimport { price } from "@t/shop";\nexport const total = (cart: Cart) => cart.items.length * price;\n',
+  });
+  t.after(() => removeTemp(root));
+
+  const problems = await typeImportProblems(root, ["library", "shop", "till"]);
+
+  assert.equal(problems.length, 1, problems.join("\n"));
+  assert.match(problems[0], /packages\/shop\/src\/cart\.ts is shop's capability 2/);
+  assert.match(problems[0], /packages\/shop\/src\/price\.ts \(capability 1\) by value/);
+  assert.match(problems[0], /move the type to the value edge's side/);
+});

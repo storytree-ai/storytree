@@ -20,6 +20,4 @@ Searching took, in the page's worker on the Mint box: The library 378 s, Session
 Taken with rollout 1's kit, which now builds and names the territory worker: `node docs/design/capability-tree-3d/q-all-islands/tools/build.mjs`, then
 `node --import tsx docs/design/capability-tree-3d/q-all-islands/tools/docks.mjs --stills --searched <story>...`.
 
-In the evidence bucket for the pull request, linked from its body (ADR-1234; deleted after 90 days or when its arc
-closes): `<pr>/territory-search/the-library.png`, `<pr>/territory-search/session-management.png`,
-`<pr>/territory-search/the-command-line.png`, `<pr>/territory-search/setup.png`.
+In the evidence bucket for #456, linked from the pull request body (ADR-1234; deleted after 90 days or when its arc closes): `456/territory-search/the-library.png`, `456/territory-search/session-management.png`, `456/territory-search/the-command-line.png`, `456/territory-search/setup.png`.

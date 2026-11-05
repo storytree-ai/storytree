@@ -1,5 +1,5 @@
 /**
- * Capability 6 · Agent tools (the MCP server). The setup check's two tools (capability 8): `check_setup`, which checks and fixes the setup on
+ * Capability 12 · Setup tools (the MCP server). The setup check's two tools (App setup's capability 8, the setup check): `check_setup`, which checks and fixes the setup on
  * the spot and says what the agent must do (fire a hook), and `set_up_project`, which the agent
  * calls only when the user asks for storytree in this folder (ADR-0752 D2). Unlike the other tools they work in a
  * folder that is not a project yet, and open storytree when it is closed.
@@ -51,7 +51,7 @@ export function registerSetupTools({ server, folder, setup, connections, callerO
     },
     (async (_args: unknown, context: ServerContext): Promise<CallToolResult> => {
       const heard = callerOf(context);
-      // An MCP client storytree has no hooks for is connected: nothing of its hooks is asked for (6.64).
+      // An MCP client storytree has no hooks for is connected: nothing of its hooks is asked for (12.2).
       const connected = tierOf(heard.harness) === "connected";
       // The session calling is signed in to its own harness, whatever the tool server's ask of its CLI says (8.11).
       const asking = heard.harness === "claude-code" ? "claude" : heard.harness === "codex" ? "codex" : undefined;
@@ -76,7 +76,7 @@ export function registerSetupTools({ server, folder, setup, connections, callerO
         return result({ text: said.join(" "), data: { ...data, ...unverified } });
       }
       if (report.project.status === "missing") {
-        // A marker set up against another library, or a project deleted here: no project to reach, and no hooks to verify (contract 6.114).
+        // A marker set up against another library, or a project deleted here: no project to reach, and no hooks to verify (contract 12.6).
         said.push(missingProjectReading(report.project.name), `Tell the user, and call set_up_project only after the user says yes: it sets this folder up here as a new project, replacing its marker, under ${quoted(report.project.name)} or a name they choose. If ${quoted(report.project.name)} is in another library they can reach, this computer's library setting can point there instead, and the folder joins it.`);
         return result({ text: said.join(" "), data: { ...data, ...unverified } });
       }
@@ -91,7 +91,7 @@ export function registerSetupTools({ server, folder, setup, connections, callerO
         // A library an earlier pack seeded is offered the newer one, for the user to take (8.26); a product's is its factory's.
         const starterPack = await starterPackStatus(library, storytree);
         if (starterPack.offered && served().includes("take_starter_pack")) said.push(newerPackSentence(starterPack));
-        // An existing codebase here, never imported, is imported before any story is planned (6.117).
+        // An existing codebase here, never imported, is imported before any story is planned (12.8).
         const declared = await unimportedPackages(folder, library);
         const unimported = declared.map((one) => one.title);
         if (declared.length > 0) said.push(`${unimportedSentence(declared)} Call import_project with this project's folder before you plan stories: each package it declares becomes a mapped story, and plan_story refuses until it is imported.`);
@@ -159,7 +159,7 @@ export function registerSetupTools({ server, folder, setup, connections, callerO
       });
       if (running.state === "not running") return result(settled ? already : { text: NOT_RUNNING_ANSWER });
       try {
-        // A marker naming a project this library lacks is set up afresh, replacing it (contract 6.114); any other is the folder's project already.
+        // A marker naming a project this library lacks is set up afresh, replacing it (contract 12.6); any other is the folder's project already.
         if (settled && (await (await connections.server(running.library)).listProjects()).includes(existing.project!)) return result(already);
         const { replaced } = await setUpProject({
           folder, project: name, storytree: await connections.server(running.library), join: join === true,
@@ -169,7 +169,7 @@ export function registerSetupTools({ server, folder, setup, connections, callerO
         if (join !== true) {
           try { journey?.projectCreated?.(); } catch { /* Observation cannot change a setup answer. */ }
         }
-        // Review, landing and verified health read a repository (6.70); a joined checkout is the user's own clone.
+        // Review, landing and verified health read a repository (12.3); a joined checkout is the user's own clone.
         const repository = join === true ? undefined : makeRepository(folder);
         const { library, log } = await connections.reach(running.library, name, undefined, { folder, home: setup.storytreeHome ?? storytreeHome() });
         await log.append(name, { ...lineOf(caller), source: "tool", folder, kind: "tool-called", tool: "set_up_project" });
@@ -184,7 +184,7 @@ export function registerSetupTools({ server, folder, setup, connections, callerO
         // A first commit storytree made, or will make once git has an identity, already holds the folder (ADR-1191 D3).
         if (repository?.state !== "made" && repository?.state !== "no identity") said.push(COMMIT_STORYTREE);
         if (starterRoles.length > 0) said.push(rolesSentence(starterRoles));
-        // Code only in languages the survey cannot read leaves the map empty of it: say so now, not at the first map (6.115).
+        // Code only in languages the survey cannot read leaves the map empty of it: say so now, not at the first map (12.7).
         const unreadable = unreadableOf(await folderLanguages(folder).catch(() => undefined));
         if (unreadable !== undefined) said.push(unreadableSentence(unreadable));
         said.push(fixes[0] === "codex-approval" ? FIX_SENTENCES["codex-approval"] : SET_UP_THIS_SESSION);
@@ -222,7 +222,7 @@ function cardAfter(text: string, card: string): string {
 }
 
 /**
- * What a connected session is told (6.64): the check passes, and what storytree does not do for it, since it
+ * What a connected session is told (12.2): the check passes, and what storytree does not do for it, since it
  * has no hooks there; and how its shell's commands act as the same session (6.65).
  */
 function connectedSentence(caller: Caller): string {
@@ -233,7 +233,7 @@ function connectedSentence(caller: Caller): string {
 }
 
 /**
- * What set_up_project says of the repository it made, or could not make, in a folder in none (6.70): only verified
+ * What set_up_project says of the repository it made, or could not make, in a folder in none (12.3): only verified
  * health reads a remote, and storytree never proposes making or pushing one (whose code it would publish, or whose
  * repository it would write to); it names the local route instead.
  */

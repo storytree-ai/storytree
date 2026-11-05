@@ -1,20 +1,19 @@
 /**
- * Capability 6 · Agent tools (the MCP server). The planning tools: plan an arc, a story, a capability or a contract, correct any of them, retire
+ * Capability 9 · Plan tools (the MCP server). The planning tools: plan an arc, a story, a capability or a contract, correct any of them, retire
  * a capability or a contract (ADR-0641 D2 step 3), and see the plan with its health, who holds what and which sessions are about. A story or capability is planned with its founding decision, the
  * first book on its shelf, so none planned here starts with an empty shelf (ADR-0627 D5).
  */
-import { ANCHOR_ID, anchorGaps, CONTRACT_DEFINITION, LONG_CONTRACT_TITLE as LONG_CONTRACT, wordAndWhy, type AnnotatedTree, type DayWindow, type HealthState, type NodeHealth } from "@storytree/library";
+import { ANCHOR_ID, anchorGaps, CONTRACT_DEFINITION, LONG_CONTRACT_TITLE as LONG_CONTRACT, wordAndWhy, type AnnotatedTree, type Library, type DayWindow, type HealthState, type NodeHealth } from "@storytree/library";
 import { z } from "zod";
 
 import { editPlanRecord, heldPending, heldSaid, holdPlanChange } from "@storytree/library/commands";
 import { unimportedPackages, unimportedSentence } from "@storytree/app-setup/project";
-import { untestedContracts } from "@storytree/map/code-survey";
+import { storyTests, SURVEYED_LANGUAGES, testedNumbers as testedNumbersIn, untestedContracts } from "@storytree/map/code-survey";
 import { readClaims } from "@storytree/session-management";
 import { readSessions } from "@storytree/session-management";
-import { testedNumbers } from "./claim-tools.js";
-import type { Answer, Call, Define } from "./server.js";
+import type { Answer, Call, Define, ToolHost } from "./server.js";
 import { quoted } from "./text.js";
-import { machineChecked } from "./work-tools.js";
+import { incrementFields } from "./work-tools.js";
 
 const title = z.string().min(1).describe("What it is called: a short name");
 const description = z.string().min(1).optional().describe("A sentence or two on what it is for");
@@ -58,14 +57,14 @@ export function registerPlanTools(define: Define): void {
 
   define(
     "plan_story",
-    "Plan a story: something a user of the project can do, one package of its own, with its founding decision: what it is for, and the one choice that shapes it. Plan its capabilities next. A story is never a task: a task or ticket is an increment, with contracts on the capabilities it changes. On an existing codebase, call import_project first: each package it declares becomes a mapped story, and this refuses while the project's folder declares packages none of which has a story; after it, plan a story only for a new package built on them.",
+    "Plan a story: something a user of the project can do, one package of its own, with its founding decision: what it is for, and the one choice that shapes it. Plan its capabilities next. A story is never a task: a task or ticket is an increment, with contracts on the capabilities it changes. On an existing codebase, call import_project first: each package it declares becomes a mapped story, and this refuses while the project's folder declares packages none of which has a story; after it, plan a story only for a new package built on them. Never move or restructure a user's code to fit storytree: a flat repository imports as it stands, as one mapped story.",
     z.object({ title, description, founding }),
     async ({ title: name, description: about, founding: decision }, { library, writer, folder }) => {
-      // An existing codebase is imported before its stories are planned (6.116, ADR-0993, ADR-1071 D1).
+      // An existing codebase is imported before its stories are planned (9.23, ADR-0993, ADR-1071 D1).
       const unimported = await unimportedPackages(folder, library);
       if (unimported.length > 0) {
         return {
-          text: `Not planned: ${unimportedSentence(unimported)} Call import_project with this project's folder first: each package it declares becomes a mapped story, since a story is one package. Then plan a story only for a new package built on them; the work itself, such as a task, is an increment, with contracts on the capabilities it changes.`,
+          text: `Not planned: ${unimportedSentence(unimported)} Call import_project with this project's folder first: each package it declares becomes a mapped story, since a story is one package, and a flat repository with one manifest at its top is one story, mapped in place: never move its code to fit storytree. Then plan a story only for a new package built on them; the work itself, such as a task, is an increment, with contracts on the capabilities it changes.`,
           refused: true,
           data: { unimported: unimported.map((one) => one.title) },
         };
@@ -225,7 +224,7 @@ const EDITABLE = {
 } as const;
 
 async function editPlan(target: string, changes: Changes, call: Call, live = false): Promise<Answer> {
-  const { library, storytree, writer } = call;
+  const { library, writer } = call;
   const kind = target === ANCHOR_ID ? "anchor" : (kindOf(await library.projectTree(), target) ?? ((await library.get(target))?.type === "increment" ? "increment" : undefined));
   if (kind === undefined) return { text: `Nothing in the plan has the id ${target}; show_plan lists every id.`, refused: true };
   const given = Object.entries(changes).filter(([, value]) => value !== undefined);
@@ -237,19 +236,14 @@ async function editPlan(target: string, changes: Changes, call: Call, live = fal
     const anchor = (await library.setAnchor(optional({ what: changes.what, audience: changes.audience }), writer)).fields;
     return { text: `Corrected the project's anchor: ${anchorLine(anchor)}.`, data: { id: target } };
   }
-  if (kind === "increment" && changes.capabilities !== undefined) {
-    const shared = await sharedCapability(target, changes.capabilities, call);
-    if (shared !== undefined) return { text: shared, refused: true };
-  }
-  const { depends_on: dependsOn, end_state: endState, priority, machine, escape, ...rest } = changes;
-  const named = machine === undefined ? undefined : await machineChecked(storytree, machine);
-  if (named !== undefined && "refused" in named) return named.refused;
-  // "none" clears an arc's priority, and an increment's machine or escape: the library removes a field given as undefined (ADR-0963 D3).
+  const { depends_on: dependsOn, end_state: endState, priority, capabilities, machine, escape, ...rest } = changes;
+  const own = kind === "increment" ? await incrementFields(target, { capabilities, machine, escape }, call) : { fields: {} };
+  if ("refused" in own) return own.refused;
+  // "none" clears an arc's priority: the library removes a field given as undefined (ADR-0963 D3).
   const fields = {
     ...optional({ ...rest, dependsOn, endState }),
     ...(priority === undefined ? {} : { priority: priority === "none" ? undefined : priority }),
-    ...(named ?? {}),
-    ...(escape === undefined ? {} : { escape: escape === "none" ? undefined : { causedBy: escape.caused_by, story: escape.story } }),
+    ...own.fields,
   };
   const done = await editPlanRecord(library, await claimsOf(call), call.caller.session, { type: kind, id: target, fields, live }, writer);
   if (done === null) return { text: `Nothing in the plan has the id ${target} any more.`, refused: true };
@@ -260,25 +254,6 @@ async function editPlan(target: string, changes: Changes, call: Call, live = fal
 /** The project's claims, as the calling door reads them. */
 function claimsOf({ log, project, quietMs }: Call): ReturnType<typeof readClaims> {
   return readClaims(log, project, { quietMs });
-}
-
-/**
- * Why `capabilities` may not be `target`'s list: one of them is on the list of an increment another
- * live session holds, since two sessions never plan changes to the same capability (ADR-0949 D2).
- * An entry whose capability another session's live claim holds is left behind by a lane that backed
- * off from it (ADR-0944 D3), and refuses nothing.
- */
-async function sharedCapability(target: string, capabilities: readonly string[], { library, log, project, quietMs, caller }: Call): Promise<string | undefined> {
-  const claims = await readClaims(log, project, { quietMs });
-  const others = claims.filter((claim) => claim.session !== caller.session && claim.holder === "live" && claim.increment !== undefined && claim.increment !== target);
-  for (const claim of others) {
-    const listed = ((await library.get(claim.increment!))?.fields as { capabilities?: string[] } | undefined)?.capabilities ?? [];
-    const heldElsewhere = (id: string) => claims.some((one) => one.capability === id && one.holder === "live" && one.session !== claim.session);
-    const capability = capabilities.find((id) => listed.includes(id) && !heldElsewhere(id));
-    if (capability !== undefined)
-      return `${capability} is already on the capabilities list of ${claim.increment}, which ${claim.label} session ${claim.session} holds (${claim.reason}): two sessions never plan changes to the same capability (ADR-0949 D2). Leave it off this list, or take other work.`;
-  }
-  return undefined;
 }
 
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
@@ -425,4 +400,25 @@ function partOf(tree: AnnotatedTree, id: string): { kind: "capability" | "contra
     if (contract !== undefined) return { kind: "contract", title: contract.title };
   }
   return undefined;
+}
+
+/**
+ * The titles of `capability`'s planned contracts that no numbered test in its story's package names, in the
+ * checkout the session works in, read with the map's survey as CI health reads proofs, and whether that package was
+ * seen there at all (unseen, every planned contract is named, none proven missing), with the languages that leave it
+ * unseen when the checkout's code is only in languages the survey cannot read; none for a capability the plan
+ * lacks. A title prefixed with another package proves that package's contracts, not these. A mapped story's tests are
+ * read where it was imported from: the checkout itself, or a folder this machine imports.
+ */
+export async function untestedOf(capability: string, { folder, library, storytree, project }: Call, imports: ToolHost["imports"]): Promise<{ titles: string[]; seen: boolean; unreadable?: { languages: string[]; reads: readonly string[] } }> {
+  const tree = await library.projectTree();
+  // The survey reads the checkout `folder` is in, from its top.
+  const { numbers, seen, unreadable } = await storyTests(folder, tree, capability, { imports: await imports(storytree, project) });
+  return { titles: untestedContracts(tree, capability, numbers), seen, ...(unreadable === undefined ? {} : { unreadable: { languages: unreadable, reads: SURVEYED_LANGUAGES } }) };
+}
+
+/** The contract numbers the numbered tests in `capability`'s story package carry, in the checkout the session works in, read against `tree`. */
+async function testedNumbers({ folder }: Call, capability: string, tree: Awaited<ReturnType<Library["projectTree"]>>): Promise<string[]> {
+  // The survey reads the checkout `folder` is in, from its top.
+  return testedNumbersIn(folder, tree, capability);
 }

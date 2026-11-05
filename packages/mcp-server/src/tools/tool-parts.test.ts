@@ -1,4 +1,4 @@
-/** Capability 6 · Agent tools: the other stories' tools the server mounts, read from their packages' manifests (ADR-1021). */
+/** Capability 6 · Tool server: the other stories' tools the server mounts, read from their packages' manifests (ADR-1021). */
 import assert from "node:assert/strict";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";

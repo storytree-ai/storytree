@@ -75,16 +75,27 @@ function readyChip(machines: readonly (string | undefined)[]): string {
 }
 
 /**
- * The capabilities live sessions hold now (ADR-0949 D3): each one claimed directly, and each on the list of an increment a live
- * session holds (closing it ends the claim). What a wait on a capability's claim is read against (ADR-1228 D1, library 11.12).
+ * The capabilities live sessions hold now (ADR-0949 D3), each with the work it is held for: each one claimed directly, for the
+ * increment it was claimed under (the session's id when none), and each on the list of an increment a live session holds, for
+ * that increment (closing it ends the claim). What a wait on a capability's claim is read against (ADR-1228 D1, library 11.12).
  */
-export function claimedNow(agents: readonly BoardAgent[], increments: readonly ArcWork[]): Set<string> {
+export function claimedNow(agents: readonly BoardAgent[], increments: readonly ArcWork[]): Map<string, Set<string>> {
   const live = agents.filter(({ holder }) => holder === "live");
   const held = new Set(live.flatMap(({ increment }) => (increment === undefined ? [] : [increment])));
-  return new Set([
-    ...live.flatMap(({ capability }) => (capability === undefined ? [] : [capability])),
-    ...increments.filter(({ id }) => held.has(id)).flatMap(({ fields }) => fields.capabilities ?? []),
-  ]);
+  const claimed = new Map<string, Set<string>>();
+  const add = (capability: string, holder: string) => claimed.set(capability, (claimed.get(capability) ?? new Set()).add(holder));
+  for (const { capability, under, session } of live) if (capability !== undefined) add(capability, under ?? session);
+  for (const { id, fields } of increments) if (held.has(id)) for (const capability of fields.capabilities ?? []) add(capability, id);
+  return claimed;
+}
+
+/**
+ * Each waiter's holds, a wait on a capability's claim kept only while a live session holds that capability for other work than
+ * the waiter (3.26): the waiting increment's own lane holding it is not waiting on it (friction_44cfc0d71705).
+ */
+export function claimWaitsNow(waits: Readonly<Record<string, Hold[]>>, claimed: ReadonlyMap<string, ReadonlySet<string>>): Record<string, Hold[]> {
+  const heldElsewhere = (waiter: string, capability: string) => [...(claimed.get(capability) ?? [])].some((holder) => holder !== waiter);
+  return Object.fromEntries(Object.entries(waits).map(([id, holds]) => [id, holds.filter(({ claim, on }) => claim !== true || heldElsewhere(id, on))]));
 }
 
 /** The log is the lines themselves, or a reading that holds its claims folded and keeps its claim lines. */
@@ -94,7 +105,7 @@ export function boardView(snapshot: BoardSnapshot, log: readonly Line[] | LogRea
   const agents = agentsOnBoard(reading, now, quietMs);
   // The library read with no claims reads every wait on a capability's claim as holding; it holds only while a live session holds that capability (ADR-1228 D1, library 11.12).
   const claimed = claimedNow(agents.all, snapshot.arcs.flatMap(({ increments }) => increments));
-  snapshot = { ...snapshot, waits: Object.fromEntries(Object.entries(snapshot.waits).map(([id, holds]) => [id, holds.filter(({ claim, on }) => claim !== true || claimed.has(on))])) };
+  snapshot = { ...snapshot, waits: claimWaitsNow(snapshot.waits, claimed) };
   const names = snapshot.arcs.flatMap(({ arc, increments }): WorkName[] => [
     { id: arc.id, title: arc.fields.title },
     ...increments.map((increment) => ({ id: increment.id, title: increment.fields.title, arc: { id: arc.id, title: arc.fields.title } })),

@@ -146,7 +146,7 @@ test("6.68 a tool call from Pi, which sends the tool server neither a session no
   });
 });
 
-test("6.91 the claim tool takes several capabilities with one reason, all or nothing: a refusal names the holder and leaves the caller holding none of them (session-management 5.55, ADR-1079 D2)", async () => {
+test("11.7 the claim tool takes several capabilities with one reason, all or nothing: a refusal names the holder and leaves the caller holding none of them (session-management 5.55, ADR-1079 D2)", async () => {
   await withProject(async ({ folder, project, library, log }) => {
     const story = await library.addStory({ title: "Sign up" });
     const [email, reset, profile] = await Promise.all(["Email form", "Password reset", "Profile"].map(async (title) => (await library.addCapability({ story: story.id, title })).id));

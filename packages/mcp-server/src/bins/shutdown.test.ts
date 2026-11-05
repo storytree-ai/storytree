@@ -1,4 +1,4 @@
-/** Capability 6 · Agent tools: the tool server's shutdown, run in a child process as the server runs it. */
+/** Capability 6 · Tool server: the tool server's shutdown, run in a child process as the server runs it. */
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { mkdtemp, writeFile } from "node:fs/promises";

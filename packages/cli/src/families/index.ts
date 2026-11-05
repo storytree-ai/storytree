@@ -29,6 +29,7 @@ export const GUESSES: Readonly<Record<string, string>> = {
   claim: "workspace <increment|capability> --reason <text>",
   board: "noticeboard",
   story: "tree [<story>]",
+  sessions: "session list",
 };
 
 /**

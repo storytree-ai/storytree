@@ -1,5 +1,5 @@
 /**
- * Capability 6 · Agent tools (the MCP server). A verb its owning story declared once (ADR-0969 D2), mounted as a
+ * Capability 6 · Tool server (the MCP server). A verb its owning story declared once (ADR-0969 D2), mounted as a
  * tool: its schema is read from the verb's inputs, the calling session's context is the wrapper's, a step its
  * answer names is called by its tool's name, and the verb's own refusal is an answer marked as an error. A verb
  * whose tool is declared absent is not served, and one that is is served with its consumers (ADR-1045 D1). The steps it offers next are named as tools, below its sentence as the

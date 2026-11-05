@@ -572,7 +572,7 @@ test("7.1 Windows CI at the same commit verifies Get storytree 1.9 and Front doo
       assert.equal(verified.skip, undefined);
       assert.match(verified.note, /1\/1 tests passed/);
       assert.ok(verified.note.includes(commit));
-      assert.ok(verified.note.includes(windowsRun), "names the actual Windows run");
+      assert.equal(verified.note.split("; Windows: ")[1], `${windowsRun}, at commit ${commit}`, "names the actual Windows run");
       assert.equal((await record(undefined)).state, "passing", "a run without Windows evidence cannot re-run it, so the Windows pass stands");
       assert.equal((await record({ ...evidence, results: [{ ...test, status: "failed" }] })).state, "not-checked", "Windows evidence that does not prove it takes the pass away");
       await record(evidence);
@@ -624,7 +624,7 @@ test("7.1 macOS CI at the same commit verifies Get storytree 1.11's Apple Silico
     const verified = await record([mac]);
     assert.equal(verified.state, "passing");
     assert.match(verified.note, /2\/2 tests passed; macOS: /);
-    assert.ok(verified.note.includes(ciRun), "names the actual macOS run");
+    assert.equal(verified.note.split("; macOS: ")[1], `${ciRun}, at commit ${commit}`, "names the actual macOS run");
     assert.equal((await record([])).state, "passing", "a run without macOS evidence cannot re-run it, so the macOS pass stands");
     assert.equal((await record([{ ...mac, platform: "win32", results: [{ ...test, status: "passed" }] }])).state, "passing", "Windows evidence alone does not take a macOS pass away");
     assert.equal((await record([{ ...mac, results: [{ ...test, status: "failed" }] }])).state, "not-checked", "macOS evidence that does not prove it takes the pass away");

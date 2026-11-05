@@ -45,15 +45,33 @@ export function isThirdParty(file) {
 const PLACEHOLDER_HOME = /^(?:[a-z]|runner(?:~\d)?|user|username|someone|somebody|me|you|name|owner|synthetic|tester|alice|bob|carol|example|ubuntu|node|vscode|dev|backups|[<$%{*].*)$/i;
 /** A tailnet name made up for a test or a document. */
 const PLACEHOLDER_TAILNET = /(?:^|[.-])example(?:[.-]|$)|(?:^|\.)tail(?:0000|1234)\./i;
-/** An address that reaches no person: a reserved example or test domain, or a no-reply sender. */
-const PLACEHOLDER_EMAIL = /^(?:no-?reply@.*|.*@(?:[^@]+\.)?storytree\.dev|.*\.iam(?:\.gserviceaccount\.com)?|.*@(?:.+\.)?(?:example(?:\.(?:com|org|net))?|test|invalid|localhost|local)|.*@users\.noreply\.github\.com)$/i;
+/** A domain whose addresses reach no person: storytree's own, or a reserved example or test domain, or one below it. */
+const PLACEHOLDER_DOMAINS = ["storytree.dev", "example", "example.com", "example.org", "example.net", "test", "invalid", "localhost", "local"];
+
+/** An address that reaches no person: a placeholder domain, a no-reply sender or a service account. */
+function placeholderEmail(address) {
+  const lower = address.toLowerCase();
+  const at = lower.lastIndexOf("@");
+  if (at < 0) return false;
+  const [local, domain] = [lower.slice(0, at), lower.slice(at + 1)];
+  if (local === "noreply" || local === "no-reply" || domain === "users.noreply.github.com") return true;
+  if (lower.endsWith(".iam") || lower.endsWith(".iam.gserviceaccount.com")) return true;
+  return PLACEHOLDER_DOMAINS.some((placeholder) => domain === placeholder || (domain.endsWith(`.${placeholder}`) && domain.length > placeholder.length + 1));
+}
+
+/** `name` without the punctuation that ends a sentence or a bracket after it. */
+function withoutTrailingPunctuation(name) {
+  let end = name.length;
+  while (end > 0 && ".,;:!?)]}`".includes(name[end - 1])) end--;
+  return name.slice(0, end);
+}
 
 /** The tailnet range's own base address (100.64.0.0/10), which a firewall rule names and no machine holds. */
 const TAILNET_RANGE = "100.64.0.0";
 
 function placeholder(what, match) {
-  if (/home folder/.test(what)) return PLACEHOLDER_HOME.test((match.split(/[\\/]+/).filter(Boolean).at(-1) ?? "").replace(/[.,;:!?)\]}`]+$/, ""));
-  if (what === "an email address") return PLACEHOLDER_EMAIL.test(match);
+  if (/home folder/.test(what)) return PLACEHOLDER_HOME.test(withoutTrailingPunctuation(match.split(/[\\/]+/).filter(Boolean).at(-1) ?? ""));
+  if (what === "an email address") return placeholderEmail(match);
   if (what === "a tailnet name") return PLACEHOLDER_TAILNET.test(match);
   if (what === "a tailnet address") return match === TAILNET_RANGE;
   return false;

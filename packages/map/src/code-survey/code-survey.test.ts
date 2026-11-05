@@ -6,7 +6,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { surveyStory } from "./code-survey.js";
+import { declarationOf, surveyStory } from "./code-survey.js";
 import { manifestFrom } from "./survey-source.js";
 
 const capabilities = [
@@ -406,4 +406,10 @@ test("8.41 deciding which strings are a call's first argument reads text in prop
   const read = readBy(text);
   assert.ok(read < 10 * text.length, `${read} characters read for a ${text.length}-character file`);
   assert.deepEqual(surveyStory([{ path: "src/claims/claim.ts", text: "export const claim = () => 1;\n" }, file(3)], capabilities).tests?.[0]?.titles?.map(({ number }) => number), ["3.2", "3.3", "3.4"]);
+});
+
+test("8.15 an opening comment of hundreds of thousands of stars that never names a capability is read as no declaration without stalling", { timeout: 20_000 }, async () => {
+  assert.equal(declarationOf(`/*${"*".repeat(300_000)}`), undefined);
+  await new Promise((resolve) => setTimeout(resolve, 0)); // a stalled read now fails at the test's timeout, which a synchronous call cannot reach
+  assert.equal(declarationOf("/*** \n * Capability 4 ·\tHooks */")?.title, "Hooks */");
 });

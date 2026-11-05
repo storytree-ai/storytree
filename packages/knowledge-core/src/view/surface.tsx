@@ -18,6 +18,7 @@ import { globePoints, type Point as ShelfPoint } from "../shelves/positions.js";
 import { sheetLayout, sheetLit, sheetRoots, type SheetHanging } from "../shelves/sheet.js";
 import { GlobePoints, NoteRoots, SeaFloor, type CoreGrowth } from "./globe-points.js";
 import { KindList, NoteCard } from "./drawing.js";
+import { useInSteps } from "./in-steps.js";
 
 /** How often the selected session's window is read again, as often as the sessions list's bars. */
 const WINDOW_EVERY_MS = 10_000;
@@ -229,8 +230,9 @@ export function KnowledgeGlobePoints({ core, spots, radius, places, growth, shee
   const known = useMemo(() => knowledge(state.drawn), [state.drawn]);
   // Live updates that change nothing the sheet lays out keep its layout (Live updates never freeze the globe).
   const layout = useMemo(sheetLayout, []);
-  const laid = useMemo(() => sheet === undefined ? undefined : layout(underShelves(state.drawn, known), sheet, known.notes),
-    [layout, state.drawn, known, sheet?.shelfAt, sheet?.floor, sheet?.depthStep]);
+  // Laid out a few steps to a task, so a shelf moving as the map opens runs no long task (1.17); the layout before stays meanwhile.
+  const laid = useInSteps(sheet === undefined ? undefined : () => layout(underShelves(state.drawn, known), sheet, known.notes),
+    [layout, state.drawn, known, sheet === undefined, sheet?.shelfAt, sheet?.floor, sheet?.depthStep]);
   const hung = useMemo(() => {
     if (sheet === undefined || laid === undefined) return undefined;
     const { points, floor } = laid;
@@ -238,7 +240,9 @@ export function KnowledgeGlobePoints({ core, spots, radius, places, growth, shee
       : [[0, 0], [1, 0], [1, 1], [0, 1]].map(([u, v]) => sheet.place({ x: floor.x + u! * floor.width, y: floor.y + v! * floor.height, z: floor.z }));
     return { laid: points, points: points.map(point => ({ ...point, at: sheet.place(point.at) })), floor: corners === undefined ? undefined : { corners, notes: floor.notes } };
   }, [laid, sheet?.place]);
-  const placed = useMemo(() => hung?.points ?? globePoints(underShelves(state.drawn, known), spots, radius), [hung, state.drawn, known, spots, radius]);
+  // Under the sheet, no note is drawn until its first layout is.
+  const placed = useMemo(() => sheet !== undefined ? hung?.points ?? [] : globePoints(underShelves(state.drawn, known), spots, radius),
+    [sheet === undefined, hung, state.drawn, known, spots, radius]);
   // With none selected, no session's traversal shows (ADR-0921): nothing lights and no path draws.
   const lit = useMemo(() => lighting(store.reads, state.roster, state.session, new Set(known.notes.keys())),
     // The record is kept in place, so its version stands in for its reads.

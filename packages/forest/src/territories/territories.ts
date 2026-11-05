@@ -64,6 +64,14 @@ type Edge = { from: Point; to: Point; across: number };
  * the seeds are spread over the disc the coast reaches, and only those on the land are kept.
  */
 export function territories(shares: readonly TerritoryShare[], outline: number | Coast, cellCount = CELLS): TerritoryMap {
+  return finished(territoriesInSteps(shares, outline, cellCount));
+}
+
+/** How many cells' outlines a step of {@link territoriesInSteps} cuts, and how many cells a step of sharing hands out. */
+const CELLS_A_STEP = 32;
+
+/** {@link territories}, a step at a time (3.87): each `yield` ends a step of the cut, so a fine one can be spread over tasks. */
+export function* territoriesInSteps(shares: readonly TerritoryShare[], outline: number | Coast, cellCount = CELLS): Generator<void, TerritoryMap, void> {
   const held = shares.filter((share) => share.lines > 0);
   const coast = typeof outline === "number" ? undefined : outline.filter((ring) => ring.length >= 3);
   const radius = coast === undefined ? (outline as number) : Math.max(0, ...coast.flat().map(({ x, z }) => Math.hypot(x, z)));
@@ -72,14 +80,18 @@ export function territories(shares: readonly TerritoryShare[], outline: number |
   const spread = land > 0 ? Math.ceil((wanted * Math.PI * radius ** 2) / land) : wanted;
   const sites = sunflower(spread, radius).filter((site) => coast === undefined || onLand(site, coast));
   const count = sites.length;
-  const outlines = sites.map((site, at) => voronoiCell(sites, at, radius));
+  const outlines: Edge[][] = [];
+  for (let at = 0; at < count; at++) {
+    outlines.push(voronoiCell(sites, at, radius));
+    if ((at + 1) % CELLS_A_STEP === 0) yield;
+  }
   const touching = outlines.map(() => new Set<number>());
   outlines.forEach((edges, at) => { for (const edge of edges) if (edge.across >= 0) { touching[at]!.add(edge.across); touching[edge.across]!.add(at); } });
   const neighbours = touching.map((set) => [...set].sort((a, b) => a - b));
 
   const owner = new Array<number>(count).fill(0);
   const counts = atLeast(apportion(held.map((share) => share.lines), count), Math.max(1, Math.min(Math.floor(count / Math.max(1, held.length)), Math.round(MIN_SHARE * count))));
-  share(sites.map((_, at) => at), held.map((_, at) => at), counts, sites, neighbours, owner);
+  yield* share(sites.map((_, at) => at), held.map((_, at) => at), counts, sites, neighbours, owner);
 
   const cells = sites.map((site, at): Cell => ({ index: at, site, polygon: outlines[at]!.map((edge) => edge.from), neighbours: neighbours[at]!, territory: owner[at]! }));
   const borders = outlines.flatMap((edges, at) =>
@@ -87,14 +99,24 @@ export function territories(shares: readonly TerritoryShare[], outline: number |
   return coast === undefined ? { radius, territories: held, cells, borders } : { radius, coast, territories: held, cells, borders };
 }
 
+/** What `steps` returns, all its steps taken at once. */
+export function finished<T>(steps: Generator<void, T, void>): T {
+  for (;;) { const at = steps.next(); if (at.done) return at.value; }
+}
+
 /** Each island's cut, by its shares and coast, so its drawing, its nameplates and its lit lanes cut it once. */
 const cuts = new WeakMap<readonly TerritoryShare[], { coast: Coast; map: TerritoryMap }>();
 
 /** {@link territories} of an island's `shares` cut to its `coast`, once for the pair whoever asks. */
 export function islandTerritories(shares: readonly TerritoryShare[], coast: Coast): TerritoryMap {
+  return finished(islandTerritoriesInSteps(shares, coast));
+}
+
+/** {@link islandTerritories}, a step at a time (3.87). */
+export function* islandTerritoriesInSteps(shares: readonly TerritoryShare[], coast: Coast): Generator<void, TerritoryMap, void> {
   const known = cuts.get(shares);
   if (known?.coast === coast) return known.map;
-  const map = territories(shares, coast);
+  const map = yield* territoriesInSteps(shares, coast);
   cuts.set(shares, { coast, map });
   return map;
 }
@@ -167,7 +189,7 @@ export function atLeast(counts: number[], least: number): number[] {
  * cell furthest along the longer axis, always taking the neighbouring cell least far along, so each half
  * is one connected run.
  */
-function share(cells: readonly number[], owners: readonly number[], counts: readonly number[], sites: readonly Point[], neighbours: readonly (readonly number[])[], owner: number[]): void {
+function* share(cells: readonly number[], owners: readonly number[], counts: readonly number[], sites: readonly Point[], neighbours: readonly (readonly number[])[], owner: number[]): Generator<void, void, void> {
   if (owners.length === 0) return;
   if (owners.length === 1) { for (const cell of cells) owner[cell] = owners[0]!; return; }
   const weight = (group: readonly number[]) => group.reduce((sum, at) => sum + counts[at]!, 0);
@@ -191,6 +213,7 @@ function share(cells: readonly number[], owners: readonly number[], counts: read
     frontier.delete(next);
     grown.add(next);
     for (const n of neighbours[next]!) if (here.has(n) && !grown.has(n)) frontier.add(n);
+    if (grown.size % CELLS_A_STEP === 0) yield;
   }
   // A pocket the growth cut off from the rest of the land joins the grown half, while the rest keeps a cell for each of its owners.
   let rest = cells.filter((cell) => !grown.has(cell));
@@ -199,8 +222,8 @@ function share(cells: readonly number[], owners: readonly number[], counts: read
     for (const cell of pockets.flat()) grown.add(cell);
     rest = main!;
   }
-  share([...grown], first, counts, sites, neighbours, owner);
-  share(rest, second, counts, sites, neighbours, owner);
+  yield* share([...grown], first, counts, sites, neighbours, owner);
+  yield* share(rest, second, counts, sites, neighbours, owner);
 }
 
 /** `cells` in their connected pieces, across shared edges. */

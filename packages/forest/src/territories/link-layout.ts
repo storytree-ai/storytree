@@ -15,7 +15,7 @@
  * An arrangement that cannot be grown even after moving its seeds leaves the island on the map's own cut.
  */
 import { keptArrangement } from "./kept-layout.js";
-import { apportion, atLeast, islandTerritories, landArea, MIN_SHARE, territories, type Border, type Cell, type Coast, type Point, type TerritoryMap, type TerritoryShare } from "./territories.js";
+import { apportion, atLeast, finished, islandTerritoriesInSteps, landArea, MIN_SHARE, territoriesInSteps, type Border, type Cell, type Coast, type Point, type TerritoryMap, type TerritoryShare } from "./territories.js";
 
 /** The library's land in ground units², the size the look was tuned at. */
 export const LIBRARY_LAND = 24105;
@@ -50,11 +50,17 @@ const laid = new WeakMap<readonly TerritoryShare[], { coast: Coast; key: string;
  * one (3.80), else the map's own cut. Laid out once for the same shares, coast, links, docks and kept arrangement, whoever asks.
  */
 export function islandLayout(story: string, shares: readonly TerritoryShare[], coast: Coast, links: readonly Link[], docks: readonly LinkDock[] | undefined): TerritoryMap {
-  if (docks === undefined) return islandTerritories(shares, coast);
+  return finished(islandLayoutSteps(story, shares, coast, links, docks));
+}
+
+/** {@link islandLayout}, a step at a time (3.87): the fine cut a few cells to a step, then the seeds, then each try at
+ * growing the territories, so the map can settle an island across tasks. One already laid out takes no step. */
+export function* islandLayoutSteps(story: string, shares: readonly TerritoryShare[], coast: Coast, links: readonly Link[], docks: readonly LinkDock[] | undefined): Generator<void, TerritoryMap, void> {
+  if (docks === undefined) return yield* islandTerritoriesInSteps(shares, coast);
   const kept = keptArrangement(story)?.seeds;
   const key = JSON.stringify([links, docks]), known = laid.get(shares);
   if (known?.coast === coast && known.key === key && known.kept === kept) return known.map;
-  const map = linkLayout(shares, coast, links, docks, kept);
+  const map = yield* linkLayoutSteps(shares, coast, links, docks, kept);
   laid.set(shares, { coast, key, kept, map });
   return map;
 }
@@ -62,10 +68,15 @@ export function islandLayout(story: string, shares: readonly TerritoryShare[], c
 /** The island cut to `coast` with its territories laid out by `links` and the `docks` its lanes come ashore at, grown
  * from the `kept` seeds where given (3.80), every other territory placed as the start places it. */
 export function linkLayout(shares: readonly TerritoryShare[], coast: Coast, links: readonly Link[], docks: readonly LinkDock[], kept?: Seeds): TerritoryMap {
-  const island = prepareIsland(shares, coast, links, docks);
+  return finished(linkLayoutSteps(shares, coast, links, docks, kept));
+}
+
+function* linkLayoutSteps(shares: readonly TerritoryShare[], coast: Coast, links: readonly Link[], docks: readonly LinkDock[], kept?: Seeds): Generator<void, TerritoryMap, void> {
+  const island = yield* prepareIslandSteps(shares, coast, links, docks);
+  yield;
   const seeds = island && startSeeds(island, kept);
-  const owners = island && seeds && settle(island, seeds)?.owners;
-  return island && owners ? drawnIsland(island, owners) : islandTerritories(shares, coast);
+  const owners = island && seeds && (yield* settleSteps(island, seeds))?.owners;
+  return island && owners ? drawnIsland(island, owners) : yield* islandTerritoriesInSteps(shares, coast);
 }
 
 /** How far the open land reaches round a dock whose lanes reach `n` links here, in The library's units. */
@@ -88,10 +99,14 @@ export type PreparedIsland = {
 
 /** The island ready to lay out, or undefined when it cannot be (no land, or fewer cells left than territories). */
 export function prepareIsland(shares: readonly TerritoryShare[], coast: Coast, links: readonly Link[], given: readonly LinkDock[]): PreparedIsland | undefined {
+  return finished(prepareIslandSteps(shares, coast, links, given));
+}
+
+function* prepareIslandSteps(shares: readonly TerritoryShare[], coast: Coast, links: readonly Link[], given: readonly LinkDock[]): Generator<void, PreparedIsland | undefined, void> {
   const scale = Math.sqrt(landArea(coast) / LIBRARY_LAND);
   if (!(scale > 0)) return undefined;
   const ground = coast.map((ring) => ring.map((p) => times(p, 1 / scale)));
-  const fine = territories(shares, ground, CUT);
+  const fine = yield* territoriesInSteps(shares, ground, CUT);
   const docks = given.map((dock) => ({ local: ontoCoast(times(dock.local, 1 / scale), ground), links: dock.links }));
   const { cells, territories: held } = fine;
   const ids = held.map((t) => t.capability ?? UNCLAIMED), index = new Map(ids.map((id, at) => [id, at]));
@@ -184,6 +199,11 @@ export function startSeeds(island: PreparedIsland, kept?: Seeds): number[] | und
  * when none grows, with the seeds it grew from. Seeds that will not grow are moved, a seeded walk so the island repeats: an interface along the
  * frontier, an internal anywhere. */
 export function settle(island: PreparedIsland, seeds: readonly number[]): { owners: number[]; seeds: readonly number[] } | undefined {
+  return finished(settleSteps(island, seeds));
+}
+
+/** {@link settle}, a try at growing to a step (3.87). */
+function* settleSteps(island: PreparedIsland, seeds: readonly number[]): Generator<void, { owners: number[]; seeds: readonly number[] } | undefined, void> {
   const { fine: { cells }, ids, main } = island;
   let state = 43;
   const random = () => { state = (state * 1103515245 + 12345) & 0x7fffffff; return state / 0x7fffffff; };
@@ -197,6 +217,7 @@ export function settle(island: PreparedIsland, seeds: readonly number[]): { owne
     const near = (random() < 0.75 ? cells[tried[t]!]!.neighbours.filter((n) => kind[n]) : main.filter((c) => kind[c])).filter((c) => !taken.has(c));
     if (near.length) next[t] = near[Math.floor(random() * near.length)]!;
     tried = next;
+    yield;
   }
   return undefined;
 }

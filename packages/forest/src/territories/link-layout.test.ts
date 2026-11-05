@@ -7,7 +7,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { islandLayout, linkLayout, LIBRARY_LAND } from "./link-layout.js";
+import { islandLayout, islandLayoutSteps, linkLayout, LIBRARY_LAND } from "./link-layout.js";
 import { islandTerritories, territoryAt, type Coast, type TerritoryMap } from "./territories.js";
 
 /** A round coast of `radius`, as a polygon of 96 sides. */
@@ -90,4 +90,13 @@ test("3.76 land the open land cuts off from the rest of the island is open land 
 test("3.76 an island whose open land leaves fewer cells than it has territories keeps the map's own cut", () => {
   const coast = round(LIBRARY_RADIUS), crowd = Array.from({ length: 300 }, (_, i) => ({ capability: `c${i}`, lines: 1 }));
   assert.equal(linkLayout(crowd, coast, [], [{ local: { x: LIBRARY_RADIUS, z: 0 }, links: ["z->c0"] }]), islandTerritories(crowd, coast));
+});
+
+test("3.87 · an island's layout settles in steps, a later one for each part of its fine cut and each try at growing it, and lays out as one build does", () => {
+  const r = LIBRARY_RADIUS, steps = islandLayoutSteps("stepped", [...shares], round(r), links, [east(r), west(r)]);
+  let taken = 1, at = steps.next();
+  for (; !at.done; at = steps.next()) taken++;
+  // The fine cut alone is about 260 cells, a step to every 32.
+  assert.ok(taken >= 10, `settled in ${taken} steps`);
+  assert.deepEqual(at.value, linkLayout([...shares], round(r), links, [east(r), west(r)]));
 });

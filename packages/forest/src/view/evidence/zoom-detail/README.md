@@ -90,4 +90,22 @@ The land no longer makes the long builds: a third, labelled run found the builds
 the page, is the next step. The page's own long tasks barely fall, as before: on this box they are frames and shader
 compiles that SwiftShader runs on the CPU.
 
+### An island's layout in steps (3.87, increment_ac6b6706ee92 step 3)
+
+Timed first, bundled as the page gets it (esbuild, run in Node on this box): of an island's layout, the fine cut (about
+260 Voronoi cells, then shared out by halving) took 25 to 65 ms, the seeds 1 to 5 ms, the settle 3 to 26 ms over its tries,
+and drawing it back 1 to 3 ms. So the cut, not the settle, made the long layouts. Now the layout is a generator
+(`islandLayoutSteps` in `territories/link-layout.ts`, built through `useBuiltInSteps`): the cut yields every 32 cells' outlines
+and every 32 cells shared, then the seeds, then each try at growing the territories, each a step. Three round islands, three
+runs each (load average about 15 from other lanes):
+
+| Island | whole layout (ms) | steps | longest step (ms) |
+| --- | --- | ---: | --- |
+| 7 territories, The library's size | 65.9, 43.7, 32.9 | 19 | 11.7, 5.3, 3.7 |
+| 12 territories, 1.5 times as wide | 30.3, 33.4, 27.8 | 17 | 4.7, 4.4, 3.9 |
+| 20 territories, 2.2 times as wide | 36.6, 36.9, 31.5 | 20 | 12.2, 6.6, 5.0 |
+
+The same layout results, step by step or at once (link-layout.test.ts, 3.87). Not yet measured in the real page, nor the left
+rail drag test 2.46's time on CI's macOS runner, which this pull request's own CI run gives.
+
 In the evidence bucket for #493, linked from the pull request body (ADR-1234; deleted after 90 days or when its arc closes): `493/far.png`, `493/opening-territories.png`, `493/near-the-library.png`.

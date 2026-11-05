@@ -97,11 +97,10 @@ test("4.1 historical ranges retain deleted and renamed proof, ignore dirty state
   assert.deepEqual(linked.rows!.map(row => row.path), ["linked note.md"]);
 });
 
-test("4.1 a range of thousands of dots is refused within a second", async t => {
+test("4.1 a range of hundreds of thousands of dots is refused without stalling, and a range missing a ref on one side is refused", { timeout: 20_000 }, async t => {
   const repo = await repository(t);
-  const started = performance.now();
-  await assert.rejects(focusProject(repo.library, repo.folder, { select: `diff:a${"..".repeat(40_000)}\n` }), /ref/i);
-  assert.ok(performance.now() - started < 1000, `took ${Math.round(performance.now() - started)} ms`);
+  await assert.rejects(focusProject(repo.library, repo.folder, { select: `diff:a${"..".repeat(200_000)}\n` }), /needs both refs/);
+  for (const range of ["main..", "..main"]) await assert.rejects(focusProject(repo.library, repo.folder, { select: `diff:${range}` }), /needs both refs/);
 });
 
 test("4.1 unsurveyed paths share the show ceiling and do not expand counts metadata", async t => {

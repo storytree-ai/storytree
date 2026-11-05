@@ -57,7 +57,7 @@ export type DrawnLand = {
 
 /**
  * The territories of `land`, each point placed on the island's surface by `onSurface`, cut to `coast`
- * (its loops, in the same coordinates as the land) when given. Given the island's road `gates` (the selected island,
+ * (its loops, in the same coordinates as the land) when given. Given the island's road `gates` (every island once routed,
  * ADR-1236 D1), each gate's opening is cut out of its border and the borders are quietened under the roads.
  */
 export function territoryLand(land: DrawnLand, onSurface: (point: Point) => Vector3, coast?: readonly (readonly Point[])[], claimed: ReadonlyMap<string, { colour: string; faded: boolean }> = new Map(), gates?: IslandRoads["gates"]): Group {

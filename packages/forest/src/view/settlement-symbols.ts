@@ -1,5 +1,5 @@
 /**
- * Capability 3 · Story node render: each settlement on the selected island drawn as round 12's flat architecture-diagram
+ * Capability 3 · Story node render: each settlement on an island drawn as round 12's flat architecture-diagram
  * symbol for its capability's kind (ADR-1236 D1, rollout 2 step 4a, 3.79), ported from the capability tree mock's
  * docs/design/capability-tree-3d/q-all-islands/kinds.mjs and tools/overlay.ts: its outline in ink on a paper fill over a
  * faint dark casing, laid flat on the land and as large as its settlement's `size`. Plain three.js geometry, so the

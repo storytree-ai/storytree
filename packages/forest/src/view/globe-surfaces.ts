@@ -1,5 +1,6 @@
 /** Capability 3 · Story node render. */
 import type { BufferAttribute, Group, LineSegments, Mesh, MeshBasicMaterial, Object3D } from "three";
+import { shows, type Detail } from "./zoom-detail.js";
 
 /** The app's attention switches, also available to guides mounted outside the app. */
 export type GlobeSurfaces = {
@@ -24,6 +25,8 @@ export function shownSurfaces(surfaces: Partial<GlobeSurfaces> | undefined, outl
 
 const healthOpacity = new WeakMap<Mesh, number>();
 const presentation = new WeakMap<Object3D, GlobeSurfaces["territories"]>();
+/** The detail each island's land shows at the eye's zoom (3.86); absent is all of it. */
+const shownDetail = new WeakMap<Object3D, Detail>();
 /** How far each territory has filled in on a growing globe (3.30); absent is whole. */
 const grownBy = new WeakMap<Object3D, number>();
 /** How far each new territory's fill has eased in after its borders drew on (3.46); absent is whole. */
@@ -31,17 +34,27 @@ const drawnBy = new WeakMap<Object3D, number>();
 
 export function presentTerritories(group: Group, mode: GlobeSurfaces["territories"]): void {
   presentation.set(group, mode);
+  // 3.86: the territories show from their zoom in, the roads and relief only near; only what shows changes, never a shape.
+  const detail = shownDetail.get(group) ?? "near", land = mode !== false && shows(detail, "territories"), near = mode !== false && detail === "near";
   for (const mark of group.children) {
     if (mark.name.startsWith("territory:")) {
       const grown = grownBy.get(mark) ?? 1;
-      mark.visible = mode !== false && grown > 0;
+      mark.visible = land && grown > 0;
       const mesh = mark as Mesh, material = mesh.material as MeshBasicMaterial;
       if (!healthOpacity.has(mesh)) healthOpacity.set(mesh, material.opacity);
       material.opacity = mode === "plain" ? 0 : healthOpacity.get(mesh)! * grown * (drawnBy.get(mark) ?? 1);
-    } else if (mark.name === "territory-borders" || mark.name.startsWith("territory-hatch:") || mark.name === "island-roads" || mark.name === "island-relief") {
-      mark.visible = mode !== false;
+    } else if (mark.name === "territory-borders" || mark.name.startsWith("territory-hatch:")) {
+      mark.visible = land;
+    } else if (mark.name === "island-roads" || mark.name === "island-relief") {
+      mark.visible = near;
     }
   }
+}
+
+/** Shows as much of an island's `land` as `detail` asks (3.86), under the territory switches it was presented with. */
+export function presentDetail(land: Group, detail: Detail): void {
+  shownDetail.set(land, detail);
+  presentTerritories(land, presentation.get(land) ?? "health");
 }
 
 /** Session emphasis replaces materials temporarily; restoring one also restores the current presentation. */

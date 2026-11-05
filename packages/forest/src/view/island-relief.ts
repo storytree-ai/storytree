@@ -1,5 +1,5 @@
 /**
- * Capability 3 · Story node render: the selected island's relief as drawn (ADR-1236 D1, rollout 2 step 3b), round 11's
+ * Capability 3 · Story node render: each island's relief as drawn (ADR-1236 D1 as narrowed by ADR-1253 D2, rollout 2 step 3b), round 11's
  * look: a wall where a plateau stands over the open land or the coast, shaded by the light, with a soft shadow on the
  * open land where it faces away; a ramp at each gate onto the open land, its slope and two cheeks; and a bevel rim inside
  * each border, light where it faces the light and dark where it faces away. Each mark takes its colour from the land it
@@ -16,7 +16,7 @@ const SHADE = { shadow: { alpha: 0.3, reach: 1.0, feather: 0.9 }, rim: { light: 
 const dot = (a: Point, b: Point) => a.x * b.x + a.z * b.z;
 const at = (p: Point, d: Point, k: number): Point => ({ x: p.x + d.x * k, z: p.z + d.z * k });
 
-/** The relief of the selected island, each ground point placed on its surface by `onGround` (the open land's height). */
+/** The relief of an island, each ground point placed on its surface by `onGround` (the open land's height). */
 export function islandReliefMarks(relief: IslandRelief, onGround: (p: Point) => Vector3, fillAt: FillAt): Group {
   const group = new Group();
   group.name = "island-relief";

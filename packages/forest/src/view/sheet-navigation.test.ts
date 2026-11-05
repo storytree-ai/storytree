@@ -8,7 +8,7 @@ import type { AnnotatedTree, Change } from "@storytree/library";
 import { applySheetEye, plateTransform, SHEET_FOV, SHEET_RADIUS, SHEET_TILT, sheetEyeZoom, sheetSpot, SHIPPED_ELEVATION_DEG, type SheetPoint } from "@storytree/forest-world/planet";
 import { createGlobeGuide, type GlobePose } from "./globe-guide.js";
 import { focusRotation, markerSpot } from "./planet-navigation.js";
-import { compassNorth, headingHome, laidIsland, opensBare, seesUnderside, sheetCentre, sheetDrag, sheetHome, sheetKey, sheetKeyPan, sheetLayout, sheetMarkers, sheetOpening, sheetPan, sheetSpin, sheetPanUnder, sheetSpinTilt, sheetTilted, sheetTiltBy, sheetTwist, sheetUnder, TILT_STEP } from "./sheet-navigation.js";
+import { compassNorth, headingHome, opensBare, seesUnderside, sheetCentre, sheetDrag, sheetHome, sheetKey, sheetKeyPan, sheetLayout, sheetMarkers, sheetOpening, sheetPan, sheetSpin, sheetPanUnder, sheetSpinTilt, sheetTilted, sheetTiltBy, sheetTwist, sheetUnder, TILT_STEP, withDocks } from "./sheet-navigation.js";
 import { sheetPoint } from "@storytree/forest-world/planet";
 
 const health = { reported: { state: "not-checked" as const }, verified: { state: "not-checked" as const } };
@@ -437,7 +437,16 @@ test("3.28 on the glass sheet, a plan still growing, framed by its full plan, ke
   assert.notDeepEqual(sheetLayout(growing, places).spots.get("s0"), whole.spots.get("s0"), "unframed, the growing plan would sit elsewhere");
 });
 
-test("3.76 under the selected island each capability's knowledge shelf hangs beneath its territory as laid out by its links; under any other island beneath the map's own cut", async () => {
+test("3.76 each island's docks are kept as its plate sees them; a reading that changes nothing keeps the same docks, so nothing is laid out again", () => {
+  const docks = [{ local: { x: 1, z: 0 }, links: ["z1->a1"] }], none = new Map<string, typeof docks>();
+  const seen = withDocks(none, "a", docks);
+  assert.deepEqual([...seen], [["a", docks]]);
+  assert.equal(withDocks(seen, "a", docks), seen, "the same docks seen again");
+  assert.equal(withDocks(seen, "b", undefined), seen, "an island with none yet, seen without any");
+  assert.deepEqual([...withDocks(withDocks(seen, "b", docks), "a", undefined)], [["b", docks]], "an island whose docks are unknown again is dropped");
+});
+
+test("3.76 under every island whose docks are known each capability's knowledge shelf hangs beneath its territory as laid out by its links; under one whose docks are not yet known beneath the map's own cut", async () => {
   const { islandCoast } = await import("@storytree/forest-world/geometry");
   const { islandLayout } = await import("../territories/link-layout.js");
   const { islandTerritories } = await import("../territories/territories.js");
@@ -458,18 +467,9 @@ test("3.76 under the selected island each capability's knowledge shelf hangs ben
   const laid = islandLayout("a", land.territories, coast, links, docks), own = islandTerritories(land.territories, coast);
   const close = (p: { x: number; z: number }, q: { x: number; z: number }) => Math.hypot(p.x - q.x, p.z - q.z) < 1e-9;
   for (const capability of capabilities) {
-    assert.ok(close(shelfOf({ story: "a", docks }, capability), middleOf(laid, capability)), `${capability} hangs under its laid-out territory on the selected island`);
-    assert.ok(close(shelfOf({ story: "b", docks }, capability), middleOf(own, capability)), `${capability} hangs under the map's own cut on an island not selected`);
-    assert.ok(close(shelfOf(undefined, capability), middleOf(own, capability)), `${capability} hangs under the map's own cut with no selection`);
+    assert.ok(close(shelfOf(new Map([["a", docks]]), capability), middleOf(laid, capability)), `${capability} hangs under its laid-out territory`);
+    assert.ok(close(shelfOf(new Map([["b", docks]]), capability), middleOf(own, capability)), `${capability} hangs under the map's own cut while only another island's docks are known`);
+    assert.ok(close(shelfOf(undefined, capability), middleOf(own, capability)), `${capability} hangs under the map's own cut with no docks known`);
   }
   assert.ok(capabilities.some(capability => !close(middleOf(laid, capability), middleOf(own, capability))), "the two layouts put some territory elsewhere");
-});
-
-test("3.76 the island laid out by its links is the selected one, once its docks are known; docks seen on an island since let go lay out none", () => {
-  const docks = [{ local: { x: 1, z: 0 }, links: ["z1->a1"] }];
-  assert.deepEqual(laidIsland({ story: "a", docks }, "a"), { story: "a", docks }, "the selected island with its docks");
-  assert.equal(laidIsland({ story: "a", docks }, "b"), undefined, "another island is selected now");
-  assert.equal(laidIsland({ story: "a", docks }, undefined), undefined, "nothing is selected");
-  assert.equal(laidIsland({ story: "a", docks: undefined }, "a"), undefined, "its roads still route");
-  assert.equal(laidIsland(undefined, "a"), undefined, "its plate has seen no docks yet");
 });

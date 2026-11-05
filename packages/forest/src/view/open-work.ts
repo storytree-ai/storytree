@@ -4,6 +4,7 @@
  * any open increment names (3.84). A circle as wide as a territory spills onto its neighbours, so the ring follows the land.
  */
 import { BufferGeometry, Color, DoubleSide, Float32BufferAttribute, Group, Mesh, MeshBasicMaterial, type Object3D, type Vector3 } from "three";
+import { shows, type Detail } from "./zoom-detail.js";
 import type { IslandRoads } from "../territories/island-roads.js";
 import type { Point, TerritoryMap } from "../territories/territories.js";
 import type { SessionEmphasis } from "./session-emphasis.js";
@@ -95,6 +96,12 @@ export function openWorkLayer(marks: OpenWorkMarks, land: Object3D, onSurface: (
     add(new Mesh(disc(at, dot, onSurface), ink), `open-work-dot-fill:${at.capability}`, 7.01);
   }
   return group;
+}
+
+/** Shows as much of an island's open-work `layer` as the eye's zoom asks (3.86): its dots always (3.84), its rings and dims
+ * only where its territories show (3.83). */
+export function presentOpenWork(layer: Group, detail: Detail): void {
+  for (const mark of layer.children) mark.visible = mark.name.startsWith("open-work-dot:") || shows(detail, "territories");
 }
 
 /** The disc of `radius` round `centre`, as triangles on the surface. */

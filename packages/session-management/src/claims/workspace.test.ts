@@ -753,6 +753,14 @@ test("19.9 · a workspace made in a project that names no worktree setup says, w
     assert.match(made.text, /nothing was installed/);
     assert.match(made.text, /`pnpm install --frozen-lockfile`/);
     assert.doesNotMatch(made.text, /as this project does at session start/);
+
+    const attach = WORKSPACE_FAMILIES[0]!.verbs.find((one) => one.command !== undefined && "name" in one.command && one.command.name === "attach")!;
+    const own = path.join(path.dirname(site), "claude app made");
+    git(site, "worktree", "add", "-b", "claude/app-made", own, "main");
+    const attached = await attach.act({ work: await park("settings"), reason: "build settings" }, as("A", own), WORDS);
+
+    assert.match(attached.text, /nothing was installed: run `pnpm install --frozen-lockfile`/);
+    assert.doesNotMatch(attached.text, /as this project does at session start/);
   });
 });
 

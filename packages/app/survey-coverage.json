@@ -2,18 +2,21 @@
  "../../apps/desktop/src/capture/fake-bridge.ts": {
   "2": 6
  },
+ "../../apps/desktop/src/capture/seeds.ts": {
+  "2": 28
+ },
  "src/lag/index.ts": {
   "7": 2
  },
  "src/lag/readings.ts": {
-  "6": 13,
+  "6": 15,
   "7": 9
  },
  "src/lag/recorder.ts": {
-  "5": 69
+  "5": 150
  },
  "src/lag/report.ts": {
-  "7": 51
+  "7": 62
  },
  "src/lag/runtime.ts": {
   "6": 4
@@ -22,21 +25,21 @@
   "7": 2
  },
  "src/lag/view.ts": {
-  "5": 12
+  "5": 28
  },
  "src/lifecycle/background.ts": {
-  "1": 65,
-  "4": 70
+  "1": 60,
+  "4": 100
  },
  "src/lifecycle/backups.ts": {
-  "1": 108,
-  "4": 199
+  "1": 160,
+  "4": 323
  },
  "src/lifecycle/launch.ts": {
-  "1": 6
+  "1": 9
  },
  "src/lifecycle/open-where-set.ts": {
-  "1": 4
+  "1": 5
  },
  "src/lifecycle/quit.ts": {
   "1": 14
@@ -44,40 +47,59 @@
  "src/lifecycle/sign-in.ts": {
   "1": 78
  },
+ "src/lifecycle/stopping.ts": {
+  "1": 16
+ },
  "src/lifecycle/verbs.ts": {
   "1": 2
  },
+ "src/page/locate.ts": {
+  "2": 140
+ },
+ "src/page/page.ts": {
+  "2": 546
+ },
+ "src/page/rail.ts": {
+  "2": 404
+ },
+ "src/page/status.ts": {
+  "2": 126
+ },
+ "src/page/story-panel.ts": {
+  "2": 84
+ },
  "src/projects/follow.ts": {
   "1": 30,
-  "2": 14
+  "2": 98
  },
  "src/projects/selection.ts": {
   "2": 60
  },
+ "src/surfaces/bridge.ts": {
+  "2": 56
+ },
+ "src/surfaces/named.ts": {
+  "2": 22,
+  "3": 1,
+  "4": 12
+ },
  "src/surfaces/reads.ts": {
-  "3": 348
+  "3": 570
  },
  "src/surfaces/smoke.ts": {
   "3": 4
  },
  "src/surfaces/switches.ts": {
-  "3": 51
+  "3": 63
  },
  "src/surfaces/verbs.ts": {
-  "3": 26
+  "3": 104
  },
  "src/updates/agent-activity.ts": {
   "4": 1
  },
- "src/updates/build-health.ts": {
-  "4": 12
- },
- "src/updates/follow-main-setup.ts": {
-  "4": 8
- },
- "src/updates/follow-main.ts": {
-  "1": 6,
-  "4": 16
+ "src/updates/follow-releases.ts": {
+  "4": 24
  },
  "src/updates/hold-run.mjs": {
   "4": 2
@@ -86,68 +108,73 @@
   "4": 9
  },
  "src/updates/install-choice.ts": {
-  "4": 39
+  "4": 62
  },
  "src/updates/install-moment.ts": {
-  "4": 12
+  "4": 35
  },
  "src/updates/installation.ts": {
-  "4": 24
- },
- "src/updates/main-updates.ts": {
-  "1": 8,
-  "4": 63
- },
- "src/updates/one-app.ts": {
-  "4": 34
+  "4": 35
  },
  "src/updates/release-carry.ts": {
-  "4": 48
+  "4": 52
  },
  "src/updates/release-channel.ts": {
-  "4": 1
+  "4": 24
  },
  "src/updates/release-source.ts": {
-  "4": 9
+  "4": 22
  },
  "src/updates/releases.ts": {
-  "3": 12,
-  "4": 377
+  "3": 15,
+  "4": 627
+ },
+ "src/updates/restart-allowed.ts": {
+  "4": 4
+ },
+ "src/updates/restart-limit.ts": {
+  "1": 6,
+  "3": 15,
+  "4": 26
  },
  "src/updates/seed-writing.ts": {
   "4": 1
  },
  "src/updates/stable-candidate.ts": {
-  "4": 33
+  "4": 55
  },
  "src/updates/stable-github.ts": {
-  "4": 149
+  "4": 273
  },
  "src/updates/stable-pin.ts": {
-  "4": 300
+  "4": 727
  },
  "src/updates/update-holds.ts": {
-  "4": 26
+  "4": 38
+ },
+ "src/updates/update-state.ts": {
+  "4": 2
  },
  "src/updates/version.ts": {
-  "4": 6
+  "4": 12
  },
  "src/view/index.ts": {
-  "2": 32
+  "2": 50
  },
  "src/view/render.ts": {
-  "2": 36,
-  "4": 10
+  "2": 70,
+  "3": 3,
+  "4": 24
  },
  "src/view/surfaces.ts": {
   "2": 4,
-  "3": 24
+  "3": 54
  },
  "src/view/switch.ts": {
   "2": 4
  },
  "src/view/updates.ts": {
-  "2": 22,
-  "4": 50
+  "2": 26,
+  "4": 396
  }
 }

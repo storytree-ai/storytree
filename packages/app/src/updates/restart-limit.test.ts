@@ -1,5 +1,5 @@
 /**
- * Capability 1 · Lifecycle, contract 1.32: after five restarts in a row the app stops restarting itself, and a start that
+ * Capability 4 · Updates, contract 4.35: after five restarts in a row the app stops restarting itself, and a start that
  * stays up resets the count. Each start of the app is a new background() with a new restartLimit on the same file.
  */
 import assert from "node:assert/strict";
@@ -8,7 +8,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 
-import { background } from "./background.js";
+import { background } from "../lifecycle/background.js";
 import { RESTARTS_IN_A_ROW, restartLimit, RestartsStopped, STABLE_AFTER_MS } from "./restart-limit.js";
 
 const NEWER = { execPath: "/runtime/b/electron", args: ["/runtime/b/app"] };
@@ -31,7 +31,7 @@ async function startAndRestart(file: string): Promise<{ restarted: boolean; stop
   }
 }
 
-test("1.32 after five restarts in a row the app stops restarting itself: the sixth stops nothing and is refused, and a start that stays up resets the count", async (t) => {
+test("4.35 after five restarts in a row the app stops restarting itself: the sixth stops nothing and is refused, and a start that stays up resets the count", async (t) => {
   t.mock.timers.enable({ apis: ["setTimeout"] });
   const dir = mkdtempSync(path.join(tmpdir(), "restart-limit-"));
   t.after(() => rmSync(dir, { recursive: true, force: true }));

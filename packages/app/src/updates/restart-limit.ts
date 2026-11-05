@@ -1,6 +1,6 @@
 /**
- * Capability 1 · Lifecycle: the app stops restarting itself after five restarts in a row, on every channel, so a user is
- * never stuck in a restart loop (contract 1.32; the owner's voice note of 2026-10-23, after 1,135 unnoticed restarts).
+ * Capability 4 · Updates: the app stops restarting itself after five restarts in a row, on every channel, so a user is
+ * never stuck in a restart loop (contract 4.35; the owner's voice note of 2026-10-23, after 1,135 unnoticed restarts).
  * Each restart is a new process, so the count is kept in a file in the app's home. A start that stays up for
  * STABLE_AFTER_MS is a stable one: the restarts before it are no longer in a row, so the count goes back to nought.
  */

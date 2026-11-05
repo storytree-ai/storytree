@@ -50,7 +50,7 @@ async function bundle<T>(dir: string, entry: string, plugin = partsFromList()): 
 const arcs: Story = { name: "@s/arcs", surfaces: { ids: ["arcs"], order: 2 } };
 const forest: Story = { name: "@s/forest", surfaces: { ids: ["globe", "library"], order: 1 } };
 
-test("1.48 · the main process and preload bundles pack each #parts/<kind> from the parts list Plugin loader's step writes for the importing file's package, in its order with each part's owner and the host's parts graph", async (t) => {
+test("4.38 · the main process and preload bundles pack each #parts/<kind> from the parts list Plugin loader's step writes for the importing file's package, in its order with each part's owner and the host's parts graph", async (t) => {
   const dir = host(t, [arcs, forest]);
   const bundled = await bundle<{ surfaces: { parts: unknown; owners: unknown; graph: unknown } }>(dir, `import surfaces from "#parts/surfaces";\nexport { surfaces };\n`);
   assert.deepEqual(bundled.surfaces.parts, [{ id: "globe" }, { id: "library" }, { id: "arcs" }]);
@@ -58,7 +58,7 @@ test("1.48 · the main process and preload bundles pack each #parts/<kind> from 
   assert.deepEqual(bundled.surfaces.graph, { arcs: [], forest: [] });
 });
 
-test("1.48 · a desktop bundle whose parts list is missing, or out of date with a package.json it was written from, fails naming it rather than pack the wrong parts, and so does one importing a kind its package.json maps no list for", async (t) => {
+test("4.38 · a desktop bundle whose parts list is missing, or out of date with a package.json it was written from, fails naming it rather than pack the wrong parts, and so does one importing a kind its package.json maps no list for", async (t) => {
   const entry = `import surfaces from "#parts/surfaces";\nexport { surfaces };\n`;
   const missing = host(t, [arcs, forest]);
   await assert.rejects(bundle(missing, entry, partsFromList({ write: async () => {} })), /no parts list for .*: Plugin loader's step wrote none/);

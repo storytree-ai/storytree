@@ -1,8 +1,7 @@
 /**
- * Capability 1 · Lifecycle: how the desktop app stops what it holds, and when it may restart itself. Quitting stops
- * the journey, then the page reads, then the library, then Postgres (contract 1.43): each reads what it stands on
- * before that closes. A restart waits while the app is stopping, a seed is being written or a backup holds it
- * (contract 1.44). The desktop's main process hands its parts to these and wires them to Electron.
+ * Capability 1 · Lifecycle: how the desktop app stops what it holds. Quitting stops the journey, then the page reads,
+ * then the library, then Postgres (contract 1.43): each reads what it stands on before that closes. The desktop's main
+ * process hands its parts to this and wires it to Electron.
  */
 
 /** Something the app holds, found when it is needed, and let go of once stopped. */
@@ -47,26 +46,6 @@ export function appShutdown(parts: AppParts): AppShutdown {
       return shutDown;
     },
     stopping: () => shutDown !== undefined,
-  };
-}
-
-/**
- * Whether the app may restart itself now: not while it is stopping, which is asked again once the seed check has
- * answered, not while a seed is being written to its own Postgres, and not while a backup holds it.
- */
-export function restartAllowed({ stopping, postgresUrl, seedWriting, backups }: {
-  stopping(): boolean;
-  /** The app's own Postgres, when it started one. */
-  postgresUrl(): string | undefined;
-  seedWriting(url: string): Promise<boolean>;
-  /** The backups, once kept; none hold a restart. */
-  backups(): { canRestart(): boolean } | undefined;
-}): () => Promise<boolean> {
-  return async () => {
-    if (stopping()) return false;
-    const url = postgresUrl();
-    if (url !== undefined && await seedWriting(url)) return false;
-    return !stopping() && (backups()?.canRestart() ?? true);
   };
 }
 

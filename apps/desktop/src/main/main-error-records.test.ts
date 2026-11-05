@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 
-import { restartLimit } from "@storytree/app/lifecycle/restart-limit";
+import { restartLimit } from "@storytree/app/updates/restart-limit";
 import { connect, type Storytree } from "@storytree/library";
 import { dropTestDatabases } from "@storytree/local-postgres/testing";
 
@@ -148,7 +148,7 @@ test("1.31 while the user's library holds an app error not yet marked submitted,
   }
 });
 
-test("1.32 when the app stops restarting itself after five restarts in a row, the stop is recorded as an error in the user's own library and asks to be reported, on an install whose records predate it too", async (t) => {
+test("4.35 when the app stops restarting itself after five restarts in a row, the stop is recorded as an error in the user's own library and asks to be reported, on an install whose records predate it too", async (t) => {
   const database = `storytree-app-errors-t-${randomBytes(4).toString("hex")}`;
   const dir = mkdtempSync(path.join(tmpdir(), "restart-limit-"));
   t.after(() => rmSync(dir, { recursive: true, force: true }));

@@ -32,7 +32,7 @@ function run(text: string, electron: object): Record<string, unknown> {
 
 const isNodes = (name: string) => name.startsWith("node:") || builtinModules.includes(name);
 
-test("1.46 · the main process bundles whole into main.cjs: it loads nothing from outside it but Node's own modules, Electron and the optional modules it never loads or loads lazily, so a packaged app needs no node_modules", { timeout: 120_000 }, async () => {
+test("4.37 · the main process bundles whole into main.cjs: it loads nothing from outside it but Node's own modules, Electron and the optional modules it never loads or loads lazily, so a packaged app needs no node_modules", { timeout: 120_000 }, async () => {
   const { outside } = await bundled({ ...mainBuild(dist), entryPoints: [fileURLToPath(new URL("./main.ts", import.meta.url))] });
   const optional = [
     "electron", "pg-native", "pg-cloudflare", "cloudflare:sockets", "@google-cloud/cloud-sql-connector", "google-auth-library", "@huggingface/transformers",
@@ -70,7 +70,7 @@ test("1.47 · the preload script, bundled as the app bundles it, gives the page 
   assert.deepEqual(signIn.exposed.storytree!.pluginViews, []);
 });
 
-test("1.49 · a packaged build names the commit its checkout had when it was bundled, in its label from the first moment, so each main-process error it records points at that commit", { timeout: 60_000 }, async (t) => {
+test("4.39 · a packaged build names the commit its checkout had when it was bundled, in its label from the first moment, so each main-process error it records points at that commit", { timeout: 60_000 }, async (t) => {
   const checkout = mkdtempSync(path.join(tmpdir(), "storytree-build-commit-"));
   t.after(() => removeTemp(checkout));
   const env = { ...process.env, GIT_AUTHOR_NAME: "t", GIT_AUTHOR_EMAIL: "t@t", GIT_COMMITTER_NAME: "t", GIT_COMMITTER_EMAIL: "t@t" };

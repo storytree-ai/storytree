@@ -5,7 +5,6 @@
   "exports": {
     ".": "./src/index.ts",
     "./lifecycle/bridge": "./src/lifecycle/bridge.ts",
-    "./lifecycle/restart-limit": "./src/lifecycle/restart-limit.ts",
     "./lifecycle/open-where-set": "./src/lifecycle/open-where-set.ts",
     "./lifecycle/stopping": "./src/lifecycle/stopping.ts",
     "./lifecycle/verbs": "./src/lifecycle/verbs.ts",
@@ -22,6 +21,8 @@
     "./updates/bridge": "./src/updates/bridge.ts",
     "./updates/follow-releases": "./src/updates/follow-releases.ts",
     "./updates/release-carry": "./src/updates/release-carry.ts",
+    "./updates/restart-allowed": "./src/updates/restart-allowed.ts",
+    "./updates/restart-limit": "./src/updates/restart-limit.ts",
     "./updates/verbs": "./src/updates/verbs.ts",
     "./version": "./src/updates/version.ts",
     "./view": "./src/view/index.ts",

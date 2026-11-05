@@ -118,6 +118,17 @@ test("3.9 a line is refused when its patterns match nothing or span two imports;
   }
 });
 
+test("3.9 a pattern holding a long run of slashes is answered within a second", async () => {
+  const { trunk, survey, done } = await fixture();
+  try {
+    const started = performance.now();
+    await assert.rejects(crossingsOf(tree, survey, trunk, { patterns: [`x${"/".repeat(40_000)}y`] }), /No mapped file matches/);
+    assert.ok(performance.now() - started < 1000, `took ${Math.round(performance.now() - started)} ms`);
+  } finally {
+    await done();
+  }
+});
+
 test("3.10 an explored capability named cap:<id|number> in place of folders draws the line round the files it covers, among its story's files; a capability covering nothing is refused", async () => {
   const capabilities: Record<string, unknown[]> = {
     "story-cart": [{ id: "cap-ui", title: "1 · Cart ui", covers: ["packages/cart/src/ui/menu.ts", "packages/cart/src/ui/sidebar.tsx"], contracts: [] }],

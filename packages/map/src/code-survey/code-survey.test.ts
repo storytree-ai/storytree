@@ -6,7 +6,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { surveyStory } from "./code-survey.js";
+import { declarationOf, surveyStory } from "./code-survey.js";
 import { manifestFrom } from "./survey-source.js";
 
 const capabilities = [
@@ -406,4 +406,11 @@ test("8.41 deciding which strings are a call's first argument reads text in prop
   const read = readBy(text);
   assert.ok(read < 10 * text.length, `${read} characters read for a ${text.length}-character file`);
   assert.deepEqual(surveyStory([{ path: "src/claims/claim.ts", text: "export const claim = () => 1;\n" }, file(3)], capabilities).tests?.[0]?.titles?.map(({ number }) => number), ["3.2", "3.3", "3.4"]);
+});
+
+test("8.15 an opening comment of thousands of stars that never names a capability is read as no declaration within a second", () => {
+  const started = performance.now();
+  assert.equal(declarationOf(`/*${"*".repeat(60_000)}`), undefined);
+  assert.equal(declarationOf("/*** \n * Capability 4 ·\tHooks */")?.title, "Hooks */");
+  assert.ok(performance.now() - started < 1000, `took ${Math.round(performance.now() - started)} ms`);
 });

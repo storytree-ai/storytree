@@ -1,6 +1,6 @@
 /**
  * Capability 2 · Storytree projects: the real renderer, on a stand-in bridge whose reads fail, writes each failure it catches to
- * the console, which lifecycle 1.19 carries to app.log, so a failure inside the window leaves a trace even where the page goes on
+ * the console, which errors 9.1 carries to app.log, so a failure inside the window leaves a trace even where the page goes on
  * showing what it had.
  */
 import assert from "node:assert/strict";

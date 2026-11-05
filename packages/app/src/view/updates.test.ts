@@ -181,7 +181,7 @@ test("4.34 the Update channel names the stable build and the day it was publishe
   without.stop();
 });
 
-/** The menu's Updates section in a fresh window, and every console error the page writes (app.log, lifecycle 1.19). */
+/** The menu's Updates section in a fresh window, and every console error the page writes (app.log, errors 9.1). */
 function updatesSection(t: TestContext) {
   const window = new Window();
   const host = window.document.createElement("div");

@@ -26,7 +26,7 @@ import { createGlobeAside, framedOnResize, type AsidePose } from "./globe-aside.
 import { compassNorth, opensBare, seesUnderside, sheetDrag, sheetHome, sheetKey, sheetKeyPan, sheetLayout, sheetMarkers, sheetOpening, sheetPan, sheetPanUnder, sheetSpin, sheetSpinTilt, sheetTilted, sheetTiltBy, sheetTwist, sheetUnder, TILT_PER_PIXEL, TILT_STEP, withDocks } from "./sheet-navigation.js";
 import { growLand, presentDetail, shownSurfaces as surfacesFor, TerritoryDrawOn, type GlobeSurfaces } from "./globe-surfaces.js";
 import { DetailStore } from "./zoom-detail.js";
-import { useBuiltInTurn } from "./build-turns.js";
+import { useBuiltInSteps, useBuiltInTurn } from "./build-turns.js";
 import type { TerritoryMap } from "../territories/territories.js";
 
 export type PlanetViewProps = {
@@ -334,23 +334,40 @@ function IslandLand(props: IslandLandProps) {
     islandRoadsWhenRouted(ask, pageIslandRouter(), overtaken.signal);
     return () => overtaken.abort();
   }, [ask, roads]);
-  // 3.87: its meshes built in their turn, the land's at once and again with its relief and roads when they arrive.
-  const drawn = useBuiltInTurn((): DrawnLand => {
+  // 3.87: its meshes built in their turns, the land's at once and again with its relief and roads when they arrive, the
+  // relief, the land, the relief's marks and the roads' each a step of its own, so the biggest island's fits a task.
+  const drawn = useBuiltInSteps(function* (): Generator<void, DrawnLand, void> {
     // 3.78: and every territory a plateau above its open land, a ramp where a road climbs onto one.
     const relief = roads === undefined ? undefined : islandRelief(map, roads);
+    if (relief !== undefined) yield;
     const onLand = onIslandSurface(radius, TERRITORY_LIFT + (relief?.height ?? 0));
     const group = territoryLand(map, onLand, coast, tints, roads?.gates);
     // The roads and the relief lie on the land, so they show and hide with the territories (3.22).
     if (roads !== undefined && relief !== undefined) {
-      const fill = landFill(map, group);
-      group.add(islandReliefMarks(relief, onIslandSurface(radius, TERRITORY_LIFT), fill));
-      group.add(islandRoadMarks(roads, onIslandSurface(radius, ROAD_LIFT), fill, relief));
+      let built = false;
+      try {
+        yield;
+        const fill = landFill(map, group);
+        group.add(islandReliefMarks(relief, onIslandSurface(radius, TERRITORY_LIFT), fill));
+        yield;
+        group.add(islandRoadMarks(roads, onIslandSurface(radius, ROAD_LIFT), fill, relief));
+        built = true;
+      } finally { if (!built) disposeMarks(group); }
     }
     // 3.86: every island's marks stand where they were built, so the frame never recomputes their matrices, shown or hidden.
     group.traverse((mark) => { if (mark !== group) { mark.updateMatrix(); mark.matrixAutoUpdate = false; } });
     return { group, map, roads, relief, onLand };
   }, [map, coast, tints, radius, roads]);
   return drawn === undefined ? null : <DrawnIsland {...props} drawn={drawn} />;
+}
+
+/** Lets go of every geometry and material under `group`. */
+function disposeMarks(group: Group): void {
+  group.traverse((object) => {
+    const mark = object as { geometry?: { dispose(): void }; material?: { dispose(): void } };
+    mark.geometry?.dispose();
+    mark.material?.dispose();
+  });
 }
 
 /** An island's land as built: its territories' meshes, and its relief and roads once they are routed. */
@@ -425,11 +442,7 @@ function DrawnIsland({ drawn, land, coast, tints, radius, lighting, surfaces, li
     presentOpenWork(openWork, level);
     invalidate();
   }, [drawn, openWork, level, surfaces, invalidate]);
-  useEffect(() => () => drawn.group.traverse((object) => {
-    const mark = object as { geometry?: { dispose(): void }; material?: { dispose(): void } };
-    mark.geometry?.dispose();
-    mark.material?.dispose();
-  }), [drawn]);
+  useEffect(() => () => disposeMarks(drawn.group), [drawn]);
   return <><primitive object={drawn.group} /><primitive object={marks.root} />{surfaces.territories !== false && <primitive object={openWork} />}</>;
 }
 

@@ -1,12 +1,13 @@
 /**
  * Capability 10 · Work in flight (the library story, ADR-0640): each arc whole, with its
- * increments. An increment moves proposal → active → closed, only ever forward (its ready step is retired, ADR-0909 D4); closed, it
+ * increments. It is the arc record's one writer (ADR-1242 D2): it creates and edits an arc, parks it,
+ * and writes the waits an arc or increment stores on other work (wait-writes.ts). An increment moves proposal → active → closed, only ever forward (its ready step is retired, ADR-0909 D4); closed, it
  * stays as the arc's log entry, with the day it closed, its pull request, its note and whether it
  * landed, failed or was withdrawn. An arc's state is worked out from its increments on every read:
  * closed when none is open, active otherwise or while it has none, and parked, the one state that
  * is stored, while the owner has parked it (10-b). New work parked on a closed arc reopens it (R1).
  *
- * WorkInFlight is also the one door to waits (capability 11, waits.ts), owner questions
+ * WorkInFlight is also the one door to waits for the owner or an event (capability 11, waits.ts), owner questions
  * (capability 12, owner-questions.ts) and pending plan changes (capability 4's, pending-changes.ts): it queues their
  * writes behind its own, and reads the project's open work once for each.
  *
@@ -25,6 +26,7 @@ import type { AppliedPending, Pended, PlanChange, SettledPending, StalePending }
 import * as questions from "./owner-questions.js";
 import { heldOnOpen, type NewQuestion, type Prep, type QuestionDeviation, type QuestionEdit, type QuestionLease, type Score, type Settlement, type WouldBeAnswer } from "./owner-questions.js";
 import * as waits from "./waits.js";
+import * as waitWrites from "./wait-writes.js";
 import { WorkModel, type ProjectTree } from "./work-model.js";
 import { arcHold, checkedWaitFor, claimHold, holdsOf, incrementHold, noteWaits, onClaim, type ClaimReading, type Hold, type Holds, type NoteWait, type Wait, type WaitFor, type WaitWrite } from "./waits.js";
 
@@ -103,6 +105,14 @@ export type RiskLine = NonNullable<FieldsOf<"increment">["risk"]>;
 export type Escape = NonNullable<FieldsOf<"increment">["escape"]>;
 
 export type { AppliedPending, Pended, PendingChange, PlanChange, SettledPending, StalePending, UnappliedPending } from "./pending-changes.js";
+
+/**
+ * A new arc's fields: its intent and end state, and the stories it grows, when given, each an
+ * existing story; an arc may list none. Parking is parkArc's.
+ */
+export type NewArc = Omit<FieldsOf<"arc">, "parked">;
+/** An edit of an arc: some of its fields. A field set to undefined is removed. */
+export type ArcEdit = { [F in keyof NewArc]?: NewArc[F] | undefined };
 
 /** An arc that parks a capability (ADR-0992 D6): its id and title, so the capability's card can name it. */
 export interface ParkedOn {
@@ -241,7 +251,7 @@ export class WorkInFlight {
    * Close an increment, recording the day, its pull request, its note and what the close meant. A
    * close with no pull request needs a note (SchemaError); closing a closed one is refused
    * (LifecycleError). Null, with nothing written, if `id` is not a live increment. In the same step
-   * the waits on it are cleared if it landed, and the waits on its arc if that now reads closed (11.8);
+   * the waits on it are cleared if it landed, and the waits on its arc if that now reads closed (10.33);
    * a failed or withdrawn close leaves its waits, holding for good, since the work did not arrive.
    * Its pending plan changes (ADR-0966) are applied first if it landed, as applyPending applies them,
    * and dropped in the close itself otherwise, its history saying how many (D6). The friction it
@@ -261,7 +271,7 @@ export class WorkInFlight {
       const write = dropped === 0 ? options : { ...options, reason: pending.droppedReason(dropped, close.disposition) };
       const closed = (await this.#records.edit(id, fields, write)) as SchemaRecord<"increment"> | null;
       await this.#clearAfter(async () => {
-        if (close.disposition === "landed") await waits.clearWaitsOn(this.#records, "increment", id, `its blocker ${id} landed, so the wait on it is cleared`, options);
+        if (close.disposition === "landed") await waitWrites.clearWaitsOn(this.#records, "increment", id, `its blocker ${id} landed, so the wait on it is cleared`, options);
         await this.#clearIfClosed(increment.fields.arc, options);
       });
       await this.#clearAfter(() => this.#settleRemedies(increment, close, undefined, options));
@@ -274,7 +284,7 @@ export class WorkInFlight {
    * history (10.2). The closure date stays unless supplied; the other outcome fields are replaced.
    * Open work is refused (RangeError), and the usual outcome validation still applies (SchemaError).
    * Null, with nothing written, if `id` is not a live increment. Its lifecycle never changes. A
-   * correction to landed clears the waits on it (11.8) and answers whether it fixed an escape as a
+   * correction to landed clears the waits on it (10.33) and answers whether it fixed an escape as a
    * landing does, a correction away from landed drops that answer (10.30), and the friction it
    * remedies follows the corrected outcome (ADR-1016 D2).
    */
@@ -287,7 +297,7 @@ export class WorkInFlight {
       const outcome = outcomeOf({ ...close, date: close.date ?? increment.fields.outcome!.date });
       const escape = increment.fields.escape === "none" && close.disposition !== "landed" ? { escape: undefined } : escapeAnswer(increment.fields.escape, close);
       const corrected = (await this.#records.edit(id, { outcome, ...escape }, { ...options, reason })) as SchemaRecord<"increment"> | null;
-      if (close.disposition === "landed") await this.#clearAfter(() => waits.clearWaitsOn(this.#records, "increment", id, `its blocker ${id} landed, so the wait on it is cleared`, options));
+      if (close.disposition === "landed") await this.#clearAfter(() => waitWrites.clearWaitsOn(this.#records, "increment", id, `its blocker ${id} landed, so the wait on it is cleared`, options));
       await this.#clearAfter(() => this.#settleRemedies(increment, close, increment.fields.outcome, options));
       return corrected;
     });
@@ -298,7 +308,7 @@ export class WorkInFlight {
    * records the move with `reason`. The arc must be live (MissingReferenceError otherwise). Open
    * work cannot move into a closed arc (ADR-0792 D2, RangeError), while completed history may move
    * there during arc decomposition without reopening it. Null, with nothing written, if `id` is
-   * not a live increment. Moving the last open work off an arc closes it, clearing the waits on it (11.8).
+   * not a live increment. Moving the last open work off an arc closes it, clearing the waits on it (10.33).
    */
   moveIncrement(id: string, arc: string, reason: string, options?: WriteOptions): Promise<SchemaRecord<"increment"> | null> {
     return this.#serially(async () => {
@@ -367,17 +377,17 @@ export class WorkInFlight {
   }
 
   /**
-   * Make `waiter` wait on `blocker`, with a reason (capability 11): an arc on a live arc, an increment
+   * Make `waiter` wait on `blocker`, with a reason: an arc on a live arc, an increment
    * on a live increment on any arc. A wait that would close a loop across arcs and increments is
    * refused (WaitLoopError). Null if `waiter` is not a live arc or increment.
    */
   addWait(waiter: string, blocker: string, reason: string, options?: WriteOptions): Promise<SchemaRecord<"arc" | "increment"> | null> {
-    return this.#serially(() => waits.addWait(this.#records, () => this.#snapshot(), waiter, blocker, reason, options));
+    return this.#serially(() => waitWrites.addWait(this.#records, () => this.#snapshot(), waiter, blocker, reason, options));
   }
 
-  /** Stop `waiter` waiting on `blocker` (capability 11). Null if `waiter` is not a live arc or increment. */
+  /** Stop `waiter` waiting on `blocker`. Null if `waiter` is not a live arc or increment. */
   removeWait(waiter: string, blocker: string, options?: WriteOptions): Promise<SchemaRecord<"arc" | "increment"> | null> {
-    return this.#serially(() => waits.removeWait(this.#records, waiter, blocker, options));
+    return this.#serially(() => waitWrites.removeWait(this.#records, waiter, blocker, options));
   }
 
   /**
@@ -470,7 +480,7 @@ export class WorkInFlight {
    * Move open question `id` to another arc in place, keeping its id, wording and holders, its
    * history recording `reason` (12.11). A parked arc takes it; a closed or missing arc, its own arc
    * or a settled question is refused with nothing written. Moving the last open question off an arc
-   * closes it, clearing the waits on it (11.8). Null if `id` is not a live question.
+   * closes it, clearing the waits on it (10.33). Null if `id` is not a live question.
    */
   moveQuestion(id: string, arc: string, reason: string, options?: WriteOptions): Promise<SchemaRecord<"question"> | null> {
     return this.#serially(async () => {
@@ -525,7 +535,7 @@ export class WorkInFlight {
 
   /**
    * Settle a question with the owner's answer, and the live decision that carried it, if one did
-   * (capability 12), clearing the waits on its arc if that now reads closed (11.8). Null if `id` is
+   * (capability 12), clearing the waits on its arc if that now reads closed (10.33). Null if `id` is
    * not a live question.
    */
   settleQuestion(id: string, settlement: Settlement, options?: WriteOptions): Promise<SchemaRecord<"question"> | null> {
@@ -581,6 +591,35 @@ export class WorkInFlight {
     await this.#records.retire(id, reason, options);
   }
 
+
+  /**
+   * Create an arc. Every story it lists must be a live story (MissingReferenceError otherwise,
+   * naming the first one that is not); it may list none at all.
+   */
+  createArc(arc: NewArc, options?: WriteOptions): Promise<SchemaRecord<"arc">> {
+    return this.#serially(async () => {
+      await checkReferences(this.#records, "stories", arc.stories, "story");
+      return this.#records.create("arc", arc, options);
+    });
+  }
+
+  /**
+   * Change only the named fields of an arc, as capability 3's edit does. New stories are checked as
+   * createArc checks them. Returns null, and writes nothing, if `id` is not a live arc.
+   */
+  editArc(id: string, fields: ArcEdit, options?: WriteOptions): Promise<SchemaRecord<"arc"> | null> {
+    return this.#serially(async () => {
+      if ((await liveRecord(this.#records, id, ["arc"])) === null) return null;
+      await checkReferences(this.#records, "stories", fields.stories, "story");
+      return (await this.#records.edit(id, fields, options)) as SchemaRecord<"arc"> | null;
+    });
+  }
+
+  /** The live arcs listing the story `storyId`, in creation order. */
+  async arcsFor(storyId: string): Promise<SchemaRecord<"arc">[]> {
+    const arcs = await this.#records.list("arc");
+    return arcs.filter((arc) => arc.fields.stories?.includes(storyId) === true).sort(byCreation);
+  }
 
   /**
    * Park an arc: it reads parked, whatever its work, until unparked, or, given `until` (a day,
@@ -745,11 +784,11 @@ export class WorkInFlight {
 
 
   /**
-   * Once arc `id` reads closed, clear the waits on it (11.8): run after a write that can close it,
+   * Once arc `id` reads closed, clear the waits on it (10.33): run after a write that can close it,
    * its last open increment closing or its last open question going.
    */
   async #clearIfClosed(id: string, options?: WriteOptions): Promise<void> {
-    if ((await this.arcView(id))?.state === "closed") await waits.clearWaitsOn(this.#records, "arc", id, `its blocker ${id} closed, so the wait on it is cleared`, options);
+    if ((await this.arcView(id))?.state === "closed") await waitWrites.clearWaitsOn(this.#records, "arc", id, `its blocker ${id} closed, so the wait on it is cleared`, options);
   }
 
   /**
@@ -904,7 +943,7 @@ class Snapshot {
     return arcHold(wait, closed);
   }
 
-  /** Whether an arc's wait holds: on an arc, as arcHold reads it; on an increment, as incrementHold does (11.9). */
+  /** Whether an arc's wait holds: on an arc, as arcHold reads it; on an increment, as incrementHold does (10.34). */
   arcWaitHold(wait: Wait): Hold | undefined {
     return this.arcs.has(wait.on) ? this.arcHold(wait) : this.incrementHold(wait);
   }

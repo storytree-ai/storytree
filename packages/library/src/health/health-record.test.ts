@@ -97,7 +97,7 @@ for (const backend of [memory, postgres]) {
     });
   };
 
-  contract("5.1", "a node with no health entries reads reported: not-checked, verified: not-checked", async ({ health, work, records, transactions }) => {
+  contract("5.1", "a node with no health entries reads reported: not-checked, verified: not-checked", async ({ health, work, flight, records, transactions }) => {
     const story = await work.addStory({ title: "Visitor can sign up" });
     const capability = await work.addCapability({ title: "Email form", story: story.id });
     const contract = await work.addContract({ title: "Rejects a bad email", capability: capability.id });
@@ -105,7 +105,7 @@ for (const backend of [memory, postgres]) {
     const bare = await work.addStory({ title: "Visitor can leave" });
     const empty = await work.addCapability({ title: "Password rules", story: story.id });
     // An arc, which is part of the tree but has no health.
-    const arc = await work.createArc({ title: "Launch v1", intent: "An intent", endState: "An end state", stories: [story.id] });
+    const arc = await flight.createArc({ title: "Launch v1", intent: "An intent", endState: "An end state", stories: [story.id] });
     const before = await transactions.history();
 
     for (const node of [story, capability, contract, bare, empty]) {
@@ -325,7 +325,7 @@ for (const backend of [memory, postgres]) {
     assert.deepEqual(await health.health(S.id), { reported: { state: "passing" }, verified: { state: "passing" } });
   });
 
-  contract("5.5", "every health entry is kept in history with who wrote it and when, and an entry for a node that does not exist is refused", async ({ health, work, records, transactions }) => {
+  contract("5.5", "every health entry is kept in history with who wrote it and when, and an entry for a node that does not exist is refused", async ({ health, work, flight, records, transactions }) => {
     const { story, capability, contract, sibling } = await smallPlan(work);
 
     // Entries in both columns, interleaved, with and without a who and a note; one on another contract.
@@ -404,7 +404,7 @@ for (const backend of [memory, postgres]) {
     // Refused: an entry for a node that does not exist (missing, retired, a near miss, an id the
     // library cannot store), or for a record that is not a contract. For a story or a capability the
     // error says why: their health is rolled up from their contracts. Nothing is written.
-    const arc = await work.createArc({ title: "Launch v1", intent: "An intent", endState: "An end state", stories: [story.id] });
+    const arc = await flight.createArc({ title: "Launch v1", intent: "An intent", endState: "An end state", stories: [story.id] });
     const note = await records.create("definition", { term: "Delivery", meaning: "Mailgun needs a verified domain" });
     const healthRecord = at(await healthRecordsOf(transactions, contract.id), 0);
     const retired = await work.addContract({ title: "Accepts a plus address", capability: capability.id });
@@ -576,7 +576,7 @@ for (const backend of [memory, postgres]) {
     await health.recordVerified(shown.id, "passing");
     await later();
     const failed = await health.recordVerified(check.id, "failing");
-    const arc = await work.createArc({ title: "Launch v1", intent: "An intent", endState: "An end state", stories: [story.id] });
+    const arc = await flight.createArc({ title: "Launch v1", intent: "An intent", endState: "An end state", stories: [story.id] });
     const fix = await flight.addIncrement({ arc: arc.id, title: "Send the welcome email", objective: "Test it", body: "Red then green", capabilities: [routed.id] });
 
     const listed = await health.worklist();

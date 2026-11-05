@@ -1,7 +1,8 @@
 /**
- * Capability 4 · Work model (the library story): each project's plan of work. Stories belong to
- * the project; a capability points at its story, a contract at its capability, and an arc may list
- * the stories it grows. The library refuses broken structure.
+ * Capability 4 · Work model (the library story): each project's plan structure. Stories belong to
+ * the project; a capability points at its story, and a contract at its capability. The library
+ * refuses broken structure. Arcs, the work that grows the plan, are capability 10's to write
+ * (ADR-1242 D2); the plan's tree reads them.
  *
  * WorkModel is a layer over capability 3's SchemaRecords, so it runs unchanged on the in-memory
  * twin and on Postgres. Every write checks its references (and, for an edit of a capability's
@@ -71,11 +72,6 @@ export interface ImportedPluginPlan {
   readonly retired: string[];
   readonly kept: string[];
 }
-/**
- * A new arc's fields: its intent and end state (capability 10), and the stories it grows, when
- * given, each an existing story; an arc may list none. Parking is capability 10's parkArc.
- */
-export type NewArc = Omit<FieldsOf<"arc">, "parked">;
 /** A new capability's fields: `story` and every `dependsOn` id must name existing records. It is proposed unless told otherwise. */
 export type NewCapability = Omit<FieldsOf<"capability">, "proposed"> & { proposed?: boolean };
 /** A new contract's fields: `capability` must name an existing capability. */
@@ -100,8 +96,6 @@ type PendingPlanChange = NonNullable<FieldsOf<"increment">["pending"]>[number];
 export interface CapabilityWriteOptions extends WriteOptions {
   readonly pending?: readonly PendingPlanChange[];
 }
-/** An edit of an arc: some of its fields. A field set to undefined is removed. */
-export type ArcEdit = { [F in keyof NewArc]?: NewArc[F] | undefined };
 /** The project's sentence (ADR-1085 D1): what it is, and who it is for. Either half may be missing. */
 export type Anchor = FieldsOf<"anchor">;
 /** An edit of the anchor: some of its halves. A half set to undefined is removed. */
@@ -344,17 +338,6 @@ export class WorkModel {
   }
 
   /**
-   * Create an arc. Every story it lists must be a live story (MissingReferenceError otherwise,
-   * naming the first one that is not); it may list none at all.
-   */
-  createArc(arc: NewArc, options?: WriteOptions): Promise<SchemaRecord<"arc">> {
-    return this.#serially(async () => {
-      await checkReferences(this.#records, "stories", arc.stories, "story");
-      return this.#records.create("arc", arc, options);
-    });
-  }
-
-  /**
    * Add a capability to a story. The story, and every capability it depends on, must be live
    * records of those types (MissingReferenceError otherwise). A new capability cannot close a
    * dependency loop, since nothing can depend on it yet. It is born proposed unless told otherwise.
@@ -473,18 +456,6 @@ export class WorkModel {
   }
 
   /**
-   * Change only the named fields of an arc, as capability 3's edit does. New stories are checked as
-   * createArc checks them. Returns null, and writes nothing, if `id` is not a live arc.
-   */
-  editArc(id: string, fields: ArcEdit, options?: WriteOptions): Promise<SchemaRecord<"arc"> | null> {
-    return this.#serially(async () => {
-      if ((await liveRecord(this.#records, id, ["arc"])) === null) return null;
-      await checkReferences(this.#records, "stories", fields.stories, "story");
-      return (await this.#records.edit(id, fields, options)) as SchemaRecord<"arc"> | null;
-    });
-  }
-
-  /**
    * The plan as it is now: every story holding its capabilities, each holding its contracts, and
    * every arc, all in creation order. A capability or contract whose parent is not a live record
    * has no place in it.
@@ -561,12 +532,6 @@ export class WorkModel {
       }
       return (await this.#records.edit(PR_CUTOVER_ID, fields, options)) as SchemaRecord<"prCutover">;
     });
-  }
-
-  /** The live arcs listing the story `storyId`, in creation order. */
-  async arcsFor(storyId: string): Promise<SchemaRecord<"arc">[]> {
-    const arcs = await this.#records.list("arc");
-    return arcs.filter((arc) => arc.fields.stories?.includes(storyId) === true).sort(byCreation);
   }
 
   /**

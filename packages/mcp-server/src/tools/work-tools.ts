@@ -350,7 +350,7 @@ export async function machineChecked(storytree: Storytree, name: string): Promis
 export interface IncrementChanges {
   capabilities?: string[] | undefined;
   machine?: string | undefined;
-  escape?: { caused_by: string; story: string } | "none" | undefined;
+  escape?: { caused_by: string; commit?: string | undefined; story: string } | "none" | undefined;
 }
 
 /**
@@ -369,7 +369,7 @@ export async function incrementFields(target: string, { capabilities, machine, e
     fields: {
       ...(capabilities === undefined ? {} : { capabilities }),
       ...(named ?? {}),
-      ...(escape === undefined ? {} : { escape: escape === "none" ? undefined : { causedBy: escape.caused_by, story: escape.story } }),
+      ...(escape === undefined ? {} : { escape: escape === "none" ? undefined : { causedBy: escape.caused_by, ...(escape.commit === undefined ? {} : { commit: escape.commit }), story: escape.story } }),
     },
   };
 }

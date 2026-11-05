@@ -1186,19 +1186,21 @@ test("map 3.9 focus with crossing counts the imports across a line in a mapped i
   });
 });
 
-test("10.15 edit_plan records the escape an increment fixes, the change that caused it and the story it hit, its \"none\" clears it, and a story that is not live is refused with nothing written", async () => {
+test("10.15 edit_plan records the escape an increment fixes, the change that caused it (a pull request with its merge commit) and the story it hit, its \"none\" clears it, and a story that is not live or a pull request without its commit is refused with nothing written", async () => {
   await withProject(async ({ folder, library }) => {
     await withAgent(folder, claudeCode("claude-1"), async (agent) => {
       const { arc, story } = await planned(agent);
       const fix = idOf(await agent.call("park_increment", { arc, title: "Fix sign-up", objective: "Mend it", body: "Red then green" }));
       const escapeOf = async () => ((await library.get(fix))?.fields as { escape?: unknown }).escape;
 
-      assert.equal(idOf(await agent.call("edit_plan", { id: fix, escape: { caused_by: "#1234", story } })), fix);
-      assert.deepEqual(await escapeOf(), { causedBy: "#1234", story });
+      assert.equal(idOf(await agent.call("edit_plan", { id: fix, escape: { caused_by: "#1234", commit: "9807a1e", story } })), fix);
+      assert.deepEqual(await escapeOf(), { causedBy: "#1234", commit: "9807a1e", story });
 
-      const refused = await agent.call("edit_plan", { id: fix, escape: { caused_by: "#99", story: arc } });
-      assert.equal(refused.isError, true);
-      assert.deepEqual(await escapeOf(), { causedBy: "#1234", story }, "nothing written");
+      for (const escape of [{ caused_by: "#99", commit: "9807a1e", story: arc }, { caused_by: "#99", story }]) {
+        const refused = await agent.call("edit_plan", { id: fix, escape });
+        assert.equal(refused.isError, true);
+      }
+      assert.deepEqual(await escapeOf(), { causedBy: "#1234", commit: "9807a1e", story }, "nothing written");
 
       assert.equal(idOf(await agent.call("edit_plan", { id: fix, escape: "none" })), fix);
       assert.equal(await escapeOf(), undefined);

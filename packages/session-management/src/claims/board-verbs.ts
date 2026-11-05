@@ -42,25 +42,44 @@ const board = verb({
 /** How many of the latest lines `noticeboard log` shows unless told. */
 const LOG_LINES = 20;
 
+/** A --since or --until value as the instant it names, or a misuse refusal when it names none. */
+function instant(flag: string, given: string | undefined): string | undefined {
+  if (given === undefined) return undefined;
+  const at = Date.parse(given);
+  if (Number.isNaN(at)) throw new VerbRefusal(`${flag} takes a time, such as 2026-11-05T19:21:53Z`, { misuse: true });
+  return new Date(at).toISOString();
+}
+
 const log = verb({
   command: {
     family: "noticeboard",
     name: "log",
-    summary: "the activity log's latest lines and their causes; --full keeps complete commands",
-    usage: "noticeboard log [--session <id>] [--limit <n>] [--full]",
+    summary: "the activity log's latest lines and their causes, for a session or holder over a window; --full keeps complete commands",
+    usage: "noticeboard log [--session <id>] [--holder <session>] [--since <time>] [--until <time>] [--limit <n>] [--full]",
   },
   tool: { absent: "the activity log's lines are read from a terminal" },
   inputs: {
     session: { kind: "text", optional: true, describe: "only this session's lines" },
+    holder: { kind: "text", optional: true, describe: "only lines naming this session as a claim's holder: what ended its claims" },
+    since: { kind: "text", optional: true, describe: "only lines written at this time or later" },
+    until: { kind: "text", optional: true, describe: "only lines written at this time or earlier" },
     limit: { kind: "text", optional: true, describe: `how many of the latest lines, ${LOG_LINES} unless told` },
     full: { kind: "switch", describe: "complete commands, not clipped" },
   },
-  async act({ session, limit: given, full }, { log: activity, project }: SessionVerbContext) {
+  async act({ session, holder, since: from, until: to, limit: given, full }, { log: activity, project }: SessionVerbContext) {
     const limit = Number(given ?? LOG_LINES);
     if (!Number.isSafeInteger(limit) || limit < 1) throw new VerbRefusal("--limit takes a whole number, 1 or more", { misuse: true });
+    const since = instant("--since", from);
+    const until = instant("--until", to);
     // The latest lines alone, never the whole log (2.7).
-    const lines = await activity.lines(project, { ...(session === undefined ? {} : { sessions: [session] }), newest: limit });
-    if (lines.length === 0) return { text: session === undefined ? "The activity log has no lines yet." : `The activity log has no lines for ${session}.` };
+    const lines = await activity.lines(project, {
+      ...(session === undefined ? {} : { sessions: [session] }),
+      ...(holder === undefined ? {} : { where: { holder } }),
+      ...(since === undefined ? {} : { since }),
+      ...(until === undefined ? {} : { until }),
+      newest: limit,
+    });
+    if (lines.length === 0) return { text: session === undefined && holder === undefined && since === undefined && until === undefined ? "The activity log has no lines yet." : `The activity log has no lines for ${session ?? "that selection"}.` };
     const { fullLineText, lineText } = await import("../activity/text.js");
     return { text: lines.map(full ? fullLineText : lineText).join("\n") };
   },

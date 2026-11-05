@@ -3,7 +3,7 @@
  * lines it needs, and the server sends only those. The log grows with every tool call of every
  * session on every machine, so a reader that fetched the whole of it on each call took more from the
  * store the longer the project lived, many times a minute (the Cloud SQL egress bill of
- * 2026-10-05: 25 GB an hour). Each read here is narrowed on the server, by kind, session, time and a
+ * 2026-10-05: 25 GB an hour). Each read here is narrowed on the server, by kind, session, a time window and a
  * field's value, or to the latest line for each key; the sessions and claims readings get the few
  * lines that decide them, never the history that does not.
  */
@@ -20,6 +20,8 @@ export interface LineFilter {
   readonly after?: number;
   /** Only lines written at this time or later (ISO 8601). */
   readonly since?: string;
+  /** Only lines written at this time or earlier (ISO 8601). */
+  readonly until?: string;
   /**
    * Only lines whose field has this value, or one of these values, or (null) none. A field is a
    * line's own column (session, harness, source, kind, folder) or any field it carries (call, of, …).
@@ -70,6 +72,7 @@ export function selectLines(project: string, filter: LineFilter): { text: string
   if (filter.sessions !== undefined) where.push(`session = ANY(${param([...filter.sessions])}::text[])`);
   if (filter.after !== undefined) where.push(`seq > ${param(filter.after)}`);
   if (filter.since !== undefined) where.push(`at >= ${param(filter.since)}::timestamptz`);
+  if (filter.until !== undefined) where.push(`at <= ${param(filter.until)}::timestamptz`);
   for (const [name, value] of Object.entries(filter.where ?? {})) {
     if (value === null) where.push(`${field(name)} IS NULL`);
     else if (typeof value === "string") where.push(`${field(name)} = ${param(value)}`);

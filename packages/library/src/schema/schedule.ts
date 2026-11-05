@@ -40,9 +40,11 @@ const SAID = 'a schedule is "every run", "every N minutes", "every N hours", "ev
 /** The rule the words say, or the reason they say none. */
 export function parseSchedule(text: string): { readonly rule: ScheduleRule } | { readonly refused: string } {
   const said = text.trim().toLowerCase().replace(/\s+/g, " ");
-  const graced = /^(.+?),? grace (.+)$/.exec(said);
-  if (graced === null) return parseRule(said);
-  const [, words = "", grace = ""] = graced;
+  // The words before the first " grace " (less one comma) and the grace after it; said is trimmed, so the grace is never empty.
+  const at = said.indexOf(" grace ");
+  if (at < 1) return parseRule(said);
+  const words = said.endsWith(",", at) && at > 1 ? said.slice(0, at - 1) : said.slice(0, at);
+  const grace = said.slice(at + " grace ".length);
   const read = parseRule(words);
   if ("refused" in read) return read;
   if (read.rule.kind !== "daily") return { refused: `a grace is for a daily schedule's times, such as "daily at 09:15, grace 2 hours"; "${words}" has no time to be late for` };

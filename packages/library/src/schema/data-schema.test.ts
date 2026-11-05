@@ -635,6 +635,9 @@ for (const backend of [memory, postgres]) {
     assert.equal(zoned?.timeZone, "Europe/London");
     assert.deepEqual(parseSchedule("every run"), { rule: { kind: "every-run" } });
     assert.deepEqual(parseSchedule("Daily at 21:15 and 09:15, grace 2 hours"), { rule: { kind: "daily", times: ["09:15", "21:15"], graceMinutes: 120 } });
+    assert.deepEqual(parseSchedule("daily at 09:15 grace 1 day"), { rule: { kind: "daily", times: ["09:15"], graceMinutes: 1440 } }, "the comma before a grace is optional");
+    assert.ok("refused" in parseSchedule("daily at 09:15,, grace 2 hours"), "only one comma before a grace is dropped");
+    assert.ok("refused" in parseSchedule("daily at 09:15, grace 2 hours grace 1 hour"), "the grace is everything after the first");
     await records.create("process", { ...process, schedule: "every run", precheck: "feedback-waiting" }, { id: "process-checked" });
     assert.equal(((await records.get("process-checked"))?.fields as { precheck?: string } | undefined)?.precheck, "feedback-waiting");
   });

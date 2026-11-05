@@ -5,7 +5,9 @@ import path from "node:path";
 import { ANTIGRAVITY_HOOKS, codexHookTrust, PI_EXTENSION } from "@storytree/session-management";
 import { HARNESS_IDS, watchedHarness } from "@storytree/project-and-caller/caller";
 
-import { CODEX_TRUST_STEP, installedCodexVersion, launcherFiles, launcherRuns, markDisconnected, registerHooks, removeHooks, removeLauncher, runsElevated } from "../setup/index.js";
+import { launcherFiles, launcherRuns, removeLauncher } from "../setup/command.js";
+import { markDisconnected, registerHooks, removeHooks } from "../setup/hooks-config.js";
+import { CODEX_TRUST_STEP, installedCodexVersion, runsElevated } from "./codex.js";
 import { removeCodexInstructions, writeCodexInstructions } from "./codex-agents.js";
 import { claudeSettings, codexSettings, installedToolServerCommand, read, runHarness, type Harness, type InstalledToolServerCommand, type RunHarness, type Settings } from "./harness.js";
 

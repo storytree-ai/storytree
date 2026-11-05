@@ -26,11 +26,13 @@ import { hooksRelease, type HooksRelease, type LatestRelease } from "./hooks-rel
 import { openStorytree, type StorytreeOpened } from "./open-storytree.js";
 import { putCommandOnPath, type CommandInstall, type CommandPath } from "./command.js";
 import { setupLines, type SetupLine } from "./diagnostics.js";
-import { ghState, installedCodexVersion, machineState, type GhState, type MachineState } from "./machine.js";
+import { installedCodexVersion } from "../connect/codex.js";
+import { ghState, machineState, type GhState, type MachineState } from "./machine.js";
 
 
 export type { SetupLine } from "./diagnostics.js";
-export { ghState, installedCodexVersion, machineState, NODE_FLOOR, runsElevated } from "./machine.js";
+export { installedCodexVersion, runsElevated } from "../connect/codex.js";
+export { ghState, machineState, NODE_FLOOR } from "./machine.js";
 export type { AgentCliState, GhState, MachineOptions, MachineState, ToolState } from "./machine.js";
 
 export { putCommandOnPath, removeCommand } from "./command.js";

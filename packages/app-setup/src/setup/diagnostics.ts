@@ -1,6 +1,6 @@
 /** Capability 8 · Setup check. The setup check's lines and fixes, shared by the terminal and the agent's check_setup tool. */
 import { NODE_FLOOR, type AgentCliState, type MachineState, type ToolState } from "./machine.js";
-import { CODEX_TRUST_STEP } from "./verify.js";
+import { CODEX_TRUST_STEP } from "../connect/codex.js";
 import type { RootMarker, ServerEntry, SetupReport } from "./setup.js";
 import type { AppReading } from "@storytree/session-management";
 import { HARNESS_IDS, watchedHarness, type Harness } from "@storytree/project-and-caller/caller";

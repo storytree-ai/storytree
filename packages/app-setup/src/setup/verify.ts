@@ -11,6 +11,8 @@ import path from "node:path";
 import { watchedHarness } from "@storytree/project-and-caller/caller";
 import type { Line } from "@storytree/library";
 
+import { CODEX_TRUST_STEP } from "../connect/codex.js";
+
 /** The four hooks a session's setup is verified by, in the order they fire. */
 export const HOOK_TESTS = ["session start", "storytree tool call", "file edit", "command"] as const;
 export type HookTest = (typeof HOOK_TESTS)[number];
@@ -81,13 +83,6 @@ export function checkFilesWritten(lines: readonly Line[], session: string): stri
   }
   return [...written];
 }
-
-/**
- * The one step that lets Codex run storytree's hooks, in words for the user: shown at connect, in the
- * app and by the setup check alike (8.16). Codex asks by itself when it starts; /hooks asks again.
- */
-export const CODEX_TRUST_STEP =
-  'In Codex, type /hooks and trust storytree\'s hooks (Codex also asks by itself when it starts, as "Hooks need review"), then start a new Codex session.';
 
 /** What each fix says to do; the edit's names `session`'s own check file. */
 export function fixSentence(fix: Fix, session: string): string {

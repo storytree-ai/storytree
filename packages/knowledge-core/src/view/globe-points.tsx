@@ -56,7 +56,7 @@ const materials = new Map<string, MeshBasicMaterial | MeshLambertMaterial>();
  * note (754 of each on storytree's own library, the one task over 50 ms left as the map opened).
  */
 export function dotDrawing({ shaded, colour, opacity, size, radius }: { shaded: boolean; colour: string; opacity: number; size: number; radius: number }):
-  { geometry: SphereGeometry; material: MeshBasicMaterial | MeshLambertMaterial; scale: number } {
+  { geometry: SphereGeometry; material: MeshBasicMaterial | MeshLambertMaterial; scale: number; ring: { radius: number; tube: number } } {
   const key = `${shaded ? "shaded" : "flat"} ${colour} ${opacity}`;
   let material = materials.get(key);
   if (material === undefined) {
@@ -64,8 +64,12 @@ export function dotDrawing({ shaded, colour, opacity, size, radius }: { shaded: 
       : new MeshBasicMaterial({ color: colour, transparent: true, opacity, depthWrite: false });
     materials.set(key, material);
   }
-  return { geometry: shaded ? spheres.shaded : spheres.flat, material, scale: radius * size };
+  // The ring on a note in the window is the dot's child, so drawn in its scale: its sizes are fractions of the dot's.
+  return { geometry: shaded ? spheres.shaded : spheres.flat, material, scale: grownScale(1, radius, size), ring: { radius: Math.max(0.015, size + 0.006) / size, tube: 0.0022 / size } };
 }
+
+/** A dot's scale while it grows in (capability 1.9): `shown` of its full size, never quite none. */
+export const grownScale = (shown: number, radius: number, size: number): number => Math.max(shown, 0.001) * radius * size;
 
 const reducedMotion = (): boolean => typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
 const trailKey = (trail: Trail) => `${trail.colour} ${trail.from} ${trail.to}`;
@@ -109,7 +113,7 @@ export function GlobePoints({ points, radius, notes, sizes, lit = new Map(), tra
       if (!dot.name.startsWith("knowledge-point:")) continue;
       const shown = noteShown(moments.get(dot.userData.id as string), now);
       dot.visible = shown > 0;
-      dot.scale.setScalar(Math.max(shown, 0.001) * radius * (dot.userData.size as number));
+      dot.scale.setScalar(grownScale(shown, radius, dot.userData.size as number));
       growing ||= shown < 1;
     }
     // The globe asks for frames while it grows; a note still fading in after it is done asks for its own.
@@ -195,10 +199,9 @@ export function GlobePoints({ points, radius, notes, sizes, lit = new Map(), tra
       position={[point.at.x, point.at.y, point.at.z]} raycast={noRaycast}
       userData={{ id: point.id, size, title: notes.has(point.id) ? noteTitle(notes.get(point.id)!) : point.id, depth: point.depth ?? null, home: point.home ?? null, toward: point.toward ?? null,
         lit: lighting?.colour ?? null, window: state, colour, opacity }}>
-      {/* The ring is the dot's child, so it is drawn in the dot's scale: its sizes are given as fractions of the dot's. */}
       {state === "in-window" && <Billboard name={`knowledge-window:${point.id}`}>
         <mesh raycast={noRaycast}>
-          <torusGeometry args={[Math.max(0.015, size + 0.006) / size, 0.0022 / size, 8, 28]} />
+          <torusGeometry args={[drawn.ring.radius, drawn.ring.tube, 8, 28]} />
           <meshBasicMaterial color={IN_VIEW} transparent opacity={0.9} depthWrite={false} />
         </mesh>
       </Billboard>}

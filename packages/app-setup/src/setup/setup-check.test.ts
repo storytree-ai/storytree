@@ -93,9 +93,10 @@ test("8.43 the check registers hooks only for an agent already connected, or the
 
 /** Run one of storytree's registered hooks as `harness` runs it: Claude Code a program with arguments, Codex a line through this machine's shell. */
 function runRegistered(harness: "claude-code" | "codex", hook: HookEntry["hooks"][number], input: string, storytreeHome: string): string {
-  const env = { ...process.env, STORYTREE_HOME: storytreeHome };
+  // Codex's line reaches the shell in an environment variable, so the command spawned here is fixed text that runs it.
+  const env = { ...process.env, STORYTREE_HOME: storytreeHome, ...(harness === "codex" ? { STORYTREE_HOOK_LINE: hook.command } : {}) };
   const [command, args] =
-    harness === "claude-code" ? [hook.command, hook.args ?? []] : process.platform === "win32" ? ["powershell", ["-NoProfile", "-Command", hook.command]] : ["sh", ["-c", hook.command]];
+    harness === "claude-code" ? [hook.command, hook.args ?? []] : process.platform === "win32" ? ["powershell", ["-NoProfile", "-Command", "Invoke-Expression $env:STORYTREE_HOOK_LINE"]] : ["sh", ["-c", 'eval "$STORYTREE_HOOK_LINE"']];
   // A cold Windows PowerShell and Node can take most of 10 s on CI; a hang still fails.
   const ran = spawnSync(command, args, { input, env, encoding: "utf8", timeout: 60_000 });
   assert.equal(ran.status, 0, `${harness}: ${ran.stderr}`);

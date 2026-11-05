@@ -52,11 +52,47 @@ async function openedMap(t: { after(run: () => Promise<void>): void }, linked = 
     return nav !== undefined && globe?.scene.getObjectByName("planet:two") !== undefined;
   }, undefined, { timeout: 60_000 });
   const renders = () => page.evaluate(() => (window as unknown as { __renders: number }).__renders);
-  // The opening settles: the sheet opens framed and the islands report their places, then the view stops rendering.
-  let last = -1;
-  await waitUntil(async () => { const now = await renders(); const still = now === last; last = now; return still; }, 30_000, "the map view to stop rendering after it opens");
+  // The opening settles: the sheet opens framed and the islands report their places, then the view stops rendering, and
+  // each island's land, built in its turn (3.87), with its roads when it has links, stands as built.
+  const built = () => page.evaluate(linked => {
+    const { __globe: globe, __renders: renders } = window as unknown as { __renders: number; __globe: { scene: { getObjectByName(name: string): { getObjectByName(name: string): { uuid: string } | undefined } | undefined } } };
+    const lands = ["one", "two"].map(story => globe.scene.getObjectByName(`planet:${story}`));
+    const drawn = lands.map(island => island?.getObjectByName("territory-land")?.uuid);
+    const routed = !linked || lands.every(island => island?.getObjectByName("island-roads") !== undefined);
+    return drawn.every(uuid => uuid !== undefined) && routed ? JSON.stringify([renders, drawn]) : undefined;
+  }, linked);
+  let last: string | undefined;
+  await waitUntil(async () => { const now = await built(); const still = now !== undefined && now === last; last = now; return still; }, 30_000, "the map view to stop rendering after it opens, its islands' land built");
+  // A land built last compiles its shaders on the frame after.
+  await page.evaluate(() => new Promise(requestAnimationFrame));
+  await page.evaluate(() => new Promise(requestAnimationFrame));
   return { page, renders };
 }
+
+test("3.87 · an island on the map as it opens has its land stand when it is built, however late its turn comes, never traced on", async t => {
+  const browser = await chromium.launch({ channel: "chrome", headless: true });
+  t.after(() => browser.close());
+  const page = await browser.newPage({ viewport: { width: 800, height: 600 } });
+  await page.setContent(`<div id="map" style="position:fixed;inset:0"></div>`);
+  // Every turn the page hands on comes 1.5 s late, so each island's land is built well after the sheet first drew.
+  await page.evaluate(() => {
+    const later = window.setTimeout.bind(window);
+    window.setTimeout = ((run: () => void, ms?: number) => later(run, ms ? ms : 1500)) as typeof window.setTimeout;
+  });
+  // Linked, so each island has two territories and a border between them to trace.
+  await page.addScriptTag({ content: await mapBundle(true) });
+  // Each frame, until island one's borders are first drawn, which is when they are read: whole, or how far traced on.
+  // As a script, since a named function in an evaluated one would need the bundler's helper.
+  await page.addScriptTag({ content: `(function look() {
+    const lines = window.__globe?.scene.getObjectByName("planet:one")?.getObjectByName("territory-borders");
+    if (lines === undefined) { requestAnimationFrame(look); return; }
+    window.__first = { whole: lines.geometry.drawRange.count === Infinity, at: window.__globe.clock.getElapsedTime() };
+  })();` });
+  await waitUntil(() => page.evaluate(() => (window as unknown as { __first?: unknown }).__first !== undefined), 60_000, "island one's land to be built");
+  const borders = await page.evaluate(() => (window as unknown as { __first: { whole: boolean; at: number } }).__first);
+  assert.ok(borders.at > 1, `the land was built ${borders.at} s after the map opened`);
+  assert.ok(borders.whole, "its borders stand whole on the first frame they are drawn");
+});
 
 test("3.71 · a drag that turns the glass sheet renders the map view a fixed few times, however many steps it takes, and the sheet still turns", async t => {
   const { page, renders } = await openedMap(t);

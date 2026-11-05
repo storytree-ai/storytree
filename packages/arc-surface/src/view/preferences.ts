@@ -1,7 +1,7 @@
 /** Capability 3 · Arc surface. */
 import type { BoardScope } from "../board/board.js";
 
-/** Only the scope is kept: an arc's card opens on its click alone, so no picked arc is restored (3.7). */
+/** Only the scope is kept: an arc is selected by its row's click alone, so no picked arc is restored (3.7). */
 export interface ArcPreferences { scope: BoardScope }
 const key = (project: string) => `storytree.arc-surface.v1:${project}`;
 /** Browser-local viewer state; no library write, and a denied or old value cannot stop a reading. */

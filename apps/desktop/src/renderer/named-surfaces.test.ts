@@ -83,7 +83,7 @@ test("3.15 · every canvas, gear menu tab and dialog the app opens carries a dec
     // A control on no surface names the map, with the rail's Arcs tab on show (a project opens on it) as with its Sessions tab.
     assert.equal(await named(page, ".app-gear"), "globe");
 
-    // The left rail's two tabs, each the surface it shows; an arc's card, opened by its row, is the arcs' too.
+    // The left rail's two tabs, each the surface it shows; what an arc's row opens under it is the arcs' too.
     await page.click('[data-rail-tab="sessions"]');
     await page.locator("#rail-sessions:not([hidden])").waitFor();
     assert.equal(await named(page, '[data-rail-tab="sessions"]'), "sessions");
@@ -93,10 +93,10 @@ test("3.15 · every canvas, gear menu tab and dialog the app opens carries a dec
     await page.locator('.arc-rail [data-arc-select="arc_named"]').waitFor();
     assert.equal(await named(page, '[data-rail-tab="arcs"]'), "arcs");
     await page.click('.arc-rail [data-arc-select="arc_named"]');
-    await page.locator(".arc-card:not([hidden])").waitFor();
-    assert.equal(await named(page, ".arc-card [data-close-card]"), "arcs");
-    await page.click(".arc-card [data-close-card]");
-    await page.locator(".arc-card").waitFor({ state: "hidden" });
+    await page.locator('.arc-row[data-arc-id="arc_named"] .arc-under').waitFor();
+    assert.equal(await named(page, '.arc-row[data-arc-id="arc_named"] [data-copy-arc-title]'), "arcs");
+    await page.click('.arc-rail [data-arc-select="arc_named"]');
+    await page.locator('.arc-row[data-arc-id="arc_named"] .arc-under').waitFor({ state: "detached" });
 
     const { islands } = await visibleGlobeTargets(page, { x: 0.6, y: 0.6 });
     assert.ok(islands.length > 0, "the seed's forest shows an island to open");

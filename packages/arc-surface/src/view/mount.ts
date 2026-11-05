@@ -7,41 +7,35 @@ import type { ClosedRange } from "../board/closed-range.js";
 import type { ArcDrawn } from "../board/smoke.js";
 import type { Timers } from "../live-reading/live-reading.js";
 import type { PageReading } from "../live-reading/page-reading.js";
-import { copyIcon, renderBoard, renderCard } from "./render.js";
+import { copyIcon, renderBoard } from "./render.js";
 import { readPreferences, writePreferences } from "./preferences.js";
 
 export interface ArcSurface { stop(): void }
 /**
  * The Arcs tab of the app's left rail (3.1): its lanes fill `host`, read for as long as it is mounted, whichever tab is on
- * show, and an arc's card opens over the map only when its row is clicked. `onFreshDraw` is told once, when the surface first
+ * show; an arc's row, clicked, selects it and opens its expansion under the row, and nothing opens over the map. `onFreshDraw` is told once, when the surface first
  * draws a board read fresh since this mount (3.18), which the app times from its start; `onWaiting` hears what waits on the
  * owner across the active arcs, the Arcs tab's badge. Given `startAfter`, the page's start, it reads nothing until that settles (3.9).
- * `onOpened` hears the capabilities the open arc's open increments name, once each, whenever they change, and undefined once no
- * arc is open (3.27), which the map circles (ADR-1253 D1).
+ * `onOpened` hears the capabilities the selected arc's open increments name, once each, whenever they change, and undefined once no
+ * arc is selected (3.27), which the map circles (ADR-1253 D1).
  */
 export function mountArcSurface(host: HTMLElement, options: { project: string; reads: BoardReads; timers?: Timers; reading?: PageReading; startAfter?: PromiseLike<unknown>; onFreshDraw?: () => void; onWaiting?: (count: number) => void; onOpened?: (capabilities: readonly string[] | undefined) => void }): ArcSurface {
   const root = document.createElement("div");
   root.className = "arc-surface-mount";
-  root.innerHTML = `<section class="arc-rail" aria-label="Arcs" data-surface-id="arcs"><div class="arc-status" role="status"></div><div class="arc-body"></div></section>`
-    + `<aside class="arc-card" aria-label="Arc briefing" data-surface-id="arcs" data-surface-layer="overlay" hidden><button type="button" class="arc-card-close" data-close-card aria-label="Close this arc's detail" title="Close">×</button><div class="arc-briefing"></div></aside>`;
+  root.innerHTML = `<section class="arc-rail" aria-label="Arcs" data-surface-id="arcs"><div class="arc-status" role="status"></div><div class="arc-body"></div></section>`;
   host.append(root);
   const rail = root.querySelector<HTMLElement>(".arc-rail")!;
   const body = root.querySelector<HTMLElement>(".arc-body")!;
   const status = root.querySelector<HTMLElement>(".arc-status")!;
-  const card = root.querySelector<HTMLElement>(".arc-card")!;
-  const briefingPane = root.querySelector<HTMLElement>(".arc-briefing")!;
   let scope = readPreferences(options.project).scope;
-  /** The arc whose card is open, by its click; none at mount, so nothing opens on its own (5.1). */
+  /** The arc selected by its row's click; none at mount, so nothing is selected on its own (3.7). */
   let opened: string | undefined;
   let closedRange: ClosedRange = { preset: "today" };
-  let question: string | undefined;
   let state: BoardState | undefined;
   /** Whether a board was read fresh since this mount. */
   let readFresh = false;
-  /** The lanes' and the card's HTML as last written. */
+  /** The lanes' HTML as last written. */
   let drawn: string | undefined;
-  let drawnCard: string | undefined;
-  let drawnKey: string | undefined;
   let waiting: number | undefined;
   /** What `onOpened` was last told, as a key, so a refresh that changes nothing tells nothing. */
   let toldOpened: string | undefined;
@@ -77,21 +71,17 @@ export function mountArcSurface(host: HTMLElement, options: { project: string; r
     // A failed read retains the last good board, explicitly stale.
     if (!next.board) return;
     const lane = next.board.lanes.find(({ id }) => id === opened);
-    if (!lane) { opened = undefined; question = undefined; }
-    if (question && !lane?.view.questions.some(({ id }) => id === question)) question = undefined;
+    if (!lane) opened = undefined;
     tellOpened(lane === undefined ? undefined : openCapabilities(lane.view));
     if (next.waiting !== undefined && next.waiting !== waiting) { waiting = next.waiting; options.onWaiting?.(waiting); }
     const focused = document.activeElement instanceof HTMLElement ? document.activeElement : undefined;
-    const focusAttributes = ["data-arc-select", "data-arc-scope", "data-arc-queue", "data-closed-range", "data-question-open", "data-question-back", "data-rail-question"];
+    const focusAttributes = ["data-arc-select", "data-arc-scope", "data-arc-queue", "data-closed-range", "data-copy-arc-title"];
     const focusAttribute = focusAttributes.find((name) => focused?.hasAttribute(name));
     const focusKey = focusAttribute ? focused?.getAttribute(focusAttribute) : undefined;
     const focusedFold = focused?.tagName === "SUMMARY" ? focused.parentElement?.dataset.foldKey : undefined;
-    // The lanes keep their place while the scope holds; the card keeps its own while it shows the same arc and question.
+    // The lanes keep their place while the scope holds.
     const lanesTop = sameScope ? body.querySelector(".arc-lanes")?.scrollTop ?? 0 : 0;
-    const cardKey = `${opened}\0${question}`;
-    const cardTop = cardKey === drawnKey ? card.scrollTop : 0;
-    drawnKey = cardKey;
-    // 3.20: a refresh that changes nothing keeps its nodes, so a selection in the card holds.
+    // 3.20: a refresh that changes nothing keeps its nodes, so a selection in the expansion holds.
     const write = () => {
       const html = renderBoard(next.board!, opened, queues, perRow);
       if (html !== drawn) { body.innerHTML = html; drawn = html; }
@@ -100,15 +90,11 @@ export function mountArcSurface(host: HTMLElement, options: { project: string; r
     // A strip is cut to the width it is drawn at, so a first draw, or one at a new width, is drawn again once measured.
     const measured = measure();
     if (measured !== perRow) { perRow = measured; write(); }
-    const cardHtml = opened ? renderCard(next.board, opened, question) : "";
-    if (cardHtml !== drawnCard) { briefingPane.innerHTML = cardHtml; drawnCard = cardHtml; }
-    card.hidden = !opened;
     for (const detail of root.querySelectorAll<HTMLDetailsElement>("details[data-fold-key]")) detail.open = folds.has(detail.dataset.foldKey!);
     if (focusAttribute) [...root.querySelectorAll<HTMLElement>("button")].find((button) => button.getAttribute(focusAttribute) === focusKey)?.focus({ preventScroll: true });
     if (focusedFold) [...root.querySelectorAll<HTMLElement>("details[data-fold-key]")].find((detail) => detail.dataset.foldKey === focusedFold)?.querySelector<HTMLElement>("summary")?.focus({ preventScroll: true });
     const lanes = body.querySelector(".arc-lanes");
     if (lanes) lanes.scrollTop = lanesTop;
-    card.scrollTop = cardTop;
     const folded = [...body.querySelectorAll<HTMLElement>("[data-folded-ids]")].flatMap((node) => node.dataset.foldedIds!.split(" "));
     sayDrawn({
       arcs: [...new Set([...body.querySelectorAll<HTMLElement>("[data-arc-id]")].map((node) => node.dataset.arcId!))],
@@ -118,60 +104,36 @@ export function mountArcSurface(host: HTMLElement, options: { project: string; r
     });
     if (firstFresh) options.onFreshDraw?.();
   }
-  /** Close the open card, its arc's row taking the focus back. */
-  function closeCard(): void {
-    const was = opened;
-    if (!was) return;
-    opened = undefined; question = undefined;
-    if (state) draw(state);
-    card.hidden = true;
-    [...body.querySelectorAll<HTMLButtonElement>("[data-arc-select]")].find((button) => button.dataset.arcSelect === was)?.focus({ preventScroll: true });
-  }
   const resizes = typeof ResizeObserver === "function" ? new ResizeObserver(() => { if (state && measure() !== perRow) draw(state); }) : undefined;
   resizes?.observe(body);
   const watching = watchBoard({ ...options, kept: pageKept(`storytree.arc-surface.board.v1:${options.project}`, isBoardSnapshot), scope, closedRange, onState: draw });
   const surface: ArcSurface = {
-    stop() { watching.stop(); resizes?.disconnect(); document.removeEventListener("keydown", onKey); sayDrawn(); root.remove(); },
+    stop() { watching.stop(); resizes?.disconnect(); sayDrawn(); root.remove(); },
   };
-  function onKey(event: KeyboardEvent): void {
-    if (event.key === "Escape" && opened) { event.preventDefault(); closeCard(); }
-  }
-  document.addEventListener("keydown", onKey);
-  card.querySelector("[data-close-card]")!.addEventListener("click", closeCard);
   root.addEventListener("click", (event) => {
     const button = (event.target as Element).closest<HTMLButtonElement>("button");
     if (!button) return;
     if (button.hasAttribute("data-copy-arc-title")) copyTitle(button);
-    // A row's click opens its arc's card, or closes it when it is the one open (5.1).
-    if (button.dataset.arcSelect) {
-      if (opened === button.dataset.arcSelect) return closeCard();
-      opened = button.dataset.arcSelect; question = undefined;
+    // 3.21: a row's click selects its arc and opens its expansion, or, on the selected row, deselects and closes it; a queued
+    // arc's chip selects it, its expansion drawn under the chips (4.1).
+    const picked = button.dataset.arcSelect;
+    if (picked) {
+      const row = button.classList.contains("arc-lane");
+      if (opened === picked) { opened = undefined; if (row) queues.delete(picked); }
+      else { opened = picked; if (row) queues.add(picked); }
       if (state) draw(state);
     }
-    if (button.dataset.arcScope) { scope = button.dataset.arcScope as BoardScope; opened = undefined; question = undefined; card.hidden = true; watching.setScope(scope); remember(); }
-    if (button.dataset.closedRange) { closedRange = { preset: button.dataset.closedRange as "today" | "yesterday" | "week" }; opened = undefined; question = undefined; card.hidden = true; watching.setClosedRange(closedRange); }
+    if (button.dataset.arcScope) { scope = button.dataset.arcScope as BoardScope; opened = undefined; watching.setScope(scope); remember(); }
+    if (button.dataset.closedRange) { closedRange = { preset: button.dataset.closedRange as "today" | "yesterday" | "week" }; opened = undefined; watching.setClosedRange(closedRange); }
     if (button.dataset.arcQueue) {
       const id = button.dataset.arcQueue;
       if (queues.has(id)) queues.delete(id); else queues.add(id);
       if (state) draw(state);
     }
-    // 3.21: a question's row under an arc opens that arc's card on the question, as the card's own row opens it.
-    if (button.dataset.railQuestion) opened = button.dataset.questionArc;
-    const asked = button.dataset.questionOpen ?? button.dataset.railQuestion;
-    if (asked) {
-      question = asked;
-      if (state) draw(state);
-      card.querySelector<HTMLButtonElement>("[data-question-back]")?.focus({ preventScroll: true });
-    }
-    if (button.hasAttribute("data-question-back")) {
-      const previous = question; question = undefined;
-      if (state) draw(state);
-      [...card.querySelectorAll<HTMLButtonElement>("[data-question-open]")].find((node) => node.dataset.questionOpen === previous)?.focus({ preventScroll: true });
-    }
   });
-  // 3.20: the picked arc's title goes to the clipboard as plain text, acknowledged on its button.
+  // 3.20: the arc's title goes to the clipboard as plain text, acknowledged on its button.
   function copyTitle(button: HTMLButtonElement): void {
-    const title = state?.board?.lanes.find(({ id }) => id === opened)?.title;
+    const title = state?.board?.lanes.find(({ id }) => id === button.dataset.copyArcTitle)?.title;
     if (!title) return;
     const say = (text: string) => {
       button.textContent = text;
@@ -186,7 +148,7 @@ export function mountArcSurface(host: HTMLElement, options: { project: string; r
     const shown = state?.board?.closed;
     if (!shown) return;
     closedRange = input.hasAttribute("data-closed-from") ? { from: input.value, to: shown.to } : { from: shown.from, to: input.value };
-    opened = undefined; question = undefined; card.hidden = true; watching.setClosedRange(closedRange);
+    opened = undefined; watching.setClosedRange(closedRange);
   });
   root.addEventListener("toggle", (event) => {
     const detail = event.target as HTMLDetailsElement;

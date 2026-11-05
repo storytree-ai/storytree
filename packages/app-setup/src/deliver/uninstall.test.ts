@@ -297,8 +297,8 @@ test("1.8: on a Mac the .zprofile line goes from ZDOTDIR when zsh reads it there
 test("1.8: taking storytree off a Windows PATH removes only its entry, however its slashes end, and a long run of slashes inside an entry does not stall it", () => {
   const entry = "C:\\Users\\u\\.storytree\\bin";
   assert.equal(withoutPathEntry(`C:\\Tools;"${entry}\\";c:\\users\\u\\.storytree\\BIN//;D:\\Other`, entry), "C:\\Tools;D:\\Other");
-  const slashes = `C:${"/".repeat(30_000)}x`;
+  const slashes = `C:${"/".repeat(100_000)}x`;
   const started = performance.now();
   assert.equal(withoutPathEntry(`${slashes};${entry}`, entry), slashes);
-  assert.ok(performance.now() - started < 250, `took ${Math.round(performance.now() - started)} ms`);
+  assert.ok(performance.now() - started < 1000, `took ${Math.round(performance.now() - started)} ms`);
 });

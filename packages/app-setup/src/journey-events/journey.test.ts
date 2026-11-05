@@ -143,8 +143,8 @@ test("15.1 a deletion contact that is no email address leaves sharing unavailabl
     assert.equal(valid.state().available, true);
     valid.close();
     const started = performance.now();
-    const hostile = open(`!@!${".".repeat(30_000)} `);
-    assert.ok(performance.now() - started < 250, `took ${Math.round(performance.now() - started)} ms`);
+    const hostile = open(`!@!${".".repeat(100_000)} `);
+    assert.ok(performance.now() - started < 1000, `took ${Math.round(performance.now() - started)} ms`);
     assert.equal(hostile.state().available, false);
     hostile.close();
   } finally { rmSync(home, { recursive: true, force: true }); }

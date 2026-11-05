@@ -88,3 +88,13 @@ test("18.6 · a build whose parts list names an export that is no plain name fai
   await assert.rejects(bundle(dir, `import surfaces from "#parts/surfaces";\nexport { surfaces };\n`, partsFromList({ write })), (error: Error) => error.message.includes(`names the export ${JSON.stringify(carried)}`));
   assert.equal((globalThis as { carried?: boolean }).carried, undefined);
 });
+
+test("18.6 · a build packs an owner holding markup, line breaks and line separators exactly as the parts list names it", async (t) => {
+  const dir = host(t, [arcs]);
+  const module = path.join(dir, "node_modules", "@s", "arcs", "surfaces.js");
+  const owner = "</script><b>/\b\f\n\r\t\0\u2028\u2029\\";
+  const write = async (_from: string, file: string) => { writeFileSync(file, JSON.stringify({ kinds: { surfaces: [{ module, export: "arcsSurfaces", owner }] }, graph: { owner }, inputs: {} })); };
+  const bundled = await bundle<{ surfaces: { owners: unknown; graph: unknown } }>(dir, `import surfaces from "#parts/surfaces";\nexport { surfaces };\n`, partsFromList({ write }));
+  assert.deepEqual(bundled.surfaces.owners, [owner]);
+  assert.deepEqual(bundled.surfaces.graph, { owner });
+});

@@ -56,7 +56,7 @@ const ESCAPES: Record<string, string> = { "<": "\\u003C", ">": "\\u003E", "/": "
 
 /** `value` as a JavaScript literal, with the characters that could end a string or a script written as escapes. */
 function literal(value: unknown): string {
-  return JSON.stringify(value).replace(/[<>/\b\f\n\r\t\0\u2028\u2029]/g, (char) => ESCAPES[char] ?? char);
+  return JSON.stringify(value).replace(/[<>/\b\f\n\r\t\0\u2028\u2029]/g, (char) => ESCAPES[char] as string);
 }
 
 /** The esbuild plugin that packs `#parts/<kind>` from each host's parts list, written once per host per build by `write`. */

@@ -7,7 +7,7 @@ import path from "node:path";
 
 const ESCAPES = { "<": "\\u003C", ">": "\\u003E", "/": "\\u002F", "\b": "\\b", "\f": "\\f", "\n": "\\n", "\r": "\\r", "\t": "\\t", "\0": "\\0", "\u2028": "\\u2028", "\u2029": "\\u2029" };
 /** `value` as a JavaScript literal for an evaluated expression, with the characters that could end a string written as escapes. */
-const literal = (value) => JSON.stringify(value).replace(/[<>/\b\f\n\r\t\0\u2028\u2029]/g, (char) => ESCAPES[char] ?? char);
+const literal = (value) => JSON.stringify(value).replace(/[<>/\b\f\n\r\t\0\u2028\u2029]/g, (char) => ESCAPES[char]);
 
 const [outDir, ...steps] = process.argv.slice(2);
 const targets = await (await fetch(`http://127.0.0.1:${process.env.CDP_PORT ?? 9222}/json`)).json();

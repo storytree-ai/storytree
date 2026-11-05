@@ -436,8 +436,8 @@ export async function withMacRetry(runOnce, { platform = process.platform, timeL
   if (platform !== "darwin" || !first.timedOut || first.cut || first.exitHung?.length > 0 || !timeLeft()) return first;
   const second = await runOnce();
   const both = (key) => [...(first[key] ?? []), ...(second[key] ?? [])];
-  const output = first.output === undefined && second.output === undefined ? {} : { output: `${first.output ?? ""}${second.output ?? ""}` };
-  return { ...second, tests: both("tests"), unloaded: both("unloaded"), ...output, firstTry: first };
+  const output = second.output === undefined ? undefined : `${first.output ?? ""}${second.output}`; // held only beside other units
+  return { ...second, tests: both("tests"), unloaded: both("unloaded"), output, firstTry: first };
 }
 
 /** A unit's row note in the results table: its time and deadline, and on a timeout what was still running. */

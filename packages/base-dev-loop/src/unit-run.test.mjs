@@ -52,8 +52,6 @@ test("1.12 words", { skip: "platform:win32: needs Windows" }, () => {});`,
   for (const [unit, file] of [["app-setup", "first.test.mjs"], ["cli", "second.test.mjs"], ["app-setup", "first.test.mjs"]]) {
     const run = await runUnit({ root, files: [file], env, stdio: "ignore", evidence: { directory, unit } });
     assert.equal(run.code, 0);
-  assert.deepEqual([run.tests, run.unloaded, run.output], [[...killed.tests, ...passed.tests], killed.unloaded, "first\nsecond\n"]);
-  assert.equal("output" in await withMacRetry(tries({ ...killed, output: undefined }, { ...passed, output: undefined }), { platform: "darwin" }), false);
   }
   const reports = readdirSync(directory).map((dir) => JSON.parse(readFileSync(path.join(directory, dir, "result.json"), "utf8")));
   assert.equal(reports.length, 3, "a later unit or rerun must not overwrite a prior unit");
@@ -576,6 +574,8 @@ test("4.30 · on macOS a unit killed at its own deadline runs once more, and its
   const run = await withMacRetry(mac, { platform: "darwin" });
   assert.equal(mac.count(), 2);
   assert.equal(run.code, 0);
+  assert.deepEqual([run.tests, run.unloaded, run.output], [[...killed.tests, ...passed.tests], killed.unloaded, "first\nsecond\n"]);
+  assert.equal((await withMacRetry(tries({ ...killed, output: undefined }, { ...passed, output: undefined }), { platform: "darwin" })).output, undefined);
   assert.equal(unitReason(run, "/r"), "first try timed out after 360.2 s (limit 257 s, learned), killed; still running: forest/planet-turn.test.ts › 3.86 · turns; second try: 90.0 s (limit 257 s, learned)");
 
   const twice = await withMacRetry(tries(killed, killed), { platform: "darwin" });

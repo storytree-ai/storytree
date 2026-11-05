@@ -187,9 +187,10 @@ function setAside(file: string): void {
 /** Delete what an earlier set-aside left beside `file`, should its waiting Node not have outlived it. */
 function sweep(file: string): void {
   const folder = path.dirname(file);
-  const left = new RegExp(`^${path.basename(file).replace(/\./g, "\\.")}\\.\\d+-\\d+\\.old$`);
+  const prefix = `${path.basename(file)}.`;
+  const left = (name: string) => name.startsWith(prefix) && /^\d+-\d+\.old$/.test(name.slice(prefix.length));
   try {
-    for (const name of readdirSync(folder)) if (left.test(name)) rmSync(path.join(folder, name), { force: true });
+    for (const name of readdirSync(folder)) if (left(name)) rmSync(path.join(folder, name), { force: true });
   } catch {
     // Still running, or the folder cannot be read: the next write or removal tries again.
   }

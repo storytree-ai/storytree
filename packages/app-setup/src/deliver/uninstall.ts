@@ -60,8 +60,15 @@ export function uninstallAsks(installDir: string, home: string): "ask" | "no lib
 }
 
 export function withoutPathEntry(current: string, entry: string): string {
-  const wanted = entry.replace(/[\\/]+$/, "").toLowerCase();
-  return current.split(";").filter((part) => part.trim().replace(/^"|"$/g, "").replace(/[\\/]+$/, "").toLowerCase() !== wanted).join(";");
+  const wanted = withoutTrailingSlashes(entry).toLowerCase();
+  return current.split(";").filter((part) => withoutTrailingSlashes(part.trim().replace(/^"|"$/g, "")).toLowerCase() !== wanted).join(";");
+}
+
+/** `folder` without the slashes or backslashes it ends in, found by walking back rather than by a regex that rescans each run of them. */
+function withoutTrailingSlashes(folder: string): string {
+  let end = folder.length;
+  while (end > 0 && (folder[end - 1] === "/" || folder[end - 1] === "\\")) end--;
+  return folder.slice(0, end);
 }
 
 /** The updater's download cache, named in the installation's own update configuration. */

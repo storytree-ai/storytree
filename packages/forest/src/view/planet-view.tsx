@@ -22,7 +22,7 @@ import { NameplateCrowd, Nameplates, reducedMotion, SelectionRing } from "./isla
 import { focusRotation, globeHover, isGlobeDrag, markerSpot, movingSpots, MOVE_SECONDS, oncePerFrame, pickClick, type ForestMode } from "./planet-navigation.js";
 import { claimsOn } from "./planet-update.js";
 import { createGlobeGuide, type GlobePose, type PlacedGlobeControls } from "./globe-guide.js";
-import { createGlobeAside } from "./globe-aside.js";
+import { createGlobeAside, framedOnResize, type AsidePose } from "./globe-aside.js";
 import { compassNorth, laidIsland, opensBare, seesUnderside, sheetDrag, sheetHome, sheetKey, sheetKeyPan, sheetLayout, sheetMarkers, sheetOpening, sheetPan, sheetPanUnder, sheetSpin, sheetSpinTilt, sheetTilted, sheetTiltBy, sheetTwist, sheetUnder, TILT_PER_PIXEL, TILT_STEP } from "./sheet-navigation.js";
 import { growLand, shownSurfaces as surfacesFor, TerritoryDrawOn, type GlobeSurfaces } from "./globe-surfaces.js";
 
@@ -420,7 +420,7 @@ function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onCon
   const opening = { framing: sheetOpening(sheet, size).framing, sideOffset };
   const [hover, setHover] = useState<{ title: string; detail?: string; x: number; y: number }>();
   const opened = useRef(false);
-  // Until the user or a guide moves the sheet, it keeps to its opening as the canvas or the sheet changes size.
+  // Until the user or a guide moves the sheet, it keeps to its opening as the sheet changes size.
   const touched = useRef(false);
   const lastMarkers = useRef("");
   const [markers, setMarkers] = useState<ScreenMarker[]>([]);
@@ -540,7 +540,16 @@ function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onCon
     // Beside the panel, while one is open (3.40).
     onPose({ turn: turn.current, ...besideAside.current!.home(size) });
   };
-  useEffect(() => { if (opened.current && !touched.current) openSheet(); }, [size.width, size.height, sheet.width, sheet.height]);
+  useEffect(() => { if (opened.current && !touched.current) openSheet(); }, [sheet.width, sheet.height]);
+  // 3.85: the frame changing size (the rail hidden, shown or dragged, the window resized) keeps the zoom and the place under
+  // its unchanged edge as last drawn, before the next paint.
+  const drawn = useRef<{ pose: AsidePose; size: { width: number; height: number; left: number } }>(undefined);
+  useFrame(() => { const { framing, sideOffset } = read(), { width, height, left } = host.current.size; drawn.current = { pose: { framing, sideOffset }, size: { width, height, left } }; });
+  useLayoutEffect(() => {
+    const last = drawn.current;
+    if (last === undefined || (last.size.width === size.width && last.size.height === size.height && last.size.left === size.left)) return;
+    onPose({ turn: turn.current, ...framedOnResize(last.pose, last.size, size) });
+  }, [size.width, size.height, size.left]);
   // 3.66: a stop at the whole map the guide aimed at the last map's sheet is aimed again at the sheet that replaced it.
   useEffect(() => { if (touched.current && guide.current!.reframe()) guideFrameAt.current = performance.now(); }, [sheet.width, sheet.height]);
   // 3.40: the sheet follows the right-hand panel into the free width, and back.

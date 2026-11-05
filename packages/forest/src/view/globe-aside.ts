@@ -28,14 +28,27 @@ export function panelAside(page: { right: number }, boxes: readonly { left: numb
   return Math.max(0, page.right - Math.min(...boxes.map(box => box.left)));
 }
 
+/** 3.85: the pose that keeps a frame's look as it changes from `from` to `to` (CSS pixels, `left` its page edge): the
+ * same pixels per unit (framing scales with the short side), and the place in the middle of the view the same distance
+ * from the edge that did not move (the right one when the left moved, as the rail hides, shows or is dragged). */
+export function framedOnResize(pose: AsidePose, from: Viewport & { left: number }, to: Viewport & { left: number }): AsidePose {
+  const framing = pose.framing * Math.min(to.width, to.height) / Math.max(Math.min(from.width, from.height), 1);
+  const grown = (to.width - from.width) / 2;
+  return { framing, sideOffset: pose.sideOffset + (to.left !== from.left ? grown : -grown) };
+}
+
 /**
  * Follows the panel: `place` says where the globe goes when the covered width or the window changes (a glide when
  * the panel opened, closed or changed width; at once on a resize), or undefined when nothing moves. A zoom it applied
- * to fit is undone when the panel closes, unless the wheel has moved the zoom since.
+ * to fit is undone when the panel closes, unless the wheel has moved the zoom since. A glass sheet (`fit` false) only
+ * slides by the panel's change, from wherever it is, and leaves a resize to `framedOnResize` (3.85).
  */
 export function createGlobeAside(opening: () => AsidePose, { fit = true }: { fit?: boolean } = {}) {
   let covered = 0, seen: Viewport | undefined;
   let fitted: { from: number; to: number } | undefined;
+  // The side offset the panel's slide has added to the sheet's.
+  let slid = 0;
+  const slide = (viewport: Viewport, aside: number): number => besidePanel(viewport, aside, { framing: 1, sideOffset: 0 }, false).sideOffset;
   const settle = (viewport: Viewport, rest: AsidePose): AsidePose => {
     const to = besidePanel(viewport, covered, rest, fit);
     fitted = to.framing > rest.framing ? { from: rest.framing, to: to.framing } : undefined;
@@ -47,7 +60,15 @@ export function createGlobeAside(opening: () => AsidePose, { fit = true }: { fit
       // With no panel before or now the globe is its host's to place (the website steers its own offset).
       if (aside === covered && (!resized || aside === 0)) { seen = viewport; return undefined; }
       const glide = aside !== covered;
-      seen = viewport; covered = aside;
+      seen = viewport;
+      if (!fit) {
+        if (!glide) return undefined;
+        covered = aside;
+        const by = slide(viewport, aside), to = { framing: now.framing, sideOffset: now.sideOffset + by - slid };
+        slid = by;
+        return to.sideOffset === now.sideOffset ? undefined : { to, glide };
+      }
+      covered = aside;
       const ours = fitted !== undefined && Math.abs(now.framing - fitted.to) < 1e-6;
       const to = settle(viewport, { framing: ours ? fitted!.from : now.framing, sideOffset: opening().sideOffset });
       return to.framing === now.framing && to.sideOffset === now.sideOffset ? undefined : { to, glide };
@@ -55,6 +76,7 @@ export function createGlobeAside(opening: () => AsidePose, { fit = true }: { fit
     /** 3.37 with the panel in mind: the opening view, beside the panel while it is open. */
     home(viewport: Viewport): AsidePose {
       seen = viewport;
+      slid = slide(viewport, covered);
       return settle(viewport, opening());
     },
   };

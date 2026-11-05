@@ -23,6 +23,14 @@ const MAX_EVENTS = 500;
 const MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 const FLUSH_LIMIT_MS = 5_000;
 
+/** One @ between a name and a domain with a dot inside it, and no white space: checked in parts, so no regex backtracks over a long run of dots. */
+function isEmailAddress(text: string): boolean {
+  const [name, domain, ...more] = text.split("@");
+  if (more.length > 0 || domain === undefined || name === "" || /\s/.test(text)) return false;
+  const dot = domain.indexOf(".", 1);
+  return dot > 0 && dot < domain.length - 1;
+}
+
 /** One computer-wide consent record and bounded queue, shared atomically by app and CLI. */
 export function openJourney(options: {
   home: string; appVersion: string; configuration?: JourneyConfiguration;
@@ -32,7 +40,7 @@ export function openJourney(options: {
   if (!JOURNEY_VERSION.test(options.appVersion)) throw new Error("Journey events need a release version.");
   const configuration = options.configuration;
   const available = configuration !== undefined && /^phc_[A-Za-z0-9_]+$/.test(configuration.projectKey)
-    && configuration.retention.trim().length > 0 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(configuration.deletionContact);
+    && configuration.retention.trim().length > 0 && isEmailAddress(configuration.deletionContact);
   mkdirSync(options.home, { recursive: true, mode: 0o700 });
   const db = new DatabaseSync(path.join(options.home, "journey-events.sqlite"));
   db.exec("PRAGMA busy_timeout=1000; PRAGMA journal_mode=WAL;");

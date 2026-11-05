@@ -159,7 +159,8 @@ test("2.36 · a launch that finds no Chromium in the pinned one's place fails na
   assert.equal(launchFailure(playwrights, launchPlan({ env: { CAPTURE_CHROMIUM: "/opt/chromium" }, platform: "linux" }).options, pinned), playwrights);
   // launch() itself, through a stand-in Playwright whose pinned Chromium is missing.
   const stand = path.join(browsers, "playwright.mjs");
-  writeFileSync(stand, `export const chromium = { executablePath: () => ${JSON.stringify(pinned)}, launch: async () => { throw new Error("Executable doesn't exist"); } };`);
+  writeFileSync(path.join(browsers, "pinned.txt"), pinned);
+  writeFileSync(stand, `import { readFileSync } from "node:fs";\nconst pinned = readFileSync(new URL("./pinned.txt", import.meta.url), "utf8");\nexport const chromium = { executablePath: () => pinned, launch: async () => { throw new Error("Executable doesn't exist"); } };`);
   await assert.rejects(launch({ env: { CAPTURE_PLAYWRIGHT: stand }, platform: process.platform }), /which holds chromium-1243, firefox-1490.*CAPTURE_CHROMIUM/s);
   mkdirSync(path.join(browsers, "chromium_headless_shell-1223"));
   assert.equal(launchFailure(playwrights, plain, pinned), playwrights);

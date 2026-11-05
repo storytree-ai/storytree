@@ -43,3 +43,4 @@ island's built marks no longer recompute their matrices every frame (the scene's
 Every island's roads were routed 7.0 s after the map was ready, a few islands at a time in the territory worker. The page ran
 about 65 tasks over 50 ms meanwhile (the longest 503, 448 and 440 ms; main's longest 507, 426, 244 and 214 ms with 8 over
 50 ms): each island's land and road marks are built on the page as its roads arrive, one island per task.
+Routing stays off the page (3.82); moving or spreading that building is parked as increment_ac6b6706ee92 on this arc.

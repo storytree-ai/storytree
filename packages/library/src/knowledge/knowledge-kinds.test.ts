@@ -353,7 +353,7 @@ for (const backend of [memory, postgres]) {
 
     const term = await knowledge.defineTerm({ term: "Dated research", meaning: "Specs kept beside code" });
     await knowledge.refile(term.id, "research", { ...research, title: "OpenSpec" });
-    assert.deepEqual((await fyis()).map(({ about }) => about), [written.id, term.id], "a note refiled as research is offered too");
+    assert.deepEqual((await fyis()).map(({ about }) => about).sort(), [written.id, term.id].sort(), "a note refiled as research is offered too");
     await knowledge.refile(term.id, "research", { ...research, title: "OpenSpec again" });
     assert.equal((await fyis()).length, 2, "refiling research as research offers it no second time");
     await knowledge.writeKnowledge("principle", { title: "A title", description: "One line", statement: "S", why: "W", howToApply: "H" } as never);

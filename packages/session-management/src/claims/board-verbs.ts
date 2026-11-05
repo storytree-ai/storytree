@@ -79,7 +79,10 @@ const log = verb({
       ...(until === undefined ? {} : { until }),
       newest: limit,
     });
-    if (lines.length === 0) return { text: session === undefined && holder === undefined && since === undefined && until === undefined ? "The activity log has no lines yet." : `The activity log has no lines for ${session ?? "that selection"}.` };
+    if (lines.length === 0) {
+      if (session !== undefined) return { text: `The activity log has no lines for ${session}.` };
+      return { text: holder === undefined && since === undefined && until === undefined ? "The activity log has no lines yet." : "The activity log has no lines that match." };
+    }
     const { fullLineText, lineText } = await import("../activity/text.js");
     return { text: lines.map(full ? fullLineText : lineText).join("\n") };
   },

@@ -126,6 +126,10 @@ test("7.4 `noticeboard log` keeps line identity and cause, with complete command
       assert.equal(held.code, 0, held.stderr);
       assert.deepEqual(seqsOf(held.stdout), [ended.seq], "the lines naming that session as holder: what ended its claims");
 
+      const noHolder = await world.run(["noticeboard", "log", "--holder", "pull-request-10"]);
+      assert.equal(noHolder.code, 0, noHolder.stderr);
+      assert.equal(noHolder.stdout.trim(), "The activity log has no lines that match.");
+
       const badTime = await world.run(["noticeboard", "log", "--until", "yesterday-ish"]);
       assert.notEqual(badTime.code, 0);
       assert.match(badTime.stderr, /--until takes a time/);

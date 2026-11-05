@@ -23,7 +23,7 @@
  * landed since a time, by arc.
  */
 import { verb, VerbRefusal, type VerbFamilies } from "@storytree/library/verbs";
-import { beforeCutover, pullSaid, type ArcView, type Holds, type NoteWait, type WaitFor } from "@storytree/library";
+import { beforeCutover, listedSaid, pullSaid, type ArcView, type Holds, type NoteWait, type WaitFor } from "@storytree/library";
 
 import { recentWindow, windowOf, type ClosedRange } from "../board/closed-range.js";
 import { questionsBehind } from "../work-states/board-states.js";
@@ -437,7 +437,10 @@ const incrementNew = verb({
     if (waitNote === undefined && (waitWhy !== undefined || waitRank !== undefined)) throw new VerbRefusal("--wait-why and --wait-rank go with --wait-for owner --wait-note", { misuse: true });
     const owner = { releaser: "owner" as const, note: waitNote!, ...fieldsOf({ why: waitWhy }), ...actionRankOf("wait-rank", waitRank) };
     const waitsFor = waitNote === undefined ? {} : { waitsFor: [owner] };
-    const increment = await context.library.addIncrement({ ...incrementOf(given), ...waits, ...waitsFor, ...(await machineGiven(given.machine, context)) } as never, context.writer);
+    // A capability already on another open increment's list is refused, naming that increment (10.35).
+    const increment = await context.library.addIncrement({ ...incrementOf(given), ...waits, ...waitsFor, ...(await machineGiven(given.machine, context)) } as never, context.writer).catch((error: unknown) => {
+      throw error instanceof RangeError ? new VerbRefusal(error.message) : error;
+    });
     return { text: `Parked increment ${increment.id} on ${increment.fields.arc}.`, next: [{ command: `arc show ${increment.fields.arc}`, why: "see the arc whole" }] };
   },
 });
@@ -519,9 +522,14 @@ const incrementEdit = verb({
       fields.remedies = [...new Set([...had, ...(fields.remedies as string[])])];
     }
     if (fields.capabilities !== undefined) await refuseShared(id, fields.capabilities as string[], context);
+    const had = fields.capabilities === undefined ? [] : ((await library.get(id))?.fields as { capabilities?: string[] } | undefined)?.capabilities ?? [];
     const edited = await library.editIncrement(id, fields as never, context.writer);
     if (edited === null) throw new VerbRefusal(`no increment "${id}" in this project`);
-    return { text: `Edited increment ${id}.` };
+    // Told, not refused, of another open increment already listing a capability it newly lists: a lane that backed off
+    // keeps the shared one on its list while it waits on the claim (ADR-1228), so an edit cannot refuse it.
+    const added = ((fields.capabilities as string[] | undefined) ?? []).filter((capability) => !had.includes(capability));
+    const shared = await library.openListing(added, id);
+    return { text: [`Edited increment ${id}.`, ...shared.map((other) => `${listedSaid(other)}.`)].join("\n") };
   },
 });
 

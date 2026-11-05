@@ -12,24 +12,25 @@ const R = 218;
 const spot = new Vector3(0, 0, R);
 type P = { x: number; z: number };
 
-/** Island `a`, a round island of The library's land (or `k` times its size across), with roads out to sea from three docks:
- * two lanes and a third six units beside them on its east coast, one on its west. */
+/** Island `a`, a round island of The library's land (or `k` times its size across), with lanes routed out to sea from three
+ * docks: two lanes and a third six units beside them on its east coast, one on its west. It has no roads: lanes and ports
+ * read only the lane plan. */
 function plan(k = 1): PlanetPathways {
   const r = Math.sqrt(24105 / Math.PI) * k, transform = plateTransform(spot, R), at = new Vector3(...transform.position);
   const surface = onIslandSurface(R);
   const world = (p: P) => surface(p).applyQuaternion(transform.quaternion).add(at);
   const coast = Array.from({ length: 256 }, (_, i) => ({ x: r * Math.cos(i / 256 * 2 * Math.PI), z: r * Math.sin(i / 256 * 2 * Math.PI) }));
   const east = { x: r, z: 0 }, beside = { x: r * Math.cos(6 / r), z: r * Math.sin(6 / r) }, west = { x: -r, z: 0 };
-  // Each road leaves its dock straight out to sea, then bends away.
-  const road = (id: string, from: P, out: P, links: string[]) => {
+  // Each lane leaves its dock straight out to sea, then bends away.
+  const route = (id: string, from: P, out: P, links: string[]) => {
     const pts: P[] = [];
     for (let t = 0; t <= 40; t++) pts.push({ x: from.x + out.x * t, z: from.z + out.z * t });
     for (let t = 1; t <= 20; t++) pts.push({ x: from.x + out.x * 40 + out.z * t, z: from.z + out.z * 40 - out.x * t });
-    return { id, width: 1.5, links, points: pts.map(world) };
+    return { id, links, points: pts.map(world) };
   };
   return {
-    plates: new Map([['a', { descriptors: [], coast: [coast] }]]),
-    segments: [road('e', east, { x: 1, z: 0 }, ['x1->a1', 'x2->a1']), road('b', beside, { x: 1, z: 0 }, ['x3->a2']), road('w', west, { x: -1, z: 0 }, ['a3->x4'])],
+    plates: new Map([['a', { descriptors: [], coast: [coast] }]]), segments: [], edges: [], docks: [], lanes: {
+    segments: [route('e', east, { x: 1, z: 0 }, ['x1->a1', 'x2->a1']), route('b', beside, { x: 1, z: 0 }, ['x3->a2']), route('w', west, { x: -1, z: 0 }, ['a3->x4'])],
     edges: [
       { from: 'x1', to: 'a1', segments: [{ id: 'e', reversed: false }] },
       { from: 'x2', to: 'a1', segments: [{ id: 'e', reversed: false }] },
@@ -41,7 +42,7 @@ function plan(k = 1): PlanetPathways {
       { story: 'a', point: world(beside), local: beside, links: ['x3->a2'] },
       { story: 'a', point: world(west), local: west, links: ['a3->x4'] },
     ],
-  };
+  } };
 }
 const lit = [{ from: 'x1', to: 'a1', dir: 'down' as const }, { from: 'x2', to: 'a1', dir: 'down' as const },
   { from: 'x3', to: 'a2', dir: 'down' as const }, { from: 'a3', to: 'x4', dir: 'up' as const }];
@@ -87,9 +88,9 @@ test('4.40 the selected island has a port at each dock its lit lanes come ashore
 });
 
 test('4.8 at the selected island each lit lane, in or out, ends on its port\'s berth just off the coast, never on the road ashore, and its far end stays at its dock', () => {
-  const roads = plan(), coast = roads.plates.get('a')!.coast[0]!;
-  const { lanes, ports } = seaLanes(roads, lit, { story: 'a', spot, radius: R });
-  const before = laneRoutes(roads, lit);
+  const sea = plan(), coast = sea.plates.get('a')!.coast[0]!;
+  const { lanes, ports } = seaLanes(sea, lit, { story: 'a', spot, radius: R });
+  const before = laneRoutes(sea.lanes, lit);
   assert.equal(lanes.length, 4);
   lanes.forEach((lane, i) => {
     const key = `${lane.from}->${lane.to}`, port = ports.find(p => p.links.includes(key))!;
@@ -101,7 +102,7 @@ test('4.8 at the selected island each lit lane, in or out, ends on its port\'s b
     assert.equal(lane.widths.length, lane.points.length);
     assert.ok(Math.abs(lane.length - lane.points.slice(1).reduce((sum, p, j) => sum + p.distanceTo(lane.points[j]!), 0)) < 1e-6);
   });
-  assert.deepEqual(seaLanes(roads, lit, undefined).lanes.map(l => l.points.length), before.map(l => l.points.length), 'no selection: the lanes run dock to dock');
+  assert.deepEqual(seaLanes(sea, lit, undefined).lanes.map(l => l.points.length), before.map(l => l.points.length), 'no selection: the lanes run dock to dock');
 });
 
 test('4.40 a port is a low building where the road ends with a capped tower either side, twice as tall, all standing on the land with no jetty out to sea', () => {

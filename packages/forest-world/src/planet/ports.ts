@@ -37,7 +37,7 @@ const MERGE = 8, SNAP = 10, OUT = 10;
 const IN_STEPS = 10;
 
 export interface SeaPort {
-  /** Its dock on the coast, in the plate's frame, where the island's road ends. */
+  /** Its dock on the coast, in the plate's frame, where its lanes' routes come ashore. */
   dock: CoastPoint;
   /** Out to sea from the dock, and along the coast. */
   out: P; across: P;
@@ -58,15 +58,16 @@ export function litIsland(scene: ForestScene, lit: readonly LitLink[]): string |
   return scene.islands.find(island => island.story === own || island.trees.some(tree => tree.capability === own))?.story;
 }
 
-/** The selection's lanes and the selected island's ports: with no island selected, every lane runs dock to dock. */
-export function seaLanes(plan: PlanetPathways, lit: readonly LitLink[], selected: SelectedIsland | undefined): { lanes: LaneRoute[]; ports: SeaPort[] } {
-  const lanes = laneRoutes(plan, lit), plate = selected && plan.plates.get(selected.story);
+/** The selection's lanes and the selected island's ports, from the lane plan and the islands alone (ADR-1261 D3): with no
+ * island selected, every lane runs dock to dock. */
+export function seaLanes(plan: Pick<PlanetPathways, 'plates' | 'lanes'>, lit: readonly LitLink[], selected: SelectedIsland | undefined): { lanes: LaneRoute[]; ports: SeaPort[] } {
+  const lanes = laneRoutes(plan.lanes, lit), plate = selected && plan.plates.get(selected.story);
   if (selected === undefined || plate === undefined) return { lanes, ports: [] };
   const scale = Math.sqrt(landArea(plate.coast) / LIBRARY_LAND);
   const transform = plateTransform(selected.spot, selected.radius), at = new Vector3(...transform.position), back = transform.quaternion.clone().invert();
   const toLocal = (w: Vector3) => w.clone().sub(at).applyQuaternion(back);
   const toWorld = (l: Vector3) => l.clone().applyQuaternion(transform.quaternion).add(at);
-  const docks = plan.docks.filter(dock => dock.story === selected.story);
+  const docks = plan.lanes.docks.filter(dock => dock.story === selected.story);
   // Each lane coming ashore here, in the plate's frame, walked from its far end in to this island's dock.
   const ashore = lanes.flatMap((lane, i) => {
     const key = `${lane.from}->${lane.to}`, dock = docks.find(d => d.links.includes(key));

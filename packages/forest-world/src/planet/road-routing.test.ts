@@ -1,8 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { ForestScene, Island } from '../scene.js';
-import { routeTrails, type TrailNetwork } from '../core/routing.js';
-import { planetPathwayDrawing, type CrossRouting, type PathwayDrawing } from './pathways.js';
+import { planetPathwayDrawing, routePlanet, type CrossRouting, type PathwayDrawing, type PlanetNetworks } from './pathways.js';
 import { drawnAtOnce, islandDocks, roadsWhenRouted, routedDrawing, routeInWorker, type RoadRouter, type RoadWorker } from './road-routing.js';
 import { SHEET_RADIUS, sheetSpot } from './sheet.js';
 import { plateTransform, type PlanetSpot } from './planet.js';
@@ -23,7 +22,7 @@ const roads = (drawing: { plan: { segments: unknown[]; edges: unknown[]; docks: 
 /** A router that answers only when told to, as a worker does, counting what it is asked. */
 function heldRouter() {
   const asked: { routing: CrossRouting; signal: AbortSignal; answer: () => void }[] = [];
-  const router: RoadRouter = (routing, signal) => new Promise<TrailNetwork>((resolve, reject) => {
+  const router: RoadRouter = (routing, signal) => new Promise<PlanetNetworks>((resolve, reject) => {
     asked.push({ routing, signal, answer: () => { const reply = answerRouting(routing); 'network' in reply ? resolve(reply.network) : reject(new Error(reply.error)); } });
   });
   return { router, asked };
@@ -93,14 +92,13 @@ test('4.21 a road worker routes the roads off the page; a page whose worker cann
   const page: RoadRouter = () => assert.fail('the page routes nothing while its worker answers');
   const network = await routeInWorker(() => answering, page)(pending.routing, new AbortController().signal);
   assert.deepEqual(posted, pending.routing, 'the worker is posted the routing');
-  const { islands, edges, seed, tuning } = pending.routing;
-  const onThePage = routeTrails(islands, edges, seed, tuning);
-  assert.ok(onThePage.segments.length > 0);
-  assert.deepEqual(network, onThePage, 'and answers the roads routing on the page would');
+  const onThePage = routePlanet(pending.routing);
+  assert.ok(onThePage.roads.segments.length > 0 && onThePage.lanes.segments.length > 0);
+  assert.deepEqual(network, onThePage, 'and answers the roads and lanes routing on the page would');
 
   const missing: RoadWorker = { onmessage: null, onerror: null, terminate: () => {}, postMessage() { queueMicrotask(() => missing.onerror!({})); } };
   let routedOnThePage = 0;
-  const fallback: RoadRouter = async routing => { routedOnThePage++; return (answerRouting(routing) as { network: TrailNetwork }).network; };
+  const fallback: RoadRouter = async routing => { routedOnThePage++; return (answerRouting(routing) as { network: PlanetNetworks }).network; };
   assert.deepEqual(await routeInWorker(() => missing, fallback)(pending.routing, new AbortController().signal), onThePage);
   await routeInWorker(() => { throw new Error('no workers here'); }, fallback)(pending.routing, new AbortController().signal);
   assert.equal(routedOnThePage, 2, 'a worker that fails to load, or to start, leaves the routing to the page');

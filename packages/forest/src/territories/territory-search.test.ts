@@ -96,7 +96,7 @@ test("3.80 a kept arrangement for the island's structure draws from its seeds an
   assert.deepEqual(asked[0]!.kept, seeds, "seeded from the kept seeds the island is drawn from");
   const found = { a: { x: 1, z: 2 }, b: { x: 3, z: 4 }, c: { x: 5, z: 6 }, d: { x: 7, z: 8 }, "": { x: 9, z: 9 } };
   answer({ found: { seeds: found, score: 1, start: 2 } });
-  const now = await waitUntil(() => keptArrangement("s")?.seeds === found && keptArrangement("s"), 2000, "the arrangement found kept");
+  const now = await waitUntil(() => { const k = keptArrangement("s"); return k?.seeds === found ? k : undefined; }, 2000, "the arrangement found kept");
   assert.equal(now.key, structureKey(shares, more, docks), "kept under the new structure");
 });
 

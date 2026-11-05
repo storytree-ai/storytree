@@ -43,6 +43,7 @@ import { MEDIA_FAMILY } from "./media.js";
 export { mediaGuidance } from "./media.js";
 import { editDecision, recordDecision } from "../librarian/decision-log/index.js";
 import { LaterWriterError, StaleRevertError } from "../transactions/index.js";
+import { refuseStaleEdit } from "./stale-edit.js";
 
 /** A claim as the door reads it: the session holding it, the increment or capability it is for, and since when. */
 export interface HeldClaim {
@@ -440,16 +441,17 @@ function pendingSaid(pending: readonly PendingChange[]): string[] {
 }
 
 const edit = verb({
-  command: { family: "library", name: "edit", summary: "change only the named fields, through the kind's editor", usage: "library edit <id> --<field> <value|@file> … [--remove <field>]… [--live]" },
+  command: { family: "library", name: "edit", summary: "change only the named fields, through the kind's editor", usage: "library edit <id> --<field> <value|@file> … [--remove <field>]… [--read <seq>] [--live]" },
   tool: NOT_A_TOOL,
   writes: true,
   inputs: {
     "<id>": { kind: "text", word: 0, optional: true, describe: "the record's id" },
     "<fields>": { kind: "fields", describe: "the fields to change" },
     remove: { kind: "text", many: true, optional: true, describe: "an optional field to remove" },
+    read: { kind: "text", optional: true, describe: "the seq of the record's newest history entry when you read it: the edit is refused if it has changed since" },
     live: { kind: "switch", describe: "edit a story, capability or contract live while you hold an increment, keeping its claim" },
   },
-  async act({ "<id>": given, "<fields>": values, remove = [], live }, context: LibraryVerbContext) {
+  async act({ "<id>": given, "<fields>": values, remove = [], read: readGiven, live }, context: LibraryVerbContext) {
     const id = needed(given, "the record's id");
     const library = context.library;
     if (id === ANCHOR_ID) return editAnchor(fieldsOf(values), context);
@@ -467,6 +469,8 @@ const edit = verb({
     const fields: Fields = { ...fieldsOf(values), ...Object.fromEntries(remove.map((field) => [field, undefined])) };
     if (Object.keys(fields).length === 0) return { text: `No fields given: ${id} is unchanged.` };
     const writer = context.writer!;
+    // A note, decision or question is written whole-field and live, so one built on a stale read is refused (friction_90ff039d8cce); a planned record's edit is held with the entry it read (ADR-0966 D1).
+    if (!isPlanRecordType(record.type)) await refuseStaleEdit(library, id, writer, readGiven);
     // --live names a correction the increment does not change, made live with its claim kept (ADR-0966 D1's note).
     const done = await withIdLists(fields, async (fields): Promise<PlanEdit | null> => {
       if (isPlanRecordType(record.type)) return editPlanRecord(library, await context.claims(), context.session, { type: record.type, id, fields, live }, writer);

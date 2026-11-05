@@ -54,20 +54,27 @@ test("5.2 a type-only import ending at a story other than the library is refused
 test("5.3 a type-only import whose importer also imports the same story by value from another capability names both capabilities and says the type may move to the value edge's side", async (t) => {
   const root = plant({
     "packages/shop/package.json": manifest("@t/shop"),
-    "packages/shop/src/index.ts": 'export type { Cart } from "./cart.js";\nexport { price } from "./price.js";\n',
+    "packages/shop/src/index.ts": 'export type { Cart } from "./cart.js";\nexport { price, type Price } from "./price.js";\n',
     // A re-cut moved the cart to capability 2, leaving the price in capability 1.
     "packages/shop/src/cart.ts": "export type Cart = { items: string[] };\nexport const empty: Cart = { items: [] };\n",
-    "packages/shop/src/price.ts": "export const price = 1;\n",
+    "packages/shop/src/price.ts": "export type Price = number;\nexport const price: Price = 1;\n",
     "packages/shop/src/cart.test.ts": 'import { test } from "node:test";\nimport { empty } from "./cart.js";\ntest("2.1 empty", () => { void empty; });\n',
     "packages/shop/src/price.test.ts": 'import { test } from "node:test";\nimport { price } from "./price.js";\ntest("1.1 price", () => { void price; });\n',
     "packages/till/package.json": { ...manifest("@t/till"), dependencies: { "@t/shop": "workspace:*" } },
     "packages/till/src/total.ts": 'import type { Cart } from "@t/shop";\nimport { price } from "@t/shop";\nexport const total = (cart: Cart) => cart.items.length * price;\n',
+    // The kiosk reads both capabilities by type alone: no value edge, so 5.2's sentence stands.
+    "packages/kiosk/package.json": { ...manifest("@t/kiosk"), dependencies: { "@t/shop": "workspace:*" } },
+    "packages/kiosk/src/show.ts": 'import type { Cart, Price } from "@t/shop";\nexport const show = (cart: Cart, each: Price) => cart.items.length * each;\n',
   });
   t.after(() => removeTemp(root));
 
-  const problems = await typeImportProblems(root, ["library", "shop", "till"]);
+  const all = await typeImportProblems(root, ["library", "kiosk", "shop", "till"]);
+  const kiosk = all.filter((problem) => problem.startsWith("packages/kiosk/"));
+  const problems = all.filter((problem) => problem.startsWith("packages/till/"));
 
-  assert.equal(problems.length, 1, problems.join("\n"));
+  assert.equal(kiosk.length, 2, all.join("\n"));
+  for (const problem of kiosk) assert.doesNotMatch(problem, /value edge/);
+  assert.equal(problems.length, 1, all.join("\n"));
   assert.match(problems[0], /packages\/shop\/src\/cart\.ts is shop's capability 2/);
   assert.match(problems[0], /packages\/shop\/src\/price\.ts \(capability 1\) by value/);
   assert.match(problems[0], /move the type to the value edge's side/);

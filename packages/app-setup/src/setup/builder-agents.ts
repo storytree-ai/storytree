@@ -1,5 +1,5 @@
 /**
- * Capability 8 · Setup check, contract 8.38. storytree's red and green builder agents for Claude Code: two user-level
+ * Capability 2 · Connect an agent, contract 2.24. storytree's red and green builder agents for Claude Code: two user-level
  * agent files, `<claude home>/agents/storytree-red.md` and `storytree-green.md`, written with storytree's hooks and taken
  * out with them. Each one's frontmatter runs the test guard (Session management's Hooks 3.50) before every file edit,
  * so the red agent can edit only test files and the green agent never one: the split is enforced, not only asked for.

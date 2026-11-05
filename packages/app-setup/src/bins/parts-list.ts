@@ -1,5 +1,5 @@
 /**
- * Capability 8 · Setup check. How storytree's commands are packed with the parts their story packages' manifests name
+ * Capability 18 · Built commands. How storytree's commands are packed with the parts their story packages' manifests name
  * (ADR-1021): esbuild answers each `import parts from "#parts/<kind>"` with a module importing the parts the importing
  * file's package's parts list names. Plugin loader writes that list as data, by a step of its own run as part of this
  * build (question_efc2a06dacad, option A): the build reads its output and imports none of its code. A list missing, or

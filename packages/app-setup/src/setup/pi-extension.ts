@@ -1,5 +1,5 @@
 /**
- * Capability 8 · Setup check. Storytree's Pi extension: Pi runs no hook command, only TypeScript extensions it loads from
+ * Capability 2 · Connect an agent. Storytree's Pi extension: Pi runs no hook command, only TypeScript extensions it loads from
  * `<agent dir>/extensions/` (PI_CODING_AGENT_DIR, else ~/.pi/agent), with no trust prompt at the user level.
  * So storytree's hook registration for Pi is one generated file there, `storytree.ts`, written whole: the
  * Node and hook script it runs, and a table of which of Pi's events it forwards, with which flags, and

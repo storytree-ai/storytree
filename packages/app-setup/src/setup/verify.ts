@@ -3,7 +3,7 @@
  * verified only once storytree has received all four from that session, a session start, a call to
  * a storytree tool (check_setup's own call fires it), a file edit and a command, each written by a
  * hook. Until then each missing one is named, with its fix. A harness whose hooks have no session-start
- * event (Antigravity CLI) has its start proven by the first line any of its hooks wrote for the session (8.30).
+ * event (Antigravity CLI) has its start proven by the first line any of its hooks wrote for the session (8.47).
  */
 import { tmpdir } from "node:os";
 import path from "node:path";

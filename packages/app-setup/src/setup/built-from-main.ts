@@ -1,5 +1,5 @@
 /**
- * Capability 8 · Setup check. Hooks that follow main on a machine with no desktop app (contract 8.15). The app's updater keeps
+ * Capability 18 · Built commands. Hooks that follow main on a machine with no desktop app (contract 18.2). The app's updater keeps
  * the hooks it installed current; a machine without it (the Mint box) had hooks built once from a
  * checkout and never again (friction_c5bb32266a84). So a tool server run from a checkout's source,
  * which has no built hook script beside it, builds the checkout's commit into the storytree home
@@ -20,7 +20,13 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { storytreeHome } from "@storytree/project-and-caller";
-import { defaultHomes, registeredHookScripts, type HookCommand, type Homes } from "./hooks-config.js";
+import { defaultHomes, registeredHookScripts, type Homes } from "./hooks-config.js";
+
+/** The command a harness runs as storytree's hook: a Node and the built hook script. */
+export interface HookCommand {
+  readonly node: string;
+  readonly script: string;
+}
 
 export interface FollowMainOptions {
   /** The checkout the tool server runs from. */

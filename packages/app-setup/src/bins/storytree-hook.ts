@@ -1,5 +1,5 @@
 /**
- * Capability 8 · Setup check. The hook command setup registers (`storytree-hook <harness>`): Session management's hook
+ * Capability 18 · Built commands. The hook command setup registers (`storytree-hook <harness>`): Session management's hook
  * command, given the map's file-to-capability lookup for its gate before each edit (ADR-0949 D3), which the agent
  * link may not import (ADR-0969). This is where the two meet: the app setup story may import both.
  *

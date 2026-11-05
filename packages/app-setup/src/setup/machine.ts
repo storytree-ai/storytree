@@ -21,6 +21,9 @@ export { ask, pathEnv, type Answer };
 /** The Node major storytree's workspace declares (package.json `engines.node`). */
 export const NODE_FLOOR = 24;
 
+/** Whether GitHub's `gh` is there and signed in. */
+export type GhState = "signed in" | "signed out" | "missing" | "not answering";
+
 /** An agent CLI, as its `--version` and its sign-in status answer. */
 export type AgentCliState = "signed in" | "signed out" | "missing" | "not answering";
 export type ToolState = "present" | "missing" | "not answering";
@@ -196,4 +199,17 @@ async function elevated(env: NodeJS.ProcessEnv, waitMs: number): Promise<boolean
   if (process.platform !== "win32") return false;
   const answer = await ask("whoami", ["/groups", "/fo", "csv"], env, waitMs);
   return answer.answered && answer.code === 0 && /S-1-16-(12288|16384)\b/.test(answer.out);
+}
+
+/** Whether `gh` is installed and signed in, as `gh auth status` says. */
+export async function ghState(options: MachineOptions = {}): Promise<GhState> {
+  // `gh auth status` asks GitHub, which takes seconds (about ten on a Windows arm64 machine, 2026-09-28).
+  const env = pathEnv(options.path);
+  const waitMs = options.waitMs ?? 15_000;
+  const version = await ask("gh", ["--version"], env, waitMs);
+  if (!version.answered) return "not answering";
+  if (version.code !== 0) return "missing";
+  const status = await ask("gh", ["auth", "status"], env, waitMs);
+  if (!status.answered) return "not answering";
+  return status.code === 0 ? "signed in" : "signed out";
 }

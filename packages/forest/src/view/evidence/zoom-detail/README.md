@@ -54,7 +54,7 @@ they ran together: once every island's docks arrived, all 15 islands were laid o
 and the whole scene's shaders were compiled again on every island's roads (645 ms over the load).
 
 Now each island's layout, and its land with its relief and roads, wait their turn in one page queue (`build-turns.ts`), one
-build per task, and a build overtaken while it waits never runs; each island compiles its own marks' shaders as they are
+build per task at first (a few to a task since, below), and a build overtaken while it waits never runs; each island compiles its own marks' shaders as they are
 built. The page's long tasks after the map was ready, until every island's roads were routed, on this box (loaded by other
 lanes, so two runs each, back to back):
 
@@ -67,5 +67,10 @@ The longest tasks fall by half or more, but the count does not: most tasks over 
 rasterises in software (SwiftShader), and a spread load draws more of them. Of the 75 builds in one run, 10 still took
 over 50 ms, the largest a 208 ms land with its relief and roads on the biggest island; splitting that build further, or
 building the meshes off the page, is the next step on increment_ac6b6706ee92.
+
+One build per task cost a frame per build, and on CI's macOS runner, which draws without a graphics card, that kept the
+page busy long enough after it was ready to fail the left rail's drag (2.46, twice). With motion reduced (no animation asking
+for frames), the left rail test's page drew 46 frames before it fell idle on this branch against main's 16. So a task now
+runs builds while the next is likely to fit 50 ms (its builds so far, plus the longest of them again): 29 and 33 frames.
 
 In the evidence bucket for #493, linked from the pull request body (ADR-1234; deleted after 90 days or when its arc closes): `493/far.png`, `493/opening-territories.png`, `493/near-the-library.png`.

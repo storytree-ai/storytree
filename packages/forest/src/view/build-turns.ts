@@ -1,5 +1,5 @@
 /**
- * Capability 3 · Story node render (the forest story): the islands' heavy builds take turns, one per task (3.87).
+ * Capability 3 · Story node render (the forest story): the islands' heavy builds take turns, a few to a task (3.87).
  */
 import { useEffect, useState, type DependencyList } from "react";
 
@@ -7,15 +7,21 @@ import { useEffect, useState, type DependencyList } from "react";
 export type NextTask = (run: () => void) => void;
 
 /**
- * 3.87: the islands' heavy builds (a layout settled, a land's meshes built) take turns, one per task, in the order asked, so
- * opening the map, with every island laid out and its roads arriving, never runs several islands' builds in one long task.
+ * 3.87: the islands' heavy builds (a layout settled, a land's meshes built) take turns in the order asked, so
+ * opening the map, with every island laid out and its roads arriving, never runs several islands' builds in one long task. A
+ * task runs the next build only while its builds so far, and the longest of them again, fit in `budgetMs`: every task that
+ * builds is a frame the map draws, which a computer drawing without a graphics card pays most for (PR #495 on macOS).
  * A build overtaken while it waits (`signal` aborted) is passed over without running.
  */
 export class BuildTurns {
   private readonly waiting: { build: () => void; signal: AbortSignal }[] = [];
   private scheduled = false;
 
-  constructor(private readonly nextTask: NextTask = (run) => { setTimeout(run, 0); }) {}
+  constructor(
+    private readonly nextTask: NextTask = (run) => { setTimeout(run, 0); },
+    private readonly budgetMs = 50,
+    private readonly now: () => number = () => performance.now(),
+  ) {}
 
   ask(build: () => void, signal: AbortSignal): void {
     if (signal.aborted) return;
@@ -28,9 +34,19 @@ export class BuildTurns {
     this.scheduled = true;
     this.nextTask(() => {
       this.scheduled = false;
-      let turn = this.waiting.shift();
-      while (turn !== undefined && turn.signal.aborted) turn = this.waiting.shift();
-      try { turn?.build(); } finally { this.schedule(); }
+      const start = this.now();
+      try {
+        for (let longest = 0; ;) {
+          let turn = this.waiting.shift();
+          while (turn !== undefined && turn.signal.aborted) turn = this.waiting.shift();
+          if (turn === undefined) break;
+          const began = this.now();
+          turn.build();
+          const end = this.now();
+          longest = Math.max(longest, end - began);
+          if (end - start + longest > this.budgetMs) break;
+        }
+      } finally { this.schedule(); }
     });
   }
 }

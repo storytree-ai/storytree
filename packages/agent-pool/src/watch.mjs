@@ -27,7 +27,7 @@ import { LANE_RUN, storytreeCommand } from "./runner.mjs";
 import { readBoxPace } from "./pace.mjs";
 import { codeVersion, countEngines, holdRunner, localBrief } from "./queue.mjs";
 import { EXEMPTIONS_EVERY_MS, exemptionChanges, watchExemptions } from "./exemptions-watch.mjs";
-import { attempted, failedJob, FOLLOWERS, isSecurityCheck, judgeReleases, recordFix, RELEASE_ARC, RELEASE_EVERY_MS, RUNNER_ATTEMPTS, runnerFault, runnerReruns, securityJobs, waitHolding, watchReleases } from "./release-watch.mjs";
+import { attempted, failedJob, FOLLOWERS, isSecurityCheck, judgeReleases, readWait, recordFix, RELEASE_ARC, RELEASE_EVERY_MS, RUNNER_ATTEMPTS, runnerFault, runnerReruns, securityJobs, watchReleases } from "./release-watch.mjs";
 
 /**
  * The code the watcher runs (4.10, ADR-0981 D3): what watch.mjs loads and what the fix sessions it starts load
@@ -1089,12 +1089,7 @@ function boxDefaults({ home = homedir(), env = process.env, platform = process.p
       .catch(() => run("gh", ["run", "rerun", String(one.id), "-R", one.repo ?? HOME], { cwd: repo })),
     tail: async (one) => (await run("gh", ["run", "view", String(one.id), "--log-failed"], { cwd: repo, maxBuffer: 64 * 1024 * 1024 }))
       .stdout.trimEnd().split("\n").slice(-30).join("\n"),
-    // An unreadable increment holds nothing, so the alarm is never muted by a record it cannot see.
-    waitHolds: async (id) => {
-      const read = (field) => storytree(["library", "read", id, "--field", field]).catch(() => "");
-      const [status, waits] = await Promise.all([read("status"), read("waitsFor")]);
-      return Boolean(status.trim()) && waitHolding({ status: status.trim(), waitsFor: waits.trim() ? JSON.parse(waits) : [] }, new Date().toISOString().slice(0, 10));
-    },
+    waitHolds: (id) => readWait(storytree, id, new Date().toISOString().slice(0, 10)),
     questionOpen: async (id) => !/, (settled|retired)\b/.test((await run("pnpm", ["-s", "storytree", "question", "show", id], { cwd: repo })).stdout.split("\n")[1] ?? ""),
     raise: async (question) => {
       const { stdout } = await run("pnpm", ["-s", "storytree", "question", "new", "--arc", RELEASE_ARC,

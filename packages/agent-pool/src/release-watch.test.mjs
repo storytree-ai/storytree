@@ -6,7 +6,8 @@ import { test } from "node:test";
 
 import { removeTemp } from "@storytree/test-waits";
 
-import { attempted, judgeReleases, recordFix, RELEASE_LIMIT_MS, RUNNER_ATTEMPTS, runnerFault, runnerReruns, waitHolding, watchReleases } from "./release-watch.mjs";
+import { attempted, judgeReleases, readWait, RELEASE_LIMIT_MS, RUNNER_ATTEMPTS, runnerFault, runnerReruns, waitHolding, watchReleases } from "./release-watch.mjs";
+import { main } from "./watch.mjs";
 
 const at = Date.parse("2026-10-13T12:00:00Z");
 const minutes = (n) => new Date(at + n * 60_000).toISOString();
@@ -194,9 +195,11 @@ test("4.17 · an outside stop the fix session parks on an event wait keeps the a
   assert.match(b.fixes[0].brief, /--for event --note/, "the brief routes an outside stop to an event wait");
   assert.match(b.fixes[0].brief, /release-fix --wait <increment>/);
 
-  // The session parked the stop on an event wait and ended: no second session and no question while it holds.
+  // The session parked the stop on an event wait, recorded it and ended: no second session and no question while it holds.
   b.live.clear();
-  assert.equal(await recordFix({ dir: b.dir, wait: "increment_outage" }), true);
+  const outs = [];
+  assert.equal(await main(["release-fix", "--wait", "increment_outage"], { dir: b.dir, out: (line) => outs.push(line) }), 0, outs.join("\n"));
+  assert.equal(JSON.parse(await readFile(join(b.dir, "release.json"), "utf8")).wait, "increment_outage");
   b.held.add("increment_outage");
   await watchReleases(b.options);
   await watchReleases(b.options);
@@ -212,7 +215,7 @@ test("4.17 · an outside stop the fix session parks on an event wait keeps the a
 
   // Waited out: the next release ends the stop and closes the parked increment, so the pool never takes it up.
   b.live.clear();
-  await recordFix({ dir: b.dir, wait: "increment_outage" });
+  await main(["release-fix", "--wait", "increment_outage"], { dir: b.dir, out: () => {} });
   b.held.add("increment_outage");
   b.options.readReleases = async () => ({ release: { ...release, tag: "v0.3.1356" }, reruns: [], alarm: null });
   await watchReleases(b.options);
@@ -228,6 +231,22 @@ test("4.17 · an outside stop the fix session parks on an event wait keeps the a
   assert.equal(waitHolding({ status: "active", waitsFor: [{ releaser: "owner", note: "set the secret", why: "a signed build" }] }, "2026-10-13"), true);
   assert.equal(waitHolding({ ...event("2026-10-14"), status: "closed" }, "2026-10-13"), false);
   assert.equal(waitHolding({ status: "proposal" }, "2026-10-13"), false);
+  // Read from the library's command line; an increment it cannot read holds nothing.
+  const library = (fields) => async ([, , id, , field]) => { if (!(id in fields)) throw new Error(`no record "${id}"`); return `${fields[id][field] ?? ""}\n`; };
+  const fields = { increment_outage: { status: "proposal", waitsFor: JSON.stringify(event("2026-10-14").waitsFor) }, increment_open: { status: "active" } };
+  assert.equal(await readWait(library(fields), "increment_outage", "2026-10-13"), true);
+  assert.equal(await readWait(library(fields), "increment_open", "2026-10-13"), false, "an open increment with no wait holds nothing");
+  assert.equal(await readWait(library(fields), "increment_gone", "2026-10-13"), false);
+  assert.equal(await readWait(async () => { throw new Error("no record"); }, "increment_gone", "2026-10-13"), false);
+
+  // The command records each thing a session leaves under its own name; with no stop recorded there is nothing to attach it to.
+  const left = await box(t, { judged: { reruns: [], alarm } });
+  assert.equal(await main(["release-fix", "--wait", "increment_outage"], { dir: left.dir, out: () => {} }), 1);
+  await watchReleases(left.options);
+  await main(["release-fix", "--pr", "77"], { dir: left.dir, out: () => {} });
+  await main(["release-fix", "--question", "question_q"], { dir: left.dir, out: () => {} });
+  const recorded = JSON.parse(await readFile(join(left.dir, "release.json"), "utf8"));
+  assert.deepEqual([recorded.pr, recorded.question, recorded.wait], [77, "question_q", null]);
 });
 
 test("4.27 · each rerun the watcher starts is recorded as a ci-rerun line naming the repository, the run and the attempt it starts; a refused one is not", async (t) => {

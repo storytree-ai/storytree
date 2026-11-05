@@ -168,6 +168,13 @@ Your job is to get releases moving and nothing else. Work from {checkout} and fo
 export const waitHolding = ({ status, waitsFor = [] }, today) => status !== "closed"
   && waitsFor.some(({ releaser, checkBack }) => releaser === "owner" || (releaser === "event" && today < checkBack));
 
+/** Whether an increment's wait holds, read from the library by `storytree` (its command line's output); an unreadable increment holds nothing, so a record the watcher cannot see never mutes the alarm. */
+export async function readWait(storytree, id, today) {
+  const read = (field) => storytree(["library", "read", id, "--field", field]).then((text) => text.trim(), () => "");
+  const [status, waits] = await Promise.all([read("status"), read("waitsFor")]);
+  return Boolean(status) && waitHolding({ status, waitsFor: waits ? JSON.parse(waits) : [] }, today);
+}
+
 /**
  * One look at releases: forget a stop a new release ended, order the reruns, and on an alarm start one fix session
  * for the stop with an engine slot free. None starts while the last one lives, while the pull request it recorded is

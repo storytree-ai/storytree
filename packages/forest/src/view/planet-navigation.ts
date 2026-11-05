@@ -115,6 +115,16 @@ export function pickRoute(world: Object3D, camera: Camera,
   return undefined;
 }
 
+/**
+ * What a click picks (3.81): in Forest, a road or gate first, which lights its route and picks no selection; otherwise
+ * what `pickGlobe` picks, with no route, so any other click puts the gold out.
+ */
+export function pickClick(world: Object3D, camera: Camera,
+  box: { left: number; top: number; width: number; height: number }, cursor: { x: number; y: number }, mode: ForestMode): { route: { story: string; pick: RoutePick } } | { route: undefined; hit: Selection } {
+  const route = mode === "forest" ? pickRoute(world, camera, box, cursor) : undefined;
+  return route !== undefined ? { route } : { route: undefined, hit: pickGlobe(world, camera, box, cursor, mode) };
+}
+
 /** Project the drawn points; in Forest, solid land before a point occludes it. */
 export function pickGlobe(world: Object3D, camera: Camera,
   box: { left: number; top: number; width: number; height: number }, cursor: { x: number; y: number }, mode: ForestMode): Selection {

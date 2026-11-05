@@ -187,18 +187,18 @@ function route(map: TerritoryMap, links: readonly Link[], docks: readonly LinkDo
     }
     return out;
   };
-  const gates = net.segments.flatMap((s) => crossings(s.pts).map((c) => ({ at: c.p, along: c.along, links: s.links, entrance: false, entrances: [] as string[] })));
+  const gates = net.segments.flatMap((s) => crossings(s.pts).map((c) => ({ at: c.p, along: c.along, links: s.links, entrances: [] as string[] })));
   for (const l of netLinks) {
     const way = crossings(net.ways.get(l.key) ?? []);
     const entering = l.kind === "out" ? way.find((c) => c.pair.includes(l.fromT)) : [...way].reverse().find((c) => c.pair.includes(l.toT));
     if (!entering) continue;
     const g = gates.reduce<(typeof gates)[number] | undefined>((b, x) => (far(x.at, entering.p) < (b ? far(b.at, entering.p) : 1) ? x : b), undefined);
-    if (g) { g.entrance = true; g.entrances.push(l.key); }
+    if (g) g.entrances.push(l.key);
   }
   return {
     segments: net.segments.map((s) => ({ pts: s.pts.map((p) => times(p, S)), links: s.links, width: widthOf(s.links.length) * S })),
     junctions: net.junctions.map((at) => ({ at: times(at, S), width: Math.max(...net.segments.filter((s) => s.pts.some((p) => far(p, at) < 1e-6)).map((s) => widthOf(s.links.length)), WIDTHS[0]) * S })),
-    gates: gates.map((g) => ({ at: times(g.at, S), along: g.along, links: g.links, entrance: g.entrance, entrances: g.entrances,
+    gates: gates.map((g) => ({ at: times(g.at, S), along: g.along, links: g.links, entrance: g.entrances.length > 0, entrances: g.entrances,
       opening: Math.max(GATE_OPENING, widthOf(g.links.length) + 2) * S })),
     towns: scaled(towns, S),
     settlements,

@@ -18,7 +18,7 @@ import { ClaimMarks } from "./claim-flag.js";
 import { islandLayout, type Link } from "../territories/link-layout.js";
 import { keptVersion, pageTerritorySearcher, searchIsland, subscribeKept } from "../territories/kept-layout.js";
 import { NameplateCrowd, Nameplates, reducedMotion, SelectionRing } from "./island-overlays.js";
-import { focusRotation, globeHover, isGlobeDrag, markerSpot, movingSpots, MOVE_SECONDS, oncePerFrame, pickGlobe, pickRoute, type ForestMode } from "./planet-navigation.js";
+import { focusRotation, globeHover, isGlobeDrag, markerSpot, movingSpots, MOVE_SECONDS, oncePerFrame, pickClick, type ForestMode } from "./planet-navigation.js";
 import { claimsOn } from "./planet-update.js";
 import { createGlobeGuide, type GlobePose, type PlacedGlobeControls } from "./globe-guide.js";
 import { createGlobeAside } from "./globe-aside.js";
@@ -622,7 +622,6 @@ function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onCon
     const pair = (): [{ x: number; y: number }, { x: number; y: number }] => { const [a, b] = [...fingers.values()]; return [a!, b!]; };
     // The button pressed decides what a click picks: in Library, only the notes under the islands' outlines.
     const picking = (): ForestMode => modeNow.current;
-    const pick = (event: PointerEvent) => pickGlobe(scene, camera, element.getBoundingClientRect(), { x: event.clientX, y: event.clientY }, picking());
     // Picking is costly: a pointer that moves many times a frame is picked once, where it last was.
     let cleared = 0, stopped = false;
     const clearHover = (): void => { cleared++; setHover(undefined); element.style.cursor = ""; };
@@ -687,10 +686,10 @@ function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onCon
       if (twisted || from === undefined || from.id !== event.pointerId || from.dragged || from.spin || isGlobeDrag(from, { x: event.clientX, y: event.clientY })) return;
       clearHover();
       // 3.81: a road or gate lights its route and changes no selection; any other click puts the gold out.
-      const route = modeNow.current === "forest" ? pickRoute(scene, camera, element.getBoundingClientRect(), { x: event.clientX, y: event.clientY }) : undefined;
-      onRoute(route);
-      if (route !== undefined) return;
-      const hit = pick(event);
+      const clicked = pickClick(scene, camera, element.getBoundingClientRect(), { x: event.clientX, y: event.clientY }, picking());
+      onRoute(clicked.route);
+      if (clicked.route !== undefined) return;
+      const hit = clicked.hit;
       if (hit?.kind === "note") onNote(hit.id);
       else onPick(hit?.id, hit?.capability);
     };

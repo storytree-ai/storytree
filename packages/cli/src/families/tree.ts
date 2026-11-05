@@ -4,7 +4,8 @@
  * the agent's) and any claim on it, and each capability's word with why it is not healthy (ADR-0825 D1). Name a story to see only that story.
  *
  * One reading of the library's projectTree, whose health is already rolled up by the library, and
- * one of Session management's claims. A story is named by its id or its title.
+ * one of Session management's claims. A story is named by its id or its title. Each story's next line
+ * gives the numbers its capabilities take, so an answer an agent's tool cuts short still says them.
  */
 import type { NodeHealth } from "@storytree/library";
 
@@ -30,6 +31,13 @@ function claimOn(claims: readonly Claim[], id: string): string {
   return claim === undefined ? "" : `  ⟵ ${claim.label} (${claim.holder}): ${claim.reason}`;
 }
 
+/** The numbers a story's capabilities take, ascending, and how many carry none. */
+function numbersTaken(titles: readonly string[]): string {
+  const numbers = titles.flatMap((title) => /^(\d+) · /.exec(title)?.[1] ?? []).map(Number).sort((a, b) => a - b);
+  const unnumbered = titles.length - numbers.length;
+  return `  capability numbers taken: ${numbers.length === 0 ? "none" : numbers.join(", ")}${unnumbered === 0 ? "" : ` · ${unnumbered} unnumbered`}`;
+}
+
 const view: Verb = {
   name: "tree",
   usage: "tree [<story>]",
@@ -49,6 +57,7 @@ const view: Verb = {
     for (const story of stories) {
       // A mapped story carries no health of its own (ADR-0993 D3): it says what it is instead.
       lines.push(`${story.title}  [${story.id}]  ${story.mapped === undefined ? healthOf(story.health, unverified) : "mapped: here before storytree, and assumed to be working"}`);
+      if (story.capabilities.length > 0) lines.push(numbersTaken(story.capabilities.map((capability) => capability.title)));
       story.capabilities.forEach((capability) => {
         lines.push(`  ${capability.title}  [${capability.id}]  ${healthOf(capability.health, unverified)}; ${capability.reportOnly ? NOT_VERIFIED : wordAndWhy(capability)}${claimOn(claims, capability.id)}`);
         for (const contract of capability.contracts) {

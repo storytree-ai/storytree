@@ -18,6 +18,7 @@ Pictures, 1440 x 960:
 - `before-side-on-library.png`, `after-side-on-library.png`: the same, clear glass.
 - `before-below.png`, `after-below.png`: seen from below, smoked glass.
 - `before-below-library.png`, `after-below-library.png`: the same, clear glass.
+- `*-library-close.png`: each clear-glass view again with the eye zoomed three times, so a ball's shading and a root read.
 
 Taken with `node --import tsx packages/knowledge-core/testing/traversal-when-selected/build.mjs <checkout> before|after`, then
 `node --import tsx packages/knowledge-core/testing/selected-island-roots/capture.mjs before|after --retake`, which also

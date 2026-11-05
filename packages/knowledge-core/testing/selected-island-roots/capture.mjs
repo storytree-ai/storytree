@@ -22,6 +22,7 @@ const { seed, survey } = captureSeed('code-rows');
 const viewport = { width: 1440, height: 960 };
 const resting = Math.round(SHEET_TILT * 1800 / Math.PI) / 10;
 const PER_DEGREE = 600 / 180;
+const CLOSE = 3;
 const TILTS = [{ name: 'side-on', deg: 80 }, { name: 'below', deg: 180 - resting }];
 const story = seed.tree.stories.find(s => s.title === 'The knowledge core').id;
 
@@ -94,6 +95,11 @@ const { results, out } = await withCapture({ folder: evidence, dist }, async ({ 
     await press('library');
     await page.screenshot({ path: path.join(out, `${label}-${name}-library.png`), timeout: 180000 });
     const clear = await measure(page);
+    // Closer, the eye's zoom alone, so a ball's shading and a root's line can be seen; then back.
+    const zoomBy = times => page.evaluate(times => { const { camera, invalidate } = window.__globe; camera.zoom *= times; camera.updateProjectionMatrix(); invalidate(); }, times);
+    await zoomBy(CLOSE); await settle(page, 12);
+    await page.screenshot({ path: path.join(out, `${label}-${name}-library-close.png`), timeout: 180000 });
+    await zoomBy(1 / CLOSE); await settle(page, 12);
     await press('stories');
     assert.equal(smoked.selected, story, `${name}: The knowledge core stays selected`);
     results[name] = { smoked, clear };

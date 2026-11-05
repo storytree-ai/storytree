@@ -39,10 +39,10 @@ export function dotOpacity({ state, lit, anyLit, quiet }: { state: ReturnType<ty
 }
 
 /**
- * A ball lit by the sheet's lights (ADR-1260 D4): soft light all round and a lamp near the eye together give about two and a
- * half times a colour, so its own colour is taken down to show at about full on its lit side, with a glow keeping its far side.
+ * A ball lit by the sheet's lights (ADR-1260 D4): its glow and the soft light all round keep about its own colour on its far
+ * side, and the lamp near the eye brightens the side turned toward it, so it reads as a ball and keeps its colour.
  */
-const SHADED = { body: 0.4, glow: 0.15 };
+const SHADED = { body: 0.5, glow: 0.4 };
 const shadedBody = (colour: string): Color => new Color(colour).multiplyScalar(SHADED.body);
 const shadedGlow = (colour: string): Color => new Color(colour).multiplyScalar(SHADED.glow);
 

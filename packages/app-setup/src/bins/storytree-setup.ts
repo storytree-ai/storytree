@@ -9,7 +9,9 @@ import { homedir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { defaultHomes, installedCodexVersion, putCommandOnPath, registerHooks, removeCommand, removeHooks } from "../setup/index.js";
+import { installedCodexVersion } from "../connect/codex.js";
+import { putCommandOnPath, removeCommand } from "../setup/command.js";
+import { defaultHomes, registerHooks, removeHooks } from "../setup/hooks-config.js";
 
 /** Install or remove, as the command line says. */
 function main(): void {

@@ -546,9 +546,8 @@ function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onCon
   const drawn = useRef<{ pose: AsidePose; size: { width: number; height: number; left: number } }>(undefined);
   useFrame(() => { const { framing, sideOffset } = read(), { width, height, left } = host.current.size; drawn.current = { pose: { framing, sideOffset }, size: { width, height, left } }; });
   useLayoutEffect(() => {
-    const last = drawn.current;
-    if (last === undefined || (last.size.width === size.width && last.size.height === size.height && last.size.left === size.left)) return;
-    onPose({ turn: turn.current, ...framedOnResize(last.pose, last.size, size) });
+    const kept = drawn.current && framedOnResize(drawn.current.pose, drawn.current.size, size);
+    if (kept !== undefined) onPose({ turn: turn.current, ...kept });
   }, [size.width, size.height, size.left]);
   // 3.66: a stop at the whole map the guide aimed at the last map's sheet is aimed again at the sheet that replaced it.
   useEffect(() => { if (touched.current && guide.current!.reframe()) guideFrameAt.current = performance.now(); }, [sheet.width, sheet.height]);

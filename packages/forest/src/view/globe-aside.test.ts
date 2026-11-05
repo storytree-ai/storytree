@@ -92,6 +92,7 @@ test("3.85 the map's frame changing size keeps the zoom on screen and the place 
   assert.deepEqual(framedOnResize(pose, before, { width: 800, height: 600, left: 280 }), { framing: 0.4, sideOffset: -20 });
   // The window shortens: the short side drawn the same number of pixels per unit is fewer radii of the map.
   assert.deepEqual(framedOnResize(pose, before, { width: 1000, height: 300, left: 280 }), { framing: 0.2, sideOffset: -120 });
+  assert.equal(framedOnResize(pose, before, { ...before }), undefined, "the same frame: nothing to post");
 });
 
 test("3.85 with the sheet beside the panel a resize leaves it where the frame's change put it, and closing slides back by the panel alone", () => {
@@ -99,4 +100,9 @@ test("3.85 with the sheet beside the panel a resize leaves it where the frame's 
   const open = aside.place(wide, panel, rest)!.to;
   assert.equal(aside.place({ width: 1880, height: 900 }, panel, { framing: 0.4, sideOffset: open.sideOffset + 140 }), undefined, "the resize's own place stands");
   assert.deepEqual(aside.place({ width: 1880, height: 900 }, 0, { framing: 0.4, sideOffset: open.sideOffset + 140 })?.to, { framing: 0.4, sideOffset: 140 });
+  // Opened on a window too narrow to slide into, then widened: Home places it beside the panel, and closing undoes that.
+  assert.equal(aside.place({ width: 600, height: 900 }, panel, rest), undefined, "no useful free width: no slide");
+  const home = aside.home(wide);
+  assert.deepEqual(home, { framing: 0.4, sideOffset: -246 }, "Home beside the panel");
+  assert.deepEqual(aside.place(wide, 0, home)?.to, rest, "closing after Home slides back to the opening");
 });

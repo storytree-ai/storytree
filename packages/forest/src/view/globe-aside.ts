@@ -30,8 +30,10 @@ export function panelAside(page: { right: number }, boxes: readonly { left: numb
 
 /** 3.85: the pose that keeps a frame's look as it changes from `from` to `to` (CSS pixels, `left` its page edge): the
  * same pixels per unit (framing scales with the short side), and the place in the middle of the view the same distance
- * from the edge that did not move (the right one when the left moved, as the rail hides, shows or is dragged). */
-export function framedOnResize(pose: AsidePose, from: Viewport & { left: number }, to: Viewport & { left: number }): AsidePose {
+ * from the edge that did not move (the right one when the left moved, as the rail hides, shows or is dragged); undefined
+ * when the frame is as it was. */
+export function framedOnResize(pose: AsidePose, from: Viewport & { left: number }, to: Viewport & { left: number }): AsidePose | undefined {
+  if (from.width === to.width && from.height === to.height && from.left === to.left) return undefined;
   const framing = pose.framing * Math.min(to.width, to.height) / Math.max(Math.min(from.width, from.height), 1);
   const grown = (to.width - from.width) / 2;
   return { framing, sideOffset: pose.sideOffset + (to.left !== from.left ? grown : -grown) };
@@ -48,7 +50,7 @@ export function createGlobeAside(opening: () => AsidePose, { fit = true }: { fit
   let fitted: { from: number; to: number } | undefined;
   // The side offset the panel's slide has added to the sheet's.
   let slid = 0;
-  const slide = (viewport: Viewport, aside: number): number => besidePanel(viewport, aside, { framing: 1, sideOffset: 0 }, false).sideOffset;
+  const slide = (viewport: Viewport, aside: number): number => besidePanel(viewport, aside, { framing: 1, sideOffset: 0 }).sideOffset;
   const settle = (viewport: Viewport, rest: AsidePose): AsidePose => {
     const to = besidePanel(viewport, covered, rest, fit);
     fitted = to.framing > rest.framing ? { from: rest.framing, to: to.framing } : undefined;

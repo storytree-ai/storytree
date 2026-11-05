@@ -1,4 +1,5 @@
 /** Capability 14 · PostHog delivery. */
+import { existsSync } from "node:fs";
 import { homedir } from "node:os";
 import path from "node:path";
 import { openJourney, type JourneyConfiguration, type JourneyTransport } from "./index.js";
@@ -38,14 +39,17 @@ export function createJourneyRuntime(options: {
   let finishing: Promise<void> | undefined;
   let timer: ReturnType<typeof setInterval> | undefined;
   const configuration = options.configuration ?? RELEASE_CONFIGURATION;
+  const home = options.home ?? (process.env.STORYTREE_HOME || path.join(homedir(), ".storytree", "0.3"));
   const open = () => journey ??= openJourney({
-    home: options.home ?? (process.env.STORYTREE_HOME || path.join(homedir(), ".storytree", "0.3")),
+    home,
     appVersion: options.appVersion,
     ...(configuration ? { configuration } : {}),
     ...(options.now ? { now: options.now } : {}),
   });
   function record(event: unknown): void {
     if (finishing || configuration === undefined) return;
+    // With no journey database consent is still pending, so a milestone is not kept, and opening one would make a storytree home, after an uninstall too (contract 1.8).
+    if (journey === undefined && !existsSync(path.join(home, "journey-events.sqlite"))) return;
     // Observation must never break the journey it observes, or send error content about itself.
     try { open().record(event); } catch { /* Optional observation stays quiet on local failure. */ }
   }

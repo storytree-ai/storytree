@@ -1,8 +1,9 @@
 /**
  * Capability 12 · Owner questions (the library story): a question is raised on an arc and settled
  * with the owner's answer, which stays on it. An open increment held on an open question is waiting
- * on him, and heldOnQuestion is the one answer to that. A question work is held on cannot be retired,
- * except by retireQuestion, which releases its holders in the same step.
+ * on him, and heldOnQuestion is the one answer to that. A question work is held on cannot be retired
+ * (12.4), except by WorkInFlight's retireQuestion, which releases its holders in the same step: the
+ * increment's heldOn, like its other fields, is capability 10's to write (wait-writes.ts, ADR-1242 D2).
  * An open question carries a review lease (12-a, restored by ADR-0654): the day it was last checked to
  * still hold and how many days that is trusted for, 7 unless given. checkQuestion reads it fresh or
  * lapsed, renewQuestion re-stamps it, refusing a settled question, and lapsedQuestions is the
@@ -331,8 +332,8 @@ export async function lapsedQuestions(records: SchemaRecords, at: Date): Promise
 
 /**
  * Settle a question with the owner's answer, kept on it with when and the decision that carried
- * it, which must be a live decision, and the question taken off every increment's heldOn (12.3);
- * it is no longer being put to him (12.10). A settlement with no answer is refused (SchemaError),
+ * it, which must be a live decision; it is no longer being put to him (12.10). WorkInFlight takes it
+ * off every increment's heldOn in the same step (10.39). A settlement with no answer is refused (SchemaError),
  * and so is settling a settled question. Null, with nothing written, if `id` is not a live question.
  */
 export async function settleQuestion(records: SchemaRecords, id: string, settlement: Settlement, options?: WriteOptions): Promise<SchemaRecord<"question"> | null> {
@@ -340,7 +341,6 @@ export async function settleQuestion(records: SchemaRecords, id: string, settlem
   if (question === null) return null;
   if (question.fields.lifecycle === "settled") throw new RangeError(`question ${JSON.stringify(id)} is already settled`);
   await checkReference(records, "decision", settlement.decision, "decision");
-  await releaseHolders(records, id, options);
   return (await records.edit(id, {
     lifecycle: "settled",
     answer: settlement.answer,
@@ -365,28 +365,6 @@ export async function heldOnQuestion(records: SchemaRecords, incrementId: string
 export async function refuseRetiringHeld(records: SchemaRecords, id: string): Promise<void> {
   const heldBy = (await records.list("increment")).filter((increment) => increment.fields.heldOn?.includes(id) === true);
   if (heldBy.length > 0) throw new RetireRefusedError(id, heldBy.sort(byCreation).map((increment) => increment.id));
-}
-
-/**
- * Retire question `id` with `reason`, first taking it off the heldOn of every increment that names
- * it, open or closed, so an owner-retired question goes in one step (12.9). Returns the increments
- * released, oldest first; null, with nothing written, if `id` is not a live question.
- */
-export async function retireQuestion(records: SchemaRecords, id: string, reason: string, options?: WriteOptions): Promise<string[] | null> {
-  if ((await liveRecord(records, id, ["question"])) === null) return null;
-  const released = await releaseHolders(records, id, options);
-  await records.retire(id, reason, options);
-  return released;
-}
-
-/** Take question `id` off the heldOn of every increment that names it, open or closed, keeping their other holds; the increments released, oldest first. */
-async function releaseHolders(records: SchemaRecords, id: string, options?: WriteOptions): Promise<string[]> {
-  const heldBy = (await records.list("increment")).filter((increment) => increment.fields.heldOn?.includes(id) === true).sort(byCreation);
-  for (const increment of heldBy) {
-    const rest = (increment.fields.heldOn ?? []).filter((held) => held !== id);
-    await records.edit(increment.id, { heldOn: rest.length === 0 ? undefined : rest }, options);
-  }
-  return heldBy.map((increment) => increment.id);
 }
 
 /** The open questions among those `increment` names, in its order, each once. */

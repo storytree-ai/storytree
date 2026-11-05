@@ -2,15 +2,14 @@
  * Routing the roads between islands takes seconds, and while the page routes it answers no hover, drag or click. So
  * a layout draws its islands at once and its roads when they are routed: in a worker where the page offers one,
  * otherwise on the page once the islands are drawn. What is routed does not change, only when. */
-import { routeTrails, type TrailNetwork } from '../core/routing.js';
 import type { ForestScene } from '../scene.js';
 import type { CoastPoint } from '../coast-clip.js';
-import { islandsOnly, keepRoutes, pathwayRouting, planetPathwayDrawing, routesKept, type CrossRouting, type PathwayDrawing, type PlanetPathways } from './pathways.js';
+import { islandsOnly, keepRoutes, pathwayRouting, planetPathwayDrawing, routePlanet, routesKept, type CrossRouting, type PathwayDrawing, type PlanetNetworks, type PlanetPathways } from './pathways.js';
 import type { PlanetSpot } from './planet.js';
 
-/** Routes a drawing's roads between islands somewhere, answering the network `routeTrails` would. An aborted signal
+/** Routes a drawing's roads and lanes between islands somewhere, answering the networks `routePlanet` would. An aborted signal
  * means the layout was overtaken: the router may stop, and what it answers is never drawn. */
-export type RoadRouter = (routing: CrossRouting, signal: AbortSignal) => Promise<TrailNetwork>;
+export type RoadRouter = (routing: CrossRouting, signal: AbortSignal) => Promise<PlanetNetworks>;
 
 /** A page that offers a road worker names its script in this meta tag: `<meta name="storytree-road-worker" content="road-worker.js">`. */
 export const ROAD_WORKER_META = 'storytree-road-worker';
@@ -29,15 +28,15 @@ export function drawnAtOnce(scene: ForestScene, spots: ReadonlyMap<string, Plane
   if (routing === undefined) return { drawing: planetPathwayDrawing(scene, spots, radius), routing };
   const islands = islandsOnly(scene);
   if (before === undefined || before.radius !== radius) return { drawing: islands, routing };
-  const { segments, edges, docks, plumbing } = before.drawing.plan;
-  return { drawing: { plan: { ...islands.plan, segments, edges, docks, ...plumbing ? { plumbing } : {} }, issue: before.drawing.issue }, routing };
+  const { segments, edges, docks, plumbing, lanes } = before.drawing.plan;
+  return { drawing: { plan: { ...islands.plan, segments, edges, docks, lanes, ...plumbing ? { plumbing } : {} }, issue: before.drawing.issue }, routing };
 }
 
 /** The drawing with its roads, once `router` has routed them; undefined when `signal` aborts first, so an overtaken
  * layout draws nothing. A router that fails leaves the islands with the drawing's notice, as a failed routing always has. */
 export async function routedDrawing(scene: ForestScene, spots: ReadonlyMap<string, PlanetSpot>, radius: number,
   pending: { key: string; routing: CrossRouting }, router: RoadRouter, signal: AbortSignal): Promise<PathwayDrawing | undefined> {
-  let network: TrailNetwork;
+  let network: PlanetNetworks;
   try {
     network = await router(pending.routing, signal);
   } catch (error) {
@@ -93,11 +92,11 @@ export function roadsWhenRouted<L extends RoadLayout>(router: RoadRouter, draw: 
 export const routeOnThePage: RoadRouter = async (routing, signal) => {
   await new Promise<void>(resolve => (globalThis.requestAnimationFrame ?? setTimeout)(() => setTimeout(resolve, 0)));
   if (signal.aborted) throw signal.reason;
-  return routeTrails(routing.islands, routing.edges, routing.seed, routing.tuning);
+  return routePlanet(routing);
 };
 
 /** The answer a road worker posts back: the network, or why routing failed. */
-export type RoadWorkerAnswer = { network: TrailNetwork } | { error: string };
+export type RoadWorkerAnswer = { network: PlanetNetworks } | { error: string };
 
 /** The part of a Worker the router uses. */
 export interface RoadWorker {
@@ -118,7 +117,7 @@ export function routeInWorker(start: () => RoadWorker, fallback: RoadRouter = ro
       console.error('forest-world planet: the road worker could not start; routing on the page', error);
       return fallback(routing, signal);
     }
-    return new Promise<TrailNetwork>((resolve, reject) => {
+    return new Promise<PlanetNetworks>((resolve, reject) => {
       const end = () => { worker.terminate(); signal.removeEventListener('abort', overtaken); };
       const overtaken = () => { end(); reject(signal.reason); };
       signal.addEventListener('abort', overtaken);

@@ -241,8 +241,9 @@ export function Pathways({ plan, reveal, live = false, visible = true, routing =
 
 const reducedMotion = () => typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-/** A selected story's lit links (The drawing engine 4.8–4.9, ADR-1236 D1): each lane one solid pale sea-blue line at
- * sea in place of its road, lanes sharing a stretch one line there a step wider, ending at the far island's dock and just
+/** A selected story's lit links (The drawing engine 4.8–4.9, ADR-1236 D1, ADR-1261 D3–D4): each lane one solid pale
+ * sea-blue line at sea on its own route, lanes sharing a stretch one line there, wider by how many share it up to a cap,
+ * ending at the far island's dock and just
  * off the selected island's port (`seaLanes`); it draws on from the island built on, every lane starting together at
  * one pace, with a warm head at the front of each stretch it leads. A new selection draws its lanes again. */
 export function SelectionLanes({ routes }: { routes: readonly LaneRoute[] }) {

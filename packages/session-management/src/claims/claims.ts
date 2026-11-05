@@ -324,13 +324,16 @@ export async function holdForPull(context: ClaimContext, session: string, pr: nu
  * first, so an unclosed increment is a proposal again (5.29) and back on its arc as work. On its merge (`merged`), each
  * held increment's pending plan changes are applied first, marked with the pull request, as a merge a hook sees applies
  * them (merges.ts, ADR-0966 D4), and outside the log's lock, so no hook waits on a long apply; an apply that fails ends
- * nothing, so the claims stand for the next let-go or a hook's look (5.61). The ids released.
+ * nothing, so the claims stand for the next let-go or a hook's look (5.61). So is each increment whose held claim a
+ * merged line already ended, as a board or hook that saw the merge first but could not apply ends it. The ids released.
  */
 export async function letGo(context: ClaimContext, pr: number, reason: string, { merged = false }: { merged?: boolean } = {}): Promise<string[]> {
   const holder = pullHolder(pr);
   if (merged) {
-    const increments = (await readClaims(context.log, context.project)).filter((claim) => claim.session === holder && claim.increment !== undefined);
-    for (const { increment } of increments) await context.library.applyPending(increment!, `#${pr}`, context.writer);
+    const held = (await readClaims(context.log, context.project)).filter((claim) => claim.session === holder).flatMap((claim) => claim.increment ?? []);
+    const ended = (await context.log.lines(context.project, { kinds: ["merged"], where: { holder }, has: ["increment"] }))
+      .flatMap((line) => (line.kind === "merged" && line.increment !== undefined ? [line.increment] : []));
+    for (const increment of new Set([...held, ...ended])) await context.library.applyPending(increment, `#${pr}`, context.writer);
   }
   return context.log.locked(context.project, async (log) => {
     const held = [...(await heldNow(log, context)).values()].filter((claim) => claim.session === holder)

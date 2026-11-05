@@ -79,7 +79,7 @@ test("3.17 · `arc increment edit --escape-of <pr|increment> --escape-commit <sh
   assert.deepEqual(await escapeOf(), { causedBy: "#1234", commit: "9807a1e", story: story.id });
 
   for (const given of [{ "escape-of": "#99" }, { "escape-story": story.id }, { "escape-commit": "9807a1e" }, { "escape-of": "none", "escape-commit": "9807a1e" }]) {
-    await assert.rejects(verbOf(increment, "edit").act({ increment: fix.id, ...given }, context, WORDS), VerbRefusal);
+    await assert.rejects(verbOf(increment, "edit").act({ increment: fix.id, ...given }, context, WORDS), (error: unknown) => error instanceof VerbRefusal && error.misuse);
   }
   await assert.rejects(verbOf(increment, "edit").act({ increment: fix.id, "escape-of": "#99", "escape-story": story.id }, context, WORDS));
   assert.deepEqual(await escapeOf(), { causedBy: "#1234", commit: "9807a1e", story: story.id }, "nothing written");

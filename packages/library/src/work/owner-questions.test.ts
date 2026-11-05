@@ -92,7 +92,7 @@ for (const backend of [memory, postgres]) {
   };
 
   contract("12.1", "a question is raised with its required fields, and is open", async ({ work, flight, transactions }) => {
-    const arc = await work.createArc(ARC);
+    const arc = await flight.createArc(ARC);
     const question = await flight.raiseQuestion({ arc: arc.id, ...ASK, recommendation: "Mailgun" });
     assert.equal(question.type, "question");
     assert.equal(question.fields.lifecycle, "open");
@@ -113,7 +113,7 @@ for (const backend of [memory, postgres]) {
   });
 
   contract("12.2", "settling needs an answer and keeps it, with the date and the decision that carried it; a settled question stays readable on its arc", async ({ work, flight, knowledge, transactions }) => {
-    const arc = await work.createArc(ARC);
+    const arc = await flight.createArc(ARC);
     const question = await flight.raiseQuestion({ arc: arc.id, ...ASK });
     const decision = await knowledge.recordDecision({ status: "accepted", title: "Send through Mailgun", text: "Its API is the simplest" });
 
@@ -135,7 +135,7 @@ for (const backend of [memory, postgres]) {
   });
 
   contract("12.3", "an open increment held on an open question reads as waiting on the owner; settling takes the question off every increment's heldOn, keeping its other holds; a question that does not exist holds nothing", async ({ work, flight, records, transactions }) => {
-    const arc = await work.createArc(ARC);
+    const arc = await flight.createArc(ARC);
     const question = await flight.raiseQuestion({ arc: arc.id, ...ASK });
     const held = await flight.addIncrement({ arc: arc.id, ...WORK, heldOn: [question.id] });
     assert.deepEqual(await flight.heldOnQuestion(held.id), [question.id]);
@@ -168,7 +168,7 @@ for (const backend of [memory, postgres]) {
   });
 
   contract("12.4", "a question an increment is held on cannot be retired", async ({ work, flight, records, transactions }) => {
-    const arc = await work.createArc(ARC);
+    const arc = await flight.createArc(ARC);
     const question = await flight.raiseQuestion({ arc: arc.id, ...ASK });
     const held = await flight.addIncrement({ arc: arc.id, ...WORK, heldOn: [question.id] });
 
@@ -186,7 +186,7 @@ for (const backend of [memory, postgres]) {
   });
 
   contract("12.9", "retiring a question releases every increment held on it, open or closed, and retires it in one step", async ({ work, flight, records, transactions }) => {
-    const arc = await work.createArc(ARC);
+    const arc = await flight.createArc(ARC);
     const question = await flight.raiseQuestion({ arc: arc.id, ...ASK });
     const other = await flight.raiseQuestion({ arc: arc.id, ...ASK });
     const open = await flight.addIncrement({ arc: arc.id, ...WORK, heldOn: [question.id, other.id] });
@@ -208,7 +208,7 @@ for (const backend of [memory, postgres]) {
   });
 
   contract("12.8", "a question raised on a parked arc is refused, naming the arc, and nothing is written; once its wake day passes, it is raised", async ({ work, flight, transactions }) => {
-    const arc = await work.createArc(ARC);
+    const arc = await flight.createArc(ARC);
     await flight.parkArc(arc.id);
     const history = await transactions.history();
     await assert.rejects(
@@ -238,7 +238,7 @@ for (const backend of [memory, postgres]) {
   };
 
   contract("12.5", "an open question carries a review date and a lease, 7 days unless given; it checks fresh until the lease runs out and lapsed after, and renewing re-stamps it", async ({ work, flight, records }) => {
-    const arc = await work.createArc(ARC);
+    const arc = await flight.createArc(ARC);
     const question = await flight.raiseQuestion({ arc: arc.id, ...ASK });
     assert.equal(question.fields.leaseDays, 7, "the lease is stored, 7 days by default");
     const short = await flight.raiseQuestion({ arc: arc.id, ...ASK, leaseDays: 2 });
@@ -272,7 +272,7 @@ for (const backend of [memory, postgres]) {
   });
 
   contract("12.6", "renewing a settled question is refused, and nothing is written; a settled question checks settled and is never lapsed", async ({ work, flight, transactions }) => {
-    const arc = await work.createArc(ARC);
+    const arc = await flight.createArc(ARC);
     const question = await flight.raiseQuestion({ arc: arc.id, ...ASK, leaseDays: 1 });
     await flight.settleQuestion(question.id, { answer: "Mailgun" });
 
@@ -286,7 +286,7 @@ for (const backend of [memory, postgres]) {
   });
 
   contract("12.7", "an open question's wording is corrected in place, only the named fields; its arc, lifecycle, answer and lease are not edited so, and a settled question's edit is refused with nothing written", async ({ work, flight, transactions }) => {
-    const arc = await work.createArc(ARC);
+    const arc = await flight.createArc(ARC);
     const question = await flight.raiseQuestion({ arc: arc.id, ...ASK, recommendation: "Mailgun" });
 
     const edited = await flight.editQuestion(question.id, { options: "Mailgun, SES or Postmark" });
@@ -306,7 +306,7 @@ for (const backend of [memory, postgres]) {
   });
 
   contract("12.10", "an open question carries the session putting it to the owner, set and cleared in place; settling clears it, and a settled question cannot carry one", async ({ work, flight, transactions }) => {
-    const arc = await work.createArc(ARC);
+    const arc = await flight.createArc(ARC);
     const question = await flight.raiseQuestion({ arc: arc.id, ...ASK });
     const presenting = { session: "session-A", since: "2026-10-10T09:00:00.000Z" };
 
@@ -325,8 +325,8 @@ for (const backend of [memory, postgres]) {
   });
 
   contract("12.11", "an open question moves to another arc in place, keeping its id, wording and holders, the history recording why; a parked arc takes it, and a closed or missing arc, its own arc or a settled question is refused with nothing written", async ({ work, flight, records, transactions }) => {
-    const from = await work.createArc(ARC);
-    const to = await work.createArc(ARC);
+    const from = await flight.createArc(ARC);
+    const to = await flight.createArc(ARC);
     const question = await flight.raiseQuestion({ arc: from.id, ...ASK });
     const held = await flight.addIncrement({ arc: from.id, ...WORK, heldOn: [question.id] });
 
@@ -340,23 +340,23 @@ for (const backend of [memory, postgres]) {
     assert.equal(last?.reason, "asked under the launch arc", "the history keeps why it moved");
     assert.equal(last?.actor, "agent-m");
 
-    // Moving the last open question off an arc whose work is done closes it, clearing the waits on it (11.8).
-    const finished = await work.createArc(ARC);
+    // Moving the last open question off an arc whose work is done closes it, clearing the waits on it (10.33).
+    const finished = await flight.createArc(ARC);
     const shipped = await flight.addIncrement({ arc: finished.id, ...WORK });
     await flight.closeIncrement(shipped.id, { pr: "#2", disposition: "landed" });
     const lastAsk = await flight.raiseQuestion({ arc: finished.id, ...ASK });
-    const waiter = await work.createArc(ARC);
+    const waiter = await flight.createArc(ARC);
     await flight.addWait(waiter.id, finished.id, "after the finished arc");
     await flight.moveQuestion(lastAsk.id, to.id, "still asked, under the launch");
     assert.equal((await flight.arcView(finished.id))?.state, "closed");
     assert.equal(((await records.get(waiter.id))?.fields as { waits?: unknown } | undefined)?.waits, undefined, "the wait on the arc it closed is cleared");
 
     // A parked arc raises no questions, but a moved one parks with it (ADR-0835 D2).
-    const parked = await work.createArc(ARC);
+    const parked = await flight.createArc(ARC);
     await flight.parkArc(parked.id);
     assert.equal((await flight.moveQuestion(question.id, parked.id, "waits with the parked work"))?.fields.arc, parked.id);
 
-    const closed = await work.createArc(ARC);
+    const closed = await flight.createArc(ARC);
     const done = await flight.addIncrement({ arc: closed.id, ...WORK });
     await flight.closeIncrement(done.id, { pr: "#1", disposition: "landed" });
     const settledQuestion = await flight.raiseQuestion({ arc: to.id, ...ASK });
@@ -371,7 +371,7 @@ for (const backend of [memory, postgres]) {
   });
 
   contract("12.12", "an open question takes a would-be answer, stamped with its time; a later one replaces it while open, and a settled question refuses one", async ({ work, flight, transactions }) => {
-    const arc = await work.createArc(ARC);
+    const arc = await flight.createArc(ARC);
     const question = await flight.raiseQuestion({ arc: arc.id, ...ASK, recommendation: "Mailgun" });
     assert.equal(await flight.questionPrediction(question.id), null, "none until one is recorded");
 
@@ -403,7 +403,7 @@ for (const backend of [memory, postgres]) {
   });
 
   contract("12.13", "a settled question takes one score, for its would-be answer and its raiser's recommendation, with who scored it and when; an open or already scored question refuses it", async ({ work, flight, transactions }) => {
-    const arc = await work.createArc(ARC);
+    const arc = await flight.createArc(ARC);
     const question = await flight.raiseQuestion({ arc: arc.id, ...ASK, recommendation: "Mailgun" });
     await flight.predictQuestion(question.id, { pick: 2, confidence: "medium", why: "SES is cheaper" });
 
@@ -433,7 +433,7 @@ for (const backend of [memory, postgres]) {
   });
 
   contract("12.15", "an open question carries a prep mark, set in place: when and its stance, with the reason; edited after its mark it reads unprepared, and settling keeps the mark", async ({ work, flight, transactions }) => {
-    const arc = await work.createArc(ARC);
+    const arc = await flight.createArc(ARC);
     const question = await flight.raiseQuestion({ arc: arc.id, ...ASK, recommendation: "Mailgun" });
 
     const history = await transactions.history();
@@ -461,8 +461,8 @@ for (const backend of [memory, postgres]) {
   });
 
   contract("12.16", "the lapsed list holds only open questions whose lease has lapsed, across every arc, longest lapsed first; fresh and settled ones are left out, and gathering it neither settles nor renews one", async ({ work, flight, transactions }) => {
-    const launch = await work.createArc(ARC);
-    const polish = await work.createArc({ title: "Polish", intent: "Tidy", endState: "Tidy" });
+    const launch = await flight.createArc(ARC);
+    const polish = await flight.createArc({ title: "Polish", intent: "Tidy", endState: "Tidy" });
     const first = await flight.raiseQuestion({ arc: polish.id, ...ASK, title: "Which font?", leaseDays: 3 });
     const settled = await flight.raiseQuestion({ arc: launch.id, ...ASK, leaseDays: 1 });
     const second = await flight.raiseQuestion({ arc: launch.id, ...ASK, title: "Which host?", leaseDays: 1 });

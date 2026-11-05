@@ -1,5 +1,5 @@
 /**
- * Capability 4 · Work model: one test per contract 4.1-4.13 (4.9 is in library-api.test.ts) in the library story, each run on
+ * Capability 4 · Work model: one test per contract of 4 but its pending plan changes (pending-changes.test.ts; 4.9 is in library-api.test.ts) in the library story, each run on
  * BOTH backends, as capabilities 2 and 3 are:
  *
  * - memory: a WorkModel over SchemaRecords over a fresh MemoryTransactions;
@@ -210,57 +210,12 @@ for (const backend of [memory, postgres]) {
     });
   });
 
-  contract("4.2", "an arc listing a story is returned by arcsFor(storyId), and an arc listing no stories is accepted", async ({ work, records, transactions }) => {
-    const story = await work.addStory({ title: "Visitor can sign up" });
-    const other = await work.addStory({ title: "Visitor can sign in" });
-    const unlisted = await work.addStory({ title: "Visitor can leave" });
-
-    // Arcs listing no stories, as a research arc may: with no stories field, and with an empty list.
-    const research = await work.createArc({ title: "Research: pricing", intent: "An intent", endState: "An end state" });
-    await assertCreated(transactions, research, "arc", { title: "Research: pricing" , intent: "An intent", endState: "An end state"});
-    await laterThan(research);
-    const spike = await work.createArc({ title: "Spike", intent: "An intent", endState: "An end state", description: "Nothing to grow yet", stories: [] });
-    await assertCreated(transactions, spike, "arc", { title: "Spike", intent: "An intent", endState: "An end state", description: "Nothing to grow yet", stories: [] });
-    await laterThan(spike);
-
-    // Arcs listing the story (one of them lists another story first), created in an order that is
-    // not their ids' order; then an arc listing only the other story.
-    const launches = await createInOrder(3, (n) =>
-      work.createArc({ title: `Launch ${n}`, intent: "An intent", endState: "An end state", stories: n === 1 ? [other.id, story.id] : [story.id] }),
-    );
-    const both = at(launches, 1);
-    await assertCreated(transactions, both, "arc", { title: "Launch 1", intent: "An intent", endState: "An end state", stories: [other.id, story.id] });
-    const invite = await work.createArc({ title: "Invite friends", intent: "An intent", endState: "An end state", stories: [other.id] });
-
-    assert.deepEqual(await work.arcsFor(story.id), launches, "every arc listing the story, as stored, in creation order");
-    assert.deepEqual(await work.arcsFor(other.id), [both, invite]);
-    assert.deepEqual(await work.arcsFor(unlisted.id), [], "a story no arc lists");
-    assert.deepEqual(await work.arcsFor(NO_STORY), [], "an id naming no story");
-
-    // The tree lists every arc, in creation order, with the stories each one lists.
-    assert.deepEqual((await work.projectTree()).arcs, [
-      { id: research.id, title: "Research: pricing", stories: [] },
-      { id: spike.id, title: "Spike", description: "Nothing to grow yet", stories: [] },
-      ...launches.map((arc, n) => ({ id: arc.id, title: `Launch ${n}`, stories: n === 1 ? [other.id, story.id] : [story.id] })),
-      { id: invite.id, title: "Invite friends", stories: [other.id] },
-    ]);
-
-    // A retired arc no longer lists anything.
-    await records.retire(at(launches, 0).id, "folded into Launch 1");
-    assert.deepEqual(await work.arcsFor(story.id), launches.slice(1));
-
-    // An arc's id is the library's own, as every record's is: an id in the input is refused.
-    const before = await transactions.history();
-    await assert.rejects(work.createArc(untyped({ id: both.id, title: "Replaced?", intent: "An intent", endState: "An end state" })), schemaError("arc", ["id"]));
-    assert.deepEqual(await transactions.history(), before, "nothing was written");
-  });
-
-  contract("4.3", "a capability naming a missing or retired story is refused, as is a contract naming a missing capability and an arc listing a missing story", async ({ work, records, transactions }) => {
+  contract("4.3", "a capability naming a missing or retired story is refused, as is a contract naming a missing capability", async ({ work, records, transactions }) => {
     const story = await work.addStory({ title: "Visitor can sign up" });
     const elsewhere = await work.addStory({ title: "Visitor can sign in" });
     const capability = await work.addCapability({ title: "Email form", story: story.id });
     const contract = await work.addContract({ title: "Rejects a bad email", capability: capability.id });
-    const arc = await work.createArc({ title: "Launch v1", intent: "An intent", endState: "An end state", stories: [story.id] });
+    const arc = await records.create("arc", { title: "Launch v1", intent: "An intent", endState: "An end state", stories: [story.id] });
     const retiredStory = await work.addStory({ title: "Visitor can pay" });
     const retiredCapability = await work.addCapability({ title: "Card form", story: story.id });
     await records.retire(retiredStory.id, "out of scope");
@@ -284,16 +239,6 @@ for (const backend of [memory, postgres]) {
       [() => work.addContract({ title: "Rejects a bad email", capability: retiredCapability.id }), "capability", retiredCapability.id],
       [() => work.addContract({ title: "Rejects a bad email", capability: story.id }), "capability", story.id, "story"],
       [() => work.addContract({ title: "Rejects a bad email", capability: contract.id }), "capability", contract.id, "contract"],
-      // An arc listing a story that is missing, retired, or not a story, even among good ones:
-      // the first bad one is named.
-      [() => work.createArc({ title: "Launch v2", intent: "An intent", endState: "An end state", stories: [NO_STORY] }), "stories", NO_STORY],
-      [() => work.createArc({ title: "Launch v2", intent: "An intent", endState: "An end state", stories: [story.id, retiredStory.id] }), "stories", retiredStory.id],
-      [
-        () => work.createArc({ title: "Launch v2", intent: "An intent", endState: "An end state", stories: [story.id, elsewhere.id, capability.id, NO_STORY] }),
-        "stories",
-        capability.id,
-        "capability",
-      ],
     ];
     for (const [attempt, field, id, found] of refused) {
       await assert.rejects(attempt(), missingReference(field, id, found));
@@ -306,7 +251,6 @@ for (const backend of [memory, postgres]) {
       await assert.rejects(work.addCapability({ title: "Email form", story: bad }), schemaError("capability", ["story"]));
       await assert.rejects(work.editCapability(capability.id, { story: bad }), schemaError("capability", ["story"]));
       await assert.rejects(work.addContract({ title: "Rejects a bad email", capability: bad }), schemaError("contract", ["capability"]));
-      await assert.rejects(work.createArc({ title: "Launch v2", intent: "An intent", endState: "An end state", stories: [story.id, bad] }), schemaError("arc", ["stories"]));
     }
     assert.deepEqual(await transactions.history(), before, "none of them wrote anything");
 
@@ -325,8 +269,6 @@ for (const backend of [memory, postgres]) {
     await assertCreated(transactions, second, "capability", { title: "2 · Password rules", story: elsewhere.id, proposed: true });
     const covered = await work.addContract({ title: "Refuses a short password", capability: second.id });
     await assertCreated(transactions, covered, "contract", { title: "2.1 · Refuses a short password", capability: second.id });
-    const launch = await work.createArc({ title: "Launch v2", intent: "An intent", endState: "An end state", stories: [story.id, elsewhere.id] });
-    await assertCreated(transactions, launch, "arc", { title: "Launch v2", intent: "An intent", endState: "An end state", stories: [story.id, elsewhere.id] });
   });
 
   contract("4.4", "a capability depending on a capability that does not exist is refused", async ({ work, records, transactions }) => {

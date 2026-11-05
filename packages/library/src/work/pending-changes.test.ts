@@ -78,7 +78,7 @@ for (const backend of [memory, postgres]) {
     });
   };
   contract("4.28", "an active increment takes a pending change to a story, capability or contract it did not plan, leaving the live record alone; a second change merges; one another open increment holds is refused naming it", async ({ work, flight, records, transactions }) => {
-    const arc = await work.createArc(ARC);
+    const arc = await flight.createArc(ARC);
     const story = await work.addStory({ title: "Visitor can sign up" });
     const form = await work.addCapability({ title: "Email form", story: story.id });
     const promise = await work.addContract({ title: "Accepts a valid address", capability: form.id });
@@ -119,7 +119,7 @@ for (const backend of [memory, postgres]) {
   });
 
   contract("4.29", "an increment's branch reads the plan with its pending changes laid over, every other reader the live plan; a pending change whose record has changed since it was read is named stale with the entry that moved it", async ({ work, flight, transactions }) => {
-    const arc = await work.createArc(ARC);
+    const arc = await flight.createArc(ARC);
     const story = await work.addStory({ title: "Visitor can sign up" });
     const other = await work.addStory({ title: "Visitor can sign in" });
     const form = await work.addCapability({ title: "Email form", story: story.id, description: "Where they type it" });
@@ -157,7 +157,7 @@ for (const backend of [memory, postgres]) {
   });
 
   contract("4.30", "pending changes apply through the editors when the increment lands, marked with the pull request; stale or refused ones are parked as residue on its arc; applying again applies nothing twice", async ({ work, flight, records, transactions }) => {
-    const arc = await work.createArc(ARC);
+    const arc = await flight.createArc(ARC);
     const story = await work.addStory({ title: "Visitor can sign up" });
     const form = await work.addCapability({ title: "1 · Email form", story: story.id });
     const link = await work.addCapability({ title: "2 · Confirmation link", story: story.id });
@@ -195,7 +195,7 @@ for (const backend of [memory, postgres]) {
   });
 
   contract("4.30", "a landed close applies the pending changes first; a change already applied under the same mark, as after a crash part-way, counts as applied, not stale", async ({ work, flight, records }) => {
-    const arc = await work.createArc(ARC);
+    const arc = await flight.createArc(ARC);
     const story = await work.addStory({ title: "Visitor can sign up" });
     const form = await work.addCapability({ title: "Email form", story: story.id });
     const link = await work.addCapability({ title: "Confirmation link", story: story.id });
@@ -213,7 +213,7 @@ for (const backend of [memory, postgres]) {
   });
 
   contract("4.30", "a second change pended to a record on top of the increment's own earlier apply applies at the next merge, not counted applied while the record stays as it was", async ({ work, flight, records }) => {
-    const arc = await work.createArc(ARC);
+    const arc = await flight.createArc(ARC);
     const story = await work.addStory({ title: "Visitor can sign up" });
     const form = await work.addCapability({ title: "1 · Email form", story: story.id });
     const increment = await flight.addIncrement({ arc: arc.id, ...WORK });
@@ -228,7 +228,7 @@ for (const backend of [memory, postgres]) {
   });
 
   contract("4.34", "an apply cut off part-way, as a hook's deadline cuts it, leaves pending only the changes it had not applied; the gate reads none it applied as stale, and the next apply finishes the rest", async ({ work, flight, records }) => {
-    const arc = await work.createArc(ARC);
+    const arc = await flight.createArc(ARC);
     const story = await work.addStory({ title: "Visitor can sign up" });
     const form = await work.addCapability({ title: "1 · Email form", story: story.id });
     const link = await work.addCapability({ title: "2 · Confirmation link", story: story.id });
@@ -265,7 +265,7 @@ for (const backend of [memory, postgres]) {
   });
 
   contract("4.30", "a live write since a pending edit was read stales it only when it moved a field the edit sets: marking the capability built leaves its pending description to apply at the landing", async ({ work, flight, records, transactions }) => {
-    const arc = await work.createArc(ARC);
+    const arc = await flight.createArc(ARC);
     const story = await work.addStory({ title: "Visitor can sign up" });
     const form = await work.addCapability({ title: "Email form", story: story.id, description: "Where they type it" });
     const increment = await flight.addIncrement({ arc: arc.id, ...WORK });
@@ -290,7 +290,7 @@ for (const backend of [memory, postgres]) {
   });
 
   contract("4.31", "an increment closed failed or withdrawn drops its pending changes, its history saying so, and the live plan is left as it was", async ({ work, flight, records, transactions }) => {
-    const arc = await work.createArc(ARC);
+    const arc = await flight.createArc(ARC);
     const story = await work.addStory({ title: "Visitor can sign up" });
     const form = await work.addCapability({ title: "Email form", story: story.id });
     for (const disposition of ["failed", "withdrawn"] as const) {
@@ -305,7 +305,7 @@ for (const backend of [memory, postgres]) {
   });
 
   contract("4.33", "an open increment drops one pending change by its record, with a reason, its history saying so and the live plan left as it was; a record it holds no change for, or a closed increment, is refused with nothing written", async ({ work, flight, records, transactions }) => {
-    const arc = await work.createArc(ARC);
+    const arc = await flight.createArc(ARC);
     const story = await work.addStory({ title: "Visitor can sign up" });
     const form = await work.addCapability({ title: "Email form", story: story.id });
     const link = await work.addCapability({ title: "Confirmation link", story: story.id });
@@ -333,7 +333,7 @@ for (const backend of [memory, postgres]) {
   });
 
   contract("4.35", "a pending edit to a plugin's story, capability or contract is refused before it is staged, naming the plugin's plan file, with nothing written, while another story's record still pends", async ({ work, flight, records, transactions }) => {
-    const arc = await work.createArc(ARC);
+    const arc = await flight.createArc(ARC);
     const plugin = await work.importPluginPlan("voice", {
       story: { title: "Voice" },
       capabilities: [{ title: "1 · The address", proposed: true, contracts: [{ title: "1.1 · A wrong path is answered 404" }] }],
@@ -358,7 +358,7 @@ for (const backend of [memory, postgres]) {
   });
 
   contract("4.32", "settling closed increments' leftover pending changes applies those of each that landed and drops those of each that did not, and finds nothing the second time", async ({ work, flight, records, transactions }) => {
-    const arc = await work.createArc(ARC);
+    const arc = await flight.createArc(ARC);
     const story = await work.addStory({ title: "Visitor can sign up" });
     const form = await work.addCapability({ title: "Email form", story: story.id });
     const link = await work.addCapability({ title: "Confirmation link", story: story.id });

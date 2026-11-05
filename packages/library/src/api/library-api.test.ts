@@ -166,7 +166,7 @@ const LIBRARY_API = [
  * saying what to fix, so a caller catches every such refusal by its class. MissingUpgradeError
  * joined it with schema upgrades: how a record no upgrade step can bring up to date is refused.
  * LifecycleError joined it with capability 10: how an increment asked to move backward is refused,
- * WaitLoopError with capability 11: how a wait that would close a loop is refused, and
+ * WaitLoopError with capability 11, whose wait writes are capability 10's since ADR-1242 D2: how a wait that would close a loop is refused, and
  * RetireRefusedError with capability 12: how retiring a question work is held on is refused.
  * NumberTakenError and SupersessionLoopError joined it with capability 13: how a decision number
  * already held, and a decision superseding itself, are refused. LinkLoopError joined it with

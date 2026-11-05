@@ -23,8 +23,8 @@ for (const backend of ["memory", "postgres", "public postgres"] as const) {
       const records = project?.records ?? new SchemaRecords(new MemoryTransactions());
       const lib = await api?.openProject(name);
       const reader = lib ?? records;
-      const work: Pick<Library, "addStory" | "editStory" | "createArc" | "editArc" | "addCapability" | "editCapability" | "addContract" | "editContract"> = lib ?? project?.work ?? new WorkModel(records);
-      const flight: Pick<Library, "addIncrement" | "advanceIncrement" | "closeIncrement" | "editIncrement" | "parkArc" | "unparkArc" | "addWait" | "removeWait" | "raiseQuestion" | "settleQuestion" | "retire"> = lib ?? project?.flight ?? new WorkInFlight(records);
+      const work: Pick<Library, "addStory" | "editStory" | "addCapability" | "editCapability" | "addContract" | "editContract"> = lib ?? project?.work ?? new WorkModel(records);
+      const flight: Pick<Library, "createArc" | "editArc" | "addIncrement" | "advanceIncrement" | "closeIncrement" | "editIncrement" | "parkArc" | "unparkArc" | "addWait" | "removeWait" | "raiseQuestion" | "settleQuestion" | "retire"> = lib ?? project?.flight ?? new WorkInFlight(records);
       const knowledge: Pick<Library, "recordDecision" | "defineTerm" | "writeKnowledge" | "editNote" | "composeStatement"> = lib ?? project?.knowledge ?? new Knowledge(records);
       const health = lib ?? project?.health ?? new HealthRecord(records, new WorkModel(records));
 
@@ -33,8 +33,8 @@ for (const backend of ["memory", "postgres", "public postgres"] as const) {
         const before = (await reader.history()).at(-1)?.seq ?? 0;
         const story = await work.addStory({ title: "Sign up" }, options);
         await work.editStory(story.id, { description: "Visitors join." }, options);
-        const arc = await work.createArc({ title: "Launch", intent: "Ship sign-up", endState: "Visitors join" }, options);
-        await work.editArc(arc.id, { stories: [story.id] }, options);
+        const arc = await flight.createArc({ title: "Launch", intent: "Ship sign-up", endState: "Visitors join" }, options);
+        await flight.editArc(arc.id, { stories: [story.id] }, options);
         const capability = await work.addCapability({ title: "Email form", story: story.id }, options);
         await work.editCapability(capability.id, { description: "Enter an email." }, options);
         const contract = await work.addContract({ title: "Reject a bad email", capability: capability.id }, options);
@@ -45,7 +45,7 @@ for (const backend of ["memory", "postgres", "public postgres"] as const) {
         await flight.closeIncrement(increment.id, { disposition: "landed", pr: "#12" }, options);
         await flight.parkArc(arc.id, options);
         await flight.unparkArc(arc.id, options);
-        const blocker = await work.createArc({ title: "Mailer", intent: "Send emails", endState: "Emails arrive" }, options);
+        const blocker = await flight.createArc({ title: "Mailer", intent: "Send emails", endState: "Emails arrive" }, options);
         await flight.addWait(arc.id, blocker.id, "Needs mail", options);
         await flight.removeWait(arc.id, blocker.id, options);
         const question = await flight.raiseQuestion({ arc: arc.id, title: "Mailer?", stakes: "Delivery", statement: "Which mailer?", context: "Sign-up", options: "Mailgun" }, options);

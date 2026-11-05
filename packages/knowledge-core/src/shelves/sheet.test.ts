@@ -1,7 +1,7 @@
 /** Capability 1 under the glass sheet: each note is pulled toward every island its links reach, unlinked ones lie on a sea floor (ADR-1063). */
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { knowledge, selectedLinks, sheetLayout, sheetLit, sheetPoints, underShelves } from "@storytree/knowledge-core";
+import { knowledge, sheetLayout, sheetLit, sheetPoints, sheetRoots, underShelves } from "@storytree/knowledge-core";
 import { History } from "../testing/changes.js";
 
 const shelves = new Map([["west", { x: -100, y: 20 }], ["east", { x: 100, y: -10 }], ["cap", { x: 130, y: -30 }]]);
@@ -15,7 +15,7 @@ const hang = (history: History) => {
 };
 const islands = () => new History().story("west").story("east").capability("cap", "east");
 
-test("1.10 under the glass sheet a note one island's links reach hangs beneath it, a step deeper per depth, a note citing hung knowledge one step below the deepest it cites, and each stored link between two drawn notes is one line", () => {
+test("1.10 under the glass sheet a note one island's links reach hangs beneath it, a step deeper per depth, a note citing hung knowledge one step below the deepest it cites, and each stored link between two drawn notes is named once", () => {
   const history = islands()
     .decision("deep")
     .decision("middle", { links: ["deep"] })
@@ -107,11 +107,14 @@ test("1.15 selecting a story lights every note pulled toward its island, includi
   assert.deepEqual([...sheetLit(points, "west", node => stories.get(node))].sort(), ["bridge", "w1"]);
 });
 
-test("1.11 under the glass sheet no links show at rest; selecting a story shows exactly the links that touch its notes (ADR-1061 D3)", () => {
-  const links: [string, string][] = [["a1", "a2"], ["a2", "b1"], ["b1", "b2"], ["c1", "a1"]];
-  assert.deepEqual(selectedLinks(links, undefined), [], "none at rest");
-  assert.deepEqual(selectedLinks(links, new Set(["a1", "a2"])), [["a1", "a2"], ["a2", "b1"], ["c1", "a1"]], "the selected story's, and only those");
-  assert.deepEqual(selectedLinks(links, new Set()), [], "a story with no notes shows none");
+test("1.11 under the glass sheet no links show, at rest or with a story selected; each of the selected story's notes hangs on a root straight up to the sheet, and no other note does", () => {
+  const points = [{ id: "a1", at: { x: 10, y: -4, z: -13 } }, { id: "a2", at: { x: -3, y: 8, z: -20 } }, { id: "b1", at: { x: 40, y: 2, z: -6 } }];
+  assert.deepEqual(sheetRoots(points, undefined), [], "none with nothing selected");
+  assert.deepEqual(sheetRoots(points, new Set(["a1", "a2", "gone"])), [
+    [{ x: 10, y: -4, z: -13 }, { x: 10, y: -4, z: 0 }],
+    [{ x: -3, y: 8, z: -20 }, { x: -3, y: 8, z: 0 }],
+  ], "the selected story's notes, each from where it hangs to the sheet straight above it");
+  assert.deepEqual(sheetRoots(points, new Set()), [], "a story with no notes has none");
 });
 
 test("1.16 the sheet read again after news that changes nothing it lays out keeps its layout, and lays out again when a link, a note or a shelf moves", () => {

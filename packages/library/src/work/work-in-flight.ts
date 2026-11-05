@@ -662,9 +662,11 @@ export class WorkInFlight {
 
   /**
    * Create an arc. Every story it lists must be a live story (MissingReferenceError otherwise,
-   * naming the first one that is not); it may list none at all.
+   * naming the first one that is not); it may list none at all. Given an `id`, it is made under that id, and with
+   * `onlyIfNew` only if no record ever held it, retired ones included (RangeError otherwise): a standing arc storytree
+   * makes once per project (ADR-1266 D2).
    */
-  createArc(arc: NewArc, options?: WriteOptions): Promise<SchemaRecord<"arc">> {
+  createArc(arc: NewArc, options?: WriteOptions & { readonly id?: string; readonly onlyIfNew?: boolean }): Promise<SchemaRecord<"arc">> {
     return this.#serially(async () => {
       await checkReferences(this.#records, "stories", arc.stories, "story");
       return this.#records.create("arc", arc, options);

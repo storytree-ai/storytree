@@ -122,7 +122,7 @@ test("17.18 · Session management declares record_friction, reinforce, record_re
   });
 });
 
-test("17.19 · Friction marked about storytree answers with a pre-filled GitHub issue draft for the user to review and submit, the paths and project name stripped; storytree sends nothing", async () => {
+test("17.19 · Friction marked about storytree is kept in the user's library and its reply carries a pre-filled GitHub issue draft, the paths and project name stripped, without telling the agent to offer it; storytree sends nothing", async () => {
   await withLibrary(async (library) => {
     await onBranch(library, "main", async (context) => {
       const project = { ...context, project: "acme-shop" };
@@ -149,7 +149,8 @@ test("17.19 · Friction marked about storytree answers with a pre-filled GitHub 
         assert.ok(!told.includes(context.folder) && !told.includes(homedir()), "the project's folder and the home folder are stripped");
         assert.doesNotMatch(told, /\/opt\//, "other absolute paths are stripped");
       }
-      assert.match(filed.text, /submit/i, "the agent is told the user submits it");
+      assert.doesNotMatch(filed.text, /\boffer/i, "the agent is not told to offer the draft per filing (ADR-1270 D2)");
+      assert.match(filed.text, /the user's call/i, "the agent is told sending it is the user's call");
       assert.deepEqual((filed.data as { issueDraft?: string }).issueDraft, link);
 
       const plain = await verbNamed("new").act({ title: "Plain", description: "Plain", statement: "Plain", evidence: "src/mail.ts: TimeoutError after 30 seconds", impact: "Plain", "none-match": true }, project, WORDS);

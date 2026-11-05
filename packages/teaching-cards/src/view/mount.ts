@@ -144,8 +144,14 @@ export function mountTeaching(host: HTMLElement, { journal, locate, reading = ()
   };
   return {
     take(reading) {
+      const found = encounters(reading);
+      // The empty-map tip is wrong once the map holds an island (an import's included): gone, shown or waiting.
+      if (!found.some(one => one.kind === "empty") && !reading.factory) {
+        waiting.splice(0, waiting.length, ...waiting.filter(one => one.kind !== "empty"));
+        if (shown?.found.kind === "empty") { shown.card.remove(); shown = undefined; }
+      }
       const queued = (kind: Kind) => shown?.found.kind === kind || waiting.some(one => one.kind === kind);
-      waiting.push(...journal.unseen(encounters(reading)).filter(one => !queued(one.kind)));
+      waiting.push(...journal.unseen(found).filter(one => !queued(one.kind)));
       if (shown === undefined) next();
       else place();
     },

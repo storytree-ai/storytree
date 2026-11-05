@@ -90,7 +90,13 @@ test("4.39 the legend's fills are the territories' fills by word, parked, mapped
 
 test("4.39 the legend shows each of the six settlement kinds and the sea lanes in their pale blue, in the story panel", () => {
   const html = renderMapLegend();
-  for (const kind of Object.keys(GLYPHS)) assert.ok(html.includes(`data-kind="${kind}"`), `the ${kind} symbol`);
+  for (const [kind, { parts, lines }] of Object.entries(GLYPHS)) {
+    const mark = new RegExp(`data-kind="${kind}">(<svg[\\s\\S]*?</svg>)`).exec(html)?.[1] ?? "";
+    // As the island draws it: each closed shape filled with paper, each line an open stroke over them.
+    const paths = [...mark.matchAll(/<path d="([^"]*)" fill="([^"]*)"/g)].map(([, d, fill]) => ({ closed: d!.endsWith("Z"), filled: fill !== "none" }));
+    assert.equal(paths.filter(({ closed, filled }) => closed && filled).length, parts.length, `the ${kind} symbol's shapes`);
+    assert.equal(paths.filter(({ closed, filled }) => !closed && !filled).length, lines.length, `the ${kind} symbol's lines`);
+  }
   assert.ok(MAP_LEGEND.some(({ at, mark }) => at === "sea" && mark.includes(SEA_LANE)), "the lane's colour");
   const panel = renderStoryPanel({ id: "s", title: "S", description: "d", capabilities: [] } as unknown as Parameters<typeof renderStoryPanel>[0], undefined);
   assert.ok(panel.includes(html), "the panel carries the legend");

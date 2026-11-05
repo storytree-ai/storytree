@@ -20,3 +20,5 @@ Pictures, 1440 x 960:
 - `the-library-selected-on-main.png`: `main` before this branch, the same view (16 lanes, the longest 537).
 
 Taken with `node --import tsx packages/forest/testing/view/sea-lanes/capture.mjs` (append `--retake` to write here).
+
+In the evidence bucket for #510, linked from the pull request body (ADR-1234; deleted after 90 days or when its arc closes): `510/the-library-selected.png`, `510/the-library-selected-on-main.png`.

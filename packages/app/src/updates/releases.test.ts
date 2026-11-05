@@ -183,7 +183,6 @@ for (const platform of PLATFORMS) {
     assert.equal(await applying, "restarting");
     assert.deepEqual(events, ["stopping", "stopped", "installer", "exit"]);
     if (platform === "win32") {
-      assert.deepEqual(target?.args, ["--updated", "/S", "--force-run"]);
       assert.deepEqual(await readFile(target!.execPath), feed.installer);
     } else if (platform === "linux") {
       // The AppImage file was replaced in place, and the restart starts it; nothing ran it before the database stopped.
@@ -256,6 +255,16 @@ for (const platform of PLATFORMS) {
     });
   }
 }
+
+test("4.40 win32: a release installs through its installer's own progress window, as an update that starts the new build", async (t) => {
+  const feed = await fixture(t, "win32");
+  let target: Launch | undefined;
+  const lifecycle = background({ stopDatabase: async () => {}, relaunch: (next) => { target = next; }, exit: () => {} });
+  feed.version = "0.3.2";
+  assert.equal(await feed.updater(lifecycle.restart, async () => true).check(), "restarting");
+  // Without /S the one-click installer shows its progress; --updated skips its "app is running" question, --force-run starts the new build.
+  assert.deepEqual(target?.args, ["--updated", "--force-run"]);
+});
 
 test("4.4 linux: an AppImage its menu entry started with --no-sandbox, where the kernel blocks the sandbox, restarts the replaced AppImage with it", hostRuns("linux"), async (t) => {
   const feed = await fixture(t, "linux");

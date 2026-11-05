@@ -48,7 +48,8 @@ class NsisRelease extends NsisUpdater {
 
   /** Resolves once the handoff has stopped the app; rejects if the install could not start. */
   async installRelease(): Promise<void> {
-    if (!this.install(true, true)) throw new Error("The downloaded release could not be installed");
+    // Not silent, so the one-click installer shows its progress window (4.40); --updated skips its "app is running" question.
+    if (!this.install(false, true)) throw new Error("The downloaded release could not be installed");
     await this.started;
   }
 

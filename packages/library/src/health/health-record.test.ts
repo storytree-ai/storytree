@@ -687,7 +687,9 @@ for (const backend of [memory, postgres]) {
     const other = await work.addCapability({ title: "Elsewhere", story: story.id });
     const arc = await flight.createArc({ title: "Launch v1", intent: "An intent", endState: "An end state", stories: [story.id] });
     const add = async (title: string, capabilities: string[]) => {
-      const increment = await flight.addIncrement({ arc: arc.id, title, objective: "Test it", body: "Red then green", capabilities });
+      // Listed by an edit, which a park's one-open-increment-per-capability refusal (10.35) does not stop.
+      const increment = await flight.addIncrement({ arc: arc.id, title, objective: "Test it", body: "Red then green" });
+      await flight.editIncrement(increment.id, { capabilities });
       await later();
       return increment;
     };

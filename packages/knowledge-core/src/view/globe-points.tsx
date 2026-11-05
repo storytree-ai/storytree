@@ -1,7 +1,6 @@
 /** Capability 4 · Look inside and inspect an artifact. */
 import type { GlobePoint } from "../shelves/positions.js";
 import { noteMoments, noteShown } from "../shelves/growing.js";
-import { selectedLinks } from "../shelves/sheet.js";
 import type { RecordEnvelope } from "@storytree/library";
 import { Billboard } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
@@ -27,6 +26,26 @@ const noteState = (window: WindowView | undefined, id: string): "in-window" | "f
   window?.notes.has(id) ? "in-window" : window?.faded.has(id) ? "faded" : window?.glimpsed.has(id) ? "glimpsed" : null;
 const lighter = (colour: string): string => `#${new Color(colour).lerp(new Color("#ffffff"), 0.55).getHexString()}`;
 
+/** How much of its plain opacity a quiet note keeps: another story's, with one selected, is a faint backdrop (ADR-1260 D3). */
+const QUIET = 0.12;
+
+/**
+ * A dot's opacity: a selected session's open read or window note full, a compacted read lighter, a glimpse fainter (ADR-0756);
+ * with a session lighting notes the rest dim; and a quiet note no session marks fades to a faint backdrop (ADR-1260 D3).
+ */
+export function dotOpacity({ state, lit, anyLit, quiet }: { state: ReturnType<typeof noteState>; lit: boolean; anyLit: boolean; quiet: boolean }): number {
+  const plain = state === "glimpsed" && !lit ? 0.4 : state === "faded" ? 0.8 : lit || state === "in-window" ? 1 : anyLit ? 0.3 : 0.52;
+  return quiet && !lit && state === null ? plain * QUIET : plain;
+}
+
+/**
+ * A ball lit by the sheet's lights (ADR-1260 D4): soft light all round and a lamp near the eye together give about two and a
+ * half times a colour, so its own colour is taken down to show at about full on its lit side, with a glow keeping its far side.
+ */
+const SHADED = { body: 0.4, glow: 0.15 };
+const shadedBody = (colour: string): Color => new Color(colour).multiplyScalar(SHADED.body);
+const shadedGlow = (colour: string): Color => new Color(colour).multiplyScalar(SHADED.glow);
+
 const reducedMotion = (): boolean => typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
 const trailKey = (trail: Trail) => `${trail.colour} ${trail.from} ${trail.to}`;
 
@@ -34,10 +53,12 @@ const trailKey = (trail: Trail) => `${trail.colour} ${trail.from} ${trail.to}`;
 export interface CoreGrowth { now(): number; moment(date: string): number }
 
 /** Mesh raycasts stay disabled: the globe picks these small dots in screen space. */
-export function GlobePoints({ points, radius, notes, sizes, lit = new Map(), trails = [], window, replay = false, growth: grows, quiet }: {
+export function GlobePoints({ points, radius, notes, sizes, lit = new Map(), trails = [], window, replay = false, growth: grows, quiet, shaded = false }: {
   points: readonly GlobePoint[]; radius: number; notes: ReadonlyMap<string, RecordEnvelope>;
   /** Notes drawn quieter than the rest: on the glass sheet, every note but the selected story's (ADR-1043 D3). */
   quiet?: ReadonlySet<string> | undefined;
+  /** Draw each dot as a ball lit by the scene's lights, as under the glass sheet (ADR-1260 D4); flat otherwise. */
+  shaded?: boolean;
   /** Each note's dot radius, as a fraction of the globe's, from how widely it is read (ADR-0926); the floor for one not given. */
   sizes?: ReadonlyMap<string, number> | undefined;
   /** Notes the selected session read, each in the colour of the agent that read it (ADR-0738 D5). */
@@ -144,16 +165,20 @@ export function GlobePoints({ points, radius, notes, sizes, lit = new Map(), tra
       // An open read wears its reader's colour, or the session's; a compacted one is lighter; a glimpse is the session's, faint (ADR-0756).
       // A dot no session colours wears its kind's colour (capability 5, D3).
       const colour = dotColour(notes.get(point.id)?.type, state === "faded" ? lighter(window!.colour) : lighting?.colour ?? (state === null ? undefined : window!.colour));
-      const plain = state === "glimpsed" && lighting === undefined ? 0.4 : state === "faded" ? 0.8 : lighting !== undefined || state === "in-window" ? 1 : lit.size > 0 ? 0.3 : 0.52;
-      const opacity = quiet?.has(point.id) && lighting === undefined && state === null ? plain * 0.35 : plain;
+      const opacity = dotOpacity({ state, lit: lighting !== undefined, anyLit: lit.size > 0, quiet: quiet?.has(point.id) === true });
       // A dot's size is its note's reach alone: a session's read shows in colour, brightness and rings, never in size (ADR-0926 D3).
       const size = sizes?.get(point.id) ?? DOT_FLOOR;
       return <mesh key={point.id} name={`knowledge-point:${point.id}`}
       position={[point.at.x, point.at.y, point.at.z]} raycast={noRaycast}
       userData={{ id: point.id, size, title: notes.has(point.id) ? noteTitle(notes.get(point.id)!) : point.id, depth: point.depth ?? null, home: point.home ?? null, toward: point.toward ?? null,
         lit: lighting?.colour ?? null, window: state, colour, opacity }}>
-      <sphereGeometry args={[radius * size, 12, 8]} />
-      <meshBasicMaterial color={colour} transparent opacity={opacity} depthWrite={false} />
+      {shaded ? <>
+        <sphereGeometry args={[radius * size, 20, 14]} />
+        <meshLambertMaterial color={shadedBody(colour)} emissive={shadedGlow(colour)} transparent opacity={opacity} depthWrite={false} />
+      </> : <>
+        <sphereGeometry args={[radius * size, 12, 8]} />
+        <meshBasicMaterial color={colour} transparent opacity={opacity} depthWrite={false} />
+      </>}
       {state === "in-window" && <Billboard name={`knowledge-window:${point.id}`}>
         <mesh raycast={noRaycast}>
           <torusGeometry args={[radius * Math.max(0.015, size + 0.006), radius * 0.0022, 8, 28]} />
@@ -294,25 +319,17 @@ function lineOf(width: number, additive: boolean): Line2 {
   return line;
 }
 
-/**
- * The links between notes under the glass sheet, as straight lines (ADR-1043 D5): only those touching one of the `bright`
- * notes (the selected story's), lit; with no story selected, none (ADR-1061 D3).
- */
-export function NoteLinks({ links, at, bright }: { links: readonly (readonly [string, string])[]; at: ReadonlyMap<string, Point>; bright: ReadonlySet<string> | undefined }) {
+/** The selected story's roots under the glass sheet (ADR-1260 D2): one hairline from each of its notes straight up to the sheet. */
+export function NoteRoots({ roots }: { roots: readonly (readonly [Point, Point])[] }) {
   const drawn = useMemo(() => {
-    const position: number[] = [];
-    for (const [a, b] of selectedLinks(links, bright)) {
-      const from = at.get(a), to = at.get(b);
-      if (from !== undefined && to !== undefined) position.push(from.x, from.y, from.z, to.x, to.y, to.z);
-    }
     const geometry = new BufferGeometry();
-    geometry.setAttribute("position", new Float32BufferAttribute(position, 3));
-    const segments = new LineSegments(geometry, new LineBasicMaterial({ color: "#e9f4fa", transparent: true, opacity: 0.55, depthWrite: false }));
-    segments.name = "knowledge-links";
-    segments.userData = { links: position.length / 6 };
+    geometry.setAttribute("position", new Float32BufferAttribute(roots.flatMap(([from, to]) => [from.x, from.y, from.z, to.x, to.y, to.z]), 3));
+    const segments = new LineSegments(geometry, new LineBasicMaterial({ color: "#e9f4fa", transparent: true, opacity: 0.22, depthWrite: false }));
+    segments.name = "knowledge-roots";
+    segments.userData = { roots: roots.length };
     segments.raycast = noRaycast;
     return segments;
-  }, [links, at, bright]);
+  }, [roots]);
   useEffect(() => () => { drawn.geometry.dispose(); drawn.material.dispose(); }, [drawn]);
   return <primitive object={drawn} />;
 }

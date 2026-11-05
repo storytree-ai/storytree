@@ -5,7 +5,7 @@
  * A note a shelf reaches hangs at its computed depth; one no shelf reaches but which links to hung knowledge, one step below
  * the deepest note it links to (D2). Notes with no links, or linked only among themselves, lie on one floor below the
  * deepest hanging note, spread across the islands' footprint, each linked group together (D3). There is no pool.
- * The links between drawn notes are returned too, to be drawn as lines.
+ * The links between drawn notes are returned too.
  * Positions are in the sheet's own frame: x east, y north, z up from the glass, so a hung note's z is below zero.
  */
 import type { RecordEnvelope } from "@storytree/library";
@@ -158,9 +158,12 @@ export function sheetLit(points: readonly Pick<SheetPoint, "id" | "toward">[], s
   return new Set(points.filter(point => point.toward.some(shelf => storyOf(shelf) === selected)).map(point => point.id));
 }
 
-/** The links drawn under the sheet (ADR-1061 D3): none at rest, and with a story selected exactly those touching its `notes`. */
-export function selectedLinks<Link extends readonly [string, string]>(links: readonly Link[], notes: ReadonlySet<string> | undefined): Link[] {
-  return notes === undefined ? [] : links.filter(([a, b]) => notes.has(a) || notes.has(b));
+/**
+ * The roots drawn under the sheet (ADR-1260 D2): none with nothing selected, and with a story selected one for each of its
+ * `notes`, from where it hangs straight up to the sheet's plane above it, so its place and depth read with the eye still.
+ */
+export function sheetRoots(points: readonly Pick<SheetPoint, "id" | "at">[], notes: ReadonlySet<string> | undefined): [GlobePoint["at"], GlobePoint["at"]][] {
+  return notes === undefined ? [] : points.filter(({ id }) => notes.has(id)).map(({ at }) => [at, { x: at.x, y: at.y, z: 0 }]);
 }
 
 /**

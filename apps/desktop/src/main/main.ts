@@ -87,7 +87,7 @@ import { JOURNEY_CHANNELS } from "@storytree/app-setup/journey-events/bridge";
 import { LIFECYCLE_CHANNELS } from "@storytree/app/lifecycle/bridge";
 import { libraryProblem } from "@storytree/app/lifecycle/open-where-set";
 import { restartLimit } from "@storytree/app/updates/restart-limit";
-import { installUnderway } from "@storytree/app/updates/install-underway";
+import { answerStartWhileInstalling, installUnderway } from "@storytree/app/updates/install-underway";
 import { appShutdown } from "@storytree/app/lifecycle/stopping";
 import { restartAllowed } from "@storytree/app/updates/restart-allowed";
 import { PROJECTS_CHANNELS } from "@storytree/app/projects/bridge";
@@ -242,16 +242,18 @@ const lifecycle = background({
 
 // A start on Windows while a release's installer runs says storytree is still updating and quits, instead of starting and
 // being closed by that installer, which opens the new build itself when it is done (updates 4.41).
-const installing = process.platform === "win32" && installedApp() && !args.smoke && !args.startCheck && !args.callbackCheck
-  ? installUnderway({ home: home.dir, runningBuild: app.getVersion() })
-  : undefined;
+const installing = answerStartWhileInstalling({
+  platform: process.platform,
+  installedStart: () => !args.smoke && !args.startCheck && !args.callbackCheck && installedApp(),
+  unseen: args.quit || args.background,
+  underway: () => installUnderway({ home: home.dir, runningBuild: app.getVersion() }),
+  whenReady: () => app.whenReady(),
+  say: ({ message, detail }) => dialog.showMessageBox({ type: "info", title: "storytree", message, detail, buttons: ["OK"], noLink: true }),
+  exit: (code) => app.exit(code),
+});
 
-if (installing !== undefined) {
-  if (args.quit || args.background) app.exit(0);
-  else void app.whenReady().then(async () => {
-    await dialog.showMessageBox({ type: "info", title: "storytree", message: "storytree is still updating", detail: `It is installing ${installing.nextBuild}, and opens by itself when that is done.`, buttons: ["OK"], noLink: true });
-    app.exit(0);
-  });
+if (installing) {
+  // answered: it quits once it has said so
 } else if (!args.smoke && !args.startCheck && !app.requestSingleInstanceLock()) {
   app.quit(); // the app is already open: that one is focused instead (or, with --quit, quits)
 } else if (args.quit) {

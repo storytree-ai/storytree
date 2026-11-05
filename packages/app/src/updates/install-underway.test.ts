@@ -7,7 +7,7 @@ import test from "node:test";
 
 import { removeTemp } from "@storytree/test-waits";
 
-import { INSTALLING_FILE, installerRunning, installUnderway, markInstalling } from "./install-underway.js";
+import { answerStartWhileInstalling, INSTALLING_FILE, installerRunning, installUnderway, markInstalling, type StartWhileInstalling } from "./install-underway.js";
 
 async function home(t: test.TestContext): Promise<string> {
   const dir = await mkdtemp(path.join(tmpdir(), "storytree-installing-"));
@@ -57,4 +57,40 @@ test("4.41 no marker, or one that cannot be read, never stops a start", async (t
 test("4.41 windows: a running program's installer reads as running, and one that is not running does not", { skip: process.platform === "win32" ? false : "platform:win32: the installer is found by Windows' tasklist" }, () => {
   assert.equal(installerRunning(process.execPath), true);
   assert.equal(installerRunning(path.join(tmpdir(), "storytree-no-such-installer-setup.exe")), false);
+});
+
+function start(over: Partial<StartWhileInstalling>, seen: string[]): StartWhileInstalling {
+  return {
+    platform: "win32",
+    installedStart: () => true,
+    unseen: false,
+    underway: () => ({ nextBuild: "0.3.2432" }),
+    whenReady: async () => { seen.push("ready"); },
+    say: async ({ message, detail }) => { seen.push(`${message}: ${detail}`); },
+    exit: (code) => { seen.push(`exit ${code}`); },
+    ...over,
+  };
+}
+
+test("4.41 an installed Windows start while a release installs says storytree is still updating to that build once ready, then quits", async () => {
+  const seen: string[] = [];
+  let exited!: () => void;
+  const quit = new Promise<void>((resolve) => { exited = resolve; });
+  assert.equal(answerStartWhileInstalling(start({ exit: (code) => { seen.push(`exit ${code}`); exited(); } }, seen)), true);
+  await quit;
+  assert.deepEqual(seen, ["ready", "storytree is still updating: It is installing 0.3.2432, and opens by itself when that is done.", "exit 0"]);
+});
+
+test("4.41 a --quit or --background start while a release installs quits at once, saying nothing", () => {
+  const seen: string[] = [];
+  assert.equal(answerStartWhileInstalling(start({ unseen: true }, seen)), true);
+  assert.deepEqual(seen, ["exit 0"]);
+});
+
+test("4.41 a start goes ahead when no install is underway, off Windows, or when it is not the installed app (a check)", () => {
+  const seen: string[] = [];
+  assert.equal(answerStartWhileInstalling(start({ underway: () => undefined }, seen)), false);
+  assert.equal(answerStartWhileInstalling(start({ platform: "darwin" }, seen)), false);
+  assert.equal(answerStartWhileInstalling(start({ installedStart: () => false }, seen)), false);
+  assert.deepEqual(seen, []);
 });

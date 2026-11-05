@@ -276,8 +276,11 @@ test("4.41 win32: before the handoff, the install is marked underway, naming the
     exit: () => {},
   });
   feed.version = "0.3.2";
+  const before = Date.now();
   assert.equal(await feed.updater(lifecycle.restart, async () => true).check(), "restarting");
-  assert.deepEqual(marked, { nextBuild: "0.3.2", installer: target?.execPath, at: (marked as { at: number }).at });
+  const { at, ...named } = marked as { at: number };
+  assert.deepEqual(named, { nextBuild: "0.3.2", installer: target?.execPath });
+  assert.ok(at >= before && at <= Date.now(), `marked at ${at}, while the install started`);
 });
 
 test("4.4 linux: an AppImage its menu entry started with --no-sandbox, where the kernel blocks the sandbox, restarts the replaced AppImage with it", hostRuns("linux"), async (t) => {

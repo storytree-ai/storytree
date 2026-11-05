@@ -45,6 +45,37 @@ export function installUnderway(options: { home: string; runningBuild: string; n
   return { nextBuild: marker.nextBuild };
 }
 
+/** What a start needs to answer while a release installs, given by the desktop app's start-up. */
+export interface StartWhileInstalling {
+  readonly platform: NodeJS.Platform;
+  /** The app the installer put here, and not a check (smoke, start or callback), which never reads the marker. */
+  readonly installedStart: () => boolean;
+  /** Started with --quit or --background, so nobody is waiting for a window. */
+  readonly unseen: boolean;
+  readonly underway: () => { nextBuild: string } | undefined;
+  readonly whenReady: () => Promise<unknown>;
+  readonly say: (message: { message: string; detail: string }) => Promise<unknown>;
+  readonly exit: (code: number) => void;
+}
+
+/**
+ * True when this start was answered because a release is still installing: on Windows, an installed start quits at
+ * once if unseen, else says storytree is still updating once the app is ready, then quits. False when it may start.
+ */
+export function answerStartWhileInstalling(start: StartWhileInstalling): boolean {
+  if (start.platform !== "win32" || !start.installedStart()) return false;
+  const installing = start.underway();
+  if (installing === undefined) return false;
+  if (start.unseen) {
+    start.exit(0);
+    return true;
+  }
+  void start.whenReady()
+    .then(() => start.say({ message: "storytree is still updating", detail: `It is installing ${installing.nextBuild}, and opens by itself when that is done.` }))
+    .finally(() => start.exit(0));
+  return true;
+}
+
 /** Whether a program named as `installer` is running, by Windows' tasklist; elsewhere, or if tasklist fails, false. */
 export function installerRunning(installer: string): boolean {
   if (process.platform !== "win32") return false;

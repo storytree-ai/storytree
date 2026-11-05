@@ -265,15 +265,19 @@ function ribbon(points: readonly Point[], width: number, onSurface: (p: Point) =
   return geometry;
 }
 
-/** The segments of the border lines `borders` left once each opening (a gate's, or open road's) is cut out of the border it stands on. */
+/** The segments of the border lines `borders` left once each opening (a gate's, or open road's) is cut out of them: every
+ * border line within half its opening of where it stands, so one at a corner is open on both lines that meet there. */
 export function cutOpenings(borders: readonly { from: Point; to: Point }[], gates: readonly { readonly at: Point; readonly opening: number }[]): { from: Point; to: Point }[] {
   return borders.flatMap(({ from: a, to: b }) => {
     const l = Math.hypot(b.x - a.x, b.z - a.z);
     if (l < 1e-9) return [];
     const holes = gates.flatMap((g) => {
+      // Where the line meets the circle of half the opening round the gate.
       const t = ((g.at.x - a.x) * (b.x - a.x) + (g.at.z - a.z) * (b.z - a.z)) / (l * l);
-      const off = Math.hypot(a.x + t * (b.x - a.x) - g.at.x, a.z + t * (b.z - a.z) - g.at.z);
-      return off < 1e-3 && t >= 0 && t <= 1 ? [[t - g.opening / 2 / l, t + g.opening / 2 / l] as const] : [];
+      const off = Math.hypot(a.x + t * (b.x - a.x) - g.at.x, a.z + t * (b.z - a.z) - g.at.z), r = g.opening / 2;
+      if (off >= r) return [];
+      const half = Math.sqrt(r * r - off * off) / l;
+      return t + half >= 0 && t - half <= 1 ? [[t - half, t + half] as const] : [];
     }).sort((x, y) => x[0] - y[0]);
     const at = (t: number): Point => ({ x: a.x + t * (b.x - a.x), z: a.z + t * (b.z - a.z) });
     const kept: { from: Point; to: Point }[] = [];

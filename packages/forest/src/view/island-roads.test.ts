@@ -34,16 +34,21 @@ const toSegment = (p: Point, a: Point, b: Point) => {
   return Math.hypot(p.x - a.x - t * dx, p.z - a.z - t * dz);
 };
 
-test("3.77 the selected island's borders are quietened and cut open at every gate; any other island's are whole", () => {
+test("3.77 the selected island's borders are quietened and cut open at every gate and every stretch of open road; any other island's are whole", () => {
   assert.ok(roads.gates.length > 0);
-  const whole = territoryLand(map, flat, coast).getObjectByName("territory-borders") as LineSegments;
-  const cut = territoryLand(map, flat, coast, new Map(), roads).getObjectByName("territory-borders") as LineSegments;
   const ground = (lines: LineSegments) => { const g = lines.userData.ground as number[]; return Array.from({ length: g.length / 4 }, (_, i) => [{ x: g[4 * i]!, z: g[4 * i + 1]! }, { x: g[4 * i + 2]!, z: g[4 * i + 3]! }] as const); };
-  for (const gate of roads.gates) {
-    assert.ok(ground(whole).some(([a, b]) => toSegment(gate.at, a, b) < 1e-6), "the gate stands on a border");
-    for (const [a, b] of ground(cut)) assert.ok(toSegment(gate.at, a, b) > gate.opening / 2 - 1e-6, "no border line across its opening");
+  // The six capabilities' island has open road as well as gates.
+  const sixRoads = islandRoads(sixMap, sixLinks, docks, capabilityPlates(sixMap));
+  assert.ok(sixRoads.passes.length > 0, "open road to cut");
+  for (const [island, routed] of [[map, roads], [sixMap, sixRoads]] as const) {
+    const whole = territoryLand(island, flat, coast).getObjectByName("territory-borders") as LineSegments;
+    const cut = territoryLand(island, flat, coast, new Map(), routed).getObjectByName("territory-borders") as LineSegments;
+    for (const opening of [...routed.gates, ...routed.passes]) {
+      assert.ok(ground(whole).some(([a, b]) => toSegment(opening.at, a, b) < 1e-6), "it stands on a border");
+      for (const [a, b] of ground(cut)) assert.ok(toSegment(opening.at, a, b) > opening.opening / 2 - 1e-6, "no border line across its opening");
+    }
+    assert.ok((cut.material as LineBasicMaterial).opacity < (whole.material as LineBasicMaterial).opacity, "quieter under the roads");
   }
-  assert.ok((cut.material as LineBasicMaterial).opacity < (whole.material as LineBasicMaterial).opacity, "quieter under the roads");
 });
 
 test("3.77 each road is a sandy ribbon as wide as the links it carries, its sand mixed into the land under it, with a post either side of every gate", () => {

@@ -50,6 +50,7 @@ test("3.78 a ramp only where a road climbs from the open land onto a territory, 
   const onto = crossings.filter((g) => { const n = { x: -g.along.z, z: g.along.x }; const sides = [territoryOf(at(g.at, n, 0.8)), territoryOf(at(g.at, n, -0.8))]; return sides.includes(-1) && sides.some((t) => t !== undefined && t >= 0); });
   assert.ok(onto.length > 0 && onto.length < crossings.length, "some crossings between territories, some onto the open land");
   assert.equal(relief.ramps.length, onto.length, "a ramp wherever a road crosses onto the open land, and nowhere else");
+  for (const g of roads.gates.filter((g) => onto.includes(g))) assert.equal(relief.ramps.filter((r) => r.gate === g).length, 1, "a gate onto the open land has its ramp, its posts beside it");
   for (const r of relief.ramps) {
     assert.ok(onto.some((c) => far(c.at, r.at) < 1e-9 && (r.gate === undefined || r.gate === c)));
     assert.equal(territoryOf(at(r.at, r.out, 0.8)), -1, "it runs out onto the open land");

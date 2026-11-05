@@ -20,8 +20,9 @@ import { insideOf } from "../view/territory-land.js";
 
 /** A road segment: its way, the links it carries, and its width by how many (1, 2-3, 4-7, 8 or more). */
 export type RoadSegment = { readonly pts: readonly Point[]; readonly links: readonly string[]; readonly width: number };
-/** A gate: where a road crosses a border, the border's direction there, the links through it, and the opening cut in it. */
-export type RoadGate = { readonly at: Point; readonly along: Point; readonly links: readonly string[]; readonly entrance: boolean; readonly opening: number };
+/** A gate: where a road crosses a border, the border's direction there, the links through it, the links that enter by it
+ * (whose entrance it is, 3.81), and the opening cut in it. */
+export type RoadGate = { readonly at: Point; readonly along: Point; readonly links: readonly string[]; readonly entrance: boolean; readonly entrances: readonly string[]; readonly opening: number };
 /** A settlement: where it stands, how many roads meet there, and its symbol's size across. */
 export type Settlement = { readonly at: Point; readonly roads: number; readonly size: number };
 export type IslandRoads = { readonly segments: readonly RoadSegment[]; readonly junctions: readonly { at: Point; width: number }[]; readonly gates: readonly RoadGate[]; readonly towns: ReadonlyMap<string, Point>; readonly settlements: ReadonlyMap<string, Settlement> };
@@ -186,18 +187,18 @@ function route(map: TerritoryMap, links: readonly Link[], docks: readonly LinkDo
     }
     return out;
   };
-  const gates = net.segments.flatMap((s) => crossings(s.pts).map((c) => ({ at: c.p, along: c.along, links: s.links, entrance: false })));
+  const gates = net.segments.flatMap((s) => crossings(s.pts).map((c) => ({ at: c.p, along: c.along, links: s.links, entrances: [] as string[] })));
   for (const l of netLinks) {
     const way = crossings(net.ways.get(l.key) ?? []);
     const entering = l.kind === "out" ? way.find((c) => c.pair.includes(l.fromT)) : [...way].reverse().find((c) => c.pair.includes(l.toT));
     if (!entering) continue;
     const g = gates.reduce<(typeof gates)[number] | undefined>((b, x) => (far(x.at, entering.p) < (b ? far(b.at, entering.p) : 1) ? x : b), undefined);
-    if (g) g.entrance = true;
+    if (g) g.entrances.push(l.key);
   }
   return {
     segments: net.segments.map((s) => ({ pts: s.pts.map((p) => times(p, S)), links: s.links, width: widthOf(s.links.length) * S })),
     junctions: net.junctions.map((at) => ({ at: times(at, S), width: Math.max(...net.segments.filter((s) => s.pts.some((p) => far(p, at) < 1e-6)).map((s) => widthOf(s.links.length)), WIDTHS[0]) * S })),
-    gates: gates.map((g) => ({ at: times(g.at, S), along: g.along, links: g.links, entrance: g.entrance,
+    gates: gates.map((g) => ({ at: times(g.at, S), along: g.along, links: g.links, entrance: g.entrances.length > 0, entrances: g.entrances,
       opening: Math.max(GATE_OPENING, widthOf(g.links.length) + 2) * S })),
     towns: scaled(towns, S),
     settlements,

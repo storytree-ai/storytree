@@ -1,10 +1,10 @@
 /**
  * Capability 3 · Story node render: the selected island's roads drawn sandy and faint, the borders quietened and cut
- * open at each gate, a post either side of every gate (ADR-1236 D1, rollout 2 step 3).
+ * open at each gate, a post either side of every gate (ADR-1236 D1, rollout 2 step 3); a picked link's way lit in gold (3.81).
  */
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { Color, LineBasicMaterial, LineSegments, Mesh, MeshBasicMaterial, Vector3 } from "three";
+import { Color, Group, LineBasicMaterial, LineSegments, Mesh, MeshBasicMaterial, PerspectiveCamera, Vector3, type Object3D } from "three";
 
 import { islandRoads } from "../territories/island-roads.js";
 import { islandRelief } from "../territories/island-relief.js";
@@ -12,7 +12,8 @@ import { linkLayout, LIBRARY_LAND } from "../territories/link-layout.js";
 import type { Coast, Point } from "../territories/territories.js";
 import { capabilityPlates } from "./nameplates.js";
 import { presentTerritories } from "./globe-surfaces.js";
-import { islandRoadMarks, landFill, ROAD } from "./island-roads.js";
+import { islandRoadMarks, landFill, lightRoute, LIT, ROAD, routeOf } from "./island-roads.js";
+import { pickClick } from "./planet-navigation.js";
 import { GLYPHS, kindOf, settlementSymbols, SYMBOL_INK } from "./settlement-symbols.js";
 import { territoryLand } from "./territory-land.js";
 
@@ -129,4 +130,71 @@ test("3.79 each kind's symbol keeps the mock's outline in its 24-unit box", () =
   assert.deepEqual(box(GLYPHS.index.parts), [-8, -8, 4, 4], "an index's lens, 6 round about (-2, -2)");
   assert.deepEqual(box(GLYPHS.link.parts), [-6.5, -3, 6.5, 7.5], "a connection's plug, rounded below");
   assert.deepEqual(box(GLYPHS.log.parts), [-9, -10, 9, 10], "a record's two pages");
+});
+
+test("3.81 a road carrying one link, or the gate a link enters by, picks that link; a shared road picks itself", () => {
+  const land = territoryLand(map, flat, coast, new Map(), roads.gates);
+  const marks = islandRoadMarks(roads, flat, landFill(map, land), islandRelief(map, roads));
+  const ribbons = marks.children.filter((o) => o.name.startsWith("road:"));
+  const single = ribbons.find((o) => o.userData.links.length === 1), shared = ribbons.find((o) => o.userData.links.length > 1);
+  assert.ok(single !== undefined && shared !== undefined, "the island has both kinds of road");
+  assert.deepEqual(routeOf(single), { kind: "link", links: single.userData.links });
+  assert.deepEqual(routeOf(shared), { kind: "road", links: shared.userData.links });
+  const entrance = roads.gates.findIndex((g) => g.entrances.length > 0);
+  assert.ok(entrance >= 0, "a link enters by a gate");
+  assert.equal(routeOf(marks.getObjectByName("settlements")!), undefined, "anything else picks nothing");
+  // A link from d through c to a passes a gate it does not enter by.
+  const through = [...links, { from: "d", to: "a" }], laid = linkLayout(shares, coast, through, docks), more = islandRoads(laid, through, docks, capabilityPlates(laid));
+  assert.deepEqual(more.gates.map((g) => [g.entrance, g.entrances]), [[true, ["arrive:0->a"]], [false, []], [true, ["arrive:0->b"]], [true, ["d->c"]], [true, ["c->a", "d->a"]]],
+    "an entrance where a link enters by it; the arrival to b crosses a border before the one it enters b by");
+  const posts = islandRoadMarks(more, flat, landFill(laid, territoryLand(laid, flat, coast, new Map(), more.gates)), islandRelief(laid, more));
+  assert.deepEqual(routeOf(posts.getObjectByName("gate-post:1:1")!), { kind: "link", links: ["arrive:0->b"] }, "a gate no link enters by picks the road it stands on");
+  assert.deepEqual(routeOf(posts.getObjectByName("gate-post:4:1")!), { kind: "link", links: ["c->a", "d->a"] }, "a gate two links enter by picks both");
+  assert.deepEqual(routeOf(marks.getObjectByName(`gate-post:${entrance}:1`)!), { kind: "link", links: roads.gates[entrance]!.entrances }, "its entrance gate picks it");
+});
+
+test("3.81 a picked link lights every road it travels and its entrance gate in gold, and nothing else; picking nothing puts the gold out", () => {
+  const land = territoryLand(map, flat, coast, new Map(), roads.gates);
+  const marks = islandRoadMarks(roads, flat, landFill(map, land), islandRelief(map, roads));
+  const lit = () => marks.children.filter((o) => o.name.startsWith("road-lit:") && o.visible).map((o) => Number(o.name.slice("road-lit:".length))).sort((a, b) => a - b);
+  const hex = (o: Object3D) => `#${((o as Mesh).material as MeshBasicMaterial).color.getHexString()}`;
+  const gold = () => roads.gates.flatMap((_, i) => (hex(marks.getObjectByName(`gate-face:${i}:1`)!) === LIT.gold ? [i] : []));
+  assert.deepEqual(lit(), [], "nothing lit until a pick");
+  const link = "d->c", travels = roads.segments.flatMap((s, i) => (s.links.includes(link) ? [i] : []));
+  assert.ok(travels.length > 0 && roads.segments.some((s) => !s.links.includes(link)), "a link, and roads it does not travel");
+  lightRoute(marks, roads, { kind: "link", links: [link] });
+  assert.deepEqual(lit(), travels, "its whole way, every road it travels");
+  assert.deepEqual(gold(), roads.gates.flatMap((g, i) => (g.entrances.includes(link) ? [i] : [])), "its entrance gate gold");
+  assert.ok(gold().length > 0);
+  const way = marks.getObjectByName(`road-lit:${travels[0]}`)!;
+  assert.deepEqual(way.children.slice(0, 2).map(hex), [LIT.edge, LIT.gold], "gold on a dark edge");
+  const shared = roads.segments.findIndex((s) => s.links.length > 1);
+  lightRoute(marks, roads, { kind: "road", links: roads.segments[shared]!.links });
+  assert.deepEqual(lit(), [shared], "a picked shared road lights itself alone");
+  assert.deepEqual(gold(), []);
+  lightRoute(marks, roads, undefined);
+  assert.deepEqual([...lit(), ...gold()], [], "picking nothing puts it out");
+});
+
+test("3.81 a click on a road picks its route ahead of the land under it and picks no selection; a click on the land picks no route, and its territory", () => {
+  const world = new Group();
+  world.name = "planet:story";
+  const land = territoryLand(map, flat, coast, new Map(), roads.gates);
+  world.add(land, islandRoadMarks(roads, flat, landFill(map, land), islandRelief(map, roads)));
+  const looking = (at: Point, mode: "forest" | "library" = "forest") => {
+    const camera = new PerspectiveCamera(30, 1, 0.1, 1000);
+    camera.position.set(at.x, 300, at.z);
+    camera.up.set(0, 0, -1);
+    camera.lookAt(at.x, 0, at.z);
+    return pickClick(world, camera, { left: 0, top: 0, width: 100, height: 100 }, { x: 50, y: 50 }, mode);
+  };
+  const one = roads.segments.find((s) => s.links.length === 1)!, mid = one.pts[Math.floor(one.pts.length / 2)]!;
+  assert.deepEqual(looking(mid), { route: { story: "story", pick: { kind: "link", links: one.links } } }, "the road's link, and no selection");
+  assert.deepEqual(looking(mid, "library"), { route: undefined, hit: undefined }, "in Library no road is picked");
+  const clear = (p: Point) => Math.hypot(p.x, p.z) < R * 0.8 && roads.segments.every((s) => s.pts.every((q) => Math.hypot(q.x - p.x, q.z - p.z) > 6)) && roads.gates.every((g) => Math.hypot(g.at.x - p.x, g.at.z - p.z) > 6);
+  const away = map.cells.find((c) => c.territory >= 0 && clear(c.site));
+  assert.ok(away !== undefined, "land clear of every road");
+  const clicked = looking(away.site);
+  assert.equal(clicked.route, undefined, "the land picks no route, so the gold goes out");
+  assert.deepEqual(clicked.route === undefined && clicked.hit, { kind: "story", id: "story", capability: map.territories[away.territory]!.capability }, "and the territory under it");
 });

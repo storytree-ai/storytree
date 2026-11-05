@@ -14,6 +14,11 @@ export function answerSearch(ask: SearchAsk): SearchAnswer {
   }
 }
 
-// In a worker, answer every search the page posts.
+/** Answers what the page posts: an island's roads when it asks `{ roads }`, else a search. */
+export function answerAsk(data: SearchAsk | { roads: RoadsAsk }): SearchAnswer | RoadsAnswer {
+  return "roads" in data ? answerRoads(data.roads) : answerSearch(data);
+}
+
+// In a worker, answer everything the page posts.
 const scope = globalThis as unknown as { WorkerGlobalScope?: unknown; onmessage?: (event: { data: SearchAsk | { roads: RoadsAsk } }) => void; postMessage?: (answer: SearchAnswer | RoadsAnswer) => void };
-if (scope.WorkerGlobalScope !== undefined) scope.onmessage = ({ data }) => scope.postMessage!("roads" in data ? answerRoads(data.roads) : answerSearch(data));
+if (scope.WorkerGlobalScope !== undefined) scope.onmessage = ({ data }) => scope.postMessage!(answerAsk(data));

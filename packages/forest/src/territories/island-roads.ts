@@ -68,10 +68,10 @@ export type RoadsAnswer = { roads: IslandRoads } | { error: string };
 /** Routes an island's roads somewhere, answering what `islandRoads` would; an aborted signal means the island was overtaken. */
 export type IslandRouter = (ask: RoadsAsk, signal: AbortSignal) => Promise<IslandRoads>;
 
-/** The roads already routed for `map` with these links, docks and names, if any, routing nothing. */
-export function knownIslandRoads(map: TerritoryMap, links: readonly Link[], docks: readonly LinkDock[], names: readonly NameAnchor[]): IslandRoads | undefined {
-  const known = routed.get(map);
-  return known?.key === JSON.stringify([links, docks, names]) ? known.roads : undefined;
+/** The roads already routed for the island `ask` names, if any, routing nothing. */
+export function knownIslandRoads(ask: RoadsAsk): IslandRoads | undefined {
+  const known = routed.get(ask.map);
+  return known?.key === JSON.stringify([ask.links, ask.docks, ask.names]) ? known.roads : undefined;
 }
 
 /** Routes one island's roads, as the page would: what the worker answers a `{ roads }` ask with. */
@@ -83,18 +83,29 @@ export function answerRoads(ask: RoadsAsk): RoadsAnswer {
   }
 }
 
+const listeners = new Set<() => void>();
+let version = 0;
+/** Hears every island's roads that arrive from now on (React's useSyncExternalStore, with `roadsVersion`). */
+export function subscribeRoads(listener: () => void): () => void {
+  listeners.add(listener);
+  return () => { listeners.delete(listener); };
+}
+/** Changes whenever an island's roads arrive. */
+export const roadsVersion = (): number => version;
+
 /**
  * The selected island's roads (3.82): those already routed for it at once, or undefined while `router` routes them
- * off the page, so its territories are drawn without waiting; `routedNow` hears them when they arrive, and they are kept
- * for the map, so the next ask has them at once. Nothing is heard once `signal` aborts.
+ * off the page, so its territories are drawn without waiting. When they arrive they are kept for the island as laid
+ * out (`knownIslandRoads` has them) and every listener hears it; an island overtaken first (`signal` aborted) keeps nothing.
  */
-export function islandRoadsWhenRouted(ask: RoadsAsk, router: IslandRouter, signal: AbortSignal, routedNow: (roads: IslandRoads) => void): IslandRoads | undefined {
-  const known = knownIslandRoads(ask.map, ask.links, ask.docks, ask.names);
+export function islandRoadsWhenRouted(ask: RoadsAsk, router: IslandRouter, signal: AbortSignal): IslandRoads | undefined {
+  const known = knownIslandRoads(ask);
   if (known !== undefined) return known;
   router(ask, signal).then((roads) => {
     if (signal.aborted) return;
     routed.set(ask.map, { key: JSON.stringify([ask.links, ask.docks, ask.names]), roads });
-    routedNow(roads);
+    version++;
+    for (const listener of listeners) listener();
   }, (error: unknown) => {
     if (!signal.aborted) console.error("forest territories: routing the island's roads failed", error);
   });

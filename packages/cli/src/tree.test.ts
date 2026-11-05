@@ -1,5 +1,5 @@
 /**
- * Capability 10 · Plan view: one test per contract 10.1-10.12 in the command line story, each running the
+ * Capability 10 · Plan view: one test per contract 10.1-10.13 in the command line story, each running the
  * real, built `storytree` command.
  */
 import assert from "node:assert/strict";
@@ -135,6 +135,26 @@ test("10.8 a mapped story's line says it is mapped, here before storytree and as
     assert.match(line(shop!.id), /\]  mapped: here before storytree, and assumed to be working$/, ran.stdout);
     assert.doesNotMatch(line(shop!.id), /agent says|verified/);
     assert.match(line(capability.id), /agent says not checked/, ran.stdout);
+  });
+});
+
+test("10.13 each story's next line gives the numbers its capabilities take, ascending, and how many are unnumbered", async () => {
+  await inWorld(command, async (world) => {
+    const library = await world.library();
+    const story = await library.addStory({ title: "Visitor can sign up" });
+    for (const title of ["11 · Workspace", "2 · Email form", "10 · Plan view"]) await library.addCapability({ title, story: story.id });
+    const thankYou = await library.addCapability({ title: "Thank-you page", story: story.id });
+    assert.ok(await library.editCapability(thankYou.id, { title: "Thank-you page" }));
+    const empty = await library.addStory({ title: "Nothing planned" });
+
+    const ran = await world.run(["tree"]);
+
+    assert.equal(ran.code, 0, ran.stderr);
+    const lines = ran.stdout.split(/\r?\n/);
+    const at = lines.findIndex((line) => line.includes(`[${story.id}]`));
+    assert.equal(lines[at + 1], "  capability numbers taken: 2, 10, 11 · 1 unnumbered", ran.stdout);
+    const none = lines.findIndex((line) => line.includes(`[${empty.id}]`));
+    assert.doesNotMatch(lines[none + 1] ?? "", /numbers taken/, ran.stdout);
   });
 });
 

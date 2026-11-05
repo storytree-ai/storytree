@@ -87,6 +87,16 @@ test("1.1 · a home folder whose name holds a long run of punctuation is judged 
   assert.ok(performance.now() - started < 1000, `took ${Math.round(performance.now() - started)} ms`);
 });
 
+test("1.1 · an address at a reserved or storytree domain, a no-reply sender or a service account is a placeholder; any other address is found", () => {
+  const at = (local, domain) => [local, domain].join("@");
+  for (const address of [at("a", "x.example.org"), at("a", "box.test"), at("a", "storytree.dev"), at("noreply", "mail.co"), at("1+a", "users.noreply.github.com"), at("sa", "proj.iam.gserviceaccount.com")]) {
+    assert.deepEqual(leakCounts(`mail ${address} now`, []), {}, address);
+  }
+  for (const address of [at("a", "mail.co"), at("a", "notstorytree.dev"), at("a", "test.co"), at("iam", "mail.co")]) {
+    assert.deepEqual(leakCounts(`mail ${address} now`, []), { "an email address": 1 }, address);
+  }
+});
+
 test("1.2 · the leak scan reports a tree's leaks by folder and its worst files without the matched text, and the gate's check refuses only a file whose count of a pattern rises against the merge base", (t) => {
   const root = mkdtempSync(path.join(tmpdir(), "leak-scan-"));
   t.after(() => removeTemp(root));

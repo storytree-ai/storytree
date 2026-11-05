@@ -21,7 +21,7 @@ export type OpenWorkMarks = { readonly rings: readonly OpenWorkRing[]; readonly 
 const RING_WIDTH = 0.022;
 const DOT_RADIUS = 0.045;
 /** The selected arc's ring and the open-work dot: a pale cyan no health fill, gold selection or white border wears. */
-const OPEN_WORK = "#8fe3f5";
+export const OPEN_WORK = "#8fe3f5";
 const DOT_CASING = { colour: "#10202a", opacity: 0.7 };
 /** What an arc selected lays over the territories it does not ring. */
 const DIM = { colour: "#0b0f14", opacity: 0.5 };

@@ -17,11 +17,11 @@ export const ROAD = { colour: "#e2d3aa", alpha: 0.7 } as const;
 /** The borders on the selected island, quietened under the roads. */
 export const QUIET_BORDER = { colour: "#f4f7f8", opacity: 0.4 } as const;
 /** A gate post's ink and its paper face (round 6C's). */
-const POST = { ink: "#1b2024", paper: "#f3efe4" } as const;
+export const POST = { ink: "#1b2024", paper: "#f3efe4" } as const;
 /** A picked link's gold, and the thin dark edge it lies on so it holds on yellow land (the mock's PALETTE.lit and casing). */
 export const LIT = { gold: "#ffd34d", edge: "#141a20", edgeOpacity: 0.75, edgeWidth: 0.6 } as const;
 /** The island's bare ground as it shows on the page under the see-through fills (the mock's round 11 still). */
-const GROUND = "#686d70";
+export const GROUND = "#686d70";
 
 /** The fill a point of the land shows: a territory's colour at its opacity, or none on open land. */
 export type FillAt = (p: Point) => { colour: Color; opacity: number } | undefined;

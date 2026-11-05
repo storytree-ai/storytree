@@ -636,7 +636,7 @@ test("7.15 · a Windows run that skips a Linux-only test leaves the Mint box's L
   const root = mkdtempSync(path.join(tmpdir(), "own-health-linux-"));
   t.after(() => removeTemp(root));
   mkdirSync(path.join(root, "plugins", "runner", "src"), { recursive: true });
-  const quiet = { log: () => {}, error: () => {} };
+  let lines = [];
   await withLibrary(async (lib) => {
     const story = await lib.addStory({ title: "Mick's agent runner" });
     const capability = await lib.addCapability({ story: story.id, title: "11 · The box's git rides out a refusal" });
@@ -644,17 +644,21 @@ test("7.15 · a Windows run that skips a Linux-only test leaves the Mint box's L
     const planned = (await lib.projectTree()).stories[0];
     const test = { name: "11.2 · the box's setup makes the wrapper git's ssh", suites: [], file: path.join(root, "plugins/runner/src/ssh-retry.test.mjs") };
     const record = async (platform, status) => {
+      lines = [];
       await checkStory(lib, planned, { by: "factory test run", source: "local", commit: "e".repeat(40) }, {
-        root, folders: ["plugins/runner"], platform, ...quiet,
+        root, folders: ["plugins/runner"], platform, log: (line) => lines.push(line), error: () => {},
         runTests: async () => ({ code: 0, results: [{ ...test, status, ...(status === "skipped" ? { message: "platform:linux: the setup is the box's bash script" } : {}) }] }),
       });
       return (await lib.health(contract.id)).verified;
     };
     assert.equal((await record("linux", "passed")).state, "passing");
     assert.equal((await record("win32", "skipped")).state, "passing", "a Windows run cannot re-run a Linux-only test, so the box's pass stands");
+    assert.ok(lines.some((line) => line.includes("stands: this win32 run cannot re-run a platform:linux test")), "its log says why the pass stands");
     const taken = await record("linux", "skipped");
     assert.equal(taken.state, "not-checked", "a Linux run that skips it did not reproduce the pass");
     assert.equal(taken.skip, "platform:linux");
+    const said = lines.find((line) => line.includes("11.2 "));
+    assert.ok(said.includes("is marked not re-run") && !said.includes("stands"), `its log says the pass is taken away: ${said}`);
   });
 });
 

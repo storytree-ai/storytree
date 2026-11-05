@@ -373,7 +373,7 @@ function idsNamedBy(record: Stored): string[] {
 export function wholeRecord(record: Stored): string {
   const { pending, ...rest } = record.fields as Fields & { pending?: PendingChange[] };
   const fields = Object.entries(rest).map(([key, value]) => `${key}: ${typeof value === "string" ? value : JSON.stringify(value, null, 2)}`);
-  const held = record.type === "increment" && pending !== undefined && pending.length > 0 ? ["", ...pendingSaid(pending)] : [];
+  const held = record.type === "increment" && pending !== undefined && pending.length > 0 ? pendingSaid(pending) : [];
   // A plugin's kind no mounted plugin declares reads as stored, said dormant (ADR-1178 D3).
   const dormant = record.dormant === true ? "  dormant: its plugin is not mounted on this computer" : "";
   return [`${record.id}  [${record.type}]  schema ${record.version}${dormant}`, `Created: ${record.createdAt}`, `Updated: ${record.updatedAt}`, "", ...fields, ...held].join("\n");
@@ -424,11 +424,14 @@ async function heldOnIncrement(context: LibraryVerbContext, change: PlanChange):
   return increment === undefined ? undefined : heldSaid(increment);
 }
 
-/** An increment's pending changes (ADR-0966 D3): each record, then each field as before -> after, or its retirement. */
+/**
+ * An increment's pending changes (ADR-0966 D3), under the field's own name as every other field is, so a reader
+ * looking for `pending` finds them: each record, then each field as before -> after, or its retirement.
+ */
 function pendingSaid(pending: readonly PendingChange[]): string[] {
   const said = (value: unknown): string => (value === null || value === undefined ? "(none)" : typeof value === "string" ? value : JSON.stringify(value));
   return [
-    `Pending changes (${pending.length}), applied when its branch merges:`,
+    `pending: ${pending.length} ${pending.length === 1 ? "change" : "changes"}, applied when its branch merges:`,
     ...pending.flatMap((change) => [
       `  ${change.record}  [${change.type}]  read at history entry ${change.base}`,
       ...("retire" in change ? [`    retire: ${change.retire}`] : Object.entries(change.after).map(([field, value]) => `    ${field}: ${said(change.before[field])} -> ${said(value)}`)),
@@ -476,7 +479,7 @@ const edit = verb({
       return edited === null ? null : { edited };
     });
     if (done === null) throw new VerbRefusal(`no live ${record.type} "${id}" in this project`);
-    if ("held" in done) return { text: `Your edit of ${record.type} ${id} (${Object.keys(fields).join(", ")}) is ${heldSaid(done.held)}`, next: [{ command: "library read <increment>", why: "see its pending changes" }] };
+    if ("held" in done) return { text: `Your edit of ${record.type} ${id} (${Object.keys(fields).join(", ")}) is ${heldSaid(done.held)}`, next: [{ command: `library read ${done.held}`, why: "see its pending changes" }] };
     const changed = Object.keys(values).join(", ");
     const removed = remove.length === 0 ? "" : `${changed === "" ? "" : ", "}removed ${remove.join(", ")}`;
     return { text: `Edited ${record.type} ${id}: ${changed}${removed}.`, next: [{ command: `library read ${id}`, why: "read it back" }] };

@@ -510,7 +510,7 @@ test("3.16 `new contract` with a title past 300 characters is written, and its a
   });
 });
 
-test("3.14 `library edit` and `retire`, run by a session holding an increment, hold a change to a record planned before it as a pending change on the increment, the live record left alone; `library read` of the increment lists each as before and after, or its retirement (ADR-0966)", async () => {
+test("3.14 `library edit` and `retire`, run by a session holding an increment, hold a change to a record planned before it as a pending change on the increment, the live record left alone; `library read` of the increment, which the edit's next step names, lists each under its pending field as before and after, or its retirement (ADR-0966)", async () => {
   await inWorld(command, async (world) => {
     const library = await world.library();
     const arc = await library.createArc({ title: "Launch", intent: "Ship sign-up", endState: "Visitors sign up" });
@@ -526,6 +526,7 @@ test("3.14 `library edit` and `retire`, run by a session holding an increment, h
       const edited = await world.run(["library", "edit", form.id, "--description", "Where they type it"], as);
       assert.equal(edited.code, 0, edited.stderr);
       assert.match(edited.stdout, new RegExp(`pending on increment ${increment.id}`));
+      assert.match(edited.stdout, new RegExp(`library read ${increment.id}`), "its next step names the increment that lists it");
       const retired = await world.run(["library", "retire", promise.id, "--reason", "overtaken"], as);
       assert.equal(retired.code, 0, retired.stderr);
       assert.deepEqual(await library.get(form.id), live, "the live record is left alone");
@@ -533,7 +534,7 @@ test("3.14 `library edit` and `retire`, run by a session holding an increment, h
 
       const read = await world.run(["library", "read", increment.id]);
       assert.equal(read.code, 0, read.stderr);
-      assert.match(read.stdout, /Pending changes \(2\)/);
+      assert.match(read.stdout, /^pending: 2 changes/m, "listed under the field's own name, as every other field is");
       assert.match(read.stdout, new RegExp(`${form.id}.*\\n.*description: \\(none\\) -> Where they type it`));
       assert.match(read.stdout, new RegExp(`${promise.id}.*\\n.*retire: overtaken`));
     } finally {

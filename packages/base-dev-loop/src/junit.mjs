@@ -49,11 +49,11 @@ export function parseJunit(xml) {
   return results;
 }
 
-/** A tag's attributes, decoded. */
+/** A tag's attributes, decoded: each follows whitespace, as the tag's pattern matched it. */
 function attributesOf(text) {
   /** @type {Record<string, string>} */
   const attributes = {};
-  for (const [, name, value] of text.matchAll(/([\w:.-]+)\s*=\s*"([^"]*)"/g)) attributes[name] = decode(value);
+  for (const [, name, value] of text.matchAll(/\s([\w:.-]+)\s*=\s*"([^"]*)"/g)) attributes[name] = decode(value);
   return attributes;
 }
 

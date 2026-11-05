@@ -37,8 +37,9 @@ export const CODEX_TOOL_EVENTS: Readonly<Record<string, readonly string[]>> = {
 
 /** Whether the Codex of `version` (as `codex --version` says it) runs `mcp_tool` handlers and `async` hooks. */
 export function codexDelivers(version: string | undefined): boolean {
-  const found = version === undefined ? null : /(\d+)\.(\d+)\.(\d+)/.exec(version);
-  if (found === null) return false;
+  // Its first word of digits and dots that starts with three numbers, each matched from the word's start so nothing backtracks.
+  const found = version?.split(/[^\d.]+/).map((word) => /^(\d+)\.(\d+)\.(\d+)/.exec(word)).find((match) => match !== null);
+  if (found === undefined) return false;
   const [major, minor, patch] = found.slice(1).map(Number) as [number, number, number];
   const [fromMajor, fromMinor, fromPatch] = CODEX_DELIVERS_FROM.split(".").map(Number) as [number, number, number];
   return major !== fromMajor ? major > fromMajor : minor !== fromMinor ? minor > fromMinor : patch >= fromPatch;

@@ -34,3 +34,5 @@ the counts and times.
 
 Taken with `node --import tsx packages/forest/testing/view/island-tunnels/capture.mjs`, and on a checkout of main with the
 same script and `--at <this branch's measurements.json>`, so its close-ups stand where this branch's portals do.
+
+In the evidence bucket for #520, linked from the pull request body (ADR-1234; deleted after 90 days or when its arc closes): `520/after-measurements.json`, `520/after-the-library.png`, `520/after-tunnel-1.png`, `520/after-tunnel-2.png`, `520/before-measurements.json`, `520/before-the-library.png`, `520/before-tunnel-1.png`, `520/before-tunnel-2.png`.

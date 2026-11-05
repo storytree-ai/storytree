@@ -87,6 +87,7 @@ import { JOURNEY_CHANNELS } from "@storytree/app-setup/journey-events/bridge";
 import { LIFECYCLE_CHANNELS } from "@storytree/app/lifecycle/bridge";
 import { libraryProblem } from "@storytree/app/lifecycle/open-where-set";
 import { restartLimit } from "@storytree/app/updates/restart-limit";
+import { answerStartWhileInstalling, installUnderway } from "@storytree/app/updates/install-underway";
 import { appShutdown } from "@storytree/app/lifecycle/stopping";
 import { restartAllowed } from "@storytree/app/updates/restart-allowed";
 import { PROJECTS_CHANNELS } from "@storytree/app/projects/bridge";
@@ -239,7 +240,21 @@ const lifecycle = background({
   }),
 });
 
-if (!args.smoke && !args.startCheck && !app.requestSingleInstanceLock()) {
+// A start on Windows while a release's installer runs says storytree is still updating and quits, instead of starting and
+// being closed by that installer, which opens the new build itself when it is done (updates 4.41).
+const installing = answerStartWhileInstalling({
+  platform: process.platform,
+  args,
+  installed: installedApp,
+  underway: () => installUnderway({ home: home.dir, runningBuild: app.getVersion() }),
+  whenReady: () => app.whenReady(),
+  say: (box) => dialog.showMessageBox(box),
+  exit: (code) => app.exit(code),
+});
+
+if (installing) {
+  // answered: it quits once it has said so
+} else if (!args.smoke && !args.startCheck && !app.requestSingleInstanceLock()) {
   app.quit(); // the app is already open: that one is focused instead (or, with --quit, quits)
 } else if (args.quit) {
   app.exit(0); // asked to quit, and none is running: start nothing

@@ -30,6 +30,7 @@ export const GUESSES: Readonly<Record<string, string>> = {
   board: "noticeboard",
   story: "tree [<story>]",
   sessions: "session list",
+  machines: "machine list",
 };
 
 /**

@@ -167,6 +167,15 @@ function frictionMove(before: FieldsOf<"friction">, edit: FrictionEdit): Frictio
 }
 
 /**
+ * What closing an increment asks of a friction report it remedies (ADR-1016 D2). A landing resolves
+ * it with the close's delivery stamp. A failed or withdrawn close returns what it still owed: a
+ * report it left routed or, when the close undoes a landing, one that landing's stamp resolved.
+ */
+export type RemedyClose =
+  | { readonly landed: true; readonly stamp: string }
+  | { readonly landed: false; readonly undoing?: string | undefined; readonly remediedElsewhere: boolean };
+
+/**
  * Refuse a change to a frozen experiment other than its outcome (ADR-1064 D5): what was written down before it ran,
  * the freeze time included, stays as it was, so the reading can only add an outcome. A `type` change is a refile.
  */
@@ -329,6 +338,29 @@ export class Knowledge {
         checkCurrent?.(current as Note);
       },
     })) as Note | null;
+  }
+
+  /**
+   * Move a friction report as the close of an increment that remedies it says (ADR-1016 D2), the one
+   * write of its state outside editNote's rule (ADR-1242 D2). Landed, a report not yet resolved is
+   * resolved with the stamp. Otherwise a report the close owed goes back to the drain, open with its
+   * route cleared, or stays routed, its stamp cleared, while another open increment still remedies it.
+   * Null, with nothing written, if `id` is no live friction report or the close owes it nothing.
+   */
+  async settleRemedy(id: string, close: RemedyClose, options?: WriteOptions): Promise<SchemaRecord<"friction"> | null> {
+    const report = await liveRecord(this.#records, id, ["friction"]);
+    if (report === null) return null;
+    const { state, route, dischargedBy } = report.fields as FieldsOf<"friction">;
+    if (close.landed) {
+      if (state === "resolved") return null;
+      return (await this.#records.edit(id, { state: "resolved", dischargedBy: close.stamp }, options)) as SchemaRecord<"friction"> | null;
+    }
+    const owed = close.undoing === undefined ? state === "routed" : state === "resolved" && dischargedBy === close.undoing;
+    if (!owed) return null;
+    const reopen = close.remediedElsewhere && route !== undefined
+      ? { state: "routed" as const, dischargedBy: undefined }
+      : { state: "open" as const, route: undefined, routeReason: undefined, dischargedBy: undefined };
+    return (await this.#records.edit(id, reopen, options)) as SchemaRecord<"friction"> | null;
   }
 
   /**

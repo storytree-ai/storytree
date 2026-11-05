@@ -480,7 +480,7 @@ async function waitingOn(context: ClaimContext, found: Found): Promise<Waiting[]
   const { increment } = found.part;
   if (increment === undefined) return [];
   const unread = await library.holds();
-  const holds = (unread.waits[increment] ?? []).some((hold) => hold.claim === true) ? await library.holds(new Date(), { claimed: await claimedByOthers(context) }) : unread;
+  const holds = (unread.waits[increment] ?? []).some((hold) => hold.claim === true) ? await library.holds(new Date(), { claimed: await claimedByOthers(context, increment) }) : unread;
   return [
     ...(holds.waits[increment] ?? []).map((hold): Waiting => ({ increment, ...hold })),
     ...(holds.heldOn[increment] ?? []).map((question): Waiting => ({ increment, on: question, reason: "waiting on the owner's answer", forGood: false, onOwner: true })),
@@ -490,9 +490,13 @@ async function waitingOn(context: ClaimContext, found: Found): Promise<Waiting[]
   ];
 }
 
-/** The capabilities other live sessions hold now: by their own claim, or on the list of an increment they hold (ADR-0949 D3). */
-async function claimedByOthers(context: ClaimContext): Promise<Set<string>> {
-  const others = (await readClaims(context.log, context.project, context)).filter((claim) => claim.holder === "live" && claim.session !== context.session);
+/**
+ * The capabilities other live sessions hold now: by their own claim, or on the list of an increment they hold (ADR-0949 D3).
+ * Claims held for the `waiter` itself, its increment's or one under it, as its pull request's holder holds them, are left out (5.68).
+ */
+async function claimedByOthers(context: ClaimContext, waiter: string): Promise<Set<string>> {
+  const others = (await readClaims(context.log, context.project, context)).filter((claim) =>
+    claim.holder === "live" && claim.session !== context.session && claim.increment !== waiter && claim.under !== waiter);
   const listed = await Promise.all(others.flatMap((claim) => (claim.increment === undefined ? [] : [claim.increment])).map(async (increment) =>
     ((await context.library.get(increment))?.fields as { capabilities?: string[] } | undefined)?.capabilities ?? []));
   return new Set([...others.flatMap((claim) => (claim.capability === undefined ? [] : [claim.capability])), ...listed.flat()]);

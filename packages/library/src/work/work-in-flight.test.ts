@@ -1,6 +1,7 @@
 /**
  * Capability 10 · Work in flight (ADR-0640): one test per contract of 10 in the library story,
- * its pending plan changes now capability 4's (pending-changes.test.ts),
+ * its pending plan changes now capability 4's (pending-changes.test.ts), and 6.18 and 6.19, Knowledge
+ * artifacts' move of the friction a close remedies, pinned here through the close that runs it,
  * each run on BOTH backends:
  *
  * - memory: a WorkModel and a WorkInFlight over SchemaRecords over a fresh MemoryTransactions;
@@ -388,7 +389,7 @@ for (const backend of [memory, postgres]) {
   };
   const frictionOf = async (records: SchemaRecords, id: string): Promise<Record<string, unknown>> => ((await records.get(id))?.fields ?? {}) as Record<string, unknown>;
 
-  contract("10.20", "closing an increment as landed resolves each friction in its remedies, stamped with its pull request or else the increment, and a closure corrected to landed does the same", async ({ work, flight, records }) => {
+  contract("6.18", "closing an increment as landed resolves each friction in its remedies, stamped with its pull request or else the increment, and a closure corrected to landed does the same", async ({ work, flight, records }) => {
     const arc = await flight.createArc(ARC);
     const routed = await report(records, { route: "tool", routeReason: "Build the verb" });
     const unjudged = await report(records);
@@ -414,7 +415,7 @@ for (const backend of [memory, postgres]) {
     assert.deepEqual([(await frictionOf(records, late))["state"], (await frictionOf(records, late))["dischargedBy"]], ["resolved", "#77"], "a closure corrected to landed resolves it");
   });
 
-  contract("10.21", "closing an increment failed or withdrawn reopens each friction it left routed unless another open increment remedies it, and a closure corrected from landed reopens those it resolved", async ({ work, flight, records }) => {
+  contract("6.19", "closing an increment failed or withdrawn reopens each friction it left routed unless another open increment remedies it, and a closure corrected from landed reopens those it resolved", async ({ work, flight, records }) => {
     const arc = await flight.createArc(ARC);
     for (const disposition of ["failed", "withdrawn"] as const) {
       const owed = await report(records, { route: "tool", routeReason: "Build the verb" });

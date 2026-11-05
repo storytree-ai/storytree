@@ -1167,6 +1167,25 @@ test("5.45 a session on a handed-over pull request's branch, its fix session, ta
   });
 });
 
+test("5.68 an increment that waits on a capability's claim is not held by the claims its own pull request holds for it: its fix session claims it, and a session on another branch is still refused (ADR-1228 D1, ADR-1037 D2)", async () => {
+  await withWorld(async ({ library, emailForm, as }) => {
+    const { park } = await arcOf(library);
+    const work = await park("email form", [emailForm]);
+    assert.ok((await claim(as("A", { branch: "feature/signup" }), work, "driving the email form")).ok);
+    assert.ok((await claim(as("A", { branch: "feature/signup" }), emailForm, "building the email form")).ok);
+    await library.addWait(work, emailForm, "refused: another session holds it");
+    await holdForPull(as("C"), "A", 12, "feature/signup");
+
+    const fixer = as("D", { branch: "feature/signup" });
+    assert.equal(await claimRefusal(fixer, work), undefined, "its workspace is not refused");
+    const taken = await claim(fixer, work, "fix PR #12");
+    assert.ok(taken.ok && taken.takenOverFrom?.session === "pull-request-12", "the fix session takes the increment over");
+    await holdForPull(as("C"), "D", 12, "feature/signup");
+    const elsewhere = await claim(as("B", { branch: "feature/other" }), work, "driving the email form");
+    assert.ok(!elsewhere.ok, "a session on another branch is still refused");
+  });
+});
+
 test("5.50 a hand-over holds none of the claims taken on another branch: a session driving a second increment on another branch keeps it, and claims it again without refusal (ADR-1037 D1)", async () => {
   await withWorld(async ({ log, library, project, emailForm, passwordReset, as }) => {
     const { park } = await arcOf(library);

@@ -5,7 +5,7 @@ import type { AnnotatedTree, ArcView, Line } from "@storytree/library";
 import { outageSaidOnce, saysUnreachable, type OutageSaidOnce } from "@storytree/library/connection-error";
 import type { LogReading } from "@storytree/session-management/readings";
 import { pageKept, pageReading, type LiveReads, type PageReading } from "@storytree/arc-surface";
-import { clickedSelection, listedRows, openWork, sessionRoster, sessionRows, type RosterEntry, type SessionDetails, type SessionRow } from "../sessions-list/sessions-list.js";
+import { clickedSelection, listedRows, sessionRoster, sessionRows, type RosterEntry, type SessionDetails, type SessionRow } from "../sessions-list/sessions-list.js";
 import { sessionColour, sessionWisps, type SessionWisp } from "../agent-claims/agent-claims.js";
 import { treeAfter } from "../render/forest-reading.js";
 
@@ -153,8 +153,6 @@ export function mountSessionsList(container: HTMLElement, options: {
   onHighlight(stories: readonly string[] | undefined): void;
   /** Hears each listed session's wisps (capability 5) whenever the rows are redrawn. */
   onWisps?(wisps: readonly SessionWisp[]): void;
-  /** Hears every capability an open increment names (7.36), whenever the arcs are read, for the map's open-work dots. */
-  onOpenWork?(capabilities: readonly string[]): void;
   /** Hears the listed rows as the knowledge core's roster whenever they are redrawn (ADR-0738 D2). */
   onRoster?(roster: readonly RosterEntry[]): void;
   /** A row was clicked: select its session, or undefined to clear the selection (ADR-0738 D5). */
@@ -239,7 +237,6 @@ export function mountSessionsList(container: HTMLElement, options: {
       const nextArcs = await named("reading the arcs", () => arcsAfter(options.reads, options.project, news, arcs));
       if (stopped) return;
       tree = nextTree;
-      if (nextArcs !== arcs) options.onOpenWork?.(openWork(nextArcs));
       arcs = nextArcs;
       // The page reading holds the log once for every surface, folded and thinned to what they read (ADR-0836 D4).
       log = page.held();

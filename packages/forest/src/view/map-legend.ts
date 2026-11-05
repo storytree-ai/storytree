@@ -70,11 +70,10 @@ export const MAP_LEGEND: readonly LegendEntry[] = [
   },
   { words: "a picked link's whole way, lit in gold", mark: svg("0 0 26 14", `${band(LIT.edge, 4)}${band(LIT.gold, 2.6)}`), draws: ["road-lit-edge", "road-lit-gold", "road-lit-edge-end", "road-lit-gold-end"] },
   {
-    words: "an arc selected circles the territories its open work names and dims the rest",
-    mark: swatch("#0b0f14", 0.5, `<rect x="5" y="3" width="16" height="8" rx="1" fill="${WORD_FILL.healthy.colour}" stroke="${OPEN_WORK}" stroke-width="1.6" />`),
-    draws: ["open-work-ring", "open-work-dim"],
+    words: "open work: an arc selected rings each capability its open increments name, and the island from far, and dims the rest",
+    mark: swatch("#0b0f14", 0.5, `<circle cx="13" cy="7" r="4.6" fill="none" stroke="${OPEN_WORK}" stroke-width="1.4" />`),
+    draws: ["open-work-ring", "open-work-island", "open-work-dim"],
   },
-  { words: "open work: an open increment names this capability", mark: svg("0 0 26 14", `<circle cx="13" cy="7" r="5" fill="#10202a" fill-opacity="0.7" /><circle cx="13" cy="7" r="3.6" fill="${OPEN_WORK}" />`), draws: ["open-work-dot", "open-work-dot-fill"] },
   { words: "a session's reads, in its colour, fainter once out of its window", mark: swatch(WORD_FILL.healthy.colour, WORD_FILL.healthy.opacity, `<rect x="1" y="1" width="24" height="12" rx="2" fill="${SESSION}" fill-opacity="0.36" />`), draws: ["territory-lit"] },
   {
     words: "claim: a running session's flag, in its colour, on what it is changing; a dashed lot on an island with no code yet",

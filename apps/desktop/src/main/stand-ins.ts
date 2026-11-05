@@ -1,5 +1,5 @@
 /**
- * Capability 1 · Lifecycle. The factory plugins standing in for switched-off parts, in the window (plugin loader capability 5,
+ * Capability 8 · Page bridge. The factory plugins standing in for switched-off parts, in the window (plugin loader capability 5,
  * question_5867f490cdd6: run-time loading). The main process composes them into its page answers, page channels and
  * surfaces as the command line composes its verbs, so a stand-in is mounted where its part was while that part is off.
  * The page is sandboxed and its script bundled, so it cannot read the factory: the preload asks for the stand-ins' page
@@ -41,7 +41,7 @@ export function windowKinds(graph: PartsGraph, standIns: StandIns, off: readonly
 }
 
 /**
- * The records Delete forgets with a project (contract 1.37): those the app's story packages name in `records`, and each
+ * The records Delete forgets with a project (contract 8.6): those the app's story packages name in `records`, and each
  * factory plugin's `standIns` names, as code review's QA ledger is now (ADR-1209), but none of a part `off` switches off.
  */
 export function windowProjectRecords<Records>(records: Composition<Records>, standIns: StandIns, off: readonly string[]): Records[] {

@@ -141,7 +141,7 @@ declare const STORYTREE_WORKOS_CLIENT_ID: string | undefined;
 
 // The main process's own uncaught errors reach the log (app.log once teeConsole runs below, stderr in the checks), before startup work can throw.
 // The box then offers Keep going or Restart; before the app is ready only the error box can show, so it keeps going.
-// Each is also kept in the user's own library on every install, held until it opens (lifecycle 1.25), naming the build:
+// Each is also kept in the user's own library on every install, held until it opens (errors 9.4), naming the build:
 // a packaged one's version and commit from the first moment (4.39), a development checkout's once it is known.
 /** Which build this is (`version 0.3.0 (commit 80bcc63)`, or the development checkout), shown in the title and the tray. */
 let build = app.isPackaged ? packagedBuild(app.getVersion()) : "";
@@ -173,7 +173,7 @@ logMainErrors(process, {
 });
 
 const home = appHome();
-/** app.log beside the app's data, bounded (contract 1.34): an installed app has no terminal, so what it says is kept here. */
+/** app.log beside the app's data, bounded (contract 9.7): an installed app has no terminal, so what it says is kept here. */
 const log = appLog(path.join(home.dir, "app.log"));
 // The release's checks and the smoke check say what they say on stderr only, as before.
 if (!args.smoke && !args.startCheck && !args.callbackCheck) teeConsole(console, log);
@@ -272,7 +272,7 @@ async function run(): Promise<void> {
   marks.mark("app ready");
   phases.phase("starting the app's handlers");
   answerStartMarks(ipcMain, START_MARK, marks);
-  // Every page operation is answered through one outage guard: a library that cannot be reached is said once in app.log, not a stack per poll (1.40).
+  // Every page operation is answered through one outage guard: a library that cannot be reached is said once in app.log, not a stack per poll (page bridge 8.8).
   const page = sayOutagesOnce(ipcMain, (line) => console.error(line));
   // The bundled main is CommonJS with no import.meta, so its own build is named from Electron when packaged and from the checkout at its app path otherwise.
   const appVersion = runningVersion({ packaged: app.isPackaged, packagedVersion: () => app.getVersion(), appPath: app.getAppPath() });
@@ -450,7 +450,7 @@ async function run(): Promise<void> {
   else {
     if (!args.background) openWindow(windowQuery);
     showTray();
-    // An error the library holds that is not yet reported asks to be, until it is marked submitted (lifecycle 1.31, ADR-1122).
+    // An error the library holds that is not yet reported asks to be, until it is marked submitted (errors 9.6, ADR-1122).
     void errorsOpened?.then(() => errorRecords.settled())
       .then(() => askToReportErrors(errorRecords, { ask: reportBox(options => dialog.showMessageBox(options)) }))
       .catch((error: unknown) => console.error(`asking to report the app's errors: ${messageOf(error)}`));

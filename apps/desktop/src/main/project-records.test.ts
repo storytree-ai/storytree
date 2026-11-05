@@ -1,4 +1,4 @@
-/** Capability 1 · Lifecycle: the records the stories keep for a project outside its library, which the setup help's Delete forgets with it. */
+/** Capability 8 · Page bridge: the records the stories keep for a project outside its library, which the setup help's Delete forgets with it. */
 import assert from "node:assert/strict";
 import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -14,7 +14,7 @@ import unbundled from "./parts/project-records.js";
 import { windowProjectRecords } from "./stand-ins.js";
 import { partsFromList } from "./parts-list.js";
 
-test("1.37 the desktop app composes the project records its story packages' manifests name into its bundle by the plugin loader, and the same run unbundled, and hands Delete those and each factory plugin's mounted in a part's place, as code review's QA ledger is now, but not one whose part is on", async (t) => {
+test("8.6 the desktop app composes the project records its story packages' manifests name into its bundle by the plugin loader, and the same run unbundled, and hands Delete those and each factory plugin's mounted in a part's place, as code review's QA ledger is now, but not one whose part is on", async (t) => {
   const desktop = fileURLToPath(new URL("../..", import.meta.url));
   const out = mkdtempSync(path.join(tmpdir(), "storytree-desktop-records-"));
   t.after(() => removeTemp(out));

@@ -1,6 +1,6 @@
 /**
- * Capability 1 · Lifecycle. The app's own log: app.log in its home, where everything the app says is kept so it can be
- * read after the fact, including by an installed app started with no terminal (contract 1.34). It stays bounded the way
+ * Capability 9 · Errors and app.log. The app's own log: app.log in its home, where everything the app says is kept so it can be
+ * read after the fact, including by an installed app started with no terminal (contract 9.7). It stays bounded the way
  * releases.log is (4.19): past its cap it moves to `app.log.1`, replacing the one before, and starts again.
  */
 import { appendFileSync, renameSync, statSync } from "node:fs";

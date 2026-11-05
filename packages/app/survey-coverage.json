@@ -32,8 +32,8 @@
   "4": 100
  },
  "src/lifecycle/backups.ts": {
-  "1": 160,
-  "4": 323
+  "4": 323,
+  "10": 160
  },
  "src/lifecycle/launch.ts": {
   "1": 9

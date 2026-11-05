@@ -17,7 +17,7 @@ const snapshot: ProjectSnapshot = {
 };
 
 for (const mask of [0o022, 0o077]) for (const existing of [false, true]) {
-  test(`1.8 · automatic snapshots are private from their first write with umask ${mask.toString(8)} and ${existing ? "existing" : "new"} backup folders`, posix, async (t) => {
+  test(`10.1 · automatic snapshots are private from their first write with umask ${mask.toString(8)} and ${existing ? "existing" : "new"} backup folders`, posix, async (t) => {
     const home = fs.mkdtempSync(path.join(tmpdir(), "storytree-backup-privacy-"));
     const dir = path.join(home, "backups"), folder = path.join(dir, "synthetic");
     const previousMask = process.umask(mask);
@@ -65,7 +65,7 @@ for (const mask of [0o022, 0o077]) for (const existing of [false, true]) {
   });
 }
 
-test("1.8 · startup repairs retained snapshots and partials even when a fresh snapshot is reused or its project is gone", posix, async (t) => {
+test("10.1 · startup repairs retained snapshots and partials even when a fresh snapshot is reused or its project is gone", posix, async (t) => {
   t.mock.timers.enable({ apis: ["setInterval", "Date"], now: Date.parse("2026-10-08T01:00:00.000Z") });
   const home = fs.mkdtempSync(path.join(tmpdir(), "storytree-backup-repair-"));
   t.after(() => fs.rmSync(home, { recursive: true, force: true }));

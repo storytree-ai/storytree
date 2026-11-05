@@ -1,4 +1,4 @@
-// The real app, run in CI (lifecycle 1.29, the owner's option A on question_c34fd1a7f98b): seed a throwaway home's
+// The real app, run in CI (lifecycle 1.30, the owner's option A on question_c34fd1a7f98b): seed a throwaway home's
 // library with one project, one story and one capability, then start the built app on it with `--smoke --stress`, and
 // exit with the app's own exit code. That code is red when the page did not draw the project, and when the main process
 // logged any error, one raised while it quits included. Run with tsx from the checkout's root after

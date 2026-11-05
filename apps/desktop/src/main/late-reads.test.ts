@@ -11,7 +11,7 @@ function library(name: string) {
   };
 }
 
-test("1.29 · a page read asked before the library opens is refused saying so; once it opens, or reopens, the library open then answers it", async () => {
+test("8.5 · a page read asked before the library opens is refused saying so; once it opens, or reopens, the library open then answers it", async () => {
   let open: ReturnType<typeof library> | undefined;
   const reads = lateReads(["listProjects", "projectTree"], () => {
     if (open === undefined) throw new Error("the library is not open");
@@ -24,7 +24,7 @@ test("1.29 · a page read asked before the library opens is refused saying so; o
   assert.deepEqual(reads.listProjects(), ["reopened's project"]);
 });
 
-test("1.29 · before the library opens the page sees no projects and choosing one is refused; once it opens, the choice is the library's", () => {
+test("8.5 · before the library opens the page sees no projects and choosing one is refused; once it opens, the choice is the library's", () => {
   let reads: ReturnType<typeof library> | undefined;
   let projects: { read(): unknown; choose(name: unknown): unknown } | undefined;
   const answers = projectAnswers({ reads: () => reads, projects: () => projects });

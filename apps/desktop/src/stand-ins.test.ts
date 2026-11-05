@@ -63,7 +63,7 @@ function window(composed: ReturnType<typeof windowStandIns>, off: readonly strin
   return createBridge(async (channel, ...args) => handlers.get(channel)!({}, ...args), { standIns: composed.page });
 }
 
-test("1.24 a factory plugin standing in for a switched-off part answers its page operations in the part's place, no channel answered twice, and offers the page its channels and its surface's view; switched back on, the built-in part's are", async (t) => {
+test("8.4 a factory plugin standing in for a switched-off part answers its page operations in the part's place, no channel answered twice, and offers the page its channels and its surface's view; switched back on, the built-in part's are", async (t) => {
   const folder = factory(t);
   const standIns = { folder, plugins: { lag: "my-lag" } };
 
@@ -92,7 +92,7 @@ test("plugin-loader 5.13 · a factory plugin that adds a part, standing in for n
   assert.deepEqual([...dropped.served.plugins], []);
 });
 
-test("1.24 the window's own scheme serves a view only from a mounted stand-in's exported files: a name it does not export, a path out of its folder, or a plugin standing in for no switched-off part is refused", async (t) => {
+test("8.4 the window's own scheme serves a view only from a mounted stand-in's exported files: a name it does not export, a path out of its folder, or a plugin standing in for no switched-off part is refused", async (t) => {
   const folder = factory(t);
   const composed = windowStandIns(builtIn, { folder, plugins: { lag: "my-lag" } }, ["lag"]);
 
@@ -115,7 +115,7 @@ test("1.24 the window's own scheme serves a view only from a mounted stand-in's 
   assert.match(await refused.text(), /my-lag stands in for no switched-off part/);
 });
 
-test("1.42 the app opens its projects with the kinds of record a factory plugin standing in for a switched-off part declares, none while the part is on, and logs a plugin whose kinds cannot be read as a stand-in that failed (ADR-1178 D3)", (t) => {
+test("8.9 the app opens its projects with the kinds of record a factory plugin standing in for a switched-off part declares, none while the part is on, and logs a plugin whose kinds cannot be read as a stand-in that failed (ADR-1178 D3)", (t) => {
   const folder = factory(t);
   const file = path.join(folder, "plugins", "my-lag", "package.json");
   const manifest = JSON.parse(readFileSync(file, "utf8"));

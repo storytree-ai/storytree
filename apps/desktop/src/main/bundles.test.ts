@@ -43,7 +43,7 @@ test("4.37 · the main process bundles whole into main.cjs: it loads nothing fro
   assert.ok(outside.has("electron"));
 });
 
-test("1.47 · the preload script, bundled as the app bundles it, gives the page the bridge as `storytree` and nothing else, with the main process's answers on sign-in for feedback and stand-ins", { timeout: 60_000 }, async () => {
+test("8.10 · the preload script, bundled as the app bundles it, gives the page the bridge as `storytree` and nothing else, with the main process's answers on sign-in for feedback and stand-ins", { timeout: 60_000 }, async () => {
   const { text, outside } = await bundled({ ...preloadBuild(dist), entryPoints: [fileURLToPath(new URL("../preload/preload.ts", import.meta.url))] });
   assert.deepEqual([...outside].filter((name) => !isNodes(name)), ["electron"]);
   const opened = (answers: Record<string, unknown>) => {

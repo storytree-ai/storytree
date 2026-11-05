@@ -18,7 +18,7 @@ const stamp = "2026-10-08T00-00-00-000Z.json";
 const windowsOnly = { skip: process.platform !== "win32" ? "platform:win32: Windows Authz effective-access proof runs on Windows CI" : false, timeout: 300_000 };
 
 for (const existing of [false, true]) {
-  test(`1.8 · Windows excludes an unrelated user before the first snapshot byte with ${existing ? "existing" : "new"} backup folders`, windowsOnly, async (t) => {
+  test(`10.1 · Windows excludes an unrelated user before the first snapshot byte with ${existing ? "existing" : "new"} backup folders`, windowsOnly, async (t) => {
     const home = fs.mkdtempSync(path.join(tmpdir(), "storytree-backup-['é] $-"));
     t.after(() => fs.rmSync(home, { recursive: true, force: true }));
     const dir = path.join(home, "backups"), folder = path.join(dir, "synthetic");
@@ -71,7 +71,7 @@ for (const existing of [false, true]) {
   });
 }
 
-test("1.8 · Windows repairs retained snapshots before freshness reuse, including removed projects and partials", windowsOnly, async (t) => {
+test("10.1 · Windows repairs retained snapshots before freshness reuse, including removed projects and partials", windowsOnly, async (t) => {
   t.mock.timers.enable({ apis: ["setInterval", "Date"], now: Date.parse("2026-10-08T01:00:00.000Z") });
   const home = fs.mkdtempSync(path.join(tmpdir(), "storytree-backup-acl-retained-"));
   t.after(() => fs.rmSync(home, { recursive: true, force: true }));
@@ -104,7 +104,7 @@ test("1.8 · Windows repairs retained snapshots before freshness reuse, includin
   for (const file of files) assert.deepEqual(JSON.parse(fs.readFileSync(file, "utf8")), snapshot);
 });
 
-test("1.8 · a Windows permission failure prevents snapshot bytes and freshness reuse", async (t) => {
+test("10.1 · a Windows permission failure prevents snapshot bytes and freshness reuse", async (t) => {
   const dir = fs.mkdtempSync(path.join(tmpdir(), "storytree-backup-acl-failure-"));
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
   const platform = Object.getOwnPropertyDescriptor(process, "platform")!;

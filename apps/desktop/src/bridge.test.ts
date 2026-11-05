@@ -19,7 +19,7 @@ test("app setup 5.6: without sign-in configured the page's bridge has no feedbac
   assert.deepEqual(invoked, [FEEDBACK_IDENTITY_CHANNELS.status, FEEDBACK_IDENTITY_CHANNELS.signIn, FEEDBACK_IDENTITY_CHANNELS.signOut]);
 });
 
-test("1.38 a main-side failure reaches the page in its own words: a call whose main-process handler throws rejects with that error's message and name, without Electron's wrapper", async () => {
+test("8.7 a main-side failure reaches the page in its own words: a call whose main-process handler throws rejects with that error's message and name, without Electron's wrapper", async () => {
   // Electron's ipcRenderer.invoke rejects this way when the main side's handler throws.
   const invoke = async (channel: string) => {
     if (channel === "storytree:start-mark") throw new Error(`Error invoking remote method '${channel}': ${String(new TypeError("Bad mark."))}`);

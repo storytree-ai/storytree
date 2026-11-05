@@ -1,5 +1,5 @@
 /**
- * Capability 1 · Lifecycle. The page operations' answers, as `#parts/pageAnswers` names them run unbundled: composed from
+ * Capability 8 · Page bridge. The page operations' answers, as `#parts/pageAnswers` names them run unbundled: composed from
  * the manifests of this app's dependencies by the plugin loader (ADR-1021). The app's bundle gets the same list from the
  * loader's build plugin instead (build.mjs).
  */

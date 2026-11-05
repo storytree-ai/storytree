@@ -1,4 +1,4 @@
-/** Capability 1 · Lifecycle. What the window's page says went wrong, kept in the app's log so a failure inside the window can be read after the fact (contract 1.19). */
+/** Capability 9 · Errors and app.log. What the window's page says went wrong, kept in the app's log so a failure inside the window can be read after the fact (contract 9.1). */
 export interface PageContents {
   on(event: "console-message", listener: (details: { level: string; message: string; sourceId: string; lineNumber: number }) => void): unknown;
   on(event: "render-process-gone", listener: (event: unknown, details: { reason: string; exitCode: number }) => void): unknown;

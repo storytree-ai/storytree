@@ -28,7 +28,7 @@ import { partsFromList } from "./main/parts-list.js";
 /** The feedback corner's side of the frame, which these tests do not use: nothing declared, no library, no window. */
 const NO_FEEDBACK = { declaredSurfaces: [], server: () => undefined, captureWindow: async () => undefined };
 
-test("1.18 a story's page operations its package's manifest names are answered in the main process and offered to the page, the frame naming no story: a lag reading the page sends is kept in the app's home, stamped with the app's version", async (t) => {
+test("8.2 a story's page operations its package's manifest names are answered in the main process and offered to the page, the frame naming no story: a lag reading the page sends is kept in the app's home, stamped with the app's version", async (t) => {
   const home = mkdtempSync(path.join(tmpdir(), "storytree-page-parts-"));
   t.after(() => rmSync(home, { recursive: true, force: true }));
   const handlers = new Map<string, (event: unknown, ...args: unknown[]) => unknown>();
@@ -57,7 +57,7 @@ test("1.18 a story's page operations its package's manifest names are answered i
   assert.deepEqual(bundled, pageChannels);
 });
 
-test("1.18 the settings panel's page operations its manifest names are answered from the frame's home: a setting the page saves reaches the settings file there, and the page reads it back", async (t) => {
+test("8.2 the settings panel's page operations its manifest names are answered from the frame's home: a setting the page saves reaches the settings file there, and the page reads it back", async (t) => {
   const home = mkdtempSync(path.join(tmpdir(), "storytree-page-settings-"));
   t.after(() => rmSync(home, { recursive: true, force: true }));
   const handlers = new Map<string, (event: unknown, ...args: unknown[]) => unknown>();
@@ -77,7 +77,7 @@ test("1.18 the settings panel's page operations its manifest names are answered 
   assert.equal(read.ok && read.value["context-guidance"]?.value, 420000);
 });
 
-test("1.18 the forest's code survey its manifest names is answered from what the frame offers: the open library's project folder and imports, the tree the page last read, and the bundled survey worker", async (t) => {
+test("8.2 the forest's code survey its manifest names is answered from what the frame offers: the open library's project folder and imports, the tree the page last read, and the bundled survey worker", async (t) => {
   const folder = mkdtempSync(path.join(tmpdir(), "storytree-page-survey-"));
   t.after(() => rmSync(folder, { recursive: true, force: true }));
   // The worker bundled as build.mjs bundles it, resolved through the forest package the survey mounts from.
@@ -109,7 +109,7 @@ test("1.18 the forest's code survey its manifest names is answered from what the
   assert.deepEqual(await page.codeSurvey("elsewhere"), {}, "a project with no checkout here has no survey");
 });
 
-test("1.20 the page operations of a part this computer switches off are not answered: each of its channels refuses, saying the part is off and how to switch it on, and the rest are answered", async (t) => {
+test("8.3 the page operations of a part this computer switches off are not answered: each of its channels refuses, saying the part is off and how to switch it on, and the rest are answered", async (t) => {
   const home = mkdtempSync(path.join(tmpdir(), "storytree-page-parts-off-"));
   t.after(() => rmSync(home, { recursive: true, force: true }));
   const handlers = new Map<string, (event: unknown, ...args: unknown[]) => unknown>();

@@ -1,5 +1,5 @@
 /**
- * Capability 1 · Lifecycle. How the frame mounts a story's page operations (ADR-0649): the story declares each one once, as
+ * Capability 8 · Page bridge. How the frame mounts a story's page operations (ADR-0649): the story declares each one once, as
  * a bridge method and the IPC channel it travels on, and the frame builds both sides from that declaration: the page's
  * methods here, and the main process's answers. Data and functions only: safe for the page, the preload and the main process.
  */

@@ -6,7 +6,7 @@ import { test } from "node:test";
 
 import { appLog, teeConsole } from "./app-log.js";
 
-test("1.34 · what the app logs and errors is still said, and also kept in app.log, each entry stamped with its time", (t) => {
+test("9.7 · what the app logs and errors is still said, and also kept in app.log, each entry stamped with its time", (t) => {
   const dir = mkdtempSync(path.join(tmpdir(), "app-log-"));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   const file = path.join(dir, "app.log");
@@ -22,7 +22,7 @@ test("1.34 · what the app logs and errors is still said, and also kept in app.l
   assert.deepEqual(lines.map(line => line.replace(/^\d{4}-\d\d-\d\dT\S+Z /, "")), ["storytree 0.3 started 2", "closing the library: connection reset"]);
 });
 
-test("1.34 · app.log stays under its cap: past it, the file starts again and the previous one is kept beside it", (t) => {
+test("9.7 · app.log stays under its cap: past it, the file starts again and the previous one is kept beside it", (t) => {
   const dir = mkdtempSync(path.join(tmpdir(), "app-log-"));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   const file = path.join(dir, "app.log");
@@ -35,7 +35,7 @@ test("1.34 · app.log stays under its cap: past it, the file starts again and th
   assert.match(readFileSync(file, "utf8"), /renderer\.js:199\): reading the arcs failed\n$/);
 });
 
-test("1.34 · a log that cannot be written never stops the app", () => {
+test("9.7 · a log that cannot be written never stops the app", () => {
   const log = appLog(path.join(tmpdir(), "no-such-dir", "nested", "app.log"));
   assert.doesNotThrow(() => log.write("storytree 0.3 started"));
 });

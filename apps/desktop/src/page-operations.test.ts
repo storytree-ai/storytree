@@ -15,7 +15,7 @@ import { ConnectionError, LIBRARY_UNREACHABLE } from "@storytree/library/connect
 
 import { answerPage, sayOutagesOnce } from "./page-operations.js";
 
-test("1.16 a page operation a story declares reaches that story's answer in the main process, with the page's arguments", async () => {
+test("8.1 a page operation a story declares reaches that story's answer in the main process, with the page's arguments", async () => {
   const handlers = new Map<string, (event: unknown, ...args: unknown[]) => unknown>();
   const ipc = { handle: (channel: string, listener: (event: unknown, ...args: unknown[]) => unknown) => { handlers.set(channel, listener); } };
   const heard: unknown[][] = [];
@@ -36,7 +36,7 @@ test("1.16 a page operation a story declares reaches that story's answer in the 
   assert.deepEqual(heard, [["chooseJourney", true], ["saveSetting", "idle-after", ["30m"]], ["saveSurface", ["arcs", "off"]], ["readJourney"], ["windowReading", "storytree", "s1"], ["codeSurvey", "storytree"]]);
 });
 
-test("1.16 the app's own operations and the setup help's travel on the channels their stories declare, and reach those answers", async () => {
+test("8.1 the app's own operations and the setup help's travel on the channels their stories declare, and reach those answers", async () => {
   const handlers = new Map<string, (event: unknown, ...args: unknown[]) => unknown>();
   const ipc = { handle: (channel: string, listener: (event: unknown, ...args: unknown[]) => unknown) => { handlers.set(channel, listener); } };
   const heard: unknown[][] = [];
@@ -55,7 +55,7 @@ test("1.16 the app's own operations and the setup help's travel on the channels 
   assert.deepEqual(heard, [["checkForUpdates", "check"], ["setSignIn", false], ["setInstallChoice", "on quit"], ["chooseProject", "tree"], ["deleteProject", "tree", "tree", true], ["copyHelpText", "words"], ["signOut"]]);
 });
 
-test("1.40 · an unreachable library is said once per outage: its reads resolve, so no handler stack is logged, app.log gets one line as it starts and one as it ends, and the page is told it in plain words; any other failure still rejects", async () => {
+test("8.8 · an unreachable library is said once per outage: its reads resolve, so no handler stack is logged, app.log gets one line as it starts and one as it ends, and the page is told it in plain words; any other failure still rejects", async () => {
   const handlers = new Map<string, (event: unknown, ...args: unknown[]) => unknown>();
   const logged: string[] = [];
   const page = sayOutagesOnce({ handle: (channel, listener) => { handlers.set(channel, listener); } }, (line) => logged.push(line));

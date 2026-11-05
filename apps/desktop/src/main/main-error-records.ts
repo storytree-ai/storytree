@@ -1,15 +1,15 @@
 /**
- * Capability 1 · Lifecycle. The main process's uncaught exceptions and unhandled rejections, kept in the user's own
- * library on every install (contract 1.25, the owner's answer to question_010c37c7a21c), beside the app's log, which an
+ * Capability 9 · Errors and app.log. The main process's uncaught exceptions and unhandled rejections, kept in the user's own
+ * library on every install (contract 9.4, the owner's answer to question_010c37c7a21c), beside the app's log, which an
  * installed release keeps nowhere. An app error belongs to no project, so it is kept in a database of the app's own on the
  * library's server, one row for each error: the same error again (its kind, build and stack) adds to its count, so a
  * loop cannot flood the library. Nothing here leaves the user's machine.
  *
  * Errors before the library opens are held, a bounded few, and written once it does. A write that fails is said in the
- * log and dropped: the log keeps the error either way, and the failure raises nothing (contract 1.26).
+ * log and dropped: the log keeps the error either way, and the failure raises nothing (contract 9.5).
  *
  * Each record is written not yet submitted. While one is, opening the app asks the person to have their agent submit a
- * GitHub issue, until they mark it submitted from that box (contract 1.31, ADR-1122).
+ * GitHub issue, until they mark it submitted from that box (contract 9.6, ADR-1122).
  */
 import { createHash } from "node:crypto";
 

@@ -147,12 +147,14 @@ test("1.17 the sheet is laid out a few steps to a task, no task past its budget,
   // A clock each step moves on by 10 ms, and a page whose tasks are run by hand.
   let clock = 0;
   const tasks: (() => void)[] = [];
-  const timed = function* () { const steps = sheetSteps(core, hanging, known.notes); for (;;) { clock += 10; const at = steps.next(); if (at.done) return at.value; yield; } };
+  let stepped = 0;
+  const timed = function* () { const steps = sheetSteps(core, hanging, known.notes); for (;;) { clock += 10; stepped++; const at = steps.next(); if (at.done) return at.value; yield; } };
   let laid: ReturnType<typeof sheetPoints> | undefined, longest = 0, ran = 0;
   runInSteps(timed, value => { laid = value; }, run => tasks.push(run), 40, () => clock);
   while (tasks.length > 0) { const began = clock; tasks.shift()!(); longest = Math.max(longest, clock - began); ran++; }
   assert.ok(ran > 10, `laid out across ${ran} tasks`);
   assert.ok(longest <= 40, `no task past its budget: the longest ${longest} ms`);
+  assert.ok(ran <= Math.ceil(stepped / 3), `a few steps to a task: ${stepped} steps in ${ran} tasks`);
   assert.deepEqual(laid, sheetPoints(core, hanging, known.notes), "the same layout as laid out at once");
 
   const layout = sheetLayout();

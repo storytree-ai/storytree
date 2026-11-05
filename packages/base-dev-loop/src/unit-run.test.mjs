@@ -52,6 +52,8 @@ test("1.12 words", { skip: "platform:win32: needs Windows" }, () => {});`,
   for (const [unit, file] of [["app-setup", "first.test.mjs"], ["cli", "second.test.mjs"], ["app-setup", "first.test.mjs"]]) {
     const run = await runUnit({ root, files: [file], env, stdio: "ignore", evidence: { directory, unit } });
     assert.equal(run.code, 0);
+  assert.deepEqual([run.tests, run.unloaded, run.output], [[...killed.tests, ...passed.tests], killed.unloaded, "first\nsecond\n"]);
+  assert.equal("output" in await withMacRetry(tries({ ...killed, output: undefined }, { ...passed, output: undefined }), { platform: "darwin" }), false);
   }
   const reports = readdirSync(directory).map((dir) => JSON.parse(readFileSync(path.join(directory, dir, "result.json"), "utf8")));
   assert.equal(reports.length, 3, "a later unit or rerun must not overwrite a prior unit");
@@ -561,8 +563,8 @@ test("4.29 · a run of files named on the command line tells its hold its scope 
 
 // friction_cb9a033867a9: forest's browser smokes stalled past their learned deadline on macOS queue runners only, then passed.
 test("4.30 · on macOS a unit killed at its own deadline runs once more, and its row says its first try timed out", async () => {
-  const killed = { code: 1, ms: 360_200, timedOut: true, running: [{ file: "/r/forest/planet-turn.test.ts", name: "3.86 · turns" }], exitHung: [], unitLimitMs: 257_000, limitSource: "learned" };
-  const passed = { code: 0, ms: 90_000, timedOut: false, running: [], exitHung: [], unitLimitMs: 257_000, limitSource: "learned" };
+  const killed = { code: 1, ms: 360_200, timedOut: true, running: [{ file: "/r/forest/planet-turn.test.ts", name: "3.86 · turns" }], exitHung: [], unitLimitMs: 257_000, limitSource: "learned", tests: [{ name: "3.85", result: "fail" }], unloaded: ["forest/a.test.ts"], output: "first\n" };
+  const passed = { code: 0, ms: 90_000, timedOut: false, running: [], exitHung: [], unitLimitMs: 257_000, limitSource: "learned", tests: [{ name: "3.86", result: "pass" }], unloaded: [], output: "second\n" };
   const tries = (...results) => {
     const runs = [...results];
     const runOnce = async () => runs.shift();

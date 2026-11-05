@@ -343,14 +343,13 @@ async function runTests(env, units) {
     const files = unitGlobs(unit, { root, alone });
     const run = await withMacRetry(() => runNodeTest(env, files, unit), { timeLeft: () => !interrupted && (deadline === undefined || Date.now() < deadline) });
     running.delete(unit);
-    if (run.firstTry !== undefined) console.log(`\ntest harness: ${unit} was killed at its deadline on macOS, so it ran once more (${unitReason(run.firstTry, root)})`);
-    if (jobs > 1) process.stdout.write(`\n=== ${unit} ===\n${run.firstTry?.output ?? ""}${run.output}`);
+    if (jobs > 1) process.stdout.write(`\n=== ${unit} ===\n${run.output}`);
     if (interrupted) return; // Ctrl-C cut it short: it stays NOT RUN
     results[unit] = run.code === 0 ? "pass" : "fail";
     reasons[unit] = unitReason(run, root);
     timings[unit] = { result: results[unit], ms: run.ms, timedOut: run.timedOut && !run.cut }; // a cut is the run's deadline, not the unit's
-    tests.push(...(run.firstTry?.tests ?? []), ...run.tests);
-    unitRuns.push(...(run.firstTry === undefined ? [] : [run.firstTry]), run);
+    tests.push(...run.tests);
+    unitRuns.push(run);
     if (run.timedOut || run.exitHung.length > 0) console.log(`\ntest harness: ${unit} ${reasons[unit]}`);
   }, { stopped: () => interrupted, alone: (unit) => alone.includes(unit) });
   writeRecord(results);

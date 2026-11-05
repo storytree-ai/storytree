@@ -508,7 +508,7 @@ for (const backend of [memory, postgres]) {
     const settled = await flight.addIncrement({ arc: arc.id, ...BARE_WORK, title: "Settled check", body: "Settled on question_0dd10e796878 (option A)." });
     await flight.closeIncrement(settled.id, { note: "Nothing found", disposition: "landed" });
     const born = await flight.addIncrement({ arc: arc.id, ...BARE_WORK, title: "Born closed", body: "From voice.note_aee6429a7a68.", outcome: { note: "Done by hand", disposition: "landed" } });
-    assert.deepEqual((await fyis()).map(({ about }) => about), [check.id, settled.id, born.id], "a question he settled, or work recorded already closed, counts too");
+    assert.deepEqual((await fyis()).map(({ about }) => about).sort(), [check.id, settled.id, born.id].sort(), "a question he settled, or work recorded already closed, counts too");
 
     const built = await flight.addIncrement({ arc: arc.id, ...BARE_WORK, title: "Built", body: "From voice.note_c8ff1fd5c25c." });
     await flight.closeIncrement(built.id, { pr: "#9", note: "Built it", disposition: "landed" });

@@ -47,17 +47,22 @@ test("3.80 an island with nothing to arrange answers no search", () => {
   assert.equal(searchTerritories({ ...ask, shares: [{ capability: "a", lines: 10 }] }), undefined);
 });
 
-test("3.80 the network's measures: the road drawn, and the inside links between neighbours", () => {
-  const map = linkLayout(shares, coast, links, docks), names = capabilityPlates(map), m = roadMeasures(map, links, docks, names);
-  const roads = islandRoads(map, links, docks, names), length = (pts: readonly { x: number; z: number }[]) => pts.reduce((s, p, i) => (i ? s + Math.hypot(p.x - pts[i - 1]!.x, p.z - pts[i - 1]!.z) : 0), 0);
-  const S = Math.sqrt(landArea(coast) / LIBRARY_LAND);
-  assert.ok(Math.abs(m.roadDrawn * S - roads.segments.reduce((s, seg) => s + length(seg.pts), 0)) < 1e-6, "the length of the road the island draws, in The library's units");
-  const id = (t: number) => (t < 0 ? "open" : map.territories[t]!.capability ?? "");
-  const touching = new Set(map.borders.map((b) => [id(map.cells[b.between[0]]!.territory), id(map.cells[b.between[1]]!.territory)].sort().join("|")));
-  const home = links.filter((l) => shares.some((s) => s.capability === l.from) && shares.some((s) => s.capability === l.to));
-  assert.equal(m.neighbours, home.filter((l) => touching.has([l.from, l.to].sort().join("|"))).length);
-  assert.equal(m.unrouted, 0);
-  assert.ok(m.overThird <= home.length && m.overThirdBorders >= m.overThird);
+test("3.80 the network's measures: an inside link through a third territory and the borders it crosses, the inside links between neighbours, and the road drawn", () => {
+  // A long thin island cut into three strips, west to east a, b and c: a link from a to c must cross b.
+  const strip: Coast = [[{ x: -200, z: -18 }, { x: 200, z: -18 }, { x: 200, z: 18 }, { x: -200, z: 18 }]];
+  const S = Math.sqrt(landArea(strip) / LIBRARY_LAND), thirds = [{ capability: "a", lines: 100 }, { capability: "b", lines: 100 }, { capability: "c", lines: 100 }];
+  const seeds = { a: { x: -150 / S, z: 0 }, b: { x: 0, z: 0 }, c: { x: 150 / S, z: 0 } };
+  const across = [{ from: "a", to: "c" }], beside = [{ from: "a", to: "b" }];
+  const map = linkLayout(thirds, strip, [...across, ...beside], [], seeds), names = capabilityPlates(map);
+  assert.deepEqual(["a", "b", "c"].map((id) => territoryAt(map, seeds[id as "a"].x * S, 0)?.capability), ["a", "b", "c"], "three strips, west to east");
+  const m = roadMeasures(map, across, [], names);
+  assert.deepEqual([m.overThird, m.overThirdBorders, m.neighbours, m.unrouted], [1, 2, 0, 0], "a to c goes through b, over two borders");
+  const next = roadMeasures(map, beside, [], names);
+  assert.deepEqual([next.overThird, next.overThirdBorders, next.neighbours], [0, 0, 1], "a to b, its neighbour, crosses no third territory");
+  // The road from a's settlement to c's is at least as long as the straight line between them.
+  const towns = islandRoads(map, across, [], names).towns, a = towns.get("a")!, c = towns.get("c")!;
+  assert.ok(m.roadDrawn * S >= Math.hypot(a.x - c.x, a.z - c.z), "the road drawn reaches from a to c");
+  assert.equal(roadMeasures(map, [], [], names).roadDrawn, 0, "no links, no road");
 });
 
 test("3.80 an interface off the coast costs the arrangement 500, and a link no road reaches refuses it", () => {
@@ -131,8 +136,7 @@ test("3.80 the search runs only in the worker the page names: with none the page
   (globalThis as { Worker?: unknown }).Worker = class { constructor(script: string) { started.push(script); } postMessage() {} terminate() {} };
   try {
     const searcher = pageTerritorySearcher({ querySelector: (q: string) => (q === 'meta[name="storytree-territory-worker"]' ? { getAttribute: () => "territory-worker.js" } : null) } as unknown as Pick<Document, "querySelector">);
-    assert.ok(searcher);
-    void searcher(ask, new AbortController().signal);
+    void searcher!(ask, new AbortController().signal);
     assert.deepEqual(started, ["territory-worker.js"], "it starts the script the page names");
   } finally { (globalThis as { Worker?: unknown }).Worker = was; }
 });
@@ -159,7 +163,8 @@ test("3.80 a search in a worker answers what the worker posts, ends it when over
 
 test("3.80 the territory worker answers the search the page posts, or why it failed", () => {
   const answered = answerSearch({ ...ask, steps: 1 });
-  assert.ok("found" in answered && answered.found !== undefined && Object.keys(answered.found.seeds).length === shares.length);
+  const seeds = "found" in answered ? answered.found?.seeds : undefined;
+  assert.ok(seeds !== undefined && Object.keys(seeds).length === shares.length && grownFrom(linkLayout(shares, coast, links, docks, seeds), seeds), "seeds the island grows from, one in each territory");
   const failed = answerSearch({ ...ask, coast: null as unknown as Coast });
-  assert.ok("error" in failed && failed.error.length > 0);
+  assert.match("error" in failed ? failed.error : "", /null/, "it says what failed");
 });

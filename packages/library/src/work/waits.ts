@@ -2,14 +2,14 @@
  * Capability 11 · Waits (the library story): whether a wait still holds. An arc waits on an arc or an
  * increment, and an increment on an increment or a capability's claim, each with a reason; waitHolds
  * is the one answer to whether such a wait still holds. An open increment can also wait for the owner
- * or an outside event, with a note (11.6), written here.
+ * or an outside event, with a note: whether that still holds is read here (11.6).
  *
- * The waits an arc or increment stores on other work are capability 10's to write (wait-writes.ts,
- * ADR-1242 D2), as the arc record is. WorkInFlight (capability 10) serializes each write and reads the
+ * Every wait an arc or increment stores, on other work or for the owner or an event, is capability
+ * 10's to write (wait-writes.ts, ADR-1242 D2), as the arc and increment records are. WorkInFlight (capability 10) serializes each write and reads the
  * project's open work once; the rules for when a wait holds are here.
  */
 import { liveRecord } from "../references.js";
-import type { SchemaRecord, SchemaRecords, WriteOptions } from "../schema/index.js";
+import type { SchemaRecords } from "../schema/index.js";
 import type { FieldsOf } from "../schema/types.js";
 
 /** A blocker still holding a wait (capability 11). */
@@ -38,12 +38,6 @@ export interface ClaimReading {
 
 /** What an increment waits for outside the library, as stored (11.6, ADR-0938 D1). */
 export type WaitFor = NonNullable<FieldsOf<"increment">["waitsFor"]>[number];
-
-/**
- * A wait for the owner or an event as a writer gives it (11.10): the review day is the library's to
- * stamp, and re-writing an owner wait may leave out its note, why or rank to keep the stored ones.
- */
-export type WaitWrite = Omit<WaitFor, "note" | "reviewed" | "merged"> & { readonly note?: string };
 
 /**
  * A wait for the owner or an outside event as read at one moment (11.6): an owner wait holds until
@@ -81,62 +75,6 @@ export interface Holds {
 
 /** One wait, as an arc or increment stores it. */
 export type Wait = { readonly on: string; readonly reason: string };
-
-/**
- * Make an open increment wait for the owner or an outside event, with a note (11.6, ADR-0938 D1).
- * Waiting again for the same releaser replaces it; an owner wait written again keeps the note, why
- * and rank it is not given, and is stamped read again today (11.10). An event wait needs a check-back
- * day, not before today (UTC); an owner wait takes none and needs a why; a closed increment waits
- * for nothing: each a RangeError, with nothing written. Null, with nothing written, if `id` is not a
- * live increment.
- */
-export async function addWaitFor(records: SchemaRecords, id: string, wait: WaitWrite, options?: WriteOptions): Promise<SchemaRecord<"increment"> | null> {
-  const increment = await liveRecord(records, id, ["increment"]);
-  if (increment === null) return null;
-  if (increment.fields.status === "closed") throw new RangeError(`increment ${JSON.stringify(id)} is closed, and waits for nothing`);
-  const stored = increment.fields.waitsFor ?? [];
-  const had = wait.releaser === "owner" ? stored.find((one) => one.releaser === "owner") : undefined;
-  const { note, why, rank } = { ...had, ...Object.fromEntries(Object.entries(wait).filter(([, value]) => value !== undefined)) } as WaitWrite;
-  if (note === undefined) throw new RangeError(`a wait for ${wait.releaser === "owner" ? "the owner" : "an event"} needs a note saying what`);
-  const written = checkedWaitFor({ releaser: wait.releaser, note, ...(wait.checkBack === undefined ? {} : { checkBack: wait.checkBack }), ...(why === undefined ? {} : { why }), ...(rank === undefined ? {} : { rank }) });
-  const waitsFor = stored.some((one) => one.releaser === written.releaser)
-    ? stored.map((one) => (one.releaser === written.releaser ? written : one))
-    : [...stored, written];
-  return (await records.edit(id, { waitsFor }, options)) as SchemaRecord<"increment"> | null;
-}
-
-/**
- * A wait for the owner or an event as it may be written (RangeError otherwise): an event's with a
- * check-back day not before today and no why or rank, an owner's with no day, a why (what it
- * protects or unblocks) and any rank a whole number from 1, stamped read again today (11.10).
- */
-export function checkedWaitFor({ releaser, note, checkBack, why, rank }: WaitWrite & { readonly note: string }): WaitFor {
-  const today = new Date().toISOString().slice(0, 10);
-  if (releaser === "event" && checkBack === undefined) throw new RangeError("an event wait needs a check-back day (YYYY-MM-DD)");
-  if (releaser === "owner" && checkBack !== undefined) throw new RangeError("an owner wait takes no check-back day: it holds until it is cleared");
-  if (checkBack !== undefined && checkBack < today) throw new RangeError(`check-back day ${checkBack} is before today`);
-  if (releaser === "event") {
-    if (why !== undefined || rank !== undefined) throw new RangeError("only an owner wait carries a why or a rank");
-    return { releaser, note, checkBack: checkBack! };
-  }
-  if (why === undefined || why.trim() === "") throw new RangeError("an owner wait needs a why: what it protects or unblocks, in a line");
-  if (rank !== undefined && (!Number.isInteger(rank) || rank < 1)) throw new RangeError(`a rank is a whole number from 1 (1 first), not ${rank}`);
-  return { releaser, note, why, ...(rank === undefined ? {} : { rank }), reviewed: today };
-}
-
-/**
- * Stop an increment waiting for `releaser`. Given `merged`, the pull request it was handed over with that has merged,
- * its owner wait, if it has one, carries that pull request from the same write, so the audit asks for it to be read
- * again; writing the owner wait again drops it (11.11). Null, with nothing written, if `id` is not a live increment.
- */
-export async function removeWaitFor(records: SchemaRecords, id: string, releaser: WaitFor["releaser"], options?: WriteOptions, { merged }: { readonly merged?: number } = {}): Promise<SchemaRecord<"increment"> | null> {
-  const increment = await liveRecord(records, id, ["increment"]);
-  if (increment === null) return null;
-  const waitsFor = (increment.fields.waitsFor ?? [])
-    .filter((one) => one.releaser !== releaser)
-    .map((one) => (merged !== undefined && one.releaser === "owner" ? { ...one, merged } : one));
-  return (await records.edit(id, { waitsFor: waitsFor.length === 0 ? undefined : waitsFor }, options)) as SchemaRecord<"increment"> | null;
-}
 
 /**
  * What an open increment waits for outside the library, read at `at` (11.6), in the order written:

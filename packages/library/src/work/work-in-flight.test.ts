@@ -73,6 +73,13 @@ const TODAY = /^\d{4}-\d{2}-\d{2}$/;
 /** An arc's and an increment's required fields but their titles, for tests that name each one. */
 const BARE_ARC = { intent: "An intent", endState: "An end state" };
 const BARE_WORK = { objective: "Do it", body: "The steps." };
+const ASK = {
+  title: "Which mailer?",
+  stakes: "Sign-up cannot send its confirmation until this is chosen",
+  statement: "Which mail service sends the confirmation?",
+  context: "Two are in reach; neither is set up",
+  options: "Mailgun (simplest API) or SES (cheapest)",
+};
 
 for (const backend of [memory, postgres]) {
   const contract = (number: string, title: string, body: (library: Library) => Promise<void>): void => {
@@ -812,6 +819,124 @@ for (const backend of [memory, postgres]) {
     await flight.addWait(prune.id, again.id, "the second pass");
     await flight.closeIncrement(again.id, { note: "Dropped", disposition: "withdrawn" });
     assert.deepEqual(await flight.waitHolds(prune.id), [{ on: again.id, reason: "the second pass", forGood: true }], "a withdrawn blocker holds for good");
+  });
+
+  contract("10.36", "an increment is made to wait for the owner or an outside event with a note, one per releaser, the latest replacing it: an event wait needs a check-back day not before today, an owner wait takes none, and a closed increment waits for nothing; a refused wait is not written", async ({ work, flight, transactions }) => {
+    const arc = await flight.createArc({ title: "Installer", ...BARE_ARC });
+    const install = await flight.addIncrement({ arc: arc.id, title: "Real install", ...BARE_WORK });
+    const day = (offset: number): string => new Date(Date.now() + offset * 86_400_000).toISOString().slice(0, 10);
+    const before = await transactions.history();
+    await assert.rejects(flight.addWaitFor(install.id, { releaser: "event", note: "the next failed-checks removal" }), /check-back day/, "no event wait without a day");
+    await assert.rejects(flight.addWaitFor(install.id, { releaser: "owner", note: "run it", checkBack: day(1), why: "proved on hardware" }), /owner/, "an owner wait takes no day");
+    await assert.rejects(flight.addWaitFor(install.id, { releaser: "event", note: "it happens", checkBack: day(-1) }), /before today/);
+    assert.deepEqual(await transactions.history(), before, "nothing written");
+
+    await flight.addWaitFor(install.id, { releaser: "owner", note: "power on the old laptop", why: "the installer is proved on real hardware" });
+    await flight.addWaitFor(install.id, { releaser: "owner", note: "run the NSIS install on the old laptop", why: "the installer is proved on real hardware" });
+    await flight.addWaitFor(install.id, { releaser: "event", note: "the next release build", checkBack: day(1) });
+    assert.deepEqual((await flight.waitsFor(install.id)).map(({ releaser, note }) => ({ releaser, note })), [
+      { releaser: "owner", note: "run the NSIS install on the old laptop" },
+      { releaser: "event", note: "the next release build" },
+    ], "one note per releaser, the latest");
+    await flight.removeWaitFor(install.id, "owner");
+    assert.deepEqual((await flight.waitsFor(install.id)).map(({ releaser }) => releaser), ["event"], "cleared for one releaser, the other kept");
+
+    await flight.closeIncrement(install.id, { pr: "#3", disposition: "landed" });
+    const closed = await transactions.history();
+    await assert.rejects(flight.addWaitFor(install.id, { releaser: "owner", note: "run it", why: "proved on hardware" }), /closed/, "a closed increment waits for nothing");
+    assert.deepEqual(await transactions.history(), closed, "nothing written");
+  });
+
+  contract("10.37", "an owner wait needs a why and may carry a rank, 1 first; each write stamps the day it was read again, and writing it again keeps the note, why and rank not given; an event wait takes neither", async ({ work, flight, records, transactions }) => {
+    const arc = await flight.createArc({ title: "Security", ...BARE_ARC });
+    const rotate = await flight.addIncrement({ arc: arc.id, title: "Rotate the token", ...BARE_WORK });
+    const today = new Date().toISOString().slice(0, 10);
+    const before = await transactions.history();
+    await assert.rejects(flight.addWaitFor(rotate.id, { releaser: "owner", note: "rotate the GitHub token" }), /needs a why/, "no owner wait without a why");
+    await assert.rejects(flight.addWaitFor(rotate.id, { releaser: "owner", note: "rotate it", why: "  " }), /needs a why/, "a blank why is none");
+    await assert.rejects(flight.addWaitFor(rotate.id, { releaser: "owner", note: "rotate it", why: "a leak", rank: 0 }), /whole number/);
+    await assert.rejects(flight.addWaitFor(rotate.id, { releaser: "owner", note: "rotate it", why: "a leak", rank: 1.5 }), /whole number/);
+    await assert.rejects(flight.addWaitFor(rotate.id, { releaser: "event", note: "it lands", checkBack: today, why: "a leak" }), /only an owner wait/);
+    await assert.rejects(flight.addWaitFor(rotate.id, { releaser: "event", note: "it lands", checkBack: today, rank: 2 }), /only an owner wait/);
+    await assert.rejects(flight.addWaitFor(rotate.id, { releaser: "owner", why: "a leak" }), /needs a note/, "a first owner wait needs its note");
+    await assert.rejects(flight.addIncrement({ arc: arc.id, title: "Born waiting", ...BARE_WORK, waitsFor: [{ releaser: "owner", note: "sign in" }] }), /needs a why/, "nor is one born without it");
+    assert.deepEqual(await transactions.history(), before, "nothing written");
+
+    await flight.addWaitFor(rotate.id, { releaser: "owner", note: "rotate the GitHub token", why: "a leaked token can push as you", rank: 2 });
+    const stored = async () => ((await records.get(rotate.id))?.fields as { waitsFor?: unknown } | undefined)?.waitsFor;
+    const stamped = { releaser: "owner" as const, note: "rotate the GitHub token", why: "a leaked token can push as you", rank: 2, reviewed: today };
+    assert.deepEqual(await stored(), [stamped]);
+    assert.deepEqual((await flight.holds()).waitsFor?.[rotate.id], [{ ...stamped, holds: true }]);
+
+    await records.edit(rotate.id, { waitsFor: [{ ...stamped, reviewed: "2026-01-01" }] });
+    await flight.addWaitFor(rotate.id, { releaser: "owner", rank: 1 });
+    assert.deepEqual(await stored(), [{ ...stamped, rank: 1 }], "re-ranked: the note and why kept, read again today");
+    await records.edit(rotate.id, { waitsFor: [{ ...stamped, rank: 1, reviewed: "2026-01-01" }] });
+    await flight.addWaitFor(rotate.id, { releaser: "owner" });
+    assert.deepEqual(await stored(), [{ ...stamped, rank: 1 }], "written again with nothing new, it is only read again");
+
+    const born = await flight.addIncrement({ arc: arc.id, title: "Sign in", ...BARE_WORK, waitsFor: [{ releaser: "owner", note: "sign in", why: "the box reads mail", rank: 3 }] });
+    assert.deepEqual(born.fields.waitsFor, [{ releaser: "owner", note: "sign in", why: "the box reads mail", rank: 3, reviewed: today }]);
+  });
+
+  contract("10.38", "clearing an increment's event wait as a pull request it was handed over with merges stamps that pull request on its owner wait in the same write; writing the owner wait again drops it, and only an owner wait carries one", async ({ work, flight, records, transactions }) => {
+    const arc = await flight.createArc({ title: "Hand-overs", ...BARE_ARC });
+    const today = new Date().toISOString().slice(0, 10);
+    const tomorrow = new Date(Date.now() + 86_400_000).toISOString().slice(0, 10);
+    const ship = await flight.addIncrement({ arc: arc.id, title: "Ship in two pull requests", ...BARE_WORK });
+    const owner = { releaser: "owner" as const, note: "turn the setting on", why: "the second pull request needs it", reviewed: today };
+    await flight.addWaitFor(ship.id, { releaser: "owner", note: owner.note, why: owner.why });
+    await flight.addWaitFor(ship.id, { releaser: "event", note: "PR #173 lands", checkBack: tomorrow });
+    const before = (await transactions.history()).length;
+    await flight.removeWaitFor(ship.id, "event", undefined, { merged: 173 });
+    assert.equal((await transactions.history()).length, before + 1, "one write");
+    const stored = async () => ((await records.get(ship.id))?.fields as { waitsFor?: unknown } | undefined)?.waitsFor;
+    assert.deepEqual(await stored(), [{ ...owner, merged: 173 }], "the event wait cleared, the merge stamped on the owner wait");
+    assert.deepEqual((await flight.holds()).waitsFor?.[ship.id], [{ ...owner, merged: 173, holds: true }]);
+
+    await flight.addWaitFor(ship.id, { releaser: "owner" });
+    assert.deepEqual(await stored(), [owner], "read again, the merge is dropped");
+
+    const alone = await flight.addIncrement({ arc: arc.id, title: "Only an event", ...BARE_WORK });
+    await flight.addWaitFor(alone.id, { releaser: "event", note: "PR #174 lands", checkBack: tomorrow });
+    await flight.removeWaitFor(alone.id, "event", undefined, { merged: 174 });
+    assert.equal(((await records.get(alone.id))?.fields as { waitsFor?: unknown } | undefined)?.waitsFor, undefined, "with no owner wait, nothing is stamped");
+    await assert.rejects(records.edit(alone.id, { waitsFor: [{ releaser: "event", note: "it lands", checkBack: tomorrow, merged: 1 }] } as never), /only an owner wait/);
+  });
+
+  contract("10.39", "settling a question takes it off every increment's heldOn in the same step, keeping their other holds", async ({ work, flight, records }) => {
+    const arc = await flight.createArc(ARC);
+    const question = await flight.raiseQuestion({ arc: arc.id, ...ASK });
+    const other = await flight.raiseQuestion({ arc: arc.id, ...ASK });
+    const open = await flight.addIncrement({ arc: arc.id, ...WORK, heldOn: [question.id] });
+    const both = await flight.addIncrement({ arc: arc.id, ...WORK, heldOn: [question.id, other.id] });
+    await flight.settleQuestion(question.id, { answer: "Mailgun" });
+    assert.deepEqual(await flight.heldOnQuestion(open.id), [], "settling released it");
+    const heldOn = async (id: string): Promise<unknown> => ((await records.get(id))?.fields as { heldOn?: unknown } | undefined)?.heldOn;
+    assert.equal(await heldOn(open.id), undefined, "its heldOn no longer names the settled question");
+    assert.deepEqual(await heldOn(both.id), [other.id], "its other holds stay");
+  });
+
+  contract("10.40", "retiring a question releases every increment held on it, open or closed, and retires it in one step", async ({ work, flight, records, transactions }) => {
+    const arc = await flight.createArc(ARC);
+    const question = await flight.raiseQuestion({ arc: arc.id, ...ASK });
+    const other = await flight.raiseQuestion({ arc: arc.id, ...ASK });
+    const open = await flight.addIncrement({ arc: arc.id, ...WORK, heldOn: [question.id, other.id] });
+    const closed = await flight.addIncrement({ arc: arc.id, ...WORK, heldOn: [question.id] });
+    await flight.closeIncrement(closed.id, { disposition: "withdrawn", note: "overtaken" });
+    const free = await flight.addIncrement({ arc: arc.id, ...WORK });
+
+    assert.deepEqual((await flight.retireQuestion(question.id, "no longer asked"))?.sort(), [open.id, closed.id].sort());
+    assert.equal(await records.get(question.id), null);
+    const heldOn = async (id: string): Promise<unknown> => ((await records.get(id))?.fields as { heldOn?: unknown } | undefined)?.heldOn;
+    assert.deepEqual(await heldOn(open.id), [other.id], "its other holds stay");
+    assert.equal(await heldOn(closed.id), undefined);
+    assert.equal(await heldOn(free.id), undefined);
+
+    const history = await transactions.history();
+    assert.equal(await flight.retireQuestion(question.id, "again"), null, "a retired question is not live");
+    assert.equal(await flight.retireQuestion(open.id, "not a question"), null);
+    assert.deepEqual(await transactions.history(), history, "nothing was written");
   });
 }
 

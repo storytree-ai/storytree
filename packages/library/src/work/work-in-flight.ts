@@ -7,7 +7,9 @@
  * closed when none is open, active otherwise or while it has none, and parked, the one state that
  * is stored, while the owner has parked it (10-b). New work parked on a closed arc reopens it (R1).
  *
- * WorkInFlight is also the one door to waits for the owner or an event (capability 11, waits.ts), owner questions
+ * It is the increment record's one writer too: its waits for the owner or an event (10.36-10.38) and the
+ * questions it is held on, released as a question is settled or retired (10.39, 10.40), are written in
+ * wait-writes.ts. WorkInFlight is also the one door to the reading of waits (capability 11, waits.ts), owner questions
  * (capability 12, owner-questions.ts) and pending plan changes (capability 4's, pending-changes.ts): it queues their
  * writes behind its own, and reads the project's open work once for each.
  *
@@ -28,7 +30,8 @@ import { heldOnOpen, type NewQuestion, type Prep, type QuestionDeviation, type Q
 import * as waits from "./waits.js";
 import * as waitWrites from "./wait-writes.js";
 import { WorkModel, type ProjectTree } from "./work-model.js";
-import { arcHold, checkedWaitFor, claimHold, holdsOf, incrementHold, noteWaits, onClaim, type ClaimReading, type Hold, type Holds, type NoteWait, type Wait, type WaitFor, type WaitWrite } from "./waits.js";
+import { arcHold, claimHold, holdsOf, incrementHold, noteWaits, onClaim, type ClaimReading, type Hold, type Holds, type NoteWait, type Wait, type WaitFor } from "./waits.js";
+import { checkedWaitFor, type WaitWrite } from "./wait-writes.js";
 
 /** Where an increment is in its lifecycle. */
 export type IncrementStatus = (typeof INCREMENT_STATUSES)[number];
@@ -74,8 +77,8 @@ export interface NewIncrement {
   readonly waits?: Wait[];
   /**
    * What it is born waiting for outside the library, the owner or an event, one note per releaser
-   * (11.6), written in the parking's own write so it is never open work without the wait (10.25);
-   * an owner's with its why (11.10).
+   * (10.36), written in the parking's own write so it is never open work without the wait (10.25);
+   * an owner's with its why (10.37).
    */
   readonly waitsFor?: (WaitWrite & { readonly note: string })[];
   readonly outcome?: CloseInput;
@@ -392,17 +395,17 @@ export class WorkInFlight {
 
   /**
    * Make an open increment wait for the owner (an action) or an outside event (with a check-back
-   * day), with a note (11.6); waiting again for the same releaser replaces it (RangeError for an event
+   * day), with a note (10.36); waiting again for the same releaser replaces it (RangeError for an event
    * with no day or a day before today, an owner wait with a day, or a closed increment). Null if `id`
    * is not a live increment.
    */
   addWaitFor(id: string, wait: WaitWrite, options?: WriteOptions): Promise<SchemaRecord<"increment"> | null> {
-    return this.#serially(() => waits.addWaitFor(this.#records, id, wait, options));
+    return this.#serially(() => waitWrites.addWaitFor(this.#records, id, wait, options));
   }
 
-  /** Stop an increment waiting for `releaser` (11.6), stamping `cleared.merged` on its owner wait (11.11). Null if `id` is not a live increment. */
+  /** Stop an increment waiting for `releaser` (10.36), stamping `cleared.merged` on its owner wait (10.38). Null if `id` is not a live increment. */
   removeWaitFor(id: string, releaser: WaitFor["releaser"], options?: WriteOptions, cleared?: { readonly merged?: number }): Promise<SchemaRecord<"increment"> | null> {
-    return this.#serially(() => waits.removeWaitFor(this.#records, id, releaser, options, cleared));
+    return this.#serially(() => waitWrites.removeWaitFor(this.#records, id, releaser, options, cleared));
   }
 
   /**
@@ -535,12 +538,13 @@ export class WorkInFlight {
 
   /**
    * Settle a question with the owner's answer, and the live decision that carried it, if one did
-   * (capability 12), clearing the waits on its arc if that now reads closed (10.33). Null if `id` is
-   * not a live question.
+   * (capability 12), taking it off every increment's heldOn in the same step (10.39) and clearing the
+   * waits on its arc if that now reads closed (10.33). Null if `id` is not a live question.
    */
   settleQuestion(id: string, settlement: Settlement, options?: WriteOptions): Promise<SchemaRecord<"question"> | null> {
     return this.#serially(async () => {
       const settled = await questions.settleQuestion(this.#records, id, settlement, options);
+      if (settled !== null) await waitWrites.releaseHolders(this.#records, id, options);
       if (settled !== null) await this.#clearAfter(() => this.#clearIfClosed(settled.fields.arc, options));
       return settled;
     });
@@ -557,14 +561,17 @@ export class WorkInFlight {
   }
 
   /**
-   * Retire question `id`, taking it off every increment held on it in the same step (12.9): the
-   * increments released, or null, with nothing written, if it is not a live question.
+   * Retire question `id`, first taking it off the heldOn of every increment held on it, open or
+   * closed, so an owner-retired question goes in one step (10.40): the increments released, oldest
+   * first, or null, with nothing written, if it is not a live question.
    */
   retireQuestion(id: string, reason: string, options?: WriteOptions): Promise<string[] | null> {
     return this.#serially(async () => {
       const question = await liveRecord(this.#records, id, ["question"]);
-      const heldBy = await questions.retireQuestion(this.#records, id, reason, options);
-      if (question !== null) await this.#clearAfter(() => this.#clearIfClosed(question.fields.arc, options));
+      if (question === null) return null;
+      const heldBy = await waitWrites.releaseHolders(this.#records, id, options);
+      await this.#records.retire(id, reason, options);
+      await this.#clearAfter(() => this.#clearIfClosed(question.fields.arc, options));
       return heldBy;
     });
   }

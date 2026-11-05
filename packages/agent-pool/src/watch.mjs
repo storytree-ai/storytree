@@ -254,7 +254,7 @@ export function readFailures(runs, reach) {
         units.add(unit);
         if (!/^(?:packages|apps)\/[^/]+$/.test(unit) || reach.has(unit)) outside = false;
       }
-      const test = /✖ (.+?) \(\d+(?:\.\d+)?ms\)\s*$/.exec(line)?.[1];
+      const test = failedTest(line);
       if (test) tests.add(test);
     }
     if (!rows) outside = false;
@@ -262,6 +262,16 @@ export function readFailures(runs, reach) {
   if (!units.size) outside = false;
   return { outside, units: [...units], tests: [...tests], runs: runs.map(({ id, attempt, repo }) => ({ id, attempt, repo })),
     key: runs.map((one) => `${one.id}:${one.attempt}`).join(",") };
+}
+
+/** The test a `✖ <name> (<time>ms)` line in a run's log names, read without a regular expression that backtracks. */
+function failedTest(line) {
+  const mark = line.indexOf("✖ ");
+  if (mark < 0) return undefined;
+  const rest = line.slice(mark + 2).trimEnd();
+  const open = rest.lastIndexOf(" (");
+  if (open < 1 || !rest.endsWith("ms)") || !/^\d+(?:\.\d+)?$/.test(rest.slice(open + 2, -3))) return undefined;
+  return rest.slice(0, open);
 }
 
 const filesSeen = new Map();

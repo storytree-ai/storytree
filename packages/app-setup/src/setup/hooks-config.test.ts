@@ -13,7 +13,7 @@ import path from "node:path";
 import { after, before, test } from "node:test";
 import { pathToFileURL } from "node:url";
 
-import { AFTER_TOOL, BACKGROUND, registeredHookScripts } from "@storytree/session-management";
+import { AFTER_TOOL, BACKGROUND, codexDelivers, registeredHookScripts, scriptsIn } from "@storytree/session-management";
 import { withTempDir } from "@storytree/project-and-caller/testing/folders";
 
 import { buildBins } from "../bins/build.js";
@@ -256,6 +256,13 @@ test("2.20 the setup check registers storytree's named hook in Antigravity CLI's
 
     assert.equal(removeHooks({ antigravity: gemini }).antigravity, "removed");
     assert.deepEqual(readJson(hooksFile), own, "removing storytree takes out its named hook alone");
+
+    // The hook's path is read out of a command line, quoted with spaces or bare, and a long line of anything else is read at once.
+    assert.deepEqual(scriptsIn(['node "C:\\Program Files\\st\\storytree-hook.mjs" codex', "node /a/b/storytree-hook.mjs x /c/storytree-hook.mjs", "/d/storytree-hook.mjs", 7]),
+      ["C:\\Program Files\\st\\storytree-hook.mjs", "/a/b/storytree-hook.mjs", "/c/storytree-hook.mjs", "/d/storytree-hook.mjs"]);
+    const started = performance.now();
+    assert.deepEqual(scriptsIn([" /".repeat(50_000), "/".repeat(100_000)]), []);
+    assert.ok(performance.now() - started < 500, "a long line holding no hook is read at once");
   });
 });
 
@@ -336,6 +343,10 @@ test("2.21 with a Codex that runs tool handlers (0.148 or later), each event the
     };
     const handlers = (events: Record<string, Group[]>) => Object.values(events).flat().flatMap((group) => group.hooks).filter((hook) => hook.type === "mcp_tool");
 
+    const started = performance.now();
+    assert.equal(codexDelivers("0".repeat(50_000)), false, "a long version with no number in it is read at once, as unreadable");
+    assert.ok(performance.now() - started < 500);
+    assert.deepEqual(["codex-cli 0.148.0", "v0.153.4-alpha", "0.147.9"].map(codexDelivers), [true, true, false]);
     for (const version of ["0.147.2", undefined]) {
       const { events } = await registered(version);
       assert.deepEqual(handlers(events), [], `${version}: no tool handler`);

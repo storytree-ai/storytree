@@ -41,7 +41,7 @@ test("3.1 · The box's storytree-host.service runs node itself on `storytree ser
   fakeNode(path.join(home, ".nvm/versions/node/v24.9.0/bin"), said);
   fakeNode(path.join(home, ".nvm/versions/node/v24.19.0/bin"), said);
   const run = (PATH: string) => {
-    execFileSync("/bin/bash", ["-c", script], { cwd: checkout, env: { HOME: home, PATH } });
+    execFileSync("/bin/bash", ["-s"], { cwd: checkout, env: { HOME: home, PATH }, input: script });
     return readFileSync(said, "utf8").trim().split("\n");
   };
   assert.deepEqual(run("/usr/bin:/bin"), [path.join(home, ".nvm/versions/node/v24.19.0/bin"), checkout, "--import", "tsx", "packages/cli/src/bins/storytree.ts", "services", "run"], "with no node on PATH, the newest under nvm runs the host, as node itself");

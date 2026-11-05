@@ -4,7 +4,7 @@ import { test } from "node:test";
 import type { InterleavedBufferAttribute } from "three";
 import { LineGeometry } from "three/examples/jsm/lines/LineGeometry.js";
 
-import { moveLine } from "./globe-points.js";
+import { dotOpacity, moveLine } from "./globe-points.js";
 
 const along = (shift: number) => Array.from({ length: 20 }, (_, i) => [i + shift, 2 * i, -i]).flat();
 const colours = Array.from({ length: 20 }, (_, i) => [i / 20, 0.5, 1]).flat();
@@ -25,4 +25,13 @@ test("5.4 a line the core moves every frame keeps its GPU buffers, drawing the s
   assert.deepEqual([...tints.array], [...buffer(fresh, "instanceColorStart").array]);
   assert.deepEqual(line.boundingSphere, fresh.boundingSphere, "it sorts among see-through things where it now is");
   assert.equal(line.instanceCount, fresh.instanceCount);
+});
+
+test("1.15 with a story selected, every other story's note fades to a faint backdrop, never gone, unless the selected session lights it", () => {
+  const own = dotOpacity({ state: null, lit: false, anyLit: false, quiet: false });
+  const faded = dotOpacity({ state: null, lit: false, anyLit: false, quiet: true });
+  assert.ok(faded >= 0.05 && faded <= 0.08, `faded to ${faded}`);
+  assert.ok(faded < own / 5, "far quieter than the selected story's own");
+  assert.equal(dotOpacity({ state: null, lit: true, anyLit: true, quiet: true }), 1, "a note the selected session read keeps its light");
+  assert.equal(dotOpacity({ state: "in-window", lit: false, anyLit: true, quiet: true }), 1, "and one in its window");
 });

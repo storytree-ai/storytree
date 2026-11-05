@@ -269,7 +269,7 @@ test("4.37 a live process on a worktree's postmaster.pid whose name cannot be re
           asked += 1;
           throw new Error("spawnSync tasklist ETIMEDOUT");
         };
-        // The budget is also each git call's timeout: wide enough for a loaded Windows runner to reach the process.
+        // The budget is also git's timeout: room for its calls on a loaded Windows runner, the name unread throughout.
         assert.deepEqual(await reapWorktrees(observer, { everyMs: 0, budgetMs: 5_000, protect: [], empty, nameOf: timedOut }), []);
         assert.ok(asked > 0, "the pass reached the process and asked its name");
         assert.equal(existsSync(folder), true, "a process of unknown name keeps its folder");

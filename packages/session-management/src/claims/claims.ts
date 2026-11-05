@@ -207,7 +207,7 @@ export async function claimAll(context: ClaimContext, ids: readonly string[], re
  */
 export async function claimClearingOwnerWait(context: ClaimContext, increment: string, reason: string): Promise<ClaimAnswer> {
   const answer = await claim(context, increment, reason, { throughOwnerWait: true });
-  if (answer.ok) await context.library.removeWaitFor(increment, "owner", context.writer);
+  if (answer.ok) await context.library.removeWaitFor(increment, "owner", { ...context.writer, reason: `cleared by ${context.session}, which finishes it: ${reason}` });
   return answer;
 }
 

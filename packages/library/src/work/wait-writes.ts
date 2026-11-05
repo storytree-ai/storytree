@@ -70,8 +70,11 @@ export async function addWait(
   return (await records.edit(waiter, { waits }, options)) as SchemaRecord<"arc" | "increment"> | null;
 }
 
+/** How a wait is cleared: by whom, and why, which the record's history keeps with the clear. */
+export type ClearOptions = WriteOptions & { readonly reason?: string };
+
 /** Stop `waiter` waiting on `blocker`. Null, with nothing written, if `waiter` is not a live arc or increment. */
-export async function removeWait(records: SchemaRecords, waiter: string, blocker: string, options?: WriteOptions): Promise<SchemaRecord<"arc" | "increment"> | null> {
+export async function removeWait(records: SchemaRecords, waiter: string, blocker: string, options?: ClearOptions): Promise<SchemaRecord<"arc" | "increment"> | null> {
   const record = await liveRecord(records, waiter, ["arc", "increment"]);
   if (record === null) return null;
   const waits = (record.fields.waits ?? []).filter((wait) => wait.on !== blocker);
@@ -152,7 +155,7 @@ export function checkedWaitFor({ releaser, note, checkBack, why, rank }: WaitWri
  * its owner wait, if it has one, carries that pull request from the same write, so the audit asks for it to be read
  * again; writing the owner wait again drops it (10.38). Null, with nothing written, if `id` is not a live increment.
  */
-export async function removeWaitFor(records: SchemaRecords, id: string, releaser: WaitFor["releaser"], options?: WriteOptions, { merged }: { readonly merged?: number } = {}): Promise<SchemaRecord<"increment"> | null> {
+export async function removeWaitFor(records: SchemaRecords, id: string, releaser: WaitFor["releaser"], options?: ClearOptions, { merged }: { readonly merged?: number } = {}): Promise<SchemaRecord<"increment"> | null> {
   const increment = await liveRecord(records, id, ["increment"]);
   if (increment === null) return null;
   const waitsFor = (increment.fields.waitsFor ?? [])

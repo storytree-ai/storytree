@@ -1111,6 +1111,10 @@ test("4.34 · a red's failing units and tests are read from its red jobs' logs, 
   assert.equal(readFailures([ci([windows, job("verify on Linux", logged("  FAIL    packages/library — 3 s"))])], reach).outside, false, "a unit the pull request changes is in reach");
   assert.equal(readFailures([ci([windows, job("verify on Linux", logged("error TS2322: nope"))])], reach).outside, false, "a red job with no FAIL row failed on no test");
   assert.equal(readFailures([ci([job("verify on Linux", logged("  FAIL    guidance — 3 s"))])], reach).outside, false, "a unit outside packages/ and apps/ is no package");
+  const started = performance.now();
+  assert.deepEqual(readFailures([ci([job("verify on Linux", logged("✖ ".repeat(25_000) + "x", "✖ 1.2 · spaced out (3ms)   ", "✖ no time"))])], reach).tests, ["1.2 · spaced out"],
+    "a long line of marks with no test in it is read at once");
+  assert.ok(performance.now() - started < 500);
 });
 
 test("4.34 · a red whose failing tests all lie outside the pull request's reach is refreshed from main, or rerun when main has nothing new, and counts nothing against its fix limit", async (t) => {

@@ -292,7 +292,7 @@ function leadingContracts(title) {
   if (prefix === undefined) return [];
   const ranges = [];
   let width = 0;
-  for (const [, first, last] of prefix.matchAll(/(\d+\.\d+)(?:–(\d+\.\d+))?/g)) {
+  for (const [first, last] of prefix.split(/[,/]|\sand\s/).map((entry) => entry.trim().split("–"))) {
     const [capability, start] = first.split(".").map(Number);
     const [endCapability, end] = (last ?? first).split(".").map(Number);
     if (capability !== endCapability || !Number.isSafeInteger(start) || !Number.isSafeInteger(end) || end < start) return [];

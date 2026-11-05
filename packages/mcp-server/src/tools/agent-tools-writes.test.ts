@@ -1,5 +1,5 @@
 /**
- * Capability 6 · Agent tools (the MCP server), in the MCP server story: waits, corrections and retirements, questions, other stories' tools, workspaces, search, and bounded reads. One of three files
+ * Capabilities 6 · Tool server, 9 · Plan tools, 10 · Work tools, 11 · Session tools, 12 · Setup tools and 13 · Note tools, in the MCP server story: waits, corrections and retirements, questions, other stories' tools, workspaces, search, and bounded reads. One of three files
  * (agent-tools, agent-tools-reads, agent-tools-writes) split so a test unit runs them side by side.
  * A test client talks to the server inside the test itself, over an
  * in-memory transport, with no real agent and no network, as Claude Code or Codex would: Claude
@@ -71,7 +71,7 @@ test("6.4 a held claim refusal names the increment its holder holds the work for
   });
 });
 
-test("6.42 close_out reports the calling session's released claims, and a repeated call releases none", async () => {
+test("11.5 close_out reports the calling session's released claims, and a repeated call releases none", async () => {
   await withProject(async ({ folder, log, project }) => {
     await withAgent(folder, claudeCode("closing"), async (agent) => {
       const { capability } = await planned(agent);
@@ -88,7 +88,7 @@ test("6.42 close_out reports the calling session's released claims, and a repeat
   });
 });
 
-test("6.10 it sets a wait with a reason, and a claim on the waiting increment is refused naming it; it clears the wait, and the claim succeeds; a wait that would close a loop gets the library's refusal as a readable answer", async () => {
+test("10.2 it sets a wait with a reason, and a claim on the waiting increment is refused naming it; it clears the wait, and the claim succeeds; a wait that would close a loop gets the library's refusal as a readable answer", async () => {
   await withProject(async ({ folder, library }) => {
     await withAgent(folder, claudeCode("claude-1"), async (agent) => {
       const { arc } = await planned(agent);
@@ -112,7 +112,7 @@ test("6.10 it sets a wait with a reason, and a claim on the waiting increment is
   });
 });
 
-test("6.40 it sets a wait for the owner, with its why and any rank, or an outside event, with a note, and a claim on it is refused naming the note; an event wait needs a check-back day; it clears the wait, and the claim succeeds; clearing an owner wait with `claim` holds the increment before the wait is gone", async () => {
+test("10.6 it sets a wait for the owner, with its why and any rank, or an outside event, with a note, and a claim on it is refused naming the note; an event wait needs a check-back day; it clears the wait, and the claim succeeds; clearing an owner wait with `claim` holds the increment before the wait is gone", async () => {
   await withProject(async ({ folder, library, log, project }) => {
     await withAgent(folder, claudeCode("claude-1"), async (agent) => {
       const { arc } = await planned(agent);
@@ -150,7 +150,7 @@ test("6.40 it sets a wait for the owner, with its why and any rank, or an outsid
   });
 });
 
-test("6.13 it corrects a note's wording in place: the note keeps its id with the new words, only the fields given change, and a note that is not there, or a field its kind does not have, gets a readable refusal", async () => {
+test("13.3 it corrects a note's wording in place: the note keeps its id with the new words, only the fields given change, and a note that is not there, or a field its kind does not have, gets a readable refusal", async () => {
   await withProject(async ({ folder, library }) => {
     await withAgent(folder, claudeCode("claude-1"), async (agent) => {
       const { capability } = await planned(agent);
@@ -174,7 +174,7 @@ test("6.13 it corrects a note's wording in place: the note keeps its id with the
   });
 });
 
-test("6.14 it retires a contract and then a capability with a reason, and each is gone from the plan; an id that is not a capability or a contract gets a readable refusal and nothing is retired", async () => {
+test("9.2 it retires a contract and then a capability with a reason, and each is gone from the plan; an id that is not a capability or a contract gets a readable refusal and nothing is retired", async () => {
   await withProject(async ({ folder, library }) => {
     await withAgent(folder, claudeCode("claude-1"), async (agent) => {
       const { arc, capability } = await planned(agent);
@@ -198,7 +198,7 @@ test("6.14 it retires a contract and then a capability with a reason, and each i
   });
 });
 
-test("6.11 it raises a question on an arc and holds an increment on it, which a claim then finds waiting on the owner; it settles the question with his answer, which releases the increment; retiring a held question releases the increments held on it, naming them, and a record that is not a question is refused", async () => {
+test("10.3 it raises a question on an arc and holds an increment on it, which a claim then finds waiting on the owner; it settles the question with his answer, which releases the increment; retiring a held question releases the increments held on it, naming them, and a record that is not a question is refused", async () => {
   await withProject(async ({ folder, library }) => {
     await withAgent(folder, claudeCode("claude-1"), async (agent) => {
       const { arc } = await planned(agent);
@@ -236,7 +236,7 @@ test("6.11 it raises a question on an arc and holds an increment on it, which a 
   });
 });
 
-test("6.55 present_question marks a question as being put to the owner by the calling session; another live session is refused, naming it, and open flags it; done frees it, and a settled question is refused", async () => {
+test("11.8 present_question marks a question as being put to the owner by the calling session; another live session is refused, naming it, and open flags it; done frees it, and a settled question is refused", async () => {
   await withProject(async ({ folder, log, project }) => {
     for (const session of ["claude-a", "claude-b"]) await log.append(project, { session, harness: "claude-code", source: "hook", kind: "session-started" });
     await withAgent(folder, claudeCode("claude-a"), async (a) => {
@@ -266,7 +266,7 @@ test("6.55 present_question marks a question as being put to the owner by the ca
   });
 });
 
-test("6.52 park_increment parks an increment born held on a question raised first, so a claim finds it waiting on the owner from the moment it is parked", async () => {
+test("10.11 park_increment parks an increment born held on a question raised first, so a claim finds it waiting on the owner from the moment it is parked", async () => {
   await withProject(async ({ folder, library }) => {
     await withAgent(folder, claudeCode("claude-1"), async (agent) => {
       const { arc } = await planned(agent);
@@ -280,7 +280,7 @@ test("6.52 park_increment parks an increment born held on a question raised firs
   });
 });
 
-test("6.59 park_increment parks an increment born waiting on another increment, so a claim on it is refused naming its blocker until that lands; a blocker that is not a live increment is refused with nothing parked", async () => {
+test("10.12 park_increment parks an increment born waiting on another increment, so a claim on it is refused naming its blocker until that lands; a blocker that is not a live increment is refused with nothing parked", async () => {
   await withProject(async ({ folder, library }) => {
     await withAgent(folder, claudeCode("claude-1"), async (agent) => {
       const { arc } = await planned(agent);
@@ -299,7 +299,7 @@ test("6.59 park_increment parks an increment born waiting on another increment, 
   });
 });
 
-test("6.101 park_increment parks an increment born waiting for the owner with its note, why and any rank, so a claim on it is refused until the wait is cleared", async () => {
+test("10.17 park_increment parks an increment born waiting for the owner with its note, why and any rank, so a claim on it is refused until the wait is cleared", async () => {
   await withProject(async ({ folder, library }) => {
     await withAgent(folder, claudeCode("claude-1"), async (agent) => {
       const { arc } = await planned(agent);
@@ -320,7 +320,7 @@ test("6.101 park_increment parks an increment born waiting for the owner with it
   });
 });
 
-test("6.44 raising a question held on an increment the session holds, or a wait for the owner on it, releases its claims on it and the capabilities it took for it, and says so; claims on other work stand, and a question on another arc releases nothing (ADR-0944 D4)", async () => {
+test("10.7 raising a question held on an increment the session holds, or a wait for the owner on it, releases its claims on it and the capabilities it took for it, and says so; claims on other work stand, and a question on another arc releases nothing (ADR-0944 D4)", async () => {
   await withProject(async ({ folder, library, log, project }) => {
     await withAgent(folder, claudeCode("asking"), async (agent) => {
       const { story, arc, capability } = await planned(agent);
@@ -490,7 +490,7 @@ test("6.16 every library write from a tool names the calling session, including 
   });
 });
 
-test("6.19 it makes a workspace for an increment: a worktree on a fresh branch from origin's main, where Claude Code keeps its own, with the claim held by the calling session and the way into it named; for work another session holds it gets a readable refusal naming the holder", async () => {
+test("11.2 it makes a workspace for an increment: a worktree on a fresh branch from origin's main, where Claude Code keeps its own, with the claim held by the calling session and the way into it named; for work another session holds it gets a readable refusal naming the holder", async () => {
   await withProject(async ({ folder, project, log }) => {
     const origin = path.join(path.dirname(folder), "origin.git");
     git(path.dirname(folder), "init", "--bare", "-b", "main", origin);
@@ -580,7 +580,7 @@ test("ADR-0650 writes proper artifact kinds, a quality control check among them,
 });
 
 
-test("6.19 Codex gets app creation arguments then attaches the returned worktree through the tools, with readable refusals", async () => {
+test("11.2 Codex gets app creation arguments then attaches the returned worktree through the tools, with readable refusals", async () => {
   await withProject(async ({ folder, project, log }) => {
     const origin = path.join(path.dirname(folder), "origin.git");
     git(path.dirname(folder), "init", "--bare", "-b", "main", origin);
@@ -618,7 +618,7 @@ test("6.19 Codex gets app creation arguments then attaches the returned worktree
   });
 });
 
-test("6.19 a Claude Code session attaches the linked worktree it is in through the tool, on that worktree's branch, with no ref or name", async () => {
+test("11.2 a Claude Code session attaches the linked worktree it is in through the tool, on that worktree's branch, with no ref or name", async () => {
   await withProject(async ({ folder, project, log }) => {
     git(folder, "init", "-b", "main");
     git(folder, "add", ".");
@@ -639,7 +639,7 @@ test("6.19 a Claude Code session attaches the linked worktree it is in through t
   });
 });
 
-test("6.31 search_notes answers with the library's ranked search (capability 14), at most `limit`, and says why when it fell back to words", async () => {
+test("13.6 search_notes answers with the library's ranked search (capability 14), at most `limit`, and says why when it fell back to words", async () => {
   await withProject(async ({ folder, library }) => {
     for (const n of [1, 2, 3]) await library.defineTerm({ term: `Mailer ${n}`, meaning: "The mailer needs a verified sender domain." });
 
@@ -653,7 +653,7 @@ test("6.31 search_notes answers with the library's ranked search (capability 14)
   });
 });
 
-test("6.25 search_notes finds a story, a capability and a contract by their own words, each labelled by its type, as `storytree library search` does", async () => {
+test("13.4 search_notes finds a story, a capability and a contract by their own words, each labelled by its type, as `storytree library search` does", async () => {
   await withProject(async ({ folder, library }) => {
     const story = await library.addStory({ title: "Visitor can sign up", description: "A visitor leaves a postcode" });
     const capability = await library.addCapability({ title: "Postcode form", story: story.id, description: "Takes a postcode" });
@@ -675,7 +675,7 @@ test("6.25 search_notes finds a story, a capability and a contract by their own 
   });
 });
 
-test("6.27 correct_question corrects an open question's wording in place: only the fields given change and it keeps its id; a settled question keeps its words and answer, and a missing question or no words get a readable refusal", async () => {
+test("10.4 correct_question corrects an open question's wording in place: only the fields given change and it keeps its id; a settled question keeps its words and answer, and a missing question or no words get a readable refusal", async () => {
   await withProject(async ({ folder, library }) => {
     await withAgent(folder, claudeCode("claude-1"), async (agent) => {
       const { arc } = await planned(agent);
@@ -706,7 +706,7 @@ test("6.27 correct_question corrects an open question's wording in place: only t
   });
 });
 
-test("6.26 open on a contract shows it whole: its title, its description and the capability it belongs to; open on a question reads it whole with the increments held on it; an arc is still refused readably", async () => {
+test("13.5 open on a contract shows it whole: its title, its description and the capability it belongs to; open on a question reads it whole with the increments held on it; an arc is still refused readably", async () => {
   await withProject(async ({ folder, library }) => {
     const story = await library.addStory({ title: "Visitor can sign up" });
     const capability = await library.addCapability({ title: "Postcode form", story: story.id });
@@ -737,7 +737,7 @@ test("6.26 open on a contract shows it whole: its title, its description and the
   });
 });
 
-test("6.28 move_increment moves open work with its claim and completed history with its outcome; open work into a closed arc, missing arcs and missing increments are refused", async () => {
+test("10.5 move_increment moves open work with its claim and completed history with its outcome; open work into a closed arc, missing arcs and missing increments are refused", async () => {
   await withProject(async ({ folder, library }) => {
     await withAgent(folder, claudeCode("claude-1"), async (agent) => {
       const { arc } = await planned(agent);
@@ -774,7 +774,7 @@ test("6.28 move_increment moves open work with its claim and completed history w
   });
 });
 
-test("6.100 move_question moves an open question to another arc, parked included, keeping its id and holders; a closed arc, a settled question and a missing one are refused", async () => {
+test("10.16 move_question moves an open question to another arc, parked included, keeping its id and holders; a closed arc, a settled question and a missing one are refused", async () => {
   await withProject(async ({ folder, library }) => {
     await withAgent(folder, claudeCode("claude-1"), async (agent) => {
       const { arc } = await planned(agent);
@@ -810,7 +810,7 @@ test("6.100 move_question moves an open question to another arc, parked included
   });
 });
 
-test("6.46 add_remedies adds live friction to a parked increment's remedies, keeping those it had, so a tool route accepts it; friction that is not live, or no increment, is refused with nothing written", async () => {
+test("10.8 add_remedies adds live friction to a parked increment's remedies, keeping those it had, so a tool route accepts it; friction that is not live, or no increment, is refused with nothing written", async () => {
   await withProject(async ({ folder, library }) => {
     await withAgent(folder, claudeCode("claude-1"), async (agent) => {
       const { arc } = await planned(agent);
@@ -834,7 +834,7 @@ test("6.46 add_remedies adds live friction to a parked increment's remedies, kee
   });
 });
 
-test("6.47 park_increment takes an increment's capabilities and links, and edit_plan replaces either, or its objective and body, after parking; a story given as a capability is refused with nothing written (ADR-0949 D2)", async () => {
+test("10.9 park_increment takes an increment's capabilities and links, and edit_plan replaces either, or its objective and body, after parking; a story given as a capability is refused with nothing written (ADR-0949 D2)", async () => {
   await withProject(async ({ folder, library }) => {
     await withAgent(folder, claudeCode("claude-1"), async (agent) => {
       const { arc, story, capability } = await planned(agent);
@@ -862,7 +862,7 @@ test("6.47 park_increment takes an increment's capabilities and links, and edit_
   });
 });
 
-test("6.51 edit_plan sets and clears an arc's priority, refusing anything but a whole number of 1 or more or \"none\" with nothing written, and show_plan lists arcs by it, 1 first (ADR-0963)", async () => {
+test("9.8 edit_plan sets and clears an arc's priority, refusing anything but a whole number of 1 or more or \"none\" with nothing written, and show_plan lists arcs by it, 1 first (ADR-0963)", async () => {
   await withProject(async ({ folder, library }) => {
     await withAgent(folder, claudeCode("claude-1"), async (agent) => {
       const { arc: unranked } = await planned(agent);
@@ -886,7 +886,7 @@ test("6.51 edit_plan sets and clears an arc's priority, refusing anything but a 
   });
 });
 
-test("6.48 edit_plan refuses an increment's capabilities list a capability already on the list of another live session's claimed increment, naming that increment and its holder, with nothing written; the same session's own lists, and a list whose increment is released, are not refused (ADR-0949 D2)", async () => {
+test("10.10 edit_plan refuses an increment's capabilities list a capability already on the list of another live session's claimed increment, naming that increment and its holder, with nothing written; the same session's own lists, and a list whose increment is released, are not refused (ADR-0949 D2)", async () => {
   await withProject(async ({ folder, library }) => {
     const capabilitiesOf = async (id: string) => ((await library.get(id))?.fields as { capabilities?: string[] }).capabilities;
     let theirs = "";
@@ -924,7 +924,7 @@ test("6.48 edit_plan refuses an increment's capabilities list a capability alrea
   });
 });
 
-test("6.71 edit_plan lets the session holding a capability's claim list it, though a lane that backed off from that claim left it on its own claimed increment's list", async () => {
+test("10.14 edit_plan lets the session holding a capability's claim list it, though a lane that backed off from that claim left it on its own claimed increment's list", async () => {
   await withProject(async ({ folder, library }) => {
     let arc = "";
     let capability = "";
@@ -994,7 +994,7 @@ test("6.39 a tool call's reads do not grow with the log's length: the same calls
   assert.ok(taken[1]! - taken[0]! < 128 * 1024, `the calls took ${taken[0]} bytes from a short log and ${taken[1]} from one ${history} bytes longer: no more than 128 KiB apart`);
 });
 
-test("6.56 edit_plan and retire_from_plan, under an increment's claim, hold a change to a record planned before it as a pending change on the increment, leaving the live record alone (ADR-0966 D1; the rule itself is 10.29's)", async () => {
+test("9.9 edit_plan and retire_from_plan, under an increment's claim, hold a change to a record planned before it as a pending change on the increment, leaving the live record alone (ADR-0966 D1; the rule itself is 10.29's)", async () => {
   await withProject(async ({ folder, library }) => {
     await withAgent(folder, claudeCode("claude-1"), async (agent) => {
       const { arc, capability } = await planned(agent);
@@ -1020,7 +1020,7 @@ test("6.56 edit_plan and retire_from_plan, under an increment's claim, hold a ch
   });
 });
 
-test("6.113 edit_plan with live: true, under an increment's claim, corrects a story, capability or contract in the live plan, writing no pending change on the increment, and the session still holds its increment, so the pool never takes it in a release gap (ADR-0966 D1's note)", async () => {
+test("9.22 edit_plan with live: true, under an increment's claim, corrects a story, capability or contract in the live plan, writing no pending change on the increment, and the session still holds its increment, so the pool never takes it in a release gap (ADR-0966 D1's note)", async () => {
   await withProject(async ({ folder, library }) => {
     await withAgent(folder, claudeCode("claude-1"), async (agent) => {
       const { arc, story, capability } = await planned(agent);
@@ -1040,7 +1040,7 @@ test("6.113 edit_plan with live: true, under an increment's claim, corrects a st
   });
 });
 
-test("6.108 plan_capability, under an increment's claim, judges the story's capability numbers as that increment's pending changes would leave it: a number a pending move out of the story frees is given, and one a pending move into the story brings is refused", async () => {
+test("9.17 plan_capability, under an increment's claim, judges the story's capability numbers as that increment's pending changes would leave it: a number a pending move out of the story frees is given, and one a pending move into the story brings is refused", async () => {
   await withProject(async ({ folder, library }) => {
     await withAgent(folder, claudeCode("claude-1"), async (agent) => {
       const { arc, story, capability } = await planned(agent);
@@ -1062,7 +1062,7 @@ test("6.108 plan_capability, under an increment's claim, judges the story's capa
   });
 });
 
-test("6.58 import_project imports a folder into the project as mapped stories, one per package, naming them; a folder inside the project gets a readable refusal and nothing is written", async () => {
+test("12.1 import_project imports a folder into the project as mapped stories, one per package, naming them; a folder inside the project gets a readable refusal and nothing is written", async () => {
   await withProject(async ({ folder, library }) => {
     const shop = path.join(folder, "..", "shop");
     mkdirSync(path.join(shop, "packages", "cart"), { recursive: true });
@@ -1085,7 +1085,7 @@ test("6.58 import_project imports a folder into the project as mapped stories, o
   });
 });
 
-test("6.116 · plan_story in a project whose folder declares a JavaScript, TypeScript or Python package no story stands for is refused, naming each and import_project; once imported it plans a story for a new package (regression: four task-shaped stories on checkbox, 2026-11-04)", async () => {
+test("9.23 · plan_story in a project whose folder declares a JavaScript, TypeScript or Python package no story stands for is refused, naming each and import_project; once imported it plans a story for a new package (regression: four task-shaped stories on checkbox, 2026-11-04)", async () => {
   await withProject(async ({ folder, library }) => {
     writeFileSync(path.join(folder, "pyproject.toml"), "[project]\nname = \"checkbox\"\nversion = \"0.1.0\"\n");
     await withAgent(folder, claudeCode("claude-1"), async (agent) => {
@@ -1115,7 +1115,7 @@ test("6.116 · plan_story in a project whose folder declares a JavaScript, TypeS
   });
 });
 
-test("6.74 import_project on a folder already imported says the commit recorded before and now, counts the files changed between them naming up to ten of each, and names each explored capability whose files are gone", async () => {
+test("12.4 import_project on a folder already imported says the commit recorded before and now, counts the files changed between them naming up to ten of each, and names each explored capability whose files are gone", async () => {
   await withProject(async ({ folder, library }) => {
     const shop = path.join(folder, "..", "shop");
     mkdirSync(path.join(shop, "src"), { recursive: true });
@@ -1186,7 +1186,7 @@ test("map 3.9 focus with crossing counts the imports across a line in a mapped i
   });
 });
 
-test("6.99 edit_plan records the escape an increment fixes, the change that caused it and the story it hit, its \"none\" clears it, and a story that is not live is refused with nothing written", async () => {
+test("10.15 edit_plan records the escape an increment fixes, the change that caused it and the story it hit, its \"none\" clears it, and a story that is not live is refused with nothing written", async () => {
   await withProject(async ({ folder, library }) => {
     await withAgent(folder, claudeCode("claude-1"), async (agent) => {
       const { arc, story } = await planned(agent);
@@ -1206,7 +1206,7 @@ test("6.99 edit_plan records the escape an increment fixes, the change that caus
   });
 });
 
-test("6.62 park_increment and edit_plan set an increment's machine to a machine Machines knows, edit_plan's \"none\" clears it, and an unknown name is refused with nothing written; \"cloud\" names a cloud container, and clear_wait on its owner wait says the pool never starts it", async () => {
+test("10.13 park_increment and edit_plan set an increment's machine to a machine Machines knows, edit_plan's \"none\" clears it, and an unknown name is refused with nothing written; \"cloud\" names a cloud container, and clear_wait on its owner wait says the pool never starts it", async () => {
   await withProject(async ({ folder, library }) => {
     const mint = `m-${randomBytes(4).toString("hex")}`;
     const storytree = await connect({ url: testServerUrl() });
@@ -1248,7 +1248,7 @@ test("6.62 park_increment and edit_plan set an increment's machine to a machine 
   });
 });
 
-test("6.93 edit_plan on project-anchor writes the project's what and audience, a half at a time, and refuses any other field with nothing written; a story takes no audience (ADR-1085 D1, ADR-1096)", async () => {
+test("9.15 edit_plan on project-anchor writes the project's what and audience, a half at a time, and refuses any other field with nothing written; a story takes no audience (ADR-1085 D1, ADR-1096)", async () => {
   await withProject(async ({ folder, library }) => {
     await withAgent(folder, claudeCode("claude-1"), async (agent) => {
       const story = idOf(await agent.call("plan_story", { title: "Visitor can sign up", ...FOUNDED }));
@@ -1270,7 +1270,7 @@ test("6.93 edit_plan on project-anchor writes the project's what and audience, a
   });
 });
 
-test("6.94 show_plan says the project's anchor first (or that it has none), and a plan-health line naming only the anchor's missing half, which fails nothing; it names no story for an audience (ADR-1085 D1, ADR-1096)", async () => {
+test("9.16 show_plan says the project's anchor first (or that it has none), and a plan-health line naming only the anchor's missing half, which fails nothing; it names no story for an audience (ADR-1085 D1, ADR-1096)", async () => {
   await withProject(async ({ folder }) => {
     await withAgent(folder, claudeCode("claude-1"), async (agent) => {
       const { story } = await planned(agent);
@@ -1296,7 +1296,7 @@ test("6.94 show_plan says the project's anchor first (or that it has none), and 
   });
 });
 
-test("6.109 apply_pending applies an open increment's pending plan changes under a merged pull request's mark, and refuses one that has not merged, applying nothing", async () => {
+test("9.18 apply_pending applies an open increment's pending plan changes under a merged pull request's mark, and refuses one that has not merged, applying nothing", async () => {
   await withProject(async ({ folder, library }) => {
     await withAgent(folder, claudeCode("lane"), async (agent) => {
       const { arc, capability } = await planned(agent);

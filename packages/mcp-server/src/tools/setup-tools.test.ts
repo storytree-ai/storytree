@@ -1,5 +1,5 @@
 /**
- * The setup check's two tools, check_setup and set_up_project, as an agent calls them through the MCP
+ * Capability 12 · Setup tools: the setup check's two tools, check_setup and set_up_project, as an agent calls them through the MCP
  * server: the setup contracts 8.4-8.24, numbered as the agent link had them, that only a call through the server shows, and 7.7, the
  * habits card in their answers. The setup work itself is the app setup's, and its own tests stay there.
  *
@@ -214,7 +214,7 @@ test("app-setup 8.43 check_setup registers the hooks of the agent whose session 
   });
 });
 
-test("6.64 check_setup from an MCP client storytree has no hooks for passes as connected, says what storytree does not do for it and names the session id for its shells; a watched harness whose hooks are missing still needs attention", async () => {
+test("12.2 check_setup from an MCP client storytree has no hooks for passes as connected, says what storytree does not do for it and names the session id for its shells; a watched harness whose hooks are missing still needs attention", async () => {
   const project = uniqueProjectName();
   await withTempDir(async (dir) => {
     const home = throwawayHome(dir);
@@ -495,7 +495,7 @@ test("app-setup 8.19 in a project whose library holds the starter roles, the che
   });
 });
 
-test("6.117 · check_setup in a project whose folder declares packages no story stands for names each and says to call import_project before planning; once imported it says nothing of it (regression: checkbox planned without an import, 2026-11-04)", async () => {
+test("12.8 · check_setup in a project whose folder declares packages no story stands for names each and says to call import_project before planning; once imported it says nothing of it (regression: checkbox planned without an import, 2026-11-04)", async () => {
   await withTempDir(async (dir) => {
     const home = throwawayHome(dir);
     const name = uniqueProjectName();
@@ -751,7 +751,7 @@ test("app-setup 8.24 the check tells a session the hook failures this machine tr
   });
 });
 
-test("6.70 set_up_project in a folder in no git repository makes one whose first commit holds the .storytree folder, and says so, or with no git identity makes it with that folder staged and asks the user for a name and email; a folder already in one is left as it is, and joining makes none", async () => {
+test("12.3 set_up_project in a folder in no git repository makes one whose first commit holds the .storytree folder, and says so, or with no git identity makes it with that folder staged and asks the user for a name and email; a folder already in one is left as it is, and joining makes none", async () => {
   const [fresh, inRepo, nameless, factory] = [uniqueProjectName(), uniqueProjectName(), uniqueProjectName(), uniqueProjectName()];
   // The identity a user's git would have; CI's runners have none of their own.
   const identity = { GIT_AUTHOR_NAME: "A User", GIT_AUTHOR_EMAIL: "user@example.invalid", GIT_COMMITTER_NAME: "A User", GIT_COMMITTER_EMAIL: "user@example.invalid" };
@@ -824,7 +824,7 @@ test("6.70 set_up_project in a folder in no git repository makes one whose first
   });
 });
 
-test("6.107 set_up_project tells the user in one line to commit the .storytree folder, and why, unless the first commit it made already holds it", async () => {
+test("12.5 set_up_project tells the user in one line to commit the .storytree folder, and why, unless the first commit it made already holds it", async () => {
   const [inRepo, fresh, factory] = [uniqueProjectName(), uniqueProjectName(), uniqueProjectName()];
   const identity = { GIT_AUTHOR_NAME: "A User", GIT_AUTHOR_EMAIL: "user@example.invalid", GIT_COMMITTER_NAME: "A User", GIT_COMMITTER_EMAIL: "user@example.invalid" };
   const before = Object.fromEntries(Object.keys(identity).map((key) => [key, process.env[key]]));
@@ -858,7 +858,7 @@ test("6.107 set_up_project tells the user in one line to commit the .storytree f
   });
 });
 
-test("6.115 · set_up_project on a folder whose code is only in languages the map cannot read says so in one sentence, naming them and what it reads, and what still works; a folder with code it reads hears none of it", async () => {
+test("12.7 · set_up_project on a folder whose code is only in languages the map cannot read says so in one sentence, naming them and what it reads, and what still works; a folder with code it reads hears none of it", async () => {
   const [other, readable, factory] = [uniqueProjectName(), uniqueProjectName(), uniqueProjectName()];
   await withTempDir(async (dir) => {
     const home = throwawayHome(dir);
@@ -891,7 +891,7 @@ test("6.115 · set_up_project on a folder whose code is only in languages the ma
   });
 });
 
-test("6.114 check_setup reads a marker naming a project this computer's library lacks as missing, says set_up_project is called only on the user's yes, and set_up_project then sets the folder up, replacing the marker", async () => {
+test("12.6 check_setup reads a marker naming a project this computer's library lacks as missing, says set_up_project is called only on the user's yes, and set_up_project then sets the folder up, replacing the marker", async () => {
   await withTempDir(async (dir) => {
     const home = throwawayHome(dir);
     const [name, factory] = [uniqueProjectName(), uniqueProjectName()];

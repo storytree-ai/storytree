@@ -1,5 +1,5 @@
 /**
- * Capability 6 · Agent tools (the MCP server). The drain step: what friction_drain runs after the drain, as the command
+ * Capability 6 · Tool server (the MCP server). The drain step: what friction_drain runs after the drain, as the command
  * line's `storytree friction drain` runs the doors learner after its own (ADR-1045 D7, on both doors as ADR-0793 has them).
  * The learner judges every command, and this server cannot import the command line that lists them, so whoever mounts
  * the server injects the step: the bin runs `storytree doors learn` for the calling session. A step that fails says so

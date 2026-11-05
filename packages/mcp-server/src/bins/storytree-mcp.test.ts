@@ -1,4 +1,4 @@
-/** Capability 6 · Agent tools: the built tool server, started the way Claude Code and Codex start it. */
+/** Capability 6 · Tool server: the built tool server, started the way Claude Code and Codex start it. */
 import assert from "node:assert/strict";
 import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";

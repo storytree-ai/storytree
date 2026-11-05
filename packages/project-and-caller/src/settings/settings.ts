@@ -308,9 +308,12 @@ const DEFAULT_FACTORY = "your-factory";
  * This computer's factory folder: the one `settings set factory` chose, or else storytree's own, `your-factory`
  * (ADR-1118 D2). It sits beside a versioned home (`~/.storytree/0.3` keeps it at `~/.storytree/your-factory`, so it
  * outlasts the version) and inside any other home, so a lane's or a test's home keeps its own. Reading it writes
- * nothing; `makeFactoryFolder` makes the default. A damaged value is reported naming the file.
+ * nothing; `makeFactoryFolder` makes the default. A damaged value is reported naming the file. STORYTREE_FACTORY names
+ * the folder for one run over both, the setting unread and untouched, so a lane can mount its own factory worktree.
  */
 export function factoryFolder(home: string = storytreeHome()): { readonly folder: string; readonly chosen: boolean; readonly switched?: FactorySwitched } {
+  const forRun = process.env.STORYTREE_FACTORY;
+  if (forRun !== undefined && forRun !== "") return { folder: path.resolve(forRun), chosen: true };
   const stored = readStored(home);
   const chosen = stored.factory;
   if (chosen !== undefined) return { folder: chosen, chosen: true, ...(stored[FACTORY_SWITCHED] === undefined ? {} : { switched: stored[FACTORY_SWITCHED] }) };

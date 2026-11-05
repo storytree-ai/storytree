@@ -156,3 +156,30 @@ test("2.23 Switching a part off with a factory plugin standing in records who sw
     assert.throws(() => readStandIns(home), /stand-ins-history/, "a damaged history is reported");
   });
 });
+
+test("2.27 STORYTREE_FACTORY names the factory folder for one run, which the hosts load plugins from, over the folder `settings set factory` chose and storytree's own, leaving the saved setting as it was", async () => {
+  await withTempDir((dir) => {
+    const home = path.join(dir, ".storytree", "0.3");
+    const worktree = path.join(dir, "factory-worktree");
+    mkdirSync(path.join(worktree, "plugins"), { recursive: true });
+    const before = process.env.STORYTREE_FACTORY;
+    try {
+      process.env.STORYTREE_FACTORY = worktree;
+      assert.deepEqual(factoryFolder(home), { folder: worktree, chosen: true }, "over storytree's own");
+      assert.equal(readStandIns(home).folder, worktree, "the hosts load plugins from it");
+
+      mkdirSync(path.join(dir, "mine"));
+      setFactory(path.join(dir, "mine"), home);
+      const saved = readFileSync(path.join(home, "settings.json"), "utf8");
+      assert.equal(factoryFolder(home).folder, worktree, "over the chosen folder");
+      assert.equal(makeFactoryFolder(home).folder, worktree);
+      assert.equal(readFileSync(path.join(home, "settings.json"), "utf8"), saved, "the setting is left as it was");
+
+      delete process.env.STORYTREE_FACTORY;
+      assert.equal(factoryFolder(home).folder, path.join(dir, "mine"), "a run without it keeps the computer's factory");
+    } finally {
+      if (before === undefined) delete process.env.STORYTREE_FACTORY;
+      else process.env.STORYTREE_FACTORY = before;
+    }
+  });
+});

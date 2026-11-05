@@ -73,18 +73,24 @@ export function useBuiltInTurn<T>(build: () => T, deps: DependencyList, turns: B
  */
 export function useBuiltInSteps<T>(steps: () => Generator<void, T, void>, deps: DependencyList, turns: BuildTurns = pageTurns): T | undefined {
   const [built, setBuilt] = useState<{ value: T }>();
-  useEffect(() => {
-    const overtaken = new AbortController();
-    let running: Generator<void, T, void> | undefined;
-    const step: Turn = () => {
-      running ??= steps();
-      const at = running.next();
-      if (!at.done) return step;
-      setBuilt({ value: at.value });
-    };
-    turns.ask(step, overtaken.signal);
-    return () => { overtaken.abort(); running?.return(undefined as T); };
-    // The caller names what the build reads.
-  }, [turns, ...deps]);
+  // The caller names what the build reads.
+  useEffect(() => buildInSteps(turns, steps, (value) => setBuilt({ value })), [turns, ...deps]);
   return built?.value;
+}
+
+/**
+ * Asks `turns` for `steps`, a turn for each `yield`, and hands `built` what it returns. The call it returns overtakes the
+ * build: no more of its steps run, and one already begun is returned, so its `finally` blocks let go of what it made.
+ */
+export function buildInSteps<T>(turns: BuildTurns, steps: () => Generator<void, T, void>, built: (value: T) => void): () => void {
+  const overtaken = new AbortController();
+  let running: Generator<void, T, void> | undefined;
+  const step: Turn = () => {
+    running ??= steps();
+    const at = running.next();
+    if (!at.done) return step;
+    built(at.value);
+  };
+  turns.ask(step, overtaken.signal);
+  return () => { overtaken.abort(); running?.return(undefined as T); };
 }

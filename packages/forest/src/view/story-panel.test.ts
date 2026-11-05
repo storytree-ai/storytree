@@ -9,7 +9,7 @@ import { test } from "node:test";
 
 import type { CapabilityLine, StoryPanel } from "@storytree/forest";
 
-import { renderStoryPanel } from "./story-panel.js";
+import { renderStoryPanel, renderTree } from "./story-panel.js";
 
 /** The panel without its foot, the map's legend (4.39), whose words name every health and count the map draws. */
 const story = (html: string): string => html.replace(/<footer class="panel-legend"[\s\S]*?<\/footer>/, "");
@@ -246,4 +246,10 @@ test("4.37 storytree's mark names its source on the card, in the detail and on e
   assert.equal(whyLine(html("both")), "Why not green: 2.1 is failing, from CI. The agent moves this one.");
   assert.equal(whyLine(html("older")), "Why not green: 3.1 is failing. The agent moves this one.");
   assert.doesNotMatch(detail("older"), /locally|from CI/);
+});
+
+test("4.11 the tree's class name comes out escaped, so markup in it draws no element of its own", () => {
+  const html = renderTree(panel, undefined, '"><img src=x onerror=alert(1)>');
+  assert.doesNotMatch(html, /<img/);
+  assert.match(html, /class="&quot;&gt;&lt;img src=x onerror=alert\(1\)&gt;"/);
 });

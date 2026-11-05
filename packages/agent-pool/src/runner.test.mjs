@@ -223,8 +223,7 @@ test("3.32 · a lane started from the command line holds its reserved slot only 
   const options = await lane(t);
   await writeFile(join(options.lanesDir, "engine-override"), "codex");
   // The engine reports the reservations left in the lanes folder once it has run a moment (up to 5 s for its starter to release).
-  const slots = JSON.stringify(join(options.lanesDir, "engine-slots"));
-  options.commands.codex = command(`const fs=require('node:fs');const left=()=>fs.readdirSync(${slots}).filter((n)=>n.endsWith('.slot')).length;
+  options.commands.codex = command(`const fs=require('node:fs'),slots=require('node:path').join(process.env.LANES_DIR,'engine-slots');const left=()=>fs.readdirSync(slots).filter((n)=>n.endsWith('.slot')).length;
     const until=Date.now()+5000;(function look(){if(left()&&Date.now()<until)return setTimeout(look,50);console.log(JSON.stringify({reserved:left()}));})();`);
   assert.equal(await main(["run", options.brief, options.log, options.err], options), 0);
   assert.equal(JSON.parse(await readFile(options.log, "utf8")).reserved, 0, "the slot was released while the engine ran");

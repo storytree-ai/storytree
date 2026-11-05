@@ -75,5 +75,26 @@ export function registeredHookScripts(homes: Homes = defaultHomes()): string[] {
 
 /** The hook script paths in `strings`: a Claude Code argument is the path alone; a Codex or Cursor command line holds it, perhaps quoted. */
 export function scriptsIn(strings: readonly unknown[]): string[] {
-  return strings.flatMap((text) => typeof text !== "string" ? [] : [...text.matchAll(/(?:^|['"\s])((?:[A-Za-z]:)?[\\/][^'"]*?storytree-hook\.mjs)/g)].map((found) => found[1]!));
+  return strings.flatMap((text) => typeof text !== "string" ? [] : text.split(/['"]/).flatMap(scriptsInPart));
+}
+
+const HOOK_FILE = "storytree-hook.mjs";
+
+/**
+ * The hook script paths in `part`, a piece of a command line with no quote in it: each starts at the part's start or after
+ * a space, with a slash (after a drive letter, perhaps), and runs to the first storytree-hook.mjs after it. Read by scanning,
+ * not by a regular expression whose backtracking a long line of slashes and spaces would make slow.
+ */
+function scriptsInPart(part: string): string[] {
+  const found: string[] = [];
+  for (let start = 0; start < part.length; start++) {
+    if (start > 0 && !/\s/.test(part[start - 1]!)) continue;
+    const slash = /[A-Za-z]/.test(part[start]!) && part[start + 1] === ":" ? start + 2 : start;
+    if (part[slash] !== "/" && part[slash] !== "\\") continue;
+    const end = part.indexOf(HOOK_FILE, slash + 1);
+    if (end < 0) break;
+    found.push(part.slice(start, end + HOOK_FILE.length));
+    start = end + HOOK_FILE.length;
+  }
+  return found;
 }

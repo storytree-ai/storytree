@@ -476,6 +476,22 @@ for (const backend of [memory, postgres]) {
     assert.deepEqual((await records.get(fix.id))?.fields, cleared?.fields);
   });
 
+  contract("10.41", "an escape keeps the story it hit after that story is retired: an edit naming the story the escape already records is accepted, so its commit can still be added, while naming any other story that is not live is refused with nothing written", async ({ work, flight, records, transactions }) => {
+    const arc = await flight.createArc(ARC);
+    const moved = await work.addStory({ title: "Code review" });
+    const other = await work.addStory({ title: "Website" });
+    const fix = await flight.addIncrement({ arc: arc.id, ...WORK });
+    await records.edit(fix.id, { escape: { causedBy: "#1803", story: moved.id } });
+    await records.retire(moved.id, "moved into a plugin");
+    await records.retire(other.id, "moved to another project");
+    const history = await transactions.history();
+    await assert.rejects(flight.editIncrement(fix.id, { escape: { causedBy: "#1803", commit: "125330d", story: other.id } }), (error: unknown) => error instanceof MissingReferenceError && error.field === "escape.story");
+    assert.deepEqual(await transactions.history(), history, "nothing was written");
+    const corrected = await flight.editIncrement(fix.id, { escape: { causedBy: "#1803", commit: "125330d", story: moved.id } });
+    assert.deepEqual(corrected?.fields.escape, { causedBy: "#1803", commit: "125330d", story: moved.id });
+    assert.deepEqual(((await records.get(fix.id))?.fields as { escape?: unknown }).escape, corrected?.fields.escape);
+  });
+
   contract("10.30", "a landed increment says whether it fixed an escape: one naming none is recorded as fixing none when it lands, closed or parked closed, while one naming its escape keeps it and a close that does not land says nothing", async ({ work, flight, records }) => {
     const arc = await flight.createArc(ARC);
     const story = await work.addStory({ title: "Visitor can sign up" });

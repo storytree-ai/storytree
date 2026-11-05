@@ -1,5 +1,5 @@
 /**
- * Capability 2 · Connect an agent: contract 2.21. The shape of Codex's hooks depends on the version Codex says it is,
+ * Capability 2 · Connect an agent: contracts 2.21 and 2.6. The shape of Codex's hooks depends on the version Codex says it is,
  * so connecting reads it from the Codex the user would run: the one on the PATH, else the desktop app's own CLI.
  */
 import assert from "node:assert/strict";
@@ -9,7 +9,7 @@ import { test } from "node:test";
 
 import { withTempDir } from "@storytree/project-and-caller/testing/folders";
 
-import { installedCodexVersion } from "./codex.js";
+import { installedCodexVersion, runsElevated } from "./codex.js";
 
 test("2.21 the Codex version connecting reads is the one Codex on the PATH says (on Windows its npm .cmd, which only a shell runs), else the desktop app's CLI's, and none where no Codex answers", async () => {
   await withTempDir(async (dir) => {
@@ -34,4 +34,10 @@ test("2.21 the Codex version connecting reads is the one Codex on the PATH says 
     }
     assert.equal(installedCodexVersion(options), "0.150.2");
   });
+});
+
+test("2.6 asked with no options, the administrator probe gives whoami time to answer: it reads what a generous wait reads, never a reading cut short", {
+  skip: process.platform !== "win32" && "platform:win32: only Windows has an administrator token to read; elsewhere it is never so",
+}, async () => {
+  assert.equal(await runsElevated(), await runsElevated({ waitMs: 30_000 }));
 });

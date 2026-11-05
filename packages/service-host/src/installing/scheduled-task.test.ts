@@ -38,7 +38,8 @@ test("3.3 · The laptop's storytree-host task runs node itself on `storytree ser
   const checkout = path.join(dir, "storytree");
   mkdirSync(checkout);
   const system = path.join(process.env.SystemRoot ?? "C:\\Windows", "System32");
-  const run = (script: string, PATH: string) => execFileSync("cmd.exe", ["/d", "/c", script], { env: { ...process.env, PATH }, stdio: "ignore" });
+  // cmd runs the script by its own fixed name, in the folder it was written to.
+  const run = (PATH: string) => execFileSync("cmd.exe", ["/d", "/c", ".\\storytree-host.cmd"], { cwd: dir, env: { ...process.env, PATH }, stdio: "ignore" });
 
   const said = path.join(dir, "said");
   const bin = path.join(dir, "bin");
@@ -46,7 +47,7 @@ test("3.3 · The laptop's storytree-host task runs node itself on `storytree ser
   const log = path.join(dir, "host.log");
   const script = path.join(dir, "storytree-host.cmd");
   writeFileSync(script, hostScript({ checkout, node: path.join(dir, "nowhere", "node.exe"), log, restartSeconds: 0 }));
-  run(script, `${bin};${system}`);
+  run(`${bin};${system}`);
   const lines = readFileSync(said, "utf8").trim().split(/\r?\n/);
   const args = "--import tsx packages\\cli\\src\\bins\\storytree.ts services run";
   assert.deepEqual(lines, [checkout, args, checkout, args], "the host ran as node itself in the checkout, again after it ended 3, and the script ended once it ended 0");
@@ -56,7 +57,7 @@ test("3.3 · The laptop's storytree-host task runs node itself on `storytree ser
   const fallback = fakeNode(path.join(dir, "fallback"), fallbackSaid);
   writeFileSync(fallbackSaid + ".ran", "ran");
   writeFileSync(script, hostScript({ checkout, node: fallback, log, restartSeconds: 0 }));
-  run(script, system);
+  run(system);
   assert.deepEqual(readFileSync(fallbackSaid, "utf8").trim().split(/\r?\n/), [checkout, args], "with no node on PATH, the node that installed the task runs the host");
 
   const task = hostTask(script, "LAPTOP\\mick");

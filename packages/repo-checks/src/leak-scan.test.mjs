@@ -9,7 +9,7 @@ import { deflateRawSync, gzipSync } from "node:zlib";
 
 import { removeTemp } from "@storytree/test-waits";
 
-import { addedLeaks, checkLeaks, checkSecrets, credentialCounts, fileCounts, leakReport, nameWords, scanTree, SECRET_EXEMPTIONS } from "./leak-scan.mjs";
+import { addedLeaks, checkLeaks, checkSecrets, credentialCounts, fileCounts, leakCounts, leakReport, nameWords, scanTree, SECRET_EXEMPTIONS } from "./leak-scan.mjs";
 
 // Each leak is put together at run time, so this file holds none of them for the scan to find.
 const join = (...parts) => parts.join("");
@@ -78,6 +78,23 @@ test("1.1 · the leak scan finds each personal path, name, address and link in a
   }
   for (const bytes of [Buffer.from(CLEAN), gzipSync(CLEAN), utf16(CLEAN), zip("a.txt", Buffer.from(CLEAN))]) assert.deepEqual(fileCounts(bytes, WORDS), {});
   assert.deepEqual(fileCounts(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0, 0, 0, 0x0d, ...Buffer.from(LEAKS["a Linux home folder"])]), WORDS), {}, "a picture is not read as text");
+});
+
+test("1.1 · a home folder whose name holds a long run of punctuation is judged in linear time, and found unless it is a placeholder", () => {
+  const started = performance.now();
+  assert.deepEqual(leakCounts(join("/", "home", "/", "!".repeat(50_000), "x"), []), { "a Linux home folder": 1 });
+  assert.deepEqual(leakCounts(join("/", "home", "/", "user", "!".repeat(50_000)), []), {});
+  assert.ok(performance.now() - started < 1000, `took ${Math.round(performance.now() - started)} ms`);
+});
+
+test("1.1 · an address at a reserved or storytree domain, a no-reply sender or a service account is a placeholder; any other address is found", () => {
+  const at = (local, domain) => [local, domain].join("@");
+  for (const address of [at("a", "x.example.org"), at("a", "box.test"), at("a", "storytree.dev"), at("noreply", "mail.co"), at("1+a", "users.noreply.github.com"), at("sa", "proj.iam.gserviceaccount.com")]) {
+    assert.deepEqual(leakCounts(`mail ${address} now`, []), {}, address);
+  }
+  for (const address of [at("a", "mail.co"), at("a", "notstorytree.dev"), at("a", "test.co"), at("iam", "mail.co")]) {
+    assert.deepEqual(leakCounts(`mail ${address} now`, []), { "an email address": 1 }, address);
+  }
 });
 
 test("1.2 · the leak scan reports a tree's leaks by folder and its worst files without the matched text, and the gate's check refuses only a file whose count of a pattern rises against the merge base", (t) => {

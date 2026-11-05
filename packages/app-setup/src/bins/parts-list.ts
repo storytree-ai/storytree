@@ -52,6 +52,13 @@ function readList(host: string, file: string): PartsList {
   return list;
 }
 
+const ESCAPES: Record<string, string> = { "<": "\\u003C", ">": "\\u003E", "/": "\\u002F", "\b": "\\b", "\f": "\\f", "\n": "\\n", "\r": "\\r", "\t": "\\t", "\0": "\\0", "\u2028": "\\u2028", "\u2029": "\\u2029" };
+
+/** `value` as a JavaScript literal, with the characters that could end a string or a script written as escapes. */
+function literal(value: unknown): string {
+  return JSON.stringify(value).replace(/[<>/\b\f\n\r\t\0\u2028\u2029]/g, (char) => ESCAPES[char] ?? char);
+}
+
 /** The esbuild plugin that packs `#parts/<kind>` from each host's parts list, written once per host per build by `write`. */
 export function partsFromList({ write = writeWithPluginLoader }: { write?: WriteList } = {}): Plugin {
   return {
@@ -89,10 +96,12 @@ export function partsFromList({ write = writeWithPluginLoader }: { write?: Write
         const list = await listOf(host);
         const parts = list.kinds[kind];
         if (parts === undefined) throw new Error(`The parts list for ${host} holds no #parts/${kind}: its package.json's imports map no such kind.`);
-        const imports = parts.map((part, index) => `import { ${part.export} as part${index} } from ${JSON.stringify(part.module)};`);
+        const unnamed = parts.find((part) => !/^[A-Za-z_$][\w$]*$/.test(part.export));
+        if (unnamed !== undefined) throw new Error(`The parts list for ${host} names the export ${JSON.stringify(unnamed.export)} from ${unnamed.module}, which is no plain name, so the build stops rather than pack it.`);
+        const imports = parts.map((part, index) => `import { ${part.export} as part${index} } from ${literal(part.module)};`);
         const declared = parts.map((_, index) => `...part${index}`).join(", ");
-        const owners = parts.map((part, index) => `...part${index}.map(() => ${JSON.stringify(part.owner)})`).join(", ");
-        const contents = `${imports.join("\n")}\nexport default { parts: [${declared}], owners: [${owners}], graph: ${JSON.stringify(list.graph)} };\n`;
+        const owners = parts.map((part, index) => `...part${index}.map(() => ${literal(part.owner)})`).join(", ");
+        const contents = `${imports.join("\n")}\nexport default { parts: [${declared}], owners: [${owners}], graph: ${literal(list.graph)} };\n`;
         return { contents, resolveDir: host, loader: "js" };
       });
     },

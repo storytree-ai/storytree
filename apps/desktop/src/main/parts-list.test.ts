@@ -70,3 +70,12 @@ test("4.38 · a desktop bundle whose parts list is missing, or out of date with 
   const unmapped = host(t, [arcs, forest]);
   await assert.rejects(bundle(unmapped, `import pages from "#parts/pages";\nexport { pages };\n`), /holds no #parts\/pages: its package\.json's imports map no such kind/);
 });
+
+test("4.38 · a desktop bundle whose parts list names an export that is no plain name fails naming it, rather than pack code the list carried in", async (t) => {
+  const dir = host(t, [arcs]);
+  const module = path.join(dir, "node_modules", "@s", "arcs", "surfaces.js");
+  const carried = `arcsSurfaces } from "${module}"; globalThis.carried = true; import { arcsSurfaces`;
+  const write = async (_from: string, file: string) => { writeFileSync(file, JSON.stringify({ kinds: { surfaces: [{ module, export: carried, owner: "arcs" }] }, graph: {}, inputs: {} })); };
+  await assert.rejects(bundle(dir, `import surfaces from "#parts/surfaces";\nexport { surfaces };\n`, partsFromList({ write })), (error: Error) => error.message.includes(`names the export ${JSON.stringify(carried)}`));
+  assert.equal((globalThis as { carried?: boolean }).carried, undefined);
+});

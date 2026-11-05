@@ -5,6 +5,10 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
+const ESCAPES = { "<": "\\u003C", ">": "\\u003E", "/": "\\u002F", "\b": "\\b", "\f": "\\f", "\n": "\\n", "\r": "\\r", "\t": "\\t", "\0": "\\0", "\u2028": "\\u2028", "\u2029": "\\u2029" };
+/** `value` as a JavaScript literal for an evaluated expression, with the characters that could end a string written as escapes. */
+const literal = (value) => JSON.stringify(value).replace(/[<>/\b\f\n\r\t\0\u2028\u2029]/g, (char) => ESCAPES[char] ?? char);
+
 const [outDir, ...steps] = process.argv.slice(2);
 const targets = await (await fetch(`http://127.0.0.1:${process.env.CDP_PORT ?? 9222}/json`)).json();
 const page = targets.find((t) => t.type === "page");
@@ -30,8 +34,8 @@ for (const step of steps) {
   } else if (kind === "mouse") {
     // A real mouse click on the first visible button (or select) whose label or text is `arg`, or on a CSS selector prefixed with "css=".
     const find = arg.startsWith("css=")
-      ? `document.querySelector(${JSON.stringify(arg.slice(4))})`
-      : `[...document.querySelectorAll("button, select, summary, a")].find((b) => { const r = b.getBoundingClientRect(); return r.width > 0 && r.height > 0 && (b.getAttribute("aria-label") || b.textContent || "").trim() === ${JSON.stringify(arg)}; })`;
+      ? `document.querySelector(${literal(arg.slice(4))})`
+      : `[...document.querySelectorAll("button, select, summary, a")].find((b) => { const r = b.getBoundingClientRect(); return r.width > 0 && r.height > 0 && (b.getAttribute("aria-label") || b.textContent || "").trim() === ${literal(arg)}; })`;
     const rect = await evaluate(`(() => { const e = ${find}; if (!e) return null; const r = e.getBoundingClientRect(); return r.width > 0 ? { x: r.x + r.width / 2, y: r.y + r.height / 2 } : null; })()`);
     if (!rect) { console.log("mouse", arg, "NOT VISIBLE"); continue; }
     for (const type of ["mouseMoved", "mousePressed", "mouseReleased"]) await send("Input.dispatchMouseEvent", { type, x: rect.x, y: rect.y, button: "left", clickCount: 1 });
@@ -49,7 +53,7 @@ for (const step of steps) {
   } else if (kind === "buttons") {
     console.log("buttons", JSON.stringify(await evaluate(`[...document.querySelectorAll("button, a, summary")].filter((b) => { const r = b.getBoundingClientRect(); return r.width > 0 && r.height > 0; }).map((b) => (b.getAttribute("aria-label") || b.textContent || "").trim()).filter(Boolean)`)));
   } else if (kind === "text") {
-    console.log("text", arg, JSON.stringify(await evaluate(`(document.querySelector(${JSON.stringify(arg)})?.innerText ?? "not found")`)));
+    console.log("text", arg, JSON.stringify(await evaluate(`(document.querySelector(${literal(arg)})?.innerText ?? "not found")`)));
   } else if (kind === "type") {
     await send("Input.insertText", { text: arg });
     console.log("typed", arg.length, "chars");
@@ -58,9 +62,9 @@ for (const step of steps) {
   } else if (kind === "eval") {
     console.log("eval", JSON.stringify(await evaluate(arg)));
   } else if (kind === "click") {
-    console.log("click", arg, await evaluate(`(() => { const e = document.querySelector(${JSON.stringify(arg)}); if (!e) return "not found"; e.click(); return "ok"; })()`));
+    console.log("click", arg, await evaluate(`(() => { const e = document.querySelector(${literal(arg)}); if (!e) return "not found"; e.click(); return "ok"; })()`));
   } else if (kind === "select") {
-    console.log("select", arg, await evaluate(`(() => { const s = document.querySelector("#switcher select"); if (!s) return "no switcher"; s.value = ${JSON.stringify(arg)}; s.dispatchEvent(new Event("change")); return [...s.options].map(o => o.value).join(","); })()`));
+    console.log("select", arg, await evaluate(`(() => { const s = document.querySelector("#switcher select"); if (!s) return "no switcher"; s.value = ${literal(arg)}; s.dispatchEvent(new Event("change")); return [...s.options].map(o => o.value).join(","); })()`));
   } else if (kind === "wait") {
     await new Promise((ok) => setTimeout(ok, Number(arg)));
   }

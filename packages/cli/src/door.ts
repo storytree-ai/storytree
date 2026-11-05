@@ -28,7 +28,6 @@ import { printable } from "@storytree/library/printable";
 
 import { Refusal, render, UnknownCommand, type Answer, type Next } from "./answer.js";
 import { parseArgs, type Args } from "./args.js";
-import { changedByQuoting } from "./handed.js";
 import { FAMILIES, familiesOff, GUESSES, POINTERS } from "./families/index.js";
 import { recordKindsMounted } from "./mount.js";
 import { commandSession, commandWriter, person } from "./writer.js";
@@ -69,10 +68,6 @@ export interface Io {
   readonly cwd: string;
   /** The command's own script, as Node ran it: storytree's other commands sit beside an installed one. */
   readonly script?: string;
-  /** The words as pnpm was handed them, when pnpm's script ran this command (./handed.ts). */
-  readonly handed?: readonly string[];
-  /** The line the Windows launcher was handed, after its own name, when it started this command (./handed.ts). */
-  readonly launched?: string;
   /**
    * Whether `err` reaches a person's terminal. Only then is a wait on the library said as it starts:
    * Windows PowerShell 5.1 reads any captured stderr as a failed command, and a pipe cut short after
@@ -145,16 +140,6 @@ export interface Family {
 export async function run(argv: readonly string[], given: Io): Promise<number> {
   // Everything printed is library text at heart, so no control character in it reaches the terminal (contract 1.43).
   const io: Io = { ...given, out: (text) => given.out(printable(text)), err: (text) => given.err(printable(text)) };
-  const changed = io.handed === undefined ? -1 : changedWord(argv, io.handed);
-  if (changed !== -1) {
-    io.err(render({ text: `storytree did nothing: the shell pnpm runs scripts through changed word ${changed + 1} ("${preview(io.handed?.[changed] ?? "")}") on its way here, as it does a $ or a line break. Put that text in a file and pass @<file> in its place, as in --answer @answer.txt.` }));
-    return 1;
-  }
-  const requoted = io.launched === undefined ? undefined : changedByQuoting(io.launched, argv);
-  if (requoted !== undefined) {
-    io.err(render({ text: `storytree did nothing: word ${requoted + 1} ("${preview(argv[requoted] ?? "")}") arrived with its double quotes changed, as Windows PowerShell 5.1 hands on a word that holds a space and a double quote. Put that text in a file and pass @<file> in its place, as in --answer @answer.txt, or write each double quote inside it as \\".` }));
-    return 1;
-  }
   const opened = new Opened(io.cwd, io.terminal === true ? (what) => io.err(`storytree: ${what}\n`) : () => {});
   let writer: WriteOptions | undefined;
   let journey: Promise<JourneyRuntime> | undefined;
@@ -207,18 +192,6 @@ export async function run(argv: readonly string[], given: Io): Promise<number> {
     // Observation must finish before this short-lived process exits, without changing its answer.
     await journey?.then((runtime) => runtime.finish()).catch(() => {});
   }
-}
-
-/** A word as a refusal names it: its first line, cut at 40 characters. */
-function preview(word: string): string {
-  const line = word.split(/\r?\n/, 1)[0] ?? "";
-  return line.length > 40 || line.length < word.length ? `${line.slice(0, 40)}…` : line;
-}
-
-/** The index of the first handed word that did not arrive as handed, or -1 when every one did (contract 1.11). */
-function changedWord(argv: readonly string[], handed: readonly string[]): number {
-  const at = handed.findIndex((word, index) => argv[index] !== word);
-  return at !== -1 || argv.length === handed.length ? at : handed.length;
 }
 
 /** The command as the door names it, `storytree arc increment close`, as far as the words reached a family or verb. */

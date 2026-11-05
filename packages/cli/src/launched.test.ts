@@ -1,8 +1,8 @@
 /**
- * Capability 1 · Front door, contract 1.12: the words the installed command is handed on Windows, where its
+ * Capability 16 · Build and launch, contract 16.3: the words the installed command is handed on Windows, where its
  * launcher is a program of its own that passes the caller's line on unchanged (ADR-0854). Windows PowerShell 5.1
  * hands a word holding a space and a double quote on with its inner quotes unescaped, so the command reads other
- * words than the ones written: the door refuses them before acting. The command runs as a user's does: the agent
+ * words than the ones written: the command refuses them before acting. The command runs as a user's does: the agent
  * link's launcher, on the path, in front of the built command.
  */
 import assert from "node:assert/strict";
@@ -20,7 +20,7 @@ const command = new BuiltCommand();
 before(async () => { if (windows) await command.build(); });
 after(() => command.remove());
 
-test("1.12 on Windows, a word whose double quotes the caller's own quoting changed, as Windows PowerShell 5.1 hands on a word holding a space and a double quote, is refused before the command acts, naming it and saying to pass it from a file; the same word from Git Bash reaches the command", {
+test("16.3 on Windows, a word whose double quotes the caller's own quoting changed, as Windows PowerShell 5.1 hands on a word holding a space and a double quote, is refused before the command acts, naming it and saying to pass it from a file; the same word from Git Bash reaches the command", {
   skip: !windows && "platform:win32: only on Windows does the installed command's launcher hand the caller's line on, and only Windows PowerShell 5.1 leaves a word's inner quotes unescaped",
 }, () => {
   const dir = mkdtempSync(path.join(tmpdir(), "storytree launched "));

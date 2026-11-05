@@ -1,7 +1,8 @@
 /** Capability 1 under the glass sheet: each note is pulled toward every island its links reach, unlinked ones lie on a sea floor (ADR-1063). */
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { knowledge, sheetLayout, sheetLit, sheetPoints, sheetRoots, underShelves } from "@storytree/knowledge-core";
+import { knowledge, sheetLayout, sheetLit, sheetPoints, sheetRoots, sheetSteps, underShelves, whole } from "@storytree/knowledge-core";
+import { runInSteps } from "../view/in-steps.js";
 import { History } from "../testing/changes.js";
 
 const shelves = new Map([["west", { x: -100, y: 20 }], ["east", { x: 100, y: -10 }], ["cap", { x: 130, y: -30 }]]);
@@ -122,7 +123,7 @@ test("1.16 the sheet read again after news that changes nothing it lays out keep
   const read = (history: History, at: ReadonlyMap<string, { x: number; y: number }> = shelves) => {
     const known = knowledge(history.changes);
     // Each reading hands it fresh objects, as the globe's live updates do.
-    return layout(underShelves(history.changes, known), { shelfAt: node => at.get(node), floor: { ...floor }, depthStep: 7 }, known.notes);
+    return whole(layout(underShelves(history.changes, known), { shelfAt: node => at.get(node), floor: { ...floor }, depthStep: 7 }, known.notes));
   };
   const history = islands().decision("cover", { frontCoverOf: "cap" }).decision("citer", { links: ["cover"] }).decision("loose");
   const first = read(history);
@@ -135,4 +136,35 @@ test("1.16 the sheet read again after news that changes nothing it lays out keep
   assert.notEqual(read(history.decision("new")), linked, "a new note lays out again");
   const moved = new Map([...shelves, ["cap", { x: 120, y: -30 }]]);
   assert.notEqual(read(history, moved), read(history), "a moved shelf lays out again");
+});
+
+test("1.17 the sheet is laid out a few steps to a task, no task past its budget, to the same layout as at once; a reading that changes nothing takes no step, and one overtaken runs no more", () => {
+  let history = islands();
+  for (let i = 0; i < 60; i++) history = history.decision(`note-${i}`, i % 3 === 0 ? { frontCoverOf: "cap" } : { links: [`note-${i - 1}`] });
+  const known = knowledge(history.changes);
+  const core = underShelves(history.changes, known);
+  const hanging = { shelfAt: (node: string) => shelves.get(node), floor, depthStep: 7 };
+  // A clock each step moves on by 10 ms, and a page whose tasks are run by hand.
+  let clock = 0;
+  const tasks: (() => void)[] = [];
+  let stepped = 0;
+  const timed = function* () { const steps = sheetSteps(core, hanging, known.notes); for (;;) { clock += 10; stepped++; const at = steps.next(); if (at.done) return at.value; yield; } };
+  let laid: ReturnType<typeof sheetPoints> | undefined, longest = 0, ran = 0;
+  runInSteps(timed, value => { laid = value; }, run => tasks.push(run), 40, () => clock);
+  while (tasks.length > 0) { const began = clock; tasks.shift()!(); longest = Math.max(longest, clock - began); ran++; }
+  assert.ok(ran > 10, `laid out across ${ran} tasks`);
+  assert.ok(longest <= 40, `no task past its budget: the longest ${longest} ms`);
+  assert.ok(ran <= Math.ceil(stepped / 3), `a few steps to a task: ${stepped} steps in ${ran} tasks`);
+  assert.deepEqual(laid, sheetPoints(core, hanging, known.notes), "the same layout as laid out at once");
+
+  const layout = sheetLayout();
+  whole(layout(core, hanging, known.notes));
+  assert.equal(layout(core, { ...hanging }, known.notes).next().done, true, "read again unchanged, it returns at once");
+
+  let overtakenLaid = false;
+  const stop = runInSteps(() => sheetSteps(core, hanging, known.notes), () => { overtakenLaid = true; }, run => tasks.push(run), 0);
+  tasks.shift()!();
+  stop();
+  while (tasks.length > 0) tasks.shift()!();
+  assert.equal(overtakenLaid, false, "overtaken, it lays nothing out");
 });

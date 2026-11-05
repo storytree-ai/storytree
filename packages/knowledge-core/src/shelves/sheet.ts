@@ -46,14 +46,20 @@ export interface SheetLayout { points: SheetPoint[]; links: [string, string][]; 
 /**
  * A sheet that lays out again only when what it lays out changed (Live updates never freeze the globe): read again with the
  * same notes, links, shelves and floor, however fresh the objects handed it, it returns its last layout without relaxing.
+ * Each reading is laid out in steps (1.17, `sheetSteps`); one that changes nothing returns at its first, with no step.
  */
-export function sheetLayout(): (core: Core, hanging: SheetHanging, notes?: ReadonlyMap<string, RecordEnvelope>) => SheetLayout {
+export function sheetLayout(): (core: Core, hanging: SheetHanging, notes?: ReadonlyMap<string, RecordEnvelope>) => Generator<void, SheetLayout, void> {
   let last: { key: string; layout: SheetLayout } | undefined;
-  return (core, hanging, notes) => {
+  return function* (core, hanging, notes) {
     const key = layoutKey(core, hanging, notes);
-    if (last?.key !== key) last = { key, layout: sheetPoints(core, hanging, notes) };
+    if (last?.key !== key) last = { key, layout: yield* sheetSteps(core, hanging, notes) };
     return last.layout;
   };
+}
+
+/** What `steps` returns, run to its end at once. */
+export function whole<T>(steps: Generator<void, T, void>): T {
+  for (;;) { const at = steps.next(); if (at.done) return at.value; }
 }
 
 /** Everything sheetPoints reads, written out: each note's shelves and where they stand, its depth and links, and the floor. */
@@ -76,7 +82,15 @@ function storedLinks(record: RecordEnvelope): string[] {
 }
 
 /** Every drawn note's place under the sheet, the sea floor's plane and how many notes lie on it, and each stored link (a `links` or `supersedes`) between two drawn notes. */
-export function sheetPoints(core: Core, { shelfAt, floor, depthStep }: SheetHanging, notes?: ReadonlyMap<string, RecordEnvelope>): SheetLayout {
+export function sheetPoints(core: Core, hanging: SheetHanging, notes?: ReadonlyMap<string, RecordEnvelope>): SheetLayout {
+  return whole(sheetSteps(core, hanging, notes));
+}
+
+/**
+ * `sheetPoints` in steps (1.17): each `yield` ends one, after the links and pulls are gathered and after every round of the sea
+ * floor's spreading and of the relaxation, so a page can lay a big library out across tasks without one long one.
+ */
+export function* sheetSteps(core: Core, { shelfAt, floor, depthStep }: SheetHanging, notes?: ReadonlyMap<string, RecordEnvelope>): Generator<void, SheetLayout, void> {
   const ids = [...core.placed.keys(), ...core.outside].sort(compare);
   const drawn = new Set(ids);
   const links: [string, string][] = [];
@@ -139,10 +153,11 @@ export function sheetPoints(core: Core, { shelfAt, floor, depthStep }: SheetHang
     for (const [shelf, weight] of weights) { const at = shelfAt(shelf)!; x += weight * at.x; y += weight * at.y; }
     target.set(id, { x, y });
   }
-  for (const [members, at] of floorGroups(sea, near, floor)) for (const id of members) target.set(id, at);
+  yield;
+  for (const [members, at] of yield* floorGroups(sea, near, floor)) for (const id of members) target.set(id, at);
 
   const layer = (id: string) => (pulls.has(id) ? depths.get(id)! : deepest + 1);
-  const at = relax(ids, target, layer, near);
+  const at = yield* relax(ids, target, layer, near);
   const inside = (p: Flat) => ({ x: clamp(p.x, floor.x, floor.x + floor.width), y: clamp(p.y, floor.y, floor.y + floor.height) });
   const points = ids.map((id): SheetPoint => {
     const weights = pulls.get(id);
@@ -170,7 +185,7 @@ export function sheetRoots(points: readonly Pick<SheetPoint, "id" | "at">[], not
  * The sea floor's linked groups, each with its place on the floor: scattered over the footprint by note id, then pushed
  * apart until each keeps an even share of the floor, so the floor reads as a scatter, not a grid, and never piles at an edge.
  */
-function floorGroups(sea: readonly string[], near: ReadonlyMap<string, ReadonlyMap<string, number>>, floor: Area): [string[], Flat][] {
+function* floorGroups(sea: readonly string[], near: ReadonlyMap<string, ReadonlyMap<string, number>>, floor: Area): Generator<void, [string[], Flat][], void> {
   const grouped = new Set<string>(), groups: string[][] = [];
   for (const id of sea) {
     if (grouped.has(id)) continue;
@@ -192,6 +207,7 @@ function floorGroups(sea: readonly string[], near: ReadonlyMap<string, ReadonlyM
       const p = centre.get(i)!, by = push.get(i)!;
       centre.set(i, { x: clamp(p.x + by.x, floor.x, floor.x + floor.width), y: clamp(p.y + by.y, floor.y, floor.y + floor.height) });
     }
+    yield;
   }
   return groups.map((members, i) => [members, centre.get(i)!]);
 }
@@ -204,7 +220,7 @@ function floorGroups(sea: readonly string[], near: ReadonlyMap<string, ReadonlyM
  * met in never matters, and one note added moves only those it crowds. (Measured: started from where the last reading drew
  * them, the same rounds moved notes more than a cold seeded start does, so every reading starts cold.)
  */
-function relax(ids: readonly string[], target: ReadonlyMap<string, Flat>, layer: (id: string) => number, near: ReadonlyMap<string, ReadonlyMap<string, number>>): Map<string, Flat> {
+function* relax(ids: readonly string[], target: ReadonlyMap<string, Flat>, layer: (id: string) => number, near: ReadonlyMap<string, ReadonlyMap<string, number>>): Generator<void, Map<string, Flat>, void> {
   const crowd = new Map<string, number>();
   const spot = (id: string) => { const t = target.get(id)!; return `${Math.round(t.x)} ${Math.round(t.y)} ${layer(id)}`; };
   for (const id of ids) crowd.set(spot(id), (crowd.get(spot(id)) ?? 0) + 1);
@@ -228,6 +244,7 @@ function relax(ids: readonly string[], target: ReadonlyMap<string, Flat>, layer:
       next.set(id, { x: p.x + dx, y: p.y + dy });
     }
     for (const [id, p] of next) at.set(id, p);
+    yield;
   }
   return at;
 }

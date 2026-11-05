@@ -1,5 +1,5 @@
 /**
- * Capability 6 · Agent tools (ADR-1035 D2): the MCP server's own mounting code, reading a tool's arguments into a declared
+ * Capability 6 · Tool server (ADR-1035 D2): the MCP server's own mounting code, reading a tool's arguments into a declared
  * verb's input. The schema it reads is the library's; the command line reads a command's words to the same input.
  */
 import { VerbRefusal, type InputOf, type VerbInput, type VerbInputs, type Verb, type VerbValue } from "@storytree/library/verbs";

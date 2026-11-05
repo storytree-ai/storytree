@@ -1,5 +1,5 @@
 /**
- * Capability 6 · Agent tools (the MCP server), in the MCP server story: what each call records and reads (sessions, notes, context), refusals with storytree stopped, increments and plan health. One of three files
+ * Capabilities 6 · Tool server, 9 · Plan tools, 10 · Work tools, 11 · Session tools and 13 · Note tools, in the MCP server story: what each call records and reads (sessions, notes, context), refusals with storytree stopped, increments and plan health. One of three files
  * (agent-tools, agent-tools-reads, agent-tools-writes) split so a test unit runs them side by side.
  * A test client talks to the server inside the test itself, over an
  * in-memory transport, with no real agent and no network, as Claude Code or Codex would: Claude
@@ -300,7 +300,7 @@ async function turns(count: number): Promise<void> {
   for (let turn = 0; turn < count; turn++) await new Promise((resolve) => setImmediate(resolve));
 }
 
-test("6.5 a note written with no place named while holding a claim goes onto that capability's shelf (ADR-0627 D4), and one written with no claim gets no default place", async () => {
+test("13.1 a note written with no place named while holding a claim goes onto that capability's shelf (ADR-0627 D4), and one written with no claim gets no default place", async () => {
   await withProject(async ({ folder, library }) => {
     await withAgent(folder, claudeCode("claude-1"), async (agent) => {
       const story = idOf(await agent.call("plan_story", { title: "Visitor can sign up", ...FOUNDED }));
@@ -354,7 +354,7 @@ test("the sentence travels with the data: a harness that shows the agent a tool'
   });
 });
 
-test("6.6 searching and opening a note leaves a log line saying which session read it, how it was found (search, link, id or shelf) and whether it took a peek or the whole note", async () => {
+test("13.2 searching and opening a note leaves a log line saying which session read it, how it was found (search, link, id or shelf) and whether it took a peek or the whole note", async () => {
   await withProject(async ({ folder, project, library, log }) => {
     const story = await library.addStory({ title: "Visitor can sign up" });
     const form = await library.addCapability({ title: "Email form", story: story.id });
@@ -390,7 +390,7 @@ test("6.6 searching and opening a note leaves a log line saying which session re
   });
 });
 
-test("6.72 search_notes says each friction report's state, so a settled one found by meaning reads as settled", async () => {
+test("13.7 search_notes says each friction report's state, so a settled one found by meaning reads as settled", async () => {
   await withProject(async ({ folder, library }) => {
     const file = (title: string) => library.writeKnowledge("friction", { title, description: `${title}.`, statement: `${title}.`, evidence: "`pnpm seed` exit code 1", impact: "Work stops." });
     const open = await file("Seed refused while open");
@@ -499,7 +499,7 @@ test("6.8 after Claude Code's /clear, which gives the window a new session id th
   });
 });
 
-test("6.22 a test client calls read_context as session S and gets S's reading, worked out at the time of the call, including after S's transcript has grown with no turn ended; after a /clear whose hook named session T, the same call returns T's", async () => {
+test("11.3 a test client calls read_context as session S and gets S's reading, worked out at the time of the call, including after S's transcript has grown with no turn ended; after a /clear whose hook named session T, the same call returns T's", async () => {
   await withProject(async ({ folder, project, log }) => {
     const usage = (requestId: string, tokens: number) => `${JSON.stringify({ type: "assistant", requestId, message: { model: "claude-opus-5-5", usage: { input_tokens: tokens, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 } } })}\n`;
     const before = path.join(folder, "..", "before-clear.jsonl");
@@ -531,7 +531,7 @@ test("6.22 a test client calls read_context as session S and gets S's reading, w
 });
 
 
-test("6.9 it parks an increment, starts it by claiming it, and closes it landed with its pull request, which ends the claim and closes the arc; it records a landing never parked, parks new work on the closed arc, which re-opens it, and parks and unparks the arc", async () => {
+test("10.1 it parks an increment, starts it by claiming it, and closes it landed with its pull request, which ends the claim and closes the arc; it records a landing never parked, parks new work on the closed arc, which re-opens it, and parks and unparks the arc", async () => {
   await withProject(async ({ folder, project, library, log }) => {
     await withAgent(folder, claudeCode("claude-1"), async (agent) => {
       const { arc, capability } = await planned(agent);
@@ -572,7 +572,7 @@ test("6.9 it parks an increment, starts it by claiming it, and closes it landed 
   });
 });
 
-test("6.9 a committed close remains successful when a newer sibling schema prevents reading its arc", async () => {
+test("10.1 a committed close remains successful when a newer sibling schema prevents reading its arc", async () => {
   await withProject(async ({ folder, project, library, log }) => {
     await withAgent(folder, codex("closing-agent"), async (agent) => {
       const { arc } = await planned(agent);
@@ -654,7 +654,7 @@ for (const tool of ["park_increment", "move_increment"] as const) {
   });
 }
 
-test("6.23 mark_built switches a capability's proposed flag off when the agent considers it built, and back on, with the session as its writer; anything but a capability is refused", async () => {
+test("9.3 mark_built switches a capability's proposed flag off when the agent considers it built, and back on, with the session as its writer; anything but a capability is refused", async () => {
   await withProject(async ({ folder, library }) => {
     await withAgent(folder, claudeCode("claude-1"), async (agent) => {
       const { story, capability } = await planned(agent);
@@ -676,7 +676,7 @@ test("6.23 mark_built switches a capability's proposed flag off when the agent c
   });
 });
 
-test("6.29 show_plan gives each capability's word, and for one not healthy its reason, who moves it and the contracts carrying it, in its text and its data", async () => {
+test("9.4 show_plan gives each capability's word, and for one not healthy its reason, who moves it and the contracts carrying it, in its text and its data", async () => {
   await withProject(async ({ folder, library }) => {
     await withAgent(folder, claudeCode("claude-1"), async (agent) => {
       const { capability } = await planned(agent);
@@ -696,7 +696,7 @@ test("6.29 show_plan gives each capability's word, and for one not healthy its r
   });
 });
 
-test("6.92 show_plan lists live arcs and those closed yesterday or today; given closed (today, yesterday, week) or from and to, only the arcs closed in that window", async () => {
+test("9.14 show_plan lists live arcs and those closed yesterday or today; given closed (today, yesterday, week) or from and to, only the arcs closed in that window", async () => {
   await withProject(async ({ folder, library }) => {
     await withAgent(folder, claudeCode("claude-1"), async (agent) => {
       const { arc: live } = await planned(agent);
@@ -728,7 +728,7 @@ test("6.92 show_plan lists live arcs and those closed yesterday or today; given 
   });
 });
 
-test("6.67 show_plan says a mapped story is mapped, here before storytree and assumed to be working, and gives it no health reading; a capability planned on it keeps its own", async () => {
+test("9.11 show_plan says a mapped story is mapped, here before storytree and assumed to be working, and gives it no health reading; a capability planned on it keeps its own", async () => {
   await withProject(async ({ folder, library }) => {
     await withAgent(folder, claudeCode("claude-1"), async (agent) => {
       const { added: [shop] } = await library.mapStories("/code/shop", [{ package: ".", title: "shop", folders: ["."] }]);
@@ -744,7 +744,7 @@ test("6.67 show_plan says a mapped story is mapped, here before storytree and as
   });
 });
 
-test("6.69 plan_capability on a mapped story records what the agent explored with the folders and files it covers, refusing none or an overlap by naming the capability to correct, which edit_plan corrects", async () => {
+test("9.12 plan_capability on a mapped story records what the agent explored with the folders and files it covers, refusing none or an overlap by naming the capability to correct, which edit_plan corrects", async () => {
   await withProject(async ({ folder, library }) => {
     await withAgent(folder, claudeCode("claude-1"), async (agent) => {
       const { added: [app] } = await library.mapStories("/code/app", [{ package: ".", title: "app", folders: ["."] }]);
@@ -766,7 +766,7 @@ test("6.69 plan_capability on a mapped story records what the agent explored wit
   });
 });
 
-test("6.30 health_worklist gives the oldest three capabilities on the health worklist, each with its reason, who moves it, the contracts carrying it and since when, and a failing one its verified note, and how many more wait; a capability an open increment lists among its capabilities is not offered, and one a test run in progress will record is held back and counted", async () => {
+test("9.5 health_worklist gives the oldest three capabilities on the health worklist, each with its reason, who moves it, the contracts carrying it and since when, and a failing one its verified note, and how many more wait; a capability an open increment lists among its capabilities is not offered, and one a test run in progress will record is held back and counted", async () => {
   await withProject(async ({ folder, library }) => {
     await withAgent(folder, claudeCode("claude-1"), async (agent) => {
       assert.match((await agent.call("health_worklist")).text, /nothing waits/i);
@@ -824,7 +824,7 @@ test("6.30 health_worklist gives the oldest three capabilities on the health wor
   });
 });
 
-test("6.49 stale_claims gives the session manager each claimed increment whose holder is quiet, with its holder and route; reading it ends nothing", async () => {
+test("11.6 stale_claims gives the session manager each claimed increment whose holder is quiet, with its holder and route; reading it ends nothing", async () => {
   await withProject(async ({ folder, project, log }) => {
     const pulls = { allOpenPulls: async () => new Map() };
     await withAgent(folder, claudeCode("claude-1", { quietMs: 500, merges: pulls }), async (agent) => {

@@ -1,5 +1,5 @@
 /**
- * Capability 6 · Agent tools (the MCP server), in the MCP server story: listing the tools, planning, claiming and reporting through them, cancelling a call, landing, and wiring a pipeline. One of three files
+ * Capabilities 6 · Tool server, 9 · Plan tools and 11 · Session tools, in the MCP server story: listing the tools, planning, claiming and reporting through them, cancelling a call, landing, and wiring a pipeline. One of three files
  * (agent-tools, agent-tools-reads, agent-tools-writes) split so a test unit runs them side by side.
  * A test client talks to the server inside the test itself, over an
  * in-memory transport, with no real agent and no network, as Claude Code or Codex would: Claude
@@ -321,7 +321,7 @@ for (const scenario of [
   });
 }
 
-test("6.1 a test client lists the tools, then plans an arc, a story, a capability and a contract, which appear in the library's tree, the story and the capability each with its founding decision first on its shelf, and it can correct each of them", async () => {
+test("9.1 a test client lists the tools, then plans an arc, a story, a capability and a contract, which appear in the library's tree, the story and the capability each with its founding decision first on its shelf, and it can correct each of them", async () => {
   await withProject(async ({ folder, library }) => {
     await withAgent(folder, claudeCode("claude-1"), async (agent) => {
       assert.deepEqual(await agent.tools(), TOOLS);
@@ -358,7 +358,7 @@ test("6.1 a test client lists the tools, then plans an arc, a story, a capabilit
   });
 });
 
-test("6.111 plan_story's and plan_capability's published input schema says founding is a title and a text, so an agent passes it right from the description alone", async () => {
+test("9.20 plan_story's and plan_capability's published input schema says founding is a title and a text, so an agent passes it right from the description alone", async () => {
   await withProject(async ({ folder }) => {
     await withAgent(folder, claudeCode("claude-1"), async (agent) => {
       for (const tool of ["plan_story", "plan_capability"]) {
@@ -370,7 +370,7 @@ test("6.111 plan_story's and plan_capability's published input schema says found
   });
 });
 
-test("6.32 name_session names the calling session, and calling it again renames it; a title longer than 40 characters is refused naming the limit", async () => {
+test("11.4 name_session names the calling session, and calling it again renames it; a title longer than 40 characters is refused naming the limit", async () => {
   await withProject(async ({ folder, project, log }) => {
     await withAgent(folder, claudeCode("claude-1"), async (agent) => {
       const name = async () => sessionsFrom((await log.since(project, 0)).lines).find((one) => one.session === "claude-1")?.name;
@@ -386,7 +386,7 @@ test("6.32 name_session names the calling session, and calling it again renames 
   });
 });
 
-test("6.2 it claims the capability, sees who is on what, reports the contract red then green (reported moves from failing to passing, verified stays not checked), and reports it landed, which ends the claim", async () => {
+test("11.1 it claims the capability, sees who is on what, reports the contract red then green (reported moves from failing to passing, verified stays not checked), and reports it landed, which ends the claim", async () => {
   await withProject(async ({ folder, project, library, log }) => {
     await withAgent(folder, claudeCode("claude-1"), async (agent) => {
       const story = idOf(await agent.call("plan_story", { title: "Visitor can sign up", ...FOUNDED }));
@@ -471,7 +471,7 @@ test("6.102 land runs every claim check the parts it mounts contribute and is he
   });
 });
 
-test("6.38 land names each planned contract of the capability that no numbered test in its story's package proves, and still lands", async () => {
+test("9.6 land names each planned contract of the capability that no numbered test in its story's package proves, and still lands", async () => {
   await withProject(async ({ folder }) => {
     await withAgent(folder, claudeCode("claude-1"), async (agent) => {
       const story = idOf(await agent.call("plan_story", { title: "Shopping cart", ...FOUNDED }));
@@ -494,7 +494,7 @@ test("6.38 land names each planned contract of the capability that no numbered t
   });
 });
 
-test("6.110 land on a capability whose story has no package it can read in the checkout says it cannot see that story's tests and why, lists the planned contracts it could not check, and does not advise writing them", async () => {
+test("9.19 land on a capability whose story has no package it can read in the checkout says it cannot see that story's tests and why, lists the planned contracts it could not check, and does not advise writing them", async () => {
   await withProject(async ({ folder }) => {
     await withAgent(folder, claudeCode("claude-1"), async (agent) => {
       const story = idOf(await agent.call("plan_story", { title: "Shopping cart", ...FOUNDED }));
@@ -538,7 +538,7 @@ test("session-management 5.63 · land on a checkout whose code is only in langua
   });
 });
 
-test("6.112 land on a capability of a mapped story reads its story's numbered tests in the folder this machine imports it from, naming only the planned contracts none of them carries", async () => {
+test("9.21 land on a capability of a mapped story reads its story's numbered tests in the folder this machine imports it from, naming only the planned contracts none of them carries", async () => {
   await withProject(async ({ folder }) => {
     const shop = path.join(path.dirname(folder), "shop");
     mkdirSync(path.join(shop, "src"), { recursive: true });
@@ -562,7 +562,7 @@ test("6.112 land on a capability of a mapped story reads its story's numbered te
   });
 });
 
-test("6.50 plan_contract numbers a new contract past the numbers its capability's landed tests already carry, naming those no contract carries", async () => {
+test("9.7 plan_contract numbers a new contract past the numbers its capability's landed tests already carry, naming those no contract carries", async () => {
   await withProject(async ({ folder }) => {
     await withAgent(folder, claudeCode("claude-1"), async (agent) => {
       const story = idOf(await agent.call("plan_story", { title: "Shopping cart", ...FOUNDED }));
@@ -583,7 +583,7 @@ test("6.50 plan_contract numbers a new contract past the numbers its capability'
   });
 });
 
-test("6.73 plan_contract's reply names the capability's other contracts that no numbered test carries yet, so one is built rather than planned again, in words a user's project knows (no lanes)", async () => {
+test("9.13 plan_contract's reply names the capability's other contracts that no numbered test carries yet, so one is built rather than planned again, in words a user's project knows (no lanes)", async () => {
   await withProject(async ({ folder }) => {
     await withAgent(folder, claudeCode("claude-1"), async (agent) => {
       const story = idOf(await agent.call("plan_story", { title: "Shopping cart", ...FOUNDED }));
@@ -605,7 +605,7 @@ test("6.73 plan_contract's reply names the capability's other contracts that no 
   });
 });
 
-test("6.57 plan_contract plans a contract whose title runs past 300 characters, adding an advisory line that quotes the card's definition of a contract; a shorter title gets none", async () => {
+test("9.10 plan_contract plans a contract whose title runs past 300 characters, adding an advisory line that quotes the card's definition of a contract; a shorter title gets none", async () => {
   await withProject(async ({ folder }) => {
     await withAgent(folder, claudeCode("claude-1"), async (agent) => {
       const story = idOf(await agent.call("plan_story", { title: "Shopping cart", ...FOUNDED }));
@@ -877,7 +877,7 @@ test("app-setup 11.12 when the test command runs pytest without -rA, wire_pipeli
   });
 });
 
-test("6.2 show_plan reads every live arc's increments in one ask of the board's arcs, however many arcs the project has (ADR-0836 D3)", async () => {
+test("11.1 show_plan reads every live arc's increments in one ask of the board's arcs, however many arcs the project has (ADR-0836 D3)", async () => {
   await withProject(async ({ folder, project, library, log }) => {
     for (const title of ["Launch", "Relaunch", "Sunset"]) {
       const arc = await library.createArc({ title, intent: "Ship signup", endState: "Visitors join" });

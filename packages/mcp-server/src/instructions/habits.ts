@@ -21,7 +21,7 @@ import { CONTRACT_DEFINITION } from "@storytree/library";
 import { mount, standIn, type StandIns } from "@storytree/plugin-loader";
 import GUIDANCE from "#parts/guidance";
 
-/** What one contract is (contract 7.8): the library owns the definition, and plan_contract quotes it when a title runs long (6.57). */
+/** What one contract is (contract 7.8): the library owns the definition, and plan_contract quotes it when a title runs long (9.10). */
 export { CONTRACT_DEFINITION };
 
 /**

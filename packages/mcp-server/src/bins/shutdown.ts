@@ -1,5 +1,5 @@
 /**
- * Capability 6 · Agent tools. Contract 6.45 · The tool server exits with code 0 when a delivery ran
+ * Capability 6 · Tool server. Contract 6.45 · The tool server exits with code 0 when a delivery ran
  * during its shutdown.
  *
  * A fetch leaves its WebAssembly parser tiering up on V8's background threads. process.exit() while

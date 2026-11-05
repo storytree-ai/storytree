@@ -1,5 +1,5 @@
 /**
- * Capability 6 · Agent tools (the MCP server). The work tools (ADR-0643 D1, 6): park, ready, move and close increments, add to what one remedies, park and unpark arcs, set and
+ * Capability 10 · Work tools (the MCP server). The work tools (ADR-0643 D1, 6): park, ready, move and close increments, add to what one remedies, park and unpark arcs, set and
  * clear waits, raise, correct, settle and retire the owner's questions; marking one as being put to the owner is Session
  * management's present_question. Each is a thin wrapper over the library's own functions, so no library rule is kept here twice. Recording friction and re-steers is Friction's declared verbs (ADR-1077 D1).
  * Starting an increment is claiming it (Session management's claim tool), so a start is refused as a claim is. Asking the owner about work the
@@ -12,7 +12,7 @@
 import type { Library, Storytree } from "@storytree/library";
 import { z } from "zod";
 
-import { closed, currentBranch, increments, releaseAsked } from "@storytree/session-management";
+import { closed, currentBranch, increments, readClaims, releaseAsked } from "@storytree/session-management";
 import { CLOUD_MACHINE, incrementMachine, MachineNameError } from "@storytree/session-management/machines";
 import { claimClearingOwnerWait, claimContext as sessionClaimContext, closeRefusalText, refusalText } from "@storytree/session-management/tools";
 import { lineOf, type Answer, type Call, type Define } from "./server.js";
@@ -344,4 +344,51 @@ export async function machineChecked(storytree: Storytree, name: string): Promis
     if (error instanceof MachineNameError) return { refused: { text: `${error.message}.`, refused: true } };
     throw error;
   }
+}
+
+/** What edit_plan is given for an increment's own fields, as the tool names them. */
+export interface IncrementChanges {
+  capabilities?: string[] | undefined;
+  machine?: string | undefined;
+  escape?: { caused_by: string; story: string } | "none" | undefined;
+}
+
+/**
+ * The library fields edit_plan writes for `target` increment's own `changes`, or why it refuses them: a capabilities
+ * list another live session's increment already names (sharedCapability), or a machine Machines does not know. "none"
+ * clears its machine or escape: the library removes a field given as undefined (ADR-0963 D3).
+ */
+export async function incrementFields(target: string, { capabilities, machine, escape }: IncrementChanges, call: Call): Promise<{ fields: Record<string, unknown> } | { refused: Answer }> {
+  if (capabilities !== undefined) {
+    const shared = await sharedCapability(target, capabilities, call);
+    if (shared !== undefined) return { refused: { text: shared, refused: true } };
+  }
+  const named = machine === undefined ? undefined : await machineChecked(call.storytree, machine);
+  if (named !== undefined && "refused" in named) return named;
+  return {
+    fields: {
+      ...(capabilities === undefined ? {} : { capabilities }),
+      ...(named ?? {}),
+      ...(escape === undefined ? {} : { escape: escape === "none" ? undefined : { causedBy: escape.caused_by, story: escape.story } }),
+    },
+  };
+}
+
+/**
+ * Why `capabilities` may not be `target`'s list: one of them is on the list of an increment another
+ * live session holds, since two sessions never plan changes to the same capability (ADR-0949 D2).
+ * An entry whose capability another session's live claim holds is left behind by a lane that backed
+ * off from it (ADR-0944 D3), and refuses nothing.
+ */
+async function sharedCapability(target: string, capabilities: readonly string[], { library, log, project, quietMs, caller }: Call): Promise<string | undefined> {
+  const claims = await readClaims(log, project, { quietMs });
+  const others = claims.filter((claim) => claim.session !== caller.session && claim.holder === "live" && claim.increment !== undefined && claim.increment !== target);
+  for (const claim of others) {
+    const listed = ((await library.get(claim.increment!))?.fields as { capabilities?: string[] } | undefined)?.capabilities ?? [];
+    const heldElsewhere = (id: string) => claims.some((one) => one.capability === id && one.holder === "live" && one.session !== claim.session);
+    const capability = capabilities.find((id) => listed.includes(id) && !heldElsewhere(id));
+    if (capability !== undefined)
+      return `${capability} is already on the capabilities list of ${claim.increment}, which ${claim.label} session ${claim.session} holds (${claim.reason}): two sessions never plan changes to the same capability (ADR-0949 D2). Leave it off this list, or take other work.`;
+  }
+  return undefined;
 }

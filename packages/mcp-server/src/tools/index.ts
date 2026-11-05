@@ -1,4 +1,4 @@
-/** Capability 6 · Agent tools (the MCP server). */
+/** Capability 6 · Tool server (the MCP server). */
 export { createAgentTools, NOT_A_PROJECT_ANSWER, NOT_RUNNING_ANSWER, servedTools } from "./server.js";
 export { commandStep, type DrainStep } from "./drain-step.js";
 export { planAnswer, type PlanReading } from "./plan-tools.js";

@@ -1,5 +1,5 @@
 /**
- * Capability 6 · Agent tools (the MCP server). Every tool call's answer is recorded on the calling session as a
+ * Capability 6 · Tool server (the MCP server). Every tool call's answer is recorded on the calling session as a
  * `door-answered` line (ADR-0983 D1, in force through ADR-0998), and recording it never changes the answer.
  * The tools are fixtures served through the real server, its routing and its activity log.
  */

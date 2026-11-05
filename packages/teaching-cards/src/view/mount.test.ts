@@ -197,3 +197,30 @@ test("3.5 · when every place covers something being read, the card takes the pl
   assert.deepEqual(at(), { left: "88px", top: "250px" }, "the left of its point, not the right it would take first");
   teaching.stop();
 });
+
+test("3.6 · the empty-map card on show is taken away once the map holds an island, and the island's cards show in its place", () => {
+  const { host, store } = page();
+  const teaching = mountTeaching(host, { journal: journal(store), locate: () => undefined });
+  teaching.take({ tree: { stories: [], arcs: [] }, changes: [], lines: [] });
+  assert.equal(host.querySelector<HTMLElement>(".teaching-card")!.dataset.kind, "empty");
+  // An import draws its island with no click on Got it.
+  teaching.take(oneStory);
+  const cards = [...host.querySelectorAll<HTMLElement>(".teaching-card")];
+  assert.deepEqual(cards.map(card => card.dataset.kind), ["story"]);
+  teaching.stop();
+});
+
+test("3.6 · an empty-map card still waiting when the map gains an island never shows", () => {
+  const { host, store } = page();
+  const kept = journal(store);
+  const teaching = mountTeaching(host, { journal: kept, locate: () => undefined });
+  // The factory's card is on show while the user's own empty map queues its tip behind it.
+  teaching.take({ tree: { stories: [], arcs: [] }, changes: [], lines: [], factory: true });
+  teaching.take({ tree: { stories: [], arcs: [] }, changes: [], lines: [] });
+  teaching.take(oneStory);
+  assert.equal(host.querySelector<HTMLElement>(".teaching-card")!.dataset.kind, "factory");
+  host.querySelector<HTMLButtonElement>(".teaching-card [data-dismiss]")!.click();
+  assert.equal(host.querySelector<HTMLElement>(".teaching-card")!.dataset.kind, "story");
+  assert.ok(!kept.seen().some(one => one.kind === "empty"), "never shown, so never marked seen");
+  teaching.stop();
+});

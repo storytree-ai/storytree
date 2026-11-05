@@ -373,7 +373,12 @@ test("5.59 a workspace for an increment claims every capability on its list with
     const capability = async (title: string) => (await library.addCapability({ title, story: story.id })).id;
     const [form, mail, page, button, banner] = [await capability("Form"), await capability("Mail"), await capability("Page"), await capability("Button"), await capability("Banner")];
     const arc = (await library.createArc({ title: "Wide", intent: "Many parts", endState: "All built" })).id;
-    const wide = async (title: string, capabilities: string[]) => (await library.addIncrement({ arc, title, objective: title, body: title, capabilities })).id;
+    // Listed by an edit, since parking a second open increment on a capability is refused (10.35).
+    const wide = async (title: string, capabilities: string[]) => {
+      const { id } = await library.addIncrement({ arc, title, objective: title, body: title });
+      await library.editIncrement(id, { capabilities });
+      return id;
+    };
     const refusedUnder = async (from: number) => (await log.since(project, 0)).lines.slice(from)
       .filter((line) => line.kind === "claim-refused").map((line) => [line.session, line.capability, line.under, line.holder]);
     const mine = async (session: string) => (await readClaims(log, project)).filter((one) => one.session === session);

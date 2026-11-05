@@ -64,7 +64,7 @@ await withCapture({ folder: path.join(dist, 'stills'), dist }, async ({ browser,
   await wheel(page, landing, -7);
   // 5. A wrench open.
   const wrenched = await page.evaluate(() => [...window.mock.layer.wrenches.keys()]);
-  if (wrenched.length) { await click(page, 'wrench', wrenched[0], new RegExp(`^Work wanting ${title(wrenched[0]).replace(/[()]/g, '\\$&')}`)); await shot(page, 'wrench'); }
+  if (wrenched.length) { await click(page, 'wrench', wrenched[0], new RegExp(`^Work wanting ${title(wrenched[0]).replace(/[\\^$.*+?()[\]{}|]/g, '\\$&')}`)); await shot(page, 'wrench'); }
   // 6. Click a territory for its description and contracts.
   await click(page, 'territory', id('4 · Work model'), /^4 · Work model$/);
   await shot(page, 'territory');

@@ -62,7 +62,7 @@ await withCapture({ folder: path.join(dist, 'stills'), dist }, async ({ browser,
   await shot(page, 'link-lit');
   const roads = await page.evaluate(() => [...window.mock.layer.roads].map(([road, keys]) => ({ road, keys })));
   const sharing = links.filter(l => l.dir === 'inside').map(l => ({ l, n: roads.filter(r => r.keys.includes(l.key) && r.keys.length > 1).length })).sort((a, b) => b.n - a.n)[0].l;
-  await click(page, 'gate', sharing.key, new RegExp(`calls ${sharing.toTitle.replace(/[()]/g, '\\$&')}$`));
+  await click(page, 'gate', sharing.key, new RegExp(`calls ${sharing.toTitle.replace(/[\\^$.*+?()[\]{}|]/g, '\\$&')}$`));
   await shot(page, 'link-lit-inside');
   // 4a. The road that carries most, clicked: the panel lists the links it carries.
   const busiest = roads.reduce((a, b) => b.keys.length > a.keys.length ? b : a);
@@ -81,13 +81,13 @@ await withCapture({ folder: path.join(dist, 'stills'), dist }, async ({ browser,
   await settle(page, 12);
   // 4c. The settlement where most links meet, close up, clicked for its territory.
   const town = report.layer.towns.reduce((a, b) => b.roads > a.roads ? b : a);
-  const townAt = await click(page, 'town', id(town.capability), new RegExp(`^${town.capability.replace(/[()]/g, '\\$&')}$`));
+  const townAt = await click(page, 'town', id(town.capability), new RegExp(`^${town.capability.replace(/[\\^$.*+?()[\]{}|]/g, '\\$&')}$`));
   await wheel(page, townAt, 15);
   await shot(page, 'town-close');
   await wheel(page, townAt, -15);
   // 5. A wrench open.
   const wrenched = await page.evaluate(() => [...window.mock.layer.wrenches.keys()]);
-  if (wrenched.length) { await click(page, 'wrench', wrenched[0], new RegExp(`^Work wanting ${title(wrenched[0]).replace(/[()]/g, '\\$&')}`)); await shot(page, 'wrench'); }
+  if (wrenched.length) { await click(page, 'wrench', wrenched[0], new RegExp(`^Work wanting ${title(wrenched[0]).replace(/[\\^$.*+?()[\]{}|]/g, '\\$&')}`)); await shot(page, 'wrench'); }
   // 6. Click a territory for its description and contracts.
   await click(page, 'territory', id('4 · Work model'), /^4 · Work model$/);
   await shot(page, 'territory');

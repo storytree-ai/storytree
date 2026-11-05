@@ -39,7 +39,7 @@ await withCapture({ folder: path.join(dist, 'stills'), dist }, async ({ browser,
     return at;
   };
   const wheel = async (page, at, clicks) => { await page.mouse.move(at.x, at.y); for (let k = 0; k < Math.abs(clicks); k++) { await page.mouse.wheel(0, clicks > 0 ? -300 : 300); await settle(page, 2); } };
-  const escape = s => s.replace(/[()]/g, '\\$&');
+  const escape = s => s.replace(/[\\^$.*+?()[\]{}|]/g, '\\$&');
 
   // 1. At rest, The library selected, with the relief; and the same flat (?relief=0), to judge what the relief adds.
   const { page, errors } = await open('');

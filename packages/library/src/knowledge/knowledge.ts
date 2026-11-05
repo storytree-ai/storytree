@@ -280,7 +280,18 @@ export class Knowledge {
       if ("state" in fields) throw new RangeError(UNNAMED_STATE);
       return this.#records.create(kind, { ...fields, state: "open" } as FieldsOf<K>, options);
     }
-    return this.#records.create(kind, fields as FieldsOf<K>, options);
+    const written = await this.#records.create(kind, fields as FieldsOf<K>, options);
+    if (kind === "research") await this.#offerResearch(written as SchemaRecord<"research">, options);
+    return written;
+  }
+
+  /**
+   * A research report reaches the owner through the FYIs (increment_fe7de0a5d844, 6.20): an FYI about it, which `fyi list`,
+   * the shared briefing and voice offer until it is marked heard, so no report runs under the radar.
+   */
+  async #offerResearch({ id, fields }: SchemaRecord<"research">, options?: WriteOptions): Promise<void> {
+    const fyi = { title: `Research report: ${fields.title}`, what: fields.description, about: id, by: options?.actor ?? "storytree", at: new Date().toISOString() };
+    await this.#records.create("fyi", fyi, options);
   }
 
   /** Define a term. Its links are checked against live artifacts. */
@@ -304,7 +315,9 @@ export class Knowledge {
     refuseFrozenEdit(note as Note, { type: kind });
     await this.#checkNoteReferences(fields);
     await this.#refuseLinkLoop(id, fields);
-    return this.#records.create(kind, fields as FieldsOf<K>, { ...options, id });
+    const refiled = await this.#records.create(kind, fields as FieldsOf<K>, { ...options, id });
+    if (kind === "research" && note.type !== "research") await this.#offerResearch(refiled as SchemaRecord<"research">, options);
+    return refiled;
   }
 
   /**

@@ -274,3 +274,21 @@ test("17.24 · A friction report names the increment it happened in: record_fric
     });
   });
 });
+
+test("17.25 · A friction report records what its filing was shown: the ids of the closest earlier reports and whether it was filed new past them, an empty list when none was shown; one filed with no lookup records that none ran", async () => {
+  await withLibrary(async (library) => {
+    await onBranch(library, "main", async (context) => {
+      const mail = { title: "Slow mail", description: "Mail is delayed", statement: "Sending times out", evidence: "src/mail.ts: TimeoutError after 30 seconds", impact: "Readers cannot join" };
+      const first = (await verbNamed("new").act(mail, context, WORDS)).data as { id: string };
+      assert.deepEqual((await library.get(first.id))?.fields.lookup, { shown: [], noneMatch: false }, "nothing was shown");
+
+      const shown = (await verbNamed("new").act(mail, context, WORDS)).data as { closest: { id: string }[] };
+      assert.deepEqual(shown.closest.map((one) => one.id), [first.id]);
+      const again = (await verbNamed("new").act({ ...mail, "none-match": true }, context, WORDS)).data as { id: string };
+      assert.deepEqual((await library.get(again.id))?.fields.lookup, { shown: [first.id], noneMatch: true }, "filed new past the one it was shown");
+
+      const raw = await recordFriction(library, { ...mail, title: "Hook report" });
+      assert.equal(raw.fields.lookup, "none", "a filing with no lookup records that none ran");
+    });
+  });
+});

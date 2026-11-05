@@ -507,6 +507,11 @@ export const RECORD_SCHEMAS = {
        * drain passes it over until then. Optional, so no version bump.
        */
       lease: z.object({ holder: nonEmpty, until: nonEmpty }).strict().optional(),
+      /**
+       * What its filing was shown, so a repeat filed as new can be found: the closest earlier reports' ids and
+       * whether the filer filed new past them, or "none" when the filing ran no lookup. Optional, so no version bump.
+       */
+      lookup: z.union([z.literal("none"), z.object({ shown: ids, noneMatch: z.boolean() }).strict()]).optional(),
     })
     .strict(),
   /**

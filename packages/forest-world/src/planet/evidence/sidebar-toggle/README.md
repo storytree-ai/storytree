@@ -25,3 +25,5 @@ pixels across.
 Taken with `node --import tsx packages/forest-world/testing/frame-resize/capture.mjs after` (and `before`, with main's
 `PlanetWorldCanvas.tsx` and `sheet.tsx` in place); the two pictures are each run's frames that changed most of the page,
 in order, beside its first.
+
+In the evidence bucket for #522, linked from the pull request body (ADR-1234; deleted after 90 days or when its arc closes): `522/before-frames.png`, `522/after-frames.png`.

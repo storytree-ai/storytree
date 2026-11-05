@@ -21,5 +21,4 @@ Taken with rollout 1's kit: `node docs/design/capability-tree-3d/q-all-islands/t
 script that opens `index.html?story=<id>&layout=today&real`, projects the middle of the chosen road to the screen and
 clicks it with the mouse.
 
-In the evidence bucket for the pull request, linked from its body (ADR-1234; deleted after 90 days or when its arc
-closes).
+In the evidence bucket for #470, linked from the pull request body (ADR-1234; deleted after 90 days or when its arc closes): `470/route-gold/the-library.png`, `470/route-gold/session-management.png`, `470/route-gold/setup.png`, `470/route-gold/the-command-line-shared-road.png`.

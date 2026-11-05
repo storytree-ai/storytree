@@ -45,12 +45,13 @@ test("3.78 every territory on the selected island stands one plateau's height ab
   assert.equal(relief.raise({ x: R * 2, z: 0 }), 0, "nothing off the coast");
 });
 
-test("3.78 a ramp only where a road climbs from the open land onto a territory, sloping from the plateau's edge down to the open land", () => {
-  const onto = roads.gates.filter((g) => { const n = { x: -g.along.z, z: g.along.x }; const sides = [territoryOf(at(g.at, n, 0.8)), territoryOf(at(g.at, n, -0.8))]; return sides.includes(-1) && sides.some((t) => t !== undefined && t >= 0); });
-  assert.ok(onto.length > 0 && onto.length < roads.gates.length, "some gates between territories, some onto the open land");
-  assert.equal(relief.ramps.length, onto.length, "a ramp at every gate onto the open land, and nowhere else");
+test("3.78 a ramp only where a road climbs from the open land onto a territory, at a gate or open road, sloping from the plateau's edge down to the open land", () => {
+  const crossings = [...roads.gates, ...roads.passes];
+  const onto = crossings.filter((g) => { const n = { x: -g.along.z, z: g.along.x }; const sides = [territoryOf(at(g.at, n, 0.8)), territoryOf(at(g.at, n, -0.8))]; return sides.includes(-1) && sides.some((t) => t !== undefined && t >= 0); });
+  assert.ok(onto.length > 0 && onto.length < crossings.length, "some crossings between territories, some onto the open land");
+  assert.equal(relief.ramps.length, onto.length, "a ramp wherever a road crosses onto the open land, and nowhere else");
   for (const r of relief.ramps) {
-    assert.ok(onto.includes(r.gate));
+    assert.ok(onto.some((c) => far(c.at, r.at) < 1e-9 && (r.gate === undefined || r.gate === c)));
     assert.equal(territoryOf(at(r.at, r.out, 0.8)), -1, "it runs out onto the open land");
     assert.equal(territoryOf(at(r.at, r.out, -0.8)), r.territory, "from its territory");
     const h = (k: number) => relief.raise(at(r.at, r.out, relief.rampDepth * k));
@@ -58,7 +59,24 @@ test("3.78 a ramp only where a road climbs from the open land onto a territory, 
   }
 });
 
-test("3.78 a wall wherever a plateau meets the open land or the coast, open at each ramp; a bevel rim inside each border on every territory's side, broken at every gate", () => {
+test("3.78 open road onto the open land climbs a ramp with no gate; a road in a tunnel climbs none, its portals held in the plateau's rim (ADR-1253 D3)", () => {
+  // Six capabilities where the arrivals climb onto a by open road, and the arrival to a then goes under e.
+  const sixShares = ["a", "b", "c", "d", "e", "f"].map((capability, i) => ({ capability, title: `${i + 1} · ${capability.toUpperCase()}`, lines: 900 - 120 * i }));
+  const sixLinks = [{ from: "z1", to: "a" }, { from: "z2", to: "b" }, { from: "e", to: "a" }, { from: "c", to: "f" }, { from: "f", to: "b" }, { from: "c", to: "a" }];
+  const six = linkLayout(sixShares, coast, sixLinks, docks), sixRoads = islandRoads(six, sixLinks, docks, capabilityPlates(six)), sixRelief = islandRelief(six, sixRoads);
+  const gateless = sixRelief.ramps.filter((r) => r.gate === undefined);
+  assert.ok(gateless.length > 0 && gateless.every((r) => sixRoads.passes.some((p) => far(p.at, r.at) < 1e-9)), "a ramp at open road");
+  assert.ok(sixRoads.portals.length > 0);
+  let held = 0;
+  for (const p of sixRoads.portals) {
+    assert.ok(sixRelief.ramps.every((r) => far(r.at, p.at) > 1e-6), "no ramp at a portal");
+    // Where a tunnel comes out at the gate into the capability it calls, the gate breaks the rim; anywhere else it runs on.
+    if ([...sixRoads.gates, ...sixRoads.passes].every((g) => far(g.at, p.at) > 6)) { held++; assert.ok(sixRelief.rims.some((r) => toSegment(p.at, r.from, r.to) < 1e-6), "the rim runs on under the portal"); }
+  }
+  assert.ok(held > 0, "a portal with no gate at it");
+});
+
+test("3.78 a wall wherever a plateau meets the open land or the coast, open at each ramp; a bevel rim inside each border on every territory's side, broken wherever a road crosses it", () => {
   assert.ok(relief.walls.some((w) => w.onto === "open") && relief.walls.some((w) => w.onto === "coast"));
   for (const w of relief.walls) {
     const mid = at({ x: (w.from.x + w.to.x) / 2, z: (w.from.z + w.to.z) / 2 }, w.out, 0.3);
@@ -75,14 +93,14 @@ test("3.78 a wall wherever a plateau meets the open land or the coast, open at e
   assert.ok(relief.rims.length > 0);
   for (const rim of relief.rims) {
     assert.equal(territoryOf(at({ x: (rim.from.x + rim.to.x) / 2, z: (rim.from.z + rim.to.z) / 2 }, rim.into, 0.4)), rim.territory, "inside its territory");
-    for (const g of roads.gates) assert.ok(toSegment(g.at, rim.from, rim.to) > 0.6 || [rim.from, rim.to].every((p) => far(p, g.at) >= g.opening / 2 - 1e-6), "broken at the gate");
+    for (const g of [...roads.gates, ...roads.passes]) assert.ok(toSegment(g.at, rim.from, rim.to) > 0.6 || [rim.from, rim.to].every((p) => far(p, g.at) >= g.opening / 2 - 1e-6), "broken where a road crosses it");
   }
   const between = map.borders.filter((b) => map.cells[b.between[0]]!.territory >= 0 && map.cells[b.between[1]]!.territory >= 0);
   assert.ok(between.length > 0 && relief.rims.filter((r) => between.some((b) => toSegment(r.from, b.from, b.to) < 1e-6 && toSegment(r.to, b.from, b.to) < 1e-6)).length >= 2, "both sides of a border between territories");
 });
 
 test("3.78 the walls, ramps and rims are drawn, a face toward the light lighter than one turned away, and they show and hide with the territories", () => {
-  const land = territoryLand(map, flat, coast, new Map(), roads.gates);
+  const land = territoryLand(map, flat, coast, new Map(), roads);
   const marks = islandReliefMarks(relief, flat, landFill(map, land));
   const vertices = (name: string) => {
     const mesh = marks.getObjectByName(name) as Mesh, p = mesh.geometry.getAttribute("position"), c = mesh.geometry.getAttribute("color");
@@ -113,8 +131,8 @@ test("3.78 the walls, ramps and rims are drawn, a face toward the light lighter 
   assert.equal(marks.visible, true);
 });
 
-test("3.78 the roads follow the relief, and every gate's posts stand up from the land, an entrance's larger, clear of its ramp", () => {
-  const land = territoryLand(map, flat, coast, new Map(), roads.gates);
+test("3.78 the roads follow the relief, and every gate's posts stand up from the land, clear of its ramp", () => {
+  const land = territoryLand(map, flat, coast, new Map(), roads);
   const marks = islandRoadMarks(roads, flat, landFill(map, land), relief);
   for (const road of marks.children.filter((o) => o.name.startsWith("road:")) as Mesh[]) {
     const p = road.geometry.getAttribute("position");
@@ -139,6 +157,5 @@ test("3.78 the roads follow the relief, and every gate's posts stand up from the
     const land = landColour(landFill(map, territoryLand(map, flat, coast)))(centre);
     assert.ok(c.getX(0) < land.r && c.getY(0) < land.g, "a shadow darker than the land under it");
   }
-  assert.ok(relief.post.entranceHeight > relief.post.height && relief.post.entrance > relief.post.side);
-  for (const post of posts) assert.equal(post.userData.height, post.userData.entrance ? relief.post.entranceHeight : relief.post.height, "an entrance's posts stand taller");
+  for (const post of posts) assert.equal(post.userData.height, relief.post.height, "every gate a pair's, its posts one height");
 });

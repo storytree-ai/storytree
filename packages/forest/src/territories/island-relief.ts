@@ -2,8 +2,9 @@
  * Capability 3 · Story node render (the forest story): each island's relief (ADR-1236 D1 as narrowed by ADR-1253 D2, rollout 2 step 3b),
  * ported from the capability tree mock's round 11 relief (docs/design/capability-tree-3d/q-all-islands/tools/overlay.ts,
  * `RELIEF`): every territory a plateau one height above the open land, a wall where a plateau stands over the open land
- * or the coast, a bevel rim inside each border broken at every gate, and a ramp only where a road climbs from the open
- * land onto a plateau. Sizes are The library's, given back at the island's own, as the roads' are.
+ * or the coast, a bevel rim inside each border broken where a road crosses it on the land (a gate or open road), and a
+ * ramp only where a road climbs from the open land onto a plateau; a road in a tunnel (ADR-1253 D3) climbs nothing, its
+ * portals set in the rim and the wall. Sizes are The library's, given back at the island's own, as the roads' are.
  */
 import { LIBRARY_LAND } from "./link-layout.js";
 import type { IslandRoads, RoadGate } from "./island-roads.js";
@@ -15,13 +16,14 @@ export const RELIEF = {
   height: 1.3,
   ramp: { width: 3.4, depth: 3.2 },
   rim: { width: 0.9 },
-  post: { side: 1.2, entrance: 1.4, height: 1.0, entranceHeight: 1.2 },
+  post: { side: 1.4, height: 1.2 },
 } as const;
 /** Toward the light, on the ground: from the page's upper left at rest, as the mock lights it. */
 export const LIGHT: Point = { x: -Math.SQRT1_2, z: -Math.SQRT1_2 };
 
-/** A ramp: at a gate onto the open land, `along` the border, climbing from `out` (toward the open land) to the plateau. */
-export type Ramp = { readonly at: Point; readonly along: Point; readonly out: Point; readonly territory: number; readonly gate: RoadGate };
+/** A ramp: where a road crosses onto the open land, `along` the border, climbing from `out` (toward the open land) to the
+ * plateau, and the gate it climbs to, if the crossing is one. */
+export type Ramp = { readonly at: Point; readonly along: Point; readonly out: Point; readonly territory: number; readonly gate?: RoadGate };
 /** A wall: an edge where a territory's plateau stands over the open land or the coast, `out` its face's direction. */
 export type Wall = { readonly from: Point; readonly to: Point; readonly out: Point; readonly territory: number; readonly onto: "open" | "coast" };
 /** A rim: a stretch of border on a territory's side, `into` the territory. */
@@ -29,7 +31,7 @@ export type Rim = { readonly from: Point; readonly to: Point; readonly into: Poi
 export type IslandRelief = {
   /** The island's scale against The library's; the plateau's height above the open land, and the ramps', rims' and posts' sizes, at it. */
   readonly scale: number; readonly height: number; readonly rampWidth: number; readonly rampDepth: number; readonly rimWidth: number;
-  readonly post: { readonly side: number; readonly entrance: number; readonly height: number; readonly entranceHeight: number };
+  readonly post: { readonly side: number; readonly height: number };
   readonly ramps: readonly Ramp[]; readonly walls: readonly Wall[]; readonly rims: readonly Rim[];
   /** The territory under a point (-1 on open land), undefined off the coast. */
   territoryAt(p: Point): number | undefined;
@@ -44,7 +46,7 @@ const unit = (a: Point): Point => { const l = Math.hypot(a.x, a.z) || 1; return 
 const perp = (a: Point): Point => ({ x: -a.z, z: a.x });
 const middle = (a: Point, b: Point): Point => ({ x: (a.x + b.x) / 2, z: (a.z + b.z) / 2 });
 
-/** The relief of `map` (an island as laid out by its links), its ramps at the open gates of `roads`. */
+/** The relief of `map` (an island as laid out by its links), its ramps where the roads of `roads` cross onto the open land. */
 export function islandRelief(map: TerritoryMap, roads: IslandRoads): IslandRelief {
   const coast = map.coast;
   const S = coast === undefined ? 1 : Math.sqrt(landArea(coast) / LIBRARY_LAND) || 1;
@@ -56,10 +58,11 @@ export function islandRelief(map: TerritoryMap, roads: IslandRoads): IslandRelie
     return best;
   };
   const step = 0.8 * S;
-  const ramps: Ramp[] = roads.gates.flatMap((gate) => {
-    const n = perp(gate.along), [a, b] = [territoryAt(at(gate.at, n, step)), territoryAt(at(gate.at, n, -step))];
-    if (a === -1 && b !== undefined && b >= 0) return [{ at: gate.at, along: gate.along, out: n, territory: b, gate }];
-    if (b === -1 && a !== undefined && a >= 0) return [{ at: gate.at, along: gate.along, out: { x: -n.x, z: -n.z }, territory: a, gate }];
+  const crossings: { at: Point; along: Point; opening: number; gate?: RoadGate }[] = [...roads.gates.map((gate) => ({ ...gate, gate })), ...roads.passes];
+  const ramps: Ramp[] = crossings.flatMap(({ at: p, along, gate }) => {
+    const n = perp(along), [a, b] = [territoryAt(at(p, n, step)), territoryAt(at(p, n, -step))], by = gate === undefined ? {} : { gate };
+    if (a === -1 && b !== undefined && b >= 0) return [{ at: p, along, out: n, territory: b, ...by }];
+    if (b === -1 && a !== undefined && a >= 0) return [{ at: p, along, out: { x: -n.x, z: -n.z }, territory: a, ...by }];
     return [];
   });
   const onRamp = (p: Point): number | undefined => {
@@ -98,8 +101,8 @@ export function islandRelief(map: TerritoryMap, roads: IslandRoads): IslandRelie
       for (const s of segmentInConvex(a, b, cell.polygon)) walls.push({ ...s, out: face, territory: cell.territory, onto: "coast" });
     }
   });
-  const post = { side: RELIEF.post.side * S, entrance: RELIEF.post.entrance * S, height: RELIEF.post.height * S, entranceHeight: RELIEF.post.entranceHeight * S };
-  const gateHoles = roads.gates.map((g) => ({ at: g.at, half: g.opening / 2 + (g.entrance ? post.entrance : post.side) + 0.2 * S }));
+  const post = { side: RELIEF.post.side * S, height: RELIEF.post.height * S };
+  const gateHoles = crossings.map((c) => ({ at: c.at, half: c.opening / 2 + (c.gate === undefined ? 0 : post.side) + 0.2 * S }));
   const rims: Rim[] = borders.flatMap((b) => b.pair.filter((t) => t >= 0).flatMap((t) => {
     const into = sideOf(b.from, b.to, t);
     return cut(b.from, b.to, gateHoles, 0.6 * S).map((s) => ({ ...s, into, territory: t }));

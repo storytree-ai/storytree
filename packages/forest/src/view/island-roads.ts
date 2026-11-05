@@ -2,8 +2,8 @@
  * Capability 3 · Story node render: each island's roads and gates as drawn (ADR-1236 D1 as narrowed by ADR-1253 D2, rollout 2 step 3),
  * round 11's `sand-faint` look: each road a sandy ribbon on the land, a step wider by the links it carries, its colour
  * mixed into the land under it so the joins stay one road; a disc at each junction; and at each gate a post standing
- * either side of its opening (3.78, step 3b), and each settlement its kind's symbol (3.79, step 4a), all following the
- * island's relief. No arrowheads. Plain three.js, so the marks are read without a browser.
+ * either side of its opening (3.78, step 3b), at each end of a tunnel under a third territory an arched portal (ADR-1253
+ * D3), and each settlement its kind's symbol (3.79, step 4a), all following the island's relief. No arrowheads. Plain three.js, so the marks are read without a browser.
  */
 import { BufferGeometry, CircleGeometry, Color, DoubleSide, Float32BufferAttribute, Group, Mesh, MeshBasicMaterial, type Object3D, type Vector3 } from "three";
 import type { IslandRoads } from "../territories/island-roads.js";
@@ -96,6 +96,7 @@ export function islandRoadMarks(roads: IslandRoads, onGround: (p: Point) => Vect
     flat(disc, material(mix(at)), `road-junction:${i}`, 3);
   });
   standingPosts(group, roads, relief, onGround, under);
+  tunnelPortals(group, roads, relief, onGround);
   // 3.79: each settlement its kind's symbol, laid flat just over the roads.
   group.add(settlementSymbols(roads, onSurface, 0.05 * relief.scale));
   return group;
@@ -128,8 +129,8 @@ function standingPosts(group: Group, roads: IslandRoads, relief: IslandRelief, o
   roads.gates.forEach((gate, i) => {
     // Each gate's own paper, so a pick can light one gate's faces gold (3.81).
     const faceMaterial = new MeshBasicMaterial({ color: POST.paper, transparent: true, opacity: 1, side: DoubleSide, forceSinglePass: true });
-    const ramp = relief.ramps.find((r) => r.gate === gate), side = gate.entrance ? relief.post.entrance : relief.post.side;
-    const tall = gate.entrance ? relief.post.entranceHeight : relief.post.height, across = { x: -gate.along.z, z: gate.along.x };
+    const ramp = relief.ramps.find((r) => r.gate === gate), side = relief.post.side;
+    const tall = relief.post.height, across = { x: -gate.along.z, z: gate.along.x };
     const gap = ramp === undefined ? gate.opening : Math.max(gate.opening, relief.rampWidth);
     for (const sign of [-1, 1]) {
       let c = at(gate.at, gate.along, (gap / 2 + side / 2) * sign);
@@ -147,7 +148,7 @@ function standingPosts(group: Group, roads: IslandRoads, relief: IslandRelief, o
       push([v(foot[0]!, tall), v(foot[1]!, tall), v(foot[2]!, tall), v(foot[0]!, tall), v(foot[2]!, tall), v(foot[3]!, tall)], ink);
       // 3.81: a gate's posts take a click, so a link can be picked by the gate it enters by.
       const post = mesh(positions, colours, solidMaterial, `gate-post:${i}:${sign}`, 4, true);
-      post.userData = { gate: true, entrance: gate.entrance, entrances: gate.entrances, links: gate.links, standing: true, height: tall, base };
+      post.userData = { gate: true, entrances: gate.entrances, links: gate.links, standing: true, height: tall, base };
       const face = square(side * STANDING.faceRatio / 2);
       mesh([face[0]!, face[1]!, face[2]!, face[0]!, face[2]!, face[3]!].flatMap((q) => v(q, tall + 0.02 * relief.scale)), undefined, faceMaterial, `gate-face:${i}:${sign}`, 5);
       // Its shadow: the footprint swept away from the light, flat on the land beside it.
@@ -162,18 +163,55 @@ function standingPosts(group: Group, roads: IslandRoads, relief: IslandRelief, o
   });
 }
 
+/** A tunnel portal's arch: its stone's colour, its band across, its mouth's darkness, and how deep it reaches by its width. */
+export const PORTAL = { stone: "#f3efe4", band: 0.8, mouth: "#15191c", depth: 0.8 } as const;
+
+/**
+ * Each tunnel's portals (ADR-1253 D3): where a road goes under a third territory, an arch laid on that territory's land at
+ * its border, as the eye sees a tunnel's mouth from above: a dark mouth reaching in from the border where the road ends,
+ * ringed by a band of stone shaded by the light. A portal takes a click, and picks the links it carries.
+ */
+function tunnelPortals(group: Group, roads: IslandRoads, relief: IslandRelief, onGround: (p: Point) => Vector3): void {
+  const at = (p: Point, d: Point, k: number): Point => ({ x: p.x + d.x * k, z: p.z + d.z * k });
+  const mouth = new MeshBasicMaterial({ color: PORTAL.mouth, transparent: true, opacity: 1, side: DoubleSide, forceSinglePass: true, depthWrite: false });
+  const arched = new MeshBasicMaterial({ color: shade(new Color(PORTAL.stone), LIGHT), transparent: true, opacity: 1, side: DoubleSide, forceSinglePass: true, depthWrite: false });
+  roads.portals.forEach((portal, i) => {
+    // On the land it goes under, just over its rim.
+    const base = onGround(portal.at).y + relief.raise(at(portal.at, portal.into, 0.6 * relief.scale)) + 0.08 * relief.scale;
+    const r = portal.width / 2, band = PORTAL.band * relief.scale;
+    const arc = (radius: number, k: number) => { const a = k * Math.PI / 12, q = at(at(portal.at, portal.along, radius * Math.cos(a)), portal.into, radius * Math.sin(a) * PORTAL.depth); return [q.x, base, q.z]; };
+    const inner: number[] = [], ring: number[] = [];
+    for (let k = 0; k < 12; k++) {
+      inner.push(portal.at.x, base, portal.at.z, ...arc(r, k), ...arc(r, k + 1));
+      ring.push(...arc(r, k), ...arc(r + band, k), ...arc(r + band, k + 1), ...arc(r, k), ...arc(r + band, k + 1), ...arc(r, k + 1));
+    }
+    const made = (positions: number[], material: MeshBasicMaterial, name: string, order: number) => {
+      const geometry = new BufferGeometry();
+      geometry.setAttribute("position", new Float32BufferAttribute(positions, 3));
+      const mesh = new Mesh(geometry, material);
+      mesh.name = name;
+      mesh.renderOrder = order;
+      group.add(mesh);
+      return mesh;
+    };
+    made(inner, mouth, `tunnel-mouth:${i}`, 4).raycast = () => {};
+    made(ring, arched, `tunnel-portal:${i}`, 4.1).userData = { portal: true, links: portal.links, base };
+  });
+}
+
 /** What a pick on an island's roads lights (3.81): one or more links' whole ways, or one shared road. */
 export type RoutePick = { readonly kind: "link" | "road"; readonly links: readonly string[] };
 
 /**
- * What a click on `mark` picks, as the mock's overlay does: a road carrying one link, or a gate that link enters by,
- * picks that link; a gate several links enter by picks them all; a shared road, or a gate on one no link enters by,
+ * What a click on `mark` picks, as the mock's overlay does: a road carrying one link picks that link; a gate picks the
+ * pair it joins, the links whose gate it is (ADR-1253 D3); a tunnel's portal picks the links it carries; a shared road
  * picks that road. Anything else picks nothing.
  */
 export function routeOf(mark: Object3D): RoutePick | undefined {
-  const { road, gate, links, entrances } = mark.userData as { road?: true; gate?: true; links?: readonly string[]; entrances?: readonly string[] };
-  if ((road !== true && gate !== true) || links === undefined) return undefined;
+  const { road, gate, portal, links, entrances } = mark.userData as { road?: true; gate?: true; portal?: true; links?: readonly string[]; entrances?: readonly string[] };
   if (gate === true && entrances !== undefined && entrances.length > 0) return { kind: "link", links: entrances };
+  if (portal === true && links !== undefined) return { kind: "link", links };
+  if (road !== true || links === undefined) return undefined;
   return { kind: links.length === 1 ? "link" : "road", links };
 }
 
@@ -227,8 +265,8 @@ function ribbon(points: readonly Point[], width: number, onSurface: (p: Point) =
   return geometry;
 }
 
-/** The segments of the border lines `borders` left once each gate's opening is cut out of the border it stands on. */
-export function cutOpenings(borders: readonly { from: Point; to: Point }[], gates: IslandRoads["gates"]): { from: Point; to: Point }[] {
+/** The segments of the border lines `borders` left once each opening (a gate's, or open road's) is cut out of the border it stands on. */
+export function cutOpenings(borders: readonly { from: Point; to: Point }[], gates: readonly { readonly at: Point; readonly opening: number }[]): { from: Point; to: Point }[] {
   return borders.flatMap(({ from: a, to: b }) => {
     const l = Math.hypot(b.x - a.x, b.z - a.z);
     if (l < 1e-9) return [];

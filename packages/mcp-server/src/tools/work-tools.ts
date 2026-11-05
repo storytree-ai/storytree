@@ -166,16 +166,19 @@ export function registerWorkTools(define: Define): void {
 
   define(
     "clear_wait",
-    "Stop an increment or arc waiting on another (`on`), or an increment waiting for the owner or an outside event (`for`). Clearing a wait for the owner so you can finish the increment yourself, give `claim`: it is claimed for you before the wait clears, so the pool never starts a lane on it in between.",
+    "Stop an increment or arc waiting on another (`on`), or an increment waiting for the owner or an outside event (`for`), saying why in `reason`, which its history keeps. Clearing a wait for the owner so you can finish the increment yourself, give `claim` instead: it is claimed for you before the wait clears, so the pool never starts a lane on it in between.",
     z.object({
       waiter: z.string().min(1).describe("The id of the increment or arc that waits"),
       on: z.string().min(1).optional().describe("The id of what it waits on; or give `for` instead"),
       for: z.enum(["owner", "event"]).optional().describe("Instead of `on`: stop it waiting for the owner, or for an outside event"),
       claim: z.string().min(1).optional().describe("With `for: owner`, when you will finish it yourself: your claim's reason, taken before the wait clears"),
+      reason: z.string().min(1).optional().describe("Why it is cleared (what was done, or why it no longer must wait), kept in its history; with `claim`, the claim's reason is kept instead"),
     }),
-    async ({ waiter, on, for: releaser, claim }, call) => {
+    async ({ waiter, on, for: releaser, claim, reason }, call) => {
       const { library, writer } = call;
       if ((on === undefined) === (releaser === undefined)) return { text: "Give either `on` (work it waits on) or `for` (the owner or an outside event).", refused: true };
+      // A clear says why the state changed, kept in the history (the owner, 2026-11-05).
+      if (reason === undefined && claim === undefined) return { text: "Give a `reason`: why the wait is cleared, which its history keeps. Nothing was cleared.", refused: true };
       if (claim !== undefined) {
         if (releaser !== "owner") return { text: "`claim` goes with `for: owner`: claim the work another way.", refused: true };
         // Claimed first, through the owner wait, then cleared: it never reads ready and unclaimed in between (5.57).
@@ -183,7 +186,8 @@ export function registerWorkTools(define: Define): void {
         if (!answer.ok) return { text: `${await refusalText(library, waiter, answer)} Its wait for the owner stands.`, refused: true };
         return { text: `${waiter} no longer waits for the owner, and you hold it: ${claim}.`, data: { id: waiter } };
       }
-      const done = on !== undefined ? await library.removeWait(waiter, on, writer) : await library.removeWaitFor(waiter, releaser!, writer);
+      const clearing = { ...writer, reason: reason! };
+      const done = on !== undefined ? await library.removeWait(waiter, on, clearing) : await library.removeWaitFor(waiter, releaser!, clearing);
       if (done === null) return { text: `There is no increment or arc ${waiter} in this project's plan.`, refused: true };
       // Nobody holds it now, so the pool may start a lane on it (5.57), unless only a cloud container takes it.
       const cloud = (done.fields as { machine?: string }).machine === CLOUD_MACHINE;

@@ -98,6 +98,11 @@ export function claimWaitsNow(waits: Readonly<Record<string, Hold[]>>, claimed: 
   return Object.fromEntries(Object.entries(waits).map(([id, holds]) => [id, holds.filter(({ claim, on }) => claim !== true || heldElsewhere(id, on))]));
 }
 
+/** The capabilities an arc's open increments name (any status but closed), once each and sorted: its open work (ADR-1253 D1). */
+export function openCapabilities(view: Pick<BoardArcView, "increments">): string[] {
+  return [...new Set(view.increments.filter(({ fields }) => fields.status !== "closed").flatMap(({ fields }) => fields.capabilities ?? []))].sort();
+}
+
 /** The log is the lines themselves, or a reading that holds its claims folded and keeps its claim lines. */
 export function boardView(snapshot: BoardSnapshot, log: readonly Line[] | LogReading, now: Date, scope: BoardScope = "active", quietMs?: number): BoardView {
   const reading = logReading(log);

@@ -413,3 +413,63 @@ test("3.2 · the mounted strip is cut at four rows of the ovals its measured wid
   assert.equal(ovals(), 35, "a wider rail holds the whole strip in four rows");
   assert.ok(document.querySelector(".arc-landed-mark") === null);
 });
+
+test("3.27 · opening an arc's card tells the host the capabilities its open increments name, once each, and closing it tells none", async (t) => {
+  const page = new Window({ url: "https://storytree.test" });
+  const document = page.document as unknown as Document;
+  let surface: ReturnType<typeof mountArcSurface> | undefined;
+  const globals = { document: page.document, HTMLElement: page.HTMLElement, localStorage: page.localStorage };
+  const previous = new Map(Object.keys(globals).map((key) => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
+  for (const [key, value] of Object.entries(globals)) Object.defineProperty(globalThis, key, { configurable: true, value });
+  t.after(async () => {
+    surface?.stop();
+    for (const [key, descriptor] of previous) {
+      if (descriptor) Object.defineProperty(globalThis, key, descriptor);
+      else Reflect.deleteProperty(globalThis, key);
+    }
+    await page.happyDOM.abort();
+  });
+  const arc = record("arc_1", "arc", { title: "Ship the board", intent: "See the work", endState: "Board shipped" });
+  const other = record("arc_2", "arc", { title: "Tidy the docs", intent: "Read easily", endState: "Docs tidy" });
+  const work = (id: string, arcId: string, capabilities: string[], status: "proposal" | "active" | "closed" = "proposal") => record(id, "increment", { arc: arcId, title: id, objective: id, body: id, status, capabilities,
+    ...(status === "closed" ? { outcome: { date: "2026-09-20", disposition: "landed" as const } } : {}) });
+  const shipped = { arc: record("arc_3", "arc", { title: "Shipped", intent: "Ship", endState: "Shipped" }), increments: [work("inc_4", "arc_3", ["cap_old"], "closed")], questions: [], state: "closed" as const, closed: "2026-10-02" };
+  const first = { arc, increments: [work("inc_1", "arc_1", ["cap_b", "cap_a"]), work("inc_2", "arc_1", ["cap_a", "cap_c"], "active"), work("inc_3", "arc_1", ["cap_done"], "closed")], questions: [], state: "active" as const };
+  const reads: BoardReads = {
+    changesSince: async () => ({ changes: [], cursor: 0 }),
+    linesSince: async () => ({ lines: [], cursor: 0 }),
+    boardArcs: async () => [first, { arc: other, increments: [], questions: [], state: "active" }, shipped],
+    closedArcs: async () => [shipped],
+    holds: async () => ({ waits: {}, heldOn: {} }),
+  };
+  const told: (readonly string[] | undefined)[] = [];
+  const ticks = new Map<number, () => void>();
+  surface = mountArcSurface(document.body, {
+    project: "p", reads, onOpened: (capabilities) => { told.push(capabilities); },
+    timers: { now: () => Date.parse("2026-10-02T12:00:00Z"), every: (ms, tick) => { ticks.set(ms, tick); return () => { ticks.delete(ms); }; } },
+  });
+  await settle();
+  assert.deepEqual(told, [], "nothing is open at mount, so nothing is told");
+  const row = (id: string) => document.querySelector<HTMLButtonElement>(`[data-arc-select="${id}"]`)!;
+  row("arc_1").click();
+  assert.deepEqual(told, [["cap_a", "cap_b", "cap_c"]], "the open increments' capabilities, once each; a closed increment's are not open work");
+  row("arc_2").click();
+  assert.deepEqual(told.at(-1), [], "an arc with no open work circles nothing");
+  row("arc_2").click();
+  assert.equal(told.at(-1), undefined, "closing the card tells none");
+  assert.equal(told.length, 3);
+
+  row("arc_1").click();
+  reads.boardArcs = async () => [{ arc: other, increments: [], questions: [], state: "active" }, shipped];
+  reads.changesSince = async () => ({ changes: [{ seq: 1, recordId: "arc_1", type: "arc", action: "updated" as const, record: arc }], cursor: 1 });
+  for (const tick of [...ticks.values()]) tick();
+  await settle();
+  assert.deepEqual(told.slice(3), [["cap_a", "cap_b", "cap_c"], undefined], "its arc leaving the board tells none");
+
+  document.querySelector<HTMLButtonElement>('[data-arc-scope="closed"]')!.click();
+  await settle();
+  row("arc_3").click();
+  assert.deepEqual(told.at(-1), [], "a closed arc has no open work");
+  document.querySelector<HTMLButtonElement>('[data-closed-range="week"]')!.click();
+  assert.equal(told.at(-1), undefined, "another range of closed days closes the card, and tells none");
+});

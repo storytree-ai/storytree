@@ -2,7 +2,7 @@
 import type { BoardReads } from "../board/reads.js";
 import { isBoardSnapshot, watchBoard, type BoardState } from "../board/live-board.js";
 import { pageKept } from "../live-reading/kept.js";
-import type { BoardScope } from "../board/board.js";
+import { openCapabilities, type BoardScope } from "../board/board.js";
 import type { ClosedRange } from "../board/closed-range.js";
 import type { ArcDrawn } from "../board/smoke.js";
 import type { Timers } from "../live-reading/live-reading.js";
@@ -16,8 +16,10 @@ export interface ArcSurface { stop(): void }
  * show, and an arc's card opens over the map only when its row is clicked. `onFreshDraw` is told once, when the surface first
  * draws a board read fresh since this mount (3.18), which the app times from its start; `onWaiting` hears what waits on the
  * owner across the active arcs, the Arcs tab's badge. Given `startAfter`, the page's start, it reads nothing until that settles (3.9).
+ * `onOpened` hears the capabilities the open arc's open increments name, once each, whenever they change, and undefined once no
+ * arc is open (3.27), which the map circles (ADR-1253 D1).
  */
-export function mountArcSurface(host: HTMLElement, options: { project: string; reads: BoardReads; timers?: Timers; reading?: PageReading; startAfter?: PromiseLike<unknown>; onFreshDraw?: () => void; onWaiting?: (count: number) => void }): ArcSurface {
+export function mountArcSurface(host: HTMLElement, options: { project: string; reads: BoardReads; timers?: Timers; reading?: PageReading; startAfter?: PromiseLike<unknown>; onFreshDraw?: () => void; onWaiting?: (count: number) => void; onOpened?: (capabilities: readonly string[] | undefined) => void }): ArcSurface {
   const root = document.createElement("div");
   root.className = "arc-surface-mount";
   root.innerHTML = `<section class="arc-rail" aria-label="Arcs" data-surface-id="arcs"><div class="arc-status" role="status"></div><div class="arc-body"></div></section>`
@@ -41,6 +43,14 @@ export function mountArcSurface(host: HTMLElement, options: { project: string; r
   let drawnCard: string | undefined;
   let drawnKey: string | undefined;
   let waiting: number | undefined;
+  /** What `onOpened` was last told, as a key, so a refresh that changes nothing tells nothing. */
+  let toldOpened: string | undefined;
+  const tellOpened = (capabilities: readonly string[] | undefined): void => {
+    const key = capabilities === undefined ? undefined : JSON.stringify(capabilities);
+    if (key === toldOpened) return;
+    toldOpened = key;
+    options.onOpened?.(capabilities);
+  };
   const folds = new Set<string>();
   /** How many ovals one row of a strip holds at the rail's width, as last measured: a 16 px oval and its 3 px gap (3.2). */
   let perRow: number | undefined;
@@ -69,6 +79,7 @@ export function mountArcSurface(host: HTMLElement, options: { project: string; r
     const lane = next.board.lanes.find(({ id }) => id === opened);
     if (!lane) { opened = undefined; question = undefined; }
     if (question && !lane?.view.questions.some(({ id }) => id === question)) question = undefined;
+    tellOpened(lane === undefined ? undefined : openCapabilities(lane.view));
     if (next.waiting !== undefined && next.waiting !== waiting) { waiting = next.waiting; options.onWaiting?.(waiting); }
     const focused = document.activeElement instanceof HTMLElement ? document.activeElement : undefined;
     const focusAttributes = ["data-arc-select", "data-arc-scope", "data-arc-queue", "data-closed-range", "data-question-open", "data-question-back", "data-rail-question"];

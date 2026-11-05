@@ -1,7 +1,13 @@
 /** Capability 7 · Running sessions. The forest's running sessions, read from Session management; no transcript or liveness reader here. */
 import { logReading, QUIET_MS, type LogReading, type PullState, type Session, type SessionState } from "@storytree/session-management/readings";
 import type { AnnotatedTree, ArcView, Line } from "@storytree/library";
+import { openCapabilities } from "@storytree/arc-surface";
 import { sessionColour } from "../agent-claims/agent-claims.js";
+
+/** Every capability an open increment of `arcs` names, once each: where work is landing, which the map dots (ADR-1253 D1). */
+export function openWork(arcs: readonly ArcView[]): string[] {
+  return openCapabilities({ increments: arcs.flatMap(({ increments }) => increments) });
+}
 
 /** A session on the knowledge core's roster, as the forest hands it over: the forest's own copy (ADR-1017 D2). */
 export type RosterEntry = { session: string; label: string; colour: string; members: readonly string[] };

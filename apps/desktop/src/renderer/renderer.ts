@@ -99,7 +99,7 @@ page = openProjectPage({
       openView: (holder, onSelect, { library, opening }) => openForestView(holder, onSelect, core, { library, opening: opening as GlobeOpening | undefined }),
       sessions: (view, host) => {
         const sessions = mountSessionsList(host, { project: name, reads, reading,
-          onHighlight: stories => view.highlight(stories), onWisps: wisps => view.showWisps(wisps),
+          onHighlight: stories => view.highlight(stories), onWisps: wisps => view.showWisps(wisps), onOpenWork: capabilities => view.showOpenWork(capabilities),
           onRoster: roster => core.showRoster(roster), onSelect: session => core.select(session) });
         core.onSelect(session => sessions.select(session));
         return sessions;

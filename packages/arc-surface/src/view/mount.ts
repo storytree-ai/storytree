@@ -123,7 +123,7 @@ export function mountArcSurface(host: HTMLElement, options: { project: string; r
     const was = opened;
     if (!was) return;
     opened = undefined; question = undefined;
-    if (state) draw(state); else tellOpened(undefined);
+    if (state) draw(state);
     card.hidden = true;
     [...body.querySelectorAll<HTMLButtonElement>("[data-arc-select]")].find((button) => button.dataset.arcSelect === was)?.focus({ preventScroll: true });
   }
@@ -131,7 +131,7 @@ export function mountArcSurface(host: HTMLElement, options: { project: string; r
   resizes?.observe(body);
   const watching = watchBoard({ ...options, kept: pageKept(`storytree.arc-surface.board.v1:${options.project}`, isBoardSnapshot), scope, closedRange, onState: draw });
   const surface: ArcSurface = {
-    stop() { tellOpened(undefined); watching.stop(); resizes?.disconnect(); document.removeEventListener("keydown", onKey); sayDrawn(); root.remove(); },
+    stop() { watching.stop(); resizes?.disconnect(); document.removeEventListener("keydown", onKey); sayDrawn(); root.remove(); },
   };
   function onKey(event: KeyboardEvent): void {
     if (event.key === "Escape" && opened) { event.preventDefault(); closeCard(); }
@@ -148,8 +148,8 @@ export function mountArcSurface(host: HTMLElement, options: { project: string; r
       opened = button.dataset.arcSelect; question = undefined;
       if (state) draw(state);
     }
-    if (button.dataset.arcScope) { scope = button.dataset.arcScope as BoardScope; opened = undefined; question = undefined; card.hidden = true; tellOpened(undefined); watching.setScope(scope); remember(); }
-    if (button.dataset.closedRange) { closedRange = { preset: button.dataset.closedRange as "today" | "yesterday" | "week" }; opened = undefined; question = undefined; card.hidden = true; tellOpened(undefined); watching.setClosedRange(closedRange); }
+    if (button.dataset.arcScope) { scope = button.dataset.arcScope as BoardScope; opened = undefined; question = undefined; card.hidden = true; watching.setScope(scope); remember(); }
+    if (button.dataset.closedRange) { closedRange = { preset: button.dataset.closedRange as "today" | "yesterday" | "week" }; opened = undefined; question = undefined; card.hidden = true; watching.setClosedRange(closedRange); }
     if (button.dataset.arcQueue) {
       const id = button.dataset.arcQueue;
       if (queues.has(id)) queues.delete(id); else queues.add(id);
@@ -186,7 +186,7 @@ export function mountArcSurface(host: HTMLElement, options: { project: string; r
     const shown = state?.board?.closed;
     if (!shown) return;
     closedRange = input.hasAttribute("data-closed-from") ? { from: input.value, to: shown.to } : { from: shown.from, to: input.value };
-    opened = undefined; question = undefined; card.hidden = true; tellOpened(undefined); watching.setClosedRange(closedRange);
+    opened = undefined; question = undefined; card.hidden = true; watching.setClosedRange(closedRange);
   });
   root.addEventListener("toggle", (event) => {
     const detail = event.target as HTMLDetailsElement;

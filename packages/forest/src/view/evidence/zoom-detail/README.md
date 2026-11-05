@@ -45,4 +45,27 @@ about 65 tasks over 50 ms meanwhile (the longest 503, 448 and 440 ms; main's lon
 50 ms): each island's land and road marks are built on the page as its roads arrive, one island per task.
 Routing stays off the page (3.82); moving or spreading that building is parked as increment_ac6b6706ee92 on this arc.
 
+### Each island's build in its own turn (3.87, increment_ac6b6706ee92)
+
+Measured first, per island, in the page (`performance.measure` round each build, the 15-island map): the layout settle
+from kept seeds up to 69 ms (539 ms in all), the territories' meshes up to 54 ms (971 ms in all, built about four times an
+island), the relief 33 ms, and the relief and road marks up to 114 ms. None dominates; what made the long tasks was that
+they ran together: once every island's docks arrived, all 15 islands were laid out and their land built in one 876 ms task,
+and the whole scene's shaders were compiled again on every island's roads (645 ms over the load).
+
+Now each island's layout, and its land with its relief and roads, wait their turn in one page queue (`build-turns.ts`), one
+build per task, and a build overtaken while it waits never runs; each island compiles its own marks' shaders as they are
+built. The page's long tasks after the map was ready, until every island's roads were routed, on this box (loaded by other
+lanes, so two runs each, back to back):
+
+| Build | tasks over 50 ms | longest (ms) |
+| --- | ---: | --- |
+| This branch | 121, 110 | 363, 279, 205 / 283, 176, 113 |
+| main | 75, 76 | 701, 360, 330 / 1531, 494, 466 |
+
+The longest tasks fall by half or more, but the count does not: most tasks over 50 ms here are frames, which this box
+rasterises in software (SwiftShader), and a spread load draws more of them. Of the 75 builds in one run, 10 still took
+over 50 ms, the largest a 208 ms land with its relief and roads on the biggest island; splitting that build further, or
+building the meshes off the page, is the next step on increment_ac6b6706ee92.
+
 In the evidence bucket for #493, linked from the pull request body (ADR-1234; deleted after 90 days or when its arc closes): `493/far.png`, `493/opening-territories.png`, `493/near-the-library.png`.

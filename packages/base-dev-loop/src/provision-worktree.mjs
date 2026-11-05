@@ -61,6 +61,10 @@
 // on the session's path, through the file Claude Code names in CLAUDE_ENV_FILE and sources before each Bash
 // command (contract 3.8), so the tests run without the agent fetching a Node.js by hand; finding none, it says so.
 //
+// On every machine, a Node.js other than the one the repository's .node-version pins (the one CI runs) is named to the
+// session with the command that installs exactly the pin there (contract 3.10): winget with --version on Windows, nvm
+// where it is, never a bare upgrade, which would move a machine to a newer major line than CI runs.
+//
 // There too it fetches origin's main into refs/remotes/origin/main (no tags, bounded, contract 3.9), whatever branch the
 // checkout is on: a container's clone was cached when its image was made and fetches only the session's branch, so
 // test scoping (merge-base with origin/main) would otherwise measure against an old main and run nearly everything.
@@ -337,6 +341,28 @@ export function cloudNode({ root = repoRoot, env = process.env, version = proces
   if (!written.split("\n").includes(line)) writeFileSync(env.CLAUDE_ENV_FILE, `${written}${written && !written.endsWith("\n") ? "\n" : ""}${line}\n`);
   log(`provision-worktree: cloud container's Node.js ${version} is below the engines floor; Node.js ${meeting[0].version} at ${dir} put first on the session's path`);
   return { dir };
+}
+
+/**
+ * When the Node.js `version` running here is not the one root's .node-version pins, what the session is told: both
+ * versions and the command that installs exactly the pin on `platform` (contract 3.10). A bare upgrade is never
+ * offered: winget's OpenJS.NodeJS.LTS id jumps to the newest major line. undefined when it matches, or nothing is pinned.
+ */
+export function pinnedNode({ root = repoRoot, version = process.version, platform = process.platform, env = process.env } = {}) {
+  let pin;
+  try {
+    pin = readFileSync(path.join(root, ".node-version"), "utf8").trim().replace(/^v/, "");
+  } catch {
+    return undefined;
+  }
+  if (!pin || version.replace(/^v/, "") === pin) return undefined;
+  const fix =
+    platform === "win32"
+      ? `run \`winget install --id OpenJS.NodeJS.LTS --exact --version ${pin} --force\``
+      : env.NVM_DIR
+        ? `run \`nvm install ${pin} && nvm alias default ${pin}\``
+        : `install Node.js ${pin} exactly (from https://nodejs.org/dist/v${pin}/, or your version manager)`;
+  return `Node.js ${version} runs here, but this project pins ${pin} (.node-version), which CI runs: ${fix}, then start a new shell.`;
 }
 
 /** The environment pnpm install runs with: onnxruntime's download skipped everywhere unless env says otherwise. */
@@ -658,7 +684,8 @@ if (isEntry()) {
     cloudMain({ root, log });
     const result = provision({ root, log });
     if (result.ok) connectCloud({ root, log });
-    const output = hook ? hookOutput(result, root, node.message ? [node.message] : []) : "";
+    const notes = [node.message, pinnedNode({ root })].filter(Boolean);
+    const output = hook ? hookOutput(result, root, notes) : "";
     if (output) process.stdout.write(`${output}\n`);
     process.exitCode = hook ? 0 : result.code;
   }

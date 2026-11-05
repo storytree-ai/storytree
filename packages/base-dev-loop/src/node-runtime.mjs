@@ -35,7 +35,8 @@ export function runtimeRefusal(version = process.version, platform = process.pla
     `Node.js ${version} cannot run storytree's tests on Windows: its libuv can end the process on a TCP ` +
     "connect (libuv#5107), so now and then a test file dies at its first connection to the test Postgres, " +
     "with exit code 3221226505 (0xC0000409) and nothing printed. Node.js 24.16.0 and later 24.x, and 26.1.0 and " +
-    "later, carry the fix: install one (`winget upgrade OpenJS.NodeJS.LTS`), then run the tests again."
+    "later, carry the fix: install the version this project pins in .node-version " +
+    "(`winget install --id OpenJS.NodeJS.LTS --exact --version <it> --force`), then run the tests again."
   );
 }
 

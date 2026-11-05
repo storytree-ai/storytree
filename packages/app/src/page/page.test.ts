@@ -38,7 +38,7 @@ interface Drawn {
   name: string;
   mounted: string[];
   stopped: string[];
-  view: ForestGlobe & { scenes: number; disposed: boolean; onSelect: (selection: ForestSelection) => void; painted: ReturnType<typeof deferred<void>> };
+  view: ForestGlobe & { scenes: number; disposed: boolean; circled: (readonly string[] | undefined)[]; onSelect: (selection: ForestSelection) => void; painted: ReturnType<typeof deferred<void>> };
   reading: Reading | undefined;
   teaching: { factory: boolean }[];
   locate: Parameters<ProjectParts["teaching"]>[0] | undefined;
@@ -52,6 +52,8 @@ interface Drawn {
   /** Where the arcs and the sessions list were mounted, and how the arcs speak to their tab's badge. */
   hosts: { arcs?: HTMLElement; sessions?: HTMLElement };
   waiting: ((count: number) => void) | undefined;
+  /** How the arcs tell the page the open arc's capabilities. */
+  opened: ((capabilities: readonly string[] | undefined) => void) | undefined;
   /** What the arcs were told to start reading after. */
   arcsStart: PromiseLike<unknown> | undefined;
   /** Who hears the page's one reading, in the order they subscribed: the forest's reading among them, as in the app. */
@@ -97,10 +99,10 @@ function page(t: TestContext, answers: Partial<Pick<PageParts, "problem" | "proj
     project(name, timed) {
       const mine: Drawn = {
         name, mounted: [], stopped: [], reading: undefined, teaching: [], locate: undefined, readingNear: undefined, rendered: [], spaces: [], treeShown: 0, treeOpen: false,
-        kept: answers.kept, timed: undefined, hosts: {}, waiting: undefined, arcsStart: undefined, listeners: [], events: [],
+        kept: answers.kept, timed: undefined, hosts: {}, waiting: undefined, opened: undefined, arcsStart: undefined, listeners: [], events: [],
         view: {
-          scenes: 0, disposed: false, onSelect: () => {}, painted: deferred<void>(),
-          show() { mine.view.scenes++; }, drawn: () => mine.view.painted.promise, select() {}, dispose() { mine.view.disposed = true; },
+          scenes: 0, disposed: false, circled: [], onSelect: () => {}, painted: deferred<void>(),
+          show() { mine.view.scenes++; }, drawn: () => mine.view.painted.promise, select() {}, circle(capabilities) { mine.view.circled.push(capabilities); }, dispose() { mine.view.disposed = true; },
         },
       };
       drawn.push(mine);
@@ -116,7 +118,7 @@ function page(t: TestContext, answers: Partial<Pick<PageParts, "problem" | "proj
         states: { part: () => "planned", add() {} },
         kept: { read: () => mine.kept, write: (written) => { mine.kept = written; } },
         drawing: { read: () => kept as never, write: (written) => { kept = written; } },
-        arcs: (host, on) => { mine.events.push("arcs mounted"); mine.hosts.arcs = host; mine.waiting = on.onWaiting; mine.arcsStart = on.startAfter; return surface("arcs"); },
+        arcs: (host, on) => { mine.events.push("arcs mounted"); mine.hosts.arcs = host; mine.waiting = on.onWaiting; mine.opened = on.onOpened; mine.arcsStart = on.startAfter; return surface("arcs"); },
         treeSpace: () => {
           mine.mounted.push("capability-tree");
           return {
@@ -559,4 +561,15 @@ test("2.41 · the arcs mount once the forest has asked its first tree read, at i
   left.heard(site);
   await settled();
   assert.ok(site.hosts.arcs === undefined, "news reaching a project the user has left mounts no arcs in it");
+});
+
+test("2.47 · the arc opened in the Arcs tab rings its open work on the map, and closing it rings none", async (t) => {
+  const on = page(t);
+  await settled();
+  on.heard();
+  await settled();
+  const project = on.last();
+  project.opened!(["cap_a", "cap_b"]);
+  project.opened!(undefined);
+  assert.deepEqual(project.view.circled, [["cap_a", "cap_b"], undefined]);
 });

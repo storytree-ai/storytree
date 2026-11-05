@@ -16,6 +16,4 @@ Not yet: the wrench and its queue at the entrance gate (step 4b), a picked link 
 Taken with rollout 1's kit: `node docs/design/capability-tree-3d/q-all-islands/tools/build.mjs`, then
 `node --import tsx docs/design/capability-tree-3d/q-all-islands/tools/docks.mjs --stills <story>...`.
 
-In the evidence bucket for this pull request, linked from its body (ADR-1234; deleted after 90 days or when its arc
-closes): `settlements/the-library.png`, `settlements/session-management.png`, `settlements/the-command-line.png`,
-`settlements/setup.png`.
+In the evidence bucket for #447, linked from the pull request body (ADR-1234; deleted after 90 days or when its arc closes): `447/settlements/the-library.png`, `447/settlements/session-management.png`, `447/settlements/the-command-line.png`, `447/settlements/setup.png`.

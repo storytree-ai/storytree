@@ -52,9 +52,20 @@ async function openedMap(t: { after(run: () => Promise<void>): void }, linked = 
     return nav !== undefined && globe?.scene.getObjectByName("planet:two") !== undefined;
   }, undefined, { timeout: 60_000 });
   const renders = () => page.evaluate(() => (window as unknown as { __renders: number }).__renders);
-  // The opening settles: the sheet opens framed and the islands report their places, then the view stops rendering.
-  let last = -1;
-  await waitUntil(async () => { const now = await renders(); const still = now === last; last = now; return still; }, 30_000, "the map view to stop rendering after it opens");
+  // The opening settles: the sheet opens framed and the islands report their places, then the view stops rendering, and
+  // each island's land, built in its turn (3.87), with its roads when it has links, stands as built.
+  const built = () => page.evaluate(linked => {
+    const { __globe: globe, __renders: renders } = window as unknown as { __renders: number; __globe: { scene: { getObjectByName(name: string): { getObjectByName(name: string): { uuid: string } | undefined } | undefined } } };
+    const lands = ["one", "two"].map(story => globe.scene.getObjectByName(`planet:${story}`));
+    const drawn = lands.map(island => island?.getObjectByName("territory-land")?.uuid);
+    const routed = !linked || lands.every(island => island?.getObjectByName("island-roads") !== undefined);
+    return drawn.every(uuid => uuid !== undefined) && routed ? JSON.stringify([renders, drawn]) : undefined;
+  }, linked);
+  let last: string | undefined;
+  await waitUntil(async () => { const now = await built(); const still = now !== undefined && now === last; last = now; return still; }, 30_000, "the map view to stop rendering after it opens, its islands' land built");
+  // A land built last compiles its shaders on the frame after.
+  await page.evaluate(() => new Promise(requestAnimationFrame));
+  await page.evaluate(() => new Promise(requestAnimationFrame));
   return { page, renders };
 }
 

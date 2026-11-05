@@ -494,6 +494,27 @@ test("9.6 land names each planned contract of the capability that no numbered te
   });
 });
 
+test("9.24 land on a capability still proposed names mark_built and the capability's id; once it is marked built, land names neither (regression: checkbox run T17, 2026-11-04)", async () => {
+  await withProject(async ({ folder }) => {
+    await withAgent(folder, claudeCode("claude-1"), async (agent) => {
+      const story = idOf(await agent.call("plan_story", { title: "Shopping cart", ...FOUNDED }));
+      const capability = idOf(await agent.call("plan_capability", { story, title: "Adding", ...FOUNDED }));
+      assert.equal((await agent.call("claim", { capability, reason: "building the cart" })).isError, false);
+      const proposed = await agent.call("land", { capability });
+      assert.equal(proposed.isError, false, proposed.text);
+      assert.match(proposed.text, new RegExp(`mark_built.*${capability}`));
+      assert.equal(proposed.data.proposed, true);
+
+      assert.equal((await agent.call("mark_built", { capability, built: true })).isError, false);
+      assert.equal((await agent.call("claim", { capability, reason: "building the cart again" })).isError, false);
+      const built = await agent.call("land", { capability });
+      assert.equal(built.isError, false, built.text);
+      assert.doesNotMatch(built.text, /mark_built/);
+      assert.equal(built.data.proposed, undefined);
+    });
+  });
+});
+
 test("9.19 land on a capability whose story has no package it can read in the checkout says it cannot see that story's tests and why, lists the planned contracts it could not check, and does not advise writing them", async () => {
   await withProject(async ({ folder }) => {
     await withAgent(folder, claudeCode("claude-1"), async (agent) => {

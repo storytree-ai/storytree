@@ -240,6 +240,51 @@ test("4.37 a worktree whose folder cannot be renamed for a moment after its test
   }
 });
 
+test("4.37 a live process on a worktree's postmaster.pid whose name cannot be read, as a tasklist timing out on a loaded machine, keeps the folder; once its name reads as Postgres, it is stopped and the folder removed", async () => {
+  const log = await openActivityLog(testServerUrl());
+  const project = uniqueProjectName();
+  try {
+    await withTempDir(async (dir) => {
+      const repo = path.join(dir, "site");
+      git(dir, "init", "-q", "-b", "main", repo);
+      writeFileSync(path.join(repo, ".gitignore"), ".pgtest/\n");
+      git(repo, "add", ".gitignore");
+      git(repo, "commit", "-q", "-m", "first");
+      const folder = path.join(repo, ".claude", "worktrees", "slow-tasklist");
+      git(repo, "worktree", "add", "-q", "-b", "claude/slow-tasklist", folder, "main");
+      // Stands in for the server: alive until stopped, its name read only through the watch's nameOf.
+      const server = spawn(process.execPath, ["-e", "setInterval(() => {}, 1000)"], { stdio: "ignore" });
+      const exited = new Promise((resolve) => server.once("exit", resolve));
+      try {
+        mkdirSync(path.join(folder, ".pgtest", "data"), { recursive: true });
+        writeFileSync(path.join(folder, ".pgtest", "data", "postmaster.pid"), `${server.pid}\n`);
+        const here = { harness: "claude-code", source: "hook", machine: "here" } as const;
+        await log.append(project, { ...here, session: "s-slow", folder, branch: "claude/slow-tasklist", kind: "file-edited", files: ["x.ts"] });
+        await log.append(project, { ...here, session: "observer", folder: repo, kind: "branch-state", of: "claude/slow-tasklist", open: false, how: "not-ahead" });
+        await log.append(project, { ...here, session: "s-slow", folder, branch: "claude/slow-tasklist", kind: "closed-out", safe: true, why: "merged", running: 0 });
+        const observer = { log, project, folder: repo, session: "observer", harness: "claude-code", source: "hook" } as const;
+        const empty = (trash: string) => rmSync(trash, { recursive: true, force: true });
+        const timedOut = () => {
+          throw new Error("spawnSync tasklist ETIMEDOUT");
+        };
+        assert.deepEqual(await reapWorktrees(observer, { everyMs: 0, budgetMs: 300, protect: [], empty, nameOf: timedOut }), []);
+        assert.equal(existsSync(folder), true, "a process of unknown name keeps its folder");
+        assert.doesNotThrow(() => process.kill(server.pid!, 0), "and is never signalled");
+
+        let tries = 0;
+        const slowThenPostgres = (pid: number) => (++tries < 3 ? timedOut() : `"postgres.exe","${pid}"`);
+        assert.deepEqual(await reapWorktrees(observer, { everyMs: 0, budgetMs: 60_000, protect: [], empty, nameOf: slowThenPostgres }), [folder]);
+        assert.equal(existsSync(folder), false);
+        await exited;
+      } finally {
+        server.kill("SIGKILL");
+      }
+    });
+  } finally {
+    await log.close();
+  }
+});
+
 test("4.36 a folder under .claude/worktrees that git no longer lists goes once idle if git has all its content, its links removed and never followed; one holding content git lacks, one a live process works in, or one a session wrote in lately stays", async () => {
   const log = await openActivityLog(testServerUrl());
   const project = uniqueProjectName();

@@ -10,8 +10,10 @@
  *   and it holds neither the folder the hook runs in nor a registered hook script. Its branch goes
  *   with it. A test Postgres still running on its `.pgtest/data`, left by a run whose harness was
  *   killed outright, is stopped first; one that has not stopped by the pass's deadline keeps the
- *   worktree for the next pass. Once one is stopped, the rename is tried again for up to two seconds,
- *   because Windows releases a killed server's handles on the folder late.
+ *   worktree for the next pass, as does a live process there whose name still cannot be read by then
+ *   (a tasklist timing out on a loaded machine is never read as no server). Once one is stopped,
+ *   the rename is tried again for up to two seconds, because Windows releases a killed server's
+ *   handles on the folder late.
  * - It is renamed into a trash folder in the git directory first: on Windows that fails while any
  *   process works inside it, which leaves a folder still in use unharmed. Then `git worktree prune`
  *   unregisters it, and the trash is emptied by a detached process with Node's recursive rmSync,
@@ -49,6 +51,8 @@ export interface ReapWatch {
   readonly budgetMs?: number;
   /** How long a folder git no longer lists must have gone untouched before it may go. By default, a day. */
   readonly idleMs?: number;
+  /** How a live process's name is read, within `timeoutMs`, throwing when it cannot be. By default, from /proc, tasklist or ps. */
+  readonly nameOf?: (pid: number, timeoutMs: number) => string;
 }
 
 const EVERY_MS = 60_000;
@@ -111,7 +115,7 @@ export async function reapWorktrees(context: MergeContext, watch: ReapWatch = {}
       // Its teardown runs in a process of its own; the worktree waits for it to finish, for a later pass.
       if (torn === "due") startTeardown(tree.folder);
       if (torn === "due" || torn === "running") continue;
-      const server = await stopTestServer(tree.folder, deadline);
+      const server = await stopTestServer(tree.folder, deadline, watch.nameOf ?? processName);
       if (server === "running") continue;
       mkdirSync(trash, { recursive: true });
       // Fails while anything works inside it, which is what keeps a folder in use.
@@ -199,17 +203,25 @@ async function renameReleased(folder: string, trash: string, until: number): Pro
 /**
  * Stop the test Postgres a run left running on `<folder>/.pgtest/data`, as its postmaster.pid names
  * it, and say whether there was none, it was stopped, or it still runs at `deadline`. A pid that is
- * gone, or names a process other than Postgres, is a stale file: nothing is stopped. Signalled by
- * pid, never through local-postgres, which this package has only for its tests.
+ * gone, or names a process other than Postgres, is a stale file: nothing is stopped. A live process
+ * whose name cannot be read (a tasklist timing out on a loaded machine) is asked again until
+ * `deadline`, and still unknown then counts as running, so its folder stays. Signalled by pid, never
+ * through local-postgres, which this package has only for its tests.
  */
-async function stopTestServer(folder: string, deadline: number): Promise<"none" | "stopped" | "running"> {
+async function stopTestServer(folder: string, deadline: number, nameOf: (pid: number, timeoutMs: number) => string): Promise<"none" | "stopped" | "running"> {
   let pid: number;
   try {
     pid = Number(readFileSync(path.join(folder, ".pgtest", "data", "postmaster.pid"), "utf8").split(/\r?\n/)[0]);
   } catch {
     return "none";
   }
-  if (!isPostgres(pid)) return "none";
+  let postgres = isPostgres(pid, deadline, nameOf);
+  while (postgres === "unknown") {
+    if (Date.now() > deadline) return "running";
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    postgres = isPostgres(pid, deadline, nameOf);
+  }
+  if (!postgres) return "none";
   try {
     // An immediate shutdown: the cluster is about to be removed, so nothing in it needs saving.
     if (process.platform === "win32") execFileSync("taskkill", ["/pid", String(pid), "/t", "/f"], { stdio: "ignore", timeout: 3_000, windowsHide: true });
@@ -224,17 +236,22 @@ async function stopTestServer(folder: string, deadline: number): Promise<"none" 
   return "stopped";
 }
 
-/** Whether `pid` is a live Postgres process. */
-function isPostgres(pid: number): boolean {
+/** Whether `pid` is a live Postgres process, or "unknown" when it lives but its name could not be read by `deadline`. */
+function isPostgres(pid: number, deadline: number, nameOf: (pid: number, timeoutMs: number) => string): boolean | "unknown" {
   if (!isAlive(pid)) return false;
   try {
-    if (process.platform === "linux") return readFileSync(`/proc/${pid}/comm`, "utf8").includes("postgres");
-    const run = (command: string, args: string[]) => execFileSync(command, args, { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"], timeout: 3_000, windowsHide: true });
-    if (process.platform === "win32") return /postgres/i.test(run("tasklist", ["/fi", `PID eq ${pid}`, "/fo", "csv", "/nh"]));
-    return /postgres/.test(run("ps", ["-p", String(pid), "-o", "comm="]));
+    return /postgres/i.test(nameOf(pid, Math.max(1, deadline - Date.now())));
   } catch {
-    return false;
+    return isAlive(pid) ? "unknown" : false;
   }
+}
+
+/** The name `pid`'s process runs as, read within `timeoutMs`. */
+function processName(pid: number, timeoutMs: number): string {
+  if (process.platform === "linux") return readFileSync(`/proc/${pid}/comm`, "utf8");
+  const run = (command: string, args: string[]) => execFileSync(command, args, { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"], timeout: timeoutMs, windowsHide: true });
+  if (process.platform === "win32") return run("tasklist", ["/fi", `PID eq ${pid}`, "/fo", "csv", "/nh"]);
+  return run("ps", ["-p", String(pid), "-o", "comm="]);
 }
 
 function isAlive(pid: number): boolean {

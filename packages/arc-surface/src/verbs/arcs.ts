@@ -239,13 +239,17 @@ const arcWait = verb({
 });
 
 const arcUnwait = verb({
-  command: { family: "arc", name: "unwait", summary: "clear a wait", usage: "arc unwait <arc> --on <arc|increment>" },
+  command: { family: "arc", name: "unwait", summary: "clear a wait, saying why", usage: "arc unwait <arc> --on <arc|increment> --reason <why>" },
   tool: { absent: NO_TOOL },
-  inputs: { arc: { kind: "text", word: 0, describe: "the arc's id" }, on: { kind: "text", optional: true, describe: "the arc or increment it waits on" } },
+  inputs: {
+    arc: { kind: "text", word: 0, describe: "the arc's id" },
+    on: { kind: "text", optional: true, describe: "the arc or increment it waits on" },
+    reason: { kind: "text", optional: true, describe: "why it is cleared, kept in the arc's history" },
+  },
   writes: true,
-  async act({ arc: id, on }, context: ArcVerbContext) {
+  async act({ arc: id, on, reason }, context: ArcVerbContext) {
     const blocker = needed(on, "on");
-    const done = await context.library.removeWait(id, blocker, context.writer);
+    const done = await context.library.removeWait(id, blocker, { ...context.writer, reason: needed(reason, "reason") });
     if (done === null) throw new VerbRefusal(`no arc "${id}" in this project`);
     return { text: `${id} no longer waits on ${blocker}.` };
   },
@@ -292,8 +296,8 @@ const incrementUnwait = verb({
   command: {
     family: "arc increment",
     name: "unwait",
-    summary: "clear a wait; clearing one for you to finish the increment yourself, --claim claims it first, so the pool never starts it in between",
-    usage: "arc increment unwait <increment> --on <increment>, or --for owner|event, or --for event --merged <pr>, or --for owner --claim <reason>",
+    summary: "clear a wait, saying why; clearing one for you to finish the increment yourself, --claim claims it first, so the pool never starts it in between",
+    usage: "arc increment unwait <increment> --on <increment> --reason <why>, or --for owner|event --reason <why>, or --for event --merged <pr>, or --for owner --claim <reason>",
   },
   tool: { absent: NO_TOOL },
   inputs: {
@@ -302,10 +306,15 @@ const incrementUnwait = verb({
     for: { kind: "text", optional: true, describe: "owner or event" },
     claim: { kind: "text", optional: true, describe: "with --for owner, when this session finishes it: the claim's reason, taken before the wait clears" },
     merged: { kind: "text", optional: true, describe: "with --for event: the pull request it was handed over with, which has merged; its wait for you is then listed for reading again" },
+    reason: { kind: "text", optional: true, describe: "why it is cleared, kept in the increment's history (--claim's reason and --merged's pull request give one)" },
   },
   writes: true,
-  async act({ increment: id, on, for: waitingFor, claim, merged }, context: ArcVerbContext) {
+  async act({ increment: id, on, for: waitingFor, claim, merged, reason: given }, context: ArcVerbContext) {
     const releaser = releaserOf(on, waitingFor);
+    // A clear says why the state changed, kept in the history (the owner, 2026-11-05). An event clear by the watcher
+    // may still give none until the factory's watcher passes one (increment_cbeb277e8a16).
+    const reason = given ?? (merged === undefined ? undefined : `pull request #${merged} merged`);
+    if (reason === undefined && claim === undefined && releaser !== "event") needed(reason, "reason");
     if (merged !== undefined && releaser !== "event") throw new VerbRefusal("--merged goes with --for event", { misuse: true });
     if (merged !== undefined && !/^[1-9]\d*$/.test(merged)) throw new VerbRefusal(`--merged is a pull request number; not "${merged}"`, { misuse: true });
     if (claim !== undefined) {
@@ -320,7 +329,7 @@ const incrementUnwait = verb({
     }
     if (releaser !== undefined) {
       // A merged pull request is marked on the wait for the owner in the same write, so the audit asks for it to be read again (11.11).
-      const done = await context.library.removeWaitFor(id, releaser, context.writer, merged === undefined ? undefined : { merged: Number(merged) });
+      const done = await context.library.removeWaitFor(id, releaser, { ...context.writer, ...(reason === undefined ? {} : { reason }) }, merged === undefined ? undefined : { merged: Number(merged) });
       if (done === null) throw new VerbRefusal(`no increment "${id}" in this project`);
       // Nobody holds it now, so the pool may start a lane on it (5.57), unless only a cloud container takes it.
       const { CLOUD_MACHINE } = await import("@storytree/session-management/machines");
@@ -330,7 +339,7 @@ const incrementUnwait = verb({
         : " Nobody holds it, so the pool may start it now: to finish it yourself, clear it with --claim <reason> instead.";
       return { text: `${id} no longer waits for ${releasedBy(releaser)}.${ready}` };
     }
-    const done = await context.library.removeWait(id, on!, context.writer);
+    const done = await context.library.removeWait(id, on!, { ...context.writer, reason: reason! });
     if (done === null) throw new VerbRefusal(`no increment "${id}" in this project`);
     return { text: `${id} no longer waits on ${on}.` };
   },

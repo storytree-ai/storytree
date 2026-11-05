@@ -431,7 +431,7 @@ export class WorkInFlight {
   }
 
   /** Stop `waiter` waiting on `blocker`. Null if `waiter` is not a live arc or increment. */
-  removeWait(waiter: string, blocker: string, options?: WriteOptions): Promise<SchemaRecord<"arc" | "increment"> | null> {
+  removeWait(waiter: string, blocker: string, options?: waitWrites.ClearOptions): Promise<SchemaRecord<"arc" | "increment"> | null> {
     return this.#serially(() => waitWrites.removeWait(this.#records, waiter, blocker, options));
   }
 
@@ -446,7 +446,7 @@ export class WorkInFlight {
   }
 
   /** Stop an increment waiting for `releaser` (10.36), stamping `cleared.merged` on its owner wait (10.38). Null if `id` is not a live increment. */
-  removeWaitFor(id: string, releaser: WaitFor["releaser"], options?: WriteOptions, cleared?: { readonly merged?: number }): Promise<SchemaRecord<"increment"> | null> {
+  removeWaitFor(id: string, releaser: WaitFor["releaser"], options?: waitWrites.ClearOptions, cleared?: { readonly merged?: number }): Promise<SchemaRecord<"increment"> | null> {
     return this.#serially(() => waitWrites.removeWaitFor(this.#records, id, releaser, options, cleared));
   }
 

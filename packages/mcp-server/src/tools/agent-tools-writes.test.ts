@@ -105,9 +105,41 @@ test("10.2 it sets a wait with a reason, and a claim on the waiting increment is
       assert.equal(loop.isError, true);
       assert.match(loop.text, /loop/);
 
-      assert.equal((await agent.call("clear_wait", { waiter: confirm, on: form })).isError, false);
+      assert.equal((await agent.call("clear_wait", { waiter: confirm, on: form, reason: "the form landed" })).isError, false);
       assert.deepEqual(await library.waitHolds(confirm), []);
       assert.equal((await agent.call("claim", { increment: confirm, reason: "driving it" })).isError, false);
+    });
+  });
+});
+
+test("10.18 clear_wait records why the wait was cleared in the record's history, and refuses a clear that gives no reason, with nothing written; with `claim`, its claim's reason is kept", async () => {
+  await withProject(async ({ folder, library }) => {
+    await withAgent(folder, claudeCode("claude-1"), async (agent) => {
+      const { arc } = await planned(agent);
+      const park = async (title: string) => idOf(await agent.call("park_increment", { arc, title, objective: `Build ${title}`, body: `${title}, red then green` }));
+      const [form, dispatcher, upload] = [await park("Email form"), await park("Re-register the dispatcher"), await park("Upload")];
+      const tomorrow = new Date(Date.now() + 86_400_000).toISOString().slice(0, 10);
+      assert.equal((await agent.call("set_wait", { waiter: dispatcher, on: form, reason: "it needs the form" })).isError, false);
+      assert.equal((await agent.call("set_wait", { waiter: dispatcher, for: "owner", note: "re-register the laptop's dispatcher", why: "the laptop takes no lanes" })).isError, false);
+      assert.equal((await agent.call("set_wait", { waiter: dispatcher, for: "event", note: "the release build", check_back: tomorrow })).isError, false);
+      const reasonOf = async (id: string) => (await library.history({ id })).at(-1)?.reason;
+
+      const before = (await library.changesSince(0)).cursor;
+      for (const bare of [{ on: form }, { for: "owner" }, { for: "event" }]) {
+        const refused = await agent.call("clear_wait", { waiter: dispatcher, ...bare });
+        assert.equal(refused.isError, true, JSON.stringify(bare));
+        assert.match(refused.text, /reason/);
+      }
+      assert.deepEqual((await library.changesSince(before)).changes, [], "a bare clear writes nothing");
+
+      for (const [cleared, reason] of [[{ on: form }, "the form is no longer needed"], [{ for: "owner" }, "he re-registered it on 2026-11-05"], [{ for: "event" }, "the release build is out"]] as const) {
+        assert.equal((await agent.call("clear_wait", { waiter: dispatcher, ...cleared, reason })).isError, false);
+        assert.equal(await reasonOf(dispatcher), reason);
+      }
+
+      assert.equal((await agent.call("set_wait", { waiter: upload, for: "owner", note: "sign in", why: "it unblocks the upload" })).isError, false);
+      assert.equal((await agent.call("clear_wait", { waiter: upload, for: "owner", claim: "finishing the upload" })).isError, false);
+      assert.match((await reasonOf(upload)) ?? "", /finishing the upload/);
     });
   });
 });
@@ -135,8 +167,8 @@ test("10.6 it sets a wait for the owner, with its why and any rank, or an outsid
       assert.equal(refused.isError, true);
       assert.ok(refused.text.includes("run the NSIS install on the old laptop") && refused.text.includes("the next release build"), refused.text);
 
-      assert.equal((await agent.call("clear_wait", { waiter: install, for: "owner" })).isError, false);
-      assert.equal((await agent.call("clear_wait", { waiter: install, for: "event" })).isError, false);
+      assert.equal((await agent.call("clear_wait", { waiter: install, for: "owner", reason: "he ran the install" })).isError, false);
+      assert.equal((await agent.call("clear_wait", { waiter: install, for: "event", reason: "the release build is out" })).isError, false);
       assert.deepEqual(await library.waitsFor(install), []);
       assert.equal((await agent.call("claim", { increment: install, reason: "driving it" })).isError, false);
 
@@ -313,7 +345,7 @@ test("10.17 park_increment parks an increment born waiting for the owner with it
       assert.equal(refused.isError, true);
       assert.match(refused.text, /power on the old laptop/);
 
-      assert.equal((await agent.call("clear_wait", { waiter: install, for: "owner" })).isError, false);
+      assert.equal((await agent.call("clear_wait", { waiter: install, for: "owner", reason: "he ran the install" })).isError, false);
       const claimed = await agent.call("claim", { increment: install, reason: "driving it" });
       assert.equal(claimed.isError, false, claimed.text);
     });
@@ -446,7 +478,7 @@ test("6.16 every library write from a tool names the calling session, including 
       for (const parked of [true, false]) await write("park_arc", { arc, parked });
       const blocker = await write("park_increment", { arc, title: "Mailer", objective: "Send mail", body: "Connect it" });
       await write("set_wait", { waiter: increment, on: blocker, reason: "Needs mail" });
-      await write("clear_wait", { waiter: increment, on: blocker });
+      await write("clear_wait", { waiter: increment, on: blocker, reason: "the blocker is no longer needed" });
       const questionArgs = { arc, title: "Mailer?", stakes: "Delivery", statement: "Which?", context: "Signup", options: "Mailgun or SES" };
       // Holding the writer's own increment releases it, returning it to proposal: a third record (6.44).
       const question = await write("raise_question", { ...questionArgs, holds: [increment] }, 3);
@@ -1266,7 +1298,7 @@ test("10.13 park_increment and edit_plan set an increment's machine to a machine
       const proof = idOf(await agent.call("park_increment", { arc, title: "Cloud proof", objective: "Prove it in a cloud container", body: "Red then green", machine: "cloud" }));
       assert.equal(await machineOf(proof), "cloud");
       assert.equal((await agent.call("set_wait", { waiter: proof, for: "owner", note: "start a cloud session", why: "it unblocks the work" })).isError, false);
-      const unwaited = await agent.call("clear_wait", { waiter: proof, for: "owner" });
+      const unwaited = await agent.call("clear_wait", { waiter: proof, for: "owner", reason: "he gave the cloud container its key" });
       assert.equal(unwaited.isError, false, unwaited.text);
       assert.match(unwaited.text, /cloud container[\s\S]*the pool never starts it/);
       assert.doesNotMatch(unwaited.text, /pool may start it/);

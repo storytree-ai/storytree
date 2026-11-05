@@ -142,9 +142,49 @@ test("4.9 `arc increment wait --for` makes an increment wait for you, or for an 
     }
     assert.deepEqual((await library.changesSince(before)).changes, []);
 
-    const cleared = await world.run(["arc", "increment", "unwait", increment, "--for", "owner"]);
+    const cleared = await world.run(["arc", "increment", "unwait", increment, "--for", "owner", "--reason", "he signed it"]);
     assert.equal(cleared.code, 0, cleared.stderr);
     assert.deepEqual((await library.waitsFor(increment)).map(({ releaser }) => releaser), ["event"]);
+  });
+});
+
+test("4.30 `arc increment unwait` and `arc unwait` record the clear's `--reason` in the record's history, and refuse a clear that gives none, with nothing written; `--claim` records its claim's reason", async () => {
+  await inWorld(command, async (world) => {
+    const library = await world.library();
+    const arc = await anArc(world);
+    const blocker = (await library.addIncrement({ arc, title: "Schema", objective: "Tables", body: "…" })).id;
+    const increment = (await library.addIncrement({ arc, title: "Re-register the dispatcher", objective: "The laptop takes lanes", body: "…" })).id;
+    const other = await anArc(world);
+    await library.addWaitFor(increment, { releaser: "owner", note: "Re-register the laptop's dispatcher", why: "the laptop takes no lanes until he does" });
+    await library.addWait(increment, blocker, "needs the tables");
+    await library.addWait(other, arc, "after the first arc");
+    const reasonOf = async (id: string) => (await library.history({ id })).at(-1)?.reason;
+
+    const before = (await library.changesSince(0)).cursor;
+    for (const words of [["increment", "unwait", increment, "--for", "owner"], ["increment", "unwait", increment, "--on", blocker], ["unwait", other, "--on", arc]]) {
+      const bare = await world.run(["arc", ...words]);
+      assert.equal(bare.code, 2, `${words.join(" ")}: ${bare.stdout}`);
+      assert.match(bare.stderr, /--reason/);
+    }
+    assert.deepEqual((await library.changesSince(before)).changes, [], "a bare clear writes nothing");
+
+    for (const [id, words, reason] of [
+      [increment, ["increment", "unwait", increment, "--for", "owner", "--reason", "he re-registered it on 2026-11-05"], "he re-registered it on 2026-11-05"],
+      [increment, ["increment", "unwait", increment, "--on", blocker, "--reason", "the tables are no longer needed"], "the tables are no longer needed"],
+      [other, ["unwait", other, "--on", arc, "--reason", "the arcs are independent"], "the arcs are independent"],
+    ] as const) {
+      const ran = await world.run(["arc", ...words]);
+      assert.equal(ran.code, 0, ran.stderr);
+      assert.equal(await reasonOf(id), reason);
+    }
+    const history = await world.run(["library", "history", increment]);
+    assert.match(history.stdout, /he re-registered it on 2026-11-05/, "library history shows why the state changed");
+
+    const claimed = (await library.addIncrement({ arc, title: "Upload", objective: "Ship", body: "…" })).id;
+    await library.addWaitFor(claimed, { releaser: "owner", note: "Sign in", why: "it unblocks the upload" });
+    const finishing = await world.run(["arc", "increment", "unwait", claimed, "--for", "owner", "--claim", "finishing the upload"], { CODEX_THREAD_ID: "codex-reason" });
+    assert.equal(finishing.code, 0, finishing.stderr);
+    assert.match((await reasonOf(claimed)) ?? "", /finishing the upload/);
   });
 });
 
@@ -722,7 +762,7 @@ test("4.23 `arc increment edit --machine <name>` names the one machine that can 
     assert.equal(cloud.code, 0, cloud.stderr);
     assert.equal(await machineOf(), "cloud");
     assert.equal((await world.run(["arc", "increment", "wait", work.id, "--for", "owner", "--note", "Prove it in a cloud session", "--why", "it unblocks the work"])).code, 0);
-    const unwaited = await world.run(["arc", "increment", "unwait", work.id, "--for", "owner"]);
+    const unwaited = await world.run(["arc", "increment", "unwait", work.id, "--for", "owner", "--reason", "he gave the cloud container its key"]);
     assert.equal(unwaited.code, 0, unwaited.stderr);
     assert.match(unwaited.stdout, /cloud container[\s\S]*the pool never starts it/);
     assert.doesNotMatch(unwaited.stdout, /pool may start it/);

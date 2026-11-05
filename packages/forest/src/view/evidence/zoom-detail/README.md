@@ -105,7 +105,28 @@ runs each (load average about 15 from other lanes):
 | 12 territories, 1.5 times as wide | 30.3, 33.4, 27.8 | 17 | 4.7, 4.4, 3.9 |
 | 20 territories, 2.2 times as wide | 36.6, 36.9, 31.5 | 20 | 12.2, 6.6, 5.0 |
 
-The same layout results, step by step or at once (link-layout.test.ts, 3.87). Not yet measured in the real page, nor the left
-rail drag test 2.46's time on CI's macOS runner, which this pull request's own CI run gives.
+The same layout results, step by step or at once (link-layout.test.ts, 3.87).
+
+### In the page after the layout's steps (3.87, increment_ac6b6706ee92 step 4)
+
+Timed round each turn and each task of the page queue (`performance.measure`, taken out again), with the page's long
+animation frames and a CPU profile from the map's ready until every island's roads were routed, four runs on this box
+(load average about 1):
+
+| Run | turns | turns over 50 ms | longest turns (ms) | queue tasks | tasks over 50 ms | longest tasks (ms) |
+| --- | ---: | ---: | --- | ---: | ---: | --- |
+| 1 | 355 | 1 | 63, 41, 26 | 32 | 2 | 69, 63, 50 |
+| 2 | 355 | 1 | 58, 31, 26 | 32 | 3 | 64, 60, 56 |
+| 3 | 355 | 1 | 56, 33, 27 | 32 | 3 | 61, 60, 52 |
+| 4 | 355 | 1 | 67, 36, 31 | 34 | 3 | 74, 62, 53 |
+
+So the islands' builds hold the line: one turn in 355 over 50 ms, and a queue task over it by at most 24 ms, when a turn
+runs longer than the ones before it. The page's long animation frames after ready are those tasks plus their frame (51
+to 81 ms) and one more, 205 to 213 ms, that is not the forest's: a React render of the knowledge core's notes under the
+sheet (`KnowledgeGlobePoints`, 145 to 165 ms of it in `sheetPoints` and its `apart`, packages/knowledge-core), laid out
+again when the sheet moves as islands settle. The frames over 200 ms before ready (283 to 509 ms) are the app's first
+mount. The left rail drag test 2.46 on CI's macOS runner took 262 s on step 3's pull request (#513), against 107 to 130 s
+on #501, #511 and #512, 226 s on #495 and 58 s on #493 before the queue: the layout's steps did not bring it back, so its
+time comes from how many frames the page draws there, not from long builds.
 
 In the evidence bucket for #493, linked from the pull request body (ADR-1234; deleted after 90 days or when its arc closes): `493/far.png`, `493/opening-territories.png`, `493/near-the-library.png`.

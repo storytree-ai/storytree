@@ -156,6 +156,19 @@ test("4.14 a parked capability's detail keeps its word and reason and says it is
   assert.equal(renderStoryPanel(base, "cap").includes("panel-parked"), false, "one not parked says nothing of it");
 });
 
+test("4.38 a capability's detail lists its open work in the order given, each by title, the active one marked", () => {
+  const base = notGreen(undefined);
+  const html = renderStoryPanel({ ...base, capabilities: [{ ...base.capabilities[0]!, openWork: [
+    { increment: "inc-2", title: "Started <first>", active: true },
+    { increment: "inc-1", title: "Parked first" },
+    { increment: "inc-3", title: "Parked second" },
+  ] }] }, "cap");
+  const items = [...html.matchAll(/<li data-increment-id="([^"]+)"[^>]*>([\s\S]*?)<\/li>/g)].map(([, id, said]) => [id, said!.replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim()]);
+  assert.deepEqual(items, [["inc-2", "Started &lt;first&gt; (in progress)"], ["inc-1", "Parked first"], ["inc-3", "Parked second"]]);
+  assert.ok(html.indexOf("panel-open-work") < html.indexOf("<details>"), "above its contracts");
+  assert.equal(renderStoryPanel(base, "cap").includes("panel-open-work"), false, "one with no open work lists none");
+});
+
 test("4.12 a capability that is not healthy says why under its word, who moves it, and its contracts by number", () => {
   const agent = renderStoryPanel(notGreen({ reason: "no test names it", mover: "agent", contracts: ["1.2", "1.3"] }), "cap");
   assert.equal(whyLine(agent), "Why not green: no test names 1.2 and 1.3. The agent moves this one.");

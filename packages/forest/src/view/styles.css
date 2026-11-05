@@ -392,6 +392,26 @@
   color: var(--muted);
 }
 
+/* The open work naming the capability (ADR-1253 D1), in the library's order: the one in progress first. */
+.panel-open-work {
+  margin: 0 0 0.5rem;
+  font-size: 0.9rem;
+}
+
+.panel-open-work-label {
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.panel-open-work > ol {
+  margin: 0.2rem 0 0;
+  padding-left: 1.4rem;
+}
+
+.panel-open-work li.active {
+  font-weight: 600;
+}
+
 .panel-why .panel-mover {
   color: var(--muted);
 }

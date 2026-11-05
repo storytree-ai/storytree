@@ -14,6 +14,7 @@
  * and capability 2's append-only history holds every entry it ever had: who wrote it (`by`, and
  * the change's actor), when, and its note.
  */
+import { byCreation } from "../creation-order.js";
 import { couldBeId, liveRecord, MissingReferenceError, recordNamed } from "../references.js";
 import type { SchemaRecord, SchemaRecords, WriteOptions } from "../schema/index.js";
 import type { FieldsOf, RecordType } from "../schema/types.js";
@@ -119,6 +120,15 @@ export interface AnnotatedCapability extends Omit<CapabilityNode, "contracts"> {
    * the map fills it grey and its card names them. Its word is unchanged; absent otherwise.
    */
   parkedOn?: ParkedOn[];
+  /** The open increments naming it (ADR-1253 D1), in the order its panel reads them; absent when none does. */
+  openWork?: OpenIncrement[];
+}
+
+/** An open increment naming a capability, by id and title, marked when it is active (claimed and under way). */
+export interface OpenIncrement {
+  increment: string;
+  title: string;
+  active?: true;
 }
 
 /**
@@ -302,7 +312,7 @@ export class HealthRecord {
    */
   async annotate(tree?: ProjectTree, parked: ReadonlyMap<string, readonly ParkedOn[]> = new Map()): Promise<AnnotatedTree> {
     const plan = tree ?? (await this.#work.projectTree());
-    const entries = await this.#entries();
+    const [entries, open] = await Promise.all([this.#entries(), this.#openWork()]);
     const unverified = ![...entries.values()].some(({ fields }) => fields.column === "verified");
     return {
       ...(unverified ? { unverified } : {}),
@@ -317,13 +327,27 @@ export class HealthRecord {
           const explored = story.mapped !== undefined && contracts.length === 0;
           const why = reportOnly || explored ? undefined : capabilityWhy(capability.proposed, contracts.map((contract) => ({ id: contract.id, verified: contract.health.verified })));
           const parkedOn = status === "proposed" || status === "untested" ? parked.get(capability.id) : undefined;
-          return { ...capability, dependsOn: [...capability.dependsOn], contracts, health, status, ...(why === undefined ? {} : { why }), ...(reportOnly ? { reportOnly } : {}), ...(parkedOn === undefined ? {} : { parkedOn: [...parkedOn] }) };
+          return { ...capability, dependsOn: [...capability.dependsOn], contracts, health, status, ...(why === undefined ? {} : { why }), ...(reportOnly ? { reportOnly } : {}), ...(parkedOn === undefined ? {} : { parkedOn: [...parkedOn] }), ...(open.has(capability.id) ? { openWork: open.get(capability.id)!.map((one) => ({ ...one })) } : {}) };
         });
         const health = rolledUp(capabilities.flatMap((capability) => capability.contracts.map((contract) => contract.health)));
         return { ...story, capabilities, health };
       }),
       arcs: plan.arcs.map((arc) => ({ ...arc, stories: [...arc.stories] })),
     };
+  }
+
+  /** Each capability an open increment names, with those increments: the active ones first, then the rest in parked order (ADR-1253 D1). */
+  async #openWork(): Promise<Map<string, OpenIncrement[]>> {
+    const increments = await this.#records.select("increment", ["title", "status", "parked", "capabilities"], { not: { status: "closed" } });
+    const parkedAt = ({ createdAt, fields }: (typeof increments)[number]): string => fields.parked ?? createdAt;
+    const ordered = increments.sort((a, b) => Number(b.fields.status === "active") - Number(a.fields.status === "active") || (parkedAt(a) < parkedAt(b) ? -1 : parkedAt(a) > parkedAt(b) ? 1 : byCreation(a, b)));
+    const named = new Map<string, OpenIncrement[]>();
+    for (const { id, fields } of ordered) {
+      for (const capability of new Set(fields.capabilities ?? [])) {
+        named.set(capability, [...(named.get(capability) ?? []), { increment: id, title: fields.title, ...(fields.status === "active" ? { active: true as const } : {}) }]);
+      }
+    }
+    return named;
   }
 
   /**

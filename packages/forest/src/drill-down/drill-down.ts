@@ -67,6 +67,8 @@ export interface CapabilityLine {
   reportOnly?: true;
   /** The arcs that park it, when it is not proven and parked on purpose (ADR-0992 D6): its card names them. */
   parkedOn?: { arc: string; title: string }[];
+  /** The open increments naming it, in the library's order: the active ones first, then parked order (ADR-1253 D1). */
+  openWork?: { increment: string; title: string; active?: true }[];
 }
 
 /** An arrow of the diagram: a capability pointing at one it builds on. */
@@ -146,6 +148,7 @@ export function drillDown(tree: AnnotatedTree, story: string, states: PartStates
         ...(capability.why === undefined ? {} : { why: whyLine(capability.why, capability.contracts, contracts) }),
         ...(capability.reportOnly ? { reportOnly: true as const } : {}),
         ...(capability.parkedOn === undefined ? {} : { parkedOn: capability.parkedOn.map(({ arc, title }) => ({ arc, title })) }),
+        ...(capability.openWork === undefined ? {} : { openWork: capability.openWork.map(({ increment, title, active }) => ({ increment, title, ...(active ? { active } : {}) })) }),
       },
     ];
   });

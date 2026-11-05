@@ -2,6 +2,7 @@
 export { capabilityStatus, capabilityWhy, HealthRecord, heldBack, NOT_VERIFIED, wordAndWhy } from "./health-record.js";
 export type {
   AnnotatedCapability,
+  OpenIncrement,
   AnnotatedContract,
   AnnotatedStory,
   AnnotatedTree,

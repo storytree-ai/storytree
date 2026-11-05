@@ -311,10 +311,9 @@ const incrementUnwait = verb({
   writes: true,
   async act({ increment: id, on, for: waitingFor, claim, merged, reason: given }, context: ArcVerbContext) {
     const releaser = releaserOf(on, waitingFor);
-    // A clear says why the state changed, kept in the history (the owner, 2026-11-05). An event clear by the watcher
-    // may still give none until the factory's watcher passes one (increment_cbeb277e8a16).
+    // A clear says why the state changed, kept in the history (the owner, 2026-11-05).
     const reason = given ?? (merged === undefined ? undefined : `pull request #${merged} merged`);
-    if (reason === undefined && claim === undefined && releaser !== "event") needed(reason, "reason");
+    if (reason === undefined && claim === undefined) needed(reason, "reason");
     if (merged !== undefined && releaser !== "event") throw new VerbRefusal("--merged goes with --for event", { misuse: true });
     if (merged !== undefined && !/^[1-9]\d*$/.test(merged)) throw new VerbRefusal(`--merged is a pull request number; not "${merged}"`, { misuse: true });
     if (claim !== undefined) {
@@ -329,7 +328,7 @@ const incrementUnwait = verb({
     }
     if (releaser !== undefined) {
       // A merged pull request is marked on the wait for the owner in the same write, so the audit asks for it to be read again (11.11).
-      const done = await context.library.removeWaitFor(id, releaser, { ...context.writer, ...(reason === undefined ? {} : { reason }) }, merged === undefined ? undefined : { merged: Number(merged) });
+      const done = await context.library.removeWaitFor(id, releaser, { ...context.writer, reason: reason! }, merged === undefined ? undefined : { merged: Number(merged) });
       if (done === null) throw new VerbRefusal(`no increment "${id}" in this project`);
       // Nobody holds it now, so the pool may start a lane on it (5.57), unless only a cloud container takes it.
       const { CLOUD_MACHINE } = await import("@storytree/session-management/machines");

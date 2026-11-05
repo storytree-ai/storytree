@@ -55,7 +55,7 @@ test("4.1 · a handed-over pull request that merges closes its increment, releas
   b.looks[41] = { state: "merged", head: "h1" };
   await watchOnce(b.options);
   assert.deepEqual(b.calls, [
-    ["arc", "increment", "unwait", "increment_one", "--for", "event"],
+    ["arc", "increment", "unwait", "increment_one", "--for", "event", "--reason", "PR #41 merged"],
     ["arc", "increment", "close", "increment_one", "--disposition", "landed", "--pr", "41"],
     ["workspace", "let-go", "41", "--reason", "PR #41 merged; released by the watcher", "--merged"],
   ]);
@@ -97,7 +97,7 @@ test("4.2 · a red pull request starts exactly one fix session at a time, and on
   await watchOnce(b.options);
   await watchOnce(b.options);
   assert.equal(b.fixes.length, 1, "one fix session while it runs");
-  assert.deepEqual(b.calls.at(-1), ["arc", "increment", "unwait", "increment_one", "--for", "event"], "the fix session may claim it");
+  assert.deepEqual(b.calls.at(-1), ["arc", "increment", "unwait", "increment_one", "--for", "event", "--reason", "PR #41 went red: a fix session starts on it"], "the fix session may claim it, and its history says why");
   const [fix] = b.fixes;
   assert.equal(fix.pr, 41); assert.equal(fix.increment, "increment_one"); assert.equal(fix.n, 1);
   assert.match(fix.brief, /verify on Windows failed/); assert.match(fix.brief, /https:\/\/ci\/run\/9/);
@@ -189,8 +189,10 @@ test("4.37 · a review session's one verdict decides the red: retried, retried a
   for (let round = 0; round < 3; round++) { await watchOnce(asked.options); asked.live.clear(); }
   await recordVerdict({ dir: asked.dir, pr: 41, kind: "owner", summary: "it needs a paid runner", question: "question_abc" });
   asked.noRoom();
+  asked.calls.length = 0;
   await watchOnce(asked.options);
   assert.equal(asked.fixes.length, 2, "no session after the owner's question");
+  assert.deepEqual(asked.calls.find(([, , verb]) => verb === "unwait"), ["arc", "increment", "unwait", "increment_one", "--for", "event", "--reason", "PR #41 waits on the owner's answer to question_abc"], "its event wait is cleared, saying why");
   assert.ok(!asked.calls.some(([, , verb, , , waitFor]) => verb === "wait" && waitFor === "owner"), "the review's question holds it, not an owner wait");
   assert.deepEqual(asked.calls.at(-1), ["workspace", "let-go", "41", "--reason", "PR #41 waits on the owner's answer to question_abc; released by the watcher"]);
   assert.deepEqual(await readdir(asked.dir), [], "the hand-off is dropped");
@@ -225,7 +227,7 @@ test("4.12 · a pull request that conflicts with main past the fix limit gets on
   await watchOnce(b.options);
   assert.equal(b.fixes.length, 3, "a merge needs a session, not the owner");
   assert.match(b.fixes[2].brief, /conflicts with main/);
-  assert.deepEqual(b.calls.at(-1), ["arc", "increment", "unwait", "increment_one", "--for", "event"], "the merge session may claim it");
+  assert.deepEqual(b.calls.at(-1), ["arc", "increment", "unwait", "increment_one", "--for", "event", "--reason", "PR #41 went red: a fix session starts on it"], "the merge session may claim it");
   assert.ok(!b.calls.some(([, , verb, , , waitFor]) => verb === "wait" && waitFor === "owner"));
   b.live.clear();
   await watchOnce(b.options);
@@ -540,7 +542,7 @@ test("4.47 · on MERGED a pull request handed over to keep its increment open cl
   await watchOnce(b.options);
   assert.deepEqual(b.calls.filter(([, , verb]) => verb === "unwait"), [
     ["arc", "increment", "unwait", "increment_one", "--for", "event", "--merged", "41"],
-    ["arc", "increment", "unwait", "increment_two", "--for", "event"],
+    ["arc", "increment", "unwait", "increment_two", "--for", "event", "--reason", "PR #42 merged"],
   ]);
 });
 
@@ -772,7 +774,7 @@ test("4.20 · a conflict past the limit goes back on its arc as ready work, nami
   const body = edit.at(-1);
   assert.match(body, /^The increment's own breakdown\./, "the body keeps what it said");
   assert.match(body, /PR #41/); assert.match(body, /claude\/increment-one/); assert.match(body, /merge origin\/main/);
-  assert.deepEqual(b.calls.slice(-2), [["arc", "increment", "unwait", "increment_one", "--for", "event"],
+  assert.deepEqual(b.calls.slice(-2), [["arc", "increment", "unwait", "increment_one", "--for", "event", "--reason", "PR #41 went back on its arc: it still conflicts with main after 3 fix sessions"],
     ["workspace", "let-go", "41", "--reason", "PR #41 still conflicts with main after 3 fix sessions; released by the watcher"]], "the pool may take it again");
   assert.deepEqual(await readdir(b.dir), [], "the hand-off is dropped");
   assert.match(b.lines.at(-1), /PR #41.*back on its arc/);
@@ -813,6 +815,7 @@ test("4.23 · a pull request open past three days since it was handed over gives
   await watchOnce(b.options);
   assert.deepEqual(b.calls.slice(-3).map((call) => call.slice(0, 3)), [["arc", "increment", "edit"], ["arc", "increment", "unwait"], ["workspace", "let-go", "41"]]);
   assert.match(b.calls.at(-1)[4], /open for 3 days/);
+  assert.deepEqual(b.calls.at(-2).slice(6), ["--reason", "PR #41 went back on its arc: it has been open for 3 days since it was handed over"], "its event wait's clear says why");
   assert.deepEqual(await readdir(b.dir), [], "the hand-off is dropped");
   assert.match(b.lines.at(-1), /PR #41 open past 3 days.*back on its arc/);
 
@@ -821,6 +824,7 @@ test("4.23 · a pull request open past three days since it was handed over gives
   await handOff(spent);
   spent.looks[41] = red;
   for (let round = 0; round < 4; round++) { await watchOnce(spent.options); spent.live.clear(); }
+  assert.deepEqual(spent.calls.at(-3), ["arc", "increment", "unwait", "increment_one", "--for", "event", "--reason", "PR #41 is still red after 3 sessions: it goes to the owner"], "its event wait's clear says why");
   assert.deepEqual(spent.calls.at(-2), ["workspace", "let-go", "41", "--reason", "PR #41 still red after 3 sessions; released by the watcher"], "released before its owner wait");
   assert.deepEqual(spent.calls.at(-1).slice(0, 6), ["arc", "increment", "wait", "increment_one", "--for", "owner"]);
 });
@@ -1055,6 +1059,7 @@ test("4.32 · a pull request whose head is not on this repository, or whose head
   await watchOnce(b.options);
   assert.ok(!b.calls.some(([, , verb]) => verb === "close"), "the increment is not closed");
   assert.deepEqual(b.calls.map((args) => args.slice(0, 3)), [["arc", "increment", "unwait"], ["workspace", "let-go", "41"]]);
+  assert.deepEqual(b.calls[0].slice(6), ["--reason", "PR #41's head is not on storytree-ai/storytree"], "its event wait's clear says why");
   assert.deepEqual(await readdir(b.dir), [], "it is no longer watched");
   assert.equal(b.fixes.length, 0);
 
@@ -1088,6 +1093,7 @@ test("4.32 · a pull request whose head is not on this repository, or whose head
   assert.deepEqual(await readdir(adopt.dir), [], "a fork's is refused");
   assert.deepEqual(adopt.calls.filter(([, verb]) => verb !== "waits").map((args) => args.slice(0, 3)),
     [["arc", "increment", "unwait"], ["workspace", "let-go", "44"]], "its wait and held claims are let go");
+  assert.deepEqual(adopt.calls.find(([, , verb]) => verb === "unwait").slice(6), ["--reason", "PR #44 is not watched (PR #44's head is not on storytree-ai/storytree, or GitHub did not say where it is)"], "its wait's clear says why");
 });
 
 /** A job's log line as `gh api …/jobs/<id>/logs` gives it, led by its timestamp. */
@@ -1224,7 +1230,7 @@ test("4.39 · a pull request handed over before the project's repository cut-ove
   await watchOnce(b.options);
   assert.deepEqual(looked, [7], "only the one handed over at or after the cut-over is looked up");
   assert.deepEqual(b.calls.filter((args) => args.includes("increment_one") || args.includes("41")), [
-    ["arc", "increment", "unwait", "increment_one", "--for", "event"],
+    ["arc", "increment", "unwait", "increment_one", "--for", "event", "--reason", "PR #41 was handed over before the repository cut-over"],
     ["workspace", "let-go", "41", "--reason", "PR #41 was handed over before the repository cut-over; released by the watcher"],
   ]);
   assert.ok(b.lines.some((line) => /PR #41: handed over before the repository cut-over/.test(line)));
@@ -1273,7 +1279,7 @@ test("4.41 · a security failure starts no fix session and raises one owner ques
   assert.match(text, /PR #41/);
   assert.match(text, /CodeQL/);
   assert.doesNotMatch(text, /https?:/);
-  assert.ok(b.calls.some((args) => args.join(" ") === "arc increment unwait increment_one --for event"));
+  assert.ok(b.calls.some((args) => args.join(" ") === "arc increment unwait increment_one --for event --reason PR #41 failed a security check (CodeQL)"));
   assert.ok(b.calls.some((args) => args[0] === "workspace" && args[1] === "let-go" && args[2] === "41"));
   assert.ok(!b.calls.some((args) => args[1] === "red"), "no pr-red line");
   assert.deepEqual(await readdir(b.dir), [], "the hand-off is forgotten, so the next look raises nothing again");

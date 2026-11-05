@@ -485,7 +485,7 @@ export async function adoptRequests({ dir, storytree, viewOf, now = Date.now, sa
     const view = await viewOf(Number(pr)).catch(() => undefined);
     if (view === undefined) continue;
     try { ownBranch(pr, view); } catch (error) {
-      await storytree(["arc", "increment", "unwait", increment, "--for", "event"]).catch(() => "");
+      await storytree(["arc", "increment", "unwait", increment, "--for", "event", "--reason", `PR #${pr} is not watched (${error.message.replace(/^not handed over: /, "").split(";")[0]})`]).catch(() => "");
       await storytree(["workspace", "let-go", pr, "--reason", `PR #${pr} is not watched (${error.message.replace(/^not handed over: /, "").split(";")[0]}); released by the watcher`]).catch(() => "");
       known.set(Number(pr), null);
       say(`${new Date(now()).toISOString().replace(/\.\d{3}Z$/, "Z")} PR #${pr}: ${error.message}; ${increment} no longer waits on it`);
@@ -664,7 +664,7 @@ export async function watchOnce({ dir, look, storytree, cutover = async () => un
         + ` see \`pnpm gate\` green, push, and hand PR #${pr} to the watcher again.\n`);
       await tell(["arc", "increment", "edit", increment, "--body", `@${residue}`], at);
       await rm(residue, { force: true });
-      await tell(["arc", "increment", "unwait", increment, "--for", "event"], at);
+      await tell(["arc", "increment", "unwait", increment, "--for", "event", "--reason", `PR #${pr} went back on its arc: it ${why}`], at);
     }
     await letGo(record, `PR #${pr} ${why}; released by the watcher`);
     await ended(record, pull);
@@ -716,7 +716,7 @@ export async function watchOnce({ dir, look, storytree, cutover = async () => un
   for (const record of all) {
     const { pr, increment } = record, at = libraryOf(record);
     if (Date.parse(record.handedAt) < await cutoverOf(record.project)) {
-      if (!record.closed) await tell(["arc", "increment", "unwait", increment, "--for", "event"], record.project);
+      if (!record.closed) await tell(["arc", "increment", "unwait", increment, "--for", "event", "--reason", `PR #${pr} was handed over before the repository cut-over`], record.project);
       await letGo(record, `PR #${pr} was handed over before the repository cut-over; released by the watcher`);
       await ended(record);
       dated(`PR #${pr}: handed over before the repository cut-over, so its number is the old repository's: no longer watched, and ${increment} no longer waits on it`);
@@ -733,7 +733,7 @@ export async function watchOnce({ dir, look, storytree, cutover = async () => un
     }
     if (pull.state === "foreign") {
       // A fork's pull request, or one GitHub no longer says the head of, is never landed, closed on or fixed (4.32).
-      if (!record.closed) await tell(["arc", "increment", "unwait", increment, "--for", "event"], at);
+      if (!record.closed) await tell(["arc", "increment", "unwait", increment, "--for", "event", "--reason", `PR #${pr}'s head is not on ${repoOf(record)}`], at);
       await letGo(record, `PR #${pr}'s head is not on ${repoOf(record)}; released by the watcher`);
       await ended(record, pull);
       dated(`PR #${pr}: its head is not on ${repoOf(record)}, or GitHub did not say where it is: no longer watched, and ${increment} no longer waits on it`);
@@ -741,7 +741,8 @@ export async function watchOnce({ dir, look, storytree, cutover = async () => un
     }
     if (pull.state === "merged" || pull.state === "closed") {
       // A kept-open increment's merge is marked on its wait for the owner, never by rewriting his note, so the audit asks for it to be read again (4.47).
-      const marked = pull.state === "merged" && record.keepOpen ? ["--merged", String(pr)] : [];
+      const marked = pull.state === "merged" && record.keepOpen ? ["--merged", String(pr)]
+        : ["--reason", pull.state === "merged" ? `PR #${pr} merged` : `PR #${pr} closed without merging`];
       if (!record.closed) await tell(["arc", "increment", "unwait", increment, "--for", "event", ...marked], at);
       if (pull.state === "merged") {
         if (!record.keepOpen && !record.closed) await tell(["arc", "increment", "close", increment, "--disposition", "landed", "--pr", String(pr)], at);
@@ -761,7 +762,7 @@ export async function watchOnce({ dir, look, storytree, cutover = async () => un
       // the check, holding the increment while it is open, and no fix session, log or alert text (4.41).
       const checks = pull.checks.join(", ");
       const arc = (await tell(["library", "read", increment, "--field", "arc"], record.project)).trim() || RELEASE_ARC;
-      if (!record.closed) await tell(["arc", "increment", "unwait", increment, "--for", "event"], record.project);
+      if (!record.closed) await tell(["arc", "increment", "unwait", increment, "--for", "event", "--reason", `PR #${pr} failed a security check (${checks})`], record.project);
       await tell(["question", "new", "--arc", arc, "--title", `PR #${pr} failed a security check (${checks})`,
         "--stakes", `PR #${pr} cannot land until it passes, and the watcher starts no fix session for it, since a fix session's commits and pull request are public.`,
         "--statement", `PR #${pr} (${increment}) failed the security check ${checks}. What should be done about it?`,
@@ -856,7 +857,7 @@ export async function watchOnce({ dir, look, storytree, cutover = async () => un
           "--evidence", `PR #${pr} (${increment}) failed on: ${flaky.join("; ")}.`,
           "--impact", `PR #${pr} waits on the owner instead of landing; the Windows-flakes arc can take these tests.`, "--none-match"], at);
       }
-      await tell(["arc", "increment", "unwait", increment, "--for", "event"], at);
+      await tell(["arc", "increment", "unwait", increment, "--for", "event", "--reason", `PR #${pr} is still red after ${record.fixes.length} sessions: it goes to the owner`], at);
       await letGo(record, `PR #${pr} still red after ${record.fixes.length} sessions; released by the watcher`);
       await storytree(["arc", "increment", "wait", increment, "--for", "owner", "--note",
         `PR #${pr} is still red after ${record.fixes.length} sessions, the most the watcher starts for one pull request (${counted} fix sessions counted): ${pull.why}.`
@@ -871,7 +872,7 @@ export async function watchOnce({ dir, look, storytree, cutover = async () => un
     // Past the limit, the last review's verdict decides this red; with none, a review session is started (4.37).
     const verdict = spent && last?.review ? last.verdict : undefined;
     if (verdict?.kind === "owner") {
-      if (!record.closed) await tell(["arc", "increment", "unwait", increment, "--for", "event"], at);
+      if (!record.closed) await tell(["arc", "increment", "unwait", increment, "--for", "event", "--reason", `PR #${pr} waits on the owner's answer to ${verdict.question}`], at);
       await letGo(record, `PR #${pr} waits on the owner's answer to ${verdict.question}; released by the watcher`);
       await ended(record, pull);
       dated(`PR #${pr} still red: its review put it to the owner in ${verdict.question} (${verdict.summary})`);
@@ -889,7 +890,7 @@ export async function watchOnce({ dir, look, storytree, cutover = async () => un
     // Each red it handles is a pr-red activity line in the hand-off's project, written as its fix session starts (ADR-1064 D4, 4.25).
     await tell(["workspace", "red", String(pr), "--increment", increment, ...(pull.conflict ? ["--conflict"] : []),
       ...(pull.checks ?? []).flatMap((check) => ["--check", check])], record.project);
-    if (!record.closed) await tell(["arc", "increment", "unwait", increment, "--for", "event"], at);
+    if (!record.closed) await tell(["arc", "increment", "unwait", increment, "--for", "event", "--reason", `PR #${pr} went red: ${reviewing ? "a review" : "a fix"} session starts on it`], at);
     const n = record.fixes.length + 1;
     const fixLogs = record.fixes.filter((one) => one.log && !one.review).map((one) => one.log);
     // How far its branch is behind main, read at the head judged red; a reading that fails says nothing and stops nothing (4.38).

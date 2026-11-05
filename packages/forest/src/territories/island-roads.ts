@@ -17,6 +17,7 @@ import { LIBRARY_LAND, ontoCoast, openReach, type Link, type LinkDock } from "./
 import { landArea, type Coast, type Point, type TerritoryMap } from "./territories.js";
 import { roadNetwork, type BorderSeg, type Net, type NetLink } from "./road-network.js";
 import { insideOf } from "../view/territory-land.js";
+import { TERRITORY_WORKER_META } from "./kept-layout.js";
 
 /** A road segment: its way, the links it carries, and its width by how many (1, 2-3, 4-7, 8 or more). */
 export type RoadSegment = { readonly pts: readonly Point[]; readonly links: readonly string[]; readonly width: number };
@@ -58,6 +59,95 @@ export function islandRoads(map: TerritoryMap, links: readonly Link[], docks: re
   const roads = route(map, links, docks, names);
   routed.set(map, { key, roads });
   return roads;
+}
+
+/** What routing an island's roads is asked: the island as drawn, its links, its docks and its names. */
+export type RoadsAsk = { readonly map: TerritoryMap; readonly links: readonly Link[]; readonly docks: readonly LinkDock[]; readonly names: readonly NameAnchor[] };
+/** What the worker posts back for a `{ roads }` ask: the roads, or why routing failed. */
+export type RoadsAnswer = { roads: IslandRoads } | { error: string };
+/** Routes an island's roads somewhere, answering what `islandRoads` would; an aborted signal means the island was overtaken. */
+export type IslandRouter = (ask: RoadsAsk, signal: AbortSignal) => Promise<IslandRoads>;
+
+/** The roads already routed for `map` with these links, docks and names, if any, routing nothing. */
+export function knownIslandRoads(map: TerritoryMap, links: readonly Link[], docks: readonly LinkDock[], names: readonly NameAnchor[]): IslandRoads | undefined {
+  const known = routed.get(map);
+  return known?.key === JSON.stringify([links, docks, names]) ? known.roads : undefined;
+}
+
+/** Routes one island's roads, as the page would: what the worker answers a `{ roads }` ask with. */
+export function answerRoads(ask: RoadsAsk): RoadsAnswer {
+  try {
+    return { roads: route(ask.map, ask.links, ask.docks, ask.names) };
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : String(error) };
+  }
+}
+
+/**
+ * The selected island's roads (3.82): those already routed for it at once, or undefined while `router` routes them
+ * off the page, so its territories are drawn without waiting; `routedNow` hears them when they arrive, and they are kept
+ * for the map, so the next ask has them at once. Nothing is heard once `signal` aborts.
+ */
+export function islandRoadsWhenRouted(ask: RoadsAsk, router: IslandRouter, signal: AbortSignal, routedNow: (roads: IslandRoads) => void): IslandRoads | undefined {
+  const known = knownIslandRoads(ask.map, ask.links, ask.docks, ask.names);
+  if (known !== undefined) return known;
+  router(ask, signal).then((roads) => {
+    if (signal.aborted) return;
+    routed.set(ask.map, { key: JSON.stringify([ask.links, ask.docks, ask.names]), roads });
+    routedNow(roads);
+  }, (error: unknown) => {
+    if (!signal.aborted) console.error("forest territories: routing the island's roads failed", error);
+  });
+  return undefined;
+}
+
+/** Routes on the page itself, once the territories have had a frame to be drawn: for a page that offers no worker. */
+export const routeIslandOnThePage: IslandRouter = async (ask, signal) => {
+  await new Promise<void>((resolve) => (globalThis.requestAnimationFrame ?? setTimeout)(() => setTimeout(resolve, 0)));
+  if (signal.aborted) throw signal.reason;
+  return islandRoads(ask.map, ask.links, ask.docks, ask.names);
+};
+
+/** The part of a Worker the router uses. */
+export interface RoadsWorker {
+  postMessage(message: { roads: RoadsAsk }): void;
+  terminate(): void;
+  onmessage: ((event: { data: RoadsAnswer }) => void) | null;
+  onerror: ((event: unknown) => void) | null;
+}
+
+/** Routes in a fresh worker from `start`, ended when it answers or is overtaken. A worker that cannot start or fails to
+ * load leaves the routing to `fallback`, and is logged; one that answers an error fails it. */
+export function routeIslandInWorker(start: () => RoadsWorker, fallback: IslandRouter = routeIslandOnThePage): IslandRouter {
+  return (ask, signal) => {
+    let worker: RoadsWorker;
+    try { worker = start(); } catch (error) {
+      console.error("forest territories: the territory worker could not start; routing the island's roads on the page", error);
+      return fallback(ask, signal);
+    }
+    return new Promise<IslandRoads>((resolve, reject) => {
+      const end = () => { worker.terminate(); signal.removeEventListener("abort", overtaken); };
+      const overtaken = () => { end(); reject(signal.reason); };
+      signal.addEventListener("abort", overtaken);
+      worker.onmessage = ({ data }) => {
+        end();
+        if ("roads" in data) resolve(data.roads);
+        else reject(new Error(data.error));
+      };
+      worker.onerror = (event) => {
+        console.error("forest territories: the territory worker failed to load; routing the island's roads on the page", event);
+        end();
+        fallback(ask, signal).then(resolve, reject);
+      };
+      worker.postMessage({ roads: ask });
+    });
+  };
+}
+
+/** The router a page offers: the territory worker it names (TERRITORY_WORKER_META), else routing on the page. */
+export function pageIslandRouter(page: Pick<Document, "querySelector"> | undefined = (globalThis as { document?: Document }).document): IslandRouter {
+  const script = page?.querySelector(`meta[name="${TERRITORY_WORKER_META}"]`)?.getAttribute("content");
+  return script ? routeIslandInWorker(() => new Worker(script) as unknown as RoadsWorker) : routeIslandOnThePage;
 }
 
 /** What the territory search scores an arrangement by (3.80), as the mock's tool measured its network, in The library's

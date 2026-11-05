@@ -11,7 +11,7 @@ import { SessionIslandEmphasis } from "./session-emphasis.js";
 import { lightTerritories, territoryLand } from "./territory-land.js";
 import { islandRoadMarks, landFill, lightRoute, type RoutePick } from "./island-roads.js";
 import { capabilityPlates } from "./nameplates.js";
-import { islandRoads } from "../territories/island-roads.js";
+import { islandRoadsWhenRouted, knownIslandRoads, pageIslandRouter, type IslandRoads, type RoadsAsk } from "../territories/island-roads.js";
 import { islandRelief } from "../territories/island-relief.js";
 import { islandReliefMarks } from "./island-relief.js";
 import { ClaimMarks } from "./claim-flag.js";
@@ -278,7 +278,17 @@ function Territories({ story, land: given, coast: givenCoast, links, docks: give
   const map = useMemo(() => islandLayout(story, land.territories, coast, links, docks), [story, land, coast, links, docks, kept]);
   useEffect(() => { if (docks !== undefined) searchIsland(story, { shares: land.territories, coast, links, docks }, pageTerritorySearcher()); }, [story, land, coast, links, docks]);
   // ADR-1236 D1: the selected island's links are one shared road network, with a gate wherever a road crosses a border.
-  const roads = useMemo(() => docks === undefined ? undefined : islandRoads(map, links, docks, capabilityPlates(map)), [map, links, docks]);
+  // 3.82: routed off the page, so the territories draw at once and the roads when they arrive.
+  const [arrived, setArrived] = useState<{ ask: RoadsAsk; roads: IslandRoads }>();
+  const ask = useMemo((): RoadsAsk | undefined => docks === undefined ? undefined : { map, links, docks, names: capabilityPlates(map) }, [map, links, docks]);
+  const known = useMemo(() => ask === undefined ? undefined : knownIslandRoads(ask.map, ask.links, ask.docks, ask.names), [ask]);
+  useEffect(() => {
+    if (ask === undefined || known !== undefined) return;
+    const overtaken = new AbortController();
+    islandRoadsWhenRouted(ask, pageIslandRouter(), overtaken.signal, (roads) => setArrived({ ask, roads }));
+    return () => overtaken.abort();
+  }, [ask, known]);
+  const roads = known ?? (arrived !== undefined && arrived.ask === ask ? arrived.roads : undefined);
   // 3.78: and every territory a plateau above its open land, a ramp where a road climbs onto one.
   const relief = useMemo(() => roads === undefined ? undefined : islandRelief(map, roads), [map, roads]);
   const onLand = useMemo(() => onIslandSurface(radius, TERRITORY_LIFT + (relief?.height ?? 0)), [radius, relief]);

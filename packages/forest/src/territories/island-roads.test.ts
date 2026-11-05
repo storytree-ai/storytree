@@ -5,7 +5,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { islandRoads, type IslandRoads } from "./island-roads.js";
+import { answerRoads, islandRoads, islandRoadsWhenRouted, pageIslandRouter, routeIslandInWorker, type IslandRoads, type RoadsAsk, type RoadsWorker } from "./island-roads.js";
 import { linkLayout, LIBRARY_LAND } from "./link-layout.js";
 import { type Coast, type Point, type TerritoryMap } from "./territories.js";
 
@@ -158,4 +158,68 @@ test("3.79 each settlement's whole symbol stands clear of every name and every b
       for (const g of roads.gates) assert.ok(!inside(g.at), `no gate under ${id}'s symbol`);
     }
   }
+});
+
+const fresh = (): RoadsAsk => {
+  const coast = round(LIBRARY_RADIUS), map = linkLayout(shares, coast, links, docks(LIBRARY_RADIUS));
+  return { map, links, docks: docks(LIBRARY_RADIUS), names: names(map) };
+};
+
+test("3.82 selecting an island draws its territories without waiting on its roads: the roads arrive when routed, and are had at once after", async () => {
+  const ask = fresh();
+  let answer: (roads: IslandRoads) => void = () => {};
+  const asked: RoadsAsk[] = [];
+  const router = (a: RoadsAsk) => { asked.push(a); return new Promise<IslandRoads>((resolve) => { answer = resolve; }); };
+  const heard: IslandRoads[] = [];
+  assert.equal(islandRoadsWhenRouted(ask, router, new AbortController().signal, (r) => heard.push(r)), undefined, "nothing is routed on the page while it is drawn");
+  assert.deepEqual(asked, [ask], "the router is asked for the island");
+  const roads = answerRoads(ask);
+  assert.ok("roads" in roads);
+  answer(roads.roads);
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.deepEqual(heard, [roads.roads], "the roads are heard when they arrive");
+  assert.equal(islandRoadsWhenRouted(ask, router, new AbortController().signal, () => assert.fail("routed again")), roads.roads, "the next ask has them at once");
+  assert.equal(asked.length, 1);
+  const overtaken = new AbortController(), other = fresh();
+  assert.equal(islandRoadsWhenRouted(other, router, overtaken.signal, () => assert.fail("an overtaken island's roads are heard")), undefined);
+  overtaken.abort();
+  answer(roads.roads);
+  await new Promise((resolve) => setImmediate(resolve));
+});
+
+test("3.82 the territory worker routes the island's roads as the page would, in a form it can post", () => {
+  const ask = fresh(), answered = answerRoads(ask);
+  assert.deepEqual(answered, { roads: islandRoads(fresh().map, ask.links, ask.docks, ask.names) });
+  assert.deepEqual(structuredClone(answered), answered, "the answer survives the post back to the page");
+  const failed = answerRoads({ ...ask, map: { ...ask.map, cells: null as unknown as TerritoryMap["cells"] } });
+  assert.ok("error" in failed && failed.error.length > 0, "it says what failed");
+});
+
+test("3.82 the roads route in the territory worker the page names, else on the page; a worker that fails to load leaves them to the page", async () => {
+  const started: string[] = [], posted: unknown[] = [];
+  const was = (globalThis as { Worker?: unknown }).Worker;
+  (globalThis as { Worker?: unknown }).Worker = class { constructor(script: string) { started.push(script); } postMessage(m: unknown) { posted.push(m); } terminate() {} };
+  const ask = fresh();
+  try {
+    const router = pageIslandRouter({ querySelector: (q: string) => (q === 'meta[name="storytree-territory-worker"]' ? { getAttribute: () => "territory-worker.js" } : null) } as unknown as Pick<Document, "querySelector">);
+    void router(ask, new AbortController().signal);
+    assert.deepEqual(started, ["territory-worker.js"]);
+    assert.deepEqual(posted, [{ roads: ask }]);
+  } finally { (globalThis as { Worker?: unknown }).Worker = was; }
+  const onPage = await pageIslandRouter({ querySelector: () => null })(ask, new AbortController().signal);
+  assert.deepEqual(onPage, islandRoads(ask.map, ask.links, ask.docks, ask.names), "a page with no worker routes them itself, after a frame");
+  const ended: string[] = [];
+  const worker = (then: (w: RoadsWorker) => void): RoadsWorker => {
+    const w: RoadsWorker = { postMessage() { queueMicrotask(() => then(w)); }, terminate() { ended.push("ended"); }, onmessage: null, onerror: null };
+    return w;
+  };
+  const answered = await routeIslandInWorker(() => worker((w) => w.onmessage?.({ data: { roads: onPage } })))(ask, new AbortController().signal);
+  assert.equal(answered, onPage);
+  const fellBack = await routeIslandInWorker(() => worker((w) => w.onerror?.({})), async () => onPage)(ask, new AbortController().signal);
+  assert.equal(fellBack, onPage, "a worker that fails to load leaves the routing to the page");
+  await assert.rejects(routeIslandInWorker(() => worker((w) => w.onmessage?.({ data: { error: "no coast" } })))(ask, new AbortController().signal), /no coast/);
+  const overtaken = new AbortController(), running = routeIslandInWorker(() => worker(() => {}))(ask, overtaken.signal);
+  overtaken.abort(new Error("overtaken"));
+  await assert.rejects(running, /overtaken/);
+  assert.equal(ended.length, 4, "every worker is ended");
 });

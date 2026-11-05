@@ -94,7 +94,7 @@ await runCapture({
       await until(page, 'the globe still', () => window.storytreeGlobe.still());
       await page.locator('[data-rail-tab="arcs"]').click().catch(() => {});
       await page.locator('[data-arc-select="arc_tree"]').click();
-      // The rings follow the open card, so it stays open in the picture.
+      // The rings follow the selected arc, so it stays selected in the picture.
       await until(page, 'the arc\'s rings', count => { let rings = 0; window.__globe.scene.traverse(o => { if (o.name.startsWith('open-work-ring:')) rings++; }); return rings >= count; }, RINGED.length);
       await settle(page, 12);
     },

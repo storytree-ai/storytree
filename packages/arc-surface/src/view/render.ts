@@ -2,7 +2,7 @@
 import type { NoteWait } from "@storytree/library";
 import { pennantOutline, quietColour, sessionColour } from "@storytree/session-management/claim-mark";
 import type { BoardAgent } from "../agents/agents.js";
-import { briefing, incrementRows, type Briefing, type IncrementRow, type QuestionReading } from "../briefing/briefing.js";
+import { briefing, incrementRows, type IncrementRow, type QuestionReading } from "../briefing/briefing.js";
 import { ownerCount, ownerWaits, type Bar, type BoardView, type Lane, type LaneNoteWait } from "../board/board.js";
 import { queueRun, type ArcQueue, type NamedWait, type WorkName } from "../waits/waits.js";
 
@@ -84,7 +84,21 @@ function renderMarks(lane: Lane): string {
     + mark("owner", `<span class="arc-mark-icon" aria-hidden="true">?</span>`, ownerCount(lane), [...questions.map(({ fields }) => `waiting on you: ${fields.title}`), ...owners.map(laneNoteText)]);
   return marks ? `<span class="arc-marks">${marks}</span>` : "";
 }
-/** What an arc's caret opens under its row (3.21, ADR-1222): its questions, then its increments with the landed folded, then its queued arcs; never its intent. */
+const plural = (count: number, word: string) => `${count} ${word}${count === 1 ? "" : "s"}`;
+/**
+ * What an arc's row opens under it (3.21, 5.1): its intent folded behind one line with the copy-title button beside it, then its
+ * questions, each unfolding its reading in place, then its increments with the landed folded. Fold keys start with `key`.
+ */
+function renderExpansion(lane: Lane, key: string): string {
+  const detail = briefing(lane.view.arc.fields.intent, lane.view.questions, { parked: lane.view.state === "parked" });
+  const rows = incrementRows(lane);
+  const unfolded = rows.filter(({ landed }) => !landed), landed = rows.filter(({ landed }) => landed);
+  return `<div class="arc-under-head"><details class="arc-fold arc-intent-fold" data-fold-key="${escape(`${key}:intent`)}"><summary>Intent</summary><p class="arc-prose arc-intent">${escape(detail.intent)}</p></details>`
+    + `<button type="button" class="arc-copy" data-copy-arc-title="${escape(lane.id)}" aria-label="${escape(`Copy the title of ${lane.title}`)}" title="Copy title">${copyIcon}</button></div>`
+    + `${detail.questions.length ? `${detail.parkedNote ? `<p class="arc-parked-note">${escape(detail.parkedNote)}</p>` : ""}<div class="arc-table arc-rail-questions">${detail.questions.map((question) => renderQuestionRow(key, question)).join("")}</div>` : ""}`
+    + `${rows.length ? `<div class="arc-table arc-rail-increments">${unfolded.map((row) => renderIncrementRow(key, row)).join("")}${landed.length ? `<details class="arc-fold arc-landed-fold" data-fold-key="${escape(`${key}:landed`)}"><summary>${landed.length} landed</summary>${landed.map((row) => renderIncrementRow(key, row)).join("")}</details>` : ""}</div>` : ""}`;
+}
+/** An arc's row and what its caret, or its click, opens under it (3.21, ADR-1222): its expansion, then its queued arcs, the selected one's expansion under them (4.1). */
 function renderQueue(queue: ArcQueue, lanes: ReadonlyMap<string, Lane>, opened: string | undefined, expanded: ReadonlySet<string>, perRow: number | undefined): string {
   const lane = lanes.get(queue.arc.id)!;
   const open = expanded.has(lane.id);
@@ -95,27 +109,22 @@ function renderQueue(queue: ArcQueue, lanes: ReadonlyMap<string, Lane>, opened: 
     const title = [queued.title, laneText(queued), ...queued.bars.map(barText)].join("\n");
     return `${index ? `<span aria-hidden="true">${run.shape === "chain" ? "→" : "·"}</span>` : ""}<button type="button" class="arc-queue-chip" data-arc-id="${escape(chip.id)}" data-arc-select="${escape(chip.id)}" aria-pressed="${opened === chip.id}" aria-label="${escape(`${chip.title} — queued behind ${behind}${chip.waitsOn.length ? `, waits on ${chip.waitsOn.join(", ")}` : ""}${chip.hidden ? `, holds up ${chip.hidden} more` : ""}`)}" title="${escape(title)}"><span class="arc-queue-title">${escape(chip.title)}</span>${chip.hidden ? `<span class="arc-queue-more">+${chip.hidden}</span>` : ""}</button>${chip.otherWaits ? `<span class="arc-other-waits">+${chip.otherWaits} other wait${chip.otherWaits === 1 ? "" : "s"}</span>` : ""}`;
   });
-  const questions = lane.view.questions.length ? briefing(lane.view.arc.fields.intent, lane.view.questions).questions : [];
-  const rows = incrementRows(lane);
-  const plural = (count: number, word: string) => `${count} ${word}${count === 1 ? "" : "s"}`;
-  const holds = [...(questions.length ? [plural(questions.length, "question")] : []), ...(rows.length ? [plural(rows.length, "increment")] : []), ...(queue.queued.length ? [plural(queue.queued.length, "queued arc")] : [])];
+  const chosen = run.chips.some(({ id }) => id === opened) ? lanes.get(opened!) : undefined;
+  const holds = ["the intent", ...(lane.view.questions.length ? [plural(lane.view.questions.length, "question")] : []), ...(incrementRows(lane).length ? [plural(incrementRows(lane).length, "increment")] : []), ...(queue.queued.length ? [plural(queue.queued.length, "queued arc")] : [])];
   const caretLabel = `${open ? "Hide" : "Show"} ${holds.join(", ")} under ${lane.title}`;
-  const unfolded = rows.filter(({ landed }) => !landed), landed = rows.filter(({ landed }) => landed);
-  const key = `rail:${lane.id}`;
-  const under = `${questions.length ? `<div class="arc-table arc-rail-questions">${questions.map((question) => renderQuestionRow(question, lane.id)).join("")}</div>` : ""}`
-    + `${rows.length ? `<div class="arc-table arc-rail-increments">${unfolded.map((row) => renderIncrementRow(key, row)).join("")}${landed.length ? `<details class="arc-fold arc-landed-fold" data-fold-key="${escape(`${key}:landed`)}"><summary>${landed.length} landed</summary>${landed.map((row) => renderIncrementRow(key, row)).join("")}</details>` : ""}</div>` : ""}`
-    + `${queue.queued.length ? `<div class="arc-queue" data-queue-shape="${run.shape}"><span aria-hidden="true">→</span>${chips.join("")}</div>` : ""}`;
+  const under = renderExpansion(lane, `rail:${lane.id}`)
+    + `${queue.queued.length ? `<div class="arc-queue" data-queue-shape="${run.shape}"><span aria-hidden="true">→</span>${chips.join("")}</div>` : ""}`
+    + `${chosen ? `<div class="arc-queued-under" role="group" aria-label="${escape(chosen.title)}">${renderExpansion(chosen, `rail:${chosen.id}`)}</div>` : ""}`;
   return `<section class="arc-row" data-arc-id="${escape(lane.id)}"><div class="arc-lane-line">
-    <span class="arc-caret-slot">${holds.length ? `<button type="button" class="arc-caret" data-arc-queue="${escape(lane.id)}" aria-expanded="${open}" aria-controls="arc-under-${escape(lane.id)}" aria-label="${escape(caretLabel)}" title="${escape(caretLabel)}"><span aria-hidden="true">${open ? "▾" : "▸"}</span></button>` : ""}</span>
-    <button type="button" class="arc-lane" data-arc-select="${escape(lane.id)}" aria-pressed="${opened === lane.id}">
+    <span class="arc-caret-slot"><button type="button" class="arc-caret" data-arc-queue="${escape(lane.id)}" aria-expanded="${open}" aria-controls="arc-under-${escape(lane.id)}" aria-label="${escape(caretLabel)}" title="${escape(caretLabel)}"><span aria-hidden="true">${open ? "▾" : "▸"}</span></button></span>
+    <button type="button" class="arc-lane" data-arc-select="${escape(lane.id)}" aria-pressed="${opened === lane.id}" aria-expanded="${open}">
       <span class="arc-lane-head"><span class="arc-chip arc-state-${lane.state}" title="${escape(chipText(lane))}">${escape(lane.chip)}</span>${lane.priority === undefined ? "" : `<span class="arc-chip arc-priority" title="Priority ${lane.priority}">P${lane.priority}</span>`}<span class="arc-title" title="${escape(lane.title)}">${escape(lane.title)}</span>${renderMarks(lane)}</span>
       <span class="arc-track${lane.bars.some(({ agents }) => agents.length) ? " arc-flagged" : ""}"><span class="arc-bars" role="group" aria-label="${escape(`Increments: ${lane.count}`)}">${renderStrip(lane.bars, perRow)}</span></span>
-    </button></div>${open && holds.length ? `<div class="arc-under" id="arc-under-${escape(lane.id)}">${under}</div>` : ""}</section>`;
+    </button></div>${open ? `<div class="arc-under" id="arc-under-${escape(lane.id)}">${under}</div>` : ""}</section>`;
 }
-/** One question, one row: its title and its status; the row opens its reading (ADR-0980 D5), under an arc's row opening that arc's card on it (3.21). */
-function renderQuestionRow(question: QuestionReading, arc?: string): string {
-  const opens = arc ? `data-rail-question="${escape(question.id)}" data-question-arc="${escape(arc)}"` : `data-question-open="${escape(question.id)}"`;
-  return `<button type="button" class="arc-row-button arc-question-row" ${opens}><span class="arc-row-title" title="${escape(question.title)}">${escape(question.title)}</span><span class="arc-status-chip arc-status-${question.status}">${question.status}</span></button>`;
+/** One question, one row: its title and its status, unfolding in place to its reading (5.2, ADR-0980 D5). */
+function renderQuestionRow(key: string, question: QuestionReading): string {
+  return `<details class="arc-question-row" data-rail-question="${escape(question.id)}" data-fold-key="${escape(`${key}:question:${question.id}`)}"><summary><span class="arc-row-title" title="${escape(question.title)}">${escape(question.title)}</span><span class="arc-status-chip arc-status-${question.status}">${question.status}</span></summary>${renderQuestion(key, question)}</details>`;
 }
 const detailList = (label: string, lines: readonly string[]) => lines.length ? `<dt>${label}</dt>${lines.map((line) => `<dd>${escape(line)}</dd>`).join("")}` : "";
 /** One increment, one row that opens in place to its objective and waits, never its planning body. */
@@ -124,25 +133,16 @@ function renderIncrementRow(arc: string, row: IncrementRow): string {
   return `<details class="arc-increment" data-fold-key="${escape(`${arc}:increment:${row.id}`)}"><summary><span class="arc-swatch arc-${row.color}" aria-hidden="true"></span><span class="arc-increment-title" title="${escape(row.title)}">${escape(row.title)}</span><span class="arc-increment-cell">${row.chips.map(({ kind, text }) => `<span class="arc-status-chip arc-wait-${kind}">${escape(text)}</span>`).join("")}</span></summary>
     <dl class="arc-increment-detail">${detailList("Objective", detail.objective ? [detail.objective] : [])}${detailList("Waits on", detail.waits)}${detailList("Behind your questions", detail.questionsBehind)}${detailList("Holds up", detail.holdsUp)}${detailList("Held by", detail.heldBy)}${detailList("Closed", detail.close ? [detail.close] : [])}</dl></details>`;
 }
-/** Two overlapping sheets: the briefing's copy-title control (3.20). */
+/** Two overlapping sheets: the expansion's copy-title control (3.20). */
 export const copyIcon = `<svg viewBox="0 0 12 12" width="12" height="12" aria-hidden="true"><rect x="3.5" y="3.5" width="7" height="7" rx="1" fill="none" stroke="currentColor"/><path d="M8.5 1.5h-6a1 1 0 0 0-1 1v6" fill="none" stroke="currentColor"/></svg>`;
-/** The arc's card: rows you scan, each a door into its prose (ADR-0980 D5, opened only by a click as narrowed by ADR-1219). */
-function renderPanel(lane: Lane, detail: Briefing): string {
-  const rows = incrementRows(lane);
-  const open = rows.filter(({ landed }) => !landed), landed = rows.filter(({ landed }) => landed);
-  const fold = (kind: string, label: string, inner: string) => `<details class="arc-fold arc-${kind}-fold" data-fold-key="${escape(`${lane.id}:${kind}`)}"><summary>${label}</summary>${inner}</details>`;
-  return `<h3><span class="arc-briefing-title">${escape(lane.title)}</span><button type="button" class="arc-copy" data-copy-arc-title aria-label="Copy this arc's title" title="Copy title">${copyIcon}</button></h3>${fold("intent", "Intent", `<p class="arc-prose arc-intent">${escape(detail.intent)}</p>`)}
-    ${detail.questions.length ? `<h4>Questions${detail.parkedNote ? ` <small class="arc-parked-note">${escape(detail.parkedNote)}</small>` : ""}</h4><div class="arc-table">${detail.questions.map((question) => renderQuestionRow(question)).join("")}</div>` : ""}
-    ${rows.length ? `<h4>Increments</h4><div class="arc-table">${open.map((row) => renderIncrementRow(lane.id, row)).join("")}${landed.length ? fold("landed", `${landed.length} landed`, landed.map((row) => renderIncrementRow(lane.id, row)).join("")) : ""}</div>` : ""}`;
-}
-function renderQuestion(question: QuestionReading): string {
-  return `${question.answer ? `<div class="arc-answer"><strong>Answer</strong><p>${escape(question.answer)}</p></div>` : ""}
-    <article class="arc-question" data-question-id="${escape(question.id)}"><div class="arc-reading-head"><button type="button" data-question-back>← back to questions</button>${question.words ? `<small>${question.words} words</small>` : ""}</div><h3>${escape(question.title)}</h3>
+/** A question's full reading, unfolded under its row: its answer first when settled (5.3), then statement first (5.2). */
+function renderQuestion(key: string, question: QuestionReading): string {
+  return `<article class="arc-question" data-question-id="${escape(question.id)}">${question.answer ? `<div class="arc-answer"><strong>Answer</strong><p>${escape(question.answer)}</p></div>` : ""}${question.words ? `<small class="arc-words">${question.words} words</small>` : ""}
     ${question.lead.map(({ label, text }) => `<h4>${label}</h4><p class="arc-prose">${escape(text)}</p>`).join("")}
     ${question.diagram ? `<h4>Diagram</h4><pre class="arc-diagram">${escape(question.diagram)}</pre>` : ""}
     ${question.options.length ? "<h4>Options</h4>" : ""}${question.options.map((option) => `<div class="arc-option"><p>${escape(option.summary)}</p>${option.for || option.against ? `<dl><dt>For</dt><dd>${escape(option.for)}</dd><dt>Against</dt><dd>${escape(option.against)}</dd></dl>` : ""}</div>`).join("")}
     ${question.recommendation ? `<h4>${question.recommendation.label}</h4><p class="arc-prose">${escape(question.recommendation.text)}</p>` : ""}
-    ${question.folds.map(({ label, text, words }) => `<details class="arc-fold" data-fold-key="${escape(question.id)}:${label}"><summary>${label} · ${words} words</summary><p class="arc-prose">${escape(text)}</p></details>`).join("")}</article>`;
+    ${question.folds.map(({ label, text, words }) => `<details class="arc-fold" data-fold-key="${escape(`${key}:question:${question.id}:${label}`)}"><summary>${label} · ${words} words</summary><p class="arc-prose">${escape(text)}</p></details>`).join("")}</article>`;
 }
 
 const PRESETS = [["today", "Today"], ["yesterday", "Yesterday"], ["week", "7 days"]] as const;
@@ -154,8 +154,8 @@ function renderClosedRange(closed: NonNullable<BoardView["closed"]>): string {
 }
 
 /**
- * HTML is a reading: every stored title and field is escaped before entering the page. The lanes alone: an arc opened by its
- * click is pressed. `perRow` is how many ovals one row of a strip holds, as the page measured it; unmeasured, strips are drawn whole.
+ * HTML is a reading: every stored title and field is escaped before entering the page. The arc selected by its row's click is
+ * pressed, and the arcs in `expanded` show what is under their rows. `perRow` is how many ovals one row of a strip holds, as the page measured it; unmeasured, strips are drawn whole.
  */
 export function renderBoard(board: BoardView, opened?: string, expanded: ReadonlySet<string> = new Set(), perRow?: number): string {
   const lanes = new Map(board.lanes.map((lane) => [lane.id, lane]));
@@ -163,12 +163,4 @@ export function renderBoard(board: BoardView, opened?: string, expanded: Readonl
     ${board.closed ? renderClosedRange(board.closed) : ""}
     <div class="arc-lanes" aria-label="Arcs">${board.lanes.length ? board.queues.map((queue) => renderQueue(queue, lanes, lanes.has(opened ?? "") ? opened : undefined, expanded, perRow)).join("")
       : board.closed?.reading ? `<p class="arc-empty" role="status">Reading closed arcs…</p>` : `<p class="arc-empty">No ${board.closed ? "arcs closed in this range" : `${board.scope} arcs`}.</p>`}</div>`;
-}
-/** The card an arc's click opens over the map (5.1): its briefing, or the question opened in it; empty when that arc is not on the board. */
-export function renderCard(board: BoardView, opened: string, openedQuestion?: string): string {
-  const lane = board.lanes.find(({ id }) => id === opened);
-  if (!lane) return "";
-  const detail = briefing(lane.view.arc.fields.intent, lane.view.questions, { parked: lane.view.state === "parked" });
-  const question = detail.questions.find(({ id }) => id === openedQuestion);
-  return question ? renderQuestion(question) : renderPanel(lane, detail);
 }

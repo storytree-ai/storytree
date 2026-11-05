@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { FieldsOf, Line } from "@storytree/library";
 import { boardView } from "../board/board.js";
-import { renderBoard, renderCard } from "../view/render.js";
+import { renderBoard } from "../view/render.js";
 import { record } from "../testing/records.js";
 import { briefing, incrementRows, questionReading } from "./briefing.js";
 
@@ -22,12 +22,16 @@ test("5.1 and 5.3 briefing starts with intent, lists every question in one list,
   assert.equal(read.parkedNote, undefined);
 });
 
-test("5.4 a parked arc's briefing says once that its open questions are parked with the arc", () => {
+test("5.4 a parked arc's briefing says once that its open questions are parked with the arc, above its questions in the rail", () => {
   const read = briefing("Intent", [question], { parked: true });
   assert.deepEqual(read.questions.map(({ id }) => id), ["q"]);
   assert.match(read.parkedNote ?? "", /parked with the arc/i);
   assert.equal(briefing("Intent", [question], { parked: false }).parkedNote, undefined);
   assert.equal(briefing("Intent", [], { parked: true }).parkedNote, undefined);
+  const parked = { arc: record("a", "arc", { title: "Arc a", intent: "a", endState: "Done" }), state: "parked" as const, increments: [], questions: [record("q", "question", fields)] };
+  const under = renderBoard(boardView({ arcs: [parked], waits: {}, heldOn: {} }, [], new Date(), "parked"), undefined, new Set(["a"]));
+  assert.equal(under.match(/arc-parked-note/g)?.length, 1);
+  assert.ok(under.indexOf("arc-parked-note") < under.indexOf("arc-rail-questions"));
 });
 
 test("5.2 a question is read statement first with trade-offs, a non-binding recommendation and measured folds; unstructured options survive", () => {
@@ -61,8 +65,9 @@ test("5.3 a settled question published with only its title and answer opens on t
   // A saved reading publishes a settled question's title and answer alone (website 3.14), so its other fields are absent.
   const kept = record("kept", "question", { arc: "a", title: "Which way?", lifecycle: "settled", answer: "The short way" } as FieldsOf<"question">);
   const arc = { arc: record("a", "arc", { title: "Arc a", intent: "a", endState: "Done" }), state: "active" as const, increments: [], questions: [kept] };
-  const reading = renderCard(boardView({ arcs: [arc], waits: {}, heldOn: {} }, [], new Date()), "a", "kept");
-  assert.match(reading, /arc-answer.*?The short way.*?<h3>Which way\?<\/h3>/s);
+  const under = renderBoard(boardView({ arcs: [arc], waits: {}, heldOn: {} }, [], new Date()), undefined, new Set(["a"]));
+  const reading = under.match(/<details class="arc-question-row" data-rail-question="kept"[^]*?<\/article><\/details>/)![0];
+  assert.match(reading, /<summary>.*?Which way\?.*?settled.*?<\/summary><article[^>]*><div class="arc-answer">.*?The short way/s);
   assert.doesNotMatch(reading, /<h4>|diagram stored|arc-fold|\d+ words|undefined/i);
 });
 

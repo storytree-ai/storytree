@@ -8,7 +8,7 @@ import { mountArcSurface } from "./index.js";
 
 // happy-dom proves the mounted controls and focus calls; browser captures prove geometry
 // and native keyboard activation.
-test("3.1 · the arcs fill the rail's tab and keep reading; an arc's card opens only on its row's click, and its row, Close or Escape closes it, returning focus to the row", async (t) => {
+test("3.1 · the arcs fill the rail's tab and keep reading; an arc's row click selects it and opens its expansion under the row, the selected row's click closes it, and nothing opens over the map", async (t) => {
   const page = new Window({ url: "https://storytree.test" });
   const document = page.document as unknown as Document;
   let surface: ReturnType<typeof mountArcSurface> | undefined;
@@ -46,35 +46,26 @@ test("3.1 · the arcs fill the rail's tab and keep reading; an arc's card opens 
     } },
   });
   const rail = tab.querySelector<HTMLElement>(".arc-rail")!;
-  const card = tab.querySelector<HTMLElement>(".arc-card")!;
   assert.equal(rail.querySelector("[role=status]")?.textContent, "Reading arcs…", "it reads as soon as it is mounted, with nothing to press");
   answer([{ arc, increments: [], questions: [asking("Which vendor?"), asking("Which day?")], state: "active" }, { arc: other, increments: [], questions: [], state: "active" }]);
   await settle();
   assert.equal(rail.dataset.arcState, "ready");
   const row = (id: string) => rail.querySelector<HTMLButtonElement>(`[data-arc-select="${id}"]`)!;
   assert.match(row("arc_1").textContent ?? "", /Ship the board/);
-  assert.equal(card.hidden, true, "no arc's card opens on its own");
+  assert.ok(rail.querySelector(".arc-under") === null, "no arc opens on its own");
   assert.deepEqual(waiting, [2], "the Arcs tab's badge hears what waits on the owner");
 
+  const under = (id: string) => rail.querySelector<HTMLElement>(`.arc-row[data-arc-id="${id}"] .arc-under`);
   row("arc_1").click();
-  assert.equal(card.hidden, false);
-  assert.match(card.querySelector(".arc-briefing h3")?.textContent ?? "", /Ship the board/);
+  assert.match(under("arc_1")?.textContent ?? "", /See the work.*Which vendor\?/s, "its intent and questions open under its row");
   assert.equal(row("arc_1").getAttribute("aria-pressed"), "true");
   row("arc_2").click();
-  assert.match(card.querySelector(".arc-briefing h3")?.textContent ?? "", /Tidy the docs/, "another row's click shows its arc in the card");
+  assert.equal(row("arc_2").getAttribute("aria-pressed"), "true", "another row's click selects that arc");
+  assert.match(under("arc_2")?.textContent ?? "", /Read easily/);
   row("arc_2").click();
-  assert.equal(card.hidden, true, "the open arc's row closes its card");
-  assert.ok((page.document.activeElement as unknown) === row("arc_2"));
-
-  row("arc_1").click();
-  page.document.dispatchEvent(new page.KeyboardEvent("keydown", { key: "Escape" }));
-  assert.equal(card.hidden, true);
-  assert.ok((page.document.activeElement as unknown) === row("arc_1"));
-  row("arc_1").click();
-  card.querySelector<HTMLButtonElement>("[data-close-card]")!.click();
-  assert.equal(card.hidden, true);
-  assert.ok((page.document.activeElement as unknown) === row("arc_1"));
-  assert.equal(row("arc_1").getAttribute("aria-pressed"), "false");
+  assert.equal(row("arc_2").getAttribute("aria-pressed"), "false", "the selected row's click deselects it");
+  assert.ok(under("arc_2") === null, "and closes what is under it");
+  assert.ok(document.querySelector('.arc-card, aside, [data-surface-layer="overlay"]') === null, "nothing is drawn over the map");
 
   // An arc changed, so the board is read again, and that read fails.
   reads.boardArcs = async () => { throw new Error("Library unavailable"); };
@@ -208,7 +199,7 @@ test("3.18 · the mounted surface says once when it first draws a freshly read b
   assert.equal(fresh, 1, "a later fresh read is not the first fresh draw");
 });
 
-test("3.20 · the picked arc's title stays selectable across a refresh that changes nothing, and its copy button puts the title on the clipboard as plain text", async (t) => {
+test("3.20 · an opened arc's expansion keeps its nodes across a refresh that changes nothing, and its copy button puts the arc's title on the clipboard as plain text", async (t) => {
   const page = new Window({ url: "https://storytree.test" });
   const document = page.document as unknown as Document;
   let surface: ReturnType<typeof mountArcSurface> | undefined;
@@ -239,11 +230,11 @@ test("3.20 · the picked arc's title stays selectable across a refresh that chan
   });
   await settle();
   document.querySelector<HTMLButtonElement>('[data-arc-select="arc_1"]')!.click();
-  const heading = document.querySelector<HTMLElement>(".arc-briefing h3")!;
-  assert.match(heading.textContent ?? "", /Stability & testing <rigour>/);
+  const intent = document.querySelector<HTMLElement>(".arc-under .arc-intent")!;
+  assert.match(intent.textContent ?? "", /See the work/);
   for (const tick of [...ticks.values()]) tick();
   await settle();
-  assert.ok(heading.isConnected, "a refresh that changes nothing keeps the heading's node, so a selection in it holds");
+  assert.ok(intent.isConnected, "a refresh that changes nothing keeps the expansion's nodes, so a selection in it holds");
 
   document.querySelector<HTMLButtonElement>("[data-copy-arc-title]")!.click();
   await settle();
@@ -288,44 +279,7 @@ test("3.1 · the Arcs tab's badge counts what waits on the owner across the acti
   assert.deepEqual(waiting, [1], "another scope on show changes nothing");
 });
 
-test("5.2 · opening a question row swaps the card's briefing for its reading, and back to questions restores it, the row taking the focus", async (t) => {
-  const page = new Window({ url: "https://storytree.test" });
-  const document = page.document as unknown as Document;
-  let surface: ReturnType<typeof mountArcSurface> | undefined;
-  const globals = { document: page.document, HTMLElement: page.HTMLElement, localStorage: page.localStorage };
-  const previous = new Map(Object.keys(globals).map((key) => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
-  for (const [key, value] of Object.entries(globals)) Object.defineProperty(globalThis, key, { configurable: true, value });
-  t.after(async () => {
-    surface?.stop();
-    for (const [key, descriptor] of previous) {
-      if (descriptor) Object.defineProperty(globalThis, key, descriptor);
-      else Reflect.deleteProperty(globalThis, key);
-    }
-    await page.happyDOM.abort();
-  });
-  const question = record("q1", "question", { arc: "arc_1", title: "Which vendor?", lifecycle: "open", statement: "Pick the vendor for the board", stakes: "s", context: "c", options: "o" });
-  const reads: BoardReads = {
-    changesSince: async () => ({ changes: [], cursor: 0 }),
-    linesSince: async () => ({ lines: [], cursor: 0 }),
-    boardArcs: async () => [{ arc: record("arc_1", "arc", { title: "Ship the board", intent: "See the work", endState: "e" }), increments: [], questions: [question], state: "active" }],
-    closedArcs: async () => [],
-    holds: async () => ({ waits: {}, heldOn: {} }),
-  };
-  surface = mountArcSurface(document.body, { project: "p", reads, timers: { now: () => Date.parse("2026-11-03T00:00:00Z"), every: () => () => {} } });
-  await settle();
-  document.querySelector<HTMLButtonElement>('[data-arc-select="arc_1"]')!.click();
-  const card = document.querySelector<HTMLElement>(".arc-card")!;
-  card.querySelector<HTMLButtonElement>('[data-question-open="q1"]')!.click();
-  assert.match(card.textContent ?? "", /Pick the vendor for the board/);
-  assert.ok(card.querySelector("[data-question-open]") === null, "the reading replaces the briefing");
-  assert.ok((page.document.activeElement as unknown) === card.querySelector("[data-question-back]"));
-  card.querySelector<HTMLButtonElement>("[data-question-back]")!.click();
-  assert.doesNotMatch(card.textContent ?? "", /Pick the vendor for the board/);
-  assert.ok((page.document.activeElement as unknown) === card.querySelector('[data-question-open="q1"]'));
-  assert.equal(card.hidden, false, "the card stays open");
-});
-
-test("3.21 · a question's row under an opened arc opens that arc's card on the question, and the opened caret and its folds survive the live redraw", async (t) => {
+test("3.21 · a question's row under an opened arc unfolds its reading in place, and the opened caret and its folds survive the live redraw", async (t) => {
   const page = new Window({ url: "https://storytree.test" });
   const document = page.document as unknown as Document;
   let surface: ReturnType<typeof mountArcSurface> | undefined;
@@ -358,12 +312,14 @@ test("3.21 · a question's row under an opened arc opens that arc's card on the 
   const fold = document.querySelector<HTMLDetailsElement>('details[data-fold-key="rail:arc_1:increment:i1"]')!;
   fold.open = true;
   fold.dispatchEvent(new page.Event("toggle") as unknown as Event);
-  const card = document.querySelector<HTMLElement>(".arc-card")!;
-  assert.equal(card.hidden, true, "the caret opens no card");
-  document.querySelector<HTMLButtonElement>('[data-rail-question="q1"]')!.click();
-  assert.equal(card.hidden, false);
-  assert.match(card.textContent ?? "", /Pick the vendor for the board/, "the card opens on that question's reading");
-  assert.ok((page.document.activeElement as unknown) === card.querySelector("[data-question-back]"), "the focus goes to the reading's way back");
+  assert.equal(document.querySelector('[data-arc-select="arc_1"]')!.getAttribute("aria-pressed"), "false", "the caret selects nothing");
+  const asked = document.querySelector<HTMLDetailsElement>('details[data-rail-question="q1"]')!;
+  asked.open = true;
+  asked.dispatchEvent(new page.Event("toggle") as unknown as Event);
+  assert.match(asked.textContent ?? "", /Pick the vendor for the board/, "the question's reading is under its row");
+  const intent = document.querySelector<HTMLDetailsElement>('details[data-fold-key="rail:arc_1:intent"]')!;
+  intent.open = true;
+  intent.dispatchEvent(new page.Event("toggle") as unknown as Event);
   title = "Ship the whole board";
   reads.changesSince = async () => ({ changes: [{ seq: 1, recordId: "arc_1", type: "arc", action: "updated" as const, record: arc() }], cursor: 1 });
   for (const tick of ticks) tick();
@@ -371,6 +327,8 @@ test("3.21 · a question's row under an opened arc opens that arc's card on the 
   assert.match(document.querySelector('[data-arc-select="arc_1"]')!.textContent ?? "", /Ship the whole board/, "the rail was drawn again");
   assert.equal(document.querySelector('[data-arc-queue="arc_1"]')!.getAttribute("aria-expanded"), "true", "the caret is still open after the redraw");
   assert.equal(document.querySelector<HTMLDetailsElement>('details[data-fold-key="rail:arc_1:increment:i1"]')!.open, true, "and so is its increment row");
+  assert.equal(document.querySelector<HTMLDetailsElement>('details[data-rail-question="q1"]')!.open, true, "its question's reading");
+  assert.equal(document.querySelector<HTMLDetailsElement>('details[data-fold-key="rail:arc_1:intent"]')!.open, true, "and its intent");
 });
 
 test("3.2 · the mounted strip is cut at four rows of the ovals its measured width holds, drawn again when that width changes, and counts what its marks fold as drawn", async (t) => {
@@ -414,7 +372,7 @@ test("3.2 · the mounted strip is cut at four rows of the ovals its measured wid
   assert.ok(document.querySelector(".arc-landed-mark") === null);
 });
 
-test("3.27 · opening an arc's card tells the host the capabilities its open increments name, once each, and closing it tells none", async (t) => {
+test("3.27 · selecting an arc tells the host the capabilities its open increments name, once each, and deselecting it tells none", async (t) => {
   const page = new Window({ url: "https://storytree.test" });
   const document = page.document as unknown as Document;
   let surface: ReturnType<typeof mountArcSurface> | undefined;
@@ -456,7 +414,7 @@ test("3.27 · opening an arc's card tells the host the capabilities its open inc
   row("arc_2").click();
   assert.deepEqual(told.at(-1), [], "an arc with no open work circles nothing");
   row("arc_2").click();
-  assert.equal(told.at(-1), undefined, "closing the card tells none");
+  assert.equal(told.at(-1), undefined, "deselecting it tells none");
   assert.equal(told.length, 3);
 
   row("arc_1").click();
@@ -471,5 +429,44 @@ test("3.27 · opening an arc's card tells the host the capabilities its open inc
   row("arc_3").click();
   assert.deepEqual(told.at(-1), [], "a closed arc has no open work");
   document.querySelector<HTMLButtonElement>('[data-closed-range="week"]')!.click();
-  assert.equal(told.at(-1), undefined, "another range of closed days closes the card, and tells none");
+  assert.equal(told.at(-1), undefined, "another range of closed days deselects it, and tells none");
+});
+
+test("4.1 · a queued arc's chip selects it and draws its expansion under the chips; its click again deselects it", async (t) => {
+  const page = new Window({ url: "https://storytree.test" });
+  const document = page.document as unknown as Document;
+  let surface: ReturnType<typeof mountArcSurface> | undefined;
+  const globals = { document: page.document, HTMLElement: page.HTMLElement, localStorage: page.localStorage };
+  const previous = new Map(Object.keys(globals).map((key) => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
+  for (const [key, value] of Object.entries(globals)) Object.defineProperty(globalThis, key, { configurable: true, value });
+  t.after(async () => {
+    surface?.stop();
+    for (const [key, descriptor] of previous) {
+      if (descriptor) Object.defineProperty(globalThis, key, descriptor);
+      else Reflect.deleteProperty(globalThis, key);
+    }
+    await page.happyDOM.abort();
+  });
+  const reads: BoardReads = {
+    changesSince: async () => ({ changes: [], cursor: 0 }),
+    linesSince: async () => ({ lines: [], cursor: 0 }),
+    boardArcs: async () => [
+      { arc: record("first", "arc", { title: "First", intent: "Go first", endState: "e" }), increments: [], questions: [], state: "active" },
+      { arc: record("next", "arc", { title: "Next", intent: "Go next", endState: "e" }), increments: [], questions: [], state: "active" },
+    ],
+    closedArcs: async () => [],
+    holds: async () => ({ waits: { next: [{ on: "first", reason: "after first", forGood: false }] }, heldOn: {} }),
+  };
+  const told: (readonly string[] | undefined)[] = [];
+  surface = mountArcSurface(document.body, { project: "p", reads, onOpened: (capabilities) => { told.push(capabilities); }, timers: { now: () => Date.parse("2026-11-03T00:00:00Z"), every: () => () => {} } });
+  await settle();
+  document.querySelector<HTMLButtonElement>('[data-arc-queue="first"]')!.click();
+  const chip = () => document.querySelector<HTMLButtonElement>('.arc-queue-chip[data-arc-select="next"]')!;
+  chip().click();
+  assert.equal(chip().getAttribute("aria-pressed"), "true");
+  assert.match(document.querySelector(".arc-queued-under")?.textContent ?? "", /Go next/, "the queued arc's intent is under the chips");
+  assert.deepEqual(told, [[]], "the host hears the queued arc selected");
+  chip().click();
+  assert.ok(document.querySelector(".arc-queued-under") === null);
+  assert.equal(document.querySelector('[data-arc-queue="first"]')!.getAttribute("aria-expanded"), "true", "its blocker stays open");
 });

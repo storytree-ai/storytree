@@ -148,7 +148,7 @@ test("4.9 `arc increment wait --for` makes an increment wait for you, or for an 
   });
 });
 
-test("4.30 `arc increment unwait` and `arc unwait` record the clear's `--reason` in the record's history, and refuse a clear that gives none, with nothing written; `--claim` records its claim's reason", async () => {
+test("4.30 `arc increment unwait` and `arc unwait` record the clear's `--reason` in the record's history, and refuse a clear that gives none, an event clear's included, with nothing written; `--claim` records its claim's reason", async () => {
   await inWorld(command, async (world) => {
     const library = await world.library();
     const arc = await anArc(world);
@@ -158,10 +158,11 @@ test("4.30 `arc increment unwait` and `arc unwait` record the clear's `--reason`
     await library.addWaitFor(increment, { releaser: "owner", note: "Re-register the laptop's dispatcher", why: "the laptop takes no lanes until he does" });
     await library.addWait(increment, blocker, "needs the tables");
     await library.addWait(other, arc, "after the first arc");
+    await library.addWaitFor(increment, { releaser: "event", note: "PR #9 lands", checkBack: "2099-01-01" });
     const reasonOf = async (id: string) => (await library.history({ id })).at(-1)?.reason;
 
     const before = (await library.changesSince(0)).cursor;
-    for (const words of [["increment", "unwait", increment, "--for", "owner"], ["increment", "unwait", increment, "--on", blocker], ["unwait", other, "--on", arc]]) {
+    for (const words of [["increment", "unwait", increment, "--for", "owner"], ["increment", "unwait", increment, "--for", "event"], ["increment", "unwait", increment, "--on", blocker], ["unwait", other, "--on", arc]]) {
       const bare = await world.run(["arc", ...words]);
       assert.equal(bare.code, 2, `${words.join(" ")}: ${bare.stdout}`);
       assert.match(bare.stderr, /--reason/);
@@ -170,6 +171,7 @@ test("4.30 `arc increment unwait` and `arc unwait` record the clear's `--reason`
 
     for (const [id, words, reason] of [
       [increment, ["increment", "unwait", increment, "--for", "owner", "--reason", "he re-registered it on 2026-11-05"], "he re-registered it on 2026-11-05"],
+      [increment, ["increment", "unwait", increment, "--for", "event", "--reason", "PR #9 merged"], "PR #9 merged"],
       [increment, ["increment", "unwait", increment, "--on", blocker, "--reason", "the tables are no longer needed"], "the tables are no longer needed"],
       [other, ["unwait", other, "--on", arc, "--reason", "the arcs are independent"], "the arcs are independent"],
     ] as const) {
@@ -177,10 +179,6 @@ test("4.30 `arc increment unwait` and `arc unwait` record the clear's `--reason`
       assert.equal(ran.code, 0, ran.stderr);
       assert.equal(await reasonOf(id), reason);
     }
-    // The watcher's event clear gives no reason yet, and still goes through (increment_cbeb277e8a16).
-    await library.addWaitFor(increment, { releaser: "event", note: "PR #9 lands", checkBack: "2099-01-01" });
-    const event = await world.run(["arc", "increment", "unwait", increment, "--for", "event"]);
-    assert.equal(event.code, 0, event.stderr);
     assert.deepEqual(await library.waitsFor(increment), []);
     const history = await world.run(["library", "history", increment]);
     assert.match(history.stdout, /he re-registered it on 2026-11-05/, "library history shows why the state changed");
@@ -217,7 +215,7 @@ test("4.14 `arc increment wait --for owner` releases the waiting session's claim
       assert.match(owner.stdout, new RegExp(`Released your claims on ${increment}, ${capability}`));
       assert.deepEqual(await held(), [other]);
 
-      const unevent = await world.run(["arc", "increment", "unwait", increment, "--for", "event"], { CODEX_THREAD_ID: "codex-wait" });
+      const unevent = await world.run(["arc", "increment", "unwait", increment, "--for", "event", "--reason", "the build is uploaded"], { CODEX_THREAD_ID: "codex-wait" });
       assert.equal(unevent.code, 0, unevent.stderr);
       const finishing = await world.run(["arc", "increment", "unwait", increment, "--for", "owner", "--claim", "finishing the upload"], { CODEX_THREAD_ID: "codex-wait" });
       assert.equal(finishing.code, 0, finishing.stderr);

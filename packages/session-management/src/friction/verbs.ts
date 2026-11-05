@@ -46,7 +46,7 @@ const frictionNew = verb({
     family: "friction",
     name: "new",
     summary: "file friction with concrete evidence and its impact",
-    usage: "friction new --title <t> --description … --statement … --evidence <text|@file> --impact … [--links a,b] [--about-storytree] [--none-match]",
+    usage: "friction new --title <t> --description … --statement … --evidence <text|@file> --impact … [--links a,b] [--increment <increment>] [--about-storytree] [--none-match]",
   },
   tool: {
     name: "record_friction",
@@ -59,6 +59,7 @@ const frictionNew = verb({
     evidence: { kind: "text", describe: "the concrete evidence for it" },
     impact: { kind: "text", describe: "what it cost" },
     links: { kind: "text", optional: true, describe: "what it links to, comma-separated" },
+    increment: { kind: "text", optional: true, describe: "the increment it happened in, when you were driving one" },
     "about-storytree": { kind: "switch", describe: "it is a defect in storytree itself (its tools, app or guidance), not in this project: the reply carries a draft issue for the user to send storytree's maintainers" },
     "none-match": { kind: "switch", describe: "none of the closest earlier reports filing showed is this problem: file it new" },
   },

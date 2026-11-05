@@ -302,6 +302,24 @@ export function setupText(setup: WorktreeSetup): string {
   return [head, ...lines].join("\n");
 }
 
+/** The install each lockfile implies, the first one found winning. */
+const INSTALLS = [
+  ["pnpm-lock.yaml", "pnpm install --frozen-lockfile"],
+  ["package-lock.json", "npm ci"],
+  ["yarn.lock", "yarn install"],
+  ["uv.lock", "uv sync"],
+] as const;
+
+/**
+ * The answer for a worktree the project names no setup for (19.9): a headless lane runs no session-start setup, so
+ * when its lockfile names the package manager, it is told nothing was installed and the command that installs it.
+ */
+export function noSetupText(worktree: string): string {
+  const install = INSTALLS.find(([lockfile]) => existsSync(path.join(worktree, lockfile)))?.[1];
+  if (install === undefined) return "Set it up as this project does at session start.";
+  return `This project names no worktree setup (${LOCAL_SETUP_FILE}), so nothing was installed: run \`${install}\` in it before any other command, unless this project's session start does it for you.`;
+}
+
 function attempt(kind: SetupStep["kind"], what: string, step: () => void): SetupStep {
   try {
     step();

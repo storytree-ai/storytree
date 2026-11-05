@@ -44,8 +44,8 @@ const make = verb({
     }
     if (made.existing) return { text: `${context.session} holds ${id} in this workspace, ${made.folder}, on branch ${made.branch}: no worktree was made.` };
     const enter = `Call EnterWorktree with path ${JSON.stringify(made.folder)} to work in it.`;
-    const { setupText } = await import("./worktree-setup.js");
-    const setUp = made.setup === undefined ? "Set it up as this project does at session start." : setupText(made.setup);
+    const { noSetupText, setupText } = await import("./worktree-setup.js");
+    const setUp = made.setup === undefined ? noSetupText(made.folder) : setupText(made.setup);
     return {
       text: `Made workspace ${made.folder}\nBranch: ${made.branch}, from freshly fetched ${made.base}.\n${context.session} holds ${id}: ${why}\n${enter}\n${setUp}`,
     };
@@ -80,8 +80,8 @@ const attach = verb({
     const { attachWorkspace } = await import("./workspace.js");
     const attached = await attachWorkspace(context, id, why, attachment);
     if (!attached.ok) throw new VerbRefusal(`${workspaceRefusalText(id, attached)} The app's worktree is kept.`);
-    const { setupText } = await import("./worktree-setup.js");
-    const setUp = attached.setup === undefined ? "Set it up as this project does at session start." : setupText(attached.setup);
+    const { noSetupText, setupText } = await import("./worktree-setup.js");
+    const setUp = attached.setup === undefined ? noSetupText(attached.folder) : setupText(attached.setup);
     return { text: `Attached workspace ${attached.folder}\nBranch: ${attached.branch}, at ${attached.base}.\n${context.session} holds ${id}: ${why}\nUse that directory explicitly for commands. ${setUp}` };
   },
 });

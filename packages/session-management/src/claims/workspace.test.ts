@@ -739,6 +739,31 @@ test("19.1 · the workspace command and the make_workspace tool each report the 
   });
 });
 
+test("19.9 · a workspace made in a project that names no worktree setup says, when the worktree's lockfile names its package manager, that nothing was installed and the one command that installs it", async () => {
+  await withWorld(async ({ site, park, as }) => {
+    const verb = WORKSPACE_FAMILIES[0]!.bare!;
+    git(site, "pull", "--ff-only");
+    writeFileSync(path.join(site, "pnpm-lock.yaml"), "lockfileVersion: '9.0'\n");
+    git(site, "add", "pnpm-lock.yaml");
+    git(site, "commit", "-m", "lockfile");
+    git(site, "push", "origin", "HEAD:main");
+
+    const made = await verb.act({ work: await park("email form"), reason: "building the email form", "despite-open-pulls": false }, as("A"), WORDS);
+
+    assert.match(made.text, /nothing was installed/);
+    assert.match(made.text, /`pnpm install --frozen-lockfile`/);
+    assert.doesNotMatch(made.text, /as this project does at session start/);
+
+    const attach = WORKSPACE_FAMILIES[0]!.verbs.find((one) => one.command !== undefined && "name" in one.command && one.command.name === "attach")!;
+    const own = path.join(path.dirname(site), "claude app made");
+    git(site, "worktree", "add", "-b", "claude/app-made", own, "main");
+    const attached = await attach.act({ work: await park("settings"), reason: "build settings" }, as("A", own), WORDS);
+
+    assert.match(attached.text, /nothing was installed: run `pnpm install --frozen-lockfile`/);
+    assert.doesNotMatch(attached.text, /as this project does at session start/);
+  });
+});
+
 test("19.5 · a Codex session attaching the worktree its app just made at the prepared commit has it set up from the local file, reported in the attach's answer, and set up once however often it attaches; a Claude Code session attaching its own worktree runs no setup", async () => {
   await withWorld(async ({ dir, log, library, project, site, park, as }) => {
     writeFileSync(path.join(site, ".env"), "SECRET=1\n");

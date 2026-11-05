@@ -40,7 +40,7 @@ jobs:
           fetch-depth: 0
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
         with:
-          node-version: 24
+          node-version-file: .node-version
       - id: source
         run: node apps/desktop/release.mjs source
         env:
@@ -68,7 +68,7 @@ jobs:
           fetch-depth: 0
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
         with:
-          node-version: 24
+          node-version-file: .node-version
       - run: node apps/desktop/release.mjs draft
         env:
           GH_TOKEN: ${{ github.token }}
@@ -119,7 +119,7 @@ jobs:
           fetch-depth: 0
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
         with:
-          node-version: 24
+          node-version-file: .node-version
       - name: Publish the release with every platform whose build is complete
         id: publish
         run: node apps/desktop/release.mjs publish

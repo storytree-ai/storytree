@@ -24,7 +24,8 @@ test("4.3 on Windows, a Node.js without libuv's fix is refused, naming it, the c
     assert.ok(refusal.includes(`Node.js ${version}`), `the refusal names ${version}: ${refusal}`);
     assert.match(refusal, /0xC0000409/, "and the crash, as a test run shows it");
     assert.match(refusal, /\b24\.16\.0\b/, "and the release to install");
-    assert.match(refusal, /\bwinget upgrade OpenJS\.NodeJS\.LTS\b/, "and the command that installs it");
+    assert.match(refusal, /`winget install --id OpenJS\.NodeJS\.LTS --exact --version <it> --force`/, "and the command that installs exactly the pinned version");
+    assert.doesNotMatch(refusal, /winget upgrade/, "never a bare upgrade, which jumps to the newest major line");
   }
 });
 

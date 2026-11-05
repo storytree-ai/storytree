@@ -254,3 +254,23 @@ test("17.22 · The friction drain shows each report it offers with its lookalike
     });
   });
 });
+
+test("17.24 · A friction report names the increment it happened in: record_friction takes it as increment, kept on the report; an increment given in links is refused naming the increment field, and an increment that is not a live increment is refused, nothing written", async () => {
+  await withLibrary(async (library) => {
+    await onBranch(library, "fix/health", async (context) => {
+      const story = await library.addStory({ title: "Local health" });
+      const arc = await library.createArc({ title: "Health", intent: "Read health locally", endState: "Health reads", stories: [story.id] });
+      const increment = (await library.addIncrement({ arc: arc.id, title: "health local", objective: "health local", body: "health local" })).id;
+      const report = { title: "Health local hangs", description: "It hangs", statement: "It never answers", evidence: "`storytree health local` exit code 1", impact: "No reading", "none-match": true };
+
+      await assert.rejects(verbNamed("new").act({ ...report, links: increment }, context, WORDS), (error: Error) => error instanceof VerbRefusal && error.message.includes(increment) && /"increment"/.test(error.message));
+      await assert.rejects(verbNamed("new").act({ ...report, increment: story.id }, context, WORDS), (error: Error) => error instanceof VerbRefusal && error.message.includes(story.id));
+      assert.deepEqual(await library.list("friction"), [], "a refusal writes nothing");
+
+      const filed = await verbNamed("new").act({ ...report, increment }, context, WORDS);
+      const [note] = await library.list("friction");
+      assert.equal(filed.text, `Recorded friction ${note!.id}.`);
+      assert.equal(note!.fields.increment, increment);
+    });
+  });
+});

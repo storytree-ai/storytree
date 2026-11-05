@@ -498,6 +498,11 @@ export const RECORD_SCHEMAS = {
       reinforcedBy: z.array(z.object({ branch: nonEmpty, date: nonEmpty, evidence: nonEmpty }).strict()).optional(),
       dischargedBy: nonEmpty.optional(),
       /**
+       * The increment it happened in, when the filer was driving one: artifacts link only to artifacts, so the
+       * work is named here, not in `links`. Optional, so no version bump.
+       */
+      increment: nonEmpty.optional(),
+      /**
        * The session the friction drain handed it to, and until when (an ISO time): another session's
        * drain passes it over until then. Optional, so no version bump.
        */

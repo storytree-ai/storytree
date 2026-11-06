@@ -29,3 +29,5 @@ after; all 29 islands 10.9 s against 10.5 s. `before-measurements.json` and `aft
 
 Taken with `node --import tsx packages/forest/testing/view/island-tunnels/capture.mjs` (before with `thirdArrival` at 0.5
 and the post skip removed; after with `--at <the before's measurements.json>`, so the close-up stands where the portal did).
+
+In the evidence bucket for #556, linked from the pull request body (ADR-1234; deleted after 90 days or when its arc closes): `556/before-tunnel.png`, `556/after-tunnel.png`, `556/before-the-library.png`, `556/after-the-library.png`, `556/before-measurements.json`, `556/after-measurements.json`.

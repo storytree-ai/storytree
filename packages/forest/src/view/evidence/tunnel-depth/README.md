@@ -47,3 +47,5 @@ islands took 6.1 to 6.3 s on either side, within the run-to-run spread. `*-measu
 Taken with `node --import tsx packages/forest/testing/view/tunnel-depth/capture.mjs --links <i:j,…> --prefix after-<name>
 --retake`, and on a checkout of main with the same script, `--prefix before-<name>` and `--at <this branch's
 after-<name>-measurements.json>`, so its pictures stand where this branch's tunnels do.
+
+In the evidence bucket for #565, linked from the pull request body (ADR-1234; deleted after 90 days or when its arc closes): `565/after-coast-tunnel-1-end-1.png`, `565/after-coast-tunnel-1-end-2.png`, `565/after-coast-tunnel-1.png`, `565/after-hub-tunnel-1-end-1.png`, `565/after-hub-tunnel-1-end-2.png`, `565/after-hub-tunnel-1.png`, `565/before-coast-tunnel-1-end-1.png`, `565/before-coast-tunnel-1-end-2.png`, `565/before-coast-tunnel-1.png`, `565/before-hub-tunnel-1-end-1.png`, `565/before-hub-tunnel-1-end-2.png`, `565/before-hub-tunnel-1.png`, `565/after-coast-measurements.json`, `565/after-hub-measurements.json`, `565/before-coast-measurements.json`, `565/before-hub-measurements.json`.

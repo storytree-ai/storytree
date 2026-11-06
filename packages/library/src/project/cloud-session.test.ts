@@ -77,7 +77,7 @@ test("30.6 · The cloud sessions' account opens the project as itself, reads eve
     // It reads what a lane reads: the plan, the decisions and agent roles, and their history.
     assert.deepEqual((await cloudPlan.projectTree()).stories.map((each) => each.title), ["Checkout"]);
     assert.equal((await cloud.transactions.get("agent-orchestrator"))?.type, "agent");
-    assert.ok((await cloud.transactions.history({ id: "agent-orchestrator" })).length > 0);
+    assert.deepEqual((await cloud.transactions.history({ id: "agent-orchestrator" })).map((entry) => [entry.action, entry.record.fields.title]), [["created", "Orchestrator"]]);
 
     // It writes the plan, edits the owner's, records health, and takes the next decision number from the history.
     const contract = await cloudPlan.addContract({ title: "1.1 · A declined card is refused", capability: capability.id });
@@ -118,7 +118,7 @@ test("30.7 · The cloud sessions' account is refused a kind it is not granted, a
     }
     assert.equal(await cloud.transactions.edit({ id: "agent-orchestrator", fields: { title: "Rewritten" } }), null, "the agent role is not there for it to change");
     await cloud.transactions.retire({ id: "agent-orchestrator", reason: "gone?" });
-    assert.ok(await owner.transactions.get("agent-orchestrator"), "nor there for it to retire");
+    assert.equal((await owner.transactions.get("agent-orchestrator"))?.fields.title, "Orchestrator", "nor there for it to retire");
 
     // A record keeps its kind, in the table and in the history, even between two kinds it may write.
     await assert.rejects(cloud.transactions.save({ id: story.id, type: "increment", fields: { title: "Rekinded" } }), /row-level security/);

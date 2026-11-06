@@ -12,7 +12,7 @@ function survey(increments, extra = {}) {
   return { increments, holds: { waits: {}, heldOn: {} }, claims: [], ...extra };
 }
 
-test("2.2 · the survey reads arcs and holds once, with every increment's arc, capabilities list, machine field, the arc's state, this machine's name, the standing claims and the refusals under every open increment on an active arc, whoever holds the capability now", async () => {
+test("2.2 · the survey reads arcs and holds once, with every increment's arc, capabilities list, machine field, how a closed one closed, the arc's state, this machine's name, the standing claims and the refusals under every open increment on an active arc, whoever holds the capability now", async () => {
   let reads = 0;
   const record = (id, arc, body, extra = {}) => ({ id, createdAt: new Date(now), fields: { arc, title: id, body, status: "proposal", parked: "2026-10-06T00:00:00Z", waits: [], ...extra } });
   const library = {
@@ -21,7 +21,7 @@ test("2.2 · the survey reads arcs and holds once, with every increment's arc, c
       return [
         { arc: { id: "arc_laptop", createdAt: new Date(now) }, state: "active", questions: [{ fields: { lifecycle: "open" } }, { fields: { lifecycle: "settled" } }], increments: [record("i1", "arc_laptop", "a"), record("i2", "arc_laptop", "b", { capabilities: ["capability_x"] })] },
         { arc: { id: "arc_cap" }, state: "active", increments: [record("i3", "arc_cap", "c", { capabilities: ["capability_x"] })] },
-        { arc: { id: "arc_box" }, state: "parked", increments: [record("i4", "arc_box", "d")] },
+        { arc: { id: "arc_box" }, state: "parked", increments: [record("i4", "arc_box", "d", { status: "closed", outcome: { date: "2026-10-07", disposition: "landed" } })] },
         { arc: { id: "arc_stale" }, state: "active", increments: [record("i5", "arc_stale", "e", { machine: "laptop" })] },
       ];
     },
@@ -39,6 +39,7 @@ test("2.2 · the survey reads arcs and holds once, with every increment's arc, c
     ["i1", "arc_laptop", "active", "a"], ["i2", "arc_laptop", "active", "b"], ["i3", "arc_cap", "active", "c"], ["i4", "arc_box", "parked", "d"], ["i5", "arc_stale", "active", "e"]]);
   assert.deepEqual(read.increments.map((one) => one.capabilities), [[], ["capability_x"], ["capability_x"], [], []], "with each one's capabilities list");
   assert.deepEqual(read.increments.map((one) => one.machine), [undefined, undefined, undefined, undefined, "laptop"], "with each one's machine field");
+  assert.deepEqual(read.increments.map((one) => one.disposition), [undefined, undefined, undefined, "landed", undefined], "with how a closed one closed");
   assert.equal(read.here, "box", "and this machine's name");
   assert.deepEqual(read.holds.waits.i1, [{ on: "z", reason: "r" }]);
   assert.deepEqual(read.arcs.map((arc) => [arc.id, arc.state, arc.openQuestions]), [["arc_laptop", "active", 1], ["arc_cap", "active", 0], ["arc_box", "parked", 0], ["arc_stale", "active", 0]]);

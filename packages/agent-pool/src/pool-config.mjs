@@ -29,6 +29,10 @@
 //   one. Another project's lanes are briefed with its `checks`, the commands its lane runs before it opens a pull request,
 //   in order, and its `review`, what its lane does to have its change reviewed (pool-brief-project.md). By default, or
 //   empty, storytree alone.
+// - cloud: { enabled, cap, trigger }: the trial overflow into Claude Code cloud sessions while the box is saturated
+//   (ADR-1264, cloud.mjs): switched on only by `enabled: true`, at most `cap` cloud lanes at once (by default 2), fired
+//   through the cloud task's API trigger `trigger` (a trig_ id; or CLOUD_TRIGGER_ID in ~/.storytree/secrets.json, beside
+//   its token CLOUD_TRIGGER_TOKEN); by default off.
 // The running dispatcher reads projects and sessions again as it runs, so an edit to either reaches its next survey; an
 // edit to any other field restarts it once its running lanes end (3.39).
 // `~` is the home folder of the machine reading the file. The environment variables the pool read before
@@ -86,6 +90,7 @@ export function poolConfig({ home = homedir(), env = process.env, file = env.AGE
       intervalMs: (number(env.WATCH_INTERVAL_S, watcher.intervalSeconds) ?? 60) * 1000,
     },
     machineOnly: raw.machineOnly === true,
+    cloud: { enabled: raw.cloud?.enabled === true, cap: number(raw.cloud?.cap) ?? 2, ...(raw.cloud?.trigger ? { trigger: raw.cloud.trigger } : {}) },
     projects: raw.projects?.length ? raw.projects.map((project) => projectOf(project, local)) : [{ name: "storytree" }],
   };
 }

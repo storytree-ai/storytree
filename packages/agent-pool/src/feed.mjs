@@ -19,7 +19,7 @@ export function blind(body) {
 }
 
 /** A wait's note that says its pull request is with the watcher: the hand-off's event wait, or the watcher's own record. */
-const HANDED = /\b(?:handed to|is with) the [\w ]+'s watcher\b/;
+export const HANDED = /\b(?:handed to|is with) the [\w ]+'s watcher\b/;
 
 /**
  * Each capability a live session holds, by the claim that holds it: one on the list of an increment a live session holds,
@@ -187,6 +187,8 @@ export async function readSurvey({ library, claims, refusals = async () => [], f
   const increments = views.flatMap((view) => view.increments.map((record) => ({
     id: record.id, arc: view.arc.id, arcState: view.state, title: record.fields.title, body: record.fields.body ?? "",
     status: record.fields.status, capabilities: record.fields.capabilities ?? [], machine: record.fields.machine, parked: record.fields.parked ?? iso(record.createdAt), priority: view.arc.fields?.priority,
+    // How a closed one closed (landed, failed or withdrawn), which the cloud overflow's trial counts (3.44).
+    ...(record.fields.outcome?.disposition ? { disposition: record.fields.outcome.disposition } : {}),
   })));
   // A wait on a capability's claim holds only while a live session holds that capability (2.31, ADR-1228 D1): the library reads it against these.
   const holds = await library.holds(new Date(), { claimed: new Set(liveCapabilities(held, increments).keys()) });

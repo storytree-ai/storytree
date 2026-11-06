@@ -63,6 +63,22 @@ test("3.40 · while the box reads saturated and the overflow is switched on, the
   assert.deepEqual(clear.fires, [], "a clear box starts its own lanes and fires nothing");
   assert.deepEqual(box.started, ["a"]);
 
+  // One cloud lane already live under a cap of 2: one more fire, not two.
+  const ledger = { text: JSON.stringify({ lanes: [{ increment: "z", session: "session_z", at: new Date(T0).toISOString(), state: "live" }], fireErrors: 0 }) };
+  const topped = overflowOf({ ledger });
+  await poolRun({ found: work(["a", "b", "z"]), cloud: topped.cloud });
+  assert.deepEqual(topped.fires.map((fire) => fire.text), ["a"], "the cap counts the lane already live");
+
+  // A machine-only dispatcher (the laptop's) never overflows, held back or not.
+  const laptop = overflowOf();
+  let looked = 0;
+  await runPool({
+    survey: async () => work(["a"]), maxLanes: async () => 1, count: async () => 0, cloud: laptop.cloud, idleMs: 0, machineOnly: true,
+    pace: async () => SATURATED, stopFile: "/lanes/pool-stop", exists: async () => looked >= 3, now: () => T0, say: () => {},
+    launch: async () => 0, sleep: async () => { looked += 1; await new Promise((go) => setImmediate(go)); },
+  });
+  assert.deepEqual(laptop.fires, [], "machine-only: no fire");
+
   const tokenless = overflowOf({ token: "" });
   await poolRun({ found: work(["a"]), cloud: tokenless.cloud });
   assert.deepEqual(tokenless.fires, [], "no token: no fire");
@@ -76,7 +92,7 @@ test("3.40 · a fire is one POST to the cloud task's trigger, its token as the b
   assert.equal(sent[0].url, "https://api.anthropic.com/v1/claude_code/routines/trig_01abc/fire");
   assert.equal(sent[0].init.method, "POST");
   assert.equal(sent[0].init.headers.authorization, "Bearer sk-ant-oat01-x");
-  assert.ok(sent[0].init.headers["anthropic-version"]);
+  assert.equal(sent[0].init.headers["anthropic-version"], "2023-06-01", "a version the endpoint accepts (it takes every one from 2023-06-01 on)");
   assert.deepEqual(JSON.parse(sent[0].init.body), { text: "increment_123" });
 
   const refused = async () => ({ ok: false, status: 429, headers: new Map([["retry-after", "120"]]) });
@@ -98,6 +114,7 @@ test("3.41 · an ineligible increment is never fired: a machine named, read-only
   assert.match(whyNotCloud({ id: "x", body: "Change .claude/agents/explorer.md" }), /agent roles/);
   assert.match(whyNotCloud({ id: "x", body: "", project: "storytree-website" }), /storytree-website/);
   assert.match(whyNotCloud({ id: "x", body: "", plan: true }), /planning/);
+  assert.match(whyNotCloud({ id: "x", title: "Restart the watcher", body: bodies.fine }), /box-only/, "the title is read as well as the body");
   assert.equal(whyNotCloud({ id: "x", title: "Sort arcs", body: bodies.fine }), undefined);
 });
 
@@ -147,10 +164,21 @@ test("3.43 · a fire error leaves the increment ready, is said once in pool stat
   assert.equal(fires.at(-1).text, "a", "past the hold it fires again");
   assert.deepEqual(await cloud.live(work(["a"])), ["a"]);
 
+  // A ledger that already counts fire errors adds to them.
+  const counted = overflowOf({ ledger: { text: JSON.stringify({ lanes: [], fireErrors: 2 }) }, answer: () => { throw new Error("HTTP 503"); } });
+  await counted.cloud.overflow(work(["a"]), {});
+  assert.equal(JSON.parse(counted.ledger.text).fireErrors, 3);
+
   // Through runPool, an overflow that throws leaves the dispatcher running.
   const throwing = { live: async () => [], wants: async () => true, overflow: async () => { throw new Error("library unread"); } };
   const { lines: said } = await poolRun({ found: work(["a"]), cloud: throwing });
   assert.ok(said.some((line) => /cloud overflow skipped \(library unread\)/.test(line)), said.join("\n"));
+
+  // Cloud lanes that cannot be read count as none: the box dispatches as usual.
+  const unread = { live: async () => { throw new Error("ledger unreadable"); }, wants: async () => false, overflow: async () => {} };
+  const box = await poolRun({ found: work(["a"]), cloud: unread, paces: [undefined, undefined, undefined], looks: 2 });
+  assert.deepEqual(box.started, ["a"]);
+  assert.ok(box.lines.some((line) => /cloud lanes unread \(ledger unreadable\)/.test(line)), box.lines.join("\n"));
 });
 
 test("3.44 · the trial's lanes are counted fired, landed, failed, live and with the watcher, said in pool status as they change, and `launch.mjs cloud` reads them back", async (t) => {
@@ -161,6 +189,8 @@ test("3.44 · the trial's lanes are counted fired, landed, failed, live and with
     claims: [{ increment: "d", session: "session_d", holder: "idle", since: new Date(T0 + 1000).toISOString() }, { increment: "e", session: "session_e", holder: "live", since: new Date(T0 + 1000).toISOString() }],
   });
   assert.deepEqual(judgeLanes(lanes, found, T0 + 60_000).map((lane) => lane.state), ["landed", "failed", "handed", "failed", "live"]);
+  const [gone] = judgeLanes([{ ...lanes[0], increment: "f" }], found, T0 + 60_000);
+  assert.deepEqual([gone.state, gone.why], ["failed", "its increment is no longer in the survey"]);
 
   const ledger = { text: JSON.stringify({ lanes, fireErrors: 1 }) };
   const { cloud, lines } = overflowOf({ ledger, clock: () => T0 + 60_000 });

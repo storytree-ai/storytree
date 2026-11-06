@@ -18,6 +18,7 @@ import { connect, ProjectNameError, type Storytree } from "@storytree/library";
 
 import { firstCommit, makeRepository, setUpProject, suggestProjectName, userFactory } from "./making.js";
 import { takeStarterPack } from "./starter-pack.js";
+import { PRINCIPLES, PROCESSES } from "./starter-notes.js";
 import { ROLES } from "./starter-roles.js";
 
 /** What a project's first commit holds: its .storytree folder, with no machine-local file of it. */
@@ -352,6 +353,16 @@ test("6.7 the starter orchestrator role lands on the project's own test command,
   for (const role of ROLES) {
     const text = [role.role, role.outcome, role.tools, role.workflow, role.escalation].join("\n");
     assert.doesNotMatch(text, /\brun_tests\b|\bquality_[a-z]+/, `${role.title} names no tool base does not serve`);
+  }
+});
+
+test("6.16 the starter pack's user-fork bar and grill-me's liveness check let an agent decide alone only a call with no trade-off that is reversible (ADR-1273)", () => {
+  const bar = PRINCIPLES.find((note) => note.title === "The user-fork bar: escalate ownership, not uncertainty")!;
+  const liveness = PROCESSES.find((note) => note.title.startsWith("Grill me"))?.steps?.split("\n").find((step) => step.startsWith("1. ")) ?? "";
+  for (const [where, text] of [["the bar's description", bar.description], ["the bar's statement", bar.statement], ["grill-me's liveness step", liveness]] as const) {
+    for (const test of ["no trade-off", "same outputs", "no new dependency", "no contract or user-facing change", "reversible"]) {
+      assert.ok(text?.includes(test), `${where} names ${test}: ${text}`);
+    }
   }
 });
 

@@ -790,6 +790,8 @@ test("9.27 plan_contract on a contract that names proved_by says its tests alrea
       assert.doesNotMatch(proved.text, /Write its test/, proved.text);
       assert.match(proved.text, /tests\/test_api\.py::test_sums already exists/, proved.text);
       assert.match(proved.text, /storytree health local/, proved.text);
+      const both = await agent.call("plan_contract", { capability: api, title: "Totals the order", proved_by: ["tests/test_api.py::test_total", "tests/test_api.py::TestTax", "Order totals"] });
+      assert.match(both.text, /tests\/test_api\.py::test_total, tests\/test_api\.py::TestTax and Order totals already exist, so write no test for it: their results credit it/, both.text);
       const unproved = await agent.call("plan_contract", { capability: api, title: "Rejects an empty cart" });
       assert.match(unproved.text, /Write its test, see it fail, and report it red\.$/, unproved.text);
     });

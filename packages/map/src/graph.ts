@@ -21,6 +21,11 @@ export interface MapNode {
   readonly path?: string;
   /** Proof identities retain their package qualifier when a dependent tests another story. */
   readonly testTitles?: SurveyedTest["titles"];
+  /**
+   * A contract no numbered test of its story's packages proves: each test in a dependent story's package titled with its
+   * number and no prefix, which credits that package's own story (ADR-0649), and the prefix that would credit this one.
+   */
+  readonly elsewhere?: readonly { readonly path: string; readonly title: string; readonly prefix: string }[];
   readonly snapshot?: SnapshotOrigin;
   readonly changes?: readonly ChangeLabel[];
   readonly unresolved?: string;
@@ -51,6 +56,11 @@ export function normalizePath(value: string): string {
 function healthOf(health: NodeHealth | undefined, source: "verified" | "reported"): MapHealth {
   const state = health?.[source].state;
   return state === "passing" ? "healthy" : state === "failing" ? "failing" : "untested";
+}
+
+/** What a contract's reading says of a test numbered for it in another story's package (ADR-0649), and how to credit it. */
+export function elsewhereSaid(test: NonNullable<MapNode["elsewhere"]>[number]): string {
+  return `not credited: test ${JSON.stringify(test.title)} in ${test.path} sits in another story's package, which credits its own story's contracts (ADR-0649): move it to this story's package or prefix its title with ${test.prefix}`;
 }
 
 /** Join the owning library and survey's readings; this function reads neither store itself. */
@@ -132,6 +142,21 @@ export function buildGraph(tree: AnnotatedTree, survey: ProjectSurvey): ProjectG
     }
     for (const imported of read.imports) edge(fileId(imported.from), fileId(imported.to), "imports", "inferred");
     for (const dependency of read.dependsOn ?? []) edge(story.id, dependency, "depends-on", "inferred");
+  }
+  // A test numbered for a contract but sitting in a dependent's package credits nothing here, so the contract says where it is.
+  const proven = new Set([...edges.values()].filter(edge => edge.kind === "tests").map(edge => edge.to));
+  for (const story of tree.stories) {
+    const read = survey[story.id];
+    if (story.mapped !== undefined || !read?.tests) continue;
+    for (const home of tree.stories.filter(other => other.id !== story.id && other.mapped === undefined && read.dependsOn?.includes(other.id))) {
+      for (const contract of home.capabilities.flatMap(cap => cap.contracts)) {
+        const node = nodes.get(contract.id);
+        if (node?.number === undefined || proven.has(contract.id)) continue;
+        const found = read.tests.flatMap(file => file.titles.filter(title => title.package === undefined && title.number === node.number)
+          .map(title => ({ path: normalizePath(`packages/${packageOf(story)}/${file.path}`), title: title.title, prefix: packageOf(home) })));
+        if (found.length > 0) nodes.set(contract.id, { ...node, elsewhere: [...node.elsewhere ?? [], ...found] });
+      }
+    }
   }
   return { nodes: [...nodes.values()], edges: [...edges.values()].filter(edge => nodes.has(edge.from) && nodes.has(edge.to)), healthSource };
 }

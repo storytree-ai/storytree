@@ -27,7 +27,8 @@ test("11.8 · The cloud sessions' account joins as an unnamed machine: it reads 
   const [project, other] = [uniqueProjectName(), uniqueProjectName()];
   const cloud = `${project}-cloud`;
   const homes = await Promise.all(["box", "laptop", "container"].map((name) => mkdtemp(path.join(tmpdir(), `st-${name}-`))));
-  const [box, laptop, container] = homes.map((home) => ({ home, ...machineOf(home) }));
+  const machine = (home: string) => ({ home, ...machineOf(home) });
+  const [box, laptop, container] = [machine(homes[0]!), machine(homes[1]!), machine(homes[2]!)];
   const [boxName, laptopName] = [`m-${randomBytes(4).toString("hex")}`, `m-${randomBytes(4).toString("hex")}`];
   const onBox = await connect({ url: testServerUrl() });
   let inCloud: Storytree | undefined;

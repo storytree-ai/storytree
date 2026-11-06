@@ -492,6 +492,7 @@ test("3.11 a storytree checkout that is another repository's submodule is never 
   assert.equal(check({ root, install: counted, log: (line) => lines.push(line) }), 1);
   assert.equal(installs, 0, "neither the session start nor the storytree command installs it");
   assert.equal(existsSync(path.join(root, "node_modules")), false);
+  assert.equal(await serve({ root, waitMs: 0, start: async () => 29, log: () => {} }), 29, "the tool server starts without updating it");
   assert.equal(await git(root, "rev-parse", "HEAD"), pinned, "the pinned commit is not fast-forwarded");
   assert.equal(existsSync(hooks), false, "no push check is installed in it");
   const refusal = lines.at(-1);

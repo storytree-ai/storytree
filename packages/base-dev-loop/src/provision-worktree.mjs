@@ -164,6 +164,7 @@ function withLock(gitDir, update, lockMs) {
 function updateCheckout(root, { fastForward = true, fetchMs = 20_000, lockMs = 120_000, log = () => {} } = {}) {
   const dirs = gitIn(root, ["rev-parse", "--path-format=absolute", "--git-dir", "--git-common-dir"]).split(/\r?\n/);
   if (dirs.length !== 2 || dirs[0] !== dirs[1]) return ""; // Not Git, or a linked worktree.
+  if (superproject(root)) return ""; // Another repository's submodule, pinned by that repository.
   if (gitIn(root, ["symbolic-ref", "--quiet", "--short", "HEAD"]) !== "main") return "";
   const gap = () => {
     const counts = gitIn(root, ["rev-list", "--left-right", "--count", "HEAD...refs/remotes/origin/main"]);

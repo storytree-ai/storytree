@@ -20,6 +20,7 @@ import { removeTemp } from "@storytree/test-waits";
 import {
   changedFiles,
   classify,
+  namedFolders,
   parseTestArgs,
   planRun,
   readWorkspace,
@@ -599,4 +600,32 @@ test("2.5 a file named to run alone is a unit of its own whenever its package ru
   assert.deepEqual(unitGlobs("packages/forest", { root, alone }).sort(), ["packages/forest/src/d.test.ts", "packages/forest/src/more.test.mjs", "packages/forest/src/view/other.test.ts"]);
   assert.deepEqual(unitGlobs("packages/forest/src/view/proof.test.ts", { root, alone }), ["packages/forest/src/view/proof.test.ts"]);
   assert.ok(unitGlobs("packages/library", { root, alone }).includes("packages/library/src/**/*.test.ts"), "a package with no file to run alone keeps its globs");
+});
+
+test("2.8 a package folder named to pnpm test runs that package, and any other folder is refused naming what the command takes", (t) => {
+  const root = fixture(t);
+  write(root, "docs/guide.md", "");
+  const ws = readWorkspace(root);
+  const named = namedFolders({ root, workspace: ws, testArgs: ["packages/cli/", "--test-only", "apps/desktop"] });
+  assert.equal(named.refusal, undefined);
+  assert.deepEqual(named.only, ["packages/cli", "apps/desktop"]);
+  assert.deepEqual(named.testArgs, ["--test-only"]);
+  const files = namedFolders({ root, workspace: ws, testArgs: ["packages/cli/src/c.test.ts"] });
+  assert.deepEqual([files.only, files.testArgs], [[], ["packages/cli/src/c.test.ts"]]);
+  assert.match(namedFolders({ root, workspace: ws, testArgs: ["docs"] }).refusal, /docs is a folder.*test files.*plain pnpm test/s);
+  assert.match(namedFolders({ root, workspace: ws, testArgs: ["packages/cli", "packages/forest/src/d.test.ts"] }).refusal, /files or package folders, not both/);
+
+  const home = mkdtempSync(path.join(tmpdir(), "test-folder-"));
+  t.after(() => removeTemp(home));
+  const env = { ...process.env, STORYTREE_HOME: home };
+  delete env.STORYTREE_HEAVY_LOCK_HOLDER;
+  const run = (...args) => spawnSync(process.execPath, ["--import", "tsx", "packages/base-dev-loop/src/test.mjs", ...args], { cwd: repoRoot, env, encoding: "utf8" });
+  const scoped = run("packages/base-dev-loop", "--scope");
+  assert.equal(scoped.status, 0, scoped.stderr);
+  assert.match(scoped.stdout, /^scope: only /m);
+  assert.match(scoped.stdout, /^units: packages\/base-dev-loop$/m);
+  const refused = run("docs");
+  assert.equal(refused.status, 2);
+  assert.match(refused.stderr, /docs is a folder/);
+  assert.doesNotMatch(refused.stdout + refused.stderr, /^scope:|test Postgres/m);
 });

@@ -26,6 +26,7 @@
 //   pnpm run test --shard=<i>/<n>    run shard i of n of the scoped units (CI's two Windows jobs)
 //   pnpm run test <files>            run just those files, as one unit under UNIT_LIMIT_MS (or
 //                                    STORYTREE_UNIT_LIMIT_MS); killed there, it says so
+//   pnpm run test <package folders>  run those packages, as --only would; any other folder is refused
 //   pnpm run test --help             print the usage (TEST_USAGE) and run nothing
 //
 // Sharded (--shard=<i>/<n>, unit-pool.mjs shardUnits): the scoped units are split into n shards of
@@ -114,7 +115,7 @@ import { DataDirInUseError, start } from "@storytree/local-postgres";
 import { floorRefusal, runtimeRefusal } from "./node-runtime.mjs";
 import { recordReds } from "./red-runs.mjs";
 import { keepPreviousServerLog } from "./server-log.mjs";
-import { parseTestArgs, planRun, readWorkspace, resultsTable, scopeFor, scopeLine, TEST_USAGE, unitGlobs } from "./test-scope.mjs";
+import { namedFolders, parseTestArgs, planRun, readWorkspace, resultsTable, scopeFor, scopeLine, TEST_USAGE, unitGlobs } from "./test-scope.mjs";
 import { stopServersUnder, sweepLeftovers } from "./test-leftovers.mjs";
 import { runPool, shardPlan, shardUnits, slowestFirst, takeShard, testJobs } from "./unit-pool.mjs";
 import { clearUnitLimit, DEADLINE_GRACE_MS, defaultUnitLimit, killTree, recentPassTimes, recordTimings, runDeadline, runUnit, setUnitLimit, TEST_LIMIT_MS, unitLimit, unitReason, unitTestLimit, withinDeadline, withMacRetry } from "./unit-run.mjs";
@@ -162,7 +163,10 @@ export function testCommand({ argv: given = process.argv.slice(2), hold: takeHol
   shard = taken.shard;
   const parsed = parseTestArgs(taken.argv);
   ({ flags, testArgs } = parsed);
-  const flagRefusal = taken.refusal ?? parsed.refusal;
+  const folders = namedFolders({ root, workspace: readWorkspace(root), testArgs });
+  testArgs = folders.testArgs;
+  flags.only.push(...folders.only);
+  const flagRefusal = taken.refusal ?? parsed.refusal ?? folders.refusal;
   if (parsed.help || flagRefusal !== undefined) {
     // Before the lock or a Postgres: asking how to run the tests never runs them.
     if (flagRefusal !== undefined) console.error(`test harness: ${flagRefusal}\n`);

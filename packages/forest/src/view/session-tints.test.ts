@@ -147,11 +147,15 @@ test("5.6 a claim drops in with one ring at its foot, stands still while held, f
 test("5.6 a claimed flag stands, drawn, through its island's land being cut again, before the next frame", () => {
   const tints = claimTints([wisp("A", "shop", "hsl(200, 80%, 68%)", ["cap-a"]), { ...wisp("C", "shop", "hsl(300, 80%, 68%)", ["cap-c"]), faded: true }]);
   const marks = marked(territories([share("cap-a", 40), share("cap-c", 30)], 20), tints);
+  const flagOf = (capability: string) => marks.root.getObjectByName(`territory-claim:${capability}`)?.getObjectByName("claim-flag");
+  const before = new Map(["cap-a", "cap-c"].map(capability => [capability, flagOf(capability)!.scale.x]));
   // An island built in steps (3.87) hands its marks a new cut of the same land after they were drawn.
   marks.setLand(territories([share("cap-a", 40), share("cap-b", 10), share("cap-c", 30)], 20), flat, up, false);
-  for (const capability of ["cap-a", "cap-c"]) {
-    const pennant = marks.root.getObjectByName(`territory-claim:${capability}`)?.getObjectByName("flag-pennant") as Mesh | undefined;
-    assert.ok(pennant !== undefined && pennant.geometry.attributes.position!.count > 0, `${capability}'s flag is still drawn`);
+  for (const [capability, scale] of before) {
+    const flag = flagOf(capability);
+    assert.ok(flag?.visible, `${capability}'s flag still stands`);
+    assert.equal(flag.scale.x, scale, `${capability}'s flag keeps the size it was posed at`);
+    assert.ok(flag.getObjectByName("flag-pennant") !== undefined, `${capability}'s pennant is drawn`);
   }
   marks.dispose();
 });

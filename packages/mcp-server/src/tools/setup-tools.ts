@@ -15,7 +15,7 @@ import { findProject, storytreeHome } from "@storytree/project-and-caller";
 import { missingProjectReading } from "@storytree/project-and-caller/routing";
 import { folderLanguages } from "@storytree/map/folder-languages";
 import { unreadableOf, unreadableSentence } from "@storytree/map/languages";
-import { COMMIT_STORYTREE, IDENTITY_FIX, makeRepository, notAProjectYet, setUpProject, starterPackStatus, starterRolesIn, suggestProjectName, unimportedPackages, unimportedSentence, type RepositoryMade, type StarterPackStatus } from "@storytree/app-setup/project";
+import { COMMIT_STORYTREE, IDENTITY_FIX, makeRepository, notAProjectYet, setUpProject, smallFixesArc, smallFixesSentence, starterPackStatus, starterRolesIn, suggestProjectName, unimportedPackages, unimportedSentence, type RepositoryMade, type StarterPackStatus } from "@storytree/app-setup/project";
 import { checkFile, checkFilesWritten, codexHooksState, FIX_SENTENCES, fixSentence, HOOK_TESTS, openStorytree, runSetupCheck, verifyHooks, type Fix, type SetupOptions } from "@storytree/app-setup/setup";
 import { isUnreachable, NOT_RUNNING_ANSWER, refusalOf, result } from "./answers.js";
 import type { Connections } from "./connections.js";
@@ -95,12 +95,15 @@ export function registerSetupTools({ server, folder, setup, connections, callerO
         const declared = await unimportedPackages(folder, library);
         const unimported = declared.map((one) => one.title);
         if (declared.length > 0) said.push(`${unimportedSentence(declared)} Call import_project with this project's folder before you plan stories: each package it declares becomes a mapped story, and plan_story refuses until it is imported.`);
+        // A project set up before storytree made its small-fixes arc gains it here, once (6.15).
+        const smallFixes = (await smallFixesArc(library))?.id;
+        if (smallFixes !== undefined) said.push(smallFixesSentence(smallFixes));
         // The session as the hook before this call named it: after Claude Code's /clear, the new one.
         const caller = seenCaller(await callLines(log, report.project.name, metaOf(context), { harness: heard.harness, tool: "check_setup" }), heard, metaOf(context));
         await log.append(report.project.name, { ...lineOf(caller), source: "tool", folder, kind: "tool-called", tool: "check_setup" });
         if (connected) {
           said.push(connectedSentence(caller));
-          return result({ text: withCard(said.join(" ")), data: { ...data, starterRoles, starterPack, unimported, verified: false, passed: true, missing: [], fixes: [], session: caller.session } });
+          return result({ text: withCard(said.join(" ")), data: { ...data, starterRoles, starterPack, unimported, smallFixesArc: smallFixes ?? null, verified: false, passed: true, missing: [], fixes: [], session: caller.session } });
         }
         // This session's hook lines alone: the latest of each kind, and its edits for the check file (contract 2.7).
         const [fired, edits] = await Promise.all([
@@ -126,7 +129,7 @@ export function registerSetupTools({ server, folder, setup, connections, callerO
         // What this machine's hooks traced of their failures for this session (contract 3.23), so a gap in its lines can be read.
         const failures = hookFailures(setup.storytreeHome ?? storytreeHome(), caller.session);
         if (failures.length > 0) said.push(failuresSentence(failures));
-        return result({ text: withCard(said.join(" ")), data: { ...data, starterRoles, starterPack, unimported, ...verification, ...(verification.fixes.includes("edit-check-file") ? { checkFile: checkFile(caller.session) } : {}), passed: verification.verified, hookFailures: failures } });
+        return result({ text: withCard(said.join(" ")), data: { ...data, starterRoles, starterPack, unimported, smallFixesArc: smallFixes ?? null, ...verification, ...(verification.fixes.includes("edit-check-file") ? { checkFile: checkFile(caller.session) } : {}), passed: verification.verified, hookFailures: failures } });
       } catch (error) {
         if (isUnreachable(error)) {
           await connections.close();
@@ -161,7 +164,7 @@ export function registerSetupTools({ server, folder, setup, connections, callerO
       try {
         // A marker naming a project this library lacks is set up afresh, replacing it (contract 12.6); any other is the folder's project already.
         if (settled && (await (await connections.server(running.library)).listProjects()).includes(existing.project!)) return result(already);
-        const { replaced } = await setUpProject({
+        const { replaced, smallFixesArc: smallFixes } = await setUpProject({
           folder, project: name, storytree: await connections.server(running.library), join: join === true,
           ...(setup.storytreeHome === undefined ? {} : { storytreeHome: setup.storytreeHome }),
           ...(setup.factory === undefined ? {} : { factory: setup.factory }),
@@ -184,11 +187,12 @@ export function registerSetupTools({ server, folder, setup, connections, callerO
         // A first commit storytree made, or will make once git has an identity, already holds the folder (ADR-1191 D3).
         if (repository?.state !== "made" && repository?.state !== "no identity") said.push(COMMIT_STORYTREE);
         if (starterRoles.length > 0) said.push(rolesSentence(starterRoles));
+        if (smallFixes !== undefined) said.push(smallFixesSentence(smallFixes));
         // Code only in languages the survey cannot read leaves the map empty of it: say so now, not at the first map (12.7).
         const unreadable = unreadableOf(await folderLanguages(folder).catch(() => undefined));
         if (unreadable !== undefined) said.push(unreadableSentence(unreadable));
         said.push(fixes[0] === "codex-approval" ? FIX_SENTENCES["codex-approval"] : SET_UP_THIS_SESSION);
-        return result({ text: withCard(said.join(" ")), data: { project: name, starterRoles, fixes, ...(repository === undefined ? {} : { repository }), ...(unreadable === undefined ? {} : { unreadable }), ...(replaced === undefined ? {} : { replaced }) } });
+        return result({ text: withCard(said.join(" ")), data: { project: name, starterRoles, fixes, smallFixesArc: smallFixes ?? null, ...(repository === undefined ? {} : { repository }), ...(unreadable === undefined ? {} : { unreadable }), ...(replaced === undefined ? {} : { replaced }) } });
       } catch (error) {
         if (isUnreachable(error)) {
           await connections.close();

@@ -21,6 +21,7 @@ export { keepOnThisComputer, unusedName };
 export { COMMIT_STORYTREE, IGNORE_FILE, STORYTREE_FOLDER } from "./storytree-folder.js";
 export { firstCommit, IDENTITY_FIX, makeRepository, notAProjectYet, setUpProject, suggestedName, suggestProjectName } from "./making.js";
 export type { RepositoryMade, SetUpOptions } from "./making.js";
+export { SMALL_FIXES_ARC, smallFixesArc, smallFixesSentence } from "./small-fixes.js";
 export { moveOntoFactory, type Moved, type MoveOptions } from "./factory-move.js";
 export { ImportRefusedError, importLines, importProject, unimportedPackages, unimportedSentence } from "./importing.js";
 export type { FileChanges, Imported, ImportOptions, Stranded } from "./importing.js";

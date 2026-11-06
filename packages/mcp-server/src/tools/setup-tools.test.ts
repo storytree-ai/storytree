@@ -534,6 +534,44 @@ test("12.8 · check_setup in a project whose folder declares packages no story s
   });
 });
 
+test("12.9 · check_setup names the project's small-fixes arc for a fix that adds or changes no contract, making it first in a project set up before storytree made one, and set_up_project names the one it made (ADR-1266 D2)", async () => {
+  await withTempDir(async (dir) => {
+    const home = throwawayHome(dir);
+    const [older, fresh, factory] = [uniqueProjectName(), uniqueProjectName(), uniqueProjectName()];
+    const storytree = await connect({ url: testServerUrl() });
+    try {
+      const [olderFolder, freshFolder] = [path.join(dir, older), path.join(dir, fresh)];
+      for (const folder of [olderFolder, freshFolder]) mkdirSync(folder);
+      // A project set up before storytree made the arc: its library holds none.
+      await (await storytree.openProject(older)).close();
+      writeMarker(olderFolder, `${JSON.stringify({ project: older })}\n`);
+      await approveCheckout(olderFolder, older, home.storytreeHome);
+      const setup = { dataDir: path.join(home.storytreeHome, "pgdata"), setup: { ...ANSWERED, homes: home.homes, storytreeHome: home.storytreeHome, factory } };
+      await withAgent(olderFolder, claudeCode("claude-older", setup), async (agent) => {
+        const checked = await agent.call("check_setup");
+        assert.equal(checked.isError, false, checked.text);
+        assert.match(checked.text, /small fix[^.]*"small-fixes"/i);
+        assert.equal(checked.data.smallFixesArc, "small-fixes");
+      });
+      const library = await storytree.openProject(older, { create: false });
+      try {
+        assert.deepEqual((await library.list("arc")).map((arc) => arc.id), ["small-fixes"], "the check made it");
+      } finally {
+        await library.close();
+      }
+      await withAgent(freshFolder, claudeCode("claude-fresh", setup), async (agent) => {
+        const setUp = await agent.call("set_up_project", { name: fresh });
+        assert.equal(setUp.isError, false, setUp.text);
+        assert.match(setUp.text, /small fix[^.]*"small-fixes"/i);
+        assert.equal(setUp.data.smallFixesArc, "small-fixes");
+      });
+    } finally {
+      await storytree.close();
+      await dropTestProjects([older, fresh, factory]);
+    }
+  });
+});
+
 test("app-setup 8.26 in a project an earlier starter pack seeded, or a product project whose factory it seeded, the check names the seeded and current versions and offers take_starter_pack while it would add or replace something and the server serves it, taken into the factory for the product; once taken, or in a project never seeded, it offers nothing", async () => {
   await withTempDir(async (dir) => {
     const home = throwawayHome(dir);

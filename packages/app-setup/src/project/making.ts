@@ -18,6 +18,7 @@ import { ProjectGoneError, type Storytree } from "@storytree/library";
 import { forgetProjectActivity } from "@storytree/session-management";
 import { approveTrunk, findProject, forgetTrunk, inMainCheckout, keepOnThisComputer, machineOf, PROJECT_FILE, ProjectFolderError, recordProjectChoice, registerTrunk, rememberApproval, ROOT_MARKER_FILE, storytreeHome, trunkedProjects, trunksOn, type Trunk } from "@storytree/project-and-caller";
 
+import { smallFixesArc } from "./small-fixes.js";
 import { seedStarterPack } from "./starter-pack.js";
 import { IGNORE_FILE, STORYTREE_FOLDER } from "./storytree-folder.js";
 
@@ -50,7 +51,7 @@ export const FACTORY_NAME = "factory";
  * names the user's factory (6.11), made the first time and seeded with the starter pack, and holds no copy of the
  * pack itself: its roles, notes and checks are the factory's (6.7). A join makes none.
  */
-export async function setUpProject({ folder, project, storytree, storytreeHome: home = storytreeHome(), join = false, factory = FACTORY_NAME }: SetUpOptions): Promise<{ project: string; marker: string; replaced?: string }> {
+export async function setUpProject({ folder, project, storytree, storytreeHome: home = storytreeHome(), join = false, factory = FACTORY_NAME }: SetUpOptions): Promise<{ project: string; marker: string; replaced?: string; smallFixesArc?: string }> {
   const at = canonical(path.resolve(folder));
   const existing = findProject(at);
   // Joining on purpose from the folder its marker already names is how an unapproved trunk is approved (ADR-0942 D1).
@@ -64,6 +65,7 @@ export async function setUpProject({ folder, project, storytree, storytreeHome: 
   if (refused !== undefined) throw refused;
   const library = await storytree.openProject(project);
   const { identity } = library;
+  let smallFixes: string | undefined;
   try {
     // A new project inherits no lines written under its name before it: an older install's hooks, in a deleted project's folder.
     if (!join) await forgetProjectActivity(storytree, project);
@@ -74,6 +76,8 @@ export async function setUpProject({ folder, project, storytree, storytreeHome: 
     rememberApproval(home, machine.id, own ?? { project, folder: at });
     // A new project names the user's factory and reads its system from there, holding no copy (ADR-1040); one joined was set up where it was made.
     if (!join) await library.recordFactory(await userFactory(storytree, factory, [...projects, project]));
+    // A new project's one home for its small fixes, made by storytree, never by the agent (6.15); one joined gains it at its check.
+    if (!join) smallFixes = (await smallFixesArc(library))?.id;
   } finally {
     await library.close();
   }
@@ -103,7 +107,7 @@ export async function setUpProject({ folder, project, storytree, storytreeHome: 
   }
   // The root marker an older setup left, naming the project replaced, would only be read as ignored beside the new one.
   if (replaced !== undefined && rootMarkerNames(at, replaced)) rmSync(path.join(at, ROOT_MARKER_FILE), { force: true });
-  return { project, marker, ...(replaced === undefined ? {} : { replaced }) };
+  return { project, marker, ...(replaced === undefined ? {} : { replaced }), ...(smallFixes === undefined ? {} : { smallFixesArc: smallFixes }) };
 }
 
 /** Whether `folder`'s root `.storytree.json` names `project`. */

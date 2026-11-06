@@ -53,13 +53,16 @@ async function openedMap(t: { after(run: () => Promise<void>): void }, linked = 
   }, undefined, { timeout: 60_000 });
   const renders = () => page.evaluate(() => (window as unknown as { __renders: number }).__renders);
   // The opening settles: the sheet opens framed and the islands report their places, then the view stops rendering, and
-  // each island's land, built in its turn (3.87), with its roads when it has links, stands as built.
+  // each island's land, built in its turn (3.87), with its roads when it has links, stands as built. A land rebuilt for
+  // roads that came after it traces its cut borders on over frames that render nothing, so it stands only once they are whole.
   const built = () => page.evaluate(linked => {
-    const { __globe: globe, __renders: renders } = window as unknown as { __renders: number; __globe: { scene: { getObjectByName(name: string): { getObjectByName(name: string): { uuid: string } | undefined } | undefined } } };
+    type Part = { uuid: string; geometry?: { drawRange: { count: number } } };
+    const { __globe: globe, __renders: renders } = window as unknown as { __renders: number; __globe: { scene: { getObjectByName(name: string): { getObjectByName(name: string): Part | undefined } | undefined } } };
     const lands = ["one", "two"].map(story => globe.scene.getObjectByName(`planet:${story}`));
     const drawn = lands.map(island => island?.getObjectByName("territory-land")?.uuid);
     const routed = !linked || lands.every(island => island?.getObjectByName("island-roads") !== undefined);
-    return drawn.every(uuid => uuid !== undefined) && routed ? JSON.stringify([renders, drawn]) : undefined;
+    const whole = lands.every(island => (island?.getObjectByName("territory-borders")?.geometry?.drawRange.count ?? Infinity) === Infinity);
+    return drawn.every(uuid => uuid !== undefined) && routed && whole ? JSON.stringify([renders, drawn]) : undefined;
   }, linked);
   let last: string | undefined;
   await waitUntil(async () => { const now = await built(); const still = now !== undefined && now === last; last = now; return still; }, 30_000, "the map view to stop rendering after it opens, its islands' land built");

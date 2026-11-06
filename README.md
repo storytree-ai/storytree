@@ -120,6 +120,24 @@ The map reads JavaScript, TypeScript and Python code. A project in another langu
 SQL, say) still gets its plan, its activity and the health its agent reports, but its code never
 appears on the map.
 
+## What your library keeps
+
+When you set storytree up, it makes a library for your project: a database on your computer (or the
+one your settings name). It keeps your plan (stories, capabilities, contracts, increments), the
+decisions and notes your agent writes, the friction it records, and every session's transcript,
+which storytree's hooks stream in as the agent works. Obvious secrets are scrubbed from transcripts
+before they are stored; the scrub is best-effort, not a guarantee. Raw transcript records are kept
+180 days. Your library is yours: nothing in it is sent to storytree. Separately, the app can share a
+fixed list of milestone events (never text from your library) only if you turn sharing on, and you
+can turn it off or ask for them to be deleted. Ask your agent how storytree works and it can tell
+you this.
+
+## Your friction stays yours
+
+When something fights your agent, it records friction in your library, for you and your agent to
+act on: you can change your own factory and plugins. storytree never asks you to send it to us. If
+you want to, Help > Send feedback drafts a GitHub issue that you review and submit yourself.
+
 ## Keys
 
 Storytree borrows the logins you already have (Claude Code or Codex, `gh`, Google sign-in), so most

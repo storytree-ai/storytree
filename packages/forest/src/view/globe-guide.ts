@@ -2,8 +2,8 @@
 import { Box3, Vector3, type Camera, type Mesh, type Object3D } from "three";
 import { turnToIsland, type GlobeTurn } from "@storytree/forest";
 /** A pathway is a link's (`from->to`) own stretch of road, the one carrying fewest other links, at the share of the way `along`
- * it (its middle by default). */
-export type GlobeTarget = { kind: "story"; story: string } | { kind: "capability"; capability: string } | { kind: "pathway"; link: string; along?: number } | { kind: "note"; note: string } | { kind: "core" };
+ * it (its middle by default). A point is `at` a place of the scene in world coordinates, as the scene stands at the call. */
+export type GlobeTarget = { kind: "story"; story: string } | { kind: "capability"; capability: string } | { kind: "pathway"; link: string; along?: number } | { kind: "note"; note: string } | { kind: "point"; at: readonly [number, number, number] } | { kind: "core" };
 export type GlobePose = { turn: GlobeTurn; framing: number; sideOffset: number };
 /** Framing is the short half-side in globe radii; offset is CSS pixels right; duration is milliseconds. */
 export type CameraStop = { target: GlobeTarget; framing?: number; sideOffset?: number; duration?: number };
@@ -154,6 +154,7 @@ export function createGlobeGuide(host: { world(): Object3D; camera(): Camera; si
 }
 
 function findTarget(world: Object3D, target: GlobeTarget): { object: Object3D; point: Vector3 } | undefined {
+  if (target.kind === "point") return target.at.every(Number.isFinite) ? { object: world, point: new Vector3(...target.at) } : undefined;
   const object = target.kind === "story" ? world.getObjectByName(`planet:${target.story}`)
     : target.kind === "capability" ? world.getObjectByName(`territory:${target.capability}`)
     : target.kind === "pathway" ? ownStretch(world, target.link)

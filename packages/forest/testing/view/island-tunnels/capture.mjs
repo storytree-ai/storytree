@@ -35,23 +35,16 @@ const closeUp = async (page, settle, times) => {
   await until(page, 'the globe still', () => window.storytreeGlobe.still());
   await zoomTo(page, settle, DETAIL_ZOOM.near * times);
 };
-/** A picture 1440 x 960 round `world` (a point of the scene), taken in a viewport three times as large at `times` the near
- * zoom on The library, so what stands there is drawn large and still on the screen (the globe's controls own the eye). */
-const around = async (page, settle, name, world, times) => {
-  await page.setViewportSize({ width: 4320, height: 2880 });
-  await until(page, 'the map drawn at the larger size', () => window.__globe.size.height > 2000);
-  await settle(page, 12);
-  await closeUp(page, settle, times);
-  const at = await page.evaluate(world => {
-    const { camera } = window.__globe, canvas = document.querySelector('canvas').getBoundingClientRect();
-    const p = new camera.position.constructor(...world).project(camera);
-    return { x: canvas.left + (p.x + 1) / 2 * canvas.width, y: canvas.top + (1 - p.y) / 2 * canvas.height };
-  }, world);
-  const clip = { x: Math.max(0, Math.min(4320 - 1440, at.x - 720)), y: Math.max(0, Math.min(2880 - 960, at.y - 480)), width: 1440, height: 960 };
-  await page.screenshot({ path: path.join(captureOutput(pictures), `${name}.png`), clip, timeout: 180_000 });
-  await page.setViewportSize({ width: 1440, height: 960 });
-  await until(page, 'the map drawn at its own size', () => window.__globe.size.height < 1000);
-  await settle(page, 12);
+/** A picture round the `nth` tunnel portal on The library at `times` the near zoom: the globe turns to face The library, then
+ * the portal, read where it stands as The library faces the viewer (a face turns the globe, so a point read before is stale),
+ * so the eye the globe's controls own looks straight at it. */
+const around = async (page, settle, name, nth, times) => {
+  await closeUp(page, settle, 1);
+  const at = before === undefined ? (await portalsAt(page))[nth] : before[nth];
+  if (!await page.evaluate(at => window.storytreeGlobe.face({ kind: 'point', at }), at)) throw new Error(`no camera stop for portal ${nth}`);
+  await until(page, 'the globe still', () => window.storytreeGlobe.still());
+  await zoomTo(page, settle, DETAIL_ZOOM.near * times);
+  await page.screenshot({ path: path.join(captureOutput(pictures), `${name}.png`), timeout: 180_000 });
 };
 /** Where in the scene each tunnel portal on The library stands. */
 const portalsAt = page => page.evaluate(story => {
@@ -119,7 +112,7 @@ await runCapture({
     // Round each tunnel's first portal; on main, which draws none, round where this branch's stand (--at <its measurements.json>).
     prepare: async ({ page, settle }) => {
       results.portalsAt = before === undefined ? await portalsAt(page) : before;
-      for (const [k, nth] of [0, 2].entries()) if (results.portalsAt[nth] !== undefined) await around(page, settle, `the-library-tunnel-${k + 1}`, results.portalsAt[nth], 10);
+      for (const [k, nth] of [0, 2].entries()) if (results.portalsAt[nth] !== undefined) await around(page, settle, `the-library-tunnel-${k + 1}`, nth, 10);
     },
     measure: async ({ page }) => measure(page),
   }],

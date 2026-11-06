@@ -158,6 +158,15 @@ test("3.41 the page's locator gives each drawn island's capability count and cli
   const faced = locator.islands()[0]!;
   assert.ok(faced.visible && Math.abs(faced.x - 500) < 1e-6 && Math.abs(faced.y - 350) < 1e-6, "the island faces the viewer, mid-canvas");
   assert.equal(locator.face({ kind: "story", story: "missing" }), false);
+  // A point of the scene off the faced island: facing it turns the globe so the point, not the island, is mid-canvas.
+  const off = new Group(); off.position.set(8, 6, 0); f.globe.add(off); f.world.updateMatrixWorld(true);
+  assert.equal(locator.face({ kind: "point", at: off.getWorldPosition(new Vector3()).toArray() }), true);
+  assert.equal(locator.still(), true, "facing a point turns at once too");
+  const point = f.guide.position({ kind: "point", at: off.getWorldPosition(new Vector3()).toArray() })!;
+  assert.ok(point.visible && Math.abs(point.x - 400) < 1e-6 && Math.abs(point.y - 300) < 1e-6, "the point faces the viewer, mid-canvas");
+  const moved = locator.islands()[0]!;
+  assert.ok(Math.hypot(moved.x - 500, moved.y - 350) > 1, "the island is no longer mid-canvas");
+  assert.equal(locator.face({ kind: "point", at: [Number.NaN, 0, 0] }), false, "no point to face");
 });
 
 test("3.45 the locator reads still only once the globe has placed itself beside the panel as the page measures it now", () => {

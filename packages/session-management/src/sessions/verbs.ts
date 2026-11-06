@@ -44,23 +44,24 @@ const name = verb({
 });
 
 const point = verb({
-  command: { family: "session", name: "point", summary: "point the owner's eye at one capability, saying why (--why) and the question it is for (--question); with none, point at nothing" },
+  command: { family: "session", name: "point", summary: "point the owner's eye at one capability, or the gate between it and a second (--gate), saying why (--why) and the question it is for (--question); with none, point at nothing" },
   tool: {
     name: "point_at",
-    description: "Point the owner's eye at one capability where it is needed (a picture to judge, a question waiting on him), saying why, and the question it is for when there is one: the map pulses there slowly, in your session's colour, and never moves his camera. You hold one pointer: the latest replaces the earlier, and calling it with no capability, closing out or ending removes it.",
+    description: "Point the owner's eye at one capability where it is needed (a picture to judge, a question waiting on him), saying why, and the question it is for when there is one; name a second capability as the gate to point at the gate between the two instead. The map pulses there slowly, in your session's colour, and never moves his camera. You hold one pointer: the latest replaces the earlier, and calling it with no capability, closing out or ending removes it.",
   },
   inputs: {
     capability: { kind: "text", word: 0, optional: true, describe: "the capability to point at; none points at nothing" },
+    gate: { kind: "text", optional: true, describe: "a second capability: points at the gate between it and the first instead" },
     why: { kind: "text", optional: true, describe: "why his eye is needed there, in a few words" },
     question: { kind: "text", optional: true, describe: "the question the point is for, when it is for one" },
   },
   agentOnly: "it points for the agent session that runs it",
-  async act({ capability, why, question }, context: SessionVerbContext) {
+  async act({ capability, gate, why, question }, context: SessionVerbContext) {
     const { pointAt, pointRefusal } = await import("./point.js");
-    const answer = await pointAt(context, { ...(capability === undefined ? {} : { capability }), ...(why === undefined ? {} : { why }), ...(question === undefined ? {} : { question }) });
-    if (!answer.ok) throw new VerbRefusal(pointRefusal(answer), { misuse: answer.refused === "no-why" });
+    const answer = await pointAt(context, { ...(capability === undefined ? {} : { capability }), ...(gate === undefined ? {} : { gate }), ...(why === undefined ? {} : { why }), ...(question === undefined ? {} : { question }) });
+    if (!answer.ok) throw new VerbRefusal(pointRefusal(answer), { misuse: answer.refused === "no-why" || answer.refused === "no-capability" });
     const line = answer.line;
-    return { text: line.kind === "pointed" && line.capability !== undefined ? `Pointing the owner's eye at ${line.capability}: ${line.why}.` : "Pointing at nothing." };
+    return { text: line.kind === "pointed" && line.capability !== undefined ? `Pointing the owner's eye at ${line.gate === undefined ? line.capability : `the gate between ${line.capability} and ${line.gate}`}: ${line.why}.` : "Pointing at nothing." };
   },
 });
 

@@ -53,7 +53,7 @@ function drawnIsland(): Object3D {
   lightRoute(roadMarks, roads, { kind: "gate", gate: 0, between: roads.gates[0]!.between });
   land.add(islandReliefMarks(relief, flat, fill), roadMarks);
   lightTerritories(land, new Map([[kinds[0]!, "in-window" as const]]), "#56b4e9");
-  const work = openWorkLayer(openWorkMarks(map, new Set([kinds[0]!]), roads, coast), land, flat, 1);
+  const work = openWorkLayer(openWorkMarks(map, new Set([kinds[0]!]), roads), land, flat, 1);
   const claims = new ClaimMarks();
   claims.setLand(map, flat, () => new Vector3(0, 1, 0), true, coast);
   claims.claims(new Map([[kinds[2]!, { colour: "#e69f00", faded: false }]]), 0, { standing: false, reduced: false });

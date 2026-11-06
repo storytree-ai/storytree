@@ -163,8 +163,8 @@ test("3.73 · once the map has opened, every material on it has its shader progr
   assert.deepEqual(uncompiled, []);
 });
 
-test("3.86 · an island nobody selected is laid out with its roads; zooming out past a threshold hides its roads and then its territories, zooming back shows them, and their shapes never change", async t => {
-  // A small window, so the whole map opens below the near marks' zoom and the wheel can draw back to far.
+test("3.86 · an island nobody selected is laid out with its roads; zooming out past the threshold hides its roads, the territories stay shown down to the wheel's floor, zooming back shows the roads, and the shapes never change", async t => {
+  // A small window, so the whole map opens below the near marks' zoom and the wheel can draw back to its floor.
   const { page } = await openedMap(t, true, { width: 400, height: 300 });
   type Mark = { visible: boolean; parent: Mark | null; geometry?: { getAttribute(name: string): { array: ArrayLike<number> } } };
   type Scene = { getObjectByName(name: string): { getObjectByName(name: string): Mark | undefined } | undefined };
@@ -195,10 +195,13 @@ test("3.86 · an island nobody selected is laid out with its roads; zooming out 
   const near = await wheel(-240, now => now.roads === true, "an island not selected with its roads shown, near");
   const territories = await wheel(240, now => now.roads === false, "the roads hidden");
   assert.equal(territories.territories, true, "the territories still show where the roads hide");
-  const far = await wheel(240, now => !now.territories, "the territories hidden, far");
-  assert.ok(far.zoom < territories.zoom && territories.zoom < near.zoom, "hidden in order as the eye draws back");
+  // Drawn back until a step of the wheel moves the eye no further: its floor.
+  let before = Infinity;
+  const floor = await wheel(240, now => { const still = now.zoom >= before * 0.999; before = now.zoom; return still; }, "its floor");
+  assert.ok(floor.zoom < territories.zoom && territories.zoom < near.zoom, "the eye drew back past the roads' threshold to the floor");
+  assert.equal(floor.territories, true, "the territories still show at the wheel's floor");
   const back = await wheel(-240, now => now.roads === true && now.territories === true, "everything shown again, near");
-  for (const seen of [territories, far, back]) assert.deepEqual(seen.borders, near.borders, "the territories' borders keep their shape at every zoom");
+  for (const seen of [territories, floor, back]) assert.deepEqual(seen.borders, near.borders, "the territories' borders keep their shape at every zoom");
 });
 
 test("3.73 · roads that arrive hidden, after the map opened, have their shader programs too, so the zoom that first shows them stops to compile none", async t => {

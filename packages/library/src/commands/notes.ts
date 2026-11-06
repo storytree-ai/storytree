@@ -23,6 +23,7 @@ import { isPluginKind } from "../schema/index.js";
 import { KNOWLEDGE_KINDS } from "../knowledge/index.js";
 import { verb, VerbRefusal, type VerbAnswer, type VerbContext, type Verb, type VerbInputs } from "../verbs/verb.js";
 import { everyHolding, holdingLines, wholeRecord, type HeldClaim } from "./index.js";
+import { refuseStaleEdit } from "./stale-edit.js";
 
 /** How a session came to an artifact it read. */
 export type Found = Extract<NewLine, { kind: "note-read" }>["found"];
@@ -160,10 +161,12 @@ const correctNote = verb({
     title: { kind: "text", optional: true, verbatim: true, blank: true, describe: "A decision's title" },
     term: { kind: "text", optional: true, verbatim: true, blank: true, describe: "A definition's term" },
     meaning: { kind: "text", optional: true, verbatim: true, blank: true, describe: "A definition's meaning" },
+    read: { kind: "text", optional: true, describe: "The seq of the artifact's newest history entry when you read it: the correction is refused if it has changed since" },
   },
-  async act({ id, ...wording }, { library, writer }: NoteToolContext) {
+  async act({ id, read, ...wording }, { library, writer }: NoteToolContext) {
     const fields = Object.fromEntries(Object.entries(wording).filter(([, value]) => value !== undefined));
     if (Object.keys(fields).length === 0) throw new VerbRefusal("Give the words to change: text, title, term or meaning.");
+    await refuseStaleEdit(library, id, writer!, read);
     const note = await library.editNote(id, fields as NoteEdit, writer!);
     if (note === null) throw new VerbRefusal(`There is no artifact ${id} in this project.`);
     return { text: `Corrected ${quoted(spineOf(note))} (${id}).`, data: { id } };

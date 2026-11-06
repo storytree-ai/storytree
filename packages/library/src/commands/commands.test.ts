@@ -12,6 +12,7 @@ import { test } from "node:test";
 import { connect } from "../index.js";
 import { testServerUrl, uniqueProjectName } from "../testing/pg.js";
 import { mounted, VerbRefusal, type DoorWords, type Verb, type VerbInputs } from "../verbs/verb.js";
+import { RECENT_MS, refuseStaleEdit } from "./stale-edit.js";
 import { LIBRARY_FAMILIES, NOTE_TOOLS, type HeldClaim, type LibraryVerbContext, type NoteRead, type NoteToolContext } from "./index.js";
 
 const WORDS: DoorWords = { door: "command", say: (step) => `storytree ${step.command}` };
@@ -742,4 +743,54 @@ test("17.19 · library new decision refuses an accepted decision with no authori
   const [stored] = await library.list("decision");
   assert.match(written.text, new RegExp(`Wrote decision ${stored!.id}`));
   assert.equal((stored!.fields as { authority?: { basis: string } }).authority?.basis, "agent-derived", "its authority is stored");
+});
+
+test("17.21 · library edit and correct_note refuse, naming the newer change and writing nothing, a whole-field write whose record changed since --read <seq>, or, with no --read, that another writer changed in the last 15 minutes (friction_90ff039d8cce)", async (t) => {
+  const storytree = await connect({ url: testServerUrl() });
+  const project = uniqueProjectName();
+  t.after(async () => {
+    try {
+      await storytree.dropProject(project);
+    } finally {
+      await storytree.close();
+    }
+  });
+  const library = await storytree.openProject(project);
+  const edit = LIBRARY_FAMILIES.find((one) => one.name === "library")!.verbs.find((one) => mounted(one.command) && one.command.name === "edit")!;
+  const correct = NOTE_TOOLS.find((one) => mounted(one.tool) && one.tool.name === "correct_note")!;
+  const contextOf = (session: string): LibraryVerbContext => ({ library, project, session, folder: tmpdir(), writer: { actor: `session:${session}` }, claims: async () => [], testedNumbers: async () => ({ tested: [], untested: [] }) });
+  const toolContextOf = (session: string): NoteToolContext => ({ ...contextOf(session), notesRead: async () => [], recordReads: async () => {}, presenterOf: async () => undefined });
+  const newest = async (id: string) => (await library.history({ id })).at(-1)!.seq;
+  const stepsOf = async (id: string) => ((await library.get(id))?.fields as { steps?: string } | undefined)?.steps;
+
+  const routine = { title: "Land a pull request", description: "A routine", statement: "S", trigger: "When green", steps: "1. Push", surfaces: "The box", failureModes: "None" };
+  const process = await library.writeKnowledge("process", routine);
+  await edit.act({ "<id>": process.id, "<fields>": { steps: "1. Push\n2. Hand over" } }, contextOf("A"), WORDS);
+  await edit.act({ "<id>": process.id, "<fields>": { steps: "1. Push\n2. Hand over\n3. Close out" } }, contextOf("A"), WORDS); // its own last change
+  const theirs = await newest(process.id);
+
+  const refused = async (input: Record<string, unknown>, context: LibraryVerbContext | NoteToolContext, verb: typeof edit | typeof correct, id: string) => {
+    const before = await newest(id);
+    await assert.rejects(verb.act(input as never, context as never, WORDS), (error: unknown) => error instanceof VerbRefusal && error.message.includes(`entry ${before}`) && error.message.includes("session:A"));
+    assert.equal(await newest(id), before, "nothing is written");
+  };
+  await refused({ "<id>": process.id, "<fields>": { steps: "1. Push\n2. Wait" } }, contextOf("B"), edit, process.id);
+  await refused({ "<id>": process.id, "<fields>": { steps: "1. Push\n2. Wait" }, read: String(theirs - 1) }, contextOf("B"), edit, process.id);
+  assert.equal(await stepsOf(process.id), "1. Push\n2. Hand over\n3. Close out", "A's steps stand");
+  await edit.act({ "<id>": process.id, "<fields>": { steps: "1. Push\n2. Hand over\n3. Close out\n4. Debrief" }, read: String(theirs) }, contextOf("B"), WORDS);
+  assert.equal(await stepsOf(process.id), "1. Push\n2. Hand over\n3. Close out\n4. Debrief", "re-read and re-applied, it writes");
+
+  const term = await library.defineTerm({ term: "Lane", meaning: "A session the pool starts." });
+  await correct.act({ id: term.id, meaning: "A session the pool starts on the box." } as never, toolContextOf("A"), WORDS);
+  await refused({ id: term.id, meaning: "A worker." }, toolContextOf("B"), correct, term.id);
+  await correct.act({ id: term.id, meaning: "A session the pool starts on the Mint box.", read: String(await newest(term.id)) } as never, toolContextOf("B"), WORDS);
+  assert.equal(((await library.get(term.id))?.fields as { meaning?: string } | undefined)?.meaning, "A session the pool starts on the Mint box.");
+
+  await assert.rejects(edit.act({ "<id>": term.id, "<fields>": { meaning: "A worker." }, read: "latest" }, contextOf("B"), WORDS), (error: unknown) => error instanceof VerbRefusal && error.misuse === true, "a --read that is no entry's seq");
+  await refuseStaleEdit(library, term.id, { actor: "session:A" }, undefined, Date.now() + RECENT_MS + 1000); // B's change, read or not, is older than the window
+  const story = await library.addStory({ title: "Sign up" });
+  const form = await library.addCapability({ story: story.id, title: "Form" });
+  await edit.act({ "<id>": form.id, "<fields>": { description: "Typed here" } }, contextOf("A"), WORDS);
+  await edit.act({ "<id>": form.id, "<fields>": { description: "Typed there" } }, contextOf("B"), WORDS);
+  assert.equal(((await library.get(form.id))?.fields as { description?: string } | undefined)?.description, "Typed there", "a planned record's edit is held with the entry it read, not refused here");
 });

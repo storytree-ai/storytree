@@ -1,5 +1,5 @@
 /** Capability 3 · Story node render. What a live update hands the globe (ADR-0836 D1): only what changed, and nothing when nothing on show did. */
-import type { ClaimTint, ForestScene, Island, SessionWisp } from "@storytree/forest";
+import type { ClaimTint, ForestScene, Island, PointerTint, SessionWisp } from "@storytree/forest";
 
 /** The globe's drawing as it stands: the scene and each story's permanent place. */
 export interface OnShow {
@@ -29,6 +29,14 @@ export function sameWisps(a: readonly SessionWisp[], b: readonly SessionWisp[]):
       && wisp.faded === other.faded && wisp.pointer?.capability === other.pointer?.capability && wisp.pointer?.question === other.pointer?.question
       && wisp.capabilities.length === other.capabilities.length && wisp.capabilities.every((c, i) => c === other.capabilities[i]);
   });
+}
+
+/** The pointers shown on island land `land` (5.8): those of `pointed` on its territories, in its territories' order. */
+export function pointersOn(pointed: ReadonlyMap<string, PointerTint>, land: NonNullable<Island["land"]>): Map<string, PointerTint> {
+  return new Map(land.territories.flatMap(({ capability }) => {
+    const tint = capability === undefined ? undefined : pointed.get(capability);
+    return tint === undefined ? [] : [[capability!, tint] as const];
+  }));
 }
 
 /** What of `claimed` tints island land `land`: equal while only other islands' claims change. */

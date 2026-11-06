@@ -20,7 +20,7 @@ import { islandLayoutSteps, type Link } from "../territories/link-layout.js";
 import { keptVersion, pageTerritorySearcher, searchIsland, subscribeKept } from "../territories/kept-layout.js";
 import { NameplateCrowd, Nameplates, reducedMotion, SelectionRing } from "./island-overlays.js";
 import { focusRotation, globeHover, isGlobeDrag, markerSpot, movingSpots, MOVE_SECONDS, oncePerFrame, pickClick, routeAfterSelection, type ForestMode } from "./planet-navigation.js";
-import { claimsOn } from "./planet-update.js";
+import { claimsOn, pointersOn } from "./planet-update.js";
 import { createGlobeGuide, type GlobePose, type PlacedGlobeControls } from "./globe-guide.js";
 import { createGlobeAside, framedOnResize, type AsidePose } from "./globe-aside.js";
 import { compassNorth, opensBare, seesUnderside, sheetDrag, sheetHome, sheetKey, sheetKeyPan, sheetLayout, sheetMarkers, sheetOpening, sheetPan, sheetPanUnder, sheetSpin, sheetSpinTilt, sheetTilted, sheetTiltBy, sheetTwist, sheetUnder, TILT_PER_PIXEL, TILT_STEP, withDocks } from "./sheet-navigation.js";
@@ -306,10 +306,8 @@ function Territories(props: TerritoriesProps) {
   const land = useKept(given, JSON.stringify), coast = useKept(givenCoast, JSON.stringify), docks = useKept(givenDocks, (docks) => JSON.stringify(docks ?? null));
   // A claim on another island leaves this one's territories as they were.
   const tints = useKept(claimed, tints => claimsOn(tints, land));
-  const pointed = useKept(useMemo(() => new Map(land.territories.flatMap(({ capability }) => {
-    const tint = capability === undefined ? undefined : allPointed.get(capability);
-    return tint === undefined ? [] : [[capability!, tint] as const];
-  })), [allPointed, land]), (here) => JSON.stringify([...here]));
+  // A pointer on another island leaves this one's as they were (5.8).
+  const pointed = useKept(useMemo(() => pointersOn(allPointed, land), [allPointed, land]), (here) => JSON.stringify([...here]));
   // When the island joined the map, after its first island did: one there as the map opens stands, its land included, however
   // late it is built, and however late the plan came after the sheet first drew.
   const [joined] = useState(() => sinceFirstIsland(clock));

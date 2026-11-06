@@ -29,8 +29,8 @@ export type PluginReading =
   | { written: false; why: string }
   | { written: true; commit?: string; tests: number; unmatched: number; passing: number; failing: number; notChecked: number };
 
-/** A run of a plugin's test command in `folder`: what it printed, read whatever its exit code. */
-export type RunTests = (command: string, folder: string) => Promise<string>;
+/** A run of a plugin's test command in `folder`: what it printed, read whatever its exit code, and that code. */
+export type RunTests = (command: string, folder: string) => Promise<{ output: string; code: number | null }>;
 
 /** The plugin's test command run through a shell in its folder, without the test runner's context of any run around it. */
 export const runTests: RunTests = (command, folder) =>
@@ -42,7 +42,7 @@ export const runTests: RunTests = (command, folder) =>
     child.stdout.on("data", (chunk) => (output += chunk));
     child.stderr.on("data", (chunk) => (output += chunk));
     child.on("error", reject);
-    child.on("close", () => resolve(output));
+    child.on("close", (code) => resolve({ output, code }));
   });
 
 /** Folders whose files are never a project's own: installed packages, virtual environments, caches and git's. */
@@ -79,7 +79,7 @@ export async function recordPluginTests({ library, factory, plugin, run = runTes
   const proofs = proofsAt(await library.projectTree(), files).filter(({ packages }) => packages.includes(plugin));
   if (proofs.length === 0) return { written: false, why: `No story in this project has ${plugin} as its package (a story of that plugin, or titled ${JSON.stringify(plugin)}), so its tests prove no contract here; nothing was written.` };
 
-  const results = parseTestLog(await run(command, folder));
+  const results = parseTestLog((await run(command, folder)).output);
   if (results.length === 0) return { written: false, why: `${plugin}'s test command (${command}) reported no test results storytree can read (node --test's output); nothing was written.` };
   const { verdicts, unmatched } = judgeRun(proofs, results);
   const commit = await commitOf(factory);

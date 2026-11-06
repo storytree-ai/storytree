@@ -10,7 +10,7 @@
  * (capability 5) runs the project's own tests the same way into its verified health, as a local test run, with no
  * repository needed (ADR-1193 D1, D2: the health ladder's local rung), on the command line only for the same reason.
  */
-import { verb, type VerbFamily } from "@storytree/library/verbs";
+import { verb, VerbRefusal, type VerbFamily } from "@storytree/library/verbs";
 
 const worklist = verb({
   command: { family: "health", name: "worklist", summary: "the oldest three capabilities that are not healthy, with why, who moves each and since when" },
@@ -76,6 +76,8 @@ const local = verb({
   async act(_input, { library, folder }) {
     const { recordLocalTests } = await import("./local-run/local-run.js");
     const read = await recordLocalTests({ library, folder });
+    // A run that reported nothing storytree reads verified nothing, so the command fails.
+    if (!read.written && read.unread) throw new VerbRefusal(read.why);
     if (!read.written) return { text: read.why };
     return {
       text: `Ran this project's ${read.tests} tests locally by \`${read.command}\`${read.commit === undefined ? "" : ` (commit ${read.commit.slice(0, 12)})`}: ${read.passing} contracts verified passing, ${read.failing} failing, ${read.notChecked} not checked` +

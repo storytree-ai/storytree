@@ -90,6 +90,10 @@
 // DEADLINE_GRACE_MS past it (waiting, starting or stopping Postgres, or not exiting), the run says
 // where it stalled and exits 1. The units running at the deadline are each cut there.
 //
+// On macOS a unit killed at its own deadline runs once more while the run has time (withMacRetry,
+// friction_cb9a033867a9: forest's browser smokes stalled there on queue runners only), its row naming the
+// first try; it fails only if the second is killed or fails too, and its time is the second try's.
+//
 // One heavy run at a time on a machine, in storytree's checkout where Mick's factory plugin micks-dev-loop is named (its
 // heavy-run lock is the run hold packages/repo-checks/src/test.mjs hands this runner, gate.mjs's contributedHold): past the
 // scope decision, a run takes the machine's heavy-run lock (heavy-run.lock in STORYTREE_HOME) and holds it until its
@@ -113,7 +117,7 @@ import { keepPreviousServerLog } from "./server-log.mjs";
 import { parseTestArgs, planRun, readWorkspace, resultsTable, scopeFor, scopeLine, TEST_USAGE, unitGlobs } from "./test-scope.mjs";
 import { stopServersUnder, sweepLeftovers } from "./test-leftovers.mjs";
 import { runPool, shardPlan, shardUnits, slowestFirst, takeShard, testJobs } from "./unit-pool.mjs";
-import { clearUnitLimit, DEADLINE_GRACE_MS, defaultUnitLimit, killTree, recentPassTimes, recordTimings, runDeadline, runUnit, setUnitLimit, TEST_LIMIT_MS, unitLimit, unitReason, unitTestLimit, withinDeadline } from "./unit-run.mjs";
+import { clearUnitLimit, DEADLINE_GRACE_MS, defaultUnitLimit, killTree, recentPassTimes, recordTimings, runDeadline, runUnit, setUnitLimit, TEST_LIMIT_MS, unitLimit, unitReason, unitTestLimit, withinDeadline, withMacRetry } from "./unit-run.mjs";
 
 let root; // the repository the run tests, from testCommand's root
 let work, dataDir, serverLog, toolLog, recordFile, shardPlanFile; // the run's files, under root's .pgtest
@@ -336,7 +340,8 @@ async function runTests(env, units) {
     running.add(unit);
     phase = `running ${[...running].join(", ")}`;
     console.log(jobs > 1 ? `started ${unit}` : `\n=== ${unit} ===`);
-    const run = await runNodeTest(env, unitGlobs(unit, { root, alone }), unit);
+    const files = unitGlobs(unit, { root, alone });
+    const run = await withMacRetry(() => runNodeTest(env, files, unit), { timeLeft: () => !interrupted && (deadline === undefined || Date.now() < deadline) });
     running.delete(unit);
     if (jobs > 1) process.stdout.write(`\n=== ${unit} ===\n${run.output}`);
     if (interrupted) return; // Ctrl-C cut it short: it stays NOT RUN

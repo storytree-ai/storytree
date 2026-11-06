@@ -4,14 +4,19 @@ import path from "node:path";
 import { test } from "node:test";
 
 import { git, withTempDir } from "@storytree/project-and-caller/testing/folders";
+import { runGit } from "../activity/git.js";
+import { LEARNED_FILE } from "./learned-limits.js";
 import { shellEdits } from "./shell-edits.js";
+
+/** A deadline no loaded runner reaches: these tests protect what an observation sees, not how fast its Git reads run. */
+const UNHURRIED = 60_000;
 
 test("3.22 a first observation invents no edit, worktrees keep separate baselines, and a failed Git read preserves the last good observation and says why", async () => {
   await withTempDir((dir) => {
     const home = path.join(dir, "home");
     const roots = [path.join(dir, "first"), path.join(dir, "second")];
     const failures: Error[] = [];
-    const observe = (root: string) => shellEdits(home, root, { session: "one", harness: "codex", source: "hook", kind: "command-run", command: "node script.js", folder: root }, (error) => failures.push(error as Error));
+    const observe = (root: string) => shellEdits(home, root, { session: "one", harness: "codex", source: "hook", kind: "command-run", command: "node script.js", folder: root }, (error) => failures.push(error as Error), runGit, UNHURRIED);
     for (const root of roots) {
       mkdirSync(root);
       git(root, "init", "-b", "unborn");
@@ -40,7 +45,7 @@ test("3.22 a clean pull, fast-forward or merge invents no edit for the files Git
     const home = path.join(dir, "home");
     const root = path.join(dir, "repo");
     mkdirSync(root);
-    const edited = () => shellEdits(home, root, { session: "one", harness: "codex", source: "hook", kind: "command-run", command: "git", folder: root }).map((line) => line.kind === "file-edited" && line.files);
+    const edited = () => shellEdits(home, root, { session: "one", harness: "codex", source: "hook", kind: "command-run", command: "git", folder: root }, () => undefined, runGit, UNHURRIED).map((line) => line.kind === "file-edited" && line.files);
     const commit = (file: string, text: string, message: string) => {
       writeFileSync(path.join(root, file), text);
       git(root, "add", file);
@@ -89,7 +94,7 @@ test("3.22 checkout, switch, reset and rebase claim no imported edits, including
     const home = path.join(dir, "home");
     const root = path.join(dir, "repo");
     mkdirSync(root);
-    const edited = () => shellEdits(home, root, { session: "one", harness: "codex", source: "hook", kind: "command-run", command: "git", folder: root }).flatMap((line) => line.kind === "file-edited" ? line.files : []);
+    const edited = () => shellEdits(home, root, { session: "one", harness: "codex", source: "hook", kind: "command-run", command: "git", folder: root }, () => undefined, runGit, UNHURRIED).flatMap((line) => line.kind === "file-edited" ? line.files : []);
     const commit = (file: string, text: string) => {
       writeFileSync(path.join(root, file), text);
       git(root, "add", "-A");
@@ -144,7 +149,7 @@ test("3.22 a checkout moved to a published commit invents no edit even when HEAD
     const root = path.join(dir, "repo");
     mkdirSync(upstream);
     const failures: unknown[] = [];
-    const edited = () => shellEdits(home, root, { session: "one", harness: "claude-code", source: "hook", kind: "command-run", command: "gh pr view 1", folder: root }, (error) => failures.push(error)).flatMap((line) => line.kind === "file-edited" ? line.files : []);
+    const edited = () => shellEdits(home, root, { session: "one", harness: "claude-code", source: "hook", kind: "command-run", command: "gh pr view 1", folder: root }, (error) => failures.push(error), runGit, UNHURRIED).flatMap((line) => line.kind === "file-edited" ? line.files : []);
     const commit = (where: string, file: string, text: string) => {
       writeFileSync(path.join(where, file), text);
       git(where, "add", "-A");
@@ -205,12 +210,30 @@ test("3.22 a shell write is seen without starting the repository's own commands:
     git(root, "config", "filter.quiet.required", "true");
     git(root, "config", "core.fsmonitor", `echo fsmonitor >> '${marker}'`);
     const failures: unknown[] = [];
-    const observe = () => shellEdits(home, root, { session: "one", harness: "codex", source: "hook", kind: "command-run", command: "node script.js", folder: root }, (error) => failures.push(error));
+    const observe = () => shellEdits(home, root, { session: "one", harness: "codex", source: "hook", kind: "command-run", command: "node script.js", folder: root }, (error) => failures.push(error), runGit, UNHURRIED);
 
     assert.deepEqual(observe(), []);
     writeFileSync(path.join(root, "file.txt"), "written by the command\n");
     assert.deepEqual(observe().map((line) => line.kind === "file-edited" && line.files), [["file.txt"]]);
     assert.deepEqual(failures, []);
     assert.equal(existsSync(marker), false, existsSync(marker) ? readFileSync(marker, "utf8") : "");
+  });
+});
+
+test("3.22 an observation given its own deadline keeps to it, not to the one learned on the machine, and learns nothing from it", async () => {
+  await withTempDir((dir) => {
+    const home = path.join(dir, "home");
+    const root = path.join(dir, "repo");
+    mkdirSync(root);
+    git(root, "init", "-q", "-b", "main");
+    const failures: unknown[] = [];
+    const observe = (deadlineMs: number) => shellEdits(home, root, { session: "one", harness: "codex", source: "hook", kind: "command-run", command: "node script.js", folder: root }, (error) => failures.push(error), runGit, deadlineMs);
+
+    // No time is left for the first read, however fast it would run inside the learned 5 s.
+    assert.deepEqual(observe(0), []);
+    assert.match(String(failures[0]), /took longer than 0 ms/);
+    assert.deepEqual(observe(UNHURRIED), []);
+    assert.equal(failures.length, 1);
+    assert.equal(existsSync(path.join(home, LEARNED_FILE)), false);
   });
 });

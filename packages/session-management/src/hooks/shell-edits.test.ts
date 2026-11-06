@@ -4,7 +4,7 @@ import path from "node:path";
 import { test } from "node:test";
 
 import { git, withTempDir } from "@storytree/project-and-caller/testing/folders";
-import { runGit, type Git as RunGit } from "../activity/git.js";
+import { runGit } from "../activity/git.js";
 import { LEARNED_FILE } from "./learned-limits.js";
 import { shellEdits } from "./shell-edits.js";
 
@@ -226,16 +226,14 @@ test("3.22 an observation given its own deadline keeps to it, not to the one lea
     const root = path.join(dir, "repo");
     mkdirSync(root);
     git(root, "init", "-q", "-b", "main");
-    // Every Git read takes 50 ms: well inside the learned 5 s, well past the 20 ms this observation is given.
-    const slow: RunGit = (args, options) => {
-      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 50);
-      return runGit(args, options);
-    };
     const failures: unknown[] = [];
-    const observe = (deadlineMs: number) => shellEdits(home, root, { session: "one", harness: "codex", source: "hook", kind: "command-run", command: "node script.js", folder: root }, (error) => failures.push(error), slow, deadlineMs);
+    const observe = (deadlineMs: number) => shellEdits(home, root, { session: "one", harness: "codex", source: "hook", kind: "command-run", command: "node script.js", folder: root }, (error) => failures.push(error), runGit, deadlineMs);
 
-    assert.deepEqual(observe(20), []);
-    assert.match(String(failures[0]), /took longer than 20 ms/);
+    // No time is left for the first read, however fast it would run inside the learned 5 s.
+    assert.deepEqual(observe(0), []);
+    assert.match(String(failures[0]), /took longer than 0 ms/);
+    assert.deepEqual(observe(UNHURRIED), []);
+    assert.equal(failures.length, 1);
     assert.equal(existsSync(path.join(home, LEARNED_FILE)), false);
   });
 });

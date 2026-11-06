@@ -1,9 +1,8 @@
 /** Capability 3 · Story node render. */
 import { Box3, Vector3, type Camera, type Mesh, type Object3D } from "three";
 import { turnToIsland, type GlobeTurn } from "@storytree/forest";
-/** A pathway is a link's (`from->to`) own stretch of road, the one carrying fewest other links, at the share of the way `along`
- * it (its middle by default). A point is `at` a place of the scene in world coordinates, as the scene stands at the call. */
-export type GlobeTarget = { kind: "story"; story: string } | { kind: "capability"; capability: string } | { kind: "pathway"; link: string; along?: number } | { kind: "note"; note: string } | { kind: "point"; at: readonly [number, number, number] } | { kind: "core" };
+/** A point is `at` a place of the scene in world coordinates, as the scene stands at the call. */
+export type GlobeTarget = { kind: "story"; story: string } | { kind: "capability"; capability: string } | { kind: "note"; note: string } | { kind: "point"; at: readonly [number, number, number] } | { kind: "core" };
 export type GlobePose = { turn: GlobeTurn; framing: number; sideOffset: number };
 /** Framing is the short half-side in globe radii; offset is CSS pixels right; duration is milliseconds. */
 export type CameraStop = { target: GlobeTarget; framing?: number; sideOffset?: number; duration?: number };
@@ -157,7 +156,6 @@ function findTarget(world: Object3D, target: GlobeTarget): { object: Object3D; p
   if (target.kind === "point") return target.at.every(Number.isFinite) ? { object: world, point: new Vector3(...target.at) } : undefined;
   const object = target.kind === "story" ? world.getObjectByName(`planet:${target.story}`)
     : target.kind === "capability" ? world.getObjectByName(`territory:${target.capability}`)
-    : target.kind === "pathway" ? ownStretch(world, target.link)
     : target.kind === "note" ? world.getObjectByName(`knowledge-point:${target.note}`)
     : world.getObjectByName("globe-core");
   if (object === undefined) return undefined;
@@ -166,24 +164,7 @@ function findTarget(world: Object3D, target: GlobeTarget): { object: Object3D; p
   if (target.kind === "capability" && geometry !== undefined) {
     geometry.computeBoundingBox(); geometry.boundingBox?.getCenter(point);
   }
-  // A road's ribbon runs its length as pairs of points, one each side: the point is the middle of the pair that far along.
-  const along = geometry?.getAttribute("position");
-  if (target.kind === "pathway" && along !== undefined && along.count >= 2) {
-    const pair = Math.round(Math.min(1, Math.max(0, target.along ?? .5)) * (Math.floor(along.count / 2) - 1)) * 2;
-    point.set((along.getX(pair) + along.getX(pair + 1)) / 2, (along.getY(pair) + along.getY(pair + 1)) / 2, (along.getZ(pair) + along.getZ(pair + 1)) / 2);
-  }
   return { object, point: object.localToWorld(point) };
-}
-
-/** The drawn stretch of road that carries `link` and the fewest other links: where roads merge, its own branch. */
-function ownStretch(world: Object3D, link: string): Object3D | undefined {
-  let found: Object3D | undefined;
-  world.traverse(object => {
-    const links = object.userData.links as readonly string[] | undefined;
-    if (!object.name.startsWith("pathway:") || !links?.includes(link)) return;
-    if (!found || links.length < (found.userData.links as readonly string[]).length) found = object;
-  });
-  return found;
 }
 
 /** Three's raycaster includes invisible objects; every picker must check their ancestors too. */

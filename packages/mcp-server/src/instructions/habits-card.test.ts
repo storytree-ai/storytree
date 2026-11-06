@@ -265,7 +265,7 @@ test("7.18 · the card handed at session start says mapping an existing reposito
   const session = await sessionStart();
   try {
     const served = session.client.getInstructions() ?? "";
-    assert.ok(served.includes("Mapping includes running the repository's tests"), "the served card says mapping runs the tests");
+    assert.ok(served.includes("Mapping includes running the repository's tests in your shell"), "the served card says mapping runs the tests");
   } finally {
     await session.close();
   }

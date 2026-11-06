@@ -20,7 +20,7 @@ import { islandLayoutSteps, type Link } from "../territories/link-layout.js";
 import { keptVersion, pageTerritorySearcher, searchIsland, subscribeKept } from "../territories/kept-layout.js";
 import { NameplateCrowd, Nameplates, reducedMotion, SelectionRing } from "./island-overlays.js";
 import { focusRotation, globeHover, isGlobeDrag, markerSpot, movingSpots, MOVE_SECONDS, oncePerFrame, pickClick, routeAfterSelection, type ForestMode } from "./planet-navigation.js";
-import { claimsOn, pointersOn } from "./planet-update.js";
+import { claimsOn, gatePosts, pointersOn } from "./planet-update.js";
 import { createGlobeGuide, type GlobePose, type PlacedGlobeControls } from "./globe-guide.js";
 import { createGlobeAside, framedOnResize, type AsidePose } from "./globe-aside.js";
 import { compassNorth, opensBare, seesUnderside, sheetDrag, sheetHome, sheetKey, sheetKeyPan, sheetLayout, sheetMarkers, sheetOpening, sheetPan, sheetPanUnder, sheetSpin, sheetSpinTilt, sheetTilted, sheetTiltBy, sheetTwist, sheetUnder, TILT_PER_PIXEL, TILT_STEP, withDocks } from "./sheet-navigation.js";
@@ -414,7 +414,8 @@ function DrawnIsland({ drawn, land, coast, docks, tints, pointed, radius, lighti
   useEffect(() => () => marks.dispose(), [marks]);
   const first = useRef(true);
   useEffect(() => {
-    marks.setLand(drawn.map, onLand, islandNormal(radius), land.files.length === 0, coast);
+    // 5.9: a pointer at a gate pulses at its posts, once the roads are routed.
+    marks.setLand(drawn.map, onLand, islandNormal(radius), land.files.length === 0, coast, drawn.roads === undefined ? undefined : gatePosts(drawn.roads.gates));
     invalidate();
   }, [marks, drawn, land.files.length, coast, radius, onLand, invalidate]);
   useEffect(() => {

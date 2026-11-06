@@ -131,3 +131,15 @@ test("5.8 · a session's pointer rides its wisp, in its colour, even when it cla
   assert.deepEqual(wisps(log, 4).map(({ pointer }) => pointer), [undefined]);
   assert.deepEqual([...shownPointers(wisps(log, 4), new Set(["invoice", "password"]))], []);
 });
+
+test("5.9 · a session's pointer at a gate rides its wisp with its pair, and shows, keyed by the pair, when either capability is on the selected arc's open work or it is for a question", () => {
+  const gate = (question?: string): NewLine => ({ kind: "pointed", ...a, source: "tool", capability: "password", gate: "invoice", why: "the interface between them", ...(question === undefined ? {} : { question }) });
+  const log = hook(0, new Log()).add(1, gate());
+  assert.deepEqual(wisps(log, 2).map(({ pointer }) => pointer), [{ capability: "password", gate: "invoice" }]);
+  const tint = { colour: sessionColour("A"), gate: ["invoice", "password"] };
+  assert.deepEqual([...shownPointers(wisps(log, 2), undefined)], [], "with no arc selected, a gate pointer for no question shows nowhere");
+  assert.deepEqual([...shownPointers(wisps(log, 2), new Set(["email_form"]))], [], "nor when neither capability is on the open work");
+  assert.deepEqual([...shownPointers(wisps(log, 2), new Set(["invoice"]))], [["invoice|password", tint]], "either capability on it shows the gate, in the session's colour");
+  log.add(2, gate("question_1"));
+  assert.deepEqual([...shownPointers(wisps(log, 3), undefined)], [["invoice|password", tint]], "a gate pointer for a question shows wherever it is");
+});

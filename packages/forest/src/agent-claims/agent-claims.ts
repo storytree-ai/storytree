@@ -31,8 +31,11 @@ export interface SessionWisp {
   faded: boolean;
   /** The capabilities it holds a claim on. */
   capabilities: string[];
-  /** The capability it points the owner's eye at (Session management's 4.43), with the question it is for when it names one. */
-  pointer?: { capability: string; question?: string };
+  /**
+   * The capability it points the owner's eye at (Session management's 4.43), or the gate between it and `gate` (4.44), with
+   * the question it is for when it names one.
+   */
+  pointer?: { capability: string; gate?: string; question?: string };
 }
 
 /** The wisps the listed `rows` draw at time `now`: one per row and island, in list order. */
@@ -42,7 +45,7 @@ export function sessionWisps(rows: readonly SessionRow[], log: readonly Line[] |
   // Faded by the claim's quiet time, as takeover judges it, never by a session waiting between turns (ADR-0754 D5).
   const sessions = fold.sessions(judged);
   const hooked = new Set(sessions.filter(session => session.hooksRunning).map(session => session.session));
-  const pointers = new Map(sessions.flatMap(({ session, pointer }) => pointer === undefined ? [] : [[session, { capability: pointer.capability, ...(pointer.question === undefined ? {} : { question: pointer.question }) }] as const]));
+  const pointers = new Map(sessions.flatMap(({ session, pointer }) => pointer === undefined ? [] : [[session, { capability: pointer.capability, ...(pointer.gate === undefined ? {} : { gate: pointer.gate }), ...(pointer.question === undefined ? {} : { question: pointer.question }) }] as const]));
   const claims = fold.claims(judged);
   const quiet = new Set(claims.filter(claim => claim.holder === "idle" && hooked.has(claim.session)).map(claim => claim.session));
   const held = (session: string) => claims.flatMap(claim => (claim.session === session && claim.capability !== undefined ? [claim.capability] : []));
@@ -81,20 +84,25 @@ export function claimTints(wisps: readonly SessionWisp[]): Map<string, ClaimTint
 }
 
 
-/** A capability a session points at, as the map pulses it: in that session's colour. */
+/** A capability, or a gate, a session points at, as the map pulses it: in that session's colour; a gate's with its pair, sorted (5.9). */
 export interface PointerTint {
   colour: string;
+  gate?: readonly [string, string];
 }
 
 /**
  * The pointers the map shows (5.8): each session's one, in its colour, only on the selected arc's open work (`circled`) or
- * when it is for a question; the first listed session's, when two point at one capability.
+ * when it is for a question; the first listed session's, when two point at one place. Each is keyed by its capability, or a
+ * gate's by its pair, sorted and joined by `|`, shown when either of the pair is on the open work (5.9).
  */
 export function shownPointers(wisps: readonly SessionWisp[], circled: ReadonlySet<string> | undefined): Map<string, PointerTint> {
   const shown = new Map<string, PointerTint>();
   for (const { pointer, colour } of wisps) {
-    if (pointer === undefined || shown.has(pointer.capability)) continue;
-    if (pointer.question !== undefined || circled?.has(pointer.capability) === true) shown.set(pointer.capability, { colour });
+    if (pointer === undefined) continue;
+    const gate = pointer.gate === undefined ? undefined : [pointer.capability, pointer.gate].sort() as [string, string];
+    const key = gate === undefined ? pointer.capability : gate.join("|");
+    if (shown.has(key)) continue;
+    if (pointer.question !== undefined || (gate ?? [pointer.capability]).some(capability => circled?.has(capability) === true)) shown.set(key, { colour, ...(gate === undefined ? {} : { gate }) });
   }
   return shown;
 }

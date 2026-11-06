@@ -191,3 +191,21 @@ test("5.8 · a pointed capability pulses at its foot in the session's colour, sl
   assert.equal(marks.root.getObjectByName("territory-pointer:cap-b"), undefined, "it goes when the pointer does");
   marks.dispose();
 });
+
+test("5.9 · a pointer at a gate pulses at the gate's posts in the session's colour, as a capability's does, and draws nothing on land with no gate between them", () => {
+  const map = territories([share("cap-a", 40), share("cap-b", 30)], 20);
+  const marks = new ClaimMarks();
+  const posts = { x: 1.25, z: -0.5 };
+  marks.setLand(map, flat, up, false, undefined, new Map([["cap-a|cap-b", posts]]));
+  marks.claims(new Map(), 0, { standing: true, reduced: false });
+  marks.pointers(new Map([["cap-a|cap-b", { colour: "#e69f00", gate: ["cap-a", "cap-b"] }], ["cap-a|cap-c", { colour: "#e69f00", gate: ["cap-a", "cap-c"] }]]));
+  assert.equal(marks.frame(0.3, { zoom: 2, eye, reduced: false }), true, "it pulses");
+  const pointer = marks.root.getObjectByName("territory-pointer:cap-a|cap-b")!;
+  assert.deepEqual(pointer.userData, { pointer: true, gate: ["cap-a", "cap-b"], colour: "#e69f00" });
+  const ring = pointer.getObjectByName("pointer-ring") as Mesh;
+  assert.deepEqual([ring.position.x, ring.position.z], [posts.x, posts.z], "at the gate's posts");
+  assert.ok((ring.material as MeshBasicMaterial).color.equals(new Color("#e69f00")));
+  assert.equal(marks.root.getObjectByName("territory-pointer:cap-a|cap-c"), undefined, "no gate between them here, no pulse");
+  assert.deepEqual([0.2, 1.8].map(now => { marks.frame(now, { zoom: 2, eye, reduced: true }); ring.geometry.computeBoundingBox(); return ring.geometry.boundingBox!.max.x; }).reduce((a, b) => a - b), 0, "reduced motion holds it still");
+  marks.dispose();
+});

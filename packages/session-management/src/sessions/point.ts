@@ -15,7 +15,7 @@ export interface PointAt {
   readonly question?: string;
 }
 
-export type PointAnswer = { ok: true; line: Line } | { ok: false; refused: "no-why" | "no-capability" } | { ok: false; refused: "not-a-capability" | "not-a-question" | "same-capability"; id: string };
+export type PointAnswer = { ok: true; line: Line } | { ok: false; refused: "no-why" } | { ok: false; refused: "no-capability" } | { ok: false; refused: "not-a-capability" | "not-a-question" | "same-capability"; id: string };
 
 /** Point the context's session at `at.capability`, or at nothing when it names none. */
 export async function pointAt(context: CloseOutContext & { readonly library: Pick<Library, "get"> }, at: PointAt): Promise<PointAnswer> {

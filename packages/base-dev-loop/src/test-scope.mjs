@@ -458,6 +458,7 @@ export const TEST_USAGE = `pnpm test: run the tests this branch's changes can re
   pnpm run test --rerun-failed     run what the last run in this checkout failed or never reached
   pnpm run test --jobs=<n>         test n units at once (else STORYTREE_TEST_JOBS, else 2, a core left free, or 1 on Windows arm64); 1 runs them one by one
   pnpm run test <files>            run just those files, as one unit
+  pnpm run test <package folders>  run those packages, as --only would
   pnpm run test --set-limit=<unit>=<seconds> --reason="..."   set a unit's deadline on this machine
   pnpm run test --clear-limit=<unit>                          clear it again
   pnpm run test --help             print this
@@ -489,6 +490,33 @@ export function parseTestArgs(argv) {
     else refusal ??= `unknown flag ${arg}; the known ones are --full, --scope, --only=<packages>, --rerun-failed, --jobs=<n>, --set-limit=, --clear-limit=, --reason=, --help, and node --test's --test-* options`;
   }
   return { flags, testArgs, help, refusal };
+}
+
+/**
+ * The folders among the arguments meant for `node --test`, which would read a folder as one file and crash on it
+ * (ERR_UNSUPPORTED_DIR_IMPORT, shown as one failing test). A workspace package's folder or an infra folder is taken
+ * as that package to run, as `--only` would name it, and moved out of `testArgs`; any other folder, or packages named
+ * beside files, is a `refusal` that ends the run before the heavy-run lock or a Postgres.
+ */
+export function namedFolders({ root, workspace, testArgs }) {
+  const only = [];
+  const rest = [];
+  let refusal;
+  for (const arg of testArgs) {
+    let folder = false;
+    try {
+      folder = !arg.startsWith("-") && statSync(path.resolve(root, arg)).isDirectory();
+    } catch {}
+    if (!folder) {
+      rest.push(arg);
+      continue;
+    }
+    const dir = path.relative(root, path.resolve(root, arg)).split(path.sep).join("/");
+    if (workspace.some((p) => p.dir === dir) || infraUnits(root).includes(dir)) only.push(dir);
+    else refusal ??= `${arg} is a folder, not a package: name test files, or a package's folder to run that package (plain pnpm test scopes by the branch's changes)`;
+  }
+  if (only.length > 0 && rest.some((arg) => !arg.startsWith("-"))) refusal ??= "name test files or package folders, not both";
+  return { only, testArgs: rest, refusal };
 }
 
 /** The units with each file to run alone whose package is among them added after them as its own. */

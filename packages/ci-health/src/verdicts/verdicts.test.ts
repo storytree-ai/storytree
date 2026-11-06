@@ -288,7 +288,7 @@ test("2.9 · a result counts for each contract whose provedBy names its test: a 
   assert.deepEqual(unmatched, [pass("sums the cart twice")], "a title only beginning with one names nothing");
 });
 
-test("2.10 · a result no contract claims counts for each explored capability covering its test's file or a file that file imports, judged by the one rule; a result that names no file, or a capability no such result reaches, gets none", async () => {
+test("2.10 · a result no contract claims counts for each explored capability covering its test's file or a file that file imports, judged by the one rule; a capability no such result reaches gets none", async () => {
   const tree: PlanTree = {
     stories: [
       {
@@ -334,5 +334,55 @@ test("2.10 · a result no contract claims counts for each explored capability co
       cap_cart: { state: "failing", note: "2/3 tests passed; first failure: assert 3 == 4" },
     },
     "test_total, which a contract claims, counts for no capability; the title-only result reaches none, and Helpers and Admin are reached by no unclaimed test",
+  );
+});
+
+test("2.11 · a result no contract claims that names no file (TAP's) is the one test file holding its title, else its nearest suite's that one file holds, and counts for the capabilities that file reaches as 2.10; a title no test file holds, or two do, reaches none", async () => {
+  const tree: PlanTree = {
+    stories: [
+      {
+        id: "story_shop",
+        title: "shop",
+        mapped: { folders: ["."] },
+        capabilities: [
+          { id: "cap_total", title: "Total", covers: ["src/total.js"], contracts: [] },
+          { id: "cap_tax", title: "Tax", covers: ["src/tax.js"], contracts: [] },
+          { id: "cap_other", title: "Other", covers: ["src/other.js"], contracts: [] },
+        ],
+      },
+    ],
+  };
+  const files = [
+    { path: "src/total.js", text: "export const total = () => 0;\n" },
+    { path: "src/tax.js", text: "export const tax = () => 0;\n" },
+    { path: "src/other.js", text: "export const other = () => 0;\n" },
+    { path: "src/total.test.js", text: [
+      `import { describe, it } from "node:test";`, `import { total } from "./total.js";`,
+      `describe("cart", () => {`, `  it("sums the cart", () => {});`, `  it("returns null", () => {});`, `});`,
+    ].join("\n") },
+    { path: "src/tax.test.js", text: [
+      `import { test } from "node:test";`, `import { tax } from "./tax.js";`,
+      `test('adds the shopper\\'s tax', () => {});`, `test("returns null", () => {});`,
+    ].join("\n") },
+  ];
+  const results: TestResult[] = [
+    { ...pass("sums the cart", ["cart"]), status: "failed", message: "expected 1" },
+    // Two files hold "returns null": the suite "cart", which one does, names its file.
+    pass("returns null", ["cart"]),
+    pass("adds the shopper's tax"),
+    // Held by two files with no suite to tell them apart, and held by none.
+    { ...pass("returns null"), status: "failed" },
+    { ...pass("is nowhere"), status: "failed" },
+  ];
+  const { unmatched } = judgeRun(proofsAt(tree, files), results);
+  assert.equal(unmatched.length, 5, "control: no contract claims any of them");
+  const reached = await unclaimedVerdicts(tree, files, unmatched);
+  assert.deepEqual(
+    Object.fromEntries([...reached].map(([id, { state, note }]) => [id, { state, note }])),
+    {
+      cap_total: { state: "failing", note: "1/2 tests passed; first failure: expected 1" },
+      cap_tax: { state: "passing", note: "1/1 tests passed" },
+    },
+    "the ambiguous and the unheld failures reach no capability, and Other is reached by none",
   );
 });

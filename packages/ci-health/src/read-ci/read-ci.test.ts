@@ -163,6 +163,52 @@ test("3.18 · a Python story's pytest tests are verified from its CI as a JavaSc
   assert.equal((await library.projectTree()).stories[0]!.capabilities.find(({ id }) => id === capability)!.status, "healthy", "both contracts verified passing from packages/check-out/tests/test_checkout.py");
 });
 
+test("3.19 · on an imported repository, reading its CI writes each explored capability's own reading from the newest run's tests no contract claims, from CI with its commit and run; a reading no such test makes any more turns not checked", async (t) => {
+  const url = process.env.STORYTREE_TEST_PG_URL;
+  if (url === undefined) throw new Error("run the tests via `pnpm test`, which starts a local Postgres");
+  const storytree = await connect({ url });
+  const name = `t-${randomBytes(4).toString("hex")}`;
+  const library = await storytree.openProject(name);
+  const folder = mkdtempSync(path.join(tmpdir(), "ci-health-"));
+  t.after(async () => {
+    try {
+      await storytree.dropProject(name);
+    } finally {
+      await storytree.close();
+      await removeTemp(folder);
+    }
+  });
+  const { added: [story] } = await library.mapStories(folder, [{ package: ".", title: "shop", folders: ["."] }]);
+  const total = await library.addCapability({ story: story!.id, title: "Totals", covers: ["src/total.js"] });
+  const tax = await library.addCapability({ story: story!.id, title: "Tax", covers: ["src/tax.js"] });
+  const git = (...args: string[]) => execFileSync("git", ["-C", folder, "-c", "user.name=t", "-c", "user.email=t@t", ...args], { encoding: "utf8" }).trim();
+  git("init", "-q");
+  mkdirSync(path.join(folder, "src"));
+  writeFileSync(path.join(folder, "src/total.js"), "export const total = () => 0;\n");
+  writeFileSync(path.join(folder, "src/tax.js"), "export const tax = () => 0;\n");
+  writeFileSync(path.join(folder, "src/total.test.js"), `import { test } from "node:test";\nimport { total } from "./total.js";\ntest("sums the cart", () => {});\n`);
+  writeFileSync(path.join(folder, "src/tax.test.js"), `import { test } from "node:test";\nimport { tax } from "./tax.js";\ntest("adds the tax", () => {});\n`);
+  git("add", ".");
+  git("commit", "-q", "-m", "shop");
+  git("remote", "add", "origin", "https://github.com/acme/shop.git");
+  const commit = git("rev-parse", "HEAD");
+  const log = (...lines: string[]) => ["2026-11-07T10:00:00.0000000Z TAP version 13", ...lines.map((line) => `2026-11-07T10:00:00.1000000Z ${line}`)].join("\n");
+  const unclaimed = async (id: string) => (await library.projectTree()).stories[0]!.capabilities.find((capability) => capability.id === id)!.unclaimed;
+
+  const first = await readProjectCi({ library, git: gitIn(folder), github: github(pushRunsOnTrunk(commit), log("not ok 1 - sums the cart", "ok 2 - adds the tax")) });
+  assert.equal(first.written, true, first.written ? "" : first.why);
+  assert.equal((await library.health(total.id)).verified.state, "failing", "its failing test, which no contract claims, reaches src/total.js");
+  assert.equal((await library.health(tax.id)).verified.state, "passing");
+  assert.equal((await library.health(story!.id)).verified.state, "failing", "the island reads red");
+  const reading = await unclaimed(total.id);
+  assert.equal(reading?.by, VERIFIED_BY_PROJECT_CI);
+  assert.match(reading?.note ?? "", new RegExp(`at commit ${commit.slice(0, 12)}.*actions/runs/7`), reading?.note);
+
+  await readProjectCi({ library, git: gitIn(folder), github: github(pushRunsOnTrunk(commit), log("not ok 1 - sums the cart")) });
+  assert.equal((await unclaimed(tax.id))?.state, "not-checked", "the tax test is gone from the newest run");
+  assert.equal((await library.health(total.id)).verified.state, "failing");
+});
+
 test("3.4 a story whose tests live in its package's own test folder, outside src, is verified from its CI as one with them under src is", async (t) => {
   const { library, capability } = await shopLibrary(t);
   const { folder, commit } = projectFolder(t, "https://github.com/acme/shop.git", "test");

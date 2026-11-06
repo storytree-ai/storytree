@@ -26,14 +26,17 @@
  * - Passing and failing are written by the project's CI; a skip writes not checked with its reason and kind, marking
  *   an earlier verdict it did not reproduce as not re-run, as a test run's are (record.ts); a contract no test
  *   ran for is left as it stands. The agent's reported column is never written.
+ * - The newest run's tests no contract claims colour the explored capabilities their files reach (ADR-1274 D3, unclaimedVerdicts),
+ *   as a local run's do: each reached capability's own reading is written from CI, with its commit and run, and one no such test
+ *   reaches any more turns not checked. So an imported story's code is read wherever it was mapped from, not only under packages.
  * - A project with no GitHub origin, or no finished push run, writes nothing and says why.
  */
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import type { Library } from "@storytree/library";
 import { parseTestLog, scopeOfLog } from "../run-results/run-results.js";
-import { recordHealth } from "./record.js";
-import { judgeRun, proofsAt, type Verdict } from "../verdicts/verdicts.js";
+import { recordHealth, recordUnclaimed } from "./record.js";
+import { judgeRun, proofsAt, unclaimedVerdicts, type PlanTree, type Verdict } from "../verdicts/verdicts.js";
 
 /** The Actions API: a route's JSON, or its text (a job's log). */
 export type GitHub = { json(route: string): Promise<any>; text(route: string): Promise<string> };
@@ -93,19 +96,29 @@ export function platformOfJob(job: { name?: string; labels?: readonly string[] }
   return undefined;
 }
 
-/** Each code file in a package at `commit` (its src, and test folders beside it; JavaScript, TypeScript and Python), in repository coordinates. */
-async function filesAt(git: Git, commit: string): Promise<{ path: string; text: string }[]> {
-  const paths = (await git(["ls-tree", "-r", "--name-only", commit, "--", "packages"])).split("\n").filter((file) => /^packages\/[^/]+\/.+\.(?:[cm]?[jt]sx?|py)$/.test(file));
+/** The folders, from the repository's top, an imported story's code was mapped from (`""` the whole repository). */
+function mappedFolders(tree: PlanTree): string[] {
+  return tree.stories.flatMap(({ mapped }) => (mapped?.folders ?? []).map((folder) => folder.replace(/^\.\/?|\/$/g, "")));
+}
+
+/**
+ * Each code file at `commit` (JavaScript, TypeScript and Python), in repository coordinates: every one in a package (its src, and
+ * test folders beside it), and every one under a folder in `mapped`, an imported story's.
+ */
+async function filesAt(git: Git, commit: string, mapped: readonly string[]): Promise<{ path: string; text: string }[]> {
+  const inMapped = (file: string) => mapped.some((folder) => folder === "" || file.startsWith(`${folder}/`));
+  const listed = (await git(["ls-tree", "-r", "--name-only", commit, ...(mapped.length === 0 ? ["--", "packages"] : [])])).split("\n");
+  const paths = listed.filter((file) => /\.(?:[cm]?[jt]sx?|py)$/.test(file) && (/^packages\/[^/]+\/./.test(file) || inMapped(file)));
   return Promise.all(paths.map(async (file) => ({ path: file, text: await git(["show", `${commit}:${file}`]) })));
 }
 
 /** The code files at `commit`, fetched from origin when the clone lacks it, or undefined when it cannot be had. */
-async function filesOf(git: Git, commit: string): Promise<{ path: string; text: string }[] | undefined> {
+async function filesOf(git: Git, commit: string, mapped: readonly string[]): Promise<{ path: string; text: string }[] | undefined> {
   try {
-    return await filesAt(git, commit);
+    return await filesAt(git, commit, mapped);
   } catch {
     await git(["fetch", "--quiet", "origin", commit]).catch(() => "");
-    return filesAt(git, commit).catch(() => undefined);
+    return filesAt(git, commit, mapped).catch(() => undefined);
   }
 }
 
@@ -154,7 +167,7 @@ export async function readProjectCi({ library, git, github }: { library: Library
   // Each run's verdicts, by the run they were judged from.
   const byRun = new Map<number, { commit: string; run: string; verdicts: Map<string, Verdict> }>();
   const done = new Set<string>();
-  let newest: { run: Run; tests: number; unmatched: number } | undefined;
+  let newest: { run: Run; tests: number; unmatched: ReturnType<typeof judgeRun>["unmatched"]; files: { path: string; text: string }[] } | undefined;
   for (const run of candidates.filter(({ conclusion }) => conclusion !== "cancelled")) {
     const jobs = await jobResults(github, repository, run.id);
     if (jobs.some(({ conclusion }) => conclusion === "cancelled") && !jobs.some(({ conclusion, results }) => conclusion !== "cancelled" && results.length > 0)) continue;
@@ -165,14 +178,14 @@ export async function readProjectCi({ library, git, github }: { library: Library
     // commit) says nothing of any contract: the queue's run behind it is read, rather than this one ending the looking.
     if (results.length === 0 && named.length === 0) continue;
     const scoped = named.length === 0 || named.includes("everything") ? undefined : new Set(named.flat());
-    const files = await filesOf(git, run.head_sha);
+    const files = await filesOf(git, run.head_sha, mappedFolders(tree));
     if (files === undefined) {
       if (newest === undefined) return { written: false, why: `Run ${run.html_url} tested commit ${run.head_sha}, which this clone does not have and could not fetch; pull, then read again.` };
       continue;
     }
     const proofs = proofsAt(tree, files);
     const { verdicts, unmatched } = judgeRun(proofs, results);
-    newest ??= { run, tests: results.length, unmatched: unmatched.length };
+    newest ??= { run, tests: results.length, unmatched, files };
     const fromRun = byRun.get(run.id) ?? { commit: run.head_sha.slice(0, 12), run: run.html_url, verdicts: new Map<string, Verdict>() };
     byRun.set(run.id, fromRun);
     // A story is judged by a run that scoped in every package it owns.
@@ -196,5 +209,7 @@ export async function readProjectCi({ library, git, github }: { library: Library
     counts.failing += written.failing;
     counts.notChecked += [...verdicts.values()].filter(({ state, skipped }) => state === "not-checked" && skipped > 0).length;
   }
-  return { written: true, repository, run: run.html_url, commit, tests: newest.tests, unmatched: newest.unmatched, ...counts };
+  // The newest run's tests no contract claims colour the explored capabilities they reach (ADR-1274 D3).
+  await recordUnclaimed(library, tree, await unclaimedVerdicts(tree, newest.files, newest.unmatched), { by: VERIFIED_BY_PROJECT_CI, source: "ci", commit: commit.slice(0, 12), run: run.html_url });
+  return { written: true, repository, run: run.html_url, commit, tests: newest.tests, unmatched: newest.unmatched.length, ...counts };
 }

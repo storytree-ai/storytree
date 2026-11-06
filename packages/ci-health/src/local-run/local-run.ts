@@ -24,7 +24,7 @@ import type { Library } from "@storytree/library";
 
 import { commitOf, filesIn, runTests, type RunTests } from "../plugin-run/plugin-run.js";
 import { gitIn, repositoryOf } from "../read-ci/read-ci.js";
-import { recordHealth } from "../read-ci/record.js";
+import { recordHealth, recordUnclaimed } from "../read-ci/record.js";
 import { parseTestLog } from "../run-results/run-results.js";
 import { judgeRun, proofsAt, unclaimedVerdicts, type Verdict } from "../verdicts/verdicts.js";
 
@@ -76,20 +76,6 @@ function unreadWhy(command: string, reads: string, output: string, code: number 
   return `${said}\nNothing was verified or written.`;
 }
 
-/**
- * Write each explored capability's reading of the tests no contract claims (ADR-1274 D3) from `reached`, and turn not checked a
- * reading that stands on a capability no such test reached this run.
- */
-async function recordUnclaimed(library: Library, tree: Awaited<ReturnType<Library["projectTree"]>>, reached: ReadonlyMap<string, Verdict>, commit: string | undefined): Promise<void> {
-  const at = commit === undefined ? "" : `, at commit ${commit}`;
-  for (const capability of tree.stories.flatMap(({ capabilities }) => capabilities)) {
-    const verdict = reached.get(capability.id);
-    const options = { by: VERIFIED_BY_LOCAL_RUN, source: "local" as const };
-    if (verdict !== undefined) await library.recordUnclaimed(capability.id, verdict.state, { ...options, note: `${verdict.note}${at}` });
-    else if (capability.unclaimed !== undefined && capability.unclaimed.state !== "not-checked") await library.recordUnclaimed(capability.id, "not-checked", { ...options, note: `no test that no contract claims reached it${at}` });
-  }
-}
-
 /** Run the project in `folder`'s own tests and write their verdicts to its stories' verified health, as a local run. */
 export async function recordLocalTests({ library, folder, run = runTests }: { library: Library; folder: string; run?: RunTests }): Promise<LocalReading> {
   const tests = testCommandOf(folder);
@@ -107,8 +93,9 @@ export async function recordLocalTests({ library, folder, run = runTests }: { li
   const { verdicts, unmatched } = judgeRun(proofs, results);
   const commit = await commitOf(folder);
   const tested = new Map<string, Verdict>([...verdicts].filter(([, { total }]) => total > 0));
-  const written = await recordHealth(library, new Map([...tested.keys()].map((id) => [id, id])), tested, { by: VERIFIED_BY_LOCAL_RUN, source: "local", ...(commit === undefined ? {} : { commit: commit.slice(0, 12) }) });
-  await recordUnclaimed(library, tree, await unclaimedVerdicts(tree, files, unmatched), commit?.slice(0, 12));
+  const writer = { by: VERIFIED_BY_LOCAL_RUN, source: "local" as const, ...(commit === undefined ? {} : { commit: commit.slice(0, 12) }) };
+  const written = await recordHealth(library, new Map([...tested.keys()].map((id) => [id, id])), tested, writer);
+  await recordUnclaimed(library, tree, await unclaimedVerdicts(tree, files, unmatched), writer);
   const notChecked = [...tested.values()].filter(({ state }) => state === "not-checked").length;
   return { written: true, command, ...(commit === undefined ? {} : { commit }), tests: results.length, unmatched: unmatched.length, passing: written.passing, failing: written.failing, notChecked };
 }

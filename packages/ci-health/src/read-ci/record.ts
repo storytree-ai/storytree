@@ -6,9 +6,12 @@
  *
  * Not checked is written only when a contract's tests were skipped or crashed (ADR-0825 D2): with the kind of its skip,
  * and any earlier passing or failing it did not reproduce, carried as "not re-run" (history keeps the old verdict).
- * With no tests there is nothing to re-run, and a verdict from elsewhere stands.
+ * With no tests there is nothing to re-run, and a verdict from elsewhere stands. The tests no contract claims write each
+ * explored capability they reach its own reading the same way, a local run's or a CI reading's (recordUnclaimed, ADR-1274 D3).
  */
 import { MissingReferenceError, type EarlierVerdict, type HealthSource, type Library, type SkipKind } from "@storytree/library";
+
+import type { Verdict } from "../verdicts/verdicts.js";
 
 /**
  * Who writes a verdict, and where it was seen: by a run on this computer (`local`) or read from CI (`ci`), written on
@@ -101,4 +104,18 @@ async function markNotChecked(library: Pick<Library, "recordVerified" | "health"
   const note = was === undefined ? `${reason}${at === "" ? "" : `,${at}`}` : `not re-run${at}: ${reason}`;
   await library.recordVerified(id, "not-checked", { by: writer.by, source: writer.source, note, ...(verdict.skip === undefined ? {} : { skip: verdict.skip }), ...(was === undefined ? {} : { was }) });
   return true;
+}
+
+/**
+ * Write each explored capability's reading of the tests no contract claims (ADR-1274 D3) from `reached`, by `writer` with where it
+ * was seen, and turn not checked a reading that stands on a capability no such test reached this time.
+ */
+export async function recordUnclaimed(library: Pick<Library, "recordUnclaimed">, tree: Awaited<ReturnType<Library["projectTree"]>>, reached: ReadonlyMap<string, Verdict>, writer: Writer): Promise<void> {
+  const at = seenAt(writer);
+  const options = { by: writer.by, source: writer.source };
+  for (const capability of tree.stories.flatMap(({ capabilities }) => capabilities)) {
+    const verdict = reached.get(capability.id);
+    if (verdict !== undefined) await library.recordUnclaimed(capability.id, verdict.state, { ...options, note: `${verdict.note}${at === "" ? "" : `,${at}`}` });
+    else if (capability.unclaimed !== undefined && capability.unclaimed.state !== "not-checked") await library.recordUnclaimed(capability.id, "not-checked", { ...options, note: `no test that no contract claims reached it${at === "" ? "" : `,${at}`}` });
+  }
 }

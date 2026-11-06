@@ -1,6 +1,7 @@
 /** Capability 4 · The planet. */
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode, type Ref } from 'react';
-import { Canvas, useFrame, useThree, type RootState } from '@react-three/fiber';
+import { Canvas, flushSync as flushRoot, useFrame, useStore, useThree, type RootState } from '@react-three/fiber';
+import { flushSync } from 'react-dom';
 import { OrbitControls } from '@react-three/drei';
 import { Vector3, type Group, type PerspectiveCamera } from 'three';
 import type { ForestScene, Island } from '../scene.js';
@@ -22,7 +23,7 @@ import { plateGrowth, roadSegmentWindows } from './growth.js';
 import { paintWhileSeen, startingFrameloop, viewportWatch, type ViewportWatch } from './paint-while-seen.js';
 import { redrawOnRestore } from './redraw-on-restore.js';
 import { globeExterior, type PlanetSurfaceVisibility } from './exterior.js';
-import { applySheetEye, SHEET_FOV, SHEET_LAND_LIFT, SHEET_LAND_THICKNESS, SHEET_RADIUS, sheetDepthRange, SheetGlass, SheetLights, type SheetExtent } from './sheet.js';
+import { applySheetEye, SHEET_FOV, sheetKeptOnResize, SHEET_LAND_LIFT, SHEET_LAND_THICKNESS, SHEET_RADIUS, sheetDepthRange, SheetGlass, SheetLights, type SheetExtent } from './sheet.js';
 import { PLATE_CLEARANCE } from './planet.js';
 
 export type { PlanetSpot } from './planet.js';
@@ -133,19 +134,34 @@ const Plate = memo(function Plate({ island, spot, radius, plate, docks, ports, v
 });
 
 function Framing({ radius, framing, sideOffset, sheet }: { radius: number; framing: number; sideOffset: number; sheet: SheetExtent }) {
-  const { camera, size, invalidate } = useThree();
+  const { camera, invalidate } = useThree();
+  const store = useStore();
+  const reach = Math.hypot(sheet.width, sheet.height);
+  // The host's framing and side offset are applied as it changes them, at the size the canvas has then. A change of size alone
+  // keeps the eye (4.43, below), so a host still to answer the new size never has its last pose drawn at it.
   useLayoutEffect(() => {
+    const { size } = store.getState();
     // The framing's zoom stands the perspective eye off the middle of the view, by as far as it asks (ADR-1062 D1).
-    applySheetEye(camera as PerspectiveCamera, Math.hypot(sheet.width, sheet.height), orthographicZoomFor(radius * framing, Math.min(size.width, size.height)), size);
+    applySheetEye(camera as PerspectiveCamera, reach, orthographicZoomFor(radius * framing, Math.min(size.width, size.height)), size);
     invalidate();
-  }, [camera, radius, framing, size.width, size.height, invalidate, sheet.width, sheet.height]);
+  }, [camera, radius, framing, invalidate, reach, store]);
   // Keeping these effects separate lets a card move without resetting wheel/pinch zoom.
   useLayoutEffect(() => {
-    applyPlanetSideOffset(camera as PerspectiveCamera, size, sideOffset);
+    applyPlanetSideOffset(camera as PerspectiveCamera, store.getState().size, sideOffset);
     invalidate();
-  }, [camera, sideOffset, size.width, size.height, invalidate]);
+  }, [camera, sideOffset, invalidate, store]);
+  // 4.43: in the store update that resizes the canvas, before anything is drawn at the new size.
+  useLayoutEffect(() => {
+    let last = store.getState().size;
+    return store.subscribe(() => {
+      const { size } = store.getState();
+      if (size.width === last.width && size.height === last.height && size.left === last.left) return;
+      sheetKeptOnResize(camera as PerspectiveCamera, reach, last, size);
+      last = size;
+    });
+  }, [camera, reach, store]);
   // The wheel moves the sheet's eye, so its near and far planes follow it round the sheet.
-  useFrame(() => sheetDepthRange(camera as PerspectiveCamera, Math.hypot(sheet.width, sheet.height)));
+  useFrame(() => sheetDepthRange(camera as PerspectiveCamera, reach));
   return null;
 }
 
@@ -188,6 +204,27 @@ function useRoadsWhenRouted(scene: ForestScene, spots: ReadonlyMap<string, Plane
  * before the page runs and is handed the canvas's live state getter. Nothing in the product sets it. */
 const CAPTURE_SEAM = '__storytreeCaptureGlobe';
 
+/**
+ * 4.43: the root's watch on its frame's size, which takes a new size in the browser's own resize step, between laying the page
+ * out and painting it, and draws the map at it there: the frame the sidebar hides, shows or is dragged on is painted with the
+ * canvas at its new size, not a frame later (the root's own watch waits 50 ms and sets the size after the paint).
+ */
+function drawnOnResize(state: () => RootState | undefined): typeof ResizeObserver {
+  return class extends ResizeObserver {
+    constructor(seen: ResizeObserverCallback) {
+      super((entries, observer) => {
+        const before = state()?.size;
+        // The Canvas takes the size and its root resizes the canvas, then the root's own components see it, and the DOM over
+        // the canvas, which drei's Html renders through roots of its own, follows in the same pass.
+        flushSync(() => seen(entries, observer));
+        flushSync(() => flushRoot(() => {}));
+        const now = state();
+        if (now !== undefined && now.size !== before && now.frameloop !== 'never') now.advance(performance.now());
+      });
+    }
+  };
+}
+
 /** The map: one Canvas, the glass sheet, and each story's island as a raised plate with a coast (ADR-0804 D1, ADR-1059 D2).
  * A lamp shades the islands' sides and the glass's edge, and the land's top keeps its exact colour (ADR-1062 D1). */
 export function PlanetWorldCanvas({ scene, spots, radius, rotation = [0, 0, 0, 1], offset, globe, plateChildren, children, surface = true, surfaces, inside, framing = 1.18, sideOffset = 0, lanes = NO_LANES, growth, liveRoads = false, sheet, hollow = false }: PlanetWorldCanvasProps) {
@@ -205,13 +242,16 @@ export function PlanetWorldCanvas({ scene, spots, radius, rotation = [0, 0, 0, 1
   const under = useMemo(() => roadsUnderLanes(pathways, lanes), [pathways, lanes]);
   const elevation = SHIPPED_ELEVATION_DEG * Math.PI / 180;
   const position: [number, number, number] = [0, Math.sin(elevation) * radius * 4, Math.cos(elevation) * radius * 4];
+  const root = useRef<() => RootState>(undefined);
+  const resize = useMemo(() => ({ debounce: 0, polyfill: drawnOnResize(() => root.current?.()) }), []);
   const onCreated = useCallback(({ camera, get }: RootState) => {
     camera.lookAt(0, 0, 0);
+    root.current = get;
     (globalThis as { [CAPTURE_SEAM]?: (state: () => RootState) => void })[CAPTURE_SEAM]?.(get);
   }, []);
   const watch = useMemo(viewportWatch, []);
   const exterior = globeExterior(surface, surfaces);
-  return <Canvas {...EXACT_COLOUR_CANVAS_PROPS} frameloop={startingFrameloop(watch)}
+  return <Canvas {...EXACT_COLOUR_CANVAS_PROPS} frameloop={startingFrameloop(watch)} resize={resize}
     camera={{ position, near: 0.1, far: radius * 10, fov: SHEET_FOV }} onCreated={onCreated}>
     <PaintWhileSeen watch={watch} />
     <color attach="background" args={['#101418']} />

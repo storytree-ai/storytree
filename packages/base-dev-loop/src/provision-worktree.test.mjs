@@ -466,6 +466,40 @@ test("3.4 a feature branch or linked worktree can serve while the primary is beh
   assert.equal(await serve({ root: linked, waitMs: 0, start: async () => 23 }), 23, "even a linked worktree on main is left alone");
 });
 
+/** storytree held as a submodule of another repository (as the website holds it), on main and behind its origin, never installed. */
+async function submodule(t) {
+  const { remote } = await repoPair(t);
+  await git(remote, "add", "pnpm-lock.yaml", "packages");
+  await git(remote, "commit", "-m", "the workspace");
+  const outer = mkdtempSync(path.join(tmpdir(), "provision-outer-"));
+  t.after(() => removeTemp(outer));
+  await git(outer, "init", "--initial-branch=main");
+  await git(outer, "-c", "protocol.file.allow=always", "submodule", "add", "-b", "main", remote, "storytree");
+  await git(remote, "commit", "--allow-empty", "-m", "past the pin");
+  return { root: path.join(outer, "storytree"), outer };
+}
+
+test("3.11 a storytree checkout that is another repository's submodule is never installed, updated or given the push check, and a storytree command there is refused in one line", async (t) => {
+  const { root, outer } = await submodule(t);
+  const pinned = await git(root, "rev-parse", "HEAD");
+  const hooks = path.resolve(root, await git(root, "rev-parse", "--git-path", "hooks"), "pre-push");
+  let installs = 0;
+  const install = linkingInstall([]);
+  const counted = (where) => (installs++, install(where));
+  const result = provision({ root, install: counted });
+  assert.equal(hookOutput(result, root), "", "the session start says nothing");
+  const lines = [];
+  assert.equal(check({ root, install: counted, log: (line) => lines.push(line) }), 1);
+  assert.equal(installs, 0, "neither the session start nor the storytree command installs it");
+  assert.equal(existsSync(path.join(root, "node_modules")), false);
+  assert.equal(await git(root, "rev-parse", "HEAD"), pinned, "the pinned commit is not fast-forwarded");
+  assert.equal(existsSync(hooks), false, "no push check is installed in it");
+  const refusal = lines.at(-1);
+  assert.ok(refusal.includes(root) && refusal.includes(path.basename(outer)), `it names the checkout and the repository holding it: ${refusal}`);
+  assert.match(refusal, /submodule/);
+  assert.equal(refusal.split("\n").length, 1);
+});
+
 /** A cloud container's checkout and storytree home, with nothing of storytree's set up in the home. */
 function cloud(t) {
   const root = mkdtempSync(path.join(tmpdir(), "cloud-root-"));

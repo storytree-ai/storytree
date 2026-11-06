@@ -69,6 +69,11 @@
 // checkout is on: a container's clone was cached when its image was made and fetches only the session's branch, so
 // test scoping (merge-base with origin/main) would otherwise measure against an old main and run nearly everything.
 //
+// A storytree checkout that is another repository's submodule (the website holds storytree in storytree/, ADR-1171) is
+// left alone (contract 3.11): its packages are installed by that repository's own install, so a second one here would
+// give the outer build two copies of React. It is never installed, fast-forwarded or given the push check, and --check
+// refuses a storytree command in it in one line, since the command line cannot start there.
+//
 // Before anything else, it installs the push check (packages/repo-checks/src/push-check.mjs, contract 3.7) as git's pre-push hook, in the
 // hooks folder the repository's worktrees share, unless someone else's pre-push hook is already there.
 //
@@ -107,6 +112,11 @@ function runGit(root, args, timeout = 5_000) {
 function gitIn(root, args) {
   const result = runGit(root, args);
   return result.status === 0 ? result.stdout.trim() : "";
+}
+
+/** The working tree of the repository root is a submodule of (as the website holds storytree), or "" when it is none. */
+function superproject(root) {
+  return gitIn(root, ["rev-parse", "--show-superproject-working-tree"]);
 }
 
 /** Block this process for ms (it has not started the server, or is the hook, so nothing else waits on it). */
@@ -554,6 +564,7 @@ export function installPushHook({ root, fallback }) {
  * @returns {{ ok: boolean, condition?: "fresh" | "stale" | "unlinked" | "behind" | "checkout", message?: string, code: number }}
  */
 export function provision({ root = repoRoot, install = pnpmInstall, retries = 1, log = () => {}, update = {} } = {}) {
+  if (superproject(root)) return { ok: true, code: 0 }; // Another repository's submodule: its install is that repository's.
   const message = updateCheckout(root, { ...update, log });
   if (message) {
     log(message);
@@ -642,6 +653,14 @@ export function checkOutput(root) {
  */
 export function check({ root = repoRoot, install = pnpmInstall, log = () => {} } = {}) {
   if (!checkOutput(root)) return 0;
+  const outer = superproject(root);
+  if (outer) {
+    log(
+      `storytree: this checkout (${root}) is a submodule of ${outer}, whose own install it uses, so it is never installed ` +
+      "and the command line cannot start in it: run storytree's commands from a storytree checkout of its own.",
+    );
+    return 1;
+  }
   provision({ root, install, log, update: { fastForward: false } });
   const refusal = checkOutput(root);
   if (refusal) log(refusal);

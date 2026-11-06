@@ -24,13 +24,14 @@ test("3.15 · the pool reads its machine, checkout, lanes, briefs, session cap, 
   const fields = { machine: "box", checkout: "~/src/shop", lanes: "~/pool", briefs: "~/pool/briefs", addDirs: ["~/src/shop-wt", "/srv/shared"], sessions: 3, laneMemory: "12G",
     engines: { codex: { model: "codex-model" }, claude: { model: "claude-model" }, switchAt: 80 },
     identity: { name: "Lane Owner", email: "owner@example.com" },
-    watcher: { fixesPerRed: 1, fixesPerPullRequest: 4, intervalSeconds: 30 } };
+    watcher: { fixesPerRed: 1, fixesPerPullRequest: 4, intervalSeconds: 30 }, cloud: { enabled: true, cap: 1, trigger: "trig_01abc" } };
   const file = await configFile(t, fields);
   const expected = {
     file, machine: "box", checkout: join("/home/u", "src/shop"), remoteCheckout: "~/src/shop", lanesDir: join("/home/u", "pool"),
     briefsDir: join("/home/u", "pool/briefs"), addDirs: [join("/home/u", "src/shop-wt"), "/srv/shared", join("/home/u", "pool")], sessions: 3, laneMemory: "12G",
     models: { codex: "codex-model", claude: "claude-model" }, switchAt: 80, identity: { name: "Lane Owner", email: "owner@example.com" },
     watcher: { fixesPerRed: 1, fixesPerPullRequest: 4, intervalMs: 30_000 }, machineOnly: false, projects: [{ name: "storytree" }],
+    cloud: { enabled: true, cap: 1, trigger: "trig_01abc" },
   };
   assert.deepEqual(poolConfig({ home: "/home/u", env: { AGENT_POOL_CONFIG: file } }), expected);
 
@@ -64,13 +65,17 @@ test("3.15 · the pool reads its machine, checkout, lanes, briefs, session cap, 
   assert.throws(() => poolConfig({ home: "/home/u", env: { AGENT_POOL_CONFIG: file } }), /could not read the agent pool's configuration/);
 });
 
-test("3.16 · with no configuration the pool runs on general defaults: this checkout, no other machine, no pinned session cap, the engines' own models, Codex until it is spent", async (t) => {
+test("3.16 · with no configuration the pool runs on general defaults: this checkout, no other machine, no pinned session cap, the engines' own models, Codex until it is spent, the cloud overflow off", async (t) => {
   const file = await configFile(t);
   assert.deepEqual(poolConfig({ home: "/home/u", env: { AGENT_POOL_CONFIG: file } }), {
     file, machine: undefined, checkout: CHECKOUT, remoteCheckout: CHECKOUT, lanesDir: join("/home/u", ".storytree/agent-pool"), briefsDir: undefined,
     addDirs: [join("/home/u", ".storytree/agent-pool")], sessions: undefined, models: { codex: undefined, claude: undefined }, switchAt: 100, identity: undefined,
     watcher: { fixesPerRed: 2, fixesPerPullRequest: 6, intervalMs: 60_000 }, machineOnly: false, projects: [{ name: "storytree" }],
+    cloud: { enabled: false, cap: 2 },
   });
+  // The cloud overflow is on only when switched on in so many words (ADR-1264): any other value leaves it off.
+  await writeFile(file, JSON.stringify({ cloud: { enabled: "yes", trigger: "trig_01abc" } }));
+  assert.deepEqual(poolConfig({ home: "/home/u", env: { AGENT_POOL_CONFIG: file } }).cloud, { enabled: false, cap: 2, trigger: "trig_01abc" });
 });
 
 test("3.35 · the pool serves each project its machine names, each from its checkout there, ~ as this machine's home; with none named it serves storytree alone, from the pool's own checkout", async (t) => {

@@ -817,7 +817,7 @@ test("3.30 · `probe` names each of the library and GitHub that refuses from the
   assert.deepEqual(asked, ["C:/code/clone", process.cwd()]);
   assert.equal(out.at(-1), `the library and GitHub answer from ${process.cwd()}`);
   assert.equal(await main(["probes"], b), 2);
-  assert.match(out.at(-1), /^usage: .*\| probe \[checkout\] \| stop$/);
+  assert.match(out.at(-1), /^usage: .*\| probe \[checkout\] \| stop \| cloud$/);
 });
 
 test("3.31 · `stop` ends the dispatcher pool.pid names, and leaves a pid that is no dispatcher, or none, alone", async (t) => {

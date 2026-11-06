@@ -27,3 +27,5 @@ Pictures, 1440 x 960:
 
 Taken with `node --import tsx packages/forest/testing/view/agent-pointer-edge/capture.mjs --retake`, which also counts every
 pointer pulse shown and every pointer edge marker, with its place and colour, into `measurements.json`.
+
+In the evidence bucket for #567, linked from the pull request body (ADR-1234; deleted after 90 days or when its arc closes): `567/the-command-line-near.png`, `567/the-forest-near.png`, `567/measurements.json`.

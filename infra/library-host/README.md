@@ -135,6 +135,18 @@ CI's capability-list check reads the plan as a third role, `ci_plan_read`
 contract 7.7 runs the check's reads as a role granted exactly that file, so a
 read the check gains cannot land without its grant.
 
+Cloud sessions get an account of their own (ADR-1264 D1) in place of `storytree_library`:
+`cloud-session-grants.sql` grants it, in the project's database, what a pool lane does there
+through storytree's own writes. It reads every record and its history, writes, edits and retires
+the kinds a lane writes (the plan, questions, friction, resteers, health and knowledge notes),
+each keeping its kind, removes a live record only after its retirement is in the history, and
+changes no history and no table; agent roles, a plugin's kinds and the numbering floor are not
+granted. Library contracts 30.6 and 30.7 run that file as written. The account (LOGIN, its
+password) is made apart, by a superuser, and the file run on the box as its header says; the
+grants for the session-management databases a lane also writes (`storytree-activity`,
+`storytree-trunks`) are apart from it. Until the cloud environment's `PGUSER` and `PGPASSWORD`
+name it, cloud sessions still sign in as `storytree_library`.
+
 How much of the server both CI roles may hold is `ci-role-limits.sql`: connection
 limits, a 60-second statement timeout, a 1 GB temporary-file limit, an idle-session
 timeout, and no temporary tables for PUBLIC. Only a superuser may set some of

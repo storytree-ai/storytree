@@ -48,6 +48,7 @@ Rules for every pool lane (ADR-0955): one dispatcher starts each lane from one p
 - **Defects and residue.**
   - A storytree defect you hit is parked on the arc that owns it, or fixed on its own PR if it is small and in your way. Never build around it silently.
   - Work you find that is outside your increment becomes a new increment on its arc (capabilities list empty), never a hidden extra in your PR.
+  - Work whose pull request lands on another repository is parked in that repository's own library, from its checkout, never on an arc here: the watcher hands over only a pull request on the repository of its increment's library.
   - If your increment fixes an escape (a defect that reached main), name what caused it and the story it hit before you land: the `edit_plan` tool with `escape`, or `pnpm storytree arc increment edit <increment> --escape-of <pr|increment> --escape-story <story>`. These links are what risk ratings are calibrated against.
 - **The shared library** is Postgres 16 on this box (ADR-0928). Never start, stop or reconfigure the box's postgresql service. Avoid looping over whole-library reads in scripts.
 - **Before ending:**

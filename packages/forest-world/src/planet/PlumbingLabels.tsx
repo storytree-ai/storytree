@@ -1,5 +1,5 @@
-/** Capability 4 · The planet. A plumbing road's label (ADR-1085 D3): its kind's words and nothing else, in the DOM at the
- * road's middle, so the text stays text and reads to a screen reader. The files behind each kind are its hover title. */
+/** Capability 4 · The planet. A plumbing lane's label (ADR-1085 D3, ADR-1261 D5): its kind's words and nothing else, in
+ * the DOM at the lane's middle, so the text stays text and reads to a screen reader. The files behind each kind are its hover title. */
 import { createElement, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { usePlanetGrowth } from './PlanetGrowth.js';
@@ -7,7 +7,7 @@ import { Overlay } from './overlay.js';
 import { plumbingLabels, type PlumbingLabel } from './plumbing.js';
 import type { PlanetPathways } from './pathways.js';
 
-/** Quiet by design: small, in the plumbing road's own ink on the sea's dark, never a colour that shouts. */
+/** Quiet by design: small, in the plumbing lane's own ink on the sea's dark, never a colour that shouts. */
 const CHIP = {
   display: 'inline-block', padding: '1px 8px', borderRadius: 999, whiteSpace: 'nowrap', pointerEvents: 'auto',
   font: '500 11px/16px system-ui, sans-serif', letterSpacing: '0.02em', color: '#cfdedb',
@@ -21,7 +21,7 @@ export function PlumbingChips({ chips }: { chips: PlumbingLabel['chips'] }) {
     chips.map(chip => createElement('span', { key: chip.kind, title: chip.files.join(', '), style: CHIP }, chip.kind)));
 }
 
-/** Under the islands' names (their overlays take 10 to 20): a chip that meets a name never covers it. A label shows once both its islands have risen, as its road does (4.33). */
+/** Under the islands' names (their overlays take 10 to 20): a chip that meets a name never covers it. A label shows once both its islands have risen, as its lane does (4.33). */
 function LabelAt({ label }: { label: PlumbingLabel }) {
   const growth = usePlanetGrowth();
   const box = useRef<HTMLDivElement>(null);
@@ -33,8 +33,9 @@ function LabelAt({ label }: { label: PlumbingLabel }) {
   </Overlay>;
 }
 
-/** Every plumbing road's label, at its road's middle; none while the exterior is hidden, as the islands' names are. */
-export function PlumbingLabels({ plan, visible }: { plan: PlanetPathways; visible: boolean }) {
-  const labels = useMemo(() => plumbingLabels(plan).filter(label => label.point !== undefined), [plan]);
+/** The label of each plumbing lane lit while `story` is selected (one of its two stories), at its lane's middle; none
+ * with no story selected, nor while the exterior is hidden, as the islands' names are. */
+export function PlumbingLabels({ plan, visible, story }: { plan: PlanetPathways; visible: boolean; story: string | undefined }) {
+  const labels = useMemo(() => plumbingLabels(plan).filter(label => label.point !== undefined && (label.from === story || label.to === story)), [plan, story]);
   return <group name="pathways:plumbing-labels">{visible && labels.map(label => <LabelAt key={`${label.from}->${label.to}`} label={label} />)}</group>;
 }

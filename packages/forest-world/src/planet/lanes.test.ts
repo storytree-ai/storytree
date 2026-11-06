@@ -3,7 +3,7 @@ import test from 'node:test';
 import { Vector3 } from 'three';
 import type { ForestScene, Island } from '../scene.js';
 import { buildPlanetPathways, laneDrawSeconds, laneProgress, laneRoutes, SEA_LANE } from '../geometry.js';
-import { advanceLaneClock, laneHead, laneHeads, LANE_SPEED, roadsUnderLanes, SEA_LANE_CAP, seaLaneWidth, type LaneRoute, type LitLink } from './lanes.js';
+import { advanceLaneClock, laneHead, laneHeads, LANE_SPEED, SEA_LANE_CAP, seaLaneWidth, type LaneRoute, type LitLink } from './lanes.js';
 import type { PlanetLanes, PlanetPathways } from './pathways.js';
 import { plateTransform } from './planet.js';
 
@@ -88,20 +88,10 @@ test('4.42 lanes heading the same way share a channel: two islands\' lanes to a 
   }
 });
 
-test('4.8 the roads carrying the lit links are not drawn while they are lit; every other road stays', () => {
-  const plan = buildPlanetPathways(scene, spots, R);
-  const under = roadsUnderLanes(plan, [{ from: 'b1', to: 'a1', dir: 'down' }]);
-  const carries = plan.segments.filter(s => s.links.includes('b1->a1')).map(s => s.id);
-  assert.ok(carries.length > 0 && carries.every(id => under.has(id)), 'its road gives way to the lane');
-  assert.ok(plan.segments.filter(s => !s.links.includes('b1->a1')).every(s => !under.has(s.id)), 'no other road is hidden');
-  assert.equal(roadsUnderLanes(plan, []).size, 0);
-});
-
-test('4.8 a type-only link stays marked on its road and its lane', () => {
+test('4.8 a type-only link stays marked on its lane', () => {
   const typed: ForestScene = { ...scene, links: [{ from: 'b1', to: 'a1' }, { from: 'b2', to: 'a2', typeOnly: true }, { from: 'b2', to: 'a1', typeOnly: true }] };
   const plan = buildPlanetPathways(typed, spots, R);
-  assert.deepEqual(plan.edges.map(e => [e.from, e.to, e.typeOnly === true]), [['b1', 'a1', false], ['b2', 'a2', true], ['b2', 'a1', true]]);
-  for (const segment of plan.segments) {
+  for (const segment of plan.lanes.segments) {
     assert.equal(segment.typeOnlyLinks ?? 0, segment.links.filter(link => link !== 'b1->a1').length, `${segment.id} counts its type-only links`);
   }
   assert.deepEqual(plan.lanes.edges.map(e => [e.from, e.to, e.typeOnly === true]), [['b1', 'a1', false], ['b2', 'a2', true], ['b2', 'a1', true]]);
@@ -120,8 +110,8 @@ test('4.8 lanes sharing a stretch, in and out alike, are one line down its middl
       line('left-b', [-20, 10], [-10, 0], ['a2->b2']), line('right-b', [10, 0], [20, 10], ['a2->b2']),
       line('trunk', [-10, 0], [10, 0], ['b1->a1', 'a2->b2'])],
     edges: [
-      { from: 'b1', to: 'a1', segments: [{ id: 'right-a', reversed: true }, { id: 'trunk', reversed: true }, { id: 'left-a', reversed: true }] },
-      { from: 'a2', to: 'b2', segments: [{ id: 'left-b', reversed: false }, { id: 'trunk', reversed: false }, { id: 'right-b', reversed: false }] },
+      { from: 'b1', to: 'a1', segments: [{ id: 'right-a', reversed: true }, { id: 'trunk', reversed: true }, { id: 'left-a', reversed: true }], islands: ['b', 'a'] },
+      { from: 'a2', to: 'b2', segments: [{ id: 'left-b', reversed: false }, { id: 'trunk', reversed: false }, { id: 'right-b', reversed: false }], islands: ['a', 'b'] },
     ],
   };
   const [down, up] = laneRoutes(plan, [{ from: 'b1', to: 'a1', dir: 'down' }, { from: 'a2', to: 'b2', dir: 'up' }]);
@@ -172,7 +162,7 @@ function fork(links: { from: string; arm: 'east' | 'west'; dir: LitLink['dir'] }
     segments: [line('trunk', [-20, 0], [0, 0], links.map(link => `${link.from}->a1`)),
       line('east', [0, 0], [10, 10], on('east')), line('west', [0, 0], [10, -10], on('west'))],
     // A chain runs from the building capability back to the one built on; the lane walks it the other way.
-    edges: links.map(link => ({ from: link.from, to: 'a1', segments: [{ id: link.arm, reversed: true }, { id: 'trunk', reversed: true }] })),
+    edges: links.map(link => ({ from: link.from, to: 'a1', segments: [{ id: link.arm, reversed: true }, { id: 'trunk', reversed: true }], islands: [link.from, 'a'] as const })),
   };
   return laneRoutes(plan, links.map(link => ({ from: link.from, to: 'a1', dir: link.dir })));
 }

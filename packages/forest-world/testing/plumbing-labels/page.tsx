@@ -1,4 +1,5 @@
-// The drawing engine 4.35, mounted: two islands joined by one plumbing road, on a sheet a host opens, closes and opens again.
+// The drawing engine 4.35, mounted: two islands joined by one plumbing lane, lit with its label while island a is selected, on a
+// sheet a host opens, closes and opens again.
 import { createRoot, type Root } from 'react-dom/client';
 import type { ForestScene, Island } from '../../src/scene.js';
 import { PlanetWorldCanvas, SHEET_RADIUS, sheetSpot } from '../../src/planet/PlanetWorldCanvas.js';
@@ -17,7 +18,7 @@ let root: Root | undefined;
   /** Open the sheet afresh, as a host's redraw does: a new root, so the canvas mounts again. */
   open() {
     root = createRoot(host);
-    root.render(<PlanetWorldCanvas scene={scene} spots={spots} radius={R} sheet={sheet} />);
+    root.render(<PlanetWorldCanvas scene={scene} spots={spots} radius={R} sheet={sheet} selected="a" />);
   },
   close() { root?.unmount(); root = undefined; host.replaceChildren(); },
   /** Each plumbing label's words on the page. */

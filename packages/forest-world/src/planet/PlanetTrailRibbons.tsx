@@ -2,76 +2,9 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import { BufferGeometry, Color, DoubleSide, Float32BufferAttribute, ShaderMaterial, Vector3 } from 'three';
-import type { PlanetPathways } from './pathways.js';
-import { growthProgress, linkKey, roadSegmentWindows, segmentDrawRange, type GrowthWindow } from './growth.js';
 import { usePlanetGrowth } from './PlanetGrowth.js';
-import { advanceLaneClock, laneDrawSeconds, laneHead, laneHeads, laneProgress, type LaneRoute } from './lanes.js';
-import { liveRoadProgress, liveRoadsGrowing, nextLiveRoads } from './live-roads.js';
-import { plumbingSegmentsShown, roadLook } from './plumbing.js';
-
-const ribbonShapes = new WeakMap<BufferGeometry, {
-  position: Float32Array; distances: number[]; movedPair: number | undefined;
-}>();
-
-/** Physical-width strips follow the shell and ease onto the real shore, with no supporting land. */
-export function ribbon(route: { points: Vector3[]; width: number }, halo = false, lift = 0): BufferGeometry {
-  const position: number[] = [], normal: number[] = [], index: number[] = [];
-  const half = route.width * (halo ? 2.4 : 1) / 2;
-  for (let i = 0; i < route.points.length; i++) {
-    const radial = route.points[i]!.clone().normalize(), p = route.points[i]!.clone().addScaledVector(radial, lift);
-    const tangent = route.points[Math.min(route.points.length - 1, i + 1)]!.clone().sub(route.points[Math.max(0, i - 1)]!);
-    const side = radial.clone().cross(tangent).normalize().multiplyScalar(half);
-    for (const sign of [-1, 1]) {
-      position.push(...p.clone().addScaledVector(side, sign).toArray());
-      normal.push(...radial.toArray());
-    }
-    if (i) index.push(2 * i - 2, 2 * i - 1, 2 * i, 2 * i - 1, 2 * i + 1, 2 * i);
-  }
-  const geometry = new BufferGeometry();
-  geometry.setAttribute('position', new Float32BufferAttribute(position, 3));
-  geometry.setAttribute('normal', new Float32BufferAttribute(normal, 3));
-  geometry.setIndex(index);
-  const distances = route.points.map(() => 0);
-  for (let i = 1; i < route.points.length; i++) distances[i] = distances[i - 1]! + route.points[i]!.distanceTo(route.points[i - 1]!);
-  ribbonShapes.set(geometry, { position: new Float32Array(position), distances, movedPair: undefined });
-  // Culling uses the complete strip even while its front is between two stations.
-  geometry.computeBoundingSphere();
-  return geometry;
-}
-
-/** Reveal physical distance, moving the last pair of vertices between route samples. */
-export function revealRibbon(geometry: BufferGeometry, progress: number, fromEnd = false): void {
-  const shape = ribbonShapes.get(geometry)!;
-  const position = geometry.getAttribute('position');
-  const restore = shape.movedPair;
-  if (restore !== undefined) {
-    for (let j = 0; j < 6; j++) position.array[restore * 6 + j] = shape.position[restore * 6 + j]!;
-    shape.movedPair = undefined;
-    position.needsUpdate = true;
-  }
-  const fraction = Math.max(0, Math.min(1, progress));
-  const total = shape.distances.at(-1) ?? 0;
-  const distance = (fromEnd ? 1 - fraction : fraction) * total;
-  geometry.userData.pathwayReveal = { progress: fraction, drawnLength: fraction * total, totalLength: total, fromEnd };
-  if (fraction === 0 || total === 0) { geometry.setDrawRange(0, 0); return; }
-  if (fraction === 1) { geometry.setDrawRange(0, geometry.index?.count ?? 0); return; }
-  let lo = 1, hi = shape.distances.length - 1;
-  while (lo < hi) {
-    const mid = (lo + hi) >>> 1;
-    if (shape.distances[mid]! < distance) lo = mid + 1;
-    else hi = mid;
-  }
-  const previous = shape.distances[lo - 1]!;
-  const between = (distance - previous) / (shape.distances[lo]! - previous);
-  const frontPair = fromEnd ? lo - 1 : lo;
-  for (let j = 0; j < 6; j++) {
-    const start = shape.position[(lo - 1) * 6 + j]!;
-    position.array[frontPair * 6 + j] = start + (shape.position[lo * 6 + j]! - start) * between;
-  }
-  shape.movedPair = frontPair;
-  position.needsUpdate = true;
-  geometry.setDrawRange(fromEnd ? frontPair * 6 : 0, fromEnd ? (geometry.index?.count ?? 0) - frontPair * 6 : lo * 6);
-}
+import { advanceLaneClock, laneDrawSeconds, laneHead, laneHeads, laneProgress, laneShown, type LaneRoute } from './lanes.js';
+import type { PlumbingLane } from './plumbing.js';
 
 /** A lane's strip: at each vertex its physical distance along the route (`along`) and the way out to its side at half
  * the strip's width (`sideways`), so a shader can draw its front and head. */
@@ -137,129 +70,38 @@ export function drawLane(material: ShaderMaterial, progress: number, head: numbe
   material.uniforms.uHead!.value = head;
 }
 
-// Neither the road nor its light can occlude a name, claim marker or island selection ray.
+// No lane can occlude a name, claim marker or island selection ray.
 const ignoreRay = () => {};
-
-/** The roads between islands: a recorded growth (5.4), or the live host's real arrivals (4.16). */
-export function Pathways({ plan, reveal, live = false, visible = true, routing = false, under }: { plan: PlanetPathways; reveal?: ReadonlyMap<string, GrowthWindow & { fromEnd: boolean }> | undefined; live?: boolean; visible?: boolean;
-  /** The plan's roads are still being routed (The drawing engine 4.21): the live arrivals are kept for them. */
-  routing?: boolean;
-  /** The roads the selection's lanes are drawn in place of (4.8): not drawn. */
-  under?: ReadonlySet<string> | undefined }) {
-  // Showing a surface is independent of the host's arrival clock (4.17). Mounting an already
-  // visible globe keeps its usual view; only a hidden-to-visible transition starts this reveal.
-  const showing = useRef({ visible, elapsed: undefined as number | undefined, started: false, reduced: reducedMotion() });
-  if (showing.current.visible !== visible) showing.current = { visible, elapsed: visible ? 0 : undefined, started: false, reduced: reducedMotion() };
-  const show = showing.current;
-  const shownWindows = useMemo(() => roadSegmentWindows(plan,
-    new Map(plan.edges.map(edge => [linkKey(edge), { start: 0, seconds: 1 }]))), [plan]);
-  const liveClock = useRef({ elapsed: 0, started: false, reduced: reducedMotion(), roads: new Map<string, GrowthWindow>() as ReadonlyMap<string, GrowthWindow> });
-  const state = liveClock.current;
-  // The plan last routed: what the roads were drawn on before a moved layout took them away to route again.
-  const routed = useRef(plan);
-  if (live) {
-    const next = nextLiveRoads(state.roads, plan, state.elapsed, routing, routed.current);
-    if (next !== state.roads) {
-      // A new arrival gets an undrawn first frame even after a long idle interval.
-      if ([...next.keys()].some(key => !state.roads.has(key))) state.started = false;
-      state.roads = next;
-      state.reduced = reducedMotion();
-    }
-  }
-  if (!routing) routed.current = plan;
-  const windows = useMemo(() => live ? roadSegmentWindows(plan, state.roads) : reveal, [plan, live, state.roads, reveal]);
-  const meshes = useMemo(() => plan.segments
-    .map(route => {
-      // Every road is one solid ribbon at its full width, whatever its links (by the owner's direction, 2026-10-11).
-      // Plumbing (ADR-1085 D3) rides its road in its own ink: the whole road where only plumbing uses it, else a thin thread down it.
-      const look = roadLook(route), geometry = ribbon(route), halo = ribbon(route, true);
-      const thread = look.thread === undefined ? undefined : ribbon({ points: route.points, width: look.threadWidth! }, false, 0.04);
-      if (live) {
-        const window = windows?.get(route.id), drawn = liveRoadProgress(window, state.elapsed, state.reduced);
-        for (const strip of [geometry, halo, ...thread ? [thread] : []]) revealRibbon(strip, drawn, window?.fromEnd);
-      }
-      return { route, look, geometry, halo, thread };
-    }), [plan, live]);
-  useEffect(() => () => meshes.forEach(mesh => { mesh.geometry.dispose(); mesh.halo.dispose(); mesh.thread?.dispose(); }), [meshes]);
-  const growth = usePlanetGrowth();
-  const { invalidate } = useThree();
-  useEffect(() => { if (live || visible) invalidate(); }, [meshes, live, visible, invalidate]);
-  useFrame((_, delta) => {
-    if (!visible) { state.started = false; return; }
-    if (windows === undefined && show.elapsed === undefined) return;
-    if (show.elapsed !== undefined) {
-      if (show.started) show.elapsed = advanceLaneClock(show.elapsed, delta);
-      show.started = true;
-    }
-    if (live) {
-      if (state.started) state.elapsed = advanceLaneClock(state.elapsed, delta);
-      state.started = true;
-    }
-    const now = live ? state.elapsed : growth.now();
-    let drawing = false;
-    // A road only plumbing uses waits for both its islands to rise (4.33).
-    const plumbed = plan.plumbing === undefined ? undefined : plumbingSegmentsShown(plan, growth.island);
-    for (const { route, geometry, halo, thread } of meshes) {
-      const strips = [geometry, halo, ...thread ? [thread] : []];
-      const window = windows?.get(route.id);
-      // A segment no road schedules keeps painting whole.
-      const arrived = live ? liveRoadProgress(window, now, state.reduced) : growthProgress(window, now, false);
-      const shownWindow = shownWindows.get(route.id);
-      const shown = show.elapsed === undefined ? 1 : liveRoadProgress(shownWindow, show.elapsed, show.reduced);
-      const waits = route.links.length === 0 && plumbed?.get(route.id) === false;
-      const drawn = waits ? 0 : Math.min(arrived, shown);
-      if (live || show.elapsed !== undefined) {
-        const fromEnd = window?.fromEnd ?? shownWindow?.fromEnd;
-        for (const strip of strips) revealRibbon(strip, drawn, fromEnd);
-        drawing ||= shown < 1 || (live && arrived < 1);
-      } else {
-        const range = segmentDrawRange((geometry.index?.count ?? 0) / 6, drawn, window?.fromEnd ?? false);
-        for (const strip of strips) strip.setDrawRange(range.start, range.count);
-      }
-    }
-    // Run the clock until every arrival's own time ends, not only until its spans draw whole (4.16).
-    if (live) drawing ||= liveRoadsGrowing(state.roads, now, state.reduced);
-    if (drawing) invalidate();
-  });
-  return <group name="pathways:cross-island" userData={{
-    links: plan.edges.map(edge => ({ from: edge.from, to: edge.to })),
-    plumbing: (plan.plumbing ?? []).map(road => ({ from: road.from, to: road.to, kind: road.kind })),
-    segmentCount: plan.segments.length,
-  }}>{meshes.map(({ route, look, geometry, halo, thread }) => <group key={route.id} visible={!under?.has(route.id)}>
-    <mesh name={`pathway:${route.id}`} geometry={geometry} raycast={ignoreRay}
-      userData={{ links: route.links, widthGround: route.width, unrouted: route.unrouted, ...route.typeOnlyLinks ? { typeOnlyLinks: route.typeOnlyLinks } : {}, ...route.plumbing ? { plumbing: route.plumbing } : {} }}>
-      <meshBasicMaterial color={look.road} side={DoubleSide} />
-    </mesh>
-    {thread && look.thread && <mesh name={`pathway-plumbing:${route.id}`} geometry={thread} raycast={ignoreRay}>
-      <meshBasicMaterial color={look.thread} side={DoubleSide} polygonOffset polygonOffsetFactor={-1} polygonOffsetUnits={-1} />
-    </mesh>}
-    <mesh name={`pathway-halo:${route.id}`} geometry={halo} raycast={ignoreRay}>
-      <meshBasicMaterial color={look.halo} transparent opacity={0.10} depthWrite={false} side={DoubleSide} forceSinglePass />
-    </mesh>
-  </group>)}</group>;
-}
 
 const reducedMotion = () => typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-/** A selected story's lit links (The drawing engine 4.8–4.9, ADR-1236 D1, ADR-1261 D3–D4): each lane one solid pale
+/** A selected story's lit links (The drawing engine 4.8–4.9, ADR-1236 D1, ADR-1261 D3–D5): each lane one solid pale
  * sea-blue line at sea on its own route, lanes sharing a stretch one line there, wider by how many share it up to a cap,
- * ending at the far island's dock and just
- * off the selected island's port (`seaLanes`); it draws on from the island built on, every lane starting together at
- * one pace, with a warm head at the front of each stretch it leads. A new selection draws its lanes again. */
-export function SelectionLanes({ routes }: { routes: readonly LaneRoute[] }) {
-  const key = routes.map(lane => `${lane.dir}:${lane.from}->${lane.to}`).sort().join('\n');
+ * ending at the far island's dock and just off the selected island's port (`seaLanes`); it draws on from the island
+ * built on, every lane starting together at one pace, with a warm head at the front of each stretch it leads. Its
+ * plumbing lanes (`plumbingLanes`) draw on with them in their own grey-green, over any dependency lane they share a
+ * stretch with, so they read as a thread down it. In a recorded growth a lane shows once both its islands have risen
+ * (4.33). A new selection draws its lanes again. */
+export function SelectionLanes({ routes, plumbing = [] }: { routes: readonly LaneRoute[]; plumbing?: readonly PlumbingLane[] }) {
+  const all = useMemo(() => [...routes, ...plumbing], [routes, plumbing]);
+  const key = all.map(lane => `${lane.colour}:${lane.dir}:${lane.from}->${lane.to}`).sort().join('\n');
   const animation = useRef({ key, elapsed: 0, started: false, reduced: reducedMotion() });
   if (animation.current.key !== key) animation.current = { key, elapsed: 0, started: false, reduced: reducedMotion() };
   const lanes = useMemo(() => {
-    const heads = laneHeads(routes);
-    return routes.map((lane, i) => ({ lane, seconds: laneDrawSeconds(lane.length), heads: heads[i]!,
-      strip: { geometry: laneRibbon(lane, 0.12), material: laneMaterial(lane.colour, 1) } }));
-  }, [routes]);
+    const heads = laneHeads(all);
+    return all.map((lane, i) => {
+      const plumbed = i >= routes.length;
+      return { lane, plumbed, seconds: laneDrawSeconds(lane.length), heads: heads[i]!,
+        strip: { geometry: laneRibbon(lane, plumbed ? 0.16 : 0.12), material: laneMaterial(lane.colour, 1) } };
+    });
+  }, [all, routes.length]);
   useEffect(() => () => lanes.forEach(({ strip }) => { strip.geometry.dispose(); strip.material.dispose(); }), [lanes]);
   const { invalidate } = useThree();
   useEffect(() => { invalidate(); }, [lanes, invalidate]);
+  const growth = usePlanetGrowth();
   const draw = (elapsed: number, reduced: boolean) => {
     for (const { lane, strip, seconds, heads } of lanes) {
+      if (!laneShown(lane, growth.island)) { drawLane(strip.material, 0, 0, lane.length); continue; }
       drawLane(strip.material, laneProgress(elapsed, seconds, reduced), laneHead(elapsed, lane.length, heads, reduced), lane.length);
     }
   };
@@ -277,9 +119,12 @@ export function SelectionLanes({ routes }: { routes: readonly LaneRoute[] }) {
     // The canvas draws on demand: keep asking for frames only while a lane is still drawing or its head fading.
     if (drawing) invalidate();
   });
-  return <group name="pathways:selection-lanes" userData={{ lanes: lanes.map(({ lane, seconds, heads }) =>
-    ({ from: lane.from, to: lane.to, dir: lane.dir, length: lane.length, seconds, heads })) }}>
-    {lanes.map(({ lane, strip }) => <mesh key={`${lane.from}->${lane.to}`} name={`lane:${lane.dir}:${lane.from}->${lane.to}`} geometry={strip.geometry} material={strip.material}
-      raycast={ignoreRay} renderOrder={2} userData={{ from: lane.from, to: lane.to, dir: lane.dir, length: lane.length, ...lane.typeOnly ? { typeOnly: true } : {} }} />)}
+  return <group name="pathways:selection-lanes" userData={{ lanes: lanes.filter(({ plumbed }) => !plumbed).map(({ lane, seconds, heads }) =>
+    ({ from: lane.from, to: lane.to, dir: lane.dir, length: lane.length, seconds, heads })),
+    plumbing: lanes.filter(({ plumbed }) => plumbed).map(({ lane }) => ({ from: lane.from, to: lane.to, kinds: (lane as PlumbingLane).kinds })) }}>
+    {lanes.map(({ lane, plumbed, strip }) => <mesh key={`${plumbed ? 'plumbing' : lane.dir}:${lane.from}->${lane.to}`}
+      name={plumbed ? `plumbing-lane:${lane.from}->${lane.to}` : `lane:${lane.dir}:${lane.from}->${lane.to}`} geometry={strip.geometry} material={strip.material}
+      raycast={ignoreRay} renderOrder={plumbed ? 3 : 2} userData={{ from: lane.from, to: lane.to, dir: lane.dir, length: lane.length, ...lane.typeOnly ? { typeOnly: true } : {},
+        ...plumbed ? { kinds: (lane as PlumbingLane).kinds } : {} }} />)}
   </group>;
 }

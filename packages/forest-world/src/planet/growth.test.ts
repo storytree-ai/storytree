@@ -1,9 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { ForestScene, Island } from '../scene.js';
-import { buildPlanetPathways, growthMoment, growthNow, growthPlan, growthProgress, plateGrowth, roadSegmentWindows, segmentDrawRange, type GrowthWindow } from '../geometry.js';
+import { growthMoment, growthNow, growthPlan, growthProgress, plateGrowth, type GrowthWindow } from '../geometry.js';
 
-const R = 218;
 const island = (story: string, capabilities: string[], files: string[] = []): Island => ({
   story, title: story, x: 0, z: 0, key: story,
   trees: capabilities.map((capability, i) => ({ capability, form: 'green', status: 'healthy', contracts: 1, x: i, z: 0, scale: 1, turn: 0 })),
@@ -89,33 +88,6 @@ test('5.2 a whole globe grows from a point of light to its full form in the leng
   for (const w of [...fitted.islands.values(), ...fitted.roads.values(), ...fitted.capabilities.values()]) assert.ok(end(w) <= 15 + 1e-9);
 });
 
-test('5.2 a road draws on at constant speed from its built-on end, split by length across the segments it crosses, a shared one drawn by its earliest road', () => {
-  const scene: ForestScene = { islands: [island('a', ['a1', 'a2']), island('b', ['b1', 'b2'])],
-    links: [{ from: 'b1', to: 'a1' }, { from: 'b2', to: 'a2' }] };
-  const spots = new Map([['a', { x: R * Math.sin(0.3), y: 0, z: R * Math.cos(0.3) }], ['b', { x: -R * Math.sin(0.3), y: 0, z: R * Math.cos(0.3) }]]);
-  const pathways = buildPlanetPathways(scene, spots, R);
-  const roads = new Map<string, GrowthWindow>([['b1->a1', { start: 1, seconds: 1 }], ['b2->a2', { start: 3, seconds: 1 }]]);
-  const windows = roadSegmentWindows(pathways, roads);
-  const segments = new Map(pathways.segments.map(s => [s.id, s]));
-  const length = (id: string) => segments.get(id)!.points.slice(1).reduce((sum, p, i) => sum + p.distanceTo(segments.get(id)!.points[i]!), 0);
-  const edge = pathways.edges.find(e => e.from === 'b1')!;
-  // Walked from the capability built on: the chain reversed, every segment of it drawn across the glass.
-  const walk = [...edge.segments].reverse();
-  assert.ok(walk.length > 0);
-  const total = walk.reduce((sum, ref) => sum + length(ref.id), 0);
-  let at = 1;
-  for (const ref of walk) {
-    const w = windows.get(ref.id)!;
-    assert.ok(Math.abs(w.start - at) < 1e-9, `${ref.id} starts where the front reaches it`);
-    assert.ok(Math.abs(w.seconds - length(ref.id) / total) < 1e-9, 'constant speed');
-    assert.equal(w.fromEnd, !ref.reversed, 'drawn from the end the road enters');
-    at += w.seconds;
-  }
-  const shared = pathways.segments.filter(s => s.links.includes('b1->a1') && s.links.includes('b2->a2'));
-  assert.ok(shared.length > 0, 'the two roads share the glass between the islands');
-  for (const s of shared) assert.ok(windows.get(s.id)!.start < 3, 'a shared segment keeps its earliest road');
-});
-
 test('5.3 an island rises from its middle without overshoot, its parts filling in behind it; reduced motion shows the end at once', () => {
   const w = { start: 2, seconds: 1 };
   let last = 0;
@@ -136,16 +108,12 @@ test('5.3 an island rises from its middle without overshoot, its parts filling i
   }
 });
 
-test('5.4 the globe given a growth hides what has not risen, draws roads on from their built-on end, and ends as the globe without one', () => {
+test('5.4 the globe given a growth hides what has not risen, and ends as the globe without one', () => {
   assert.deepEqual(plateGrowth(0), { visible: false, scale: 0, sink: 1 });
   const half = plateGrowth(0.5);
   assert.ok(half.visible && half.scale > 0 && half.scale < 1 && half.sink > 0 && half.sink < 1);
   assert.deepEqual(plateGrowth(1), { visible: true, scale: 1, sink: 0 });
-  assert.deepEqual(segmentDrawRange(10, 0, false), { start: 0, count: 0 });
-  assert.deepEqual(segmentDrawRange(10, 0.3, false), { start: 0, count: 18 });
-  assert.deepEqual(segmentDrawRange(10, 0.3, true), { start: 42, count: 18 }, 'from the far end');
-  assert.deepEqual(segmentDrawRange(10, 1, true), { start: 0, count: 60 });
-  // At its end every island is whole and every road fully drawn.
+  // At its end every island is whole and every crossing has arrived.
   const plan = growthPlan(stages, { fromPoint: true, seconds: 12 });
   for (const w of [plan.globe!, ...plan.islands.values(), ...plan.roads.values()]) assert.equal(growthProgress(w, plan.seconds, false), 1);
 });

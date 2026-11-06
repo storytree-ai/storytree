@@ -1,5 +1,6 @@
-/** Capability 5 · Growth. The globe's growth (contracts 5.1–5.4): a recorded sequence of plan states replayed as islands rising
- * and roads drawing on, choreographed the way 0.2's arrival was (ADR-0639: its behaviour, not its code). */
+/** Capability 5 · Growth. The globe's growth (contracts 5.1–5.4): a recorded sequence of plan states replayed as islands rising,
+ * each dependent rising once its dependency's crossing has arrived, choreographed the way 0.2's arrival was (ADR-0639: its
+ * behaviour, not its code). A lane shows once both its islands have risen (4.33). */
 import type { ForestScene } from '../scene.js';
 import { roadDrawSeconds } from './lanes.js';
 import type { PlanetPathways } from './pathways.js';
@@ -16,7 +17,7 @@ export interface GrowthOptions {
   seconds?: number;
   /** The globe swells from a point of light before the first island rises. */
   fromPoint?: boolean;
-  /** A road's drawn length in ground units, `from->to`; absent, a typical road's. */
+  /** A link's crossing length in ground units, `from->to`; absent, a typical one's. */
   roadLength?: (link: string) => number;
   /** When the recording ends: a date after the last stage's falls toward it, reached as the growth ends. */
   until?: string;
@@ -26,7 +27,8 @@ export interface GrowthPlan {
   seconds: number;
   globe?: GrowthWindow;
   islands: Map<string, GrowthWindow>;
-  /** Keyed `from->to`, as the capability links are recorded. */
+  /** Each link's crossing between islands, keyed `from->to` as the capability links are recorded: it leaves the island
+   * built on once that has risen, and the island building on it rises as it arrives. Nothing draws it. */
   roads: Map<string, GrowthWindow>;
   capabilities: Map<string, GrowthWindow>;
   /** The stages that added something, when each began, and when each was recorded. */
@@ -166,40 +168,11 @@ export function plateGrowth(progress: number): { visible: boolean; scale: number
   return { visible: true, scale: progress, sink: 1 - progress };
 }
 
-/** How each cross-island road segment draws on: its road's window split by length, at constant speed from the
- * capability built on; a segment several roads share is drawn by the earliest. */
-export function roadSegmentWindows(pathways: PlanetPathways, roads: ReadonlyMap<string, GrowthWindow>): Map<string, GrowthWindow & { fromEnd: boolean }> {
-  const segments = new Map(pathways.segments.map(s => [s.id, s]));
-  const length = (id: string) => { const p = segments.get(id)!.points; return p.slice(1).reduce((sum, q, i) => sum + q.distanceTo(p[i]!), 0); };
-  const out = new Map<string, GrowthWindow & { fromEnd: boolean }>();
-  for (const edge of pathways.edges) {
-    const road = roads.get(linkKey(edge));
-    if (road === undefined) continue;
-    // The chain runs from the building capability to the one built on; the road draws back along it.
-    const walk = [...edge.segments].reverse();
-    const total = walk.reduce((sum, ref) => sum + length(ref.id), 0);
-    let at = road.start;
-    for (const ref of walk) {
-      const seconds = total > 0 ? road.seconds * length(ref.id) / total : 0;
-      const old = out.get(ref.id);
-      if (old === undefined || at < old.start) out.set(ref.id, { start: at, seconds, fromEnd: !ref.reversed });
-      at += seconds;
-    }
-  }
-  return out;
-}
-
-/** A road strip's draw range at `drawn` of its `quads`, from its start or its far end. */
-export function segmentDrawRange(quads: number, drawn: number, fromEnd: boolean): { start: number; count: number } {
-  const shown = Math.round(Math.min(1, Math.max(0, drawn)) * quads);
-  return { start: fromEnd ? (quads - shown) * 6 : 0, count: shown * 6 };
-}
-
-/** A road's drawn length across the glass, in ground units: what its draw-on time follows. */
+/** A link's lane length across the glass, in ground units: what its crossing time in a growth follows. */
 export function crossingLength(pathways: PlanetPathways, link: string): number {
-  const edge = pathways.edges.find(e => linkKey(e) === link);
+  const edge = pathways.lanes.edges.find(e => linkKey(e) === link);
   if (edge === undefined) return 0;
-  const segments = new Map(pathways.segments.map(s => [s.id, s]));
+  const segments = new Map(pathways.lanes.segments.map(s => [s.id, s]));
   return edge.segments.reduce((sum, ref) => {
     const s = segments.get(ref.id);
     return s === undefined ? sum : sum + s.points.slice(1).reduce((d, q, i) => d + q.distanceTo(s.points[i]!), 0);

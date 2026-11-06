@@ -52,8 +52,6 @@ export type PlanetViewProps = {
   easeMoves?: boolean | undefined;
   /** A recorded growth to replay (world 7): islands rise, their territories fill in behind them (3.30), and the core's notes appear. */
   growth?: PlanetGrowth | undefined;
-  /** The live desktop grows arriving ordinary roads, separately from recorded replay. */
-  liveRoads?: boolean | undefined;
   /** With a growth, the sessions recorded with each dated stage: they pass over the islands they held as the replay reaches them (5.7), in place of `wisps`. */
   recordedSessions?: readonly { at: string; wisps: readonly SessionWisp[] }[] | undefined;
   core: KnowledgeCore;
@@ -71,7 +69,7 @@ export type PlanetViewProps = {
 
 /** The forest drawn on the glass sheet, depth running west to east (ADR-1043): the user tilts it from above to below
  * (ADR-1062 D2); `mode` changes only its look, never the eye (D3). */
-export function PlanetView({ core, scene, places, wisps: live, selected, highlighted, circled: circledList, onPick, onNote, mode = "forest", framing, sideOffset, aside = 0, surfaces, onControls, onPainted, library = true, frame, easeMoves = false, growth, liveRoads = false, recordedSessions }: PlanetViewProps) {
+export function PlanetView({ core, scene, places, wisps: live, selected, highlighted, circled: circledList, onPick, onNote, mode = "forest", framing, sideOffset, aside = 0, surfaces, onControls, onPainted, library = true, frame, easeMoves = false, growth, recordedSessions }: PlanetViewProps) {
   // In the glass sheet's Library the glass is clear and the islands hollow outlines with their names over the knowledge, from
   // every angle (ADR-1061 D2, ADR-1062 D3): the button pressed decides, never the side the eye is on.
   const outlines = mode === "library";
@@ -158,7 +156,7 @@ export function PlanetView({ core, scene, places, wisps: live, selected, highlig
   return <PlanetWorldCanvas scene={travelling ? roadless : layout.scene} spots={moving} radius={layout.radius}
     surface surfaces={shownSurfaces} framing={cameraFraming} sideOffset={cameraOffset} sheet={layout.extent} hollow={outlines}
     globe={globe} offset={turned.current.centre} inside={inside}
-    rotation={turned.current.rotation.toArray()} plateChildren={overlays} lanes={lanes} growth={growth} liveRoads={liveRoads}>
+    rotation={turned.current.rotation.toArray()} plateChildren={overlays} lanes={lanes} selected={selected} growth={growth}>
     <Navigation islands={layout.islands} radius={layout.radius} titles={titles}
       rotation={turned.current.rotation} onRotate={onRotate} onPose={setPose} onControls={onControls} onPick={onPick} onRoute={setRoute} onNote={onNote} mode={mode} sheet={layout.extent}
       sideOffset={sideOffset ?? 0} aside={aside}

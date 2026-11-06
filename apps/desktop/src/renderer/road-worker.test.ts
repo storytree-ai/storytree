@@ -1,5 +1,5 @@
 /**
- * The page's road worker (capability 3 · Surfaces, contract 3.18): the drawing engine routes the map's roads and lanes in the
+ * The page's road worker (capability 3 · Surfaces, contract 3.18): the drawing engine routes the map's lanes in the
  * script the page names (its 4.21 seam), so routing neither blocks the page nor waits for the hidden window's next frame.
  * The forest's territory search runs the same way, in its own worker (its 3.80).
  */
@@ -24,15 +24,14 @@ test("3.18 · the desktop page names a road worker, and the script the app's bui
   const scope: Record<string, unknown> = { WorkerGlobalScope: class {}, postMessage: (answer: unknown) => answers.push(answer) };
   vm.runInNewContext(result.outputFiles[0]!.text, scope);
   const onmessage = scope["onmessage"] as (event: { data: unknown }) => void;
-  onmessage({ data: { islands: [{ id: "a", x: 0, y: 0, r: 40 }, { id: "b", x: 400, y: 0, r: 40 }], edges: [{ from: "a", to: "b" }], seed: "road", tuning: {},
+  onmessage({ data: { islands: [{ id: "a", x: 0, y: 0, r: 40 }, { id: "b", x: 400, y: 0, r: 40 }],
     lanes: { edges: [{ from: "a", to: "b" }], seed: "lane", tuning: {} } } });
   // The answer was made in the script's own realm; as plain data it is what a worker posts back.
   type Point = { x: number; y: number };
   type Network = { edges: { from: string; to: string; segments: { id: string }[] }[]; segments: { id: string; points: Point[] }[] };
-  const [answer] = JSON.parse(JSON.stringify(answers)) as { network?: { roads: Network; lanes: Network } }[];
-  // The routed road, and the lane routed on its own (ADR-1261 D3), each run from island a's coast to island b's: some
-  // point of each lies just off each island.
-  for (const kind of ["roads", "lanes"] as const) {
+  const [answer] = JSON.parse(JSON.stringify(answers)) as { network?: { lanes: Network } }[];
+  // The routed lane (ADR-1261 D3) runs from island a's coast to island b's: some point of it lies just off each island.
+  for (const kind of ["lanes"] as const) {
     const network = answer?.network?.[kind];
     assert.deepEqual(network?.edges.map(({ from, to }) => [from, to]), [["a", "b"]], `the ${kind} are routed`);
     const ids = new Set(network!.edges[0]!.segments.map(({ id }) => id));

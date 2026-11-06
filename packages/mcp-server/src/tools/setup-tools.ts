@@ -224,8 +224,12 @@ function newerPackSentence({ seeded, current, factory }: StarterPackStatus): str
  * first: its answer is where the whole card reaches them.
  */
 function cardAfter(text: string, card: string): string {
-  return `${text}\n\nHow to work with storytree in this project, whole (your harness may have shown you only the start of it):\n\n${card}`;
+  return `${text}\n\nHow to work with storytree in this project, whole (your harness may have shown you only the start of it):\n\n${card}\n\n${ASKED_WHAT_IT_KEEPS}`;
 }
+
+/** What the agent says when the user asks what storytree keeps (ADR-1268 D2): it rides after the card, outside the card's word budget. */
+const ASKED_WHAT_IT_KEEPS =
+  "When the user asks how storytree works or what it keeps, explain their library (their plan, notes, friction and session transcripts, kept for them and not sent to storytree) and point them at the README's sections \"What your library keeps\" and \"Your friction stays yours\".";
 
 /**
  * What a connected session is told (12.2): the check passes, and what storytree does not do for it, since it

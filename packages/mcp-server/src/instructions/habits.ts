@@ -8,8 +8,8 @@
  *
  * Each story's package declares its own section in its manifest (the guidance kind, ADR-1021), and the card is
  * composed from the packages the server mounts, in their manifests' order (contract 7.10). Only the opening, the
- * setup check's paragraph and the closing are the server's own: what storytree is, how a session starts, what it keeps
- * and what to do when it is not running speak of storytree as a whole, and belong to no one story.
+ * setup check's paragraph and the closing are the server's own: what storytree is, how a session starts and what to
+ * do when it is not running speak of storytree as a whole, and belong to no one story.
  *
  * A part this computer switches off (ADR-1095) takes its section with it, and the card names it switched off instead,
  * unless a factory plugin stands in for it: then the plugin's sections are in the part's place (contract 7.14).
@@ -43,7 +43,7 @@ const OPENING = "storytree keeps this project's plan and records what you do, so
  */
 const SETUP = "Start every session with `check_setup`, and do what it says. If this folder isn't a storytree project, carry on without storytree: never offer to set it up. Call `set_up_project` only when the user asks for storytree here, with a name no project has (a refusal suggests one); set its join only to add this computer's copy of a project they have elsewhere.";
 
-const CLOSING = "When the user asks how storytree works or what it keeps, explain their library (their plan, notes, friction and session transcripts, kept for them and not sent to storytree) and point them at the README's sections \"What your library keeps\" and \"Your friction stays yours\". If storytree says it isn't running, carry on without it.";
+const CLOSING = "If storytree says it isn't running, carry on without it.";
 
 /**
  * The habits card, as the tool server hands it to the agent, without the sections of the parts `off` switches off, and

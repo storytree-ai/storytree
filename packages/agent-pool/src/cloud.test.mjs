@@ -27,7 +27,7 @@ function overflowOf({ config = { enabled: true, cap: 2, trigger: "trig_01abc" },
     config, secrets: async () => ({ token }), file: "/lanes/pool-cloud.json", now: clock, say: (line) => lines.push(line),
     read: async () => { if (!ledger.text) throw Object.assign(new Error("none"), { code: "ENOENT" }); return ledger.text; },
     write: async (_, text) => { ledger.text = text; },
-    fire: async (request) => { fires.push(request); return answer ? answer(request) : { session: `session_${request.text}`, url: `https://claude.ai/code/session_${request.text}` }; },
+    fire: async (request) => { fires.push(request); return answer ? answer(request) : { session: `session_${request.text}`, url: `https://sessions.example/session_${request.text}` }; },
   });
   return { cloud, fires, lines, ledger };
 }
@@ -87,8 +87,8 @@ test("3.40 · while the box reads saturated and the overflow is switched on, the
 
 test("3.40 · a fire is one POST to the cloud task's trigger, its token as the bearer and the increment as the text; it answers the new session and its link", async () => {
   const sent = [];
-  const fetch = async (url, init) => { sent.push({ url, init }); return { ok: true, json: async () => ({ type: "routine_fire", claude_code_session_id: "session_01X", claude_code_session_url: "https://claude.ai/code/session_01X" }) }; };
-  assert.deepEqual(await fireCloud({ trigger: "trig_01abc", token: "sk-ant-oat01-x", text: "increment_123", fetch }), { session: "session_01X", url: "https://claude.ai/code/session_01X" });
+  const fetch = async (url, init) => { sent.push({ url, init }); return { ok: true, json: async () => ({ type: "routine_fire", claude_code_session_id: "session_01X", claude_code_session_url: "https://sessions.example/session_01X" }) }; };
+  assert.deepEqual(await fireCloud({ trigger: "trig_01abc", token: "sk-ant-oat01-x", text: "increment_123", fetch }), { session: "session_01X", url: "https://sessions.example/session_01X" });
   assert.equal(sent[0].url, "https://api.anthropic.com/v1/claude_code/routines/trig_01abc/fire");
   assert.equal(sent[0].init.method, "POST");
   assert.equal(sent[0].init.headers.authorization, "Bearer sk-ant-oat01-x");

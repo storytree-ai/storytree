@@ -302,8 +302,9 @@ function Territories(props: TerritoriesProps) {
   const land = useKept(given, JSON.stringify), coast = useKept(givenCoast, JSON.stringify), docks = useKept(givenDocks, (docks) => JSON.stringify(docks ?? null));
   // A claim on another island leaves this one's territories as they were.
   const tints = useKept(claimed, tints => claimsOn(tints, land));
-  // When the island joined the map: one there as the sheet first draws stands, its land included, however late it is built.
-  const [joined] = useState(() => clock.getElapsedTime());
+  // When the island joined the map, after its first island did: one there as the map opens stands, its land included, however
+  // late it is built, and however late the plan came after the sheet first drew.
+  const [joined] = useState(() => sinceFirstIsland(clock));
   // 3.80: laid out from the arrangement the search kept for it, and searched off the page when there is none for its structure.
   const kept = useSyncExternalStore(subscribeKept, keptVersion);
   // 3.87: settled in its turns, a few of the fine cut's cells or one try at growing to each, so opening a map of many
@@ -311,6 +312,16 @@ function Territories(props: TerritoriesProps) {
   const map = useBuiltInSteps(() => islandLayoutSteps(story, land.territories, coast, links, docks), [story, land, coast, links, docks, kept]);
   useEffect(() => { if (docks !== undefined) searchIsland(story, { shares: land.territories, coast, links, docks }, pageTerritorySearcher()); }, [story, land, coast, links, docks]);
   return map === undefined ? null : <IslandLand {...props} land={land} coast={coast} docks={docks} tints={tints} map={map} joined={joined} />;
+}
+
+/** When each sheet's first island joined it, by the sheet's clock. */
+const firstIsland = new WeakMap<object, number>();
+
+/** The seconds since the sheet ticking on `clock` was joined by its first island, which is now when none has. */
+function sinceFirstIsland(clock: { getElapsedTime(): number }): number {
+  const now = clock.getElapsedTime();
+  if (!firstIsland.has(clock)) firstIsland.set(clock, now);
+  return now - firstIsland.get(clock)!;
 }
 
 type IslandLandProps = Omit<TerritoriesProps, "claimed"> & { tints: ReadonlyMap<string, ClaimTint>; map: TerritoryMap; joined: number };
@@ -368,7 +379,7 @@ function disposeMarks(group: Group): void {
 /** An island's land as built: its territories' meshes, and its relief and roads once they are routed. */
 type DrawnLand = { group: Group; map: TerritoryMap; roads: IslandRoads | undefined; relief: IslandRelief | undefined; onLand: ReturnType<typeof onIslandSurface> };
 
-function DrawnIsland({ drawn, land, coast, tints, radius, lighting, surfaces, lit, circled, detail, joined }: IslandLandProps & { drawn: DrawnLand }) {
+function DrawnIsland({ drawn, land, coast, docks, tints, radius, lighting, surfaces, lit, circled, detail, joined }: IslandLandProps & { drawn: DrawnLand }) {
   const { invalidate, clock, camera, size, gl, scene } = useThree();
   const relief = drawn.relief, onLand = drawn.onLand;
   // 3.83: the open work's rings round its settlements, and its dims, over the land as drawn now, at every zoom (ADR-1272 D2).
@@ -422,12 +433,13 @@ function DrawnIsland({ drawn, land, coast, tints, radius, lighting, surfaces, li
   const grow = useCallback(() => growLand(drawn.group, { capability: id => growth.capability(id) }), [drawn, growth]);
   // 3.46: what this island already drew stays drawn across a rebuild; new borders trace on and new fills ease in.
   const drawOn = useMemo(() => new TerritoryDrawOn(), []);
+  // 3.87: an island there as the map opens stands until its land is whole: laid out by its docks, and with its roads.
   const opened = useRef(true);
   // Before the land is first drawn, so a rebuilt island never shows a frame in the wrong colours.
   useLayoutEffect(() => {
     lightTerritories(drawn.group, surfaces.sessionTints ? lighting.capabilities : new Map(), lighting.colour);
     drawOn.take(drawn.group, surfaces.territories, clock.getElapsedTime(), { standing: opened.current && joined < 1, reduced: reducedMotion() });
-    opened.current = false;
+    opened.current &&= docks === undefined || drawn.roads === undefined;
     marks.root.visible = surfaces.sessionTints;
     whole.current = grow();
     invalidate();

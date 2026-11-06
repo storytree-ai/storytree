@@ -7,7 +7,7 @@
  * portals set in the rim and the wall. Sizes are The library's, given back at the island's own, as the roads' are.
  */
 import { LIBRARY_LAND } from "./link-layout.js";
-import { inTunnelMouth, type IslandRoads, type RoadGate } from "./island-roads.js";
+import type { IslandRoads, RoadGate } from "./island-roads.js";
 import { landArea, onLand, type Point, type TerritoryMap } from "./territories.js";
 import { insideOf, segmentInConvex, toSegment } from "../view/territory-land.js";
 
@@ -102,7 +102,7 @@ export function islandRelief(map: TerritoryMap, roads: IslandRoads): IslandRelie
     }
   });
   const post = { side: RELIEF.post.side * S, height: RELIEF.post.height * S };
-  const gateHoles = crossings.map((c) => ({ at: c.at, half: c.opening / 2 + (c.gate === undefined || inTunnelMouth(roads, c.gate) ? 0 : post.side) + 0.2 * S }));
+  const gateHoles = crossings.map((c) => ({ at: c.at, half: c.opening / 2 + (c.gate === undefined ? 0 : post.side) + 0.2 * S }));
   const rims: Rim[] = borders.flatMap((b) => b.pair.filter((t) => t >= 0).flatMap((t) => {
     const into = sideOf(b.from, b.to, t);
     return cut(b.from, b.to, gateHoles, 0.6 * S).map((s) => ({ ...s, into, territory: t }));

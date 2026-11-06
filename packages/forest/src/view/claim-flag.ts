@@ -5,10 +5,12 @@
  * one ring at its foot, stands still while held, furls and greys when its holder goes quiet, and lifts away when the claim
  * goes. On an island with no code yet the claimed share is marked as a lot, a dashed white line inside its border.
  * Each claim is a group named `territory-claim:<capability>` carrying `userData { claim, capability, colour, faded }`,
- * the handle the capture seam, the visibility switch and the tests read. Plain three.js, so it is read without a browser.
+ * the handle the capture seam, the visibility switch and the tests read. A capability a session points the owner's eye at
+ * (5.8) pulses: a steady ring in that session's colour marks its foot, and a second opens slowly from it, again and again,
+ * held still under reduced motion, both constant on screen, in a group named `territory-pointer:<capability>`. Nothing here moves the camera. Plain three.js, so it is read without a browser.
  */
 import { BufferGeometry, Color, DoubleSide, Float32BufferAttribute, Group, LineBasicMaterial, LineSegments, Mesh, MeshBasicMaterial, Quaternion, RingGeometry, Vector3, type Material, type Object3D } from "three";
-import type { ClaimTint } from "@storytree/forest";
+import type { ClaimTint, PointerTint } from "@storytree/forest";
 import { pennantOutline, quietHsl } from "@storytree/session-management/claim-mark";
 import { facing } from "./nameplates.js";
 import { lotDashes, type DrawnLand } from "./territory-land.js";
@@ -38,6 +40,22 @@ export function flagScale(islandPx: number): { k: number } {
   const [[x0, y0], [x1, y1]] = islandPx <= 200 ? [anchors[0], anchors[1]] : [anchors[1], anchors[2]];
   const k = y0 + (y1 - y0) * (Math.log(Math.max(islandPx, 1)) - Math.log(x0)) / (Math.log(x1) - Math.log(x0));
   return { k: Math.min(1.6, Math.max(0.4, k)) };
+}
+
+/** One pulse of a pointer, in seconds: slow, so it draws the eye without flashing (5.8). */
+export const POINTER_PULSE_S = 2.4;
+/** A pointer's rings on screen, in CSS px: the steady one's radius, how far the pulse opens past it, and their lines' width. */
+const POINTER_PX = { mark: 7, reach: 28, line: 2.5 };
+
+/**
+ * A pointer's ring at `now` seconds: `open` how far it has opened (0 at the foot, 1 at its widest) and its `opacity`, fading
+ * as it opens. It loops, one pulse every POINTER_PULSE_S; under reduced motion it holds half open, steady.
+ */
+export function pointerPulse(now: number, reduced: boolean): { open: number; opacity: number } {
+  if (reduced) return { open: 0.5, opacity: 0.7 };
+  const p = (((now / POINTER_PULSE_S) % 1) + 1) % 1;
+  const open = easeOutCubic(p);
+  return { open, opacity: 0.9 * (1 - open) };
 }
 
 /** A claim's quiet turning: from `from` to `to` (0 held, 1 quiet), starting at `at` seconds. */
@@ -146,6 +164,7 @@ export class ClaimMarks {
   readonly root = new Group();
   private land: { map: ClaimLand; onSurface: (point: Point) => Vector3; normalAt: (point: Point) => Vector3; unsurveyed: boolean; coast?: readonly (readonly Point[])[] | undefined } | undefined;
   private readonly lives = new Map<string, Life>();
+  private pointed: ReadonlyMap<string, PointerTint> = new Map();
   private readonly turned = new Quaternion();
   private posed: { now: number; zoom: number; reduced: boolean } | undefined;
   private readonly posedEye = new Quaternion();
@@ -158,6 +177,7 @@ export class ClaimMarks {
   setLand(map: ClaimLand, onSurface: (point: Point) => Vector3, normalAt: (point: Point) => Vector3, unsurveyed: boolean, coast?: readonly (readonly Point[])[]): void {
     this.land = { map, onSurface, normalAt, unsurveyed, coast };
     for (const [capability, life] of this.lives) this.remove(capability, life, false);
+    for (const capability of this.pointed.keys()) this.removePointer(capability);
     // Set again under drawn marks (an island built in steps), they stand at once at their last pose, not a frame later.
     if (this.posed !== undefined) this.frame(this.posed.now, { ...this.posed, eye: this.posedEye });
   }
@@ -179,6 +199,12 @@ export class ClaimMarks {
       life.faded = tint.faded;
     }
     for (const [capability, life] of this.lives) if (!claimed.has(capability) && life.left === undefined) life.left = now;
+  }
+
+  /** The capabilities pointed at now, each in its session's colour (5.8): a new one pulses, one no longer pointed at goes. */
+  pointers(pointed: ReadonlyMap<string, PointerTint>): void {
+    for (const capability of this.pointed.keys()) if (!pointed.has(capability)) this.removePointer(capability);
+    this.pointed = new Map(pointed);
   }
 
   /** Poses every mark at `now` for an eye at `zoom` (CSS px per world unit) turned by `eye`; true while a transition still wants frames. */
@@ -229,11 +255,67 @@ export class ClaimMarks {
       const lot = mark.getObjectByName(`claim-lot:${capability}`) as LineSegments | undefined;
       if (lot !== undefined) (lot.material as LineBasicMaterial).opacity = LOT.opacity * moment.lot;
     }
+    // A pointer pulses in place while it stands, so it wants every frame unless reduced motion holds it still.
+    const pulse = pointerPulse(now, reduced);
+    for (const [capability, { colour }] of this.pointed) {
+      const mark = this.pointerOf(capability, colour);
+      if (mark === undefined) continue;
+      // Sized on screen, as a flag is, so it catches the eye at every zoom.
+      mark.updateWorldMatrix(true, false);
+      const plateScale = new Vector3().setFromMatrixScale(mark.matrixWorld).x || 1;
+      const px = 1 / zoom / plateScale;
+      const ring = mark.getObjectByName("pointer-ring") as Mesh, dot = mark.getObjectByName("pointer-mark") as Mesh;
+      const inner = (POINTER_PX.mark + pulse.open * POINTER_PX.reach) * px;
+      ring.geometry.dispose();
+      ring.geometry = new RingGeometry(inner, inner + POINTER_PX.line * px, 48);
+      dot.geometry.dispose();
+      dot.geometry = new RingGeometry(POINTER_PX.mark * px - POINTER_PX.line * px, POINTER_PX.mark * px, 32);
+      for (const one of [ring, dot]) (one.material as MeshBasicMaterial).color.set(colour);
+      (ring.material as MeshBasicMaterial).opacity = pulse.opacity;
+      // It hides with its island once the island turns away, as a flag does.
+      mark.getWorldQuaternion(this.turned);
+      ring.visible = dot.visible = facing(this.turned, eye) > 0;
+      live ||= !reduced;
+    }
     return live;
   }
 
   dispose(): void {
     for (const [capability, life] of [...this.lives]) this.remove(capability, life, true);
+    for (const capability of this.pointed.keys()) this.removePointer(capability);
+  }
+
+  /** A pointer's pulsing ring at its capability's foot, made on first need; none when its capability has no ground here. */
+  private pointerOf(capability: string, colour: string): Group | undefined {
+    const existing = this.root.getObjectByName(`territory-pointer:${capability}`) as Group | undefined;
+    if (existing !== undefined || this.land === undefined) return existing;
+    const { map, onSurface, normalAt } = this.land;
+    const at = map.territories.findIndex((territory) => territory.capability === capability);
+    const foot = at < 0 ? undefined : footOf(map, at);
+    if (foot === undefined) return undefined;
+    const mark = new Group();
+    mark.name = `territory-pointer:${capability}`;
+    mark.userData = { pointer: true, capability, colour };
+    const ring = new Mesh(new RingGeometry(1, 1.1, 8), flatMaterial(colour, 0));
+    ring.name = "pointer-ring";
+    ring.raycast = () => {};
+    ring.renderOrder = FLAG_ORDER - 0.6;
+    ring.position.copy(onSurface(foot));
+    ring.quaternion.setFromUnitVectors(new Vector3(0, 0, 1), normalAt(foot));
+    const dot = new Mesh(new RingGeometry(1, 1.1, 8), flatMaterial(colour, 0.95));
+    dot.name = "pointer-mark";
+    dot.raycast = () => {};
+    dot.renderOrder = FLAG_ORDER - 0.6;
+    dot.position.copy(ring.position);
+    dot.quaternion.copy(ring.quaternion);
+    mark.add(ring, dot);
+    this.root.add(mark);
+    return mark;
+  }
+
+  private removePointer(capability: string): void {
+    const mark = this.root.getObjectByName(`territory-pointer:${capability}`);
+    if (mark !== undefined) { mark.removeFromParent(); disposeMark(mark); }
   }
 
   /** The marks of a claim, made on first need; none when its capability has no ground here. */

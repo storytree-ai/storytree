@@ -59,6 +59,7 @@ export const TOOLS = [
   "plan_contract",
   "plan_story",
   "plugin_contract",
+  "point_at",
   "present_question",
   "raise_question",
   "read_context",

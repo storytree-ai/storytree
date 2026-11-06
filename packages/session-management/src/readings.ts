@@ -127,10 +127,20 @@ export interface Session {
   name?: string;
   /** Its latest status as that app sums it up (4.19), when it gives one. */
   status?: string;
+  /** The capability it points at where the owner's eye is needed (contract 4.43), while it points and has not ended. */
+  pointer?: Pointer;
   /** Its close-out, while it stands (ADR-0758). */
   closeOut?: CloseOut;
   /** Whether the running-sessions list shows it. */
   listing: Listing;
+}
+
+/** Where a session points (contract 4.43): one capability, why, the question it is for when it names one, and since when. */
+export interface Pointer {
+  capability: string;
+  why: string;
+  question?: string;
+  at: string;
 }
 
 /** A branch a session recorded in a folder (contract 4.22), and its open pull request once a look has read it (4.24). */
@@ -367,6 +377,7 @@ interface SessionFold {
   backgroundUntil?: number;
   closedOut?: { line: Line & { kind: "closed-out" }; reopened: boolean };
   name?: string;
+  pointer?: Pointer;
   lastTurnEnded?: { seq: number; background: number };
 }
 
@@ -541,6 +552,10 @@ export class LogFold {
     if (line.kind === "closed-out") own.closedOut = { line, reopened: false };
     else if (own.closedOut !== undefined && (line.kind === "claimed" || line.kind === "prompt-submitted" || (line.kind === "session-started" && line.how !== "compact"))) own.closedOut.reopened = true;
     if (line.kind === "session-named") own.name = line.title;
+    // Its pointer (4.43): the latest point, until it points at nothing, closes out or ends.
+    if (line.kind === "pointed" && line.capability !== undefined && line.why !== undefined) {
+      own.pointer = { capability: line.capability, why: line.why, ...(line.question === undefined ? {} : { question: line.question }), at: line.at };
+    } else if (line.kind === "pointed" || line.kind === "closed-out" || line.kind === "session-ended") delete own.pointer;
     if (line.kind === "turn-ended") own.lastTurnEnded = { seq: line.seq, background: line.background ?? 0 };
   }
 
@@ -632,6 +647,7 @@ export class LogFold {
       ...(words?.title === undefined ? {} : { title: words.title }),
       ...(own.name === undefined ? {} : { name: own.name }),
       ...(words?.status === undefined ? {} : { status: words.status }),
+      ...(own.pointer === undefined || state === "ended" || state === "gone" ? {} : { pointer: { ...own.pointer } }),
       ...(closeOut === undefined ? {} : { closeOut }),
       listing,
     } };

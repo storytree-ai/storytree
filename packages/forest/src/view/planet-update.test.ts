@@ -4,7 +4,7 @@ import { test } from "node:test";
 import { workStates } from "@storytree/arc-surface";
 import { forestScene, type SessionWisp } from "@storytree/forest";
 import type { AnnotatedTree } from "@storytree/library";
-import { claimsOn, nextScene, sameWisps } from "./planet-update.js";
+import { claimsOn, nextScene, pointersOn, sameWisps } from "./planet-update.js";
 import { oncePerFrame } from "./planet-navigation.js";
 
 const health = { reported: { state: "not-checked" as const }, verified: { state: "not-checked" as const } };
@@ -34,6 +34,7 @@ test("wisps that draw the same as those on show are not drawn again", () => {
   assert.ok(sameWisps([wisp(["c"])], [wisp(["c"])]));
   assert.ok(!sameWisps([wisp(["c"])], [wisp(["c", "d"])]));
   assert.ok(!sameWisps([wisp(["c"])], [{ ...wisp(["c"]), faded: true }]));
+  assert.ok(!sameWisps([wisp(["c"])], [{ ...wisp(["c"]), pointer: { capability: "c" } }]), "a pointer that came or went is drawn");
 });
 
 test("a claim on another island leaves this island's tints as they were, so its territories are not cut again", () => {
@@ -42,6 +43,14 @@ test("a claim on another island leaves this island's tints as they were, so its 
   const before = claimsOn(new Map([["mine", tint]]), land);
   assert.equal(claimsOn(new Map([["mine", tint], ["elsewhere", tint]]), land), before);
   assert.notEqual(claimsOn(new Map([["mine", { ...tint, faded: true }]]), land), before);
+});
+
+test("5.8 · an island pulses only the pointers on its own territories, and one on another island leaves its pointers as they were", () => {
+  const land = { territories: [{ capability: "mine", lines: 10 }, { lines: 3 }, { capability: "also", lines: 4 }], files: [] };
+  const pointer = (colour: string) => ({ colour });
+  const here = pointersOn(new Map([["elsewhere", pointer("#111")], ["also", pointer("#222")], ["mine", pointer("#333")]]), land);
+  assert.deepEqual([...here], [["mine", pointer("#333")], ["also", pointer("#222")]], "its own, in its territories' order; none from another island");
+  assert.deepEqual([...pointersOn(new Map([["elsewhere", pointer("#111")]]), land)], [], "a pointer elsewhere pulses nothing here");
 });
 
 test("the pointer is picked at most once a frame, at its latest place", () => {

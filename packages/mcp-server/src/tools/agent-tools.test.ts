@@ -386,6 +386,25 @@ test("11.4 name_session names the calling session, and calling it again renames 
   });
 });
 
+test("11.9 · point_at points the calling session at one capability, saying why, and the latest call wins; with no capability it points at nothing", async () => {
+  await withProject(async ({ folder, project, log }) => {
+    await withAgent(folder, claudeCode("claude-1"), async (agent) => {
+      const story = idOf(await agent.call("plan_story", { title: "Visitor can sign up", ...FOUNDED }));
+      const form = idOf(await agent.call("plan_capability", { story, title: "Email form", ...FOUNDED }));
+      const reset = idOf(await agent.call("plan_capability", { story, title: "Password reset", ...FOUNDED }));
+      const pointer = async () => sessionsFrom((await log.since(project, 0)).lines).find((one) => one.session === "claude-1")?.pointer;
+      const pointed = await agent.call("point_at", { capability: form, why: "A picture to judge" });
+      assert.equal(pointed.isError, false, pointed.text);
+      assert.equal((await pointer())?.capability, form);
+      await agent.call("point_at", { capability: reset, why: "Your call on reset links" });
+      assert.deepEqual(await pointer().then((one) => one && { capability: one.capability, why: one.why }), { capability: reset, why: "Your call on reset links" }, "the latest call wins");
+      assert.equal((await agent.call("point_at", { capability: story, why: "Look" })).isError, true, "a story is no capability");
+      assert.equal((await agent.call("point_at", {})).isError, false);
+      assert.equal(await pointer(), undefined);
+    });
+  });
+});
+
 test("11.1 it claims the capability, sees who is on what, reports the contract red then green (reported moves from failing to passing, verified stays not checked), and reports it landed, which ends the claim", async () => {
   await withProject(async ({ folder, project, library, log }) => {
     await withAgent(folder, claudeCode("claude-1"), async (agent) => {

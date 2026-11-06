@@ -249,3 +249,41 @@ test("2.8 · an imported story's pytest files are those under the folders its co
   );
   assert.deepEqual(unmatched, []);
 });
+
+test("2.9 · a result counts for each contract whose provedBy names its test: a pytest result by its node id's file, then any classes and test, its parameters included, a file or class naming all it holds; any other result by its own title or a suite's", () => {
+  const contract = (id: string, number: string, provedBy: string[]) => ({ id, title: `1.${number} · it holds`, provedBy });
+  const tree: PlanTree = {
+    stories: [
+      {
+        id: "story_api",
+        title: "checkbox",
+        mapped: { folders: ["."] },
+        capabilities: [{
+          id: "cap_api",
+          title: "1 · Api",
+          contracts: [
+            contract("c_file", "1", ["tests/test_api.py"]),
+            contract("c_class", "2", ["tests/test_api.py::TestAuth"]),
+            contract("c_one", "3", ["tests/test_api.py::test_lists"]),
+            contract("c_title", "4", ["sums the cart"]),
+            contract("c_elsewhere", "5", ["tests/test_other.py::test_lists"]),
+          ],
+        }],
+      },
+    ],
+  };
+  const files = [{ path: "tests/test_api.py", text: "class TestAuth:\n    def test_login(self):\n        pass\n\ndef test_lists():\n    pass\n" }];
+  const { verdicts, unmatched } = judgeRun(proofsAt(tree, files), [
+    ran("tests/test_api.py", "test_login", ["TestAuth"], "failed"),
+    ran("tests/test_api.py", "test_lists[a]"),
+    ran("tests/test_api.py", "test_lists[b]"),
+    pass("adds tax", ["sums the cart"]),
+    pass("sums the cart twice"),
+  ]);
+  assert.deepEqual(
+    Object.fromEntries([...verdicts].map(([id, verdict]) => [id, [verdict.state, verdict.total]])),
+    { c_file: ["failing", 3], c_class: ["failing", 1], c_one: ["passing", 2], c_title: ["passing", 1], c_elsewhere: ["not-checked", 0] },
+    "the file names its three results, the class its one, the test both its parameters, and the suite's title its test",
+  );
+  assert.deepEqual(unmatched, [pass("sums the cart twice")], "a title only beginning with one names nothing");
+});

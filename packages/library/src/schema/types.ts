@@ -311,6 +311,12 @@ export const RECORD_SCHEMAS = {
       title: nonEmpty,
       capability: z.string(),
       description: z.string().optional(),
+      /**
+       * The existing tests that prove it, when they carry no contract number (an imported repository's own,
+       * question_b5918c0ff273): each a pytest node id (`tests/test_total.py::TestTotals::test_sums`, a file or a class
+       * naming every test it holds) or another runner's test or suite title. Optional, so no version bump.
+       */
+      provedBy: z.array(nonEmpty).min(1).optional(),
     })
     .strict(),
   health: z

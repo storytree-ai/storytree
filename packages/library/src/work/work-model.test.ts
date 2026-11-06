@@ -675,6 +675,25 @@ for (const backend of [memory, postgres]) {
     assert.ok(!("guardrails" in visitor!.capabilities.find(({ id }) => id === other.id)!), "nor does a capability");
   });
 
+  contract("4.37", "a contract may name the existing tests that prove it (provedBy, each a pytest node id or a test's title): addContract and editContract store them, projectTree gives them, and an empty list or name is refused", async ({ work, transactions }) => {
+    const story = await work.addStory({ title: "Checkout" });
+    const capability = await work.addCapability({ title: "Totals", story: story.id });
+    const proved = await work.addContract({ title: "Sums the cart", capability: capability.id, provedBy: ["tests/test_total.py::test_sums"] });
+    await laterThan(proved);
+    const plain = await work.addContract({ title: "Rounds to the cent", capability: capability.id });
+    const contracts = async () => (await work.projectTree()).stories[0]!.capabilities[0]!.contracts;
+    assert.deepEqual(await contracts(), [
+      { id: proved.id, title: "1.1 · Sums the cart", provedBy: ["tests/test_total.py::test_sums"] },
+      { id: plain.id, title: "1.2 · Rounds to the cent" },
+    ]);
+    await work.editContract(plain.id, { provedBy: ["tests/test_total.py::TestRounding", "rounds a half cent up"] });
+    assert.deepEqual((await contracts())[1], { id: plain.id, title: "1.2 · Rounds to the cent", provedBy: ["tests/test_total.py::TestRounding", "rounds a half cent up"] }, "an edit replaces them");
+    const before = await transactions.history();
+    await assert.rejects(work.addContract({ title: "Empty", capability: capability.id, provedBy: [] }), schemaError("contract", ["provedBy"]));
+    await assert.rejects(work.editContract(proved.id, { provedBy: [""] }), schemaError("contract", ["provedBy"]));
+    assert.deepEqual(await transactions.history(), before, "nothing was written");
+  });
+
   contract("4.25", "importPluginPlan writes a plugin's story, capabilities and contracts from its plan, adopting a live story the first time; a later import matches capabilities by number and contracts by theirs, edits what changed, adds what is new and retires what the plan no longer holds, keeping ids", async ({ work, records }) => {
     const voice = await work.addStory({ title: "Voice", description: "old" });
     const address = await work.addCapability({ title: "1 · The address", story: voice.id, proposed: false });

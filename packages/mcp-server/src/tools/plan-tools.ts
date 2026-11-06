@@ -31,6 +31,12 @@ const covers = z
   .optional()
   .describe("On a mapped story only, and required there: the folders and files of its imported project this capability covers, each from the imported folder (a folder covers everything under it); none may overlap another capability's of the story");
 
+const provedBy = z
+  .array(z.string().min(1))
+  .min(1)
+  .optional()
+  .describe("The existing tests that prove it when they carry no contract number, as an imported repository's own: each a pytest node id (tests/test_api.py::TestAuth::test_login; a file or a class names every test it holds) or another runner's test or suite title");
+
 const founding = z
   .object({
     title: z.string().min(1).describe("The one choice that shapes it, as a short title"),
@@ -103,11 +109,11 @@ export function registerPlanTools(define: Define): void {
   define(
     "plan_contract",
     "Plan a contract: one testable guarantee a capability makes. Leave its number off the title: it is given the capability's next free one, past the numbers its contracts and its story package's numbered tests carry, even a test no contract carries yet, since that test may prove another contract; the reply names those tests, so when this contract is the one a test proves you give that number in the title. It also names the capability's other contracts no numbered test carries yet, planned but not built: build one of those rather than plan it again. A number another contract of the capability carries is refused. Write its test, see it fail, and report it red.",
-    z.object({ capability: id("capability it belongs to"), title, description }),
-    async ({ capability, title: name, description: about }, call) => {
+    z.object({ capability: id("capability it belongs to"), title, description, proved_by: provedBy }),
+    async ({ capability, title: name, description: about, proved_by: proved }, call) => {
       const tree = await call.library.projectTree();
       const tested = await testedNumbers(call, capability, tree);
-      const contract = await call.library.addContract({ title: name, capability, ...optional({ description: about }) }, { ...call.writer, testedNumbers: tested });
+      const contract = await call.library.addContract({ title: name, capability, ...optional({ description: about, provedBy: proved }) }, { ...call.writer, testedNumbers: tested });
       const orphans = await orphanTests(call, capability, contract.fields.title, tested);
       const named = orphans.length === 0 ? "" : ` Numbered ${orphans.length === 1 ? `test ${orphans[0]} has` : `tests ${orphans.slice(0, -1).join(", ")} and ${orphans.at(-1)} have`} no contract: if this contract is the one ${orphans.length === 1 ? "it proves" : "one proves"}, give it that number with edit_plan.`;
       const untested = untestedContracts(tree, capability, tested);
@@ -131,6 +137,7 @@ export function registerPlanTools(define: Define): void {
       capability: z.string().min(1).optional().describe("A contract's capability, to move it"),
       depends_on: z.array(z.string().min(1)).optional().describe("A capability's dependencies, replacing them"),
       covers: covers.describe("A mapped story's capability's folders and files, replacing them"),
+      proved_by: provedBy.describe("A contract's existing tests that prove it, replacing them"),
       stories: z.array(z.string().min(1)).optional().describe("An arc's stories, replacing them"),
       intent: intent.optional(),
       end_state: endState.optional(),
@@ -199,6 +206,7 @@ interface Changes {
   story?: string | undefined;
   capability?: string | undefined;
   depends_on?: string[] | undefined;
+  proved_by?: string[] | undefined;
   stories?: string[] | undefined;
   intent?: string | undefined;
   end_state?: string | undefined;
@@ -217,7 +225,7 @@ interface Changes {
 const EDITABLE = {
   story: ["title", "description"],
   capability: ["title", "description", "story", "depends_on", "covers"],
-  contract: ["title", "description", "capability"],
+  contract: ["title", "description", "capability", "proved_by"],
   arc: ["title", "description", "stories", "intent", "end_state", "priority"],
   increment: ["title", "objective", "body", "capabilities", "links", "machine", "escape"],
   anchor: ["what", "audience"],
@@ -236,12 +244,12 @@ async function editPlan(target: string, changes: Changes, call: Call, live = fal
     const anchor = (await library.setAnchor(optional({ what: changes.what, audience: changes.audience }), writer)).fields;
     return { text: `Corrected the project's anchor: ${anchorLine(anchor)}.`, data: { id: target } };
   }
-  const { depends_on: dependsOn, end_state: endState, priority, capabilities, machine, escape, ...rest } = changes;
+  const { depends_on: dependsOn, end_state: endState, proved_by: provedBy, priority, capabilities, machine, escape, ...rest } = changes;
   const own = kind === "increment" ? await incrementFields(target, { capabilities, machine, escape }, call) : { fields: {} };
   if ("refused" in own) return own.refused;
   // "none" clears an arc's priority: the library removes a field given as undefined (ADR-0963 D3).
   const fields = {
-    ...optional({ ...rest, dependsOn, endState }),
+    ...optional({ ...rest, dependsOn, endState, provedBy }),
     ...(priority === undefined ? {} : { priority: priority === "none" ? undefined : priority }),
     ...own.fields,
   };

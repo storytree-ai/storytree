@@ -766,6 +766,21 @@ test("9.12 plan_capability on a mapped story records what the agent explored wit
   });
 });
 
+test("9.26 plan_contract and edit_plan take proved_by, the existing tests that prove the contract, and record it as the contract's provedBy", async () => {
+  await withProject(async ({ folder, library }) => {
+    await withAgent(folder, claudeCode("claude-1"), async (agent) => {
+      const { added: [app] } = await library.mapStories("/code/app", [{ package: ".", title: "app", folders: ["."] }]);
+      const api = idOf(await agent.call("plan_capability", { story: app!.id, title: "Api", covers: ["api"], ...FOUNDED }));
+      const sums = idOf(await agent.call("plan_contract", { capability: api, title: "Sums the cart", proved_by: ["tests/test_api.py::test_sums"] }));
+      const provedBy = async () => ((await library.get(sums))?.fields as { provedBy?: string[] } | undefined)?.provedBy;
+      assert.deepEqual(await provedBy(), ["tests/test_api.py::test_sums"]);
+      const corrected = await agent.call("edit_plan", { id: sums, proved_by: ["tests/test_api.py::TestSums"] });
+      assert.notEqual(corrected.isError, true, corrected.text);
+      assert.deepEqual(await provedBy(), ["tests/test_api.py::TestSums"]);
+    });
+  });
+});
+
 test("9.5 health_worklist gives the oldest three capabilities on the health worklist, each with its reason, who moves it, the contracts carrying it and since when, and a failing one its verified note, and how many more wait; a capability an open increment lists among its capabilities is not offered, and one a test run in progress will record is held back and counted", async () => {
   await withProject(async ({ folder, library }) => {
     await withAgent(folder, claudeCode("claude-1"), async (agent) => {

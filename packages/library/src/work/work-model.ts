@@ -167,6 +167,8 @@ export interface ContractNode {
   id: string;
   title: string;
   description?: string;
+  /** The existing tests that prove it, as stored, when it names any (question_b5918c0ff273). */
+  provedBy?: string[];
 }
 
 export interface ArcNode {
@@ -484,7 +486,10 @@ export class WorkModel {
           proposed: capability.fields.proposed,
           ...(capability.fields.covers === undefined ? {} : { covers: [...capability.fields.covers] }),
           ...guardrailsOf(capability),
-          contracts: (contractsOf.get(capability.id) ?? []).map(nodeOf),
+          contracts: (contractsOf.get(capability.id) ?? []).map((contract) => ({
+            ...nodeOf(contract),
+            ...(contract.fields.provedBy === undefined ? {} : { provedBy: [...contract.fields.provedBy] }),
+          })),
         })),
       })),
       arcs: arcs.sort(byCreation).map((arc) => ({ ...nodeOf(arc), stories: [...(arc.fields.stories ?? [])] })),

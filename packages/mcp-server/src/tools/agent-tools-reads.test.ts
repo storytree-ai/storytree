@@ -781,6 +781,21 @@ test("9.26 plan_contract and edit_plan take proved_by, the existing tests that p
   });
 });
 
+test("9.27 plan_contract on a contract that names proved_by says its tests already exist and asks for none to be written, and health credits their results at the project's next test run", async () => {
+  await withProject(async ({ folder, library }) => {
+    await withAgent(folder, claudeCode("claude-1"), async (agent) => {
+      const { added: [app] } = await library.mapStories("/code/app", [{ package: ".", title: "app", folders: ["."] }]);
+      const api = idOf(await agent.call("plan_capability", { story: app!.id, title: "Api", covers: ["api"], ...FOUNDED }));
+      const proved = await agent.call("plan_contract", { capability: api, title: "Sums the cart", proved_by: ["tests/test_api.py::test_sums"] });
+      assert.doesNotMatch(proved.text, /Write its test/, proved.text);
+      assert.match(proved.text, /tests\/test_api\.py::test_sums already exists/, proved.text);
+      assert.match(proved.text, /storytree health local/, proved.text);
+      const unproved = await agent.call("plan_contract", { capability: api, title: "Rejects an empty cart" });
+      assert.match(unproved.text, /Write its test, see it fail, and report it red\.$/, unproved.text);
+    });
+  });
+});
+
 test("9.5 health_worklist gives the oldest three capabilities on the health worklist, each with its reason, who moves it, the contracts carrying it and since when, and a failing one its verified note, and how many more wait; a capability an open increment lists among its capabilities is not offered, and one a test run in progress will record is held back and counted", async () => {
   await withProject(async ({ folder, library }) => {
     await withAgent(folder, claudeCode("claude-1"), async (agent) => {

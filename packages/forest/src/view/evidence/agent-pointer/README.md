@@ -32,3 +32,5 @@ Pictures, 1440 x 960:
 
 Taken with `node --import tsx packages/forest/testing/view/agent-pointer/capture.mjs --retake`, which also counts every
 pointer shown, with its colour, from the scene into `measurements.json`.
+
+In the evidence bucket for #559, linked from the pull request body (ADR-1234; deleted after 90 days or when its arc closes): `559/no-arc-selected.png`, `559/arc-selected.png`, `559/arc-selected-the-forest.png`, `559/arc-selected-the-command-line.png`.

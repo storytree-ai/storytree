@@ -35,6 +35,8 @@ const laid = (radius: number, among: typeof links = links) => {
   return { map, roads: islandRoads(map, among, docks(radius), names(map)) };
 };
 const library = laid(LIBRARY_RADIUS);
+/** Every link the island's roads should carry: each one at home, and each dock's arrival or way out per capability. */
+const LINKS = ["d->a", "e->d", "e->b", "arrive:0->a", "arrive:0->b", "c->leave:1"];
 /** Each link's way, as the segments carrying it joined end to end. */
 const carrying = (roads: IslandRoads, key: string) => roads.segments.filter((s) => s.links.includes(key));
 
@@ -69,10 +71,10 @@ test("3.77 links going the same way share one road, a step wider where it carrie
   }
 });
 
-test("3.77 a gate stands wherever a road crosses a border, its opening wider than the road, and each link enters the territory it calls by an entrance gate", () => {
-  const { map, roads } = library;
+/** Where each road drawn crosses a border of `map`. */
+const borderCrossings = (map: TerritoryMap, roads: IslandRoads) => {
   const borders = map.borders.map((b) => [b.from, b.to] as const);
-  const crossings = roads.segments.flatMap((s) => s.pts.slice(1).flatMap((p, i) => {
+  return roads.segments.flatMap((s) => s.pts.slice(1).flatMap((p, i) => {
     const a = s.pts[i]!, out: Point[] = [];
     for (const [c, d] of borders) {
       const r = { x: p.x - a.x, z: p.z - a.z }, e = { x: d.x - c.x, z: d.z - c.z }, den = r.x * e.z - r.z * e.x;
@@ -82,15 +84,61 @@ test("3.77 a gate stands wherever a road crosses a border, its opening wider tha
     }
     return out;
   }));
-  assert.ok(crossings.length > 0);
-  for (const x of crossings) assert.ok(roads.gates.some((g) => far(g.at, x) < 0.3), "a gate at every crossing");
+};
+/** The capability under a point of `map`, by its nearest cell ("open" on open land). */
+const ownerAt = (map: TerritoryMap, p: Point) => {
+  const cell = map.cells.reduce((b, c) => (far(c.site, p) < far(b.site, p) ? c : b));
+  return cell.territory < 0 ? "open" : map.territories[cell.territory]!.capability!;
+};
+
+test("3.77 one gate per linked pair and none elsewhere (ADR-1253 D3): where the road enters the capability depended on, its opening wider than the road; any other crossing is open road", () => {
+  const { map, roads } = library;
+  assert.deepEqual(roads.gates.flatMap((g) => g.entrances).sort(), [...LINKS].sort(), "each link has exactly one gate, and every gate is one link's or a few links' whose gates stand together");
+  assert.ok(roads.gates.every((g) => g.entrances.length > 0), "no gate that is no link's");
+  const n = { x: 0, z: 0 }, sides = (g: { at: Point; along: Point }) => { n.x = -g.along.z; n.z = g.along.x; return [ownerAt(map, { x: g.at.x + n.x * 0.6, z: g.at.z + n.z * 0.6 }), ownerAt(map, { x: g.at.x - n.x * 0.6, z: g.at.z - n.z * 0.6 })]; };
   for (const g of roads.gates) {
-    assert.ok(borders.some(([a, b]) => toSegment(g.at, a, b) < 1e-6), "on a border");
+    assert.ok(map.borders.some((b) => toSegment(g.at, b.from, b.to) < 1e-6), "on a border");
+    for (const key of g.entrances) {
+      const [from, to] = key.split("->") as [string, string], own = to.startsWith("leave:") ? from : to;
+      assert.ok(sides(g).includes(own), `${key}'s gate on a border of ${own}`);
+    }
     const carried = Math.max(...roads.segments.filter((s) => s.links.join() === g.links.join()).map((s) => s.width));
     assert.ok(g.opening > carried + 1.9, "its opening clears the road, posts and all");
   }
-  const entrances = roads.gates.filter((g) => g.entrance);
-  assert.ok(["arrive:0->a", "arrive:0->b", "d->a", "e->d", "e->b"].every((key) => entrances.some((g) => g.links.includes(key))), "each link has its entrance");
+  const crossings = borderCrossings(map, roads);
+  for (const x of crossings) assert.ok([...roads.gates, ...roads.passes, ...roads.portals].some((g) => far(g.at, x) < 0.3), "every crossing a gate, open road or a tunnel's portal");
+  for (const p of roads.passes) assert.ok(!roads.gates.some((g) => far(g.at, p.at) < 0.3), "open road is no gate");
+});
+
+// Six capabilities where the arrival to a must cross a third territory, and c's road to a leaves c to join e's.
+const sixShares = ["a", "b", "c", "d", "e", "f"].map((capability, i) => ({ capability, title: `${i + 1} · ${capability.toUpperCase()}`, lines: 900 - 120 * i }));
+const sixLinks = [{ from: "z1", to: "a" }, { from: "z2", to: "b" }, { from: "e", to: "a" }, { from: "c", to: "f" }, { from: "f", to: "b" }, { from: "c", to: "a" }];
+const sixDocks = [{ local: { x: LIBRARY_RADIUS, z: 0 }, links: ["z1->a", "z2->b"] }];
+const sixMap = linkLayout(sixShares, round(LIBRARY_RADIUS), sixLinks, sixDocks), six = islandRoads(sixMap, sixLinks, sixDocks, names(sixMap));
+
+test("3.77 a road that must cross a third territory goes under it (ADR-1253 D3): a portal where it meets that territory's border at each end, no road or gate drawn over it", () => {
+  const ends = (key: string) => key.split("->").map((e) => (e.includes(":") ? "sea" : e));
+  const third = (t: string, keys: readonly string[]) => t !== "open" && keys.every((k) => !ends(k).includes(t));
+  assert.ok(six.portals.length >= 2, "the island has a tunnel");
+  const beneath = (p: { at: Point; into: Point }) => ownerAt(sixMap, { x: p.at.x + p.into.x * 0.6, z: p.at.z + p.into.z * 0.6 });
+  for (const p of six.portals) {
+    assert.ok(sixMap.borders.some((b) => toSegment(p.at, b.from, b.to) < 1e-6), "on a border");
+    assert.ok(third(beneath(p), p.links), `${p.links.join(",")} goes under ${beneath(p)}, which it neither starts nor ends in`);
+    assert.ok(six.segments.some((s) => s.links.join() === p.links.join() && [s.pts[0]!, s.pts.at(-1)!].some((q) => far(q, p.at) < 1e-6)), "its road drawn up to it");
+    // Its tunnel's other end: a portal for the same links under land they do not call.
+    assert.ok(six.portals.some((q) => q !== p && q.links.join() === p.links.join() && third(beneath(q), q.links)), "a portal at each end");
+    for (const s of six.segments) if (s.links.every((k) => p.links.includes(k))) s.pts.slice(1).forEach((q, i) => {
+      assert.notEqual(ownerAt(sixMap, { x: (q.x + s.pts[i]!.x) / 2, z: (q.z + s.pts[i]!.z) / 2 }), beneath(p), `no road for ${s.links.join(",")} drawn over ${beneath(p)}`);
+    });
+  }
+  for (const g of six.gates) for (const key of g.entrances) assert.ok(!six.portals.some((p) => p.links.includes(key) && far(p.at, g.at) < 0.3 && third(ownerAt(sixMap, { x: g.at.x - p.into.x * 0.6, z: g.at.z - p.into.z * 0.6 }), [key])), "no gate on the land a tunnel passes under");
+  assert.deepEqual(six.gates.flatMap((g) => g.entrances).sort(), ["arrive:0->a", "arrive:0->b", "c->a", "c->f", "e->a", "f->b"], "still one gate per link");
+});
+
+test("3.77 a road leaves the capability that depends with no gate, and its one gate is where it enters the capability depended on (ADR-1253 D3)", () => {
+  const sides = (g: { at: Point; along: Point }) => [-0.6, 0.6].map((k) => ownerAt(sixMap, { x: g.at.x - g.along.z * k, z: g.at.z + g.along.x * k }));
+  assert.ok(six.passes.some((p) => p.links.includes("c->a") && sides(p).includes("c")), "c's road to a leaves c with no gate");
+  assert.ok(sides(six.gates.find((g) => g.entrances.includes("c->a"))!).includes("a"), "and enters a by its gate");
 });
 
 test("3.77 a small island's roads are routed at The library's size and drawn at its own, widths and gates scaled with it", () => {
@@ -166,8 +214,6 @@ const fresh = (): RoadsAsk => {
   const coast = round(LIBRARY_RADIUS), map = linkLayout(shares, coast, links, docks(LIBRARY_RADIUS));
   return { map, links, docks: docks(LIBRARY_RADIUS), names: names(map) };
 };
-/** Every link the island's roads should carry: each one at home, and each dock's arrival or way out per capability. */
-const LINKS = ["d->a", "e->d", "e->b", "arrive:0->a", "arrive:0->b", "c->leave:1"];
 const carried = (roads: IslandRoads) => [...new Set(roads.segments.flatMap((s) => s.links))].sort();
 /** A router the test answers by hand: the asks it was given, and the answer to give the latest. */
 const byHand = () => {

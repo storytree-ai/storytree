@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
@@ -40,6 +40,19 @@ test("14.3 optional observation cannot prevent application cleanup when local st
     await runtime.flush();
     await runtime.finish();
   } finally { await runtime.finish(); rmSync(home, { recursive: true, force: true }); }
+});
+
+test("1.8 a shipped build's command run after an uninstall records nothing and leaves no storytree home behind", async () => {
+  const parent = mkdtempSync(path.join(tmpdir(), "journey-runtime-"));
+  const home = path.join(parent, "0.3");
+  const runtime = createJourneyRuntime({ home, appVersion: "0.3.42", configuration: {
+    projectKey: "phc_test", retention: "30 days", deletionContact: "privacy@example.test",
+  }, transport: { send: async () => { throw new Error("nothing to send"); }, close: async () => {} } });
+  try {
+    runtime.record("app_version");
+    await runtime.finish();
+    assert.equal(existsSync(home), false);
+  } finally { rmSync(parent, { recursive: true, force: true }); }
 });
 
 test("15.1 a development copy, stamped with no public project token, stays unavailable", async () => {

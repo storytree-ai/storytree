@@ -338,7 +338,7 @@ function IslandLand(props: IslandLandProps) {
     const relief = roads === undefined ? undefined : islandRelief(map, roads);
     if (relief !== undefined) yield;
     const onLand = onIslandSurface(radius, TERRITORY_LIFT + (relief?.height ?? 0));
-    const group = territoryLand(map, onLand, coast, tints, roads?.gates);
+    const group = territoryLand(map, onLand, coast, tints, roads);
     // The roads and the relief lie on the land, so they show and hide with the territories (3.22).
     if (roads !== undefined && relief !== undefined) {
       let built = false;

@@ -64,9 +64,9 @@ export const MAP_LEGEND: readonly LegendEntry[] = [
     draws: ["gate-post", "gate-face", "gate-shadow"],
   },
   {
-    words: "tunnel: a road that must cross a third territory goes under it, an arched portal at each end; click a portal for the links it carries",
-    mark: svg("0 0 26 14", `${band(ROAD.colour, 2).replace("M1 7H25", "M1 12H9")}<path d="M8 13V8A5 5 0 0 1 18 8V13Z" fill="${PORTAL.mouth}" stroke="${PORTAL.stone}" stroke-width="1.6" />`),
-    draws: ["tunnel-portal", "tunnel-mouth"],
+    words: "tunnel: a road that must cross a third territory goes under a low rise on it, an arched portal set into the rise at each end; click a portal for the links it carries",
+    mark: svg("0 0 26 14", `<path d="M4 13C7 3 21 3 25 13Z" fill="${GROUND}" fill-opacity="0.55" />${band(ROAD.colour, 2).replace("M1 7H25", "M1 12H9")}<path d="M8 13V9A3.5 3.5 0 0 1 15 9V13Z" fill="${PORTAL.mouth}" stroke="${PORTAL.stone}" stroke-width="1.4" />`),
+    draws: ["tunnel-portal", "tunnel-mouth", "tunnel-floor", "relief-rise"],
   },
   {
     words: "settlement, where a territory's roads meet, drawn as what it is, larger where more roads meet:",

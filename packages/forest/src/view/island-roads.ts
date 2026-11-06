@@ -2,12 +2,12 @@
  * Capability 3 · Story node render: each island's roads and gates as drawn (ADR-1236 D1 as narrowed by ADR-1253 D2, rollout 2 step 3),
  * round 11's `sand-faint` look: each road a sandy ribbon on the land, a step wider by the links it carries, its colour
  * mixed into the land under it so the joins stay one road; a disc at each junction; and at each gate a post standing
- * either side of its opening (3.78, step 3b), at each end of a tunnel under a third territory an arched portal (ADR-1253
- * D3), and each settlement its kind's symbol (3.79, step 4a), all following the island's relief; a picked gate's gold ring
+ * either side of its opening (3.78, step 3b), at each end of a tunnel under a third territory a standing arched portal
+ * set back from the border (ADR-1253 D3, question_921aee319481), and each settlement its kind's symbol (3.79, step 4a), all following the island's relief; a picked gate's gold ring
  * (3.88). No arrowheads. Plain three.js, so the marks are read without a browser.
  */
-import { BufferGeometry, CircleGeometry, Color, DoubleSide, Float32BufferAttribute, Group, Mesh, MeshBasicMaterial, type Object3D, type Vector3 } from "three";
-import { inTunnelMouth, type IslandRoads } from "../territories/island-roads.js";
+import { BufferGeometry, CircleGeometry, Color, DoubleSide, Float32BufferAttribute, FrontSide, Group, Mesh, MeshBasicMaterial, type Object3D, Vector3 } from "three";
+import { inTunnelMouth, MOUTH_ROOM, type IslandRoads } from "../territories/island-roads.js";
 import { LIGHT, type IslandRelief } from "../territories/island-relief.js";
 import { hollowRing, RING_LEAST_PX } from "./open-work.js";
 import { settlementSymbols } from "./settlement-symbols.js";
@@ -171,28 +171,75 @@ function standingPosts(group: Group, roads: IslandRoads, relief: IslandRelief, o
   });
 }
 
-/** A tunnel portal's arch: its stone's colour, its band across, its mouth's darkness, and how deep it reaches by its width. */
-export const PORTAL = { stone: "#f3efe4", band: 0.8, mouth: "#15191c", depth: 0.8 } as const;
+/** A tunnel portal's arch: its stone's colour, its headwall's band over the mouth and how far it reaches either side by
+ * that band, and how high the mouth's sides stand before the arch springs, as shares of the mouth's half-width, its
+ * mouth's darkness, how far back its face leans by its height, reaching at most
+ * this share of its tunnel's length in, how far in under it its road's floor shows, by that lean and how far its coping
+ * runs back into the rise, by its band. */
+export const PORTAL = { stone: "#f3efe4", band: 0.28, wing: 2.2, spring: 0.12, mouth: "#15191c", lean: 1.0, most: 0.3, floor: 0.7, dusk: 0.8, lip: 2.2 } as const;
+/** A portal's road's half-width, from the portal's width (its road's and the room either side, island-roads.ts's MOUTH). */
+const roadHalf = (width: number, scale: number) => (width - MOUTH_ROOM * scale) / 2;
 
 /**
- * Each tunnel's portals (ADR-1253 D3): where a road goes under a third territory, an arch laid on that territory's land at
- * its border, as the eye sees a tunnel's mouth from above: a dark mouth reaching in from the border where the road ends,
- * ringed by a band of stone shaded by the light. A portal takes a click, and picks the links it carries.
+ * Each tunnel's portals (ADR-1253 D3, question_921aee319481): where a road goes under a third territory, a stone headwall
+ * standing at its mouth, set back from the border, leaning into the end of the rise over the tunnel: a dark arched mouth a
+ * little wider than the road, its sides standing and its top round, its road running on into the dark, in a square face of
+ * stone shaded by where it faces, its coping running back into the rise. A portal takes a click, and picks the links it
+ * carries.
  */
 function tunnelPortals(group: Group, roads: IslandRoads, relief: IslandRelief, onGround: (p: Point) => Vector3): void {
-  const at = (p: Point, d: Point, k: number): Point => ({ x: p.x + d.x * k, z: p.z + d.z * k });
-  const mouth = new MeshBasicMaterial({ color: PORTAL.mouth, transparent: true, opacity: 1, side: DoubleSide, forceSinglePass: true, depthWrite: false });
-  const arched = new MeshBasicMaterial({ color: shade(new Color(PORTAL.stone), LIGHT), transparent: true, opacity: 1, side: DoubleSide, forceSinglePass: true, depthWrite: false });
+  const mouth = new MeshBasicMaterial({ color: PORTAL.mouth, transparent: true, opacity: 1, side: FrontSide, forceSinglePass: true, depthWrite: false });
   roads.portals.forEach((portal, i) => {
-    // On the land it goes under, just over its rim.
-    const base = onGround(portal.at).y + relief.raise(at(portal.at, portal.into, 0.6 * relief.scale)) + 0.08 * relief.scale;
-    const r = portal.width / 2, band = PORTAL.band * relief.scale;
-    const arc = (radius: number, k: number) => { const a = k * Math.PI / 12, q = at(at(portal.at, portal.along, radius * Math.cos(a)), portal.into, radius * Math.sin(a) * PORTAL.depth); return [q.x, base, q.z]; };
-    const inner: number[] = [], ring: number[] = [];
-    for (let k = 0; k < 12; k++) {
-      inner.push(portal.at.x, base, portal.at.z, ...arc(r, k), ...arc(r, k + 1));
-      ring.push(...arc(r, k), ...arc(r + band, k), ...arc(r + band, k + 1), ...arc(r, k), ...arc(r + band, k + 1), ...arc(r, k + 1));
+    // At the foot of the rise, lower than it, its face leaning back into it.
+    const r = portal.width / 2, band = r * PORTAL.band, spring = r * PORTAL.spring, tall = spring + r + band;
+    // Leaning no further in than a share of its tunnel, so the two mouths of a short one stand apart.
+    const tunnel = relief.tunnels.find((t) => [t.pts[0]!, t.pts.at(-1)!].some((q) => Math.hypot(q.x - portal.at.x, q.z - portal.at.z) < 1e-6));
+    const run = tunnel === undefined ? Infinity : tunnel.pts.reduce((s, q, k) => (k ? s + Math.hypot(q.x - tunnel.pts[k - 1]!.x, q.z - tunnel.pts[k - 1]!.z) : 0), 0);
+    const base = onGround(portal.at).y + relief.raise(portal.at) + 0.02 * relief.scale, lean = Math.min(PORTAL.lean, run * PORTAL.most / tall);
+    // A point of the arch's face: `u` across the mouth, `v` up it.
+    const face = (u: number, v: number) => {
+      const g = onGround({ x: portal.at.x + portal.along.x * u + portal.into.x * v * lean, z: portal.at.z + portal.along.z * u + portal.into.z * v * lean });
+      return [g.x, base + v, g.z];
+    };
+    // The outline of an arch `w` in half-width: up its one side, round its top, down the other.
+    const outline = (w: number) => [[-w, 0], [-w, spring], ...Array.from({ length: 13 }, (_, k) => { const a = Math.PI - k * Math.PI / 12; return [w * Math.cos(a), spring + w * Math.sin(a)]; }), [w, 0]] as [number, number][];
+    const inner = outline(r), dark: number[] = [], ring: number[] = [], colours: number[] = [];
+    const stone = new Color(PORTAL.stone), front = shade(stone, { x: -portal.into.x, z: -portal.into.z }), top = stone.clone().multiplyScalar(WALL_SHADE.lit + 0.1);
+    // Each face wound to look out of the rise along the road, so from behind, as the eye sees a mouth facing away, only the
+    // coping over it shows.
+    const out = new Vector3(-portal.into.x, 0.2, -portal.into.z);
+    const wound = (a: number[], b: number[], c: number[]) => {
+      const n = new Vector3(b[0]! - a[0]!, b[1]! - a[1]!, b[2]! - a[2]!).cross(new Vector3(c[0]! - a[0]!, c[1]! - a[1]!, c[2]! - a[2]!));
+      return n.dot(out) >= 0 ? [...a, ...b, ...c] : [...a, ...c, ...b];
+    };
+    const tri = (into: number[], a: number[], b: number[], c: number[]) => into.push(...wound(a, b, c));
+    const quad = (a: number[], b: number[], c: number[], d: number[], colour: Color) => { tri(ring, a, b, c); tri(ring, a, c, d); for (let k = 0; k < 6; k++) colours.push(colour.r, colour.g, colour.b); };
+    // Its headwall: a square face of stone round the arch, `wide` either side and up to `high`, each point of the arch matched
+    // to where the ray from the arch's centre through it meets the face's edge.
+    const wide = r + band * PORTAL.wing, high = spring + r + band;
+    const edge = ([u, v]: [number, number]): [number, number] => {
+      if (v <= spring + 1e-9) return [Math.sign(u) * wide, v];
+      const du = u, dv = v - spring, t = Math.min(Math.abs(du) > 1e-9 ? wide / Math.abs(du) : Infinity, (high - spring) / dv);
+      return [du * t, spring + dv * t];
+    };
+    for (let k = 0; k + 1 < inner.length; k++) {
+      const [a, b] = [inner[k]!, inner[k + 1]!], [c, d] = [edge(a), edge(b)];
+      tri(dark, face(0, spring), face(a[0], a[1]), face(b[0], b[1]));
+      quad(face(a[0], a[1]), face(c[0], c[1]), face(d[0], d[1]), face(b[0], b[1]), front);
     }
+    // The corners the rays miss, between the arch's top and the face's upper corners.
+    for (const side of [-1, 1]) {
+      const corner = face(side * wide, high), atTop = edge([0, spring + r]), atSide = edge([side * r * Math.SQRT1_2, spring + r * Math.SQRT1_2]);
+      tri(ring, corner, face(atTop[0], atTop[1]), face(atSide[0], atSide[1]));
+      for (let k = 0; k < 3; k++) colours.push(front.r, front.g, front.b);
+    }
+    // Its coping: the headwall's top, running back into the rise, a straight bar of stone across the road from above.
+    const back = (u: number, v: number) => { const q = face(u, v); return [q[0]! + portal.into.x * band * PORTAL.lip, q[1]!, q[2]! + portal.into.z * band * PORTAL.lip]; };
+    // Its top faces up, so it shows from either side.
+    out.set(0, 1, 0);
+    quad(face(-wide, high), face(wide, high), back(wide, high), back(-wide, high), top);
+    out.set(-portal.into.x, 0.2, -portal.into.z);
+    tri(dark, face(-r, 0), face(r, 0), face(0, spring));
     const made = (positions: number[], material: MeshBasicMaterial, name: string, order: number) => {
       const geometry = new BufferGeometry();
       geometry.setAttribute("position", new Float32BufferAttribute(positions, 3));
@@ -202,8 +249,24 @@ function tunnelPortals(group: Group, roads: IslandRoads, relief: IslandRelief, o
       group.add(mesh);
       return mesh;
     };
-    made(inner, mouth, `tunnel-mouth:${i}`, 4).raycast = () => {};
-    made(ring, arched, `tunnel-portal:${i}`, 4.1).userData = { portal: true, links: portal.links, base };
+    made(dark, mouth, `tunnel-mouth:${i}`, 4).raycast = () => {};
+    // The road running on into the dark, its sand darkening under the arch and fading out into the mouth.
+    const half = Math.min(r * 0.8, roadHalf(portal.width, relief.scale)), deep = Math.max(...inner.map(([, v]) => v)) * lean * PORTAL.floor;
+    const ground = (u: number, w: number) => { const g = onGround({ x: portal.at.x + portal.along.x * u + portal.into.x * w, z: portal.at.z + portal.along.z * u + portal.into.z * w }); return [g.x, base + 0.01 * relief.scale, g.z]; };
+    const lit = new Color(ROAD.colour).lerp(new Color(PORTAL.mouth), 0.45);
+    // It darkens on the road a little way out of the mouth too, so a mouth facing away still shows its road going under.
+    const before = -r * PORTAL.dusk, rows = [[before, 0], [0, 1], [deep, 0]] as const, floorAt: number[] = [], floorColours: number[] = [];
+    for (let k = 0; k + 1 < rows.length; k++) {
+      const [[w0, a0], [w1, a1]] = [rows[k]!, rows[k + 1]!];
+      floorAt.push(...ground(-half, w0), ...ground(half, w0), ...ground(half, w1), ...ground(-half, w0), ...ground(half, w1), ...ground(-half, w1));
+      for (const a of [a0, a0, a1, a0, a1, a1]) floorColours.push(lit.r, lit.g, lit.b, a);
+    }
+    const floor = made(floorAt, new MeshBasicMaterial({ vertexColors: true, transparent: true, opacity: 1, side: DoubleSide, forceSinglePass: true, depthWrite: false }), `tunnel-floor:${i}`, 4.05);
+    floor.geometry.setAttribute("color", new Float32BufferAttribute(floorColours, 4));
+    floor.raycast = () => {};
+    const arch = made(ring, new MeshBasicMaterial({ vertexColors: true, transparent: true, opacity: 1, side: FrontSide, forceSinglePass: true, depthWrite: false }), `tunnel-portal:${i}`, 4.1);
+    arch.geometry.setAttribute("color", new Float32BufferAttribute(colours, 3));
+    arch.userData = { portal: true, links: portal.links, base };
   });
 }
 

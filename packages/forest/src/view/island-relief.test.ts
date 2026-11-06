@@ -61,9 +61,10 @@ test("3.78 a ramp only where a road climbs from the open land onto a territory, 
 });
 
 test("3.78 open road onto the open land climbs a ramp with no gate; a road in a tunnel climbs none, its portals held in the plateau's rim (ADR-1253 D3)", () => {
-  // Six capabilities where the arrivals climb onto a by open road, and the arrival to a then goes under e.
+  // Six capabilities where the arrivals climb onto a by open road, and b's road to e goes under a third territory.
   const sixShares = ["a", "b", "c", "d", "e", "f"].map((capability, i) => ({ capability, title: `${i + 1} · ${capability.toUpperCase()}`, lines: 900 - 120 * i }));
-  const sixLinks = [{ from: "z1", to: "a" }, { from: "z2", to: "b" }, { from: "e", to: "a" }, { from: "c", to: "f" }, { from: "f", to: "b" }, { from: "c", to: "a" }];
+  const sixLinks = [{ from: "z1", to: "a" }, { from: "z2", to: "b" }, { from: "a", to: "b" }, { from: "c", to: "a" }, { from: "b", to: "e" }, { from: "a", to: "f" },
+  { from: "e", to: "c" }, { from: "b", to: "a" }, { from: "c", to: "e" }];
   const six = linkLayout(sixShares, coast, sixLinks, docks), sixRoads = islandRoads(six, sixLinks, docks, capabilityPlates(six)), sixRelief = islandRelief(six, sixRoads);
   const gateless = sixRelief.ramps.filter((r) => r.gate === undefined);
   assert.ok(gateless.length > 0 && gateless.every((r) => sixRoads.passes.some((p) => far(p.at, r.at) < 1e-9)), "a ramp at open road");

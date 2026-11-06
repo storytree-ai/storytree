@@ -7,7 +7,7 @@
  * (3.88). No arrowheads. Plain three.js, so the marks are read without a browser.
  */
 import { BufferGeometry, CircleGeometry, Color, DoubleSide, Float32BufferAttribute, Group, Mesh, MeshBasicMaterial, type Object3D, type Vector3 } from "three";
-import type { IslandRoads } from "../territories/island-roads.js";
+import { inTunnelMouth, type IslandRoads } from "../territories/island-roads.js";
 import { LIGHT, type IslandRelief } from "../territories/island-relief.js";
 import { hollowRing, RING_LEAST_PX } from "./open-work.js";
 import { settlementSymbols } from "./settlement-symbols.js";
@@ -134,6 +134,7 @@ function standingPosts(group: Group, roads: IslandRoads, relief: IslandRelief, o
     return made;
   };
   roads.gates.forEach((gate, i) => {
+    if (inTunnelMouth(roads, gate)) return;
     // Each gate's own paper, so a pick can light one gate's faces gold (3.81).
     const faceMaterial = new MeshBasicMaterial({ color: POST.paper, transparent: true, opacity: 1, side: DoubleSide, forceSinglePass: true });
     const ramp = relief.ramps.find((r) => r.gate === gate), side = relief.post.side;

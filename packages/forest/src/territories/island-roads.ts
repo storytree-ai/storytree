@@ -57,6 +57,10 @@ const far = (a: Point, b: Point) => Math.hypot(a.x - b.x, a.z - b.z);
 const times = (p: Point, k: number): Point => ({ x: p.x * k, z: p.z * k });
 export const widthOf = (n: number) => WIDTHS[n >= 8 ? 3 : n >= 4 ? 2 : n >= 2 ? 1 : 0];
 
+/** Whether `gate` stands in one of the island's tunnel mouths, where the road comes up into the territory it calls: the
+ * portal stands for it there, so it has no posts (Mick, 2026-11-06). */
+export const inTunnelMouth = (roads: Pick<IslandRoads, "portals">, gate: { readonly at: Point }): boolean => roads.portals.some((p) => far(p.at, gate.at) < 1e-6);
+
 const routed = new WeakMap<TerritoryMap, { key: string; roads: IslandRoads }>();
 
 /** The roads and gates of `map` (the island as drawn, laid out by `links` and `docks`), its names at `names`; routed

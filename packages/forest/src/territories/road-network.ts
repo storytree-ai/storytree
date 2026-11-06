@@ -45,8 +45,10 @@ export const COST = {
   coast: 2.6,
   /** A gate: crossing a border. */
   gate: 4,
-  /** Entering a territory the link neither starts nor ends in: an inside link, and an arrival's trunk. */
-  third: 25, thirdArrival: 0.5,
+  /** Entering a territory the link neither starts nor ends in: an inside link, and an arrival's trunk. An arrival's is
+   * dearer than a gate beside a settlement (GATE_CLEAR) and a long walk on the open land together, so an arrival whose
+   * capability meets the open land comes in from it, not under a neighbour (Mick, 2026-11-06; at 0.5 and 25 it did not). */
+  third: 25, thirdArrival: 60,
   /** A step another link already travels, as a share of its price. */
   share: 0.3,
   /** Within `townReach` of another territory's settlement, per step. */

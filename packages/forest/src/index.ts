@@ -18,8 +18,8 @@ export { drillDown, NO_DESCRIPTION, selectedCapability } from "./drill-down/dril
 export type { Arrow, CapabilityLine, ContractLine, StoryPanel, WhyLine } from "./drill-down/drill-down.js";
 export { CARD, layoutTree, OUTSIDE_CARD } from "./drill-down/tree-layout.js";
 export type { Card, Link, TreeLayout } from "./drill-down/tree-layout.js";
-export { claimTints, replayWisps, sessionColour, sessionWisps } from "./agent-claims/agent-claims.js";
-export type { ClaimTint, SessionWisp } from "./agent-claims/agent-claims.js";
+export { claimTints, replayWisps, sessionColour, sessionWisps, shownPointers } from "./agent-claims/agent-claims.js";
+export type { ClaimTint, PointerTint, SessionWisp } from "./agent-claims/agent-claims.js";
 export { turnToIsland, type FacingIsland, type GlobeDirection, type GlobeTurn } from "./never-hidden/never-hidden.js";
 
 export { sessionRoster, sessionRows, type SessionRow, type SessionDetails } from "./sessions-list/sessions-list.js";

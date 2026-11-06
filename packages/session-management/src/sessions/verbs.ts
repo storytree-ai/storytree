@@ -1,5 +1,5 @@
 /**
- * Capability 4 · Sessions. The session verbs, declared once (ADR-0969 D2): name a session, close it out, and list the
+ * Capability 4 · Sessions. The session verbs, declared once (ADR-0969 D2): name a session, point the owner's eye (4.43), close it out, and list the
  * sessions, and read how long the hooks took. The command line and the MCP server each mount them; listing the sessions
  * and the hook times have no tool, and say why.
  * Machines' verbs are mounted from here too (MACHINE_VERBS), as this is the verbs' one entry. SESSION_FAMILIES, which the
@@ -40,6 +40,27 @@ const name = verb({
     const answer = await nameSession(context, title);
     if (!answer.ok) throw new VerbRefusal(nameRefusal(answer), { misuse: true });
     return { text: `Named this session "${answer.line.kind === "session-named" ? answer.line.title : title}" in the sessions list.` };
+  },
+});
+
+const point = verb({
+  command: { family: "session", name: "point", summary: "point the owner's eye at one capability, saying why (--why) and the question it is for (--question); with none, point at nothing" },
+  tool: {
+    name: "point_at",
+    description: "Point the owner's eye at one capability where it is needed (a picture to judge, a question waiting on him), saying why, and the question it is for when there is one: the map pulses there slowly, in your session's colour, and never moves his camera. You hold one pointer: the latest replaces the earlier, and calling it with no capability, closing out or ending removes it.",
+  },
+  inputs: {
+    capability: { kind: "text", word: 0, optional: true, describe: "the capability to point at; none points at nothing" },
+    why: { kind: "text", optional: true, describe: "why his eye is needed there, in a few words" },
+    question: { kind: "text", optional: true, describe: "the question the point is for, when it is for one" },
+  },
+  agentOnly: "it points for the agent session that runs it",
+  async act({ capability, why, question }, context: SessionVerbContext) {
+    const { pointAt, pointRefusal } = await import("./point.js");
+    const answer = await pointAt(context, { ...(capability === undefined ? {} : { capability }), ...(why === undefined ? {} : { why }), ...(question === undefined ? {} : { question }) });
+    if (!answer.ok) throw new VerbRefusal(pointRefusal(answer), { misuse: answer.refused === "no-why" });
+    const line = answer.line;
+    return { text: line.kind === "pointed" && line.capability !== undefined ? `Pointing the owner's eye at ${line.capability}: ${line.why}.` : "Pointing at nothing." };
   },
 });
 
@@ -102,12 +123,12 @@ const hookTimes = verb({
 });
 
 /** The session verbs, in the order the command line lists them. */
-export const SESSION_VERBS: readonly Verb<VerbInputs, SessionVerbContext>[] = [list, name, closeOut, hookTimes];
+export const SESSION_VERBS: readonly Verb<VerbInputs, SessionVerbContext>[] = [list, name, point, closeOut, hookTimes];
 
 /** The command line's families of these verbs, each at its place among `storytree`'s families. */
 export const SESSION_FAMILIES: readonly VerbFamily<SessionVerbContext>[] = [
   { name: "noticeboard", summary: "who is on what right now (read only)", order: 5, verbs: NOTICEBOARD_VERBS, bare: NOTICEBOARD_BOARD },
   { name: "context", summary: "how full this session's context is (Session management's)", order: 31, verbs: [], bare: CONTEXT_READING },
-  { name: "session", summary: "list the running sessions, name this one, close it out, or read how long hooks took (Session management's)", order: 33, verbs: SESSION_VERBS },
+  { name: "session", summary: "list the running sessions, name this one, point the owner's eye, close it out, or read how long hooks took (Session management's)", order: 33, verbs: SESSION_VERBS },
   { name: "machine", summary: "the computers that work on this project, and this one's short name (Session management's)", order: 34, verbs: MACHINE_VERBS },
 ];

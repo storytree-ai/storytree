@@ -34,6 +34,7 @@ test("wisps that draw the same as those on show are not drawn again", () => {
   assert.ok(sameWisps([wisp(["c"])], [wisp(["c"])]));
   assert.ok(!sameWisps([wisp(["c"])], [wisp(["c", "d"])]));
   assert.ok(!sameWisps([wisp(["c"])], [{ ...wisp(["c"]), faded: true }]));
+  assert.ok(!sameWisps([wisp(["c"])], [{ ...wisp(["c"]), pointer: { capability: "c" } }]), "a pointer that came or went is drawn");
 });
 
 test("a claim on another island leaves this island's tints as they were, so its territories are not cut again", () => {

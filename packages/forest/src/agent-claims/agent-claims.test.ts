@@ -12,7 +12,7 @@ import { workStates } from "@storytree/arc-surface";
 
 import { grove } from "../capability-tree/capability-tree.js";
 import { sessionRows } from "../sessions-list/sessions-list.js";
-import { claimTints, replayWisps, sessionColour, sessionWisps, type SessionWisp } from "./agent-claims.js";
+import { claimTints, replayWisps, sessionColour, sessionWisps, shownPointers, type SessionWisp } from "./agent-claims.js";
 
 const START = Date.UTC(2026, 8, 27, 12);
 const MINUTE = 60_000;
@@ -116,4 +116,18 @@ test("5.7 replaying a growth, the sessions recorded with the latest stage reache
   assert.deepEqual(at(6), ["B@till"]);
   assert.deepEqual(at(Infinity), [], "the end shows what the recording ends with");
   assert.deepEqual(replayWisps([], 3), []);
+});
+
+test("5.8 · a session's pointer rides its wisp, in its colour, even when it claims nothing; the map shows it only on the selected arc's open work or when it is for a question, and pointing at nothing takes it away", () => {
+  const point = (capability?: string, question?: string): NewLine => ({ kind: "pointed", ...a, source: "tool", ...(capability === undefined ? {} : { capability, why: "a picture to judge", ...(question === undefined ? {} : { question }) }) });
+  const log = hook(0, new Log()).add(1, point("password"));
+  assert.deepEqual(wisps(log, 2).map(({ session, pointer, colour }) => ({ session, pointer, colour })), [{ session: "A", pointer: { capability: "password" }, colour: sessionColour("A") }], "a session that claims nothing still carries its pointer");
+  assert.deepEqual([...shownPointers(wisps(log, 2), undefined)], [], "with no arc selected, a pointer for no question shows nowhere");
+  assert.deepEqual([...shownPointers(wisps(log, 2), new Set(["invoice"]))], [], "nor off the selected arc's open work");
+  assert.deepEqual([...shownPointers(wisps(log, 2), new Set(["password"]))], [["password", { colour: sessionColour("A") }]], "on it, it shows in the session's colour");
+  log.add(2, point("invoice", "question_1"));
+  assert.deepEqual([...shownPointers(wisps(log, 3), undefined)], [["invoice", { colour: sessionColour("A") }]], "a pointer for a question shows wherever it is");
+  log.add(3, claim("email_form")).add(3, point());
+  assert.deepEqual(wisps(log, 4).map(({ pointer }) => pointer), [undefined]);
+  assert.deepEqual([...shownPointers(wisps(log, 4), new Set(["invoice", "password"]))], []);
 });

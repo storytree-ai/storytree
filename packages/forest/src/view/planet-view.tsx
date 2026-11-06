@@ -2,7 +2,7 @@
 import { useFrame, useThree } from "@react-three/fiber";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { Group, Quaternion, Vector3, type Camera, type Object3D } from "three";
-import { claimTints, replayWisps, selectionLanes, type ClaimTint, type FacingIsland, type ForestScene, type GlobeTurn, type Island, type SessionWisp } from "@storytree/forest";
+import { claimTints, replayWisps, selectionLanes, shownPointers, type ClaimTint, type PointerTint, type FacingIsland, type ForestScene, type GlobeTurn, type Island, type SessionWisp } from "@storytree/forest";
 import type { Descriptor3D } from "@storytree/forest-world";
 import { islandNormal, onIslandSurface, Overlay, PlanetWorldCanvas, PLATE_CLEARANCE, SHEET_RADIUS, SHEET_TILT, sheetEyeZoom, UnderTheGlass, usePlanetGrowth, type IslandDock, type PlanetGrowth, type SheetExtent } from "@storytree/forest-world/planet";
 import type { CodePlaces } from "@storytree/knowledge-core";
@@ -132,6 +132,8 @@ export function PlanetView({ core, scene, places, wisps: live, selected, highlig
   // ADR-1253 D1: the selected arc's open work ringed.
   const circledKey = circledList === undefined ? undefined : JSON.stringify(circledList);
   const circled = useMemo(() => circledList === undefined ? undefined : new Set(circledList), [circledKey]);
+  // 5.8: a session's pointer pulses on the selected arc's open work, or anywhere when it is for a question; the camera stays his.
+  const pointed = useMemo(() => shownPointers(wisps, circled), [wisps, circled]);
   const overlays = useCallback((island: Island, descriptors: readonly Descriptor3D[], coast: readonly (readonly { x: number; z: number }[])[], docks: readonly IslandDock[] | undefined) => {
     // ADR-1236 D1 as narrowed by ADR-1253 D2: every island's territories are laid out by its links, once its docks are known.
     const laidBy = docks;
@@ -141,7 +143,7 @@ export function PlanetView({ core, scene, places, wisps: live, selected, highlig
     const emphasis = shownSurfaces.sessionTints && highlighted?.length ? (highlighted.includes(island.story) ? "held" : "dimmed")
       : arcEmphasis(island.land?.territories ?? [], circled);
     return <>
-      {island.land !== undefined && layout.spots.has(island.story) && <Territories story={island.story} land={island.land} coast={coast} links={links} docks={laidBy} claimed={claimed} radius={layout.radius}
+      {island.land !== undefined && layout.spots.has(island.story) && <Territories story={island.story} land={island.land} coast={coast} links={links} docks={laidBy} claimed={claimed} pointed={pointed} radius={layout.radius}
         lighting={lighting} surfaces={shownSurfaces} lit={route?.story === island.story ? route.pick : undefined} circled={circled} detail={detail} />}
       <SessionIslandEmphasis emphasis={emphasis} />
       {emphasis === "held" && <SelectionRing island={local} descriptors={descriptors} onGlobe emphasis />}
@@ -149,7 +151,7 @@ export function PlanetView({ core, scene, places, wisps: live, selected, highlig
       <SelectionRing island={island.story === selected ? local : undefined} descriptors={descriptors} onGlobe />
       <DocksSeen story={island.story} docks={docks} onDocks={onDocks} />
     </>;
-  }, [wisps, claimed, selected, highlighted, circled, layout.spots, layout.radius, lighting, shownSurfaces, links, route, detail, onDocks]);
+  }, [wisps, claimed, pointed, selected, highlighted, circled, layout.spots, layout.radius, lighting, shownSurfaces, links, route, detail, onDocks]);
   const titles = useMemo(() => new Map(scene.islands.map(i => [i.story, i.title])), [scene]);
   const inside = useMemo(() => library && <UnderTheGlass clear={outlines}><GrowingCore core={core} spots={layout.spots} radius={layout.radius} places={codePlaces} sheet={underSheet} growing={growth !== undefined} /></UnderTheGlass>,
     [library, outlines, core, layout.spots, layout.radius, codePlaces, underSheet, growth]);
@@ -285,6 +287,8 @@ type TerritoriesProps = {
   /** The docks the island's lanes come ashore at, when it is laid out by its links. */
   docks: readonly IslandDock[] | undefined;
   claimed: ReadonlyMap<string, ClaimTint>;
+  /** The capabilities sessions point the owner's eye at, shown (5.8). */
+  pointed: ReadonlyMap<string, PointerTint>;
   radius: number;
   lighting: CodeLighting;
   surfaces: GlobeSurfaces;
@@ -295,13 +299,17 @@ type TerritoriesProps = {
  * the territories the selected session's window opened (3.18). No file is drawn on them (ADR-1212).
  */
 function Territories(props: TerritoriesProps) {
-  const { story, land: given, coast: givenCoast, links, docks: givenDocks, claimed } = props;
+  const { story, land: given, coast: givenCoast, links, docks: givenDocks, claimed, pointed: allPointed } = props;
   const { clock } = useThree();
   // 3.72: an update that redraws the island for anything else (its name, its trees) hands it new land and coast that read
   // the same; the territories already cut for them stay.
   const land = useKept(given, JSON.stringify), coast = useKept(givenCoast, JSON.stringify), docks = useKept(givenDocks, (docks) => JSON.stringify(docks ?? null));
   // A claim on another island leaves this one's territories as they were.
   const tints = useKept(claimed, tints => claimsOn(tints, land));
+  const pointed = useKept(useMemo(() => new Map(land.territories.flatMap(({ capability }) => {
+    const tint = capability === undefined ? undefined : allPointed.get(capability);
+    return tint === undefined ? [] : [[capability!, tint] as const];
+  })), [allPointed, land]), (here) => JSON.stringify([...here]));
   // When the island joined the map, after its first island did: one there as the map opens stands, its land included, however
   // late it is built, and however late the plan came after the sheet first drew.
   const [joined] = useState(() => sinceFirstIsland(clock));
@@ -311,7 +319,7 @@ function Territories(props: TerritoriesProps) {
   // islands never lays out one of them, let alone several, in one task.
   const map = useBuiltInSteps(() => islandLayoutSteps(story, land.territories, coast, links, docks), [story, land, coast, links, docks, kept]);
   useEffect(() => { if (docks !== undefined) searchIsland(story, { shares: land.territories, coast, links, docks }, pageTerritorySearcher()); }, [story, land, coast, links, docks]);
-  return map === undefined ? null : <IslandLand {...props} land={land} coast={coast} docks={docks} tints={tints} map={map} joined={joined} />;
+  return map === undefined ? null : <IslandLand {...props} land={land} coast={coast} docks={docks} tints={tints} pointed={pointed} map={map} joined={joined} />;
 }
 
 /** When each sheet's first island joined it, by the sheet's clock. */
@@ -379,7 +387,7 @@ function disposeMarks(group: Group): void {
 /** An island's land as built: its territories' meshes, and its relief and roads once they are routed. */
 type DrawnLand = { group: Group; map: TerritoryMap; roads: IslandRoads | undefined; relief: IslandRelief | undefined; onLand: ReturnType<typeof onIslandSurface> };
 
-function DrawnIsland({ drawn, land, coast, docks, tints, radius, lighting, surfaces, lit, circled, detail, joined }: IslandLandProps & { drawn: DrawnLand }) {
+function DrawnIsland({ drawn, land, coast, docks, tints, pointed, radius, lighting, surfaces, lit, circled, detail, joined }: IslandLandProps & { drawn: DrawnLand }) {
   const { invalidate, clock, camera, size, gl, scene } = useThree();
   const relief = drawn.relief, onLand = drawn.onLand;
   // 3.83: the open work's rings round its settlements, and its dims, over the land as drawn now, at every zoom (ADR-1272 D2).
@@ -417,6 +425,10 @@ function DrawnIsland({ drawn, land, coast, docks, tints, radius, lighting, surfa
     first.current = false;
     invalidate();
   }, [marks, tints, clock, invalidate]);
+  useEffect(() => {
+    marks.pointers(pointed);
+    invalidate();
+  }, [marks, pointed, invalidate]);
   useFrame(() => {
     // The canvas draws on demand: a transition asks for frames only while it plays; a standing flag asks for none.
     // A flag keeps its size at the zoom the perspective eye shows (ADR-1062 D1).

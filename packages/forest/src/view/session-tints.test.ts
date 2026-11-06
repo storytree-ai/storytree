@@ -8,7 +8,7 @@ import { Color, Group, Mesh, Quaternion, Vector3, type LineSegments, type MeshBa
 
 import { claimTints, type SessionWisp } from "@storytree/forest";
 import { territories } from "../territories/territories.js";
-import { ClaimMarks, claimMoment, flagScale } from "./claim-flag.js";
+import { ClaimMarks, claimMoment, flagScale, POINTER_PULSE_S } from "./claim-flag.js";
 import { territoryLand } from "./territory-land.js";
 
 const wisp = (session: string, story: string, colour: string, capabilities: string[] = []): SessionWisp => ({ session, story, colour, faded: false, capabilities });
@@ -157,5 +157,37 @@ test("5.6 a claimed flag stands, drawn, through its island's land being cut agai
     assert.equal(flag.scale.x, scale, `${capability}'s flag keeps the size it was posed at`);
     assert.ok(flag.getObjectByName("flag-pennant") !== undefined, `${capability}'s pennant is drawn`);
   }
+  marks.dispose();
+});
+
+test("5.8 · a pointed capability pulses at its foot in the session's colour, slowly and again and again, with no flag of its own; under reduced motion it holds still, and it goes when the pointer does", () => {
+  const map = territories([share("cap-a", 40), share("cap-b", 30)], 20);
+  const marks = new ClaimMarks();
+  marks.setLand(map, flat, up, false);
+  marks.claims(new Map(), 0, { standing: true, reduced: false });
+  marks.pointers(new Map([["cap-b", { colour: "#56b4e9" }]]));
+  assert.equal(marks.frame(0.3, { zoom: 2, eye, reduced: false }), true, "a pulse asks for frames while it stands");
+  const pointer = marks.root.getObjectByName("territory-pointer:cap-b")!;
+  assert.deepEqual(pointer.userData, { pointer: true, capability: "cap-b", colour: "#56b4e9" });
+  assert.equal(marks.root.getObjectByName("territory-claim:cap-b"), undefined, "a pointer plants no flag");
+  const ring = pointer.getObjectByName("pointer-ring") as Mesh;
+  assert.ok((ring.material as MeshBasicMaterial).color.equals(new Color("#56b4e9")));
+  const at = map.cells.find(cell => Math.hypot(cell.site.x - ring.position.x, cell.site.z - ring.position.z) < 1e-9);
+  assert.equal(at?.territory, 1, "it pulses at its own territory's foot");
+  const width = (now: number, reduced = false) => {
+    marks.frame(now, { zoom: 2, eye, reduced });
+    ring.geometry.computeBoundingBox();
+    return { size: ring.geometry.boundingBox!.max.x, opacity: (ring.material as MeshBasicMaterial).opacity };
+  };
+  const [early, late] = [width(0.2), width(1.8)];
+  assert.ok(late.size > early.size && late.opacity < early.opacity, "each pulse opens outward and fades");
+  assert.ok(Math.abs(width(0.2 + POINTER_PULSE_S).size - early.size) < 1e-9, "and begins again");
+  assert.ok(POINTER_PULSE_S >= 2, "slowly");
+  assert.ok(ring.visible, "it shows while its island faces the eye");
+  assert.deepEqual([width(0.2, true), width(1.8, true)].map(({ size }) => size), [width(5, true).size, width(5, true).size], "reduced motion holds it still");
+  assert.equal(marks.frame(5, { zoom: 2, eye, reduced: true }), false, "and asks for no frames");
+  marks.pointers(new Map());
+  marks.frame(6, { zoom: 2, eye, reduced: false });
+  assert.equal(marks.root.getObjectByName("territory-pointer:cap-b"), undefined, "it goes when the pointer does");
   marks.dispose();
 });

@@ -163,7 +163,7 @@ WITH own AS (
   UNION ALL
   SELECT seq, true FROM (
     SELECT DISTINCT ON (session, kind, kind = 'session-started' AND how = 'compact') seq FROM own
-    WHERE kind IN ('prompt-submitted', 'turn-ended', 'session-ended', 'session-started', 'closed-out', 'session-named', 'claimed')
+    WHERE kind IN ('prompt-submitted', 'turn-ended', 'session-ended', 'session-started', 'closed-out', 'session-named', 'pointed', 'claimed')
     ORDER BY session, kind, kind = 'session-started' AND how = 'compact', seq DESC) AS latest
   UNION ALL
   SELECT seq, true FROM (

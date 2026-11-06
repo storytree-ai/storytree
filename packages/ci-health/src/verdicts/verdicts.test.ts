@@ -355,7 +355,9 @@ test("2.11 · a result no contract claims that names no file (TAP's) is the one 
   const files = [
     { path: "src/total.js", text: "export const total = () => 0;\n" },
     { path: "src/tax.js", text: "export const tax = () => 0;\n" },
-    { path: "src/other.js", text: "export const other = () => 0;\n" },
+    // Neither is a JavaScript test file, so the title each passes to a call is no test's.
+    { path: "src/other.js", text: `export const other = () => log("adds the shopper's tax");\n` },
+    { path: "tests/test_tax.py", text: `def test_logs():\n    check("adds the shopper's tax")\n` },
     { path: "src/total.test.js", text: [
       `import { describe, it } from "node:test";`, `import { total } from "./total.js";`,
       `describe("cart", () => {`, `  it("sums the cart", () => {});`, `  it("returns null", () => {});`, `});`,

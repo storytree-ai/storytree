@@ -178,16 +178,19 @@ test("3.19 · on an imported repository, reading its CI writes each explored cap
       await removeTemp(folder);
     }
   });
-  const { added: [story] } = await library.mapStories(folder, [{ package: ".", title: "shop", folders: ["."] }]);
-  const total = await library.addCapability({ story: story!.id, title: "Totals", covers: ["src/total.js"] });
-  const tax = await library.addCapability({ story: story!.id, title: "Tax", covers: ["src/tax.js"] });
+  const { added: [story] } = await library.mapStories(folder, [{ package: ".", title: "shop", folders: ["./shop"] }]);
+  const total = await library.addCapability({ story: story!.id, title: "Totals", covers: ["shop/src/total.js"] });
+  const tax = await library.addCapability({ story: story!.id, title: "Tax", covers: ["shop/src/tax.js"] });
   const git = (...args: string[]) => execFileSync("git", ["-C", folder, "-c", "user.name=t", "-c", "user.email=t@t", ...args], { encoding: "utf8" }).trim();
   git("init", "-q");
-  mkdirSync(path.join(folder, "src"));
-  writeFileSync(path.join(folder, "src/total.js"), "export const total = () => 0;\n");
-  writeFileSync(path.join(folder, "src/tax.js"), "export const tax = () => 0;\n");
-  writeFileSync(path.join(folder, "src/total.test.js"), `import { test } from "node:test";\nimport { total } from "./total.js";\ntest("sums the cart", () => {});\n`);
-  writeFileSync(path.join(folder, "src/tax.test.js"), `import { test } from "node:test";\nimport { tax } from "./tax.js";\ntest("adds the tax", () => {});\n`);
+  mkdirSync(path.join(folder, "shop/src"), { recursive: true });
+  // Outside every folder a story was mapped from, so not read: its title would make "sums the cart" two files'.
+  mkdirSync(path.join(folder, "tools"));
+  writeFileSync(path.join(folder, "tools/total.test.js"), `import { test } from "node:test";\ntest("sums the cart", () => {});\n`);
+  writeFileSync(path.join(folder, "shop/src/total.js"), "export const total = () => 0;\n");
+  writeFileSync(path.join(folder, "shop/src/tax.js"), "export const tax = () => 0;\n");
+  writeFileSync(path.join(folder, "shop/src/total.test.js"), `import { test } from "node:test";\nimport { total } from "./total.js";\ntest("sums the cart", () => {});\n`);
+  writeFileSync(path.join(folder, "shop/src/tax.test.js"), `import { test } from "node:test";\nimport { tax } from "./tax.js";\ntest("adds the tax", () => {});\n`);
   git("add", ".");
   git("commit", "-q", "-m", "shop");
   git("remote", "add", "origin", "https://github.com/acme/shop.git");
@@ -197,7 +200,7 @@ test("3.19 · on an imported repository, reading its CI writes each explored cap
 
   const first = await readProjectCi({ library, git: gitIn(folder), github: github(pushRunsOnTrunk(commit), log("not ok 1 - sums the cart", "ok 2 - adds the tax")) });
   assert.equal(first.written, true, first.written ? "" : first.why);
-  assert.equal((await library.health(total.id)).verified.state, "failing", "its failing test, which no contract claims, reaches src/total.js");
+  assert.equal((await library.health(total.id)).verified.state, "failing", "its failing test, which no contract claims, reaches shop/src/total.js");
   assert.equal((await library.health(tax.id)).verified.state, "passing");
   assert.equal((await library.health(story!.id)).verified.state, "failing", "the island reads red");
   const reading = await unclaimed(total.id);

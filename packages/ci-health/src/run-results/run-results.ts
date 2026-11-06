@@ -9,7 +9,8 @@
  * time, a `▶ title` opening a suite whose tests sit two spaces in, and a failing-tests recap at the end that repeats
  * each failure after a `test at <file>` line. A Python project's log holds pytest's short test summary instead, as
  * `pytest -rA` prints it: `PASSED <file>::<Class>::<test>` (XPASS too) passed, `FAILED` and `ERROR` failed, after ` - ` their
- * message, `XFAIL` skipped, each named by its node id; a `SKIPPED [n] <file>:<line>: <reason>` line names no test, only
+ * message, and `XFAIL` failed too, its message saying it was expected to (question_b5918c0ff273: a test a project marks as
+ * expected to fail is a failure it ships, so it reads red, not skipped), each named by its node id; a `SKIPPED [n] <file>:<line>: <reason>` line names no test, only
  * where it was skipped. Nothing else in the log is a result.
  */
 
@@ -22,7 +23,7 @@
 export type TestResult = { name: string; suites: string[]; status: "passed" | "failed" | "skipped"; message?: string; platform?: string; file?: string; line?: number };
 
 /** pytest's statuses in its short test summary, as a result's. */
-const PYTEST_STATUS: Record<string, TestResult["status"]> = { PASSED: "passed", XPASS: "passed", FAILED: "failed", ERROR: "failed", XFAIL: "skipped" };
+const PYTEST_STATUS: Record<string, TestResult["status"]> = { PASSED: "passed", XPASS: "passed", FAILED: "failed", ERROR: "failed", XFAIL: "failed" };
 
 /** A log line's text, without the saved log's job and step columns or the runner's timestamp. */
 function textOf(line: string): string {
@@ -51,7 +52,9 @@ export function parseTestLog(log: string): TestResult[] {
     if (pytest !== null) {
       const ids = pytest[3]!.trim().split("::");
       const result: TestResult = { name: ids.at(-1)!, suites: ids.slice(0, -1), status: PYTEST_STATUS[pytest[1]!]!, file: pytest[2]!.replaceAll("\\", "/") };
-      if (pytest[4]?.trim()) result.message = pytest[4].trim();
+      const message = pytest[4]?.trim() ?? "";
+      if (pytest[1] === "XFAIL") result.message = `expected to fail (xfail)${message === "" ? "" : `: ${message}`}`;
+      else if (message !== "") result.message = message;
       results.push(result);
       continue;
     }

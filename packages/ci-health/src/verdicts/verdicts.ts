@@ -21,6 +21,9 @@
  * number only a docstring carries credits nothing here. A skip, which pytest names only by its file and line, is the
  * test whose decorators or definition that line is in, else the test whose body it is in.
  *
+ * A test that carries no number (an imported repository's own) counts for each contract whose provedBy names it
+ * (question_b5918c0ff273), beside any number it carries: see provedFor.
+ *
  * Judging follows storytree's own health (ADR-0744): verdictOf below is the one rule, and a run read from its junit report (../test-run/test-run.mjs) is judged by it too: a contract
  * passes only if it has tests and every one passed; any failure fails it; a skipped test is no pass,
  * so a skip leaves it not checked, as does having no tests. A skip whose reason names the platform the test needs
@@ -35,7 +38,7 @@ import type { TestResult } from "../run-results/run-results.js";
 
 /** The plan as judging needs it: stories, their numbered capabilities and contracts ("1.2 · …"). */
 export type PlanTree = {
-  readonly stories: readonly { readonly id: string; readonly title: string; readonly plugin?: string; readonly mapped?: { readonly folders: readonly string[] }; readonly capabilities: readonly { readonly id: string; readonly title: string; readonly contracts: readonly { readonly id: string; readonly title: string }[] }[] }[];
+  readonly stories: readonly { readonly id: string; readonly title: string; readonly plugin?: string; readonly mapped?: { readonly folders: readonly string[] }; readonly capabilities: readonly { readonly id: string; readonly title: string; readonly contracts: readonly { readonly id: string; readonly title: string; readonly provedBy?: readonly string[] }[] }[] }[];
 };
 
 /** A story's proofs at one commit: its contracts by number, and each numbered test title its package holds. */
@@ -52,6 +55,8 @@ export type StoryProofs = {
   readonly helped: readonly { readonly number: string; readonly title: string }[];
   /** Each pytest file its packages hold, by its repository path: its tests, in order. */
   readonly pytest: ReadonlyMap<string, readonly PytestTest[]>;
+  /** Each test a contract's provedBy names, with the contract's id (question_b5918c0ff273). */
+  readonly proved: readonly { readonly contract: string; readonly test: string }[];
 };
 
 /** A pytest test as its file defines it: its name, the line of its `def` and of its first decorator (1-based). */
@@ -111,13 +116,15 @@ export function proofsAt(tree: PlanTree, files: readonly SourceFile[]): StoryPro
       }
     }
     const contracts = new Map<string, string>();
+    const proved: { contract: string; test: string }[] = [];
     for (const capability of story.capabilities) {
       for (const contract of capability.contracts) {
         const number = /^(\d+\.\d+) · /.exec(contract.title)?.[1];
         if (number !== undefined) contracts.set(number, contract.id);
+        for (const test of contract.provedBy ?? []) proved.push({ contract: contract.id, test });
       }
     }
-    return { story: story.id, package: own, packages, contracts, titles, helped, pytest };
+    return { story: story.id, package: own, packages, contracts, titles, helped, pytest, proved };
   });
 }
 
@@ -154,8 +161,8 @@ function countingName(result: TestResult): string | undefined {
 const NUMBERED_NAME = /^test_((?:[a-z][a-z0-9]*_)*?)(\d+)_(\d+)(?![0-9])/i;
 
 /** The pytest files the node id's path names in each story: its repository path, or one ending in it. */
-function pytestHolders(proofs: readonly StoryProofs[], file: string): { story: StoryProofs; tests: readonly PytestTest[] }[] {
-  return proofs.flatMap((story) => [...story.pytest].filter(([path]) => path === file || path.endsWith(`/${file}`)).map(([, tests]) => ({ story, tests })));
+function pytestHolders(proofs: readonly StoryProofs[], file: string): { story: StoryProofs; path: string; tests: readonly PytestTest[] }[] {
+  return proofs.flatMap((story) => [...story.pytest].filter(([path]) => path === file || path.endsWith(`/${file}`)).map(([path, tests]) => ({ story, path, tests })));
 }
 
 /** A pytest skip with its test's name, when the one file its path names has a test at its line; any other result as it is. */
@@ -179,6 +186,29 @@ function pytestCredit(proofs: readonly StoryProofs[], result: TestResult): { sto
   const named = prefix!.replace(/_$/, "").toLowerCase();
   const story = named === "" ? holders[0]!.story : proofs.find(({ packages }) => packages.some((one) => one.replaceAll("-", "_") === named));
   return story === undefined ? undefined : { story, numbers: [`${major}.${minor}`] };
+}
+
+/**
+ * The contracts whose provedBy names `result`'s test (question_b5918c0ff273). A pytest result's node id is its file, then its
+ * classes and test, parameters left off: a name its story's file holds names it when that names the same file and then the
+ * start of those parts (`tests/test_api.py`, `…::TestAuth`, `…::TestAuth::test_login`). Any other result is named by its own
+ * title or one of its suites'.
+ */
+function provedFor(proofs: readonly StoryProofs[], result: TestResult): string[] {
+  if (result.file === undefined) {
+    const names = [...result.suites, result.name];
+    return proofs.flatMap(({ proved }) => proved.filter(({ test }) => names.includes(test)).map(({ contract }) => contract));
+  }
+  const parts = [...result.suites, result.name.split("[", 1)[0]!];
+  return proofs.flatMap((story) => {
+    const paths = pytestHolders([story], result.file!).map(({ path }) => path);
+    return story.proved
+      .filter(({ test }) => {
+        const [file, ...named] = test.split("::");
+        return paths.some((path) => path === file || path.endsWith(`/${file}`)) && named.length <= parts.length && named.every((part, at) => parts[at] === part);
+      })
+      .map(({ contract }) => contract);
+  });
 }
 
 /** Whether a job on `platform` is one a test needing `need` (`posix`, `win32`, `darwin`, `linux`, `macos`) runs on. */
@@ -226,7 +256,7 @@ export function judgeRun(proofs: readonly StoryProofs[], reported: readonly Test
   for (const result of results) {
     if (result.file !== undefined) {
       const credit = pytestCredit(proofs, result);
-      const ids = credit === undefined ? [] : credit.numbers.flatMap((number) => credit.story.contracts.get(number) ?? []);
+      const ids = [...new Set([...(credit === undefined ? [] : credit.numbers.flatMap((number) => credit.story.contracts.get(number) ?? [])), ...provedFor(proofs, result)])];
       if (ids.length === 0) unmatched.push(result);
       for (const id of ids) tests.get(id)!.push(result);
       continue;
@@ -246,7 +276,7 @@ export function judgeRun(proofs: readonly StoryProofs[], reported: readonly Test
       if (numbers.length > 0) credited.set(story.story, { story, numbers });
     }
     const only = credited.size === 1 ? [...credited.values()][0]! : undefined;
-    const ids = only === undefined ? [] : only.numbers.flatMap((number) => only.story.contracts.get(number) ?? []);
+    const ids = [...new Set([...(only === undefined ? [] : only.numbers.flatMap((number) => only.story.contracts.get(number) ?? [])), ...provedFor(proofs, result)])];
     if (ids.length === 0) unmatched.push(result);
     for (const id of ids) tests.get(id)!.push(result);
   }

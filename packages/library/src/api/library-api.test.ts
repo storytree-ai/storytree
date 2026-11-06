@@ -102,6 +102,7 @@ const LIBRARY_API = [
   "questionDeviation",
   "reportHealth",
   "recordVerified",
+  "recordUnclaimed",
   "markVerifiedPending",
   "health",
   "healthHistory",

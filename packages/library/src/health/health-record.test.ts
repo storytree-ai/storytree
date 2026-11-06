@@ -789,6 +789,49 @@ for (const backend of [memory, postgres]) {
     await work.addContract({ title: "Shows the week's totals", capability: stats.id });
     assert.equal((await health.worklist()).find(({ capability }) => capability === stats.id)?.why.reason, "not built", "a contract puts it on the ordinary ladder");
   });
+
+  contract("5.20", "a capability's reading from tests no contract claims rolls into its verified health, its word and its story's, and when failing makes its reason failing with the reading's note on its worklist item; a not-checked reading counts for nothing, and the reading is refused on anything but a live capability", async ({ health, work }) => {
+    const { added: [app] } = await work.mapStories("/code/app", [{ package: ".", title: "app", folders: ["."] }]);
+    const stats = await work.addCapability({ title: "Stats page", story: app!.id, covers: ["app/stats"] });
+    const cart = await work.addCapability({ title: "Cart", story: app!.id, covers: ["app/cart"] });
+    const totals = await work.addContract({ title: "Shows the week's totals", capability: cart.id });
+    await health.recordVerified(totals.id, "passing", { by: "a local test run" });
+    const read = async () => {
+      const [story] = (await health.annotate()).stories;
+      return { story: story!, of: (id: string) => story!.capabilities.find((capability) => capability.id === id)! };
+    };
+    const before = await read();
+    assert.equal(before.of(stats.id).health.verified.state, "not-checked", "control: explored, with nothing promised");
+    assert.equal(before.of(stats.id).why, undefined);
+    assert.equal(before.story.health.verified.state, "passing", "control: the story reads its one passing contract");
+
+    await health.recordUnclaimed(stats.id, "failing", { by: "a local test run", note: "0/1 tests passed; first failure: assert 3 == 4" });
+    const failing = await read();
+    assert.equal(failing.of(stats.id).health.verified.state, "failing");
+    assert.equal(failing.of(stats.id).unclaimed?.state, "failing", "the reading is shown on the capability");
+    assert.equal(failing.of(stats.id).why?.reason, "failing");
+    assert.equal(failing.story.health.verified.state, "failing", "the story's roll-up holds it");
+    assert.equal((await health.health(stats.id)).verified.state, "failing", "health() reads it as annotate does");
+    const item = (await health.worklist()).find(({ capability }) => capability === stats.id);
+    assert.equal(item?.why.reason, "failing");
+    assert.equal(item?.failure, "0/1 tests passed; first failure: assert 3 == 4");
+
+    // Beside a contract: a failing reading fails it, a passing one leaves it passing, a not-checked one counts for nothing.
+    await health.recordUnclaimed(cart.id, "failing", { by: "a local test run" });
+    assert.equal((await read()).of(cart.id).health.verified.state, "failing");
+    assert.equal((await read()).of(cart.id).why?.reason, "failing");
+    await health.recordUnclaimed(cart.id, "passing", { by: "a local test run" });
+    assert.equal((await read()).of(cart.id).health.verified.state, "passing");
+    await health.recordUnclaimed(cart.id, "not-checked", { by: "a local test run" });
+    assert.equal((await read()).of(cart.id).health.verified.state, "passing", "not checked leaves its contract's passing standing");
+    await health.recordUnclaimed(stats.id, "not-checked", { by: "a local test run" });
+    assert.equal((await read()).of(stats.id).health.verified.state, "not-checked");
+    assert.equal((await read()).of(stats.id).why, undefined, "back to explored, with nothing promised");
+
+    for (const id of [totals.id, app!.id, NO_CONTRACT]) {
+      await assert.rejects(health.recordUnclaimed(id, "failing"), (error) => error instanceof MissingReferenceError && error.field === "node" && error.id === id, id);
+    }
+  });
 }
 
 /** Past the current millisecond, so the next write's time sorts after the last one's. */

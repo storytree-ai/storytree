@@ -211,3 +211,41 @@ test("5.5 · `health local` whose test command reports no results it can read sa
   const read = await recordLocalTests({ library, folder, run: async () => ({ output: "/bin/sh: 1: uv: not found\n", code: 127 }) });
   assert.ok(!read.written && /could not be started/.test(read.why) && /\buv\b is not/.test(read.why), JSON.stringify(read));
 });
+
+test("5.6 · `health local` records, on each explored capability its tests no contract claims reach, those tests' verdict as the capability's own reading, and turns a reading no such test makes any more not checked", async (t) => {
+  const url = process.env.STORYTREE_TEST_PG_URL;
+  if (url === undefined) throw new Error("run the tests via `pnpm test`, which starts a local Postgres");
+  const storytree = await connect({ url });
+  const name = `t-${randomBytes(4).toString("hex")}`;
+  const library = await storytree.openProject(name);
+  const folder = mkdtempSync(path.join(tmpdir(), "storytree-local-"));
+  t.after(async () => {
+    try {
+      await storytree.dropProject(name);
+    } finally {
+      await storytree.close();
+      await removeTemp(folder);
+    }
+  });
+  const { added: [story] } = await library.mapStories(folder, [{ package: ".", title: "checkbox", folders: ["."] }]);
+  const todos = await library.addCapability({ story: story!.id, title: "Todo API", covers: ["src/todos.py"] });
+  const users = await library.addCapability({ story: story!.id, title: "Users", covers: ["src/users.py"] });
+  writeFileSync(path.join(folder, "pyproject.toml"), `[project]\nname = "checkbox"\n`);
+  mkdirSync(path.join(folder, "src"));
+  for (const file of ["__init__.py", "todos.py", "users.py"]) writeFileSync(path.join(folder, "src", file), "");
+  mkdirSync(path.join(folder, "tests"));
+  writeFileSync(path.join(folder, "tests", "test_api.py"), "from src.todos import *\n\ndef test_creates():\n    pass\n");
+  writeFileSync(path.join(folder, "tests", "test_users.py"), "from src.users import *\n\ndef test_signs_up():\n    pass\n");
+  const stateOf = async (id: string) => (await library.health(id)).verified.state;
+
+  const first = await recordLocalTests({ library, folder, run: async () => ({ output: "XFAIL tests/test_api.py::test_creates - leaks between tenants\nPASSED tests/test_users.py::test_signs_up\n", code: 0 }) });
+  assert.ok(first.written && first.unmatched === 2, JSON.stringify(first));
+  assert.equal(await stateOf(todos.id), "failing", "its expected failure, which no contract claims, reaches src/todos.py");
+  assert.equal(await stateOf(users.id), "passing");
+  assert.equal(await stateOf(story!.id), "failing", "the island reads red");
+
+  // The users test is gone: its reading no longer stands.
+  await recordLocalTests({ library, folder, run: async () => ({ output: "XFAIL tests/test_api.py::test_creates - leaks between tenants\n", code: 0 }) });
+  assert.equal(await stateOf(users.id), "not-checked");
+  assert.equal(await stateOf(todos.id), "failing");
+});

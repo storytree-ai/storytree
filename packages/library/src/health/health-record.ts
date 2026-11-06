@@ -110,6 +110,8 @@ export interface AnnotatedCapability extends Omit<CapabilityNode, "contracts"> {
   status: CapabilityStatus;
   /** Why it is not healthy, and who moves it; absent when it is healthy (ADR-0825 D1), and when it is report-only. */
   why?: CapabilityWhy;
+  /** The reading of the tests that reached its covered files and no contract claims (ADR-1274 D3), when a run recorded one. */
+  unclaimed?: HealthColumn;
   /**
    * Built, in a project whose health nothing verifies (ADR-0630: any user's project in the MVP): what
    * the agent reports is all there is to show, labelled as the agent's, and no agent can move its word.
@@ -262,6 +264,18 @@ export class HealthRecord {
   }
 
   /**
+   * Write what a run of a project's tests verified about capability `capabilityId` from the tests that reached its
+   * covered files and no contract claims (ADR-1274 D3): its own verified reading, kept beside its contracts'. It joins
+   * their roll-up unless it is not-checked. The id must name a live capability; anything else is refused with a
+   * MissingReferenceError, as reportHealth refuses a node that is no contract.
+   */
+  async recordUnclaimed(capabilityId: string, state: HealthState, options: HealthOptions = {}): Promise<HealthEntry> {
+    const target = await recordNamed(this.#records, capabilityId);
+    if (target?.type !== "capability") throw new MissingReferenceError("node", capabilityId, "capability", target?.type);
+    return this.#save("verified", capabilityId, state, options, "unclaimed");
+  }
+
+  /**
    * Say that a run in progress will record contract `contractId`'s verified column: a pending mark,
    * kept apart from the column (`health_<contractId>_pending`), so its health reads as before. The
    * worklist holds back a capability every contract carrying its reason is so marked for, until the
@@ -284,8 +298,9 @@ export class HealthRecord {
     if (node === null) return rolledUp([]); // nothing to read: not-checked in both columns
     const entries = await this.#entries();
     if (node.type === "contract") return ownHealth(node.id, entries);
-    const contracts = await this.#contractsUnder(node);
-    return rolledUp(contracts.map((id) => ownHealth(id, entries)));
+    const contracts = (await this.#contractsUnder(node)).map((id) => ownHealth(id, entries));
+    const capabilities = node.type === "capability" ? [node.id] : (await this.#records.list("capability")).filter((capability) => capability.fields.story === node.id).map(({ id }) => id);
+    return rolledUp(contracts, capabilities.flatMap((id) => counted(unclaimedOf(id, entries))));
   }
 
   /**
@@ -320,16 +335,20 @@ export class HealthRecord {
       stories: plan.stories.map((story) => {
         const capabilities = story.capabilities.map((capability) => {
           const contracts = capability.contracts.map((contract) => ({ ...contract, health: ownHealth(contract.id, entries) }));
-          const health = rolledUp(contracts.map((contract) => contract.health));
-          const status = capabilityStatus(capability.proposed, contracts.map((contract) => contract.health.verified.state));
+          const unclaimed = unclaimedOf(capability.id, entries);
+          const own = counted(unclaimed);
+          const health = rolledUp(contracts.map((contract) => contract.health), own);
+          const status = capabilityStatus(capability.proposed, [...contracts.map((contract) => contract.health.verified.state), ...own]);
           const reportOnly = unverified && !capability.proposed;
-          // An explored capability of a mapped story, with nothing promised yet, has no health to want (ADR-0993 D3, D5).
+          // An explored capability of a mapped story, with nothing promised yet, has no health to want (ADR-0993 D3, D5)
+          // unless tests no contract claims reached it (ADR-1274 D3); a failing reading of those makes its reason failing.
           const explored = story.mapped !== undefined && contracts.length === 0;
-          const why = reportOnly || explored ? undefined : capabilityWhy(capability.proposed, contracts.map((contract) => ({ id: contract.id, verified: contract.health.verified })));
+          const failingOwn = own.includes("failing") ? { reason: "failing" as const, mover: "agent" as const, contracts: contracts.filter((contract) => contract.health.verified.state === "failing").map(({ id }) => id), ...(unclaimed?.at === undefined ? {} : { since: unclaimed.at }) } : undefined;
+          const why = reportOnly ? undefined : failingOwn ?? (explored ? undefined : capabilityWhy(capability.proposed, contracts.map((contract) => ({ id: contract.id, verified: contract.health.verified }))));
           const parkedOn = status === "proposed" || status === "untested" ? parked.get(capability.id) : undefined;
-          return { ...capability, dependsOn: [...capability.dependsOn], contracts, health, status, ...(why === undefined ? {} : { why }), ...(reportOnly ? { reportOnly } : {}), ...(parkedOn === undefined ? {} : { parkedOn: [...parkedOn] }), ...(open.has(capability.id) ? { openWork: open.get(capability.id)!.map((one) => ({ ...one })) } : {}) };
+          return { ...capability, dependsOn: [...capability.dependsOn], contracts, health, status, ...(unclaimed === undefined ? {} : { unclaimed }), ...(why === undefined ? {} : { why }), ...(reportOnly ? { reportOnly } : {}), ...(parkedOn === undefined ? {} : { parkedOn: [...parkedOn] }), ...(open.has(capability.id) ? { openWork: open.get(capability.id)!.map((one) => ({ ...one })) } : {}) };
         });
-        const health = rolledUp(capabilities.flatMap((capability) => capability.contracts.map((contract) => contract.health)));
+        const health = rolledUp(capabilities.flatMap((capability) => capability.contracts.map((contract) => contract.health)), capabilities.flatMap((capability) => counted(capability.unclaimed)));
         return { ...story, capabilities, health };
       }),
       arcs: plan.arcs.map((arc) => ({ ...arc, stories: [...arc.stories] })),
@@ -364,13 +383,13 @@ export class HealthRecord {
     const recorded = new Map((await this.#records.list("capability")).map(({ id, createdAt }) => [id, createdAt]));
     const marks = new Map((await this.#records.list("health")).filter(({ id }) => id.endsWith(PENDING)).map((record) => [record.fields.node, record]));
     return (await this.annotate()).stories
-      .flatMap((story) => story.capabilities.flatMap(({ id, title, status, why, contracts }) => {
+      .flatMap((story) => story.capabilities.flatMap(({ id, title, status, why, contracts, unclaimed }) => {
         if (why === undefined || routed.has(id)) return [];
         const verified = new Map(contracts.map((contract) => [contract.id, contract.health.verified]));
         const carrying = why.contracts.map((id) => verified.get(id));
         const waits = waitingOn(why.contracts.map((id) => ({ mark: marks.get(id), verified: verified.get(id) })), now) ?? waitingOnMerge(changed.get(story.id), carrying, now) ?? waitingOnNamed(named, why, contracts);
         const contractsPass = status === "proposed" && contracts.length > 0 && contracts.every((contract) => contract.health.verified.state === "passing");
-        const failure = why.reason === "failing" ? carrying[0]?.note : undefined;
+        const failure = why.reason === "failing" ? (carrying[0] ?? unclaimed)?.note : undefined;
         return [{ capability: id, title, story: story.id, status, why, since: why.since ?? recorded.get(id) ?? "", ...(waits === undefined ? {} : { waits }), ...(contractsPass ? { contractsPass } : {}), ...(failure === undefined ? {} : { failure }) }];
       }))
       .sort((a, b) => (a.since < b.since ? -1 : a.since > b.since ? 1 : 0));
@@ -386,12 +405,17 @@ export class HealthRecord {
     if (target?.type !== "contract") {
       throw new MissingReferenceError("node", contractId, "contract", target?.type, target === null ? undefined : ROLLED_UP[target.type]);
     }
+    return this.#save(column, contractId, state, options, kept);
+  }
+
+  /** Save the entry as the record of node `nodeId`'s column (or its pending mark, or a capability's unclaimed reading), checked inside the write. */
+  async #save(column: HealthColumnName, nodeId: string, state: HealthState, options: HealthOptions, kept: HealthColumnName | "pending" | "unclaimed"): Promise<HealthEntry> {
     const { by, note, skip, was, source } = options;
     const actor = options.actor ?? by;
     const record = await this.#records.create(
       "health",
       {
-        node: contractId,
+        node: nodeId,
         column,
         state,
         ...(by === undefined ? {} : { by }),
@@ -400,7 +424,7 @@ export class HealthRecord {
         ...(was === undefined ? {} : { was: was.state, wasAt: was.at }),
         ...(source === undefined ? {} : { source }),
       },
-      { id: healthId(contractId, kept), ...(actor === undefined ? {} : { actor }), ...(options.signal === undefined ? {} : { signal: options.signal }) },
+      { id: healthId(nodeId, kept), ...(actor === undefined ? {} : { actor }), ...(options.signal === undefined ? {} : { signal: options.signal }) },
     );
     return entryOf(record.fields, record.updatedAt);
   }
@@ -422,7 +446,7 @@ export class HealthRecord {
 }
 
 /** The id of the record holding a contract's column, one record per contract and column, or its pending mark. */
-function healthId(contractId: string, column: HealthColumnName | "pending"): string {
+function healthId(contractId: string, column: HealthColumnName | "pending" | "unclaimed"): string {
   return `health_${contractId}_${column}`;
 }
 
@@ -479,12 +503,23 @@ function columnOf(record: SchemaRecord<"health"> | undefined): HealthColumn {
   return entry;
 }
 
-/** The health rolled up, column by column, from the health of some contracts. */
-function rolledUp(contracts: readonly NodeHealth[]): NodeHealth {
+/** The health rolled up, column by column, from the health of some contracts and, in the verified column, the readings `own` of tests no contract claims. */
+function rolledUp(contracts: readonly NodeHealth[], own: readonly HealthState[] = []): NodeHealth {
   return {
     reported: rollUp(contracts.map((health) => health.reported.state)),
-    verified: rollUp(contracts.map((health) => health.verified.state)),
+    verified: rollUp([...contracts.map((health) => health.verified.state), ...own]),
   };
+}
+
+/** A capability's reading of the tests no contract claims, as its record leaves it, or undefined when it has none. */
+function unclaimedOf(capabilityId: string, entries: ReadonlyMap<string, SchemaRecord<"health">>): HealthColumn | undefined {
+  const record = entries.get(healthId(capabilityId, "unclaimed"));
+  return record === undefined ? undefined : columnOf(record);
+}
+
+/** The state such a reading adds to a roll-up: none when there is no reading or it is not-checked. */
+function counted(unclaimed: HealthColumn | undefined): HealthState[] {
+  return unclaimed === undefined || unclaimed.state === "not-checked" ? [] : [unclaimed.state];
 }
 
 /** Failing if any state is failing; passing only if there is at least one and all are passing; otherwise not-checked. */

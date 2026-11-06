@@ -1,5 +1,5 @@
 /**
- * Capability 7 · Instructions, the habits card: one test per contract 7.1-7.3, 7.5 and 7.8 to 7.16 in
+ * Capability 7 · Instructions, the habits card: one test per contract 7.1-7.3, 7.5 and 7.8 to 7.17 in
  * the MCP server story. The card names each tool in backticks, and uses backticks for nothing
  * else, so the tools it teaches are exactly the backticked words in it. Whether real agents follow
  * it is the app setup's setup check.
@@ -235,6 +235,19 @@ test("7.16 the card handed at session start says to park and claim a change's in
       `one increment with a one-line objective on this project's standing small-fixes arc "${SMALL_FIXES_ARC}"`,
       "no new story, capability or contract",
       "anything bigger goes on an arc of its own",
+    ]) assert.ok(served.includes(said), `the served card lacks: ${said}`);
+  } finally {
+    await session.close();
+  }
+});
+
+test("7.17 the card handed at session start says the packages/<story> layout is for new stories, and that an existing repository's code is drawn in place once `import_project` maps it (regression: an agent on an unimported flat repository told the user the map could not draw it, 2026-11-06)", async () => {
+  const session = await sessionStart();
+  try {
+    const served = session.client.getInstructions() ?? "";
+    for (const said of [
+      "This is the layout for new stories",
+      "An existing repository's code, whatever its layout, is drawn where it is once `import_project` maps it",
     ]) assert.ok(served.includes(said), `the served card lacks: ${said}`);
   } finally {
     await session.close();

@@ -8,7 +8,7 @@ import type { AnnotatedTree, Change } from "@storytree/library";
 import { globeFraming, globeHover, isGlobeDrag, markerSpot, pickGlobe, pickIsland } from "./planet-navigation.js";
 import { sheetLayout, sheetMarkers } from "./sheet-navigation.js";
 import { sheetPoint } from "@storytree/forest-world/planet";
-import { lightTerritories, MAPPED_FILL, territoryLand, WORD_FILL } from "./territory-land.js";
+import { lightTerritories, MAPPED_FILL, PARKED_FILL, territoryLand, WORD_FILL } from "./territory-land.js";
 import type { CapabilityWord } from "@storytree/forest-world/scene";
 import { ClaimMarks } from "./claim-flag.js";
 import { territories } from "../territories/territories.js";
@@ -362,14 +362,15 @@ test("3.50 a mapped island draws each explored capability as a territory of its 
   const health = { reported: { state: "not-checked" as const }, verified: { state: "not-checked" as const } };
   const explored = (id: string, title: string, status: CapabilityWord, covers: string[]) => ({ id, title, description: `${title}, explored`, dependsOn: [], proposed: status === "proposed", status, contracts: [], health, covers });
   const tree: AnnotatedTree = { arcs: [], stories: [{ id: "app", title: "app", health, mapped: { from: "/code/app", package: ".", folders: ["."] },
-    capabilities: [explored("stats", "1 · Stats page", "healthy", ["app/stats", "lib/stats.ts"]), explored("cart", "2 · Cart", "unhealthy", ["app/cart"]), explored("help", "3 · Help", "untested", ["app/help"]), explored("empty", "4 · Not found yet", "proposed", ["app/gone"])] }] };
-  const files = [{ path: "app/stats/page.tsx", lines: 300, capability: "stats" }, { path: "lib/stats.ts", lines: 100, capability: "stats" }, { path: "app/cart/page.tsx", lines: 200, capability: "cart" }, { path: "app/help/page.tsx", lines: 100, capability: "help" }, { path: "app/home.tsx", lines: 1_300 }];
+    capabilities: [explored("stats", "1 · Stats page", "healthy", ["app/stats", "lib/stats.ts"]), explored("cart", "2 · Cart", "unhealthy", ["app/cart"]), explored("help", "3 · Help", "untested", ["app/help"]), explored("empty", "4 · Not found yet", "proposed", ["app/gone"]), { ...explored("later", "5 · Later", "proposed", ["app/later"]), parkedOn: [{ arc: "arc-1", title: "Later" }] }] }] };
+  const files = [{ path: "app/stats/page.tsx", lines: 300, capability: "stats" }, { path: "lib/stats.ts", lines: 100, capability: "stats" }, { path: "app/cart/page.tsx", lines: 200, capability: "cart" }, { path: "app/help/page.tsx", lines: 100, capability: "help" }, { path: "app/later/page.tsx", lines: 100, capability: "later" }, { path: "app/home.tsx", lines: 1_200 }];
   const island = forestScene(tree, [], workStates([]), { app: { files, imports: [], mapped: { folder: "/code/app" } } }).islands[0]!;
   assert.deepEqual(island.land, { territories: [
     { capability: "stats", title: "1 · Stats page", description: "1 · Stats page, explored", status: "healthy", mapped: true, lines: 400 },
     { capability: "cart", title: "2 · Cart", description: "2 · Cart, explored", status: "unhealthy", mapped: true, lines: 200 },
     { capability: "help", title: "3 · Help", description: "3 · Help, explored", status: "untested", mapped: true, lines: 100 },
-    { mapped: true, lines: 1_300 },
+    { capability: "later", title: "5 · Later", description: "5 · Later, explored", status: "proposed", parked: true, mapped: true, lines: 100 },
+    { mapped: true, lines: 1_200 },
   ], files: [] }, "a territory per explored capability with code, carrying its word, then the unexplored rest, all mapped, and no file circles");
   assert.equal(island.area, 3_000, "the island's land still follows all its lines");
   const whole = forestScene({ ...tree, stories: [{ ...tree.stories[0]!, capabilities: [] }] }, [], workStates([]), { app: { files: files.map(({ path, lines }) => ({ path, lines })), imports: [], mapped: { folder: "/code/app" } } }).islands[0]!;
@@ -383,11 +384,12 @@ test("3.50 a mapped island draws each explored capability as a territory of its 
   assert.ok(colour("territory:stats").equals(new Color(WORD_FILL.healthy.colour)), "verified passing: green");
   assert.ok(colour("territory:cart").equals(new Color(WORD_FILL.unhealthy.colour)), "a verified failure: red");
   assert.ok(colour("territory:help").equals(new Color(WORD_FILL.proposed.colour)), "no tests tied: yellow, as proposed");
+  assert.ok(colour("territory:later").equals(new Color(PARKED_FILL.colour)), "parked on purpose: grey, as on any island");
   assert.ok(colour("territory:mapped").equals(new Color(MAPPED_FILL.colour)), "the unexplored rest stays brown");
-  for (const name of ["territory:stats", "territory:cart", "territory:help"]) assert.ok(!colour(name).equals(colour("territory:mapped")), `${name} is not brown`);
+  for (const name of ["territory:stats", "territory:cart", "territory:help", "territory:later"]) assert.ok(!colour(name).equals(colour("territory:mapped")), `${name} is not brown`);
   const cellsOf = (at: number) => map.cells.filter(({ territory }) => territory === at).length;
-  assert.ok([0, 1, 2, 3].every((at) => cellsOf(at) > 0), "each has its own land");
-  assert.ok(map.cells.every(({ territory }) => territory >= 0 && territory <= 3), "and every cell is one territory's: none drawn over another");
+  assert.ok([0, 1, 2, 3, 4].every((at) => cellsOf(at) > 0), "each has its own land");
+  assert.ok(map.cells.every(({ territory }) => territory >= 0 && territory <= 4), "and every cell is one territory's: none drawn over another");
   assert.ok(map.borders.length > 0, "a border runs between them");
   assert.equal(drawn.getObjectByName("territory-hatch:unclaimed"), undefined, "never hatched");
 });

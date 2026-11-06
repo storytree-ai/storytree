@@ -896,6 +896,31 @@ test("12.5 set_up_project tells the user in one line to commit the .storytree fo
   });
 });
 
+test("12.10 · set_up_project has the agent tell the user once that storytree set up a library for the project and what it captures, with no consent step; joining a project set up elsewhere says none of it", async () => {
+  const [fresh, factory] = [uniqueProjectName(), uniqueProjectName()];
+  await withTempDir(async (dir) => {
+    const home = throwawayHome(dir);
+    const setup = { dataDir: path.join(home.storytreeHome, "pgdata"), setup: { ...ANSWERED, homes: home.homes, storytreeHome: home.storytreeHome, factory } };
+    try {
+      const folder = path.join(dir, fresh);
+      mkdirSync(folder);
+      await withAgent(folder, claudeCode(`claude-${fresh}`, setup), async (agent) => {
+        const setUp = await agent.call("set_up_project", { name: fresh });
+        assert.equal(setUp.isError, false, setUp.text);
+        assert.match(setUp.text, /Tell the user once, plainly, that storytree has set up a library for this project/);
+        assert.match(setUp.text, /every session's transcript/);
+      });
+      await withAgent(folder, claudeCode(`claude-${fresh}-join`, setup), async (agent) => {
+        const joined = await agent.call("set_up_project", { name: fresh, join: true });
+        assert.equal(joined.isError, false, joined.text);
+        assert.doesNotMatch(joined.text, /has set up a library for this project/, "a joined project's library was set up before");
+      });
+    } finally {
+      await dropTestProjects([fresh, factory]);
+    }
+  });
+});
+
 test("12.7 · set_up_project on a folder whose code is only in languages the map cannot read says so in one sentence, naming them and what it reads, and what still works; a folder with code it reads hears none of it", async () => {
   const [other, readable, factory] = [uniqueProjectName(), uniqueProjectName(), uniqueProjectName()];
   await withTempDir(async (dir) => {

@@ -6,7 +6,7 @@
  * drawn by the planet (capability 4 · The planet), are `at: "sea"`.
  */
 import { SEA_LANE } from "@storytree/forest-world/geometry";
-import { GROUND, LIT, POST, QUIET_BORDER, ROAD } from "./island-roads.js";
+import { GROUND, LIT, PORTAL, POST, QUIET_BORDER, ROAD } from "./island-roads.js";
 import { OPEN_WORK } from "./open-work.js";
 import { GLYPHS, SYMBOL_INK, type Kind } from "./settlement-symbols.js";
 import { MAPPED_FILL, PARKED_FILL, UNCHARTED_FILL, UNCHARTED_HATCH, WORD_FILL } from "./territory-land.js";
@@ -59,9 +59,14 @@ export const MAP_LEGEND: readonly LegendEntry[] = [
     draws: ["road", "road-junction"],
   },
   {
-    words: "gate: where a road crosses a border, a post either side; taller posts at the entrance its links arrive by; a shared road passes one gate",
+    words: "gate: one between each two linked capabilities, where the road enters the one depended on, a post either side; links whose gates stand together share one; click it for the pair it joins",
     mark: svg("0 -2 26 18", `<path d="M13 -2V1M13 12V16" stroke="${QUIET_BORDER.colour}" />${band(ROAD.colour, 2)}${post(11.2, 1)}${post(11.2, 9.4)}`),
     draws: ["gate-post", "gate-face", "gate-shadow"],
+  },
+  {
+    words: "tunnel: a road that must cross a third territory goes under it, an arched portal at each end; click a portal for the links it carries",
+    mark: svg("0 0 26 14", `${band(ROAD.colour, 2).replace("M1 7H25", "M1 12H9")}<path d="M8 13V8A5 5 0 0 1 18 8V13Z" fill="${PORTAL.mouth}" stroke="${PORTAL.stone}" stroke-width="1.6" />`),
+    draws: ["tunnel-portal", "tunnel-mouth"],
   },
   {
     words: "settlement, where a territory's roads meet, drawn as what it is, larger where more roads meet:",

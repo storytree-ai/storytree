@@ -4,6 +4,7 @@
 // node --import tsx packages/agent-pool/src/launch.mjs ready [project] [--drained] (as JSON: engines running, the cap, the lanes folder and the work the pool would start now, from every project it serves or the one named)
 // node --import tsx packages/agent-pool/src/launch.mjs probe [checkout]  (whether the library and GitHub answer from the checkout, naming each refusal; exit 1 on one)
 // node --import tsx packages/agent-pool/src/launch.mjs stop               (ends the dispatcher pool.pid names, if it is one)
+// node --import tsx packages/agent-pool/src/launch.mjs cloud              (the cloud overflow trial's switch, counts and lanes, ADR-1264)
 import { execFile, execFileSync, spawn } from "node:child_process";
 import { appendFileSync, existsSync } from "node:fs";
 import { readFile, rm, writeFile } from "node:fs/promises";
@@ -16,6 +17,7 @@ import { promisify } from "node:util";
 import { laneSettings } from "./engine.mjs";
 import { blind, pickPlan, pickPool, planState, readOnly, surveyLibrary, surveyProjects } from "./feed.mjs";
 import { codeVersion, composeBrief, countEngines, localBrief, ENGINE_SLOTS, holdRunner, processTable, reserveSlot, runningLanes, withLockFile, WINDOWS_PROCESSES } from "./queue.mjs";
+import { cloudCounts, cloudOverflow, cloudSecrets } from "./cloud.mjs";
 import { refusals, runLane as runEngineLane, SIGNALED } from "./runner.mjs";
 import { readBoxPace } from "./pace.mjs";
 import { poolConfig, readCap } from "./pool-config.mjs";
@@ -157,10 +159,13 @@ export async function laneOnce({ increment, project, brief, log, err, addDirs, r
  * A `machineOnly` dispatcher takes only work tagged to its machine and starts no planning session (ADR-1179 D2).
  * The lanes already running on the machine (`lanes`, an earlier dispatcher's that ran on past its stop) are
  * never started again, claimed or not, until their engines end; an unread process table reads as none.
+ * With `cloud` (cloud.mjs, ADR-1264), a look the box's saturation holds back surveys for the cloud overflow while it
+ * `wants` a fire, at most once every `idleMs`, and lets it fire for eligible ready work; every survey's live cloud lanes
+ * are running work the box never starts meanwhile.
  */
 export async function runPool({ survey, maxLanes, count, launch, stopFile, lanes = async () => [], exists = async (path) => existsSync(path),
   plans = { load: async () => new Map(), save: async () => {} }, codeVersion = async () => undefined, refresh = async () => {}, pace = async () => undefined,
-  sleep = (ms, options) => wait(ms, undefined, options), intervalMs = 15 * 60_000, idleMs = 2 * 60_000, pollMs = 60_000, now = Date.now, say = console.log, machineOnly = false }) {
+  sleep = (ms, options) => wait(ms, undefined, options), intervalMs = 15 * 60_000, idleMs = 2 * 60_000, pollMs = 60_000, now = Date.now, say = console.log, machineOnly = false, cloud }) {
   const dated = (message) => say(`${stamp(now)} ${message}`);
   const attempts = new Map(), running = new Map(), starting = new Set(), refused = new Map();
   const planned = await plans.load();
@@ -207,6 +212,17 @@ export async function runPool({ survey, maxLanes, count, launch, stopFile, lanes
     if (key !== paceKey) { paceKey = key; dated(line); }
     return held;
   };
+  // The cloud overflow (ADR-1264): its live lanes from a survey, and, while the box is held back, its fires; neither failing stops the pool.
+  const cloudLive = async (found) => (cloud ? cloud.live(found).catch((error) => { dated(`cloud lanes unread (${String(error.message).split("\n")[0]})`); return []; }) : []);
+  let spilled = -Infinity;
+  const spill = async () => {
+    if (!cloud || machineOnly || now() - spilled < idleMs || !await cloud.wants().catch(() => false)) return;
+    spilled = now();
+    try {
+      const found = await survey();
+      await cloud.overflow(found, { attempts, running: [...new Set([...running.keys(), ...await lanes().catch(() => [])])] });
+    } catch (error) { dated(`cloud overflow skipped (${String(error.message).split("\n")[0]})`); }
+  };
   const pause = async (ms) => {
     const look = new AbortController();
     await Promise.race([change, Promise.resolve(sleep(ms, { signal: look.signal })).catch(() => {})]);
@@ -223,7 +239,7 @@ export async function runPool({ survey, maxLanes, count, launch, stopFile, lanes
     }
     const cap = await maxLanes();
     let free = cap - await count() - starting.size;
-    if (free > 0 && await paced()) free = 0;
+    if (free > 0 && await paced()) { free = 0; await spill(); }
     if (free <= 0) { await pause(pollMs); continue; }
     // A slot just freed: read the version again, since a read begun before that session ended may predate its merge.
     if (await codeChanged()) continue;
@@ -235,7 +251,7 @@ export async function runPool({ survey, maxLanes, count, launch, stopFile, lanes
       await pause(intervalMs);
       continue;
     }
-    const { picks, skipped } = pickPool(found, { attempts, running: [...new Set([...running.keys(), ...await lanes().catch(() => [])])], max: free, machineOnly });
+    const { picks, skipped } = pickPool(found, { attempts, running: [...new Set([...running.keys(), ...await lanes().catch(() => []), ...await cloudLive(found)])], max: free, machineOnly });
     for (const [id, attempt] of attempts) {
       if (attempt.refusedBy && refused.get(id) !== attempt.refusedBy) { refused.set(id, attempt.refusedBy); dated(`refused ${id}: claimed by live session ${attempt.refusedBy}; retried once that claim clears`); }
     }
@@ -334,7 +350,7 @@ function boxDefaults({ home = homedir(), env = process.env } = {}) {
   // Lanes work from the main worktree, where make_workspace cuts theirs; the dispatcher updates its own checkout.
   const laneRepo = mainCheckout(repo);
   return {
-    lanesDir, repo, laneRepo, addDirs, sessionsDir, stopAt, machineOnly: config.machineOnly, briefPaths: { checkout: laneRepo, lanes: lanesDir }, briefsDir: config.briefsDir,
+    lanesDir, repo, laneRepo, addDirs, sessionsDir, stopAt, machineOnly: config.machineOnly, cloudConfig: config.cloud, secretsFile: join(home, ".storytree", "secrets.json"), briefPaths: { checkout: laneRepo, lanes: lanesDir }, briefsDir: config.briefsDir,
     configFile: config.file, projects: () => poolConfig({ home, env }).projects,
     maxLanes: () => readCap({ lanesDir, sessions: fresh().sessions }),
     count: async () => countEngines(await processes()),
@@ -382,7 +398,8 @@ export async function main(args, box = {}) {
   if (args[0] === "ready") return ready(b, args[1], { drained: args.includes("--drained") });
   if (args[0] === "probe") return probe(b, args[1] ?? process.cwd());
   if (args[0] === "stop") return stop(b);
-  (b.out ?? console.error)("usage: launch.mjs pool | slots | ready [project] [--drained] | probe [checkout] | stop");
+  if (args[0] === "cloud") return cloudReadout(b);
+  (b.out ?? console.error)("usage: launch.mjs pool | slots | ready [project] [--drained] | probe [checkout] | stop | cloud");
   return 2;
 }
 
@@ -393,6 +410,17 @@ async function probe(b, checkout) {
   for (const one of refused) out(`refused: ${one}`);
   if (!refused.length) out(`the library and GitHub answer from ${checkout}`);
   return refused.length ? 1 : 0;
+}
+
+/** `cloud`: the cloud overflow trial's readout from pool-cloud.json (ADR-1264): its switch, its counts, and each lane fired with its state. */
+async function cloudReadout(b) {
+  const out = b.out ?? console.log;
+  const ledger = JSON.parse(await readFile(join(b.lanesDir, "pool-cloud.json"), "utf8").catch(() => "{}") || "{}");
+  const config = b.cloudConfig ?? { enabled: false, cap: 2 };
+  out(`cloud overflow ${config.enabled ? `on, cap ${config.cap}` : "off"}`);
+  out(cloudCounts(ledger));
+  for (const lane of ledger.lanes ?? []) out(`  ${lane.increment}  ${lane.state}  fired ${lane.at}  ${lane.url ?? lane.session}${lane.why ? `  (${lane.why})` : ""}`);
+  return 0;
 }
 
 /** `stop`: ends the dispatcher pool.pid names, only while that pid runs `launch.mjs pool` (as holdRunner judges), so a reused pid is left alone. */
@@ -437,7 +465,9 @@ async function pool(b) {
   // A lane starts in its project's checkout (the main worktree, where make_workspace cuts its own); storytree's, by default, where it always has.
   const checkoutOf = (name) => { const own = projects.find((one) => one.name === name)?.checkout; return own && mainCheckout(own); };
   const code = await runPool({
-    survey, maxLanes: b.maxLanes, count: b.count, lanes: b.lanes, machineOnly: b.machineOnly, stopFile: join(L, "pool-stop"), plans: planFile(join(L, "pool-planned.json")), sleep: b.sleep, now: b.now, say,
+    survey, maxLanes: b.maxLanes, count: b.count, lanes: b.lanes, machineOnly: b.machineOnly, stopFile: join(L, "pool-stop"),
+    // The cloud overflow trial (ADR-1264), off unless the machine file switches it on; its fired lanes kept in pool-cloud.json.
+    cloud: b.cloud ?? cloudOverflow({ config: b.cloudConfig ?? { enabled: false, cap: 2 }, secrets: () => cloudSecrets(b.secretsFile), file: join(L, "pool-cloud.json"), now: b.now, say: dated }), plans: planFile(join(L, "pool-planned.json")), sleep: b.sleep, now: b.now, say,
     // A machine-only dispatcher (the laptop's) first holds for its start rule, plugged in and online (ADR-1179 D3).
     pace: async () => (b.machineOnly ? await startHold({ power: b.power, refusals: () => b.refusals() }) : undefined) ?? (b.pace ?? readBoxPace)(),
     codeVersion: b.codeVersion ?? (() => codeVersion({ repo: b.repo, config: b.configFile, live: LIVE_CONFIG })),

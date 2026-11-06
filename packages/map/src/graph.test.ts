@@ -212,3 +212,24 @@ test("3.14 focus on a mapped island's file says the island is a black box read o
   assert.equal(focus(built, { select: "story:shop" }).blackBox, undefined, "a story's focus is not a file's");
   assert.equal(focus(graph(), { select: `file:${view}` }).blackBox, undefined, "a built story's file has its imports read");
 });
+
+test("1.4 a contract no test of its story's packages proves names a test numbered for it in a dependent's package, and the shown row says it is not credited there", () => {
+  const rows = { id: "rows-persist", title: "1.2 · Rows persist", health: { ...health, verified: { state: "not-checked" } } };
+  const kept = { id: "rows-kept", title: "1.3 · Rows are kept", health };
+  const plan = { arcs: [], stories: [
+    { id: "data", title: "The data", health, capabilities: [{ ...storage, contracts: [rows, kept] }] },
+    { id: "app", title: "The app", health, capabilities: [{ ...projects, contracts: [] }] },
+    { id: "other", title: "Other", health, capabilities: [] },
+  ] } as unknown as AnnotatedTree;
+  const stray = { number: "1.2", title: "1.2 · rows persist through the app" };
+  const built = buildGraph(plan, {
+    data: { files: [], imports: [], tests: [{ kind: "test", path: "src/kept.test.ts", titles: [{ number: "1.3", title: "1.3 · rows are kept" }], imports: [] }] },
+    app: { files: [], imports: [], dependsOn: ["data"], tests: [{ kind: "test", path: "src/rows.test.ts", titles: [stray, { number: "1.3", title: "1.3 · the app's own" }], imports: [] }] },
+    other: { files: [], imports: [], tests: [{ kind: "test", path: "src/unrelated.test.ts", titles: [{ number: "1.2", title: "1.2 · an unrelated story's own" }], imports: [] }] },
+  });
+  assert.deepEqual(built.nodes.find(node => node.id === "rows-persist")?.elsewhere, [{ path: "packages/app/src/rows.test.ts", title: stray.title, prefix: "data" }]);
+  assert.equal(built.nodes.find(node => node.id === "rows-kept")?.elsewhere, undefined);
+  const shown = formatFocus(focus(built, { select: "contract:rows-persist", up: 0, mode: "show" }));
+  assert.match(shown, /not credited: test "1\.2 · rows persist through the app" in packages\/app\/src\/rows\.test\.ts sits in another story's package/);
+  assert.match(shown, /prefix its title with data/);
+});

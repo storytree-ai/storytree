@@ -645,6 +645,28 @@ test("9.13 plan_contract's reply names the capability's other contracts that no 
   });
 });
 
+test("9.28 plan_contract names a test numbered for an untested contract that sits in a dependent story's package, saying it is not credited there and how to credit it", async () => {
+  await withProject(async ({ folder }) => {
+    await withAgent(folder, claudeCode("claude-1"), async (agent) => {
+      const story = idOf(await agent.call("plan_story", { title: "Shopping cart", ...FOUNDED }));
+      idOf(await agent.call("plan_story", { title: "Checkout", ...FOUNDED }));
+      const capability = idOf(await agent.call("plan_capability", { story, title: "Adding", ...FOUNDED }));
+      for (const name of ["shopping-cart", "checkout"]) mkdirSync(path.join(folder, `packages/${name}/src`), { recursive: true });
+      writeFileSync(path.join(folder, "packages/shopping-cart/package.json"), JSON.stringify({ name: "shopping-cart" }));
+      writeFileSync(path.join(folder, "packages/shopping-cart/src/cart.js"), "export const add = 1;\n");
+      writeFileSync(path.join(folder, "packages/checkout/package.json"), JSON.stringify({ name: "checkout", dependencies: { "shopping-cart": "workspace:*" } }));
+      writeFileSync(path.join(folder, "packages/checkout/src/checkout.test.js"), 'import { test } from "node:test";\nimport { add } from "shopping-cart";\ntest("1.1 · adds an item through checkout", () => add);\n');
+      await agent.call("plan_contract", { capability, title: "1.1 · Adds an item" });
+
+      const planned = await agent.call("plan_contract", { capability, title: "Removes an item" });
+      assert.equal(planned.isError, false, planned.text);
+      assert.match(planned.text, /test "1\.1 · adds an item through checkout" in packages\/checkout\/src\/checkout\.test\.js sits in another story's package/, planned.text);
+      assert.match(planned.text, /prefix its title with shopping-cart/, planned.text);
+      assert.deepEqual(planned.data.elsewhere, { "1.1 · Adds an item": [{ path: "packages/checkout/src/checkout.test.js", title: "1.1 · adds an item through checkout", prefix: "shopping-cart" }] });
+    });
+  });
+});
+
 test("9.10 plan_contract plans a contract whose title runs past 300 characters, adding an advisory line that quotes the card's definition of a contract; a shorter title gets none", async () => {
   await withProject(async ({ folder }) => {
     await withAgent(folder, claudeCode("claude-1"), async (agent) => {

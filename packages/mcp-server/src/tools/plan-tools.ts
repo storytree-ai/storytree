@@ -8,6 +8,8 @@ import { z } from "zod";
 
 import { editPlanRecord, heldPending, heldSaid, holdPlanChange } from "@storytree/library/commands";
 import { unimportedPackages, unimportedSentence } from "@storytree/app-setup/project";
+import { elsewhereSaid, type MapNode } from "@storytree/map";
+import { readMap } from "@storytree/map/read";
 import { storyTests, SURVEYED_LANGUAGES, testedNumbers as testedNumbersIn, untestedContracts } from "@storytree/map/code-survey";
 import { readClaims } from "@storytree/session-management";
 import { readSessions } from "@storytree/session-management";
@@ -108,7 +110,7 @@ export function registerPlanTools(define: Define): void {
 
   define(
     "plan_contract",
-    "Plan a contract: one testable guarantee a capability makes. Leave its number off the title: it is given the capability's next free one, past the numbers its contracts and its story package's numbered tests carry, even a test no contract carries yet, since that test may prove another contract; the reply names those tests, so when this contract is the one a test proves you give that number in the title. It also names the capability's other contracts no numbered test carries yet, planned but not built: build one of those rather than plan it again. A number another contract of the capability carries is refused. Write its test, see it fail, and report it red. On a mapped story, as you map each capability, plan a contract for what each of its existing tests checks, naming that test in proved_by and no number in its title: the repository's own tests then prove their contracts as they stand, so never rename or edit them.",
+    "Plan a contract: one testable guarantee a capability makes. Leave its number off the title: it is given the capability's next free one, past the numbers its contracts and its story package's numbered tests carry, even a test no contract carries yet, since that test may prove another contract; the reply names those tests, so when this contract is the one a test proves you give that number in the title. It also names the capability's other contracts no numbered test carries yet, planned but not built: build one of those rather than plan it again, and a test numbered for one that sits in another story's package, which credits that package's story, not this one. A number another contract of the capability carries is refused. Write its test, see it fail, and report it red. On a mapped story, as you map each capability, plan a contract for what each of its existing tests checks, naming that test in proved_by and no number in its title: the repository's own tests then prove their contracts as they stand, so never rename or edit them.",
     z.object({ capability: id("capability it belongs to"), title, description, proved_by: provedBy }),
     async ({ capability, title: name, description: about, proved_by: proved }, call) => {
       const tree = await call.library.projectTree();
@@ -118,13 +120,15 @@ export function registerPlanTools(define: Define): void {
       const named = orphans.length === 0 ? "" : ` Numbered ${orphans.length === 1 ? `test ${orphans[0]} has` : `tests ${orphans.slice(0, -1).join(", ")} and ${orphans.at(-1)} have`} no contract: if this contract is the one ${orphans.length === 1 ? "it proves" : "one proves"}, give it that number with edit_plan.`;
       const untested = untestedContracts(tree, capability, tested);
       const open = untested.length === 0 ? "" : ` No numbered test carries ${untested.length === 1 ? "this other contract" : `these ${untested.length} other contracts`} of the capability yet, planned but not built: ${untested.map(quoted).join(", ")}. If this contract repeats one of them, retire it and build that one.`;
+      const elsewhere = await testsElsewhere(call, capability, untested);
+      const strays = Object.entries(elsewhere).map(([title, tests]) => ` ${quoted(title)}: ${tests.map(elsewhereSaid).join("; ")}.`).join("");
       const long = contract.fields.title.length > LONG_CONTRACT;
       const advice = long ? ` Its title runs past ${LONG_CONTRACT} characters, which often means more than one contract: ${CONTRACT_DEFINITION} Split it with edit_plan and plan_contract if so.` : "";
       // A contract its existing tests prove asks for no test: their results credit it when the project's tests next run (9.27).
       const build = proved === undefined
         ? " Write its test, see it fail, and report it red."
         : ` ${proved.length === 1 ? proved[0] : `${proved.slice(0, -1).join(", ")} and ${proved.at(-1)}`} already ${proved.length === 1 ? "exists" : "exist"}, so write no test for it: ${proved.length === 1 ? "its result credits" : "their results credit"} it at the project's next test run, \`storytree health local\` in your shell.`;
-      return { text: `Planned contract ${quoted(contract.fields.title)} (${contract.id}).${named}${open}${advice}${build}`, data: { id: contract.id, orphans, untested, long } };
+      return { text: `Planned contract ${quoted(contract.fields.title)} (${contract.id}).${named}${open}${strays}${advice}${build}`, data: { id: contract.id, orphans, untested, long, ...(strays === "" ? {} : { elsewhere }) } };
     },
   );
 
@@ -401,6 +405,17 @@ async function orphanTests({ library }: Call, capability: string, title: string,
   const carried = new Set(contracts.map((contract) => /^(\d+\.\d+) · /.exec(contract.title)?.[1]));
   const own = [...new Set(tested)].filter((number) => number.startsWith(`${prefix}.`) && !carried.has(number));
   return own.sort((a, b) => Number(a.slice(prefix.length + 1)) - Number(b.slice(prefix.length + 1)));
+}
+
+/**
+ * The tests numbered for each of `untested`, `capability`'s contracts no test of its story's packages proves, that sit in a
+ * dependent story's package, as the map reads the checkout the session works in; none to read when nothing is untested.
+ */
+async function testsElsewhere({ library, folder }: Call, capability: string, untested: readonly string[]): Promise<Record<string, NonNullable<MapNode["elsewhere"]>>> {
+  if (untested.length === 0) return {};
+  const graph = await readMap(library, folder);
+  const ids = new Set(graph.edges.filter((edge) => edge.kind === "belongs-to" && edge.to === capability).map((edge) => edge.from));
+  return Object.fromEntries(graph.nodes.filter((node) => ids.has(node.id) && untested.includes(node.title) && node.elsewhere !== undefined).map((node) => [node.title, node.elsewhere!]));
 }
 
 /** `fields` without the ones that are undefined: the library's inputs take no undefined values. */

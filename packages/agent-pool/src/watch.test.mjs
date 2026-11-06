@@ -1253,6 +1253,17 @@ test("4.40 · forget sets every pull request's record aside into a dated folder,
   assert.deepEqual(await forget({ dir: b.dir }), { prs: [] }, "a second forget finds none");
 });
 
+test("4.37 · a review's verdict decides only while the fix sessions are spent: a conflict, which allows one more, gets a fix session instead", async (t) => {
+  const b = await box(t);
+  await handOff(b);
+  b.looks[41] = red;
+  for (let round = 0; round < 3; round++) { await watchOnce(b.options); b.live.clear(); }
+  await recordVerdict({ dir: b.dir, pr: 41, kind: "flake", summary: "random timing on a loaded runner" });
+  b.looks[41] = { ...red, why: "it conflicts with main", conflict: true };
+  await watchOnce(b.options);
+  assert.equal(b.fixes.length, 3, "the conflict's own fix session, not the review's retry");
+});
+
 test("4.41 · a failed code-scanning or secret check is a security red, whatever else failed or conflicts, naming only those checks and no log; any other failure stays an ordinary red", () => {
   const options = { since: minutes(-60), now: at, graceMs: 10 * 60_000 };
   const scan = (name) => ({ ...failed, name, detailsUrl: "https://ci/scan/1" });

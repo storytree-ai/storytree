@@ -10,8 +10,9 @@
  * - Each road ends at its territory's settlement: a clear spot beside its name toward the roads it meets, its whole
  *   symbol (3.4, 4.0 or 4.7 across by the roads meeting there) kept off every name and back from every border and the coast
  *   (3.79, polish round 1).
- * - A gate wherever a road crosses a border, one for the links a shared road carries through it; each link's own
- *   entrance is the gate where it last enters the territory it calls (the way out: where it first leaves its own).
+ * - One gate per link (ADR-1253 D3): where it last enters the territory it calls (the way out: where it first leaves its
+ *   own), so a pair of neighbours' on their shared border; links whose gates stand together share one. Any other crossing
+ *   is open road, and a road under a third territory is in a tunnel: not drawn there, a portal at each end.
  */
 import { LIBRARY_LAND, ontoCoast, openReach, type Link, type LinkDock } from "./link-layout.js";
 import { landArea, type Coast, type Point, type TerritoryMap } from "./territories.js";
@@ -21,12 +22,18 @@ import { TERRITORY_WORKER_META } from "./kept-layout.js";
 
 /** A road segment: its way, the links it carries, and its width by how many (1, 2-3, 4-7, 8 or more). */
 export type RoadSegment = { readonly pts: readonly Point[]; readonly links: readonly string[]; readonly width: number };
-/** A gate: where a road crosses a border, the border's direction there, the links through it, the links that enter by it
- * (whose entrance it is, 3.81), and the opening cut in it. */
-export type RoadGate = { readonly at: Point; readonly along: Point; readonly links: readonly string[]; readonly entrance: boolean; readonly entrances: readonly string[]; readonly opening: number };
+/** A gate: one per linked pair (ADR-1253 D3), where its road enters the capability depended on (a way out's: where it
+ * leaves its own), the border's direction there, the links on the road through it, the links whose gate it is (a few
+ * where their gates stand together, 3.81), and the opening cut in it. */
+export type RoadGate = { readonly at: Point; readonly along: Point; readonly links: readonly string[]; readonly entrances: readonly string[]; readonly opening: number };
+/** Open road: where a road crosses a border with no gate (leaving the territory that depends), its opening cut the same. */
+export type RoadPass = { readonly at: Point; readonly along: Point; readonly links: readonly string[]; readonly opening: number };
+/** A tunnel's portal: where a road goes under a third territory, or comes out from under it (ADR-1253 D3), on that
+ * territory's border, `into` toward the land it passes under, the links it carries, and its mouth's width. */
+export type RoadPortal = { readonly at: Point; readonly along: Point; readonly into: Point; readonly links: readonly string[]; readonly width: number };
 /** A settlement: where it stands, how many roads meet there, and its symbol's size across. */
 export type Settlement = { readonly at: Point; readonly roads: number; readonly size: number };
-export type IslandRoads = { readonly segments: readonly RoadSegment[]; readonly junctions: readonly { at: Point; width: number }[]; readonly gates: readonly RoadGate[]; readonly towns: ReadonlyMap<string, Point>; readonly settlements: ReadonlyMap<string, Settlement> };
+export type IslandRoads = { readonly segments: readonly RoadSegment[]; readonly junctions: readonly { at: Point; width: number }[]; readonly gates: readonly RoadGate[]; readonly passes: readonly RoadPass[]; readonly portals: readonly RoadPortal[]; readonly towns: ReadonlyMap<string, Point>; readonly settlements: ReadonlyMap<string, Settlement> };
 /** A capability's name on the island, where the map writes it. */
 export type NameAnchor = { readonly capability: string; readonly title: string; readonly x: number; readonly z: number };
 
@@ -208,7 +215,7 @@ export function roadMeasures(map: TerritoryMap, links: readonly Link[], docks: r
 
 function route(map: TerritoryMap, links: readonly Link[], docks: readonly LinkDock[], names: readonly NameAnchor[],
   heard?: (net: Net, links: readonly NetLink[], tAt: (p: Point) => string | undefined, borders: readonly BorderSeg[]) => void): IslandRoads {
-  const empty: IslandRoads = { segments: [], junctions: [], gates: [], towns: new Map(), settlements: new Map() };
+  const empty: IslandRoads = { segments: [], junctions: [], gates: [], passes: [], portals: [], towns: new Map(), settlements: new Map() };
   const drawnCoast = map.coast;
   if (drawnCoast === undefined) return empty;
   const S = Math.sqrt(landArea(drawnCoast) / LIBRARY_LAND);
@@ -296,35 +303,91 @@ function route(map: TerritoryMap, links: readonly Link[], docks: readonly LinkDo
   });
   if (heard !== undefined) { heard(net, netLinks, tAt, borders); return empty; }
 
-  // Gates: every border a segment crosses, and each link's own entrance among them.
+  // Each road cut where it crosses a border: a stretch on land every link it carries calls neither from nor to is in a
+  // tunnel (ADR-1253 D3), a portal where it meets the land; each link's own gate where it enters the territory it calls.
+  const byKey = new Map(netLinks.map((l) => [l.key, l]));
+  const under = (t: string | undefined, keys: readonly string[]) => t !== undefined && t !== "open" && keys.every((k) => { const l = byKey.get(k)!; return t !== l.fromT && t !== l.toT; });
+  type Crossing = { p: Point; along: Point; pair: readonly [string, string]; step: number };
   const crossings = (pts: readonly Point[]) => {
-    const out: { p: Point; along: Point; pair: readonly [string, string] }[] = [];
+    const out: Crossing[] = [];
     for (let i = 0; i + 1 < pts.length; i++) {
-      const found: typeof out = [];
+      const found: Crossing[] = [];
       for (const s of borders) {
         const x = cross(pts[i]!, pts[i + 1]!, s.a, s.b);
-        if (x && ![...out, ...found].some((o) => far(o.p, x) < 0.3)) { const l = far(s.a, s.b) || 1; found.push({ p: x, along: { x: (s.b.x - s.a.x) / l, z: (s.b.z - s.a.z) / l }, pair: s.pair }); }
+        if (x && ![...out, ...found].some((o) => far(o.p, x) < 0.3)) { const l = far(s.a, s.b) || 1; found.push({ p: x, along: { x: (s.b.x - s.a.x) / l, z: (s.b.z - s.a.z) / l }, pair: s.pair, step: i }); }
       }
       out.push(...found.sort((a, b) => far(pts[i]!, a.p) - far(pts[i]!, b.p)));
     }
     return out;
   };
-  const gates = net.segments.flatMap((s) => crossings(s.pts).map((c) => ({ at: c.p, along: c.along, links: s.links, entrances: [] as string[] })));
+  const cut = net.segments.map((s) => {
+    const xs = crossings(s.pts), pieces: Point[][] = [[s.pts[0]!]];
+    let k = 0;
+    for (let i = 0; i + 1 < s.pts.length; i++) {
+      for (; k < xs.length && xs[k]!.step === i; k++) { pieces.at(-1)!.push(xs[k]!.p); pieces.push([xs[k]!.p]); }
+      pieces.at(-1)!.push(s.pts[i + 1]!);
+    }
+    const hidden = pieces.map((piece) => under(tAt(halfway(piece)), s.links));
+    return { s, xs, pieces, hidden };
+  });
+  // A tunnel starts only at a border: a road that came onto the land with a link that calls it stays on the land until it
+  // leaves, so a stretch meeting land drawn at a junction is drawn too, and so on along the stretches it meets.
+  const ends = cut.flatMap((c, j) => [{ at: c.s.pts[0]!, j, k: 0 }, { at: c.s.pts.at(-1)!, j, k: c.pieces.length - 1 }]);
+  for (let changed = true; changed;) {
+    changed = false;
+    for (const e of ends) if (cut[e.j]!.hidden[e.k] && ends.some((o) => far(o.at, e.at) < 1e-6 && !cut[o.j]!.hidden[o.k])) { cut[e.j]!.hidden[e.k] = false; changed = true; }
+  }
+  const entering = new Map<Crossing, string[]>(), all = cut.flatMap((c) => c.xs);
   for (const l of netLinks) {
     const way = crossings(net.ways.get(l.key) ?? []);
-    const entering = l.kind === "out" ? way.find((c) => c.pair.includes(l.fromT)) : [...way].reverse().find((c) => c.pair.includes(l.toT));
-    if (!entering) continue;
-    const g = gates.reduce<(typeof gates)[number] | undefined>((b, x) => (far(x.at, entering.p) < (b ? far(b.at, entering.p) : 1) ? x : b), undefined);
-    if (g) g.entrances.push(l.key);
+    const own = l.kind === "out" ? way.find((c) => c.pair.includes(l.fromT)) : [...way].reverse().find((c) => c.pair.includes(l.toT));
+    if (!own) continue;
+    const x = all.reduce<Crossing | undefined>((b, c) => (far(c.p, own.p) < (b ? far(b.p, own.p) : 1) ? c : b), undefined);
+    if (x) entering.set(x, [...entering.get(x) ?? [], l.key]);
   }
+  const opening = (links: readonly string[]) => Math.max(GATE_OPENING, widthOf(links.length) + 2) * S;
+  const segments: RoadSegment[] = [], gates: RoadGate[] = [], passes: RoadPass[] = [], portals: RoadPortal[] = [];
+  for (const { s, xs, pieces, hidden } of cut) {
+    const width = widthOf(s.links.length) * S;
+    if (!hidden.some(Boolean)) segments.push({ pts: s.pts.map((p) => times(p, S)), links: s.links, width });
+    else {
+      let run: Point[] = [];
+      pieces.forEach((piece, i) => {
+        if (!hidden[i]) run.push(...(run.length ? piece.slice(1) : piece));
+        if ((hidden[i] || i === pieces.length - 1) && run.length > 1) { segments.push({ pts: run.map((p) => times(p, S)), links: s.links, width }); run = []; }
+      });
+    }
+    xs.forEach((x, i) => {
+      const at = times(x.p, S), gated = entering.get(x);
+      if (gated !== undefined) gates.push({ at, along: x.along, links: s.links, entrances: gated.sort(), opening: opening(s.links) });
+      if (hidden[i] !== hidden[i + 1]) {
+        const n = { x: -x.along.z, z: x.along.x }, side = tAt({ x: x.p.x + n.x * 0.5, z: x.p.z + n.z * 0.5 });
+        const into = (side === tAt(halfway(pieces[hidden[i] ? i : i + 1]!))) ? n : { x: -n.x, z: -n.z };
+        portals.push({ at, along: x.along, into, links: s.links, width: opening(s.links) });
+      } else if (gated === undefined && !hidden[i]) passes.push({ at, along: x.along, links: s.links, opening: opening(s.links) });
+    });
+  }
+  const endsAt = (at: Point) => ends.filter((e) => far(e.at, at) < 1e-6);
   return {
-    segments: net.segments.map((s) => ({ pts: s.pts.map((p) => times(p, S)), links: s.links, width: widthOf(s.links.length) * S })),
-    junctions: net.junctions.map((at) => ({ at: times(at, S), width: Math.max(...net.segments.filter((s) => s.pts.some((p) => far(p, at) < 1e-6)).map((s) => widthOf(s.links.length)), WIDTHS[0]) * S })),
-    gates: gates.map((g) => ({ at: times(g.at, S), along: g.along, links: g.links, entrance: g.entrances.length > 0, entrances: g.entrances,
-      opening: Math.max(GATE_OPENING, widthOf(g.links.length) + 2) * S })),
+    segments,
+    // A junction in a tunnel is not drawn.
+    junctions: net.junctions.filter((at) => endsAt(at).some((e) => !cut[e.j]!.hidden[e.k])).map((at) => ({ at: times(at, S), width: Math.max(...endsAt(at).map((e) => widthOf(cut[e.j]!.s.links.length)), WIDTHS[0]) * S })),
+    gates, passes, portals,
     towns: scaled(towns, S),
     settlements,
   };
+}
+
+/** The point halfway along a line. */
+function halfway(pts: readonly Point[]): Point {
+  const total = pts.reduce((s, p, i) => (i ? s + far(pts[i - 1]!, p) : 0), 0);
+  let left = total / 2;
+  for (let i = 1; i < pts.length; i++) {
+    const d = far(pts[i - 1]!, pts[i]!);
+    if (d >= left && d > 0) return { x: pts[i - 1]!.x + (pts[i]!.x - pts[i - 1]!.x) * left / d, z: pts[i - 1]!.z + (pts[i]!.z - pts[i - 1]!.z) * left / d };
+    left -= d;
+  }
+  return pts[0]!;
 }
 
 const scaled = (towns: ReadonlyMap<string, Point>, S: number) => new Map([...towns].map(([id, p]) => [id, times(p, S)]));

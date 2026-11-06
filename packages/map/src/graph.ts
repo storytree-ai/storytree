@@ -77,9 +77,9 @@ export function buildGraph(tree: AnnotatedTree, survey: ProjectSurvey): ProjectG
     add({ id: story.id, kind: "story", title: story.title, story: story.id, health: story.mapped === undefined ? healthOf(story.health, healthSource) : "mapped", ...(loop === undefined ? {} : { loop }) });
     for (const cap of story.capabilities) {
       const number = /^\s*(\d+)\s*·/.exec(cap.title)?.[1];
-      // An explored capability of a mapped story has no health until it has a contract (ADR-0993 D3, D5).
-      const health = story.mapped !== undefined && cap.contracts.length === 0 ? "mapped" : healthOf(cap.health, healthSource);
-      add({ id: cap.id, kind: "capability", title: cap.title, story: story.id, health, ...(number === undefined ? {} : { number }) });
+      // An explored capability of a mapped story reads by its own health, untested (proposed) with no tests tied, as the
+      // forest draws it; only the story and its unexplored files stay mapped (ADR-0993 D3 as narrowed by question_7e73e1c75c0d).
+      add({ id: cap.id, kind: "capability", title: cap.title, story: story.id, health: healthOf(cap.health, healthSource), ...(number === undefined ? {} : { number }) });
       edge(cap.id, story.id, "belongs-to", "declared");
       for (const dependency of cap.dependsOn) edge(cap.id, dependency, "depends-on", "declared");
       for (const contract of cap.contracts) {

@@ -20,23 +20,22 @@ export interface DecisionRights {
 
 const DECISION_RIGHTS: DecisionRights = {
   decides: [
-    "a call with no trade-off (same outputs, no new dependency, no contract or user-facing change) that is reversible",
-    "a look you built, which lands with its pictures rather than as a question",
+    "a reversible call with no trade-off (same outputs, no new dependency, no contract or user-facing change)",
+    "a look you built, which lands with its pictures, not as a question",
   ],
   asks: [
-    "any call with a trade-off",
-    "choosing between designs before building",
+    "a trade-off, such as choosing between designs before building",
     "anything outward-facing",
     "anything irreversible",
     "spending money",
     "dropping or reshaping the work asked for",
   ],
   delegations:
-    "Before asking, check the owner's standing delegations (what they have already said you may decide): a kind they handed you is yours.",
+    "Before asking, check the owner's standing delegations: a kind they already handed you is yours.",
   override:
-    "The user's own instructions file (AGENTS.md, CLAUDE.md) overrides this split for any kind of decision, either way.",
+    "The user's own instructions file (AGENTS.md, CLAUDE.md) overrides this split either way.",
   honesty: [
-    "never sign off your own output (a separate agent, a judge panel or CI does)",
+    "never sign off your own output (another agent or CI does)",
     "never skip tests",
     "write the question down rather than only asking in chat",
   ],

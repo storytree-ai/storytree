@@ -9,8 +9,9 @@ name: Package the installed app
 #
 # Secrets come from the signing jobs' environment, `release` or `rehearsal`, and fall back to the repository's secret of the
 # same name while one is not set there (the caller passes those five by name, and no other secret). A new or changed secret goes into
-# `rehearsal` first; a rehearsal proves it; then the same value goes into `release` ("Changing a release secret").
-# Permissions are the caller's: a real release grants contents: write, a rehearsal only contents: read.
+# `rehearsal` first; a rehearsal proves it, started by labelling a pull request `rehearse`; then the same value goes into `release` ("Changing a release secret").
+# Permissions are the caller's: a real release grants contents: write, a rehearsal only contents: read. No job restores
+# a pnpm cache, and no caller starts on an event that could write main's cache (CodeQL's cache-poisoning check).
 on:
   workflow_call:
     inputs:
@@ -116,7 +117,6 @@ jobs:
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
         with:
           node-version-file: .node-version
-          cache: pnpm
       - run: pnpm install --frozen-lockfile
       # desktop:dist also stages each platform's bootstrap, one-liners and checksum manifest (on macOS and Linux its
       # entry, merged on publish) beside the installers; they upload with them, so first-run delivery
@@ -127,7 +127,7 @@ jobs:
       - if: matrix.check
         run: ${{ matrix.check }}
       # Every file `deliver` may upload or check (release-assets.mjs picks this platform's set).
-      # A rehearsal started by hand keeps it for a day, so one of its installers can be tried.
+      # A rehearsal keeps it for a day, so one of its installers can be tried (label a pull request `rehearse` to start one).
       - name: Keep this platform's build for delivery
         if: matrix.system != 'macOS'
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -255,7 +255,6 @@ jobs:
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
         with:
           node-version-file: .node-version
-          cache: pnpm
       - run: pnpm install --frozen-lockfile
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:

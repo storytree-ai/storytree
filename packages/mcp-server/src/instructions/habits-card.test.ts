@@ -275,8 +275,8 @@ test("7.19 · the card handed at session start says that once an imported reposi
   const session = await sessionStart();
   try {
     const served = session.client.getInstructions() ?? "";
-    assert.ok(served.includes("plan one arc that fixes its red capabilities"), "the served card asks for the one fix arc");
-    assert.ok(served.includes("the user's own requests on the same arc"), "the served card carries the user's requests on it");
+    assert.ok(served.includes("planning one arc: an increment per red capability, naming it"), "the served card asks for the one fix arc");
+    assert.ok(served.includes("naming it, and the user's own requests"), "the served card carries the user's requests on it");
   } finally {
     await session.close();
   }

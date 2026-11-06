@@ -130,3 +130,27 @@ test("1.8 · the push check refuses a push whose commits add a tag-removing glob
   const next = git("rev-parse", "HEAD").trim();
   assert.equal(checkPush({ root, remote: "origin", stdin: `refs/heads/strips ${next} refs/heads/strips ${head}\n`, home, sources: [], error: (line) => said.push(line) }), 0, "the replace was already pushed");
 });
+
+test("1.8 · a push that names the remote by its URL is checked over the branch's own commits, as a push to origin is: a replace already on a remote-tracking ref passes, one the branch adds is refused", (t) => {
+  const { dir, home, root, git } = machine(t);
+  const url = path.join(dir, "remote.git");
+  mkdirSync(path.join(root, "src"));
+  writeFileSync(path.join(root, "src", "view.ts"), 'export const plain = (html: string): string => html.replace(/<[^>]+>/g, "");\n');
+  git("add", ".");
+  git("commit", "-q", "-m", "an old replace");
+  git("push", "-q", "--no-verify", "origin", "main");
+  git("checkout", "-q", "-b", "fix");
+  writeFileSync(path.join(root, "readme.md"), "a project, fixed\n");
+  git("commit", "-q", "-am", "fix");
+  const fix = git("rev-parse", "HEAD").trim();
+  const said = [];
+  assert.equal(checkPush({ root, remote: url, stdin: `refs/heads/fix ${fix} refs/heads/fix ${ZEROS}\n`, home, sources: [], error: (line) => said.push(line) }), 0, said.join("\n"));
+
+  writeFileSync(path.join(root, "src", "edit.ts"), 'export const bare = (html: string): string => html.replace(/<[^>]+>/g, "");\n');
+  git("add", ".");
+  git("commit", "-q", "-m", "a new replace");
+  const added = git("rev-parse", "HEAD").trim();
+  assert.equal(checkPush({ root, remote: url, stdin: `refs/heads/fix ${added} refs/heads/fix ${ZEROS}\n`, home, sources: [], error: (line) => said.push(line) }), 1);
+  assert.match(said.join("\n"), /src\/edit\.ts:1/);
+  assert.ok(!said.join("\n").includes("src/view.ts"), "the replace already on main is not the branch's");
+});

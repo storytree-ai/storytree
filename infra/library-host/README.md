@@ -142,10 +142,14 @@ the kinds a lane writes (the plan, questions, friction, resteers, health and kno
 each keeping its kind, removes a live record only after its retirement is in the history, and
 changes no history and no table; agent roles, a plugin's kinds and the numbering floor are not
 granted. Library contracts 30.6 and 30.7 run that file as written. The account (LOGIN, its
-password) is made apart, by a superuser, and the file run on the box as its header says; the
-grants for the session-management databases a lane also writes (`storytree-activity`,
-`storytree-trunks`) are apart from it. Until the cloud environment's `PGUSER` and `PGPASSWORD`
-name it, cloud sessions still sign in as `storytree_library`.
+password) is made apart, by a superuser, and the file run on the box as its header says. The
+session-management databases a lane also writes have a file each, run the same way with the
+project as `cloud_project`: `cloud-session-activity-grants.sql` (`storytree-activity`: its
+project's lines, beats and transcripts, added and read, none changed or removed; contract 2.14)
+and `cloud-session-trunks-grants.sql` (`storytree-trunks`: every trunk and machine name read,
+and its project's trunk recorded and approved only on a machine no one has named, as a fresh
+container is; contract 11.8). Until the cloud environment's `PGUSER` and `PGPASSWORD` name it,
+cloud sessions still sign in as `storytree_library`.
 
 How much of the server both CI roles may hold is `ci-role-limits.sql`: connection
 limits, a 60-second statement timeout, a 1 GB temporary-file limit, an idle-session

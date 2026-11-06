@@ -16,9 +16,10 @@
 -- nothing is changed. The first statement after it takes the owner on, so everything below is granted
 -- by the owner itself; an account that may not is refused at once, with nothing changed.
 --
--- This file is the project database's half. A lane also writes the session-management databases
--- (storytree-activity: claims and the sessions list; storytree-trunks: the machine it joins as), and,
--- where it runs the factory's plugin, that plugin's own (storytree-quality); their grants are apart.
+-- This file is the project database's half. A lane also writes the session-management databases,
+-- granted by cloud-session-activity-grants.sql (storytree-activity: claims and the sessions list) and
+-- cloud-session-trunks-grants.sql (storytree-trunks: the machine it joins as), and, where it runs the
+-- factory's plugin, that plugin's own (storytree-quality), whose grants are the plugin's.
 --
 -- WHAT IT GRANTS. The database lets the account in (CONNECT), the schema lets it name the tables
 -- (USAGE), and then:

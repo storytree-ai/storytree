@@ -25,3 +25,5 @@ Pictures, 1440 x 960:
 
 Taken with `node --import tsx packages/forest/testing/view/gate-ring/capture.mjs --retake`, which counts every gate ring,
 lit road and gold gate face shown, from the scene, into `measurements.json`.
+
+In the evidence bucket for #534, linked from the pull request body (ADR-1234; deleted after 90 days or when its arc closes): `534/the-library-gate-picked-close.png`, `534/the-library-gate-picked.png`, `534/the-library-nothing-picked.png`, `534/the-library-road-picked.png`.

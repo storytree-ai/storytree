@@ -83,7 +83,7 @@ const CARDS: Record<Kind, Omit<Card, "kind">> = {
     line: "Your project is made from stories: each is something someone can do with it, and shows here as an island.",
     what: "A story is one journey a user of your project can take, such as signing in or checking out. Its code lives in its own package.",
     why: "Grouping code by what it lets someone do shows you where a change belongs, and what it can reach.",
-    how: "The pathways between islands are dependencies: each runs one way, from a story to the story it needs, and storytree refuses a loop. Select an island to see its parts.",
+    how: "Select an island to see its parts, and its shipping lanes at sea: each lane is a dependency and runs one way, between a story and the story it needs, and storytree refuses a loop.",
     decisions: [adr(819, "A package for each story"), adr(839, "Islands sit in rows by dependency depth"), adr(847, "Dependencies run one way")],
   },
   capability: {

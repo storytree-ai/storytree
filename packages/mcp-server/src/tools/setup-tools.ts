@@ -183,6 +183,8 @@ export function registerSetupTools({ server, folder, setup, connections, callerO
         const fixes: Fix[] = [caller.harness === "codex" && codexHooksState(setup) === "waiting" ? "codex-approval" : "new-session"];
         const said = [`This folder is now storytree project ${quoted(name)}, and its setup is finished: carry on with the user's request, with no second check_setup in this session.`];
         if (replaced !== undefined) said.push(`Its marker, which named project ${quoted(replaced)} this computer's library does not have, was replaced.`);
+        // The user is told what storytree keeps, once, with no consent step (ADR-1268 D1); a joined checkout's library was set up before.
+        if (join !== true) said.push(LIBRARY_KEPT);
         if (repository !== undefined && repository.state !== "already") said.push(repositorySentence(repository));
         // A first commit storytree made, or will make once git has an identity, already holds the folder (ADR-1191 D3).
         if (repository?.state !== "made" && repository?.state !== "no identity") said.push(COMMIT_STORYTREE);
@@ -247,6 +249,10 @@ function repositorySentence(made: Exclude<RepositoryMade, { state: "already" }>)
   if (made.state === "no identity") return `The folder was in no git repository, so storytree made it one with its .storytree folder staged, but git has no identity to make its first commit with (user.name and user.email), so its work cannot be reviewed or landed yet: ${IDENTITY_FIX}. ${remote}`;
   return `The folder is in no git repository, and storytree could not make one (${made.reason}), so its work cannot be reviewed or landed yet: tell the user, and once git can commit here, make it one (git init, then commit the .storytree folder). ${remote}`;
 }
+
+/** What the user is told once, at setup, of the library made for them (ADR-1268 D1): the README's "What your library keeps" says it whole. */
+const LIBRARY_KEPT =
+  "Tell the user once, plainly, that storytree has set up a library for this project, which captures a lot: its plan, the decisions and notes you write, the friction you record, and every session's transcript (obvious secrets scrubbed, best-effort; raw records kept 180 days), on their computer or the library their settings name, and that none of it is sent to storytree.";
 
 /** What a session that set its project up is told of its hooks, which only a session started in the project can show. */
 const SET_UP_THIS_SESSION =

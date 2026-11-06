@@ -24,6 +24,9 @@
  * A test that carries no number (an imported repository's own) counts for each contract whose provedBy names it
  * (question_b5918c0ff273), beside any number it carries: see provedFor.
  *
+ * A result no contract claims, which names its file (a pytest one), counts for each explored capability whose covers hold its
+ * test's file or a file that file imports, by the map's import edges (ADR-1274 D3): see unclaimedVerdicts.
+ *
  * Judging follows storytree's own health (ADR-0744): verdictOf below is the one rule, and a run read from its junit report (../test-run/test-run.mjs) is judged by it too: a contract
  * passes only if it has tests and every one passed; any failure fails it; a skipped test is no pass,
  * so a skip leaves it not checked, as does having no tests. A skip whose reason names the platform the test needs
@@ -33,12 +36,14 @@
  * platform one names, else `other`.
  */
 import type { SkipKind } from "@storytree/library";
-import { packagesOf, surveyStory, type SourceFile } from "@storytree/map";
+import { dependenciesOf, packagesOf, readersReady, surveyStory, type SourceFile } from "@storytree/map";
+// The survey's readers as Node runs them: this gives the Python reader its parser.
+import "@storytree/map/code-survey";
 import type { TestResult } from "../run-results/run-results.js";
 
 /** The plan as judging needs it: stories, their numbered capabilities and contracts ("1.2 · …"). */
 export type PlanTree = {
-  readonly stories: readonly { readonly id: string; readonly title: string; readonly plugin?: string; readonly mapped?: { readonly folders: readonly string[] }; readonly capabilities: readonly { readonly id: string; readonly title: string; readonly contracts: readonly { readonly id: string; readonly title: string; readonly provedBy?: readonly string[] }[] }[] }[];
+  readonly stories: readonly { readonly id: string; readonly title: string; readonly plugin?: string; readonly mapped?: { readonly folders: readonly string[] }; readonly capabilities: readonly { readonly id: string; readonly title: string; readonly covers?: readonly string[]; readonly contracts: readonly { readonly id: string; readonly title: string; readonly provedBy?: readonly string[] }[] }[] }[];
 };
 
 /** A story's proofs at one commit: its contracts by number, and each numbered test title its package holds. */
@@ -318,4 +323,25 @@ const MESSAGE_LIMIT = 200;
 /** `message` cut to MESSAGE_LIMIT characters, ending in an ellipsis when cut. */
 function clipped(message: string): string {
   return message.length <= MESSAGE_LIMIT ? message : `${message.slice(0, MESSAGE_LIMIT - 1)}…`;
+}
+
+/**
+ * Each explored capability's verdict from `unmatched`, the results no contract claims (ADR-1274 D3), by verdictOf: a result counts
+ * for every capability whose covers (paths from the project's top) hold its test's file or a file that file imports directly, as
+ * the map reads its imports from `files`. A result that names no file (TAP's) reaches none; a capability none reaches is left out.
+ */
+export async function unclaimedVerdicts(tree: PlanTree, files: readonly SourceFile[], unmatched: readonly TestResult[]): Promise<Map<string, Verdict>> {
+  const covering = tree.stories.flatMap(({ capabilities }) => capabilities.flatMap(({ id, covers }) => (covers ?? []).map((cover) => ({ id, cover }))));
+  const tested = [...new Set(unmatched.flatMap(({ file }) => (file === undefined ? [] : [file])))];
+  if (covering.length === 0 || tested.length === 0) return new Map();
+  await readersReady(tested);
+  const paths = new Set(files.map(({ path }) => path));
+  const reached = new Map<string, TestResult[]>();
+  for (const file of tested) {
+    const source = files.find(({ path }) => path === file);
+    const touched = [file, ...(source === undefined ? [] : dependenciesOf(source, paths, []))];
+    const ids = new Set(covering.filter(({ cover }) => touched.some((path) => cover === "." || path === cover || path.startsWith(`${cover}/`))).map(({ id }) => id));
+    for (const id of ids) reached.set(id, [...(reached.get(id) ?? []), ...unmatched.filter((result) => result.file === file)]);
+  }
+  return new Map([...reached].map(([id, results]) => [id, verdictOf(results)]));
 }

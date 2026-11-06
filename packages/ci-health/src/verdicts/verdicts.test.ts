@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { TestResult } from "../run-results/run-results.js";
-import { judgeRun, proofsAt, verdictOf, type PlanTree } from "./verdicts.js";
+import { judgeRun, proofsAt, unclaimedVerdicts, verdictOf, type PlanTree } from "./verdicts.js";
 
 /** Two stories whose contract numbers repeat, as every user's do: each has a 1.1. */
 const TREE: PlanTree = {
@@ -286,4 +286,53 @@ test("2.9 · a result counts for each contract whose provedBy names its test: a 
     "the file names its three results, the class its one, the test both its parameters, and the suite's title its test",
   );
   assert.deepEqual(unmatched, [pass("sums the cart twice")], "a title only beginning with one names nothing");
+});
+
+test("2.10 · a result no contract claims counts for each explored capability covering its test's file or a file that file imports, judged by the one rule; a result that names no file, or a capability no such result reaches, gets none", async () => {
+  const tree: PlanTree = {
+    stories: [
+      {
+        id: "story_app",
+        title: "checkbox",
+        mapped: { folders: ["."] },
+        capabilities: [
+          { id: "cap_stats", title: "Stats", covers: ["app/stats"], contracts: [] },
+          { id: "cap_cart", title: "Cart", covers: ["app/cart.py"], contracts: [{ id: "c_total", title: "1.1 · totals the cart", provedBy: ["tests/test_cart.py::test_total"] }] },
+          { id: "cap_helpers", title: "Helpers", covers: ["tests/helpers.py"], contracts: [] },
+          { id: "cap_admin", title: "Admin", covers: ["app/admin.py"], contracts: [] },
+        ],
+      },
+    ],
+  };
+  const files = [
+    { path: "app/__init__.py", text: "" },
+    { path: "app/stats/__init__.py", text: "" },
+    { path: "app/stats/week.py", text: "def week():\n    return 3\n" },
+    { path: "app/cart.py", text: "def total():\n    return 0\n" },
+    { path: "app/admin.py", text: "" },
+    { path: "tests/helpers.py", text: "" },
+    { path: "tests/test_stats.py", text: "from app.stats.week import week\nfrom app import cart\n\ndef test_week():\n    assert week() == 4\n\ndef test_month():\n    pass\n" },
+    { path: "tests/test_cart.py", text: "from app.cart import total\n\ndef test_total():\n    assert total() == 1\n\ndef test_empty():\n    pass\n" },
+    { path: "tests/test_helpers.py", text: "def test_nothing():\n    pass\n" },
+  ];
+  const results = [
+    { ...ran("tests/test_stats.py", "test_week", [], "failed"), message: "assert 3 == 4" },
+    ran("tests/test_stats.py", "test_month"),
+    ran("tests/test_cart.py", "test_total", [], "failed"),
+    ran("tests/test_cart.py", "test_empty"),
+    pass("sums the cart"),
+  ];
+  const { verdicts, unmatched } = judgeRun(proofsAt(tree, files), results);
+  assert.equal(verdicts.get("c_total")?.state, "failing", "control: the claimed test credits its contract");
+  assert.deepEqual(unmatched.map(({ name }) => name), ["test_week", "test_month", "test_empty", "sums the cart"]);
+  const reached = await unclaimedVerdicts(tree, files, unmatched);
+  assert.deepEqual(
+    Object.fromEntries([...reached].map(([id, { state, note }]) => [id, { state, note }])),
+    {
+      // test_stats.py imports app/stats/week.py (Stats) and app/cart.py (Cart); test_cart.py's unclaimed test_empty reaches Cart.
+      cap_stats: { state: "failing", note: "1/2 tests passed; first failure: assert 3 == 4" },
+      cap_cart: { state: "failing", note: "2/3 tests passed; first failure: assert 3 == 4" },
+    },
+    "test_total, which a contract claims, counts for no capability; the title-only result reaches none, and Helpers and Admin are reached by no unclaimed test",
+  );
 });

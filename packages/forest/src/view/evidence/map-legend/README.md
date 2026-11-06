@@ -7,7 +7,8 @@ open-work dots are drawn and its story panel opens with the legend at its foot (
 The legend lists, each beside a small drawing in the colours the island draws it in: the territories' fills by word
 (healthy, unhealthy, proposed or untested, parked, mapped, and Unclaimed code's dark hatch), the borders, the open land and
 the island's coast and sides, the plateaus and their ramps, the roads by load, the gates, the six settlement kinds, a picked
-link's gold, an arc's ring and dim, the open-work dot, a session's reads, a claim's flag, and the sea's lanes and ports.
+link's gold, an arc's ring and dim, the open-work dot, a session's reads, a claim's flag, and at sea the shipping lanes and ports and the grey-green plumbing lanes, both shown
+while a story is selected: no road is drawn between islands (ADR-1261 D1, D6).
 It lists everything the selected island can draw, whatever this island happens to draw now, until the zoom-detail step
 (ADR-1253 D2) lands.
 

@@ -312,6 +312,7 @@ test("1.36 a word agents guess for a job a command already does runs that comman
     const owned = await world.run(["file-owners", "README.md"]);
     const story = await world.run(["story", "show", "--help"]);
     const stories = await world.run(["story", "list", "--help"]);
+    const resteers = await world.run(["resteer", "list", "--help"]);
 
     assert.equal(waited.code, 0, waited.stderr);
     assert.match(waited.stdout, /storytree wait is storytree arc increment wait\n/);
@@ -328,6 +329,9 @@ test("1.36 a word agents guess for a job a command already does runs that comman
     assert.match(stories.stdout, /storytree story list is storytree library list story\n/);
     assert.match(stories.stdout, /storytree library list <kind>/);
     assert.match(story.stdout, /storytree tree \[<story>\]/);
+    assert.equal(resteers.code, 0, resteers.stderr);
+    assert.match(resteers.stdout, /storytree resteer list is storytree library list resteer\n/);
+    assert.match(resteers.stdout, /storytree library list <kind>/);
   });
 });
 

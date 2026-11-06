@@ -7,8 +7,8 @@ import type { ForestScene, Island, Plumbing } from '../scene.js';
 import { buildPlanetPathways, growthPlan, laneRoutes, laneShown, planetPathwayDrawing, SEA_LANE } from '../geometry.js';
 import { drawnAtOnce, routedDrawing, type RoadRouter } from './road-routing.js';
 import { answerRouting } from './road-worker.js';
-import { PLUMBING_LANE, plumbingKey, plumbingLabels, plumbingLanes } from './plumbing.js';
-import { seaLaneWidth } from './lanes.js';
+import { litPlumbingLabels, PLUMBING_LANE, plumbingKey, plumbingLabels, plumbingLanes } from './plumbing.js';
+import { laneDrawn, laneStrips, seaLaneWidth } from './lanes.js';
 import { PlumbingChips } from './PlumbingLabels.js';
 
 const R = 218;
@@ -70,6 +70,10 @@ test('4.31 each plumbing lane is labelled at its middle with its kind\'s words o
     assert.ok(nearest.d <= 1, `${label.from}->${label.to}'s label sits on its lane`);
     assert.ok(Math.abs(walk[nearest.i]! - middle) <= 1.5, `${label.from}->${label.to}'s label sits at its middle`);
   }
+  // Shown only with its lane: while one of its two stories is selected, never at rest.
+  assert.deepEqual(litPlumbingLabels(plan, undefined), [], 'no label at rest');
+  assert.deepEqual(litPlumbingLabels(plan, 'b').map(l => `${l.from}->${l.to}`), ['a->b'], 'b lights only its own');
+  assert.deepEqual(litPlumbingLabels(plan, 'a').map(l => `${l.from}->${l.to}`), ['a->b', 'a->c'], 'a lights both');
   const html = renderToStaticMarkup(createElement(PlumbingChips, { chips: labels[0]!.chips }));
   const text = html.replace(/<[^>]*>/g, '|').split('|').filter(Boolean);
   assert.deepEqual(text, ['build step', 'cleanup'], 'the chips read the kind and nothing else');
@@ -89,6 +93,12 @@ test('4.32 a plumbing lane reads as a different kind of lane from a dependency: 
   assert.deepEqual(plumbingLanes(plan, 'b').map(l => `${l.from}->${l.to}`), ['b->a'], 'lit from either end');
   assert.deepEqual(plumbingLanes(plan, 'c').map(l => `${l.from}->${l.to}`), ['a->c']);
   for (const lane of fromA) assert.ok(lane.widths.every(w => w >= seaLaneWidth(1) && w <= seaLaneWidth(2)), 'widened like a lane, by the lit plumbing lanes sharing a stretch');
+  // Where it shares the dependency lane's stretch, it is drawn over it: lifted higher and after it.
+  const dependency = laneRoutes(plan.lanes, [{ from: 'b1', to: 'a1', dir: 'down' }]);
+  const strips = laneStrips(dependency, fromA);
+  assert.deepEqual(strips.map(s => [s.lane.colour, s.plumbed]), [[SEA_LANE, false], [PLUMBING_LANE, true], [PLUMBING_LANE, true]]);
+  const [under, over] = [strips[0]!, strips[1]!];
+  assert.ok(over.lift > under.lift && over.renderOrder > under.renderOrder, 'a plumbing lane lies over a dependency lane, a thread down it');
 });
 
 test('4.33 in a recorded growth a lane, a plumbing lane among them, shows once both its islands have risen, never before, and plumbing moves no island rise', () => {
@@ -101,6 +111,8 @@ test('4.33 in a recorded growth a lane, a plumbing lane among them, shows once b
     assert.equal(laneShown(lane, rising({ a: 1, b: 0.4 })), false, 'hidden while its far island rises');
     assert.equal(laneShown(lane, rising({ a: 0.2, b: 1 })), false, 'hidden while its near island rises');
     assert.equal(laneShown(lane, rising({ a: 1, b: 1, c: 0 })), true, 'shown once both stand, whatever another island does');
+    assert.equal(laneDrawn(lane, rising({ a: 1, b: 0.4 }), 9, 1, false), 0, 'nothing of it is drawn while it waits, however long it was lit');
+    assert.equal(laneDrawn(lane, rising({ a: 1, b: 1 }), 9, 1, false), 1, 'and it is drawn as lit once both stand');
   }
   const stages = (calls: readonly Plumbing[]) => [{ id: 'one', scene: { islands, links: [], plumbing: calls } }];
   assert.deepEqual([...growthPlan(stages(scene.plumbing!)).islands], [...growthPlan(stages([])).islands], 'an island rises as it would with no plumbing');

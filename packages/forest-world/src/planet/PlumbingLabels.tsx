@@ -4,7 +4,7 @@ import { createElement, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { usePlanetGrowth } from './PlanetGrowth.js';
 import { Overlay } from './overlay.js';
-import { plumbingLabels, type PlumbingLabel } from './plumbing.js';
+import { litPlumbingLabels, type PlumbingLabel } from './plumbing.js';
 import type { PlanetPathways } from './pathways.js';
 
 /** Quiet by design: small, in the plumbing lane's own ink on the sea's dark, never a colour that shouts. */
@@ -36,6 +36,6 @@ function LabelAt({ label }: { label: PlumbingLabel }) {
 /** The label of each plumbing lane lit while `story` is selected (one of its two stories), at its lane's middle; none
  * with no story selected, nor while the exterior is hidden, as the islands' names are. */
 export function PlumbingLabels({ plan, visible, story }: { plan: PlanetPathways; visible: boolean; story: string | undefined }) {
-  const labels = useMemo(() => plumbingLabels(plan).filter(label => label.point !== undefined && (label.from === story || label.to === story)), [plan, story]);
+  const labels = useMemo(() => litPlumbingLabels(plan, story), [plan, story]);
   return <group name="pathways:plumbing-labels">{visible && labels.map(label => <LabelAt key={`${label.from}->${label.to}`} label={label} />)}</group>;
 }

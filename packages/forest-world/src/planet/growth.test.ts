@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { ForestScene, Island } from '../scene.js';
-import { growthMoment, growthNow, growthPlan, growthProgress, plateGrowth, type GrowthWindow } from '../geometry.js';
+import { buildPlanetPathways, crossingLength, growthMoment, growthNow, growthPlan, growthProgress, laneRoutes, plateGrowth, type GrowthWindow } from '../geometry.js';
 
 const island = (story: string, capabilities: string[], files: string[] = []): Island => ({
   story, title: story, x: 0, z: 0, key: story,
@@ -167,6 +167,16 @@ test('5.1 a road ending on an island as a whole grows like any other: it leaves 
   const road = plan.roads.get('new->old');
   assert.ok(road, 'the road is drawn');
   assert.ok(road.start >= end(plan.islands.get('old')!) - 1e-9 && plan.islands.get('new')!.start >= end(road) - 1e-9, 'new rises as the road from old arrives');
+});
+
+test('5.1 a link\'s crossing is as long as its lane across the glass, and a link with no lane has none', () => {
+  const R = 218;
+  const scene: ForestScene = { islands: [island('a', ['a1']), island('b', ['b1', 'b2'])], links: [{ from: 'b1', to: 'a1' }, { from: 'b2', to: 'b1' }] };
+  const spots = new Map([['a', { x: R * Math.sin(0.3), y: 0, z: R * Math.cos(0.3) }], ['b', { x: -R * Math.sin(0.3), y: 0, z: R * Math.cos(0.3) }]]);
+  const plan = buildPlanetPathways(scene, spots, R);
+  const [lane] = laneRoutes(plan.lanes, [{ from: 'b1', to: 'a1', dir: 'up' }]);
+  assert.ok(lane!.length > 0 && Math.abs(crossingLength(plan, 'b1->a1') - lane!.length) < 1e-6, 'its lane\'s length');
+  assert.equal(crossingLength(plan, 'b2->b1'), 0, 'a link within an island has no crossing');
 });
 
 test('5.7 a host scrubbing a growth to a fixed moment sees that moment even under reduced motion; on the canvas\'s own clock, reduced motion shows it whole', () => {

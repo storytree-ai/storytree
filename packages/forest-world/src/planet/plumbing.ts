@@ -69,6 +69,12 @@ function middleOf(chain: readonly { id: string; reversed: boolean }[], plan: Pla
   return points[next - 1]!.clone().lerp(points[next]!, span > 0 ? (half - walk[next - 1]!) / span : 0);
 }
 
+/** The labels shown while `story` is selected: those of the plumbing lanes it lights (an end of theirs is `story`), at a
+ * point on their lane; none with no story selected (4.31). */
+export function litPlumbingLabels(plan: PlanetPathways, story: string | undefined): PlumbingLabel[] {
+  return plumbingLabels(plan).filter(label => label.point !== undefined && (label.from === story || label.to === story));
+}
+
 /** Each pair of stories joined by plumbing gets one label, on the first of its lanes (every kind between a pair
  * takes the one route), listing the kinds in the one order. The words are the kind's, nothing more. */
 export function plumbingLabels(plan: PlanetPathways): PlumbingLabel[] {

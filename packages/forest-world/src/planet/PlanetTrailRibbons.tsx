@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import { BufferGeometry, Color, DoubleSide, Float32BufferAttribute, ShaderMaterial, Vector3 } from 'three';
 import { usePlanetGrowth } from './PlanetGrowth.js';
-import { advanceLaneClock, laneDrawSeconds, laneHead, laneHeads, laneProgress, laneShown, type LaneRoute } from './lanes.js';
+import { advanceLaneClock, laneDrawn, laneDrawSeconds, laneHead, laneHeads, laneProgress, laneShown, laneStrips, type LaneRoute } from './lanes.js';
 import type { PlumbingLane } from './plumbing.js';
 
 /** A lane's strip: at each vertex its physical distance along the route (`along`) and the way out to its side at half
@@ -83,26 +83,23 @@ const reducedMotion = () => typeof matchMedia === 'function' && matchMedia('(pre
  * stretch with, so they read as a thread down it. In a recorded growth a lane shows once both its islands have risen
  * (4.33). A new selection draws its lanes again. */
 export function SelectionLanes({ routes, plumbing = [] }: { routes: readonly LaneRoute[]; plumbing?: readonly PlumbingLane[] }) {
-  const all = useMemo(() => [...routes, ...plumbing], [routes, plumbing]);
-  const key = all.map(lane => `${lane.colour}:${lane.dir}:${lane.from}->${lane.to}`).sort().join('\n');
+  const strips = useMemo(() => laneStrips<LaneRoute>(routes, plumbing), [routes, plumbing]);
+  const key = strips.map(({ lane }) => `${lane.colour}:${lane.dir}:${lane.from}->${lane.to}`).sort().join('\n');
   const animation = useRef({ key, elapsed: 0, started: false, reduced: reducedMotion() });
   if (animation.current.key !== key) animation.current = { key, elapsed: 0, started: false, reduced: reducedMotion() };
   const lanes = useMemo(() => {
-    const heads = laneHeads(all);
-    return all.map((lane, i) => {
-      const plumbed = i >= routes.length;
-      return { lane, plumbed, seconds: laneDrawSeconds(lane.length), heads: heads[i]!,
-        strip: { geometry: laneRibbon(lane, plumbed ? 0.16 : 0.12), material: laneMaterial(lane.colour, 1) } };
-    });
-  }, [all, routes.length]);
+    const heads = laneHeads(strips.map(({ lane }) => lane));
+    return strips.map(({ lane, plumbed, lift, renderOrder }, i) => ({ lane, plumbed, renderOrder, seconds: laneDrawSeconds(lane.length), heads: heads[i]!,
+      strip: { geometry: laneRibbon(lane, lift), material: laneMaterial(lane.colour, 1) } }));
+  }, [strips]);
   useEffect(() => () => lanes.forEach(({ strip }) => { strip.geometry.dispose(); strip.material.dispose(); }), [lanes]);
   const { invalidate } = useThree();
   useEffect(() => { invalidate(); }, [lanes, invalidate]);
   const growth = usePlanetGrowth();
   const draw = (elapsed: number, reduced: boolean) => {
     for (const { lane, strip, seconds, heads } of lanes) {
-      if (!laneShown(lane, growth.island)) { drawLane(strip.material, 0, 0, lane.length); continue; }
-      drawLane(strip.material, laneProgress(elapsed, seconds, reduced), laneHead(elapsed, lane.length, heads, reduced), lane.length);
+      const head = laneShown(lane, growth.island) ? laneHead(elapsed, lane.length, heads, reduced) : 0;
+      drawLane(strip.material, laneDrawn(lane, growth.island, elapsed, seconds, reduced), head, lane.length);
     }
   };
   draw(animation.current.elapsed, animation.current.reduced);
@@ -122,9 +119,9 @@ export function SelectionLanes({ routes, plumbing = [] }: { routes: readonly Lan
   return <group name="pathways:selection-lanes" userData={{ lanes: lanes.filter(({ plumbed }) => !plumbed).map(({ lane, seconds, heads }) =>
     ({ from: lane.from, to: lane.to, dir: lane.dir, length: lane.length, seconds, heads })),
     plumbing: lanes.filter(({ plumbed }) => plumbed).map(({ lane }) => ({ from: lane.from, to: lane.to, kinds: (lane as PlumbingLane).kinds })) }}>
-    {lanes.map(({ lane, plumbed, strip }) => <mesh key={`${plumbed ? 'plumbing' : lane.dir}:${lane.from}->${lane.to}`}
+    {lanes.map(({ lane, plumbed, renderOrder, strip }) => <mesh key={`${plumbed ? 'plumbing' : lane.dir}:${lane.from}->${lane.to}`}
       name={plumbed ? `plumbing-lane:${lane.from}->${lane.to}` : `lane:${lane.dir}:${lane.from}->${lane.to}`} geometry={strip.geometry} material={strip.material}
-      raycast={ignoreRay} renderOrder={plumbed ? 3 : 2} userData={{ from: lane.from, to: lane.to, dir: lane.dir, length: lane.length, ...lane.typeOnly ? { typeOnly: true } : {},
+      raycast={ignoreRay} renderOrder={renderOrder} userData={{ from: lane.from, to: lane.to, dir: lane.dir, length: lane.length, ...lane.typeOnly ? { typeOnly: true } : {},
         ...plumbed ? { kinds: (lane as PlumbingLane).kinds } : {} }} />)}
   </group>;
 }

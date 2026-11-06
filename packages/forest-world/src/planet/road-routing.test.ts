@@ -127,7 +127,7 @@ test('4.21 a dependency added with no island moved is drawn at once between isla
   asked[0]!.answer();
   const drawn = (await first)!;
   // Lanes are routed by pair of islands: a second link between a and b rides the route they already have.
-  const same = drawnAtOnce({ islands, links: scene.links }, spots, R, { spots, radius: R, drawing: drawn });
+  const same = drawnAtOnce({ islands, links: scene.links! }, spots, R, { spots, radius: R, drawing: drawn });
   assert.equal(same.routing, undefined, 'nothing waits on a routing');
   assert.deepEqual(same.drawing.plan.lanes.edges.map(edge => `${edge.from}->${edge.to}`), ['b1->a1', 'b2->a2'], 'both links have their lane at once');
   const added = drawnAtOnce({ islands, links: [...scene.links!, { from: 'c1', to: 'a1' }] }, spots, R, { spots, radius: R, drawing: drawn });

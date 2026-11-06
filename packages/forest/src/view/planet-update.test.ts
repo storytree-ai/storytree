@@ -4,7 +4,7 @@ import { test } from "node:test";
 import { workStates } from "@storytree/arc-surface";
 import { forestScene, type SessionWisp } from "@storytree/forest";
 import type { AnnotatedTree } from "@storytree/library";
-import { claimsOn, nextScene, pointersOn, sameWisps } from "./planet-update.js";
+import { claimsOn, gatePosts, nextScene, pointersOn, sameWisps } from "./planet-update.js";
 import { oncePerFrame } from "./planet-navigation.js";
 
 const health = { reported: { state: "not-checked" as const }, verified: { state: "not-checked" as const } };
@@ -74,4 +74,13 @@ test("3.68 a live update that changes only a plumbing call is drawn, and one tha
   assert.notEqual(nextScene(onShow, { ...shown, plumbing: [] }, places()), undefined, "a call that went is drawn");
   assert.notEqual(nextScene(onShow, { ...shown, plumbing: [call, { ...call, kind: "cleanup" as const }] }, places()), undefined, "a call that came is drawn");
   assert.notEqual(nextScene(onShow, { ...shown, plumbing: [{ ...call, files: ["bins/other.ts"] }] }, places()), undefined, "a call from other files is drawn");
+});
+
+test("5.9 · an island pulses a gate pointer only when both its capabilities are its territories", () => {
+  const land = { territories: [{ capability: "mine", lines: 10 }, { capability: "also", lines: 4 }], files: [] };
+  const gate = (pair: [string, string]) => ({ colour: "#444", gate: pair });
+  const here = pointersOn(new Map([["also|mine", gate(["also", "mine"])], ["elsewhere|mine", gate(["elsewhere", "mine"])]]), land);
+  assert.deepEqual([...here], [["also|mine", gate(["also", "mine"])]], "its own gate; none to another island's capability");
+  const posts = gatePosts([{ at: { x: 1, z: 2 }, between: ["also", "mine"] }, { at: { x: 5, z: 5 }, between: ["also", "mine"] }]);
+  assert.deepEqual([...posts], [["also|mine", { x: 1, z: 2 }]], "it pulses at the first gate a road makes between the pair");
 });

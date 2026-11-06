@@ -19,11 +19,11 @@ import { ClaimMarks } from "./claim-flag.js";
 import { islandLayoutSteps, type Link } from "../territories/link-layout.js";
 import { keptVersion, pageTerritorySearcher, searchIsland, subscribeKept } from "../territories/kept-layout.js";
 import { NameplateCrowd, Nameplates, reducedMotion, SelectionRing } from "./island-overlays.js";
-import { focusRotation, globeHover, isGlobeDrag, markerSpot, movingSpots, MOVE_SECONDS, oncePerFrame, pickClick, routeAfterSelection, type ForestMode } from "./planet-navigation.js";
-import { claimsOn, pointersOn } from "./planet-update.js";
+import { focusRotation, globeHover, isGlobeDrag, markersApart, markerSpot, movingSpots, MOVE_SECONDS, oncePerFrame, pickClick, routeAfterSelection, type ForestMode } from "./planet-navigation.js";
+import { claimsOn, gatePosts, pointersOn } from "./planet-update.js";
 import { createGlobeGuide, type GlobePose, type PlacedGlobeControls } from "./globe-guide.js";
 import { createGlobeAside, framedOnResize, type AsidePose } from "./globe-aside.js";
-import { compassNorth, opensBare, seesUnderside, sheetDrag, sheetHome, sheetKey, sheetKeyPan, sheetLayout, sheetMarkers, sheetOpening, sheetPan, sheetPanUnder, sheetSpin, sheetSpinTilt, sheetTilted, sheetTiltBy, sheetTwist, sheetUnder, TILT_PER_PIXEL, TILT_STEP, withDocks } from "./sheet-navigation.js";
+import { compassNorth, opensBare, seesUnderside, sheetDrag, sheetHome, sheetKey, sheetKeyPan, sheetLayout, sheetMarkers, sheetOpening, sheetPan, sheetPointerMarkers, sheetPanUnder, sheetSpin, sheetSpinTilt, sheetTilted, sheetTiltBy, sheetTwist, sheetUnder, TILT_PER_PIXEL, TILT_STEP, withDocks } from "./sheet-navigation.js";
 import { growLand, presentDetail, shownSurfaces as surfacesFor, TerritoryDrawOn, type GlobeSurfaces } from "./globe-surfaces.js";
 import { DetailStore } from "./zoom-detail.js";
 import { useBuiltInSteps } from "./build-turns.js";
@@ -414,7 +414,8 @@ function DrawnIsland({ drawn, land, coast, docks, tints, pointed, radius, lighti
   useEffect(() => () => marks.dispose(), [marks]);
   const first = useRef(true);
   useEffect(() => {
-    marks.setLand(drawn.map, onLand, islandNormal(radius), land.files.length === 0, coast);
+    // 5.9: a pointer at a gate pulses at its posts, once the roads are routed.
+    marks.setLand(drawn.map, onLand, islandNormal(radius), land.files.length === 0, coast, drawn.roads === undefined ? undefined : gatePosts(drawn.roads.gates));
     invalidate();
   }, [marks, drawn, land.files.length, coast, radius, onLand, invalidate]);
   useEffect(() => {
@@ -470,7 +471,8 @@ function DrawnIsland({ drawn, land, coast, docks, tints, pointed, radius, lighti
 
 
 /** A failing island's marker at the window's edge, in CSS pixels, with the turn that brings it into view (3.11). */
-type ScreenMarker = { story: string; turn: GlobeTurn; left: number; top: number };
+/** An edge marker: a failing island's (3.11), or a session's pointer's, in its colour, when it names the `pointer` (3.89). */
+type ScreenMarker = { story: string; turn: GlobeTurn; left: number; top: number; pointer?: string; colour?: string };
 
 /** The one dev-only seam an evidence capture reads the sheet's turn through: a capture build sets this global
  * before the page runs, and Navigation hands it the turn as drawn and the call that sets it, on every render.
@@ -728,17 +730,17 @@ function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onCon
     guide.current!.frame(now - guideFrameAt.current);
     guideFrameAt.current = now;
     // Nothing on the sheet is round the back; a failing island past the window's edge is marked at that edge (3.11).
-    const hidden = !showFailures ? [] : sheetMarkers(islands, island => {
-      const at = (scene.getObjectByName(`planet:${island.story}`)?.getWorldPosition(new Vector3()) ?? new Vector3()).project(camera);
-      return { left: (at.x + 1) * size.width / 2, top: (1 - at.y) * size.height / 2 };
-    }, size, mode);
+    const drawn = (at: Vector3) => { at.project(camera); return { left: (at.x + 1) * size.width / 2, top: (1 - at.y) * size.height / 2 }; };
+    const hidden: ScreenMarker[] = !showFailures ? [] : sheetMarkers(islands, island => drawn(scene.getObjectByName(`planet:${island.story}`)?.getWorldPosition(new Vector3()) ?? new Vector3()), size, mode);
+    // 3.89: and a session's pointer past it, in its colour; the camera moves only on the user's click.
+    hidden.push(...sheetPointerMarkers(scene, islands, drawn, size, mode));
     // The compass turns with the sheet, read to a tenth of a degree.
     const reading = Math.round(compassNorth(heading.current, seesUnderside(tilt.current)) * 1800 / Math.PI);
     if (reading !== compass.current.reading) { compass.current.reading = reading; compass.current.follow?.(reading); }
-    const next = hidden.map(marker => {
+    const next = markersApart(hidden.map(marker => {
       const spot = markerSpot(marker, size);
-      return { story: marker.story, turn: marker.turn, left: Math.round(spot.left), top: Math.round(spot.top) };
-    });
+      return { story: marker.story, turn: marker.turn, left: Math.round(spot.left), top: Math.round(spot.top), ...(marker.pointer === undefined ? {} : { pointer: marker.pointer, colour: marker.colour }) };
+    }), size);
     const key = JSON.stringify(next);
     if (key !== lastMarkers.current) {
       lastMarkers.current = key;
@@ -861,7 +863,15 @@ function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onCon
     {hover !== undefined && <span role="tooltip" className={`knowledge-tooltip${hover.detail === undefined ? "" : " with-detail"}`} style={{ position: "absolute", left: hover.x, top: hover.y }}>
       {hover.detail === undefined ? hover.title : <><strong>{hover.title}</strong><span className="knowledge-tooltip-detail">{hover.detail}</span></>}
     </span>}
-    {mode === "forest" && markers.map(marker => <button key={marker.story} type="button" className="planet-edge-marker"
+    {mode === "forest" && markers.map(marker => marker.pointer !== undefined ? <button key={`pointer:${marker.pointer}`} type="button" className="planet-edge-marker planet-edge-pointer"
+      data-pointer={marker.pointer}
+      style={{ left: marker.left, top: marker.top, borderColor: marker.colour, color: marker.colour }}
+      title={`${titles.get(marker.story)} · a session points your eye here`}
+      aria-label={`Show where a session points: ${titles.get(marker.story)}`}
+      onClick={() => {
+        guide.current!.cancel();
+        if (!controls.current!.stop({ target: { kind: "story", story: marker.story } })) turnTo(marker.turn);
+      }}>◎</button> : <button key={marker.story} type="button" className="planet-edge-marker"
       data-failing-story={marker.story}
       style={{ left: marker.left, top: marker.top }}
       title={`${titles.get(marker.story)} · unhealthy (storytree verified)`}

@@ -7,7 +7,9 @@
  * Each claim is a group named `territory-claim:<capability>` carrying `userData { claim, capability, colour, faded }`,
  * the handle the capture seam, the visibility switch and the tests read. A capability a session points the owner's eye at
  * (5.8) pulses: a steady ring in that session's colour marks its foot, and a second opens slowly from it, again and again,
- * held still under reduced motion, both constant on screen, in a group named `territory-pointer:<capability>`. Nothing here moves the camera. Plain three.js, so it is read without a browser.
+ * held still under reduced motion, both constant on screen, in a group named `territory-pointer:<capability>`; a pointer at
+ * a gate pulses the same at the gate's posts, in `territory-pointer:<a>|<b>` (5.9). Nothing here moves the camera. Plain
+ * three.js, so it is read without a browser.
  */
 import { BufferGeometry, Color, DoubleSide, Float32BufferAttribute, Group, LineBasicMaterial, LineSegments, Mesh, MeshBasicMaterial, Quaternion, RingGeometry, Vector3, type Material, type Object3D } from "three";
 import type { ClaimTint, PointerTint } from "@storytree/forest";
@@ -162,7 +164,7 @@ type Life = { colour: string; faded: boolean; arrived?: number; left?: number; q
  */
 export class ClaimMarks {
   readonly root = new Group();
-  private land: { map: ClaimLand; onSurface: (point: Point) => Vector3; normalAt: (point: Point) => Vector3; unsurveyed: boolean; coast?: readonly (readonly Point[])[] | undefined } | undefined;
+  private land: { map: ClaimLand; onSurface: (point: Point) => Vector3; normalAt: (point: Point) => Vector3; unsurveyed: boolean; coast?: readonly (readonly Point[])[] | undefined; gates?: ReadonlyMap<string, Point> | undefined } | undefined;
   private readonly lives = new Map<string, Life>();
   private pointed: ReadonlyMap<string, PointerTint> = new Map();
   private readonly turned = new Quaternion();
@@ -174,8 +176,9 @@ export class ClaimMarks {
   }
 
   /** The island's land the marks stand on; `unsurveyed` when it has no surveyed code, so a claimed share is a lot. */
-  setLand(map: ClaimLand, onSurface: (point: Point) => Vector3, normalAt: (point: Point) => Vector3, unsurveyed: boolean, coast?: readonly (readonly Point[])[]): void {
-    this.land = { map, onSurface, normalAt, unsurveyed, coast };
+  setLand(map: ClaimLand, onSurface: (point: Point) => Vector3, normalAt: (point: Point) => Vector3, unsurveyed: boolean, coast?: readonly (readonly Point[])[],
+    gates?: ReadonlyMap<string, Point>): void {
+    this.land = { map, onSurface, normalAt, unsurveyed, coast, gates };
     for (const [capability, life] of this.lives) this.remove(capability, life, false);
     for (const capability of this.pointed.keys()) this.removePointer(capability);
     // Set again under drawn marks (an island built in steps), they stand at once at their last pose, not a frame later.
@@ -257,8 +260,9 @@ export class ClaimMarks {
     }
     // A pointer pulses in place while it stands, so it wants every frame unless reduced motion holds it still.
     const pulse = pointerPulse(now, reduced);
-    for (const [capability, { colour }] of this.pointed) {
-      const mark = this.pointerOf(capability, colour);
+    for (const [capability, tint] of this.pointed) {
+      const { colour } = tint;
+      const mark = this.pointerOf(capability, tint);
       if (mark === undefined) continue;
       // Sized on screen, as a flag is, so it catches the eye at every zoom.
       mark.updateWorldMatrix(true, false);
@@ -285,17 +289,20 @@ export class ClaimMarks {
     for (const capability of this.pointed.keys()) this.removePointer(capability);
   }
 
-  /** A pointer's pulsing ring at its capability's foot, made on first need; none when its capability has no ground here. */
-  private pointerOf(capability: string, colour: string): Group | undefined {
+  /**
+   * A pointer's pulsing ring at its capability's foot, or at its gate's posts (keyed `<a>|<b>`), made on first need; none when
+   * its capability has no ground here, or no gate stands between its pair.
+   */
+  private pointerOf(capability: string, { colour, gate }: PointerTint): Group | undefined {
     const existing = this.root.getObjectByName(`territory-pointer:${capability}`) as Group | undefined;
     if (existing !== undefined || this.land === undefined) return existing;
-    const { map, onSurface, normalAt } = this.land;
-    const at = map.territories.findIndex((territory) => territory.capability === capability);
-    const foot = at < 0 ? undefined : footOf(map, at);
+    const { map, onSurface, normalAt, gates } = this.land;
+    const at = gate === undefined ? map.territories.findIndex((territory) => territory.capability === capability) : -1;
+    const foot = gate !== undefined ? gates?.get(capability) : at < 0 ? undefined : footOf(map, at);
     if (foot === undefined) return undefined;
     const mark = new Group();
     mark.name = `territory-pointer:${capability}`;
-    mark.userData = { pointer: true, capability, colour };
+    mark.userData = gate === undefined ? { pointer: true, capability, colour } : { pointer: true, gate, colour };
     const ring = new Mesh(new RingGeometry(1, 1.1, 8), flatMaterial(colour, 0));
     ring.name = "pointer-ring";
     ring.raycast = () => {};

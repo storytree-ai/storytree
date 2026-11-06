@@ -14,7 +14,7 @@ import { sheetPlaces, turnToIsland, type FacingIsland, type ForestScene, type Gl
 import { islandCoast, islandCoastReach } from "@storytree/forest-world/geometry";
 import { islandLayout, type LinkDock } from "../territories/link-layout.js";
 import { PLATE_CLEARANCE, SHEET_FOV, SHEET_RADIUS, SHEET_TILT, sheetPoint, sheetSpot, type SheetExtent, type SheetPoint } from "@storytree/forest-world/planet";
-import type { GlobePose } from "./globe-guide.js";
+import { isDrawn, type GlobePose } from "./globe-guide.js";
 import type { ForestMode } from "./planet-navigation.js";
 
 /** Glass round the land on every side, in ground units. */
@@ -298,6 +298,31 @@ export function sheetMarkers(islands: readonly FacingIsland[], drawn: (island: F
     if (left >= 0 && left <= size.width && top >= 0 && top <= size.height) return [];
     return [{ story: island.story, left, top, turn: turnToIsland(island.spot) }];
   });
+}
+
+/**
+ * 3.89: a session's pointer (5.8, 5.9) whose mark in `world` is drawn (`drawn`, in CSS pixels from the canvas's top left)
+ * outside a canvas `size` gets a marker there, in its session's colour, for `markerSpot` to bring to the edge nearest it; none
+ * while it is in view, hidden or turned away, nor in Library. Its turn pans the pointer's island, one of `islands`, to the
+ * middle of the view, on the user's click: nothing the agent does moves the camera (question_97c6d6036e47, answer E).
+ */
+export function sheetPointerMarkers(world: Object3D, islands: readonly FacingIsland[], drawn: (at: Vector3) => { left: number; top: number },
+  size: { width: number; height: number }, mode: ForestMode = "forest"): { pointer: string; story: string; colour: string; left: number; top: number; turn: GlobeTurn }[] {
+  if (mode === "library") return [];
+  const found: { pointer: string; story: string; colour: string; left: number; top: number; turn: GlobeTurn }[] = [];
+  world.traverse((object) => {
+    if (!object.name.startsWith("territory-pointer:")) return;
+    const mark = object.getObjectByName("pointer-mark");
+    if (mark === undefined || !isDrawn(mark)) return;
+    let story: string | undefined;
+    for (let at: Object3D | null = object; at !== null && story === undefined; at = at.parent) if (at.name.startsWith("planet:")) story = at.name.slice("planet:".length);
+    const island = islands.find((one) => one.story === story);
+    if (island === undefined) return;
+    const { left, top } = drawn(mark.getWorldPosition(new Vector3()));
+    if (left >= 0 && left <= size.width && top >= 0 && top <= size.height) return;
+    found.push({ pointer: object.name.slice("territory-pointer:".length), story: island.story, colour: String(object.userData.colour), left, top, turn: turnToIsland(island.spot) });
+  });
+  return found;
 }
 
 /**

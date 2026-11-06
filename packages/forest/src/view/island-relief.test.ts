@@ -85,6 +85,35 @@ test("3.78 open road onto the open land climbs a ramp with no gate; a road in a 
     }
   }
   assert.ok(rise > 0 && rise < H && halfWidth < 3, "low, and narrow");
+  // Each end hipped down to its mouth: no rise at the mouth, most of it a little way in along the tunnel.
+  const walk = (pts: readonly Point[], d: number): Point => {
+    for (let i = 1; i < pts.length; i++) { const l = far(pts[i - 1]!, pts[i]!); if (d <= l) return at(pts[i - 1]!, { x: (pts[i]!.x - pts[i - 1]!.x) / l, z: (pts[i]!.z - pts[i - 1]!.z) / l }, d); d -= l; }
+    return pts.at(-1)!;
+  };
+  for (const t of sixRoads.tunnels) for (const way of [t.pts, [...t.pts].reverse()]) {
+    assert.ok(Math.abs(sixRelief.raise(way[0]!) - H) < 1e-9, "the rise starts at the mouth");
+    assert.ok(sixRelief.raise(walk(way, sixRelief.rise.inset)) > H + rise * 0.5, "and climbs from it to most of its height within its inset");
+  }
+});
+
+test("3.78 a tunnel too short for a rise along it stands under a flat-topped knoll, reaching past both its mouths and no wider than a rise (question_921aee319481)", () => {
+  // The six capabilities' tunnel cut down to a short way under the middle of its land, a mouth at each end.
+  const sixShares = ["a", "b", "c", "d", "e", "f"].map((capability, i) => ({ capability, title: `${i + 1} · ${capability.toUpperCase()}`, lines: 900 - 120 * i }));
+  const sixLinks = [{ from: "z1", to: "a" }, { from: "z2", to: "b" }, { from: "a", to: "b" }, { from: "c", to: "a" }, { from: "b", to: "e" }, { from: "a", to: "f" },
+  { from: "e", to: "c" }, { from: "b", to: "a" }, { from: "c", to: "e" }];
+  const six = linkLayout(sixShares, coast, sixLinks, docks), sixRoads = islandRoads(six, sixLinks, docks, capabilityPlates(six));
+  const long = sixRoads.tunnels[0]!, mid = long.pts[Math.floor(long.pts.length / 2)]!, d = { x: long.pts.at(-1)!.x - long.pts[0]!.x, z: long.pts.at(-1)!.z - long.pts[0]!.z }, l = Math.hypot(d.x, d.z);
+  const along = { x: d.x / l, z: d.z / l }, ends = [at(mid, along, -1.5), at(mid, along, 1.5)] as const;
+  const short = { ...sixRoads, tunnels: [{ pts: [ends[0], mid, ends[1]], links: long.links }], portals: ends.map((m) => ({ ...sixRoads.portals[0]!, at: m })) };
+  const relief = islandRelief(six, short), H = relief.height;
+  assert.ok(Math.abs(relief.raise(mid) - (H + relief.rise.height)) < 1e-9, "its top at the rise's height");
+  for (const [k, m] of ends.entries()) {
+    assert.ok(relief.raise(m) > H, "its mouth in the knoll's flank");
+    const beyond = at(m, along, k === 0 ? -0.3 : 0.3);
+    if (territoryOf(beyond) !== undefined && territoryOf(beyond)! >= 0) assert.ok(relief.raise(beyond) > H, "reaching past it");
+  }
+  const across = at(mid, { x: -along.z, z: along.x }, relief.rise.halfWidth * 1.05);
+  if (territoryOf(across) !== undefined && territoryOf(across)! >= 0) assert.equal(relief.raise(across), H, "no wider than a rise");
 });
 
 test("3.78 a tunnel's rise drawn over it, shaded by the light: lighter on its side toward the light than away (question_921aee319481)", () => {

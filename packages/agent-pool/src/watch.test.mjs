@@ -1253,38 +1253,55 @@ test("4.40 · forget sets every pull request's record aside into a dated folder,
   assert.deepEqual(await forget({ dir: b.dir }), { prs: [] }, "a second forget finds none");
 });
 
-test("4.41 · a failed code-scanning or secret check reads as security, whatever else failed or conflicts; any other failure stays red", () => {
+test("4.41 · a failed code-scanning or secret check is a security red, whatever else failed or conflicts, naming only those checks and no log; any other failure stays an ordinary red", () => {
   const options = { since: minutes(-60), now: at, graceMs: 10 * 60_000 };
   const scan = (name) => ({ ...failed, name, detailsUrl: "https://ci/scan/1" });
-  assert.deepEqual(readPull(pull({ checks: [passed, scan("CodeQL")] }), options), { state: "security", head: "h1", checks: ["CodeQL"] });
-  assert.deepEqual(readPull(pull({ checks: [scan("Analyze (javascript-typescript)"), failed] }), options).checks, ["Analyze (javascript-typescript)"]);
-  assert.equal(readPull(pull({ checks: [scan("secret-check")], mergeable: "CONFLICTING" }), options).state, "security");
-  assert.equal(readPull(pull({ checks: [passed, { ...scan("CodeQL"), conclusion: "SUCCESS" }, failed] }), options).state, "red");
-  assert.equal(readPull(pull({ checks: [scan("Analyze the logs")] }), options).state, "red");
+  assert.deepEqual(readPull(pull({ checks: [passed, scan("CodeQL")] }), options), { state: "red", head: "h1", why: "CodeQL failed", logs: [], checks: ["CodeQL"], security: ["CodeQL"] });
+  assert.deepEqual(readPull(pull({ checks: [scan("Analyze (javascript-typescript)"), failed] }), options).security, ["Analyze (javascript-typescript)"]);
+  const conflicting = readPull(pull({ checks: [scan("secret-check")], mergeable: "CONFLICTING" }), options);
+  assert.deepEqual(conflicting.security, ["secret-check"]);
+  assert.doesNotMatch(JSON.stringify(conflicting), /https?:/);
+  assert.equal(readPull(pull({ checks: [passed, { ...scan("CodeQL"), conclusion: "SUCCESS" }, failed] }), options).security, undefined);
+  assert.equal(readPull(pull({ checks: [scan("Analyze the logs")] }), options).security, undefined);
 });
 
-test("4.41 · a security failure starts no fix session and raises one owner question on its increment's arc, naming only the pull request and the check", async (t) => {
+test("4.41 · a code-scanning red starts a fix session that reads its alerts signed in, with no log or alert text in its brief or the watcher's log, and leaves the owner a retro and a question", async (t) => {
   const b = await box(t);
   await handOff(b);
   b.calls.length = 0;
-  b.options.storytree = async (args) => { b.calls.push(args); return args[0] === "library" ? "arc_owning\n" : "Raised question_s on arc_owning.\n"; };
-  b.looks[41] = { state: "security", head: "h1", checks: ["CodeQL"] };
+  b.looks[41] = { state: "red", head: "h1", why: "CodeQL failed", logs: [], checks: ["CodeQL"], security: ["CodeQL"] };
   await watchOnce(b.options);
-  assert.equal(b.fixes.length, 0);
-  assert.equal(b.reviews.length, 0);
-  const question = b.calls.find((args) => args[0] === "question");
-  assert.deepEqual(question.slice(0, 4), ["question", "new", "--arc", "arc_owning"]);
-  assert.deepEqual(question.slice(-2), ["--hold", "increment_one"]);
-  const text = question.join(" ");
-  assert.match(text, /PR #41/);
-  assert.match(text, /CodeQL/);
-  assert.doesNotMatch(text, /https?:/);
-  assert.ok(b.calls.some((args) => args.join(" ") === "arc increment unwait increment_one --for event --reason PR #41 failed a security check (CodeQL)"));
-  assert.ok(b.calls.some((args) => args[0] === "workspace" && args[1] === "let-go" && args[2] === "41"));
-  assert.ok(!b.calls.some((args) => args[1] === "red"), "no pr-red line");
-  assert.deepEqual(await readdir(b.dir), [], "the hand-off is forgotten, so the next look raises nothing again");
+  assert.equal(b.fixes.length, 1);
+  assert.ok(!b.calls.some((args) => args[0] === "question"), "the watcher raises no question itself");
+  const { brief } = b.fixes[0];
+  assert.match(brief, /code-scanning\/alerts\?ref=refs\/pull\/41\/merge/);
+  assert.match(brief, /no alert text/);
+  assert.match(brief, /friction new/);
+  assert.match(brief, /open question on increment_one's arc, holding nothing/);
+  assert.doesNotMatch(brief, /--log-failed|check:secrets/);
+  assert.doesNotMatch([brief, ...b.lines].join("\n"), /https?:\/\/ci/);
+  assert.equal((await saved(b)).fixes[0].security, true);
+});
+
+test("4.41 · a secret-check red's fix session reshapes a plain fixture without the exemptions list, and one that may be a real credential ends as one owner question naming only the pull request and the check", async (t) => {
+  const b = await box(t);
+  await handOff(b);
+  b.looks[41] = { state: "red", head: "h1", why: "secret-check failed", logs: [], checks: ["secret-check"], security: ["secret-check"] };
   await watchOnce(b.options);
-  assert.equal(b.calls.filter((args) => args[0] === "question").length, 1);
+  const { brief } = b.fixes[0];
+  assert.match(brief, /pnpm check:secrets/);
+  assert.match(brief, /never by editing \.github\/secret-check-exemptions\.txt/);
+  assert.match(brief, /naming only PR #41 and the check secret-check/);
+  assert.match(brief, /verdict 41 owner --summary "a secret-check hit may be a real credential" --question <question>/);
+  assert.doesNotMatch(brief, /code-scanning\/alerts/);
+  await assert.rejects(recordVerdict({ dir: b.dir, pr: 41, kind: "fix", summary: "x" }), /no review session/, "a security fix session gives only the owner's verdict");
+  await recordVerdict({ dir: b.dir, pr: 41, kind: "owner", summary: "a secret-check hit may be a real credential", question: "question_key" });
+  b.live.clear();
+  b.calls.length = 0;
+  await watchOnce(b.options);
+  assert.equal(b.fixes.length, 1, "no other session once it is the owner's");
+  assert.deepEqual(b.calls.find(([, , verb]) => verb === "unwait"), ["arc", "increment", "unwait", "increment_one", "--for", "event", "--reason", "PR #41 waits on the owner's answer to question_key"]);
+  assert.deepEqual(await readdir(b.dir), [], "the hand-off is dropped");
 });
 
 test("4.41 · a release or main run read with its jobs names the security checks that ran and failed, and none when none did or its jobs are unread", () => {

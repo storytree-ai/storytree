@@ -2,7 +2,7 @@
  * Capability 3 · Story node render: an island's capability territories as drawn (ADR-0804 D2). Each
  * territory is one mesh named `territory:<capability>`, filled by its capability's word (ADR-0825 D3);
  * a mapped story's unexplored land is `territory:mapped`, in brown (ADR-0993 D3), no capability and no hatch, and each
- * capability an agent explored there is `territory:<capability>` beside it, brown too, with no word (ADR-0993 D5, D7);
+ * capability an agent explored there is `territory:<capability>` beside it, filled by its word (ADR-0993 D5, D7);
  * Unclaimed code's is `territory:unclaimed`, with no capability: uncharted land, a night-dark fill with a
  * thin diagonal hatch (`territory-hatch:unclaimed`), still picked by a click on its land. The borders between territories are one set of line segments,
  * stopping at the island's coast. A claim draws nothing here: its flag and lot are `claim-flag.ts`'s (ADR-0968).
@@ -29,8 +29,9 @@ export const WORD_FILL: Readonly<Record<CapabilityWord, { colour: string; opacit
  */
 export const PARKED_FILL = { colour: "#86939D", opacity: 0.8 };
 /**
- * Mapped code, here before storytree and assumed to be working (ADR-0993 D3, ADR-0992 D5): brown, mapped's alone. Warm and
- * earthy, so it reads apart from parked's cool grey and from the health words' green, yellow and red; it carries no health.
+ * Mapped code no agent has explored yet, here before storytree and assumed to be working (ADR-0993 D3, ADR-0992 D5): brown,
+ * mapped's alone. Warm and earthy, so it reads apart from parked's cool grey and from the health words' green, yellow and
+ * red; it carries no health.
  */
 export const MAPPED_FILL = { colour: "#A9794E", opacity: 0.85 };
 /**
@@ -73,9 +74,8 @@ export function territoryLand(land: DrawnLand, onSurface: (point: Point) => Vect
     mesh.name = `territory:${territory.capability ?? (territory.mapped === true ? "mapped" : "unclaimed")}`;
     // A capability a running session claims keeps its fill and its borders; the flag says who holds it (ADR-0968 D1).
     const claimant = territory.capability === undefined ? undefined : claimed.get(territory.capability);
-    const named = territory.capability === undefined ? {} : { capability: territory.capability, title: territory.title ?? territory.capability, ...(territory.description === undefined ? {} : { description: territory.description }) };
-    mesh.userData = territory.mapped === true ? { territory: true, mapped: true, ...named, ...(claimant === undefined ? {} : { claimedBy: claimant.colour }) } : territory.capability === undefined ? { territory: true }
-      : { territory: true, capability: territory.capability, title: territory.title ?? territory.capability, ...(territory.description === undefined ? {} : { description: territory.description }), word: territory.status ?? "untested", ...(territory.parked === true ? { parked: true } : {}), ...(claimant === undefined ? {} : { claimedBy: claimant.colour }) };
+    mesh.userData = territory.mapped === true && territory.capability === undefined ? { territory: true, mapped: true } : territory.capability === undefined ? { territory: true }
+      : { territory: true, ...(territory.mapped === true ? { mapped: true } : {}), capability: territory.capability, title: territory.title ?? territory.capability, ...(territory.description === undefined ? {} : { description: territory.description }), word: territory.status ?? "untested", ...(territory.parked === true ? { parked: true } : {}), ...(claimant === undefined ? {} : { claimedBy: claimant.colour }) };
     mesh.renderOrder = 1;
     group.add(mesh);
     if (territory.capability === undefined && territory.mapped !== true) group.add(hatch(pieces, onSurface));
@@ -95,9 +95,9 @@ export function territoryLand(land: DrawnLand, onSurface: (point: Point) => Vect
   return group;
 }
 
-/** A territory's fill: mapped's brown, its word's colour, parked's grey, or the uncharted-land ink for Unclaimed code. */
+/** A territory's fill: its word's colour, parked's grey, mapped's brown for a mapped island's unexplored rest, or the uncharted-land ink for Unclaimed code. */
 function territoryFill(territory: DrawnLand["territories"][number]): MeshBasicMaterial {
-  const fill = territory.mapped === true ? MAPPED_FILL : territory.capability === undefined ? UNCHARTED_FILL : territory.parked === true ? PARKED_FILL : WORD_FILL[territory.status ?? "untested"];
+  const fill = territory.capability === undefined ? (territory.mapped === true ? MAPPED_FILL : UNCHARTED_FILL) : territory.parked === true ? PARKED_FILL : WORD_FILL[territory.status ?? "untested"];
   // One pass, as every flat mark on the globe: two would re-derive its shader program twice a frame (ADR-0836 D1).
   return new MeshBasicMaterial({ color: new Color(fill.colour), transparent: true, opacity: fill.opacity, side: DoubleSide, forceSinglePass: true, depthWrite: false });
 }

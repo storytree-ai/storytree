@@ -74,6 +74,28 @@ export function markerSpot(at: { left: number; top: number }, size: { width: num
   return { left: Math.max(20, Math.min(size.width - 20, at.left)), top: Math.max(20, Math.min(size.height - 20, at.top)) };
 }
 
+/** Edge markers' room on screen, in CSS px: one 32px marker and a gap. */
+const MARKER_ROOM = 36;
+
+/**
+ * 3.89: edge markers `spots` (each placed by `markerSpot`) moved along their edge, in order, until none lies within
+ * MARKER_ROOM of one before it, so two that lie the same way stay apart, each clickable, and still on the canvas `size`.
+ */
+export function markersApart<T extends { left: number; top: number }>(spots: readonly T[], size: { width: number; height: number }): T[] {
+  const placed: T[] = [];
+  for (const spot of spots) {
+    const along = spot.top <= 20 || spot.top >= size.height - 20 ? "left" : "top";
+    const end = (along === "left" ? size.width : size.height) - 20;
+    let at = { ...spot };
+    for (let tries = 0; tries < 64 && placed.some(p => Math.abs(p.left - at.left) < MARKER_ROOM && Math.abs(p.top - at.top) < MARKER_ROOM); tries++) {
+      const next = at[along] + MARKER_ROOM;
+      at = { ...at, [along]: next > end ? 20 + (next - end) % MARKER_ROOM : next };
+    }
+    placed.push(at);
+  }
+  return placed;
+}
+
 /** Pick the actual turned land. */
 export function pickIsland(ray: Raycaster, world: Object3D): string | undefined {
   return pickLand(ray, world)?.story;

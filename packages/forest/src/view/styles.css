@@ -191,6 +191,12 @@
   cursor: pointer;
 }
 
+/* 3.89: a session's pointer past the canvas's edge, ringed in its colour (set inline) on the map's dark ground. */
+.planet-edge-pointer {
+  background: #16212a;
+  font-size: 20px;
+}
+
 .forest-label {
   padding: 0.1rem 0.55rem;
   border-radius: 999px;

@@ -62,3 +62,23 @@ test("4.34 · naming a session, closing it out and listing the sessions are verb
     await removeTempDir(home);
   }
 });
+
+test("4.44 · point_at takes a gate beside its capability, on either door: it points at the gate between the two; a gate with no capability is the caller's misuse, and a gate that is no capability or is the capability again is refused naming it", async () => {
+  const point = find("point_at");
+  const log = await openActivityLog(testServerUrl());
+  try {
+    const project = uniqueProjectName();
+    const library = { get: async (id: string) => ({ id, type: id.startsWith("cap-") ? "capability" : "story" }) } as unknown as Library;
+    const context = { log, library, project, session: "claude-1", harness: "claude-code", folder: tmpdir() };
+    const pointed = await point.act({ capability: "cap-send", gate: "cap-bounce", why: "The interface" }, context, DOORS.tool);
+    assert.ok(pointed.text.includes("cap-send") && pointed.text.includes("cap-bounce"), "it answers naming both sides of the gate");
+    const refused = (input: Parameters<typeof point.act>[0]) => point.act(input, context, DOORS.command).then(() => undefined, (error: unknown) => error instanceof VerbRefusal ? error : undefined);
+    assert.equal((await refused({ gate: "cap-bounce", why: "Look" }))?.misuse, true, "a gate with no capability is misuse");
+    for (const gate of ["cap-send", "story-mail"]) {
+      const refusal = await refused({ capability: "cap-send", gate, why: "Look" });
+      assert.ok(refusal !== undefined && !refusal.misuse && refusal.message.includes(gate), `${gate} is refused, named`);
+    }
+  } finally {
+    await log.close();
+  }
+});

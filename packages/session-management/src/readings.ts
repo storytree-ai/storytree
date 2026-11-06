@@ -135,9 +135,13 @@ export interface Session {
   listing: Listing;
 }
 
-/** Where a session points (contract 4.43): one capability, why, the question it is for when it names one, and since when. */
+/**
+ * Where a session points (contract 4.43): one capability, or the gate between it and `gate` (4.44), why, the question it is
+ * for when it names one, and since when.
+ */
 export interface Pointer {
   capability: string;
+  gate?: string;
   why: string;
   question?: string;
   at: string;
@@ -554,7 +558,7 @@ export class LogFold {
     if (line.kind === "session-named") own.name = line.title;
     // Its pointer (4.43): the latest point, until it points at nothing, closes out or ends.
     if (line.kind === "pointed" && line.capability !== undefined && line.why !== undefined) {
-      own.pointer = { capability: line.capability, why: line.why, ...(line.question === undefined ? {} : { question: line.question }), at: line.at };
+      own.pointer = { capability: line.capability, ...(line.gate === undefined ? {} : { gate: line.gate }), why: line.why, ...(line.question === undefined ? {} : { question: line.question }), at: line.at };
     } else if (line.kind === "pointed" || line.kind === "closed-out" || line.kind === "session-ended") delete own.pointer;
     if (line.kind === "turn-ended") own.lastTurnEnded = { seq: line.seq, background: line.background ?? 0 };
   }

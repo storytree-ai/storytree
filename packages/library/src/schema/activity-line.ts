@@ -113,8 +113,9 @@ export const NEW_LINE = z.discriminatedUnion("kind", [
   /**
    * The session pointed at one capability where the owner's eye is needed, saying why and, when it is for one, the question
    * (Session management's contract 4.43): the map pulses there until it points again. With no capability, it points at nothing.
+   * A `gate`, a second capability, points at the gate between the two instead (4.44).
    */
-  z.object({ ...common, kind: z.literal("pointed"), capability: z.string().min(1).optional(), why: z.string().min(1).optional(), question: z.string().min(1).optional() }).strict(),
+  z.object({ ...common, kind: z.literal("pointed"), capability: z.string().min(1).optional(), gate: z.string().min(1).optional(), why: z.string().min(1).optional(), question: z.string().min(1).optional() }).strict(),
   /** A hook saw an agent ask for one of storytree's tools, before the call reached the tool server: the call's id, as the harness names it, and the agent asking. */
   z.object({ ...common, kind: z.literal("tool-requested"), tool: z.string().min(1), call: z.string().min(1), agent: AGENT }).strict(),
   z.object({ ...common, kind: z.literal("tool-called"), tool: z.string().min(1) }).strict(),

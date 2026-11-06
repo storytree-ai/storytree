@@ -31,12 +31,29 @@ export function sameWisps(a: readonly SessionWisp[], b: readonly SessionWisp[]):
   });
 }
 
-/** The pointers shown on island land `land` (5.8): those of `pointed` on its territories, in its territories' order. */
+/**
+ * The pointers shown on island land `land` (5.8): those of `pointed` on its territories, in its territories' order, then its
+ * gates', those whose two capabilities are both its territories (5.9).
+ */
 export function pointersOn(pointed: ReadonlyMap<string, PointerTint>, land: NonNullable<Island["land"]>): Map<string, PointerTint> {
-  return new Map(land.territories.flatMap(({ capability }) => {
-    const tint = capability === undefined ? undefined : pointed.get(capability);
-    return tint === undefined ? [] : [[capability!, tint] as const];
-  }));
+  const here = new Set(land.territories.flatMap(({ capability }) => capability === undefined ? [] : [capability]));
+  return new Map([
+    ...[...here].flatMap((capability) => {
+      const tint = pointed.get(capability);
+      return tint === undefined || tint.gate !== undefined ? [] : [[capability, tint] as const];
+    }),
+    ...[...pointed].filter(([, tint]) => tint.gate?.every((capability) => here.has(capability)) === true),
+  ]);
+}
+
+/** Where a pointer at each gate pulses (5.9): the first gate a road makes between a pair, keyed by the pair joined by `|`. */
+export function gatePosts(gates: readonly { readonly at: { x: number; z: number }; readonly between: readonly [string, string] }[]): Map<string, { x: number; z: number }> {
+  const posts = new Map<string, { x: number; z: number }>();
+  for (const { at, between } of gates) {
+    const key = [...between].sort().join("|");
+    if (!posts.has(key)) posts.set(key, at);
+  }
+  return posts;
 }
 
 /** What of `claimed` tints island land `land`: equal while only other islands' claims change. */

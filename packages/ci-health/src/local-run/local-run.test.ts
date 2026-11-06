@@ -200,6 +200,8 @@ test("5.5 · `health local` whose test command reports no results it can read sa
   // A command that ran and printed nothing storytree reads: its last lines are quoted.
   writeFileSync(path.join(folder, "package.json"), JSON.stringify({ name: "scratch", scripts: { test: `node -e "console.log('collected 0 items')"` } }));
   await assert.rejects(local.act({} as never, place as never, WORDS), refused(/collected 0 items/));
+  writeFileSync(path.join(folder, "package.json"), JSON.stringify({ name: "scratch", scripts: { test: `node -e ""` } }));
+  await assert.rejects(local.act({} as never, place as never, WORDS), refused(/printed nothing/));
 
   // The reported case: a uv project whose uv is not on PATH reads as uv missing, not as pytest's output.
   rmSync(path.join(folder, "package.json"));

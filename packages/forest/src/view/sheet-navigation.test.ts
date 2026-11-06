@@ -1,14 +1,17 @@
 /** The forest on the glass sheet: what moves it, and where it opens (ADR-1043 D4). */
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { Group, Mesh, OrthographicCamera, PerspectiveCamera, Vector3 } from "three";
+import { Group, Mesh, OrthographicCamera, PerspectiveCamera, Quaternion, Vector3 } from "three";
 import { workStates } from "@storytree/arc-surface";
 import { forestScene, storyNodes } from "@storytree/forest";
 import type { AnnotatedTree, Change } from "@storytree/library";
 import { applySheetEye, plateTransform, SHEET_FOV, SHEET_RADIUS, SHEET_TILT, sheetEyeZoom, sheetSpot, SHIPPED_ELEVATION_DEG, type SheetPoint } from "@storytree/forest-world/planet";
 import { createGlobeGuide, type GlobePose } from "./globe-guide.js";
-import { focusRotation, markerSpot } from "./planet-navigation.js";
-import { compassNorth, headingHome, opensBare, seesUnderside, sheetCentre, sheetDrag, sheetHome, sheetKey, sheetKeyPan, sheetLayout, sheetMarkers, sheetOpening, sheetPan, sheetSpin, sheetPanUnder, sheetSpinTilt, sheetTilted, sheetTiltBy, sheetTwist, sheetUnder, TILT_STEP, withDocks } from "./sheet-navigation.js";
+import { ClaimMarks } from "./claim-flag.js";
+import { territories } from "../territories/territories.js";
+import { turnToIsland } from "@storytree/forest";
+import { focusRotation, markersApart, markerSpot } from "./planet-navigation.js";
+import { compassNorth, headingHome, opensBare, seesUnderside, sheetCentre, sheetDrag, sheetHome, sheetKey, sheetKeyPan, sheetLayout, sheetMarkers, sheetOpening, sheetPointerMarkers, sheetPan, sheetSpin, sheetPanUnder, sheetSpinTilt, sheetTilted, sheetTiltBy, sheetTwist, sheetUnder, TILT_STEP, withDocks } from "./sheet-navigation.js";
 import { sheetPoint } from "@storytree/forest-world/planet";
 
 const health = { reported: { state: "not-checked" as const }, verified: { state: "not-checked" as const } };
@@ -472,4 +475,39 @@ test("3.76 under every island whose docks are known each capability's knowledge 
     assert.ok(close(shelfOf(undefined, capability), middleOf(own, capability)), `${capability} hangs under the map's own cut with no docks known`);
   }
   assert.ok(capabilities.some(capability => !close(middleOf(laid, capability), middleOf(own, capability))), "the two layouts put some territory elsewhere");
+});
+
+test("3.89 · a session's pointer drawn outside the canvas gets an edge marker in its colour, for markerSpot to bring to the nearest edge, and none while in view, hidden or in Library; its turn pans to the pointer's island", () => {
+  const world = new Group(), island = new Group();
+  island.name = "planet:s1";
+  world.add(island);
+  const marks = new ClaimMarks();
+  marks.setLand(territories([{ capability: "cap-a", lines: 40 }, { capability: "cap-b", lines: 30 }], 20), p => new Vector3(p.x, 0, p.z), () => new Vector3(0, 1, 0), false);
+  marks.pointers(new Map([["cap-b", { colour: "#56b4e9" }]]));
+  // An eye looking straight down on the land, which faces it.
+  const down = new Quaternion().setFromAxisAngle(new Vector3(1, 0, 0), -Math.PI / 2);
+  marks.frame(0, { zoom: 2, eye: down, reduced: true });
+  island.add(marks.root);
+  const islands = [{ story: "s1", spot: { x: 0.2, y: 0.1, z: 0.97 } }, { story: "s2", spot: { x: 0, y: 0, z: 1 } }] as unknown as Parameters<typeof sheetMarkers>[0];
+  // Drawn 20 px per world unit from the canvas's middle.
+  const drawn = (at: Vector3) => ({ left: size.width / 2 + at.x * 20, top: size.height / 2 + at.z * 20 });
+  assert.deepEqual(sheetPointerMarkers(world, islands, drawn, size), [], "a pointer in view needs none");
+  island.position.set(60, 0, 0);
+  world.updateMatrixWorld(true);
+  const [marker, ...rest] = sheetPointerMarkers(world, islands, drawn, size);
+  assert.equal(rest.length, 0);
+  assert.deepEqual({ pointer: marker!.pointer, story: marker!.story, colour: marker!.colour }, { pointer: "cap-b", story: "s1", colour: "#56b4e9" });
+  assert.ok(marker!.left > size.width, "drawn past the right edge");
+  assert.equal(markerSpot(marker!, size).left, size.width - 20, "brought to the right edge, the edge nearest it");
+  assert.deepEqual(marker!.turn, turnToIsland(islands[0]!.spot), "its click pans to the pointer's island");
+  const apart = markersApart([{ left: 467, top: 20 }, { left: 477, top: 20 }, { left: 1420, top: 400 }], size);
+  assert.deepEqual(apart, [{ left: 467, top: 20 }, { left: 513, top: 20 }, { left: 1420, top: 400 }], "two that lie the same way are set apart along their edge, so each can be clicked");
+  assert.deepEqual(sheetPointerMarkers(world, islands, drawn, size, "library"), [], "none in Library");
+  marks.root.visible = false;
+  assert.deepEqual(sheetPointerMarkers(world, islands, drawn, size), [], "none while the marks are hidden");
+  marks.root.visible = true;
+  marks.pointers(new Map());
+  marks.frame(1, { zoom: 2, eye: down, reduced: true });
+  assert.deepEqual(sheetPointerMarkers(world, islands, drawn, size), [], "none once the pointer goes");
+  marks.dispose();
 });

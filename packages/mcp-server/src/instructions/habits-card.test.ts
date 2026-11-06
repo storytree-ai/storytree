@@ -1,5 +1,5 @@
 /**
- * Capability 7 · Instructions, the habits card: one test per contract 7.1-7.3, 7.5 and 7.8 to 7.11 in
+ * Capability 7 · Instructions, the habits card: one test per contract 7.1-7.3, 7.5 and 7.8 to 7.16 in
  * the MCP server story. The card names each tool in backticks, and uses backticks for nothing
  * else, so the tools it teaches are exactly the backticked words in it. Whether real agents follow
  * it is the app setup's setup check.
@@ -15,6 +15,7 @@ import { InMemoryTransport } from "@modelcontextprotocol/server";
 
 import { createAgentTools } from "../index.js";
 import { storyParts } from "@storytree/plugin-loader";
+import { SMALL_FIXES_ARC } from "@storytree/app-setup/project";
 import { setupGuidance } from "@storytree/app-setup/setup";
 import { decisionRights, readStandIns } from "@storytree/project-and-caller";
 import { CONTRACT_DEFINITION, habitsCard } from "./habits.js";
@@ -219,6 +220,22 @@ test("7.15 the card handed at session start says the layout the map draws for Py
     for (const said of ["packages/<story>/pyproject.toml", "src/<module>", "test_2_3_", "test_<package>_2_3_", "a docstring's number is for reading only"]) {
       assert.ok(served.includes(said), `the served card lacks: ${said}`);
     }
+  } finally {
+    await session.close();
+  }
+});
+
+test("7.16 the card handed at session start says to park and claim a change's increment before building it, never afterwards, and to park a small fix that adds or changes no contract on the project's small-fixes arc, anything bigger on an arc of its own", async () => {
+  const session = await sessionStart();
+  try {
+    const served = session.client.getInstructions() ?? "";
+    for (const said of [
+      "Park the change's increment with `park_increment` and `claim` it before you build, never afterwards to record work already done",
+      "A small fix, one that adds or changes no contract",
+      `one increment with a one-line objective on this project's standing small-fixes arc "${SMALL_FIXES_ARC}"`,
+      "no new story, capability or contract",
+      "anything bigger goes on an arc of its own",
+    ]) assert.ok(served.includes(said), `the served card lacks: ${said}`);
   } finally {
     await session.close();
   }

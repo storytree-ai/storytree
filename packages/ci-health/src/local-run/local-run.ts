@@ -60,13 +60,15 @@ function testCommandOf(folder: string): { command: string; reads: string } | { w
 
 /** The exit codes a shell gives a command it cannot find: sh's 127, cmd.exe's 9009. */
 const NOT_FOUND = new Set([127, 9009]);
+/** What cmd.exe prints for a command it cannot find, since `cmd /c` may exit 1 instead of 9009. */
+const CMD_NOT_FOUND = /is not recognized as an internal or external command/;
 
 /** Why a run of `command` that reported no results storytree reads wrote nothing: that its runner could not be started, or its last lines. */
 function unreadWhy(command: string, reads: string, output: string, code: number | null): string {
   const last = output.trimEnd().split(/\r?\n/).slice(-10).map((line) => `  ${line}`).join("\n");
   const printed = last.trim() === "" ? "It printed nothing." : `It printed:\n${last}`;
   const runner = command.trim().split(/\s+/)[0];
-  const said = code !== null && NOT_FOUND.has(code)
+  const said = (code !== null && NOT_FOUND.has(code)) || CMD_NOT_FOUND.test(output)
     ? `This project's test command (${command}) could not be started: ${runner} is not a command this computer's shell can find (is it on PATH?). ${printed}`
     : `This project's test command (${command}) reported no test results storytree can read (${reads}). ${printed}`;
   return `${said}\nNothing was verified or written.`;

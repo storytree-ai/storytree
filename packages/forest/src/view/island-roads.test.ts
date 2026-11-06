@@ -25,9 +25,10 @@ const links = [{ from: "z1", to: "a" }, { from: "z2", to: "b" }, { from: "c", to
 const docks = [{ local: { x: R, z: 0 }, links: ["z1->a", "z2->b"] }];
 const map = linkLayout(shares, coast, links, docks);
 const roads = islandRoads(map, links, docks, capabilityPlates(map));
-// Six capabilities where the arrival to a must go under e (ADR-1253 D3).
+// Six capabilities where b's road to e must go under a third territory (ADR-1253 D3).
 const sixShares = ["a", "b", "c", "d", "e", "f"].map((capability, i) => ({ capability, title: `${i + 1} · ${capability.toUpperCase()}`, lines: 900 - 120 * i }));
-const sixLinks = [{ from: "z1", to: "a" }, { from: "z2", to: "b" }, { from: "e", to: "a" }, { from: "c", to: "f" }, { from: "f", to: "b" }, { from: "c", to: "a" }];
+const sixLinks = [{ from: "z1", to: "a" }, { from: "z2", to: "b" }, { from: "a", to: "b" }, { from: "c", to: "a" }, { from: "b", to: "e" }, { from: "a", to: "f" },
+  { from: "e", to: "c" }, { from: "b", to: "a" }, { from: "c", to: "e" }];
 const sixMap = linkLayout(sixShares, coast, sixLinks, docks);
 const flat = (p: Point) => new Vector3(p.x, 0, p.z);
 const toSegment = (p: Point, a: Point, b: Point) => {
@@ -79,6 +80,19 @@ test("3.77 each road is a sandy ribbon as wide as the links it carries, its sand
   });
   assert.equal(marks.children.filter((o) => o.name.startsWith("gate-post:")).length, roads.gates.length * 2, "a post either side of every gate");
   assert.equal(marks.children.filter((o) => o.name.startsWith("gate-face:")).length, roads.gates.length * 2, "each with its paper face");
+});
+
+test("3.77 a gate standing in a tunnel's mouth has no posts: the portal stands for it, and every other gate keeps its two (Mick, 2026-11-06)", () => {
+  const tunnelled = islandRoads(sixMap, sixLinks, docks, capabilityPlates(sixMap)), relief = islandRelief(sixMap, tunnelled);
+  const drawn = islandRoadMarks(tunnelled, flat, landFill(sixMap, territoryLand(sixMap, flat, coast, new Map(), tunnelled)), relief);
+  const atMouth = (g: { at: Point }) => tunnelled.portals.some((p) => Math.hypot(p.at.x - g.at.x, p.at.z - g.at.z) < 1e-6);
+  assert.ok(tunnelled.gates.some(atMouth), "b's road comes out of its tunnel by its own gate into e");
+  assert.ok(tunnelled.gates.some((g) => !atMouth(g)), "and the island has gates on open land too");
+  tunnelled.gates.forEach((g, i) => {
+    const posts = [-1, 1].filter((sign) => drawn.getObjectByName(`gate-post:${i}:${sign}`) !== undefined).length;
+    assert.equal(posts, atMouth(g) ? 0 : 2, atMouth(g) ? "no posts beside a tunnel's mouth" : "a post either side of any other gate");
+  });
+  tunnelled.portals.forEach((_, i) => assert.ok(drawn.getObjectByName(`tunnel-portal:${i}`), "every portal still drawn"));
 });
 
 test("3.77 the selected island's roads show and hide with its territories", () => {
@@ -156,7 +170,7 @@ test("3.81 a road carrying one link picks that link; a tunnel's portal the links
   assert.deepEqual(routeOf(single), { kind: "link", links: single.userData.links });
   assert.deepEqual(routeOf(shared), { kind: "road", links: shared.userData.links });
   assert.equal(routeOf(marks.getObjectByName("settlements")!), undefined, "anything else picks nothing");
-  // The arrival to a must go under e.
+  // b's road to e must go under a third territory.
   const tunnelled = islandRoads(sixMap, sixLinks, docks, capabilityPlates(sixMap)), drawn = islandRoadMarks(tunnelled, flat, landFill(sixMap, territoryLand(sixMap, flat, coast, new Map(), tunnelled)), islandRelief(sixMap, tunnelled));
   assert.ok(tunnelled.portals.length > 0);
   tunnelled.portals.forEach((p, i) => assert.deepEqual(routeOf(drawn.getObjectByName(`tunnel-portal:${i}`)!), { kind: "link", links: p.links }, "a portal picks the links it carries"));
@@ -235,7 +249,7 @@ test("3.88 · a click on a gate picks the gate, and the selection that click mak
 test("3.77 a road that must cross a third territory goes under it: at each portal an arch laid on that territory's land at its border, its dark mouth where the road ends (ADR-1253 D3)", () => {
   const tunnelled = islandRoads(sixMap, sixLinks, docks, capabilityPlates(sixMap)), relief = islandRelief(sixMap, tunnelled);
   const drawn = islandRoadMarks(tunnelled, flat, landFill(sixMap, territoryLand(sixMap, flat, coast, new Map(), tunnelled)), relief);
-  assert.ok(tunnelled.portals.length >= 2, "the arrival to a goes under e");
+  assert.ok(tunnelled.portals.length >= 2, "b's road to e goes under a third territory");
   tunnelled.portals.forEach((p, i) => {
     const arch = drawn.getObjectByName(`tunnel-portal:${i}`) as Mesh, mouth = drawn.getObjectByName(`tunnel-mouth:${i}`) as Mesh;
     assert.ok(arch !== undefined && mouth !== undefined, "an arch and its mouth at every portal");

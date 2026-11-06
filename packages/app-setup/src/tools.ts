@@ -176,8 +176,11 @@ export function setupTools(readProtection: ProtectionReader = ghProtection, jobs
   };
 }
 
-/** What import_project's reply asks of the agent once it maps a folder (ADR-1275 D1): the repository's own tests run in its shell, never by a tool (ADR-1193 D2). */
-const RUN_THE_TESTS = "Run `storytree health local` now, in your shell, from this project's folder: it runs the repository's own tests, and their results read red or green on the contracts naming them. Until it runs, the capabilities you map read yellow, not yet proven.";
+/**
+ * What import_project's reply asks of the agent once it maps a folder (ADR-1275 D1): the repository's own tests run in its shell,
+ * never by a tool (ADR-1193 D2); then one arc fixes what they leave red and carries the user's requests (ADR-1271).
+ */
+const RUN_THE_TESTS = "Run `storytree health local` now, in your shell, from this project's folder: it runs the repository's own tests, and their results read red or green on the contracts naming them. Until it runs, the capabilities you map read yellow, not yet proven. Its reply names the capabilities it leaves red: then plan one arc, an increment fixing each, its capabilities list naming it, and the user's own requests as increments on that arc.";
 
 /** What the answer says of the folders the project imports: each fetched at its commit, or named as one CI cannot fetch. */
 function importsSaid(imports: readonly ImportFetch[]): string[] {

@@ -74,14 +74,13 @@ const local = verb({
   tool: { absent: "it runs the project's own test command, so it goes through the agent's shell, where its permission prompt applies (ADR-0630, ADR-1193 D2)" },
   inputs: {},
   async act(_input, { library, folder }) {
-    const { recordLocalTests } = await import("./local-run/local-run.js");
+    const { localReadingText, recordLocalTests } = await import("./local-run/local-run.js");
     const read = await recordLocalTests({ library, folder });
     // A run that reported nothing storytree reads verified nothing, so the command fails.
     if (!read.written && read.unread) throw new VerbRefusal(read.why);
     if (!read.written) return { text: read.why };
     return {
-      text: `Ran this project's ${read.tests} tests locally by \`${read.command}\`${read.commit === undefined ? "" : ` (commit ${read.commit.slice(0, 12)})`}: ${read.passing} contracts verified passing, ${read.failing} failing, ${read.notChecked} not checked` +
-        `${read.unmatched === 0 ? "." : `; ${read.unmatched} results named no contract of one story.`}`,
+      text: localReadingText(read),
       next: [{ command: "tree", why: "see each contract's verified health beside the agent's report" }],
     };
   },

@@ -1,7 +1,7 @@
 /** Capability 2 · Settings: who decides what, as the MCP server's habits card states it and the app's panel shows it (2.14). */
 
 /**
- * Who decides what (ADR-0842 D1, D2): the kinds of decision a user's agent makes and records, the
+ * Who decides what (ADR-0842 D1, D2, as ADR-1273 narrows D1): the kinds of decision a user's agent makes and records, the
  * kinds it asks the owner about, and the honesty promises no instructions file moves. The card is
  * built from these lines, and anything that shows the split reads them here, so the two never drift.
  */
@@ -20,10 +20,11 @@ export interface DecisionRights {
 
 const DECISION_RIGHTS: DecisionRights = {
   decides: [
-    "reversible engineering choices",
+    "a call with no trade-off (same outputs, no new dependency, no contract or user-facing change) that is reversible",
     "a look you built, which lands with its pictures rather than as a question",
   ],
   asks: [
+    "any call with a trade-off",
     "choosing between designs before building",
     "anything outward-facing",
     "anything irreversible",

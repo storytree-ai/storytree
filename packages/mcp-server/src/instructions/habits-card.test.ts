@@ -132,6 +132,11 @@ test("7.5 the card handed at session start says who decides what, and what no fi
     for (const line of [...rights.decides, ...rights.asks, rights.delegations, rights.override, ...rights.honesty]) {
       assert.ok(served.includes(line), `the served card lacks: ${line}`);
     }
+    const decides = served.split("\n").find((line) => line.startsWith("- Decide yourself")) ?? "";
+    // ADR-1273 D1: alone, only a call with no trade-off that is reversible.
+    for (const test of ["no trade-off", "same outputs", "no new dependency", "no contract or user-facing change", "reversible"]) {
+      assert.ok(decides.includes(test), `the card's decides line names ${test}: ${decides}`);
+    }
   } finally {
     await session.close();
   }

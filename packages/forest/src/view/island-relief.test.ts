@@ -60,7 +60,7 @@ test("3.78 a ramp only where a road climbs from the open land onto a territory, 
   }
 });
 
-test("3.78 open road onto the open land climbs a ramp with no gate; a road in a tunnel climbs none, its portals held in the plateau's rim (ADR-1253 D3)", () => {
+test("3.78 open road onto the open land climbs a ramp with no gate; a road in a tunnel climbs none, a low rise standing over it from mouth to mouth (ADR-1253 D3, question_921aee319481)", () => {
   // Six capabilities where the arrivals climb onto a by open road, and b's road to e goes under a third territory.
   const sixShares = ["a", "b", "c", "d", "e", "f"].map((capability, i) => ({ capability, title: `${i + 1} · ${capability.toUpperCase()}`, lines: 900 - 120 * i }));
   const sixLinks = [{ from: "z1", to: "a" }, { from: "z2", to: "b" }, { from: "a", to: "b" }, { from: "c", to: "a" }, { from: "b", to: "e" }, { from: "a", to: "f" },
@@ -68,14 +68,76 @@ test("3.78 open road onto the open land climbs a ramp with no gate; a road in a 
   const six = linkLayout(sixShares, coast, sixLinks, docks), sixRoads = islandRoads(six, sixLinks, docks, capabilityPlates(six)), sixRelief = islandRelief(six, sixRoads);
   const gateless = sixRelief.ramps.filter((r) => r.gate === undefined);
   assert.ok(gateless.length > 0 && gateless.every((r) => sixRoads.passes.some((p) => far(p.at, r.at) < 1e-9)), "a ramp at open road");
-  assert.ok(sixRoads.portals.length > 0);
-  let held = 0;
+  assert.ok(sixRoads.portals.length > 0 && sixRoads.tunnels.length > 0);
+  const H = sixRelief.height, { height: rise, halfWidth } = sixRelief.rise;
   for (const p of sixRoads.portals) {
-    assert.ok(sixRelief.ramps.every((r) => far(r.at, p.at) > 1e-6), "no ramp at a portal");
-    // Where a tunnel comes out at the gate into the capability it calls, the gate breaks the rim; anywhere else it runs on.
-    if ([...sixRoads.gates, ...sixRoads.passes].every((g) => far(g.at, p.at) > 6)) { held++; assert.ok(sixRelief.rims.some((r) => toSegment(p.at, r.from, r.to) < 1e-6), "the rim runs on under the portal"); }
+    assert.ok(sixRelief.ramps.every((r) => far(r.at, p.at) > 1e-6), "no ramp at a portal's mouth");
+    assert.ok(sixRelief.rims.every((r) => toSegment(p.border, r.from, r.to) > 1e-6), "the rim broken where its road crosses onto the land it goes under");
   }
-  assert.ok(held > 0, "a portal with no gate at it");
+  const way = (q: Point) => Math.min(...sixRoads.tunnels.flatMap((t) => t.pts.slice(1).map((b, i) => toSegment(q, t.pts[i]!, b))));
+  for (const t of sixRoads.tunnels) for (let i = 1; i < t.pts.length; i++) {
+    const a = t.pts[i - 1]!, b = t.pts[i]!, mid = { x: (a.x + b.x) / 2, z: (a.z + b.z) / 2 }, l = far(a, b) || 1, n = { x: -(b.z - a.z) / l, z: (b.x - a.x) / l };
+    if (far(mid, t.pts[0]!) < halfWidth || far(mid, t.pts.at(-1)!) < halfWidth) continue;
+    assert.ok(sixRelief.raise(mid) > H + rise * 0.4 && sixRelief.raise(mid) <= H + rise + 1e-9, "the rise over the tunnel, at most its height");
+    for (const side of [1, -1]) {
+      const beside = at(mid, n, side * halfWidth * 1.05);
+      if (way(beside) > halfWidth && territoryOf(beside) !== undefined && territoryOf(beside)! >= 0) assert.equal(sixRelief.raise(beside), H, "and none beside it: a small footprint");
+    }
+  }
+  assert.ok(rise > 0 && rise < H && halfWidth < 3, "low, and narrow");
+  // Each end hipped down to its mouth: no rise at the mouth, most of it a little way in along the tunnel.
+  const walk = (pts: readonly Point[], d: number): Point => {
+    for (let i = 1; i < pts.length; i++) { const l = far(pts[i - 1]!, pts[i]!); if (d <= l) return at(pts[i - 1]!, { x: (pts[i]!.x - pts[i - 1]!.x) / l, z: (pts[i]!.z - pts[i - 1]!.z) / l }, d); d -= l; }
+    return pts.at(-1)!;
+  };
+  for (const t of sixRoads.tunnels) for (const way of [t.pts, [...t.pts].reverse()]) {
+    assert.ok(Math.abs(sixRelief.raise(way[0]!) - H) < 1e-9, "the rise starts at the mouth");
+    assert.ok(sixRelief.raise(walk(way, sixRelief.rise.inset)) > H + rise * 0.5, "and climbs from it to most of its height within its inset");
+  }
+});
+
+test("3.78 a tunnel too short for a rise along it stands under a flat-topped knoll, reaching past both its mouths and no wider than a rise (question_921aee319481)", () => {
+  // The six capabilities' tunnel cut down to a short way under the middle of its land, a mouth at each end.
+  const sixShares = ["a", "b", "c", "d", "e", "f"].map((capability, i) => ({ capability, title: `${i + 1} · ${capability.toUpperCase()}`, lines: 900 - 120 * i }));
+  const sixLinks = [{ from: "z1", to: "a" }, { from: "z2", to: "b" }, { from: "a", to: "b" }, { from: "c", to: "a" }, { from: "b", to: "e" }, { from: "a", to: "f" },
+  { from: "e", to: "c" }, { from: "b", to: "a" }, { from: "c", to: "e" }];
+  const six = linkLayout(sixShares, coast, sixLinks, docks), sixRoads = islandRoads(six, sixLinks, docks, capabilityPlates(six));
+  const long = sixRoads.tunnels[0]!, mid = long.pts[Math.floor(long.pts.length / 2)]!, d = { x: long.pts.at(-1)!.x - long.pts[0]!.x, z: long.pts.at(-1)!.z - long.pts[0]!.z }, l = Math.hypot(d.x, d.z);
+  const along = { x: d.x / l, z: d.z / l }, ends = [at(mid, along, -1.5), at(mid, along, 1.5)] as const;
+  const short = { ...sixRoads, tunnels: [{ pts: [ends[0], mid, ends[1]], links: long.links }], portals: ends.map((m) => ({ ...sixRoads.portals[0]!, at: m })) };
+  const relief = islandRelief(six, short), H = relief.height;
+  assert.ok(Math.abs(relief.raise(mid) - (H + relief.rise.height)) < 1e-9, "its top at the rise's height");
+  for (const [k, m] of ends.entries()) {
+    assert.ok(relief.raise(m) > H, "its mouth in the knoll's flank");
+    const beyond = at(m, along, k === 0 ? -0.3 : 0.3);
+    if (territoryOf(beyond) !== undefined && territoryOf(beyond)! >= 0) assert.ok(relief.raise(beyond) > H, "reaching past it");
+  }
+  const across = at(mid, { x: -along.z, z: along.x }, relief.rise.halfWidth * 1.05);
+  if (territoryOf(across) !== undefined && territoryOf(across)! >= 0) assert.equal(relief.raise(across), H, "no wider than a rise");
+});
+
+test("3.78 a tunnel's rise drawn over it, shaded by the light: lighter on its side toward the light than away (question_921aee319481)", () => {
+  const sixShares = ["a", "b", "c", "d", "e", "f"].map((capability, i) => ({ capability, title: `${i + 1} · ${capability.toUpperCase()}`, lines: 900 - 120 * i }));
+  const sixLinks = [{ from: "z1", to: "a" }, { from: "z2", to: "b" }, { from: "a", to: "b" }, { from: "c", to: "a" }, { from: "b", to: "e" }, { from: "a", to: "f" },
+  { from: "e", to: "c" }, { from: "b", to: "a" }, { from: "c", to: "e" }];
+  const six = linkLayout(sixShares, coast, sixLinks, docks), sixRoads = islandRoads(six, sixLinks, docks, capabilityPlates(six)), sixRelief = islandRelief(six, sixRoads);
+  const land = territoryLand(six, flat, coast, new Map(), sixRoads), marks = islandReliefMarks(sixRelief, flat, landFill(six, land));
+  const rise = marks.getObjectByName("relief-rise") as Mesh;
+  assert.ok(rise !== undefined, "the rise drawn");
+  const pos = rise.geometry.getAttribute("position"), col = rise.geometry.getAttribute("color");
+  const ys = Array.from({ length: pos.count }, (_, k) => pos.getY(k));
+  assert.ok(Math.max(...ys) > sixRelief.height + sixRelief.rise.height * 0.4 && Math.max(...ys) <= sixRelief.height + sixRelief.rise.height + 0.05, "up to the rise's height over the plateau, just over it");
+  // Each vertex's brightness against the land under it, by whether the slope there faces the light.
+  const toward: number[] = [], away: number[] = [], fill = landFill(six, land), under = landColour(fill);
+  for (let k = 0; k < pos.count; k++) {
+    const q = { x: pos.getX(k), z: pos.getZ(k) }, e = 0.2, slope = { x: sixRelief.raise({ x: q.x + e, z: q.z }) - sixRelief.raise({ x: q.x - e, z: q.z }), z: sixRelief.raise({ x: q.x, z: q.z + e }) - sixRelief.raise({ x: q.x, z: q.z - e }) };
+    if (Math.hypot(slope.x, slope.z) < 0.05) continue;
+    const ground = under(q), here = new Color(col.getX(k), col.getY(k), col.getZ(k)), k2 = here.r + here.g + here.b - (ground.r + ground.g + ground.b);
+    // Downhill toward the light faces it.
+    ((-slope.x * LIGHT.x - slope.z * LIGHT.z) > 0 ? toward : away).push(k2);
+  }
+  const mean = (xs: number[]) => xs.reduce((s, x) => s + x, 0) / xs.length;
+  assert.ok(toward.length > 0 && away.length > 0 && mean(toward) > 0 && mean(away) < 0, "lit toward the light, shaded away");
 });
 
 test("3.78 a wall wherever a plateau meets the open land or the coast, open at each ramp; a bevel rim inside each border on every territory's side, broken wherever a road crosses it", () => {

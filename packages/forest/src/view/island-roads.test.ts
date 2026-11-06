@@ -82,10 +82,10 @@ test("3.77 each road is a sandy ribbon as wide as the links it carries, its sand
   assert.equal(marks.children.filter((o) => o.name.startsWith("gate-face:")).length, roads.gates.length * 2, "each with its paper face");
 });
 
-test("3.77 a gate standing in a tunnel's mouth has no posts: the portal stands for it, and every other gate keeps its two (Mick, 2026-11-06)", () => {
+test("3.77 a gate where a tunnel's road comes up into the territory it calls has no posts: the portal stands for it, and every other gate keeps its two (Mick, 2026-11-06)", () => {
   const tunnelled = islandRoads(sixMap, sixLinks, docks, capabilityPlates(sixMap)), relief = islandRelief(sixMap, tunnelled);
   const drawn = islandRoadMarks(tunnelled, flat, landFill(sixMap, territoryLand(sixMap, flat, coast, new Map(), tunnelled)), relief);
-  const atMouth = (g: { at: Point }) => tunnelled.portals.some((p) => Math.hypot(p.at.x - g.at.x, p.at.z - g.at.z) < 1e-6);
+  const atMouth = (g: { at: Point }) => tunnelled.portals.some((p) => Math.hypot(p.border.x - g.at.x, p.border.z - g.at.z) < 1e-6);
   assert.ok(tunnelled.gates.some(atMouth), "b's road comes out of its tunnel by its own gate into e");
   assert.ok(tunnelled.gates.some((g) => !atMouth(g)), "and the island has gates on open land too");
   tunnelled.gates.forEach((g, i) => {
@@ -246,7 +246,7 @@ test("3.88 · a click on a gate picks the gate, and the selection that click mak
   assert.equal(routeAfterSelection({ story: "story", pick: { kind: "link", links: ["d->c"] } }, "story"), undefined, "a lit road goes out on any selection, as before");
 });
 
-test("3.77 a road that must cross a third territory goes under it: at each portal an arch laid on that territory's land at its border, its dark mouth where the road ends (ADR-1253 D3)", () => {
+test("3.77 a road that must cross a third territory goes under it: at each portal a stone arch standing up in the rise's face, its dark mouth where the road ends, a little wider than the road (ADR-1253 D3, question_921aee319481)", () => {
   const tunnelled = islandRoads(sixMap, sixLinks, docks, capabilityPlates(sixMap)), relief = islandRelief(sixMap, tunnelled);
   const drawn = islandRoadMarks(tunnelled, flat, landFill(sixMap, territoryLand(sixMap, flat, coast, new Map(), tunnelled)), relief);
   assert.ok(tunnelled.portals.length >= 2, "b's road to e goes under a third territory");
@@ -254,13 +254,14 @@ test("3.77 a road that must cross a third territory goes under it: at each porta
     const arch = drawn.getObjectByName(`tunnel-portal:${i}`) as Mesh, mouth = drawn.getObjectByName(`tunnel-mouth:${i}`) as Mesh;
     assert.ok(arch !== undefined && mouth !== undefined, "an arch and its mouth at every portal");
     const points = (m: Mesh) => { const a = m.geometry.getAttribute("position"); return Array.from({ length: a.count }, (_, k) => ({ x: a.getX(k), y: a.getY(k), z: a.getZ(k) })); };
-    const under = relief.raise({ x: p.at.x + p.into.x * 0.6, z: p.at.z + p.into.z * 0.6 });
-    for (const v of [...points(arch), ...points(mouth)]) {
-      assert.ok((v.x - p.at.x) * p.into.x + (v.z - p.at.z) * p.into.z > -1e-4, "on the side of the land it goes under");
-      assert.ok(v.y > under && v.y < under + 0.2, "laid on that land, just over it");
-    }
-    assert.ok(Math.max(...points(mouth).map((v) => Math.hypot(v.x - p.at.x, v.z - p.at.z))) >= p.width / 2 - 1e-4, "its mouth as wide as the road's opening");
-    assert.ok(points(arch).every((v) => Math.hypot(v.x - p.at.x, v.z - p.at.z) >= p.width / 2 * 0.8 - 1e-4), "the stone round the mouth");
+    const base = relief.raise(p.at), across = (v: { x: number; z: number }) => Math.abs((v.x - p.at.x) * p.along.x + (v.z - p.at.z) * p.along.z);
+    const inward = (v: { x: number; z: number }) => (v.x - p.at.x) * p.into.x + (v.z - p.at.z) * p.into.z;
+    assert.ok(points(mouth).every((v) => inward(v) > -1e-4), "its mouth leaning into the land it goes under");
+    assert.ok(points(arch).every((v) => inward(v) > -1e-4), "and its stone");
+    assert.ok(Math.max(...points(mouth).map((v) => v.y)) - base >= p.width / 2 * 0.9, "its mouth stands up as high as half its width");
+    assert.ok(Math.max(...points(mouth).map(across)) >= p.width / 2 - 1e-4, "and as wide as the portal");
+    assert.ok(Math.max(...points(arch).map(across)) > p.width / 2, "the stone round the mouth");
+    assert.ok(p.width < Math.max(...tunnelled.segments.filter((s) => s.links.join() === p.links.join()).map((s) => s.width)) + 1.2, "a little wider than its road: a small footprint");
     assert.equal(`#${((mouth.material as MeshBasicMaterial).color.getHexString())}`, PORTAL.mouth, "its mouth dark");
   });
 });

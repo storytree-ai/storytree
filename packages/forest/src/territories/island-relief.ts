@@ -3,8 +3,9 @@
  * ported from the capability tree mock's round 11 relief (docs/design/capability-tree-3d/q-all-islands/tools/overlay.ts,
  * `RELIEF`): every territory a plateau one height above the open land, a wall where a plateau stands over the open land
  * or the coast, a bevel rim inside each border broken where a road crosses it on the land (a gate or open road), and a
- * ramp only where a road climbs from the open land onto a plateau; a road in a tunnel (ADR-1253 D3) climbs nothing, its
- * portals set in the rim and the wall. Sizes are The library's, given back at the island's own, as the roads' are.
+ * ramp only where a road climbs from the open land onto a plateau; a road in a tunnel (ADR-1253 D3) climbs nothing, and a
+ * low rise stands over it from mouth to mouth, its portals set in the rise's face (question_921aee319481). Sizes are The
+ * library's, given back at the island's own, as the roads' are.
  */
 import { LIBRARY_LAND } from "./link-layout.js";
 import type { IslandRoads, RoadGate } from "./island-roads.js";
@@ -17,6 +18,10 @@ export const RELIEF = {
   ramp: { width: 3.4, depth: 3.2 },
   rim: { width: 0.9 },
   post: { side: 1.4, height: 1.2 },
+  /** A tunnel's rise: its height over the plateau, how far it reaches either side of the tunnel (narrowed to stay on its
+   * land, down to `least`), how far from each mouth it climbs to its full height, and how far apart the gentle humps along
+   * it stand (Mick, 2026-11-07: "some topology ... that makes it look like an actual tunnel"). */
+  rise: { height: 1.25, halfWidth: 2.3, least: 0.7, inset: 1.0, hump: 4.5 },
 } as const;
 /** Toward the light, on the ground: from the page's upper left at rest, as the mock lights it. */
 export const LIGHT: Point = { x: -Math.SQRT1_2, z: -Math.SQRT1_2 };
@@ -32,11 +37,17 @@ export type IslandRelief = {
   /** The island's scale against The library's; the plateau's height above the open land, and the ramps', rims' and posts' sizes, at it. */
   readonly scale: number; readonly height: number; readonly rampWidth: number; readonly rampDepth: number; readonly rimWidth: number;
   readonly post: { readonly side: number; readonly height: number };
+  /** A tunnel's rise at the island's scale. */
+  readonly rise: { readonly height: number; readonly halfWidth: number; readonly least: number; readonly inset: number; readonly hump: number };
+  /** Each tunnel's way under the land, the rise stands over. */
+  readonly tunnels: readonly { readonly pts: readonly Point[] }[];
   readonly ramps: readonly Ramp[]; readonly walls: readonly Wall[]; readonly rims: readonly Rim[];
   /** The territory under a point (-1 on open land), undefined off the coast. */
   territoryAt(p: Point): number | undefined;
-  /** How far a point stands above the open land: a plateau's height, part way up a ramp, or none. */
+  /** How far a point stands above the open land: a plateau's height and any tunnel's rise over it, part way up a ramp, or none. */
   raise(p: Point): number;
+  /** How far the tunnels' rise stands at a point, wherever the land is. */
+  riseAt(p: Point): number;
 };
 
 const sub = (a: Point, b: Point): Point => ({ x: a.x - b.x, z: a.z - b.z });
@@ -72,7 +83,9 @@ export function islandRelief(map: TerritoryMap, roads: IslandRoads): IslandRelie
     }
     return undefined;
   };
-  const raise = (p: Point) => { const t = territoryAt(p); return t === undefined ? 0 : t >= 0 ? H : (onRamp(p) ?? 0) * H; };
+  const rise = { height: RELIEF.rise.height * S, halfWidth: RELIEF.rise.halfWidth * S, least: RELIEF.rise.least * S, inset: RELIEF.rise.inset * S, hump: RELIEF.rise.hump * S };
+  const overTunnel = tunnelRise(roads, rise, territoryAt);
+  const raise = (p: Point) => { const t = territoryAt(p); return t === undefined ? 0 : t >= 0 ? H + overTunnel(p) : (onRamp(p) ?? 0) * H; };
 
   // The borders on the land, each with the territory on either side.
   const borders = map.borders.flatMap((b) => {
@@ -107,7 +120,86 @@ export function islandRelief(map: TerritoryMap, roads: IslandRoads): IslandRelie
     const into = sideOf(b.from, b.to, t);
     return cut(b.from, b.to, gateHoles, 0.6 * S).map((s) => ({ ...s, into, territory: t }));
   }));
-  return { scale: S, height: H, rampWidth, rampDepth, rimWidth: RELIEF.rim.width * S, post, ramps, walls, rims, territoryAt, raise };
+  return { scale: S, height: H, rise, rampWidth, rampDepth, rimWidth: RELIEF.rim.width * S, post, tunnels: roads.tunnels, ramps, walls, rims, territoryAt, raise, riseAt: overTunnel };
+}
+
+/**
+ * How far the land at a point rises over the tunnels of `roads`: in straight facets to the rise's height over each tunnel's way, in
+ * gentle humps along it, falling to none either side of it as far out as the land it goes under reaches (by
+ * `territoryAt`), from `halfWidth` down to `least`, none on any other land, and at a mouth climbing from none at the mouth to
+ * its height `inset` in; a tunnel too short for that stands under a round knoll, on any plateau.
+ */
+function tunnelRise(roads: IslandRoads, rise: IslandRelief["rise"], territoryAt: (p: Point) => number | undefined): (p: Point) => number {
+  // How far out from a way's point the land it goes under reaches either side, up to `halfWidth`: stepped out, then narrowed down by halves.
+  const room = (q: Point, n: Point, onPlateau: (p: Point) => boolean) => {
+    let out = rise.halfWidth;
+    for (const side of [1, -1]) for (let k = 1; k <= 8; k++) {
+      let d = rise.halfWidth * k / 8;
+      if (onPlateau(at(q, n, side * d))) continue;
+      let lo = rise.halfWidth * (k - 1) / 8;
+      for (let i = 0; i < 6; i++) { const mid = (lo + d) / 2; if (onPlateau(at(q, n, side * mid))) lo = mid; else d = mid; }
+      out = Math.min(out, lo);
+      break;
+    }
+    return Math.max(rise.least, Math.min(rise.halfWidth, out * 0.9));
+  };
+  // Each way point's room, evened out with its neighbours', so the rise's foot runs smooth along a jagged border.
+  const even = (widths: readonly number[]) => widths.map((_, i) => { const near = widths.slice(Math.max(0, i - 3), i + 4); return Math.min(widths[i]! * 1.15, near.reduce((s, w) => s + w, 0) / near.length); });
+  const ways = roads.tunnels.filter((t) => t.pts.length > 1).map(({ pts }) => {
+    const lengths = pts.slice(1).map((b, i) => Math.hypot(b.x - pts[i]!.x, b.z - pts[i]!.z)), total = lengths.reduce((s, l) => s + l, 0);
+    const under = new Set(pts.map(territoryAt)), onIt = (p: Point) => under.has(territoryAt(p));
+    const widths = even(pts.map((q, i) => room(q, unit(perp(sub(pts[Math.min(i + 1, pts.length - 1)]!, pts[Math.max(i - 1, 0)]!))), onIt)));
+    const mouth = (q: Point) => roads.portals.some((m) => Math.hypot(m.at.x - q.x, m.at.z - q.z) < 1e-6);
+
+    // A short tunnel's knoll: round, on the middle of its way, reaching a little past its mouths so they sit in its flank.
+    const middle = pointAlong(pts, lengths, total / 2), knoll = total < 2 * rise.halfWidth ? total / 2 + rise.inset * 0.6 : 0, lengthwise = unit(sub(pts.at(-1)!, pts[0]!));
+    const xs = pts.map((q) => q.x), zs = pts.map((q) => q.z), r = Math.max(rise.halfWidth, knoll);
+    return { pts, lengths, widths, total, onIt, middle, knoll, lengthwise, inset: Math.min(rise.inset, total / 2.5), ends: [mouth(pts[0]!), mouth(pts.at(-1)!)] as const, box: [Math.min(...xs) - r, Math.max(...xs) + r, Math.min(...zs) - r, Math.max(...zs) + r] as const };
+  });
+  return (p) => {
+    let best = 0;
+    for (const w of ways) {
+      if (p.x < w.box[0] || p.x > w.box[1] || p.z < w.box[2] || p.z > w.box[3]) continue;
+      // A short tunnel's knoll stands on any plateau round it, so one under a corner of a territory still has its hill.
+      if (w.knoll > 0) {
+        // An oval along the road, reaching past both mouths, and as wide as the rise over a longer one.
+        const d = sub(p, w.middle), k = Math.min(1, Math.hypot(dot(d, w.lengthwise) / w.knoll, dot(d, perp(w.lengthwise)) / (rise.halfWidth * 0.8))), t = territoryAt(p);
+        if (t !== undefined && t >= 0) best = Math.max(best, rise.height * Math.min(1, (1 - k) * KNOLL_STEEP));
+      }
+      if (!w.onIt(p)) continue;
+      // The nearest point on the way: how far off it, how far along, and how wide the rise is there.
+      let off = Infinity, along = 0, wide = rise.halfWidth, walked = 0;
+      for (let i = 0; i < w.lengths.length; i++) {
+        const a = w.pts[i]!, b = w.pts[i + 1]!, l = w.lengths[i]!, t = l > 0 ? Math.max(0, Math.min(1, ((p.x - a.x) * (b.x - a.x) + (p.z - a.z) * (b.z - a.z)) / (l * l))) : 0;
+        const d = Math.hypot(p.x - a.x - t * (b.x - a.x), p.z - a.z - t * (b.z - a.z));
+        if (d < off) { off = d; along = walked + t * l; wide = w.widths[i]! + (w.widths[i + 1]! - w.widths[i]!) * t; }
+        walked += l;
+      }
+      const end = Math.max(w.ends[0] ? (w.inset - along) / w.inset : 0, w.ends[1] ? (along - (w.total - w.inset)) / w.inset : 0, 0);
+      // Narrowing toward each mouth, so it comes down into it rather than ending in a stub.
+      const taper = Math.min(2 * w.inset, w.total / 2), toMouth = Math.max(0, Math.min(1, w.ends[0] ? along / taper : 1, w.ends[1] ? (w.total - along) / taper : 1));
+      // Faceted, as the plateaus' walls and ramps are: two flanks falling straight from a crest over the way, and a hipped end
+      // falling straight to each mouth.
+      const q = Math.min(1, Math.max(off / (wide * (0.7 + 0.3 * toMouth)), end));
+      // A little lower where it is narrower, and in gentle humps along it, highest halfway between its mouths.
+      const tall = rise.height * (0.75 + 0.25 * wide / rise.halfWidth) * (0.92 + 0.08 * Math.cos(2 * Math.PI * (along - w.total / 2) / rise.hump));
+      best = Math.max(best, tall * (1 - q));
+    }
+    return best;
+  };
+}
+
+/** How steeply a short tunnel's knoll falls from its flat top: its sides take this share of its reach. */
+const KNOLL_STEEP = 2.2;
+
+/** The point `d` along a line whose steps are `lengths` long. */
+function pointAlong(pts: readonly Point[], lengths: readonly number[], d: number): Point {
+  for (let i = 0; i < lengths.length; i++) {
+    const l = lengths[i]!;
+    if (d <= l && l > 0) return at(pts[i]!, unit(sub(pts[i + 1]!, pts[i]!)), d);
+    d -= l;
+  }
+  return pts.at(-1)!;
 }
 
 /** The stretches of the segment from `a` to `b` left once `holes` (each a centre within `near` of it and a half-width along it) are cut. */

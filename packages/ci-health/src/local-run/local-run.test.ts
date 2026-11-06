@@ -12,7 +12,7 @@ import { test } from "node:test";
 import { removeTemp } from "@storytree/test-waits";
 
 import { connect } from "@storytree/library";
-import { mounted, type DoorWords } from "@storytree/library/verbs";
+import { mounted, VerbRefusal, type DoorWords } from "@storytree/library/verbs";
 
 import { HEALTH_FAMILIES } from "../verbs.js";
 import { recordLocalTests } from "./local-run.js";
@@ -98,7 +98,7 @@ test("5.2 · `health local` runs a Python project's own tests by pytest -rA (thr
   mkdirSync(path.join(folder, "packages", "check-out", "tests"), { recursive: true });
   writeFileSync(path.join(folder, "packages", "check-out", "tests", "test_checkout.py"), "def test_1_1_shows_the_form():\n    pass\n");
   const commands: string[] = [];
-  const pytest = (log: string) => async (command: string) => (commands.push(command), log);
+  const pytest = (log: string) => async (command: string) => (commands.push(command), { output: log, code: 0 });
 
   const read = await recordLocalTests({ library, folder, run: pytest("PASSED packages/check-out/tests/test_checkout.py::test_1_1_shows_the_form\n") });
   assert.equal(read.written, true, read.written ? "" : read.why);
@@ -133,7 +133,7 @@ test("5.4 · `health local` on a uv project whose .venv already exists runs its 
   writeFileSync(path.join(folder, "pyproject.toml"), "[project]\nname = \"island\"\n");
   writeFileSync(path.join(folder, "uv.lock"), "version = 1\n");
   const commands: string[] = [];
-  const run = async (command: string) => (commands.push(command), "PASSED tests/test_island.py::test_1_1_floats\n");
+  const run = async (command: string) => (commands.push(command), { output: "PASSED tests/test_island.py::test_1_1_floats\n", code: 0 });
 
   const fresh = await recordLocalTests({ library, folder, run });
   assert.equal(commands.at(-1), "uv run pytest -rA", "a fresh checkout has no environment yet, so uv makes it from uv.lock");
@@ -169,7 +169,43 @@ test("5.3 · `health local` credits a flat Python project's numbered pytest test
   mkdirSync(path.join(folder, "tests"));
   writeFileSync(path.join(folder, "tests", "test_api.py"), "def test_1_1_creates_a_todo():\n    pass\n");
 
-  const read = await recordLocalTests({ library, folder, run: async () => "PASSED tests/test_api.py::test_1_1_creates_a_todo\n" });
+  const read = await recordLocalTests({ library, folder, run: async () => ({ output: "PASSED tests/test_api.py::test_1_1_creates_a_todo\n", code: 0 }) });
   assert.ok(read.written && read.unmatched === 0, JSON.stringify(read));
   assert.equal((await library.health(contract.id)).verified.state, "passing", "credited from tests/test_api.py, in the imported story's folder");
+});
+
+test("5.5 · `health local` whose test command reports no results it can read says what the command printed, or that it could not be started, naming the runner it chose, and fails, since nothing was verified", async (t) => {
+  const url = process.env.STORYTREE_TEST_PG_URL;
+  if (url === undefined) throw new Error("run the tests via `pnpm test`, which starts a local Postgres");
+  const storytree = await connect({ url });
+  const name = `t-${randomBytes(4).toString("hex")}`;
+  const library = await storytree.openProject(name);
+  const folder = mkdtempSync(path.join(tmpdir(), "storytree-local-"));
+  t.after(async () => {
+    try {
+      await storytree.dropProject(name);
+    } finally {
+      await storytree.close();
+      await removeTemp(folder);
+    }
+  });
+  const local = HEALTH_FAMILIES[0]!.verbs.find((one) => "name" in one.command && one.command.name === "local")!;
+  const place = { library, project: name, session: "test", folder };
+  const refused = (said: RegExp) => (error: unknown) => error instanceof VerbRefusal && said.test(error.message) && /nothing was verified/i.test(error.message);
+
+  // A runner this computer cannot find, through the real shell.
+  writeFileSync(path.join(folder, "package.json"), JSON.stringify({ name: "scratch", scripts: { test: "storytree-no-such-runner --run" } }));
+  await assert.rejects(local.act({} as never, place as never, WORDS), refused(/could not be started.*storytree-no-such-runner/s));
+
+  // A command that ran and printed nothing storytree reads: its last lines are quoted.
+  writeFileSync(path.join(folder, "package.json"), JSON.stringify({ name: "scratch", scripts: { test: `node -e "console.log('collected 0 items')"` } }));
+  await assert.rejects(local.act({} as never, place as never, WORDS), refused(/collected 0 items/));
+
+  // The reported case: a uv project whose uv is not on PATH reads as uv missing, not as pytest's output.
+  rmSync(path.join(folder, "package.json"));
+  writeFileSync(path.join(folder, "pyproject.toml"), "[project]\nname = \"checkbox\"\n");
+  writeFileSync(path.join(folder, "uv.lock"), "version = 1\n");
+  mkdirSync(path.join(folder, ".venv"));
+  const read = await recordLocalTests({ library, folder, run: async () => ({ output: "/bin/sh: 1: uv: not found\n", code: 127 }) });
+  assert.ok(!read.written && /could not be started/.test(read.why) && /\buv\b is not/.test(read.why), JSON.stringify(read));
 });

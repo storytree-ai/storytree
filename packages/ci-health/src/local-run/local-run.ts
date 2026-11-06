@@ -12,7 +12,8 @@
  *   lockfile is uv's or Poetry's; its .py files are read beside its JS and TS, as reading its CI reads them. A uv project
  *   whose .venv already exists runs `uv run --no-sync`, so the environment its user built is tested as it stands, with
  *   nothing added or removed from uv.lock; with no .venv yet, `uv run` makes it.
- * - A project with no test command (neither), or whose run reported no results, writes nothing and says why.
+ * - A project with no test command (neither), or whose run reported no results, writes nothing and says why; a run with
+ *   no results says what it printed, or that its runner could not be started, and `health local` then fails (5.5).
  */
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
@@ -29,7 +30,7 @@ import { judgeRun, proofsAt, type Verdict } from "../verdicts/verdicts.js";
 export const VERIFIED_BY_LOCAL_RUN = "a local test run";
 
 export type LocalReading =
-  | { written: false; why: string }
+  | { written: false; why: string; unread?: true }
   | { written: true; command: string; commit?: string; tests: number; unmatched: number; passing: number; failing: number; notChecked: number };
 
 /** The GitHub repository whose CI storytree reads for `folder`: its origin's, when the folder holds a workflow; else undefined. */
@@ -57,6 +58,20 @@ function testCommandOf(folder: string): { command: string; reads: string } | { w
   return { why: `This project has no test command (a "test" script in its package.json), so storytree has no tests of it to run; nothing was written.` };
 }
 
+/** The exit codes a shell gives a command it cannot find: sh's 127, cmd.exe's 9009. */
+const NOT_FOUND = new Set([127, 9009]);
+
+/** Why a run of `command` that reported no results storytree reads wrote nothing: that its runner could not be started, or its last lines. */
+function unreadWhy(command: string, reads: string, output: string, code: number | null): string {
+  const last = output.trimEnd().split(/\r?\n/).slice(-10).map((line) => `  ${line}`).join("\n");
+  const printed = last.trim() === "" ? "It printed nothing." : `It printed:\n${last}`;
+  const runner = command.trim().split(/\s+/)[0];
+  const said = code !== null && NOT_FOUND.has(code)
+    ? `This project's test command (${command}) could not be started: ${runner} is not a command this computer's shell can find (is it on PATH?). ${printed}`
+    : `This project's test command (${command}) reported no test results storytree can read (${reads}). ${printed}`;
+  return `${said}\nNothing was verified or written.`;
+}
+
 /** Run the project in `folder`'s own tests and write their verdicts to its stories' verified health, as a local run. */
 export async function recordLocalTests({ library, folder, run = runTests }: { library: Library; folder: string; run?: RunTests }): Promise<LocalReading> {
   const tests = testCommandOf(folder);
@@ -66,8 +81,9 @@ export async function recordLocalTests({ library, folder, run = runTests }: { li
   if (repository !== undefined) return { written: false, why: `This project's tests run in ${repository}'s CI, so its verified health is read from there: run storytree health ci. A local run writes nothing over it.` };
 
   const proofs = proofsAt(await library.projectTree(), filesIn(folder));
-  const results = parseTestLog(await run(command, folder));
-  if (results.length === 0) return { written: false, why: `This project's test command (${command}) reported no test results storytree can read (${reads}); nothing was written.` };
+  const { output, code } = await run(command, folder);
+  const results = parseTestLog(output);
+  if (results.length === 0) return { written: false, unread: true, why: unreadWhy(command, reads, output, code) };
   const { verdicts, unmatched } = judgeRun(proofs, results);
   const commit = await commitOf(folder);
   const tested = new Map<string, Verdict>([...verdicts].filter(([, { total }]) => total > 0));

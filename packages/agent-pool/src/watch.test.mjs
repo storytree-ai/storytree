@@ -1281,6 +1281,17 @@ test("4.41 · a code-scanning red starts a fix session that reads its alerts sig
   assert.doesNotMatch(brief, /--log-failed|check:secrets/);
   assert.doesNotMatch([brief, ...b.lines].join("\n"), /https?:\/\/ci/);
   assert.equal((await saved(b)).fixes[0].security, true);
+  b.live.clear();
+  await watchOnce(b.options);
+  assert.equal(b.fixes.length, 2, "a security session that gave no verdict is followed by the next fix session while red");
+
+  // Another project's pull request: its alerts are read on its own repository.
+  const theirs = await box(t);
+  await handOff(theirs);
+  await writeFile(join(theirs.dir, "41.json"), JSON.stringify({ ...(await saved(theirs)), project: { folder: "/srv/site", name: "website", repo: "storytree-ai/storytree-website" } }));
+  theirs.looks[41] = b.looks[41];
+  await watchOnce(theirs.options);
+  assert.match(theirs.fixes[0].brief, /repos\/storytree-ai\/storytree-website\/code-scanning\/alerts/);
 });
 
 test("4.41 · a secret-check red's fix session reshapes a plain fixture without the exemptions list, and one that may be a real credential ends as one owner question naming only the pull request and the check", async (t) => {
@@ -1302,6 +1313,14 @@ test("4.41 · a secret-check red's fix session reshapes a plain fixture without 
   assert.equal(b.fixes.length, 1, "no other session once it is the owner's");
   assert.deepEqual(b.calls.find(([, , verb]) => verb === "unwait"), ["arc", "increment", "unwait", "increment_one", "--for", "event", "--reason", "PR #41 waits on the owner's answer to question_key"]);
   assert.deepEqual(await readdir(b.dir), [], "the hand-off is dropped");
+
+  // An increment already closed on an earlier pull request is held by nothing.
+  const closed = await box(t);
+  await handOff(closed);
+  await writeFile(join(closed.dir, "41.json"), JSON.stringify({ ...(await saved(closed)), closed: true }));
+  closed.looks[41] = b.looks[41];
+  await watchOnce(closed.options);
+  assert.match(closed.fixes[0].brief, /Raise one question on increment_one's arc,\s+naming only PR #41/);
 });
 
 test("4.41 · a release or main run read with its jobs names the security checks that ran and failed, and none when none did or its jobs are unread", () => {

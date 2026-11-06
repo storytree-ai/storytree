@@ -137,16 +137,17 @@ export function forestDrawn(scene: ForestScene): ForestDrawn {
 }
 
 /**
- * A mapped story's land (ADR-0993 D3, D5, D7): a black box but where an agent explored it, so one brown territory for
- * each explored capability with surveyed code, in the story's order, then one for the unexplored rest, side by side and
- * sized by their lines; the whole island is one brown territory before its survey (a weight of 1) or until explored.
- * Its files are never drawn, whether or not the project is verified.
+ * A mapped story's land (ADR-0993 D3, D5, D7): a black box but where an agent explored it, so one territory for each
+ * explored capability with surveyed code, in the story's order, then one brown territory for the unexplored rest, side by
+ * side and sized by their lines; the whole island is one brown territory before its survey (a weight of 1) or until explored.
+ * An explored capability carries its word, so it is drawn green or red by its verified health and yellow with no tests tied
+ * (question_7e73e1c75c0d). Its files are never drawn, whether or not the project is verified.
  */
-function mappedLand(capabilities: readonly { id: string; title: string; description?: string }[], survey: StorySurvey | undefined): NonNullable<Island["land"]> {
+function mappedLand(capabilities: readonly { id: string; title: string; description?: string; status: CapabilityWord; parkedOn?: readonly unknown[] }[], survey: StorySurvey | undefined): NonNullable<Island["land"]> {
   const files = survey?.files ?? [];
   const linesOf = (capability: string | undefined) => files.filter((file) => file.capability === capability).reduce((sum, file) => sum + file.lines, 0);
   const territories = [
-    ...capabilities.map(({ id, title, description }) => ({ capability: id, title, ...(description === undefined ? {} : { description }), mapped: true as const, lines: linesOf(id) })),
+    ...capabilities.map(({ id, title, description, status, parkedOn }) => ({ capability: id, title, ...(description === undefined ? {} : { description }), status, ...(parkedOn === undefined ? {} : { parked: true as const }), mapped: true as const, lines: linesOf(id) })),
     { mapped: true as const, lines: linesOf(undefined) },
   ].filter(({ lines }) => lines > 0);
   return { territories: territories.length > 0 ? territories : [{ mapped: true, lines: 1 }], files: [] };

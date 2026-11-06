@@ -260,3 +260,13 @@ test("7.17 the card handed at session start says the packages/<story> layout is 
     await session.close();
   }
 });
+
+test("7.18 · the card handed at session start says mapping an existing repository includes running its tests, in the agent's own shell (ADR-1275 D3)", async () => {
+  const session = await sessionStart();
+  try {
+    const served = session.client.getInstructions() ?? "";
+    assert.ok(served.includes("Mapping includes running the repository's tests in your shell"), "the served card says mapping runs the tests");
+  } finally {
+    await session.close();
+  }
+});

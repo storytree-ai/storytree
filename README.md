@@ -114,6 +114,14 @@ As your agents work they write down what they decide and learn: decisions, defin
 and more. The Library tab counts those notes by kind and shows them on the map, and the next
 session reads them instead of working them out again.
 
+### A project you already have
+
+Ask your agent to map an existing project and storytree imports it: each package becomes an island,
+drawn where its code is, and nothing is written into your folder. Mapping includes running the
+project's own tests: your agent runs them in its own shell, under the same permission prompt as any
+command it runs, and each part they prove turns green or red. Until they have run, the parts it maps
+show yellow, not yet proven.
+
 ### Languages
 
 The map reads JavaScript, TypeScript and Python code. A project in another language (Go, Rust or

@@ -1141,6 +1141,19 @@ test("12.1 import_project imports a folder into the project as mapped stories, o
   });
 });
 
+test("12.8 · import_project's reply on a folder it maps tells the agent to run `storytree health local` now, in its own shell, so the repository's own tests read their contracts (ADR-1275 D1)", async () => {
+  await withProject(async ({ folder }) => {
+    const shop = path.join(folder, "..", "shop");
+    mkdirSync(shop);
+    writeFileSync(path.join(shop, "package.json"), JSON.stringify({ name: "shop" }));
+    await withAgent(folder, claudeCode("claude-1"), async (agent) => {
+      const imported = await agent.call("import_project", { folder: "../shop" });
+      assert.equal(imported.isError, false, imported.text);
+      assert.match(imported.text, /Run `storytree health local` now, in your shell/);
+    });
+  });
+});
+
 test("9.23 · plan_story in a project whose folder declares a JavaScript, TypeScript or Python package no story stands for is refused, naming each and import_project; once imported it plans a story for a new package (regression: four task-shaped stories on checkbox, 2026-11-04)", async () => {
   await withProject(async ({ folder, library }) => {
     writeFileSync(path.join(folder, "pyproject.toml"), "[project]\nname = \"checkbox\"\nversion = \"0.1.0\"\n");

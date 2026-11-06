@@ -108,7 +108,7 @@ export function registerPlanTools(define: Define): void {
 
   define(
     "plan_contract",
-    "Plan a contract: one testable guarantee a capability makes. Leave its number off the title: it is given the capability's next free one, past the numbers its contracts and its story package's numbered tests carry, even a test no contract carries yet, since that test may prove another contract; the reply names those tests, so when this contract is the one a test proves you give that number in the title. It also names the capability's other contracts no numbered test carries yet, planned but not built: build one of those rather than plan it again. A number another contract of the capability carries is refused. Write its test, see it fail, and report it red.",
+    "Plan a contract: one testable guarantee a capability makes. Leave its number off the title: it is given the capability's next free one, past the numbers its contracts and its story package's numbered tests carry, even a test no contract carries yet, since that test may prove another contract; the reply names those tests, so when this contract is the one a test proves you give that number in the title. It also names the capability's other contracts no numbered test carries yet, planned but not built: build one of those rather than plan it again. A number another contract of the capability carries is refused. Write its test, see it fail, and report it red. On a mapped story, as you map each capability, plan a contract for what each of its existing tests checks, naming that test in proved_by and no number in its title: the repository's own tests then prove their contracts as they stand, so never rename or edit them.",
     z.object({ capability: id("capability it belongs to"), title, description, proved_by: provedBy }),
     async ({ capability, title: name, description: about, proved_by: proved }, call) => {
       const tree = await call.library.projectTree();
@@ -120,7 +120,11 @@ export function registerPlanTools(define: Define): void {
       const open = untested.length === 0 ? "" : ` No numbered test carries ${untested.length === 1 ? "this other contract" : `these ${untested.length} other contracts`} of the capability yet, planned but not built: ${untested.map(quoted).join(", ")}. If this contract repeats one of them, retire it and build that one.`;
       const long = contract.fields.title.length > LONG_CONTRACT;
       const advice = long ? ` Its title runs past ${LONG_CONTRACT} characters, which often means more than one contract: ${CONTRACT_DEFINITION} Split it with edit_plan and plan_contract if so.` : "";
-      return { text: `Planned contract ${quoted(contract.fields.title)} (${contract.id}).${named}${open}${advice} Write its test, see it fail, and report it red.`, data: { id: contract.id, orphans, untested, long } };
+      // A contract its existing tests prove asks for no test: their results credit it when the project's tests next run (9.27).
+      const build = proved === undefined
+        ? " Write its test, see it fail, and report it red."
+        : ` ${proved.length === 1 ? proved[0] : `${proved.slice(0, -1).join(", ")} and ${proved.at(-1)}`} already ${proved.length === 1 ? "exists" : "exist"}, so write no test for it: ${proved.length === 1 ? "its result credits" : "their results credit"} it at the project's next test run, \`storytree health local\` in your shell.`;
+      return { text: `Planned contract ${quoted(contract.fields.title)} (${contract.id}).${named}${open}${advice}${build}`, data: { id: contract.id, orphans, untested, long } };
     },
   );
 

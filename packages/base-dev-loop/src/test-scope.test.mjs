@@ -612,6 +612,8 @@ test("2.8 a package folder named to pnpm test runs that package, and any other f
   assert.deepEqual(named.testArgs, ["--test-only"]);
   const files = namedFolders({ root, workspace: ws, testArgs: ["packages/cli/src/c.test.ts"] });
   assert.deepEqual([files.only, files.testArgs], [[], ["packages/cli/src/c.test.ts"]]);
+  const missing = namedFolders({ root, workspace: ws, testArgs: ["packages/cli/src/gone.test.ts"] });
+  assert.deepEqual([missing.refusal, missing.testArgs], [undefined, ["packages/cli/src/gone.test.ts"]]);
   assert.match(namedFolders({ root, workspace: ws, testArgs: ["docs"] }).refusal, /docs is a folder.*test files.*plain pnpm test/s);
   assert.match(namedFolders({ root, workspace: ws, testArgs: ["packages/cli", "packages/forest/src/d.test.ts"] }).refusal, /files or package folders, not both/);
 

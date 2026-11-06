@@ -117,22 +117,30 @@ const sixLinks = [{ from: "z1", to: "a" }, { from: "z2", to: "b" }, { from: "e",
 const sixDocks = [{ local: { x: LIBRARY_RADIUS, z: 0 }, links: ["z1->a", "z2->b"] }];
 const sixMap = linkLayout(sixShares, round(LIBRARY_RADIUS), sixLinks, sixDocks), six = islandRoads(sixMap, sixLinks, sixDocks, names(sixMap));
 
-test("3.77 a road that must cross a third territory goes under it (ADR-1253 D3): a portal where it meets that territory's border at each end, no road or gate drawn over it", () => {
+test("3.77 a road that must cross a third territory goes under it (ADR-1253 D3): its road drawn a short way onto that land from the border, to a portal set back from it at each end, and no road or gate drawn between", () => {
   const ends = (key: string) => key.split("->").map((e) => (e.includes(":") ? "sea" : e));
   const third = (t: string, keys: readonly string[]) => t !== "open" && keys.every((k) => !ends(k).includes(t));
-  assert.ok(six.portals.length >= 2, "the island has a tunnel");
+  assert.ok(six.portals.length >= 2 && six.tunnels.length > 0, "the island has a tunnel");
   const beneath = (p: { at: Point; into: Point }) => ownerAt(sixMap, { x: p.at.x + p.into.x * 0.6, z: p.at.z + p.into.z * 0.6 });
   for (const p of six.portals) {
-    assert.ok(sixMap.borders.some((b) => toSegment(p.at, b.from, b.to) < 1e-6), "on a border");
-    assert.ok(third(beneath(p), p.links), `${p.links.join(",")} goes under ${beneath(p)}, which it neither starts nor ends in`);
-    assert.ok(six.segments.some((s) => s.links.join() === p.links.join() && [s.pts[0]!, s.pts.at(-1)!].some((q) => far(q, p.at) < 1e-6)), "its road drawn up to it");
+    assert.ok(sixMap.borders.some((b) => toSegment(p.border, b.from, b.to) < 1e-6), "where its road meets the border");
+    assert.ok(far(p.at, p.border) >= 1 && far(p.at, p.border) <= 3.6, "its mouth set back a short way from the border, not standing on it as a gate does");
+    assert.ok(third(ownerAt(sixMap, p.at), p.links) && third(beneath(p), p.links), `${p.links.join(",")} goes under ${beneath(p)}, which it neither starts nor ends in`);
+    assert.ok(six.segments.some((s) => s.links.join() === p.links.join() && [s.pts[0]!, s.pts.at(-1)!].some((q) => far(q, p.at) < 1e-6) && s.pts.some((q) => far(q, p.border) < 1e-6)), "its road drawn from the border up to it");
+    assert.ok([...six.gates, ...six.passes].some((g) => far(g.at, p.border) < 1e-6), "the border cut open where its road crosses onto that land");
     // Its tunnel's other end: a portal for the same links under land they do not call.
     assert.ok(six.portals.some((q) => q !== p && q.links.join() === p.links.join() && third(beneath(q), q.links)), "a portal at each end");
-    for (const s of six.segments) if (s.links.every((k) => p.links.includes(k))) s.pts.slice(1).forEach((q, i) => {
-      assert.notEqual(ownerAt(sixMap, { x: (q.x + s.pts[i]!.x) / 2, z: (q.z + s.pts[i]!.z) / 2 }), beneath(p), `no road for ${s.links.join(",")} drawn over ${beneath(p)}`);
-    });
   }
-  for (const g of six.gates) for (const key of g.entrances) assert.ok(!six.portals.some((p) => p.links.includes(key) && far(p.at, g.at) < 0.3 && third(ownerAt(sixMap, { x: g.at.x - p.into.x * 0.6, z: g.at.z - p.into.z * 0.6 }), [key])), "no gate on the land a tunnel passes under");
+  for (const t of six.tunnels) {
+    assert.ok(six.portals.some((p) => far(p.at, t.pts[0]!) < 1e-6 || far(p.at, t.pts.at(-1)!) < 1e-6), "a tunnel's way runs on from a mouth");
+    for (let i = 1; i < t.pts.length; i++) {
+      const mid = { x: (t.pts[i - 1]!.x + t.pts[i]!.x) / 2, z: (t.pts[i - 1]!.z + t.pts[i]!.z) / 2 };
+      assert.ok(third(ownerAt(sixMap, mid), t.links), "under land it neither starts nor ends in");
+      if (far(mid, t.pts[0]!) < 0.5 || far(mid, t.pts.at(-1)!) < 0.5) continue;
+      for (const s of six.segments) if (s.links.some((k) => t.links.includes(k))) assert.ok(s.pts.every((q) => far(q, mid) > 0.3), `no road for ${s.links.join(",")} drawn over its tunnel`);
+    }
+  }
+  for (const g of six.gates) assert.ok(!six.tunnels.some((t) => t.pts.some((q) => far(q, g.at) < 0.3)), "no gate on the land a tunnel passes under");
   assert.deepEqual(six.gates.flatMap((g) => g.entrances).sort(), ["arrive:0->a", "arrive:0->b", "b->e", "c->a", "c->b", "d->b", "e->c", "f->a", "f->c"], "still one gate per link");
 });
 

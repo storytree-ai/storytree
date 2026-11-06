@@ -64,8 +64,8 @@ const ENQUEUE_TRIES = 3;
  * A pending one is `stranded` (its node id) when nothing will land it: open, not a draft, no `hold` label, out of the
  * merge queue and not removed from it within `graceMs` (the Requeue workflow's), every check finished, `verify` passed;
  * a re-run of failed jobs only ends that way with automerge skipped (4.31).
- * A failed security check (isSecurityCheck) makes it `security` instead of red, whatever else failed, naming only those
- * checks, so no fix session and no log or alert text follow it (4.41).
+ * A failed security check (isSecurityCheck) makes it a `security` red, whatever else failed or conflicts, naming only
+ * those checks and no log, so its fix session's brief and the watcher's log carry no log or alert text (4.41).
  * `home` is the repository the hand-off is on, storytree's unless it is another project's (4.49).
  */
 export function readPull(pull, { since, now, graceMs, home = HOME }) {
@@ -79,7 +79,7 @@ export function readPull(pull, { since, now, graceMs, home = HOME }) {
   const logs = failed.map((check) => check.detailsUrl ?? check.targetUrl).filter(Boolean);
   const names = failed.map((check) => check.name ?? check.context).filter(Boolean);
   const security = names.filter(isSecurityCheck);
-  if (security.length) return { state: "security", head, checks: security };
+  if (security.length) return { state: "red", head, why: `${security.join(", ")} failed`, logs: [], checks: security, security };
   if (pull.mergeable === "CONFLICTING") {
     return { state: "red", head, why: `it conflicts with main: merge origin/main and resolve the conflicts${why ? `; also ${why}` : ""}`, logs,
       checks: names, conflict: true, branch: pull.headRefName };
@@ -518,7 +518,32 @@ function commandsOf(project) {
     stale: `merge\n  origin/main and run ${project.name}'s checks, in order: ${checks}`, gate: `${project.name}'s checks`, tests: `${project.name}'s checks`, until: "each one ends" };
 }
 
-function fixBrief({ pr, increment, why, logs, n, limit, keepOpen, closed, review, lag, project }) {
+/**
+ * What a fix session on a failed security check does instead of reading a failing log (4.41): reads a code-scanning
+ * alert signed in and fixes it, judges a secret-check hit by its file and kind, reshaping a plain fixture and putting
+ * one that may be a real credential to the owner, and leaves a retro and a question for him; none of it in public.
+ */
+function securitySteps({ pr, increment, checks, closed, project, use }) {
+  const scans = checks.filter((check) => check !== "secret-check");
+  return `- This red is a security check (${checks.join(", ")}). A fix session's commits and pull request are public, so no alert text,
+  flagged line or matched value goes into any commit message, pull request text or comment, or anything else that leaves the box:
+  say only that a security check's finding was fixed. Suspect a stale branch first: ${use.stale}.${scans.length ? `
+- Code scanning (${scans.join(", ")}): read its open alerts signed in,
+  \`gh api "repos/${project?.repo ?? HOME}/code-scanning/alerts?ref=refs/pull/${pr}/merge&state=open"\`, and fix the code each one flags
+  so the pattern is gone; never dismiss an alert. See ${use.gate} green and push.` : ""}${checks.includes("secret-check") ? `
+- Secret check: run \`pnpm check:secrets\` in the worktree, which names only the file and the kind of each hit, and judge each by them.
+  A plain test fixture or made-up sample: reshape it so it no longer matches (build it from parts, or give it another shape),
+  never by editing .github/secret-check-exemptions.txt; see ${use.gate} green and push.
+  One that may be a real credential: change nothing and push nothing. Raise one question on ${increment}'s arc${closed ? "" : ` holding ${increment}`},
+  naming only PR #${pr} and the check secret-check, so the owner rotates the key; record it with
+  \`${use.watch} verdict ${pr} owner --summary "a secret-check hit may be a real credential" --question <question>\`, close out and end.` : ""}
+- Once you have fixed it, before handing back, leave the owner a retro: file a friction report (\`${use.storytree} friction new\`)
+  on the mistake behind it, and raise one open question on ${increment}'s arc, holding nothing, so voice reads it to him: what
+  the alert was, what leaked (or that nothing did), the mistake behind it, and how to prevent it (a local check for the pattern
+  that fails before a push, with your recommendation). The library is private, so these two may name the alert.`;
+}
+
+function fixBrief({ pr, increment, why, logs, n, limit, keepOpen, closed, review, lag, project, security }) {
   const handBack = `${pr} ${increment}${keepOpen ? " --keep-open" : ""}`;
   const use = commandsOf(project);
   return `# Fix session ${review ? `${n}, after an independent review` : `${n} of ${limit}`}: pull request #${pr} (${increment}) is red
@@ -534,7 +559,8 @@ Your job is that pull request and nothing else. Work from {checkout} and follow 
     ? `work there without claiming the increment: ${increment} already closed on an earlier pull request, so claim only the capabilities you edit.`
     : `claim the increment there: \`${use.storytree} workspace attach ${increment} --folder <worktree> --reason "fix PR #${pr}"\`.`}
   The claims are held for PR #${pr} until it merges; working on its branch, you take them over (ADR-1037 D2).
-- Read the failing log (\`gh run view <run> --log-failed\`, or \`gh pr checks ${pr}\`). Suspect a stale branch first: ${use.stale}. Then fix what is really broken, see ${use.gate} green and push.
+${security ? securitySteps({ pr, increment, checks: security, closed, project, use })
+    : `- Read the failing log (\`gh run view <run> --log-failed\`, or \`gh pr checks ${pr}\`). Suspect a stale branch first: ${use.stale}. Then fix what is really broken, see ${use.gate} green and push.`}
   Never force-push, squash or \`gh pr merge\`.
 - You exit when you end a turn: a session that ends its turn to wait exits at once, and its uncommitted work is stranded.
   So run ${use.tests} in the foreground and stay in the turn until ${use.until},
@@ -591,7 +617,8 @@ export async function recordVerdict({ dir, pr, kind, summary, parked, question }
   if (kind === "owner" && !question) throw new Error("an owner verdict names the question it raised (--question <id>)");
   const record = JSON.parse(await readFile(recordPath(dir, pr), "utf8").catch(() => "null"));
   const last = record?.fixes.at(-1);
-  if (!last?.review || last.verdict) throw new Error(`PR #${pr} has no review session waiting for its verdict`);
+  // A security fix session gives only the owner's verdict: a secret hit that may be a real credential (4.41).
+  if (!(last?.review || (last?.security && kind === "owner")) || last.verdict) throw new Error(`PR #${pr} has no review session waiting for its verdict`);
   last.verdict = { kind, summary: summary ?? "", ...(parked ? { parked } : {}), ...(question ? { question } : {}) };
   await save(dir, record);
 }
@@ -757,23 +784,6 @@ export async function watchOnce({ dir, look, storytree, cutover = async () => un
       continue;
     }
     if (running.has(pr)) continue;
-    if (pull.state === "security") {
-      // A failed security check is the owner's: one question on the increment's arc naming only the pull request and
-      // the check, holding the increment while it is open, and no fix session, log or alert text (4.41).
-      const checks = pull.checks.join(", ");
-      const arc = (await tell(["library", "read", increment, "--field", "arc"], record.project)).trim() || RELEASE_ARC;
-      if (!record.closed) await tell(["arc", "increment", "unwait", increment, "--for", "event", "--reason", `PR #${pr} failed a security check (${checks})`], record.project);
-      await tell(["question", "new", "--arc", arc, "--title", `PR #${pr} failed a security check (${checks})`,
-        "--stakes", `PR #${pr} cannot land until it passes, and the watcher starts no fix session for it, since a fix session's commits and pull request are public.`,
-        "--statement", `PR #${pr} (${increment}) failed the security check ${checks}. What should be done about it?`,
-        "--context", `The pool's watcher reads ${checks} as a security check (4.41): it puts no log or alert text anywhere and asks you instead. Read the check on GitHub, signed in.`,
-        "--options", "A. Fix it yourself, privately, then hand the pull request to the watcher again. B. Judge it a false alarm, dismiss it on GitHub and hand it over again. C. Close the pull request.",
-        ...(record.closed ? [] : ["--hold", increment])], record.project);
-      await letGo(record, `PR #${pr} failed a security check, which is the owner's; released by the watcher`);
-      await ended(record, pull);
-      dated(`PR #${pr} failed the security check ${checks}: asked the owner on ${arc}, with no fix session`);
-      continue;
-    }
     if (record.fixing) { record.fixing = null; await save(dir, record); }
     if (now() - Date.parse(record.handedAt) > HELD_MS) {
       await backOnArc(record, pull, `has been open for ${HELD_DAYS} days since it was handed over`);
@@ -869,8 +879,9 @@ export async function watchOnce({ dir, look, storytree, cutover = async () => un
       dated(`PR #${pr} still red after ${record.fixes.length} sessions: ${increment} waits on the owner`);
       continue;
     }
-    // Past the limit, the last review's verdict decides this red; with none, a review session is started (4.37).
-    const verdict = spent && last?.review ? last.verdict : undefined;
+    // Past the limit, the last review's verdict decides this red; with none, a review session is started (4.37). A
+    // security fix session's owner verdict (a secret hit that may be a real credential) decides it at once (4.41).
+    const verdict = (spent && last?.review) || last?.security ? last.verdict : undefined;
     if (verdict?.kind === "owner") {
       if (!record.closed) await tell(["arc", "increment", "unwait", increment, "--for", "event", "--reason", `PR #${pr} waits on the owner's answer to ${verdict.question}`], at);
       await letGo(record, `PR #${pr} waits on the owner's answer to ${verdict.question}; released by the watcher`);
@@ -900,9 +911,9 @@ export async function watchOnce({ dir, look, storytree, cutover = async () => un
     const session = reviewing
       ? await startReview({ pr, increment, n, ...(at ? { project: at } : {}), brief: localBrief(reviewBrief({ pr, increment, why: pull.why, logs: pull.logs, fixLogs, n, cap, closed: record.closed, project: at }), where) })
       : await startFix({ pr, increment, n, ...(at ? { project: at } : {}), brief: localBrief(fixBrief({ pr, increment, why: pull.why, logs: pull.logs, n: counted + 1, limit: allowed, keepOpen: record.keepOpen, closed: record.closed,
-        review: verdict?.summary, lag, project: at }), where) });
+        review: verdict?.summary, lag, project: at, security: pull.security }), where) });
     record.fixing = { pid: session.pid };
-    record.fixes.push({ at: new Date(now()).toISOString(), head: pull.head, pid: session.pid, log: session.log, ...(reviewing ? { review: true } : {}),
+    record.fixes.push({ at: new Date(now()).toISOString(), head: pull.head, pid: session.pid, log: session.log, ...(reviewing ? { review: true } : pull.security ? { security: true } : {}),
       ...(pull.conflict ? { conflict: true } : {}), ...(failures && !reviewing ? { units: failures.units, tests: failures.tests } : {}) });
     running.set(pr, { conflict: Boolean(pull.conflict), review: reviewing });
     await save(dir, record);

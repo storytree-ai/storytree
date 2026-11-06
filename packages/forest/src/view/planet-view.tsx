@@ -802,11 +802,10 @@ function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onCon
       // joins (3.88); any other click puts the gold out.
       const clicked = pickClick(scene, camera, element.getBoundingClientRect(), { x: event.clientX, y: event.clientY }, picking());
       onRoute(clicked.route);
-      if (clicked.route?.pick.kind === "gate") onPick(clicked.route.story, undefined, clicked.route.pick.between);
-      if (clicked.route !== undefined) return;
+      if (clicked.route !== undefined && clicked.hit === undefined) return;
       const hit = clicked.hit;
       if (hit?.kind === "note") onNote(hit.id);
-      else onPick(hit?.id, hit?.capability);
+      else onPick(hit?.id, hit?.capability, hit?.gate);
     };
     const onWheel = (event: WheelEvent): void => {
       guide.current!.cancel(); clearHover();

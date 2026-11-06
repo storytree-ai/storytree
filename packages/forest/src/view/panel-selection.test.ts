@@ -65,4 +65,10 @@ test("3.88 · a picked gate selects its island's story with the pair of capabili
   assert.deepEqual(seen, [{ kind: "story", id: "story", gate: ["a", "c"] }], "and says so");
   selection.story("story", "a");
   assert.deepEqual(selection.current, { kind: "story", id: "story", capability: "a" }, "a territory picked after it names no gate");
+  selection.picked("story", undefined, ["a", "c"]);
+  assert.deepEqual(selection.current, { kind: "story", id: "story", gate: ["a", "c"] }, "a map click that picked a gate selects its pair");
+  selection.picked("story", "c");
+  assert.deepEqual(selection.current, { kind: "story", id: "story", capability: "c" }, "one that picked a territory, its capability");
+  selection.picked(undefined);
+  assert.equal(selection.current, undefined, "one that picked nothing, nothing");
 });

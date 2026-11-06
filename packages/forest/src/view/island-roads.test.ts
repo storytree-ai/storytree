@@ -224,7 +224,8 @@ test("3.88 · a click on a gate picks the gate, and the selection that click mak
   camera.up.set(0, 0, -1);
   camera.lookAt(camera.position.x, 0, camera.position.z);
   const clicked = pickClick(world, camera, { left: 0, top: 0, width: 100, height: 100 }, { x: 50, y: 50 }, "forest");
-  assert.deepEqual(clicked, { route: { story: "story", pick: { kind: "gate", gate: i, between: ["c", "d"] } } }, "the gate and its two sides");
+  assert.deepEqual(clicked, { route: { story: "story", pick: { kind: "gate", gate: i, between: ["c", "d"] } }, hit: { kind: "story", id: "story", gate: ["c", "d"] } },
+    "the gate and its two sides, and its island selected with that pair");
   const picked = clicked.route!;
   assert.equal(routeAfterSelection(picked, "story"), picked, "selecting the gate's own island keeps its ring");
   assert.equal(routeAfterSelection(picked, "other"), undefined, "selecting another puts it out");

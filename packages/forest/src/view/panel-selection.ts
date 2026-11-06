@@ -9,6 +9,11 @@ export class PanelSelection {
   constructor(private readonly changed: (selection: Selection) => void) {}
   story(id: string | undefined, capability?: string): void { this.show(id === undefined ? undefined : capability === undefined ? { kind: "story", id } : { kind: "story", id, capability }); }
   gate(id: string, between: readonly [string, string]): void { this.show({ kind: "story", id, gate: between }); }
+  /** A click on the map: a gate's pair when it picked one (3.88), else its story and territory's capability (3.15), or none. */
+  picked(id: string | undefined, capability?: string, gate?: readonly [string, string]): void {
+    if (id !== undefined && gate !== undefined) this.gate(id, gate);
+    else this.story(id, capability);
+  }
   note(id: string): void { this.show({ kind: "note", id }); }
   close(): void { this.show(undefined); }
   key(key: string): void { if (key === "Escape") this.close(); }

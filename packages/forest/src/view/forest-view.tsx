@@ -103,7 +103,7 @@ export async function openForestView(container: HTMLElement, onSelect: (selectio
     render({ face });
     selection.turned(face);
   };
-  const pick = (story: string | undefined, capability?: string): void => selection.story(story, capability);
+  const pick = (story: string | undefined, capability?: string, gate?: readonly [string, string]): void => selection.picked(story, capability, gate);
   const pickNote = (note: string): void => selection.note(note);
   const onKey = (event: KeyboardEvent): void => selection.key(event.key);
   let controls: PlacedGlobeControls | undefined;

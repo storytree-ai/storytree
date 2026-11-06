@@ -56,3 +56,19 @@ test("3.55 on the glass sheet a selected story stays selected on either side of 
   assert.equal(panel.current, undefined, "the note's card closes on the Stories face");
   assert.equal(changes.length, 3, "only the pick, the note and the closing changed the panel");
 });
+
+test("3.88 · a picked gate selects its island's story with the pair of capabilities it joins, for the panel", () => {
+  const seen: Selection[] = [];
+  const selection = new PanelSelection((next) => seen.push(next));
+  selection.gate("story", ["a", "c"]);
+  assert.deepEqual(selection.current, { kind: "story", id: "story", gate: ["a", "c"] });
+  assert.deepEqual(seen, [{ kind: "story", id: "story", gate: ["a", "c"] }], "and says so");
+  selection.story("story", "a");
+  assert.deepEqual(selection.current, { kind: "story", id: "story", capability: "a" }, "a territory picked after it names no gate");
+  selection.picked("story", undefined, ["a", "c"]);
+  assert.deepEqual(selection.current, { kind: "story", id: "story", gate: ["a", "c"] }, "a map click that picked a gate selects its pair");
+  selection.picked("story", "c");
+  assert.deepEqual(selection.current, { kind: "story", id: "story", capability: "c" }, "one that picked a territory, its capability");
+  selection.picked(undefined);
+  assert.equal(selection.current, undefined, "one that picked nothing, nothing");
+});

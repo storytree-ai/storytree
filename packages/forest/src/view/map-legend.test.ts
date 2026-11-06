@@ -14,7 +14,7 @@ import { linkLayout, LIBRARY_LAND } from "../territories/link-layout.js";
 import type { Coast, Point } from "../territories/territories.js";
 import { ClaimMarks } from "./claim-flag.js";
 import { islandReliefMarks } from "./island-relief.js";
-import { islandRoadMarks, landFill } from "./island-roads.js";
+import { islandRoadMarks, landFill, lightRoute } from "./island-roads.js";
 import { MAP_LEGEND, renderMapLegend } from "./map-legend.js";
 import { capabilityPlates } from "./nameplates.js";
 import { openWorkLayer, openWorkMarks } from "./open-work.js";
@@ -23,7 +23,7 @@ import { renderStoryPanel } from "./story-panel.js";
 import { lightTerritories, territoryLand } from "./territory-land.js";
 
 // One island drawing every mark: a capability of each of the six kinds (The library's ids), every word, a parked one, mapped
-// land and Unclaimed code, a tunnel, an arc selected, a session's reads and a claim.
+// land and Unclaimed code, a tunnel, a gate picked, an arc selected, a session's reads and a claim.
 const R = Math.sqrt(LIBRARY_LAND / Math.PI);
 const coast: Coast = [Array.from({ length: 96 }, (_, i) => ({ x: R * Math.cos(i * Math.PI / 48), z: R * Math.sin(i * Math.PI / 48) }))];
 const kinds = ["capability_5e0362aae607", "capability_f27ac2abb10b", "capability_75d059640d9d", "capability_a954e1eb16f6", "capability_13b04e769a4b", "capability_a7f068502213"];
@@ -48,7 +48,10 @@ const flat = (p: Point) => new Vector3(p.x, 0, p.z);
 function drawnIsland(): Object3D {
   const land = territoryLand(map, flat, coast, new Map(), roads);
   const relief = islandRelief(map, roads), fill = landFill(map, land);
-  land.add(islandReliefMarks(relief, flat, fill), islandRoadMarks(roads, flat, fill, relief));
+  const roadMarks = islandRoadMarks(roads, flat, fill, relief);
+  // A gate picked, so its ring is drawn (3.88).
+  lightRoute(roadMarks, roads, { kind: "gate", gate: 0, between: roads.gates[0]!.between });
+  land.add(islandReliefMarks(relief, flat, fill), roadMarks);
   lightTerritories(land, new Map([[kinds[0]!, "in-window" as const]]), "#56b4e9");
   const work = openWorkLayer(openWorkMarks(map, new Set([kinds[0]!]), roads, coast), land, flat, 1);
   const claims = new ClaimMarks();

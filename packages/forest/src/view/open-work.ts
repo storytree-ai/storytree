@@ -83,16 +83,22 @@ export function openWorkLayer(marks: OpenWorkMarks, land: Object3D, onSurface: (
     }
   }
   const ink = flat(OPEN_WORK, 0.95);
-  const ring = (centre: Point, radius: number, least: number, name: string) => {
-    const shape: RingShape = { centre, radius, least, width: RING_PX / zoom, drawn: Math.max(radius, least / 2 / zoom) };
-    const mesh = new Mesh(annulus(shape, onSurface), ink);
-    mesh.userData.ring = shape;
-    // Over the roads, under the settlements, names and flags that stand on them.
-    add(mesh, name, 5);
-  };
+  // Over the roads, under the settlements, names and flags that stand on them.
+  const ring = (centre: Point, radius: number, least: number, name: string) => add(hollowRing(centre, radius, least, ink, onSurface, zoom), name, 5);
   for (const { capability, x, z, radius } of marks.rings) ring({ x, z }, radius, RING_LEAST_PX, `open-work-ring:${capability}`);
   if (marks.island !== undefined) ring({ x: 0, z: 0 }, marks.island, 0, "open-work-island");
   return group;
+}
+
+/** A hollow ring of `radius` round `centre`, at least `least` CSS pixels across, placed by `onSurface` in `material`, its
+ * line drawn `RING_PX` wide on screen for an eye at `zoom` until `sizeOpenWork` draws it for another (a layer holding it
+ * names its `onSurface` in its userData). It takes no pointer. */
+export function hollowRing(centre: Point, radius: number, least: number, material: MeshBasicMaterial, onSurface: (point: Point) => Vector3, zoom: number): Mesh {
+  const shape: RingShape = { centre, radius, least, width: RING_PX / zoom, drawn: Math.max(radius, least / 2 / zoom) };
+  const mesh = new Mesh(annulus(shape, onSurface), material);
+  mesh.userData.ring = shape;
+  mesh.raycast = () => {};
+  return mesh;
 }
 
 /**

@@ -115,14 +115,22 @@ export function pickRoute(world: Object3D, camera: Camera,
   return undefined;
 }
 
+/** What stays picked on the roads once `selected` is the selection: a gate's ring stays while its own island is selected, as
+ * the click on it selects that island (3.88); any other pick goes out on a selection (3.81). */
+export function routeAfterSelection(route: { story: string; pick: RoutePick } | undefined, selected: string | undefined): { story: string; pick: RoutePick } | undefined {
+  return route?.pick.kind === "gate" && route.story === selected ? route : undefined;
+}
+
 /**
  * What a click picks (3.81): in Forest, a road or gate first, which lights its route and picks no selection; otherwise
  * what `pickGlobe` picks, with no route, so any other click puts the gold out.
  */
 export function pickClick(world: Object3D, camera: Camera,
-  box: { left: number; top: number; width: number; height: number }, cursor: { x: number; y: number }, mode: ForestMode): { route: { story: string; pick: RoutePick } } | { route: undefined; hit: Selection } {
+  box: { left: number; top: number; width: number; height: number }, cursor: { x: number; y: number }, mode: ForestMode): { route: { story: string; pick: RoutePick }; hit?: Selection } | { route: undefined; hit: Selection } {
   const route = mode === "forest" ? pickRoute(world, camera, box, cursor) : undefined;
-  return route !== undefined ? { route } : { route: undefined, hit: pickGlobe(world, camera, box, cursor, mode) };
+  if (route === undefined) return { route: undefined, hit: pickGlobe(world, camera, box, cursor, mode) };
+  // 3.88: a gate also selects its island, with the pair it joins.
+  return route.pick.kind === "gate" ? { route, hit: { kind: "story", id: route.story, gate: route.pick.between } } : { route };
 }
 
 /** Project the drawn points; in Forest, solid land before a point occludes it. */

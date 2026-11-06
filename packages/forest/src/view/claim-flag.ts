@@ -147,6 +147,8 @@ export class ClaimMarks {
   private land: { map: ClaimLand; onSurface: (point: Point) => Vector3; normalAt: (point: Point) => Vector3; unsurveyed: boolean; coast?: readonly (readonly Point[])[] | undefined } | undefined;
   private readonly lives = new Map<string, Life>();
   private readonly turned = new Quaternion();
+  private posed: { now: number; zoom: number; reduced: boolean } | undefined;
+  private readonly posedEye = new Quaternion();
 
   constructor() {
     this.root.name = "claim-marks";
@@ -156,6 +158,8 @@ export class ClaimMarks {
   setLand(map: ClaimLand, onSurface: (point: Point) => Vector3, normalAt: (point: Point) => Vector3, unsurveyed: boolean, coast?: readonly (readonly Point[])[]): void {
     this.land = { map, onSurface, normalAt, unsurveyed, coast };
     for (const [capability, life] of this.lives) this.remove(capability, life, false);
+    // Set again under drawn marks (an island built in steps), they stand at once at their last pose, not a frame later.
+    if (this.posed !== undefined) this.frame(this.posed.now, { ...this.posed, eye: this.posedEye });
   }
 
   /** The claims held now, at `now` seconds. A new one arrives, unless `standing` (the globe's first drawing); one gone lifts away. */
@@ -179,6 +183,8 @@ export class ClaimMarks {
 
   /** Poses every mark at `now` for an eye at `zoom` (CSS px per world unit) turned by `eye`; true while a transition still wants frames. */
   frame(now: number, { zoom, eye, reduced }: { zoom: number; eye: Quaternion; reduced: boolean }): boolean {
+    this.posed = { now, zoom, reduced };
+    this.posedEye.copy(eye);
     const { k } = flagScale(zoom * ISLAND_WIDTH);
     let live = false;
     for (const [capability, life] of [...this.lives]) {

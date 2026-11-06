@@ -143,3 +143,15 @@ test("5.6 a claim drops in with one ring at its foot, stands still while held, f
   assert.equal(marks.root.getObjectByName("territory-claim:cap-a"), undefined, "and then it is gone");
   marks.dispose();
 });
+
+test("5.6 a claimed flag stands, drawn, through its island's land being cut again, before the next frame", () => {
+  const tints = claimTints([wisp("A", "shop", "hsl(200, 80%, 68%)", ["cap-a"]), { ...wisp("C", "shop", "hsl(300, 80%, 68%)", ["cap-c"]), faded: true }]);
+  const marks = marked(territories([share("cap-a", 40), share("cap-c", 30)], 20), tints);
+  // An island built in steps (3.87) hands its marks a new cut of the same land after they were drawn.
+  marks.setLand(territories([share("cap-a", 40), share("cap-b", 10), share("cap-c", 30)], 20), flat, up, false);
+  for (const capability of ["cap-a", "cap-c"]) {
+    const pennant = marks.root.getObjectByName(`territory-claim:${capability}`)?.getObjectByName("flag-pennant") as Mesh | undefined;
+    assert.ok(pennant !== undefined && pennant.geometry.attributes.position!.count > 0, `${capability}'s flag is still drawn`);
+  }
+  marks.dispose();
+});

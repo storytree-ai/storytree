@@ -244,8 +244,15 @@ test("5.6 · `health local` records, on each explored capability its tests no co
   assert.equal(await stateOf(users.id), "passing");
   assert.equal(await stateOf(story!.id), "failing", "the island reads red");
 
-  // The users test is gone: its reading no longer stands.
+  // The users test is gone: its reading no longer stands. The folder is now a git repository, so each note names its commit.
+  execFileSync("git", ["init", "--quiet", folder]);
+  execFileSync("git", ["-C", folder, "add", "."]);
+  execFileSync("git", ["-C", folder, "-c", "user.name=t", "-c", "user.email=t@example.com", "commit", "--quiet", "-m", "start"]);
+  const commit = execFileSync("git", ["-C", folder, "rev-parse", "HEAD"], { encoding: "utf8" }).trim().slice(0, 12);
   await recordLocalTests({ library, folder, run: async () => ({ output: "XFAIL tests/test_api.py::test_creates - leaks between tenants\n", code: 0 }) });
-  assert.equal(await stateOf(users.id), "not-checked");
+  const unclaimed = async (id: string) => (await library.projectTree()).stories[0]!.capabilities.find((capability) => capability.id === id)!.unclaimed;
+  assert.equal((await unclaimed(users.id))?.state, "not-checked");
+  assert.equal((await unclaimed(users.id))?.note, `no test that no contract claims reached it, at commit ${commit}`);
   assert.equal(await stateOf(todos.id), "failing");
+  assert.equal((await unclaimed(todos.id))?.note?.endsWith(`, at commit ${commit}`), true, (await unclaimed(todos.id))?.note);
 });

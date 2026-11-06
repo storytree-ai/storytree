@@ -315,7 +315,7 @@ export const recordingGuidance: readonly string[] = [
   "- When its contracts pass, `land` the capability, ending your claim; it is held while a source file of the story's package is reached by no numbered test, and names each planned contract no numbered test proves (write its test, or retire it). Stopping before then, `release` it.",
   "- `mark_built` a capability once you consider it built; its card shows the health storytree verified.",
   "- Between increments, `read_context` gives your context's size: judge whether to take on more.",
-  "- When the increment is done, `close_increment` with its outcome (landed, failed, withdrawn) and pull request, or a note naming the local commit. Record unparked work that landed with `park_increment` and its outcome.",
+  "- When the increment is done, `close_increment` with its outcome (landed, failed, withdrawn) and pull request, or a note naming the local commit.",
   "- When your session's work is done, `close_out`: say whether it is safe to close (pull requests merged or commits made, tree clean, nothing of yours running) and why. The sessions list checks a yes.",
   ].join("\n"),
 ];

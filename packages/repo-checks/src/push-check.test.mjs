@@ -107,3 +107,26 @@ test("1.6 · a git push through the installed hook is refused when it adds a mac
   const passed = await push(root, home, "origin", "main");
   assert.equal(passed.status, 0, passed.stderr);
 });
+
+test("1.8 · the push check refuses a push whose commits add a tag-removing global replace to a code file, CodeQL's incomplete multi-character sanitization, naming file, commit and line, with no credential on the machine; a file whose count does not rise passes", (t) => {
+  const { home, root, git } = machine(t);
+  git("checkout", "-q", "-b", "strips");
+  mkdirSync(path.join(root, "src"));
+  writeFileSync(path.join(root, "src", "view.ts"), 'export const plain = (html: string): string => html.replace(/<[^>]+>/g, "");\n');
+  writeFileSync(path.join(root, "src", "notes.md"), 'html.replace(/<[^>]+>/g, "")\n');
+  git("add", ".");
+  git("commit", "-q", "-m", "strip");
+  const head = git("rev-parse", "HEAD").trim();
+  const said = [];
+  assert.equal(checkPush({ root, remote: "origin", stdin: `refs/heads/strips ${head} refs/heads/strips ${ZEROS}\n`, home, sources: [], error: (line) => said.push(line) }), 1);
+  const refusal = said.join("\n");
+  assert.match(refusal, /src\/view\.ts:1 \(commit \w+\) removes \/<\[\^>\]\+>\/g by one global replace/);
+  assert.match(refusal, /incomplete-multi-character-sanitization/);
+  assert.ok(!refusal.includes("notes.md"), "a file that is not code is not read for it");
+
+  git("push", "-q", "--no-verify", "origin", "strips");
+  writeFileSync(path.join(root, "src", "view.ts"), 'export const plain = (html: string): string => html.replace(/<[^>]+>/g, "");\nexport const two = 2;\n');
+  git("commit", "-q", "-am", "unrelated");
+  const next = git("rev-parse", "HEAD").trim();
+  assert.equal(checkPush({ root, remote: "origin", stdin: `refs/heads/strips ${next} refs/heads/strips ${head}\n`, home, sources: [], error: (line) => said.push(line) }), 0, "the replace was already pushed");
+});

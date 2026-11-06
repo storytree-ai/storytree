@@ -5,13 +5,16 @@
 // textsOf, so a value inside gzip, an archive or UTF-16 is found. It names the file, the commit and the kind of value
 // (where it was read from), never the value: values stay in this process, and a credential file that cannot be read
 // or parsed is passed over without its error, which can quote the file. CI and the gate never see a real value; they
-// run the shapes-only check:secrets (leak-scan.mjs).
+// run the shapes-only check:secrets (leak-scan.mjs). It also refuses a push whose commits add a CodeQL pattern a pull
+// request has met to a code file (codeql-patterns.mjs, increment_15f747652fc7), naming the file, its line and the
+// commit, so the pattern is fixed before it reaches the repository; `pnpm lint` refuses the same over the whole tree.
 import { execFileSync, spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
+import { CODE_FILE, describe, sanitizationHits } from "./codeql-patterns.mjs";
 import { textsOf } from "./leak-scan.mjs";
 
 /** A credential's key: a name that holds a token, secret, password or key. */
@@ -99,11 +102,11 @@ function readable(bytes) {
 
 /**
  * The refusals for a push: for each update git hands the hook (local sha, remote sha), each commit not yet on
- * `remote`, and each file it adds or changes whose count of a machine value rises against the commit's first parent.
- * One line a hit, naming the file, the commit and the kind; never the value.
+ * `remote`, and each file it adds or changes whose count of a machine value, or of a CodeQL pattern in a code file,
+ * rises against the commit's first parent. `secrets` are one line a hit, naming the file, the commit and the kind,
+ * never the value; `patterns` name the file, the line and the commit.
  */
 export function pushProblems({ root, remote, updates, secrets }) {
-  if (secrets.length === 0) return [];
   const git = (args, encoding = "utf8") => execFileSync("git", args, { cwd: root, encoding, stdio: ["ignore", "pipe", "pipe"], maxBuffer: 256 * 1024 * 1024 });
   const textCache = new Map();
   const textsAt = (blob) => {
@@ -112,6 +115,7 @@ export function pushProblems({ root, remote, updates, secrets }) {
     return textCache.get(blob);
   };
   const problems = [];
+  const patterns = [];
   const seen = new Set();
   for (const { localSha, remoteSha } of updates) {
     if (ZERO.test(localSha)) continue; // a deletion pushes no text
@@ -129,10 +133,14 @@ export function pushProblems({ root, remote, updates, secrets }) {
         const prior = textsAt(before);
         const kinds = new Set(secrets.filter(({ value }) => occurrences(added, value) > occurrences(prior, value)).map(({ what }) => what));
         for (const what of kinds) problems.push(`${file} (commit ${commit.slice(0, 10)}) adds the value of ${what}`);
+        if (!CODE_FILE.test(file)) continue;
+        const hits = added.flatMap((text) => sanitizationHits(file, text));
+        if (hits.length <= prior.flatMap((text) => sanitizationHits(file, text)).length) continue;
+        for (const { line, regex } of hits) patterns.push(`${file}:${line} (commit ${commit.slice(0, 10)}) ${describe(regex)}`);
       }
     }
   }
-  return problems;
+  return { secrets: problems, patterns };
 }
 
 /** The updates git writes to a pre-push hook's stdin: `<local ref> <local sha> <remote ref> <remote sha>` a line. */
@@ -142,13 +150,17 @@ export function parseUpdates(stdin) {
 
 /** The hook's run: 1 with the refusal said through `error` when the push adds a machine value, else 0. */
 export function checkPush({ root, remote, stdin, home = homedir(), sources, error = console.error }) {
-  const problems = pushProblems({ root, remote, updates: parseUpdates(stdin), secrets: machineSecrets({ home, sources }) });
-  if (problems.length === 0) return 0;
-  error(
-    "push check: the push adds a credential this machine holds (the value is not shown). Take it out of the commits " +
-      `and push again, and replace the credential if the commits were shared:\n${problems.map((problem) => `  ${problem}`).join("\n")}`,
-  );
-  return 1;
+  const { secrets, patterns } = pushProblems({ root, remote, updates: parseUpdates(stdin), secrets: machineSecrets({ home, sources }) });
+  if (secrets.length > 0) {
+    error(
+      "push check: the push adds a credential this machine holds (the value is not shown). Take it out of the commits " +
+        `and push again, and replace the credential if the commits were shared:\n${secrets.map((problem) => `  ${problem}`).join("\n")}`,
+    );
+  }
+  if (patterns.length > 0) {
+    error(`push check: the push adds a pattern CodeQL refuses. Fix it in a new commit and push again:\n${patterns.map((problem) => `  ${problem}`).join("\n")}`);
+  }
+  return secrets.length + patterns.length === 0 ? 0 : 1;
 }
 
 if (process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href) {

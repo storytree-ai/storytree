@@ -270,3 +270,14 @@ test("7.18 · the card handed at session start says mapping an existing reposito
     await session.close();
   }
 });
+
+test("7.19 · the card handed at session start says that once an imported repository's tests have run, the agent plans one arc whose increments fix its red capabilities, each naming its capability, and carry the user's own requests (ADR-1271)", async () => {
+  const session = await sessionStart();
+  try {
+    const served = session.client.getInstructions() ?? "";
+    assert.ok(served.includes("plan one arc that fixes its red capabilities"), "the served card asks for the one fix arc");
+    assert.ok(served.includes("the user's own requests on the same arc"), "the served card carries the user's requests on it");
+  } finally {
+    await session.close();
+  }
+});

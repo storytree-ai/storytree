@@ -15,7 +15,7 @@ import { connect } from "@storytree/library";
 import { mounted, VerbRefusal, type DoorWords } from "@storytree/library/verbs";
 
 import { HEALTH_FAMILIES } from "../verbs.js";
-import { recordLocalTests } from "./local-run.js";
+import { localReadingText, recordLocalTests } from "./local-run.js";
 
 const WORDS: DoorWords = { door: "command", say: (step) => `storytree ${step.command}` };
 
@@ -255,4 +255,53 @@ test("5.6 · `health local` records, on each explored capability its tests no co
   assert.equal((await unclaimed(users.id))?.note, `no test that no contract claims reached it, at commit ${commit}`);
   assert.equal(await stateOf(todos.id), "failing");
   assert.equal((await unclaimed(todos.id))?.note?.endsWith(`, at commit ${commit}`), true, (await unclaimed(todos.id))?.note);
+});
+
+test("5.7 · `health local` on an imported story whose tests fail names each red capability by title and id and asks for one arc whose increments fix them, each naming its capability, and carry the user's requests; an arc so planned names exactly the red capabilities (ADR-1271)", async (t) => {
+  const url = process.env.STORYTREE_TEST_PG_URL;
+  if (url === undefined) throw new Error("run the tests via `pnpm test`, which starts a local Postgres");
+  const storytree = await connect({ url });
+  const name = `t-${randomBytes(4).toString("hex")}`;
+  const library = await storytree.openProject(name);
+  const folder = mkdtempSync(path.join(tmpdir(), "storytree-local-"));
+  t.after(async () => {
+    try {
+      await storytree.dropProject(name);
+    } finally {
+      await storytree.close();
+      await removeTemp(folder);
+    }
+  });
+  const { added: [story] } = await library.mapStories(folder, [{ package: ".", title: "checkbox", folders: ["."] }]);
+  const todos = await library.addCapability({ story: story!.id, title: "Todo API", covers: ["src/todos.py"] });
+  const users = await library.addCapability({ story: story!.id, title: "Users", covers: ["src/users.py"] });
+  writeFileSync(path.join(folder, "pyproject.toml"), `[project]\nname = "checkbox"\n`);
+  mkdirSync(path.join(folder, "src"));
+  for (const file of ["__init__.py", "todos.py", "users.py"]) writeFileSync(path.join(folder, "src", file), "");
+  mkdirSync(path.join(folder, "tests"));
+  writeFileSync(path.join(folder, "tests", "test_api.py"), "from src.todos import *\n\ndef test_creates():\n    pass\n");
+  writeFileSync(path.join(folder, "tests", "test_users.py"), "from src.users import *\n\ndef test_signs_up():\n    pass\n");
+  const red = "FAILED tests/test_api.py::test_creates - AssertionError\nPASSED tests/test_users.py::test_signs_up\n";
+  const read = await recordLocalTests({ library, folder, run: async () => ({ output: red, code: 1 }) });
+  assert.ok(read.written, JSON.stringify(read));
+  assert.deepEqual(read.red, [{ id: todos.id, title: todos.fields.title }], "only the capability its failing test reaches reads red");
+
+  const said = localReadingText(read);
+  assert.ok(said.includes(`"${todos.fields.title}" (${todos.id})`), said);
+  assert.ok(!said.includes(users.id), "a passing capability is not named");
+  assert.match(said, /plan one arc/i);
+  assert.match(said, /capabilities list nam/i, "each fix increment names its capability, so selecting the arc rings it");
+  assert.match(said, /user's own requests/i);
+
+  // The agent does as it says: one arc, a fix increment naming each red capability, the user's request beside it.
+  const arc = await library.createArc({ title: "Fix checkbox and add sharing", intent: "Its tests pass, and todos can be shared", endState: "Every capability reads green and sharing works" });
+  for (const { id, title } of read.red) await library.addIncrement({ arc: arc.id, title: `Fix ${title}`, objective: `${title}'s tests pass`, body: "Fix the failing test", capabilities: [id] });
+  await library.addIncrement({ arc: arc.id, title: "Share a todo", objective: "A user shares a todo", body: "The user's request" });
+  const ringed = (await library.projectTree()).stories.flatMap(({ capabilities }) => capabilities).filter(({ openWork }) => openWork !== undefined).map(({ id }) => id);
+  assert.deepEqual(ringed, [todos.id], "selecting the arc rings exactly the red capabilities");
+
+  // A run that leaves nothing red asks for no arc.
+  const passing = await recordLocalTests({ library, folder, run: async () => ({ output: "PASSED tests/test_api.py::test_creates\nPASSED tests/test_users.py::test_signs_up\n", code: 0 }) });
+  assert.ok(passing.written && passing.red.length === 0, JSON.stringify(passing));
+  assert.doesNotMatch(localReadingText(passing), /plan one arc/i);
 });

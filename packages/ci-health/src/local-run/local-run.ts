@@ -16,6 +16,8 @@
  *   no results says what it printed, or that its runner could not be started, and `health local` then fails (5.5).
  * - The tests no contract claims colour the explored capabilities their files reach (ADR-1274 D3, unclaimedVerdicts): each
  *   reached capability's own reading is written, and one no such test reaches any more turns not checked (5.6).
+ * - A run that leaves an imported story's capabilities red names each, and asks for one arc whose increments fix them,
+ *   each naming its capability, and carry the user's own requests, so selecting the arc rings exactly them (ADR-1271, 5.7).
  */
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
@@ -33,7 +35,13 @@ export const VERIFIED_BY_LOCAL_RUN = "a local test run";
 
 export type LocalReading =
   | { written: false; why: string; unread?: true }
-  | { written: true; command: string; commit?: string; tests: number; unmatched: number; passing: number; failing: number; notChecked: number };
+  | { written: true; command: string; commit?: string; tests: number; unmatched: number; passing: number; failing: number; notChecked: number; red: RedCapability[] };
+
+/** A capability of an imported (mapped) story that a run left verified failing. */
+export interface RedCapability {
+  id: string;
+  title: string;
+}
 
 /** The GitHub repository whose CI storytree reads for `folder`: its origin's, when the folder holds a workflow; else undefined. */
 async function ciOf(folder: string): Promise<string | undefined> {
@@ -97,5 +105,17 @@ export async function recordLocalTests({ library, folder, run = runTests }: { li
   const written = await recordHealth(library, new Map([...tested.keys()].map((id) => [id, id])), tested, writer);
   await recordUnclaimed(library, tree, await unclaimedVerdicts(tree, files, unmatched), writer);
   const notChecked = [...tested.values()].filter(({ state }) => state === "not-checked").length;
-  return { written: true, command, ...(commit === undefined ? {} : { commit }), tests: results.length, unmatched: unmatched.length, passing: written.passing, failing: written.failing, notChecked };
+  const red = (await library.projectTree()).stories
+    .filter(({ mapped }) => mapped !== undefined)
+    .flatMap(({ capabilities }) => capabilities.filter(({ health }) => health.verified.state === "failing").map(({ id, title }) => ({ id, title })));
+  return { written: true, command, ...(commit === undefined ? {} : { commit }), tests: results.length, unmatched: unmatched.length, passing: written.passing, failing: written.failing, notChecked, red };
+}
+
+/** What `health local` says of a run that wrote its verdicts: the counts, and the one arc that fixes what it left red (ADR-1271). */
+export function localReadingText(read: Extract<LocalReading, { written: true }>): string {
+  const counts = `Ran this project's ${read.tests} tests locally by \`${read.command}\`${read.commit === undefined ? "" : ` (commit ${read.commit.slice(0, 12)})`}: ${read.passing} contracts verified passing, ${read.failing} failing, ${read.notChecked} not checked` +
+    `${read.unmatched === 0 ? "." : `; ${read.unmatched} results named no contract of one story.`}`;
+  if (read.red.length === 0) return counts;
+  const named = read.red.map(({ id, title }) => `"${title}" (${id})`).join(", ");
+  return `${counts}\nRed on the imported code: ${named}. Plan one arc for it: an increment that fixes each, its capabilities list naming that capability, so selecting the arc rings exactly them, and the user's own requests as increments on the same arc. Ask the user before changing the imported code.`;
 }

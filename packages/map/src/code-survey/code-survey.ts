@@ -769,6 +769,7 @@ const CODE_LAYOUT_GUIDANCE = [
 export const MAPPED_CODE_GUIDANCE = [
   "Build beside mapped code.",
   "- A mapped story is code imported from a project that was here before storytree: assume it works.",
+  "- Once its tests have run, plan one arc that fixes its red capabilities, an increment for each with its capabilities list naming it, so selecting the arc rings exactly them, and park the user's own requests on the same arc.",
   "- Before changing or deleting anything in the imported project, stop and ask the user, even when an increment names the change. Say what would change there and what it costs, and offer the ways on: change it there, bring that part into this project, retire it, or leave it and build on top. Do what the user says.",
   "- The imported project and this one are separate after the import: do not watch the old project for changes, and import it again only when the user asks.",
   "- Build new stories on top in their own packages, each depending on the mapped package by a link: to its folder under its own name (file: under npm, which has no link:). It declares no exports, so import its files by path; match its module type and path aliases, and link its single copy of its framework and type packages.",

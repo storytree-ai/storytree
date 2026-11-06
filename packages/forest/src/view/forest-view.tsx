@@ -80,7 +80,7 @@ export async function openForestView(container: HTMLElement, onSelect: (selectio
       <div className="forest-globe">
         <PlanetView core={core} scene={drawn.scene} places={drawn.places} wisps={drawn.wisps}
           selected={drawn.selected} highlighted={drawn.highlighted} circled={drawn.circled}
-          onPick={pick} onNote={pickNote} onControls={onControls} onPainted={painted.painted} mode={layers.mode} framing={globeFraming(opening)} aside={drawn.aside} library={layers.library} liveRoads
+          onPick={pick} onNote={pickNote} onControls={onControls} onPainted={painted.painted} mode={layers.mode} framing={globeFraming(opening)} aside={drawn.aside} library={layers.library}
           />
       </div>
       <div className="forest-views" role="group" aria-label="Sheet faces">

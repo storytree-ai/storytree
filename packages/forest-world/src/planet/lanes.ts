@@ -1,7 +1,7 @@
 /** Capability 4 · The planet. Selection lanes at sea, routed on their own (contracts 4.8–4.9, 4.41–4.42, ADR-1261 D3–D4),
  * ported from 0.2's laneLayout and lane draw-on. */
 import { Vector3 } from 'three';
-import type { PlanetLanes, PlanetPathways } from './pathways.js';
+import type { PlanetLanes } from './pathways.js';
 
 /** At sea every lane is one solid pale sea-blue line, in and out alike (ADR-1236 D1, overtaking 0.2's teal and violet,
  * ADR-1236 D2): the capability tree mock's #8fbfd4 mixed into its sea (#17222b) at 0.78, as it shows there. */
@@ -19,6 +19,8 @@ export interface LaneRoute extends LitLink {
   colour: string;
   /** Only the code's types join the two capabilities (ADR-0991 D1); it is carried, not drawn: every lane is solid. */
   typeOnly?: true;
+  /** The two islands it joins, by story: it shows once both have risen (4.33). */
+  islands: readonly [string, string];
 }
 
 /** A lane's width in ground units alone, and the most any stretch is drawn (ADR-1261 D4): the old first and widest steps. */
@@ -38,35 +40,56 @@ export function seaLaneWidth(sharing: number): number {
  * route (one within an island) lights nothing. Lanes sharing a stretch, in and out alike, are one line there, wider by
  * how many share it. */
 export function laneRoutes(plan: PlanetLanes, lit: readonly LitLink[]): LaneRoute[] {
-  const segments = new Map(plan.segments.map(segment => [segment.id, segment]));
   const selected = lit.flatMap(link => {
     const edge = plan.edges.find(e => e.from === link.from && e.to === link.to);
     const chain = edge?.segments ?? [];
-    return chain.length === 0 ? [] : [{ link, chain, typeOnly: edge?.typeOnly }];
+    return chain.length === 0 ? [] : [{ link, chain, typeOnly: edge?.typeOnly, islands: edge!.islands }];
   });
   const sharing = new Map<string, number>();
   for (const { chain } of selected) for (const ref of chain) sharing.set(ref.id, (sharing.get(ref.id) ?? 0) + 1);
-  return selected.map(({ link, chain, typeOnly }): LaneRoute => {
-    const points: Vector3[] = [], widths: number[] = [];
+  return selected.map(({ link, chain, typeOnly, islands }): LaneRoute => {
     // The chain runs from the building capability to the one built on; the lane runs back along it.
-    for (const ref of [...chain].reverse()) {
-      const segment = segments.get(ref.id)!, width = seaLaneWidth(sharing.get(ref.id)!);
-      for (const point of ref.reversed ? segment.points : [...segment.points].reverse()) {
-        if (points.length === 0 || points.at(-1)!.distanceTo(point) > 1e-9) {
-          points.push(point);
-          widths.push(width);
-        }
-      }
-    }
-    const length = points.slice(1).reduce((sum, point, i) => sum + point.distanceTo(points[i]!), 0);
-    return { ...link, points, length, widths, width: Math.min(...widths), colour: SEA_LANE, ...typeOnly ? { typeOnly } : {} };
+    const line = alongChain(plan, [...chain].reverse().map(ref => ({ ...ref, reversed: !ref.reversed })), sharing);
+    return { ...link, ...line, colour: SEA_LANE, islands, ...typeOnly ? { typeOnly } : {} };
   });
 }
 
-/** The roads between islands carrying a selection's lit links: its lanes are drawn in their stead (ADR-1236 D1), so they are not. */
-export function roadsUnderLanes(plan: PlanetPathways, lit: readonly LitLink[]): ReadonlySet<string> {
-  const keys = new Set(lit.map(link => `${link.from}->${link.to}`));
-  return new Set(plan.segments.filter(segment => segment.links.some(link => keys.has(link))).map(segment => segment.id));
+/** One line along `chain` (each segment walked forwards, or backwards where `reversed`), as wide at each point as
+ * `sharing` lit lanes share its segment. */
+export function alongChain(plan: Pick<PlanetLanes, 'segments'>, chain: readonly { id: string; reversed: boolean }[], sharing: ReadonlyMap<string, number>): { points: Vector3[]; widths: number[]; length: number; width: number } {
+  const segments = new Map(plan.segments.map(segment => [segment.id, segment]));
+  const points: Vector3[] = [], widths: number[] = [];
+  for (const ref of chain) {
+    const segment = segments.get(ref.id)!, width = seaLaneWidth(sharing.get(ref.id) ?? 1);
+    for (const point of ref.reversed ? [...segment.points].reverse() : segment.points) {
+      if (points.length === 0 || points.at(-1)!.distanceTo(point) > 1e-9) {
+        points.push(point);
+        widths.push(width);
+      }
+    }
+  }
+  const length = points.slice(1).reduce((sum, point, i) => sum + point.distanceTo(points[i]!), 0);
+  return { points, widths, length, width: Math.min(...widths) };
+}
+
+/** How a selection's lanes are layered (4.32): its dependency lanes, then its plumbing lanes drawn over them, lifted a
+ * little higher off the glass and after them, so a plumbing lane sharing a dependency lane's stretch reads as a thread
+ * down it. */
+export function laneStrips<L extends LaneRoute>(routes: readonly L[], plumbing: readonly L[]): { lane: L; plumbed: boolean; lift: number; renderOrder: number }[] {
+  return [...routes.map(lane => ({ lane, plumbed: false, lift: 0.12, renderOrder: 2 })),
+    ...plumbing.map(lane => ({ lane, plumbed: true, lift: 0.16, renderOrder: 3 }))];
+}
+
+/** How far along a lane is drawn `elapsed` rendered seconds after selection (`laneProgress`), and nothing while it is not
+ * shown in a recorded growth (4.33). */
+export function laneDrawn(lane: Pick<LaneRoute, 'islands'>, island: (story: string) => number, elapsed: number, seconds: number, reducedMotion: boolean): number {
+  return laneShown(lane, island) ? laneProgress(elapsed, seconds, reducedMotion) : 0;
+}
+
+/** Whether a lane shows in a recorded growth (4.33): once both its islands have risen (`island` reads how risen a
+ * story's island is, 1 when whole), never while either is still rising. */
+export function laneShown(lane: Pick<LaneRoute, 'islands'>, island: (story: string) => number): boolean {
+  return lane.islands.every(story => island(story) >= 1);
 }
 
 /** Every front of a selection moves at this ground speed (ADR-1000 D1), so fronts sharing a stretch travel as one and The
@@ -142,14 +165,8 @@ export function laneHead(elapsed: number, length: number, heads: readonly HeadRa
   return led * Math.min(1, Math.max(0, 1 - (elapsed - laneDrawSeconds(length)) / 0.4));
 }
 
-/** A road's own draw-on (11.16, 11.17, 12.4): constant speed between 0.2's bounds, so a short road still reads as motion
- * and a long one never drags. */
+/** How long a dependency's crossing takes in a recorded growth, from the island built on to the one building on it
+ * (5.1): constant speed between 0.2's bounds, so a short one still reads as motion and a long one never drags. */
 export function roadDrawSeconds(length: number): number {
   return Math.min(1.2, Math.max(0.28, 0.15 + length / 600));
-}
-
-/** The physical fraction of a road drawn after `elapsed` rendered seconds, at constant speed; all at once under reduced motion. */
-export function roadProgress(elapsed: number, seconds: number, reducedMotion: boolean): number {
-  if (reducedMotion) return 1;
-  return Math.min(1, Math.max(0, elapsed / seconds));
 }

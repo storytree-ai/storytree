@@ -29,13 +29,13 @@ function plan(k = 1): PlanetPathways {
     return { id, links, points: pts.map(world) };
   };
   return {
-    plates: new Map([['a', { descriptors: [], coast: [coast] }]]), segments: [], edges: [], docks: [], lanes: {
+    plates: new Map([['a', { descriptors: [], coast: [coast] }]]), lanes: {
     segments: [route('e', east, { x: 1, z: 0 }, ['x1->a1', 'x2->a1']), route('b', beside, { x: 1, z: 0 }, ['x3->a2']), route('w', west, { x: -1, z: 0 }, ['a3->x4'])],
     edges: [
-      { from: 'x1', to: 'a1', segments: [{ id: 'e', reversed: false }] },
-      { from: 'x2', to: 'a1', segments: [{ id: 'e', reversed: false }] },
-      { from: 'x3', to: 'a2', segments: [{ id: 'b', reversed: false }] },
-      { from: 'a3', to: 'x4', segments: [{ id: 'w', reversed: true }] },
+      { from: 'x1', to: 'a1', segments: [{ id: 'e', reversed: false }], islands: ['x', 'a'] as const },
+      { from: 'x2', to: 'a1', segments: [{ id: 'e', reversed: false }], islands: ['x', 'a'] as const },
+      { from: 'x3', to: 'a2', segments: [{ id: 'b', reversed: false }], islands: ['x', 'a'] as const },
+      { from: 'a3', to: 'x4', segments: [{ id: 'w', reversed: true }], islands: ['a', 'x'] as const },
     ],
     docks: [
       { story: 'a', point: world(east), local: east, links: ['x1->a1', 'x2->a1'] },

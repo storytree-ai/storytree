@@ -1,4 +1,5 @@
-/** Story node render 3.6/3.7: real capability edges between stories survive the join, as continuous roads between shore docks. */
+/** Story node render 3.6/3.7: real capability edges between stories survive the join, as continuous sea lanes between shore
+ * docks (ADR-1261: the roads between islands are retired). */
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { Vector3 } from 'three';
@@ -7,7 +8,7 @@ import { workStates } from '@storytree/arc-surface';
 import { sheetLayout } from '../view/sheet-navigation.js';
 import { territories, territoryAt } from '../territories/territories.js';
 import type { InstanceDescriptor } from '@storytree/forest-world';
-import { buildPlanetPathways, clipToCoast, plateTransform, RIBBON_GROUND_SCALE, rimLoops, routeTrails, SHIPPED_COAST, trailFillWidth } from '@storytree/forest-world/geometry';
+import { buildPlanetPathways, clipToCoast, laneRoutes, plateTransform, rimLoops, routeTrails, seaLaneWidth, SHIPPED_COAST } from '@storytree/forest-world/geometry';
 
 const health = { reported: { state: 'not-checked' as const }, verified: { state: 'not-checked' as const } };
 const capability = (id: string, dependsOn: string[]) => ({ id, title: id, dependsOn, proposed: true, status: "proposed" as const, contracts: [], health });
@@ -20,16 +21,16 @@ const scene = forestScene(tree, [], workStates([]));
 // The islands where the glass sheet lays them, on its big sphere.
 const { spots, radius: RADIUS } = sheetLayout(scene, new Map(storyNodes(tree, []).map(({ id, place }) => [id, place])));
 const owner = new Map(tree.stories.flatMap(s => s.capabilities.map(c => [c.id, s.id])));
-// Links between stories; a link within one story has no road (3.26 never lights one, and nothing else draws it).
+// Links between stories; a link within one story has no lane (3.26 never lights one, and nothing else draws it).
 const links = tree.stories.flatMap(s => s.capabilities.flatMap(c => c.dependsOn.filter(to => owner.get(to) !== s.id).map(to => `${c.id}->${to}`))).sort();
 
-test('3.6 every recorded builds-on link between stories has one continuous trail chain, with shared trunks drawn once', () => {
+test('3.6 every recorded builds-on link between stories has one continuous lane chain, with shared trunks drawn once, as wide as the lit lanes they carry', () => {
   const plan = buildPlanetPathways(scene, spots, RADIUS);
-  assert.deepEqual(plan.edges.map(e => `${e.from}->${e.to}`).sort(), links);
-  const segments = new Map(plan.segments.map(s => [s.id, s]));
-  assert.equal(segments.size, plan.segments.length, 'a shared segment is drawn once');
+  assert.deepEqual(plan.lanes.edges.map(e => `${e.from}->${e.to}`).sort(), links);
+  const segments = new Map(plan.lanes.segments.map(s => [s.id, s]));
+  assert.equal(segments.size, plan.lanes.segments.length, 'a shared segment is drawn once');
   const users = new Map<string, Set<string>>();
-  for (const edge of plan.edges) {
+  for (const edge of plan.lanes.edges) {
     assert.ok(edge.segments.length, 'no empty trail stands for a link');
     let end: Vector3 | undefined;
     for (const ref of edge.segments) {
@@ -42,19 +43,27 @@ test('3.6 every recorded builds-on link between stories has one continuous trail
       set.add(`${edge.from}->${edge.to}`); users.set(ref.id, set);
     }
   }
-  for (const segment of plan.segments) {
+  for (const segment of plan.lanes.segments) {
     assert.deepEqual([...segment.links].sort(), [...users.get(segment.id)!].sort(), 'no invented or orphan trail');
-    assert.equal(segment.width, trailFillWidth(segment.links.length) * RIBBON_GROUND_SCALE);
   }
-  assert.ok(plan.segments.some(s => s.links.length > 1), 'the cost-grid still merges trails');
-  assert.equal(buildPlanetPathways(forestScene({ arcs: [], stories: [] }, [], workStates([])), new Map(), RADIUS).edges.length, 0);
+  assert.ok(plan.lanes.segments.some(s => s.links.length > 1), 'the cost-grid still merges lanes');
+  // Every link lit at once: on each shared trunk the lane is as wide as the links it carries make it.
+  const lit = laneRoutes(plan.lanes, plan.lanes.edges.map(e => ({ from: e.from, to: e.to, dir: 'up' as const })));
+  for (const segment of plan.lanes.segments) {
+    const middle = segment.points[Math.floor(segment.points.length / 2)]!;
+    for (const lane of lit.filter(l => segment.links.includes(`${l.from}->${l.to}`))) {
+      const i = lane.points.findIndex(p => p.distanceTo(middle) < 1e-9);
+      if (i >= 0) assert.equal(lane.widths[i], seaLaneWidth(segment.links.length), `${segment.id} counts its ${segment.links.length} links`);
+    }
+  }
+  assert.equal(buildPlanetPathways(forestScene({ arcs: [], stories: [] }, [], workStates([])), new Map(), RADIUS).lanes.edges.length, 0);
 });
 
 test('3.7 cross-story chains land at both actual clipped shores', () => {
   const plan = buildPlanetPathways(scene, spots, RADIUS);
-  for (const edge of plan.edges) {
+  for (const edge of plan.lanes.edges) {
     const key = `${edge.from}->${edge.to}`;
-    const docks = plan.docks.filter(d => d.links.includes(key));
+    const docks = plan.lanes.docks.filter(d => d.links.includes(key));
     assert.deepEqual(docks.map(d => d.story).sort(), [owner.get(edge.from), owner.get(edge.to)].sort());
     for (const dock of docks) {
       const plate = plan.plates.get(dock.story)!;
@@ -71,7 +80,7 @@ test('3.7 cross-story chains land at both actual clipped shores', () => {
       const transform = plateTransform(spots.get(dock.story)!, RADIUS);
       const local = dock.point.clone().sub(new Vector3(...transform.position)).applyQuaternion(transform.quaternion.clone().invert());
       assert.ok(Math.hypot(local.x-dock.local.x, local.z-dock.local.z) < 1e-7);
-      const cross = plan.segments.filter(s => s.links.includes(key));
+      const cross = plan.lanes.segments.filter(s => s.links.includes(key));
       assert.ok(cross.some(s => [s.points[0]!, s.points.at(-1)!].some(p => p.distanceTo(dock.point) < 1e-7)));
     }
   }
@@ -86,7 +95,7 @@ test('3.6 routing failure is visible while every island and its failing trees st
   assert.match(drawing.issue ?? '', /missing-capability/);
   assert.deepEqual([...drawing.plan.plates.keys()], tree.stories.map(s => s.id));
   assert.ok([...drawing.plan.plates.values()].every(plate => plate.descriptors.some(d => d.kind === 'cell-ground')));
-  assert.equal(drawing.plan.edges.length, 0, 'the failure must not invent a completed trail');
+  assert.equal(drawing.plan.lanes.edges.length, 0, 'the failure must not invent a completed trail');
 });
 
 test('3.6 a change on one island routes nothing again (ADR-0836 D1)', () => {
@@ -101,10 +110,10 @@ test('3.6 a change on one island routes nothing again (ADR-0836 D1)', () => {
   routed.length = 0;
   const after = buildPlanetPathways(next, spots, RADIUS, route);
   assert.deepEqual(routed, []);
-  assert.deepEqual(after.edges, before.edges, 'the same pathways are drawn');
+  assert.deepEqual(after.lanes.edges, before.lanes.edges, 'the same pathways are drawn');
 });
 
-test('3.6 the roads are the survey\'s derived capability edges with the recorded dependsOn, each saying whether it is type-only (ADR-0991 D1, D3)', () => {
+test('3.6 the lanes are the survey\'s derived capability edges with the recorded dependsOn, each saying whether it is type-only (ADR-0991 D1, D3)', () => {
   const edge = (story: string, from: string | undefined, to: string | undefined, typeOnly: boolean) =>
     ({ story, ...(from === undefined ? {} : { from }), ...(to === undefined ? {} : { to }), typeOnly, files: [] });
   // b's code takes types from a1 and a2, and b1 → a1 is also recorded; c's import of a reaches no capability on a.
@@ -121,19 +130,19 @@ test('3.6 the roads are the survey\'s derived capability edges with the recorded
   assert.deepEqual([...derived.links!].sort((m, n) => `${m.from}${m.to}`.localeCompare(`${n.from}${n.to}`)), [
     { from: 'b1', to: 'a1' },
     { from: 'b1', to: 'a2', typeOnly: true },
-  ], 'a recorded link is drawn by value; the code\'s types alone are type-only; an edge with no capability end has no road');
+  ], 'a recorded link is drawn by value; the code\'s types alone are type-only; an edge with no capability end has no lane');
   assert.equal('rowLinks' in derived, false, 'nothing else is handed on to draw');
   assert.deepEqual(forestScene(small, [], workStates([])).links, [{ from: 'b1', to: 'a1' }], 'with no survey the recorded links stand');
 });
 
-test('3.43 a built story whose package depends on a mapped story\'s has a road from its island to the mapped island as a whole, lit when either is selected', () => {
+test('3.43 a built story whose package depends on a mapped story\'s has a lane from its island to the mapped island as a whole, lit when either is selected', () => {
   const mapped = { id: 'old', title: 'old', health, capabilities: [], mapped: { from: '/code/shop', package: 'packages/old', folders: ['packages/old'] } };
   const built = { id: 'new', title: 'new', health, capabilities: [capability('n1', [])] };
   const other = { id: 'b', title: 'b', health, capabilities: [capability('b1', [])] };
   // new's package names the mapped old and the built b; only the mapped one has no capability edge to stand for it.
   const survey = { new: { files: [], imports: [], dependsOn: ['old', 'b'] }, old: { files: [], imports: [], dependsOn: [], mapped: { folder: '/code/shop' } } };
   const scene = forestScene({ arcs: [], stories: [mapped, built, other] }, [], workStates([]), survey);
-  assert.deepEqual(scene.links, [{ from: 'new', to: 'old' }], 'one road, island to island; a built-to-built package dependency draws none');
+  assert.deepEqual(scene.links, [{ from: 'new', to: 'old' }], 'one lane, island to island; a built-to-built package dependency draws none');
   assert.deepEqual(selectionLanes(scene, 'new'), [{ from: 'new', to: 'old', dir: 'up' }]);
   assert.deepEqual(selectionLanes(scene, 'old'), [{ from: 'new', to: 'old', dir: 'down' }]);
 });

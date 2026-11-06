@@ -28,8 +28,8 @@ const R = Math.sqrt(LIBRARY_LAND / Math.PI);
 const coast: Coast = [Array.from({ length: 96 }, (_, i) => ({ x: R * Math.cos(i * Math.PI / 48), z: R * Math.sin(i * Math.PI / 48) }))];
 const kinds = ["capability_5e0362aae607", "capability_f27ac2abb10b", "capability_75d059640d9d", "capability_a954e1eb16f6", "capability_13b04e769a4b", "capability_a7f068502213"];
 const shares = [...kinds, "mapped", "unclaimed"].map((capability, i) => ({ capability, title: `${i + 1} · ${capability}`, lines: 900 - 80 * i }));
-// The link from the store to the service must cross a third territory, so the island has a tunnel.
-const links = [{ from: "z1", to: kinds[0]! }, { from: "z2", to: kinds[1]! }, ...kinds.slice(1).map((from, i) => ({ from, to: kinds[i]! })), { from: kinds[5]!, to: kinds[2]! }, { from: kinds[0]!, to: kinds[2]! }];
+// The link from the second kind to the fifth must cross a third territory, so the island has a tunnel.
+const links = [{ from: "z1", to: kinds[0]! }, { from: "z2", to: kinds[1]! }, ...kinds.slice(1).map((from, i) => ({ from, to: kinds[i]! })), { from: kinds[1]!, to: kinds[4]! }];
 const docks = [{ local: { x: R, z: 0 }, links: ["z1->" + kinds[0], "z2->" + kinds[1]] }];
 const laid = linkLayout(shares, coast, links, docks);
 const roads = islandRoads(laid, links, docks, capabilityPlates(laid));

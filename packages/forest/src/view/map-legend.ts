@@ -3,9 +3,9 @@
  * tools/panel.tsx `mock-legend`). Each entry says in words what one kind of mark on the selected island means, beside a small
  * drawing of it in the colours the island draws it in, and names the marks it describes (`draws`, each mark's name up to its
  * first colon), so nothing the island draws goes unexplained and nothing listed is missing from it (4.39). The sea's marks,
- * drawn by the planet (capability 4 · The planet), are `at: "sea"`.
+ * drawn by the planet (capability 4 · The planet), are `at: "sea"`: no road crosses the sea, only lanes (ADR-1261 D1, D5).
  */
-import { SEA_LANE } from "@storytree/forest-world/geometry";
+import { PLUMBING_LANE, SEA_LANE } from "@storytree/forest-world/geometry";
 import { GROUND, LIT, PORTAL, POST, QUIET_BORDER, ROAD } from "./island-roads.js";
 import { OPEN_WORK } from "./open-work.js";
 import { GLYPHS, SYMBOL_INK, type Kind } from "./settlement-symbols.js";
@@ -87,9 +87,14 @@ export const MAP_LEGEND: readonly LegendEntry[] = [
     draws: ["claim-ring", "flag-shadow", "flag-pennant", "flag-outline", "flag-pole", "claim-lot"],
   },
   {
-    words: "shipping lane: calls to or from another story, wider where lanes merge; it ends at a port",
+    words: "shipping lane: shown while a story is selected, one for each call to or from another story; lanes going the same way merge into one, wider the more it carries, up to a cap; each ends at a port",
     mark: svg("0 0 26 14", `<path d="M1 7H19" stroke="${SEA_LANE}" stroke-width="2.2" />${post(19.5, 4, 5)}`),
     draws: ["lane", "port-house", "port-tower", "port-shadow"], at: "sea",
+  },
+  {
+    words: "plumbing lane: a build step, cleanup or forwarder between two stories, shown while either is selected, labelled by kind; not a dependency",
+    mark: svg("0 0 26 14", `<path d="M1 7H25" stroke="${PLUMBING_LANE}" stroke-width="1.6" />`),
+    draws: ["plumbing-lane"], at: "sea",
   },
 ];
 

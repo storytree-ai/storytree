@@ -11,7 +11,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { removeTemp, waitUntil } from "@storytree/test-waits";
 import { SESSION_ENV, WATCHED_HARNESSES } from "@storytree/project-and-caller/caller";
 
-import { clearUnitLimit, DEADLINE_GRACE_MS, recentPassTimes, recordTimings, runUnit, setUnitLimit, TEST_LIMIT_MS, testLimit, TIMING_ROWS_KEPT, UNIT_LIMIT_CEILING_MS, UNIT_LIMIT_FLOOR_MS, UNIT_LIMIT_MS, unitLimit, unitReason, unitTestLimit } from "./unit-run.mjs";
+import { clearUnitLimit, DEADLINE_GRACE_MS, recentPassTimes, recordTimings, runUnit, setUnitLimit, TEST_LIMIT_MS, testLimit, TIMING_ROWS_KEPT, UNIT_LIMIT_CEILING_MS, UNIT_LIMIT_FLOOR_MS, UNIT_LIMIT_MS, unitLimit, unitReason, unitTestLimit, withMacRetry } from "./unit-run.mjs";
 
 function fixture(t, files) {
   // Its real path: on macOS the temporary folder is a link, and node names test files by their real one.
@@ -557,4 +557,34 @@ test("4.29 · a run of files named on the command line tells its hold its scope 
   const run = harnessRun(t, { "passes.test.mjs": `import { test } from "node:test";\ntest("passes", () => {});` }, { deadline: Math.floor(Date.now() / 1000) + 60, hold: "(options) => { console.log(`hold taken for scope: ${options.scope}`); return () => {}; }" });
   assert.equal(run.status, 0, run.output);
   assert.match(run.output, /hold taken for scope: files/);
+});
+
+// friction_cb9a033867a9: forest's browser smokes stalled past their learned deadline on macOS queue runners only, then passed.
+test("4.30 · on macOS a unit killed at its own deadline runs once more, and its row says its first try timed out", async () => {
+  const killed = { code: 1, ms: 360_200, timedOut: true, running: [{ file: "/r/forest/planet-turn.test.ts", name: "3.86 · turns" }], exitHung: [], unitLimitMs: 257_000, limitSource: "learned", tests: [{ name: "3.85", result: "fail" }], unloaded: ["forest/a.test.ts"], output: "first\n" };
+  const passed = { code: 0, ms: 90_000, timedOut: false, running: [], exitHung: [], unitLimitMs: 257_000, limitSource: "learned", tests: [{ name: "3.86", result: "pass" }], unloaded: [], output: "second\n" };
+  const tries = (...results) => {
+    const runs = [...results];
+    const runOnce = async () => runs.shift();
+    runOnce.count = () => results.length - runs.length;
+    return runOnce;
+  };
+
+  const mac = tries(killed, passed);
+  const run = await withMacRetry(mac, { platform: "darwin" });
+  assert.equal(mac.count(), 2);
+  assert.equal(run.code, 0);
+  assert.deepEqual([run.tests, run.unloaded, run.output], [[...killed.tests, ...passed.tests], killed.unloaded, "first\nsecond\n"]);
+  assert.equal((await withMacRetry(tries({ ...killed, output: undefined }, { ...passed, output: undefined }), { platform: "darwin" })).output, undefined);
+  assert.equal(unitReason(run, "/r"), "first try timed out after 360.2 s (limit 257 s, learned), killed; still running: forest/planet-turn.test.ts › 3.86 · turns; second try: 90.0 s (limit 257 s, learned)");
+
+  const twice = await withMacRetry(tries(killed, killed), { platform: "darwin" });
+  assert.equal(twice.code, 1);
+  assert.match(unitReason(twice, "/r"), /^first try timed out after .*; second try: timed out after 360\.2 s/);
+
+  for (const [first, options] of [[killed, { platform: "linux" }], [killed, { platform: "win32" }], [{ ...killed, cut: true }, { platform: "darwin" }], [killed, { platform: "darwin", timeLeft: () => false }], [{ ...killed, timedOut: false, exitHung: ["/r/a.test.mjs"] }, { platform: "darwin" }], [passed, { platform: "darwin" }]]) {
+    const once = tries(first, passed);
+    assert.equal(await withMacRetry(once, options), first);
+    assert.equal(once.count(), 1);
+  }
 });

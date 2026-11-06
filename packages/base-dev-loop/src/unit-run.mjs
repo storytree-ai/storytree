@@ -424,8 +424,28 @@ function readJsonLines(file) {
   });
 }
 
+/**
+ * `runOnce()`, and on macOS once more when it was killed at its own deadline (not cut to the run's, not an
+ * exit that hung) and `timeLeft()` says the run has time: forest's real-browser smokes stalled past their
+ * learned deadline on macOS queue runners only, and passed in the next run (friction_cb9a033867a9). The
+ * second try is the result, carrying the first as `firstTry`, with both tries' ended tests, unloaded files
+ * and held output, the first's before; one that times out again fails as any kill does.
+ */
+export async function withMacRetry(runOnce, { platform = process.platform, timeLeft = () => true } = {}) {
+  const first = await runOnce();
+  if (platform !== "darwin" || !first.timedOut || first.cut || first.exitHung?.length > 0 || !timeLeft()) return first;
+  const second = await runOnce();
+  const both = (key) => [...(first[key] ?? []), ...(second[key] ?? [])];
+  const output = second.output === undefined ? undefined : `${first.output ?? ""}${second.output}`; // held only beside other units
+  return { ...second, tests: both("tests"), unloaded: both("unloaded"), output, firstTry: first };
+}
+
 /** A unit's row note in the results table: its time and deadline, and on a timeout what was still running. */
 export function unitReason(run, root) {
+  if (run.firstTry !== undefined) {
+    const { firstTry, ...second } = run;
+    return `first try ${unitReason(firstTry, root)}; second try: ${unitReason(second, root)}`;
+  }
   const timeouts = (run.tests ?? []).filter((test) => test.timedOut);
   const reason = unitRowReason(run, root);
   if (timeouts.length === 0) return reason;

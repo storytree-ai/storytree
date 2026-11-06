@@ -756,10 +756,10 @@ export function storyEdges(stories: readonly EdgeStory[]): Map<string, CodeEdge[
 /** Its first section of the habits card (ADR-1021, the guidance kind): where code goes so the map can draw it. */
 const CODE_LAYOUT_GUIDANCE = [
   "Code the map can draw.",
-  "- storytree draws a story's code on its island from the story's own package, packages/<story>/src, where <story> is the story's title in lower case with hyphens, without a leading \"The\" (\"Shopping cart\" is packages/shopping-cart). It reads JavaScript and TypeScript files (.js, .mjs, .jsx, .ts, .tsx and the like) and Python files (.py). A package.json dependency on another story's package draws the road between the two stories. This is the layout for new stories. An existing repository's code, whatever its layout, is drawn where it is once `import_project` maps it, so never tell the user the map cannot draw it.",
+  "- storytree draws a story's code on its island from the story's own package, packages/<story>/src, where <story> is the story's title in lower case with hyphens, without a leading \"The\" (\"Shopping cart\" is packages/shopping-cart). It reads JavaScript, TypeScript and Python files. A package.json dependency on another story's package draws the road between the two stories.",
   "- In Python, a story's package is packages/<story>/pyproject.toml with its module in src/<module>, under a uv workspace over packages/*; a [project] dependency on another story's package draws the road. Put the contract number in each pytest test's name: test_2_3_cart_keeps_items, or test_<package>_2_3_… (hyphens as underscores) for a test proving another story's contract. CI credits a test only by its name, so a docstring's number is for reading only.",
   "- Start each test's title with the number of the contract it proves (\"2.3 the cart keeps its items after a reload\"): the files that test reaches are drawn inside that capability.",
-  "- Lay a new project's code out this way. In an existing project, ask the user before moving code.",
+  "- This is the layout for new stories. An existing repository's code, whatever its layout, is drawn where it is once `import_project` maps it. Ask the user before moving code.",
 ].join("\n");
 
 /**

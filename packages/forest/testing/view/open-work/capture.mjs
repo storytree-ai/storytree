@@ -1,7 +1,7 @@
 // Selecting an arc rings its open work (ADR-1253 D1 as corrected 2026-11-05): storytree's own map (the code-rows snapshot and
 // its survey) as the app opens it, with two active arcs in the stand-in bridge whose open increments name real capabilities of
 // the seed. No arc selected draws no open-work mark; the first arc's row clicked in the Arcs tab rings each capability it names
-// round its settlement or its nameplate, the rest dimmed, and from far each island it touches; then close up on The library
+// round its settlement or its nameplate, the rest dimmed, the same at the wheel's floor (ADR-1272 D2); then close up on The library
 // and on The arc surface, a small island. `node --import tsx capture.mjs` (append --retake to write into
 // src/view/evidence/open-work). Counts, from the scene, every ring and dim shown, so "ringed what the arc names" is measured.
 import assert from 'node:assert/strict';
@@ -42,14 +42,12 @@ const phase = message => console.error(`[open work +${Math.round(performance.now
 const until = async (page, what, predicate, arg, timeout = 180_000) => { phase(`wait for ${what}`); await page.waitForFunction(predicate, arg, { timeout, polling: 200 }); };
 /** What the map shows of the open work, counted from the scene: each ring and dim whose every ancestor is visible. */
 const measure = page => page.evaluate(() => {
-  const found = { rings: [], islandRings: [], dims: [], dimmedIslands: [] };
+  const found = { rings: [], dims: [], dimmedIslands: [] };
   const shown = object => { for (let o = object; o; o = o.parent) if (!o.visible) return false; return true; };
-  const storyOf = object => { for (let o = object; o; o = o.parent) if (o.name.startsWith('planet:')) return o.name.slice('planet:'.length); return undefined; };
   window.__globe.scene.traverse(object => {
     if (object.name.startsWith('planet:') && object.userData.sessionEmphasis === 'dimmed') found.dimmedIslands.push(object.name.slice('planet:'.length));
     if (!shown(object)) return;
     if (object.name.startsWith('open-work-ring:')) found.rings.push(object.name.slice('open-work-ring:'.length));
-    if (object.name === 'open-work-island') found.islandRings.push(storyOf(object));
     if (object.name.startsWith('open-work-dim:')) found.dims.push(object.name.slice('open-work-dim:'.length));
   });
   for (const list of Object.values(found)) list.sort();
@@ -99,12 +97,12 @@ await runCapture({
   views: [{
     name: 'no-arc-selected',
     measure: async ({ page }) => (results.none = await measure(page)),
-    expect: found => { assert.deepEqual(found.rings, []); assert.deepEqual(found.islandRings, []); assert.deepEqual(found.dims, []); },
+    expect: found => { assert.deepEqual(found.rings, []); assert.deepEqual(found.dims, []); },
   }, {
     name: 'no-arc-selected-the-library',
     prepare: async ({ page, settle }) => closeUp(page, settle, library),
     measure: async ({ page }) => measure(page),
-    expect: found => { assert.deepEqual(found.rings, []); assert.deepEqual(found.islandRings, []); },
+    expect: found => assert.deepEqual(found.rings, []),
   }, {
     name: 'arc-selected',
     prepare: async ({ page, settle }) => {
@@ -116,23 +114,23 @@ await runCapture({
       await settle(page, 12);
     },
     measure: async ({ page }) => (results.selected = await measure(page)),
-    expect: found => { assert.deepEqual(found.rings, RINGED); assert.deepEqual(found.islandRings, []); assert.ok(found.dims.length > 0); assert.ok(found.dimmedIslands.length > 0); },
+    expect: found => { assert.deepEqual(found.rings, RINGED); assert.ok(found.dims.length > 0); assert.ok(found.dimmedIslands.length > 0); },
   }, {
-    name: 'arc-selected-far',
-    // Half the zoom the map opens on, where the wheel stops: the far level, its territories hidden (3.86).
+    name: 'arc-selected-floor',
+    // Half the zoom the map opens on, where the wheel stops: the territories still show, so the capabilities' rings do (3.86).
     prepare: async ({ page, settle }) => whole(page, settle, 0.5),
-    measure: async ({ page }) => (results.far = await measure(page)),
-    expect: found => { assert.ok(found.islandRings.length >= 4, `an island ring on each touched island: ${found.islandRings}`); assert.deepEqual(found.rings, []); assert.deepEqual(found.dims, []); },
+    measure: async ({ page }) => (results.floor = await measure(page)),
+    expect: found => { assert.deepEqual(found.rings, RINGED); assert.ok(found.dims.length > 0); },
   }, {
     name: 'arc-selected-the-library',
     prepare: async ({ page, settle }) => closeUp(page, settle, library),
     measure: async ({ page }) => (results.library = await measure(page)),
-    expect: found => { assert.ok(found.rings.includes('capability_5a80222c88c4')); assert.deepEqual(found.islandRings, []); },
+    expect: found => assert.ok(found.rings.includes('capability_5a80222c88c4')),
   }, {
     name: 'arc-selected-the-arc-surface',
     prepare: async ({ page, settle }) => closeUp(page, settle, arcSurface),
     measure: async ({ page }) => (results.arcSurface = await measure(page)),
-    expect: found => { assert.ok(found.rings.includes('capability_d077e76e50d7')); assert.deepEqual(found.islandRings, []); },
+    expect: found => assert.ok(found.rings.includes('capability_d077e76e50d7')),
   }],
 });
 writeFileSync(path.join(captureOutput(pictures), 'measurements.json'), JSON.stringify(results, null, 1) + '\n');

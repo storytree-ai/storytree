@@ -1,7 +1,7 @@
 /**
  * Capability 3 · Story node render: an arc selected draws a hollow ring round each capability its open work names, round its
- * settlement or its nameplate, and dims the rest (3.83); with no arc selected open work draws nothing (3.84); from far one ring
- * round each island it touches, nearer the capabilities' rings, every ring one width on screen at any zoom (3.86) (ADR-1253 D1).
+ * settlement or its nameplate, and dims the rest (3.83); with no arc selected open work draws nothing (3.84); at every zoom, every
+ * ring one width on screen (3.86) (ADR-1253 D1, ADR-1272 D2).
  */
 import assert from "node:assert/strict";
 import { test } from "node:test";
@@ -12,7 +12,7 @@ import { linkLayout, LIBRARY_LAND } from "../territories/link-layout.js";
 import type { Coast, Point } from "../territories/territories.js";
 import { capabilityPlates } from "./nameplates.js";
 import { territoryLand } from "./territory-land.js";
-import { arcEmphasis, openWorkLayer, openWorkMarks, presentOpenWork, RING_LEAST_PX, RING_PX, sizeOpenWork } from "./open-work.js";
+import { arcEmphasis, openWorkLayer, openWorkMarks, RING_LEAST_PX, RING_PX, sizeOpenWork } from "./open-work.js";
 
 const R = Math.sqrt(LIBRARY_LAND / Math.PI);
 const coast: Coast = [Array.from({ length: 96 }, (_, i) => ({ x: R * Math.cos(i * Math.PI / 48), z: R * Math.sin(i * Math.PI / 48) }))];
@@ -31,7 +31,7 @@ const reaches = (mesh: Mesh, centre: Point) => {
 };
 
 test("3.83 · an arc selected rings each capability its open work names, a hollow circle round its settlement, and dims every other territory", () => {
-  const marks = openWorkMarks(map, new Set(["a", "c", "elsewhere"]), roads, coast);
+  const marks = openWorkMarks(map, new Set(["a", "c", "elsewhere"]), roads);
   assert.deepEqual(marks.rings.map(({ capability }) => capability), ["a", "c"], "a capability on another island rings nothing here");
   for (const ring of marks.rings) {
     const settlement = roads.settlements.get(ring.capability)!;
@@ -44,12 +44,12 @@ test("3.83 · an arc selected rings each capability its open work names, a hollo
   assert.deepEqual(marks.dimmed, [territoryOf("b"), territoryOf("d"), unclaimed].sort((x, y) => x - y), "unclaimed code is dimmed too");
   const bare = openWorkMarks(map, new Set(["a"]));
   assert.deepEqual(bare.rings.map(({ capability, x, z }) => ({ capability, x, z })), [{ capability: "a", x: plates.get("a")!.x, z: plates.get("a")!.z }], "round its nameplate where it has no settlement");
-  assert.deepEqual(openWorkMarks(map, new Set(["elsewhere"]), roads, coast), { rings: [], island: undefined, dimmed: [] }, "an island the arc rings nothing on is dimmed whole, not territory by territory");
+  assert.deepEqual(openWorkMarks(map, new Set(["elsewhere"]), roads), { rings: [], dimmed: [] }, "an island the arc rings nothing on is dimmed whole, not territory by territory");
 });
 
 test("3.83 · the open-work layer draws each ring hollow on the land, dims the other territories under their own outlines, and takes no pointer", () => {
   const land = territoryLand(map, flat, coast);
-  const marks = openWorkMarks(map, new Set(["a"]), roads, coast);
+  const marks = openWorkMarks(map, new Set(["a"]), roads);
   // Near enough that the ring is sized to its settlement, not to the least it is across on screen.
   const zoom = 40, width = RING_PX / zoom;
   const layer = openWorkLayer(marks, land, flat, zoom);
@@ -67,7 +67,7 @@ test("3.83 · the open-work layer draws each ring hollow on the land, dims the o
 
 test("3.84 · with no arc selected open work draws nothing on the map", () => {
   const land = territoryLand(map, flat, coast);
-  assert.equal(openWorkLayer(openWorkMarks(map, undefined, roads, coast), land, flat, 1).children.length, 0);
+  assert.equal(openWorkLayer(openWorkMarks(map, undefined, roads), land, flat, 1).children.length, 0);
 });
 
 test("3.83 · an arc selected dims every island none of whose territories it rings; with none selected no island is dimmed", () => {
@@ -76,23 +76,19 @@ test("3.83 · an arc selected dims every island none of whose territories it rin
   assert.equal(arcEmphasis(map.territories, undefined), undefined);
 });
 
-test("3.86 · from far an arc selected rings the island it touches and no territory; nearer its capabilities and no island; one width on screen at both", () => {
+test("3.86 · an arc selected rings its capabilities and dims the rest at every zoom, with no ring round the island; one width on screen at every zoom", () => {
   const land = territoryLand(map, flat, coast);
-  const layer = openWorkLayer(openWorkMarks(map, new Set(["a", "c"]), roads, coast), land, flat, 1);
-  const shown = () => layer.children.filter((mark) => mark.visible).map((mark) => mark.name.split(":")[0]!);
+  const layer = openWorkLayer(openWorkMarks(map, new Set(["a", "c"]), roads), land, flat, 1);
   /** A ring's line across, in CSS pixels at `zoom`. */
   const onScreen = (name: string, centre: Point, zoom: number) => { const d = reaches(layer.getObjectByName(name) as Mesh, centre); return (Math.max(...d) - Math.min(...d)) * zoom; };
   const far = 0.3, near = 3;
-  presentOpenWork(layer, "far");
+  assert.deepEqual([...new Set(layer.children.map((mark) => mark.name.split(":")[0]!))].sort(), ["open-work-dim", "open-work-ring"], "the capabilities' rings and the dims, and no island ring");
   sizeOpenWork(layer, far);
-  assert.deepEqual([...new Set(shown())], ["open-work-island"], "from far the island's ring alone");
-  assert.ok(Math.min(...reaches(layer.getObjectByName("open-work-island") as Mesh, { x: 0, z: 0 })) > R, "round the whole island, off its coast");
-  const farWidth = onScreen("open-work-island", { x: 0, z: 0 }, far);
-  presentOpenWork(layer, "territories");
+  const ring = layer.getObjectByName("open-work-ring:a")!, at = roads.settlements.get("a")!.at;
+  const farWidth = onScreen("open-work-ring:a", at, far);
+  assert.ok(Math.max(...reaches(ring as Mesh, at)) * 2 * far >= RING_LEAST_PX, "zoomed out, the ring is still at least its least across on screen");
   assert.equal(sizeOpenWork(layer, near), true);
-  assert.deepEqual([...new Set(shown())].sort(), ["open-work-dim", "open-work-ring"], "nearer, the capabilities' rings and the dims, and no island ring");
-  const ring = layer.getObjectByName("open-work-ring:a")!;
-  const nearWidth = onScreen("open-work-ring:a", roads.settlements.get("a")!.at, near);
+  const nearWidth = onScreen("open-work-ring:a", at, near);
   assert.ok(Math.abs(nearWidth - farWidth) < 0.01 * farWidth && farWidth > 1, `one width on screen, far ${farWidth} px and near ${nearWidth} px`);
   const drawn = (ring as Mesh).geometry;
   assert.equal(sizeOpenWork(layer, near * 1.01), false, "a zoom that barely moves redraws nothing");

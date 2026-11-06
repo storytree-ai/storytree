@@ -8,7 +8,7 @@ import { islandNormal, onIslandSurface, Overlay, PlanetWorldCanvas, PLATE_CLEARA
 import type { CodePlaces } from "@storytree/knowledge-core";
 import { KnowledgeGlobePoints, useCodeLighting, type CodeLighting, type CoreUnderSheet, type KnowledgeCore } from "@storytree/knowledge-core/view";
 import { SessionIslandEmphasis } from "./session-emphasis.js";
-import { arcEmphasis, openWorkLayer, openWorkMarks, presentOpenWork, sizeOpenWork } from "./open-work.js";
+import { arcEmphasis, openWorkLayer, openWorkMarks, sizeOpenWork } from "./open-work.js";
 import { lightTerritories, territoryLand } from "./territory-land.js";
 import { islandRoadMarks, landFill, lightRoute, type RoutePick } from "./island-roads.js";
 import { capabilityPlates } from "./nameplates.js";
@@ -164,7 +164,7 @@ export function PlanetView({ core, scene, places, wisps: live, selected, highlig
       sideOffset={sideOffset ?? 0} aside={aside}
       showFailures={shownSurfaces.grounds || shownSurfaces.territories !== false || shownSurfaces.nameplates || shownSurfaces.roads} />
     <NameplateCrowd selected={selected} />
-    <DetailFeed detail={detail} sheet={layout.extent} />
+    <DetailFeed detail={detail} />
     <CompiledAtLoad under={underSheet} />
     {onPainted !== undefined && <PaintedReport scene={scene} onPainted={onPainted} />}
     {growth !== undefined && recordedSessions !== undefined && <ReplaySessions recorded={recordedSessions} onWisps={setReplayed} />}
@@ -178,9 +178,9 @@ function DocksSeen({ story, docks: given, onDocks }: { story: string; docks: rea
   return null;
 }
 
-/** 3.86: reads the eye's zoom on every frame drawn, and the zoom that frames the whole `sheet`, so the islands show the detail it asks for. */
-function DetailFeed({ detail, sheet }: { detail: DetailStore; sheet: SheetExtent }) {
-  useFrame(({ camera, size }) => { detail.zoom(sheetEyeZoom(camera, size), Math.min(size.width, size.height) / (2 * sheetOpening(sheet, size).framing * SHEET_RADIUS)); });
+/** 3.86: reads the eye's zoom on every frame drawn, so the islands show the detail it asks for. */
+function DetailFeed({ detail }: { detail: DetailStore }) {
+  useFrame(({ camera, size }) => { detail.zoom(sheetEyeZoom(camera, size)); });
   return null;
 }
 
@@ -373,9 +373,9 @@ type DrawnLand = { group: Group; map: TerritoryMap; roads: IslandRoads | undefin
 function DrawnIsland({ drawn, land, coast, tints, radius, lighting, surfaces, lit, circled, detail, joined }: IslandLandProps & { drawn: DrawnLand }) {
   const { invalidate, clock, camera, size, gl, scene } = useThree();
   const relief = drawn.relief, onLand = drawn.onLand;
-  // 3.83: the open work's rings round its settlements, and its dims, over the land as drawn now; from far its island's ring (3.86).
-  const openWork = useMemo(() => openWorkLayer(openWorkMarks(drawn.map, circled, drawn.roads, coast), drawn.group,
-    onIslandSurface(radius, OPEN_WORK_LIFT + (relief?.height ?? 0)), sheetEyeZoom(camera, size)), [drawn, circled, coast, radius, relief]);
+  // 3.83: the open work's rings round its settlements, and its dims, over the land as drawn now, at every zoom (ADR-1272 D2).
+  const openWork = useMemo(() => openWorkLayer(openWorkMarks(drawn.map, circled, drawn.roads), drawn.group,
+    onIslandSurface(radius, OPEN_WORK_LIFT + (relief?.height ?? 0)), sheetEyeZoom(camera, size)), [drawn, circled, radius, relief]);
   // 3.73: its marks' shaders compiled as they are built, hidden ones too, so the zoom that first shows them stalls on none.
   useEffect(() => {
     const frame = requestAnimationFrame(() => { gl.compile(drawn.group, camera, scene); gl.compile(openWork, camera, scene); });
@@ -442,9 +442,8 @@ function DrawnIsland({ drawn, land, coast, tints, radius, lighting, surfaces, li
   const level = useSyncExternalStore(detail.subscribe, detail.get);
   useLayoutEffect(() => {
     presentDetail(drawn.group, level);
-    presentOpenWork(openWork, level);
     invalidate();
-  }, [drawn, openWork, level, surfaces, invalidate]);
+  }, [drawn, level, surfaces, invalidate]);
   useEffect(() => () => disposeMarks(drawn.group), [drawn]);
   return <><primitive object={drawn.group} /><primitive object={marks.root} />{surfaces.territories !== false && <primitive object={openWork} />}</>;
 }

@@ -76,9 +76,9 @@ export const MAP_LEGEND: readonly LegendEntry[] = [
   { words: "a picked gate, ringed in gold", mark: svg("0 0 26 14", `${post(8.2, 5.2)}${post(14.2, 5.2)}<circle cx="13" cy="7" r="6" fill="none" stroke="${LIT.gold}" stroke-width="1.4" />`), draws: ["gate-ring"] },
   { words: "a picked link's whole way, lit in gold", mark: svg("0 0 26 14", `${band(LIT.edge, 4)}${band(LIT.gold, 2.6)}`), draws: ["road-lit-edge", "road-lit-gold", "road-lit-edge-end", "road-lit-gold-end"] },
   {
-    words: "open work: an arc selected rings each capability its open increments name, and the island from far, and dims the rest",
+    words: "open work: an arc selected rings each capability its open increments name, and dims the rest",
     mark: swatch("#0b0f14", 0.5, `<circle cx="13" cy="7" r="4.6" fill="none" stroke="${OPEN_WORK}" stroke-width="1.4" />`),
-    draws: ["open-work-ring", "open-work-island", "open-work-dim"],
+    draws: ["open-work-ring", "open-work-dim"],
   },
   { words: "a session's reads, in its colour, fainter once out of its window", mark: swatch(WORD_FILL.healthy.colour, WORD_FILL.healthy.opacity, `<rect x="1" y="1" width="24" height="12" rx="2" fill="${SESSION}" fill-opacity="0.36" />`), draws: ["territory-lit"] },
   {

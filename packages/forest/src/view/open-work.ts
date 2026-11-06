@@ -1,12 +1,11 @@
 /**
  * Capability 3 · Story node render. Where work is landing (ADR-1253 D1 as corrected 2026-11-05): an arc selected draws a hollow
  * ring, like a game's unit-selection ring, round each capability its open increments name, round its own marker (its settlement
- * symbol, or its nameplate where it has none), and dims the rest (3.83); from far, where the territories are hidden, one ring
- * round each island it touches instead (3.86). Every ring keeps one line width on screen at any zoom, as a claim's flag keeps
- * its size (ADR-1062 D1). With no arc selected open work draws nothing (3.84).
+ * symbol, or its nameplate where it has none), and dims the rest (3.83), at every zoom (ADR-1272 D2). Every ring keeps one line
+ * width on screen at any zoom, as a claim's flag keeps its size (ADR-1062 D1), and is never less than `RING_LEAST_PX` across
+ * (3.86). With no arc selected open work draws nothing (3.84).
  */
 import { BufferGeometry, Color, DoubleSide, Float32BufferAttribute, Group, Mesh, MeshBasicMaterial, type Object3D, type Vector3 } from "three";
-import { shows, type Detail } from "./zoom-detail.js";
 import type { IslandRoads } from "../territories/island-roads.js";
 import type { Point, TerritoryMap } from "../territories/territories.js";
 import type { SessionEmphasis } from "./session-emphasis.js";
@@ -14,9 +13,8 @@ import { capabilityPlates } from "./nameplates.js";
 
 /** A capability's ring: a circle of `radius` round its marker at (`x`, `z`). */
 export type OpenWorkRing = { readonly capability: string; readonly x: number; readonly z: number; readonly radius: number };
-/** What an island draws of the open work: its capabilities' rings, the ring round the whole island (`island`, its radius, when
- * the arc rings anything on it), and the territories (by position) an arc selected dims. */
-export type OpenWorkMarks = { readonly rings: readonly OpenWorkRing[]; readonly island: number | undefined; readonly dimmed: readonly number[] };
+/** What an island draws of the open work: its capabilities' rings and the territories (by position) an arc selected dims. */
+export type OpenWorkMarks = { readonly rings: readonly OpenWorkRing[]; readonly dimmed: readonly number[] };
 
 /** The ring's line on screen, in CSS pixels, at every zoom; and the least a capability's ring is across, in CSS pixels, so a
  * ring round a settlement drawn only a few pixels wide still reads. */
@@ -25,21 +23,19 @@ export const RING_PX = 3, RING_LEAST_PX = 24;
 const SETTLEMENT_ROOM = 0.8;
 /** A ring's radius round a nameplate where the capability has no settlement, as a share of the island's reach. */
 const NAMEPLATE_RING = 0.07;
-/** The island's ring, as a share of its coast's reach: clear of the gold selection ring just off the coast. */
-const ISLAND_ROOM = 1.16;
 /** The selected arc's rings: a pale cyan no health fill, gold selection or white border wears. */
 export const OPEN_WORK = "#8fe3f5";
 /** What an arc selected lays over the territories it does not ring. */
 const DIM = { colour: "#0b0f14", opacity: 0.5 };
 
-const NONE: OpenWorkMarks = { rings: [], island: undefined, dimmed: [] };
+const NONE: OpenWorkMarks = { rings: [], dimmed: [] };
 
 /**
  * The open work on `map` for the selected arc's open increments' capabilities (`circled`; undefined, no arc selected): a ring
  * round each named capability's settlement on `roads` (sized to it, with room), or round its nameplate where it has none, every
- * other territory on the island dimmed, and the island's ring round its coast (`coast`, when given; else the map's reach).
+ * other territory on the island dimmed.
  */
-export function openWorkMarks(map: TerritoryMap, circled: ReadonlySet<string> | undefined, roads?: IslandRoads, coast?: readonly (readonly Point[])[]): OpenWorkMarks {
+export function openWorkMarks(map: TerritoryMap, circled: ReadonlySet<string> | undefined, roads?: IslandRoads): OpenWorkMarks {
   if (circled === undefined) return NONE;
   const rings = capabilityPlates(map).flatMap(({ capability, x, z }): OpenWorkRing[] => {
     if (!circled.has(capability)) return [];
@@ -47,11 +43,10 @@ export function openWorkMarks(map: TerritoryMap, circled: ReadonlySet<string> | 
     return [settlement === undefined ? { capability, x, z, radius: map.radius * NAMEPLATE_RING }
       : { capability, x: settlement.at.x, z: settlement.at.z, radius: settlement.size * SETTLEMENT_ROOM }];
   });
-  // An island it rings nothing on is dimmed whole (arcEmphasis), so its territories are not dimmed again, and it has no ring.
+  // An island it rings nothing on is dimmed whole (arcEmphasis), so its territories are not dimmed again.
   if (rings.length === 0) return NONE;
   const dimmed = map.territories.flatMap(({ capability }, at) => capability !== undefined && circled.has(capability) ? [] : [at]);
-  const reach = coast === undefined || coast.length === 0 ? map.radius : Math.max(...coast.flatMap((ring) => ring.map(({ x, z }) => Math.hypot(x, z))));
-  return { rings, island: reach * ISLAND_ROOM, dimmed };
+  return { rings, dimmed };
 }
 
 /** An arc selected dims an island none of whose territories it rings (3.83), as a session's hover dims the islands it holds none of. */
@@ -84,9 +79,7 @@ export function openWorkLayer(marks: OpenWorkMarks, land: Object3D, onSurface: (
   }
   const ink = flat(OPEN_WORK, 0.95);
   // Over the roads, under the settlements, names and flags that stand on them.
-  const ring = (centre: Point, radius: number, least: number, name: string) => add(hollowRing(centre, radius, least, ink, onSurface, zoom), name, 5);
-  for (const { capability, x, z, radius } of marks.rings) ring({ x, z }, radius, RING_LEAST_PX, `open-work-ring:${capability}`);
-  if (marks.island !== undefined) ring({ x: 0, z: 0 }, marks.island, 0, "open-work-island");
+  for (const { capability, x, z, radius } of marks.rings) add(hollowRing({ x, z }, radius, RING_LEAST_PX, ink, onSurface, zoom), `open-work-ring:${capability}`, 5);
   return group;
 }
 
@@ -121,13 +114,6 @@ export function sizeOpenWork(layer: Group, zoom: number): boolean {
     redrawn = true;
   }
   return redrawn;
-}
-
-/** Shows as much of an island's open-work `layer` as the eye's zoom asks (3.86): from far the island's ring alone; with the
- * territories, its capabilities' rings and the dims in its place (3.83). */
-export function presentOpenWork(layer: Group, detail: Detail): void {
-  const near = shows(detail, "territories");
-  for (const mark of layer.children) mark.visible = mark.name === "open-work-island" ? !near : near;
 }
 
 /** The hollow circle of `shape` as drawn, its line `width` across, as triangles on the surface. */

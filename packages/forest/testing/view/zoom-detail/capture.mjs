@@ -1,4 +1,4 @@
-// Every island carries the capability tree's detail, shown by zoom (ADR-1253 D2, 3.86): storytree's own map (the code-rows
+// Every island carries the capability tree's detail, shown by zoom (ADR-1253 D2 as narrowed by ADR-1272 D1, 3.86): storytree's own map (the code-rows
 // snapshot and its survey, its 15 islands) as the app opens it, nothing selected. `node --import tsx capture.mjs` (append
 // --retake to write into src/view/evidence/zoom-detail). It reads the eye's zoom (CSS pixels per ground unit, `sheetEyeZoom`)
 // at the whole-map opening, at the wheel's floor and near The library, counts the islands showing territories, roads and
@@ -90,10 +90,10 @@ await runCapture({
     },
     expect: found => assert.ok(found.territories === found.total && found.roads === 0 && found.capabilityNames === 0, 'the whole map opens on every island\'s territories, no roads, no capability names'),
   }, {
-    name: 'far',
+    name: 'floor',
     prepare: async ({ page, settle }) => zoomTo(page, settle, results.opening.zoom / 2),
-    measure: async ({ page }) => (results.far = await measure(page)),
-    expect: found => assert.ok(found.territories === 0 && found.roads === 0, 'from the wheel\'s floor, islands and names only'),
+    measure: async ({ page }) => (results.floor = await measure(page)),
+    expect: found => assert.ok(found.territories === found.total && found.roads === 0, 'at the wheel\'s floor, every island\'s territories still, no roads (ADR-1272 D1)'),
   }, {
     name: 'near-the-library',
     prepare: async ({ page, settle }) => {

@@ -1,4 +1,4 @@
-# Every island carries the capability tree's detail, shown by zoom (ADR-1253 D2, contract 3.86)
+# Every island carries the capability tree's detail, shown by zoom (ADR-1253 D2 as narrowed by ADR-1272 D1, contract 3.86)
 
 The real desktop page on storytree's own map (the code-rows snapshot and its survey, 15 islands), nothing selected, taken
 by `packages/forest/testing/view/zoom-detail/capture.mjs` at 1440 x 960. Every island is laid out by its links and routed
@@ -6,8 +6,9 @@ whether or not it is selected; the eye's zoom alone decides which marks show.
 
 Pictures:
 
-- `far.png`: the eye at the wheel's floor (zoom 0.48 CSS px per ground unit, half the whole map's): islands, names and the
-  sea's lanes only.
+- `floor.png`: the eye at the wheel's floor (zoom 0.48 CSS px per ground unit, half the whole map's): every island's
+  territories still in their health colours, no roads and no capability names (ADR-1272 D1; until then this was `far.png`,
+  the bare grey ground with names, lanes and flags only).
 - `opening-territories.png`: the whole map as it opens (zoom 0.96): every island's territories in their health colours, no
   roads and no capability names.
 - `near-the-library.png`: near (zoom 2.8): roads, gates, relief, settlements and capability names on every island, none of
@@ -16,9 +17,10 @@ Pictures:
 ## The thresholds, measured
 
 The eye's zoom on this map: 0.96 at the opening, 0.48 at the wheel's floor (always half the opening), 29 at its ceiling.
-The territories show from 0.75 of the zoom that frames the whole map, so every map opens on them and the floor always
-reaches far; the near marks from 2 CSS px per ground unit, where a gate (4.2 units) stands about 8 px long. Each level
-changes 12% past its threshold either way, so a zoom resting on one does not flicker.
+The territories show at every zoom (ADR-1272 D1: Mick, 2026-11-05, "i see no value in turning the islands grey on the
+farthest zoom. just means you cant see health and only the flags"; the far level below 0.75 of the whole map's zoom is
+gone); the near marks show from 2 CSS px per ground unit, where a gate (4.2 units) stands about 8 px long. The level
+changes 12% past it either way, so a zoom resting on it does not flicker.
 
 ## Frame times
 
@@ -130,3 +132,5 @@ on #501, #511 and #512, 226 s on #495 and 58 s on #493 before the queue: the lay
 time comes from how many frames the page draws there, not from long builds.
 
 In the evidence bucket for #493, linked from the pull request body (ADR-1234; deleted after 90 days or when its arc closes): `493/far.png`, `493/opening-territories.png`, `493/near-the-library.png`.
+
+In the evidence bucket for #536, linked from the pull request body (ADR-1234; deleted after 90 days or when its arc closes): `536/floor.png`, `536/near-the-library.png`, `536/opening-territories.png`.

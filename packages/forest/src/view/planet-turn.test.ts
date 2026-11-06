@@ -9,7 +9,7 @@ import { waitUntil } from "@storytree/test-waits";
  * `__show(titles)` hands it the plan again, a live update, with the stories' titles as given. `linked` gives each story a
  * second capability its first depends on, and story one's first depends on story two's, so each island has roads.
  * `__zoom()` reads the eye's zoom the map shows its detail by. */
-async function mapBundle(linked = false): Promise<string> {
+async function mapBundle(linked = false, { late = false }: { late?: boolean } = {}): Promise<string> {
   const entry = `import { createElement } from "react";
     import { createRoot } from "react-dom/client";
     import { workStates } from "@storytree/arc-surface";
@@ -30,7 +30,11 @@ async function mapBundle(linked = false): Promise<string> {
     globalThis.__show = titles => root.render(createElement(PlanetView, { core, scene: forestScene(plan(titles), history, workStates([])), places, wisps: [],
       selected: undefined, onPick: () => {}, onNote: () => {} }));
     globalThis.__zoom = () => sheetEyeZoom(globalThis.__globe.camera, globalThis.__globe.size);
-    globalThis.__show(["one", "two"]);`;
+    if (${JSON.stringify(late)}) {
+      root.render(createElement(PlanetView, { core, scene: forestScene({ arcs: [], stories: [] }, [], workStates([])), places: new Map(), wisps: [],
+        selected: undefined, onPick: () => {}, onNote: () => {} }));
+      setTimeout(() => globalThis.__show(["one", "two"]), 1500);
+    } else globalThis.__show(["one", "two"]);`;
   const result = await build({
     stdin: { contents: entry, resolveDir: import.meta.dirname, loader: "js" }, bundle: true, write: false, format: "iife", jsx: "automatic",
     define: { "process.env.NODE_ENV": '"production"' }, loader: { ".glb": "binary" },
@@ -53,8 +57,7 @@ async function openedMap(t: { after(run: () => Promise<void>): void }, linked = 
   }, undefined, { timeout: 60_000 });
   const renders = () => page.evaluate(() => (window as unknown as { __renders: number }).__renders);
   // The opening settles: the sheet opens framed and the islands report their places, then the view stops rendering, and
-  // each island's land, built in its turn (3.87), with its roads when it has links, stands as built. A land rebuilt for
-  // roads that came after it traces its cut borders on over frames that render nothing, so it stands only once they are whole.
+  // each island's land, built in its turn (3.87), with its roads when it has links, stands as built, its borders whole.
   const built = () => page.evaluate(linked => {
     type Part = { uuid: string; geometry?: { drawRange: { count: number } } };
     const { __globe: globe, __renders: renders } = window as unknown as { __renders: number; __globe: { scene: { getObjectByName(name: string): { getObjectByName(name: string): Part | undefined } | undefined } } };
@@ -95,6 +98,31 @@ test("3.87 · an island on the map as it opens has its land stand when it is bui
   const borders = await page.evaluate(() => (window as unknown as { __first: { whole: boolean; at: number } }).__first);
   assert.ok(borders.at > 1, `the land was built ${borders.at} s after the map opened`);
   assert.ok(borders.whole, "its borders stand whole on the first frame they are drawn");
+});
+
+test("3.87 · islands that arrive as the map opens, after it first drew, have their land stand, built again with their roads too, never traced on", async t => {
+  const browser = await chromium.launch({ channel: "chrome", headless: true });
+  t.after(() => browser.close());
+  const page = await browser.newPage({ viewport: { width: 800, height: 600 } });
+  await page.setContent(`<div id="map" style="position:fixed;inset:0"></div>`);
+  // The map opens empty and its plan comes 1.5 s later, as the app's does; linked, so each island has roads, routed after
+  // its land is first built, which build it again.
+  await page.addScriptTag({ content: await mapBundle(true, { late: true }) });
+  // Each frame, island one's borders are read the first time its land is drawn, and the first time its roads are.
+  await page.addScriptTag({ content: `(function look() {
+    const island = window.__globe?.scene.getObjectByName("planet:one");
+    const lines = island?.getObjectByName("territory-borders");
+    const whole = () => lines.geometry.drawRange.count === Infinity;
+    if (lines !== undefined && window.__land === undefined) window.__land = { whole: whole(), roads: island.getObjectByName("island-roads") !== undefined, at: window.__globe.clock.getElapsedTime() };
+    if (lines !== undefined && island.getObjectByName("island-roads") !== undefined) { window.__roads = { whole: whole() }; return; }
+    requestAnimationFrame(look);
+  })();` });
+  await waitUntil(() => page.evaluate(() => (window as unknown as { __roads?: unknown }).__roads !== undefined), 60_000, "island one's roads to be built");
+  const seen = await page.evaluate(() => { const at = window as unknown as { __land: { whole: boolean; roads: boolean; at: number }; __roads: { whole: boolean } }; return { land: at.__land, roads: at.__roads }; });
+  assert.ok(seen.land.at > 1, `the land was built ${seen.land.at} s after the map opened`);
+  assert.ok(!seen.land.roads, "its land was first drawn before its roads came");
+  assert.ok(seen.land.whole, "its borders stand whole on the first frame its land is drawn");
+  assert.ok(seen.roads.whole, "and on the first frame its roads are drawn");
 });
 
 test("3.71 · a drag that turns the glass sheet renders the map view a fixed few times, however many steps it takes, and the sheet still turns", async t => {

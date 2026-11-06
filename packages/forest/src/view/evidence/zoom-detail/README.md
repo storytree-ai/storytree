@@ -131,6 +131,22 @@ mount. The left rail drag test 2.46 on CI's macOS runner took 262 s on step 3's 
 on #501, #511 and #512, 226 s on #495 and 58 s on #493 before the queue: the layout's steps did not bring it back, so its
 time comes from how many frames the page draws there, not from long builds.
 
+### The frames the page draws as it opens (3.87, increment_78255e24d6c4)
+
+Counted on 2.46's page (the forest capture's seed, 1440×960, motion not reduced), as frames in which WebGL drew, from
+the map's ready until 3 s with none, three runs each on this box:
+
+| | frames after ready | draw calls |
+| --- | --- | --- |
+| before | 113, 86, 84 | 10,204, 7,704, 7,522 |
+| after | 26, 24, 23 | 2,302, 2,125, 2,034 |
+
+Before, about three in four of those frames were the territories' borders tracing on (3.46): the app's sheet first draws
+before the plan comes, so its islands joined about 2.5 s into the sheet's clock and none counted as there when the map
+opened, and each land rebuilt with its docks and then its roads traced its new borders on. Now an island counts as there
+when it joins within a second of the map's first island, and stands until its land is whole. What is left matches the
+same page with motion reduced (22 to 24): one frame per queue task that finishes a build.
+
 In the evidence bucket for #493, linked from the pull request body (ADR-1234; deleted after 90 days or when its arc closes): `493/far.png`, `493/opening-territories.png`, `493/near-the-library.png`.
 
 In the evidence bucket for #536, linked from the pull request body (ADR-1234; deleted after 90 days or when its arc closes): `536/floor.png`, `536/near-the-library.png`, `536/opening-territories.png`.

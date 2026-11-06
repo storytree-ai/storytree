@@ -36,3 +36,5 @@ Taken with `node --import tsx packages/forest/testing/view/open-work/capture.mjs
 dim shown from the scene into `measurements.json`.
 
 In the evidence bucket for #519, linked from the pull request body (ADR-1234; deleted after 90 days or when its arc closes): `519/no-arc-selected.png`, `519/no-arc-selected-the-library.png`, `519/arc-selected.png`, `519/arc-selected-far.png`, `519/arc-selected-the-library.png`, `519/arc-selected-the-arc-surface.png`, `519/before-dots-no-arc-selected-close.png`.
+
+In the evidence bucket for #536, linked from the pull request body (ADR-1234; deleted after 90 days or when its arc closes): `536/arc-selected-floor.png`, `536/arc-selected.png`, `536/arc-selected-the-arc-surface.png`, `536/arc-selected-the-library.png`, `536/no-arc-selected.png`, `536/no-arc-selected-the-library.png`.

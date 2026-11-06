@@ -132,3 +132,5 @@ on #501, #511 and #512, 226 s on #495 and 58 s on #493 before the queue: the lay
 time comes from how many frames the page draws there, not from long builds.
 
 In the evidence bucket for #493, linked from the pull request body (ADR-1234; deleted after 90 days or when its arc closes): `493/far.png`, `493/opening-territories.png`, `493/near-the-library.png`.
+
+In the evidence bucket for #536, linked from the pull request body (ADR-1234; deleted after 90 days or when its arc closes): `536/floor.png`, `536/near-the-library.png`, `536/opening-territories.png`.

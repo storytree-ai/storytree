@@ -22,3 +22,5 @@ Pictures, 1440 x 960:
 Beside it, the mock's same island: `docs/design/capability-tree-3d/q-all-islands/stills/islands/after/story_deee4230348c-rest.png`.
 
 In the evidence bucket for #492, linked from the pull request body (ADR-1234; deleted after 90 days or when its arc closes): `492/the-forest-and-its-legend.png`, `492/mock-the-forest-rest.png`.
+
+In the evidence bucket for #539, linked from the pull request body (ADR-1234; deleted after 90 days or when its arc closes): `539/the-forest-and-its-legend.png`.

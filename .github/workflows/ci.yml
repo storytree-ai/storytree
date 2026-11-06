@@ -57,7 +57,8 @@ env:
   INSTALLER_PATHS: >-
     apps/desktop packages/app pnpm-lock.yaml package.json
     .github/workflows/ci.yml .github/workflows/release.yml .github/workflows/release-package.yml
-    .github/workflows/release-rehearsal.yml .github/workflows/staging-desktop.yml
+    .github/workflows/release-rehearsal.yml .github/workflows/release-rehearsal-label.yml
+    .github/workflows/staging-desktop.yml
 
 # A newer push to the same pull request, or to main, cancels the run it supersedes.
 concurrency:

@@ -24,8 +24,9 @@ import { TERRITORY_WORKER_META } from "./kept-layout.js";
 export type RoadSegment = { readonly pts: readonly Point[]; readonly links: readonly string[]; readonly width: number };
 /** A gate: one per linked pair (ADR-1253 D3), where its road enters the capability depended on (a way out's: where it
  * leaves its own), the border's direction there, the links on the road through it, the links whose gate it is (a few
- * where their gates stand together, 3.81), and the opening cut in it. */
-export type RoadGate = { readonly at: Point; readonly along: Point; readonly links: readonly string[]; readonly entrances: readonly string[]; readonly opening: number };
+ * where their gates stand together, 3.81), the opening cut in it, and the two sides of the border it stands on, sorted
+ * (3.88: each a capability, or "open" for open land). */
+export type RoadGate = { readonly at: Point; readonly along: Point; readonly links: readonly string[]; readonly entrances: readonly string[]; readonly opening: number; readonly between: readonly [string, string] };
 /** Open road: where a road crosses a border with no gate (leaving the territory that depends), its opening cut the same. */
 export type RoadPass = { readonly at: Point; readonly along: Point; readonly links: readonly string[]; readonly opening: number };
 /** A tunnel's portal: where a road goes under a third territory, or comes out from under it (ADR-1253 D3), on that
@@ -359,7 +360,7 @@ function route(map: TerritoryMap, links: readonly Link[], docks: readonly LinkDo
     }
     xs.forEach((x, i) => {
       const at = times(x.p, S), gated = entering.get(x);
-      if (gated !== undefined) gates.push({ at, along: x.along, links: s.links, entrances: gated.sort(), opening: opening(s.links) });
+      if (gated !== undefined) gates.push({ at, along: x.along, links: s.links, entrances: gated.sort(), opening: opening(s.links), between: [...x.pair].sort() as [string, string] });
       if (hidden[i] !== hidden[i + 1]) {
         const n = { x: -x.along.z, z: x.along.x }, side = tAt({ x: x.p.x + n.x * 0.5, z: x.p.z + n.z * 0.5 });
         const into = (side === tAt(halfway(pieces[hidden[i] ? i : i + 1]!))) ? n : { x: -n.x, z: -n.z };

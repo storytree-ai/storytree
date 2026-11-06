@@ -19,7 +19,7 @@ import { ClaimMarks } from "./claim-flag.js";
 import { islandLayoutSteps, type Link } from "../territories/link-layout.js";
 import { keptVersion, pageTerritorySearcher, searchIsland, subscribeKept } from "../territories/kept-layout.js";
 import { NameplateCrowd, Nameplates, reducedMotion, SelectionRing } from "./island-overlays.js";
-import { focusRotation, globeHover, isGlobeDrag, markerSpot, movingSpots, MOVE_SECONDS, oncePerFrame, pickClick, type ForestMode } from "./planet-navigation.js";
+import { focusRotation, globeHover, isGlobeDrag, markerSpot, movingSpots, MOVE_SECONDS, oncePerFrame, pickClick, routeAfterSelection, type ForestMode } from "./planet-navigation.js";
 import { claimsOn } from "./planet-update.js";
 import { createGlobeGuide, type GlobePose, type PlacedGlobeControls } from "./globe-guide.js";
 import { createGlobeAside, framedOnResize, type AsidePose } from "./globe-aside.js";
@@ -65,7 +65,7 @@ export type PlanetViewProps = {
   /** The capabilities the selected arc's open increments name, which are ringed and the rest dimmed; undefined with no arc selected (3.83). */
   circled?: readonly string[] | undefined;
   /** Hears a click on an island, or undefined for empty space. */
-  onPick: (story: string | undefined, capability?: string) => void;
+  onPick: (story: string | undefined, capability?: string, gate?: readonly [string, string]) => void;
   onNote: (note: string) => void;
 };
 
@@ -116,9 +116,9 @@ export function PlanetView({ core, scene, places, wisps: live, selected, highlig
   const lighting = useCodeLighting(core, codePlaces);
   // Contract 3.26: the selected story's links to other stories light as lanes, on both the sheet's faces (ADR-1043 D3).
   const lanes = useKept(useMemo(() => selectionLanes(scene, selected), [scene, selected]), JSON.stringify);
-  // 3.81: the road or gate picked on an island, its route lit in gold; another selection puts it out.
+  // 3.81: the road picked on an island, its route lit in gold, or a gate ringed (3.88); another selection puts it out.
   const [route, setRoute] = useState<{ story: string; pick: RoutePick }>();
-  useEffect(() => { setRoute(undefined); }, [selected]);
+  useEffect(() => { setRoute(picked => routeAfterSelection(picked, selected)); }, [selected]);
   // The knowledge graph under the glass sheet: each shelf's notes under its place, the selected story's lit (ADR-1043 D5).
   // 3.76: once an island's plate has seen its docks, its shelves hang under its territories as laid out by its links.
   const [seenDocks, setSeenDocks] = useState<ReadonlyMap<string, readonly IslandDock[]>>(NO_DOCKS_SEEN);
@@ -279,7 +279,7 @@ type TerritoriesProps = {
   detail: DetailStore;
   /** The selected arc's open work, ringed, the rest dimmed (3.83). */
   circled: ReadonlySet<string> | undefined;
-  /** The road or gate picked on the island, whose route lights in gold (3.81). */
+  /** The road picked on the island, whose route lights in gold (3.81), or the gate it rings (3.88). */
   lit?: RoutePick | undefined;
   land: NonNullable<Island["land"]>;
   coast: readonly (readonly { x: number; z: number }[])[];
@@ -387,10 +387,11 @@ function DrawnIsland({ drawn, land, coast, tints, radius, lighting, surfaces, li
     if (!mark.name.startsWith("open-work-dim:")) mark.geometry?.dispose();
     mark.material?.dispose();
   }); }, [openWork, invalidate]);
-  // 3.81: the picked route in gold, on the roads as drawn now.
+  // 3.81: the picked route in gold, on the roads as drawn now; a picked gate's ring (3.88).
+  const gateRing = useMemo(() => drawn.group.getObjectByName("gate-ring") as Group | undefined, [drawn]);
   useLayoutEffect(() => {
     if (drawn.roads === undefined) return;
-    lightRoute(drawn.group, drawn.roads, lit);
+    lightRoute(drawn.group, drawn.roads, lit, sheetEyeZoom(camera, size) * (drawn.group.matrixWorld.getMaxScaleOnAxis() || 1));
     invalidate();
   }, [drawn, lit, invalidate]);
   // ADR-0968: each claim's flag, and on an island with no code its lot, kept across claim changes so each plays its life.
@@ -414,6 +415,8 @@ function DrawnIsland({ drawn, land, coast, tints, radius, lighting, surfaces, li
     if (marks.frame(clock.getElapsedTime(), { zoom, eye: camera.quaternion, reduced: reducedMotion() })) invalidate();
     // 3.86: the open work's rings keep their line's width on screen at the zoom the eye shows, as a flag keeps its size.
     if (openWork.children.length > 0 && sizeOpenWork(openWork, zoom * (openWork.matrixWorld.getMaxScaleOnAxis() || 1))) invalidate();
+    // 3.88: and a picked gate's ring.
+    if (gateRing !== undefined && gateRing.children.length > 0 && sizeOpenWork(gateRing, zoom * (gateRing.matrixWorld.getMaxScaleOnAxis() || 1))) invalidate();
   });
   // 3.30: on a growing map the land fills in behind its island; once whole it is left alone until the growth or the land changes.
   const growth = usePlanetGrowth();
@@ -478,7 +481,7 @@ function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onCon
   rotation: Quaternion;
   /** The big sphere's turn, and where its centre stands as the glass sheet is tilted and spun. */
   onRotate: (rotation: Quaternion, offset?: [number, number, number]) => void;
-  onPick: (story: string | undefined, capability?: string) => void;
+  onPick: (story: string | undefined, capability?: string, gate?: readonly [string, string]) => void;
   onNote: (note: string) => void;
 }) {
   const { camera, gl, scene, size, invalidate } = useThree();
@@ -795,9 +798,11 @@ function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onCon
       down = undefined;
       if (twisted || from === undefined || from.id !== event.pointerId || from.dragged || from.spin || isGlobeDrag(from, { x: event.clientX, y: event.clientY })) return;
       clearHover();
-      // 3.81: a road or gate lights its route and changes no selection; any other click puts the gold out.
+      // 3.81: a road lights its route and changes no selection; a gate is ringed and selects its island with the pair it
+      // joins (3.88); any other click puts the gold out.
       const clicked = pickClick(scene, camera, element.getBoundingClientRect(), { x: event.clientX, y: event.clientY }, picking());
       onRoute(clicked.route);
+      if (clicked.route?.pick.kind === "gate") onPick(clicked.route.story, undefined, clicked.route.pick.between);
       if (clicked.route !== undefined) return;
       const hit = clicked.hit;
       if (hit?.kind === "note") onNote(hit.id);

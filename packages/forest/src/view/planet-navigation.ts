@@ -115,6 +115,12 @@ export function pickRoute(world: Object3D, camera: Camera,
   return undefined;
 }
 
+/** What stays picked on the roads once `selected` is the selection: a gate's ring stays while its own island is selected, as
+ * the click on it selects that island (3.88); any other pick goes out on a selection (3.81). */
+export function routeAfterSelection(route: { story: string; pick: RoutePick } | undefined, selected: string | undefined): { story: string; pick: RoutePick } | undefined {
+  return route?.pick.kind === "gate" && route.story === selected ? route : undefined;
+}
+
 /**
  * What a click picks (3.81): in Forest, a road or gate first, which lights its route and picks no selection; otherwise
  * what `pickGlobe` picks, with no route, so any other click puts the gold out.

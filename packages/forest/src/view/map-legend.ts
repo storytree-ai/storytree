@@ -59,7 +59,7 @@ export const MAP_LEGEND: readonly LegendEntry[] = [
     draws: ["road", "road-junction"],
   },
   {
-    words: "gate: one between each two linked capabilities, where the road enters the one depended on, a post either side; links whose gates stand together share one; click it for the pair it joins",
+    words: "gate: one between each two linked capabilities, where the road enters the one depended on, a post either side; links whose gates stand together share one; click it to ring it and pick the pair it joins",
     mark: svg("0 -2 26 18", `<path d="M13 -2V1M13 12V16" stroke="${QUIET_BORDER.colour}" />${band(ROAD.colour, 2)}${post(11.2, 1)}${post(11.2, 9.4)}`),
     draws: ["gate-post", "gate-face", "gate-shadow"],
   },
@@ -73,6 +73,7 @@ export const MAP_LEGEND: readonly LegendEntry[] = [
     mark: (Object.keys(KIND_WORDS) as Kind[]).map((kind) => `<span class="legend-kind" data-kind="${kind}">${symbol(kind)}${KIND_WORDS[kind]}</span>`).join(""),
     draws: ["settlement-casing", "settlement-paper", "settlement-ink", "settlement-lines"],
   },
+  { words: "a picked gate, ringed in gold", mark: svg("0 0 26 14", `${post(8.2, 5.2)}${post(14.2, 5.2)}<circle cx="13" cy="7" r="6" fill="none" stroke="${LIT.gold}" stroke-width="1.4" />`), draws: ["gate-ring"] },
   { words: "a picked link's whole way, lit in gold", mark: svg("0 0 26 14", `${band(LIT.edge, 4)}${band(LIT.gold, 2.6)}`), draws: ["road-lit-edge", "road-lit-gold", "road-lit-edge-end", "road-lit-gold-end"] },
   {
     words: "open work: an arc selected rings each capability its open increments name, and the island from far, and dims the rest",

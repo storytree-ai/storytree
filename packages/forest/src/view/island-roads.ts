@@ -3,11 +3,13 @@
  * round 11's `sand-faint` look: each road a sandy ribbon on the land, a step wider by the links it carries, its colour
  * mixed into the land under it so the joins stay one road; a disc at each junction; and at each gate a post standing
  * either side of its opening (3.78, step 3b), at each end of a tunnel under a third territory an arched portal (ADR-1253
- * D3), and each settlement its kind's symbol (3.79, step 4a), all following the island's relief. No arrowheads. Plain three.js, so the marks are read without a browser.
+ * D3), and each settlement its kind's symbol (3.79, step 4a), all following the island's relief; a picked gate's gold ring
+ * (3.88). No arrowheads. Plain three.js, so the marks are read without a browser.
  */
 import { BufferGeometry, CircleGeometry, Color, DoubleSide, Float32BufferAttribute, Group, Mesh, MeshBasicMaterial, type Object3D, type Vector3 } from "three";
 import type { IslandRoads } from "../territories/island-roads.js";
 import { LIGHT, type IslandRelief } from "../territories/island-relief.js";
+import { hollowRing, RING_LEAST_PX } from "./open-work.js";
 import { settlementSymbols } from "./settlement-symbols.js";
 
 type Point = { readonly x: number; readonly z: number };
@@ -99,6 +101,11 @@ export function islandRoadMarks(roads: IslandRoads, onGround: (p: Point) => Vect
   tunnelPortals(group, roads, relief, onGround);
   // 3.79: each settlement its kind's symbol, laid flat just over the roads.
   group.add(settlementSymbols(roads, onSurface, 0.05 * relief.scale));
+  // 3.88: where a picked gate's ring goes, flat over the plateaus' tops, so it reads round posts on any land.
+  const rings = new Group();
+  rings.name = "gate-ring";
+  rings.userData = { relief, onSurface: (p: Point) => { const v = onGround(p); v.y += relief.height + 0.05 * relief.scale; return v; } };
+  group.add(rings);
   return group;
 }
 
@@ -146,9 +153,9 @@ function standingPosts(group: Group, roads: IslandRoads, relief: IslandRelief, o
         push([v(a, 0), v(b, 0), v(b, tall), v(a, 0), v(b, tall), v(a, tall)], lit);
       }
       push([v(foot[0]!, tall), v(foot[1]!, tall), v(foot[2]!, tall), v(foot[0]!, tall), v(foot[2]!, tall), v(foot[3]!, tall)], ink);
-      // 3.81: a gate's posts take a click, so a link can be picked by the gate it enters by.
+      // 3.88: a gate's posts take a click, so a gate can be picked, and the pair it joins.
       const post = mesh(positions, colours, solidMaterial, `gate-post:${i}:${sign}`, 4, true);
-      post.userData = { gate: true, entrances: gate.entrances, links: gate.links, standing: true, height: tall, base };
+      post.userData = { gate: true, index: i, between: gate.between, entrances: gate.entrances, links: gate.links, standing: true, height: tall, base };
       const face = square(side * STANDING.faceRatio / 2);
       mesh([face[0]!, face[1]!, face[2]!, face[0]!, face[2]!, face[3]!].flatMap((q) => v(q, tall + 0.02 * relief.scale)), undefined, faceMaterial, `gate-face:${i}:${sign}`, 5);
       // Its shadow: the footprint swept away from the light, flat on the land beside it.
@@ -199,40 +206,63 @@ function tunnelPortals(group: Group, roads: IslandRoads, relief: IslandRelief, o
   });
 }
 
-/** What a pick on an island's roads lights (3.81): one or more links' whole ways, or one shared road. */
-export type RoutePick = { readonly kind: "link" | "road"; readonly links: readonly string[] };
+/** What a pick on an island's roads lights: one or more links' whole ways, or one shared road (3.81); or a gate, by its
+ * place in the island's gates, and the two sides it joins (3.88). */
+export type RoutePick = { readonly kind: "link" | "road"; readonly links: readonly string[] } | { readonly kind: "gate"; readonly gate: number; readonly between: readonly [string, string] };
 
 /**
- * What a click on `mark` picks, as the mock's overlay does: a road carrying one link picks that link; a gate picks the
- * pair it joins, the links whose gate it is (ADR-1253 D3); a tunnel's portal picks the links it carries; a shared road
- * picks that road. Anything else picks nothing.
+ * What a click on `mark` picks: a road carrying one link picks that link; a tunnel's portal picks the links it carries; a
+ * shared road picks that road (3.81); a gate picks itself and the pair of capabilities it joins, whichever way their links
+ * run (3.88, Mick 2026-11-05: "the gate should show the circle when i select this"). Anything else picks nothing.
  */
 export function routeOf(mark: Object3D): RoutePick | undefined {
-  const { road, gate, portal, links, entrances } = mark.userData as { road?: true; gate?: true; portal?: true; links?: readonly string[]; entrances?: readonly string[] };
-  if (gate === true && entrances !== undefined && entrances.length > 0) return { kind: "link", links: entrances };
+  const { road, gate, portal, links, index, between } = mark.userData as { road?: true; gate?: true; portal?: true; links?: readonly string[]; index?: number; between?: readonly [string, string] };
+  if (gate === true && index !== undefined && between !== undefined) return { kind: "gate", gate: index, between };
   if (portal === true && links !== undefined) return { kind: "link", links };
   if (road !== true || links === undefined) return undefined;
   return { kind: links.length === 1 ? "link" : "road", links };
 }
 
-/** The road segments and gates `pick` lights in `roads`: a link's every segment and its entrance gate, or the shared road. */
+/** The road segments and gates `pick` lights in `roads`: a link's every segment and its entrance gate, or the shared road;
+ * a picked gate lights none, being ringed instead (3.88). */
 export function litRoute(roads: IslandRoads, pick: RoutePick | undefined): { segments: Set<number>; gates: Set<number> } {
   const segments = new Set<number>(), gates = new Set<number>();
-  if (pick === undefined) return { segments, gates };
+  if (pick === undefined || pick.kind === "gate") return { segments, gates };
   const keys = new Set(pick.links), same = (links: readonly string[]) => links.length === keys.size && links.every((k) => keys.has(k));
   roads.segments.forEach((s, i) => { if (pick.kind === "link" ? s.links.some((k) => keys.has(k)) : same(s.links)) segments.add(i); });
   if (pick.kind === "link") roads.gates.forEach((g, i) => { if (g.entrances.some((k) => keys.has(k))) gates.add(i); });
   return { segments, gates };
 }
 
-/** Light `pick` in gold on the road marks `islandRoadMarks` drew for `roads`, putting out what was lit before (3.81). */
-export function lightRoute(marks: Object3D, roads: IslandRoads, pick: RoutePick | undefined): void {
+/** A picked gate's ring's room round its posts' outer corners (beside a ramp, set back off it), as a share of their reach. */
+const GATE_RING_ROOM = 1.3;
+
+/**
+ * Light `pick` in gold on the road marks `islandRoadMarks` drew for `roads`, putting out what was lit before (3.81); a
+ * picked gate instead gets a hollow gold ring round its posts, drawn for an eye at `zoom` (CSS px per ground unit), whose
+ * line `sizeOpenWork` keeps one width on screen at any other, as the selected arc's rings do (3.88).
+ */
+export function lightRoute(marks: Object3D, roads: IslandRoads, pick: RoutePick | undefined, zoom = 1): void {
   const lit = litRoute(roads, pick);
   marks.traverse((object) => {
     const road = /^road-lit:(\d+)$/.exec(object.name), gate = /^gate-face:(\d+):/.exec(object.name);
     if (road !== null) object.visible = lit.segments.has(Number(road[1]));
     if (gate !== null) ((object as Mesh).material as MeshBasicMaterial).color.set(lit.gates.has(Number(gate[1])) ? LIT.gold : POST.paper);
   });
+  const rings = marks.getObjectByName("gate-ring");
+  if (rings === undefined) return;
+  for (const ring of [...rings.children]) { rings.remove(ring); (ring as Mesh).geometry.dispose(); ((ring as Mesh).material as MeshBasicMaterial).dispose(); }
+  if (pick?.kind !== "gate") return;
+  const gate = roads.gates[pick.gate];
+  if (gate === undefined) return;
+  const { relief, onSurface } = rings.userData as { relief: IslandRelief; onSurface: (p: Point) => Vector3 };
+  const ramp = relief.ramps.find((r) => r.gate === gate);
+  const gap = ramp === undefined ? gate.opening : Math.max(gate.opening, relief.rampWidth);
+  const gold = new MeshBasicMaterial({ color: LIT.gold, transparent: true, opacity: 1, side: DoubleSide, forceSinglePass: true, depthWrite: false });
+  const ring = hollowRing(gate.at, Math.hypot(gap / 2 + relief.post.side, relief.post.side + 0.2 * relief.scale) * GATE_RING_ROOM, RING_LEAST_PX, gold, onSurface, zoom);
+  ring.name = `gate-ring:${pick.gate}`;
+  ring.renderOrder = 5;
+  rings.add(ring);
 }
 
 /** A way resampled every half unit, so its colour follows the land under it. */

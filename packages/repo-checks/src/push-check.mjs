@@ -117,10 +117,13 @@ export function pushProblems({ root, remote, updates, secrets }) {
   const problems = [];
   const patterns = [];
   const seen = new Set();
+  // git names the remote by its URL when the push does, and no remote-tracking ref is under a URL: there every one is
+  // excluded, so the range is still the branch's own commits.
+  const notPushed = git(["remote"]).split("\n").includes(remote) ? `--remotes=${remote}` : "--remotes";
   for (const { localSha, remoteSha } of updates) {
     if (ZERO.test(localSha)) continue; // a deletion pushes no text
     const known = !ZERO.test(remoteSha) && spawnSync("git", ["cat-file", "-e", `${remoteSha}^{commit}`], { cwd: root }).status === 0;
-    const range = known ? [localSha, `^${remoteSha}`] : [localSha, "--not", `--remotes=${remote}`];
+    const range = known ? [localSha, `^${remoteSha}`] : [localSha, "--not", notPushed];
     for (const commit of git(["rev-list", ...range]).split("\n").filter(Boolean)) {
       if (seen.has(commit)) continue;
       seen.add(commit);

@@ -14,6 +14,7 @@ import { createTestRole, dropTestRoles, testRoleUrl, withTestClient, withTestCli
 
 import { testServerUrl, uniqueProjectName } from "@storytree/project-and-caller/testing/pg";
 import { ACTIVITY_DATABASE, forgetProjectActivity, openActivityLog } from "./index.js";
+import { despiteDeadlocks } from "../testing/shared-tables.js";
 
 test("2.14 · The cloud sessions' account adds and reads back its project's lines, beats and transcripts through the log's own writes, and is refused another project's rows, any change or removal, and any change to the tables", async () => {
   const [project, other] = [uniqueProjectName(), uniqueProjectName()];
@@ -27,7 +28,7 @@ test("2.14 · The cloud sessions' account adds and reads back its project's line
     await ownerLog.append(other, { session: "box-lane", harness: "codex", source: "hook", kind: "session-named", title: "On the box" });
     const grants = readFileSync(new URL("../../../../infra/library-host/cloud-session-activity-grants.sql", import.meta.url), "utf8")
       .replaceAll(':"cloud_role"', `"${cloud}"`).replaceAll(":'cloud_role'", `'${cloud}'`).replaceAll(":'cloud_project'", `'${project}'`);
-    await withTestClient((client) => client.query(grants), ACTIVITY_DATABASE);
+    await despiteDeadlocks(() => withTestClient((client) => client.query(grants), ACTIVITY_DATABASE));
 
     inCloud = await connect({ url: testRoleUrl(cloud) });
     const log = await openActivityLog(inCloud, { machine: "cloud" });
@@ -84,14 +85,14 @@ test("2.14 · The cloud sessions' account adds and reads back its project's line
     }
     assert.deepEqual((await ownerLog.since(other, 0)).lines.map((line) => line.session), ["box-lane"], "the other project's line is as the owner wrote it");
   } finally {
-    await withTestClient(async (client) => {
+    await despiteDeadlocks(() => withTestClient(async (client) => {
       // The shared log is left as it was: these rows gone, the account's grants and policies with it, the rules off.
       await client.query(`DROP OWNED BY "${cloud}"`);
       for (const table of ["activity", "transcript_records", "transcript_readings", "session_beats"]) {
         await client.query(`DELETE FROM ${table} WHERE project = ANY ($1)`, [[project, other]]);
         await client.query(`ALTER TABLE ${table} DISABLE ROW LEVEL SECURITY`);
       }
-    }, ACTIVITY_DATABASE).catch(() => undefined);
+    }, ACTIVITY_DATABASE));
     await Promise.allSettled([onBox.close(), inCloud?.close()]);
     await dropTestRoles([cloud]);
   }

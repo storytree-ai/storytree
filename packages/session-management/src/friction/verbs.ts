@@ -60,7 +60,7 @@ const frictionNew = verb({
     impact: { kind: "text", describe: "what it cost" },
     links: { kind: "text", optional: true, describe: "what it links to, comma-separated" },
     increment: { kind: "text", optional: true, describe: "the increment it happened in, when you were driving one" },
-    "about-storytree": { kind: "switch", describe: "it is a defect in storytree itself (its tools, app or guidance), not in this project: the reply carries a draft issue for the user to send storytree's maintainers" },
+    "about-storytree": { kind: "switch", describe: "it is a defect in storytree itself (its tools, app or guidance), not in this project: the reply carries a draft issue the user may send storytree's maintainers, if they choose" },
     "none-match": { kind: "switch", describe: "none of the closest earlier reports filing showed is this problem: file it new" },
   },
   writes: true,
@@ -88,13 +88,14 @@ const frictionNew = verb({
     } as never, context.writer!);
     const next = [{ command: `library read ${note.id}`, why: "read it whole" }];
     if (!aboutStorytree) return { text: `Recorded friction ${note.id}.`, data: { id: note.id }, next };
-    // Settled by question_03c165b887c7 (option A): storytree sends nothing; the user reviews the draft and submits it.
+    // Settled by question_03c165b887c7 (option A), narrowed by ADR-1270: storytree sends nothing and never prompts for it;
+    // the draft is there for a user who wants to send it.
     const { issueDraft } = await import("./issue-draft.js");
     const draft = issueDraft({ ...input, project: context.project, folder: context.folder });
     return {
       text: [
         `Recorded friction ${note.id} in this project's library, which storytree's maintainers cannot see.`,
-        "It is about storytree, so offer the user this draft issue for its maintainers, showing them its title and text (paths and the project's name are stripped). Only if they agree do they open it, review it on GitHub and submit it themselves; storytree sends nothing:",
+        "It stays in the user's library. Sending it to storytree's maintainers is the user's call: do not prompt them for it with each filing; mention this draft issue only if they ask, or if you judge they would want it. They open it, review it on GitHub and submit it themselves (paths and the project's name are stripped); storytree sends nothing:",
         draft,
       ].join("\n"),
       data: { id: note.id, issueDraft: draft },

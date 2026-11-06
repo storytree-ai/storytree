@@ -166,6 +166,7 @@ test("3.41 the page's locator gives each drawn island's capability count and cli
   assert.ok(point.visible && Math.abs(point.x - 400) < 1e-6 && Math.abs(point.y - 300) < 1e-6, "the point faces the viewer, mid-canvas");
   const moved = locator.islands()[0]!;
   assert.ok(Math.hypot(moved.x - 500, moved.y - 350) > 1, "the island is no longer mid-canvas");
+  assert.equal(locator.face({ kind: "point", at: [Number.NaN, 0, 0] }), false, "no point to face");
 });
 
 test("3.45 the locator reads still only once the globe has placed itself beside the panel as the page measures it now", () => {

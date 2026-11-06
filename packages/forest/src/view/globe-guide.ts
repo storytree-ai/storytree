@@ -154,10 +154,7 @@ export function createGlobeGuide(host: { world(): Object3D; camera(): Camera; si
 }
 
 function findTarget(world: Object3D, target: GlobeTarget): { object: Object3D; point: Vector3 } | undefined {
-  if (target.kind === "point") {
-    const globe = world.getObjectByName("globe");
-    return globe === undefined || !target.at.every(Number.isFinite) ? undefined : { object: globe, point: new Vector3(...target.at) };
-  }
+  if (target.kind === "point") return target.at.every(Number.isFinite) ? { object: world, point: new Vector3(...target.at) } : undefined;
   const object = target.kind === "story" ? world.getObjectByName(`planet:${target.story}`)
     : target.kind === "capability" ? world.getObjectByName(`territory:${target.capability}`)
     : target.kind === "pathway" ? ownStretch(world, target.link)

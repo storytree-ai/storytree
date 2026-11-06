@@ -24,8 +24,8 @@
  * A test that carries no number (an imported repository's own) counts for each contract whose provedBy names it
  * (question_b5918c0ff273), beside any number it carries: see provedFor.
  *
- * A result no contract claims, which names its file (a pytest one), counts for each explored capability whose covers hold its
- * test's file or a file that file imports, by the map's import edges (ADR-1274 D3): see unclaimedVerdicts.
+ * A result no contract claims counts for each explored capability whose covers hold its test's file or a file that file imports,
+ * by the map's import edges (ADR-1274 D3): a pytest result names its file, a TAP one is found by its title: see unclaimedVerdicts.
  *
  * Judging follows storytree's own health (ADR-0744): verdictOf below is the one rule, and a run read from its junit report (../test-run/test-run.mjs) is judged by it too: a contract
  * passes only if it has tests and every one passed; any failure fails it; a skipped test is no pass,
@@ -36,7 +36,7 @@
  * platform one names, else `other`.
  */
 import type { SkipKind } from "@storytree/library";
-import { dependenciesOf, packagesOf, readersReady, surveyStory, type SourceFile } from "@storytree/map";
+import { dependenciesOf, isTestFile, packagesOf, readersReady, surveyStory, type SourceFile } from "@storytree/map";
 // The survey's readers as Node runs them: this gives the Python reader its parser.
 import "@storytree/map/code-survey";
 import type { TestResult } from "../run-results/run-results.js";
@@ -325,23 +325,49 @@ function clipped(message: string): string {
   return message.length <= MESSAGE_LIMIT ? message : `${message.slice(0, MESSAGE_LIMIT - 1)}…`;
 }
 
+/** The titles a JavaScript or TypeScript file passes as a call's first argument (`it("sums the cart", …)`), as the runner prints them. */
+function calledTitles(text: string): Set<string> {
+  return new Set([...text.matchAll(/[\w$.]\(\s*(["'`])((?:\\.|(?!\1)[^\\])+)\1/g)].map(([, , title]) => asRun(title!)));
+}
+
+/**
+ * The test file a result that names none (TAP's) is: the one JavaScript or TypeScript test file in `files` that holds its title,
+ * else its nearest suite's that one file holds, or undefined when every name is held by none or by two.
+ */
+function testFileOf(result: TestResult, tests: readonly { readonly path: string; readonly titles: Set<string> }[]): string | undefined {
+  for (const name of [result.name, ...[...result.suites].reverse()]) {
+    const holders = tests.filter(({ titles }) => titles.has(name));
+    if (holders.length === 1) return holders[0]!.path;
+  }
+  return undefined;
+}
+
 /**
  * Each explored capability's verdict from `unmatched`, the results no contract claims (ADR-1274 D3), by verdictOf: a result counts
  * for every capability whose covers (paths from the project's top) hold its test's file or a file that file imports directly, as
- * the map reads its imports from `files`. A result that names no file (TAP's) reaches none; a capability none reaches is left out.
+ * the map reads its imports from `files`. A pytest result names its file; one that names none (TAP's) is the file testFileOf finds,
+ * and reaches nothing when it finds none. A capability none reaches is left out.
  */
 export async function unclaimedVerdicts(tree: PlanTree, files: readonly SourceFile[], unmatched: readonly TestResult[]): Promise<Map<string, Verdict>> {
   const covering = tree.stories.flatMap(({ capabilities }) => capabilities.flatMap(({ id, covers }) => (covers ?? []).map((cover) => ({ id, cover }))));
-  const tested = [...new Set(unmatched.flatMap(({ file }) => (file === undefined ? [] : [file])))];
-  if (covering.length === 0 || tested.length === 0) return new Map();
-  await readersReady(tested);
+  if (covering.length === 0 || unmatched.length === 0) return new Map();
+  const tests = unmatched.some(({ file }) => file === undefined)
+    ? files.filter(({ path }) => isTestFile(path) && !path.endsWith(".py")).map(({ path, text }) => ({ path, titles: calledTitles(text) }))
+    : [];
+  const byFile = new Map<string, TestResult[]>();
+  for (const result of unmatched) {
+    const file = result.file ?? testFileOf(result, tests);
+    if (file !== undefined) byFile.set(file, [...(byFile.get(file) ?? []), result]);
+  }
+  if (byFile.size === 0) return new Map();
+  await readersReady(byFile.keys());
   const paths = new Set(files.map(({ path }) => path));
   const reached = new Map<string, TestResult[]>();
-  for (const file of tested) {
+  for (const [file, results] of byFile) {
     const source = files.find(({ path }) => path === file);
     const touched = [file, ...(source === undefined ? [] : dependenciesOf(source, paths, []))];
     const ids = new Set(covering.filter(({ cover }) => touched.some((path) => cover === "." || path === cover || path.startsWith(`${cover}/`))).map(({ id }) => id));
-    for (const id of ids) reached.set(id, [...(reached.get(id) ?? []), ...unmatched.filter((result) => result.file === file)]);
+    for (const id of ids) reached.set(id, [...(reached.get(id) ?? []), ...results]);
   }
   return new Map([...reached].map(([id, results]) => [id, verdictOf(results)]));
 }

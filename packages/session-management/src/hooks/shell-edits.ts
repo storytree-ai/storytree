@@ -38,15 +38,20 @@ import { learn, limitOf, type Step } from "./learned-limits.js";
  */
 export const OBSERVE_STEP: Step = { name: "shell-edits", floorMs: 5_000, ceilingMs: 8_000 };
 
-/** Extra edits made visible by this hook; errors leave its ordinary lines untouched and go to `failed`. */
-export function shellEdits(home: string, root: string, line: NewLine, failed: (error: unknown) => void = () => undefined, run: RunGit = runGit): NewLine[] {
+/**
+ * Extra edits made visible by this hook; errors leave its ordinary lines untouched and go to `failed`. Its Git reads may
+ * take `deadlineMs` when given, which nothing learns from (a test's own, so a loaded runner never fails it), else the
+ * time learned on this machine.
+ */
+export function shellEdits(home: string, root: string, line: NewLine, failed: (error: unknown) => void = () => undefined, run: RunGit = runGit, deadlineMs?: number): NewLine[] {
   if (!["session-started", "command-started", "command-run", "file-edited"].includes(line.kind)) return [];
   const key = createHash("sha256").update(`${line.session}\0${root}`).digest("hex");
   const file = path.join(home, "shell-edits", `${key}.json`);
   const lock = `${file}.lock`;
   let held = false;
   let temporary: string | undefined;
-  const limit = limitOf(home, OBSERVE_STEP);
+  const limit = deadlineMs ?? limitOf(home, OBSERVE_STEP);
+  const learning = deadlineMs === undefined;
   let from: number | undefined;
   try {
     // A before-hook only seeds a worktree this session has not observed. In particular a delayed
@@ -76,13 +81,13 @@ export function shellEdits(home: string, root: string, line: NewLine, failed: (e
     temporary = `${file}.${randomUUID()}.part`;
     writeFileSync(temporary, JSON.stringify({ head: current.head, files: [...current.files], untracked: [...current.untracked], reflog: current.reflog }));
     renameSync(temporary, file);
-    learn(home, OBSERVE_STEP, Date.now() - from);
+    if (learning) learn(home, OBSERVE_STEP, Date.now() - from);
     if (files.length === 0 || line.kind !== "command-run") return [];
     const { command: _command, call: _call, kind: _kind, ...common } = line;
     return [{ ...common, kind: "file-edited", folder: root, files }];
   } catch (error) {
     // Reads that ran out of time gave up at the limit: kept as having taken it, so a machine that always gives up widens it.
-    if (from !== undefined && Date.now() - from >= limit) learn(home, OBSERVE_STEP, limit);
+    if (learning && from !== undefined && Date.now() - from >= limit) learn(home, OBSERVE_STEP, limit);
     failed(error);
     return [];
   } finally {

@@ -664,13 +664,15 @@ export type EdgeStory = {
  * package, each name taken leads, through that package's exports and re-exports, to the file that defines it; a name
  * taken whole leads to the file its specifier names. Its imports of its own files are edges to its own story, kept only
  * between two of its capabilities (8.45). A file composing the parts of a manifest kind reaches the file defining each
- * part of that kind its package's dependencies declare (8.46). Paths stay in the coordinates `files` gave.
+ * part of that kind its package's dependencies declare (8.46). A file of another language (Python) reaches the files of
+ * its own story its reader resolves, whole, kept only between two capabilities (8.57). Paths stay in the coordinates `files` gave.
  */
 export function storyEdges(stories: readonly EdgeStory[]): Map<string, CodeEdge[]> {
   const byName = new Map(stories.flatMap((story) => story.packages.map((pkg) => [pkg.name, { story, pkg }] as const)));
   const lookups = new Map(stories.map((story) => {
-    const code = story.files.filter((file) => CODE_FILE.test(file.path) && !DECLARATION.test(file.path));
-    return [story.id, { byPath: new Map(code.map((file) => [file.path, file])), paths: new Set(code.map((file) => file.path)) }] as const;
+    const code = story.files.filter((file) => isCodeFile(file.path));
+    // Names are followed through JavaScript and TypeScript files alone; every language's file is a file an import reaches.
+    return [story.id, { byPath: new Map(code.filter((file) => CODE_FILE.test(file.path)).map((file) => [file.path, file])), paths: new Set(code.map((file) => file.path)) }] as const;
   }));
 
   /** The file of `story` that defines `name`, starting from `path` and following what it passes on; undefined where nothing does. */
@@ -709,7 +711,22 @@ export function storyEdges(stories: readonly EdgeStory[]): Map<string, CodeEdge[
   for (const story of stories) {
     const grouped = new Map<string, { story: string; from?: string; to?: string; files: Map<string, EdgeFile> }>();
     for (const file of story.files) {
-      if (isTestCode(file) || !CODE_FILE.test(file.path) || DECLARATION.test(file.path)) continue;
+      if (isTestCode(file) || !isCodeFile(file.path)) continue;
+      // Another language's file (Python, 8.57) reaches its own story's files whole, through its reader.
+      if (!CODE_FILE.test(file.path)) {
+        const fromCapability = story.owners.get(file.path);
+        if (fromCapability === undefined) continue;
+        for (const { to, typeOnly } of readerOf(file.path)!.edgesOf(file, lookups.get(story.id)!.paths, story.packages)) {
+          const toCapability = story.owners.get(to);
+          if (toCapability === undefined || toCapability === fromCapability) continue;
+          const key = JSON.stringify([story.id, fromCapability, toCapability]);
+          const group = grouped.get(key) ?? { story: story.id, from: fromCapability, to: toCapability, files: new Map() };
+          grouped.set(key, group);
+          const pair = JSON.stringify([file.path, to]);
+          group.files.set(pair, { from: file.path, to, typeOnly: typeOnly && (group.files.get(pair)?.typeOnly ?? true) });
+        }
+        continue;
+      }
       const { imports, ownCode, composes } = readingOf(file);
       // A forwarder (8.31): nothing of its own, and every name it takes is passed on from one other story's package.
       const sources = new Set(imports.map(({ specifier }) => packageNamed(specifier)?.story.id));

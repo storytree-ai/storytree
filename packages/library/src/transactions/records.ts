@@ -74,6 +74,39 @@ export function pickFields(fields: Record<string, unknown>, names: readonly stri
   return Object.fromEntries(names.filter((name) => Object.hasOwn(fields, name)).map((name) => [name, fields[name]]));
 }
 
+/**
+ * What `list` gives of `records` (the live ones), as PgTransactions reads them on the server: those of `type` its filter
+ * keeps, in id order, cut to its limit and projected. For a store that holds its records itself (the in-memory twin, a
+ * machine's record cache); the records handed back are `records`' own, not copies.
+ */
+export function listed(records: Iterable<RecordEnvelope>, type: string | readonly string[], given: ListFilter): RecordEnvelope[] {
+  const filter = listFilter(given);
+  return [...records]
+    .filter((record) => (typeof type === "string" ? record.type === type : type.includes(record.type))
+      && (filter.after === undefined || compareIds(record.id, filter.after) > 0)
+      && (filter.phrase === undefined || Object.entries(record.fields).some(([key, value]) =>
+        (filter.phrase!.fields === undefined || filter.phrase!.fields.includes(key))
+        && typeof value === "string" && value.includes(filter.phrase!.text)))
+      && (filter.ids === undefined || filter.ids.includes(record.id))
+      && Object.entries(filter.where ?? {}).every(([path, value]) => fieldAt(record.fields, path) === value)
+      && Object.entries(filter.not ?? {}).every(([path, value]) => fieldAt(record.fields, path) !== value))
+    .sort((a, b) => compareIds(a.id, b.id))
+    .slice(0, filter.limit)
+    .map((record) => {
+      const kept = projectedFields(filter.projection, record.version);
+      return kept === undefined ? record : { ...record, fields: pickFields(record.fields, kept) };
+    });
+}
+
+/**
+ * Code-point order, which is UTF-8 byte order: the order Postgres's C collation gives, so `list`
+ * orders ids exactly as PgTransactions does. (JavaScript's default string order is by UTF-16 code
+ * unit, which puts characters beyond U+FFFF before U+E000-U+FFFF.)
+ */
+function compareIds(a: string, b: string): number {
+  return Buffer.compare(Buffer.from(a, "utf8"), Buffer.from(b, "utf8"));
+}
+
 /** The record `save` would store, given the record stored now (if any). */
 export function savedRecord(input: SaveInput, current: RecordEnvelope | undefined, at: string): RecordEnvelope {
   return {

@@ -131,7 +131,7 @@ Run from the checkout root.
 
 1. `node --import tsx docs/design/capability-tree-3d/q-all-islands/tools/measure.mjs` snapshots the plan, code survey and
    open work for every story into `data.json`; `tools/survey.ts` writes each island's size and links to `survey.json`.
-2. `node docs/design/capability-tree-3d/q-all-islands/tools/build.mjs --retake` builds `index.html`, `page.js` and `page.css`
+2. `node docs/design/capability-tree-3d/q-all-islands/tools/build.mjs --retake` builds `index.html`, `page.min.js` and `page.css`
    from the real map code (packages/forest's view) with every arrangement in `layouts/`. Without `--retake` the build goes to
    the checkout's ignored `.evidence-builds/`, which the tools serve until a `--retake` build clears it, so a lane taking
    stills of its own branch's map leaves this folder's files as they were (`tools/page-folder.mjs`).

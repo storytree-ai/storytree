@@ -92,7 +92,7 @@ Run from the checkout root. The island's data and layout are round 11's, read fr
 
 1. `node --import tsx docs/design/capability-tree-3d/j-arch-icons/pieces-tools/icons.mjs --shots --retake` writes
    `pieces/icons.html` and its stills.
-2. `node docs/design/capability-tree-3d/j-arch-icons/tools/build.mjs` builds `index.html`, `page.js` and `page.css` from the
+2. `node docs/design/capability-tree-3d/j-arch-icons/tools/build.mjs` builds `index.html`, `page.min.js` and `page.css` from the
    real map code with round 12's overlay.
 3. `node --import tsx docs/design/capability-tree-3d/j-arch-icons/tools/shots.mjs --retake` takes the stills into `stills/`
    (without `--retake`, into the capture kit's scratch folder; this round's stills were taken there and copied in); `stills/shots.json` records the click, the layer's counts

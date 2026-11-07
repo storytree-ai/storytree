@@ -133,7 +133,7 @@ Run from the checkout root.
 
 1. `REGROW=1 node --import tsx docs/design/capability-tree-3d/h-quiet-roads/tools/layout.ts` writes `layout.json` and
    `measures.json`.
-2. `node docs/design/capability-tree-3d/h-quiet-roads/tools/build.mjs` builds `index.html`, `page.js` and `page.css` from
+2. `node docs/design/capability-tree-3d/h-quiet-roads/tools/build.mjs` builds `index.html`, `page.min.js` and `page.css` from
    the real map code with round 11's overlay.
 3. `node --import tsx docs/design/capability-tree-3d/h-quiet-roads/tools/shots.mjs --retake` takes the stills above into
    `stills/` (without `--retake`, into the capture kit's scratch folder), clicking each mark where it stands and checking

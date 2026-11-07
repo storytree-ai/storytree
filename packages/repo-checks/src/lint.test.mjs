@@ -12,7 +12,7 @@ import { gateSteps } from "./gate-steps.mjs";
 import { lint, RULES } from "./lint.mjs";
 
 test("8.5 pnpm lint runs its rules and fails naming each rule and file that breaks; it passes when none does", async (t) => {
-  assert.deepEqual(RULES.map(({ name }) => name), ["type-imports", "package-boundaries", "allocation", "happy-dom-asserts", "codeql-patterns"]);
+  assert.deepEqual(RULES.map(({ name }) => name), ["type-imports", "package-boundaries", "allocation", "happy-dom-asserts", "codeql-patterns", "sketch-bundle-names"]);
 
   const root = mkdtempSync(path.join(tmpdir(), "lint-"));
   t.after(() => removeTemp(root));

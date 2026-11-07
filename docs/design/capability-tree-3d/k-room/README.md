@@ -139,7 +139,7 @@ Run from the checkout root.
 1. `tools/layout.ts` writes an arrangement and its measures into `layouts/` (its header gives the chosen one's command;
    `REUSE=1 START=docs/design/capability-tree-3d/h-quiet-roads/layout.json NAME=r11` routes round 11's again).
 2. `node --import tsx docs/design/capability-tree-3d/k-room/tools/open-work.mjs` reads the open work into `open-work.json`.
-3. `node docs/design/capability-tree-3d/k-room/tools/build.mjs` builds `index.html`, `page.js` and `page.css` from the real
+3. `node docs/design/capability-tree-3d/k-room/tools/build.mjs` builds `index.html`, `page.min.js` and `page.css` from the real
    map code with every arrangement in `layouts/`.
 4. `node --import tsx docs/design/capability-tree-3d/k-room/tools/crowd.mjs '?layout=r11' '?layout=chosen' …` measures each
    query on the page at rest.

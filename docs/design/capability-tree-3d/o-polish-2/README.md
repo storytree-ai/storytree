@@ -87,7 +87,7 @@ The same six views of polish round 1 as landed are `stills/before-*.png`, with t
 
 Run from the checkout root.
 
-1. `node docs/design/capability-tree-3d/o-polish-2/tools/build.mjs` builds `index.html`, `page.js` and `page.css` from the
+1. `node docs/design/capability-tree-3d/o-polish-2/tools/build.mjs` builds `index.html`, `page.min.js` and `page.css` from the
    real map code (packages/forest's view, on `../h-quiet-roads/data.json`).
 2. `node --import tsx docs/design/capability-tree-3d/o-polish-2/tools/shots.mjs <tag> [query] --retake` takes the six
    stills as `stills/<tag>-*.png` and writes the measures at rest to `<tag>.measures.json` (in the capture kit's scratch

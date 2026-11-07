@@ -126,7 +126,7 @@ From the checkout root:
    work into `data.json`.
 2. `node --import tsx docs/design/capability-tree-3d/e-layout/tools/layout.ts` writes `layout.json` and `measures.json`.
 3. `node docs/design/capability-tree-3d/e-layout/tools/plain.mjs` draws the two plain diagrams.
-4. `node docs/design/capability-tree-3d/e-layout/tools/build.mjs` builds `index.html`, `page.js` and `page.css` from the
+4. `node docs/design/capability-tree-3d/e-layout/tools/build.mjs` builds `index.html`, `page.min.js` and `page.css` from the
    real map code (with the territories shim).
 5. `node --import tsx docs/design/capability-tree-3d/e-layout/tools/shots.mjs --retake` takes the styled stills in the
    desktop capture kit's Chromium, clicking each mark where it stands and checking the panel it opens.

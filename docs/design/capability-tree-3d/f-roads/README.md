@@ -170,7 +170,7 @@ From the checkout root:
 2. `SEED=12 ITER=9000 RESTARTS=1 node --import tsx docs/design/capability-tree-3d/f-roads/tools/layout.ts` writes
    `layout.json` and `measures.json` (about eight minutes).
 3. `node --import tsx docs/design/capability-tree-3d/f-roads/tools/plain.mjs --retake` draws the two plain diagrams.
-4. `node docs/design/capability-tree-3d/f-roads/tools/build.mjs` builds `index.html`, `page.js` and `page.css` from the
+4. `node docs/design/capability-tree-3d/f-roads/tools/build.mjs` builds `index.html`, `page.min.js` and `page.css` from the
    real map code (with the territories shim).
 5. `node --import tsx docs/design/capability-tree-3d/f-roads/tools/shots.mjs --retake` takes the styled stills in the
    desktop capture kit's Chromium, clicking each mark where it stands and checking the panel it opens.

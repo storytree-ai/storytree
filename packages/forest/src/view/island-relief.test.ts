@@ -127,11 +127,12 @@ test("3.78 a tunnel's rise drawn over it, shaded by the light: lighter on its si
   const pos = rise.geometry.getAttribute("position"), col = rise.geometry.getAttribute("color");
   const ys = Array.from({ length: pos.count }, (_, k) => pos.getY(k));
   assert.ok(Math.max(...ys) > sixRelief.height + sixRelief.rise.height * 0.4 && Math.max(...ys) <= sixRelief.height + sixRelief.rise.height + 0.05, "up to the rise's height over the plateau, just over it");
-  // Each vertex's brightness against the land under it, by whether the slope there faces the light.
+  // Each vertex's brightness against the land under it, by whether the slope there faces the light, where it is drawn
+  // more than half seen (its foot fades into the land).
   const toward: number[] = [], away: number[] = [], fill = landFill(six, land), under = landColour(fill);
   for (let k = 0; k < pos.count; k++) {
     const q = { x: pos.getX(k), z: pos.getZ(k) }, e = 0.2, slope = { x: sixRelief.raise({ x: q.x + e, z: q.z }) - sixRelief.raise({ x: q.x - e, z: q.z }), z: sixRelief.raise({ x: q.x, z: q.z + e }) - sixRelief.raise({ x: q.x, z: q.z - e }) };
-    if (Math.hypot(slope.x, slope.z) < 0.05) continue;
+    if (Math.hypot(slope.x, slope.z) < 0.05 || col.getW(k) < 0.5) continue;
     const ground = under(q), here = new Color(col.getX(k), col.getY(k), col.getZ(k)), k2 = here.r + here.g + here.b - (ground.r + ground.g + ground.b);
     // Downhill toward the light faces it.
     ((-slope.x * LIGHT.x - slope.z * LIGHT.z) > 0 ? toward : away).push(k2);

@@ -349,7 +349,7 @@ function route(map: TerritoryMap, links: readonly Link[], docks: readonly LinkDo
     const done: Point[] = [], next = () => crossings(line).find((c) => !done.some((d) => far(d, c.p) < 1e-6) && rampOut(c));
     for (let x = next(); x !== undefined; x = next()) {
       done.push(x.p);
-      line = leadOut(line, x.step, x.p, rampOut(x)!, (p) => tAt(p) === "open");
+      line = leadOut(line, x.step, x.p, rampOut(x)!);
     }
     return line;
   };
@@ -428,21 +428,19 @@ function route(map: TerritoryMap, links: readonly Link[], docks: readonly LinkDo
 /** `pts` with its way onto the open land from the border crossing `x` (between its points `step` and `step + 1`) run
  * straight along `out` for a ramp's depth, to the ramp's foot, then turning in a curve on to the line: where, within a
  * few ramps' depth of the border and at least half as far again from it as the foot, it stands most nearly straight on
- * from the foot and the curve to it stays on the open land (`open`); else its end. */
-function leadOut(pts: readonly Point[], step: number, x: Point, out: Point, open: (p: Point) => boolean): Point[] {
+ * from the foot; else its end. */
+function leadOut(pts: readonly Point[], step: number, x: Point, out: Point): Point[] {
   const forward = (pts[step + 1]!.x - x.x) * out.x + (pts[step + 1]!.z - x.z) * out.z >= 0;
   const line = forward ? pts : [...pts].reverse(), from = forward ? step : pts.length - 2 - step, D = RELIEF.ramp.depth;
   const w = (p: Point) => (p.x - x.x) * out.x + (p.z - x.z) * out.z, foot = { x: x.x + out.x * D, z: x.z + out.z * D };
-  // A curve leaving the foot along `out` and meeting the line along its own way on, every control point past the foot, so
-  // the whole curve is.
-  const curve = (q: Point, onward: Point): Point[] | undefined => {
+  // A curve leaving the foot along `out` and meeting the line along its own way on: its join stands half a ramp's depth past
+  // the foot, and no control point stands back from the foot or the join by more, so the whole curve is past the foot.
+  const curve = (q: Point, onward: Point): Point[] => {
     const c = Math.min(D * 0.5, far(foot, q) / 2), p1 = { x: foot.x + out.x * c, z: foot.z + out.z * c }, p2 = { x: q.x - onward.x * c, z: q.z - onward.z * c };
-    if (w(p2) < D) return undefined;
-    const pts = [1, 2, 3, 4, 5, 6, 7].map((k) => {
+    return [1, 2, 3, 4, 5, 6, 7].map((k) => {
       const t = k / 8, [a, b, d, e] = [(1 - t) ** 3, 3 * t * (1 - t) ** 2, 3 * t * t * (1 - t), t ** 3];
       return { x: a * foot.x + b * p1.x + d * p2.x + e * q.x, z: a * foot.z + b * p1.z + d * p2.z + e * q.z };
     });
-    return [foot, ...pts, q].every((p, i, all) => i === 0 || [0.25, 0.5, 0.75, 1].every((t) => open({ x: all[i - 1]!.x + (p.x - all[i - 1]!.x) * t, z: all[i - 1]!.z + (p.z - all[i - 1]!.z) * t }))) ? pts : undefined;
   };
   let best: { rest: Point[]; turn: Point[]; off: number } | undefined, walked = 0;
   for (let k = from + 1; k < line.length && walked <= 4 * D; k++) {
@@ -453,8 +451,8 @@ function leadOut(pts: readonly Point[], step: number, x: Point, out: Point, open
     const t = w(a) < 1.5 * D ? (1.5 * D - w(a)) / (w(b) - w(a)) : 1, q = { x: a.x + (b.x - a.x) * t, z: a.z + (b.z - a.z) * t };
     const rest = far(q, b) > 1e-6 ? [q, ...line.slice(k)] : line.slice(k), next = rest[1];
     const onward = next === undefined ? out : unitOf({ x: next.x - q.x, z: next.z - q.z }), toward = unitOf({ x: q.x - foot.x, z: q.z - foot.z });
-    const off = 1 - (toward.x * out.x + toward.z * out.z), turn = off < (best?.off ?? Infinity) ? curve(q, onward) : undefined;
-    if (turn !== undefined) best = { rest, turn, off };
+    const off = 1 - (toward.x * out.x + toward.z * out.z);
+    if (off < (best?.off ?? Infinity)) best = { rest, turn: curve(q, onward), off };
   }
   const led = [...line.slice(0, from + 1), x, foot, ...(best?.turn ?? []), ...(best?.rest ?? [line.at(-1)!])];
   return forward ? led : led.reverse();

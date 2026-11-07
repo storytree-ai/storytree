@@ -10,7 +10,7 @@ What is drawn now (contract 3.78): where a road crosses from a plateau onto the 
 crossing as before, and the road runs from the border straight down the ramp's middle to its foot (the ramp's depth along
 its slope). Past the foot it turns in a curve that leaves the foot along the slope and meets the routed road along its own
 way on, where that stands at least half as far again from the border, within a few ramps' depth of it, most nearly
-straight on from the foot, and the curve stays on the open land. The gates, their posts and the ramps stand where they did:
+straight on from the foot; the whole curve stands past the foot. The gates, their posts and the ramps stand where they did:
 only the road's line past the border changes.
 
 Pictures, 1440 x 960: `before-ramp-<n>.png` and `after-ramp-<n>.png` for n = 1 to 17, the same ramp at the same point;

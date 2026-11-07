@@ -245,11 +245,13 @@ test("3.78 a road leaving a gate or open road onto the open land runs straight d
       const w = (p: Point) => (p.x - ramp.at.x) * ramp.out.x + (p.z - ramp.at.z) * ramp.out.z;
       const down = w(road.pts[i]!) > w(road.pts[i - 1]!) ? [ramp.at, ...road.pts.slice(i)] : [ramp.at, ...road.pts.slice(0, i).reverse()];
       let walked = 0;
-      for (let k = 1; k < down.length && walked < rel.rampDepth; k++) {
+      for (let k = 1; k < down.length && walked < 3 * rel.rampDepth; k++) {
         const a = down[k - 1]!, b = down[k]!, l = far(a, b);
-        for (let t = 0; t <= 1 && walked + t * l <= rel.rampDepth; t += 0.05) {
-          const p = { x: a.x + (b.x - a.x) * t, z: a.z + (b.z - a.z) * t }, u = (p.x - ramp.at.x) * ramp.along.x + (p.z - ramp.at.z) * ramp.along.z;
-          assert.ok(Math.abs(u) <= rel.rampWidth / 2 - road.width / 2, `the road ${(walked + t * l).toFixed(2)} down the ramp at ${ramp.at.x.toFixed(1)},${ramp.at.z.toFixed(1)} stands ${u.toFixed(2)} off its middle`);
+        for (let t = 0; t <= 1 && walked + t * l <= 3 * rel.rampDepth; t += 0.05) {
+          const p = { x: a.x + (b.x - a.x) * t, z: a.z + (b.z - a.z) * t }, u = (p.x - ramp.at.x) * ramp.along.x + (p.z - ramp.at.z) * ramp.along.z, d = walked + t * l;
+          if (d <= rel.rampDepth) assert.ok(Math.abs(u) <= rel.rampWidth / 2 - road.width / 2, `the road ${d.toFixed(2)} down the ramp at ${ramp.at.x.toFixed(1)},${ramp.at.z.toFixed(1)} stands ${u.toFixed(2)} off its middle`);
+          // Past the foot it turns on the open land, never back up the ramp's side or under its wall.
+          else if (w(p) < 3 * rel.rampDepth) assert.ok(w(p) >= rel.rampDepth - 1e-6 && rel.territoryAt(p) === -1, `the road ${d.toFixed(2)} from the ramp at ${ramp.at.x.toFixed(1)},${ramp.at.z.toFixed(1)} turns ${w(p).toFixed(2)} out from its top, on ${rel.territoryAt(p)}`);
         }
         walked += l;
       }

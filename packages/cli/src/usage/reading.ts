@@ -60,7 +60,7 @@ export interface Window {
 
 /**
  * One surface's use. A declared one carries its consumers; `judged` is whether these lines can judge its use: false when
- * a person may call it, since a person's own terminal writes no line.
+ * a person or the watcher may call it, since a person's own terminal and the watcher write no line.
  */
 export interface Surface { readonly door: Door; readonly verb: string; readonly declared: boolean; readonly consumers?: readonly Consumer[]; readonly judged: boolean; readonly calls: number; readonly sessions: number }
 export interface Miss { readonly door: Door; readonly where: string; readonly word: string; readonly named?: string; readonly count: number }

@@ -13,3 +13,5 @@ Pictures, 1440 x 960:
   and End tour. (The snapshot holds no increments, so its arcs read as plans with work still to do.)
 - `a-story-card-beside-its-island.png`: after Got it, "This is a story." beside The library's island, clear of it.
 - `the-map-clear-after-end-tour.png`: after End tour, no card on the map.
+
+In the evidence bucket for #584, linked from the pull request body (ADR-1234; deleted after 90 days or when its arc closes): `584/the-ask.png`, `584/the-plan-card-after-show-me.png`, `584/a-story-card-beside-its-island.png`, `584/the-map-clear-after-end-tour.png`.

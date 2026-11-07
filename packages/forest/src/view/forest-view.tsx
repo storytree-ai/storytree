@@ -28,8 +28,9 @@ export interface ForestView {
   showWisps(wisps: readonly SessionWisp[]): void;
   /** Light a session’s claimed islands, without changing the selected story. */
   highlight(stories: readonly string[] | undefined): void;
-  /** Ring the territories of these capabilities, the selected arc's open work, and dim the rest; undefined for no arc (3.83). */
-  circle(capabilities: readonly string[] | undefined): void;
+  /** Ring the territories of these capabilities, the selected arc's open work, and the gates of the edges whose `contracts` it
+   * links (3.92), and dim the rest; undefined for no arc (3.83). */
+  circle(capabilities: readonly string[] | undefined, contracts?: readonly string[] | undefined): void;
   /** Mark `story` selected (undefined for none), as a click would. */
   select(story: string | undefined): void;
   /** The panel picked `capability` of the selected story: the map rings it (3.91), and the panel is not told again. */
@@ -50,6 +51,7 @@ interface Drawn {
   capability: string | undefined;
   highlighted: readonly string[] | undefined;
   circled: readonly string[] | undefined;
+  circledContracts: readonly string[] | undefined;
   viewport: { width: number; height: number } | undefined;
   /** CSS pixels of the page's right the story panel or note card covers (3.40). */
   aside: number;
@@ -68,7 +70,7 @@ export async function openForestView(container: HTMLElement, onSelect: (selectio
   { library = true, opening = "whole-planet" }: { library?: boolean; opening?: GlobeOpening | undefined } = {}): Promise<ForestView> {
   const root = createRoot(container);
   let drawn: Drawn = {
-    face: LAUNCH_FACE, places: new Map(), scene: { islands: [] }, wisps: [], selected: undefined, capability: undefined, highlighted: undefined, circled: undefined, viewport: undefined, aside: 0,
+    face: LAUNCH_FACE, places: new Map(), scene: { islands: [] }, wisps: [], selected: undefined, capability: undefined, highlighted: undefined, circled: undefined, circledContracts: undefined, viewport: undefined, aside: 0,
   };
   const painted = paintedScenes(drawn.scene);
 
@@ -83,7 +85,7 @@ export async function openForestView(container: HTMLElement, onSelect: (selectio
     root.render(<>
       <div className="forest-globe">
         <PlanetView core={core} scene={drawn.scene} places={drawn.places} wisps={drawn.wisps}
-          selected={drawn.selected} selectedCapability={drawn.capability} highlighted={drawn.highlighted} circled={drawn.circled}
+          selected={drawn.selected} selectedCapability={drawn.capability} highlighted={drawn.highlighted} circled={drawn.circled} circledContracts={drawn.circledContracts}
           onPick={pick} onNote={pickNote} onControls={onControls} onPainted={painted.painted} mode={layers.mode} framing={globeFraming(opening)} aside={drawn.aside} library={layers.library}
           />
       </div>
@@ -144,8 +146,8 @@ export async function openForestView(container: HTMLElement, onSelect: (selectio
     highlight(stories) {
       render({ highlighted: stories });
     },
-    circle(capabilities) {
-      render({ circled: capabilities });
+    circle(capabilities, contracts) {
+      render({ circled: capabilities, circledContracts: contracts });
     },
     select(story) {
       selection.story(story);

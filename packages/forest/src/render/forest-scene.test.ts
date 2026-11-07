@@ -67,6 +67,15 @@ test("3.4 each story node shows its story's name", () => {
   assert.deepEqual(forestDrawn(forestScene(tree, history, workStates([]))).labels, ["Visitor can sign up", "Visitor can log in", "Admin sees sign-ups"]);
 });
 
+test("3.92 the scene carries each story's edges that hold contracts, by their contracts' ids, and none that hold none", () => {
+  const { tree, history } = project();
+  const contract = { id: "contract_e1", title: "1a asks 1b by id", health: NO_HEALTH };
+  const [signUp, ...rest] = tree.stories;
+  const edged: AnnotatedTree = { ...tree, stories: [{ ...signUp!, edges: [{ id: "edge_1", from: "cap_1a", to: "cap_1b", contracts: [contract] }, { id: "edge_2", from: "cap_1b", to: "cap_1a", contracts: [] }] }, ...rest] };
+  assert.deepEqual(forestScene(edged, history, workStates([])).edges, [{ from: "cap_1a", to: "cap_1b", contracts: ["contract_e1"] }]);
+  assert.equal("edges" in forestScene(tree, history, workStates([])), false, "a plan with no edge holding a contract carries none");
+});
+
 test("3.67 each plumbing call the survey marks between two stories is one island-to-island entry per kind, with its files, and is a link like any other", () => {
   const { tree, history } = project();
   const file = (from: string, extra: object = {}) => ({ from, typeOnly: false, ...extra });

@@ -372,7 +372,7 @@ test("3.2 · the mounted strip is cut at four rows of the ovals its measured wid
   assert.ok(document.querySelector(".arc-landed-mark") === null);
 });
 
-test("3.27 · selecting an arc tells the host the capabilities its open increments name, once each, and deselecting it tells none", async (t) => {
+test("3.27 · selecting an arc tells the host the capabilities its open increments name and the contracts they link, once each, and deselecting it tells none", async (t) => {
   const page = new Window({ url: "https://storytree.test" });
   const document = page.document as unknown as Document;
   let surface: ReturnType<typeof mountArcSurface> | undefined;
@@ -389,10 +389,11 @@ test("3.27 · selecting an arc tells the host the capabilities its open incremen
   });
   const arc = record("arc_1", "arc", { title: "Ship the board", intent: "See the work", endState: "Board shipped" });
   const other = record("arc_2", "arc", { title: "Tidy the docs", intent: "Read easily", endState: "Docs tidy" });
-  const work = (id: string, arcId: string, capabilities: string[], status: "proposal" | "active" | "closed" = "proposal") => record(id, "increment", { arc: arcId, title: id, objective: id, body: id, status, capabilities,
+  const work = (id: string, arcId: string, capabilities: string[], status: "proposal" | "active" | "closed" = "proposal", links: string[] = []) => record(id, "increment", { arc: arcId, title: id, objective: id, body: id, status, capabilities, links,
     ...(status === "closed" ? { outcome: { date: "2026-09-20", disposition: "landed" as const } } : {}) });
   const shipped = { arc: record("arc_3", "arc", { title: "Shipped", intent: "Ship", endState: "Shipped" }), increments: [work("inc_4", "arc_3", ["cap_old"], "closed")], questions: [], state: "closed" as const, closed: "2026-10-02" };
-  const first = { arc, increments: [work("inc_1", "arc_1", ["cap_b", "cap_a"]), work("inc_2", "arc_1", ["cap_a", "cap_c"], "active"), work("inc_3", "arc_1", ["cap_done"], "closed")], questions: [], state: "active" as const };
+  const first = { arc, increments: [work("inc_1", "arc_1", ["cap_b", "cap_a"], "proposal", ["contract_b", "decision_x", "contract_a"]), work("inc_2", "arc_1", ["cap_a", "cap_c"], "active", ["contract_a"]),
+    work("inc_3", "arc_1", ["cap_done"], "closed", ["contract_done"])], questions: [], state: "active" as const };
   const reads: BoardReads = {
     changesSince: async () => ({ changes: [], cursor: 0 }),
     linesSince: async () => ({ lines: [], cursor: 0 }),
@@ -401,9 +402,10 @@ test("3.27 · selecting an arc tells the host the capabilities its open incremen
     holds: async () => ({ waits: {}, heldOn: {} }),
   };
   const told: (readonly string[] | undefined)[] = [];
+  const toldContracts: (readonly string[] | undefined)[] = [];
   const ticks = new Map<number, () => void>();
   surface = mountArcSurface(document.body, {
-    project: "p", reads, onOpened: (capabilities) => { told.push(capabilities); },
+    project: "p", reads, onOpened: (capabilities, contracts) => { told.push(capabilities); toldContracts.push(contracts); },
     timers: { now: () => Date.parse("2026-10-02T12:00:00Z"), every: (ms, tick) => { ticks.set(ms, tick); return () => { ticks.delete(ms); }; } },
   });
   await settle();
@@ -411,10 +413,13 @@ test("3.27 · selecting an arc tells the host the capabilities its open incremen
   const row = (id: string) => document.querySelector<HTMLButtonElement>(`[data-arc-select="${id}"]`)!;
   row("arc_1").click();
   assert.deepEqual(told, [["cap_a", "cap_b", "cap_c"]], "the open increments' capabilities, once each; a closed increment's are not open work");
+  assert.deepEqual(toldContracts, [["contract_a", "contract_b"]], "the contracts its open increments link, once each, nothing else they cite and no closed increment's");
   row("arc_2").click();
   assert.deepEqual(told.at(-1), [], "an arc with no open work circles nothing");
+  assert.deepEqual(toldContracts.at(-1), []);
   row("arc_2").click();
   assert.equal(told.at(-1), undefined, "deselecting it tells none");
+  assert.equal(toldContracts.at(-1), undefined);
   assert.equal(told.length, 3);
 
   row("arc_1").click();

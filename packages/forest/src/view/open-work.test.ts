@@ -1,7 +1,8 @@
 /**
  * Capability 3 · Story node render: an arc selected draws a hollow ring round each capability its open work names, round its
  * settlement or its nameplate, and dims the rest (3.83); with no arc selected open work draws nothing (3.84); at every zoom, every
- * ring one width on screen (3.86) (ADR-1253 D1, ADR-1272 D2); a selected capability ringed in the pick's gold (3.91).
+ * ring one width on screen (3.86) (ADR-1253 D1, ADR-1272 D2); a selected capability ringed in the pick's gold (3.91); and the gate
+ * of an edge whose contract the open work makes true ringed the same (3.92, ADR-1279 D4).
  */
 import assert from "node:assert/strict";
 import { test } from "node:test";
@@ -12,7 +13,7 @@ import { linkLayout, LIBRARY_LAND } from "../territories/link-layout.js";
 import type { Coast, Point } from "../territories/territories.js";
 import { capabilityPlates } from "./nameplates.js";
 import { territoryLand } from "./territory-land.js";
-import { arcEmphasis, OPEN_WORK, openWorkLayer, openWorkMarks, PICK_GOLD, RING_LEAST_PX, RING_PX, sizeOpenWork } from "./open-work.js";
+import { arcEmphasis, OPEN_WORK, openWorkLayer, openWorkMarks, PICK_GOLD, RING_LEAST_PX, RING_PX, rungLinks, sizeOpenWork } from "./open-work.js";
 
 const R = Math.sqrt(LIBRARY_LAND / Math.PI);
 const coast: Coast = [Array.from({ length: 96 }, (_, i) => ({ x: R * Math.cos(i * Math.PI / 48), z: R * Math.sin(i * Math.PI / 48) }))];
@@ -126,4 +127,34 @@ test("3.91 · a selected capability is ringed in the pick's gold round its settl
     sizeOpenWork(both, zoom);
     assert.ok(Math.min(...reaches(named("picked-ring:c"), settlement.at)) > Math.max(...reaches(named("open-work-ring:c"), settlement.at)), `still outside it at zoom ${zoom}`);
   }
+});
+
+test("3.92 · an arc selected whose open work makes an edge's contract true rings that edge's gate, hollow, and dims neither capability it joins", () => {
+  const edges = [{ from: "c", to: "a", contracts: ["contract_ca"] }, { from: "d", to: "c", contracts: ["contract_dc"] }, { from: "z1", to: "a", contracts: ["contract_far"] }];
+  const rung = rungLinks(edges, ["contract_ca", "contract_none"]);
+  assert.deepEqual([...rung ?? []], ["c->a"], "only the edges whose contracts it links");
+  assert.equal(rungLinks(edges, undefined), undefined, "no arc selected rings no gate");
+  const gate = roads.gates.findIndex(({ entrances }) => entrances.includes("c->a"));
+  assert.ok(gate >= 0);
+  const marks = openWorkMarks(map, new Set(["b"]), roads, undefined, rung);
+  assert.deepEqual(marks.gates?.map(({ gate }) => gate), [gate], "one gate, its edge's");
+  assert.deepEqual({ x: marks.gates![0]!.x, z: marks.gates![0]!.z }, roads.gates[gate]!.at, "round the gate");
+  assert.deepEqual(marks.rings.map(({ capability }) => capability), ["b"], "a capability's own work rings its marker as before");
+  assert.deepEqual(marks.dimmed, [territoryOf("d"), map.territories.findIndex(({ capability }) => capability === undefined)].sort((x, y) => x - y), "the gate's two capabilities are not dimmed");
+  const only = openWorkMarks(map, new Set(), roads, undefined, rung);
+  assert.equal(only.gates?.length, 1, "a gate rings with no capability ringed");
+  assert.equal(arcEmphasis(map.territories, new Set(), rung), undefined, "an island where only a gate rings is not dimmed whole");
+  assert.equal(arcEmphasis(map.territories, new Set(), new Set(["x->y"])), "dimmed", "a gate elsewhere leaves it dimmed");
+  assert.equal(openWorkMarks(map, undefined, roads, undefined, rung).gates, undefined, "no arc selected rings no gate");
+
+  const zoom = 40, width = RING_PX / zoom;
+  const layer = openWorkLayer(marks, territoryLand(map, flat, coast), flat, zoom);
+  const ring = layer.getObjectByName(`open-work-gate:${gate}`) as Mesh;
+  assert.equal((ring.material as MeshBasicMaterial).color.getHexString(), OPEN_WORK.slice(1), "in the open work's cyan");
+  const distances = reaches(ring, roads.gates[gate]!.at);
+  assert.ok(Math.min(...distances) >= marks.gates![0]!.radius - width && Math.max(...distances) <= marks.gates![0]!.radius + width, "hollow, a thin line");
+  assert.ok(marks.gates![0]!.radius >= roads.gates[gate]!.opening / 2, "round the gate's opening");
+  const hits: unknown[] = [];
+  ring.raycast({} as never, hits as never);
+  assert.equal(hits.length, 0, "it takes no pointer");
 });

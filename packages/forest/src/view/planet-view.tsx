@@ -8,7 +8,7 @@ import { islandNormal, onIslandSurface, Overlay, PlanetWorldCanvas, PLATE_CLEARA
 import type { CodePlaces } from "@storytree/knowledge-core";
 import { KnowledgeGlobePoints, useCodeLighting, type CodeLighting, type CoreUnderSheet, type KnowledgeCore } from "@storytree/knowledge-core/view";
 import { SessionIslandEmphasis } from "./session-emphasis.js";
-import { arcEmphasis, openWorkLayer, openWorkMarks, sizeOpenWork } from "./open-work.js";
+import { arcEmphasis, openWorkLayer, openWorkMarks, rungLinks, sizeOpenWork } from "./open-work.js";
 import { lightTerritories, territoryLand } from "./territory-land.js";
 import { islandRoadMarks, landFill, ringGate, type GatePick } from "./island-roads.js";
 import { capabilityPlates } from "./nameplates.js";
@@ -64,6 +64,8 @@ export type PlanetViewProps = {
   highlighted?: readonly string[] | undefined;
   /** The capabilities the selected arc's open increments name, which are ringed and the rest dimmed; undefined with no arc selected (3.83). */
   circled?: readonly string[] | undefined;
+  /** The contracts the selected arc's open increments link, whose edges' gates are ringed (3.92); undefined with no arc selected. */
+  circledContracts?: readonly string[] | undefined;
   /** Hears a click on an island, or undefined for empty space. */
   onPick: (story: string | undefined, capability?: string, gate?: readonly [string, string]) => void;
   onNote: (note: string) => void;
@@ -71,7 +73,7 @@ export type PlanetViewProps = {
 
 /** The forest drawn on the glass sheet, depth running west to east (ADR-1043): the user tilts it from above to below
  * (ADR-1062 D2); `mode` changes only its look, never the eye (D3). */
-export function PlanetView({ core, scene, places, wisps: live, selected, selectedCapability, highlighted, circled: circledList, onPick, onNote, mode = "forest", framing, sideOffset, aside = 0, surfaces, onControls, onPainted, library = true, frame, easeMoves = false, growth, recordedSessions }: PlanetViewProps) {
+export function PlanetView({ core, scene, places, wisps: live, selected, selectedCapability, highlighted, circled: circledList, circledContracts, onPick, onNote, mode = "forest", framing, sideOffset, aside = 0, surfaces, onControls, onPainted, library = true, frame, easeMoves = false, growth, recordedSessions }: PlanetViewProps) {
   // In the glass sheet's Library the glass is clear and the islands hollow outlines with their names over the knowledge, from
   // every angle (ADR-1061 D2, ADR-1062 D3): the button pressed decides, never the side the eye is on.
   const outlines = mode === "library";
@@ -134,6 +136,8 @@ export function PlanetView({ core, scene, places, wisps: live, selected, selecte
   // ADR-1253 D1: the selected arc's open work ringed.
   const circledKey = circledList === undefined ? undefined : JSON.stringify(circledList);
   const circled = useMemo(() => circledList === undefined ? undefined : new Set(circledList), [circledKey]);
+  // 3.92: and the gates of the edges whose contracts it makes true.
+  const rung = useKept(useMemo(() => rungLinks(scene.edges ?? [], circledContracts), [scene.edges, circledContracts]), (links) => links === undefined ? "none" : JSON.stringify([...links]));
   // 5.8: a session's pointer pulses on the selected arc's open work, or anywhere when it is for a question; the camera stays his.
   const pointed = useMemo(() => shownPointers(wisps, circled), [wisps, circled]);
   const overlays = useCallback((island: Island, descriptors: readonly Descriptor3D[], coast: readonly (readonly { x: number; z: number }[])[], docks: readonly IslandDock[] | undefined) => {
@@ -143,18 +147,18 @@ export function PlanetView({ core, scene, places, wisps: live, selected, selecte
     const local = { ...island, x: 0, z: 0 };
     // A session's hover outranks an arc's selection; an arc selected dims the islands it rings nothing on (3.83).
     const emphasis = shownSurfaces.sessionTints && highlighted?.length ? (highlighted.includes(island.story) ? "held" : "dimmed")
-      : arcEmphasis(island.land?.territories ?? [], circled);
+      : arcEmphasis(island.land?.territories ?? [], circled, rung);
     return <>
       {island.land !== undefined && layout.spots.has(island.story) && <Territories story={island.story} land={island.land} coast={coast} links={links} docks={laidBy} claimed={claimed} pointed={pointed} radius={layout.radius}
         lighting={lighting} surfaces={shownSurfaces} gate={gate?.story === island.story ? gate.pick : undefined}
-        picked={island.story === selected ? selectedCapability : undefined} circled={circled} detail={detail} />}
+        picked={island.story === selected ? selectedCapability : undefined} circled={circled} rung={rung} detail={detail} />}
       <SessionIslandEmphasis emphasis={emphasis} />
       {emphasis === "held" && <SelectionRing island={local} descriptors={descriptors} onGlobe emphasis />}
       {shownSurfaces.nameplates && <Nameplates island={island} spot={layout.spots.get(island.story)!} coast={coast} links={links} docks={laidBy} radius={layout.radius} selected={selected} dimmed={emphasis === "dimmed"} claimed={claimed} detail={detail} />}
       <SelectionRing island={island.story === selected ? local : undefined} descriptors={descriptors} onGlobe />
       <DocksSeen story={island.story} docks={docks} onDocks={onDocks} />
     </>;
-  }, [wisps, claimed, pointed, selected, highlighted, circled, layout.spots, layout.radius, lighting, shownSurfaces, links, gate, selectedCapability, detail, onDocks]);
+  }, [wisps, claimed, pointed, selected, highlighted, circled, rung, layout.spots, layout.radius, lighting, shownSurfaces, links, gate, selectedCapability, detail, onDocks]);
   const titles = useMemo(() => new Map(scene.islands.map(i => [i.story, i.title])), [scene]);
   // 3.90: the wheel's floor is half the sheet's opening, whatever framing the last pose (a panel's resize or slide) sent.
   const floor = useCallback((size: { width: number; height: number }) => sheetOpening(layout.extent, size).framing, [layout.extent]);
@@ -284,6 +288,8 @@ type TerritoriesProps = {
   detail: DetailStore;
   /** The selected arc's open work, ringed, the rest dimmed (3.83). */
   circled: ReadonlySet<string> | undefined;
+  /** The links whose edges' contracts the selected arc's open work makes true, whose gates it rings (3.92). */
+  rung?: ReadonlySet<string> | undefined;
   /** The gate picked on the island, which it rings (3.88). */
   gate?: GatePick | undefined;
   /** The selected capability, if the island is selected, which it rings in gold (3.91). */
@@ -392,13 +398,13 @@ function disposeMarks(group: Group): void {
 /** An island's land as built: its territories' meshes, and its relief and roads once they are routed. */
 type DrawnLand = { group: Group; map: TerritoryMap; roads: IslandRoads | undefined; relief: IslandRelief | undefined; onLand: ReturnType<typeof onIslandSurface> };
 
-function DrawnIsland({ drawn, land, coast, docks, tints, pointed, radius, lighting, surfaces, gate, picked, circled, detail, joined }: IslandLandProps & { drawn: DrawnLand }) {
+function DrawnIsland({ drawn, land, coast, docks, tints, pointed, radius, lighting, surfaces, gate, picked, circled, rung, detail, joined }: IslandLandProps & { drawn: DrawnLand }) {
   const { invalidate, clock, camera, size, gl, scene } = useThree();
   const relief = drawn.relief, onLand = drawn.onLand;
   // 3.83: the open work's rings round its settlements, and its dims, over the land as drawn now, at every zoom (ADR-1272 D2);
   // and the selected capability's gold ring (3.91).
-  const openWork = useMemo(() => openWorkLayer(openWorkMarks(drawn.map, circled, drawn.roads, picked), drawn.group,
-    onIslandSurface(radius, OPEN_WORK_LIFT + (relief?.height ?? 0)), sheetEyeZoom(camera, size)), [drawn, circled, picked, radius, relief]);
+  const openWork = useMemo(() => openWorkLayer(openWorkMarks(drawn.map, circled, drawn.roads, picked, rung), drawn.group,
+    onIslandSurface(radius, OPEN_WORK_LIFT + (relief?.height ?? 0)), sheetEyeZoom(camera, size)), [drawn, circled, picked, rung, radius, relief]);
   // 3.73: its marks' shaders compiled as they are built, hidden ones too, so the zoom that first shows them stalls on none.
   useEffect(() => {
     const frame = requestAnimationFrame(() => { gl.compile(drawn.group, camera, scene); gl.compile(openWork, camera, scene); });

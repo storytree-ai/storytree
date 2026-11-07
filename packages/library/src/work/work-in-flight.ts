@@ -143,8 +143,8 @@ export interface ArcView {
   readonly questions: SchemaRecord<"question">[];
 }
 
-/** The increment fields the arc board draws (10.22): never its planning body, links, remedies or pending changes. */
-export const BOARD_INCREMENT_FIELDS = ["arc", "title", "objective", "status", "parked", "capabilities", "waits", "waitsFor", "heldOn", "outcome", "machine"] as const;
+/** The increment fields the arc board draws (10.22), its links among them for the edge contracts the map rings: never its planning body, remedies or pending changes. */
+export const BOARD_INCREMENT_FIELDS = ["arc", "title", "objective", "status", "parked", "capabilities", "links", "waits", "waitsFor", "heldOn", "outcome", "machine"] as const;
 
 /** An increment as the arc board reads it: its record with only the fields the board draws. */
 export type BoardIncrement = Omit<SchemaRecord<"increment">, "fields"> & { fields: Pick<FieldsOf<"increment">, (typeof BOARD_INCREMENT_FIELDS)[number]> };

@@ -24,8 +24,13 @@ import { storyNodes } from "../story-nodes/story-nodes.js";
 export { PLACE_WIDTH };
 export type { Island, PlacedTree };
 
-/** The drawing engine's scene; the project's sentence is shown in Settings → Projects, not on the map (ADR-1085 D1 as narrowed). */
-export type ForestScene = WorldScene;
+/** An edge inside one story that holds contracts (ADR-1282 D1): `from` depends on `to`, and its contracts' ids. */
+export type SceneEdge = { readonly from: string; readonly to: string; readonly contracts: readonly string[] };
+/**
+ * The drawing engine's scene, with the edges inside stories that hold contracts, whose gates an arc's open work on them rings
+ * (3.92); the project's sentence is shown in Settings → Projects, not on the map (ADR-1085 D1 as narrowed).
+ */
+export type ForestScene = WorldScene & { readonly edges?: readonly SceneEdge[] };
 
 /**
  * The flat forest's places are spread out as far as the land grew (ADR-0910: 318 to {@link MIN_ISLAND_AREA} ground
@@ -70,7 +75,8 @@ export function forestScene(tree: AnnotatedTree, history: readonly Pick<Change, 
     return { story: story.id, title: story.title, x, z, trees: placed, ...(land === undefined ? {} : { land }), area, key };
   });
   const plumbing = plumbingCalls(tree, survey);
-  return { islands, links: capabilityLinks(tree, survey), ...(plumbing.length === 0 ? {} : { plumbing }) };
+  const edges = tree.stories.flatMap(({ edges = [] }) => edges.flatMap(({ from, to, contracts }): SceneEdge[] => contracts.length === 0 ? [] : [{ from, to, contracts: contracts.map(({ id }) => id) }]));
+  return { islands, links: capabilityLinks(tree, survey), ...(plumbing.length === 0 ? {} : { plumbing }), ...(edges.length === 0 ? {} : { edges }) };
 }
 
 /**

@@ -805,6 +805,12 @@ test("9.29 plan_edge writes an edge between two capabilities of one story, plan_
       const sender = idOf(await agent.call("plan_capability", { story: other, title: "Sender", ...FOUNDED }));
       const across = await agent.call("plan_edge", { from: link, to: sender });
       assert.equal(across.isError, true, "a link between stories is no edge");
+      assert.match(across.text, /another story's capability: a link between stories is a dependsOn/, across.text);
+      for (const owners of [{ capability: form, edge }, {}]) {
+        const refused = await agent.call("plan_contract", { ...owners, title: "Belongs nowhere, or twice" });
+        assert.equal(refused.isError, true, JSON.stringify(owners));
+        assert.match(refused.text, /Give the capability the contract belongs to, or the edge: one of them/, refused.text);
+      }
     });
   });
 });

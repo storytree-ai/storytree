@@ -63,6 +63,19 @@ test("3.24 · the app answers the page's start: its changes thinned by the filte
   });
 });
 
+test("3.25 · the app answers the page's ask for the lines that decide the sessions it names, from the activity log, refused for a name that is not a project", async () => {
+  const shown = uniqueProjectName();
+  await withApp([shown], async ({ storytree, log, reads }) => {
+    await storytree.openProject(shown);
+    const started = await log.append(shown, { session: "A", source: "hook", kind: "session-started", folder: "/work" });
+    const named = await log.append(shown, { session: "A", source: "hook", kind: "session-named", title: "Fix the rail" });
+    await log.append(shown, { session: "B", source: "hook", kind: "session-started" });
+
+    assert.deepEqual((await reads.sessionLines(shown, ["A"])).map(({ seq }) => seq), [started.seq, named.seq], "the lines that decide the session named, and none of another");
+    await assert.rejects(reads.sessionLines(uniqueProjectName(), ["A"]), /there is no project called/);
+  });
+});
+
 test("3.21 · a project's library closed beneath the page's reads (deleted and made again under its name, which ends its pool) is opened again by the next read, which answers", async () => {
   const shown = uniqueProjectName();
   await withApp([shown], async ({ storytree, reads }) => {

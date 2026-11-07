@@ -142,6 +142,12 @@ export function fakeBridge(answers: Partial<StorytreeBridge>, { guide = "seen", 
       if (!defaulted.includes(method)) defaulted.push(method);
       return startFromLines(await call("linesSince", [args[0], 0]) as Lines, args[1] as readonly string[]);
     }
+    // A session's deciding lines, as the capture's whole-history answer holds them: every line of it.
+    if (method === "sessionLines" && !Object.hasOwn(methods, method)) {
+      if (!defaulted.includes(method)) defaulted.push(method);
+      const sessions = args[1] as readonly string[];
+      return (await call("linesSince", [args[0], 0]) as Lines).lines.filter(({ session }) => sessions.includes(session));
+    }
     if (!Object.hasOwn(methods, method) && Object.hasOwn(quiet, method)) {
       if (!defaulted.includes(method)) defaulted.push(method);
       return quiet[method]!(...args);

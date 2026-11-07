@@ -363,6 +363,22 @@ test("2.13 lines written earlier, appended as one batch, go in at their own time
   });
 });
 
+test("2.17 · sessionLines reads the lines that decide each session named, however long ago it began, as a page's start reads them, and nothing of any other", async () => {
+  const project = uniqueProjectName();
+  await withLog(async (log) => {
+    const at = (minutes: number) => new Date(Date.now() - minutes * 60_000).toISOString();
+    const write = (line: Record<string, unknown>, minutesAgo: number) => log.append(project, { source: "hook", folder: "/work", ...line } as NewLine, { at: at(minutesAgo) });
+    const days = 3 * 24 * 60;
+    const started = await write({ session: "back", kind: "session-started" }, days);
+    const named = await write({ session: "back", kind: "session-named", title: "Fix the rail" }, days - 1);
+    await write({ session: "other", kind: "session-started" }, days);
+    const prompt = await write({ session: "back", kind: "prompt-submitted" }, 1);
+
+    assert.deepEqual((await log.sessionLines(project, ["back"])).map((line) => line.seq), [started.seq, named.seq, prompt.seq], "its start, its name and its latest, and nothing of another session");
+    assert.deepEqual(await log.sessionLines(project, []), [], "no session named reads nothing");
+  });
+});
+
 test("2.16 a page's start reads every line of the kinds asked, the lines that decide each session in view and each claim holder, the standing claims, and the cursor of the log's latest line, and nothing of a session long quiet", async () => {
   const project = uniqueProjectName();
   await withLog(async (log) => {

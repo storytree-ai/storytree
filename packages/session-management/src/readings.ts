@@ -506,6 +506,37 @@ export class LogFold {
     }
   }
 
+  /** The sessions with a line of their own in `lines` that it has never folded one of, in the order they first appear. */
+  strangers(lines: readonly Line[]): string[] {
+    const strangers = new Set<string>();
+    for (const line of lines) if (!ABOUT_OTHERS.has(line.kind) && pullOf(line.session) === undefined && !this.#sessions.has(line.session)) strangers.add(line.session);
+    return [...strangers];
+  }
+
+  /**
+   * Fold `lines`, the earlier lines of sessions it has never folded one of (strangers), before what is new of them: only
+   * what they say of each one's own row, where it was and when it wrote, never the claims, branches and app records it
+   * holds as they stand now. A session it knows is left as it is; each new one takes its place in the order they started.
+   */
+  foldEarlier(lines: readonly Line[]): void {
+    const known = new Set(this.#sessions.keys());
+    const placed = new Set(this.#machines.keys());
+    for (const line of [...lines].sort((a, b) => a.seq - b.seq)) {
+      if (known.has(line.session) || ABOUT_OTHERS.has(line.kind) || pullOf(line.session) !== undefined) continue;
+      const seen = this.#lastSeen.get(line.session);
+      if (seen === undefined || Date.parse(seen) < Date.parse(line.at)) this.#lastSeen.set(line.session, line.at);
+      if (line.machine !== undefined && !placed.has(line.session)) this.#machines.set(line.session, line.machine);
+      this.#own(line);
+    }
+    const entries = [...this.#sessions].filter(([session]) => known.has(session));
+    if (entries.length === this.#sessions.size) return;
+    for (const entry of [...this.#sessions].filter(([session]) => !known.has(session))) {
+      const before = entries.findIndex(([, own]) => Date.parse(own.firstAt) > Date.parse(entry[1].firstAt));
+      entries.splice(before === -1 ? entries.length : before, 0, entry);
+    }
+    this.#sessions = new Map(entries);
+  }
+
   #own(line: Line): void {
     let own = this.#sessions.get(line.session);
     if (own === undefined) {

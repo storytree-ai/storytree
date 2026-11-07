@@ -28,6 +28,8 @@ export interface LiveReads {
   linesSince(project: string, cursor: number): Promise<LinesSince>;
   /** The log's bounded start (Agent activity log 2.16), which a page with nothing kept starts from; a host without it is read from 0. */
   linesStart?(project: string, kinds: readonly LineKind[]): Promise<LinesStart>;
+  /** The lines that decide each of `sessions` (Agent activity log 2.17), asked for a session a bounded start left out; a host without it leaves such a session to its new lines. */
+  sessionLines?(project: string, sessions: readonly string[]): Promise<Line[]>;
 }
 
 /** What is new since the last news: the library's changes and the agent log's lines, oldest first. */

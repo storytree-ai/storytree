@@ -12,7 +12,8 @@
  * - With nothing kept, it starts bounded (3.29): the library's changes thinned on the server to what it holds, and the
  *   log's start (Agent activity log 2.16), its lines read one by one and the lines that decide the sessions in view and the
  *   claims, never every line since the project began (693,145 lines, 455 MB for storytree's own, 2026-11-07). A host
- *   without that start is read from 0.
+ *   without that start is read from 0. News from a session the fold has never seen (one out of view at that start, back
+ *   since) first asks the log for the lines that decide that session alone, and folds them before the news (3.31).
  * - Given a kept reading (the page's storage, ADR-0836 D4), it keeps what it holds there, a piece at
  *   a time, with the log's fold as it last stood rather than every line folded into it, and the next
  *   start hears the kept reading at once and asks the library only from where it got to. The first ask overlaps the kept reading by one change and one line, so a kept reading
@@ -218,9 +219,20 @@ export function pageReading({ project, reads, timers, kept }: PageReadingOptions
     }
   }
 
+  /** Fold first the lines that decide each session `lines` bring that the fold has never seen, before the lines themselves. */
+  async function catchUp(sessionLines: NonNullable<LiveReads["sessionLines"]>, strangers: string[], lines: readonly Line[]): Promise<void> {
+    const earlier = await sessionLines.call(reads, project, strangers);
+    // The news is every line after the cursor, so a stranger's earlier lines are those before the news, and the rest come in it.
+    const from = Math.min(...lines.map(({ seq }) => seq));
+    if (!stopped) held.fold.foldEarlier(earlier.filter(({ seq }) => seq < from).map(heldLine));
+  }
+
   /** Hold `news`, keep what was held, and hand it on; `whole` is what surfaces hear. */
   async function heard(news: News, whole: News = news): Promise<void> {
     if (read && whole.changes.length === 0 && whole.lines.length === 0) return;
+    // Only news with a stranger waits for its ask: the rest is held in the same turn, as before.
+    const strangers = reads.sessionLines === undefined ? [] : held.fold.strangers(news.lines);
+    if (strangers.length > 0) await catchUp(reads.sessionLines!, strangers, news.lines);
     const added = held.add(news);
     read = true;
     if (kept !== undefined && (added.changes.length > 0 || added.lines.length > 0)) {

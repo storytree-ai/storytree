@@ -109,6 +109,15 @@ test("2.48 · a capture that seeds its lines through linesSince shows them on a 
   assert.deepEqual(await fakeBridge({}).call("linesStart", ["storytree", ["claimed"]]), { lines: [], sessions: [], claims: [], cursor: 0 });
 });
 
+test("2.49 · a capture's stand-in bridge answers a page's ask for a session's deciding lines from the capture's linesSince lines of that session", async () => {
+  const back = { seq: 1, session: "back", kind: "session-named" };
+  const other = { seq: 2, session: "other", kind: "asked" };
+  const bridge = fakeBridge({ linesSince: async (_, cursor) => (cursor === 0 ? { lines: [back, other], cursor: 2 } : { lines: [], cursor }) as never });
+  assert.deepEqual(await bridge.call("sessionLines", ["storytree", ["back"]]), [back]);
+  assert.deepEqual(bridge.defaulted, ["sessionLines"]);
+  assert.deepEqual(await fakeBridge({}).call("sessionLines", ["storytree", ["back"]]), []);
+});
+
 test("on Windows, launch finds Playwright and Chromium from the checkout, with no /home path", () => {
   const plan = launchPlan({ env: {}, platform: "win32" });
   assert.equal(plan.module, "playwright-core");

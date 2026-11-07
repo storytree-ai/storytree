@@ -151,6 +151,10 @@ export function pageReads({ storytree, transcriptCacheHome, home, kinds }: PageR
       const known = await project(name);
       return (await activityLog()).start(known, { kinds: kinds as LineKind[] });
     },
+    sessionLines: async (name, sessions) => {
+      const known = await project(name);
+      return (await activityLog()).sessionLines(known, sessions as string[]);
+    },
     inherited: (name) => read(name, (library) => library.inherited()),
     frontCovers: (name, nodeId) => read(name, (library) => library.frontCovers(nodeId as string)),
     relatedNotes: (name, noteId) => read(name, (library) => library.relatedNotes(noteId as string)),

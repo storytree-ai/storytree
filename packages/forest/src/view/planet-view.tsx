@@ -491,7 +491,7 @@ export const NAVIGATION_SEAM = "__storytreeCaptureNavigation";
 export type CapturedNavigation = { rotation: Quaternion; onRotate: (rotation: Quaternion, offset?: [number, number, number]) => void };
 
 function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onControls, onPick, onGate, onNote, mode, showFailures, sideOffset, aside, sheet }: {
-  /** Hears a click on a road or gate (3.81), and undefined for a click on anything else. */
+  /** Hears a click on a gate (3.88), and undefined for a click on anything else. */
   onGate: (gate: PickedGate | undefined) => void;
   onPose: (pose: GlobePose) => void;
   /** The glass sheet drawn (ADR-1043): a drag pans it, and it opens and goes Home to `sheetOpening`. */

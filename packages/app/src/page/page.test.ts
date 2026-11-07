@@ -103,7 +103,7 @@ function page(t: TestContext, answers: Partial<Pick<PageParts, "problem" | "proj
         kept: answers.kept, timed: undefined, hosts: {}, waiting: undefined, opened: undefined, arcsStart: undefined, listeners: [], events: [],
         view: {
           scenes: 0, disposed: false, circled: [], onSelect: () => {}, painted: deferred<void>(),
-          show() { mine.view.scenes++; }, drawn: () => mine.view.painted.promise, select() {}, circle(capabilities) { mine.view.circled.push(capabilities); }, dispose() { mine.view.disposed = true; },
+          show() { mine.view.scenes++; }, drawn: () => mine.view.painted.promise, select() {}, chose() {}, circle(capabilities) { mine.view.circled.push(capabilities); }, dispose() { mine.view.disposed = true; },
         },
       };
       drawn.push(mine);

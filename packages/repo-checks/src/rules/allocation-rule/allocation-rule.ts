@@ -88,7 +88,8 @@ export async function undeclaredCode(root: string, stories: readonly string[] = 
 
 /**
  * The way out for a file whose package keeps a coverage map (survey-coverage.json) that holds no entry for it, as a
- * file only the built command reaches has until the map is re-measured; empty for a package with no map, or a mapped file.
+ * file only the built command reaches has until the map is re-measured, and a file only a browser proof reaches until that proof
+ * records its coverage (recordBrowserCoverage, the coverage map's browser half); empty for a package with no map, or a mapped file.
  */
 function remeasure(root: string, file: string): string {
   const [, id = "", ...rest] = file.split("/");
@@ -98,7 +99,7 @@ function remeasure(root: string, file: string): string {
   } catch {
     return "";
   }
-  return Object.hasOwn(map, rest.join("/")) ? "" : ` Or, if a test reaches it only through a process it starts, re-measure ${id}'s coverage map, which has no entry for it: pnpm survey:coverage ${id}.`;
+  return Object.hasOwn(map, rest.join("/")) ? "" : ` Or, if a test reaches it only through a process it starts, re-measure ${id}'s coverage map, which has no entry for it: pnpm survey:coverage ${id}. That re-measure counts Node processes, and a browser proof only once it records its coverage, so a file only a browser proof reaches enters the map after that proof calls recordBrowserCoverage (@storytree/repo-checks/coverage-map) as it passes.`;
 }
 
 /** One sentence per unallocated, misdeclared or (asked to) undeclared source file, each with its ways out; empty when every file is allocated as it says. */

@@ -5,17 +5,19 @@
  * one's health (friction_896be858baa5), so `contract new` and `contract health` are pointed to the commands for those
  * jobs (./index.ts's POINTERS), and the family's help names both. `storytree contract list [<story|capability>]` lists
  * contracts under their capabilities, every story's or one story's or capability's, by id or title, since agents typed
- * it on their way to a story's contracts (friction_2d5163d338d3). Each verb refuses a flag it does not read before it
+ * it on their way to a story's contracts (friction_2d5163d338d3); a story's list ends with its edges' contracts under their
+ * edges, and `contract show` of an edge's contract names its edge, from › to, where another names its capability
+ * (ADR-1282 D1). Each verb refuses a flag it does not read before it
  * opens the library, so a mistyped narrowing (`contract list --capability <id>`) is never answered with every contract
  * (friction_3bb49532533f).
  */
-import type { HealthColumn } from "@storytree/library";
+import type { HealthColumn, NodeHealth } from "@storytree/library";
 
 import { Refusal } from "../answer.js";
 import type { Args } from "../args.js";
 import type { Family, Verb } from "../door.js";
 import { commandSession, person } from "../writer.js";
-import { healthOf } from "./tree.js";
+import { edgeContracts, edgeLabel, healthOf, storyEdgeLabel } from "./tree.js";
 
 const list: Verb = {
   name: "list",
@@ -24,17 +26,22 @@ const list: Verb = {
   async act(args, context) {
     reads(args, [], this.usage, "name the story or capability instead: storytree contract list <story|capability>");
     const named = args.words[0];
-    const plan = await (await context.library()).projectTree();
+    const library = await context.library();
+    const plan = await library.projectTree();
     const matches = (part: { id: string; title: string }): boolean => named === undefined || part.id === named || part.title.toLowerCase() === named.toLowerCase();
     const capabilities = plan.stories.flatMap((story) => (matches(story) ? story.capabilities : story.capabilities.filter(matches)));
     if (named !== undefined && capabilities.length === 0) {
       throw new Refusal(`no story or capability "${named}" in this project`, { next: [{ command: "storytree tree", why: "every story and capability" }] });
     }
-    const lines = capabilities.flatMap((capability) => [
-      `${capability.title}  [${capability.id}]`,
-      ...capability.contracts.map((contract) => `  - ${contract.title}  [${contract.id}]  ${healthOf(contract.health, plan.unverified === true)}`),
-    ]);
-    if (!capabilities.some((capability) => capability.contracts.length > 0)) return { text: [...lines, "No contracts yet."].join("\n"), next: [{ command: "storytree library new contract --capability <capability> --title <title>", why: "plan one" }] };
+    const edges = await Promise.all(
+      plan.stories.filter(matches).flatMap((story) => (story.edges ?? []).map(async (edge) => ({ head: storyEdgeLabel(story, edge), contracts: await edgeContracts(library, edge) }))),
+    );
+    const line = (contract: { title: string; id: string; health: NodeHealth }): string => `  - ${contract.title}  [${contract.id}]  ${healthOf(contract.health, plan.unverified === true)}`;
+    const lines = [
+      ...capabilities.flatMap((capability) => [`${capability.title}  [${capability.id}]`, ...capability.contracts.map(line)]),
+      ...edges.flatMap((edge) => [edge.head, ...edge.contracts.map(line)]),
+    ];
+    if (![...capabilities, ...edges].some((owner) => owner.contracts.length > 0)) return { text: [...lines, "No contracts yet."].join("\n"), next: [{ command: "storytree library new contract --capability <capability> --title <title>", why: "plan one" }] };
     return { text: lines.join("\n"), next: [{ command: "storytree contract show <contract>", why: "one contract's health in full" }] };
   },
 };
@@ -49,18 +56,31 @@ const show: Verb = {
     const library = await context.library();
     const contract = await library.get(id);
     if (contract?.type !== "contract") throw new Refusal(`no contract "${id}" in this project`, { next: [{ command: "storytree tree", why: "see every contract's id" }] });
-    const fields = contract.fields as { title: string; capability: string; description?: string };
-    const [capability, health] = await Promise.all([library.get(fields.capability), library.health(id)]);
-    const title = (capability?.fields as { title?: string } | undefined)?.title;
+    const fields = contract.fields as { title: string; capability?: string; edge?: string; description?: string };
+    const titleOf = async (part: string): Promise<string | undefined> => ((await library.get(part))?.fields as { title?: string } | undefined)?.title;
+    const [owner, health] = await Promise.all([fields.capability === undefined ? edgeOf(fields.edge!) : capabilityOf(fields.capability), library.health(id)]);
     return {
       text: [
         `${fields.title}  [${id}]`,
-        `capability: ${title === undefined ? "" : `${title}  `}[${fields.capability}]`,
+        owner,
         ...(fields.description === undefined ? [] : [fields.description]),
         `reported: ${said(health.reported)}`,
         `verified: ${said(health.verified)}`,
       ].join("\n"),
     };
+
+    async function capabilityOf(capability: string): Promise<string> {
+      const title = await titleOf(capability);
+      return `capability: ${title === undefined ? "" : `${title}  `}[${capability}]`;
+    }
+
+    async function edgeOf(edge: string): Promise<string> {
+      const ends = (await library.get(edge))?.fields as { from: string; to: string } | undefined;
+      if (ends === undefined) return `edge: [${edge}]`;
+      // A live edge's ends are live: the library refuses to retire a capability an edge depends on.
+      const [from, to] = await Promise.all([titleOf(ends.from), titleOf(ends.to)]);
+      return edgeLabel(edge, from!, to!);
+    }
   },
 };
 

@@ -21,6 +21,7 @@ import type { StorytreeBridge } from "../bridge.js";
 import { mountPluginViews } from "./plugin-views.js";
 import { createKnowledgeCore } from "@storytree/knowledge-core/view";
 
+import { panelFolds } from "@storytree/forest/view/panel-folds";
 import { openForestView, mountLibraryPanel, renderStoryPanel, mountSessionsList, type GlobeLocator, type GlobeOpening } from "@storytree/forest/view";
 
 declare global {
@@ -32,6 +33,8 @@ declare global {
 const content = element("content");
 /** The cards seen, kept for this user on this machine, so a kind is taught once across projects (Learning as you build). */
 const seenCards = journal(window.localStorage);
+/** The story panel's folds, which keep the kinds the user opened across picks and projects until the app restarts (ADR-1284 D1). */
+const folds = panelFolds();
 let page: ProjectPage | undefined;
 const appMenu = mountAppMenu(element("app-menu-host"), {
   background: content,
@@ -109,6 +112,7 @@ page = openProjectPage({
       plugins: (on) => mountPluginViews(content, window.storytree.pluginViews, on, { project: name, bridge: window.storytree }),
       reading: (options) => forestReading({ project: name, reads, reading, ...options }),
       renderPanel: (drilled, selected, options) => renderStoryPanel(drilled, selected, options),
+      foldPanel: (panel) => folds.draw(panel),
     };
   },
 });

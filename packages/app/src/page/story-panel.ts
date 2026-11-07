@@ -1,7 +1,7 @@
 /**
  * Capability 2 · Storytree projects. The desktop page's story panel (the forest's capability 4 drill-down, mounted by the app): the
  * library's card for a selected note, or the selected story's drill-down with the capability picked on the island shown below
- * its sentences (ADR-0659 D2). A redraw of the same story keeps the details the user opened.
+ * its lead (ADR-0659 D2). Every drawing is handed to the forest's folds, which open again the kinds the user opened.
  */
 import { selectedCapability, type StoryPanel } from "@storytree/forest";
 
@@ -12,6 +12,8 @@ export interface StoryPanelParts {
   drill(story: string): StoryPanel | undefined;
   /** `gate`, when one was picked on the map: the pair of capabilities it joins, whose edges the panel lists. */
   render(drilled: StoryPanel, selected: string | undefined, gate: readonly [string, string] | undefined): string;
+  /** Hand the panel just drawn to its folds, which open again the kinds the user keeps open. */
+  folds(panel: HTMLElement): void;
   /** Mount the library's card for the selected note; returns its stop. */
   libraryCard(panel: HTMLElement, onClose: () => void): () => void;
   /** Select nothing on the forest, as a click on empty space would. */
@@ -50,11 +52,8 @@ export function storyPanel(panel: HTMLElement, parts: StoryPanelParts): StoryPan
     }
     const selected = selectedCapability(drilled, chosen);
     chosen = selected;
-    const open = new Set([...panel.querySelectorAll<HTMLElement>("details[open]")].map((node) => node.closest<HTMLElement>("[data-capability-id]")?.dataset.capabilityId));
     panel.innerHTML = parts.render(drilled, selected, gate);
-    for (const node of panel.querySelectorAll<HTMLElement>(".panel-detail")) {
-      if (open.has(node.dataset.capabilityId)) node.querySelector("details")?.setAttribute("open", "");
-    }
+    parts.folds(panel);
     panel.querySelector(".panel-close")?.addEventListener("click", () => parts.deselect());
   };
 

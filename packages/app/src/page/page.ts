@@ -66,6 +66,8 @@ export interface ProjectParts<View extends ForestGlobe = ForestGlobe> {
   plugins(on: (surface: string) => boolean): Promise<{ stop(): void; failed: readonly { surface: string; why: string }[] }>;
   reading(options: Pick<ForestReadingOptions, "onTree" | "onError" | "onSettled" | "survey">): { stop(): void };
   renderPanel(drilled: StoryPanel, selected: string | undefined, options: { details: boolean; gate: readonly [string, string] | undefined }): string;
+  /** Work the folds of the panel just drawn into `panel` (the forest's capability 4), opening the kinds the user keeps open. */
+  foldPanel(panel: HTMLElement): void;
 }
 
 export interface PageParts<View extends ForestGlobe = ForestGlobe> {
@@ -226,6 +228,7 @@ export function openProjectPage<View extends ForestGlobe>(parts: PageParts<View>
       body,
       drill: (story) => tree === undefined ? undefined : drillDown(tree, story, states, history(), surveyed),
       render: (drilled, selected, gate) => project.renderPanel(drilled, selected, { details: withDetails, gate }),
+      folds: (host) => project.foldPanel(host),
       libraryCard: (host, onClose) => project.libraryCard(host, onClose),
       deselect: () => mine.view?.select(undefined),
     });

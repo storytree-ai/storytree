@@ -1,7 +1,8 @@
 /**
  * Capability 4 · Drill-down. The drill-down's panel (the forest story, capability 4): @storytree/forest's drillDown, as HTML.
- * It explains the story in plain words, and below them shows the one capability picked on the island, with its health as
- * the agent reports it and its contracts on request (ADR-0659). The island draws the capability tree, so the panel draws
+ * It leads with the story's lead, and below it shows the one capability picked on the island, with its health as the agent
+ * reports it (ADR-0659). Everything else waits in a fold behind a handle saying what is inside and how much, which a
+ * double-click opens (ADR-1284 D1; ./panel-folds.ts works them). The island draws the capability tree, so the panel draws
  * none (ADR-1285). Every word from the library is written as text, never as HTML.
  */
 import type { CapabilityLine, StoryPanel, WhyLine } from "@storytree/forest";
@@ -10,24 +11,48 @@ import type { HealthSource, HealthState } from "@storytree/library";
 const HEALTH: Readonly<Record<HealthState, string>> = { passing: "passing", failing: "failing", "not-checked": "not checked" };
 
 /**
- * The panel's HTML, with `selected`, the capability picked on the island, shown below the story's sentences if it is one
- * of the story's capabilities. With the capability details switched off (ADR-0750) it is the story's sentences alone. A
+ * The panel's HTML, with `selected`, the capability picked on the island, shown below the story's lead if it is one of
+ * the story's capabilities, and Open all · n at its foot when it has handles. Every fold is drawn closed; the page's
+ * folds open the kinds the user keeps open. With the capability details switched off (ADR-0750) it is the story alone. A
  * `gate` picked on the map, the pair of capabilities it joins, shows the contracts of the edges between them in its place
  * (ADR-1282 D1).
  */
 // Its head, on show exactly while the panel is, names the panel as the Story panel's canvas (Surface feedback).
 export function renderStoryPanel(panel: StoryPanel, selected: string | undefined, { details = true, gate }: { details?: boolean; gate?: readonly [string, string] | undefined } = {}): string {
   const shown = details && gate === undefined ? panel.capabilities.find(({ id }) => id === selected) : undefined;
+  const [lead, rest] = paragraphs(panel.description);
+  const body = `
+    <p class="panel-sentences">${text(lead)}</p>
+    ${panel.mapped === undefined ? "" : mapped(panel.mapped)}
+    ${more(rest)}
+    ${panel.checks === undefined || panel.checks.length === 0 ? "" : extraChecks(panel.checks)}
+    ${shown === undefined ? "" : capability(shown)}
+    ${gate === undefined ? "" : gateLinks(panel, gate)}`;
+  const handles = body.split(`class="panel-handle"`).length - 1;
   return `
     <header class="panel-head" data-surface-id="story-panel" data-surface-layer="panel">
       <h2>${text(panel.title)}</h2>
       <button type="button" class="panel-close" aria-label="Close">×</button>
-    </header>
-    <p class="panel-sentences">${text(panel.description)}</p>
-    ${panel.checks === undefined ? "" : extraChecks(panel.checks)}
-    ${panel.mapped === undefined ? "" : mapped(panel.mapped)}
-    ${shown === undefined ? "" : capability(shown)}
-    ${gate === undefined ? "" : gateLinks(panel, gate)}`;
+    </header>${body}
+    ${handles === 0 ? "" : `<footer class="panel-foot"><button type="button" class="panel-handle panel-open-all" data-open-all>Open all · ${handles}</button></footer>`}`;
+}
+
+/** One block of detail behind its handle, closed until the user opens it (ADR-1284 D1); `handle` is already text. */
+function fold(kind: string, handle: string, inside: string): string {
+  return `<div class="panel-fold" data-fold="${kind}"><button type="button" class="panel-handle" aria-expanded="false">${handle}</button><div class="panel-fold-body" hidden>${inside}</div></div>`;
+}
+
+/** A description's lead, its first paragraph, and the rest, every later one (ADR-1284 D5). */
+function paragraphs(description: string): [string, string[]] {
+  const [lead = "", ...rest] = description.split(/\n\s*\n/).map((paragraph) => paragraph.trim()).filter((paragraph) => paragraph !== "");
+  return [lead, rest];
+}
+
+/** The rest of a description behind More, its words counted as whitespace-separated tokens; with no rest, no handle. */
+function more(rest: readonly string[]): string {
+  if (rest.length === 0) return "";
+  const words = rest.join(" ").split(/\s+/).length;
+  return fold("more", `More · ${words} word${words === 1 ? "" : "s"}`, rest.map((paragraph) => `<p>${text(paragraph)}</p>`).join(""));
 }
 
 /**
@@ -63,45 +88,42 @@ const TRIGGER: Readonly<Record<ExtraCheck["trigger"], string>> = { change: "on e
  * rating is switched off (question_0de2b8280384), so the panel shows none.
  */
 function extraChecks(checks: readonly ExtraCheck[]): string {
-  return `
-    <section class="panel-checks" aria-label="Extra checks">
-      <span class="panel-checks-label">Extra checks</span>
-      <ul>${checks
-        .map(({ check, trigger, capability }) => `<li>${text(check)}${capability === undefined ? "" : ` <span class="panel-muted">(${text(capability)})</span>`}, ${TRIGGER[trigger]}</li>`)
-        .join("")}</ul>
-    </section>`;
+  return fold("extra-checks", `Extra checks · ${checks.length}`, `<ul class="panel-checks">${checks
+    .map(({ check, trigger, capability }) => `<li>${text(check)}${capability === undefined ? "" : ` <span class="panel-muted">(${text(capability)})</span>`}, ${TRIGGER[trigger]}</li>`)
+    .join("")}</ul>`);
+}
+
+/** A capability's contracts behind "Contracts · n", each by its title, opening one level deeper to its health and trail. */
+function contracts(line: CapabilityLine): string {
+  if (line.contracts.length === 0) return `<p class="panel-muted">No contracts yet.</p>`;
+  return fold("contracts", `Contracts · ${line.contracts.length}`, `<ul class="panel-contracts">${line.contracts
+    .map((contract) => `
+      <li data-contract-id="${attribute(contract.id)}">${fold("contract", text(contract.title), `
+        <span class="panel-health">
+          ${badge("the agent reports", contract.reported)}
+          <span class="panel-trail">${text(contract.trail)}</span>
+          ${contract.verified === undefined ? "" : badge("storytree saw", contract.verified, contract.source === undefined ? undefined : [contract.source])}
+          ${contract.lastSeen === undefined ? "" : `<span class="panel-last-seen">last seen ${contract.lastSeen.state === "passing" ? "passing" : "failing"} ${day(contract.lastSeen.at)}, not re-run since</span>`}
+        </span>`)}</li>`)
+    .join("")}</ul>`);
 }
 
 function capability(line: CapabilityLine): string {
-  const contracts = line.contracts.length === 0
-    ? `<p class="panel-muted">No contracts yet.</p>`
-    : `<ul class="panel-contracts">${line.contracts
-        .map(
-          (contract) => `
-            <li data-contract-id="${attribute(contract.id)}">
-              <span>${text(contract.title)}</span>
-              <span class="panel-health">
-                ${badge("the agent reports", contract.reported)}
-                <span class="panel-trail">${text(contract.trail)}</span>
-                ${contract.verified === undefined ? "" : badge("storytree saw", contract.verified, contract.source === undefined ? undefined : [contract.source])}
-                ${contract.lastSeen === undefined ? "" : `<span class="panel-last-seen">last seen ${contract.lastSeen.state === "passing" ? "passing" : "failing"} ${day(contract.lastSeen.at)}, not re-run since</span>`}
-              </span>
-            </li>`,
-        )
-        .join("")}</ul>`;
+  const [lead, rest] = paragraphs(line.description);
   return `
     <section class="panel-detail" data-capability-id="${attribute(line.id)}">
       <h3>${text(line.title)} <span class="panel-state status-${line.status}">${line.reportOnly ? `the agent reports ${HEALTH[line.reported]}` : line.status}</span></h3>
       ${line.why === undefined ? "" : why(line.why)}
       ${line.reportOnly ? `<p class="panel-why report-only">${text(NOT_VERIFIED)}.</p>` : ""}
       ${line.parkedOn === undefined ? "" : parked(line.parkedOn)}
-      ${line.openWork === undefined ? "" : openWork(line.openWork)}
-      <p>${text(line.description)}</p>
+      <p class="panel-lead">${text(lead)}</p>
       <p class="panel-health">
         ${badge("the agent reports", line.reported)}
         ${line.verified === undefined ? "" : badge("storytree saw", line.verified, line.sources)}
       </p>
-      <details><summary>${line.contracts.length} contract${line.contracts.length === 1 ? "" : "s"}</summary>${contracts}</details>
+      ${more(rest)}
+      ${line.openWork === undefined || line.openWork.length === 0 ? "" : openWork(line.openWork)}
+      ${contracts(line)}
     </section>`;
 }
 
@@ -134,13 +156,9 @@ function parked(arcs: NonNullable<CapabilityLine["parkedOn"]>): string {
 
 /** The open work naming it, in the library's order (ADR-1253 D1): read here, not drawn on the map. */
 function openWork(increments: NonNullable<CapabilityLine["openWork"]>): string {
-  return `
-      <section class="panel-open-work" aria-label="Open work">
-        <span class="panel-open-work-label">Open work</span>
-        <ol>${increments
-          .map(({ increment, title, active }) => `<li data-increment-id="${attribute(increment)}"${active ? ` class="active"` : ""}>${text(title)}${active ? ` <span class="panel-muted">(in progress)</span>` : ""}</li>`)
-          .join("")}</ol>
-      </section>`;
+  return fold("open-work", `Open work · ${increments.length}`, `<ol class="panel-open-work">${increments
+    .map(({ increment, title, active }) => `<li data-increment-id="${attribute(increment)}"${active ? ` class="active"` : ""}>${text(title)}${active ? ` <span class="panel-muted">(in progress)</span>` : ""}</li>`)
+    .join("")}</ol>`);
 }
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];

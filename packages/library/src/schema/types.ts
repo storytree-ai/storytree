@@ -554,7 +554,9 @@ export const RECORD_SCHEMAS = {
    * A quality control check (ADR-0956 D3): one question a reviewer answers yes or no about a finished
    * change, and the principles or guardrails it `enforces`, at least one, which keep the reason for
    * the rule; optionally how to answer it and examples. What has `graduated` to deterministic
-   * checking (ADR-0956 D5) is each part with where it is now enforced, `whole` when the part is the whole check.
+   * checking (ADR-0956 D5) is each part with where it is now enforced, `whole` when the part is the whole check;
+   * since ADR-1281 a part carries the day its `trial` beside the reviewer last started, the day the owner `struck` it
+   * off the review brief, and the `arc` a leak's increment is parked on (a part with neither day graduated before trials).
    * `projects` names the projects whose reviews ask it, when it applies in only those (a factory's check about its own
    * code); absent, every project that reads it asks it. Optional, so no version bump.
    */
@@ -565,7 +567,9 @@ export const RECORD_SCHEMAS = {
       enforces: ids.min(1),
       howToAnswer: nonEmpty.optional(),
       examples: nonEmpty.optional(),
-      graduated: z.array(z.object({ part: nonEmpty, enforcedBy: nonEmpty, whole: z.literal(true).optional() }).strict()).optional(),
+      graduated: z
+        .array(z.object({ part: nonEmpty, enforcedBy: nonEmpty, whole: z.literal(true).optional(), trial: day.optional(), struck: day.optional(), arc: nonEmpty.optional() }).strict())
+        .optional(),
       projects: z.array(nonEmpty).min(1).optional(),
     })
     .strict(),

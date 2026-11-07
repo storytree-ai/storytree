@@ -25,6 +25,7 @@ import { readExperiment } from "@storytree/project-and-caller";
 
 import { BRANCH_FACTS, countValues, FOLD_LINES, foldValues, inViewValues, selectLines, SESSION_COUNT, SESSIONS_IN_VIEW, STANDING_CLAIMS, STATE_LINES, stateValues, type LineFilter } from "./bounded.js";
 import type { Beat } from "../readings.js";
+import { PgLibraryReads, READS_SCHEMA, READS_SCHEMA_FILE, type LibraryReads } from "./library-reads.js";
 import { BEATS_SCHEMA, BEATS_SCHEMA_FILE, beatsOf, PgSessionBeats, type SessionBeats } from "./session-beats.js";
 import { PgTranscriptRecords, TRANSCRIPT_SCHEMA, TRANSCRIPT_SCHEMA_FILE, type TranscriptRecords } from "./transcript-records.js";
 
@@ -77,7 +78,9 @@ export interface ActivityLog {
   readonly transcripts: TranscriptRecords;
   /** Sessions' heartbeats, from their harness's own timer (ADR-1056 D3): kept beside the lines, on the same connection. */
   readonly beats: SessionBeats;
-  /** Close the log's connections. */
+  /** What this process's library connections read, kept beside the lines as a total per machine, reader and day (contract 2.15). */
+  readonly reads: LibraryReads;
+  /** Close the log's connections: what this process read since it last recorded is recorded as its pool ends. */
   close(): Promise<void>;
 }
 
@@ -184,6 +187,7 @@ const SCHEMA: readonly string[] = [
   `CREATE INDEX IF NOT EXISTS activity_project_event_idx ON activity (project, event) WHERE event IS NOT NULL`,
   ...TRANSCRIPT_SCHEMA,
   ...BEATS_SCHEMA,
+  ...READS_SCHEMA,
 ];
 
 /** The fields every line has its own column for; the rest of a line is its `detail`. */
@@ -223,7 +227,7 @@ export async function openActivityLog(server: string | Storytree, options: OpenO
 
 /** The log's database, which the library creates and sets up with the log's tables. */
 function activityPool(server: Storytree): Promise<Pool> {
-  return server.ownDatabase(ACTIVITY_DATABASE, { tables: SCHEMA, declaredIn: [import.meta.url, TRANSCRIPT_SCHEMA_FILE, BEATS_SCHEMA_FILE] });
+  return server.ownDatabase(ACTIVITY_DATABASE, { tables: SCHEMA, declaredIn: [import.meta.url, TRANSCRIPT_SCHEMA_FILE, BEATS_SCHEMA_FILE, READS_SCHEMA_FILE] });
 }
 
 /**
@@ -268,6 +272,7 @@ class PgActivityLog implements ActivityLog {
 
   readonly transcripts: TranscriptRecords;
   readonly beats: SessionBeats;
+  readonly reads: PgLibraryReads;
 
   constructor(pool: Pool, stamp: Stamp, owner?: Storytree) {
     this.#pool = pool;
@@ -275,6 +280,7 @@ class PgActivityLog implements ActivityLog {
     this.#owner = owner;
     this.transcripts = new PgTranscriptRecords(pool);
     this.beats = new PgSessionBeats(pool);
+    this.reads = new PgLibraryReads(pool, stamp.machine ?? thisMachine() ?? "unknown");
   }
 
   async append(project: string, line: NewLine, options: AppendOptions = {}): Promise<Line> {
@@ -384,6 +390,7 @@ class PgActivityLog implements ActivityLog {
   }
 
   close(): Promise<void> {
+    this.reads.close();
     this.#closing ??= this.#owner?.close() ?? Promise.resolve();
     return this.#closing;
   }

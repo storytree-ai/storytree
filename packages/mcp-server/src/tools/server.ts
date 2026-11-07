@@ -46,6 +46,7 @@ import { unnamedPlugins } from "@storytree/plugin-loader/factory";
 import { heldBack, type Agent, type HealthWorkItem, type Library, type Storytree, type WriteOptions } from "@storytree/library";
 import type { Consumer } from "@storytree/library/verbs";
 import { NOTE_TOOLS } from "@storytree/library/commands";
+import { asReader } from "@storytree/library/reads";
 import type { z } from "zod";
 
 // The other stories' tools (ADR-0643 D6), in their manifests' order: the plugin loader composes them from the
@@ -376,7 +377,7 @@ export function createAgentTools(options: AgentToolOptions): AgentTools {
     };
     // The SDK checks the arguments against `input` before `handle` runs; its callback type is
     // written per schema, which a wrapper serving every tool cannot name, hence the cast.
-    server.registerTool(name, { description, inputSchema: input }, handle as never);
+    server.registerTool(name, { description, inputSchema: input }, readAs(name, handle) as never);
   };
 
   // A harness's tool is answered through the same connections, but its call is not an agent's: no tool-called or
@@ -396,7 +397,7 @@ export function createAgentTools(options: AgentToolOptions): AgentTools {
         return result({ text: refusalOf(error), refused: true });
       }
     };
-    server.registerTool(name, { description, inputSchema: input }, handle as never);
+    server.registerTool(name, { description, inputSchema: input }, readAs(name, handle) as never);
   };
 
   // A process ledger's tool answers offline (ADR-1017 D2): its caller is resolved from the hooks when the library is up,
@@ -432,7 +433,7 @@ export function createAgentTools(options: AgentToolOptions): AgentTools {
         return result({ text: refusalOf(error), refused: true });
       }
     };
-    server.registerTool(name, { description, inputSchema: input }, handle as never);
+    server.registerTool(name, { description, inputSchema: input }, readAs(name, handle) as never);
   };
 
   registerSetupTools({
@@ -518,4 +519,9 @@ export function metaOf(context: ServerContext): Readonly<Record<string, unknown>
 
 function text(value: unknown): string | undefined {
   return typeof value === "string" && value !== "" ? value : undefined;
+}
+
+/** `handle` run as reader `tool <name>`: what the call reads from the library, its routing and log lines included, is counted as the tool's (contract 6.107). */
+function readAs<A extends unknown[], R>(name: string, handle: (...args: A) => Promise<R>): (...args: A) => Promise<R> {
+  return (...args) => asReader(`tool ${name}`, () => handle(...args));
 }

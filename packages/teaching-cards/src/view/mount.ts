@@ -1,7 +1,7 @@
 /**
  * Capability 3 · Cards and journal on screen. The cards are a tour the user is offered, never imposed: until they say yes
- * to it, only the ask shows, in a corner. A fired card shows beside the thing it explains, clear of its island, one at a
- * time, and never takes focus or blocks the map; any card ends the tour. The journal lists the cards seen and shows one again.
+ * to it, only the ask shows, in a corner. A fired card shows beside the thing it explains, clear of its island and as clear
+ * of the other islands as it can be, one at a time, and never takes focus or blocks the map; any card ends the tour. The journal lists the cards seen and shows one again.
  */
 import { cardOf, type Card, type Kind } from "../cards.js";
 import { encounters, type Encounter, type MapReading, type Target } from "../encounters.js";
@@ -16,6 +16,9 @@ export type Box = { left: number; top: number; right: number; bottom: number };
 
 /** What the user is reading near a target (an open panel, the target's own name), in client pixels: a card covers none of it. */
 export type Reading = (target: Target) => readonly Box[];
+
+/** The boxes of the islands drawn on the page, in client pixels: a card covers as little of them as its place allows. */
+export type Islands = () => readonly Box[];
 
 const STYLES = `
 .teaching-card { position: fixed; z-index: 20; max-width: 22rem; padding: .75rem .9rem; border-radius: .6rem;
@@ -75,9 +78,10 @@ function adoptStyles(document: Document): () => void {
 /**
  * Show each kind's card in `host` the first time `take` hears it on the map, once the user has said yes to the tour (asked
  * first, in a corner), placed beside `locate`'s point and island for its target (a corner when it is not on show) where it
- * covers nothing `reading` names; cards fired together wait their turn, and one whose thing has gone or is done never shows.
+ * covers nothing `reading` names, and of the place clear of those, the one that covers least of `islands`; cards fired
+ * together wait their turn, and one whose thing has gone or is done never shows.
  */
-export function mountTeaching(host: HTMLElement, { journal, locate, reading = () => [] }: { journal: Journal; locate: Locate; reading?: Reading }): { take(reading: MapReading): void; stop(): void } {
+export function mountTeaching(host: HTMLElement, { journal, locate, reading = () => [], islands = () => [] }: { journal: Journal; locate: Locate; reading?: Reading; islands?: Islands }): { take(reading: MapReading): void; stop(): void } {
   const unstyle = adoptStyles(host.ownerDocument);
   const waiting: Encounter[] = [];
   /** The card on show, or the tour's ask. */
@@ -102,16 +106,21 @@ export function mountTeaching(host: HTMLElement, { journal, locate, reading = ()
     const corners = [inside(right - width - CORNER, bottom - height - CORNER), inside(CORNER, bottom - height - CORNER),
       inside(right - width - CORNER, CORNER), inside(CORNER, CORNER)];
     // Beside its point, outside its island when it is on one: on the right unless the window has no room there, then the
-    // other side, below, above, and the corners.
+    // other side, below, above; then the same sides slid to either end of the island's edge; and the corners.
     const around = onShow ? at.box ?? { left: at.x, top: at.y, right: at.x, bottom: at.y } : undefined;
+    const sides = around === undefined ? []
+      : around.right + GAP + width + GAP <= right ? [around.right + GAP, around.left - GAP - width] : [around.left - GAP - width, around.right + GAP];
     const besides = !onShow || around === undefined ? []
-      : (around.right + GAP + width + GAP <= right ? [around.right + GAP, around.left - GAP - width] : [around.left - GAP - width, around.right + GAP])
-        .map(left => inside(left, at.y - height / 2))
-        .concat([inside(at.x - width / 2, around.bottom + GAP), inside(at.x - width / 2, around.top - GAP - height)]);
-    // Never over its own point or island, nor over what is being read; when every place covers some, the one that covers least.
+      : [...sides.map(left => inside(left, at.y - height / 2)), inside(at.x - width / 2, around.bottom + GAP), inside(at.x - width / 2, around.top - GAP - height),
+        ...sides.flatMap(left => [inside(left, around.top), inside(left, around.bottom - height)]),
+        ...[around.bottom + GAP, around.top - GAP - height].flatMap(top => [inside(around.left, top), inside(around.right - width, top)])];
+    // Never over its own point or island, nor over what is being read; of the places clear of those, the one that covers
+    // least of the drawn islands, the first on a tie; when every place covers some, the one that covers least of them.
     const clear = [...reading(shown.target), ...(onShow ? [{ left: at.x - GAP, top: at.y - GAP, right: at.x + GAP, bottom: at.y + GAP }, ...(at.box === undefined ? [] : [at.box])] : [])];
-    const places = [...besides, ...corners];
-    const chosen = places.find(one => covered(one, clear) === 0) ?? places.reduce((best, one) => covered(one, clear) < covered(best, clear) ? one : best);
+    const drawn = islands();
+    const cost = (one: Box): [number, number] => [covered(one, clear), covered(one, drawn)];
+    const chosen = [...besides, ...corners].map(one => ({ one, cost: cost(one) }))
+      .reduce((best, next) => next.cost[0] < best.cost[0] || (next.cost[0] === best.cost[0] && next.cost[1] < best.cost[1]) ? next : best).one;
     shown.card.style.left = `${chosen.left}px`;
     shown.card.style.top = `${chosen.top}px`;
   };

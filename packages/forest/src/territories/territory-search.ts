@@ -5,14 +5,20 @@
  *
  * - Simulated annealing over the territories' seeds, seeded so it repeats: each step swaps two seeds of a kind (two
  *   interfaces, or two internals) or moves one, mostly to a neighbouring cell of its kind, sometimes anywhere of it.
- * - Each arrangement that grows is scored on the shared road network routed over it (island-roads.ts): 10 for each inside
- *   link through a third territory and 3 for each border it crosses, 0.05 a unit of road drawn, less 4 for each inside
- *   link between neighbours, and 500 for each interface off the coast. One a link finds no road over is refused. The
- *   mock's 8 for each crowded entrance is left out: 0.3's network does not report them.
+ * - Each arrangement that grows is scored on the shared road network routed over it (island-roads.ts): 100 for each tunnel
+ *   it draws, 10 for each inside link through a third territory and 3 for each border it crosses, 0.05 a unit of road
+ *   drawn, 0.2 a unit of border between two territories, less 4 for each inside link between neighbours, and 500 for each
+ *   interface off the coast. One a link finds no road over is refused. The mock's 8 for each crowded entrance is left
+ *   out: 0.3's network does not report them.
+ * - A tunnel is a last resort (Mick, 2026-11-07, question_ad09fc6c81bd: "it should be a last resort"): at 100 it outweighs
+ *   2,000 units of road, more than any island's way round. It is counted as drawn, not by the links over a third territory:
+ *   a road carrying a link that calls the land it crosses is open road there, so The library's start had 96 links over a
+ *   third territory and 3 tunnels. The border term keeps territories compact: a territory reaching an arm between two
+ *   others draws a border along each side of it, so it grows outward instead.
  * - It starts from the arrangement the page draws (link-layout.ts's start, or the kept seeds) and answers the best it
  *   found, never worse than that start. A step routes the whole network (0.3 to 0.7 s an island), so it runs off the page.
  */
-import { drawnIsland, grownFrom, prepareIsland, seedKind, seedPoints, settle, startSeeds, type PreparedIsland, type Seeds } from "./link-layout.js";
+import { borderLength, drawnIsland, grownFrom, prepareIsland, seedKind, seedPoints, settle, startSeeds, type PreparedIsland, type Seeds } from "./link-layout.js";
 import { roadMeasures, type RoadMeasures } from "./island-roads.js";
 import { capabilityPlates } from "../view/nameplates.js";
 import type { SearchAsk } from "./kept-layout.js";
@@ -20,11 +26,14 @@ import type { SearchAsk } from "./kept-layout.js";
 /** The mock's steps, its starting temperature and how far it cools, and its random seed. */
 const STEPS = 300, HEAT = 20, COOL = 0.03, SEED = 43;
 
+/** What a tunnel costs an arrangement, and a unit of border between two territories. */
+export const TUNNEL = 100, BORDER = 0.2;
+
 /** The score of an arrangement's network, lower better; undefined when a link finds no road. */
 export function networkScore(island: PreparedIsland, owners: readonly number[], m: RoadMeasures): number | undefined {
   if (m.unrouted > 0) return undefined;
   const offCoast = [...island.dockOf.keys()].filter((t) => !owners.some((o, c) => o === t && island.frontier[c])).length;
-  return 10 * m.overThird + 3 * m.overThirdBorders + 0.05 * m.roadDrawn - 4 * m.neighbours + 500 * offCoast;
+  return TUNNEL * m.tunnels + 10 * m.overThird + 3 * m.overThirdBorders + 0.05 * m.roadDrawn + BORDER * borderLength(island, owners) - 4 * m.neighbours + 500 * offCoast;
 }
 
 /** The best seeds the search finds for the island `ask` describes, its score and its start's, or undefined when no

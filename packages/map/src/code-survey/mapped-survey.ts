@@ -6,7 +6,9 @@
  *   (a folder that is no checkout: every such file in it) under the story's folders, leaving out the skip list's
  *   folders and a folder another package of the same import maps. Each carries its non-blank lines, and the
  *   capability an agent explored that covers it, by a folder above it or by its own path (ADR-0993 D5); the rest
- *   carry none. Nothing parses them, and a black box has no imports to follow until someone explores it.
+ *   carry none. A black box has no imports to follow until someone explores it: only once two capabilities cover its
+ *   files are their imports read, statically, with no code run, and an import from a file of one of them of a file of
+ *   another is an edge between them, so its island draws the road (8.58); imports of anything else are none.
  * - A mapped story's package dependency, through any field of its package.json, on another mapped story's
  *   package is a road between them. A loop among them is reported on each story round it, and refuses nothing.
  *   Its dependency on a built story's package is never a road: old code never imports new code (ADR-0993 D9).
@@ -22,7 +24,7 @@ import path from "node:path";
 
 import type { AnnotatedTree, StorySurvey } from "@storytree/library";
 
-import { readsFile, type SourceFile } from "./code-survey.js";
+import { readersReady, readsFile, storyEdges, type SourceFile } from "./code-survey.js";
 import { importedSource, manifestFrom, SKIPPED, type SurveySource } from "./survey-source.js";
 
 /** A folder this machine imports, as Session management records it: its path, and its repository's address when it has one. */
@@ -30,8 +32,8 @@ export type ImportedFolder = { readonly folder: string; readonly repository?: st
 
 export type MappedStory = AnnotatedTree["stories"][number] & { readonly mapped: NonNullable<AnnotatedTree["stories"][number]["mapped"]> };
 
-/** What a story's walk found: its files with their lines, and its package's name and dependencies. */
-type Walked = { readonly files: StorySurvey["files"]; readonly name?: string; readonly deps: readonly string[] };
+/** What a story's walk found: its files with their lines and versions, and its package's name and dependencies. */
+type Walked = { readonly files: StorySurvey["files"]; readonly versions: readonly string[]; readonly name?: string; readonly deps: readonly string[] };
 
 const linesOf = (text: string): number => text.split("\n").filter((line) => line.trim() !== "").length;
 
@@ -40,17 +42,18 @@ export function mappedSurveyReader(readText: (file: string) => Promise<string>) 
   const counted = new Map<string, { readonly version: string; readonly lines: number }>();
   const manifests = new Map<string, { readonly version: string; readonly manifest: ReturnType<typeof manifestFrom> }>();
   const walked = new Map<string, { readonly key: string; readonly walk: Walked }>();
+  const edged = new Map<string, { readonly key: string; readonly edges: NonNullable<StorySurvey["edges"]> }>();
   const last = new Map<string, StorySurvey>();
 
-  /** A file's lines, read again only when its version changed. */
-  async function linesAt(source: SurveySource, full: string): Promise<number | undefined> {
+  /** A file's lines and version, its lines read again only when its version changed. */
+  async function linesAt(source: SurveySource, full: string): Promise<{ readonly lines: number; readonly version: string } | undefined> {
     const found = await source.file(full);
     if (found === undefined) return undefined;
     const kept = counted.get(full);
-    if (kept?.version === found.version) return kept.lines;
+    if (kept?.version === found.version) return kept;
     const lines = linesOf(await found.read());
     counted.set(full, { version: found.version, lines });
-    return lines;
+    return { lines, version: found.version };
   }
 
   /** A package.json's name and dependencies, read again only when its version changed. */
@@ -67,15 +70,39 @@ export function mappedSurveyReader(readText: (file: string) => Promise<string>) 
   async function walk(story: MappedStory, source: SurveySource, root: string, left: ReadonlySet<string>): Promise<Walked> {
     const files = (await Promise.all(story.mapped.folders.map(async (folder) => {
       const paths = await codeUnder(source, path.join(root, folder), left);
-      return Promise.all(paths.map(async (full) => ({ full, lines: await linesAt(source, full) })));
+      return Promise.all(paths.map(async (full) => ({ full, read: await linesAt(source, full) })));
     }))).flat();
     const manifest = await manifestAt(source, path.join(root, story.mapped.package, "package.json"));
-    const listed = new Map(files.flatMap(({ full, lines }) => lines === undefined ? [] : [[path.relative(root, full).split(path.sep).join("/"), lines] as const]));
+    const listed = [...new Map(files.flatMap(({ full, read }) => read === undefined ? [] : [[path.relative(root, full).split(path.sep).join("/"), read] as const]))]
+      .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
     return {
-      files: [...listed].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)).map(([file, lines]) => ({ path: file, lines })),
+      files: listed.map(([file, { lines }]) => ({ path: file, lines })),
+      versions: listed.map(([, { version }]) => version),
       ...(manifest === undefined ? {} : { name: manifest.name }),
       deps: manifest?.deps ?? [],
     };
+  }
+
+  /**
+   * The edges between `story`'s capabilities its imports make (8.58), read from `root` in `source` only when two of its
+   * capabilities cover its files, and again only when a file or the covers changed.
+   */
+  async function edgesOf(story: MappedStory, source: SurveySource, root: string, walk: Walked, files: StorySurvey["files"]): Promise<NonNullable<StorySurvey["edges"]>> {
+    const owners = new Map(files.flatMap((file) => file.capability === undefined ? [] : [[file.path, file.capability] as const]));
+    if (new Set(owners.values()).size < 2) return [];
+    const key = JSON.stringify([walk.files.map((file) => file.path), walk.versions, [...owners]]);
+    const kept = edged.get(story.id);
+    if (kept?.key === key) return kept.edges;
+    const code = (await Promise.all(walk.files.map(async ({ path: file }): Promise<SourceFile | undefined> => {
+      const found = await source.file(path.join(root, file));
+      return found === undefined ? undefined : { path: file, text: await found.read() };
+    }))).filter((file): file is SourceFile => file !== undefined);
+    await readersReady(code.map((file) => file.path));
+    // Its package's folder roots its absolute imports, as a built package's does: its src/, then the folder itself.
+    const packageRoot = story.mapped.package === "." ? "" : `${path.posix.normalize(story.mapped.package)}/`;
+    const edges = storyEdges([{ id: story.id, files: code, packages: [{ root: packageRoot, name: walk.name ?? story.mapped.package, exports: {} }], owners }]).get(story.id) ?? [];
+    edged.set(story.id, { key, edges });
+    return edges;
   }
 
   /**
@@ -89,7 +116,7 @@ export function mappedSurveyReader(readText: (file: string) => Promise<string>) 
       const from = imports.find(({ folder, repository }) => repository === story.mapped.from || folder === story.mapped.from);
       if (from !== undefined) byImport.set(from, [...(byImport.get(from) ?? []), story]);
     }
-    const found = new Map<string, { readonly story: MappedStory; readonly folder: string; readonly walk: Walked }>();
+    const found = new Map<string, { readonly story: MappedStory; readonly folder: string; readonly source: SurveySource; readonly root: string; readonly walk: Walked }>();
     await Promise.all([...byImport].map(async ([imported, own]) => {
       const { source, folder: root, commit, local } = await importedSource(imported.folder, readText);
       await Promise.all(own.map(async (story) => {
@@ -99,7 +126,7 @@ export function mappedSurveyReader(readText: (file: string) => Promise<string>) 
         const kept = walked.get(story.id);
         const walkedNow = key !== undefined && kept?.key === key ? kept.walk : await walk(story, source, root, left);
         if (key !== undefined) walked.set(story.id, { key, walk: walkedNow });
-        found.set(story.id, { story, folder: imported.folder, walk: walkedNow });
+        found.set(story.id, { story, folder: imported.folder, source, root, walk: walkedNow });
       }));
     }));
 
@@ -109,7 +136,7 @@ export function mappedSurveyReader(readText: (file: string) => Promise<string>) 
       return other === undefined || other === id ? [] : [other];
     }))]] as const));
     const surveys = new Map<string, StorySurvey>();
-    for (const [id, { story, folder, walk }] of found) {
+    for (const [id, { story, folder, source, root, walk }] of found) {
       const loop = loopThrough(id, dependsOn);
       // Applied past the walk's keep, so a change of covers is read while the checkout stays at its commit.
       const covering = story.capabilities.flatMap(({ id: capability, covers }) => (covers ?? []).map((cover) => ({ capability, cover })));
@@ -117,7 +144,8 @@ export function mappedSurveyReader(readText: (file: string) => Promise<string>) 
         const owner = covering.find(({ cover }) => cover === "." || file.path === cover || file.path.startsWith(`${cover}/`));
         return owner === undefined ? file : { ...file, capability: owner.capability };
       });
-      const survey: StorySurvey = { files, imports: [], tests: [], dependsOn: dependsOn.get(id)!, mapped: { folder, ...(loop === undefined ? {} : { loop }) } };
+      const edges = await edgesOf(story, source, root, walk, files);
+      const survey: StorySurvey = { files, imports: [], tests: [], ...(edges.length === 0 ? {} : { edges }), dependsOn: dependsOn.get(id)!, mapped: { folder, ...(loop === undefined ? {} : { loop }) } };
       const before = last.get(id);
       const kept = before !== undefined && JSON.stringify(before) === JSON.stringify(survey) ? before : survey;
       last.set(id, kept);

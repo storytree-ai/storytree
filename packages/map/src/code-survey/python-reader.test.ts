@@ -226,3 +226,30 @@ test("8.55 a built Python story's numbered pytest test, read by both the survey 
     await removeTemp(folder);
   }
 });
+
+test("8.57 a built Python story's source file importing a file another of its capabilities holds is an edge from its capability to that one's; an import of its own capability's file, of a module outside the story, or from a test makes none", async () => {
+  const folder = await mkdtemp(path.join(tmpdir(), "python-inner-edges-"));
+  try {
+    await write(folder, {
+      "packages/interview/pyproject.toml": "[project]\nname = \"interview\"\n",
+      "packages/interview/src/interview/__init__.py": "",
+      "packages/interview/src/interview/main.py": "import os\nfrom fastapi import FastAPI\nfrom interview.retrieve import search\nfrom .packet import compile_packet\nfrom .auth import caller\n\napp = FastAPI()\n",
+      "packages/interview/src/interview/auth.py": "def caller():\n    return 1\n",
+      "packages/interview/src/interview/retrieve.py": "def search(q):\n    return [q]\n",
+      "packages/interview/src/interview/packet.py": "from interview import retrieve\n\n\ndef compile_packet(q):\n    return retrieve.search(q)\n",
+      "packages/interview/tests/test_api.py": "from interview.main import app\nfrom interview.auth import caller\n\n\ndef test_1_1_serves():\n    assert app and caller\n",
+      "packages/interview/tests/test_retrieve.py": "from interview.retrieve import search\n\n\ndef test_2_1_searches():\n    assert search(1)\n",
+      "packages/interview/tests/test_packet.py": "from interview.packet import compile_packet\n\n\ndef test_3_1_compiles():\n    assert compile_packet(1)\n",
+    });
+    const plan = { arcs: [], stories: [story("story-interview", "Interview", ["1 · API", "2 · Retrieval", "3 · Packet"])] } as unknown as AnnotatedTree;
+    const survey = (await codeSurveyReader().read(folder, plan))["story-interview"]!;
+    assert.deepEqual((survey.edges ?? []).map((edge) => `${edge.from} > ${edge.story}:${edge.to} ${edge.typeOnly ? "types" : "value"}`).sort(), [
+      "story-interview-cap-1 > story-interview:story-interview-cap-2 value",
+      "story-interview-cap-1 > story-interview:story-interview-cap-3 value",
+      "story-interview-cap-3 > story-interview:story-interview-cap-2 value",
+    ], "main.py's import of auth.py, its own capability's, makes none; os and fastapi none; the tests none");
+    assert.deepEqual(survey.edges?.find((edge) => edge.from === "story-interview-cap-3")?.files, [{ from: "src/interview/packet.py", to: "src/interview/retrieve.py", typeOnly: false }]);
+  } finally {
+    await removeTemp(folder);
+  }
+});

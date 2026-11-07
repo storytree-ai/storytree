@@ -238,7 +238,7 @@ test("8.26 a mapped story's file under the folders or files an explored capabili
   }
 });
 
-test("8.49 a mapped Python package's .py files are drawn on its island through the survey's Python reader, each with its non-blank lines, its test files and conftest.py among them; nothing parses them", async () => {
+test("8.49 a mapped Python package's .py files are drawn on its island through the survey's Python reader, each with its non-blank lines, its test files and conftest.py among them; with no two capabilities exploring it, nothing parses them", async () => {
   const shop = await mkdtemp(path.join(tmpdir(), "mapped-python-"));
   const trunk = await mkdtemp(path.join(tmpdir(), "mapped-trunk-"));
   try {
@@ -264,6 +264,55 @@ test("8.49 a mapped Python package's .py files are drawn on its island through t
       { path: "packages/cart/tests/test_total.py", lines: 2 },
     ], "the .py files, a test and conftest.py among them; no compiled file, no README, no virtualenv");
     assert.deepEqual(survey["story-cart"]?.imports, [], "a black box has no imports");
+  } finally {
+    await removeTemp(shop);
+    await removeTemp(trunk);
+  }
+});
+
+test("8.58 a mapped story's source file, JavaScript, TypeScript or Python, importing a file another explored capability covers is an edge from its capability to that one's; a file no capability covers or a test makes none, and a change of covers is read at the same commit", async () => {
+  const shop = await mkdtemp(path.join(tmpdir(), "mapped-edges-"));
+  const trunk = await mkdtemp(path.join(tmpdir(), "mapped-trunk-"));
+  try {
+    await write(shop, {
+      ...SHOP,
+      "packages/cart/src/index.ts": "import { pay } from \"@shop/pay\";\nimport { total } from \"./lines/total.js\";\n\nexport const cart = () => pay() + total;\n",
+      "packages/cart/src/lines/total.ts": "import { rate } from \"../tax.js\";\nexport const total = rate;\n",
+      "packages/cart/src/tax.ts": "export const rate = 1;\n",
+      "packages/cart/src/index.test.ts": "import { total } from \"./lines/total.js\";\ntest(\"1.1 a cart\", () => total);\n",
+      // A Python service with src/ and no pyproject, as checkbox is: its absolute imports are searched from its package's src/, then the package.
+      "interview/src/main.py": "import os\nfrom src.retrieve import search\nfrom packet import compile_packet\nfrom src import auth\n",
+      "interview/src/auth.py": "def caller():\n    return 1\n",
+      "interview/src/retrieve.py": "def search(q):\n    return [q]\n",
+      "interview/src/packet.py": "from .retrieve import search\n",
+      "interview/tests/test_main.py": "from src.packet import compile_packet\n",
+    });
+    git(shop, "init", "-q", "-b", "main");
+    commit(shop);
+    const capability = (id: string, covers: string[]) => ({ id, title: id, dependsOn: [], proposed: true, contracts: [], covers });
+    const plan = (cart: readonly ReturnType<typeof capability>[], interview: readonly ReturnType<typeof capability>[]) => ({ arcs: [], stories: [
+      { ...mappedStory("story-cart", "@shop/cart", "packages/cart"), capabilities: cart },
+      { ...mappedStory("story-interview", "interview", "interview"), capabilities: interview },
+    ] } as unknown as AnnotatedTree);
+    const reader = codeSurveyReader({ checkout: "current" });
+    const edges = async (tree: AnnotatedTree) => {
+      const survey = await reader.read(trunk, tree, [{ folder: shop, repository: REPOSITORY }]);
+      return Object.fromEntries(["story-cart", "story-interview"].map((id) => [id, (survey[id]?.edges ?? []).map((edge) => `${edge.from} > ${edge.story}:${edge.to}`).sort()]));
+    };
+    assert.deepEqual(await edges(plan(
+      [capability("cap-cart", ["packages/cart/src/index.ts"]), capability("cap-lines", ["packages/cart/src/lines"])],
+      [capability("cap-api", ["interview/src/main.py", "interview/src/auth.py"]), capability("cap-retrieval", ["interview/src/retrieve.py"]), capability("cap-packet", ["interview/src/packet.py"])],
+    )), {
+      "story-cart": ["cap-cart > story-cart:cap-lines"],
+      "story-interview": ["cap-api > story-interview:cap-packet", "cap-api > story-interview:cap-retrieval", "cap-packet > story-interview:cap-retrieval"],
+    }, "tax.ts, covered by none, takes no edge; the test none; main.py's import of auth.py is inside its own capability");
+    assert.deepEqual(await edges(plan(
+      [capability("cap-cart", ["packages/cart/src/index.ts"]), capability("cap-lines", ["packages/cart/src/lines"]), capability("cap-tax", ["packages/cart/src/tax.ts"])],
+      [capability("cap-api", ["interview/src/main.py"]), capability("cap-auth", ["interview/src/auth.py"]), capability("cap-retrieval", ["interview/src/retrieve.py"])],
+    )), {
+      "story-cart": ["cap-cart > story-cart:cap-lines", "cap-lines > story-cart:cap-tax"],
+      "story-interview": ["cap-api > story-interview:cap-auth", "cap-api > story-interview:cap-retrieval"],
+    }, "covers changed, the commit not");
   } finally {
     await removeTemp(shop);
     await removeTemp(trunk);

@@ -20,3 +20,5 @@ Pictures, 1440 x 960 (the mock page full height):
 
 Taken with `node --import tsx packages/forest/testing/view/chart-lanes/capture.mjs` (append `--retake` to write here);
 the mock page by opening the attached `lane-looks-mocks.html` with C and 2 picked.
+
+In the evidence bucket for #572, linked from the pull request body (ADR-1234; deleted after 90 days or when its arc closes): `572/at-rest.png`, `572/the-library-selected.png`, `572/mock-c2.png`.

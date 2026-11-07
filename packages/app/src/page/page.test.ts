@@ -45,6 +45,7 @@ interface Drawn {
   readingNear: Parameters<ProjectParts["teaching"]>[1] | undefined;
   islands: Parameters<ProjectParts["teaching"]>[2] | undefined;
   rendered: (string | undefined)[];
+  gates: (readonly [string, string] | undefined)[];
   spaces: { opened: number; placed: unknown[]; view: unknown; choose: (id: string) => void }[];
   /** How the popped-out tree tells the page a capability was picked in it. */
   treeChoose: ((id: string) => void) | undefined;
@@ -101,7 +102,7 @@ function page(t: TestContext, answers: Partial<Pick<PageParts, "problem" | "proj
     ...answers,
     project(name, timed) {
       const mine: Drawn = {
-        name, mounted: [], stopped: [], reading: undefined, teaching: [], locate: undefined, readingNear: undefined, islands: undefined, rendered: [], spaces: [], treeChoose: undefined, treeShown: 0, treeOpen: false,
+        name, mounted: [], stopped: [], reading: undefined, teaching: [], locate: undefined, readingNear: undefined, islands: undefined, rendered: [], gates: [], spaces: [], treeChoose: undefined, treeShown: 0, treeOpen: false,
         kept: answers.kept, timed: undefined, hosts: {}, waiting: undefined, opened: undefined, arcsStart: undefined, listeners: [], events: [],
         view: {
           scenes: 0, disposed: false, circled: [], chosen: [], onSelect: () => {}, painted: deferred<void>(),
@@ -160,8 +161,9 @@ function page(t: TestContext, answers: Partial<Pick<PageParts, "problem" | "proj
           mine.spaces.push(space);
           return { get view() { return space.view; }, place: (view: unknown) => { space.placed.push(view); }, open: () => { space.opened++; }, stop() {} };
         },
-        renderPanel: (drilledPanel, selected) => {
+        renderPanel: (drilledPanel, selected, options) => {
           mine.rendered.push(selected);
+          mine.gates.push(options.gate);
           return `<div class="panel-tree-frame"><div class="panel-tree-surface"></div></div><button data-open-tree></button>`
             + drilledPanel.capabilities.map(({ id }) => `<section class="panel-detail" data-capability-id="${id}"><details></details></section>`).join("");
         },
@@ -434,6 +436,26 @@ test("2.28 · a capability picked in the panel's tree, or in the popped-out tree
   project.treeChoose!(first!.id);
   assert.equal(project.rendered.at(-1), first!.id, "the popped-out tree's pick opens the panel on it too");
   assert.deepEqual(project.view.chosen, [second!.id, first!.id], "and the map is told");
+});
+
+test("2.50 · a gate picked on the map opens its story's panel on the pair it joins, kept on a redraw; a territory or tree pick after it opens on that capability", async (t) => {
+  const on = page(t);
+  await settled();
+  on.land();
+  const project = on.last();
+  const [first, second] = story.capabilities;
+  project.view.onSelect({ kind: "story", id: story.id, gate: [first!.id, second!.id] });
+  assert.equal(on.body.dataset.selected, story.id);
+  assert.deepEqual(project.gates.at(-1), [first!.id, second!.id], "the panel is handed the pair the gate joins");
+  on.land();
+  assert.deepEqual(project.gates.at(-1), [first!.id, second!.id], "a redraw keeps the gate");
+  project.view.onSelect({ kind: "story", id: story.id, capability: second!.id });
+  assert.equal(project.gates.at(-1), undefined, "a territory click puts the gate down");
+  assert.equal(project.rendered.at(-1), second!.id);
+  project.view.onSelect({ kind: "story", id: story.id, gate: [first!.id, second!.id] });
+  project.spaces.at(-1)!.choose(first!.id);
+  assert.equal(project.gates.at(-1), undefined, "so does a pick in the panel's tree");
+  assert.equal(project.rendered.at(-1), first!.id);
 });
 
 test("2.29 · teaching cards hear whether the project on show is the factory, and each card is placed beside its target", async (t) => {

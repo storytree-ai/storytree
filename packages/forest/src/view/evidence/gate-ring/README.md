@@ -36,3 +36,5 @@ Taken with `node --import tsx packages/forest/testing/view/gate-ring/capture.mjs
 selected capability's ring, open-work ring, lit road and gold gate face shown, from the scene, into `measurements.json`.
 
 In the evidence bucket for #534, linked from the pull request body (ADR-1234; deleted after 90 days or when its arc closes): `534/the-library-gate-picked-close.png`, `534/the-library-gate-picked.png`, `534/the-library-nothing-picked.png`, `534/the-library-road-picked.png` (the retired road pick).
+
+In the evidence bucket for #596, linked from the pull request body (ADR-1234; deleted after 90 days or when its arc closes): `596/the-library-nothing-picked.png`, `596/the-library-gate-picked.png`, `596/the-library-road-clicked.png`, `596/the-library-road-clicked-beside-an-arc.png`, `596/the-library-gate-picked-close.png`.

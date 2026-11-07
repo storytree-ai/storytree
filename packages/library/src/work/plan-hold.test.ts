@@ -9,7 +9,7 @@ import { connect } from "../index.js";
 import { testServerUrl, uniqueProjectName } from "../testing/pg.js";
 import { editPlanRecord } from "./plan-hold.js";
 
-test("4.36 · a plan edit made from a session holding an increment waits on it as a pending change until its branch merges, the live record unchanged; one made from a session holding none, or to a record the increment planned, is applied live", async (t) => {
+test("4.36 · a plan edit made from a session holding an increment on a branch waits on it as a pending change until its branch merges, the live record unchanged; one made from a session holding none, an increment claimed on no branch or the main line, or to a record the increment planned, is applied live", async (t) => {
   const storytree = await connect({ url: testServerUrl() });
   const project = uniqueProjectName();
   t.after(async () => {
@@ -25,7 +25,7 @@ test("4.36 · a plan edit made from a session holding an increment waits on it a
   const form = await library.addCapability({ story: story.id, title: "Form" });
   const increment = await library.addIncrement({ arc: arc.id, title: "Address form", objective: "Rename it", body: "Red then green" });
   await library.advanceIncrement(increment.id, "active");
-  const claims = [{ session: "lane", increment: increment.id, since: "2026-10-15T00:00:00.000Z" }];
+  const claims = [{ session: "lane", increment: increment.id, since: "2026-10-15T00:00:00.000Z", branch: "claude/address-form" }];
   const description = async (): Promise<string | undefined> => ((await library.get(form.id))?.fields as { description?: string } | undefined)?.description;
 
   const held = await editPlanRecord(library, claims, "lane", { type: "capability", id: form.id, fields: { description: "Where they type it" } }, { actor: "session:lane" });
@@ -37,6 +37,13 @@ test("4.36 · a plan edit made from a session holding an increment waits on it a
   const live = await editPlanRecord(library, claims, "person:owner", { type: "capability", id: form.id, fields: { description: "Typed here" } }, { actor: "person:owner" });
   assert.equal(live && "edited" in live ? live.edited.id : undefined, form.id, "an edit from main, by a session holding no increment, is applied");
   assert.equal(await description(), "Typed here");
+
+  for (const branch of [undefined, "main"]) {
+    const branchless = [{ session: "library-lane", increment: increment.id, since: "2026-10-15T00:00:00.000Z", ...(branch === undefined ? {} : { branch }) }];
+    const applied = await editPlanRecord(library, branchless, "library-lane", { type: "capability", id: form.id, fields: { description: `Typed ${branch ?? "detached"}` } }, { actor: "session:library-lane" });
+    assert.equal(applied && "edited" in applied ? applied.edited.id : undefined, form.id, `an increment claimed on ${branch ?? "no branch"} has none to merge, so its session's edit is applied`);
+    assert.equal(await description(), `Typed ${branch ?? "detached"}`);
+  }
 
   const own = await library.addCapability({ story: story.id, title: "Confirmation link" });
   const planned = await editPlanRecord(library, claims, "lane", { type: "capability", id: own.id, fields: { description: "Sent by mail" } }, { actor: "session:lane" });

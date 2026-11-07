@@ -624,7 +624,7 @@ test("17.16 · library edit --live, run by a session holding an increment, edits
   await library.advanceIncrement(increment.id, "active"); // as claiming it does
   const context: LibraryVerbContext = {
     library, project, session: "lane", folder: tmpdir(), writer: { actor: "session:lane" },
-    claims: async () => [{ session: "lane", increment: increment.id, since: "2026-11-03T00:00:00.000Z" }],
+    claims: async () => [{ session: "lane", increment: increment.id, since: "2026-11-03T00:00:00.000Z", branch: "claude/address-form" }],
     testedNumbers: async () => ({ tested: [], untested: [] }),
   };
   const pendingOf = async () => ((await library.get(increment.id))?.fields as { pending?: unknown[] }).pending ?? [];
@@ -657,7 +657,7 @@ test("17.20 · library edit's answer for an edit held on the caller's increment 
   await library.advanceIncrement(increment.id, "active"); // as claiming it does
   const context: LibraryVerbContext = {
     library, project, session: "lane", folder: tmpdir(), writer: { actor: "session:lane" },
-    claims: async () => [{ session: "lane", increment: increment.id, since: "2026-11-03T00:00:00.000Z" }],
+    claims: async () => [{ session: "lane", increment: increment.id, since: "2026-11-03T00:00:00.000Z", branch: "claude/address-form" }],
     testedNumbers: async () => ({ tested: [], untested: [] }),
   };
 

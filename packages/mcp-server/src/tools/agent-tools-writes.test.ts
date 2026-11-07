@@ -1063,6 +1063,7 @@ test("6.39 a tool call's reads do not grow with the log's length: the same calls
 
 test("9.9 edit_plan and retire_from_plan, under an increment's claim, hold a change to a record planned before it as a pending change on the increment, leaving the live record alone (ADR-0966 D1; the rule itself is 10.29's)", async () => {
   await withProject(async ({ folder, library }) => {
+    git(folder, "init", "-b", "claude/address-form"); // the claim is taken on a branch, which merging applies its pending changes
     await withAgent(folder, claudeCode("claude-1"), async (agent) => {
       const { arc, capability } = await planned(agent);
       const contract = idOf(await agent.call("plan_contract", { capability, title: "Accepts a valid address" }));
@@ -1133,6 +1134,7 @@ test("9.25 park_increment naming a capability another open increment lists is re
 
 test("9.17 plan_capability, under an increment's claim, judges the story's capability numbers as that increment's pending changes would leave it: a number a pending move out of the story frees is given, and one a pending move into the story brings is refused", async () => {
   await withProject(async ({ folder, library }) => {
+    git(folder, "init", "-b", "claude/address-form"); // the claim is taken on a branch, which merging applies its pending changes
     await withAgent(folder, claudeCode("claude-1"), async (agent) => {
       const { arc, story, capability } = await planned(agent);
       const reset = idOf(await agent.call("plan_story", { title: "Visitor can reset a password", ...FOUNDED }));

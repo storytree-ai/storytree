@@ -186,6 +186,15 @@ test("3.45 · the survey carries no body: `pool` reads a picked increment's body
   assert.ok(bodies.includes("increment_review") && bodies.includes("increment_unread"));
   assert.ok(b.lines.some((line) => /increment_unread not started: its body is unread \(connection reset\)/.test(line)), b.lines.join("\n"));
   assert.deepEqual(asked[0], ["storytree", { also: ["increment_cloud"] }], "the cloud lanes' increments are surveyed by id");
+
+  // An unreadable cloud ledger follows no lane, and the survey goes on.
+  asked.length = 0;
+  sleeps = 0;
+  b.cloud = { ...b.cloud, watching: async () => { throw new Error("ledger unreadable"); } };
+  await rm(join(b.lanesDir, "pool-stop"));
+  await rm(join(b.lanesDir, "pool.pid"), { force: true });
+  assert.equal(await main(["pool"], b), 0);
+  assert.deepEqual(asked[0], ["storytree", { also: [] }]);
 });
 
 test("3.9 · `pool` starts each ready increment under the shared lock with the repository's pool brief, read-only work with the read-only rules", async (t) => {

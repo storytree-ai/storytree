@@ -51,6 +51,7 @@ test("2.2 · the survey reads arcs and holds once, with every increment's arc, c
   assert.equal(read.here, "box", "and this machine's name");
   assert.deepEqual(read.holds.waits.i1, [{ on: "z", reason: "r" }]);
   assert.deepEqual(read.arcs.map((arc) => [arc.id, arc.state, arc.openQuestions]), [["arc_laptop", "active", 1], ["arc_cap", "active", 0], ["arc_box", "parked", 0], ["arc_stale", "active", 0]]);
+  assert.deepEqual(read.arcs.map((arc) => arc.title), ["arc_laptop", "arc_cap", "arc_box", "arc_stale"], "an arc whose title was not read is named by its id");
   assert.equal(read.claims, claims);
   const parked = { workSurvey: async () => ({ arcs: [{ id: "arc_box", state: "parked", openQuestions: 0 }], increments: [record("i4", "arc_box")], holds: () => ({ waits: {}, heldOn: {} }) }) };
   assert.deepEqual((await readSurvey({ library: parked, claims: async () => claims, refusals: async () => assert.fail("no open increment on an active arc, no read") })).refusals, []);

@@ -25,6 +25,11 @@ test("8.10 pnpm lint refuses a .js under docs/design with a line over 1,000 char
   writeFileSync(path.join(sketch, "hand.js"), "const x = 1;\nconsole.log(x);\n");
   writeFileSync(path.join(sketch, "data.js"), DATA);
   writeFileSync(path.join(sketch, "mixed.js"), DATA.replace(/;\n$/, "; document.title = 'x';\n"));
+  writeFileSync(path.join(sketch, "code.js"), DATA.replace(/\}\]\};\n$/, ', "run": (function(){ document.title = "x"; })()}]};\n'));
+  for (const skipped of ["node_modules", ".cache"]) {
+    mkdirSync(path.join(sketch, skipped), { recursive: true });
+    writeFileSync(path.join(sketch, skipped, "lib.js"), LONG);
+  }
   mkdirSync(path.join(root, "packages", "x", "src"), { recursive: true });
   writeFileSync(path.join(root, "packages", "x", "src", "long.js"), LONG);
 
@@ -33,8 +38,9 @@ test("8.10 pnpm lint refuses a .js under docs/design with a line over 1,000 char
   const lines = [];
   assert.equal(await lint({ root, rules: [rule], log: (line) => lines.push(line) }), 1);
   const refused = lines.filter((line) => line.startsWith("sketch-bundle-names: "));
-  assert.deepEqual(refused.map((line) => line.split(" ")[1]), ["docs/design/tree/a-sketch/mixed.js", "docs/design/tree/a-sketch/page.js"], lines.join("\n"));
-  assert.match(refused[1], /page\.min\.js/);
-  assert.match(refused[1], /build\.mjs/);
-  assert.match(refused[1], /script tag/);
+  assert.deepEqual(refused.map((line) => line.split(" ")[1]).sort(), ["docs/design/tree/a-sketch/code.js", "docs/design/tree/a-sketch/mixed.js", "docs/design/tree/a-sketch/page.js"], lines.join("\n"));
+  const page = refused.find((line) => line.includes("/page.js "));
+  assert.match(page, /page\.min\.js/);
+  assert.match(page, /build\.mjs/);
+  assert.match(page, /script tag/);
 });

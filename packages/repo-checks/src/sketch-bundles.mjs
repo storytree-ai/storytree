@@ -35,7 +35,7 @@ export function sketchBundleProblems(root) {
     const named = path.posix.basename(file).replace(/\.js$/, ".min.js");
     problems.push(`${file} has a line over ${LONG_LINE} characters, so it reads as a minified bundle CodeQL would scan: name it ${named} (in the build.mjs that writes it, and in its page's script tag), or keep it to one data assignment`);
   }
-  return problems.sort((a, b) => a.localeCompare(b, "en", { numeric: true }));
+  return problems;
 }
 
 function jsFiles(root, dir) {

@@ -259,6 +259,33 @@ test("3.86 · an island nobody selected is laid out with its roads; zooming out 
   for (const seen of [territories, floor, back]) assert.deepEqual(seen.borders, near.borders, "the territories' borders keep their shape at every zoom");
 });
 
+test("3.90 · a panel opened beside the map, narrowing it from the left, never lowers how far the wheel zooms out, though the view was zoomed in when it opened", async t => {
+  const { page } = await openedMap(t, false, { width: 1000, height: 600 });
+  const zoom = () => page.evaluate(() => (window as unknown as { __zoom(): number }).__zoom());
+  // Wheeled `by` until a step moves the eye no further, or for `steps` steps when they are given.
+  const wheel = async (by: number, at: number, steps?: number): Promise<number> => {
+    await page.mouse.move(at, 300);
+    let before = await zoom();
+    for (let step = 0; step < (steps ?? 80); step++) {
+      await page.mouse.wheel(0, by);
+      await page.evaluate(() => new Promise(requestAnimationFrame));
+      await page.evaluate(() => new Promise(requestAnimationFrame));
+      const now = await zoom();
+      if (steps === undefined && Math.abs(now - before) <= before * 0.001) return now;
+      before = now;
+    }
+    return before;
+  };
+  const floor = await wheel(240, 500);
+  const near = await wheel(-240, 500, 30);
+  assert.ok(near > floor * 3, `the wheel drew the eye well in from its floor (${floor} to ${near})`);
+  // The arcs panel opens on the left, as the rail does: the map's frame loses its left 300 CSS pixels, its short side kept.
+  await page.evaluate(() => { document.querySelector<HTMLElement>("#map")!.style.left = "300px"; });
+  await waitUntil(() => page.evaluate(() => (window as unknown as { __globe: { size: { width: number } } }).__globe.size.width === 700), 10_000, "the map's frame to narrow");
+  const after = await wheel(240, 650);
+  assert.ok(Math.abs(after - floor) <= floor * 0.01, `the wheel zooms out as far with the panel open (${after}) as before it (${floor})`);
+});
+
 test("3.73 · roads that arrive hidden, after the map opened, have their shader programs too, so the zoom that first shows them stops to compile none", async t => {
   // A window small enough that the map opens below the near marks' zoom, so every island's roads arrive hidden.
   const { page } = await openedMap(t, true, { width: 400, height: 300 });

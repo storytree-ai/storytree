@@ -15,7 +15,7 @@ import { EXACT_COLOUR_CANVAS_PROPS } from '../exact-colour.js';
 import { SHIPPED_ELEVATION_DEG } from './camera.js';
 import { plateTransform, type PlanetSpot } from './planet.js';
 import { disposeIslandSurface, hollowIsland, islandSurface } from './island-surface.js';
-import { applyPlanetSideOffset, orthographicZoomFor, wheelFloor } from './camera.js';
+import { applyPlanetSideOffset, orthographicZoomFor, wheelFloor, type FramingViewport } from './camera.js';
 import { GrowthProvider, usePlanetGrowth, type PlanetGrowth } from './PlanetGrowth.js';
 import { plateGrowth } from './growth.js';
 import { paintWhileSeen, startingFrameloop, viewportWatch, type ViewportWatch } from './paint-while-seen.js';
@@ -76,6 +76,9 @@ export interface PlanetWorldCanvasProps {
   inside?: ReactNode;
   /** How many radii half the short side spans: 1.18 by default. */
   framing?: number | undefined;
+  /** The framing the wheel's floor is half of at a canvas size, `framing` by default: a host whose framing follows the
+   * zoom anchors the floor here, so a pose sent from a zoomed-in view never lowers how far the wheel zooms out. */
+  floor?: ((size: FramingViewport) => number) | undefined;
   /** Positive moves the rendered sheet right in CSS pixels, leaving room for an adjacent card. */
   sideOffset?: number | undefined;
   /** The selection's lit links, their share of each lane filled pale at sea, with a port at each dock they come ashore at
@@ -175,12 +178,12 @@ function Framing({ radius, framing, sideOffset, sheet }: { radius: number; frami
 
 /** The wheel and pinch move the perspective eye toward or away from the middle of the view, zooming out no further than half
  * the framed size (ADR-1062 D1). */
-function Wheel({ radius, framing }: { radius: number; framing: number }) {
+function Wheel({ radius, framing, floor }: { radius: number; framing: number; floor: ((size: FramingViewport) => number) | undefined }) {
   const size = useThree(state => state.size), camera = useThree(state => state.camera);
   // The eye stands this far off for a zoom of one CSS pixel per unit; the middle of the view lies on its line of sight.
   const unit = Math.max(size.height, 1) / 2 / Math.tan(SHEET_FOV * Math.PI / 360);
   const middle = camera.position.clone().setLength(SHEET_RADIUS + PLATE_CLEARANCE);
-  return <OrbitControls makeDefault enablePan={false} enableRotate={false} target={middle} minDistance={unit / 30} maxDistance={unit / wheelFloor(radius, framing, size)} />;
+  return <OrbitControls makeDefault enablePan={false} enableRotate={false} target={middle} minDistance={unit / 30} maxDistance={unit / wheelFloor(radius, floor?.(size) ?? framing, size)} />;
 }
 
 /** The drawing engine 4.10: the map draws only while some of its canvas is on screen, however busy its animations are. */
@@ -235,7 +238,7 @@ function drawnOnResize(state: () => RootState | undefined): typeof ResizeObserve
 
 /** The map: one Canvas, the glass sheet, and each story's island as a raised plate with a coast (ADR-0804 D1, ADR-1059 D2).
  * A lamp shades the islands' sides and the glass's edge, and the land's top keeps its exact colour (ADR-1062 D1). */
-export function PlanetWorldCanvas({ scene, spots, radius, rotation = [0, 0, 0, 1], offset, globe, plateChildren, children, surface = true, surfaces, inside, framing = 1.18, sideOffset = 0, lanes = NO_LANES, growth, sheet, hollow = false }: PlanetWorldCanvasProps) {
+export function PlanetWorldCanvas({ scene, spots, radius, rotation = [0, 0, 0, 1], offset, globe, plateChildren, children, surface = true, surfaces, inside, framing = 1.18, floor, sideOffset = 0, lanes = NO_LANES, growth, sheet, hollow = false }: PlanetWorldCanvasProps) {
   const drawing = useRoadsWhenRouted(scene, spots, radius);
   const pathways = drawing.plan;
   const docks = useMemo(() => islandDocks(pathways, drawing.routing), [pathways, drawing.routing]);
@@ -278,7 +281,7 @@ export function PlanetWorldCanvas({ scene, spots, radius, rotation = [0, 0, 0, 1
       {inside}
     </group>
     <SheetLights />
-    <Wheel radius={radius} framing={framing} />
+    <Wheel radius={radius} framing={framing} floor={floor} />
     {/* The host's children read the growth too (usePlanetGrowth), as the plates and the inside do. */}
     {children}
     </GrowthProvider>

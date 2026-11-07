@@ -230,7 +230,7 @@ for (const backend of [memory, postgres]) {
     assert.deepEqual([still["state"], still["route"]], ["routed", "adr"], "a recurrence on a routed report leaves its judgement standing");
   });
 
-  contract("6.12", "a quality control check is saved with its question, the principles or guardrails it enforces and what graduated, and refused without its question or enforcing none or anything else", async ({ knowledge, transactions }) => {
+  contract("6.12", "a quality control check is saved with its question, the principles or guardrails it enforces and what graduated, each part with the day its trial started or it was struck and the arc a leak parks on, and refused without its question or enforcing none or anything else", async ({ knowledge, transactions }) => {
     const { principle, guardrail } = fullKinds("unused");
     const rule = await knowledge.writeKnowledge("principle", principle as never);
     const guard = await knowledge.writeKnowledge("guardrail", guardrail as never);
@@ -241,7 +241,10 @@ for (const backend of [memory, postgres]) {
       question: "Is any expected value computed the way the code computes it?",
       howToAnswer: "Yes when an assertion's expected side repeats the code's formula",
       enforces: [rule.id, guard.id],
-      graduated: [{ part: "A constant asserted equal to itself", enforcedBy: "a Guardrails check" }],
+      graduated: [
+        { part: "A constant asserted equal to itself", enforcedBy: "a Guardrails check" },
+        { part: "A variable asserted equal to itself", enforcedBy: "a Guardrails check", trial: "2026-11-01", struck: "2026-11-20", arc: "arc_graduation" },
+      ],
     };
 
     const saved = await knowledge.writeKnowledge("check", check);
@@ -267,6 +270,11 @@ for (const backend of [memory, postgres]) {
       knowledge.writeKnowledge("check", { ...check, graduated: [{ part: "All of it" }] } as never),
       (error: unknown) => error instanceof SchemaError && error.fields.includes("graduated"),
       "a graduated part says where it is now enforced",
+    );
+    await assert.rejects(
+      knowledge.writeKnowledge("check", { ...check, graduated: [{ part: "All of it", enforcedBy: "a Guardrails check", trial: "last week" }] }),
+      (error: unknown) => error instanceof SchemaError && error.fields.includes("graduated"),
+      "a graduated part's trial starts on a day",
     );
     await assert.rejects(
       knowledge.writeKnowledge("check", { ...check, enforces: [term.id] }),

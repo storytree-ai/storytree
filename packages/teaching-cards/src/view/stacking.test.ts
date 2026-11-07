@@ -8,7 +8,7 @@ import { chromium } from "playwright-core";
 async function teachingBundle(): Promise<string> {
   const entry = `import { mountTeaching } from ${JSON.stringify(path.join(import.meta.dirname, "index.ts"))};
     import { journal } from ${JSON.stringify(path.join(import.meta.dirname, "../journal.ts"))};
-    const kept = new Map();
+    const kept = new Map([["storytree.teaching.tour.v1", "yes"]]);
     window.teach = () => mountTeaching(document.querySelector("#content"), { journal: journal({ getItem: key => kept.get(key) ?? null, setItem: (key, value) => kept.set(key, value) }), locate: () => ({ x: 100, y: 20, visible: true }) })
       .take({ tree: { stories: [{ id: "story_a", capabilities: [] }], arcs: [] }, changes: [], lines: [] });`;
   const result = await build({ stdin: { contents: entry, resolveDir: import.meta.dirname, loader: "js" }, bundle: true, write: false, format: "iife" });

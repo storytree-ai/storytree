@@ -95,3 +95,33 @@ test("2.3 · on a factory the factory is found first, at its switch, then its fi
   assert.deepEqual(kept.unseen(onFactory), []);
   assert.deepEqual(kept.unseen(encounters({ tree: tree([]), changes: [], lines: [], factory: true })), [], "switching back and again shows nothing");
 });
+
+test("2.4 · a plan whose every piece of work is closed, with no question of its own open, is not found as the plan; the first with work still to do is", () => {
+  const increment = (id: string, arc: string, status: string) => created("increment", id, { arc, status });
+  const arcs = [{ id: "arc_done" }, { id: "arc_open" }];
+  const changes = [increment("increment_1", "arc_done", "proposal"), { ...increment("increment_1", "arc_done", "closed"), action: "updated" },
+    increment("increment_2", "arc_open", "proposal")];
+  const plan = (changes: MapReading["changes"]) => encounters({ tree: tree([], arcs), changes, lines: [] }).filter(found => found.kind === "arc");
+  assert.deepEqual(plan(changes), [{ kind: "arc", target: { kind: "arc", arc: "arc_open" } }], "the finished plan is passed over");
+  assert.deepEqual(plan([...changes, { ...increment("increment_2", "arc_open", "closed"), action: "updated" }]), [], "every plan finished: no plan card");
+  assert.deepEqual(plan([changes[0]!, changes[1]!, created("question", "question_1", { arc: "arc_done", lifecycle: "open" })]),
+    [{ kind: "arc", target: { kind: "arc", arc: "arc_done" } }], "a plan still waiting on the user's answer is not finished");
+  assert.deepEqual(plan([]), [{ kind: "arc", target: { kind: "arc", arc: "arc_done" } }], "a plan with no work yet has it all to do");
+});
+
+test("2.5 · the tour is asked until the user answers it, and the answer is kept across restarts and told to whoever listens", () => {
+  const store = storage();
+  const first = journal(store);
+  assert.equal(first.tour(), undefined, "not asked yet");
+  const heard: string[] = [];
+  const stop = first.listen(answer => heard.push(answer));
+  first.answer("no");
+  assert.equal(journal(store).tour(), "no", "kept after a restart");
+  first.answer("yes");
+  stop();
+  first.answer("no");
+  assert.deepEqual(heard, ["no", "yes"], "heard until the listener stops");
+  const broken = storage();
+  broken.setItem("storytree.teaching.tour.v1", "maybe");
+  assert.equal(journal(broken).tour(), undefined, "an answer it cannot read is asked again");
+});

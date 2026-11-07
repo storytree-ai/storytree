@@ -4,7 +4,7 @@ import { noteMoments, noteShown } from "../shelves/growing.js";
 import type { RecordEnvelope } from "@storytree/library";
 import { Billboard } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { AdditiveBlending, BufferGeometry, Color, DoubleSide, Float32BufferAttribute, Group, LineBasicMaterial, LineSegments, Mesh, MeshBasicMaterial, MeshLambertMaterial, SphereGeometry, type InterleavedBufferAttribute } from "three";
 import { Line2 } from "three/examples/jsm/lines/Line2.js";
 import { LineGeometry } from "three/examples/jsm/lines/LineGeometry.js";
@@ -350,6 +350,7 @@ export function NoteRoots({ roots }: { roots: readonly (readonly [Point, Point])
     segments.raycast = noRaycast;
     return segments;
   }, [roots]);
+  useCompiled(drawn);
   useEffect(() => () => { drawn.geometry.dispose(); drawn.material.dispose(); }, [drawn]);
   return <primitive object={drawn} />;
 }
@@ -366,6 +367,14 @@ export function SeaFloor({ corners, notes }: { corners: readonly Point[]; notes:
     floor.raycast = noRaycast;
     return floor;
   }, [corners, notes]);
+  useCompiled(drawn);
   useEffect(() => () => { drawn.geometry.dispose(); (drawn.material as MeshBasicMaterial).dispose(); }, [drawn]);
   return <primitive object={drawn} />;
+}
+
+/** 3.73: `drawn`'s shader compiled as it is mounted, before any frame draws it, so one built anew after the map opened (a
+ * selection's roots, a new floor) leaves no turn to stall on compiling it. */
+function useCompiled(drawn: LineSegments | Mesh): void {
+  const { gl, camera, scene } = useThree();
+  useLayoutEffect(() => { gl.compile(drawn, camera, scene); }, [gl, camera, scene, drawn]);
 }

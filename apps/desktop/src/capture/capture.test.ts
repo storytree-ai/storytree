@@ -100,7 +100,7 @@ test("a bridge method the capture left unanswered gets a safe answer, and the fa
   assert.deepEqual(bridge.defaulted, ["readSignIn", "windowReading"]);
 });
 
-test("a capture that seeds its lines through linesSince shows them on a first start that asks linesStart", async () => {
+test("2.48 · a capture that seeds its lines through linesSince shows them on a first start that asks linesStart", async () => {
   const claimed = { seq: 1, session: "s1", kind: "claimed" };
   const asked = { seq: 2, session: "s1", kind: "asked" };
   const bridge = fakeBridge({ linesSince: async (_, cursor) => (cursor === 0 ? { lines: [claimed, asked], cursor: 2 } : { lines: [], cursor }) as never });

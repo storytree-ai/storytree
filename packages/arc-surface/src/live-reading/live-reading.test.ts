@@ -494,7 +494,7 @@ test("3.29 a first start with no kept reading asks for the thinned changes and t
   reading.subscribe({ onNews: (news) => heard.push(news) });
   await settle();
 
-  assert.deepEqual(app.asked, ["changes shop 0 only 19 fields, health reported", "start shop claimed,closed,landed,merged,note-read,released,subagent-ended,subagent-started"], "never every line from 0");
+  assert.deepEqual(app.asked, ["changes shop 0 only 20 fields, health reported", "start shop claimed,closed,landed,merged,note-read,released,subagent-ended,subagent-started"], "never every line from 0");
   const held = reading.held();
   const options = { now: new Date(0) };
   const sessions = held.fold.sessions(options);
@@ -554,4 +554,29 @@ test("3.29 a first start whose ask fails is reported and asked again at the next
   assert.equal(asks, 2, "and is not asked again once landed");
   assert.deepEqual(app.asked, ["changes shop 1", "lines shop 5"], "the reading goes on from the start's cursors");
   reading.stop();
+});
+
+test("3.29 a reading stopped while its first start is on its way holds, keeps and tells nothing when the start lands, and asks on from nowhere", async () => {
+  const app = new StartingApp();
+  let answer: (() => void) | undefined;
+  app.story("Visitor signs up");
+  app.linesStart = async () => {
+    await new Promise<void>((resolve) => { answer = resolve; });
+    return { lines: [], sessions: [], claims: [], cursor: 5 };
+  };
+  const kept = new KeptStandIn();
+  const clock = new Clock();
+  const reading = pageReading({ project: "shop", reads: app, timers: clock, kept });
+  const heard: News[] = [];
+  reading.subscribe({ onNews: (news) => heard.push(news) });
+  await settle();
+  reading.stop();
+  answer!();
+  await settle();
+  assert.deepEqual(heard, [], "nothing is told");
+  assert.equal(await kept.read(), undefined, "nothing is kept");
+  assert.deepEqual(reading.held().changes, [], "nothing is held");
+  app.asked.length = 0;
+  await clock.advance(2_000);
+  assert.deepEqual(app.asked, [], "and nothing is asked after it");
 });

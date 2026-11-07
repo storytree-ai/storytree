@@ -1,11 +1,27 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { encounters, type MapReading } from "./encounters.js";
+import { heldReading } from "@storytree/arc-surface";
+
+import { encounters as encountersOf, type MapReading } from "./encounters.js";
 import { journal } from "./journal.js";
 
 const capability = (id: string, proposed: boolean) => ({ id, proposed });
 const tree = (stories: { id: string; capabilities: { id: string; proposed: boolean }[] }[], arcs: { id: string }[] = []) => ({ stories, arcs });
+type News = Parameters<typeof heldReading>[0];
+/**
+ * What the page hands the cards: its held reading, which keeps only what a surface reads (arc surface 3.30), so a card
+ * that reads a field or a line the page drops goes red here, not only on the page.
+ */
+const encounters = (reading: MapReading) => {
+  const at = new Date(0).toISOString();
+  const held = heldReading({
+    changes: reading.changes.map((change, index) => ({ ...change, seq: index + 1,
+      record: { id: change.recordId, type: change.type, version: 1, createdAt: at, updatedAt: at, ...change.record } })) as News["changes"],
+    lines: reading.lines.map((line, index) => ({ project: "demo", session: "s", source: "tool", at, ...line, seq: index + 1 })) as News["lines"],
+  });
+  return encountersOf({ ...reading, changes: held.changes, lines: held.lines });
+};
 const created = (type: string, recordId: string, fields: Record<string, unknown> = {}) => ({ type, recordId, action: "created", record: { fields } });
 
 test("2.1 · the first of each kind on the map is found with what to anchor to, and an empty map once as empty", () => {

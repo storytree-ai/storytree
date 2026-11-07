@@ -339,7 +339,9 @@ async function dispatchIn(family: Family, path: string, words: readonly string[]
  * never the command's words.
  */
 async function act(verb: Verb, args: Args, context: Context, heard: Heard): Promise<Answer> {
-  const { armChecks } = await import("./mount.js");
+  const [{ armChecks }, { nameReader }] = await Promise.all([import("./mount.js"), import("@storytree/library/reads")]);
+  // What the verb reads from the library is counted as the command's, `arc show`, and its connections are named for it (contract 1.48).
+  nameReader(heard.verb.replace(/^storytree /, ""));
   const verdict = (await armChecks()).map((check) => check.verdict("command", heard.verb)).find((one) => !one.allowed);
   if (verdict !== undefined && !verdict.allowed) throw new DeniedByArm(verdict.message);
   const answer = await verb.act(args, context);
@@ -658,6 +660,8 @@ class Opened {
   }
 
   async close(): Promise<void> {
+    // A command that read the library records what it read as its log closes, so the log is opened for it if it was not (contract 1.48).
+    if (this.#approved !== undefined) await this.#approved.then(() => this.#activityLog()).catch(() => undefined);
     await Promise.allSettled([this.#log?.then((log) => log.close())]);
     await Promise.allSettled([this.#library?.then((library) => library.close())]);
     await Promise.allSettled([this.#storytree?.then((storytree) => storytree.close())]);

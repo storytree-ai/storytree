@@ -8,4 +8,5 @@ export type { ActivityLog, AppendOptions, BranchFacts, DeliveredEvent, Earlier, 
 export type { LineFilter } from "./bounded.js";
 export type { StampedRecord, StoredSession, TranscriptRecord, TranscriptRecords } from "./transcript-records.js";
 export type { SessionBeats } from "./session-beats.js";
+export type { DayRead, LibraryReads } from "./library-reads.js";
 export { fullLineText, lineText } from "./text.js";

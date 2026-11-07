@@ -12,6 +12,7 @@ import path from "node:path";
 import { withTempDir } from "@storytree/project-and-caller/testing/folders";
 import { approveCheckout, testServerDataDir } from "@storytree/project-and-caller/testing/pg";
 import { VerbRefusal, type Verb } from "@storytree/library/verbs";
+import { takeReads } from "@storytree/library/reads";
 import { z } from "zod";
 
 import armCheckParts from "../parts/arm-checks.js";
@@ -34,6 +35,10 @@ const fixtures: ToolExtension = {
   registerTools(define) {
     mountTools(define, [offers]);
     define("break_thing", "Fail.", z.object({}), async () => { throw new TypeError("the thing broke"); });
+    define("read_thing", "Read the project's plan.", z.object({}), async (_args, call) => {
+      await call.library.projectTree();
+      return { text: "Read." };
+    });
     define("lose_log", "Answer, with the activity log refusing every line from then on.", z.object({}), async (_args, call) => {
       call.log.append = async () => { throw new Error("the activity log is gone"); };
       return { text: "Still answered." };
@@ -149,5 +154,16 @@ test("6.63 the tool server names every tool it would serve in a folder, the same
     const consumers = (tool: string) => served.find(({ name }) => name === tool)?.consumers;
     assert.deepEqual(consumers("set_up_project"), ["user"], "each with who calls it");
     assert.deepEqual(consumers("show_thing"), ["agent", "user"], "both, unless defined otherwise");
+  });
+});
+
+test("6.107 what a tool call reads from the library, its routing and its log's lines included, is counted as that tool's", async () => {
+  await withProject(async ({ folder }) => {
+    await withAgent(folder, claudeCode("tool-reads-1", { extensions: [fixtures] }), async (agent) => {
+      takeReads();
+      assert.equal((await agent.call("read_thing")).isError, false);
+      const read = takeReads().find((total) => total.reader === "tool read_thing");
+      assert.ok(read !== undefined && read.bytes > 0 && read.statements > 0, "the call's reads are the tool's");
+    });
   });
 });

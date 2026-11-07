@@ -1941,3 +1941,24 @@ test("3.46 a hook runs no git in a downloaded folder whose marker names a projec
     await dropTestProjects([project]);
   }
 });
+
+test("3.56 what a hook reads from the library is counted as its event's, and recorded beside the log in its machine's total for the day", async () => {
+  const project = uniqueProjectName();
+  await withTempDir(async (dir) => {
+    const folder = await projectFolder(dir, project);
+    const home = storytreeHome(dir, true);
+    const today = new Date().toISOString().slice(0, 10);
+    const log = await openActivityLog(testServerUrl());
+    try {
+      const read = async () => (await log.reads.day(today)).find((row) => row.machine === hostname().trim() && row.reader === "hook PostToolUse")?.bytes ?? 0;
+      const before = await read();
+
+      const ran = await runHook("claude-code", recorded("claude-code", "post-tool-use-bash", folder), home);
+
+      assert.equal(ran.code, 0, ran.stderr);
+      assert.ok((await read()) > before, "the hook's bytes are recorded as its event's");
+    } finally {
+      await log.close();
+    }
+  });
+});

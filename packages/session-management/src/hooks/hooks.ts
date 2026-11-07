@@ -51,6 +51,7 @@ import { homedir } from "node:os";
 import path from "node:path";
 
 import type { NewLine, Storytree } from "@storytree/library";
+import { nameReader } from "@storytree/library/reads";
 
 import type { ActivityLog, DeliveredEvent } from "../activity/index.js";
 import { runGit, type Git } from "../activity/git.js";
@@ -188,6 +189,8 @@ async function answerHook({ argv, input: given, handOff: handing, merges, locate
   const parsed = withEvent(read, flags);
   const event = typeof parsed === "object" && parsed !== null ? (parsed as Record<string, unknown>).hook_event_name : undefined;
   if (clock !== undefined && typeof event === "string" && event !== "") clock.event = event;
+  // What this hook reads from the library is counted as its event's, `hook PostToolUse`, and its connections named for it (contract 3.56).
+  if (typeof event === "string" && event !== "") nameReader(`hook ${event}`);
   // Every copy this hook starts is timed as its hand-off.
   const handOff: HookInput["handOff"] = handing === undefined || clock === undefined ? handing : (to, input, more) => clock.time("handoff", () => handing(to, input, more));
   // A copy this hook hands its work to is started without the flag, so the event goes with the input.

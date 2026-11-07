@@ -23,5 +23,4 @@ Taken with `node --import tsx packages/forest/testing/view/panel-picked-on-islan
 panel holds no tree, shows the capability the island ringed with every fold closed, that a single click opens nothing and a
 double-click opens the fold, and writes what it found into `measurements.json`.
 
-In the evidence bucket for the pull request that built the folds, linked from its body (ADR-1234; deleted after 90 days or when
-its arc closes).
+In the evidence bucket for #607, linked from the pull request body (ADR-1234; deleted after 90 days or when its arc closes): `607/before-folds-panel.png`, `607/capability-picked-on-island.png`, `607/capability-picked-on-island-panel.png`, `607/capability-folds-opened-panel.png`, `607/gate-picked-on-island-panel.png`.

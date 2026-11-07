@@ -8,10 +8,11 @@ import { waitUntil } from "@storytree/test-waits";
 /** The real map view, bundled for the browser and mounted on a two-story plan: the capture seam counts its renders.
  * `__show(titles)` hands it the plan again, a live update, with the stories' titles as given. `linked` gives each story a
  * second capability its first depends on, and story one's first depends on story two's, so each island has roads.
- * `__show(titles, story)` shows it with that story selected, and `__core` is its knowledge core. `__zoom()` reads the eye's zoom the map shows its detail by. */
+ * `__show(titles, story)` shows it with that story selected, `__core` is its knowledge core, and `__flushSync` commits the map's scene at once. `__zoom()` reads the eye's zoom the map shows its detail by. */
 async function mapBundle(linked = false, { late = false }: { late?: boolean } = {}): Promise<string> {
   const entry = `import { createElement } from "react";
     import { createRoot } from "react-dom/client";
+    import { flushSync } from "@react-three/fiber";
     import { workStates } from "@storytree/arc-surface";
     import { createKnowledgeCore } from "@storytree/knowledge-core/view";
     import { forestScene, storyNodes } from ${JSON.stringify(path.join(import.meta.dirname, "../index.ts"))};
@@ -29,6 +30,7 @@ async function mapBundle(linked = false, { late = false }: { late?: boolean } = 
     const core = globalThis.__core = createKnowledgeCore("app"), root = createRoot(document.querySelector("#map"));
     globalThis.__show = (titles, selected) => root.render(createElement(PlanetView, { core, scene: forestScene(plan(titles), history, workStates([])), places, wisps: [],
       selected, onPick: () => {}, onNote: () => {} }));
+    globalThis.__flushSync = flushSync;
     globalThis.__zoom = () => sheetEyeZoom(globalThis.__globe.camera, globalThis.__globe.size);
     if (${JSON.stringify(late)}) {
       root.render(createElement(PlanetView, { core, scene: forestScene({ arcs: [], stories: [] }, [], workStates([])), places: new Map(), wisps: [],
@@ -205,17 +207,13 @@ test("3.73 · the notes' roots drawn anew after the map opened, as the core's sh
   await page.evaluate(() => (window as unknown as Page).__show(["one", "two"], "one"));
   await waitUntil(async () => (await roots())?.compiled === true, 10_000, "the selected story's roots to be drawn and compiled");
   const before = (await roots())!;
-  // A kind switched off changes the notes shown, and so the roots, while the map's sheet stays as it was; the roots are read
-  // the moment they are new, before a frame draws them (drawing compiles what it draws).
-  const after = await page.evaluate(async before => {
-    const { __globe: globe, __core: core } = window as unknown as { __globe: Globe } & Page;
-    core.showKind("principle", false);
-    for (let tries = 0; tries < 2000; tries++) {
-      const drawn = globe.scene.getObjectByName("knowledge-roots");
-      if (drawn !== undefined && drawn.uuid !== before) return globe.gl.properties.get(drawn.material).currentProgram !== undefined;
-      await new Promise(resolve => setTimeout(resolve, 0));
-    }
-    return "the roots were not drawn anew";
+  // A kind switched off changes the notes shown, and so the roots, while the map's sheet stays as it was; the change is
+  // committed at once and the roots read in the same task, before a frame draws them (drawing compiles what it draws).
+  const after = await page.evaluate(before => {
+    const { __globe: globe, __core: core, __flushSync: flushSync } = window as unknown as { __globe: Globe; __flushSync(run: () => void): void } & Page;
+    flushSync(() => core.showKind("principle", false));
+    const drawn = globe.scene.getObjectByName("knowledge-roots")!;
+    return drawn.uuid === before ? "the roots were not drawn anew" : globe.gl.properties.get(drawn.material).currentProgram !== undefined;
   }, before.uuid);
   assert.equal(after, true);
 });

@@ -89,7 +89,8 @@ interface Streamed {
 
 /**
  * Count what `client` receives from now on: what it received opening (the handshake) against the reader now, and after
- * each statement settles, what arrived since against the reader that sent it. The raw socket's bytes are read, under
+ * each statement settles, what arrived since against the reader that sent it: a statement given a callback (pg-pool's
+ * pool.query) or answering with a promise; storytree sends no other kind. The raw socket's bytes are read, under
  * TLS, so the count is what the network carried.
  */
 export function countReads(client: PoolClient): void {
@@ -119,9 +120,8 @@ export function countReads(client: PoolClient): void {
       };
       return query.apply(this, args);
     }
-    const result = query.apply(this, args) as { then?: unknown; once?: unknown } | undefined;
+    const result = query.apply(this, args) as { then?: unknown } | undefined;
     if (typeof result?.then === "function") (result as Promise<unknown>).then(settled, settled);
-    else if (typeof result?.once === "function") for (const end of ["end", "error"]) (result as NodeJS.EventEmitter).once(end, settled);
     return result;
   };
 }

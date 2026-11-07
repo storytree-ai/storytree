@@ -46,7 +46,7 @@ export function listFilter(filter: ListFilter): ListFilter {
       }
     }
   }
-  if (filter.projection !== undefined && !(Number.isSafeInteger(filter.projection.version) && filter.projection.version > 0)) {
+  if (filter.projection !== undefined && ![filter.projection, ...(filter.projection.older ?? [])].every(({ version }) => Number.isSafeInteger(version) && version > 0)) {
     throw new RangeError("list's projection version must be a whole number above 0");
   }
   return filter;
@@ -63,6 +63,13 @@ export function fieldAt(fields: Record<string, unknown>, path: string): unknown 
 }
 
 /** Pick top-level fields, keeping an absent field absent (and a present null present). */
+/** The fields a projection keeps of a record on `version`, or undefined where it keeps the record whole. */
+export function projectedFields(projection: ListFilter["projection"], version: number): readonly string[] | undefined {
+  if (projection === undefined) return undefined;
+  if (projection.version === version) return projection.fields;
+  return projection.older?.find((older) => older.version === version)?.fields;
+}
+
 export function pickFields(fields: Record<string, unknown>, names: readonly string[]): Record<string, unknown> {
   return Object.fromEntries(names.filter((name) => Object.hasOwn(fields, name)).map((name) => [name, fields[name]]));
 }

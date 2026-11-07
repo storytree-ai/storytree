@@ -132,16 +132,18 @@ export class SchemaRecords {
   }
 
   /**
-   * A field selection, never a whole SchemaRecord. Current-version rows project on the server;
-   * older rows arrive whole, upgrade, then project, so no upgrade loses an input it needs.
-   * Filters, like list's, compare stored fields, before any upgrade.
+   * A field selection, never a whole SchemaRecord. Rows project on the server: a current-version
+   * row keeps the fields asked for, and an older one those beside every field its upgrade steps
+   * read, then upgrades and projects here, so no upgrade loses an input it needs. An older row
+   * whose steps do not all name what they read arrives whole. Filters, like list's, compare stored
+   * fields, before any upgrade.
    */
   async select<T extends RecordType, K extends keyof FieldsOf<T> & string>(
     type: T, fields: readonly K[], filter: Omit<ListFilter, "projection"> = {},
   ): Promise<(Omit<SchemaRecord<T>, "fields"> & { fields: Pick<FieldsOf<T>, K> })[]> {
     if (this.isDormant(type)) return [];
     if (!this.#isRecordType(type)) throw new UnknownTypeError(type);
-    const records = await this.#transactions.list(type, { ...filter, projection: { version: this.#version(type), fields } });
+    const records = await this.#transactions.list(type, { ...filter, projection: { version: this.#version(type), fields, older: this.#olderProjections(type, fields) } });
     return records.map((record) => {
       const current = this.current(record) as SchemaRecord<T>;
       return { ...current, fields: pickFields(current.fields, fields) as Pick<FieldsOf<T>, K> };
@@ -291,6 +293,22 @@ export class SchemaRecords {
   #shapeProblems(type: RecordType, fields: unknown): FieldProblem[] {
     const result = this.#schema.schemas[type]!.safeParse(fields);
     return result.success ? [] : result.error.issues.flatMap((issue) => describeIssue(issue, fields));
+  }
+
+  /**
+   * For each older version of `type` whose steps up to the current one all name what they read,
+   * the stored fields a selection of `fields` needs of a record on it: those, and every one read.
+   */
+  #olderProjections(type: RecordType, fields: readonly string[]): { version: number; fields: string[] }[] {
+    const older: { version: number; fields: string[] }[] = [];
+    const needed = new Set(fields);
+    for (let from = this.#version(type) - 1; from > 0; from--) {
+      const reads = this.#schema.upgrades.find((step) => step.type === type && step.from === from)?.reads;
+      if (reads === undefined) break;
+      for (const field of reads) needed.add(field);
+      older.push({ version: from, fields: [...needed] });
+    }
+    return older;
   }
 
   /** Whether `type` is a declared record type. Only the schema's own keys count, never inherited names. */

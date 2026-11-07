@@ -19,7 +19,7 @@ import { isDeepStrictEqual } from "node:util";
 import { z } from "zod";
 
 import { connect } from "../project/index.js";
-import { dropTestDatabases, testServerUrl, uniqueProjectName } from "../testing/pg.js";
+import { dropTestDatabases, testServerUrl, uniqueProjectName, withCountedProject } from "../testing/pg.js";
 import { MemoryTransactions, type RecordEnvelope, type Transactions } from "../transactions/index.js";
 import {
   MissingUpgradeError,
@@ -765,6 +765,39 @@ for (const backend of [memory, postgres]) {
   });
 }
 
+test("3.20 · a projected read of records stored on an older version of their type comes back as the same fields of them upgraded, and takes no more bytes than of the same records stored on the current one", async () => {
+  await withCountedProject(async ({ records, transactions }, received) => {
+    // The same increments, as each version of the type stores them, with a body no selection asks for.
+    const body = "b".repeat(4000);
+    const stored = { 1: { status: "ready", touches: ["capability_a", "story_b"] }, 2: { status: "active", touches: ["capability_a", "story_b"] }, 3: { status: "active", capabilities: ["capability_a"], links: ["story_b"] } };
+    for (const [version, fields] of Object.entries(stored)) {
+      for (let index = 0; index < 40; index++) {
+        await transactions.save({ id: `increment-v${version}-${String(index).padStart(2, "0")}`, type: "increment", version: Number(version), fields: { arc: "arc_1", title: "Work", body, ...fields } });
+      }
+    }
+    const fields = ["arc", "status", "capabilities", "links"] as const;
+    const measure = async (version: string) => {
+      const ids = Array.from({ length: 40 }, (_, index) => `increment-v${version}-${String(index).padStart(2, "0")}`);
+      const before = received();
+      const selected = await records.select("increment", fields, { ids });
+      const bytes = received() - before;
+      const upgraded = (await records.list("increment", { ids })).map((record) => ({ ...record, fields: pick(record.fields, fields) }));
+      assert.deepEqual(selected, upgraded, `version ${version}'s selection is its upgraded records' fields`);
+      return bytes;
+    };
+    await measure("3");
+    const current = await measure("3");
+    for (const version of ["1", "2"]) {
+      const bytes = await measure(version);
+      assert.ok(bytes <= current, `version ${version}'s records took ${bytes} bytes, the current version's ${current}`);
+    }
+  });
+});
+
+function pick(fields: Record<string, unknown>, names: readonly string[]): Record<string, unknown> {
+  return Object.fromEntries(names.filter((name) => Object.hasOwn(fields, name)).map((name) => [name, fields[name]]));
+}
+
 /** Tomorrow's schema: a story's `title` is renamed `name`, and its optional `description` becomes a required `summary`. */
 const STORY_V2: LibrarySchema = {
   versions: { ...SCHEMA_VERSIONS, story: 2 },
@@ -774,6 +807,7 @@ const STORY_V2: LibrarySchema = {
       type: "story",
       from: 1,
       name: "title-becomes-name",
+      reads: ["title", "description"],
       up: ({ title, description, ...rest }) => ({ ...rest, name: title, summary: description ?? "" }),
     },
   ],
@@ -784,7 +818,7 @@ const STORY_V3: LibrarySchema = {
   versions: { ...SCHEMA_VERSIONS, story: 3 },
   schemas: { ...RECORD_SCHEMAS, story: z.object({ name: z.string().min(1), about: z.string() }).strict() },
   upgrades: [
-    { type: "story", from: 2, name: "summary-becomes-about", up: ({ summary, ...rest }) => ({ ...rest, about: summary }) },
+    { type: "story", from: 2, name: "summary-becomes-about", reads: ["summary"], up: ({ summary, ...rest }) => ({ ...rest, about: summary }) },
     ...STORY_V2.upgrades,
   ],
 };

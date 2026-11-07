@@ -65,6 +65,7 @@ function upgradeStep(type: string, { from, name, rename = {}, remove = [], set =
     type,
     from,
     name,
+    reads: Object.keys(rename),
     up(fields) {
       const next: Record<string, unknown> = {};
       for (const [field, value] of Object.entries(fields)) next[Object.hasOwn(rename, field) ? rename[field]! : field] = value;

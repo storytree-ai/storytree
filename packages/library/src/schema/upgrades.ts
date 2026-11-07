@@ -17,6 +17,7 @@ export const UPGRADES: readonly UpgradeStep[] = [
     type: "arc",
     from: 1,
     name: "arc-intent-and-end-state",
+    reads: ["description", "title"],
     up: (fields) => ({
       ...fields,
       intent: typeof fields["description"] === "string" && fields["description"] !== "" ? fields["description"] : fields["title"],
@@ -29,6 +30,7 @@ export const UPGRADES: readonly UpgradeStep[] = [
     type: "decision",
     from: 1,
     name: "decision-status",
+    reads: [],
     up: (fields) => ({ ...fields, status: "accepted" }),
   },
   {
@@ -37,6 +39,7 @@ export const UPGRADES: readonly UpgradeStep[] = [
     type: "capability",
     from: 1,
     name: "capability-proposed",
+    reads: [],
     up: (fields) => ({ ...fields, proposed: true }),
   },
   {
@@ -46,6 +49,7 @@ export const UPGRADES: readonly UpgradeStep[] = [
     type: "increment",
     from: 1,
     name: "increment-ready-retired",
+    reads: ["status"],
     up: (fields) => (fields["status"] === "ready" ? { ...fields, status: "proposal" } : fields),
   },
   {
@@ -56,6 +60,7 @@ export const UPGRADES: readonly UpgradeStep[] = [
     type: "increment",
     from: 2,
     name: "increment-capabilities-list",
+    reads: ["touches", "links"],
     up: ({ touches, ...fields }) => {
       if (!Array.isArray(touches)) return fields;
       const named = touches.filter((id): id is string => typeof id === "string");
@@ -72,6 +77,7 @@ export const UPGRADES: readonly UpgradeStep[] = [
     type: "friction",
     from: 1,
     name: "friction-state",
+    reads: ["route", "dischargedBy"],
     up: (fields) => ({
       ...fields,
       state: typeof fields["route"] === "string"

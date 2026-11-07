@@ -144,11 +144,9 @@ export class PgTransactions implements Transactions {
     }
     let columns = RECORD_COLUMNS;
     if (filter.projection !== undefined) {
-      const version = bind(filter.projection.version);
-      const names = bind(filter.projection.fields);
-      columns = `id, type, version, CASE WHEN version = ${version} THEN
-        (SELECT coalesce(jsonb_object_agg(key, value), '{}'::jsonb) FROM jsonb_each(fields) WHERE key = ANY(${names}::text[]))
-        ELSE fields END AS fields, created_at, updated_at`;
+      const kept = [filter.projection, ...(filter.projection.older ?? [])].map(({ version, fields }) => `WHEN version = ${bind(version)} THEN
+        (SELECT coalesce(jsonb_object_agg(key, value), '{}'::jsonb) FROM jsonb_each(fields) WHERE key = ANY(${bind(fields)}::text[]))`);
+      columns = `id, type, version, CASE ${kept.join(" ")} ELSE fields END AS fields, created_at, updated_at`;
     }
     const limit = filter.limit === undefined ? "" : ` LIMIT ${bind(filter.limit)}`;
     // Every path, field name and value is bound; caller text never becomes SQL.

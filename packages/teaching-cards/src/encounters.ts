@@ -21,7 +21,7 @@ export interface Encounter { kind: Kind; target: Target }
 /** The little of the page's reading it reads (the library's AnnotatedTree, Change and Line fit it). */
 export interface MapReading {
   tree: { stories: readonly { id: string; capabilities: readonly { id: string; proposed: boolean }[] }[]; arcs: readonly { id: string }[] };
-  /** The project's history, oldest first. */
+  /** The project's history, oldest first, as the page holds it: only the fields the arc surface's held reading keeps. */
   changes: readonly { type: string; recordId: string; action: string; record: { fields: Record<string, unknown> } }[];
   /** The agent log's lines, oldest first. */
   lines: readonly { kind: string; capability?: string | undefined; increment?: string | undefined }[];

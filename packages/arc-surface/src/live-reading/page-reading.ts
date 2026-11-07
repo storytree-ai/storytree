@@ -224,9 +224,9 @@ export function pageReading({ project, reads, timers, kept }: PageReadingOptions
     const strangers = held.fold.strangers(lines);
     if (strangers.length === 0 || reads.sessionLines === undefined) return;
     const earlier = await reads.sessionLines(project, strangers);
-    const firstNew = new Map<string, number>();
-    for (const { session, seq } of lines) if (!firstNew.has(session)) firstNew.set(session, seq);
-    if (!stopped) held.fold.foldEarlier(earlier.filter(({ session, seq }) => seq < (firstNew.get(session) ?? Infinity)).map(heldLine));
+    // The news is every line after the cursor, so a stranger's earlier lines are those before the news, and the rest come in it.
+    const from = Math.min(...lines.map(({ seq }) => seq));
+    if (!stopped) held.fold.foldEarlier(earlier.filter(({ seq }) => seq < from).map(heldLine));
   }
 
   /** Hold `news`, keep what was held, and hand it on; `whole` is what surfaces hear. */

@@ -613,11 +613,15 @@ test("3.31 · news from a session the bounded start left out asks the log once f
   assert.deepEqual(reading.held().fold.sessions({ now: new Date(15 * 60_000) }).map(({ session }) => session), ["here"], "and nothing of the news is held");
 
   app.failingSessions = false;
+  // A line the session writes after the news was read, which the log hands out with its earlier ones: it waits for its own news.
+  const later = line(16, "back", "session-named", { title: "Renamed after" });
+  const sessionLines = app.sessionLines.bind(app);
+  app.sessionLines = async (project, sessions) => [...await sessionLines(project, sessions), later];
   app.asked.length = 0;
   await clock.advance(2_000);
   assert.deepEqual(app.asked, ["changes shop 0", "lines shop 12", "session lines shop back"], "the news is heard again at the next tick");
   const options = { now: new Date(15 * 60_000) };
-  assert.deepEqual(reading.held().fold.sessions(options), sessionsFrom([here, ...app.earlier, ...app.lines], options), "it reads as its whole history reads it");
+  assert.deepEqual(reading.held().fold.sessions(options), sessionsFrom([here, ...app.earlier, ...app.lines], options), "it reads as its whole history up to the news reads it");
 
   app.lines.push(line(15, "back", "turn-ended"));
   app.asked.length = 0;

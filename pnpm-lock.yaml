@@ -990,6 +990,9 @@ importers:
 
   packages/teaching-cards:
     devDependencies:
+      '@storytree/arc-surface':
+        specifier: workspace:*
+        version: link:../arc-surface
       '@storytree/test-waits':
         specifier: workspace:*
         version: link:../test-waits

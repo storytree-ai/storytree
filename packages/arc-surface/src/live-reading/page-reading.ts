@@ -50,11 +50,11 @@ const READ_ONE_BY_ONE: ReadonlySet<Line["kind"]> = new Set(["claimed", "released
 /**
  * The record fields a surface reads from the held history (other than health's): note cards' text and
  * links, a decision's status, a friction's state, a question's lifecycle, a capability's story, an
- * increment's status and outcome. Bodies, pending edits and an agent's workflow are never read from it,
+ * increment's status and outcome, and the arc an increment or question is on (the plan's teaching card). Bodies, pending edits and an agent's workflow are never read from it,
  * and were most of what a kept reading held (463 MB on the laptop, 2026-10-22).
  */
 const HELD_FIELDS = ["title", "term", "text", "statement", "meaning", "role", "description", "summary", "oneLine",
-  "links", "supersedes", "frontCoverOf", "status", "state", "lifecycle", "story", "outcome"] as const;
+  "links", "supersedes", "frontCoverOf", "status", "state", "lifecycle", "story", "outcome", "arc"] as const;
 
 /** `change` with only the fields a surface reads, an outcome only its disposition. */
 function thinned(change: Change): Change {
@@ -120,6 +120,16 @@ class Held implements News, LogReading {
     this.lines.push(...added.lines.filter(({ kind }) => READ_ONE_BY_ONE.has(kind)));
     return added;
   }
+}
+
+/**
+ * What a page reading holds once it has heard `news`: the thinning a surface's reading has on the page, so a surface's own
+ * test that hands it this, not the whole news, goes red when the surface reads a field or a line the page drops.
+ */
+export function heldReading(news: News): News & LogReading {
+  const held = new Held();
+  held.add(news);
+  return held;
 }
 
 /**

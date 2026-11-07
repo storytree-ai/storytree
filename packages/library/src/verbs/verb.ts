@@ -136,8 +136,11 @@ export interface Absent {
   readonly twin?: string;
 }
 
-/** Who calls a verb: an agent session, or a person at the command line or in the app (ADR-1045 D1). */
-export type Consumer = "agent" | "user";
+/**
+ * Who calls a verb: an agent session, a person at the command line or in the app (ADR-1045 D1), or the Mint box's
+ * pull-request watcher, which runs with no agent session (ADR-1280 D1).
+ */
+export type Consumer = "agent" | "user" | "watcher";
 
 export interface Verb<I extends VerbInputs = VerbInputs, C extends VerbPlace = VerbContext> {
   /** `storytree <family> <name>`, with its usage (after `storytree `) when its inputs cannot spell it, as grouped flags. */
@@ -190,6 +193,14 @@ export function verb<I extends VerbInputs, C extends VerbPlace = VerbContext>(de
 /** Who calls `declared`: its consumers as declared, else an agent alone for an `agentOnly` verb, else both. */
 export function consumersOf(declared: Pick<Verb, "agentOnly" | "consumers">): readonly Consumer[] {
   return declared.consumers ?? (declared.agentOnly === undefined ? ["agent", "user"] : ["agent"]);
+}
+
+/**
+ * Whether the doors' door-answered lines can judge a verb's use: only when an agent session is its one caller, since a
+ * person's own terminal and the watcher write no line (ADR-1045 D1, ADR-1280 D1).
+ */
+export function judgedByLines(consumers: readonly Consumer[]): boolean {
+  return consumers.every((consumer) => consumer === "agent");
 }
 
 /** Whether a door mounts the verb: a face that is not `Absent`. */

@@ -253,7 +253,7 @@ function prNumber(typed: string): number {
 }
 
 const holdForPr = verb({
-  consumers: ["agent"],
+  consumers: ["watcher"],
   command: {
     family: "workspace",
     name: "hold",
@@ -275,7 +275,7 @@ const holdForPr = verb({
 });
 
 const letGoOfPr = verb({
-  consumers: ["agent"],
+  consumers: ["watcher"],
   command: {
     family: "workspace",
     name: "let-go",
@@ -296,7 +296,7 @@ const letGoOfPr = verb({
 });
 
 const redPr = verb({
-  consumers: ["agent"],
+  consumers: ["watcher"],
   command: {
     family: "workspace",
     name: "red",
@@ -318,7 +318,7 @@ const redPr = verb({
 });
 
 const rerunCi = verb({
-  consumers: ["agent"],
+  consumers: ["watcher"],
   command: {
     family: "workspace",
     name: "rerun",
@@ -346,7 +346,7 @@ const rerunCi = verb({
 const QUEUE_OUTCOMES = ["real", "flake", "ahead", "unknown"] as const;
 
 const queueRed = verb({
-  consumers: ["agent"],
+  consumers: ["watcher"],
   command: {
     family: "workspace",
     name: "queue-red",

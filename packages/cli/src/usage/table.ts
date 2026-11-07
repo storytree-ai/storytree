@@ -1,7 +1,7 @@
 /**
  * Capability 15 · The printed table. A reading for a person in a terminal: the short window's numbers with the long window's beside
  * them, leading with what the owner asked to see first (every command and tool with its consumers and its use, one with
- * no call marked unused, or not judged when a person may call it (ADR-1045 D1), and the misses), then follows, the
+ * no call marked unused, or not judged when a person or the watcher may call it (ADR-1045 D1, ADR-1280 D1), and the misses), then follows, the
  * repoint hints each refused word offered and which were followed (ADR-1045 D3), failures, refusals, door share per step and the splits (ADR-0983 D2). The
  * same two readings as JSON, for a script that compares numbers rather than printed text.
  */
@@ -29,7 +29,7 @@ export function doorsTable(short: Reading, long: Reading): string {
   const heads = [`calls ${sd}d`, `sessions ${sd}d`, `calls ${ld}d`, `sessions ${ld}d`];
   section(out, "Commands", ["consumers", ...heads, ""], surface("command", true));
   section(out, "Tools", ["consumers", ...heads, ""], surface("tool", true));
-  out.push(`Unused: no call in ${ld} days. Not judged: a person may call it, and a person's own terminal writes no line.`);
+  out.push(`Unused: no call in ${ld} days. Not judged: a person may call it, and a person's own terminal writes no line; or the watcher may, and it runs with no agent session.`);
   section(out, "Answered by neither door's list (help, a family a word was refused in)", heads, [...surface("command", false), ...surface("tool", false)]);
 
   section(out, "Words refused as unknown", [`${sd}d`, `${ld}d`, "the refusal named"], long.misses.map((miss) => {

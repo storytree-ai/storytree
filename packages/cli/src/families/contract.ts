@@ -5,11 +5,14 @@
  * one's health (friction_896be858baa5), so `contract new` and `contract health` are pointed to the commands for those
  * jobs (./index.ts's POINTERS), and the family's help names both. `storytree contract list [<story|capability>]` lists
  * contracts under their capabilities, every story's or one story's or capability's, by id or title, since agents typed
- * it on their way to a story's contracts (friction_2d5163d338d3).
+ * it on their way to a story's contracts (friction_2d5163d338d3). Each verb refuses a flag it does not read before it
+ * opens the library, so a mistyped narrowing (`contract list --capability <id>`) is never answered with every contract
+ * (friction_3bb49532533f).
  */
 import type { HealthColumn } from "@storytree/library";
 
 import { Refusal } from "../answer.js";
+import type { Args } from "../args.js";
 import type { Family, Verb } from "../door.js";
 import { commandSession, person } from "../writer.js";
 import { healthOf } from "./tree.js";
@@ -19,6 +22,7 @@ const list: Verb = {
   usage: "contract list [<story|capability>]",
   summary: "contracts under their capabilities, with each one's reported and verified health",
   async act(args, context) {
+    reads(args, [], this.usage, "name the story or capability instead: storytree contract list <story|capability>");
     const named = args.words[0];
     const plan = await (await context.library()).projectTree();
     const matches = (part: { id: string; title: string }): boolean => named === undefined || part.id === named || part.title.toLowerCase() === named.toLowerCase();
@@ -40,6 +44,7 @@ const show: Verb = {
   usage: "contract show <contract>",
   summary: "one contract, its capability and description, with its reported and verified health",
   async act(args, context) {
+    reads(args, [], this.usage);
     const id = args.word(0, "the contract's id", this.usage);
     const library = await context.library();
     const contract = await library.get(id);
@@ -70,6 +75,7 @@ const report: Verb = {
   usage: "contract report <contract> --result red|green [--note <text|@file>]",
   summary: "record a contract's test red (written, and failing) or green (passing), as the report tool does",
   async act(args, context) {
+    reads(args, ["result", "note"], this.usage);
     const contract = args.word(0, "the contract's id", this.usage);
     const result = args.need("result", this.usage);
     if (result !== "red" && result !== "green") throw new Refusal(`--result is red or green, not "${result}"\nusage: storytree ${this.usage}`, { code: 2 });
@@ -80,6 +86,13 @@ const report: Verb = {
     return { text: answer.text, next: [{ command: `storytree contract show ${contract}`, why: "read its health back" }] };
   },
 };
+
+/** Refuse the first flag given that is not one of `taken`, naming it, then `instead` when there is one, then the usage. */
+function reads(args: Args, taken: readonly string[], usage: string, instead?: string): void {
+  const stray = args.names.find((name) => !taken.includes(name));
+  if (stray === undefined) return;
+  throw new Refusal([`--${stray} is not a flag storytree ${usage.split(" ").slice(0, 2).join(" ")} reads`, ...(instead === undefined ? [] : [instead]), `usage: storytree ${usage}`].join("\n"), { code: 2 });
+}
 
 /** One health column as a line: its state, then who wrote it, when and its note, each when it has one. */
 function said(column: HealthColumn): string {

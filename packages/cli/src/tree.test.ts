@@ -1,5 +1,5 @@
 /**
- * Capability 10 · Plan view: one test per contract 10.1-10.13 in the command line story, each running the
+ * Capability 10 · Plan view: one test per contract 10.1-10.14 in the command line story, each running the
  * real, built `storytree` command.
  */
 import assert from "node:assert/strict";
@@ -357,5 +357,32 @@ test("10.12 `storytree contract report <contract> --result red|green [--note <te
 
     const help = await world.run(["contract", "--help"]);
     assert.match(help.stdout + help.stderr, /contract report <contract> --result red\|green/);
+  });
+});
+
+test("10.14 each `storytree contract` command refuses a flag it does not read, exit 2, naming the flag and its usage, and lists or writes nothing; `contract list` names the positional <story|capability> as the way to narrow", async () => {
+  await inWorld(command, async (world) => {
+    const library = await world.library();
+    const story = await library.addStory({ title: "Visitor can sign up" });
+    const capability = await library.addCapability({ title: "4 · Email form", story: story.id });
+    const contract = await library.addContract({ title: "4.1 · Rejects an email with no @", capability: capability.id });
+
+    const listed = await world.run(["contract", "list", "--capability", capability.id]);
+    assert.equal(listed.code, 2, listed.stderr);
+    assert.match(listed.stderr, /--capability/);
+    assert.match(listed.stderr, /storytree contract list <story\|capability>/);
+    assert.ok(!listed.stdout.includes(contract.id), listed.stdout);
+
+    for (const [args, flag, usage] of [
+      [["contract", "show", contract.id, "--verbose", "yes"], /--verbose/, /usage: storytree contract show <contract>/],
+      [["contract", "report", contract.id, "--result", "green", "--reason", "ran it"], /--reason/, /usage: storytree contract report <contract> --result red\|green/],
+    ] as const) {
+      const refused = await world.run(args);
+      assert.equal(refused.code, 2, `${args.join(" ")}: ${refused.stdout}${refused.stderr}`);
+      assert.match(refused.stderr, flag);
+      assert.match(refused.stderr, usage);
+      assert.equal(refused.stdout, "", refused.stdout);
+    }
+    assert.equal((await library.healthHistory(contract.id)).length, 0, "a refused report writes nothing");
   });
 });

@@ -7,8 +7,9 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import type { Change, Changes, Line, LinesSince } from "@storytree/library";
-import { claimsFrom, sessionsFrom, type LogFoldSnapshot } from "@storytree/session-management/readings";
+import type { Change, Changes, ChangesFilter, Line, LineKind, LinesSince } from "@storytree/library";
+import type { LinesStart } from "@storytree/session-management";
+import { claimsFrom, LogFold, sessionsFrom, type LogFoldSnapshot } from "@storytree/session-management/readings";
 
 import { liveReading, type LiveReads, type News, type Timers } from "./live-reading.js";
 import { joinedReads, pageReading, type Keeping, type KeptReading } from "./page-reading.js";
@@ -427,5 +428,72 @@ test("a kept reading the library does not know is dropped, and the page reads fr
   assert.deepEqual(app.asked, ["changes shop 1", "lines shop 0", "changes shop 0", "lines shop 0"]);
   assert.deepEqual(heard.map(({ changes }) => changes.map(({ recordId }) => recordId)), [["story_1", "story_2"]]);
   assert.deepEqual((await kept.read())?.changes.map(({ recordId }) => recordId), ["story_1", "story_2"]);
+  reading.stop();
+});
+
+/** The app's reads with the bounded start (Agent activity log 2.16): a stand-in that hands out the start it is given. */
+class StartingApp extends App {
+  given: LinesStart = { lines: [], sessions: [], claims: [], cursor: 0 };
+  override async changesSince(project: string, cursor: number, filter?: ChangesFilter): Promise<Changes> {
+    if (filter === undefined) return super.changesSince(project, cursor);
+    this.asked.push(`changes ${project} ${cursor} only ${filter.fields?.length ?? "every"} fields, health ${filter.healthColumns?.join(",") ?? "whole"}`);
+    const changes = this.changes.filter(({ seq, type, record }) => seq > cursor && (type !== "health" || filter.healthColumns?.includes(record.fields.column as string) !== false));
+    return { changes, cursor: this.changes.at(-1)?.seq ?? cursor };
+  }
+  async linesStart(project: string, kinds: readonly LineKind[]): Promise<LinesStart> {
+    this.asked.push(`start ${project} ${[...kinds].sort().join(",")}`);
+    return this.given;
+  }
+}
+
+test("3.29 a first start with no kept reading asks for the thinned changes and the log's bounded start, never every line from 0; it holds the sessions and claims folded from them, keeps them, and asks on from the start's cursors", async () => {
+  const app = new StartingApp();
+  const at = new Date(0).toISOString();
+  const line = (seq: number, session: string, kind: string, more: Record<string, unknown> = {}) => ({ seq, session, source: "hook", project: "shop", at, kind, ...more }) as Line;
+  app.story("Visitor signs up");
+  app.changes.push({ seq: 2, recordId: "health_1", type: "health", action: "created", record: { id: "health_1", type: "health", version: 1, fields: { node: "contract_1", column: "verified", state: "passing" }, createdAt: at, updatedAt: at } });
+  const claim = line(3, "s1", "claimed", { capability: "cap_a", reason: "building it" });
+  const read = line(7, "s2", "note-read", { note: "principle_1", found: "id", read: "whole" });
+  app.given = {
+    lines: [claim, read],
+    sessions: [line(1, "s1", "session-started"), claim, line(9, "s1", "prompt-submitted")],
+    claims: [claim],
+    cursor: 12,
+  };
+  const kept = new KeptStandIn();
+  const clock = new Clock();
+  const reading = pageReading({ project: "shop", reads: app, timers: clock, kept });
+  const heard: News[] = [];
+  reading.subscribe({ onNews: (news) => heard.push(news) });
+  await settle();
+
+  assert.deepEqual(app.asked, ["changes shop 0 only 19 fields, health reported", "start shop claimed,closed,landed,merged,note-read,released,subagent-ended,subagent-started"], "never every line from 0");
+  const held = reading.held();
+  const options = { now: new Date(0) };
+  const bounded = LogFold.fromBounded(app.given.sessions, app.given.claims);
+  assert.deepEqual(held.fold.sessions(options), bounded.sessions(options), "the sessions folded from the start");
+  assert.deepEqual(held.fold.claims(options), claimsFrom(app.given.claims, options), "and the claims standing");
+  assert.deepEqual(held.lines.map(({ seq }) => seq), [3, 7], "the lines a surface reads one by one");
+  assert.deepEqual(held.changes.map(({ seq }) => seq), [1], "the changes a surface reads");
+  assert.deepEqual(heard.map(({ changes, lines }) => [changes.length, lines.length]), [[1, 2]], "the surfaces hear what is held");
+
+  const keeping = await kept.read();
+  assert.deepEqual(keeping?.lines.map(({ seq }) => seq), [3, 7], "the start is kept for the next");
+  assert.deepEqual(LogFold.fromSnapshot(keeping!.fold!).sessions(options), bounded.sessions(options), "with its fold");
+  assert.equal(keeping?.last?.seq, 9, "and the last line it folded");
+
+  app.asked.length = 0;
+  await clock.advance(2_000);
+  assert.deepEqual(app.asked, ["changes shop 2", "lines shop 12"], "it asks on from the start's cursors");
+  reading.stop();
+});
+
+test("3.29 a host without the bounded start is read whole from 0, as before", async () => {
+  const app = new App();
+  app.claim("cap_a");
+  const reading = pageReading({ project: "shop", reads: app, timers: new Clock() });
+  reading.subscribe({ onNews: () => {} });
+  await settle();
+  assert.deepEqual(app.asked, ["changes shop 0", "lines shop 0"]);
   reading.stop();
 });

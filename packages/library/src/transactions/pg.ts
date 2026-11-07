@@ -236,8 +236,15 @@ export class PgTransactions implements Transactions {
     if (filter.from !== undefined) narrow((param) => `at >= ${param}::timestamptz`, filter.from);
     if (filter.types !== undefined) narrow((param) => `type = ANY(${param}::text[])`, filter.types);
     if (filter.actions !== undefined) narrow((param) => `action = ANY(${param}::text[])`, filter.actions);
+    if (filter.upTo !== undefined) narrow((param) => `seq <= ${param}`, filter.upTo);
+    if (filter.healthColumns !== undefined) narrow((param) => `(type <> 'health' OR record->'fields'->>'column' = ANY(${param}::text[]))`, filter.healthColumns);
     const where = conditions.length === 0 ? "" : `WHERE ${conditions.join(" AND ")}`;
-    const columns = eventColumns(await this.#marksIt());
+    let columns = eventColumns(await this.#marksIt());
+    if (filter.fields !== undefined) {
+      params.push(filter.fields);
+      // Only the fields asked leave the server: the record is sent with its fields narrowed.
+      columns = columns.replace(", record,", `, jsonb_set(record, '{fields}', coalesce((SELECT jsonb_object_agg(key, value) FROM jsonb_each(record->'fields') WHERE key = ANY($${params.length}::text[])), '{}'::jsonb)) AS record,`);
+    }
     // Only the changes kept leave the server: a limit is applied there, the newest read backwards and turned round.
     if (filter.oldest !== undefined) params.push(filter.oldest);
     if (filter.newest !== undefined) params.push(filter.newest);

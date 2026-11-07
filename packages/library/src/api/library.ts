@@ -338,6 +338,13 @@ export interface Change {
 export interface ChangesFilter {
   readonly types?: readonly string[];
   readonly actions?: readonly HistoryEntry["action"][];
+  /** Keep only these fields of each change's record: the rest never leave the server. */
+  readonly fields?: readonly string[];
+  /**
+   * Of health records, only the changes to these columns (reported, verified). The cursor is then the latest change the read
+   * went past, kept or not, so the next read does not ask again for what it skipped.
+   */
+  readonly healthColumns?: readonly string[];
 }
 
 /** What changesSince returns. */
@@ -472,17 +479,25 @@ function libraryOf(project: Project): Library {
      * history's seq order is the order its changes committed (capability 2), so a reader passing
      * back each cursor it is handed never misses a change or sees one twice.
      */
-    async changesSince(cursor, { types, actions } = {}) {
+    async changesSince(cursor, { types, actions, fields, healthColumns } = {}) {
       if (!Number.isSafeInteger(cursor) || cursor < 0) {
         throw new RangeError(
           `changesSince takes a cursor: 0 to read from the start, or a cursor an earlier call handed back ` +
             `(a whole number, 0 or more), not ${typeof cursor === "string" ? JSON.stringify(cursor) : String(cursor)}`,
         );
       }
-      const entries = await project.records.history({ since: cursor, ...(types === undefined ? {} : { types }), ...(actions === undefined ? {} : { actions }) });
+      // Skipping a column's changes, the read goes on from the latest change there was as it began, kept or not.
+      const upTo = healthColumns === undefined ? undefined : (await project.records.history({ since: cursor, newest: 1, fields: [] })).at(-1)?.seq ?? cursor;
+      const entries = await project.records.history({
+        since: cursor,
+        ...(types === undefined ? {} : { types }),
+        ...(actions === undefined ? {} : { actions }),
+        ...(fields === undefined ? {} : { fields }),
+        ...(healthColumns === undefined ? {} : { healthColumns, upTo: upTo! }),
+      });
       return {
         changes: entries.map(({ seq, recordId, type, action, record }) => ({ seq, recordId, type, action, record })),
-        cursor: entries.at(-1)?.seq ?? cursor,
+        cursor: upTo ?? entries.at(-1)?.seq ?? cursor,
       };
     },
     /**

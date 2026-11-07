@@ -2,7 +2,7 @@
 // (the Session management story). It reaches the library only through the library's public API. The MCP server's wrapper calls
 // what it exports to name a call's session, record the call and end merged claims (ADR-0969 D1).
 export { ACTIVITY_DATABASE, cachedLines, currentBranch, forgetProjectActivity, fullLineText, lineText, openActivityLog, thisMachine } from "./activity/index.js";
-export type { ActivityLog, LinesCache, LockedLog, OpenOptions } from "./activity/index.js";
+export type { ActivityLog, LinesCache, LinesStart, LockedLog, OpenOptions } from "./activity/index.js";
 export { closeOut, labelOf, nameRefusal, nameSession, SESSION_NAME_LIMIT, lookAsApp, projectFolder, QUIET_MS, readSessions, sessionsFrom, sessionsListing } from "./sessions/index.js";
 export type { CloseOut, CloseOutContext, Session, SessionOptions, SessionState } from "./sessions/index.js";
 export { allowCommand, allowIncrement, attachWorkspace, attributeFrom, boardClaims, claim, claimAll, claimFrom, claimsFrom, closed, land, makeWorkspace, presentersOf, presentQuestion, readAttribution, readClaim, readClaims, release, releaseAsked, releaseFor, staleClaims, stopPresenting, claimRefusal, claimsGuidance, endMergedClaims, increments } from "./claims/index.js";

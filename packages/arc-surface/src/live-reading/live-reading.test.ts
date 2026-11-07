@@ -580,3 +580,48 @@ test("3.29 a reading stopped while its first start is on its way holds, keeps an
   await clock.advance(2_000);
   assert.deepEqual(app.asked, [], "and nothing is asked after it");
 });
+
+/** The app's reads with the bounded start and the lines that decide the sessions asked: a stand-in that hands out the log's whole lines of each. */
+class ReturningApp extends StartingApp {
+  earlier: Line[] = [];
+  failingSessions = false;
+  async sessionLines(project: string, sessions: readonly string[]): Promise<Line[]> {
+    this.asked.push(`session lines ${project} ${sessions.join(",")}`);
+    if (this.failingSessions) throw new Error("the app did not answer");
+    return [...this.earlier, ...this.lines].filter(({ session }) => sessions.includes(session));
+  }
+}
+
+test("3.31 · news from a session the bounded start left out asks the log once for the lines that decide it and folds them first, so it shows its name, first folder and start; a failed ask is reported and the news heard again at the next tick", async () => {
+  const app = new ReturningApp();
+  const line = (seq: number, session: string, kind: string, more: Record<string, unknown> = {}) => ({ seq, session, source: "hook", project: "shop", at: new Date(seq * 60_000).toISOString(), kind, ...more }) as Line;
+  const here = line(1, "here", "session-started", { folder: "/here" });
+  app.earlier = [line(2, "back", "session-started", { folder: "/back" }), line(3, "back", "session-named", { title: "Fix the rail" })];
+  app.given = { lines: [], sessions: [here], claims: [], cursor: 12 };
+  const clock = new Clock();
+  const errors: unknown[] = [];
+  const reading = pageReading({ project: "shop", reads: app, timers: clock });
+  reading.subscribe({ onNews: () => {}, onError: (error) => errors.push(error) });
+  await settle();
+
+  app.lines.push(line(13, "back", "prompt-submitted", { folder: "/back/.wt/x" }), line(14, "here", "prompt-submitted"));
+  app.failingSessions = true;
+  app.asked.length = 0;
+  await clock.advance(2_000);
+  assert.deepEqual(app.asked, ["changes shop 0", "lines shop 12", "session lines shop back"], "only the session it never folded is asked for");
+  assert.equal(errors.length, 1, "a failed ask is reported");
+  assert.deepEqual(reading.held().fold.sessions({ now: new Date(15 * 60_000) }).map(({ session }) => session), ["here"], "and nothing of the news is held");
+
+  app.failingSessions = false;
+  app.asked.length = 0;
+  await clock.advance(2_000);
+  assert.deepEqual(app.asked, ["changes shop 0", "lines shop 12", "session lines shop back"], "the news is heard again at the next tick");
+  const options = { now: new Date(15 * 60_000) };
+  assert.deepEqual(reading.held().fold.sessions(options), sessionsFrom([here, ...app.earlier, ...app.lines], options), "it reads as its whole history reads it");
+
+  app.lines.push(line(15, "back", "turn-ended"));
+  app.asked.length = 0;
+  await clock.advance(2_000);
+  assert.deepEqual(app.asked, ["changes shop 0", "lines shop 14"], "a session it has folded is not asked for again");
+  reading.stop();
+});

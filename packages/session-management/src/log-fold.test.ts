@@ -141,3 +141,29 @@ test("4.40 · a burst of lines from one session judges only that session again: 
   assert.deepEqual(after.map((one, i) => one === before[i]), before.map((one) => one.session !== busy), "only the busy session judged again");
   assert.deepEqual(after, sessionsFrom([...lines, ...[1, 2, 3].map((n) => ({ seq: last.seq + n, project: "p", at, session: busy, source: "hook", kind: "file-edited", files: ["/work/y.ts"] }) as Line)], options));
 });
+
+test("4.46 · a fold names the sessions with a line of their own it has never folded, and folds such a session's earlier lines as what they say of it alone: it reads as the whole history reads it, and the claims and branches the fold holds stand", () => {
+  const at = (minutes: number) => new Date(START + minutes * 60_000).toISOString();
+  const line = (seq: number, session: string, kind: string, more: Record<string, unknown> = {}) => ({ seq, project: "p", at: at(seq), session, source: "hook", kind, ...more }) as Line;
+  const here = line(2, "here", "session-started", { folder: "/here" });
+  const earlier = [line(1, "back", "session-started", { folder: "/back", machine: "mint" }), line(3, "back", "session-named", { title: "Fix the rail" }),
+    line(4, "back", "claimed", { capability: "cap-1", reason: "mine" }), line(5, "back", "branch-state", { of: "feat/a", open: true, how: "ahead" })];
+  const between = [line(6, "back", "released", { capability: "cap-1" }), line(7, "watch", "branch-state", { of: "feat/a", open: false, how: "merged" }), line(8, "here", "prompt-submitted")];
+  // A bounded start of the log: the session in view and the line about feat/a, with the standing claims (none).
+  const fold = LogFold.fromBounded([here, between[1]!, between[2]!], []);
+  const news = [line(9, "back", "prompt-submitted", { folder: "/back/.wt/x" }), line(10, "watch", "branch-state", { of: "feat/b", open: true, how: "ahead" }), line(11, "pull-request-12", "claimed", { capability: "cap-2", reason: "landing" })];
+
+  assert.deepEqual(fold.strangers(news), ["back"], "a session it never folded, not one that writes only of others, nor a pull request's holder");
+  fold.foldEarlier(earlier);
+  fold.add(news);
+  assert.deepEqual(fold.strangers(news), [], "folded, it is a stranger no more");
+
+  const whole = [...earlier, here, ...between, ...news].sort((a, b) => a.seq - b.seq);
+  const options = { now: new Date(Date.parse(at(12))) };
+  assert.deepEqual(fold.sessions(options), sessionsFrom(whole, options), "its name, first folder and start, in the order they started");
+  assert.deepEqual(fold.claims(options), claimsFrom(whole, options), "its released claim is not taken again");
+  assert.deepEqual(fold.machines(), (() => { const all = new LogFold(); all.add(whole); return all.machines(); })(), "and its machine");
+  assert.deepEqual(fold.snapshot().branchStates.find(([branch]) => branch === "feat/a")?.[1].open, false, "and a branch's later state stands");
+  fold.foldEarlier([line(2, "here", "session-named", { title: "Renamed" })]);
+  assert.equal(fold.sessions(options).find(({ session }) => session === "here")?.name, undefined, "a session it already knows is left as it is");
+});

@@ -76,6 +76,12 @@ export interface ActivityLog {
    * the standing claims' lines, and the cursor to ask from next, the log's latest line's, with no line after it.
    */
   start(project: string, options: StartOptions): Promise<LinesStart>;
+  /**
+   * The lines that decide each of `sessions` (contract 2.17), as a page's start reads them for the sessions in view: for a
+   * session a page's start left out that has written again since. A command started before a finished one could run, from
+   * `now` (by default, now), is sent without its text.
+   */
+  sessionLines(project: string, sessions: readonly string[], options?: { now?: Date }): Promise<Line[]>;
   /** `project`'s lines that `filter` asks for, oldest first, narrowed on the server (contract 2.7). */
   lines(project: string, filter: LineFilter): Promise<Line[]>;
   /** The claim lines that decide who holds what in `project` now: ended claims send nothing (bounded.ts STANDING_CLAIMS). */
@@ -348,8 +354,12 @@ class PgActivityLog implements ActivityLog {
     const upTo = (lines: readonly Line[]) => lines.filter((line) => line.seq <= cursor);
     const [lines, claims] = await Promise.all([this.lines(project, { kinds }), this.standing(project)]);
     const inView = await this.sessionsInView(project, new Date(now.getTime() - Math.max(leaveMs, LONGEST_COMMAND_MS)).toISOString());
-    const sessions = await this.foldLines(project, [...new Set([...inView, ...holdersOf(claims)])], new Date(now.getTime() - LONGEST_COMMAND_MS - 60_000).toISOString());
+    const sessions = await this.sessionLines(project, [...new Set([...inView, ...holdersOf(claims)])], { now });
     return { lines: upTo(lines), sessions: upTo(sessions), claims: upTo(claims), cursor };
+  }
+
+  async sessionLines(project: string, sessions: readonly string[], { now = new Date() }: { now?: Date } = {}): Promise<Line[]> {
+    return this.foldLines(project, sessions, new Date(now.getTime() - LONGEST_COMMAND_MS - 60_000).toISOString());
   }
 
   async lines(project: string, filter: LineFilter): Promise<Line[]> {

@@ -12,7 +12,8 @@
  * - With nothing kept, it starts bounded (3.29): the library's changes thinned on the server to what it holds, and the
  *   log's start (Agent activity log 2.16), its lines read one by one and the lines that decide the sessions in view and the
  *   claims, never every line since the project began (693,145 lines, 455 MB for storytree's own, 2026-11-07). A host
- *   without that start is read from 0.
+ *   without that start is read from 0. News from a session the fold has never seen (one out of view at that start, back
+ *   since) first asks the log for the lines that decide that session alone, and folds them before the news (3.31).
  * - Given a kept reading (the page's storage, ADR-0836 D4), it keeps what it holds there, a piece at
  *   a time, with the log's fold as it last stood rather than every line folded into it, and the next
  *   start hears the kept reading at once and asks the library only from where it got to. The first ask overlaps the kept reading by one change and one line, so a kept reading
@@ -218,9 +219,20 @@ export function pageReading({ project, reads, timers, kept }: PageReadingOptions
     }
   }
 
+  /** Fold first the lines that decide each session `lines` bring that the fold has never seen, before the lines themselves. */
+  async function catchUp(lines: readonly Line[]): Promise<void> {
+    const strangers = held.fold.strangers(lines);
+    if (strangers.length === 0 || reads.sessionLines === undefined) return;
+    const earlier = await reads.sessionLines(project, strangers);
+    const firstNew = new Map<string, number>();
+    for (const { session, seq } of lines) if (!firstNew.has(session)) firstNew.set(session, seq);
+    if (!stopped) held.fold.foldEarlier(earlier.filter(({ session, seq }) => seq < (firstNew.get(session) ?? Infinity)).map(heldLine));
+  }
+
   /** Hold `news`, keep what was held, and hand it on; `whole` is what surfaces hear. */
   async function heard(news: News, whole: News = news): Promise<void> {
     if (read && whole.changes.length === 0 && whole.lines.length === 0) return;
+    await catchUp(news.lines);
     const added = held.add(news);
     read = true;
     if (kept !== undefined && (added.changes.length > 0 || added.lines.length > 0)) {

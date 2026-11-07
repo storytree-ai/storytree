@@ -4,7 +4,7 @@
  * the app answers (reads.ts). Data only: safe for the page and preload.
  */
 import type { ContextReading, LinesStart, SessionWindow } from "@storytree/session-management";
-import type { AnnotatedTree, ArcView, BoardArcView, Changes, ChangesFilter, DayWindow, Holds, LineKind, LinesSince, Note, PrCutover, SchemaRecord } from "@storytree/library";
+import type { AnnotatedTree, ArcView, BoardArcView, Changes, ChangesFilter, DayWindow, Holds, Line, LineKind, LinesSince, Note, PrCutover, SchemaRecord } from "@storytree/library";
 
 import type { SurfaceReading } from "./switches.js";
 
@@ -41,6 +41,8 @@ export interface PageReadsBridge {
   linesSince(name: string, cursor: number): Promise<LinesSince>;
   /** A page's bounded start of the agent activity log for a project (Agent activity log 2.16): every line of `kinds`, the sessions in view and the claims; a host without it is read from 0. */
   linesStart?(name: string, kinds: readonly LineKind[]): Promise<LinesStart>;
+  /** The lines that decide each of `sessions` in a project's log (Agent activity log 2.17), for sessions a bounded start left out; a host without it leaves them to their new lines. */
+  sessionLines?(name: string, sessions: readonly string[]): Promise<Line[]>;
   /** The system records a product project reads from its factory and holds none of its own for (library 1.19), in id order; none for a project with no factory. */
   inherited(name: string): Promise<SchemaRecord[]>;
   /** A story's or capability's shelf of front covers, founding book first. */
@@ -69,6 +71,7 @@ export const PAGE_READS_CHANNELS = {
   changesSince: "storytree:changes-since",
   linesSince: "storytree:lines-since",
   linesStart: "storytree:lines-start",
+  sessionLines: "storytree:session-lines",
   inherited: "storytree:inherited",
   frontCovers: "storytree:front-covers",
   relatedNotes: "storytree:related-notes",

@@ -5,12 +5,12 @@
  * PoolFactory makes.
  */
 import { hostname } from "node:os";
-import { basename } from "node:path";
 
 import pg from "pg";
 import type { Pool, PoolClient, PoolConfig } from "pg";
 
 import { ConnectionError, sqlState } from "./connection-error.js";
+import { countReads, lastWordsOf, processReaderName } from "./reads.js";
 
 /**
  * Makes a connection pool for one database on the server; with `role`, every connection in it acts
@@ -209,30 +209,37 @@ export const IDLE_IN_TRANSACTION_MS = 10_000;
 /**
  * A pool for `config`, whose connections wait for a free slot on the server rather than fail for
  * want of one, each name the machine and process holding it unless `config` names them, and each
- * is ended by the server when left idle in a transaction (IDLE_IN_TRANSACTION_MS).
+ * is ended by the server when left idle in a transaction (IDLE_IN_TRANSACTION_MS), and counts what it receives
+ * against the reader that asked (reads.ts, contract 28.12).
  */
 export function newPool(config: WaitingPoolConfig, base: typeof pg.Pool = pg.Pool): Pool {
-  const pool = new (slotWaiting(base))({ application_name: CLIENT_NAME, idle_in_transaction_session_timeout: IDLE_IN_TRANSACTION_MS, ...config });
+  const pool = new (slotWaiting(base))({ application_name: clientName(), idle_in_transaction_session_timeout: IDLE_IN_TRANSACTION_MS, ...config });
   // An idle connection that drops (a server restart, a dropped database) is discarded by the pool
   // and the next query reconnects or fails loudly. Without a listener Node would crash instead.
   pool.on("error", () => {});
   // So is one a caller holds between queries, which the pool stops listening to while it is out:
   // the holder's next query fails instead.
-  pool.on("connect", (client) => client.on("error", () => {}));
+  pool.on("connect", (client) => {
+    client.on("error", () => {});
+    countReads(client);
+  });
   return pool;
 }
 
 /**
  * What each connection is called on the server (Postgres's application_name): storytree, the
- * machine, the process id and the script it runs, so a server whose slots run out shows who holds
- * them (pg_stat_activity). Nothing secret; letters, digits, dots, dashes and underscores only, and
- * cut to the 63 characters Postgres keeps.
+ * machine, the process id and the process's reader (the command it runs, `arc show`, or else its
+ * script: reads.ts), so a server whose slots run out shows who holds them (pg_stat_activity).
+ * Nothing secret; letters, digits, dots, dashes and underscores only, and spaces between a
+ * reader's words, cut to the 63 characters Postgres keeps.
  */
-const CLIENT_NAME = ["storytree", hostname(), String(process.pid), basename(process.argv[1] ?? "")]
-  .map((part, i) => part.replace(/[^\w.-]/g, "").slice(0, i === 1 ? 24 : 32))
-  .filter(Boolean)
-  .join(" ")
-  .slice(0, 63);
+function clientName(): string {
+  const reader = processReaderName().replace(/[^\w. -]/g, "").replace(/ +/g, " ").trim().slice(0, 32);
+  return ["storytree", hostname().replace(/[^\w.-]/g, "").slice(0, 24), String(process.pid), reader]
+    .filter(Boolean)
+    .join(" ")
+    .slice(0, 63);
+}
 
 type ConnectCallback = (error: Error | undefined, client: PoolClient | undefined, done: (release?: unknown) => void) => void;
 
@@ -261,6 +268,16 @@ function slotWaitingPool(base: typeof pg.Pool): typeof pg.Pool {
         (client) => callback(undefined, client, (release) => client.release(release as Error | boolean | undefined)),
         (error: Error) => callback(error, undefined, () => {}),
       );
+    }
+
+    /** Run what the pool was given to run last (reads.ts atEnd), then end it. */
+    override end(): Promise<void>;
+    override end(callback: () => void): void;
+    override end(callback?: () => void): Promise<void> | void {
+      const last = lastWordsOf(this);
+      const ended = (last === undefined ? Promise.resolve() : last().then(() => {}, () => {})).then(() => super.end());
+      if (callback === undefined) return ended;
+      ended.then(() => callback(), () => callback());
     }
 
     /** When this pool last said it waits for a slot: it says so again only once that wait would have ended. */

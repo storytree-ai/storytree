@@ -1,9 +1,10 @@
 /**
- * Capability 1 · Front door: one test per contract 1.1-1.5, 1.15, 1.17-1.19, 1.21, 1.33, 1.35, 1.36 and 1.45 in the command line story, each running the
+ * Capability 1 · Front door: one test per contract 1.1-1.5, 1.15, 1.17-1.19, 1.21, 1.33, 1.35, 1.36, 1.45 and 1.48 in the command line story, each running the
  * real, built `storytree` command in a throwaway folder and storytree home.
  */
 import assert from "node:assert/strict";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { hostname } from "node:os";
 import path from "node:path";
 import { after, before, test } from "node:test";
 
@@ -252,6 +253,26 @@ test("1.17 every answer is recorded on the calling session as a door-answered li
         { door: "command", verb: "storytree", outcome: "unknown", word: "questoin", named: undefined, next: ["storytree question"] },
         { door: "command", verb: "storytree plan", outcome: "unknown", word: "story", named: "storytree library new", next: ["storytree library new"] },
       ]);
+    } finally {
+      await log.close();
+    }
+  });
+});
+
+test("1.48 what a command reads from the library is counted as that command's, from a person's terminal too, and recorded beside the log in its machine's total for the day", async () => {
+  await inWorld(command, async (world) => {
+    await (await world.library()).defineTerm({ term: "Mailer", meaning: "Sends the sign-up email" });
+    const machine = hostname().trim();
+    const today = new Date().toISOString().slice(0, 10);
+    const log = await openActivityLog(testServerUrl());
+    try {
+      const searched = async () => (await log.reads.day(today)).find((row) => row.machine === machine && row.reader === "library search")?.bytes ?? 0;
+      const before = await searched();
+
+      const ran = await world.run(["library", "search", "Mailer"]);
+
+      assert.equal(ran.code, 0, ran.stderr);
+      assert.ok((await searched()) > before, "the search's bytes are recorded as library search's");
     } finally {
       await log.close();
     }

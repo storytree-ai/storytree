@@ -1,6 +1,6 @@
 /**
  * Capability 4 · Sessions. The session verbs, declared once (ADR-0969 D2): name a session, point the owner's eye (4.43), close it out, and list the
- * sessions, and read how long the hooks took. The command line and the MCP server each mount them; listing the sessions
+ * sessions, read how long the hooks took, and what the library sent each reader. The command line and the MCP server each mount them; listing the sessions
  * and the hook times have no tool, and say why.
  * Machines' verbs are mounted from here too (MACHINE_VERBS), as this is the verbs' one entry. SESSION_FAMILIES, which the
  * package's manifest names under `verbs` (ADR-1033), gives the command line them as its `session` and `machine` families,
@@ -123,13 +123,32 @@ const hookTimes = verb({
   },
 });
 
+const reads = verb({
+  command: { family: "session", name: "reads", summary: "what the library sent each reader on a day (today, UTC, unless --day), by machine (every one unless --machine), the most first" },
+  tool: { absent: "how much each reader pulls from the library is the owner's and the developers' reading of its load, not an agent's step" },
+  inputs: {
+    day: { kind: "text", optional: true, describe: "the UTC day, YYYY-MM-DD; today unless given" },
+    machine: { kind: "text", optional: true, describe: "one machine's host name; every machine unless given" },
+    json: { kind: "switch", describe: "as JSON" },
+  },
+  async act({ day, machine, json }, { log }: SessionVerbContext) {
+    const { libraryReads } = await import("./library-reads.js");
+    try {
+      return { text: await libraryReads(log, { json, ...(day === undefined ? {} : { day }), ...(machine === undefined ? {} : { machine }) }) };
+    } catch (error) {
+      if (error instanceof RangeError) throw new VerbRefusal(error.message, { misuse: true });
+      throw error;
+    }
+  },
+});
+
 /** The session verbs, in the order the command line lists them. */
-export const SESSION_VERBS: readonly Verb<VerbInputs, SessionVerbContext>[] = [list, name, point, closeOut, hookTimes];
+export const SESSION_VERBS: readonly Verb<VerbInputs, SessionVerbContext>[] = [list, name, point, closeOut, hookTimes, reads];
 
 /** The command line's families of these verbs, each at its place among `storytree`'s families. */
 export const SESSION_FAMILIES: readonly VerbFamily<SessionVerbContext>[] = [
   { name: "noticeboard", summary: "who is on what right now (read only)", order: 5, verbs: NOTICEBOARD_VERBS, bare: NOTICEBOARD_BOARD },
   { name: "context", summary: "how full this session's context is (Session management's)", order: 31, verbs: [], bare: CONTEXT_READING },
-  { name: "session", summary: "list the running sessions, name this one, point the owner's eye, close it out, or read how long hooks took (Session management's)", order: 33, verbs: SESSION_VERBS },
+  { name: "session", summary: "list the running sessions, name this one, point the owner's eye, close it out, or read how long hooks took and what the library sent each reader (Session management's)", order: 33, verbs: SESSION_VERBS },
   { name: "machine", summary: "the computers that work on this project, and this one's short name (Session management's)", order: 34, verbs: MACHINE_VERBS },
 ];

@@ -5,7 +5,9 @@
 // against origin/main. An input a build, test or script reads (a capture's seed.json.gz, or a file under a folder named
 // inputs) stays committed, since CI's tests read it with no library; an owner-approved reference (a file under a folder
 // named approved) is refused too, and sent to the library beside the note citing it (ADR-1234 D3, `storytree media
-// attach`). A deletion passes, as the arc-close sweep makes them.
+// attach`). A deletion passes, as the arc-close sweep makes them, and so does a file git does not track (a capture's
+// --retake writes its pictures into the evidence folder untracked), since only what the branch commits or stages lands.
+import { execFileSync } from "node:child_process";
 import { statSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -25,11 +27,12 @@ export function isCommittedEvidence(file) {
   return MEDIA.test(file) && FOLDERS.test(file) && !DURABLE.test(file);
 }
 
-/** The check: each file the branch at `root` adds or changes against origin/main, failing on evidence media. */
+/** The check: each file the branch at `root` adds or changes against origin/main, committed or staged, failing on evidence media. */
 export function checkEvidence({ root, log = console.log, error = console.error }) {
   let files;
   try {
-    files = changedFiles(root);
+    const untracked = new Set(execFileSync("git", ["ls-files", "--others", "--exclude-standard", "-z"], { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).split("\0"));
+    files = changedFiles(root).filter((file) => !untracked.has(file));
   } catch (failure) {
     error(`check:evidence: the changes against origin/main could not be read (${String(failure.stderr ?? failure.message).trim().split("\n")[0]})`);
     return 1;

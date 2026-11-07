@@ -37,11 +37,11 @@ test("15.1 · every command and tool is printed with its calls and sessions in t
   assert.deepEqual(row(table, "show_plan TypeError"), ["show_plan TypeError", "1", "1"], "failures by class, the short window and the long");
 });
 
-test("15.3 · each command and tool is printed with its consumers, and one with no call is marked unused, or not judged when a person may call it", () => {
+test("15.3 · each command and tool is printed with its consumers, and one with no call is marked unused, or not judged when a person or the watcher may call it", () => {
   const table = doorsTable(week, month);
   assert.deepEqual(row(table, "retire"), ["retire", "agent", "0", "0", "0", "0", "unused"]);
   assert.deepEqual(row(table, "storytree settings show"), ["storytree settings show", "agent, user", "0", "0", "0", "0", "not judged"]);
-  assert.match(table, /Not judged: a person may call it, and a person's own terminal writes no line/);
+  assert.match(table, /Not judged: a person may call it, and a person's own terminal writes no line; or the watcher may, and it runs with no agent session\./);
 });
 
 test("15.2 · the JSON carries both readings as the reading returns them", () => {

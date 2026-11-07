@@ -24,6 +24,8 @@ const surfaces: Surfaces = {
     { verb: "storytree quality brief", consumers: agent },
     { verb: "storytree processes stop", consumers: agent },
     { verb: "storytree setup uninstall", consumers: ["agent", "user"] },
+    { verb: "storytree workspace let-go", consumers: ["watcher"] },
+    { verb: "storytree workspace red", consumers: ["agent", "watcher"] },
   ],
   tools: [
     { verb: "quality_brief", consumers: agent },
@@ -71,14 +73,14 @@ test("14.10 · a word refused at least 10 times in one place whose follows stay 
   assert.deepEqual(lesson.wants.find(({ word }) => word === "board")?.followed, []);
 });
 
-test("14.11 · an agent-only verb with no call across 100 sessions in a covered window is a cut candidate by family; a twin unused in one door only is a gap, and a short or thin window cuts nothing", () => {
+test("14.11 · an agent-only verb, never one the watcher runs, with no call across 100 sessions in a covered window is a cut candidate by family; a twin unused in one door only is a gap, and a short or thin window cuts nothing", () => {
   const busy = Array.from({ length: 100 }, (_, index) => line(`s${index}`, index % 2 === 0 ? "storytree adr pull" : "storytree adr list"));
   const lines = [...busy, line("t", "storytree processes stop"), line("t", "storytree processes stop"), line("u", "focus", { door: "tool" })];
   const lesson = learnDoors(lines, surfaces, SINCE, [], OLD);
   assert.deepEqual(lesson.cuts, [
     { group: "storytree quality", verbs: [{ command: "storytree quality brief", tool: "quality_brief" }, { command: "storytree quality graduate" }, { command: "storytree quality ledger" }] },
     { group: TOOLS_ALONE, verbs: [{ tool: "check_setup" }] },
-  ], "a verb a person may call is never a candidate, and a verb called once is not one");
+  ], "a verb a person or the watcher may call is never a candidate, and a verb called once is not one");
   assert.deepEqual(lesson.gaps, [{ unused: "stop_own_run", carriedBy: "storytree processes stop", calls: 2 }]);
 
   const late = lines.map((one) => ({ ...one, at: new Date(Date.parse(one.at) + 2 * 24 * 60 * 60 * 1000).toISOString() }));

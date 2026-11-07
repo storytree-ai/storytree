@@ -832,6 +832,38 @@ for (const backend of [memory, postgres]) {
       await assert.rejects(health.recordUnclaimed(id, "failing"), (error) => error instanceof MissingReferenceError && error.field === "node" && error.id === id, id);
     }
   });
+
+  contract("5.21", "an explored capability of a mapped story with a verified result tied to it takes its verified word and reason even while proposed; with none tied it stays proposed, and a built story's stays proposed whatever its health", async ({ health, work }) => {
+    const { added: [app] } = await work.mapStories("/code/app", [{ package: ".", title: "app", folders: ["."] }]);
+    const retrieval = await work.addCapability({ title: "Retrieval", story: app!.id, covers: ["app/retrieval"] });
+    const api = await work.addCapability({ title: "API", story: app!.id, covers: ["app/api"] });
+    const unclaimedOnly = await work.addCapability({ title: "Compiler", story: app!.id, covers: ["app/compiler"] });
+    const untied = await work.addCapability({ title: "Help", story: app!.id, covers: ["app/help"] });
+    const fails = await work.addContract({ title: "Finds what the caller may read", capability: retrieval.id });
+    const [passes, open] = [await work.addContract({ title: "Answers a ping", capability: api.id }), await work.addContract({ title: "Pages a list", capability: api.id })];
+    await work.addContract({ title: "Shows help", capability: untied.id });
+    const built = await smallPlan(work);
+    await health.recordVerified(fails.id, "failing", { by: "a local test run" });
+    await health.recordVerified(passes.id, "passing", { by: "a local test run" });
+    await health.recordUnclaimed(unclaimedOnly.id, "passing", { by: "a local test run" });
+    await health.recordVerified(built.contract.id, "failing", { by: "a local test run" });
+    const read = async () => new Map((await health.annotate()).stories.flatMap((story) => story.capabilities).map((capability) => [capability.id, capability]));
+    let of = await read();
+    assert.ok([retrieval, api, unclaimedOnly, untied, built.capability].every(({ id }) => of.get(id)!.proposed), "control: every one is still proposed");
+    assert.equal(of.get(retrieval.id)!.status, "unhealthy", "a failing test reads red");
+    assert.deepEqual(of.get(retrieval.id)!.why, { reason: "failing", mover: "agent", contracts: [fails.id], since: of.get(retrieval.id)!.contracts[0]!.health.verified.at });
+    assert.equal(of.get(api.id)!.status, "untested", "one passing, one with no test: the roll-up says untested");
+    assert.deepEqual(of.get(api.id)!.why, { reason: "no test names it", mover: "agent", contracts: [open.id] });
+    assert.equal(of.get(unclaimedOnly.id)!.status, "healthy", "tests no contract claims, all passing, read green");
+    assert.equal(of.get(unclaimedOnly.id)!.why, undefined);
+    assert.equal(of.get(untied.id)!.status, "proposed", "no result tied: still proposed");
+    assert.equal(of.get(untied.id)!.why?.reason, "not built");
+    assert.equal(of.get(built.capability.id)!.status, "proposed", "a built story's capability stays proposed while its flag is on");
+    assert.equal(of.get(built.capability.id)!.why?.reason, "not built");
+    await health.recordVerified(passes.id, "failing", { by: "a local test run" });
+    of = await read();
+    assert.equal(of.get(api.id)!.status, "unhealthy", "and turns red when a tied test fails");
+  });
 }
 
 /** Past the current millisecond, so the next write's time sorts after the last one's. */

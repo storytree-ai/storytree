@@ -97,8 +97,8 @@ export interface AnnotatedContract extends ContractNode {
 }
 
 /**
- * A capability's word, as its card says it (ADR-0744): `proposed` while its flag is on; once the
- * agent switches it off, `healthy` when every contract is verified passing, `unhealthy` when any
+ * A capability's word, as its card says it (ADR-0744): `proposed` while its flag is on (on a mapped
+ * story, only until a verified result is tied to it, ADR-1274); once the agent switches it off, `healthy` when every contract is verified passing, `unhealthy` when any
  * is verified failing, and `untested` otherwise. Only storytree's verified column counts.
  */
 export type CapabilityStatus = "proposed" | "healthy" | "unhealthy" | "untested";
@@ -338,13 +338,17 @@ export class HealthRecord {
           const unclaimed = unclaimedOf(capability.id, entries);
           const own = counted(unclaimed);
           const health = rolledUp(contracts.map((contract) => contract.health), own);
-          const status = capabilityStatus(capability.proposed, [...contracts.map((contract) => contract.health.verified.state), ...own]);
+          const verified = [...contracts.map((contract) => contract.health.verified.state), ...own];
+          // A mapped story's code already exists, so its proposed flag says nothing once a test result is tied to the
+          // capability: it reads its verified roll-up, and stays proposed only while none is (ADR-1274, contract 3.50).
+          const proposed = capability.proposed && !(story.mapped !== undefined && verified.some((state) => state !== "not-checked"));
+          const status = capabilityStatus(proposed, verified);
           const reportOnly = unverified && !capability.proposed;
           // An explored capability of a mapped story, with nothing promised yet, has no health to want (ADR-0993 D3, D5)
           // unless tests no contract claims reached it (ADR-1274 D3); a failing reading of those makes its reason failing.
           const explored = story.mapped !== undefined && contracts.length === 0;
           const failingOwn = own.includes("failing") ? { reason: "failing" as const, mover: "agent" as const, contracts: contracts.filter((contract) => contract.health.verified.state === "failing").map(({ id }) => id), ...(unclaimed?.at === undefined ? {} : { since: unclaimed.at }) } : undefined;
-          const why = reportOnly ? undefined : failingOwn ?? (explored ? undefined : capabilityWhy(capability.proposed, contracts.map((contract) => ({ id: contract.id, verified: contract.health.verified }))));
+          const why = reportOnly ? undefined : failingOwn ?? (explored ? undefined : capabilityWhy(proposed, contracts.map((contract) => ({ id: contract.id, verified: contract.health.verified }))));
           const parkedOn = status === "proposed" || status === "untested" ? parked.get(capability.id) : undefined;
           return { ...capability, dependsOn: [...capability.dependsOn], contracts, health, status, ...(unclaimed === undefined ? {} : { unclaimed }), ...(why === undefined ? {} : { why }), ...(reportOnly ? { reportOnly } : {}), ...(parkedOn === undefined ? {} : { parkedOn: [...parkedOn] }), ...(open.has(capability.id) ? { openWork: open.get(capability.id)!.map((one) => ({ ...one })) } : {}) };
         });

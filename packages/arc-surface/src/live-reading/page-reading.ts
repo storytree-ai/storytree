@@ -220,10 +220,8 @@ export function pageReading({ project, reads, timers, kept }: PageReadingOptions
   }
 
   /** Fold first the lines that decide each session `lines` bring that the fold has never seen, before the lines themselves. */
-  async function catchUp(lines: readonly Line[]): Promise<void> {
-    const strangers = held.fold.strangers(lines);
-    if (strangers.length === 0 || reads.sessionLines === undefined) return;
-    const earlier = await reads.sessionLines(project, strangers);
+  async function catchUp(sessionLines: NonNullable<LiveReads["sessionLines"]>, strangers: string[], lines: readonly Line[]): Promise<void> {
+    const earlier = await sessionLines.call(reads, project, strangers);
     // The news is every line after the cursor, so a stranger's earlier lines are those before the news, and the rest come in it.
     const from = Math.min(...lines.map(({ seq }) => seq));
     if (!stopped) held.fold.foldEarlier(earlier.filter(({ seq }) => seq < from).map(heldLine));
@@ -232,7 +230,9 @@ export function pageReading({ project, reads, timers, kept }: PageReadingOptions
   /** Hold `news`, keep what was held, and hand it on; `whole` is what surfaces hear. */
   async function heard(news: News, whole: News = news): Promise<void> {
     if (read && whole.changes.length === 0 && whole.lines.length === 0) return;
-    await catchUp(news.lines);
+    // Only news with a stranger waits for its ask: the rest is held in the same turn, as before.
+    const strangers = reads.sessionLines === undefined ? [] : held.fold.strangers(news.lines);
+    if (strangers.length > 0) await catchUp(reads.sessionLines!, strangers, news.lines);
     const added = held.add(news);
     read = true;
     if (kept !== undefined && (added.changes.length > 0 || added.lines.length > 0)) {

@@ -1,18 +1,18 @@
 /**
  * Capability 3 · Story node render: an arc selected draws a hollow ring round each capability its open work names, round its
  * settlement or its nameplate, and dims the rest (3.83); with no arc selected open work draws nothing (3.84); at every zoom, every
- * ring one width on screen (3.86) (ADR-1253 D1, ADR-1272 D2).
+ * ring one width on screen (3.86) (ADR-1253 D1, ADR-1272 D2); a selected capability ringed in the pick's gold (3.91).
  */
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { Mesh, Vector3 } from "three";
+import { Mesh, MeshBasicMaterial, Vector3 } from "three";
 
 import { islandRoads } from "../territories/island-roads.js";
 import { linkLayout, LIBRARY_LAND } from "../territories/link-layout.js";
 import type { Coast, Point } from "../territories/territories.js";
 import { capabilityPlates } from "./nameplates.js";
 import { territoryLand } from "./territory-land.js";
-import { arcEmphasis, openWorkLayer, openWorkMarks, RING_LEAST_PX, RING_PX, sizeOpenWork } from "./open-work.js";
+import { arcEmphasis, OPEN_WORK, openWorkLayer, openWorkMarks, PICK_GOLD, RING_LEAST_PX, RING_PX, sizeOpenWork } from "./open-work.js";
 
 const R = Math.sqrt(LIBRARY_LAND / Math.PI);
 const coast: Coast = [Array.from({ length: 96 }, (_, i) => ({ x: R * Math.cos(i * Math.PI / 48), z: R * Math.sin(i * Math.PI / 48) }))];
@@ -98,4 +98,32 @@ test("3.86 · an arc selected rings its capabilities and dims the rest at every 
   sizeOpenWork(layer, small);
   const across = Math.max(...reaches(ring as Mesh, settlement.at)) * 2 * small;
   assert.ok(across >= RING_LEAST_PX && across <= RING_LEAST_PX + 2 * RING_PX, `at least ${RING_LEAST_PX} px across, ${across} px`);
+});
+
+test("3.91 · a selected capability is ringed in the pick's gold round its settlement, beside an arc's blue rings and clear of them, at least its least across at any zoom, and takes no pointer", () => {
+  assert.deepEqual(openWorkLayer(openWorkMarks(map, undefined, roads), new Mesh(), flat, 2).children, [], "nothing selected: no ring");
+  const settlement = roads.settlements.get("c")!;
+  const layer = openWorkLayer(openWorkMarks(map, undefined, roads, "c"), new Mesh(), flat, 2);
+  assert.deepEqual(layer.children.map((o) => o.name), ["picked-ring:c"], "the selected capability's ring alone, and no territory dimmed");
+  const ring = layer.children[0] as Mesh;
+  assert.equal(`#${(ring.material as MeshBasicMaterial).color.getHexString()}`, PICK_GOLD, "in the pick's gold");
+  const spread = reaches(ring, settlement.at), width = Math.max(...spread) - Math.min(...spread);
+  assert.ok(Math.min(...spread) > settlement.size * 0.71, "round its settlement, clear of the symbol");
+  assert.ok(Math.abs(width - RING_PX / 2) < 1e-3, "hollow: a line RING_PX wide on screen");
+  const small = RING_LEAST_PX / 4 / settlement.size;
+  sizeOpenWork(layer, small);
+  assert.ok(Math.max(...reaches(layer.children[0] as Mesh, settlement.at)) * 2 * small >= RING_LEAST_PX, `zoomed out, still at least ${RING_LEAST_PX} px across`);
+  const hits: unknown[] = [];
+  ring.raycast({} as never, hits as never);
+  assert.deepEqual(hits, [], "it takes no pointer, so a click still picks the land");
+  // An arc selected that rings the same capability: its blue ring, and the gold one round it, each still seen.
+  const both = openWorkLayer(openWorkMarks(map, new Set(["a", "c"]), roads, "c"), territoryLand(map, flat, coast), flat, 2);
+  const named = (name: string) => both.getObjectByName(name) as Mesh;
+  assert.deepEqual(both.children.filter((o) => o.name.includes("ring:")).map((o) => o.name).sort(), ["open-work-ring:a", "open-work-ring:c", "picked-ring:c"]);
+  assert.equal(`#${(named("open-work-ring:c").material as MeshBasicMaterial).color.getHexString()}`, OPEN_WORK, "blue keeps meaning open work");
+  assert.ok(Math.min(...reaches(named("picked-ring:c"), settlement.at)) > Math.max(...reaches(named("open-work-ring:c"), settlement.at)), "the gold ring outside the blue, so neither hides the other");
+  for (const zoom of [small, 0.5]) {
+    sizeOpenWork(both, zoom);
+    assert.ok(Math.min(...reaches(named("picked-ring:c"), settlement.at)) > Math.max(...reaches(named("open-work-ring:c"), settlement.at)), `still outside it at zoom ${zoom}`);
+  }
 });

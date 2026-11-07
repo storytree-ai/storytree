@@ -26,7 +26,7 @@ import { RELIEF } from "./island-relief.js";
 export type RoadSegment = { readonly pts: readonly Point[]; readonly links: readonly string[]; readonly width: number };
 /** A gate: one per linked pair (ADR-1253 D3), where its road enters the capability depended on (a way out's: where it
  * leaves its own), the border's direction there, the links on the road through it, the links whose gate it is (a few
- * where their gates stand together, 3.81), the opening cut in it, and the two sides of the border it stands on, sorted
+ * where their gates stand together, 3.88), the opening cut in it, and the two sides of the border it stands on, sorted
  * (3.88: each a capability, or "open" for open land). */
 export type RoadGate = { readonly at: Point; readonly along: Point; readonly links: readonly string[]; readonly entrances: readonly string[]; readonly opening: number; readonly between: readonly [string, string] };
 /** Open road: where a road crosses a border with no gate (leaving the territory that depends), its opening cut the same. */

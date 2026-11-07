@@ -8,8 +8,8 @@ it's because there is a lot of space between the nodes in a flowchart ... this m
 ways to expand the space in the border. And that way, maybe you could have the gates in the middle and like a pathway
 leading through the border."
 
-The stills are in the evidence bucket under #570 (kept 90 days, or until the arc closes); `tools/capture.mjs` takes them
-again.
+The stills are in the evidence bucket under #570 (kept 90 days, or until the arc closes), named below by their path there;
+the pull request body links each one. `tools/capture.mjs` takes them again.
 
 **How it was made.** Each option is the desktop app's own page (the look ADR-1236 rolled out, as `packages/forest` draws
 it today) with one idea changed. `tools/variants.mjs` lists each option's edits to the map's code, and `tools/build.mjs`
@@ -23,13 +23,13 @@ it sits on, which has since built the look itself.)
 
 | | The library, at rest | Close round a gate | The command line, at rest |
 | --- | --- | --- | --- |
-| **Today** | ![today, The library](https://storage.cloud.google.com/storytree-498613-evidence/570/docs/design/capability-tree-3d/r-room/stills/today-library-rest.png) | ![today, gate](https://storage.cloud.google.com/storytree-498613-evidence/570/docs/design/capability-tree-3d/r-room/stills/today-library-gate.png) | ![today, The command line](https://storage.cloud.google.com/storytree-498613-evidence/570/docs/design/capability-tree-3d/r-room/stills/today-second-rest.png) |
-| **A** | ![A, The library](https://storage.cloud.google.com/storytree-498613-evidence/570/docs/design/capability-tree-3d/r-room/stills/A-library-rest.png) | ![A, gate](https://storage.cloud.google.com/storytree-498613-evidence/570/docs/design/capability-tree-3d/r-room/stills/A-library-gate.png) | ![A, The command line](https://storage.cloud.google.com/storytree-498613-evidence/570/docs/design/capability-tree-3d/r-room/stills/A-second-rest.png) |
-| **B** | ![B, The library](https://storage.cloud.google.com/storytree-498613-evidence/570/docs/design/capability-tree-3d/r-room/stills/B-library-rest.png) | ![B, gate](https://storage.cloud.google.com/storytree-498613-evidence/570/docs/design/capability-tree-3d/r-room/stills/B-library-gate.png) | ![B, The command line](https://storage.cloud.google.com/storytree-498613-evidence/570/docs/design/capability-tree-3d/r-room/stills/B-second-rest.png) |
-| **C** | ![C, The library](https://storage.cloud.google.com/storytree-498613-evidence/570/docs/design/capability-tree-3d/r-room/stills/C-library-rest.png) | ![C, gate](https://storage.cloud.google.com/storytree-498613-evidence/570/docs/design/capability-tree-3d/r-room/stills/C-library-gate.png) | ![C, The command line](https://storage.cloud.google.com/storytree-498613-evidence/570/docs/design/capability-tree-3d/r-room/stills/C-second-rest.png) |
-| **D** | ![D, The library](https://storage.cloud.google.com/storytree-498613-evidence/570/docs/design/capability-tree-3d/r-room/stills/D-library-rest.png) | ![D, gate](https://storage.cloud.google.com/storytree-498613-evidence/570/docs/design/capability-tree-3d/r-room/stills/D-library-gate.png) | ![D, The command line](https://storage.cloud.google.com/storytree-498613-evidence/570/docs/design/capability-tree-3d/r-room/stills/D-second-rest.png) |
-| **E** | ![E, The library](https://storage.cloud.google.com/storytree-498613-evidence/570/docs/design/capability-tree-3d/r-room/stills/E-library-rest.png) | ![E, gate](https://storage.cloud.google.com/storytree-498613-evidence/570/docs/design/capability-tree-3d/r-room/stills/E-library-gate.png) | ![E, The command line](https://storage.cloud.google.com/storytree-498613-evidence/570/docs/design/capability-tree-3d/r-room/stills/E-second-rest.png) |
-| **F** | ![F, The library](https://storage.cloud.google.com/storytree-498613-evidence/570/docs/design/capability-tree-3d/r-room/stills/F-library-rest.png) | ![F, gate](https://storage.cloud.google.com/storytree-498613-evidence/570/docs/design/capability-tree-3d/r-room/stills/F-library-gate.png) | ![F, The command line](https://storage.cloud.google.com/storytree-498613-evidence/570/docs/design/capability-tree-3d/r-room/stills/F-second-rest.png) |
+| **Today** | `570/docs/design/capability-tree-3d/r-room/stills/today-library-rest.png` | `570/docs/design/capability-tree-3d/r-room/stills/today-library-gate.png` | `570/docs/design/capability-tree-3d/r-room/stills/today-second-rest.png` |
+| **A** | `570/docs/design/capability-tree-3d/r-room/stills/A-library-rest.png` | `570/docs/design/capability-tree-3d/r-room/stills/A-library-gate.png` | `570/docs/design/capability-tree-3d/r-room/stills/A-second-rest.png` |
+| **B** | `570/docs/design/capability-tree-3d/r-room/stills/B-library-rest.png` | `570/docs/design/capability-tree-3d/r-room/stills/B-library-gate.png` | `570/docs/design/capability-tree-3d/r-room/stills/B-second-rest.png` |
+| **C** | `570/docs/design/capability-tree-3d/r-room/stills/C-library-rest.png` | `570/docs/design/capability-tree-3d/r-room/stills/C-library-gate.png` | `570/docs/design/capability-tree-3d/r-room/stills/C-second-rest.png` |
+| **D** | `570/docs/design/capability-tree-3d/r-room/stills/D-library-rest.png` | `570/docs/design/capability-tree-3d/r-room/stills/D-library-gate.png` | `570/docs/design/capability-tree-3d/r-room/stills/D-second-rest.png` |
+| **E** | `570/docs/design/capability-tree-3d/r-room/stills/E-library-rest.png` | `570/docs/design/capability-tree-3d/r-room/stills/E-library-gate.png` | `570/docs/design/capability-tree-3d/r-room/stills/E-second-rest.png` |
+| **F** | `570/docs/design/capability-tree-3d/r-room/stills/F-library-rest.png` | `570/docs/design/capability-tree-3d/r-room/stills/F-library-gate.png` | `570/docs/design/capability-tree-3d/r-room/stills/F-second-rest.png` |
 
 ## What each one changes, and what it costs
 

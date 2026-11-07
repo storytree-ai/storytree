@@ -8,8 +8,6 @@ import type { ForestScene, Island } from '../scene.js';
 import type { PathwayDrawing, PlanetPathwayPlate } from './pathways.js';
 import { drawnAtOnce, islandDocks, pageRoadRouter, roadsWhenRouted, type IslandDock } from './road-routing.js';
 import { SelectionLanes } from './PlanetTrailRibbons.js';
-import { PlumbingLabels } from './PlumbingLabels.js';
-import { plumbingLanes } from './plumbing.js';
 import { Overlay } from './overlay.js';
 import type { LitLink } from './lanes.js';
 import { litIsland, portMarks, seaLanes, type SeaPort } from './ports.js';
@@ -73,8 +71,6 @@ export interface PlanetWorldCanvasProps {
   /** The selection's lit links, drawn as pale-blue lanes at sea, with a port at each dock they come ashore at on the
    * selected island; none by default. At rest the sea carries no line (ADR-1261 D1). */
   lanes?: readonly LitLink[];
-  /** The selected story, whose plumbing calls are lit as grey-green lanes with their labels (ADR-1261 D5); none by default. */
-  selected?: string | undefined;
   /** A recorded growth to replay (capability 12): islands rise, lanes show once both their islands have, and plate
    * children read `usePlanetGrowth`. */
   growth?: PlanetGrowth | undefined;
@@ -229,7 +225,7 @@ function drawnOnResize(state: () => RootState | undefined): typeof ResizeObserve
 
 /** The map: one Canvas, the glass sheet, and each story's island as a raised plate with a coast (ADR-0804 D1, ADR-1059 D2).
  * A lamp shades the islands' sides and the glass's edge, and the land's top keeps its exact colour (ADR-1062 D1). */
-export function PlanetWorldCanvas({ scene, spots, radius, rotation = [0, 0, 0, 1], offset, globe, plateChildren, children, surface = true, surfaces, inside, framing = 1.18, sideOffset = 0, lanes = NO_LANES, selected: story, growth, sheet, hollow = false }: PlanetWorldCanvasProps) {
+export function PlanetWorldCanvas({ scene, spots, radius, rotation = [0, 0, 0, 1], offset, globe, plateChildren, children, surface = true, surfaces, inside, framing = 1.18, sideOffset = 0, lanes = NO_LANES, growth, sheet, hollow = false }: PlanetWorldCanvasProps) {
   const drawing = useRoadsWhenRouted(scene, spots, radius);
   const pathways = drawing.plan;
   const docks = useMemo(() => islandDocks(pathways, drawing.routing), [pathways, drawing.routing]);
@@ -240,7 +236,6 @@ export function PlanetWorldCanvas({ scene, spots, radius, rotation = [0, 0, 0, 1
     const spot = selected === undefined ? undefined : spots.get(selected);
     return seaLanes(pathways, lanes, selected === undefined || spot === undefined ? undefined : { story: selected, spot, radius });
   }, [pathways, lanes, selected, spots, radius]);
-  const plumbed = useMemo(() => plumbingLanes(pathways, story), [pathways, story]);
   const elevation = SHIPPED_ELEVATION_DEG * Math.PI / 180;
   const position: [number, number, number] = [0, Math.sin(elevation) * radius * 4, Math.cos(elevation) * radius * 4];
   const root = useRef<() => RootState>(undefined);
@@ -266,7 +261,7 @@ export function PlanetWorldCanvas({ scene, spots, radius, rotation = [0, 0, 0, 1
         return <Plate key={island.story} island={island} spot={spot} radius={radius} plate={pathways.plates.get(island.story)!} docks={docksOn(island.story)}
           ports={island.story === selected ? sea.ports : NO_PORTS} visible={exterior.plates} grounds={exterior.grounds} hollow={hollow} children={plateChildren} />;
       })}
-      <group name="globe-lanes" visible={exterior.roads}><SelectionLanes routes={sea.lanes} plumbing={plumbed} /><PlumbingLabels plan={pathways} visible={exterior.roads} story={story} /></group>
+      <group name="globe-lanes" visible={exterior.roads}><SelectionLanes routes={sea.lanes} /></group>
       {inside}
     </group>
     <SheetLights />

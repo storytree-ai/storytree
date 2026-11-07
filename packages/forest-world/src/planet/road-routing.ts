@@ -29,8 +29,7 @@ export function drawnAtOnce(scene: ForestScene, spots: ReadonlyMap<string, Plane
   if (routing === undefined) return { drawing: planetPathwayDrawing(scene, spots, radius), routing };
   const islands = islandsOnly(scene);
   if (before === undefined || before.radius !== radius) return { drawing: islands, routing };
-  const { plumbing, lanes } = before.drawing.plan;
-  return { drawing: { plan: { ...islands.plan, lanes, ...plumbing ? { plumbing } : {} }, issue: before.drawing.issue }, routing };
+  return { drawing: { plan: { ...islands.plan, lanes: before.drawing.plan.lanes }, issue: before.drawing.issue }, routing };
 }
 
 /** The drawing with its lanes, once `router` has routed them; undefined when `signal` aborts first, so an overtaken

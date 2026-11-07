@@ -1,7 +1,7 @@
 /** Capability 4 · The planet. Sea lanes over the glass between tangent islands, dock to dock (forest contracts 3.6–3.7,
  * ADR-1261: the beige roads between islands are retired). The existing cost-grid router owns routing and merging; this
  * adapter only changes spaces. */
-import type { ForestScene, Island, PlumbingKind } from '../scene.js';
+import type { ForestScene, Island } from '../scene.js';
 import { Quaternion, Vector3 } from 'three';
 import { clipToCoast, rimLoops, SHIPPED_COAST, type CoastPoint } from '../coast-clip.js';
 import { routeTrails, type TrailEdgeIn, type TrailEdgeOut, type TrailIsland, type TrailNetwork, type TrailSegment, type TrailTuning } from '../core/routing.js';
@@ -9,7 +9,6 @@ import { forestDescriptors } from '../forest-ground/forest-ground.js';
 import type { Descriptor3D, InstanceDescriptor } from '../descriptors.js';
 import { onIslandSurface } from './island-surface.js';
 import { plateTransform, type PlanetSpot } from './planet.js';
-import { PLUMBING_KINDS, plumbingKey, type PlanetPlumbing } from './plumbing.js';
 import { SEA_LANE_CAP } from './lanes.js';
 
 export interface PlanetPathwayPlate {
@@ -22,19 +21,16 @@ export interface PlanetPathwayPlate {
 export interface PlanetLaneSegment {
   id: string;
   points: Vector3[];
-  /** The capability links routed along it; a stretch only plumbing uses has none. */
+  /** The capability links routed along it. */
   links: string[];
   /** How many of its links are type-only (ADR-0991 D1); absent for none. */
   typeOnlyLinks?: number;
   /** Its longest stretch, in ground units, that the router never planned: the straight run on the chart from where the
    * router ends it to its dock on the coast, or a gap the globe filled in along its surface. */
   unrouted?: number;
-  /** The kinds of plumbing call (ADR-1085 D3, ADR-1261 D5) whose lanes ride this stretch too, in the one order; absent
-   * for none. They are not links. */
-  plumbing?: PlumbingKind[];
 }
 
-/** The lanes' plan (ADR-1261 D3): every capability link and plumbing call between islands routed by the trail router
+/** The lanes' plan (ADR-1261 D3): every capability link between islands routed by the trail router
  * dock to dock, around islands, merging where lanes head the same way. */
 export interface PlanetLanes {
   segments: PlanetLaneSegment[];
@@ -47,8 +43,6 @@ export interface PlanetLanes {
 
 export interface PlanetPathways {
   plates: Map<string, PlanetPathwayPlate>;
-  /** One lane per plumbing call between islands, by story and kind, from its `from` island to its `to`: never an edge. */
-  plumbing?: PlanetPlumbing[];
   /** The lanes. */
   lanes: PlanetLanes;
 }
@@ -73,7 +67,7 @@ interface Ground extends PreparedGround {
 interface Link extends TrailEdgeIn { source: string; target: string; typeOnly?: true }
 
 /** The routes between islands a drawing asks the router for: plain data, so a worker can route them. Its lanes', one
- * per pair of islands a capability link or a plumbing call joins (ADR-1261 D3, D5). */
+ * per pair of islands a capability link joins (ADR-1261 D3). */
 export interface CrossRouting {
   islands: TrailIsland[];
   lanes: { edges: TrailEdgeIn[]; seed: string; tuning: Partial<TrailTuning> };
@@ -320,17 +314,13 @@ function chartPathways(scene: ForestScene, spots: ReadonlyMap<string, PlanetSpot
     return { ...edge, source, target };
   });
   const cross = links.filter(link => link.source !== link.target);
-  // A plumbing call joins two islands, by story; one naming a story with no island, or the same one twice, is left out.
-  const plumbing = [...new Map((scene.plumbing ?? []).filter(call => grounds.has(call.from) && grounds.has(call.to) && call.from !== call.to)
-    .map(call => [plumbingKey(call), call])).values()];
-  // One route per pair of islands a capability link or a plumbing call joins (ADR-1261 D5), kept a berth and half the
+  // One route per pair of islands a capability link joins, kept a berth and half the
   // widest lane off every coast, so a lane never crosses or grazes another island's land.
-  const pairs = [...new Map([...cross.map(link => ({ from: link.source, to: link.target })), ...plumbing.map(call => ({ from: call.from, to: call.to }))]
-    .map(pair => [keyOf(pair), pair])).values()];
+  const pairs = [...new Map(cross.map(link => ({ from: link.source, to: link.target })).map(pair => [keyOf(pair), pair])).values()];
   const nodes = [...grounds.values()].map(g => ({ id: g.id, ...g.centre, r: g.r, outline: g.chartRings.map(ring => ring.map(({ x, y }) => ({ x, y }))) }));
   const routing: CrossRouting = { islands: nodes,
     lanes: { edges: pairs, seed: 'globe-lanes-seed', tuning: { cellSize: 2, clearance: LANE_CLEARANCE, falloff: 2 * LANE_CLEARANCE, meanderAmp: 0.4 } } };
-  return { grounds, cross, plumbing, chart, sphere, routing, key: JSON.stringify([nodes, pairs]) };
+  return { grounds, cross, chart, sphere, routing, key: JSON.stringify([nodes, pairs]) };
 }
 
 /** A routed network laid on the globe: each segment's points, ids prefixed, from dock to dock, and each edge's docks by
@@ -419,31 +409,20 @@ function linkOnto(laid: ReturnType<typeof laidOnGlobe>, prefix: string, cross: r
 
 /** One ordered chain per recorded capability edge between islands, from dock to dock; a link within an island has
  * none, since nothing draws it (ADR-0951 D3). Routes are planned on an azimuthal chart about the islands' own middle
- * (`chartPole`). Each plumbing call between islands rides the chain of its pair of islands (ADR-1261 D5). */
+ * (`chartPole`). */
 export function buildPlanetPathways(scene: ForestScene, spots: ReadonlyMap<string, PlanetSpot>, radius: number, route: typeof routeTrails = routeTrails): PlanetPathways {
-  const { grounds, cross, plumbing, chart, sphere, routing, key: crossKey } = chartPathways(scene, spots, radius);
+  const { grounds, cross, chart, sphere, routing, key: crossKey } = chartPathways(scene, spots, radius);
   const network = keptNetwork(crossKey, routing) ?? routePlanet(routing, route);
   // A drawing with no lanes between islands leaves the last routing kept.
   if (routing.lanes.edges.length > 0) crossRoutes = { key: crossKey, routing, network };
   requireNetwork(network.lanes, 'lanes');
   const lanes = laidOnGlobe(network.lanes, 'lane:', grounds, chart, sphere, radius);
   const segments: PlanetLaneSegment[] = lanes.segments;
-  const { edges, segmentById, typeOnly, docks } = linkOnto(lanes, 'lane:', cross);
+  const { edges, typeOnly, docks } = linkOnto(lanes, 'lane:', cross);
   const plan: PlanetPathways = { plates: new Map(), lanes: { segments, edges, docks } };
   for (const g of grounds.values()) plan.plates.set(g.id, g.plate);
-  if (plumbing.length > 0) plan.plumbing = plumbing.map(call => {
-    const edge = lanes.edges.get(keyOf(call));
-    if (!edge) throw new Error(`Missing cross-island route for plumbing ${plumbingKey(call)}`);
-    const chain = refPrefix('lane:', edge);
-    for (const ref of chain) {
-      const segment = segmentById.get(ref.id) as PlanetLaneSegment | undefined;
-      if (!segment) throw new Error(`Missing lane segment ${ref.id}`);
-      segment.plumbing = PLUMBING_KINDS.filter(kind => kind === call.kind || segment.plumbing?.includes(kind));
-    }
-    return { from: call.from, to: call.to, kind: call.kind, files: call.files, segments: chain };
-  });
   for (const segment of segments) {
-    if (segment.links.length === 0 && !segment.plumbing) throw new Error(`Orphan lane segment ${segment.id}`);
+    if (segment.links.length === 0) throw new Error(`Orphan lane segment ${segment.id}`);
     segment.links.sort();
     const typed = segment.links.filter(link => typeOnly.has(link)).length;
     if (typed > 0) segment.typeOnlyLinks = typed;
@@ -459,7 +438,7 @@ export function planetPathwayDrawing(scene: ForestScene, spots: ReadonlyMap<stri
   } catch (error) {
     console.error('forest-world planet: the lanes could not be drawn', error);
     return {
-      plan: buildPlanetPathways({ ...scene, links: [], plumbing: [] }, spots, radius),
+      plan: buildPlanetPathways({ ...scene, links: [] }, spots, radius),
       issue: [error instanceof Error ? error.message : String(error), leftOut].filter(Boolean).join('; '),
     };
   }

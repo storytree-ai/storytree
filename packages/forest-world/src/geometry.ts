@@ -8,6 +8,5 @@ export { islandSurface } from "./planet/island-surface.js";
 export { buildPlanetPathways, islandCoast, islandCoastReach, planetPathwayDrawing } from "./planet/pathways.js";
 export { routeTrails, trailFillWidth } from "./core/routing.js";
 export { laneDrawSeconds, laneProgress, laneRoutes, laneShown, SEA_LANE, seaLaneWidth, type LaneRoute, type LitLink } from "./planet/lanes.js";
-export { PLUMBING_LANE } from "./planet/plumbing.js";
 export { RIBBON_GROUND_SCALE } from "./trail-ribbon-width.js";
 export { crossingLength, growthMoment, growthNow, growthPlan, growthProgress, linkKey, plateGrowth, type GrowthOptions, type GrowthPlan, type GrowthStage, type GrowthWindow } from "./planet/growth.js";

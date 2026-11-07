@@ -76,7 +76,7 @@ export function forestScene(tree: AnnotatedTree, history: readonly Pick<Change, 
 /**
  * The plumbing calls between stories (ADR-1085 D3, ADR-1078 rule 5): each survey edge file marked a forwarder, or
  * declared a build step or cleanup, gathered into one island-to-island entry per (story, story, kind) with its files.
- * The map draws them by kind for the user to judge; it names no value.
+ * The map draws each as one more link between its islands (ADR-1277 D1); the kinds stay in the scene's data.
  */
 function plumbingCalls(tree: AnnotatedTree, survey: Readonly<Record<string, StorySurvey>>): Plumbing[] {
   const calls = new Map<string, { from: string; to: string; kind: PlumbingKind; files: Set<string> }>();
@@ -95,17 +95,19 @@ function plumbingCalls(tree: AnnotatedTree, survey: Readonly<Record<string, Stor
 /**
  * The roads (ADR-0991 D1, D3): each recorded capability dependsOn, drawn by value, then each edge the code survey
  * derives with a capability at both ends that no recorded one already joins, marked type-only when only types join them.
- * A derived edge with no capability at an end is a story edge with no road. A built story whose package depends on a
+ * A derived edge with no capability at an end is a story edge with no road, unless it carries a plumbing call, which
+ * is a link like any other (ADR-1277 D1), island to island. A built story whose package depends on a
  * mapped story's has a road from its island to the mapped island as a whole: a mapped island has no capability to name,
  * and the survey names no importing one.
  */
 function capabilityLinks(tree: AnnotatedTree, survey: Readonly<Record<string, StorySurvey>>): { from: string; to: string; typeOnly?: true }[] {
   const links = new Map<string, { from: string; to: string; typeOnly?: true }>(tree.stories.flatMap(story => story.capabilities.flatMap(capability =>
     capability.dependsOn.map(to => [`${capability.id}->${to}`, { from: capability.id, to }] as const))));
-  for (const story of tree.stories) for (const { from, to, typeOnly, files } of survey[story.id]?.edges ?? []) {
-    // An edge made only of plumbing calls is no dependency (ADR-1085 D3): plumbingCalls draws it by kind instead.
-    if (files.length > 0 && files.every((file) => file.forwarder === true || file.plumbing !== undefined)) continue;
-    if (from !== undefined && to !== undefined && !links.has(`${from}->${to}`)) links.set(`${from}->${to}`, { from, to, ...(typeOnly ? { typeOnly } : {}) });
+  for (const story of tree.stories) for (const { story: other, from, to, typeOnly, files } of survey[story.id]?.edges ?? []) {
+    if (from !== undefined && to !== undefined) {
+      if (!links.has(`${from}->${to}`)) links.set(`${from}->${to}`, { from, to, ...(typeOnly ? { typeOnly } : {}) });
+    // A plumbing call is drawn as a link like any other (ADR-1277 D1): with no capability end, from its island to the other as a whole.
+    } else if (other !== story.id && files.some((file) => file.forwarder === true || file.plumbing !== undefined)) links.set(`${story.id}->${other}`, { from: story.id, to: other });
   }
   const mapped = new Set(tree.stories.filter(story => story.mapped !== undefined).map(({ id }) => id));
   for (const story of tree.stories) if (story.mapped === undefined) for (const to of survey[story.id]?.dependsOn ?? []) {

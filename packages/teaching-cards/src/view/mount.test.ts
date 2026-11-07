@@ -243,17 +243,17 @@ test("3.5 · a card whose thing is an island sits beside the island's box, never
 });
 
 test("3.5 · with no room right of its island, a card sits left of the island; with both sides read, below it; never over it", () => {
-  const left = sized([], () => ({ x: 700, y: 300, visible: true, box: { left: 600, top: 250, right: 800, bottom: 350 } }));
-  assert.deepEqual(left.at(), { left: "288px", top: "250px" }, "12px left of the island's left edge");
-  left.teaching.stop();
+  const { teaching: beside, at: besideAt } = sized([], () => ({ x: 700, y: 300, visible: true, box: { left: 600, top: 250, right: 800, bottom: 350 } }));
+  assert.deepEqual(besideAt(), { left: "288px", top: "250px" }, "12px left of the island's left edge");
+  beside.stop();
   const island = { left: 300, top: 250, right: 500, bottom: 350 };
-  const below = sized([{ left: 0, top: 200, right: 1000, bottom: 360 }], () => ({ x: 400, y: 300, visible: true, box: island }));
-  assert.deepEqual(below.at(), { left: "250px", top: "362px" }, "12px below the island");
-  below.teaching.stop();
+  const { teaching: under, at: underAt } = sized([{ left: 0, top: 200, right: 1000, bottom: 360 }], () => ({ x: 400, y: 300, visible: true, box: island }));
+  assert.deepEqual(underAt(), { left: "250px", top: "362px" }, "12px below the island");
+  under.stop();
   // Read right of the island, the left place pressed against the window's edge still overlaps the island: a corner instead.
-  const corner = sized([{ left: 505, top: 0, right: 1000, bottom: 600 }], () => ({ x: 400, y: 300, visible: true, box: island }));
-  assert.deepEqual(corner.at(), { left: "16px", top: "484px" });
-  corner.teaching.stop();
+  const { teaching: cornered, at: cornerAt } = sized([{ left: 505, top: 0, right: 1000, bottom: 600 }], () => ({ x: 400, y: 300, visible: true, box: island }));
+  assert.deepEqual(cornerAt(), { left: "16px", top: "484px" });
+  cornered.stop();
 });
 
 test("3.5 · in a window too narrow for either side, a card pushed back inside over its own point sits below it instead", () => {

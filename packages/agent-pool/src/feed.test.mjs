@@ -14,10 +14,12 @@ function survey(increments, extra = {}) {
 
 test("2.2 · the survey reads arcs and holds once, with every increment's arc, capabilities list, machine field, how a closed one closed, the arc's state, this machine's name, the standing claims and the refusals under every open increment on an active arc, whoever holds the capability now", async () => {
   let reads = 0;
+  const asks = [];
   const record = (id, arc, extra = {}) => ({ id, createdAt: new Date(now), fields: { arc, title: id, status: "proposal", parked: "2026-10-06T00:00:00Z", waits: [], ...extra } });
   const library = {
-    workSurvey: async () => {
+    workSurvey: async (_at, options) => {
       reads++;
+      asks.push(options);
       return {
         arcs: [
           { id: "arc_laptop", createdAt: new Date(now), state: "active", openQuestions: 1 }, { id: "arc_cap", state: "active", openQuestions: 0 },
@@ -38,6 +40,9 @@ test("2.2 · the survey reads arcs and holds once, with every increment's arc, c
   assert.deepEqual(asked, [["i1", "i2", "i3", "i5"]], "refusals are read once, under every open increment on an active arc, a capability nobody holds included (ADR-1079 D1)");
   assert.equal(read.refusals, refused);
   assert.equal(reads, 1);
+  assert.deepEqual(asks, [{ also: [], closedTitles: false }], "by default no closed increment is followed and no closed arc's title read");
+  await readSurvey({ library, claims: async () => claims, also: ["i4"], closedTitles: true });
+  assert.deepEqual(asks[1], { also: ["i4"], closedTitles: true }, "both asked for are passed on");
   assert.deepEqual(read.increments.map((one) => [one.id, one.arc, one.arcState]), [
     ["i1", "arc_laptop", "active"], ["i2", "arc_laptop", "active"], ["i3", "arc_cap", "active"], ["i4", "arc_box", "parked"], ["i5", "arc_stale", "active"]], "by arc, oldest arc first");
   assert.deepEqual(read.increments.map((one) => one.capabilities), [[], ["capability_x"], ["capability_x"], [], []], "with each one's capabilities list");

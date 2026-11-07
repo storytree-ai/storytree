@@ -472,9 +472,10 @@ test("3.19 · `ready` prints, as JSON, the engines running, the cap, the lanes f
 });
 
 test("3.21 · `ready --drained` also lists, after the arcs it would plan, every arc drained of its work (closed, no question open) with its state; plain `ready` never does", async (t) => {
+  const asked = [];
   const b = await box(t, {
     maxLanes: async () => 4, count: async () => 0,
-    survey: async () => ({
+    survey: async (_project, options) => (asked.push(options), {
       ...poolWork([]),
       arcs: [
         { id: "arc_drained", state: "closed", title: "Drained", created: "2026-10-01T00:00:00Z", openQuestions: 0 },
@@ -494,6 +495,7 @@ test("3.21 · `ready --drained` also lists, after the arcs it would plan, every 
     { id: "arc_drained", title: "Drained", state: "[0,[]]" },
   ]);
   assert.deepEqual(await plans(["ready", "x-twin-map-reads-on"]), [{ id: "arc_active", title: "Active", state: "[0,[]]" }]);
+  assert.deepEqual(asked, [{ closedTitles: true }, { closedTitles: false }], "only `--drained` asks the survey for closed arcs' titles");
 });
 
 test("3.26 · on Windows the checkout lock is a lock file: a second holder waits for the first, a dead holder's file does not block, and a failing holder lets it go", async (t) => {

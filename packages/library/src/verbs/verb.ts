@@ -126,9 +126,14 @@ export class VerbRefusal extends Error {
   }
 }
 
-/** A door that does not mount a verb says why, so a missing tool or command is declared, never an accident. */
+/**
+ * A door that does not mount a verb says why, so a missing tool or command is declared, never an accident. When that door
+ * serves the same job under another declaration (a tool a factory plugin defines apart from its command), `twin` names it as
+ * that door does (a tool by its name), so the two are read as one verb.
+ */
 export interface Absent {
   readonly absent: string;
+  readonly twin?: string;
 }
 
 /** Who calls a verb: an agent session, or a person at the command line or in the app (ADR-1045 D1). */

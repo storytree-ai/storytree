@@ -9,13 +9,19 @@ import { mounted, type VerbFamilies, type VerbPlace } from "@storytree/library/v
 import type { Context, Family, Verb } from "../door.js";
 import type { Surfaces } from "../usage/learn.js";
 
-/** Each verb both doors mount, as its command and its tool, walked from the families its stories declare. */
+/**
+ * Each verb both doors mount, as its command and its tool, walked from the families its stories declare: one declared with
+ * both, or a command whose absent tool names the `twin` tool that serves its job.
+ */
 export function twinsOf(declared: readonly VerbFamilies<VerbPlace>[] , path = "storytree"): { command: string; tool: string }[] {
   return declared.flatMap((family) => {
     const at = `${path} ${family.name}`;
     const verbs = [...family.verbs.map((verb) => ({ verb, command: mounted(verb.command) ? `${at} ${verb.command.name}` : undefined })), ...(family.bare === undefined ? [] : [{ verb: family.bare, command: at }])];
     return [
-      ...verbs.flatMap(({ verb, command }) => (command !== undefined && mounted(verb.command) && mounted(verb.tool) ? [{ command, tool: verb.tool.name }] : [])),
+      ...verbs.flatMap(({ verb, command }) => {
+        const tool = mounted(verb.tool) ? verb.tool.name : verb.tool.twin;
+        return command !== undefined && tool !== undefined ? [{ command, tool }] : [];
+      }),
       ...twinsOf(family.families ?? [], at),
     ];
   });

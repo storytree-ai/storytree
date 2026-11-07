@@ -147,6 +147,12 @@ export const NEW_LINE = z.discriminatedUnion("kind", [
   z.object({ ...common, kind: z.literal("door-checked"), since: z.string().datetime({ offset: true }), until: z.string().datetime({ offset: true }),
     filed: z.array(z.string().min(1)) }).strict(),
   /**
+   * The verbs, each as its door names it (`storytree arc show`, `show_plan`), that the doors learner saw mounted for the first
+   * time in a friction drain (ADR-1045 D6): the line's time is when it first saw them, so a verb is judged for disuse only
+   * once it has been mounted for the whole window.
+   */
+  z.object({ ...common, kind: z.literal("door-mounted"), verbs: z.array(z.string().min(1)).min(1) }).strict(),
+  /**
    * A scheduled process record (`process`, its id) the session's runner ran (ADR-1105 D3), with how it went and an optional
    * note: written by `schedule ran`. The latest line for a process is its last run, which `schedule due` reads its schedule against.
    */

@@ -5,7 +5,7 @@
  * first colon), so nothing the island draws goes unexplained and nothing listed is missing from it (4.39). The sea's marks,
  * drawn by the planet (capability 4 · The planet), are `at: "sea"`: no road crosses the sea, only lanes (ADR-1261 D1, D5).
  */
-import { SEA_LANE } from "@storytree/forest-world/geometry";
+import { SEA_LANE, SEA_LANE_FILL } from "@storytree/forest-world/geometry";
 import { GROUND, LIT, PORTAL, POST, QUIET_BORDER, ROAD } from "./island-roads.js";
 import { OPEN_WORK } from "./open-work.js";
 import { GLYPHS, SYMBOL_INK, type Kind } from "./settlement-symbols.js";
@@ -87,9 +87,9 @@ export const MAP_LEGEND: readonly LegendEntry[] = [
     draws: ["claim-ring", "flag-shadow", "flag-pennant", "flag-outline", "flag-pole", "claim-lot"],
   },
   {
-    words: "shipping lane: shown while a story is selected, one for each call to or from another story; lanes going the same way merge into one, wider the more it carries, up to a cap; each ends at a port",
-    mark: svg("0 0 26 14", `<path d="M1 7H19" stroke="${SEA_LANE}" stroke-width="2.2" />${post(19.5, 4, 5)}`),
-    draws: ["lane", "port-house", "port-tower", "port-shadow"], at: "sea",
+    words: "shipping lane: a dotted course, one for each call between two stories; lanes going the same way merge into one, bigger dots the more it carries, up to a cap; a selected story fills its share of each in pale blue, ending at a port",
+    mark: svg("0 0 26 14", `<path d="M2 7H19" stroke="${SEA_LANE}" stroke-width="2.2" stroke-linecap="round" stroke-dasharray="0 4.6" /><path d="M2 7H11" stroke="${SEA_LANE_FILL}" stroke-width="2.6" />${post(19.5, 4, 5)}`),
+    draws: ["lane-dots", "lane", "port-house", "port-tower", "port-shadow"], at: "sea",
   },
 ];
 

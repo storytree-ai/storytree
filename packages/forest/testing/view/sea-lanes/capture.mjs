@@ -26,11 +26,12 @@ const measure = page => page.evaluate(() => {
   const lengths = lanes.map(lane => lane.length);
   return { lanes: lanes.length, longest: Math.round(Math.max(0, ...lengths)), total: Math.round(lengths.reduce((a, b) => a + b, 0)) };
 });
-/** What the sea carries at rest: lanes lit, and any mesh drawn between islands that is not a lane. */
+/** What the sea carries at rest: lanes lit, and any mesh drawn between islands that is neither a lane nor the dots every
+ * lane shows at rest (ADR-1278 D1, the chart-lanes capture). */
 const atRest = page => page.evaluate(() => {
   const group = window.__globe.scene.getObjectByName('globe-lanes');
   let meshes = 0;
-  group?.traverse(object => { if (object.isMesh) meshes++; });
+  group?.traverse(object => { if (object.isMesh && object.name !== 'lane-dots') meshes++; });
   let roads = 0;
   window.__globe.scene.traverse(object => { if (object.name.startsWith('pathway:')) roads++; });
   return { lanes: group?.getObjectByName('pathways:selection-lanes')?.userData.lanes.length ?? 0, meshes, roads };
@@ -64,7 +65,7 @@ await runCapture({
   views: [{
     name: 'at-rest', prepare: still,
     measure: async ({ page }) => (results.rest = await atRest(page)),
-    expect: found => assert.deepEqual(found, { lanes: 0, meshes: 0, roads: 0 }, 'at rest the sea carries no line between islands'),
+    expect: found => assert.deepEqual(found, { lanes: 0, meshes: 0, roads: 0 }, 'at rest no lane is lit and no road is drawn between islands'),
   }, {
     name: 'the-library-selected', prepare: selectLibrary,
     measure: async ({ page }) => (results.library = await measure(page)),

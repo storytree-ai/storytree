@@ -3,7 +3,7 @@ import test from 'node:test';
 import { Vector3 } from 'three';
 import type { ForestScene, Island } from '../scene.js';
 import { buildPlanetPathways, laneDrawSeconds, laneProgress, laneRoutes, SEA_LANE } from '../geometry.js';
-import { advanceLaneClock, laneDrawn, laneHead, laneHeads, laneShown, LANE_SPEED, SEA_LANE_CAP, seaLaneWidth, type LaneRoute, type LitLink } from './lanes.js';
+import { advanceLaneClock, LANE_DOTS, LANE_MIN_PX, laneScale, SEA_LANE_ONE, laneDrawn, laneHead, laneHeads, laneShown, LANE_SPEED, restLanes, restShown, SEA_LANE_CAP, SEA_LANE_FILL, seaLaneWidth, type LaneRoute, type LitLink } from './lanes.js';
 import type { PlanetLanes, PlanetPathways } from './pathways.js';
 import { plateTransform } from './planet.js';
 
@@ -16,11 +16,11 @@ const scene: ForestScene = { islands: [island('a', ['a1', 'a2']), island('b', ['
   links: [{ from: 'a2', to: 'a1' }, { from: 'b1', to: 'a1' }, { from: 'b2', to: 'b1' }, { from: 'b2', to: 'a2' }] };
 const spots = new Map([['a', { x: R * Math.sin(0.3), y: 0, z: R * Math.cos(0.3) }], ['b', { x: -R * Math.sin(0.3), y: 0, z: R * Math.cos(0.3) }]]);
 
-test('4.8 a lit link\'s lane is one unbroken line at sea between islands, routed on its own from the dock of the island built on to the dock of the island building on it, one pale sea-blue in and out alike', () => {
+test('4.8 a lit link\'s lane is one unbroken solid pale fill at sea between islands, routed on its own from the dock of the island built on to the dock of the island building on it, one pale tone in and out alike', () => {
   const plan = buildPlanetPathways(scene, spots, R);
   const lit: LitLink[] = [{ from: 'b1', to: 'a1', dir: 'down' }, { from: 'b2', to: 'a2', dir: 'up' }, { from: 'a2', to: 'a1', dir: 'up' }];
   const lanes = laneRoutes(plan.lanes, lit);
-  assert.deepEqual(lanes.map(l => [l.from, l.to, l.colour]), [['b1', 'a1', SEA_LANE], ['b2', 'a2', SEA_LANE]],
+  assert.deepEqual(lanes.map(l => [l.from, l.to, l.colour]), [['b1', 'a1', SEA_LANE_FILL], ['b2', 'a2', SEA_LANE_FILL]],
     'a link within one island lights nothing, and both ways are one tone');
   const segments = new Map(plan.lanes.segments.map(s => [s.id, s]));
   const dock = (story: string, link: string) => plan.lanes.docks.find(d => d.story === story && d.links.includes(link))!.point;
@@ -221,4 +221,66 @@ test('4.9 slow rendered frames leave visible intermediate lane growth, while nor
   assert.equal(advanceLaneClock(0, 0.6), 0.08, 'a slow frame cannot complete a short route at once');
   assert.ok(laneProgress(advanceLaneClock(0, 1.5), laneDrawSeconds(100), false) < 0.3, 'the first slow frame leaves most of the route still to grow');
   assert.equal(advanceLaneClock(0.1, -1), 0.1, 'a negative frame delta cannot wind growth backwards');
+});
+
+/** Three islands' lanes (b's, c's and d's) to a: each comes down its own arm to a trunk the three share into a's dock. */
+function trunkOfThree(): PlanetLanes {
+  const point = (x: number, y: number) => new Vector3(x, y, R);
+  const line = (id: string, from: [number, number], to: [number, number], links: string[]) => ({
+    id, links, points: Array.from({ length: 41 }, (_, i) => point(from[0], from[1]).lerp(point(to[0], to[1]), i / 40)),
+  });
+  const arms = { b: [20, 10], c: [20, 0], d: [20, -10] } as const;
+  return {
+    docks: [],
+    segments: [line('trunk', [-30, 0], [0, 0], ['b1->a1', 'c1->a1', 'd1->a1']),
+      ...Object.entries(arms).map(([story, end]) => line(story, [0, 0], [...end], [`${story}1->a1`]))],
+    edges: Object.keys(arms).map(story => ({ from: `${story}1`, to: 'a1', segments: [{ id: story, reversed: true }, { id: 'trunk', reversed: true }], islands: [story, 'a'] as const })),
+  };
+}
+
+test('4.44 at rest every lane is drawn as a line of round chart dots in the lane blue, each stretch\'s dots about half its lane width and spaced about twice their size, down the middle of its merged route', () => {
+  const plan = trunkOfThree(), stretches = restLanes(plan);
+  assert.deepEqual(stretches.map(s => s.id).sort(), plan.segments.map(s => s.id).sort(), 'every stretch of every lane is dotted, each once however many lanes share it');
+  // A stretch's lane width is what every lane riding it, lit together, is drawn as there.
+  const every = laneRoutes(plan, plan.edges.map(edge => ({ from: edge.from, to: edge.to, dir: 'down' as const })));
+  const widthOn = (segment: { points: Vector3[] }) => {
+    const mid = segment.points[Math.floor(segment.points.length / 2)]!, lane = every.find(l => l.points.some(p => p.distanceTo(mid) < 1e-9))!;
+    return lane.widths[lane.points.findIndex(p => p.distanceTo(mid) < 1e-9)]!;
+  };
+  for (const stretch of stretches) {
+    const segment = plan.segments.find(s => s.id === stretch.id)!;
+    assert.ok(Math.abs(stretch.size - widthOn(segment) / 2) < 1e-12, `${stretch.id}'s dots are half its lane width`);
+    for (const dot of stretch.dots) assert.ok(segment.points.some(p => p.distanceTo(dot.at) < 0.6), 'each down the middle of its route');
+    const length = segment.points.slice(1).reduce((sum, p, i) => sum + p.distanceTo(segment.points[i]!), 0);
+    assert.ok(stretch.dots[0]!.at.distanceTo(segment.points[0]!) < 2.2 * stretch.size && stretch.dots.at(-1)!.at.distanceTo(segment.points.at(-1)!) < 2.2 * stretch.size, `${stretch.id} dotted end to end (${length.toFixed(0)} units)`);
+    stretch.dots.slice(1).forEach((dot, i) => {
+      const apart = dot.at.distanceTo(stretch.dots[i]!.at) / stretch.size;
+      assert.ok(apart > 1.6 && apart < 2.6, `${stretch.id}'s dots ${apart.toFixed(2)} sizes apart: about twice`);
+    });
+  }
+  const trunk = stretches.find(s => s.id === 'trunk')!, arm = stretches.find(s => s.id === 'b')!;
+  assert.ok(trunk.size > arm.size, 'a trunk carrying more links reads as bigger dots');
+  assert.ok(restShown(trunk, () => 1) && !restShown(arm, story => story === 'b' ? 0.5 : 1), 'in a growth a stretch shows once both islands of a lane on it have risen (4.33)');
+  assert.ok(restShown(trunk, story => story === 'b' ? 0.5 : 1), 'the trunk shows while another of its lanes stands');
+});
+
+test('4.8 a selected story fills only its share of each stretch, as wide as its own lit lanes there and never wider than the stretch', () => {
+  const plan = trunkOfThree(), rest = new Map(restLanes(plan).map(s => [s.id, s.size / LANE_DOTS.size]));
+  const lanes = laneRoutes(plan, [{ from: 'b1', to: 'a1', dir: 'down' }, { from: 'c1', to: 'a1', dir: 'down' }]);
+  for (const lane of lanes) lane.points.forEach((p, i) => {
+    if (p.x < -1e-9) {
+      assert.equal(lane.widths[i], seaLaneWidth(2), 'on the trunk it carries two of three: two lanes\' width');
+      assert.ok(lane.widths[i]! < rest.get('trunk')!, 'partly filled: narrower than the trunk');
+    } else if (p.x > 1e-9) assert.equal(lane.widths[i], rest.get(lane.from[0]!), 'alone on its arm it fills the arm');
+  });
+});
+
+test('4.44 zoomed out past the mock\'s one-lane width on screen, every lane size scales up together by a power of two, so lanes stay seen and the dots keep their places within a step', () => {
+  assert.equal(laneScale(0.01), 1, 'zoomed in, lanes are their ground width');
+  for (const worldPerPixel of [0.2, 0.5, 1, 1.7, 4]) {
+    const scale = laneScale(worldPerPixel), px = SEA_LANE_ONE * scale / worldPerPixel;
+    assert.equal(Math.log2(scale) % 1, 0, `a power of two at ${worldPerPixel}`);
+    assert.ok(px >= LANE_MIN_PX / Math.SQRT2 - 1e-9 && px <= LANE_MIN_PX * Math.SQRT2 + 1e-9, `one lane ${px.toFixed(1)} px across at ${worldPerPixel} units a pixel`);
+  }
+  assert.equal(laneScale(1), laneScale(1.1), 'a little zoom keeps the step');
 });

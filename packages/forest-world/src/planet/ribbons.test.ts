@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { Vector3 } from 'three';
-import { drawLane, laneMaterial, laneRibbon } from './PlanetTrailRibbons.js';
-import { SEA_LANE } from './lanes.js';
+import { BufferGeometry, Mesh, OrthographicCamera, PerspectiveCamera, Vector3 } from 'three';
+import { drawDots, drawLane, laneDotMaterial, laneDots, laneMaterial, laneRibbon, worldPerPixel } from './PlanetTrailRibbons.js';
+import { LANE_DOTS, laneScale, SEA_LANE } from './lanes.js';
 
 test('4.9 · The rendered lane front crosses unevenly sampled road sections by physical distance, including between samples', () => {
   const geometry = laneRibbon({ points: [0, 1, 2, 10].map(x => new Vector3(x, 100, 0)), widths: [0.5, 0.5, 0.5, 0.5] });
@@ -17,4 +17,50 @@ test('4.9 · The rendered lane front crosses unevenly sampled road sections by p
   }
   geometry.dispose();
   material.dispose();
+});
+
+test('4.44 · the dots at rest are round quads in the lane blue, one per dot at its size and place in its stretch, scaled together, dimmed while a story is selected and hidden while their islands rise', () => {
+  const stretches = [{ id: 's', size: 0.4, islands: [['a', 'b'] as const], dots: [0, 1, 2].map(x => ({ at: new Vector3(x, 100, 0), along: new Vector3(1, 0, 0) })) }];
+  const geometry = laneDots(stretches), material = laneDotMaterial();
+  const position = geometry.getAttribute('position'), corner = geometry.getAttribute('corner');
+  assert.equal(position.count, 12, 'four corners a dot');
+  for (let i = 0; i < position.count; i++) {
+    const centre = new Vector3(Math.floor(i / 4), 100, 0);
+    assert.ok(new Vector3().fromBufferAttribute(position, i).sub(centre).projectOnPlane(centre.clone().normalize()).length() < 1e-5, 'about its dot\'s place');
+    assert.ok(Math.abs(Math.abs(corner.getX(i)) - 1) < 1e-9 && Math.abs(Math.abs(corner.getY(i)) - 1) < 1e-9, 'each corner of a unit square the shader rounds and sizes');
+    assert.ok(Math.abs(geometry.getAttribute('size').getX(i) - 0.4) < 1e-6, 'its size');
+    assert.equal(geometry.getAttribute('order').getX(i), Math.floor(i / 4), 'its place in its stretch, for the scale to keep every second at the next step');
+  }
+  assert.equal(`#${material.uniforms.uColour!.value.getHexString()}`, SEA_LANE);
+  drawDots(material, geometry, stretches, false, () => 1, 8);
+  assert.equal(material.uniforms.uOpacity!.value, LANE_DOTS.opacity);
+  assert.equal(material.uniforms.uScale!.value, 8, 'scaled with every lane');
+  drawDots(material, geometry, stretches, true, () => 1);
+  assert.equal(material.uniforms.uOpacity!.value, LANE_DOTS.opacity * LANE_DOTS.dim, 'dim while a story is selected');
+  assert.ok([0, 1, 2, 3].every(i => geometry.getAttribute('shown').getX(i) === 1));
+  drawDots(material, geometry, stretches, true, story => story === 'a' ? 0.3 : 1);
+  assert.ok([0, 1, 2, 3].every(i => geometry.getAttribute('shown').getX(i) === 0), 'hidden while an island of its lane rises');
+  const lane = laneMaterial(SEA_LANE, 1);
+  drawLane(lane, 1, 0, 10, 8);
+  assert.equal(lane.uniforms.uScale!.value, 8, 'a fill scales with the dots');
+  // Measured as the screen draws it: one unit of the drawing, scaled up twice, seen square on by a camera zoomed twice.
+  const mesh = new Mesh(geometry);
+  mesh.scale.setScalar(2);
+  mesh.updateMatrixWorld();
+  const centre = mesh.localToWorld(geometry.boundingSphere!.center.clone());
+  const camera = new PerspectiveCamera(50, 1.5, 0.1, 1000);
+  camera.position.copy(centre).add(new Vector3(0, 0, 300));
+  camera.zoom = 2;
+  camera.lookAt(centre);
+  camera.updateMatrixWorld();
+  camera.updateProjectionMatrix();
+  const pixels = (centre.clone().add(new Vector3(0, 2, 0)).project(camera).y - centre.clone().project(camera).y) * 900 / 2;
+  assert.ok(Math.abs(worldPerPixel(mesh, geometry, camera, 900) - 1 / pixels) < 1e-9, 'the drawing\'s own units a pixel across');
+  assert.equal(worldPerPixel(mesh, geometry, new OrthographicCamera(), 900), 0, 'no reading but through a perspective eye');
+  assert.equal(worldPerPixel(mesh, geometry, camera, 0), 0, 'nor on a canvas with no height');
+  assert.equal(worldPerPixel(mesh, new BufferGeometry(), camera, 900), 0, 'nor of a drawing with no extent yet');
+  assert.equal(laneScale(0), 1, 'and with no reading, lanes are their ground width');
+  geometry.dispose();
+  material.dispose();
+  lane.dispose();
 });

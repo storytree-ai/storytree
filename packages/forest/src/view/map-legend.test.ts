@@ -5,7 +5,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { Color, LineSegments, Mesh, MeshBasicMaterial, Quaternion, Vector3, type Object3D } from "three";
-import { islandSurface, SEA_LANE } from "@storytree/forest-world/geometry";
+import { islandSurface, SEA_LANE, SEA_LANE_FILL } from "@storytree/forest-world/geometry";
 import type { CapabilityWord } from "@storytree/forest-world/scene";
 
 import { islandRoads } from "../territories/island-roads.js";
@@ -92,7 +92,7 @@ test("4.39 the legend's fills are the territories' fills by word, parked, mapped
   assert.deepEqual([...swatches].sort(), [...fills].sort());
 });
 
-test("4.39 the legend shows each of the six settlement kinds, the sea lanes in their pale blue, in the story panel", () => {
+test("4.39 the legend shows each of the six settlement kinds, the sea lanes as dots at rest and a pale fill under a selection, in the story panel", () => {
   const html = renderMapLegend();
   for (const [kind, { parts, lines }] of Object.entries(GLYPHS)) {
     const mark = new RegExp(`data-kind="${kind}">(<svg[\\s\\S]*?</svg>)`).exec(html)?.[1] ?? "";
@@ -101,7 +101,8 @@ test("4.39 the legend shows each of the six settlement kinds, the sea lanes in t
     assert.equal(paths.filter(({ closed, filled }) => closed && filled).length, parts.length, `the ${kind} symbol's shapes`);
     assert.equal(paths.filter(({ closed, filled }) => !closed && !filled).length, lines.length, `the ${kind} symbol's lines`);
   }
-  assert.ok(MAP_LEGEND.some(({ at, mark, draws }) => at === "sea" && draws.includes("lane") && mark.includes(SEA_LANE)), "the lane's colour");
+  const lane = MAP_LEGEND.find(({ at, draws }) => at === "sea" && draws.includes("lane"));
+  assert.ok(lane && lane.draws.includes("lane-dots") && lane.mark.includes(SEA_LANE) && lane.mark.includes(SEA_LANE_FILL), "the lane's dots at rest and its fill under a selection, each in its colour");
   const panel = renderStoryPanel({ id: "s", title: "S", description: "d", capabilities: [] } as unknown as Parameters<typeof renderStoryPanel>[0], undefined);
   assert.ok(panel.includes(html), "the panel carries the legend");
 });

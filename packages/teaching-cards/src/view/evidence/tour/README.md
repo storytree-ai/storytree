@@ -16,3 +16,5 @@ Pictures, 1440 x 960:
 - `the-map-clear-after-end-tour.png`: after End tour, no card on the map.
 
 In the evidence bucket for #584, linked from the pull request body (ADR-1234; deleted after 90 days or when its arc closes): `584/the-ask.png`, `584/the-plan-card-after-show-me.png`, `584/a-story-card-beside-its-island.png`, `584/the-map-clear-after-end-tour.png`.
+
+In the evidence bucket for #585, linked from the pull request body (ADR-1234; deleted after 90 days or when its arc closes): `585/a-story-card-beside-its-island.png`, `585/the-ask.png`, `585/the-map-clear-after-end-tour.png`, `585/the-plan-card-after-show-me.png`.

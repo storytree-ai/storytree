@@ -3,7 +3,7 @@ import test from 'node:test';
 import { Vector3 } from 'three';
 import type { ForestScene, Island } from '../scene.js';
 import { buildPlanetPathways, laneDrawSeconds, laneProgress, laneRoutes, SEA_LANE } from '../geometry.js';
-import { advanceLaneClock, laneHead, laneHeads, LANE_SPEED, SEA_LANE_CAP, seaLaneWidth, type LaneRoute, type LitLink } from './lanes.js';
+import { advanceLaneClock, laneDrawn, laneHead, laneHeads, laneShown, LANE_SPEED, SEA_LANE_CAP, seaLaneWidth, type LaneRoute, type LitLink } from './lanes.js';
 import type { PlanetLanes, PlanetPathways } from './pathways.js';
 import { plateTransform } from './planet.js';
 
@@ -37,8 +37,6 @@ test('4.8 a lit link\'s lane is one unbroken line at sea between islands, routed
     assert.equal(lane.widths.length, lane.points.length);
     assert.ok(Math.abs(lane.length - lane.points.slice(1).reduce((sum, p, i) => sum + p.distanceTo(lane.points[i]!), 0)) < 1e-6);
   }
-  const unroaded = laneRoutes(buildPlanetPathways({ ...scene, plumbing: [{ from: 'a', to: 'b', kind: 'build step', files: ['a/build.ts'] }] }, spots, R).lanes, lit);
-  assert.deepEqual(unroaded.map(l => l.points.length), lanes.map(l => l.points.length), 'a plumbing road between the islands moves no lane');
   const [alone] = laneRoutes(plan.lanes, [{ from: 'b1', to: 'a1', dir: 'down' }]);
   assert.ok(alone!.widths.every(w => w === seaLaneWidth(1)), 'a lane alone is the narrowest line');
   assert.deepEqual(laneRoutes(plan.lanes, [{ from: 'x', to: 'y', dir: 'up' }]), [], 'a link with no route lights nothing');
@@ -56,6 +54,16 @@ function againstLand(plan: PlanetPathways, story: string, spot: { x: number; y: 
   }
   return { into, off };
 }
+
+test('4.33 in a recorded growth a lane shows once both its islands have risen, never before', () => {
+  const [lane] = laneRoutes(buildPlanetPathways(scene, spots, R).lanes, [{ from: 'b1', to: 'a1', dir: 'down' }]);
+  const rising = (progress: Record<string, number>) => (story: string) => progress[story] ?? 1;
+  assert.equal(laneShown(lane!, rising({ a: 1, b: 0.4 })), false, 'hidden while its far island rises');
+  assert.equal(laneShown(lane!, rising({ a: 0.2, b: 1 })), false, 'hidden while its near island rises');
+  assert.equal(laneShown(lane!, rising({ a: 1, b: 1, c: 0 })), true, 'shown once both stand, whatever another island does');
+  assert.equal(laneDrawn(lane!, rising({ a: 1, b: 0.4 }), 9, 1, false), 0, 'nothing of it is drawn while it waits, however long it was lit');
+  assert.equal(laneDrawn(lane!, rising({ a: 1, b: 1 }), 9, 1, false), 1, 'and it is drawn as lit once both stand');
+});
 
 test('4.41 a lane never crosses another island\'s land: it is routed around an island lying between its two, clear of its coast', () => {
   const ring = (angle: number) => ({ x: R * Math.sin(angle), y: 0, z: R * Math.cos(angle) });

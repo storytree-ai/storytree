@@ -1,4 +1,4 @@
-// The plumbing-labels proof's page: the planet canvas bundled for Chromium with React's development build, so a warning React
+// The sheet-overlays proof's page: the planet canvas bundled for Chromium with React's development build, so a warning React
 // only gives in development (a root unmounted while it renders) reaches the console, as it does in the desktop app.
 import { mkdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';

@@ -72,14 +72,6 @@ export function alongChain(plan: Pick<PlanetLanes, 'segments'>, chain: readonly 
   return { points, widths, length, width: Math.min(...widths) };
 }
 
-/** How a selection's lanes are layered (4.32): its dependency lanes, then its plumbing lanes drawn over them, lifted a
- * little higher off the glass and after them, so a plumbing lane sharing a dependency lane's stretch reads as a thread
- * down it. */
-export function laneStrips<L extends LaneRoute>(routes: readonly L[], plumbing: readonly L[]): { lane: L; plumbed: boolean; lift: number; renderOrder: number }[] {
-  return [...routes.map(lane => ({ lane, plumbed: false, lift: 0.12, renderOrder: 2 })),
-    ...plumbing.map(lane => ({ lane, plumbed: true, lift: 0.16, renderOrder: 3 }))];
-}
-
 /** How far along a lane is drawn `elapsed` rendered seconds after selection (`laneProgress`), and nothing while it is not
  * shown in a recorded growth (4.33). */
 export function laneDrawn(lane: Pick<LaneRoute, 'islands'>, island: (story: string) => number, elapsed: number, seconds: number, reducedMotion: boolean): number {

@@ -67,7 +67,7 @@ test("3.4 each story node shows its story's name", () => {
   assert.deepEqual(forestDrawn(forestScene(tree, history, workStates([]))).labels, ["Visitor can sign up", "Visitor can log in", "Admin sees sign-ups"]);
 });
 
-test("3.67 each plumbing call the survey marks between two stories is one island-to-island entry per kind, with its files, and adds no road", () => {
+test("3.67 each plumbing call the survey marks between two stories is one island-to-island entry per kind, with its files, and is a link like any other", () => {
   const { tree, history } = project();
   const file = (from: string, extra: object = {}) => ({ from, typeOnly: false, ...extra });
   const survey = {
@@ -75,7 +75,7 @@ test("3.67 each plumbing call the survey marks between two stories is one island
       // Two build-step files to one story make one entry; an unmarked import from the same file is no plumbing.
       { story: "story_2", typeOnly: false, files: [file("src/build.ts", { plumbing: "build step" }), file("src/run.ts", { plumbing: "build step" }), file("src/sell.ts")] },
       { story: "story_2", from: "cap_1a", to: "cap_2a", typeOnly: false, files: [file("src/old.ts", { forwarder: true })] },
-      // A capability edge with one ordinary import beside its plumbing is still a road.
+      // A capability edge with one ordinary import beside its plumbing is a link, as one made only of plumbing is.
       { story: "story_2", from: "cap_1b", to: "cap_2a", typeOnly: false, files: [file("src/old.ts", { forwarder: true }), file("src/cart.ts")] },
       { story: "story_3", typeOnly: false, files: [file("src/remove.ts", { plumbing: "cleanup" })] },
     ] },
@@ -86,6 +86,12 @@ test("3.67 each plumbing call the survey marks between two stories is one island
     { from: "story_1", to: "story_2", kind: "forwarder", files: ["src/old.ts"] },
     { from: "story_1", to: "story_3", kind: "cleanup", files: ["src/remove.ts"] },
   ]);
-  // A capability edge made only of plumbing is no road (plumbing is not a dependency); one with an ordinary import is.
-  assert.deepEqual(scene.links, [{ from: "cap_1b", to: "cap_2a" }]);
+  // A plumbing call is a link like a dependency (ADR-1277 D1): on a capability edge, that edge's link; on an edge with no
+  // capability end, a link from its island to the other as a whole, so every call is drawn as one more link between them.
+  assert.deepEqual(scene.links, [
+    { from: "story_1", to: "story_2" },
+    { from: "cap_1a", to: "cap_2a" },
+    { from: "cap_1b", to: "cap_2a" },
+    { from: "story_1", to: "story_3" },
+  ]);
 });

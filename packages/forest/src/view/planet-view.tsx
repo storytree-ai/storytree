@@ -158,7 +158,7 @@ export function PlanetView({ core, scene, places, wisps: live, selected, highlig
   return <PlanetWorldCanvas scene={travelling ? roadless : layout.scene} spots={moving} radius={layout.radius}
     surface surfaces={shownSurfaces} framing={cameraFraming} sideOffset={cameraOffset} sheet={layout.extent} hollow={outlines}
     globe={globe} offset={turned.current.centre} inside={inside}
-    rotation={turned.current.rotation.toArray()} plateChildren={overlays} lanes={lanes} selected={selected} growth={growth}>
+    rotation={turned.current.rotation.toArray()} plateChildren={overlays} lanes={lanes} growth={growth}>
     <Navigation islands={layout.islands} radius={layout.radius} titles={titles}
       rotation={turned.current.rotation} onRotate={onRotate} onPose={setPose} onControls={onControls} onPick={onPick} onRoute={setRoute} onNote={onNote} mode={mode} sheet={layout.extent}
       sideOffset={sideOffset ?? 0} aside={aside}

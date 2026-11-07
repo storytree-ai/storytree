@@ -3,8 +3,7 @@ import { useEffect, useMemo, useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import { BufferGeometry, Color, DoubleSide, Float32BufferAttribute, ShaderMaterial, Vector3 } from 'three';
 import { usePlanetGrowth } from './PlanetGrowth.js';
-import { advanceLaneClock, laneDrawn, laneDrawSeconds, laneHead, laneHeads, laneProgress, laneShown, laneStrips, type LaneRoute } from './lanes.js';
-import type { PlumbingLane } from './plumbing.js';
+import { advanceLaneClock, laneDrawn, laneDrawSeconds, laneHead, laneHeads, laneProgress, laneShown, type LaneRoute } from './lanes.js';
 
 /** A lane's strip: at each vertex its physical distance along the route (`along`) and the way out to its side at half
  * the strip's width (`sideways`), so a shader can draw its front and head. */
@@ -78,20 +77,18 @@ const reducedMotion = () => typeof matchMedia === 'function' && matchMedia('(pre
 /** A selected story's lit links (The drawing engine 4.8–4.9, ADR-1236 D1, ADR-1261 D3–D5): each lane one solid pale
  * sea-blue line at sea on its own route, lanes sharing a stretch one line there, wider by how many share it up to a cap,
  * ending at the far island's dock and just off the selected island's port (`seaLanes`); it draws on from the island
- * built on, every lane starting together at one pace, with a warm head at the front of each stretch it leads. Its
- * plumbing lanes (`plumbingLanes`) draw on with them in their own grey-green, over any dependency lane they share a
- * stretch with, so they read as a thread down it. In a recorded growth a lane shows once both its islands have risen
+ * built on, every lane starting together at one pace, with a warm head at the front of each stretch it leads; a plumbing
+ * call is one more link among them (ADR-1277 D1). In a recorded growth a lane shows once both its islands have risen
  * (4.33). A new selection draws its lanes again. */
-export function SelectionLanes({ routes, plumbing = [] }: { routes: readonly LaneRoute[]; plumbing?: readonly PlumbingLane[] }) {
-  const strips = useMemo(() => laneStrips<LaneRoute>(routes, plumbing), [routes, plumbing]);
-  const key = strips.map(({ lane }) => `${lane.colour}:${lane.dir}:${lane.from}->${lane.to}`).sort().join('\n');
+export function SelectionLanes({ routes }: { routes: readonly LaneRoute[] }) {
+  const key = routes.map(lane => `${lane.colour}:${lane.dir}:${lane.from}->${lane.to}`).sort().join('\n');
   const animation = useRef({ key, elapsed: 0, started: false, reduced: reducedMotion() });
   if (animation.current.key !== key) animation.current = { key, elapsed: 0, started: false, reduced: reducedMotion() };
   const lanes = useMemo(() => {
-    const heads = laneHeads(strips.map(({ lane }) => lane));
-    return strips.map(({ lane, plumbed, lift, renderOrder }, i) => ({ lane, plumbed, renderOrder, seconds: laneDrawSeconds(lane.length), heads: heads[i]!,
-      strip: { geometry: laneRibbon(lane, lift), material: laneMaterial(lane.colour, 1) } }));
-  }, [strips]);
+    const heads = laneHeads(routes);
+    return routes.map((lane, i) => ({ lane, seconds: laneDrawSeconds(lane.length), heads: heads[i]!,
+      strip: { geometry: laneRibbon(lane, 0.12), material: laneMaterial(lane.colour, 1) } }));
+  }, [routes]);
   useEffect(() => () => lanes.forEach(({ strip }) => { strip.geometry.dispose(); strip.material.dispose(); }), [lanes]);
   const { invalidate } = useThree();
   useEffect(() => { invalidate(); }, [lanes, invalidate]);
@@ -116,12 +113,10 @@ export function SelectionLanes({ routes, plumbing = [] }: { routes: readonly Lan
     // The canvas draws on demand: keep asking for frames only while a lane is still drawing or its head fading.
     if (drawing) invalidate();
   });
-  return <group name="pathways:selection-lanes" userData={{ lanes: lanes.filter(({ plumbed }) => !plumbed).map(({ lane, seconds, heads }) =>
-    ({ from: lane.from, to: lane.to, dir: lane.dir, length: lane.length, seconds, heads })),
-    plumbing: lanes.filter(({ plumbed }) => plumbed).map(({ lane }) => ({ from: lane.from, to: lane.to, kinds: (lane as PlumbingLane).kinds })) }}>
-    {lanes.map(({ lane, plumbed, renderOrder, strip }) => <mesh key={`${plumbed ? 'plumbing' : lane.dir}:${lane.from}->${lane.to}`}
-      name={plumbed ? `plumbing-lane:${lane.from}->${lane.to}` : `lane:${lane.dir}:${lane.from}->${lane.to}`} geometry={strip.geometry} material={strip.material}
-      raycast={ignoreRay} renderOrder={renderOrder} userData={{ from: lane.from, to: lane.to, dir: lane.dir, length: lane.length, ...lane.typeOnly ? { typeOnly: true } : {},
-        ...plumbed ? { kinds: (lane as PlumbingLane).kinds } : {} }} />)}
+  return <group name="pathways:selection-lanes" userData={{ lanes: lanes.map(({ lane, seconds, heads }) =>
+    ({ from: lane.from, to: lane.to, dir: lane.dir, length: lane.length, seconds, heads })) }}>
+    {lanes.map(({ lane, strip }) => <mesh key={`${lane.dir}:${lane.from}->${lane.to}`}
+      name={`lane:${lane.dir}:${lane.from}->${lane.to}`} geometry={strip.geometry} material={strip.material}
+      raycast={ignoreRay} renderOrder={2} userData={{ from: lane.from, to: lane.to, dir: lane.dir, length: lane.length, ...lane.typeOnly ? { typeOnly: true } : {} }} />)}
   </group>;
 }

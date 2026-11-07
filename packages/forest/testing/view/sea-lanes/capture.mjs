@@ -1,8 +1,8 @@
 // Sea lanes routed on their own (ADR-1261 D1-D4, 4.8, 4.41, 4.42): storytree's own map (the code-rows snapshot and its
 // survey) as the app opens it, first at rest, its sea carrying no line between islands, then with The library's island
 // clicked so every lane of its capability links is lit, drawn on and settled. storytree's own map declares no plumbing call,
-// so a second run draws it from a fixture survey (ADR-1261 D5): The library given a build step to The command line and a
-// cleanup to The app, at rest (no line, no label) and with The library selected (two grey-green lanes, labelled). `node --import tsx capture.mjs` (append --retake to write into src/view/evidence/sea-lanes). Measures, from
+// so a second run draws it from a fixture survey (ADR-1277 D1): The library given a build step to The command line and a
+// cleanup to The app, at rest (no line) and with The library selected (each one more lane, drawn as any other, unlabelled). `node --import tsx capture.mjs` (append --retake to write into src/view/evidence/sea-lanes). Measures, from
 // the scene, the lanes lit and how long they run, so the before and after pictures can be compared by numbers too.
 import { writeFileSync } from 'node:fs';
 import path from 'node:path';
@@ -77,21 +77,25 @@ const story = title => seed.tree.stories.find(one => one.title === title).id;
 const plumbed = { ...survey, [library]: { ...survey[library], edges: [...survey[library].edges ?? [],
   { story: story('The command line'), typeOnly: false, files: [{ from: 'src/build-step.ts', typeOnly: false, plumbing: 'build step' }] },
   { story: story('The app'), typeOnly: false, files: [{ from: 'src/cleanup.ts', typeOnly: false, plumbing: 'cleanup' }] }] } };
-/** The plumbing lanes lit and the plumbing labels on the page. */
-const plumbing = page => page.evaluate(() => ({
-  lanes: (window.__globe.scene.getObjectByName('pathways:selection-lanes')?.userData.plumbing ?? []).map(lane => lane.kinds.join('+')).sort(),
-  labels: [...document.querySelectorAll('[data-plumbing]')].map(label => label.textContent).sort(),
-}));
+/** The plumbing calls' lanes among those lit, any mesh at sea that is not a lane, and the lane colours drawn. */
+const plumbing = (page, ends) => page.evaluate(ends => {
+  const group = window.__globe.scene.getObjectByName('pathways:selection-lanes');
+  const lit = (group?.userData.lanes ?? []).map(lane => `${lane.from}->${lane.to}`);
+  const colours = new Set(), others = [];
+  group?.traverse(object => { if (!object.isMesh) return; if (!object.name.startsWith('lane:')) others.push(object.name); colours.add(object.material.uniforms.uColour.value.getHexString()); });
+  return { lanes: ends.filter(end => lit.includes(end)), others, colours: colours.size };
+}, ends);
+const plumbingEnds = [`${library}->${story('The command line')}`, `${library}->${story('The app')}`];
 await runCapture({
   folder: pictures, dist, seed, survey: plumbed, prepare,
   views: [{
     name: 'plumbing-at-rest', prepare: still,
-    measure: async ({ page }) => (results.plumbingRest = await plumbing(page)),
-    expect: found => assert.deepEqual(found, { lanes: [], labels: [] }, 'at rest no plumbing lane or label shows'),
+    measure: async ({ page }) => (results.plumbingRest = await plumbing(page, plumbingEnds)),
+    expect: found => assert.deepEqual(found, { lanes: [], others: [], colours: 0 }, 'at rest the sea carries no line'),
   }, {
     name: 'plumbing-the-library-selected', prepare: selectLibrary,
-    measure: async ({ page }) => (results.plumbing = await plumbing(page)),
-    expect: found => assert.deepEqual(found, { lanes: ['build step', 'cleanup'], labels: ['build step', 'cleanup'] }, 'The library lights its two plumbing lanes, labelled'),
+    measure: async ({ page }) => (results.plumbing = { ...await plumbing(page, plumbingEnds), labels: await page.evaluate(() => document.querySelectorAll('[data-plumbing]').length) }),
+    expect: found => assert.deepEqual(found, { lanes: plumbingEnds, others: [], colours: 1, labels: 0 }, 'The library lights its two plumbing calls as lanes like the rest, one colour, no label'),
   }],
 });
 writeFileSync(path.join(captureOutput(pictures), 'measurements.json'), JSON.stringify(results, null, 1) + '\n');

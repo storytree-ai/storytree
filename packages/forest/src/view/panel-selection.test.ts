@@ -75,7 +75,7 @@ test("3.88 · a picked gate selects its island's story with the pair of capabili
 
 test("3.91 · a capability picked in the panel names it on the selected story, so the map rings it, without telling the panel again", () => {
   const map: Selection[] = [], panel: Selection[] = [];
-  const selection = new PanelSelection((next, { fromPanel }) => { map.push(next); if (!fromPanel) panel.push(next); });
+  const selection = new PanelSelection((next) => map.push(next), (next) => panel.push(next));
   selection.story("story");
   selection.chose("c");
   assert.deepEqual(selection.current, { kind: "story", id: "story", capability: "c" }, "the selected story, on that capability");

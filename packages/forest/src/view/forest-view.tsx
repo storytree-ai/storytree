@@ -97,11 +97,10 @@ export async function openForestView(container: HTMLElement, onSelect: (selectio
       {layers.mode === "library" && <KnowledgeKinds core={core} />}
     </>);
   };
-  const selection = new PanelSelection((next, { fromPanel }) => {
+  const selection = new PanelSelection(next => {
     core.pin(next?.kind === "note" ? next.id : undefined);
     render({ selected: next?.kind === "story" ? next.id : undefined, capability: next?.kind === "story" ? next.capability : undefined });
-    if (!fromPanel) onSelect(next);
-  });
+  }, onSelect);
   const turn = (face: SheetFace): void => {
     if (face === drawn.face) return;
     render({ face });

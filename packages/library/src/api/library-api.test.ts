@@ -86,6 +86,7 @@ const LIBRARY_API = [
   "removeWaitFor",
   "waitsFor",
   "holds",
+  "workSurvey",
   "raiseQuestion",
   "settleQuestion",
   "questions",

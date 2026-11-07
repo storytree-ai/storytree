@@ -8,7 +8,7 @@ import { waitUntil } from "@storytree/test-waits";
 /** The real map view, bundled for the browser and mounted on a two-story plan: the capture seam counts its renders.
  * `__show(titles)` hands it the plan again, a live update, with the stories' titles as given. `linked` gives each story a
  * second capability its first depends on, and story one's first depends on story two's, so each island has roads.
- * `__zoom()` reads the eye's zoom the map shows its detail by. */
+ * `__show(titles, story)` shows it with that story selected, and `__core` is its knowledge core. `__zoom()` reads the eye's zoom the map shows its detail by. */
 async function mapBundle(linked = false, { late = false }: { late?: boolean } = {}): Promise<string> {
   const entry = `import { createElement } from "react";
     import { createRoot } from "react-dom/client";
@@ -26,9 +26,9 @@ async function mapBundle(linked = false, { late = false }: { late?: boolean } = 
     const history = ["one", "two"].map((id, index) => ({ seq: index + 1, recordId: id, type: "story", action: "created",
       record: { id, type: "story", version: 1, fields: { title: id }, createdAt: new Date(index).toISOString(), updatedAt: new Date(index).toISOString() } }));
     const places = new Map(storyNodes(plan(["one", "two"]), history).map(node => [node.id, node.place]));
-    const core = createKnowledgeCore("app"), root = createRoot(document.querySelector("#map"));
-    globalThis.__show = titles => root.render(createElement(PlanetView, { core, scene: forestScene(plan(titles), history, workStates([])), places, wisps: [],
-      selected: undefined, onPick: () => {}, onNote: () => {} }));
+    const core = globalThis.__core = createKnowledgeCore("app"), root = createRoot(document.querySelector("#map"));
+    globalThis.__show = (titles, selected) => root.render(createElement(PlanetView, { core, scene: forestScene(plan(titles), history, workStates([])), places, wisps: [],
+      selected, onPick: () => {}, onNote: () => {} }));
     globalThis.__zoom = () => sheetEyeZoom(globalThis.__globe.camera, globalThis.__globe.size);
     if (${JSON.stringify(late)}) {
       root.render(createElement(PlanetView, { core, scene: forestScene({ arcs: [], stories: [] }, [], workStates([])), places: new Map(), wisps: [],
@@ -189,6 +189,35 @@ test("3.73 · once the map has opened, every material on it has its shader progr
     return missing;
   });
   assert.deepEqual(uncompiled, []);
+});
+
+test("3.73 · the notes' roots drawn anew after the map opened, as the core's shown kinds change, have their shader program before a frame draws them", async t => {
+  const { page } = await openedMap(t);
+  type Drawn = { uuid: string; material: object };
+  type Globe = { gl: { properties: { get(material: object): { currentProgram?: unknown } } }; scene: { getObjectByName(name: string): Drawn | undefined } };
+  type Page = { __show(titles: string[], selected: string): void; __core: { showKind(kind: string, shown: boolean): void } };
+  const roots = () => page.evaluate(() => {
+    const { __globe: globe } = window as unknown as { __globe: Globe };
+    const drawn = globe.scene.getObjectByName("knowledge-roots");
+    return drawn && { uuid: drawn.uuid, compiled: globe.gl.properties.get(drawn.material).currentProgram !== undefined };
+  });
+  // A selected story's roots, compiled with the map as the selection draws them.
+  await page.evaluate(() => (window as unknown as Page).__show(["one", "two"], "one"));
+  await waitUntil(async () => (await roots())?.compiled === true, 10_000, "the selected story's roots to be drawn and compiled");
+  const before = (await roots())!;
+  // A kind switched off changes the notes shown, and so the roots, while the map's sheet stays as it was; the roots are read
+  // the moment they are new, before a frame draws them (drawing compiles what it draws).
+  const after = await page.evaluate(async before => {
+    const { __globe: globe, __core: core } = window as unknown as { __globe: Globe } & Page;
+    core.showKind("principle", false);
+    for (let tries = 0; tries < 2000; tries++) {
+      const drawn = globe.scene.getObjectByName("knowledge-roots");
+      if (drawn !== undefined && drawn.uuid !== before) return globe.gl.properties.get(drawn.material).currentProgram !== undefined;
+      await new Promise(resolve => setTimeout(resolve, 0));
+    }
+    return "the roots were not drawn anew";
+  }, before.uuid);
+  assert.equal(after, true);
 });
 
 test("3.86 · an island nobody selected is laid out with its roads; zooming out past the threshold hides its roads, the territories stay shown down to the wheel's floor, zooming back shows the roads, and the shapes never change", async t => {

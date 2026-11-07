@@ -33,8 +33,6 @@ export interface ForestView {
   circle(capabilities: readonly string[] | undefined, contracts?: readonly string[] | undefined): void;
   /** Mark `story` selected (undefined for none), as a click would. */
   select(story: string | undefined): void;
-  /** The panel picked `capability` of the selected story: the map rings it (3.91), and the panel is not told again. */
-  chose(capability: string): void;
   /** Stop drawing and let go of the GPU. */
   dispose(): void;
 }
@@ -102,7 +100,8 @@ export async function openForestView(container: HTMLElement, onSelect: (selectio
   const selection = new PanelSelection(next => {
     core.pin(next?.kind === "note" ? next.id : undefined);
     render({ selected: next?.kind === "story" ? next.id : undefined, capability: next?.kind === "story" ? next.capability : undefined });
-  }, onSelect);
+    onSelect(next);
+  });
   const turn = (face: SheetFace): void => {
     if (face === drawn.face) return;
     render({ face });
@@ -151,9 +150,6 @@ export async function openForestView(container: HTMLElement, onSelect: (selectio
     },
     select(story) {
       selection.story(story);
-    },
-    chose(capability) {
-      selection.chose(capability);
     },
     dispose() {
       window.removeEventListener("keydown", onKey);

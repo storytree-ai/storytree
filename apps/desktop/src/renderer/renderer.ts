@@ -21,7 +21,7 @@ import type { StorytreeBridge } from "../bridge.js";
 import { mountPluginViews } from "./plugin-views.js";
 import { createKnowledgeCore } from "@storytree/knowledge-core/view";
 
-import { attachPanZoom, openForestView, mountLibraryPanel, renderStoryPanel, mountSessionsList, mountTreeSpace, type GlobeLocator, type GlobeOpening, type TreeOpening } from "@storytree/forest/view";
+import { openForestView, mountLibraryPanel, renderStoryPanel, mountSessionsList, type GlobeLocator, type GlobeOpening } from "@storytree/forest/view";
 
 declare global {
   interface Window {
@@ -95,7 +95,6 @@ page = openProjectPage({
       kept: keptTree(name),
       drawing: keptDrawing(name),
       arcs: (host, on) => mountArcSurface(host, { project: name, reads, reading, ...on }),
-      treeSpace: (on, opening) => mountTreeSpace(content, { ...on, opening: opening as TreeOpening | undefined }),
       openView: (holder, onSelect, { library, opening }) => openForestView(holder, onSelect, core, { library, opening: opening as GlobeOpening | undefined }),
       sessions: (view, host) => {
         const sessions = mountSessionsList(host, { project: name, reads, reading,
@@ -109,7 +108,6 @@ page = openProjectPage({
       teaching: (locate, reading, islands) => mountTeaching(content, { journal: seenCards, locate, reading, islands }),
       plugins: (on) => mountPluginViews(content, window.storytree.pluginViews, on, { project: name, bridge: window.storytree }),
       reading: (options) => forestReading({ project: name, reads, reading, ...options }),
-      space: (frame, surface, choose, opening) => attachPanZoom(frame, surface, choose, opening as TreeOpening | undefined),
       renderPanel: (drilled, selected, options) => renderStoryPanel(drilled, selected, options),
     };
   },

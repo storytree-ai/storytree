@@ -1,15 +1,14 @@
 /**
  * Capability 4 · Drill-down (the forest story), as the page draws it (ADR-0659): the story's
- * sentences and its capability diagram, and below the diagram the one capability selected. Another
- * story's capability is in the diagram but cannot be clicked, and no front cover shows anywhere.
- * The panel is HTML text, so it is read here without a browser.
+ * sentences and below them the one capability selected, picked on the island; no tree, card or
+ * pop-out of its own, and no front cover anywhere. The panel is HTML text, so it is read here without a browser.
  */
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import type { CapabilityLine, StoryPanel } from "@storytree/forest";
 
-import { renderStoryPanel, renderTree } from "./story-panel.js";
+import { renderStoryPanel } from "./story-panel.js";
 
 function line(id: string, reported: CapabilityLine["reported"], status: CapabilityLine["status"] = "proposed"): CapabilityLine {
   return {
@@ -27,25 +26,12 @@ const panel: StoryPanel = {
   title: "Story s",
   description: "What s is. Why.",
   capabilities: [line("base", "passing", "healthy"), line("next", "failing")],
-  arrows: [
-    { from: "next", to: "base", toTitle: "The base", toStatus: "healthy" },
-    { from: "base", to: "away", toTitle: "The away", toStory: "Story t", toStatus: "untested" },
-  ],
 };
 
-/** The `<g>` of the diagram box whose title is `title`. */
-function box(html: string, title: string): string {
-  const found = [...html.matchAll(/<g class="box[^"]*"[^>]*>[\s\S]*?<\/g>/g)].map(([each]) => each).find((each) => each.includes(`<title>${title}`));
-  assert.ok(found !== undefined, `a box titled ${title}`);
-  return found;
-}
-
-test("4.6 the panel is the story's sentences, its diagram, and below it only the capability selected", () => {
+test("4.6 the panel is the story's sentences and below them only the capability selected", () => {
   const html = renderStoryPanel(panel, "next");
-  assert.match(html, /What s is\. Why\./);
-  const diagram = html.indexOf("panel-diagram");
   const detail = html.indexOf("panel-detail");
-  assert.ok(diagram > 0 && detail > diagram, "the selected capability shows below the diagram");
+  assert.ok(html.indexOf("What s is. Why.") > 0 && detail > html.indexOf("What s is. Why."), "the selected capability shows below the story's sentences");
   const below = html.slice(detail);
   assert.match(below, /The next/);
   assert.match(below, /What next does\./);
@@ -59,75 +45,23 @@ test("4.6 the panel is the story's sentences, its diagram, and below it only the
   assert.doesNotMatch(html, /Front covers|panel-shelf|data-book-id/, "no front covers (ADR-0659 D4)");
 });
 
-test("4.8 each of the story's capabilities is a box you can click, marked when selected and tinted by its word; another story's is not", () => {
+test("4.8 the panel offers no pick of its own: no tree, no card to click and no pop-out, only the capability the island picked", () => {
   const html = renderStoryPanel(panel, "next");
-  const next = box(html, "The next");
-  assert.match(next, /data-capability-id="next"/);
-  assert.match(next, /role="button"/);
-  assert.match(next, /tabindex="0"/);
-  assert.match(next, /aria-pressed="true"/);
-  assert.match(next, /\bselected\b/);
-  assert.match(next, /\bstatus-proposed\b/);
-  assert.doesNotMatch(next, /\bhealth-/, "the agent's report never tints a card");
-  const base = box(html, "The base");
-  assert.match(base, /aria-pressed="false"/);
-  assert.match(base, /\bstatus-healthy\b/);
-  assert.doesNotMatch(base, /\bselected\b/);
-  const away = box(html, "Story t · The away");
-  assert.match(away, /\belsewhere\b/);
-  assert.doesNotMatch(away, /data-capability-id|role=|tabindex|aria-pressed/, "another story's capability is context, not a surface (ADR-0659 D3)");
-});
-
-test("4.10 each card has a strip saying proposed, healthy, unhealthy or untested, coloured by it, and the agent's report and storytree's as labelled marks", () => {
-  const capabilities = [
-    { ...line("base", "passing", "unhealthy"), verified: "failing" as const },
-    line("next", "failing", "proposed"),
-    line("done", "failing", "healthy"),
-    line("bare", "passing", "untested"),
-  ];
-  const html = renderStoryPanel({ ...panel, capabilities }, "next");
-  const base = box(html, "The base");
-  assert.match(base, /class="card-strip"/);
-  assert.match(base, /<text class="card-status"[^>]*>unhealthy<\/text>/);
-  assert.match(base, /\bstatus-unhealthy\b/, "the strip is coloured by the word");
-  assert.match(base, /the agent reports: passing/);
-  assert.match(base, /storytree saw: failing/);
-  const next = box(html, "The next");
-  assert.match(next, /<text class="card-status"[^>]*>proposed<\/text>/);
-  assert.match(next, /\bstatus-proposed\b/);
-  assert.match(next, /the agent reports: failing/);
-  assert.doesNotMatch(next, /storytree saw/, "storytree's mark only where something wrote it");
-  assert.match(box(html, "The done"), /<text class="card-status"[^>]*>healthy<\/text>/);
-  assert.match(box(html, "The bare"), /<text class="card-status"[^>]*>untested<\/text>/);
-  const away = box(html, "Story t · The away");
-  assert.match(away, /<text class="card-status"[^>]*>untested<\/text>/, "another story's card says its word too");
-  assert.doesNotMatch(html, /card-status"[^>]*>(planned|in progress|landed|not landed yet)</, "the work state has left the card");
-});
-
-test("4.11 the tree has its own space in the panel, at full size, with a pop-out icon beside it and no text button", () => {
-  const html = renderStoryPanel(panel, "next");
-  const frame = html.match(/<div class="panel-tree-frame"[\s\S]*?<\/svg>\s*<\/div>\s*<\/div>/)?.[0];
-  assert.ok(frame !== undefined, "a framed space holding the tree");
-  assert.match(frame, /<div class="panel-tree-surface">\s*<svg class="panel-diagram"/, "the tree is drawn on a surface that is moved, not shrunk");
-  assert.doesNotMatch(frame, /<button/, "no button inside the frame, where a press starts a drag");
-  const popOut = html.match(/<button[^>]*data-open-tree[^>]*>/)?.[0];
-  assert.ok(popOut !== undefined, "a pop-out control");
-  assert.match(popOut, /aria-label="Open in a larger window"/);
-  assert.match(popOut, /title="Open in a larger window"/);
-  assert.doesNotMatch(html, /Open the capability tree/, "the icon replaces the text button");
+  assert.doesNotMatch(html, /<svg|panel-tree|data-open-tree|role="button"|tabindex/, "nothing in it picks a capability");
+  assert.deepEqual([...html.matchAll(/data-capability-id="([^"]+)"/g)].map(([, id]) => id), ["next"], "only the one picked shows");
+  assert.match(renderStoryPanel(panel, "base"), /data-capability-id="base"/, "another pick shows that one instead");
 });
 
 test("4.8 a story with no capabilities shows its sentences and nothing below", () => {
-  const html = renderStoryPanel({ ...panel, capabilities: [], arrows: [] }, undefined);
+  const html = renderStoryPanel({ ...panel, capabilities: [] }, undefined);
   assert.match(html, /What s is\. Why\./);
-  assert.doesNotMatch(html, /panel-diagram|panel-detail/);
+  assert.doesNotMatch(html, /panel-detail/);
 });
 
-test("with the capability tree switched off, the panel is the story's sentences alone: no tree and no capability details (ADR-0750)", () => {
-  const html = renderStoryPanel(panel, "next", { tree: false });
+test("with the capability details switched off, the panel is the story's sentences alone (ADR-0750)", () => {
+  const html = renderStoryPanel(panel, "next", { details: false });
   assert.match(html, /What s is\. Why\./);
-  assert.doesNotMatch(html, /panel-tree/, "no tree space and no pop-out");
-  assert.doesNotMatch(html, /data-capability-id/, "no capability to pick or show");
+  assert.doesNotMatch(html, /data-capability-id/, "no capability shown");
 });
 
 function notGreen(why: CapabilityLine["why"], lastSeen?: { state: "passing" | "failing"; at: string }): StoryPanel {
@@ -207,12 +141,10 @@ test("4.12 a capability that is not healthy says why under its word, who moves i
   assert.equal(whyLine(renderStoryPanel(notGreen({ reason: "out of CI's reach", mover: "agent", contracts: ["3.4"] }), "cap")), "Why not green: 3.4 can only run on another platform. The agent moves this one.");
 });
 
-test("4.13 in a project nothing verifies, a built capability's card and detail lead with the agent's report and say storytree does not check this project's tests yet", () => {
+test("4.13 in a project nothing verifies, a built capability's detail leads with the agent's report and says storytree does not check this project's tests yet", () => {
   const cap: CapabilityLine = { ...line("cap", "passing", "untested"), reportOnly: true };
-  const html = renderStoryPanel({ ...panel, capabilities: [cap], arrows: [{ from: "cap", to: "away", toTitle: "The away", toStory: "Story t", toStatus: "untested", toReported: "failing" }] }, "cap");
+  const html = renderStoryPanel({ ...panel, capabilities: [cap] }, "cap");
   const shown = (part: string): string => part.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
-  assert.match(shown(box(html, "The cap")), /^The cap agent: passing/, "its strip says the agent's report");
-  assert.match(shown(box(html, "Story t · The away")), /agent: failing/);
   const detail = /<section class="panel-detail[\s\S]*?<\/section>/.exec(html)?.[0] ?? "";
   assert.match(shown(detail), /^The cap the agent reports passing storytree does not check this project's tests yet\./);
   assert.doesNotMatch(shown(html), /untested|no test names|moves this one|Why not green/);
@@ -227,7 +159,7 @@ test("4.12 a healthy capability says nothing more, and a contract not re-run say
 });
 
 test("4.15 a mapped story's panel says it was here before storytree and is assumed to be working, with its files and lines, and shows no health", () => {
-  const mapped: StoryPanel = { story: "m", title: "Cart", description: "no description yet", capabilities: [], arrows: [], mapped: { files: 2, lines: 1200 } };
+  const mapped: StoryPanel = { story: "m", title: "Cart", description: "no description yet", capabilities: [], mapped: { files: 2, lines: 1200 } };
   const html = renderStoryPanel(mapped, undefined);
   assert.match(html, /class="panel-mapped"/);
   assert.match(html, /here before storytree/i);
@@ -254,7 +186,7 @@ test("4.36 a story's panel lists its extra checks with what sets each off, and s
   assert.doesNotMatch(renderStoryPanel(panel, undefined), /panel-checks/);
 });
 
-test("4.37 storytree's mark names its source on the card, in the detail and on each contract: verified locally, from CI, or both (short on the card); the reason says the source of what carries it; no source recorded, it says none", () => {
+test("4.37 storytree's mark names its source in the detail and on each contract: verified locally, from CI, or both; the reason says the source of what carries it; no source recorded, it says none", () => {
   const shown = (part: string): string => part.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
   const base = line("base", "passing", "unhealthy");
   const local: CapabilityLine = { ...base, verified: "passing", sources: ["local"], contracts: [{ ...base.contracts[0]!, verified: "passing", source: "local" }] };
@@ -266,11 +198,7 @@ test("4.37 storytree's mark names its source on the card, in the detail and on e
     contracts: [{ id: "k1", title: "2.1 · On CI", reported: "passing", trail: "green only", verified: "failing", source: "ci" }, { id: "k2", title: "2.2 · Local", reported: "passing", trail: "green only", verified: "passing", source: "local" }],
   };
   const older: CapabilityLine = { ...line("older", "passing", "unhealthy"), verified: "failing", why: { reason: "failing", mover: "agent", contracts: ["3.1"] } };
-  const html = (selected: string) => renderStoryPanel({ ...panel, capabilities: [local, both, older], arrows: [] }, selected);
-
-  assert.match(shown(box(html("base"), "The base")), /storytree saw: passing · local\b/, "the card, short of room, says it short");
-  assert.match(shown(box(html("base"), "The both")), /storytree saw: failing · local \+ CI/);
-  assert.doesNotMatch(shown(box(html("base"), "The older")), /· (local|CI)/, "no source recorded: none said");
+  const html = (selected: string) => renderStoryPanel({ ...panel, capabilities: [local, both, older] }, selected);
 
   const detail = (selected: string) => shown(/<section class="panel-detail[\s\S]*?<\/section>/.exec(html(selected))?.[0] ?? "");
   assert.match(detail("base"), /storytree saw: passing, verified locally/);
@@ -282,8 +210,3 @@ test("4.37 storytree's mark names its source on the card, in the detail and on e
   assert.doesNotMatch(detail("older"), /locally|from CI/);
 });
 
-test("4.11 the tree's class name comes out escaped, so markup in it draws no element of its own", () => {
-  const html = renderTree(panel, undefined, '"><img src=x onerror=alert(1)>');
-  assert.doesNotMatch(html, /<img/);
-  assert.match(html, /class="&quot;&gt;&lt;img src=x onerror=alert\(1\)&gt;"/);
-});

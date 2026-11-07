@@ -38,7 +38,7 @@ interface Drawn {
   name: string;
   mounted: string[];
   stopped: string[];
-  view: ForestGlobe & { scenes: number; disposed: boolean; circled: (readonly string[] | undefined)[]; circledContracts: (readonly string[] | undefined)[]; chosen: string[]; onSelect: (selection: ForestSelection) => void; painted: ReturnType<typeof deferred<void>> };
+  view: ForestGlobe & { scenes: number; disposed: boolean; circled: (readonly string[] | undefined)[]; circledContracts: (readonly string[] | undefined)[]; onSelect: (selection: ForestSelection) => void; painted: ReturnType<typeof deferred<void>> };
   reading: Reading | undefined;
   teaching: { factory: boolean }[];
   locate: Parameters<ProjectParts["teaching"]>[0] | undefined;
@@ -46,11 +46,8 @@ interface Drawn {
   islands: Parameters<ProjectParts["teaching"]>[2] | undefined;
   rendered: (string | undefined)[];
   gates: (readonly [string, string] | undefined)[];
-  spaces: { opened: number; placed: unknown[]; view: unknown; choose: (id: string) => void }[];
-  /** How the popped-out tree tells the page a capability was picked in it. */
-  treeChoose: ((id: string) => void) | undefined;
-  treeShown: number;
-  treeOpen: boolean;
+  /** Whether each panel drawn showed its capability's details, as the Surfaces menu says. */
+  details: boolean[];
   kept: AnnotatedTree | undefined;
   timed: { read(): Promise<unknown> } | undefined;
   /** Where the arcs and the sessions list were mounted, and how the arcs speak to their tab's badge. */
@@ -102,11 +99,11 @@ function page(t: TestContext, answers: Partial<Pick<PageParts, "problem" | "proj
     ...answers,
     project(name, timed) {
       const mine: Drawn = {
-        name, mounted: [], stopped: [], reading: undefined, teaching: [], locate: undefined, readingNear: undefined, islands: undefined, rendered: [], gates: [], spaces: [], treeChoose: undefined, treeShown: 0, treeOpen: false,
+        name, mounted: [], stopped: [], reading: undefined, teaching: [], locate: undefined, readingNear: undefined, islands: undefined, rendered: [], gates: [], details: [],
         kept: answers.kept, timed: undefined, hosts: {}, waiting: undefined, opened: undefined, arcsStart: undefined, listeners: [], events: [],
         view: {
-          scenes: 0, disposed: false, circled: [], circledContracts: [], chosen: [], onSelect: () => {}, painted: deferred<void>(),
-          show() { mine.view.scenes++; }, drawn: () => mine.view.painted.promise, select() {}, chose(capability) { mine.view.chosen.push(capability); }, circle(capabilities, contracts) { mine.view.circled.push(capabilities); mine.view.circledContracts.push(contracts); }, dispose() { mine.view.disposed = true; },
+          scenes: 0, disposed: false, circled: [], circledContracts: [], onSelect: () => {}, painted: deferred<void>(),
+          show() { mine.view.scenes++; }, drawn: () => mine.view.painted.promise, select() {}, circle(capabilities, contracts) { mine.view.circled.push(capabilities); mine.view.circledContracts.push(contracts); }, dispose() { mine.view.disposed = true; },
         },
       };
       drawn.push(mine);
@@ -123,16 +120,6 @@ function page(t: TestContext, answers: Partial<Pick<PageParts, "problem" | "proj
         kept: { read: () => mine.kept, write: (written) => { mine.kept = written; } },
         drawing: { read: () => kept as never, write: (written) => { kept = written; } },
         arcs: (host, on) => { mine.events.push("arcs mounted"); mine.hosts.arcs = host; mine.waiting = on.onWaiting; mine.opened = on.onOpened; mine.arcsStart = on.startAfter; return surface("arcs"); },
-        treeSpace: (on) => {
-          mine.mounted.push("capability-tree");
-          mine.treeChoose = on.choose;
-          return {
-            show() { mine.treeShown++; mine.treeOpen = true; },
-            close() { mine.treeOpen = false; },
-            get open() { return mine.treeOpen; },
-            stop() { mine.stopped.push("capability-tree"); },
-          };
-        },
         openView: async (_holder, onSelect, options) => {
           mine.view.onSelect = onSelect;
           if (options.library) mine.mounted.push("library");
@@ -156,16 +143,11 @@ function page(t: TestContext, answers: Partial<Pick<PageParts, "problem" | "proj
           mine.listeners.push({ onNews: () => { if (!asked) mine.events.push("tree asked"); asked = true; }, onError: () => {} });
           return { stop: () => { mine.stopped.push("reading"); } };
         },
-        space: (_frame, _surface, choose) => {
-          const space = { opened: 0, placed: [] as unknown[], view: { at: mine.spaces.length }, choose };
-          mine.spaces.push(space);
-          return { get view() { return space.view; }, place: (view: unknown) => { space.placed.push(view); }, open: () => { space.opened++; }, stop() {} };
-        },
         renderPanel: (drilledPanel, selected, options) => {
           mine.rendered.push(selected);
           mine.gates.push(options.gate);
-          return `<div class="panel-tree-frame"><div class="panel-tree-surface"></div></div><button data-open-tree></button>`
-            + drilledPanel.capabilities.map(({ id }) => `<section class="panel-detail" data-capability-id="${id}"><details></details></section>`).join("");
+          mine.details.push(options.details);
+          return drilledPanel.capabilities.map(({ id }) => `<section class="panel-detail" data-capability-id="${id}"><details></details></section>`).join("");
         },
       };
     },
@@ -245,7 +227,7 @@ test("2.24 · a failed choice is said in place of the project and the projects a
   const on = page(t, { readSurfaces: async () => { throw new Error("the main process did not answer"); } });
   await settled();
   on.heard();
-  assert.deepEqual(on.last().mounted.sort(), ["arcs", "capability-tree", "library", "sessions"]);
+  assert.deepEqual(on.last().mounted.sort(), ["arcs", "library", "sessions"]);
   assert.ok(on.failures.some((line) => line === "the surfaces could not be read, so every surface is on: the main process did not answer"));
 
   const before = on.selections;
@@ -271,6 +253,12 @@ test("2.25 · a surface switched in the Surfaces menu draws the project on show 
   assert.ok(first.stopped.includes("arcs") && first.view.disposed, "the old drawing is let go");
   assert.ok(!on.last().mounted.includes("arcs"), "the switched-off surface is not mounted again");
   assert.ok(on.last().mounted.includes("sessions"));
+
+  on.surfaces({ ok: true, value: [{ id: "capability-details", on: false, settings: [] }] as never });
+  await on.page.surfacesChanged();
+  on.land();
+  on.last().view.onSelect({ kind: "story", id: story.id });
+  assert.deepEqual(on.last().details, [false], "the story panel draws without its capability's details");
 });
 
 test("2.26 · what lands after the page left the project's drawing changes nothing on show, and what it mounted is let go", async (t) => {
@@ -399,7 +387,7 @@ test("2.27 · the kept forest is drawn at once, marked not fresh; a first read t
   assert.equal(none.failures.filter((line) => line.startsWith("the forest of site could not be read")).length, 2);
 });
 
-test("2.28 · a territory click opens its story on that capability, and a redraw keeps its open details, the panel tree's place and the popped-out tree", async (t) => {
+test("2.28 · a territory click opens its story on that capability, and a redraw keeps its open details", async (t) => {
   const on = page(t);
   await settled();
   on.land();
@@ -408,37 +396,15 @@ test("2.28 · a territory click opens its story on that capability, and a redraw
   project.view.onSelect({ kind: "story", id: story.id, capability: second!.id });
   assert.equal(on.body.dataset.selected, story.id);
   assert.equal(project.rendered.at(-1), second!.id, "the panel opens on the capability clicked");
-  assert.equal(project.spaces[0]!.opened, 1, "the panel's tree opens as its zoom says");
 
   const panel = on.content.querySelector<HTMLElement>(".story-panel")!;
   panel.querySelector(`[data-capability-id="${second!.id}"] details`)!.setAttribute("open", "");
-  panel.querySelector<HTMLElement>("[data-open-tree]")!.click();
-  assert.equal(project.treeShown, 1);
   on.land();
   assert.equal(project.rendered.at(-1), second!.id, "the redraw keeps the capability chosen");
   assert.ok(panel.querySelector(`[data-capability-id="${second!.id}"] details`)!.hasAttribute("open"), "and its open details");
-  assert.deepEqual(project.spaces[1]!.placed, [project.spaces[0]!.view], "and the tree's place");
-  assert.equal(project.spaces[1]!.opened, 0);
-  assert.equal(project.treeShown, 2, "and redraws the popped-out tree");
 });
 
-test("2.28 · a capability picked in the panel's tree, or in the popped-out tree, opens on it and is handed to the map to ring (forest 3.91)", async (t) => {
-  const on = page(t);
-  await settled();
-  on.land();
-  const project = on.last();
-  const [first, second] = story.capabilities;
-  project.view.onSelect({ kind: "story", id: story.id, capability: first!.id });
-  assert.deepEqual(project.view.chosen, [], "a map pick needs no telling back");
-  project.spaces.at(-1)!.choose(second!.id);
-  assert.equal(project.rendered.at(-1), second!.id, "the panel opens on the capability picked in its tree");
-  assert.deepEqual(project.view.chosen, [second!.id], "and the map is told, so it rings it");
-  project.treeChoose!(first!.id);
-  assert.equal(project.rendered.at(-1), first!.id, "the popped-out tree's pick opens the panel on it too");
-  assert.deepEqual(project.view.chosen, [second!.id, first!.id], "and the map is told");
-});
-
-test("2.50 · a gate picked on the map opens its story's panel on the pair it joins, kept on a redraw; a territory or tree pick after it opens on that capability", async (t) => {
+test("2.50 · a gate picked on the map opens its story's panel on the pair it joins, kept on a redraw; a territory pick after it opens on that capability", async (t) => {
   const on = page(t);
   await settled();
   on.land();
@@ -452,10 +418,6 @@ test("2.50 · a gate picked on the map opens its story's panel on the pair it jo
   project.view.onSelect({ kind: "story", id: story.id, capability: second!.id });
   assert.equal(project.gates.at(-1), undefined, "a territory click puts the gate down");
   assert.equal(project.rendered.at(-1), second!.id);
-  project.view.onSelect({ kind: "story", id: story.id, gate: [first!.id, second!.id] });
-  project.spaces.at(-1)!.choose(first!.id);
-  assert.equal(project.gates.at(-1), undefined, "so does a pick in the panel's tree");
-  assert.equal(project.rendered.at(-1), first!.id);
 });
 
 test("2.29 · teaching cards hear whether the project on show is the factory, and each card is placed beside its target", async (t) => {

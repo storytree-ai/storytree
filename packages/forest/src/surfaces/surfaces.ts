@@ -12,14 +12,6 @@ export const GLOBE_OPENINGS = [
 ] as const;
 export type GlobeOpening = (typeof GLOBE_OPENINGS)[number]["id"];
 
-/** The capability tree's opening views, in the panel and in its larger window alike. */
-export const TREE_OPENINGS = [
-  { id: "whole-tree", name: "Whole tree" },
-  { id: "full-size", name: "Full size" },
-  { id: "close", name: "Close up" },
-] as const;
-export type TreeOpening = (typeof TREE_OPENINGS)[number]["id"];
-
 export const forestSurfaces = [
   {
     id: "globe",
@@ -49,26 +41,11 @@ export const forestSurfaces = [
     settings: [],
   },
   {
-    id: "capability-tree",
-    within: "story-panel",
-    name: "Capability tree",
-    description: "The story's capabilities as a tree you can move and zoom, in the panel and in its larger window.",
-    switchable: true,
-    settings: [{
-      id: "opening-zoom",
-      name: "Opening zoom",
-      meaning: "How the tree opens, in the panel and in its larger window: the whole tree fitted (never above full size nor below 30%), full size, or close up, from its top.",
-      default: "whole-tree",
-      choices: TREE_OPENINGS,
-    }],
-  },
-  {
     id: "capability-details",
     within: "story-panel",
-    follows: "capability-tree",
     name: "Capability details",
-    description: "The capability you pick in the tree, with its health and its contracts. It is picked in the tree, so it goes off with it.",
-    switchable: false,
+    description: "The capability you pick on the island, with its health and its contracts.",
+    switchable: true,
     settings: [],
   },
   {

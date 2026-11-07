@@ -59,7 +59,7 @@ export type PlanetViewProps = {
   places: ReadonlyMap<string, number>;
   wisps: readonly SessionWisp[];
   selected: string | undefined;
-  /** The selected story's capability, picked on its territory or in the panel, which is ringed in gold (3.91). */
+  /** The selected story's capability, picked on its territory, which is ringed in gold (3.91). */
   selectedCapability?: string | undefined;
   highlighted?: readonly string[] | undefined;
   /** The capabilities the selected arc's open increments name, which are ringed and the rest dimmed; undefined with no arc selected (3.83). */

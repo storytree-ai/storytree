@@ -15,7 +15,7 @@ import { renderNoProjects } from "../view/render.js";
 import { drawnIslands, locateTarget, readingNear, type Box, type CardTarget, type IslandsAndNotes, type Place } from "./locate.js";
 import { mountRail, type Rail, type RailTab } from "./rail.js";
 import { pageStatus } from "./status.js";
-import { storyPanel, type PanelSpace, type StoryPanelView, type TreeWindow } from "./story-panel.js";
+import { storyPanel, type StoryPanelView } from "./story-panel.js";
 
 type PageReading = NonNullable<ForestReadingOptions["reading"]>;
 type News = Parameters<ForestReadingOptions["onTree"]>[1];
@@ -33,8 +33,6 @@ export interface ForestGlobe {
   /** Resolves once the globe has painted a frame of the scene on show. */
   drawn(): Promise<void>;
   select(story: string | undefined): void;
-  /** The panel picked `capability` of the selected story, so the map rings it (forest 3.91). */
-  chose(capability: string): void;
   /** Ring the capabilities the arc opened in the Arcs tab names in its open work, and the gates of the edges whose contracts it
    * links (forest 3.92), and dim the rest; undefined for none. */
   circle(capabilities: readonly string[] | undefined, contracts?: readonly string[] | undefined): void;
@@ -57,7 +55,6 @@ export interface ProjectParts<View extends ForestGlobe = ForestGlobe> {
    * until `startAfter`, the page's start settled or the forest's first read failed (2.40), so the start does not wait on them.
    */
   arcs(host: HTMLElement, on: { onFreshDraw(): void; onWaiting(count: number): void; onOpened(capabilities: readonly string[] | undefined, contracts: readonly string[] | undefined): void; startAfter: PromiseLike<void> }): { stop(): void };
-  treeSpace(on: { choose(id: string): void; closed(): void }, opening: string | undefined): TreeWindow;
   openView(holder: HTMLElement, onSelect: (selection: ForestSelection) => void, options: { library: boolean; opening: string | undefined }): Promise<View>;
   /** The sessions list in `host` (the rail's Sessions tab), joined to `view` and the knowledge core both ways. */
   sessions(view: View, host: HTMLElement): { stop(): void };
@@ -68,8 +65,7 @@ export interface ProjectParts<View extends ForestGlobe = ForestGlobe> {
   /** Mount the factory's stand-in surfaces (ADR-1174) that `on` says are on. */
   plugins(on: (surface: string) => boolean): Promise<{ stop(): void; failed: readonly { surface: string; why: string }[] }>;
   reading(options: Pick<ForestReadingOptions, "onTree" | "onError" | "onSettled" | "survey">): { stop(): void };
-  space(frame: HTMLElement, surface: HTMLElement, choose: (id: string) => void, opening: string | undefined): PanelSpace;
-  renderPanel(drilled: StoryPanel, selected: string | undefined, options: { tree: boolean; gate: readonly [string, string] | undefined }): string;
+  renderPanel(drilled: StoryPanel, selected: string | undefined, options: { details: boolean; gate: readonly [string, string] | undefined }): string;
 }
 
 export interface PageParts<View extends ForestGlobe = ForestGlobe> {
@@ -109,7 +105,6 @@ interface Showing {
   sessions?: { stop(): void };
   rail?: Rail;
   panel?: StoryPanelView;
-  tree?: TreeWindow;
   teaching?: { take: ReturnType<ProjectParts["teaching"]>["take"]; stop(): void };
   plugins?: { stop(): void };
 }
@@ -144,7 +139,6 @@ export function openProjectPage<View extends ForestGlobe>(parts: PageParts<View>
     showing?.plugins?.stop();
     showing?.teaching?.stop();
     showing?.panel?.stop();
-    showing?.tree?.stop();
     showing?.arcs?.stop();
     showing?.reading?.stop();
     showing?.sessions?.stop();
@@ -210,8 +204,7 @@ export function openProjectPage<View extends ForestGlobe>(parts: PageParts<View>
     if (read?.ok === false) parts.failed("the surfaces could not be read, so every surface is on", read.error);
     if (showing !== mine) return;
     const surfaces = read?.ok === true ? read.value : [];
-    const withTree = surfaceOn(surfaces, "capability-tree");
-    const treeOpening = surfaceSetting(surfaces, "capability-tree", "opening-zoom");
+    const withDetails = surfaceOn(surfaces, "capability-details");
     const globeOpening = surfaceSetting(surfaces, "globe", "opening-zoom");
     const project = parts.project(name, timed);
     const page = project.page;
@@ -232,18 +225,11 @@ export function openProjectPage<View extends ForestGlobe>(parts: PageParts<View>
     const panel = storyPanel(panelHost, {
       body,
       drill: (story) => tree === undefined ? undefined : drillDown(tree, story, states, history(), surveyed),
-      render: (drilled, selected, gate) => project.renderPanel(drilled, selected, { tree: withTree, gate }),
-      space: (frame, surface, choose) => project.space(frame, surface, choose, treeOpening),
-      tree: () => mine.tree,
+      render: (drilled, selected, gate) => project.renderPanel(drilled, selected, { details: withDetails, gate }),
       libraryCard: (host, onClose) => project.libraryCard(host, onClose),
       deselect: () => mine.view?.select(undefined),
-      chose: (capability) => mine.view?.chose(capability),
     });
     mine.panel = panel;
-    if (withTree) mine.tree = project.treeSpace({
-      choose: (id) => { panel.choose(id); mine.view?.chose(id); },
-      closed: () => panelHost.querySelector<HTMLButtonElement>("[data-open-tree]")?.focus(),
-    }, treeOpening);
     const view = await project.openView(holder, (selection) => {
       delete body.dataset.selected;
       delete body.dataset.note;

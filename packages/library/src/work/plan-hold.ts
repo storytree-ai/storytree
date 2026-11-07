@@ -34,16 +34,16 @@ export function isPlanRecordType(type: string): type is PlanRecordType {
 /** What a plan edit did: held on the caller's increment, or made live. */
 export type PlanEdit = { readonly held: string } | { readonly edited: SchemaRecord };
 
-/** The increment `session` claimed last of those it holds, if any. */
+/**
+ * The increment `session` claimed last of those it holds, if it was claimed on a branch off the main line; undefined
+ * when it holds none, or holds one claimed on no branch or the main line, which no merge applies (friction_f02365572601).
+ */
 export function heldIncrement(claims: readonly PlanClaim[], session: string): string | undefined {
-  return lastIncrementClaim(claims, session)?.increment;
-}
-
-function lastIncrementClaim(claims: readonly PlanClaim[], session: string): PlanClaim | undefined {
-  return claims
+  const last = claims
     .filter((claim) => claim.session === session && claim.increment !== undefined)
     .sort((one, other) => one.since.localeCompare(other.since))
     .at(-1);
+  return last?.branch === undefined || MAIN_BRANCHES.has(last.branch) ? undefined : last.increment;
 }
 
 /**
@@ -52,9 +52,8 @@ function lastIncrementClaim(claims: readonly PlanClaim[], session: string): Plan
  * or the increment planned the record itself, and the change is made live.
  */
 export async function holdPlanChange(library: Library, claims: readonly PlanClaim[], session: string, change: PlanChange, writer: WriteOptions): Promise<string | undefined> {
-  const held = lastIncrementClaim(claims, session);
-  const increment = held?.increment;
-  if (increment === undefined || held?.branch === undefined || MAIN_BRANCHES.has(held.branch)) return undefined;
+  const increment = heldIncrement(claims, session);
+  if (increment === undefined) return undefined;
   const pended = await library.pendChange(increment, change, writer);
   return pended !== null && "pending" in pended ? increment : undefined;
 }

@@ -52,6 +52,7 @@ export interface HeldClaim {
   readonly increment?: string | undefined;
   readonly capability?: string | undefined;
   readonly since: string;
+  readonly branch?: string | undefined;
 }
 
 /**
@@ -688,7 +689,7 @@ const revert = verb({
     const type = (await context.library.history({ id, newest: 1 })).at(0)?.type;
     const increment = PLAN_TYPES.has(type ?? "") ? heldIncrement(await context.claims(), context.session) : undefined;
     if (increment !== undefined) {
-      throw new VerbRefusal(`${id} is a planned ${type}, and a revert cannot wait on increment ${increment} as an edit does: edit its fields to hold the change there, or revert it from a session holding no increment`);
+      throw new VerbRefusal(`${id} is a planned ${type}, and a revert cannot wait on increment ${increment} as an edit does: edit its fields to hold the change there, or revert it from a session holding no increment on a branch`);
     }
     try {
       await context.library.revert(id, to, read, { ...context.writer!, ...(reason === undefined ? {} : { reason }) });
@@ -713,7 +714,7 @@ const undo = verb({
     const increment = heldIncrement(await context.claims(), context.session);
     const planned = increment === undefined ? undefined : (await context.library.writtenBy(actor)).find(({ type }) => PLAN_TYPES.has(type));
     if (planned !== undefined) {
-      throw new VerbRefusal(`${actor} wrote ${planned.id}, a planned ${planned.type}, and an undo cannot wait on increment ${increment} as an edit does: undo from a session holding no increment`);
+      throw new VerbRefusal(`${actor} wrote ${planned.id}, a planned ${planned.type}, and an undo cannot wait on increment ${increment} as an edit does: undo from a session holding no increment on a branch`);
     }
     let reverted;
     try {

@@ -20,6 +20,7 @@ import { landArea, type Coast, type Point, type TerritoryMap } from "./territori
 import { roadNetwork, type BorderSeg, type Net, type NetLink } from "./road-network.js";
 import { insideOf } from "../view/territory-land.js";
 import { TERRITORY_WORKER_META } from "./kept-layout.js";
+import { RELIEF } from "./island-relief.js";
 
 /** A road segment: its way, the links it carries, and its width by how many (1, 2-3, 4-7, 8 or more). */
 export type RoadSegment = { readonly pts: readonly Point[]; readonly links: readonly string[]; readonly width: number };
@@ -335,7 +336,25 @@ function route(map: TerritoryMap, links: readonly Link[], docks: readonly LinkDo
     }
     return out;
   };
-  const cut = net.segments.map((s) => {
+  // Where a road climbs from the open land onto a territory its ramp is laid (island-relief.ts), so the road leaves it
+  // straight down the ramp's middle to its foot before it turns (Mick, 2026-11-07).
+  const rampOut = (x: Crossing): Point | undefined => {
+    const n = { x: -x.along.z, z: x.along.x }, a = tAt({ x: x.p.x + n.x * 0.8, z: x.p.z + n.z * 0.8 }), b = tAt({ x: x.p.x - n.x * 0.8, z: x.p.z - n.z * 0.8 });
+    if (a === "open" && b !== undefined && b !== "open") return n;
+    if (b === "open" && a !== undefined && a !== "open") return { x: -n.x, z: -n.z };
+    return undefined;
+  };
+  const ledOut = (pts: readonly Point[]): Point[] => {
+    let line = [...pts];
+    const done: Point[] = [], next = () => crossings(line).find((c) => !done.some((d) => far(d, c.p) < 1e-6) && rampOut(c));
+    for (let x = next(); x !== undefined; x = next()) {
+      done.push(x.p);
+      line = leadOut(line, x.step, x.p, rampOut(x)!);
+    }
+    return line;
+  };
+  const cut = net.segments.map((raw) => {
+    const s = { ...raw, pts: ledOut(raw.pts) };
     const xs = crossings(s.pts), pieces: Point[][] = [[s.pts[0]!]];
     let k = 0;
     for (let i = 0; i + 1 < s.pts.length; i++) {
@@ -405,6 +424,41 @@ function route(map: TerritoryMap, links: readonly Link[], docks: readonly LinkDo
     settlements,
   };
 }
+
+/** `pts` with its way onto the open land from the border crossing `x` (between its points `step` and `step + 1`) run
+ * straight along `out` for a ramp's depth, to the ramp's foot, then turning in a curve on to the line: where, within a
+ * few ramps' depth of the border and at least half as far again from it as the foot, it stands most nearly straight on
+ * from the foot; else its end. */
+function leadOut(pts: readonly Point[], step: number, x: Point, out: Point): Point[] {
+  const forward = (pts[step + 1]!.x - x.x) * out.x + (pts[step + 1]!.z - x.z) * out.z >= 0;
+  const line = forward ? pts : [...pts].reverse(), from = forward ? step : pts.length - 2 - step, D = RELIEF.ramp.depth;
+  const w = (p: Point) => (p.x - x.x) * out.x + (p.z - x.z) * out.z, foot = { x: x.x + out.x * D, z: x.z + out.z * D };
+  // A curve leaving the foot along `out` and meeting the line along its own way on: its join stands half a ramp's depth past
+  // the foot, and no control point stands back from the foot or the join by more, so the whole curve is past the foot.
+  const curve = (q: Point, onward: Point): Point[] => {
+    const c = Math.min(D * 0.5, far(foot, q) / 2), p1 = { x: foot.x + out.x * c, z: foot.z + out.z * c }, p2 = { x: q.x - onward.x * c, z: q.z - onward.z * c };
+    return [1, 2, 3, 4, 5, 6, 7].map((k) => {
+      const t = k / 8, [a, b, d, e] = [(1 - t) ** 3, 3 * t * (1 - t) ** 2, 3 * t * t * (1 - t), t ** 3];
+      return { x: a * foot.x + b * p1.x + d * p2.x + e * q.x, z: a * foot.z + b * p1.z + d * p2.z + e * q.z };
+    });
+  };
+  let best: { rest: Point[]; turn: Point[]; off: number } | undefined, walked = 0;
+  for (let k = from + 1; k < line.length && walked <= 4 * D; k++) {
+    const a = k === from + 1 ? x : line[k - 1]!, b = line[k]!, l = far(a, b);
+    walked += l;
+    if (w(b) < 1.5 * D) continue;
+    // The point the line first reaches half as far again past the foot on this step, or this step's end.
+    const t = w(a) < 1.5 * D ? (1.5 * D - w(a)) / (w(b) - w(a)) : 1, q = { x: a.x + (b.x - a.x) * t, z: a.z + (b.z - a.z) * t };
+    const rest = far(q, b) > 1e-6 ? [q, ...line.slice(k)] : line.slice(k), next = rest[1];
+    const onward = next === undefined ? out : unitOf({ x: next.x - q.x, z: next.z - q.z }), toward = unitOf({ x: q.x - foot.x, z: q.z - foot.z });
+    const off = 1 - (toward.x * out.x + toward.z * out.z);
+    if (off < (best?.off ?? Infinity)) best = { rest, turn: curve(q, onward), off };
+  }
+  const led = [...line.slice(0, from + 1), x, foot, ...(best?.turn ?? []), ...(best?.rest ?? [line.at(-1)!])];
+  return forward ? led : led.reverse();
+}
+
+const unitOf = (p: Point): Point => { const l = Math.hypot(p.x, p.z) || 1; return { x: p.x / l, z: p.z / l }; };
 
 /** How long a line is. */
 const lengthOf = (pts: readonly Point[]) => pts.reduce((s, p, i) => (i ? s + far(pts[i - 1]!, p) : 0), 0);

@@ -223,3 +223,40 @@ test("3.78 the roads follow the relief, and every gate's posts stand up from the
   }
   for (const post of posts) assert.equal(post.userData.height, relief.post.height, "every gate a pair's, its posts one height");
 });
+
+test("3.78 a road leaving a gate or open road onto the open land runs straight down its ramp to the ramp's foot, never across its side (Mick, 2026-11-07)", () => {
+  // Islands whose roads leave their gates at an angle: the four and six above, and others laid out by other links.
+  const islands = [{ shares, links }, ...[
+    [{ from: "z1", to: "a" }, { from: "z2", to: "b" }, { from: "a", to: "b" }, { from: "c", to: "a" }, { from: "b", to: "e" }, { from: "a", to: "f" }, { from: "e", to: "c" }, { from: "b", to: "a" }, { from: "c", to: "e" }],
+    [{ from: "z1", to: "a" }, { from: "z2", to: "c" }, { from: "b", to: "a" }, { from: "d", to: "b" }, { from: "e", to: "d" }, { from: "f", to: "c" }],
+    [{ from: "z1", to: "b" }, { from: "z2", to: "a" }, { from: "a", to: "c" }, { from: "c", to: "d" }, { from: "d", to: "e" }, { from: "e", to: "f" }, { from: "f", to: "a" }],
+  ].map((l) => ({ shares: ["a", "b", "c", "d", "e", "f"].map((capability, i) => ({ capability, title: `${i + 1} · ${capability.toUpperCase()}`, lines: 900 - 120 * i })), links: l })),
+  // And one whose open road climbs a ramp onto a plateau to a tunnel's mouth set back on it.
+  { shares: ["a", "b", "c", "d", "e", "f", "g"].map((capability, i) => ({ capability, title: `${i + 1} · ${capability}`, lines: 823 - 100 * i })),
+    links: [{ from: "z1", to: "a" }, { from: "z2", to: "b" }, { from: "b", to: "a" }, { from: "c", to: "b" }, { from: "d", to: "c" }, { from: "e", to: "d" }, { from: "f", to: "b" }, { from: "g", to: "f" }] }];
+  let ramps = 0;
+  for (const island of islands) {
+    const m = linkLayout(island.shares, coast, island.links, docks), r = islandRoads(m, island.links, docks, capabilityPlates(m)), rel = islandRelief(m, r);
+    for (const ramp of rel.ramps) {
+      // The road through the ramp's top, walked from there onto the ramp.
+      const road = r.segments.find((s) => s.pts.some((p, i) => i > 0 && toSegment(ramp.at, s.pts[i - 1]!, p) < 1e-6))!;
+      assert.ok(road !== undefined, "a road through every ramp");
+      const i = road.pts.findIndex((p, k) => k > 0 && toSegment(ramp.at, road.pts[k - 1]!, p) < 1e-6);
+      const w = (p: Point) => (p.x - ramp.at.x) * ramp.out.x + (p.z - ramp.at.z) * ramp.out.z;
+      const down = w(road.pts[i]!) > w(road.pts[i - 1]!) ? [ramp.at, ...road.pts.slice(i)] : [ramp.at, ...road.pts.slice(0, i).reverse()];
+      let walked = 0;
+      for (let k = 1; k < down.length && walked < 3 * rel.rampDepth; k++) {
+        const a = down[k - 1]!, b = down[k]!, l = far(a, b);
+        for (let t = 0; t <= 1 && walked + t * l <= 3 * rel.rampDepth; t += 0.05) {
+          const p = { x: a.x + (b.x - a.x) * t, z: a.z + (b.z - a.z) * t }, u = (p.x - ramp.at.x) * ramp.along.x + (p.z - ramp.at.z) * ramp.along.z, d = walked + t * l;
+          if (d <= rel.rampDepth) assert.ok(Math.abs(u) <= rel.rampWidth / 2 - road.width / 2, `the road ${d.toFixed(2)} down the ramp at ${ramp.at.x.toFixed(1)},${ramp.at.z.toFixed(1)} stands ${u.toFixed(2)} off its middle`);
+          // Past the foot it turns on the open land, never back up the ramp's side or under its wall.
+          else if (w(p) < 3 * rel.rampDepth) assert.ok(w(p) >= rel.rampDepth - 1e-6 && rel.territoryAt(p) === -1, `the road ${d.toFixed(2)} from the ramp at ${ramp.at.x.toFixed(1)},${ramp.at.z.toFixed(1)} turns ${w(p).toFixed(2)} out from its top, on ${rel.territoryAt(p)}`);
+        }
+        walked += l;
+      }
+      ramps++;
+    }
+  }
+  assert.ok(ramps > 4, "ramps enough to try");
+});

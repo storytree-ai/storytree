@@ -420,7 +420,7 @@ export function transactionsBehaviourSuite(label: string, makeStore: () => Promi
     assert.equal(followed.length, RACERS);
   });
 
-  contract("2.12", "history narrows on the server: from a time, to some types, to the oldest or newest few, and all of them combined", async (store) => {
+  contract("2.12", "history narrows on the server: from a time, to some types, up to a change, to some health columns, to some fields, to the oldest or newest few, and all of them combined", async (store) => {
     await store.save({ id: "a", type: "note", fields: { v: 1 } });
     await store.save({ id: "h", type: "health", fields: { v: 1 } });
     await sleep(5); // so that some changes are made before `from` and some at or after it
@@ -452,6 +452,16 @@ export function transactionsBehaviourSuite(label: string, makeStore: () => Promi
     assert.deepEqual(await store.history({ from, types: ["note"], oldest: 1 }), fromOn.filter((entry) => entry.type === "note").slice(0, 1));
     assert.deepEqual(await store.history({ id: "h", newest: 1 }), all.filter((entry) => entry.recordId === "h").slice(-1));
     assert.deepEqual(await store.history({ since: all[0]!.seq, types: ["health"] }), all.filter((entry) => entry.type === "health"));
+
+    // Up to a change; of health, only some columns' changes; of each record, only some fields.
+    assert.deepEqual(await store.history({ upTo: all[1]!.seq }), all.slice(0, 2));
+    await store.save({ id: "r", type: "health", fields: { column: "reported", v: 1 } });
+    await store.save({ id: "v", type: "health", fields: { column: "verified", v: 1 } });
+    const columns = await store.history({ healthColumns: ["reported"] });
+    assert.deepEqual(columns.map((entry) => entry.recordId), ["a", "b", "a", "b", "r"], "every other type's changes, and only the reported column's of health");
+    const slim = await store.history({ fields: ["column"], since: all.at(-1)!.seq });
+    assert.deepEqual(slim.map((entry) => entry.record.fields), [{ column: "reported" }, { column: "verified" }], "only the fields asked");
+    assert.deepEqual(slim.map((entry) => ({ ...entry, record: { ...entry.record, fields: {} } })), (await store.history({ since: all.at(-1)!.seq })).map((entry) => ({ ...entry, record: { ...entry.record, fields: {} } })), "the rest as it was");
 
     // A filter that is not one is refused before anything is read.
     for (const filter of [{ oldest: 0 }, { newest: -1 }, { oldest: 1.5 }, { oldest: 1, newest: 1 }, { from: "yesterday" }]) {

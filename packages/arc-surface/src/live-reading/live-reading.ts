@@ -14,7 +14,8 @@
  *
  * Its clock and timers are handed in (the page's own by default), so it is tested with a stand-in.
  */
-import type { Change, Changes, Line, LinesSince } from "@storytree/library";
+import type { Change, Changes, ChangesFilter, Line, LineKind, LinesSince } from "@storytree/library";
+import type { LinesStart } from "@storytree/session-management";
 
 /** How often it asks what changed. */
 export const ASK_EVERY_MS = 2_000;
@@ -23,8 +24,10 @@ export const CLOCK_EVERY_MS = 60_000;
 
 /** The two reads the app carries for the page (ADR-0634 D3): `window.storytree`'s. */
 export interface LiveReads {
-  changesSince(project: string, cursor: number): Promise<Changes>;
+  changesSince(project: string, cursor: number, filter?: ChangesFilter): Promise<Changes>;
   linesSince(project: string, cursor: number): Promise<LinesSince>;
+  /** The log's bounded start (Agent activity log 2.16), which a page with nothing kept starts from; a host without it is read from 0. */
+  linesStart?(project: string, kinds: readonly LineKind[]): Promise<LinesStart>;
 }
 
 /** What is new since the last news: the library's changes and the agent log's lines, oldest first. */

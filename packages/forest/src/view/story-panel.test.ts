@@ -58,7 +58,7 @@ test("4.8 a story with no capabilities shows its sentences and nothing below", (
   assert.doesNotMatch(html, /panel-detail/);
 });
 
-test("with the capability details switched off, the panel is the story's sentences alone (ADR-0750)", () => {
+test("4.6 with the capability details switched off, the panel is the story's sentences alone (ADR-0750)", () => {
   const html = renderStoryPanel(panel, "next", { details: false });
   assert.match(html, /What s is\. Why\./);
   assert.doesNotMatch(html, /data-capability-id/, "no capability shown");

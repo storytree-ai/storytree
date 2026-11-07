@@ -57,6 +57,7 @@ export const TOOLS = [
   "plan_arc",
   "plan_capability",
   "plan_contract",
+  "plan_edge",
   "plan_story",
   "plugin_contract",
   "point_at",

@@ -113,10 +113,14 @@ export async function pendChange(records: SchemaRecords, work: WorkModel, id: st
     const before = { ...Object.fromEntries(given.map((field) => [field, live[field] ?? null])), ...(earlier?.before ?? {}) };
     const merged = { ...live, ...after };
     for (const [field, value] of Object.entries(after)) if (value === null) delete merged[field];
+    // A contract moved onto an edge leaves its capability, and one moved onto a capability its edge, as editContract moves it (ADR-1282 D1).
+    if (record.type === "contract" && typeof after["edge"] === "string" && !Object.hasOwn(after, "capability")) delete merged["capability"];
+    if (record.type === "contract" && typeof after["capability"] === "string" && !Object.hasOwn(after, "edge")) delete merged["edge"];
     records.check(record.type, merged);
     await checkReference(records, "story", record.type === "capability" ? change.fields["story"] : undefined, "story");
     await checkReferences(records, "dependsOn", change.fields["dependsOn"], "capability");
     await checkReference(records, "capability", record.type === "contract" ? change.fields["capability"] : undefined, "capability");
+    await checkReference(records, "edge", record.type === "contract" ? change.fields["edge"] : undefined, "edge");
     entry = { ...head, before, after };
   }
   const next = earlier === undefined ? [...pending, entry] : pending.map((other) => (other === earlier ? entry : other));

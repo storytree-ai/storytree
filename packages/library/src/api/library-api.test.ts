@@ -54,6 +54,10 @@ const LIBRARY_API = [
   "editCapability",
   "addContract",
   "editContract",
+  "addEdge",
+  "editEdge",
+  "dependsOn",
+  "moveDependsOnToEdges",
   "editArc",
   "projectTree",
   "arcsFor",
@@ -760,6 +764,7 @@ test("4.9 · retiring a capability refuses live dependents without writing, then
     const otherStory = await lib.addStory({ title: "The world" });
     const target = await lib.addCapability({ story: story.id, title: "Source" });
     const unrelated = await lib.addCapability({ story: story.id, title: "Other source" });
+    // The first links to it inside its story, by an edge (ADR-1282 D1); the second from another story, stored on it.
     const first = await lib.addCapability({ story: story.id, title: "First dependent", dependsOn: [target.id, unrelated.id] });
     const second = await lib.addCapability({ story: otherStory.id, title: "Second dependent", dependsOn: [target.id] });
     const retired = await lib.addCapability({ story: otherStory.id, title: "Old dependent", dependsOn: [target.id] });
@@ -786,7 +791,7 @@ test("4.9 · retiring a capability refuses live dependents without writing, then
     assert.equal(await lib.get(target.id), null);
     const remaining = await lib.get(first.id);
     assert.equal(remaining?.type, "capability");
-    assert.deepEqual(remaining.fields.dependsOn, [unrelated.id]);
+    assert.deepEqual(await lib.dependsOn(first.id), [unrelated.id]);
     const history = await lib.history({ id: target.id });
     assert.equal(history.at(-1)?.action, "retired");
     assert.equal(history.at(-1)?.reason, "Replaced");

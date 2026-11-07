@@ -95,6 +95,7 @@ for (const backend of [memory, postgres]) {
     await assert.rejects(flight.pendChange(increment.id, { record: arc.id, retire: "gone" }), (error: unknown) => error instanceof MissingReferenceError && error.field === "record");
     await assert.rejects(flight.pendChange(increment.id, { record: story.id, fields: { titel: "x" } as never }), SchemaError);
     await assert.rejects(flight.pendChange(increment.id, { record: form.id, fields: { story: "story_000000000000" } }), MissingReferenceError);
+    await assert.rejects(flight.pendChange(increment.id, { record: promise.id, fields: { edge: "edge_000000000000" } }), (error: unknown) => error instanceof MissingReferenceError && error.field === "edge", "a move onto an edge names a live one");
     assert.deepEqual(await transactions.history(), claimed, "nothing was written");
     assert.ok(unchanged.length < claimed.length);
 

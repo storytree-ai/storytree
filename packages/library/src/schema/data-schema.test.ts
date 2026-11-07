@@ -583,6 +583,21 @@ for (const backend of [memory, postgres]) {
     assert.equal(await textOf("story-old"), "Added later.");
   });
 
+  contract("3.21", "a contract belongs to exactly one capability or one edge: naming both or neither is refused, naming the field, with nothing written; an edge is a from and a to capability with an optional description", async ({ records, transactions }) => {
+    const edge = await records.create("edge", { from: "capability-1", to: "capability-0", description: "Reads the saved form" }, { id: "edge-1" });
+    assert.deepEqual(edge.fields, { from: "capability-1", to: "capability-0", description: "Reads the saved form" });
+    const onEdge = await records.create("contract", { title: "1.4 · The form's fields arrive whole", edge: "edge-1" }, { id: "contract-edge" });
+    assert.deepEqual((await records.get(onEdge.id))?.fields, { title: "1.4 · The form's fields arrive whole", edge: "edge-1" }, "an edge's contract reads back naming its edge");
+
+    const before = await transactions.history();
+    await assert.rejects(records.create("contract", untyped({ title: "Both", capability: "capability-1", edge: "edge-1" })), schemaError("contract", ["edge"]));
+    await assert.rejects(records.create("contract", untyped({ title: "Neither" })), schemaError("contract", ["capability"], 'contract: missing required field "capability"'));
+    await assert.rejects(records.edit("contract-edge", { capability: "capability-1" }), schemaError("contract", ["edge"]), "an edit leaving it on both is refused too");
+    await assert.rejects(records.create("edge", untyped({ from: "capability-1" })), schemaError("edge", ["to"]));
+    await assert.rejects(records.create("edge", untyped({ from: "capability-1", to: "capability-0", contracts: [] })), schemaError("edge", ["contracts"]));
+    assert.deepEqual(await transactions.history(), before, "nothing was written");
+  });
+
   contract("3.12", "a process's schedule, time zone and precheck are validated: good words (a daily schedule's grace among them) are kept, bad words, a grace on any but a daily schedule, an unknown time zone, a precheck not on the fixed list, or a time zone or precheck with no schedule are refused and named", async ({ records, transactions }) => {
     const process = { title: "Read the spend", description: "Daily spend reading", statement: "S", trigger: "T", steps: "1. Read", surfaces: "GCP", failureModes: "None" };
     const good = ["every run", "every hour", "every 2 hours", "Every 30 minutes", "every 1 day", "daily at 09:15", "daily at 09:15 and 21:15", "daily at 06:00, 12:00 and 18:00", "daily at 09:15, grace 2 hours", "daily at 06:00, 18:00, grace 90 minutes"];

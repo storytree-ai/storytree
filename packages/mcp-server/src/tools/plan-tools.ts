@@ -111,16 +111,29 @@ export function registerPlanTools(define: Define): void {
   define(
     "plan_contract",
     "Plan a contract: one testable guarantee a capability makes. Leave its number off the title: it is given the capability's next free one, past the numbers its contracts and its story package's numbered tests carry, even a test no contract carries yet, since that test may prove another contract; the reply names those tests, so when this contract is the one a test proves you give that number in the title. It also names the capability's other contracts no numbered test carries yet, planned but not built: build one of those rather than plan it again, and a test numbered for one that sits in another story's package, which credits that package's story, not this one. A number another contract of the capability carries is refused. Write its test, see it fail, and report it red. On a mapped story, as you map each capability, plan a contract for what each of its existing tests checks, naming that test in proved_by and no number in its title: the repository's own tests then prove their contracts as they stand, so never rename or edit them.",
-    z.object({ capability: id("capability it belongs to"), title, description, proved_by: provedBy }),
-    async ({ capability, title: name, description: about, proved_by: proved }, call) => {
+    z.object({
+      capability: id("capability it belongs to").optional(),
+      edge: id("edge it belongs to instead, a link inside one story: a loose contract, even one line, on how one capability depends on the other").optional(),
+      title,
+      description,
+      proved_by: provedBy,
+    }),
+    async ({ capability, edge, title: name, description: about, proved_by: proved }, call) => {
+      if ((capability === undefined) === (edge === undefined)) return { text: "Give the capability the contract belongs to, or the edge: one of them.", refused: true };
+      if (edge !== undefined) {
+        // An edge's contract is numbered only as given, never against a capability's tests (ADR-1282 D1).
+        const contract = await call.library.addContract({ title: name, edge, ...optional({ description: about, provedBy: proved }) }, call.writer);
+        return { text: `Planned contract ${quoted(contract.fields.title)} (${contract.id}) on edge ${edge}.`, data: { id: contract.id } };
+      }
       const tree = await call.library.projectTree();
-      const tested = await testedNumbers(call, capability, tree);
-      const contract = await call.library.addContract({ title: name, capability, ...optional({ description: about, provedBy: proved }) }, { ...call.writer, testedNumbers: tested });
-      const orphans = await orphanTests(call, capability, contract.fields.title, tested);
+      const owner = capability!;
+      const tested = await testedNumbers(call, owner, tree);
+      const contract = await call.library.addContract({ title: name, capability: owner, ...optional({ description: about, provedBy: proved }) }, { ...call.writer, testedNumbers: tested });
+      const orphans = await orphanTests(call, owner, contract.fields.title, tested);
       const named = orphans.length === 0 ? "" : ` Numbered ${orphans.length === 1 ? `test ${orphans[0]} has` : `tests ${orphans.slice(0, -1).join(", ")} and ${orphans.at(-1)} have`} no contract: if this contract is the one ${orphans.length === 1 ? "it proves" : "one proves"}, give it that number with edit_plan.`;
-      const untested = untestedContracts(tree, capability, tested);
+      const untested = untestedContracts(tree, owner, tested);
       const open = untested.length === 0 ? "" : ` No numbered test carries ${untested.length === 1 ? "this other contract" : `these ${untested.length} other contracts`} of the capability yet, planned but not built: ${untested.map(quoted).join(", ")}. If this contract repeats one of them, retire it and build that one.`;
-      const elsewhere = await testsElsewhere(call, capability, untested);
+      const elsewhere = await testsElsewhere(call, owner, untested);
       const strays = Object.entries(elsewhere).map(([title, tests]) => ` ${quoted(title)}: ${tests.map(elsewhereSaid).join("; ")}.`).join("");
       const long = contract.fields.title.length > LONG_CONTRACT;
       const advice = long ? ` Its title runs past ${LONG_CONTRACT} characters, which often means more than one contract: ${CONTRACT_DEFINITION} Split it with edit_plan and plan_contract if so.` : "";
@@ -129,6 +142,20 @@ export function registerPlanTools(define: Define): void {
         ? " Write its test, see it fail, and report it red."
         : ` ${proved.length === 1 ? proved[0] : `${proved.slice(0, -1).join(", ")} and ${proved.at(-1)}`} already ${proved.length === 1 ? "exists" : "exist"}, so write no test for it: ${proved.length === 1 ? "its result credits" : "their results credit"} it at the project's next test run, \`storytree health local\` in your shell.`;
       return { text: `Planned contract ${quoted(contract.fields.title)} (${contract.id}).${named}${open}${strays}${advice}${build}`, data: { id: contract.id, orphans, untested, long, ...(strays === "" ? {} : { elsewhere }) } };
+    },
+  );
+
+  define(
+    "plan_edge",
+    "Plan an edge: a link inside one story, where one capability depends on another of the same story, as a record that holds its own contracts (ADR-1282): plan_contract with edge then adds a loose contract, even one line, on how the one depends on the other, apart from either capability's own. A capability's depends_on lists it like any other link. A link between two stories is no edge: give it as the capability's depends_on.",
+    z.object({
+      from: id("capability that depends on the other"),
+      to: id("capability it depends on, of the same story"),
+      description: z.string().min(1).optional().describe("A sentence on what passes between them"),
+    }),
+    async ({ from, to, description: about }, { library, writer }) => {
+      const edge = await library.addEdge({ from, to, ...optional({ description: about }) }, writer);
+      return { text: `Planned edge ${edge.id}: ${from} depends on ${to}. Plan its contracts with plan_contract and edge ${edge.id}.`, data: { id: edge.id } };
     },
   );
 
@@ -143,6 +170,7 @@ export function registerPlanTools(define: Define): void {
       description,
       story: z.string().min(1).optional().describe("A capability's story, to move it"),
       capability: z.string().min(1).optional().describe("A contract's capability, to move it"),
+      edge: z.string().min(1).optional().describe("A contract's edge, to move it onto that link inside its story"),
       depends_on: z.array(z.string().min(1)).optional().describe("A capability's dependencies, replacing them"),
       covers: covers.describe("A mapped story's capability's folders and files, replacing them"),
       proved_by: provedBy.describe("A contract's existing tests that prove it, replacing them"),
@@ -169,13 +197,14 @@ export function registerPlanTools(define: Define): void {
 
   define(
     "retire_from_plan",
-    "Retire a capability or a contract that is no longer wanted, with the reason: it leaves the plan, and its history keeps it and the reason. While you hold an increment, one planned before it is retired when the increment's branch merges, waiting until then as a pending change (ADR-0966).",
-    z.object({ id: id("capability or contract to retire"), reason: z.string().min(1).describe("Why it is retired, in a line") }),
+    "Retire a capability, a contract or an edge that is no longer wanted, with the reason: it leaves the plan, and its history keeps it and the reason. While you hold an increment, one planned before it is retired when the increment's branch merges, waiting until then as a pending change (ADR-0966).",
+    z.object({ id: id("capability, contract or edge to retire"), reason: z.string().min(1).describe("Why it is retired, in a line") }),
     async ({ id: target, reason }, call) => {
       const { library, writer } = call;
       const found = partOf(await library.projectTree(), target);
-      if (found === undefined) return { text: `${target} is not a capability or a contract in this project's plan: only those are retired here.`, refused: true };
-      const held = await holdPlanChange(library, await claimsOf(call), call.caller.session, { record: target, retire: reason }, writer);
+      if (found === undefined) return { text: `${target} is not a capability, contract or edge in this project's plan: only those are retired here.`, refused: true };
+      // An edge is retired live: an increment holds pending changes only to stories, capabilities and contracts (ADR-0966 D1).
+      const held = found.kind === "edge" ? undefined : await holdPlanChange(library, await claimsOf(call), call.caller.session, { record: target, retire: reason }, writer);
       if (held !== undefined) return { text: `Retiring ${found.kind} ${quoted(found.title)} (${target}) is ${heldSaid(held)}`, data: { id: target } };
       await library.retire(target, reason, writer);
       return { text: `Retired ${found.kind} ${quoted(found.title)} (${target}): ${reason}.`, data: { id: target } };
@@ -213,6 +242,7 @@ interface Changes {
   description?: string | undefined;
   story?: string | undefined;
   capability?: string | undefined;
+  edge?: string | undefined;
   depends_on?: string[] | undefined;
   proved_by?: string[] | undefined;
   stories?: string[] | undefined;
@@ -233,7 +263,8 @@ interface Changes {
 const EDITABLE = {
   story: ["title", "description"],
   capability: ["title", "description", "story", "depends_on", "covers"],
-  contract: ["title", "description", "capability", "proved_by"],
+  contract: ["title", "description", "capability", "edge", "proved_by"],
+  edge: ["description"],
   arc: ["title", "description", "stories", "intent", "end_state", "priority"],
   increment: ["title", "objective", "body", "capabilities", "links", "machine", "escape"],
   anchor: ["what", "audience"],
@@ -338,6 +369,12 @@ async function showPlan({ library, log, project, quietMs }: PlanReading, closed:
       out.push(`  Capability ${quoted(capability.title)} (${capability.id}): ${healthOf(capability.health)}; ${wordAndWhy(capability)}; ${heldBy(capability.id)}`);
       for (const contract of capability.contracts) out.push(`    Contract ${quoted(contract.title)} (${contract.id}): ${healthOf(contract.health)}`);
     }
+    // Its edges, each a link inside the story holding its own contracts (ADR-1282 D1).
+    const titleOf = new Map(story.capabilities.map((capability) => [capability.id, capability.title]));
+    for (const edge of story.edges ?? []) {
+      out.push(`  Edge (${edge.id}): ${quoted(titleOf.get(edge.from) ?? edge.from)} depends on ${quoted(titleOf.get(edge.to) ?? edge.to)}${edge.description === undefined ? "" : `: ${edge.description}`}`);
+      for (const contract of edge.contracts) out.push(`    Contract ${quoted(contract.title)} (${contract.id})`);
+    }
   }
   // Ranked arcs first, 1 first; the sort is stable, so the unranked and each priority's arcs keep creation order (ADR-0963 D2).
   const priorityOf = new Map(views.map((view) => [view.arc.id, view.arc.fields.priority]));
@@ -382,6 +419,10 @@ function kindOf(tree: AnnotatedTree, id: string): keyof typeof EDITABLE | undefi
       if (capability.id === id) return "capability";
       if (capability.contracts.some((contract) => contract.id === id)) return "contract";
     }
+    for (const edge of story.edges ?? []) {
+      if (edge.id === id) return "edge";
+      if (edge.contracts.some((contract) => contract.id === id)) return "contract";
+    }
   }
   return undefined;
 }
@@ -424,10 +465,15 @@ function optional<T extends Record<string, unknown>>(fields: T): { [K in keyof T
 }
 
 /** The capability or contract `id` names in the plan, if it names one. */
-function partOf(tree: AnnotatedTree, id: string): { kind: "capability" | "contract"; title: string } | undefined {
+function partOf(tree: AnnotatedTree, id: string): { kind: "capability" | "contract" | "edge"; title: string } | undefined {
   for (const capability of tree.stories.flatMap((story) => story.capabilities)) {
     if (capability.id === id) return { kind: "capability", title: capability.title };
     const contract = capability.contracts.find((node) => node.id === id);
+    if (contract !== undefined) return { kind: "contract", title: contract.title };
+  }
+  for (const edge of tree.stories.flatMap((story) => story.edges ?? [])) {
+    if (edge.id === id) return { kind: "edge", title: `${edge.from} depends on ${edge.to}` };
+    const contract = edge.contracts.find((node) => node.id === id);
     if (contract !== undefined) return { kind: "contract", title: contract.title };
   }
   return undefined;

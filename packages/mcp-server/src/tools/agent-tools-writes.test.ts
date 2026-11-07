@@ -224,6 +224,19 @@ test("9.2 it retires a contract and then a capability with a reason, and each is
       assert.equal(wrong.isError, true);
       assert.equal((await library.arcView(arc))?.arc.id, arc, "the arc is not retired");
 
+      // An edge is retired live, even while the session holds an increment that would hold a capability's retirement.
+      const link = idOf(await agent.call("plan_capability", { story: (await library.projectTree()).stories[0]!.id, title: "Confirmation link", ...FOUNDED }));
+      const edge = idOf(await agent.call("plan_edge", { from: link, to: capability }));
+      const increment = idOf(await agent.call("park_increment", { arc, title: "Tidy", objective: "Tidy the plan", body: "Retire what is overtaken" }));
+      const claimed = await agent.call("claim", { increment, reason: "tidying" });
+      assert.equal(claimed.isError, false, claimed.text);
+      const unlinked = await agent.call("retire_from_plan", { id: edge, reason: "the link reads the form some other way" });
+      assert.match(unlinked.text, new RegExp(`^Retired edge .*\\(${edge}\\)`), unlinked.text);
+      assert.equal((await library.projectTree()).stories[0]?.edges, undefined, "the edge is gone from the live plan");
+      const released = await agent.call("release", { increment });
+      assert.equal(released.isError, false, released.text);
+      await agent.call("retire_from_plan", { id: link, reason: "folded into the sign-up page" });
+
       assert.equal((await agent.call("retire_from_plan", { id: capability, reason: "folded into the sign-up page" })).isError, false);
       assert.deepEqual((await library.projectTree()).stories[0]?.capabilities, []);
     });
@@ -1085,7 +1098,7 @@ test("9.22 edit_plan with live: true, under an increment's claim, corrects a sto
       const edited = await agent.call("edit_plan", { id: capability, depends_on: [mail], live: true });
       assert.equal(edited.isError, false, edited.text);
       assert.doesNotMatch(edited.text, /pending/);
-      assert.deepEqual((await library.get(capability))?.fields["dependsOn" as never], [mail], "the live capability is corrected");
+      assert.deepEqual(await library.dependsOn(capability), [mail], "the live capability is corrected");
       assert.deepEqual(((await library.get(increment))?.fields as { pending?: unknown[] }).pending ?? [], [], "nothing waits on the increment");
       await withAgent(folder, claudeCode("claude-2"), async (other) => {
         assert.equal((await other.call("claim", { increment, reason: "taking it in a gap" })).isError, true, "the increment is still held");

@@ -441,7 +441,7 @@ export class HealthRecord {
         ? new Set([node.id])
         : new Set((await this.#records.list("capability")).filter((capability) => capability.fields.story === node.id).map(({ id }) => id));
     const contracts = await this.#records.list("contract");
-    return contracts.filter((contract) => capabilities.has(contract.fields.capability)).map(({ id }) => id);
+    return contracts.filter((contract) => contract.fields.capability !== undefined && capabilities.has(contract.fields.capability)).map(({ id }) => id);
   }
 }
 

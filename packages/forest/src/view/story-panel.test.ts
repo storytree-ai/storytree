@@ -11,9 +11,6 @@ import type { CapabilityLine, StoryPanel } from "@storytree/forest";
 
 import { renderStoryPanel, renderTree } from "./story-panel.js";
 
-/** The panel without its foot, the map's legend (4.39), whose words name every health and count the map draws. */
-const story = (html: string): string => html.replace(/<footer class="panel-legend"[\s\S]*?<\/footer>/, "");
-
 function line(id: string, reported: CapabilityLine["reported"], status: CapabilityLine["status"] = "proposed"): CapabilityLine {
   return {
     id,
@@ -200,7 +197,7 @@ test("4.13 in a project nothing verifies, a built capability's card and detail l
   assert.match(shown(box(html, "Story t · The away")), /agent: failing/);
   const detail = /<section class="panel-detail[\s\S]*?<\/section>/.exec(html)?.[0] ?? "";
   assert.match(shown(detail), /^The cap the agent reports passing storytree does not check this project's tests yet\./);
-  assert.doesNotMatch(shown(story(html)), /untested|no test names|moves this one|Why not green/);
+  assert.doesNotMatch(shown(html), /untested|no test names|moves this one|Why not green/);
 });
 
 test("4.12 a healthy capability says nothing more, and a contract not re-run says what it last saw", () => {
@@ -218,10 +215,10 @@ test("4.15 a mapped story's panel says it was here before storytree and is assum
   assert.match(html, /here before storytree/i);
   assert.match(html, /assumed to be working/);
   assert.match(html, /2 files, 1,200 lines/);
-  assert.doesNotMatch(story(html), /panel-badge|panel-health|passing|failing|not checked/, "no health is shown");
+  assert.doesNotMatch(html, /panel-badge|panel-health|passing|failing|not checked/, "no health is shown");
   const uncounted = renderStoryPanel({ ...mapped, mapped: {} }, undefined);
   assert.match(uncounted, /assumed to be working/);
-  assert.doesNotMatch(story(uncounted), /files|lines/, "no counts before the survey reads it");
+  assert.doesNotMatch(uncounted, /files|lines/, "no counts before the survey reads it");
   assert.doesNotMatch(renderStoryPanel(panel, "base"), /panel-mapped/, "a built story's panel says nothing of it");
 });
 

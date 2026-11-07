@@ -11,7 +11,7 @@ import type { Change, Changes, Line, LinesSince } from "@storytree/library";
 import { claimsFrom, sessionsFrom, type LogFoldSnapshot } from "@storytree/session-management/readings";
 
 import { liveReading, type LiveReads, type News, type Timers } from "./live-reading.js";
-import { joinedReads, pageReading, type Keeping, type KeptReading } from "./page-reading.js";
+import { heldReading, joinedReads, pageReading, type Keeping, type KeptReading } from "./page-reading.js";
 
 /** A stand-in clock whose timers fire only when the test moves it on. */
 class Clock implements Timers {
@@ -325,6 +325,33 @@ test("the page reading holds the log's sessions and claims folded, and drops eve
   assert.deepEqual(held.fold.sessions(options), sessionsFrom(app.lines, options));
   assert.deepEqual(held.fold.claims(options), claimsFrom(app.lines, options));
   assert.deepEqual(held.lines.map(({ kind }) => kind), ["subagent-started", "subagent-ended", "claimed"], "only the subagent's lines and the claim are held as lines");
+  reading.stop();
+});
+
+test("3.30 · a surface's test hears what the page holds: the same thinning, so an increment and a question keep their arc and a body is gone", async () => {
+  const app = new App();
+  const at = new Date(0).toISOString();
+  const change = (seq: number, type: string, fields: Record<string, unknown>): Change => ({ seq, recordId: `${type}_1`, type, action: "updated",
+    record: { id: `${type}_1`, type, version: seq, fields, createdAt: at, updatedAt: at } });
+  app.changes.push(
+    change(1, "increment", { title: "Time it", arc: "arc_1", status: "closed", body: "b".repeat(1_000) }),
+    change(2, "question", { title: "Which?", arc: "arc_1", lifecycle: "open", context: "c".repeat(1_000) }),
+  );
+  const common = { session: "s1", source: "hook", project: "shop", at } as const;
+  app.lines.push({ ...common, seq: 1, kind: "session-started" }, { ...common, seq: 2, kind: "file-edited", files: ["a.ts"] });
+  app.claim("cap_a");
+  const reading = pageReading({ project: "shop", reads: app, timers: new Clock() });
+  reading.subscribe({ onNews: () => {} });
+  await settle();
+
+  const held = heldReading({ changes: app.changes, lines: app.lines });
+  assert.deepEqual(held.changes, reading.held().changes, "a test's reading is thinned as the page's is");
+  assert.deepEqual(held.lines, reading.held().lines, "and holds the same lines one by one");
+  assert.deepEqual(held.fold.sessions({ now: new Date(0) }), reading.held().fold.sessions({ now: new Date(0) }));
+  assert.deepEqual(held.changes.map(({ record }) => record.fields), [
+    { title: "Time it", arc: "arc_1", status: "closed" },
+    { title: "Which?", arc: "arc_1", lifecycle: "open" },
+  ]);
   reading.stop();
 });
 

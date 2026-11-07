@@ -470,16 +470,16 @@ test("3.29 a first start with no kept reading asks for the thinned changes and t
   assert.deepEqual(app.asked, ["changes shop 0 only 19 fields, health reported", "start shop claimed,closed,landed,merged,note-read,released,subagent-ended,subagent-started"], "never every line from 0");
   const held = reading.held();
   const options = { now: new Date(0) };
-  const bounded = LogFold.fromBounded(app.given.sessions, app.given.claims);
-  assert.deepEqual(held.fold.sessions(options), bounded.sessions(options), "the sessions folded from the start");
-  assert.deepEqual(held.fold.claims(options), claimsFrom(app.given.claims, options), "and the claims standing");
+  const sessions = held.fold.sessions(options);
+  assert.deepEqual(sessions.map(({ session, state }) => [session, state]), [["s1", "working"]], "the session folded from the start: prompted, in its turn");
+  assert.deepEqual(held.fold.claims(options).map(({ session, capability, reason }) => [session, capability, reason]), [["s1", "cap_a", "building it"]], "and the claim standing");
   assert.deepEqual(held.lines.map(({ seq }) => seq), [3, 7], "the lines a surface reads one by one");
   assert.deepEqual(held.changes.map(({ seq }) => seq), [1], "the changes a surface reads");
   assert.deepEqual(heard.map(({ changes, lines }) => [changes.length, lines.length]), [[1, 2]], "the surfaces hear what is held");
 
   const keeping = await kept.read();
   assert.deepEqual(keeping?.lines.map(({ seq }) => seq), [3, 7], "the start is kept for the next");
-  assert.deepEqual(LogFold.fromSnapshot(keeping!.fold!).sessions(options), bounded.sessions(options), "with its fold");
+  assert.deepEqual(LogFold.fromSnapshot(keeping!.fold!).sessions(options), sessions, "with its fold");
   assert.equal(keeping?.last?.seq, 9, "and the last line it folded");
 
   app.asked.length = 0;
@@ -495,5 +495,36 @@ test("3.29 a host without the bounded start is read whole from 0, as before", as
   reading.subscribe({ onNews: () => {} });
   await settle();
   assert.deepEqual(app.asked, ["changes shop 0", "lines shop 0"]);
+  reading.stop();
+});
+
+test("3.29 a first start whose ask fails is reported and asked again at the next tick, one ask at a time, until it lands", async () => {
+  const app = new StartingApp();
+  const errors: unknown[] = [];
+  let answer: (() => void) | undefined;
+  let asks = 0;
+  app.story("Visitor signs up");
+  app.linesStart = async () => {
+    asks++;
+    if (asks === 1) throw new Error("the app did not answer");
+    if (asks === 2) await new Promise<void>((resolve) => { answer = resolve; });
+    return { lines: [], sessions: [], claims: [], cursor: 5 };
+  };
+  const clock = new Clock();
+  const reading = pageReading({ project: "shop", reads: app, timers: clock });
+  const heard: News[] = [];
+  reading.subscribe({ onNews: (news) => heard.push(news), onError: (error) => errors.push(error) });
+  await settle();
+  assert.equal(errors.length, 1, "the failed ask is reported");
+  await clock.advance(2_000);
+  await clock.advance(2_000);
+  assert.equal(asks, 2, "asked again at the next tick, and not again while that ask is on its way");
+  answer!();
+  await settle();
+  assert.equal(heard.length, 1, "it lands");
+  app.asked.length = 0;
+  await clock.advance(2_000);
+  assert.equal(asks, 2, "and is not asked again once landed");
+  assert.deepEqual(app.asked, ["changes shop 1", "lines shop 5"], "the reading goes on from the start's cursors");
   reading.stop();
 });

@@ -17,7 +17,6 @@ import { withTempDir } from "@storytree/project-and-caller/testing/folders";
 import { databasesOnTestServer, dropTestProjects, testServerUrl, uniqueProjectName } from "@storytree/project-and-caller/testing/pg";
 import { selectLines } from "./bounded.js";
 import { ACTIVITY_DATABASE, cachedLines, openActivityLog, type ActivityLog, type LinesCache } from "./index.js";
-import { LONGEST_COMMAND_MS } from "../readings.js";
 
 const WRITER = fileURLToPath(new URL("../testing/activity-writer.ts", import.meta.url));
 
@@ -374,18 +373,17 @@ test("2.16 a page's start reads every line of the kinds asked, the lines that de
     const quietClaim = await write({ session: "quiet", kind: "claimed", increment: "increment_000000000001", reason: "old work" }, days - 1);
     const quietRelease = await write({ session: "quiet", kind: "released", increment: "increment_000000000001" }, days - 2);
     const read = await write({ session: "quiet", kind: "note-read", note: "principle_000000000001", found: "id", read: "whole" }, days - 3);
-    await write({ session: "holder", kind: "session-started" }, days);
+    const holderStart = await write({ session: "holder", kind: "session-started" }, days);
     const held = await write({ session: "holder", kind: "claimed", increment: "increment_000000000002", reason: "still mine" }, days - 1);
-    await write({ session: "recent", kind: "session-started" }, 5);
-    await write({ session: "recent", kind: "prompt-submitted" }, 4);
+    const recentStart = await write({ session: "recent", kind: "session-started" }, 5);
+    const prompt = await write({ session: "recent", kind: "prompt-submitted" }, 4);
     // The log's latest line, by number, is the quiet session's, written as if long ago: the start reads past it.
     const last = await write({ session: "quiet", kind: "command-started", command: "pnpm gate", call: "c1" }, days - 4);
 
     const start = await log.start(project, { kinds: ["claimed", "released", "note-read"] });
     assert.deepEqual(start.lines.map((line) => line.seq), [quietClaim.seq, quietRelease.seq, read.seq, held.seq], "every line of the kinds asked, oldest first");
-    assert.deepEqual(start.claims, await log.standing(project), "the standing claims");
-    assert.deepEqual(start.sessions, await log.foldLines(project, ["holder", "recent"], at(LONGEST_COMMAND_MS / 60_000 + 1)), "the lines that decide the sessions in view and the holder");
-    assert.equal(start.sessions.some((line) => line.session === "quiet"), false, "nothing of a session long quiet");
+    assert.deepEqual(start.claims.map((line) => line.seq), [held.seq], "the standing claim, not the one released");
+    assert.deepEqual(start.sessions.map((line) => line.seq), [holderStart.seq, held.seq, recentStart.seq, prompt.seq], "the lines that decide the holder and the session in view, and nothing of a session long quiet");
     assert.equal(start.cursor, last.seq, "the cursor of the log's latest line");
     assert.deepEqual(await log.start(uniqueProjectName(), { kinds: ["claimed"] }), { lines: [], sessions: [], claims: [], cursor: 0 }, "an empty log starts at 0");
   });

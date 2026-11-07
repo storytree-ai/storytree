@@ -49,7 +49,7 @@ test("3.24 · the app answers the page's start: its changes thinned by the filte
   await withApp([shown], async ({ storytree, log, reads }) => {
     const library = await storytree.openProject(shown);
     const story = await library.addStory({ title: "Visitor can sign up", text: "Prose no surface reads" });
-    await log.append(shown, { session: "A", source: "hook", kind: "session-started" });
+    const started = await log.append(shown, { session: "A", source: "hook", kind: "session-started" });
     const claim = await log.append(shown, { session: "A", source: "hook", kind: "claimed", increment: "increment_000000000001", reason: "mine" });
 
     const changes = await reads.changesSince(shown, 0, { fields: ["title"], healthColumns: ["reported"] });
@@ -57,7 +57,7 @@ test("3.24 · the app answers the page's start: its changes thinned by the filte
     const start = await reads.linesStart(shown, ["claimed"]);
     assert.deepEqual(start.lines.map(({ seq }) => seq), [claim.seq], "every line of the kinds asked");
     assert.deepEqual(start.claims.map(({ seq }) => seq), [claim.seq], "and the standing claims");
-    assert.ok(start.sessions.some(({ session }) => session === "A"), "and the lines of the session in view");
+    assert.deepEqual(start.sessions.map(({ seq }) => seq), [started.seq, claim.seq], "and the lines that decide the session in view");
     assert.equal(start.cursor, claim.seq);
     await assert.rejects(reads.linesStart(uniqueProjectName(), ["claimed"]), /there is no project called/);
   });

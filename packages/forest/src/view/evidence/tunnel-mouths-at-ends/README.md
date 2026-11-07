@@ -7,7 +7,7 @@ address to get into Weights. The tunnel entrance and exit should sit inside the 
 What is drawn now (contracts 3.77 and 3.78, re-pinned):
 
 - **Each mouth stands on the land on its road's side of the border**, set back from it up to 1.8 of The library's units
-  (at most 0.6 of the road there short of its settlement), so the entrance stands in the territory the road comes from and
+  (at most 0.6 of its road on that land), so the entrance stands in the territory the road comes from and
   the exit in the territory it goes into. The tunnel runs from mouth to mouth, under the border and the whole of the land
   it passes under, and the rise over it (3.78) runs from mouth to mouth with it.
 - **Where the road's side of a border is open land**, the mouth keeps today's place: set back onto the land it goes under,

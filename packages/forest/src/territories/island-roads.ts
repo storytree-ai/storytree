@@ -48,7 +48,7 @@ export type NameAnchor = { readonly capability: string; readonly title: string; 
 /** Round 11's `sand-faint` widths, by the links a road carries: 1, 2-3, 4-7, 8 or more. */
 const WIDTHS = [0.5, 0.7, 0.95, 1.3] as const;
 /** How far a tunnel's mouth stands back from the border its road crosses at: at most `setback`, on its road's own land at
- * most `near` of the road there short of its settlement, on the land it goes under leaving `way` between its mouths where it
+ * most `near` of its road there, on the land it goes under leaving `way` between its mouths where it
  * can, and at least `least` or this share of the stretch; and how much wider than its road its mouth is (Mick, 2026-11-07:
  * "they shouldn't necessarily be required to be at the border ... I think the footprint should be smallish"). */
 const MOUTH = { setback: 1.8, way: 3.2, near: 0.6, least: 1.1, most: 0.2, room: 0.6 } as const;
@@ -382,7 +382,6 @@ function route(map: TerritoryMap, links: readonly Link[], docks: readonly LinkDo
     if (x) entering.set(x, [...entering.get(x) ?? [], l.key]);
   }
   const onOpen = (piece: readonly Point[]) => tAt(halfway(piece)) === "open";
-  const townHalf = (q: Point) => { const town = [...towns].find(([, t]) => far(t, q) < 1e-6); return town ? symbolSize(meeting.get(town[0])!) / 2 + SYMBOL_CLEAR / PX : 0; };
   const opening = (links: readonly string[]) => Math.max(GATE_OPENING, widthOf(links.length) + 2) * S;
   const segments: RoadSegment[] = [], gates: RoadGate[] = [], passes: RoadPass[] = [], portals: RoadPortal[] = [], tunnels: RoadTunnel[] = [];
   for (const { s, xs, pieces, hidden } of cut) {
@@ -402,9 +401,8 @@ function route(map: TerritoryMap, links: readonly Link[], docks: readonly LinkDo
       pieces.forEach((piece, i) => {
         const atStart = i > 0 && on[i - 1] === i, atEnd = i < xs.length && on[i] === i, m = (atStart ? 1 : 0) + (atEnd ? 1 : 0), long = lengthOf(piece);
         // Under the land, as far as leaves room for a rise between its mouths; on the road's own land, as far as leaves the
-        // road to its settlement in sight; never on the border itself.
-        const room = long - [piece[0]!, piece.at(-1)!].reduce((s, q) => s + townHalf(q), 0);
-        const back = Math.max(hidden[i] ? Math.min(MOUTH.setback, (long - MOUTH.way) / Math.max(1, m)) : Math.min(MOUTH.setback, room * MOUTH.near / Math.max(1, m)), Math.min(MOUTH.least, long * MOUTH.most));
+        // road on to its settlement in sight; never on the border itself.
+        const back = Math.max(hidden[i] ? Math.min(MOUTH.setback, (long - MOUTH.way) / Math.max(1, m)) : Math.min(MOUTH.setback, long * MOUTH.near / Math.max(1, m)), Math.min(MOUTH.least, long * MOUTH.most));
         const [head, rest] = atStart ? splitAt(piece, back) : [[piece[0]!], piece];
         const [middle, tail] = atEnd ? splitAt(rest, lengthOf(rest) - back) : [rest, [rest.at(-1)!]];
         if (atStart) { add(head, hidden[i - 1]!); mouths[i - 1] = head.at(-1)!; }

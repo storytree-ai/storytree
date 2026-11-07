@@ -136,6 +136,7 @@ test("3.77 a road that must cross a third territory goes under it (ADR-1253 D3):
     assert.ok(six.portals.some((q) => q !== p && q.links.join() === p.links.join()), "a portal at each end");
   }
   assert.ok(six.portals.some((p) => !third(ownerAt(sixMap, p.at), p.links)), "a mouth on the land of a territory its road runs between");
+  for (const p of six.portals) for (const [id, t] of six.settlements) assert.ok(far(p.at, t.at) > t.size / 2 + p.width / 2, `${p.links.join(",")}'s mouth clear of ${id}'s settlement`);
   for (const t of six.tunnels) {
     assert.ok(t.pts.slice(1).some((b, i) => third(ownerAt(sixMap, { x: (t.pts[i]!.x + b.x) / 2, z: (t.pts[i]!.z + b.z) / 2 }), t.links)), "under land it neither starts nor ends in");
     assert.ok(six.portals.some((p) => far(p.at, t.pts[0]!) < 1e-6 || far(p.at, t.pts.at(-1)!) < 1e-6), "a tunnel's way runs on from a mouth");

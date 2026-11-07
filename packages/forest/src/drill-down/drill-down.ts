@@ -85,6 +85,16 @@ export interface Arrow {
   toReported?: HealthState;
 }
 
+/** An edge of the story (ADR-1282 D1): one capability depending on another of the story, with the edge's own contracts. */
+export interface EdgeLine {
+  from: string;
+  fromTitle: string;
+  to: string;
+  toTitle: string;
+  /** Its contracts, each a short line, never either capability's own. */
+  contracts: { id: string; title: string }[];
+}
+
 /** The panel for one story. */
 export interface StoryPanel {
   story: string;
@@ -93,6 +103,8 @@ export interface StoryPanel {
   /** In build order. */
   capabilities: CapabilityLine[];
   arrows: Arrow[];
+  /** The edges between its capabilities, which a picked gate lists (ADR-1282 D1); present when it has any. */
+  edges?: EdgeLine[];
   /** Present for a mapped story (ADR-0993 D3), which shows no health: its file and line counts once its survey has read them. */
   mapped?: { files?: number; lines?: number };
   /**
@@ -167,10 +179,18 @@ export function drillDown(tree: AnnotatedTree, story: string, states: PartStates
     }),
   );
 
+  const edges = (found.edges ?? []).map(({ from, to, contracts }): EdgeLine => ({
+    from,
+    fromTitle: byId.get(from)?.title ?? from,
+    to,
+    toTitle: byId.get(to)?.title ?? to,
+    contracts: contracts.map(({ id, title }) => ({ id, title })),
+  }));
+
   const files = survey[found.id]?.files ?? [];
   const mapped = found.mapped === undefined ? undefined : files.length === 0 ? {} : { files: files.length, lines: files.reduce((sum, file) => sum + file.lines, 0) };
   const checks = extraChecks(found);
-  return { story: found.id, title: found.title, description: sentences(found.description), capabilities, arrows, ...(mapped === undefined ? {} : { mapped }), ...(checks.length === 0 ? {} : { checks }) };
+  return { story: found.id, title: found.title, description: sentences(found.description), capabilities, arrows, ...(edges.length === 0 ? {} : { edges }), ...(mapped === undefined ? {} : { mapped }), ...(checks.length === 0 ? {} : { checks }) };
 }
 
 /** `story`'s own extra checks, then each of its capabilities'. */

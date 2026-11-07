@@ -25,7 +25,7 @@ type Held = ReturnType<PageReading["held"]>;
 type Changes = Held["changes"];
 
 /** What a click on the forest picked: a story (on one of its territories' capabilities), a note, or empty space. */
-export type ForestSelection = { kind: "story"; id: string; capability?: string } | { kind: "note"; id: string } | undefined;
+export type ForestSelection = { kind: "story"; id: string; capability?: string; gate?: readonly [string, string] } | { kind: "note"; id: string } | undefined;
 
 /** The forest's globe (the forest's openForestView), the little of it the page drives. */
 export interface ForestGlobe {
@@ -68,7 +68,7 @@ export interface ProjectParts<View extends ForestGlobe = ForestGlobe> {
   plugins(on: (surface: string) => boolean): Promise<{ stop(): void; failed: readonly { surface: string; why: string }[] }>;
   reading(options: Pick<ForestReadingOptions, "onTree" | "onError" | "onSettled" | "survey">): { stop(): void };
   space(frame: HTMLElement, surface: HTMLElement, choose: (id: string) => void, opening: string | undefined): PanelSpace;
-  renderPanel(drilled: StoryPanel, selected: string | undefined, options: { tree: boolean }): string;
+  renderPanel(drilled: StoryPanel, selected: string | undefined, options: { tree: boolean; gate: readonly [string, string] | undefined }): string;
 }
 
 export interface PageParts<View extends ForestGlobe = ForestGlobe> {
@@ -231,7 +231,7 @@ export function openProjectPage<View extends ForestGlobe>(parts: PageParts<View>
     const panel = storyPanel(panelHost, {
       body,
       drill: (story) => tree === undefined ? undefined : drillDown(tree, story, states, history(), surveyed),
-      render: (drilled, selected) => project.renderPanel(drilled, selected, { tree: withTree }),
+      render: (drilled, selected, gate) => project.renderPanel(drilled, selected, { tree: withTree, gate }),
       space: (frame, surface, choose) => project.space(frame, surface, choose, treeOpening),
       tree: () => mine.tree,
       libraryCard: (host, onClose) => project.libraryCard(host, onClose),
@@ -248,8 +248,8 @@ export function openProjectPage<View extends ForestGlobe>(parts: PageParts<View>
       delete body.dataset.note;
       if (selection?.kind === "story") body.dataset.selected = selection.id;
       if (selection?.kind === "note") body.dataset.note = selection.id;
-      // A click on a territory opens its story on that capability (forest 3.15).
-      panel.choose(selection?.kind === "story" ? selection.capability : undefined);
+      // A click on a territory opens its story on that capability (forest 3.15), and one on a gate on the pair it joins (3.88).
+      panel.choose(selection?.kind === "story" ? selection.capability : undefined, selection?.kind === "story" ? selection.gate : undefined);
     }, { library: surfaceOn(surfaces, "library"), opening: globeOpening });
     if (showing !== mine) return view.dispose();
     mine.view = view;

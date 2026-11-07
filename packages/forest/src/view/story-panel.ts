@@ -13,11 +13,12 @@ const HEALTH: Readonly<Record<HealthState, string>> = { passing: "passing", fail
 /**
  * The panel's HTML, with `selected` shown below the diagram, if it is one of the story's capabilities.
  * With the capability tree switched off (ADR-0750) it is the story's sentences alone: a capability is
- * picked only in the tree, so its details go with it.
+ * picked only in the tree, so its details go with it. A `gate` picked on the map, the pair of capabilities
+ * it joins, shows the contracts of the edges between them in its place (ADR-1282 D1).
  */
 // Its head, on show exactly while the panel is, names the panel as the Story panel's canvas (Surface feedback).
-export function renderStoryPanel(panel: StoryPanel, selected: string | undefined, { tree = true }: { tree?: boolean } = {}): string {
-  const shown = tree ? panel.capabilities.find(({ id }) => id === selected) : undefined;
+export function renderStoryPanel(panel: StoryPanel, selected: string | undefined, { tree = true, gate }: { tree?: boolean; gate?: readonly [string, string] | undefined } = {}): string {
+  const shown = tree && gate === undefined ? panel.capabilities.find(({ id }) => id === selected) : undefined;
   return `
     <header class="panel-head" data-surface-id="story-panel" data-surface-layer="panel">
       <h2>${text(panel.title)}</h2>
@@ -27,7 +28,26 @@ export function renderStoryPanel(panel: StoryPanel, selected: string | undefined
     ${panel.checks === undefined ? "" : extraChecks(panel.checks)}
     ${panel.mapped === undefined ? "" : mapped(panel.mapped)}
     ${!tree || panel.capabilities.length === 0 ? "" : diagram(panel, shown?.id)}
-    ${shown === undefined ? "" : capability(shown)}`;
+    ${shown === undefined ? "" : capability(shown)}
+    ${gate === undefined ? "" : gateLinks(panel, gate)}`;
+}
+
+/**
+ * A picked gate: the edges joining its two capabilities, whichever depends on which, each saying so and listing its own
+ * contracts; one with none says so, never listing either capability's own (ADR-1282 D1).
+ */
+function gateLinks(panel: StoryPanel, [one, other]: readonly [string, string]): string {
+  const links = (panel.edges ?? []).filter(({ from, to }) => (from === one && to === other) || (from === other && to === one));
+  return `
+    <section class="panel-gate" aria-label="Gate">
+      ${links.length === 0 ? `<p class="panel-muted">No link joins these two capabilities directly.</p>` : links
+        .map(({ fromTitle, toTitle, contracts }) => `
+          <h3>${text(fromTitle)} depends on ${text(toTitle)}.</h3>
+          ${contracts.length === 0
+            ? `<p class="panel-muted">No contracts on this link yet.</p>`
+            : `<ul class="panel-contracts">${contracts.map(({ id, title }) => `<li data-contract-id="${attribute(id)}">${text(title)}</li>`).join("")}</ul>`}`)
+        .join("")}
+    </section>`;
 }
 
 /** What a mapped story is (ADR-0993 D3), in place of a health it does not carry, with its counts once surveyed. */

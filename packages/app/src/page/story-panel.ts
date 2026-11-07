@@ -27,7 +27,8 @@ export interface StoryPanelParts {
   body: HTMLElement;
   /** The drill-down for `story` as the project now reads, or none. */
   drill(story: string): StoryPanel | undefined;
-  render(drilled: StoryPanel, selected: string | undefined): string;
+  /** `gate`, when one was picked on the map: the pair of capabilities it joins, whose edges the panel lists. */
+  render(drilled: StoryPanel, selected: string | undefined, gate: readonly [string, string] | undefined): string;
   /** Let `frame` move `surface`; `choose` hears a card clicked. */
   space(frame: HTMLElement, surface: HTMLElement, choose: (id: string) => void): PanelSpace;
   /** The larger tree window, when the capability tree is on. */
@@ -43,14 +44,16 @@ export interface StoryPanelParts {
 export interface StoryPanelView {
   /** Draw the panel for the selection on the body, or hide it. */
   show(): void;
-  /** Show `capability` below the open story's diagram (undefined for the story's first). */
-  choose(capability: string | undefined): void;
+  /** Show `capability` below the open story's diagram (undefined for the story's first), or the edges of the `gate` picked on the map. */
+  choose(capability: string | undefined, gate?: readonly [string, string]): void;
   stop(): void;
 }
 
 export function storyPanel(panel: HTMLElement, parts: StoryPanelParts): StoryPanelView {
   /** The capability shown below the open story's diagram: the one clicked, or the one the panel opened on, so it holds while the project redraws. */
   let chosen: string | undefined;
+  /** The gate picked on the map, which the panel shows until another pick (ADR-1282 D1). */
+  let gate: readonly [string, string] | undefined;
   /** The panel's own tree space, moved by the pointer, and whose story it shows. */
   let inPanel: { story: string; moving: PanelSpace } | undefined;
   let card: (() => void) | undefined;
@@ -81,7 +84,7 @@ export function storyPanel(panel: HTMLElement, parts: StoryPanelParts): StoryPan
     const selected = selectedCapability(drilled, chosen);
     chosen = selected;
     const open = new Set([...panel.querySelectorAll<HTMLElement>("details[open]")].map((node) => node.closest<HTMLElement>("[data-capability-id]")?.dataset.capabilityId));
-    panel.innerHTML = parts.render(drilled, selected);
+    panel.innerHTML = parts.render(drilled, selected, gate);
     for (const node of panel.querySelectorAll<HTMLElement>(".panel-detail")) {
       if (open.has(node.dataset.capabilityId)) node.querySelector("details")?.setAttribute("open", "");
     }
@@ -94,6 +97,7 @@ export function storyPanel(panel: HTMLElement, parts: StoryPanelParts): StoryPan
     if (frame != null && surface != null) {
       const moving = parts.space(frame, surface, (id) => {
         chosen = id;
+        gate = undefined;
         show();
         parts.chose(id);
         panel.querySelector<SVGGElement>(".panel-diagram .selected")?.focus({ preventScroll: true });
@@ -111,8 +115,9 @@ export function storyPanel(panel: HTMLElement, parts: StoryPanelParts): StoryPan
 
   return {
     show,
-    choose(capability) {
+    choose(capability, picked) {
       chosen = capability;
+      gate = picked;
       show();
     },
     stop() {

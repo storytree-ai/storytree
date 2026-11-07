@@ -160,6 +160,15 @@ test("4.38 a capability carries the open increments naming it in the library's o
   assert.equal("openWork" in (b ?? {}), false);
 });
 
+test("4.40 a story's edges carry their own contracts, by which capability depends on which, apart from either capability's", () => {
+  const edge = { id: "edge-1", from: "login", to: "accounts", contracts: [{ id: "e-k", title: "login asks accounts by id" }] };
+  const tree: AnnotatedTree = { stories: [{ ...story("s", capability("login", ["accounts"], [contract("k1", "passing")]), capability("accounts", [])), edges: [edge] }], arcs: [] };
+  const panel = drillDown(tree, "s", workStates([]), []);
+  assert.deepEqual(panel?.edges, [{ from: "login", fromTitle: "The login", to: "accounts", toTitle: "The accounts", contracts: [{ id: "e-k", title: "login asks accounts by id" }] }]);
+  assert.deepEqual(panel?.capabilities.find(({ id }) => id === "login")?.contracts.map(({ id }) => id), ["k1"], "its own contracts stay its own");
+  assert.equal("edges" in (drillDown({ stories: [story("t", capability("alone", []))], arcs: [] }, "t", workStates([]), []) ?? {}), false, "a story with no edges carries none");
+});
+
 test("4.13 in a project nothing verifies, each capability, and each other story's it points at, is marked as shown by the agent's report", () => {
   const reportOnly = (built: AnnotatedCapability): AnnotatedCapability => ({ ...built, reportOnly: true });
   const tree: AnnotatedTree = {

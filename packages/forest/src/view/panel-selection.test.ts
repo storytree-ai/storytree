@@ -72,3 +72,19 @@ test("3.88 · a picked gate selects its island's story with the pair of capabili
   selection.picked(undefined);
   assert.equal(selection.current, undefined, "one that picked nothing, nothing");
 });
+
+test("3.91 · a capability picked in the panel names it on the selected story, so the map rings it, without telling the panel again", () => {
+  const map: Selection[] = [], panel: Selection[] = [];
+  const selection = new PanelSelection((next, { fromPanel }) => { map.push(next); if (!fromPanel) panel.push(next); });
+  selection.story("story");
+  selection.chose("c");
+  assert.deepEqual(selection.current, { kind: "story", id: "story", capability: "c" }, "the selected story, on that capability");
+  assert.deepEqual(map.at(-1), { kind: "story", id: "story", capability: "c" }, "the map hears it");
+  assert.deepEqual(panel, [{ kind: "story", id: "story" }], "the panel, which picked it, is not told again");
+  selection.gate("story", ["a", "c"]);
+  selection.chose("a");
+  assert.deepEqual(selection.current, { kind: "story", id: "story", capability: "a" }, "a pick after a gate's names no gate");
+  selection.note("principle");
+  selection.chose("a");
+  assert.deepEqual(selection.current, { kind: "note", id: "principle" }, "with no story selected it names nothing");
+});

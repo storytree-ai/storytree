@@ -24,7 +24,7 @@ import { claimsOn, gatePosts, pointersOn } from "./planet-update.js";
 import { createGlobeGuide, type GlobePose, type PlacedGlobeControls } from "./globe-guide.js";
 import { createGlobeAside, framedOnResize, type AsidePose } from "./globe-aside.js";
 import { compassNorth, opensBare, seesUnderside, sheetDrag, sheetHome, sheetKey, sheetKeyPan, sheetLayout, sheetMarkers, sheetOpening, sheetPan, sheetPointerMarkers, sheetPanUnder, sheetSpin, sheetSpinTilt, sheetTilted, sheetTiltBy, sheetTwist, sheetUnder, TILT_PER_PIXEL, TILT_STEP, withDocks } from "./sheet-navigation.js";
-import { growLand, presentDetail, shownSurfaces as surfacesFor, TerritoryDrawOn, type GlobeSurfaces } from "./globe-surfaces.js";
+import { growLand, IslandOpening, presentDetail, shownSurfaces as surfacesFor, TerritoryDrawOn, type GlobeSurfaces } from "./globe-surfaces.js";
 import { DetailStore } from "./zoom-detail.js";
 import { useBuiltInSteps } from "./build-turns.js";
 import type { TerritoryMap } from "../territories/territories.js";
@@ -446,18 +446,19 @@ function DrawnIsland({ drawn, land, coast, docks, tints, pointed, radius, lighti
   const grow = useCallback(() => growLand(drawn.group, { capability: id => growth.capability(id) }), [drawn, growth]);
   // 3.46: what this island already drew stays drawn across a rebuild; new borders trace on and new fills ease in.
   const drawOn = useMemo(() => new TerritoryDrawOn(), []);
-  // 3.87: an island there as the map opens stands until its land is whole: laid out by its docks, and with its roads.
-  const opened = useRef(true);
+  // 3.87: an island there as the map opens stands until a frame has drawn its land whole: laid out by its docks, and with its roads.
+  const opening = useMemo(() => new IslandOpening(), []);
   // Before the land is first drawn, so a rebuilt island never shows a frame in the wrong colours.
   useLayoutEffect(() => {
     lightTerritories(drawn.group, surfaces.sessionTints ? lighting.capabilities : new Map(), lighting.colour);
-    drawOn.take(drawn.group, surfaces.territories, clock.getElapsedTime(), { standing: opened.current && joined < 1, reduced: reducedMotion() });
-    opened.current &&= docks === undefined || drawn.roads === undefined;
+    const standing = opening.built(docks !== undefined && drawn.roads !== undefined) && joined < 1;
+    drawOn.take(drawn.group, surfaces.territories, clock.getElapsedTime(), { standing, reduced: reducedMotion() });
     marks.root.visible = surfaces.sessionTints;
     whole.current = grow();
     invalidate();
-  }, [drawn, marks, drawOn, lighting, surfaces, clock, grow, invalidate]);
+  }, [drawn, marks, drawOn, opening, lighting, surfaces, clock, grow, invalidate]);
   useFrame(() => {
+    opening.drew();
     if (drawOn.frame(clock.getElapsedTime(), reducedMotion())) invalidate();
     if (!whole.current) whole.current = grow();
   });

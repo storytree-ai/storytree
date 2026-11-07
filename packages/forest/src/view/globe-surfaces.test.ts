@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { LineSegments, Mesh, MeshBasicMaterial, Vector3 } from "three";
-import { growLand, presentTerritories, restoreTerritoryPresentation, shownSurfaces, TERRITORY_DRAW, TerritoryDrawOn, type GlobeSurfaces } from "./globe-surfaces.js";
+import { growLand, IslandOpening, presentTerritories, restoreTerritoryPresentation, shownSurfaces, TERRITORY_DRAW, TerritoryDrawOn, type GlobeSurfaces } from "./globe-surfaces.js";
 import { territoryLand } from "./territory-land.js";
 
 test("3.22 territories switch between health, plain boundaries and hidden without changing geometry", () => {
@@ -121,4 +121,16 @@ test("3.46 territories arrive without a flash: borders trace on along their leng
   const standing = new TerritoryDrawOn(), opened = territoryLand(one, flat);
   standing.take(opened, "health", 0.2, { standing: true, reduced: false });
   assert.ok(Math.abs(drawnOf(opened) - 4) < 1e-6); assert.equal(fill(opened, "pay"), full);
+});
+
+test("3.87 · an island there as the map opens stands until a frame has drawn its land whole: a whole build overtaken before any frame drew it ends nothing", () => {
+  const opening = new IslandOpening();
+  assert.equal(opening.built(false), true, "its land as first built stands");
+  opening.drew();
+  assert.equal(opening.built(true), true, "built whole, with its roads, it stands");
+  // Built again before a frame drew it: the whole land was never on screen.
+  assert.equal(opening.built(false), true, "a rebuild before any frame drew the whole land still stands");
+  assert.equal(opening.built(true), true, "and so does the whole land after it");
+  opening.drew();
+  assert.equal(opening.built(false), false, "once a frame drew it whole, a later rebuild is new land");
 });

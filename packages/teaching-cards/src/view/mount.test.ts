@@ -257,6 +257,13 @@ test("3.5 · with no room right of its island, a card sits left of the island; w
   slid.stop();
 });
 
+test("3.5 · a card with room right of its island only by pressing against it sits left of the island instead", () => {
+  // 680 + 12 + 300 + 12 = 1004 > 1000: kept inside the window, the right place would sit 8px off the island, not 12.
+  const { teaching, at } = sized([], () => ({ x: 580, y: 300, visible: true, box: { left: 480, top: 250, right: 680, bottom: 350 } }));
+  assert.deepEqual(at(), { left: "168px", top: "250px" }, "12px left of the island");
+  teaching.stop();
+});
+
 test("3.5 · in a window too narrow for either side, a card pushed back inside over its own point sits below it instead", () => {
   const { document, teaching, at } = sized([], () => ({ x: 200, y: 300, visible: true }));
   const view = document.defaultView as unknown as { innerWidth: number };

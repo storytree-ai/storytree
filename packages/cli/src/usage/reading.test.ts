@@ -114,15 +114,17 @@ test("14.5 · calls, sessions and unknowns are split by machine, harness, and br
   assert.deepEqual(split("briefed", "not briefed"), { by: "briefed", value: "not briefed", command: 1, tool: 1, sessions: 1, unknown: 0 });
 });
 
-test("14.7 · each declared verb carries its consumers, and one a person may call is not judged by these lines, which record no person's own terminal", () => {
+test("14.7 · each declared verb carries its consumers, and one a person or the watcher may call is not judged by these lines, which record no person's own terminal and no watcher's call", () => {
   const reading = countDoors([line("a", "command", "storytree arc show")], {
-    commands: [{ verb: "storytree settings show", consumers: ["user"] }, { verb: "storytree quality brief", consumers: ["agent"] }, { verb: "storytree arc show", consumers: both }],
-    tools: [],
+    commands: [{ verb: "storytree settings show", consumers: ["user"] }, { verb: "storytree quality brief", consumers: ["agent"] }, { verb: "storytree arc show", consumers: both }, { verb: "storytree workspace let-go", consumers: ["watcher"] }],
+    tools: [{ verb: "watch_tool", consumers: ["agent", "watcher"] }],
   }, new Map(), window);
   const of = (verb: string) => reading.surfaces.find((surface) => surface.verb === verb);
   assert.deepEqual(of("storytree settings show"), { door: "command", verb: "storytree settings show", declared: true, consumers: ["user"], judged: false, calls: 0, sessions: 0 });
   assert.deepEqual(of("storytree quality brief"), { door: "command", verb: "storytree quality brief", declared: true, consumers: ["agent"], judged: true, calls: 0, sessions: 0 });
   assert.equal(of("storytree arc show")?.judged, false, "a verb for both is never judged by the agents' lines alone");
+  assert.deepEqual(of("storytree workspace let-go"), { door: "command", verb: "storytree workspace let-go", declared: true, consumers: ["watcher"], judged: false, calls: 0, sessions: 0 });
+  assert.equal(of("watch_tool")?.judged, false, "a tool the watcher may call is not judged either");
 });
 
 test("14.8 · each word refused with hints counts its offers, the offers followed by target, and how often none was taken; a refused or failed next call is no follow", () => {

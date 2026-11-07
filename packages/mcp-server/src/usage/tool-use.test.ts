@@ -7,19 +7,20 @@ import { readToolUse, type ToolLine } from "./tool-use.js";
 const served = ["show_plan", "search_notes", "retire"].map((verb) => ({ verb, consumers: ["agent"] as const }));
 const line = (session: string, verb: string, more: Partial<ToolLine> = {}): ToolLine => ({ session, verb, outcome: "answered", ...more });
 
-test("8.1 · every served tool is counted with its calls, sessions and consumers, those with none at zero and an unserved tool apart; one a person may call is not judged", () => {
+test("8.1 · every served tool is counted with its calls, sessions and consumers, those with none at zero and an unserved tool apart; one a person or the watcher may call is not judged", () => {
   const use = readToolUse([
     line("a", "show_plan"),
     line("a", "show_plan"),
     line("b", "show_plan"),
     line("b", "made_up_tool"),
-  ], [...served, { verb: "settings", consumers: ["agent", "user"] }]);
+  ], [...served, { verb: "settings", consumers: ["agent", "user"] }, { verb: "watch_tool", consumers: ["watcher"] }]);
   const of = (verb: string) => use.surfaces.find((surface) => surface.verb === verb);
   assert.deepEqual(of("show_plan"), { door: "tool", verb: "show_plan", declared: true, consumers: ["agent"], judged: true, calls: 3, sessions: 2 });
   assert.deepEqual(of("retire"), { door: "tool", verb: "retire", declared: true, consumers: ["agent"], judged: true, calls: 0, sessions: 0 });
   assert.equal(of("settings")?.judged, false, "a person's own calls write no line, so its zero is no sign it went unused");
+  assert.deepEqual(of("watch_tool"), { door: "tool", verb: "watch_tool", declared: true, consumers: ["watcher"], judged: false, calls: 0, sessions: 0 }, "the watcher's calls carry no agent session, so they write no line");
   assert.deepEqual(of("made_up_tool"), { door: "tool", verb: "made_up_tool", declared: false, judged: true, calls: 1, sessions: 1 });
-  assert.deepEqual(use.surfaces.map((surface) => surface.verb), ["show_plan", "retire", "search_notes", "settings", "made_up_tool"], "most used first, the unserved last");
+  assert.deepEqual(use.surfaces.map((surface) => surface.verb), ["show_plan", "retire", "search_notes", "settings", "watch_tool", "made_up_tool"], "most used first, the unserved last");
   assert.equal(use.calls, 4);
 });
 

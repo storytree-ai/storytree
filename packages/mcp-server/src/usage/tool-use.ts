@@ -4,12 +4,12 @@
  * A pure count: the lines and the served tools are handed in, and nothing here reads the log or knows the other door.
  *
  * - Use per tool: every served tool with its calls and sessions, those with none at zero, each with its consumers
- *   (ADR-1045 D1); one a person may call is not judged, since a person's own calls write no line. A tool name the
+ *   (ADR-1045 D1); one a person or the watcher may call is not judged, since neither's calls write a line. A tool name the
  *   server does not serve is listed apart, never dropped.
  * - Misses: each name refused as unknown with what the refusal named, and the unknowns per 1,000 calls.
  * - Failures by class, and refusals (a "no" by design) apart from them.
  */
-import type { Consumer } from "@storytree/library/verbs";
+import { judgedByLines, type Consumer } from "@storytree/library/verbs";
 
 /** One of the tool door's `door-answered` lines, as the reading needs it. */
 export interface ToolLine {
@@ -28,7 +28,7 @@ export interface ServedTool {
   readonly consumers: readonly Consumer[];
 }
 
-/** One tool's use; `judged` is false when a person may call it. */
+/** One tool's use; `judged` is false when a person or the watcher may call it. */
 export interface ToolSurface { readonly door: "tool"; readonly verb: string; readonly declared: boolean; readonly consumers?: readonly Consumer[]; readonly judged: boolean; readonly calls: number; readonly sessions: number }
 export interface ToolMiss { readonly door: "tool"; readonly where: string; readonly word: string; readonly named?: string; readonly count: number }
 export interface ToolFailure { readonly door: "tool"; readonly verb: string; readonly class: string; readonly count: number }
@@ -72,7 +72,7 @@ function surfaces(lines: readonly ToolLine[], served: readonly ServedTool[]): To
   }
   const byUse = (a: ToolSurface, b: ToolSurface) => b.calls - a.calls || a.verb.localeCompare(b.verb);
   const known = [...new Map(served.map(({ verb, consumers }) => [verb, {
-    door: "tool", verb, declared: true, consumers, judged: !consumers.includes("user"), calls: seen.get(verb)?.calls ?? 0, sessions: seen.get(verb)?.sessions.size ?? 0,
+    door: "tool", verb, declared: true, consumers, judged: judgedByLines(consumers), calls: seen.get(verb)?.calls ?? 0, sessions: seen.get(verb)?.sessions.size ?? 0,
   } as const])).values()];
   const names = new Set(served.map(({ verb }) => verb));
   const others = [...seen].filter(([verb]) => !names.has(verb))

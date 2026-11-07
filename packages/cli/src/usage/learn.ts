@@ -13,7 +13,7 @@
  *   refused, as D5's own `friction list` is, though `list` is a verb in other families; a tool's name typed as a command is
  *   the mistake D2 names, which keeps its refusal naming the command, and is never a want. Nor is a word holding
  *   whitespace: that is text that strayed into a command's place, such as a quoted argument, never a command's name.
- * - A cut candidate (D6): a verb whose consumers are only agents, with no call in the 28 days across at least 100
+ * - A cut candidate (D6): a verb whose consumers are only agents (never one the watcher runs), with no call in the 28 days across at least 100
  *   sessions, grouped by its command family, or with the tools that have no command. A verb both doors mount is one
  *   candidate only when neither door called it; one door's unused while the other's carries the job is a door gap,
  *   reported apart and never cut. Nothing is a candidate unless the lines cover the whole window: silence before the
@@ -21,6 +21,8 @@
  *   the whole window, read from when the learner first saw it (a pair, from when it first saw either door's), and a verb
  *   it has never seen is not judged.
  */
+import { judgedByLines } from "@storytree/library/verbs";
+
 import type { DeclaredVerb, DoorLine } from "./reading.js";
 
 /** ADR-1045's starting bars, tuned only by decision. */
@@ -227,7 +229,7 @@ function fallbacks(lines: readonly DoorLine[], pointers: readonly Pointer[]): Fa
 function disuse(lines: readonly DoorLine[], { commands, tools, twins }: Surfaces, old: (...verbs: string[]) => boolean): { cuts: CutGroup[]; gaps: Gap[] } {
   const calls = new Map<string, number>();
   for (const line of lines) calls.set(line.verb, (calls.get(line.verb) ?? 0) + 1);
-  const agentOnly = new Set([...commands, ...tools].filter(({ consumers }) => consumers.length === 1 && consumers[0] === "agent").map(({ verb }) => verb));
+  const agentOnly = new Set([...commands, ...tools].filter(({ consumers }) => judgedByLines(consumers)).map(({ verb }) => verb));
   const unused = (verb: string) => agentOnly.has(verb) && (calls.get(verb) ?? 0) === 0;
   const groups = new Map<string, Candidate[]>();
   const add = (group: string, candidate: Candidate) => groups.set(group, [...(groups.get(group) ?? []), candidate]);

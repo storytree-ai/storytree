@@ -87,6 +87,26 @@ export function growLand(land: Group, grown: { capability(capability: string): n
  * then a new territory's fill eases in over `fill` (3.46). */
 export const TERRITORY_DRAW = { borders: 1, fill: 0.4 } as const;
 
+/**
+ * 3.87: an island there as the map opens stands, its land drawn whole, until a frame has drawn it whole: laid out by its
+ * docks and with its roads. A whole build overtaken before any frame drew it was never on screen, so it ends nothing.
+ */
+export class IslandOpening {
+  private open = true;
+  private whole = false;
+
+  /** A build presented, `whole` when it is the island's whole land; whether it stands. */
+  built(whole: boolean): boolean {
+    this.whole = whole;
+    return this.open;
+  }
+
+  /** A frame drew the land as last built. */
+  drew(): void {
+    if (this.whole) this.open = false;
+  }
+}
+
 type Segment = { key: string; from: string; to: string; index: number };
 type Chain = { start: number; steps: { index: number; flip: boolean; length: number }[]; length: number };
 

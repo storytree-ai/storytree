@@ -4,13 +4,13 @@
  * walked from this door's table. A pure count: the lines and the declared commands are handed in.
  *
  * - Use per command: every declared command with its calls and sessions, those with none at zero, each with its
- *   consumers (ADR-1045 D1); one a person may call is not judged, since a person's own terminal writes no line. A verb
+ *   consumers (ADR-1045 D1); one a person or the watcher may call is not judged, since neither writes a line. A verb
  *   the table does not declare (the bare `storytree`, a family a word was refused in) is listed apart, never dropped.
  * - Misses: each word refused as unknown, where it was refused and the command the refusal named, and the unknowns
  *   per 1,000 calls.
  * - Failures by class, and refusals (a "no" by design) apart from them.
  */
-import type { Consumer } from "@storytree/library/verbs";
+import { judgedByLines, type Consumer } from "@storytree/library/verbs";
 
 /** One of the command door's `door-answered` lines, as the reading needs it. */
 export interface CommandLine {
@@ -29,7 +29,7 @@ export interface DeclaredCommand {
   readonly consumers: readonly Consumer[];
 }
 
-/** One command's use; `judged` is false when a person may call it. */
+/** One command's use; `judged` is false when a person or the watcher may call it. */
 export interface CommandSurface { readonly door: "command"; readonly verb: string; readonly declared: boolean; readonly consumers?: readonly Consumer[]; readonly judged: boolean; readonly calls: number; readonly sessions: number }
 export interface CommandMiss { readonly door: "command"; readonly where: string; readonly word: string; readonly named?: string; readonly count: number }
 export interface CommandFailure { readonly door: "command"; readonly verb: string; readonly class: string; readonly count: number }
@@ -73,7 +73,7 @@ function surfaces(lines: readonly CommandLine[], declared: readonly DeclaredComm
   }
   const byUse = (a: CommandSurface, b: CommandSurface) => b.calls - a.calls || a.verb.localeCompare(b.verb);
   const known = [...new Map(declared.map(({ verb, consumers }) => [verb, {
-    door: "command", verb, declared: true, consumers, judged: !consumers.includes("user"), calls: seen.get(verb)?.calls ?? 0, sessions: seen.get(verb)?.sessions.size ?? 0,
+    door: "command", verb, declared: true, consumers, judged: judgedByLines(consumers), calls: seen.get(verb)?.calls ?? 0, sessions: seen.get(verb)?.sessions.size ?? 0,
   } as const])).values()];
   const names = new Set(declared.map(({ verb }) => verb));
   const others = [...seen].filter(([verb]) => !names.has(verb))

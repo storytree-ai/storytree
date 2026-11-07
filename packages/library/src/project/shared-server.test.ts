@@ -154,8 +154,14 @@ test("28.3 on a shared server, each of a library's connections names the machine
     opened.push(storytree);
     await (await storytree.openProject(project)).addStory({ title: "Held open", description: "Its connection is named." });
 
+    // Only the pool's settled connections: a background worker, or a connection still starting, carries no name yet.
     const names = await withTestClient(async (client) =>
-      (await client.query<{ name: string }>("SELECT application_name AS name FROM pg_stat_activity WHERE datname = $1 AND state IS NOT NULL", [`storytree_${project}`])).rows.map((row) => row.name),
+      (
+        await client.query<{ name: string }>(
+          "SELECT application_name AS name FROM pg_stat_activity WHERE datname = $1 AND backend_type = 'client backend' AND state IS NOT NULL AND state <> 'starting'",
+          [`storytree_${project}`],
+        )
+      ).rows.map((row) => row.name),
     );
 
     assert.ok(names.length > 0, "the project's pool holds a connection");

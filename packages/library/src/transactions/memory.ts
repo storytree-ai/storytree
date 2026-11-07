@@ -4,7 +4,7 @@
  */
 import { AsyncLocalStorage } from "node:async_hooks";
 
-import { check, fieldAt, listFilter, pickFields, projectedFields, editedRecord, historyEntry, historyFilter, jsonCopy, now, numbered, outsideReadOf, revertedRecord, revertInput, revertReason, savedRecord, writesReverted, writtenBy } from "./records.js";
+import { check, editedRecord, historyEntry, historyFilter, jsonCopy, listed, now, numbered, outsideReadOf, revertedRecord, revertInput, revertReason, savedRecord, writesReverted, writtenBy } from "./records.js";
 import type {
   EditInput,
   HistoryEntry,
@@ -56,22 +56,7 @@ export class MemoryTransactions implements Transactions {
   }
 
   async list(type: string | readonly string[], filter: ListFilter = {}): Promise<RecordEnvelope[]> {
-    filter = listFilter(filter);
-    return [...this.#records.values()]
-      .filter((record) => (typeof type === "string" ? record.type === type : type.includes(record.type))
-        && (filter.after === undefined || compareIds(record.id, filter.after) > 0)
-        && (filter.phrase === undefined || Object.entries(record.fields).some(([key, value]) =>
-          (filter.phrase!.fields === undefined || filter.phrase!.fields.includes(key))
-          && typeof value === "string" && value.includes(filter.phrase!.text)))
-        && (filter.ids === undefined || filter.ids.includes(record.id))
-        && Object.entries(filter.where ?? {}).every(([path, value]) => fieldAt(record.fields, path) === value)
-        && Object.entries(filter.not ?? {}).every(([path, value]) => fieldAt(record.fields, path) !== value))
-      .sort((a, b) => compareIds(a.id, b.id))
-      .slice(0, filter.limit)
-      .map((record) => {
-        const kept = projectedFields(filter.projection, record.version);
-        return jsonCopy(kept === undefined ? record : { ...record, fields: pickFields(record.fields, kept) });
-      });
+    return listed(this.#records.values(), type, filter).map(jsonCopy);
   }
 
   async edit(input: EditInput): Promise<RecordEnvelope | null> {
@@ -191,13 +176,4 @@ export class MemoryTransactions implements Transactions {
       historyEntry({ seq: this.#lastSeq, recordId: record.id, type: record.type, action, record, reason, actor, outsideRead, at }),
     );
   }
-}
-
-/**
- * Code-point order, which is UTF-8 byte order: the order Postgres's C collation gives, so `list`
- * orders ids exactly as PgTransactions does. (JavaScript's default string order is by UTF-16 code
- * unit, which puts characters beyond U+FFFF before U+E000-U+FFFF.)
- */
-function compareIds(a: string, b: string): number {
-  return Buffer.compare(Buffer.from(a, "utf8"), Buffer.from(b, "utf8"));
 }

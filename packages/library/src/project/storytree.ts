@@ -13,6 +13,7 @@
  * account, ADR-0747) opens it too; one whose tables are behind is refused saying who may.
  */
 import { createHash } from "node:crypto";
+import { homedir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import type { Pool, PoolClient } from "pg";
@@ -30,6 +31,7 @@ import { WorkModel } from "../work/work-model.js";
 import { addressServer } from "./address.js";
 import { cloudSqlServer, type CloudSqlConfig, type CloudSqlSeams } from "./cloud-sql.js";
 import { PgVectors, vectorServerIdentity, type VectorDomain } from "./embeddings.js";
+import { CachedTransactions } from "./record-cache.js";
 import { cannotCreateDatabases, cannotSetUpProject, ConnectionError, isInsufficientPrivilege, sqlState } from "./connection-error.js";
 import { assertProjectName, PROJECT_DATABASE_PREFIX, ProjectGoneError, projectDatabase } from "./names.js";
 import { InheritedRecords, ProjectLineage } from "./factory.js";
@@ -246,6 +248,11 @@ export type ProjectSeams = CloudSqlSeams & {
   readonly embedder?: EmbedderSource;
   /** Local SQLite file; null disables it. Custom embedders default to no disk cache. */
   readonly vectorCache?: string | null;
+  /**
+   * The machine's copy of its projects' records (record-cache.ts), a local SQLite file; null keeps none. By default a
+   * shared library keeps one in the storytree home, except under a test run, whose servers come and go.
+   */
+  readonly recordCache?: string | null;
   /** Whether the library is shared, so takes schema statements only from merged code: by default, one reached by address (off the test run's server) or by Google's Cloud SQL connector. */
   readonly sharedLibrary?: boolean;
   /** Whether a file declaring tables (the project schema's, or an own database's) is merged; by default read from its checkout. */
@@ -261,6 +268,7 @@ class ServerConnection implements Storytree {
   readonly #ownSetUp = new Map<string, Promise<void>>();
   readonly #embedder: EmbedderSource | undefined;
   readonly #vectorCache: string | null;
+  readonly #recordCache: string | null;
   readonly #cloudInstance: string | undefined;
   /** For a shared library, whether a file declaring tables is merged; undefined for a throwaway one, which takes any. */
   readonly #merged: ((file: string) => SchemaMerged) | undefined;
@@ -274,6 +282,9 @@ class ServerConnection implements Storytree {
     this.#vectorCache = seams.vectorCache === undefined
       ? (seams.embedder === undefined ? path.join(modelsFolder(), "vectors.sqlite") : null)
       : seams.vectorCache;
+    this.#recordCache = seams.recordCache === undefined
+      ? (seams.sharedLibrary === true && !process.env.STORYTREE_TEST_PG_URL ? path.join(process.env.STORYTREE_HOME ?? path.join(homedir(), ".storytree/0.3"), "records.sqlite") : null)
+      : seams.recordCache;
   }
 
   async openProject(name: string, options: OpenOptions = {}): Promise<Project> {
@@ -337,7 +348,7 @@ class ServerConnection implements Storytree {
       throw error;
     });
     const domain = { server: vectorServerIdentity(pool, this.#cloudInstance), database, identity };
-    const project = new ProjectLibrary(name, identity, pool, () => this.#projects.delete(project), this.#vectorCache, domain, this.#embedder, factory, options.system, options.kinds);
+    const project = new ProjectLibrary(name, identity, pool, () => this.#projects.delete(project), this.#vectorCache, domain, this.#embedder, factory, options.system, options.kinds, this.#recordCache);
     this.#projects.add(project);
     return project;
   }
@@ -572,17 +583,19 @@ class ProjectLibrary implements Project {
   #closing: Promise<void> | undefined;
 
   readonly #factory: Project | undefined;
+  readonly #cache: CachedTransactions | undefined;
 
   /**
    * Given `factory`, the product project reads its system from that factory's records, and closes it with its own; given
    * `system`, it leaves out what those switches switch off, from its own and its factory's together (29.6); given
-   * `kinds`, it writes and reads those plugin kinds beside the core ones (30.4).
+   * `kinds`, it writes and reads those plugin kinds beside the core ones (30.4); given `recordCache`, it reads its records from that file, the machine's copy (1.31).
    */
-  constructor(name: string, identity: string, pool: Pool, forget: () => void, vectorCache: string | null, domain: VectorDomain, embedder?: EmbedderSource, factory?: Project, system?: SystemSwitches, kinds: readonly PluginRecordKind[] = []) {
+  constructor(name: string, identity: string, pool: Pool, forget: () => void, vectorCache: string | null, domain: VectorDomain, embedder?: EmbedderSource, factory?: Project, system?: SystemSwitches, kinds: readonly PluginRecordKind[] = [], recordCache: string | null = null) {
     this.name = name;
     this.identity = identity;
     this.pool = pool;
-    this.transactions = new PgTransactions(pool);
+    this.#cache = recordCache === null ? undefined : new CachedTransactions(new PgTransactions(pool), pool, recordCache, domain);
+    this.transactions = this.#cache ?? new PgTransactions(pool);
     const schema = pluginSchema(kinds);
     const records = factory === undefined ? new SchemaRecords(this.transactions, schema) : new InheritedRecords(this.transactions, factory.records, schema);
     this.records = system === undefined ? records : new SwitchedRecords(this.transactions, records, system, schema);
@@ -596,6 +609,7 @@ class ProjectLibrary implements Project {
   }
 
   close(): Promise<void> {
+    this.#cache?.close();
     this.#closing ??= Promise.all([this.pool.end(), this.#factory?.close()]).then(() => undefined).finally(this.#forget);
     return this.#closing;
   }

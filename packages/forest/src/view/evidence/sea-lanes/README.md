@@ -25,3 +25,5 @@ Pictures, 1440 x 960:
 Taken with `node --import tsx packages/forest/testing/view/sea-lanes/capture.mjs` (append `--retake` to write here).
 
 In the evidence bucket for #538, linked from the pull request body (ADR-1234; deleted after 90 days or when its arc closes): `538/at-rest.png`, `538/the-library-selected.png`, `538/plumbing-at-rest.png`, `538/plumbing-the-library-selected.png`.
+
+In the evidence bucket for #571, linked from the pull request body (ADR-1234; deleted after 90 days or when its arc closes): `571/plumbing-at-rest.png`, `571/plumbing-the-library-selected.png`.

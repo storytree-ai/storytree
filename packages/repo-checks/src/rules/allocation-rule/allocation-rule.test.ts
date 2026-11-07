@@ -104,3 +104,12 @@ test("10.4 · a refused file whose package's coverage map has no entry for it is
   assert.match(await misdeclared({ "src/other.ts": { 2: 1 } })(), /pnpm survey:coverage shop/);
   assert.doesNotMatch(await misdeclared({ "src/cart.ts": { 1: 1 } })(), /survey:coverage/, "a map holding the file has been measured since it was written");
 });
+
+test("10.5 · a refused file told to re-measure its package's coverage map is also told that a file only a browser proof reaches enters that map once the proof records its coverage with recordBrowserCoverage", async (t: TestContext) => {
+  const [told = ""] = await allocationProblems(plant(t, { ...SHOP, "packages/shop/survey-coverage.json": JSON.stringify({ "src/cart.ts": { 1: 1 } }) }), ["shop"]);
+  assert.match(told, /pnpm survey:coverage shop/);
+  assert.match(told, /only a browser proof reaches/);
+  assert.match(told, /recordBrowserCoverage/);
+  const [unmapped = ""] = await allocationProblems(plant(t, SHOP), ["shop"]);
+  assert.doesNotMatch(unmapped, /recordBrowserCoverage/, "a refusal not told to re-measure is not told how a browser proof enters the map");
+});

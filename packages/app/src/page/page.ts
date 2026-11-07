@@ -35,8 +35,9 @@ export interface ForestGlobe {
   select(story: string | undefined): void;
   /** The panel picked `capability` of the selected story, so the map rings it (forest 3.91). */
   chose(capability: string): void;
-  /** Ring the capabilities the arc opened in the Arcs tab names in its open work, and dim the rest; undefined for none. */
-  circle(capabilities: readonly string[] | undefined): void;
+  /** Ring the capabilities the arc opened in the Arcs tab names in its open work, and the gates of the edges whose contracts it
+   * links (forest 3.92), and dim the rest; undefined for none. */
+  circle(capabilities: readonly string[] | undefined, contracts?: readonly string[] | undefined): void;
   dispose(): void;
 }
 
@@ -55,7 +56,7 @@ export interface ProjectParts<View extends ForestGlobe = ForestGlobe> {
    * The arcs, in `host` (the rail's Arcs tab); `onWaiting` hears what waits on the owner there, the tab's badge. They read nothing
    * until `startAfter`, the page's start settled or the forest's first read failed (2.40), so the start does not wait on them.
    */
-  arcs(host: HTMLElement, on: { onFreshDraw(): void; onWaiting(count: number): void; onOpened(capabilities: readonly string[] | undefined): void; startAfter: PromiseLike<void> }): { stop(): void };
+  arcs(host: HTMLElement, on: { onFreshDraw(): void; onWaiting(count: number): void; onOpened(capabilities: readonly string[] | undefined, contracts: readonly string[] | undefined): void; startAfter: PromiseLike<void> }): { stop(): void };
   treeSpace(on: { choose(id: string): void; closed(): void }, opening: string | undefined): TreeWindow;
   openView(holder: HTMLElement, onSelect: (selection: ForestSelection) => void, options: { library: boolean; opening: string | undefined }): Promise<View>;
   /** The sessions list in `host` (the rail's Sessions tab), joined to `view` and the knowledge core both ways. */
@@ -324,7 +325,7 @@ export function openProjectPage<View extends ForestGlobe>(parts: PageParts<View>
         if (mounted) return;
         mounted = true;
         stopWaiting?.();
-        if (showing === mine) mine.arcs = project.arcs(rail.panel("arcs"), { onFreshDraw: () => startMark("arcs first fresh draw"), onWaiting: (count) => rail.badge(count), onOpened: (capabilities) => mine.view?.circle(capabilities), startAfter });
+        if (showing === mine) mine.arcs = project.arcs(rail.panel("arcs"), { onFreshDraw: () => startMark("arcs first fresh draw"), onWaiting: (count) => rail.badge(count), onOpened: (capabilities, contracts) => mine.view?.circle(capabilities, contracts), startAfter });
       };
       stopWaiting = page.subscribe({ onNews: mountArcs, onError: mountArcs });
     }

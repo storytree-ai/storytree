@@ -615,7 +615,8 @@ for (const backend of [memory, postgres]) {
       return arc.id;
     };
     const active = await flight.createArc(ARC);
-    await flight.addIncrement({ arc: active.id, ...WORK, machine: "laptop" });
+    const cited = await work.addStory({ title: "Visitor can sign up" });
+    await flight.addIncrement({ arc: active.id, ...WORK, machine: "laptop", links: [cited.id] });
     const parked = await flight.createArc(ARC);
     await flight.parkArc(parked.id, { until: "2999-01-01" });
     const old = await closedOn("2026-10-01");
@@ -640,6 +641,7 @@ for (const backend of [memory, postgres]) {
     assert.equal(increment.fields.title, WORK.title);
     assert.equal(increment.fields.objective, WORK.objective);
     assert.equal(increment.fields.machine, "laptop", "the machine it is tagged to, which its ready chip names");
+    assert.deepEqual(increment.fields.links, [cited.id], "what it cites, whose edge contracts ring their gates on the map");
     assert.equal("body" in increment.fields, false, "no increment's planning body is read");
 
     const week = await flight.closedArcs({ from: "2026-10-01", to: "2026-10-19" }, at);

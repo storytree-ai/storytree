@@ -38,7 +38,7 @@ interface Drawn {
   name: string;
   mounted: string[];
   stopped: string[];
-  view: ForestGlobe & { scenes: number; disposed: boolean; circled: (readonly string[] | undefined)[]; chosen: string[]; onSelect: (selection: ForestSelection) => void; painted: ReturnType<typeof deferred<void>> };
+  view: ForestGlobe & { scenes: number; disposed: boolean; circled: (readonly string[] | undefined)[]; circledContracts: (readonly string[] | undefined)[]; chosen: string[]; onSelect: (selection: ForestSelection) => void; painted: ReturnType<typeof deferred<void>> };
   reading: Reading | undefined;
   teaching: { factory: boolean }[];
   locate: Parameters<ProjectParts["teaching"]>[0] | undefined;
@@ -57,7 +57,7 @@ interface Drawn {
   hosts: { arcs?: HTMLElement; sessions?: HTMLElement };
   waiting: ((count: number) => void) | undefined;
   /** How the arcs tell the page the open arc's capabilities. */
-  opened: ((capabilities: readonly string[] | undefined) => void) | undefined;
+  opened: ((capabilities: readonly string[] | undefined, contracts: readonly string[] | undefined) => void) | undefined;
   /** What the arcs were told to start reading after. */
   arcsStart: PromiseLike<unknown> | undefined;
   /** Who hears the page's one reading, in the order they subscribed: the forest's reading among them, as in the app. */
@@ -105,8 +105,8 @@ function page(t: TestContext, answers: Partial<Pick<PageParts, "problem" | "proj
         name, mounted: [], stopped: [], reading: undefined, teaching: [], locate: undefined, readingNear: undefined, islands: undefined, rendered: [], gates: [], spaces: [], treeChoose: undefined, treeShown: 0, treeOpen: false,
         kept: answers.kept, timed: undefined, hosts: {}, waiting: undefined, opened: undefined, arcsStart: undefined, listeners: [], events: [],
         view: {
-          scenes: 0, disposed: false, circled: [], chosen: [], onSelect: () => {}, painted: deferred<void>(),
-          show() { mine.view.scenes++; }, drawn: () => mine.view.painted.promise, select() {}, chose(capability) { mine.view.chosen.push(capability); }, circle(capabilities) { mine.view.circled.push(capabilities); }, dispose() { mine.view.disposed = true; },
+          scenes: 0, disposed: false, circled: [], circledContracts: [], chosen: [], onSelect: () => {}, painted: deferred<void>(),
+          show() { mine.view.scenes++; }, drawn: () => mine.view.painted.promise, select() {}, chose(capability) { mine.view.chosen.push(capability); }, circle(capabilities, contracts) { mine.view.circled.push(capabilities); mine.view.circledContracts.push(contracts); }, dispose() { mine.view.disposed = true; },
         },
       };
       drawn.push(mine);
@@ -616,7 +616,8 @@ test("2.47 · the arc opened in the Arcs tab rings its open work on the map, and
   on.heard();
   await settled();
   const project = on.last();
-  project.opened!(["cap_a", "cap_b"]);
-  project.opened!(undefined);
+  project.opened!(["cap_a", "cap_b"], ["contract_a"]);
+  project.opened!(undefined, undefined);
   assert.deepEqual(project.view.circled, [["cap_a", "cap_b"], undefined]);
+  assert.deepEqual(project.view.circledContracts, [["contract_a"], undefined], "the contracts its open work links, whose edges' gates the map rings");
 });

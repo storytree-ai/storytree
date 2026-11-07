@@ -17,7 +17,7 @@ export { arcQueues, queueRun, waitsOnBoard } from "./waits/waits.js";
 export type { ArcQueue, BoardWaits, NamedWait, QueueArc, QueueChip, QueueRun, WorkName } from "./waits/waits.js";
 export { briefing, questionReading } from "./briefing/briefing.js";
 export type { Briefing, Option, Question, QuestionReading } from "./briefing/briefing.js";
-export { boardView, openCapabilities } from "./board/board.js";
+export { boardView, openCapabilities, openContracts } from "./board/board.js";
 export type { Bar, BoardScope, BoardSnapshot, BoardView, Lane } from "./board/board.js";
 export { readBoard } from "./board/reads.js";
 export type { BoardReads } from "./board/reads.js";

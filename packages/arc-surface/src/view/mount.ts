@@ -2,7 +2,7 @@
 import type { BoardReads } from "../board/reads.js";
 import { isBoardSnapshot, watchBoard, type BoardState } from "../board/live-board.js";
 import { pageKept } from "../live-reading/kept.js";
-import { openCapabilities, type BoardScope } from "../board/board.js";
+import { openCapabilities, openContracts, type BoardScope } from "../board/board.js";
 import type { ClosedRange } from "../board/closed-range.js";
 import type { ArcDrawn } from "../board/smoke.js";
 import type { Timers } from "../live-reading/live-reading.js";
@@ -16,10 +16,10 @@ export interface ArcSurface { stop(): void }
  * show; an arc's row, clicked, selects it and opens its expansion under the row, and nothing opens over the map. `onFreshDraw` is told once, when the surface first
  * draws a board read fresh since this mount (3.18), which the app times from its start; `onWaiting` hears what waits on the
  * owner across the active arcs, the Arcs tab's badge. Given `startAfter`, the page's start, it reads nothing until that settles (3.9).
- * `onOpened` hears the capabilities the selected arc's open increments name, once each, whenever they change, and undefined once no
- * arc is selected (3.27), which the map circles (ADR-1253 D1).
+ * `onOpened` hears the capabilities the selected arc's open increments name, and the contracts they link, once each, whenever they
+ * change, and undefined once no arc is selected (3.27), which the map circles (ADR-1253 D1) and rings the gates of (ADR-1279 D4).
  */
-export function mountArcSurface(host: HTMLElement, options: { project: string; reads: BoardReads; timers?: Timers; reading?: PageReading; startAfter?: PromiseLike<unknown>; onFreshDraw?: () => void; onWaiting?: (count: number) => void; onOpened?: (capabilities: readonly string[] | undefined) => void }): ArcSurface {
+export function mountArcSurface(host: HTMLElement, options: { project: string; reads: BoardReads; timers?: Timers; reading?: PageReading; startAfter?: PromiseLike<unknown>; onFreshDraw?: () => void; onWaiting?: (count: number) => void; onOpened?: (capabilities: readonly string[] | undefined, contracts: readonly string[] | undefined) => void }): ArcSurface {
   const root = document.createElement("div");
   root.className = "arc-surface-mount";
   root.innerHTML = `<section class="arc-rail" aria-label="Arcs" data-surface-id="arcs"><div class="arc-status" role="status"></div><div class="arc-body"></div></section>`;
@@ -39,11 +39,11 @@ export function mountArcSurface(host: HTMLElement, options: { project: string; r
   let waiting: number | undefined;
   /** What `onOpened` was last told, as a key, so a refresh that changes nothing tells nothing. */
   let toldOpened: string | undefined;
-  const tellOpened = (capabilities: readonly string[] | undefined): void => {
-    const key = capabilities === undefined ? undefined : JSON.stringify(capabilities);
+  const tellOpened = (work: { capabilities: readonly string[]; contracts: readonly string[] } | undefined): void => {
+    const key = work === undefined ? undefined : JSON.stringify(work);
     if (key === toldOpened) return;
     toldOpened = key;
-    options.onOpened?.(capabilities);
+    options.onOpened?.(work?.capabilities, work?.contracts);
   };
   const folds = new Set<string>();
   /** How many ovals one row of a strip holds at the rail's width, as last measured: a 16 px oval and its 3 px gap (3.2). */
@@ -72,7 +72,7 @@ export function mountArcSurface(host: HTMLElement, options: { project: string; r
     if (!next.board) return;
     const lane = next.board.lanes.find(({ id }) => id === opened);
     if (!lane) opened = undefined;
-    tellOpened(lane === undefined ? undefined : openCapabilities(lane.view));
+    tellOpened(lane === undefined ? undefined : { capabilities: openCapabilities(lane.view), contracts: openContracts(lane.view) });
     if (next.waiting !== undefined && next.waiting !== waiting) { waiting = next.waiting; options.onWaiting?.(waiting); }
     const focused = document.activeElement instanceof HTMLElement ? document.activeElement : undefined;
     const focusAttributes = ["data-arc-select", "data-arc-scope", "data-arc-queue", "data-closed-range", "data-copy-arc-title"];

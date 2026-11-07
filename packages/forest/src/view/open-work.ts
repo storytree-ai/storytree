@@ -4,7 +4,8 @@
  * symbol, or its nameplate where it has none), and dims the rest (3.83), at every zoom (ADR-1272 D2). Every ring keeps one line
  * width on screen at any zoom, as a claim's flag keeps its size (ADR-1062 D1), and is never less than `RING_LEAST_PX` across
  * (3.86). With no arc selected open work draws nothing (3.84). A selected capability gets the same ring in the pick's gold,
- * outside any blue one, so a pick reads one way and blue keeps meaning open work (3.91).
+ * outside any blue one, so a pick reads one way and blue keeps meaning open work (3.91). Open work that makes an edge's contract
+ * true rings that edge's gate the same, one gate per linked pair (3.92, ADR-1279 D4, ADR-1253 D3).
  */
 import { BufferGeometry, Color, DoubleSide, Float32BufferAttribute, Group, Mesh, MeshBasicMaterial, type Object3D, type Vector3 } from "three";
 import type { IslandRoads } from "../territories/island-roads.js";
@@ -14,9 +15,11 @@ import { capabilityPlates } from "./nameplates.js";
 
 /** A capability's ring: a circle of `radius` round its marker at (`x`, `z`). */
 export type OpenWorkRing = { readonly capability: string; readonly x: number; readonly z: number; readonly radius: number };
-/** What an island draws of the open work: its capabilities' rings and the territories (by position) an arc selected dims; and
- * the selected capability's ring, if it is on the island (3.91). */
-export type OpenWorkMarks = { readonly rings: readonly OpenWorkRing[]; readonly dimmed: readonly number[]; readonly picked?: OpenWorkRing };
+/** A gate's ring: a circle of `radius` round the island's gate at place `gate` in its roads' gates (3.92). */
+export type OpenWorkGate = { readonly gate: number; readonly x: number; readonly z: number; readonly radius: number };
+/** What an island draws of the open work: its capabilities' rings, its gates' when any ring, and the territories (by position)
+ * an arc selected dims; and the selected capability's ring, if it is on the island (3.91). */
+export type OpenWorkMarks = { readonly rings: readonly OpenWorkRing[]; readonly gates?: readonly OpenWorkGate[]; readonly dimmed: readonly number[]; readonly picked?: OpenWorkRing };
 
 /** The ring's line on screen, in CSS pixels, at every zoom; and the least a capability's ring is across, in CSS pixels, so a
  * ring round a settlement drawn only a few pixels wide still reads. */
@@ -26,6 +29,8 @@ const SETTLEMENT_ROOM = 0.8;
 /** A selected capability's ring: its room outside an open-work ring's, as a share of that ring's radius, and the least it is
  * across past that ring's least, in CSS pixels, so the two stay apart at any zoom. */
 const PICKED = { room: 1.3, least: 4 * RING_PX } as const;
+/** A gate's ring's radius, as a share of its opening: clear of the opening, and inside a picked gate's gold ring (3.88). */
+const GATE_RING = 0.6;
 /** A ring's radius round a nameplate where the capability has no settlement, as a share of the island's reach. */
 const NAMEPLATE_RING = 0.07;
 /** The selected arc's rings: a pale cyan no health fill, gold selection or white border wears. */
@@ -38,12 +43,22 @@ const DIM = { colour: "#0b0f14", opacity: 0.5 };
 const NONE: OpenWorkMarks = { rings: [], dimmed: [] };
 
 /**
- * The open work on `map` for the selected arc's open increments' capabilities (`circled`; undefined, no arc selected): a ring
- * round each named capability's settlement on `roads` (sized to it, with room), or round its nameplate where it has none, every
- * other territory on the island dimmed; and round the selected capability (`picked`), if it is on the island, a ring outside
- * that one (3.91).
+ * The links (`from->to`, as a gate's entrances name them) of the `edges` holding one of the selected arc's open `contracts`;
+ * undefined with no arc selected (3.92).
  */
-export function openWorkMarks(map: TerritoryMap, circled: ReadonlySet<string> | undefined, roads?: IslandRoads, picked?: string): OpenWorkMarks {
+export function rungLinks(edges: readonly { from: string; to: string; contracts: readonly string[] }[], contracts: readonly string[] | undefined): ReadonlySet<string> | undefined {
+  if (contracts === undefined) return undefined;
+  const open = new Set(contracts);
+  return new Set(edges.flatMap(({ from, to, contracts: held }) => held.some((id) => open.has(id)) ? [`${from}->${to}`] : []));
+}
+
+/**
+ * The open work on `map` for the selected arc's open increments' capabilities (`circled`; undefined, no arc selected): a ring
+ * round each named capability's settlement on `roads` (sized to it, with room), or round its nameplate where it has none, and
+ * round each gate on `roads` a link of `rung` enters (3.92), every other territory on the island dimmed but the two each such
+ * gate joins; and round the selected capability (`picked`), if it is on the island, a ring outside that one (3.91).
+ */
+export function openWorkMarks(map: TerritoryMap, circled: ReadonlySet<string> | undefined, roads?: IslandRoads, picked?: string, rung?: ReadonlySet<string>): OpenWorkMarks {
   const ringOf = ({ capability, x, z }: { capability: string; x: number; z: number }): OpenWorkRing => {
     const settlement = roads?.settlements.get(capability);
     return settlement === undefined ? { capability, x, z, radius: map.radius * NAMEPLATE_RING }
@@ -53,16 +68,23 @@ export function openWorkMarks(map: TerritoryMap, circled: ReadonlySet<string> | 
   const ring = plate === undefined ? undefined : ringOf(plate), pick = ring === undefined ? {} : { picked: { ...ring, radius: ring.radius * PICKED.room } };
   if (circled === undefined) return ring === undefined ? NONE : { ...NONE, ...pick };
   const rings = plates.flatMap((plate) => circled.has(plate.capability) ? [ringOf(plate)] : []);
+  const gated = (roads?.gates ?? []).flatMap((gate, at) => gate.entrances.filter((link) => rung?.has(link) === true).map((link) => ({ gate, at, link })));
+  const gates = [...new Map(gated.map(({ gate, at }) => [at, { gate: at, x: gate.at.x, z: gate.at.z, radius: gate.opening * GATE_RING }])).values()];
   // An island it rings nothing on is dimmed whole (arcEmphasis), so its territories are not dimmed again.
-  if (rings.length === 0) return { ...NONE, ...pick };
-  const dimmed = map.territories.flatMap(({ capability }, at) => capability !== undefined && circled.has(capability) ? [] : [at]);
-  return { rings, dimmed, ...pick };
+  if (rings.length === 0 && gates.length === 0) return { ...NONE, ...pick };
+  const lit = new Set([...circled, ...gated.flatMap(({ link }) => link.split("->"))]);
+  const dimmed = map.territories.flatMap(({ capability }, at) => capability !== undefined && lit.has(capability) ? [] : [at]);
+  return { rings, ...(gates.length === 0 ? {} : { gates }), dimmed, ...pick };
 }
 
-/** An arc selected dims an island none of whose territories it rings (3.83), as a session's hover dims the islands it holds none of. */
-export function arcEmphasis(territories: readonly { readonly capability?: string }[], circled: ReadonlySet<string> | undefined): SessionEmphasis {
+/**
+ * An arc selected dims an island none of whose territories it rings (3.83) and none of whose gates (3.92): neither end of a link
+ * of `rung` is on it, as a session's hover dims the islands it holds none of.
+ */
+export function arcEmphasis(territories: readonly { readonly capability?: string }[], circled: ReadonlySet<string> | undefined, rung?: ReadonlySet<string>): SessionEmphasis {
   if (circled === undefined) return undefined;
-  return territories.some(({ capability }) => capability !== undefined && circled.has(capability)) ? undefined : "dimmed";
+  const ends = new Set([...rung ?? []].flatMap((link) => link.split("->")));
+  return territories.some(({ capability }) => capability !== undefined && (circled.has(capability) || ends.has(capability))) ? undefined : "dimmed";
 }
 
 /** A ring mesh's circle: its radius round its marker, the least it is across on screen (`least`, CSS pixels), and its line's
@@ -90,6 +112,7 @@ export function openWorkLayer(marks: OpenWorkMarks, land: Object3D, onSurface: (
   const ink = flat(OPEN_WORK, 0.95);
   // Over the roads, under the settlements, names and flags that stand on them.
   for (const { capability, x, z, radius } of marks.rings) add(hollowRing({ x, z }, radius, RING_LEAST_PX, ink, onSurface, zoom), `open-work-ring:${capability}`, 5);
+  for (const { gate, x, z, radius } of marks.gates ?? []) add(hollowRing({ x, z }, radius, RING_LEAST_PX, ink, onSurface, zoom), `open-work-gate:${gate}`, 5);
   if (marks.picked !== undefined) {
     const { capability, x, z, radius } = marks.picked;
     add(hollowRing({ x, z }, radius, RING_LEAST_PX + PICKED.least, flat(PICK_GOLD, 1), onSurface, zoom), `picked-ring:${capability}`, 5);

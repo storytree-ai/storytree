@@ -503,6 +503,12 @@ for (const backend of [memory, postgres]) {
       { ...signUp, version: 2, fields: { summary: "" } },
       { ...pay, version: 2, fields: { summary: "By card" } },
     ]);
+    // A step that does not name what it reads keeps the older record whole, so it still upgrades right.
+    const unnamed = new SchemaRecords(transactions, { ...STORY_V2, upgrades: STORY_V2.upgrades.map(({ reads: _reads, ...step }) => step) });
+    assert.deepEqual(await unnamed.select("story", ["summary"] as never), [
+      { ...signUp, version: 2, fields: { summary: "" } },
+      { ...pay, version: 2, fields: { summary: "By card" } },
+    ]);
     assert.deepEqual(await records.select("story", ["title"], { ids: [pay.id] }), [{ ...pay, fields: { title: "Visitor can pay" } }]);
 
     // Reading changes nothing stored.

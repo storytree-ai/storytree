@@ -459,7 +459,7 @@ export function transactionsBehaviourSuite(label: string, makeStore: () => Promi
     }
   });
 
-  contract("2.13", "list narrows by ids and stored fields, limits in id order and projects only a known version", async (store) => {
+  contract("2.13", "list narrows by ids and stored fields, limits in id order and projects only the versions it names, each on its own fields", async (store) => {
     const a = await store.save({ id: "a", type: "note", fields: { status: "closed", arc: "one", outcome: { disposition: "landed", note: "long" }, body: "heavy", flag: false, count: 2, nullable: null } });
     const b = await store.save({ id: "b", type: "note", fields: { status: "active", arc: "one", body: "heavy" } });
     const c = await store.save({ id: "c", type: "note", version: 2, fields: { status: "closed", arc: "two", body: "upgrade needs this" } });
@@ -478,6 +478,9 @@ export function transactionsBehaviourSuite(label: string, makeStore: () => Promi
     const projected = await store.list("note", { projection: { version: 1, fields: ["arc", "missing"] } });
     assert.deepEqual(projected, [{ ...a, fields: { arc: "one" } }, { ...b, fields: { arc: "one" } }, c], "other versions stay whole for upgrade/refusal");
     assert.deepEqual(await store.list("note", { ids: ["a"], projection: { version: 1, fields: [] } }), [{ ...a, fields: {} }]);
+    assert.deepEqual(await store.list("note", { projection: { version: 3, fields: ["arc"], older: [{ version: 2, fields: ["arc", "body"] }, { version: 1, fields: ["status"] }] } }),
+      [{ ...a, fields: { status: "closed" } }, { ...b, fields: { status: "active" } }, { ...c, fields: { arc: "two", body: "upgrade needs this" } }], "an older version named keeps its own fields");
+    await assert.rejects(store.list("note", { projection: { version: 3, fields: [], older: [{ version: 0, fields: [] }] } }), RangeError);
     projected[0]!.fields["arc"] = "changed";
     assert.deepEqual(await store.get("a"), a);
     for (const limit of [0, -1, 1.5, Infinity]) await assert.rejects(store.list("note", { limit }), RangeError);

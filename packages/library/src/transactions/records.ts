@@ -62,7 +62,6 @@ export function fieldAt(fields: Record<string, unknown>, path: string): unknown 
   return value;
 }
 
-/** Pick top-level fields, keeping an absent field absent (and a present null present). */
 /** The fields a projection keeps of a record on `version`, or undefined where it keeps the record whole. */
 export function projectedFields(projection: ListFilter["projection"], version: number): readonly string[] | undefined {
   if (projection === undefined) return undefined;
@@ -70,6 +69,7 @@ export function projectedFields(projection: ListFilter["projection"], version: n
   return projection.older?.find((older) => older.version === version)?.fields;
 }
 
+/** Pick top-level fields, keeping an absent field absent (and a present null present). */
 export function pickFields(fields: Record<string, unknown>, names: readonly string[]): Record<string, unknown> {
   return Object.fromEntries(names.filter((name) => Object.hasOwn(fields, name)).map((name) => [name, fields[name]]));
 }

@@ -1,14 +1,13 @@
 /** Capability 4 · The planet. */
-import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode, type Ref } from 'react';
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ComponentProps, type ReactNode, type Ref } from 'react';
 import { Canvas, flushSync as flushRoot, useFrame, useStore, useThree, type RootState } from '@react-three/fiber';
 import { flushSync } from 'react-dom';
-import { OrbitControls } from '@react-three/drei';
+import { Html, OrbitControls } from '@react-three/drei';
 import { Vector3, type Group, type PerspectiveCamera } from 'three';
 import type { ForestScene, Island } from '../scene.js';
 import type { PathwayDrawing, PlanetPathwayPlate } from './pathways.js';
 import { drawnAtOnce, islandDocks, pageRoadRouter, roadsWhenRouted, type IslandDock } from './road-routing.js';
 import { SelectionLanes } from './PlanetTrailRibbons.js';
-import { Overlay } from './overlay.js';
 import type { LitLink } from './lanes.js';
 import { litIsland, portMarks, seaLanes, type SeaPort } from './ports.js';
 import type { Descriptor3D } from '../descriptors.js';
@@ -31,13 +30,24 @@ export { islandNormal, onIslandSurface } from './island-surface.js';
 export { applyPlanetSideOffset } from './camera.js';
 /** The eye's height above the sheet's level, in degrees, as the canvas makes it. */
 export { SHIPPED_ELEVATION_DEG } from './camera.js';
-export { Overlay } from './overlay.js';
 export type { IslandDock } from './road-routing.js';
 export { usePlanetGrowth, type GrowthReader, type PlanetGrowth } from './PlanetGrowth.js';
 export { crossingLength, growthMoment, growthPlan, type GrowthOptions, type GrowthPlan, type GrowthStage } from './growth.js';
 
 export type { PlanetSurfaceVisibility } from './exterior.js';
 export { applySheetEye, clearGlass, seenFromBelow, SHEET_FOV, SHEET_LAND_LIFT, SHEET_RADIUS, SHEET_TILT, sheetEyeZoom, sheetPoint, sheetSpot, tiltFromEye, UnderTheGlass, type SheetExtent, type SheetPoint } from './sheet.js';
+
+/**
+ * DOM laid over the canvas: drei's Html with its host pinned to the canvas's parent (4.35). Unpinned, Html follows wherever
+ * the canvas connects its events, which changes as the canvas first mounts, inside React's own commit: Html then unmounts
+ * its React root there (React logs "synchronously unmount a root while React was already rendering") and its content is
+ * lost. The pinned host also holds while the canvas disconnects its events on a project switch.
+ */
+export function Overlay(props: ComponentProps<typeof Html>) {
+  const gl = useThree((state) => state.gl);
+  const [portal] = useState(() => ({ current: gl.domElement.parentElement! }));
+  return <Html {...props} portal={portal} />;
+}
 
 export interface PlanetWorldCanvasProps {
   scene: ForestScene;

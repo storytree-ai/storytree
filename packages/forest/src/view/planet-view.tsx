@@ -137,7 +137,7 @@ export function PlanetView({ core, scene, places, wisps: live, selected, selecte
   const circledKey = circledList === undefined ? undefined : JSON.stringify(circledList);
   const circled = useMemo(() => circledList === undefined ? undefined : new Set(circledList), [circledKey]);
   // 3.92: and the gates of the edges whose contracts it makes true.
-  const rung = useKept(useMemo(() => rungLinks(scene.edges ?? [], circledContracts), [scene.edges, circledContracts]), (links) => JSON.stringify(links === undefined ? undefined : [...links]));
+  const rung = useKept(useMemo(() => rungLinks(scene.edges ?? [], circledContracts), [scene.edges, circledContracts]), (links) => links === undefined ? "none" : JSON.stringify([...links]));
   // 5.8: a session's pointer pulses on the selected arc's open work, or anywhere when it is for a question; the camera stays his.
   const pointed = useMemo(() => shownPointers(wisps, circled), [wisps, circled]);
   const overlays = useCallback((island: Island, descriptors: readonly Descriptor3D[], coast: readonly (readonly { x: number; z: number }[])[], docks: readonly IslandDock[] | undefined) => {

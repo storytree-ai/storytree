@@ -17,12 +17,12 @@ export interface PlanClaim {
   readonly since: string;
 }
 
-/** The kinds of plan record a door edits through the plan's own editors. */
-export type PlanRecordType = "story" | "capability" | "contract" | "arc" | "increment";
+/** The kinds of plan record a door edits through the plan's own editors; an edge's are made live (ADR-1282 D1). */
+export type PlanRecordType = "story" | "capability" | "contract" | "edge" | "arc" | "increment";
 
 /** Whether a record of `type` is edited through the plan's own editors. */
 export function isPlanRecordType(type: string): type is PlanRecordType {
-  return PLAN_TYPES.has(type) || type === "arc" || type === "increment";
+  return PLAN_TYPES.has(type) || type === "edge" || type === "arc" || type === "increment";
 }
 
 /** What a plan edit did: held on the caller's increment, or made live. */
@@ -83,7 +83,9 @@ export async function editPlanRecord(
         ? await library.editCapability(id, edit, writer)
         : type === "contract"
           ? await library.editContract(id, edit, writer)
-          : type === "arc"
+          : type === "edge"
+            ? await library.editEdge(id, edit, writer)
+            : type === "arc"
             ? await library.editArc(id, edit, writer)
             : await library.editIncrement(id, edit, writer);
   return edited === null ? null : { edited };

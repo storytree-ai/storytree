@@ -168,6 +168,7 @@ test('6.4 a bad call gets a readable refusal rather than a crash, and with story
         ["plan_story", { title: "Visitor can sign up", ...FOUNDED }],
         ["plan_capability", { story: "story_000000000000", title: "Email form", ...FOUNDED }],
         ["plan_contract", { capability: "capability_000000000000", title: "Rejects a bad email" }],
+        ["plan_edge", { from: "capability_000000000000", to: "capability_000000000001" }],
         ["edit_plan", { id: "story_000000000000", title: "Renamed" }],
         ["import_project", { folder: "../shop" }],
         ["show_plan", {}],
@@ -778,6 +779,32 @@ test("9.26 plan_contract and edit_plan take proved_by, the existing tests that p
       const corrected = await agent.call("edit_plan", { id: sums, proved_by: ["tests/test_api.py::TestSums"] });
       assert.notEqual(corrected.isError, true, corrected.text);
       assert.deepEqual(await provedBy(), ["tests/test_api.py::TestSums"]);
+    });
+  });
+});
+
+test("9.29 plan_edge writes an edge between two capabilities of one story, plan_contract given an edge writes that edge's contract, edit_plan corrects an edge's description, and show_plan lists each story's edges with their contracts", async () => {
+  await withProject(async ({ folder, library }) => {
+    await withAgent(folder, claudeCode("claude-1"), async (agent) => {
+      const story = idOf(await agent.call("plan_story", { title: "Visitor can sign up", ...FOUNDED }));
+      const form = idOf(await agent.call("plan_capability", { story, title: "Email form", ...FOUNDED }));
+      const link = idOf(await agent.call("plan_capability", { story, title: "Confirmation link", ...FOUNDED }));
+      const edge = idOf(await agent.call("plan_edge", { from: link, to: form, description: "Reads the form" }));
+      const contract = idOf(await agent.call("plan_contract", { edge, title: "The link reads the form's checked address" }));
+      const corrected = await agent.call("edit_plan", { id: edge, description: "Reads the form's address" });
+      assert.notEqual(corrected.isError, true, corrected.text);
+
+      const node = (await library.projectTree()).stories.find(({ id }) => id === story)!;
+      assert.deepEqual(node.edges, [{ id: edge, from: link, to: form, description: "Reads the form's address", contracts: [{ id: contract, title: "The link reads the form's checked address" }] }]);
+      assert.deepEqual(node.capabilities.find(({ id }) => id === link)?.dependsOn, [form], "the capability's dependsOn reads the edge");
+      assert.deepEqual(node.capabilities.map(({ contracts }) => contracts), [[], []], "neither capability holds the edge's contract");
+
+      const plan = await agent.call("show_plan");
+      assert.match(plan.text, new RegExp(`Edge \\(${edge}\\): "2 · Confirmation link" depends on "1 · Email form": Reads the form's address\n    Contract "The link reads the form's checked address" \\(${contract}\\)`), plan.text);
+      const other = idOf(await agent.call("plan_story", { title: "Mail", ...FOUNDED }));
+      const sender = idOf(await agent.call("plan_capability", { story: other, title: "Sender", ...FOUNDED }));
+      const across = await agent.call("plan_edge", { from: link, to: sender });
+      assert.equal(across.isError, true, "a link between stories is no edge");
     });
   });
 });

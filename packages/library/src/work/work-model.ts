@@ -74,8 +74,17 @@ export interface ImportedPluginPlan {
 }
 /** A new capability's fields: `story` and every `dependsOn` id must name existing records. It is proposed unless told otherwise. */
 export type NewCapability = Omit<FieldsOf<"capability">, "proposed"> & { proposed?: boolean };
-/** A new contract's fields: `capability` must name an existing capability. */
+/** A new contract's fields: `capability` must name an existing capability, or `edge` an existing edge (ADR-1282 D1). */
 export type NewContract = FieldsOf<"contract">;
+/** A new edge's fields: `from` depends on `to`, two live capabilities of one story (ADR-1282 D1). */
+export type NewEdge = FieldsOf<"edge">;
+/** An edit of an edge: its description. An edge keeps its two capabilities; a field set to undefined is removed. */
+export type EdgeEdit = { description?: string | undefined };
+/** What one moveDependsOnToEdges did: the edges it wrote, and the capabilities whose stored dependsOn it emptied of them. */
+export interface MovedToEdges {
+  readonly edges: string[];
+  readonly capabilities: string[];
+}
 /** An edit of a capability: some of its fields. A field set to undefined is removed. */
 export type CapabilityEdit = { [F in keyof FieldsOf<"capability">]?: FieldsOf<"capability">[F] | undefined };
 /** An edit of a story: some of its fields. A field set to undefined is removed. Mapped is mapStories' alone, and plugin importPluginPlan's. */
@@ -145,13 +154,28 @@ export interface StoryNode {
   guardrails?: Guardrail[];
   /** The capabilities pointing at this story, in creation order. */
   capabilities: CapabilityNode[];
+  /** The edges between its capabilities, in creation order, when it has any (ADR-1282 D1). */
+  edges?: EdgeNode[];
+}
+
+/** An edge inside one story (ADR-1282 D1): capability `from` depends on capability `to`, with its own contracts. */
+export interface EdgeNode {
+  id: string;
+  from: string;
+  to: string;
+  description?: string;
+  /** The contracts pointing at this edge, in creation order: never either capability's. */
+  contracts: ContractNode[];
 }
 
 export interface CapabilityNode {
   id: string;
   title: string;
   description?: string;
-  /** The capabilities this one depends on, as stored. */
+  /**
+   * The capabilities this one depends on: the ones its story's edges from it reach, in the edges' creation order, then
+   * those stored on it (another story's, and any of its own story's not yet moved onto an edge), ADR-1282 D1.
+   */
   dependsOn: string[];
   /** Whether it is still proposed: on until the agent says it is built (ADR-0744 D2). */
   proposed: boolean;
@@ -181,6 +205,8 @@ export interface ArcNode {
 
 /** A record the tree shows by id, title and description: a story, capability, contract or arc. */
 type PlanRecord = SchemaRecord<"story" | "capability" | "contract" | "arc">;
+/** A record the tree groups under a parent: a plan record or an edge. */
+type GroupedRecord = PlanRecord | SchemaRecord<"edge">;
 
 export class WorkModel {
   readonly #records: SchemaRecords;
@@ -303,14 +329,24 @@ export class WorkModel {
       } else await update(story, storyFields, PLUGIN_STORY_FIELDS);
       const storyId = story.id;
       for (const capability of plan.capabilities) {
-        const fields = { ...withoutContracts(capability), proposed: capability.proposed ?? true, story: storyId };
+        // Its dependsOn is written as its links are: the story's own capabilities on edges, another story's stored (ADR-1282 D2).
+        const { dependsOn: wanted, ...fields } = { ...withoutContracts(capability), proposed: capability.proposed ?? true, story: storyId };
         let stored = capabilities.get(capabilityNumber(capability.title)!);
         const contracts = new Map<string, SchemaRecord<"contract">>();
         if (stored === undefined) {
-          stored = await this.#records.create("capability", fields, options);
+          const links = wanted === undefined ? undefined : await this.#split(storyId, wanted);
+          stored = await this.#records.create("capability", { ...fields, ...(links === undefined ? {} : { dependsOn: links.cross }) }, options);
+          for (const to of links?.same ?? []) await this.#records.create("edge", { from: stored.id, to }, options);
           done.added.push(stored.id);
         } else {
-          await update(stored, fields, PLUGIN_CAPABILITY_FIELDS);
+          const face = await this.#faceOf(stored.id);
+          const relink = !sameMembers(face, wanted ?? []);
+          await update(stored, { ...fields, ...(relink ? {} : { dependsOn: stored.fields.dependsOn }) }, relink ? PLUGIN_CAPABILITY_FIELDS.filter((field) => field !== "dependsOn") : PLUGIN_CAPABILITY_FIELDS);
+          if (relink) {
+            await this.#applyRelink(await this.#relink({ id: stored.id, story: storyId, face: wanted ?? [] }, { id: stored.id, story: storyId, face: wanted ?? [] }), options);
+            if (done.kept.at(-1) === stored.id) done.kept.pop();
+            if (!done.edited.includes(stored.id)) done.edited.push(stored.id);
+          }
           for (const contract of await this.#contractsOf(stored.id)) contracts.set(contractNumber(contract.fields.title) ?? contract.id, contract);
         }
         for (const contract of capability.contracts) {
@@ -357,7 +393,13 @@ export class WorkModel {
       const covers = await this.#covered(capability.story, capability.covers);
       const { pending = [], ...write } = options ?? {};
       const title = await this.#capabilityNumbered(capability.title, capability.story, pending);
-      return this.#records.create("capability", { ...capability, title, proposed: capability.proposed ?? true, ...(covers === undefined ? {} : { covers }) }, write);
+      // What is not a list of ids the schema refuses in the write, naming the field.
+      const links = !Array.isArray(capability.dependsOn) ? undefined : await this.#split(capability.story, capability.dependsOn);
+      const fields = { ...capability, title, proposed: capability.proposed ?? true, ...(covers === undefined ? {} : { covers }), ...(links === undefined ? {} : { dependsOn: links.cross }) };
+      const created = await this.#records.create("capability", fields, write);
+      if (links === undefined) return created;
+      for (const to of links.same) await this.#records.create("edge", { from: created.id, to }, write);
+      return withFace(created, await this.#faceOf(created.id));
     });
   }
 
@@ -379,12 +421,25 @@ export class WorkModel {
       await checkReferences(this.#records, "dependsOn", fields.dependsOn, "capability");
       if (Array.isArray(fields.dependsOn)) await this.#refuseLoop(id, fields.dependsOn);
       if (fields.title !== undefined || fields.story !== undefined) await this.#refuseTakenCapabilityNumber(fields.title ?? stored.fields.title, fields.story ?? stored.fields.story, id);
-      let edit = fields;
+      let edit: CapabilityEdit = fields;
       if ("story" in fields || "covers" in fields) {
         const covers = await this.#covered(fields.story ?? stored.fields.story, "covers" in fields ? fields.covers : stored.fields.covers, id);
         if ("covers" in fields) edit = { ...fields, covers };
       }
-      return (await this.#records.edit(id, edit, options)) as SchemaRecord<"capability"> | null;
+      const listed = !("dependsOn" in fields) || fields.dependsOn === undefined || Array.isArray(fields.dependsOn); // the schema refuses the rest in the write
+      const relinks = listed && ("dependsOn" in fields || ("story" in fields && fields.story !== stored.fields.story));
+      if (!relinks) return (await this.#records.edit(id, edit, options)) as SchemaRecord<"capability"> | null;
+      // Its links, and on a story move each dependent's link to it, are split again into edges and stored ids (ADR-1282 D1).
+      const story = fields.story ?? stored.fields.story;
+      const own = { id, story, face: "dependsOn" in fields ? (fields.dependsOn ?? []) : await this.#faceOf(id) };
+      const dependents = story === stored.fields.story ? [] : await this.#dependentsOf(id);
+      const plans = [await this.#relink(own, own), ...(await Promise.all(dependents.map(async (dependent) => this.#relink(dependent, own))))];
+      const { dependsOn: _given, ...rest } = edit;
+      // The capability itself is written only when a field of its own changes: a link inside its story is an edge's write.
+      const change = { ...rest, ...(isDeepStrictEqual(stored.fields.dependsOn ?? [], plans[0]!.cross) ? {} : { dependsOn: plans[0]!.cross }) };
+      const written = Object.keys(change).length === 0 ? stored : ((await this.#records.edit(id, change, options)) as SchemaRecord<"capability"> | null);
+      for (const plan of plans) await this.#applyRelink(plan, options);
+      return written === null ? null : withFace(written, await this.#faceOf(id));
     });
   }
 
@@ -412,10 +467,84 @@ export class WorkModel {
    */
   addContract(contract: NewContract, options?: ContractWriteOptions): Promise<SchemaRecord<"contract">> {
     return this.#serially(async () => {
+      if (contract.edge !== undefined && contract.capability === undefined) return this.#addEdgeContract(contract, options);
       this.#refusePlugins("contract", "capability", await this.#pluginOfCapability(contract.capability));
       await checkReference(this.#records, "capability", contract.capability, "capability");
-      const title = await this.#numbered(contract.title, contract.capability, options?.testedNumbers ?? []);
+      const title = await this.#numbered(contract.title, contract.capability!, options?.testedNumbers ?? []);
       return this.#records.create("contract", { ...contract, title }, options);
+    });
+  }
+
+  /**
+   * Add an edge inside one story (ADR-1282 D1): capability `from` depends on capability `to`. Both must be live
+   * capabilities (MissingReferenceError otherwise) of one story; an edge between stories, from a capability to itself,
+   * one the story already has, one that would close a dependency loop (DependencyLoopError), or one on a plugin's story
+   * is refused, with nothing written. It holds no contracts until they are added to it.
+   */
+  addEdge(edge: NewEdge, options?: WriteOptions): Promise<SchemaRecord<"edge">> {
+    return this.#serially(async () => {
+      await checkReference(this.#records, "from", edge.from, "capability");
+      await checkReference(this.#records, "to", edge.to, "capability");
+      const from = couldBeId(edge.from) ? ((await this.#records.get(edge.from)) as SchemaRecord<"capability"> | null) : null;
+      const to = couldBeId(edge.to) ? ((await this.#records.get(edge.to)) as SchemaRecord<"capability"> | null) : null;
+      if (from !== null && to !== null) {
+        this.#refusePlugins("edge", "from", await this.#pluginOfStory(from.fields.story));
+        const refuse = (field: string, problem: string): never => { throw new SchemaError("edge", [{ field, problem }]); };
+        if (from.id === to.id) refuse("to", "a capability does not depend on itself");
+        if (from.fields.story !== to.fields.story) refuse("to", `${to.id} is another story's capability: a link between stories is a dependsOn on ${from.id}, not an edge`);
+        const face = await this.#faceOf(from.id);
+        if (face.includes(to.id)) refuse("to", `${from.id} already depends on ${to.id}`);
+        await this.#refuseLoop(from.id, [...face, to.id]);
+      }
+      return this.#records.create("edge", edge, options);
+    });
+  }
+
+  /**
+   * Change an edge's description, as capability 3's edit does. An edge keeps its two capabilities: naming `from` or `to`
+   * is refused (SchemaError), as is an edge of a plugin's story; nothing is written. Null, with nothing written, if `id`
+   * is not a live edge.
+   */
+  editEdge(id: string, fields: EdgeEdit, options?: WriteOptions): Promise<SchemaRecord<"edge"> | null> {
+    return this.#serially(async () => {
+      const stored = (await liveRecord(this.#records, id, ["edge"])) as SchemaRecord<"edge"> | null;
+      if (stored === null) return null;
+      for (const field of ["from", "to"]) {
+        if (field in fields) throw new SchemaError("edge", [{ field, problem: "an edge keeps its two capabilities: retire it and add another" }]);
+      }
+      this.#refusePlugins("edge", "from", await this.#pluginOfCapability(stored.fields.from));
+      return (await this.#records.edit(id, fields, options)) as SchemaRecord<"edge"> | null;
+    });
+  }
+
+  /** The capabilities live capability `id` depends on, as the tree gives them (ADR-1282 D1); null if it is no live capability. */
+  async dependsOn(id: string): Promise<string[] | null> {
+    if ((await liveRecord(this.#records, id, ["capability"])) === null) return null;
+    return this.#faceOf(id);
+  }
+
+  /**
+   * Move every same-story id stored in a capability's dependsOn onto an edge with no contracts (ADR-1282 D2), leaving
+   * another story's ids stored: each capability's dependsOn reads back the same ids. One already on an edge is not
+   * written again, so a second run writes nothing.
+   */
+  moveDependsOnToEdges(options?: WriteOptions): Promise<MovedToEdges> {
+    return this.#serially(async () => {
+      const capabilities = new Map((await this.#records.list("capability")).map((capability) => [capability.id, capability]));
+      const edges = await this.#records.list("edge");
+      const moved: MovedToEdges = { edges: [], capabilities: [] };
+      for (const capability of [...capabilities.values()].sort(byCreation)) {
+        const stored = capability.fields.dependsOn ?? [];
+        const same = stored.filter((to) => to !== capability.id && capabilities.get(to)?.fields.story === capability.fields.story);
+        if (same.length === 0) continue;
+        for (const to of same) {
+          if (edges.some((edge) => edge.fields.from === capability.id && edge.fields.to === to)) continue;
+          moved.edges.push((await this.#records.create("edge", { from: capability.id, to }, options)).id);
+        }
+        await this.#records.edit(capability.id, { dependsOn: stored.filter((to) => !same.includes(to)) }, options);
+        moved.capabilities.push(capability.id);
+      }
+      return moved;
     });
   }
 
@@ -446,13 +575,16 @@ export class WorkModel {
       if (own === null) return null;
       await this.refusePluginEdit(own, fields);
       await checkReference(this.#records, "capability", fields.capability, "capability");
-      if (fields.title !== undefined || fields.capability !== undefined) {
-        const stored = (await this.#records.get(id)) as SchemaRecord<"contract">;
-        const title = fields.title ?? stored.fields.title;
-        const capability = fields.capability ?? stored.fields.capability;
-        if (typeof title === "string" && couldBeId(capability)) await this.#refuseTakenNumber(title, capability, id);
+      await checkReference(this.#records, "edge", fields.edge, "edge");
+      // A contract moved onto an edge leaves its capability, and one moved onto a capability its edge (ADR-1282 D1).
+      const owner: ContractEdit = fields.edge !== undefined && !("capability" in fields) ? { capability: undefined } : fields.capability !== undefined && !("edge" in fields) ? { edge: undefined } : {};
+      const after = { ...own.fields, ...fields, ...owner };
+      if (fields.title !== undefined || fields.capability !== undefined || fields.edge !== undefined) {
+        const title = after.title;
+        if (typeof title === "string" && after.edge !== undefined && after.capability === undefined) await this.#refuseTakenStoryNumber(title, after.edge, id);
+        else if (typeof title === "string" && couldBeId(after.capability)) await this.#refuseTakenNumber(title, after.capability, id);
       }
-      const edit = typeof fields.title === "string" ? { ...fields, title: separated(fields.title) } : fields;
+      const edit = { ...fields, ...owner, ...(typeof fields.title === "string" ? { title: separated(fields.title) } : {}) };
       return (await this.#records.edit(id, edit, options)) as SchemaRecord<"contract"> | null;
     });
   }
@@ -463,15 +595,23 @@ export class WorkModel {
    * has no place in it.
    */
   async projectTree(): Promise<ProjectTree> {
-    const [stories, capabilities, contracts, arcs, anchor] = await Promise.all([
+    const [stories, capabilities, contracts, edges, arcs, anchor] = await Promise.all([
       this.#records.list("story"),
       this.#records.list("capability"),
       this.#records.list("contract"),
+      this.#records.list("edge"),
       this.#records.list("arc"),
       this.anchor(),
     ]);
     const capabilitiesOf = childrenByParent(capabilities, (capability) => capability.fields.story);
-    const contractsOf = childrenByParent(contracts, (contract) => contract.fields.capability);
+    const contractsOf = childrenByParent(contracts, (contract) => contract.fields.capability ?? contract.fields.edge ?? "");
+    const inStory = storyEdges(capabilities, edges);
+    const edgesOf = childrenByParent(inStory, (edge) => capabilities.find((capability) => capability.id === edge.fields.from)!.fields.story);
+    const faces = facesOf(capabilities, inStory);
+    const contractNode = (contract: SchemaRecord<"contract">): ContractNode => ({
+      ...nodeOf(contract),
+      ...(contract.fields.provedBy === undefined ? {} : { provedBy: [...contract.fields.provedBy] }),
+    });
     return {
       ...(anchor === undefined ? {} : { anchor }),
       stories: stories.sort(byCreation).map((story) => ({
@@ -482,15 +622,23 @@ export class WorkModel {
         ...guardrailsOf(story),
         capabilities: (capabilitiesOf.get(story.id) ?? []).map((capability) => ({
           ...nodeOf(capability),
-          dependsOn: [...(capability.fields.dependsOn ?? [])],
+          dependsOn: faces.get(capability.id) ?? [],
           proposed: capability.fields.proposed,
           ...(capability.fields.covers === undefined ? {} : { covers: [...capability.fields.covers] }),
           ...guardrailsOf(capability),
-          contracts: (contractsOf.get(capability.id) ?? []).map((contract) => ({
-            ...nodeOf(contract),
-            ...(contract.fields.provedBy === undefined ? {} : { provedBy: [...contract.fields.provedBy] }),
-          })),
+          contracts: (contractsOf.get(capability.id) ?? []).map(contractNode),
         })),
+        ...(edgesOf.has(story.id)
+          ? {
+              edges: edgesOf.get(story.id)!.map((edge) => ({
+                id: edge.id,
+                from: edge.fields.from,
+                to: edge.fields.to,
+                ...(edge.fields.description === undefined ? {} : { description: edge.fields.description }),
+                contracts: (contractsOf.get(edge.id) ?? []).map(contractNode),
+              })),
+            }
+          : {}),
       })),
       arcs: arcs.sort(byCreation).map((arc) => ({ ...nodeOf(arc), stories: [...(arc.fields.stories ?? [])] })),
     };
@@ -596,13 +744,15 @@ export class WorkModel {
       if (PLUGIN_CAPABILITY_FIELDS.some((field) => field in fields)) this.#refusePlugins("capability", "story", await this.#pluginOfStory((record as SchemaRecord<"capability">).fields.story));
       this.#refusePlugins("capability", "story", await this.#pluginOfStory(fields["story"]));
     } else {
-      this.#refusePlugins("contract", "capability", await this.#pluginOfCapability((record as SchemaRecord<"contract">).fields.capability));
+      const contract = (record as SchemaRecord<"contract">).fields;
+      this.#refusePlugins("contract", "capability", await this.#pluginOfCapability(contract.capability ?? (await this.#fromOf(contract.edge))));
       this.#refusePlugins("contract", "capability", await this.#pluginOfCapability(fields["capability"]));
+      this.#refusePlugins("contract", "edge", await this.#pluginOfCapability(await this.#fromOf(fields["edge"])));
     }
   }
 
   /** Refuse a plan edit when `plugin` names whose plan it would change (ADR-1187). */
-  #refusePlugins(type: "story" | "capability" | "contract", field: string, plugin: string | undefined): void {
+  #refusePlugins(type: "story" | "capability" | "contract" | "edge", field: string, plugin: string | undefined): void {
     if (plugin !== undefined) throw pluginsOwn(type, field, plugin);
   }
 
@@ -688,17 +838,102 @@ export class WorkModel {
 
   /**
    * Throw a DependencyLoopError if capability `id` depending on `dependsOn` would close a loop:
-   * that is, if the would-be graph (every live capability's dependencies as stored, with `id`'s
+   * that is, if the would-be graph (every live capability's dependencies as the tree gives them, with `id`'s
    * replaced by `dependsOn`) leads from `id` back round to `id`.
    */
   async #refuseLoop(id: string, dependsOn: readonly unknown[]): Promise<void> {
-    const graph = new Map<string, readonly unknown[]>();
-    for (const capability of await this.#records.list("capability")) {
-      graph.set(capability.id, capability.fields.dependsOn ?? []);
-    }
+    const graph = new Map<string, readonly unknown[]>(await this.#faces());
     graph.set(id, dependsOn);
     const loop = loopThrough(id, graph);
     if (loop !== undefined) throw new DependencyLoopError(loop);
+  }
+
+  /** Every live capability's dependsOn as the tree gives it: its story's edges from it, then what it stores (ADR-1282 D1). */
+  async #faces(): Promise<Map<string, string[]>> {
+    const [capabilities, edges] = await Promise.all([this.#records.list("capability"), this.#records.list("edge")]);
+    return facesOf(capabilities, storyEdges(capabilities, edges));
+  }
+
+  /** Capability `id`'s dependsOn as the tree gives it. */
+  async #faceOf(id: string): Promise<string[]> {
+    return (await this.#faces()).get(id) ?? [];
+  }
+
+  /** The capability an edge depends from, when `edge` names a stored edge. */
+  async #fromOf(edge: unknown): Promise<string | undefined> {
+    const record = couldBeId(edge) ? await this.#records.get(edge) : null;
+    return record?.type === "edge" ? (record as SchemaRecord<"edge">).fields.from : undefined;
+  }
+
+  /** `dependsOn`, for a capability of `story`: the live capabilities of that story, which are edges, and the rest, stored. */
+  async #split(story: string, dependsOn: readonly string[]): Promise<{ same: string[]; cross: string[] }> {
+    const stories = new Map((await this.#records.list("capability")).map((capability) => [capability.id, capability.fields.story]));
+    const unique = [...new Set(dependsOn)];
+    return { same: unique.filter((to) => stories.get(to) === story), cross: unique.filter((to) => stories.get(to) !== story) };
+  }
+
+  /** The live capabilities whose dependsOn names `id`, each with its story and dependsOn as the tree gives them. */
+  async #dependentsOf(id: string): Promise<Relinked[]> {
+    const faces = await this.#faces();
+    const capabilities = await this.#records.list("capability");
+    return capabilities.filter((capability) => capability.id !== id && (faces.get(capability.id) ?? []).includes(id)).map((capability) => ({ id: capability.id, story: capability.fields.story, face: faces.get(capability.id) ?? [] }));
+  }
+
+  /**
+   * What writing `capability`'s links as `face` takes, `moved` standing where its edit leaves it: the edges to add and
+   * retire, and the ids it stores. An edge to retire that holds live contracts is refused (SchemaError), nothing written.
+   */
+  async #relink(capability: Relinked, moved: Relinked): Promise<RelinkPlan> {
+    const stories = new Map((await this.#records.list("capability")).map((other) => [other.id, other.fields.story]));
+    stories.set(moved.id, moved.story);
+    const unique = [...new Set(capability.face)];
+    const same = unique.filter((to) => stories.get(to) === capability.story);
+    const edges = (await this.#records.list("edge")).filter((edge) => edge.fields.from === capability.id);
+    const retire = edges.filter((edge) => !same.includes(edge.fields.to));
+    const contracts = await this.#records.list("contract");
+    for (const edge of retire) {
+      const held = contracts.filter((contract) => contract.fields.edge === edge.id);
+      if (held.length > 0) {
+        throw new SchemaError("capability", [{ field: "dependsOn", problem: `the edge ${edge.id} from ${capability.id} to ${edge.fields.to} holds contracts (${held.map((contract) => contract.id).join(", ")}): move or retire them first` }]);
+      }
+    }
+    const add = same.filter((to) => !edges.some((edge) => edge.fields.to === to));
+    return { id: capability.id, add, retire: retire.map((edge) => edge.id), cross: unique.filter((to) => !same.includes(to)) };
+  }
+
+  /** Write `plan`: its edges added and retired, and, for a capability other than the one edited, its stored ids. */
+  async #applyRelink(plan: RelinkPlan, options?: WriteOptions): Promise<void> {
+    for (const edge of plan.retire) await this.#records.retire(edge, "its capability no longer depends on that one inside its story", options);
+    for (const to of plan.add) await this.#records.create("edge", { from: plan.id, to }, options);
+    const stored = (await this.#records.get(plan.id)) as SchemaRecord<"capability"> | null;
+    if (stored !== null && !isDeepStrictEqual(stored.fields.dependsOn ?? [], plan.cross)) await this.#records.edit(plan.id, { dependsOn: plan.cross }, options);
+  }
+
+  /**
+   * Add a contract to an edge (ADR-1282 D1), which must be a live edge (MissingReferenceError otherwise): a number given
+   * is kept, and one another live contract of the edge's story carries is refused (SchemaError on `title`); none is assigned.
+   */
+  async #addEdgeContract(contract: NewContract, options?: ContractWriteOptions): Promise<SchemaRecord<"contract">> {
+    await checkReference(this.#records, "edge", contract.edge, "edge");
+    this.#refusePlugins("contract", "edge", await this.#pluginOfCapability(await this.#fromOf(contract.edge)));
+    if (typeof contract.title === "string") await this.#refuseTakenStoryNumber(contract.title, contract.edge!);
+    const { testedNumbers: _tested, ...write } = options ?? {};
+    return this.#records.create("contract", typeof contract.title === "string" ? { ...contract, title: separated(contract.title) } : contract, write);
+  }
+
+  /** Refuse `title` on edge `edge` when another live contract of the edge's story (not `self`) carries its number. */
+  async #refuseTakenStoryNumber(title: string, edge: string, self?: string): Promise<void> {
+    const number = contractNumber(title);
+    const from = await this.#fromOf(edge);
+    const story = from === undefined ? undefined : ((await this.#records.get(from)) as SchemaRecord<"capability"> | null)?.fields.story;
+    if (number === undefined || story === undefined) return;
+    const capabilities = (await this.#records.list("capability")).filter((capability) => capability.fields.story === story).map(({ id }) => id);
+    const edges = (await this.#records.list("edge")).filter((other) => capabilities.includes(other.fields.from)).map(({ id }) => id);
+    const owners = new Set([...capabilities, ...edges]);
+    const holder = (await this.#records.list("contract")).find((contract) => contract.id !== self && owners.has(contract.fields.capability ?? contract.fields.edge ?? "") && contractNumber(contract.fields.title) === number);
+    if (holder !== undefined) {
+      throw new SchemaError("contract", [{ field: "title", problem: `contract number ${number} is taken: ${holder.id} carries it in this story` }]);
+    }
   }
 
   /**
@@ -712,6 +947,38 @@ export class WorkModel {
     this.#lastWrite = result.catch(() => undefined);
     return result;
   }
+}
+
+/** A capability whose links are written again: its id, the story it stands in, and its dependsOn. */
+interface Relinked {
+  readonly id: string;
+  readonly story: string;
+  readonly face: readonly string[];
+}
+/** What writing one capability's links takes: the edges to add (their `to`) and retire (their ids), and the ids it stores. */
+interface RelinkPlan {
+  readonly id: string;
+  readonly add: string[];
+  readonly retire: string[];
+  readonly cross: string[];
+}
+
+/** The live edges whose two capabilities are live and of one story: the ones the plan reads (ADR-1282 D1). */
+function storyEdges(capabilities: readonly SchemaRecord<"capability">[], edges: readonly SchemaRecord<"edge">[]): SchemaRecord<"edge">[] {
+  const stories = new Map(capabilities.map((capability) => [capability.id, capability.fields.story]));
+  return edges.filter((edge) => edge.fields.from !== edge.fields.to && stories.has(edge.fields.from) && stories.get(edge.fields.from) === stories.get(edge.fields.to));
+}
+
+/** Each capability's dependsOn as the tree gives it: its `edges` (the story's) in creation order, then its stored ids, once each. */
+function facesOf(capabilities: readonly SchemaRecord<"capability">[], edges: readonly SchemaRecord<"edge">[]): Map<string, string[]> {
+  const from = childrenByParent(edges, (edge) => edge.fields.from);
+  return new Map(capabilities.map((capability) => [capability.id, [...new Set([...(from.get(capability.id) ?? []).map((edge) => edge.fields.to), ...(capability.fields.dependsOn ?? [])])]]));
+}
+
+/** `record` with its dependsOn as the tree gives it, `face`, in place of the ids it stores. */
+function withFace(record: SchemaRecord<"capability">, face: string[]): SchemaRecord<"capability"> {
+  if (face.length === 0 && record.fields.dependsOn === undefined) return record;
+  return { ...record, fields: { ...record.fields, dependsOn: face } };
 }
 
 /** Whether `inner` is `outer` or lies under it (both plain paths from an imported folder, "." its top). */
@@ -730,13 +997,20 @@ const PLUGIN_STORY_FIELDS = ["title", "description", "text", "plugin"] as const;
 const PLUGIN_CAPABILITY_FIELDS = ["title", "description", "text", "proposed", "dependsOn", "story"] as const;
 const PLUGIN_CONTRACT_FIELDS = ["title", "description", "capability"] as const;
 
+/** Whether `one` and `other` hold the same ids, in any order. */
+function sameMembers(one: readonly string[], other: readonly string[]): boolean {
+  const mine = new Set(one);
+  const theirs = new Set(other);
+  return mine.size === theirs.size && [...mine].every((id) => theirs.has(id));
+}
+
 /** A plan's capability as its record's fields hold it: everything but its contracts. */
 function withoutContracts({ contracts: _contracts, ...fields }: PluginPlanCapability): Omit<PluginPlanCapability, "contracts"> {
   return fields;
 }
 
 /** The refusal of a plan edit to plugin `plugin`'s story, naming where it is edited instead. */
-function pluginsOwn(type: "story" | "capability" | "contract", field: string, plugin: string): SchemaError {
+function pluginsOwn(type: "story" | "capability" | "contract" | "edge", field: string, plugin: string): SchemaError {
   return new SchemaError(type, [{ field, problem: `this is ${plugin}'s plan: edit plugins/${plugin}'s plan file in the factory and import it (storytree plugin import-plan ${plugin})` }]);
 }
 
@@ -756,7 +1030,7 @@ function guardrailsOf(record: SchemaRecord<"story"> | SchemaRecord<"capability">
 }
 
 /** `children` grouped by the id of the parent each points at, each group in creation order. */
-function childrenByParent<R extends PlanRecord>(children: readonly R[], parentOf: (child: R) => string): Map<string, R[]> {
+function childrenByParent<R extends GroupedRecord>(children: readonly R[], parentOf: (child: R) => string): Map<string, R[]> {
   const groups = new Map<string, R[]>();
   for (const child of [...children].sort(byCreation)) {
     const parent = parentOf(child);

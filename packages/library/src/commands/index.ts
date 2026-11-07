@@ -142,6 +142,7 @@ const WRITERS: Readonly<Record<string, Writer>> = {
   story: (library, fields, options) => library.addStory(fields as never, options),
   capability: (library, fields, options) => library.addCapability(fields as never, options),
   contract: (library, fields, options) => library.addContract(fields as never, options),
+  edge: (library, fields, options) => library.addEdge(fields as never, options),
   arc: (library, fields, options) => library.createArc(fields as never, options),
   increment: (library, fields, options) => library.addIncrement(fields as never, options),
   question: (library, fields, options) => library.raiseQuestion(fields as never, options),
@@ -362,6 +363,26 @@ const create = verb({
 /** A record as the library returns it. */
 type Stored = NonNullable<Awaited<ReturnType<Library["get"]>>>;
 
+/** `record`, and for a capability with links its dependsOn as the plan's tree gives it (ADR-1282 D1). */
+async function withDependsOn(library: Library, record: Stored): Promise<Stored> {
+  if (record.type !== "capability") return record;
+  const dependsOn = (await library.dependsOn(record.id)) ?? [];
+  const fields = record.fields as { dependsOn?: string[] };
+  return dependsOn.length === 0 && fields.dependsOn === undefined ? record : { ...record, fields: { ...record.fields, dependsOn } } as Stored;
+}
+
+const moveToEdges = verb({
+  command: { family: "library", name: "move-to-edges", summary: "move every capability's stored dependsOn ids of its own story onto edges, each capability's dependsOn reading the same (ADR-1282 D2)", usage: "library move-to-edges" },
+  tool: NOT_A_TOOL,
+  writes: true,
+  inputs: {},
+  async act(_inputs, context: LibraryVerbContext) {
+    const moved = await context.library.moveDependsOnToEdges(context.writer!);
+    if (moved.edges.length === 0 && moved.capabilities.length === 0) return { text: "No capability stores an id of its own story in its dependsOn: nothing to move." };
+    return { text: `Moved ${moved.edges.length} ${moved.edges.length === 1 ? "link" : "links"} onto edges, from ${moved.capabilities.length} ${moved.capabilities.length === 1 ? "capability" : "capabilities"}: ${moved.capabilities.join(", ")}.` };
+  },
+});
+
 /** A stored record's id: its kind, an underscore and twelve hex digits. */
 const RECORD_ID = /^[a-z]+_[0-9a-f]{12}$/;
 
@@ -398,7 +419,8 @@ const read = verb({
     const records = await Promise.all(ids.map((id) => library.get(id)));
     const missing = ids.filter((_, index) => records[index] === null);
     if (missing.length > 0) throw new VerbRefusal(missing.map((id) => `no record "${id}" in this project`).join("\n"));
-    const named = records as Stored[];
+    // A capability's dependsOn reads as the plan's tree gives it, its story's edges included (ADR-1282 D1).
+    const named = await Promise.all((records as Stored[]).map((record) => withDependsOn(library, record)));
     if (field !== undefined) {
       if (named.length > 1 || withLinked) throw new VerbRefusal("--field reads one record's field; give one id", { misuse: true });
       const record = named[0]!;
@@ -715,5 +737,5 @@ export const LIBRARY_FAMILIES: readonly VerbFamily<LibraryVerbContext>[] = [{
   summary: "read, search and write the project's records",
   order: 1,
   guesses: { show: "library read <id>", get: "library read <id>", open: "library read <id>", view: "library read <id>", pull: "library read <id>", artifact: "library read <id>" },
-  verbs: [search, phrase, exact, links, related, create, read, edit, refile, retire, list, history, revert, undo, count, changes, find],
+  verbs: [search, phrase, exact, links, related, create, read, edit, refile, retire, list, history, revert, undo, count, changes, find, moveToEdges],
 }, ADR_FAMILY, FYI_FAMILY, MEDIA_FAMILY];

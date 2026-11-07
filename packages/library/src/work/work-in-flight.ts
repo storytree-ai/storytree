@@ -681,9 +681,12 @@ export class WorkInFlight {
     const record = await liveRecord(this.#records, id, ["question", "capability"]);
     if (record?.type === "question") await questions.refuseRetiringHeld(this.#records, id);
     if (record?.type === "capability") {
-      const dependents = (await this.#records.select("capability", ["dependsOn"]))
-        .filter((capability) => capability.fields.dependsOn?.includes(id) === true);
-      if (dependents.length > 0) throw new questions.RetireRefusedError(id, dependents.map((capability) => capability.id), "dependsOn");
+      // A dependent links to it by its stored dependsOn, or, inside its story, by an edge (ADR-1282 D1).
+      const capabilities = await this.#records.select("capability", ["dependsOn"]);
+      const live = new Set(capabilities.map((capability) => capability.id));
+      const byEdge = (await this.#records.list("edge")).filter((edge) => edge.fields.to === id && live.has(edge.fields.from)).map((edge) => edge.fields.from);
+      const dependents = [...new Set([...capabilities.filter((capability) => capability.fields.dependsOn?.includes(id) === true).map((capability) => capability.id), ...byEdge])];
+      if (dependents.length > 0) throw new questions.RetireRefusedError(id, dependents, "dependsOn");
     }
     await this.#records.retire(id, reason, options);
   }

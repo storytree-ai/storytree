@@ -302,19 +302,21 @@ for (const backend of [memory, postgres]) {
     assert.deepEqual(await transactions.history(), before, "none of them wrote anything");
     assert.deepEqual(await transactions.get(form.id), form, "the edited capability is unchanged");
 
-    // Control: dependencies on live capabilities are kept as given, on a new capability and on an edit.
+    // Control: dependencies on live capabilities are kept as given, on a new capability and on an edit (inside one
+    // story, as edges, so the capability stores none of them: ADR-1282 D1).
     const linked = await work.addCapability({ ...link, dependsOn: [form.id, mailer.id] });
-    await assertCreated(transactions, linked, "capability", { ...link, title: "3 · Confirmation link", dependsOn: [form.id, mailer.id], proposed: true });
+    assert.deepEqual(new Set(linked.fields.dependsOn), new Set([form.id, mailer.id]));
+    assert.deepEqual((await transactions.get(linked.id))?.fields, { ...link, title: "3 · Confirmation link", dependsOn: [], proposed: true });
     const none = await work.addCapability({ title: "Welcome email", story: story.id, dependsOn: [] });
     await assertCreated(transactions, none, "capability", { title: "4 · Welcome email", story: story.id, dependsOn: [], proposed: true });
     const edited = await work.editCapability(form.id, { dependsOn: [mailer.id] });
     assert.deepEqual(edited?.fields, { title: "1 · Email form", story: story.id, proposed: true, dependsOn: [mailer.id] });
-    // The tree shows each capability's dependencies as stored (these were created too close
-    // together for their order to be the point, so they are compared by id).
+    // The tree shows each capability's dependencies (these were created too close together for
+    // their order to be the point, so they are compared as sets).
     const tree = await work.projectTree();
     assert.deepEqual(
-      Object.fromEntries(tree.stories.flatMap((node) => node.capabilities.map(({ id, dependsOn }) => [id, dependsOn]))),
-      { [form.id]: [mailer.id], [mailer.id]: [], [linked.id]: [form.id, mailer.id], [none.id]: [] },
+      Object.fromEntries(tree.stories.flatMap((node) => node.capabilities.map(({ id, dependsOn }) => [id, new Set(dependsOn)]))),
+      { [form.id]: new Set([mailer.id]), [mailer.id]: new Set(), [linked.id]: new Set([form.id, mailer.id]), [none.id]: new Set() },
     );
   });
 
@@ -347,7 +349,7 @@ for (const backend of [memory, postgres]) {
     }
     assert.deepEqual(await transactions.history(), before, "none of them wrote anything");
     for (const record of [a, b, a2, b2, c2, deadEnd]) {
-      assert.deepEqual(await transactions.get(record.id), record, `${record.fields.title} is unchanged`);
+      assert.deepEqual(await work.dependsOn(record.id), record.fields.dependsOn ?? [], `${record.fields.title} is unchanged`);
     }
 
     // Control: edits that leave no loop go through. A diamond is not a loop: two paths from W
@@ -356,7 +358,7 @@ for (const backend of [memory, postgres]) {
     const y = await add("Y", [x.id]);
     const z = await add("Z", [x.id]);
     const w = await add("W");
-    assert.deepEqual((await work.editCapability(w.id, { dependsOn: [y.id, z.id] }))?.fields.dependsOn, [y.id, z.id]);
+    assert.deepEqual(new Set((await work.editCapability(w.id, { dependsOn: [y.id, z.id] }))?.fields.dependsOn), new Set([y.id, z.id]));
     assert.deepEqual((await work.editCapability(x.id, { dependsOn: [deadEnd.id] }))?.fields.dependsOn, [deadEnd.id]);
     // A capability inside a chain can change its other fields.
     assert.equal((await work.editCapability(c2.id, { title: "C2, renamed" }))?.fields.title, "C2, renamed");
@@ -388,17 +390,17 @@ for (const backend of [memory, postgres]) {
       work.editCapability(p.id, { dependsOn: [q.id] }),
       work.editCapability(q.id, { dependsOn: [p.id] }),
     ]);
-    const dependsOn = async (id: string) => (await transactions.get(id))?.fields.dependsOn;
+    const dependsOn = async (id: string) => await work.dependsOn(id);
     const stored = [await dependsOn(p.id), await dependsOn(q.id)];
     assert.ok(!isDeepStrictEqual(stored, [[q.id], [p.id]]), "no loop was stored: P → Q and Q → P were both written");
     if (first.status === "fulfilled") {
       assert.equal(second.status, "rejected", "both edits were written");
       dependencyLoop([q.id, p.id, q.id])(second.status === "rejected" ? second.reason : undefined);
-      assert.deepEqual(stored, [[q.id], undefined]);
+      assert.deepEqual(stored, [[q.id], []]);
     } else {
       assert.equal(second.status, "fulfilled", `both edits were refused: ${String(first.reason)}`);
       dependencyLoop([p.id, q.id, p.id])(first.reason);
-      assert.deepEqual(stored, [undefined, [p.id]]);
+      assert.deepEqual(stored, [[], [p.id]]);
     }
     assert.equal((await transactions.history()).length, raceStart.length + 1, "one edit was written, and only one");
   });
@@ -778,6 +780,158 @@ for (const backend of [memory, postgres]) {
     await assert.rejects(work.importPluginPlan("voice", { story: { title: "Voice" }, capabilities: [] }, { adopt: theirs }), SchemaError, "another plugin's story is its own");
     assert.deepEqual(await transactions.history(), before, "nothing was written");
   });
+
+  contract("4.38", "an edge joins two live capabilities of one story and the dependent's dependsOn reads it: a same-story id in dependsOn becomes an edge and only another story's ids are stored; an edge across stories, to itself, twice, to no live capability or closing a loop is refused, with nothing written", async ({ work, records, transactions }) => {
+    const story = await work.addStory({ title: "Visitor can sign up" });
+    const elsewhere = await work.addStory({ title: "Mail" });
+    const form = await work.addCapability({ title: "Email form", story: story.id });
+    const mailer = await work.addCapability({ title: "Mailer", story: elsewhere.id });
+    const link = await work.addCapability({ title: "Confirmation link", story: story.id, dependsOn: [form.id, mailer.id] });
+    assert.deepEqual(link.fields.dependsOn, [form.id, mailer.id], "the capability reads both of its links");
+    assert.deepEqual((await transactions.get(link.id))?.fields.dependsOn, [mailer.id], "only the other story's id is stored on it");
+    const edges = await records.list("edge");
+    assert.deepEqual(edges.map(({ fields }) => fields), [{ from: link.id, to: form.id }], "its own story's link is an edge, holding no contracts");
+    assert.deepEqual(await work.dependsOn(link.id), [form.id, mailer.id]);
+    const tree = await work.projectTree();
+    const signUp = tree.stories.find(({ id }) => id === story.id)!;
+    assert.deepEqual(signUp.capabilities.find(({ id }) => id === link.id)?.dependsOn, [form.id, mailer.id], "the tree's dependsOn reads the edge, then the stored id");
+    assert.deepEqual(signUp.edges, [{ id: edges[0]!.id, from: link.id, to: form.id, contracts: [] }]);
+    assert.equal(tree.stories.find(({ id }) => id === elsewhere.id)?.edges, undefined, "a story with no edges lists none");
+
+    // An edge written directly reads the same way, and is described.
+    const welcome = await work.addCapability({ title: "Welcome email", story: story.id });
+    const direct = await work.addEdge({ from: welcome.id, to: link.id, description: "Sent once the link is used" });
+    assert.deepEqual(await work.dependsOn(welcome.id), [link.id]);
+    assert.equal((await work.editEdge(direct.id, { description: "Sent after the link" }))?.fields.description, "Sent after the link");
+
+    const dropped = await records.create("capability", { title: "9 · Dropped", story: story.id, proposed: true });
+    await records.retire(dropped.id, "gone");
+    const beforeRefusals = await transactions.history();
+    await assert.rejects(work.addEdge({ from: link.id, to: mailer.id }), schemaError("edge", ["to"]), "an edge across stories is refused");
+    await assert.rejects(work.addEdge({ from: form.id, to: form.id }), schemaError("edge", ["to"]), "an edge to itself is refused");
+    await assert.rejects(work.addEdge({ from: link.id, to: form.id }), schemaError("edge", ["to"]), "an edge the story has is refused");
+    await assert.rejects(work.addEdge({ from: form.id, to: dropped.id }), missingReference("to", dropped.id));
+    await assert.rejects(work.addEdge({ from: NO_CAPABILITY, to: form.id }), missingReference("from", NO_CAPABILITY));
+    await assert.rejects(work.addEdge({ from: form.id, to: welcome.id }), dependencyLoop([form.id, welcome.id, link.id, form.id]), "form → welcome → link → form");
+    await assert.rejects(work.editCapability(form.id, { dependsOn: [welcome.id] }), dependencyLoop([form.id, welcome.id, link.id, form.id]), "the loop check reads edges");
+    await assert.rejects(work.editEdge(direct.id, untyped({ to: form.id })), schemaError("edge", ["to"]), "an edge keeps its two capabilities");
+    assert.deepEqual(await transactions.history(), beforeRefusals, "none of them wrote anything");
+
+    // An edit naming the same-story ids again writes the edges it lacks and retires those it no longer names.
+    const captcha = await work.addCapability({ title: "Captcha", story: story.id });
+    const edited = await work.editCapability(link.id, { dependsOn: [mailer.id, captcha.id] });
+    assert.deepEqual(edited?.fields.dependsOn, [captcha.id, mailer.id], "edges read first, then the stored ids");
+    assert.deepEqual((await records.list("edge")).filter(({ fields }) => fields.from === link.id).map(({ fields }) => fields.to), [captcha.id], "the edge to the form is retired");
+  });
+
+  contract("4.39", "an edge holds its own contracts: one added to an edge keeps a number given, a number another live contract of its story carries is refused and none is assigned; the tree lists it under the story's edge, never among either capability's contracts", async ({ work, records, transactions }) => {
+    const story = await work.addStory({ title: "Visitor can sign up" });
+    const form = await work.addCapability({ title: "Email form", story: story.id });
+    const own = await work.addContract({ title: "Rejects a bad email", capability: form.id });
+    const link = await work.addCapability({ title: "Confirmation link", story: story.id, dependsOn: [form.id] });
+    const edge = (await records.list("edge"))[0]!;
+
+    const loose = await work.addContract({ title: "The link reads the form's address", edge: edge.id });
+    await laterThan(loose);
+    assert.equal(loose.fields.title, "The link reads the form's address", "no number is assigned on an edge");
+    const numbered = await work.addContract({ title: "1.7 The address arrives checked", edge: edge.id });
+    assert.equal(numbered.fields.title, "1.7 · The address arrives checked", "a number given is kept, written with its separator");
+
+    const before = await transactions.history();
+    await assert.rejects(work.addContract({ title: "1.1 · Taken by the form", edge: edge.id }), schemaError("contract", ["title"]), "a number a capability's contract in the story carries");
+    await assert.rejects(work.addContract({ title: "1.7 · Taken by the edge", edge: edge.id }), schemaError("contract", ["title"]), "a number another edge contract carries");
+    await assert.rejects(work.addContract({ title: "Nowhere", edge: "edge_000000000000" }), missingReference("edge", "edge_000000000000"));
+    assert.deepEqual(await transactions.history(), before, "nothing was written");
+
+    const tree = await work.projectTree();
+    const node = tree.stories[0]!;
+    assert.deepEqual(new Map(node.capabilities.map(({ id, contracts }) => [id, contracts.map((contract) => contract.id)])), new Map([[form.id, [own.id]], [link.id, []]]), "each capability's own contracts are unchanged");
+    assert.deepEqual(node.edges?.[0]?.contracts.map(({ id }) => id), [loose.id, numbered.id]);
+
+    // A capability's contract moves onto the edge keeping its number, and back.
+    const moved = await work.editContract(own.id, { edge: edge.id });
+    assert.deepEqual(moved?.fields, { title: "1.1 · Rejects a bad email", edge: edge.id }, "it leaves its capability");
+    const back = await work.editContract(own.id, { capability: form.id });
+    assert.deepEqual(back?.fields, { title: "1.1 · Rejects a bad email", capability: form.id }, "it leaves the edge");
+  });
+
+  contract("4.40", "moving a capability to another story turns its edges and its dependents' edges to it into stored dependsOn ids, and stored ids of its new story into edges; a dependsOn edit or move that would drop an edge holding contracts is refused, with nothing written", async ({ work, records, transactions }) => {
+    const story = await work.addStory({ title: "Visitor can sign up" });
+    const mail = await work.addStory({ title: "Mail" });
+    const form = await work.addCapability({ title: "Email form", story: story.id });
+    const sender = await work.addCapability({ title: "Sender", story: mail.id });
+    const link = await work.addCapability({ title: "Confirmation link", story: story.id, dependsOn: [form.id, sender.id] });
+    const welcome = await work.addCapability({ title: "Welcome email", story: story.id, dependsOn: [link.id] });
+
+    await work.editCapability(link.id, { story: mail.id });
+    assert.deepEqual(new Set(await work.dependsOn(link.id)), new Set([form.id, sender.id]), "its links read the same");
+    assert.deepEqual(await work.dependsOn(welcome.id), [link.id], "and so does its dependent's");
+    const edges = () => records.list("edge").then((all) => all.map(({ fields }) => [fields.from, fields.to]));
+    assert.deepEqual(await edges(), [[link.id, sender.id]], "only the link to its new story's capability is an edge");
+    assert.deepEqual((await transactions.get(link.id))?.fields.dependsOn, [form.id], "the form, now another story's, is stored");
+    assert.deepEqual((await transactions.get(welcome.id))?.fields.dependsOn, [link.id], "the dependent stores its link, now across stories");
+
+    const edge = (await records.list("edge"))[0]!;
+    await work.addContract({ title: "The sender takes the link", edge: edge.id });
+    const before = await transactions.history();
+    await assert.rejects(work.editCapability(link.id, { dependsOn: [form.id] }), schemaError("capability", ["dependsOn"]), "dropping the edge would lose its contract");
+    await assert.rejects(work.editCapability(link.id, { story: story.id }), schemaError("capability", ["dependsOn"]), "so would moving it out of the edge's story");
+    assert.deepEqual(await transactions.history(), before, "nothing was written");
+  });
+
+  contract("4.41", "moveDependsOnToEdges moves every stored same-story dependsOn id onto an edge with no contracts, leaving another story's ids stored, and every capability's dependsOn reads back the same ids; a second run writes nothing", async ({ work, records, transactions }) => {
+    const story = await work.addStory({ title: "Visitor can sign up" });
+    const mail = await work.addStory({ title: "Mail" });
+    const form = await work.addCapability({ title: "Email form", story: story.id });
+    const sender = await work.addCapability({ title: "Sender", story: mail.id });
+    // Stored as the plan stored them before edges, written around the work model.
+    const link = await records.create("capability", { title: "2 · Confirmation link", story: story.id, proposed: true, dependsOn: [sender.id, form.id] });
+    const lone = await records.create("capability", { title: "2 · Bounce handling", story: mail.id, proposed: true, dependsOn: [form.id] });
+    const faces = async () => Object.fromEntries(await Promise.all([form, sender, link, lone].map(async ({ id }) => [id, new Set(await work.dependsOn(id))])));
+    const read = await faces();
+    assert.deepEqual(read[link.id], new Set([sender.id, form.id]), "a stored same-story id counts before it is moved");
+
+    const moved = await work.moveDependsOnToEdges();
+    assert.deepEqual(moved.capabilities, [link.id]);
+    assert.equal(moved.edges.length, 1);
+    assert.deepEqual((await records.get(moved.edges[0]!))?.fields, { from: link.id, to: form.id });
+    assert.deepEqual((await transactions.get(link.id))?.fields.dependsOn, [sender.id], "another story's id stays stored");
+    assert.deepEqual((await transactions.get(lone.id))?.fields.dependsOn, [form.id], "a capability with only another story's ids is untouched");
+    assert.deepEqual(await faces(), read, "every capability's dependsOn reads back the same ids");
+
+    const before = await transactions.history();
+    assert.deepEqual(await work.moveDependsOnToEdges(), { edges: [], capabilities: [] });
+    assert.deepEqual(await transactions.history(), before, "a second run writes nothing");
+  });
+
+  contract("4.42", "importPluginPlan writes a plan capability's same-story dependsOn as edges and another story's as stored ids; a re-import naming the same ids writes nothing", async ({ work, records, transactions }) => {
+    const other = await work.addStory({ title: "Desktop app" });
+    const window = await work.addCapability({ title: "Window", story: other.id });
+    const first = await work.importPluginPlan("voice", { story: { title: "Voice" }, capabilities: [{ title: "1 · The address", contracts: [] }] });
+    const address = first.added.find((id) => id.startsWith("capability_"))!;
+    const plan = {
+      story: { title: "Voice" },
+      capabilities: [
+        { title: "1 · The address", contracts: [] },
+        { title: "2 · Speech", dependsOn: [address, window.id], contracts: [] },
+      ],
+    };
+    const second = await work.importPluginPlan("voice", plan);
+    const speech = second.added.find((id) => id.startsWith("capability_"))!;
+    assert.deepEqual(await work.dependsOn(speech), [address, window.id]);
+    assert.deepEqual((await transactions.get(speech))?.fields.dependsOn, [window.id], "another story's id is stored");
+    assert.deepEqual((await records.list("edge")).map(({ fields }) => fields), [{ from: speech, to: address }], "the plugin's own capability is an edge");
+
+    const before = await transactions.history();
+    const third = await work.importPluginPlan("voice", plan);
+    assert.deepEqual(third.edited, []);
+    assert.deepEqual(await transactions.history(), before, "a re-import naming the same ids writes nothing");
+
+    const fourth = await work.importPluginPlan("voice", { ...plan, capabilities: [plan.capabilities[0]!, { ...plan.capabilities[1]!, dependsOn: [window.id] }] });
+    assert.deepEqual(fourth.edited, [speech]);
+    assert.deepEqual(await work.dependsOn(speech), [window.id], "the edge the plan no longer names is gone");
+    await assert.rejects(work.addEdge({ from: speech, to: address }), schemaError("edge", ["from"]), "an edge on a plugin's story is its plan's to write");
+  });
 }
 
 /**
@@ -842,6 +996,9 @@ const MUST_NAME: Readonly<Record<string, string>> = {
   capability: "capability",
   stories: "story",
   dependsOn: "capability",
+  from: "capability",
+  to: "capability",
+  edge: "edge",
 };
 
 /**

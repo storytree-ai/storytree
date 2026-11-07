@@ -117,6 +117,7 @@ export async function pendChange(records: SchemaRecords, work: WorkModel, id: st
     await checkReference(records, "story", record.type === "capability" ? change.fields["story"] : undefined, "story");
     await checkReferences(records, "dependsOn", change.fields["dependsOn"], "capability");
     await checkReference(records, "capability", record.type === "contract" ? change.fields["capability"] : undefined, "capability");
+    await checkReference(records, "edge", record.type === "contract" ? change.fields["edge"] : undefined, "edge");
     entry = { ...head, before, after };
   }
   const next = earlier === undefined ? [...pending, entry] : pending.map((other) => (other === earlier ? entry : other));

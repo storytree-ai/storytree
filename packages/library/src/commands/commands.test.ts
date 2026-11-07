@@ -10,6 +10,7 @@ import path from "node:path";
 import { test } from "node:test";
 
 import { connect } from "../index.js";
+import { connect as connectProject } from "../project/index.js";
 import { testServerUrl, uniqueProjectName } from "../testing/pg.js";
 import { mounted, VerbRefusal, type DoorWords, type Verb, type VerbInputs } from "../verbs/verb.js";
 import { RECENT_MS, refuseStaleEdit } from "./stale-edit.js";
@@ -630,7 +631,7 @@ test("17.16 · library edit --live, run by a session holding an increment, edits
 
   const live = await edit.act({ "<id>": form.id, "<fields>": { dependsOn: mail.id }, live: true }, context, WORDS);
   assert.doesNotMatch(live.text, /pending/, live.text);
-  assert.deepEqual(((await library.get(form.id))?.fields as { dependsOn?: string[] }).dependsOn, [mail.id], "the live capability is edited");
+  assert.deepEqual(await library.dependsOn(form.id), [mail.id], "the live capability is edited");
   assert.deepEqual(await pendingOf(), [], "nothing waits on the increment");
 
   await edit.act({ "<id>": form.id, "<fields>": { description: "Where they type it" }, live: false }, context, WORDS);
@@ -794,3 +795,54 @@ test("17.21 · library edit and correct_note refuse, naming the newer change and
   await edit.act({ "<id>": form.id, "<fields>": { description: "Typed there" } }, contextOf("B"), WORDS);
   assert.equal(((await library.get(form.id))?.fields as { description?: string } | undefined)?.description, "Typed there", "a planned record's edit is held with the entry it read, not refused here");
 });
+
+test("17.22 · library new edge and library new contract --edge write an edge and its contract, library edit corrects an edge's description, library read of a capability gives its dependsOn as the plan's tree does, and library move-to-edges moves stored same-story dependsOn ids onto edges", async (t) => {
+  const storytree = await connect({ url: testServerUrl() });
+  const project = uniqueProjectName();
+  t.after(async () => {
+    try {
+      await storytree.dropProject(project);
+    } finally {
+      await storytree.close();
+    }
+  });
+  const library = await storytree.openProject(project);
+  const verbs = LIBRARY_FAMILIES.find((one) => one.name === "library")!.verbs;
+  const verbOf = (name: string) => verbs.find((one) => mounted(one.command) && one.command.name === name)!;
+  const context: LibraryVerbContext = {
+    library, project, session: "person:owner", folder: tmpdir(), writer: { actor: "person:owner" },
+    claims: async () => [],
+    testedNumbers: async () => ({ tested: [], untested: [] }),
+  };
+  const story = await library.addStory({ title: "Sign up" });
+  const form = await library.addCapability({ story: story.id, title: "Form" });
+  const link = await library.addCapability({ story: story.id, title: "Link" });
+
+  const made = await verbOf("new").act({ "<kind>": "edge", "<fields>": { from: link.id, to: form.id, description: "Reads the form" } }, context, WORDS);
+  const edge = /edge (edge_[0-9a-f]{12})/.exec(made.text)?.[1];
+  assert.ok(edge !== undefined, made.text);
+  const contract = await verbOf("new").act({ "<kind>": "contract", "<fields>": { edge, title: "The link reads the form's address" } }, context, WORDS);
+  assert.match(contract.text, /Wrote contract contract_/);
+  await verbOf("edit").act({ "<id>": edge, "<fields>": { description: "Reads the form's address" }, live: false }, context, WORDS);
+  const tree = await library.projectTree();
+  assert.deepEqual(tree.stories[0]!.edges?.map(({ id, description, contracts }) => ({ id, description, contracts: contracts.map(({ title }) => title) })), [
+    { id: edge, description: "Reads the form's address", contracts: ["The link reads the form's address"] },
+  ]);
+
+  const read = await verbOf("read").act({ ids: [link.id], linked: false, field: "dependsOn", out: undefined }, context, WORDS);
+  assert.deepEqual(JSON.parse(read.text), [form.id], "a capability's dependsOn reads its edge");
+
+  // A link stored before edges, written around the work model, is moved onto an edge.
+  const mail = await library.addCapability({ story: story.id, title: "Mail" });
+  const lower = await connectProject({ url: testServerUrl() });
+  try {
+    await (await lower.openProject(project)).records.edit(mail.id, { dependsOn: [form.id] });
+  } finally {
+    await lower.close();
+  }
+  const moved = await verbOf("move-to-edges").act({}, context, WORDS);
+  assert.match(moved.text, /Moved 1 link onto edges, from 1 capability/);
+  assert.deepEqual(await library.dependsOn(mail.id), [form.id]);
+  assert.match((await verbOf("move-to-edges").act({}, context, WORDS)).text, /nothing to move/);
+});
+

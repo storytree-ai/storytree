@@ -23,6 +23,7 @@ export type RecordType =
   | "story"
   | "capability"
   | "contract"
+  | "edge"
   | "health"
   | "decision"
   | "decisionNumbering"
@@ -306,10 +307,21 @@ export const RECORD_SCHEMAS = {
       guardrails,
     })
     .strict(),
+  /**
+   * A link inside one story (ADR-1282 D1): capability `from` depends on capability `to`, both of the same story, which the
+   * work model checks. Its own contracts point at it (a contract's `edge`), apart from either capability's. A link
+   * between stories is no edge: it stays on the dependent capability's dependsOn.
+   */
+  edge: z.object({ from: z.string(), to: z.string(), description: z.string().optional() }).strict(),
+  /**
+   * A contract, owned by one capability or by one edge (ADR-1282 D1), never both: `edge` was added on version 1,
+   * optional, so a contract written before it, naming its capability, reads as before.
+   */
   contract: z
     .object({
       title: nonEmpty,
-      capability: z.string(),
+      capability: z.string().optional(),
+      edge: z.string().optional(),
       description: z.string().optional(),
       /**
        * The existing tests that prove it, when they carry no contract number (an imported repository's own,
@@ -318,7 +330,14 @@ export const RECORD_SCHEMAS = {
        */
       provedBy: z.array(nonEmpty).min(1).optional(),
     })
-    .strict(),
+    .strict()
+    .superRefine((fields, context) => {
+      if (fields.capability === undefined && fields.edge === undefined) {
+        context.addIssue({ code: "custom", path: ["capability"], message: 'missing required field "capability"' });
+      } else if (fields.capability !== undefined && fields.edge !== undefined) {
+        context.addIssue({ code: "custom", path: ["edge"], message: 'a contract names "capability" or "edge", never both' });
+      }
+    }),
   health: z
     .object({
       node: z.string(),
@@ -870,6 +889,7 @@ export const SCHEMA_VERSIONS: Readonly<Record<RecordType, number>> = {
   story: 1,
   capability: 2,
   contract: 1,
+  edge: 1,
   health: 1,
   decision: 2,
   decisionNumbering: 1,

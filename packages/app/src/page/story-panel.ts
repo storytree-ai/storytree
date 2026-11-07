@@ -36,6 +36,8 @@ export interface StoryPanelParts {
   libraryCard(panel: HTMLElement, onClose: () => void): () => void;
   /** Select nothing on the forest, as a click on empty space would. */
   deselect(): void;
+  /** Tell the forest a card was clicked, so its map rings that capability (forest 3.91). */
+  chose(capability: string): void;
 }
 
 export interface StoryPanelView {
@@ -93,6 +95,7 @@ export function storyPanel(panel: HTMLElement, parts: StoryPanelParts): StoryPan
       const moving = parts.space(frame, surface, (id) => {
         chosen = id;
         show();
+        parts.chose(id);
         panel.querySelector<SVGGElement>(".panel-diagram .selected")?.focus({ preventScroll: true });
       });
       if (kept === undefined) moving.open();

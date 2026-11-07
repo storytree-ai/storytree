@@ -26,8 +26,8 @@ What is drawn now (contracts 3.77 and 3.78, re-pinned):
   a short shadow away from the light. Nothing is raised anywhere else on the map.
 - **A stone portal at each mouth.** A square headwall leaning into the rise's end, its arched mouth a little wider than the
   road, the road darkening on into it; its coping a straight bar of stone running back into the rise, so a mouth facing
-  away still shows where the road goes under. The portal still picks the links it carries (3.81), and the legend's tunnel
-  entry says what it draws.
+  away still shows where the road goes under. The portal picked the links it carried (3.81, since retired:
+  a portal now takes a click only where it stands as its road's gate, 3.88).
 
 Pictures, 1440 x 960, at 8 times the near zoom (`*-tunnel-1.png`) and 12 times on each end (`*-end-1.png`, `*-end-2.png`):
 

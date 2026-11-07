@@ -10,7 +10,7 @@ import { KnowledgeGlobePoints, useCodeLighting, type CodeLighting, type CoreUnde
 import { SessionIslandEmphasis } from "./session-emphasis.js";
 import { arcEmphasis, openWorkLayer, openWorkMarks, sizeOpenWork } from "./open-work.js";
 import { lightTerritories, territoryLand } from "./territory-land.js";
-import { islandRoadMarks, landFill, lightRoute, type RoutePick } from "./island-roads.js";
+import { islandRoadMarks, landFill, ringGate, type GatePick } from "./island-roads.js";
 import { capabilityPlates } from "./nameplates.js";
 import { islandRoadsWhenRouted, knownIslandRoads, pageIslandRouter, roadsVersion, subscribeRoads, type IslandRoads, type RoadsAsk } from "../territories/island-roads.js";
 import { islandRelief, type IslandRelief } from "../territories/island-relief.js";
@@ -19,7 +19,7 @@ import { ClaimMarks } from "./claim-flag.js";
 import { islandLayoutSteps, type Link } from "../territories/link-layout.js";
 import { keptVersion, pageTerritorySearcher, searchIsland, subscribeKept } from "../territories/kept-layout.js";
 import { NameplateCrowd, Nameplates, reducedMotion, SelectionRing } from "./island-overlays.js";
-import { focusRotation, globeHover, isGlobeDrag, markersApart, markerSpot, movingSpots, MOVE_SECONDS, oncePerFrame, pickClick, routeAfterSelection, type ForestMode } from "./planet-navigation.js";
+import { focusRotation, globeHover, isGlobeDrag, markersApart, markerSpot, movingSpots, MOVE_SECONDS, oncePerFrame, gateAfterSelection, pickClick, type ForestMode, type PickedGate } from "./planet-navigation.js";
 import { claimsOn, gatePosts, pointersOn } from "./planet-update.js";
 import { createGlobeGuide, type GlobePose, type PlacedGlobeControls } from "./globe-guide.js";
 import { createGlobeAside, framedOnResize, type AsidePose } from "./globe-aside.js";
@@ -59,6 +59,8 @@ export type PlanetViewProps = {
   places: ReadonlyMap<string, number>;
   wisps: readonly SessionWisp[];
   selected: string | undefined;
+  /** The selected story's capability, picked on its territory or in the panel, which is ringed in gold (3.91). */
+  selectedCapability?: string | undefined;
   highlighted?: readonly string[] | undefined;
   /** The capabilities the selected arc's open increments name, which are ringed and the rest dimmed; undefined with no arc selected (3.83). */
   circled?: readonly string[] | undefined;
@@ -69,7 +71,7 @@ export type PlanetViewProps = {
 
 /** The forest drawn on the glass sheet, depth running west to east (ADR-1043): the user tilts it from above to below
  * (ADR-1062 D2); `mode` changes only its look, never the eye (D3). */
-export function PlanetView({ core, scene, places, wisps: live, selected, highlighted, circled: circledList, onPick, onNote, mode = "forest", framing, sideOffset, aside = 0, surfaces, onControls, onPainted, library = true, frame, easeMoves = false, growth, recordedSessions }: PlanetViewProps) {
+export function PlanetView({ core, scene, places, wisps: live, selected, selectedCapability, highlighted, circled: circledList, onPick, onNote, mode = "forest", framing, sideOffset, aside = 0, surfaces, onControls, onPainted, library = true, frame, easeMoves = false, growth, recordedSessions }: PlanetViewProps) {
   // In the glass sheet's Library the glass is clear and the islands hollow outlines with their names over the knowledge, from
   // every angle (ADR-1061 D2, ADR-1062 D3): the button pressed decides, never the side the eye is on.
   const outlines = mode === "library";
@@ -114,9 +116,9 @@ export function PlanetView({ core, scene, places, wisps: live, selected, highlig
   const lighting = useCodeLighting(core, codePlaces);
   // Contract 3.26: the selected story's links to other stories light as lanes, on both the sheet's faces (ADR-1043 D3).
   const lanes = useKept(useMemo(() => selectionLanes(scene, selected), [scene, selected]), JSON.stringify);
-  // 3.81: the road picked on an island, its route lit in gold, or a gate ringed (3.88); another selection puts it out.
-  const [route, setRoute] = useState<{ story: string; pick: RoutePick }>();
-  useEffect(() => { setRoute(picked => routeAfterSelection(picked, selected)); }, [selected]);
+  // 3.88: the gate picked on an island, ringed; another selection puts it out.
+  const [gate, setGate] = useState<PickedGate>();
+  useEffect(() => { setGate(picked => gateAfterSelection(picked, selected)); }, [selected]);
   // The knowledge graph under the glass sheet: each shelf's notes under its place, the selected story's lit (ADR-1043 D5).
   // 3.76: once an island's plate has seen its docks, its shelves hang under its territories as laid out by its links.
   const [seenDocks, setSeenDocks] = useState<ReadonlyMap<string, readonly IslandDock[]>>(NO_DOCKS_SEEN);
@@ -144,14 +146,15 @@ export function PlanetView({ core, scene, places, wisps: live, selected, highlig
       : arcEmphasis(island.land?.territories ?? [], circled);
     return <>
       {island.land !== undefined && layout.spots.has(island.story) && <Territories story={island.story} land={island.land} coast={coast} links={links} docks={laidBy} claimed={claimed} pointed={pointed} radius={layout.radius}
-        lighting={lighting} surfaces={shownSurfaces} lit={route?.story === island.story ? route.pick : undefined} circled={circled} detail={detail} />}
+        lighting={lighting} surfaces={shownSurfaces} gate={gate?.story === island.story ? gate.pick : undefined}
+        picked={island.story === selected ? selectedCapability : undefined} circled={circled} detail={detail} />}
       <SessionIslandEmphasis emphasis={emphasis} />
       {emphasis === "held" && <SelectionRing island={local} descriptors={descriptors} onGlobe emphasis />}
       {shownSurfaces.nameplates && <Nameplates island={island} spot={layout.spots.get(island.story)!} coast={coast} links={links} docks={laidBy} radius={layout.radius} selected={selected} dimmed={emphasis === "dimmed"} claimed={claimed} detail={detail} />}
       <SelectionRing island={island.story === selected ? local : undefined} descriptors={descriptors} onGlobe />
       <DocksSeen story={island.story} docks={docks} onDocks={onDocks} />
     </>;
-  }, [wisps, claimed, pointed, selected, highlighted, circled, layout.spots, layout.radius, lighting, shownSurfaces, links, route, detail, onDocks]);
+  }, [wisps, claimed, pointed, selected, highlighted, circled, layout.spots, layout.radius, lighting, shownSurfaces, links, gate, selectedCapability, detail, onDocks]);
   const titles = useMemo(() => new Map(scene.islands.map(i => [i.story, i.title])), [scene]);
   // 3.90: the wheel's floor is half the sheet's opening, whatever framing the last pose (a panel's resize or slide) sent.
   const floor = useCallback((size: { width: number; height: number }) => sheetOpening(layout.extent, size).framing, [layout.extent]);
@@ -162,7 +165,7 @@ export function PlanetView({ core, scene, places, wisps: live, selected, highlig
     globe={globe} offset={turned.current.centre} inside={inside}
     rotation={turned.current.rotation.toArray()} plateChildren={overlays} lanes={lanes} growth={growth}>
     <Navigation islands={layout.islands} radius={layout.radius} titles={titles}
-      rotation={turned.current.rotation} onRotate={onRotate} onPose={setPose} onControls={onControls} onPick={onPick} onRoute={setRoute} onNote={onNote} mode={mode} sheet={layout.extent}
+      rotation={turned.current.rotation} onRotate={onRotate} onPose={setPose} onControls={onControls} onPick={onPick} onGate={setGate} onNote={onNote} mode={mode} sheet={layout.extent}
       sideOffset={sideOffset ?? 0} aside={aside}
       showFailures={shownSurfaces.grounds || shownSurfaces.territories !== false || shownSurfaces.nameplates || shownSurfaces.roads} />
     <NameplateCrowd selected={selected} />
@@ -281,8 +284,10 @@ type TerritoriesProps = {
   detail: DetailStore;
   /** The selected arc's open work, ringed, the rest dimmed (3.83). */
   circled: ReadonlySet<string> | undefined;
-  /** The road picked on the island, whose route lights in gold (3.81), or the gate it rings (3.88). */
-  lit?: RoutePick | undefined;
+  /** The gate picked on the island, which it rings (3.88). */
+  gate?: GatePick | undefined;
+  /** The selected capability, if the island is selected, which it rings in gold (3.91). */
+  picked?: string | undefined;
   land: NonNullable<Island["land"]>;
   coast: readonly (readonly { x: number; z: number }[])[];
   links: readonly Link[];
@@ -387,12 +392,13 @@ function disposeMarks(group: Group): void {
 /** An island's land as built: its territories' meshes, and its relief and roads once they are routed. */
 type DrawnLand = { group: Group; map: TerritoryMap; roads: IslandRoads | undefined; relief: IslandRelief | undefined; onLand: ReturnType<typeof onIslandSurface> };
 
-function DrawnIsland({ drawn, land, coast, docks, tints, pointed, radius, lighting, surfaces, lit, circled, detail, joined }: IslandLandProps & { drawn: DrawnLand }) {
+function DrawnIsland({ drawn, land, coast, docks, tints, pointed, radius, lighting, surfaces, gate, picked, circled, detail, joined }: IslandLandProps & { drawn: DrawnLand }) {
   const { invalidate, clock, camera, size, gl, scene } = useThree();
   const relief = drawn.relief, onLand = drawn.onLand;
-  // 3.83: the open work's rings round its settlements, and its dims, over the land as drawn now, at every zoom (ADR-1272 D2).
-  const openWork = useMemo(() => openWorkLayer(openWorkMarks(drawn.map, circled, drawn.roads), drawn.group,
-    onIslandSurface(radius, OPEN_WORK_LIFT + (relief?.height ?? 0)), sheetEyeZoom(camera, size)), [drawn, circled, radius, relief]);
+  // 3.83: the open work's rings round its settlements, and its dims, over the land as drawn now, at every zoom (ADR-1272 D2);
+  // and the selected capability's gold ring (3.91).
+  const openWork = useMemo(() => openWorkLayer(openWorkMarks(drawn.map, circled, drawn.roads, picked), drawn.group,
+    onIslandSurface(radius, OPEN_WORK_LIFT + (relief?.height ?? 0)), sheetEyeZoom(camera, size)), [drawn, circled, picked, radius, relief]);
   // 3.73: its marks' shaders compiled as they are built, hidden ones too, so the zoom that first shows them stalls on none.
   useEffect(() => {
     const frame = requestAnimationFrame(() => { gl.compile(drawn.group, camera, scene); gl.compile(openWork, camera, scene); });
@@ -404,13 +410,13 @@ function DrawnIsland({ drawn, land, coast, docks, tints, pointed, radius, lighti
     if (!mark.name.startsWith("open-work-dim:")) mark.geometry?.dispose();
     mark.material?.dispose();
   }); }, [openWork, invalidate]);
-  // 3.81: the picked route in gold, on the roads as drawn now; a picked gate's ring (3.88).
+  // 3.88: a picked gate's ring, on the roads as drawn now.
   const gateRing = useMemo(() => drawn.group.getObjectByName("gate-ring") as Group | undefined, [drawn]);
   useLayoutEffect(() => {
     if (drawn.roads === undefined) return;
-    lightRoute(drawn.group, drawn.roads, lit, sheetEyeZoom(camera, size) * (drawn.group.matrixWorld.getMaxScaleOnAxis() || 1));
+    ringGate(drawn.group, drawn.roads, gate, sheetEyeZoom(camera, size) * (drawn.group.matrixWorld.getMaxScaleOnAxis() || 1));
     invalidate();
-  }, [drawn, lit, invalidate]);
+  }, [drawn, gate, invalidate]);
   // ADR-0968: each claim's flag, and on an island with no code its lot, kept across claim changes so each plays its life.
   const marks = useMemo(() => new ClaimMarks(), []);
   useEffect(() => () => marks.dispose(), [marks]);
@@ -484,9 +490,9 @@ export const NAVIGATION_SEAM = "__storytreeCaptureNavigation";
 /** What Navigation hands a capture build's `NAVIGATION_SEAM`. */
 export type CapturedNavigation = { rotation: Quaternion; onRotate: (rotation: Quaternion, offset?: [number, number, number]) => void };
 
-function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onControls, onPick, onRoute, onNote, mode, showFailures, sideOffset, aside, sheet }: {
-  /** Hears a click on a road or gate (3.81), and undefined for a click on anything else. */
-  onRoute: (route: { story: string; pick: RoutePick } | undefined) => void;
+function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onControls, onPick, onGate, onNote, mode, showFailures, sideOffset, aside, sheet }: {
+  /** Hears a click on a gate (3.88), and undefined for a click on anything else. */
+  onGate: (gate: PickedGate | undefined) => void;
   onPose: (pose: GlobePose) => void;
   /** The glass sheet drawn (ADR-1043): a drag pans it, and it opens and goes Home to `sheetOpening`. */
   sheet: SheetExtent;
@@ -822,11 +828,10 @@ function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onCon
       down = undefined;
       if (twisted || from === undefined || from.id !== event.pointerId || from.dragged || from.spin || isGlobeDrag(from, { x: event.clientX, y: event.clientY })) return;
       clearHover();
-      // 3.81: a road lights its route and changes no selection; a gate is ringed and selects its island with the pair it
-      // joins (3.88); any other click puts the gold out.
+      // 3.88: a gate is ringed and selects its island with the pair it joins; any other click puts the ring out. A road
+      // takes no click, so a click on one picks what lies under it (3.15).
       const clicked = pickClick(scene, camera, element.getBoundingClientRect(), { x: event.clientX, y: event.clientY }, picking());
-      onRoute(clicked.route);
-      if (clicked.route !== undefined && clicked.hit === undefined) return;
+      onGate(clicked.gate);
       const hit = clicked.hit;
       if (hit?.kind === "note") onNote(hit.id);
       else onPick(hit?.id, hit?.capability, hit?.gate);
@@ -858,7 +863,7 @@ function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onCon
       element.removeEventListener("contextmenu", onMenu);
       element.style.cursor = "";
     };
-  }, [camera, gl, scene, onPick, onRoute, onNote, turnTo, sheet, spinBy, spinTiltBy]);
+  }, [camera, gl, scene, onPick, onGate, onNote, turnTo, sheet, spinBy, spinTiltBy]);
 
   // Pinned to the canvas, not to the sheet's middle: under a side offset (3.40) the pointer's tooltip, the edge markers
   // and the compass would otherwise move twice.

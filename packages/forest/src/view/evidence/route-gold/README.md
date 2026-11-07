@@ -1,5 +1,8 @@
 # A picked link lights its whole way in gold (rollout 2, step 3c; ADR-1236 D1)
 
+Retired with contract 3.81 on 2026-11-07 (Mick: "I don't think we should ever have highlighting or selection of the roads,
+because we have the gates"): a road now takes no click, and the gate-ring evidence shows what a click on one does.
+
 Four islands at rest, selected, drawn by the real map code on this branch, each after one click on its map: the click
 lands on a road, and the map's own pointer handler picks it.
 

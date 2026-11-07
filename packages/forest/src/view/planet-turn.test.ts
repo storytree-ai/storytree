@@ -93,12 +93,12 @@ test("3.87 · an island on the map as it opens has its land stand when it is bui
   // As a script, since a named function in an evaluated one would need the bundler's helper.
   await page.addScriptTag({ content: `(function look() {
     const lines = window.__globe?.scene.getObjectByName("planet:one")?.getObjectByName("territory-borders");
-    if (lines === undefined) { requestAnimationFrame(look); return; }
-    window.__first = { whole: lines.geometry.drawRange.count === Infinity, at: window.__globe.clock.getElapsedTime() };
+    if (lines === undefined) { if (window.__globe?.gl.info.render.frame > 0) window.__drewBefore = true; requestAnimationFrame(look); return; }
+    window.__first = { whole: lines.geometry.drawRange.count === Infinity, drewBefore: window.__drewBefore === true };
   })();` });
   await waitUntil(() => page.evaluate(() => (window as unknown as { __first?: unknown }).__first !== undefined), 60_000, "island one's land to be built");
-  const borders = await page.evaluate(() => (window as unknown as { __first: { whole: boolean; at: number } }).__first);
-  assert.ok(borders.at > 1, `the land was built ${borders.at} s after the map opened`);
+  const borders = await page.evaluate(() => (window as unknown as { __first: { whole: boolean; drewBefore: boolean } }).__first);
+  assert.ok(borders.drewBefore, "the map drew a frame before the land was built");
   assert.ok(borders.whole, "its borders stand whole on the first frame they are drawn");
 });
 
@@ -115,13 +115,14 @@ test("3.87 · islands that arrive as the map opens, after it first drew, have th
     const island = window.__globe?.scene.getObjectByName("planet:one");
     const lines = island?.getObjectByName("territory-borders");
     const whole = () => lines.geometry.drawRange.count === Infinity;
-    if (lines !== undefined && window.__land === undefined) window.__land = { whole: whole(), roads: island.getObjectByName("island-roads") !== undefined, at: window.__globe.clock.getElapsedTime() };
+    if (lines === undefined && window.__globe?.gl.info.render.frame > 0) window.__drewBefore = true;
+    if (lines !== undefined && window.__land === undefined) window.__land = { whole: whole(), roads: island.getObjectByName("island-roads") !== undefined, drewBefore: window.__drewBefore === true };
     if (lines !== undefined && island.getObjectByName("island-roads") !== undefined) { window.__roads = { whole: whole() }; return; }
     requestAnimationFrame(look);
   })();` });
   await waitUntil(() => page.evaluate(() => (window as unknown as { __roads?: unknown }).__roads !== undefined), 60_000, "island one's roads to be built");
-  const seen = await page.evaluate(() => { const at = window as unknown as { __land: { whole: boolean; roads: boolean; at: number }; __roads: { whole: boolean } }; return { land: at.__land, roads: at.__roads }; });
-  assert.ok(seen.land.at > 1, `the land was built ${seen.land.at} s after the map opened`);
+  const seen = await page.evaluate(() => { const at = window as unknown as { __land: { whole: boolean; roads: boolean; drewBefore: boolean }; __roads: { whole: boolean } }; return { land: at.__land, roads: at.__roads }; });
+  assert.ok(seen.land.drewBefore, "the map drew a frame before the land was built");
   assert.ok(!seen.land.roads, "its land was first drawn before its roads came");
   assert.ok(seen.land.whole, "its borders stand whole on the first frame its land is drawn");
   assert.ok(seen.roads.whole, "and on the first frame its roads are drawn");

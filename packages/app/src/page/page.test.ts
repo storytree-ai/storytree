@@ -38,14 +38,16 @@ interface Drawn {
   name: string;
   mounted: string[];
   stopped: string[];
-  view: ForestGlobe & { scenes: number; disposed: boolean; circled: (readonly string[] | undefined)[]; onSelect: (selection: ForestSelection) => void; painted: ReturnType<typeof deferred<void>> };
+  view: ForestGlobe & { scenes: number; disposed: boolean; circled: (readonly string[] | undefined)[]; chosen: string[]; onSelect: (selection: ForestSelection) => void; painted: ReturnType<typeof deferred<void>> };
   reading: Reading | undefined;
   teaching: { factory: boolean }[];
   locate: Parameters<ProjectParts["teaching"]>[0] | undefined;
   readingNear: Parameters<ProjectParts["teaching"]>[1] | undefined;
   islands: Parameters<ProjectParts["teaching"]>[2] | undefined;
   rendered: (string | undefined)[];
-  spaces: { opened: number; placed: unknown[]; view: unknown }[];
+  spaces: { opened: number; placed: unknown[]; view: unknown; choose: (id: string) => void }[];
+  /** How the popped-out tree tells the page a capability was picked in it. */
+  treeChoose: ((id: string) => void) | undefined;
   treeShown: number;
   treeOpen: boolean;
   kept: AnnotatedTree | undefined;
@@ -99,11 +101,11 @@ function page(t: TestContext, answers: Partial<Pick<PageParts, "problem" | "proj
     ...answers,
     project(name, timed) {
       const mine: Drawn = {
-        name, mounted: [], stopped: [], reading: undefined, teaching: [], locate: undefined, readingNear: undefined, islands: undefined, rendered: [], spaces: [], treeShown: 0, treeOpen: false,
+        name, mounted: [], stopped: [], reading: undefined, teaching: [], locate: undefined, readingNear: undefined, islands: undefined, rendered: [], spaces: [], treeChoose: undefined, treeShown: 0, treeOpen: false,
         kept: answers.kept, timed: undefined, hosts: {}, waiting: undefined, opened: undefined, arcsStart: undefined, listeners: [], events: [],
         view: {
-          scenes: 0, disposed: false, circled: [], onSelect: () => {}, painted: deferred<void>(),
-          show() { mine.view.scenes++; }, drawn: () => mine.view.painted.promise, select() {}, circle(capabilities) { mine.view.circled.push(capabilities); }, dispose() { mine.view.disposed = true; },
+          scenes: 0, disposed: false, circled: [], chosen: [], onSelect: () => {}, painted: deferred<void>(),
+          show() { mine.view.scenes++; }, drawn: () => mine.view.painted.promise, select() {}, chose(capability) { mine.view.chosen.push(capability); }, circle(capabilities) { mine.view.circled.push(capabilities); }, dispose() { mine.view.disposed = true; },
         },
       };
       drawn.push(mine);
@@ -120,8 +122,9 @@ function page(t: TestContext, answers: Partial<Pick<PageParts, "problem" | "proj
         kept: { read: () => mine.kept, write: (written) => { mine.kept = written; } },
         drawing: { read: () => kept as never, write: (written) => { kept = written; } },
         arcs: (host, on) => { mine.events.push("arcs mounted"); mine.hosts.arcs = host; mine.waiting = on.onWaiting; mine.opened = on.onOpened; mine.arcsStart = on.startAfter; return surface("arcs"); },
-        treeSpace: () => {
+        treeSpace: (on) => {
           mine.mounted.push("capability-tree");
+          mine.treeChoose = on.choose;
           return {
             show() { mine.treeShown++; mine.treeOpen = true; },
             close() { mine.treeOpen = false; },
@@ -152,8 +155,8 @@ function page(t: TestContext, answers: Partial<Pick<PageParts, "problem" | "proj
           mine.listeners.push({ onNews: () => { if (!asked) mine.events.push("tree asked"); asked = true; }, onError: () => {} });
           return { stop: () => { mine.stopped.push("reading"); } };
         },
-        space: () => {
-          const space = { opened: 0, placed: [] as unknown[], view: { at: mine.spaces.length } };
+        space: (_frame, _surface, choose) => {
+          const space = { opened: 0, placed: [] as unknown[], view: { at: mine.spaces.length }, choose };
           mine.spaces.push(space);
           return { get view() { return space.view; }, place: (view: unknown) => { space.placed.push(view); }, open: () => { space.opened++; }, stop() {} };
         },
@@ -415,6 +418,22 @@ test("2.28 · a territory click opens its story on that capability, and a redraw
   assert.deepEqual(project.spaces[1]!.placed, [project.spaces[0]!.view], "and the tree's place");
   assert.equal(project.spaces[1]!.opened, 0);
   assert.equal(project.treeShown, 2, "and redraws the popped-out tree");
+});
+
+test("2.28 · a capability picked in the panel's tree, or in the popped-out tree, opens on it and is handed to the map to ring (forest 3.91)", async (t) => {
+  const on = page(t);
+  await settled();
+  on.land();
+  const project = on.last();
+  const [first, second] = story.capabilities;
+  project.view.onSelect({ kind: "story", id: story.id, capability: first!.id });
+  assert.deepEqual(project.view.chosen, [], "a map pick needs no telling back");
+  project.spaces.at(-1)!.choose(second!.id);
+  assert.equal(project.rendered.at(-1), second!.id, "the panel opens on the capability picked in its tree");
+  assert.deepEqual(project.view.chosen, [second!.id], "and the map is told, so it rings it");
+  project.treeChoose!(first!.id);
+  assert.equal(project.rendered.at(-1), first!.id, "the popped-out tree's pick opens the panel on it too");
+  assert.deepEqual(project.view.chosen, [second!.id, first!.id], "and the map is told");
 });
 
 test("2.29 · teaching cards hear whether the project on show is the factory, and each card is placed beside its target", async (t) => {

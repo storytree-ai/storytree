@@ -33,6 +33,8 @@ export interface ForestGlobe {
   /** Resolves once the globe has painted a frame of the scene on show. */
   drawn(): Promise<void>;
   select(story: string | undefined): void;
+  /** The panel picked `capability` of the selected story, so the map rings it (forest 3.91). */
+  chose(capability: string): void;
   /** Ring the capabilities the arc opened in the Arcs tab names in its open work, and dim the rest; undefined for none. */
   circle(capabilities: readonly string[] | undefined): void;
   dispose(): void;
@@ -234,10 +236,11 @@ export function openProjectPage<View extends ForestGlobe>(parts: PageParts<View>
       tree: () => mine.tree,
       libraryCard: (host, onClose) => project.libraryCard(host, onClose),
       deselect: () => mine.view?.select(undefined),
+      chose: (capability) => mine.view?.chose(capability),
     });
     mine.panel = panel;
     if (withTree) mine.tree = project.treeSpace({
-      choose: (id) => panel.choose(id),
+      choose: (id) => { panel.choose(id); mine.view?.chose(id); },
       closed: () => panelHost.querySelector<HTMLButtonElement>("[data-open-tree]")?.focus(),
     }, treeOpening);
     const view = await project.openView(holder, (selection) => {

@@ -6,7 +6,7 @@ import type { Selection } from "./panel-selection.js";
 import type { GlobeOpening } from "../surfaces/surfaces.js";
 import { isDrawn } from "./globe-guide.js";
 import { globeName } from "./nameplates.js";
-import { routeOf, type RoutePick } from "./island-roads.js";
+import { gateOf, type GatePick } from "./island-roads.js";
 
 export type ForestMode = "forest" | "library";
 
@@ -114,12 +114,15 @@ function pickLand(ray: Raycaster, world: Object3D): { story: string; capability?
   return undefined;
 }
 
+/** A gate picked on an island: the island's story, and the gate (3.88). */
+export type PickedGate = { readonly story: string; readonly pick: GatePick };
+
 /**
- * The road or gate on an island's land under the pointer, and what it picks (3.81): only when it is the first of the
- * land's marks the ray meets, so land standing before it hides it.
+ * The gate on an island's land under the pointer (3.88): only when it is the first of the land's marks the ray meets, so land
+ * standing before it hides it. Roads take no ray, so one never stands in its way (3.15).
  */
-export function pickRoute(world: Object3D, camera: Camera,
-  box: { left: number; top: number; width: number; height: number }, cursor: { x: number; y: number }): { story: string; pick: RoutePick } | undefined {
+export function pickGate(world: Object3D, camera: Camera,
+  box: { left: number; top: number; width: number; height: number }, cursor: { x: number; y: number }): PickedGate | undefined {
   world.updateMatrixWorld(true);
   camera.updateMatrixWorld(true);
   const ray = new Raycaster();
@@ -131,28 +134,28 @@ export function pickRoute(world: Object3D, camera: Camera,
       if (object.name.startsWith("planet:")) story = object.name.slice("planet:".length);
     }
     if (story === undefined) continue;
-    const pick = routeOf(hit.object);
+    const pick = gateOf(hit.object);
     return pick === undefined ? undefined : { story, pick };
   }
   return undefined;
 }
 
-/** What stays picked on the roads once `selected` is the selection: a gate's ring stays while its own island is selected, as
- * the click on it selects that island (3.88); any other pick goes out on a selection (3.81). */
-export function routeAfterSelection(route: { story: string; pick: RoutePick } | undefined, selected: string | undefined): { story: string; pick: RoutePick } | undefined {
-  return route?.pick.kind === "gate" && route.story === selected ? route : undefined;
+/** What stays picked once `selected` is the selection: a gate's ring stays while its own island is selected, as the click on
+ * it selects that island (3.88); another selection puts it out. */
+export function gateAfterSelection(gate: PickedGate | undefined, selected: string | undefined): PickedGate | undefined {
+  return gate?.story === selected ? gate : undefined;
 }
 
 /**
- * What a click picks (3.81): in Forest, a road or gate first, which lights its route and picks no selection; otherwise
- * what `pickGlobe` picks, with no route, so any other click puts the gold out.
+ * What a click picks: in Forest, a gate first, which is ringed and selects its island with the pair it joins (3.88);
+ * otherwise what `pickGlobe` picks, with no gate, so any other click puts the ring out. A road takes no click, so a click
+ * on one picks what lies under it (3.15).
  */
 export function pickClick(world: Object3D, camera: Camera,
-  box: { left: number; top: number; width: number; height: number }, cursor: { x: number; y: number }, mode: ForestMode): { route: { story: string; pick: RoutePick }; hit?: Selection } | { route: undefined; hit: Selection } {
-  const route = mode === "forest" ? pickRoute(world, camera, box, cursor) : undefined;
-  if (route === undefined) return { route: undefined, hit: pickGlobe(world, camera, box, cursor, mode) };
-  // 3.88: a gate also selects its island, with the pair it joins.
-  return route.pick.kind === "gate" ? { route, hit: { kind: "story", id: route.story, gate: route.pick.between } } : { route };
+  box: { left: number; top: number; width: number; height: number }, cursor: { x: number; y: number }, mode: ForestMode): { gate: PickedGate | undefined; hit: Selection } {
+  const gate = mode === "forest" ? pickGate(world, camera, box, cursor) : undefined;
+  if (gate === undefined) return { gate: undefined, hit: pickGlobe(world, camera, box, cursor, mode) };
+  return { gate, hit: { kind: "story", id: gate.story, gate: gate.pick.between } };
 }
 
 /** Project the drawn points; in Forest, solid land before a point occludes it. */

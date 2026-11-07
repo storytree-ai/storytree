@@ -106,7 +106,7 @@ page = openProjectPage({
       },
       take: (changes, lines) => core.take(changes, lines),
       libraryCard: (panel, onClose) => mountLibraryPanel(panel, core, onClose),
-      teaching: (locate, reading) => mountTeaching(content, { journal: seenCards, locate, reading }),
+      teaching: (locate, reading, islands) => mountTeaching(content, { journal: seenCards, locate, reading, islands }),
       plugins: (on) => mountPluginViews(content, window.storytree.pluginViews, on, { project: name, bridge: window.storytree }),
       reading: (options) => forestReading({ project: name, reads, reading, ...options }),
       space: (frame, surface, choose, opening) => attachPanZoom(frame, surface, choose, opening as TreeOpening | undefined),

@@ -3,7 +3,7 @@
 // the ask in its corner, the plan's card at the Arcs tab after "Show me", the story's card beside its island after "Got it",
 // and the map clear after "End tour".
 // `node --import tsx capture.mjs` (append --retake to write into src/view/evidence/tour). Measures each card's box against the
-// box of the island it explains, so "never over the island" is measured, not only seen.
+// box of the island it explains and of every other island drawn, so "never over an island" is measured, not only seen.
 import assert from 'node:assert/strict';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -22,8 +22,9 @@ const measure = page => page.evaluate(() => {
   if (card === null) return { cards: 0 };
   const { left, top, right, bottom } = card.getBoundingClientRect();
   const story = document.body.dataset.teachingStory;
-  const island = window.storytreeGlobe.islands().find(one => one.story === story);
-  return { cards: document.querySelectorAll('.teaching-card').length, kind: card.dataset.kind, card: { left, top, right, bottom }, island: island?.box };
+  const drawn = window.storytreeGlobe.islands().filter(one => one.visible && one.box !== undefined);
+  const island = drawn.find(one => one.story === story);
+  return { cards: document.querySelectorAll('.teaching-card').length, kind: card.dataset.kind, card: { left, top, right, bottom }, island: island?.box, islands: drawn.map(one => one.box) };
 });
 const apart = (a, b) => a.right <= b.left || b.right <= a.left || a.bottom <= b.top || b.bottom <= a.top;
 
@@ -61,6 +62,7 @@ await runCapture({
         assert.deepEqual([found.cards, found.kind], [1, 'story']);
         assert.ok(found.island !== undefined, 'its island is drawn');
         assert.ok(apart(found.card, found.island), 'the story card stays off its island');
+        assert.ok(found.islands.every(box => apart(found.card, box)), 'and off every other island drawn');
       },
     },
     {

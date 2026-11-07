@@ -2,7 +2,8 @@
  * Capability 2 · Storytree projects. Where a teaching card's target is on the desktop page (Learning as you build places the card
  * beside it): a story or capability at its island, with the island's box, a decision at its note on the globe, a plan or a question at the rail's Arcs tab,
  * the factory beside the app bar's project dropdown; undefined when it is not on show. And what the user is reading near it, which
- * the card keeps clear of: the open story panel, and a story's or capability's nameplate.
+ * the card keeps clear of: the open story panel, and a story's or capability's nameplate. And every island drawn, which the card
+ * covers as little of as it can.
  */
 
 /** A teaching card's target, as the teaching cards name it. */
@@ -34,6 +35,11 @@ export function locateTarget(target: CardTarget, page: { document: Document; glo
 
 /** A rectangle on the page, in client pixels. */
 export type Box = { left: number; top: number; right: number; bottom: number };
+
+/** The box of every island on show that the globe gives one for. */
+export function drawnIslands(globe: IslandsAndNotes | undefined): Box[] {
+  return (globe?.islands() ?? []).flatMap((island) => island.visible && island.box !== undefined ? [island.box] : []);
+}
 
 /** What is being read near `target` on the page, drawn now: the open story panel, and the nameplates of its story and capability. */
 export function readingNear(target: CardTarget, document: Document): Box[] {

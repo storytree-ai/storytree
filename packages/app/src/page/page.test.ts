@@ -43,6 +43,7 @@ interface Drawn {
   teaching: { factory: boolean }[];
   locate: Parameters<ProjectParts["teaching"]>[0] | undefined;
   readingNear: Parameters<ProjectParts["teaching"]>[1] | undefined;
+  islands: Parameters<ProjectParts["teaching"]>[2] | undefined;
   rendered: (string | undefined)[];
   spaces: { opened: number; placed: unknown[]; view: unknown }[];
   treeShown: number;
@@ -98,7 +99,7 @@ function page(t: TestContext, answers: Partial<Pick<PageParts, "problem" | "proj
     ...answers,
     project(name, timed) {
       const mine: Drawn = {
-        name, mounted: [], stopped: [], reading: undefined, teaching: [], locate: undefined, readingNear: undefined, rendered: [], spaces: [], treeShown: 0, treeOpen: false,
+        name, mounted: [], stopped: [], reading: undefined, teaching: [], locate: undefined, readingNear: undefined, islands: undefined, rendered: [], spaces: [], treeShown: 0, treeOpen: false,
         kept: answers.kept, timed: undefined, hosts: {}, waiting: undefined, opened: undefined, arcsStart: undefined, listeners: [], events: [],
         view: {
           scenes: 0, disposed: false, circled: [], onSelect: () => {}, painted: deferred<void>(),
@@ -137,9 +138,10 @@ function page(t: TestContext, answers: Partial<Pick<PageParts, "problem" | "proj
         sessions: (_view, host) => { mine.hosts.sessions = host; return surface("sessions"); },
         take() {},
         libraryCard: () => () => {},
-        teaching: (locate, readingNear) => {
+        teaching: (locate, readingNear, islands) => {
           mine.locate = locate;
           mine.readingNear = readingNear;
+          mine.islands = islands;
           return { take: (reading) => { mine.teaching.push({ factory: reading.factory }); }, stop: () => { mine.stopped.push("teaching"); } };
         },
         plugins: (on) => answers.plugins!(on),
@@ -416,7 +418,8 @@ test("2.28 · a territory click opens its story on that capability, and a redraw
 });
 
 test("2.29 · teaching cards hear whether the project on show is the factory, and each card is placed beside its target", async (t) => {
-  const islands = [{ story: story.id, x: 10, y: 20, visible: true, box: { left: 0, top: 10, right: 20, bottom: 30 } }, { story: "story_unboxed", x: 1, y: 2, visible: true }];
+  const islands = [{ story: story.id, x: 10, y: 20, visible: true, box: { left: 0, top: 10, right: 20, bottom: 30 } }, { story: "story_unboxed", x: 1, y: 2, visible: true },
+    { story: "story_behind", x: 40, y: 50, visible: false, box: { left: 30, top: 40, right: 50, bottom: 60 } }, { story: "story_near", x: 70, y: 80, visible: true, box: { left: 60, top: 70, right: 80, bottom: 90 } }];
   const on = page(t, {
     projectSelection: async () => ({ projects: ["site"], current: "site", factory: { place: "factory", product: undefined } }),
     globe: () => ({ islands: () => islands, notes: () => [{ note: "note_1", x: 5, y: 6, visible: false }] }),
@@ -441,6 +444,8 @@ test("2.29 · teaching cards hear whether the project on show is the factory, an
   assert.deepEqual(locate({ kind: "switch" }), { x: 140, y: 24, visible: true });
   assert.deepEqual(locate({ kind: "question" }), { x: 300, y: 72, visible: true }, "at the right of the rail's Arcs tab");
   assert.equal(locate({ kind: "map" }), undefined);
+  assert.deepEqual(on.last().islands!(), [{ left: 0, top: 10, right: 20, bottom: 30 }, { left: 60, top: 70, right: 80, bottom: 90 }],
+    "every island on show with a box, which a card covers as little of as it can; not one round the back of the globe");
 
   // What is being read near a card's target, which the card keeps clear of: the open story panel and the target's nameplates.
   const reading = on.last().readingNear!;

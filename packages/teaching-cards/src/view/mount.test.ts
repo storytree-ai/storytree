@@ -209,8 +209,8 @@ test("3.3 · the decision card's depth draws a decision glued beneath its island
   shelf.stop();
 });
 
-/** A 1000 × 600 window whose cards measure 300 × 100, and the rectangles `reading` says are being read. */
-function sized(reading: { left: number; top: number; right: number; bottom: number }[], locate: Parameters<typeof mountTeaching>[1]["locate"]) {
+/** A 1000 × 600 window whose cards measure 300 × 100, the rectangles `reading` says are being read, and the drawn islands' boxes. */
+function sized(reading: { left: number; top: number; right: number; bottom: number }[], locate: Parameters<typeof mountTeaching>[1]["locate"], islands: { left: number; top: number; right: number; bottom: number }[] = []) {
   const { document, host, store } = page();
   const view = document.defaultView as unknown as { innerWidth: number; innerHeight: number };
   view.innerWidth = 1000; view.innerHeight = 600;
@@ -220,7 +220,7 @@ function sized(reading: { left: number; top: number; right: number; bottom: numb
     return (this.classList.contains("teaching-card") ? { width: 300, height: 100 } : measured.call(this)) as DOMRect;
   };
   const asked: unknown[] = [];
-  const teaching = mountTeaching(host, { journal: journal(store), locate, reading: (target) => { asked.push(target); return reading; } });
+  const teaching = mountTeaching(host, { journal: journal(store), locate, reading: (target) => { asked.push(target); return reading; }, islands: () => islands });
   teaching.take(oneStory);
   const card = host.querySelector<HTMLElement>(".teaching-card")!;
   return { document, host, teaching, card, asked, at: () => ({ left: card.style.left, top: card.style.top }) };
@@ -250,10 +250,11 @@ test("3.5 · with no room right of its island, a card sits left of the island; w
   const { teaching: under, at: underAt } = sized([{ left: 0, top: 200, right: 1000, bottom: 360 }], () => ({ x: 400, y: 300, visible: true, box: island }));
   assert.deepEqual(underAt(), { left: "250px", top: "362px" }, "12px below the island");
   under.stop();
-  // Read right of the island, the left place pressed against the window's edge still overlaps the island: a corner instead.
-  const { teaching: cornered, at: cornerAt } = sized([{ left: 505, top: 0, right: 1000, bottom: 600 }], () => ({ x: 400, y: 300, visible: true, box: island }));
-  assert.deepEqual(cornerAt(), { left: "16px", top: "484px" });
-  cornered.stop();
+  // Read right of the island, the left place pressed against the window's edge still overlaps the island, and below it the
+  // middle is read: below it still, slid to end at the island's right edge.
+  const { teaching: slid, at: slidAt } = sized([{ left: 505, top: 0, right: 1000, bottom: 600 }], () => ({ x: 400, y: 300, visible: true, box: island }));
+  assert.deepEqual(slidAt(), { left: "200px", top: "362px" });
+  slid.stop();
 });
 
 test("3.5 · in a window too narrow for either side, a card pushed back inside over its own point sits below it instead", () => {
@@ -307,6 +308,30 @@ test("3.5 · when every place covers something being read, the card takes the pl
   // The whole window is being read, and the right of the point twice over.
   const { teaching, at } = sized([{ left: 0, top: 0, right: 1000, bottom: 600 }, { left: 412, top: 250, right: 712, bottom: 350 }], () => ({ x: 400, y: 300, visible: true }));
   assert.deepEqual(at(), { left: "88px", top: "250px" }, "the left of its point, not the right it would take first");
+  teaching.stop();
+});
+
+/** A tall island in the middle of the window, and a neighbour over each of the four places beside it. */
+const tall = { left: 400, top: 200, right: 600, bottom: 400 };
+const neighbours = [{ left: 650, top: 150, right: 900, bottom: 290 }, { left: 100, top: 260, right: 300, bottom: 340 },
+  { left: 450, top: 420, right: 550, bottom: 500 }, { left: 450, top: 100, right: 550, bottom: 180 }];
+
+test("3.5 · a card beside its island that would cover a neighbouring island slides along its island's side clear of it", () => {
+  const { teaching, at } = sized([], () => ({ x: 500, y: 300, visible: true, box: tall }), [tall, ...neighbours]);
+  assert.deepEqual(at(), { left: "612px", top: "300px" }, "right of the island, its bottom at the island's bottom, under the neighbour on the right");
+  teaching.stop();
+});
+
+test("3.5 · a card that covers a neighbouring island wherever it sits beside its own takes a corner clear of every island", () => {
+  const { teaching, at } = sized([], () => ({ x: 500, y: 300, visible: true }), [{ left: 150, top: 120, right: 850, bottom: 480 }]);
+  assert.deepEqual(at(), { left: "684px", top: "484px" }, "the bottom-right corner, below the islands");
+  teaching.stop();
+});
+
+test("3.5 · when every place covers an island, the card covers least of them, and never its own island to spare another", () => {
+  const everywhere = { left: 0, top: 0, right: 1000, bottom: 600 };
+  const { teaching, at } = sized([], () => ({ x: 500, y: 300, visible: true, box: tall }), [tall, everywhere, { left: 612, top: 250, right: 912, bottom: 350 }]);
+  assert.deepEqual(at(), { left: "88px", top: "250px" }, "left of its island, not the right it would take first, which covers two");
   teaching.stop();
 });
 

@@ -12,6 +12,7 @@
     "typecheck": "tsc -p ."
   },
   "devDependencies": {
+    "@storytree/arc-surface": "workspace:*",
     "@storytree/test-waits": "workspace:*",
     "@types/node": "^24.13.6",
     "esbuild": "^0.28.2",

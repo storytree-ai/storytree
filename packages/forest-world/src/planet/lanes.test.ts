@@ -241,15 +241,21 @@ function trunkOfThree(): PlanetLanes {
 test('4.44 at rest every lane is drawn as a line of round chart dots in the lane blue, each stretch\'s dots about half its lane width and spaced about twice their size, down the middle of its merged route', () => {
   const plan = trunkOfThree(), stretches = restLanes(plan);
   assert.deepEqual(stretches.map(s => s.id).sort(), plan.segments.map(s => s.id).sort(), 'every stretch of every lane is dotted, each once however many lanes share it');
+  // A stretch's lane width is what every lane riding it, lit together, is drawn as there.
+  const every = laneRoutes(plan, plan.edges.map(edge => ({ from: edge.from, to: edge.to, dir: 'down' as const })));
+  const widthOn = (segment: { points: Vector3[] }) => {
+    const mid = segment.points[Math.floor(segment.points.length / 2)]!, lane = every.find(l => l.points.some(p => p.distanceTo(mid) < 1e-9))!;
+    return lane.widths[lane.points.findIndex(p => p.distanceTo(mid) < 1e-9)]!;
+  };
   for (const stretch of stretches) {
     const segment = plan.segments.find(s => s.id === stretch.id)!;
-    assert.equal(stretch.size, seaLaneWidth(segment.links.length) * LANE_DOTS.size, `${stretch.id}'s dots are half its width`);
-    assert.ok(LANE_DOTS.size === 0.5 && LANE_DOTS.pitch >= 1.8 && LANE_DOTS.pitch <= 2.2, 'about half the width, about twice their size apart');
-    assert.ok(stretch.dots.length > 2, `${stretch.id} is a line of dots`);
+    assert.ok(Math.abs(stretch.size - widthOn(segment) / 2) < 1e-12, `${stretch.id}'s dots are half its lane width`);
     for (const dot of stretch.dots) assert.ok(segment.points.some(p => p.distanceTo(dot.at) < 0.6), 'each down the middle of its route');
+    const length = segment.points.slice(1).reduce((sum, p, i) => sum + p.distanceTo(segment.points[i]!), 0);
+    assert.ok(stretch.dots[0]!.at.distanceTo(segment.points[0]!) < 2.2 * stretch.size && stretch.dots.at(-1)!.at.distanceTo(segment.points.at(-1)!) < 2.2 * stretch.size, `${stretch.id} dotted end to end (${length.toFixed(0)} units)`);
     stretch.dots.slice(1).forEach((dot, i) => {
       const apart = dot.at.distanceTo(stretch.dots[i]!.at) / stretch.size;
-      assert.ok(apart > LANE_DOTS.pitch * 0.8 && apart < LANE_DOTS.pitch * 1.25, `${stretch.id}'s dots ${apart.toFixed(2)} sizes apart`);
+      assert.ok(apart > 1.6 && apart < 2.6, `${stretch.id}'s dots ${apart.toFixed(2)} sizes apart: about twice`);
     });
   }
   const trunk = stretches.find(s => s.id === 'trunk')!, arm = stretches.find(s => s.id === 'b')!;

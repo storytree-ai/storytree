@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { Mesh, PerspectiveCamera, Vector3 } from 'three';
+import { BufferGeometry, Mesh, OrthographicCamera, PerspectiveCamera, Vector3 } from 'three';
 import { drawDots, drawLane, laneDotMaterial, laneDots, laneMaterial, laneRibbon, worldPerPixel } from './PlanetTrailRibbons.js';
-import { LANE_DOTS, SEA_LANE } from './lanes.js';
+import { LANE_DOTS, laneScale, SEA_LANE } from './lanes.js';
 
 test('4.9 · The rendered lane front crosses unevenly sampled road sections by physical distance, including between samples', () => {
   const geometry = laneRibbon({ points: [0, 1, 2, 10].map(x => new Vector3(x, 100, 0)), widths: [0.5, 0.5, 0.5, 0.5] });
@@ -43,14 +43,23 @@ test('4.44 · the dots at rest are round quads in the lane blue, one per dot at 
   const lane = laneMaterial(SEA_LANE, 1);
   drawLane(lane, 1, 0, 10, 8);
   assert.equal(lane.uniforms.uScale!.value, 8, 'a fill scales with the dots');
-  const camera = new PerspectiveCamera(50, 1.5, 0.1, 1000);
-  camera.position.set(0, 100, 0);
-  camera.updateMatrixWorld();
+  // Measured as the screen draws it: one unit of the drawing, scaled up twice, seen square on by a camera zoomed twice.
   const mesh = new Mesh(geometry);
   mesh.scale.setScalar(2);
   mesh.updateMatrixWorld();
-  const expected = 2 * mesh.localToWorld(geometry.boundingSphere!.center.clone()).distanceTo(camera.position) * Math.tan(25 * Math.PI / 180) / 900 / 2;
-  assert.ok(Math.abs(worldPerPixel(mesh, geometry, camera, 900) - expected) < 1e-9, 'ground units a pixel across, in the drawing\'s own units');
+  const centre = mesh.localToWorld(geometry.boundingSphere!.center.clone());
+  const camera = new PerspectiveCamera(50, 1.5, 0.1, 1000);
+  camera.position.copy(centre).add(new Vector3(0, 0, 300));
+  camera.zoom = 2;
+  camera.lookAt(centre);
+  camera.updateMatrixWorld();
+  camera.updateProjectionMatrix();
+  const pixels = (centre.clone().add(new Vector3(0, 2, 0)).project(camera).y - centre.clone().project(camera).y) * 900 / 2;
+  assert.ok(Math.abs(worldPerPixel(mesh, geometry, camera, 900) - 1 / pixels) < 1e-9, 'the drawing\'s own units a pixel across');
+  assert.equal(worldPerPixel(mesh, geometry, new OrthographicCamera(), 900), 0, 'no reading but through a perspective eye');
+  assert.equal(worldPerPixel(mesh, geometry, camera, 0), 0, 'nor on a canvas with no height');
+  assert.equal(worldPerPixel(mesh, new BufferGeometry(), camera, 900), 0, 'nor of a drawing with no extent yet');
+  assert.equal(laneScale(0), 1, 'and with no reading, lanes are their ground width');
   geometry.dispose();
   material.dispose();
   lane.dispose();

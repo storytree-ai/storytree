@@ -6,8 +6,10 @@
 import type { ForestScene } from "@storytree/forest";
 import type { GlobeTarget, PlacedGlobeControls } from "./globe-guide.js";
 
-/** An island's story and title, its capability count and where its middle is, in the page's client pixels. */
-export type PlacedIsland = { story: string; title: string; capabilities: number; x: number; y: number; visible: boolean };
+/** An island's story and title, its capability count, where its middle is and, when its ground is drawn, its box, in the page's
+ * client pixels (a teaching card keeps clear of it). */
+export type PlacedIsland = { story: string; title: string; capabilities: number; x: number; y: number; visible: boolean;
+  box?: { left: number; top: number; right: number; bottom: number } };
 /** A Library note drawn on the globe, and where it is in client pixels. */
 export type PlacedNote = { note: string; x: number; y: number; visible: boolean };
 
@@ -32,9 +34,14 @@ export function globeLocator(page: { controls(): PlacedGlobeControls | undefined
     islands() {
       const controls = page.controls();
       if (controls === undefined) return [];
+      const { left, top } = page.box();
+      const grounds = new Map(controls.islands().map(ground => [ground.story,
+        { left: ground.x + left, top: ground.y + top, right: ground.x + ground.width + left, bottom: ground.y + ground.height + top }]));
       return page.scene().islands.flatMap(island => {
         const at = controls.position({ kind: "story", story: island.story });
-        return at === undefined ? [] : [{ story: island.story, title: island.title, capabilities: island.trees.filter(tree => tree.capability !== undefined).length, ...client(at) }];
+        const box = grounds.get(island.story);
+        return at === undefined ? [] : [{ story: island.story, title: island.title, capabilities: island.trees.filter(tree => tree.capability !== undefined).length, ...client(at),
+          ...(box === undefined ? {} : { box }) }];
       });
     },
     notes() {

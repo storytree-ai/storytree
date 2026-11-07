@@ -157,6 +157,16 @@ test("3.41 the page's locator gives each drawn island's capability count and cli
   assert.equal(locator.face({ kind: "point", at: [Number.NaN, 0, 0] }), false, "no point to face");
 });
 
+test("3.41 the page's locator gives each drawn island's ground box in client pixels, which a teaching card keeps clear of", () => {
+  const f = fixture();
+  const ground = new Mesh(new BoxGeometry(4, 2, .2), new MeshBasicMaterial()); ground.name = "island-ground"; f.story.add(ground);
+  const scene = { islands: [{ story: "shop", title: "shop", x: 0, z: 0, key: "shop", trees: [] }] };
+  const locator = globeLocator({ controls: () => ({ ...f.guide, aside: () => 0 }), scene: () => scene, box: () => ({ left: 100, top: 50 }), aside: () => 0 });
+  // The ground's canvas box (480, 290, 40 by 20, as 3.51 measures it), moved by the canvas's place on the page.
+  const box = locator.islands()[0]!.box!;
+  for (const [side, want] of Object.entries({ left: 580, top: 340, right: 620, bottom: 360 })) assert.ok(Math.abs(box[side as keyof typeof box] - want) < 1e-6, `${side} ${box[side as keyof typeof box]} is ${want}`);
+});
+
 test("3.45 the locator reads still only once the globe has placed itself beside the panel as the page measures it now", () => {
   const f = fixture();
   let placed = 0, measured = 0;

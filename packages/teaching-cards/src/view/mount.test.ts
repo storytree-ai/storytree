@@ -6,12 +6,13 @@ import { waitUntil } from "@storytree/test-waits";
 import { journal } from "../journal.js";
 import { mountJournal, mountTeaching } from "./index.js";
 
-function page() {
+/** A page whose user has said yes to the tour, unless they have not answered it yet. */
+function page({ unanswered = false } = {}) {
   const dom = new Window();
   const document = dom.document as unknown as Document;
   const host = document.createElement("div");
   document.body.append(host);
-  const kept = new Map<string, string>();
+  const kept = new Map<string, string>(unanswered ? [] : [["storytree.teaching.tour.v1", "yes"]]);
   const store = { getItem: (key: string) => kept.get(key) ?? null, setItem: (key: string, value: string) => { kept.set(key, value); } };
   return { document, host, store };
 }
@@ -83,6 +84,87 @@ test("3.1 · a target off screen puts its card in the corner, and the next card 
   assert.ok(host.querySelector(".teaching-card") === null);
 });
 
+test("3.1 · End tour on any card takes it away with every card still waiting, and no card shows again", () => {
+  const { host, store } = page();
+  const kept = journal(store);
+  const teaching = mountTeaching(host, { journal: kept, locate: () => undefined });
+  const grown = { tree: { stories: [{ id: "story_a", capabilities: [{ id: "cap_a", proposed: true }] }], arcs: [] }, changes: [], lines: [] };
+  teaching.take(grown);
+  host.querySelector<HTMLButtonElement>(".teaching-card [data-end]")!.click();
+  assert.ok(host.querySelector(".teaching-card") === null, "the capability's card waiting behind it never shows");
+  assert.equal(kept.tour(), "no");
+  teaching.take({ ...grown, tree: { ...grown.tree, arcs: [{ id: "arc_1" }] } });
+  assert.ok(host.querySelector(".teaching-card") === null, "nor does a card for what appears later");
+  teaching.stop();
+});
+
+test("3.7 · until the user says yes to the tour, only the ask shows, in a corner: No leaves the map clear for good, Yes shows the cards", () => {
+  for (const answer of ["no", "yes"] as const) {
+    const { host, store } = page({ unanswered: true });
+    const kept = journal(store);
+    const teaching = mountTeaching(host, { journal: kept, locate: () => ({ x: 120, y: 80, visible: true }) });
+    teaching.take(oneStory);
+    const ask = host.querySelector<HTMLElement>(".teaching-card")!;
+    assert.equal(ask.dataset.kind, "tour", "the ask, not the story's card");
+    assert.ok(ask.classList.contains("teaching-card-corner"), "in a corner, not beside the island");
+    assert.equal(ask.getAttribute("role"), "status");
+    assert.equal(host.querySelectorAll(".teaching-card").length, 1);
+    // Ignored, the ask stays the only thing shown, and nothing is marked seen.
+    teaching.take(oneStory);
+    assert.equal(host.querySelectorAll(".teaching-card").length, 1);
+    assert.deepEqual(kept.seen(), []);
+    ask.querySelector<HTMLButtonElement>(`[data-tour="${answer}"]`)!.click();
+    assert.equal(kept.tour(), answer);
+    const shown = [...host.querySelectorAll<HTMLElement>(".teaching-card")].map(card => card.dataset.kind);
+    assert.deepEqual(shown, answer === "yes" ? ["story"] : [], answer === "yes" ? "the story's card in its place" : "the map left clear");
+    teaching.take({ tree: { stories: [{ id: "story_a", capabilities: [] }], arcs: [{ id: "arc_1" }] }, changes: [], lines: [] });
+    if (answer === "no") assert.ok(host.querySelector(".teaching-card") === null, "and kept clear as the map grows");
+    teaching.stop();
+  }
+});
+
+test("3.7 · a yes given elsewhere (Help's journal) shows the first card for the map on show at once, with no new reading", () => {
+  const { host, store } = page({ unanswered: true });
+  const kept = journal(store);
+  const teaching = mountTeaching(host, { journal: kept, locate: () => undefined });
+  teaching.take(oneStory);
+  host.querySelector<HTMLButtonElement>('[data-tour="no"]')!.click();
+  kept.answer("yes");
+  assert.equal(host.querySelector<HTMLElement>(".teaching-card")!.dataset.kind, "story");
+  teaching.stop();
+  kept.answer("no"); kept.answer("yes");
+  assert.ok(host.querySelector(".teaching-card") === null, "a stopped mount hears no more");
+});
+
+test("3.2 · Help's journal offers the tour to a user who has not said yes, and taking it there says yes", () => {
+  const { host, store } = page({ unanswered: true });
+  const kept = journal(store);
+  const shelf = mountJournal(host, { journal: kept });
+  shelf.open();
+  host.querySelector<HTMLButtonElement>("[data-tour-start]")!.click();
+  assert.equal(kept.tour(), "yes");
+  assert.ok(host.querySelector("[data-tour-start]") === null, "offered no more once taken");
+  shelf.open();
+  assert.ok(host.querySelector("[data-tour-start]") === null);
+  shelf.stop();
+});
+
+test("3.8 · a card still waiting whose thing is gone from the map, or done, never shows: the plan's card once the plan is finished", () => {
+  const { host, store } = page();
+  const kept = journal(store);
+  const teaching = mountTeaching(host, { journal: kept, locate: () => undefined });
+  teaching.take(oneStory);
+  const planned = (status: string) => ({ tree: { stories: [{ id: "story_a", capabilities: [] }], arcs: [{ id: "arc_1" }] }, lines: [],
+    changes: [{ type: "increment", recordId: "increment_1", action: "created", record: { fields: { arc: "arc_1", status } } }] });
+  // The plan's card waits behind the story's while the agent works the plan.
+  teaching.take(planned("proposal"));
+  teaching.take(planned("closed"));
+  host.querySelector<HTMLButtonElement>(".teaching-card [data-dismiss]")!.click();
+  assert.ok(host.querySelector(".teaching-card") === null, "no plan tip after the plan is done");
+  assert.ok(!kept.seen().some(one => one.kind === "arc"), "never shown, so never marked seen");
+  teaching.stop();
+});
+
 test("3.2 · the journal lists every card seen, in order, and choosing one shows it again with its depth", () => {
   const { host, store } = page();
   const kept = journal(store);
@@ -150,6 +232,13 @@ test("3.5 · a card whose right side would cover the open panel sits on the left
   const { teaching, at, asked } = sized([panel], () => ({ x: 400, y: 300, visible: true }));
   assert.deepEqual(asked.at(-1), { kind: "story", story: "story_a" }, "the page is asked what is being read near the card's thing");
   assert.deepEqual(at(), { left: "88px", top: "250px" });
+  teaching.stop();
+});
+
+test("3.5 · a card whose thing is an island sits beside the island's box, never over the island", () => {
+  const island = { left: 300, top: 250, right: 500, bottom: 350 };
+  const { teaching, at } = sized([], () => ({ x: 400, y: 300, visible: true, box: island }));
+  assert.deepEqual(at(), { left: "512px", top: "250px" }, "12px right of the island, not of its middle");
   teaching.stop();
 });
 

@@ -1,6 +1,6 @@
 /**
  * Capability 2 · Storytree projects. Where a teaching card's target is on the desktop page (Learning as you build places the card
- * beside it): a story or capability at its island, a decision at its note on the globe, a plan or a question at the rail's Arcs tab,
+ * beside it): a story or capability at its island, with the island's box, a decision at its note on the globe, a plan or a question at the rail's Arcs tab,
  * the factory beside the app bar's project dropdown; undefined when it is not on show. And what the user is reading near it, which
  * the card keeps clear of: the open story panel, and a story's or capability's nameplate.
  */
@@ -10,15 +10,16 @@ export type CardTarget = { kind: string; story?: string; capability?: string; no
 
 /** The globe's locator (the forest's `window.storytreeGlobe`), the little of it this reads. */
 export interface IslandsAndNotes {
-  islands(): readonly { story: string; x: number; y: number; visible: boolean }[];
+  islands(): readonly { story: string; x: number; y: number; visible: boolean; box?: Box | undefined }[];
   notes(): readonly { note: string; x: number; y: number; visible: boolean }[];
 }
 
-export type Place = { x: number; y: number; visible: boolean };
+/** A target's point and, for one on an island, the island's box, which the card keeps clear of. */
+export type Place = { x: number; y: number; visible: boolean; box?: Box };
 
 export function locateTarget(target: CardTarget, page: { document: Document; globe(): IslandsAndNotes | undefined }): Place | undefined {
-  const at = (found: { x: number; y: number; visible: boolean } | undefined): Place | undefined =>
-    found === undefined ? undefined : { x: found.x, y: found.y, visible: found.visible };
+  const at = (found: { x: number; y: number; visible: boolean; box?: Box | undefined } | undefined): Place | undefined =>
+    found === undefined ? undefined : { x: found.x, y: found.y, visible: found.visible, ...(found.box === undefined ? {} : { box: found.box }) };
   if (target.kind === "story" || target.kind === "capability") return at(page.globe()?.islands().find((island) => island.story === target.story));
   if (target.kind === "note") return at(page.globe()?.notes().find((note) => note.note === target.note));
   const beside = (selector: string, x: (box: DOMRect) => number): Place | undefined => {

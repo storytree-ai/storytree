@@ -1,14 +1,15 @@
 /**
- * Capability 3 · Cards and journal on screen. A fired card shows beside the thing it explains, one at a
- * time, and never takes focus or blocks the map; the journal lists the cards seen and shows one again.
+ * Capability 3 · Cards and journal on screen. The cards are a tour the user is offered, never imposed: until they say yes
+ * to it, only the ask shows, in a corner. A fired card shows beside the thing it explains, clear of its island, one at a
+ * time, and never takes focus or blocks the map; any card ends the tour. The journal lists the cards seen and shows one again.
  */
 import { cardOf, type Card, type Kind } from "../cards.js";
 import { encounters, type Encounter, type MapReading, type Target } from "../encounters.js";
 import type { Journal } from "../journal.js";
 import { decisionsDiagram } from "./diagram.js";
 
-/** Where a target is on the page, in client pixels, or undefined when it is not drawn. */
-export type Locate = (target: Target) => { x: number; y: number; visible: boolean } | undefined;
+/** Where a target is on the page, in client pixels, with its island's box when it is on one, or undefined when it is not drawn. */
+export type Locate = (target: Target) => { x: number; y: number; visible: boolean; box?: Box | undefined } | undefined;
 
 /** A rectangle on the page, in client pixels. */
 export type Box = { left: number; top: number; right: number; bottom: number };
@@ -72,17 +73,22 @@ function adoptStyles(document: Document): () => void {
 }
 
 /**
- * Show each kind's card in `host` the first time `take` hears it on the map, placed at `locate`'s point
- * for its target (a corner when it is not on show) where it covers nothing `reading` names; cards fired together wait their turn.
+ * Show each kind's card in `host` the first time `take` hears it on the map, once the user has said yes to the tour (asked
+ * first, in a corner), placed beside `locate`'s point and island for its target (a corner when it is not on show) where it
+ * covers nothing `reading` names; cards fired together wait their turn, and one whose thing has gone or is done never shows.
  */
 export function mountTeaching(host: HTMLElement, { journal, locate, reading = () => [] }: { journal: Journal; locate: Locate; reading?: Reading }): { take(reading: MapReading): void; stop(): void } {
   const unstyle = adoptStyles(host.ownerDocument);
   const waiting: Encounter[] = [];
-  let shown: { card: HTMLElement; found: Encounter } | undefined;
+  /** The card on show, or the tour's ask. */
+  let shown: { card: HTMLElement; kind: Kind | "tour"; target: Target } | undefined;
+  /** The map's last reading, to start the tour on at once when the user says yes. */
+  let last: MapReading | undefined;
 
   const place = (): void => {
     if (shown === undefined) return;
-    const at = locate(shown.found.target);
+    // The ask is about no one thing: it keeps to a corner.
+    const at = shown.kind === "tour" ? undefined : locate(shown.target);
     const onShow = at !== undefined && at.visible;
     shown.card.classList.toggle("teaching-card-corner", !onShow);
     const { width, height } = shown.card.getBoundingClientRect();
@@ -95,12 +101,15 @@ export function mountTeaching(host: HTMLElement, { journal, locate, reading = ()
     };
     const corners = [inside(right - width - CORNER, bottom - height - CORNER), inside(CORNER, bottom - height - CORNER),
       inside(right - width - CORNER, CORNER), inside(CORNER, CORNER)];
-    // Beside its point, on the right unless the window has no room there, then the other side, below, above, and the corners.
-    const besides = !onShow ? [] : (at.x + GAP + width + GAP <= right ? [at.x + GAP, at.x - GAP - width] : [at.x - GAP - width, at.x + GAP])
-      .map(left => inside(left, at.y - height / 2))
-      .concat([inside(at.x - width / 2, at.y + GAP), inside(at.x - width / 2, at.y - GAP - height)]);
-    // Never over its own point, nor over what is being read; when every place covers some, the one that covers least.
-    const clear = [...reading(shown.found.target), ...(onShow ? [{ left: at.x - GAP, top: at.y - GAP, right: at.x + GAP, bottom: at.y + GAP }] : [])];
+    // Beside its point, outside its island when it is on one: on the right unless the window has no room there, then the
+    // other side, below, above, and the corners.
+    const around = onShow ? at.box ?? { left: at.x, top: at.y, right: at.x, bottom: at.y } : undefined;
+    const besides = !onShow || around === undefined ? []
+      : (around.right + GAP + width + GAP <= right ? [around.right + GAP, around.left - GAP - width] : [around.left - GAP - width, around.right + GAP])
+        .map(left => inside(left, at.y - height / 2))
+        .concat([inside(at.x - width / 2, around.bottom + GAP), inside(at.x - width / 2, around.top - GAP - height)]);
+    // Never over its own point or island, nor over what is being read; when every place covers some, the one that covers least.
+    const clear = [...reading(shown.target), ...(onShow ? [{ left: at.x - GAP, top: at.y - GAP, right: at.x + GAP, bottom: at.y + GAP }, ...(at.box === undefined ? [] : [at.box])] : [])];
     const places = [...besides, ...corners];
     const chosen = places.find(one => covered(one, clear) === 0) ?? places.reduce((best, one) => covered(one, clear) < covered(best, clear) ? one : best);
     shown.card.style.left = `${chosen.left}px`;
@@ -110,18 +119,34 @@ export function mountTeaching(host: HTMLElement, { journal, locate, reading = ()
   const opened = new (host.ownerDocument.defaultView ?? window).MutationObserver(place);
   opened.observe(host, { subtree: true, attributeFilter: ["hidden"] });
   host.ownerDocument.defaultView?.addEventListener("resize", place);
+  /** A card element, a status rather than a dialog: it is read out without moving focus or holding the page. */
+  const aside = (kind: string, html: string): HTMLElement => {
+    const node = host.ownerDocument.createElement("aside");
+    node.className = "teaching-card";
+    node.dataset.kind = kind;
+    node.setAttribute("role", "status");
+    node.setAttribute("aria-live", "polite");
+    node.innerHTML = html;
+    return node;
+  };
+  const hide = (): void => {
+    shown?.card.remove();
+    shown = undefined;
+  };
+  const ask = (): void => {
+    const node = aside("tour", `<h3>Want a quick tour?</h3><p>Short cards can explain each part of your map the first time it appears. You can start it later from Help.</p>
+      <div class="teaching-card-actions"><button type="button" data-tour="yes">Show me</button><button type="button" data-tour="no">No thanks</button></div>`);
+    for (const button of node.querySelectorAll<HTMLButtonElement>("[data-tour]")) button.addEventListener("click", () => journal.answer(button.dataset.tour === "yes" ? "yes" : "no"));
+    host.append(node);
+    shown = { card: node, kind: "tour", target: { kind: "map" } };
+    place();
+  };
   const next = (): void => {
     const found = waiting.shift();
     if (found === undefined) return;
     const card = cardOf(found.kind);
-    const node = host.ownerDocument.createElement("aside");
-    node.className = "teaching-card";
-    node.dataset.kind = found.kind;
-    // A status, not a dialog: it is read out without moving focus or holding the page.
-    node.setAttribute("role", "status");
-    node.setAttribute("aria-live", "polite");
-    node.innerHTML = `<h3>${escape(card.title)}</h3><p>${escape(card.line)}</p><div data-depth hidden>${depth(card)}</div>
-      <div class="teaching-card-actions"><button type="button" data-more aria-expanded="false">More</button><button type="button" data-dismiss>Got it</button></div>`;
+    const node = aside(found.kind, `<h3>${escape(card.title)}</h3><p>${escape(card.line)}</p><div data-depth hidden>${depth(card)}</div>
+      <div class="teaching-card-actions"><button type="button" data-more aria-expanded="false">More</button><button type="button" data-dismiss>Got it</button><button type="button" data-end>End tour</button></div>`);
     const more = node.querySelector<HTMLButtonElement>("[data-more]")!;
     more.addEventListener("click", () => {
       const open = node.querySelector<HTMLElement>("[data-depth]")!.hidden;
@@ -132,30 +157,41 @@ export function mountTeaching(host: HTMLElement, { journal, locate, reading = ()
       place();
     });
     node.querySelector("[data-dismiss]")!.addEventListener("click", () => {
-      node.remove();
-      shown = undefined;
+      hide();
       next();
     });
+    node.querySelector("[data-end]")!.addEventListener("click", () => journal.answer("no"));
     host.append(node);
-    shown = { card: node, found };
+    shown = { card: node, kind: found.kind, target: found.target };
     // Seen once shown: a card still waiting when the app closes shows next time.
     journal.mark(found.kind);
     place();
   };
+  const take = (reading: MapReading): void => {
+    last = reading;
+    const found = encounters(reading);
+    // A card still waiting whose thing has gone from the map, or is done (the plan once it is finished), never shows.
+    waiting.splice(0, waiting.length, ...waiting.filter(one => found.some(now => now.kind === one.kind)));
+    // The empty-map tip on show is wrong once the map holds an island (an import's included).
+    if (shown?.kind === "empty" && !found.some(one => one.kind === "empty") && !reading.factory) hide();
+    const tour = journal.tour();
+    if (tour === "no") return;
+    const queued = (kind: Kind) => shown?.kind === kind || waiting.some(one => one.kind === kind);
+    waiting.push(...journal.unseen(found).filter(one => !queued(one.kind)));
+    if (shown !== undefined) place();
+    else if (tour === "yes") next();
+    else if (waiting.length > 0) ask();
+  };
+  // An answer given on the ask, on a card's End tour or in Help: a yes starts the tour on the map on show, a no clears it.
+  const unlisten = journal.listen(tour => {
+    if (tour === "no") { hide(); waiting.length = 0; return; }
+    if (shown?.kind === "tour") hide();
+    if (shown === undefined && last !== undefined) take(last);
+  });
   return {
-    take(reading) {
-      const found = encounters(reading);
-      // The empty-map tip is wrong once the map holds an island (an import's included): gone, shown or waiting.
-      if (!found.some(one => one.kind === "empty") && !reading.factory) {
-        waiting.splice(0, waiting.length, ...waiting.filter(one => one.kind !== "empty"));
-        if (shown?.found.kind === "empty") { shown.card.remove(); shown = undefined; }
-      }
-      const queued = (kind: Kind) => shown?.found.kind === kind || waiting.some(one => one.kind === kind);
-      waiting.push(...journal.unseen(found).filter(one => !queued(one.kind)));
-      if (shown === undefined) next();
-      else place();
-    },
+    take,
     stop() {
+      unlisten();
       opened.disconnect();
       host.ownerDocument.defaultView?.removeEventListener("resize", place);
       shown?.card.remove();
@@ -179,17 +215,21 @@ export function mountJournal(host: HTMLElement, { journal }: { journal: Journal 
     box.hidden = false;
     box.innerHTML = `<h4>${escape(card.title)}</h4><p>${escape(card.line)}</p>${depth(card)}`;
   };
+  const open = (): void => {
+    const seen = journal.seen();
+    shelf.innerHTML = `<h3>What you've learned</h3>`
+      + (seen.length === 0 ? "<p>Cards appear here as you meet each part of storytree on your map.</p>"
+        : `<ol>${seen.map(one => `<li><button type="button" data-journal-entry="${one.kind}">${escape(cardOf(one.kind).title)}</button></li>`).join("")}</ol>`)
+      // The tour, offered here to a user who has not taken it: a card explains each part of the map as it appears.
+      + (journal.tour() === "yes" ? "" : `<p><button type="button" data-tour-start>Take the tour</button></p>`)
+      + `<div data-journal-card hidden></div>`;
+    for (const entry of shelf.querySelectorAll<HTMLButtonElement>("[data-journal-entry]")) {
+      entry.addEventListener("click", () => show(entry.dataset.journalEntry as Kind));
+    }
+    shelf.querySelector("[data-tour-start]")?.addEventListener("click", () => { journal.answer("yes"); open(); });
+  };
   return {
-    open() {
-      const seen = journal.seen();
-      shelf.innerHTML = `<h3>What you've learned</h3>`
-        + (seen.length === 0 ? "<p>Cards appear here as you meet each part of storytree on your map.</p>"
-          : `<ol>${seen.map(one => `<li><button type="button" data-journal-entry="${one.kind}">${escape(cardOf(one.kind).title)}</button></li>`).join("")}</ol>`)
-        + `<div data-journal-card hidden></div>`;
-      for (const entry of shelf.querySelectorAll<HTMLButtonElement>("[data-journal-entry]")) {
-        entry.addEventListener("click", () => show(entry.dataset.journalEntry as Kind));
-      }
-    },
+    open,
     close() { shelf.replaceChildren(); },
     stop() { shelf.remove(); unstyle(); },
   };

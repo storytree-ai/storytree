@@ -416,7 +416,7 @@ test("2.28 · a territory click opens its story on that capability, and a redraw
 });
 
 test("2.29 · teaching cards hear whether the project on show is the factory, and each card is placed beside its target", async (t) => {
-  const islands = [{ story: story.id, x: 10, y: 20, visible: true }];
+  const islands = [{ story: story.id, x: 10, y: 20, visible: true, box: { left: 0, top: 10, right: 20, bottom: 30 } }, { story: "story_unboxed", x: 1, y: 2, visible: true }];
   const on = page(t, {
     projectSelection: async () => ({ projects: ["site"], current: "site", factory: { place: "factory", product: undefined } }),
     globe: () => ({ islands: () => islands, notes: () => [{ note: "note_1", x: 5, y: 6, visible: false }] }),
@@ -426,7 +426,8 @@ test("2.29 · teaching cards hear whether the project on show is the factory, an
   assert.deepEqual(on.last().teaching, [{ factory: true }]);
 
   const locate = on.last().locate!;
-  assert.deepEqual(locate({ kind: "capability", story: story.id }), { x: 10, y: 20, visible: true });
+  assert.deepEqual(locate({ kind: "capability", story: story.id }), { x: 10, y: 20, visible: true, box: { left: 0, top: 10, right: 20, bottom: 30 } }, "with its island's box, which the card keeps clear of");
+  assert.deepEqual(locate({ kind: "story", story: "story_unboxed" }), { x: 1, y: 2, visible: true }, "an island the globe gives no box for has none");
   assert.deepEqual(locate({ kind: "note", note: "note_1" }), { x: 5, y: 6, visible: false });
   assert.equal(locate({ kind: "switch" }), undefined, "no factory tab on show");
   const tab = on.document.createElement("button");

@@ -37,8 +37,8 @@ const PARTS: readonly { kind: Kind; types: readonly string[] }[] = [
 ];
 
 /**
- * Every kind on the map, in KINDS' order, with the first of it; an empty product's map is the one kind "empty". On a
- * factory, the factory itself, at the switch that brought the user there, and its parts.
+ * Every kind on the map, in KINDS' order, with the first of it (the first plan not yet finished); an empty product's map is
+ * the one kind "empty". On a factory, the factory itself, at the switch that brought the user there, and its parts.
  */
 export function encounters({ tree, changes, lines, factory = false }: MapReading): Encounter[] {
   if (!factory && tree.stories.length === 0 && tree.arcs.length === 0) return [{ kind: "empty", target: { kind: "map" } }];
@@ -46,7 +46,15 @@ export function encounters({ tree, changes, lines, factory = false }: MapReading
   if (factory) found.set("factory", { kind: "switch" });
   const parts = tree.stories.flatMap(story => story.capabilities.map(capability => ({ story: story.id, capability })));
   const part = (one: (typeof parts)[number]): Target => ({ kind: "capability", story: one.story, capability: one.capability.id });
-  const arc = tree.arcs[0];
+  // Each record as the history last left it: a retired one is gone from the map.
+  const last = new Map<string, (typeof changes)[number]>();
+  for (const change of changes) last.set(change.recordId, change);
+  const live = [...last.values()].filter(change => change.action !== "retired");
+  // A plan is done once it has work and all of it is closed, with no question of its own still open: its card would come too late.
+  const of = (arc: string, type: string) => live.filter(change => change.type === type && change.record.fields.arc === arc);
+  const finished = (arc: string) => of(arc, "increment").length > 0 && of(arc, "increment").every(change => change.record.fields.status === "closed")
+    && !of(arc, "question").some(change => change.record.fields.lifecycle === "open");
+  const arc = tree.arcs.find(one => !finished(one.id));
   if (arc !== undefined) found.set("arc", { kind: "arc", arc: arc.id });
   const story = tree.stories[0];
   if (story !== undefined) found.set("story", { kind: "story", story: story.id });
@@ -56,10 +64,6 @@ export function encounters({ tree, changes, lines, factory = false }: MapReading
   if (held !== undefined) found.set("claim", part(held));
   const built = parts.find(one => !one.capability.proposed);
   if (built !== undefined) found.set("health", part(built));
-  // Each record as the history last left it: a retired one is gone from the map.
-  const last = new Map<string, (typeof changes)[number]>();
-  for (const change of changes) last.set(change.recordId, change);
-  const live = [...last.values()].filter(change => change.action !== "retired");
   const decision = live.find(change => change.type === "decision");
   if (decision !== undefined) found.set("decision", { kind: "note", note: decision.recordId });
   if (factory) {

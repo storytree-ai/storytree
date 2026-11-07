@@ -103,7 +103,7 @@ From the checkout root:
 
 ```
 node --import tsx docs/design/capability-tree-3d/d-overlay/tools/measure.mjs        # data.json, from the library and the code
-node docs/design/capability-tree-3d/d-overlay/tools/build.mjs                       # index.html, page.js, page.css
+node docs/design/capability-tree-3d/d-overlay/tools/build.mjs                       # index.html, page.min.js, page.css
 node --import tsx docs/design/capability-tree-3d/d-overlay/tools/shots.mjs --retake # stills/
 ```
 

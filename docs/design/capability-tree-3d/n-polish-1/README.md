@@ -85,7 +85,7 @@ The same six views of the port mock as landed are `stills/before-*.png`.
 
 Run from the checkout root.
 
-1. `node docs/design/capability-tree-3d/n-polish-1/tools/build.mjs` builds `index.html`, `page.js` and `page.css` from the
+1. `node docs/design/capability-tree-3d/n-polish-1/tools/build.mjs` builds `index.html`, `page.min.js` and `page.css` from the
    real map code (packages/forest's view, on `../h-quiet-roads/data.json`).
 2. `node --import tsx docs/design/capability-tree-3d/n-polish-1/tools/shots.mjs <tag> [query]` takes the six stills as
    `stills/<tag>-*.png` (in the capture kit's scratch folder unless `--retake` is given) and writes the measures at rest to

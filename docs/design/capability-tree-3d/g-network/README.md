@@ -163,7 +163,7 @@ From the checkout root:
    arrangement, routes the network and writes `layout.json` and `measures.json` (about eight minutes; with `REUSE=1` it
    keeps `layout.json`'s arrangement and only routes and measures, in seconds).
 3. `node --import tsx docs/design/capability-tree-3d/g-network/tools/plain.mjs --retake` draws the two plain diagrams.
-4. `node docs/design/capability-tree-3d/g-network/tools/build.mjs` builds `index.html`, `page.js` and `page.css` from the
+4. `node docs/design/capability-tree-3d/g-network/tools/build.mjs` builds `index.html`, `page.min.js` and `page.css` from the
    real map code (with the territories shim). Round 9 built against the website package, which has since left the
    repository; this build reads the forest's own package instead.
 5. `node --import tsx docs/design/capability-tree-3d/g-network/tools/shots.mjs --retake` takes the styled stills in the

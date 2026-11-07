@@ -1,5 +1,5 @@
 // Where build.mjs puts the built page, and where the tools that open it serve it from. A build goes to the checkout's
-// ignored .evidence-builds/ (the capture kit's buildFolder rule), so building leaves the committed index.html, page.js and
+// ignored .evidence-builds/ (the capture kit's buildFolder rule), so building leaves the committed index.html, page.min.js and
 // page.css as they were; with --retake it rewrites the committed page itself and clears that build, so the tools serve
 // the committed page again.
 import { existsSync } from 'node:fs';

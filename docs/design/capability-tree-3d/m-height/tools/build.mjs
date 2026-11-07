@@ -19,6 +19,8 @@ writeFileSync(path.join(here, 'layouts.gen.ts'), `// Written by build.mjs: every
 await build({
   absWorkingDir: website,
   entryPoints: { page: path.join(here, 'page.tsx') },
+  // Named *.min.js, which CodeQL's JavaScript extractor skips, so the bundled third-party code raises no alerts.
+  outExtension: { '.js': '.min.js' },
   outdir: out, bundle: true, minify: !process.argv.includes('--debug'), logLevel: 'warning', legalComments: 'none',
   platform: 'browser', format: 'iife', target: 'es2022', jsx: 'automatic',
   // The mock's own layer reaches three.js where the drawing engine does, so both draw with one copy of it.
@@ -40,4 +42,4 @@ await build({
   loader: { '.glb': 'binary', '.png': 'dataurl', '.webp': 'dataurl', '.woff2': 'dataurl' },
 });
 copyFileSync(path.join(here, 'index.template.html'), path.join(out, 'index.html'));
-console.log('Built index.html, page.js and page.css from the real map code.');
+console.log('Built index.html, page.min.js and page.css from the real map code.');

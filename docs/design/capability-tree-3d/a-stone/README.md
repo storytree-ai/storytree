@@ -86,7 +86,7 @@ From the checkout root, after `pnpm install`:
 
 ```sh
 node --import tsx docs/design/capability-tree-3d/a-stone/tools/measure.mjs   # data.json, from the library and the code
-node docs/design/capability-tree-3d/a-stone/tools/build.mjs                  # index.html, page.js and page.css
+node docs/design/capability-tree-3d/a-stone/tools/build.mjs                  # index.html, page.min.js and page.css
 node --import tsx docs/design/capability-tree-3d/a-stone/tools/shots.mjs --retake   # stills/
 ```
 

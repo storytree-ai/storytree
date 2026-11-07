@@ -956,6 +956,28 @@ test("10.10 edit_plan refuses an increment's capabilities list a capability alre
   });
 });
 
+test("10.19 edit_plan takes a capability off an increment's list though one it keeps is on the list of another live session's claimed increment: only the capabilities an edit adds are checked (ADR-0949 D2)", async () => {
+  await withProject(async ({ folder, library }) => {
+    let arc = "";
+    let capability = "";
+    await withAgent(folder, claudeCode("claude-1"), async (agent) => {
+      ({ arc, capability } = await planned(agent));
+      const theirs = idOf(await agent.call("park_increment", { arc, title: "Email form", objective: "Build it", body: "Red then green" }));
+      assert.equal((await agent.call("claim", { increment: theirs, reason: "driving the email form" })).isError, false);
+      assert.equal((await agent.call("edit_plan", { id: theirs, capabilities: [capability] })).isError, false);
+    });
+    const story = ((await library.get(capability))?.fields as { story: string }).story;
+    const copy = await library.addCapability({ story, title: "Copy" });
+    const mine = await library.addIncrement({ arc, title: "Form copy", objective: "Reword it", body: "…" });
+    await library.editIncrement(mine.id, { capabilities: [capability, copy.id] });
+    await withAgent(folder, codex("codex-1"), async (agent) => {
+      const dropped = await agent.call("edit_plan", { id: mine.id, capabilities: [capability] });
+      assert.equal(dropped.isError, false, `dropping a capability adds none to check: ${dropped.text}`);
+      assert.deepEqual(((await library.get(mine.id))?.fields as { capabilities?: string[] }).capabilities, [capability]);
+    });
+  });
+});
+
 test("10.14 edit_plan lets the session holding a capability's claim list it, though a lane that backed off from that claim left it on its own claimed increment's list", async () => {
   await withProject(async ({ folder, library }) => {
     let arc = "";

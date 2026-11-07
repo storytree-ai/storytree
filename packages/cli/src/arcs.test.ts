@@ -850,6 +850,30 @@ test("4.16 `arc increment edit --capabilities` refuses a capability already on t
   });
 });
 
+test("4.31 `arc increment edit --capabilities` takes a capability off a list though one it keeps is on the list of another live session's claimed increment: only the capabilities an edit adds are checked (ADR-0949 D2)", async () => {
+  await inWorld(command, async (world) => {
+    const library = await world.library();
+    const arc = await anArc(world);
+    const story = await library.addStory({ title: "Sign up" });
+    const form = await library.addCapability({ story: story.id, title: "Form" });
+    const copy = await library.addCapability({ story: story.id, title: "Copy" });
+    const log = await openActivityLog(testServerUrl());
+    try {
+      const holder = { log, library, project: world.project, session: "holder", harness: "claude-code" } as const;
+      const theirs = await library.addIncrement({ arc, title: "Email form", objective: "Build it", body: "…", capabilities: [form.id] } as never);
+      assert.equal((await claim(holder, theirs.id, "driving the email form")).ok, true);
+      const mine = await library.addIncrement({ arc, title: "Form copy", objective: "Reword it", body: "…" });
+      await library.editIncrement(mine.id, { capabilities: [form.id, copy.id] });
+
+      const edited = await world.run(["arc", "increment", "edit", mine.id, "--capabilities", form.id], { CLAUDE_CODE_SESSION_ID: "caller" });
+      assert.equal(edited.code, 0, `${edited.stdout}${edited.stderr}: dropping a capability adds none to check`);
+      assert.deepEqual(((await library.get(mine.id))?.fields as { capabilities?: string[] }).capabilities, [form.id]);
+    } finally {
+      await log.close();
+    }
+  });
+});
+
 test("4.24 `arc increment edit --capabilities` lets the session holding a capability's claim list it, though a lane that backed off from that claim left it on its own claimed increment's list", async () => {
   await inWorld(command, async (world) => {
     const library = await world.library();

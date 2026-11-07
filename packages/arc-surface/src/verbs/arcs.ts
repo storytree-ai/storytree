@@ -529,22 +529,23 @@ const incrementEdit = verb({
       const had = ((await library.get(id))?.fields as { remedies?: string[] } | undefined)?.remedies ?? [];
       fields.remedies = [...new Set([...had, ...(fields.remedies as string[])])];
     }
-    if (fields.capabilities !== undefined) await refuseShared(id, fields.capabilities as string[], context);
     const had = fields.capabilities === undefined ? [] : ((await library.get(id))?.fields as { capabilities?: string[] } | undefined)?.capabilities ?? [];
+    // Only what the edit adds is checked: a capability it keeps was checked when it was listed, so taking one off never refuses.
+    const added = ((fields.capabilities as string[] | undefined) ?? []).filter((capability) => !had.includes(capability));
+    await refuseShared(id, added, context);
     const edited = await library.editIncrement(id, fields as never, context.writer);
     if (edited === null) throw new VerbRefusal(`no increment "${id}" in this project`);
     // Told, not refused, of another open increment already listing a capability it newly lists: a lane that backed off
     // keeps the shared one on its list while it waits on the claim (ADR-1228), so an edit cannot refuse it.
-    const added = ((fields.capabilities as string[] | undefined) ?? []).filter((capability) => !had.includes(capability));
     const shared = await library.openListing(added, id);
     return { text: [`Edited increment ${id}.`, ...shared.map((other) => `${listedSaid(other)}.`)].join("\n") };
   },
 });
 
 /**
- * Refuses `capabilities` as `target`'s list when one is on the list of an increment another live session holds: two
- * sessions never plan changes to the same capability (ADR-0949 D2), as edit_plan refuses. An entry whose capability
- * another session's live claim holds is left behind by a lane that backed off from it (ADR-0944 D3), and refuses nothing.
+ * Refuses `capabilities`, the ones an edit adds to `target`'s list, when one is on the list of an increment another
+ * live session holds: two sessions never plan changes to the same capability (ADR-0949 D2), as edit_plan refuses. An
+ * entry whose capability another session's live claim holds is left behind by a lane that backed off from it (ADR-0944 D3), and refuses nothing.
  */
 async function refuseShared(target: string, capabilities: readonly string[], context: ArcVerbContext): Promise<void> {
   const { readClaims } = await import("@storytree/session-management");

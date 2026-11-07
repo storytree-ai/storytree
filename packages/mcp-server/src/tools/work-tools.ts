@@ -359,12 +359,14 @@ export interface IncrementChanges {
 
 /**
  * The library fields edit_plan writes for `target` increment's own `changes`, or why it refuses them: a capabilities
- * list another live session's increment already names (sharedCapability), or a machine Machines does not know. "none"
+ * list adding one another live session's increment already names (sharedCapability), or a machine Machines does not know. "none"
  * clears its machine or escape: the library removes a field given as undefined (ADR-0963 D3).
  */
 export async function incrementFields(target: string, { capabilities, machine, escape }: IncrementChanges, call: Call): Promise<{ fields: Record<string, unknown> } | { refused: Answer }> {
   if (capabilities !== undefined) {
-    const shared = await sharedCapability(target, capabilities, call);
+    // Only what the edit adds is checked: a capability it keeps was checked when it was listed, so taking one off never refuses.
+    const had = ((await call.library.get(target))?.fields as { capabilities?: string[] } | undefined)?.capabilities ?? [];
+    const shared = await sharedCapability(target, capabilities.filter((capability) => !had.includes(capability)), call);
     if (shared !== undefined) return { refused: { text: shared, refused: true } };
   }
   const named = machine === undefined ? undefined : await machineChecked(call.storytree, machine);
@@ -379,8 +381,9 @@ export async function incrementFields(target: string, { capabilities, machine, e
 }
 
 /**
- * Why `capabilities` may not be `target`'s list: one of them is on the list of an increment another
- * live session holds, since two sessions never plan changes to the same capability (ADR-0949 D2).
+ * Why `capabilities`, the ones an edit adds, may not be on `target`'s list: one of them is on the list
+ * of an increment another live session holds, since two sessions never plan changes to the same
+ * capability (ADR-0949 D2).
  * An entry whose capability another session's live claim holds is left behind by a lane that backed
  * off from it (ADR-0944 D3), and refuses nothing.
  */

@@ -194,8 +194,15 @@ export interface ListFilter {
   readonly not?: Readonly<Record<string, string | number | boolean | null>>;
   /** Keep the first this many matches, in id order. */
   readonly limit?: number;
-  /** Keep only these top-level fields on this version. Other versions stay whole for upgrade or refusal. */
-  readonly projection?: { readonly version: number; readonly fields: readonly string[] };
+  /**
+   * Keep only these top-level fields on this version, and on each version `older` names, its own
+   * fields. Other versions stay whole for upgrade or refusal.
+   */
+  readonly projection?: {
+    readonly version: number;
+    readonly fields: readonly string[];
+    readonly older?: readonly { readonly version: number; readonly fields: readonly string[] }[];
+  };
 }
 
 /** A project's records. These nine verbs are the only data actions the library allows. */

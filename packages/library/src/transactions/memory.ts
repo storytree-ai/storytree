@@ -4,7 +4,7 @@
  */
 import { AsyncLocalStorage } from "node:async_hooks";
 
-import { check, fieldAt, listFilter, pickFields, editedRecord, historyEntry, historyFilter, jsonCopy, now, numbered, outsideReadOf, revertedRecord, revertInput, revertReason, savedRecord, writesReverted, writtenBy } from "./records.js";
+import { check, fieldAt, listFilter, pickFields, projectedFields, editedRecord, historyEntry, historyFilter, jsonCopy, now, numbered, outsideReadOf, revertedRecord, revertInput, revertReason, savedRecord, writesReverted, writtenBy } from "./records.js";
 import type {
   EditInput,
   HistoryEntry,
@@ -68,8 +68,10 @@ export class MemoryTransactions implements Transactions {
         && Object.entries(filter.not ?? {}).every(([path, value]) => fieldAt(record.fields, path) !== value))
       .sort((a, b) => compareIds(a.id, b.id))
       .slice(0, filter.limit)
-      .map((record) => jsonCopy(filter.projection?.version === record.version
-        ? { ...record, fields: pickFields(record.fields, filter.projection.fields) } : record));
+      .map((record) => {
+        const kept = projectedFields(filter.projection, record.version);
+        return jsonCopy(kept === undefined ? record : { ...record, fields: pickFields(record.fields, kept) });
+      });
   }
 
   async edit(input: EditInput): Promise<RecordEnvelope | null> {

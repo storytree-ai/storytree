@@ -903,6 +903,12 @@ export interface UpgradeStep {
   readonly from: number;
   /** A short, stable name for the change, for the error that says a step is missing. */
   readonly name: string;
+  /**
+   * Every stored field `up` reads to work out what it returns; a field it only passes on as it is
+   * is not one. A projected read keeps these beside the fields it selects, so the step sees all it
+   * needs. With none named, a projected read keeps a record on this step's version, or older, whole.
+   */
+  readonly reads?: readonly string[];
   up(fields: Record<string, unknown>): Record<string, unknown>;
 }
 

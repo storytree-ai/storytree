@@ -1,12 +1,14 @@
 import assert from "node:assert/strict";
+import { existsSync } from "node:fs";
 import { mkdir, mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { DatabaseSync } from "node:sqlite";
 import { test } from "node:test";
 
 import { removeTemp } from "@storytree/test-waits";
 
-import { withCountedProject } from "../testing/pg.js";
+import { dropTestDatabases, testServerUrl, uniqueProjectName, withCountedProject } from "../testing/pg.js";
 import type { Project } from "./index.js";
 import { connect } from "./storytree.js";
 
@@ -115,6 +117,23 @@ test("1.33 · a cached read inside inOneWrite sees that write's own changes, and
     });
   });
   await withCacheFolder(async (file) => {
+    await withCountedProject(async (project) => {
+      await seed(project, 2);
+      const { again, close } = await reopen(project, file);
+      try {
+        await again.transactions.list("note");
+        // The copy breaks after it was filled: its records' table is gone.
+        const broken = new DatabaseSync(file);
+        broken.exec("DROP TABLE record_v1");
+        broken.close();
+        assert.deepEqual(await again.transactions.get("note_0001"), await project.transactions.get("note_0001"));
+        assert.deepEqual(await again.transactions.list("note"), await project.transactions.list("note"));
+      } finally {
+        await close();
+      }
+    });
+  });
+  await withCacheFolder(async (file) => {
     await mkdir(file, { recursive: true }); // a folder where the cache's file would be: it cannot be opened
     await withCountedProject(async (project) => {
       await seed(project, 2);
@@ -127,4 +146,37 @@ test("1.33 · a cached read inside inOneWrite sees that write's own changes, and
       }
     });
   });
+});
+
+test("1.31 · by default a shared library keeps the copy in the storytree home, and a throwaway one, or one under a test run, keeps none", async () => {
+  const home = await mkdtemp(path.join(tmpdir(), "storytree-home-"));
+  const saved = { home: process.env.STORYTREE_HOME, test: process.env.STORYTREE_TEST_PG_URL };
+  const url = testServerUrl();
+  const name = uniqueProjectName();
+  const file = path.join(home, "records.sqlite");
+  const readOnce = async (seams: { sharedLibrary?: boolean }) => {
+    const server = await connect({ url }, { ...seams, schemaMerged: () => ({ merged: true }) });
+    try {
+      await (await server.openProject(name)).transactions.list("note");
+    } finally {
+      await server.close();
+    }
+  };
+  try {
+    process.env.STORYTREE_HOME = home;
+    await readOnce({});
+    assert.equal(existsSync(file), false, "a throwaway library kept a copy");
+    await readOnce({ sharedLibrary: true });
+    assert.equal(existsSync(file), false, "a shared library under a test run kept a copy");
+    delete process.env.STORYTREE_TEST_PG_URL;
+    await readOnce({ sharedLibrary: true });
+    assert.equal(existsSync(file), true, "a shared library kept no copy in the storytree home");
+  } finally {
+    for (const [key, value] of [["STORYTREE_HOME", saved.home], ["STORYTREE_TEST_PG_URL", saved.test]] as const) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+    await dropTestDatabases([`storytree_${name}`]);
+    await removeTemp(home);
+  }
 });

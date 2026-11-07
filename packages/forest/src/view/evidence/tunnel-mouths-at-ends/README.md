@@ -34,3 +34,5 @@ road). `*-measurements.json` hold the counts and times.
 
 Taken with `node --import tsx packages/forest/testing/view/tunnel-depth/capture.mjs --links <…> --prefix after-hub`, and
 on a checkout of main with the same script, `--prefix before-hub` and `--at <this branch's after-hub-measurements.json>`.
+
+In the evidence bucket for #602, linked from the pull request body (ADR-1234; deleted after 90 days or when its arc closes): `602/before-hub-tunnel-1.png`, `602/after-hub-tunnel-1.png`, `602/before-hub-tunnel-1-end-1.png`, `602/after-hub-tunnel-1-end-1.png`, `602/before-hub-tunnel-1-end-2.png`, `602/after-hub-tunnel-1-end-2.png`, `602/before-hub-measurements.json`, `602/after-hub-measurements.json`.

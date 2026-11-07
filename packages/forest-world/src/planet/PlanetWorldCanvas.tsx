@@ -215,6 +215,9 @@ function useRoadsWhenRouted(scene: ForestScene, spots: ReadonlyMap<string, Plane
  * before the page runs and is handed the canvas's live state getter. Nothing in the product sets it. */
 const CAPTURE_SEAM = '__storytreeCaptureGlobe';
 
+/** How long the canvas's first size waits before it makes the root: the root's own watch's wait (its scroll debounce). */
+const FIRST_SIZE_WAIT_MS = 50;
+
 /**
  * 4.43: the root's watch on its frame's size, which takes a new size in the browser's own resize step, between laying the page
  * out and painting it, and draws the map at it there: the frame the sidebar hides, shows or is dragged on is painted with the
@@ -223,8 +226,16 @@ const CAPTURE_SEAM = '__storytreeCaptureGlobe';
 function drawnOnResize(state: () => RootState | undefined): typeof ResizeObserver {
   return class extends ResizeObserver {
     constructor(seen: ResizeObserverCallback) {
+      let first: ReturnType<typeof setTimeout> | undefined;
       super((entries, observer) => {
         const before = state()?.size;
+        // The first size makes the root, with nothing drawn yet to keep: it waits the root's own 50 ms, so the map's mount
+        // follows a fresh start's first tree rather than holding it back (3.49: about 60 ms on the large seed at #522).
+        if (before === undefined) {
+          clearTimeout(first);
+          first = setTimeout(() => seen(entries, observer), FIRST_SIZE_WAIT_MS);
+          return;
+        }
         // The Canvas takes the size and its root resizes the canvas, then the root's own components see it, and the DOM over
         // the canvas, which drei's Html renders through roots of its own, follows in the same pass.
         flushSync(() => seen(entries, observer));

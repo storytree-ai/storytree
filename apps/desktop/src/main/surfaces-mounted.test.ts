@@ -71,6 +71,8 @@ test("3.1, 3.4–3.6 the open overlay reads the app's database, retries a failed
     await waitUntil(() => state?.status === "error", 10_000, "the board to show the failed read");
     assert.match(state?.error ?? "", /read unavailable/);
     fail = false;
+    // The page's first start reads its bounded start before it asks every two seconds.
+    await waitUntil(() => ticks.has(2_000), 10_000, "the page reading to start asking");
     ticks.get(2_000)!();
     await waitUntil(() => state?.status === "ready", 10_000, "the board to be ready");
     const history = await library.history();

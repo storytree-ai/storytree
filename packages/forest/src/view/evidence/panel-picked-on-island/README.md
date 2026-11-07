@@ -19,3 +19,5 @@ Pictures, 1440 x 960:
 
 Taken with `node --import tsx packages/forest/testing/view/panel-picked-on-island/capture.mjs --retake`, which asserts that the
 panel holds no tree and shows the capability the island ringed, and writes what it found into `measurements.json`.
+
+In the evidence bucket for #604, linked from the pull request body (ADR-1234; deleted after 90 days or when its arc closes): `604/before-capability-panel.png`, `604/capability-picked-on-island.png`, `604/capability-picked-on-island-panel.png`, `604/gate-picked-on-island-panel.png`.

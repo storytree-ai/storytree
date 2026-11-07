@@ -387,7 +387,7 @@ test("10.14 each `storytree contract` command refuses a flag it does not read, e
   });
 });
 
-test("10.15 the plan view reads edges (ADR-1282 D1): `storytree tree` lists each story's edges with their contracts, `contract list` of a story lists its edges' contracts under their edge, and `contract show` of an edge's contract names its edge, from › to", async () => {
+test("10.15 the plan view reads edges (ADR-1282 D1): `storytree tree` lists each story's edges with their contracts, `contract list` of a story lists its edges' contracts under their edge, and `contract show` of an edge's contract names its edge, from › to, or its id alone once the edge is retired", async () => {
   await inWorld(command, async (world) => {
     const library = await world.library();
     const story = await library.addStory({ title: "Visitor can sign up" });
@@ -410,11 +410,17 @@ test("10.15 the plan view reads edges (ADR-1282 D1): `storytree tree` lists each
     const row = rows.indexOf(`edge: 5 · Welcome page › 4 · Email form  [${edge.id}]`);
     assert.ok(row >= 0, listed.stdout);
     assert.match(rows[row + 1]!, new RegExp(`^  - Takes the address the form sent  \\[${contract.id}\\]  agent says passing`), listed.stdout);
+    assert.ok(!listed.stdout.includes("No contracts yet."), listed.stdout);
 
     const shown = await world.run(["contract", "show", contract.id]);
     assert.equal(shown.code, 0, shown.stderr);
     const said = shown.stdout.split(/\r?\n/);
     assert.equal(said[1], `edge: 5 · Welcome page › 4 · Email form  [${edge.id}]`, shown.stdout);
     assert.ok(!shown.stdout.includes("capability:"), shown.stdout);
+
+    await library.retire(edge.id, "the page reads the address another way");
+    const orphaned = await world.run(["contract", "show", contract.id]);
+    assert.equal(orphaned.code, 0, orphaned.stderr);
+    assert.equal(orphaned.stdout.split(/\r?\n/)[1], `edge: [${edge.id}]`, orphaned.stdout);
   });
 });

@@ -17,7 +17,7 @@ import { Refusal } from "../answer.js";
 import type { Args } from "../args.js";
 import type { Family, Verb } from "../door.js";
 import { commandSession, person } from "../writer.js";
-import { capabilityTitles, edgeContracts, edgeLabel, healthOf } from "./tree.js";
+import { edgeContracts, edgeLabel, healthOf, storyEdgeLabel } from "./tree.js";
 
 const list: Verb = {
   name: "list",
@@ -34,7 +34,7 @@ const list: Verb = {
       throw new Refusal(`no story or capability "${named}" in this project`, { next: [{ command: "storytree tree", why: "every story and capability" }] });
     }
     const edges = await Promise.all(
-      plan.stories.filter(matches).flatMap((story) => (story.edges ?? []).map(async (edge) => ({ head: edgeLabel(edge, capabilityTitles(story)), contracts: await edgeContracts(library, edge) }))),
+      plan.stories.filter(matches).flatMap((story) => (story.edges ?? []).map(async (edge) => ({ head: storyEdgeLabel(story, edge), contracts: await edgeContracts(library, edge) }))),
     );
     const line = (contract: { title: string; id: string; health: NodeHealth }): string => `  - ${contract.title}  [${contract.id}]  ${healthOf(contract.health, plan.unverified === true)}`;
     const lines = [
@@ -77,8 +77,9 @@ const show: Verb = {
     async function edgeOf(edge: string): Promise<string> {
       const ends = (await library.get(edge))?.fields as { from: string; to: string } | undefined;
       if (ends === undefined) return `edge: [${edge}]`;
+      // A live edge's ends are live: the library refuses to retire a capability an edge depends on.
       const [from, to] = await Promise.all([titleOf(ends.from), titleOf(ends.to)]);
-      return edgeLabel({ id: edge, ...ends }, (part) => (part === ends.from ? from : to));
+      return edgeLabel(edge, from!, to!);
     }
   },
 };

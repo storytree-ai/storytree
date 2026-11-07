@@ -24,8 +24,8 @@ export function healthOf(health: NodeHealth, unverified: boolean): string {
 }
 
 /** An edge as the plan view names it: the dependent capability's title › the one it depends on, then its id. */
-export function edgeLabel(edge: Pick<EdgeNode, "id" | "from" | "to">, titleOf: (id: string) => string | undefined): string {
-  return `edge: ${titleOf(edge.from) ?? edge.from} › ${titleOf(edge.to) ?? edge.to}  [${edge.id}]`;
+export function edgeLabel(id: string, from: string, to: string): string {
+  return `edge: ${from} › ${to}  [${id}]`;
 }
 
 /** An edge's contracts with each one's health, which the annotated tree adds only to capabilities' contracts. */
@@ -36,10 +36,10 @@ export async function edgeContracts(
   return Promise.all(edge.contracts.map(async (contract) => ({ id: contract.id, title: contract.title, health: await library.health(contract.id) })));
 }
 
-/** A story's capability titles by id, for naming its edges' ends. */
-export function capabilityTitles(story: { readonly capabilities: readonly { readonly id: string; readonly title: string }[] }): (id: string) => string | undefined {
-  const titles = new Map(story.capabilities.map((capability) => [capability.id, capability.title]));
-  return (id) => titles.get(id);
+/** A story's edge as the plan view names it: the projectTree gives only edges whose two ends are its live capabilities. */
+export function storyEdgeLabel(story: { readonly capabilities: readonly { readonly id: string; readonly title: string }[] }, edge: Pick<EdgeNode, "id" | "from" | "to">): string {
+  const title = (id: string): string => story.capabilities.find((capability) => capability.id === id)!.title;
+  return edgeLabel(edge.id, title(edge.from), title(edge.to));
 }
 
 /** A claim as the tree marks it: its own copy of the fields it reads (ADR-1017 D2). */
@@ -86,7 +86,7 @@ const view: Verb = {
         }
       });
       for (const edge of story.edges ?? []) {
-        lines.push(`  ${edgeLabel(edge, capabilityTitles(story))}`);
+        lines.push(`  ${storyEdgeLabel(story, edge)}`);
         for (const contract of await edgeContracts(library, edge)) lines.push(`      - ${contract.title}  [${contract.id}]  ${healthOf(contract.health, unverified)}`);
       }
     }

@@ -95,10 +95,12 @@ export async function cloudSecrets(file, read = (path) => readFile(path, "utf8")
  * fired lanes. `live(found)` judges them against a survey and names the live ones' increments, which the box never starts
  * meanwhile; `wants()` says whether a fire could happen now (switched on, under the cap, past any back-off), so a saturated
  * box surveys for it only then; `overflow(found, …)` fires for the pool's eligible picks up to the cap, each fire at most once
- * per increment (a cloud lane that failed leaves its increment to the box). A fire error leaves the increment ready, is said
- * once until a fire succeeds, and holds every fire until its Retry-After or FIRE_BACKOFF_MS.
+ * per increment (a cloud lane that failed leaves its increment to the box), each pick's body read by `body` only once it is
+ * a candidate (the survey carries none, 2.32). A fire error leaves the increment ready, is said
+ * once until a fire succeeds, and holds every fire until its Retry-After or FIRE_BACKOFF_MS. `watching()` names the increments
+ * of the lanes not yet landed or failed, which a survey reads whatever their status, so each lane is judged by how it closed.
  */
-export function cloudOverflow({ config, secrets, file, fire = fireCloud, now = Date.now, say,
+export function cloudOverflow({ config, secrets, file, fire = fireCloud, now = Date.now, say, body = async (one) => one.body ?? "",
   read = (path) => readFile(path, "utf8"), write = (path, text) => writeFile(path, text) }) {
   const at = (ms) => new Date(ms).toISOString();
   let ledger, until = 0, said = new Set(), counted;
@@ -120,6 +122,7 @@ export function cloudOverflow({ config, secrets, file, fire = fireCloud, now = D
   };
   return {
     live,
+    watching: async () => (await load()).lanes.filter((lane) => lane.state !== "landed" && lane.state !== "failed").map((lane) => lane.increment),
     wants: async () => config.enabled === true && now() >= until && (await load(), liveOnes().length < config.cap),
     overflow: async (found, { attempts, running = [] } = {}) => {
       if (!config.enabled) return;
@@ -131,7 +134,14 @@ export function cloudOverflow({ config, secrets, file, fire = fireCloud, now = D
       if (!trigger || !token) { once("cloud overflow is switched on but has no trigger or token (CLOUD_TRIGGER_TOKEN in secrets.json): firing nothing"); return; }
       const fired = new Set(ledger.lanes.map((lane) => lane.increment));
       const { picks } = pickPool(found, { attempts, running: [...running, ...flying], max: Infinity, now: now() });
-      for (const one of picks.filter((pick) => !fired.has(pick.id) && !whyNotCloud(pick)).slice(0, room)) {
+      let sent = 0;
+      for (const pick of picks.filter((one) => !fired.has(one.id))) {
+        if (sent >= room) break;
+        let one;
+        try { one = { ...pick, body: await body(pick) }; }
+        catch (error) { once(`body unread: ${pick.id}`, `cloud overflow skipped ${pick.id}: its body is unread (${String(error.message).split("\n")[0]})`); continue; }
+        if (whyNotCloud(one)) continue;
+        sent += 1;
         try {
           const { session, url } = await fire({ trigger, token, text: one.id });
           ledger.lanes.push({ increment: one.id, session, url, at: at(now()), state: "live" });

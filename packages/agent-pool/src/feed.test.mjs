@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { blind, LANE_FAILURES, laneFailures, main, noteLaneFailure, pickPlan, pickPool, planState, readOnly, readSurvey, reoffer, surveyProjects } from "./feed.mjs";
+import { blind, LANE_FAILURES, laneFailures, main, noteLaneFailure, pickPlan, pickPool, planState, readBody, readOnly, readSurvey, reoffer, surveyProjects } from "./feed.mjs";
 
 const now = Date.parse("2026-10-07T03:00:00Z");
 
@@ -14,18 +14,23 @@ function survey(increments, extra = {}) {
 
 test("2.2 · the survey reads arcs and holds once, with every increment's arc, capabilities list, machine field, how a closed one closed, the arc's state, this machine's name, the standing claims and the refusals under every open increment on an active arc, whoever holds the capability now", async () => {
   let reads = 0;
-  const record = (id, arc, body, extra = {}) => ({ id, createdAt: new Date(now), fields: { arc, title: id, body, status: "proposal", parked: "2026-10-06T00:00:00Z", waits: [], ...extra } });
+  const asks = [];
+  const record = (id, arc, extra = {}) => ({ id, createdAt: new Date(now), fields: { arc, title: id, status: "proposal", parked: "2026-10-06T00:00:00Z", waits: [], ...extra } });
   const library = {
-    arcViews: async () => {
+    workSurvey: async (_at, options) => {
       reads++;
-      return [
-        { arc: { id: "arc_laptop", createdAt: new Date(now) }, state: "active", questions: [{ fields: { lifecycle: "open" } }, { fields: { lifecycle: "settled" } }], increments: [record("i1", "arc_laptop", "a"), record("i2", "arc_laptop", "b", { capabilities: ["capability_x"] })] },
-        { arc: { id: "arc_cap" }, state: "active", increments: [record("i3", "arc_cap", "c", { capabilities: ["capability_x"] })] },
-        { arc: { id: "arc_box" }, state: "parked", increments: [record("i4", "arc_box", "d", { status: "closed", outcome: { date: "2026-10-07", disposition: "landed" } })] },
-        { arc: { id: "arc_stale" }, state: "active", increments: [record("i5", "arc_stale", "e", { machine: "laptop" })] },
-      ];
+      asks.push(options);
+      return {
+        arcs: [
+          { id: "arc_laptop", createdAt: new Date(now), state: "active", openQuestions: 1 }, { id: "arc_cap", state: "active", openQuestions: 0 },
+          { id: "arc_box", state: "parked", openQuestions: 0 }, { id: "arc_stale", state: "active", openQuestions: 0 },
+        ],
+        // i4 closed, as the survey gives one it was asked to follow.
+        increments: [record("i3", "arc_cap", { capabilities: ["capability_x"] }), record("i1", "arc_laptop"), record("i2", "arc_laptop", { capabilities: ["capability_x"] }),
+          record("i4", "arc_box", { status: "closed", outcome: { date: "2026-10-07", disposition: "landed" } }), record("i5", "arc_stale", { machine: "laptop" })],
+        holds: () => ({ waits: { i1: [{ on: "z", reason: "r" }] }, heldOn: {} }),
+      };
     },
-    holds: async () => ({ waits: { i1: [{ on: "z", reason: "r" }] }, heldOn: {} }),
   };
   const claims = [{ increment: "i1", session: "laptop", holder: "live", since: "2026-10-07T02:30:00Z" }, { capability: "capability_y", session: "quiet", holder: "gone", since: "2026-10-07T02:30:00Z" },
     { increment: "i3", session: "desk", holder: "live", since: "2026-10-07T02:30:00Z" }, { capability: "capability_z", session: "laptop", holder: "live", since: "2026-10-07T02:30:00Z" }];
@@ -35,16 +40,20 @@ test("2.2 · the survey reads arcs and holds once, with every increment's arc, c
   assert.deepEqual(asked, [["i1", "i2", "i3", "i5"]], "refusals are read once, under every open increment on an active arc, a capability nobody holds included (ADR-1079 D1)");
   assert.equal(read.refusals, refused);
   assert.equal(reads, 1);
-  assert.deepEqual(read.increments.map((one) => [one.id, one.arc, one.arcState, one.body]), [
-    ["i1", "arc_laptop", "active", "a"], ["i2", "arc_laptop", "active", "b"], ["i3", "arc_cap", "active", "c"], ["i4", "arc_box", "parked", "d"], ["i5", "arc_stale", "active", "e"]]);
+  assert.deepEqual(asks, [{ also: [], closedTitles: false }], "by default no closed increment is followed and no closed arc's title read");
+  await readSurvey({ library, claims: async () => claims, also: ["i4"], closedTitles: true });
+  assert.deepEqual(asks[1], { also: ["i4"], closedTitles: true }, "both asked for are passed on");
+  assert.deepEqual(read.increments.map((one) => [one.id, one.arc, one.arcState]), [
+    ["i1", "arc_laptop", "active"], ["i2", "arc_laptop", "active"], ["i3", "arc_cap", "active"], ["i4", "arc_box", "parked"], ["i5", "arc_stale", "active"]], "by arc, oldest arc first");
   assert.deepEqual(read.increments.map((one) => one.capabilities), [[], ["capability_x"], ["capability_x"], [], []], "with each one's capabilities list");
   assert.deepEqual(read.increments.map((one) => one.machine), [undefined, undefined, undefined, undefined, "laptop"], "with each one's machine field");
   assert.deepEqual(read.increments.map((one) => one.disposition), [undefined, undefined, undefined, "landed", undefined], "with how a closed one closed");
   assert.equal(read.here, "box", "and this machine's name");
   assert.deepEqual(read.holds.waits.i1, [{ on: "z", reason: "r" }]);
   assert.deepEqual(read.arcs.map((arc) => [arc.id, arc.state, arc.openQuestions]), [["arc_laptop", "active", 1], ["arc_cap", "active", 0], ["arc_box", "parked", 0], ["arc_stale", "active", 0]]);
+  assert.deepEqual(read.arcs.map((arc) => arc.title), ["arc_laptop", "arc_cap", "arc_box", "arc_stale"], "an arc whose title was not read is named by its id");
   assert.equal(read.claims, claims);
-  const parked = { ...library, arcViews: async () => [{ arc: { id: "arc_box" }, state: "parked", increments: [record("i4", "arc_box", "d")] }] };
+  const parked = { workSurvey: async () => ({ arcs: [{ id: "arc_box", state: "parked", openQuestions: 0 }], increments: [record("i4", "arc_box")], holds: () => ({ waits: {}, heldOn: {} }) }) };
   assert.deepEqual((await readSurvey({ library: parked, claims: async () => claims, refusals: async () => assert.fail("no open increment on an active arc, no read") })).refusals, []);
 });
 
@@ -114,11 +123,11 @@ test("2.10 · the pool takes ready work by its arc's priority, then by when it w
 
   const record = (id, arc) => ({ id, createdAt: new Date(now), fields: { arc, title: id, status: "proposal", waits: [] } });
   const library = {
-    arcViews: async () => [
-      { arc: { id: "arc_r", fields: { priority: 3 } }, state: "active", increments: [record("r1", "arc_r")] },
-      { arc: { id: "arc_u", fields: {} }, state: "active", increments: [record("u1", "arc_u")] },
-    ],
-    holds: async () => ({ waits: {}, heldOn: {} }),
+    workSurvey: async () => ({
+      arcs: [{ id: "arc_r", state: "active", priority: 3, openQuestions: 0 }, { id: "arc_u", state: "active", openQuestions: 0 }],
+      increments: [record("r1", "arc_r"), record("u1", "arc_u")],
+      holds: () => ({ waits: {}, heldOn: {} }),
+    }),
   };
   const read = await readSurvey({ library, claims: async () => [] });
   assert.deepEqual(read.increments.map((one) => one.priority), [3, undefined], "the survey carries each increment's arc priority");
@@ -219,7 +228,7 @@ test("2.22 · an arc whose own wait holds is not offered for planning; one whose
 });
 
 test("2.26 · an arc made in the last half hour is left to the session that made it, and offered for planning after (arc_c331455caee0 planned twice on 2026-10-19, arc_2916ca6c651b 40 seconds after it was made on 2026-10-21)", async () => {
-  const library = (createdAt) => ({ arcViews: async () => [{ arc: { id: "arc_new", createdAt, fields: { title: "New" } }, state: "active", questions: [], increments: [] }], holds: async () => ({ waits: {}, heldOn: {} }) });
+  const library = (createdAt) => ({ workSurvey: async () => ({ arcs: [{ id: "arc_new", createdAt, state: "active", title: "New", openQuestions: 0 }], increments: [], holds: () => ({ waits: {}, heldOn: {} }) }) });
   const work = await readSurvey({ library: library("2026-10-07T02:45:00.000Z"), claims: async () => [] });
   assert.equal(pickPlan(work, { now }), undefined, "fifteen minutes old, its time read as the library stores it: its author may still be parking its work");
   assert.equal(pickPlan(work, { now: now + 15 * 60_000 })?.id, "arc_new", "thirty minutes old: planning takes it");
@@ -375,10 +384,9 @@ test("2.27 · work whose lanes failed three times is no longer offered, whatever
   assert.match(skipped[0].why, /^its lanes failed 3 times \(2026-10-01T00:00:00Z, 2026-10-02T00:00:00Z, 2026-10-03T00:00:00Z\): the pool offers it no more/);
 
   const library = {
-    arcViews: async () => [{ arc: { id: "arc_a" }, state: "active", increments: [
+    workSurvey: async () => ({ arcs: [{ id: "arc_a", state: "active", openQuestions: 0 }], increments: [
       { id: "i1", fields: { arc: "arc_a", title: "i1", status: "proposal", parked: "2026-10-06T00:00:00Z" } },
-      { id: "i2", fields: { arc: "arc_a", title: "i2", status: "closed", parked: "2026-10-06T00:00:00Z" } }] }],
-    holds: async () => ({ waits: {}, heldOn: {} }),
+      { id: "i2", fields: { arc: "arc_a", title: "i2", status: "closed", parked: "2026-10-06T00:00:00Z" } }], holds: () => ({ waits: {}, heldOn: {} }) }),
   };
   const asked = [];
   const read = await readSurvey({ library, claims: async () => [], failures: async (under) => (asked.push(under), failed("i1", 3)) });
@@ -422,8 +430,8 @@ test("2.28 · one lane-reoffered line offers a tripped increment to the pool aga
   for (let n = 0; n < LANE_FAILURES; n += 1) await fail("increment_abc");
   await fail("increment_other");
   const work = async () => pickPool(await readSurvey({ library: {
-    arcViews: async () => [{ arc: { id: "arc_a" }, state: "active", increments: ["increment_abc", "increment_other"].map((id) => ({ id, fields: { arc: "arc_a", title: id, status: "proposal", parked: "2026-10-06T00:00:00Z" } })) }],
-    holds: async () => ({ waits: {}, heldOn: {} }) }, claims: async () => [], failures: laneFailures(log, project) }), { max: 2, now });
+    workSurvey: async () => ({ arcs: [{ id: "arc_a", state: "active", openQuestions: 0 }], increments: ["increment_abc", "increment_other"].map((id) => ({ id, fields: { arc: "arc_a", title: id, status: "proposal", parked: "2026-10-06T00:00:00Z" } })),
+      holds: () => ({ waits: {}, heldOn: {} }) }) }, claims: async () => [], failures: laneFailures(log, project) }), { max: 2, now });
   assert.deepEqual((await work()).picks.map((one) => one.id), ["increment_other"], "tripped, it is not offered");
   assert.match((await work()).skipped[0].why, /feed\.mjs reoffer increment_abc --reason/, "the skip names the verb");
 
@@ -523,5 +531,46 @@ test("2.31 · work that waits only on a released claim is ready at the next surv
   } finally {
     await storytree.close();
     await dropTestDatabases([`storytree_${name}`]);
+  }
+});
+
+test("2.32 · the survey reads no body: what it takes from the library does not grow with the increments' bodies or the closed work, and a picked increment's body is read by id", async () => {
+  const { connect } = await import("@storytree/library");
+  const { dropTestDatabases, testServerUrl, uniqueProjectName } = await import("@storytree/library/testing/pg");
+  const { countingStore } = await import("@storytree/project-and-caller/testing/egress");
+  const store = await countingStore();
+  const counted = new URL(testServerUrl());
+  counted.hostname = "127.0.0.1";
+  counted.port = String(store.port);
+  const names = [];
+  const storytree = await connect({ url: counted.href });
+  try {
+    const taken = {};
+    for (const [label, closed, size] of [["small", 2, 10], ["large", 60, 4000]]) {
+      const name = uniqueProjectName();
+      names.push(name);
+      const library = await storytree.openProject(name);
+      const work = await library.createArc({ title: "Work", intent: "An intent", endState: "An end state" });
+      const done = await library.createArc({ title: "Done", intent: "An intent", endState: "An end state" });
+      const empty = await library.createArc({ title: "Empty", intent: "An intent", endState: "An end state" });
+      for (let n = 0; n < closed; n++) {
+        await library.addIncrement({ arc: n % 2 ? work.id : done.id, title: `Done ${n}`, objective: "Done", body: "x".repeat(size), outcome: { disposition: "landed", pr: `#${n}` } });
+      }
+      const open = await library.addIncrement({ arc: work.id, title: "Open", objective: "Do it", body: `needs: read-only. ${"y".repeat(size)}` });
+      await readSurvey({ library, claims: async () => [] });
+      const before = store.received();
+      const read = await readSurvey({ library, claims: async () => [] });
+      taken[label] = store.received() - before;
+      assert.deepEqual(read.increments.map((one) => one.id), [open.id], `${label}: only open work`);
+      assert.equal("body" in read.increments[0], false, `${label}: no body`);
+      assert.deepEqual([work.id, done.id, empty.id].map((id) => read.arcs.find((arc) => arc.id === id)?.state), ["active", "closed", "active"], `${label}: a drained arc reads closed, an empty one active`);
+      assert.equal(readOnly(await readBody(library, open.id)), true, `${label}: the picked one's body, read by id`);
+      await library.close();
+    }
+    assert.ok(taken.large <= taken.small + 1024, `the survey took ${taken.small} bytes with small bodies and little closed work, ${taken.large} with large bodies and thirty times the closed work`);
+  } finally {
+    await storytree.close();
+    await store.close();
+    await dropTestDatabases(names.map((name) => `storytree_${name}`));
   }
 });

@@ -15,7 +15,7 @@ import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 
 import { laneSettings } from "./engine.mjs";
-import { blind, pickPlan, pickPool, planState, readOnly, surveyLibrary, surveyProjects } from "./feed.mjs";
+import { blind, incrementBody, pickPlan, pickPool, planState, readOnly, surveyLibrary, surveyProjects } from "./feed.mjs";
 import { codeVersion, composeBrief, countEngines, localBrief, ENGINE_SLOTS, holdRunner, processTable, reserveSlot, runningLanes, withLockFile, WINDOWS_PROCESSES } from "./queue.mjs";
 import { cloudCounts, cloudOverflow, cloudSecrets } from "./cloud.mjs";
 import { refusals, runLane as runEngineLane, SIGNALED } from "./runner.mjs";
@@ -358,7 +358,7 @@ function boxDefaults({ home = homedir(), env = process.env } = {}) {
     power: () => readPowerLine(), refusals: (cwd = repo) => refusals({ cwd, env }), kill: (pid) => process.kill(pid),
     lock: checkoutLock(join(lanesDir, "night-checkout.lock")),
     prepare: (checkout = repo, project) => prepareCheckout({ repo: checkout, project }),
-    sleep: (ms, options) => wait(ms, undefined, options), argsOf, runLane: runEngineLane, survey: surveyLibrary, now: Date.now,
+    sleep: (ms, options) => wait(ms, undefined, options), argsOf, runLane: runEngineLane, survey: surveyLibrary, body: (one) => incrementBody(one.id, one.project), now: Date.now,
   };
 }
 
@@ -372,7 +372,7 @@ function boxDefaults({ home = homedir(), env = process.env } = {}) {
  */
 async function ready(b, project, { drained }) {
   const projects = project ? [project] : b.projects().map((one) => one.name);
-  const found = withHandOffs(await surveyProjects(projects, b.survey), await handedOff(join(b.lanesDir, "watch")));
+  const found = withHandOffs(await surveyProjects(projects, b.survey, { closedTitles: drained }), await handedOff(join(b.lanesDir, "watch")));
   const { picks } = pickPool(found, { max: Infinity, now: b.now() });
   const work = picks.map((one) => ({ id: one.id, title: one.title, ...(one.priority === undefined ? {} : { priority: one.priority }),
     ...(projects.length > 1 ? { project: one.project } : {}) }));
@@ -456,18 +456,23 @@ async function pool(b) {
   const runner = await holdRunner({ pidFile: join(L, "pool.pid"), pid: b.pid ?? process.pid, marks: [DISPATCHER], argsOf: b.argsOf });
   if (!runner.held) { dated(`dispatcher ${runner.by} is running: not starting`); return 1; }
   dated("dispatcher started");
-  // Every project the machine names (pool-config.mjs), read again at each survey (3.39), each surveyed in its own project in the library.
+  // A picked increment's body, read by id once it is picked (the survey carries none, 2.32): its needs clause chooses the brief.
+  const bodyOf = async (one) => one.body ?? await b.body(one);
+  // The cloud overflow trial (ADR-1264), off unless the machine file switches it on; its fired lanes kept in pool-cloud.json.
+  const cloud = b.cloud ?? cloudOverflow({ config: b.cloudConfig ?? { enabled: false, cap: 2 }, secrets: () => cloudSecrets(b.secretsFile), file: join(L, "pool-cloud.json"), now: b.now, say: dated, body: bodyOf });
+  // Every project the machine names (pool-config.mjs), read again at each survey (3.39), each surveyed in its own project in the library,
+  // with the increments the cloud lanes follow whatever their status, so each is judged by how it closed.
   let projects = b.projects();
   const survey = async () => {
     projects = b.projects();
-    return withHandOffs(await surveyProjects(projects.map((one) => one.name), b.survey), await handedOff(join(L, "watch")));
+    const also = cloud.watching ? await cloud.watching().catch(() => []) : [];
+    return withHandOffs(await surveyProjects(projects.map((one) => one.name), b.survey, { also }), await handedOff(join(L, "watch")));
   };
   // A lane starts in its project's checkout (the main worktree, where make_workspace cuts its own); storytree's, by default, where it always has.
   const checkoutOf = (name) => { const own = projects.find((one) => one.name === name)?.checkout; return own && mainCheckout(own); };
   const code = await runPool({
     survey, maxLanes: b.maxLanes, count: b.count, lanes: b.lanes, machineOnly: b.machineOnly, stopFile: join(L, "pool-stop"),
-    // The cloud overflow trial (ADR-1264), off unless the machine file switches it on; its fired lanes kept in pool-cloud.json.
-    cloud: b.cloud ?? cloudOverflow({ config: b.cloudConfig ?? { enabled: false, cap: 2 }, secrets: () => cloudSecrets(b.secretsFile), file: join(L, "pool-cloud.json"), now: b.now, say: dated }), plans: planFile(join(L, "pool-planned.json")), sleep: b.sleep, now: b.now, say,
+    cloud, plans: planFile(join(L, "pool-planned.json")), sleep: b.sleep, now: b.now, say,
     // A machine-only dispatcher (the laptop's) first holds for its start rule, plugged in and online (ADR-1179 D3).
     pace: async () => (b.machineOnly ? await startHold({ power: b.power, refusals: () => b.refusals() }) : undefined) ?? (b.pace ?? readBoxPace)(),
     codeVersion: b.codeVersion ?? (() => codeVersion({ repo: b.repo, config: b.configFile, live: LIVE_CONFIG })),
@@ -476,10 +481,15 @@ async function pool(b) {
       const at = new Date(b.now()).toISOString().replace(/[-:]|\.\d{3}Z$/g, "");
       // Another project's lane is briefed for its own repository, whatever its kind; storytree's as before.
       const other = one.project && one.project !== "storytree" && projects.find((p) => p.name === one.project);
-      const looks = !one.plan && (readOnly(one.body) || blind(one.body));
-      const role = !one.plan && blind(one.body) ? ` You are a blind reviewer: follow ${other ? "this brief's blind rules" : ".claude/agents/blind-reviewer.md"} (ADR-0950).` : "";
+      let body = "";
+      if (!one.plan) {
+        try { body = await bodyOf(one); }
+        catch (error) { dated(`${one.id} not started: its body is unread (${String(error.message).split("\n")[0]}); the next survey offers it again`); return NOT_STARTED; }
+      }
+      const looks = !one.plan && (readOnly(body) || blind(body));
+      const role = !one.plan && blind(body) ? ` You are a blind reviewer: follow ${other ? "this brief's blind rules" : ".claude/agents/blind-reviewer.md"} (ADR-0950).` : "";
       const rules = one.plan ? () => (other ? projectPlanRules(other, b.briefsDir) : planRules(b.briefsDir))
-        : !other ? () => (b.rules ?? poolRules)(one.body, b.briefsDir)
+        : !other ? () => (b.rules ?? poolRules)(body, b.briefsDir)
         : looks ? () => projectReadOnlyRules(other, b.briefsDir) : () => projectRules(other, b.briefsDir);
       const brief = one.plan
         ? { title: `Planning lane: ${one.id}`, intro: `Your arc: ${one.id} (${one.title}).`, notes: "", common: await rules() }

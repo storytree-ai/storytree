@@ -21,10 +21,10 @@ function work(ids, extra = {}) {
 }
 
 /** A cloud overflow over an in-memory ledger: every fire is recorded, and answered by `answer` (a session, or a thrown error). */
-function overflowOf({ config = { enabled: true, cap: 2, trigger: "trig_01abc" }, token = "sk-ant-oat01-x", answer, clock = () => T0, lines = [], ledger = {} } = {}) {
+function overflowOf({ config = { enabled: true, cap: 2, trigger: "trig_01abc" }, token = "sk-ant-oat01-x", answer, clock = () => T0, lines = [], ledger = {}, body } = {}) {
   const fires = [];
   const cloud = cloudOverflow({
-    config, secrets: async () => ({ token }), file: "/lanes/pool-cloud.json", now: clock, say: (line) => lines.push(line),
+    config, secrets: async () => ({ token }), file: "/lanes/pool-cloud.json", now: clock, say: (line) => lines.push(line), ...(body ? { body } : {}),
     read: async () => { if (!ledger.text) throw Object.assign(new Error("none"), { code: "ENOENT" }); return ledger.text; },
     write: async (_, text) => { ledger.text = text; },
     fire: async (request) => { fires.push(request); return answer ? answer(request) : { session: `session_${request.text}`, url: `https://sessions.example/session_${request.text}` }; },
@@ -97,6 +97,26 @@ test("3.40 · a fire is one POST to the cloud task's trigger, its token as the b
 
   const refused = async () => ({ ok: false, status: 429, headers: new Map([["retry-after", "120"]]) });
   await assert.rejects(fireCloud({ trigger: "trig_01abc", token: "t", text: "a", fetch: refused }), (error) => error.status === 429 && error.retryAfter === 120);
+});
+
+test("3.46 · with a survey that carries no body, each pick's body is read by id before it is judged for the cloud, one unread is skipped, and the lanes not yet landed or failed are named for the survey to follow", async () => {
+  const bodies = { box: "Restart the systemd unit on the Mint box.", fine: "Make the CLI's arc list sort by priority.", other: "Sort the questions list." };
+  const found = work(["box", "unread", "fine", "other"]);
+  for (const one of found.increments) delete one.body;
+  const read = [];
+  const { cloud, fires, lines, ledger } = overflowOf({ config: { enabled: true, cap: 2, trigger: "trig_01abc" }, body: async (one) => {
+    read.push(one.id);
+    if (one.id === "unread") throw new Error("connection reset");
+    return bodies[one.id];
+  } });
+  await poolRun({ found, cloud });
+  assert.deepEqual(fires.map((fire) => fire.text), ["fine", "other"], "the box-only one is judged by its body, read by id");
+  assert.deepEqual(read.slice(0, 4), ["box", "unread", "fine", "other"], "each candidate's body, until the cap is met");
+  assert.ok(lines.some((line) => /cloud overflow skipped unread: its body is unread \(connection reset\)/.test(line)), lines.join("\n"));
+  assert.deepEqual(await cloud.watching(), ["fine", "other"], "the live lanes' increments, for the survey to follow by id");
+  ledger.text = JSON.stringify({ lanes: [{ increment: "fine", state: "landed" }, { increment: "other", state: "failed" }, { increment: "gone", state: "handed" }], fireErrors: 0 });
+  const { cloud: reread } = overflowOf({ ledger });
+  assert.deepEqual(await reread.watching(), ["gone"], "a landed or failed lane is followed no more");
 });
 
 test("3.41 · an ineligible increment is never fired: a machine named, read-only or blind work, another project's, or wording naming a box-only need or agent roles", async () => {

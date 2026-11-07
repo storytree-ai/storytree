@@ -13,7 +13,7 @@ import path from "node:path";
 
 import { lookAsApp, projectFolder, openActivityLog, pruneTranscripts, readingLines, storedContextReading, storedSessionWindow, TranscriptCache, type ActivityLog } from "@storytree/session-management";
 import { idleAfterMs, importsOf, leaveAfterMs, machineOf, storytreeHome, standingDelegations, trunkedProjects } from "@storytree/project-and-caller";
-import type { DayWindow, FactoryLink, Library, PluginRecordKind, Storytree } from "@storytree/library";
+import type { ChangesFilter, DayWindow, FactoryLink, Library, LineKind, PluginRecordKind, Storytree } from "@storytree/library";
 
 /** pg's refusal of a read on a pool already ended: the project's library was closed beneath the reads. */
 const POOL_ENDED = /Cannot use a pool after calling end on the pool/;
@@ -21,7 +21,7 @@ const POOL_ENDED = /Cannot use a pool after calling end on the pool/;
 import type { PageReadsBridge } from "./bridge.js";
 
 /** Each of a bridge's methods as the app answers it: given the page's arguments unchecked, since they arrive untrusted. */
-type Answers<Bridge> = { [Method in keyof Bridge]: Bridge[Method] extends (...args: infer Args) => infer Answer ? (...args: { [At in keyof Args]: unknown }) => Answer : never };
+type Answers<Bridge> = { [Method in keyof Bridge]-?: NonNullable<Bridge[Method]> extends (...args: infer Args) => infer Answer ? (...args: { [At in keyof Args]: unknown }) => Answer : never };
 
 /** The page's reads (bridge.ts's PageReadsBridge, on its channels), as the app answers them, and what the app itself asks of them. */
 export interface PageReads extends Answers<PageReadsBridge> {
@@ -142,10 +142,14 @@ export function pageReads({ storytree, transcriptCacheHome, home, kinds }: PageR
   return {
     listProjects: () => storytree.listProjects(),
     projectTree: (name) => read(name, (library) => library.projectTree()),
-    changesSince: (name, cursor) => read(name, (library) => library.changesSince(cursor as number)),
+    changesSince: (name, cursor, filter) => read(name, (library) => library.changesSince(cursor as number, (filter ?? {}) as ChangesFilter)),
     linesSince: async (name, cursor) => {
       const known = await project(name);
       return (await activityLog()).since(known, cursor as number);
+    },
+    linesStart: async (name, kinds) => {
+      const known = await project(name);
+      return (await activityLog()).start(known, { kinds: kinds as LineKind[] });
     },
     inherited: (name) => read(name, (library) => library.inherited()),
     frontCovers: (name, nodeId) => read(name, (library) => library.frontCovers(nodeId as string)),

@@ -921,6 +921,29 @@ test("7.25 changesSince(n, { types, actions }) hands out only the changes of tho
   });
 });
 
+test("7.27 changesSince(n, { fields, healthColumns }) keeps only those record fields, and of health only those columns' changes, with the cursor of the latest change it read past", async () => {
+  const name = uniqueProjectName();
+  await withStorytree([name], async (storytree) => {
+    const lib = await storytree.openProject(name);
+    const story = await lib.addStory({ title: "Visitor signs up", text: "A long story no surface reads" });
+    const capability = await lib.addCapability({ title: "Email form", story: story.id });
+    const contract = await lib.addContract({ title: "Rejects a bad email", capability: capability.id });
+    await lib.reportHealth(contract.id, "failing", { by: "agent" });
+    await lib.recordVerified(contract.id, "passing");
+    await lib.recordVerified(contract.id, "failing");
+
+    const whole = await lib.changesSince(0);
+    const thinned = await lib.changesSince(0, { fields: ["title", "story", "node", "column", "state"], healthColumns: ["reported"] });
+    const kept = whole.changes.filter((change) => change.type !== "health" || change.record.fields.column === "reported");
+    assert.deepEqual(thinned.changes.map((change) => change.seq), kept.map((change) => change.seq), "every change but the verified column's");
+    assert.deepEqual(thinned.changes[0]!.record.fields, { title: "Visitor signs up" }, "only the fields asked leave the server");
+    assert.deepEqual({ ...thinned.changes[0]!.record, fields: {} }, { ...whole.changes[0]!.record, fields: {} }, "the rest of the record as it was");
+    assert.equal(thinned.cursor, whole.cursor, "the cursor of the latest change it read past, though it kept none of the last two");
+    assert.deepEqual(await lib.changesSince(thinned.cursor, { healthColumns: ["reported"] }), { changes: [], cursor: thinned.cursor }, "nothing after: the cursor given");
+    assert.deepEqual((await lib.changesSince(0, { fields: [] })).changes.map((change) => change.record.fields), whole.changes.map(() => ({})), "no fields asked keeps none");
+  });
+});
+
 test("7.26 attachMedia keeps a file beside a live record, with its type, size and SHA-256, out of the record's history; media lists them and mediaFile reads one back exactly; a record that is not live, a file past 10 MB and a name taken by other bytes are refused, unless replacing", async () => {
   const name = uniqueProjectName();
   await withStorytree([name], async (storytree) => {

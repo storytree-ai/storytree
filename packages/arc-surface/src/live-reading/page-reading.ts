@@ -9,6 +9,10 @@
  *   history held is thinned as it arrives, so the page never keeps the whole history in memory.
  * - Each surface takes news at its own pace: one whose handling fails is told so, and hears that
  *   news again together with the next, while the others hear it once.
+ * - With nothing kept, it starts bounded (3.29): the library's changes thinned on the server to what it holds, and the
+ *   log's start (Agent activity log 2.16), its lines read one by one and the lines that decide the sessions in view and the
+ *   claims, never every line since the project began (693,145 lines, 455 MB for storytree's own, 2026-11-07). A host
+ *   without that start is read from 0.
  * - Given a kept reading (the page's storage, ADR-0836 D4), it keeps what it holds there, a piece at
  *   a time, with the log's fold as it last stood rather than every line folded into it, and the next
  *   start hears the kept reading at once and asks the library only from where it got to. The first ask overlaps the kept reading by one change and one line, so a kept reading
@@ -16,7 +20,8 @@
  *   from the start, and the reading converges either way (D5).
  * - It never writes to the library.
  */
-import type { Change, Line } from "@storytree/library";
+import type { Change, ChangesFilter, Line } from "@storytree/library";
+import type { LinesStart } from "@storytree/session-management";
 import { LogFold, type LogFoldSnapshot, type LogReading } from "@storytree/session-management/readings";
 
 import { ASK_EVERY_MS, liveReading, pageTimers, type LiveReading, type LiveReads, type News, type Timers } from "./live-reading.js";
@@ -55,6 +60,16 @@ const READ_ONE_BY_ONE: ReadonlySet<Line["kind"]> = new Set(["claimed", "released
  */
 const HELD_FIELDS = ["title", "term", "text", "statement", "meaning", "role", "description", "summary", "oneLine",
   "links", "supersedes", "frontCoverOf", "status", "state", "lifecycle", "story", "outcome", "arc"] as const;
+
+/** What a first start asks of the library: the fields held, and a health record's own, of reported health alone (ADR-0630). */
+const START_CHANGES: ChangesFilter = { fields: [...HELD_FIELDS, "node", "column"], healthColumns: ["reported"] };
+
+/** `line` as held: a finished command without its text, and a running one's cut to what the sessions list shows. */
+function heldLine(line: Line): Line {
+  if (line.kind === "command-run") return { ...line, command: "" };
+  if (line.kind === "command-started" && line.command.length > COMMAND_SHOWN) return { ...line, command: `${line.command.slice(0, COMMAND_SHOWN)} …` };
+  return line;
+}
 
 /** `change` with only the fields a surface reads, an outcome only its disposition. */
 function thinned(change: Change): Change {
@@ -99,6 +114,14 @@ class Held implements News, LogReading {
     this.last = last ?? lines.at(-1);
   }
 
+  /** Hold a bounded start: `changes`, and the log's start, its sessions and claims folded as readSessions folds them. */
+  begin(changes: readonly Change[], { lines, sessions, claims }: LinesStart): void {
+    this.add({ changes: [...changes], lines: [] });
+    this.lines.push(...lines.filter(({ kind }) => READ_ONE_BY_ONE.has(kind)));
+    this.fold = LogFold.fromBounded(sessions.map(heldLine), claims);
+    for (const line of [...lines, ...sessions, ...claims]) if (this.last === undefined || line.seq > this.last.seq) this.last = line;
+  }
+
   /** Hold what is new, and say what of it was kept, before the lines folded were dropped. */
   add({ changes, lines }: News): News {
     const added: News = { changes: [], lines: [] };
@@ -109,11 +132,7 @@ class Held implements News, LogReading {
       this.#reported.set(node, state);
       added.changes.push({ ...change, record: { ...change.record, fields: { node, column, state } } });
     }
-    for (const line of lines) {
-      if (line.kind === "command-run") added.lines.push({ ...line, command: "" });
-      else if (line.kind === "command-started" && line.command.length > COMMAND_SHOWN) added.lines.push({ ...line, command: `${line.command.slice(0, COMMAND_SHOWN)} …` });
-      else added.lines.push(line);
-    }
+    added.lines.push(...lines.map(heldLine));
     this.changes.push(...added.changes);
     this.fold.add(added.lines);
     for (const line of added.lines) if (this.last === undefined || line.seq > this.last.seq) this.last = line;
@@ -247,7 +266,7 @@ export function pageReading({ project, reads, timers, kept }: PageReadingOptions
   async function resume(): Promise<void> {
     const last = await kept!.read().catch(() => undefined);
     if (stopped) return;
-    if (last === undefined || (last.changes.length === 0 && last.lines.length === 0 && last.last === undefined)) return live();
+    if (last === undefined || (last.changes.length === 0 && last.lines.length === 0 && last.last === undefined)) return begin();
     const change = last.changes.at(-1);
     const line = last.last ?? last.lines.at(-1);
     const from = { changes: Math.max(0, (change?.seq ?? 0) - 1), lines: Math.max(0, (line?.seq ?? 0) - 1) };
@@ -265,7 +284,7 @@ export function pageReading({ project, reads, timers, kept }: PageReadingOptions
         if (!knows) {
           unheard = undefined;
           await kept!.clear().catch(() => {});
-          live();
+          void begin();
           return true;
         }
         if (unheard !== undefined) held.restore(unheard);
@@ -285,7 +304,35 @@ export function pageReading({ project, reads, timers, kept }: PageReadingOptions
     const stopTrying = clock.every(ASK_EVERY_MS, () => void attempt().then((done) => { if (done) stopTrying(); }));
   }
 
-  if (kept === undefined) live();
+  /** Start with nothing kept: bounded when the host has the log's start (3.29), else from 0. A failed ask is tried again at the next. */
+  async function begin(): Promise<void> {
+    const linesStart = reads.linesStart;
+    if (linesStart === undefined) return live();
+    let trying = false;
+    const attempt = async (): Promise<boolean> => {
+      if (trying || stopped) return stopped;
+      trying = true;
+      try {
+        const [changes, start] = await Promise.all([reads.changesSince(project, 0, START_CHANGES), linesStart.call(reads, project, [...READ_ONE_BY_ONE])]);
+        if (stopped) return true;
+        held.begin(changes.changes, start);
+        kept?.add({ changes: [...held.changes], lines: [...held.lines], fold: held.fold.snapshot(), ...(held.last === undefined ? {} : { last: held.last }) })
+          .catch(() => { /* This start still holds it. */ });
+        await heard({ changes: [], lines: [] }, { changes: [...held.changes], lines: [...held.lines] });
+        live({ changes: changes.cursor, lines: start.cursor });
+        return true;
+      } catch (error) {
+        failed(error);
+        return false;
+      } finally {
+        trying = false;
+      }
+    };
+    if (await attempt()) return;
+    const stopTrying = clock.every(ASK_EVERY_MS, () => void attempt().then((done) => { if (done) stopTrying(); }));
+  }
+
+  if (kept === undefined) void begin();
   else void resume();
 
   return {

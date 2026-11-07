@@ -3,8 +3,8 @@
  * travel on: the Surfaces menu's (ADR-0750), and the reads every surface makes of the library and the agent activity log, which
  * the app answers (reads.ts). Data only: safe for the page and preload.
  */
-import type { ContextReading, SessionWindow } from "@storytree/session-management";
-import type { AnnotatedTree, ArcView, BoardArcView, Changes, DayWindow, Holds, LinesSince, Note, PrCutover, SchemaRecord } from "@storytree/library";
+import type { ContextReading, LinesStart, SessionWindow } from "@storytree/session-management";
+import type { AnnotatedTree, ArcView, BoardArcView, Changes, ChangesFilter, DayWindow, Holds, LineKind, LinesSince, Note, PrCutover, SchemaRecord } from "@storytree/library";
 
 import type { SurfaceReading } from "./switches.js";
 
@@ -35,10 +35,12 @@ export interface PageReadsBridge {
   prCutover(name: string): Promise<PrCutover | undefined>;
   /** A project's tree, with every node's health. */
   projectTree(name: string): Promise<AnnotatedTree>;
-  /** The library's changes to a project after `cursor` (start from 0), oldest first, and the cursor to pass next time. */
-  changesSince(name: string, cursor: number): Promise<Changes>;
+  /** The library's changes to a project after `cursor` (start from 0), oldest first, narrowed by `filter`, and the cursor to pass next time. */
+  changesSince(name: string, cursor: number, filter?: ChangesFilter): Promise<Changes>;
   /** The agent activity log's lines for a project after `cursor` (start from 0), oldest first, and the cursor to pass next time. */
   linesSince(name: string, cursor: number): Promise<LinesSince>;
+  /** A page's bounded start of the agent activity log for a project (Agent activity log 2.16): every line of `kinds`, the sessions in view and the claims; a host without it is read from 0. */
+  linesStart?(name: string, kinds: readonly LineKind[]): Promise<LinesStart>;
   /** The system records a product project reads from its factory and holds none of its own for (library 1.19), in id order; none for a project with no factory. */
   inherited(name: string): Promise<SchemaRecord[]>;
   /** A story's or capability's shelf of front covers, founding book first. */
@@ -66,6 +68,7 @@ export const PAGE_READS_CHANNELS = {
   projectTree: "storytree:project-tree",
   changesSince: "storytree:changes-since",
   linesSince: "storytree:lines-since",
+  linesStart: "storytree:lines-start",
   inherited: "storytree:inherited",
   frontCovers: "storytree:front-covers",
   relatedNotes: "storytree:related-notes",

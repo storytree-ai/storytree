@@ -1,4 +1,4 @@
-/** The command line 14.12, 14.13 and 14.15: the learner in the friction drain files each want, raises each cut group and writes each pointer once, against a real Postgres. */
+/** The command line 14.12, 14.13, 14.15, 14.16 and 14.19: the learner in the friction drain files each want, raises each cut group and writes each pointer once, against a real Postgres. */
 import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
 import { test } from "node:test";
@@ -32,6 +32,8 @@ async function inProject(words: readonly string[], body: (world: LearnerWorld, l
       const now = new Date("2026-11-20T00:00:00.000Z");
       const day = (offset: number) => new Date(now.getTime() - offset * 24 * 60 * 60 * 1000).toISOString();
       const common = { harness: "claude-code", source: "tool", machine: "box" } as const;
+      // Every verb of `surfaces` was first seen mounted before the window, so its disuse can be judged.
+      await log.append(project, { ...common, session: "drain-0", kind: "door-mounted", verbs: [...surfaces.commands, ...surfaces.tools].map(({ verb }) => verb) }, { at: day(40) });
       // Sessions over the whole 28 days, so disuse can be judged; twelve of them for each word type it where no command answers it.
       for (let index = 0; index < sessions; index += 1) {
         const word = words[Math.floor(index / 12)];
@@ -160,4 +162,16 @@ test("14.16 · a drain a week or more after the last doors check reads the trail
     await learnInDrain({ ...world, now: new Date(week.getTime() + 24 * 60 * 60 * 1000) });
     assert.equal((await checks()).length, 2, "and it counts as the week's check");
   }, 50);
+});
+
+test("14.19 · the drain writes the verbs it sees mounted for the first time as a door-mounted line, once, and a verb first seen inside the window is not raised for a cut", async () => {
+  await inProject([], async (world, library) => {
+    const born = { verb: "storytree session point", consumers: agent };
+    const said = await learnInDrain({ ...world, surfaces: { ...world.surfaces, commands: [...world.surfaces.commands, born] } });
+    const mounted = async () => (await world.log.lines(world.project, { kinds: ["door-mounted"] })).map((line) => (line.kind === "door-mounted" ? { verbs: line.verbs, at: new Date(line.at).toISOString() } : undefined));
+    assert.deepEqual((await mounted()).slice(1), [{ verbs: ["storytree session point"], at: world.now.toISOString() }], said.join("\n"));
+    assert.deepEqual((await library.questions(world.arcs.cuts)).map((question) => question.fields.title).sort(), CUT_TITLES, "the verbs seen before the window are raised, the new one is not");
+    await learnInDrain({ ...world, surfaces: { ...world.surfaces, commands: [...world.surfaces.commands, born] } });
+    assert.equal((await mounted()).length, 2, "a second drain writes no second line for it");
+  });
 });

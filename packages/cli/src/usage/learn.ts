@@ -17,7 +17,9 @@
  *   sessions, grouped by its command family, or with the tools that have no command. A verb both doors mount is one
  *   candidate only when neither door called it; one door's unused while the other's carries the job is a door gap,
  *   reported apart and never cut. Nothing is a candidate unless the lines cover the whole window: silence before the
- *   log began is not disuse.
+ *   log began is not disuse. Nor is silence before a verb was mounted: a verb is judged only once it has been mounted for
+ *   the whole window, read from when the learner first saw it (a pair, from when it first saw either door's), and a verb
+ *   it has never seen is not judged.
  */
 import type { DeclaredVerb, DoorLine } from "./reading.js";
 
@@ -122,11 +124,14 @@ export const TOOLS_ALONE = "the tools with no command";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-/** Learn from `lines`, both doors' door-answered lines of the 28 days from `since`, oldest first, and `pointers`, the latest line of each word's pointer. */
-export function learnDoors(lines: readonly DoorLine[], surfaces: Surfaces, since: string, pointers: readonly Pointer[] = []): Lesson {
+/**
+ * Learn from `lines`, both doors' door-answered lines of the 28 days from `since`, oldest first, `pointers`, the latest
+ * line of each word's pointer, and `mounted`, when the learner first saw each verb mounted, by the verb as its door names it.
+ */
+export function learnDoors(lines: readonly DoorLine[], surfaces: Surfaces, since: string, pointers: readonly Pointer[] = [], mounted: ReadonlyMap<string, string> = new Map()): Lesson {
   const sessions = new Set(lines.map((line) => line.session)).size;
   const covered = lines.length > 0 && Date.parse(lines[0]!.at) <= Date.parse(since) + DAY_MS;
-  const { cuts, gaps } = disuse(lines, surfaces);
+  const { cuts, gaps } = disuse(lines, surfaces, (...verbs) => verbs.some((verb) => mounted.has(verb) && Date.parse(mounted.get(verb)!) <= Date.parse(since)));
   const tools = new Set(surfaces.tools.map(({ verb }) => verb));
   const latest = new Map(pointers.map((pointer) => [JSON.stringify([pointer.where, pointer.word]), pointer] as const));
   const words = guesses(lines, tools, latest);
@@ -218,7 +223,8 @@ function fallbacks(lines: readonly DoorLine[], pointers: readonly Pointer[]): Fa
   });
 }
 
-function disuse(lines: readonly DoorLine[], { commands, tools, twins }: Surfaces): { cuts: CutGroup[]; gaps: Gap[] } {
+/** The cut candidates and door gaps in `lines`; `old` says whether a verb, by any of its doors' names, was mounted for the whole window. */
+function disuse(lines: readonly DoorLine[], { commands, tools, twins }: Surfaces, old: (...verbs: string[]) => boolean): { cuts: CutGroup[]; gaps: Gap[] } {
   const calls = new Map<string, number>();
   for (const line of lines) calls.set(line.verb, (calls.get(line.verb) ?? 0) + 1);
   const agentOnly = new Set([...commands, ...tools].filter(({ consumers }) => consumers.length === 1 && consumers[0] === "agent").map(({ verb }) => verb));
@@ -227,15 +233,18 @@ function disuse(lines: readonly DoorLine[], { commands, tools, twins }: Surfaces
   const add = (group: string, candidate: Candidate) => groups.set(group, [...(groups.get(group) ?? []), candidate]);
   const gaps: Gap[] = [];
   const twinned = new Set<string>();
-  for (const { command, tool } of twins) {
+  const declared = new Set([...commands, ...tools].map(({ verb }) => verb));
+  // A twin whose other door is not served here (its part switched off) is judged as the one door it has.
+  for (const { command, tool } of twins.filter(({ command, tool }) => declared.has(command) && declared.has(tool))) {
     twinned.add(command);
     twinned.add(tool);
-    if (unused(command) && unused(tool)) add(familyOf(command), { command, tool });
-    else if (unused(command)) gaps.push({ unused: command, carriedBy: tool, calls: calls.get(tool) ?? 0 });
+    if (unused(command) && unused(tool)) {
+      if (old(command, tool)) add(familyOf(command), { command, tool });
+    } else if (unused(command)) gaps.push({ unused: command, carriedBy: tool, calls: calls.get(tool) ?? 0 });
     else if (unused(tool)) gaps.push({ unused: tool, carriedBy: command, calls: calls.get(command) ?? 0 });
   }
-  for (const { verb } of commands) if (!twinned.has(verb) && unused(verb)) add(familyOf(verb), { command: verb });
-  for (const { verb } of tools) if (!twinned.has(verb) && unused(verb)) add(TOOLS_ALONE, { tool: verb });
+  for (const { verb } of commands) if (!twinned.has(verb) && unused(verb) && old(verb)) add(familyOf(verb), { command: verb });
+  for (const { verb } of tools) if (!twinned.has(verb) && unused(verb) && old(verb)) add(TOOLS_ALONE, { tool: verb });
   const cuts = [...groups].map(([group, verbs]) => ({ group, verbs })).sort((a, b) => a.group.localeCompare(b.group));
   return { cuts, gaps: gaps.sort((a, b) => b.calls - a.calls || a.unused.localeCompare(b.unused)) };
 }

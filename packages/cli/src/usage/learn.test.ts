@@ -1,7 +1,10 @@
-/** The command line 14.10, 14.11 and 14.14: what the doors learn from 28 days of their own lines. */
+/** The command line 14.10, 14.11, 14.14, 14.17 and 14.18: what the doors learn from 28 days of their own lines. */
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
+import { verb, type VerbFamilies, type VerbPlace } from "@storytree/library/verbs";
+
+import { twinsOf } from "../families/drain.js";
 import type { DoorLine } from "./reading.js";
 import { learnDoors, TOOLS_ALONE, type Surfaces } from "./learn.js";
 
@@ -30,6 +33,8 @@ const surfaces: Surfaces = {
   ],
   twins: [{ command: "storytree quality brief", tool: "quality_brief" }, { command: "storytree processes stop", tool: "stop_own_run" }],
 };
+/** Every verb of `surfaces` first seen mounted a day before the window. */
+const OLD = new Map([...surfaces.commands, ...surfaces.tools].map(({ verb: name }) => [name, "2026-09-30T00:00:00.000Z"] as const));
 
 /** `count` refusals of `word` in `where`, each in its own session, each followed by that session's next call when given. */
 function refusals(where: string, word: string, count: number, next?: (index: number) => DoorLine | undefined): DoorLine[] {
@@ -69,7 +74,7 @@ test("14.10 · a word refused at least 10 times in one place whose follows stay 
 test("14.11 · an agent-only verb with no call across 100 sessions in a covered window is a cut candidate by family; a twin unused in one door only is a gap, and a short or thin window cuts nothing", () => {
   const busy = Array.from({ length: 100 }, (_, index) => line(`s${index}`, index % 2 === 0 ? "storytree adr pull" : "storytree adr list"));
   const lines = [...busy, line("t", "storytree processes stop"), line("t", "storytree processes stop"), line("u", "focus", { door: "tool" })];
-  const lesson = learnDoors(lines, surfaces, SINCE);
+  const lesson = learnDoors(lines, surfaces, SINCE, [], OLD);
   assert.deepEqual(lesson.cuts, [
     { group: "storytree quality", verbs: [{ command: "storytree quality brief", tool: "quality_brief" }, { command: "storytree quality graduate" }, { command: "storytree quality ledger" }] },
     { group: TOOLS_ALONE, verbs: [{ tool: "check_setup" }] },
@@ -77,8 +82,8 @@ test("14.11 · an agent-only verb with no call across 100 sessions in a covered 
   assert.deepEqual(lesson.gaps, [{ unused: "stop_own_run", carriedBy: "storytree processes stop", calls: 2 }]);
 
   const late = lines.map((one) => ({ ...one, at: new Date(Date.parse(one.at) + 2 * 24 * 60 * 60 * 1000).toISOString() }));
-  assert.equal(learnDoors(late, surfaces, SINCE).cuts, undefined, "lines that begin after the window's first day cannot judge disuse");
-  assert.equal(learnDoors(lines.slice(3), surfaces, SINCE).cuts, undefined, "99 sessions are too few");
+  assert.equal(learnDoors(late, surfaces, SINCE, [], OLD).cuts, undefined, "lines that begin after the window's first day cannot judge disuse");
+  assert.equal(learnDoors(lines.slice(3), surfaces, SINCE, [], OLD).cuts, undefined, "99 sessions are too few");
 });
 
 test("14.14 · a guessed word whose follows clear the bar is pointed to its leading target, once; a pointer its pointed calls mostly leave falls back, and only follows after a fallback count again", () => {
@@ -115,4 +120,41 @@ test("14.14 · a guessed word whose follows clear the bar is pointed to its lead
   assert.deepEqual(learnDoors(show, surfaces, SINCE, [fallen]).pointers, [], "follows before a fallback do not point the word again");
   const again = refusals("storytree adr", "show", 5, () => line("", "storytree adr list"));
   assert.deepEqual(learnDoors([...show, ...again], surfaces, SINCE, [fallen]).pointers.map(({ to, follows }) => ({ to, follows })), [{ to: "storytree adr list", follows: 5 }]);
+});
+
+/** 100 sessions over the whole window, none calling a verb the tests judge. */
+const busy = () => Array.from({ length: 100 }, (_, index) => line(`s${index}`, "storytree adr pull"));
+
+test("14.17 · a verb is judged for disuse only once it has been mounted for the whole window: one first seen inside it, or never seen, is no candidate, and a pair is as old as its older door", () => {
+  const young = "2026-10-27T16:33:00.000Z";
+  const mounted = new Map([...OLD, ["storytree quality graduate", young], ["storytree quality brief", young], ["check_setup", young]]);
+  for (const unseen of ["storytree quality ledger", "storytree adr list", "storytree processes stop", "stop_own_run", "focus"]) mounted.delete(unseen);
+  assert.deepEqual(learnDoors(busy(), surfaces, SINCE, [], mounted).cuts, [
+    { group: "storytree quality", verbs: [{ command: "storytree quality brief", tool: "quality_brief" }] },
+  ], "graduate and check_setup are a day old, the ledger was never seen, and the brief's tool is as old as the window");
+  assert.deepEqual(learnDoors(busy(), surfaces, SINCE, [], mounted).unused, learnDoors(busy(), surfaces, SINCE, [], mounted).cuts, "the weekly check's unused verbs are judged the same way");
+  assert.deepEqual(learnDoors(busy(), surfaces, SINCE).cuts, [], "with no verb seen mounted, nothing is a candidate");
+});
+
+test("14.18 · a command whose absent tool names the tool a plugin serves its job under is paired with it: unused while that tool carries it is a door gap, never a candidate, and both unused is one candidate", () => {
+  const act = async () => ({ text: "" });
+  const declared: VerbFamilies<VerbPlace>[] = [{ name: "quality", summary: "quality", verbs: [
+    verb({ consumers: ["agent"], command: { family: "quality", name: "ledger", summary: "ledger" }, tool: { absent: "the plugin's tool part serves it", twin: "quality_ledger" }, inputs: {}, act }),
+    verb({ consumers: ["agent"], command: { family: "quality", name: "graduate", summary: "graduate" }, tool: { absent: "the plugin's tool part serves it", twin: "graduate_check" }, inputs: {}, act }),
+  ] }];
+  const twins = twinsOf(declared);
+  assert.deepEqual(twins, [{ command: "storytree quality ledger", tool: "quality_ledger" }, { command: "storytree quality graduate", tool: "graduate_check" }]);
+  const paired: Surfaces = {
+    commands: [{ verb: "storytree quality ledger", consumers: agent }, { verb: "storytree quality graduate", consumers: agent }],
+    tools: [{ verb: "quality_ledger", consumers: agent }, { verb: "graduate_check", consumers: agent }],
+    twins,
+  };
+  const mounted = new Map([...paired.commands, ...paired.tools].map(({ verb: name }) => [name, "2026-09-01T00:00:00.000Z"] as const));
+  const lesson = learnDoors([...busy(), line("q", "storytree quality ledger"), line("q", "storytree quality ledger")], paired, SINCE, [], mounted);
+  assert.deepEqual(lesson.gaps, [{ unused: "quality_ledger", carriedBy: "storytree quality ledger", calls: 2 }]);
+  assert.deepEqual(lesson.cuts, [{ group: "storytree quality", verbs: [{ command: "storytree quality graduate", tool: "graduate_check" }] }]);
+
+  const off = learnDoors(busy(), { ...paired, tools: [] }, SINCE, [], mounted);
+  assert.deepEqual(off.gaps, [], "a twin whose tool is not served here leaves its command judged alone");
+  assert.deepEqual(off.cuts, [{ group: "storytree quality", verbs: [{ command: "storytree quality ledger" }, { command: "storytree quality graduate" }] }]);
 });

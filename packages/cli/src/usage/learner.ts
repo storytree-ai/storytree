@@ -14,6 +14,8 @@
  * - Each group of cut candidates is raised as an open question on "Prune the front doors" and then parked there as an
  *   increment held on it, question first, so the pool cannot take it. A group with an open question is not raised again;
  *   one whose question is answered is raised again only for verbs that question did not name.
+ * - The verbs it sees mounted for the first time are written as a `door-mounted` line, so a verb is proposed for a cut only
+ *   once it has been mounted for the whole window: a verb born a day ago has 27 days of silence it could not have broken.
  * - Door gaps are reported in the drain's answer, never cut.
  * - Last, the weekly doors check (./doors-check.ts, ADR-1090 D2) runs when a week has passed since the last one.
  */
@@ -58,7 +60,8 @@ export async function learnInDrain(world: LearnerWorld): Promise<string[]> {
   const lines = (await world.log.lines(world.project, { kinds: ["door-answered"], since })).flatMap((line) => doorLineOf(line) ?? []);
   const pointers = (await world.log.lines(world.project, { kinds: ["door-pointer"], latestBy: ["where", "word"] })).flatMap((line) =>
     line.kind === "door-pointer" ? [{ where: line.where, word: line.word, ...(line.to === undefined ? {} : { to: line.to }), others: line.others, at: new Date(line.at).toISOString() } satisfies Pointer] : []);
-  const lesson = learnDoors(lines, world.surfaces, since, pointers);
+  const mounted = await mountedAt(world);
+  const lesson = learnDoors(lines, world.surfaces, since, pointers, mounted);
   const said = [`The doors learner read ${lines.length} door-answered lines from ${lesson.sessions} sessions over ${BARS.days} days (ADR-1045 D4 to D6).`];
   said.push(...await writePointers(world, lesson.pointers, lesson.fallbacks));
   said.push(...await fileWants(world, lesson.wants, lines));
@@ -69,6 +72,26 @@ export async function learnInDrain(world: LearnerWorld): Promise<string[]> {
   if (lesson.gaps.length > GAPS_SHOWN) said.push(`  ${lesson.gaps.length - GAPS_SHOWN} more door gaps: storytree doors --days ${BARS.days}.`);
   said.push(...await checkDoors(world, lesson, pointers, { want: (where, word) => wantTitle({ where, word }), cut: cutTitle }));
   return said;
+}
+
+/**
+ * When the learner first saw each verb mounted, from the `door-mounted` lines, after writing one at `now` for the verbs it
+ * sees in this drain for the first time.
+ */
+async function mountedAt(world: LearnerWorld): Promise<Map<string, string>> {
+  const mounted = new Map<string, string>();
+  for (const line of await world.log.lines(world.project, { kinds: ["door-mounted"] })) {
+    if (line.kind !== "door-mounted") continue;
+    const at = new Date(line.at).toISOString();
+    for (const verb of line.verbs) if (!mounted.has(verb) || at < mounted.get(verb)!) mounted.set(verb, at);
+  }
+  const fresh = [...new Set([...world.surfaces.commands, ...world.surfaces.tools].map(({ verb }) => verb))].filter((verb) => !mounted.has(verb));
+  if (fresh.length === 0) return mounted;
+  await world.log.append(world.project, {
+    session: world.caller.session, ...(world.caller.harness === undefined ? {} : { harness: world.caller.harness }), source: "tool", kind: "door-mounted", verbs: fresh,
+  }, { at: world.now.toISOString() });
+  for (const verb of fresh) mounted.set(verb, world.now.toISOString());
+  return mounted;
 }
 
 /** The title a want is filed under: one per word and place. */

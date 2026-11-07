@@ -28,21 +28,64 @@ const panel: StoryPanel = {
   capabilities: [line("base", "passing", "healthy"), line("next", "failing")],
 };
 
-test("4.6 the panel is the story's sentences and below them only the capability selected", () => {
+/** The fold of `kind` in a rendered panel: its handle's words, whether it is open, and what it holds. */
+function fold(html: string, kind: string): { handle: string; expanded: string; hidden: boolean; body: string } | undefined {
+  const found = new RegExp(`<div class="panel-fold" data-fold="${kind}">\\s*<button type="button" class="panel-handle" aria-expanded="(true|false)">([\\s\\S]*?)</button>\\s*<div class="panel-fold-body"( hidden)?>`).exec(html);
+  if (found === null) return undefined;
+  return { expanded: found[1]!, handle: plainText(found[2]!), hidden: found[3] !== undefined, body: html.slice(found.index + found[0].length) };
+}
+
+test("4.6 the panel is the story's lead and below it only the capability selected, its lead on the surface and its contracts behind a closed handle", () => {
   const html = renderStoryPanel(panel, "next");
   const detail = html.indexOf("panel-detail");
-  assert.ok(html.indexOf("What s is. Why.") > 0 && detail > html.indexOf("What s is. Why."), "the selected capability shows below the story's sentences");
+  assert.ok(html.indexOf("What s is. Why.") > 0 && detail > html.indexOf("What s is. Why."), "the selected capability shows below the story's lead");
   const below = html.slice(detail);
   assert.match(below, /The next/);
   assert.match(below, /What next does\./);
   assert.match(below, /<span class="panel-state status-proposed">proposed<\/span>/, "its word, not its work state");
   assert.doesNotMatch(below, /in progress/);
   assert.match(below, /the agent reports: failing/);
-  assert.match(below, /<details><summary>1 contract<\/summary>[\s\S]*next keeps its promise/, "its contracts, folded until asked for");
+  const contracts = fold(below, "contracts");
+  assert.ok(contracts !== undefined, "its contracts sit behind a handle");
+  assert.equal(contracts.handle, "Contracts · 1", "which says what is inside and how much");
+  assert.equal(contracts.expanded, "false");
+  assert.ok(contracts.hidden, "closed until asked for");
+  assert.match(contracts.body, /next keeps its promise/);
+  assert.doesNotMatch(html, /<details|<summary/, "no single-click fold");
   assert.doesNotMatch(html, /What base does\./, "no other capability's sentences");
   assert.doesNotMatch(html, /base keeps its promise/, "nor its contracts");
   assert.doesNotMatch(html, /panel-capabilities/, "no list of every capability");
   assert.doesNotMatch(html, /Front covers|panel-shelf|data-book-id/, "no front covers (ADR-0659 D4)");
+});
+
+test("4.6 a description shows its lead, its first paragraph, and the rest behind More with its words counted; one paragraph has no More", () => {
+  const story = "What s does for you.\n\nHow it works, in   five words.\n\nWhat it is not.";
+  const capability = { ...line("next", "failing"), description: "Its lead.\n\nIts rest <here>." };
+  const html = renderStoryPanel({ ...panel, description: story, capabilities: [capability] }, "next");
+  assert.equal(plainText(/<p class="panel-sentences">([\s\S]*?)<\/p>/.exec(html)?.[1] ?? ""), "What s does for you.", "the story's lead alone on the surface");
+  const more = fold(html, "more");
+  assert.equal(more?.handle, "More · 10 words", "the rest's words, counted as whitespace-separated tokens");
+  assert.ok(more?.hidden);
+  assert.match(more!.body, /How it works, in\s+five words\.[\s\S]*What it is not\./);
+  const detail = html.slice(html.indexOf("panel-detail"));
+  assert.match(detail, /<p class="panel-lead">Its lead\.<\/p>/, "the capability's lead on its surface");
+  assert.equal(fold(detail, "more")?.handle, "More · 3 words");
+  assert.match(fold(detail, "more")!.body, /Its rest &lt;here&gt;\./, "as text");
+  assert.equal(renderStoryPanel(panel, "next").includes('data-fold="more"'), false, "a one-paragraph description has no More");
+});
+
+test("4.6 a capability's handles come in one order, More, Open work, Contracts, each contract opens to its own detail, and Open all · n counts every handle", () => {
+  const capability: CapabilityLine = { ...line("next", "failing"), description: "Lead.\n\nRest.", openWork: [{ increment: "i", title: "Do it" }] };
+  const html = renderStoryPanel({ ...panel, capabilities: [capability] }, "next");
+  const kinds = [...html.matchAll(/data-fold="([^"]+)"/g)].map(([, kind]) => kind);
+  assert.deepEqual(kinds, ["more", "open-work", "contracts", "contract"]);
+  assert.equal(fold(html, "open-work")?.handle, "Open work · 1");
+  const contract = fold(html, "contract");
+  assert.equal(contract?.handle, "next keeps its promise", "a contract's handle is its title");
+  assert.match(contract!.body, /the agent reports: failing[\s\S]*green only/, "it opens to its health and trail");
+  const foot = /<footer class="panel-foot">([\s\S]*?)<\/footer>/.exec(html)?.[1] ?? "";
+  assert.match(foot, /<button type="button" class="panel-handle panel-open-all" data-open-all>Open all · 4<\/button>/, "both levels counted");
+  assert.equal(renderStoryPanel({ ...panel, capabilities: [] }, undefined).includes("panel-open-all"), false, "no handles, no Open all");
 });
 
 test("4.8 the panel offers no pick of its own: no tree, no card to click and no pop-out, only the capability the island picked", () => {
@@ -91,7 +134,7 @@ test("4.14 a parked capability's detail keeps its word and reason and says it is
   assert.equal(plainText(said), "Parked on Identity &lt;beta&gt;: shelved on purpose.");
   assert.match(one, /panel-state status-untested">untested</, "its word is kept");
   assert.equal(whyLine(one), "Why not green: it is not built yet. The agent moves this one.", "and its reason");
-  assert.ok(one.indexOf("panel-parked") > one.indexOf("panel-why") && one.indexOf("panel-parked") < one.indexOf("<details>"));
+  assert.ok(one.indexOf("panel-parked") > one.indexOf("panel-why") && one.indexOf("panel-parked") < one.indexOf('data-fold="contracts"'));
   assert.match(parked(["Identity", "Journey events"]), /Parked on Identity and Journey events:/);
   assert.equal(renderStoryPanel(base, "cap").includes("panel-parked"), false, "one not parked says nothing of it");
 });
@@ -105,8 +148,9 @@ test("4.38 a capability's detail lists its open work in the order given, each by
   ] }] }, "cap");
   const items = [...html.matchAll(/<li data-increment-id="([^"]+)"[^>]*>([\s\S]*?)<\/li>/g)].map(([, id, said]) => [id, plainText(said!)]);
   assert.deepEqual(items, [["inc-2", "Started &lt;first&gt; (in progress)"], ["inc-1", "Parked first"], ["inc-3", "Parked second"]]);
-  assert.ok(html.indexOf("panel-open-work") < html.indexOf("<details>"), "above its contracts");
-  assert.equal(renderStoryPanel(base, "cap").includes("panel-open-work"), false, "one with no open work lists none");
+  assert.equal(fold(html, "open-work")?.handle, "Open work · 3", "behind a handle counting them");
+  assert.ok(html.indexOf('data-fold="open-work"') < html.indexOf('data-fold="contracts"'), "above its contracts");
+  assert.equal(renderStoryPanel(base, "cap").includes('data-fold="open-work"'), false, "one with no open work lists none");
 });
 
 test("4.40 a picked gate's panel lists the contracts of the edges joining its pair, either way, each saying which depends on which", () => {
@@ -130,7 +174,7 @@ test("4.40 a picked gate's panel lists the contracts of the edges joining its pa
 test("4.12 a capability that is not healthy says why under its word, who moves it, and its contracts by number", () => {
   const agent = renderStoryPanel(notGreen({ reason: "no test names it", mover: "agent", contracts: ["1.2", "1.3"] }), "cap");
   assert.equal(whyLine(agent), "Why not green: no test names 1.2 and 1.3. The agent moves this one.");
-  assert.ok(agent.indexOf("panel-why") > agent.indexOf("panel-state") && agent.indexOf("panel-why") < agent.indexOf("<details>"), "under its word, above its contracts");
+  assert.ok(agent.indexOf("panel-why") > agent.indexOf("panel-state") && agent.indexOf("panel-why") < agent.indexOf('data-fold="contracts"'), "under its word, above its contracts");
   const owner = renderStoryPanel(notGreen({ reason: "needs owner", mover: "owner", contracts: ["8.1"], since: "2026-09-27T10:00:00.000Z" }), "cap");
   assert.equal(whyLine(owner), "Why not green: 8.1 needs something only you can give, since 27 Sep. You move this one.");
   assert.match(owner, /class="panel-why mover-owner"/);
@@ -178,12 +222,13 @@ test("4.36 a story's panel lists its extra checks with what sets each off, and s
     { check: "a fresh-install sweep", trigger: "release", capability: "Install & update" },
   ];
   const html = renderStoryPanel({ ...panel, checks }, undefined);
-  const listed = /<section class="panel-checks"[\s\S]*?<\/section>/.exec(html)?.[0] ?? "";
-  assert.match(listed, /Extra checks[\s\S]*a real-app run[\s\S]*on every change/);
-  assert.match(listed, /a fresh-install sweep[\s\S]*Install &amp; update[\s\S]*before each formal release/, "a capability's check is named with it, as text");
-  assert.doesNotMatch(listed, /<svg|<canvas/, "no graph");
+  const listed = fold(html, "extra-checks");
+  assert.equal(listed?.handle, "Extra checks · 2", "behind a handle counting them");
+  assert.match(listed!.body, /a real-app run[\s\S]*on every change/);
+  assert.match(listed!.body, /a fresh-install sweep[\s\S]*Install &amp; update[\s\S]*before each formal release/, "a capability's check is named with it, as text");
+  assert.doesNotMatch(listed!.body, /<svg|<canvas/, "no graph");
   assert.doesNotMatch(html, /Risk rating|of 10|Users potentially impacted/, "the rating is switched off (question_0de2b8280384)");
-  assert.doesNotMatch(renderStoryPanel(panel, undefined), /panel-checks/);
+  assert.doesNotMatch(renderStoryPanel(panel, undefined), /extra-checks/);
 });
 
 test("4.37 storytree's mark names its source in the detail and on each contract: verified locally, from CI, or both; the reason says the source of what carries it; no source recorded, it says none", () => {

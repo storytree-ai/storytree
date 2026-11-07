@@ -48,6 +48,8 @@ interface Drawn {
   gates: (readonly [string, string] | undefined)[];
   /** Whether each panel drawn showed its capability's details, as the Surfaces menu says. */
   details: boolean[];
+  /** The capability each panel handed to its folds was drawn on, read from the panel after it was drawn. */
+  folded: (string | undefined)[];
   kept: AnnotatedTree | undefined;
   timed: { read(): Promise<unknown> } | undefined;
   /** Where the arcs and the sessions list were mounted, and how the arcs speak to their tab's badge. */
@@ -99,7 +101,7 @@ function page(t: TestContext, answers: Partial<Pick<PageParts, "problem" | "proj
     ...answers,
     project(name, timed) {
       const mine: Drawn = {
-        name, mounted: [], stopped: [], reading: undefined, teaching: [], locate: undefined, readingNear: undefined, islands: undefined, rendered: [], gates: [], details: [],
+        name, mounted: [], stopped: [], reading: undefined, teaching: [], locate: undefined, readingNear: undefined, islands: undefined, rendered: [], gates: [], details: [], folded: [],
         kept: answers.kept, timed: undefined, hosts: {}, waiting: undefined, opened: undefined, arcsStart: undefined, listeners: [], events: [],
         view: {
           scenes: 0, disposed: false, circled: [], circledContracts: [], onSelect: () => {}, painted: deferred<void>(),
@@ -147,8 +149,9 @@ function page(t: TestContext, answers: Partial<Pick<PageParts, "problem" | "proj
           mine.rendered.push(selected);
           mine.gates.push(options.gate);
           mine.details.push(options.details);
-          return drilledPanel.capabilities.map(({ id }) => `<section class="panel-detail" data-capability-id="${id}"><details></details></section>`).join("");
+          return selected === undefined ? "" : `<section class="panel-detail" data-capability-id="${selected}"></section>`;
         },
+        foldPanel: (panel) => { mine.folded.push(panel.querySelector<HTMLElement>(".panel-detail")?.dataset.capabilityId); },
       };
     },
   });
@@ -387,7 +390,7 @@ test("2.27 · the kept forest is drawn at once, marked not fresh; a first read t
   assert.equal(none.failures.filter((line) => line.startsWith("the forest of site could not be read")).length, 2);
 });
 
-test("2.28 · a territory click opens its story on that capability, and a redraw keeps its open details", async (t) => {
+test("2.28 · a territory click opens its story on that capability, and every drawing of the panel is handed to its folds", async (t) => {
   const on = page(t);
   await settled();
   on.land();
@@ -397,11 +400,11 @@ test("2.28 · a territory click opens its story on that capability, and a redraw
   assert.equal(on.body.dataset.selected, story.id);
   assert.equal(project.rendered.at(-1), second!.id, "the panel opens on the capability clicked");
 
-  const panel = on.content.querySelector<HTMLElement>(".story-panel")!;
-  panel.querySelector(`[data-capability-id="${second!.id}"] details`)!.setAttribute("open", "");
+  assert.equal(project.folded.at(-1), second!.id, "the panel is handed to its folds once drawn");
+  const handed = project.folded.length;
   on.land();
   assert.equal(project.rendered.at(-1), second!.id, "the redraw keeps the capability chosen");
-  assert.ok(panel.querySelector(`[data-capability-id="${second!.id}"] details`)!.hasAttribute("open"), "and its open details");
+  assert.deepEqual(project.folded.slice(handed), [second!.id], "and hands the redrawn panel to its folds, which open what the user keeps open");
 });
 
 test("2.50 · a gate picked on the map opens its story's panel on the pair it joins, kept on a redraw; a territory pick after it opens on that capability", async (t) => {

@@ -331,21 +331,62 @@
   margin-top: 0.4rem;
 }
 
-/* A story's extra checks: a short list in a thin frame, no graph. */
-.panel-checks {
-  margin: 0.5rem 0 0.75rem;
-  padding: 0.4rem 0.7rem;
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  background: var(--surface);
+/* A fold's handle (ADR-1284 D1): one line, "<Label> · <count>", behind a chevron that turns when it is open. A
+   double-click opens it, so it selects no word; nothing hints at that (ADR-1283 D2). */
+.panel-handle {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  width: 100%;
+  padding: 0.2rem 0;
+  border: none;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-align: left;
+  cursor: default;
+  user-select: none;
+}
+
+.panel-handle::before {
+  content: "▸";
+  transition: transform 120ms ease;
+}
+
+.panel-handle[aria-expanded="true"]::before {
+  transform: rotate(90deg);
+}
+
+.panel-handle:focus-visible {
+  outline: 2px solid var(--line);
+  outline-offset: 2px;
+}
+
+.panel-fold-body {
+  margin: 0 0 0.4rem 1rem;
   font-size: 0.9rem;
 }
 
-.panel-checks-label {
-  color: var(--muted);
+/* A contract inside "Contracts · n" is a handle too, one level deeper: its title in the panel's own colour. */
+.panel-contracts .panel-handle {
+  color: var(--text);
+  font-weight: 400;
 }
 
-.panel-checks > ul {
+.panel-foot {
+  margin-top: 0.6rem;
+  padding-top: 0.4rem;
+  border-top: 1px solid var(--line);
+}
+
+.panel-open-all::before {
+  content: "»";
+}
+
+/* A story's extra checks: a short list, no graph. */
+.panel-checks {
   margin: 0.15rem 0 0;
   padding-left: 1.2rem;
 }
@@ -400,16 +441,6 @@
 
 /* The open work naming the capability (ADR-1253 D1), in the library's order: the one in progress first. */
 .panel-open-work {
-  margin: 0 0 0.5rem;
-  font-size: 0.9rem;
-}
-
-.panel-open-work-label {
-  color: var(--muted);
-  font-weight: 600;
-}
-
-.panel-open-work > ol {
   margin: 0.2rem 0 0;
   padding-left: 1.4rem;
 }
@@ -462,8 +493,9 @@
 }
 
 .panel-contracts {
-  margin: 0.4rem 0 0;
-  padding-left: 1rem;
+  margin: 0.2rem 0 0;
+  padding-left: 0;
+  list-style: none;
 }
 
 .panel-contracts li {

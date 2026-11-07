@@ -12,8 +12,9 @@
  *   (3.79, polish round 1).
  * - One gate per link (ADR-1253 D3): where it last enters the territory it calls (the way out: where it first leaves its
  *   own), so a pair of neighbours' on their shared border; links whose gates stand together share one. Any other crossing
- *   is open road, and a road under a third territory is in a tunnel: drawn a short way onto that land from each border it
- *   meets, to a portal set back from it, and not drawn between (question_921aee319481).
+ *   is open road, and a road under a third territory is in a tunnel: from a portal set back from each border it crosses, on
+ *   the land of the territory on its road's side (Mick, 2026-11-07: "The tunnel entrance and exit should sit inside the
+ *   capability that needs it"), and not drawn between (question_921aee319481).
  */
 import { LIBRARY_LAND, ontoCoast, openReach, type Link, type LinkDock } from "./link-layout.js";
 import { landArea, type Coast, type Point, type TerritoryMap } from "./territories.js";
@@ -32,8 +33,9 @@ export type RoadGate = { readonly at: Point; readonly along: Point; readonly lin
 /** Open road: where a road crosses a border with no gate (leaving the territory that depends), its opening cut the same. */
 export type RoadPass = { readonly at: Point; readonly along: Point; readonly links: readonly string[]; readonly opening: number };
 /** A tunnel's portal: where a road goes under a third territory, or comes out from under it (ADR-1253 D3): its mouth, set
- * back on that land from the `border` its road crosses onto it at, `into` along the road into the tunnel, `along` across
- * its mouth, the links it carries, and its mouth's width. */
+ * back from the `border` its road crosses onto that land at, on the land on its road's side (on the land it goes under where
+ * that side is open land), `into` along the road into the tunnel, `along` across its mouth, the links it carries, and its
+ * mouth's width. */
 export type RoadPortal = { readonly at: Point; readonly border: Point; readonly along: Point; readonly into: Point; readonly links: readonly string[]; readonly width: number };
 /** A tunnel's way under the land, from mouth to mouth (or to where it meets another tunnel's way), and the links it carries. */
 export type RoadTunnel = { readonly pts: readonly Point[]; readonly links: readonly string[] };
@@ -45,11 +47,11 @@ export type NameAnchor = { readonly capability: string; readonly title: string; 
 
 /** Round 11's `sand-faint` widths, by the links a road carries: 1, 2-3, 4-7, 8 or more. */
 const WIDTHS = [0.5, 0.7, 0.95, 1.3] as const;
-/** How far a tunnel's mouth stands back on the land it goes under from the border its road crosses onto it at: at most
- * `setback`, leaving `way` under the land between its mouths where it can, and at least `least` or this share of the
- * stretch; and how much wider than its road its mouth is (Mick, 2026-11-07: "they shouldn't necessarily be required to be
- * at the border ... I think the footprint should be smallish"). */
-const MOUTH = { setback: 1.8, way: 3.2, least: 1.1, most: 0.2, room: 0.6 } as const;
+/** How far a tunnel's mouth stands back from the border its road crosses at: at most `setback`, on its road's own land at
+ * most `near` of its road there, on the land it goes under leaving `way` between its mouths where it
+ * can, and at least `least` or this share of the stretch; and how much wider than its road its mouth is (Mick, 2026-11-07:
+ * "they shouldn't necessarily be required to be at the border ... I think the footprint should be smallish"). */
+const MOUTH = { setback: 1.8, way: 3.2, near: 0.6, least: 1.1, most: 0.2, room: 0.6 } as const;
 export const MOUTH_ROOM = MOUTH.room;
 /** The least gate opening (its posts stand on the relief, island-relief.ts). */
 const GATE_OPENING = 3;
@@ -379,36 +381,46 @@ function route(map: TerritoryMap, links: readonly Link[], docks: readonly LinkDo
     const x = all.reduce<Crossing | undefined>((b, c) => (far(c.p, own.p) < (b ? far(b.p, own.p) : 1) ? c : b), undefined);
     if (x) entering.set(x, [...entering.get(x) ?? [], l.key]);
   }
+  const onOpen = (piece: readonly Point[]) => tAt(halfway(piece)) === "open";
   const opening = (links: readonly string[]) => Math.max(GATE_OPENING, widthOf(links.length) + 2) * S;
   const segments: RoadSegment[] = [], gates: RoadGate[] = [], passes: RoadPass[] = [], portals: RoadPortal[] = [], tunnels: RoadTunnel[] = [];
   for (const { s, xs, pieces, hidden } of cut) {
     const width = widthOf(s.links.length) * S;
     if (!hidden.some(Boolean)) segments.push({ pts: s.pts.map((p) => times(p, S)), links: s.links, width });
-    // Each tunnelled stretch is drawn a short way in from each border where it meets road on the land, to its mouth.
-    const mouths = pieces.map((): [Point | undefined, Point | undefined] => [undefined, undefined]);
+    // Each tunnel's mouth is set back from the border it crosses onto the land on its road's side (Mick, 2026-11-07: "The
+    // tunnel entrance and exit should sit inside the capability that needs it"), or where that side is open land, onto the
+    // land it goes under; the tunnel runs from mouth to mouth.
+    const on = xs.map((_, i) => (hidden[i] === hidden[i + 1] ? -1 : hidden[i] ? (onOpen(pieces[i + 1]!) ? i : i + 1) : (onOpen(pieces[i]!) ? i + 1 : i)));
+    const mouths: (Point | undefined)[] = xs.map(() => undefined);
     if (hidden.some(Boolean)) {
-      let run: Point[] = [];
-      const flush = () => { if (run.length > 1) segments.push({ pts: run.map((p) => times(p, S)), links: s.links, width }); run = []; };
+      const runs: { pts: Point[]; hidden: boolean }[] = [];
+      const add = (pts: readonly Point[], under: boolean) => {
+        const last = runs.at(-1);
+        if (last && last.hidden === under) last.pts.push(...pts.slice(1)); else runs.push({ pts: [...pts], hidden: under });
+      };
       pieces.forEach((piece, i) => {
-        if (!hidden[i]) { run.push(...(run.length ? piece.slice(1) : piece)); return; }
-        // Set back as far as leaves room under the land for a rise between its mouths, and never on the border itself.
-        const fromStart = i > 0 && !hidden[i - 1], fromEnd = i + 1 < pieces.length && !hidden[i + 1], ends = (fromStart ? 1 : 0) + (fromEnd ? 1 : 0), long = lengthOf(piece);
-        const back = Math.max(Math.min(MOUTH.setback, (long - MOUTH.way) / Math.max(1, ends)), Math.min(MOUTH.least, long * MOUTH.most));
-        const [head, rest] = fromStart ? splitAt(piece, back) : [[piece[0]!], piece];
-        const [way, tail] = fromEnd ? splitAt(rest, lengthOf(rest) - back) : [rest, [rest.at(-1)!]];
-        if (fromStart) { run.push(...(run.length ? head.slice(1) : head)); mouths[i]![0] = head.at(-1)!; }
-        flush();
-        tunnels.push({ pts: way.map((p) => times(p, S)), links: s.links });
-        if (fromEnd) { run = [...tail]; mouths[i]![1] = tail[0]!; }
+        const atStart = i > 0 && on[i - 1] === i, atEnd = i < xs.length && on[i] === i, m = (atStart ? 1 : 0) + (atEnd ? 1 : 0), long = lengthOf(piece);
+        // Under the land, as far as leaves room for a rise between its mouths; on the road's own land, as far as leaves the
+        // road on to its settlement in sight; never on the border itself.
+        const back = Math.max(hidden[i] ? Math.min(MOUTH.setback, (long - MOUTH.way) / Math.max(1, m)) : Math.min(MOUTH.setback, long * MOUTH.near / Math.max(1, m)), Math.min(MOUTH.least, long * MOUTH.most));
+        const [head, rest] = atStart ? splitAt(piece, back) : [[piece[0]!], piece];
+        const [middle, tail] = atEnd ? splitAt(rest, lengthOf(rest) - back) : [rest, [rest.at(-1)!]];
+        if (atStart) { add(head, hidden[i - 1]!); mouths[i - 1] = head.at(-1)!; }
+        add(middle, hidden[i]!);
+        if (atEnd) { add(tail, hidden[i + 1]!); mouths[i] = tail[0]!; }
       });
-      flush();
+      for (const r of runs) {
+        if (r.hidden) tunnels.push({ pts: r.pts.map((p) => times(p, S)), links: s.links });
+        else if (r.pts.length > 1) segments.push({ pts: r.pts.map((p) => times(p, S)), links: s.links, width });
+      }
     }
     xs.forEach((x, i) => {
       const at = times(x.p, S), gated = entering.get(x);
       if (gated !== undefined) gates.push({ at, along: x.along, links: s.links, entrances: gated.sort(), opening: opening(s.links), between: [...x.pair].sort() as [string, string] });
-      if (hidden[i] !== hidden[i + 1]) {
-        const mouth = hidden[i] ? mouths[i]![1]! : mouths[i + 1]![0]!, d = far(mouth, x.p);
-        const into = d > 1e-9 ? times({ x: mouth.x - x.p.x, z: mouth.z - x.p.z }, 1 / d) : { x: -x.along.z, z: x.along.x };
+      if (on[i]! >= 0) {
+        // Into the tunnel: toward the border from a mouth on its road's side, away from it on the land it goes under.
+        const mouth = mouths[i]!, d = far(mouth, x.p), away = hidden[on[i]!] ? 1 : -1;
+        const into = d > 1e-9 ? times({ x: mouth.x - x.p.x, z: mouth.z - x.p.z }, away / d) : { x: -x.along.z, z: x.along.x };
         portals.push({ at: times(mouth, S), border: at, along: { x: -into.z, z: into.x }, into, links: s.links, width: width + MOUTH.room * S });
       }
       if (gated === undefined && !(hidden[i] && hidden[i + 1])) passes.push({ at, along: x.along, links: s.links, opening: opening(s.links) });

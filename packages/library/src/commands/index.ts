@@ -18,9 +18,10 @@
  *   `{`, which are read as JSON (a list of links, a number, a switch). `@file` reads the file.
  *   Text given for a field the library wants as a list is read as comma-separated ids (`--links a,b`),
  *   since Windows PowerShell 5.1 strips a JSON list's inner quotes; a shell-joined word is refused.
- * - Run by a session holding an increment, `edit` and `retire` of a story, capability or contract
+ * - Run by a session holding an increment claimed on a branch, `edit` and `retire` of a story, capability or contract
  *   planned before it hold the change on the increment as a pending change until its branch merges
- *   (ADR-0966 D1), and `read` of the increment lists them as before and after (D3).
+ *   (ADR-0966 D1), and `read` of the increment lists them as before and after (D3); one claimed on no branch or
+ *   the main line has none to merge, so its edits are live (friction_f02365572601).
  * - `exact` sweeps every page of `phrase`'s search for a link sweep: each record holding the phrase, with the fields
  *   that hold it (friction_45f8338e8931); the find_text tool sweeps the same way.
  * - A plugin kind no mounted plugin declares stays out of `list`, `search` and `phrase` (ADR-1178 D3), never in silence:
@@ -51,6 +52,7 @@ export interface HeldClaim {
   readonly increment?: string | undefined;
   readonly capability?: string | undefined;
   readonly since: string;
+  readonly branch?: string | undefined;
 }
 
 /**
@@ -687,7 +689,7 @@ const revert = verb({
     const type = (await context.library.history({ id, newest: 1 })).at(0)?.type;
     const increment = PLAN_TYPES.has(type ?? "") ? heldIncrement(await context.claims(), context.session) : undefined;
     if (increment !== undefined) {
-      throw new VerbRefusal(`${id} is a planned ${type}, and a revert cannot wait on increment ${increment} as an edit does: edit its fields to hold the change there, or revert it from a session holding no increment`);
+      throw new VerbRefusal(`${id} is a planned ${type}, and a revert cannot wait on increment ${increment} as an edit does: edit its fields to hold the change there, or revert it from a session holding no increment on a branch`);
     }
     try {
       await context.library.revert(id, to, read, { ...context.writer!, ...(reason === undefined ? {} : { reason }) });
@@ -712,7 +714,7 @@ const undo = verb({
     const increment = heldIncrement(await context.claims(), context.session);
     const planned = increment === undefined ? undefined : (await context.library.writtenBy(actor)).find(({ type }) => PLAN_TYPES.has(type));
     if (planned !== undefined) {
-      throw new VerbRefusal(`${actor} wrote ${planned.id}, a planned ${planned.type}, and an undo cannot wait on increment ${increment} as an edit does: undo from a session holding no increment`);
+      throw new VerbRefusal(`${actor} wrote ${planned.id}, a planned ${planned.type}, and an undo cannot wait on increment ${increment} as an edit does: undo from a session holding no increment on a branch`);
     }
     let reverted;
     try {

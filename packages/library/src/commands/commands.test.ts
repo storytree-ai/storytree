@@ -44,7 +44,7 @@ test("17.1 · The library declares the library family first among storytree's fa
   const form = await library.addCapability({ story: story.id, title: "Form" });
   const increment = await library.addIncrement({ arc: arc.id, title: "Address form", objective: "Rename it", body: "Red then green" });
   await library.advanceIncrement(increment.id, "active"); // as claiming it does
-  const claims: HeldClaim[] = [{ session: "lane", increment: increment.id, since: "2026-10-15T00:00:00.000Z" }];
+  const claims: HeldClaim[] = [{ session: "lane", increment: increment.id, since: "2026-10-15T00:00:00.000Z", branch: "claude/address-form" }, { session: "library-lane", increment: increment.id, since: "2026-10-15T00:00:00.000Z" }];
   const contextOf = (session: string): LibraryVerbContext => ({
     library, project, session, folder, writer: { actor: `session:${session}` },
     claims: async () => claims,
@@ -71,6 +71,8 @@ test("17.1 · The library declares the library family first among storytree's fa
     "a revert of a planned record cannot wait on the increment, so the session holding one is refused",
   );
   assert.equal(((await library.get(form.id))?.fields as { description?: string } | undefined)?.description, "Typed here", "the live record is left alone");
+  await verbOf("revert").act({ id: form.id, to: String(formSeqs[0]), read: String(formSeqs.at(-1)), reason: undefined }, contextOf("library-lane"), WORDS);
+  assert.equal(((await library.get(form.id))?.fields as { description?: string } | undefined)?.description, undefined, "an increment claimed on no branch has nothing to merge, so its session's revert is made live");
 });
 
 test("17.3 · library edit project-anchor --what … --audience … writes the project's anchor, making it on its first write and refusing any other field with nothing written, and library read reads it back; a story takes no audience (ADR-1085 D1, ADR-1096)", async (t) => {
@@ -397,7 +399,7 @@ test("17.9 · library undo <actor> writes every record one writer wrote back to 
   assert.equal(await meaning(other.id), "Mended since.");
 
   const story = await library.addStory({ title: "Bob's story" }, bob);
-  const holding: LibraryVerbContext = { ...context, claims: async () => [{ session: "curator", increment: "increment_000000000001", since: "2026-10-27T00:00:00.000Z" }] };
+  const holding: LibraryVerbContext = { ...context, claims: async () => [{ session: "curator", increment: "increment_000000000001", since: "2026-10-27T00:00:00.000Z", branch: "claude/curation" }] };
   await assert.rejects(
     verbOf("undo").act({ actor: "session:bob", reason: undefined }, holding, WORDS),
     (error: unknown) => error instanceof VerbRefusal && error.message.includes(story.id),
@@ -544,7 +546,7 @@ test("17.13 · library new capability, run by a session holding an increment, ju
   await library.pendChange(increment.id, { record: current.id, fields: { story: host.id, title: "4 · Keeping the factory current" } }, writer);
   const contextOf = (session: string): LibraryVerbContext => ({
     library, project, session, folder: tmpdir(), writer: { actor: `session:${session}` },
-    claims: async () => [{ session: "lane", increment: increment.id, since: "2026-10-31T00:00:00.000Z" }],
+    claims: async () => [{ session: "lane", increment: increment.id, since: "2026-10-31T00:00:00.000Z", branch: "claude/swap-forms" }],
     testedNumbers: async () => ({ tested: [], untested: [] }),
   });
   const titleOf = async (text: string) => ((await library.get(/capability_[0-9a-f]{12}/.exec(text)![0]))?.fields as { title: string }).title;
@@ -624,7 +626,7 @@ test("17.16 · library edit --live, run by a session holding an increment, edits
   await library.advanceIncrement(increment.id, "active"); // as claiming it does
   const context: LibraryVerbContext = {
     library, project, session: "lane", folder: tmpdir(), writer: { actor: "session:lane" },
-    claims: async () => [{ session: "lane", increment: increment.id, since: "2026-11-03T00:00:00.000Z" }],
+    claims: async () => [{ session: "lane", increment: increment.id, since: "2026-11-03T00:00:00.000Z", branch: "claude/address-form" }],
     testedNumbers: async () => ({ tested: [], untested: [] }),
   };
   const pendingOf = async () => ((await library.get(increment.id))?.fields as { pending?: unknown[] }).pending ?? [];
@@ -657,7 +659,7 @@ test("17.20 · library edit's answer for an edit held on the caller's increment 
   await library.advanceIncrement(increment.id, "active"); // as claiming it does
   const context: LibraryVerbContext = {
     library, project, session: "lane", folder: tmpdir(), writer: { actor: "session:lane" },
-    claims: async () => [{ session: "lane", increment: increment.id, since: "2026-11-03T00:00:00.000Z" }],
+    claims: async () => [{ session: "lane", increment: increment.id, since: "2026-11-03T00:00:00.000Z", branch: "claude/address-form" }],
     testedNumbers: async () => ({ tested: [], untested: [] }),
   };
 

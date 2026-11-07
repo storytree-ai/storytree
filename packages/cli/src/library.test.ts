@@ -521,7 +521,7 @@ test("3.14 `library edit` and `retire`, run by a session holding an increment, h
     const log = await openActivityLog(testServerUrl());
     try {
       const as = { CLAUDE_CODE_SESSION_ID: "caller" };
-      assert.equal((await claim({ log, library, project: world.project, session: "caller", harness: "claude-code" }, increment.id, "driving the address form")).ok, true);
+      assert.equal((await claim({ log, library, project: world.project, session: "caller", harness: "claude-code", branch: "claude/address-form" }, increment.id, "driving the address form")).ok, true);
       const live = await library.get(form.id);
       const edited = await world.run(["library", "edit", form.id, "--description", "Where they type it"], as);
       assert.equal(edited.code, 0, edited.stderr);

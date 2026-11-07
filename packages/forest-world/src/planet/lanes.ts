@@ -1,11 +1,13 @@
-/** Capability 4 · The planet. Selection lanes at sea, routed on their own (contracts 4.8–4.9, 4.41–4.42, ADR-1261 D3–D4),
- * ported from 0.2's laneLayout and lane draw-on. */
+/** Capability 4 · The planet. Lanes at sea, routed on their own: chart dots at rest, a selection's share filled (contracts
+ * 4.8–4.9, 4.41–4.42, 4.44, ADR-1261 D3–D4, ADR-1278), ported from 0.2's laneLayout and lane draw-on. */
 import { Vector3 } from 'three';
 import type { PlanetLanes } from './pathways.js';
 
 /** At sea every lane is one solid pale sea-blue line, in and out alike (ADR-1236 D1, overtaking 0.2's teal and violet,
  * ADR-1236 D2): the capability tree mock's #8fbfd4 mixed into its sea (#17222b) at 0.78, as it shows there. */
 export const SEA_LANE = '#80acbf';
+/** A selected story's share of a stretch is filled solid in this pale blue (ADR-1278 D2: the mocks' fill, picked as C2). */
+export const SEA_LANE_FILL = '#d2ecf5';
 
 export interface LitLink { from: string; to: string; dir: 'up' | 'down' }
 export interface LaneRoute extends LitLink {
@@ -24,7 +26,7 @@ export interface LaneRoute extends LitLink {
 }
 
 /** A lane's width in ground units alone, and the most any stretch is drawn (ADR-1261 D4): the old first and widest steps. */
-const SEA_LANE_ONE = 0.32;
+export const SEA_LANE_ONE = 0.32;
 export const SEA_LANE_CAP = 1.15;
 /** How many lit lanes sharing a stretch first draw it at the cap. */
 const SEA_LANE_FULL = 64;
@@ -35,10 +37,64 @@ export function seaLaneWidth(sharing: number): number {
   return Math.min(SEA_LANE_CAP, SEA_LANE_ONE + (SEA_LANE_CAP - SEA_LANE_ONE) * rise);
 }
 
+/** The chart dots at rest (ADR-1278 D1, as the picked mock C draws them): each dot's size against its stretch's lane width,
+ * the distance between dots against their size, and how opaque they are, dimmed by `dim` under a selection. */
+export const LANE_DOTS = { size: 0.5, pitch: 2.1, opacity: 0.75, dim: 0.7 } as const;
+
+/** The fewest pixels one lane is drawn across, as the picked mock draws it (ADR-1278 D3): zoomed out past it, every lane
+ * size scales up together. */
+export const LANE_MIN_PX = 4.5;
+
+/** How much every lane size (the dots and the fills alike) is scaled when ground units are `worldPerPixel` on screen: 1
+ * while one lane is at least about LANE_MIN_PX across, else the power of two nearest to bringing it there, so the dots
+ * keep their places while the view zooms within a step and every second one stays at the next. */
+export function laneScale(worldPerPixel: number): number {
+  const want = LANE_MIN_PX * worldPerPixel / SEA_LANE_ONE;
+  return want > 1 && Number.isFinite(want) ? Math.max(1, 2 ** Math.round(Math.log2(want))) : 1;
+}
+
+export interface RestStretch {
+  /** The lane plan's segment it dots. */
+  id: string;
+  /** Each dot's diameter in ground units. */
+  size: number;
+  /** Where each dot lies, and the way along its route there. */
+  dots: { at: Vector3; along: Vector3 }[];
+  /** The islands of each lane riding it, by story. */
+  islands: (readonly [string, string])[];
+}
+
+/** Every lane at rest, with nothing selected (ADR-1278 D1, ADR-1276 D1): each stretch of the merged routes once, as round
+ * dots down its middle, about half its lane width (`seaLaneWidth` of every lane riding it) and spaced evenly about twice
+ * their size apart, so a trunk carrying more links reads as bigger dots. */
+export function restLanes(plan: PlanetLanes): RestStretch[] {
+  const islands = new Map(plan.edges.map(edge => [`${edge.from}->${edge.to}`, edge.islands]));
+  return plan.segments.flatMap(segment => {
+    const size = seaLaneWidth(segment.links.length) * LANE_DOTS.size, points = segment.points;
+    const walk = [0];
+    for (let i = 1; i < points.length; i++) walk.push(walk[i - 1]! + points[i]!.distanceTo(points[i - 1]!));
+    const length = walk.at(-1)!;
+    if (!(length > 0)) return [];
+    const count = Math.max(1, Math.round(length / (size * LANE_DOTS.pitch))), dots: RestStretch['dots'] = [];
+    for (let k = 0, i = 1; k < count; k++) {
+      const distance = (k + 0.5) * length / count;
+      while (i < points.length - 1 && walk[i]! < distance) i++;
+      const a = points[i - 1]!, b = points[i]!, t = (distance - walk[i - 1]!) / (walk[i]! - walk[i - 1]! || 1);
+      dots.push({ at: a.clone().lerp(b, t), along: b.clone().sub(a).normalize() });
+    }
+    return [{ id: segment.id, size, dots, islands: segment.links.flatMap(link => islands.has(link) ? [islands.get(link)!] : []) }];
+  });
+}
+
+/** Whether a stretch shows in a recorded growth (4.33): once both islands of a lane riding it have risen. */
+export function restShown(stretch: Pick<RestStretch, 'islands'>, island: (story: string) => number): boolean {
+  return stretch.islands.some(lane => laneShown({ islands: lane }, island));
+}
+
 /** Each lit link's lane between islands as one line in dependency order, from dock to dock, down the middle of its own
  * route in the lane plan (ADR-1261 D3): inland, the selected island's own roads take over (ADR-1236 D2); a link with no
  * route (one within an island) lights nothing. Lanes sharing a stretch, in and out alike, are one line there, wider by
- * how many share it. */
+ * how many share it: the selected story's share of the stretch, filled solid (ADR-1278 D2). */
 export function laneRoutes(plan: PlanetLanes, lit: readonly LitLink[]): LaneRoute[] {
   const selected = lit.flatMap(link => {
     const edge = plan.edges.find(e => e.from === link.from && e.to === link.to);
@@ -50,7 +106,7 @@ export function laneRoutes(plan: PlanetLanes, lit: readonly LitLink[]): LaneRout
   return selected.map(({ link, chain, typeOnly, islands }): LaneRoute => {
     // The chain runs from the building capability to the one built on; the lane runs back along it.
     const line = alongChain(plan, [...chain].reverse().map(ref => ({ ...ref, reversed: !ref.reversed })), sharing);
-    return { ...link, ...line, colour: SEA_LANE, islands, ...typeOnly ? { typeOnly } : {} };
+    return { ...link, ...line, colour: SEA_LANE_FILL, islands, ...typeOnly ? { typeOnly } : {} };
   });
 }
 

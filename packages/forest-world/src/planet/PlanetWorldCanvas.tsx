@@ -7,8 +7,8 @@ import { Vector3, type Group, type PerspectiveCamera } from 'three';
 import type { ForestScene, Island } from '../scene.js';
 import type { PathwayDrawing, PlanetPathwayPlate } from './pathways.js';
 import { drawnAtOnce, islandDocks, pageRoadRouter, roadsWhenRouted, type IslandDock } from './road-routing.js';
-import { SelectionLanes } from './PlanetTrailRibbons.js';
-import type { LitLink } from './lanes.js';
+import { RestLanes, SelectionLanes } from './PlanetTrailRibbons.js';
+import { restLanes, type LitLink } from './lanes.js';
 import { litIsland, portMarks, seaLanes, type SeaPort } from './ports.js';
 import type { Descriptor3D } from '../descriptors.js';
 import { EXACT_COLOUR_CANVAS_PROPS } from '../exact-colour.js';
@@ -78,8 +78,8 @@ export interface PlanetWorldCanvasProps {
   framing?: number | undefined;
   /** Positive moves the rendered sheet right in CSS pixels, leaving room for an adjacent card. */
   sideOffset?: number | undefined;
-  /** The selection's lit links, drawn as pale-blue lanes at sea, with a port at each dock they come ashore at on the
-   * selected island; none by default. At rest the sea carries no line (ADR-1261 D1). */
+  /** The selection's lit links, their share of each lane filled pale at sea, with a port at each dock they come ashore at
+   * on the selected island; none by default. At rest every lane is drawn as chart dots (ADR-1278 D1). */
   lanes?: readonly LitLink[];
   /** A recorded growth to replay (capability 12): islands rise, lanes show once both their islands have, and plate
    * children read `usePlanetGrowth`. */
@@ -246,6 +246,9 @@ export function PlanetWorldCanvas({ scene, spots, radius, rotation = [0, 0, 0, 1
     const spot = selected === undefined ? undefined : spots.get(selected);
     return seaLanes(pathways, lanes, selected === undefined || spot === undefined ? undefined : { story: selected, spot, radius });
   }, [pathways, lanes, selected, spots, radius]);
+  const rest = useMemo(() => restLanes(pathways.lanes), [pathways.lanes]);
+  // 4.44: how much every lane size is scaled, read from the view by the dots each frame, by the fills after them.
+  const laneScale = useRef(1);
   const elevation = SHIPPED_ELEVATION_DEG * Math.PI / 180;
   const position: [number, number, number] = [0, Math.sin(elevation) * radius * 4, Math.cos(elevation) * radius * 4];
   const root = useRef<() => RootState>(undefined);
@@ -271,7 +274,7 @@ export function PlanetWorldCanvas({ scene, spots, radius, rotation = [0, 0, 0, 1
         return <Plate key={island.story} island={island} spot={spot} radius={radius} plate={pathways.plates.get(island.story)!} docks={docksOn(island.story)}
           ports={island.story === selected ? sea.ports : NO_PORTS} visible={exterior.plates} grounds={exterior.grounds} hollow={hollow} children={plateChildren} />;
       })}
-      <group name="globe-lanes" visible={exterior.roads}><SelectionLanes routes={sea.lanes} /></group>
+      <group name="globe-lanes" visible={exterior.roads}><RestLanes stretches={rest} selected={sea.lanes.length > 0} scale={laneScale} /><SelectionLanes routes={sea.lanes} scale={laneScale} /></group>
       {inside}
     </group>
     <SheetLights />

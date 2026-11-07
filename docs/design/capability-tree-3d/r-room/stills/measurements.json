@@ -1,0 +1,208 @@
+{
+ "today": {
+  "title": "Today's look",
+  "library": {
+   "territoryLand": 12735.3,
+   "gates": 16
+  },
+  "gateLinks": [
+   "arrive:0->capability_baaeecb42577",
+   "arrive:0->capability_f27ac2abb10b",
+   "capability_13b04e769a4b->capability_baaeecb42577",
+   "capability_556e276756c9->capability_baaeecb42577",
+   "capability_75d059640d9d->capability_baaeecb42577",
+   "capability_75d059640d9d->capability_f27ac2abb10b",
+   "capability_78d6e026f902->capability_baaeecb42577",
+   "capability_baaeecb42577->capability_a1d4fadbec3e",
+   "capability_f27ac2abb10b->capability_dd486ffa5b02"
+  ],
+  "gateBetween": [
+   "capability_a1d4fadbec3e",
+   "capability_baaeecb42577"
+  ],
+  "gateAt": [
+   4.03125298023221,
+   1.4846888780302834,
+   32.406081199645996
+  ],
+  "gate": {
+   "links": [
+    "arrive:0->capability_baaeecb42577",
+    "arrive:0->capability_f27ac2abb10b",
+    "capability_13b04e769a4b->capability_baaeecb42577",
+    "capability_556e276756c9->capability_baaeecb42577",
+    "capability_75d059640d9d->capability_baaeecb42577",
+    "capability_75d059640d9d->capability_f27ac2abb10b",
+    "capability_78d6e026f902->capability_baaeecb42577",
+    "capability_baaeecb42577->capability_a1d4fadbec3e",
+    "capability_f27ac2abb10b->capability_dd486ffa5b02"
+   ],
+   "between": [
+    "capability_a1d4fadbec3e",
+    "capability_baaeecb42577"
+   ],
+   "shared": 9
+  },
+  "second": {
+   "territoryLand": 5121.7,
+   "gates": 11
+  }
+ },
+ "A": {
+  "title": "Open ground between territories",
+  "library": {
+   "territoryLand": 8615.2,
+   "gates": 12
+  },
+  "gate": {
+   "links": [
+    "arrive:0->capability_baaeecb42577",
+    "capability_13b04e769a4b->capability_baaeecb42577",
+    "capability_556e276756c9->capability_baaeecb42577",
+    "capability_75d059640d9d->capability_baaeecb42577",
+    "capability_78d6e026f902->capability_baaeecb42577",
+    "capability_baaeecb42577->capability_a1d4fadbec3e"
+   ],
+   "between": [
+    "capability_baaeecb42577",
+    "open"
+   ],
+   "shared": 6
+  },
+  "second": {
+   "territoryLand": 3763.9,
+   "gates": 13
+  }
+ },
+ "B": {
+  "title": "Thick borders",
+  "library": {
+   "territoryLand": 12735.3,
+   "gates": 16
+  },
+  "gate": {
+   "links": [
+    "arrive:0->capability_baaeecb42577",
+    "arrive:0->capability_f27ac2abb10b",
+    "capability_13b04e769a4b->capability_baaeecb42577",
+    "capability_556e276756c9->capability_baaeecb42577",
+    "capability_75d059640d9d->capability_baaeecb42577",
+    "capability_75d059640d9d->capability_f27ac2abb10b",
+    "capability_78d6e026f902->capability_baaeecb42577",
+    "capability_baaeecb42577->capability_a1d4fadbec3e",
+    "capability_f27ac2abb10b->capability_dd486ffa5b02"
+   ],
+   "between": [
+    "capability_a1d4fadbec3e",
+    "capability_baaeecb42577"
+   ],
+   "shared": 9
+  },
+  "second": {
+   "territoryLand": 5121.7,
+   "gates": 11
+  }
+ },
+ "C": {
+  "title": "A border lane, the gate in its middle, the road through it",
+  "library": {
+   "territoryLand": 12735.3,
+   "gates": 16
+  },
+  "gate": {
+   "links": [
+    "arrive:0->capability_baaeecb42577",
+    "arrive:0->capability_f27ac2abb10b",
+    "capability_13b04e769a4b->capability_baaeecb42577",
+    "capability_556e276756c9->capability_baaeecb42577",
+    "capability_75d059640d9d->capability_baaeecb42577",
+    "capability_75d059640d9d->capability_f27ac2abb10b",
+    "capability_78d6e026f902->capability_baaeecb42577",
+    "capability_baaeecb42577->capability_a1d4fadbec3e",
+    "capability_f27ac2abb10b->capability_dd486ffa5b02"
+   ],
+   "between": [
+    "capability_a1d4fadbec3e",
+    "capability_baaeecb42577"
+   ],
+   "shared": 9
+  },
+  "second": {
+   "territoryLand": 5121.7,
+   "gates": 11
+  }
+ },
+ "D": {
+  "title": "Quieter fills",
+  "library": {
+   "territoryLand": 12735.3,
+   "gates": 16
+  },
+  "gate": {
+   "links": [
+    "arrive:0->capability_baaeecb42577",
+    "arrive:0->capability_f27ac2abb10b",
+    "capability_13b04e769a4b->capability_baaeecb42577",
+    "capability_556e276756c9->capability_baaeecb42577",
+    "capability_75d059640d9d->capability_baaeecb42577",
+    "capability_75d059640d9d->capability_f27ac2abb10b",
+    "capability_78d6e026f902->capability_baaeecb42577",
+    "capability_baaeecb42577->capability_a1d4fadbec3e",
+    "capability_f27ac2abb10b->capability_dd486ffa5b02"
+   ],
+   "between": [
+    "capability_a1d4fadbec3e",
+    "capability_baaeecb42577"
+   ],
+   "shared": 9
+  },
+  "second": {
+   "territoryLand": 5121.7,
+   "gates": 11
+  }
+ },
+ "E": {
+  "title": "Fewer marks: no gate posts, no settlement symbols",
+  "library": {
+   "territoryLand": 12735.3,
+   "gates": 0
+  },
+  "gate": {
+   "links": [],
+   "between": [],
+   "shared": 0
+  },
+  "second": {
+   "territoryLand": 5121.7,
+   "gates": 0
+  }
+ },
+ "F": {
+  "title": "A bigger island, marks the same size",
+  "library": {
+   "territoryLand": 13042.4,
+   "gates": 17
+  },
+  "gate": {
+   "links": [
+    "arrive:0->capability_baaeecb42577",
+    "arrive:0->capability_f27ac2abb10b",
+    "capability_13b04e769a4b->capability_baaeecb42577",
+    "capability_75d059640d9d->capability_baaeecb42577",
+    "capability_75d059640d9d->capability_f27ac2abb10b",
+    "capability_78d6e026f902->capability_baaeecb42577",
+    "capability_baaeecb42577->capability_a1d4fadbec3e",
+    "capability_f27ac2abb10b->capability_dd486ffa5b02"
+   ],
+   "between": [
+    "capability_5a80222c88c4",
+    "capability_baaeecb42577"
+   ],
+   "shared": 8
+  },
+  "second": {
+   "territoryLand": 5153.9,
+   "gates": 13
+  }
+ }
+}

@@ -2,7 +2,7 @@
 
 The real desktop page on storytree's own live library, read with the app's own reads (the capture kit's `liveAnswers`), so
 the open work shown is the library's as it stood at the capture: no stand-in arcs. The capture picks the capability with the
-most open increments (one with an active increment first), clicks its island, then its card in the story panel.
+most open increments (one with an active increment first), clicks its island, then its territory there (the panel draws no tree to pick from, ADR-1285).
 
 What this step shows (contracts 5.19 and 4.38): under the capability's word, its reason and its parked line, an **Open work**
 list of every open increment whose capabilities list names it, by title: the active ones first (in bold, marked "in

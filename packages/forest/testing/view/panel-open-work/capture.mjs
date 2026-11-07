@@ -1,6 +1,6 @@
 // A capability's panel lists its open work in order (rollout 2, step 4c; ADR-1253 D1): the real desktop page on storytree's own
 // live library, read with the app's own reads (the capture kit's liveAnswers), so the open work is the library's as it stands.
-// The island of the capability with the most open work is clicked, then its card, whose detail lists the open increments naming
+// The island of the capability with the most open work is clicked, then its territory, whose detail lists the open increments naming
 // it: the active one first, then the rest in parked order. `node --import tsx capture.mjs` (append --retake to write into
 // src/view/evidence/panel-open-work). Reads only: every write the page could ask keeps the stand-in's quiet answer.
 import assert from 'node:assert/strict';
@@ -47,10 +47,18 @@ try {
         const island = await page.evaluate(id => window.storytreeGlobe.islands().find(i => i.story === id), story.id);
         await page.mouse.click(island.x, island.y);
         await page.waitForFunction(id => document.body.dataset.selected === id, story.id, { timeout: 60_000 });
-        const card = page.locator(`.story-panel [data-capability-id="${capability.id}"]`).first();
-        await card.waitFor({ timeout: 60_000 });
-        await card.focus();
-        await page.keyboard.press('Enter');
+        // The panel draws no tree to pick from (ADR-1285): the capability is picked on the island, at its settlement, which takes
+        // no ray, so the click lands on its territory.
+        await page.evaluate(id => window.storytreeGlobe.face({ kind: 'story', story: id }), story.id);
+        await page.waitForFunction(() => window.storytreeGlobe.still(), undefined, { timeout: 60_000, polling: 200 });
+        const settlement = await page.evaluate(id => {
+          const { scene, camera } = window.__globe, box = document.querySelector('canvas').getBoundingClientRect();
+          scene.updateMatrixWorld(true);
+          const at = scene.getObjectByName(`settlement:${id}`).getWorldPosition(camera.position.clone()).project(camera);
+          return { x: box.left + (at.x + 1) / 2 * box.width, y: box.top + (1 - at.y) / 2 * box.height };
+        }, capability.id);
+        await page.mouse.click(settlement.x, settlement.y);
+        await page.locator(`.story-panel .panel-detail[data-capability-id="${capability.id}"]`).waitFor({ timeout: 60_000 });
         const list = page.locator('.story-panel .panel-open-work');
         await list.waitFor({ timeout: 30_000 });
         await page.locator(`.story-panel .panel-detail[data-capability-id="${capability.id}"]`).scrollIntoViewIfNeeded();

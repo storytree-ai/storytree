@@ -15,9 +15,6 @@
  "src/drill-down/drill-down.ts": {
   "4": 248
  },
- "src/drill-down/tree-layout.ts": {
-  "4": 240
- },
  "src/never-hidden/never-hidden.ts": {
   "1": 5,
   "3": 109,
@@ -105,9 +102,6 @@
   "3": 63,
   "7": 23
  },
- "src/view/pan-zoom.ts": {
-  "4": 30
- },
  "src/view/panel-selection.ts": {
   "3": 14,
   "7": 2
@@ -146,8 +140,5 @@
   "3": 854,
   "5": 132,
   "7": 61
- },
- "src/view/tree-space.ts": {
-  "4": 8
  }
 }

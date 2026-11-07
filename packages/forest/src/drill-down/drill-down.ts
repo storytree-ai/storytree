@@ -1,9 +1,8 @@
 /**
  * Capability 4 · Drill-down (the forest story): what the panel a click on a story node opens says.
- * It explains the story in plain words: its sentences, and a small diagram of how the capabilities
- * connect, each pointing at the ones it builds on, including any in other stories, named with their
- * story and their word. Below the diagram it shows one capability, the one selected:
- * its sentences, its health as the agent reports it, and its contracts on request (ADR-0659).
+ * It explains the story in plain words: its sentences, and below them one capability, the one selected
+ * on the island: its sentences, its health as the agent reports it, and its contracts on request (ADR-0659).
+ * The island draws how the capabilities connect, so the panel carries no diagram of its own.
  *
  * Its shelf: the user's agent writes every description, and storytree writes none (ADR-0625 D1),
  * so a missing one says so. Each contract shows whether the agent reported it red before green,
@@ -71,20 +70,6 @@ export interface CapabilityLine {
   openWork?: { increment: string; title: string; active?: true }[];
 }
 
-/** An arrow of the diagram: a capability pointing at one it builds on. */
-export interface Arrow {
-  from: string;
-  to: string;
-  /** The title of the capability pointed at. */
-  toTitle: string;
-  /** The title of its story, when it is in another story. */
-  toStory?: string;
-  /** The word for the capability pointed at, as the library gives it (ADR-0744). */
-  toStatus: CapabilityStatus;
-  /** The agent's report for the capability pointed at, when it is report-only: its card says that instead of its word. */
-  toReported?: HealthState;
-}
-
 /** An edge of the story (ADR-1282 D1): one capability depending on another of the story, with the edge's own contracts. */
 export interface EdgeLine {
   from: string;
@@ -102,7 +87,6 @@ export interface StoryPanel {
   description: string;
   /** In build order. */
   capabilities: CapabilityLine[];
-  arrows: Arrow[];
   /** The edges between its capabilities, which a picked gate lists (ADR-1282 D1); present when it has any. */
   edges?: EdgeLine[];
   /** Present for a mapped story (ADR-0993 D3), which shows no health: its file and line counts once its survey has read them. */
@@ -137,7 +121,6 @@ type SurveyedFiles = { readonly files: readonly { readonly lines: number }[] };
 export function drillDown(tree: AnnotatedTree, story: string, states: PartStates, history: readonly Change[], survey: Readonly<Record<string, SurveyedFiles>> = {}): StoryPanel | undefined {
   const found = tree.stories.find(({ id }) => id === story);
   if (found === undefined) return undefined;
-  const everywhere = new Map(tree.stories.flatMap((owner) => owner.capabilities.map((capability) => [capability.id, { capability, owner }] as const)));
   const byId = new Map(found.capabilities.map((capability) => [capability.id, capability]));
   const trails = reportedTrails(history);
 
@@ -165,20 +148,6 @@ export function drillDown(tree: AnnotatedTree, story: string, states: PartStates
     ];
   });
 
-  const arrows = capabilities.flatMap(({ id }) =>
-    (byId.get(id)?.dependsOn ?? []).map((to): Arrow => {
-      const target = everywhere.get(to);
-      return {
-        from: id,
-        to,
-        toTitle: target?.capability.title ?? to,
-        ...(target === undefined || target.owner.id === story ? {} : { toStory: target.owner.title }),
-        toStatus: target?.capability.status ?? "untested",
-        ...(target?.capability.reportOnly ? { toReported: target.capability.health.reported.state } : {}),
-      };
-    }),
-  );
-
   const edges = (found.edges ?? []).map(({ from, to, contracts }): EdgeLine => ({
     from,
     fromTitle: byId.get(from)?.title ?? from,
@@ -190,7 +159,7 @@ export function drillDown(tree: AnnotatedTree, story: string, states: PartStates
   const files = survey[found.id]?.files ?? [];
   const mapped = found.mapped === undefined ? undefined : files.length === 0 ? {} : { files: files.length, lines: files.reduce((sum, file) => sum + file.lines, 0) };
   const checks = extraChecks(found);
-  return { story: found.id, title: found.title, description: sentences(found.description), capabilities, arrows, ...(edges.length === 0 ? {} : { edges }), ...(mapped === undefined ? {} : { mapped }), ...(checks.length === 0 ? {} : { checks }) };
+  return { story: found.id, title: found.title, description: sentences(found.description), capabilities, ...(edges.length === 0 ? {} : { edges }), ...(mapped === undefined ? {} : { mapped }), ...(checks.length === 0 ? {} : { checks }) };
 }
 
 /** `story`'s own extra checks, then each of its capabilities'. */
@@ -263,7 +232,7 @@ function sentences(description: string | undefined): string {
 }
 
 /**
- * The capability the panel shows below its diagram (ADR-0659 D2): `chosen`, when it is one of the
+ * The capability the panel shows below the story's sentences (ADR-0659 D2): `chosen`, picked on the island, when it is one of the
  * story's own; otherwise the first in build order that is not healthy, or the first if all are. Its
  * word, not the work state, says what has landed: no session writes the activity log's landed lines.
  * Undefined for a story with no capabilities.

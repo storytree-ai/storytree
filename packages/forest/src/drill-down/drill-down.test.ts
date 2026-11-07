@@ -43,7 +43,7 @@ function reports(contractId: string, ...states: HealthState[]): Change[] {
   });
 }
 
-test("4.1 a story whose third capability builds on the first two opens in build order, with the agent's health, and a diagram of exactly two arrows", () => {
+test("4.1 a story whose third capability builds on the first two opens in build order, with the agent's health", () => {
   const tree: AnnotatedTree = {
     stories: [story("s", capability("third", ["first", "second"]), capability("first", [], [contract("k1", "passing")]), capability("second", []))],
     arcs: [],
@@ -56,13 +56,6 @@ test("4.1 a story whose third capability builds on the first two opens in build 
     ["third", "What third does. Why it matters."],
   ]);
   assert.equal(panel?.capabilities[0]?.contracts[0]?.reported, "passing");
-  assert.deepEqual(panel?.arrows.map(({ from, to }) => `${from} -> ${to}`), ["third -> first", "third -> second"]);
-});
-
-test("4.2 a capability that builds on one in another story points at it, named with that story, with its word", () => {
-  const tree: AnnotatedTree = { stories: [story("a", capability("login", ["accounts"])), story("b", capability("accounts", []))], arcs: [] };
-  const [arrow] = drillDown(tree, "a", workStates([]), [])?.arrows ?? [];
-  assert.deepEqual(arrow, { from: "login", to: "accounts", toTitle: "The accounts", toStory: "Story b", toStatus: "proposed" });
 });
 
 test("4.3 a capability with no description says so instead of leaving a blank", () => {
@@ -92,7 +85,7 @@ test("4.5 storytree's own column shows beside the agent's only where something w
   assert.equal(bare?.capabilities[0]?.verified, undefined);
 });
 
-test("4.7 the panel shows one capability below its diagram: the one chosen, else the first in build order not yet healthy", () => {
+test("4.7 the panel shows one capability below the story's sentences: the one chosen, else the first in build order not yet healthy", () => {
   const opened = (...words: AnnotatedCapability["status"][]) => {
     const [base, next, last] = words;
     const tree: AnnotatedTree = {
@@ -115,14 +108,9 @@ test("4.7 the panel shows one capability below its diagram: the one chosen, else
   assert.equal(selectedCapability(empty), undefined, "a story with no capabilities selects none");
 });
 
-test("4.10 each capability, and each other story's capability it points at, carries the library's word for it", () => {
-  const tree: AnnotatedTree = {
-    stories: [story("a", capability("login", ["accounts"], [], "Logs in.", "unhealthy")), story("b", capability("accounts", [], [], "Holds accounts.", "healthy"))],
-    arcs: [],
-  };
-  const panel = drillDown(tree, "a", workStates([]), []);
-  assert.equal(panel?.capabilities[0]?.status, "unhealthy");
-  assert.equal(panel?.arrows[0]?.toStatus, "healthy");
+test("4.6 each capability carries the library's word for it", () => {
+  const tree: AnnotatedTree = { stories: [story("a", capability("login", [], [], "Logs in.", "unhealthy"), capability("logout", [], [], "Logs out.", "healthy"))], arcs: [] };
+  assert.deepEqual(drillDown(tree, "a", workStates([]), [])?.capabilities.map(({ id, status }) => [id, status]), [["login", "unhealthy"], ["logout", "healthy"]]);
 });
 
 function numbered(id: string, title: string, verified: HealthColumn): AnnotatedContract {
@@ -169,7 +157,7 @@ test("4.40 a story's edges carry their own contracts, by which capability depend
   assert.equal("edges" in (drillDown({ stories: [story("t", capability("alone", []))], arcs: [] }, "t", workStates([]), []) ?? {}), false, "a story with no edges carries none");
 });
 
-test("4.13 in a project nothing verifies, each capability, and each other story's it points at, is marked as shown by the agent's report", () => {
+test("4.13 in a project nothing verifies, each capability is marked as shown by the agent's report", () => {
   const reportOnly = (built: AnnotatedCapability): AnnotatedCapability => ({ ...built, reportOnly: true });
   const tree: AnnotatedTree = {
     stories: [story("a", reportOnly(capability("login", ["accounts"], [contract("k1", "passing")], undefined, "untested"))), story("b", reportOnly(capability("accounts", [], [contract("k2", "failing")], undefined, "untested")))],
@@ -179,7 +167,6 @@ test("4.13 in a project nothing verifies, each capability, and each other story'
   const panel = drillDown(tree, "a", workStates([]), []);
   assert.equal(panel?.capabilities[0]?.reportOnly, true);
   assert.equal(panel?.capabilities[0]?.reported, "passing");
-  assert.equal(panel?.arrows[0]?.toReported, "failing", "another story's card says its agent's report, not its word");
   const checked = drillDown({ stories: [story("a", capability("login", [], [], undefined, "untested"))], arcs: [] }, "a", workStates([]), []);
   assert.equal("reportOnly" in (checked?.capabilities[0] ?? {}), false);
 });

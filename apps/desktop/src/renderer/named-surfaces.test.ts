@@ -103,10 +103,6 @@ test("3.15 · every canvas, gear menu tab and dialog the app opens carries a dec
     await page.mouse.click(islands[0]!.x, islands[0]!.y);
     await page.locator("aside.story-panel:not([hidden])").waitFor();
     assert.equal(await named(page, ".panel-close"), "story-panel");
-    await page.click("[data-open-tree]");
-    await page.locator(".tree-space:not([hidden])").waitFor();
-    assert.equal(await named(page, ".tree-space-close"), "capability-tree");
-    await page.click(".tree-space-close");
     await page.click(".panel-close");
     await page.locator("aside.story-panel").waitFor({ state: "hidden" });
 

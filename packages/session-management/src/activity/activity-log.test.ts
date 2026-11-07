@@ -362,3 +362,29 @@ test("2.13 lines written earlier, appended as one batch, go in at their own time
     assert.equal((await log.since(project, 0)).lines.length, count, "a batch with a dangling cause or a time that is not one writes nothing");
   });
 });
+
+test("2.16 a page's start reads every line of the kinds asked, the lines that decide each session in view and each claim holder, the standing claims, and the cursor of the log's latest line, and nothing of a session long quiet", async () => {
+  const project = uniqueProjectName();
+  await withLog(async (log) => {
+    const at = (minutes: number) => new Date(Date.now() - minutes * 60_000).toISOString();
+    const write = (line: Record<string, unknown>, minutesAgo: number) => log.append(project, { source: "hook", folder: "/work", ...line } as NewLine, { at: at(minutesAgo) });
+    const days = 3 * 24 * 60;
+    await write({ session: "quiet", kind: "session-started" }, days);
+    const quietClaim = await write({ session: "quiet", kind: "claimed", increment: "increment_000000000001", reason: "old work" }, days - 1);
+    const quietRelease = await write({ session: "quiet", kind: "released", increment: "increment_000000000001" }, days - 2);
+    const read = await write({ session: "quiet", kind: "note-read", note: "principle_000000000001", found: "id", read: "whole" }, days - 3);
+    const holderStart = await write({ session: "holder", kind: "session-started" }, days);
+    const held = await write({ session: "holder", kind: "claimed", increment: "increment_000000000002", reason: "still mine" }, days - 1);
+    const recentStart = await write({ session: "recent", kind: "session-started" }, 5);
+    const prompt = await write({ session: "recent", kind: "prompt-submitted" }, 4);
+    // The log's latest line, by number, is the quiet session's, written as if long ago: the start reads past it.
+    const last = await write({ session: "quiet", kind: "command-started", command: "pnpm gate", call: "c1" }, days - 4);
+
+    const start = await log.start(project, { kinds: ["claimed", "released", "note-read"] });
+    assert.deepEqual(start.lines.map((line) => line.seq), [quietClaim.seq, quietRelease.seq, read.seq, held.seq], "every line of the kinds asked, oldest first");
+    assert.deepEqual(start.claims.map((line) => line.seq), [held.seq], "the standing claim, not the one released");
+    assert.deepEqual(start.sessions.map((line) => line.seq), [holderStart.seq, held.seq, recentStart.seq, prompt.seq], "the lines that decide the holder and the session in view, and nothing of a session long quiet");
+    assert.equal(start.cursor, last.seq, "the cursor of the log's latest line");
+    assert.deepEqual(await log.start(uniqueProjectName(), { kinds: ["claimed"] }), { lines: [], sessions: [], claims: [], cursor: 0 }, "an empty log starts at 0");
+  });
+});

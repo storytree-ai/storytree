@@ -178,6 +178,12 @@ export interface HistoryFilter {
   readonly oldest?: number;
   /** Only the last this many changes the rest of the filter keeps, still oldest first. Not with `oldest`. */
   readonly newest?: number;
+  /** Only changes with a sequence number up to this one. */
+  readonly upTo?: number;
+  /** Of health records, only the changes to these columns (a health record's `column` field); other types are kept. */
+  readonly healthColumns?: readonly string[];
+  /** Keep only these top-level fields of each change's record: the rest never leave the store. */
+  readonly fields?: readonly string[];
 }
 
 /** Narrow current records before they leave the store. Predicates read STORED fields, before upgrades. */

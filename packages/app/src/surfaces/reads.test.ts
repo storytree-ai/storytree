@@ -44,6 +44,25 @@ test("3.1 the page can ask the app for the library's changes and the agent log's
   });
 });
 
+test("3.24 · the app answers the page's start: its changes thinned by the filter the page gives, and the log's bounded start of the kinds it asks", async () => {
+  const shown = uniqueProjectName();
+  await withApp([shown], async ({ storytree, log, reads }) => {
+    const library = await storytree.openProject(shown);
+    const story = await library.addStory({ title: "Visitor can sign up", text: "Prose no surface reads" });
+    const started = await log.append(shown, { session: "A", source: "hook", kind: "session-started" });
+    const claim = await log.append(shown, { session: "A", source: "hook", kind: "claimed", increment: "increment_000000000001", reason: "mine" });
+
+    const changes = await reads.changesSince(shown, 0, { fields: ["title"], healthColumns: ["reported"] });
+    assert.deepEqual(changes.changes.map(({ recordId, record }) => [recordId, record.fields]), [[story.id, { title: "Visitor can sign up" }]], "only the fields the page asked");
+    const start = await reads.linesStart(shown, ["claimed"]);
+    assert.deepEqual(start.lines.map(({ seq }) => seq), [claim.seq], "every line of the kinds asked");
+    assert.deepEqual(start.claims.map(({ seq }) => seq), [claim.seq], "and the standing claims");
+    assert.deepEqual(start.sessions.map(({ seq }) => seq), [started.seq, claim.seq], "and the lines that decide the session in view");
+    assert.equal(start.cursor, claim.seq);
+    await assert.rejects(reads.linesStart(uniqueProjectName(), ["claimed"]), /there is no project called/);
+  });
+});
+
 test("3.21 · a project's library closed beneath the page's reads (deleted and made again under its name, which ends its pool) is opened again by the next read, which answers", async () => {
   const shown = uniqueProjectName();
   await withApp([shown], async ({ storytree, reads }) => {

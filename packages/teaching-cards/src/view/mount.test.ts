@@ -242,6 +242,29 @@ test("3.5 · a card whose thing is an island sits beside the island's box, never
   teaching.stop();
 });
 
+test("3.5 · with no room right of its island, a card sits left of the island; with both sides read, below it; never over it", () => {
+  const left = sized([], () => ({ x: 700, y: 300, visible: true, box: { left: 600, top: 250, right: 800, bottom: 350 } }));
+  assert.deepEqual(left.at(), { left: "288px", top: "250px" }, "12px left of the island's left edge");
+  left.teaching.stop();
+  const island = { left: 300, top: 250, right: 500, bottom: 350 };
+  const below = sized([{ left: 0, top: 200, right: 1000, bottom: 360 }], () => ({ x: 400, y: 300, visible: true, box: island }));
+  assert.deepEqual(below.at(), { left: "250px", top: "362px" }, "12px below the island");
+  below.teaching.stop();
+  // Read right of the island, the left place pressed against the window's edge still overlaps the island: a corner instead.
+  const corner = sized([{ left: 505, top: 0, right: 1000, bottom: 600 }], () => ({ x: 400, y: 300, visible: true, box: island }));
+  assert.deepEqual(corner.at(), { left: "16px", top: "484px" });
+  corner.teaching.stop();
+});
+
+test("3.5 · in a window too narrow for either side, a card pushed back inside over its own point sits below it instead", () => {
+  const { document, teaching, at } = sized([], () => ({ x: 200, y: 300, visible: true }));
+  const view = document.defaultView as unknown as { innerWidth: number };
+  view.innerWidth = 400;
+  document.defaultView!.dispatchEvent(new (document.defaultView as unknown as typeof globalThis).Event("resize"));
+  assert.deepEqual(at(), { left: "50px", top: "312px" }, "either side, kept inside the 400px window, would cover the point");
+  teaching.stop();
+});
+
 test("3.5 · a card beside a nameplate it would cover on either side sits above its point", () => {
   const plate = { left: 340, top: 310, right: 460, bottom: 340 };
   const { teaching, at } = sized([plate], () => ({ x: 400, y: 300, visible: true }));

@@ -112,13 +112,18 @@ export class MemoryTransactions implements Transactions {
   }
 
   async history(given: HistoryFilter = {}): Promise<HistoryEntry[]> {
-    const { id, since, actor, from, types, actions, oldest, newest } = historyFilter(given);
+    const { id, since, actor, from, types, actions, oldest, newest, upTo, healthColumns, fields } = historyFilter(given);
     const kept = this.#history.filter((entry) =>
       (id === undefined || entry.recordId === id) && (since === undefined || entry.seq > since) && (actor === undefined || entry.actor === actor)
       && (from === undefined || entry.at >= from) && (types === undefined || types.includes(entry.type))
-      && (actions === undefined || actions.includes(entry.action)));
+      && (actions === undefined || actions.includes(entry.action)) && (upTo === undefined || entry.seq <= upTo)
+      && (healthColumns === undefined || entry.type !== "health" || healthColumns.includes(entry.record.fields.column as string)));
     const limited = oldest !== undefined ? kept.slice(0, oldest) : newest !== undefined ? kept.slice(-newest) : kept;
-    return limited.map((entry) => jsonCopy(entry));
+    return limited.map((entry) => {
+      const copy = jsonCopy(entry);
+      if (fields !== undefined) copy.record.fields = Object.fromEntries(Object.entries(copy.record.fields).filter(([name]) => fields.includes(name)));
+      return copy;
+    });
   }
 
   async inOneWrite<T>(work: () => Promise<T>, signal?: AbortSignal): Promise<T> {

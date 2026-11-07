@@ -2,7 +2,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { AnnotatedTree, ArcView, Line, NewLine } from "@storytree/library";
-import { clickedSelection, listedRows, sessionRoster, sessionRows } from "./sessions-list.js";
+import { heldReading } from "@storytree/arc-surface";
+import { clickedSelection, listedRows, sessionRoster, sessionRows as rowsOf } from "./sessions-list.js";
 import { sessionColour } from "../agent-claims/agent-claims.js";
 
 const now = new Date("2026-09-28T12:00:00Z");
@@ -12,6 +13,12 @@ const tree: AnnotatedTree = { stories: ["one", "two"].map(id => ({ id, title: id
 function log(...events: (Partial<Line> & NewLine)[]): Line[] {
   return events.map((event, index) => ({ project: "demo", seq: index + 1, at: now.toISOString(), ...event }));
 }
+/**
+ * What the page hands the list: its held reading of the lines, which keeps only the lines a surface reads one by one
+ * (arc surface 3.30), so a row that reads a line kind the page folds away goes red here, not only on the page.
+ */
+const sessionRows = (tree: AnnotatedTree, lines: readonly Line[], ...rest: Parameters<typeof rowsOf> extends [unknown, unknown, ...infer R] ? R : never) =>
+  rowsOf(tree, heldReading({ changes: [], lines: [...lines] }), ...rest);
 const parent = { session: "parent", harness: "claude-code", source: "tool" } as const;
 const child = { session: "child", harness: "codex", source: "hook" } as const;
 const off = { session: "off", harness: "codex", source: "hook" } as const;

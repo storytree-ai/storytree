@@ -117,6 +117,17 @@ const QUIET: StorytreeBridge = {
   startMark: async () => {},
 };
 
+type Lines = Awaited<ReturnType<StorytreeBridge["linesSince"]>>;
+
+/**
+ * The log's start as the capture's whole-history answer holds it, so a capture that seeds its lines
+ * through linesSince still shows them on a first start that asks linesStart: the kinds asked, every
+ * line to fold sessions and claims from, and that answer's cursor.
+ */
+function startFromLines({ lines, cursor }: Lines, kinds: readonly string[]) {
+  return { lines: lines.filter(line => kinds.includes(line.kind)), sessions: lines, claims: lines, cursor };
+}
+
 /** A fake bridge answering with `answers`, and with the quiet answers for the rest, typed against the desktop app's own bridge. */
 export function fakeBridge(answers: Partial<StorytreeBridge>, { guide = "seen", teaching = "hidden" }: FakeBridgeOptions = {}): FakeBridge {
   let refuse!: (error: Error) => void;
@@ -126,7 +137,11 @@ export function fakeBridge(answers: Partial<StorytreeBridge>, { guide = "seen", 
   const quiet = QUIET as unknown as Record<string, (...args: unknown[]) => unknown>;
   const defaulted: string[] = [];
 
-  const call = async (method: string, args: readonly unknown[]) => {
+  const call = async (method: string, args: readonly unknown[]): Promise<unknown> => {
+    if (method === "linesStart" && !Object.hasOwn(methods, method)) {
+      if (!defaulted.includes(method)) defaulted.push(method);
+      return startFromLines(await call("linesSince", [args[0], 0]) as Lines, args[1] as readonly string[]);
+    }
     if (!Object.hasOwn(methods, method) && Object.hasOwn(quiet, method)) {
       if (!defaulted.includes(method)) defaulted.push(method);
       return quiet[method]!(...args);

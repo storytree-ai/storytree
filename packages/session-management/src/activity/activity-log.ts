@@ -21,16 +21,38 @@ import type { Pool, PoolClient } from "pg";
 import { z } from "zod";
 
 import { connect, NEW_LINE, type Line, type LineKind, type LinesSince, type NewLine, type Storytree } from "@storytree/library";
-import { readExperiment } from "@storytree/project-and-caller";
+import { leaveAfterMs, readExperiment } from "@storytree/project-and-caller";
 
 import { BRANCH_FACTS, countValues, FOLD_LINES, foldValues, inViewValues, selectLines, SESSION_COUNT, SESSIONS_IN_VIEW, STANDING_CLAIMS, STATE_LINES, stateValues, type LineFilter } from "./bounded.js";
-import type { Beat } from "../readings.js";
+import { holdersOf, LONGEST_COMMAND_MS, type Beat } from "../readings.js";
 import { PgLibraryReads, READS_SCHEMA, READS_SCHEMA_FILE, type LibraryReads } from "./library-reads.js";
 import { BEATS_SCHEMA, BEATS_SCHEMA_FILE, beatsOf, PgSessionBeats, type SessionBeats } from "./session-beats.js";
 import { PgTranscriptRecords, TRANSCRIPT_SCHEMA, TRANSCRIPT_SCHEMA_FILE, type TranscriptRecords } from "./transcript-records.js";
 
 /** The database the log lives in, on the same server as the projects' libraries. */
 export const ACTIVITY_DATABASE = "storytree-activity";
+
+/** What a bounded start reads (ActivityLog.start). */
+export interface StartOptions {
+  /** The kinds of line read whole, every one of them. */
+  readonly kinds: readonly LineKind[];
+  /** When the sessions in view are judged from. By default, now. */
+  readonly now?: Date;
+  /** How long a quiet session with no unmerged work stays listed. By default, the user's leave-after setting. */
+  readonly leaveMs?: number;
+}
+
+/** A bounded start of a project's log (ActivityLog.start), each list oldest first. */
+export interface LinesStart {
+  /** Every line of the kinds asked. */
+  lines: Line[];
+  /** The lines that decide each session in view and each claim holder, as foldLines reads them. */
+  sessions: Line[];
+  /** The standing claims' lines, as standing reads them. */
+  claims: Line[];
+  /** The cursor to ask from next: the log's latest line's when the start was read, or 0. */
+  cursor: number;
+}
 
 /** The agent activity log on one Postgres server: one log per project, only ever added to until the project is deleted. */
 export interface ActivityLog {
@@ -48,6 +70,12 @@ export interface ActivityLog {
    * that asks once asks for what it needs, with `lines`.
    */
   since(project: string, cursor: number): Promise<LinesSince>;
+  /**
+   * A reader's bounded start of `project`'s log (contract 2.16), in place of every line since 0: every line of `kinds`, the
+   * lines that decide each session the running-sessions list may show and each claim holder (as readSessions reads them),
+   * the standing claims' lines, and the cursor to ask from next, the log's latest line's, with no line after it.
+   */
+  start(project: string, options: StartOptions): Promise<LinesStart>;
   /** `project`'s lines that `filter` asks for, oldest first, narrowed on the server (contract 2.7). */
   lines(project: string, filter: LineFilter): Promise<Line[]>;
   /** The claim lines that decide who holds what in `project` now: ended claims send nothing (bounded.ts STANDING_CLAIMS). */
@@ -311,6 +339,17 @@ class PgActivityLog implements ActivityLog {
     );
     const lines = rows.map(lineOf);
     return { lines, cursor: lines.at(-1)?.seq ?? cursor };
+  }
+
+  async start(project: string, { kinds, now = new Date(), leaveMs = leaveAfterMs() }: StartOptions): Promise<LinesStart> {
+    assertProject(project);
+    const { rows: [latest] } = await this.#pool.query<{ seq: string | null }>("SELECT max(seq) AS seq FROM activity WHERE project = $1", [project]);
+    const cursor = Number(latest?.seq ?? 0);
+    const upTo = (lines: readonly Line[]) => lines.filter((line) => line.seq <= cursor);
+    const [lines, claims] = await Promise.all([this.lines(project, { kinds }), this.standing(project)]);
+    const inView = await this.sessionsInView(project, new Date(now.getTime() - Math.max(leaveMs, LONGEST_COMMAND_MS)).toISOString());
+    const sessions = await this.foldLines(project, [...new Set([...inView, ...holdersOf(claims)])], new Date(now.getTime() - LONGEST_COMMAND_MS - 60_000).toISOString());
+    return { lines: upTo(lines), sessions: upTo(sessions), claims: upTo(claims), cursor };
   }
 
   async lines(project: string, filter: LineFilter): Promise<Line[]> {

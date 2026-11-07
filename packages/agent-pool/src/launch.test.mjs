@@ -160,6 +160,34 @@ test("3.8 · the dispatcher fills free slots up to the cap and no further, never
   assert.match(lines.at(-1), /stopped by/);
 });
 
+test("3.45 · the survey carries no body: `pool` reads a picked increment's body by id to choose its brief, leaves one whose body is unread for the next survey, and surveys the cloud lanes' increments by id", async (t) => {
+  const asked = [], bodies = [];
+  const b = await box(t, {
+    survey: async (project, options) => {
+      asked.push([project, options]);
+      const work = poolWork(["increment_review", "increment_unread"]);
+      return { ...work, increments: work.increments.map(({ body: _body, ...one }) => one) };
+    },
+    body: async (one) => {
+      bodies.push(one.id);
+      if (one.id === "increment_unread") throw new Error("connection reset");
+      return "needs: read-only, blind";
+    },
+    cloud: { live: async () => [], wants: async () => false, overflow: async () => {}, watching: async () => ["increment_cloud"] },
+    count: async () => 0, maxLanes: async () => 2,
+  });
+  const ran = [];
+  b.runLane = async (options) => { ran.push(await readFile(options.brief, "utf8")); options.say("2026-10-08T04:00:00Z engine claude allowance used"); return 0; };
+  let sleeps = 0;
+  b.sleep = async () => { await new Promise((go) => setImmediate(go)); if (++sleeps === 2) await writeFile(join(b.lanesDir, "pool-stop"), ""); };
+  assert.equal(await main(["pool"], b), 0);
+  assert.equal(ran.length, 1, "only the one whose body was read ran");
+  assert.ok(ran[0].startsWith("# Pool lane: increment_review") && ran[0].includes(await poolRules("needs: read-only")) && /blind reviewer/.test(ran[0]), "its brief chosen by the body read by id");
+  assert.ok(bodies.includes("increment_review") && bodies.includes("increment_unread"));
+  assert.ok(b.lines.some((line) => /increment_unread not started: its body is unread \(connection reset\)/.test(line)), b.lines.join("\n"));
+  assert.deepEqual(asked[0], ["storytree", { also: ["increment_cloud"] }], "the cloud lanes' increments are surveyed by id");
+});
+
 test("3.9 · `pool` starts each ready increment under the shared lock with the repository's pool brief, read-only work with the read-only rules", async (t) => {
   const b = await box(t, {
     survey: async () => poolWork(["increment_build", "increment_review"], { bodies: { increment_review: "needs: read-only, blind" } }),

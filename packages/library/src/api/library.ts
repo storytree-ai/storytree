@@ -18,6 +18,7 @@ import { createHash, randomUUID } from "node:crypto";
 
 import { isPluginKind, UnknownTypeError, type FieldEdit, type FieldsOf, type RecordType, type SchemaRecord, type WriteOptions } from "../schema/index.js";
 import type { HistoryEntry, RecordEnvelope } from "../transactions/index.js";
+import type { SurveyOptions, WorkSurvey } from "../work/work-in-flight.js";
 
 /** A connection to one Postgres server and the storytree projects on it. */
 export interface Storytree {
@@ -125,6 +126,11 @@ export interface Library
    * its globe draws beside its own history. A project with no factory inherits none.
    */
   inherited(): Promise<SchemaRecord[]>;
+  /**
+   * Work in flight's workSurvey (10.43): one reading of the open work, its arcs' states and its holds, never a body.
+   * Which arcs hold no increment at all is asked of the project's database in one statement, never read record by record.
+   */
+  workSurvey(at?: Date, options?: Omit<SurveyOptions, "empty">): Promise<WorkSurvey>;
   /**
    * The plan as it is now, story › capability › contract with every node's health, and the arcs: what the forest reads.
    * Given `pendingOf`, an increment, it is the plan that increment's branch reads (ADR-0966 D3): the live plan with
@@ -398,6 +404,15 @@ class ServerHandle implements Storytree {
  * A Library over one project's internals. It keeps the project in a closure, so nothing reaches
  * them through it: each part's operations are bound to that part, and the rest are written here.
  */
+/** Of `arcs`, those no increment names, open or closed: one statement that sends back only their ids. */
+async function emptyArcs(pool: Project["pool"], arcs: readonly string[]): Promise<ReadonlySet<string>> {
+  const { rows } = await pool.query<{ id: string }>(
+    "SELECT a.id FROM unnest($1::text[]) AS a(id) WHERE NOT EXISTS (SELECT 1 FROM record WHERE type = 'increment' AND fields->>'arc' = a.id)",
+    [arcs],
+  );
+  return new Set(rows.map(({ id }) => id));
+}
+
 function libraryOf(project: Project): Library {
   return {
     name: project.name,
@@ -413,6 +428,7 @@ function libraryOf(project: Project): Library {
       return project.records.list(kind);
     },
     inherited: async () => (project.records instanceof InheritedRecords ? project.records.inherited() : []),
+    workSurvey: (at, options) => project.flight.workSurvey(at, { ...options, empty: (arcs) => emptyArcs(project.pool, arcs) }),
     /** The work model's tree, annotated with health (capability 5 reads the plan through capability 4). */
     async projectTree(options) {
       const parked = await project.flight.parkedCapabilities();

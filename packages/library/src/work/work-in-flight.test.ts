@@ -647,6 +647,62 @@ for (const backend of [memory, postgres]) {
     assert.deepEqual(week.find(({ arc }) => arc.id === yesterday)!.increments.map(({ fields }) => fields.outcome?.date).sort(), ["2026-10-02", "2026-10-18"], "a closed arc carries every increment it closed with");
   });
 
+  contract("10.43", "a work survey reads every live arc's state as arcViews does, its open questions counted and, unless closed, its title and priority; only open increments (and closed ones asked for by id) with the fields a dispatcher decides on, never a body; and the holds as holds() reads them", async ({ work, flight }) => {
+    const story = await work.addStory({ title: "Visitor can sign up" });
+    const form = await work.addCapability({ title: "Email form", story: story.id });
+    const day = (offset: number): string => new Date(Date.now() + offset * 86_400_000).toISOString().slice(0, 10);
+    const empty = await flight.createArc({ ...ARC, title: "Empty" });
+    const drained = await flight.createArc({ ...ARC, title: "Drained" });
+    const done = await flight.addIncrement({ arc: drained.id, ...WORK });
+    await flight.closeIncrement(done.id, { pr: "#1", disposition: "landed" });
+    const parked = await flight.createArc({ ...ARC, title: "Parked" });
+    await flight.parkArc(parked.id, { until: "2999-01-01" });
+    const live = await flight.createArc({ ...ARC, title: "Live", priority: 2 });
+    const open = await flight.addIncrement({ arc: live.id, ...WORK, body: "x".repeat(5000), capabilities: [form.id], machine: "box" });
+    const landed = await flight.addIncrement({ arc: live.id, ...WORK });
+    await flight.closeIncrement(landed.id, { pr: "#2", disposition: "landed" });
+    const asleep = await flight.createArc({ ...ARC, title: "Asleep" });
+    const first = await flight.addIncrement({ arc: asleep.id, ...WORK });
+    await flight.closeIncrement(first.id, { pr: "#3", disposition: "landed" });
+    const dated = await flight.addIncrement({ arc: asleep.id, ...WORK });
+    await flight.addWaitFor(dated.id, { releaser: "event", note: "deletion finishes", checkBack: day(4) });
+    // Its other open work waits on its own landed work and is held on a settled question: still asleep, as arcViews reads it.
+    const after = await flight.addIncrement({ arc: asleep.id, ...WORK });
+    await flight.addWaitFor(after.id, { releaser: "event", note: "the week ends", checkBack: day(9) });
+    await flight.addWait(after.id, dated.id, "needs the deletion");
+    const settled = await flight.raiseQuestion({ arc: asleep.id, ...ASK });
+    await flight.editIncrement(after.id, { heldOn: [settled.id] });
+    await flight.settleQuestion(settled.id, { answer: "Mailgun" });
+    const asking = await flight.createArc({ ...ARC, title: "Asking" });
+    const asked = await flight.addIncrement({ arc: asking.id, ...WORK });
+    await flight.closeIncrement(asked.id, { note: "Not needed", disposition: "withdrawn" });
+    await flight.raiseQuestion({ arc: asking.id, ...ASK });
+    const at = new Date();
+
+    const survey = await flight.workSurvey(at, { also: [landed.id] });
+    const views = new Map((await flight.arcViews(at)).map((view) => [view.arc.id, view]));
+    assert.deepEqual(survey.arcs.map(({ id }) => id).sort(), [...views.keys()].sort(), "every live arc");
+    for (const arc of survey.arcs) {
+      const view = views.get(arc.id)!;
+      assert.equal(arc.state, view.state, `${view.arc.fields.title}'s state`);
+      assert.equal(arc.wakes, view.wakes, `${view.arc.fields.title}'s wake day`);
+      assert.equal(arc.openQuestions, view.questions.filter(({ fields }) => fields.lifecycle === "open").length);
+      assert.equal(arc.createdAt, view.arc.createdAt);
+      assert.equal(arc.title, view.state === "closed" ? undefined : view.arc.fields.title, "a closed arc's title is not read");
+    }
+    const state = new Map(survey.arcs.map((arc) => [arc.id, arc.state]));
+    assert.deepEqual([empty, drained, parked, live, asleep, asking].map(({ id }) => state.get(id)), ["active", "closed", "parked", "active", "parked", "active"]);
+    assert.equal(survey.arcs.find(({ id }) => id === live.id)?.priority, 2);
+    assert.deepEqual(survey.increments.map(({ id }) => id).sort(), [open.id, landed.id, dated.id, after.id].sort(), "open work, and the closed increment asked for");
+    for (const increment of survey.increments) assert.equal("body" in increment.fields, false, "no body is read");
+    const mine = survey.increments.find(({ id }) => id === open.id)!;
+    assert.deepEqual([mine.fields.title, mine.fields.capabilities, mine.fields.machine, mine.fields.parked], [WORK.title, [form.id], "box", open.fields.parked]);
+    assert.equal(survey.increments.find(({ id }) => id === landed.id)?.fields.outcome?.disposition, "landed", "a followed one with how it closed");
+    assert.deepEqual(survey.holds(), await flight.holds(at), "the holds, as holds() reads them");
+    assert.deepEqual(survey.holds({ claimed: new Set([form.id]) }), await flight.holds(at, { claimed: new Set([form.id]) }));
+    assert.equal((await flight.workSurvey(at, { closedTitles: true })).arcs.find(({ id }) => id === drained.id)?.title, "Drained", "closed arcs titled when asked");
+  });
+
   contract("10.5", "an increment moves to another live arc keeping its id, lifecycle and waits, the history recording the move and its reason; only open work moving to a closed arc is refused", async ({ work, flight, transactions }) => {
     const from = await flight.createArc(ARC);
     const to = await flight.createArc(ARC);

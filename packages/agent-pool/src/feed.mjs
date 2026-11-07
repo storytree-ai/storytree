@@ -169,36 +169,43 @@ export function pickPlan(survey, { planned = new Map(), now = Date.now(), freshM
   return arc && { ...arc, state: planState(survey, arc.id) };
 }
 
-/**
- * One survey of the library: every arc with its open questions counted, its increments with their holds and machine fields (one `arcViews` and one `holds` read,
- * the holds read against the capabilities the standing claims hold, so a wait on a released claim no longer holds: 2.31),
- * this machine's short name (`here`, undefined while it has none), the standing claims,
- * the refusals under every open increment on an active arc, whoever holds the capability now, each under the increment its refused session held (`refusals`, given those increments),
- * and the failed lanes on those increments (`failures`, given them).
- */
 /** A record's time as an ISO string: the library gives it as one, a Date is turned into one, and a missing or unreadable time is undefined. */
 const iso = (at) => {
   const time = at == null ? NaN : new Date(at).getTime();
   return Number.isNaN(time) ? undefined : new Date(time).toISOString();
 };
 
-export async function readSurvey({ library, claims, refusals = async () => [], failures = async () => [], here = async () => undefined }) {
-  const [views, held, name] = await Promise.all([library.arcViews(), claims(), here()]);
-  const increments = views.flatMap((view) => view.increments.map((record) => ({
-    id: record.id, arc: view.arc.id, arcState: view.state, title: record.fields.title, body: record.fields.body ?? "",
-    status: record.fields.status, capabilities: record.fields.capabilities ?? [], machine: record.fields.machine, parked: record.fields.parked ?? iso(record.createdAt), priority: view.arc.fields?.priority,
+/**
+ * One survey of the library (2.32): one `workSurvey` read, which carries every arc's state, its open questions counted and, unless
+ * it is closed, its title and priority, and the open increments with only the fields the pool decides on, never a body (the pool
+ * reads a picked one's body by id, `incrementBody`); with `also`, the increments named there whatever their status (the cloud
+ * trial's, to see how each closed, 3.44); with `closedTitles`, the closed arcs' titles too. Its holds are read against the
+ * capabilities the standing claims hold, so a wait on a released claim no longer holds (2.31). With them: this machine's short
+ * name (`here`, undefined while it has none), the standing claims, the refusals under every open increment on an active arc,
+ * whoever holds the capability now, each under the increment its refused session held (`refusals`, given those increments),
+ * and the failed lanes on those increments (`failures`, given them).
+ */
+export async function readSurvey({ library, claims, refusals = async () => [], failures = async () => [], here = async () => undefined, also = [], closedTitles = false }) {
+  const [work, held, name] = await Promise.all([library.workSurvey(new Date(), { also, closedTitles }), claims(), here()]);
+  const arcOf = new Map(work.arcs.map((arc) => [arc.id, arc]));
+  const byArc = Map.groupBy(work.increments, (record) => record.fields.arc);
+  const increments = work.arcs.flatMap((arc) => byArc.get(arc.id) ?? []).map((record) => ({
+    id: record.id, arc: record.fields.arc, arcState: arcOf.get(record.fields.arc)?.state, title: record.fields.title,
+    status: record.fields.status, capabilities: record.fields.capabilities ?? [], machine: record.fields.machine, parked: record.fields.parked ?? iso(record.createdAt), priority: arcOf.get(record.fields.arc)?.priority,
     // How a closed one closed (landed, failed or withdrawn), which the cloud overflow's trial counts (3.44).
     ...(record.fields.outcome?.disposition ? { disposition: record.fields.outcome.disposition } : {}),
-  })));
-  // A wait on a capability's claim holds only while a live session holds that capability (2.31, ADR-1228 D1): the library reads it against these.
-  const holds = await library.holds(new Date(), { claimed: new Set(liveCapabilities(held, increments).keys()) });
-  const arcs = views.map((view) => ({
-    id: view.arc.id, state: view.state, title: view.arc.fields?.title ?? view.arc.id, created: iso(view.arc.createdAt),
-    openQuestions: (view.questions ?? []).filter((question) => question.fields.lifecycle === "open").length,
   }));
+  // A wait on a capability's claim holds only while a live session holds that capability (2.31, ADR-1228 D1): the library reads it against these.
+  const holds = work.holds({ claimed: new Set(liveCapabilities(held, increments).keys()) });
+  const arcs = work.arcs.map((arc) => ({ id: arc.id, state: arc.state, title: arc.title ?? arc.id, created: iso(arc.createdAt), openQuestions: arc.openQuestions }));
   const open = increments.filter((one) => one.status !== "closed" && one.arcState === "active").map((one) => one.id);
   const [refused, failed] = open.length ? await Promise.all([refusals(open), failures(open)]) : [[], []];
   return { arcs, increments, holds, claims: held, here: name, refusals: refused, failures: failed };
+}
+
+/** The body of increment `id`, read by id once the pool has picked it (2.32): its needs clause and the cloud trial's reading of it; empty when it has none or is gone. */
+export async function readBody(library, id) {
+  return (await library.get(id))?.fields.body ?? "";
 }
 
 export async function withLibrary(project, use) {
@@ -214,25 +221,30 @@ export async function withLibrary(project, use) {
   } finally { await storytree.close(); }
 }
 
-/** One survey of the shared library, where this computer's `library` setting says it is. */
-export async function surveyLibrary(project = "storytree") {
+/** One survey of the shared library, where this computer's `library` setting says it is, with readSurvey's `also` and `closedTitles`. */
+export async function surveyLibrary(project = "storytree", { also, closedTitles } = {}) {
   const { openActivityLog, readClaims } = await import("@storytree/session-management");
   const { thisComputer } = await import("@storytree/session-management/machines");
   return withLibrary(project, async (library, storytree) => {
     const log = await openActivityLog(storytree);
     const refusals = async (under) => (await log.lines(project, { kinds: ["claim-refused"], where: { under }, omit: ["reason", "file"] }))
       .map((line) => ({ capability: line.capability, under: line.under, holder: line.holder }));
-    return readSurvey({ library, claims: () => readClaims(log, project), refusals, failures: laneFailures(log, project), here: async () => (await thisComputer(storytree)).name });
+    return readSurvey({ library, claims: () => readClaims(log, project), refusals, failures: laneFailures(log, project), here: async () => (await thisComputer(storytree)).name, also, closedTitles });
   });
+}
+
+/** A picked increment's body from the shared library (readBody), in its project (by default storytree). */
+export async function incrementBody(id, project = "storytree") {
+  return withLibrary(project, (library) => readBody(library, id));
 }
 
 /**
  * One survey of every project in `projects` (the pool's configuration names them), each read by `surveyOne` from its own
  * project in the library: their arcs, increments, claims, holds, refusals and failed lanes side by side, each arc and
- * increment naming its `project`, so pickPool offers every project's ready work under each project's own records.
+ * increment naming its `project`, so pickPool offers every project's ready work under each project's own records; `options` go to each `surveyOne` (surveyLibrary's).
  */
-export async function surveyProjects(projects, surveyOne) {
-  const found = await Promise.all(projects.map(async (project) => ({ project, survey: await surveyOne(project) })));
+export async function surveyProjects(projects, surveyOne, options) {
+  const found = await Promise.all(projects.map(async (project) => ({ project, survey: await surveyOne(project, options) })));
   const tagged = (list, project) => (list ?? []).map((one) => ({ ...one, project }));
   const holds = {};
   for (const { survey } of found) for (const [kind, byIncrement] of Object.entries(survey.holds ?? {})) holds[kind] = { ...holds[kind], ...byIncrement };

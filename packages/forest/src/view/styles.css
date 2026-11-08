@@ -9,6 +9,18 @@
   box-sizing: border-box;
 }
 
+/* A capability's word in its status's colour (4.43, ADR-0744's four words), from the host's text colours; amber is the forest's own, one per theme. */
+.forest-workspace {
+  --st-proposed: #8a4b0f;
+  --st-healthy: var(--pass-text);
+  --st-unhealthy: var(--fail-text);
+  --st-untested: var(--none-text);
+}
+
+@media (prefers-color-scheme: dark) {
+  .forest-workspace { --st-proposed: #f2b84b; }
+}
+
 /* Opt-in desktop dark palette for hosts without the desktop OS theme. */
 .forest-workspace[data-theme="dark"] {
   color-scheme: dark;
@@ -28,6 +40,7 @@
   --none-bg: #2a2e33;
   --none-text: #b8bdc4;
   --none-line: #454a52;
+  --st-proposed: #f2b84b;
 }
 
 .forest {

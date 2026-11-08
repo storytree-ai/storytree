@@ -1,5 +1,6 @@
 // Island gates stand apart where their border has room (increment_af16a373441d): storytree's own map (the code-rows
-// snapshot and its survey, or a fresher pair: `--seed <folder holding seed.json.gz and survey.json>`) as the app opens it, every island's ask to route its roads written down (`--dump <asks.json>`,
+// snapshot and its survey, a fresh pair built in a scratch folder when the snapshot lacks an island `--islands` names, or a
+// given pair: `--seed <folder holding seed.json.gz and survey.json>`) as the app opens it, every island's ask to route its roads written down (`--dump <asks.json>`,
 // for gates.mjs to measure), and a picture of each island `--islands <title,…>` names, whole and close on each of its
 // gates' clusters. `node --import tsx capture.mjs --prefix <name> [--islands "Code map"] [--dump asks.json]` (append
 // --retake to write into src/view/evidence/gates-apart). Run on a checkout of main as well, with
@@ -8,7 +9,8 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { gunzipSync } from 'node:zlib';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { buildCapture, buildFolder, captureOutput, captureSeed, runCapture } from '../../../../../apps/desktop/src/capture/index.ts';
+import { buildCapture, buildFolder, captureOutput, runCapture } from '../../../../../apps/desktop/src/capture/index.ts';
+import { seedHolding } from '../../../../../apps/desktop/src/capture/fresh-seed.ts';
 import { PLATE_CLEARANCE, SHEET_FOV, SHEET_RADIUS } from '../../../../forest-world/src/planet/PlanetWorldCanvas.tsx';
 import { DETAIL_ZOOM } from '../../../src/view/zoom-detail.ts';
 
@@ -16,14 +18,14 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const pictures = path.join(here, '../../../src/view/evidence', 'gates-apart');
 const arg = name => (process.argv.includes(name) ? process.argv[process.argv.indexOf(name) + 1] : undefined);
 const given = arg('--seed');
-const { seed, survey } = given === undefined ? captureSeed('code-rows') : {
+const named = (arg('--islands') ?? 'Code map').split(',').filter(Boolean);
+const { seed, survey } = given === undefined ? await seedHolding(named) : {
   seed: JSON.parse(gunzipSync(readFileSync(path.join(given, 'seed.json.gz'))).toString('utf8')),
   survey: JSON.parse(readFileSync(path.join(given, 'survey.json'), 'utf8')),
 };
 const prefix = arg('--prefix') ?? 'map', dump = arg('--dump');
-const named = (arg('--islands') ?? 'Code map').split(',').filter(Boolean);
 const stories = named.map(title => {
-  const story = seed.tree.stories.find(s => s.title.toLowerCase() === title.toLowerCase());
+  const story = seed.tree.stories.find(s => s.id === title || s.title.toLowerCase() === title.toLowerCase());
   if (!story) throw new Error(`no story titled ${title}`);
   return story;
 });

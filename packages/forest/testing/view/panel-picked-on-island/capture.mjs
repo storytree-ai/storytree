@@ -161,6 +161,22 @@ await runCapture({
       return (results.gateOpened = await panel(page));
     },
     expect: found => { assert.equal(found.opened.length, 1, 'a double-click opens the link\'s contracts'); },
+  }, {
+    // A gate's contract opens one level deeper, to what a capability's contract shows and nothing more (ADR-1289).
+    name: 'gate-contract-opened',
+    prepare: async ({ page, settle }) => {
+      await page.locator('aside.story-panel .panel-gate [data-fold="contract"] > .panel-handle').first().dblclick();
+      await settle(page, 4);
+    },
+    measure: async ({ page, out }) => {
+      await page.locator('aside.story-panel').screenshot({ path: path.join(out, 'gate-contract-opened-panel.png') });
+      const said = await page.evaluate(() => [...document.querySelectorAll('aside.story-panel .panel-gate [data-fold="contract"] > .panel-fold-body:not([hidden]) .panel-health > span')].map(span => span.className));
+      return (results.gateContractOpened = { ...await panel(page), said });
+    },
+    expect: found => {
+      assert.equal(found.opened.length, 2, 'a double-click opens the link\'s first contract');
+      assert.deepEqual(found.said, ['panel-badge badge-passing', 'panel-trail', 'panel-badge badge-failing'], 'the agent\'s report, its trail and storytree\'s verdict, as a capability\'s contract shows');
+    },
   }],
 });
 writeFileSync(path.join(captureOutput(pictures), 'measurements.json'), JSON.stringify(results, null, 1) + '\n');

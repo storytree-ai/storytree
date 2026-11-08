@@ -4,7 +4,8 @@ Storytree's own map (the code-rows snapshot and its survey) as the app opens it,
 through to the capability's territory under it, which selects that capability: the island rings it in gold and the panel opens
 on it. Then the Contracts handle is clicked once (nothing opens), double-clicked (it opens), and its first contract
 double-clicked (it opens one level deeper). Then Escape on the panel forgets the kept depth, a gate clicked shows the links
-between its pair in the capability's place, and its Contracts handle is double-clicked open.
+between its pair in the capability's place, its Contracts handle is double-clicked open, and its first contract
+double-clicked (it opens one level deeper, as a capability's does).
 
 The snapshot predates edge records (ADR-1279), so the capture stages The library's links: one for every pair of its
 capabilities a gate may join, said by its recorded dependency where it has one, each with the same two made-up contracts
@@ -31,6 +32,10 @@ Pictures, 1440 x 960:
   closed, then "1 failing". Before this change (#610's picture of the same name) the line said "Contracts · 2" alone, edge
   contracts carrying no health.
 - `gate-contracts-opened-panel.png`: the same after "Contracts · 2" is double-clicked open.
+- `gate-contract-opened-panel.png`: the same after its first contract is double-clicked open: the agent's report, its trail
+  and storytree's verdict, the same lines as a capability's contract in `capability-folds-opened-panel.png` and nothing
+  more (contract 4.40, ADR-1289). Before this change (#612's `gate-contracts-opened-panel.png`) each contract was a plain
+  line with no handle.
 
 The capability pictures are unchanged in look from #610's; only the gate's two are taken again for #612.
 
@@ -44,3 +49,5 @@ In the evidence bucket for #610, linked from the pull request body (ADR-1234; de
 In the evidence bucket for #610, linked from the pull request body (ADR-1234; deleted after 90 days or when its arc closes): `610/capability-picked-on-island.png`, `610/capability-picked-on-island-panel.png`, `610/capability-folds-opened-panel.png`, `610/gate-picked-on-island-panel.png`, `610/gate-contracts-opened-panel.png`.
 
 In the evidence bucket for #612, linked from the pull request body (ADR-1234; deleted after 90 days or when its arc closes): `612/gate-picked-on-island-panel.png`, `612/gate-contracts-opened-panel.png`.
+
+In the evidence bucket for #625, linked from the pull request body (ADR-1234; deleted after 90 days or when its arc closes): `625/gate-contract-opened-panel.png`, `625/capability-folds-opened-panel.png`, `625/gate-contracts-opened-panel.png`, `625/gate-picked-on-island-panel.png`.

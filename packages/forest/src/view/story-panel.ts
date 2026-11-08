@@ -5,7 +5,7 @@
  * double-click opens (ADR-1284 D1; ./panel-folds.ts works them). The island draws the capability tree, so the panel draws
  * none (ADR-1285). Every word from the library is written as text, never as HTML.
  */
-import type { CapabilityLine, StoryPanel, WhyLine } from "@storytree/forest";
+import type { CapabilityLine, ContractLine, StoryPanel, WhyLine } from "@storytree/forest";
 import type { HealthSource, HealthState } from "@storytree/library";
 
 const HEALTH: Readonly<Record<HealthState, string>> = { passing: "passing", failing: "failing", "not-checked": "not checked" };
@@ -57,9 +57,10 @@ function more(rest: readonly string[]): string {
 
 /**
  * A picked gate: the edges joining its two capabilities, whichever depends on which, each saying so and then its state in
- * one line: its own contracts behind "Contracts · n", never either capability's (ADR-1282 D1), and "open work on this link"
- * when the opened arc's open work links one of them, the reason the gate is ringed; one with none says so, with no handle
- * (ADR-1284 D4). After the handle, how many of them storytree last saw failing, when any are.
+ * one line: its own contracts behind "Contracts · n", each opening as a capability's does, never either capability's
+ * (ADR-1282 D1), and "open work on this link" when the opened arc's open work links one of them, the reason the gate is
+ * ringed; one with none says so, with no handle (ADR-1284 D4). After the handle, how many of them storytree last saw
+ * failing, when any are.
  */
 function gateLinks(panel: StoryPanel, [one, other]: readonly [string, string], open: readonly string[] | undefined): string {
   const links = (panel.edges ?? []).filter(({ from, to }) => (from === one && to === other) || (from === other && to === one));
@@ -70,15 +71,13 @@ function gateLinks(panel: StoryPanel, [one, other]: readonly [string, string], o
           <h3>${text(fromTitle)} depends on ${text(toTitle)}.</h3>
           ${contracts.length === 0
             ? `<p class="panel-muted">No contracts on this link yet.</p>`
-            : `<div class="panel-link-state">${fold("contracts", `Contracts · ${contracts.length}`, `<ul class="panel-contracts">${contracts
-              .map(({ id, title }) => `<li data-contract-id="${attribute(id)}">${text(title)}</li>`)
-              .join("")}</ul>`)}${failing(contracts)}${contracts.some(({ id }) => open?.includes(id) === true) ? `<span class="panel-link-open">open work on this link</span>` : ""}</div>`}`)
+            : `<div class="panel-link-state">${fold("contracts", `Contracts · ${contracts.length}`, contractList(contracts))}${failing(contracts)}${contracts.some(({ id }) => open?.includes(id) === true) ? `<span class="panel-link-open">open work on this link</span>` : ""}</div>`}`)
         .join("")}
     </section>`;
 }
 
 /** How many of a link's contracts storytree last saw failing, in its state line; with none, nothing. */
-function failing(contracts: NonNullable<StoryPanel["edges"]>[number]["contracts"]): string {
+function failing(contracts: readonly ContractLine[]): string {
   const count = contracts.filter(({ verified }) => verified === "failing").length;
   return count === 0 ? "" : `<span class="panel-link-failing">${count} failing</span>`;
 }
@@ -103,10 +102,15 @@ function extraChecks(checks: readonly ExtraCheck[]): string {
     .join("")}</ul>`);
 }
 
-/** A capability's contracts behind "Contracts · n", each by its title, opening one level deeper to its health and trail. */
+/** A capability's contracts behind "Contracts · n". */
 function contracts(line: CapabilityLine): string {
   if (line.contracts.length === 0) return `<p class="panel-muted">No contracts yet.</p>`;
-  return fold("contracts", `Contracts · ${line.contracts.length}`, `<ul class="panel-contracts">${line.contracts
+  return fold("contracts", `Contracts · ${line.contracts.length}`, contractList(line.contracts));
+}
+
+/** Contracts, a capability's or a link's alike, each by its title, opening one level deeper to its health and trail. */
+function contractList(contracts: readonly ContractLine[]): string {
+  return `<ul class="panel-contracts">${contracts
     .map((contract) => `
       <li data-contract-id="${attribute(contract.id)}">${fold("contract", text(contract.title), `
         <span class="panel-health">
@@ -115,7 +119,7 @@ function contracts(line: CapabilityLine): string {
           ${contract.verified === undefined ? "" : badge("storytree saw", contract.verified, contract.source === undefined ? undefined : [contract.source])}
           ${contract.lastSeen === undefined ? "" : `<span class="panel-last-seen">last seen ${contract.lastSeen.state === "passing" ? "passing" : "failing"} ${day(contract.lastSeen.at)}, not re-run since</span>`}
         </span>`)}</li>`)
-    .join("")}</ul>`);
+    .join("")}</ul>`;
 }
 
 function capability(line: CapabilityLine): string {

@@ -393,7 +393,7 @@ test("2.27 · the kept forest is drawn at once, marked not fresh; a first read t
   assert.equal(none.failures.filter((line) => line.startsWith("the forest of site could not be read")).length, 2);
 });
 
-test("2.28 · a territory click opens its story on that capability, and every drawing of the panel is handed to its folds", async (t) => {
+test("2.28 · a territory click opens its story on that capability and hands the drawn panel to its folds; a redraw keeps the capability and hands them nothing new", async (t) => {
   const on = page(t);
   await settled();
   on.land();

@@ -59,9 +59,15 @@ test("3.28 · `arc increment new` naming a capability another open increment lis
   const lines = told.text.split("\n");
   assert.equal(lines.length, 2, told.text);
   assert.ok(lines[1]!.includes(first.id) && lines[1]!.includes("Route the form") && lines[1]!.includes(arc.id) && lines[1]!.includes(form.id) && !lines[1]!.includes(checks.id), told.text);
-  assert.ok(lines[1]!.includes("your edit is saved"), `the notice says the edit is saved: ${told.text}`);
+  assert.ok(lines[1]!.includes(`${form.id} is also`) && lines[1]!.includes("your edit is saved"), `the notice says the edit is saved: ${told.text}`);
   assert.ok(!refusal.includes(lines[1]!.replace(/\.$/, "")), `the notice is not the park's refusal: ${told.text} / ${refusal}`);
 
   const again = await edit.act({ increment: second.id, capabilities: `${checks.id},${form.id}`, title: "Route the checks and form" }, context, WORDS);
   assert.equal(again.text, `Edited increment ${second.id}.`, "a capability it already listed is not told of again");
+
+  const label = await library.addCapability({ title: "Label", story: story.id });
+  await library.editIncrement(first.id, { capabilities: [form.id, label.id] });
+  const third = await library.addIncrement({ arc: drain.id, title: "Route the label", objective: "Route it", body: "…" });
+  const both = (await edit.act({ increment: third.id, capabilities: `${form.id},${label.id}` }, context, WORDS)).text.split("\n");
+  assert.ok(both.some((line) => line.includes(first.id) && line.includes(`${form.id}, ${label.id} are also`)), `two capabilities another lists are told together: ${both.join("\n")}`);
 });

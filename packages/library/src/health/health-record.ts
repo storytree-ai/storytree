@@ -18,7 +18,7 @@ import { byCreation } from "../creation-order.js";
 import { couldBeId, liveRecord, MissingReferenceError, recordNamed } from "../references.js";
 import type { SchemaRecord, SchemaRecords, WriteOptions } from "../schema/index.js";
 import type { FieldsOf, RecordType } from "../schema/types.js";
-import type { Anchor, ArcNode, CapabilityNode, ContractNode, EdgeNode, ParkedOn, ProjectTree, StoryNode, WorkModel } from "../work/index.js";
+import type { Anchor, ArcNode, CapabilityNode, ContractNode, EdgeNode, ParkedOn, ProjectTree, StoryNode, WorkInFlight, WorkModel } from "../work/index.js";
 
 /** A column's state. A column with no entry reads `not-checked`, never `passing`. */
 export type HealthState = FieldsOf<"health">["state"];
@@ -247,10 +247,13 @@ const ROLLED_UP: Partial<Readonly<Record<RecordType, string>>> = {
 export class HealthRecord {
   readonly #records: SchemaRecords;
   readonly #work: WorkModel;
+  readonly #flight: Pick<WorkInFlight, "releaseOnVerdict"> | undefined;
 
-  constructor(records: SchemaRecords, work: WorkModel) {
+  /** Given `flight`, a failing verified verdict releases the increments waiting on an event about its contract (10.44). */
+  constructor(records: SchemaRecords, work: WorkModel, flight?: Pick<WorkInFlight, "releaseOnVerdict">) {
     this.#records = records;
     this.#work = work;
+    this.#flight = flight;
   }
 
   /**
@@ -264,9 +267,20 @@ export class HealthRecord {
     return this.#write("reported", contractId, state, options);
   }
 
-  /** Write what storytree verified about contract `contractId`, by seeing it for itself: as reportHealth, in the verified column. */
-  recordVerified(contractId: string, state: HealthState, options: HealthOptions = {}): Promise<HealthEntry> {
-    return this.#write("verified", contractId, state, options);
+  /**
+   * Write what storytree verified about contract `contractId`, by seeing it for itself: as reportHealth, in the verified
+   * column. A failing verdict, given work in flight, releases each open increment waiting on an event about the contract,
+   * with the verdict written on it (10.44), so a red a fix did not cure goes back to ready work.
+   */
+  async recordVerified(contractId: string, state: HealthState, options: HealthOptions = {}): Promise<HealthEntry> {
+    const entry = await this.#write("verified", contractId, state, options);
+    if (state !== "failing" || this.#flight === undefined) return entry;
+    const contract = (await liveRecord(this.#records, contractId, ["contract"]))!;
+    const by = [entry.by, entry.source].filter((part) => part !== undefined).join(", ");
+    const verdict = `VERDICT ${entry.at}: ${contract.fields.title} verified failing${by === "" ? "" : ` by ${by}`}${entry.note === undefined ? "." : `: ${entry.note}.`}`;
+    const { by: _by, note: _note, skip: _skip, was: _was, source: _source, ...write } = options;
+    await this.#flight.releaseOnVerdict(contractId, contract.fields.capability, verdict, write);
+    return entry;
   }
 
   /**

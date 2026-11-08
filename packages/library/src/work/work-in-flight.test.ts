@@ -20,6 +20,7 @@ import { connect } from "../project/index.js";
 import { MissingReferenceError } from "../references.js";
 import { SCHEMA_VERSIONS, SchemaError, SchemaRecords, type SchemaRecord } from "../schema/index.js";
 import { dropTestDatabases, testServerUrl, uniqueProjectName, withCountedProject } from "../testing/pg.js";
+import { HealthRecord } from "../health/index.js";
 import { Knowledge } from "../knowledge/index.js";
 import { MemoryTransactions, type Transactions } from "../transactions/index.js";
 import { LifecycleError, WaitLoopError, WorkInFlight, WorkModel, type ArcView, type NewIncrement } from "./index.js";
@@ -27,6 +28,7 @@ import { LifecycleError, WaitLoopError, WorkInFlight, WorkModel, type ArcView, t
 interface Library {
   readonly work: WorkModel;
   readonly flight: WorkInFlight;
+  readonly health: HealthRecord;
   readonly records: SchemaRecords;
   readonly transactions: Transactions;
   cleanup(): Promise<void>;
@@ -42,7 +44,9 @@ const memory: Backend = {
   async open() {
     const transactions = new MemoryTransactions();
     const records = new SchemaRecords(transactions);
-    return { work: new WorkModel(records), flight: new WorkInFlight(records), records, transactions, cleanup: async () => {} };
+    const work = new WorkModel(records);
+    const flight = new WorkInFlight(records);
+    return { work, flight, health: new HealthRecord(records, work, flight), records, transactions, cleanup: async () => {} };
   },
 };
 
@@ -60,7 +64,7 @@ const postgres: Backend = {
     };
     try {
       const project = await storytree.openProject(name);
-      return { work: project.work, flight: project.flight, records: project.records, transactions: project.transactions, cleanup };
+      return { work: project.work, flight: project.flight, health: project.health, records: project.records, transactions: project.transactions, cleanup };
     } catch (error) {
       await cleanup();
       throw error;
@@ -1066,6 +1070,51 @@ for (const backend of [memory, postgres]) {
     assert.equal(await flight.retireQuestion(question.id, "again"), null, "a retired question is not live");
     assert.equal(await flight.retireQuestion(open.id, "not a question"), null);
     assert.deepEqual(await transactions.history(), history, "nothing was written");
+  });
+
+  contract("10.44", "a failing verified verdict on a contract releases each open increment whose event wait is about it (one that links the contract or lists its capability): its event wait is cleared and the verdict written at the top of its body, in one write; a passing or not-checked verdict, an owner wait and an increment about other work are left as they were", async ({ work, flight, health, records, transactions }) => {
+    const story = await work.addStory({ title: "Map" });
+    const [render, other] = await Promise.all(["Story node render", "Other"].map((title) => work.addCapability({ title, story: story.id })));
+    const lag = await work.addContract({ title: "3.49 · A fresh start opens within its bound", capability: render!.id });
+    const elsewhere = await work.addContract({ title: "3.1 · Something else", capability: other!.id });
+    const arc = await flight.createArc(ARC);
+    const tomorrow = new Date(Date.now() + 86_400_000).toISOString().slice(0, 10);
+    const event = { releaser: "event" as const, note: "the first lag run on a main holding PR #580", checkBack: tomorrow };
+    const owner = { releaser: "owner" as const, note: "sign in", why: "the run reads mail" };
+    const linked = await flight.addIncrement({ arc: arc.id, title: "Re-measure 3.49", ...BARE_WORK, links: [lag.id], waitsFor: [event] });
+    const listed = await flight.addIncrement({ arc: arc.id, title: "Fix the render", ...BARE_WORK, capabilities: [render!.id], waitsFor: [event, owner] });
+    const unrelated = await flight.addIncrement({ arc: arc.id, title: "Other work", ...BARE_WORK, capabilities: [other!.id], links: [elsewhere.id], waitsFor: [event] });
+    const ownerOnly = await flight.addIncrement({ arc: arc.id, title: "Waits for the owner", ...BARE_WORK, links: [lag.id], waitsFor: [owner] });
+    const fields = async (id: string) => (await records.get(id))?.fields as { body: string; waitsFor?: unknown };
+
+    let history = await transactions.history();
+    await health.recordVerified(lag.id, "passing", { by: "lag run 250" });
+    await health.recordVerified(lag.id, "not-checked", { by: "lag run 251", skip: "other" });
+    assert.equal((await transactions.history()).length, history.length + 2, "a passing or not-checked verdict writes only itself");
+
+    history = await transactions.history();
+    await health.recordVerified(lag.id, "failing", { by: "lag run 253", note: "open-app-fresh slower since c64225e5" });
+    const written = (await transactions.history()).slice(history.length);
+    assert.equal(written.filter((change) => change.recordId === linked.id).length, 1, "the linked increment is released in one write");
+    assert.equal(written.filter((change) => change.recordId === listed.id).length, 1, "the increment listing its capability is released in one write");
+
+    assert.equal((await fields(linked.id)).waitsFor, undefined, "its event wait is cleared");
+    assert.deepEqual((await fields(listed.id)).waitsFor, [{ ...owner, reviewed: new Date().toISOString().slice(0, 10) }], "its owner wait stays");
+    for (const id of [linked.id, listed.id]) {
+      const { body } = await fields(id);
+      assert.ok(body.endsWith(BARE_WORK.body), "the body it had is kept");
+      const verdict = body.slice(0, body.length - BARE_WORK.body.length);
+      for (const said of ["failing", "3.49 · A fresh start opens within its bound", "lag run 253", "open-app-fresh slower since c64225e5", event.note]) assert.ok(verdict.includes(said), `the verdict written on it says ${said}`);
+    }
+    assert.deepEqual((await flight.holds()).waitsFor?.[linked.id] ?? [], [], "nothing holds it now");
+
+    assert.deepEqual((await fields(unrelated.id)).waitsFor, [event], "an increment about other work keeps its wait");
+    assert.equal((await fields(unrelated.id)).body, BARE_WORK.body);
+    assert.equal((await fields(ownerOnly.id)).body, BARE_WORK.body, "an owner wait is not released by a verdict");
+
+    history = await transactions.history();
+    await health.recordVerified(lag.id, "failing", { by: "lag run 254" });
+    assert.equal((await transactions.history()).length, history.length + 1, "a released increment is not written again");
   });
 }
 

@@ -165,6 +165,26 @@ export async function removeWaitFor(records: SchemaRecords, id: string, releaser
 }
 
 /**
+ * Release each open increment whose event wait is about contract `contract` (10.44): one that links it or lists its
+ * `capability`. Its event wait is cleared and `verdict` written at the top of its body, in one write whose history keeps
+ * `verdict` as the reason; its other waits stay. The ids of the increments released, oldest first.
+ */
+export async function releaseOnVerdict(records: SchemaRecords, contract: string, capability: string | undefined, verdict: string, options?: WriteOptions): Promise<string[]> {
+  const open = await records.select("increment", ["body", "links", "capabilities", "waitsFor"], { not: { status: "closed" } });
+  const about = open
+    .filter(({ fields }) => fields.waitsFor?.some((wait) => wait.releaser === "event") === true)
+    .filter(({ fields }) => fields.links?.includes(contract) === true || (capability !== undefined && fields.capabilities?.includes(capability) === true))
+    .sort(byCreation);
+  for (const { id, fields } of about) {
+    const event = fields.waitsFor!.find((wait) => wait.releaser === "event")!;
+    const rest = fields.waitsFor!.filter((wait) => wait !== event);
+    const body = `${verdict} That released its event wait, "${event.note}" (check-back ${event.checkBack}).\n\n${fields.body}`;
+    await records.edit(id, { body, waitsFor: rest.length === 0 ? undefined : rest }, { ...options, reason: verdict });
+  }
+  return about.map(({ id }) => id);
+}
+
+/**
  * Take question `id` off the heldOn of every increment that names it, open or closed, keeping their
  * other holds, as the question is settled (10.39) or retired (10.40); the increments released, oldest first.
  */

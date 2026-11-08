@@ -603,7 +603,7 @@ class ProjectLibrary implements Project {
     this.work = new WorkModel(this.records);
     this.flight = new WorkInFlight(this.records, this.work);
     this.knowledge = new Knowledge(this.records, name, { vectors: new PgVectors(pool, vectorCache, domain), ...(embedder === undefined ? {} : { embedder }) });
-    this.health = new HealthRecord(this.records, this.work);
+    this.health = new HealthRecord(this.records, this.work, this.flight);
     this.lineage = new ProjectLineage(pool, name);
     this.#forget = forget;
   }

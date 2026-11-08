@@ -547,6 +547,8 @@ async function writeLines(harness: string, input: string, flags: readonly string
 
 /** How often a hook hands the look around the machine on, at most. */
 const UPKEEP_EVERY_MS = 60_000;
+/** How often stale shell-edits baselines are looked for: an hour, since a week is what makes one stale. */
+const PRUNE_EVERY_MS = 60 * 60_000;
 
 /** The look around the machine, handed on by a hook: open the log of the project `made`'s folder belongs to, and look. Never throws. */
 async function upkeep(made: HookLines, merges: MergeWatch | undefined, locate: LocateOptions | undefined): Promise<void> {
@@ -580,6 +582,12 @@ async function lookAround(watcher: MergeContext, watch: MergeWatch | undefined):
   // Worktrees whose sessions have left and whose work is in main are removed (ADR-0790).
   const { reapWorktrees } = await import("../sessions/worktree-reaper.js");
   await reapWorktrees(watcher, watch?.everyMs === undefined ? {} : { everyMs: watch.everyMs }).catch(() => []);
+  // Shell-edits baselines no session has written for a week are let go, so they stop filling the disk.
+  const { due } = await import("../claims/merges.js");
+  if (due("shell-edits-baselines", PRUNE_EVERY_MS)) {
+    const { pruneBaselines } = await import("./shell-edits.js");
+    pruneBaselines(storytreeHome());
+  }
   // Which sessions the Claude desktop app and Codex keep on this machine, and whether each is archived there.
   const { recordAppStates } = await import("../sessions/app-records.js");
   await recordAppStates(watcher, watch?.everyMs === undefined ? {} : { everyMs: watch.everyMs }).catch(() => []);

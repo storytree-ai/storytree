@@ -22,7 +22,7 @@ import { DependencyLoopError, MissingReferenceError } from "../references.js";
 import { SCHEMA_VERSIONS, SchemaError, SchemaRecords, type RecordType, type SchemaRecord } from "../schema/index.js";
 import { dropTestDatabases, testServerUrl, uniqueProjectName } from "../testing/pg.js";
 import { MemoryTransactions, type RecordEnvelope, type Transactions } from "../transactions/index.js";
-import { ANCHOR_ID, anchorGaps, WorkModel } from "./index.js";
+import { ANCHOR_ID, anchorGaps, WorkModel, type PluginPlan } from "./index.js";
 
 /** A fresh, empty library: the work model under test, and the layers it runs over. */
 interface Library {
@@ -931,6 +931,25 @@ for (const backend of [memory, postgres]) {
     assert.deepEqual(fourth.edited, [speech]);
     assert.deepEqual(await work.dependsOn(speech), [window.id], "the edge the plan no longer names is gone");
     await assert.rejects(work.addEdge({ from: speech, to: address }), schemaError("edge", ["from"]), "an edge on a plugin's story is its plan's to write");
+  });
+
+  contract("4.43", "importPluginPlan given the numbers its plan's source ever held retires only a live capability or contract among them; any other (one another lane landed after the source was cut) stays live with its id and is reported left, not retired", async ({ work, records }) => {
+    const plan = (capabilities: PluginPlan["capabilities"]): PluginPlan => ({ story: { title: "Voice" }, capabilities });
+    const address = { title: "1 · The address", contracts: [{ title: "1.1 · A wrong path is answered 404" }, { title: "1.2 · A wrong method is answered 405" }] };
+    const first = await work.importPluginPlan("voice", plan([address, { title: "2 · Speech", contracts: [{ title: "2.1 · Speaks" }] }]));
+    const ids = async () => new Map((await work.projectTree()).stories.find(({ id }) => id === first.story)!.capabilities.flatMap((capability) => [[capability.title, capability.id], ...capability.contracts.map((contract) => [contract.title, contract.id] as const)]));
+    const landed = await ids();
+
+    // A folder cut before 1.2 and capability 2 landed, whose own history dropped 1.1's old sibling 1.3, holds only 1.1.
+    const stale = await work.importPluginPlan("voice", plan([{ title: "1 · The address", contracts: [{ title: "1.1 · A wrong path is answered 404" }] }]), { held: { capabilities: [1], contracts: ["1.1", "1.3"] } });
+    assert.deepEqual(stale.retired, [], "nothing the source never held is retired");
+    assert.deepEqual(new Set(stale.left), new Set([landed.get("1.2 · A wrong method is answered 405"), landed.get("2 · Speech"), landed.get("2.1 · Speaks")]), "another lane's capability and contracts are left, and said");
+    assert.deepEqual(await ids(), landed, "they stay live under their ids");
+
+    const removed = await work.importPluginPlan("voice", plan([{ title: "1 · The address", contracts: [{ title: "1.1 · A wrong path is answered 404" }] }]), { held: { capabilities: [1, 2], contracts: ["1.1", "1.2", "2.1"] } });
+    assert.deepEqual(new Set(removed.retired), new Set([landed.get("1.2 · A wrong method is answered 405"), landed.get("2 · Speech"), landed.get("2.1 · Speaks")]), "what the source's own history held and dropped is retired");
+    assert.deepEqual(removed.left, []);
+    assert.equal(await records.get(landed.get("2 · Speech")!), null);
   });
 }
 

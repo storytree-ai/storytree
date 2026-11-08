@@ -15,12 +15,13 @@
  * records read dormant. It may declare long-running services (ADR-1180 D1), which a service host on each machine runs.
  * It may carry its own story's plan, as a file its manifest's `plan` names (ADR-1187), imported from there.
  */
+import { execFileSync } from "node:child_process";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
-import { pluginSchema, type PluginPlan, type PluginRecordKind } from "@storytree/library";
+import { pluginSchema, type PluginPlan, type PluginPlanHeld, type PluginRecordKind } from "@storytree/library";
 import type { OutsideWriter } from "@storytree/library/outside-writer";
 import type { VerbContext } from "@storytree/library/verbs";
 import type { SettingsReading } from "@storytree/project-and-caller";
@@ -219,14 +220,10 @@ export function pluginRecordKinds(folder: string | undefined, plugin: string): P
  * shape is refused with why (the library checks the rest as it imports).
  */
 export function pluginPlan(folder: string | undefined, plugin: string): PluginPlan | undefined {
-  const { dir, manifest } = pluginManifest(folder, plugin);
-  const named = manifest.plan;
+  const named = planFile(folder, plugin);
   if (named === undefined) return undefined;
-  if (typeof named !== "string" || named === "") throw new Error(`${plugin}'s storytree manifest names its plan as ${JSON.stringify(named)}, not a file in its folder`);
-  const file = path.resolve(dir, named);
-  const within = path.relative(dir, file);
-  if (within === "" || within.startsWith("..") || path.isAbsolute(within)) throw new Error(`${plugin}'s plan ${named} is outside its own folder`);
-  if (!existsSync(file)) throw new Error(`${plugin}'s plan ${named} is not there (no ${file})`);
+  const { file, within } = named;
+  if (!existsSync(file)) throw new Error(`${plugin}'s plan ${within} is not there (no ${file})`);
   let plan: unknown;
   try {
     plan = JSON.parse(readFileSync(file, "utf8"));
@@ -237,6 +234,76 @@ export function pluginPlan(folder: string | undefined, plugin: string): PluginPl
   const listed = Array.isArray(capabilities) && capabilities.every((capability: { contracts?: unknown } | null) => Array.isArray(capability?.contracts));
   if (typeof story !== "object" || story === null || !listed) throw new Error(`${plugin}'s plan ${within} is not { story, capabilities: [{ …, contracts: […] }] }`);
   return plan as PluginPlan;
+}
+
+/** The plan file plugin `plugin` of `folder` names, and its path inside the plugin's folder; none when it names none, refused when it names one outside. */
+function planFile(folder: string | undefined, plugin: string): { file: string; within: string } | undefined {
+  const { dir, manifest } = pluginManifest(folder, plugin);
+  const named = manifest.plan;
+  if (named === undefined) return undefined;
+  if (typeof named !== "string" || named === "") throw new Error(`${plugin}'s storytree manifest names its plan as ${JSON.stringify(named)}, not a file in its folder`);
+  const file = path.resolve(dir, named);
+  const within = path.relative(dir, file);
+  if (within === "" || within.startsWith("..") || path.isAbsolute(within)) throw new Error(`${plugin}'s plan ${named} is outside its own folder`);
+  return { file, within };
+}
+
+/**
+ * The capability and contract numbers plugin `plugin`'s plan file in `folder` has held in any commit of the folder's
+ * history (its HEAD's), and as it stands: what an import from that folder may retire, so a folder cut before another
+ * lane's landing retires none of that lane's plan. None when the folder is not a git checkout, so an import from it
+ * retires whatever its plan does not hold, as before. A version that is not JSON holds nothing.
+ */
+export function pluginPlanHeld(folder: string | undefined, plugin: string): PluginPlanHeld | undefined {
+  const named = planFile(folder, plugin);
+  if (named === undefined) return undefined;
+  const git = (args: string[], input?: string): Buffer | undefined => {
+    try {
+      return execFileSync("git", args, { cwd: path.dirname(named.file), stdio: ["pipe", "pipe", "ignore"], maxBuffer: 1 << 30, ...(input === undefined ? {} : { input }) });
+    } catch {
+      return undefined;
+    }
+  };
+  // The plan's folder relative to the checkout's top (git's own reading, so a symlinked temporary folder reads the same).
+  const prefix = git(["rev-parse", "--show-prefix"])?.toString().trim();
+  if (prefix === undefined) return undefined;
+  const relative = `${prefix}${path.basename(named.file)}`;
+  const commits = (git(["log", "--format=%H", "HEAD", "--", `:(top)${relative}`])?.toString() ?? "").split("\n").filter((line) => line !== "");
+  const versions: unknown[] = [];
+  const read = (text: string): void => {
+    try {
+      versions.push(JSON.parse(text));
+    } catch {
+      // A version that is not JSON holds no numbers.
+    }
+  };
+  if (commits.length > 0) {
+    const batch = git(["cat-file", "--batch"], commits.map((commit) => `${commit}:${relative}\n`).join("")) ?? Buffer.alloc(0);
+    for (let at = 0; at < batch.length; ) {
+      const end = batch.indexOf(10, at);
+      if (end < 0) break;
+      const [, kind, size] = batch.subarray(at, end).toString().split(" ");
+      at = end + 1;
+      if (kind !== "blob") continue;
+      read(batch.subarray(at, at + Number(size)).toString("utf8"));
+      at += Number(size) + 1;
+    }
+  }
+  if (existsSync(named.file)) read(readFileSync(named.file, "utf8"));
+  const capabilities = new Set<number>();
+  const contracts = new Set<string>();
+  for (const version of versions) {
+    const listed = (version as { capabilities?: unknown } | null)?.capabilities;
+    for (const capability of Array.isArray(listed) ? listed : []) {
+      const number = /^(\d+) · /.exec(String(capability?.title))?.[1];
+      if (number !== undefined) capabilities.add(Number(number));
+      for (const contract of Array.isArray(capability?.contracts) ? capability.contracts : []) {
+        const own = /^(\d+\.\d+)(?![\d.])/.exec(String(contract?.title))?.[1];
+        if (own !== undefined) contracts.add(own);
+      }
+    }
+  }
+  return { capabilities: [...capabilities], contracts: [...contracts] };
 }
 
 /**

@@ -3,6 +3,7 @@
  * capabilities and contracts, in a file its manifest names, and storytree imports it from there into the project's plan.
  */
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -104,6 +105,68 @@ test("5.18 · `plugin import-plan <plugin> --from <folder>` reads the plugin's p
 
     const gone = path.join(home, "no-such-worktree");
     await assert.rejects(importPlan({ plugin: "voice", from: gone }), (error: unknown) => error instanceof VerbRefusal && error.message.includes(path.join(gone, "plugins", "voice")));
+  } finally {
+    await storytree.close();
+    await dropTestDatabases([`storytree_${run}`]);
+  }
+});
+
+test("5.23 · `plugin import-plan` from a git checkout retires only what a committed version of the plugin's plan in that checkout's history held, so a folder cut before another lane's landing leaves that lane's capabilities and contracts live, saying how many it left and to merge the factory's main; a re-import after the merge keeps their ids", async (t) => {
+  const home = mkdtempSync(path.join(tmpdir(), "storytree-home-"));
+  const saved = process.env.STORYTREE_HOME;
+  process.env.STORYTREE_HOME = home;
+  t.after(async () => {
+    if (saved === undefined) delete process.env.STORYTREE_HOME;
+    else process.env.STORYTREE_HOME = saved;
+    await removeTemp(home);
+  });
+  const factory = path.join(home, "factory");
+  const stale = path.join(home, "stale-worktree");
+  const git = (cwd: string, ...args: string[]) => execFileSync("git", ["-c", "user.name=lane", "-c", "user.email=lane@example.com", "-c", "commit.gpgsign=false", ...args], { cwd, stdio: "pipe" });
+  const writePlan = (folder: string, plan: unknown) => {
+    const plugin = path.join(folder, "plugins", "voice");
+    mkdirSync(plugin, { recursive: true });
+    writeFileSync(path.join(plugin, "package.json"), JSON.stringify({ name: "voice", storytree: { interface: PLUGIN_INTERFACE, plan: "./plan.json" } }));
+    writeFileSync(path.join(plugin, "plan.json"), JSON.stringify(plan, null, 2));
+  };
+  const address = (contracts: string[]) => ({ story: { title: "Voice" }, capabilities: [{ title: "1 · The address", contracts: contracts.map((title) => ({ title })) }] });
+  mkdirSync(factory);
+  git(factory, "init", "-q", "-b", "main");
+  writePlan(factory, address(["1.1 · A wrong path is answered 404"]));
+  git(factory, "add", ".");
+  git(factory, "commit", "-q", "-m", "voice's plan");
+  git(factory, "worktree", "add", "-q", "-b", "lane", stale);
+  // Another lane lands 1.2 on the factory's main after this lane's worktree was cut.
+  writePlan(factory, address(["1.1 · A wrong path is answered 404", "1.2 · A wrong method is answered 405"]));
+  git(factory, "commit", "-q", "-am", "1.2 lands");
+
+  const { PLUGIN_FAMILIES } = await import("./verbs.js");
+  const importVerb = PLUGIN_FAMILIES[0]!.verbs.find((each) => "name" in each.command && each.command.name === "import-plan")!;
+  const words = { door: "command" as const, say: (step: { command?: string }) => `storytree ${step.command}` };
+  const run = uniqueProjectName();
+  const storytree = await connect({ url: testServerUrl() });
+  try {
+    const library = await storytree.openProject(run);
+    const importPlan = (from: string) => importVerb.act({ plugin: "voice", from } as never, { folder: home, project: run, library, session: "test" } as never, words);
+    const contracts = async () => (await library.projectTree()).stories.find(({ plugin }) => plugin === "voice")!.capabilities[0]!.contracts.map(({ id, title }) => [title, id]);
+
+    await importPlan(factory);
+    const landed = await contracts();
+    assert.equal(landed.length, 2);
+
+    const left = await importPlan(stale);
+    assert.match(left.text, /: 0 added, 0 edited, 0 retired, 3 kept, 1 left\n/, "the stale folder retires nothing another lane landed");
+    assert.match(left.text, new RegExp(`${landed[1]![1]}.*merge the factory's main`));
+    assert.deepEqual(await contracts(), landed, "1.2 stays live under its id");
+
+    git(stale, "merge", "-q", "main");
+    assert.match((await importPlan(stale)).text, /: 0 added, 0 edited, 0 retired, 4 kept\.$/);
+    assert.deepEqual(await contracts(), landed, "a re-import after the merge keeps the ids");
+
+    // The lane's own history dropping 1.2 is a removal it may make.
+    writePlan(stale, address(["1.1 · A wrong path is answered 404"]));
+    git(stale, "commit", "-q", "-am", "1.2 goes");
+    assert.match((await importPlan(stale)).text, /: 0 added, 0 edited, 1 retired, 3 kept\.$/);
   } finally {
     await storytree.close();
     await dropTestDatabases([`storytree_${run}`]);

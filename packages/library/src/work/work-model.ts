@@ -71,6 +71,16 @@ export interface ImportedPluginPlan {
   readonly edited: string[];
   readonly retired: string[];
   readonly kept: string[];
+  /** The live records the plan does not hold that it left, since its source never held their numbers (`held`). */
+  readonly left: string[];
+}
+/**
+ * The capability and contract numbers a plugin's plan source has ever held (every version of its plan file in the
+ * source's history, and the file as it stands): an import from it retires only what these name.
+ */
+export interface PluginPlanHeld {
+  readonly capabilities: readonly number[];
+  readonly contracts: readonly string[];
 }
 /** A new capability's fields: `story` and every `dependsOn` id must name existing records. It is proposed unless told otherwise. */
 export type NewCapability = Omit<FieldsOf<"capability">, "proposed"> & { proposed?: boolean };
@@ -267,11 +277,12 @@ export class WorkModel {
    * its live story is the one marked as `plugin`'s, or, the first time, the live story `adopt` names, else a new one.
    * Its capabilities are matched by number and their contracts by theirs: what changed is edited, what is new added,
    * and what the plan no longer holds retired, a capability's contracts with it, so a kept record keeps its id, links
-   * and health. Everything is checked first, and a plan with a capability or contract carrying no number or a number
+   * and health. Given `held`, the numbers the plan's source ever held, it retires only those, and leaves any other live
+   * record (one another lane landed after a stale source was cut) as it stands, reporting it left. Everything is checked first, and a plan with a capability or contract carrying no number or a number
    * twice, a contract numbered under another capability, or an `adopt` that is mapped, another plugin's or not this
    * plugin's own story, is refused (SchemaError) with nothing written.
    */
-  importPluginPlan(plugin: string, plan: PluginPlan, options: WriteOptions & { adopt?: string } = {}): Promise<ImportedPluginPlan> {
+  importPluginPlan(plugin: string, plan: PluginPlan, options: WriteOptions & { adopt?: string; held?: PluginPlanHeld } = {}): Promise<ImportedPluginPlan> {
     return this.#serially(async () => {
       const refuse = (field: string, problem: string): never => { throw new SchemaError("story", [{ field, problem }]); };
       if (typeof plugin !== "string" || plugin === "") refuse("plugin", "a plugin's story names its plugin");
@@ -312,7 +323,9 @@ export class WorkModel {
       const storyFields = { ...plan.story, plugin };
       this.#records.check("story", storyFields);
 
-      const done: ImportedPluginPlan = { story: story?.id ?? "", added: [], edited: [], retired: [], kept: [] };
+      const done: ImportedPluginPlan = { story: story?.id ?? "", added: [], edited: [], retired: [], kept: [], left: [] };
+      const heldCapabilities = options.held === undefined ? undefined : new Set(options.held.capabilities);
+      const heldContracts = options.held === undefined ? undefined : new Set(options.held.contracts);
       /** Write `fields` over `record` when they differ in any of `owned`, a field missing from `fields` being removed. */
       const update = async (record: SchemaRecord, fields: Record<string, unknown>, owned: readonly string[]): Promise<void> => {
         const edit = Object.fromEntries(owned.filter((field) => !isDeepStrictEqual(fields[field], (record.fields as Record<string, unknown>)[field])).map((field) => [field, fields[field]]));
@@ -357,13 +370,21 @@ export class WorkModel {
           if (theirs === undefined) done.added.push((await this.#records.create("contract", fieldsOf, options)).id);
           else await update(theirs, fieldsOf, PLUGIN_CONTRACT_FIELDS);
         }
-        for (const gone of contracts.values()) {
+        for (const [number, gone] of contracts) {
+          if (heldContracts !== undefined && !heldContracts.has(number)) {
+            done.left.push(gone.id);
+            continue;
+          }
           await this.#records.retire(gone.id, `${plugin}'s plan no longer holds it`, options);
           done.retired.push(gone.id);
         }
       }
       for (const [number, gone] of capabilities) {
         if (planned.has(number)) continue;
+        if (heldCapabilities !== undefined && !heldCapabilities.has(number)) {
+          done.left.push(gone.id, ...(await this.#contractsOf(gone.id)).map((contract) => contract.id));
+          continue;
+        }
         for (const contract of await this.#contractsOf(gone.id)) {
           await this.#records.retire(contract.id, `${plugin}'s plan no longer holds its capability`, options);
           done.retired.push(contract.id);
